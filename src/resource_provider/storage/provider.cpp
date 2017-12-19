@@ -443,7 +443,7 @@ private:
   // The last set of profile names fetched from the VolumeProfileAdaptor.
   hashset<string> knownProfiles;
 
-  // True if a reconcilition of storage pools is happening.
+  // True if a reconciliation of storage pools is happening.
   bool reconciling;
 
   ContainerID controllerContainerId;
@@ -850,7 +850,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverVolumes()
         }
 
         // NOTE: We avoid using a default clause for the following
-        // values in proto3's open enum to enable the compiler to detcet
+        // values in proto3's open enum to enable the compiler to detect
         // missing enum cases for us. See:
         // https://github.com/google/protobuf/issues/3917
         case google::protobuf::kint32min:
@@ -927,7 +927,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverProfiles()
 {
   // Rebuild the set of required profiles from the checkpointed storage
   // pools (i.e., RAW resources that have no volume ID). We do not need
-  // to resolve profiles for resoures that have volume IDs, since their
+  // to resolve profiles for resources that have volume IDs, since their
   // volume capabilities are already checkpointed.
   hashset<string> requiredProfiles;
   foreach (const Resource& resource, totalResources) {
@@ -947,7 +947,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverProfiles()
     << "Waiting for VolumeProfileAdaptor to recover profiles: "
     << stringify(requiredProfiles);
 
-  // The VolumeProfileAdapter module must at lest have knowledge of
+  // The VolumeProfileAdapter module must at least have knowledge of
   // the required profiles. Because the module is initialized separately
   // from this resource provider, we must watch the module until all
   // required profiles have been recovered.
@@ -1503,7 +1503,7 @@ void StorageLocalResourceProviderProcess::publishResources(
             }
 
             // NOTE: We avoid using a default clause for the following
-            // values in proto3's open enum to enable the compiler to detcet
+            // values in proto3's open enum to enable the compiler to detect
             // missing enum cases for us. See:
             // https://github.com/google/protobuf/issues/3917
             case google::protobuf::kint32min:
@@ -2717,7 +2717,7 @@ StorageLocalResourceProviderProcess::applyCreateVolumeOrBlock(
   // the same volume will be returned when recovering from a failover).
   //
   // For 2, there are two scenarios:
-  //   a. If the volume has a checkpointed state (becasue it was created
+  //   a. If the volume has a checkpointed state (because it was created
   //      by a previous resource provider), we simply check if its
   //      checkpointed capability supports the conversion.
   //   b. If the volume is newly discovered, `ValidateVolumeCapabilities`
@@ -2938,7 +2938,7 @@ Try<Nothing> StorageLocalResourceProviderProcess::updateOfferOperationStatus(
   OfferOperation& operation = offerOperations.at(operationUuid);
 
   if (conversions.isSome()) {
-    // Strip away the allocation info when applying the convertion to
+    // Strip away the allocation info when applying the conversion to
     // the total resources.
     vector<ResourceConversion> _conversions;
     foreach (ResourceConversion conversion, conversions.get()) {
