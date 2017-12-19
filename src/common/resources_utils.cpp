@@ -599,6 +599,17 @@ Option<Error> validateAndNormalizeResources(Offer::Operation* operation)
             " the Offer.Operation.create_volume field set.");
       }
 
+      Option<Error> error =
+        Resources::validate(operation->create_volume().source());
+
+      if (error.isSome()) {
+        return error;
+      }
+
+      convertResourceFormat(
+          operation->mutable_create_volume()->mutable_source(),
+          POST_RESERVATION_REFINEMENT);
+
       return None();
     }
     case Offer::Operation::DESTROY_VOLUME: {
@@ -610,6 +621,17 @@ Option<Error> validateAndNormalizeResources(Offer::Operation* operation)
             "A DESTROY_VOLUME offer operation must have"
             " the Offer.Operation.destroy_volume field set.");
       }
+
+      Option<Error> error =
+        Resources::validate(operation->destroy_volume().volume());
+
+      if (error.isSome()) {
+        return error;
+      }
+
+      convertResourceFormat(
+          operation->mutable_destroy_volume()->mutable_volume(),
+          POST_RESERVATION_REFINEMENT);
 
       return None();
     }
@@ -623,6 +645,17 @@ Option<Error> validateAndNormalizeResources(Offer::Operation* operation)
             " the Offer.Operation.create_block field set.");
       }
 
+      Option<Error> error =
+        Resources::validate(operation->create_block().source());
+
+      if (error.isSome()) {
+        return error;
+      }
+
+      convertResourceFormat(
+          operation->mutable_create_block()->mutable_source(),
+          POST_RESERVATION_REFINEMENT);
+
       return None();
     }
     case Offer::Operation::DESTROY_BLOCK: {
@@ -634,6 +667,17 @@ Option<Error> validateAndNormalizeResources(Offer::Operation* operation)
             "A DESTROY_BLOCK offer operation must have"
             " the Offer.Operation.destroy_block field set.");
       }
+
+      Option<Error> error =
+        Resources::validate(operation->destroy_block().block());
+
+      if (error.isSome()) {
+        return error;
+      }
+
+      convertResourceFormat(
+          operation->mutable_destroy_block()->mutable_block(),
+          POST_RESERVATION_REFINEMENT);
 
       return None();
     }
