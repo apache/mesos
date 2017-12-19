@@ -6751,10 +6751,23 @@ void Slave::__recover(const Future<Nothing>& future)
     EXIT(EXIT_FAILURE)
       << "Failed to perform recovery: "
       << (future.isFailed() ? future.failure() : "future discarded") << "\n"
-      << "To remedy this do as follows:\n"
-      << "Step 1: rm -f " << paths::getLatestSlavePath(metaDir) << "\n"
-      << "        This ensures agent doesn't recover old live executors.\n"
-      << "Step 2: Restart the agent.";
+      << "If recovery failed due to a change in configuration and you want to\n"
+      << "keep the current agent id, you might want to change the\n"
+      << "`--reconfiguration_policy` flag to a more permissive value.\n"
+      << "\n"
+      << "To restart this agent with a new agent id instead, do as follows:\n"
+      << "rm -f " << paths::getLatestSlavePath(metaDir) << "\n"
+      << "This ensures that the agent does not recover old live executors.\n"
+      << "\n"
+      << "If you use the Docker containerizer and think that the Docker\n"
+      << "daemon state is broken, you can try to clear it. But be careful:\n"
+      << "these commands will erase all containers and images from this host,\n"
+      << "not just those started by Mesos!\n"
+      << "docker kill $(docker ps -q)\n"
+      << "docker rm $(docker ps -a -q)\n"
+      << "docker rmi $(docker images -q)\n"
+      << "\n"
+      << "Finally, restart the agent.";
   }
 
   LOG(INFO) << "Finished recovery";
