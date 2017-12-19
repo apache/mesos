@@ -18,10 +18,10 @@ syntax = "proto3";
 
 import "csi.proto";
 
-package mesos.csi;
+package mesos.resource_provider;
 
 
-message UriVolumeProfileMapping {
+message VolumeProfileMapping {
   message CSIManifest {
     // Capabilities used for creating, publishing, and validating volumes.
     // This field is REQUIRED.

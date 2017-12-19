@@ -52,6 +52,47 @@ bool operator==(const Version& left, const Version& right)
 }
 
 
+bool operator==(const VolumeCapability& left, const VolumeCapability& right) {
+  // NOTE: This enumeration is set when `block` or `mount` are set and
+  // covers the case where neither are set.
+  if (left.access_type_case() != right.access_type_case()) {
+    return false;
+  }
+
+  // NOTE: No need to check `block` for equality as that object is empty.
+
+  if (left.has_mount()) {
+    if (left.mount().fs_type() != right.mount().fs_type()) {
+      return false;
+    }
+
+    if (left.mount().mount_flags_size() != right.mount().mount_flags_size()) {
+      return false;
+    }
+
+    // NOTE: Ordering may or may not matter for these flags, but this helper
+    // only checks for complete equality.
+    for (int i = 0; i < left.mount().mount_flags_size(); i++) {
+      if (left.mount().mount_flags(i) != right.mount().mount_flags(i)) {
+        return false;
+      }
+    }
+  }
+
+  if (left.has_access_mode() != right.has_access_mode()) {
+    return false;
+  }
+
+  if (left.has_access_mode()) {
+    if (left.access_mode().mode() != right.access_mode().mode()) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
 bool operator!=(const Version& left, const Version& right)
 {
   return !(left == right);

@@ -14,11 +14,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "resource_provider/uri_volume_profile.hpp"
+
 #include <map>
 #include <string>
 #include <tuple>
-
-#include <google/protobuf/util/json_util.h>
 
 #include <mesos/mesos.hpp>
 
@@ -42,8 +42,9 @@
 #include <stout/strings.hpp>
 
 #include <csi/spec.hpp>
+#include <csi/utils.hpp>
 
-#include "resource_provider/uri_volume_profile.hpp"
+#include "resource_provider/volume_profile_utils.hpp"
 
 using namespace mesos;
 using namespace process;
@@ -54,52 +55,7 @@ using std::tuple;
 
 using google::protobuf::Map;
 
-using mesos::csi::UriVolumeProfileMapping;
-
-
-namespace csi {
-
-bool operator==(const VolumeCapability& left, const VolumeCapability& right) {
-  // NOTE: This enumeration is set when `block` or `mount` are set and
-  // covers the case where neither are set.
-  if (left.access_type_case() != right.access_type_case()) {
-    return false;
-  }
-
-  // NOTE: No need to check `block` for equality as that object is empty.
-
-  if (left.has_mount()) {
-    if (left.mount().fs_type() != right.mount().fs_type()) {
-      return false;
-    }
-
-    if (left.mount().mount_flags_size() != right.mount().mount_flags_size()) {
-      return false;
-    }
-
-    // NOTE: Ordering may or may not matter for these flags, but this helper
-    // only checks for complete equality.
-    for (int i = 0; i < left.mount().mount_flags_size(); i++) {
-      if (left.mount().mount_flags(i) != right.mount().mount_flags(i)) {
-        return false;
-      }
-    }
-  }
-
-  if (left.has_access_mode() != right.has_access_mode()) {
-    return false;
-  }
-
-  if (left.has_access_mode()) {
-    if (left.access_mode().mode() != right.access_mode().mode()) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-} // namespace csi {
+using mesos::resource_provider::VolumeProfileMapping;
 
 namespace mesos {
 namespace internal {
@@ -234,7 +190,7 @@ void UriVolumeProfileAdaptorProcess::poll()
 void UriVolumeProfileAdaptorProcess::_poll(const Try<string>& fetched)
 {
   if (fetched.isSome()) {
-    Try<UriVolumeProfileMapping> parsed = parse(fetched.get());
+    Try<VolumeProfileMapping> parsed = parseVolumeProfileMapping(fetched.get());
 
     if (parsed.isSome()) {
       notify(parsed.get());
@@ -254,7 +210,7 @@ void UriVolumeProfileAdaptorProcess::_poll(const Try<string>& fetched)
 
 
 void UriVolumeProfileAdaptorProcess::notify(
-    const UriVolumeProfileMapping& parsed)
+    const VolumeProfileMapping& parsed)
 {
   bool hasErrors = false;
 
@@ -325,95 +281,6 @@ void UriVolumeProfileAdaptorProcess::notify(
   LOG(INFO)
     << "Updated volume profile mapping to " << profiles.size()
     << " total profiles";
-}
-
-
-Try<UriVolumeProfileMapping> UriVolumeProfileAdaptorProcess::parse(
-    const string& data)
-{
-  // Use Google's JSON utility function to parse the JSON string.
-  UriVolumeProfileMapping output;
-  google::protobuf::util::JsonParseOptions options;
-  options.ignore_unknown_fields = true;
-
-  google::protobuf::util::Status status =
-    google::protobuf::util::JsonStringToMessage(data, &output, options);
-
-  if (!status.ok()) {
-    return Error(
-        "Failed to parse UriVolumeProfileMapping message: "
-        + status.ToString());
-  }
-
-  Option<Error> validation = validate(output);
-  if (validation.isSome()) {
-    return Error(
-      "Fetched profile mapping failed validation with: " + validation->message);
-  }
-
-  return output;
-}
-
-
-Option<Error> UriVolumeProfileAdaptorProcess::validate(
-    const UriVolumeProfileMapping& mapping)
-{
-  auto iterator = mapping.profile_matrix().begin();
-  while (iterator != mapping.profile_matrix().end()) {
-    if (!iterator->second.has_volume_capabilities()) {
-      return Error(
-          "Profile '" + iterator->first + "' is missing the required field "
-          + "'volume_capabilities");
-    }
-
-    Option<Error> capabilities =
-      validate(iterator->second.volume_capabilities());
-
-    if (capabilities.isSome()) {
-      return Error(
-          "Profile '" + iterator->first + "' VolumeCapabilities are invalid: "
-          + capabilities->message);
-    }
-
-    // NOTE: The `create_parameters` field is optional and needs no further
-    // validation after parsing.
-
-    iterator++;
-  }
-
-  return None();
-}
-
-
-Option<Error> UriVolumeProfileAdaptorProcess::validate(
-    const csi::VolumeCapability& capability)
-{
-  if (capability.has_mount()) {
-    // The total size of this repeated field may not exceed 4 KB.
-    //
-    // TODO(josephw): The specification does not state how this maximum
-    // size is calculated. So this check is conservative and does not
-    // include padding or array separators in the size calculation.
-    size_t size = 0;
-    foreach (const string& flag, capability.mount().mount_flags()) {
-      size += flag.size();
-    }
-
-    if (Bytes(size) > Kilobytes(4)) {
-      return Error("Size of 'mount_flags' may not exceed 4 KB");
-    }
-  }
-
-  if (!capability.has_access_mode()) {
-    return Error("'access_mode' is a required field");
-  }
-
-  if (capability.access_mode().mode() ==
-      csi::VolumeCapability::AccessMode::UNKNOWN) {
-    return Error("'access_mode.mode' is unknown or not set");
-  }
-
-  return None();
 }
 
 } // namespace profile {

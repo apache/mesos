@@ -43,6 +43,9 @@ bool operator==(
 bool operator==(const Version& left, const Version& right);
 
 
+bool operator==(const VolumeCapability& left, const VolumeCapability& right);
+
+
 bool operator!=(const Version& left, const Version& right);
 
 

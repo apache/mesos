@@ -40,10 +40,6 @@
 
 #include <mesos/module/authenticatee.hpp>
 
-#ifdef ENABLE_GRPC
-#include <mesos/resource_provider/volume_profile.hpp>
-#endif
-
 #include <mesos/slave/containerizer.hpp>
 #include <mesos/slave/qos_controller.hpp>
 #include <mesos/slave/resource_estimator.hpp>
@@ -102,6 +98,7 @@ namespace mesos {
 
 // Forward declarations.
 class Authorizer;
+class VolumeProfileAdaptor;
 
 namespace internal {
 namespace slave {
@@ -728,9 +725,7 @@ private:
 
   mesos::slave::QoSController* qosController;
 
-#ifdef ENABLE_GRPC
   std::shared_ptr<VolumeProfileAdaptor> volumeProfileAdaptor;
-#endif
 
   mesos::SecretGenerator* secretGenerator;
 

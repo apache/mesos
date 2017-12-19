@@ -382,6 +382,10 @@ CXX_PROTOS +=								\
   slave/containerizer/mesos/isolators/network/cni/spec.pb.h
 
 if ENABLE_GRPC
+CXX_PROTOS +=								\
+  resource_provider/volume_profile.pb.cc				\
+  resource_provider/volume_profile.pb.h
+
 CXX_CSI_PROTOS =							\
   ../include/csi/csi.grpc.pb.cc						\
   ../include/csi/csi.grpc.pb.h						\
@@ -772,9 +776,13 @@ nodist_quota_HEADERS =							\
 resourceproviderdir = $(pkgincludedir)/resource_provider
 
 resourceprovider_HEADERS =						\
-  $(top_srcdir)/include/mesos/resource_provider/volume_profile.hpp	\
   $(top_srcdir)/include/mesos/resource_provider/resource_provider.hpp	\
   $(top_srcdir)/include/mesos/resource_provider/resource_provider.proto
+
+if ENABLE_GRPC
+resourceprovider_HEADERS +=						\
+  $(top_srcdir)/include/mesos/resource_provider/volume_profile.hpp
+endif
 
 nodist_resourceprovider_HEADERS =					\
   ../include/mesos/resource_provider/resource_provider.pb.h
@@ -1103,11 +1111,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   zookeeper/detector.cpp						\
   zookeeper/zookeeper.cpp						\
   zookeeper/group.cpp
-
-if ENABLE_GRPC
-libmesos_no_3rdparty_la_SOURCES +=					\
-  resource_provider/volume_profile.cpp
-endif
 
 libmesos_no_3rdparty_la_SOURCES +=					\
   authentication/cram_md5/authenticatee.hpp				\
@@ -1468,6 +1471,12 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 endif
 
 if ENABLE_GRPC
+libmesos_no_3rdparty_la_SOURCES +=					\
+  resource_provider/volume_profile.cpp					\
+  resource_provider/volume_profile.proto				\
+  resource_provider/volume_profile_utils.cpp				\
+  resource_provider/volume_profile_utils.hpp
+
 if OS_LINUX
 libmesos_no_3rdparty_la_SOURCES +=					\
   resource_provider/storage/provider.cpp				\
@@ -2336,10 +2345,10 @@ libload_qos_controller_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
 if ENABLE_GRPC
 pkgmodule_LTLIBRARIES += liburi_volume_profile.la
 liburi_volume_profile_la_SOURCES =				\
-  csi/uri_volume_profile.pb.cc					\
-  csi/uri_volume_profile.pb.h					\
   resource_provider/uri_volume_profile.cpp			\
-  resource_provider/uri_volume_profile.hpp
+  resource_provider/uri_volume_profile.hpp			\
+  resource_provider/volume_profile.ph.h				\
+  resource_provider/volume_profile_utils.hpp
 liburi_volume_profile_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 liburi_volume_profile_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
 endif
@@ -2646,7 +2655,8 @@ if ENABLE_GRPC
 mesos_tests_SOURCES +=						\
   tests/csi_client_tests.cpp					\
   tests/mock_csi_plugin.cpp					\
-  tests/mock_csi_plugin.hpp
+  tests/mock_csi_plugin.hpp					\
+  tests/volume_profile_tests.cpp
 
 if OS_LINUX
 mesos_tests_SOURCES +=						\

@@ -38,8 +38,7 @@
 
 #include <csi/spec.hpp>
 
-// ONLY USEFUL AFTER RUNNING PROTOC.
-#include "csi/uri_volume_profile.pb.h"
+#include "resource_provider/volume_profile_utils.hpp"
 
 namespace mesos {
 namespace internal {
@@ -221,26 +220,9 @@ private:
   // of the module:
   //   * All known profiles must be included in the updated set.
   //   * All properties of known profiles must match those in the updated set.
-  void notify(const csi::UriVolumeProfileMapping& parsed);
-
-public:
-  // Helper for parsing a string as the expected data format.
-  // See the example string in the `--uri` help text for more details.
-  //
-  // NOTE: This method is public for testing purposes only.
-  static Try<csi::UriVolumeProfileMapping>
-    parse(const std::string& data);
+  void notify(const resource_provider::VolumeProfileMapping& parsed);
 
 private:
-  // Checks the fields inside a `UriVolumeProfileMapping` according to the
-  // comments above the protobuf.
-  static Option<Error> validate(
-      const csi::UriVolumeProfileMapping& mapping);
-
-  // Checks the fields inside a `VolumeCapability` according to the
-  // comments above the protobuf.
-  static Option<Error> validate(const csi::VolumeCapability& capability);
-
   Flags flags;
 
   // The last fetched profile mapping.
@@ -248,7 +230,7 @@ private:
   // Once added, profiles cannot be changed either.
   //
   // TODO(josephw): Consider persisting this mapping across agent restarts.
-  std::map<std::string, mesos::VolumeProfileAdaptor::ProfileInfo> data;
+  std::map<std::string, VolumeProfileAdaptor::ProfileInfo> data;
 
   // Convenience set of the keys in `data` above.
   // This module does not filter based on `CSIPluginInfo::type`, so this

@@ -19,6 +19,8 @@
 #include <tuple>
 #include <vector>
 
+#include <mesos/module/volume_profile.hpp>
+
 #include <mesos/resource_provider/volume_profile.hpp>
 
 #include <process/clock.hpp>
@@ -36,15 +38,16 @@
 
 #include <stout/os/write.hpp>
 
+#include "module/manager.hpp"
+
 #include "resource_provider/uri_volume_profile.hpp"
+#include "resource_provider/volume_profile_utils.hpp"
 
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
 using namespace process;
-
-using mesos::VolumeProfileAdaptor;
 
 using std::map;
 using std::string;
@@ -53,7 +56,7 @@ using std::vector;
 
 using google::protobuf::Map;
 
-using mesos::csi::UriVolumeProfileMapping;
+using mesos::resource_provider::VolumeProfileMapping;
 
 using testing::_;
 using testing::DoAll;
@@ -63,8 +66,45 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
+constexpr char URI_VOLUME_PROFILE_ADAPTOR_NAME[] =
+  "org_apache_mesos_UriVolumeProfileAdaptor";
 
-class UriVolumeProfileTest : public MesosTest {};
+
+class UriVolumeProfileTest : public MesosTest
+{
+public:
+  virtual void SetUp()
+  {
+    MesosTest::SetUp();
+
+    string libraryPath = getModulePath("uri_volume_profile");
+
+    Modules::Library* library = modules.add_libraries();
+    library->set_name("uri_volume_profile");
+    library->set_file(libraryPath);
+
+    Modules::Library::Module* module = library->add_modules();
+    module->set_name(URI_VOLUME_PROFILE_ADAPTOR_NAME);
+
+    ASSERT_SOME(modules::ModuleManager::load(modules));
+  }
+
+  virtual void TearDown()
+  {
+    foreach (const Modules::Library& library, modules.libraries()) {
+      foreach (const Modules::Library::Module& module, library.modules()) {
+        if (module.has_name()) {
+          ASSERT_SOME(modules::ModuleManager::unload(module.name()));
+        }
+      }
+    }
+
+    MesosTest::TearDown();
+  }
+
+protected:
+  Modules modules;
+};
 
 
 // Exercises the volume profile map parsing method with the example found
@@ -89,8 +129,8 @@ TEST_F(UriVolumeProfileTest, ParseExample)
       }
     })~";
 
-  Try<UriVolumeProfileMapping> parsed =
-    mesos::internal::profile::UriVolumeProfileAdaptorProcess::parse(example);
+  Try<VolumeProfileMapping> parsed =
+    mesos::internal::profile::parseVolumeProfileMapping(example);
   ASSERT_SOME(parsed);
 
   const string key = "my-profile";
@@ -226,9 +266,8 @@ TEST_F(UriVolumeProfileTest, ParseInvalids)
 
   hashset<string> errors;
   for (size_t i = 0; i < examples.size(); i++) {
-    Try<UriVolumeProfileMapping> parsed =
-      mesos::internal::profile::UriVolumeProfileAdaptorProcess::parse(
-          examples[i]);
+    Try<VolumeProfileMapping> parsed =
+      mesos::internal::profile::parseVolumeProfileMapping(examples[i]);
 
     ASSERT_ERROR(parsed) << examples[i];
     ASSERT_EQ(0u, errors.count(parsed.error())) << parsed.error();
@@ -262,21 +301,34 @@ TEST_F(UriVolumeProfileTest, FetchFromFile)
   const Duration pollInterval = Seconds(10);
   const string csiPluginType = "ignored";
 
-  mesos::internal::profile::Flags flags;
-  flags.uri = Path(profileFile);
-  flags.poll_interval = pollInterval;
+  Parameters params;
+
+  Parameter* pollIntervalFlag = params.add_parameter();
+  pollIntervalFlag->set_key("poll_interval");
+  pollIntervalFlag->set_value(stringify(pollInterval));
+
+  // NOTE: We cannot use the `file://` URI to sepcify the file location,
+  // otherwise the file contents will be prematurely read. Therefore, we
+  // specify the absolute path of the file in the `uri` flag.
+  Parameter* uriFlag = params.add_parameter();
+  uriFlag->set_key("uri");
+  uriFlag->set_value(profileFile);
 
   // Create the module before we've written anything to the file.
   // This means the first poll will fail, so the module believes there
   // are no profiles at the moment.
-  mesos::internal::profile::UriVolumeProfileAdaptor module(flags);
+  Try<VolumeProfileAdaptor*> module =
+    modules::ModuleManager::create<VolumeProfileAdaptor>(
+        URI_VOLUME_PROFILE_ADAPTOR_NAME,
+        params);
+  ASSERT_SOME(module);
 
   // Start watching for updates.
   // By the time this returns, we'll know that the first poll has finished
   // because when the module reads from file, it does so immediately upon
   // being initialized.
   Future<hashset<string>> future =
-    module.watch(hashset<string>::EMPTY, csiPluginType);
+    module.get()->watch(hashset<string>::EMPTY, csiPluginType);
 
   // Write the single profile to the file.
   ASSERT_SOME(os::write(profileFile, contents));
@@ -290,7 +342,7 @@ TEST_F(UriVolumeProfileTest, FetchFromFile)
 
   // Translate the profile name into the profile mapping.
   Future<VolumeProfileAdaptor::ProfileInfo> mapping =
-    module.translate(profileName, csiPluginType);
+    module.get()->translate(profileName, csiPluginType);
 
   AWAIT_ASSERT_READY(mapping);
   ASSERT_TRUE(mapping.get().capability.has_block());
@@ -402,30 +454,36 @@ TEST_F(UriVolumeProfileTest, FetchFromHTTP)
     .WillOnce(DoAll(FutureSatisfy(&secondCall), Return(http::OK(contents2))))
     .WillOnce(Return(http::OK(contents3)));
 
-  mesos::internal::profile::Flags flags;
-  flags.poll_interval = pollInterval;
+  Parameters params;
 
-  // NOTE: Although we use the `Path` class here, this URI is not actually
-  // a path. The `Path` class is purely used so that `file://` type URIs are
-  // do not result in prematurely reading the file contents.
-  flags.uri = Path(stringify(process::http::URL(
+  Parameter* pollIntervalFlag = params.add_parameter();
+  pollIntervalFlag->set_key("poll_interval");
+  pollIntervalFlag->set_value(stringify(pollInterval));
+
+  Parameter* uriFlag = params.add_parameter();
+  uriFlag->set_key("uri");
+  uriFlag->set_value(stringify(process::http::URL(
       "http",
       process::address().ip,
       process::address().port,
       server.process->self().id + "/profiles")));
 
-  mesos::internal::profile::UriVolumeProfileAdaptor module(flags);
+  Try<VolumeProfileAdaptor*> module =
+    modules::ModuleManager::create<VolumeProfileAdaptor>(
+        URI_VOLUME_PROFILE_ADAPTOR_NAME,
+        params);
+  ASSERT_SOME(module);
 
   // Wait for the first HTTP poll to complete.
   Future<hashset<string>> future =
-    module.watch(hashset<string>::EMPTY, csiPluginType);
+    module.get()->watch(hashset<string>::EMPTY, csiPluginType);
 
   AWAIT_ASSERT_READY(future);
   ASSERT_EQ(1u, future->size());
   EXPECT_EQ("profile", *(future->begin()));
 
   // Start watching for an update to the list of profiles.
-  future = module.watch({"profile"}, csiPluginType);
+  future = module.get()->watch({"profile"}, csiPluginType);
 
   // Trigger the second HTTP poll.
   Clock::advance(pollInterval);
@@ -433,7 +491,7 @@ TEST_F(UriVolumeProfileTest, FetchFromHTTP)
 
   // Dispatch a call to the module, which ensures that the polling has actually
   // completed (not just the HTTP call).
-  AWAIT_ASSERT_READY(module.translate("profile", csiPluginType));
+  AWAIT_ASSERT_READY(module.get()->translate("profile", csiPluginType));
 
   // We don't expect the module to notify watcher(s) because the server's
   // response is considered invalid (the module does not allow profiles
