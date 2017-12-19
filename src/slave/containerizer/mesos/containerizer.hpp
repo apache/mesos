@@ -51,6 +51,13 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
+// If the container class is not of type `DEBUG` (i.e., it is not set or
+// `DEFAULT`), we log the line at the INFO level. Otherwise, we use VLOG(1).
+// The purpose of this macro is to avoid polluting agent logs with information
+// related to `DEBUG` containers as this type of container can run periodically.
+#define LOG_BASED_ON_CLASS(containerClass) \
+  LOG_IF(INFO, (containerClass != ContainerClass::DEBUG) || VLOG_IS_ON(1))
+
 // Forward declaration.
 class MesosContainerizerProcess;
 

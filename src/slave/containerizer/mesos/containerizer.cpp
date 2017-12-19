@@ -1169,8 +1169,9 @@ Future<Containerizer::LaunchResult> MesosContainerizerProcess::launch(
 
 #ifndef __WINDOWS__
     if (containerConfig.has_user()) {
-      LOG(INFO) << "Trying to chown '" << directory << "' to user '"
-                << containerConfig.user() << "'";
+      LOG_BASED_ON_CLASS(containerConfig.container_class())
+        << "Trying to chown '" << directory << "' to user '"
+        << containerConfig.user() << "'";
 
       Try<Nothing> chown = os::chown(containerConfig.user(), directory);
       if (chown.isError()) {
@@ -1203,7 +1204,8 @@ Future<Containerizer::LaunchResult> MesosContainerizerProcess::launch(
     }
   }
 
-  LOG(INFO) << "Starting container " << containerId;
+  LOG_BASED_ON_CLASS(containerConfig.container_class())
+    << "Starting container " << containerId;
 
   // Before we launch the container, we first create the container
   // runtime directory to hold internal checkpoint information about
@@ -1943,8 +1945,9 @@ Future<Containerizer::LaunchResult> MesosContainerizerProcess::_launch(
 
   // Checkpoint the forked pid if requested by the agent.
   if (pidCheckpointPath.isSome()) {
-    LOG(INFO) << "Checkpointing container's forked pid " << pid
-              << " to '" << pidCheckpointPath.get() << "'";
+    LOG_BASED_ON_CLASS(container->containerClass())
+      << "Checkpointing container's forked pid " << pid
+      << " to '" << pidCheckpointPath.get() << "'";
 
     Try<Nothing> checkpointed =
       slave::state::checkpoint(pidCheckpointPath.get(), stringify(pid));
@@ -2346,8 +2349,9 @@ Future<bool> MesosContainerizerProcess::destroy(
       .then([]() { return true; });
   }
 
-  LOG(INFO) << "Destroying container " << containerId << " in "
-            << container->state << " state";
+  LOG_BASED_ON_CLASS(container->containerClass())
+    << "Destroying container " << containerId << " in "
+    << container->state << " state";
 
   // NOTE: We save the previous state so that '_destroy' can properly
   // cleanup based on the previous state of the container.
@@ -2635,8 +2639,9 @@ void MesosContainerizerProcess::______destroy(
     const string terminationPath =
       path::join(runtimePath, containerizer::paths::TERMINATION_FILE);
 
-    LOG(INFO) << "Checkpointing termination state to nested container's"
-              << " runtime directory '" << terminationPath << "'";
+    LOG_BASED_ON_CLASS(container->containerClass())
+      << "Checkpointing termination state to nested container's runtime"
+      << " directory '" << terminationPath << "'";
 
     Try<Nothing> checkpointed =
       slave::state::checkpoint(terminationPath, termination);
@@ -2797,7 +2802,8 @@ void MesosContainerizerProcess::reaped(const ContainerID& containerId)
     return;
   }
 
-  LOG(INFO) << "Container " << containerId << " has exited";
+  LOG_BASED_ON_CLASS(containers_.at(containerId)->containerClass())
+    << "Container " << containerId << " has exited";
 
   // The executor has exited so destroy the container.
   destroy(containerId, None());
@@ -2816,9 +2822,9 @@ void MesosContainerizerProcess::limited(
   Option<ContainerTermination> termination = None();
 
   if (future.isReady()) {
-    LOG(INFO) << "Container " << containerId << " has reached its limit for"
-              << " resource " << future.get().resources()
-              << " and will be terminated";
+    LOG_BASED_ON_CLASS(containers_.at(containerId)->containerClass())
+      << "Container " << containerId << " has reached its limit for resource "
+      << future.get().resources() << " and will be terminated";
 
     termination = ContainerTermination();
     termination->set_state(TaskState::TASK_FAILED);
@@ -2957,8 +2963,9 @@ void MesosContainerizerProcess::transition(
 
   const Owned<Container>& container = containers_.at(containerId);
 
-  LOG(INFO) << "Transitioning the state of container " << containerId
-            << " from " << container->state << " to " << state;
+  LOG_BASED_ON_CLASS(container->containerClass())
+    << "Transitioning the state of container " << containerId << " from "
+    << container->state << " to " << state;
 
   container->state = state;
 }
