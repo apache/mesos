@@ -79,7 +79,7 @@ public:
     add(&Flags::available_capacity,
         "available_capacity",
         "The available disk capacity managed by the plugin, in addition\n"
-        "to the pre-existing volumes.");
+        "to the pre-existing volumes specified in the --volumes flag.");
 
     add(&Flags::volumes,
         "volumes",
@@ -123,6 +123,11 @@ public:
 
       CHECK(!volumes.contains(volume->id));
       volumes.put(volume->id, volume.get());
+
+      if (!_volumes.contains(volume->id)) {
+        CHECK_GE(availableCapacity, volume->size);
+        availableCapacity -= volume->size;
+      }
     }
 
     foreachpair (const string& name, const Bytes& capacity, _volumes) {
