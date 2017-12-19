@@ -1132,8 +1132,8 @@ Future<Nothing> StorageLocalResourceProviderProcess::reconcileStatusUpdates()
 
           auto die = [=](const string& message) {
             LOG(ERROR)
-              << "Failed to update status of offer operation with UUID " << uuid
-              << ": " << message;
+              << "Failed to update status of offer operation (uuid: " << uuid
+              << "): " << message;
             fatal();
           };
 
@@ -1157,7 +1157,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::reconcileStatusUpdates()
 
         auto err = [](const id::UUID& uuid, const string& message) {
           LOG(ERROR)
-            << "Falied to apply offer operation with UUID " << uuid << ": "
+            << "Falied to apply offer operation (uuid: " << uuid << "): "
             << message;
         };
 
@@ -1356,8 +1356,8 @@ void StorageLocalResourceProviderProcess::applyOfferOperation(
   CHECK_SOME(uuid);
 
   LOG(INFO)
-    << "Received " << operation.info().type() << " operation with UUID "
-    << uuid.get();
+    << "Received " << operation.info().type() << " operation '"
+    << operation.info().id() << "' (uuid: " << uuid.get() << ")";
 
   CHECK(!offerOperations.contains(uuid.get()));
   offerOperations[uuid.get()] = protobuf::createOfferOperation(
@@ -1396,8 +1396,7 @@ void StorageLocalResourceProviderProcess::applyOfferOperation(
 
   auto err = [](const id::UUID& uuid, const string& message) {
     LOG(ERROR)
-      << "Failed to apply offer operation with UUID " << uuid << ": "
-      << message;
+      << "Failed to apply offer operation (uuid: " << uuid << "): " << message;
   };
 
   result
@@ -1559,8 +1558,8 @@ void StorageLocalResourceProviderProcess::acknowledgeOfferOperation(
 
   auto err = [](const id::UUID& uuid, const string& message) {
     LOG(ERROR)
-      << "Failed to acknowledge status update for offer operation with UUID "
-      << uuid << ": " << message;
+      << "Failed to acknowledge status update for offer operation (uuid: "
+      << uuid << "): " << message;
   };
 
   // NOTE: It is possible that an incoming acknowledgement races with an
@@ -1628,8 +1627,8 @@ void StorageLocalResourceProviderProcess::reconcileOfferOperations(
 
     auto die = [=](const string& message) {
       LOG(ERROR)
-        << "Failed to update status of offer operation with UUID " << uuid.get()
-        << ": " << message;
+        << "Failed to update status of offer operation (uuid: " << uuid.get()
+        << "): " << message;
       fatal();
     };
 
@@ -2636,11 +2635,11 @@ Future<Nothing> StorageLocalResourceProviderProcess::_applyOfferOperation(
         LOG(INFO)
           << "Applying conversion from '" << conversions->at(0).consumed
           << "' to '" << conversions->at(0).converted
-          << "' for offer operation with UUID " << operationUuid;
+          << "' for offer operation (uuid: " << operationUuid << ")";
       } else {
         LOG(ERROR)
-          << "Failed to apply offer operation with UUID " << operationUuid
-          << ": " << conversions.error();
+          << "Failed to apply offer operation (uuid: " << operationUuid
+          << "): " << conversions.error();
       }
 
       promise->associate(
@@ -2949,8 +2948,8 @@ Try<Nothing> StorageLocalResourceProviderProcess::updateOfferOperationStatus(
 
   auto die = [=](const string& message) {
     LOG(ERROR)
-      << "Failed to update status of offer operation with UUID "
-      << operationUuid << ": " << message;
+      << "Failed to update status of offer operation (uuid: " << operationUuid
+      << "): " << message;
     fatal();
   };
 
@@ -3027,6 +3026,11 @@ void StorageLocalResourceProviderProcess::sendResourceProviderStateUpdate()
     update->add_operations()->CopyFrom(operation);
   }
 
+  LOG(INFO)
+    << "Sending UPDATE_STATE call with resources '" << totalResources
+    << "' and " << update->operations_size()
+    << " offer operations to agent " << slaveId;
+
   auto err = [](const ResourceProviderID& id, const string& message) {
     LOG(ERROR)
       << "Failed to update state for resource provider " << id << ": "
@@ -3061,8 +3065,8 @@ void StorageLocalResourceProviderProcess::sendOfferOperationStatusUpdate(
 
   auto err = [](const id::UUID& uuid, const string& message) {
     LOG(ERROR)
-      << "Failed to send status update for offer operation with UUID " << uuid
-      << ": " << message;
+      << "Failed to send status update for offer operation (uuid: " << uuid
+      << "): " << message;
   };
 
   Try<id::UUID> uuid =

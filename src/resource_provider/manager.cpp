@@ -671,7 +671,9 @@ void ResourceProviderManagerProcess::updateState(
 
   LOG(INFO)
     << "Received UPDATE_STATE call with resources '" << update.resources()
-    << "' from resource provider " << resourceProvider->info.id();
+    << "' and " << offerOperations.size()
+    << " offer operations from resource provider "
+    << resourceProvider->info.id();
 
   ResourceProviderMessage::UpdateState updateState{
       resourceProvider->info,
