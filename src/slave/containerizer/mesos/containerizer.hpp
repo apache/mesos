@@ -350,10 +350,14 @@ private:
 
     // The configuration for the container to be launched.
     // This can only be None if the underlying container is launched
-    // before we checkpiont `ContainerConfig` in MESOS-6894.
+    // before we checkpoint `ContainerConfig` in MESOS-6894.
     // TODO(zhitao): Drop the `Option` part at the end of deprecation
     // cycle.
     Option<mesos::slave::ContainerConfig> config;
+
+    // The container class that can be `DEFAULT` or `DEBUG`.
+    // Returns `DEFAULT` even if the container class is not defined.
+    mesos::slave::ContainerClass containerClass();
 
     // Container's information at the moment it was launched. For example,
     // used to bootstrap the launch information of future child DEBUG

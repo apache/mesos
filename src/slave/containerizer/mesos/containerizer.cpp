@@ -1640,8 +1640,7 @@ Future<Containerizer::LaunchResult> MesosContainerizerProcess::_launch(
   Environment containerEnvironment;
 
   // Inherit environment from the parent container for DEBUG containers.
-  if (container->config->has_container_class() &&
-      container->config->container_class() == ContainerClass::DEBUG) {
+  if (container->containerClass() == ContainerClass::DEBUG) {
     // DEBUG containers must have a parent.
     CHECK(containerId.has_parent());
     if (containers_[containerId.parent()]->launchInfo.isSome()) {
@@ -1658,8 +1657,7 @@ Future<Containerizer::LaunchResult> MesosContainerizerProcess::_launch(
   }
 
   // DEBUG containers inherit MESOS_SANDBOX from their parent.
-  if (!container->config->has_container_class() ||
-      container->config->container_class() != ContainerClass::DEBUG) {
+  if (container->containerClass() == ContainerClass::DEFAULT) {
     // TODO(jieyu): Consider moving this to filesystem isolator.
     //
     // NOTE: For the command executor case, although it uses the host
@@ -1711,8 +1709,7 @@ Future<Containerizer::LaunchResult> MesosContainerizerProcess::_launch(
   //
   // TODO(alexr): Determining working directory is a convoluted process. We
   // should either simplify the logic or extract it into a helper routine.
-  if (container->config->has_container_class() &&
-      container->config->container_class() == ContainerClass::DEBUG) {
+  if (container->containerClass() == ContainerClass::DEBUG) {
     // DEBUG containers must have a parent.
     CHECK(containerId.has_parent());
 
@@ -2889,6 +2886,14 @@ Future<Nothing> MesosContainerizerProcess::pruneImages(
   // TODO(zhitao): use std::unique to deduplicate `_excludedImages`.
 
   return provisioner->pruneImages(_excludedImages);
+}
+
+
+ContainerClass MesosContainerizerProcess::Container::containerClass()
+{
+  return (config.isSome() && config->has_container_class())
+      ? config->container_class()
+      : ContainerClass::DEFAULT;
 }
 
 
