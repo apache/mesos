@@ -2087,17 +2087,27 @@ ostream& operator<<(ostream& stream, const Resource::DiskInfo::Source& source)
 {
   switch (source.type()) {
     case Resource::DiskInfo::Source::MOUNT:
-      return stream << "MOUNT"
-                    << (source.mount().has_root() ? ":" + source.mount().root()
-                                                  : "");
+      return stream
+        << "MOUNT"
+        << ((source.has_id() || source.has_profile())
+              ? "(" + source.id() + "," + source.profile() + ")" : "")
+        << (source.mount().has_root() ? ":" + source.mount().root() : "");
     case Resource::DiskInfo::Source::PATH:
-      return stream << "PATH"
-                    << (source.path().has_root() ? ":" + source.path().root()
-                                                 : "");
+      return stream
+        << "PATH"
+        << ((source.has_id() || source.has_profile())
+              ? "(" + source.id() + "," + source.profile() + ")" : "")
+        << (source.path().has_root() ? ":" + source.path().root() : "");
     case Resource::DiskInfo::Source::BLOCK:
-      return stream << "BLOCK";
+      return stream
+        << "BLOCK"
+        << ((source.has_id() || source.has_profile())
+              ? "(" + source.id() + "," + source.profile() + ")" : "");
     case Resource::DiskInfo::Source::RAW:
-      return stream << "RAW";
+      return stream
+        << "RAW"
+        << ((source.has_id() || source.has_profile())
+              ? "(" + source.id() + "," + source.profile() + ")" : "");
     case Resource::DiskInfo::Source::UNKNOWN:
       return stream << "UNKNOWN";
   }
