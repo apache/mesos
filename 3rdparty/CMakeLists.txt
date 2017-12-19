@@ -578,9 +578,9 @@ if (WIN32)
 
   set(CURL_CMAKE_ARGS
     ${CMAKE_FORWARD_ARGS}
-    ${CMAKE_SSL_FORWARD_ARGS}
-    -DBUILD_CURL_TESTS=OFF
-    -DCMAKE_USE_OPENSSL=${ENABLE_SSL})
+    -DCMAKE_USE_WINSSL=ON
+    -DCURL_DISABLE_LDAP=ON
+    -DBUILD_TESTING=OFF)
 
   # NOTE: cURL does not respect BUILD_SHARED_LIBS.
   if (NOT BUILD_SHARED_LIBS)
@@ -594,15 +594,16 @@ if (WIN32)
 
   set_target_properties(
     libcurl PROPERTIES
-    IMPORTED_LOCATION_DEBUG ${CURL_ROOT}-build/lib/Debug/libcurl${LIBRARY_SUFFIX}
+    IMPORTED_LOCATION_DEBUG ${CURL_ROOT}-build/lib/Debug/libcurl-d${LIBRARY_SUFFIX}
     IMPORTED_LOCATION_RELEASE ${CURL_ROOT}-build/lib/Release/libcurl${LIBRARY_SUFFIX}
     IMPORTED_IMPLIB_DEBUG ${CURL_ROOT}-build/lib/Debug/libcurl_imp${CMAKE_IMPORT_LIBRARY_SUFFIX}
     IMPORTED_IMPLIB_RELEASE ${CURL_ROOT}-build/lib/Release/libcurl_imp${CMAKE_IMPORT_LIBRARY_SUFFIX}
-    INTERFACE_INCLUDE_DIRECTORIES ${CURL_ROOT}/include)
+    INTERFACE_INCLUDE_DIRECTORIES ${CURL_ROOT}/include
+    INTERFACE_LINK_LIBRARIES crypt32)
 
   set_target_properties(
     curl PROPERTIES
-    IMPORTED_LOCATION_DEBUG ${CURL_ROOT}-build/src/Debug/curl.exe
+    IMPORTED_LOCATION_DEBUG ${CURL_ROOT}-build/src/Debug/curl-d.exe
     IMPORTED_LOCATION_RELEASE ${CURL_ROOT}-build/src/Release/curl.exe)
 
   MAKE_INCLUDE_DIR(libcurl)
@@ -623,7 +624,7 @@ if (WIN32)
   # `build/src`, next to the other produced executables. This is necessary for
   # code that shells out to cURL on Windows.
   add_custom_command(TARGET ${CURL_TARGET} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:curl> ${CMAKE_BINARY_DIR}/src)
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:curl> ${CMAKE_BINARY_DIR}/src/curl.exe)
 else ()
   find_package(CURL REQUIRED)
   add_library(libcurl SHARED IMPORTED)
