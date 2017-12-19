@@ -419,6 +419,7 @@ void Slave::initialize()
       << mkdir.error();
   }
 
+#ifdef ENABLE_GRPC
   // Create the VolumeProfileAdaptor module and set it globally so
   // any component that needs the module can share this instance.
   Try<VolumeProfileAdaptor*> _volumeProfileAdaptor =
@@ -434,6 +435,7 @@ void Slave::initialize()
     shared_ptr<VolumeProfileAdaptor>(_volumeProfileAdaptor.get());
 
   VolumeProfileAdaptor::setAdaptor(volumeProfileAdaptor);
+#endif
 
   string scheme = "http";
 

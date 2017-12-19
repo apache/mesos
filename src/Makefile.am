@@ -2447,8 +2447,6 @@ noinst_LTLIBRARIES += $(MESOS_TEST_MODULES)
 endif
 
 mesos_tests_SOURCES =						\
-  csi/uri_volume_profile.pb.cc					\
-  resource_provider/uri_volume_profile.cpp			\
   slave/qos_controllers/load.cpp				\
   tests/active_user_test_helper.cpp				\
   tests/agent_container_api_tests.cpp				\
@@ -2545,7 +2543,6 @@ mesos_tests_SOURCES =						\
   tests/uri_fetcher_tests.cpp					\
   tests/utils.cpp						\
   tests/values_tests.cpp					\
-  tests/volume_profile_tests.cpp				\
   tests/zookeeper_url_tests.cpp					\
   tests/common/command_utils_tests.cpp				\
   tests/common/http_tests.cpp					\
@@ -2647,9 +2644,12 @@ endif
 
 if ENABLE_GRPC
 mesos_tests_SOURCES +=						\
+  csi/uri_volume_profile.pb.cc					\
+  resource_provider/uri_volume_profile.cpp			\
   tests/csi_client_tests.cpp					\
   tests/mock_csi_plugin.cpp					\
-  tests/mock_csi_plugin.hpp
+  tests/mock_csi_plugin.hpp					\
+  tests/volume_profile_tests.cpp
 
 if OS_LINUX
 mesos_tests_SOURCES +=						\

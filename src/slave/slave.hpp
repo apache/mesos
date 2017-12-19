@@ -40,7 +40,9 @@
 
 #include <mesos/module/authenticatee.hpp>
 
+#ifdef ENABLE_GRPC
 #include <mesos/resource_provider/volume_profile.hpp>
+#endif
 
 #include <mesos/slave/containerizer.hpp>
 #include <mesos/slave/qos_controller.hpp>
@@ -726,7 +728,9 @@ private:
 
   mesos::slave::QoSController* qosController;
 
+#ifdef ENABLE_GRPC
   std::shared_ptr<VolumeProfileAdaptor> volumeProfileAdaptor;
+#endif
 
   mesos::SecretGenerator* secretGenerator;
 
