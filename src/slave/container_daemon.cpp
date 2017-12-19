@@ -159,6 +159,10 @@ void ContainerDaemonProcess::initialize()
 
 void ContainerDaemonProcess::launchContainer()
 {
+  LOG(INFO)
+    << "Launching container '" << launchCall.launch_container().container_id()
+    << "'";
+
   http::post(
       agentUrl,
       getAuthHeader(authToken),
@@ -179,9 +183,18 @@ void ContainerDaemonProcess::launchContainer()
     }))
     .onReady(defer(self(), &Self::waitContainer))
     .onFailed(defer(self(), [=](const string& failure) {
+      LOG(ERROR)
+        << "Failed to launch container '"
+        << launchCall.launch_container().container_id() << "': " << failure;
+
       terminated.fail(failure);
     }))
     .onDiscarded(defer(self(), [=] {
+      LOG(ERROR)
+        << "Failed to launch container '"
+        << launchCall.launch_container().container_id()
+        << "': future discarded";
+
       terminated.discard();
     }));
 }
@@ -189,6 +202,10 @@ void ContainerDaemonProcess::launchContainer()
 
 void ContainerDaemonProcess::waitContainer()
 {
+  LOG(INFO)
+    << "Waiting for container '" << waitCall.wait_container().container_id()
+    << "'";
+
   http::post(
       agentUrl,
       getAuthHeader(authToken),
@@ -208,9 +225,17 @@ void ContainerDaemonProcess::waitContainer()
     }))
     .onReady(defer(self(), &Self::launchContainer))
     .onFailed(defer(self(), [=](const string& failure) {
+      LOG(ERROR)
+        << "Failed to wait for container '"
+        << waitCall.wait_container().container_id() << "': " << failure;
+
       terminated.fail(failure);
     }))
     .onDiscarded(defer(self(), [=] {
+      LOG(ERROR)
+        << "Failed to wait for container '"
+        << waitCall.wait_container().container_id() << "': future discarded";
+
       terminated.discard();
     }));
 }
