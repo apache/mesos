@@ -69,10 +69,11 @@ public:
     ASSERT_SOME(os::mkdir(resourceProviderConfigDir));
   }
 
-  ResourceProviderInfo createResourceProviderInfo(const Bytes& capacity)
+  ResourceProviderInfo createResourceProviderInfo(const string& volumes)
   {
-    const string testCsiPluginWorkDir = path::join(sandbox.get(), "test");
-    CHECK_SOME(os::mkdir(testCsiPluginWorkDir));
+    Try<string> testCsiPluginWorkDir =
+      os::mkdtemp(path::join(sandbox.get(), "plugin_XXXXXX"));
+    CHECK_SOME(testCsiPluginWorkDir);
 
     string testCsiPluginPath =
       path::join(tests::flags.build_dir, "src", "test-csi-plugin");
@@ -91,7 +92,7 @@ public:
           "storage": {
             "plugin": {
               "type": "org.apache.mesos.csi.test",
-              "name": "slrp_test",
+              "name": "plugin",
               "containers": [
                 {
                   "services": [
@@ -103,8 +104,9 @@ public:
                     "value": "%s",
                     "arguments": [
                       "%s",
-                      "--available_capacity=%s",
-                      "--work_dir=%s"
+                      "--available_capacity=0B",
+                      "--work_dir=%s",
+                      "--volumes=%s"
                     ]
                   }
                 }
@@ -115,8 +117,8 @@ public:
         )~",
         testCsiPluginPath,
         testCsiPluginPath,
-        stringify(capacity),
-        testCsiPluginWorkDir);
+        testCsiPluginWorkDir.get(),
+        volumes);
 
     CHECK_SOME(resourceProviderConfig);
 
@@ -270,7 +272,7 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Add)
   driver.start();
 
   // Add a new resource provider.
-  ResourceProviderInfo info = createResourceProviderInfo(Gigabytes(4));
+  ResourceProviderInfo info = createResourceProviderInfo("volume1:4GB");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       http::OK().status,
@@ -334,7 +336,7 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_AddConflict)
   const string configPath = path::join(resourceProviderConfigDir, "test.json");
   ASSERT_SOME(os::write(
       configPath,
-      stringify(JSON::protobuf(createResourceProviderInfo(Gigabytes(4))))));
+      stringify(JSON::protobuf(createResourceProviderInfo("volume1:4GB")))));
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
@@ -344,7 +346,7 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_AddConflict)
 
   AWAIT_READY(slaveRegisteredMessage);
 
-  ResourceProviderInfo info = createResourceProviderInfo(Gigabytes(2));
+  ResourceProviderInfo info = createResourceProviderInfo("volume1:2GB");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       http::Conflict().status,
@@ -406,7 +408,7 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Update)
   const string configPath = path::join(resourceProviderConfigDir, "test.json");
   ASSERT_SOME(os::write(
       configPath,
-      stringify(JSON::protobuf(createResourceProviderInfo(Gigabytes(4))))));
+      stringify(JSON::protobuf(createResourceProviderInfo("volume1:4GB")))));
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
@@ -449,7 +451,7 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Update)
   // Wait for an offer having the old provider resource.
   AWAIT_READY(oldOffers);
 
-  ResourceProviderInfo info = createResourceProviderInfo(Gigabytes(2));
+  ResourceProviderInfo info = createResourceProviderInfo("volume1:2GB");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       http::OK().status,
@@ -521,7 +523,7 @@ TEST_P(AgentResourceProviderConfigApiTest, UpdateNotFound)
 
   AWAIT_READY(slaveRegisteredMessage);
 
-  ResourceProviderInfo info = createResourceProviderInfo(Gigabytes(4));
+  ResourceProviderInfo info = createResourceProviderInfo("volume1:4GB");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       http::NotFound().status,
@@ -568,7 +570,7 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Remove)
 
   // Generate a pre-existing config.
   const string configPath = path::join(resourceProviderConfigDir, "test.json");
-  ResourceProviderInfo info = createResourceProviderInfo(Gigabytes(4));
+  ResourceProviderInfo info = createResourceProviderInfo("volume1:4GB");
   ASSERT_SOME(os::write(configPath, stringify(JSON::protobuf(info))));
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -600,9 +602,10 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Remove)
       std::bind(&Resources::hasResourceProvider, lambda::_1))))
     .WillOnce(FutureArg<1>(&oldOffers));
 
-  // TODO(chhsiao): Wait for an rescinded offer once we implemented the
-  // logic to send `UpdateSlaveMessage` upon removal of a resource
-  // provider.
+  Future<OfferID> rescinded;
+
+  EXPECT_CALL(sched, offerRescinded(&driver, _))
+    .WillOnce(FutureArg<1>(&rescinded));
 
   driver.start();
 
@@ -617,7 +620,8 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Remove)
   // Check that the existing config is removed.
   EXPECT_FALSE(os::exists(configPath));
 
-  // TODO(chhsiao): Wait for the old offer to be rescinded.
+  // Wait for the old offer to be rescinded.
+  AWAIT_READY(rescinded);
 }
 
 
@@ -657,7 +661,7 @@ TEST_P(AgentResourceProviderConfigApiTest, RemoveNotFound)
 
   AWAIT_READY(slaveRegisteredMessage);
 
-  ResourceProviderInfo info = createResourceProviderInfo(Gigabytes(4));
+  ResourceProviderInfo info = createResourceProviderInfo("volume1:4GB");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       http::NotFound().status,

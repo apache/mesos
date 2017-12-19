@@ -2644,12 +2644,9 @@ endif
 
 if ENABLE_GRPC
 mesos_tests_SOURCES +=						\
-  csi/uri_volume_profile.pb.cc					\
-  resource_provider/uri_volume_profile.cpp			\
   tests/csi_client_tests.cpp					\
   tests/mock_csi_plugin.cpp					\
-  tests/mock_csi_plugin.hpp					\
-  tests/volume_profile_tests.cpp
+  tests/mock_csi_plugin.hpp
 
 if OS_LINUX
 mesos_tests_SOURCES +=						\

@@ -19,6 +19,9 @@
 #include <process/gmock.hpp>
 
 #include <stout/hashmap.hpp>
+#include <stout/uri.hpp>
+
+#include "module/manager.hpp"
 
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
@@ -38,6 +41,10 @@ using testing::Sequence;
 namespace mesos {
 namespace internal {
 namespace tests {
+
+constexpr char URI_VOLUME_PROFILE_ADAPTOR_NAME[] =
+  "org_apache_mesos_UriVolumeProfileAdaptor";
+
 
 class StorageLocalResourceProviderTest : public MesosTest
 {
@@ -103,10 +110,62 @@ public:
     ASSERT_SOME(os::write(
         path::join(resourceProviderConfigDir, "test.json"),
         resourceProviderConfig.get()));
+
+    uriVolumeProfileConfigPath =
+      path::join(sandbox.get(), "volume_profiles.json");
+
+    ASSERT_SOME(os::write(
+        uriVolumeProfileConfigPath,
+        R"~(
+        {
+          "profile_matrix": {
+            "default" : {
+              "volume_capabilities" : {
+                "mount" : {},
+                "access_mode" : { "mode" : "SINGLE_NODE_WRITER" }
+              }
+            }
+          }
+        }
+        )~"));
+  }
+
+  virtual void TearDown()
+  {
+    // Unload modules.
+    foreach (const Modules::Library& library, modules.libraries()) {
+      foreach (const Modules::Library::Module& module, library.modules()) {
+        if (module.has_name()) {
+          ASSERT_SOME(modules::ModuleManager::unload(module.name()));
+        }
+      }
+    }
+
+    MesosTest::TearDown();
+  }
+
+  void loadUriVolumeProfileModule()
+  {
+    string libraryPath = getModulePath("uri_volume_profile");
+
+    Modules::Library* library = modules.add_libraries();
+    library->set_name("uri_volume_profile");
+    library->set_file(libraryPath);
+
+    Modules::Library::Module* module = library->add_modules();
+    module->set_name(URI_VOLUME_PROFILE_ADAPTOR_NAME);
+
+    Parameter* parameter = module->add_parameters();
+    parameter->set_key("uri");
+    parameter->set_value(uriVolumeProfileConfigPath);
+
+    ASSERT_SOME(modules::ModuleManager::load(modules));
   }
 
 protected:
+  Modules modules;
   string resourceProviderConfigDir;
+  string uriVolumeProfileConfigPath;
 };
 
 
@@ -115,6 +174,8 @@ protected:
 // that uses the test CSI plugin.
 TEST_F(StorageLocalResourceProviderTest, ROOT_NewVolume)
 {
+  loadUriVolumeProfileModule();
+
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
@@ -140,6 +201,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NewVolume)
   }
 
   flags.resource_provider_config_dir = resourceProviderConfigDir;
+  flags.volume_profile_adaptor = URI_VOLUME_PROFILE_ADAPTOR_NAME;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
@@ -292,6 +354,8 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NewVolume)
 // plugin, then destroy the volume while it is published.
 TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchTask)
 {
+  loadUriVolumeProfileModule();
+
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
@@ -317,6 +381,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchTask)
   }
 
   flags.resource_provider_config_dir = resourceProviderConfigDir;
+  flags.volume_profile_adaptor = URI_VOLUME_PROFILE_ADAPTOR_NAME;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
