@@ -21,7 +21,7 @@
 #include <stout/try.hpp>
 
 // ONLY USEFUL AFTER RUNNING PROTOC.
-#include "resource_provider/volume_profile.pb.h"
+#include "resource_provider/storage/volume_profile.pb.h"
 
 namespace mesos {
 namespace internal {
