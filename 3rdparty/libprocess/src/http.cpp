@@ -2166,7 +2166,7 @@ Try<Server> Server::create(
   // tests that try and start making connections immediately after
   // `Server::run` has returned but potentially before
   // `Socket::listen` has been invoked.
-  Try<Nothing> listen = socket.listen(options.backlog);
+  Try<Nothing> listen = socket.listen(static_cast<int>(options.backlog));
   if (listen.isError()) {
     return Error("Failed to listen on socket: " + listen.error());
   }

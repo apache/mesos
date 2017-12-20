@@ -407,7 +407,8 @@ public:
 
   long workers() const
   {
-    return threads.size() - 1; // Less 1 for event loop thread.
+    // Less 1 for event loop thread.
+    return static_cast<long>(threads.size() - 1);
   }
 
 private:
