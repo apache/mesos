@@ -37,7 +37,7 @@
 #include <mesos/module/authenticatee.hpp>
 
 #ifdef ENABLE_GRPC
-#include <mesos/resource_provider/volume_profile.hpp>
+#include <mesos/resource_provider/storage/volume_profile.hpp>
 #endif
 
 #include <process/after.hpp>

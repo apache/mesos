@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "resource_provider/volume_profile_utils.hpp"
+#include "resource_provider/storage/volume_profile_utils.hpp"
 
 #include <google/protobuf/util/json_util.h>
 

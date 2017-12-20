@@ -20,7 +20,7 @@
 #include <mesos/mesos.hpp>
 #include <mesos/module.hpp>
 
-#include <mesos/resource_provider/volume_profile.hpp>
+#include <mesos/resource_provider/storage/volume_profile.hpp>
 
 namespace mesos {
 namespace modules {

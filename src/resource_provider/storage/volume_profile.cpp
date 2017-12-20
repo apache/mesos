@@ -20,7 +20,7 @@
 
 #include <mesos/module/volume_profile.hpp>
 
-#include <mesos/resource_provider/volume_profile.hpp>
+#include <mesos/resource_provider/storage/volume_profile.hpp>
 
 #include <process/future.hpp>
 

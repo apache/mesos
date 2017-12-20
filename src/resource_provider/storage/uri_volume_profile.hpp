@@ -21,7 +21,7 @@
 #include <string>
 #include <tuple>
 
-#include <mesos/resource_provider/volume_profile.hpp>
+#include <mesos/resource_provider/storage/volume_profile.hpp>
 
 #include <process/future.hpp>
 #include <process/owned.hpp>
@@ -38,7 +38,7 @@
 
 #include <csi/spec.hpp>
 
-#include "resource_provider/volume_profile_utils.hpp"
+#include "resource_provider/storage/volume_profile_utils.hpp"
 
 namespace mesos {
 namespace internal {

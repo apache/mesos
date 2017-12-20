@@ -383,8 +383,8 @@ CXX_PROTOS +=								\
 
 if ENABLE_GRPC
 CXX_PROTOS +=								\
-  resource_provider/volume_profile.pb.cc				\
-  resource_provider/volume_profile.pb.h
+  resource_provider/storage/volume_profile.pb.cc			\
+  resource_provider/storage/volume_profile.pb.h
 
 CXX_CSI_PROTOS =							\
   ../include/csi/csi.grpc.pb.cc						\
@@ -781,7 +781,7 @@ resourceprovider_HEADERS =						\
 
 if ENABLE_GRPC
 resourceprovider_HEADERS +=						\
-  $(top_srcdir)/include/mesos/resource_provider/volume_profile.hpp
+  $(top_srcdir)/include/mesos/resource_provider/storage/volume_profile.hpp
 endif
 
 nodist_resourceprovider_HEADERS =					\
@@ -1472,10 +1472,10 @@ endif
 
 if ENABLE_GRPC
 libmesos_no_3rdparty_la_SOURCES +=					\
-  resource_provider/volume_profile.cpp					\
-  resource_provider/volume_profile.proto				\
-  resource_provider/volume_profile_utils.cpp				\
-  resource_provider/volume_profile_utils.hpp
+  resource_provider/storage/volume_profile.cpp				\
+  resource_provider/storage/volume_profile.proto			\
+  resource_provider/storage/volume_profile_utils.cpp			\
+  resource_provider/storage/volume_profile_utils.hpp
 
 if OS_LINUX
 libmesos_no_3rdparty_la_SOURCES +=					\
@@ -2345,10 +2345,10 @@ libload_qos_controller_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
 if ENABLE_GRPC
 pkgmodule_LTLIBRARIES += liburi_volume_profile.la
 liburi_volume_profile_la_SOURCES =				\
-  resource_provider/uri_volume_profile.cpp			\
-  resource_provider/uri_volume_profile.hpp			\
-  resource_provider/volume_profile.ph.h				\
-  resource_provider/volume_profile_utils.hpp
+  resource_provider/storage/uri_volume_profile.cpp		\
+  resource_provider/storage/uri_volume_profile.hpp		\
+  resource_provider/storage/volume_profile.ph.h			\
+  resource_provider/storage/volume_profile_utils.hpp
 liburi_volume_profile_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 liburi_volume_profile_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
 endif

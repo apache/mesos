@@ -37,7 +37,7 @@
 #include <mesos/type_utils.hpp>
 
 #include <mesos/resource_provider/resource_provider.hpp>
-#include <mesos/resource_provider/volume_profile.hpp>
+#include <mesos/resource_provider/storage/volume_profile.hpp>
 
 #include <mesos/v1/resource_provider.hpp>
 

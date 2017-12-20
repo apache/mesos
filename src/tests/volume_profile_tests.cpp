@@ -21,7 +21,7 @@
 
 #include <mesos/module/volume_profile.hpp>
 
-#include <mesos/resource_provider/volume_profile.hpp>
+#include <mesos/resource_provider/storage/volume_profile.hpp>
 
 #include <process/clock.hpp>
 #include <process/future.hpp>
@@ -40,8 +40,8 @@
 
 #include "module/manager.hpp"
 
-#include "resource_provider/uri_volume_profile.hpp"
-#include "resource_provider/volume_profile_utils.hpp"
+#include "resource_provider/storage/uri_volume_profile.hpp"
+#include "resource_provider/storage/volume_profile_utils.hpp"
 
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"

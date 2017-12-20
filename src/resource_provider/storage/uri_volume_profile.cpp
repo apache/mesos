@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "resource_provider/uri_volume_profile.hpp"
+#include "resource_provider/storage/uri_volume_profile.hpp"
 
 #include <map>
 #include <string>
@@ -24,7 +24,7 @@
 
 #include <mesos/module/volume_profile.hpp>
 
-#include <mesos/resource_provider/volume_profile.hpp>
+#include <mesos/resource_provider/storage/volume_profile.hpp>
 
 #include <process/defer.hpp>
 #include <process/delay.hpp>
@@ -44,7 +44,7 @@
 #include <csi/spec.hpp>
 #include <csi/utils.hpp>
 
-#include "resource_provider/volume_profile_utils.hpp"
+#include "resource_provider/storage/volume_profile_utils.hpp"
 
 using namespace mesos;
 using namespace process;
