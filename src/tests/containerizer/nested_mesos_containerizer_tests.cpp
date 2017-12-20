@@ -2064,40 +2064,43 @@ TEST_F(NestedMesosContainerizerTest,
   ContainerID containerId;
   containerId.set_value(id::UUID::random().toString());
 
-  string cgroup = path::join(
+  string cgroupParent = path::join(
       flags.cgroups_root,
       buildPath(containerId, "mesos", JOIN));
 
-  ASSERT_SOME(cgroups::create(freezerHierarchy.get(), cgroup, true));
+  ASSERT_SOME(cgroups::create(freezerHierarchy.get(), cgroupParent, true));
+  ASSERT_SOME_TRUE(cgroups::exists(freezerHierarchy.get(), cgroupParent));
 
   ContainerID nestedContainerId;
   nestedContainerId.mutable_parent()->CopyFrom(containerId);
   nestedContainerId.set_value(id::UUID::random().toString());
 
-  cgroup = path::join(
+  string cgroupNested = path::join(
       flags.cgroups_root,
       buildPath(nestedContainerId, "mesos", JOIN));
 
-  ASSERT_SOME(cgroups::create(freezerHierarchy.get(), cgroup, true));
+  ASSERT_SOME(cgroups::create(freezerHierarchy.get(), cgroupNested, true));
+  ASSERT_SOME_TRUE(cgroups::exists(freezerHierarchy.get(), cgroupNested));
 
   SlaveState state;
   state.id = SlaveID();
 
   AWAIT_READY(containerizer->recover(state));
 
-  Future<Option<ContainerTermination>> wait = containerizer->wait(
-      nestedContainerId);
-
-  AWAIT_READY(wait);
-  ASSERT_SOME(wait.get());
+  // We expect that containerizer recovery will detect orphan containers and
+  // will destroy them, so we check here that the freezer cgroups are destroyed.
+  //
+  // NOTE: `wait()` can return `Some` or `None` due to a race condition between
+  // `recover()` and `______destroy()` for an orphan container.
+  AWAIT_READY(containerizer->wait(nestedContainerId));
+  ASSERT_SOME_FALSE(cgroups::exists(freezerHierarchy.get(), cgroupNested));
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
   ASSERT_FALSE(containers->contains(nestedContainerId));
 
-  wait = containerizer->wait(containerId);
-  AWAIT_READY(wait);
-  ASSERT_SOME(wait.get());
+  AWAIT_READY(containerizer->wait(containerId));
+  ASSERT_SOME_FALSE(cgroups::exists(freezerHierarchy.get(), cgroupParent));
 
   containers = containerizer->containers();
   AWAIT_READY(containers);
@@ -2436,53 +2439,53 @@ TEST_F(NestedMesosContainerizerTest,
   ContainerID containerId;
   containerId.set_value(id::UUID::random().toString());
 
-  string cgroup = path::join(
+  string cgroupParent = path::join(
       flags.cgroups_root,
       buildPath(containerId, "mesos", JOIN));
 
-  ASSERT_SOME(cgroups::create(freezerHierarchy.get(), cgroup, true));
+  ASSERT_SOME(cgroups::create(freezerHierarchy.get(), cgroupParent, true));
+  ASSERT_SOME_TRUE(cgroups::exists(freezerHierarchy.get(), cgroupParent));
 
   ContainerID nestedContainerId1;
   nestedContainerId1.mutable_parent()->CopyFrom(containerId);
   nestedContainerId1.set_value(id::UUID::random().toString());
 
-  cgroup = path::join(
+  string cgroupNested1 = path::join(
       flags.cgroups_root,
       buildPath(nestedContainerId1, "mesos", JOIN));
 
-  ASSERT_SOME(cgroups::create(freezerHierarchy.get(), cgroup, true));
+  ASSERT_SOME(cgroups::create(freezerHierarchy.get(), cgroupNested1, true));
+  ASSERT_SOME_TRUE(cgroups::exists(freezerHierarchy.get(), cgroupNested1));
 
   ContainerID nestedContainerId2;
   nestedContainerId2.mutable_parent()->CopyFrom(containerId);
   nestedContainerId2.set_value(id::UUID::random().toString());
 
-  cgroup = path::join(
+  string cgroupNested2 = path::join(
       flags.cgroups_root,
       buildPath(nestedContainerId2, "mesos", JOIN));
 
-  ASSERT_SOME(cgroups::create(freezerHierarchy.get(), cgroup, true));
+  ASSERT_SOME(cgroups::create(freezerHierarchy.get(), cgroupNested2, true));
+  ASSERT_SOME_TRUE(cgroups::exists(freezerHierarchy.get(), cgroupNested2));
 
   SlaveState state;
   state.id = SlaveID();
 
   AWAIT_READY(containerizer->recover(state));
 
-  Future<Option<ContainerTermination>> nestedWait1 = containerizer->wait(
-      nestedContainerId1);
+  // We expect that containerizer recovery will detect orphan containers and
+  // will destroy them, so we check here that the freezer cgroups are destroyed.
+  //
+  // NOTE: `wait()` can return `Some` or `None` due to a race condition between
+  // `recover()` and `______destroy()` for an orphan container.
+  AWAIT_READY(containerizer->wait(nestedContainerId1));
+  ASSERT_SOME_FALSE(cgroups::exists(freezerHierarchy.get(), cgroupNested1));
 
-  Future<Option<ContainerTermination>> nestedWait2 = containerizer->wait(
-      nestedContainerId2);
+  AWAIT_READY(containerizer->wait(nestedContainerId2));
+  ASSERT_SOME_FALSE(cgroups::exists(freezerHierarchy.get(), cgroupNested2));
 
-  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
-
-  AWAIT_READY(nestedWait1);
-  ASSERT_SOME(nestedWait1.get());
-
-  AWAIT_READY(nestedWait2);
-  ASSERT_SOME(nestedWait2.get());
-
-  AWAIT_READY(wait);
-  ASSERT_SOME(wait.get());
+  AWAIT_READY(containerizer->wait(containerId));
+  ASSERT_SOME_FALSE(cgroups::exists(freezerHierarchy.get(), cgroupParent));
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
