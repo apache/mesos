@@ -1047,6 +1047,24 @@ this flag. (default: 0secs)
 </tr>
 <tr>
   <td>
+    --reconfiguration_policy=VALUE
+  </td>
+  <td>
+This flag controls which agent configuration changes are considered
+acceptable when recovering the previous agent state. Possible values:
+    equal:    The old and the new state must match exactly.
+    additive: The new state must be a superset of the old state:
+              it is permitted to add additional resources, attributes
+              and domains but not to remove or to modify existing ones.
+
+Note that this only affects the checking done on the agent itself,
+the master may still reject the agent if it detects a change that it
+considers unacceptable, which, e.g., currently happens when port or hostname
+are changed. (default: equal)
+  </td>
+</tr>
+<tr>
+  <td>
     --recover=VALUE
   </td>
   <td>

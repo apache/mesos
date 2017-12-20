@@ -496,14 +496,14 @@ mesos::internal::slave::Flags::Flags()
       "reconfiguration_policy",
       "This flag controls which agent configuration changes are considered\n"
       "acceptable when recovering the previous agent state. Possible values:\n"
-      "equal:    Require that the old and the new state match exactly.\n"
-      "additive: Require that the new state is a superset of the old state:\n"
+      "equal:    The old and the new state must match exactly.\n"
+      "additive: The new state must be a superset of the old state:\n"
       "          it is permitted to add additional resources, attributes\n"
-      "          and domains but not to remove existing ones.\n"
+      "          and domains but not to remove or to modify existing ones.\n"
       "Note that this only affects the checking done on the agent itself,\n"
-      "the master may still reject the slave if it detects a change that it\n"
-      "considers unacceptable, which currently happens when port or hostname\n"
-      "are changed.",
+      "the master may still reject the agent if it detects a change that it\n"
+      "considers unacceptable, which, e.g., currently happens when port or\n"
+      "hostname are changed.",
       "equal");
 
   add(&Flags::strict,

@@ -1,6 +1,10 @@
 Release Notes - Mesos - Version 1.5.0 (WIP)
 -------------------------------------------
 This release contains the following new features:
+  * [MESOS-1739] - Agents now support the `--reconfiguration_policy`
+    flag which allows them to recover the agent ID and running tasks
+    after configuration changes. See docs/agent-recovery.md for more
+    details.
 
 Deprecations/Removals:
   * Agent flag `--executor_secret_key` has been deprecated. Operators
