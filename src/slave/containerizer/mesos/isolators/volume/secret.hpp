@@ -46,7 +46,6 @@ public:
   virtual ~VolumeSecretIsolatorProcess() {}
 
   virtual bool supportsNesting();
-  virtual bool supportsStandalone();
 
   virtual process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(
       const ContainerID& containerId,
