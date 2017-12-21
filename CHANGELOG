@@ -5,6 +5,11 @@ This release contains the following new features:
     flag which allows them to recover the agent ID and running tasks
     after configuration changes. See docs/agent-recovery.md for more
     details.
+  * [MESOS-7973] - Non-leading replica is now allowed to catch-up
+    missing log positions in the replicated log. This opens the door
+    for implementing hot standby (by offloading some reading from a
+    leader to standbys) and fast failover time (by keeping in-memory
+    storage represented by the log “hot”).
 
 Deprecations/Removals:
   * Agent flag `--executor_secret_key` has been deprecated. Operators
