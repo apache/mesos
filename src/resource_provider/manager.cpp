@@ -600,12 +600,18 @@ void ResourceProviderManagerProcess::subscribe(
   }
 
   http.closed()
-    .onAny(defer(self(), [=](const Future<Nothing>&) {
-      CHECK(resourceProviders.subscribed.contains(resourceProviderId));
+    .onAny(defer(self(), [=](const Future<Nothing>& future) {
+      // Iff the remote side closes the HTTP connection, the future will be
+      // ready. We will remove the resource provider in that case.
+      // This side closes the HTTP connection only when removing a resource
+      // provider, therefore we shouldn't try to remove it again here.
+      if (future.isReady()) {
+        CHECK(resourceProviders.subscribed.contains(resourceProviderId));
 
-      // NOTE: All pending futures of publish requests for the resource
-      // provider will become failed.
-      resourceProviders.subscribed.erase(resourceProviderId);
+        // NOTE: All pending futures of publish requests for the resource
+        // provider will become failed.
+        resourceProviders.subscribed.erase(resourceProviderId);
+      }
 
       ResourceProviderMessage::Disconnect disconnect{resourceProviderId};
 
