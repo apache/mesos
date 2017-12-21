@@ -364,14 +364,12 @@ private:
 };
 
 
-// The wrapper for running the recover protocol. We will re-run the
-// recover protocol if it cannot be finished within 'timeout'.
-static Future<RecoverResponse> runRecoverProtocol(
+Future<RecoverResponse> runRecoverProtocol(
     size_t quorum,
     const Shared<Network>& network,
     const Metadata::Status& status,
     bool autoInitialize,
-    const Duration& timeout = Seconds(10))
+    const Duration& timeout)
 {
   RecoverProtocolProcess* process =
     new RecoverProtocolProcess(
