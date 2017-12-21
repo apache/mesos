@@ -1151,17 +1151,17 @@ Future<Response> Master::Http::scheduler(
       master->acknowledge(framework, call.acknowledge());
       return Accepted();
 
-    // TODO(greggomann): Implement offer operation update acknowledgement.
-    case scheduler::Call::ACKNOWLEDGE_OFFER_OPERATION_UPDATE:
-      return Forbidden("Offer operation updates are not yet implemented");
+    // TODO(greggomann): Implement operation status acknowledgement.
+    case scheduler::Call::ACKNOWLEDGE_OPERATION_STATUS:
+      return Forbidden("Operation status updates are not yet implemented");
 
     case scheduler::Call::RECONCILE:
       master->reconcile(framework, call.reconcile());
       return Accepted();
 
-    // TODO(greggomann): Implement offer operation update reconciliation.
-    case scheduler::Call::RECONCILE_OFFER_OPERATIONS:
-      return Forbidden("Offer operation reconciliation is not yet implemented");
+    // TODO(greggomann): Implement operation reconciliation.
+    case scheduler::Call::RECONCILE_OPERATIONS:
+      return Forbidden("Operation reconciliation is not yet implemented");
 
     case scheduler::Call::MESSAGE:
       master->message(framework, call.message());
@@ -1306,7 +1306,7 @@ Future<Response> Master::Http::_createVolumes(
     return BadRequest("No agent found with specified ID");
   }
 
-  // Create an offer operation.
+  // Create an operation.
   Offer::Operation operation;
   operation.set_type(Offer::Operation::CREATE);
   operation.mutable_create()->mutable_volumes()->CopyFrom(volumes);
@@ -1480,7 +1480,7 @@ Future<Response> Master::Http::_destroyVolumes(
     return BadRequest("No agent found with specified ID");
   }
 
-  // Create an offer operation.
+  // Create an operation.
   Offer::Operation operation;
   operation.set_type(Offer::Operation::DESTROY);
   operation.mutable_destroy()->mutable_volumes()->CopyFrom(volumes);
@@ -2468,7 +2468,7 @@ Future<Response> Master::Http::_reserve(
     return BadRequest("No agent found with specified ID");
   }
 
-  // Create an offer operation.
+  // Create an operation.
   Offer::Operation operation;
   operation.set_type(Offer::Operation::RESERVE);
   operation.mutable_reserve()->mutable_resources()->CopyFrom(resources);
@@ -4456,8 +4456,8 @@ Future<Response> Master::Http::__updateMaintenanceSchedule(
     }
   }
 
-  return master->registrar
-    ->apply(Owned<Operation>(new maintenance::UpdateSchedule(schedule)))
+  return master->registrar->apply(Owned<RegistryOperation>(
+      new maintenance::UpdateSchedule(schedule)))
     .then(defer(master->self(), [this, schedule](bool result) {
       return ___updateMaintenanceSchedule(schedule, result);
     }));
@@ -4694,7 +4694,7 @@ Future<Response> Master::Http::_startMaintenance(
     }
   }
 
-  return master->registrar->apply(Owned<Operation>(
+  return master->registrar->apply(Owned<RegistryOperation>(
       new maintenance::StartMaintenance(machineIds)))
     .then(defer(master->self(), [=](bool result) -> Future<Response> {
       // See the top comment in "master/maintenance.hpp" for why this check
@@ -4874,7 +4874,7 @@ Future<Response> Master::Http::_stopMaintenance(
     }
   }
 
-  return master->registrar->apply(Owned<Operation>(
+  return master->registrar->apply(Owned<RegistryOperation>(
       new maintenance::StopMaintenance(machineIds)))
     .then(defer(master->self(), [=](bool result) -> Future<Response> {
       // See the top comment in "master/maintenance.hpp" for why this check
@@ -5240,7 +5240,7 @@ Future<Response> Master::Http::_unreserve(
     return BadRequest("No agent found with specified ID");
   }
 
-  // Create an offer operation.
+  // Create an operation.
   Offer::Operation operation;
   operation.set_type(Offer::Operation::UNRESERVE);
   operation.mutable_unreserve()->mutable_resources()->CopyFrom(resources);
@@ -5442,7 +5442,7 @@ Future<Response> Master::Http::_markAgentGone(const SlaveID& slaveId) const
 
   TimeInfo goneTime = protobuf::getCurrentTime();
 
-  Future<bool> gone = master->registrar->apply(Owned<Operation>(
+  Future<bool> gone = master->registrar->apply(Owned<RegistryOperation>(
       new MarkSlaveGone(slaveId, goneTime)));
 
   gone.onAny(defer(

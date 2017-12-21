@@ -629,8 +629,8 @@ void V0ToV1AdapterProcess::send(SchedulerDriver* driver, const Call& _call)
       break;
     }
 
-    // TODO(greggomann): Implement offer operation update acknowledgement.
-    case Call::ACKNOWLEDGE_OFFER_OPERATION_UPDATE:
+    // TODO(greggomann): Implement operation status acknowledgement.
+    case Call::ACKNOWLEDGE_OPERATION_STATUS:
       break;
 
     case Call::RECONCILE: {
@@ -647,8 +647,8 @@ void V0ToV1AdapterProcess::send(SchedulerDriver* driver, const Call& _call)
       break;
     }
 
-    // TODO(greggomann): Implement offer operation update reconciliation.
-    case Call::RECONCILE_OFFER_OPERATIONS:
+    // TODO(greggomann): Implement operation reconciliation.
+    case Call::RECONCILE_OPERATIONS:
       break;
 
     case Call::MESSAGE: {

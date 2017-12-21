@@ -350,7 +350,7 @@ TEST_P(ResourceProviderManagerHttpApiTest, UpdateState)
 }
 
 
-TEST_P(ResourceProviderManagerHttpApiTest, UpdateOfferOperationStatus)
+TEST_P(ResourceProviderManagerHttpApiTest, UpdateOperationStatus)
 {
   const ContentType contentType = GetParam();
 
@@ -411,27 +411,26 @@ TEST_P(ResourceProviderManagerHttpApiTest, UpdateOfferOperationStatus)
     EXPECT_FALSE(resourceProviderId->value().empty());
   }
 
-  // Then, send an offer operation update to the manager.
+  // Then, send an operation status update to the manager.
   {
     v1::FrameworkID frameworkId;
     frameworkId.set_value("foo");
 
-    mesos::v1::OfferOperationStatus status;
-    status.set_state(mesos::v1::OfferOperationState::OFFER_OPERATION_FINISHED);
+    mesos::v1::OperationStatus status;
+    status.set_state(mesos::v1::OperationState::OPERATION_FINISHED);
 
     mesos::v1::UUID operationUUID;
     operationUUID.set_value(id::UUID::random().toBytes());
 
     Call call;
-    call.set_type(Call::UPDATE_OFFER_OPERATION_STATUS);
+    call.set_type(Call::UPDATE_OPERATION_STATUS);
     call.mutable_resource_provider_id()->CopyFrom(resourceProviderId.get());
 
-    Call::UpdateOfferOperationStatus* updateOfferOperationStatus =
-      call.mutable_update_offer_operation_status();
-    updateOfferOperationStatus->mutable_framework_id()->CopyFrom(frameworkId);
-    updateOfferOperationStatus->mutable_status()->CopyFrom(status);
-    updateOfferOperationStatus->mutable_operation_uuid()->CopyFrom(
-        operationUUID);
+    Call::UpdateOperationStatus* updateOperationStatus =
+      call.mutable_update_operation_status();
+    updateOperationStatus->mutable_framework_id()->CopyFrom(frameworkId);
+    updateOperationStatus->mutable_status()->CopyFrom(status);
+    updateOperationStatus->mutable_operation_uuid()->CopyFrom(operationUUID);
 
     http::Request request;
     request.method = "POST";
@@ -446,23 +445,23 @@ TEST_P(ResourceProviderManagerHttpApiTest, UpdateOfferOperationStatus)
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
 
     // The manager will send out a message informing its subscriber
-    // about the updated offer operation.
+    // about the updated operation.
     Future<ResourceProviderMessage> message = manager.messages().get();
 
     AWAIT_READY(message);
 
     EXPECT_EQ(
-        ResourceProviderMessage::Type::UPDATE_OFFER_OPERATION_STATUS,
+        ResourceProviderMessage::Type::UPDATE_OPERATION_STATUS,
         message->type);
     EXPECT_EQ(
         devolve(frameworkId),
-        message->updateOfferOperationStatus->update.framework_id());
+        message->updateOperationStatus->update.framework_id());
     EXPECT_EQ(
         devolve(status).state(),
-        message->updateOfferOperationStatus->update.status().state());
+        message->updateOperationStatus->update.status().state());
     EXPECT_EQ(
         operationUUID.value(),
-        message->updateOfferOperationStatus->update.operation_uuid().value());
+        message->updateOperationStatus->update.operation_uuid().value());
   }
 }
 

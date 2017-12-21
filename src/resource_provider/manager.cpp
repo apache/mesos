@@ -158,12 +158,12 @@ public:
       const http::Request& request,
       const Option<Principal>& principal);
 
-  void applyOfferOperation(const ApplyOfferOperationMessage& message);
+  void applyOperation(const ApplyOperationMessage& message);
 
-  void acknowledgeOfferOperationUpdate(
-      const OfferOperationUpdateAcknowledgementMessage& message);
+  void acknowledgeOperationStatus(
+      const AcknowledgeOperationStatusMessage& message);
 
-  void reconcileOfferOperations(const ReconcileOfferOperationsMessage& message);
+  void reconcileOperations(const ReconcileOperationsMessage& message);
 
   Future<Nothing> publishResources(const Resources& resources);
 
@@ -174,9 +174,9 @@ private:
       const HttpConnection& http,
       const Call::Subscribe& subscribe);
 
-  void updateOfferOperationStatus(
+  void updateOperationStatus(
       ResourceProvider* resourceProvider,
-      const Call::UpdateOfferOperationStatus& update);
+      const Call::UpdateOperationStatus& update);
 
   void updateState(
       ResourceProvider* resourceProvider,
@@ -319,10 +319,10 @@ Future<http::Response> ResourceProviderManagerProcess::api(
       LOG(FATAL) << "Unexpected 'SUBSCRIBE' call";
     }
 
-    case Call::UPDATE_OFFER_OPERATION_STATUS: {
-      updateOfferOperationStatus(
+    case Call::UPDATE_OPERATION_STATUS: {
+      updateOperationStatus(
           resourceProvider,
-          call.update_offer_operation_status());
+          call.update_operation_status());
 
       return Accepted();
     }
@@ -344,8 +344,8 @@ Future<http::Response> ResourceProviderManagerProcess::api(
 }
 
 
-void ResourceProviderManagerProcess::applyOfferOperation(
-    const ApplyOfferOperationMessage& message)
+void ResourceProviderManagerProcess::applyOperation(
+    const ApplyOperationMessage& message)
 {
   const Offer::Operation& operation = message.operation_info();
   const FrameworkID& frameworkId = message.framework_id();
@@ -384,13 +384,13 @@ void ResourceProviderManagerProcess::applyOfferOperation(
     << resourceProviderId.get();
 
   Event event;
-  event.set_type(Event::APPLY_OFFER_OPERATION);
-  event.mutable_apply_offer_operation()
+  event.set_type(Event::APPLY_OPERATION);
+  event.mutable_apply_operation()
     ->mutable_framework_id()->CopyFrom(frameworkId);
-  event.mutable_apply_offer_operation()->mutable_info()->CopyFrom(operation);
-  event.mutable_apply_offer_operation()
+  event.mutable_apply_operation()->mutable_info()->CopyFrom(operation);
+  event.mutable_apply_operation()
     ->mutable_operation_uuid()->CopyFrom(message.operation_uuid());
-  event.mutable_apply_offer_operation()
+  event.mutable_apply_operation()
     ->mutable_resource_version_uuid()
     ->CopyFrom(message.resource_version_uuid().uuid());
 
@@ -403,13 +403,13 @@ void ResourceProviderManagerProcess::applyOfferOperation(
 }
 
 
-void ResourceProviderManagerProcess::acknowledgeOfferOperationUpdate(
-    const OfferOperationUpdateAcknowledgementMessage& message)
+void ResourceProviderManagerProcess::acknowledgeOperationStatus(
+    const AcknowledgeOperationStatusMessage& message)
 {
   CHECK(message.has_resource_provider_id());
 
   if (!resourceProviders.subscribed.contains(message.resource_provider_id())) {
-    LOG(WARNING) << "Dropping offer operation update acknowledgement with"
+    LOG(WARNING) << "Dropping operation status acknowledgement with"
                  << " status_uuid " << message.status_uuid() << " and"
                  << " operation_uuid " << message.operation_uuid() << " because"
                  << " resource provider " << message.resource_provider_id()
@@ -421,16 +421,16 @@ void ResourceProviderManagerProcess::acknowledgeOfferOperationUpdate(
     *resourceProviders.subscribed.at(message.resource_provider_id());
 
   Event event;
-  event.set_type(Event::ACKNOWLEDGE_OFFER_OPERATION);
-  event.mutable_acknowledge_offer_operation()
+  event.set_type(Event::ACKNOWLEDGE_OPERATION_STATUS);
+  event.mutable_acknowledge_operation_status()
     ->mutable_status_uuid()
     ->CopyFrom(message.status_uuid());
-  event.mutable_acknowledge_offer_operation()
+  event.mutable_acknowledge_operation_status()
     ->mutable_operation_uuid()
     ->CopyFrom(message.operation_uuid());
 
   if (!resourceProvider.http.send(event)) {
-    LOG(WARNING) << "Failed to send offer operation update acknowledgement with"
+    LOG(WARNING) << "Failed to send operation status acknowledgement with"
                  << " status_uuid " << message.status_uuid() << " and"
                  << " operation_uuid " << message.operation_uuid() << " to"
                  << " resource provider " << message.resource_provider_id()
@@ -439,23 +439,23 @@ void ResourceProviderManagerProcess::acknowledgeOfferOperationUpdate(
 }
 
 
-void ResourceProviderManagerProcess::reconcileOfferOperations(
-    const ReconcileOfferOperationsMessage& message)
+void ResourceProviderManagerProcess::reconcileOperations(
+    const ReconcileOperationsMessage& message)
 {
   hashmap<ResourceProviderID, Event> events;
 
   auto addOperation =
-    [&events](const ReconcileOfferOperationsMessage::Operation& operation) {
+    [&events](const ReconcileOperationsMessage::Operation& operation) {
       const ResourceProviderID resourceProviderId =
         operation.resource_provider_id();
 
       if (events.contains(resourceProviderId)) {
-        events.at(resourceProviderId).mutable_reconcile_offer_operations()
+        events.at(resourceProviderId).mutable_reconcile_operations()
           ->add_operation_uuids()->CopyFrom(operation.operation_uuid());
       } else {
         Event event;
-        event.set_type(Event::RECONCILE_OFFER_OPERATIONS);
-        event.mutable_reconcile_offer_operations()
+        event.set_type(Event::RECONCILE_OPERATIONS);
+        event.mutable_reconcile_operations()
           ->add_operation_uuids()->CopyFrom(operation.operation_uuid());
 
         events[resourceProviderId] = event;
@@ -464,12 +464,12 @@ void ResourceProviderManagerProcess::reconcileOfferOperations(
 
   // Construct events for individual resource providers.
   foreach (
-      const ReconcileOfferOperationsMessage::Operation& operation,
+      const ReconcileOperationsMessage::Operation& operation,
       message.operations()) {
     if (operation.has_resource_provider_id()) {
       if (!resourceProviders.subscribed.contains(
               operation.resource_provider_id())) {
-        LOG(WARNING) << "Dropping offer operation reconciliation message with"
+        LOG(WARNING) << "Dropping operation reconciliation message with"
                      << " operation_uuid " << operation.operation_uuid()
                      << " because resource provider "
                      << operation.resource_provider_id()
@@ -490,7 +490,7 @@ void ResourceProviderManagerProcess::reconcileOfferOperations(
       *resourceProviders.subscribed.at(resourceProviderId);
 
     if (!resourceProvider.http.send(event)) {
-      LOG(WARNING) << "Failed to send offer operation reconciliation event"
+      LOG(WARNING) << "Failed to send operation reconciliation event"
                    << " to resource provider " << resourceProviderId
                    << ": connection closed";
     }
@@ -623,11 +623,11 @@ void ResourceProviderManagerProcess::subscribe(
 }
 
 
-void ResourceProviderManagerProcess::updateOfferOperationStatus(
+void ResourceProviderManagerProcess::updateOperationStatus(
     ResourceProvider* resourceProvider,
-    const Call::UpdateOfferOperationStatus& update)
+    const Call::UpdateOperationStatus& update)
 {
-  ResourceProviderMessage::UpdateOfferOperationStatus body;
+  ResourceProviderMessage::UpdateOperationStatus body;
   body.update.mutable_framework_id()->CopyFrom(update.framework_id());
   body.update.mutable_status()->CopyFrom(update.status());
   body.update.mutable_operation_uuid()->CopyFrom(update.operation_uuid());
@@ -636,8 +636,8 @@ void ResourceProviderManagerProcess::updateOfferOperationStatus(
   }
 
   ResourceProviderMessage message;
-  message.type = ResourceProviderMessage::Type::UPDATE_OFFER_OPERATION_STATUS;
-  message.updateOfferOperationStatus = std::move(body);
+  message.type = ResourceProviderMessage::Type::UPDATE_OPERATION_STATUS;
+  message.updateOperationStatus = std::move(body);
 
   messages.put(std::move(message));
 }
@@ -660,26 +660,24 @@ void ResourceProviderManagerProcess::updateState(
     << "Could not deserialize version of resource provider "
     << resourceProvider->info.id() << ": " << resourceVersion.error();
 
-  hashmap<id::UUID, OfferOperation> offerOperations;
-  foreach (const OfferOperation &operation, update.operations()) {
-    Try<id::UUID> uuid =
-      id::UUID::fromBytes(operation.operation_uuid().value());
+  hashmap<id::UUID, Operation> operations;
+  foreach (const Operation &operation, update.operations()) {
+    Try<id::UUID> uuid = id::UUID::fromBytes(operation.uuid().value());
     CHECK_SOME(uuid);
 
-    offerOperations.put(uuid.get(), operation);
+    operations.put(uuid.get(), operation);
   }
 
   LOG(INFO)
     << "Received UPDATE_STATE call with resources '" << update.resources()
-    << "' and " << offerOperations.size()
-    << " offer operations from resource provider "
+    << "' and " << operations.size() << " operations from resource provider "
     << resourceProvider->info.id();
 
   ResourceProviderMessage::UpdateState updateState{
       resourceProvider->info,
       resourceVersion.get(),
       update.resources(),
-      std::move(offerOperations)};
+      std::move(operations)};
 
   ResourceProviderMessage message;
   message.type = ResourceProviderMessage::Type::UPDATE_STATE;
@@ -762,32 +760,32 @@ Future<http::Response> ResourceProviderManager::api(
 }
 
 
-void ResourceProviderManager::applyOfferOperation(
-    const ApplyOfferOperationMessage& message) const
+void ResourceProviderManager::applyOperation(
+    const ApplyOperationMessage& message) const
 {
   return dispatch(
       process.get(),
-      &ResourceProviderManagerProcess::applyOfferOperation,
+      &ResourceProviderManagerProcess::applyOperation,
       message);
 }
 
 
-void ResourceProviderManager::acknowledgeOfferOperationUpdate(
-    const OfferOperationUpdateAcknowledgementMessage& message) const
+void ResourceProviderManager::acknowledgeOperationStatus(
+    const AcknowledgeOperationStatusMessage& message) const
 {
   return dispatch(
       process.get(),
-      &ResourceProviderManagerProcess::acknowledgeOfferOperationUpdate,
+      &ResourceProviderManagerProcess::acknowledgeOperationStatus,
       message);
 }
 
 
-void ResourceProviderManager::reconcileOfferOperations(
-    const ReconcileOfferOperationsMessage& message) const
+void ResourceProviderManager::reconcileOperations(
+    const ReconcileOperationsMessage& message) const
 {
   return dispatch(
       process.get(),
-      &ResourceProviderManagerProcess::reconcileOfferOperations,
+      &ResourceProviderManagerProcess::reconcileOperations,
       message);
 }
 

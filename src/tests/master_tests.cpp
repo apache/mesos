@@ -654,7 +654,7 @@ TEST_F(MasterTest, EndpointsForHalfRemovedSlave)
 
   // Intercept the first registrar operation that is attempted; this
   // should be the operation that marks the slave as unreachable.
-  Future<Owned<master::Operation>> unreachable;
+  Future<Owned<master::RegistryOperation>> unreachable;
   Promise<bool> promise;
   EXPECT_CALL(*master.get()->registrar, apply(_))
     .WillOnce(DoAll(FutureArg<0>(&unreachable),
@@ -3447,7 +3447,7 @@ TEST_F(MasterTest, RecoveredSlaveReregisterThenUnreachableRace)
   Future<ReregisterSlaveMessage> reregisterSlaveMessage =
     FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, master.get()->pid);
 
-  Future<Owned<master::Operation>> reregister;
+  Future<Owned<master::RegistryOperation>> reregister;
   Promise<bool> reregisterContinue;
   EXPECT_CALL(*master.get()->registrar, apply(_))
     .WillOnce(DoAll(FutureArg<0>(&reregister),

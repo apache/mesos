@@ -68,7 +68,7 @@
 #include "slave/paths.hpp"
 #include "slave/state.hpp"
 
-#include "status_update_manager/offer_operation.hpp"
+#include "status_update_manager/operation.hpp"
 
 namespace http = process::http;
 
@@ -299,7 +299,7 @@ public:
       strict(_strict),
       reconciling(false),
       resourceVersion(id::UUID::random()),
-      offerOperationSequence("offer-operation-sequence")
+      operationSequence("operation-sequence")
   {
     volumeProfileAdaptor = VolumeProfileAdaptor::getAdaptor();
     CHECK_NOTNULL(volumeProfileAdaptor.get());
@@ -352,12 +352,12 @@ private:
 
   // Functions for received events.
   void subscribed(const Event::Subscribed& subscribed);
-  void applyOfferOperation(const Event::ApplyOfferOperation& operation);
+  void applyOperation(const Event::ApplyOperation& operation);
   void publishResources(const Event::PublishResources& publish);
-  void acknowledgeOfferOperation(
-      const Event::AcknowledgeOfferOperation& acknowledge);
-  void reconcileOfferOperations(
-      const Event::ReconcileOfferOperations& reconcile);
+  void acknowledgeOperationStatus(
+      const Event::AcknowledgeOperationStatus& acknowledge);
+  void reconcileOperations(
+      const Event::ReconcileOperations& reconcile);
 
   Future<csi::Client> connect(const string& endpoint);
   Future<csi::Client> getService(const ContainerID& containerId);
@@ -381,11 +381,11 @@ private:
   Future<Resources> listVolumes();
   Future<Resources> getCapacities();
 
-  Future<Nothing> _applyOfferOperation(const id::UUID& operationUuid);
-  void dropOfferOperation(
+  Future<Nothing> _applyOperation(const id::UUID& operationUuid);
+  void dropOperation(
       const id::UUID& operationUuid,
       const Option<FrameworkID>& frameworkId,
-      const Option<OfferOperationID>& operationId,
+      const Option<OperationID>& operationId,
       const string& message);
 
   Future<vector<ResourceConversion>> applyCreateVolumeOrBlock(
@@ -395,7 +395,7 @@ private:
   Future<vector<ResourceConversion>> applyDestroyVolumeOrBlock(
       const Resource& resource);
 
-  Try<Nothing> updateOfferOperationStatus(
+  Try<Nothing> updateOperationStatus(
       const id::UUID& operationUuid,
       const Try<vector<ResourceConversion>>& conversions);
 
@@ -406,8 +406,8 @@ private:
 
   // NOTE: This is a callback for the status update manager and should
   // not be called directly.
-  void sendOfferOperationStatusUpdate(
-      const OfferOperationStatusUpdate& statusUpdate);
+  void sendOperationStatusUpdate(
+      const UpdateOperationStatusMessage& update);
 
   enum State
   {
@@ -435,7 +435,7 @@ private:
   string bootId;
   process::grpc::client::Runtime runtime;
   Owned<v1::resource_provider::Driver> driver;
-  OfferOperationStatusUpdateManager statusUpdateManager;
+  OperationStatusUpdateManager statusUpdateManager;
 
   // The mapping of known profiles fetched from the VolumeProfileAdaptor.
   hashmap<string, VolumeProfileAdaptor::ProfileInfo> profileInfos;
@@ -460,9 +460,9 @@ private:
   // another, they cannot be in PENDING state at the same time, i.e.,
   // the result of the preceding operation must have been reflected in
   // the total resources.
-  // NOTE: We store the list of offer operations in a `LinkedHashMap` to
+  // NOTE: We store the list of operations in a `LinkedHashMap` to
   // preserve the order we receive the operations in case we need it.
-  LinkedHashMap<id::UUID, OfferOperation> offerOperations;
+  LinkedHashMap<id::UUID, Operation> operations;
   Resources totalResources;
   id::UUID resourceVersion;
   hashmap<string, VolumeData> volumes;
@@ -470,7 +470,7 @@ private:
   // We maintain a sequence to keep track of ongoing volume/block
   // creation or destroy. These operations will not be sequentialized
   // through the sequence. It is simply used to wait for them to finish.
-  Sequence offerOperationSequence;
+  Sequence operationSequence;
 };
 
 
@@ -508,9 +508,9 @@ void StorageLocalResourceProviderProcess::received(const Event& event)
       subscribed(event.subscribed());
       break;
     }
-    case Event::APPLY_OFFER_OPERATION: {
-      CHECK(event.has_apply_offer_operation());
-      applyOfferOperation(event.apply_offer_operation());
+    case Event::APPLY_OPERATION: {
+      CHECK(event.has_apply_operation());
+      applyOperation(event.apply_operation());
       break;
     }
     case Event::PUBLISH_RESOURCES: {
@@ -518,14 +518,14 @@ void StorageLocalResourceProviderProcess::received(const Event& event)
       publishResources(event.publish_resources());
       break;
     }
-    case Event::ACKNOWLEDGE_OFFER_OPERATION: {
-      CHECK(event.has_acknowledge_offer_operation());
-      acknowledgeOfferOperation(event.acknowledge_offer_operation());
+    case Event::ACKNOWLEDGE_OPERATION_STATUS: {
+      CHECK(event.has_acknowledge_operation_status());
+      acknowledgeOperationStatus(event.acknowledge_operation_status());
       break;
     }
-    case Event::RECONCILE_OFFER_OPERATIONS: {
-      CHECK(event.has_reconcile_offer_operations());
-      reconcileOfferOperations(event.reconcile_offer_operations());
+    case Event::RECONCILE_OPERATIONS: {
+      CHECK(event.has_reconcile_operations());
+      reconcileOperations(event.reconcile_operations());
       break;
     }
     case Event::UNKNOWN: {
@@ -901,14 +901,13 @@ StorageLocalResourceProviderProcess::recoverResourceProviderState()
     }
 
     if (resourceProviderState.isSome()) {
-      foreach (const OfferOperation& operation,
+      foreach (const Operation& operation,
                resourceProviderState->operations()) {
-        Try<id::UUID> uuid =
-          id::UUID::fromBytes(operation.operation_uuid().value());
+        Try<id::UUID> uuid = id::UUID::fromBytes(operation.uuid().value());
 
         CHECK_SOME(uuid);
 
-        offerOperations[uuid.get()] = operation;
+        operations[uuid.get()] = operation;
       }
 
       totalResources = resourceProviderState->resources();
@@ -936,8 +935,8 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverProfiles()
     }
   }
 
-  // If no pending offer operation uses any profile, there is no need
-  // to recover any profile. Watching the VolumeProfileAdaptor will be
+  // If no pending operation uses any profile, there is no need to
+  // recover any profile. Watching the VolumeProfileAdaptor will be
   // initiated later.
   if (requiredProfiles.empty()) {
     return Nothing();
@@ -1053,53 +1052,53 @@ Future<Nothing> StorageLocalResourceProviderProcess::reconcileStatusUpdates()
       metaDir, slaveId, info.type(), info.name(), info.id());
 
   statusUpdateManager.initialize(
-      defer(self(), &Self::sendOfferOperationStatusUpdate, lambda::_1),
+      defer(self(), &Self::sendOperationStatusUpdate, lambda::_1),
       std::bind(
-          &slave::paths::getOfferOperationUpdatesPath,
+          &slave::paths::getOperationUpdatesPath,
           resourceProviderDir,
           lambda::_1));
 
-  Try<list<string>> operationPaths = slave::paths::getOfferOperationPaths(
+  Try<list<string>> operationPaths = slave::paths::getOperationPaths(
       slave::paths::getResourceProviderPath(
           metaDir, slaveId, info.type(), info.name(), info.id()));
 
   if (operationPaths.isError()) {
     return Failure(
-        "Failed to find offer operations for resource provider " +
+        "Failed to find operations for resource provider " +
         stringify(info.id()) + ": " + operationPaths.error());
   }
 
   list<id::UUID> operationUuids;
   foreach (const string& path, operationPaths.get()) {
     Try<id::UUID> uuid =
-      slave::paths::parseOfferOperationPath(resourceProviderDir, path);
+      slave::paths::parseOperationPath(resourceProviderDir, path);
 
     if (uuid.isError()) {
       return Failure(
-          "Failed to parse offer operation path '" + path + "': " +
+          "Failed to parse operation path '" + path + "': " +
           uuid.error());
     }
 
-    CHECK(offerOperations.contains(uuid.get()));
+    CHECK(operations.contains(uuid.get()));
     operationUuids.emplace_back(std::move(uuid.get()));
   }
 
   return statusUpdateManager.recover(operationUuids, strict)
     .then(defer(self(), [=](
-        const OfferOperationStatusManagerState& statusUpdateManagerState)
+        const OperationStatusUpdateManagerState& statusUpdateManagerState)
         -> Future<Nothing> {
       using StreamState =
-        typename OfferOperationStatusManagerState::StreamState;
+        typename OperationStatusUpdateManagerState::StreamState;
 
       // Clean up the operations that are terminated.
       foreachpair (const id::UUID& uuid,
                    const Option<StreamState>& stream,
                    statusUpdateManagerState.streams) {
         if (stream.isSome() && stream->terminated) {
-          offerOperations.erase(uuid);
+          operations.erase(uuid);
 
-          // Garbage collect the offer operation metadata.
-          const string path = slave::paths::getOfferOperationPath(
+          // Garbage collect the operation metadata.
+          const string path = slave::paths::getOperationPath(
               slave::paths::getResourceProviderPath(
                   metaDir, slaveId, info.type(), info.name(), info.id()),
               uuid);
@@ -1114,9 +1113,9 @@ Future<Nothing> StorageLocalResourceProviderProcess::reconcileStatusUpdates()
 
       // Send updates for all missing statuses.
       foreachpair (const id::UUID& uuid,
-                   const OfferOperation& operation,
-                   offerOperations) {
-        if (operation.latest_status().state() == OFFER_OPERATION_PENDING) {
+                   const Operation& operation,
+                   operations) {
+        if (operation.latest_status().state() == OPERATION_PENDING) {
           continue;
         }
 
@@ -1126,8 +1125,8 @@ Future<Nothing> StorageLocalResourceProviderProcess::reconcileStatusUpdates()
             ? statusUpdateManagerState.streams.at(uuid)->updates.size() : 0;
 
         for (int i = numStatuses; i < operation.statuses().size(); i++) {
-          OfferOperationStatusUpdate update =
-            protobuf::createOfferOperationStatusUpdate(
+          UpdateOperationStatusMessage update =
+            protobuf::createUpdateOperationStatusMessage(
                 uuid,
                 operation.statuses(i),
                 None(),
@@ -1137,8 +1136,8 @@ Future<Nothing> StorageLocalResourceProviderProcess::reconcileStatusUpdates()
 
           auto die = [=](const string& message) {
             LOG(ERROR)
-              << "Failed to update status of offer operation (uuid: " << uuid
-              << "): " << message;
+              << "Failed to update status of operation (uuid: " << uuid << "): "
+              << message;
             fatal();
           };
 
@@ -1154,25 +1153,25 @@ Future<Nothing> StorageLocalResourceProviderProcess::reconcileStatusUpdates()
       list<Future<Nothing>> futures;
 
       foreachpair (const id::UUID& uuid,
-                   const OfferOperation& operation,
-                   offerOperations) {
+                   const Operation& operation,
+                   operations) {
         if (protobuf::isTerminalState(operation.latest_status().state())) {
           continue;
         }
 
         auto err = [](const id::UUID& uuid, const string& message) {
           LOG(ERROR)
-            << "Falied to apply offer operation (uuid: " << uuid << "): "
+            << "Falied to apply operation (uuid: " << uuid << "): "
             << message;
         };
 
-        futures.push_back(_applyOfferOperation(uuid)
+        futures.push_back(_applyOperation(uuid)
           .onFailed(std::bind(err, uuid, lambda::_1))
           .onDiscarded(std::bind(err, uuid, "future discarded")));
       }
 
       // We await the futures instead of collect them because it is OK
-      // for offer operations to fail.
+      // for operations to fail.
       return await(futures).then([] { return Nothing(); });
     }));
 }
@@ -1184,9 +1183,9 @@ ResourceConversion StorageLocalResourceProviderProcess::reconcileResources(
 {
   // NOTE: If a resource in the checkpointed resources is missing in the
   // discovered resources, we will still keep it if it is converted by
-  // an offer operation before (i.e., has extra info other than the
-  // default reservations). The reason is that we want to maintain a
-  // consistent view with frameworks, and do not want to lose any data on
+  // an operation before (i.e., has extra info other than the default
+  // reservations). The reason is that we want to maintain a consistent
+  // view with frameworks, and do not want to lose any data on
   // persistent volumes due to some temporarily CSI plugin faults. Other
   // missing resources that are "unconverted" by any framework will be
   // removed. Then, any newly discovered resource will be added.
@@ -1218,7 +1217,7 @@ ResourceConversion StorageLocalResourceProviderProcess::reconcileResources(
     } else {
       LOG(WARNING)
         << "Missing converted resource '" << resource
-        << "'. This might cause further offer operations to fail.";
+        << "'. This might cause further operations to fail.";
     }
   }
 
@@ -1268,9 +1267,9 @@ Future<Nothing> StorageLocalResourceProviderProcess::reconcileProfileUpdates()
 
   reconciling = true;
 
-  // We add a lambda into `offerOperationSequence` so that it will
-  // return after waiting for all pending operations in the sequence.
-  return offerOperationSequence.add(
+  // We add a lambda into `OperationSequence` so that it will return
+  // after waiting for all pending operations in the sequence.
+  return operationSequence.add(
       std::function<Future<Nothing>()>([] { return Nothing(); }))
     .then(defer(self(), &Self::getCapacities))
     .then(defer(self(), [=](const Resources& discovered) {
@@ -1352,8 +1351,8 @@ void StorageLocalResourceProviderProcess::subscribed(
 }
 
 
-void StorageLocalResourceProviderProcess::applyOfferOperation(
-    const Event::ApplyOfferOperation& operation)
+void StorageLocalResourceProviderProcess::applyOperation(
+    const Event::ApplyOperation& operation)
 {
   CHECK(state == SUBSCRIBED || state == READY);
 
@@ -1366,23 +1365,23 @@ void StorageLocalResourceProviderProcess::applyOfferOperation(
 
   Option<FrameworkID> frameworkId = operation.has_framework_id()
     ? operation.framework_id() : Option<FrameworkID>::none();
-  Option<OfferOperationID> operationId = operation.info().has_id()
-    ? operation.info().id() : Option<OfferOperationID>::none();
+  Option<OperationID> operationId = operation.info().has_id()
+    ? operation.info().id() : Option<OperationID>::none();
 
   if (state == SUBSCRIBED) {
-    return dropOfferOperation(
+    return dropOperation(
         uuid.get(),
         frameworkId,
         operationId,
-        "Cannot apply offer operation in SUBSCRIBED state");
+        "Cannot apply operation in SUBSCRIBED state");
   }
 
   if (reconciling) {
-    return dropOfferOperation(
+    return dropOperation(
         uuid.get(),
         frameworkId,
         operationId,
-        "Cannot apply offer operation when reconciling storage pools");
+        "Cannot apply operation when reconciling storage pools");
   }
 
   Try<id::UUID> operationVersion =
@@ -1390,7 +1389,7 @@ void StorageLocalResourceProviderProcess::applyOfferOperation(
   CHECK_SOME(operationVersion);
 
   if (operationVersion.get() != resourceVersion) {
-    return dropOfferOperation(
+    return dropOperation(
         uuid.get(),
         frameworkId,
         operationId,
@@ -1398,12 +1397,10 @@ void StorageLocalResourceProviderProcess::applyOfferOperation(
         " (expected: " + stringify(resourceVersion) + ")");
   }
 
-  CHECK(!offerOperations.contains(uuid.get()));
-  offerOperations[uuid.get()] = protobuf::createOfferOperation(
+  CHECK(!operations.contains(uuid.get()));
+  operations[uuid.get()] = protobuf::createOperation(
       operation.info(),
-      protobuf::createOfferOperationStatus(
-          OFFER_OPERATION_PENDING,
-          operationId),
+      protobuf::createOperationStatus(OPERATION_PENDING, operationId),
       frameworkId,
       slaveId,
       uuid.get());
@@ -1412,10 +1409,10 @@ void StorageLocalResourceProviderProcess::applyOfferOperation(
 
   auto err = [](const id::UUID& uuid, const string& message) {
     LOG(ERROR)
-      << "Failed to apply offer operation (uuid: " << uuid << "): " << message;
+      << "Failed to apply operation (uuid: " << uuid << "): " << message;
   };
 
-  _applyOfferOperation(uuid.get())
+  _applyOperation(uuid.get())
     .onFailed(std::bind(err, uuid.get(), lambda::_1))
     .onDiscarded(std::bind(err, uuid.get(), "future discarded"));
 }
@@ -1557,8 +1554,8 @@ void StorageLocalResourceProviderProcess::publishResources(
 }
 
 
-void StorageLocalResourceProviderProcess::acknowledgeOfferOperation(
-    const Event::AcknowledgeOfferOperation& acknowledge)
+void StorageLocalResourceProviderProcess::acknowledgeOperationStatus(
+    const Event::AcknowledgeOperationStatus& acknowledge)
 {
   CHECK_EQ(READY, state);
 
@@ -1574,8 +1571,8 @@ void StorageLocalResourceProviderProcess::acknowledgeOfferOperation(
 
   auto err = [](const id::UUID& uuid, const string& message) {
     LOG(ERROR)
-      << "Failed to acknowledge status update for offer operation (uuid: "
-      << uuid << "): " << message;
+      << "Failed to acknowledge status update for operation (uuid: " << uuid
+      << "): " << message;
   };
 
   // NOTE: It is possible that an incoming acknowledgement races with an
@@ -1585,16 +1582,16 @@ void StorageLocalResourceProviderProcess::acknowledgeOfferOperation(
   statusUpdateManager.acknowledgement(operationUuid.get(), statusUuid.get())
     .then(defer(self(), [=](bool continuation) -> Future<Nothing> {
       if (!continuation) {
-        offerOperations.erase(operationUuid.get());
+        operations.erase(operationUuid.get());
 
-        // Garbage collect the offer operation metadata.
-        const string path = slave::paths::getOfferOperationPath(
+        // Garbage collect the operation metadata.
+        const string path = slave::paths::getOperationPath(
             slave::paths::getResourceProviderPath(
                 metaDir, slaveId, info.type(), info.name(), info.id()),
             operationUuid.get());
 
         // NOTE: We check if the path exists since we do not checkpoint
-        // some status updates, such as OFFER_OPERATION_DROPPED.
+        // some status updates, such as OPERATION_DROPPED.
         if (os::exists(path)) {
           Try<Nothing> rmdir = os::rmdir(path);
           if (rmdir.isError()) {
@@ -1611,8 +1608,8 @@ void StorageLocalResourceProviderProcess::acknowledgeOfferOperation(
 }
 
 
-void StorageLocalResourceProviderProcess::reconcileOfferOperations(
-    const Event::ReconcileOfferOperations& reconcile)
+void StorageLocalResourceProviderProcess::reconcileOperations(
+    const Event::ReconcileOperations& reconcile)
 {
   CHECK_EQ(READY, state);
 
@@ -1620,19 +1617,19 @@ void StorageLocalResourceProviderProcess::reconcileOfferOperations(
     Try<id::UUID> uuid = id::UUID::fromBytes(operationUuid.value());
     CHECK_SOME(uuid);
 
-    if (offerOperations.contains(uuid.get())) {
+    if (operations.contains(uuid.get())) {
       // When the agent asks for reconciliation for a known operation,
-      // that means the `APPLY_OFFER_OPERATION` event races with the
-      // last `UPDATE_STATE` call and arrives after the call. Since the
-      // event is received, nothing needs to be done here.
+      // that means the `APPLY_OPERATION` event races with the last
+      // `UPDATE_STATE` call and arrives after the call. Since the event
+      // is received, nothing needs to be done here.
       continue;
     }
 
-    dropOfferOperation(
+    dropOperation(
         uuid.get(),
         None(),
         None(),
-        "Unknown offer operation");
+        "Unknown operation");
   }
 }
 
@@ -2292,8 +2289,8 @@ Future<string> StorageLocalResourceProviderProcess::createVolume(
 
           if (volumes.contains(volumeInfo.id())) {
             // The resource provider failed over after the last
-            // `CreateVolume` call, but before the offer operation
-            // status was checkpointed.
+            // `CreateVolume` call, but before the operation status was
+            // checkpointed.
             CHECK_EQ(csi::state::VolumeState::CREATED,
                      volumes.at(volumeInfo.id()).state.state());
           } else {
@@ -2384,7 +2381,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::deleteVolume(
     }
   } else {
     // The resource provider failed over after the last `DeleteVolume`
-    // call, but before the offer operation status was checkpointed.
+    // call, but before the operation status was checkpointed.
     CHECK(!os::exists(volumePath));
   }
 
@@ -2549,14 +2546,13 @@ Future<Resources> StorageLocalResourceProviderProcess::getCapacities()
 }
 
 
-// Applies the offer operation. Speculative operations will be
-// synchronously applied. Do nothing if the operation is already in a
-// terminal state.
-Future<Nothing> StorageLocalResourceProviderProcess::_applyOfferOperation(
+// Applies the operation. Speculative operations will be synchronously
+// applied. Do nothing if the operation is already in a terminal state.
+Future<Nothing> StorageLocalResourceProviderProcess::_applyOperation(
     const id::UUID& operationUuid)
 {
-  CHECK(offerOperations.contains(operationUuid));
-  const OfferOperation& operation = offerOperations.at(operationUuid);
+  CHECK(operations.contains(operationUuid));
+  const Operation& operation = operations.at(operationUuid);
 
   CHECK(!protobuf::isTerminalState(operation.latest_status().state()));
 
@@ -2571,7 +2567,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::_applyOfferOperation(
       // Synchronously apply the speculative operations to ensure that
       // its result is reflected in the total resources before any of
       // its succeeding operations is applied.
-      return updateOfferOperationStatus(
+      return updateOperationStatus(
           operationUuid,
           getResourceConversions(operation.info()));
     }
@@ -2633,24 +2629,24 @@ Future<Nothing> StorageLocalResourceProviderProcess::_applyOfferOperation(
         LOG(INFO)
           << "Applying conversion from '" << conversions->at(0).consumed
           << "' to '" << conversions->at(0).converted
-          << "' for offer operation (uuid: " << operationUuid << ")";
+          << "' for operation (uuid: " << operationUuid << ")";
       } else {
         LOG(ERROR)
-          << "Failed to apply offer operation (uuid: " << operationUuid
-          << "): " << conversions.error();
+          << "Failed to apply operation (uuid: " << operationUuid << "): "
+          << conversions.error();
       }
 
       promise->associate(
-          updateOfferOperationStatus(operationUuid, conversions));
+          updateOperationStatus(operationUuid, conversions));
     }));
 
   Future<Nothing> future = promise->future();
 
   CHECK_SOME(source);
   if (source->disk().source().has_profile()) {
-    // We place the future in `offerOperationSequence` so it can be
-    // waited for during reconciliation upon profile updates.
-    offerOperationSequence.add(
+    // We place the future in `operationSequence` so it can be waited
+    // for during reconciliation upon profile updates.
+    operationSequence.add(
         std::function<Future<Nothing>()>([future] { return future; }));
   }
 
@@ -2658,22 +2654,22 @@ Future<Nothing> StorageLocalResourceProviderProcess::_applyOfferOperation(
 }
 
 
-// Sends `OFFER_OPERATION_DROPPED` without checkpointing the status of
-// the offer operation.
-void StorageLocalResourceProviderProcess::dropOfferOperation(
+// Sends `OPERATION_DROPPED` without checkpointing the status of
+// the operation.
+void StorageLocalResourceProviderProcess::dropOperation(
     const id::UUID& operationUuid,
     const Option<FrameworkID>& frameworkId,
-    const Option<OfferOperationID>& operationId,
+    const Option<OperationID>& operationId,
     const string& message)
 {
   LOG(WARNING)
-    << "Dropping offer operation (uuid: " << operationUuid << "): " << message;
+    << "Dropping operation (uuid: " << operationUuid << "): " << message;
 
-  OfferOperationStatusUpdate update =
-    protobuf::createOfferOperationStatusUpdate(
+  UpdateOperationStatusMessage update =
+    protobuf::createUpdateOperationStatusMessage(
        operationUuid,
-       protobuf::createOfferOperationStatus(
-           OFFER_OPERATION_DROPPED,
+       protobuf::createOperationStatus(
+           OPERATION_DROPPED,
            operationId,
            message,
            None(),
@@ -2684,7 +2680,7 @@ void StorageLocalResourceProviderProcess::dropOfferOperation(
 
   auto die = [=](const string& message) {
     LOG(ERROR)
-      << "Failed to update status of offer operation (uuid: " << operationUuid
+      << "Failed to update status of operation (uuid: " << operationUuid
       << "): " << message;
     fatal();
   };
@@ -2925,17 +2921,17 @@ StorageLocalResourceProviderProcess::applyDestroyVolumeOrBlock(
 }
 
 
-// Synchronously updates `totalResources` and the offer operation status
-// and then asks the status update manager to send status updates.
-Try<Nothing> StorageLocalResourceProviderProcess::updateOfferOperationStatus(
+// Synchronously updates `totalResources` and the operation status and
+// then asks the status update manager to send status updates.
+Try<Nothing> StorageLocalResourceProviderProcess::updateOperationStatus(
     const id::UUID& operationUuid,
     const Try<vector<ResourceConversion>>& conversions)
 {
   Option<Error> error;
   Resources convertedResources;
 
-  CHECK(offerOperations.contains(operationUuid));
-  OfferOperation& operation = offerOperations.at(operationUuid);
+  CHECK(operations.contains(operationUuid));
+  Operation& operation = operations.at(operationUuid);
 
   if (conversions.isSome()) {
     // Strip away the allocation info when applying the conversion to
@@ -2959,10 +2955,10 @@ Try<Nothing> StorageLocalResourceProviderProcess::updateOfferOperationStatus(
   }
 
   operation.mutable_latest_status()->CopyFrom(
-      protobuf::createOfferOperationStatus(
-          error.isNone() ? OFFER_OPERATION_FINISHED : OFFER_OPERATION_FAILED,
+      protobuf::createOperationStatus(
+          error.isNone() ? OPERATION_FINISHED : OPERATION_FAILED,
           operation.info().has_id()
-            ? operation.info().id() : Option<OfferOperationID>::none(),
+            ? operation.info().id() : Option<OperationID>::none(),
           error.isNone() ? Option<string>::none() : error->message,
           error.isNone() ? convertedResources : Option<Resources>::none(),
           id::UUID::random()));
@@ -2971,9 +2967,9 @@ Try<Nothing> StorageLocalResourceProviderProcess::updateOfferOperationStatus(
 
   checkpointResourceProviderState();
 
-  // Send out the status update for the offer operation.
-  OfferOperationStatusUpdate update =
-    protobuf::createOfferOperationStatusUpdate(
+  // Send out the status update for the operation.
+  UpdateOperationStatusMessage update =
+    protobuf::createUpdateOperationStatusMessage(
         operationUuid,
         operation.latest_status(),
         None(),
@@ -2983,7 +2979,7 @@ Try<Nothing> StorageLocalResourceProviderProcess::updateOfferOperationStatus(
 
   auto die = [=](const string& message) {
     LOG(ERROR)
-      << "Failed to update status of offer operation (uuid: " << operationUuid
+      << "Failed to update status of operation (uuid: " << operationUuid
       << "): " << message;
     fatal();
   };
@@ -3013,7 +3009,7 @@ void StorageLocalResourceProviderProcess::checkpointResourceProviderState()
 {
   ResourceProviderState state;
 
-  foreachvalue (const OfferOperation& operation, offerOperations) {
+  foreachvalue (const Operation& operation, operations) {
     state.add_operations()->CopyFrom(operation);
   }
 
@@ -3057,14 +3053,14 @@ void StorageLocalResourceProviderProcess::sendResourceProviderStateUpdate()
   update->mutable_resources()->CopyFrom(totalResources);
   update->mutable_resource_version_uuid()->set_value(resourceVersion.toBytes());
 
-  foreachvalue (const OfferOperation& operation, offerOperations) {
+  foreachvalue (const Operation& operation, operations) {
     update->add_operations()->CopyFrom(operation);
   }
 
   LOG(INFO)
     << "Sending UPDATE_STATE call with resources '" << totalResources
-    << "' and " << update->operations_size()
-    << " offer operations to agent " << slaveId;
+    << "' and " << update->operations_size() << " operations to agent "
+    << slaveId;
 
   auto err = [](const ResourceProviderID& id, const string& message) {
     LOG(ERROR)
@@ -3078,34 +3074,34 @@ void StorageLocalResourceProviderProcess::sendResourceProviderStateUpdate()
 }
 
 
-void StorageLocalResourceProviderProcess::sendOfferOperationStatusUpdate(
-      const OfferOperationStatusUpdate& statusUpdate)
+void StorageLocalResourceProviderProcess::sendOperationStatusUpdate(
+      const UpdateOperationStatusMessage& _update)
 {
   Call call;
-  call.set_type(Call::UPDATE_OFFER_OPERATION_STATUS);
+  call.set_type(Call::UPDATE_OPERATION_STATUS);
   call.mutable_resource_provider_id()->CopyFrom(info.id());
 
-  Call::UpdateOfferOperationStatus* update =
-    call.mutable_update_offer_operation_status();
-  update->mutable_operation_uuid()->CopyFrom(statusUpdate.operation_uuid());
-  update->mutable_status()->CopyFrom(statusUpdate.status());
+  Call::UpdateOperationStatus* update =
+    call.mutable_update_operation_status();
+  update->mutable_operation_uuid()->CopyFrom(_update.operation_uuid());
+  update->mutable_status()->CopyFrom(_update.status());
 
-  if (statusUpdate.has_framework_id()) {
-    update->mutable_framework_id()->CopyFrom(statusUpdate.framework_id());
+  if (_update.has_framework_id()) {
+    update->mutable_framework_id()->CopyFrom(_update.framework_id());
   }
 
   // The latest status should have been set by the status update manager.
-  CHECK(statusUpdate.has_latest_status());
-  update->mutable_latest_status()->CopyFrom(statusUpdate.latest_status());
+  CHECK(_update.has_latest_status());
+  update->mutable_latest_status()->CopyFrom(_update.latest_status());
 
   auto err = [](const id::UUID& uuid, const string& message) {
     LOG(ERROR)
-      << "Failed to send status update for offer operation (uuid: " << uuid
-      << "): " << message;
+      << "Failed to send status update for operation (uuid: " << uuid << "): "
+      << message;
   };
 
   Try<id::UUID> uuid =
-    id::UUID::fromBytes(statusUpdate.operation_uuid().value());
+    id::UUID::fromBytes(_update.operation_uuid().value());
 
   CHECK_SOME(uuid);
 

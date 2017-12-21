@@ -360,7 +360,7 @@ set(STATE_SRC
   state/in_memory.cpp)
 
 set(STATUS_UPDATE_MANAGER_SRC
-  status_update_manager/offer_operation.cpp)
+  status_update_manager/operation.cpp)
 
 if (NOT WIN32)
   list(APPEND STATE_SRC

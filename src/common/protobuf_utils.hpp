@@ -150,29 +150,29 @@ Option<CheckStatusInfo> getTaskCheckStatus(const Task& task);
 Option<ContainerStatus> getTaskContainerStatus(const Task& task);
 
 
-bool isTerminalState(const OfferOperationState& state);
+bool isTerminalState(const OperationState& state);
 
 
-OfferOperationStatus createOfferOperationStatus(
-    const OfferOperationState& state,
-    const Option<OfferOperationID>& operationId = None(),
+OperationStatus createOperationStatus(
+    const OperationState& state,
+    const Option<OperationID>& operationId = None(),
     const Option<std::string>& message = None(),
     const Option<Resources>& convertedResources = None(),
     const Option<id::UUID>& statusUUID = None());
 
 
-OfferOperation createOfferOperation(
+Operation createOperation(
     const Offer::Operation& info,
-    const OfferOperationStatus& latestStatus,
+    const OperationStatus& latestStatus,
     const Option<FrameworkID>& frameworkId,
     const Option<SlaveID>& slaveId,
     const Option<id::UUID>& operationUUID = None());
 
 
-OfferOperationStatusUpdate createOfferOperationStatusUpdate(
+UpdateOperationStatusMessage createUpdateOperationStatusMessage(
     const id::UUID& operationUUID,
-    const OfferOperationStatus& status,
-    const Option<OfferOperationStatus>& latestStatus = None(),
+    const OperationStatus& status,
+    const Option<OperationStatus>& latestStatus = None(),
     const Option<FrameworkID>& frameworkId = None(),
     const Option<SlaveID>& slaveId = None());
 

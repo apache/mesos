@@ -47,7 +47,7 @@ namespace weights {
  * for the roles. If there are no weights stored for the roles, some new
  * entries are created, otherwise the existing entries are updated.
  */
-class UpdateWeights : public Operation
+class UpdateWeights : public RegistryOperation
 {
 public:
   explicit UpdateWeights(const std::vector<WeightInfo>& _weightInfos);

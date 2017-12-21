@@ -46,13 +46,13 @@ bool operator!=(
 
 
 bool operator==(
-    const OfferOperationStatusUpdate& left,
-    const OfferOperationStatusUpdate& right);
+    const UpdateOperationStatusMessage& left,
+    const UpdateOperationStatusMessage& right);
 
 
 bool operator!=(
-    const OfferOperationStatusUpdate& left,
-    const OfferOperationStatusUpdate& right);
+    const UpdateOperationStatusMessage& left,
+    const UpdateOperationStatusMessage& right);
 
 
 std::ostream& operator<<(std::ostream& stream, const StatusUpdate& update);
@@ -60,7 +60,7 @@ std::ostream& operator<<(std::ostream& stream, const StatusUpdate& update);
 
 std::ostream& operator<<(
     std::ostream& stream,
-    const OfferOperationStatusUpdate& update);
+    const UpdateOperationStatusMessage& update);
 
 
 std::ostream& operator<<(
@@ -70,7 +70,7 @@ std::ostream& operator<<(
 
 std::ostream& operator<<(
     std::ostream& stream,
-    const OfferOperationStatusUpdateRecord::Type& type);
+    const UpdateOperationStatusRecord::Type& type);
 
 } // namespace internal {
 } // namespace mesos {

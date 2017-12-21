@@ -51,17 +51,17 @@ public:
       const process::http::Request& request,
       const Option<process::http::authentication::Principal>& principal) const;
 
-  void applyOfferOperation(const ApplyOfferOperationMessage& message) const;
+  void applyOperation(const ApplyOperationMessage& message) const;
 
-  // Forwards an offer operation status update acknowledgement
-  // to the relevant resource provider.
-  void acknowledgeOfferOperationUpdate(
-      const OfferOperationUpdateAcknowledgementMessage& message) const;
+  // Forwards an operation status acknowledgement to the relevant
+  // resource provider.
+  void acknowledgeOperationStatus(
+      const AcknowledgeOperationStatusMessage& message) const;
 
-  // Forwards offer operation update reconciliation requests from the master to
-  // the relevant resource providers.
-  void reconcileOfferOperations(
-      const ReconcileOfferOperationsMessage& message) const;
+  // Forwards operation reconciliation requests from the master to the
+  // relevant resource providers.
+  void reconcileOperations(
+      const ReconcileOperationsMessage& message) const;
 
   // Ensure that the resources are ready for use.
   process::Future<Nothing> publishResources(const Resources& resources);

@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __STATUS_UPDATE_MANAGER_OFFER_OPERATION_HPP__
-#define __STATUS_UPDATE_MANAGER_OFFER_OPERATION_HPP__
+#ifndef __STATUS_UPDATE_MANAGER_OPERATION_HPP__
+#define __STATUS_UPDATE_MANAGER_OPERATION_HPP__
 
 #include <list>
 
@@ -38,38 +38,39 @@ namespace internal {
 
 typedef StatusUpdateManagerProcess<
     id::UUID,
-    OfferOperationStatusUpdateRecord,
-    OfferOperationStatusUpdate>::State OfferOperationStatusManagerState;
+    UpdateOperationStatusRecord,
+    UpdateOperationStatusMessage>::State OperationStatusUpdateManagerState;
 
-class OfferOperationStatusUpdateManager
+class OperationStatusUpdateManager
 {
 public:
   // NOTE: Unless first paused, the status update manager will forward updates
   // as soon as possible; for example, during recovery or as soon as the first
   // status update is processed.
-  OfferOperationStatusUpdateManager();
+  OperationStatusUpdateManager();
 
-  ~OfferOperationStatusUpdateManager();
+  ~OperationStatusUpdateManager();
 
-  OfferOperationStatusUpdateManager(
-      const OfferOperationStatusUpdateManager& that) = delete;
-  OfferOperationStatusUpdateManager& operator=(
-      const OfferOperationStatusUpdateManager& that) = delete;
+  OperationStatusUpdateManager(
+      const OperationStatusUpdateManager& that) = delete;
+  OperationStatusUpdateManager& operator=(
+      const OperationStatusUpdateManager& that) = delete;
 
   // Expects two callbacks:
-  //   `forward`: called in order to forward an offer operation status update
-  //              to its recipient.
+  //   `forward`: called in order to forward an operation status update to its
+  //              recipient.
   //   `getPath`: called in order to generate the path of a status update stream
   //              file, given the operation's `operation_uuid`.
   void initialize(
-      const lambda::function<void(const OfferOperationStatusUpdate&)>& forward,
+      const lambda::function<
+          void(const UpdateOperationStatusMessage&)>& forward,
       const lambda::function<const std::string(const id::UUID&)>& getPath);
 
   // Checkpoints the update if necessary and reliably sends the update.
   //
   // Returns whether the update is handled successfully (e.g. checkpointed).
   process::Future<Nothing> update(
-      const OfferOperationStatusUpdate& update,
+      const UpdateOperationStatusMessage& update,
       bool checkpoint = true);
 
   // Checkpoints the acknowledgement to disk if necessary.
@@ -100,7 +101,7 @@ public:
   //
   // This struct also contains a count of the recoverable errors found during
   // non-strict recovery.
-  process::Future<OfferOperationStatusManagerState> recover(
+  process::Future<OperationStatusUpdateManagerState> recover(
       const std::list<id::UUID>& operationUuids,
       bool strict);
 
@@ -121,11 +122,11 @@ private:
   process::Owned<
       StatusUpdateManagerProcess<
           id::UUID,
-          OfferOperationStatusUpdateRecord,
-          OfferOperationStatusUpdate>> process;
+          UpdateOperationStatusRecord,
+          UpdateOperationStatusMessage>> process;
 };
 
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __STATUS_UPDATE_MANAGER_OFFER_OPERATION_HPP__
+#endif // __STATUS_UPDATE_MANAGER_OPERATION_HPP__

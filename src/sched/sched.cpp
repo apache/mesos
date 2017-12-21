@@ -655,8 +655,8 @@ protected:
         break;
       }
 
-      // TODO(greggomann): Implement handling of offer operation updates.
-      case Event::OFFER_OPERATION_UPDATE:
+      // TODO(greggomann): Implement handling of operation status updates.
+      case Event::UPDATE_OPERATION_STATUS:
         break;
 
       case Event::MESSAGE: {

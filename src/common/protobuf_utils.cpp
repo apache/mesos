@@ -398,16 +398,16 @@ Option<ContainerStatus> getTaskContainerStatus(const Task& task)
 }
 
 
-bool isTerminalState(const OfferOperationState& state)
+bool isTerminalState(const OperationState& state)
 {
   switch (state) {
-    case OFFER_OPERATION_FINISHED:
-    case OFFER_OPERATION_FAILED:
-    case OFFER_OPERATION_ERROR:
-    case OFFER_OPERATION_DROPPED:
+    case OPERATION_FINISHED:
+    case OPERATION_FAILED:
+    case OPERATION_ERROR:
+    case OPERATION_DROPPED:
       return true;
-    case OFFER_OPERATION_PENDING:
-    case OFFER_OPERATION_UNSUPPORTED:
+    case OPERATION_PENDING:
+    case OPERATION_UNSUPPORTED:
       return false;
   }
 
@@ -415,14 +415,14 @@ bool isTerminalState(const OfferOperationState& state)
 }
 
 
-OfferOperationStatus createOfferOperationStatus(
-    const OfferOperationState& state,
-    const Option<OfferOperationID>& operationId,
+OperationStatus createOperationStatus(
+    const OperationState& state,
+    const Option<OperationID>& operationId,
     const Option<string>& message,
     const Option<Resources>& convertedResources,
-    const Option<id::UUID>& statusUUID)
+    const Option<id::UUID>& uuid)
 {
-  OfferOperationStatus status;
+  OperationStatus status;
   status.set_state(state);
 
   if (operationId.isSome()) {
@@ -437,22 +437,22 @@ OfferOperationStatus createOfferOperationStatus(
     status.mutable_converted_resources()->CopyFrom(convertedResources.get());
   }
 
-  if (statusUUID.isSome()) {
-    status.mutable_status_uuid()->set_value(statusUUID->toBytes());
+  if (uuid.isSome()) {
+    status.mutable_uuid()->set_value(uuid->toBytes());
   }
 
   return status;
 }
 
 
-OfferOperation createOfferOperation(
+Operation createOperation(
     const Offer::Operation& info,
-    const OfferOperationStatus& latestStatus,
+    const OperationStatus& latestStatus,
     const Option<FrameworkID>& frameworkId,
     const Option<SlaveID>& slaveId,
     const Option<id::UUID>& operationUUID)
 {
-  OfferOperation operation;
+  Operation operation;
   if (frameworkId.isSome()) {
     operation.mutable_framework_id()->CopyFrom(frameworkId.get());
   }
@@ -462,23 +462,23 @@ OfferOperation createOfferOperation(
   operation.mutable_info()->CopyFrom(info);
   operation.mutable_latest_status()->CopyFrom(latestStatus);
   if (operationUUID.isSome()) {
-    operation.mutable_operation_uuid()->set_value(operationUUID->toBytes());
+    operation.mutable_uuid()->set_value(operationUUID->toBytes());
   } else {
-    operation.mutable_operation_uuid()->set_value(id::UUID::random().toBytes());
+    operation.mutable_uuid()->set_value(id::UUID::random().toBytes());
   }
 
   return operation;
 }
 
 
-OfferOperationStatusUpdate createOfferOperationStatusUpdate(
+UpdateOperationStatusMessage createUpdateOperationStatusMessage(
     const id::UUID& operationUUID,
-    const OfferOperationStatus& status,
-    const Option<OfferOperationStatus>& latestStatus,
+    const OperationStatus& status,
+    const Option<OperationStatus>& latestStatus,
     const Option<FrameworkID>& frameworkId,
     const Option<SlaveID>& slaveId)
 {
-  OfferOperationStatusUpdate update;
+  UpdateOperationStatusMessage update;
   if (frameworkId.isSome()) {
     update.mutable_framework_id()->CopyFrom(frameworkId.get());
   }

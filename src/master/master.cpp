@@ -876,8 +876,8 @@ void Master::initialize()
       &ReconcileTasksMessage::framework_id,
       &ReconcileTasksMessage::statuses);
 
-  install<OfferOperationStatusUpdate>(
-      &Master::offerOperationStatusUpdate);
+  install<UpdateOperationStatusMessage>(
+      &Master::updateOperationStatus);
 
   install<ExitedExecutorMessage>(
       &Master::exitedExecutor,
@@ -1793,7 +1793,8 @@ Future<Nothing> Master::_recover(const Registry& registry)
       weightInfo.set_weight(weight);
       weightInfos.push_back(weightInfo);
     }
-    registrar->apply(Owned<Operation>(new weights::UpdateWeights(weightInfos)));
+    registrar->apply(Owned<RegistryOperation>(
+        new weights::UpdateWeights(weightInfos)));
   }
 
   allocator->updateWeights(weightInfos);
@@ -1883,7 +1884,7 @@ void Master::doRegistryGc()
           << " unreachable and " << toRemoveGone.size()
           << " gone agents from the registry";
 
-  registrar->apply(Owned<Operation>(
+  registrar->apply(Owned<RegistryOperation>(
       new Prune(toRemoveUnreachable, toRemoveGone)))
     .onAny(defer(self(),
                  &Self::_doRegistryGc,
@@ -2067,7 +2068,7 @@ Nothing Master::markUnreachableAfterFailover(const SlaveInfo& slave)
 
   slaves.markingUnreachable.insert(slave.id());
 
-  registrar->apply(Owned<Operation>(
+  registrar->apply(Owned<RegistryOperation>(
           new MarkSlaveUnreachable(slave, unreachableTime)))
     .onAny(defer(self(),
                  &Self::_markUnreachableAfterFailover,
@@ -2357,7 +2358,7 @@ void Master::drop(
   // operation was dropped through subsequent offers.
 
   LOG(WARNING) << "Dropping " << Offer::Operation::Type_Name(operation.type())
-               << " offer operation from framework " << *framework
+               << " operation from framework " << *framework
                << ": " << message;
 }
 
@@ -2500,17 +2501,17 @@ void Master::receive(
       break;
     }
 
-    case scheduler::Call::ACKNOWLEDGE_OFFER_OPERATION_UPDATE: {
+    case scheduler::Call::ACKNOWLEDGE_OPERATION_STATUS: {
       Try<id::UUID> uuid = id::UUID::fromBytes(
-          call.acknowledge_offer_operation_update().status_uuid());
+          call.acknowledge_operation_status().uuid());
       if (uuid.isError()) {
         drop(from, call, uuid.error());
         return;
       }
 
-      acknowledgeOfferOperationUpdate(
+      acknowledgeOperationStatus(
           framework,
-          call.acknowledge_offer_operation_update());
+          call.acknowledge_operation_status());
       break;
     }
 
@@ -2518,8 +2519,8 @@ void Master::receive(
       reconcile(framework, call.reconcile());
       break;
 
-    case scheduler::Call::RECONCILE_OFFER_OPERATIONS:
-      reconcileOfferOperations(framework, call.reconcile_offer_operations());
+    case scheduler::Call::RECONCILE_OPERATIONS:
+      reconcileOperations(framework, call.reconcile_operations());
       break;
 
     case scheduler::Call::MESSAGE:
@@ -4124,7 +4125,7 @@ void Master::accept(
             break;
           }
           case Offer::Operation::UNKNOWN: {
-            LOG(WARNING) << "Ignoring unknown offer operation";
+            LOG(WARNING) << "Ignoring unknown operation";
             break;
           }
         }
@@ -4134,11 +4135,11 @@ void Master::accept(
         // If any operation has the `id` field set we drop it, and in the case
         // of LAUNCH or LAUNCH_GROUP we send task status updates as well.
         //
-        // TODO(greggomann): Remove this once offer operation feedback is
+        // TODO(greggomann): Remove this once operation feedback is
         // implemented. See MESOS-8054.
         const string message =
-          "The `id` field was set on this operation, but offer operation"
-          " status updates are not yet supported";
+          "The `id` field was set on this operation, but operation "
+          "status updates are not yet supported";
 
         switch (operation.type()) {
           case Offer::Operation::LAUNCH: {
@@ -4169,7 +4170,7 @@ void Master::accept(
             break;
           }
           case Offer::Operation::UNKNOWN: {
-            LOG(WARNING) << "Ignoring unknown offer operation";
+            LOG(WARNING) << "Ignoring unknown operation";
             break;
           }
         }
@@ -4394,7 +4395,7 @@ void Master::accept(
 
       case Offer::Operation::UNKNOWN: {
         // TODO(vinod): Send an error event to the scheduler?
-        LOG(WARNING) << "Ignoring unknown offer operation";
+        LOG(WARNING) << "Ignoring unknown operation";
         break;
       }
     }
@@ -4509,7 +4510,7 @@ void Master::_accept(
     return;
   }
 
-  // Some offer operations update the offered resources. We keep
+  // Some operations update the offered resources. We keep
   // updated offered resources here. When a task is successfully
   // launched, we remove its resource from offered resources.
   Resources _offeredResources = offeredResources;
@@ -4523,7 +4524,7 @@ void Master::_accept(
   Resources offeredSharedResources = offeredResources.shared();
 
   // Maintain a list of resource conversions to pass to the allocator
-  // as a result of offer operations. Note that:
+  // as a result of operations. Note that:
   // 1) We drop invalid operations.
   // 2) For LAUNCH operations, we drop invalid tasks. LAUNCH operation
   //    will result in resource conversions because of shared
@@ -5390,13 +5391,13 @@ void Master::_accept(
       }
 
       case Offer::Operation::UNKNOWN: {
-        LOG(WARNING) << "Ignoring unknown offer operation";
+        LOG(WARNING) << "Ignoring unknown operation";
         break;
       }
     }
   }
 
-  // Update the allocator based on the offer operations.
+  // Update the allocator based on the operations.
   if (!conversions.empty()) {
     allocator->updateAllocation(
         frameworkId,
@@ -5886,10 +5887,10 @@ void Master::acknowledge(
 }
 
 
-// TODO(greggomann): Implement offer operation update acknowledgement.
-void Master::acknowledgeOfferOperationUpdate(
+// TODO(greggomann): Implement operation status acknowledgement.
+void Master::acknowledgeOperationStatus(
     Framework* framework,
-    const scheduler::Call::AcknowledgeOfferOperationUpdate& acknowledge) {}
+    const scheduler::Call::AcknowledgeOperationStatus& acknowledge) {}
 
 
 void Master::schedulerMessage(
@@ -6245,7 +6246,7 @@ void Master::_registerSlave(
 
   registerSlaveMessage.mutable_slave()->mutable_id()->CopyFrom(slaveId);
 
-  registrar->apply(Owned<Operation>(new AdmitSlave(slaveInfo_)))
+  registrar->apply(Owned<RegistryOperation>(new AdmitSlave(slaveInfo_)))
     .onAny(defer(self(),
                  &Self::__registerSlave,
                  pid,
@@ -6604,7 +6605,7 @@ void Master::_reregisterSlave(
           std::move(reregisterSlaveMessage),
           true);
     } else {
-      registrar->apply(Owned<Operation>(new UpdateSlave(slaveInfo)))
+      registrar->apply(Owned<RegistryOperation>(new UpdateSlave(slaveInfo)))
         .onAny(defer(self(),
             &Self::___reregisterSlave,
             pid,
@@ -6629,7 +6630,7 @@ void Master::_reregisterSlave(
           std::move(reregisterSlaveMessage),
           true);
     } else {
-      registrar->apply(Owned<Operation>(new UpdateSlave(slaveInfo)))
+      registrar->apply(Owned<RegistryOperation>(new UpdateSlave(slaveInfo)))
         .onAny(defer(self(),
             &Self::__reregisterSlave,
             pid,
@@ -6645,7 +6646,8 @@ void Master::_reregisterSlave(
     VLOG(1) << "Consulting registry about agent " << slaveInfo.id()
             << " at " << pid << "(" << slaveInfo.hostname() << ")";
 
-    registrar->apply(Owned<Operation>(new MarkSlaveReachable(slaveInfo)))
+    registrar->apply(Owned<RegistryOperation>(
+        new MarkSlaveReachable(slaveInfo)))
       .onAny(defer(self(),
           &Self::__reregisterSlave,
           pid,
@@ -7328,35 +7330,33 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
     slave->resourceVersions = resourceVersions;
   }
 
-  // Check if the known offer operations for this agent changed.
-  const hashset<id::UUID> knownOfferOperations = slave->offerOperations.keys();
-  hashset<id::UUID> receivedOfferOperations;
+  // Check if the known operations for this agent changed.
+  const hashset<id::UUID> knownOperations = slave->operations.keys();
+  hashset<id::UUID> receivedOperations;
 
-  foreach (
-      const OfferOperation& operation,
-      message.offer_operations().operations()) {
-    Try<id::UUID> operationUuid =
-      id::UUID::fromBytes(operation.operation_uuid().value());
+  foreach (const Operation& operation, message.operations().operations()) {
+    Try<id::UUID> operationUuid = id::UUID::fromBytes(operation.uuid().value());
     CHECK_SOME(operationUuid);
-    receivedOfferOperations.insert(operationUuid.get());
+
+    receivedOperations.insert(operationUuid.get());
   }
 
   if (message.has_resource_providers()) {
     foreach (
         const UpdateSlaveMessage::ResourceProvider& resourceProvider,
         message.resource_providers().providers()) {
-      foreach (
-          const OfferOperation& operation,
-          resourceProvider.operations().operations()) {
+      foreach (const Operation& operation,
+               resourceProvider.operations().operations()) {
         Try<id::UUID> operationUuid =
-          id::UUID::fromBytes(operation.operation_uuid().value());
+          id::UUID::fromBytes(operation.uuid().value());
         CHECK_SOME(operationUuid);
-        receivedOfferOperations.insert(operationUuid.get());
+
+        receivedOperations.insert(operationUuid.get());
       }
     }
   }
 
-  updated = updated || knownOfferOperations != receivedOfferOperations;
+  updated = updated || knownOperations != receivedOperations;
 
   if (!updated) {
     LOG(INFO) << "Ignoring update on agent " << *slave
@@ -7368,8 +7368,8 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
   {
     Option<Resources> oldTotal;
     Option<Resources> newTotal;
-    Option<hashmap<id::UUID, OfferOperation>> oldOfferOperations;
-    Option<hashmap<id::UUID, OfferOperation>> newOfferOperations;
+    Option<hashmap<id::UUID, Operation>> oldOperations;
+    Option<hashmap<id::UUID, Operation>> newOperations;
     Option<ResourceProviderInfo> info;
   };
 
@@ -7405,11 +7405,10 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
       resourceProviders[providerId].oldTotal = resources;
     }
 
-    // Process known offer operations.
-    foreachpair (
-        const id::UUID& uuid,
-        OfferOperation* operation,
-        slave->offerOperations) {
+    // Process known operations.
+    foreachpair (const id::UUID& uuid,
+                 Operation* operation,
+                 slave->operations) {
       Result<ResourceProviderID> providerId_ =
         getResourceProviderId(operation->info());
 
@@ -7424,33 +7423,31 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
 
       // Set up an init empty list of existing operations. We might
       // create a record for this resource provider if needed.
-      if (resourceProviders[providerId].oldOfferOperations.isNone()) {
-        resourceProviders.at(providerId).oldOfferOperations =
-          hashmap<id::UUID, OfferOperation>();
+      if (resourceProviders[providerId].oldOperations.isNone()) {
+        resourceProviders.at(providerId).oldOperations =
+          hashmap<id::UUID, Operation>();
       }
 
       resourceProviders.at(providerId)
-        .oldOfferOperations->emplace(uuid, *operation);
+        .oldOperations->emplace(uuid, *operation);
     }
 
     // Explicitly add an entry for received agent resources.
     resourceProviders[None()].newTotal =
       newSlaveResources.filter(agentResources);
 
-    // Process received agent offer operations.
-    resourceProviders[None()].newOfferOperations =
-      hashmap<id::UUID, OfferOperation>();
+    // Process received agent operations.
+    resourceProviders[None()].newOperations =
+      hashmap<id::UUID, Operation>();
 
-    foreach (
-        const OfferOperation& operation,
-        message.offer_operations().operations()) {
-      Try<id::UUID> uuid =
-        id::UUID::fromBytes(operation.operation_uuid().value());
-      CHECK_SOME(uuid) << "Could not deserialize operation id when reconciling "
-                          "offer operations";
+    foreach (const Operation& operation, message.operations().operations()) {
+      Try<id::UUID> uuid = id::UUID::fromBytes(operation.uuid().value());
+
+      CHECK_SOME(uuid)
+        << "Could not deserialize operation id when reconciling operations";
 
       resourceProviders.at(None())
-        .newOfferOperations->emplace(uuid.get(), operation);
+        .newOperations->emplace(uuid.get(), operation);
     }
 
     // Process explicitly received resource provider information.
@@ -7467,20 +7464,18 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
         provider.info = resourceProvider.info();
 
         provider.newTotal = resourceProvider.total_resources();
-        if (provider.newOfferOperations.isNone()) {
-          provider.newOfferOperations = hashmap<id::UUID, OfferOperation>();
+        if (provider.newOperations.isNone()) {
+          provider.newOperations = hashmap<id::UUID, Operation>();
         }
 
-        foreach (
-            const OfferOperation& operation,
-            resourceProvider.operations().operations()) {
-          Try<id::UUID> uuid =
-            id::UUID::fromBytes(operation.operation_uuid().value());
-          CHECK_SOME(uuid)
-            << "Could not deserialize operation id when reconciling "
-            "offer operations";
+        foreach (const Operation& operation,
+                 resourceProvider.operations().operations()) {
+          Try<id::UUID> uuid = id::UUID::fromBytes(operation.uuid().value());
 
-          provider.newOfferOperations->emplace(uuid.get(), operation);
+          CHECK_SOME(uuid)
+            << "Could not deserialize operation id when reconciling operations";
+
+          provider.newOperations->emplace(uuid.get(), operation);
         }
       }
     }
@@ -7495,23 +7490,24 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
       if (providerId.isSome() &&
           slave->resourceProviders.contains(providerId.get())) {
         // For known resource providers the master should always know at least
-        // as many non-terminal offer operations as the agent. While an
+        // as many non-terminal operations as the agent. While an
         // operation might get lost on the way to the agent or resource
         // provider, or become terminal inside the agent, the master would never
-        // make an offer operation known to the agent terminal without the agent
+        // make an operation known to the agent terminal without the agent
         // doing that first.
         //
         // NOTE: We only consider non-terminal operations here as there is an
-        // edge case where the master removes a terminal offer operation from
+        // edge case where the master removes a terminal operation from
         // its own state when it passes on an acknowledgement from a framework
         // to the agent, but the agent fails over before it can process the
         // acknowledgement, or the agent initiates an unrelated
         // `UpdateSlaveMessage`.
         auto extractPendingOperations =
-          [](const hashmap<id::UUID, OfferOperation>& source,
+          [](const hashmap<id::UUID, Operation>& source,
              hashset<id::UUID>* target) {
-            foreachpair (
-                const id::UUID& uuid, const OfferOperation& operation, source) {
+            foreachpair (const id::UUID& uuid,
+                         const Operation& operation,
+                         source) {
               if (!protobuf::isTerminalState(
                       operation.latest_status().state())) {
                 target->insert(uuid);
@@ -7522,20 +7518,19 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
         hashset<id::UUID> oldPendingOperations;
         hashset<id::UUID> newPendingOperations;
 
-        if (provider.oldOfferOperations.isSome()) {
+        if (provider.oldOperations.isSome()) {
           extractPendingOperations(
-              provider.oldOfferOperations.get(), &oldPendingOperations);
+              provider.oldOperations.get(), &oldPendingOperations);
         }
 
-        if (provider.newOfferOperations.isSome()) {
+        if (provider.newOperations.isSome()) {
           extractPendingOperations(
-              provider.newOfferOperations.get(), &newPendingOperations);
+              provider.newOperations.get(), &newPendingOperations);
         }
 
         foreach (const id::UUID& uuid, newPendingOperations) {
           CHECK(oldPendingOperations.contains(uuid))
-            << "Agent tried to reconcile unknown non-terminal offer "
-               "operation "
+            << "Agent tried to reconcile unknown non-terminal operation "
             << uuid.toString();
         }
       }
@@ -7558,12 +7553,11 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
         //
         // TODO(bbannier): Reconcile agent operations in
         // `ReregisterSlaveMessage` in which case we expect agents to
-        // send the already known offer operations again here
-        // (possibly with changed status).
-        if (provider.newOfferOperations.isSome()) {
-          foreachvalue (
-              const OfferOperation& operation,
-              provider.newOfferOperations.get()) {
+        // send the already known operations again here (possibly with
+        // changed status).
+        if (provider.newOperations.isSome()) {
+          foreachvalue (const Operation& operation,
+                        provider.newOperations.get()) {
             CHECK(protobuf::isSpeculativeOperation(operation.info()));
           }
         }
@@ -7571,26 +7565,27 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
     }
   }
 
-  ReconcileOfferOperationsMessage reconcile;
+  ReconcileOperationsMessage reconcile;
 
   // Update master and allocator state.
-  foreachpair (
-      const Option<ResourceProviderID>& providerId,
-      const ResourceProvider& provider,
-      resourceProviders) {
-    // Below we only add offer operations to our state from resource providers
-    // which are unknown, or possibly remove them for known resource providers.
-    // This works since the master should always know more offer operations of
-    // known resource providers than any resource provider itself.
+  foreachpair (const Option<ResourceProviderID>& providerId,
+               const ResourceProvider& provider,
+               resourceProviders) {
+    // Below we only add operations to our state from resource
+    // providers which are unknown, or possibly remove them for known
+    // resource providers.  This works since the master should always
+    // know more operations of known resource providers than any
+    // resource provider itself.
     //
-    // NOTE: We do not mutate offer operation statuses here; that is the
-    // responsibility of the `offerOperationStatusUpdate` handler.
+    // NOTE: We do not mutate operation statuses here; that is the
+    // responsibility of the `updateOperationStatus` handler.
     //
-    // There still exists an edge case where the master might remove a terminal
-    // offer operation from its state when passing an acknowledgement from a
-    // framework on to the agent, with the agent failing over before the
-    // acknowledgement can be processed. In that case the agent would track an
-    // operation unknown to the master.
+    // There still exists an edge case where the master might remove a
+    // terminal operation from its state when passing an
+    // acknowledgement from a framework on to the agent, with the
+    // agent failing over before the acknowledgement can be processed.
+    // In that case the agent would track an operation unknown to the
+    // master.
     //
     // TODO(bbannier): We might want to consider to also learn about
     // new (terminal) operations when observing messages from status
@@ -7612,13 +7607,12 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
 
       hashmap<FrameworkID, Resources> usedByOperations;
 
-      if (provider.newOfferOperations.isSome()) {
-        foreachpair (
-            const id::UUID& uuid,
-            const OfferOperation& operation,
-            provider.newOfferOperations.get()) {
+      if (provider.newOperations.isSome()) {
+        foreachpair (const id::UUID& uuid,
+                     const Operation& operation,
+                     provider.newOperations.get()) {
           // Update to bookkeeping of operations.
-          CHECK(!slave->offerOperations.contains(uuid))
+          CHECK(!slave->operations.contains(uuid))
             << "New operation " << uuid.toString() << " is already known";
 
           Framework* framework = nullptr;
@@ -7626,7 +7620,7 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
             framework = getFramework(operation.framework_id());
           }
 
-          addOfferOperation(framework, slave, new OfferOperation(operation));
+          addOperation(framework, slave, new Operation(operation));
         }
       }
 
@@ -7635,30 +7629,32 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
           provider.newTotal.get(),
           usedByOperations);
     } else {
-      // If this is a known resource provider or agent its total capacity cannot
-      // have changed, and it would not know about any non-terminal offer
-      // operations not already known to the master. However, it might not have
-      // received an offer operation for a couple different reasons:
-      //   - The resource provider or agent could have failed over before the
-      //     operation's `ApplyOfferOperationMessage` could be received.
-      //   - The operation's `ApplyOfferOperationMessage` could have raced with
-      //     this `UpdateSlaveMessage`.
+      // If this is a known resource provider or agent its total
+      // capacity cannot have changed, and it would not know about any
+      // non-terminal operations not already known to the master.
+      // However, it might not have received an operation for a couple
+      // different reasons:
+      //   - The resource provider or agent could have failed over
+      //     before the operation's `ApplyOperationMessage` could be
+      //     received.
+      //   - The operation's `ApplyOperationMessage` could have raced
+      //     with this `UpdateSlaveMessage`.
       //
-      // In both of these cases, we need to reconcile such operations explicitly
-      // with the agent. For operations which the agent or resource provider
-      // does not recognize, an OFFER_OPERATION_DROPPED status update will be
-      // generated and the master will remove the operation from its state upon
-      // receipt of that update.
-      if (provider.oldOfferOperations.isSome()) {
-        foreachkey (const id::UUID& uuid, provider.oldOfferOperations.get()) {
-          if (provider.newOfferOperations.isNone() ||
-              !provider.newOfferOperations->contains(uuid)) {
+      // In both of these cases, we need to reconcile such operations
+      // explicitly with the agent. For operations which the agent or
+      // resource provider does not recognize, an OPERATION_DROPPED
+      // status update will be generated and the master will remove
+      // the operation from its state upon receipt of that update.
+      if (provider.oldOperations.isSome()) {
+        foreachkey (const id::UUID& uuid, provider.oldOperations.get()) {
+          if (provider.newOperations.isNone() ||
+              !provider.newOperations->contains(uuid)) {
             LOG(WARNING) << "Performing explicit reconciliation with agent for"
-                         << " known offer operation " << uuid.toString()
+                         << " known operation " << uuid.toString()
                          << " since it was not present in original"
                          << " reconciliation message from agent";
 
-            ReconcileOfferOperationsMessage::Operation* reconcileOperation =
+            ReconcileOperationsMessage::Operation* reconcileOperation =
               reconcile.add_operations();
             reconcileOperation->mutable_operation_uuid()->set_value(
                 uuid.toBytes());
@@ -7929,15 +7925,15 @@ void Master::forward(
 }
 
 
-void Master::offerOperationStatusUpdate(
-    const OfferOperationStatusUpdate& update)
+void Master::updateOperationStatus(
+    const UpdateOperationStatusMessage& update)
 {
   CHECK(update.has_slave_id())
     << "External resource provider is not supported yet";
 
   const SlaveID& slaveId = update.slave_id();
 
-  // The status update for the offer operation might be for an
+  // The status update for the operation might be for an
   // operator API call, thus the framework ID here is optional.
   Option<FrameworkID> frameworkId = update.has_framework_id()
     ? update.framework_id()
@@ -7945,7 +7941,7 @@ void Master::offerOperationStatusUpdate(
 
   Try<id::UUID> uuid = id::UUID::fromBytes(update.operation_uuid().value());
   if (uuid.isError()) {
-    LOG(ERROR) << "Failed to parse offer operation UUID for operation "
+    LOG(ERROR) << "Failed to parse operation UUID for operation "
                << "'" << update.status().operation_id() << "' for "
                << (frameworkId.isSome()
                      ? "framework " + stringify(frameworkId.get())
@@ -7958,7 +7954,7 @@ void Master::offerOperationStatusUpdate(
 
   // This is possible if the agent is marked as unreachable or gone,
   // or has initiated a graceful shutdown. In either of those cases,
-  // ignore the offer operation status update.
+  // ignore the operation status update.
   //
   // TODO(jieyu): If the agent is unreachable or has initiated a
   // graceful shutdown, we can still forward the update to the
@@ -7968,7 +7964,7 @@ void Master::offerOperationStatusUpdate(
   // we cannot forward the update because the master might already
   // tell the framework that the operation is gone.
   if (slave == nullptr) {
-    LOG(WARNING) << "Ignoring status update for offer operation '"
+    LOG(WARNING) << "Ignoring status update for operation '"
                  << update.status().operation_id()
                  << "' (uuid: " << uuid->toString() << ") for "
                  << (frameworkId.isSome()
@@ -7978,9 +7974,9 @@ void Master::offerOperationStatusUpdate(
     return;
   }
 
-  OfferOperation* operation = slave->getOfferOperation(uuid.get());
+  Operation* operation = slave->getOperation(uuid.get());
   if (operation == nullptr) {
-    LOG(ERROR) << "Failed to find the offer operation '"
+    LOG(ERROR) << "Failed to find the operation '"
                << update.status().operation_id() << "' (uuid: "
                << uuid->toString() << ") for "
                << (frameworkId.isSome()
@@ -7990,7 +7986,7 @@ void Master::offerOperationStatusUpdate(
     return;
   }
 
-  // TODO(greggomann): Remove this CHECK once offer operation feedback is
+  // TODO(greggomann): Remove this CHECK once operation feedback is
   // implemented. See MESOS-8054.
   CHECK(!operation->info().has_id());
 
@@ -7999,7 +7995,7 @@ void Master::offerOperationStatusUpdate(
     Framework* framework = getFramework(frameworkId.get());
 
     if (framework == nullptr || !framework->connected()) {
-      LOG(WARNING) << "Received status update for offer operation '"
+      LOG(WARNING) << "Received status update for operation '"
                    << update.status().operation_id()
                    << "' (uuid: " << uuid->toString() << ") "
                    << "for framework " << frameworkId.get()
@@ -8010,12 +8006,12 @@ void Master::offerOperationStatusUpdate(
     }
   }
 
-  updateOfferOperation(operation, update);
+  updateOperation(operation, update);
 
   CHECK(operation->statuses_size() > 0);
 
   // If this update is being sent reliably, send an acknowledgement.
-  if (operation->statuses(operation->statuses_size() - 1).has_status_uuid()) {
+  if (operation->statuses(operation->statuses_size() - 1).has_uuid()) {
     Result<ResourceProviderID> resourceProviderId =
       getResourceProviderId(operation->info());
 
@@ -8023,11 +8019,11 @@ void Master::offerOperationStatusUpdate(
     // updates for operations on its default resources. See MESOS-8194.
     CHECK_SOME(resourceProviderId);
 
-    OfferOperationUpdateAcknowledgementMessage acknowledgement;
+    AcknowledgeOperationStatusMessage acknowledgement;
     acknowledgement.mutable_status_uuid()->CopyFrom(
-        operation->statuses(operation->statuses_size() - 1).status_uuid());
+        operation->statuses(operation->statuses_size() - 1).uuid());
     acknowledgement.mutable_operation_uuid()->CopyFrom(
-        operation->operation_uuid());
+        operation->uuid());
 
     acknowledgement.mutable_resource_provider_id()
       ->CopyFrom(resourceProviderId.get());
@@ -8042,7 +8038,7 @@ void Master::offerOperationStatusUpdate(
   // operation.
   if (protobuf::isTerminalState(
           operation->statuses(operation->statuses_size() - 1).state())) {
-    removeOfferOperation(operation);
+    removeOperation(operation);
   }
 }
 
@@ -8214,7 +8210,7 @@ void Master::markUnreachable(const SlaveID& slaveId, const string& message)
   // slaves to the list of unreachable slaves. After this is complete,
   // we can remove the slave from the master's in-memory state and
   // send TASK_UNREACHABLE / TASK_LOST updates to the frameworks.
-  registrar->apply(Owned<Operation>(
+  registrar->apply(Owned<RegistryOperation>(
           new MarkSlaveUnreachable(slave->info, unreachableTime)))
     .onAny(defer(self(),
                  &Self::_markUnreachable,
@@ -8559,10 +8555,10 @@ void Master::_reconcileTasks(
 }
 
 
-// TODO(greggomann): Implement offer operation update reconciliation.
-void Master::reconcileOfferOperations(
+// TODO(greggomann): Implement operation update reconciliation.
+void Master::reconcileOperations(
     Framework* framework,
-    const scheduler::Call::ReconcileOfferOperations& reconcile) {}
+    const scheduler::Call::ReconcileOperations& reconcile) {}
 
 
 void Master::frameworkFailoverTimeout(const FrameworkID& frameworkId,
@@ -9225,8 +9221,8 @@ void Master::recoverFramework(
       }
     }
 
-    foreachvalue (OfferOperation* operation, slave->offerOperations) {
-      framework->addOfferOperation(operation);
+    foreachvalue (Operation* operation, slave->operations) {
+      framework->addOperation(operation);
     }
   }
 
@@ -9566,9 +9562,8 @@ void Master::removeFramework(Framework* framework)
     }
   }
 
-  foreachvalue (OfferOperation* operation,
-                utils::copy(framework->offerOperations)) {
-    framework->removeOfferOperation(operation);
+  foreachvalue (Operation* operation, utils::copy(framework->operations)) {
+    framework->removeOperation(operation);
   }
 
   // TODO(benh): Similar code between removeFramework and
@@ -9829,7 +9824,7 @@ void Master::removeSlave(
   // to frameworks, etc.). Ensuring that the registry update succeeds
   // before we modify in-memory state ensures that external clients
   // see consistent behavior if the master fails over.
-  registrar->apply(Owned<Operation>(new RemoveSlave(slave->info)))
+  registrar->apply(Owned<RegistryOperation>(new RemoveSlave(slave->info)))
     .onAny(defer(self(),
                  &Self::_removeSlave,
                  slave,
@@ -10306,36 +10301,36 @@ void Master::removeExecutor(
 }
 
 
-void Master::addOfferOperation(
+void Master::addOperation(
     Framework* framework,
     Slave* slave,
-    OfferOperation* operation)
+    Operation* operation)
 {
   CHECK_NOTNULL(operation);
   CHECK_NOTNULL(slave);
 
-  slave->addOfferOperation(operation);
+  slave->addOperation(operation);
 
   if (framework != nullptr) {
-    framework->addOfferOperation(operation);
+    framework->addOperation(operation);
   }
 }
 
 
-void Master::updateOfferOperation(
-    OfferOperation* operation,
-    const OfferOperationStatusUpdate& update)
+void Master::updateOperation(
+    Operation* operation,
+    const UpdateOperationStatusMessage& update)
 {
   CHECK_NOTNULL(operation);
 
-  const OfferOperationStatus& status = update.status();
+  const OperationStatus& status = update.status();
 
-  Option<OfferOperationStatus> latestStatus;
+  Option<OperationStatus> latestStatus;
   if (update.has_latest_status()) {
     latestStatus = update.latest_status();
   }
 
-  // Whether the offer operation has just become terminated.
+  // Whether the operation has just become terminated.
   Option<bool> terminated;
 
   if (latestStatus.isSome()) {
@@ -10360,7 +10355,7 @@ void Master::updateOfferOperation(
 
   operation->add_statuses()->CopyFrom(status);
 
-  LOG(INFO) << "Updating the state of offer operation '"
+  LOG(INFO) << "Updating the state of operation '"
             << operation->info().id() << "' (uuid: " << update.operation_uuid()
             << ") of framework " << operation->framework_id()
             << " (latest state: " << operation->latest_status().state()
@@ -10377,7 +10372,7 @@ void Master::updateOfferOperation(
   // DESTROY), the master speculatively assumes that the operation
   // will be successful when it accepts the operations. Therefore, we
   // don't need to update the resource accounting for those types of
-  // offer operations in the master and in the allocator states upon
+  // operations in the master and in the allocator states upon
   // receiving a terminal status update.
   if (protobuf::isSpeculativeOperation(operation->info())) {
     return;
@@ -10389,7 +10384,7 @@ void Master::updateOfferOperation(
   CHECK(operation->has_slave_id())
     << "External resource provider is not supported yet";
 
-  // The slave owns the OfferOperation object and cannot be nullptr.
+  // The slave owns the Operation object and cannot be nullptr.
   // TODO(jieyu): Revisit this once we introduce support for external
   // resource provider.
   Slave* slave = slaves.registered.get(operation->slave_id());
@@ -10397,7 +10392,7 @@ void Master::updateOfferOperation(
 
   switch (operation->latest_status().state()) {
     // Terminal state, and the conversion is successful.
-    case OFFER_OPERATION_FINISHED: {
+    case OPERATION_FINISHED: {
       const Resources converted =
         operation->latest_status().converted_resources();
 
@@ -10426,9 +10421,9 @@ void Master::updateOfferOperation(
     }
 
     // Terminal state, and the conversion has failed.
-    case OFFER_OPERATION_FAILED:
-    case OFFER_OPERATION_ERROR:
-    case OFFER_OPERATION_DROPPED: {
+    case OPERATION_FAILED:
+    case OPERATION_ERROR:
+    case OPERATION_DROPPED: {
       allocator->recoverResources(
           operation->framework_id(),
           operation->slave_id(),
@@ -10439,9 +10434,9 @@ void Master::updateOfferOperation(
     }
 
     // Non-terminal. This shouldn't happen.
-    case OFFER_OPERATION_PENDING:
-    case OFFER_OPERATION_UNSUPPORTED: {
-      LOG(FATAL) << "Unexpected offer operation state "
+    case OPERATION_PENDING:
+    case OPERATION_UNSUPPORTED: {
+      LOG(FATAL) << "Unexpected operation state "
                  << operation->latest_status().state();
 
       break;
@@ -10460,7 +10455,7 @@ void Master::updateOfferOperation(
 }
 
 
-void Master::removeOfferOperation(OfferOperation* operation)
+void Master::removeOperation(Operation* operation)
 {
   CHECK_NOTNULL(operation);
 
@@ -10470,7 +10465,7 @@ void Master::removeOfferOperation(OfferOperation* operation)
     : nullptr;
 
   if (framework != nullptr) {
-    framework->removeOfferOperation(operation);
+    framework->removeOperation(operation);
   }
 
   // Remove from slave.
@@ -10480,7 +10475,7 @@ void Master::removeOfferOperation(OfferOperation* operation)
   Slave* slave = slaves.registered.get(operation->slave_id());
   CHECK_NOTNULL(slave);
 
-  slave->removeOfferOperation(operation);
+  slave->removeOperation(operation);
 
   // If the operation was not speculated and is not terminal we
   // need to also recover its used resources in the allocator.
@@ -10512,13 +10507,13 @@ Future<Nothing> Master::apply(Slave* slave, const Offer::Operation& operation)
 void Master::_apply(
     Slave* slave,
     Framework* framework,
-    const Offer::Operation& operation)
+    const Offer::Operation& operationInfo)
 {
   CHECK_NOTNULL(slave);
 
   if (slave->capabilities.resourceProvider) {
     Result<ResourceProviderID> resourceProviderId =
-      getResourceProviderId(operation);
+      getResourceProviderId(operationInfo);
 
     // This must have been validated by the caller.
     CHECK(!resourceProviderId.isError());
@@ -10534,36 +10529,35 @@ void Master::_apply(
            : "agent " + stringify(*slave))
       << " is unknown";
 
-    OfferOperation* offerOperation = new OfferOperation(
-        protobuf::createOfferOperation(
-            operation,
-            protobuf::createOfferOperationStatus(OFFER_OPERATION_PENDING),
+    Operation* operation = new Operation(
+        protobuf::createOperation(
+            operationInfo,
+            protobuf::createOperationStatus(OPERATION_PENDING),
             framework != nullptr
               ? framework->id()
               : Option<FrameworkID>::none(),
             slave->id));
 
-    addOfferOperation(framework, slave, offerOperation);
+    addOperation(framework, slave, operation);
 
-    if (protobuf::isSpeculativeOperation(offerOperation->info())) {
-      Offer::Operation strippedOperation = offerOperation->info();
-      protobuf::stripAllocationInfo(&strippedOperation);
+    if (protobuf::isSpeculativeOperation(operation->info())) {
+      Offer::Operation strippedOperationInfo = operation->info();
+      protobuf::stripAllocationInfo(&strippedOperationInfo);
 
       Try<vector<ResourceConversion>> conversions =
-        getResourceConversions(strippedOperation);
+        getResourceConversions(strippedOperationInfo);
 
       CHECK_SOME(conversions);
 
       slave->apply(conversions.get());
     }
 
-    ApplyOfferOperationMessage message;
+    ApplyOperationMessage message;
     if (framework != nullptr) {
       message.mutable_framework_id()->CopyFrom(framework->id());
     }
-    message.mutable_operation_info()->CopyFrom(offerOperation->info());
-    message.mutable_operation_uuid()->CopyFrom(
-        offerOperation->operation_uuid());
+    message.mutable_operation_info()->CopyFrom(operation->info());
+    message.mutable_operation_uuid()->CopyFrom(operation->uuid());
     if (resourceProviderId.isSome()) {
       message.mutable_resource_version_uuid()
         ->mutable_resource_provider_id()
@@ -10572,25 +10566,24 @@ void Master::_apply(
     message.mutable_resource_version_uuid()->mutable_uuid()->set_value(
         resourceVersion->toBytes());
 
-    LOG(INFO) << "Sending offer operation '"
-              << offerOperation->info().id()
-              << "' (uuid: " << offerOperation->operation_uuid()
-              << ") to agent " << *slave;
+    LOG(INFO) << "Sending operation '" << operation->info().id()
+              << "' (uuid: " << operation->uuid() << ") "
+              << "to agent " << *slave;
 
     send(slave->pid, message);
   } else {
-    if (!protobuf::isSpeculativeOperation(operation)) {
-      LOG(FATAL) << "Unexpected offer operation to apply on agent " << *slave;
+    if (!protobuf::isSpeculativeOperation(operationInfo)) {
+      LOG(FATAL) << "Unexpected operation to apply on agent " << *slave;
     }
 
     // We need to strip the allocation info from the operation's
     // resources in order to apply the operation successfully
     // since the agent's total is stored as unallocated resources.
-    Offer::Operation strippedOperation = operation;
-    protobuf::stripAllocationInfo(&strippedOperation);
+    Offer::Operation strippedOperationInfo = operationInfo;
+    protobuf::stripAllocationInfo(&strippedOperationInfo);
 
     Try<vector<ResourceConversion>> conversions =
-      getResourceConversions(strippedOperation);
+      getResourceConversions(strippedOperationInfo);
 
     CHECK_SOME(conversions);
 
@@ -11476,12 +11469,12 @@ void Slave::removeTask(Task* task)
 }
 
 
-void Slave::addOfferOperation(OfferOperation* operation)
+void Slave::addOperation(Operation* operation)
 {
-  Try<id::UUID> uuid = id::UUID::fromBytes(operation->operation_uuid().value());
+  Try<id::UUID> uuid = id::UUID::fromBytes(operation->uuid().value());
   CHECK_SOME(uuid);
 
-  offerOperations.put(uuid.get(), operation);
+  operations.put(uuid.get(), operation);
 
   if (!protobuf::isSpeculativeOperation(operation->info()) &&
       !protobuf::isTerminalState(operation->latest_status().state())) {
@@ -11498,10 +11491,10 @@ void Slave::addOfferOperation(OfferOperation* operation)
 }
 
 
-void Slave::recoverResources(OfferOperation* operation)
+void Slave::recoverResources(Operation* operation)
 {
   // TODO(jieyu): Currently, we do not keep track of used resources
-  // for offer operations that are created by the operator through the
+  // for operations that are created by the operator through the
   // operator API endpoint.
   if (!operation->has_framework_id()) {
     return;
@@ -11527,13 +11520,13 @@ void Slave::recoverResources(OfferOperation* operation)
 }
 
 
-void Slave::removeOfferOperation(OfferOperation* operation)
+void Slave::removeOperation(Operation* operation)
 {
-  Try<id::UUID> uuid = id::UUID::fromBytes(operation->operation_uuid().value());
+  Try<id::UUID> uuid = id::UUID::fromBytes(operation->uuid().value());
   CHECK_SOME(uuid);
 
-  CHECK(offerOperations.contains(uuid.get()))
-    << "Unknown offer operation (uuid: " << uuid->toString() << ")"
+  CHECK(operations.contains(uuid.get()))
+    << "Unknown operation (uuid: " << uuid->toString() << ")"
     << " to agent " << *this;
 
   if (!protobuf::isSpeculativeOperation(operation->info()) &&
@@ -11541,14 +11534,14 @@ void Slave::removeOfferOperation(OfferOperation* operation)
     recoverResources(operation);
   }
 
-  offerOperations.erase(uuid.get());
+  operations.erase(uuid.get());
 }
 
 
-OfferOperation* Slave::getOfferOperation(const id::UUID& uuid) const
+Operation* Slave::getOperation(const id::UUID& uuid) const
 {
-  if (offerOperations.contains(uuid)) {
-    return offerOperations.at(uuid);
+  if (operations.contains(uuid)) {
+    return operations.at(uuid);
   }
   return nullptr;
 }

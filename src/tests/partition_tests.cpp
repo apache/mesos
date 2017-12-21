@@ -2657,14 +2657,14 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByCountManySlaves)
 
     Future<bool> admitApply =
       master.get()->registrar->unmocked_apply(
-          Owned<master::Operation>(
+          Owned<master::RegistryOperation>(
               new master::AdmitSlave(slaveInfo)));
 
     AWAIT_EXPECT_TRUE(admitApply);
 
     Future<bool> unreachableApply =
       master.get()->registrar->unmocked_apply(
-          Owned<master::Operation>(
+          Owned<master::RegistryOperation>(
               new master::MarkSlaveUnreachable(slaveInfo, unreachableTime)));
 
     AWAIT_EXPECT_TRUE(unreachableApply);
@@ -3186,7 +3186,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcRace)
   // Cause `slave2` to reregister with the master. We expect the
   // master to update the registry to mark the slave as reachable; we
   // intercept the registry operation.
-  Future<Owned<master::Operation>> markReachable;
+  Future<Owned<master::RegistryOperation>> markReachable;
   Promise<bool> markReachableContinue;
   EXPECT_CALL(*master.get()->registrar, apply(_))
     .WillOnce(DoAll(FutureArg<0>(&markReachable),
@@ -3206,7 +3206,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcRace)
   // this should result in attempting to prune `slave1` and `slave2`
   // from the unreachable list. We intercept the registry operation to
   // force the race condition with the reregistration of `slave2`.
-  Future<Owned<master::Operation>> prune;
+  Future<Owned<master::RegistryOperation>> prune;
   Promise<bool> pruneContinue;
   EXPECT_CALL(*master.get()->registrar, apply(_))
     .WillOnce(DoAll(FutureArg<0>(&prune),
@@ -3369,7 +3369,7 @@ TEST_F(PartitionTest, FailHealthChecksTwice)
   Future<Nothing> unreachableDispatch1 =
     FUTURE_DISPATCH(master.get()->pid, &Master::markUnreachable);
 
-  Future<Owned<master::Operation>> markUnreachable;
+  Future<Owned<master::RegistryOperation>> markUnreachable;
   Promise<bool> markUnreachableContinue;
   EXPECT_CALL(*master.get()->registrar, apply(_))
     .WillOnce(DoAll(FutureArg<0>(&markUnreachable),

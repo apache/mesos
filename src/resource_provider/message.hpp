@@ -41,7 +41,7 @@ struct ResourceProviderMessage
   enum class Type
   {
     UPDATE_STATE,
-    UPDATE_OFFER_OPERATION_STATUS,
+    UPDATE_OPERATION_STATUS,
     DISCONNECT
   };
 
@@ -50,12 +50,12 @@ struct ResourceProviderMessage
     ResourceProviderInfo info;
     id::UUID resourceVersion;
     Resources totalResources;
-    hashmap<id::UUID, OfferOperation> offerOperations;
+    hashmap<id::UUID, Operation> operations;
   };
 
-  struct UpdateOfferOperationStatus
+  struct UpdateOperationStatus
   {
-    OfferOperationStatusUpdate update;
+    UpdateOperationStatusMessage update;
   };
 
   struct Disconnect
@@ -66,7 +66,7 @@ struct ResourceProviderMessage
   Type type;
 
   Option<UpdateState> updateState;
-  Option<UpdateOfferOperationStatus> updateOfferOperationStatus;
+  Option<UpdateOperationStatus> updateOperationStatus;
   Option<Disconnect> disconnect;
 };
 
@@ -88,22 +88,22 @@ inline std::ostream& operator<<(
           << updateState->totalResources;
     }
 
-    case ResourceProviderMessage::Type::UPDATE_OFFER_OPERATION_STATUS: {
-      const Option<ResourceProviderMessage::UpdateOfferOperationStatus>&
-        updateOfferOperationStatus =
-          resourceProviderMessage.updateOfferOperationStatus;
+    case ResourceProviderMessage::Type::UPDATE_OPERATION_STATUS: {
+      const Option<ResourceProviderMessage::UpdateOperationStatus>&
+        updateOperationStatus =
+          resourceProviderMessage.updateOperationStatus;
 
-      CHECK_SOME(updateOfferOperationStatus);
+      CHECK_SOME(updateOperationStatus);
 
       return stream
-          << "UPDATE_OFFER_OPERATION_STATUS: (uuid: "
-          << updateOfferOperationStatus->update.operation_uuid()
+          << "UPDATE_OPERATION_STATUS: (uuid: "
+          << updateOperationStatus->update.operation_uuid()
           << ") for framework "
-          << updateOfferOperationStatus->update.framework_id()
+          << updateOperationStatus->update.framework_id()
           << " (latest state: "
-          << updateOfferOperationStatus->update.latest_status().state()
+          << updateOperationStatus->update.latest_status().state()
           << ", status update state: "
-          << updateOfferOperationStatus->update.status().state() << ")";
+          << updateOperationStatus->update.status().state() << ")";
     }
 
     case ResourceProviderMessage::Type::DISCONNECT: {

@@ -591,14 +591,13 @@ Option<Error> validate(
       return None();
     }
 
-    case mesos::scheduler::Call::ACKNOWLEDGE_OFFER_OPERATION_UPDATE: {
-      if (!call.has_acknowledge_offer_operation_update()) {
-        return Error(
-            "Expecting 'acknowledge_offer_operation_update' to be present");
+    case mesos::scheduler::Call::ACKNOWLEDGE_OPERATION_STATUS: {
+      if (!call.has_acknowledge_operation_status()) {
+        return Error("Expecting 'acknowledge_operation_status' to be present");
       }
 
       Try<id::UUID> uuid = id::UUID::fromBytes(
-          call.acknowledge_offer_operation_update().status_uuid());
+          call.acknowledge_operation_status().uuid());
       if (uuid.isError()) {
         return uuid.error();
       }
@@ -611,9 +610,9 @@ Option<Error> validate(
       }
       return None();
 
-    case mesos::scheduler::Call::RECONCILE_OFFER_OPERATIONS:
-      if (!call.has_reconcile_offer_operations()) {
-        return Error("Expecting 'reconcile_offer_operations' to be present");
+    case mesos::scheduler::Call::RECONCILE_OPERATIONS:
+      if (!call.has_reconcile_operations()) {
+        return Error("Expecting 'reconcile_operations' to be present");
       }
       return None();
 

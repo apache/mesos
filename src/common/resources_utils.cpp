@@ -100,25 +100,25 @@ namespace internal {
 template <typename TResources,
           typename TResource,
           typename TResourceConversion,
-          typename TOfferOperation>
+          typename TOperation>
 Try<vector<TResourceConversion>> getResourceConversions(
-    const TOfferOperation& operation)
+    const TOperation& operation)
 {
   vector<TResourceConversion> conversions;
 
   switch (operation.type()) {
-    case TOfferOperation::UNKNOWN:
-      return Error("Unknown offer operation");
+    case TOperation::UNKNOWN:
+      return Error("Unknown operation");
 
-    case TOfferOperation::LAUNCH:
-    case TOfferOperation::LAUNCH_GROUP:
-    case TOfferOperation::CREATE_VOLUME:
-    case TOfferOperation::DESTROY_VOLUME:
-    case TOfferOperation::CREATE_BLOCK:
-    case TOfferOperation::DESTROY_BLOCK:
-      return Error("Offer operation not supported");
+    case TOperation::LAUNCH:
+    case TOperation::LAUNCH_GROUP:
+    case TOperation::CREATE_VOLUME:
+    case TOperation::DESTROY_VOLUME:
+    case TOperation::CREATE_BLOCK:
+    case TOperation::DESTROY_BLOCK:
+      return Error("Operation not supported");
 
-    case TOfferOperation::RESERVE: {
+    case TOperation::RESERVE: {
       foreach (const TResource& reserved, operation.reserve().resources()) {
         // Note that we only allow "pushing" a single reservation at time.
         TResources consumed = TResources(reserved).popReservation();
@@ -127,7 +127,7 @@ Try<vector<TResourceConversion>> getResourceConversions(
       break;
     }
 
-    case TOfferOperation::UNRESERVE: {
+    case TOperation::UNRESERVE: {
       foreach (const TResource& reserved, operation.unreserve().resources()) {
         // Note that we only allow "popping" a single reservation at time.
         TResources converted = TResources(reserved).popReservation();
@@ -136,7 +136,7 @@ Try<vector<TResourceConversion>> getResourceConversions(
       break;
     }
 
-    case TOfferOperation::CREATE: {
+    case TOperation::CREATE: {
       foreach (const TResource& volume, operation.create().volumes()) {
         // Strip persistence and volume from the disk info so that we
         // can subtract it from the original resources.
@@ -162,7 +162,7 @@ Try<vector<TResourceConversion>> getResourceConversions(
       break;
     }
 
-    case TOfferOperation::DESTROY: {
+    case TOperation::DESTROY: {
       foreach (const TResource& volume, operation.destroy().volumes()) {
         // Strip persistence and volume from the disk info so that we
         // can subtract it from the original resources.

@@ -62,10 +62,7 @@ bool operator==(const ExecutorInfo& left, const ExecutorInfo& right);
 bool operator==(const Label& left, const Label& right);
 bool operator==(const Labels& left, const Labels& right);
 bool operator==(const MasterInfo& left, const MasterInfo& right);
-
-bool operator==(
-    const OfferOperationStatus& left,
-    const OfferOperationStatus& right);
+bool operator==(const OperationStatus& left, const OperationStatus& right);
 
 bool operator==(
     const ResourceProviderInfo& left,
@@ -87,10 +84,7 @@ bool operator==(const Volume& left, const Volume& right);
 bool operator!=(const CheckStatusInfo& left, const CheckStatusInfo& right);
 bool operator!=(const ExecutorInfo& left, const ExecutorInfo& right);
 bool operator!=(const Labels& left, const Labels& right);
-
-bool operator!=(
-    const OfferOperationStatus& left,
-    const OfferOperationStatus& right);
+bool operator!=(const OperationStatus& left, const OperationStatus& right);
 
 bool operator!=(const TaskStatus& left, const TaskStatus& right);
 
@@ -118,9 +112,7 @@ inline bool operator==(const OfferID& left, const OfferID& right)
 }
 
 
-inline bool operator==(
-    const OfferOperationID& left,
-    const OfferOperationID& right)
+inline bool operator==(const OperationID& left, const OperationID& right)
 {
   return left.value() == right.value();
 }
@@ -265,9 +257,7 @@ inline bool operator!=(const FrameworkID& left, const FrameworkID& right)
 }
 
 
-inline bool operator!=(
-    const OfferOperationID& left,
-    const OfferOperationID& right)
+inline bool operator!=(const OperationID& left, const OperationID& right)
 {
   return left.value() != right.value();
 }
@@ -404,14 +394,10 @@ std::ostream& operator<<(std::ostream& stream, const MasterInfo& master);
 std::ostream& operator<<(std::ostream& stream, const OfferID& offerId);
 
 
-std::ostream& operator<<(
-    std::ostream& stream,
-    const OfferOperationID& offerOperationId);
+std::ostream& operator<<(std::ostream& stream, const OperationID& operationId);
 
 
-std::ostream& operator<<(
-    std::ostream& stream,
-    const OfferOperationState& state);
+std::ostream& operator<<(std::ostream& stream, const OperationState& state);
 
 
 std::ostream& operator<<(std::ostream& stream, const RateLimits& limits);
@@ -743,16 +729,16 @@ struct hash<mesos::MachineID>
 
 
 template <>
-struct hash<mesos::OfferOperationID>
+struct hash<mesos::OperationID>
 {
   typedef size_t result_type;
 
-  typedef mesos::OfferOperationID argument_type;
+  typedef mesos::OperationID argument_type;
 
-  result_type operator()(const argument_type& offerOperationId) const
+  result_type operator()(const argument_type& operationId) const
   {
     size_t seed = 0;
-    boost::hash_combine(seed, offerOperationId.value());
+    boost::hash_combine(seed, operationId.value());
     return seed;
   }
 };

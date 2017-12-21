@@ -56,8 +56,8 @@ bool operator!=(
 
 
 bool operator==(
-    const OfferOperationStatusUpdate& left,
-    const OfferOperationStatusUpdate& right)
+    const UpdateOperationStatusMessage& left,
+    const UpdateOperationStatusMessage& right)
 {
   if (left.has_framework_id() != right.has_framework_id()) {
     return false;
@@ -97,8 +97,8 @@ bool operator==(
 
 
 bool operator!=(
-    const OfferOperationStatusUpdate& left,
-    const OfferOperationStatusUpdate& right)
+    const UpdateOperationStatusMessage& left,
+    const UpdateOperationStatusMessage& right)
 {
   return !(left == right);
 }
@@ -124,17 +124,15 @@ ostream& operator<<(ostream& stream, const StatusUpdate& update)
 }
 
 
-ostream& operator<<(ostream& stream, const OfferOperationStatusUpdate& update)
+ostream& operator<<(ostream& stream, const UpdateOperationStatusMessage& update)
 {
   stream << update.status().state();
 
-  if (update.status().has_status_uuid()) {
-    stream << " (Status UUID: " << stringify(update.status().status_uuid())
-           << ")";
+  if (update.status().has_uuid()) {
+    stream << " (Status UUID: " << stringify(update.status().uuid()) << ")";
   }
 
-  stream << " for operation UUID "
-         << stringify(update.operation_uuid());
+  stream << " for operation UUID " << stringify(update.operation_uuid());
 
   if (update.status().has_operation_id()) {
     stream << " (framework-supplied ID '" << update.status().operation_id()
@@ -162,9 +160,9 @@ ostream& operator<<(ostream& stream, const StatusUpdateRecord::Type& type)
 
 ostream& operator<<(
     ostream& stream,
-    const OfferOperationStatusUpdateRecord::Type& type)
+    const UpdateOperationStatusRecord::Type& type)
 {
-  return stream << OfferOperationStatusUpdateRecord::Type_descriptor()
+  return stream << UpdateOperationStatusRecord::Type_descriptor()
                      ->FindValueByNumber(type)
                      ->name();
 }

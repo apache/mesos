@@ -61,7 +61,8 @@ MockRegistrar::MockRegistrar(
 MockRegistrar::~MockRegistrar() {}
 
 
-Future<bool> MockRegistrar::unmocked_apply(Owned<master::Operation> operation)
+Future<bool> MockRegistrar::unmocked_apply(
+    Owned<master::RegistryOperation> operation)
 {
   return master::Registrar::apply(operation);
 }

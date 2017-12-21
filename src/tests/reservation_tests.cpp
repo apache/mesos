@@ -116,8 +116,8 @@ public:
   Future<Resources> getOperationMessage(To to)
   {
     if (GetParam() == ENABLED) {
-      return FUTURE_PROTOBUF(ApplyOfferOperationMessage(), _, to)
-        .then([](const ApplyOfferOperationMessage& message) {
+      return FUTURE_PROTOBUF(ApplyOperationMessage(), _, to)
+        .then([](const ApplyOperationMessage& message) {
           switch (message.operation_info().type()) {
             case Offer::Operation::UNKNOWN:
             case Offer::Operation::LAUNCH:
@@ -191,7 +191,7 @@ INSTANTIATE_TEST_CASE_P(
         ResourceProviderCapability::ENABLED));
 
 
-// This tests that a framework can send back a Reserve offer operation
+// This tests that a framework can send back a Reserve operation
 // as a response to an offer, which updates the resources in the
 // allocator and results in the reserved resources being reoffered to
 // the framework. The framework then sends back an Unreserved offer
@@ -397,11 +397,11 @@ TEST_P(ReservationTest, ReserveTwiceWithDoubleValue)
 
 
 // This tests that a framework can send back a Reserve followed by a
-// LaunchTasks offer operation as a response to an offer, which
+// LaunchTasks operation as a response to an offer, which
 // updates the resources in the allocator then proceeds to launch the
 // task with the reserved resources. The reserved resources are
 // reoffered to the framework on task completion. The framework then
-// sends back an Unreserved offer operation to unreserve the reserved
+// sends back an Unreserved operation to unreserve the reserved
 // resources. We test that the framework receives the unreserved
 // resources.
 TEST_P(ReservationTest, ReserveAndLaunchThenUnreserve)
@@ -522,7 +522,7 @@ TEST_P(ReservationTest, ReserveAndLaunchThenUnreserve)
 
 
 // This test launches 2 frameworks in the same role. framework1
-// reserves resources by sending back a Reserve offer operation. We
+// reserves resources by sending back a Reserve operation. We
 // first test that framework1 receives the reserved resources, then on
 // the next resource offer, framework1 declines the offer. This
 // should lead to framework2 receiving the resources that framework1
@@ -644,9 +644,9 @@ TEST_P(ReservationTest, ReserveShareWithinRole)
 }
 
 
-// This tests that a Reserve offer operation where the specified
-// resources does not exist in the given offer (too large, in this
-// case) is dropped.
+// This tests that a Reserve operation where the specified resources
+// does not exist in the given offer (too large, in this case) is
+// dropped.
 TEST_P(ReservationTest, DropReserveTooLarge)
 {
   TestAllocator<> allocator;
@@ -712,7 +712,7 @@ TEST_P(ReservationTest, DropReserveTooLarge)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
 
-  // Expect that the reserve offer operation will be dropped.
+  // Expect that the reserve operation will be dropped.
   EXPECT_CALL(allocator, updateAllocation(_, _, _, _))
     .Times(0);
 
@@ -1710,7 +1710,7 @@ TEST_P(ReservationTest, BadACLDropUnreserve)
 
 
 // Tests a couple more complex combinations of `RESERVE`, `UNRESERVE`, and
-// `LAUNCH` offer operations to verify that they work with authorization.
+// `LAUNCH` operations to verify that they work with authorization.
 TEST_P(ReservationTest, ACLMultipleOperations)
 {
   // Pause the clock and control it manually in order to
@@ -2215,7 +2215,7 @@ TEST_P(ReservationTest, DropReserveWithDifferentRole)
     .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
-  // Expect that the reserve offer operation will be dropped.
+  // Expect that the reserve operation will be dropped.
   EXPECT_CALL(allocator, updateAllocation(_, _, _, _))
     .Times(0);
 
@@ -2370,7 +2370,7 @@ TEST_P(ReservationTest, PreventUnreservingAlienResources)
   EXPECT_CALL(sched2, resourceOffers(&driver2, _))
     .WillOnce(FutureArg<1>(&offers));
 
-  // Expect that the unreserve offer operation will be dropped and hence
+  // Expect that the unreserve operation will be dropped and hence
   // allocator not called at all.
   EXPECT_CALL(allocator, updateAllocation(_, _, _, _))
     .Times(0);

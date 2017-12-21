@@ -1270,7 +1270,7 @@ inline TDomainInfo createDomainInfo(
 }
 
 
-// Helpers for creating offer operations.
+// Helpers for creating operations.
 template <typename TResources, typename TOffer>
 inline typename TOffer::Operation RESERVE(const TResources& resources)
 {
@@ -2447,8 +2447,8 @@ public:
       void(Mesos*, const typename Event::RescindInverseOffer&));
   MOCK_METHOD2_T(update, void(Mesos*, const typename Event::Update&));
   MOCK_METHOD2_T(
-      offerOperationUpdate,
-      void(Mesos*, const typename Event::OfferOperationUpdate&));
+      updateOperationStatus,
+      void(Mesos*, const typename Event::UpdateOperationStatus&));
   MOCK_METHOD2_T(message, void(Mesos*, const typename Event::Message&));
   MOCK_METHOD2_T(failure, void(Mesos*, const typename Event::Failure&));
   MOCK_METHOD2_T(error, void(Mesos*, const typename Event::Error&));
@@ -2478,8 +2478,8 @@ public:
         case Event::UPDATE:
           update(mesos, event.update());
           break;
-        case Event::OFFER_OPERATION_UPDATE:
-          offerOperationUpdate(mesos, event.offer_operation_update());
+        case Event::UPDATE_OPERATION_STATUS:
+          updateOperationStatus(mesos, event.update_operation_status());
           break;
         case Event::MESSAGE:
           message(mesos, event.message());
@@ -2790,7 +2790,7 @@ template <
     typename Resource,
     typename Resources,
     typename ResourceProviderID,
-    typename OfferOperationState,
+    typename OperationState,
     typename Operation,
     typename Source>
 class MockResourceProvider
@@ -2813,7 +2813,7 @@ public:
               Resource,
               Resources,
               ResourceProviderID,
-              OfferOperationState,
+              OperationState,
               Operation,
               Source>::connectedDefault));
     EXPECT_CALL(*this, connected()).WillRepeatedly(DoDefault());
@@ -2829,12 +2829,12 @@ public:
               Resource,
               Resources,
               ResourceProviderID,
-              OfferOperationState,
+              OperationState,
               Operation,
               Source>::subscribedDefault));
     EXPECT_CALL(*this, subscribed(_)).WillRepeatedly(DoDefault());
 
-    ON_CALL(*this, applyOfferOperation(_))
+    ON_CALL(*this, applyOperation(_))
       .WillByDefault(Invoke(
           this,
           &MockResourceProvider<
@@ -2845,10 +2845,10 @@ public:
               Resource,
               Resources,
               ResourceProviderID,
-              OfferOperationState,
+              OperationState,
               Operation,
               Source>::operationDefault));
-    EXPECT_CALL(*this, applyOfferOperation(_)).WillRepeatedly(DoDefault());
+    EXPECT_CALL(*this, applyOperation(_)).WillRepeatedly(DoDefault());
 
     ON_CALL(*this, publishResources(_))
       .WillByDefault(Invoke(
@@ -2861,7 +2861,7 @@ public:
               Resource,
               Resources,
               ResourceProviderID,
-              OfferOperationState,
+              OperationState,
               Operation,
               Source>::publishDefault));
     EXPECT_CALL(*this, publishResources(_)).WillRepeatedly(DoDefault());
@@ -2870,18 +2870,16 @@ public:
   MOCK_METHOD0_T(connected, void());
   MOCK_METHOD0_T(disconnected, void());
   MOCK_METHOD1_T(subscribed, void(const typename Event::Subscribed&));
-  MOCK_METHOD1_T(
-      applyOfferOperation,
-      void(const typename Event::ApplyOfferOperation&));
+  MOCK_METHOD1_T(applyOperation, void(const typename Event::ApplyOperation&));
   MOCK_METHOD1_T(
       publishResources,
       void(const typename Event::PublishResources&));
   MOCK_METHOD1_T(
-      acknowledgeOfferOperation,
-      void(const typename Event::AcknowledgeOfferOperation&));
+      acknowledgeOperationStatus,
+      void(const typename Event::AcknowledgeOperationStatus&));
   MOCK_METHOD1_T(
-      reconcileOfferOperations,
-      void(const typename Event::ReconcileOfferOperations&));
+      reconcileOperations,
+      void(const typename Event::ReconcileOperations&));
 
   void events(std::queue<Event> events)
   {
@@ -2893,17 +2891,17 @@ public:
         case Event::SUBSCRIBED:
           subscribed(event.subscribed());
           break;
-        case Event::APPLY_OFFER_OPERATION:
-          applyOfferOperation(event.apply_offer_operation());
+        case Event::APPLY_OPERATION:
+          applyOperation(event.apply_operation());
           break;
         case Event::PUBLISH_RESOURCES:
           publishResources(event.publish_resources());
           break;
-        case Event::ACKNOWLEDGE_OFFER_OPERATION:
-          acknowledgeOfferOperation(event.acknowledge_offer_operation());
+        case Event::ACKNOWLEDGE_OPERATION_STATUS:
+          acknowledgeOperationStatus(event.acknowledge_operation_status());
           break;
-        case Event::RECONCILE_OFFER_OPERATIONS:
-          reconcileOfferOperations(event.reconcile_offer_operations());
+        case Event::RECONCILE_OPERATIONS:
+          reconcileOperations(event.reconcile_operations());
           break;
         case Event::UNKNOWN:
           LOG(FATAL) << "Received unexpected UNKNOWN event";
@@ -2935,7 +2933,7 @@ public:
                 Resource,
                 Resources,
                 ResourceProviderID,
-                OfferOperationState,
+                OperationState,
                 Operation,
                 Source>::connected,
             this),
@@ -2948,7 +2946,7 @@ public:
                 Resource,
                 Resources,
                 ResourceProviderID,
-                OfferOperationState,
+                OperationState,
                 Operation,
                 Source>::disconnected,
             this),
@@ -2961,7 +2959,7 @@ public:
                 Resource,
                 Resources,
                 ResourceProviderID,
-                OfferOperationState,
+                OperationState,
                 Operation,
                 Source>::events,
             this,
@@ -3005,21 +3003,21 @@ public:
     }
   }
 
-  void operationDefault(const typename Event::ApplyOfferOperation& operation)
+  void operationDefault(const typename Event::ApplyOperation& operation)
   {
     CHECK(info.has_id());
 
     Call call;
-    call.set_type(Call::UPDATE_OFFER_OPERATION_STATUS);
+    call.set_type(Call::UPDATE_OPERATION_STATUS);
     call.mutable_resource_provider_id()->CopyFrom(info.id());
 
-    typename Call::UpdateOfferOperationStatus* update =
-      call.mutable_update_offer_operation_status();
+    typename Call::UpdateOperationStatus* update =
+      call.mutable_update_operation_status();
     update->mutable_framework_id()->CopyFrom(operation.framework_id());
     update->mutable_operation_uuid()->CopyFrom(operation.operation_uuid());
 
     update->mutable_status()->set_state(
-        OfferOperationState::OFFER_OPERATION_FINISHED);
+        OperationState::OPERATION_FINISHED);
 
     switch (operation.info().type()) {
       case Operation::LAUNCH:
@@ -3126,7 +3124,7 @@ using MockResourceProvider = tests::resource_provider::MockResourceProvider<
     mesos::v1::Resource,
     mesos::v1::Resources,
     mesos::v1::ResourceProviderID,
-    mesos::v1::OfferOperationState,
+    mesos::v1::OperationState,
     mesos::v1::Offer::Operation,
     mesos::v1::Resource::DiskInfo::Source>;
 

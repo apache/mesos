@@ -249,7 +249,7 @@ Future<http::Response> Master::WeightsHandler::__updateWeights(
     const vector<WeightInfo>& weightInfos) const
 {
   // Update the registry and acknowledge the request.
-  return master->registrar->apply(Owned<Operation>(
+  return master->registrar->apply(Owned<RegistryOperation>(
       new weights::UpdateWeights(weightInfos)))
     .then(defer(master->self(), [=](bool result) -> Future<http::Response> {
       CHECK(result);

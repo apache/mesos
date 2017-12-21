@@ -650,7 +650,7 @@ TEST_F(ReconciliationTest, RemovalInProgress)
 
   // Intercept the next registrar operation; this should be the
   // registry operation that unregisters the slave.
-  Future<Owned<master::Operation>> unregister;
+  Future<Owned<master::RegistryOperation>> unregister;
   Future<Nothing> unregisterStarted;
   Promise<bool> promise; // Never satisfied.
   EXPECT_CALL(*master.get()->registrar, apply(_))

@@ -77,8 +77,6 @@ using mesos::state::ZooKeeperStorage;
 using mesos::state::protobuf::State;
 using mesos::state::protobuf::Variable;
 
-using mesos::internal::state::Operation;
-
 namespace mesos {
 namespace internal {
 namespace tests {
@@ -86,6 +84,9 @@ namespace tests {
 typedef mesos::internal::Registry::Slaves Slaves;
 typedef mesos::internal::Registry::Slave Slave;
 
+// We declare this here to avoid collision with the top-level
+// `mesos::Operation` protobuf message
+using mesos::internal::state::Operation;
 
 void FetchAndStoreAndFetch(State* state)
 {

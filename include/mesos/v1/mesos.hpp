@@ -108,9 +108,7 @@ inline bool operator==(const OfferID& left, const OfferID& right)
 }
 
 
-inline bool operator==(
-    const OfferOperationID& left,
-    const OfferOperationID& right)
+inline bool operator==(const OperationID& left, const OperationID& right)
 {
   return left.value() == right.value();
 }
@@ -255,9 +253,7 @@ inline bool operator!=(const FrameworkID& left, const FrameworkID& right)
 }
 
 
-inline bool operator!=(
-    const OfferOperationID& left,
-    const OfferOperationID& right)
+inline bool operator!=(const OperationID& left, const OperationID& right)
 {
   return left.value() != right.value();
 }
@@ -377,14 +373,10 @@ std::ostream& operator<<(std::ostream& stream, const MasterInfo& master);
 std::ostream& operator<<(std::ostream& stream, const OfferID& offerId);
 
 
-std::ostream& operator<<(
-    std::ostream& stream,
-    const OfferOperationID& offerOperationId);
+std::ostream& operator<<(std::ostream& stream, const OperationID& operationId);
 
 
-std::ostream& operator<<(
-    std::ostream& stream,
-    const OfferOperationState& state);
+std::ostream& operator<<(std::ostream& stream, const OperationState& state);
 
 
 std::ostream& operator<<(std::ostream& stream, const RateLimits& limits);
@@ -715,16 +707,16 @@ struct hash<mesos::v1::MachineID>
 
 
 template <>
-struct hash<mesos::v1::OfferOperationID>
+struct hash<mesos::v1::OperationID>
 {
   typedef size_t result_type;
 
-  typedef mesos::v1::OfferOperationID argument_type;
+  typedef mesos::v1::OperationID argument_type;
 
-  result_type operator()(const argument_type& offerOperationId) const
+  result_type operator()(const argument_type& operationId) const
   {
     size_t seed = 0;
-    boost::hash_combine(seed, offerOperationId.value());
+    boost::hash_combine(seed, operationId.value());
     return seed;
   }
 };

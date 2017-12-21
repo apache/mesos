@@ -58,7 +58,7 @@ namespace quota {
  * However, even if we return `false` (i.e. no mutation), the current
  * implementation of the registrar will still save the object again.
  */
-class UpdateQuota : public Operation
+class UpdateQuota : public RegistryOperation
 {
 public:
   explicit UpdateQuota(const mesos::quota::QuotaInfo& quotaInfo);
@@ -77,7 +77,7 @@ private:
  *
  * TODO(alexr): Consider uniting this operation with `UpdateQuota`.
  */
-class RemoveQuota : public Operation
+class RemoveQuota : public RegistryOperation
 {
 public:
   explicit RemoveQuota(const std::string& _role);

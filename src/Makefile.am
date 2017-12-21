@@ -1092,7 +1092,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/containerizer/mesos/provisioner/docker/registry_puller.cpp	\
   slave/containerizer/mesos/provisioner/docker/store.cpp		\
   slave/resource_estimators/noop.cpp					\
-  status_update_manager/offer_operation.cpp				\
+  status_update_manager/operation.cpp					\
   uri/fetcher.cpp							\
   uri/utils.cpp								\
   uri/fetchers/copy.cpp							\
@@ -1251,7 +1251,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/qos_controllers/noop.hpp					\
   slave/resource_estimators/noop.hpp					\
   status_update_manager/status_update_manager_process.hpp		\
-  status_update_manager/offer_operation.hpp				\
+  status_update_manager/operation.hpp					\
   tests/active_user_test_helper.hpp					\
   tests/allocator.hpp							\
   tests/cluster.hpp							\
@@ -2514,7 +2514,7 @@ mesos_tests_SOURCES =						\
   tests/mock_registrar.cpp					\
   tests/module.cpp						\
   tests/module_tests.cpp					\
-  tests/offer_operation_status_update_manager_tests.cpp		\
+  tests/operation_status_update_manager_tests.cpp		\
   tests/oversubscription_tests.cpp				\
   tests/partition_tests.cpp					\
   tests/paths_tests.cpp						\

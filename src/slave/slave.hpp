@@ -209,13 +209,13 @@ public:
   void checkpointResourcesMessage(
       const std::vector<Resource>& checkpointedResources);
 
-  void applyOfferOperation(const ApplyOfferOperationMessage& message);
+  void applyOperation(const ApplyOperationMessage& message);
 
-  // Reconciles pending offer operations with the master. This is necessary to
-  // handle cases in which operations were dropped in transit, or in which an
-  // agent's `UpdateSlaveMessage` was sent at the same time as an operation was
-  // en route from the master to the agent.
-  void reconcileOfferOperations(const ReconcileOfferOperationsMessage& message);
+  // Reconciles pending operations with the master. This is necessary to handle
+  // cases in which operations were dropped in transit, or in which an agent's
+  // `UpdateSlaveMessage` was sent at the same time as an operation was en route
+  // from the master to the agent.
+  void reconcileOperations(const ReconcileOperationsMessage& message);
 
   void subscribe(
       HttpConnection http,
@@ -302,15 +302,15 @@ public:
       const TaskID& taskId,
       const std::string& uuid);
 
-  void offerOperationUpdateAcknowledgement(
-      const process::UPID& from,
-      const OfferOperationUpdateAcknowledgementMessage& acknowledgement);
-
   void _statusUpdateAcknowledgement(
       const process::Future<bool>& future,
       const TaskID& taskId,
       const FrameworkID& frameworkId,
       const id::UUID& uuid);
+
+  void operationStatusAcknowledgement(
+      const process::UPID& from,
+      const AcknowledgeOperationStatusMessage& acknowledgement);
 
   void executorLaunched(
       const FrameworkID& frameworkId,
@@ -567,22 +567,22 @@ private:
   void handleResourceProviderMessage(
       const process::Future<ResourceProviderMessage>& message);
 
-  void addOfferOperation(OfferOperation* operation);
+  void addOperation(Operation* operation);
 
-  // Transitions the offer operation, and recovers resource if the
-  // offer operation becomes terminal.
-  void updateOfferOperation(
-      OfferOperation* operation,
-      const OfferOperationStatusUpdate& update);
+  // Transitions the operation, and recovers resource if the operation becomes
+  // terminal.
+  void updateOperation(
+      Operation* operation,
+      const UpdateOperationStatusMessage& update);
 
-  void removeOfferOperation(OfferOperation* operation);
+  void removeOperation(Operation* operation);
 
-  OfferOperation* getOfferOperation(const id::UUID& uuid) const;
+  Operation* getOperation(const id::UUID& uuid) const;
 
   void addResourceProvider(ResourceProvider* resourceProvider);
   ResourceProvider* getResourceProvider(const ResourceProviderID& id) const;
 
-  void apply(OfferOperation* operation);
+  void apply(Operation* operation);
 
   // Publish all resources that are needed to run the current set of
   // tasks and executors on the agent.
@@ -759,7 +759,7 @@ private:
   // (2) Pending operations or terminal operations that have
   //     unacknowledged status updates for resource provider
   //     provided resources.
-  hashmap<id::UUID, OfferOperation*> offerOperations;
+  hashmap<id::UUID, Operation*> operations;
 };
 
 
@@ -1067,8 +1067,8 @@ struct ResourceProvider
       totalResources(_totalResources),
       resourceVersion(_resourceVersion) {}
 
-  void addOfferOperation(OfferOperation* operation);
-  void removeOfferOperation(OfferOperation* operation);
+  void addOperation(Operation* operation);
+  void removeOperation(Operation* operation);
 
   ResourceProviderInfo info;
   Resources totalResources;
@@ -1088,7 +1088,7 @@ struct ResourceProvider
 
   // Pending operations or terminal operations that have
   // unacknowledged status updates.
-  hashmap<id::UUID, OfferOperation*> offerOperations;
+  hashmap<id::UUID, Operation*> operations;
 };
 
 

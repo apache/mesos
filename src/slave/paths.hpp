@@ -353,21 +353,21 @@ std::string getLatestResourceProviderPath(
     const std::string& resourceProviderName);
 
 
-Try<std::list<std::string>> getOfferOperationPaths(
+Try<std::list<std::string>> getOperationPaths(
     const std::string& rootDir);
 
 
-std::string getOfferOperationPath(
+std::string getOperationPath(
     const std::string& rootDir,
     const id::UUID& operationUuid);
 
 
-Try<id::UUID> parseOfferOperationPath(
+Try<id::UUID> parseOperationPath(
     const std::string& rootDir,
     const std::string& dir);
 
 
-std::string getOfferOperationUpdatesPath(
+std::string getOperationUpdatesPath(
     const std::string& rootDir,
     const id::UUID& operationUuid);
 

@@ -384,7 +384,7 @@ class MasterRegistrarProcess : public Process<MasterRegistrarProcess>
 {
   // A helper class for adapting operations on the resource provider
   // registry to the master registry.
-  class AdaptedOperation : public master::Operation
+  class AdaptedOperation : public master::RegistryOperation
   {
   public:
     AdaptedOperation(Owned<Registrar::Operation> operation);
@@ -431,8 +431,8 @@ MasterRegistrarProcess::MasterRegistrarProcess(master::Registrar* _registrar)
 Future<bool> MasterRegistrarProcess::apply(
     Owned<Registrar::Operation> operation)
 {
-  auto adaptedOperation =
-    Owned<master::Operation>(new AdaptedOperation(std::move(operation)));
+  auto adaptedOperation = Owned<master::RegistryOperation>(
+      new AdaptedOperation(std::move(operation)));
 
   return registrar->apply(std::move(adaptedOperation));
 }

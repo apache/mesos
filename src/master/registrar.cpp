@@ -100,7 +100,7 @@ public:
 
   // Registrar implementation.
   Future<Registry> recover(const MasterInfo& info);
-  Future<bool> apply(Owned<Operation> operation);
+  Future<bool> apply(Owned<RegistryOperation> operation);
 
 protected:
   virtual void initialize()
@@ -129,7 +129,7 @@ private:
   static string registryHelp();
 
   // The 'Recover' operation adds the latest MasterInfo.
-  class Recover : public Operation
+  class Recover : public RegistryOperation
   {
   public:
     explicit Recover(const MasterInfo& _info) : info(_info) {}
@@ -201,14 +201,14 @@ private:
       const MasterInfo& info,
       const Future<Variable>& recovery);
   void __recover(const Future<bool>& recover);
-  Future<bool> _apply(Owned<Operation> operation);
+  Future<bool> _apply(Owned<RegistryOperation> operation);
 
   // Helper for updating state (performing store).
   void update();
   void _update(
       const Future<Option<Variable>>& store,
       const Owned<Registry>& updatedRegistry,
-      deque<Owned<Operation>> operations);
+      deque<Owned<RegistryOperation>> operations);
 
   // Fails all pending operations and transitions the Registrar
   // into an error state in which all subsequent operations will fail.
@@ -230,7 +230,7 @@ private:
   Option<Variable> variable;
   Option<Registry> registry;
 
-  deque<Owned<Operation>> operations;
+  deque<Owned<RegistryOperation>> operations;
   bool updating; // Used to signify fetching (recovering) or storing.
 
   const Flags flags;
@@ -263,7 +263,7 @@ Future<T> timeout(
 
 
 // Helper for failing a deque of operations.
-void fail(deque<Owned<Operation>>* operations, const string& message)
+void fail(deque<Owned<RegistryOperation>>* operations, const string& message)
 {
   while (!operations->empty()) {
     operations->front()->fail(message);
@@ -400,7 +400,7 @@ void RegistrarProcess::_recover(
   registry->Swap(&deserialized.get());
 
   // Perform the Recover operation to add the new MasterInfo.
-  Owned<Operation> operation(new Recover(info));
+  Owned<RegistryOperation> operation(new Recover(info));
   operations.push_back(operation);
   operation->future()
     .onAny(defer(self(), &Self::__recover, lambda::_1));
@@ -433,7 +433,7 @@ void RegistrarProcess::__recover(const Future<bool>& recover)
 }
 
 
-Future<bool> RegistrarProcess::apply(Owned<Operation> operation)
+Future<bool> RegistrarProcess::apply(Owned<RegistryOperation> operation)
 {
   if (recovered.isNone()) {
     return Failure("Attempted to apply the operation before recovering");
@@ -444,7 +444,7 @@ Future<bool> RegistrarProcess::apply(Owned<Operation> operation)
 }
 
 
-Future<bool> RegistrarProcess::_apply(Owned<Operation> operation)
+Future<bool> RegistrarProcess::_apply(Owned<RegistryOperation> operation)
 {
   if (error.isSome()) {
     return Failure(error.get());
@@ -487,7 +487,7 @@ void RegistrarProcess::update()
     slaveIDs.insert(slave.info().id());
   }
 
-  foreach (Owned<Operation>& operation, operations) {
+  foreach (Owned<RegistryOperation>& operation, operations) {
     // No need to process the result of the operation.
     (*operation)(updatedRegistry.get(), &slaveIDs);
   }
@@ -525,7 +525,7 @@ void RegistrarProcess::update()
 void RegistrarProcess::_update(
     const Future<Option<Variable>>& store,
     const Owned<Registry>& updatedRegistry,
-    deque<Owned<Operation>> applied)
+    deque<Owned<RegistryOperation>> applied)
 {
   updating = false;
 
@@ -556,7 +556,7 @@ void RegistrarProcess::_update(
 
   // Remove the operations.
   while (!applied.empty()) {
-    Owned<Operation> operation = applied.front();
+    Owned<RegistryOperation> operation = applied.front();
     applied.pop_front();
 
     operation->set();
@@ -602,7 +602,7 @@ Future<Registry> Registrar::recover(const MasterInfo& info)
 }
 
 
-Future<bool> Registrar::apply(Owned<Operation> operation)
+Future<bool> Registrar::apply(Owned<RegistryOperation> operation)
 {
   return dispatch(process, &RegistrarProcess::apply, operation);
 }

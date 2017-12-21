@@ -212,7 +212,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NewVolume)
 
   AWAIT_READY(slaveRegisteredMessage);
 
-  // Register a framework to exercise offer operations.
+  // Register a framework to exercise operations.
   FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
   framework.set_roles(0, "storage");
 
@@ -392,7 +392,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NewVolumeRecovery)
 
   AWAIT_READY(slaveRegisteredMessage);
 
-  // Register a framework to exercise offer operations.
+  // Register a framework to exercise operations.
   FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
   framework.set_roles(0, "storage");
 
@@ -588,7 +588,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchTask)
 
   AWAIT_READY(slaveRegisteredMessage);
 
-  // Register a framework to exercise offer operations.
+  // Register a framework to exercise operations.
   FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
   framework.set_roles(0, "storage");
 
@@ -807,7 +807,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchTaskRecovery)
 
   AWAIT_READY(slaveRegisteredMessage);
 
-  // Register a framework to exercise offer operations.
+  // Register a framework to exercise operations.
   FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
   framework.set_roles(0, "storage");
 
@@ -1037,7 +1037,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PreExistingVolume)
 
   AWAIT_READY(slaveRegisteredMessage);
 
-  // Register a framework to exercise offer operations.
+  // Register a framework to exercise operations.
   FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
   framework.set_roles(0, "storage");
 

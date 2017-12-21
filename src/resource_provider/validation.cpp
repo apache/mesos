@@ -50,13 +50,13 @@ Option<Error> validate(const Call& call)
       return None();
     }
 
-    case Call::UPDATE_OFFER_OPERATION_STATUS: {
+    case Call::UPDATE_OPERATION_STATUS: {
       if (!call.has_resource_provider_id()) {
         return Error("Expecting 'resource_provider_id' to be present");
       }
 
-      if (!call.has_update_offer_operation_status()) {
-        return Error("Expecting 'update_offer_operation_status' to be present");
+      if (!call.has_update_operation_status()) {
+        return Error("Expecting 'update_operation_status' to be present");
       }
 
       return None();

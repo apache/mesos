@@ -38,7 +38,7 @@
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
-#include "status_update_manager/offer_operation.hpp"
+#include "status_update_manager/operation.hpp"
 
 using lambda::function;
 
@@ -53,33 +53,33 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-// This class will be the target of the forward callbacks passed to the offer
+// This class will be the target of the forward callbacks passed to the
 // operation status update managers in this test suite.
 //
 // It uses gmock, so that we can easily set expectations and check how
 // often/which status updates are forwarded.
-class MockOfferOperationStatusUpdateProcessor
+class MockUpdateOperationStatusMessageProcessor
 {
 public:
-  MOCK_METHOD1(update, void(const OfferOperationStatusUpdate&));
+  MOCK_METHOD1(update, void(const UpdateOperationStatusMessage&));
 };
 
 
-class OfferOperationStatusUpdateManagerTest : public MesosTest
+class OperationStatusUpdateManagerTest : public MesosTest
 {
 protected:
-  OfferOperationStatusUpdateManagerTest()
-    : statusUpdateManager(new OfferOperationStatusUpdateManager())
+  OperationStatusUpdateManagerTest()
+    : statusUpdateManager(new OperationStatusUpdateManager())
   {
     Clock::pause();
 
-    const function<void(const OfferOperationStatusUpdate&)> forward =
-      [&](const OfferOperationStatusUpdate& update) {
+    const function<void(const UpdateOperationStatusMessage&)> forward =
+      [&](const UpdateOperationStatusMessage& update) {
         statusUpdateProcessor.update(update);
       };
 
     statusUpdateManager->initialize(
-        forward, OfferOperationStatusUpdateManagerTest::getPath);
+        forward, OperationStatusUpdateManagerTest::getPath);
   }
 
   void TearDown() override
@@ -90,13 +90,13 @@ protected:
     MesosTest::TearDown();
   }
 
-  OfferOperationStatusUpdate createOfferOperationStatusUpdate(
-      const id::UUID& statusUuid,
+  UpdateOperationStatusMessage createUpdateOperationStatusMessage(
+      const id::UUID& uuid,
       const id::UUID& operationUuid,
-      const OfferOperationState& state,
+      const OperationState& state,
       const Option<FrameworkID>& frameworkId = None())
   {
-    OfferOperationStatusUpdate statusUpdate;
+    UpdateOperationStatusMessage statusUpdate;
 
     statusUpdate.mutable_operation_uuid()->set_value(operationUuid.toBytes());
 
@@ -104,24 +104,24 @@ protected:
       statusUpdate.mutable_framework_id()->CopyFrom(frameworkId.get());
     }
 
-    OfferOperationStatus* status = statusUpdate.mutable_status();
+    OperationStatus* status = statusUpdate.mutable_status();
     status->set_state(state);
-    status->mutable_status_uuid()->set_value(statusUuid.toBytes());
+    status->mutable_uuid()->set_value(uuid.toBytes());
 
     return statusUpdate;
   }
 
   void resetStatusUpdateManager()
   {
-    statusUpdateManager.reset(new OfferOperationStatusUpdateManager());
+    statusUpdateManager.reset(new OperationStatusUpdateManager());
 
-    const function<void(const OfferOperationStatusUpdate&)> forward =
-      [&](const OfferOperationStatusUpdate& update) {
+    const function<void(const UpdateOperationStatusMessage&)> forward =
+      [&](const UpdateOperationStatusMessage& update) {
         statusUpdateProcessor.update(update);
       };
 
     statusUpdateManager->initialize(
-        forward, OfferOperationStatusUpdateManagerTest::getPath);
+        forward, OperationStatusUpdateManagerTest::getPath);
   }
 
   static const string getPath(const id::UUID& operationUuid)
@@ -129,29 +129,30 @@ protected:
     return path::join(os::getcwd(), "streams", operationUuid.toString());
   }
 
-  Owned<OfferOperationStatusUpdateManager> statusUpdateManager;
-  MockOfferOperationStatusUpdateProcessor statusUpdateProcessor;
+  Owned<OperationStatusUpdateManager> statusUpdateManager;
+  MockUpdateOperationStatusMessageProcessor statusUpdateProcessor;
 };
 
 
 // This test verifies that the status update manager will not retry a terminal
 // status update after it has been acknowledged.
-TEST_F(OfferOperationStatusUpdateManagerTest, UpdateAndAck)
+TEST_F(OperationStatusUpdateManagerTest, UpdateAndAck)
 {
-  Future<OfferOperationStatusUpdate> forwardedStatusUpdate;
+  Future<UpdateOperationStatusMessage> forwardedStatusUpdate;
   EXPECT_CALL(statusUpdateProcessor, update(_))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate));
 
   const id::UUID operationUuid = id::UUID::random();
   const id::UUID statusUuid = id::UUID::random();
 
-  OfferOperationStatusUpdate statusUpdate = createOfferOperationStatusUpdate(
-      statusUuid, operationUuid, OfferOperationState::OFFER_OPERATION_FINISHED);
+  UpdateOperationStatusMessage statusUpdate =
+    createUpdateOperationStatusMessage(
+        statusUuid, operationUuid, OperationState::OPERATION_FINISHED);
 
-  // Send a checkpointed offer operation status update.
+  // Send a checkpointed operation status update.
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate, true));
 
-  OfferOperationStatusUpdate expectedStatusUpdate(statusUpdate);
+  UpdateOperationStatusMessage expectedStatusUpdate(statusUpdate);
   expectedStatusUpdate.mutable_latest_status()->CopyFrom(statusUpdate.status());
 
   // Verify that the status update is forwarded.
@@ -171,22 +172,23 @@ TEST_F(OfferOperationStatusUpdateManagerTest, UpdateAndAck)
 
 // This test verifies that the status update manager will not retry a
 // non-terminal status update after it has been acknowledged.
-TEST_F(OfferOperationStatusUpdateManagerTest, UpdateAndAckNonTerminalUpdate)
+TEST_F(OperationStatusUpdateManagerTest, UpdateAndAckNonTerminalUpdate)
 {
-  Future<OfferOperationStatusUpdate> forwardedStatusUpdate;
+  Future<UpdateOperationStatusMessage> forwardedStatusUpdate;
   EXPECT_CALL(statusUpdateProcessor, update(_))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate));
 
   const id::UUID operationUuid = id::UUID::random();
   const id::UUID statusUuid = id::UUID::random();
 
-  OfferOperationStatusUpdate statusUpdate = createOfferOperationStatusUpdate(
-    statusUuid, operationUuid, OfferOperationState::OFFER_OPERATION_PENDING);
+  UpdateOperationStatusMessage statusUpdate =
+    createUpdateOperationStatusMessage(
+        statusUuid, operationUuid, OperationState::OPERATION_PENDING);
 
-  // Send a checkpointed offer operation status update.
+  // Send a checkpointed operation status update.
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate, true));
 
-  OfferOperationStatusUpdate expectedStatusUpdate(statusUpdate);
+  UpdateOperationStatusMessage expectedStatusUpdate(statusUpdate);
   expectedStatusUpdate.mutable_latest_status()->CopyFrom(statusUpdate.status());
 
   // Verify that the status update is forwarded.
@@ -206,10 +208,10 @@ TEST_F(OfferOperationStatusUpdateManagerTest, UpdateAndAckNonTerminalUpdate)
 
 // This test verifies that the status update manager resends status updates
 // until they are acknowledged.
-TEST_F(OfferOperationStatusUpdateManagerTest, ResendUnacknowledged)
+TEST_F(OperationStatusUpdateManagerTest, ResendUnacknowledged)
 {
-  Future<OfferOperationStatusUpdate> forwardedStatusUpdate1;
-  Future<OfferOperationStatusUpdate> forwardedStatusUpdate2;
+  Future<UpdateOperationStatusMessage> forwardedStatusUpdate1;
+  Future<UpdateOperationStatusMessage> forwardedStatusUpdate2;
   EXPECT_CALL(statusUpdateProcessor, update(_))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate1))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate2));
@@ -217,13 +219,14 @@ TEST_F(OfferOperationStatusUpdateManagerTest, ResendUnacknowledged)
   const id::UUID operationUuid = id::UUID::random();
   const id::UUID statusUuid = id::UUID::random();
 
-  OfferOperationStatusUpdate statusUpdate = createOfferOperationStatusUpdate(
-      statusUuid, operationUuid, OfferOperationState::OFFER_OPERATION_FINISHED);
+  UpdateOperationStatusMessage statusUpdate =
+    createUpdateOperationStatusMessage(
+        statusUuid, operationUuid, OperationState::OPERATION_FINISHED);
 
-  // Send a checkpointed offer operation status update.
+  // Send a checkpointed operation status update.
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate, true));
 
-  OfferOperationStatusUpdate expectedStatusUpdate(statusUpdate);
+  UpdateOperationStatusMessage expectedStatusUpdate(statusUpdate);
   expectedStatusUpdate.mutable_latest_status()->CopyFrom(statusUpdate.status());
 
   // Verify that the status update is forwarded.
@@ -253,9 +256,9 @@ TEST_F(OfferOperationStatusUpdateManagerTest, ResendUnacknowledged)
 // This test verifies that after the updates belonging to a framework are
 // cleaned up from the status update manager, the status update manager stops
 // resending them.
-TEST_F(OfferOperationStatusUpdateManagerTest, Cleanup)
+TEST_F(OperationStatusUpdateManagerTest, Cleanup)
 {
-  Future<OfferOperationStatusUpdate> forwardedStatusUpdate;
+  Future<UpdateOperationStatusMessage> forwardedStatusUpdate;
   EXPECT_CALL(statusUpdateProcessor, update(_))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate));
 
@@ -265,16 +268,17 @@ TEST_F(OfferOperationStatusUpdateManagerTest, Cleanup)
   FrameworkID frameworkId;
   frameworkId.set_value("frameworkId");
 
-  OfferOperationStatusUpdate statusUpdate = createOfferOperationStatusUpdate(
-      statusUuid,
-      operationUuid,
-      OfferOperationState::OFFER_OPERATION_FINISHED,
-      frameworkId);
+  UpdateOperationStatusMessage statusUpdate =
+    createUpdateOperationStatusMessage(
+        statusUuid,
+        operationUuid,
+        OperationState::OPERATION_FINISHED,
+        frameworkId);
 
-  // Send a checkpointed offer operation status update.
+  // Send a checkpointed operation status update.
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate, true));
 
-  OfferOperationStatusUpdate expectedStatusUpdate(statusUpdate);
+  UpdateOperationStatusMessage expectedStatusUpdate(statusUpdate);
   expectedStatusUpdate.mutable_latest_status()->CopyFrom(statusUpdate.status());
 
   // Verify that the status update is forwarded.
@@ -293,10 +297,10 @@ TEST_F(OfferOperationStatusUpdateManagerTest, Cleanup)
 // This test verifies that the status update manager is able to recover
 // checkpointed status updates, and that it resends the recovered updates that
 // haven't been acknowledged.
-TEST_F(OfferOperationStatusUpdateManagerTest, RecoverCheckpointedStream)
+TEST_F(OperationStatusUpdateManagerTest, RecoverCheckpointedStream)
 {
-  Future<OfferOperationStatusUpdate> forwardedStatusUpdate1;
-  Future<OfferOperationStatusUpdate> forwardedStatusUpdate2;
+  Future<UpdateOperationStatusMessage> forwardedStatusUpdate1;
+  Future<UpdateOperationStatusMessage> forwardedStatusUpdate2;
   EXPECT_CALL(statusUpdateProcessor, update(_))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate1))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate2));
@@ -304,15 +308,14 @@ TEST_F(OfferOperationStatusUpdateManagerTest, RecoverCheckpointedStream)
   const id::UUID operationUuid = id::UUID::random();
   const id::UUID statusUuid = id::UUID::random();
 
-  OfferOperationStatusUpdate statusUpdate = createOfferOperationStatusUpdate(
-      statusUuid,
-      operationUuid,
-      OfferOperationState::OFFER_OPERATION_FINISHED);
+  UpdateOperationStatusMessage statusUpdate =
+    createUpdateOperationStatusMessage(
+        statusUuid, operationUuid, OperationState::OPERATION_FINISHED);
 
-  // Send a checkpointed offer operation status update.
+  // Send a checkpointed operation status update.
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate, true));
 
-  OfferOperationStatusUpdate expectedStatusUpdate(statusUpdate);
+  UpdateOperationStatusMessage expectedStatusUpdate(statusUpdate);
   expectedStatusUpdate.mutable_latest_status()->CopyFrom(statusUpdate.status());
 
   // Verify that the status update is forwarded.
@@ -328,7 +331,7 @@ TEST_F(OfferOperationStatusUpdateManagerTest, RecoverCheckpointedStream)
   EXPECT_FALSE(forwardedStatusUpdate2.isReady());
 
   // Recover the checkpointed stream.
-  Future<OfferOperationStatusManagerState> state =
+  Future<OperationStatusUpdateManagerState> state =
     statusUpdateManager->recover({operationUuid}, true);
 
   AWAIT_READY(state);
@@ -337,7 +340,7 @@ TEST_F(OfferOperationStatusUpdateManagerTest, RecoverCheckpointedStream)
   EXPECT_TRUE(state->streams.contains(operationUuid));
   EXPECT_SOME(state->streams.at(operationUuid));
 
-  const Option<OfferOperationStatusUpdate> recoveredUpdate =
+  const Option<UpdateOperationStatusMessage> recoveredUpdate =
     state->streams.at(operationUuid)->updates.front();
 
   ASSERT_SOME(recoveredUpdate);
@@ -353,24 +356,23 @@ TEST_F(OfferOperationStatusUpdateManagerTest, RecoverCheckpointedStream)
 
 // This test verifies that the status update manager returns a `Failure` when
 // trying to recover a stream that isn't checkpointed.
-TEST_F(OfferOperationStatusUpdateManagerTest, RecoverNotCheckpointedStream)
+TEST_F(OperationStatusUpdateManagerTest, RecoverNotCheckpointedStream)
 {
-  Future<OfferOperationStatusUpdate> forwardedStatusUpdate;
+  Future<UpdateOperationStatusMessage> forwardedStatusUpdate;
   EXPECT_CALL(statusUpdateProcessor, update(_))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate));
 
   const id::UUID operationUuid = id::UUID::random();
   const id::UUID statusUuid = id::UUID::random();
 
-  OfferOperationStatusUpdate statusUpdate = createOfferOperationStatusUpdate(
-      statusUuid,
-      operationUuid,
-      OfferOperationState::OFFER_OPERATION_FINISHED);
+  UpdateOperationStatusMessage statusUpdate =
+    createUpdateOperationStatusMessage(
+        statusUuid, operationUuid, OperationState::OPERATION_FINISHED);
 
-  // Send a non-checkpointed offer operation status update.
+  // Send a non-checkpointed operation status update.
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate, false));
 
-  OfferOperationStatusUpdate expectedStatusUpdate(statusUpdate);
+  UpdateOperationStatusMessage expectedStatusUpdate(statusUpdate);
   expectedStatusUpdate.mutable_latest_status()->CopyFrom(statusUpdate.status());
 
   // Verify that the status update is forwarded.
@@ -392,24 +394,23 @@ TEST_F(OfferOperationStatusUpdateManagerTest, RecoverNotCheckpointedStream)
 // This can happen when the checkpointing failed between opening the file and
 // writing the first update. In this case `recover()` should succeed, but return
 // `None` as the operation's state.
-TEST_F(OfferOperationStatusUpdateManagerTest, RecoverEmptyFile)
+TEST_F(OperationStatusUpdateManagerTest, RecoverEmptyFile)
 {
-  Future<OfferOperationStatusUpdate> forwardedStatusUpdate;
+  Future<UpdateOperationStatusMessage> forwardedStatusUpdate;
   EXPECT_CALL(statusUpdateProcessor, update(_))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate));
 
   const id::UUID operationUuid = id::UUID::random();
   const id::UUID statusUuid = id::UUID::random();
 
-  OfferOperationStatusUpdate statusUpdate = createOfferOperationStatusUpdate(
-      statusUuid,
-      operationUuid,
-      OfferOperationState::OFFER_OPERATION_FINISHED);
+  UpdateOperationStatusMessage statusUpdate =
+    createUpdateOperationStatusMessage(
+        statusUuid, operationUuid, OperationState::OPERATION_FINISHED);
 
-  // Send a checkpointed offer operation status update.
+  // Send a checkpointed operation status update.
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate, true));
 
-  OfferOperationStatusUpdate expectedStatusUpdate(statusUpdate);
+  UpdateOperationStatusMessage expectedStatusUpdate(statusUpdate);
   expectedStatusUpdate.mutable_latest_status()->CopyFrom(statusUpdate.status());
 
   // Verify that the status update is forwarded.
@@ -431,7 +432,7 @@ TEST_F(OfferOperationStatusUpdateManagerTest, RecoverEmptyFile)
 
   // The recovery of the empty stream should not fail, but the stream state
   // should be empty.
-  Future<OfferOperationStatusManagerState> state =
+  Future<OperationStatusUpdateManagerState> state =
     statusUpdateManager->recover({operationUuid}, false);
 
   AWAIT_READY(state);
@@ -449,24 +450,23 @@ TEST_F(OfferOperationStatusUpdateManagerTest, RecoverEmptyFile)
 // This can happen when the checkpointing failed after creating the parent
 // directory, but before the file was opened. In this case `recover()` should
 // succeed, but return `None` as the operation's state.
-TEST_F(OfferOperationStatusUpdateManagerTest, RecoverEmptyDirectory)
+TEST_F(OperationStatusUpdateManagerTest, RecoverEmptyDirectory)
 {
-  Future<OfferOperationStatusUpdate> forwardedStatusUpdate;
+  Future<UpdateOperationStatusMessage> forwardedStatusUpdate;
   EXPECT_CALL(statusUpdateProcessor, update(_))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate));
 
   const id::UUID operationUuid = id::UUID::random();
   const id::UUID statusUuid = id::UUID::random();
 
-  OfferOperationStatusUpdate statusUpdate = createOfferOperationStatusUpdate(
-      statusUuid,
-      operationUuid,
-      OfferOperationState::OFFER_OPERATION_FINISHED);
+  UpdateOperationStatusMessage statusUpdate =
+    createUpdateOperationStatusMessage(
+        statusUuid, operationUuid, OperationState::OPERATION_FINISHED);
 
-  // Send a checkpointed offer operation status update.
+  // Send a checkpointed operation status update.
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate, true));
 
-  OfferOperationStatusUpdate expectedStatusUpdate(statusUpdate);
+  UpdateOperationStatusMessage expectedStatusUpdate(statusUpdate);
   expectedStatusUpdate.mutable_latest_status()->CopyFrom(statusUpdate.status());
 
   // Verify that the status update is forwarded.
@@ -486,7 +486,7 @@ TEST_F(OfferOperationStatusUpdateManagerTest, RecoverEmptyDirectory)
 
   // The recovery of the empty stream should not fail, but the stream state
   // should be empty.
-  Future<OfferOperationStatusManagerState> state =
+  Future<OperationStatusUpdateManagerState> state =
     statusUpdateManager->recover({operationUuid}, false);
 
   AWAIT_READY(state);
@@ -500,24 +500,23 @@ TEST_F(OfferOperationStatusUpdateManagerTest, RecoverEmptyDirectory)
 // This test verifies that the status update manager is able to recover a
 // terminated stream, and that the stream's state reflects that it is
 // terminated.
-TEST_F(OfferOperationStatusUpdateManagerTest, RecoverTerminatedStream)
+TEST_F(OperationStatusUpdateManagerTest, RecoverTerminatedStream)
 {
-  Future<OfferOperationStatusUpdate> forwardedStatusUpdate;
+  Future<UpdateOperationStatusMessage> forwardedStatusUpdate;
   EXPECT_CALL(statusUpdateProcessor, update(_))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate));
 
   const id::UUID operationUuid = id::UUID::random();
   const id::UUID statusUuid = id::UUID::random();
 
-  OfferOperationStatusUpdate statusUpdate = createOfferOperationStatusUpdate(
-      statusUuid,
-      operationUuid,
-      OfferOperationState::OFFER_OPERATION_FINISHED);
+  UpdateOperationStatusMessage statusUpdate =
+    createUpdateOperationStatusMessage(
+        statusUuid, operationUuid, OperationState::OPERATION_FINISHED);
 
-  // Send a checkpointed offer operation status update.
+  // Send a checkpointed operation status update.
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate, true));
 
-  OfferOperationStatusUpdate expectedStatusUpdate(statusUpdate);
+  UpdateOperationStatusMessage expectedStatusUpdate(statusUpdate);
   expectedStatusUpdate.mutable_latest_status()->CopyFrom(statusUpdate.status());
 
   // Verify that the status update is forwarded.
@@ -531,7 +530,7 @@ TEST_F(OfferOperationStatusUpdateManagerTest, RecoverTerminatedStream)
   resetStatusUpdateManager();
 
   // Recover the checkpointed stream.
-  Future<OfferOperationStatusManagerState> state =
+  Future<OperationStatusUpdateManagerState> state =
     statusUpdateManager->recover({operationUuid}, true);
 
   AWAIT_ASSERT_READY(state);
@@ -543,7 +542,7 @@ TEST_F(OfferOperationStatusUpdateManagerTest, RecoverTerminatedStream)
   // The stream should be terminated.
   EXPECT_TRUE(state->streams.at(operationUuid)->terminated);
 
-  const Option<OfferOperationStatusUpdate> recoveredUpdate =
+  const Option<UpdateOperationStatusMessage> recoveredUpdate =
     state->streams.at(operationUuid)->updates.front();
 
   ASSERT_SOME(recoveredUpdate);
@@ -558,24 +557,23 @@ TEST_F(OfferOperationStatusUpdateManagerTest, RecoverTerminatedStream)
 
 // This test verifies that the status update manager silently ignores duplicate
 // updates.
-TEST_F(OfferOperationStatusUpdateManagerTest, IgnoreDuplicateUpdate)
+TEST_F(OperationStatusUpdateManagerTest, IgnoreDuplicateUpdate)
 {
-  Future<OfferOperationStatusUpdate> forwardedStatusUpdate;
+  Future<UpdateOperationStatusMessage> forwardedStatusUpdate;
   EXPECT_CALL(statusUpdateProcessor, update(_))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate));
 
   const id::UUID operationUuid = id::UUID::random();
   const id::UUID statusUuid = id::UUID::random();
 
-  OfferOperationStatusUpdate statusUpdate = createOfferOperationStatusUpdate(
-      statusUuid,
-      operationUuid,
-      OfferOperationState::OFFER_OPERATION_PENDING);
+  UpdateOperationStatusMessage statusUpdate =
+    createUpdateOperationStatusMessage(
+        statusUuid, operationUuid, OperationState::OPERATION_PENDING);
 
-  // Send a checkpointed offer operation status update.
+  // Send a checkpointed operation status update.
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate, true));
 
-  OfferOperationStatusUpdate expectedStatusUpdate(statusUpdate);
+  UpdateOperationStatusMessage expectedStatusUpdate(statusUpdate);
   expectedStatusUpdate.mutable_latest_status()->CopyFrom(statusUpdate.status());
 
   // Verify that the status update is forwarded.
@@ -598,24 +596,23 @@ TEST_F(OfferOperationStatusUpdateManagerTest, IgnoreDuplicateUpdate)
 
 // This test verifies that after recovery the status update manager still
 // silently ignores duplicate updates.
-TEST_F(OfferOperationStatusUpdateManagerTest, IgnoreDuplicateUpdateAfterRecover)
+TEST_F(OperationStatusUpdateManagerTest, IgnoreDuplicateUpdateAfterRecover)
 {
-  Future<OfferOperationStatusUpdate> forwardedStatusUpdate;
+  Future<UpdateOperationStatusMessage> forwardedStatusUpdate;
   EXPECT_CALL(statusUpdateProcessor, update(_))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate));
 
   const id::UUID operationUuid = id::UUID::random();
   const id::UUID statusUuid = id::UUID::random();
 
-  OfferOperationStatusUpdate statusUpdate = createOfferOperationStatusUpdate(
-      statusUuid,
-      operationUuid,
-      OfferOperationState::OFFER_OPERATION_PENDING);
+  UpdateOperationStatusMessage statusUpdate =
+    createUpdateOperationStatusMessage(
+        statusUuid, operationUuid, OperationState::OPERATION_PENDING);
 
-  // Send a checkpointed offer operation status update.
+  // Send a checkpointed operation status update.
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate, true));
 
-  OfferOperationStatusUpdate expectedStatusUpdate(statusUpdate);
+  UpdateOperationStatusMessage expectedStatusUpdate(statusUpdate);
   expectedStatusUpdate.mutable_latest_status()->CopyFrom(statusUpdate.status());
 
   // Verify that the status update is forwarded.
@@ -643,24 +640,23 @@ TEST_F(OfferOperationStatusUpdateManagerTest, IgnoreDuplicateUpdateAfterRecover)
 
 // This test verifies that the status update manager rejects duplicated
 // acknowledgements.
-TEST_F(OfferOperationStatusUpdateManagerTest, RejectDuplicateAck)
+TEST_F(OperationStatusUpdateManagerTest, RejectDuplicateAck)
 {
-  Future<OfferOperationStatusUpdate> forwardedStatusUpdate;
+  Future<UpdateOperationStatusMessage> forwardedStatusUpdate;
   EXPECT_CALL(statusUpdateProcessor, update(_))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate));
 
   const id::UUID operationUuid = id::UUID::random();
   const id::UUID statusUuid = id::UUID::random();
 
-  OfferOperationStatusUpdate statusUpdate = createOfferOperationStatusUpdate(
-      statusUuid,
-      operationUuid,
-      OfferOperationState::OFFER_OPERATION_PENDING);
+  UpdateOperationStatusMessage statusUpdate =
+    createUpdateOperationStatusMessage(
+        statusUuid, operationUuid, OperationState::OPERATION_PENDING);
 
-  // Send a checkpointed offer operation status update.
+  // Send a checkpointed operation status update.
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate, true));
 
-  OfferOperationStatusUpdate expectedStatusUpdate(statusUpdate);
+  UpdateOperationStatusMessage expectedStatusUpdate(statusUpdate);
   expectedStatusUpdate.mutable_latest_status()->CopyFrom(statusUpdate.status());
 
   // Verify that the status update is forwarded.
@@ -684,24 +680,23 @@ TEST_F(OfferOperationStatusUpdateManagerTest, RejectDuplicateAck)
 
 // This test verifies that after recovery the status update manager still
 // rejects duplicated acknowledgements.
-TEST_F(OfferOperationStatusUpdateManagerTest, RejectDuplicateAckAfterRecover)
+TEST_F(OperationStatusUpdateManagerTest, RejectDuplicateAckAfterRecover)
 {
-  Future<OfferOperationStatusUpdate> forwardedStatusUpdate;
+  Future<UpdateOperationStatusMessage> forwardedStatusUpdate;
   EXPECT_CALL(statusUpdateProcessor, update(_))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate));
 
   const id::UUID operationUuid = id::UUID::random();
   const id::UUID statusUuid = id::UUID::random();
 
-  OfferOperationStatusUpdate statusUpdate = createOfferOperationStatusUpdate(
-      statusUuid,
-      operationUuid,
-      OfferOperationState::OFFER_OPERATION_PENDING);
+  UpdateOperationStatusMessage statusUpdate =
+    createUpdateOperationStatusMessage(
+        statusUuid, operationUuid, OperationState::OPERATION_PENDING);
 
-  // Send a checkpointed offer operation status update.
+  // Send a checkpointed operation status update.
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate, true));
 
-  OfferOperationStatusUpdate expectedStatusUpdate(statusUpdate);
+  UpdateOperationStatusMessage expectedStatusUpdate(statusUpdate);
   expectedStatusUpdate.mutable_latest_status()->CopyFrom(statusUpdate.status());
 
   // Verify that the status update is forwarded.
@@ -730,10 +725,10 @@ TEST_F(OfferOperationStatusUpdateManagerTest, RejectDuplicateAckAfterRecover)
 
 // This test verifies that non-strict recovery of a status updates file
 // containing a corrupted record at the end succeeds.
-TEST_F(OfferOperationStatusUpdateManagerTest, NonStrictRecoveryCorruptedFile)
+TEST_F(OperationStatusUpdateManagerTest, NonStrictRecoveryCorruptedFile)
 {
-  Future<OfferOperationStatusUpdate> forwardedStatusUpdate1;
-  Future<OfferOperationStatusUpdate> forwardedStatusUpdate2;
+  Future<UpdateOperationStatusMessage> forwardedStatusUpdate1;
+  Future<UpdateOperationStatusMessage> forwardedStatusUpdate2;
   EXPECT_CALL(statusUpdateProcessor, update(_))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate1))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate2));
@@ -741,15 +736,14 @@ TEST_F(OfferOperationStatusUpdateManagerTest, NonStrictRecoveryCorruptedFile)
   const id::UUID operationUuid = id::UUID::random();
   const id::UUID statusUuid = id::UUID::random();
 
-  OfferOperationStatusUpdate statusUpdate = createOfferOperationStatusUpdate(
-      statusUuid,
-      operationUuid,
-      OfferOperationState::OFFER_OPERATION_FINISHED);
+  UpdateOperationStatusMessage statusUpdate =
+    createUpdateOperationStatusMessage(
+        statusUuid, operationUuid, OperationState::OPERATION_FINISHED);
 
-  // Send a checkpointed offer operation status update.
+  // Send a checkpointed operation status update.
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate, true));
 
-  OfferOperationStatusUpdate expectedStatusUpdate(statusUpdate);
+  UpdateOperationStatusMessage expectedStatusUpdate(statusUpdate);
   expectedStatusUpdate.mutable_latest_status()->CopyFrom(statusUpdate.status());
 
   // Verify that the status update is forwarded.
@@ -762,8 +756,8 @@ TEST_F(OfferOperationStatusUpdateManagerTest, NonStrictRecoveryCorruptedFile)
   Clock::advance(slave::STATUS_UPDATE_RETRY_INTERVAL_MIN);
   Clock::settle();
 
-  // The file should contain only `OfferOperationStatusUpdateRecord` messages.
-  // Write a `OfferOperationStatusUpdate` to the end of the file, so that the
+  // The file should contain only `UpdateOperationStatusRecord` messages.
+  // Write a `UpdateOperationStatusMessage` to the end of the file, so that the
   // recovery process encounters an error.
   Try<int_fd> fd = os::open(getPath(operationUuid), O_APPEND | O_RDWR);
   ASSERT_SOME(fd);
@@ -775,7 +769,7 @@ TEST_F(OfferOperationStatusUpdateManagerTest, NonStrictRecoveryCorruptedFile)
   // The non-strict recovery of the corrupted stream should not fail, but the
   // state should reflect that the status update file contained a corrupted
   // record.
-  Future<OfferOperationStatusManagerState> state =
+  Future<OperationStatusUpdateManagerState> state =
     statusUpdateManager->recover({operationUuid}, false);
 
   AWAIT_READY(state);
@@ -785,7 +779,7 @@ TEST_F(OfferOperationStatusUpdateManagerTest, NonStrictRecoveryCorruptedFile)
   EXPECT_SOME(state->streams.at(operationUuid));
 
   // Check that the status update could be recovered.
-  const Option<OfferOperationStatusUpdate> recoveredUpdate =
+  const Option<UpdateOperationStatusMessage> recoveredUpdate =
     state->streams.at(operationUuid)->updates.front();
 
   ASSERT_SOME(recoveredUpdate);
@@ -798,24 +792,23 @@ TEST_F(OfferOperationStatusUpdateManagerTest, NonStrictRecoveryCorruptedFile)
 
 // This test verifies that strict recovery of a status updates file containing
 // a corrupted record at the end fails.
-TEST_F(OfferOperationStatusUpdateManagerTest, StrictRecoveryCorruptedFile)
+TEST_F(OperationStatusUpdateManagerTest, StrictRecoveryCorruptedFile)
 {
-  Future<OfferOperationStatusUpdate> forwardedStatusUpdate;
+  Future<UpdateOperationStatusMessage> forwardedStatusUpdate;
   EXPECT_CALL(statusUpdateProcessor, update(_))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate));
 
   const id::UUID operationUuid = id::UUID::random();
   const id::UUID statusUuid = id::UUID::random();
 
-  OfferOperationStatusUpdate statusUpdate = createOfferOperationStatusUpdate(
-      statusUuid,
-      operationUuid,
-      OfferOperationState::OFFER_OPERATION_FINISHED);
+  UpdateOperationStatusMessage statusUpdate =
+    createUpdateOperationStatusMessage(
+        statusUuid, operationUuid, OperationState::OPERATION_FINISHED);
 
-  // Send a checkpointed offer operation status update.
+  // Send a checkpointed operation status update.
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate, true));
 
-  OfferOperationStatusUpdate expectedStatusUpdate(statusUpdate);
+  UpdateOperationStatusMessage expectedStatusUpdate(statusUpdate);
   expectedStatusUpdate.mutable_latest_status()->CopyFrom(statusUpdate.status());
 
   // Verify that the status update is forwarded.
@@ -828,8 +821,8 @@ TEST_F(OfferOperationStatusUpdateManagerTest, StrictRecoveryCorruptedFile)
   Clock::advance(slave::STATUS_UPDATE_RETRY_INTERVAL_MIN);
   Clock::settle();
 
-  // The file should contain only `OfferOperationStatusUpdateRecord` messages.
-  // Write a `OfferOperationStatusUpdate` to the end of the file, so that the
+  // The file should contain only `UpdateOperationStatusMessageRecord` messages.
+  // Write a `UpdateOperationStatusMessage` to the end of the file, so that the
   // recovery process encounters an error.
   Try<int_fd> fd = os::open(getPath(operationUuid), O_APPEND | O_RDWR);
   ASSERT_SOME(fd);
@@ -844,11 +837,11 @@ TEST_F(OfferOperationStatusUpdateManagerTest, StrictRecoveryCorruptedFile)
 
 // This test verifies that the status update manager correctly fills in the
 // latest status when (re)sending status updates.
-TEST_F(OfferOperationStatusUpdateManagerTest, UpdateLatestWhenResending)
+TEST_F(OperationStatusUpdateManagerTest, UpdateLatestWhenResending)
 {
-  Future<OfferOperationStatusUpdate> forwardedStatusUpdate1;
-  Future<OfferOperationStatusUpdate> forwardedStatusUpdate2;
-  Future<OfferOperationStatusUpdate> forwardedStatusUpdate3;
+  Future<UpdateOperationStatusMessage> forwardedStatusUpdate1;
+  Future<UpdateOperationStatusMessage> forwardedStatusUpdate2;
+  Future<UpdateOperationStatusMessage> forwardedStatusUpdate3;
   EXPECT_CALL(statusUpdateProcessor, update(_))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate1))
     .WillOnce(FutureArg<0>(&forwardedStatusUpdate2))
@@ -857,15 +850,16 @@ TEST_F(OfferOperationStatusUpdateManagerTest, UpdateLatestWhenResending)
   const id::UUID operationUuid = id::UUID::random();
 
   const id::UUID statusUuid1 = id::UUID::random();
-  OfferOperationStatusUpdate statusUpdate1 = createOfferOperationStatusUpdate(
-      statusUuid1, operationUuid, OfferOperationState::OFFER_OPERATION_PENDING);
+  UpdateOperationStatusMessage statusUpdate1 =
+    createUpdateOperationStatusMessage(
+        statusUuid1, operationUuid, OperationState::OPERATION_PENDING);
 
-  // Send a checkpointed offer operation status update.
+  // Send a checkpointed operation status update.
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate1, true));
 
   // The status update manager should fill in the `latest_status` field with the
   // status update we just sent.
-  OfferOperationStatusUpdate expectedStatusUpdate(statusUpdate1);
+  UpdateOperationStatusMessage expectedStatusUpdate(statusUpdate1);
   expectedStatusUpdate.mutable_latest_status()->CopyFrom(
       statusUpdate1.status());
 
@@ -876,8 +870,9 @@ TEST_F(OfferOperationStatusUpdateManagerTest, UpdateLatestWhenResending)
 
   // Send another status update.
   const id::UUID statusUuid2 = id::UUID::random();
-  OfferOperationStatusUpdate statusUpdate2 = createOfferOperationStatusUpdate(
-      statusUuid2, operationUuid, OfferOperationState::OFFER_OPERATION_PENDING);
+  UpdateOperationStatusMessage statusUpdate2 =
+    createUpdateOperationStatusMessage(
+        statusUuid2, operationUuid, OperationState::OPERATION_PENDING);
   AWAIT_ASSERT_READY(statusUpdateManager->update(statusUpdate2, true));
 
   // Advance the clock to trigger a retry of the first update.

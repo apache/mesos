@@ -220,30 +220,27 @@ TEST_F(RegistrarTest, Recover)
   Registrar registrar(flags, state);
 
   // Operations preceding recovery will fail.
-  AWAIT_EXPECT_FAILED(
-      registrar.apply(Owned<Operation>(new AdmitSlave(slave))));
-  AWAIT_EXPECT_FAILED(
-      registrar.apply(
-          Owned<Operation>(
-              new MarkSlaveUnreachable(slave, protobuf::getCurrentTime()))));
-  AWAIT_EXPECT_FAILED(
-      registrar.apply(Owned<Operation>(new MarkSlaveReachable(slave))));
-  AWAIT_EXPECT_FAILED(
-      registrar.apply(Owned<Operation>(new RemoveSlave(slave))));
+  AWAIT_EXPECT_FAILED(registrar.apply(Owned<RegistryOperation>(
+      new AdmitSlave(slave))));
+  AWAIT_EXPECT_FAILED(registrar.apply(Owned<RegistryOperation>(
+      new MarkSlaveUnreachable(slave, protobuf::getCurrentTime()))));
+  AWAIT_EXPECT_FAILED(registrar.apply(Owned<RegistryOperation>(
+      new MarkSlaveReachable(slave))));
+  AWAIT_EXPECT_FAILED(registrar.apply(Owned<RegistryOperation>(
+      new RemoveSlave(slave))));
 
   Future<Registry> registry = registrar.recover(master);
 
   // Before waiting for the recovery to complete, invoke some
   // operations to ensure they do not fail.
-  Future<bool> admit = registrar.apply(
-      Owned<Operation>(new AdmitSlave(slave)));
-  Future<bool> unreachable = registrar.apply(
-      Owned<Operation>(
-          new MarkSlaveUnreachable(slave, protobuf::getCurrentTime())));
-  Future<bool> reachable = registrar.apply(
-      Owned<Operation>(new MarkSlaveReachable(slave)));
-  Future<bool> remove = registrar.apply(
-      Owned<Operation>(new RemoveSlave(slave)));
+  Future<bool> admit = registrar.apply(Owned<RegistryOperation>(
+      new AdmitSlave(slave)));
+  Future<bool> unreachable = registrar.apply(Owned<RegistryOperation>(
+      new MarkSlaveUnreachable(slave, protobuf::getCurrentTime())));
+  Future<bool> reachable = registrar.apply(Owned<RegistryOperation>(
+      new MarkSlaveReachable(slave)));
+  Future<bool> remove = registrar.apply(Owned<RegistryOperation>(
+      new RemoveSlave(slave)));
 
   AWAIT_READY(registry);
   EXPECT_EQ(master, registry->master().info());
@@ -260,8 +257,8 @@ TEST_F(RegistrarTest, Admit)
   Registrar registrar(flags, state);
   AWAIT_READY(registrar.recover(master));
 
-  AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(slave))));
-  AWAIT_FALSE(registrar.apply(Owned<Operation>(new AdmitSlave(slave))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(new AdmitSlave(slave))));
+  AWAIT_FALSE(registrar.apply(Owned<RegistryOperation>(new AdmitSlave(slave))));
 }
 
 
@@ -273,8 +270,8 @@ TEST_F(RegistrarTest, UpdateSlave)
     AWAIT_READY(registrar.recover(master));
 
     slave.set_hostname("original");
-    AWAIT_TRUE(
-        registrar.apply(Owned<Operation>(new AdmitSlave(slave))));
+    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+        new AdmitSlave(slave))));
   }
 
 
@@ -288,7 +285,8 @@ TEST_F(RegistrarTest, UpdateSlave)
     EXPECT_EQ("original", registry->slaves().slaves(0).info().hostname());
 
     slave.set_hostname("changed");
-    AWAIT_TRUE(registrar.apply(Owned<Operation>(new UpdateSlave(slave))));
+    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+        new UpdateSlave(slave))));
   }
 
   // Verify that the hostname indeed changed, and do one additional update
@@ -301,7 +299,8 @@ TEST_F(RegistrarTest, UpdateSlave)
     ASSERT_EQ(1, registry->slaves().slaves().size());
     EXPECT_EQ("changed", registry->slaves().slaves(0).info().hostname());
 
-    AWAIT_TRUE(registrar.apply(Owned<Operation>(new UpdateSlave(slave))));
+    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+        new UpdateSlave(slave))));
   }
 
   // Verify that nothing changed from the second update.
@@ -335,16 +334,20 @@ TEST_F(RegistrarTest, MarkReachable)
   info2.set_hostname("localhost");
   info2.mutable_id()->CopyFrom(id2);
 
-  AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(info1))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new AdmitSlave(info1))));
 
   // Attempting to mark a slave as reachable that is already reachable
   // should not result in an error.
-  AWAIT_TRUE(registrar.apply(Owned<Operation>(new MarkSlaveReachable(info1))));
-  AWAIT_TRUE(registrar.apply(Owned<Operation>(new MarkSlaveReachable(info1))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new MarkSlaveReachable(info1))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new MarkSlaveReachable(info1))));
 
   // Attempting to mark a slave as reachable that is not in the
   // unreachable list should not result in error.
-  AWAIT_TRUE(registrar.apply(Owned<Operation>(new MarkSlaveReachable(info2))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new MarkSlaveReachable(info2))));
 }
 
 
@@ -367,27 +370,22 @@ TEST_F(RegistrarTest, MarkUnreachable)
   info2.set_hostname("localhost");
   info2.mutable_id()->CopyFrom(id2);
 
-  AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(info1))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new AdmitSlave(info1))));
 
-  AWAIT_TRUE(
-      registrar.apply(
-          Owned<Operation>(
-              new MarkSlaveUnreachable(info1, protobuf::getCurrentTime()))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new MarkSlaveUnreachable(info1, protobuf::getCurrentTime()))));
 
-  AWAIT_TRUE(
-      registrar.apply(Owned<Operation>(new MarkSlaveReachable(info1))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new MarkSlaveReachable(info1))));
 
-  AWAIT_TRUE(
-      registrar.apply(
-          Owned<Operation>(
-              new MarkSlaveUnreachable(info1, protobuf::getCurrentTime()))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new MarkSlaveUnreachable(info1, protobuf::getCurrentTime()))));
 
   // If a slave is already unreachable, trying to mark it unreachable
   // again should fail.
-  AWAIT_FALSE(
-      registrar.apply(
-          Owned<Operation>(
-              new MarkSlaveUnreachable(info1, protobuf::getCurrentTime()))));
+  AWAIT_FALSE(registrar.apply(Owned<RegistryOperation>(
+      new MarkSlaveUnreachable(info1, protobuf::getCurrentTime()))));
 }
 
 
@@ -404,12 +402,11 @@ TEST_F(RegistrarTest, MarkGone)
   info1.set_hostname("localhost");
   info1.mutable_id()->CopyFrom(id1);
 
-  AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(info1))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new AdmitSlave(info1))));
 
-  AWAIT_TRUE(
-      registrar.apply(
-          Owned<Operation>(
-              new MarkSlaveGone(info1.id(), protobuf::getCurrentTime()))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new MarkSlaveGone(info1.id(), protobuf::getCurrentTime()))));
 }
 
 
@@ -426,30 +423,23 @@ TEST_F(RegistrarTest, MarkUnreachableGone)
   info1.set_hostname("localhost");
   info1.mutable_id()->CopyFrom(id1);
 
-  AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(info1))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new AdmitSlave(info1))));
 
-  AWAIT_TRUE(
-    registrar.apply(
-        Owned<Operation>(
-            new MarkSlaveUnreachable(info1, protobuf::getCurrentTime()))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new MarkSlaveUnreachable(info1, protobuf::getCurrentTime()))));
 
-  AWAIT_TRUE(
-    registrar.apply(
-        Owned<Operation>(
-            new MarkSlaveGone(info1.id(), protobuf::getCurrentTime()))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new MarkSlaveGone(info1.id(), protobuf::getCurrentTime()))));
 
   // If a slave is already gone, trying to mark it gone again should fail.
-  AWAIT_FALSE(
-      registrar.apply(
-          Owned<Operation>(
-              new MarkSlaveGone(info1.id(), protobuf::getCurrentTime()))));
+  AWAIT_FALSE(registrar.apply(Owned<RegistryOperation>(
+      new MarkSlaveGone(info1.id(), protobuf::getCurrentTime()))));
 
   // If a slave is already gone, trying to mark it unreachable
   // again should fail.
-  AWAIT_FALSE(
-      registrar.apply(
-          Owned<Operation>(
-              new MarkSlaveUnreachable(info1, protobuf::getCurrentTime()))));
+  AWAIT_FALSE(registrar.apply(Owned<RegistryOperation>(
+      new MarkSlaveUnreachable(info1, protobuf::getCurrentTime()))));
 }
 
 
@@ -479,51 +469,51 @@ TEST_F(RegistrarTest, Prune)
   info3.set_hostname("localhost");
   info3.mutable_id()->CopyFrom(id3);
 
-  AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(info1))));
-  AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(info2))));
-  AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(info3))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new AdmitSlave(info1))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new AdmitSlave(info2))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new AdmitSlave(info3))));
 
-  AWAIT_TRUE(
-      registrar.apply(
-          Owned<Operation>(
-              new MarkSlaveUnreachable(info1, protobuf::getCurrentTime()))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new MarkSlaveUnreachable(info1, protobuf::getCurrentTime()))));
 
-  AWAIT_TRUE(
-      registrar.apply(
-          Owned<Operation>(
-              new MarkSlaveUnreachable(info2, protobuf::getCurrentTime()))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new MarkSlaveUnreachable(info2, protobuf::getCurrentTime()))));
 
-  AWAIT_TRUE(
-      registrar.apply(
-          Owned<Operation>(
-              new MarkSlaveGone(info3.id(), protobuf::getCurrentTime()))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new MarkSlaveGone(info3.id(), protobuf::getCurrentTime()))));
 
-  AWAIT_TRUE(registrar.apply(Owned<Operation>(new Prune({id1}, {}))));
-  AWAIT_TRUE(registrar.apply(Owned<Operation>(new Prune({id2}, {}))));
-  AWAIT_TRUE(registrar.apply(Owned<Operation>(new Prune({}, {id3}))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new Prune({id1}, {}))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new Prune({id2}, {}))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new Prune({}, {id3}))));
 
-  AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(info1))));
-  AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(info2))));
-  AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(info3))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new AdmitSlave(info1))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new AdmitSlave(info2))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new AdmitSlave(info3))));
 
-  AWAIT_TRUE(
-      registrar.apply(
-          Owned<Operation>(
-              new MarkSlaveUnreachable(info1, protobuf::getCurrentTime()))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new MarkSlaveUnreachable(info1, protobuf::getCurrentTime()))));
 
-  AWAIT_TRUE(
-      registrar.apply(
-          Owned<Operation>(
-              new MarkSlaveUnreachable(info2, protobuf::getCurrentTime()))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new MarkSlaveUnreachable(info2, protobuf::getCurrentTime()))));
 
-  AWAIT_TRUE(
-      registrar.apply(
-          Owned<Operation>(
-              new MarkSlaveGone(info3.id(), protobuf::getCurrentTime()))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new MarkSlaveGone(info3.id(), protobuf::getCurrentTime()))));
 
-  AWAIT_TRUE(registrar.apply(Owned<Operation>(new Prune({id1}, {}))));
-  AWAIT_TRUE(registrar.apply(Owned<Operation>(new Prune({id2}, {}))));
-  AWAIT_TRUE(registrar.apply(Owned<Operation>(new Prune({}, {id3}))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new Prune({id1}, {}))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new Prune({id2}, {}))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new Prune({}, {id3}))));
 }
 
 
@@ -553,23 +543,26 @@ TEST_F(RegistrarTest, Remove)
   info3.set_hostname("localhost");
   info3.mutable_id()->CopyFrom(id3);
 
-  AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(info1))));
-  AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(info2))));
-  AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(info3))));
-
-  AWAIT_TRUE(registrar.apply(Owned<Operation>(new RemoveSlave(info1))));
-
-  AWAIT_FALSE(registrar.apply(Owned<Operation>(new RemoveSlave(info1))));
-
-  AWAIT_TRUE(registrar.apply(Owned<Operation>(new AdmitSlave(info1))));
-
-  AWAIT_TRUE(registrar.apply(Owned<Operation>(new RemoveSlave(info2))));
-
-  AWAIT_FALSE(registrar.apply(Owned<Operation>(new RemoveSlave(info2))));
-
-  AWAIT_TRUE(registrar.apply(Owned<Operation>(new RemoveSlave(info3))));
-
-  AWAIT_FALSE(registrar.apply(Owned<Operation>(new RemoveSlave(info3))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new AdmitSlave(info1))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new AdmitSlave(info2))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new AdmitSlave(info3))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new RemoveSlave(info1))));
+  AWAIT_FALSE(registrar.apply(Owned<RegistryOperation>(
+      new RemoveSlave(info1))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new AdmitSlave(info1))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new RemoveSlave(info2))));
+  AWAIT_FALSE(registrar.apply(Owned<RegistryOperation>(
+      new RemoveSlave(info2))));
+  AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+      new RemoveSlave(info3))));
+  AWAIT_FALSE(registrar.apply(Owned<RegistryOperation>(
+      new RemoveSlave(info3))));
 }
 
 
@@ -612,8 +605,8 @@ TEST_F(RegistrarTest, UpdateMaintenanceSchedule)
     maintenance::Schedule schedule = createSchedule(
         {createWindow({machine1}, unavailability)});
 
-    AWAIT_READY(registrar.apply(
-        Owned<Operation>(new UpdateSchedule(schedule))));
+    AWAIT_READY(registrar.apply(Owned<RegistryOperation>(
+        new UpdateSchedule(schedule))));
   }
 
   {
@@ -635,8 +628,8 @@ TEST_F(RegistrarTest, UpdateMaintenanceSchedule)
         createWindow({machine1}, unavailability),
         createWindow({machine2}, unavailability)});
 
-    AWAIT_READY(registrar.apply(
-        Owned<Operation>(new UpdateSchedule(schedule))));
+    AWAIT_READY(registrar.apply(Owned<RegistryOperation>(
+        new UpdateSchedule(schedule))));
   }
 
   {
@@ -659,8 +652,8 @@ TEST_F(RegistrarTest, UpdateMaintenanceSchedule)
         createWindow({machine1}, unavailability),
         createWindow({machine2, machine3}, unavailability)});
 
-    AWAIT_READY(registrar.apply(
-        Owned<Operation>(new UpdateSchedule(schedule))));
+    AWAIT_READY(registrar.apply(Owned<RegistryOperation>(
+        new UpdateSchedule(schedule))));
   }
 
   {
@@ -682,8 +675,8 @@ TEST_F(RegistrarTest, UpdateMaintenanceSchedule)
     maintenance::Schedule schedule = createSchedule(
         {createWindow({machine1, machine2, machine3}, unavailability)});
 
-    AWAIT_READY(registrar.apply(
-        Owned<Operation>(new UpdateSchedule(schedule))));
+    AWAIT_READY(registrar.apply(Owned<RegistryOperation>(
+        new UpdateSchedule(schedule))));
   }
 
   {
@@ -712,8 +705,8 @@ TEST_F(RegistrarTest, UpdateMaintenanceSchedule)
     maintenance::Schedule schedule = createSchedule(
         {createWindow({machine2, machine3}, unavailability)});
 
-    AWAIT_READY(registrar.apply(
-        Owned<Operation>(new UpdateSchedule(schedule))));
+    AWAIT_READY(registrar.apply(Owned<RegistryOperation>(
+        new UpdateSchedule(schedule))));
   }
 
   {
@@ -729,8 +722,8 @@ TEST_F(RegistrarTest, UpdateMaintenanceSchedule)
 
     // Delete all machines from the schedule.
     maintenance::Schedule schedule;
-    AWAIT_READY(registrar.apply(
-        Owned<Operation>(new UpdateSchedule(schedule))));
+    AWAIT_READY(registrar.apply(Owned<RegistryOperation>(
+        new UpdateSchedule(schedule))));
   }
 
   {
@@ -771,14 +764,14 @@ TEST_F(RegistrarTest, StartMaintenance)
     maintenance::Schedule schedule = createSchedule(
         {createWindow({machine1, machine2}, unavailability)});
 
-    AWAIT_READY(registrar.apply(
-        Owned<Operation>(new UpdateSchedule(schedule))));
+    AWAIT_READY(registrar.apply(Owned<RegistryOperation>(
+        new UpdateSchedule(schedule))));
 
     // Transition machine two into `DOWN` mode.
     RepeatedPtrField<MachineID> machines = createMachineList({machine2});
 
-    AWAIT_READY(registrar.apply(
-        Owned<Operation>(new StartMaintenance(machines))));
+    AWAIT_READY(registrar.apply(Owned<RegistryOperation>(
+        new StartMaintenance(machines))));
   }
 
   {
@@ -800,15 +793,15 @@ TEST_F(RegistrarTest, StartMaintenance)
     maintenance::Schedule schedule = createSchedule(
         {createWindow({machine1, machine2, machine3}, unavailability)});
 
-    AWAIT_READY(registrar.apply(
-        Owned<Operation>(new UpdateSchedule(schedule))));
+    AWAIT_READY(registrar.apply(Owned<RegistryOperation>(
+        new UpdateSchedule(schedule))));
 
     // Deactivate the two `DRAINING` machines.
     RepeatedPtrField<MachineID> machines =
       createMachineList({machine1, machine3});
 
-    AWAIT_READY(registrar.apply(
-        Owned<Operation>(new StartMaintenance(machines))));
+    AWAIT_READY(registrar.apply(Owned<RegistryOperation>(
+        new StartMaintenance(machines))));
   }
 
   {
@@ -859,18 +852,18 @@ TEST_F(RegistrarTest, StopMaintenance)
         createWindow({machine1, machine2}, unavailability),
         createWindow({machine3}, unavailability)});
 
-    AWAIT_READY(registrar.apply(
-        Owned<Operation>(new UpdateSchedule(schedule))));
+    AWAIT_READY(registrar.apply(Owned<RegistryOperation>(
+        new UpdateSchedule(schedule))));
 
     // Transition machine three into `DOWN` mode.
     RepeatedPtrField<MachineID> machines = createMachineList({machine3});
 
-    AWAIT_READY(registrar.apply(
-        Owned<Operation>(new StartMaintenance(machines))));
+    AWAIT_READY(registrar.apply(Owned<RegistryOperation>(
+        new StartMaintenance(machines))));
 
     // Transition machine three into `UP` mode.
-    AWAIT_READY(registrar.apply(
-        Owned<Operation>(new StopMaintenance(machines))));
+    AWAIT_READY(registrar.apply(Owned<RegistryOperation>(
+        new StopMaintenance(machines))));
   }
 
   {
@@ -895,12 +888,12 @@ TEST_F(RegistrarTest, StopMaintenance)
     RepeatedPtrField<MachineID> machines =
       createMachineList({machine1, machine2});
 
-    AWAIT_READY(registrar.apply(
-        Owned<Operation>(new StartMaintenance(machines))));
+    AWAIT_READY(registrar.apply(Owned<RegistryOperation>(
+        new StartMaintenance(machines))));
 
     // Transition all machines into `UP` mode.
-    AWAIT_READY(registrar.apply(
-        Owned<Operation>(new StopMaintenance(machines))));
+    AWAIT_READY(registrar.apply(Owned<RegistryOperation>(
+        new StopMaintenance(machines))));
   }
 
   {
@@ -949,7 +942,8 @@ TEST_F(RegistrarTest, UpdateQuota)
     AWAIT_READY(registry);
 
     // Store quota for a role without quota.
-    AWAIT_TRUE(registrar.apply(Owned<Operation>(new UpdateQuota(quota1))));
+    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+        new UpdateQuota(quota1))));
   }
 
   {
@@ -969,7 +963,8 @@ TEST_F(RegistrarTest, UpdateQuota)
     quota1.mutable_guarantee()->CopyFrom(quotaResources2);
 
     // Update the only stored quota.
-    AWAIT_TRUE(registrar.apply(Owned<Operation>(new UpdateQuota(quota1))));
+    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+        new UpdateQuota(quota1))));
   }
 
   {
@@ -986,7 +981,8 @@ TEST_F(RegistrarTest, UpdateQuota)
     EXPECT_EQ(quotaResources2, storedResources);
 
     // Store one more quota for a role without quota.
-    AWAIT_TRUE(registrar.apply(Owned<Operation>(new UpdateQuota(quota2))));
+    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+        new UpdateQuota(quota2))));
   }
 
   {
@@ -1012,7 +1008,8 @@ TEST_F(RegistrarTest, UpdateQuota)
     quota2.mutable_guarantee()->CopyFrom(quotaResources2);
 
     // Update quota for `role2` in presence of multiple quotas.
-    AWAIT_TRUE(registrar.apply(Owned<Operation>(new UpdateQuota(quota2))));
+    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+        new UpdateQuota(quota2))));
   }
 
   {
@@ -1075,8 +1072,10 @@ TEST_F(RegistrarTest, RemoveQuota)
     Option<Error> validateError2 = quota::validation::quotaInfo(quota2);
     EXPECT_NONE(validateError2);
 
-    AWAIT_TRUE(registrar.apply(Owned<Operation>(new UpdateQuota(quota1))));
-    AWAIT_TRUE(registrar.apply(Owned<Operation>(new UpdateQuota(quota2))));
+    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+        new UpdateQuota(quota1))));
+    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+        new UpdateQuota(quota2))));
   }
 
   {
@@ -1093,7 +1092,8 @@ TEST_F(RegistrarTest, RemoveQuota)
     EXPECT_EQ(ROLE2, registry->quotas(1).info().role());
 
     // Remove quota for `role2`.
-    AWAIT_TRUE(registrar.apply(Owned<Operation>(new RemoveQuota(ROLE2))));
+    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+        new RemoveQuota(ROLE2))));
   }
 
   {
@@ -1106,7 +1106,8 @@ TEST_F(RegistrarTest, RemoveQuota)
     EXPECT_EQ(ROLE1, registry->quotas(0).info().role());
 
     // Remove quota for `ROLE1`.
-    AWAIT_TRUE(registrar.apply(Owned<Operation>(new RemoveQuota(ROLE1))));
+    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+        new RemoveQuota(ROLE1))));
   }
 
   {
@@ -1143,8 +1144,8 @@ TEST_F(RegistrarTest, UpdateWeights)
     weights[ROLE1] = WEIGHT1;
     vector<WeightInfo> weightInfos = getWeightInfos(weights);
 
-    AWAIT_TRUE(registrar.apply(
-        Owned<Operation>(new UpdateWeights(weightInfos))));
+    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+        new UpdateWeights(weightInfos))));
   }
 
   {
@@ -1164,8 +1165,8 @@ TEST_F(RegistrarTest, UpdateWeights)
     weights[ROLE2] = WEIGHT2;
     vector<WeightInfo> weightInfos = getWeightInfos(weights);
 
-    AWAIT_TRUE(registrar.apply(
-        Owned<Operation>(new UpdateWeights(weightInfos))));
+    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+        new UpdateWeights(weightInfos))));
   }
 
   {
@@ -1192,8 +1193,8 @@ TEST_F(RegistrarTest, Bootstrap)
     Registrar registrar(flags, state);
     AWAIT_READY(registrar.recover(master));
 
-    AWAIT_TRUE(
-        registrar.apply(Owned<Operation>(new MarkSlaveReachable(slave))));
+    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+        new MarkSlaveReachable(slave))));
   }
 
   // Run 2 should see the slave.
@@ -1245,7 +1246,8 @@ TEST_F(RegistrarTest, FetchTimeout)
   Clock::resume();
 
   // Ensure the registrar fails subsequent operations.
-  AWAIT_FAILED(registrar.apply(Owned<Operation>(new AdmitSlave(slave))));
+  AWAIT_FAILED(registrar.apply(Owned<RegistryOperation>(
+      new AdmitSlave(slave))));
 }
 
 
@@ -1277,7 +1279,8 @@ TEST_F(RegistrarTest, StoreTimeout)
   Clock::resume();
 
   // Ensure the registrar fails subsequent operations.
-  AWAIT_FAILED(registrar.apply(Owned<Operation>(new AdmitSlave(slave))));
+  AWAIT_FAILED(registrar.apply(Owned<RegistryOperation>(
+      new AdmitSlave(slave))));
 }
 
 
@@ -1299,10 +1302,12 @@ TEST_F(RegistrarTest, Abort)
   AWAIT_READY(registrar.recover(master));
 
   // Storage failure.
-  AWAIT_FAILED(registrar.apply(Owned<Operation>(new AdmitSlave(slave))));
+  AWAIT_FAILED(registrar.apply(Owned<RegistryOperation>(
+      new AdmitSlave(slave))));
 
   // The registrar should now be aborted!
-  AWAIT_FAILED(registrar.apply(Owned<Operation>(new AdmitSlave(slave))));
+  AWAIT_FAILED(registrar.apply(Owned<RegistryOperation>(
+      new AdmitSlave(slave))));
 }
 
 
@@ -1395,7 +1400,7 @@ TEST_P(Registrar_BENCHMARK_Test, Performance)
   watch.start();
   Future<bool> result;
   foreach (const SlaveInfo& info, infos) {
-    result = registrar.apply(Owned<Operation>(new AdmitSlave(info)));
+    result = registrar.apply(Owned<RegistryOperation>(new AdmitSlave(info)));
   }
   AWAIT_READY_FOR(result, Minutes(5));
   LOG(INFO) << "Admitted " << slaveCount << " agents in " << watch.elapsed();
@@ -1409,7 +1414,8 @@ TEST_P(Registrar_BENCHMARK_Test, Performance)
   // with the new master.
   watch.start();
   foreach (const SlaveInfo& info, infos) {
-    result = registrar.apply(Owned<Operation>(new MarkSlaveReachable(info)));
+    result = registrar.apply(Owned<RegistryOperation>(
+        new MarkSlaveReachable(info)));
   }
   AWAIT_READY_FOR(result, Minutes(5));
   LOG(INFO) << "Marked " << slaveCount
@@ -1434,7 +1440,7 @@ TEST_P(Registrar_BENCHMARK_Test, Performance)
   // Remove slaves.
   watch.start();
   foreach (const SlaveInfo& info, infos) {
-    result = registrar2.apply(Owned<Operation>(new RemoveSlave(info)));
+    result = registrar2.apply(Owned<RegistryOperation>(new RemoveSlave(info)));
   }
   AWAIT_READY_FOR(result, Minutes(5));
   cout << "Removed " << slaveCount << " agents in " << watch.elapsed() << endl;
@@ -1473,7 +1479,7 @@ TEST_P(Registrar_BENCHMARK_Test, MarkUnreachableThenReachable)
   watch.start();
   Future<bool> result;
   foreach (const SlaveInfo& info, infos) {
-    result = registrar.apply(Owned<Operation>(new AdmitSlave(info)));
+    result = registrar.apply(Owned<RegistryOperation>(new AdmitSlave(info)));
   }
   AWAIT_READY_FOR(result, Minutes(5));
   LOG(INFO) << "Admitted " << slaveCount << " agents in " << watch.elapsed();
@@ -1487,8 +1493,8 @@ TEST_P(Registrar_BENCHMARK_Test, MarkUnreachableThenReachable)
 
   watch.start();
   foreach (const SlaveInfo& info, infos) {
-    result = registrar.apply(
-        Owned<Operation>(new MarkSlaveUnreachable(info, unreachableTime)));
+    result = registrar.apply(Owned<RegistryOperation>(
+        new MarkSlaveUnreachable(info, unreachableTime)));
   }
   AWAIT_READY_FOR(result, Minutes(5));
   cout << "Marked " << slaveCount << " agents unreachable in "
@@ -1501,8 +1507,8 @@ TEST_P(Registrar_BENCHMARK_Test, MarkUnreachableThenReachable)
   // Mark all slaves reachable.
   watch.start();
   foreach (const SlaveInfo& info, infos) {
-    result = registrar.apply(
-        Owned<Operation>(new MarkSlaveReachable(info)));
+    result = registrar.apply(Owned<RegistryOperation>(
+        new MarkSlaveReachable(info)));
   }
   AWAIT_READY_FOR(result, Minutes(5));
   cout << "Marked " << slaveCount << " agents reachable in "
@@ -1542,7 +1548,7 @@ TEST_P(Registrar_BENCHMARK_Test, GcManyAgents)
   watch.start();
   Future<bool> result;
   foreach (const SlaveInfo& info, infos) {
-    result = registrar.apply(Owned<Operation>(new AdmitSlave(info)));
+    result = registrar.apply(Owned<RegistryOperation>(new AdmitSlave(info)));
   }
   AWAIT_READY_FOR(result, Minutes(5));
   LOG(INFO) << "Admitted " << slaveCount << " agents in " << watch.elapsed();
@@ -1556,8 +1562,8 @@ TEST_P(Registrar_BENCHMARK_Test, GcManyAgents)
 
   watch.start();
   foreach (const SlaveInfo& info, infos) {
-    result = registrar.apply(
-        Owned<Operation>(new MarkSlaveUnreachable(info, unreachableTime)));
+    result = registrar.apply(Owned<RegistryOperation>(
+        new MarkSlaveUnreachable(info, unreachableTime)));
   }
   AWAIT_READY_FOR(result, Minutes(5));
   LOG(INFO) << "Marked " << slaveCount << " agents unreachable in "
@@ -1572,7 +1578,7 @@ TEST_P(Registrar_BENCHMARK_Test, GcManyAgents)
 
   // Do GC.
   watch.start();
-  result = registrar.apply(Owned<Operation>(
+  result = registrar.apply(Owned<RegistryOperation>(
       new Prune(toRemove, hashset<SlaveID>())));
 
   AWAIT_READY_FOR(result, Minutes(5));

@@ -47,10 +47,11 @@ public:
 
   MOCK_METHOD1(
       apply,
-      process::Future<bool>(process::Owned<master::Operation> operation));
+      process::Future<bool>(
+          process::Owned<master::RegistryOperation> operation));
 
   process::Future<bool> unmocked_apply(
-      process::Owned<master::Operation> operation);
+      process::Owned<master::RegistryOperation> operation);
 };
 
 } // namespace tests {

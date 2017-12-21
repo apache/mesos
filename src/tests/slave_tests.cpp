@@ -3709,7 +3709,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
   // Now set the expectation when the agent is one ping timeout away
   // from being deemed unreachable.
-  Future<Owned<master::Operation>> markUnreachable;
+  Future<Owned<master::RegistryOperation>> markUnreachable;
   EXPECT_CALL(*master.get()->registrar, apply(_))
     .WillOnce(DoAll(FutureArg<0>(&markUnreachable),
                     Invoke(master.get()->registrar.get(),
@@ -3736,7 +3736,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), master.get()->pid, _);
 
-  Future<Owned<master::Operation>> markReachable;
+  Future<Owned<master::RegistryOperation>> markReachable;
   EXPECT_CALL(*master.get()->registrar, apply(_))
     .WillOnce(DoAll(FutureArg<0>(&markReachable),
                     Invoke(master.get()->registrar.get(),
@@ -3877,7 +3877,7 @@ TEST_F(SlaveTest, UnreachableThenUnregisterRace)
 
   // Intercept the next registry operation. This operation should be
   // attempting to mark the slave unreachable.
-  Future<Owned<master::Operation>> markUnreachable;
+  Future<Owned<master::RegistryOperation>> markUnreachable;
   Promise<bool> markUnreachableContinue;
   EXPECT_CALL(*master.get()->registrar, apply(_))
     .WillOnce(DoAll(FutureArg<0>(&markUnreachable),
@@ -3980,7 +3980,7 @@ TEST_F(SlaveTest, UnregisterThenUnreachableRace)
   //
   // When the master receives the `UnregisterSlaveMessage`, it should
   // attempt to remove the slave from the registry.
-  Future<Owned<master::Operation>> removeSlave;
+  Future<Owned<master::RegistryOperation>> removeSlave;
   Promise<bool> removeSlaveContinue;
   EXPECT_CALL(*master.get()->registrar, apply(_))
     .WillOnce(DoAll(FutureArg<0>(&removeSlave),
@@ -9101,7 +9101,7 @@ TEST_F(SlaveTest, ReconfigurationPolicy)
 
 // This test checks that a resource provider triggers an
 // `UpdateSlaveMessage` to be sent to the master if an non-speculated
-// offer operation fails in the resource provider.
+// operation fails in the resource provider.
 TEST_F(SlaveTest, ResourceProviderReconciliation)
 {
   Clock::pause();
@@ -9178,7 +9178,7 @@ TEST_F(SlaveTest, ResourceProviderReconciliation)
 
   AWAIT_READY(updateSlaveMessage);
 
-  // Register a framework to excercise offer operations.
+  // Register a framework to excercise operations.
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
   Future<Nothing> connected;
   EXPECT_CALL(*scheduler, connected(_))
@@ -9226,8 +9226,8 @@ TEST_F(SlaveTest, ResourceProviderReconciliation)
 
   // We now perform a `RESERVE` operation on the offered resources,
   // but let the operation fail in the resource provider.
-  Future<v1::resource_provider::Event::ApplyOfferOperation> operation;
-  EXPECT_CALL(resourceProvider, applyOfferOperation(_))
+  Future<v1::resource_provider::Event::ApplyOperation> operation;
+  EXPECT_CALL(resourceProvider, applyOperation(_))
     .WillOnce(FutureArg<0>(&operation));
 
   {
@@ -9288,14 +9288,14 @@ TEST_F(SlaveTest, ResourceProviderReconciliation)
         resourceVersionUuid.toBytes());
     updateState->mutable_resources()->CopyFrom(resourceProviderResources_);
 
-    mesos::v1::OfferOperation* _operation = updateState->add_operations();
+    mesos::v1::Operation* _operation = updateState->add_operations();
     _operation->mutable_framework_id()->CopyFrom(operation->framework_id());
     _operation->mutable_info()->CopyFrom(operation->info());
-    _operation->mutable_operation_uuid()->CopyFrom(operation->operation_uuid());
+    _operation->mutable_uuid()->CopyFrom(operation->operation_uuid());
 
-    mesos::v1::OfferOperationStatus* lastStatus =
+    mesos::v1::OperationStatus* lastStatus =
       _operation->mutable_latest_status();
-    lastStatus->set_state(::mesos::v1::OFFER_OPERATION_FAILED);
+    lastStatus->set_state(::mesos::v1::OPERATION_FAILED);
 
     _operation->add_statuses()->CopyFrom(*lastStatus);
 
@@ -9312,11 +9312,11 @@ TEST_F(SlaveTest, ResourceProviderReconciliation)
   ASSERT_TRUE(provider.has_operations());
   ASSERT_EQ(1, provider.operations().operations_size());
 
-  const OfferOperation& reserve = provider.operations().operations(0);
+  const Operation& reserve = provider.operations().operations(0);
 
   EXPECT_EQ(Offer::Operation::RESERVE, reserve.info().type());
   ASSERT_TRUE(reserve.has_latest_status());
-  EXPECT_EQ(OFFER_OPERATION_PENDING, reserve.latest_status().state());
+  EXPECT_EQ(OPERATION_PENDING, reserve.latest_status().state());
 
   // The resources are returned to the available pool and the framework will get
   // offered the same resources as in the previous offer cycle.

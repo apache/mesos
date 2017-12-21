@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "status_update_manager/offer_operation.hpp"
+#include "status_update_manager/operation.hpp"
 
 #include <list>
 
@@ -33,43 +33,43 @@ using process::wait; // Necessary on some OS's to disambiguate.
 namespace mesos {
 namespace internal {
 
-OfferOperationStatusUpdateManager::OfferOperationStatusUpdateManager()
+OperationStatusUpdateManager::OperationStatusUpdateManager()
   : process(
         new StatusUpdateManagerProcess<
             id::UUID,
-            OfferOperationStatusUpdateRecord,
-            OfferOperationStatusUpdate>(
-                "offer-operation-status-update-manager",
-                "offer operation status update"))
+            UpdateOperationStatusRecord,
+            UpdateOperationStatusMessage>(
+                "operation-status-update-manager",
+                "operation status update"))
 {
   spawn(process.get());
 }
 
 
-OfferOperationStatusUpdateManager::~OfferOperationStatusUpdateManager()
+OperationStatusUpdateManager::~OperationStatusUpdateManager()
 {
   terminate(process.get());
   wait(process.get());
 }
 
 
-void OfferOperationStatusUpdateManager::initialize(
-    const function<void(const OfferOperationStatusUpdate&)>& forward,
+void OperationStatusUpdateManager::initialize(
+    const function<void(const UpdateOperationStatusMessage&)>& forward,
     const function<const std::string(const id::UUID&)>& getPath)
 {
   dispatch(
       process.get(),
       &StatusUpdateManagerProcess<
           id::UUID,
-          OfferOperationStatusUpdateRecord,
-          OfferOperationStatusUpdate>::initialize,
+          UpdateOperationStatusRecord,
+          UpdateOperationStatusMessage>::initialize,
       forward,
       getPath);
 }
 
 
-Future<Nothing> OfferOperationStatusUpdateManager::update(
-    const OfferOperationStatusUpdate& update,
+Future<Nothing> OperationStatusUpdateManager::update(
+    const UpdateOperationStatusMessage& update,
     bool checkpoint)
 {
   Try<id::UUID> operationUuid =
@@ -80,15 +80,15 @@ Future<Nothing> OfferOperationStatusUpdateManager::update(
       process.get(),
       &StatusUpdateManagerProcess<
           id::UUID,
-          OfferOperationStatusUpdateRecord,
-          OfferOperationStatusUpdate>::update,
+          UpdateOperationStatusRecord,
+          UpdateOperationStatusMessage>::update,
       update,
       operationUuid.get(),
       checkpoint);
 }
 
 
-Future<bool> OfferOperationStatusUpdateManager::acknowledgement(
+Future<bool> OperationStatusUpdateManager::acknowledgement(
       const id::UUID& operationUuid,
       const id::UUID& statusUuid)
 {
@@ -96,15 +96,15 @@ Future<bool> OfferOperationStatusUpdateManager::acknowledgement(
       process.get(),
       &StatusUpdateManagerProcess<
           id::UUID,
-          OfferOperationStatusUpdateRecord,
-          OfferOperationStatusUpdate>::acknowledgement,
+          UpdateOperationStatusRecord,
+          UpdateOperationStatusMessage>::acknowledgement,
       operationUuid,
       statusUuid);
 }
 
 
-process::Future<OfferOperationStatusManagerState>
-OfferOperationStatusUpdateManager::recover(
+process::Future<OperationStatusUpdateManagerState>
+OperationStatusUpdateManager::recover(
     const std::list<id::UUID>& operationUuids,
     bool strict)
 {
@@ -112,44 +112,44 @@ OfferOperationStatusUpdateManager::recover(
       process.get(),
       &StatusUpdateManagerProcess<
           id::UUID,
-          OfferOperationStatusUpdateRecord,
-          OfferOperationStatusUpdate>::recover,
+          UpdateOperationStatusRecord,
+          UpdateOperationStatusMessage>::recover,
       operationUuids,
       strict);
 }
 
 
-void OfferOperationStatusUpdateManager::cleanup(const FrameworkID& frameworkId)
+void OperationStatusUpdateManager::cleanup(const FrameworkID& frameworkId)
 {
   dispatch(
       process.get(),
       &StatusUpdateManagerProcess<
           id::UUID,
-          OfferOperationStatusUpdateRecord,
-          OfferOperationStatusUpdate>::cleanup,
+          UpdateOperationStatusRecord,
+          UpdateOperationStatusMessage>::cleanup,
       frameworkId);
 }
 
 
-void OfferOperationStatusUpdateManager::pause()
+void OperationStatusUpdateManager::pause()
 {
   dispatch(
       process.get(),
       &StatusUpdateManagerProcess<
           id::UUID,
-          OfferOperationStatusUpdateRecord,
-          OfferOperationStatusUpdate>::pause);
+          UpdateOperationStatusRecord,
+          UpdateOperationStatusMessage>::pause);
 }
 
 
-void OfferOperationStatusUpdateManager::resume()
+void OperationStatusUpdateManager::resume()
 {
   dispatch(
       process.get(),
       &StatusUpdateManagerProcess<
           id::UUID,
-          OfferOperationStatusUpdateRecord,
-          OfferOperationStatusUpdate>::resume);
+          UpdateOperationStatusRecord,
+          UpdateOperationStatusMessage>::resume);
 }
 
 } // namespace internal {

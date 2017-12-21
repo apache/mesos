@@ -676,7 +676,7 @@ protected:
         case Event::FAILURE:
         case Event::RESCIND:
         case Event::RESCIND_INVERSE_OFFER:
-        case Event::OFFER_OPERATION_UPDATE:
+        case Event::UPDATE_OPERATION_STATUS:
         case Event::MESSAGE: {
           break;
         }

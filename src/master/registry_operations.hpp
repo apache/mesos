@@ -28,7 +28,7 @@ namespace internal {
 namespace master {
 
 // Add a new slave to the list of admitted slaves.
-class AdmitSlave : public Operation
+class AdmitSlave : public RegistryOperation
 {
 public:
   explicit AdmitSlave(const SlaveInfo& _info);
@@ -42,7 +42,7 @@ private:
 
 
 // Update the SlaveInfo of an existing admitted slave.
-class UpdateSlave : public Operation
+class UpdateSlave : public RegistryOperation
 {
 public:
   explicit UpdateSlave(const SlaveInfo& _info);
@@ -57,7 +57,7 @@ private:
 
 // Move a slave from the list of admitted slaves to the list of
 // unreachable slaves.
-class MarkSlaveUnreachable : public Operation
+class MarkSlaveUnreachable : public RegistryOperation
 {
 public:
   MarkSlaveUnreachable(
@@ -79,7 +79,7 @@ private:
 // Finally, the slave might be in neither the "unreachable" or
 // "admitted" lists, if its metadata has been garbage collected from
 // the registry.
-class MarkSlaveReachable : public Operation
+class MarkSlaveReachable : public RegistryOperation
 {
 public:
   explicit MarkSlaveReachable(const SlaveInfo& _info);
@@ -92,7 +92,7 @@ private:
 };
 
 
-class Prune : public Operation
+class Prune : public RegistryOperation
 {
 public:
   explicit Prune(
@@ -108,7 +108,7 @@ private:
 };
 
 
-class RemoveSlave : public Operation
+class RemoveSlave : public RegistryOperation
 {
 public:
   explicit RemoveSlave(const SlaveInfo& _info);
@@ -123,7 +123,7 @@ private:
 
 // Move a slave from the list of admitted/unreachable slaves
 // to the list of gone slaves.
-class MarkSlaveGone : public Operation
+class MarkSlaveGone : public RegistryOperation
 {
 public:
   MarkSlaveGone(const SlaveID& _id, const TimeInfo& _goneTime);

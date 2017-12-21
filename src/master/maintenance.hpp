@@ -47,7 +47,7 @@ namespace maintenance {
  *
  * TODO(josephw): allow more than one schedule.
  */
-class UpdateSchedule : public Operation
+class UpdateSchedule : public RegistryOperation
 {
 public:
   explicit UpdateSchedule(
@@ -68,7 +68,7 @@ private:
  *
  * TODO(josephw): Allow a transition from `UP` to `DOWN`.
  */
-class StartMaintenance : public Operation
+class StartMaintenance : public RegistryOperation
 {
 public:
   explicit StartMaintenance(
@@ -88,7 +88,7 @@ private:
  * schedule prior to executing this operation. The machines will be
  * removed from the maintenance schedule.
  */
-class StopMaintenance : public Operation
+class StopMaintenance : public RegistryOperation
 {
 public:
   explicit StopMaintenance(

@@ -195,8 +195,8 @@ protected:
   Future<Resources> getOperationMessage(To to)
   {
     if (::testing::get<1>(GetParam()) == ENABLED) {
-      return FUTURE_PROTOBUF(ApplyOfferOperationMessage(), _, to)
-        .then([](const ApplyOfferOperationMessage& message) {
+      return FUTURE_PROTOBUF(ApplyOperationMessage(), _, to)
+        .then([](const ApplyOperationMessage& message) {
           switch (message.operation_info().type()) {
             case Offer::Operation::UNKNOWN:
             case Offer::Operation::LAUNCH:

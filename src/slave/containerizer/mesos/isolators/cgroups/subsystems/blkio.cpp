@@ -42,7 +42,6 @@ using std::string;
 using std::vector;
 
 using cgroups::blkio::Device;
-using cgroups::blkio::Operation;
 
 namespace mesos {
 namespace internal {
@@ -71,19 +70,19 @@ static void setValue(
     value->set_op(CgroupInfo::Blkio::UNKNOWN);
   } else {
     switch(statValue.op.get()) {
-      case Operation::TOTAL:
+      case cgroups::blkio::Operation::TOTAL:
         value->set_op(CgroupInfo::Blkio::TOTAL);
         break;
-      case Operation::READ:
+      case cgroups::blkio::Operation::READ:
         value->set_op(CgroupInfo::Blkio::READ);
         break;
-      case Operation::WRITE:
+      case cgroups::blkio::Operation::WRITE:
         value->set_op(CgroupInfo::Blkio::WRITE);
         break;
-      case Operation::SYNC:
+      case cgroups::blkio::Operation::SYNC:
         value->set_op(CgroupInfo::Blkio::SYNC);
         break;
-      case Operation::ASYNC:
+      case cgroups::blkio::Operation::ASYNC:
         value->set_op(CgroupInfo::Blkio::ASYNC);
         break;
     }
