@@ -1138,8 +1138,10 @@ inline TResource createPersistentVolume(
     const Option<std::string>& creatorPrincipal = None(),
     bool isShared = false)
 {
-  TResource volume =
-    TResources::parse("disk", stringify(size.megabytes()), role).get();
+  TResource volume = TResources::parse(
+      "disk",
+      stringify((double) size.bytes() / Bytes::MEGABYTES),
+      role).get();
 
   volume.mutable_disk()->CopyFrom(
       createDiskInfo<TResource, TVolume>(

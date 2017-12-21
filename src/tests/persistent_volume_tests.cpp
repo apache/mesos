@@ -260,7 +260,7 @@ protected:
     switch (::testing::get<0>(GetParam())) {
       case NONE: {
         diskResource = createDiskResource(
-            stringify(mb.megabytes()),
+            stringify((double) mb.bytes() / Bytes::MEGABYTES),
             DEFAULT_TEST_ROLE,
             None(),
             None());
@@ -269,7 +269,7 @@ protected:
       }
       case PATH: {
         diskResource = createDiskResource(
-            stringify(mb.megabytes()),
+            stringify((double) mb.bytes() / Bytes::MEGABYTES),
             DEFAULT_TEST_ROLE,
             None(),
             None(),
@@ -279,7 +279,7 @@ protected:
       }
       case MOUNT: {
         diskResource = createDiskResource(
-            stringify(mb.megabytes()),
+            stringify((double) mb.bytes() / Bytes::MEGABYTES),
             DEFAULT_TEST_ROLE,
             None(),
             None(),

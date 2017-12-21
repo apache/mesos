@@ -156,9 +156,11 @@ Try<Resources> Containerizer::resources(const Flags& flags)
       }
     }
 
+    // NOTE: The size is truncated here to preserve the existing
+    // behavior for backward compatibility.
     resources += Resources::parse(
         "mem",
-        stringify(mem.megabytes()),
+        stringify(mem.bytes() / Bytes::MEGABYTES),
         flags.default_role).get();
   }
 
@@ -184,9 +186,11 @@ Try<Resources> Containerizer::resources(const Flags& flags)
       }
     }
 
+    // NOTE: The size is truncated here to preserve the existing
+    // behavior for backward compatibility.
     resources += Resources::parse(
         "disk",
-        stringify(disk.megabytes()),
+        stringify(disk.bytes() / Bytes::MEGABYTES),
         flags.default_role).get();
   }
 

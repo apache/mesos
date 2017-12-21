@@ -1399,7 +1399,7 @@ Option<Error> validateExecutor(
         << "Executor '" << task.executor().executor_id()
         << "' for task '" << task.task_id()
         << "' uses less memory ("
-        << (mem.isSome() ? stringify(mem.get().megabytes()) : "None")
+        << (mem.isSome() ? stringify(mem.get()) : "None")
         << ") than the minimum required (" << MIN_MEM
         << "). Please update your executor, as this will be mandatory "
         << "in future releases.";
@@ -1582,7 +1582,7 @@ Option<Error> validateExecutor(
     return Error(
       "Executor '" + stringify(executor.executor_id()) +
       "' uses less memory (" +
-      (mem.isSome() ? stringify(mem.get().megabytes()) : "None") +
+      (mem.isSome() ? stringify(mem.get()) : "None") +
       ") than the minimum required (" + stringify(MIN_MEM) + ")");
   }
 

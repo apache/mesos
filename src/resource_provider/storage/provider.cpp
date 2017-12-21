@@ -253,7 +253,8 @@ static inline Resource createRawDiskResource(
   Resource resource;
   resource.set_name("disk");
   resource.set_type(Value::SCALAR);
-  resource.mutable_scalar()->set_value(capacity.megabytes());
+  resource.mutable_scalar()
+    ->set_value((double) capacity.bytes() / Bytes::MEGABYTES);
   resource.mutable_provider_id()->CopyFrom(info.id()),
   resource.mutable_reservations()->CopyFrom(info.default_reservations());
   resource.mutable_disk()->mutable_source()
@@ -1195,7 +1196,7 @@ ResourceConversion StorageLocalResourceProviderProcess::reconcileResources(
   foreach (const Resource& resource, checkpointed) {
     Resource unconverted = createRawDiskResource(
         info,
-        Bytes(resource.scalar().value(), Bytes::MEGABYTES),
+        Bytes(resource.scalar().value() * Bytes::MEGABYTES),
         resource.disk().source().has_profile()
           ? resource.disk().source().profile() : Option<string>::none(),
         resource.disk().source().has_id()
@@ -2743,7 +2744,7 @@ StorageLocalResourceProviderProcess::applyCreateVolumeOrBlock(
         // RAW profiled resources afterward.
         created = createVolume(
             operationUuid.toString(),
-            Bytes(resource.scalar().value(), Bytes::MEGABYTES),
+            Bytes(resource.scalar().value() * Bytes::MEGABYTES),
             profileInfos.at(resource.disk().source().profile()));
       } else {
         const string& volumeId = resource.disk().source().id();
@@ -2786,7 +2787,7 @@ StorageLocalResourceProviderProcess::applyCreateVolumeOrBlock(
         // RAW profiled resources afterward.
         created = createVolume(
             operationUuid.toString(),
-            Bytes(resource.scalar().value(), Bytes::MEGABYTES),
+            Bytes(resource.scalar().value() * Bytes::MEGABYTES),
             profileInfos.at(resource.disk().source().profile()));
       } else {
         const string& volumeId = resource.disk().source().id();

@@ -2069,7 +2069,8 @@ TEST_F(HierarchicalAllocatorTest, Allocatable)
   // Not enough memory or cpu to be considered allocatable.
   SlaveInfo slave1 = createSlaveInfo(
       "cpus:" + stringify(MIN_CPUS / 2u) + ";"
-      "mem:" + stringify((MIN_MEM / 2u).megabytes()) + ";"
+      "mem:" + stringify(
+          (double) (MIN_MEM / 2u).bytes() / Bytes::MEGABYTES) + ";"
       "disk:128");
   allocator->addSlave(
       slave1.id(),
@@ -2082,7 +2083,8 @@ TEST_F(HierarchicalAllocatorTest, Allocatable)
   // Enough cpus to be considered allocatable.
   SlaveInfo slave2 = createSlaveInfo(
       "cpus:" + stringify(MIN_CPUS) + ";"
-      "mem:" + stringify((MIN_MEM / 2u).megabytes()) + ";"
+      "mem:" + stringify(
+          (double) (MIN_MEM / 2u).bytes() / Bytes::MEGABYTES) + ";"
       "disk:128");
   allocator->addSlave(
       slave2.id(),
@@ -2101,7 +2103,7 @@ TEST_F(HierarchicalAllocatorTest, Allocatable)
   // Enough memory to be considered allocatable.
   SlaveInfo slave3 = createSlaveInfo(
       "cpus:" + stringify(MIN_CPUS / 2u) + ";"
-      "mem:" + stringify((MIN_MEM).megabytes()) + ";"
+      "mem:" + stringify((double) (MIN_MEM).bytes() / Bytes::MEGABYTES) + ";"
       "disk:128");
   allocator->addSlave(
       slave3.id(),
@@ -2121,9 +2123,11 @@ TEST_F(HierarchicalAllocatorTest, Allocatable)
   // but it lies across unreserved and reserved resources!
   SlaveInfo slave4 = createSlaveInfo(
       "cpus:" + stringify(MIN_CPUS * 3u / 2u) + ";"
-      "mem:" + stringify((MIN_MEM / 2u).megabytes()) + ";"
+      "mem:" + stringify(
+          (double) (MIN_MEM / 2u).bytes() / Bytes::MEGABYTES) + ";"
       "cpus(role1):" + stringify(MIN_CPUS * 3u / 2u) + ";"
-      "mem(role1):" + stringify((MIN_MEM / 2u).megabytes()) + ";"
+      "mem(role1):" + stringify(
+          (double) (MIN_MEM / 2u).bytes() / Bytes::MEGABYTES) + ";"
       "disk:128");
   allocator->addSlave(
       slave4.id(),

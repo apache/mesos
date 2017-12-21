@@ -1131,7 +1131,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
   ASSERT_SOME(mem);
 
   EXPECT_EQ(1024u, cpu.get());
-  EXPECT_EQ(128u, mem->megabytes());
+  EXPECT_EQ(128u, mem->bytes() / Bytes::MEGABYTES);
 
   newResources = Resources::parse("cpus:1;mem:144");
 
@@ -1151,7 +1151,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
   ASSERT_SOME(mem);
 
   EXPECT_EQ(1024u, cpu.get());
-  EXPECT_EQ(144u, mem->megabytes());
+  EXPECT_EQ(144u, mem->bytes() / Bytes::MEGABYTES);
 
   driver.stop();
   driver.join();

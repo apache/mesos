@@ -91,7 +91,7 @@ public:
         "The task will attempt to occupy memory up until this limit.",
         static_cast<const Bytes*>(nullptr),
         [](const Bytes& value) -> Option<Error> {
-          if (value.megabytes() < MEM_PER_EXECUTOR) {
+          if (value < Bytes(MEM_PER_EXECUTOR, Bytes::MEGABYTES)) {
             return Error(
                 "Please use a --task_memory_usage_limit greater than " +
                 stringify(MEM_PER_EXECUTOR) + " MB");
@@ -211,7 +211,8 @@ public:
   {
     Resources taskResources = Resources::parse(
         "cpus:" + stringify(CPUS_PER_TASK) +
-        ";mem:" + stringify(flags.task_memory.megabytes())).get();
+        ";mem:" + stringify(
+            (double) flags.task_memory.bytes() / Bytes::MEGABYTES)).get();
     taskResources.allocate(role);
 
     Resources executorResources = Resources(executor.resources());

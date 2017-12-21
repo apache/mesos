@@ -5602,6 +5602,8 @@ ExecutorInfo Slave::getExecutorInfo(
   // Add an allowance for the command executor. This does lead to a
   // small overcommit of resources.
   //
+  // NOTE: The size of the memory is truncated here to preserve the
+  // existing behavior for backward compatibility.
   // TODO(vinod): If a task is using revocable resources, mark the
   // corresponding executor resource (e.g., cpus) to be also
   // revocable. Currently, it is OK because the containerizer is
@@ -5609,7 +5611,8 @@ ExecutorInfo Slave::getExecutorInfo(
   // the container being correctly marked as revocable.
   Resources executorOverhead = Resources::parse(
       "cpus:" + stringify(DEFAULT_EXECUTOR_CPUS) + ";" +
-      "mem:" + stringify(DEFAULT_EXECUTOR_MEM.megabytes())).get();
+      "mem:" + stringify(
+          DEFAULT_EXECUTOR_MEM.bytes() / Bytes::MEGABYTES)).get();
 
   // If the task has an allocation role, we inject it into
   // the executor as well. Note that old masters will not

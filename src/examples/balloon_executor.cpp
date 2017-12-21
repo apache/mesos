@@ -59,7 +59,7 @@ void run(ExecutorDriver* driver, const TaskInfo& task)
   // Get the balloon limit (in MB).
   Try<Bytes> _limit = Bytes::parse(task.data());
   CHECK(_limit.isSome());
-  const size_t limit = _limit->megabytes();
+  const size_t limit = _limit->bytes() / Bytes::MEGABYTES;
 
   const size_t chunk = BALLOON_STEP_MB * 1024 * 1024;
   for (size_t i = 0; i < limit / BALLOON_STEP_MB; i++) {

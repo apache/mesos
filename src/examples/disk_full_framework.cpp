@@ -149,7 +149,8 @@ public:
     Resources taskResources = Resources::parse(
         "cpus:" + stringify(CPUS_PER_TASK) +
         ";mem:" + stringify(MEMORY_PER_TASK) +
-        ";disk:" + stringify(DISK_PER_TASK.megabytes())).get();
+        ";disk:" + stringify(
+            (double) DISK_PER_TASK.bytes() / Bytes::MEGABYTES)).get();
     taskResources.allocate(role);
 
     foreach (const Offer& offer, offers) {
@@ -182,7 +183,7 @@ public:
       static const string command =
           "sleep " + stringify(flags.pre_sleep_duration.secs()) +
           " && dd if=/dev/zero of=file bs=1K count=" +
-          stringify(flags.disk_use_limit.kilobytes()) +
+          stringify(flags.disk_use_limit.bytes() / Bytes::KILOBYTES) +
           " && sleep " + stringify(flags.post_sleep_duration.secs());
 
       TaskInfo task;

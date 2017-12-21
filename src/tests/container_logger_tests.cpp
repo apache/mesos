@@ -370,8 +370,8 @@ TEST_F(ContainerLoggerTest, LOGROTATE_RotateInSandbox)
   // one MB since there is also the executor's output besides the task's stdout.
   Try<Bytes> stdoutSize = os::stat::size(stdoutPath);
   ASSERT_SOME(stdoutSize);
-  EXPECT_LE(1024u, stdoutSize->kilobytes());
-  EXPECT_GE(1050u, stdoutSize->kilobytes());
+  EXPECT_LE(1024u, stdoutSize->bytes() / Bytes::KILOBYTES);
+  EXPECT_GE(1050u, stdoutSize->bytes() / Bytes::KILOBYTES);
 
   // We should only have files up to "stdout.4".
   stdoutPath = path::join(sandboxDirectory, "stdout.5");
@@ -385,8 +385,8 @@ TEST_F(ContainerLoggerTest, LOGROTATE_RotateInSandbox)
     // NOTE: The rotated files are written in contiguous blocks, meaning that
     // each file may be less than the maximum allowed size.
     stdoutSize = os::stat::size(stdoutPath);
-    EXPECT_LE(2040u, stdoutSize->kilobytes());
-    EXPECT_GE(2048u, stdoutSize->kilobytes());
+    EXPECT_LE(2040u, stdoutSize->bytes() / Bytes::KILOBYTES);
+    EXPECT_GE(2048u, stdoutSize->bytes() / Bytes::KILOBYTES);
   }
 }
 
@@ -783,8 +783,8 @@ TEST_P(UserContainerLoggerTest, ROOT_LOGROTATE_RotateWithSwitchUserTrueOrFalse)
   // one MB since there is also the executor's output besides the task's stdout.
   Try<Bytes> stdoutSize = os::stat::size(stdoutPath);
   ASSERT_SOME(stdoutSize);
-  EXPECT_LE(1024u, stdoutSize->kilobytes());
-  EXPECT_GE(1050u, stdoutSize->kilobytes());
+  EXPECT_LE(1024u, stdoutSize->bytes() / Bytes::KILOBYTES);
+  EXPECT_GE(1050u, stdoutSize->bytes() / Bytes::KILOBYTES);
 
   // We should only have files up to "stdout.1".
   stdoutPath = path::join(sandboxDirectory, "stdout.2");
@@ -798,8 +798,8 @@ TEST_P(UserContainerLoggerTest, ROOT_LOGROTATE_RotateWithSwitchUserTrueOrFalse)
   // each file may be less than the maximum allowed size.
   stdoutSize = os::stat::size(stdoutPath);
   ASSERT_SOME(stdoutSize);
-  EXPECT_LE(2040u, stdoutSize->kilobytes());
-  EXPECT_GE(2048u, stdoutSize->kilobytes());
+  EXPECT_LE(2040u, stdoutSize->bytes() / Bytes::KILOBYTES);
+  EXPECT_GE(2048u, stdoutSize->bytes() / Bytes::KILOBYTES);
 }
 #endif // __WINDOWS__
 

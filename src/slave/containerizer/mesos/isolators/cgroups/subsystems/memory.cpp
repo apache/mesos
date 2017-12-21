@@ -560,7 +560,8 @@ void MemorySubsystem::oomWaited(
   // we should save the resources passed in and report it here.
   Resources mem = Resources::parse(
       "mem",
-      stringify(usage.isSome() ? usage.get().megabytes() : 0),
+      stringify(usage.isSome()
+        ? (double) usage->bytes() / Bytes::MEGABYTES : 0),
       "*").get();
 
   infos[containerId]->limitation.set(
