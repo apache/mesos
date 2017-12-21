@@ -42,7 +42,8 @@ namespace mesos {
 namespace internal {
 namespace log {
 
-static bool isRejectedPromise(const PromiseResponse& response) {
+static bool isRejectedPromise(const PromiseResponse& response)
+{
   if (response.has_type()) {
     // New format (Mesos >= 0.26).
     return response.type() == PromiseResponse::REJECT;
@@ -53,7 +54,8 @@ static bool isRejectedPromise(const PromiseResponse& response) {
 }
 
 
-static bool isRejectedWrite(const WriteResponse& response) {
+static bool isRejectedWrite(const WriteResponse& response)
+{
   if (response.has_type()) {
     // New format (Mesos >= 0.26).
     return response.type() == WriteResponse::REJECT;
