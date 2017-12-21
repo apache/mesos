@@ -124,6 +124,34 @@ def _create_module(module_name):
     if os.path.exists(libprofiler):
         EXTRA_OBJECTS.append(libprofiler)
 
+
+    # We need to check for the presense of libgrpc++.a, libgrpc.a and libgpr.a
+    # only if gRPC is enabled.
+    if '@ENABLE_GRPC_FALSE@' == '#':
+        grpc = os.path.join('3rdparty', 'grpc-1.4.2')
+        libgrpcxx = os.path.join(abs_top_builddir, grpc, 'libs', 'opt', 'libgrpc++.a')
+        libgrpc = os.path.join(abs_top_builddir, grpc, 'libs', 'opt', 'libgrpc.a')
+        libgpr = os.path.join(abs_top_builddir, grpc, 'libs', 'opt', 'libgpr.a')
+
+        if os.path.exists(libgrpcxx):
+            EXTRA_OBJECTS.append(libgrpcxx)
+        else:
+            EXTRA_OBJECTS.append('-lgrpc++')
+
+        if os.path.exists(libgrpc):
+            EXTRA_OBJECTS.append(libgrpc)
+        else:
+            EXTRA_OBJECTS.append('-lgrpc')
+
+        if os.path.exists(libgpr):
+            EXTRA_OBJECTS.append(libgpr)
+        else:
+            EXTRA_OBJECTS.append('-lgpr')
+
+        EXTRA_OBJECTS.append('-lssl')
+        EXTRA_OBJECTS.append('-lcrypto')
+
+
     # OSX uses a different linker (llvm-ld) and doesn't support --as-needed
     # TODO(SteveNiemitz): Feature detect --as-needed instead of looking at
     # sys.platform.
