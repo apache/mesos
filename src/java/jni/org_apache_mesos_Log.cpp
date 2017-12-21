@@ -234,6 +234,47 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Reader_ending
 
 /*
  * Class:     org_apache_mesos_Log_Reader
+ * Method:    catchup
+ * Signature: (JLjava/util/concurrent/TimeUnit;)Lorg/apache/mesos/Log/Position;
+ */
+JNIEXPORT jobject JNICALL Java_org_apache_mesos_Log_00024Reader_catchup
+  (JNIEnv* env, jobject thiz, jlong jtimeout, jobject junit)
+{
+  // Read out __reader.
+  jclass clazz = env->GetObjectClass(thiz);
+  jfieldID __reader = env->GetFieldID(clazz, "__reader", "J");
+  Log::Reader* reader = (Log::Reader*)env->GetLongField(thiz, __reader);
+
+  // long seconds = unit.toSeconds(time);
+  clazz = env->GetObjectClass(junit);
+  jmethodID toSeconds = env->GetMethodID(clazz, "toSeconds", "(J)J");
+  jlong jseconds = env->CallLongMethod(junit, toSeconds, jtimeout);
+
+  Future<Log::Position> position = reader->catchup();
+
+  if (!position.await(Seconds(jseconds))) {
+    // Timed out while trying to catchup the log.
+    position.discard();
+    clazz = env->FindClass("java/util/concurrent/TimeoutException");
+    env->ThrowNew(clazz, "Timed out while attempting to catchup");
+    return nullptr;
+  } else if (!position.isReady()) {
+    // Failed to catchup the log.
+    clazz = env->FindClass("org/apache/mesos/Log$OperationFailedException");
+    env->ThrowNew(
+        clazz,
+        (position.isFailed()
+          ? position.failure().c_str() : "Discarded future"));
+    return nullptr;
+  }
+
+  jobject jposition = convert<Log::Position>(env, position.get());
+  return jposition;
+}
+
+
+/*
+ * Class:     org_apache_mesos_Log_Reader
  * Method:    initialize
  * Signature: (Lorg/apache/mesos/Log;)V
  */

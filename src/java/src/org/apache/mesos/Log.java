@@ -238,6 +238,23 @@ public class Log {
      */
     public native Position ending();
 
+    /**
+     * Attempts to catch-up positions from the log for reading.
+     *
+     * @param timeout Max number of time units to wait before a
+     *                {@link TimeoutException}.
+     * @param unit    Type of time units used for the timeout, e.g. seconds,
+     *                minutes, etc.
+     *
+     * @return The ending position of the caught-up range.
+     *
+     * @throws TimeoutException         If the catch-up doesn't happen before
+     *                                  the timeout.
+     * @throws OperationFailedException If the catch-up fails.
+     */
+    public native Position catchup(long timeout, TimeUnit unit)
+      throws TimeoutException, OperationFailedException;
+
     protected native void initialize(Log log);
 
     protected native void finalize();
