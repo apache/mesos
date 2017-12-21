@@ -50,6 +50,20 @@ extern process::Future<Nothing> catchup(
     const IntervalSet<uint64_t>& positions,
     const Duration& timeout = Seconds(10));
 
+
+// Catches-up missing log positions in the local replica. Returns the
+// highest position that was caught-up and now is safe to read. The
+// user of this function can provide a hint on the proposal number
+// that will be used for Paxos. We also allow the user to specify a
+// timeout for the catch-up operation on each position and retry the
+// operation if timeout happens.
+process::Future<uint64_t> catchup(
+    size_t quorum,
+    const process::Shared<Replica>& replica,
+    const process::Shared<Network>& network,
+    const Option<uint64_t>& proposal = None(),
+    const Duration& timeout = Seconds(10));
+
 } // namespace log {
 } // namespace internal {
 } // namespace mesos {

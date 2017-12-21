@@ -28,6 +28,7 @@
 
 #include "log/catchup.hpp"
 #include "log/consensus.hpp"
+#include "log/recover.hpp"
 
 #include "messages/log.hpp"
 
@@ -308,6 +309,156 @@ static Future<Nothing> catchup(
 }
 
 
+// This process is used to catch-up missing positions in the local
+// replica. We first check the status of the local replica. It if is
+// not in VOTING status, the recover process will terminate
+// immediately. Next we will run the log recover protocol to determine
+// the log's beginning and ending positions. After that we will start
+// doing catch-up.
+class CatchupMissingProcess : public Process<CatchupMissingProcess>
+{
+public:
+  CatchupMissingProcess(
+      size_t _quorum,
+      const Shared<Replica>& _replica,
+      const Shared<Network>& _network,
+      const Option<uint64_t>& _proposal,
+      const Duration& _timeout)
+    : ProcessBase(ID::generate("log-recover-missing")),
+      quorum(_quorum),
+      replica(_replica),
+      network(_network),
+      proposal(_proposal),
+      timeout(_timeout) {}
+
+  Future<uint64_t> future()
+  {
+    return promise.future();
+  }
+
+protected:
+  virtual void initialize()
+  {
+    LOG(INFO) << "Starting missing positions recovery";
+
+    // Register a callback to handle user initiated discard.
+    promise.future().onDiscard(defer(self(), &Self::discard));
+
+    // Check the current status of the local replica and decide if we
+    // proceed with recovery. We do it only if the local replica is in
+    // VOTING status.
+    chain = replica->status()
+      .then(defer(self(), &Self::recover, lambda::_1))
+      .onAny(defer(self(), &Self::finished, lambda::_1));
+  }
+
+  virtual void finalize()
+  {
+    VLOG(1) << "Recover process terminated";
+  }
+
+private:
+  void discard()
+  {
+    chain.discard();
+  }
+
+  Future<Nothing> recover(const Metadata::Status& status)
+  {
+    LOG(INFO) << "Replica is in " << status << " status";
+
+    if (status != Metadata::VOTING) {
+      return Nothing();
+    }
+
+    return runRecoverProtocol(quorum, network, status, false)
+      .then(defer(self(), &Self::_recover, lambda::_1));
+  }
+
+  Future<Nothing> _recover(const Option<RecoverResponse>& response)
+  {
+    if (response.isNone()) {
+      return Failure("Failed to recover begin and end positions of the log");
+    }
+
+    if (response->status() != Metadata::RECOVERING) {
+      return Failure("Unexpected status returned from the recover protocol");
+    }
+
+    CHECK(response->has_begin() && response->has_end());
+
+    if (response->begin() == response->end()) {
+      // This may happen if all replicas know only about position
+      // 0 (just initialized).
+      return Failure("Recovered only 1 position, cannot catch-up");
+    }
+
+    // We do not catchup the last recovered position in order to
+    // prevent coordinator demotion.
+    end = response->end() - 1;
+
+    return replica->beginning()
+      .then(defer(self(), [this, response](uint64_t begin) {
+        // Ideally we would only need to catch-up positions from
+        // the recovered range and then adjust local replica's
+        // 'begin'. However, the replica needs to persist the
+        // truncation indicator (TRUNCATE or a tombstone NOP) to
+        // be able to recover the same 'begin' after a restart. If
+        // we only catch-up positions from the recovered range, it
+        // is possible that the replica sees neither TRUNCATE
+        // (e.g. it is the last position in the log, which we
+        // don't catch-up), nor a tombstone. We catch-up positions
+        // starting with the lowest known begin position so that
+        // the replica either retains the same 'begin', or sees a
+        // truncation indicator.
+        begin = std::min(begin, response->begin());
+        return catchup(begin, end);
+      }));
+  }
+
+  Future<Nothing> catchup(uint64_t begin, uint64_t end)
+  {
+    CHECK_LE(begin, end);
+
+    LOG(INFO) << "Starting catch-up from position " << begin << " to " << end;
+
+    IntervalSet<uint64_t> positions(
+        Bound<uint64_t>::closed(begin),
+        Bound<uint64_t>::closed(end));
+
+    // TODO(ipronin): Consider using 'proposed' field from the local
+    // replica.
+    return log::catchup(quorum, replica, network, proposal, positions, timeout);
+  }
+
+  void finished(const Future<Nothing>& future)
+  {
+    if (future.isDiscarded()) {
+      promise.discard();
+      terminate(self());
+    } else if (future.isFailed()) {
+      promise.fail(future.failure());
+      terminate(self());
+    } else {
+      promise.set(end);
+      terminate(self());
+    }
+  }
+
+  const size_t quorum;
+  Shared<Replica> replica;
+  const Shared<Network> network;
+  const Option<uint64_t> proposal;
+  const Duration timeout;
+
+  Future<Nothing> chain;
+
+  uint64_t end;
+
+  process::Promise<uint64_t> promise;
+};
+
+
 /////////////////////////////////////////////////
 // Public interfaces below.
 /////////////////////////////////////////////////
@@ -344,6 +495,26 @@ Future<Nothing> catchup(
             timeout));
   }
 
+  return future;
+}
+
+Future<uint64_t> catchup(
+    size_t quorum,
+    const process::Shared<Replica>& replica,
+    const process::Shared<Network>& network,
+    const Option<uint64_t>& proposal,
+    const Duration& timeout)
+{
+  CatchupMissingProcess* process =
+    new CatchupMissingProcess(
+        quorum,
+        replica,
+        network,
+        proposal,
+        timeout);
+
+  Future<uint64_t> future = process->future();
+  spawn(process, true);
   return future;
 }
 

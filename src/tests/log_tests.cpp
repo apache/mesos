@@ -2102,6 +2102,172 @@ TEST_F(RecoverTest, CatchupTruncated)
 }
 
 
+// Verifiy that we can catch-up a following VOTING replica.
+TEST_F(RecoverTest, CatchupVoting)
+{
+  const string path1 = path::join(os::getcwd(), ".log1");
+  initializer.flags.path = path1;
+  ASSERT_SOME(initializer.execute());
+
+  const string path2 = path::join(os::getcwd(), ".log2");
+  initializer.flags.path = path2;
+  ASSERT_SOME(initializer.execute());
+
+  const string path3 = path::join(os::getcwd(), ".log3");
+  initializer.flags.path = path3;
+  ASSERT_SOME(initializer.execute());
+
+  Shared<Replica> replica1(new Replica(path1));
+  Shared<Replica> replica2(new Replica(path2));
+
+  set<UPID> pids{replica1->pid(), replica2->pid()};
+  Shared<Network> network1(new Network(pids));
+
+  Coordinator coord(2, replica1, network1);
+  Future<Option<uint64_t>> electing = coord.elect();
+  AWAIT_READY(electing);
+  EXPECT_SOME_EQ(0u, electing.get());
+
+  // Add some entries to the log.
+  for (uint64_t position = 1; position <= 10; position++) {
+    Future<Option<uint64_t>> appending = coord.append(stringify(position));
+    AWAIT_READY(appending);
+    EXPECT_SOME_EQ(position, appending.get());
+  }
+
+  // Truncate the log.
+  Future<Option<uint64_t>> truncating = coord.truncate(5);
+  AWAIT_READY(truncating);
+  EXPECT_SOME_EQ(11u, truncating.get());
+
+  // Create one more replica. It is in VOTING status, but it missed
+  // positions adding and truncation.
+  Shared<Replica> replica3(new Replica(path3));
+
+  pids.insert(replica3->pid());
+  Shared<Network> network2(new Network(pids));
+
+  // Catch-up the VOTING replica for reading. We're using 3 as the
+  // quorum size here to simulate recovering a stale lowest position
+  // (from the local replica).
+  Future<uint64_t> catching = catchup(3, replica3, network2);
+  AWAIT_EXPECT_EQ(10u, catching);
+
+  Future<uint64_t> begin = replica3->beginning();
+  AWAIT_EXPECT_EQ(5u, begin);
+
+  Future<uint64_t> end = replica3->ending();
+  AWAIT_EXPECT_EQ(catching.get(), end);
+
+  Future<list<Action>> actions = replica3->read(begin.get(), end.get());
+  AWAIT_READY(actions);
+  EXPECT_EQ(end.get() - begin.get() + 1, actions->size());
+  foreach (const Action& action, actions.get()) {
+    ASSERT_TRUE(action.has_type());
+    ASSERT_EQ(Action::APPEND, action.type());
+    EXPECT_EQ(stringify(action.position()), action.append().bytes());
+  }
+}
+
+
+// Verifiy that we can catch-up a following VOTING replica.
+TEST_F(RecoverTest, CatchupVotingWithGap)
+{
+  const string path1 = path::join(os::getcwd(), ".log1");
+  initializer.flags.path = path1;
+  ASSERT_SOME(initializer.execute());
+
+  const string path2 = path::join(os::getcwd(), ".log2");
+  initializer.flags.path = path2;
+  ASSERT_SOME(initializer.execute());
+
+  const string path3 = path::join(os::getcwd(), ".log3");
+  initializer.flags.path = path3;
+  ASSERT_SOME(initializer.execute());
+
+  Shared<Replica> replica1(new Replica(path1));
+  Shared<Replica> replica2(new Replica(path2));
+
+  set<UPID> pids{replica1->pid(), replica2->pid()};
+  Shared<Network> network1(new Network(pids));
+
+  Coordinator coord(2, replica1, network1);
+  Future<Option<uint64_t>> electing = coord.elect();
+  AWAIT_READY(electing);
+  EXPECT_SOME_EQ(0u, electing.get());
+
+  // Add some entries to the log.
+  for (uint64_t position = 1; position <= 10; position++) {
+    Future<Option<uint64_t>> appending = coord.append(stringify(position));
+    AWAIT_READY(appending);
+    EXPECT_SOME_EQ(position, appending.get());
+  }
+
+  // Truncate the log.
+  Future<Option<uint64_t>> truncating = coord.truncate(5);
+  AWAIT_READY(truncating);
+  EXPECT_SOME_EQ(11u, truncating.get());
+
+  // Create one more replica. It is in VOTING status, but it missed
+  // positions adding and truncation.
+  Shared<Replica> replica3(new Replica(path3));
+
+  pids.insert(replica3->pid());
+  Shared<Network> network2(new Network(pids));
+
+  // Make sure replica3 doesn't receive recover request, so we won't
+  // recover stale 'begin' position.
+  DROP_PROTOBUFS(RecoverRequest(), _, Eq(replica3->pid()));
+
+  // Catch-up the VOTING replica for reading.
+  Future<uint64_t> catching = catchup(2, replica3, network2);
+  AWAIT_EXPECT_EQ(10u, catching);
+
+  Future<uint64_t> begin = replica3->beginning();
+  AWAIT_EXPECT_EQ(5u, begin);
+
+  Future<uint64_t> end = replica3->ending();
+  AWAIT_EXPECT_EQ(catching.get(), end);
+
+  Future<list<Action>> actions = replica3->read(begin.get(), end.get());
+  AWAIT_READY(actions);
+  EXPECT_EQ(end.get() - begin.get() + 1, actions->size());
+  foreach (const Action& action, actions.get()) {
+    ASSERT_TRUE(action.has_type());
+    ASSERT_EQ(Action::APPEND, action.type());
+    EXPECT_EQ(stringify(action.position()), action.append().bytes());
+  }
+}
+
+
+// Verifiy that catch-up fails if we recover only 1 position.
+TEST_F(RecoverTest, CatchupVotingOnePosition)
+{
+  const string path1 = path::join(os::getcwd(), ".log1");
+  initializer.flags.path = path1;
+  ASSERT_SOME(initializer.execute());
+
+  const string path2 = path::join(os::getcwd(), ".log2");
+  initializer.flags.path = path2;
+  ASSERT_SOME(initializer.execute());
+
+  const string path3 = path::join(os::getcwd(), ".log3");
+  initializer.flags.path = path3;
+  ASSERT_SOME(initializer.execute());
+
+  Shared<Replica> replica1(new Replica(path1));
+  Shared<Replica> replica2(new Replica(path2));
+  Shared<Replica> replica3(new Replica(path3));
+
+  set<UPID> pids{replica1->pid(), replica2->pid(), replica3->pid()};
+  Shared<Network> network(new Network(pids));
+
+  AWAIT_FAILED(catchup(2, replica3, network));
+  AWAIT_EXPECT_EQ(0u, replica3->beginning());
+  AWAIT_EXPECT_EQ(0u, replica3->ending());
+}
+
+
 class LogTest : public TemporaryDirectoryTest
 {
 protected:
