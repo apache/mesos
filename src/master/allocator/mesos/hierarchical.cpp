@@ -1573,7 +1573,7 @@ void HierarchicalAllocatorProcess::__allocate()
     return quotaRoleSorter->allocationScalarQuantities(role).toUnreserved();
   };
 
-  // We need to keep track of allocated reserved resourecs for roles
+  // We need to keep track of allocated reserved resources for roles
   // with quota in order to enforce their quota limit. Note these are
   // __quantities__ with no meta-data.
   hashmap<string, Resources> allocatedReservationScalarQuantities;
@@ -1949,7 +1949,7 @@ void HierarchicalAllocatorProcess::__allocate()
         // into the old format by "hiding" the intermediate reservations in the
         // "stack", this leads to ambiguity when processing RESERVE / UNRESERVE
         // operations. This is due to the loss of information when we drop the
-        // intermediatereservations. Therefore, for now we simply filter out
+        // intermediate reservations. Therefore, for now we simply filter out
         // resources with refined reservations if the framework does not have
         // the capability.
         if (!framework.capabilities.reservationRefinement) {
@@ -2101,7 +2101,7 @@ void HierarchicalAllocatorProcess::__allocate()
         // into the old format by "hiding" the intermediate reservations in the
         // "stack", this leads to ambiguity when processing RESERVE / UNRESERVE
         // operations. This is due to the loss of information when we drop the
-        // intermediatereservations. Therefore, for now we simply filter out
+        // intermediate reservations. Therefore, for now we simply filter out
         // resources with refined reservations if the framework does not have
         // the capability.
         if (!framework.capabilities.reservationRefinement) {
