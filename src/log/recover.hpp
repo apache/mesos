@@ -34,7 +34,7 @@ namespace log {
 
 // Runs the recover protocol. We will re-run the recover protocol if
 // it cannot be finished within 'timeout'.
-process::Future<RecoverResponse> runRecoverProtocol(
+process::Future<Option<RecoverResponse>> runRecoverProtocol(
     size_t quorum,
     const process::Shared<Network>& network,
     const Metadata::Status& status,

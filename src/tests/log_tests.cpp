@@ -1844,6 +1844,56 @@ TEST_F(RecoverTest, CatchupRetry)
 }
 
 
+TEST_F(RecoverTest, RecoverProtocolRetry)
+{
+  const string path1 = path::join(os::getcwd(), ".log1");
+  initializer.flags.path = path1;
+  ASSERT_SOME(initializer.execute());
+
+  const string path2 = path::join(os::getcwd(), ".log2");
+  const string path3 = path::join(os::getcwd(), ".log3");
+
+  Owned<Replica> replica1(new Replica(path1));
+  Owned<Replica> replica2(new Replica(path2));
+  Owned<Replica> replica3(new Replica(path3));
+
+  set<UPID> pids{replica1->pid(), replica2->pid(), replica3->pid()};
+  Shared<Network> network(new Network(pids));
+
+  Future<Owned<Replica>> recovering = recover(2, replica3, network);
+
+  Clock::pause();
+
+  // Wait for the retry timer to be setup.
+  Clock::settle();
+  ASSERT_TRUE(recovering.isPending());
+
+  // Wait for recover process to retry.
+  Clock::advance(Seconds(10));
+  Clock::settle();
+  ASSERT_TRUE(recovering.isPending());
+
+  // Remove replica 2 from the network to be initialized. It is safe
+  // to have non-const access to shared Network here, because all
+  // Network operations are serialized through a Process.
+  const_cast<Network&>(*network).remove(replica2->pid());
+  replica2.reset();
+
+  initializer.flags.path = path2;
+  ASSERT_SOME(initializer.execute());
+
+  replica2.reset(new Replica(path2));
+  const_cast<Network&>(*network).add(replica2->pid());
+
+  // Wait for recover process to retry again, now with 2 VOTING
+  // replicas. It should successfully finish now.
+  Clock::advance(Seconds(10));
+  Clock::resume();
+
+  AWAIT_READY(recovering);
+}
+
+
 TEST_F(RecoverTest, AutoInitialization)
 {
   const string path1 = os::getcwd() + "/.log1";
