@@ -28,6 +28,8 @@ Additional API Changes:
     to an agent's work directory.
   * [MESOS-8040] Return nested/standalone containers in `GET_CONTAINERS`
     API call.
+  * [MESOS-7973] A new `catchup` method has been added to the
+    `Log.Reader` interface (including Java binding).
 
 Unresolved Critical Issues:
 
