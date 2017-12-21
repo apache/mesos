@@ -1759,11 +1759,6 @@ void HierarchicalAllocatorProcess::__allocate()
       // If quota for the role is considered satisfied, then we only
       // further allocate reservations for the role.
       //
-      // TODO(alexr): Skipping satisfied roles is pessimistic. Better
-      // alternatives are:
-      //   * A custom sorter that is aware of quotas and sorts accordingly.
-      //   * Removing satisfied roles from the sorter.
-      //
       // This is a scalar quantity with no meta-data.
       Resources unsatisfiedQuota = Resources(quota.info.guarantee()) -
         resourcesChargedAgainstQuota;
