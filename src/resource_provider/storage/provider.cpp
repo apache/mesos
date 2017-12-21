@@ -704,18 +704,20 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverServices()
           info.storage().plugin().name(),
           containerId);
 
-      Result<CSIPluginContainerInfo> config =
-        ::protobuf::read<CSIPluginContainerInfo>(configPath);
+      if (os::exists(configPath)) {
+        Result<CSIPluginContainerInfo> config =
+          ::protobuf::read<CSIPluginContainerInfo>(configPath);
 
-      if (config.isError()) {
-        return Failure(
-            "Failed to read plugin container config from '" +
-            configPath + "': " + config.error());
-      }
+        if (config.isError()) {
+          return Failure(
+              "Failed to read plugin container config from '" +
+              configPath + "': " + config.error());
+        }
 
-      if (config.isSome() &&
-          getCSIPluginContainerInfo(info, containerId) == config.get()) {
-        continue;
+        if (config.isSome() &&
+            getCSIPluginContainerInfo(info, containerId) == config.get()) {
+          continue;
+        }
       }
     }
 
@@ -789,6 +791,10 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverVolumes()
         info.storage().plugin().type(),
         info.storage().plugin().name(),
         volumeId);
+
+    if (!os::exists(statePath)) {
+      continue;
+    }
 
     Result<csi::state::VolumeState> volumeState =
       ::protobuf::read<csi::state::VolumeState>(statePath);
@@ -891,6 +897,10 @@ StorageLocalResourceProviderProcess::recoverResourceProviderState()
 
     const string statePath = slave::paths::getResourceProviderStatePath(
         metaDir, slaveId, info.type(), info.name(), info.id());
+
+    if (!os::exists(statePath)) {
+      return Nothing();
+    }
 
     Result<ResourceProviderState> resourceProviderState =
       ::protobuf::read<ResourceProviderState>(statePath);
