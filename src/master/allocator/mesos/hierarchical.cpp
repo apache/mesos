@@ -1589,27 +1589,14 @@ void HierarchicalAllocatorProcess::__allocate()
       // If quota for the role is considered satisfied, then we only
       // further allocate reservations for the role.
       //
-      // More precisely, we stop allocating unreserved resources if at
-      // least one of the resource guarantees is considered consumed.
-      // This technique prevents gaming of the quota allocation,
-      // see MESOS-6432.
-      //
-      // Longer term, we could ideally allocate what remains
-      // unsatisfied to allow an existing container to scale
-      // vertically, or to allow the launching of a container
-      // with best-effort cpus/mem/disk/etc.
-      //
       // TODO(alexr): Skipping satisfied roles is pessimistic. Better
       // alternatives are:
       //   * A custom sorter that is aware of quotas and sorts accordingly.
       //   * Removing satisfied roles from the sorter.
-      bool someGuaranteesReached = false;
-      foreach (const Resource& guarantee, quota.info.guarantee()) {
-        if (resourcesChargedAgainstQuota.contains(guarantee)) {
-          someGuaranteesReached = true;
-          break;
-        }
-      }
+      //
+      // This is a scalar quantity with no meta-data.
+      Resources unsatisfiedQuota = Resources(quota.info.guarantee()) -
+        resourcesChargedAgainstQuota;
 
       // Fetch frameworks according to their fair share.
       // NOTE: Suppressed frameworks are not included in the sort.
@@ -1658,18 +1645,119 @@ void HierarchicalAllocatorProcess::__allocate()
           }
         }
 
-        // If a role's quota limit has been reached, we only allocate
-        // its reservations. Otherwise, we allocate its reservations
-        // plus unreserved resources.
+        // We allocate the role's reservations as well as any unreserved
+        // resources while ensuring the role stays within its quota limits.
+        // This means that we'll "chop" the unreserved resources up to
+        // the quota limit if necessary.
         //
+        // E.g. A role has no allocations or reservations yet and a 10 cpu
+        //      quota limit. We'll chop a 15 cpu agent down to only
+        //      allocate 10 cpus to the role to keep it within its limit.
+        //
+        // In the case that the role needs some of the resources on this
+        // agent to make progress towards its quota, we'll *also* allocate
+        // all of the resources for which it does not have quota.
+        //
+        // E.g. The agent has 1 cpu, 1024 mem, 1024 disk, 1 gpu, 5 ports
+        //      and the role has quota for 1 cpu, 1024 mem. We'll include
+        //      the disk, gpu, and ports in the allocation, despite the
+        //      role not having any quota guarantee for them.
+        //
+        // We have to do this for now because it's not possible to set
+        // quota on non-scalar resources, like ports. However, for scalar
+        // resources that can have quota set, we should ideally make
+        // sure that when we include them, we're not violating some
+        // other role's guarantee!
+        //
+        // TODO(mzhu): Check the headroom when we're including scalar
+        // resources that this role does not have quota for.
+        //
+        // TODO(mzhu): Since we're treating the resources with unset
+        // quota as having no guarantee and no limit, these should be
+        // also be allocated further in the second allocation "phase"
+        // below (above guarantee up to limit).
+
         // NOTE: Currently, frameworks are allowed to have '*' role.
         // Calling reserved('*') returns an empty Resources object.
         //
-        // TODO(mzhu): Do fine-grained allocations up to the limit.
-        // See MESOS-8293.
-        Resources resources = someGuaranteesReached ?
-          available.reserved(role).nonRevocable() :
-          available.allocatableTo(role).nonRevocable();
+        // NOTE: Since we currently only support top-level roles to
+        // have quota, there are no ancestor reservations involved here.
+        Resources resources = available.reserved(role).nonRevocable();
+
+        // Unreserved resources that are tentatively going to be
+        // allocated towards this role's quota. These resources may
+        // not get allocated due to framework filters.
+        Resources newQuotaAllocation;
+
+        if (!unsatisfiedQuota.empty()) {
+          Resources unreserved = available.nonRevocable().unreserved();
+
+          set<string> quotaResourceNames =
+            Resources(quota.info.guarantee()).names();
+
+          // When "chopping" resources, there is more than 1 "chop" that
+          // can be done to satisfy the limits. Consider the case with
+          // two disks of 1GB, one is PATH and another is MOUNT. And a role
+          // has a "disk" quota of 1GB. We could pick either of the disks here,
+          // but not both.
+          //
+          // In order to avoid repeatedly choosing the same "chop" of
+          // the resources each time we allocate, we introduce some
+          // randomness by shuffling the resources.
+          google::protobuf::RepeatedPtrField<Resource>
+            resourceVector = unreserved;
+          random_shuffle(resourceVector.begin(), resourceVector.end());
+
+          foreach (const Resource& resource, resourceVector) {
+            if (quotaResourceNames.count(resource.name()) == 0) {
+              // This resource has no quota set. Allocate it.
+              resources += resource;
+              continue;
+            }
+
+            // Currently, we guarantee that quota resources are scalars.
+            CHECK_EQ(resource.type(), Value::SCALAR);
+
+            Option<Value::Scalar> newUnsatisfiedQuotaScalar =
+              (unsatisfiedQuota -
+                newQuotaAllocation.createStrippedScalarQuantity())
+                  .get<Value::Scalar>(resource.name());
+
+            if (newUnsatisfiedQuotaScalar.isNone()) {
+              // Quota for this resource has been satisfied.
+              continue;
+            }
+
+            const Value::Scalar& resourceScalar = resource.scalar();
+
+            if (resourceScalar <= newUnsatisfiedQuotaScalar.get()) {
+              // We can safely allocate `resource` entirely here without
+              // breaking the quota limit.
+              resources += resource;
+              newQuotaAllocation += resource;
+
+              continue;
+            }
+
+            // At this point, we need to chop `resource` to satisfy
+            // the quota. We chop `resource` by making a copy and
+            // shrinking its scalar value
+            Resource choppedResourceToAllocate = resource;
+            choppedResourceToAllocate.mutable_scalar()
+              ->CopyFrom(newUnsatisfiedQuotaScalar.get());
+
+            // Not all resources are choppable. Some resources such as MOUNT
+            // disk has to be offered entirely. We use resources `contains()`
+            // utility to verify this. Specifically, if a resource `contains()`
+            // a smaller version of itself, then it can be safely chopped.
+            if (!Resources(resource).contains(choppedResourceToAllocate)) {
+              continue;
+            }
+
+            resources += choppedResourceToAllocate;
+            newQuotaAllocation += choppedResourceToAllocate;
+          }
+        }
 
         // It is safe to break here, because all frameworks under a role would
         // consider the same resources, so in case we don't have allocatable
@@ -1716,6 +1804,8 @@ void HierarchicalAllocatorProcess::__allocate()
         // quota. This is fine since quota currently represents a guarantee.
         offerable[frameworkId][role][slaveId] += resources;
         offeredSharedResources[slaveId] += resources.shared();
+
+        unsatisfiedQuota -= newQuotaAllocation.createStrippedScalarQuantity();
 
         // Update the tracking of allocated reservations.
         //
