@@ -115,7 +115,7 @@ public:
     uriVolumeProfileConfigPath =
       path::join(sandbox.get(), "volume_profiles.json");
 
-    ASSERT_SOME(os::write(
+    Try<Nothing> write = os::write(
         uriVolumeProfileConfigPath,
         R"~(
         {
@@ -128,7 +128,9 @@ public:
             }
           }
         }
-        )~"));
+        )~");
+
+    ASSERT_SOME(write);
   }
 
   virtual void TearDown()
