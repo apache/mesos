@@ -413,6 +413,7 @@ void ReplicaProcess::promise(const UPID& from, const PromiseRequest& request)
       action.set_learned(true);
       action.set_type(Action::NOP);
       action.mutable_nop()->MergeFrom(Action::Nop());
+      action.mutable_nop()->set_tombstone(true);
 
       PromiseResponse response;
       response.set_type(PromiseResponse::ACCEPT);
@@ -731,6 +732,21 @@ bool ReplicaProcess::persist(const Action& action)
 
       // And update the beginning position.
       begin = std::max(begin, action.truncate().to());
+    } else if (action.has_type() && action.type() == Action::NOP &&
+               action.nop().has_tombstone() && action.nop().tombstone()) {
+      // No longer consider truncated positions as holes (so that a
+      // coordinator doesn't try and fill them).
+      holes -= (Bound<uint64_t>::open(0),
+                Bound<uint64_t>::open(action.position()));
+
+      // No longer consider truncated positions as unlearned (so that
+      // a coordinator doesn't try and fill them).
+      unlearned -= (Bound<uint64_t>::open(0),
+                    Bound<uint64_t>::open(action.position()));
+
+      // And update the beginning position. There must exist at least
+      // 1 position (TRUNCATE) in the log after the tombstone.
+      begin = std::max(begin, action.position() + 1);
     }
   } else {
     // We just introduced an unlearned position.

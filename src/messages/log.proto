@@ -54,7 +54,9 @@ message Action {
     TRUNCATE = 3;
   }
 
-  message Nop {}
+  message Nop {
+    optional bool tombstone = 1; // True if the position was truncated.
+  }
 
   message Append {
     required bytes bytes = 1;

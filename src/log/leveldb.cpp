@@ -243,6 +243,12 @@ Try<Storage::State> LevelDBStorage::restore(const string& path)
           state.unlearned.erase(action.position());
           if (action.has_type() && action.type() == Action::TRUNCATE) {
             state.begin = std::max(state.begin, action.truncate().to());
+          } else if (action.has_type() && action.type() == Action::NOP &&
+                     action.nop().has_tombstone() && action.nop().tombstone()) {
+            // If we see a tombstone, this position was truncated.
+            // There must exist at least 1 position (TRUNCATE) in the
+            // log after it.
+            state.begin = std::max(state.begin, action.position() + 1);
           }
         } else {
           state.learned.erase(action.position());
@@ -341,13 +347,31 @@ Try<Nothing> LevelDBStorage::persist(const Action& action)
   VLOG(1) << "Persisting action (" << value.size()
           << " bytes) to leveldb took " << stopwatch.elapsed();
 
-  // Delete positions if a truncate action has been *learned*. Note
-  // that we do this in a best-effort fashion (i.e., we ignore any
-  // failures to the database since we can always try again).
+  Option<uint64_t> truncateTo;
+
+  // Delete positions if a truncate action has been *learned*.
   if (action.has_type() && action.type() == Action::TRUNCATE &&
       action.has_learned() && action.learned()) {
     CHECK(action.has_truncate());
+    truncateTo = action.truncate().to();
+  }
 
+  // Delete positions if a tombstone NOP action has been *learned*.
+  if (action.has_type() && action.type() == Action::NOP &&
+      action.nop().has_tombstone() && action.nop().tombstone() &&
+      action.has_learned() && action.learned()) {
+    // We truncate the log up to the tombstone position instead of the
+    // next one to allow the recovery code to see the tombstone and
+    // learn about the truncation. It's OK to persist a tombstone NOP,
+    // because eventually we'll remove it once we see the actual
+    // TRUNCATE action.
+    truncateTo = action.position();
+  }
+
+  // Delete truncated positions. Note that we do this in a best-effort
+  // fashion (i.e., we ignore any failures to the database since we
+  // can always try again).
+  if (truncateTo.isSome()) {
     stopwatch.start(); // Restart the stopwatch.
 
     // To actually perform the truncation in leveldb we need to remove
@@ -378,7 +402,7 @@ Try<Nothing> LevelDBStorage::persist(const Action& action)
     // out of order) bulk catch-up and the truncate operation is
     // caught up first.
     uint64_t index = 0;
-    while ((first.get() + index) < action.truncate().to()) {
+    while ((first.get() + index) < truncateTo.get()) {
       batch.Delete(encode(first.get() + index));
       index++;
     }
@@ -393,8 +417,8 @@ Try<Nothing> LevelDBStorage::persist(const Action& action)
                      << status.ToString();
       } else {
         // Save the new first position!
-        CHECK_LT(first.get(), action.truncate().to());
-        first = action.truncate().to();
+        CHECK_LT(first.get(), truncateTo.get());
+        first = truncateTo.get();
 
         VLOG(1) << "Deleting ~" << index
                 << " keys from leveldb took " << stopwatch.elapsed();

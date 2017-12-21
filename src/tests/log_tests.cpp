@@ -1992,6 +1992,66 @@ TEST_F(RecoverTest, AutoInitializationRetry)
 }
 
 
+TEST_F(RecoverTest, CatchupTruncated)
+{
+  const string path1 = path::join(os::getcwd(), ".log1");
+  initializer.flags.path = path1;
+  ASSERT_SOME(initializer.execute());
+
+  const string path2 = path::join(os::getcwd(), ".log2");
+  initializer.flags.path = path2;
+  ASSERT_SOME(initializer.execute());
+
+  const string path3 = path::join(os::getcwd(), ".log3");
+
+  Shared<Replica> replica1(new Replica(path1));
+  Shared<Replica> replica2(new Replica(path2));
+
+  set<UPID> pids{replica1->pid(), replica2->pid()};
+  Shared<Network> network1(new Network(pids));
+
+  Coordinator coord(2, replica1, network1);
+  Future<Option<uint64_t>> electing = coord.elect();
+  AWAIT_READY(electing);
+  EXPECT_SOME_EQ(0u, electing.get());
+
+  // Add some positions to the log.
+  IntervalSet<uint64_t> positions;
+  for (uint64_t position = 1; position <= 10; position++) {
+    Future<Option<uint64_t>> appending = coord.append(stringify(position));
+    AWAIT_READY(appending);
+    EXPECT_SOME_EQ(position, appending.get());
+    positions += position;
+  }
+
+  // Truncate the log.
+  Future<Option<uint64_t>> truncating = coord.truncate(5);
+  AWAIT_READY(truncating);
+  EXPECT_SOME_EQ(11u, truncating.get());
+
+  Shared<Replica> replica3(new Replica(path3));
+
+  pids.insert(replica3->pid());
+  Shared<Network> network2(new Network(pids));
+
+  // Pretend we recovered stale 'begin' position of the log before
+  // truncation has happened.
+  Future<Nothing> catching = catchup(
+      2, replica3, network2, None(), positions, Seconds(10));
+  AWAIT_READY(catching);
+
+  AWAIT_EXPECT_EQ(5u, replica3->beginning());
+  AWAIT_EXPECT_EQ(10u, replica3->ending());
+
+  // Recreate the replica to verify that storage recovery succeeds.
+  replica3.reset();
+  replica3.reset(new Replica(path3));
+
+  AWAIT_EXPECT_EQ(5u, replica3->beginning());
+  AWAIT_EXPECT_EQ(10u, replica3->ending());
+}
+
+
 class LogTest : public TemporaryDirectoryTest
 {
 protected:
