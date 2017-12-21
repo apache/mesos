@@ -105,10 +105,10 @@ message ResourceProviderID {
 
 
 /**
- * A framework-generated ID to distinguish an offer operation. The ID
+ * A framework-generated ID to distinguish an operation. The ID
  * must be unique within the framework.
  */
-message OfferOperationID {
+message OperationID {
   required string value = 1;
 }
 
@@ -718,7 +718,7 @@ message ExecutorInfo {
     // 1) `command` must not be set when using a default executor.
     //
     // 2) Default executor only accepts a *single* `LAUNCH` or `LAUNCH_GROUP`
-    //    offer operation.
+    //    operation.
     //
     // 3) If `container` is set, `container.type` must be `MESOS`
     //    and `container.mesos.image` must not be set.
@@ -731,12 +731,12 @@ message ExecutorInfo {
   }
 
   // For backwards compatibility, if this field is not set when using `LAUNCH`
-  // offer operation, Mesos will infer the type by checking if `command` is
+  // operation, Mesos will infer the type by checking if `command` is
   // set (`CUSTOM`) or unset (`DEFAULT`). `type` must be set when using
-  // `LAUNCH_GROUP` offer operation.
+  // `LAUNCH_GROUP` operation.
   //
   // TODO(vinod): Add support for explicitly setting `type` to `DEFAULT `
-  // in `LAUNCH` offer operation.
+  // in `LAUNCH` operation.
   optional Type type = 15;
 
   required ExecutorID executor_id = 1;
@@ -983,7 +983,7 @@ message AgentInfo {
       // (1) The ability to report resources that are provided by some
       //     local resource providers through the resource provider API.
       //
-      // (2) The ability to provide offer operations feedback.
+      // (2) The ability to provide operation feedback.
       RESOURCE_PROVIDER = 4;
     }
 
@@ -1066,7 +1066,7 @@ message ResourceProviderInfo {
   // The stack of default reservations. If this field is not empty, it
   // indicates that resources from this resource provider are reserved
   // by default, except for the resources that have been reserved or
-  // unreserved through offer operations. The first `ReservationInfo`
+  // unreserved through operations. The first `ReservationInfo`
   // may have type `STATIC` or `DYNAMIC`, but the rest must have
   // `DYNAMIC`. One can create a new reservation on top of an existing
   // one by pushing a new `ReservationInfo` to the back. The last
@@ -1958,9 +1958,9 @@ message Offer {
     optional Type type = 1;
 
     // NOTE: The `id` field will allow frameworks to indicate that they wish to
-    // receive feedback about an offer operation. Since this feature is not yet
+    // receive feedback about an operation. Since this feature is not yet
     // implemented, the `id` field should NOT be set at present. See MESOS-8054.
-    optional OfferOperationID id = 12; // Experimental.
+    optional OperationID id = 12; // Experimental.
 
     optional Launch launch = 2;
     optional LaunchGroup launch_group = 7;
@@ -2240,69 +2240,65 @@ message UUID {
 
 
 /**
- * Describes an offer operation, similar to `Offer.Operation`, with
+ * Describes an operation, similar to `Offer.Operation`, with
  * some additional information.
  */
-message OfferOperation {
+message Operation {
   optional FrameworkID framework_id = 1;
   optional AgentID agent_id = 2;
   required Offer.Operation info = 3;
-  required OfferOperationStatus latest_status = 4;
+  required OperationStatus latest_status = 4;
 
-  // All the statuses known to this offer operation. Some of the
-  // statuses in this list might not have been acknowledged yet. The
-  // statuses are ordered.
-  repeated OfferOperationStatus statuses = 5;
+  // All the statuses known to this operation. Some of the statuses in this
+  // list might not have been acknowledged yet. The statuses are ordered.
+  repeated OperationStatus statuses = 5;
 
-  // This is the internal UUID for the operation, which is kept
-  // independently from the framework-specified operation ID, which is
-  // optional.
-  required UUID operation_uuid = 6;
+  // This is the internal UUID for the operation, which is kept independently
+  // from the framework-specified operation ID, which is optional.
+  required UUID uuid = 6;
 }
 
 
 /**
- * Describes possible offer operation states.
+ * Describes possible operation states.
  */
-enum OfferOperationState {
+enum OperationState {
   // Default value if the enum is not set. See MESOS-4997.
-  OFFER_OPERATION_UNSUPPORTED = 0;
+  OPERATION_UNSUPPORTED = 0;
 
   // Initial state.
-  OFFER_OPERATION_PENDING = 1;
+  OPERATION_PENDING = 1;
 
-  // The operation was successfully applied.
-  // This state is terminal.
-  OFFER_OPERATION_FINISHED = 2;
+  // TERMINAL: The operation was successfully applied.
+  OPERATION_FINISHED = 2;
 
-  // The operation failed to apply.
-  // This state is terminal.
-  OFFER_OPERATION_FAILED = 3;
+  // TERMINAL: The operation failed to apply.
+  OPERATION_FAILED = 3;
 
-  // The operation description contains an error.
-  OFFER_OPERATION_ERROR = 4;
+  // TERMINAL: The operation description contains an error.
+  OPERATION_ERROR = 4;
 
-  // The operation was dropped due to a transient error.
-  OFFER_OPERATION_DROPPED = 5;
+  // TERMINAL: The operation was dropped due to a transient error.
+  OPERATION_DROPPED = 5;
 }
 
 
 /**
- * Describes the current status of an offer operation.
+ * Describes the current status of an operation.
  */
-message OfferOperationStatus {
-  optional OfferOperationID operation_id = 1;
-  required OfferOperationState state = 2;
+message OperationStatus {
+  optional OperationID operation_id = 1;
+  required OperationState state = 2;
   optional string message = 3;
 
   // Converted resources after applying the operation. This only
-  // applies if the `state` is `OFFER_OPERATION_FINISHED`.
+  // applies if the `state` is `OPERATION_FINISHED`.
   repeated Resource converted_resources = 4;
 
   // Statuses that are delivered reliably to the scheduler will
-  // include a `status_uuid`. The status is considered delivered once
+  // include a `uuid`. The status is considered delivered once
   // it is acknowledged by the scheduler.
-  optional UUID status_uuid = 5;
+  optional UUID uuid = 5;
 }
 
 

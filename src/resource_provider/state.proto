@@ -28,7 +28,7 @@ message ResourceProviderState {
   // This includes only pending operations. Operations that have
   // unacknowledged statuses should be recovered through the status
   // update manager.
-  repeated OfferOperation operations = 1;
+  repeated Operation operations = 1;
 
   // The total resources provided by this resource provider.
   repeated Resource resources = 2;

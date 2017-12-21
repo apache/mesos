@@ -32,11 +32,11 @@ message Event {
     // in a backwards-compatible way. See: MESOS-4997.
     UNKNOWN = 0;
 
-    SUBSCRIBED = 1;                  // See 'Subscribed' below.
-    APPLY_OFFER_OPERATION = 2;       // See 'ApplyOfferOperation' below.
-    PUBLISH_RESOURCES = 3;           // See 'PublishResources' below.
-    ACKNOWLEDGE_OFFER_OPERATION = 4; // See 'AcknowledgeOfferOperation' below.
-    RECONCILE_OFFER_OPERATIONS = 5;  // See 'ReconcileOfferOperations' below.
+    SUBSCRIBED = 1;                   // See 'Subscribed' below.
+    APPLY_OPERATION = 2;              // See 'ApplyOperation' below.
+    PUBLISH_RESOURCES = 3;            // See 'PublishResources' below.
+    ACKNOWLEDGE_OPERATION_STATUS = 4; // See 'AcknowledgeOperationStatus' below.
+    RECONCILE_OPERATIONS = 5;         // See 'ReconcileOperations' below.
   }
 
   // First event received by the resource provider when it subscribes
@@ -47,7 +47,7 @@ message Event {
 
   // Received when the master wants to send an operation to the
   // resource provider.
-  message ApplyOfferOperation {
+  message ApplyOperation {
     optional FrameworkID framework_id = 1;
     required Offer.Operation info = 2;
 
@@ -78,30 +78,30 @@ message Event {
     repeated Resource resources = 2;
   }
 
-  // Received when an offer operation status update is being acknowledged.
+  // Received when an operation status update is being acknowledged.
   // Acknowledgements may be generated either by a framework or by the master.
-  message AcknowledgeOfferOperation {
-    // The UUID from the `OfferOperationStatus` being acknowledged.
+  message AcknowledgeOperationStatus {
+    // The UUID from the `OperationStatus` being acknowledged.
     required UUID status_uuid = 1;
 
-    // The UUID from the relevant `OfferOperation`.
+    // The UUID from the relevant `Operation`.
     required UUID operation_uuid = 2;
   }
 
   // Received when the resource provider manager wants to reconcile its view of
-  // the resource provider's offer operation state. The resource provider should
-  // generate offer operation status updates for any operation UUIDs in this
-  // message which are unknown to the resource provider.
-  message ReconcileOfferOperations {
+  // the resource provider's operation state. The resource provider should
+  // generate operation status updates for any operation UUIDs in this message
+  // which are unknown to the resource provider.
+  message ReconcileOperations {
     repeated UUID operation_uuids = 1;
   }
 
   optional Type type = 1;
   optional Subscribed subscribed = 2;
-  optional ApplyOfferOperation apply_offer_operation = 3;
+  optional ApplyOperation apply_operation = 3;
   optional PublishResources publish_resources = 4;
-  optional AcknowledgeOfferOperation acknowledge_offer_operation = 5;
-  optional ReconcileOfferOperations reconcile_offer_operations = 6;
+  optional AcknowledgeOperationStatus acknowledge_operation_status = 5;
+  optional ReconcileOperations reconcile_operations = 6;
 }
 
 
@@ -114,7 +114,7 @@ message Call {
     UNKNOWN = 0;
 
     SUBSCRIBE = 1;                       // See 'Subscribe'.
-    UPDATE_OFFER_OPERATION_STATUS = 2;   // See 'UpdateOfferOperationStatus'.
+    UPDATE_OPERATION_STATUS = 2;         // See 'UpdateOperationStatus'.
     UPDATE_STATE = 3;                    // See 'UpdateState'.
     UPDATE_PUBLISH_RESOURCES_STATUS = 4; // See 'UpdatePublishResourcesStatus'.
   }
@@ -125,10 +125,10 @@ message Call {
   }
 
   // Notify the master about the status of an operation.
-  message UpdateOfferOperationStatus {
+  message UpdateOperationStatus {
     optional FrameworkID framework_id = 1;
-    required OfferOperationStatus status = 2;
-    optional OfferOperationStatus latest_status = 3;
+    required OperationStatus status = 2;
+    optional OperationStatus latest_status = 3;
 
     // This is the internal UUID for the operation, which is kept
     // independently from the framework specified operation id, which is
@@ -140,7 +140,7 @@ message Call {
   message UpdateState {
     // This includes pending operations and those that have
     // unacknowledged statuses.
-    repeated OfferOperation operations = 1;
+    repeated Operation operations = 1;
 
     // The total resources provided by this resource provider.
     repeated Resource resources = 2;
@@ -183,7 +183,7 @@ message Call {
 
   optional Type type = 2;
   optional Subscribe subscribe = 3;
-  optional UpdateOfferOperationStatus update_offer_operation_status = 4;
+  optional UpdateOperationStatus update_operation_status = 4;
   optional UpdateState update_state = 5;
   optional UpdatePublishResourcesStatus update_publish_resources_status = 6;
 }
