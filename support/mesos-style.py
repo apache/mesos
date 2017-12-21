@@ -410,10 +410,6 @@ def should_build_virtualenv(modified_files):
     have changed or if the support script is run with no
     arguments (meaning that the entire codebase should be linted).
     """
-    if not os.path.isdir(os.path.join('support', '.virtualenv')):
-        print 'Virtualenv not detected... building'
-        return True
-
     # NOTE: If the file list is empty, we are linting the entire
     # codebase. We should always rebuild the virtualenv in this case.
     if not modified_files:
@@ -428,6 +424,20 @@ def should_build_virtualenv(modified_files):
     if 'build-virtualenv' in basenames:
         print 'The "build-virtualenv" file has changed.'
         return True
+
+    # The JS and Python linters require a virtual environment.
+    # If all the files modified are not JS or Python files,
+    # we do not need to build the virtual environment.
+    # TODO(ArmandGrillet): There should be no duplicated logic to know
+    # which linters to instantiate depending on the files to analyze.
+    if not os.path.isdir(os.path.join('support', '.virtualenv')):
+        js_and_python_files = [JsLinter().source_files, PyLinter().source_files]
+        js_and_python_files_regex = re.compile('|'.join(js_and_python_files))
+
+        for basename in basenames:
+            if js_and_python_files_regex.search(basename) is not None:
+                print 'Virtualenv not detected and required... building'
+                return True
 
     return False
 
@@ -456,6 +466,9 @@ def build_virtualenv():
 if __name__ == '__main__':
     if should_build_virtualenv(sys.argv[1:]):
         build_virtualenv()
+
+    # TODO(ArmandGrillet): We should only instantiate the linters
+    # required to lint the files to analyze. See MESOS-8351.
     CPP_LINTER = CppLinter()
     CPP_ERRORS = CPP_LINTER.main(sys.argv[1:])
     JS_LINTER = JsLinter()
