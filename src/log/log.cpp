@@ -36,6 +36,7 @@
 #include <stout/nothing.hpp>
 #include <stout/set.hpp>
 
+#include "log/catchup.hpp"
 #include "log/coordinator.hpp"
 #include "log/network.hpp"
 #include "log/recover.hpp"
@@ -287,6 +288,8 @@ void LogProcess::discarded()
 
 LogReaderProcess::LogReaderProcess(Log* log)
   : ProcessBase(ID::generate("log-reader")),
+    quorum(log->process->quorum),
+    network(log->process->network),
     recovering(dispatch(log->process, &LogProcess::recover)) {}
 
 
@@ -428,6 +431,21 @@ Future<list<Log::Entry>> LogReaderProcess::__read(
   }
 
   return entries;
+}
+
+
+Future<Log::Position> LogReaderProcess::catchup()
+{
+  return recover().then(defer(self(), &Self::_catchup));
+}
+
+
+Future<Log::Position> LogReaderProcess::_catchup()
+{
+  CHECK_READY(recovering);
+
+  return log::catchup(quorum, recovering.get(), network)
+    .then([](uint64_t end) { return Log::Position(end); });
 }
 
 
@@ -711,6 +729,12 @@ Future<Log::Position> Log::Reader::beginning()
 Future<Log::Position> Log::Reader::ending()
 {
   return dispatch(process, &LogReaderProcess::ending);
+}
+
+
+Future<Log::Position> Log::Reader::catchup()
+{
+  return dispatch(process, &LogReaderProcess::catchup);
 }
 
 

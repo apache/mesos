@@ -148,6 +148,10 @@ public:
     // partitioned).
     process::Future<Position> ending();
 
+    // Launches the catch-up process. Returns the ending position of
+    // the caught-up range.
+    process::Future<Position> catchup();
+
   private:
     internal::log::LogReaderProcess* process;
   };

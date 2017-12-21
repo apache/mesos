@@ -2384,6 +2384,63 @@ TEST_F(LogTest, Metrics)
 }
 
 
+TEST_F(LogTest, ReaderCatchup)
+{
+  const string path1 = os::getcwd() + "/.log1";
+  initializer.flags.path = path1;
+  ASSERT_SOME(initializer.execute());
+
+  const string path2 = os::getcwd() + "/.log2";
+  initializer.flags.path = path2;
+  ASSERT_SOME(initializer.execute());
+
+  const string path3 = os::getcwd() + "/.log3";
+  initializer.flags.path = path3;
+  ASSERT_SOME(initializer.execute());
+
+  Shared<Replica> replica1(new Replica(path1));
+  Shared<Replica> replica2(new Replica(path2));
+
+  set<UPID> pids{replica1->pid(), replica2->pid()};
+  Shared<Network> network(new Network(pids));
+
+  Coordinator coord(2, replica2, network);
+
+  Future<Option<uint64_t>> electing = coord.elect();
+  AWAIT_READY(electing);
+  EXPECT_SOME_EQ(0u, electing.get());
+
+  // Add some entries to the log.
+  for (uint64_t position = 1; position <= 10; position++) {
+    Future<Option<uint64_t>> appending = coord.append(stringify(position));
+    AWAIT_READY(appending);
+    EXPECT_SOME_EQ(position, appending.get());
+  }
+
+  Log log3(2, path3, pids);
+  Log::Reader reader(&log3);
+
+  // Catch-up the replica that missed positions adding.
+  Future<Log::Position> end = reader.catchup();
+  AWAIT_READY(end);
+
+  Future<Log::Position> begin = reader.beginning();
+  AWAIT_READY(begin);
+
+  // We expect to read 9 entries instead of 10, because the catch-up
+  // procedure doesn't catch-up the last recovered position. See
+  // comments for RecoverMissingProcess.
+  Future<list<Log::Entry>> entries = reader.read(begin.get(), end.get());
+  AWAIT_READY(entries);
+  ASSERT_EQ(9u, entries->size());
+
+  uint64_t position = 1;
+  foreach (const Log::Entry& entry, entries.get()) {
+    EXPECT_EQ(stringify(position++), entry.data);
+  }
+}
+
+
 #ifdef MESOS_HAS_JAVA
 // TODO(jieyu): We copy the code from TemporaryDirectoryTest here
 // because we cannot inherit from two test fixtures. In this future,

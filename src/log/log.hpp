@@ -128,6 +128,8 @@ public:
       const mesos::log::Log::Position& from,
       const mesos::log::Log::Position& to);
 
+  process::Future<mesos::log::Log::Position> catchup();
+
 protected:
   virtual void initialize();
   virtual void finalize();
@@ -154,6 +156,11 @@ private:
       const mesos::log::Log::Position& from,
       const mesos::log::Log::Position& to,
       const std::list<Action>& actions);
+
+  process::Future<mesos::log::Log::Position> _catchup();
+
+  const size_t quorum;
+  const process::Shared<Network> network;
 
   process::Future<process::Shared<Replica>> recovering;
   std::list<process::Promise<Nothing>*> promises;
