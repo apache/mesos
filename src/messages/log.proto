@@ -65,7 +65,7 @@ message Action {
     required uint64 to = 1; // All positions before and exclusive of 'to'.
   }
 
-  optional Type type = 5; // Set iff performed is set.
+  optional Type type = 5; // Set if performed is set.
   optional Nop nop = 6;
   optional Append append = 7;
   optional Truncate truncate = 8;
