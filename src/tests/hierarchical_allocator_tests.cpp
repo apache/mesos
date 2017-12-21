@@ -3387,6 +3387,106 @@ TEST_F(HierarchicalAllocatorTest, QuotaAllocationGranularity)
   // NO_QUOTA_ROLE  (cpus=0.5, mem=312)
 }
 
+// While quota allocation should be fine-grained, some resources are
+// unchoppable. They have to be offered entirely. This test verifies
+// one of the cases: disk resource of type MOUNT.
+TEST_F(HierarchicalAllocatorTest, QuotaAllocationGranularityUnchoppableResource)
+{
+  Clock::pause();
+  initialize();
+
+  const string QUOTA_ROLE{"quota-role"};
+
+  const Quota quota = createQuota(QUOTA_ROLE, "cpus:2;mem:2048;disk:150");
+  allocator->setQuota(QUOTA_ROLE, quota);
+
+  // Create 100 disk resource of type MOUNT.
+  Resources mountDiskResource =
+    createDiskResource("100", "*", None(), None(),
+      createDiskSourceMount(), false);
+
+  Resources agentResources =
+    Resources::parse("cpus:0.5;mem:512").get() + mountDiskResource;
+
+  SlaveInfo agent1 = createSlaveInfo(agentResources);
+  allocator->addSlave(
+      agent1.id(),
+      agent1,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent1.resources(),
+      {});
+
+  // Create `framework` under `QUOTA_ROLE`.
+  // This will tigger an event-driven allocation loop.
+  FrameworkInfo framework = createFrameworkInfo({QUOTA_ROLE});
+  allocator->addFramework(framework.id(), framework, {}, true, {});
+
+  Clock::settle();
+
+  // `framework` will get all resources of `agent1` because it is the only
+  // framework.
+  Allocation expected = Allocation(
+      framework.id(),
+      {{QUOTA_ROLE, {{agent1.id(), agent1.resources()}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocations.get());
+
+  // Quota: "cpus:2;mem:2048;disk:150".
+  // Allocated quota: "cpus:0.5;mem:512;disk:100".
+
+  // Add `agent2` with identical resources.
+  // This will trigger an event-driven allocation for `agent2`.
+  SlaveInfo agent2 = createSlaveInfo(agentResources);
+  allocator->addSlave(
+      agent2.id(),
+      agent2,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent2.resources(),
+      {});
+
+  Clock::settle();
+
+  // `framework` will get all resources of `agent2` except the disk.
+  // Because the unsatisfied disk quota of `QUOTA_ROLE` is 50 and
+  // there is 100 MOUNT disk on `agent2` which cannot be chopped.
+  expected = Allocation(framework.id(),
+      {{QUOTA_ROLE, {{agent2.id(), agent2.resources() - mountDiskResource}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocations.get());
+
+  // Quota: "cpus:2;mem:2048;disk:150".
+  // Allocated quota: "cpus:1;mem:1024;disk:100".
+
+  Resources allocatedQuota =
+    agent1.resources() + agent2.resources() - mountDiskResource;
+
+  // Create `agent3` that has enough resources to meet `QUOTA_ROLE` quota.
+  // This disk resource of agent3 can be chopped to meet `QUOTA_ROLE` quota
+  SlaveInfo agent3 = createSlaveInfo("cpus:2;mem:2048;disk:150");
+  allocator->addSlave(
+      agent3.id(),
+      agent3,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent3.resources(),
+      {});
+
+  Clock::settle();
+
+  expected = Allocation(framework.id(),
+      {{QUOTA_ROLE, {{agent3.id(),
+        quota.info.guarantee() -
+          allocatedQuota.createStrippedScalarQuantity()}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocations.get());
+
+  // Quota: "cpus:2;mem:2048;disk:150".
+  // Allocated quota: "cpus:2;mem:2048;disk:150",
+  // out of the 150 disk resource, 100 is MOUNT type, 50 is default type.
+}
+
 
 // This test verifies, that the free pool (what is left after all quotas
 // are satisfied) is allocated according to the DRF algorithm across the roles
