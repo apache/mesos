@@ -1536,6 +1536,97 @@ void HierarchicalAllocatorProcess::__allocate()
     }
   }
 
+  // We need to constantly make sure that we are holding back enough unreserved
+  // resources that the remaining quota can later be satisfied when needed:
+  //
+  //   Required unreserved headroom =
+  //     sum (unsatisfied quota(r) - unallocated reservations(r))
+  //       for each quota role r
+  //
+  // Given the above, if a role has more reservations than quota,
+  // we don't need to hold back any unreserved headroom for it.
+  Resources requiredHeadroom;
+  foreachpair (const string& role, const Quota& quota, quotas) {
+    // NOTE: Revocable resources are excluded in `quotaRoleSorter`.
+    // NOTE: Only scalars are considered for quota.
+    // NOTE: The following should all be quantities with no meta-data!
+    Resources allocated = getQuotaRoleAllocatedResources(role);
+    const Resources guarantee = quota.info.guarantee();
+
+    if (allocated.contains(guarantee)) {
+      continue; // Quota already satisifed.
+    }
+
+    Resources unallocated = guarantee - allocated;
+
+    Resources unallocatedReservations =
+      reservationScalarQuantities.get(role).getOrElse(Resources()) -
+      allocatedReservationScalarQuantities.get(role).getOrElse(Resources());
+
+    requiredHeadroom += unallocated - unallocatedReservations;
+  }
+
+  // We will allocate resources while ensuring that the required
+  // unreserved non-revocable headroom is still available. Otherwise,
+  // we will not be able to satisfy quota later.
+  //
+  //   available headroom = unallocated unreserved non-revocable resources
+  //
+  // We compute this as:
+  //
+  //   available headroom = total resources -
+  //                        allocated resources -
+  //                        unallocated reservations -
+  //                        unallocated revocable resources
+
+  // NOTE: `totalScalarQuantities` omits dynamic reservation,
+  // persistent volume info, and allocation info. We additionally
+  // remove the static reservations here via `toUnreserved()`.
+  Resources availableHeadroom =
+    roleSorter->totalScalarQuantities().toUnreserved();
+
+  // Subtract allocated resources from the total.
+  foreachkey (const string& role, roles) {
+    // NOTE: `totalScalarQuantities` omits dynamic reservation,
+    // persistent volume info, and allocation info. We additionally
+    // remove the static reservations here via `toUnreserved()`.
+    availableHeadroom -=
+      roleSorter->allocationScalarQuantities(role).toUnreserved();
+  }
+
+  // Subtract all unallocated reservations.
+  foreachkey (const string& role, reservationScalarQuantities) {
+    hashmap<SlaveID, Resources> allocations;
+    if (quotaRoleSorter->contains(role)) {
+      allocations = quotaRoleSorter->allocation(role);
+    } else if (roleSorter->contains(role)) {
+      allocations = roleSorter->allocation(role);
+    }
+
+    Resources unallocatedReservations =
+      reservationScalarQuantities.get(role).getOrElse(Resources());
+
+    foreachvalue (const Resources& resources, allocations) {
+      // NOTE: `totalScalarQuantities` omits dynamic reservation,
+      // persistent volume info, and allocation info. We additionally
+      // remove the static reservations here via `toUnreserved()`.
+      unallocatedReservations -=
+        resources.reserved().createStrippedScalarQuantity().toUnreserved();
+    }
+
+    // Subtract the unallocated reservations for this role from the headroom.
+    availableHeadroom -= unallocatedReservations;
+  }
+
+  // Subtract revocable resources.
+  foreachvalue (const Slave& slave, slaves) {
+    // NOTE: `totalScalarQuantities` omits dynamic reservation,
+    // persistent volume info, and allocation info. We additionally
+    // remove the static reservations here via `toUnreserved()`.
+    availableHeadroom -= slave.available().revocable()
+      .createStrippedScalarQuantity().toUnreserved();
+  }
+
   // Due to the two stages in the allocation algorithm and the nature of
   // shared resources being re-offerable even if already allocated, the
   // same shared resources can appear in two (and not more due to the
@@ -1807,6 +1898,12 @@ void HierarchicalAllocatorProcess::__allocate()
 
         unsatisfiedQuota -= newQuotaAllocation.createStrippedScalarQuantity();
 
+        // Track quota headroom change.
+        Resources headroomDelta =
+          resources.unreserved().createStrippedScalarQuantity();
+        requiredHeadroom -= headroomDelta;
+        availableHeadroom -= headroomDelta;
+
         // Update the tracking of allocated reservations.
         //
         // Note it is important to do this before updating `slave.allocated`
@@ -1829,101 +1926,12 @@ void HierarchicalAllocatorProcess::__allocate()
     }
   }
 
-  // Frameworks in a quota'ed role may temporarily reject resources by
-  // filtering or suppressing offers. Hence, quotas may not be fully
-  // allocated and if so we need to hold back enough unreserved
-  // resources to ensure the quota can later be satisfied when needed:
-  //
-  //   Required unreserved headroom =
-  //     sum (unsatisfied quota(r) - unallocated reservations(r))
-  //       for each quota role r
-  //
-  // Given the above, if a role has more reservations than quota,
-  // we don't need to hold back any unreserved headroom for it.
-  Resources requiredHeadroom;
-  foreachpair (const string& role, const Quota& quota, quotas) {
-    // NOTE: Revocable resources are excluded in `quotaRoleSorter`.
-    // NOTE: Only scalars are considered for quota.
-    // NOTE: The following should all be quantities with no meta-data!
-    Resources allocated = getQuotaRoleAllocatedResources(role);
-    const Resources guarantee = quota.info.guarantee();
-
-    if (allocated.contains(guarantee)) {
-      continue; // Quota already satisifed.
-    }
-
-    Resources unallocated = guarantee - allocated;
-
-    Resources unallocatedReservations =
-      reservationScalarQuantities.get(role).getOrElse(Resources()) -
-      allocatedReservationScalarQuantities.get(role).getOrElse(Resources());
-
-    requiredHeadroom += unallocated - unallocatedReservations;
-  }
-
-  // We will allocate resources while ensuring that the required
-  // unreserved non-revocable headroom is still available. Otherwise,
-  // we will not be able to satisfy quota later. Reservations to
+  // Similar to the first stage, we will allocate resources while ensuring
+  // that the required unreserved non-revocable headroom is still available.
+  // Otherwise, we will not be able to satisfy quota later. Reservations to
   // non-quota roles and revocable resources will always be included
   // in the offers since these are not part of the headroom (and
   // therefore can't be used to satisfy quota).
-  //
-  //   available headroom = unallocated unreserved non-revocable resources
-  //
-  // We compute this as:
-  //
-  //   available headroom = total resources -
-  //                        allocated resources -
-  //                        unallocated reservations -
-  //                        unallocated revocable resources
-
-  // NOTE: `totalScalarQuantities` omits dynamic reservation,
-  // persistent volume info, and allocation info. We additionally
-  // remove the static reservations here via `toUnreserved()`.
-  Resources availableHeadroom =
-    roleSorter->totalScalarQuantities().toUnreserved();
-
-  // Subtract allocated resources from the total.
-  foreachkey (const string& role, roles) {
-    // NOTE: `totalScalarQuantities` omits dynamic reservation,
-    // persistent volume info, and allocation info. We additionally
-    // remove the static reservations here via `toUnreserved()`.
-    availableHeadroom -=
-      roleSorter->allocationScalarQuantities(role).toUnreserved();
-  }
-
-  // Subtract all unallocated reservations.
-  foreachkey (const string& role, reservationScalarQuantities) {
-    hashmap<SlaveID, Resources> allocations;
-    if (quotaRoleSorter->contains(role)) {
-      allocations = quotaRoleSorter->allocation(role);
-    } else if (roleSorter->contains(role)) {
-      allocations = roleSorter->allocation(role);
-    }
-
-    Resources unallocatedReservations =
-      reservationScalarQuantities.get(role).getOrElse(Resources());
-
-    foreachvalue (const Resources& resources, allocations) {
-      // NOTE: `totalScalarQuantities` omits dynamic reservation,
-      // persistent volume info, and allocation info. We additionally
-      // remove the static reservations here via `toUnreserved()`.
-      unallocatedReservations -=
-        resources.reserved().createStrippedScalarQuantity().toUnreserved();
-    }
-
-    // Subtract the unallocated reservations for this role from the headroom.
-    availableHeadroom -= unallocatedReservations;
-  }
-
-  // Subtract revocable resources.
-  foreachvalue (const Slave& slave, slaves) {
-    // NOTE: `totalScalarQuantities` omits dynamic reservation,
-    // persistent volume info, and allocation info. We additionally
-    // remove the static reservations here via `toUnreserved()`.
-    availableHeadroom -= slave.available().revocable()
-      .createStrippedScalarQuantity().toUnreserved();
-  }
 
   foreach (const SlaveID& slaveId, slaveIds) {
     foreach (const string& role, roleSorter->sort()) {
