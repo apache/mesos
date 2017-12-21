@@ -808,9 +808,11 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlaveNotPartitionAware)
 // not. Both tasks should survive the reregistration of the partitioned
 // agent: we allow the non-partition-aware task to continue running for
 // backward compatibility with the "non-strict" Mesos 1.0 behavior.
+//
+// TODO(alexr): Re-enable once MESOS-8334 is resolved.
 TEST_F_TEMP_DISABLED_ON_WINDOWS(
     PartitionTest,
-    PartitionedSlaveReregistrationMasterFailover)
+    DISABLED_PartitionedSlaveReregistrationMasterFailover)
 {
   Clock::pause();
 
