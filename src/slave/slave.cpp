@@ -3006,20 +3006,28 @@ void Slave::launchExecutor(
     containerConfig.set_user(executor->user.get());
   }
 
+  // For both of the following cases, `ExecutorInfo.container` is what
+  // we want to tell the containerizer about the container to be
+  // launched:
+  // (1) If this is a command task case (i.e., the framework specifies
+  //     the `TaskInfo` but not `ExecutorInfo`), the
+  //     `ExecutorInfo.container` is already copied from
+  //     `TaskInfo.container` in `Slave::getExecutorInfo`. As a
+  //     result, we should just inform the containerizer about
+  //     `ExecutorInfo.container`.
+  // (2) If this is a non command task (e.g., default executor, custom
+  //     executor), the `ExecutorInfo.container` is what we want to
+  //     tell the containerizer anyway.
   if (executorInfo_.has_container()) {
-      containerConfig.mutable_container_info()
-          ->CopyFrom(executorInfo_.container());
+    containerConfig.mutable_container_info()
+      ->CopyFrom(executorInfo_.container());
   }
 
   if (executor->isCommandExecutor()) {
-    if (taskInfo.isSome()) {
-      containerConfig.mutable_task_info()->CopyFrom(taskInfo.get());
+    CHECK_SOME(taskInfo)
+      << "Command (or Docker) executor does not support task group";
 
-      if (taskInfo.get().has_container()) {
-        containerConfig.mutable_container_info()
-          ->CopyFrom(taskInfo.get().container());
-      }
-    }
+    containerConfig.mutable_task_info()->CopyFrom(taskInfo.get());
   }
 
   // Prepare environment variables for the executor.
@@ -5460,26 +5468,6 @@ ExecutorInfo Slave::getExecutorInfo(
     executor.mutable_container()->CopyFrom(task.container());
   }
 
-  // TODO(jieyu): We should move those Mesos containerizer specific
-  // logic (e.g., 'hasRootfs') to Mesos containerizer.
-  bool hasRootfs = task.has_container() &&
-                   task.container().type() == ContainerInfo::MESOS &&
-                   task.container().mesos().has_image();
-
-  if (hasRootfs) {
-    ContainerInfo* container = executor.mutable_container();
-
-    // For command tasks, we are now copying the entire
-    // `task.container` into the `executorInfo`. Thus,
-    // `executor.container` now has the image if `task.container`
-    // had one. However, in the case of Mesos container with rootfs,
-    // we want to run the command executor in the host filesystem
-    // and let the command executor pivot_root to the rootfs for its
-    // task. For this reason, we need to strip the image in
-    // `executor.container.mesos`.
-    container->mutable_mesos()->clear_image();
-  }
-
   // Prepare an executor name which includes information on the
   // command being launched.
   string name = "(Task: " + task.task_id().value() + ") ";
@@ -5569,6 +5557,12 @@ ExecutorInfo Slave::getExecutorInfo(
     executor.mutable_command()->add_arguments(MESOS_EXECUTOR);
     executor.mutable_command()->add_arguments(
         "--launcher_dir=" + flags.launcher_dir);
+
+    // TODO(jieyu): We should move those Mesos containerizer specific
+    // logic (e.g., 'hasRootfs') to Mesos containerizer.
+    bool hasRootfs = task.has_container() &&
+                     task.container().type() == ContainerInfo::MESOS &&
+                     task.container().mesos().has_image();
 
     if (hasRootfs) {
       executor.mutable_command()->add_arguments(
@@ -8868,6 +8862,10 @@ Executor::Executor(
 {
   CHECK_NOTNULL(slave);
 
+  // TODO(jieyu): The way we determine if an executor is command
+  // executor (including docker executor) is really hacky. We rely on
+  // the fact that docker executor launch command is set in the docker
+  // containerizer so that this check is still valid in the slave.
   Result<string> executorPath =
     os::realpath(path::join(slave->flags.launcher_dir, MESOS_EXECUTOR));
 
