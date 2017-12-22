@@ -90,7 +90,9 @@ using process::http::UnsupportedMediaType;
 using std::string;
 using std::vector;
 
+using testing::DoAll;
 using testing::Eq;
+using testing::Invoke;
 using testing::SaveArg;
 using testing::Values;
 using testing::WithParamInterface;
@@ -1293,6 +1295,100 @@ TEST_P(ResourceProviderManagerHttpApiTest, ResourceProviderDisconnect)
 
     EXPECT_FALSE(totalResources.contains(devolve(disk)));
   }
+}
+
+
+// This test verifies that if a second resource provider subscribes
+// with the ID of an already connected resource provider, the first
+// instance gets disconnected and the second subscription is handled
+// as a resubscription.
+TEST_F(ResourceProviderManagerHttpApiTest, ResourceProviderSubscribeDisconnect)
+{
+  Clock::pause();
+
+  // Start master and agent.
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(agent);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  Clock::settle();
+  AWAIT_READY(updateSlaveMessage);
+
+  mesos::v1::ResourceProviderInfo resourceProviderInfo;
+  resourceProviderInfo.set_type("org.apache.mesos.rp.test");
+  resourceProviderInfo.set_name("test");
+
+  Owned<v1::MockResourceProvider> resourceProvider1(
+      new v1::MockResourceProvider(resourceProviderInfo));
+
+  // Start and register a resource provider.
+  string scheme = "http";
+
+#ifdef USE_SSL_SOCKET
+  if (process::network::openssl::flags().enabled) {
+    scheme = "https";
+  }
+#endif
+
+  http::URL url(
+      scheme,
+      agent.get()->pid.address.ip,
+      agent.get()->pid.address.port,
+      agent.get()->pid.id + "/api/v1/resource_provider");
+
+  Owned<EndpointDetector> endpointDetector(new ConstantEndpointDetector(url));
+
+  Future<Event::Subscribed> subscribed1;
+  EXPECT_CALL(*resourceProvider1, subscribed(_))
+    .WillOnce(FutureArg<0>(&subscribed1));
+
+  resourceProvider1->start(
+      endpointDetector,
+      ContentType::PROTOBUF,
+      v1::DEFAULT_CREDENTIAL);
+
+  AWAIT_READY(subscribed1);
+
+  resourceProviderInfo.mutable_id()->CopyFrom(subscribed1->provider_id());
+
+  // Subscribing a second resource provider with the same ID will
+  // disconnect the first instance and handle the subscription by the
+  // second resource provider as a resubscription.
+  Owned<v1::MockResourceProvider> resourceProvider2(
+      new v1::MockResourceProvider(resourceProviderInfo));
+
+  // We terminate the first resource provider once we have confirmed
+  // that it got disconnected. This avoids it to in turn resubscribe
+  // racing with the other resource provider.
+  Future<Nothing> disconnected1;
+  EXPECT_CALL(*resourceProvider1, disconnected())
+    .WillOnce(DoAll(
+        FutureSatisfy(&disconnected1),
+        Invoke([&resourceProvider1]() { resourceProvider1.reset(); })))
+    .WillRepeatedly(Return()); // Ignore spurious calls concurrent with `reset`.
+
+  Future<Event::Subscribed> subscribed2;
+  EXPECT_CALL(*resourceProvider2, subscribed(_))
+    .WillOnce(FutureArg<0>(&subscribed2));
+
+  resourceProvider2->start(
+      endpointDetector,
+      ContentType::PROTOBUF,
+      v1::DEFAULT_CREDENTIAL);
+
+  AWAIT_READY(disconnected1);
+  AWAIT_READY(subscribed2);
 }
 
 } // namespace tests {
