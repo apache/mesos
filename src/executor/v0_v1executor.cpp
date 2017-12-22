@@ -52,6 +52,7 @@ public:
       const function<void(const queue<Event>&)>& received)
     : ProcessBase(process::ID::generate("v0-to-v1-adapter")),
       callbacks {connected, disconnected, received},
+      connected(false),
       subscribeCall(false) {}
 
   virtual ~V0ToV1AdapterProcess() = default;
@@ -61,7 +62,10 @@ public:
       const mesos::FrameworkInfo& _frameworkInfo,
       const mesos::SlaveInfo& slaveInfo)
   {
-    callbacks.connected();
+    if (!connected) {
+      callbacks.connected();
+      connected = true;
+    }
 
     // We need these copies to populate the fields in `Event::Subscribed` upon
     // receiving a `reregistered()` callback later.
@@ -92,6 +96,7 @@ public:
     // disconnection from the agent.
     callbacks.disconnected();
     callbacks.connected();
+    connected = true;
 
     Event event;
     event.set_type(Event::SUBSCRIBED);
@@ -111,6 +116,17 @@ public:
 
   void killTask(const mesos::TaskID& taskId)
   {
+    // Logically an executor cannot receive any response from an agent if it
+    // is not connected. Since we have received `killTask`, we assume we are
+    // connected and trigger the `connected` callback to enable event delivery.
+    // This satisfies the invariant of the v1 interface that an executor can
+    // receive an event only after successfully connecting with the agent.
+    if (!connected) {
+      LOG(INFO) << "Implicitly connecting the executor to kill a task";
+      callbacks.connected();
+      connected = true;
+    }
+
     Event event;
     event.set_type(Event::KILL);
 
@@ -147,6 +163,17 @@ public:
 
   void shutdown()
   {
+    // Logically an executor cannot receive any response from an agent if it
+    // is not connected. Since we have received `shutdown`, we assume we are
+    // connected and trigger the `connected` callback to enable event delivery.
+    // This satisfies the invariant of the v1 interface that an executor can
+    // receive an event only after successfully connecting with the agent.
+    if (!connected) {
+      LOG(INFO) << "Implicitly connecting the executor to shut it down";
+      callbacks.connected();
+      connected = true;
+    }
+
     Event event;
     event.set_type(Event::SHUTDOWN);
 
@@ -155,6 +182,17 @@ public:
 
   void error(const string& message)
   {
+    // Logically an executor cannot receive any response from an agent if it
+    // is not connected. Since we have received `error`, we assume we are
+    // connected and trigger the `connected` callback to enable event delivery.
+    // This satisfies the invariant of the v1 interface that an executor can
+    // receive an event only after successfully connecting with the agent.
+    if (!connected) {
+      LOG(INFO) << "Implicitly connecting the executor to send an error";
+      callbacks.connected();
+      connected = true;
+    }
+
     Event event;
     event.set_type(Event::ERROR);
 
@@ -232,6 +270,7 @@ private:
   };
 
   Callbacks callbacks;
+  bool connected;
   bool subscribeCall;
   queue<Event> pending;
   Option<mesos::ExecutorInfo> executorInfo;
