@@ -1477,7 +1477,7 @@ if test "x$without_bundled_protobuf" = "xyes" || \
 
   # Check for protobuf.
 
-  AC_CHECK_HEADERS([google/protobuf/message.h], [found_protobuf=yes],
+  AC_CHECK_HEADERS([google/protobuf/map.h], [found_protobuf=yes],
                    [found_protobuf=no])
 
   if test "x$found_protobuf" = "xyes"; then
@@ -1520,7 +1520,7 @@ if test "x$without_bundled_protobuf" = "xyes" || \
     AC_MSG_ERROR([cannot find protobuf
 -------------------------------------------------------------------
 You have requested the use of a non-bundled protobuf but no suitable
-protobuf could be found.
+protobuf (version 3+) could be found.
 
 You may want specify the location of protobuf by providing a prefix
 path via --with-protobuf=DIR, or check that the path you provided is
