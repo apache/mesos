@@ -347,6 +347,17 @@ protected:
       return;
     }
 
+    // A kill task request is received when the driver is not connected. This
+    // can happen, for example, if `ExecutorRegisteredMessage` has not been
+    // delivered. We do not shutdown the driver because there might be other
+    // still running tasks and the executor might eventually reconnect, e.g.,
+    // after the agent failover. We do not drop ignore the message because the
+    // actual executor may still want to react, e.g., commit suicide.
+    if (!connected) {
+      LOG(WARNING) << "Executor received kill task message for task " << taskId
+                   << " while disconnected from the agent!";
+    }
+
     VLOG(1) << "Executor asked to kill task '" << taskId << "'";
 
     Stopwatch stopwatch;
