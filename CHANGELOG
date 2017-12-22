@@ -17,6 +17,9 @@ This release contains the following new features:
   * [MESOS-7302] - Support launching standalone containers on the
     agent using MesosContainerizer without a master or framework
     running.
+  * [MESOS-7289, MESOS-7235] - **Experimental* support for Container
+    Storage Interface (CSI) to simplify storage management in Mesos,
+    and allow 3rdparty vendors to plugin into Mesos very easily.
 
 Deprecations/Removals:
   * Agent flag `--executor_secret_key` has been deprecated. Operators
