@@ -3492,6 +3492,111 @@ TEST_F(HierarchicalAllocatorTest, QuotaAllocationGranularityUnchoppableResource)
 }
 
 
+// This test verifies the behavior of allocating a resource to quota roles
+// that has no quota set for that particular resource (e.g. allocating
+// memory to a role with only quota set for CPU). If a role has no quota
+// set for a resource, it will get that resource only when two conditions
+// are both met:
+//
+// - It was allocated quota resources on the agent;
+//
+// - It can be allocated without violating the quota headroom.
+TEST_F(HierarchicalAllocatorTest, QuotaRoleAllocateNonQuotaResource)
+{
+  Clock::pause();
+  initialize();
+
+  const string QUOTA_ROLE_1{"quota-role-1"};
+
+  const Quota quota1 = createQuota(QUOTA_ROLE_1, "cpus:2");
+  allocator->setQuota(QUOTA_ROLE_1, quota1);
+
+  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:1024;ports:[31000-32000]");
+  allocator->addSlave(
+      agent1.id(),
+      agent1,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent1.resources(),
+      {});
+
+  // Create `framework` under `QUOTA_ROLE_1`.
+  // This will tigger an event-driven allocation loop.
+  FrameworkInfo framework = createFrameworkInfo({QUOTA_ROLE_1});
+  allocator->addFramework(framework.id(), framework, {}, true, {});
+
+  Clock::settle();
+
+  // `framework` will get all resources of `agent1`. Memory resource is
+  // allocated because `QUOTA_ROLE_1` does not have any memory quota limit
+  // and there is no need to set aside memory for other quota roles. Port
+  // resource is allocated due to the same reason (this is further due to
+  // the fact that ports are non-scalar resources that no roles can set
+  // quota for).
+  Allocation expected = Allocation(
+      framework.id(),
+      {{QUOTA_ROLE_1, {{agent1.id(), agent1.resources()}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocations.get());
+
+  // QUOTA_ROLE_1:
+  // quota: "cpus:2"
+  // allocated: "cpus:1;mem:1024;ports:[31000-32000]" (agent1)
+
+  const string QUOTA_ROLE_2{"quota-role-2"};
+
+  const Quota quota2 = createQuota(QUOTA_ROLE_2, "mem:1024");
+  allocator->setQuota(QUOTA_ROLE_2, quota2);
+
+  // Add `agent2` with identical resources.
+  // This will trigger an event-driven allocation on `agent2`.
+  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:1024;ports:[31000-32000]");
+  allocator->addSlave(
+      agent2.id(),
+      agent2,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent2.resources(),
+      {});
+
+  // `framework` will only get cpu and port resources. CPU resource is
+  // allocated because `QUOTA_ROLE_1` still needs one more CPU to meet its
+  // quota. Memory is NOT allocated even though `QUOTA_ROLE_1` has no memory
+  // quota limit because the memory needs to be set aside for `QUOTA_ROLE_2`.
+  // Port resource is allocated because `QUOTA_ROLE_1` does not have any port
+  // quota limit and there is no need to set aside the port resource for other
+  // quota roles ((this is further due to the fact that ports are non-scalar
+  // resources that no roles can set quota for).
+  expected = Allocation(
+      framework.id(),
+      {{QUOTA_ROLE_1, {{agent2.id(),
+        agent2.resources() - Resources(quota2.info.guarantee())}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocations.get());
+
+  // QUOTA_ROLE_1:
+  // quota: "cpus:2"
+  // allocated: "cpus:1;mem:1024;ports:[31000-32000]" (agent1)
+  //            "cpus:1;ports:[31000-32000]" (agent2)
+  //
+  // QUOTA_ROLE_1's quota has been met.
+
+  // Add `agent3` with identical resources.
+  // This will trigger an event-driven allocation on `agent3`.
+  SlaveInfo agent3 = createSlaveInfo("cpus:1;mem:1024;ports:[31000-32000]");
+  allocator->addSlave(
+      agent3.id(),
+      agent3,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent3.resources(),
+      {});
+
+  // No allocation will happen because QUOTA_ROLE_1's quota has been met.
+  EXPECT_TRUE(allocations.get().isPending());
+}
+
+
 // This test verifies, that the free pool (what is left after all quotas
 // are satisfied) is allocated according to the DRF algorithm across the roles
 // which do not have quota set.
