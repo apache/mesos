@@ -18,8 +18,10 @@
 
 #include <unistd.h>
 
+#include <sys/socket.h>
 #include <sys/wait.h>
 
+#include <cstring>
 #include <vector>
 
 #include <process/collect.hpp>
@@ -394,7 +396,11 @@ Try<pid_t> clone(
       return Error("Bad control data received");
     }
 
-    pid_t pid = ((struct ucred*) CMSG_DATA(CMSG_FIRSTHDR(&message)))->pid;
+    struct ucred cred;
+    std::memcpy(
+        &cred, CMSG_DATA(CMSG_FIRSTHDR(&message)), sizeof(struct ucred));
+
+    const pid_t pid = cred.pid;
 
     // Need to `waitpid` on child process to avoid a zombie. Note that
     // it's expected that the child will terminate quickly hence
@@ -452,17 +458,20 @@ Try<pid_t> clone(
           stack.get(),
           flags,
           [=]() {
-            struct ucred* cred = reinterpret_cast<struct ucred*>(
-                CMSG_DATA(CMSG_FIRSTHDR(&message)));
+            struct ucred cred;
+            cred.pid = ::getpid();
+            cred.uid = ::getuid();
+            cred.gid = ::getgid();
 
             // Now send back the pid and have it be translated appropriately
             // by the kernel to the enclosing pid namespace.
             //
             // NOTE: sending back the pid is best effort because we're going
             // to exit no matter what.
-            cred->pid = ::getpid();
-            cred->uid = ::getuid();
-            cred->gid = ::getgid();
+            std::memcpy(
+                CMSG_DATA(CMSG_FIRSTHDR(&message)),
+                &cred,
+                sizeof(struct ucred));
 
             if (sendmsg(sockets[1], &message, 0) == -1) {
               // Failed to send the pid back to the parent!
