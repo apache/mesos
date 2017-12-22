@@ -14,6 +14,9 @@ This release contains the following new features:
   * Several improvements and fixes to the enforcement of quota
     guarantees have been made: MESOS-4527, MESOS-7099, MESOS-8293,
     MESOS-8339, MESOS-8352.
+  * [MESOS-7302] - Support launching standalone containers on the
+    agent using MesosContainerizer without a master or framework
+    running.
 
 Deprecations/Removals:
   * Agent flag `--executor_secret_key` has been deprecated. Operators
