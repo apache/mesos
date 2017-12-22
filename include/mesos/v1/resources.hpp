@@ -310,6 +310,13 @@ public:
   // This must be called only when the resource is reserved!
   static const std::string& reservationRole(const Resource& resource);
 
+  // Shrinks a scalar type `resource` to the target size.
+  // Returns true if the resource was shrunk to the target size,
+  // or the resource is already within the target size.
+  // Returns false otherwise (i.e. the resource is indivisible.
+  // E.g. MOUNT volume).
+  static bool shrink(Resource* resource, const Value::Scalar& target);
+
   // Returns the summed up Resources given a hashmap<Key, Resources>.
   //
   // NOTE: While scalar resources such as "cpus" sum correctly,
