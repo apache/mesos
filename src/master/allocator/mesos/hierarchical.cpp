@@ -1976,13 +1976,15 @@ void HierarchicalAllocatorProcess::__allocate()
         offerable[frameworkId][role][slaveId] += resources;
         offeredSharedResources[slaveId] += resources.shared();
 
-        unsatisfiedQuota -= newQuotaAllocation.createStrippedScalarQuantity();
+        Resources newQuotaAllocationScalarQuantities =
+          newQuotaAllocation.createStrippedScalarQuantity();
+
+        unsatisfiedQuota -= newQuotaAllocationScalarQuantities;
 
         // Track quota headroom change.
-        Resources headroomDelta =
+        requiredHeadroom -= newQuotaAllocationScalarQuantities;
+        availableHeadroom -=
           resources.unreserved().createStrippedScalarQuantity();
-        requiredHeadroom -= headroomDelta;
-        availableHeadroom -= headroomDelta;
 
         // Update the tracking of allocated reservations.
         //
