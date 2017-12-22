@@ -1187,6 +1187,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   sched/flags.hpp							\
   scheduler/constants.hpp						\
   scheduler/flags.hpp							\
+  slave/compatibility.hpp						\
   slave/constants.hpp							\
   slave/container_daemon.hpp						\
   slave/flags.hpp							\
@@ -1538,6 +1539,8 @@ libcsi_la_SOURCES +=							\
   ../include/csi/spec.hpp						\
   csi/client.hpp							\
   csi/paths.hpp								\
+  csi/state.hpp								\
+  csi/state.proto							\
   csi/utils.hpp
 nodist_libcsi_la_SOURCES = $(CXX_CSI_PROTOS)
 libcsi_la_CPPFLAGS = $(MESOS_CPPFLAGS)
@@ -2347,7 +2350,7 @@ pkgmodule_LTLIBRARIES += liburi_volume_profile.la
 liburi_volume_profile_la_SOURCES =				\
   resource_provider/storage/uri_volume_profile.cpp		\
   resource_provider/storage/uri_volume_profile.hpp		\
-  resource_provider/storage/volume_profile.ph.h			\
+  resource_provider/storage/volume_profile.pb.h			\
   resource_provider/storage/volume_profile_utils.hpp
 liburi_volume_profile_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 liburi_volume_profile_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
