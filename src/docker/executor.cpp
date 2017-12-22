@@ -359,6 +359,12 @@ private:
       return;
     }
 
+    // Terminate if a kill task request is received before the task is launched.
+    // This can happen, for example, if `RunTaskMessage` has not been delivered.
+    // See MESOS-8297.
+    CHECK_SOME(run) << "Terminating because kill task message has been"
+                    << " received before the task has been launched";
+
     // TODO(alexr): If a kill is in progress, consider adjusting
     // the grace period if a new one is provided.
 
