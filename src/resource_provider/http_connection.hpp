@@ -322,6 +322,7 @@ protected:
     subscribed = None();
     endpoint = None();
     connectionId = None();
+    detection.discard();
   }
 
   void disconnected(const id::UUID& _connectionId, const std::string& failure)

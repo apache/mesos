@@ -16,9 +16,15 @@
 
 #include "resource_provider/detector.hpp"
 
+#include <memory>
+#include <utility>
+
+#include <stout/lambda.hpp>
+
 namespace http = process::http;
 
 using process::Future;
+using process::Promise;
 
 namespace mesos {
 namespace internal {
@@ -33,7 +39,25 @@ Future<Option<http::URL>> ConstantEndpointDetector::detect(
   if (previous.isNone() || stringify(previous.get()) != stringify(url)) {
     return url;
   } else {
-    return Future<Option<http::URL>>(); // A pending future.
+    // Use a promise here to properly handle discard semantics.
+    std::unique_ptr<Promise<Option<http::URL>>> promise(
+        new Promise<Option<http::URL>>());
+
+    Future<Option<http::URL>> future = promise->future();
+
+    // TODO(jieyu): There is a cyclic dependency here because `future`
+    // holds a reference to `promise` and `promise` holds a reference
+    // to the `future`. It won't get properly cleaned up if
+    // `future.discard()` is not called and `future` is not terminal.
+    // Currently, it's OK because the caller always do a
+    // `future.discard()` before removing the reference to `future`.
+    future.onDiscard(lambda::partial(
+        [](std::unique_ptr<Promise<Option<http::URL>>> promise) {
+          promise->discard();
+        },
+        std::move(promise)));
+
+    return future;
   }
 }
 
