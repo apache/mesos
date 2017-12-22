@@ -20,6 +20,8 @@ This release contains the following new features:
   * [MESOS-7289, MESOS-7235] - **Experimental* support for Container
     Storage Interface (CSI) to simplify storage management in Mesos,
     and allow 3rdparty vendors to plugin into Mesos very easily.
+  * [MESOS-4945] Agents now can automatically garbage collect unused
+    Docker image layers used by MesosContainerizer.
 
 Deprecations/Removals:
   * Agent flag `--executor_secret_key` has been deprecated. Operators
