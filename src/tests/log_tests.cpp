@@ -2436,7 +2436,8 @@ TEST_F(LogTest, ReaderCatchup)
 
   uint64_t position = 1;
   foreach (const Log::Entry& entry, entries.get()) {
-    EXPECT_EQ(stringify(position++), entry.data);
+    EXPECT_EQ(stringify(position), entry.data);
+    ++position;
   }
 }
 
