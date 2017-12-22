@@ -760,6 +760,8 @@ protected:
     if (launched) {
       CHECK_SOME(taskId);
       kill(taskId.get(), gracePeriod);
+    } else {
+      terminate(self());
     }
   }
 
