@@ -3006,6 +3006,11 @@ void Slave::launchExecutor(
     containerConfig.set_user(executor->user.get());
   }
 
+  if (executorInfo_.has_container()) {
+      containerConfig.mutable_container_info()
+          ->CopyFrom(executorInfo_.container());
+  }
+
   if (executor->isCommandExecutor()) {
     if (taskInfo.isSome()) {
       containerConfig.mutable_task_info()->CopyFrom(taskInfo.get());
@@ -3014,11 +3019,6 @@ void Slave::launchExecutor(
         containerConfig.mutable_container_info()
           ->CopyFrom(taskInfo.get().container());
       }
-    }
-  } else {
-    if (executorInfo_.has_container()) {
-      containerConfig.mutable_container_info()
-        ->CopyFrom(executorInfo_.container());
     }
   }
 
