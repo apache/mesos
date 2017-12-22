@@ -209,8 +209,7 @@ public:
 protected:
   virtual void initialize()
   {
-    VLOG(1) << "Executor started at: " << self()
-            << " with pid " << getpid();
+    VLOG(1) << "Executor started at: " << self() << " with pid " << getpid();
 
     link(slave);
 
@@ -318,8 +317,8 @@ protected:
     }
 
     if (!connected) {
-      VLOG(1) << "Ignoring run task message for task " << task.task_id()
-              << " because the driver is disconnected!";
+      LOG(WARNING) << "Ignoring run task message for task " << task.task_id()
+                   << " because the driver is disconnected!";
       return;
     }
 
@@ -378,10 +377,10 @@ protected:
     }
 
     if (!connected) {
-      VLOG(1) << "Ignoring status update acknowledgement "
-              << uuid_.get() << " for task " << taskId
-              << " of framework " << frameworkId
-              << " because the driver is disconnected!";
+      LOG(WARNING) << "Ignoring status update acknowledgement "
+                   << uuid_.get() << " for task " << taskId
+                   << " of framework " << frameworkId
+                   << " because the driver is disconnected!";
       return;
     }
 
@@ -408,8 +407,8 @@ protected:
     }
 
     if (!connected) {
-      VLOG(1) << "Ignoring framework message because "
-              << "the driver is disconnected!";
+      LOG(WARNING) << "Ignoring framework message because"
+                   << " the driver is disconnected!";
       return;
     }
 
