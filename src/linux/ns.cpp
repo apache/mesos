@@ -319,15 +319,15 @@ Try<pid_t> clone(
   iov.iov_base = base;
   iov.iov_len = sizeof(base);
 
-  // We need to allocate a char array large enough to hold "control" data. However,
-  // since this buffer is in reality a 'struct cmsghdr' with the payload, we use
-  // a union to ensure that it is aligned as required for that structure.
+  // We need to allocate a char array large enough to hold "control" data.
+  // However, since this buffer is in reality a 'cmsghdr' with the payload, we
+  // use a union to ensure that it is aligned as required for that structure.
   union {
-    struct cmsghdr cmessage;
-    char control[CMSG_SPACE(sizeof(struct ucred))];
+    cmsghdr cmessage;
+    char control[CMSG_SPACE(sizeof(ucred))];
   };
 
-  cmessage.cmsg_len = CMSG_LEN(sizeof(struct ucred));
+  cmessage.cmsg_len = CMSG_LEN(sizeof(ucred));
   cmessage.cmsg_level = SOL_SOCKET;
   cmessage.cmsg_type = SCM_CREDENTIALS;
 
@@ -337,7 +337,7 @@ Try<pid_t> clone(
   message.msg_iov = &iov;
   message.msg_iovlen = 1;
   message.msg_control = control;
-  message.msg_controllen = sizeof(control); // CMSG_LEN(sizeof(struct ucred));
+  message.msg_controllen = sizeof(control); // CMSG_LEN(sizeof(ucred));
 
   // Finally, the stack we'll use in the call to os::clone below (we
   // allocate the stack here in order to keep the call to os::clone
@@ -389,16 +389,15 @@ Try<pid_t> clone(
 
     // Extract pid.
     if (CMSG_FIRSTHDR(&message) == nullptr ||
-        CMSG_FIRSTHDR(&message)->cmsg_len != CMSG_LEN(sizeof(struct ucred)) ||
+        CMSG_FIRSTHDR(&message)->cmsg_len != CMSG_LEN(sizeof(ucred)) ||
         CMSG_FIRSTHDR(&message)->cmsg_level != SOL_SOCKET ||
         CMSG_FIRSTHDR(&message)->cmsg_type != SCM_CREDENTIALS) {
       kill(child, SIGKILL);
       return Error("Bad control data received");
     }
 
-    struct ucred cred;
-    std::memcpy(
-        &cred, CMSG_DATA(CMSG_FIRSTHDR(&message)), sizeof(struct ucred));
+    ucred cred;
+    std::memcpy(&cred, CMSG_DATA(CMSG_FIRSTHDR(&message)), sizeof(ucred));
 
     const pid_t pid = cred.pid;
 
@@ -458,7 +457,7 @@ Try<pid_t> clone(
           stack.get(),
           flags,
           [=]() {
-            struct ucred cred;
+            ucred cred;
             cred.pid = ::getpid();
             cred.uid = ::getuid();
             cred.gid = ::getgid();
@@ -469,9 +468,7 @@ Try<pid_t> clone(
             // NOTE: sending back the pid is best effort because we're going
             // to exit no matter what.
             std::memcpy(
-                CMSG_DATA(CMSG_FIRSTHDR(&message)),
-                &cred,
-                sizeof(struct ucred));
+                CMSG_DATA(CMSG_FIRSTHDR(&message)), &cred, sizeof(ucred));
 
             if (sendmsg(sockets[1], &message, 0) == -1) {
               // Failed to send the pid back to the parent!
