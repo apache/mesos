@@ -1746,8 +1746,9 @@ void HierarchicalAllocatorProcess::__allocate()
         //      allocate 10 cpus to the role to keep it within its limit.
         //
         // In the case that the role needs some of the resources on this
-        // agent to make progress towards its quota, we'll *also* allocate
-        // all of the resources for which it does not have quota.
+        // agent to make progress towards its quota, or the role is being
+        // allocated some reservation(s), we'll *also* allocate all of
+        // the resources for which it does not have quota.
         //
         // E.g. The agent has 1 cpu, 1024 mem, 1024 disk, 1 gpu, 5 ports
         //      and the role has quota for 1 cpu, 1024 mem. We'll include
@@ -1755,13 +1756,9 @@ void HierarchicalAllocatorProcess::__allocate()
         //      role not having any quota guarantee for them.
         //
         // We have to do this for now because it's not possible to set
-        // quota on non-scalar resources, like ports. However, for scalar
-        // resources that can have quota set, we should ideally make
-        // sure that when we include them, we're not violating some
-        // other role's guarantee!
-        //
-        // TODO(mzhu): Check the headroom when we're including scalar
-        // resources that this role does not have quota for.
+        // quota on non-scalar resources, like ports. For scalar resources
+        // that this role has no quota for, it can be allocated as long
+        // as the quota headroom is not violated.
         //
         // TODO(mzhu): Since we're treating the resources with unset
         // quota as having no guarantee and no limit, these should be
@@ -1778,76 +1775,90 @@ void HierarchicalAllocatorProcess::__allocate()
         // Unreserved resources that are tentatively going to be
         // allocated towards this role's quota. These resources may
         // not get allocated due to framework filters.
-        Resources newQuotaAllocation;
+        // These are __quantities__ with no meta-data.
+        Resources newQuotaAllocationScalarQuantities;
 
-        if (!unsatisfiedQuota.empty()) {
-          Resources unreserved = available.nonRevocable().unreserved();
+        // We put resource that this role has no quota for in
+        // `nonQuotaResources` tentatively.
+        Resources nonQuotaResources;
 
-          set<string> quotaResourceNames =
-            Resources(quota.info.guarantee()).names();
+        Resources unreserved = available.nonRevocable().unreserved();
 
-          // When "chopping" resources, there is more than 1 "chop" that
-          // can be done to satisfy the limits. Consider the case with
-          // two disks of 1GB, one is PATH and another is MOUNT. And a role
-          // has a "disk" quota of 1GB. We could pick either of the disks here,
-          // but not both.
-          //
-          // In order to avoid repeatedly choosing the same "chop" of
-          // the resources each time we allocate, we introduce some
-          // randomness by shuffling the resources.
-          google::protobuf::RepeatedPtrField<Resource>
-            resourceVector = unreserved;
-          random_shuffle(resourceVector.begin(), resourceVector.end());
+        set<string> quotaResourceNames =
+          Resources(quota.info.guarantee()).names();
 
-          foreach (const Resource& resource, resourceVector) {
-            if (quotaResourceNames.count(resource.name()) == 0) {
-              // This resource has no quota set. Allocate it.
-              resources += resource;
-              continue;
-            }
+        // When "chopping" resources, there is more than 1 "chop" that
+        // can be done to satisfy the limits. Consider the case with
+        // two disks of 1GB, one is PATH and another is MOUNT. And a
+        // role has a "disk" quota of 1GB. We could pick either of
+        // the disks here, but not both.
+        //
+        // In order to avoid repeatedly choosing the same "chop" of
+        // the resources each time we allocate, we introduce some
+        // randomness by shuffling the resources.
+        google::protobuf::RepeatedPtrField<Resource>
+          resourceVector = unreserved;
+        random_shuffle(resourceVector.begin(), resourceVector.end());
 
-            // Currently, we guarantee that quota resources are scalars.
-            CHECK_EQ(resource.type(), Value::SCALAR);
-
-            Option<Value::Scalar> newUnsatisfiedQuotaScalar =
-              (unsatisfiedQuota -
-                newQuotaAllocation.createStrippedScalarQuantity())
-                  .get<Value::Scalar>(resource.name());
-
-            if (newUnsatisfiedQuotaScalar.isNone()) {
-              // Quota for this resource has been satisfied.
-              continue;
-            }
-
-            const Value::Scalar& resourceScalar = resource.scalar();
-
-            if (resourceScalar <= newUnsatisfiedQuotaScalar.get()) {
-              // We can safely allocate `resource` entirely here without
-              // breaking the quota limit.
-              resources += resource;
-              newQuotaAllocation += resource;
-
-              continue;
-            }
-
-            // At this point, we need to chop `resource` to satisfy
-            // the quota. We chop `resource` by making a copy and
-            // shrinking its scalar value
-            Resource choppedResourceToAllocate = resource;
-            choppedResourceToAllocate.mutable_scalar()
-              ->CopyFrom(newUnsatisfiedQuotaScalar.get());
-
-            // Not all resources are choppable. Some resources such as MOUNT
-            // disk has to be offered entirely. We use resources `contains()`
-            // utility to verify this. Specifically, if a resource `contains()`
-            // a smaller version of itself, then it can be safely chopped.
-            if (!Resources(resource).contains(choppedResourceToAllocate)) {
-              continue;
-            }
-
-            resources += choppedResourceToAllocate;
-            newQuotaAllocation += choppedResourceToAllocate;
+        foreach (Resource& resource, resourceVector) {
+          if (resource.type() != Value::SCALAR) {
+            // We currently do not support quota for non-scalar resources,
+            // add it to `nonQuotaResources`. See `nonQuotaResources`
+            // regarding how these resources are allocated.
+            nonQuotaResources += resource;
+            continue;
           }
+
+          if (quotaResourceNames.count(resource.name()) == 0) {
+            // Allocating resource that this role has NO quota for,
+            // the limit concern here is that it should not break the
+            // quota headroom.
+            //
+            // Allocation Limit = Available Headroom - Required Headroom -
+            //                    Tentative Allocation to Role
+            Resources upperLimitScalarQuantities =
+              availableHeadroom - requiredHeadroom -
+              (newQuotaAllocationScalarQuantities +
+                nonQuotaResources.createStrippedScalarQuantity());
+
+            Option<Value::Scalar> limitScalar =
+              upperLimitScalarQuantities.get<Value::Scalar>(resource.name());
+
+            if (limitScalar.isNone()) {
+              continue; // Already have a headroom deficit.
+            }
+
+            if (Resources::shrink(&resource, limitScalar.get())) {
+              nonQuotaResources += resource;
+            }
+          } else {
+            // Allocating resource that this role has quota for,
+            // the limit concern is that it should not exceed this
+            // role's unsatisfied quota.
+            Resources upperLimitScalarQuantities =
+              unsatisfiedQuota - newQuotaAllocationScalarQuantities;
+
+            Option<Value::Scalar> limitScalar =
+              upperLimitScalarQuantities.get<Value::Scalar>(resource.name());
+
+            if (limitScalar.isNone()) {
+              continue; // Quota limit already met.
+            }
+
+            if (Resources::shrink(&resource, limitScalar.get())) {
+              resources += resource;
+              newQuotaAllocationScalarQuantities +=
+                Resources(resource).createStrippedScalarQuantity();
+            }
+          }
+        }
+
+        // We include the non-quota resources (with headroom taken
+        // into account) if this role is being allocated some resources
+        // already: either some quota resources or a reservation
+        // (possibly with quota resources).
+        if (!resources.empty()) {
+          resources += nonQuotaResources;
         }
 
         // It is safe to break here, because all frameworks under a role would
@@ -1895,9 +1906,6 @@ void HierarchicalAllocatorProcess::__allocate()
         // quota. This is fine since quota currently represents a guarantee.
         offerable[frameworkId][role][slaveId] += resources;
         offeredSharedResources[slaveId] += resources.shared();
-
-        Resources newQuotaAllocationScalarQuantities =
-          newQuotaAllocation.createStrippedScalarQuantity();
 
         unsatisfiedQuota -= newQuotaAllocationScalarQuantities;
 
