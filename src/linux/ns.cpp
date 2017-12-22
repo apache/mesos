@@ -317,10 +317,9 @@ Try<pid_t> clone(
   iov.iov_base = base;
   iov.iov_len = sizeof(base);
 
-  // Need to allocate a char array large enough to hold "control"
-  // data. However, since this buffer is in reality a 'struct cmsghdr'
-  // we use a union to ensure that it is aligned as required for that
-  // structure.
+  // We need to allocate a char array large enough to hold "control" data. However,
+  // since this buffer is in reality a 'struct cmsghdr' with the payload, we use
+  // a union to ensure that it is aligned as required for that structure.
   union {
     struct cmsghdr cmessage;
     char control[CMSG_SPACE(sizeof(struct ucred))];
