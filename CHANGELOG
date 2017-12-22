@@ -1,6 +1,7 @@
 Release Notes - Mesos - Version 1.5.0 (WIP)
 -------------------------------------------
 This release contains the following new features:
+
   * [MESOS-1739] - Agents now support the `--reconfiguration_policy`
     flag which allows them to recover the agent ID and running tasks
     after configuration changes. See docs/agent-recovery.md for more
@@ -10,6 +11,9 @@ This release contains the following new features:
     for implementing hot standby (by offloading some reading from a
     leader to standbys) and fast failover time (by keeping in-memory
     storage represented by the log “hot”).
+  * Several improvements and fixes to the enforcement of quota
+    guarantees have been made: MESOS-4527, MESOS-7099, MESOS-8293,
+    MESOS-8339, MESOS-8352.
 
 Deprecations/Removals:
   * Agent flag `--executor_secret_key` has been deprecated. Operators
