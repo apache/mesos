@@ -626,6 +626,9 @@ Future<Response> Http::_api(
 
     case mesos::agent::Call::REMOVE_RESOURCE_PROVIDER_CONFIG:
       return removeResourceProviderConfig(call, principal);
+
+    case mesos::agent::Call::PRUNE_IMAGES:
+      return pruneImages(call, mediaTypes.accept, principal);
   }
 
   UNREACHABLE();
@@ -2431,6 +2434,40 @@ Future<JSON::Array> Http::__containers(
             return result;
           });
     }));
+}
+
+
+Future<Response> Http::pruneImages(
+    const agent::Call& call,
+    ContentType acceptType,
+    const Option<Principal>& principal) const
+{
+  CHECK_EQ(agent::Call::PRUNE_IMAGES, call.type());
+
+  // TODO(zhitao): Add AuthN/AuthZ.
+
+  LOG(INFO) << "Processing PRUNE_IMAGES call";
+  vector<Image> excludedImages;
+
+  return slave->containerizer->pruneImages(excludedImages)
+      .then([acceptType](const Future<Nothing>& result)
+      ->Future<Response> {
+        if (!result.isReady()) {
+          // TODO(zhitao): Because `containerizer::pruneImages` returns
+          // a `Nothing` now, we cannot distinguish between actual
+          // failure or the case that operator should drain the agent.
+          // Consider returning more information.
+          LOG(WARNING)
+            << "Failed to prune images: "
+            << (result.isFailed() ? result.failure() : "discarded");
+
+          return result.isFailed()
+            ? InternalServerError(result.failure())
+            : InternalServerError();
+        }
+
+        return OK();
+      });
 }
 
 

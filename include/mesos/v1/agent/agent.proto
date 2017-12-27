@@ -93,6 +93,9 @@ message Call {
     ADD_RESOURCE_PROVIDER_CONFIG = 27;    // See 'AddResourceProviderConfig' below. // NOLINT
     UPDATE_RESOURCE_PROVIDER_CONFIG = 28; // See 'UpdateResourceProviderConfig' below. // NOLINT
     REMOVE_RESOURCE_PROVIDER_CONFIG = 29; // See 'RemoveResourceProviderConfig' below. // NOLINT
+
+    // Prune unused container images.
+    PRUNE_IMAGES = 30;
   }
 
   // Provides a snapshot of the current metrics tracked by the agent.
