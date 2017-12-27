@@ -21,6 +21,7 @@ layout: documentation
 * [Bol.com](http://www.bol.com)
 * [Branding Brand](http://www.brandingbrand.com)
 * [Brigade](http://www.brigade.com)
+* [Bytedance](https://www.toutiao.com)
 * [Categorize](http://categorize.co)
 * [CERN](http://cern.ch)
 * [Cisco](http://www.cisco.com)
