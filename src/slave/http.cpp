@@ -2447,7 +2447,16 @@ Future<Response> Http::pruneImages(
   // TODO(zhitao): Add AuthN/AuthZ.
 
   LOG(INFO) << "Processing PRUNE_IMAGES call";
-  vector<Image> excludedImages;
+  vector<Image> excludedImages(call.prune_images().excluded_images().begin(),
+                               call.prune_images().excluded_images().end());
+
+  // Include any `excluded_images` from agent flag's `image_gc_config`
+  // if not empty.
+  if (slave->flags.image_gc_config.isSome()) {
+    std::copy(slave->flags.image_gc_config->excluded_images().begin(),
+              slave->flags.image_gc_config->excluded_images().end(),
+              std::back_inserter(excludedImages));
+  }
 
   return slave->containerizer->pruneImages(excludedImages)
       .then([acceptType](const Future<Nothing>& result)

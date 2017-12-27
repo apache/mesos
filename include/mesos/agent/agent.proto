@@ -349,6 +349,14 @@ message Call {
     required string name = 2;
   }
 
+  // Prune unused container images from image store.
+  //
+  // Images and layers referenced by active containers as well as
+  // image references specified in `excluded_images` will not be pruned.
+  message PruneImages {
+    repeated Image excluded_images = 1;
+  }
+
   optional Type type = 1;
 
   optional GetMetrics get_metrics = 2;
@@ -377,6 +385,8 @@ message Call {
   optional AddResourceProviderConfig add_resource_provider_config = 17;
   optional UpdateResourceProviderConfig update_resource_provider_config = 18;
   optional RemoveResourceProviderConfig remove_resource_provider_config = 19;
+
+  optional PruneImages prune_images = 21;
 }
 
 
