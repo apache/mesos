@@ -321,6 +321,12 @@ private:
       const mesos::agent::Call& call,
       const Option<process::http::authentication::Principal>& principal) const;
 
+  process::Future<process::http::Response> pruneImages(
+      const mesos::agent::Call& call,
+      ContentType acceptType,
+      const Option<process::http::authentication::Principal>&
+          principal) const;
+
   Slave* slave;
 
   // Used to rate limit the statistics endpoint.
