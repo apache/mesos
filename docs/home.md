@@ -63,6 +63,7 @@ layout: documentation
 ## Storage
 * [Multiple Disks](multiple-disk.md) for how to allow tasks to use multiple isolated disk resources.
 * [Persistent Volume](persistent-volume.md) for how to allow tasks to access persistent storage resources.
+* [Container Storage Interface (CSI) Support](csi.md)
 
 ## APIs
 * [HTTP Endpoints](endpoints/) for available HTTP endpoints.
