@@ -826,7 +826,7 @@ TEST_F(FetcherTest, ExtractGzipFile)
 #endif // __WINDOWS__
 
 
-TEST_F(FetcherTest, Unzip_ExtractFile)
+TEST_F(FetcherTest, UNZIP_ExtractFile)
 {
   // Construct a tmp file that can be fetched and archived with zip.
   string fromDir = path::join(os::getcwd(), "from");
@@ -878,7 +878,7 @@ TEST_F(FetcherTest, Unzip_ExtractFile)
 }
 
 
-TEST_F(FetcherTest, Unzip_ExtractInvalidFile)
+TEST_F(FetcherTest, UNZIP_ExtractInvalidFile)
 {
   // Construct a tmp file that can be filled with broken zip.
   string fromDir = path::join(os::getcwd(), "from");
@@ -950,7 +950,7 @@ TEST_F(FetcherTest, Unzip_ExtractInvalidFile)
 }
 
 
-TEST_F(FetcherTest, Unzip_ExtractFileWithDuplicatedEntries)
+TEST_F(FetcherTest, UNZIP_ExtractFileWithDuplicatedEntries)
 {
   // Construct a tmp file that can be filled with zip containing
   // duplicates.
