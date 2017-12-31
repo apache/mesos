@@ -2444,8 +2444,6 @@ Future<Response> Http::pruneImages(
 {
   CHECK_EQ(agent::Call::PRUNE_IMAGES, call.type());
 
-  // TODO(zhitao): Add AuthN/AuthZ.
-
   LOG(INFO) << "Processing PRUNE_IMAGES call";
   vector<Image> excludedImages(call.prune_images().excluded_images().begin(),
                                call.prune_images().excluded_images().end());
@@ -2458,25 +2456,47 @@ Future<Response> Http::pruneImages(
               std::back_inserter(excludedImages));
   }
 
-  return slave->containerizer->pruneImages(excludedImages)
-      .then([acceptType](const Future<Nothing>& result)
-      ->Future<Response> {
-        if (!result.isReady()) {
-          // TODO(zhitao): Because `containerizer::pruneImages` returns
-          // a `Nothing` now, we cannot distinguish between actual
-          // failure or the case that operator should drain the agent.
-          // Consider returning more information.
-          LOG(WARNING)
-            << "Failed to prune images: "
-            << (result.isFailed() ? result.failure() : "discarded");
+  Future<Owned<ObjectApprover>> approver;
 
-          return result.isFailed()
-            ? InternalServerError(result.failure())
-            : InternalServerError();
-        }
+  if (slave->authorizer.isSome()) {
+    Option<authorization::Subject> subject = createSubject(principal);
 
-        return OK();
-      });
+    approver = slave->authorizer.get()->getObjectApprover(
+        subject,
+        authorization::PRUNE_IMAGES);
+  } else {
+    approver = Owned<ObjectApprover>(new AcceptingObjectApprover());
+  }
+
+  return approver
+    .then(defer(slave->self(), [this, excludedImages](
+        const Owned<ObjectApprover>& approver) -> Future<Response> {
+      Try<bool> approved = approver->approved(ObjectApprover::Object());
+      if (approved.isError()) {
+        return InternalServerError("Authorization error: " + approved.error());
+      } else if (!approved.get()) {
+        return Forbidden();
+      }
+
+      return slave->containerizer->pruneImages(excludedImages)
+          .then([](const Future<Nothing>& result) -> Future<Response> {
+            if (!result.isReady()) {
+              // TODO(zhitao): Because `containerizer::pruneImages` returns
+              // a `Nothing` now, we cannot distinguish between actual
+              // failure or the case that operator should drain the agent.
+              // Consider returning more information.
+              LOG(WARNING)
+                << "Failed to prune images: "
+                << (result.isFailed() ? result.failure() : "discarded");
+
+              return result.isFailed()
+                ? InternalServerError(result.failure())
+                : InternalServerError();
+            }
+
+            return OK();
+          });
+    }));
 }
 
 
