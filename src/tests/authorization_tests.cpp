@@ -5495,6 +5495,61 @@ TYPED_TEST(AuthorizationTest, ModifyResourceProviderConfig)
   }
 }
 
+
+// This tests the authorization of requests to prune images.
+TYPED_TEST(AuthorizationTest, PruneImages)
+{
+  ACLs acls;
+
+  {
+    // "foo" principal can prune any images.
+    mesos::ACL::PruneImages* acl = acls.add_prune_images();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_images()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  {
+    // Nobody else can prune images.
+    mesos::ACL::PruneImages* acl = acls.add_prune_images();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_images()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  {
+    // "foo" is allowed to prune images. This request should succeed.
+    authorization::Request request;
+    request.set_action(authorization::PRUNE_IMAGES);
+    request.mutable_subject()->set_value("foo");
+
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  {
+    // "bar" is not allowed to prune images. The request should fail.
+    authorization::Request request;
+    request.set_action(authorization::PRUNE_IMAGES);
+    request.mutable_subject()->set_value("bar");
+
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+
+  {
+    // Test that no authorizer is created with invalid ACLs.
+    ACLs invalid;
+
+    mesos::ACL::PruneImages* acl = invalid.add_prune_images();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_images()->add_values("yoda");
+
+    Try<Authorizer*> create = TypeParam::create(parameterize(invalid));
+    EXPECT_ERROR(create);
+  }
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
