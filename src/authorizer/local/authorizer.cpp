@@ -412,6 +412,7 @@ public:
         case authorization::STOP_MAINTENANCE:
         case authorization::UPDATE_MAINTENANCE_SCHEDULE:
         case authorization::MODIFY_RESOURCE_PROVIDER_CONFIG:
+        case authorization::PRUNE_IMAGES:
           aclObject.set_type(ACL::Entity::ANY);
 
           break;
@@ -700,6 +701,7 @@ public:
         case authorization::LAUNCH_NESTED_CONTAINER_SESSION:
         case authorization::LAUNCH_STANDALONE_CONTAINER:
         case authorization::MARK_AGENT_GONE:
+        case authorization::PRUNE_IMAGES:
         case authorization::REGISTER_AGENT:
         case authorization::REMOVE_NESTED_CONTAINER:
         case authorization::REMOVE_STANDALONE_CONTAINER:
@@ -917,6 +919,7 @@ public:
       case authorization::LAUNCH_NESTED_CONTAINER_SESSION:
       case authorization::LAUNCH_STANDALONE_CONTAINER:
       case authorization::MARK_AGENT_GONE:
+      case authorization::PRUNE_IMAGES:
       case authorization::REGISTER_AGENT:
       case authorization::REMOVE_NESTED_CONTAINER:
       case authorization::REMOVE_STANDALONE_CONTAINER:
@@ -1130,6 +1133,7 @@ public:
       case authorization::KILL_STANDALONE_CONTAINER:
       case authorization::LAUNCH_STANDALONE_CONTAINER:
       case authorization::MARK_AGENT_GONE:
+      case authorization::PRUNE_IMAGES:
       case authorization::REGISTER_AGENT:
       case authorization::REMOVE_NESTED_CONTAINER:
       case authorization::REMOVE_STANDALONE_CONTAINER:
@@ -1504,6 +1508,16 @@ private:
         }
 
         return acls_;
+      case authorization::PRUNE_IMAGES:
+        foreach (const ACL::PruneImages& acl, acls.prune_images()) {
+          GenericACL acl_;
+          acl_.subjects = acl.principals();
+          acl_.objects = acl.images();
+
+          acls_.push_back(acl_);
+        }
+
+        return acls_;
       case authorization::REGISTER_FRAMEWORK:
       case authorization::CREATE_VOLUME:
       case authorization::RESERVE_RESOURCES:
@@ -1681,6 +1695,12 @@ Option<Error> LocalAuthorizer::validate(const ACLs& acls)
       return Error(
           "acls.modify_resource_provider_config type must be either NONE or "
           "ANY");
+    }
+  }
+
+  foreach (const ACL::PruneImages& acl, acls.prune_images()) {
+    if (acl.images().type() == ACL::Entity::SOME) {
+      return Error("acls.prune_images type must be either NONE or ANY");
     }
   }
 

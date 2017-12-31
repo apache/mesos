@@ -250,6 +250,10 @@ enum Action {
   // allowed to add, update and remove resource provider config files or is
   // unauthorized.
   MODIFY_RESOURCE_PROVIDER_CONFIG = 39;
+
+  // This action will not fill in any object fields. A principal is either
+  // allowed to prune unused container images or is unauthorized.
+  PRUNE_IMAGES = 41;
 }
 
 
