@@ -1311,7 +1311,7 @@ Future<Response> Master::Http::_createVolumes(
   operation.set_type(Offer::Operation::CREATE);
   operation.mutable_create()->mutable_volumes()->CopyFrom(volumes);
 
-  Option<Error> error = validateAndNormalizeResources(&operation);
+  Option<Error> error = validateAndUpgradeResources(&operation);
   if (error.isSome()) {
     return BadRequest(error->message);
   }
@@ -1485,7 +1485,7 @@ Future<Response> Master::Http::_destroyVolumes(
   operation.set_type(Offer::Operation::DESTROY);
   operation.mutable_destroy()->mutable_volumes()->CopyFrom(volumes);
 
-  Option<Error> error = validateAndNormalizeResources(&operation);
+  Option<Error> error = validateAndUpgradeResources(&operation);
   if (error.isSome()) {
     return BadRequest(error->message);
   }
@@ -2473,7 +2473,7 @@ Future<Response> Master::Http::_reserve(
   operation.set_type(Offer::Operation::RESERVE);
   operation.mutable_reserve()->mutable_resources()->CopyFrom(resources);
 
-  Option<Error> error = validateAndNormalizeResources(&operation);
+  Option<Error> error = validateAndUpgradeResources(&operation);
   if (error.isSome()) {
     return BadRequest(error->message);
   }
@@ -5245,7 +5245,7 @@ Future<Response> Master::Http::_unreserve(
   operation.set_type(Offer::Operation::UNRESERVE);
   operation.mutable_unreserve()->mutable_resources()->CopyFrom(resources);
 
-  Option<Error> error = validateAndNormalizeResources(&operation);
+  Option<Error> error = validateAndUpgradeResources(&operation);
   if (error.isSome()) {
     return BadRequest(error->message);
   }
