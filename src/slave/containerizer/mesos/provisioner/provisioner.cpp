@@ -565,7 +565,7 @@ Future<ProvisionInfo> ProvisionerProcess::_provision(
       imageInfo.layers,
       rootfs,
       backendDir)
-    .then([=]() -> Future<ProvisionInfo> {
+    .then(defer(self(), [=]() -> Future<ProvisionInfo> {
       const string path =
         provisioner::paths::getLayersFilePath(rootDir, containerId);
 
@@ -584,7 +584,7 @@ Future<ProvisionInfo> ProvisionerProcess::_provision(
 
       return ProvisionInfo{
           rootfs, imageInfo.dockerManifest, imageInfo.appcManifest};
-    });
+    }));
 }
 
 
