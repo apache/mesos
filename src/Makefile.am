@@ -2350,8 +2350,9 @@ pkgmodule_LTLIBRARIES += liburi_volume_profile.la
 liburi_volume_profile_la_SOURCES =				\
   resource_provider/storage/uri_volume_profile.cpp		\
   resource_provider/storage/uri_volume_profile.hpp		\
-  resource_provider/storage/volume_profile.pb.h			\
   resource_provider/storage/volume_profile_utils.hpp
+nodist_liburi_volume_profile_la_SOURCES =			\
+  resource_provider/storage/volume_profile.pb.h
 liburi_volume_profile_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 liburi_volume_profile_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
 endif
