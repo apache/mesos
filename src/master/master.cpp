@@ -6178,12 +6178,16 @@ void Master::_registerSlave(
     LOG(WARNING) << "Failed to parse version '" << version << "'"
                  << " of agent at " << pid << ": " << parsedVersion.error()
                  << "; ignoring agent registration attempt";
+
+    slaves.registering.erase(pid);
     return;
   } else if (parsedVersion.get() < MINIMUM_AGENT_VERSION) {
     LOG(WARNING) << "Ignoring registration attempt from old agent at "
                  << pid << ": agent version is " << parsedVersion.get()
                  << ", minimum supported agent version is "
                  << MINIMUM_AGENT_VERSION;
+
+    slaves.registering.erase(pid);
     return;
   }
 
@@ -6198,6 +6202,8 @@ void Master::_registerSlave(
                  << "domain " << slaveInfo.domain() << " "
                  << "but the master has no configured domain. "
                  << "Ignoring agent registration attempt";
+
+    slaves.registering.erase(pid);
     return;
   }
 
@@ -6418,12 +6424,15 @@ void Master::reregisterSlave(
             << slaveInfo.id() << " at " << from << " ("
             << slaveInfo.hostname() << ")";
 
+  // TODO(bevers): Create a guard object calling `insert()` in its constructor
+  // and `erase()` in its destructor, to avoid the manual bookkeeping.
   slaves.reregistering.insert(slaveInfo.id());
 
   // Update all resources passed by the agent to `POST_RESERVATION_REFINEMENT`
   // format. We do this as early as possible so that we only use a single
   // format inside master, and downgrade again if necessary when they leave the
   // master (e.g. when writing to the registry).
+  //
   // TODO(bevers): Also convert the resources in `ExecutorInfos` and `Tasks`
   // here for consistency.
   convertResourceFormat(
@@ -6490,6 +6499,8 @@ void Master::_reregisterSlave(
       << "Ignoring re-register agent message from agent "
       << slaveInfo.id() << " at " << pid << " ("
       << slaveInfo.hostname() << ") as a gone operation is already in progress";
+
+    slaves.reregistering.erase(slaveInfo.id());
     return;
   }
 
@@ -6500,6 +6511,8 @@ void Master::_reregisterSlave(
     ShutdownMessage message;
     message.set_message("Agent has been marked gone");
     send(pid, message);
+
+    slaves.reregistering.erase(slaveInfo.id());
     return;
   }
 
@@ -6536,12 +6549,16 @@ void Master::_reregisterSlave(
     LOG(WARNING) << "Failed to parse version '" << version << "'"
                  << " of agent at " << pid << ": " << parsedVersion.error()
                  << "; ignoring agent re-registration attempt";
+
+    slaves.reregistering.erase(slaveInfo.id());
     return;
   } else if (parsedVersion.get() < MINIMUM_AGENT_VERSION) {
     LOG(WARNING) << "Ignoring re-registration attempt from old agent at "
                  << pid << ": agent version is " << parsedVersion.get()
                  << ", minimum supported agent version is "
                  << MINIMUM_AGENT_VERSION;
+
+    slaves.reregistering.erase(slaveInfo.id());
     return;
   }
 
@@ -6556,6 +6573,8 @@ void Master::_reregisterSlave(
                  << "domain " << slaveInfo.domain() << " "
                  << "but the master has no configured domain."
                  << "Ignoring agent re-registration attempt";
+
+    slaves.reregistering.erase(slaveInfo.id());
     return;
   }
 
@@ -6682,6 +6701,8 @@ void Master::__reregisterSlave(
       << "Ignoring re-register agent message from agent "
       << slaveInfo.id() << " at " << pid << " ("
       << slaveInfo.hostname() << ") as a gone operation is already in progress";
+
+    slaves.reregistering.erase(slaveInfo.id());
     return;
   }
 
@@ -6692,6 +6713,8 @@ void Master::__reregisterSlave(
     ShutdownMessage message;
     message.set_message("Agent has been marked gone");
     send(pid, message);
+
+    slaves.reregistering.erase(slaveInfo.id());
     return;
   }
 
@@ -6955,6 +6978,8 @@ void Master::___reregisterSlave(
       << "Ignoring re-register agent message from agent "
       << slaveInfo.id() << " at " << pid << " ("
       << slaveInfo.hostname() << ") as a gone operation is already in progress";
+
+    slaves.reregistering.erase(slaveInfo.id());
     return;
   }
 
@@ -6965,6 +6990,8 @@ void Master::___reregisterSlave(
     ShutdownMessage message;
     message.set_message("Agent has been marked gone");
     send(pid, message);
+
+    slaves.reregistering.erase(slaveInfo.id());
     return;
   }
 
