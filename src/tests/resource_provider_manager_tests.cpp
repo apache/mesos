@@ -986,54 +986,39 @@ TEST_P(ResourceProviderManagerHttpApiTest, ConvertResources)
   // Start and register a framework.
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
-  Future<Nothing> connected;
-  EXPECT_CALL(*scheduler, connected(_)).WillOnce(FutureSatisfy(&connected));
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_roles(0, "role");
+
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(v1::scheduler::SendSubscribe(frameworkInfo));
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<v1::scheduler::Event::Offers> offers1;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers1));
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
 
   v1::scheduler::TestMesos mesos(
       master.get()->pid,
       ContentType::PROTOBUF,
       scheduler);
 
-  AWAIT_READY(connected);
+  AWAIT_READY(subscribed);
+  v1::FrameworkID frameworkId(subscribed->framework_id());
 
-  Option<v1::FrameworkID> frameworkId;
-  Option<mesos::v1::Offer> offer1;
+  // Resource provider resources will be offered to the framework.
+  AWAIT_READY(offers1);
+  ASSERT_FALSE(offers1->offers().empty());
 
-  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_roles(0, "role");
-
-  {
-    Future<v1::scheduler::Event::Subscribed> subscribed;
-    EXPECT_CALL(*scheduler, subscribed(_, _))
-      .WillOnce(FutureArg<1>(&subscribed));
-
-    Future<v1::scheduler::Event::Offers> offers;
-    EXPECT_CALL(*scheduler, offers(_, _))
-      .WillOnce(FutureArg<1>(&offers))
-      .WillRepeatedly(Return()); // Ignore subsequent offers.
-
-    EXPECT_CALL(*scheduler, heartbeat(_))
-      .WillRepeatedly(Return()); // Ignore heartbeats.
-
-    mesos::v1::scheduler::Call call;
-    call.set_type(mesos::v1::scheduler::Call::SUBSCRIBE);
-    mesos::v1::scheduler::Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(frameworkInfo);
-
-    mesos.send(call);
-
-    AWAIT_READY(subscribed);
-
-    frameworkId = subscribed->framework_id();
-
-    // Resource provider resources will be offered to the framework.
-    AWAIT_READY(offers);
-    EXPECT_FALSE(offers->offers().empty());
-    offer1 = offers->offers(0);
-  }
+  const v1::Offer& offer1 = offers1->offers(0);
 
   v1::Resources resources =
-    v1::Resources(offer1->resources()).filter([](const v1::Resource& resource) {
+    v1::Resources(offer1.resources()).filter([](const v1::Resource& resource) {
       return resource.has_provider_id();
     });
 
@@ -1044,23 +1029,22 @@ TEST_P(ResourceProviderManagerHttpApiTest, ConvertResources)
       v1::createDynamicReservationInfo(
           frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal()));
 
-  Future<v1::scheduler::Event::Offers> offers;
+  Future<v1::scheduler::Event::Offers> offers2;
   EXPECT_CALL(*scheduler, offers(_, _))
-    .WillOnce(FutureArg<1>(&offers))
+    .WillOnce(FutureArg<1>(&offers2))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   mesos.send(
       v1::createCallAccept(
-          frameworkId.get(),
-          offer1.get(),
-          {v1::RESERVE(reserved),
-           v1::CREATE_BLOCK(reserved)}));
+          frameworkId,
+          offer1,
+          {v1::RESERVE(reserved), v1::CREATE_BLOCK(reserved)}));
 
   // The converted resource should be offered to the framework.
-  AWAIT_READY(offers);
-  EXPECT_FALSE(offers->offers().empty());
+  AWAIT_READY(offers2);
+  ASSERT_FALSE(offers2->offers().empty());
 
-  const v1::Offer& offer2 = offers->offers(0);
+  const v1::Offer& offer2 = offers2->offers(0);
 
   Option<v1::Resource> block;
   foreach (const v1::Resource& resource, offer2.resources()) {
