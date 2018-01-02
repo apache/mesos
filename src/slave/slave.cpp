@@ -7286,19 +7286,29 @@ void Slave::handleResourceProviderMessage(
         case RECOVERING:
         case DISCONNECTED:
         case TERMINATING: {
-          LOG(WARNING) << "Dropping status update of operation '"
-                       << update.status().operation_id() << "' (uuid: "
-                       << operationUUID->toString() << ") for framework "
-                       << update.framework_id() << " because agent is in "
-                       << state << " state";
+          LOG(WARNING)
+            << "Dropping status update of operation"
+            << (update.status().has_operation_id()
+                 ? " '" + stringify(update.status().operation_id()) + "'"
+                 : " with no ID")
+            << " (operation_uuid: " << operationUUID->toString() << ")"
+            << (update.has_framework_id()
+                 ? " for framework " + stringify(update.framework_id())
+                 : " for an operator API call")
+            << " because agent is in " << state << " state";
           break;
         }
         case RUNNING: {
-          LOG(INFO) << "Forwarding status update of "
-                    << (operation == nullptr ? "unknown " : "")
-                    << "operation '" << update.status().operation_id()
-                    << "' (uuid: " << operationUUID->toString()
-                    << ") for framework " << update.framework_id();
+          LOG(INFO)
+            << "Forwarding status update of"
+            << (operation == nullptr ? " unknown" : "") << " operation"
+            << (update.status().has_operation_id()
+                 ? " '" + stringify(update.status().operation_id()) + "'"
+                 : " with no ID")
+            << " (operation_uuid: " << operationUUID->toString() << ")"
+            << (update.has_framework_id()
+                 ? " for framework " + stringify(update.framework_id())
+                 : " for an operator API call");
 
           // The status update from the resource provider didn't
           // provide the agent ID (because the resource provider
@@ -7450,9 +7460,13 @@ void Slave::updateOperation(
   }
 
   LOG(INFO) << "Updating the state of operation '"
-            << operation->info().id()
-            << "' (uuid: " << operation->uuid()
-            << ") of framework " << operation->framework_id()
+            << (operation->info().has_id()
+                 ? " '" + stringify(operation->info().id()) + "'"
+                 : " with no ID")
+            << " (uuid: " << operation->uuid() << ")"
+            << (operation->has_framework_id()
+                 ? " for framework " + stringify(operation->framework_id())
+                 : " for an operation API call")
             << " (latest state: " << operation->latest_status().state()
             << ", status update state: " << status.state() << ")";
 
