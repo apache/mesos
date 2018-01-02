@@ -487,6 +487,14 @@ after which the operation is considered a failure. (default: 20secs)
 </tr>
 <tr>
   <td>
+    --[no-]require_agent_domain
+  </td>
+  <td>
+If true, only agents with a configured domain can register. (default: false)
+  </td>
+</tr>
+<tr>
+  <td>
     --roles=VALUE
   </td>
   <td>

@@ -8222,6 +8222,99 @@ TEST_F(MasterTest, AgentDomainMismatch)
 }
 
 
+// This test checks that if the `--require_agent_domain` flag is set and
+// the agent does not have a domain configured, the registration attempt
+// will fail.
+TEST_F(MasterTest, RegistrationWithoutRequiredAgentDomain)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.domain = createDomainInfo("region-abc", "zone-456");
+  masterFlags.require_agent_domain = true;
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Agent should attempt to register.
+  Future<RegisterSlaveMessage> registerSlaveMessage =
+    FUTURE_PROTOBUF(RegisterSlaveMessage(), _, _);
+
+  // If the agent is allowed to register, the master will update the
+  // registry. The agent should not be allowed to register, so we
+  // expect that no registrar operations will be observed.
+  EXPECT_CALL(*master.get()->registrar, apply(_))
+    .Times(0);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  Clock::settle();
+
+  AWAIT_READY(registerSlaveMessage);
+}
+
+
+// This test checks that if the `--require_agent_domain` flag is set and
+// the agent does not have a domain configured when trying to re-register,
+// the re-registration attempt will fail.
+TEST_F(MasterTest, ReregistrationWithoutRequiredAgentDomain)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.domain = createDomainInfo("region-abc", "zone-456");
+  masterFlags.require_agent_domain = true;
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.domain = createDomainInfo("region-abc", "zone-456");
+
+  // Agent should successfully register.
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Shut down slave and re-register without domain. We do this by
+  // intercepting the `ReregisterSlaveMessage` and erasing the domain
+  // before passing it on to the master.
+  Future<ReregisterSlaveMessage> reregisterSlaveMessage =
+    DROP_PROTOBUF(ReregisterSlaveMessage(), _, _);
+
+  slave.get()->shutdown();
+  slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  Clock::advance(slaveFlags.authentication_backoff_factor);
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(reregisterSlaveMessage);
+
+  ReregisterSlaveMessage message = reregisterSlaveMessage.get();
+  message.mutable_slave()->clear_domain();
+
+  // If the agent is allowed to register, the master will update the
+  // registry. The agent should not be allowed to register, so we
+  // expect that no registrar operations will be observed.
+  EXPECT_CALL(*master.get()->registrar, apply(_))
+    .Times(0);
+
+  process::post(slave.get()->pid, master.get()->pid, message);
+  Clock::settle();
+}
+
+
 // This test checks that if the agent is configured with a domain but
 // the master is not, the agent is not allowed to re-register. This
 // might happen if the leading master is configured with a domain but

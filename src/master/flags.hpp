@@ -96,6 +96,7 @@ public:
   Duration registry_gc_interval;
   Duration registry_max_agent_age;
   size_t registry_max_agent_count;
+  bool require_agent_domain;
   Option<DomainInfo> domain;
 
   // The following flags are executable specific (e.g., since we only
