@@ -497,7 +497,7 @@ void upgradeResources(Offer::Operation* operation)
 }
 
 
-Option<Error> validateAndNormalizeResources(Offer::Operation* operation)
+Option<Error> validateAndUpgradeResources(Offer::Operation* operation)
 {
   CHECK_NOTNULL(operation);
 

@@ -166,7 +166,7 @@ void convertResourceFormat(
 // NOTE: The validate and upgrade steps are bundled because currently
 // it would be an error to validate but not upgrade or to upgrade
 // without validating.
-Option<Error> validateAndNormalizeResources(Offer::Operation* operation);
+Option<Error> validateAndUpgradeResources(Offer::Operation* operation);
 
 
 // Convert the given resources to the "pre-reservation-refinement" format
