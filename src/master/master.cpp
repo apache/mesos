@@ -6207,6 +6207,18 @@ void Master::_registerSlave(
     return;
   }
 
+  // Don't allow agents without domain if domains are required.
+  // We don't shutdown the agent to allow it to restart itself with
+  // the correct domain and without losing tasks.
+  if (flags.require_agent_domain && !slaveInfo.has_domain()) {
+    LOG(WARNING) << "Agent at " << pid << " attempted to register without "
+                 << "a domain, but this master is configured to require agent "
+                 << "domains. Ignoring agent registration attempt";
+
+    slaves.registering.erase(pid);
+    return;
+  }
+
   // Check if this slave is already registered (because it retries).
   if (Slave* slave = slaves.registered.get(pid)) {
     if (!slave->connected) {
@@ -6573,6 +6585,18 @@ void Master::_reregisterSlave(
                  << "domain " << slaveInfo.domain() << " "
                  << "but the master has no configured domain."
                  << "Ignoring agent re-registration attempt";
+
+    slaves.reregistering.erase(slaveInfo.id());
+    return;
+  }
+
+  // Don't allow agents without domain if domains are required.
+  // We don't shutdown the agent to allow it to restart itself with
+  // the correct domain and without losing tasks.
+  if (flags.require_agent_domain && !slaveInfo.has_domain()) {
+    LOG(WARNING) << "Agent at " << pid << " attempted to register without "
+                 << "a domain, but this master is configured to require agent "
+                 << "domains. Ignoring agent re-registration attempt";
 
     slaves.reregistering.erase(slaveInfo.id());
     return;

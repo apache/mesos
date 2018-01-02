@@ -642,6 +642,11 @@ mesos::internal::master::Flags::Flags()
       "the IP address which the master will try to bind to.\n"
       "Cannot be used in conjunction with `--ip`.");
 
+  add(&Flags::require_agent_domain,
+      "require_agent_domain",
+      "If true, only agents with a configured domain can register.\n",
+      false);
+
   add(&Flags::domain,
       "domain",
       "Domain that the master belongs to. Mesos currently only supports\n"
