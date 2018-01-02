@@ -8312,6 +8312,22 @@ TEST_F(MasterTest, IgnoreOldAgentRegistration)
 
   // Settle the clock to retire in-flight messages.
   Clock::settle();
+
+  // Now, try again with the correct version. The slave should be able to
+  // register.
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  EXPECT_CALL(*master.get()->registrar, apply(_))
+    .Times(1);
+
+  slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  Clock::settle();
+
+  AWAIT_READY(slaveRegisteredMessage);
 }
 
 
