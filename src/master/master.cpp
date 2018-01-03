@@ -1713,6 +1713,7 @@ Future<Nothing> Master::_recover(const Registry& registry)
 
   foreach (const Registry::UnreachableSlave& unreachable,
            registry.unreachable().slaves()) {
+    CHECK(!slaves.unreachable.contains(unreachable.id()));
     slaves.unreachable[unreachable.id()] = unreachable.timestamp();
   }
 
@@ -2111,6 +2112,7 @@ void Master::_markUnreachableAfterFailover(
   ++metrics->slave_removals_reason_unhealthy;
   ++metrics->recovery_slave_removals;
 
+  CHECK(!slaves.unreachable.contains(slaveInfo.id()));
   slaves.unreachable[slaveInfo.id()] = unreachableTime;
 
   sendSlaveLost(slaveInfo);
@@ -8287,6 +8289,7 @@ void Master::_markUnreachable(
   ++metrics->slave_removals;
   ++metrics->slave_removals_reason_unhealthy;
 
+  CHECK(!slaves.unreachable.contains(slave->id));
   slaves.unreachable[slave->id] = unreachableTime;
 
   __removeSlave(slave, message, unreachableTime);
