@@ -271,7 +271,8 @@ protected:
 
       dispatch(master,
                &Master::markUnreachable,
-               slaveId,
+               slaveInfo,
+               false,
                "health check timed out");
     } else if (future.isDiscarded()) {
       LOG(INFO) << "Canceling transition of agent " << slaveId
@@ -1405,7 +1406,8 @@ Nothing Master::_agentReregisterTimeout(const SlaveID& slaveId)
   ++metrics->slave_unreachable_completed;
 
   markUnreachable(
-      slaveId,
+      slave->info,
+      false,
       "agent did not re-register within " +
       stringify(flags.agent_reregister_timeout) +
       " after disconnecting");
@@ -2006,124 +2008,35 @@ void Master::recoveredSlavesTimeout(const Registry& registry)
     const string failure = "Agent removal rate limit acquisition failed";
 
     // TODO(bmahler): Cancelation currently occurs within by returning
-    // early from `markUnreachableAfterFailover` *without* the
-    // "discarder" having discarded the rate limit token. This approach
-    // means that if agents re-register while many of the marking
-    // unreachable operations are in progress, the rate that we mark
-    // unreachable will "slow down" rather than stay constant. We
-    // should instead discard the rate limit token when the agent
-    // re-registers and handle the discard here. See MESOS-8386.
+    // early from `markUnreachable` *without* the "discarder" having
+    // discarded the rate limit token. This approach means that if
+    // agents re-register while many of the marking unreachable
+    // operations are in progress, the rate that we mark unreachable
+    // will "slow down" rather than stay constant. We should instead
+    // discard the rate limit token when the agent re-registers and
+    // handle the discard here. See MESOS-8386.
     acquire
-      .then(defer(self(), &Self::markUnreachableAfterFailover, slave.info()))
       .onFailed(lambda::bind(fail, failure, lambda::_1))
-      .onDiscarded(lambda::bind(fail, failure, "discarded"));
+      .onDiscarded(lambda::bind(fail, failure, "discarded"))
+      .then(defer(self(),
+                  &Self::markUnreachable,
+                  slave.info(),
+                  true,
+                  "did not re-register within"
+                  " " + stringify(flags.agent_reregister_timeout) +
+                  " after master failover"))
+      .then(defer(self(), [=](bool marked) {
+        if (marked) {
+          ++metrics->slave_unreachable_completed;
+        } else {
+          ++metrics->slave_unreachable_canceled;
+        }
+
+        return Nothing();
+      }));
 
     ++metrics->slave_unreachable_scheduled;
   }
-}
-
-
-Nothing Master::markUnreachableAfterFailover(const SlaveInfo& slave)
-{
-  // The slave might have reregistered while we were waiting to
-  // acquire the rate limit.
-  if (!slaves.recovered.contains(slave.id())) {
-    LOG(INFO) << "Canceling transition of agent "
-              << slave.id() << " (" << slave.hostname() << ")"
-              << " to unreachable because it re-registered";
-
-    ++metrics->slave_unreachable_canceled;
-    return Nothing();
-  }
-
-  // The slave might be in the process of reregistering.
-  if (slaves.reregistering.contains(slave.id())) {
-    LOG(INFO) << "Canceling transition of agent "
-              << slave.id() << " (" << slave.hostname() << ")"
-              << " to unreachable because it is re-registering";
-
-    ++metrics->slave_unreachable_canceled;
-    return Nothing();
-  }
-
-  if (slaves.markingGone.contains(slave.id())) {
-    LOG(INFO) << "Canceling transition of agent "
-              << slave.id() << " (" << slave.hostname() << ")"
-              << " to unreachable because an agent gone"
-              << " operation is in progress";
-
-    ++metrics->slave_unreachable_canceled;
-    return Nothing();
-  }
-
-  if (slaves.gone.contains(slave.id())) {
-    LOG(INFO) << "Canceling transition of agent "
-              << slave.id() << " (" << slave.hostname() << ")"
-              << " to unreachable because the agent has"
-              << " been marked gone";
-
-    ++metrics->slave_unreachable_canceled;
-    return Nothing();
-  }
-
-  LOG(WARNING) << "Agent " << slave.id()
-               << " (" << slave.hostname() << ") did not re-register"
-               << " within " << flags.agent_reregister_timeout
-               << " after master failover; marking it unreachable";
-
-  ++metrics->slave_unreachable_completed;
-
-  TimeInfo unreachableTime = protobuf::getCurrentTime();
-
-  slaves.markingUnreachable.insert(slave.id());
-
-  registrar->apply(Owned<RegistryOperation>(
-          new MarkSlaveUnreachable(slave, unreachableTime)))
-    .onAny(defer(self(),
-                 &Self::_markUnreachableAfterFailover,
-                 slave,
-                 unreachableTime,
-                 lambda::_1));
-
-  return Nothing();
-}
-
-
-void Master::_markUnreachableAfterFailover(
-    const SlaveInfo& slaveInfo,
-    const TimeInfo& unreachableTime,
-    const Future<bool>& registrarResult)
-{
-  CHECK(slaves.markingUnreachable.contains(slaveInfo.id()));
-  slaves.markingUnreachable.erase(slaveInfo.id());
-
-  CHECK(slaves.recovered.contains(slaveInfo.id()));
-  slaves.recovered.erase(slaveInfo.id());
-
-  if (registrarResult.isFailed()) {
-    LOG(FATAL) << "Failed to mark agent " << slaveInfo.id()
-               << " (" << slaveInfo.hostname() << ")"
-               << " unreachable in the registry: "
-               << registrarResult.failure();
-  }
-
-  CHECK(!registrarResult.isDiscarded());
-
-  // `MarkSlaveUnreachable` registry operation should never fail.
-  CHECK(registrarResult.get());
-
-  LOG(INFO) << "Marked agent " << slaveInfo.id() << " ("
-            << slaveInfo.hostname() << ") unreachable: "
-            << "did not re-register after master failover";
-
-  ++metrics->slave_removals;
-  ++metrics->slave_removals_reason_unhealthy;
-  ++metrics->recovery_slave_removals;
-
-  CHECK(!slaves.unreachable.contains(slaveInfo.id()));
-  slaves.unreachable[slaveInfo.id()] = unreachableTime;
-
-  sendSlaveLost(slaveInfo);
 }
 
 
@@ -8193,23 +8106,40 @@ void Master::shutdown(
 }
 
 
-// TODO(neilc): Refactor to reduce code duplication with
-// `Master::removeSlave`.
-void Master::markUnreachable(const SlaveID& slaveId, const string& message)
+Future<bool> Master::markUnreachable(
+    const SlaveInfo& slave,
+    bool duringMasterFailover,
+    const string& message)
 {
-  Slave* slave = slaves.registered.get(slaveId);
-
-  if (slave == nullptr) {
-    // Possible when the `SlaveObserver` dispatches a message to mark an
-    // unhealthy slave as unreachable, but the slave is concurrently
-    // removed for another reason (e.g., `UnregisterSlaveMessage` is
-    // received).
-    LOG(WARNING) << "Unable to mark unknown agent "
-                 << slaveId << " unreachable";
-    return;
+  if (duringMasterFailover && !slaves.recovered.contains(slave.id())) {
+    LOG(INFO) << "Skipping transition of agent"
+              << " " << slave.id() << " (" << slave.hostname() << ")"
+              << " to unreachable because it re-registered in the interim";
+    return false;
   }
 
-  if (slaves.markingUnreachable.contains(slaveId)) {
+  if (!duringMasterFailover && !slaves.registered.contains(slave.id())) {
+    // Possible when the `SlaveObserver` dispatches a message to
+    // mark an unhealthy slave as unreachable, but the slave is
+    // concurrently removed for another reason (e.g.,
+    // `UnregisterSlaveMessage` is received).
+    LOG(WARNING) << "Skipping transition of agent"
+                 << " " << slave.id() << " (" << slave.hostname() << ")"
+                 << " to unreachable because it has already been removed"
+                 << " or marked unreachable";
+    return false;
+  }
+
+  // The slave might be in the process of reregistering without
+  // the marking unreachable having been canceled.
+  if (slaves.reregistering.contains(slave.id())) {
+    LOG(INFO) << "Skipping transition of agent"
+              << " " << slave.id() << " (" << slave.hostname() << ")"
+              << " to unreachable because it is re-registering";
+    return false;
+  }
+
+  if (slaves.markingUnreachable.contains(slave.id())) {
     // We might already be marking this slave unreachable. This is
     // possible if marking the slave unreachable in the registry takes
     // a long time. While the registry operation is in progress, the
@@ -8218,89 +8148,106 @@ void Master::markUnreachable(const SlaveID& slaveId, const string& message)
     // another attempt to mark it unreachable. Also possible if
     // `agentReregisterTimeout` marks the slave unreachable
     // concurrently with the slave observer doing so.
-    LOG(WARNING) << "Not marking agent " << slaveId
-                 << " unreachable because another unreachable"
+    LOG(WARNING) << "Skipping transition of agent"
+                 << " " << slave.id() << " (" << slave.hostname() << ")"
+                 << " to unreachable because another unreachable"
                  << " transition is already in progress";
-    return;
+    return false;
   }
 
-  if (slaves.removing.contains(slaveId)) {
-    LOG(WARNING) << "Not marking agent " << slaveId
-                 << " unreachable because it is unregistering";
-    return;
+  if (slaves.removing.contains(slave.id())) {
+    LOG(WARNING) << "Skipping transition of agent"
+                 << " " << slave.id() << " (" << slave.hostname() << ")"
+                 << " to unreachable because it is being removed";
+    return false;
   }
 
-  if (slaves.markingGone.contains(slaveId)) {
-    LOG(INFO) << "Canceling transition of agent " << slaveId
-              << " to unreachable because an agent gone"
-              << " operation is in progress";
-    return;
+  if (slaves.removed.get(slave.id()).isSome()) {
+    LOG(WARNING) << "Skipping transition of agent"
+                 << " " << slave.id() << " (" << slave.hostname() << ")"
+                 << " to unreachable because it has been removed";
+    return false;
   }
 
-  if (slaves.gone.contains(slaveId)) {
-    LOG(INFO) << "Canceling transition of agent " << slaveId
-              << " to unreachable because the agent has"
-              << " been marked gone";
-    return;
+  if (slaves.markingGone.contains(slave.id())) {
+    LOG(WARNING) << "Skipping transition of agent"
+                 << " " << slave.id() << " (" << slave.hostname() << ")"
+                 << " to unreachable because it is being marked as gone";
+    return false;
   }
 
-  LOG(INFO) << "Marking agent " << *slave
+  if (slaves.gone.contains(slave.id())) {
+    LOG(WARNING) << "Skipping transition of agent"
+                 << " " << slave.id() << " (" << slave.hostname() << ")"
+                 << " to unreachable because it has been marked as gone";
+    return false;
+  }
+
+  LOG(INFO) << "Marking agent " << slave.id() << " (" << slave.hostname() << ")"
             << " unreachable: " << message;
 
-  CHECK(!slaves.unreachable.contains(slaveId));
-  CHECK(slaves.removed.get(slaveId).isNone());
+  CHECK(!slaves.unreachable.contains(slave.id()));
+  slaves.markingUnreachable.insert(slave.id());
 
-  slaves.markingUnreachable.insert(slave->id);
-
-  // Use the same timestamp for all status updates sent below; we also
-  // use this timestamp when updating the registry.
+  // Use the same timestamp for all status updates sent below;
+  // we also use this timestamp when updating the registry.
   TimeInfo unreachableTime = protobuf::getCurrentTime();
+
+  const string failure = "Failed to mark agent " + stringify(slave.id()) +
+    " (" + slave.hostname() + ") as unreachable in the registry";
 
   // Update the registry to move this slave from the list of admitted
   // slaves to the list of unreachable slaves. After this is complete,
   // we can remove the slave from the master's in-memory state and
   // send TASK_UNREACHABLE / TASK_LOST updates to the frameworks.
-  registrar->apply(Owned<RegistryOperation>(
-          new MarkSlaveUnreachable(slave->info, unreachableTime)))
-    .onAny(defer(self(),
-                 &Self::_markUnreachable,
-                 slave,
-                 unreachableTime,
-                 message,
-                 lambda::_1));
+  return undiscardable(
+      registrar->apply(Owned<RegistryOperation>(
+          new MarkSlaveUnreachable(slave, unreachableTime)))
+      .onFailed(lambda::bind(fail, failure, lambda::_1))
+      .onDiscarded(lambda::bind(fail, failure, "discarded"))
+      .then(defer(self(), [=](bool result) {
+        _markUnreachable(
+            slave, unreachableTime, duringMasterFailover, message, result);
+        return true;
+      })));
 }
 
 
 void Master::_markUnreachable(
-    Slave* slave,
+    const SlaveInfo& slave,
     const TimeInfo& unreachableTime,
+    bool duringMasterFailover,
     const string& message,
-    const Future<bool>& registrarResult)
+    bool registrarResult)
 {
-  CHECK_NOTNULL(slave);
-  CHECK(slaves.markingUnreachable.contains(slave->info.id()));
-  slaves.markingUnreachable.erase(slave->info.id());
-
-  if (registrarResult.isFailed()) {
-    LOG(FATAL) << "Failed to mark agent " << *slave
-               << " unreachable in the registry: "
-               << registrarResult.failure();
-  }
-
-  CHECK(!registrarResult.isDiscarded());
-
   // `MarkSlaveUnreachable` registry operation should never fail.
-  CHECK(registrarResult.get());
+  CHECK(registrarResult);
 
-  LOG(INFO) << "Marked agent " << *slave << " unreachable: " << message;
+  CHECK(slaves.markingUnreachable.contains(slave.id()));
+  slaves.markingUnreachable.erase(slave.id());
+
+  LOG(INFO) << "Marked agent"
+            << " " << slave.id() << " (" << slave.hostname() << ")"
+            << " unreachable: " << message;
 
   ++metrics->slave_removals;
   ++metrics->slave_removals_reason_unhealthy;
 
-  CHECK(!slaves.unreachable.contains(slave->id));
-  slaves.unreachable[slave->id] = unreachableTime;
+  CHECK(!slaves.unreachable.contains(slave.id()));
+  slaves.unreachable[slave.id()] = unreachableTime;
 
-  __removeSlave(slave, message, unreachableTime);
+  if (duringMasterFailover) {
+    CHECK(slaves.recovered.contains(slave.id()));
+    slaves.recovered.erase(slave.id());
+
+    ++metrics->recovery_slave_removals;
+
+    sendSlaveLost(slave);
+  } else {
+    CHECK(slaves.registered.contains(slave.id()));
+
+    __removeSlave(slaves.registered.get(slave.id()), message, unreachableTime);
+  }
 }
 
 

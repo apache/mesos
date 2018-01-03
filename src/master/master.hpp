@@ -506,8 +506,21 @@ public:
       const MachineID& machineId,
       const Option<Unavailability>& unavailability);
 
-  void markUnreachable(
-      const SlaveID& slaveId,
+  // Marks the agent unreachable and returns whether the agent was
+  // marked unreachable. Returns false if the agent is already
+  // in a transitioning state or has transitioned into another
+  // state (this includes already being marked unreachable).
+  // The `duringMasterFailover` parameter specifies whether this
+  // agent is transitioning from a recovered state (true) or a
+  // registered state (false).
+  //
+  // Discarding currently not supported.
+  //
+  // Will not return a failure (this will crash the master
+  // internally in the case of a registry failure).
+  process::Future<bool> markUnreachable(
+      const SlaveInfo& slave,
+      bool duringMasterFailover,
       const std::string& message);
 
   void markGone(Slave* slave, const TimeInfo& goneTime);
@@ -707,19 +720,11 @@ protected:
       std::vector<Archive::Framework>&& completedFrameworks);
 
   void _markUnreachable(
-      Slave* slave,
+      const SlaveInfo& slave,
       const TimeInfo& unreachableTime,
+      bool duringMasterFailover,
       const std::string& message,
-      const process::Future<bool>& registrarResult);
-
-  // Mark a slave as unreachable in the registry. Called when the slave
-  // does not re-register in time after a master failover.
-  Nothing markUnreachableAfterFailover(const SlaveInfo& slave);
-
-  void _markUnreachableAfterFailover(
-      const SlaveInfo& slaveInfo,
-      const TimeInfo& unreachableTime,
-      const process::Future<bool>& registrarResult);
+      bool registrarResult);
 
   void sendSlaveLost(const SlaveInfo& slaveInfo);
 

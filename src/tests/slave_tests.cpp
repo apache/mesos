@@ -3644,9 +3644,14 @@ TEST_F(SlaveTest, HealthCheckUnregisterRace)
   EXPECT_CALL(*master.get()->registrar, apply(_))
     .Times(0);
 
+  SlaveInfo slaveInfo;
+  slaveInfo.mutable_id()->CopyFrom(slaveId);
+  slaveInfo.set_hostname("hostname");
+
   process::dispatch(master.get()->pid,
                     &Master::markUnreachable,
-                    slaveId,
+                    slaveInfo,
+                    false,
                     "dummy test case dispatch");
 
   Clock::settle();
