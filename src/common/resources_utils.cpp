@@ -390,112 +390,133 @@ void convertResourceFormat(
 }
 
 
-void upgradeResources(Offer::Operation* operation)
+namespace internal {
+
+// Given a protobuf descriptor `descriptor`, recursively populates the provided
+// `result` where the keys are the message descriptors within `descriptor`'s
+// schema (including itself), and the corresponding value is `true` if the key
+// contains a `mesos::Resource`, and `false` otherwise.
+static void precomputeResourcesContainment(
+    const Descriptor* descriptor,
+    hashmap<const Descriptor*, bool>* result)
 {
-  CHECK_NOTNULL(operation);
+  CHECK_NOTNULL(descriptor);
+  CHECK_NOTNULL(result);
 
-  switch (operation->type()) {
-    case Offer::Operation::RESERVE: {
-      convertResourceFormat(
-          operation->mutable_reserve()->mutable_resources(),
-          POST_RESERVATION_REFINEMENT);
+  if (result->contains(descriptor)) {
+    return;
+  }
 
-      return;
+  if (descriptor == mesos::Resource::descriptor()) {
+    result->insert({descriptor, true});
+  }
+
+  result->insert({descriptor, false});
+  for (int i = 0; i < descriptor->field_count(); ++i) {
+    // `message_type()` returns `nullptr` if the field is not a message type.
+    const Descriptor* messageDescriptor = descriptor->field(i)->message_type();
+    if (messageDescriptor == nullptr) {
+      continue;
     }
-    case Offer::Operation::UNRESERVE: {
-      convertResourceFormat(
-          operation->mutable_unreserve()->mutable_resources(),
-          POST_RESERVATION_REFINEMENT);
+    precomputeResourcesContainment(messageDescriptor, result);
+    result->at(descriptor) |= result->at(messageDescriptor);
+  }
+}
 
-      return;
+
+static Try<Nothing> convertResourcesImpl(
+    Message* message,
+    Try<Nothing> (*convertResource)(mesos::Resource* resource),
+    const hashmap<const Descriptor*, bool>& resourcesContainment)
+{
+  CHECK_NOTNULL(message);
+
+  const Descriptor* descriptor = message->GetDescriptor();
+
+  if (descriptor == mesos::Resource::descriptor()) {
+    return convertResource(static_cast<mesos::Resource*>(message));
+  }
+
+  const google::protobuf::Reflection* reflection = message->GetReflection();
+
+  for (int i = 0; i < descriptor->field_count(); ++i) {
+    const google::protobuf::FieldDescriptor* field = descriptor->field(i);
+    const Descriptor* messageDescriptor = field->message_type();
+
+    if (messageDescriptor == nullptr ||
+        !resourcesContainment.at(messageDescriptor)) {
+      continue;
     }
-    case Offer::Operation::CREATE: {
-      convertResourceFormat(
-          operation->mutable_create()->mutable_volumes(),
-          POST_RESERVATION_REFINEMENT);
 
-      return;
-    }
-    case Offer::Operation::DESTROY: {
-      convertResourceFormat(
-          operation->mutable_destroy()->mutable_volumes(),
-          POST_RESERVATION_REFINEMENT);
+    if (!field->is_repeated()) {
+      if (reflection->HasField(*message, field)) {
+        Try<Nothing> result = convertResourcesImpl(
+            reflection->MutableMessage(message, field),
+            convertResource,
+            resourcesContainment);
 
-      return;
-    }
-    case Offer::Operation::LAUNCH: {
-      foreach (
-          TaskInfo& task, *operation->mutable_launch()->mutable_task_infos()) {
-        convertResourceFormat(
-            task.mutable_resources(),
-            POST_RESERVATION_REFINEMENT);
-
-        if (task.has_executor()) {
-          convertResourceFormat(
-              task.mutable_executor()->mutable_resources(),
-              POST_RESERVATION_REFINEMENT);
+        if (result.isError()) {
+          return result;
         }
       }
+    } else {
+      const int size = reflection->FieldSize(*message, field);
 
-      return;
-    }
-    case Offer::Operation::LAUNCH_GROUP: {
-      Offer::Operation::LaunchGroup* launchGroup =
-        operation->mutable_launch_group();
+      for (int j = 0; j < size; ++j) {
+        Try<Nothing> result = convertResourcesImpl(
+            reflection->MutableRepeatedMessage(message, field, j),
+            convertResource,
+            resourcesContainment);
 
-      if (launchGroup->has_executor()) {
-        convertResourceFormat(
-            launchGroup->mutable_executor()->mutable_resources(),
-            POST_RESERVATION_REFINEMENT);
-      }
-
-      foreach (
-          TaskInfo& task, *launchGroup->mutable_task_group()->mutable_tasks()) {
-        convertResourceFormat(
-            task.mutable_resources(), POST_RESERVATION_REFINEMENT);
-
-        if (task.has_executor()) {
-          convertResourceFormat(
-              task.mutable_executor()->mutable_resources(),
-              POST_RESERVATION_REFINEMENT);
+        if (result.isError()) {
+          return result;
         }
       }
-
-      return;
-    }
-    case Offer::Operation::CREATE_VOLUME: {
-      convertResourceFormat(
-          operation->mutable_create_volume()->mutable_source(),
-          POST_RESERVATION_REFINEMENT);
-
-      return;
-    }
-    case Offer::Operation::DESTROY_VOLUME: {
-      convertResourceFormat(
-          operation->mutable_destroy_volume()->mutable_volume(),
-          POST_RESERVATION_REFINEMENT);
-
-      return;
-    }
-    case Offer::Operation::CREATE_BLOCK: {
-      convertResourceFormat(
-          operation->mutable_create_block()->mutable_source(),
-          POST_RESERVATION_REFINEMENT);
-
-      return;
-    }
-    case Offer::Operation::DESTROY_BLOCK: {
-      convertResourceFormat(
-          operation->mutable_destroy_block()->mutable_block(),
-          POST_RESERVATION_REFINEMENT);
-
-      return;
-    }
-    case Offer::Operation::UNKNOWN: {
-      return;
     }
   }
-  UNREACHABLE();
+
+  return Nothing();
+}
+
+}  // namespace internal {
+
+
+void upgradeResource(Resource* resource)
+{
+  convertResourceFormat(resource, POST_RESERVATION_REFINEMENT);
+}
+
+
+void upgradeResources(RepeatedPtrField<Resource>* resources)
+{
+  CHECK_NOTNULL(resources);
+
+  foreach (Resource& resource, *resources) {
+    upgradeResource(&resource);
+  }
+}
+
+
+void upgradeResources(Message* message)
+{
+  CHECK_NOTNULL(message);
+
+  const Descriptor* descriptor = message->GetDescriptor();
+
+  hashmap<const Descriptor*, bool> resourcesContainment;
+  internal::precomputeResourcesContainment(descriptor, &resourcesContainment);
+
+  if (!resourcesContainment.at(descriptor)) {
+    return;
+  }
+
+  internal::convertResourcesImpl(
+      message,
+      [](Resource* resource) -> Try<Nothing> {
+        upgradeResource(resource);
+        return Nothing();
+      },
+      resourcesContainment);
 }
 
 
@@ -768,91 +789,6 @@ Try<Nothing> downgradeResources(RepeatedPtrField<Resource>* resources)
   return Nothing();
 }
 
-namespace internal {
-
-// Given a protobuf descriptor `descriptor`, recursively populates the provided
-// `result` where the keys are the message descriptors within `descriptor`'s
-// schema (including itself), and the corresponding value is `true` if the key
-// contains a `mesos::Resource`, and `false` otherwise.
-static void precomputeResourcesContainment(
-    const Descriptor* descriptor,
-    hashmap<const Descriptor*, bool>* result)
-{
-  CHECK_NOTNULL(descriptor);
-  CHECK_NOTNULL(result);
-
-  if (result->contains(descriptor)) {
-    return;
-  }
-
-  if (descriptor == mesos::Resource::descriptor()) {
-    result->insert({descriptor, true});
-  }
-
-  result->insert({descriptor, false});
-  for (int i = 0; i < descriptor->field_count(); ++i) {
-    // `message_type()` returns `nullptr` if the field is not a message type.
-    const Descriptor* messageDescriptor = descriptor->field(i)->message_type();
-    if (messageDescriptor == nullptr) {
-      continue;
-    }
-    precomputeResourcesContainment(messageDescriptor, result);
-    result->at(descriptor) |= result->at(messageDescriptor);
-  }
-}
-
-
-static Try<Nothing> downgradeResourcesImpl(
-    Message* message,
-    const hashmap<const Descriptor*, bool>& resourcesContainment)
-{
-  CHECK_NOTNULL(message);
-
-  const Descriptor* descriptor = message->GetDescriptor();
-
-  if (descriptor == mesos::Resource::descriptor()) {
-    return downgradeResource(static_cast<mesos::Resource*>(message));
-  }
-
-  const google::protobuf::Reflection* reflection = message->GetReflection();
-
-  for (int i = 0; i < descriptor->field_count(); ++i) {
-    const google::protobuf::FieldDescriptor* field = descriptor->field(i);
-    const Descriptor* messageDescriptor = field->message_type();
-
-    if (messageDescriptor == nullptr ||
-        !resourcesContainment.at(messageDescriptor)) {
-      continue;
-    }
-
-    if (!field->is_repeated()) {
-      if (reflection->HasField(*message, field)) {
-        Try<Nothing> result = downgradeResourcesImpl(
-            reflection->MutableMessage(message, field), resourcesContainment);
-
-        if (result.isError()) {
-          return result;
-        }
-      }
-    } else {
-      const int size = reflection->FieldSize(*message, field);
-
-      for (int j = 0; j < size; ++j) {
-        Try<Nothing> result = downgradeResourcesImpl(
-            reflection->MutableRepeatedMessage(message, field, j),
-            resourcesContainment);
-
-        if (result.isError()) {
-          return result;
-        }
-      }
-    }
-  }
-
-  return Nothing();
-}
-
-}  // namespace internal {
 
 Try<Nothing> downgradeResources(Message* message)
 {
@@ -867,7 +803,8 @@ Try<Nothing> downgradeResources(Message* message)
     return Nothing();
   }
 
-  return internal::downgradeResourcesImpl(message, resourcesContainment);
+  return internal::convertResourcesImpl(
+      message, downgradeResource, resourcesContainment);
 }
 
 } // namespace mesos {

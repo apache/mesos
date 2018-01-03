@@ -158,9 +158,15 @@ void convertResourceFormat(
     ResourceFormat format);
 
 
-// Convert any resources contained in the given offer operation
+// Convert any resources contained in the given message(s)
 // to the "post-reservation-refinement" format.
-void upgradeResources(Offer::Operation* operation);
+void upgradeResource(Resource* resource);
+
+
+void upgradeResources(google::protobuf::RepeatedPtrField<Resource>* resources);
+
+
+void upgradeResources(google::protobuf::Message* message);
 
 
 // Convert the resources in the given `Operation` to the
