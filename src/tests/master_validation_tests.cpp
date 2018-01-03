@@ -708,6 +708,74 @@ TEST_F(ReserveOperationValidationTest, AgentHierarchicalRoleCapability)
 }
 
 
+// This test verifies that validation fails if resources from multiple
+// resource providers are used.
+TEST_F(ReserveOperationValidationTest, MultipleResourceProviders)
+{
+  protobuf::slave::Capabilities capabilities;
+
+  FrameworkInfo frameworkInfo;
+  frameworkInfo.set_role("role");
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::RESERVATION_REFINEMENT);
+
+  Resource resource1 = Resources::parse("cpus", "8", "*").get();
+  resource1.add_reservations()->CopyFrom(
+      createDynamicReservationInfo("role", "principal"));
+
+  Resource resource2 = Resources::parse("disk", "10", "*").get();
+  resource2.mutable_provider_id()->set_value("provider1");
+  resource2.add_reservations()->CopyFrom(
+      createDynamicReservationInfo("role", "principal"));
+
+  Resource resource3 = Resources::parse("disk", "10", "*").get();
+  resource3.mutable_provider_id()->set_value("provider2");
+  resource3.add_reservations()->CopyFrom(
+      createDynamicReservationInfo("role", "principal"));
+
+  {
+    Offer::Operation::Reserve reserve;
+    reserve.mutable_resources()->CopyFrom(
+        allocatedResources(Resources(resource1) + resource2, "role"));
+
+    Option<Error> error =
+      operation::validate(reserve, "principal", capabilities, frameworkInfo);
+
+    ASSERT_SOME(error);
+    EXPECT_TRUE(strings::contains(
+        error->message,
+        "Invalid resources: Some resources have a resource provider "
+        "and some do not"));
+  }
+
+  {
+    Offer::Operation::Reserve reserve;
+    reserve.mutable_resources()->CopyFrom(
+        allocatedResources(Resources(resource2) + resource3, "role"));
+
+    Option<Error> error =
+      operation::validate(reserve, "principal", capabilities, frameworkInfo);
+
+    ASSERT_SOME(error);
+    EXPECT_TRUE(strings::contains(
+        error->message,
+        "Invalid resources: The resources have multiple resource providers: "
+        "provider2, provider1"));
+  }
+
+  {
+    Offer::Operation::Reserve reserve;
+    reserve.mutable_resources()->CopyFrom(
+        allocatedResources(resource2, "role"));
+
+    Option<Error> error =
+      operation::validate(reserve, "principal", capabilities, frameworkInfo);
+
+    EXPECT_NONE(error) << error->message;
+  }
+}
+
+
 class UnreserveOperationValidationTest : public MesosTest {};
 
 
@@ -778,6 +846,63 @@ TEST_F(UnreserveOperationValidationTest, NoPersistentVolumes)
   Option<Error> error = operation::validate(unreserve);
 
   EXPECT_SOME(error);
+}
+
+
+// This test verifies that validation fails if resources from multiple
+// resource providers are used.
+TEST_F(UnreserveOperationValidationTest, MultipleResourceProviders)
+{
+  Resource resource1 = Resources::parse("cpus", "8", "*").get();
+  resource1.add_reservations()->CopyFrom(
+      createDynamicReservationInfo("role", "principal"));
+
+  Resource resource2 = Resources::parse("disk", "10", "*").get();
+  resource2.mutable_provider_id()->set_value("provider1");
+  resource2.add_reservations()->CopyFrom(
+      createDynamicReservationInfo("role", "principal"));
+
+  Resource resource3 = Resources::parse("disk", "10", "*").get();
+  resource3.mutable_provider_id()->set_value("provider2");
+  resource3.add_reservations()->CopyFrom(
+      createDynamicReservationInfo("role", "principal"));
+
+  {
+    Offer::Operation::Unreserve unreserve;
+    unreserve.add_resources()->CopyFrom(resource1);
+    unreserve.add_resources()->CopyFrom(resource2);
+
+    Option<Error> error = operation::validate(unreserve);
+
+    ASSERT_SOME(error);
+    EXPECT_TRUE(strings::contains(
+        error->message,
+        "Invalid resources: Some resources have a resource provider "
+        "and some do not"));
+  }
+
+  {
+    Offer::Operation::Unreserve unreserve;
+    unreserve.add_resources()->CopyFrom(resource2);
+    unreserve.add_resources()->CopyFrom(resource3);
+
+    Option<Error> error = operation::validate(unreserve);
+
+    ASSERT_SOME(error);
+    EXPECT_TRUE(strings::contains(
+        error->message,
+        "Invalid resources: The resources have multiple resource providers: "
+        "provider2, provider1"));
+  }
+
+  {
+    Offer::Operation::Unreserve unreserve;
+    unreserve.add_resources()->CopyFrom(resource2);
+
+    Option<Error> error = operation::validate(unreserve);
+
+    EXPECT_NONE(error) << error->message;
+  }
 }
 
 
@@ -1093,6 +1218,66 @@ TEST_F(CreateOperationValidationTest, AgentHierarchicalRoleCapability)
 }
 
 
+// This test verifies that validation fails if resources from multiple
+// resource providers are used.
+TEST_F(CreateOperationValidationTest, MultipleResourceProviders)
+{
+  protobuf::slave::Capabilities capabilities;
+
+  Resource resource1 = Resources::parse("disk", "10", "role").get();
+  resource1.mutable_disk()->CopyFrom(createDiskInfo("id1", "path1"));
+
+
+  Resource resource2 = Resources::parse("disk", "10", "role").get();
+  resource2.mutable_provider_id()->set_value("provider1");
+  resource2.mutable_disk()->CopyFrom(createDiskInfo("id2", "path2"));
+
+  Resource resource3 = Resources::parse("disk", "10", "role").get();
+  resource3.mutable_provider_id()->set_value("provider2");
+  resource3.mutable_disk()->CopyFrom(createDiskInfo("id3", "path3"));
+
+  {
+    Offer::Operation::Create create;
+    create.add_volumes()->CopyFrom(resource1);
+    create.add_volumes()->CopyFrom(resource2);
+
+    Option<Error> error =
+      operation::validate(create, Resources(), None(), capabilities);
+
+    ASSERT_SOME(error);
+    EXPECT_TRUE(strings::contains(
+        error->message,
+        "Invalid resources: Some resources have a resource provider "
+        "and some do not"));
+  }
+
+  {
+    Offer::Operation::Create create;
+    create.add_volumes()->CopyFrom(resource2);
+    create.add_volumes()->CopyFrom(resource3);
+
+    Option<Error> error =
+      operation::validate(create, Resources(), None(), capabilities);
+
+    ASSERT_SOME(error);
+    EXPECT_TRUE(strings::contains(
+        error->message,
+        "Invalid resources: The resources have multiple resource providers: "
+        "provider2, provider1"));
+  }
+
+  {
+    Offer::Operation::Create create;
+    create.add_volumes()->CopyFrom(resource2);
+
+    Option<Error> error =
+      operation::validate(create, Resources(), None(), capabilities);
+
+    EXPECT_NONE(error) << error->message;
+  }
+}
+
+
 class DestroyOperationValidationTest : public ::testing::Test {};
 
 
@@ -1218,6 +1403,62 @@ TEST_F(DestroyOperationValidationTest, UnknownPersistentVolume)
   error = operation::validate(destroy, Resources(), {}, {});
 
   EXPECT_SOME(error);
+}
+
+
+// This test verifies that validation fails if resources from multiple
+// resource providers are used.
+TEST_F(DestroyOperationValidationTest, MultipleResourceProviders)
+{
+  Resource resource1 = Resources::parse("disk", "10", "role").get();
+  resource1.mutable_disk()->CopyFrom(createDiskInfo("id1", "path1"));
+
+  Resource resource2 = Resources::parse("disk", "10", "role").get();
+  resource2.mutable_provider_id()->set_value("provider1");
+  resource2.mutable_disk()->CopyFrom(createDiskInfo("id2", "path2"));
+
+  Resource resource3 = Resources::parse("disk", "10", "role").get();
+  resource3.mutable_provider_id()->set_value("provider2");
+  resource3.mutable_disk()->CopyFrom(createDiskInfo("id3", "path3"));
+
+  Resources volumes = Resources(resource1) + resource2 + resource3;
+
+  {
+    Offer::Operation::Destroy destroy;
+    destroy.add_volumes()->CopyFrom(resource1);
+    destroy.add_volumes()->CopyFrom(resource2);
+
+    Option<Error> error = operation::validate(destroy, volumes, {}, {});
+
+    ASSERT_SOME(error);
+    EXPECT_TRUE(strings::contains(
+        error->message,
+        "Invalid resources: Some resources have a resource provider "
+        "and some do not"));
+  }
+
+  {
+    Offer::Operation::Destroy destroy;
+    destroy.add_volumes()->CopyFrom(resource2);
+    destroy.add_volumes()->CopyFrom(resource3);
+
+    Option<Error> error = operation::validate(destroy, volumes, {}, {});
+
+    ASSERT_SOME(error);
+    EXPECT_TRUE(strings::contains(
+        error->message,
+        "Invalid resources: The resources have multiple resource providers: "
+        "provider2, provider1"));
+  }
+
+  {
+    Offer::Operation::Destroy destroy;
+    destroy.add_volumes()->CopyFrom(resource2);
+
+    Option<Error> error = operation::validate(destroy, volumes, {}, {});
+
+    EXPECT_NONE(error) << error->message;
+  }
 }
 
 

@@ -1942,6 +1942,12 @@ Option<Error> validate(
     return Error("Invalid resources: " + error.get().message);
   }
 
+  error =
+    resource::internal::validateSingleResourceProvider(reserve.resources());
+  if (error.isSome()) {
+    return Error("Invalid resources: " + error.get().message);
+  }
+
   Option<hashset<string>> frameworkRoles;
   if (frameworkInfo.isSome()) {
     frameworkRoles = protobuf::framework::getRoles(frameworkInfo.get());
@@ -2080,6 +2086,12 @@ Option<Error> validate(
     return Error("Invalid resources: " + error.get().message);
   }
 
+  error =
+    resource::internal::validateSingleResourceProvider(unreserve.resources());
+  if (error.isSome()) {
+    return Error("Invalid resources: " + error.get().message);
+  }
+
   // NOTE: We don't check that 'FrameworkInfo.principal' matches
   // 'Resource.ReservationInfo.principal' here because the authorization
   // depends on the "unreserve" ACL which specifies which 'principal' can
@@ -2113,6 +2125,11 @@ Option<Error> validate(
     const Option<FrameworkInfo>& frameworkInfo)
 {
   Option<Error> error = resource::validate(create.volumes());
+  if (error.isSome()) {
+    return Error("Invalid resources: " + error.get().message);
+  }
+
+  error = resource::internal::validateSingleResourceProvider(create.volumes());
   if (error.isSome()) {
     return Error("Invalid resources: " + error.get().message);
   }
@@ -2228,6 +2245,11 @@ Option<Error> validate(
   Resources volumes = unallocated(destroy.volumes());
 
   Option<Error> error = resource::validate(volumes);
+  if (error.isSome()) {
+    return Error("Invalid resources: " + error.get().message);
+  }
+
+  error = resource::internal::validateSingleResourceProvider(volumes);
   if (error.isSome()) {
     return Error("Invalid resources: " + error.get().message);
   }
