@@ -8242,6 +8242,9 @@ void Master::_markUnreachable(
 
     ++metrics->recovery_slave_removals;
 
+    // TODO(bmahler): Tell partition aware frameworks that the
+    // agent is unreachable rather than lost. This requires a
+    // new capability.
     sendSlaveLost(slave);
   } else {
     CHECK(slaves.registered.contains(slave.id()));
@@ -10084,6 +10087,9 @@ void Master::__removeSlave(
 
   // TODO(benh): unlink(slave->pid);
 
+  // TODO(bmahler): Tell partition aware frameworks that the
+  // agent is unreachable rather than lost, if applicable.
+  // This requires a new capability.
   sendSlaveLost(slave->info);
 
   delete slave;
