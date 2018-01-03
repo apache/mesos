@@ -2005,6 +2005,14 @@ void Master::recoveredSlavesTimeout(const Registry& registry)
 
     const string failure = "Agent removal rate limit acquisition failed";
 
+    // TODO(bmahler): Cancelation currently occurs within by returning
+    // early from `markUnreachableAfterFailover` *without* the
+    // "discarder" having discarded the rate limit token. This approach
+    // means that if agents re-register while many of the marking
+    // unreachable operations are in progress, the rate that we mark
+    // unreachable will "slow down" rather than stay constant. We
+    // should instead discard the rate limit token when the agent
+    // re-registers and handle the discard here. See MESOS-8386.
     acquire
       .then(defer(self(), &Self::markUnreachableAfterFailover, slave.info()))
       .onFailed(lambda::bind(fail, failure, lambda::_1))
