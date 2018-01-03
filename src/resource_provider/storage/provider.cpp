@@ -918,7 +918,7 @@ StorageLocalResourceProviderProcess::recoverResourceProviderState()
     if (resourceProviderState.isSome()) {
       foreach (
           Operation& operation,
-          resourceProviderState->mutable_operations()) {
+          *resourceProviderState->mutable_operations()) {
         upgradeResources(operation.mutable_info());
       }
 
