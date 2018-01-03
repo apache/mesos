@@ -579,10 +579,10 @@ message ACLs {
   repeated ACL.StopMaintenance stop_maintenances = 38;
   repeated ACL.GetMaintenanceStatus get_maintenance_statuses = 39;
   repeated ACL.MarkAgentGone mark_agents_gone = 40;
-  repeated ACL.LaunchStandaloneContainer launch_standalone_container = 41;
-  repeated ACL.KillStandaloneContainer kill_standalone_container = 42;
-  repeated ACL.WaitStandaloneContainer wait_standalone_container = 43;
-  repeated ACL.RemoveStandaloneContainer remove_standalone_container = 44;
+  repeated ACL.LaunchStandaloneContainer launch_standalone_containers = 41;
+  repeated ACL.KillStandaloneContainer kill_standalone_containers = 42;
+  repeated ACL.WaitStandaloneContainer wait_standalone_containers = 43;
+  repeated ACL.RemoveStandaloneContainer remove_standalone_containers = 44;
   repeated ACL.ViewStandaloneContainer view_standalone_containers = 46;
   repeated ACL.ModifyResourceProviderConfig modify_resource_provider_configs = 45;
   repeated ACL.PruneImages prune_images = 47;

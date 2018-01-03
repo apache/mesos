@@ -1444,7 +1444,7 @@ private:
         return acls_;
       case authorization::LAUNCH_STANDALONE_CONTAINER:
         foreach (const ACL::LaunchStandaloneContainer& acl,
-                 acls.launch_standalone_container()) {
+                 acls.launch_standalone_containers()) {
           GenericACL acl_;
           acl_.subjects = acl.principals();
           acl_.objects = acl.users();
@@ -1455,7 +1455,7 @@ private:
         return acls_;
       case authorization::KILL_STANDALONE_CONTAINER:
         foreach (const ACL::KillStandaloneContainer& acl,
-            acls.kill_standalone_container()) {
+            acls.kill_standalone_containers()) {
           GenericACL acl_;
           acl_.subjects = acl.principals();
           acl_.objects = acl.users();
@@ -1466,7 +1466,7 @@ private:
         return acls_;
       case authorization::WAIT_STANDALONE_CONTAINER:
         foreach (const ACL::WaitStandaloneContainer& acl,
-            acls.wait_standalone_container()) {
+            acls.wait_standalone_containers()) {
           GenericACL acl_;
           acl_.subjects = acl.principals();
           acl_.objects = acl.users();
@@ -1477,7 +1477,7 @@ private:
         return acls_;
       case authorization::REMOVE_STANDALONE_CONTAINER:
         foreach (const ACL::RemoveStandaloneContainer& acl,
-            acls.remove_standalone_container()) {
+            acls.remove_standalone_containers()) {
           GenericACL acl_;
           acl_.subjects = acl.principals();
           acl_.objects = acl.users();
@@ -1580,19 +1580,19 @@ Option<Error> LocalAuthorizer::validate(const ACLs& acls)
 {
   foreach (const ACL::AccessMesosLog& acl, acls.access_mesos_logs()) {
     if (acl.logs().type() == ACL::Entity::SOME) {
-      return Error("acls.access_mesos_logs type must be either NONE or ANY");
+      return Error("ACL.AccessMesosLog type must be either NONE or ANY");
     }
   }
 
   foreach (const ACL::ViewFlags& acl, acls.view_flags()) {
     if (acl.flags().type() == ACL::Entity::SOME) {
-      return Error("acls.view_flags type must be either NONE or ANY");
+      return Error("ACL.ViewFlags type must be either NONE or ANY");
     }
   }
 
   foreach (const ACL::SetLogLevel& acl, acls.set_log_level()) {
     if (acl.level().type() == ACL::Entity::SOME) {
-      return Error("acls.set_log_level type must be either NONE or ANY");
+      return Error("ACL.SetLogLevel type must be either NONE or ANY");
     }
   }
 
@@ -1609,7 +1609,7 @@ Option<Error> LocalAuthorizer::validate(const ACLs& acls)
   foreach (const ACL::RegisterAgent& acl, acls.register_agents()) {
     if (acl.agents().type() == ACL::Entity::SOME) {
       return Error(
-          "acls.register_agents type must be either NONE or ANY");
+          "ACL.RegisterAgent type must be either NONE or ANY");
     }
   }
 
@@ -1617,7 +1617,7 @@ Option<Error> LocalAuthorizer::validate(const ACLs& acls)
            acls.update_maintenance_schedules()) {
     if (acl.machines().type() == ACL::Entity::SOME) {
       return Error(
-          "acls.update_maintenance_schedule type must be either NONE or ANY");
+          "ACL.UpdateMaintenanceSchedule type must be either NONE or ANY");
     }
   }
 
@@ -1625,19 +1625,19 @@ Option<Error> LocalAuthorizer::validate(const ACLs& acls)
            acls.get_maintenance_schedules()) {
     if (acl.machines().type() == ACL::Entity::SOME) {
       return Error(
-          "acls.get_maintenance_schedule type must be either NONE or ANY");
+          "ACL.GetMaintenanceSchedule type must be either NONE or ANY");
     }
   }
 
   foreach (const ACL::StartMaintenance& acl, acls.start_maintenances()) {
     if (acl.machines().type() == ACL::Entity::SOME) {
-      return Error("acls.start_maintenance type must be either NONE or ANY");
+      return Error("ACL.StartMaintenance type must be either NONE or ANY");
     }
   }
 
   foreach (const ACL::StopMaintenance& acl, acls.stop_maintenances()) {
     if (acl.machines().type() == ACL::Entity::SOME) {
-      return Error("acls.stop_maintenance type must be either NONE or ANY");
+      return Error("ACL.StopMaintenance type must be either NONE or ANY");
     }
   }
 
@@ -1645,39 +1645,39 @@ Option<Error> LocalAuthorizer::validate(const ACLs& acls)
            acls.get_maintenance_statuses()) {
     if (acl.machines().type() == ACL::Entity::SOME) {
       return Error(
-          "acls.get_maintenance_status type must be either NONE or ANY");
+          "ACL.GetMaintenanceStatus type must be either NONE or ANY");
     }
   }
 
   foreach (const ACL::LaunchStandaloneContainer& acl,
-           acls.launch_standalone_container()) {
+           acls.launch_standalone_containers()) {
     if (acl.users().type() == ACL::Entity::SOME) {
       return Error(
-          "acls.launch_standalone_container type must be either NONE or ANY");
+          "ACL.LaunchStandaloneContainer type must be either NONE or ANY");
     }
   }
 
   foreach (const ACL::KillStandaloneContainer& acl,
-           acls.kill_standalone_container()) {
+           acls.kill_standalone_containers()) {
     if (acl.users().type() == ACL::Entity::SOME) {
       return Error(
-          "acls.kill_standalone_container type must be either NONE or ANY");
+          "ACL.KillStandaloneContainer type must be either NONE or ANY");
     }
   }
 
   foreach (const ACL::WaitStandaloneContainer& acl,
-           acls.wait_standalone_container()) {
+           acls.wait_standalone_containers()) {
     if (acl.users().type() == ACL::Entity::SOME) {
       return Error(
-          "acls.wait_standalone_container type must be either NONE or ANY");
+          "ACL.WaitStandaloneContainer type must be either NONE or ANY");
     }
   }
 
   foreach (const ACL::RemoveStandaloneContainer& acl,
-           acls.remove_standalone_container()) {
+           acls.remove_standalone_containers()) {
     if (acl.users().type() == ACL::Entity::SOME) {
       return Error(
-          "acls.remove_standalone_container type must be either NONE or ANY");
+          "ACL.RemoveStandaloneContainer type must be either NONE or ANY");
     }
   }
 
@@ -1685,7 +1685,7 @@ Option<Error> LocalAuthorizer::validate(const ACLs& acls)
            acls.view_standalone_containers()) {
     if (acl.users().type() == ACL::Entity::SOME) {
       return Error(
-          "acls.view_standalone_containers type must be either NONE or ANY");
+          "ACL.ViewStandaloneContainer type must be either NONE or ANY");
     }
   }
 
@@ -1693,14 +1693,13 @@ Option<Error> LocalAuthorizer::validate(const ACLs& acls)
            acls.modify_resource_provider_configs()) {
     if (acl.resource_providers().type() == ACL::Entity::SOME) {
       return Error(
-          "acls.modify_resource_provider_config type must be either NONE or "
-          "ANY");
+          "ACL.ModifyResourceProviderConfig type must be either NONE or ANY");
     }
   }
 
   foreach (const ACL::PruneImages& acl, acls.prune_images()) {
     if (acl.images().type() == ACL::Entity::SOME) {
-      return Error("acls.prune_images type must be either NONE or ANY");
+      return Error("ACL.PruneImages type must be either NONE or ANY");
     }
   }
 
