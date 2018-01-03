@@ -14,6 +14,7 @@
 #define __STOUT_OS_WINDOWS_ENVIRONMENT_HPP__
 
 #include <map>
+#include <memory>
 #include <string>
 #include <stout/stringify.hpp>
 
@@ -29,11 +30,13 @@ inline std::map<std::string, std::string> environment()
   // Var3=Value3\0
   // ...
   // VarN=ValueN\0\0
-  wchar_t* env = ::GetEnvironmentStringsW();
+  const std::unique_ptr<wchar_t[], decltype(&::FreeEnvironmentStringsW)> env(
+      ::GetEnvironmentStringsW(), &::FreeEnvironmentStringsW);
   std::map<std::string, std::string> result;
 
-  for (size_t i = 0; env[i] != L'\0' && env[i+1] != L'\0';) {
-    std::wstring entry(env + i);
+  for (size_t i = 0; env[i] != L'\0' && env[i+1] != L'\0';
+       /* incremented below */) {
+    std::wstring entry(&env[i]);
 
     // Increment past the current environment string and null terminator.
     i = i + entry.size() + 1;
