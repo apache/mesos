@@ -770,12 +770,10 @@ Try<Nothing> downgradeResources(RepeatedPtrField<Resource>* resources)
 
 namespace internal {
 
-// Given a protobuf descriptor `descriptor`, returns `true` if `descriptor`
-// is a `mesos::Resource`, or contains a `mesos::Resource` somewhere within.
-//
-// The provided `result` is recursively populated, where the keys are the
-// message descriptors within `descriptor`'s schema (including itself), and
-//  the corresponding value is `true` if the key contains a `mesos::Resource`.
+// Given a protobuf descriptor `descriptor`, recursively populates the provided
+// `result` where the keys are the message descriptors within `descriptor`'s
+// schema (including itself), and the corresponding value is `true` if the key
+// contains a `mesos::Resource`, and `false` otherwise.
 static void precomputeResourcesContainment(
     const Descriptor* descriptor,
     hashmap<const Descriptor*, bool>* result)
