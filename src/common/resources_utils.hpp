@@ -158,6 +158,11 @@ void convertResourceFormat(
     ResourceFormat format);
 
 
+// Convert any resources contained in the given offer operation
+// to the "post-reservation-refinement" format.
+void upgradeResources(Offer::Operation* operation);
+
+
 // Convert the resources in the given `Operation` to the
 // "post-reservation-refinement" format from any format
 // ("pre-", "post-" or "endpoint") if all of the resources are valid.
