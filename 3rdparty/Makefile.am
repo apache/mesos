@@ -317,7 +317,7 @@ $(LIB_GRPC): $(GRPC)-build-stamp
 # can be built with OpenSSL 1.1.0. See:
 # https://github.com/grpc/grpc/pull/11496
 # NOTE: The `-Wno-unused-function` flag is added to address errors when
-# compling `src/core/tsi/ssl_transport_security.c`. See:
+# compling `src/core/tsi/ssl_transport_security.cc`. See:
 # https://github.com/grpc/grpc/pull/11675
 $(GRPC)-build-stamp: $(GRPC)-stamp			\
                      $(PROTOBUF)-build-stamp
