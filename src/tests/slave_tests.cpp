@@ -8669,19 +8669,15 @@ TEST_F(SlaveTest, ResourceProviderSubscribe)
   // Disable HTTP authentication to simplify resource provider interactions.
   slaveFlags.authenticate_http_readwrite = false;
 
-  // Set the resource provider capability and other required capabilities.
-  constexpr SlaveInfo::Capability::Type capabilities[] = {
-    SlaveInfo::Capability::MULTI_ROLE,
-    SlaveInfo::Capability::HIERARCHICAL_ROLE,
-    SlaveInfo::Capability::RESERVATION_REFINEMENT,
-    SlaveInfo::Capability::RESOURCE_PROVIDER};
+  // Set the resource provider capability.
+  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
+  SlaveInfo::Capability capability;
+  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
+  capabilities.push_back(capability);
 
   slaveFlags.agent_features = SlaveCapabilities();
-  foreach (SlaveInfo::Capability::Type type, capabilities) {
-    SlaveInfo::Capability* capability =
-      slaveFlags.agent_features->add_capabilities();
-    capability->set_type(type);
-  }
+  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
+      {capabilities.begin(), capabilities.end()});
 
   StandaloneMasterDetector detector(master.get()->pid);
   Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
@@ -8803,18 +8799,15 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ResourceProviderPublishAll)
   slave::Flags flags = CreateSlaveFlags();
   flags.authenticate_http_readwrite = false;
 
-  // Set the resource provider capability and other required capabilities.
-  constexpr SlaveInfo::Capability::Type capabilities[] = {
-    SlaveInfo::Capability::MULTI_ROLE,
-    SlaveInfo::Capability::HIERARCHICAL_ROLE,
-    SlaveInfo::Capability::RESERVATION_REFINEMENT,
-    SlaveInfo::Capability::RESOURCE_PROVIDER
-  };
+  // Set the resource provider capability.
+  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
+  SlaveInfo::Capability capability;
+  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
+  capabilities.push_back(capability);
 
   flags.agent_features = SlaveCapabilities();
-  foreach (SlaveInfo::Capability::Type type, capabilities) {
-    flags.agent_features->add_capabilities()->set_type(type);
-  }
+  flags.agent_features->mutable_capabilities()->CopyFrom(
+      {capabilities.begin(), capabilities.end()});
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
@@ -9113,19 +9106,15 @@ TEST_F(SlaveTest, ResourceProviderReconciliation)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.authenticate_http_readwrite = false;
 
-  // Set the resource provider capability and other required capabilities.
-  constexpr SlaveInfo::Capability::Type capabilities[] = {
-    SlaveInfo::Capability::MULTI_ROLE,
-    SlaveInfo::Capability::HIERARCHICAL_ROLE,
-    SlaveInfo::Capability::RESERVATION_REFINEMENT,
-    SlaveInfo::Capability::RESOURCE_PROVIDER};
+  // Set the resource provider capability.
+  vector<SlaveInfo::Capability> capabilities = AGENT_CAPABILITIES();
+  SlaveInfo::Capability capability;
+  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
+  capabilities.push_back(capability);
 
   slaveFlags.agent_features = SlaveCapabilities();
-  foreach (SlaveInfo::Capability::Type type, capabilities) {
-    SlaveInfo::Capability* capability =
-      slaveFlags.agent_features->add_capabilities();
-    capability->set_type(type);
-  }
+  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
+      {capabilities.begin(), capabilities.end()});
 
   Future<UpdateSlaveMessage> updateSlaveMessage =
     FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
@@ -9347,19 +9336,15 @@ TEST_F(SlaveTest, RunTaskResourceVersions)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.authenticate_http_readwrite = false;
 
-  // Set the resource provider capability and other required capabilities.
-  constexpr SlaveInfo::Capability::Type capabilities[] = {
-    SlaveInfo::Capability::MULTI_ROLE,
-    SlaveInfo::Capability::HIERARCHICAL_ROLE,
-    SlaveInfo::Capability::RESERVATION_REFINEMENT,
-    SlaveInfo::Capability::RESOURCE_PROVIDER};
+  // Set the resource provider capability.
+  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
+  SlaveInfo::Capability capability;
+  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
+  capabilities.push_back(capability);
 
   slaveFlags.agent_features = SlaveCapabilities();
-  foreach (SlaveInfo::Capability::Type type, capabilities) {
-    SlaveInfo::Capability* capability =
-      slaveFlags.agent_features->add_capabilities();
-    capability->set_type(type);
-  }
+  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
+      {capabilities.begin(), capabilities.end()});
 
   Future<UpdateSlaveMessage> updateSlaveMessage =
     FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
