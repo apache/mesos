@@ -128,7 +128,7 @@ def _create_module(module_name):
     # We need to check for the presense of libgrpc++.a, libgrpc.a and libgpr.a
     # only if gRPC is enabled.
     if '@ENABLE_GRPC_FALSE@' == '#':
-        grpc = os.path.join('3rdparty', 'grpc-1.4.2')
+        grpc = os.path.join('3rdparty', 'grpc-1.8.3')
         libgrpcxx = os.path.join(abs_top_builddir, grpc, 'libs', 'opt', 'libgrpc++.a')
         libgrpc = os.path.join(abs_top_builddir, grpc, 'libs', 'opt', 'libgrpc.a')
         libgpr = os.path.join(abs_top_builddir, grpc, 'libs', 'opt', 'libgpr.a')
