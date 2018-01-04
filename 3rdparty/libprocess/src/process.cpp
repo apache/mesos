@@ -2816,8 +2816,19 @@ void ProcessManager::resume(ProcessBase* process)
         state == ProcessBase::State::READY);
 
   if (state == ProcessBase::State::BOTTOM) {
-    try { process->initialize(); }
-    catch (...) { terminate = true; }
+    // In the event that the process throws an exception,
+    // we will abort the program.
+    //
+    // TODO(bmahler): Consider providing recovery mechanisms.
+    try {
+      process->initialize();
+    } catch (const std::exception& e) {
+      LOG(FATAL) << "Aborting libprocess: '" << process->pid << "'"
+                 << " threw exception during initialization: " << e.what();
+    } catch (...) {
+      LOG(FATAL) << "Aborting libprocess: '" << process->pid << "'"
+                 << " threw exception during initialization: unknown";
+    }
 
     state = ProcessBase::State::READY;
     process->state.store(state);
@@ -2915,17 +2926,18 @@ void ProcessManager::resume(ProcessBase* process)
       // Determine if we should terminate.
       terminate = event->is<TerminateEvent>();
 
-      // Now service the event.
+      // Now service the event. In the event that the process
+      // throws an exception, we will abort the program.
+      //
+      // TODO(bmahler): Consider providing recovery mechanisms.
       try {
         process->serve(std::move(*event));
       } catch (const std::exception& e) {
-        LOG(ERROR) << "libprocess: " << process->pid
-                   << " terminating due to " << e.what();
-        terminate = true;
+        LOG(FATAL) << "Aborting libprocess: '" << process->pid << "'"
+                   << " threw exception: " << e.what();
       } catch (...) {
-        LOG(ERROR) << "libprocess: " << process->pid
-                   << " terminating due to unknown exception";
-        terminate = true;
+        LOG(FATAL) << "Aborting libprocess: '" << process->pid << "'"
+                   << " threw unknown exception";
       }
 
       delete event;
