@@ -808,11 +808,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlaveNotPartitionAware)
 // not. Both tasks should survive the reregistration of the partitioned
 // agent: we allow the non-partition-aware task to continue running for
 // backward compatibility with the "non-strict" Mesos 1.0 behavior.
-//
-// TODO(alexr): Re-enable once MESOS-8334 is resolved.
 TEST_F_TEMP_DISABLED_ON_WINDOWS(
     PartitionTest,
-    DISABLED_PartitionedSlaveReregistrationMasterFailover)
+    PartitionedSlaveReregistrationMasterFailover)
 {
   Clock::pause();
 
@@ -1023,13 +1021,14 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   // Simulate a new master detected event to the slave and the schedulers.
   detector.appoint(master.get()->pid);
 
-  // Wait for slave to reregister.
-  Clock::advance(slaveFlags.registration_backoff_factor);
-  AWAIT_READY(slaveReregistered);
-
   // Wait for both schedulers to reregister.
   AWAIT_READY(registered1);
   AWAIT_READY(registered2);
+
+  // Register the agent after the schedulers to make sure they receive the
+  // status updates sent by the master.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  AWAIT_READY(slaveReregistered);
 
   AWAIT_READY(runningAgainStatus1);
   EXPECT_EQ(TASK_RUNNING, runningAgainStatus1->state());
