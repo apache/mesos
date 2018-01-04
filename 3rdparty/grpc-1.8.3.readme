@@ -1,0 +1,4 @@
+The following lists the commits cherry-picked in `grpc-1.8.3.patch`:
+
+- Changes templates/Makefile.template to install grpc with correct .so version numbers
+  https://github.com/grpc/grpc/pull/11558
