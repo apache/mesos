@@ -97,7 +97,9 @@ static Try<bool> extract(
                "-Command",
                "Expand-Archive",
                "-Force",
+               "-Path",
                sourcePath,
+               "-DestinationPath",
                destinationDirectory};
 #else
     command = {"unzip", "-o", "-d", destinationDirectory, sourcePath};
