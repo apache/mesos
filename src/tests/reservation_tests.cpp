@@ -93,18 +93,15 @@ public:
   {
     slave::Flags slaveFlags = MesosTest::CreateSlaveFlags();
     if (GetParam() == ENABLED) {
-      constexpr SlaveInfo::Capability::Type capabilities[] = {
-        SlaveInfo::Capability::MULTI_ROLE,
-        SlaveInfo::Capability::HIERARCHICAL_ROLE,
-        SlaveInfo::Capability::RESERVATION_REFINEMENT,
-        SlaveInfo::Capability::RESOURCE_PROVIDER};
+      // Set the resource provider capability.
+      vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
+      SlaveInfo::Capability capability;
+      capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
+      capabilities.push_back(capability);
 
       slaveFlags.agent_features = SlaveCapabilities();
-      foreach (SlaveInfo::Capability::Type type, capabilities) {
-        SlaveInfo::Capability* capability =
-          slaveFlags.agent_features->add_capabilities();
-        capability->set_type(type);
-      }
+      slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
+          {capabilities.begin(), capabilities.end()});
     }
 
     return slaveFlags;

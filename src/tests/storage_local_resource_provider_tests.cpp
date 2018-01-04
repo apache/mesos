@@ -190,18 +190,15 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NewVolume)
   // Disable HTTP authentication to simplify resource provider interactions.
   flags.authenticate_http_readwrite = false;
 
-  // Set the resource provider capability and other required capabilities.
-  constexpr SlaveInfo::Capability::Type capabilities[] = {
-    SlaveInfo::Capability::MULTI_ROLE,
-    SlaveInfo::Capability::HIERARCHICAL_ROLE,
-    SlaveInfo::Capability::RESERVATION_REFINEMENT,
-    SlaveInfo::Capability::RESOURCE_PROVIDER
-  };
+  // Set the resource provider capability.
+  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
+  SlaveInfo::Capability capability;
+  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
+  capabilities.push_back(capability);
 
   flags.agent_features = SlaveCapabilities();
-  foreach (SlaveInfo::Capability::Type type, capabilities) {
-    flags.agent_features->add_capabilities()->set_type(type);
-  }
+  flags.agent_features->mutable_capabilities()->CopyFrom(
+      {capabilities.begin(), capabilities.end()});
 
   flags.resource_provider_config_dir = resourceProviderConfigDir;
   flags.volume_profile_adaptor = URI_VOLUME_PROFILE_ADAPTOR_NAME;
@@ -370,18 +367,15 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NewVolumeRecovery)
   // Disable HTTP authentication to simplify resource provider interactions.
   flags.authenticate_http_readwrite = false;
 
-  // Set the resource provider capability and other required capabilities.
-  constexpr SlaveInfo::Capability::Type capabilities[] = {
-    SlaveInfo::Capability::MULTI_ROLE,
-    SlaveInfo::Capability::HIERARCHICAL_ROLE,
-    SlaveInfo::Capability::RESERVATION_REFINEMENT,
-    SlaveInfo::Capability::RESOURCE_PROVIDER
-  };
+  // Set the resource provider capability.
+  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
+  SlaveInfo::Capability capability;
+  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
+  capabilities.push_back(capability);
 
   flags.agent_features = SlaveCapabilities();
-  foreach (SlaveInfo::Capability::Type type, capabilities) {
-    flags.agent_features->add_capabilities()->set_type(type);
-  }
+  flags.agent_features->mutable_capabilities()->CopyFrom(
+      {capabilities.begin(), capabilities.end()});
 
   flags.resource_provider_config_dir = resourceProviderConfigDir;
   flags.volume_profile_adaptor = URI_VOLUME_PROFILE_ADAPTOR_NAME;
@@ -566,18 +560,15 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchTask)
   // Disable HTTP authentication to simplify resource provider interactions.
   flags.authenticate_http_readwrite = false;
 
-  // Set the resource provider capability and other required capabilities.
-  constexpr SlaveInfo::Capability::Type capabilities[] = {
-    SlaveInfo::Capability::MULTI_ROLE,
-    SlaveInfo::Capability::HIERARCHICAL_ROLE,
-    SlaveInfo::Capability::RESERVATION_REFINEMENT,
-    SlaveInfo::Capability::RESOURCE_PROVIDER
-  };
+  // Set the resource provider capability.
+  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
+  SlaveInfo::Capability capability;
+  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
+  capabilities.push_back(capability);
 
   flags.agent_features = SlaveCapabilities();
-  foreach (SlaveInfo::Capability::Type type, capabilities) {
-    flags.agent_features->add_capabilities()->set_type(type);
-  }
+  flags.agent_features->mutable_capabilities()->CopyFrom(
+      {capabilities.begin(), capabilities.end()});
 
   flags.resource_provider_config_dir = resourceProviderConfigDir;
   flags.volume_profile_adaptor = URI_VOLUME_PROFILE_ADAPTOR_NAME;
@@ -785,18 +776,15 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchTaskRecovery)
   // Disable HTTP authentication to simplify resource provider interactions.
   flags.authenticate_http_readwrite = false;
 
-  // Set the resource provider capability and other required capabilities.
-  constexpr SlaveInfo::Capability::Type capabilities[] = {
-    SlaveInfo::Capability::MULTI_ROLE,
-    SlaveInfo::Capability::HIERARCHICAL_ROLE,
-    SlaveInfo::Capability::RESERVATION_REFINEMENT,
-    SlaveInfo::Capability::RESOURCE_PROVIDER
-  };
+  // Set the resource provider capability.
+  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
+  SlaveInfo::Capability capability;
+  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
+  capabilities.push_back(capability);
 
   flags.agent_features = SlaveCapabilities();
-  foreach (SlaveInfo::Capability::Type type, capabilities) {
-    flags.agent_features->add_capabilities()->set_type(type);
-  }
+  flags.agent_features->mutable_capabilities()->CopyFrom(
+      {capabilities.begin(), capabilities.end()});
 
   flags.resource_provider_config_dir = resourceProviderConfigDir;
   flags.volume_profile_adaptor = URI_VOLUME_PROFILE_ADAPTOR_NAME;
@@ -1016,18 +1004,15 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PreExistingVolume)
   // Disable HTTP authentication to simplify resource provider interactions.
   flags.authenticate_http_readwrite = false;
 
-  // Set the resource provider capability and other required capabilities.
-  constexpr SlaveInfo::Capability::Type capabilities[] = {
-    SlaveInfo::Capability::MULTI_ROLE,
-    SlaveInfo::Capability::HIERARCHICAL_ROLE,
-    SlaveInfo::Capability::RESERVATION_REFINEMENT,
-    SlaveInfo::Capability::RESOURCE_PROVIDER
-  };
+  // Set the resource provider capability.
+  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
+  SlaveInfo::Capability capability;
+  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
+  capabilities.push_back(capability);
 
   flags.agent_features = SlaveCapabilities();
-  foreach (SlaveInfo::Capability::Type type, capabilities) {
-    flags.agent_features->add_capabilities()->set_type(type);
-  }
+  flags.agent_features->mutable_capabilities()->CopyFrom(
+      {capabilities.begin(), capabilities.end()});
 
   flags.resource_provider_config_dir = resourceProviderConfigDir;
 
