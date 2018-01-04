@@ -2094,7 +2094,9 @@ TEST_F(RecoverTest, CatchupTruncated)
   AWAIT_EXPECT_EQ(10u, replica3->ending());
 
   // Recreate the replica to verify that storage recovery succeeds.
-  replica3.reset();
+  // Make sure no one retains a shared pointer to replica3 and thus
+  // can prevent the DB from closing before we proceed.
+  AWAIT_READY(replica3.own());
   replica3.reset(new Replica(path3));
 
   AWAIT_EXPECT_EQ(5u, replica3->beginning());
