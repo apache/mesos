@@ -180,6 +180,7 @@ Slave(Master* const _master,
       const SlaveInfo& info,
       const std::string& _version,
       const std::vector<SlaveInfo::Capability>& _capabilites,
+      const Resources& _checkpointedResources,
       const Option<id::UUID>& resourceVersion);
 
   Master* const master;

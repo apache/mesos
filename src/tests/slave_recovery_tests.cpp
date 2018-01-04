@@ -4881,6 +4881,118 @@ TYPED_TEST(SlaveRecoveryTest, CheckpointedResources)
 }
 
 
+// This test verifies that checkpointed resources sent by resource
+// provider-capable agents during agent reregistration overwrite the
+// master's view of that agent's checkpointed resources.
+TYPED_TEST(SlaveRecoveryTest, CheckpointedResourcesResourceProviderCapable)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = this->CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = this->StartMaster(masterFlags);
+
+  slave::Flags slaveFlags = this->CreateSlaveFlags();
+
+  // Set the resource provider capability.
+  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
+  SlaveInfo::Capability capability;
+  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
+  capabilities.push_back(capability);
+
+  slaveFlags.agent_features = SlaveCapabilities();
+  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
+      {capabilities.begin(), capabilities.end()});
+
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  StandaloneMasterDetector detector(master.get()->pid);
+  Try<Owned<cluster::Slave>> slave = this->StartSlave(&detector, slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Advance the clock to trigger the agent registration.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(updateSlaveMessage);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_roles(0, "foo");
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers1;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  // Advance the clock to trigger a batch allocation.
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers1);
+  ASSERT_FALSE(offers1->empty());
+
+  // Below we send a reserve operation which is applied in the master
+  // speculatively. We drop the operation on its way to the agent so
+  // that the master's and the agent's view of the agent's
+  // checkpointed resources diverge.
+  Future<ApplyOperationMessage> applyOperationMessage =
+    DROP_PROTOBUF(ApplyOperationMessage(), _, _);
+
+  // We use the filter explicitly here so that the resources will not
+  // be filtered for 5 seconds (the default).
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  const Offer& offer1 = offers1->at(0);
+
+  const Resources offeredResources = offer1.resources();
+  const Resources dynamicallyReserved =
+    offeredResources.pushReservation(createDynamicReservationInfo(
+        frameworkInfo.roles(0), frameworkInfo.principal()));
+
+  driver.acceptOffers({offer1.id()}, {RESERVE(dynamicallyReserved)}, filters);
+
+  AWAIT_READY(applyOperationMessage);
+
+  // Restart and reregister the agent.
+  slave.get()->terminate();
+  slave = this->StartSlave(&detector, slaveFlags);
+
+  Future<vector<Offer>> offers2;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  // Advance the clock to trigger an agent registration.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  Clock::settle();
+
+  // Advance the clock to trigger a batch allocation.
+  AWAIT_READY(updateSlaveMessage);
+
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::settle();
+
+  AWAIT_READY(offers2);
+  ASSERT_FALSE(offers2->empty());
+
+  const Offer& offer2 = offers2->at(0);
+
+  // The second offer will be identical to the first
+  // one as our operations never made it to the agent.
+  const Resources offeredResources1 = offer1.resources();
+  const Resources offeredResources2 = offer2.resources();
+
+  EXPECT_EQ(offeredResources1, offeredResources2);
+}
+
+
 // We explicitly instantiate a SlaveRecoveryTest for test cases where
 // we assume we'll only have the MesosContainerizer.
 class MesosContainerizerSlaveRecoveryTest
