@@ -6620,9 +6620,6 @@ void Master::_reregisterSlave(
       return;
     }
 
-    // TODO(bevers): Verify that the checkpointed resources sent by the
-    // slave match the ones stored in `slave`.
-
     // Skip updating the registry if `slaveInfo` did not change from its
     // previously known state.
     if (slaveInfo == slave->info) {
@@ -7039,10 +7036,19 @@ void Master::___reregisterSlave(
     resourceVersion = uuid.get();
   }
 
+  // Update our view of checkpointed agent resources for resource
+  // provider-capable agents; for other agents the master will resend
+  // checkpointed resources after reregistration.
+  const Resources checkpointedResources =
+    slave->capabilities.resourceProvider
+      ? Resources(reregisterSlaveMessage.checkpointed_resources())
+      : slave->checkpointedResources;
+
   Try<Nothing> stateUpdated = slave->update(
       slaveInfo,
       version,
       agentCapabilities,
+      checkpointedResources,
       resourceVersion);
 
   // As of now, the only way `slave->update()` can fail is if the agent sent
@@ -11677,11 +11683,12 @@ Try<Nothing> Slave::update(
     const SlaveInfo& _info,
     const string& _version,
     const vector<SlaveInfo::Capability>& _capabilities,
+    const Resources& _checkpointedResources,
     const Option<id::UUID>& resourceVersion)
 {
   Try<Resources> resources = applyCheckpointedResources(
       _info.resources(),
-      checkpointedResources);
+      _checkpointedResources);
 
   // This should be validated during slave recovery.
   if (resources.isError()) {
@@ -11691,6 +11698,7 @@ Try<Nothing> Slave::update(
   version = _version;
   capabilities = _capabilities;
   info = _info;
+  checkpointedResources = _checkpointedResources;
 
   // There is a short window here where `totalResources` can have an old value,
   // but it should be relatively short because the agent will send
