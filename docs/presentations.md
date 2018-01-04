@@ -99,3 +99,10 @@ Presented November 8, 2010 at [LinkedIn](http://linkedin.com)
 ### Mesos: A Resource Management Platform for Hadoop and Big Data Clusters ([Video](http://www.youtube.com/watch?v=lE3jR6nM3bw))
 Matei Zaharia
 Presented Summer 2010 at [Yahoo](http://yahoo.com)
+
+# Apache Mesos - Training 
+_(Listed in date descending order)_
+
+## Automated Machine Learning Pipeline with Mesos ([Video](https://www.packtpub.com/big-data-and-business-intelligence/automated-machine-learning-pipeline-mesos-integrated-course))
+Karl Whitford
+Packt (November 2017)
