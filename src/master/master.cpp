@@ -8449,13 +8449,18 @@ void Master::_reconcileTasks(
   // Explicit reconciliation occurs for the following cases:
   //   (1) Task is known, but pending: TASK_STAGING.
   //   (2) Task is known: send the latest state.
-  //   (3) Task is unknown, slave is registered: TASK_GONE.
-  //   (4) Task is unknown, slave is transitioning: no-op.
+  //   (3) Task is unknown, slave is recovered: no-op.
+  //   (4) Task is unknown, slave is registered: TASK_GONE.
   //   (5) Task is unknown, slave is unreachable: TASK_UNREACHABLE.
   //   (6) Task is unknown, slave is gone: TASK_GONE_BY_OPERATOR.
   //   (7) Task is unknown, slave is unknown: TASK_UNKNOWN.
   //
-  // For cases (3), (5), (6) and (7) TASK_LOST is sent instead if the
+  // For case (3), if the slave ID is not provided, we err on the
+  // side of caution and do not reply if there are *any* recovered
+  // slaves that haven't re-registered, since the task could reside
+  // on one of these slaves.
+  //
+  // For cases (4), (5), (6) and (7) TASK_LOST is sent instead if the
   // framework has not opted-in to the PARTITION_AWARE capability.
   foreach (const TaskStatus& status, statuses) {
     Option<SlaveID> slaveId = None();
@@ -8502,8 +8507,20 @@ void Master::_reconcileTasks(
           protobuf::getTaskCheckStatus(*task),
           None(),
           protobuf::getTaskContainerStatus(*task));
+    } else if ((slaveId.isSome() && slaves.recovered.contains(slaveId.get())) ||
+               (slaveId.isNone() && !slaves.recovered.empty())) {
+      // (3) Task is unknown, slave is recovered: no-op. The framework
+      // will have to retry this and will not receive a response until
+      // the agent either registers, or is marked unreachable after the
+      // timeout.
+      LOG(INFO) << "Dropping reconciliation of task " << status.task_id()
+                << " for framework " << *framework << " because "
+                << (slaveId.isSome() ?
+                      "agent " + stringify(slaveId.get()) + " has" :
+                      "some agents have")
+                << " not yet re-registered with the master";
     } else if (slaveId.isSome() && slaves.registered.contains(slaveId.get())) {
-      // (3) Task is unknown, slave is registered: TASK_GONE. If the
+      // (4) Task is unknown, slave is registered: TASK_GONE. If the
       // framework does not have the PARTITION_AWARE capability, send
       // TASK_LOST for backward compatibility.
       TaskState taskState = TASK_GONE;
@@ -8520,11 +8537,6 @@ void Master::_reconcileTasks(
           None(),
           "Reconciliation: Task is unknown to the agent",
           TaskStatus::REASON_RECONCILIATION);
-    } else if (slaves.transitioning(slaveId)) {
-      // (4) Task is unknown, slave is transitionary: no-op.
-      LOG(INFO) << "Dropping reconciliation of task " << status.task_id()
-                << " for framework " << *framework
-                << " because there are transitional agents";
     } else if (slaveId.isSome() && slaves.unreachable.contains(slaveId.get())) {
       // (5) Slave is unreachable: TASK_UNREACHABLE. If the framework
       // does not have the PARTITION_AWARE capability, send TASK_LOST

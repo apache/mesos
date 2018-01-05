@@ -1910,15 +1910,6 @@ private:
     // NOTE: Using a 'shared_ptr' here is OK because 'RateLimiter' is
     // a wrapper around libprocess process which is thread safe.
     Option<std::shared_ptr<process::RateLimiter>> limiter;
-
-    bool transitioning(const Option<SlaveID>& slaveId)
-    {
-      if (slaveId.isSome()) {
-        return recovered.contains(slaveId.get());
-      } else {
-        return !recovered.empty();
-      }
-    }
   } slaves;
 
   struct Frameworks
