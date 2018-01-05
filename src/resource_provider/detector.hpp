@@ -42,7 +42,7 @@ public:
       const Option<process::http::URL>& previous) override;
 
 private:
-  const process::http::URL& url;
+  process::http::URL url;
 };
 
 } // namespace internal {
