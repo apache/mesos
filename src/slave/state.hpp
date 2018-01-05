@@ -74,6 +74,28 @@ struct TaskState;
 Try<State> recover(const std::string& rootDir, bool strict);
 
 
+// Reads the protobuf message(s) from the given path.
+// `T` may be either a single protobuf message or a sequence of messages
+// if `T` is a specialization of `google::protobuf::RepeatedPtrField`.
+template <typename T>
+Try<T> read(const std::string& path)
+{
+  Try<T> result = ::protobuf::read<T>(path);
+  if (result.isError()) {
+    return Error(result.error());
+  }
+
+  upgradeResources(&result.get());
+  return result;
+}
+
+template <>
+inline Try<std::string> read<std::string>(const std::string& path)
+{
+  return os::read(path);
+}
+
+
 namespace internal {
 
 inline Try<Nothing> checkpoint(
