@@ -229,7 +229,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NewVolume)
   // The framework is expected to see the following offers in sequence:
   //   1. One containing a RAW disk resource before `CREATE_VOLUME`.
   //   2. One containing a MOUNT disk resource after `CREATE_VOLUME`.
-  //   3. One containing a RAW disk resource after `DSTROY_VOLUME`.
+  //   3. One containing a RAW disk resource after `DESTROY_VOLUME`.
   Future<vector<Offer>> rawDiskOffers;
   Future<vector<Offer>> volumeCreatedOffers;
   Future<vector<Offer>> volumeDestroyedOffers;
@@ -408,7 +408,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NewVolumeRecovery)
   //   2. One containing a MOUNT disk resource after `CREATE_VOLUME`.
   //   3. One containing a MOUNT disk resource after the agent recovers
   //      from a failover.
-  //   4. One containing a RAW disk resource after `DSTROY_VOLUME`.
+  //   4. One containing a RAW disk resource after `DESTROY_VOLUME`.
   Future<vector<Offer>> rawDiskOffers;
   Future<vector<Offer>> volumeCreatedOffers;
   Future<vector<Offer>> agentRecoveredOffers;
@@ -1045,7 +1045,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PreExistingVolume)
   //   2. One containing a MOUNT and a BLOCK disk resources after
   //      `CREATE_VOLUME` and `CREATE_BLOCK`.
   //   3. One containing two RAW disk resources for pre-existing volumes
-  //      resource after `DSTROY_VOLUME` and `DESTROY_BLOCK`.
+  //      resource after `DESTROY_VOLUME` and `DESTROY_BLOCK`.
   Future<vector<Offer>> rawDisksOffers;
   Future<vector<Offer>> disksConvertedOffers;
   Future<vector<Offer>> disksRevertedOffers;
