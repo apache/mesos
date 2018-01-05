@@ -634,6 +634,11 @@ Slave::~Slave()
       containerizer->destroy(containerId);
 
       AWAIT(wait);
+
+      if (!wait.isReady()) {
+        LOG(ERROR) << "Failed to destroy container " << containerId << ": "
+                   << (wait.isFailed() ? wait.failure() : "discarded");
+      }
     }
 
     containers = containerizer->containers();
