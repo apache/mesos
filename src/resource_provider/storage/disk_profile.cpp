@@ -18,9 +18,9 @@
 
 #include <mesos/mesos.hpp>
 
-#include <mesos/module/volume_profile.hpp>
+#include <mesos/module/disk_profile.hpp>
 
-#include <mesos/resource_provider/storage/volume_profile.hpp>
+#include <mesos/resource_provider/storage/disk_profile.hpp>
 
 #include <process/future.hpp>
 
@@ -43,18 +43,18 @@ namespace internal {
 
 // The default implementation does nothing and always returns a Failure
 // whenever called.
-class DefaultVolumeProfileAdaptor : public VolumeProfileAdaptor
+class DefaultDiskProfileAdaptor : public DiskProfileAdaptor
 {
 public:
-  DefaultVolumeProfileAdaptor() {}
+  DefaultDiskProfileAdaptor() {}
 
-  ~DefaultVolumeProfileAdaptor() {}
+  ~DefaultDiskProfileAdaptor() {}
 
-  virtual Future<VolumeProfileAdaptor::ProfileInfo> translate(
+  virtual Future<DiskProfileAdaptor::ProfileInfo> translate(
       const string& profile,
       const string& csiPluginInfoType) override
   {
-    return Failure("By default, volume profiles are not supported");
+    return Failure("By default, disk profiles are not supported");
   }
 
   virtual Future<hashset<string>> watch(
@@ -75,23 +75,23 @@ public:
 } // namespace internal {
 
 
-Try<VolumeProfileAdaptor*> VolumeProfileAdaptor::create(
+Try<DiskProfileAdaptor*> DiskProfileAdaptor::create(
     const Option<string>& moduleName)
 {
   if (moduleName.isNone()) {
-    LOG(INFO) << "Creating default volume profile adaptor module";
-    return new internal::DefaultVolumeProfileAdaptor();
+    LOG(INFO) << "Creating default disk profile adaptor module";
+    return new internal::DefaultDiskProfileAdaptor();
   }
 
   LOG(INFO)
-    << "Creating volume profile adaptor module '" << moduleName.get() << "'";
+    << "Creating disk profile adaptor module '" << moduleName.get() << "'";
 
-  Try<VolumeProfileAdaptor*> result =
-    modules::ModuleManager::create<VolumeProfileAdaptor>(moduleName.get());
+  Try<DiskProfileAdaptor*> result =
+    modules::ModuleManager::create<DiskProfileAdaptor>(moduleName.get());
 
   if (result.isError()) {
     return Error(
-        "Failed to initialize volume profile adaptor module: "
+        "Failed to initialize disk profile adaptor module: "
         + result.error());
   }
 
@@ -106,21 +106,21 @@ Try<VolumeProfileAdaptor*> VolumeProfileAdaptor::create(
 // belong to the caller of the `create` method above. This will, for example,
 // allow tests to instantiate an Agent and subsequently destruct the Agent
 // without leaving a module behind in a global variable.
-static std::weak_ptr<VolumeProfileAdaptor>* currentAdaptor = nullptr;
+static std::weak_ptr<DiskProfileAdaptor>* currentAdaptor = nullptr;
 
 
-void VolumeProfileAdaptor::setAdaptor(
-    const std::shared_ptr<VolumeProfileAdaptor>& adaptor)
+void DiskProfileAdaptor::setAdaptor(
+    const std::shared_ptr<DiskProfileAdaptor>& adaptor)
 {
   if (currentAdaptor != nullptr) {
     delete currentAdaptor;
   }
 
-  currentAdaptor = new std::weak_ptr<VolumeProfileAdaptor>(adaptor);
+  currentAdaptor = new std::weak_ptr<DiskProfileAdaptor>(adaptor);
 }
 
 
-std::shared_ptr<VolumeProfileAdaptor> VolumeProfileAdaptor::getAdaptor()
+std::shared_ptr<DiskProfileAdaptor> DiskProfileAdaptor::getAdaptor()
 {
   // This method should never be called before `setAdaptor` has been called.
   CHECK_NOTNULL(currentAdaptor);

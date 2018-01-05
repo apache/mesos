@@ -43,8 +43,8 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-constexpr char URI_VOLUME_PROFILE_ADAPTOR_NAME[] =
-  "org_apache_mesos_UriVolumeProfileAdaptor";
+constexpr char URI_DISK_PROFILE_ADAPTOR_NAME[] =
+  "org_apache_mesos_UriDiskProfileAdaptor";
 
 
 class StorageLocalResourceProviderTest : public MesosTest
@@ -112,11 +112,11 @@ public:
         path::join(resourceProviderConfigDir, "test.json"),
         resourceProviderConfig.get()));
 
-    uriVolumeProfileConfigPath =
-      path::join(sandbox.get(), "volume_profiles.json");
+    uriDiskProfileConfigPath =
+      path::join(sandbox.get(), "disk_profiles.json");
 
     Try<Nothing> write = os::write(
-        uriVolumeProfileConfigPath,
+        uriDiskProfileConfigPath,
         R"~(
         {
           "profile_matrix": {
@@ -147,20 +147,20 @@ public:
     MesosTest::TearDown();
   }
 
-  void loadUriVolumeProfileModule()
+  void loadUriDiskProfileModule()
   {
-    string libraryPath = getModulePath("uri_volume_profile");
+    string libraryPath = getModulePath("uri_disk_profile");
 
     Modules::Library* library = modules.add_libraries();
-    library->set_name("uri_volume_profile");
+    library->set_name("uri_disk_profile");
     library->set_file(libraryPath);
 
     Modules::Library::Module* module = library->add_modules();
-    module->set_name(URI_VOLUME_PROFILE_ADAPTOR_NAME);
+    module->set_name(URI_DISK_PROFILE_ADAPTOR_NAME);
 
     Parameter* parameter = module->add_parameters();
     parameter->set_key("uri");
-    parameter->set_value(uriVolumeProfileConfigPath);
+    parameter->set_value(uriDiskProfileConfigPath);
 
     ASSERT_SOME(modules::ModuleManager::load(modules));
   }
@@ -168,7 +168,7 @@ public:
 protected:
   Modules modules;
   string resourceProviderConfigDir;
-  string uriVolumeProfileConfigPath;
+  string uriDiskProfileConfigPath;
 };
 
 
@@ -177,7 +177,7 @@ protected:
 // that uses the test CSI plugin.
 TEST_F(StorageLocalResourceProviderTest, ROOT_NewVolume)
 {
-  loadUriVolumeProfileModule();
+  loadUriDiskProfileModule();
 
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -201,7 +201,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NewVolume)
       {capabilities.begin(), capabilities.end()});
 
   flags.resource_provider_config_dir = resourceProviderConfigDir;
-  flags.volume_profile_adaptor = URI_VOLUME_PROFILE_ADAPTOR_NAME;
+  flags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
@@ -354,7 +354,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NewVolume)
 // the test CSI plugin after recovery.
 TEST_F(StorageLocalResourceProviderTest, ROOT_NewVolumeRecovery)
 {
-  loadUriVolumeProfileModule();
+  loadUriDiskProfileModule();
 
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -378,7 +378,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NewVolumeRecovery)
       {capabilities.begin(), capabilities.end()});
 
   flags.resource_provider_config_dir = resourceProviderConfigDir;
-  flags.volume_profile_adaptor = URI_VOLUME_PROFILE_ADAPTOR_NAME;
+  flags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
@@ -547,7 +547,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NewVolumeRecovery)
 // plugin, then destroy the volume while it is published.
 TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchTask)
 {
-  loadUriVolumeProfileModule();
+  loadUriDiskProfileModule();
 
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -571,7 +571,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchTask)
       {capabilities.begin(), capabilities.end()});
 
   flags.resource_provider_config_dir = resourceProviderConfigDir;
-  flags.volume_profile_adaptor = URI_VOLUME_PROFILE_ADAPTOR_NAME;
+  flags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
@@ -763,7 +763,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchTask)
 // and used by a task after recovery.
 TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchTaskRecovery)
 {
-  loadUriVolumeProfileModule();
+  loadUriDiskProfileModule();
 
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -787,7 +787,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchTaskRecovery)
       {capabilities.begin(), capabilities.end()});
 
   flags.resource_provider_config_dir = resourceProviderConfigDir;
-  flags.volume_profile_adaptor = URI_VOLUME_PROFILE_ADAPTOR_NAME;
+  flags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);

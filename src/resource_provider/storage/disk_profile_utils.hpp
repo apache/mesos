@@ -14,27 +14,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __RESOURCE_PROVIDER_URI_VOLUME_PROFILE_UTILS_HPP__
-#define __RESOURCE_PROVIDER_URI_VOLUME_PROFILE_UTILS_HPP__
+#ifndef __RESOURCE_PROVIDER_URI_DISK_PROFILE_UTILS_HPP__
+#define __RESOURCE_PROVIDER_URI_DISK_PROFILE_UTILS_HPP__
 
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 
 // ONLY USEFUL AFTER RUNNING PROTOC.
-#include "resource_provider/storage/volume_profile.pb.h"
+#include "resource_provider/storage/disk_profile.pb.h"
 
 namespace mesos {
 namespace internal {
 namespace profile {
 
 // Helper for parsing a string as the expected data format.
-Try<resource_provider::VolumeProfileMapping> parseVolumeProfileMapping(
+Try<resource_provider::DiskProfileMapping> parseDiskProfileMapping(
     const std::string& data);
 
 
-// Checks the fields inside a `VolumeProfileMapping` according to the
+// Checks the fields inside a `DiskProfileMapping` according to the
 // comments above the protobuf.
-Option<Error> validate(const resource_provider::VolumeProfileMapping& mapping);
+Option<Error> validate(const resource_provider::DiskProfileMapping& mapping);
 
 
 // Checks the fields inside a `VolumeCapability` according to the
@@ -45,4 +45,4 @@ Option<Error> validate(const csi::VolumeCapability& capability);
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __RESOURCE_PROVIDER_URI_VOLUME_PROFILE_HPP__
+#endif // __RESOURCE_PROVIDER_URI_DISK_PROFILE_HPP__

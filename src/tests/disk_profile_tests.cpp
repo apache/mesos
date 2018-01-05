@@ -19,9 +19,9 @@
 #include <tuple>
 #include <vector>
 
-#include <mesos/module/volume_profile.hpp>
+#include <mesos/module/disk_profile.hpp>
 
-#include <mesos/resource_provider/storage/volume_profile.hpp>
+#include <mesos/resource_provider/storage/disk_profile.hpp>
 
 #include <process/clock.hpp>
 #include <process/future.hpp>
@@ -40,8 +40,8 @@
 
 #include "module/manager.hpp"
 
-#include "resource_provider/storage/uri_volume_profile.hpp"
-#include "resource_provider/storage/volume_profile_utils.hpp"
+#include "resource_provider/storage/uri_disk_profile.hpp"
+#include "resource_provider/storage/disk_profile_utils.hpp"
 
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
@@ -56,7 +56,7 @@ using std::vector;
 
 using google::protobuf::Map;
 
-using mesos::resource_provider::VolumeProfileMapping;
+using mesos::resource_provider::DiskProfileMapping;
 
 using testing::_;
 using testing::DoAll;
@@ -66,25 +66,25 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-constexpr char URI_VOLUME_PROFILE_ADAPTOR_NAME[] =
-  "org_apache_mesos_UriVolumeProfileAdaptor";
+constexpr char URI_DISK_PROFILE_ADAPTOR_NAME[] =
+  "org_apache_mesos_UriDiskProfileAdaptor";
 
 
-class UriVolumeProfileTest : public MesosTest
+class UriDiskProfileTest : public MesosTest
 {
 public:
   virtual void SetUp()
   {
     MesosTest::SetUp();
 
-    string libraryPath = getModulePath("uri_volume_profile");
+    string libraryPath = getModulePath("uri_disk_profile");
 
     Modules::Library* library = modules.add_libraries();
-    library->set_name("uri_volume_profile");
+    library->set_name("uri_disk_profile");
     library->set_file(libraryPath);
 
     Modules::Library::Module* module = library->add_modules();
-    module->set_name(URI_VOLUME_PROFILE_ADAPTOR_NAME);
+    module->set_name(URI_DISK_PROFILE_ADAPTOR_NAME);
 
     ASSERT_SOME(modules::ModuleManager::load(modules));
   }
@@ -107,9 +107,9 @@ protected:
 };
 
 
-// Exercises the volume profile map parsing method with the example found
-// in the UriVolumeProfile module's help string.
-TEST_F(UriVolumeProfileTest, ParseExample)
+// Exercises the disk profile map parsing method with the example found
+// in the UriDiskProfile module's help string.
+TEST_F(UriDiskProfileTest, ParseExample)
 {
   const string example = R"~(
     {
@@ -129,8 +129,8 @@ TEST_F(UriVolumeProfileTest, ParseExample)
       }
     })~";
 
-  Try<VolumeProfileMapping> parsed =
-    mesos::internal::profile::parseVolumeProfileMapping(example);
+  Try<DiskProfileMapping> parsed =
+    mesos::internal::profile::parseDiskProfileMapping(example);
   ASSERT_SOME(parsed);
 
   const string key = "my-profile";
@@ -161,10 +161,10 @@ TEST_F(UriVolumeProfileTest, ParseExample)
 }
 
 
-// Exercises the volume profile map parsing method with some slightly incorrect
+// Exercises the disk profile map parsing method with some slightly incorrect
 // inputs. Each item in the array of examples should error at a different area
 // of the code (and are ordered corresponding to the code as well).
-TEST_F(UriVolumeProfileTest, ParseInvalids)
+TEST_F(UriDiskProfileTest, ParseInvalids)
 {
   const vector<string> examples = {
     "Not an object, but still JSON",
@@ -266,8 +266,8 @@ TEST_F(UriVolumeProfileTest, ParseInvalids)
 
   hashset<string> errors;
   for (size_t i = 0; i < examples.size(); i++) {
-    Try<VolumeProfileMapping> parsed =
-      mesos::internal::profile::parseVolumeProfileMapping(examples[i]);
+    Try<DiskProfileMapping> parsed =
+      mesos::internal::profile::parseDiskProfileMapping(examples[i]);
 
     ASSERT_ERROR(parsed) << examples[i];
     ASSERT_EQ(0u, errors.count(parsed.error())) << parsed.error();
@@ -277,10 +277,10 @@ TEST_F(UriVolumeProfileTest, ParseInvalids)
 }
 
 
-// This creates a UriVolumeProfile module configured to read from a file
+// This creates a UriDiskProfile module configured to read from a file
 // and tests the basic `watch` -> `translate` workflow which callers of
 // the module are expected to follow.
-TEST_F(UriVolumeProfileTest, FetchFromFile)
+TEST_F(UriDiskProfileTest, FetchFromFile)
 {
   Clock::pause();
 
@@ -317,9 +317,9 @@ TEST_F(UriVolumeProfileTest, FetchFromFile)
   // Create the module before we've written anything to the file.
   // This means the first poll will fail, so the module believes there
   // are no profiles at the moment.
-  Try<VolumeProfileAdaptor*> module =
-    modules::ModuleManager::create<VolumeProfileAdaptor>(
-        URI_VOLUME_PROFILE_ADAPTOR_NAME,
+  Try<DiskProfileAdaptor*> module =
+    modules::ModuleManager::create<DiskProfileAdaptor>(
+        URI_DISK_PROFILE_ADAPTOR_NAME,
         params);
   ASSERT_SOME(module);
 
@@ -341,7 +341,7 @@ TEST_F(UriVolumeProfileTest, FetchFromFile)
   EXPECT_EQ(profileName, *(future->begin()));
 
   // Translate the profile name into the profile mapping.
-  Future<VolumeProfileAdaptor::ProfileInfo> mapping =
+  Future<DiskProfileAdaptor::ProfileInfo> mapping =
     module.get()->translate(profileName, csiPluginType);
 
   AWAIT_ASSERT_READY(mapping);
@@ -354,7 +354,7 @@ TEST_F(UriVolumeProfileTest, FetchFromFile)
 }
 
 
-// Basic helper for UriVolumeProfile modules configured to fetch from HTTP URIs.
+// Basic helper for UriDiskProfile modules configured to fetch from HTTP URIs.
 class MockProfileServer : public Process<MockProfileServer>
 {
 public:
@@ -386,12 +386,12 @@ public:
 };
 
 
-// This creates a UriVolumeProfile module configured to read from an HTTP URI.
+// This creates a UriDiskProfile module configured to read from an HTTP URI.
 // The HTTP server will return a different profile mapping between each of the
 // calls. We expect the module to ignore the second call because the module
 // does not allow profiles to be renamed. This is not a fatal error however,
 // as the HTTP server can be "fixed" without restarting the agent.
-TEST_F(UriVolumeProfileTest, FetchFromHTTP)
+TEST_F(UriDiskProfileTest, FetchFromHTTP)
 {
   Clock::pause();
 
@@ -468,9 +468,9 @@ TEST_F(UriVolumeProfileTest, FetchFromHTTP)
       process::address().port,
       server.process->self().id + "/profiles")));
 
-  Try<VolumeProfileAdaptor*> module =
-    modules::ModuleManager::create<VolumeProfileAdaptor>(
-        URI_VOLUME_PROFILE_ADAPTOR_NAME,
+  Try<DiskProfileAdaptor*> module =
+    modules::ModuleManager::create<DiskProfileAdaptor>(
+        URI_DISK_PROFILE_ADAPTOR_NAME,
         params);
   ASSERT_SOME(module);
 

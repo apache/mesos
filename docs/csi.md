@@ -388,7 +388,7 @@ message Resource {
       // the framework will do disk selection based on profile names,
       // instead of vendor specific disk parameters.
       //
-      // Also see the VolumeProfile module.
+      // Also see the DiskProfile module.
       optional string profile = 6;
     }
   }
@@ -399,14 +399,14 @@ A typical framework that needs storage is expected to perform disk
 resource selection based on the `profile` of a disk resource, rather
 than low-level storage vendor specific parameters.
 
-### Volume Profile Adaptor Module
+### Disk Profile Adaptor Module
 
 In order to let cluster operators customize the mapping between profiles and
 storage system-specific parameters, Mesos provides a [module](#modules.md)
-interface called `VolumeProfileAdaptor`.
+interface called `DiskProfileAdaptor`.
 
 ```cpp
-class VolumeProfileAdaptor
+class DiskProfileAdaptor
 {
 public:
   struct ProfileInfo
@@ -445,10 +445,10 @@ implicit dependency between backward compatibility of the module interface and
 the CSI spec version. Since CSI doesn't provide a backward compatibility
 promise, modules have to be re-built against each release of Mesos.
 
-### URI Volume Profile Adaptor
+### URI Disk Profile Adaptor
 
-To demonstrate how to use the volume profile adaptor module, Mesos ships with a
-default volume profile adaptor, called `UriVolumeProfileAdaptor`. This module
+To demonstrate how to use the disk profile adaptor module, Mesos ships with a
+default disk profile adaptor, called `UriDiskProfileAdaptor`. This module
 polls the profile information (in JSON) from a configurable URI. Here are the
 module parameters that can be used to configure the module:
 
@@ -491,16 +491,16 @@ module parameters that can be used to configure the module:
 
 To enable this module, please follow the [modules documentation](modules.md):
 add the following JSON to the `--modules` agent flag, and set agent flag
-`--volume_profile_adaptor` to `org_apache_mesos_UriVolumeProfileAdaptor`.
+`--disk_profile_adaptor` to `org_apache_mesos_UriDiskProfileAdaptor`.
 
 ```json
 {
   "libraries": [
     {
-      "file": "/PATH/TO/liburi_volume_profile.so",
+      "file": "/PATH/TO/liburi_disk_profile.so",
       "modules": [
         {
-          "name": "org_apache_mesos_UriVolumeProfileAdaptor",
+          "name": "org_apache_mesos_UriDiskProfileAdaptor",
           "parameters" : [
             {
               "key": "uri",

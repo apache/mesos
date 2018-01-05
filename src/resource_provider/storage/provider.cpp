@@ -37,7 +37,7 @@
 #include <mesos/type_utils.hpp>
 
 #include <mesos/resource_provider/resource_provider.hpp>
-#include <mesos/resource_provider/storage/volume_profile.hpp>
+#include <mesos/resource_provider/storage/disk_profile.hpp>
 
 #include <mesos/v1/resource_provider.hpp>
 
@@ -302,8 +302,8 @@ public:
       resourceVersion(id::UUID::random()),
       operationSequence("operation-sequence")
   {
-    volumeProfileAdaptor = VolumeProfileAdaptor::getAdaptor();
-    CHECK_NOTNULL(volumeProfileAdaptor.get());
+    diskProfileAdaptor = DiskProfileAdaptor::getAdaptor();
+    CHECK_NOTNULL(diskProfileAdaptor.get());
   }
 
   StorageLocalResourceProviderProcess(
@@ -345,7 +345,7 @@ private:
       const Resources& discovered);
 
   // Helper for updating the profiles mapping upon receiving an updated
-  // set of profiles from the VolumeProfileAdaptor module.
+  // set of profiles from the DiskProfileAdaptor module.
   Future<Nothing> updateProfiles();
 
   // Reconcile the storage pools upon profile updates.
@@ -373,7 +373,7 @@ private:
   Future<string> createVolume(
       const string& name,
       const Bytes& capacity,
-      const VolumeProfileAdaptor::ProfileInfo& profileInfo);
+      const DiskProfileAdaptor::ProfileInfo& profileInfo);
   Future<Nothing> deleteVolume(const string& volumeId, bool preExisting);
   Future<string> validateCapability(
       const string& volumeId,
@@ -428,7 +428,7 @@ private:
   const Option<string> authToken;
   const bool strict;
 
-  shared_ptr<VolumeProfileAdaptor> volumeProfileAdaptor;
+  shared_ptr<DiskProfileAdaptor> diskProfileAdaptor;
 
   csi::Version csiVersion;
   csi::VolumeCapability defaultMountCapability;
@@ -438,10 +438,10 @@ private:
   Owned<v1::resource_provider::Driver> driver;
   OperationStatusUpdateManager statusUpdateManager;
 
-  // The mapping of known profiles fetched from the VolumeProfileAdaptor.
-  hashmap<string, VolumeProfileAdaptor::ProfileInfo> profileInfos;
+  // The mapping of known profiles fetched from the DiskProfileAdaptor.
+  hashmap<string, DiskProfileAdaptor::ProfileInfo> profileInfos;
 
-  // The last set of profile names fetched from the VolumeProfileAdaptor.
+  // The last set of profile names fetched from the DiskProfileAdaptor.
   hashset<string> knownProfiles;
 
   // True if a reconciliation of storage pools is happening.
@@ -631,12 +631,12 @@ Future<Nothing> StorageLocalResourceProviderProcess::recover()
           << "Failed to watch for VolumeprofileAdaptor: " << message;
       };
 
-      // Start watching the VolumeProfileAdaptor.
+      // Start watching the DiskProfileAdaptor.
       // TODO(chhsiao): Consider retrying with backoff.
       loop(
           self(),
           [=] {
-            return volumeProfileAdaptor->watch(
+            return diskProfileAdaptor->watch(
                 knownProfiles,
                 info.storage().plugin().type())
               .then(defer(self(), [=](const hashset<string>& profiles) {
@@ -961,24 +961,24 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverProfiles()
   }
 
   // If no pending operation uses any profile, there is no need to
-  // recover any profile. Watching the VolumeProfileAdaptor will be
+  // recover any profile. Watching the DiskProfileAdaptor will be
   // initiated later.
   if (requiredProfiles.empty()) {
     return Nothing();
   }
 
   LOG(INFO)
-    << "Waiting for VolumeProfileAdaptor to recover profiles: "
+    << "Waiting for DiskProfileAdaptor to recover profiles: "
     << stringify(requiredProfiles);
 
-  // The VolumeProfileAdapter module must at least have knowledge of
+  // The DiskProfileAdapter module must at least have knowledge of
   // the required profiles. Because the module is initialized separately
   // from this resource provider, we must watch the module until all
   // required profiles have been recovered.
   return loop(
       self(),
       [=] {
-        return volumeProfileAdaptor->watch(
+        return diskProfileAdaptor->watch(
             knownProfiles,
             info.storage().plugin().type());
       },
@@ -1265,9 +1265,9 @@ Future<Nothing> StorageLocalResourceProviderProcess::updateProfiles()
       continue;
     }
 
-    futures.push_back(volumeProfileAdaptor->translate(
+    futures.push_back(diskProfileAdaptor->translate(
         profile, info.storage().plugin().type())
-      .then(defer(self(), [=](const VolumeProfileAdaptor::ProfileInfo& info) {
+      .then(defer(self(), [=](const DiskProfileAdaptor::ProfileInfo& info) {
         profileInfos.put(profile, info);
         return Nothing();
       })));
@@ -2287,7 +2287,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::nodeUnpublish(
 Future<string> StorageLocalResourceProviderProcess::createVolume(
     const string& name,
     const Bytes& capacity,
-    const VolumeProfileAdaptor::ProfileInfo& profileInfo)
+    const DiskProfileAdaptor::ProfileInfo& profileInfo)
 {
   // NOTE: This can only be called after `prepareControllerService`.
   CHECK_SOME(controllerCapabilities);
@@ -2489,7 +2489,7 @@ Future<Resources> StorageLocalResourceProviderProcess::listVolumes()
         .then(defer(self(), [=](const csi::ListVolumesResponse& response) {
           Resources resources;
 
-          // Recover volume profiles from the checkpointed state.
+          // Recover disk profiles from the checkpointed state.
           hashmap<string, string> volumesToProfiles;
           foreach (const Resource& resource, totalResources) {
             if (resource.disk().source().has_id() &&
@@ -2541,7 +2541,7 @@ Future<Resources> StorageLocalResourceProviderProcess::getCapacities()
 
         // TODO(chhsiao): Skip inactive profiles.
 
-        const VolumeProfileAdaptor::ProfileInfo& profileInfo =
+        const DiskProfileAdaptor::ProfileInfo& profileInfo =
           profileInfos.at(profile);
 
         csi::GetCapacityRequest request;

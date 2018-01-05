@@ -1462,7 +1462,7 @@ message Resource {
       // the framework will do disk selection based on profile names,
       // instead of vendor specific disk parameters.
       //
-      // Also see the VolumeProfile module.
+      // Also see the DiskProfile module.
       optional string profile = 6; // EXPERIMENTAL.
     }
 

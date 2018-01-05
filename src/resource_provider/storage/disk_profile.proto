@@ -21,7 +21,7 @@ import "csi.proto";
 package mesos.resource_provider;
 
 
-message VolumeProfileMapping {
+message DiskProfileMapping {
   message CSIManifest {
     // Capabilities used for creating, publishing, and validating volumes.
     // This field is REQUIRED.

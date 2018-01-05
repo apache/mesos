@@ -14,14 +14,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __RESOURCE_PROVIDER_URI_VOLUME_PROFILE_HPP__
-#define __RESOURCE_PROVIDER_URI_VOLUME_PROFILE_HPP__
+#ifndef __RESOURCE_PROVIDER_URI_DISK_PROFILE_HPP__
+#define __RESOURCE_PROVIDER_URI_DISK_PROFILE_HPP__
 
 #include <map>
 #include <string>
 #include <tuple>
 
-#include <mesos/resource_provider/storage/volume_profile.hpp>
+#include <mesos/resource_provider/storage/disk_profile.hpp>
 
 #include <process/future.hpp>
 #include <process/owned.hpp>
@@ -38,14 +38,14 @@
 
 #include <csi/spec.hpp>
 
-#include "resource_provider/storage/volume_profile_utils.hpp"
+#include "resource_provider/storage/disk_profile_utils.hpp"
 
 namespace mesos {
 namespace internal {
 namespace profile {
 
 // Forward declaration.
-class UriVolumeProfileAdaptorProcess;
+class UriDiskProfileAdaptorProcess;
 
 struct Flags : public virtual flags::FlagsBase
 {
@@ -54,16 +54,16 @@ struct Flags : public virtual flags::FlagsBase
     add(&Flags::uri,
         "uri",
         None(),
-        "URI to a JSON object containing the volume profile mapping.\n"
+        "URI to a JSON object containing the disk profile mapping.\n"
         "This module supports both HTTP(s) and file URIs\n."
         "\n"
         "The JSON object should consist of some top-level string keys\n"
-        "corresponding to the volume profile name. Each value should\n"
+        "corresponding to the disk profile name. Each value should\n"
         "contain a `VolumeCapability` under a 'volume_capabilities'\n"
         "and a free-form string-string mapping under 'create_parameters'.\n"
         "\n"
         "The JSON is modeled after a protobuf found in\n"
-        "`src/csi/uri_volume_profile.proto`.\n"
+        "`src/csi/uri_disk_profile.proto`.\n"
         "\n"
         "For example:\n"
         "{\n"
@@ -159,7 +159,7 @@ struct Flags : public virtual flags::FlagsBase
 };
 
 
-// The `UriVolumeProfileAdaptor` is an example VolumeProfile module that
+// The `UriDiskProfileAdaptor` is an example DiskProfile module that
 // takes a URI as a module parameter and fetches that URI periodically.
 // The fetched data is parsed into the required CSI protobufs
 // (which also acts as validation).
@@ -171,14 +171,14 @@ struct Flags : public virtual flags::FlagsBase
 // and assumes that all fetched profiles are meant for all resource providers.
 //
 // See `Flags` above for more information.
-class UriVolumeProfileAdaptor : public mesos::VolumeProfileAdaptor
+class UriDiskProfileAdaptor : public mesos::DiskProfileAdaptor
 {
 public:
-  UriVolumeProfileAdaptor(const Flags& _flags);
+  UriDiskProfileAdaptor(const Flags& _flags);
 
-  virtual ~UriVolumeProfileAdaptor();
+  virtual ~UriDiskProfileAdaptor();
 
-  virtual process::Future<mesos::VolumeProfileAdaptor::ProfileInfo> translate(
+  virtual process::Future<mesos::DiskProfileAdaptor::ProfileInfo> translate(
       const std::string& profile,
       const std::string& csiPluginInfoType) override;
 
@@ -188,19 +188,19 @@ public:
 
 protected:
   Flags flags;
-  process::Owned<UriVolumeProfileAdaptorProcess> process;
+  process::Owned<UriDiskProfileAdaptorProcess> process;
 };
 
 
-class UriVolumeProfileAdaptorProcess :
-  public process::Process<UriVolumeProfileAdaptorProcess>
+class UriDiskProfileAdaptorProcess :
+  public process::Process<UriDiskProfileAdaptorProcess>
 {
 public:
-  UriVolumeProfileAdaptorProcess(const Flags& _flags);
+  UriDiskProfileAdaptorProcess(const Flags& _flags);
 
   virtual void initialize() override;
 
-  process::Future<mesos::VolumeProfileAdaptor::ProfileInfo> translate(
+  process::Future<mesos::DiskProfileAdaptor::ProfileInfo> translate(
       const std::string& profile,
       const std::string& csiPluginInfoType);
 
@@ -220,7 +220,7 @@ private:
   // of the module:
   //   * All known profiles must be included in the updated set.
   //   * All properties of known profiles must match those in the updated set.
-  void notify(const resource_provider::VolumeProfileMapping& parsed);
+  void notify(const resource_provider::DiskProfileMapping& parsed);
 
 private:
   Flags flags;
@@ -230,7 +230,7 @@ private:
   // Once added, profiles cannot be changed either.
   //
   // TODO(josephw): Consider persisting this mapping across agent restarts.
-  std::map<std::string, VolumeProfileAdaptor::ProfileInfo> data;
+  std::map<std::string, DiskProfileAdaptor::ProfileInfo> data;
 
   // Convenience set of the keys in `data` above.
   // This module does not filter based on `CSIPluginInfo::type`, so this
@@ -245,4 +245,4 @@ private:
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __RESOURCE_PROVIDER_URI_VOLUME_PROFILE_HPP__
+#endif // __RESOURCE_PROVIDER_URI_DISK_PROFILE_HPP__

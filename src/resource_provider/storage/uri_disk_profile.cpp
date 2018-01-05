@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "resource_provider/storage/uri_volume_profile.hpp"
+#include "resource_provider/storage/uri_disk_profile.hpp"
 
 #include <map>
 #include <string>
@@ -22,9 +22,9 @@
 
 #include <mesos/mesos.hpp>
 
-#include <mesos/module/volume_profile.hpp>
+#include <mesos/module/disk_profile.hpp>
 
-#include <mesos/resource_provider/storage/volume_profile.hpp>
+#include <mesos/resource_provider/storage/disk_profile.hpp>
 
 #include <process/defer.hpp>
 #include <process/delay.hpp>
@@ -44,7 +44,7 @@
 #include <csi/spec.hpp>
 #include <csi/utils.hpp>
 
-#include "resource_provider/storage/volume_profile_utils.hpp"
+#include "resource_provider/storage/disk_profile_utils.hpp"
 
 using namespace mesos;
 using namespace process;
@@ -55,7 +55,7 @@ using std::tuple;
 
 using google::protobuf::Map;
 
-using mesos::resource_provider::VolumeProfileMapping;
+using mesos::resource_provider::DiskProfileMapping;
 
 namespace mesos {
 namespace internal {
@@ -83,60 +83,60 @@ bool operator==(
 }
 
 
-UriVolumeProfileAdaptor::UriVolumeProfileAdaptor(const Flags& _flags)
+UriDiskProfileAdaptor::UriDiskProfileAdaptor(const Flags& _flags)
   : flags(_flags),
-    process(new UriVolumeProfileAdaptorProcess(flags))
+    process(new UriDiskProfileAdaptorProcess(flags))
 {
   spawn(process.get());
 }
 
 
-UriVolumeProfileAdaptor::~UriVolumeProfileAdaptor()
+UriDiskProfileAdaptor::~UriDiskProfileAdaptor()
 {
   terminate(process.get());
   wait(process.get());
 }
 
 
-Future<VolumeProfileAdaptor::ProfileInfo> UriVolumeProfileAdaptor::translate(
+Future<DiskProfileAdaptor::ProfileInfo> UriDiskProfileAdaptor::translate(
     const string& profile,
     const std::string& csiPluginInfoType)
 {
   return dispatch(
       process.get(),
-      &UriVolumeProfileAdaptorProcess::translate,
+      &UriDiskProfileAdaptorProcess::translate,
       profile,
       csiPluginInfoType);
 }
 
 
-Future<hashset<string>> UriVolumeProfileAdaptor::watch(
+Future<hashset<string>> UriDiskProfileAdaptor::watch(
     const hashset<string>& knownProfiles,
     const std::string& csiPluginInfoType)
 {
   return dispatch(
       process.get(),
-      &UriVolumeProfileAdaptorProcess::watch,
+      &UriDiskProfileAdaptorProcess::watch,
       knownProfiles,
       csiPluginInfoType);
 }
 
 
-UriVolumeProfileAdaptorProcess::UriVolumeProfileAdaptorProcess(
+UriDiskProfileAdaptorProcess::UriDiskProfileAdaptorProcess(
     const Flags& _flags)
   : ProcessBase(ID::generate("uri-volume-profile")),
     flags(_flags),
     watchPromise(new Promise<hashset<string>>()) {}
 
 
-void UriVolumeProfileAdaptorProcess::initialize()
+void UriDiskProfileAdaptorProcess::initialize()
 {
   poll();
 }
 
 
-Future<VolumeProfileAdaptor::ProfileInfo>
-  UriVolumeProfileAdaptorProcess::translate(
+Future<DiskProfileAdaptor::ProfileInfo>
+  UriDiskProfileAdaptorProcess::translate(
       const string& profile,
       const std::string& csiPluginInfoType)
 {
@@ -148,7 +148,7 @@ Future<VolumeProfileAdaptor::ProfileInfo>
 }
 
 
-Future<hashset<string>> UriVolumeProfileAdaptorProcess::watch(
+Future<hashset<string>> UriDiskProfileAdaptorProcess::watch(
     const hashset<string>& knownProfiles,
     const std::string& csiPluginInfoType)
 {
@@ -160,7 +160,7 @@ Future<hashset<string>> UriVolumeProfileAdaptorProcess::watch(
 }
 
 
-void UriVolumeProfileAdaptorProcess::poll()
+void UriDiskProfileAdaptorProcess::poll()
 {
   // NOTE: The flags do not allow relative paths, so this is guaranteed to
   // be either 'http://' or 'https://'.
@@ -187,10 +187,10 @@ void UriVolumeProfileAdaptorProcess::poll()
 }
 
 
-void UriVolumeProfileAdaptorProcess::_poll(const Try<string>& fetched)
+void UriDiskProfileAdaptorProcess::_poll(const Try<string>& fetched)
 {
   if (fetched.isSome()) {
-    Try<VolumeProfileMapping> parsed = parseVolumeProfileMapping(fetched.get());
+    Try<DiskProfileMapping> parsed = parseDiskProfileMapping(fetched.get());
 
     if (parsed.isSome()) {
       notify(parsed.get());
@@ -209,8 +209,8 @@ void UriVolumeProfileAdaptorProcess::_poll(const Try<string>& fetched)
 }
 
 
-void UriVolumeProfileAdaptorProcess::notify(
-    const VolumeProfileMapping& parsed)
+void UriDiskProfileAdaptorProcess::notify(
+    const DiskProfileMapping& parsed)
 {
   bool hasErrors = false;
 
@@ -279,7 +279,7 @@ void UriVolumeProfileAdaptorProcess::notify(
   watchPromise.reset(new Promise<hashset<string>>());
 
   LOG(INFO)
-    << "Updated volume profile mapping to " << profiles.size()
+    << "Updated disk profile mapping to " << profiles.size()
     << " total profiles";
 }
 
@@ -288,15 +288,15 @@ void UriVolumeProfileAdaptorProcess::notify(
 } // namespace mesos {
 
 
-mesos::modules::Module<VolumeProfileAdaptor>
-org_apache_mesos_UriVolumeProfileAdaptor(
+mesos::modules::Module<DiskProfileAdaptor>
+org_apache_mesos_UriDiskProfileAdaptor(
     MESOS_MODULE_API_VERSION,
     MESOS_VERSION,
     "Apache Mesos",
     "modules@mesos.apache.org",
-    "URI Volume Profile Adaptor module.",
+    "URI Disk Profile Adaptor module.",
     nullptr,
-    [](const Parameters& parameters) -> VolumeProfileAdaptor* {
+    [](const Parameters& parameters) -> DiskProfileAdaptor* {
       // Convert `parameters` into a map.
       map<string, string> values;
       foreach (const Parameter& parameter, parameters.parameter()) {
@@ -317,5 +317,5 @@ org_apache_mesos_UriVolumeProfileAdaptor(
         LOG(WARNING) << warning.message;
       }
 
-      return new mesos::internal::profile::UriVolumeProfileAdaptor(flags);
+      return new mesos::internal::profile::UriDiskProfileAdaptor(flags);
     });
