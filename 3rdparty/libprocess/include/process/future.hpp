@@ -1976,7 +1976,7 @@ struct UndiscardableDecorator
       typename std::decay<decltype(f(std::forward<Args>(args)...))>::type;
 
     static_assert(
-        is_specialization_of<Future, Result>::value,
+        is_specialization_of<Result, Future>::value,
         "Expecting Future<T> to be returned from undiscarded(...)");
 
     return undiscardable(f(std::forward<Args>(args)...));
@@ -2000,11 +2000,10 @@ struct UndiscardableDecorator
 // This guarantees that even if `future` is discarded the discard will
 // not propagate into the lambda passed into `.then()`.
 template <
-  typename F,
-  typename std::enable_if<
-    !is_specialization_of<
-      Future,
-      typename std::decay<F>::type>::value, int>::type = 0>
+    typename F,
+    typename std::enable_if<
+        !is_specialization_of<typename std::decay<F>::type, Future>::value,
+        int>::type = 0>
 UndiscardableDecorator<typename std::decay<F>::type> undiscardable(F&& f)
 {
   return UndiscardableDecorator<
