@@ -37,7 +37,7 @@
 #include <mesos/module/authenticatee.hpp>
 
 #ifdef ENABLE_GRPC
-#include <mesos/resource_provider/storage/volume_profile.hpp>
+#include <mesos/resource_provider/storage/disk_profile.hpp>
 #endif
 
 #include <process/after.hpp>
@@ -424,21 +424,21 @@ void Slave::initialize()
   }
 
 #ifdef ENABLE_GRPC
-  // Create the VolumeProfileAdaptor module and set it globally so
+  // Create the DiskProfileAdaptor module and set it globally so
   // any component that needs the module can share this instance.
-  Try<VolumeProfileAdaptor*> _volumeProfileAdaptor =
-    VolumeProfileAdaptor::create(flags.volume_profile_adaptor);
+  Try<DiskProfileAdaptor*> _diskProfileAdaptor =
+    DiskProfileAdaptor::create(flags.disk_profile_adaptor);
 
-  if (_volumeProfileAdaptor.isError()) {
+  if (_diskProfileAdaptor.isError()) {
     EXIT(EXIT_FAILURE)
-      << "Failed to create volume profile adaptor: "
-      << _volumeProfileAdaptor.error();
+      << "Failed to create disk profile adaptor: "
+      << _diskProfileAdaptor.error();
   }
 
-  volumeProfileAdaptor =
-    shared_ptr<VolumeProfileAdaptor>(_volumeProfileAdaptor.get());
+  diskProfileAdaptor =
+    shared_ptr<DiskProfileAdaptor>(_diskProfileAdaptor.get());
 
-  VolumeProfileAdaptor::setAdaptor(volumeProfileAdaptor);
+  DiskProfileAdaptor::setAdaptor(diskProfileAdaptor);
 #endif
 
   string scheme = "http";

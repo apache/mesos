@@ -81,7 +81,7 @@ void ModuleManager::initialize()
   kindToVersion["ResourceEstimator"] = MESOS_VERSION;
   kindToVersion["SecretResolver"] = MESOS_VERSION;
   kindToVersion["TestModule"] = MESOS_VERSION;
-  kindToVersion["VolumeProfileAdaptor"] = MESOS_VERSION;
+  kindToVersion["DiskProfileAdaptor"] = MESOS_VERSION;
 
   // What happens then when Mesos is built with a certain version,
   // 'kindToVersion' states a certain other minimum version, and a

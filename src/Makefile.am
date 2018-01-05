@@ -383,8 +383,8 @@ CXX_PROTOS +=								\
 
 if ENABLE_GRPC
 CXX_PROTOS +=								\
-  resource_provider/storage/volume_profile.pb.cc			\
-  resource_provider/storage/volume_profile.pb.h
+  resource_provider/storage/disk_profile.pb.cc				\
+  resource_provider/storage/disk_profile.pb.h
 
 CXX_CSI_PROTOS =							\
   ../include/csi/csi.grpc.pb.cc						\
@@ -748,7 +748,7 @@ module_HEADERS =							\
 
 if ENABLE_GRPC
 module_HEADERS +=							\
-  $(top_srcdir)/include/mesos/module/volume_profile.hpp
+  $(top_srcdir)/include/mesos/module/disk_profile.hpp
 endif
 
 nodist_module_HEADERS =							\
@@ -781,7 +781,7 @@ resourceprovider_HEADERS =						\
 
 if ENABLE_GRPC
 resourceprovider_HEADERS +=						\
-  $(top_srcdir)/include/mesos/resource_provider/storage/volume_profile.hpp
+  $(top_srcdir)/include/mesos/resource_provider/storage/disk_profile.hpp
 endif
 
 nodist_resourceprovider_HEADERS =					\
@@ -1473,10 +1473,10 @@ endif
 
 if ENABLE_GRPC
 libmesos_no_3rdparty_la_SOURCES +=					\
-  resource_provider/storage/volume_profile.cpp				\
-  resource_provider/storage/volume_profile.proto			\
-  resource_provider/storage/volume_profile_utils.cpp			\
-  resource_provider/storage/volume_profile_utils.hpp
+  resource_provider/storage/disk_profile.cpp				\
+  resource_provider/storage/disk_profile.proto				\
+  resource_provider/storage/disk_profile_utils.cpp			\
+  resource_provider/storage/disk_profile_utils.hpp
 
 if OS_LINUX
 libmesos_no_3rdparty_la_SOURCES +=					\
@@ -2344,15 +2344,15 @@ libload_qos_controller_la_SOURCES += slave/qos_controllers/load.cpp
 libload_qos_controller_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libload_qos_controller_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
 
-# Library containing the URI volume profile module.
+# Library containing the URI disk profile module.
 if ENABLE_GRPC
-pkgmodule_LTLIBRARIES += liburi_volume_profile.la
-liburi_volume_profile_la_SOURCES =				\
-  resource_provider/storage/uri_volume_profile.cpp		\
-  resource_provider/storage/uri_volume_profile.hpp		\
-  resource_provider/storage/volume_profile_utils.hpp
-liburi_volume_profile_la_CPPFLAGS = $(MESOS_CPPFLAGS)
-liburi_volume_profile_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
+pkgmodule_LTLIBRARIES += liburi_disk_profile.la
+liburi_disk_profile_la_SOURCES =				\
+  resource_provider/storage/uri_disk_profile.cpp		\
+  resource_provider/storage/uri_disk_profile.hpp		\
+  resource_provider/storage/disk_profile_utils.hpp
+liburi_disk_profile_la_CPPFLAGS = $(MESOS_CPPFLAGS)
+liburi_disk_profile_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
 endif
 
 MESOS_TEST_MODULE_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
@@ -2658,7 +2658,7 @@ mesos_tests_SOURCES +=						\
   tests/csi_client_tests.cpp					\
   tests/mock_csi_plugin.cpp					\
   tests/mock_csi_plugin.hpp					\
-  tests/volume_profile_tests.cpp
+  tests/disk_profile_tests.cpp
 
 if OS_LINUX
 mesos_tests_SOURCES +=						\

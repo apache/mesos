@@ -14,26 +14,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __MESOS_MODULE_VOLUME_PROFILE_HPP__
-#define __MESOS_MODULE_VOLUME_PROFILE_HPP__
+#ifndef __MESOS_MODULE_DISK_PROFILE_HPP__
+#define __MESOS_MODULE_DISK_PROFILE_HPP__
 
 #include <mesos/mesos.hpp>
 #include <mesos/module.hpp>
 
-#include <mesos/resource_provider/storage/volume_profile.hpp>
+#include <mesos/resource_provider/storage/disk_profile.hpp>
 
 namespace mesos {
 namespace modules {
 
 template <>
-inline const char* kind<mesos::VolumeProfileAdaptor>()
+inline const char* kind<mesos::DiskProfileAdaptor>()
 {
-  return "VolumeProfileAdaptor";
+  return "DiskProfileAdaptor";
 }
 
 
 template <>
-struct Module<mesos::VolumeProfileAdaptor> : ModuleBase
+struct Module<mesos::DiskProfileAdaptor> : ModuleBase
 {
   Module(
       const char* _moduleApiVersion,
@@ -42,22 +42,22 @@ struct Module<mesos::VolumeProfileAdaptor> : ModuleBase
       const char* _authorEmail,
       const char* _description,
       bool (*_compatible)(),
-      mesos::VolumeProfileAdaptor*
+      mesos::DiskProfileAdaptor*
         (*_create)(const Parameters& parameters))
     : ModuleBase(
         _moduleApiVersion,
         _mesosVersion,
-        mesos::modules::kind<mesos::VolumeProfileAdaptor>(),
+        mesos::modules::kind<mesos::DiskProfileAdaptor>(),
         _authorName,
         _authorEmail,
         _description,
         _compatible),
       create(_create) {}
 
-  mesos::VolumeProfileAdaptor* (*create)(const Parameters& parameters);
+  mesos::DiskProfileAdaptor* (*create)(const Parameters& parameters);
 };
 
 } // namespace modules {
 } // namespace mesos {
 
-#endif // __MESOS_MODULE_VOLUME_PROFILE_HPP__
+#endif // __MESOS_MODULE_DISK_PROFILE_HPP__

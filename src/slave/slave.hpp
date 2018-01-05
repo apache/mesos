@@ -98,7 +98,7 @@ namespace mesos {
 
 // Forward declarations.
 class Authorizer;
-class VolumeProfileAdaptor;
+class DiskProfileAdaptor;
 
 namespace internal {
 namespace slave {
@@ -725,7 +725,7 @@ private:
 
   mesos::slave::QoSController* qosController;
 
-  std::shared_ptr<VolumeProfileAdaptor> volumeProfileAdaptor;
+  std::shared_ptr<DiskProfileAdaptor> diskProfileAdaptor;
 
   mesos::SecretGenerator* secretGenerator;
 

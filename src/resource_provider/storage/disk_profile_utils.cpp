@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "resource_provider/storage/volume_profile_utils.hpp"
+#include "resource_provider/storage/disk_profile_utils.hpp"
 
 #include <google/protobuf/util/json_util.h>
 
@@ -23,17 +23,17 @@
 
 using std::string;
 
-using mesos::resource_provider::VolumeProfileMapping;
+using mesos::resource_provider::DiskProfileMapping;
 
 namespace mesos{
 namespace internal {
 namespace profile {
 
-Try<VolumeProfileMapping> parseVolumeProfileMapping(
+Try<DiskProfileMapping> parseDiskProfileMapping(
     const string& data)
 {
   // Use Google's JSON utility function to parse the JSON string.
-  VolumeProfileMapping output;
+  DiskProfileMapping output;
   google::protobuf::util::JsonParseOptions options;
   options.ignore_unknown_fields = true;
 
@@ -42,7 +42,7 @@ Try<VolumeProfileMapping> parseVolumeProfileMapping(
 
   if (!status.ok()) {
     return Error(
-        "Failed to parse VolumeProfileMapping message: "
+        "Failed to parse DiskProfileMapping message: "
         + status.ToString());
   }
 
@@ -56,7 +56,7 @@ Try<VolumeProfileMapping> parseVolumeProfileMapping(
 }
 
 
-Option<Error> validate(const VolumeProfileMapping& mapping)
+Option<Error> validate(const DiskProfileMapping& mapping)
 {
   auto iterator = mapping.profile_matrix().begin();
   while (iterator != mapping.profile_matrix().end()) {

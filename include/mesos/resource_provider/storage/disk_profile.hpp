@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __MESOS_RESOURCE_PROVIDER_VOLUME_PROFILE_HPP__
-#define __MESOS_RESOURCE_PROVIDER_VOLUME_PROFILE_HPP__
+#ifndef __MESOS_RESOURCE_PROVIDER_DISK_PROFILE_HPP__
+#define __MESOS_RESOURCE_PROVIDER_DISK_PROFILE_HPP__
 
 #include <memory>
 #include <string>
@@ -47,7 +47,7 @@ namespace mesos {
  * Documentation for each of the CSI requests can be found at:
  *   https://github.com/container-storage-interface/spec/
  */
-class VolumeProfileAdaptor
+class DiskProfileAdaptor
 {
 public:
   struct ProfileInfo
@@ -72,29 +72,29 @@ public:
   };
 
   /**
-   * Factory method used to create a VolumeProfileAdaptor instance.
+   * Factory method used to create a DiskProfileAdaptor instance.
    * If the `name` parameter is provided, the module is instantiated
-   * using the `ModuleManager`. Otherwise, a "default" volume profile
-   * adaptor instance (defined in `src/resource_provider/volume_profile.cpp`)
+   * using the `ModuleManager`. Otherwise, a "default" disk profile
+   * adaptor instance (defined in `src/resource_provider/disk_profile.cpp`)
    * is returned.
    *
    * NOTE: The lifecycle of the returned object is delegated to the caller.
    */
-  static Try<VolumeProfileAdaptor*> create(
+  static Try<DiskProfileAdaptor*> create(
       const Option<std::string>& name = None());
 
   /**
-   * Global methods for setting and getting a VolumeProfileAdaptor instance.
+   * Global methods for setting and getting a DiskProfileAdaptor instance.
    *
    * The agent (or test) is expected to create and set the adaptor instance
    * and manage the pointer (this method will only keep a weak pointer).
-   * Each component that needs to use the VolumeProfileAdaptor, such as the
+   * Each component that needs to use the DiskProfileAdaptor, such as the
    * Storage Local Resource Provider, should call `getAdaptor`.
    */
-  static void setAdaptor(const std::shared_ptr<VolumeProfileAdaptor>& adaptor);
-  static std::shared_ptr<VolumeProfileAdaptor> getAdaptor();
+  static void setAdaptor(const std::shared_ptr<DiskProfileAdaptor>& adaptor);
+  static std::shared_ptr<DiskProfileAdaptor> getAdaptor();
 
-  virtual ~VolumeProfileAdaptor() {}
+  virtual ~DiskProfileAdaptor() {}
 
   /**
    * Called before a Storage Resource Provider makes an affected CSI request.
@@ -136,9 +136,9 @@ public:
       const std::string& csiPluginInfoType) = 0;
 
 protected:
-  VolumeProfileAdaptor() {}
+  DiskProfileAdaptor() {}
 };
 
 } // namespace mesos {
 
-#endif // __MESOS_RESOURCE_PROVIDER_VOLUME_PROFILE_HPP__
+#endif // __MESOS_RESOURCE_PROVIDER_DISK_PROFILE_HPP__
