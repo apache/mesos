@@ -263,7 +263,7 @@ Try<Nothing> DockerVolumeIsolatorProcess::_recover(
     return Nothing();
   }
 
-  Try<string> read = os::read(volumesPath);
+  Try<string> read = state::read<string>(volumesPath);
   if (read.isError()) {
     return Error(
         "Failed to read docker volumes checkpoint file '" +

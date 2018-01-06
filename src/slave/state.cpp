@@ -86,7 +86,7 @@ Try<State> recover(const string& rootDir, bool strict)
 
   const string& bootIdPath = paths::getBootIdPath(rootDir);
   if (os::exists(bootIdPath)) {
-    Try<string> read = os::read(bootIdPath);
+    Try<string> read = state::read<string>(bootIdPath);
     if (read.isError()) {
       LOG(WARNING) << "Failed to read '"
                    << bootIdPath << "': " << read.error();
@@ -240,7 +240,7 @@ Try<FrameworkState> FrameworkState::recover(
     return state;
   }
 
-  Try<string> pid = os::read(path);
+  Try<string> pid = state::read<string>(path);
 
   if (pid.isError()) {
     message =
@@ -455,7 +455,7 @@ Try<RunState> RunState::recover(
     return state;
   }
 
-  Try<string> pid = os::read(path);
+  Try<string> pid = state::read<string>(path);
 
   if (pid.isError()) {
     message = "Failed to read executor forked pid from '" + path +
@@ -491,7 +491,7 @@ Try<RunState> RunState::recover(
       rootDir, slaveId, frameworkId, executorId, containerId);
 
   if (os::exists(path)) {
-    pid = os::read(path);
+    pid = state::read<string>(path);
 
     if (pid.isError()) {
       message = "Failed to read executor libprocess pid from '" + path +
