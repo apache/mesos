@@ -115,7 +115,7 @@ TEST_F(SlaveStateTest, CheckpointString)
   const string file = "test-file";
   slave::state::checkpoint(file, expected);
 
-  EXPECT_SOME_EQ(expected, os::read(file));
+  EXPECT_SOME_EQ(expected, slave::state::read<string>(file));
 }
 
 

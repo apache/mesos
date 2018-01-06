@@ -94,7 +94,7 @@ Result<pid_t> getContainerPid(
     return None();
   }
 
-  Try<string> read = os::read(path);
+  Try<string> read = state::read<string>(path);
   if (read.isError()) {
     return Error("Failed to recover pid of container: " + read.error());
   }
@@ -180,7 +180,7 @@ Result<pid_t> getContainerIOSwitchboardPid(
     return None();
   }
 
-  Try<string> read = os::read(path);
+  Try<string> read = state::read<string>(path);
   if (read.isError()) {
     return Error("Failed to recover pid of io switchboard: " + read.error());
   }
@@ -221,7 +221,7 @@ Result<unix::Address> getContainerIOSwitchboardAddress(
     return None();
   }
 
-  Try<string> read = os::read(path);
+  Try<string> read = state::read<string>(path);
   if (read.isError()) {
     return Error("Failed reading '" + path + "': " + read.error());
   }
