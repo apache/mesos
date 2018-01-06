@@ -256,7 +256,7 @@ Future<Nothing> MetadataManagerProcess::recover()
     return Nothing();
   }
 
-  Try<Images> images = ::protobuf::read<Images>(storedImagesPath);
+  Try<Images> images = state::read<Images>(storedImagesPath);
   if (images.isError()) {
     return Failure("Failed to read images from '" + storedImagesPath + "' " +
                    images.error());

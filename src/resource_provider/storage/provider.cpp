@@ -706,16 +706,13 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverServices()
 
       if (os::exists(configPath)) {
         Try<CSIPluginContainerInfo> config =
-          ::protobuf::read<CSIPluginContainerInfo>(configPath);
+          slave::state::read<CSIPluginContainerInfo>(configPath);
 
         if (config.isError()) {
           return Failure(
               "Failed to read plugin container config from '" +
               configPath + "': " + config.error());
         }
-
-        convertResourceFormat(
-            config->mutable_resources(), POST_RESERVATION_REFINEMENT);
 
         if (getCSIPluginContainerInfo(info, containerId) == config.get()) {
           continue;
@@ -799,7 +796,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverVolumes()
     }
 
     Try<csi::state::VolumeState> volumeState =
-      ::protobuf::read<csi::state::VolumeState>(statePath);
+      slave::state::read<csi::state::VolumeState>(statePath);
 
     if (volumeState.isError()) {
       return Failure(
@@ -903,23 +900,13 @@ StorageLocalResourceProviderProcess::recoverResourceProviderState()
     }
 
     Try<ResourceProviderState> resourceProviderState =
-      ::protobuf::read<ResourceProviderState>(statePath);
+      slave::state::read<ResourceProviderState>(statePath);
 
     if (resourceProviderState.isError()) {
       return Failure(
           "Failed to read resource provider state from '" + statePath +
           "': " + resourceProviderState.error());
     }
-
-    foreach (
-        Operation& operation,
-        *resourceProviderState->mutable_operations()) {
-      upgradeResources(operation.mutable_info());
-    }
-
-    convertResourceFormat(
-        resourceProviderState->mutable_resources(),
-        POST_RESERVATION_REFINEMENT);
 
     foreach (const Operation& operation,
              resourceProviderState->operations()) {

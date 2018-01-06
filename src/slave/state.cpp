@@ -151,7 +151,7 @@ Try<SlaveState> SlaveState::recover(
     return state;
   }
 
-  Try<SlaveInfo> slaveInfo = ::protobuf::read<SlaveInfo>(path);
+  Try<SlaveInfo> slaveInfo = state::read<SlaveInfo>(path);
   if (slaveInfo.isError()) {
     const string& message = "Failed to read agent info from '" + path + "': " +
                             slaveInfo.error();
@@ -163,10 +163,6 @@ Try<SlaveState> SlaveState::recover(
       return state;
     }
   }
-
-  convertResourceFormat(
-      slaveInfo.get().mutable_resources(),
-      POST_RESERVATION_REFINEMENT);
 
   state.info = slaveInfo.get();
 
@@ -219,9 +215,7 @@ Try<FrameworkState> FrameworkState::recover(
     return state;
   }
 
-  const Try<FrameworkInfo> frameworkInfo =
-    ::protobuf::read<FrameworkInfo>(path);
-
+  const Try<FrameworkInfo> frameworkInfo = state::read<FrameworkInfo>(path);
   if (frameworkInfo.isError()) {
     message = "Failed to read framework info from '" + path + "': " +
               frameworkInfo.error();
@@ -379,7 +373,7 @@ Try<ExecutorState> ExecutorState::recover(
     return state;
   }
 
-  Try<ExecutorInfo> executorInfo = ::protobuf::read<ExecutorInfo>(path);
+  Try<ExecutorInfo> executorInfo = state::read<ExecutorInfo>(path);
   if (executorInfo.isError()) {
     message = "Failed to read executor info from '" + path + "': " +
               executorInfo.error();
@@ -392,10 +386,6 @@ Try<ExecutorState> ExecutorState::recover(
       return state;
     }
   }
-
-  convertResourceFormat(
-      executorInfo.get().mutable_resources(),
-      POST_RESERVATION_REFINEMENT);
 
   state.info = executorInfo.get();
 
@@ -572,8 +562,7 @@ Try<TaskState> TaskState::recover(
     return state;
   }
 
-  Try<Task> task = ::protobuf::read<Task>(path);
-
+  Try<Task> task = state::read<Task>(path);
   if (task.isError()) {
     message = "Failed to read task info from '" + path + "': " + task.error();
 
@@ -585,10 +574,6 @@ Try<TaskState> TaskState::recover(
       return state;
     }
   }
-
-  convertResourceFormat(
-      task.get().mutable_resources(),
-      POST_RESERVATION_REFINEMENT);
 
   state.info = task.get();
 
