@@ -340,7 +340,7 @@ Result<T> read(int_fd fd, bool ignorePartial = false, bool undoFailed = false)
 // A wrapper function that wraps the above read() with open and
 // closing the file.
 template <typename T>
-Result<T> read(const std::string& path)
+Try<T> read(const std::string& path)
 {
   Try<int_fd> fd = os::open(
       path,
@@ -358,7 +358,13 @@ Result<T> read(const std::string& path)
   // read(). Also an unsuccessful close() doesn't affect the read.
   os::close(fd.get());
 
-  return result;
+  if (result.isSome()) {
+    return result.get();
+  }
+
+  // `read(fd)` returning `None` here means that the file is empty.
+  // Since this is a partial read of `T`, we report it as an error.
+  return Error(result.isError() ? result.error() : "Found an empty file");
 }
 
 
