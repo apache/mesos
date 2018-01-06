@@ -420,7 +420,6 @@ Future<Nothing> ProvisionerProcess::recover(
       info->rootfses.put(backend, rootfses.get()[backend]);
     }
 
-    Result<ContainerLayers> layers = None();
     const string path = provisioner::paths::getLayersFilePath(
       rootDir, containerId);
 
@@ -430,19 +429,18 @@ Future<Nothing> ProvisionerProcess::recover(
       VLOG(1) << "Layers path '" << path << "' is missing for container' "
               << containerId << "'";
     } else {
-      layers = ::protobuf::read<ContainerLayers>(path);
-    }
+      Try<ContainerLayers> layers = ::protobuf::read<ContainerLayers>(path);
+      if (layers.isError()) {
+        return Failure(
+            "Failed to recover layers for container '" +
+            stringify(containerId) + "': " + layers.error());
+      }
 
-    if (layers.isError()) {
-      return Failure(
-          "Failed to recover layers for container '" + stringify(containerId) +
-          "': " + layers.error());
-    } else if (layers.isSome()) {
       info->layers = vector<string>();
       std::copy(
-        layers->paths().begin(),
-        layers->paths().end(),
-        std::back_inserter(info->layers.get()));
+          layers->paths().begin(),
+          layers->paths().end(),
+          std::back_inserter(info->layers.get()));
     }
 
     infos.put(containerId, info);

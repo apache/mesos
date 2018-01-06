@@ -125,10 +125,10 @@ TEST_F(SlaveStateTest, CheckpointProtobufMessage)
   SlaveID expected;
   expected.set_value("agent1");
 
-  const string& file = "slave.id";
+  const string file = "slave.id";
   slave::state::checkpoint(file, expected);
 
-  const Result<SlaveID>& actual = ::protobuf::read<SlaveID>(file);
+  const Try<SlaveID> actual = ::protobuf::read<SlaveID>(file);
   ASSERT_SOME(actual);
 
   EXPECT_SOME_EQ(expected, actual);
@@ -144,7 +144,7 @@ TEST_F(SlaveStateTest, CheckpointRepeatedProtobufMessages)
   const string file = "resources-file";
   slave::state::checkpoint(file, expected);
 
-  Result<RepeatedPtrField<Resource>> actual =
+  Try<RepeatedPtrField<Resource>> actual =
     ::protobuf::read<RepeatedPtrField<Resource>>(file);
 
   ASSERT_SOME(actual);

@@ -256,16 +256,10 @@ Future<Nothing> MetadataManagerProcess::recover()
     return Nothing();
   }
 
-  Result<Images> images = ::protobuf::read<Images>(storedImagesPath);
+  Try<Images> images = ::protobuf::read<Images>(storedImagesPath);
   if (images.isError()) {
     return Failure("Failed to read images from '" + storedImagesPath + "' " +
                    images.error());
-  }
-
-  if (images.isNone()) {
-    // This could happen if the slave died after opening the file for
-    // writing but before persisted on disk.
-    return Failure("Unexpected empty images file '" + storedImagesPath + "'");
   }
 
   foreach (const Image& image, images.get().images()) {

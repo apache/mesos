@@ -151,8 +151,7 @@ Try<SlaveState> SlaveState::recover(
     return state;
   }
 
-  Result<SlaveInfo> slaveInfo = ::protobuf::read<SlaveInfo>(path);
-
+  Try<SlaveInfo> slaveInfo = ::protobuf::read<SlaveInfo>(path);
   if (slaveInfo.isError()) {
     const string& message = "Failed to read agent info from '" + path + "': " +
                             slaveInfo.error();
@@ -163,13 +162,6 @@ Try<SlaveState> SlaveState::recover(
       state.errors++;
       return state;
     }
-  }
-
-  if (slaveInfo.isNone()) {
-    // This could happen if the slave died after opening the file for
-    // writing but before it checkpointed anything.
-    LOG(WARNING) << "Found empty agent info file '" << path << "'";
-    return state;
   }
 
   convertResourceFormat(
@@ -227,7 +219,7 @@ Try<FrameworkState> FrameworkState::recover(
     return state;
   }
 
-  const Result<FrameworkInfo>& frameworkInfo =
+  const Try<FrameworkInfo> frameworkInfo =
     ::protobuf::read<FrameworkInfo>(path);
 
   if (frameworkInfo.isError()) {
@@ -241,13 +233,6 @@ Try<FrameworkState> FrameworkState::recover(
       state.errors++;
       return state;
     }
-  }
-
-  if (frameworkInfo.isNone()) {
-    // This could happen if the slave died after opening the file for
-    // writing but before it checkpointed anything.
-    LOG(WARNING) << "Found empty framework info file '" << path << "'";
-    return state;
   }
 
   state.info = frameworkInfo.get();
@@ -394,8 +379,7 @@ Try<ExecutorState> ExecutorState::recover(
     return state;
   }
 
-  Result<ExecutorInfo> executorInfo = ::protobuf::read<ExecutorInfo>(path);
-
+  Try<ExecutorInfo> executorInfo = ::protobuf::read<ExecutorInfo>(path);
   if (executorInfo.isError()) {
     message = "Failed to read executor info from '" + path + "': " +
               executorInfo.error();
@@ -407,13 +391,6 @@ Try<ExecutorState> ExecutorState::recover(
       state.errors++;
       return state;
     }
-  }
-
-  if (executorInfo.isNone()) {
-    // This could happen if the slave died after opening the file for
-    // writing but before it checkpointed anything.
-    LOG(WARNING) << "Found empty executor info file '" << path << "'";
-    return state;
   }
 
   convertResourceFormat(
@@ -595,7 +572,7 @@ Try<TaskState> TaskState::recover(
     return state;
   }
 
-  Result<Task> task = ::protobuf::read<Task>(path);
+  Try<Task> task = ::protobuf::read<Task>(path);
 
   if (task.isError()) {
     message = "Failed to read task info from '" + path + "': " + task.error();
@@ -607,13 +584,6 @@ Try<TaskState> TaskState::recover(
       state.errors++;
       return state;
     }
-  }
-
-  if (task.isNone()) {
-    // This could happen if the slave died after opening the file for
-    // writing but before it checkpointed anything.
-    LOG(WARNING) << "Found empty task info file '" << path << "'";
-    return state;
   }
 
   convertResourceFormat(
