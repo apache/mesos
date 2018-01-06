@@ -144,8 +144,7 @@ TEST_F(SlaveStateTest, CheckpointRepeatedProtobufMessages)
   const string file = "resources-file";
   slave::state::checkpoint(file, expected);
 
-  const Try<RepeatedPtrField<Resource>> actual =
-    slave::state::read<RepeatedPtrField<Resource>>(file);
+  const Try<Resources> actual = slave::state::read<Resources>(file);
 
   ASSERT_SOME(actual);
   EXPECT_SOME_EQ(expected, actual);

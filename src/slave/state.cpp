@@ -681,14 +681,21 @@ Try<ResourcesState> ResourcesState::recover(
     return state;
   }
 
-  Try<Resources> resources = ResourcesState::recoverResources(
-      infoPath, strict, state.errors);
+  Try<Resources> info = state::read<Resources>(infoPath);
+  if (info.isError()) {
+    string message =
+      "Failed to read resources file '" + infoPath + "': " + info.error();
 
-  if (resources.isError()) {
-    return Error(resources.error());
+    if (strict) {
+      return Error(message);
+    } else {
+      LOG(WARNING) << message;
+      state.errors++;
+      return state;
+    }
   }
 
-  state.resources = resources.get();
+  state.resources = info.get();
 
   // Process the target resources.
   const string& targetPath = paths::getResourcesTargetPath(rootDir);
@@ -696,96 +703,23 @@ Try<ResourcesState> ResourcesState::recover(
     return state;
   }
 
-  Try<Resources> target = ResourcesState::recoverResources(
-      targetPath, strict, state.errors);
-
+  Try<Resources> target = state::read<Resources>(targetPath);
   if (target.isError()) {
-    return Error(target.error());
+    string message =
+      "Failed to read resources file '" + targetPath + "': " + target.error();
+
+    if (strict) {
+      return Error(message);
+    } else {
+      LOG(WARNING) << message;
+      state.errors++;
+      return state;
+    }
   }
 
   state.target = target.get();
 
   return state;
-}
-
-
-Try<Resources> ResourcesState::recoverResources(
-    const string& path,
-    bool strict,
-    unsigned int& errors)
-{
-  Resources resources;
-
-  Try<int_fd> fd = os::open(path, O_RDWR | O_CLOEXEC);
-  if (fd.isError()) {
-    string message =
-      "Failed to open resources file '" + path + "': " + fd.error();
-
-    if (strict) {
-      return Error(message);
-    } else {
-      LOG(WARNING) << message;
-      errors++;
-      return resources;
-    }
-  }
-
-  Result<Resource> resource = None();
-  while (true) {
-    // Ignore errors due to partial protobuf read and enable undoing
-    // failed reads by reverting to the previous seek position.
-    resource = ::protobuf::read<Resource>(fd.get(), true, true);
-    if (!resource.isSome()) {
-      break;
-    }
-
-    convertResourceFormat(&resource.get(), POST_RESERVATION_REFINEMENT);
-
-    resources += resource.get();
-  }
-
-  Try<off_t> lseek = os::lseek(fd.get(), 0, SEEK_CUR);
-  if (lseek.isError()) {
-    os::close(fd.get());
-    return Error(
-        "Failed to lseek resources file '" + path + "':" + lseek.error());
-  }
-
-  off_t offset = lseek.get();
-
-  // Always truncate the file to contain only valid resources.
-  // NOTE: This is safe even though we ignore partial protobuf read
-  // errors above, because the 'fd' is properly set to the end of the
-  // last valid resource by 'protobuf::read()'.
-  Try<Nothing> truncated = os::ftruncate(fd.get(), offset);
-
-  if (truncated.isError()) {
-    os::close(fd.get());
-    return Error(
-      "Failed to truncate resources file '" + path +
-      "': " + truncated.error());
-  }
-
-  // After reading a non-corrupted resources file, 'record' should be
-  // 'none'.
-  if (resource.isError()) {
-    string message =
-      "Failed to read resources file  '" + path + "': " + resource.error();
-
-    os::close(fd.get());
-
-    if (strict) {
-      return Error(message);
-    } else {
-      LOG(WARNING) << message;
-      errors++;
-      return resources;
-    }
-  }
-
-  os::close(fd.get());
-
-  return resources;
 }
 
 } // namespace state {

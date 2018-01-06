@@ -96,6 +96,20 @@ inline Try<std::string> read<std::string>(const std::string& path)
 }
 
 
+template <>
+inline Try<Resources> read<Resources>(const std::string& path)
+{
+  Try<google::protobuf::RepeatedPtrField<Resource>> resources =
+    read<google::protobuf::RepeatedPtrField<Resource>>(path);
+
+  if (resources.isError()) {
+    return Error(resources.error());
+  }
+
+  return std::move(resources.get());
+}
+
+
 namespace internal {
 
 inline Try<Nothing> checkpoint(
@@ -315,11 +329,6 @@ struct ResourcesState
   static Try<ResourcesState> recover(
       const std::string& rootDir,
       bool strict);
-
-  static Try<Resources> recoverResources(
-      const std::string& path,
-      bool strict,
-      unsigned int& errors);
 
   Resources resources;
   Option<Resources> target;
