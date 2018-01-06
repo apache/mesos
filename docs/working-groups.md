@@ -31,4 +31,5 @@ In order to distinguish emails for a specific working group, please tag the emai
 | Name | Leads | Slack Channel | Meetings |
 |------|-------|---------------|----------|
 | Containerization | [Jie Yu](mailto:yujie.jay@gmail.com) | #containerizer | [Every other Thursday at 9:00 AM PST](https://docs.google.com/document/d/1z55a7tLZFoRWVuUxz1FZwgxkHeugtc2nHR89skFXSpU/edit?usp=sharing) |
-| Performance | [Benjamin Mahler](mailto:bmahler@apache.org) | #performance | [Monthly at 10 AM PST on Wednesday]() |https://docs.google.com/document/d/12hWGuzbqyNWc2l1ysbPcXwc0pzHEy4bodagrlNGCuQU/edit?usp=sharing) |
+| Performance | [Benjamin Mahler](mailto:bmahler@apache.org) | #performance | [Monthly at 10:00 AM PST on Wednesday](https://docs.google.com/document/d/12hWGuzbqyNWc2l1ysbPcXwc0pzHEy4bodagrlNGCuQU/edit?usp=sharing) |
+| Community | [Vinod Kone](mailto:vinodkone@apache.org) | #community | [Every other Monday at 10:30 AM PST](https://docs.google.com/document/d/1vgi434dYkkZHs49EK4F4eMmM-3JG4f3qg-N5En-4ubg/edit?usp=sharing) |
