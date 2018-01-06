@@ -276,7 +276,7 @@ Result<ContainerTermination> getContainerTermination(
     return None();
   }
 
-  Result<ContainerTermination> termination =
+  Try<ContainerTermination> termination =
     ::protobuf::read<ContainerTermination>(path);
 
   if (termination.isError()) {
@@ -284,10 +284,8 @@ Result<ContainerTermination> getContainerTermination(
                  termination.error());
   }
 
-  if (termination.isSome()) {
-    convertResourceFormat(
-        termination->mutable_limited_resources(), POST_RESERVATION_REFINEMENT);
-  }
+  convertResourceFormat(
+      termination->mutable_limited_resources(), POST_RESERVATION_REFINEMENT);
 
   return termination;
 }
@@ -329,7 +327,7 @@ Result<ContainerConfig> getContainerConfig(
     return None();
   }
 
-  Result<ContainerConfig> containerConfig =
+  Try<ContainerConfig> containerConfig =
     ::protobuf::read<ContainerConfig>(path);
 
   if (containerConfig.isError()) {
@@ -337,18 +335,16 @@ Result<ContainerConfig> getContainerConfig(
                  containerConfig.error());
   }
 
-  if (containerConfig.isSome()) {
-    convertResourceFormat(
-        containerConfig->mutable_executor_info()->mutable_resources(),
-        POST_RESERVATION_REFINEMENT);
+  convertResourceFormat(
+      containerConfig->mutable_executor_info()->mutable_resources(),
+      POST_RESERVATION_REFINEMENT);
 
-    convertResourceFormat(
-        containerConfig->mutable_task_info()->mutable_resources(),
-        POST_RESERVATION_REFINEMENT);
+  convertResourceFormat(
+      containerConfig->mutable_task_info()->mutable_resources(),
+      POST_RESERVATION_REFINEMENT);
 
-    convertResourceFormat(
-        containerConfig->mutable_resources(), POST_RESERVATION_REFINEMENT);
-  }
+  convertResourceFormat(
+      containerConfig->mutable_resources(), POST_RESERVATION_REFINEMENT);
 
   return containerConfig;
 }
@@ -439,7 +435,7 @@ Result<ContainerLaunchInfo> getContainerLaunchInfo(
     return None();
   }
 
-  const Result<ContainerLaunchInfo>& containerLaunchInfo =
+  Try<ContainerLaunchInfo> containerLaunchInfo =
     ::protobuf::read<ContainerLaunchInfo>(path);
 
   if (containerLaunchInfo.isError()) {

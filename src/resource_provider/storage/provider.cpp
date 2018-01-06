@@ -705,7 +705,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverServices()
           containerId);
 
       if (os::exists(configPath)) {
-        Result<CSIPluginContainerInfo> config =
+        Try<CSIPluginContainerInfo> config =
           ::protobuf::read<CSIPluginContainerInfo>(configPath);
 
         if (config.isError()) {
@@ -714,13 +714,11 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverServices()
               configPath + "': " + config.error());
         }
 
-        if (config.isSome()) {
-          convertResourceFormat(
-              config->mutable_resources(), POST_RESERVATION_REFINEMENT);
+        convertResourceFormat(
+            config->mutable_resources(), POST_RESERVATION_REFINEMENT);
 
-          if (getCSIPluginContainerInfo(info, containerId) == config.get()) {
-            continue;
-          }
+        if (getCSIPluginContainerInfo(info, containerId) == config.get()) {
+          continue;
         }
       }
     }
@@ -800,7 +798,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverVolumes()
       continue;
     }
 
-    Result<csi::state::VolumeState> volumeState =
+    Try<csi::state::VolumeState> volumeState =
       ::protobuf::read<csi::state::VolumeState>(statePath);
 
     if (volumeState.isError()) {
@@ -809,69 +807,67 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverVolumes()
           volumeState.error());
     }
 
-    if (volumeState.isSome()) {
-      volumes.put(volumeId, std::move(volumeState.get()));
+    volumes.put(volumeId, std::move(volumeState.get()));
 
-      Future<Nothing> recovered = Nothing();
+    Future<Nothing> recovered = Nothing();
 
-      switch (volumes.at(volumeId).state.state()) {
-        case csi::state::VolumeState::CREATED:
-        case csi::state::VolumeState::NODE_READY: {
-          break;
+    switch (volumes.at(volumeId).state.state()) {
+      case csi::state::VolumeState::CREATED:
+      case csi::state::VolumeState::NODE_READY: {
+        break;
+      }
+      case csi::state::VolumeState::PUBLISHED: {
+        if (volumes.at(volumeId).state.boot_id() != bootId) {
+          // The node has been restarted since the volume is mounted,
+          // so it is no longer in the `PUBLISHED` state.
+          volumes.at(volumeId).state.set_state(
+              csi::state::VolumeState::NODE_READY);
+          volumes.at(volumeId).state.clear_boot_id();
+          checkpointVolumeState(volumeId);
         }
-        case csi::state::VolumeState::PUBLISHED: {
-          if (volumes.at(volumeId).state.boot_id() != bootId) {
-            // The node has been restarted since the volume is mounted,
-            // so it is no longer in the `PUBLISHED` state.
-            volumes.at(volumeId).state.set_state(
-                csi::state::VolumeState::NODE_READY);
-            volumes.at(volumeId).state.clear_boot_id();
-            checkpointVolumeState(volumeId);
-          }
-          break;
-        }
-        case csi::state::VolumeState::CONTROLLER_PUBLISH: {
-          recovered =
-            volumes.at(volumeId).sequence->add(std::function<Future<Nothing>()>(
-                defer(self(), &Self::controllerPublish, volumeId)));
-          break;
-        }
-        case csi::state::VolumeState::CONTROLLER_UNPUBLISH: {
-          recovered =
-            volumes.at(volumeId).sequence->add(std::function<Future<Nothing>()>(
-                defer(self(), &Self::controllerUnpublish, volumeId)));
-          break;
-        }
-        case csi::state::VolumeState::NODE_PUBLISH: {
-          recovered =
-            volumes.at(volumeId).sequence->add(std::function<Future<Nothing>()>(
-                defer(self(), &Self::nodePublish, volumeId)));
-          break;
-        }
-        case csi::state::VolumeState::NODE_UNPUBLISH: {
-          recovered =
-            volumes.at(volumeId).sequence->add(std::function<Future<Nothing>()>(
-                defer(self(), &Self::nodeUnpublish, volumeId)));
-          break;
-        }
-        case csi::state::VolumeState::UNKNOWN: {
-          recovered = Failure(
-              "Volume '" + volumeId + "' is in " +
-              stringify(volumes.at(volumeId).state.state()) + " state");
-        }
-
-        // NOTE: We avoid using a default clause for the following
-        // values in proto3's open enum to enable the compiler to detect
-        // missing enum cases for us. See:
-        // https://github.com/google/protobuf/issues/3917
-        case google::protobuf::kint32min:
-        case google::protobuf::kint32max: {
-          UNREACHABLE();
-        }
+        break;
+      }
+      case csi::state::VolumeState::CONTROLLER_PUBLISH: {
+        recovered =
+          volumes.at(volumeId).sequence->add(std::function<Future<Nothing>()>(
+              defer(self(), &Self::controllerPublish, volumeId)));
+        break;
+      }
+      case csi::state::VolumeState::CONTROLLER_UNPUBLISH: {
+        recovered =
+          volumes.at(volumeId).sequence->add(std::function<Future<Nothing>()>(
+              defer(self(), &Self::controllerUnpublish, volumeId)));
+        break;
+      }
+      case csi::state::VolumeState::NODE_PUBLISH: {
+        recovered =
+          volumes.at(volumeId).sequence->add(std::function<Future<Nothing>()>(
+              defer(self(), &Self::nodePublish, volumeId)));
+        break;
+      }
+      case csi::state::VolumeState::NODE_UNPUBLISH: {
+        recovered =
+          volumes.at(volumeId).sequence->add(std::function<Future<Nothing>()>(
+              defer(self(), &Self::nodeUnpublish, volumeId)));
+        break;
+      }
+      case csi::state::VolumeState::UNKNOWN: {
+        recovered = Failure(
+            "Volume '" + volumeId + "' is in " +
+            stringify(volumes.at(volumeId).state.state()) + " state");
       }
 
-      futures.push_back(recovered);
+      // NOTE: We avoid using a default clause for the following
+      // values in proto3's open enum to enable the compiler to detect
+      // missing enum cases for us. See:
+      // https://github.com/google/protobuf/issues/3917
+      case google::protobuf::kint32min:
+      case google::protobuf::kint32max: {
+        UNREACHABLE();
+      }
     }
+
+    futures.push_back(recovered);
   }
 
   return collect(futures).then([] { return Nothing(); });
@@ -906,7 +902,7 @@ StorageLocalResourceProviderProcess::recoverResourceProviderState()
       return Nothing();
     }
 
-    Result<ResourceProviderState> resourceProviderState =
+    Try<ResourceProviderState> resourceProviderState =
       ::protobuf::read<ResourceProviderState>(statePath);
 
     if (resourceProviderState.isError()) {
@@ -915,28 +911,26 @@ StorageLocalResourceProviderProcess::recoverResourceProviderState()
           "': " + resourceProviderState.error());
     }
 
-    if (resourceProviderState.isSome()) {
-      foreach (
-          Operation& operation,
-          *resourceProviderState->mutable_operations()) {
-        upgradeResources(operation.mutable_info());
-      }
-
-      convertResourceFormat(
-          resourceProviderState->mutable_resources(),
-          POST_RESERVATION_REFINEMENT);
-
-      foreach (const Operation& operation,
-               resourceProviderState->operations()) {
-        Try<id::UUID> uuid = id::UUID::fromBytes(operation.uuid().value());
-
-        CHECK_SOME(uuid);
-
-        operations[uuid.get()] = operation;
-      }
-
-      totalResources = resourceProviderState->resources();
+    foreach (
+        Operation& operation,
+        *resourceProviderState->mutable_operations()) {
+      upgradeResources(operation.mutable_info());
     }
+
+    convertResourceFormat(
+        resourceProviderState->mutable_resources(),
+        POST_RESERVATION_REFINEMENT);
+
+    foreach (const Operation& operation,
+             resourceProviderState->operations()) {
+      Try<id::UUID> uuid = id::UUID::fromBytes(operation.uuid().value());
+
+      CHECK_SOME(uuid);
+
+      operations[uuid.get()] = operation;
+    }
+
+    totalResources = resourceProviderState->resources();
   }
 
   return Nothing();

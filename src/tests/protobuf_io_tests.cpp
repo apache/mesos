@@ -150,15 +150,14 @@ TEST_F(ProtobufIOTest, RepeatedPtrField)
   Try<Nothing> write = ::protobuf::write(file, expected);
   ASSERT_SOME(write);
 
-  Result<RepeatedPtrField<FrameworkID>> read =
+  Try<RepeatedPtrField<FrameworkID>> actual =
     ::protobuf::read<RepeatedPtrField<FrameworkID>>(file);
-  ASSERT_SOME(read);
 
-  RepeatedPtrField<FrameworkID> actual = read.get();
+  ASSERT_SOME(actual);
 
-  ASSERT_EQ(expected.size(), actual.size());
+  ASSERT_EQ(expected.size(), actual->size());
   for (size_t i = 0; i < size; i++) {
-    EXPECT_EQ(expected.Get(i), actual.Get(i));
+    EXPECT_EQ(expected.Get(i), actual->Get(i));
   }
 }
 
