@@ -429,7 +429,7 @@ Future<Nothing> ProvisionerProcess::recover(
       VLOG(1) << "Layers path '" << path << "' is missing for container' "
               << containerId << "'";
     } else {
-      Try<ContainerLayers> layers = ::protobuf::read<ContainerLayers>(path);
+      Try<ContainerLayers> layers = state::read<ContainerLayers>(path);
       if (layers.isError()) {
         return Failure(
             "Failed to recover layers for container '" +

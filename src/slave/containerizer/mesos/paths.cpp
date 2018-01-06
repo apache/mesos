@@ -23,6 +23,7 @@
 #include "common/resources_utils.hpp"
 
 #include "slave/containerizer/mesos/paths.hpp"
+#include "slave/state.hpp"
 
 #ifndef __WINDOWS__
 namespace unix = process::network::unix;
@@ -277,15 +278,12 @@ Result<ContainerTermination> getContainerTermination(
   }
 
   Try<ContainerTermination> termination =
-    ::protobuf::read<ContainerTermination>(path);
+    state::read<ContainerTermination>(path);
 
   if (termination.isError()) {
     return Error("Failed to read termination state of container: " +
                  termination.error());
   }
-
-  convertResourceFormat(
-      termination->mutable_limited_resources(), POST_RESERVATION_REFINEMENT);
 
   return termination;
 }
@@ -327,24 +325,11 @@ Result<ContainerConfig> getContainerConfig(
     return None();
   }
 
-  Try<ContainerConfig> containerConfig =
-    ::protobuf::read<ContainerConfig>(path);
-
+  Try<ContainerConfig> containerConfig = state::read<ContainerConfig>(path);
   if (containerConfig.isError()) {
     return Error("Failed to read launch config of container: " +
                  containerConfig.error());
   }
-
-  convertResourceFormat(
-      containerConfig->mutable_executor_info()->mutable_resources(),
-      POST_RESERVATION_REFINEMENT);
-
-  convertResourceFormat(
-      containerConfig->mutable_task_info()->mutable_resources(),
-      POST_RESERVATION_REFINEMENT);
-
-  convertResourceFormat(
-      containerConfig->mutable_resources(), POST_RESERVATION_REFINEMENT);
 
   return containerConfig;
 }
@@ -436,7 +421,7 @@ Result<ContainerLaunchInfo> getContainerLaunchInfo(
   }
 
   Try<ContainerLaunchInfo> containerLaunchInfo =
-    ::protobuf::read<ContainerLaunchInfo>(path);
+    state::read<ContainerLaunchInfo>(path);
 
   if (containerLaunchInfo.isError()) {
     return Error(

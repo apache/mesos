@@ -128,7 +128,7 @@ TEST_F(SlaveStateTest, CheckpointProtobufMessage)
   const string file = "slave.id";
   slave::state::checkpoint(file, expected);
 
-  const Try<SlaveID> actual = ::protobuf::read<SlaveID>(file);
+  const Try<SlaveID> actual = slave::state::read<SlaveID>(file);
   ASSERT_SOME(actual);
 
   EXPECT_SOME_EQ(expected, actual);
@@ -144,16 +144,10 @@ TEST_F(SlaveStateTest, CheckpointRepeatedProtobufMessages)
   const string file = "resources-file";
   slave::state::checkpoint(file, expected);
 
-  Try<RepeatedPtrField<Resource>> actual =
-    ::protobuf::read<RepeatedPtrField<Resource>>(file);
+  const Try<RepeatedPtrField<Resource>> actual =
+    slave::state::read<RepeatedPtrField<Resource>>(file);
 
   ASSERT_SOME(actual);
-
-  // We convert the `actual` back to "post-reservation-refinement"
-  // since `state::checkpoint` always downgrades whatever resources
-  // are downgradable.
-  convertResourceFormat(&actual.get(), POST_RESERVATION_REFINEMENT);
-
   EXPECT_SOME_EQ(expected, actual);
 }
 
