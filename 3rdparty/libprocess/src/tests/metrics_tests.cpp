@@ -14,6 +14,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 #include <stout/base64.hpp>
 #include <stout/duration.hpp>
@@ -61,6 +62,7 @@ using process::UPID;
 
 using std::map;
 using std::string;
+using std::vector;
 
 class GaugeProcess : public Process<GaugeProcess>
 {
@@ -279,6 +281,56 @@ TEST_F(MetricsTest, THREADSAFE_Snapshot)
 
   terminate(process);
   wait(process);
+}
+
+
+// Ensure the response string has the JSON keys sorted
+// alphabetically, we do this for easier human consumption.
+TEST_F(MetricsTest, SnapshotAlphabetical)
+{
+  UPID upid("metrics", process::address());
+
+  Clock::pause();
+
+  vector<Counter> counters = {
+    Counter("test/f"),
+    Counter("test/e"),
+    Counter("test/d"),
+    Counter("test/c"),
+    Counter("test/b"),
+    Counter("test/a"),
+  };
+
+  foreach (const Counter& counter, counters) {
+    AWAIT_READY(metrics::add(counter));
+  }
+
+  // Advance the clock to avoid rate limit.
+  Clock::advance(Seconds(1));
+
+  // Get the snapshot.
+  Future<Response> response = http::get(upid, "snapshot");
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Ensure the response is ordered alphabetically.
+  EXPECT_LT(response->body.find("test\\/e"),
+            response->body.find("test\\/f"));
+
+  EXPECT_LT(response->body.find("test\\/d"),
+            response->body.find("test\\/e"));
+
+  EXPECT_LT(response->body.find("test\\/c"),
+            response->body.find("test\\/d"));
+
+  EXPECT_LT(response->body.find("test\\/b"),
+            response->body.find("test\\/c"));
+
+  EXPECT_LT(response->body.find("test\\/a"),
+            response->body.find("test\\/b"));
+
+  foreach (const Counter& counter, counters) {
+    AWAIT_READY(metrics::remove(counter));
+  }
 }
 
 
