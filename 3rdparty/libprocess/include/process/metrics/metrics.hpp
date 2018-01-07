@@ -13,6 +13,7 @@
 #ifndef __PROCESS_METRICS_METRICS_HPP__
 #define __PROCESS_METRICS_METRICS_HPP__
 
+#include <map>
 #include <string>
 
 #include <process/dispatch.hpp>
@@ -40,7 +41,7 @@ public:
 
   Future<Nothing> remove(const std::string& name);
 
-  Future<hashmap<std::string, double>> snapshot(
+  Future<std::map<std::string, double>> snapshot(
       const Option<Duration>& timeout);
 
 protected:
@@ -68,7 +69,7 @@ private:
   static std::list<Future<double>> _snapshotTimeout(
       const std::list<Future<double>>& futures);
 
-  static Future<hashmap<std::string, double>> __snapshot(
+  static Future<std::map<std::string, double>> __snapshot(
       const Option<Duration>& timeout,
       const hashmap<std::string, Future<double>>& metrics,
       const hashmap<std::string, Option<Statistics<double>>>& statistics);
@@ -117,7 +118,7 @@ inline Future<Nothing> remove(const Metric& metric)
 }
 
 
-inline Future<hashmap<std::string, double>> snapshot(
+inline Future<std::map<std::string, double>> snapshot(
     const Option<Duration>& timeout)
 {
   // The metrics process is instantiated in `process::initialize`.

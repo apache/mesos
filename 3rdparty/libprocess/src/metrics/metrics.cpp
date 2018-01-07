@@ -13,6 +13,7 @@
 #include <glog/logging.h>
 
 #include <list>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -33,6 +34,7 @@
 #include <stout/os.hpp>
 
 using std::list;
+using std::map;
 using std::string;
 using std::vector;
 
@@ -149,7 +151,7 @@ Future<Nothing> MetricsProcess::remove(const string& name)
 }
 
 
-Future<hashmap<string, double>> MetricsProcess::snapshot(
+Future<map<string, double>> MetricsProcess::snapshot(
     const Option<Duration>& timeout)
 {
   hashmap<string, Future<double>> futures;
@@ -200,7 +202,7 @@ Future<http::Response> MetricsProcess::_snapshot(
   }
 
   return acquire.then(defer(self(), &Self::snapshot, timeout))
-      .then([request](const hashmap<string, double>& metrics)
+      .then([request](const map<string, double>& metrics)
             -> http::Response {
         return http::OK(jsonify(metrics), request.url.query.get("jsonp"));
       });
@@ -216,12 +218,12 @@ list<Future<double>> MetricsProcess::_snapshotTimeout(
 }
 
 
-Future<hashmap<string, double>> MetricsProcess::__snapshot(
+Future<map<string, double>> MetricsProcess::__snapshot(
     const Option<Duration>& timeout,
     const hashmap<string, Future<double>>& metrics,
     const hashmap<string, Option<Statistics<double>>>& statistics)
 {
-  hashmap<string, double> snapshot;
+  map<string, double> snapshot;
 
   foreachpair (const string& key, const Future<double>& value, metrics) {
     // TODO(dhamon): Maybe add the failure message for this metric to the
