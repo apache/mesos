@@ -27,7 +27,7 @@ using process::Future;
 using process::RateLimiter;
 
 
-TEST(LimiterTest, THREADSAFE_Acquire)
+TEST(LimiterTest, Acquire)
 {
   int permits = 2;
   Duration duration = Milliseconds(5);
@@ -55,7 +55,7 @@ TEST(LimiterTest, THREADSAFE_Acquire)
 // In this test 4 permits are given, but the 2nd permit's acquire
 // is immediately discarded. So, 1st, 3rd and 4th permits should
 // be acquired according to the rate limit.
-TEST(LimiterTest, THREADSAFE_DiscardMiddle)
+TEST(LimiterTest, DiscardMiddle)
 {
   int permits = 2;
   Duration duration = Milliseconds(5);
@@ -91,7 +91,7 @@ TEST(LimiterTest, THREADSAFE_DiscardMiddle)
 // In this test 2 permits are initially given, but the 2nd permit's
 // future is immediately discarded. Then the 3rd permit is given. So,
 // 1st and 3rd permits should be acquired according to the rate limit.
-TEST(LimiterTest, THREADSAFE_DiscardLast)
+TEST(LimiterTest, DiscardLast)
 {
   int permits = 2;
   Duration duration = Milliseconds(5);

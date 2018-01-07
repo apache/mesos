@@ -27,6 +27,8 @@
 #include <process/gtest.hpp>
 #include <process/process.hpp>
 
+#include <stout/exit.hpp>
+
 #ifndef __WINDOWS__
 #include <stout/os/signals.hpp>
 #endif // __WINDOWS__
@@ -40,26 +42,6 @@ using std::vector;
 
 using stout::internal::tests::Environment;
 using stout::internal::tests::TestFilter;
-
-
-class ThreadsafeFilter : public TestFilter
-{
-public:
-  ThreadsafeFilter()
-#if GTEST_IS_THREADSAFE
-    : is_threadsafe(true) {}
-#else
-    : is_threadsafe(false) {}
-#endif
-
-  bool disable(const ::testing::TestInfo* test) const override
-  {
-    return matches(test, "THREADSAFE_") && !is_threadsafe;
-  }
-
-private:
-  const bool is_threadsafe;
-};
 
 using std::shared_ptr;
 using std::vector;
@@ -79,6 +61,10 @@ int main(int argc, char** argv)
   // Initialize Google Mock/Test.
   testing::InitGoogleMock(&argc, argv);
 
+#if !GTEST_IS_THREADSAFE
+  EXIT(EXIT_FAILURE) << "Testing environment is not thread safe, bailing!";
+#endif // !GTEST_IS_THREADSAFE
+
   // Initialize libprocess.
   process::initialize(
       None(),
@@ -97,7 +83,7 @@ int main(int argc, char** argv)
   os::signals::reset(SIGTERM);
 #endif // __WINDOWS__
 
-  vector<shared_ptr<TestFilter>> filters = {make_shared<ThreadsafeFilter>()};
+  vector<shared_ptr<TestFilter>> filters = {};
   Environment* environment = new Environment(filters);
   testing::AddGlobalTestEnvironment(environment);
 

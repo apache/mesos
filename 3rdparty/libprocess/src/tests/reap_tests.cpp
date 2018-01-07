@@ -103,7 +103,7 @@ TEST(ReapTest, NonChildProcess)
 
 // This test checks that the we can reap a child process and obtain
 // the correct exit status.
-TEST(ReapTest, THREADSAFE_ChildProcess)
+TEST(ReapTest, ChildProcess)
 {
   // The child process sleeps and will be killed by the parent.
   Try<ProcessTree> tree = Fork(None(),
@@ -134,7 +134,7 @@ TEST(ReapTest, THREADSAFE_ChildProcess)
 
 
 // Check that we can reap a child process that is already exited.
-TEST(ReapTest, THREADSAFE_TerminatedChildProcess)
+TEST(ReapTest, TerminatedChildProcess)
 {
   // The child process immediately exits.
   Try<ProcessTree> tree = Fork(None(),

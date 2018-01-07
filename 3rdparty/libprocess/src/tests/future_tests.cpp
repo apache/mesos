@@ -621,7 +621,7 @@ TEST(FutureTest, Discard3)
 }
 
 
-TEST(FutureTest, THREADSAFE_Select)
+TEST(FutureTest, Select)
 {
   Promise<int> promise1;
   Promise<int> promise2;
