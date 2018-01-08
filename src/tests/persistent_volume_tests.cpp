@@ -578,12 +578,10 @@ TEST_P(PersistentVolumeTest, ResourcesCheckpointing)
 
   AWAIT_READY(reregisterSlave);
 
-  google::protobuf::RepeatedPtrField<Resource> checkpointedResources =
-    reregisterSlave->checkpointed_resources();
+  ReregisterSlaveMessage reregisterSlave_ = reregisterSlave.get();
+  upgradeResources(&reregisterSlave_);
 
-  convertResourceFormat(&checkpointedResources, POST_RESERVATION_REFINEMENT);
-
-  EXPECT_EQ(Resources(checkpointedResources), volume);
+  EXPECT_EQ(Resources(reregisterSlave_.checkpointed_resources()), volume);
 
   driver.stop();
   driver.join();

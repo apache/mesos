@@ -726,7 +726,7 @@ Try<Resources> Resources::parse(
       return error.get();
     }
 
-    convertResourceFormat(&resource, POST_RESERVATION_REFINEMENT);
+    upgradeResource(&resource);
 
     result.add(resource);
   }

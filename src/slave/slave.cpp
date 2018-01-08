@@ -1744,42 +1744,32 @@ void Slave::run(
   };
 
   injectAllocationInfo(executorInfo.mutable_resources(), frameworkInfo);
-  convertResourceFormat(
-      executorInfo.mutable_resources(),
-      POST_RESERVATION_REFINEMENT);
+  upgradeResources(&executorInfo);
 
   if (task.isSome()) {
     injectAllocationInfo(task->mutable_resources(), frameworkInfo);
-    convertResourceFormat(
-        task->mutable_resources(),
-        POST_RESERVATION_REFINEMENT);
 
     if (task->has_executor()) {
       injectAllocationInfo(
           task->mutable_executor()->mutable_resources(),
           frameworkInfo);
-      convertResourceFormat(
-          task->mutable_executor()->mutable_resources(),
-          POST_RESERVATION_REFINEMENT);
     }
+
+    upgradeResources(&task.get());
   }
 
   if (taskGroup.isSome()) {
     foreach (TaskInfo& task, *taskGroup->mutable_tasks()) {
       injectAllocationInfo(task.mutable_resources(), frameworkInfo);
-      convertResourceFormat(
-          task.mutable_resources(),
-          POST_RESERVATION_REFINEMENT);
 
       if (task.has_executor()) {
         injectAllocationInfo(
             task.mutable_executor()->mutable_resources(),
             frameworkInfo);
-        convertResourceFormat(
-            task.mutable_executor()->mutable_resources(),
-            POST_RESERVATION_REFINEMENT);
       }
     }
+
+    upgradeResources(&taskGroup.get());
   }
 
   vector<TaskInfo> tasks;
@@ -3611,7 +3601,7 @@ void Slave::checkpointResources(
   CHECK(!checkpointingResourceProviderResources)
     << "Resource providers must perform their own checkpointing";
 
-  convertResourceFormat(&_checkpointedResources, POST_RESERVATION_REFINEMENT);
+  upgradeResources(&_checkpointedResources);
 
   Resources newCheckpointedResources = _checkpointedResources;
 

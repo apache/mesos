@@ -826,12 +826,10 @@ TEST_P(ReservationTest, ResourcesCheckpointing)
   // reserved resources.
   AWAIT_READY(reregisterSlave);
 
-  google::protobuf::RepeatedPtrField<Resource> checkpointedResources =
-    reregisterSlave->checkpointed_resources();
+  ReregisterSlaveMessage reregisterSlave_ = reregisterSlave.get();
+  upgradeResources(&reregisterSlave_);
 
-  convertResourceFormat(&checkpointedResources, POST_RESERVATION_REFINEMENT);
-
-  EXPECT_EQ(checkpointedResources, reserved);
+  EXPECT_EQ(reregisterSlave_.checkpointed_resources(), reserved);
 
   driver.stop();
   driver.join();

@@ -480,8 +480,7 @@ Future<http::Response> Master::QuotaHandler::_set(
         " QuotaInfo with invalid resource: " + validate->message);
   }
 
-  convertResourceFormat(
-      quotaInfo.mutable_guarantee(), POST_RESERVATION_REFINEMENT);
+  upgradeResources(&quotaInfo);
 
   // Check that the `QuotaInfo` is a valid quota request.
   {

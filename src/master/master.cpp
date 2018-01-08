@@ -1705,8 +1705,7 @@ Future<Nothing> Master::_recover(const Registry& registry)
     // in order to support downgrades. We convert them back to `post-` format
     // here so that we can keep our invariant of working with `post-` format
     // resources within master memory.
-    convertResourceFormat(
-      slaveInfo.mutable_resources(), POST_RESERVATION_REFINEMENT);
+    upgradeResources(&slaveInfo);
 
     slaves.recovered.put(slaveInfo.id(), slaveInfo);
   }
@@ -6067,15 +6066,7 @@ void Master::registerSlave(
   // format. We do this as early as possible so that we only use a single
   // format inside master, and downgrade again if necessary when they leave the
   // master (e.g. when writing to the registry).
-  // TODO(bevers): Also convert the resources in `ExecutorInfos` and `Tasks`
-  // here for consistency.
-  convertResourceFormat(
-      registerSlaveMessage.mutable_slave()->mutable_resources(),
-      POST_RESERVATION_REFINEMENT);
-
-  convertResourceFormat(
-      registerSlaveMessage.mutable_checkpointed_resources(),
-      POST_RESERVATION_REFINEMENT);
+  upgradeResources(&registerSlaveMessage);
 
   // Note that the principal may be empty if authentication is not
   // required. Also it is passed along because it may be removed from
@@ -6427,16 +6418,7 @@ void Master::reregisterSlave(
   // format. We do this as early as possible so that we only use a single
   // format inside master, and downgrade again if necessary when they leave the
   // master (e.g. when writing to the registry).
-  //
-  // TODO(bevers): Also convert the resources in `ExecutorInfos` and `Tasks`
-  // here for consistency.
-  convertResourceFormat(
-      reregisterSlaveMessage.mutable_slave()->mutable_resources(),
-      POST_RESERVATION_REFINEMENT);
-
-  convertResourceFormat(
-      reregisterSlaveMessage.mutable_checkpointed_resources(),
-      POST_RESERVATION_REFINEMENT);
+  upgradeResources(&reregisterSlaveMessage);
 
   // Note that the principal may be empty if authentication is not
   // required. Also it is passed along because it may be removed from
@@ -6642,8 +6624,6 @@ void Master::_reregisterSlave(
             << " at " << pid << "(" << slaveInfo.hostname() << ")";
 
     SlaveInfo recoveredInfo = slaves.recovered.at(slaveInfo.id());
-    convertResourceFormat(
-        recoveredInfo.mutable_resources(), POST_RESERVATION_REFINEMENT);
 
     // Skip updating the registry if `slaveInfo` did not change from its
     // previously known state (see also MESOS-7711).
@@ -6778,28 +6758,6 @@ void Master::__reregisterSlave(
       injectAllocationInfo(
           executor.mutable_resources(),
           frameworks.at(executor.framework_id()));
-    }
-  }
-
-  // Currently, The agent always downgrades the resources such that
-  // a 1.4.0 agent can speak to a pre-1.4.0 master. We therefore
-  // unconditionally upgrade the resources back here.
-  foreach (Task& task, *reregisterSlaveMessage.mutable_tasks()) {
-    convertResourceFormat(
-        task.mutable_resources(), POST_RESERVATION_REFINEMENT);
-  }
-
-  foreach (ExecutorInfo& executor,
-           *reregisterSlaveMessage.mutable_executor_infos()) {
-    convertResourceFormat(
-        executor.mutable_resources(), POST_RESERVATION_REFINEMENT);
-  }
-
-  foreach (Archive::Framework& completedFramework,
-           *reregisterSlaveMessage.mutable_completed_frameworks()) {
-    foreach (Task& task, *completedFramework.mutable_tasks()) {
-      convertResourceFormat(
-          task.mutable_resources(), POST_RESERVATION_REFINEMENT);
     }
   }
 
@@ -7264,6 +7222,8 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
 {
   ++metrics->messages_update_slave;
 
+  upgradeResources(&message);
+
   const SlaveID& slaveId = message.slave_id();
 
   if (slaves.removed.get(slaveId).isSome()) {
@@ -7296,10 +7256,6 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
      message.update_oversubscribed_resources();
 
   Option<Resources> newOversubscribed;
-
-  convertResourceFormat(
-      message.mutable_oversubscribed_resources(),
-      POST_RESERVATION_REFINEMENT);
 
   if (hasOversubscribed) {
     const Resources& oversubscribedResources =
