@@ -166,6 +166,9 @@ void upgradeResource(Resource* resource);
 void upgradeResources(google::protobuf::RepeatedPtrField<Resource>* resources);
 
 
+void upgradeResources(std::vector<Resource>* resources);
+
+
 void upgradeResources(google::protobuf::Message* message);
 
 
@@ -198,6 +201,9 @@ Try<Nothing> downgradeResource(Resource* resource);
 
 Try<Nothing> downgradeResources(
     google::protobuf::RepeatedPtrField<Resource>* resources);
+
+
+Try<Nothing> downgradeResources(std::vector<Resource>* resources);
 
 
 Try<Nothing> downgradeResources(google::protobuf::Message* message);

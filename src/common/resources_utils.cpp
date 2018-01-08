@@ -489,11 +489,13 @@ void upgradeResource(Resource* resource)
 
 void upgradeResources(RepeatedPtrField<Resource>* resources)
 {
-  CHECK_NOTNULL(resources);
+  convertResourceFormat(resources, POST_RESERVATION_REFINEMENT);
+}
 
-  foreach (Resource& resource, *resources) {
-    upgradeResource(&resource);
-  }
+
+void upgradeResources(vector<Resource>* resources)
+{
+  convertResourceFormat(resources, POST_RESERVATION_REFINEMENT);
 }
 
 
@@ -776,6 +778,21 @@ Try<Nothing> downgradeResource(Resource* resource)
 
 
 Try<Nothing> downgradeResources(RepeatedPtrField<Resource>* resources)
+{
+  CHECK_NOTNULL(resources);
+
+  foreach (Resource& resource, *resources) {
+    Try<Nothing> result = downgradeResource(&resource);
+    if (result.isError()) {
+      return result;
+    }
+  }
+
+  return Nothing();
+}
+
+
+Try<Nothing> downgradeResources(vector<Resource>* resources)
 {
   CHECK_NOTNULL(resources);
 
