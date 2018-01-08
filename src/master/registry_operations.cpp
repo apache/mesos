@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <stout/check.hpp>
+
 #include "master/registry_operations.hpp"
 
 #include "common/resources_utils.hpp"
@@ -38,15 +40,13 @@ Try<bool> AdmitSlave::perform(Registry* registry, hashset<SlaveID>* slaveIDs)
     return Error("Agent already admitted");
   }
 
-  // Convert the resource format back to `PRE_RESERVATION_REFINEMENT` so
-  // the data stored in the registry can be read by older master versions.
-  SlaveInfo _info(info);
-  convertResourceFormat(_info.mutable_resources(),
-      PRE_RESERVATION_REFINEMENT);
+  // Downgrade the resources such that an older master can recover from
+  // the checkpointed registry state.
+  CHECK_SOME(downgradeResources(&info));
 
   Registry::Slave* slave = registry->mutable_slaves()->add_slaves();
-  slave->mutable_info()->CopyFrom(_info);
-  slaveIDs->insert(_info.id());
+  slave->mutable_info()->CopyFrom(info);
+  slaveIDs->insert(info.id());
   return true; // Mutation.
 }
 
@@ -78,13 +78,11 @@ Try<bool> UpdateSlave::perform(Registry* registry, hashset<SlaveID>* slaveIDs)
         return false; // No mutation.
       }
 
-      // Convert the resource format back to `PRE_RESERVATION_REFINEMENT` so
-      // the data stored in the registry can be read by older master versions.
-      SlaveInfo _info(info);
-      convertResourceFormat(_info.mutable_resources(),
-          PRE_RESERVATION_REFINEMENT);
+      // Downgrade the resources such that an older master can recover from
+      // the checkpointed registry state.
+      CHECK_SOME(downgradeResources(&info));
 
-      slave->mutable_info()->CopyFrom(_info);
+      slave->mutable_info()->CopyFrom(info);
       return true; // Mutation.
     }
   }
@@ -184,19 +182,17 @@ Try<bool> MarkSlaveReachable::perform(
     LOG(WARNING) << "Allowing UNKNOWN agent to reregister: " << info;
   }
 
-  // Convert the resource format back to `PRE_RESERVATION_REFINEMENT` so
-  // the data stored in the registry can be read by older master versions.
-  SlaveInfo _info(info);
-  convertResourceFormat(_info.mutable_resources(),
-    PRE_RESERVATION_REFINEMENT);
+  // Downgrade the resources such that an older master can recover from
+  // the checkpointed registry state.
+  CHECK_SOME(downgradeResources(&info));
 
   // Add the slave to the admitted list, even if we didn't find it
   // in the unreachable list. This accounts for when the slave was
   // unreachable for a long time, was GC'd from the unreachable
   // list, but then eventually reregistered.
   Registry::Slave* slave = registry->mutable_slaves()->add_slaves();
-  slave->mutable_info()->CopyFrom(_info);
-  slaveIDs->insert(_info.id());
+  slave->mutable_info()->CopyFrom(info);
+  slaveIDs->insert(info.id());
 
   return true; // Mutation.
 }
