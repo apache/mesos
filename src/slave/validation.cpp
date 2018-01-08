@@ -393,8 +393,8 @@ Option<Error> validate(
       // Because standalone containers are launched outside of the master's
       // offer cycle, some resource types or fields may not be specified.
       foreach (Resource resource, call.launch_container().resources()) {
-        // Normalize the resources (in place) to simplify validation.
-        convertResourceFormat(&resource, POST_RESERVATION_REFINEMENT);
+        // Upgrade the resources (in place) to simplify validation.
+        upgradeResource(&resource);
 
         // Standalone containers may only use unreserved resources.
         // There is no accounting in the master for resources consumed

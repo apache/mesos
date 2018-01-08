@@ -71,11 +71,10 @@ Try<bool> UpdateSlave::perform(Registry* registry, hashset<SlaveID>* slaveIDs)
       // `PRE_RESERVATION_REFINEMENT` format, but the equality operator
       // asserts that resources are in `POST_RESERVATION_REFINEMENT` format,
       // so we have to upgrade before we can do the comparison.
-      SlaveInfo _previousInfo(slave->info());
-      convertResourceFormat(_previousInfo.mutable_resources(),
-          POST_RESERVATION_REFINEMENT);
+      SlaveInfo previousInfo(slave->info());
+      upgradeResources(&previousInfo);
 
-      if (info == _previousInfo) {
+      if (info == previousInfo) {
         return false; // No mutation.
       }
 

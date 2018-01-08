@@ -554,14 +554,13 @@ TEST_F(MasterQuotaTest, Status)
     ASSERT_SOME(parse);
 
     // Convert JSON response to `QuotaStatus` protobuf.
-    const Try<QuotaStatus> status = ::protobuf::parse<QuotaStatus>(parse.get());
+    Try<QuotaStatus> status = ::protobuf::parse<QuotaStatus>(parse.get());
     ASSERT_FALSE(status.isError());
 
-    RepeatedPtrField<Resource> guarantee = status->infos(0).guarantee();
-    convertResourceFormat(&guarantee, POST_RESERVATION_REFINEMENT);
+    upgradeResources(&status.get());
 
     ASSERT_EQ(1, status->infos().size());
-    EXPECT_EQ(quotaResources, guarantee);
+    EXPECT_EQ(quotaResources, status->infos(0).guarantee());
   }
 }
 

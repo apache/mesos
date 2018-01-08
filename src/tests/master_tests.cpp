@@ -8630,7 +8630,7 @@ public:
       return resources;
     }
 
-    convertResourceFormat(&resources, POST_RESERVATION_REFINEMENT);
+    upgradeResources(&resources);
     return resources;
   }
 
