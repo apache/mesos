@@ -37,7 +37,7 @@ protected:
   virtual Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs);
 
 private:
-  const SlaveInfo info;
+  SlaveInfo info;
 };
 
 
@@ -51,7 +51,7 @@ protected:
   virtual Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs);
 
 private:
-  const SlaveInfo info;
+  SlaveInfo info;
 };
 
 
@@ -88,7 +88,7 @@ protected:
   virtual Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs);
 
 private:
-  const SlaveInfo info;
+  SlaveInfo info;
 };
 
 
