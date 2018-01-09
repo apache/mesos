@@ -173,7 +173,7 @@ AC_ARG_ENABLE([hardening],
                              [], [enable_hardening=yes])
 
 AC_ARG_ENABLE([gc-unused],
-              AS_HELP_STRING([--enable-gc_unused],
+              AS_HELP_STRING([--enable-gc-unused],
                              [enable garbage collection of unused program segments]),
                              [], [enable_gc_unused=no])
 
