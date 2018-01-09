@@ -172,6 +172,11 @@ AC_ARG_ENABLE([hardening],
                              protection and position independent library code]),
                              [], [enable_hardening=yes])
 
+AC_ARG_ENABLE([gc-unused],
+              AS_HELP_STRING([--enable-gc_unused],
+                             [enable garbage collection of unused program segments]),
+                             [], [enable_gc_unused=no])
+
 AC_ARG_ENABLE([bundled],
               AS_HELP_STRING([--disable-bundled],
                              [build against preinstalled dependencies instead
@@ -496,6 +501,40 @@ AS_IF([test "x$enable_lock_free_run_queue" = "xyes"],
 
 # Check to see if we should harden or not.
 AM_CONDITIONAL([ENABLE_HARDENING], [test x"$enable_hardening" = "xyes"])
+
+AC_MSG_CHECKING([whether to enable GC of unused sections])
+AC_MSG_RESULT([$enable_gc_unused])
+
+AS_IF([test "x$enable_gc_unused" = "xyes"], [
+  AC_LANG_PUSH([C++])
+  saved_CXXFLAGS="$CXXFLAGS"
+  saved_LDFLAGS="$LDFLAGS"
+
+  CXXFLAGS="-ffunction-sections -fdata-sections"
+  LDFLAGS="-Wl,--gc-sections"
+  AC_LINK_IFELSE(
+    [ AC_LANG_PROGRAM([], [return 0;]) ],
+    [],
+    [
+      AC_MSG_ERROR([cannot enable GC of unused sections
+-------------------------------------------------------------------
+The current toolchain does not support the necessary options to
+enable garbage collection of unused sections.
+-------------------------------------------------------------------
+      ])
+    ]
+  )
+
+  CXXFLAGS="$saved_CXXFLAGS"
+  LDFLAGS="$saved_LDFLAGS"
+  AC_LANG_POP()
+])
+
+AS_IF([test "x${enable_gc_unused}" = "xyes"], [
+  CCFLAGS="$CCFLAGS -ffunction-sections -fdata-sections"
+  CXXFLAGS="$CXXFLAGS -ffunction-sections -fdata-sections"
+  LDFLAGS="$LDFLAGS -Wl,--gc-sections"
+])
 
 AS_CASE($ax_cv_cxx_compiler_vendor,
   [clang], [

@@ -87,6 +87,15 @@ layout: documentation
   </tr>
   <tr>
     <td>
+      --enable-gc-unused
+    </td>
+    <td>
+      Enable garbage collection of unused program segments. This option
+      significantly reduces the size of the final build artifacts. [default=no]
+    </td>
+  </tr>
+  <tr>
+    <td>
       --disable-libtool-lock
     </td>
     <td>

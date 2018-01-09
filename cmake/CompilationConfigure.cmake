@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+include(CMakePushCheckState)
+
 # GENERAL OPTIONS.
 ##################
 option(VERBOSE
@@ -255,6 +257,28 @@ if (NOT WIN32)
   set(LIB_INSTALL_DIR         ${EXEC_INSTALL_PREFIX}/libmesos)
 endif ()
 
+option(ENABLE_GC_UNUSED
+  "Enable garbage collection of unused program segments"
+  FALSE)
+
+if (ENABLE_GC_UNUSED)
+  CMAKE_PUSH_CHECK_STATE()
+
+  set(CMAKE_REQUIRED_FLAGS "-ffunction-sections -fdata-sections -Wl,--gc-sections")
+  CHECK_CXX_COMPILER_FLAG("" GC_FUNCTION_SECTIONS)
+  if (GC_FUNCTION_SECTIONS)
+    string(APPEND CMAKE_CXX_FLAGS " -ffunction-sections -fdata-sections")
+    string(APPEND CMAKE_EXE_LINKER_FLAGS " -Wl,--gc-sections")
+    string(APPEND CMAKE_SHARED_LINKER_FLAGS " -Wl,--gc-sections")
+  else ()
+    message(
+      FATAL_ERROR
+      "The compiler ${CMAKE_CXX_COMPILER} does not support the necessary options to "
+      "enable garbage collection of unused sections.")
+  endif()
+
+  CMAKE_POP_CHECK_STATE()
+endif()
 
 # LINUX CONFIGURATION.
 ######################

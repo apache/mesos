@@ -40,6 +40,15 @@ See more information in the [CMake documentation](../cmake.md).
   </tr>
   <tr>
     <td>
+      -DENABLE_GC_UNUSED=(TRUE|FALSE)
+    </td>
+    <td>
+      Enable garbage collection of unused program segments. This option
+      significantly reduces the size of the final build artifacts.  [default=FALSE]
+    </td>
+  </tr>
+  <tr>
+    <td>
       -DENABLE_PRECOMPILED_HEADERS=(TRUE|FALSE)
     </td>
     <td>
