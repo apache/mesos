@@ -548,8 +548,15 @@ Try<Nothing> DockerContainerizerProcess::updatePersistentVolumes(
 
     bool isVolumeInUse = false;
 
-    foreachvalue (const Container* container, containers_) {
-      if (container->resources.contains(resource)) {
+    foreachpair (const ContainerID& _containerId,
+                 const Container* _container,
+                 containers_) {
+      // Skip self.
+      if (_containerId == containerId) {
+        continue;
+      }
+
+      if (_container->resources.contains(resource)) {
         isVolumeInUse = true;
         break;
       }
