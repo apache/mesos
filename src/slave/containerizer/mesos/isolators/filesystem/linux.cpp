@@ -499,7 +499,14 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::update(
 
     bool isVolumeInUse = false;
 
-    foreachvalue (const Owned<Info>& info, infos) {
+    foreachpair (const ContainerID& _containerId,
+                 const Owned<Info>& info,
+                 infos) {
+      // Skip self.
+      if (_containerId == containerId) {
+        continue;
+      }
+
       if (info->resources.contains(resource)) {
         isVolumeInUse = true;
         break;
