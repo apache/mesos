@@ -3777,9 +3777,7 @@ TEST_P(MasterAPITest, Teardown)
 // This test verifies that a registered agent can be marked as gone and
 // shutdown by the master subsequently. Upon restarting the agent, it
 // should not be able to reregister with the master.
-//
-// TODO(andschwa): Enable this when MESOS-7604 is fixed.
-TEST_P_TEMP_DISABLED_ON_WINDOWS(MasterAPITest, MarkRegisteredAgentGone)
+TEST_P(MasterAPITest, MarkRegisteredAgentGone)
 {
   master::Flags masterFlags = CreateMasterFlags();
 
@@ -3900,9 +3898,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(MasterAPITest,
 
 // This test verifies that the master correctly sends 'TASK_GONE_BY_OPERATOR'
 // status updates when an agent running the tasks is marked as gone.
-//
-// TODO(andschwa): Enable this when MESOS-7604 is fixed.
-TEST_P_TEMP_DISABLED_ON_WINDOWS(MasterAPITest, TaskUpdatesUponAgentGone)
+TEST_P(MasterAPITest, TaskUpdatesUponAgentGone)
 {
   master::Flags masterFlags = CreateMasterFlags();
 

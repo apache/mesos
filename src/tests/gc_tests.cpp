@@ -285,9 +285,7 @@ class GarbageCollectorIntegrationTest : public MesosTest {};
 
 // This test ensures that garbage collection does not remove
 // the slave working directory after a slave restart.
-//
-// TODO(andschwa): Enable this when MESOS-7604 is fixed.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(GarbageCollectorIntegrationTest, Restart)
+TEST_F(GarbageCollectorIntegrationTest, Restart)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);

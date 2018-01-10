@@ -1018,6 +1018,8 @@ TEST_F(SlaveTest, ROOT_LaunchTaskInfoWithContainerInfo)
 // This test runs a command without the command user field set. The
 // command will verify the assumption that the command is run as the
 // slave user (in this case, root).
+//
+// TODO(andschwa): Enable when user impersonation works on Windows.
 TEST_F_TEMP_DISABLED_ON_WINDOWS(
   SlaveTest, ROOT_RunTaskWithCommandInfoWithoutUser)
 {
@@ -5967,7 +5969,7 @@ TEST_F(SlaveTest, HTTPSchedulerLiveUpgrade)
 // Ensures that the slave can restart when there is an empty
 // framework pid. Executor messages should go through the
 // master (instead of directly to the scheduler!).
-TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, HTTPSchedulerSlaveRestart)
+TEST_F(SlaveTest, HTTPSchedulerSlaveRestart)
 {
   Try<Owned<cluster::Master>> master = this->StartMaster();
   ASSERT_SOME(master);
@@ -7269,10 +7271,7 @@ TEST_F(SlaveTest, RunTaskGroupGenerateSecretAfterShutdown)
 // be able to re-subscribe successfully when the agent is restarted with
 // required HTTP executor authentication.
 //
-// TODO(andschwa): Enable this test after fixing MESOS-7604.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(
-    SlaveTest,
-    RestartSlaveRequireExecutorAuthentication)
+TEST_F(SlaveTest, RestartSlaveRequireExecutorAuthentication)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -7655,6 +7654,8 @@ TEST_F(SlaveTest, KillTaskGroupBetweenRunTaskParts)
 
 // This test verifies that the agent correctly populates the
 // command info for default executor.
+//
+// TODO(andschwa): Enable when user impersonation works on Windows.
 TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, DefaultExecutorCommandInfo)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -8622,7 +8623,7 @@ TEST_F(SlaveTest, DisconnectedExecutorDropsMessages)
 
 // This test verifies that the 'executor_reregistration_timeout' agent flag
 // successfully extends the timeout within which an executor can re-register.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ExecutorReregistrationTimeoutFlag)
+TEST_F(SlaveTest, ExecutorReregistrationTimeoutFlag)
 {
   Clock::pause();
 
@@ -8673,7 +8674,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ExecutorReregistrationTimeoutFlag)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  TaskInfo task = createTask(offers->front(), "sleep 1000");
+  TaskInfo task = createTask(offers->front(), SLEEP_COMMAND(1000));
 
   Future<TaskStatus> statusUpdate0;
   Future<TaskStatus> statusUpdate1;

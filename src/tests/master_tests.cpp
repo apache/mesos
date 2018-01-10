@@ -8480,9 +8480,7 @@ TEST_F(MasterTest, IgnoreOldAgentReregistration)
 // This test checks that the master correctly garbage collects
 // information about gone agents from the registry using the
 // count-based GC criterion.
-//
-// TODO(andschwa): Enable this when MESOS-7604 is fixed.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(MasterTest, RegistryGcByCount)
+TEST_F(MasterTest, RegistryGcByCount)
 {
   // Configure GC to only keep the most recent gone agent in the gone list.
   master::Flags masterFlags = CreateMasterFlags();
