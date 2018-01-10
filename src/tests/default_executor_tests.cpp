@@ -2413,7 +2413,8 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 
 
 // This test verifies that the default executor mounts the persistent volume
-// in the task container when it is set on a task in the task group.
+// in the task container when it is set on a task in the task group, and the
+// task's volume directory can be accessed from the `/files` endpoint.
 TEST_P_TEMP_DISABLED_ON_WINDOWS(
     PersistentVolumeDefaultExecutor, ROOT_TaskSandboxPersistentVolume)
 {
@@ -2489,7 +2490,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   v1::TaskInfo taskInfo = v1::createTask(
       offer.agent_id(),
       reserved.apply(v1::CREATE(volume)).get(),
-      "echo abc > task_volume_path/file");
+      "echo abc > task_volume_path/file && sleep 1000");
 
   v1::Offer::Operation reserve = v1::RESERVE(reserved);
   v1::Offer::Operation create = v1::CREATE(volume);
@@ -2499,7 +2500,6 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 
   Future<Event::Update> updateStarting;
   Future<Event::Update> updateRunning;
-  Future<Event::Update> updateFinished;
   EXPECT_CALL(*scheduler, update(_, _))
     .WillOnce(DoAll(FutureArg<1>(&updateStarting),
                     v1::scheduler::SendAcknowledge(
@@ -2508,8 +2508,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
     .WillOnce(DoAll(FutureArg<1>(&updateRunning),
                     v1::scheduler::SendAcknowledge(
                         frameworkId,
-                        offer.agent_id())))
-    .WillOnce(FutureArg<1>(&updateFinished));
+                        offer.agent_id())));
 
   mesos.send(v1::createCallAccept(
       frameworkId,
@@ -2524,18 +2523,83 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   ASSERT_EQ(TASK_RUNNING, updateRunning->status().state());
   ASSERT_EQ(taskInfo.task_id(), updateRunning->status().task_id());
 
-  AWAIT_READY(updateFinished);
-  ASSERT_EQ(TASK_FINISHED, updateFinished->status().state());
-  ASSERT_EQ(taskInfo.task_id(), updateFinished->status().task_id());
-
   string volumePath = slave::paths::getPersistentVolumePath(
       flags.work_dir,
       devolve(volume));
 
   string filePath = path::join(volumePath, "file");
 
+  // Wait up to 10 seconds for the task to write a file into the volume.
+  Duration waited = Duration::zero();
+  do {
+    if (os::exists(filePath)) {
+      break;
+    }
+
+    os::sleep(Seconds(1));
+    waited += Seconds(1);
+  } while (waited < Seconds(10));
+
   // Ensure that the task was able to write to the persistent volume.
+  EXPECT_TRUE(os::exists(filePath));
   EXPECT_SOME_EQ("abc\n", os::read(filePath));
+
+  v1::ContainerStatus status = updateRunning->status().container_status();
+
+  ASSERT_TRUE(status.has_container_id());
+  EXPECT_TRUE(status.container_id().has_parent());
+
+  v1::ContainerID executorContainerId = status.container_id().parent();
+
+  string taskPath = slave::paths::getTaskPath(
+      flags.work_dir,
+      devolve(offer.agent_id()),
+      devolve(frameworkId),
+      devolve(executorInfo.executor_id()),
+      devolve(executorContainerId),
+      devolve(taskInfo.task_id()));
+
+  string taskVolumePath =
+    path::join(taskPath, volume.disk().volume().container_path());
+
+  // Ensure the task's volume directory can be accessed from
+  // the `/files` endpoint.
+  process::UPID files("files", slave.get()->pid.address);
+
+  {
+    string query = string("path=") + taskVolumePath;
+    Future<Response> response = process::http::get(
+        files,
+        "browse",
+        query,
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_ASSERT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_ASSERT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Array> parse = JSON::parse<JSON::Array>(response->body);
+    ASSERT_SOME(parse);
+    EXPECT_NE(0, parse->values.size());
+  }
+
+  {
+    string query =
+      string("path=") + path::join(taskVolumePath, "file") + "&offset=0";
+
+    Future<Response> response = process::http::get(
+        files,
+        "read",
+        query,
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_ASSERT_RESPONSE_STATUS_EQ(OK().status, response);
+
+    JSON::Object expected;
+    expected.values["offset"] = 0;
+    expected.values["data"] = "abc\n";
+
+    AWAIT_EXPECT_RESPONSE_BODY_EQ(stringify(expected), response);
+  }
 }
 
 
