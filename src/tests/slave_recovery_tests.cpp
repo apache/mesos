@@ -3831,6 +3831,11 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
 
   slave.get()->terminate();
 
+  // Reset the slave so that the task status update stream destructors are
+  // called. This is necessary so that file handles are closed before we remove
+  // the framework meta directory (specifically for `task.updates`).
+  slave->reset();
+
   // Construct the framework meta directory that needs wiping.
   string frameworkPath = paths::getFrameworkPath(
       paths::getMetaRootDir(flags.work_dir),
