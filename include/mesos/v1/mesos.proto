@@ -2287,7 +2287,12 @@ enum OperationState {
  * Describes the current status of an operation.
  */
 message OperationStatus {
+  // While frameworks will only receive status updates for operations on which
+  // they have set an ID, this field is optional because this message is also
+  // used internally by Mesos components when the operation's ID has not been
+  // set.
   optional OperationID operation_id = 1;
+
   required OperationState state = 2;
   optional string message = 3;
 

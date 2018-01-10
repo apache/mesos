@@ -389,8 +389,14 @@ message Call {
   // Such status updates are retried by the agent or resource provider
   // until they are acknowledged by the scheduler.
   message AcknowledgeOperationStatus {
+    // If the operation affects resources that belong to a SLRP, both
+    // `agent_id` and `resource_provider_id` have to be set.
+    //
+    // If the operation affects resources that belong to a SERP, only
+    // `resource_provider_id` has to be set.
     optional AgentID agent_id = 1;
     optional ResourceProviderID resource_provider_id = 2;
+
     required bytes uuid = 3;
     required OperationID operation_id = 4;
   }
