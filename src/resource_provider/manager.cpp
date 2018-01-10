@@ -634,9 +634,11 @@ void ResourceProviderManagerProcess::updateOperationStatus(
     const Call::UpdateOperationStatus& update)
 {
   ResourceProviderMessage::UpdateOperationStatus body;
-  body.update.mutable_framework_id()->CopyFrom(update.framework_id());
   body.update.mutable_status()->CopyFrom(update.status());
   body.update.mutable_operation_uuid()->CopyFrom(update.operation_uuid());
+  if (update.has_framework_id()) {
+    body.update.mutable_framework_id()->CopyFrom(update.framework_id());
+  }
   if (update.has_latest_status()) {
     body.update.mutable_latest_status()->CopyFrom(update.latest_status());
   }
