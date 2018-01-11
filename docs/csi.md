@@ -470,7 +470,7 @@ module parameters that can be used to configure the module:
           "mode": "SINGLE_NODE_WRITER"
         }
       },
-      "create_arameters": {
+      "create_parameters": {
         "type": "raid5",
         "stripes": "3",
         "stripesize": "64"
