@@ -42,8 +42,8 @@ Mesos supports the following built-in isolators.
 - [docker/runtime](isolators/docker-runtime.md)
 - [docker/volume](isolators/docker-volume.md)
 - [environment\_secret](secrets.md#environment-based-secrets)
-- filesystem/linux
-- filesystem/posix
+- [filesystem/linux](isolators/filesystems.md)
+- [filesystem/posix](isolators/filesystems.md)
 - [filesystem/shared](isolators/filesystem-shared.md)
 - filesystem/windows
 - [gpu/nvidia](gpu-support.md)
