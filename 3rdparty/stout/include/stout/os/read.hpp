@@ -108,7 +108,7 @@ inline Try<std::string> read(const std::string& path)
 {
   FILE* file = ::fopen(path.c_str(), "r");
   if (file == nullptr) {
-    return ErrnoError("Failed to open file");
+    return ErrnoError();
   }
 
   // Use a buffer to read the file in BUFSIZ
