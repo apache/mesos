@@ -1410,7 +1410,8 @@ void SocketManager::link_connect(
 {
   if (future.isDiscarded() || future.isFailed()) {
     if (future.isFailed()) {
-      VLOG(1) << "Failed to link, connect: " << future.failure();
+      LOG(WARNING) << "Failed to link to '" << to.address
+                   << "', connect: " << future.failure();
     }
 
     // Check if SSL is enabled, and whether we allow a downgrade to
@@ -1438,7 +1439,8 @@ void SocketManager::link_connect(
 
         Try<Socket> create = Socket::create(SocketImpl::Kind::POLL);
         if (create.isError()) {
-          VLOG(1) << "Failed to link, create socket: " << create.error();
+          LOG(WARNING) << "Failed to link to '" << to.address
+                       << "', create socket: " << create.error();
           socket_manager->close(socket);
           return;
         }
@@ -1542,7 +1544,8 @@ void SocketManager::link(
         // from SSL to POLL if enabled.
         Try<Socket> create = Socket::create(kind);
         if (create.isError()) {
-          LOG(WARNING) << "Failed to link, create socket: " << create.error();
+          LOG(WARNING) << "Failed to link to '" << to.address
+                       << "', create socket: " << create.error();
 
           // Failure to create a new socket should generate an `ExitedEvent`
           // for the linkee. At this point, we have not passed ownership of
@@ -1574,7 +1577,8 @@ void SocketManager::link(
         // create a new socket anyway.
         Try<Socket> create = Socket::create(kind);
         if (create.isError()) {
-          LOG(WARNING) << "Failed to link, create socket: " << create.error();
+          LOG(WARNING) << "Failed to link to '" << to.address
+                       << "', create socket: " << create.error();
 
           // Failure to create a new socket should generate an `ExitedEvent`
           // for the linkee. At this point, we have not passed ownership of
@@ -1827,8 +1831,8 @@ void SocketManager::send_connect(
 {
   if (future.isDiscarded() || future.isFailed()) {
     if (future.isFailed()) {
-      VLOG(1) << "Failed to send '" << message.name << "' to '"
-              << message.to.address << "', connect: " << future.failure();
+      LOG(WARNING) << "Failed to send '" << message.name << "' to '"
+                   << message.to.address << "', connect: " << future.failure();
     }
 
     // Check if SSL is enabled, and whether we allow a downgrade to
@@ -1848,7 +1852,8 @@ void SocketManager::send_connect(
       synchronized (mutex) {
         Try<Socket> create = Socket::create(SocketImpl::Kind::POLL);
         if (create.isError()) {
-          VLOG(1) << "Failed to link, create socket: " << create.error();
+          LOG(WARNING) << "Failed to link to '" << message.to.address
+                       << "', create socket: " << create.error();
           socket_manager->close(socket);
           return;
         }
@@ -1943,7 +1948,9 @@ void SocketManager::send(Message&& message, const SocketImpl::Kind& kind)
       // from SSL to POLL if enabled.
       Try<Socket> create = Socket::create(kind);
       if (create.isError()) {
-        VLOG(1) << "Failed to send, create socket: " << create.error();
+        LOG(WARNING) << "Failed to send '" << message.name
+                     << "' to '" << message.to.address
+                     << "', create socket: " << create.error();
         return;
       }
       socket = create.get();
