@@ -613,6 +613,20 @@ Slave::~Slave()
     return;
   }
 
+  // We should wait until agent recovery completes to prevent a potential race
+  // between containerizer recovery process and the following code that invokes
+  // methods of the containerizer, e.g. a test can start an agent that in turn
+  // triggers containerizer recovery of orphaned containers, then immediately
+  // destroys the agent. Thus, the containerizer might return a different set of
+  // containers, depending on whether containerizer recovery has been finished.
+  //
+  // NOTE: This wait is omitted if a pointer to a containerizer object was
+  // passed to the slave's constructor, as it might be a mock containerizer,
+  // thereby agent recovery will never be finished.
+  if (ownedContainerizer.get() != nullptr) {
+    slave->recoveryInfo.recovered.future().await();
+  }
+
   terminate();
 
   // This extra closure is necessary in order to use `AWAIT` and `ASSERT_*`,
