@@ -192,7 +192,7 @@ public:
   uint16_t port;
   Option<std::string> advertise_ip;
   Option<std::string> advertise_port;
-  Option<std::string> master;
+  Option<flags::SecurePathOrValue> master;
 
   Duration zk_session_timeout;
 

@@ -500,7 +500,9 @@ int main(int argc, char** argv)
   }
 
   Try<MasterDetector*> detector_ = MasterDetector::create(
-      flags.master, flags.master_detector, flags.zk_session_timeout);
+      flags.master.isSome() ? flags.master->value : Option<string>::none(),
+      flags.master_detector,
+      flags.zk_session_timeout);
 
   if (detector_.isError()) {
     EXIT(EXIT_FAILURE)

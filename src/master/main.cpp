@@ -370,7 +370,7 @@ int main(int argc, char** argv)
           << " registry when using ZooKeeper";
       }
 
-      Try<zookeeper::URL> url = zookeeper::URL::parse(flags.zk.get());
+      Try<zookeeper::URL> url = zookeeper::URL::parse(flags.zk.get().value);
       if (url.isError()) {
         EXIT(EXIT_FAILURE) << "Error parsing ZooKeeper URL: " << url.error();
       }
@@ -411,7 +411,9 @@ int main(int argc, char** argv)
   MasterDetector* detector;
 
   Try<MasterContender*> contender_ = MasterContender::create(
-      flags.zk, flags.master_contender, flags.zk_session_timeout);
+      flags.zk.isSome() ? flags.zk->value : Option<string>::none(),
+      flags.master_contender,
+      flags.zk_session_timeout);
 
   if (contender_.isError()) {
     EXIT(EXIT_FAILURE)
@@ -421,7 +423,9 @@ int main(int argc, char** argv)
   contender = contender_.get();
 
   Try<MasterDetector*> detector_ = MasterDetector::create(
-      flags.zk, flags.master_detector, flags.zk_session_timeout);
+      flags.zk.isSome() ? flags.zk->value : Option<string>::none(),
+      flags.master_detector,
+      flags.zk_session_timeout);
 
   if (detector_.isError()) {
     EXIT(EXIT_FAILURE)
