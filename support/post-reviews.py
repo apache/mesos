@@ -183,9 +183,10 @@ def main():
     branch_ref = execute(['git', 'symbolic-ref', 'HEAD']).strip()
     branch = branch_ref.replace('refs/heads/', '', 1)
 
-    # do not work on master branch
-    if branch == "master":
-        print "We're expecting you to be working on another branch from master!"
+    # Do not work on the tracking branch.
+    if branch == tracking_branch:
+        print "We're expecting you to be working on another branch" \
+              " from {}!".format(tracking_branch)
         sys.exit(1)
 
     temporary_branch = '_post-reviews_' + branch
