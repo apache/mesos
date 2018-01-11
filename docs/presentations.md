@@ -6,6 +6,10 @@ layout: documentation
 # Video and Slides of Mesos Presentations
 _(Listed in date descending order)_
 
+### Automated Machine Learning Pipeline with Mesos ([Video](https://www.packtpub.com/big-data-and-business-intelligence/automated-machine-learning-pipeline-mesos-integrated-course))
+Karl Whitford
+Packt (November 2017) 
+
 ## MesosCon Europe 2015
  [Video playlist](https://www.youtube.com/watch?v=K-x7yOy8Ymk&list=PLGeM09tlguZS6MhlSZDbf-gANWdKgje0I)
  [Slides](http://events.linuxfoundation.org/events/archive/2015/mesoscon-europe/program/slides)
