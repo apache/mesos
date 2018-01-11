@@ -367,22 +367,26 @@ Future<ImageInfo> StoreProcess::__get(
         backend));
   }
 
+  const string path = paths::getImageLayerManifestPath(
+      flags.docker_store_dir,
+      image.layer_ids(image.layer_ids_size() - 1));
+
   // Read the manifest from the last layer because all runtime config
   // are merged at the leaf already.
-  Try<string> manifest = os::read(
-      paths::getImageLayerManifestPath(
-          flags.docker_store_dir,
-          image.layer_ids(image.layer_ids_size() - 1)));
-
+  Try<string> manifest = os::read(path);
   if (manifest.isError()) {
-    return Failure("Failed to read manifest: " + manifest.error());
+    return Failure(
+        "Failed to read manifest from '" + path + "': " +
+        manifest.error());
   }
 
   Try<::docker::spec::v1::ImageManifest> v1 =
     ::docker::spec::v1::parse(manifest.get());
 
   if (v1.isError()) {
-    return Failure("Failed to parse docker v1 manifest: " + v1.error());
+    return Failure(
+        "Failed to parse docker v1 manifest from '" + path + "': " +
+        v1.error());
   }
 
   return ImageInfo{layerPaths, v1.get()};

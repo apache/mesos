@@ -246,27 +246,32 @@ Result<string> LocalPullerProcess::getParentLayerId(
     const string& directory,
     const string& layerId)
 {
-  const string layerPath = path::join(directory, layerId);
+  const string path =
+    paths::getImageLayerManifestPath(path::join(directory, layerId));
 
-  Try<string> _manifest = os::read(paths::getImageLayerManifestPath(layerPath));
+  Try<string> _manifest = os::read(path);
   if (_manifest.isError()) {
-    return Error("Failed to read manifest: " + _manifest.error());
+    return Error(
+        "Failed to read manifest from '" + path + "': " + _manifest.error());
   }
 
   Try<JSON::Object> manifest = JSON::parse<JSON::Object>(_manifest.get());
   if (manifest.isError()) {
-    return Error("Failed to parse manifest: " + manifest.error());
+    return Error(
+        "Failed to parse manifest from '" + path + "': " + manifest.error());
   }
 
   Result<JSON::Value> parentLayerId = manifest->find<JSON::Value>("parent");
   if (parentLayerId.isError()) {
-    return Error("Failed to parse 'parent': " + parentLayerId.error());
+    return Error(
+        "Failed to parse 'parent' key in manifest from '" + path + "': " +
+        parentLayerId.error());
   } else if (parentLayerId.isNone()) {
     return None();
   } else if (parentLayerId->is<JSON::Null>()) {
     return None();
   } else if (!parentLayerId->is<JSON::String>()) {
-    return Error("Unexpected 'parent' type");
+    return Error("Unexpected 'parent' type in manifest from '" + path + "'");
   }
 
   const string id = parentLayerId->as<JSON::String>().value;
