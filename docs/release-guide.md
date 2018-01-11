@@ -235,14 +235,9 @@ This guide describes the process of doing an official release of Mesos.
 
 2. Update the [Building](building.md) guide to use the latest release link.
 
-3. Check out the website from svn.
-
-        $ svn co https://svn.apache.org/repos/asf/mesos/site mesos-site
-
-   See our [website README](https://github.com/apache/mesos/blob/master/site/README.md/)
-   for details on how to build the website. See the general
-   [Apache project website guide](https://www.apache.org/dev/project-site.html)
-   for details on how to publish the website.
+3. See our [website README](https://github.com/apache/mesos/blob/master/site/README.md)
+   for details on how to build/preview the website locally, as well as information on
+   how Mesos-Websitebot automatically publishes the website when changes are detected.
 
 4. Write a blog post announcing the new release and its features and major bug
    fixes. Include a link to the updated website.
