@@ -2230,6 +2230,11 @@ test_http_framework_SOURCES = examples/test_http_framework.cpp
 test_http_framework_CPPFLAGS = $(MESOS_CPPFLAGS)
 test_http_framework_LDADD = libmesos.la $(LDADD)
 
+check_PROGRAMS += test-csi-user-framework
+test_csi_user_framework_SOURCES = examples/test_csi_user_framework.cpp
+test_csi_user_framework_CPPFLAGS = $(MESOS_CPPFLAGS)
+test_csi_user_framework_LDADD = libmesos.la $(LDADD)
+
 check_PROGRAMS += test-framework
 test_framework_SOURCES = examples/test_framework.cpp
 test_framework_CPPFLAGS = $(MESOS_CPPFLAGS)

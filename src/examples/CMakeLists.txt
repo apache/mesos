@@ -50,6 +50,7 @@ if (NOT WIN32)
   add_executable(test-framework                test_framework.cpp)
   add_executable(test-http-executor            test_http_executor.cpp)
   add_executable(test-http-framework           test_http_framework.cpp)
+  add_executable(test-csi-user-framework       test_csi_user_framework.cpp)
 
   # NOTE: Do not replace this with `link_libraries()`. While it may result in
   # less code, it is deprecated and relies on side effects instead of
@@ -82,4 +83,5 @@ if (NOT WIN32)
   target_link_libraries(test-framework                PRIVATE mesos)
   target_link_libraries(test-http-executor            PRIVATE mesos)
   target_link_libraries(test-http-framework           PRIVATE mesos)
+  target_link_libraries(test-csi-user-framework       PRIVATE mesos)
 endif ()
