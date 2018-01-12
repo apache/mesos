@@ -10158,38 +10158,33 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
     latestState = update.latest_state();
   }
 
-  // Indicated whether we should send a notification to all subscribers if the
-  // task transitioned to a new state.
+  // Determine whether the task transitioned to terminal or
+  // unreachable prior to changing the task state.
+  auto isTerminalOrUnreachableState = [](const TaskState& state) {
+    return protobuf::isTerminalState(state) || state == TASK_UNREACHABLE;
+  };
+
+  bool transitionedToTerminalOrUnreachable =
+    !isTerminalOrUnreachableState(task->state()) &&
+    isTerminalOrUnreachableState(latestState.getOrElse(status.state()));
+
+  // Indicates whether we should send a notification to subscribers,
+  // set if the task transitioned to a new state.
   bool sendSubscribersUpdate = false;
 
-  // Set 'removable' to true if this is the first time the task
-  // transitioned to a removable state. Also set the latest state.
-  bool removable;
-  if (latestState.isSome()) {
-    removable = !isRemovable(task->state()) && isRemovable(latestState.get());
-
-    // If the task has already transitioned to a terminal state,
-    // do not update its state.
-    if (!protobuf::isTerminalState(task->state())) {
-      if (latestState.get() != task->state()) {
-        sendSubscribersUpdate = true;
-      }
-
-      task->set_state(latestState.get());
+  // If the task has already transitioned to a terminal state,
+  // do not update its state. Note that we are being defensive
+  // here because this should not happen unless there is a bug
+  // in the master code.
+  //
+  // TODO(bmahler): Check that we're not transitioning from
+  // TASK_UNREACHABLE to another state.
+  if (!protobuf::isTerminalState(task->state())) {
+    if (status.state() != task->state()) {
+      sendSubscribersUpdate = true;
     }
-  } else {
-    removable = !isRemovable(task->state()) && isRemovable(status.state());
 
-    // If the task has already transitioned to a terminal state, do not update
-    // its state. Note that we are being defensive here because this should not
-    // happen unless there is a bug in the master code.
-    if (!protobuf::isTerminalState(task->state())) {
-      if (status.state() != task->state()) {
-        sendSubscribersUpdate = true;
-      }
-
-      task->set_state(status.state());
-    }
+    task->set_state(latestState.getOrElse(status.state()));
   }
 
   // TODO(brenden): Consider wiping the `message` field?
@@ -10217,8 +10212,9 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
             << " (latest state: " << task->state()
             << ", status update state: " << status.state() << ")";
 
-  // Once the task becomes removable, recover the resources.
-  if (removable) {
+  // Once the task transitioned to terminal or unreachable,
+  // recover the resources.
+  if (transitionedToTerminalOrUnreachable) {
     allocator->recoverResources(
         task->framework_id(),
         task->slave_id(),
@@ -10297,17 +10293,25 @@ void Master::removeTask(Task* task, bool unreachable)
   // Conversion is safe, as resources have already passed validation.
   const Resources resources = task->resources();
 
-  if (!isRemovable(task->state())) {
+  // The invariant here is that the master will recover the resources
+  // prior to removing terminal or unreachable tasks. If the task is
+  // not terminal or unreachable, we must recover the resources here.
+  //
+  // TODO(bmahler): Currently, only `Master::finalize()` will call
+  // `removeTask()` with a non-terminal task. Consider fixing this
+  // and instead CHECKing here to simplify the logic.
+  if (!protobuf::isTerminalState(task->state()) &&
+      task->state() != TASK_UNREACHABLE) {
+    CHECK(!unreachable) << task->task_id();
+
     // Note that we use `Resources` for output as it's faster than
     // logging raw protobuf data.
     LOG(WARNING) << "Removing task " << task->task_id()
                  << " with resources " << resources
                  << " of framework " << task->framework_id()
                  << " on agent " << *slave
-                 << " in non-removable state " << task->state();
+                 << " in non-terminal state " << task->state();
 
-    // If the task is not removable, then the resources have
-    // not yet been recovered.
     allocator->recoverResources(
         task->framework_id(),
         task->slave_id(),
@@ -11517,7 +11521,11 @@ void Slave::addTask(Task* task)
   // Conversion is safe, as resources have already passed validation.
   const Resources resources = task->resources();
 
-  if (!Master::isRemovable(task->state())) {
+  CHECK(task->state() != TASK_UNREACHABLE)
+    << "Task '" << taskId << "' of framework " << frameworkId
+    << " added in TASK_UNREACHABLE state";
+
+  if (!protobuf::isTerminalState(task->state())) {
     usedResources[frameworkId] += resources;
   }
 
@@ -11538,7 +11546,11 @@ void Slave::recoverResources(Task* task)
   const TaskID& taskId = task->task_id();
   const FrameworkID& frameworkId = task->framework_id();
 
-  CHECK(Master::isRemovable(task->state()));
+  CHECK(protobuf::isTerminalState(task->state()) ||
+        task->state() == TASK_UNREACHABLE)
+    << "Task '" << taskId << "' of framework " << frameworkId
+    << " is in unexpected state " << task->state();
+
   CHECK(tasks.at(frameworkId).contains(taskId))
     << "Unknown task " << taskId << " of framework " << frameworkId;
 
@@ -11557,7 +11569,17 @@ void Slave::removeTask(Task* task)
   CHECK(tasks.at(frameworkId).contains(taskId))
     << "Unknown task " << taskId << " of framework " << frameworkId;
 
-  if (!Master::isRemovable(task->state())) {
+  // The invariant here is that the master will have already called
+  // `recoverResources()` prior to removing terminal or unreachable tasks.
+  //
+  // TODO(bmahler): The unreachable case could be avoided if
+  // we updated `removeSlave` in the allocator to recover the
+  // resources (see MESOS-621) so that the master could just
+  // remove the unreachable agent from the allocator.
+  if (!protobuf::isTerminalState(task->state()) &&
+      task->state() != TASK_UNREACHABLE) {
+    // We cannot call `Slave::recoverResources()` here because
+    // it expects the task to be terminal or unreachable.
     usedResources[frameworkId] -= task->resources();
     if (usedResources[frameworkId].empty()) {
       usedResources.erase(frameworkId);

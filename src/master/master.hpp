@@ -1096,22 +1096,6 @@ private:
   bool isWhitelistedRole(const std::string& name) const;
 
   /**
-   * Indicates whether a task in the given state can safely be removed
-   * from the master's in-memory state. When a task becomes removable,
-   * it is erased from the master's primary task data structures; a
-   * limited number of such tasks are kept as a cache (see
-   * `framework.unreachableTasks` and `framework.completedTasks`).
-   */
-  static bool isRemovable(const TaskState& state)
-  {
-    if (state == TASK_UNREACHABLE) {
-      return true;
-    }
-
-    return protobuf::isTerminalState(state);
-  }
-
-  /**
    * Inner class used to namespace the handling of quota requests.
    *
    * It operates inside the Master actor. It is responsible for validating
@@ -2241,7 +2225,20 @@ struct Framework
 
     tasks[task->task_id()] = task;
 
-    if (!Master::isRemovable(task->state())) {
+    // Unreachable tasks should be added via `addUnreachableTask`.
+    CHECK(task->state() != TASK_UNREACHABLE)
+      << "Task '" << task->task_id() << "' of framework " << id()
+      << " added in TASK_UNREACHABLE state";
+
+    // Since we track terminal but unacknowledged tasks within
+    // `tasks` rather than `completedTasks`, we need to handle
+    // them here: don't count them as consuming resources.
+    //
+    // TODO(bmahler): Users currently get confused because
+    // terminal tasks can show up as "active" tasks in the UI and
+    // endpoints. Ideally, we show the terminal unacknowledged
+    // tasks as "completed" as well.
+    if (!protobuf::isTerminalState(task->state())) {
       // Note that we explicitly convert from protobuf to `Resources` once
       // and then use the result for calculations to avoid performance penalty
       // for multiple conversions and validations implied by `+=` with protobuf
@@ -2347,13 +2344,20 @@ struct Framework
       << "Unknown task " << task->task_id()
       << " of framework " << task->framework_id();
 
-    if (!Master::isRemovable(task->state())) {
+    // The invariant here is that the master will have already called
+    // `recoverResources()` prior to removing terminal or unreachable tasks.
+    if (!protobuf::isTerminalState(task->state()) &&
+        task->state() != TASK_UNREACHABLE) {
       recoverResources(task);
     }
 
     if (unreachable) {
       addUnreachableTask(*task);
     } else {
+      CHECK(task->state() != TASK_UNREACHABLE);
+
+      // TODO(bmahler): This moves a potentially non-terminal task into
+      // the completed list!
       addCompletedTask(Task(*task));
     }
 
