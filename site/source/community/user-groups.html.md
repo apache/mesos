@@ -10,7 +10,6 @@ Mesos User Groups (MUGs) are responsible for organizing local meetups, hackathon
 ## Local Groups
 
 ### China
-* [Beijing](http://www.meetup.com/Beijing-Mesos-User-Group/)
 * [Shanghai](http://www.weibo.com/u/3068800961)
 * [Shenzhen](http://www.meetup.com/Shenzhen-Mesos-User-Group/)
 * [Xian](http://www.meetup.com/Xian-Mesos-User-Group/)
@@ -36,16 +35,11 @@ Mesos User Groups (MUGs) are responsible for organizing local meetups, hackathon
 ### Poland
 * [Warsaw](http://www.meetup.com/Warsaw-Mesos-User-Group/)
 
-### Spain
-* [Seville](http://www.meetup.com/es-ES/Grupo-de-usuarios-Apache-Mesos-en-Sevilla/)
-
 ### United Kingdom
 * [London](http://www.meetup.com/London-Mesos-User-Group/)
 
 ### USA
-* [Albany, NY](http://www.meetup.com/Apache-Mesos-Albany-NY-Meetup/)
 * [Atlanta, GA](http://www.meetup.com/mesosatl/)
-* [Austin, TX](http://www.meetup.com/Austin-Mesos-Users-Group/)
 * [Dallas, TX](http://www.meetup.com/Metroplex-Mesos-Group/)
 * [Denver, CO](http://www.meetup.com/Denver-Mesos-User-Group/)
 * [Los Angeles / Santa Monica, CA](http://www.meetup.com/Los-Angeles-Santa-Monica-Mesos-Users-Group/)
