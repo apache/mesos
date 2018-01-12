@@ -10320,37 +10320,8 @@ void Master::updateOperation(
 {
   CHECK_NOTNULL(operation);
 
-  const OperationStatus& status = update.status();
-
-  Option<OperationStatus> latestStatus;
-  if (update.has_latest_status()) {
-    latestStatus = update.latest_status();
-  }
-
-  // Whether the operation has just become terminated.
-  Option<bool> terminated;
-
-  if (latestStatus.isSome()) {
-    terminated =
-      !protobuf::isTerminalState(operation->latest_status().state()) &&
-      protobuf::isTerminalState(latestStatus->state());
-
-    // If the operation has already transitioned to a terminal state,
-    // do not update its state.
-    if (!protobuf::isTerminalState(operation->latest_status().state())) {
-      operation->mutable_latest_status()->CopyFrom(latestStatus.get());
-    }
-  } else {
-    terminated =
-      !protobuf::isTerminalState(operation->latest_status().state()) &&
-      protobuf::isTerminalState(status.state());
-
-    if (!protobuf::isTerminalState(operation->latest_status().state())) {
-      operation->mutable_latest_status()->CopyFrom(status);
-    }
-  }
-
-  operation->add_statuses()->CopyFrom(status);
+  const OperationStatus& status =
+    update.has_latest_status() ? update.latest_status() : update.status();
 
   LOG(INFO) << "Updating the state of operation '"
             << operation->info().id() << "' (uuid: " << update.operation_uuid()
@@ -10358,9 +10329,20 @@ void Master::updateOperation(
             << " (latest state: " << operation->latest_status().state()
             << ", status update state: " << status.state() << ")";
 
-  CHECK_SOME(terminated);
+  // Whether the operation has just become terminated.
+  const bool terminated =
+    !protobuf::isTerminalState(operation->latest_status().state()) &&
+    protobuf::isTerminalState(status.state());
 
-  if (!terminated.get()) {
+  // If the operation has already transitioned to a terminal state,
+  // do not update its state.
+  if (!protobuf::isTerminalState(operation->latest_status().state())) {
+    operation->mutable_latest_status()->CopyFrom(status);
+  }
+
+  operation->add_statuses()->CopyFrom(status);
+
+  if (!terminated) {
     return;
   }
 
