@@ -196,7 +196,7 @@ void HierarchicalAllocatorProcess::recover(
   // Recovery should start before actual allocation starts.
   CHECK(initialized);
   CHECK(slaves.empty());
-  CHECK_EQ(0, quotaRoleSorter->count());
+  CHECK_EQ(0u, quotaRoleSorter->count());
   CHECK(_expectedAgentCount >= 0);
 
   // If there is no quota, recovery is a no-op. Otherwise, we need
@@ -2596,7 +2596,7 @@ void HierarchicalAllocatorProcess::untrackFrameworkUnderRole(
   // they don't have any registered frameworks.
 
   if (roles.at(role).empty()) {
-    CHECK_EQ(frameworkSorters.at(role)->count(), 0);
+    CHECK_EQ(frameworkSorters.at(role)->count(), 0u);
 
     roles.erase(role);
     roleSorter->remove(role);
