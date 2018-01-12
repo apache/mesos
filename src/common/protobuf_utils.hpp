@@ -67,6 +67,11 @@ bool frameworkHasCapability(
     FrameworkInfo::Capability::Type capability);
 
 
+// Returns whether the task state is terminal. Terminal states
+// mean that the resources are released and the task cannot
+// transition back to a non-terminal state. Note that
+// `TASK_UNREACHABLE` is not a terminal state, but still
+// releases the resources.
 bool isTerminalState(const TaskState& state);
 
 
