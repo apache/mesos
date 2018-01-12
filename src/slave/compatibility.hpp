@@ -48,12 +48,14 @@ Try<Nothing> equal(
 //            | For type SCALAR: The new value must be not smaller than the old.
 //            | For type RANGE:  The new value must include the old ranges.
 //            | For type SET:    The new value must be a superset of the old.
-//            | New resources are permitted.
+//            | New resources are permitted. In the presence of reservations,
+//            | these rules are applied per role.
 // attributes | All previous attributes must be present with the same type.
 //            | For type SCALAR: The new value must be not smaller than the old.
 //            | For type RANGE:  The new value must include the old ranges.
 //            | For type TEXT:   The new value must exactly match the previous.
 //            | New attributes are permitted.
+//
 Try<Nothing> additive(
     const SlaveInfo& previous,
     const SlaveInfo& current);

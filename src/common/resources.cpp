@@ -260,7 +260,7 @@ bool operator!=(const Resource::DiskInfo& left, const Resource::DiskInfo& right)
 }
 
 
-bool operator==(const Resource& left, const Resource& right)
+static bool compareResourceMetadata(const Resource& left, const Resource& right)
 {
   if (left.name() != right.name() || left.type() != right.type()) {
     return false;
@@ -312,6 +312,15 @@ bool operator==(const Resource& left, const Resource& right)
 
   // Check SharedInfo.
   if (left.has_shared() != right.has_shared()) {
+    return false;
+  }
+
+  return true;
+}
+
+
+bool operator==(const Resource& left, const Resource& right) {
+  if (!compareResourceMetadata(left, right)) {
     return false;
   }
 
@@ -1851,6 +1860,17 @@ Option<Value::Ranges> Resources::ephemeral_ports() const
   }
 }
 
+
+Option<Resource> Resources::match(const Resource& resource) const
+{
+  foreach (const Resource_& resource_, resources) {
+    if (compareResourceMetadata(resource_.resource, resource)) {
+      return resource_.resource;
+    }
+  }
+
+  return None();
+}
 
 /////////////////////////////////////////////////
 // Private member functions.
