@@ -22,6 +22,7 @@
 #include <stout/os.hpp>
 
 #include <stout/os/realpath.hpp>
+#include <stout/os/which.hpp>
 
 #include "slave/flags.hpp"
 #include "slave/state.hpp"

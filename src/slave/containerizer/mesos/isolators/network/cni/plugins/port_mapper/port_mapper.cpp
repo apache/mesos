@@ -17,6 +17,8 @@
 #include <stout/os.hpp>
 #include <stout/protobuf.hpp>
 
+#include <stout/os/which.hpp>
+
 #include <process/collect.hpp>
 #include <process/dispatch.hpp>
 #include <process/io.hpp>

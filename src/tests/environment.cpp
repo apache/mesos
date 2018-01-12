@@ -50,6 +50,7 @@
 #include <stout/os/pstree.hpp>
 #include <stout/os/shell.hpp>
 #include <stout/os/temp.hpp>
+#include <stout/os/which.hpp>
 
 #ifdef __linux__
 #include "linux/cgroups.hpp"
@@ -215,7 +216,7 @@ class CurlFilter : public TestFilter
 public:
   CurlFilter()
   {
-    curlError = os::system("which curl") != 0;
+    curlError = os::which("curl").isNone();
     if (curlError) {
       std::cerr
         << "-------------------------------------------------------------\n"
@@ -240,8 +241,8 @@ class NvidiaGpuFilter : public TestFilter
 public:
   NvidiaGpuFilter()
   {
-    exists = os::system("which nvidia-smi") == 0;
-    if (!exists) {
+    nvidiaGpuError = os::which("nvidia-smi").isNone();
+    if (nvidiaGpuError) {
       std::cerr
         << "-------------------------------------------------------------\n"
         << "No 'nvidia-smi' command found so no Nvidia GPU tests will run\n"
@@ -252,11 +253,11 @@ public:
 
   bool disable(const ::testing::TestInfo* test) const
   {
-    return matches(test, "NVIDIA_GPU_") && !exists;
+    return matches(test, "NVIDIA_GPU_") && nvidiaGpuError;
   }
 
 private:
-  bool exists;
+  bool nvidiaGpuError;
 };
 
 
@@ -396,6 +397,7 @@ public:
   InternetFilter()
   {
     error = os::system("ping -c 1 -W 1 google.com") != 0;
+    // TODO(andschwa): Make ping command cross-platform.
     if (error) {
       std::cerr
         << "-------------------------------------------------------------\n"
@@ -420,7 +422,7 @@ class LogrotateFilter : public TestFilter
 public:
   LogrotateFilter()
   {
-    logrotateError = os::system("which logrotate") != 0;
+    logrotateError = os::which("logrotate").isNone();
     if (logrotateError) {
       std::cerr
         << "-------------------------------------------------------------\n"
@@ -446,7 +448,7 @@ class NetcatFilter : public TestFilter
 public:
   NetcatFilter()
   {
-    netcatError = os::system("which nc") != 0;
+    netcatError = os::which("nc").isNone();
     if (netcatError) {
       std::cerr
         << "-------------------------------------------------------------\n"
@@ -736,7 +738,7 @@ class UnzipFilter : public TestFilter
 public:
   UnzipFilter()
   {
-    unzipError = os::system("which unzip") != 0;
+    unzipError = os::which("unzip").isNone();
     if (unzipError) {
       std::cerr
         << "-------------------------------------------------------------\n"
