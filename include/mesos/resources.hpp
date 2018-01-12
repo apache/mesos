@@ -492,6 +492,11 @@ public:
   // Error if the conversion cannot be applied.
   Try<Resources> apply(const ResourceConversion& conversion) const;
 
+  // Finds a resource object with the same metadata (i.e. AllocationInfo,
+  // ReservationInfo, etc.) as the given one, ignoring the actual value.
+  // If multiple matching resources exist, the first match is returned.
+  Option<Resource> match(const Resource& resource) const;
+
   // Obtains the conversion from the given operation and applies the
   // conversion. This method serves a syntax sugar for applying a
   // resource conversion.

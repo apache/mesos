@@ -19,6 +19,8 @@
 #include <stout/strings.hpp>
 #include <stout/unreachable.hpp>
 
+#include <mesos/attributes.hpp>
+#include <mesos/resources.hpp>
 #include <mesos/values.hpp>
 
 #include "mesos/type_utils.hpp"
@@ -49,33 +51,6 @@ Try<Nothing> equal(
 }
 
 
-// T is instantiated below as either `Resource` or `Attribute`.
-template<typename T>
-Try<T> getMatchingValue(
-  const T& previous,
-  const google::protobuf::RepeatedPtrField<T>& values)
-{
-  auto match = std::find_if(
-      values.begin(),
-      values.end(),
-      [&previous](const T& value) {
-        return previous.name() == value.name();
-      });
-
-  if (match == values.end()) {
-    return Error("Couldn't find '" + previous.name() + "'");
-  }
-
-  if (match->type() != previous.type()) {
-    return Error(
-        "Type of '" + previous.name() + "' changed from " +
-        stringify(previous.type()) + " to " + stringify(match->type()));
-  }
-
-  return *match;
-}
-
-
 Try<Nothing> additive(
     const SlaveInfo& previous,
     const SlaveInfo& current)
@@ -101,16 +76,20 @@ Try<Nothing> additive(
         stringify(current.domain()));
   }
 
+  // As a side effect, the Resources constructor also normalizes all addable
+  // resources, e.g. 'cpus:5;cpus:5' -> cpus:10
+  Resources previousResources(previous.resources());
+  Resources currentResources(current.resources());
+
   // TODO(bennoe): We should probably check `resources.size()` and switch to a
   // smarter algorithm for the matching when its bigger than, say, 20.
-  for (const Resource& resource : previous.resources()) {
-    Try<Resource> match =
-      getMatchingValue(resource, current.resources());
+  for (const Resource& resource : previousResources) {
+    Option<Resource> match = currentResources.match(resource);
 
-    if (match.isError()) {
+    if (match.isNone()) {
       return Error(
-          "Configuration change not permitted under 'additive' policy: " +
-          match.error());
+          "Configuration change not permitted under 'additive' policy. "
+          "Resource not found: " + stringify(resource));
     }
 
     switch (resource.type()) {
@@ -145,20 +124,34 @@ Try<Nothing> additive(
         continue;
       }
       case Value::TEXT: {
-        // Text resources are not supported.
+        // Text resources are not supported by Mesos.
         UNREACHABLE();
       }
     }
   }
 
-  for (const Attribute& attribute : previous.attributes()) {
-    Try<Attribute> match =
-      getMatchingValue(attribute, current.attributes());
+  const google::protobuf::RepeatedPtrField<Attribute>& currentAttributes =
+      current.attributes();
 
-    if (match.isError()) {
+  for (const Attribute& attribute : previous.attributes()) {
+    auto match = std::find_if(
+      currentAttributes.begin(),
+      currentAttributes.end(),
+      [&attribute](const Attribute& value) {
+        return attribute.name() == value.name();
+      });
+
+    if (match == currentAttributes.end()) {
       return Error(
-          "Configuration change not permitted under 'additive' policy: " +
-          match.error());
+          "Configuration change not permitted under 'additive' policy: "
+          "Couldn't find attribute " +  stringify(attribute));
+    }
+
+    if (match->type() != attribute.type()) {
+      return Error(
+          "Configuration change not permitted under 'additive' policy: "
+          "Type of attribute '" + attribute.name() + "' changed from " +
+          stringify(attribute.type()) + " to " + stringify(match->type()));
     }
 
     switch (attribute.type()) {
@@ -192,7 +185,7 @@ Try<Nothing> additive(
         continue;
       }
       case Value::SET: {
-        // Set attributes are not supported.
+        // Set attributes are not supported by Mesos.
         UNREACHABLE();
       }
     }

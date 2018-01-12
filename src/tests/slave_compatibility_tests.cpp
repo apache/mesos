@@ -66,6 +66,11 @@ TEST_F(SlaveCompatibilityTest, Equal)
 
   *(changedResources.mutable_resources()) = Resources::parse("cpus:600").get();
   ASSERT_ERROR(slave::compatibility::equal(original, changedResources));
+
+  *(changedResources.mutable_resources()) =
+      Resources::parse("cpus:250;cpus:250").get();
+
+  ASSERT_SOME(slave::compatibility::equal(original, changedResources));
 }
 
 
@@ -115,6 +120,11 @@ TEST_F(SlaveCompatibilityTest, Additive)
       originalScalarResource, changedScalarResource));
   ASSERT_ERROR(slave::compatibility::additive(
       changedScalarResource, originalScalarResource));
+
+  // Going from 50 to 30+30 is still an increase
+  SlaveInfo changedScalarResource2 = createSlaveInfo("cpus:30;cpus:30", "");
+  ASSERT_SOME(slave::compatibility::additive(
+      originalScalarResource, changedScalarResource2));
 
   // Range attributes can be extended but not shrinked.
   SlaveInfo originalRangeResource = createSlaveInfo("range:[100-200]", "");
@@ -168,6 +178,76 @@ TEST_F(SlaveCompatibilityTest, Additive)
       originalRangeAttribute, changedRangeAttribute));
   ASSERT_ERROR(slave::compatibility::additive(
       changedRangeAttribute, originalRangeAttribute));
+}
+
+
+TEST_F(SlaveCompatibilityTest, AdditiveWithReservations)
+{
+  SlaveInfo originalReservations = createSlaveInfo("foo(A):10;foo(B):20", "");
+
+  // Ok: Both roles have increased amounts of `foo`.
+  SlaveInfo increasedReservations = createSlaveInfo("foo(A):20;foo(B):30", "");
+  ASSERT_SOME(slave::compatibility::additive(
+      originalReservations, increasedReservations));
+
+  // Not ok: The total increases, but the amount of `foo` reserved for role A
+  // decreased.
+  SlaveInfo modifiedReservations = createSlaveInfo("foo(A):5;foo(B):50", "");
+  ASSERT_ERROR(slave::compatibility::additive(
+      originalReservations, modifiedReservations));
+}
+
+
+TEST_F(SlaveCompatibilityTest, Disks)
+{
+  const char* diskAsJson = R"_(
+  [
+    {
+      "name": "disk",
+      "type": "SCALAR",
+      "scalar": {
+        "value": 868000
+      }
+    }
+  ]
+  )_";
+
+  const  char* diskAndMountAsJson = R"_(
+   [
+    {
+      "name": "disk",
+      "type": "SCALAR",
+      "scalar": {
+        "value": 868000
+      }
+    },
+    {
+      "name": "disk",
+      "type": "SCALAR",
+      "scalar": {
+        "value": 1830000
+      },
+      "disk": {
+        "source": {
+          "type": "MOUNT",
+          "mount": {
+            "root" : "/srv/mesos/volumes/a"
+          }
+        }
+      }
+    }
+  ]
+  )_";
+
+
+
+  SlaveInfo info1 = createSlaveInfo(diskAsJson, "");
+  SlaveInfo info2 = createSlaveInfo(diskAndMountAsJson, "");
+
+  ASSERT_SOME(slave::compatibility::additive(info1, info2));
+
+  // MESOS-8410.
+  ASSERT_SOME(slave::compatibility::additive(info2, info2));
 }
 
 } // namespace tests {
