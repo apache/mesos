@@ -878,11 +878,14 @@ protected:
       Slave* slave,
       Operation* operation);
 
-  // Transitions the operation, and recovers resources if the
-  // operation becomes terminal.
+  // Transitions the operation, and updates and recovers resources if
+  // the operation becomes terminal. If `convertResources` is `false`
+  // only the consumed resources of terminal operations are recovered,
+  // but no resources are converted.
   void updateOperation(
       Operation* operation,
-      const UpdateOperationStatusMessage& update);
+      const UpdateOperationStatusMessage& update,
+      bool convertResources = true);
 
   // Remove the operation.
   void removeOperation(Operation* operation);
