@@ -3494,21 +3494,30 @@ MATCHER_P(OffersHaveResource, resource, "")
 }
 
 
-// This matcher is used to match the task id of `TaskStatus` message.
+// This matcher is used to match the task id of a `TaskStatus` message.
 MATCHER_P(TaskStatusTaskIdEq, taskInfo, "")
 {
   return arg.task_id() == taskInfo.task_id();
 }
 
 
-// This matcher is used to match the task id of `Event.update.status` message.
+// This matcher is used to match the state of a `TaskStatus` message.
+MATCHER_P(TaskStatusStateEq, taskState, "")
+{
+  return arg.state() == taskState;
+}
+
+
+// This matcher is used to match the task id of an `Event.update.status`
+// message.
 MATCHER_P(TaskStatusUpdateTaskIdEq, taskInfo, "")
 {
   return arg.status().task_id() == taskInfo.task_id();
 }
 
 
-// This matcher is used to match the state of `Event.update.status` message.
+// This matcher is used to match the state of an `Event.update.status`
+// message.
 MATCHER_P(TaskStatusUpdateStateEq, taskState, "")
 {
   return arg.status().state() == taskState;

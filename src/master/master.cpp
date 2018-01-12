@@ -10232,8 +10232,6 @@ void Master::removeTask(Task* task, bool unreachable)
   const Resources resources = task->resources();
 
   if (!isRemovable(task->state())) {
-    CHECK(!unreachable) << task->task_id();
-
     // Note that we use `Resources` for output as it's faster than
     // logging raw protobuf data.
     LOG(WARNING) << "Removing task " << task->task_id()

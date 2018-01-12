@@ -2332,8 +2332,6 @@ struct Framework
     }
 
     if (unreachable) {
-      CHECK(task->state() == TASK_UNREACHABLE || task->state() == TASK_LOST)
-        << task->state();
       addUnreachableTask(*task);
     } else {
       addCompletedTask(Task(*task));
