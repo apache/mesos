@@ -33,6 +33,7 @@
 
 #include <stout/os/constants.hpp>
 #include <stout/os/realpath.hpp>
+#include <stout/os/which.hpp>
 
 #include "common/protobuf_utils.hpp"
 

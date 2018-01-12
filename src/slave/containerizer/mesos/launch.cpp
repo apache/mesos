@@ -39,6 +39,7 @@
 #include <stout/unreachable.hpp>
 
 #include <stout/os/realpath.hpp>
+#include <stout/os/which.hpp>
 #include <stout/os/write.hpp>
 
 #include <mesos/mesos.hpp>
