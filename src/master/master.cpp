@@ -10316,7 +10316,8 @@ void Master::addOperation(
 
 void Master::updateOperation(
     Operation* operation,
-    const UpdateOperationStatusMessage& update)
+    const UpdateOperationStatusMessage& update,
+    bool convertResources)
 {
   CHECK_NOTNULL(operation);
 
@@ -10375,26 +10376,34 @@ void Master::updateOperation(
       const Resources converted =
         operation->latest_status().converted_resources();
 
-      allocator->updateAllocation(
-          operation->framework_id(),
-          operation->slave_id(),
-          consumed.get(),
-          {ResourceConversion(consumed.get(), converted)});
+      if (convertResources) {
+        allocator->updateAllocation(
+            operation->framework_id(),
+            operation->slave_id(),
+            consumed.get(),
+            {ResourceConversion(consumed.get(), converted)});
 
-      allocator->recoverResources(
-          operation->framework_id(),
-          operation->slave_id(),
-          converted,
-          None());
+        allocator->recoverResources(
+            operation->framework_id(),
+            operation->slave_id(),
+            converted,
+            None());
 
-      Resources consumedUnallocated = consumed.get();
-      consumedUnallocated.unallocate();
+        Resources consumedUnallocated = consumed.get();
+        consumedUnallocated.unallocate();
 
-      Resources convertedUnallocated = converted;
-      convertedUnallocated.unallocate();
+        Resources convertedUnallocated = converted;
+        convertedUnallocated.unallocate();
 
-      slave->apply(
-          {ResourceConversion(consumedUnallocated, convertedUnallocated)});
+        slave->apply(
+            {ResourceConversion(consumedUnallocated, convertedUnallocated)});
+      } else {
+        allocator->recoverResources(
+            operation->framework_id(),
+            operation->slave_id(),
+            consumed.get(),
+            None());
+      }
 
       break;
     }
