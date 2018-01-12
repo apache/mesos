@@ -330,16 +330,16 @@ of quota limit and will be changed in future releases.
 
 **NOTE:** Prior to Mesos 1.5, the allocator would allocate the entire available
 resources on an agent (including the resources that the role has no quota for)
-when trying to satisfy the quota of a role i.e. the quota allocation is
+when trying to satisfy the quota of a role i.e. the quota allocation was
 coarse-grained. This has been fixed in Mesos 1.5. Specially, the allocator
 follows the steps below when allocating resources on an agent to a quota
 role:
 
-* Resources that this role has a quota for is allocated up to the quota guarantee.
+* Resources that this role has quota for are allocated up to the quota guarantee.
 * Resources that this role has no quota for (including non-scalar resources) are
 allocated if (1) these resources are not needed for other roles' unsatisfied quotas
 and (2) this role is also getting some other resources on the same agent to meet its
-quota or reservation. The second condition is there to reduce fragmentation.
+quota or reservation. The second condition is used to reduce fragmentation.
 
 If there are multiple frameworks subscribed to a role with quota set, the
 standard wDRF algorithm determines offer precedence amongst these frameworks.
