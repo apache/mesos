@@ -2157,6 +2157,264 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_PortMappingStatistics)
 }
 
 
+// Verify that rate statistics can be returned properly from
+// 'usage()'. This test is very similar to SmallIngressLimitTest in
+// setup.
+TEST_F(PortMappingIsolatorTest, ROOT_NC_PortMappingRateStatistics)
+{
+  const Bytes rate = 2000;
+  const Bytes size = 20480;
+
+  flags.ingress_rate_limit_per_container = rate;
+  flags.minimum_ingress_rate_limit = 0;
+  flags.network_enable_rate_statistics = true;
+  flags.network_rate_statistics_window = Seconds(5);
+  flags.network_rate_statistics_interval = Milliseconds(50);
+
+  Try<Isolator*> isolator = PortMappingIsolatorProcess::create(flags);
+  ASSERT_SOME(isolator);
+
+  Try<Launcher*> launcher = LinuxLauncher::create(flags);
+  ASSERT_SOME(launcher);
+
+  ExecutorInfo executorInfo;
+  executorInfo.mutable_resources()->CopyFrom(
+      Resources::parse(container1Ports).get());
+
+  ContainerID containerId;
+  containerId.set_value(id::UUID::random().toString());
+
+  Try<string> dir = os::mkdtemp(path::join(os::getcwd(), "XXXXXX"));
+  ASSERT_SOME(dir);
+
+  ContainerConfig containerConfig;
+  containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
+  containerConfig.mutable_resources()->CopyFrom(executorInfo.resources());
+  containerConfig.set_directory(dir.get());
+
+  Future<Option<ContainerLaunchInfo>> launchInfo = isolator.get()->prepare(
+      containerId, containerConfig);
+  AWAIT_READY(launchInfo);
+  ASSERT_SOME(launchInfo.get());
+  ASSERT_EQ(1, launchInfo.get()->pre_exec_commands().size());
+
+  ostringstream cmd1;
+  cmd1 << "touch " << container1Ready << " && ";
+  cmd1 << "nc -l -k localhost " << validPort << " > /dev/null";
+
+  int pipes[2];
+  ASSERT_NE(-1, ::pipe(pipes));
+
+  Try<pid_t> pid = launchHelper(
+      launcher.get(),
+      pipes,
+      containerId,
+      cmd1.str(),
+      launchInfo.get());
+
+  ASSERT_SOME(pid);
+
+  // Reap the forked child.
+  Future<Option<int>> reap = process::reap(pid.get());
+
+  // Continue in the parent.
+  ::close(pipes[0]);
+
+  // Isolate the forked child.
+  AWAIT_READY(isolator.get()->isolate(containerId, pid.get()));
+
+  // Now signal the child to continue.
+  char dummy;
+  ASSERT_LT(0, ::write(pipes[1], &dummy, sizeof(dummy)));
+  ::close(pipes[1]);
+
+  // Wait for the command to finish.
+  ASSERT_TRUE(waitForFileCreation(container1Ready));
+
+  const string data(size.bytes(), 'a');
+
+  ostringstream cmd2;
+  cmd2 << "echo " << data << " | nc localhost " << validPort;
+
+  Stopwatch stopwatch;
+  stopwatch.start();
+  ASSERT_SOME(os::shell(cmd2.str()));
+  Duration time = stopwatch.elapsed();
+
+  // Allow the time to deviate up to 1sec here to compensate for burstness.
+  Duration expectedTime = Seconds(size.bytes() / rate.bytes() - 1);
+  ASSERT_GE(time, expectedTime);
+
+  // Number of samples that should fit into the window.
+  const size_t samples = flags.network_rate_statistics_window->secs() /
+    flags.network_rate_statistics_interval->secs();
+
+  // Verify that TX and RX rates have been returned with resource
+  // statistics. It's hard to verify actual values here because of
+  // burstness.
+  Future<ResourceStatistics> usage = isolator.get()->usage(containerId);
+  AWAIT_READY(usage);
+  EXPECT_TRUE(usage->has_net_rate_statistics());
+
+  const ResourceStatistics::RateStatistics& rates =
+    usage->net_rate_statistics();
+  EXPECT_TRUE(rates.has_tx_rate());
+  EXPECT_TRUE(rates.tx_rate().has_p90());
+  EXPECT_TRUE(rates.tx_rate().has_samples());
+  EXPECT_GE(samples, rates.tx_rate().samples());
+  EXPECT_TRUE(rates.has_tx_packet_rate());
+  EXPECT_TRUE(rates.tx_packet_rate().has_p90());
+  EXPECT_TRUE(rates.has_tx_drop_rate());
+  EXPECT_TRUE(rates.tx_drop_rate().has_p90());
+  EXPECT_TRUE(rates.has_tx_error_rate());
+  EXPECT_TRUE(rates.tx_error_rate().has_p90());
+  EXPECT_TRUE(rates.has_rx_rate());
+  EXPECT_TRUE(rates.rx_rate().has_p90());
+  EXPECT_TRUE(rates.has_rx_packet_rate());
+  EXPECT_TRUE(rates.rx_packet_rate().has_p90());
+  EXPECT_TRUE(rates.has_rx_drop_rate());
+  EXPECT_TRUE(rates.rx_drop_rate().has_p90());
+  EXPECT_TRUE(rates.has_rx_error_rate());
+  EXPECT_TRUE(rates.rx_error_rate().has_p90());
+
+  EXPECT_TRUE(rates.has_sampling_window_secs());
+  EXPECT_EQ(
+      flags.network_rate_statistics_window->secs(),
+      rates.sampling_window_secs());
+  EXPECT_TRUE(rates.has_sampling_interval_secs());
+  EXPECT_EQ(
+      flags.network_rate_statistics_interval->secs(),
+      rates.sampling_interval_secs());
+
+  // Ensure all processes are killed.
+  AWAIT_READY(launcher.get()->destroy(containerId));
+
+  // Let the isolator clean up.
+  AWAIT_READY(isolator.get()->cleanup(containerId));
+
+  delete isolator.get();
+  delete launcher.get();
+}
+
+
+// Verify that PercentileRatesCollector calculates rates correctly.
+TEST(RatesCollectorTest, PercentileRatesCollector)
+{
+  Clock::pause();
+  const Duration window = Seconds(10);
+  const Duration interval = Seconds(1);
+  const Time now = Clock::now();
+
+  PercentileRatesCollector collector(0, window, interval);
+
+  // No samples.
+  EXPECT_NONE(collector.txRate());
+  EXPECT_NONE(collector.txPacketRate());
+  EXPECT_NONE(collector.txDropRate());
+  EXPECT_NONE(collector.txErrorRate());
+  EXPECT_NONE(collector.rxRate());
+  EXPECT_NONE(collector.rxPacketRate());
+  EXPECT_NONE(collector.rxDropRate());
+  EXPECT_NONE(collector.rxErrorRate());
+
+  const auto createSample = [](
+      uint64_t txBytes,
+      uint64_t txPackets,
+      uint64_t txDropped,
+      uint64_t txErrors,
+      uint64_t rxBytes,
+      uint64_t rxPackets,
+      uint64_t rxDropped,
+      uint64_t rxErrors) -> hashmap<string, uint64_t> {
+    return {{"tx_bytes", txBytes},
+            {"tx_packets", txPackets},
+            {"tx_dropped", txDropped},
+            {"tx_errors", txErrors},
+            {"rx_bytes", rxBytes},
+            {"rx_packets", rxPackets},
+            {"rx_dropped", rxDropped},
+            {"rx_errors", rxErrors}};
+  };
+
+  // Simulate ingress traffic burst at 100 B/s for the first 2 sec and
+  // steady 50 B/s rate for 3 sec after that. Egress traffic rate was
+  // 10 B/s for the first 2 sec and 0 for the rest of the time.
+  collector.sample(now, createSample(0, 0, 0, 0, 0, 0, 0, 0));
+  collector.sample(now + Seconds(1), createSample(100, 10, 5, 1, 10, 1, 1, 1));
+  collector.sample(now + Seconds(2), createSample(200, 20, 10, 2, 20, 2, 2, 2));
+  collector.sample(now + Seconds(3), createSample(250, 25, 11, 3, 20, 2, 2, 2));
+  collector.sample(now + Seconds(4), createSample(300, 30, 12, 4, 20, 2, 2, 2));
+  collector.sample(now + Seconds(5), createSample(350, 35, 13, 5, 20, 2, 2, 2));
+
+  Option<Statistics<uint64_t>> rxRate = collector.rxRate();
+  ASSERT_SOME(rxRate);
+  EXPECT_EQ(5u, rxRate->count);   // Number of statistics samples.
+  EXPECT_EQ(100u, rxRate->max);   // Max seen byte rate.
+  EXPECT_EQ(50u, rxRate->min);    // Min seen byte rate.
+  EXPECT_EQ(100u, rxRate->p90);   // p90 is 4.5th sample here.
+  EXPECT_EQ(50u, rxRate->p50);    // p50 is 2.5th sample here.
+
+  Option<Statistics<uint64_t>> rxPacketRate = collector.rxPacketRate();
+  ASSERT_SOME(rxPacketRate);
+  EXPECT_EQ(5u, rxPacketRate->count);
+  EXPECT_EQ(10u, rxPacketRate->max);
+  EXPECT_EQ(5u, rxPacketRate->min);
+  EXPECT_EQ(10u, rxPacketRate->p90);
+  EXPECT_EQ(5u, rxPacketRate->p50);
+
+  Option<Statistics<uint64_t>> rxDropRate = collector.rxDropRate();
+  ASSERT_SOME(rxDropRate);
+  EXPECT_EQ(5u, rxDropRate->count);
+  EXPECT_EQ(5u, rxDropRate->max);
+  EXPECT_EQ(1u, rxDropRate->min);
+  EXPECT_EQ(5u, rxDropRate->p90);
+  EXPECT_EQ(1u, rxDropRate->p50);
+
+  // RX error rate is constantly 1 here.
+  Option<Statistics<uint64_t>> rxErrorRate = collector.rxErrorRate();
+  ASSERT_SOME(rxErrorRate);
+  EXPECT_EQ(5u, rxErrorRate->count);
+  EXPECT_EQ(1u, rxErrorRate->max);
+  EXPECT_EQ(1u, rxErrorRate->min);
+  EXPECT_EQ(1u, rxErrorRate->p90);
+  EXPECT_EQ(1u, rxErrorRate->p50);
+
+  Option<Statistics<uint64_t>> txRate = collector.txRate();
+  ASSERT_SOME(txRate);
+  EXPECT_EQ(5u, txRate->count);
+  EXPECT_EQ(10u, txRate->max);
+  EXPECT_EQ(0u, txRate->min);
+  EXPECT_EQ(10u, txRate->p90);
+  EXPECT_EQ(0u, txRate->p50);
+
+  Option<Statistics<uint64_t>> txPacketRate = collector.txPacketRate();
+  ASSERT_SOME(txPacketRate);
+  EXPECT_EQ(5u, txPacketRate->count);
+  EXPECT_EQ(1u, txPacketRate->max);
+  EXPECT_EQ(0u, txPacketRate->min);
+  EXPECT_EQ(1u, txPacketRate->p90);
+  EXPECT_EQ(0u, txPacketRate->p50);
+
+  Option<Statistics<uint64_t>> txDropRate = collector.txDropRate();
+  ASSERT_SOME(txDropRate);
+  EXPECT_EQ(5u, txDropRate->count);
+  EXPECT_EQ(1u, txDropRate->max);
+  EXPECT_EQ(0u, txDropRate->min);
+  EXPECT_EQ(1u, txDropRate->p90);
+  EXPECT_EQ(0u, txDropRate->p50);
+
+  Option<Statistics<uint64_t>> txErrorRate = collector.txErrorRate();
+  ASSERT_SOME(txErrorRate);
+  EXPECT_EQ(5u, txErrorRate->count);
+  EXPECT_EQ(1u, txErrorRate->max);
+  EXPECT_EQ(0u, txErrorRate->min);
+  EXPECT_EQ(1u, txErrorRate->p90);
+  EXPECT_EQ(0u, txErrorRate->p50);
+
+  Clock::resume();
+}
+
+
 static uint16_t roundUpToPow2(uint16_t x)
 {
   uint16_t r = 1 << static_cast<uint16_t>(std::log2(x));

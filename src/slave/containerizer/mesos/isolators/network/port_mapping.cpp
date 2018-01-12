@@ -1484,6 +1484,279 @@ int PortMappingHTBConfig::execute()
 
 
 /////////////////////////////////////////////////
+// Implementation of RatesCollector.
+/////////////////////////////////////////////////
+
+PercentileRatesCollector::PercentileRatesCollector(
+    pid_t _executorPid,
+    const Duration& _window,
+    const Duration& _interval)
+  : link(veth(_executorPid))
+{
+  const size_t capacity = _window.secs() / _interval.secs();
+  rxRates = TimeSeries<uint64_t>(_window, capacity);
+  rxPackets = TimeSeries<uint64_t>(_window, capacity);
+  rxDrops = TimeSeries<uint64_t>(_window, capacity);
+  rxErrors = TimeSeries<uint64_t>(_window, capacity);
+  txRates = TimeSeries<uint64_t>(_window, capacity);
+  txPackets = TimeSeries<uint64_t>(_window, capacity);
+  txDrops = TimeSeries<uint64_t>(_window, capacity);
+  txErrors = TimeSeries<uint64_t>(_window, capacity);
+}
+
+
+Option<Statistics<uint64_t>> PercentileRatesCollector::rxRate() const
+{
+  return Statistics<uint64_t>::from(rxRates);
+}
+
+
+Option<Statistics<uint64_t>> PercentileRatesCollector::rxPacketRate() const
+{
+  return Statistics<uint64_t>::from(rxPackets);
+}
+
+
+Option<Statistics<uint64_t>> PercentileRatesCollector::rxDropRate() const
+{
+  return Statistics<uint64_t>::from(rxDrops);
+}
+
+
+Option<Statistics<uint64_t>> PercentileRatesCollector::rxErrorRate() const
+{
+  return Statistics<uint64_t>::from(rxErrors);
+}
+
+
+Option<Statistics<uint64_t>> PercentileRatesCollector::txRate() const
+{
+  return Statistics<uint64_t>::from(txRates);
+}
+
+
+Option<Statistics<uint64_t>> PercentileRatesCollector::txPacketRate() const
+{
+  return Statistics<uint64_t>::from(txPackets);
+}
+
+
+Option<Statistics<uint64_t>> PercentileRatesCollector::txDropRate() const
+{
+  return Statistics<uint64_t>::from(txDrops);
+}
+
+
+Option<Statistics<uint64_t>> PercentileRatesCollector::txErrorRate() const
+{
+  return Statistics<uint64_t>::from(txErrors);
+}
+
+
+void PercentileRatesCollector::sample()
+{
+  const Time ts = Clock::now();
+
+  Result<hashmap<string, uint64_t>> stats = link::statistics(link);
+  if (stats.isSome()) {
+    sample(ts, std::move(stats.get()));
+  }
+}
+
+
+void PercentileRatesCollector::sample(
+    const Time& ts, hashmap<string, uint64_t>&& statistics)
+{
+  if (previous.isSome() && previous.get() < ts) {
+    // We sample statistics on the host end of the veth pair, so we
+    // need to reverse RX and TX to get statistics inside the
+    // container.
+    const double deltaT = ts.secs() - previous->secs();
+    sampleRate(statistics, "tx_bytes", ts, deltaT, rxRates);
+    sampleRate(statistics, "tx_packets", ts, deltaT, rxPackets);
+    sampleRate(statistics, "tx_dropped", ts, deltaT, rxDrops);
+    sampleRate(statistics, "tx_errors", ts, deltaT, rxErrors);
+    sampleRate(statistics, "rx_bytes", ts, deltaT, txRates);
+    sampleRate(statistics, "rx_packets", ts, deltaT, txPackets);
+    sampleRate(statistics, "rx_dropped", ts, deltaT, txDrops);
+    sampleRate(statistics, "rx_errors", ts, deltaT, txErrors);
+  }
+
+  previous = ts;
+  previousStatistics = std::move(statistics);
+}
+
+
+void PercentileRatesCollector::sampleRate(
+    const hashmap<string, uint64_t>& statistics,
+    const string& metric,
+    const Time& timestamp,
+    double timeDelta,
+    TimeSeries<uint64_t>& rates)
+{
+  const Option<uint64_t> previousValue = previousStatistics.get(metric);
+  const Option<uint64_t> value = statistics.get(metric);
+  if (previousValue.isSome() && value.isSome()) {
+    rates.set((value.get() - previousValue.get()) / timeDelta, timestamp);
+  }
+}
+
+
+class RatesCollectorProcess : public Process<RatesCollectorProcess>
+{
+public:
+  explicit RatesCollectorProcess(
+      const Duration& _interval,
+      const Duration& _window)
+    : ProcessBase(ID::generate("mesos-port-mapping-rates-collector")),
+      interval(_interval),
+      window(_window)
+  {
+    CHECK_GT(window, interval);
+  }
+
+  void initialize() override
+  {
+    schedule();
+  }
+
+  Future<ResourceStatistics> usage(const ContainerID& containerId)
+  {
+    ResourceStatistics statistics;
+
+    if (!collectors.contains(containerId)) {
+      LOG(WARNING) << "Unknown container " << containerId;
+      return statistics;
+    }
+
+    const PercentileRatesCollector& collector = collectors.at(containerId);
+
+    ResourceStatistics::RateStatistics* rates =
+      statistics.mutable_net_rate_statistics();
+
+    Option<Statistics<uint64_t>> rate = collector.rxRate();
+    if (rate.isSome()) {
+      copyRate(rate.get(), rates->mutable_rx_rate());
+    }
+    rate = collector.rxPacketRate();
+    if (rate.isSome()) {
+      copyRate(rate.get(), rates->mutable_rx_packet_rate());
+    }
+    rate = collector.rxDropRate();
+    if (rate.isSome()) {
+      copyRate(rate.get(), rates->mutable_rx_drop_rate());
+    }
+    rate = collector.rxErrorRate();
+    if (rate.isSome()) {
+      copyRate(rate.get(), rates->mutable_rx_error_rate());
+    }
+    rate = collector.txRate();
+    if (rate.isSome()) {
+      copyRate(rate.get(), rates->mutable_tx_rate());
+    }
+    rate = collector.txPacketRate();
+    if (rate.isSome()) {
+      copyRate(rate.get(), rates->mutable_tx_packet_rate());
+    }
+    rate = collector.txDropRate();
+    if (rate.isSome()) {
+      copyRate(rate.get(), rates->mutable_tx_drop_rate());
+    }
+    rate = collector.txErrorRate();
+    if (rate.isSome()) {
+      copyRate(rate.get(), rates->mutable_tx_error_rate());
+    }
+
+    rates->set_sampling_window_secs(window.secs());
+    rates->set_sampling_interval_secs(interval.secs());
+
+    return statistics;
+  }
+
+  // Add new container for metrics collecting.
+  Future<Nothing> add(const ContainerID& containerId, pid_t executorPid)
+  {
+    collectors.emplace(
+        containerId, PercentileRatesCollector(executorPid, window, interval));
+    return Nothing();
+  }
+
+  // Stop collecting metrics for the container.
+  Future<Nothing> remove(const ContainerID& containerId)
+  {
+    collectors.erase(containerId);
+    return Nothing();
+  }
+
+private:
+  void schedule()
+  {
+    foreachvalue (PercentileRatesCollector& collector, collectors) {
+      collector.sample();
+    }
+
+    delay(interval, self(), &Self::schedule);
+  }
+
+  void copyRate(
+      const Statistics<uint64_t>& statistics,
+      ResourceStatistics::RatePercentiles* rate)
+  {
+    rate->set_min(statistics.min);
+    rate->set_max(statistics.max);
+    rate->set_p50(statistics.p50);
+    rate->set_p90(statistics.p90);
+    rate->set_p95(statistics.p95);
+    rate->set_p99(statistics.p99);
+    rate->set_p999(statistics.p999);
+    rate->set_p9999(statistics.p9999);
+    rate->set_samples(statistics.count);
+  }
+
+  const Duration interval;
+  const Duration window;
+
+  hashmap<ContainerID, PercentileRatesCollector> collectors;
+};
+
+
+class RatesCollector
+{
+public:
+  explicit RatesCollector(const Duration& interval, const Duration& window)
+  {
+    process = new RatesCollectorProcess(interval, window);
+    spawn(process);
+  }
+
+  ~RatesCollector()
+  {
+    terminate(process);
+    wait(process);
+    delete process;
+  }
+
+  Future<ResourceStatistics> usage(const ContainerID& containerId)
+  {
+    return dispatch(process, &RatesCollectorProcess::usage, containerId);
+  }
+
+  Future<Nothing> add(const ContainerID& containerId, pid_t pid)
+  {
+    return dispatch(process, &RatesCollectorProcess::add, containerId, pid);
+  }
+
+  Future<Nothing> remove(const ContainerID& containerId)
+  {
+    return dispatch(process, &RatesCollectorProcess::remove, containerId);
+  }
+
+private:
+  RatesCollectorProcess* process;
+};
+
+
+/////////////////////////////////////////////////
 // Implementation for the isolator.
 /////////////////////////////////////////////////
 
@@ -1995,6 +2268,31 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
     }
   }
 
+  Owned<RatesCollector> ratesCollector;
+  if (flags.network_enable_rate_statistics) {
+    if (flags.network_rate_statistics_window.isNone() ||
+        flags.network_rate_statistics_interval.isNone()) {
+      return Error("Window size and sampling interval for rate statistics "
+                   "are required");
+    }
+
+    if (flags.network_rate_statistics_window.get() <=
+        flags.network_rate_statistics_interval.get()) {
+      return Error("Rate statistics window size should be bigger than "
+                   "the sampling interval");
+    }
+
+    const Duration minInterval = Milliseconds(20);
+    if (flags.network_rate_statistics_interval.get() < minInterval) {
+      return Error("Rate statistics interval should not be smaller than "
+                   + stringify(minInterval));
+    }
+
+    ratesCollector.reset(new RatesCollector(
+          flags.network_rate_statistics_interval.get(),
+          flags.network_rate_statistics_window.get()));
+  }
+
   // Get the host IP network, MAC and default gateway.
   Result<net::IP::Network> hostIPNetwork =
     net::IP::Network::fromLinkDevice(eth0.get(), AF_INET);
@@ -2380,8 +2678,42 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
           hostNetworkConfigurations,
           nonEphemeralPorts,
           ephemeralPortsAllocator,
-          freeFlowIds)));
+          freeFlowIds,
+          ratesCollector)));
 }
+
+
+PortMappingIsolatorProcess::PortMappingIsolatorProcess(
+    const Flags& _flags,
+    const std::string& _bindMountRoot,
+    const std::string& _eth0,
+    const std::string& _lo,
+    const net::MAC& _hostMAC,
+    const net::IP::Network& _hostIPNetwork,
+    const size_t _hostEth0MTU,
+    const net::IP& _hostDefaultGateway,
+    const routing::Handle& _hostTxFqCodelHandle,
+    const hashmap<std::string, std::string>& _hostNetworkConfigurations,
+    const IntervalSet<uint16_t>& _managedNonEphemeralPorts,
+    const process::Owned<EphemeralPortsAllocator>& _ephemeralPortsAllocator,
+    const std::set<uint16_t>& _flowIDs,
+    const Owned<RatesCollector>& _ratesCollector)
+  : ProcessBase(process::ID::generate("mesos-port-mapping-isolator")),
+    flags(_flags),
+    bindMountRoot(_bindMountRoot),
+    eth0(_eth0),
+    lo(_lo),
+    hostMAC(_hostMAC),
+    hostIPNetwork(_hostIPNetwork),
+    hostEth0MTU(_hostEth0MTU),
+    hostDefaultGateway(_hostDefaultGateway),
+    hostTxFqCodelHandle(_hostTxFqCodelHandle),
+    hostNetworkConfigurations(_hostNetworkConfigurations),
+    managedNonEphemeralPorts(_managedNonEphemeralPorts),
+    ephemeralPortsAllocator(_ephemeralPortsAllocator),
+    freeFlowIds(_flowIDs),
+    ratesCollector(_ratesCollector)
+{}
 
 
 Result<htb::cls::Config> recoverHTBConfig(
@@ -2656,6 +2988,10 @@ Future<Nothing> PortMappingIsolatorProcess::recover(
     }
 
     infos[containerId] = recover.get();
+
+    if (ratesCollector.get()) {
+      ratesCollector->add(containerId, pid);
+    }
 
     // Remove the successfully recovered pid.
     pids.erase(pid);
@@ -3391,6 +3727,10 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
     return Failure("Not expecting " + veth(pid) + " to be missing");
   }
 
+  if (ratesCollector.get()) {
+    ratesCollector->add(containerId, pid);
+  }
+
   return Nothing();
 }
 
@@ -3839,12 +4179,14 @@ Future<ResourceStatistics> PortMappingIsolatorProcess::usage(
         PID<PortMappingIsolatorProcess>(this),
         &PortMappingIsolatorProcess::_usage,
         result,
+        containerId,
         s.get()));
 }
 
 
 Future<ResourceStatistics> PortMappingIsolatorProcess::_usage(
     const ResourceStatistics& result,
+    const ContainerID& containerId,
     const Subprocess& s)
 {
   CHECK_READY(s.status());
@@ -3865,12 +4207,14 @@ Future<ResourceStatistics> PortMappingIsolatorProcess::_usage(
         PID<PortMappingIsolatorProcess>(this),
         &PortMappingIsolatorProcess::__usage,
         result,
+        containerId,
         lambda::_1));
 }
 
 
 Future<ResourceStatistics> PortMappingIsolatorProcess::__usage(
     ResourceStatistics result,
+    const ContainerID& containerId,
     const Future<string>& out)
 {
   CHECK_READY(out);
@@ -3902,6 +4246,19 @@ Future<ResourceStatistics> PortMappingIsolatorProcess::__usage(
   // will overwrite the timestamp set in the containerizer.
   result.clear_timestamp();
 
+  if (ratesCollector.get()) {
+    return ratesCollector->usage(containerId)
+      .then([result](const Future<ResourceStatistics>& usage) mutable {
+        if (!usage.isReady()) {
+          LOG(WARNING) << "Failed to retrieve rates from the collector: "
+                       << (usage.isFailed() ? usage.failure() : "discarded");
+        } else {
+          result.MergeFrom(usage.get());
+        }
+        return result;
+      });
+  }
+
   return result;
 }
 
@@ -3917,6 +4274,10 @@ Future<Nothing> PortMappingIsolatorProcess::cleanup(
   if (!infos.contains(containerId)) {
     LOG(WARNING) << "Ignoring cleanup for unknown container " << containerId;
     return Nothing();
+  }
+
+  if (ratesCollector.get()) {
+    ratesCollector->remove(containerId);
   }
 
   Info* info = CHECK_NOTNULL(infos[containerId]);

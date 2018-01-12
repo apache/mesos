@@ -1327,6 +1327,24 @@ mesos::internal::slave::Flags::Flags()
       "isolator.",
       false);
 
+  add(&Flags::network_enable_rate_statistics,
+      "network_enable_rate_statistics",
+      "Whether to collect rate statistics for each container. Note that\n"
+      "proper sampling window and interval configuration is required to get\n"
+      "meaningful percentiles. This flag is used for the\n"
+      "'network/port_mapping'\n isolator.",
+      false);
+
+  add(&Flags::network_rate_statistics_window,
+      "network_rate_statistics_window",
+      "Window size for rate statistics time series. This flag is used for the\n"
+      "'network/port_mapping' isolator.");
+
+  add(&Flags::network_rate_statistics_interval,
+      "network_rate_statistics_interval",
+      "Interval with which to sample rate statistics. This flag is used for\n"
+      "the 'network/port_mapping' isolator.");
+
 #endif // ENABLE_PORT_MAPPING_ISOLATOR
 
 #ifdef ENABLE_NETWORK_PORTS_ISOLATOR

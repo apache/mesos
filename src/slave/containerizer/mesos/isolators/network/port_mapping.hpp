@@ -21,6 +21,7 @@
 
 #include <sys/types.h>
 
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
@@ -154,6 +155,59 @@ Result<routing::queueing::htb::cls::Config> recoverHTBConfig(
     pid_t pid,
     const std::string& eth0,
     const Flags& flags);
+
+
+class PercentileRatesCollector final
+{
+public:
+  explicit PercentileRatesCollector(
+      pid_t _executorPid, const Duration& _window, const Duration& _interval);
+
+  Option<process::Statistics<uint64_t>> rxRate() const;
+  Option<process::Statistics<uint64_t>> rxPacketRate() const;
+  Option<process::Statistics<uint64_t>> rxDropRate() const;
+  Option<process::Statistics<uint64_t>> rxErrorRate() const;
+
+  Option<process::Statistics<uint64_t>> txRate() const;
+  Option<process::Statistics<uint64_t>> txPacketRate() const;
+  Option<process::Statistics<uint64_t>> txDropRate() const;
+  Option<process::Statistics<uint64_t>> txErrorRate() const;
+
+  // Sample statistics from the interface.
+  void sample();
+
+  // Register the statistics sample. Exposed for testing.
+  void sample(const process::Time& ts, hashmap<std::string, uint64_t>&& stats);
+
+private:
+  void sampleRate(
+      const hashmap<std::string, uint64_t>& statistics,
+      const std::string& metric,
+      const process::Time& timestamp,
+      double timeDelta,
+      process::TimeSeries<uint64_t>& rates);
+
+  // Name of the link to sample metrics from.
+  const std::string link;
+
+  process::TimeSeries<uint64_t> rxRates;
+  process::TimeSeries<uint64_t> rxPackets;
+  process::TimeSeries<uint64_t> rxDrops;
+  process::TimeSeries<uint64_t> rxErrors;
+
+  process::TimeSeries<uint64_t> txRates;
+  process::TimeSeries<uint64_t> txPackets;
+  process::TimeSeries<uint64_t> txDrops;
+  process::TimeSeries<uint64_t> txErrors;
+
+  // Previous sample and its timestamp for calculating rates.
+  Option<process::Time> previous;
+  hashmap<std::string, uint64_t> previousStatistics;
+};
+
+
+class RatesCollector;
+
 
 // Provides network isolation using port mapping. Each container is
 // assigned a fixed set of ports (including ephemeral ports). The
@@ -290,21 +344,8 @@ private:
       const hashmap<std::string, std::string>& _hostNetworkConfigurations,
       const IntervalSet<uint16_t>& _managedNonEphemeralPorts,
       const process::Owned<EphemeralPortsAllocator>& _ephemeralPortsAllocator,
-      const std::set<uint16_t>& _flowIDs)
-    : ProcessBase(process::ID::generate("mesos-port-mapping-isolator")),
-      flags(_flags),
-      bindMountRoot(_bindMountRoot),
-      eth0(_eth0),
-      lo(_lo),
-      hostMAC(_hostMAC),
-      hostIPNetwork(_hostIPNetwork),
-      hostEth0MTU(_hostEth0MTU),
-      hostDefaultGateway(_hostDefaultGateway),
-      hostTxFqCodelHandle(_hostTxFqCodelHandle),
-      hostNetworkConfigurations(_hostNetworkConfigurations),
-      managedNonEphemeralPorts(_managedNonEphemeralPorts),
-      ephemeralPortsAllocator(_ephemeralPortsAllocator),
-      freeFlowIds(_flowIDs) {}
+      const std::set<uint16_t>& _flowIDs,
+      const process::Owned<RatesCollector>& _ratesCollector);
 
   // Continuations.
   Try<Nothing> _cleanup(Info* info, const Option<ContainerID>& containerId);
@@ -316,10 +357,12 @@ private:
 
   process::Future<ResourceStatistics> _usage(
       const ResourceStatistics& result,
+      const ContainerID& containerId,
       const process::Subprocess& s);
 
   process::Future<ResourceStatistics> __usage(
       ResourceStatistics result,
+      const ContainerID& containerId,
       const process::Future<std::string>& out);
 
   // Helper functions.
@@ -380,6 +423,8 @@ private:
   // Recovered containers from a previous run that weren't managed by
   // the network isolator.
   hashset<ContainerID> unmanaged;
+
+  process::Owned<RatesCollector> ratesCollector;
 };
 
 

@@ -1891,6 +1891,54 @@ message ResourceStatistics {
   optional uint64 net_rx_burst_rate_limit = 50;
   optional uint64 net_rx_burst_size = 51;
 
+  message RatePercentiles {
+    optional uint64 min = 1;
+    optional uint64 max = 2;
+    optional uint64 p50 = 3;
+    optional uint64 p90 = 4;
+    optional uint64 p95 = 5;
+    optional uint64 p99 = 6;
+    optional uint64 p999 = 7;
+    optional uint64 p9999 = 8;
+    optional uint64 samples = 9;
+  }
+
+  // Network rate statistics measured in bytes per second
+  // or packets per second. 
+  // 
+  // Rates are sampled every {sampling_interval_secs}. A 
+  // time series is created out of the samples taken over
+  // a moving sampling window of {sampling_window_secs}. 
+  // Percentiles for each time series are exposed through 
+  // RatePercentiles.
+  //
+  // Linux documentation for more information:
+  // https://docs.kernel.org/networking/statistics.html#c.rtnl_link_stats64
+  message RateStatistics {
+    // Bytes received per second.
+    optional RatePercentiles rx_rate = 1;
+    // Packets received per second.
+    optional RatePercentiles rx_packet_rate = 2;
+    // Received packets dropped per second.
+    optional RatePercentiles rx_drop_rate = 3;
+    // Receiving packet errors per second.
+    optional RatePercentiles rx_error_rate = 4;
+    // Bytes sent per second.
+    optional RatePercentiles tx_rate = 5;
+    // Packets sent per second.
+    optional RatePercentiles tx_packet_rate = 6;
+    // Send packets dropped per second.
+    optional RatePercentiles tx_drop_rate = 7;
+    // Sending packet errors per second.
+    optional RatePercentiles tx_error_rate = 8;
+    // Duration of the sliding time series window.
+    optional double sampling_window_secs = 9;
+    // The delay between rate samples.
+    optional double sampling_interval_secs = 10;
+  }
+
+  optional RateStatistics net_rate_statistics = 51;
+
   // The kernel keeps track of RTT (round-trip time) for its TCP
   // sockets. RTT is a way to tell the latency of a container.
   optional double net_tcp_rtt_microsecs_p50 = 22;

@@ -169,6 +169,9 @@ public:
   bool network_enable_socket_statistics_summary;
   bool network_enable_socket_statistics_details;
   bool network_enable_snmp_statistics;
+  bool network_enable_rate_statistics;
+  Option<Duration> network_rate_statistics_window;
+  Option<Duration> network_rate_statistics_interval;
 #endif // ENABLE_PORT_MAPPING_ISOLATOR
 
 #ifdef ENABLE_NETWORK_PORTS_ISOLATOR
