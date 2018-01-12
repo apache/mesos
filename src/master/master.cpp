@@ -7660,6 +7660,39 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
                 ->CopyFrom(providerId.get());
             }
           }
+
+          // If a known operation became terminal between any previous offer
+          // operation status update and this `UpdateSlaveMessage`, the total
+          // resources we were sent already had the operation applied. We need
+          // to update the state of the operation to terminal here so that any
+          // update sent by the agent later does not cause us to apply the
+          // operation again.
+          if (provider.newOperations.isSome() &&
+              provider.newOperations->contains(uuid)) {
+            Option<Operation> oldOperation = provider.oldOperations->get(uuid);
+            Option<Operation> newOperation = provider.newOperations->get(uuid);
+
+            CHECK_SOME(oldOperation);
+            CHECK_SOME(newOperation);
+
+            if (!protobuf::isTerminalState(
+                    oldOperation->latest_status().state()) &&
+                protobuf::isTerminalState(
+                    newOperation->latest_status().state())) {
+              Operation* operation = CHECK_NOTNULL(slave->getOperation(uuid));
+
+              UpdateOperationStatusMessage update =
+                protobuf::createUpdateOperationStatusMessage(
+                    uuid,
+                    newOperation->latest_status(),
+                    newOperation->latest_status(),
+                    operation->framework_id(),
+                    operation->slave_id());
+
+              updateOperation(
+                  operation, update, false); // Do not update resources.
+            }
+          }
         }
       }
 
