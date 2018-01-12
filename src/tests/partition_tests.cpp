@@ -69,6 +69,7 @@ using process::http::Response;
 using std::vector;
 
 using testing::_;
+using testing::AllOf;
 using testing::AtMost;
 using testing::DoAll;
 using testing::Eq;
@@ -678,22 +679,30 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, ReregisterSlaveNotPartitionAware)
 
     EXPECT_TRUE(runningTasks.values.empty());
 
+    // Although the task state based metrics above show the task in
+    // master/tasks_lost, the state endpoint lists the task in the
+    // "unreachable_tasks" section because it is indeed unreachable
+    // and shouldn't be considered "completed". This difference is
+    // unfortunate and should be addressed in MESOS-8405.
     JSON::Array unreachableTasks =
       framework.values["unreachable_tasks"].as<JSON::Array>();
 
-    EXPECT_TRUE(unreachableTasks.values.empty());
+    EXPECT_FALSE(unreachableTasks.values.empty());
+
+    JSON::Object unreachableTask =
+      unreachableTasks.values.front().as<JSON::Object>();
+
+    // The unreachable task is in its backwards-compatible state.
+    EXPECT_EQ(
+        task.task_id(), unreachableTask.values["id"].as<JSON::String>().value);
+    EXPECT_EQ(
+        "TASK_LOST",
+        unreachableTask.values["state"].as<JSON::String>().value);
 
     JSON::Array completedTasks =
       framework.values["completed_tasks"].as<JSON::Array>();
 
-    JSON::Object completedTask =
-      completedTasks.values.front().as<JSON::Object>();
-
-    EXPECT_EQ(
-        task.task_id(), completedTask.values["id"].as<JSON::String>().value);
-    EXPECT_EQ(
-        "TASK_LOST",
-        completedTask.values["state"].as<JSON::String>().value);
+    EXPECT_TRUE(completedTasks.values.empty());
   }
 
   // We now complete the partition on the slave side as well. We
@@ -2389,6 +2398,149 @@ TEST_F(PartitionTest, PartitionAwareTaskCompletedOnPartitionedAgent)
     .Times(AtMost(1));
 
   Clock::resume();
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test verifies that when the master removes a lost agent any
+// unacknowledged but terminal tasks on the agent are tracked as
+// unreachable but keep their original terminal state.
+TEST_F(PartitionTest, AgentWithTerminalTaskPartitioned)
+{
+  // Start a master.
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  StandaloneMasterDetector detector(master.get()->pid);
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector);
+  ASSERT_SOME(slave);
+
+  // We require the completed task to still be tracked on the master when
+  // we lose the agent. By disabling scheduler implicit acknowledgements
+  // and controlling the acknowledgements manually, we ensure that the
+  // master is forced to retain the task state.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      master.get()->pid,
+      false,
+      DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillRepeatedly(Return());
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+
+  testing::Sequence taskSequence;
+  Future<TaskStatus> starting;
+  Future<TaskStatus> running;
+  Future<TaskStatus> finished;
+
+  TaskInfo task = createTask(offers->at(0), SLEEP_COMMAND(0));
+
+  EXPECT_CALL(
+      sched,
+      statusUpdate(&driver, AllOf(
+          TaskStatusTaskIdEq(task),
+          TaskStatusStateEq(TASK_STARTING))))
+    .InSequence(taskSequence)
+    .WillOnce(FutureArg<1>(&starting));
+
+  EXPECT_CALL(
+      sched,
+      statusUpdate(&driver, AllOf(
+          TaskStatusTaskIdEq(task),
+          TaskStatusStateEq(TASK_RUNNING))))
+    .InSequence(taskSequence)
+    .WillOnce(FutureArg<1>(&running));
+
+  EXPECT_CALL(
+      sched,
+      statusUpdate(&driver, AllOf(
+          TaskStatusTaskIdEq(task),
+          TaskStatusStateEq(TASK_FINISHED))))
+    .InSequence(taskSequence)
+    .WillOnce(FutureArg<1>(&finished))
+    // Ignore additional status update delivery attempts.
+    .WillRepeatedly(Return());
+
+  Clock::pause();
+
+  driver.launchTasks(offers->at(0).id(), {task});
+
+  AWAIT_READY(starting);
+  driver.acknowledgeStatusUpdate(starting.get());
+
+  AWAIT_READY(running);
+  driver.acknowledgeStatusUpdate(running.get());
+
+  // Wait for the task to finish but don't acknowledge the status
+  // update. This ensures that the master is still tracking the task
+  // when the agent becomes lost.
+  AWAIT_READY(finished);
+
+  // When the agent is lost, the master will rescind any offers and we
+  // can just ignore that.
+  EXPECT_CALL(sched, offerRescinded(&driver, _))
+    .WillRepeatedly(Return());
+
+  EXPECT_CALL(sched, slaveLost(&driver, _))
+    .Times(1);
+
+  Future<Nothing> unreachable =
+    FUTURE_DISPATCH(_, &master::Master::markUnreachable);
+
+  DROP_PROTOBUFS(PongSlaveMessage(), _, _);
+
+  // Now fast forward through the ping timeouts so that the agent
+  // becomes unreachable on the master.
+  for (unsigned i = 0; i <= masterFlags.max_agent_ping_timeouts; ++i) {
+    Future<PingSlaveMessage> ping = FUTURE_PROTOBUF(PingSlaveMessage(), _, _);
+    Clock::advance(masterFlags.agent_ping_timeout);
+    AWAIT_READY(ping);
+  }
+
+  AWAIT_READY(unreachable);
+
+  Clock::settle();
+  Clock::resume();
+
+  Future<Response> response = process::http::get(
+      master.get()->pid,
+      "frameworks",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  Try<JSON::Object> json = JSON::parse<JSON::Object>(response->body);
+  ASSERT_SOME(json);
+
+  // We should not have any active tasks.
+  EXPECT_NONE(json->find<JSON::Number>("frameworks[0].tasks[0]"));
+
+  // The task we launched should be unreachable (since the final status
+  // update wasn't acknowledged) but still terminal. Note that these
+  // expectations are likely to change as part of MESOS-8405.
+  EXPECT_SOME_EQ(
+      task.task_id().value(),
+      json->find<JSON::String>("frameworks[0].unreachable_tasks[0].id"));
+  EXPECT_SOME_EQ(
+      "TASK_FINISHED",
+      json->find<JSON::String>("frameworks[0].unreachable_tasks[0].state"));
 
   driver.stop();
   driver.join();
