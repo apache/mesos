@@ -10324,9 +10324,11 @@ void Master::updateOperation(
   const OperationStatus& status =
     update.has_latest_status() ? update.latest_status() : update.status();
 
-  LOG(INFO) << "Updating the state of operation '"
-            << operation->info().id() << "' (uuid: " << update.operation_uuid()
-            << ") of framework " << operation->framework_id()
+  LOG(INFO) << "Updating the state of operation '" << operation->info().id()
+            << "' (uuid: " << update.operation_uuid() << ") for"
+            << (operation->has_framework_id()
+                  ? " framework " + stringify(operation->framework_id())
+                  : " an operator API call")
             << " (latest state: " << operation->latest_status().state()
             << ", status update state: " << status.state() << ")";
 
@@ -10357,6 +10359,10 @@ void Master::updateOperation(
   if (protobuf::isSpeculativeOperation(operation->info())) {
     return;
   }
+
+  // We currently do not support non-speculated operations not
+  // triggered by a framework (e.g., over the operator API).
+  CHECK(operation->has_framework_id());
 
   Try<Resources> consumed = protobuf::getConsumedResources(operation->info());
   CHECK_SOME(consumed);
@@ -10433,9 +10439,7 @@ void Master::updateOperation(
 
   slave->recoverResources(operation);
 
-  Framework* framework = operation->has_framework_id()
-    ? getFramework(operation->framework_id())
-    : nullptr;
+  Framework* framework = getFramework(operation->framework_id());
 
   if (framework != nullptr) {
     framework->recoverResources(operation);
