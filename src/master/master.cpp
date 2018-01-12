@@ -10233,38 +10233,24 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
     }
 
     switch (status.state()) {
-      case TASK_FINISHED:
-        ++metrics->tasks_finished;
-        break;
-      case TASK_FAILED:
-        ++metrics->tasks_failed;
-        break;
-      case TASK_KILLED:
-        ++metrics->tasks_killed;
-        break;
-      case TASK_LOST:
-        ++metrics->tasks_lost;
-        break;
-      case TASK_ERROR:
-        ++metrics->tasks_error;
-        break;
-      case TASK_DROPPED:
-        ++metrics->tasks_dropped;
-        break;
-      case TASK_GONE:
-        ++metrics->tasks_gone;
-        break;
-      case TASK_GONE_BY_OPERATOR:
-        ++metrics->tasks_gone_by_operator;
-        break;
-      case TASK_STARTING:
-      case TASK_STAGING:
-      case TASK_RUNNING:
-      case TASK_KILLING:
-      case TASK_UNREACHABLE:
-        break;
+      case TASK_FINISHED:         ++metrics->tasks_finished;         break;
+      case TASK_FAILED:           ++metrics->tasks_failed;           break;
+      case TASK_KILLED:           ++metrics->tasks_killed;           break;
+      case TASK_LOST:             ++metrics->tasks_lost;             break;
+      case TASK_ERROR:            ++metrics->tasks_error;            break;
+      case TASK_DROPPED:          ++metrics->tasks_dropped;          break;
+      case TASK_GONE:             ++metrics->tasks_gone;             break;
+      case TASK_GONE_BY_OPERATOR: ++metrics->tasks_gone_by_operator; break;
+
+      // The following are non-terminal and use gauge based metrics.
+      case TASK_STARTING:    break;
+      case TASK_STAGING:     break;
+      case TASK_RUNNING:     break;
+      case TASK_KILLING:     break;
+      case TASK_UNREACHABLE: break;
+
+      // Should not happen.
       case TASK_UNKNOWN:
-        // Should not happen.
         LOG(FATAL) << "Unexpected TASK_UNKNOWN for in-memory task";
         break;
     }
