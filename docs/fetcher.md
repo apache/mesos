@@ -18,7 +18,7 @@ the task. As part of a TaskInfo message, the framework ordering the task's
 execution provides a list of `CommandInfo::URI` protobuf values, which becomes
 the input to the Mesos fetcher.
 
-The Mesos fetcher can copy files from a local filesytem and it also natively
+The Mesos fetcher can copy files from a local filesystem and it also natively
 supports the HTTP, HTTPS, FTP and FTPS protocols. If the requested URI is based
 on some other protocol, then the fetcher tries to utilise a local Hadoop client
 and hence supports any protocol supported by the Hadoop client, e.g., HDFS, S3.

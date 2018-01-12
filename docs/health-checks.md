@@ -211,7 +211,7 @@ HTTP checks are described by the `CheckInfo.Http` protobuf with `port` and
 `curl` command. Note that `<host>` is currently not configurable and is set
 automatically to `127.0.0.1` (see [limitations](#current-limitations)), hence
 the checked task must listen on the loopback interface along with any other
-routeable interface it might be listening on. Field `port` must specify an
+routable interface it might be listening on. Field `port` must specify an
 actual port the task is listening on, not a mapped one. The result of the check
 is the HTTP status code of the response.
 
@@ -247,7 +247,7 @@ mapped one. The task is probed using Mesos' `mesos-tcp-connect` command, which
 tries to establish a TCP connection to `<host>:port`. Note that `<host>` is
 currently not configurable and is set automatically to `127.0.0.1`
 (see [limitations](#current-limitations)), hence the checked task must listen on
-the loopback interface along with any other routeable interface it might be
+the loopback interface along with any other routable interface it might be
 listening on. Field `port` must specify an actual port the task is listening on,
 not a mapped one. The result of the check is the boolean value indicating
 whether a TCP connection succeeded.
@@ -384,7 +384,7 @@ with `scheme`, `port`, `path`, and `statuses` fields. A `GET` request is sent to
 `scheme://<host>:port/path` using the `curl` command. Note that `<host>` is
 currently not configurable and is set automatically to `127.0.0.1` (see
 [limitations](#current-limitations)), hence the health checked task must listen
-on the loopback interface along with any other routeable interface it might be
+on the loopback interface along with any other routable interface it might be
 listening on. The `scheme` field supports `"http"` and `"https"` values only.
 Field `port` must specify an actual port the task is listening on, not a mapped
 one.
@@ -425,7 +425,7 @@ listening on, not a mapped one. The task is probed using Mesos'
 `<host>:port`. Note that `<host>` is currently not configurable and is set
 automatically to `127.0.0.1` (see [limitations](#current-limitations)), hence
 the health checked task must listen on the loopback interface along with any
-other routeable interface it might be listening on. Field `port` must specify an
+other routable interface it might be listening on. Field `port` must specify an
 actual port the task is listening on, not a mapped one.
 
 The health check is considered successful if the connection can be established.

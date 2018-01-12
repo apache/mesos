@@ -22,7 +22,7 @@ resources offered.
   `DiskInfo`. It also has a `root` which the operator uses to specify the
   mount point used to store data.
 
-Operators can use the JSON-formated `--resources` option on the agent to provide
+Operators can use the JSON-formatted `--resources` option on the agent to provide
 these different kind of disk resources on agent start-up. Example resource
 values in JSON format can be found below. By default (if `--resources` is not
 specified), the Mesos agent will only make the root disk available to the

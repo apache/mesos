@@ -52,7 +52,7 @@ All stable releases will be loosely compatible. Loose compatibility means:
 > NOTE: The compatibility guarantees do not apply to modules yet. See Modules section below for details.
 
 
-This means users should be able to upgrade (as long as they are not depending on deprecated / removed features) Mesos master or agent from a stable release version N directly to another stable release version M without having to go through intermediate release versions. For the purposes of upgrades, a stable release means the release with the latest patch version. For example, among 1.2.0, 1.2.1, 1.3.0, 1.4.0, 1.4.1 releases 1.2.1, 1.3.0 and 1.4.1 are considered stable and so a user should be able to upgrade from 1.2.1 directly to 1.4.1. Look at the API compatability section below for how frameworks can do seamless upgrades.
+This means users should be able to upgrade (as long as they are not depending on deprecated / removed features) Mesos master or agent from a stable release version N directly to another stable release version M without having to go through intermediate release versions. For the purposes of upgrades, a stable release means the release with the latest patch version. For example, among 1.2.0, 1.2.1, 1.3.0, 1.4.0, 1.4.1 releases 1.2.1, 1.3.0 and 1.4.1 are considered stable and so a user should be able to upgrade from 1.2.1 directly to 1.4.1. Look at the API compatibility section below for how frameworks can do seamless upgrades.
 
 The deprecation period for any given feature will be **6 months**. Having a set period allows Mesos developers to not indefinitely accrue technical debt and allows users time to plan for upgrades.
 

@@ -12,7 +12,7 @@ layout: documentation
 Health status of the Master.
 
 ### DESCRIPTION ###
-Returns 200 OK iff the Master is healthy.
+Returns 200 OK if the Master is healthy.
 Delayed responses are also indicative of poor health.
 
 

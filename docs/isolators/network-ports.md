@@ -49,7 +49,7 @@ will not kill tasks that listen on unallocated ports outside the range
 of port resources the agent offers to tasks. This flag is required when
 using the default Mesos executors or any custom executor that uses the
 native Mesos Java or Python bindings since the native Mesos libraries
-will always implicity listen on a socket. This flag should not be
+will always implicitly listen on a socket. This flag should not be
 required for custom executors that use the HTTP executor API.
 
 The network ports isolator ignores tasks that belong to a [CNI](../cni.md)

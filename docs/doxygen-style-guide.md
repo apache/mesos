@@ -67,7 +67,7 @@ Example:
  */
 ```
 
- * [`@file`](http://doxygen.org/manual/commands.html#cmdfile) Describes a refence to a file. It is required when documenting global functions, variables, typedefs, or enums in separate files.
+ * [`@file`](http://doxygen.org/manual/commands.html#cmdfile) Describes a reference to a file. It is required when documenting global functions, variables, typedefs, or enums in separate files.
  * [`@link`](http://doxygen.org/manual/commands.html#cmdlink) and [`@endlink`](http://doxygen.org/manual/commands.html#cmdendlink) Describes a link to a file, class, or member.
  * [`@example`](http://doxygen.org/manual/commands.html#cmdexample) Describes source code examples.
  * [`@image`](http://doxygen.org/manual/commands.html#cmdimage) Describes an image.
@@ -126,7 +126,7 @@ Example:
  * but before exec'ing. If the return value of 'setup' is non-zero
  * then that gets returned in 'status()' and we will not exec.
  *
- * @param path Relative or absolute path in the filesytem to the
+ * @param path Relative or absolute path in the filesystem to the
  *     executable.
  * @param argv Argument vector to pass to exec.
  * @param in Redirection specification for stdin.
