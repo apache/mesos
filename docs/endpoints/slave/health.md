@@ -12,7 +12,7 @@ layout: documentation
 Health check of the Agent.
 
 ### DESCRIPTION ###
-Returns 200 OK iff the Agent is healthy.
+Returns 200 OK if the Agent is healthy.
 Delayed responses are also indicative of poor health.
 
 

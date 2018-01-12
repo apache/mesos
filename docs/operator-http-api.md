@@ -4051,7 +4051,7 @@ Possible responses:
 
 This call triggers garbage collection for container images. This call can
 only be made when all running containers are launched with Mesos version 1.5
-or newer. An optional list of excluded images from GC can be speficied via
+or newer. An optional list of excluded images from GC can be specified via
 `prune_images.excluded_images` field.
 
 ```

@@ -92,7 +92,7 @@ same slave and use the same role.
 
 ## Reservation Refinement
 
-Hierarhical roles such as `eng/backend` enable the delegation of resources
+Hierarchical roles such as `eng/backend` enable the delegation of resources
 down a hierarchy, and reservation refinement is the mechanism with which
 __reservations__ are delegated down the hierarchy. For example, a reservation
 (static or dynamic) for `eng` can be __refined__ to `eng/backend`. When such

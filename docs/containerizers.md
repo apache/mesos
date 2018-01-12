@@ -38,7 +38,7 @@ User can specify the types of containerizers to use via the agent flag
 
 This feature allows multiple container technologies to play together. It is
 enabled when you configure the `--containerizers` agent flag with multiple comma
-seperated containerizer names (e.g., `--containerizers=mesos,docker`). The order
+separated containerizer names (e.g., `--containerizers=mesos,docker`). The order
 of the comma separated list is important as the first containerizer that
 supports the task's container configuration will be used to launch the task.
 

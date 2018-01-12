@@ -146,7 +146,7 @@ See more information in the [CMake documentation](../cmake.md).
     <td>
       Location of the dependency mirror. In some cases, the Mesos build system
       needs to acquire third-party dependencies that aren't rebundled as
-      tarballs in the Mesos repository. For example, on Windows, we must aquire
+      tarballs in the Mesos repository. For example, on Windows, we must acquire
       newer versions of some dependencies, and since Windows does not have a
       package manager, we must acquire system dependencies like cURL. This
       parameter can be either a URL (for example, pointing at the Mesos official

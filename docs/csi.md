@@ -177,7 +177,7 @@ message Resource {
   from a CSI plugin. This field must not be set by frameworks.
 * `metadata`: This maps to CSI [Volume Attributes](https://github.com/container-storage-interface/spec/blob/v0.1.0/spec.md#createvolume)
   if the disk resource is backed by a [Volume](https://github.com/container-storage-interface/spec/blob/v0.1.0/spec.md#terminology)
-  from a CSI plugin. This field must not be set by framweworks.
+  from a CSI plugin. This field must not be set by frameworks.
 
 ### Storage Pool
 

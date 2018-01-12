@@ -10,7 +10,7 @@ on this isolator by specifying the `--isolation` agent flag (i.e.,
 `--isolation=filesystem/shared,...`).
 
 NOTE: This isolator has been deprecated in favor of using
-`filesytem/linux` isolator.
+`filesystem/linux` isolator.
 
 The `filesystem/shared` isolator can optionally be used on Linux hosts
 to enable modifications to each container's view of the shared

@@ -202,7 +202,7 @@ instance:
 
 It is important to note that `labels` or `port_mappings` within the
 `NetworkInfo` is set by frameworks launching the container, and the
-isolator passses on this information to the CNI plugins. As per the
+isolator passes on this information to the CNI plugins. As per the
 spec, it is the prerogative of the CNI plugins to use this meta-data
 information as they see fit while attaching/detaching containers to a CNI
 network. E.g., CNI plugins could use `labels` to enforce domain
@@ -334,7 +334,7 @@ with the Agent in order for a task to be successfully launched.
 Hence, it is imperative that the Agent IP is reachable from the
 container IP and vice versa. In this specific instance we specified a
 default route for the container, allowing containers to reach any
-network that will be routeable by the gateway, which for this CNI
+network that will be routable by the gateway, which for this CNI
 configuration is the bridge itself.
 
 Another interesting attribute in the CNI configuration is the `ipMasq`
@@ -342,7 +342,7 @@ option. Setting this to true will install an `iptable` rule in the
 host network namespace that would SNAT all traffic originating from
 the container and egressing the Agent. This allows containers to talk
 to the outside world even when they are in an address space that is
-not routeable from outside the agent.
+not routable from outside the agent.
 
 Below we give an example of launching a `Ubuntu` container and
 attaching it to the `mesos-cni0` bridge. You can launch the `Ubuntu`
@@ -386,7 +386,7 @@ default via 192.168.0.1 dev eth0
 #### <a name="a-port-mapper-plugin">A port-mapper plugin for CNI networks</a>
 
 For private, isolated, networks such as a bridge network where the IP
-address of a container is not routeable from outside the host it
+address of a container is not routable from outside the host it
 becomes imperative to provide containers with DNAT capabilities so
 that services running on the container can be exposed outside the host
 on which the container is running.
@@ -475,7 +475,7 @@ plugins](#mesos-meta-data-to-cni-plugins)" section for more details.
 that works out-of-the-box with Mesos CNI.
 
 Calico takes a pure Layer-3 approach to networking, allocating a
-unique, routable IP address to each Meso task. Task routes are
+unique, routable IP address to each Mesos task. Task routes are
 distributed by a BGP vRouter run on each Agent, which leverages the
 existing Linux kernel forwarding engine without needing tunnels, NAT,
 or overlays. Additionally, Calico supports rich and flexible network
