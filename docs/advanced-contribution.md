@@ -115,6 +115,8 @@ As you gain experience contributing to Mesos you may want to tackle more advance
 
 For patches to the core, we ask that you follow the [Mesos C++ Style Guide](c++-style-guide.md).
 
+The [Mesos Developer Guide](developer-guide.md) contains some best practices and design patterns that are useful for new developers to learn.
+
 ## Additional Guidance
 
 The following links provide additional guidance as you get started contributing to Apache Mesos.

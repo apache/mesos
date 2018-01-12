@@ -100,6 +100,7 @@ layout: documentation
 * [Engineering Principles and Practices](engineering-principles-and-practices.md) to serve as a shared set of project-level values for the community.
 * Style Guides:
   * [Documentation Style Guide](documentation-guide.md)
+  * [Developer Guide](developer-guide.md) for best practices and patterns used in Mesos.
   * [C++ Style Guide](c++-style-guide.md)
     * [Clang-Format](clang-format.md) for automatic formatting.
   * [Doxygen Style Guide](doxygen-style-guide.md)
