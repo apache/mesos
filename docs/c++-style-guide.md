@@ -12,6 +12,7 @@ The Mesos codebase follows the [Google C++ Style Guide](https://google.github.io
 ### Namespaces
 * We avoid `using namespace foo` statements as it is not explicit about which symbols are pulled in, and it can often pull in a lot of symbols, which sometimes lead to conflicts.
 * It is OK to use namespace aliases to help pull in sub-namespaces, such as `namespace http = process::http;`. These should only be present at the top of the .cpp file.
+* We prefer to prefix the global namespace with `::`, such as `::syscall`. This makes it clear that we're calling a C API, not a function in the local namespace.
 
 ## Naming
 
@@ -83,9 +84,21 @@ driver.acceptOffers({offer.id()},
 
 ### Templates
 * Leave one space after the `template` keyword, e.g. `template <typename T>` rather than `template<typename T>`.
+* Put `template <typename T>` on its own line, with the templated code (such as a function) starting on the next line.
 
 ### Function Definition/Invocation
 * Newline when calling or defining a function: indent with four spaces.
+
+* When using types like `Try` or `Owned`, use `operator->` instead of chained calls to `.get()` when possible:
+
+~~~{.cpp}
+// Preferred.
+Owned<MasterDetector> detector = master.get()->createDetector();
+
+// Don't use.
+Owned<MasterDetector> detector = master.get().get().createDetector();
+~~~
+
 * We do not follow Google's style of wrapping on the open parenthesis, the general goal is to reduce visual "jaggedness" in the code. Prefer (1), (4), (5), sometimes (3), never (2):
 
 ~~~{.cpp}
