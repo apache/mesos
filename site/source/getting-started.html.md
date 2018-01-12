@@ -13,7 +13,7 @@ layout: getting_started_section
     <p>See the <a href="/documentation/latest/building">building documentation</a> to learn how to build Mesos from source on various platforms.</p>
 
     <h2 name="contribute">Contribute</h2>
-    <p>Read the <a href="/documentation/latest/beginner-contribution">beginner contribution guide</a> for a first-time introduction to the process of contributing to Mesos. For the standard day-to-day workflow for advanced Mesos contributors, read our <a href="/documentation/latest/advanced-contribution">advanced contribution guide</a>. The latter guide also includes information on our core libraries, <b>stout</b> and <b>libprocess</b>, with which new developers should get familiar.</p>
+    <p>Read the <a href="/documentation/latest/beginner-contribution">beginner contribution guide</a> for a first-time introduction to the process of contributing to Mesos. For the standard day-to-day workflow for advanced Mesos contributors, read our <a href="/documentation/latest/advanced-contribution">advanced contribution guide</a>. The latter guide also includes information on our core libraries, <a href="https://github.com/apache/mesos/blob/master/3rdparty/stout/README.md">stout</a> and <a href="https://github.com/apache/mesos/blob/master/3rdparty/libprocess/README.md">libprocess</a>, with which new developers should get familiar.</p>
 
     <h2 name="community">Community</h2>
     <p>Refer to the <a href="/community">community page</a> for our mailing lists, Slack, IRC, and JIRA issue tracker.</p>
