@@ -28,6 +28,15 @@ Deprecations/Removals:
     should use `--jwt_secret_key` instead.
 
 Additional API Changes:
+  * [MESOS-6406, MESOS-7215, MESOS-8337] Now when an agent is partitioned,
+    the master tracks all noncompleted tasks regardless of partition-awareness
+    so when the agent reregisters it can recover all of them and send their
+    latest statuses to the scheduler. NOTE: The master now sends updates for
+    tasks recovered from partitioned agents upon reregistration so the scheduler
+    can get them before reconciliation. We also fixed the buggy semantics that
+    exposes terminal unacknowledged tasks when partitioned as "completed" in the
+    HTTP endpoints and the operator API, now they are shown as "unreachable". We
+    plan to further improve the API on this in MESOS-8405.
   * [MESOS-7660] `Filter::refuse_seconds` is now capped to 31536000
     seconds (365 days).
   * [MESOS-7941] Built-in executors will now send a TASK_STARTING
