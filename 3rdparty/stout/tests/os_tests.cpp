@@ -50,6 +50,7 @@
 #include <stout/os/killtree.hpp>
 #include <stout/os/realpath.hpp>
 #include <stout/os/stat.hpp>
+#include <stout/os/which.hpp>
 #include <stout/os/write.hpp>
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
@@ -1035,15 +1036,12 @@ TEST_F(OsTest, SYMLINK_Realpath)
 }
 
 
-// NOTE: Disabled on Windows because `which` doesn't exist.
-#ifndef __WINDOWS__
 TEST_F(OsTest, Which)
 {
   // TODO(jieyu): Test PATH search ordering and file execution bit.
-  Option<string> which = os::which("ls");
+  Option<string> which = os::which("ping");
   ASSERT_SOME(which);
 
   which = os::which("bar");
   EXPECT_NONE(which);
 }
-#endif // __WINDOWS__

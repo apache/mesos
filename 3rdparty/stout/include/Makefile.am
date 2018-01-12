@@ -115,6 +115,7 @@ nobase_include_HEADERS =			\
   stout/os/touch.hpp				\
   stout/os/utime.hpp				\
   stout/os/wait.hpp				\
+  stout/os/which.hpp				\
   stout/os/write.hpp				\
   stout/os/xattr.hpp				\
   stout/os/posix/bootid.hpp			\
@@ -152,6 +153,7 @@ nobase_include_HEADERS =			\
   stout/os/posix/stat.hpp			\
   stout/os/posix/su.hpp				\
   stout/os/posix/temp.hpp			\
+  stout/os/posix/which.hpp			\
   stout/os/posix/write.hpp			\
   stout/os/posix/xattr.hpp			\
   stout/os/raw/argv.hpp				\
@@ -191,6 +193,7 @@ nobase_include_HEADERS =			\
   stout/os/windows/stat.hpp			\
   stout/os/windows/su.hpp			\
   stout/os/windows/temp.hpp			\
+  stout/os/windows/which.hpp			\
   stout/os/windows/write.hpp			\
   stout/os/windows/xattr.hpp			\
   stout/path.hpp				\

@@ -403,45 +403,6 @@ inline Try<Version> release()
 }
 
 
-inline Option<std::string> which(
-    const std::string& command,
-    const Option<std::string>& _path = None())
-{
-  Option<std::string> path = _path;
-
-  if (path.isNone()) {
-    path = getenv("PATH");
-
-    if (path.isNone()) {
-      return None();
-    }
-  }
-
-  std::vector<std::string> tokens = strings::tokenize(path.get(), ":");
-  foreach (const std::string& token, tokens) {
-    const std::string commandPath = path::join(token, command);
-    if (!os::exists(commandPath)) {
-      continue;
-    }
-
-    Try<os::Permissions> permissions = os::permissions(commandPath);
-    if (permissions.isError()) {
-      continue;
-    }
-
-    if (!permissions.get().owner.x &&
-        !permissions.get().group.x &&
-        !permissions.get().others.x) {
-      continue;
-    }
-
-    return commandPath;
-  }
-
-  return None();
-}
-
-
 inline Try<std::string> var()
 {
   return "/var";
