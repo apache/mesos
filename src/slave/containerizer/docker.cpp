@@ -43,6 +43,7 @@
 #include <stout/uuid.hpp>
 
 #include <stout/os/killtree.hpp>
+#include <stout/os/which.hpp>
 
 #include "common/status_utils.hpp"
 
@@ -1465,6 +1466,24 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
 
   if (environment.count("PATH") == 0) {
     environment["PATH"] = os::host_default_path();
+
+    // TODO(andschwa): We will consider removing the `#ifdef` in future, as
+    // other platforms may benefit from being pointed to the same `docker` in
+    // both Agent and Executor (there is a chance that the cleaned path results
+    // in using a different docker, if multiple dockers are installed).
+#ifdef __WINDOWS__
+    // Docker is generally not installed in `os::host_default_path()` on
+    // Windows, so the executor will not be able to find `docker`. We search for
+    // `docker` in `PATH` and prepend the parent directory to
+    // `environment["PATH"]`. We prepend instead of append so that in the off
+    // chance that `docker` is in `host_default_path`, the executor and agent
+    // will use the same `docker`.
+    Option<string> dockerPath = os::which("docker");
+    if (dockerPath.isSome()) {
+      environment["PATH"] =
+        Path(dockerPath.get()).dirname() + ";" + environment["PATH"];
+    }
+#endif // __WINDOWS__
   }
 
   vector<string> argv;
