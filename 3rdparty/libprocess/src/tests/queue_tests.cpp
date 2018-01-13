@@ -89,3 +89,24 @@ TEST(QueueTest, Queue)
   EXPECT_EQ("pretty", get2.get());
   EXPECT_EQ("world", get3.get());
 }
+
+
+TEST(QueueTest, Discard)
+{
+  Queue<string> q;
+
+  Future<string> get1 = q.get();
+  Future<string> get2 = q.get();
+
+  EXPECT_TRUE(get1.isPending());
+  EXPECT_TRUE(get2.isPending());
+
+  get1.discard();
+
+  EXPECT_TRUE(get1.isDiscarded());
+
+  q.put("hello");
+
+  EXPECT_TRUE(get2.isReady());
+  EXPECT_EQ("hello", get2.get());
+}
