@@ -10376,7 +10376,13 @@ void Master::updateOperation(
     operation->mutable_latest_status()->CopyFrom(status);
   }
 
-  operation->add_statuses()->CopyFrom(status);
+  // TODO(gkleiman): Revisit the de-duplication logic (MESOS-8441) - if two
+  // different terminal statuses arrive, we could end up with different states
+  // in `latest_status` and the front of statuses list.
+  if (operation->statuses().empty() ||
+      *(operation->statuses().rbegin()) != status) {
+    operation->add_statuses()->CopyFrom(status);
+  }
 
   if (!terminated) {
     return;
