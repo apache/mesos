@@ -2247,8 +2247,14 @@ Future<Response> Master::Http::getMaster(
   // It is guaranteed that this master has been elected as the leader.
   CHECK(master->elected());
 
-  response.mutable_get_master()->mutable_master_info()->CopyFrom(
-      master->info());
+  mesos::master::Response::GetMaster* getMaster = response.mutable_get_master();
+
+  getMaster->mutable_master_info()->CopyFrom(master->info());
+
+  getMaster->set_start_time(master->startTime.secs());
+  if (master->electedTime.isSome()) {
+    getMaster->set_elected_time(master->electedTime.get().secs());
+  }
 
   return OK(serialize(contentType, evolve(response)),
             stringify(contentType));

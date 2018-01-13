@@ -1043,6 +1043,14 @@ TEST_P(MasterAPITest, GetMaster)
 
   ASSERT_EQ(evolve(masterFlags.domain.get()), masterInfo.domain());
   ASSERT_EQ(master.get()->getMasterInfo().ip(), masterInfo.ip());
+
+  const v1::master::Response::GetMaster getMaster = v1Response->get_master();
+
+  ASSERT_TRUE(getMaster.has_start_time());
+  ASSERT_TRUE(Clock::now().secs() > getMaster.start_time());
+
+  ASSERT_TRUE(getMaster.has_elected_time());
+  ASSERT_TRUE(Clock::now().secs() > getMaster.elected_time());
 }
 
 
