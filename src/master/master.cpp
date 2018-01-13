@@ -9545,7 +9545,10 @@ void Master::removeFramework(Framework* framework)
 
     // We don't need to remove the task from the slave, because the
     // task was removed when the agent was marked unreachable.
-    CHECK(!slaves.registered.contains(task->slave_id()));
+    CHECK(!slaves.registered.contains(task->slave_id()))
+      << "Unreachable task " << task->task_id()
+      << " of framework " << task->framework_id()
+      << " was found on registered agent " << task->slave_id();
 
     // Move task from unreachable map to completed map.
     framework->addCompletedTask(std::move(*task));
