@@ -23,7 +23,6 @@ google-*,\
 -google-runtime-references,\
 \
 mesos-*,\
--mesos-this-capture,\
 \
 misc-use-after-move,\
 \
