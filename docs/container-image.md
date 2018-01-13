@@ -304,10 +304,14 @@ using the following logic table:
     | Backend | Suggested on | Disabled on                              |
     +---------+--------------+------------------------------------------+
     | aufs    | ext4 xfs     | btrfs aufs eCryptfs                      |
-    | overlay | ext4 xfs     | btrfs aufs overlay overlay2 zfs eCryptfs |
+    | overlay | ext4 xfs*    | btrfs aufs overlay overlay2 zfs eCryptfs |
     | bind    |              | N/A(`--sandbox_directory' must exist)    |
     | copy    |              | N/A                                      |
     +---------+--------------+------------------------------------------+
+
+NOTE: `xfs` support on `overlay` is enabled only when `d_type=true`. Use
+`xfs_info` to verify that the `xfs` ftype option is set to 1. To format
+an xfs filesystem for `overlay`, use the flag `-n ftype=1` with `mkfs.xfs`.
 
 The provisioner backend can be specified through the agent flag
 `--image_provisioner_backend`. If not set, Mesos will select the best
