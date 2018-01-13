@@ -460,6 +460,10 @@ message Response {
   // Contains the master's information.
   message GetMaster {
     optional MasterInfo master_info = 1;
+
+    optional double start_time = 2;
+
+    optional double elected_time = 3;
   }
 
   // Contains the cluster's maintenance status.
