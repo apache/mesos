@@ -8656,7 +8656,10 @@ void Framework::recoverExecutor(
     // GC the top level executor work directory.
     slave->garbageCollect(paths::getExecutorPath(
         slave->flags.work_dir, slave->info.id(), id(), state.id))
-        .onAny(defer(slave, &Slave::detachFile, latestPath));
+        .onAny(defer(slave->self(), [=](const Future<Nothing>& future) {
+          slave->detachFile(latestPath);
+          slave->detachFile(virtualLatestPath);
+        }));
 
     // GC the top level executor meta directory.
     slave->garbageCollect(paths::getExecutorPath(
