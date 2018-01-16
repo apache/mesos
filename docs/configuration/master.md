@@ -478,6 +478,47 @@ after which the operation is considered a failure. (default: 1mins)
 </tr>
 <tr>
   <td>
+    --registry_gc_interval=VALUE
+  </td>
+  <td>
+How often to garbage collect the registry. The current leading
+master will periodically discard information from the registry.
+How long registry state is retained is controlled by other
+parameters (e.g., <code>registry_max_agent_age</code>,
+<code>registry_max_agent_count</code>); this parameter controls
+how often the master will examine the registry to see if data
+should be discarded. (default: 15mins)
+  </td>
+</tr>
+<tr>
+  <td>
+    --registry_max_agent_age=VALUE
+  </td>
+  <td>
+Maximum length of time to store information in the registry about
+agents that are not currently connected to the cluster. This
+information allows frameworks to determine the status of unreachable
+and gone agents. Note that the registry always stores
+information on all connected agents. If there are more than
+<code>registry_max_agent_count</code> partitioned/gone agents, agent
+information may be discarded from the registry sooner than indicated
+by this parameter. (default: 2weeks)
+  </td>
+</tr>
+<tr>
+  <td>
+    --registry_max_agent_count=VALUE
+  </td>
+  <td>
+Maximum number of partitioned/gone agents to store in the
+registry. This information allows frameworks to determine the status
+of disconnected agents. Note that the registry always stores
+information about all connected agents. See also the
+<code>registry_max_agent_age</code> flag. (default: 102400)
+  </td>
+</tr>
+<tr>
+  <td>
     --registry_store_timeout=VALUE
   </td>
   <td>
