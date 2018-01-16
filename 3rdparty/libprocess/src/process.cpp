@@ -882,7 +882,18 @@ namespace internal {
 
 void on_accept(const Future<Socket>& socket)
 {
-  if (socket.isReady()) {
+  // We stop the accept loop when libprocess is finalizing.
+  // Either we'll see a discarded socket here, or we'll see
+  // the server socket set to null below.
+  bool stopped = false;
+
+  if (socket.isDiscarded()) {
+    stopped = true;
+  } else if (socket.isFailed()) {
+    LOG(WARNING) << "Failed to accept socket: " << socket.failure();
+  } else {
+    CHECK_READY(socket);
+
     // Inform the socket manager for proper bookkeeping.
     socket_manager->accepted(socket.get());
 
@@ -899,17 +910,22 @@ void on_accept(const Future<Socket>& socket)
           size,
           socket.get(),
           decoder));
-  } else {
-     LOG(INFO) << "Failed to accept socket: "
-               << (socket.isFailed() ? socket.failure() : "future discarded");
   }
 
   // NOTE: `__s__` may be cleaned up during `process::finalize`.
-  synchronized (socket_mutex) {
-    if (__s__ != nullptr) {
-      future_accept = __s__->accept()
-        .onAny(lambda::bind(&on_accept, lambda::_1));
+  if (!stopped) {
+    synchronized (socket_mutex) {
+      if (__s__ != nullptr) {
+        future_accept = __s__->accept()
+          .onAny(lambda::bind(&on_accept, lambda::_1));
+      } else {
+        stopped = true;
+      }
     }
+  }
+
+  if (stopped) {
+    LOG(INFO) << "Stopped the socket accept loop";
   }
 }
 

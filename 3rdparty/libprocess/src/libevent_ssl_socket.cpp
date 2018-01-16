@@ -952,6 +952,14 @@ Try<Nothing> LibeventSSLSocketImpl::listen(int backlog)
 
 Future<std::shared_ptr<SocketImpl>> LibeventSSLSocketImpl::accept()
 {
+  // Note that due to MESOS-8448, when the caller discards, it's
+  // possible that we pull an accepted socket out of the queue but
+  // drop it when `.then` transitions to discarded rather than
+  // executing the continuation. This is currently acceptable since
+  // callers only discard when they're breaking their accept loop.
+  // However, from an API perspective, we shouldn't be dropping
+  // the socket on the floor.
+  //
   // We explicitly specify the return type to avoid a type deduction
   // issue in some versions of clang. See MESOS-2943.
   return accept_queue.get()
