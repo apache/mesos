@@ -385,6 +385,14 @@ static bool hasNamedNetwork(const ContainerInfo& container_info)
 }
 
 
+// Recover the given list of containers. Note that we don't look at
+// the executor resources from the ContainerState because from the
+// perspective of the container, they are incomplete. That is, the
+// resources here are only the resources for the executor, not the
+// resources for the whole container. At this point, we don't know
+// whether any of the tasks in the container have been allocated ports,
+// so we must not start isolating it until we receive the resources
+// update.
 Future<Nothing> NetworkPortsIsolatorProcess::recover(
     const list<ContainerState>& states,
     const hashset<ContainerID>& orphans)
@@ -403,7 +411,6 @@ Future<Nothing> NetworkPortsIsolatorProcess::recover(
 
     if (!cniIsolatorEnabled) {
       infos.emplace(state.container_id(), Owned<Info>(new Info()));
-      update(state.container_id(), state.executor_info().resources());
       continue;
     }
 
@@ -413,11 +420,6 @@ Future<Nothing> NetworkPortsIsolatorProcess::recover(
     if (!state.executor_info().has_container() ||
         !hasNamedNetwork(state.executor_info().container())) {
       infos.emplace(state.container_id(), Owned<Info>(new Info()));
-
-      // Update the resources for this container so that we can isolate
-      // it from now until the executor re-registers and the containerizer
-      // sends us a new update.
-      update(state.container_id(), state.executor_info().resources());
     }
   }
 
