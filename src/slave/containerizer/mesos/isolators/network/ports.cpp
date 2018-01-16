@@ -398,14 +398,14 @@ Future<Nothing> NetworkPortsIsolatorProcess::recover(
     CHECK(!infos.contains(state.container_id()))
       << "Duplicate ContainerID " << state.container_id();
 
+    // A root level container ought to always have an executor_info.
+    CHECK(state.has_executor_info());
+
     if (!cniIsolatorEnabled) {
       infos.emplace(state.container_id(), Owned<Info>(new Info()));
       update(state.container_id(), state.executor_info().resources());
       continue;
     }
-
-    // A root level container ought to always have an executor_info.
-    CHECK(state.has_executor_info());
 
     // Ignore containers that will be network isolated by the
     // `network/cni` isolator on the rationale that they ought
@@ -524,6 +524,9 @@ Future<Nothing> NetworkPortsIsolatorProcess::update(
   } else {
     info->ports = IntervalSet<uint16_t>();
   }
+
+  LOG(INFO) << "Updated ports to " << intervalSetToRanges(info->ports.get())
+            << " for container " << containerId;
 
   return Nothing();
 }
