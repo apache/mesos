@@ -72,6 +72,7 @@
 #include "slave/slave.hpp"
 #include "slave/validation.hpp"
 
+#include "slave/containerizer/mesos/containerizer.hpp"
 #include "slave/containerizer/mesos/paths.hpp"
 
 #include "version/version.hpp"
@@ -2707,29 +2708,23 @@ Future<Response> Http::_launchContainer(
     const string directory =
       slave::paths::getContainerPath(slave->flags.work_dir, containerId);
 
-    // NOTE: The below partially mirrors logic executed before the agent calls
-    // `containerizer->launch`. See `slave::paths::createExecutorDirectory`.
-    Try<Nothing> mkdir = os::mkdir(directory);
-    if (mkdir.isError()) {
-      return InternalServerError(
-          "Failed to create sandbox directory: " + mkdir.error());
-    }
-
-// `os::chown()` is not available on Windows.
-#ifndef __WINDOWS__
     if (containerConfig.has_user()) {
-      Try<Nothing> chown = os::chown(containerConfig.user(), directory);
-      if (chown.isError()) {
-        // Attempt to clean up, but since we've already failed to chown,
-        // we don't check the return value here.
-        os::rmdir(directory);
-
-        return InternalServerError(
-            "Failed to chown sandbox directory '" +
-            directory + "':" + chown.error());
-      }
+      LOG_BASED_ON_CLASS(containerConfig.container_class())
+        << "Creating sandbox '" << directory << "'"
+        << " for user '" << containerConfig.user() << "'";
+    } else {
+      LOG_BASED_ON_CLASS(containerConfig.container_class())
+        << "Creating sandbox '" << directory << "'";
     }
-#endif // __WINDOWS__
+
+    Try<Nothing> mkdir = slave::paths::createSandboxDirectory(
+        directory,
+        containerConfig.has_user() ? Option<string>(containerConfig.user())
+                                   : Option<string>::none());
+
+    if (mkdir.isError()){
+      return InternalServerError("Failed to create sandbox: " + mkdir.error());
+    }
 
     containerConfig.set_directory(directory);
   }

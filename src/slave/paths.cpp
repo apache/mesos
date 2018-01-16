@@ -723,7 +723,14 @@ string createExecutorDirectory(
   const string directory =
     getExecutorRunPath(rootDir, slaveId, frameworkId, executorId, containerId);
 
-  Try<Nothing> mkdir = os::mkdir(directory);
+  if (user.isSome()) {
+    LOG(INFO) << "Creating sandbox '" << directory << "'"
+              << " for user '" << user.get() << "'";
+  } else {
+    LOG(INFO) << "Creating sandbox '" << directory << "'";
+  }
+
+  Try<Nothing> mkdir = createSandboxDirectory(directory, user);
 
   CHECK_SOME(mkdir)
     << "Failed to create executor directory '" << directory << "'";
@@ -744,33 +751,45 @@ string createExecutorDirectory(
     << "Failed to symlink directory '" << directory
     << "' to '" << latest << "'";
 
-// `os::chown()` is not available on Windows.
+  return directory;
+}
+
+
+// Given a directory path and an optional user, create a directory
+// suitable for use as a task sandbox. A task sandbox must be owned
+// by the task user (if present) and have restricted permissions.
+Try<Nothing> createSandboxDirectory(
+    const string& directory,
+    const Option<string>& user)
+{
+  Try<Nothing> mkdir = os::mkdir(directory);
+  if (mkdir.isError()) {
+    return Error("Failed to create directory: " + mkdir.error());
+  }
+
 #ifndef __WINDOWS__
+  // Since this is a sandbox directory containing private task data,
+  // we want to ensure that it is not accessible to "others".
+  Try<Nothing> chmod = os::chmod(directory, 0750);
+  if (mkdir.isError()) {
+    return Error("Failed to chmod directory: " + chmod.error());
+  }
+
   if (user.isSome()) {
-    // Per MESOS-2592, we need to set the ownership of the executor
-    // directory during its creation. We should not rely on subsequent
-    // phases of the executor creation to ensure the ownership as
-    // those may be conditional and in some cases leave the executor
-    // directory owned by the slave user instead of the specified
-    // framework or per-executor user.
-    LOG(INFO) << "Trying to chown '" << directory << "' to user '"
-              << user.get() << "'";
     Try<Nothing> chown = os::chown(user.get(), directory);
     if (chown.isError()) {
-      // TODO(nnielsen): We currently have tests which depend on using
-      // user names which may not be available on the test machines.
-      // Therefore, we cannot make the chown validation a hard
-      // CHECK().
-      LOG(WARNING) << "Failed to chown executor directory '" << directory
-                   << "'. This may be due to attempting to run the executor "
-                   << "as a nonexistent user on the agent; see the description"
-                   << " for the `--switch_user` flag for more information: "
-                   << chown.error();
+      // Attempt to clean up, but since we've already failed to chown,
+      // we don't check the return value here.
+      os::rmdir(directory);
+
+      return Error(
+          "Failed to chown directory to '" +
+          user.get() + "': " + chown.error());
     }
   }
 #endif // __WINDOWS__
 
-  return directory;
+  return Nothing();
 }
 
 

@@ -492,9 +492,14 @@ TYPED_TEST(MasterAllocatorTest, SchedulerFailover)
   EXPECT_CALL(sched1, resourceOffers(_, _))
     .WillRepeatedly(DeclineOffers()); // For subsequent offers.
 
+  // Set the executor command user so that the task doesn't fail
+  // by trying to resolve the framework user `user1`.
+  ExecutorInfo executorInfo = DEFAULT_EXECUTOR_INFO;
+  executorInfo.mutable_command()->set_user(os::user().get());
+
   // Initially, all of the slave's resources are available.
   EXPECT_CALL(sched1, resourceOffers(_, OfferEq(3, 1024)))
-    .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 256, "*"));
+    .WillOnce(LaunchTasks(executorInfo, 1, 1, 256, "*"));
 
   // We don't filter the unused resources to make sure that
   // they get offered to the framework as soon as it fails over.

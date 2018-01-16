@@ -91,8 +91,23 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
+class MasterAuthorizationTest : public MesosTest
+{
+protected:
+  slave::Flags CreateSlaveFlags() override
+  {
+    slave::Flags flags = MesosTest::CreateSlaveFlags();
 
-class MasterAuthorizationTest : public MesosTest {};
+#ifndef __WINDOWS__
+    // We don't need to actually launch tasks as the specified
+    // user, since we are only interested in testing the
+    // authorization path.
+    flags.switch_user = false;
+#endif
+
+    return flags;
+  }
+};
 
 
 // This test verifies that an authorized task launch is successful.
@@ -1321,7 +1336,23 @@ TEST_F(MasterAuthorizationTest, FrameworkRemovedBeforeReregistration)
 
 
 template <typename T>
-class MasterAuthorizerTest : public MesosTest {};
+class MasterAuthorizerTest : public MesosTest
+{
+protected:
+  slave::Flags CreateSlaveFlags() override
+  {
+    slave::Flags flags = MesosTest::CreateSlaveFlags();
+
+#ifndef __WINDOWS__
+    // We don't need to actually launch tasks as the specified
+    // user, since we are only interested in testing the
+    // authorization path.
+    flags.switch_user = false;
+#endif
+
+    return flags;
+  }
+};
 
 
 typedef ::testing::Types<

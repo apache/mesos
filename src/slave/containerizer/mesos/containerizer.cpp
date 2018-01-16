@@ -1160,30 +1160,25 @@ Future<Containerizer::LaunchResult> MesosContainerizerProcess::launch(
         containers_[rootContainerId]->directory.get(),
         containerId);
 
-    Try<Nothing> mkdir = os::mkdir(directory);
-    if (mkdir.isError()) {
-      return Failure(
-          "Failed to create nested sandbox directory '" +
-          directory + "': " + mkdir.error());
-    }
-
-#ifndef __WINDOWS__
     if (containerConfig.has_user()) {
       LOG_BASED_ON_CLASS(containerConfig.container_class())
-        << "Trying to chown '" << directory << "' to user '"
-        << containerConfig.user() << "'";
-
-      Try<Nothing> chown = os::chown(containerConfig.user(), directory);
-      if (chown.isError()) {
-        LOG(WARNING)
-          << "Failed to chown sandbox directory '" << directory
-          << "'. This may be due to attempting to run the container "
-          << "as a nonexistent user on the agent; see the description"
-          << " for the `--switch_user` flag for more information: "
-          << chown.error();
-      }
+        << "Creating sandbox '" << directory << "'"
+        << " for user '" << containerConfig.user() << "'";
+    } else {
+      LOG_BASED_ON_CLASS(containerConfig.container_class())
+        << "Creating sandbox '" << directory << "'";
     }
-#endif // __WINDOWS__
+
+    Try<Nothing> mkdir = slave::paths::createSandboxDirectory(
+        directory,
+        containerConfig.has_user() ? Option<string>(containerConfig.user())
+                                   : Option<string>::none());
+
+    if (mkdir.isError()) {
+      return Failure(
+          "Failed to create nested sandbox '" +
+          directory + "': " + mkdir.error());
+    }
 
     // Modify the sandbox directory in the ContainerConfig.
     // TODO(josephw): Should we validate that this value

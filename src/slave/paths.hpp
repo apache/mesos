@@ -400,6 +400,11 @@ std::string createExecutorDirectory(
     const Option<std::string>& user = None());
 
 
+Try<Nothing> createSandboxDirectory(
+    const std::string& directory,
+    const Option<std::string>& user);
+
+
 std::string createSlaveDirectory(
     const std::string& rootDir,
     const SlaveID& slaveId);

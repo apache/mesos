@@ -85,7 +85,23 @@ namespace internal {
 namespace tests {
 
 template <typename T>
-class SlaveAuthorizerTest : public MesosTest {};
+class SlaveAuthorizerTest : public MesosTest
+{
+protected:
+  slave::Flags CreateSlaveFlags() override
+  {
+    slave::Flags flags = MesosTest::CreateSlaveFlags();
+
+#ifndef __WINDOWS__
+    // We don't need to actually launch tasks as the specified
+    // user, since we are only interested in testing the
+    // authorization path.
+    flags.switch_user = false;
+#endif
+
+    return flags;
+  }
+};
 
 
 typedef ::testing::Types<

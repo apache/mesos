@@ -2326,8 +2326,17 @@ TEST_P(MasterAPITest, EventAuthorizationFiltering)
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
+  // We don't need to actually launch tasks as the specified user,
+  // since we are only interested in testing the authorization path.
+  slave::Flags slaveFlags = MesosTest::CreateSlaveFlags();
+
+#ifndef __WINDOWS__
+  slaveFlags.switch_user = false;
+#endif
+
   Owned<MasterDetector> detector = master.get()->createDetector();
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), &containerizer, slaveFlags);
 
   ASSERT_SOME(slave);
 

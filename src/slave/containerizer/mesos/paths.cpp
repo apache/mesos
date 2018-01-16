@@ -484,8 +484,6 @@ Try<ContainerID> parseSandboxPath(
   return currentContainerId;
 }
 
-
-
 } // namespace paths {
 } // namespace containerizer {
 } // namespace slave {
