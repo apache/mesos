@@ -1000,7 +1000,7 @@ private:
       Option<ContentType> messageAcceptType);
 
   // Asynchronously receive data as we read it from our
-  // `stdoutFromFd` and `stdoutFromFd` file descriptors.
+  // `stdoutFromFd` and `stderrFromFd` file descriptors.
   void outputHook(
       const string& data,
       const agent::ProcessIO::Data::Type& type);
