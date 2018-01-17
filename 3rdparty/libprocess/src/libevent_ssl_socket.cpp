@@ -385,9 +385,9 @@ void LibeventSSLSocketImpl::event_callback(short events)
   // recv errors, but perhaps we should?
   if (events & BEV_EVENT_EOF ||
      (events & BEV_EVENT_ERROR && EVUTIL_SOCKET_ERROR() == 0)) {
-    if (current_recv_request.get() != nullptr) {
-      received_eof = true;
+    received_eof = true;
 
+    if (current_recv_request.get() != nullptr) {
       // Drain any remaining data from the bufferevent or complete the
       // promise with 0 to signify EOF. Because we set `received_eof`,
       // subsequent calls to `recv` will return 0 if there is no data
