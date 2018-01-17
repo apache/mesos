@@ -1180,11 +1180,12 @@ Future<Nothing> IOSwitchboardServerProcess::run()
       // fail the future.
       //
       // For now we simply assume that whenever both `stdoutRedirect`
-      // and `stderrRedirect` have completed then it is OK to exit the
-      // switchboard process. We assume this because `stdoutRedirect`
-      // and `stderrRedirect` will only complete after both the read end
-      // of the `stdout` stream and the read end of the `stderr` stream
-      // have been drained. Since draining these `fds` represents having
+      // and `stderrRedirect` have completed while there is no input
+      // connected then it is OK to exit the switchboard process.
+      // We assume this because `stdoutRedirect` and `stderrRedirect`
+      // will only complete after both the read end of the `stdout`
+      // stream and the read end of the `stderr` stream have been
+      // drained. Since draining these `fds` represents having
       // read everything possible from a container's `stdout` and
       // `stderr` this is likely sufficient termination criteria.
       // However, there's a non-zero chance that *some* containers may
@@ -1192,6 +1193,12 @@ Future<Nothing> IOSwitchboardServerProcess::run()
       // continue reading from `stdin`. For now we don't support
       // containers with this behavior and we will exit out of the
       // switchboard process early.
+      //
+      // If our IO redirects are finished and there is an input connected,
+      // then we postpone our termination until either a container closes
+      // its `stdin` or a client closes the input connection so that we can
+      // guarantee returning a http response for `ATTACH_CONTAINER_INPUT`
+      // request before terminating ourselves.
       //
       // NOTE: We always call `terminate()` with `false` to ensure
       // that our event queue is drained before actually terminating.
@@ -1224,9 +1231,6 @@ Future<Nothing> IOSwitchboardServerProcess::run()
         .then(defer(self(), [this]() {
           redirectFinished = true;
 
-          // Postpone termination if input is connected. This gives us a chance
-          // to properly close the input connection and send an http response,
-          // see `attachContainerInput()`.
           if (!inputConnected) {
             terminate(self(), false);
           }
@@ -1673,11 +1677,10 @@ Future<http::Response> IOSwitchboardServerProcess::attachContainerInput(
       // Reset `inputConnected` to allow future input connections.
       inputConnected = false;
 
-      // We only set `failure` if writing to `stdin` failed, in which case we
-      // want to terminate ourselves (after flushing any outstanding messages
-      // from our message queue). Also, if IO redirect has already finished,
-      // we can safely terminate.
-      if (failure.isSome() || redirectFinished) {
+      // If IO redirects are finished or writing to `stdin` failed we want
+      // to terminate ourselves (after flushing any outstanding messages
+      // from our message queue).
+      if (redirectFinished || failure.isSome()) {
         terminate(self(), false);
       }
 
