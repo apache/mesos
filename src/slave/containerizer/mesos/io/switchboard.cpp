@@ -1010,6 +1010,7 @@ private:
   bool waitForConnection;
   Option<Duration> heartbeatInterval;
   bool inputConnected;
+  bool redirectFinished;
   Future<unix::Socket> accept;
   Promise<Nothing> promise;
   Promise<Nothing> startRedirect;
@@ -1130,7 +1131,8 @@ IOSwitchboardServerProcess::IOSwitchboardServerProcess(
     socket(_socket),
     waitForConnection(_waitForConnection),
     heartbeatInterval(_heartbeatInterval),
-    inputConnected(false) {}
+    inputConnected(false),
+    redirectFinished(false) {}
 
 
 Future<Nothing> IOSwitchboardServerProcess::run()
@@ -1215,7 +1217,12 @@ Future<Nothing> IOSwitchboardServerProcess::run()
 
       collect(stdoutRedirect, stderrRedirect)
         .then(defer(self(), [this]() {
-          terminate(self(), false);
+          redirectFinished = true;
+          // If IO redirect is finished, we need to give a chance
+          // to send a http response for an input connection.
+          if (!inputConnected) {
+            terminate(self(), false);
+          }
           return Nothing();
         }));
 
@@ -1661,8 +1668,9 @@ Future<http::Response> IOSwitchboardServerProcess::attachContainerInput(
 
       // We only set `failure` if writing to `stdin` failed, in which
       // case we want to terminate ourselves (after flushing any
-      // outstanding messages from our message queue).
-      if (failure.isSome()) {
+      // outstanding messages from our message queue). Also, if IO redirect
+      // is finished, we want to terminate ourselves.
+      if (failure.isSome() || redirectFinished) {
         terminate(self(), false);
       }
 
