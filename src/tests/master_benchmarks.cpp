@@ -17,6 +17,7 @@
 #include <list>
 #include <string>
 #include <tuple>
+#include <vector>
 
 #include <mesos/resources.hpp>
 #include <mesos/version.hpp>
@@ -33,6 +34,8 @@
 #include "common/protobuf_utils.hpp"
 
 #include "tests/mesos.hpp"
+
+namespace http = process::http;
 
 using process::await;
 using process::Clock;
@@ -53,6 +56,7 @@ using std::make_tuple;
 using std::string;
 using std::tie;
 using std::tuple;
+using std::vector;
 
 using testing::WithParamInterface;
 
@@ -315,8 +319,6 @@ TEST_P(MasterFailover_BENCHMARK_Test, AgentReregistrationDelay)
 
   list<Future<Nothing>> reregistered;
 
-  cout << "Starting reregistration for all agents" << endl;
-
   // Measure the time for all agents to receive `SlaveReregisteredMessage`.
   Stopwatch watch;
   watch.start();
@@ -336,6 +338,151 @@ TEST_P(MasterFailover_BENCHMARK_Test, AgentReregistrationDelay)
        << " completed tasks in "
        << watch.elapsed() << endl;
 }
+
+
+class MasterStateQuery_BENCHMARK_Test
+  : public MesosTest,
+    public WithParamInterface<tuple<
+      size_t, size_t, size_t, size_t, size_t>> {};
+
+
+INSTANTIATE_TEST_CASE_P(
+    AgentFrameworkTaskCountContentType,
+    MasterStateQuery_BENCHMARK_Test,
+    ::testing::Values(
+        make_tuple(1000, 5, 2, 5, 2),
+        make_tuple(10000, 5, 2, 5, 2),
+        make_tuple(20000, 5, 2, 5, 2),
+        make_tuple(40000, 5, 2, 5, 2)));
+
+
+// This test measures the performance of the `master::call::GetState`
+// v1 api (and also measures master v0 '/state' endpoint as the
+// baseline). We set up a lot of master state from artificial agents
+// similar to the master failover benchmark.
+TEST_P(MasterStateQuery_BENCHMARK_Test, GetState)
+{
+  size_t agentCount;
+  size_t frameworksPerAgent;
+  size_t tasksPerFramework;
+  size_t completedFrameworksPerAgent;
+  size_t tasksPerCompletedFramework;
+
+  tie(agentCount,
+    frameworksPerAgent,
+    tasksPerFramework,
+    completedFrameworksPerAgent,
+    tasksPerCompletedFramework) = GetParam();
+
+  // Disable authentication to avoid the overhead, since we don't care about
+  // it in this test.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.authenticate_agents = false;
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  vector<Owned<TestSlave>> slaves;
+
+  for (size_t i = 0; i < agentCount; i++) {
+    SlaveID slaveId;
+    slaveId.set_value("agent" + stringify(i));
+
+    slaves.push_back(Owned<TestSlave>(new TestSlave(
+        master.get()->pid,
+        slaveId,
+        frameworksPerAgent,
+        tasksPerFramework,
+        completedFrameworksPerAgent,
+        tasksPerCompletedFramework)));
+  }
+
+  cout << "Test setup: "
+       << agentCount << " agents with a total of "
+       << frameworksPerAgent * tasksPerFramework * agentCount
+       << " running tasks and "
+       << completedFrameworksPerAgent * tasksPerCompletedFramework * agentCount
+       << " completed tasks" << endl;
+
+  list<Future<Nothing>> reregistered;
+
+  foreach (const Owned<TestSlave>& slave, slaves) {
+    reregistered.push_back(slave->reregister());
+  }
+
+  // Wait all agents to finish reregistration.
+  await(reregistered).await();
+
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
+  Stopwatch watch;
+  watch.start();
+
+  // We first measure v0 "state" endpoint performance as the baseline.
+  Future<http::Response> v0Response = http::get(
+      master.get()->pid,
+      "state",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  v0Response.await();
+
+  watch.stop();
+
+  ASSERT_EQ(v0Response->status, http::OK().status);
+
+  cout << "v0 '/state' response took " << watch.elapsed() << endl;
+
+  // Helper function to post a request to '/api/v1' master endpoint
+  // and return the response.
+  auto post = [](
+      const process::PID<master::Master>& pid,
+      const v1::master::Call& call,
+      const ContentType& contentType)
+  {
+    http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers["Accept"] = stringify(contentType);
+
+    return http::post(
+        pid,
+        "api/v1",
+        headers,
+        serialize(contentType, call),
+        stringify(contentType));
+  };
+
+  // We measure both JSON and protobuf formats.
+  const ContentType contentTypes[] =
+    { ContentType::PROTOBUF, ContentType::JSON };
+
+  for (ContentType contentType : contentTypes){
+    v1::master::Call v1Call;
+    v1Call.set_type(v1::master::Call::GET_STATE);
+
+    watch.start();
+
+    Future<http::Response> response =
+      post(master.get()->pid, v1Call, contentType);
+
+    response.await();
+
+    watch.stop();
+
+    ASSERT_EQ(response->status, http::OK().status);
+
+    Future<v1::master::Response> v1Response =
+      deserialize<v1::master::Response>(contentType, response->body);
+
+    ASSERT_TRUE(v1Response->IsInitialized());
+    EXPECT_EQ(v1::master::Response::GET_STATE, v1Response->type());
+
+    cout << "v1 'master::call::GetState' "
+         << contentType << " response took " << watch.elapsed() << endl;
+  }
+}
+
 
 } // namespace tests {
 } // namespace internal {
