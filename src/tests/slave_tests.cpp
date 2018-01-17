@@ -46,8 +46,6 @@
 #include <process/reap.hpp>
 #include <process/subprocess.hpp>
 
-#include <process/ssl/flags.hpp>
-
 #include <stout/hashset.hpp>
 #include <stout/json.hpp>
 #include <stout/none.hpp>
@@ -8704,21 +8702,8 @@ TEST_F(SlaveTest, ResourceProviderSubscribe)
   EXPECT_CALL(resourceProvider, connected())
     .WillOnce(FutureSatisfy(&connected));
 
-  string scheme = "http";
-
-#ifdef USE_SSL_SOCKET
-  if (process::network::openssl::flags().enabled) {
-    scheme = "https";
-  }
-#endif
-
-  process::http::URL url(
-      scheme,
-      slave.get()->pid.address.ip,
-      slave.get()->pid.address.port,
-      slave.get()->pid.id + "/api/v1/resource_provider");
-
-  Owned<EndpointDetector> endpointDetector(new ConstantEndpointDetector(url));
+  Owned<EndpointDetector> endpointDetector(
+      resource_provider::createEndpointDetector(slave.get()->pid));
 
   resourceProvider.start(
       endpointDetector,
@@ -8836,21 +8821,8 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ResourceProviderPublishAll)
 
   v1::MockResourceProvider resourceProvider(resourceProviderInfo, resources);
 
-  string scheme = "http";
-
-#ifdef USE_SSL_SOCKET
-  if (process::network::openssl::flags().enabled) {
-    scheme = "https";
-  }
-#endif
-
-  process::http::URL url(
-      scheme,
-      slave.get()->pid.address.ip,
-      slave.get()->pid.address.port,
-      slave.get()->pid.id + "/api/v1/resource_provider");
-
-  Owned<EndpointDetector> endpointDetector(new ConstantEndpointDetector(url));
+  Owned<EndpointDetector> endpointDetector(
+      resource_provider::createEndpointDetector(slave.get()->pid));
 
   resourceProvider.start(
       endpointDetector,
@@ -9151,21 +9123,8 @@ TEST_F(SlaveTest, ResourceProviderReconciliation)
       resourceProviderInfo,
       resourceProviderResources);
 
-  string scheme = "http";
-
-#ifdef USE_SSL_SOCKET
-  if (process::network::openssl::flags().enabled) {
-    scheme = "https";
-  }
-#endif
-
-  process::http::URL url(
-      scheme,
-      slave.get()->pid.address.ip,
-      slave.get()->pid.address.port,
-      slave.get()->pid.id + "/api/v1/resource_provider");
-
-  Owned<EndpointDetector> endpointDetector(new ConstantEndpointDetector(url));
+  Owned<EndpointDetector> endpointDetector(
+      resource_provider::createEndpointDetector(slave.get()->pid));
 
   updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
@@ -9381,21 +9340,8 @@ TEST_F(SlaveTest, RunTaskResourceVersions)
       resourceProviderInfo,
       resourceProviderResources);
 
-  string scheme = "http";
-
-#ifdef USE_SSL_SOCKET
-  if (process::network::openssl::flags().enabled) {
-    scheme = "https";
-  }
-#endif
-
-  process::http::URL url(
-      scheme,
-      slave.get()->pid.address.ip,
-      slave.get()->pid.address.port,
-      slave.get()->pid.id + "/api/v1/resource_provider");
-
-  Owned<EndpointDetector> endpointDetector(new ConstantEndpointDetector(url));
+  Owned<EndpointDetector> endpointDetector(
+      resource_provider::createEndpointDetector(slave.get()->pid));
 
   updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 

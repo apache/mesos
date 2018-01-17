@@ -33,8 +33,6 @@
 #include <process/http.hpp>
 #include <process/owned.hpp>
 
-#include <process/ssl/flags.hpp>
-
 #include <stout/gtest.hpp>
 #include <stout/jsonify.hpp>
 #include <stout/nothing.hpp>
@@ -232,21 +230,8 @@ TEST_P(MasterAPITest, GetAgents)
           "200", "*", None(), None(), v1::createDiskSourceRaw()));
 
   // Start and register a resource provider.
-  string scheme = "http";
-
-#ifdef USE_SSL_SOCKET
-  if (process::network::openssl::flags().enabled) {
-    scheme = "https";
-  }
-#endif
-
-  http::URL url(
-      scheme,
-      agent.get()->pid.address.ip,
-      agent.get()->pid.address.port,
-      agent.get()->pid.id + "/api/v1/resource_provider");
-
-  Owned<EndpointDetector> endpointDetector(new ConstantEndpointDetector(url));
+  Owned<EndpointDetector> endpointDetector(
+      resource_provider::createEndpointDetector(agent.get()->pid));
 
   updateAgentMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
@@ -6159,21 +6144,8 @@ TEST_P(AgentAPITest, GetResourceProviders)
           "200", "*", None(), None(), v1::createDiskSourceRaw()));
 
   // Start and register a resource provider.
-  string scheme = "http";
-
-#ifdef USE_SSL_SOCKET
-  if (process::network::openssl::flags().enabled) {
-    scheme = "https";
-  }
-#endif
-
-  http::URL url(
-      scheme,
-      slave.get()->pid.address.ip,
-      slave.get()->pid.address.port,
-      slave.get()->pid.id + "/api/v1/resource_provider");
-
-  Owned<EndpointDetector> endpointDetector(new ConstantEndpointDetector(url));
+  Owned<EndpointDetector> endpointDetector(
+      resource_provider::createEndpointDetector(slave.get()->pid));
 
   updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 

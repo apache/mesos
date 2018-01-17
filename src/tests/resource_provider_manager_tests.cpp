@@ -34,8 +34,6 @@
 #include <process/gtest.hpp>
 #include <process/http.hpp>
 
-#include <process/ssl/flags.hpp>
-
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
 #include <stout/gtest.hpp>
@@ -80,7 +78,6 @@ using process::Clock;
 using process::Future;
 using process::Message;
 using process::Owned;
-using process::PID;
 
 using process::http::Accepted;
 using process::http::BadRequest;
@@ -956,21 +953,8 @@ TEST_P(ResourceProviderManagerHttpApiTest, ConvertResources)
       resourceProviderInfo, Some(v1::Resources(disk)));
 
   // Start and register a resource provider.
-  string scheme = "http";
-
-#ifdef USE_SSL_SOCKET
-  if (process::network::openssl::flags().enabled) {
-    scheme = "https";
-  }
-#endif
-
-  http::URL url(
-      scheme,
-      agent.get()->pid.address.ip,
-      agent.get()->pid.address.port,
-      agent.get()->pid.id + "/api/v1/resource_provider");
-
-  Owned<EndpointDetector> endpointDetector(new ConstantEndpointDetector(url));
+  Owned<EndpointDetector> endpointDetector(
+      resource_provider::createEndpointDetector(agent.get()->pid));
 
   const ContentType contentType = GetParam();
 
@@ -1095,21 +1079,8 @@ TEST_P(ResourceProviderManagerHttpApiTest, ResubscribeResourceProvider)
       new v1::MockResourceProvider(resourceProviderInfo, v1::Resources(disk)));
 
   // Start and register a resource provider.
-  string scheme = "http";
-
-#ifdef USE_SSL_SOCKET
-  if (process::network::openssl::flags().enabled) {
-    scheme = "https";
-  }
-#endif
-
-  http::URL url(
-      scheme,
-      agent.get()->pid.address.ip,
-      agent.get()->pid.address.port,
-      agent.get()->pid.id + "/api/v1/resource_provider");
-
-  Owned<EndpointDetector> endpointDetector(new ConstantEndpointDetector(url));
+  Owned<EndpointDetector> endpointDetector(
+      resource_provider::createEndpointDetector(agent.get()->pid));
 
   const ContentType contentType = GetParam();
 
@@ -1155,13 +1126,8 @@ TEST_P(ResourceProviderManagerHttpApiTest, ResubscribeResourceProvider)
 
   AWAIT_READY(__recover);
 
-  url = http::URL(
-      scheme,
-      agent.get()->pid.address.ip,
-      agent.get()->pid.address.port,
-      agent.get()->pid.id + "/api/v1/resource_provider");
-
-  endpointDetector.reset(new ConstantEndpointDetector(url));
+  endpointDetector =
+    resource_provider::createEndpointDetector(agent.get()->pid);
 
   resourceProvider.reset(new v1::MockResourceProvider(
       resourceProviderInfo,
@@ -1223,21 +1189,8 @@ TEST_P(ResourceProviderManagerHttpApiTest, ResourceProviderDisconnect)
           v1::Resources(disk)));
 
   // Start and register a resource provider.
-  string scheme = "http";
-
-#ifdef USE_SSL_SOCKET
-  if (process::network::openssl::flags().enabled) {
-    scheme = "https";
-  }
-#endif
-
-  http::URL url(
-      scheme,
-      agent.get()->pid.address.ip,
-      agent.get()->pid.address.port,
-      agent.get()->pid.id + "/api/v1/resource_provider");
-
-  Owned<EndpointDetector> endpointDetector(new ConstantEndpointDetector(url));
+  Owned<EndpointDetector> endpointDetector(
+      resource_provider::createEndpointDetector(agent.get()->pid));
 
   const ContentType contentType = GetParam();
 
@@ -1314,21 +1267,8 @@ TEST_F(ResourceProviderManagerHttpApiTest, ResourceProviderSubscribeDisconnect)
       new v1::MockResourceProvider(resourceProviderInfo));
 
   // Start and register a resource provider.
-  string scheme = "http";
-
-#ifdef USE_SSL_SOCKET
-  if (process::network::openssl::flags().enabled) {
-    scheme = "https";
-  }
-#endif
-
-  http::URL url(
-      scheme,
-      agent.get()->pid.address.ip,
-      agent.get()->pid.address.port,
-      agent.get()->pid.id + "/api/v1/resource_provider");
-
-  Owned<EndpointDetector> endpointDetector(new ConstantEndpointDetector(url));
+  Owned<EndpointDetector> endpointDetector(
+      resource_provider::createEndpointDetector(agent.get()->pid));
 
   Future<Event::Subscribed> subscribed1;
   EXPECT_CALL(*resourceProvider1, subscribed(_))

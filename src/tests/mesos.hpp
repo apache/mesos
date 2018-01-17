@@ -46,6 +46,7 @@
 #include <process/future.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
+#include <process/http.hpp>
 #include <process/io.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
@@ -53,6 +54,7 @@
 #include <process/queue.hpp>
 #include <process/subprocess.hpp>
 
+#include <process/ssl/flags.hpp>
 #include <process/ssl/gtest.hpp>
 
 #include <stout/bytes.hpp>
@@ -3104,6 +3106,27 @@ private:
   Option<Resources> resources;
   std::unique_ptr<Driver> driver;
 };
+
+inline process::Owned<EndpointDetector> createEndpointDetector(
+    const process::UPID& pid)
+{
+  // Start and register a resource provider.
+  std::string scheme = "http";
+
+#ifdef USE_SSL_SOCKET
+  if (process::network::openssl::flags().enabled) {
+    scheme = "https";
+  }
+#endif
+
+  process::http::URL url(
+      scheme,
+      pid.address.ip,
+      pid.address.port,
+      pid.id + "/api/v1/resource_provider");
+
+  return process::Owned<EndpointDetector>(new ConstantEndpointDetector(url));
+}
 
 } // namespace resource_provider {
 
