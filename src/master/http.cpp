@@ -2593,16 +2593,6 @@ mesos::master::Response::GetAgents Master::Http::_getAgents(
     mesos::master::Response::GetAgents::Agent* agent = getAgents.add_agents();
     *agent = protobuf::master::event::createAgentResponse(
         *slave, rolesAcceptor);
-
-    foreachvalue (
-        const ResourceProviderInfo& resourceProviderInfo,
-        slave->resourceProviders) {
-      mesos::master::Response::GetAgents::Agent::ResourceProvider*
-        resourceProvider = agent->add_resource_providers();
-
-      resourceProvider->mutable_resource_provider_info()->CopyFrom(
-          resourceProviderInfo);
-    }
   }
 
   foreachvalue (const SlaveInfo& slaveInfo, master->slaves.recovered) {
