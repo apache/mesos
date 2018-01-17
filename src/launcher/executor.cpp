@@ -62,6 +62,9 @@
 #include <stout/os/environment.hpp>
 #include <stout/os/kill.hpp>
 #include <stout/os/killtree.hpp>
+#ifdef __WINDOWS__
+#include <stout/windows/os.hpp>
+#endif // __WINDOWS__
 
 #include "checks/checker.hpp"
 #include "checks/health_checker.hpp"
@@ -485,6 +488,11 @@ protected:
     vector<process::Subprocess::ParentHook> parentHooks;
 #ifdef __WINDOWS__
     parentHooks.emplace_back(Subprocess::ParentHook::CREATE_JOB());
+    // Setting the "kill on close" job object limit ties the lifetime of the
+    // task to that of the executor. This ensures that if the executor exits,
+    // its task exits too.
+    parentHooks.emplace_back(Subprocess::ParentHook(
+        [](pid_t pid) { return os::set_job_kill_on_close_limit(pid); }));
 #endif // __WINDOWS__
 
     Try<Subprocess> s = subprocess(
