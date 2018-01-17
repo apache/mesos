@@ -99,7 +99,10 @@ public:
   // We don't need to implement these because we are leveraging
   // Try<Option<T>>.
   Result(const Result<T>& that) = default;
+  Result(Result&& that) = default;
+
   ~Result() = default;
+
   Result<T>& operator=(const Result<T>& that) = default;
   Result<T>& operator=(Result<T>&& that) = default;
 
