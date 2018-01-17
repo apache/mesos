@@ -58,7 +58,9 @@ Changes to Dependencies:
 Unresolved Critical Issues:
 
 Feature Graduations:
-  * v1 Operator API is now considered stable.
+  * v1 Operator API is now considered stable. The performance has been
+    improved so that when using protobuf it is faster than v0, and when
+    using JSON it is slightly slower than v0.
 
 All Experimental Features:
 
