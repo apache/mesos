@@ -61,6 +61,14 @@ Feature Graduations:
 All Experimental Features:
 
 
+All Resolved Issues:
+
+** Bug
+  * [MESOS-8279] - Persistent volumes are not visible in Mesos UI using default executor on Linux.
+  * [MESOS-8444] - GC failure causes agent miss to detach virtual paths for the executor's sandbox.
+  * [MESOS-8446] - Agent miss to detach `virtualLatestPath` for the executor's sandbox during recovery.
+
+
 Release Notes - Mesos - Version 1.4.2 (WIP)
 -------------------------------------------
 * This is a bug fix release.
