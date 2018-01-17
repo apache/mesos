@@ -52,6 +52,9 @@ Additional API Changes:
   * [MESOS-7973] A new `catchup` method has been added to the
     `Log.Reader` interface (including Java binding).
 
+Changes to Dependencies:
+  * Upgraded minimum required Protobuf library to version 3+.
+
 Unresolved Critical Issues:
 
 Feature Graduations:

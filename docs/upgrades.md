@@ -52,6 +52,7 @@ We categorize the changes as follows:
       <li>A <a href="#1-5-x-network-ports-isolator">Network ports isolator</a></li>
       <li>C <a href="#1-5-x-relative-disk-source-root-path">Relative source root paths for disk resources</a></li>
       <li>A <a href="#1-5-x-reconfiguration-policy">Agent state recovery after resource changes</a></li>
+      <li>C <a href="#1-5-x-protobuf-requirement">Requirement for Protobuf library</a></li>
     </ul>
   </td>
 
@@ -398,9 +399,14 @@ We categorize the changes as follows:
   * `show_standalone`: Whether to show standalone containers.
 
 <a name="1-5-x-reconfiguration-policy"></a>
+
 * A new agent flag `--reconfiguration_policy` has been added. By setting the value of this flag to `additive`,
   operators can allow the agent to be restarted with increased resources without requiring the agent ID to be
   changed. Note that if this feature is used, the master version is required to be >= 1.5 as well.
+
+<a name="1-5-x-protobuf-requirement"></a>
+
+* Protobuf version 3+ is required to build Mesos. Please upgrade your Protobuf library if you are using an unbundled one.
 
 ## Upgrading from 1.3.x to 1.4.x ##
 
