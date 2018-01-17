@@ -738,10 +738,43 @@ Try<Docker::RunOptions> Docker::RunOptions::create(
 
   options.volumeDriver = volumeDriver;
 
-  switch (dockerInfo.network()) {
-    case ContainerInfo::DockerInfo::HOST: options.network = "host"; break;
-    case ContainerInfo::DockerInfo::BRIDGE: options.network = "bridge"; break;
-    case ContainerInfo::DockerInfo::NONE: options.network = "none"; break;
+  ContainerInfo::DockerInfo::Network network;
+  if (dockerInfo.has_network()) {
+    network = dockerInfo.network();
+  } else {
+    // If no network was given, then use the OS specific default.
+#ifdef __WINDOWS__
+    network = ContainerInfo::DockerInfo::BRIDGE;
+#else
+    network = ContainerInfo::DockerInfo::HOST;
+#endif // __WINDOWS__
+  }
+
+  // See https://docs.microsoft.com/en-us/virtualization/windowscontainers/manage-containers/container-networking // NOLINT(whitespace/line_length)
+  // and https://docs.docker.com/engine/userguide/networking/ on what network
+  // modes are supported for Windows and Linux docker respectively.
+  switch (network) {
+    case ContainerInfo::DockerInfo::HOST: {
+#ifdef __WINDOWS__
+      return Error("Unsupported Network mode: " + stringify(network));
+#else
+      options.network = "host";
+      break;
+#endif // __WINDOWS__
+    }
+    case ContainerInfo::DockerInfo::BRIDGE: {
+#ifdef __WINDOWS__
+      // Windows "nat" network mode is equivalent to Linux "bridge" mode.
+      options.network = "nat";
+#else
+      options.network = "bridge";
+#endif // __WINDOWS__
+      break;
+    }
+    case ContainerInfo::DockerInfo::NONE: {
+      options.network = "none";
+      break;
+    }
     case ContainerInfo::DockerInfo::USER: {
       if (containerInfo.network_infos_size() == 0) {
         return Error("No network info found in container info");
@@ -752,15 +785,14 @@ Try<Docker::RunOptions> Docker::RunOptions::create(
       }
 
       const NetworkInfo& networkInfo = containerInfo.network_infos(0);
-      if(!networkInfo.has_name()){
+      if (!networkInfo.has_name()) {
         return Error("No network name found in network info");
       }
 
       options.network = networkInfo.name();
       break;
     }
-    default: return Error("Unsupported Network mode: " +
-                          stringify(dockerInfo.network()));
+    default: return Error("Unsupported Network mode: " + stringify(network));
   }
 
   if (containerInfo.has_hostname()) {
