@@ -1010,7 +1010,7 @@ private:
   bool waitForConnection;
   Option<Duration> heartbeatInterval;
   bool inputConnected;
-  bool redirectFinished;
+  bool redirectFinished;  // Set when both stdout and stderr redirects finish.
   Future<unix::Socket> accept;
   Promise<Nothing> promise;
   Promise<Nothing> startRedirect;
@@ -1218,8 +1218,10 @@ Future<Nothing> IOSwitchboardServerProcess::run()
       collect(stdoutRedirect, stderrRedirect)
         .then(defer(self(), [this]() {
           redirectFinished = true;
-          // If IO redirect is finished, we need to give a chance
-          // to send a http response for an input connection.
+
+          // Postpone termination if input is connected. This gives us a chance
+          // to properly close the input connection and send an http response,
+          // see `attachContainerInput()`.
           if (!inputConnected) {
             terminate(self(), false);
           }
@@ -1666,10 +1668,10 @@ Future<http::Response> IOSwitchboardServerProcess::attachContainerInput(
       // Reset `inputConnected` to allow future input connections.
       inputConnected = false;
 
-      // We only set `failure` if writing to `stdin` failed, in which
-      // case we want to terminate ourselves (after flushing any
-      // outstanding messages from our message queue). Also, if IO redirect
-      // is finished, we want to terminate ourselves.
+      // We only set `failure` if writing to `stdin` failed, in which case we
+      // want to terminate ourselves (after flushing any outstanding messages
+      // from our message queue). Also, if IO redirect has already finished,
+      // we can safely terminate.
       if (failure.isSome() || redirectFinished) {
         terminate(self(), false);
       }
