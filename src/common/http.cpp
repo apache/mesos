@@ -114,7 +114,7 @@ string serialize(
       return message.SerializeAsString();
     }
     case ContentType::JSON: {
-      return stringify(JSON::protobuf(message));
+      return jsonify(JSON::Protobuf(message));
     }
     case ContentType::RECORDIO: {
       LOG(FATAL) << "Serializing a RecordIO stream is not supported";
