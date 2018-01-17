@@ -51,18 +51,18 @@ inline int kill_process(pid_t pid)
 
 inline int kill(pid_t pid, int sig)
 {
-  // SIGCONT is not supported.
-  // SIGKILL call TerminateProcess.
-  // SIGSTOP  and SIGTERM have the same behaviour as SIGKILL.
+  // SIGCONT and SIGSTOP are not supported.
+  // SIGKILL calls TerminateProcess.
+  // SIGTERM has the same behaviour as SIGKILL.
 
-  if (sig == SIGKILL || sig == SIGSTOP || sig == SIGTERM) {
+  if (sig == SIGKILL || sig == SIGTERM) {
     return os::internal::kill_process(pid);
   }
 
   LOG(ERROR) << "Failed call to os::kill(): "
              << "Signal value: '" << sig << "' is not handled. "
              << "Valid Signal values for Windows os::kill() are "
-             << "'SIGSTOP' and 'SIGKILL'";
+             << "'SIGTERM' and 'SIGKILL'";
 
   _set_errno(EINVAL);
   return KILL_FAIL;

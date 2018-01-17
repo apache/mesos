@@ -340,12 +340,10 @@ const mode_t S_ISVTX = 0x02000000;        // No-op.
 const mode_t O_SYNC     = 0x00000000;     // No-op.
 const mode_t O_NONBLOCK = 0x00000000;     // No-op.
 
-// Linux signal flags not used in Windows. We define them per
-// `Linux sys/signal.h` to branch properly for Windows
-//  processes' stop, resume and kill.
-const mode_t SIGCONT = 0x00000009;     // Signal Cont.
-const mode_t SIGSTOP = 0x00000011;     // Signal Stop.
-const mode_t SIGKILL = 0x00000013;     // Signal Kill.
+// Even though SIGKILL doesn't exist on Windows, we define
+// it here, because Docker defines it. So, the docker
+// executor needs this signal value to properly kill containers.
+const mode_t SIGKILL = 0x00000009;     // Signal Kill.
 
 inline auto strerror_r(int errnum, char* buffer, size_t length) ->
 decltype(strerror_s(buffer, length, errnum))
@@ -373,8 +371,9 @@ inline const char* strsignal(int signum)
 #endif // WIFEXITED
 
 // Returns the exit status of the child.
+// On Windows, they are a 32 bit unsigned integer.
 #ifndef WEXITSTATUS
-#define WEXITSTATUS(x) (x & 0xFF)
+#define WEXITSTATUS(x) static_cast<DWORD>(x)
 #endif // WEXITSTATUS
 
 #ifndef WIFSIGNALED
