@@ -107,14 +107,22 @@ message DockerInfo {
 
 ```
 
-For `NONE`, `HOST` and `BRIDGE` network mode the framework only needs
-to specify the network mode in the `DockerInfo` protobuf. However, for
-the USER mode, since a user-defined docker network is identified by a
-canonical network name (similar to CNI networks) apart from setting
-the network mode in `DockerInfo` the framework also needs to specify
-the `name` field in the `NetworkInfo` protobuf corresponding to the
-name of the user-defined docker network.
+For `NONE`, `HOST`, and `BRIDGE` network mode the framework only needs
+to specify the network mode in the `DockerInfo` protobuf. To use other
+networks, such as `MACVLAN` on Linux, `TRANSPARENT` and `L2BRIDGE` on
+Windows, or any other user-defined network, the network needs to be
+created beforehand and the `USER` network mode needs to be chosen. For
+the `USER` mode, since a user-defined docker network is identified by a
+canonical network name (similar to CNI networks) apart from setting the
+network mode in `DockerInfo` the framework also needs to specify the
+`name` field in the `NetworkInfo` protobuf corresponding to the name of
+the user-defined docker network.
 
+Note that on Windows, the `HOST` network mode is not supported. Although the
+`BRIDGE` network mode does not exist on Windows, it has an equivalent mode
+called `NAT`, so on Windows agents, the `BRIDGE` mode will be interpretted as
+`NAT`. If the network mode is not specified, then the default mode will be
+chosen, which is `HOST` on Linux and `NAT` on Windows.
 
 #### <a name="limitations-docker"></a>Limitations of Docker containerizer
 
