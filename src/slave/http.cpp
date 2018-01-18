@@ -1531,10 +1531,9 @@ Future<Response> Http::getFrameworks(
     .then(defer(slave->self(),
         [this, acceptType](const Owned<ObjectApprover>& frameworksApprover)
           -> Future<Response> {
-          mesos::agent::Response response;
+      mesos::agent::Response response;
       response.set_type(mesos::agent::Response::GET_FRAMEWORKS);
-      response.mutable_get_frameworks()->CopyFrom(
-          _getFrameworks(frameworksApprover));
+      *response.mutable_get_frameworks() = _getFrameworks(frameworksApprover);
 
       return OK(serialize(acceptType, evolve(response)),
                 stringify(acceptType));
@@ -1608,8 +1607,8 @@ Future<Response> Http::getExecutors(
       mesos::agent::Response response;
       response.set_type(mesos::agent::Response::GET_EXECUTORS);
 
-      response.mutable_get_executors()->CopyFrom(
-          _getExecutors(frameworksApprover, executorsApprover));
+      *response.mutable_get_executors() =
+        _getExecutors(frameworksApprover, executorsApprover);
 
       return OK(serialize(acceptType, evolve(response)),
                 stringify(acceptType));
@@ -1718,10 +1717,8 @@ Future<Response> Http::getTasks(
       mesos::agent::Response response;
       response.set_type(mesos::agent::Response::GET_TASKS);
 
-      response.mutable_get_tasks()->CopyFrom(
-          _getTasks(frameworksApprover,
-                    tasksApprover,
-                    executorsApprover));
+      *response.mutable_get_tasks() =
+        _getTasks(frameworksApprover, tasksApprover, executorsApprover);
 
       return OK(serialize(acceptType, evolve(response)),
                 stringify(acceptType));
@@ -1946,10 +1943,8 @@ Future<Response> Http::getState(
 
       mesos::agent::Response response;
       response.set_type(mesos::agent::Response::GET_STATE);
-      response.mutable_get_state()->CopyFrom(
-          _getState(frameworksApprover,
-                    tasksApprover,
-                    executorsApprover));
+      *response.mutable_get_state() =
+        _getState(frameworksApprover, tasksApprover, executorsApprover);
 
       return OK(serialize(acceptType, evolve(response)),
                 stringify(acceptType));
@@ -1964,14 +1959,14 @@ mesos::agent::Response::GetState Http::_getState(
 {
   mesos::agent::Response::GetState getState;
 
-  getState.mutable_get_tasks()->CopyFrom(
-      _getTasks(frameworksApprover, tasksApprover, executorsApprover));
+  *getState.mutable_get_tasks() =
+    _getTasks(frameworksApprover, tasksApprover, executorsApprover);
 
-  getState.mutable_get_executors()->CopyFrom(
-      _getExecutors(frameworksApprover, executorsApprover));
+  *getState.mutable_get_executors() =
+    _getExecutors(frameworksApprover, executorsApprover);
 
-  getState.mutable_get_frameworks()->CopyFrom(
-      _getFrameworks(frameworksApprover));
+  *getState.mutable_get_frameworks() =
+    _getFrameworks(frameworksApprover);
 
   return getState;
 }
