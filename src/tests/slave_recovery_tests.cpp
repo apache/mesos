@@ -591,14 +591,7 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_ROOT_CGROUPS_ReconnectDefaultExecutor)
   EXPECT_CALL(*scheduler, heartbeat(_))
     .WillRepeatedly(Return()); // Ignore heartbeats.
 
-  {
-    v1::scheduler::Call call;
-    call.set_type(v1::scheduler::Call::SUBSCRIBE);
-    v1::scheduler::Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(evolve(frameworkInfo));
-
-    mesos.send(call);
-  }
+  mesos.send(v1::createCallSubscribe(evolve(frameworkInfo)));
 
   AWAIT_READY(subscribed);
 

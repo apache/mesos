@@ -2135,6 +2135,23 @@ inline mesos::v1::scheduler::Call createCallKill(
   return call;
 }
 
+
+inline mesos::v1::scheduler::Call createCallSubscribe(
+  const mesos::v1::FrameworkInfo& frameworkInfo,
+  const Option<mesos::v1::FrameworkID>& frameworkId = None())
+{
+  mesos::v1::scheduler::Call call;
+  call.set_type(mesos::v1::scheduler::Call::SUBSCRIBE);
+
+  call.mutable_subscribe()->mutable_framework_info()->CopyFrom(frameworkInfo);
+
+  if (frameworkId.isSome()) {
+    call.mutable_framework_id()->CopyFrom(frameworkId.get());
+  }
+
+  return call;
+}
+
 } // namespace v1 {
 
 

@@ -2101,15 +2101,7 @@ TEST_P(MasterAPITest, Subscribe)
   EXPECT_CALL(*scheduler, offers(_, _))
     .WillOnce(FutureArg<1>(&offers));
 
-  {
-    v1::scheduler::Call call;
-    call.set_type(v1::scheduler::Call::SUBSCRIBE);
-
-    v1::scheduler::Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
-
-    mesos.send(call);
-  }
+  mesos.send(v1::createCallSubscribe(v1::DEFAULT_FRAMEWORK_INFO));
 
   AWAIT_READY(subscribed);
 
@@ -2352,17 +2344,9 @@ TEST_P(MasterAPITest, EventAuthorizationFiltering)
     .WillOnce(FutureArg<1>(&offers1))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
-  {
-    v1::scheduler::Call call;
-    call.set_type(v1::scheduler::Call::SUBSCRIBE);
-
-    v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
-    frameworkInfo.set_user("root");
-    call.mutable_subscribe()->mutable_framework_info()
-      ->CopyFrom(frameworkInfo);
-
-    mesos.send(call);
-  }
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_user("root");
+  mesos.send(v1::createCallSubscribe(frameworkInfo));
 
   AWAIT_READY(subscribed);
 
@@ -2663,15 +2647,7 @@ TEST_P(MasterAPITest, FrameworksEvent)
   // when it reconnects.
   frameworkInfo.set_failover_timeout(Weeks(2).secs());
 
-  {
-    v1::scheduler::Call call;
-    call.set_type(v1::scheduler::Call::SUBSCRIBE);
-
-    v1::scheduler::Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(frameworkInfo);
-
-    mesos.send(call);
-  }
+  mesos.send(v1::createCallSubscribe(frameworkInfo));
 
   AWAIT_READY(subscribed);
 
@@ -2711,16 +2687,7 @@ TEST_P(MasterAPITest, FrameworksEvent)
   // The scheduler should be able to immediately reconnect with the master.
   AWAIT_READY(connected);
 
-  {
-    v1::scheduler::Call call;
-    call.set_type(v1::scheduler::Call::SUBSCRIBE);
-    call.mutable_framework_id()->CopyFrom(frameworkId);
-
-    v1::scheduler::Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(frameworkInfo);
-
-    mesos.send(call);
-  }
+  mesos.send(v1::createCallSubscribe(frameworkInfo, frameworkId));
 
   event = decoder.read();
   AWAIT_READY(event);
@@ -3442,17 +3409,9 @@ TEST_P(MasterAPITest, Teardown)
   EXPECT_CALL(*scheduler, heartbeat(_))
     .WillRepeatedly(Return()); // Ignore heartbeats.
 
-  {
-    v1::scheduler::Call call;
-    call.set_type(v1::scheduler::Call::SUBSCRIBE);
-
-    v1::scheduler::Call::Subscribe* subscribe = call.mutable_subscribe();
-    v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
-    frameworkInfo.set_user("root");
-    subscribe->mutable_framework_info()->CopyFrom(frameworkInfo);
-
-    mesos.send(call);
-  }
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_user("root");
+  mesos.send(v1::createCallSubscribe(frameworkInfo));
 
   AWAIT_READY(subscribed);
 
