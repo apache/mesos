@@ -199,7 +199,7 @@ TAG=mesos-`date +%s`-$RANDOM
 docker build --no-cache=true -t $TAG .
 
 # Set a trap to delete the image on exit.
-trap "docker rmi $TAG" EXIT
+trap "docker rmi --force $TAG" EXIT
 
 # Uncomment below to print kernel log incase of failures.
 # trap "dmesg" ERR
