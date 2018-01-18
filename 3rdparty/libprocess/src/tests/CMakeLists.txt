@@ -77,3 +77,25 @@ if (ENABLE_SSL)
 endif ()
 
 add_test(NAME ProcessTests COMMAND libprocess-tests)
+
+# LIBPROCESS BENCHMARK TESTS.
+#############################
+add_custom_command(
+  OUTPUT benchmarks.pb.h benchmarks.pb.cc
+  COMMAND protoc
+    -I${CMAKE_CURRENT_SOURCE_DIR}
+    --cpp_out=${CMAKE_CURRENT_BINARY_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks.proto
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/benchmarks.proto)
+
+add_executable(benchmarks
+  EXCLUDE_FROM_ALL
+  benchmarks.cpp
+  benchmarks.pb.cc)
+target_link_libraries(benchmarks PRIVATE process-interface)
+target_include_directories(benchmarks PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+
+# Add dependency of `libprocess-tests` on `benchmarks`. This is done
+# to make sure that `benchmarks` is built as part of the `tests`
+# target; there is no actual compile or runtime dependency.
+add_dependencies(libprocess-tests benchmarks)
