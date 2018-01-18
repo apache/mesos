@@ -136,4 +136,12 @@ run into any issues, file them with the library maintainers.*
   mesos-operator-api-client</a></td>
   <td>JavaScript</td>
 </tr>
+<tr>
+  <td>
+    <a href="https://github.com/miroswan/mesops">mesops</a>
+  </td>
+  <td>
+    Go
+  </td>
+</tr>
 </table>
