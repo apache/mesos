@@ -1290,22 +1290,15 @@ Future<Containerizer::LaunchResult> MesosContainerizerProcess::launch(
       containerConfig.container_info().mesos().image());
 
   return container->provisioning
-    .then(defer(
-        self(),
-        [=](const ProvisionInfo& provisionInfo)
-            -> Future<Containerizer::LaunchResult> {
-          return prepare(containerId, provisionInfo)
-            .then(defer(self(), [this, containerId] () {
-              return ioSwitchboard->extractContainerIO(containerId);
-            }))
-            .then(defer(
-                self(),
-                &Self::_launch,
-                containerId,
-                lambda::_1,
-                environment,
-                pidCheckpointPath));
-        }));
+    .then(defer(self(), [=](const ProvisionInfo& provisionInfo) {
+      return prepare(containerId, provisionInfo);
+    }))
+    .then(defer(self(), [this, containerId] () {
+      return ioSwitchboard->extractContainerIO(containerId);
+    }))
+    .then(defer(self(), [=](const Option<ContainerIO>& containerIO) {
+       return _launch(containerId, containerIO, environment, pidCheckpointPath);
+    }));
 }
 
 
@@ -1984,9 +1977,7 @@ Future<Containerizer::LaunchResult> MesosContainerizerProcess::_launch(
   container->status->onAny(defer(self(), &Self::reaped, containerId));
 
   return isolate(containerId, pid)
-    .then(defer(self(),
-                &Self::fetch,
-                containerId))
+    .then(defer(self(), &Self::fetch, containerId))
     .then(defer(self(), &Self::exec, containerId, pipes[1]))
     .onAny([pipes]() { os::close(pipes[0]); })
     .onAny([pipes]() { os::close(pipes[1]); });
