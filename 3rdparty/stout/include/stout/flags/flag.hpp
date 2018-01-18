@@ -100,6 +100,28 @@ struct Flag
   }
 };
 
+
+// Allows to hide the contents of a file located at `path` when serializing
+// a flag. This is important for files containing sensitive information.
+struct SecurePathOrValue
+{
+  Option<Path> path;
+  std::string value;
+};
+
+
+inline std::ostream& operator<<(
+    std::ostream &stream,
+    const SecurePathOrValue& flag)
+{
+  if (flag.path.isSome()) {
+    stream << flag.path.get();
+  } else {
+    stream << flag.value;
+  }
+  return stream;
+}
+
 } // namespace flags {
 
 #endif // __STOUT_FLAGS_FLAG_HPP__
