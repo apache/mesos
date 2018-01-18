@@ -749,9 +749,13 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverServices()
       })));
   }
 
+  // NOTE: The `GetNodeID` CSI call is only supported if the plugin has
+  // the `PUBLISH_UNPUBLISH_VOLUME` controller capability. So to decide
+  // if `GetNodeID` should be called in `prepareNodeService`, we need to
+  // run `prepareControllerService` first.
   return collect(futures)
-    .then(defer(self(), &Self::prepareNodeService))
-    .then(defer(self(), &Self::prepareControllerService));
+    .then(defer(self(), &Self::prepareControllerService))
+    .then(defer(self(), &Self::prepareNodeService));
 }
 
 
@@ -1959,6 +1963,9 @@ Future<Nothing> StorageLocalResourceProviderProcess::prepareControllerService()
 
 Future<Nothing> StorageLocalResourceProviderProcess::prepareNodeService()
 {
+  // NOTE: This can only be called after `prepareControllerService`.
+  CHECK_SOME(controllerCapabilities);
+
   return getService(nodeContainerId)
     .then(defer(self(), [=](csi::Client client) {
       // Get the plugin info and check for consistency.
@@ -1995,7 +2002,11 @@ Future<Nothing> StorageLocalResourceProviderProcess::prepareNodeService()
           return getService(nodeContainerId);
         }));
     }))
-    .then(defer(self(), [=](csi::Client client) {
+    .then(defer(self(), [=](csi::Client client) -> Future<Nothing> {
+      if (!controllerCapabilities->publishUnpublishVolume) {
+        return Nothing();
+      }
+
       // Get the node ID.
       csi::GetNodeIDRequest request;
       request.mutable_version()->CopyFrom(csiVersion);
@@ -2016,7 +2027,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::controllerPublish(
   // NOTE: This can only be called after `prepareControllerService` and
   // `prepareNodeService`.
   CHECK_SOME(controllerCapabilities);
-  CHECK_SOME(nodeId);
+  CHECK(!controllerCapabilities->publishUnpublishVolume || nodeId.isSome());
 
   CHECK(volumes.contains(volumeId));
   if (volumes.at(volumeId).state.state() ==
@@ -2083,7 +2094,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::controllerUnpublish(
   // NOTE: This can only be called after `prepareControllerService` and
   // `prepareNodeService`.
   CHECK_SOME(controllerCapabilities);
-  CHECK_SOME(nodeId);
+  CHECK(!controllerCapabilities->publishUnpublishVolume || nodeId.isSome());
 
   CHECK(volumes.contains(volumeId));
   if (volumes.at(volumeId).state.state() ==
@@ -2323,7 +2334,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::deleteVolume(
   // NOTE: This can only be called after `prepareControllerService` and
   // `prepareNodeService` (since it may require `NodeUnpublishVolume`).
   CHECK_SOME(controllerCapabilities);
-  CHECK_SOME(nodeId);
+  CHECK(!controllerCapabilities->publishUnpublishVolume || nodeId.isSome());
 
   // We do not need the capability for pre-existing volumes since no
   // actual `DeleteVolume` call will be made.
