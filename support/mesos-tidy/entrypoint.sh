@@ -33,11 +33,6 @@ cmake -DCMAKE_BUILD_TYPE=Release \
       ${CMAKE_ARGS} \
       "${SRCDIR}"
 
-# We build `stout-tests` here as a build target in order to force
-# the generation of `protobuf-tests.pb.h`. This is pretty hacky
-# for what we want to do, but it's okay for now.
-cmake --build 3rdparty/stout/tests --target stout-tests -- -j $(nproc)
-
 # Build the external dependencies.
 # TODO(mpark): Use an external dependencies target once MESOS-6924 is resolved.
 cmake --build 3rdparty --target boost-1.53.0 -- -j $(nproc)
@@ -61,6 +56,13 @@ cmake --build 3rdparty --target zookeeper-3.4.8 -- -j $(nproc)
 # Generate the protobuf definitions.
 # TODO(mpark): Use a protobuf generation target once MESOS-6925 is resolved.
 cmake --build . --target mesos-protobufs -- -j $(nproc)
+
+# For protobuf definitions in stout (`protobuf-test.pb.h`) or
+# libprocess (`benchmarks.pb.h`) no explict targets exists; we instead
+# build the executable targets to produce them as a side-effect.  This
+# is pretty hacky for what we want to do, but it's okay for now.
+cmake --build 3rdparty/stout/tests --target stout-tests -- -j $(nproc)
+cmake --build 3rdparty/libprocess/src/tests --target benchmarks -- -j $(nproc)
 
 # TODO(bbannier): Use a less restrictive `grep` pattern and `header-filter`
 # once MESOS-6115 is fixed.
