@@ -64,6 +64,16 @@ inline Try<Path> fetch(const std::string& value)
   return parse<Path>(value);
 }
 
+
+template <>
+inline Try<SecurePathOrValue> fetch(const std::string& value)
+{
+  // Delegates fetching the value to its `parse` function so the two
+  // values, the path and its contents are available when constructing
+  // and instance of `SecurePathOrValue`.
+  return parse<SecurePathOrValue>(value);
+}
+
 } // namespace flags {
 
 #endif // __STOUT_FLAGS_FETCH_HPP__

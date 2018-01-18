@@ -25,6 +25,8 @@
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 
+#include <stout/flags/flag.hpp>
+
 #include <stout/os/read.hpp>
 
 namespace flags {
@@ -162,6 +164,29 @@ template <>
 inline Try<Path> parse(const std::string& value)
 {
   return Path(value);
+}
+
+
+template <>
+inline Try<SecurePathOrValue> parse(const std::string& value)
+{
+  SecurePathOrValue result;
+  result.value = value;
+
+  if (strings::startsWith(value, "file://")) {
+    const std::string path = value.substr(7);
+
+    Try<std::string> read = os::read(path);
+
+    if (read.isError()) {
+      return Error("Error reading file '" + path + "': " + read.error());
+    }
+
+    result.value = read.get();
+    result.path = Path(path);
+  }
+
+  return result;
 }
 
 } // namespace flags {
