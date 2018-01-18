@@ -618,9 +618,12 @@
 
 - name: Qian Zhang
   affiliations:
-    - {organization: IBM}
+    - {organization: Mesosphere, start_date: 2017-10-01}
+    - {organization: IBM, end_date: 2017-09-30}
   emails:
-    - zhangqxa@cn.ibm.com
+    - qianzhang@apache.org
+    - zhq527725@gmail.com
+    - qzhang@mesosphere.com
   jira_user: qianzhang
   reviewboard_user: qianzhang
 
