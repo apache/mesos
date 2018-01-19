@@ -588,7 +588,12 @@ Status TestCSIPlugin::GetCapacity(
 
   foreach (const csi::VolumeCapability& capability,
            request->volume_capabilities()) {
-    if (!capability.has_mount()) {
+    // We report zero capacity for any capability other than the
+    // default-constructed `MountVolume` capability since this plugin
+    // does not support any filesystem types and mount flags.
+    if (!capability.has_mount() ||
+        !capability.mount().fs_type().empty() ||
+        !capability.mount().mount_flags().empty()) {
       response->set_available_capacity(0);
 
       return Status::OK;
@@ -925,8 +930,6 @@ int main(int argc, char** argv)
         Try<Bytes> capacity = Bytes::parse(pair[1]);
         if (capacity.isError()) {
           error = capacity.error();
-        } else if (capacity.get() == 0) {
-          error = "Volume capacity cannot be zero";
         } else {
           volumes.put(pair[0], capacity.get());
         }

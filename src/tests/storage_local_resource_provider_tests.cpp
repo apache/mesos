@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/gtest.hpp>
 #include <process/gmock.hpp>
@@ -32,6 +33,9 @@ using std::vector;
 
 using mesos::master::detector::MasterDetector;
 
+using mesos::v1::resource_provider::Call;
+
+using process::Clock;
 using process::Future;
 using process::Owned;
 
@@ -54,15 +58,57 @@ public:
   {
     MesosTest::SetUp();
 
-    const string testCsiPluginWorkDir = path::join(sandbox.get(), "test");
+    testCsiPluginWorkDir = path::join(sandbox.get(), "test");
     ASSERT_SOME(os::mkdir(testCsiPluginWorkDir));
 
     resourceProviderConfigDir =
       path::join(sandbox.get(), "resource_provider_configs");
-
     ASSERT_SOME(os::mkdir(resourceProviderConfigDir));
 
-    string testCsiPluginPath =
+    uriDiskProfileConfigPath =
+      path::join(sandbox.get(), "disk_profiles.json");
+  }
+
+  virtual void TearDown()
+  {
+    // Unload modules.
+    foreach (const Modules::Library& library, modules.libraries()) {
+      foreach (const Modules::Library::Module& module, library.modules()) {
+        if (module.has_name()) {
+          ASSERT_SOME(modules::ModuleManager::unload(module.name()));
+        }
+      }
+    }
+
+    MesosTest::TearDown();
+  }
+
+  void loadUriDiskProfileModule()
+  {
+    const string libraryPath = getModulePath("uri_disk_profile");
+
+    Modules::Library* library = modules.add_libraries();
+    library->set_name("uri_disk_profile");
+    library->set_file(libraryPath);
+
+    Modules::Library::Module* module = library->add_modules();
+    module->set_name(URI_DISK_PROFILE_ADAPTOR_NAME);
+
+    Parameter* uri = module->add_parameters();
+    uri->set_key("uri");
+    uri->set_value(uriDiskProfileConfigPath);
+    Parameter* pollInterval = module->add_parameters();
+    pollInterval->set_key("poll_interval");
+    pollInterval->set_value("1secs");
+
+    ASSERT_SOME(modules::ModuleManager::load(modules));
+  }
+
+  void setupResourceProviderConfig(
+      const Bytes& capacity,
+      const Option<string> volumes = None())
+  {
+    const string testCsiPluginPath =
       path::join(tests::flags.build_dir, "src", "test-csi-plugin");
 
     Try<string> resourceProviderConfig = strings::format(
@@ -91,8 +137,8 @@ public:
                     "value": "%s",
                     "arguments": [
                       "%s",
-                      "--available_capacity=2GB",
-                      "--volumes=volume1:1GB;volume2:1GB",
+                      "--available_capacity=%s",
+                      "--volumes=%s",
                       "--work_dir=%s"
                     ]
                   }
@@ -104,6 +150,8 @@ public:
         )~",
         testCsiPluginPath,
         testCsiPluginPath,
+        stringify(capacity),
+        volumes.getOrElse(""),
         testCsiPluginWorkDir);
 
     ASSERT_SOME(resourceProviderConfig);
@@ -111,19 +159,29 @@ public:
     ASSERT_SOME(os::write(
         path::join(resourceProviderConfigDir, "test.json"),
         resourceProviderConfig.get()));
+  }
 
-    uriDiskProfileConfigPath =
-      path::join(sandbox.get(), "disk_profiles.json");
-
+  void setupDiskProfileConfig()
+  {
     Try<Nothing> write = os::write(
         uriDiskProfileConfigPath,
         R"~(
         {
           "profile_matrix": {
-            "default" : {
-              "volume_capabilities" : {
-                "mount" : {},
-                "access_mode" : { "mode" : "SINGLE_NODE_WRITER" }
+            "volume-default": {
+              "volume_capabilities": {
+                "mount": {},
+                "access_mode": {
+                  "mode": "SINGLE_NODE_WRITER"
+                }
+              }
+            },
+            "block-default": {
+              "volume_capabilities": {
+                "block": {},
+                "access_mode": {
+                  "mode": "SINGLE_NODE_WRITER"
+                }
               }
             }
           }
@@ -133,43 +191,404 @@ public:
     ASSERT_SOME(write);
   }
 
-  virtual void TearDown()
-  {
-    // Unload modules.
-    foreach (const Modules::Library& library, modules.libraries()) {
-      foreach (const Modules::Library::Module& module, library.modules()) {
-        if (module.has_name()) {
-          ASSERT_SOME(modules::ModuleManager::unload(module.name()));
-        }
-      }
-    }
-
-    MesosTest::TearDown();
-  }
-
-  void loadUriDiskProfileModule()
-  {
-    string libraryPath = getModulePath("uri_disk_profile");
-
-    Modules::Library* library = modules.add_libraries();
-    library->set_name("uri_disk_profile");
-    library->set_file(libraryPath);
-
-    Modules::Library::Module* module = library->add_modules();
-    module->set_name(URI_DISK_PROFILE_ADAPTOR_NAME);
-
-    Parameter* parameter = module->add_parameters();
-    parameter->set_key("uri");
-    parameter->set_value(uriDiskProfileConfigPath);
-
-    ASSERT_SOME(modules::ModuleManager::load(modules));
-  }
-
 protected:
   Modules modules;
   string resourceProviderConfigDir;
+  string testCsiPluginWorkDir;
   string uriDiskProfileConfigPath;
 };
+
+
+// This test verifies that a storage local resource provider can report
+// no resource and recover from this state.
+TEST_F(StorageLocalResourceProviderTest, ROOT_NoResource)
+{
+  Clock::pause();
+
+  setupResourceProviderConfig(Bytes(0));
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.isolation = "filesystem/linux";
+
+  // Disable HTTP authentication to simplify resource provider interactions.
+  slaveFlags.authenticate_http_readwrite = false;
+
+  // Set the resource provider capability.
+  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
+  SlaveInfo::Capability capability;
+  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
+  capabilities.push_back(capability);
+
+  slaveFlags.agent_features = SlaveCapabilities();
+  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
+      {capabilities.begin(), capabilities.end()});
+
+  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
+
+  // Since the local resource provider daemon is started after the agent
+  // is registered, it is guaranteed that the slave will send two
+  // `UpdateSlaveMessage`s, where the latter one contains resources from
+  // the storage local resource provider.
+  // NOTE: The order of the two `FUTURE_PROTOBUF`s are reversed because
+  // Google Mock will search the expectations in reverse order.
+  Future<UpdateSlaveMessage> updateSlave2 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+  Future<UpdateSlaveMessage> updateSlave1 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Advance the clock to trigger agent registration and prevent retry.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(updateSlave1);
+
+  // NOTE: We need to resume the clock so that the resource provider can
+  // periodically check if the CSI endpoint socket has been created by
+  // the plugin container, which runs in another Linux process.
+  Clock::resume();
+
+  AWAIT_READY(updateSlave2);
+  ASSERT_TRUE(updateSlave2->has_resource_providers());
+  ASSERT_EQ(1, updateSlave2->resource_providers().providers_size());
+  EXPECT_EQ(
+      0,
+      updateSlave2->resource_providers().providers(0).total_resources_size());
+
+  Clock::pause();
+
+  // Restart the agent.
+  slave.get()->terminate();
+
+  // Since the local resource provider daemon is started after the agent
+  // is registered, it is guaranteed that the slave will send two
+  // `UpdateSlaveMessage`s, where the latter one contains resources from
+  // the storage local resource provider.
+  // NOTE: The order of the two `FUTURE_PROTOBUF`s are reversed because
+  // Google Mock will search the expectations in reverse order.
+  Future<UpdateSlaveMessage> updateSlave4 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+  Future<UpdateSlaveMessage> updateSlave3 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Advance the clock to trigger agent registration and prevent retry.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(updateSlave3);
+
+  Clock::resume();
+
+  AWAIT_READY(updateSlave4);
+  ASSERT_TRUE(updateSlave4->has_resource_providers());
+  ASSERT_EQ(1, updateSlave4->resource_providers().providers_size());
+  EXPECT_EQ(
+      0,
+      updateSlave4->resource_providers().providers(0).total_resources_size());
+}
+
+
+// This test verifies that any zero-sized volume reported by a CSI
+// plugin will be ignored by the storage local resource provider.
+TEST_F(StorageLocalResourceProviderTest, ROOT_ZeroSizedDisk)
+{
+  Clock::pause();
+
+  setupResourceProviderConfig(Bytes(0), "volume0:0B");
+
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.isolation = "filesystem/linux";
+
+  // Disable HTTP authentication to simplify resource provider interactions.
+  slaveFlags.authenticate_http_readwrite = false;
+
+  // Set the resource provider capability.
+  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
+  SlaveInfo::Capability capability;
+  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
+  capabilities.push_back(capability);
+
+  slaveFlags.agent_features = SlaveCapabilities();
+  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
+      {capabilities.begin(), capabilities.end()});
+
+  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
+
+  // Since the local resource provider daemon is started after the agent
+  // is registered, it is guaranteed that the slave will send two
+  // `UpdateSlaveMessage`s, where the latter one contains resources from
+  // the storage local resource provider.
+  // NOTE: The order of the two `FUTURE_PROTOBUF`s are reversed because
+  // Google Mock will search the expectations in reverse order.
+  Future<UpdateSlaveMessage> updateSlave2 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+  Future<UpdateSlaveMessage> updateSlave1 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Advance the clock to trigger agent registration and prevent retry.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(updateSlave1);
+
+  Clock::resume();
+
+  AWAIT_READY(updateSlave2);
+  ASSERT_TRUE(updateSlave2->has_resource_providers());
+  ASSERT_EQ(1, updateSlave2->resource_providers().providers_size());
+
+  Option<Resource> volume;
+  foreach (const Resource& resource,
+           updateSlave2->resource_providers().providers(0).total_resources()) {
+    if (Resources::hasResourceProvider(resource)) {
+      volume = resource;
+    }
+  }
+
+  ASSERT_NONE(volume);
+}
+
+
+// This test verifies that the storage local resource provider can
+// handle disks less than 1MB correctly.
+TEST_F(StorageLocalResourceProviderTest, ROOT_SmallDisk)
+{
+  loadUriDiskProfileModule();
+
+  setupResourceProviderConfig(Kilobytes(512), "volume0:512KB");
+  setupDiskProfileConfig();
+
+  master::Flags masterFlags = CreateMasterFlags();
+
+  // Use a small allocation interval to speed up the test. We do this
+  // instead of manipulating the clock to keep the test concise and
+  // avoid waiting for `UpdateSlaveMessage`s and pausing/resuming the
+  // clock multiple times.
+  masterFlags.allocation_interval = Milliseconds(50);
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.isolation = "filesystem/linux";
+
+  // Disable HTTP authentication to simplify resource provider interactions.
+  slaveFlags.authenticate_http_readwrite = false;
+
+  // Set the resource provider capability.
+  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
+  SlaveInfo::Capability capability;
+  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
+  capabilities.push_back(capability);
+
+  slaveFlags.agent_features = SlaveCapabilities();
+  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
+      {capabilities.begin(), capabilities.end()});
+
+  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
+  slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Register a framework to receive offers.
+  FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
+  framework.set_roles(0, "storage");
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  // We use the following filter to filter offers that do not have
+  // wanted resources for 365 days (the maximum).
+  Filters declineFilters;
+  declineFilters.set_refuse_seconds(Days(365).secs());
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> rawDisksOffers;
+
+  // We are interested in offers that contains both the storage pool and
+  // the pre-existing volume.
+  auto isStoragePool = [](const Resource& r) {
+    return r.has_disk() &&
+      r.disk().has_source() &&
+      r.disk().source().type() == Resource::DiskInfo::Source::RAW &&
+      !r.disk().source().has_id() &&
+      r.disk().source().has_profile();
+  };
+
+  auto isPreExistingVolume = [](const Resource& r) {
+    return r.has_disk() &&
+      r.disk().has_source() &&
+      r.disk().source().has_id() &&
+      !r.disk().source().has_profile();
+  };
+
+  // Since the master may send out offers before the resource provider
+  // reports the storage pool, we decline offers that do not have any
+  // storage pool. This would also decline offers that contain only the
+  // agent's default resources.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillRepeatedly(DeclineOffers(declineFilters));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
+      isStoragePool)))
+    .WillOnce(FutureArg<1>(&rawDisksOffers));
+
+  driver.start();
+
+  AWAIT_READY(rawDisksOffers);
+  ASSERT_FALSE(rawDisksOffers->empty());
+
+  Option<Resource> storagePool;
+  Option<Resource> preExistingVolume;
+  foreach (const Resource& resource, rawDisksOffers->at(0).resources()) {
+    if (isStoragePool(resource)) {
+      storagePool = resource;
+    } else if (isPreExistingVolume(resource)) {
+      preExistingVolume = resource;
+    }
+  }
+
+  ASSERT_SOME(storagePool);
+  EXPECT_EQ(
+      Kilobytes(512),
+      Bytes(storagePool->scalar().value() * Bytes::MEGABYTES));
+
+  ASSERT_SOME(preExistingVolume);
+  EXPECT_EQ(
+      Kilobytes(512),
+      Bytes(preExistingVolume->scalar().value() * Bytes::MEGABYTES));
+}
+
+
+// This test verifies that a framework can receive offers having new
+// storage pools from the storage local resource provider due to
+// adding new profiles.
+TEST_F(StorageLocalResourceProviderTest, ROOT_NewProfile)
+{
+  Clock::pause();
+
+  loadUriDiskProfileModule();
+
+  setupResourceProviderConfig(Gigabytes(4));
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.isolation = "filesystem/linux";
+
+  // Disable HTTP authentication to simplify resource provider interactions.
+  slaveFlags.authenticate_http_readwrite = false;
+
+  // Set the resource provider capability.
+  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
+  SlaveInfo::Capability capability;
+  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
+  capabilities.push_back(capability);
+
+  slaveFlags.agent_features = SlaveCapabilities();
+  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
+      {capabilities.begin(), capabilities.end()});
+
+  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
+  slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
+
+  // Since the local resource provider daemon is started after the agent
+  // is registered, it is guaranteed that the slave will send two
+  // `UpdateSlaveMessage`s, where the latter one contains resources from
+  // the storage local resource provider.
+  // NOTE: The order of the two `FUTURE_PROTOBUF`s are reversed because
+  // Google Mock will search the expectations in reverse order.
+  Future<UpdateSlaveMessage> updateSlave2 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+  Future<UpdateSlaveMessage> updateSlave1 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Advance the clock to trigger agent registration and prevent retry.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(updateSlave1);
+
+  Clock::resume();
+
+  // No resource should be reported by the resource provider before
+  // adding any profile.
+  AWAIT_READY(updateSlave2);
+  ASSERT_TRUE(updateSlave2->has_resource_providers());
+  ASSERT_EQ(1, updateSlave2->resource_providers().providers_size());
+  EXPECT_EQ(
+      0,
+      updateSlave2->resource_providers().providers(0).total_resources_size());
+
+  Future<UpdateSlaveMessage> updateSlave3 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  // Add new profiles.
+  setupDiskProfileConfig();
+
+  // A new storage pool for profile "volume-default" should be reported
+  // by the resource provider. Still expect no storage pool for
+  // "block-default" since it is not supported by the test CSI plugin.
+  AWAIT_READY(updateSlave3);
+  ASSERT_TRUE(updateSlave3->has_resource_providers());
+  ASSERT_EQ(1, updateSlave3->resource_providers().providers_size());
+  EXPECT_EQ(
+      1,
+      updateSlave3->resource_providers().providers(0).total_resources_size());
+
+  Option<Resource> volumeStoragePool;
+  Option<Resource> blockStoragePool;
+  foreach (const Resource& resource,
+           updateSlave3->resource_providers().providers(0).total_resources()) {
+    if (!resource.has_disk() ||
+        !resource.disk().has_source() ||
+        resource.disk().source().type() != Resource::DiskInfo::Source::RAW ||
+        !resource.disk().source().has_profile() ||
+        resource.disk().source().has_id()) {
+      continue;
+    }
+
+    if (resource.disk().source().profile() == "volume-default") {
+      volumeStoragePool = resource;
+    } else if (resource.disk().source().profile() == "block-default") {
+      blockStoragePool = resource;
+    }
+  }
+
+  EXPECT_SOME(volumeStoragePool);
+  EXPECT_NONE(blockStoragePool);
+}
 
 
 // This test verifies that a framework can create then destroy a new
@@ -178,6 +597,9 @@ protected:
 TEST_F(StorageLocalResourceProviderTest, ROOT_NewVolume)
 {
   loadUriDiskProfileModule();
+
+  setupResourceProviderConfig(Gigabytes(4));
+  setupDiskProfileConfig();
 
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -237,14 +659,14 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NewVolume)
   Sequence offers;
 
   // We are only interested in storage pools and volume created from
-  // them, which have a "default" profile.
+  // them, which have a "volume-default" profile.
   auto hasSourceType = [](
       const Resource& r,
       const Resource::DiskInfo::Source::Type& type) {
     return r.has_disk() &&
       r.disk().has_source() &&
       r.disk().source().has_profile() &&
-      r.disk().source().profile() == "default" &&
+      r.disk().source().profile() == "volume-default" &&
       r.disk().source().type() == type;
   };
 
@@ -356,6 +778,9 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NewVolumeRecovery)
 {
   loadUriDiskProfileModule();
 
+  setupResourceProviderConfig(Gigabytes(4));
+  setupDiskProfileConfig();
+
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
@@ -417,14 +842,14 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NewVolumeRecovery)
   Sequence offers;
 
   // We are only interested in storage pools and volume created from
-  // them, which have a "default" profile.
+  // them, which have a "volume-default" profile.
   auto hasSourceType = [](
       const Resource& r,
       const Resource::DiskInfo::Source::Type& type) {
     return r.has_disk() &&
       r.disk().has_source() &&
       r.disk().source().has_profile() &&
-      r.disk().source().profile() == "default" &&
+      r.disk().source().profile() == "volume-default" &&
       r.disk().source().type() == type;
   };
 
@@ -549,6 +974,9 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchTask)
 {
   loadUriDiskProfileModule();
 
+  setupResourceProviderConfig(Gigabytes(4));
+  setupDiskProfileConfig();
+
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
@@ -612,14 +1040,14 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchTask)
   Sequence offers;
 
   // We are only interested in storage pools and volume created from
-  // them, which have a "default" profile.
+  // them, which have a "volume-default" profile.
   auto hasSourceType = [](
       const Resource& r,
       const Resource::DiskInfo::Source::Type& type) {
     return r.has_disk() &&
       r.disk().has_source() &&
       r.disk().source().has_profile() &&
-      r.disk().source().profile() == "default" &&
+      r.disk().source().profile() == "volume-default" &&
       r.disk().source().type() == type;
   };
 
@@ -765,6 +1193,9 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchTaskRecovery)
 {
   loadUriDiskProfileModule();
 
+  setupResourceProviderConfig(Gigabytes(4));
+  setupDiskProfileConfig();
+
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
@@ -829,14 +1260,14 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchTaskRecovery)
   Sequence offers;
 
   // We are only interested in storage pools and volume created from
-  // them, which have a "default" profile.
+  // them, which have a "volume-default" profile.
   auto hasSourceType = [](
       const Resource& r,
       const Resource::DiskInfo::Source::Type& type) {
     return r.has_disk() &&
       r.disk().has_source() &&
       r.disk().source().has_profile() &&
-      r.disk().source().profile() == "default" &&
+      r.disk().source().profile() == "volume-default" &&
       r.disk().source().type() == type;
   };
 
@@ -991,8 +1422,10 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchTaskRecovery)
 // This test verifies that a framework can convert pre-existing volumes
 // from a storage local resource provider that uses the test CSI plugin
 // into mount or block volumes.
-TEST_F(StorageLocalResourceProviderTest, ROOT_PreExistingVolume)
+TEST_F(StorageLocalResourceProviderTest, ROOT_ConvertPreExistingVolume)
 {
+  setupResourceProviderConfig(Bytes(0), "volume1:2GB;volume2:2GB");
+
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
@@ -1156,7 +1589,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PreExistingVolume)
     EXPECT_TRUE(os::exists(volumePath.get()));
   }
 }
-
 
 } // namespace tests {
 } // namespace internal {
