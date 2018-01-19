@@ -641,6 +641,16 @@ Slave::~Slave()
 
     AWAIT_READY(containers);
 
+    // Because the `cgroups::destroy()` code path makes use of `delay()`, the
+    // clock must not be paused in order to reliably destroy all remaining
+    // containers. If necessary, we resume the clock here and then pause it
+    // again when we're done destroying containers.
+    bool paused = process::Clock::paused();
+
+    if (paused) {
+      process::Clock::resume();
+    }
+
     foreach (const ContainerID& containerId, containers.get()) {
       process::Future<Option<ContainerTermination>> wait =
         containerizer->wait(containerId);
@@ -654,6 +664,10 @@ Slave::~Slave()
         LOG(ERROR) << "Failed to destroy container " << containerId << ": "
                    << (wait.isFailed() ? wait.failure() : "discarded");
       }
+    }
+
+    if (paused) {
+      process::Clock::pause();
     }
 
     containers = containerizer->containers();
