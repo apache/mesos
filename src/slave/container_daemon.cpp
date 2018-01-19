@@ -16,19 +16,16 @@
 
 #include "slave/container_daemon.hpp"
 
-#include <mesos/agent/agent.hpp>
-
 #include <process/defer.hpp>
 #include <process/id.hpp>
-#include <process/process.hpp>
 
 #include <stout/lambda.hpp>
 #include <stout/stringify.hpp>
 #include <stout/unreachable.hpp>
 
-#include "common/http.hpp"
-
 #include "internal/evolve.hpp"
+
+#include "slave/container_daemon_process.hpp"
 
 namespace http = process::http;
 
@@ -62,46 +59,6 @@ static inline http::Headers getAuthHeader(const Option<string>& authToken)
 
   return headers;
 }
-
-
-class ContainerDaemonProcess : public Process<ContainerDaemonProcess>
-{
-public:
-  explicit ContainerDaemonProcess(
-      const http::URL& _agentUrl,
-      const Option<string>& _authToken,
-      const ContainerID& containerId,
-      const Option<CommandInfo>& commandInfo,
-      const Option<Resources>& resources,
-      const Option<ContainerInfo>& containerInfo,
-      const Option<std::function<Future<Nothing>()>>& _postStartHook,
-      const Option<std::function<Future<Nothing>()>>& _postStopHook);
-
-  ContainerDaemonProcess(const ContainerDaemonProcess& other) = delete;
-
-  ContainerDaemonProcess& operator=(
-      const ContainerDaemonProcess& other) = delete;
-
-  Future<Nothing> wait();
-
-protected:
-  void initialize() override;
-
-private:
-  void launchContainer();
-  void waitContainer();
-
-  const http::URL agentUrl;
-  const Option<string> authToken;
-  const ContentType contentType;
-  const Option<std::function<Future<Nothing>()>> postStartHook;
-  const Option<std::function<Future<Nothing>()>> postStopHook;
-
-  Call launchCall;
-  Call waitCall;
-
-  Promise<Nothing> terminated;
-};
 
 
 ContainerDaemonProcess::ContainerDaemonProcess(

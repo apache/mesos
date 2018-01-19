@@ -1190,6 +1190,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/compatibility.hpp						\
   slave/constants.hpp							\
   slave/container_daemon.hpp						\
+  slave/container_daemon_process.hpp					\
   slave/flags.hpp							\
   slave/gc.hpp								\
   slave/gc_process.hpp							\
