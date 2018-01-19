@@ -409,6 +409,35 @@ public:
 
   Nothing detachFile(const std::string& path);
 
+  // TODO(qianzhang): This is a workaround to make the default executor
+  // task's volume directory visible in MESOS UI. In MESOS-7225, we made
+  // sure a task can access any volumes specified in its disk resources
+  // from its sandbox by introducing a workaround to the default executor,
+  // i.e., adding a `SANDBOX_PATH` volume with type `PARENT` to the
+  // corresponding nested container. This volume gets translated into a
+  // bind mount in the nested container's mount namespace, which is is not
+  // visible in Mesos UI because it operates in the host namespace. See
+  // Mesos-8279 for details.
+  //
+  // To make the task's volume directory visible in Mesos UI, here we
+  // attach the executor's volume directory to it, so when users browse
+  // task's volume directory in Mesos UI, what they actually browse is the
+  // executor's volume directory. Note when calling `Files::attach()`, the
+  // third argument `authorized` is not specified because it is already
+  // specified when we do the attach for the executor's sandbox and it also
+  // applies to the executor's tasks.
+  void attachTaskVolumeDirectory(
+      const ExecutorInfo& executorInfo,
+      const ContainerID& executorContainerId,
+      const Task& task);
+
+  // TODO(qianzhang): Remove the task's volume directory from the /files
+  // endpoint. This is a workaround for MESOS-8279.
+  void detachTaskVolumeDirectories(
+      const ExecutorInfo& executorInfo,
+      const ContainerID& executorContainerId,
+      const std::vector<Task>& tasks);
+
   // Triggers a re-detection of the master when the slave does
   // not receive a ping.
   void pingTimeout(process::Future<Option<MasterInfo>> future);
@@ -832,29 +861,6 @@ public:
 
   // Returns true if there are any queued/launched/terminated tasks.
   bool incompleteTasks();
-
-  // TODO(qianzhang): This is a workaround to make the default executor
-  // task's volume directory visible in MESOS UI. In MESOS-7225, we made
-  // sure a task can access any volumes specified in its disk resources
-  // from its sandbox by introducing a workaround to the default executor,
-  // i.e., adding a `SANDBOX_PATH` volume with type `PARENT` to the
-  // corresponding nested container. This volume gets translated into a
-  // bind mount in the nested container's mount namespace, which is is not
-  // visible in Mesos UI because it operates in the host namespace. See
-  // Mesos-8279 for details.
-  //
-  // To make the task's volume directory visible in Mesos UI, here we
-  // attach the executor's volume directory to it, so when users browse
-  // task's volume directory in Mesos UI, what they actually browse is the
-  // executor's volume directory. Note when calling `Files::attach()`, the
-  // third argument `authorized` is not specified because it is already
-  // specified when we do the attach for the executor's sandbox and it also
-  // applies to the executor's tasks.
-  void attachTaskVolumeDirectory(const Task& task);
-
-  // TODO(qianzhang): Remove the task's volume directory from the /files
-  // endpoint. This is a workaround for MESOS-8279.
-  void detachTaskVolumeDirectory(const Task& task);
 
   // Sends a message to the connected executor.
   template <typename Message>

@@ -1021,6 +1021,97 @@ Nothing Slave::detachFile(const string& path)
 }
 
 
+void Slave::attachTaskVolumeDirectory(
+    const ExecutorInfo& executorInfo,
+    const ContainerID& executorContainerId,
+    const Task& task)
+{
+  CHECK(executorInfo.has_type() &&
+        executorInfo.type() == ExecutorInfo::DEFAULT);
+
+  CHECK_EQ(task.executor_id(), executorInfo.executor_id());
+
+  foreach (const Resource& resource, task.resources()) {
+    // Ignore if there are no disk resources or if the
+    // disk resources did not specify a volume mapping.
+    if (!resource.has_disk() || !resource.disk().has_volume()) {
+      continue;
+    }
+
+    const Volume& volume = resource.disk().volume();
+
+    const string executorDirectory = paths::getExecutorRunPath(
+        flags.work_dir,
+        info.id(),
+        task.framework_id(),
+        task.executor_id(),
+        executorContainerId);
+
+    const string executorVolumePath =
+      path::join(executorDirectory, volume.container_path());
+
+    const string taskPath = paths::getTaskPath(
+        flags.work_dir,
+        info.id(),
+        task.framework_id(),
+        task.executor_id(),
+        executorContainerId,
+        task.task_id());
+
+    const string taskVolumePath =
+      path::join(taskPath, volume.container_path());
+
+    files->attach(executorVolumePath, taskVolumePath)
+      .onAny(defer(
+          self(),
+          &Self::fileAttached,
+          lambda::_1,
+          executorVolumePath,
+          taskVolumePath));
+  }
+}
+
+
+void Slave::detachTaskVolumeDirectories(
+    const ExecutorInfo& executorInfo,
+    const ContainerID& executorContainerId,
+    const vector<Task>& tasks)
+{
+  // NOTE: If the executor is not a default executor, this function will
+  // still be called but with an empty list of tasks.
+  CHECK(tasks.empty() ||
+        (executorInfo.has_type() &&
+         executorInfo.type() == ExecutorInfo::DEFAULT));
+
+  foreach (const Task& task, tasks) {
+    CHECK_EQ(task.executor_id(), executorInfo.executor_id());
+
+    foreach (const Resource& resource, task.resources()) {
+      // Ignore if there are no disk resources or if the
+      // disk resources did not specify a volume mapping.
+      if (!resource.has_disk() || !resource.disk().has_volume()) {
+        continue;
+      }
+
+      const Volume& volume = resource.disk().volume();
+
+      const string taskPath = paths::getTaskPath(
+          flags.work_dir,
+          info.id(),
+          task.framework_id(),
+          task.executor_id(),
+          executorContainerId,
+          task.task_id());
+
+      const string taskVolumePath =
+        path::join(taskPath, volume.container_path());
+
+      files->detach(taskVolumePath);
+    }
+  }
+}
+
+
 void Slave::detected(const Future<Option<MasterInfo>>& _master)
 {
   CHECK(state == DISCONNECTED ||
@@ -5870,26 +5961,34 @@ void Slave::removeExecutor(Framework* framework, Executor* executor)
       executor->id,
       executor->containerId);
 
+  // NOTE: We keep a list of default executor tasks here to for
+  // detaching task volume directories, since the executor may be
+  // already destroyed when the GC completes (MESOS-8460).
+  vector<Task> defaultExecutorTasks;
+  if (executor->info.has_type() &&
+      executor->info.type() == ExecutorInfo::DEFAULT) {
+    foreachvalue (const Task* task, executor->launchedTasks) {
+      defaultExecutorTasks.push_back(*task);
+    }
+
+    foreachvalue (const Task* task, executor->terminatedTasks) {
+      defaultExecutorTasks.push_back(*task);
+    }
+
+    foreach (const shared_ptr<Task>& task, executor->completedTasks) {
+      defaultExecutorTasks.push_back(*task);
+    }
+  }
+
   os::utime(path); // Update the modification time.
   garbageCollect(path)
-    .onAny(defer(self(), [=](const Future<Nothing>& future) {
-      detachFile(path);
-
-      if (executor->info.has_type() &&
-          executor->info.type() == ExecutorInfo::DEFAULT) {
-        foreachvalue (const Task* task, executor->launchedTasks) {
-          executor->detachTaskVolumeDirectory(*task);
-        }
-
-        foreachvalue (const Task* task, executor->terminatedTasks) {
-          executor->detachTaskVolumeDirectory(*task);
-        }
-
-        foreach (const shared_ptr<Task>& task, executor->completedTasks) {
-          executor->detachTaskVolumeDirectory(*task);
-        }
-      }
-    }));
+    .onAny(defer(self(), &Self::detachFile, path))
+    .onAny(defer(
+        self(),
+        &Self::detachTaskVolumeDirectories,
+        executor->info,
+        executor->containerId,
+        defaultExecutorTasks));
 
   // Schedule the top level executor work directory, only if the
   // framework doesn't have any 'pending' tasks for this executor.
@@ -5913,10 +6012,8 @@ void Slave::removeExecutor(Framework* framework, Executor* executor)
 
     os::utime(path); // Update the modification time.
     garbageCollect(path)
-      .onAny(defer(self(), [=](const Future<Nothing>& future) {
-        detachFile(latestPath);
-        detachFile(virtualLatestPath);
-      }));
+      .onAny(defer(self(), &Self::detachFile, latestPath))
+      .onAny(defer(self(), &Self::detachFile, virtualLatestPath));
   }
 
   if (executor->checkpoint) {
@@ -8629,25 +8726,33 @@ void Framework::recoverExecutor(
     const string path = paths::getExecutorRunPath(
         slave->flags.work_dir, slave->info.id(), id(), state.id, runId);
 
+    // NOTE: We keep a list of default executor tasks here to for
+    // detaching task volume directories, since the executor may be
+    // already destroyed when the GC completes (MESOS-8460).
+    vector<Task> defaultExecutorTasks;
+    if (executor->info.has_type() &&
+        executor->info.type() == ExecutorInfo::DEFAULT) {
+      foreachvalue (const Task* task, executor->launchedTasks) {
+        defaultExecutorTasks.push_back(*task);
+      }
+
+      foreachvalue (const Task* task, executor->terminatedTasks) {
+        defaultExecutorTasks.push_back(*task);
+      }
+
+      foreach (const shared_ptr<Task>& task, executor->completedTasks) {
+        defaultExecutorTasks.push_back(*task);
+      }
+    }
+
     slave->garbageCollect(path)
-      .onAny(defer(slave->self(), [=](const Future<Nothing>& future) {
-        slave->detachFile(path);
-
-        if (executor->info.has_type() &&
-            executor->info.type() == ExecutorInfo::DEFAULT) {
-          foreachvalue (const Task* task, executor->launchedTasks) {
-            executor->detachTaskVolumeDirectory(*task);
-          }
-
-          foreachvalue (const Task* task, executor->terminatedTasks) {
-            executor->detachTaskVolumeDirectory(*task);
-          }
-
-          foreach (const shared_ptr<Task>& task, executor->completedTasks) {
-            executor->detachTaskVolumeDirectory(*task);
-          }
-        }
-      }));
+      .onAny(defer(slave, &Slave::detachFile, path))
+      .onAny(defer(
+          slave,
+          &Slave::detachTaskVolumeDirectories,
+          executor->info,
+          executor->containerId,
+          defaultExecutorTasks));
 
     // GC the executor run's meta directory.
     slave->garbageCollect(paths::getExecutorRunPath(
@@ -8656,10 +8761,8 @@ void Framework::recoverExecutor(
     // GC the top level executor work directory.
     slave->garbageCollect(paths::getExecutorPath(
         slave->flags.work_dir, slave->info.id(), id(), state.id))
-        .onAny(defer(slave->self(), [=](const Future<Nothing>& future) {
-          slave->detachFile(latestPath);
-          slave->detachFile(virtualLatestPath);
-        }));
+        .onAny(defer(slave, &Slave::detachFile, latestPath))
+        .onAny(defer(slave, &Slave::detachFile, virtualLatestPath));
 
     // GC the top level executor meta directory.
     slave->garbageCollect(paths::getExecutorPath(
@@ -8954,7 +9057,7 @@ Task* Executor::addLaunchedTask(const TaskInfo& task)
   launchedTasks[task.task_id()] = t;
 
   if (info.has_type() && info.type() == ExecutorInfo::DEFAULT) {
-    attachTaskVolumeDirectory(*t);
+    slave->attachTaskVolumeDirectory(info, containerId, *t);
   }
 
   return t;
@@ -8976,7 +9079,7 @@ void Executor::completeTask(const TaskID& taskId)
       info.type() == ExecutorInfo::DEFAULT &&
       completedTasks.full()) {
     const shared_ptr<Task>& firstTask = completedTasks.front();
-    detachTaskVolumeDirectory(*firstTask);
+    slave->detachTaskVolumeDirectories(info, containerId, {*firstTask});
   }
 
   Task* task = terminatedTasks[taskId];
@@ -9050,7 +9153,7 @@ void Executor::recoverTask(const TaskState& state, bool recheckpointTask)
   launchedTasks[state.id] = task;
 
   if (info.has_type() && info.type() == ExecutorInfo::DEFAULT) {
-    attachTaskVolumeDirectory(*task);
+    slave->attachTaskVolumeDirectory(info, containerId, *task);
   }
 
   // Read updates to get the latest state of the task.
@@ -9155,73 +9258,6 @@ bool Executor::incompleteTasks()
   return !queuedTasks.empty() ||
          !launchedTasks.empty() ||
          !terminatedTasks.empty();
-}
-
-
-void Executor::attachTaskVolumeDirectory(const Task& task)
-{
-  CHECK(info.has_type() && info.type() == ExecutorInfo::DEFAULT);
-
-  foreach (const Resource& resource, task.resources()) {
-    // Ignore if there are no disk resources or if the
-    // disk resources did not specify a volume mapping.
-    if (!resource.has_disk() || !resource.disk().has_volume()) {
-      continue;
-    }
-
-    const Volume& volume = resource.disk().volume();
-
-    const string executorVolumePath =
-      path::join(directory, volume.container_path());
-
-    const string taskPath = paths::getTaskPath(
-        slave->flags.work_dir,
-        slave->info.id(),
-        frameworkId,
-        id,
-        containerId,
-        task.task_id());
-
-    const string taskVolumePath =
-      path::join(taskPath, volume.container_path());
-
-    slave->files->attach(executorVolumePath, taskVolumePath)
-      .onAny(defer(
-          slave,
-          &Slave::fileAttached,
-          lambda::_1,
-          executorVolumePath,
-          taskVolumePath));
-  }
-}
-
-
-void Executor::detachTaskVolumeDirectory(const Task& task)
-{
-  CHECK(info.has_type() && info.type() == ExecutorInfo::DEFAULT);
-
-  foreach (const Resource& resource, task.resources()) {
-    // Ignore if there are no disk resources or if the
-    // disk resources did not specify a volume mapping.
-    if (!resource.has_disk() || !resource.disk().has_volume()) {
-      continue;
-    }
-
-    const Volume& volume = resource.disk().volume();
-
-    const string taskPath = paths::getTaskPath(
-        slave->flags.work_dir,
-        slave->info.id(),
-        frameworkId,
-        id,
-        containerId,
-        task.task_id());
-
-    const string taskVolumePath =
-      path::join(taskPath, volume.container_path());
-
-    slave->files->detach(taskVolumePath);
-  }
 }
 
 
