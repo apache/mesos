@@ -40,7 +40,7 @@ using process::Future;
 using process::Owned;
 
 using testing::Args;
-using testing::AtMost;
+using testing::AtLeast;
 using testing::Sequence;
 
 namespace mesos {
@@ -600,16 +600,19 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolume)
   setupResourceProviderConfig(Gigabytes(4));
   setupDiskProfileConfig();
 
-  Try<Owned<cluster::Master>> master = StartMaster();
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.allocation_interval = Milliseconds(50);
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "filesystem/linux";
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.isolation = "filesystem/linux";
 
   // Disable HTTP authentication to simplify resource provider interactions.
-  flags.authenticate_http_readwrite = false;
+  slaveFlags.authenticate_http_readwrite = false;
 
   // Set the resource provider capability.
   vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
@@ -617,17 +620,17 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolume)
   capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
   capabilities.push_back(capability);
 
-  flags.agent_features = SlaveCapabilities();
-  flags.agent_features->mutable_capabilities()->CopyFrom(
+  slaveFlags.agent_features = SlaveCapabilities();
+  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
       {capabilities.begin(), capabilities.end()});
 
-  flags.resource_provider_config_dir = resourceProviderConfigDir;
-  flags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
+  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
+  slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -640,10 +643,15 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolume)
   MesosSchedulerDriver driver(
       &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  // We use the filter explicitly here so that the resources will not
-  // be filtered for 5 seconds (the default).
-  Filters filters;
-  filters.set_refuse_seconds(0);
+  // We use the following filter so that the resources will not be
+  // filtered for 5 seconds (the default).
+  Filters acceptFilters;
+  acceptFilters.set_refuse_seconds(0);
+
+  // We use the following filter to filter offers that do not have
+  // wanted resources for 365 days (the maximum).
+  Filters declineFilters;
+  declineFilters.set_refuse_seconds(Days(365).secs());
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -671,7 +679,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolume)
 
   // Decline offers that contain only the agent's default resources.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillRepeatedly(DeclineOffers());
+    .WillRepeatedly(DeclineOffers(declineFilters));
 
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
       std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::RAW))))
@@ -708,7 +716,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolume)
   driver.acceptOffers(
       {rawDiskOffers->at(0).id()},
       {CREATE_VOLUME(source.get(), Resource::DiskInfo::Source::MOUNT)},
-      filters);
+      acceptFilters);
 
   AWAIT_READY(volumeCreatedOffers);
   ASSERT_FALSE(volumeCreatedOffers->empty());
@@ -746,7 +754,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolume)
   driver.acceptOffers(
       {volumeCreatedOffers->at(0).id()},
       {DESTROY_VOLUME(volume.get())},
-      filters);
+      acceptFilters);
 
   AWAIT_READY(volumeDestroyedOffers);
   ASSERT_FALSE(volumeDestroyedOffers->empty());
@@ -779,16 +787,19 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolumeRecovery)
   setupResourceProviderConfig(Gigabytes(4));
   setupDiskProfileConfig();
 
-  Try<Owned<cluster::Master>> master = StartMaster();
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.allocation_interval = Milliseconds(50);
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "filesystem/linux";
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.isolation = "filesystem/linux";
 
   // Disable HTTP authentication to simplify resource provider interactions.
-  flags.authenticate_http_readwrite = false;
+  slaveFlags.authenticate_http_readwrite = false;
 
   // Set the resource provider capability.
   vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
@@ -796,17 +807,17 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolumeRecovery)
   capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
   capabilities.push_back(capability);
 
-  flags.agent_features = SlaveCapabilities();
-  flags.agent_features->mutable_capabilities()->CopyFrom(
+  slaveFlags.agent_features = SlaveCapabilities();
+  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
       {capabilities.begin(), capabilities.end()});
 
-  flags.resource_provider_config_dir = resourceProviderConfigDir;
-  flags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
+  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
+  slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -819,10 +830,15 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolumeRecovery)
   MesosSchedulerDriver driver(
       &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  // We use the filter explicitly here so that the resources will not
-  // be filtered for 5 seconds (the default).
-  Filters filters;
-  filters.set_refuse_seconds(0);
+  // We use the following filter so that the resources will not be
+  // filtered for 5 seconds (the default).
+  Filters acceptFilters;
+  acceptFilters.set_refuse_seconds(0);
+
+  // We use the following filter to filter offers that do not have
+  // wanted resources for 365 days (the maximum).
+  Filters declineFilters;
+  declineFilters.set_refuse_seconds(Days(365).secs());
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -853,7 +869,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolumeRecovery)
 
   // Decline offers that contain only the agent's default resources.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillRepeatedly(DeclineOffers());
+    .WillRepeatedly(DeclineOffers(declineFilters));
 
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
       std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::RAW))))
@@ -872,7 +888,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolumeRecovery)
     .WillOnce(FutureArg<1>(&volumeDestroyedOffers));
 
   EXPECT_CALL(sched, offerRescinded(_, _))
-    .Times(AtMost(1));
+    .Times(AtLeast(1));
 
   driver.start();
 
@@ -894,7 +910,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolumeRecovery)
   driver.acceptOffers(
       {rawDiskOffers->at(0).id()},
       {CREATE_VOLUME(source.get(), Resource::DiskInfo::Source::MOUNT)},
-      filters);
+      acceptFilters);
 
   AWAIT_READY(volumeCreatedOffers);
   ASSERT_FALSE(volumeCreatedOffers->empty());
@@ -931,7 +947,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolumeRecovery)
   // Restart the agent.
   slave.get()->terminate();
 
-  slave = StartSlave(detector.get(), flags);
+  slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(agentRecoveredOffers);
@@ -941,7 +957,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolumeRecovery)
   driver.acceptOffers(
       {agentRecoveredOffers->at(0).id()},
       {DESTROY_VOLUME(volume.get())},
-      filters);
+      acceptFilters);
 
   AWAIT_READY(volumeDestroyedOffers);
   ASSERT_FALSE(volumeDestroyedOffers->empty());
@@ -975,16 +991,19 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResources)
   setupResourceProviderConfig(Gigabytes(4));
   setupDiskProfileConfig();
 
-  Try<Owned<cluster::Master>> master = StartMaster();
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.allocation_interval = Milliseconds(50);
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "filesystem/linux";
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.isolation = "filesystem/linux";
 
   // Disable HTTP authentication to simplify resource provider interactions.
-  flags.authenticate_http_readwrite = false;
+  slaveFlags.authenticate_http_readwrite = false;
 
   // Set the resource provider capability.
   vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
@@ -992,17 +1011,17 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResources)
   capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
   capabilities.push_back(capability);
 
-  flags.agent_features = SlaveCapabilities();
-  flags.agent_features->mutable_capabilities()->CopyFrom(
+  slaveFlags.agent_features = SlaveCapabilities();
+  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
       {capabilities.begin(), capabilities.end()});
 
-  flags.resource_provider_config_dir = resourceProviderConfigDir;
-  flags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
+  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
+  slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -1015,10 +1034,15 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResources)
   MesosSchedulerDriver driver(
       &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  // We use the filter explicitly here so that the resources will not
-  // be filtered for 5 seconds (the default).
-  Filters filters;
-  filters.set_refuse_seconds(0);
+  // We use the following filter so that the resources will not be
+  // filtered for 5 seconds (the default).
+  Filters acceptFilters;
+  acceptFilters.set_refuse_seconds(0);
+
+  // We use the following filter to filter offers that do not have
+  // wanted resources for 365 days (the maximum).
+  Filters declineFilters;
+  declineFilters.set_refuse_seconds(Days(365).secs());
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -1051,7 +1075,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResources)
 
   // Decline offers that contain only the agent's default resources.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillRepeatedly(DeclineOffers());
+    .WillRepeatedly(DeclineOffers(declineFilters));
 
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
       std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::RAW))))
@@ -1083,7 +1107,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResources)
   driver.acceptOffers(
       {rawDiskOffers->at(0).id()},
       {CREATE_VOLUME(source.get(), Resource::DiskInfo::Source::MOUNT)},
-      filters);
+      acceptFilters);
 
   AWAIT_READY(volumeCreatedOffers);
   ASSERT_FALSE(volumeCreatedOffers->empty());
@@ -1152,7 +1176,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResources)
            volumeCreatedOffers->at(0).slave_id(),
            persistentVolume,
            createCommandInfo("test -f " + path::join("volume", "file")))})},
-      filters);
+      acceptFilters);
 
   AWAIT_READY(taskStarting);
   EXPECT_EQ(TASK_STARTING, taskStarting->state());
@@ -1174,7 +1198,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResources)
       {taskFinishedOffers->at(0).id()},
       {DESTROY(persistentVolume),
        DESTROY_VOLUME(volume.get())},
-      filters);
+      acceptFilters);
 
   AWAIT_READY(volumeDestroyedOffers);
   ASSERT_FALSE(volumeDestroyedOffers->empty());
@@ -1193,16 +1217,19 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesRecovery)
   setupResourceProviderConfig(Gigabytes(4));
   setupDiskProfileConfig();
 
-  Try<Owned<cluster::Master>> master = StartMaster();
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.allocation_interval = Milliseconds(50);
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "filesystem/linux";
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.isolation = "filesystem/linux";
 
   // Disable HTTP authentication to simplify resource provider interactions.
-  flags.authenticate_http_readwrite = false;
+  slaveFlags.authenticate_http_readwrite = false;
 
   // Set the resource provider capability.
   vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
@@ -1210,17 +1237,17 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesRecovery)
   capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
   capabilities.push_back(capability);
 
-  flags.agent_features = SlaveCapabilities();
-  flags.agent_features->mutable_capabilities()->CopyFrom(
+  slaveFlags.agent_features = SlaveCapabilities();
+  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
       {capabilities.begin(), capabilities.end()});
 
-  flags.resource_provider_config_dir = resourceProviderConfigDir;
-  flags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
+  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
+  slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -1233,10 +1260,15 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesRecovery)
   MesosSchedulerDriver driver(
       &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  // We use the filter explicitly here so that the resources will not
-  // be filtered for 5 seconds (the default).
-  Filters filters;
-  filters.set_refuse_seconds(0);
+  // We use the following filter so that the resources will not be
+  // filtered for 5 seconds (the default).
+  Filters acceptFilters;
+  acceptFilters.set_refuse_seconds(0);
+
+  // We use the following filter to filter offers that do not have
+  // wanted resources for 365 days (the maximum).
+  Filters declineFilters;
+  declineFilters.set_refuse_seconds(Days(365).secs());
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -1270,7 +1302,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesRecovery)
 
   // Decline offers that contain only the agent's default resources.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillRepeatedly(DeclineOffers());
+    .WillRepeatedly(DeclineOffers(declineFilters));
 
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
       std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::RAW))))
@@ -1278,7 +1310,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesRecovery)
     .WillOnce(FutureArg<1>(&rawDiskOffers));
 
   EXPECT_CALL(sched, offerRescinded(_, _))
-    .Times(AtMost(1));
+    .Times(AtLeast(1));
 
   driver.start();
 
@@ -1305,7 +1337,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesRecovery)
   driver.acceptOffers(
       {rawDiskOffers->at(0).id()},
       {CREATE_VOLUME(source.get(), Resource::DiskInfo::Source::MOUNT)},
-      filters);
+      acceptFilters);
 
   AWAIT_READY(volumeCreatedOffers);
   ASSERT_FALSE(volumeCreatedOffers->empty());
@@ -1375,7 +1407,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesRecovery)
            volumeCreatedOffers->at(0).slave_id(),
            persistentVolume,
            createCommandInfo("test -f " + path::join("volume", "file")))})},
-      filters);
+      acceptFilters);
 
   AWAIT_READY(taskStarting);
   EXPECT_EQ(TASK_STARTING, taskStarting->state());
@@ -1391,7 +1423,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesRecovery)
   // Restart the agent.
   slave.get()->terminate();
 
-  slave = StartSlave(detector.get(), flags);
+  slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(agentRecoveredOffers);
@@ -1406,7 +1438,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesRecovery)
       {agentRecoveredOffers->at(0).id()},
       {DESTROY(persistentVolume),
        DESTROY_VOLUME(volume.get())},
-      filters);
+      acceptFilters);
 
   AWAIT_READY(volumeDestroyedOffers);
   ASSERT_FALSE(volumeDestroyedOffers->empty());
@@ -1422,16 +1454,19 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ConvertPreExistingVolume)
 {
   setupResourceProviderConfig(Bytes(0), "volume1:2GB;volume2:2GB");
 
-  Try<Owned<cluster::Master>> master = StartMaster();
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.allocation_interval = Milliseconds(50);
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "filesystem/linux";
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.isolation = "filesystem/linux";
 
   // Disable HTTP authentication to simplify resource provider interactions.
-  flags.authenticate_http_readwrite = false;
+  slaveFlags.authenticate_http_readwrite = false;
 
   // Set the resource provider capability.
   vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
@@ -1439,16 +1474,16 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ConvertPreExistingVolume)
   capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
   capabilities.push_back(capability);
 
-  flags.agent_features = SlaveCapabilities();
-  flags.agent_features->mutable_capabilities()->CopyFrom(
+  slaveFlags.agent_features = SlaveCapabilities();
+  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
       {capabilities.begin(), capabilities.end()});
 
-  flags.resource_provider_config_dir = resourceProviderConfigDir;
+  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -1461,10 +1496,15 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ConvertPreExistingVolume)
   MesosSchedulerDriver driver(
       &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  // We use the filter explicitly here so that the resources will not
-  // be filtered for 5 seconds (the default).
-  Filters filters;
-  filters.set_refuse_seconds(0);
+  // We use the following filter so that the resources will not be
+  // filtered for 5 seconds (the default).
+  Filters acceptFilters;
+  acceptFilters.set_refuse_seconds(0);
+
+  // We use the following filter to filter offers that do not have
+  // wanted resources for 365 days (the maximum).
+  Filters declineFilters;
+  declineFilters.set_refuse_seconds(Days(365).secs());
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -1490,7 +1530,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ConvertPreExistingVolume)
 
   // Decline offers that contain only the agent's default resources.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillRepeatedly(DeclineOffers());
+    .WillRepeatedly(DeclineOffers(declineFilters));
 
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
       isPreExistingVolume)))
@@ -1519,7 +1559,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ConvertPreExistingVolume)
       {rawDisksOffers->at(0).id()},
       {CREATE_VOLUME(sources.at(0), Resource::DiskInfo::Source::MOUNT),
        CREATE_BLOCK(sources.at(1))},
-      filters);
+      acceptFilters);
 
   AWAIT_READY(disksConvertedOffers);
   ASSERT_FALSE(disksConvertedOffers->empty());
@@ -1551,7 +1591,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ConvertPreExistingVolume)
       {disksConvertedOffers->at(0).id()},
       {DESTROY_VOLUME(volume.get()),
        DESTROY_BLOCK(block.get())},
-      filters);
+      acceptFilters);
 
   AWAIT_READY(disksRevertedOffers);
   ASSERT_FALSE(disksRevertedOffers->empty());
