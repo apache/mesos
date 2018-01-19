@@ -487,8 +487,8 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_SmallDisk)
 
 
 // This test verifies that a framework can receive offers having new
-// storage pools from the storage local resource provider due to
-// adding new profiles.
+// storage pools from the storage local resource provider after a new
+// profile appears.
 TEST_F(StorageLocalResourceProviderTest, ROOT_NewProfile)
 {
   Clock::pause();
@@ -591,10 +591,9 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NewProfile)
 }
 
 
-// This test verifies that a framework can create then destroy a new
-// volume from the storage pool of a storage local resource provider
-// that uses the test CSI plugin.
-TEST_F(StorageLocalResourceProviderTest, ROOT_NewVolume)
+// This test verifies that the storage local resource provider can
+// create then destroy a new volume from a storage pool.
+TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolume)
 {
   loadUriDiskProfileModule();
 
@@ -771,10 +770,9 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NewVolume)
 }
 
 
-// This test verifies that a framework can destroy a new volume created
-// from the storage pool of a storage local resource provider that uses
-// the test CSI plugin after recovery.
-TEST_F(StorageLocalResourceProviderTest, ROOT_NewVolumeRecovery)
+// This test verifies that the storage local resource provider can
+// destroy a volume created from a storage pool after recovery.
+TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolumeRecovery)
 {
   loadUriDiskProfileModule();
 
@@ -967,10 +965,10 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NewVolumeRecovery)
 }
 
 
-// This test verifies that a framework can launch a task using a created
-// volume from a storage local resource provider that uses the test CSI
-// plugin, then destroy the volume while it is published.
-TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchTask)
+// This test verifies that the storage local resource provider can
+// publish a volume required by a task, then destroy the published
+// volume after the task finishes.
+TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResources)
 {
   loadUriDiskProfileModule();
 
@@ -1186,10 +1184,9 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchTask)
 }
 
 
-// This test verifies that a framework can destroy a volume that was
-// created from a storage pool of a storage local resource provider
-// and used by a task after recovery.
-TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchTaskRecovery)
+// This test verifies that the storage local resource provider can
+// destroy a published volume after recovery.
+TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesRecovery)
 {
   loadUriDiskProfileModule();
 
@@ -1419,9 +1416,8 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_LaunchTaskRecovery)
 }
 
 
-// This test verifies that a framework can convert pre-existing volumes
-// from a storage local resource provider that uses the test CSI plugin
-// into mount or block volumes.
+// This test verifies that the storage local resource provider can
+// convert pre-existing CSI volumes into mount or block volumes.
 TEST_F(StorageLocalResourceProviderTest, ROOT_ConvertPreExistingVolume)
 {
   setupResourceProviderConfig(Bytes(0), "volume1:2GB;volume2:2GB");
