@@ -26,6 +26,7 @@
 
 #include <mesos/quota/quota.hpp>
 
+#include <process/authenticator.hpp>
 #include <process/future.hpp>
 #include <process/http.hpp>
 #include <process/owned.hpp>
@@ -36,6 +37,28 @@
 #include <stout/jsonify.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/unreachable.hpp>
+
+// TODO(benh): Remove this once we get C++14 as an enum should have a
+// default hash.
+namespace std {
+
+template <>
+struct hash<mesos::authorization::Action>
+{
+  typedef size_t result_type;
+
+  typedef mesos::authorization::Action argument_type;
+
+  result_type operator()(const argument_type& action) const
+  {
+    size_t seed = 0;
+    boost::hash_combine(
+        seed, static_cast<std::underlying_type<argument_type>::type>(action));
+    return seed;
+  }
+};
+
+} // namespace std {
 
 namespace mesos {
 
@@ -164,6 +187,85 @@ public:
 };
 
 
+class ObjectApprovers
+{
+public:
+  static process::Future<process::Owned<ObjectApprovers>> create(
+      const Option<Authorizer*>& authorizer,
+      const Option<process::http::authentication::Principal>& principal,
+      std::initializer_list<authorization::Action> actions);
+
+  template <authorization::Action action, typename... Args>
+  bool approved(const Args&... args)
+  {
+    if (!approvers.contains(action)) {
+      LOG(WARNING) << "Attempted to authorize "
+                   << (principal.isSome()
+                       ? "'" + stringify(principal.get()) + "'"
+                       : "")
+                   << " for unexpected action " << stringify(action);
+      return false;
+    }
+
+    Try<bool> approved = approvers[action]->approved(
+        ObjectApprover::Object(args...));
+
+    if (approved.isError()) {
+      // TODO(joerg84): Expose these errors back to the caller.
+      LOG(WARNING) << "Failed to authorize principal "
+                   << (principal.isSome()
+                       ? "'" + stringify(principal.get()) + "' "
+                       : "")
+                   << "for action " << stringify(action) << ": "
+                   << approved.error();
+      return false;
+    }
+
+    return approved.get();
+  }
+
+private:
+  ObjectApprovers(
+      hashmap<
+          authorization::Action,
+          process::Owned<ObjectApprover>>&& _approvers,
+      const Option<process::http::authentication::Principal>& _principal)
+    : approvers(std::move(_approvers)), principal(_principal) {}
+
+  hashmap<authorization::Action, process::Owned<ObjectApprover>> approvers;
+  Option<process::http::authentication::Principal> principal;
+};
+
+
+template <>
+inline bool ObjectApprovers::approved<authorization::VIEW_ROLE>(
+    const Resource& resource)
+{
+  // Necessary because recovered agents are presented in old format.
+  if (resource.has_role() && resource.role() != "*" &&
+      !approved<authorization::VIEW_ROLE>(resource.role())) {
+    return false;
+  }
+
+  // Reservations follow a path model where each entry is a child of the
+  // previous one. Therefore, to accept the resource the acceptor has to
+  // accept all entries.
+  foreach (Resource::ReservationInfo reservation, resource.reservations()) {
+    if (!approved<authorization::VIEW_ROLE>(reservation.role())) {
+      return false;
+    }
+  }
+
+  if (resource.has_allocation_info() &&
+      !approved<authorization::VIEW_ROLE>(
+          resource.allocation_info().role())) {
+    return false;
+  }
+
+  return true;
+}
+
+
 // Determines which objects will be accepted based on authorization.
 class AuthorizationAcceptor
 {
@@ -272,6 +374,7 @@ process::Future<bool> authorizeEndpoint(
 bool approveViewRole(
     const process::Owned<ObjectApprover>& rolesApprover,
     const std::string& role);
+
 
 // Authorizes resources in either the pre- or the post-reservation-refinement
 // formats.

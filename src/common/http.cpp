@@ -32,6 +32,7 @@
 #include <mesos/quota/quota.hpp>
 
 #include <process/authenticator.hpp>
+#include <process/collect.hpp>
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
 #include <process/http.hpp>
@@ -859,6 +860,41 @@ const AuthorizationCallbacks createAuthorizationCallbacks(
   callbacks.insert(std::make_pair("/metrics/snapshot", getEndpoint));
 
   return callbacks;
+}
+
+Future<Owned<ObjectApprovers>> ObjectApprovers::create(
+    const Option<Authorizer*>& authorizer,
+    const Option<Principal>& principal,
+    std::initializer_list<authorization::Action> actions)
+{
+  // Ensures there are no repeated elements.
+  hashset<authorization::Action> _actions(actions);
+
+  Option<authorization::Subject> subject =
+    authorization::createSubject(principal);
+
+  if (authorizer.isNone()) {
+    hashmap<authorization::Action, Owned<ObjectApprover>> approvers;
+
+    foreach (authorization::Action action, _actions) {
+      approvers.put(
+          action,
+          Owned<ObjectApprover>(new AcceptingObjectApprover()));
+    }
+
+    return Owned<ObjectApprovers>(
+        new ObjectApprovers(std::move(approvers), principal));
+  }
+
+  return process::collect(lambda::map<std::list>(
+      [&](authorization::Action action) -> Future<Owned<ObjectApprover>> {
+        return authorizer.get()->getObjectApprover(subject, action);
+      },
+      _actions))
+    .then([=](const std::list<Owned<ObjectApprover>>& _approvers) {
+      return Owned<ObjectApprovers>(
+          new ObjectApprovers(lambda::zip(_actions, _approvers), principal));
+    });
 }
 
 
