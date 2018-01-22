@@ -184,33 +184,6 @@ Cannot be used in conjunction with <code>--ip</code>.
 </tr>
 <tr>
   <td>
-    --ip6=VALUE
-  </td>
-  <td>
-IPv6 address to listen on. This cannot be used in conjunction
-with <code>--ip6_discovery_command</code>.
-<p/>
-NOTE: Currently Mesos doesn't listen on IPv6 sockets and hence
-this IPv6 address is only used to advertise IPv6 addresses for
-containers running on the host network.
-  </td>
-</tr>
-<tr>
-  <td>
-    --ip6_discovery_command=VALUE
-  </td>
-  <td>
-Optional IPv6 discovery binary: if set, it is expected to emit
-the IPv6 address on which Mesos will try to bind when IPv6 socket
-support is enabled in Mesos.
-<p/>
-NOTE: Currently Mesos doesn't listen on IPv6 sockets and hence
-this IPv6 address is only used to advertise IPv6 addresses for
-containers running on the host network.
-  </td>
-</tr>
-<tr>
-  <td>
     --modules=VALUE
   </td>
   <td>
