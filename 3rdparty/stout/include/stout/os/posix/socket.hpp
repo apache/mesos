@@ -28,6 +28,29 @@ using ::connect;
 using ::recv;
 using ::send;
 
+
+// Returns a socket file descriptor for the specified options.
+// NOTE: on OS X, the returned socket will have the SO_NOSIGPIPE option set.
+inline Try<int_fd> socket(int family, int type, int protocol)
+{
+  int_fd s;
+  if ((s = ::socket(family, type, protocol)) < 0) {
+    return ErrnoError();
+  }
+
+#ifdef __APPLE__
+  // Disable SIGPIPE via setsockopt because OS X does not support
+  // the MSG_NOSIGNAL flag on send(2).
+  const int enable = 1;
+  if (setsockopt(s, SOL_SOCKET, SO_NOSIGPIPE, &enable, sizeof(int)) == -1) {
+    return ErrnoError();
+  }
+#endif // __APPLE__
+
+  return s;
+}
+
+
 // The error indicates the last socket operation has been
 // interupted, the operation can be restarted immediately.
 inline bool is_restartable_error(int error)
