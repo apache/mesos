@@ -777,3 +777,9 @@
     - xingzhou@cn.ibm.com
   jira_user: dongdong
   reviewboard_user: dongdong
+  
+- name: Antonis Danezis
+  emails:
+    - anton.dan@hotmail.com
+  jira_user: antondan
+  reviewboard_user: antondan
