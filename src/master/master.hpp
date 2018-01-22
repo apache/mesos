@@ -1956,6 +1956,8 @@ private:
 
   struct Subscribers
   {
+    Subscribers(Master* _master) : master(_master) {};
+
     // Represents a client subscribed to the 'api/vX' endpoint.
     //
     // TODO(anand): Add support for filtering. Some subscribers
@@ -1963,11 +1965,9 @@ private:
     struct Subscriber
     {
       Subscriber(
-          Master* _master,
           const HttpConnection& _http,
           const Option<process::http::authentication::Principal> _principal)
-        : master(_master),
-          http(_http),
+        : http(_http),
           principal(_principal)
       {
         mesos::master::Event event;
@@ -1989,11 +1989,20 @@ private:
       Subscriber(const Subscriber&) = delete;
       Subscriber& operator=(const Subscriber&) = delete;
 
-      void send(const mesos::master::Event& event,
+      // The `AuthorizationAcceptor` parameters here are not all required for
+      // every event, but we currently construct and pass them all regardless
+      // of the event type.
+      //
+      // TODO(greggomann): Refactor this function into multiple event-specific
+      // overloads. See MESOS-8475.
+      void send(
+          const process::Shared<mesos::master::Event>& event,
           const process::Owned<AuthorizationAcceptor>& authorizeRole,
           const process::Owned<AuthorizationAcceptor>& authorizeFramework,
           const process::Owned<AuthorizationAcceptor>& authorizeTask,
-          const process::Owned<AuthorizationAcceptor>& authorizeExecutor);
+          const process::Owned<AuthorizationAcceptor>& authorizeExecutor,
+          const Option<process::Shared<FrameworkInfo>>& frameworkInfo,
+          const Option<process::Shared<Task>>& task);
 
       ~Subscriber()
       {
@@ -2007,7 +2016,6 @@ private:
         wait(heartbeater.get());
       }
 
-      Master* master;
       HttpConnection http;
       process::Owned<Heartbeater<mesos::master::Event, v1::master::Event>>
         heartbeater;
@@ -2015,12 +2023,16 @@ private:
     };
 
     // Sends the event to all subscribers connected to the 'api/vX' endpoint.
-    void send(const mesos::master::Event& event);
+    void send(mesos::master::Event&& event);
+
+    Master* master;
 
     // Active subscribers to the 'api/vX' endpoint keyed by the stream
     // identifier.
     hashmap<id::UUID, process::Owned<Subscriber>> subscribed;
-  } subscribers;
+  };
+
+  Subscribers subscribers;
 
   hashmap<OfferID, Offer*> offers;
   hashmap<OfferID, process::Timer> offerTimers;
