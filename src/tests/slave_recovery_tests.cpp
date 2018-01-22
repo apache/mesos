@@ -1794,10 +1794,11 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoveryTimeout)
 }
 
 
-// The slave is stopped after an executor is completed (i.e., it has
-// terminated and all its updates have been acknowledged).
-// When it comes back up with recovery=reconnect, make
-// sure the recovery successfully completes.
+// The slave is stopped after an executor is completed (i.e., it
+// has terminated and all its updates have been acknowledged).
+// When it comes back up with recovery=reconnect, make sure the
+// recovery successfully completes and the executor's work and
+// meta directories successfully gc'ed.
 TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
 {
   Try<Owned<cluster::Master>> master = this->StartMaster();
@@ -1839,24 +1840,37 @@ TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
 
   TaskInfo task = createTask(offers1.get()[0], "exit 0");
 
+  // Capture the slave and framework ids.
+  SlaveID slaveId = offers1.get()[0].slave_id();
+  FrameworkID frameworkId = offers1.get()[0].framework_id();
+
   EXPECT_CALL(sched, statusUpdate(_, _))
     .Times(3); // TASK_STARTING, TASK_RUNNING and TASK_FINISHED updates.
 
   EXPECT_CALL(sched, offerRescinded(_, _))
     .Times(AtMost(1));
 
+  Future<RegisterExecutorMessage> registerExecutor =
+    FUTURE_PROTOBUF(RegisterExecutorMessage(), _, _);
+
   Future<Nothing> schedule = FUTURE_DISPATCH(
       _, &GarbageCollectorProcess::schedule);
 
   driver.launchTasks(offers1.get()[0].id(), {task});
+
+  // Capture the executor id.
+  AWAIT_READY(registerExecutor);
+  ExecutorID executorId = registerExecutor->executor_id();
 
   // We use 'gc.schedule' as a proxy for the cleanup of the executor.
   AWAIT_READY(schedule);
 
   slave.get()->terminate();
 
-  Future<Nothing> schedule2 = FUTURE_DISPATCH(
-      _, &GarbageCollectorProcess::schedule);
+  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
   // Restart the slave (use same flags) with a new containerizer.
   _containerizer = TypeParam::create(flags, true, &fetcher);
@@ -1871,13 +1885,37 @@ TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
   slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  // We use 'gc.schedule' as a proxy for the cleanup of the executor.
-  AWAIT_READY(schedule2);
+  Clock::pause();
+
+  AWAIT_READY(_recover);
+
+  Clock::settle(); // Wait for slave to schedule reregister timeout.
+
+  // Ensure the slave considers itself recovered.
+  Clock::advance(flags.executor_reregistration_timeout);
+
+  AWAIT_READY(slaveReregisteredMessage);
+
+  Clock::advance(flags.gc_delay);
+
+  Clock::settle();
+
+  // Executor's work and meta directories should be gc'ed by now.
+  ASSERT_FALSE(os::exists(paths::getExecutorPath(
+      flags.work_dir, slaveId, frameworkId, executorId)));
+
+  ASSERT_FALSE(os::exists(paths::getExecutorPath(
+      paths::getMetaRootDir(flags.work_dir),
+      slaveId,
+      frameworkId,
+      executorId)));
 
   // Make sure all slave resources are reoffered.
   AWAIT_READY(offers2);
   EXPECT_EQ(Resources(offers1.get()[0].resources()),
             Resources(offers2.get()[0].resources()));
+
+  Clock::resume();
 
   driver.stop();
   driver.join();
