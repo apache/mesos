@@ -107,6 +107,12 @@
   jira_user: anindya.sinha
   reviewboard_user: anisinha
 
+- name: Antonis Danezis
+  emails:
+    - anton.dan@hotmail.com
+  jira_user: antondan
+  reviewboard_user: antondan
+
 - name: Armand Grillet
   affiliations:
     - {organization: Mesosphere}
@@ -778,8 +784,3 @@
   jira_user: dongdong
   reviewboard_user: dongdong
   
-- name: Antonis Danezis
-  emails:
-    - anton.dan@hotmail.com
-  jira_user: antondan
-  reviewboard_user: antondan
