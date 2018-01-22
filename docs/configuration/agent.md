@@ -507,6 +507,19 @@ this role. (default: *)
 </tr>
 <tr>
   <td>
+    --disk_profile_adaptor=VALUE
+  </td>
+  <td>
+The name of the disk profile adaptor module that storage resource
+providers should use for translating a 'disk profile' into inputs
+consumed by various Container Storage Interface (CSI) plugins.
+If this flag is not specified, the default behavior for storage
+resource providers is to only expose resources for pre-existing
+volumes and not publish RAW volumes.
+  </td>
+</tr>
+<tr>
+  <td>
     --disk_watch_interval=VALUE
   </td>
   <td>
