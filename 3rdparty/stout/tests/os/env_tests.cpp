@@ -62,3 +62,29 @@ TEST(EnvTest, SimpleEnvTest)
   result = os::getenv(key);
   EXPECT_NONE(result);
 }
+
+
+#ifndef __WINDOWS__
+TEST(EnvTest, EraseEnv)
+{
+  os::setenv("key", "value");
+
+  std::map<string, string> pre = os::environment();
+
+  // We use ::getenv rather than `os::getenv` so that we can
+  // keep the pointer across the `os::eraseenv` and verify that
+  // `os::eraseenv` clears existing values rather than just
+  // making them unavailable.
+  char * value = ::getenv("key");
+  EXPECT_STREQ("value", value);
+
+  os::eraseenv("key");
+  EXPECT_STREQ("", value);
+  EXPECT_NONE(os::getenv("key"));
+
+  // Verify that erasing "key" removed the environment variable without
+  // damaging any other ernvironment variables.
+  pre.erase("key");
+  EXPECT_EQ(pre, os::environment());
+}
+#endif // __WINDOWS__
