@@ -229,15 +229,13 @@ struct Null {};
 
 namespace internal {
 
-// Only Object and Array require recursive_wrapper, not sure
-// if there is a reason to wrap the others or not.
 // Null needs to be first so that it is the default value.
-typedef boost::variant<boost::recursive_wrapper<Null>,
-                       boost::recursive_wrapper<String>,
-                       boost::recursive_wrapper<Number>,
+typedef boost::variant<Null,
+                       String,
+                       Number,
                        boost::recursive_wrapper<Object>,
                        boost::recursive_wrapper<Array>,
-                       boost::recursive_wrapper<Boolean>> Variant;
+                       Boolean> Variant;
 
 } // namespace internal {
 

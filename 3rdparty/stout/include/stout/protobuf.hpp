@@ -900,9 +900,9 @@ inline Object protobuf(const google::protobuf::Message& message)
             break;
           case google::protobuf::FieldDescriptor::TYPE_BOOL:
             if (reflection->GetRepeatedBool(message, field, i)) {
-              array.values.push_back(JSON::True());
+              array.values.push_back(JSON::Boolean(true));
             } else {
-              array.values.push_back(JSON::False());
+              array.values.push_back(JSON::Boolean(false));
             }
             break;
           case google::protobuf::FieldDescriptor::TYPE_STRING:
@@ -963,9 +963,9 @@ inline Object protobuf(const google::protobuf::Message& message)
           break;
         case google::protobuf::FieldDescriptor::TYPE_BOOL:
           if (reflection->GetBool(message, field)) {
-            object.values[field->name()] = JSON::True();
+            object.values[field->name()] = JSON::Boolean(true);
           } else {
-            object.values[field->name()] = JSON::False();
+            object.values[field->name()] = JSON::Boolean(false);
           }
           break;
         case google::protobuf::FieldDescriptor::TYPE_STRING:
