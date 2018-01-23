@@ -44,78 +44,12 @@ using OutputFileDescriptors = Subprocess::IO::OutputFileDescriptors;
 
 namespace internal {
 
-static Try<HANDLE> duplicateHandle(const HANDLE handle)
-{
-  HANDLE duplicate = INVALID_HANDLE_VALUE;
-
-  // TODO(anaparu): Do we need to scope the duplicated handle
-  // to the child process?
-  BOOL result = ::DuplicateHandle(
-      ::GetCurrentProcess(),  // Source process == current.
-      handle,                 // Handle to duplicate.
-      ::GetCurrentProcess(),  // Target process == current.
-      &duplicate,
-      0,                      // Ignored (DUPLICATE_SAME_ACCESS).
-      TRUE,                   // Inheritable handle.
-      DUPLICATE_SAME_ACCESS); // Same access level as source.
-
-  if (!result) {
-    return WindowsError("Failed to duplicate handle of stdin file");
-  }
-
-  return duplicate;
-}
-
-
-static Try<HANDLE> getHandleFromFileDescriptor(int_fd fd)
-{
-  // Extract handle from file descriptor.
-  const HANDLE handle = fd;
-  if (handle == INVALID_HANDLE_VALUE) {
-    return WindowsError("Failed to get `HANDLE` for file descriptor");
-  }
-
-  return handle;
-}
-
-
-static Try<HANDLE> getHandleFromFileDescriptor(
-    const int_fd fd,
-    const Subprocess::IO::FDType type)
-{
-  Try<HANDLE> handle = getHandleFromFileDescriptor(fd);
-  if (handle.isError()) {
-    return Error(handle.error());
-  }
-
-  switch (type) {
-    case Subprocess::IO::DUPLICATED: {
-      const Try<HANDLE> duplicate = duplicateHandle(handle.get());
-
-      if (duplicate.isError()) {
-        return Error(duplicate.error());
-      }
-
-      return duplicate;
-    }
-    case Subprocess::IO::OWNED:
-      return handle;
-
-    // NOTE: By not setting a default we leverage the compiler
-    // errors when the enumeration is augmented to find all
-    // the cases we need to provide. Same for below.
-  }
-}
-
-
 // Creates a file for a subprocess's stdin, stdout, or stderr.
 //
 // NOTE: For portability, Libprocess implements POSIX-style semantics for these
 // files, and make no assumptions about who has access to them. For example, we
 // do not enforce a process-level write lock on stdin, and we do not enforce a
 // similar read lock from stdout.
-//
-// TODO(hausdorff): Rethink name here, write a comment about this function.
 static Try<HANDLE> createIoPath(const string& path, DWORD accessFlags)
 {
   // Per function comment, the flags `FILE_SHARE_READ`, `FILE_SHARE_WRITE`, and
