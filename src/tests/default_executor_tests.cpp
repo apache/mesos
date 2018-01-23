@@ -1837,23 +1837,36 @@ TEST_P(DefaultExecutorTest, ROOT_MultiTaskgroupSharePidNamespace)
 
   // Wait up to 10 seconds for each of the two tasks to
   // write its pid namespace inode into its sandbox.
+  Option<string> pidNamespace1;
+  Option<string> pidNamespace2;
+
   Duration waited = Duration::zero();
   do {
     if (os::exists(pidNamespacePath1) && os::exists(pidNamespacePath2)) {
-      break;
+      Try<string> pidNamespace = os::read(pidNamespacePath1);
+      ASSERT_SOME(pidNamespace);
+
+      pidNamespace1 = pidNamespace.get();
+
+      pidNamespace = os::read(pidNamespacePath2);
+      ASSERT_SOME(pidNamespace);
+
+      pidNamespace2 = pidNamespace.get();
+
+      // It is possible that the `ns` file has been created but not written
+      // yet (i.e., an empty file). To avoid comparing empty file, we will
+      // only break from this loop when both task's `ns` files are not empty.
+      if (!(strings::trim(pidNamespace1.get()).empty()) &&
+          !(strings::trim(pidNamespace2.get()).empty())) {
+        break;
+      }
     }
 
     os::sleep(Seconds(1));
     waited += Seconds(1);
   } while (waited < Seconds(10));
 
-  EXPECT_TRUE(os::exists(pidNamespacePath1));
-  EXPECT_TRUE(os::exists(pidNamespacePath2));
-
-  Try<string> pidNamespace1 = os::read(pidNamespacePath1);
   ASSERT_SOME(pidNamespace1);
-
-  Try<string> pidNamespace2 = os::read(pidNamespacePath2);
   ASSERT_SOME(pidNamespace2);
 
   // Check the two tasks share the same pid namespace.
