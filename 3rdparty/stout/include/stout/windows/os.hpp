@@ -174,6 +174,13 @@ inline void unsetenv(const std::string& key)
 }
 
 
+// NOTE: This exists for compatibility with the POSIX API.
+inline void eraseenv(const std::string& key)
+{
+  unsetenv(key);
+}
+
+
 // Suspends execution of the calling process until a child specified by `pid`
 // has changed state. Unlike the POSIX standard function `::waitpid`, this
 // function does not use -1 and 0 to signify errors and nonblocking return.
