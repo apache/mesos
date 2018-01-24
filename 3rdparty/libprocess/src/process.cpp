@@ -491,8 +491,19 @@ static ProcessManager* process_manager = nullptr;
 // Used for authenticating HTTP requests.
 static AuthenticatorManager* authenticator_manager = nullptr;
 
-// Authorization callbacks for HTTP endpoints.
-static AuthorizationCallbacks* authorization_callbacks = nullptr;
+// Authorization callbacks for HTTP endpoints. Note that we use
+// an atomic + mutex in order to do "double-checked locking" to
+// avoid the cost of acquiring the mutex when authorization is
+// not enabled. The mutex is non-recursive, which means that
+// an authorization callback must not set or unset the callbacks
+// or else we will deadlock! This is already a requirement,
+// since a callback calling in to clear or re-set the callbacks
+// is thereby deleting itself!
+//
+// TODO(bmahler): Consider using a read/write lock.
+static std::atomic<AuthorizationCallbacks*> authorization_callbacks =
+  ATOMIC_VAR_INIT(nullptr);
+static std::mutex* authorization_callbacks_mutex = new std::mutex();
 
 // Global route that returns process information.
 static Route* processes_route = nullptr;
@@ -557,21 +568,25 @@ namespace authorization {
 
 void setCallbacks(const AuthorizationCallbacks& callbacks)
 {
-  if (authorization_callbacks != nullptr) {
-    delete authorization_callbacks;
-  }
+  synchronized (authorization_callbacks_mutex) {
+    if (authorization_callbacks.load() != nullptr) {
+      delete authorization_callbacks.load();
+    }
 
-  authorization_callbacks = new AuthorizationCallbacks(callbacks);
+    authorization_callbacks.store(new AuthorizationCallbacks(callbacks));
+  }
 }
 
 
 void unsetCallbacks()
 {
-  if (authorization_callbacks != nullptr) {
-    delete authorization_callbacks;
-  }
+  synchronized (authorization_callbacks_mutex) {
+    if (authorization_callbacks.load() != nullptr) {
+      delete authorization_callbacks.load();
+    }
 
-  authorization_callbacks = nullptr;
+    authorization_callbacks.store(nullptr);
+  }
 }
 
 } // namespace authorization {
@@ -3666,25 +3681,43 @@ Future<Response> ProcessBase::_consume(
         principal = authentication->principal;
       }
 
-      // The result of a call to an authorization callback.
-      Future<bool> authorization;
+      // Look for an authorization callback installed for this endpoint.
+      //
+      // NOTE: we use double-checked locking here to avoid
+      // head-of-line blocking that occurs when the first thread
+      // attempts to check for authorization callbacks.
+      //
+      // TODO(bmahler): Consider a read/write lock in addition to
+      // double checked locking. Since we expect the callbacks to
+      // be set in production, it would be ideal to avoid locking
+      // altogether. This would be possible if authorization
+      // callbacks were bound to the lifetime of libprocess
+      // initialization and finalization.
+      //
+      // TODO(benh): Consider optimizing this further to not be
+      // sequentially consistent. For more details see:
+      // http://preshing.com/20130930/double-checked-locking-is-fixed-in-cpp11.
+      Future<bool> authorization = true;
 
-      // Look for an authorization callback installed for this endpoint path.
-      // If none is found, use a trivial one.
-      const string callback_path = path::join("/" + pid.id, name);
-      if (authorization_callbacks != nullptr &&
-          authorization_callbacks->count(callback_path) > 0) {
-        authorization = authorization_callbacks->at(callback_path)(
-            *request, principal);
+      if (authorization_callbacks.load() != nullptr) {
+        const string callback_path = path::join("/" + pid.id, name);
 
-        // Sequence the authorization future to ensure the handlers
-        // are invoked in the same order that requests arrive.
-        authorization = handlers.httpSequence->add<bool>(
-            [authorization]() { return authorization; });
-      } else {
-        authorization = handlers.httpSequence->add<bool>(
-            []() { return true; });
+        synchronized (authorization_callbacks_mutex) {
+          AuthorizationCallbacks* callbacks = authorization_callbacks.load();
+
+          if (callbacks != nullptr) {
+            auto callback = callbacks->find(callback_path);
+            if (callback != callbacks->end()) {
+              authorization = (callback->second)(*request, principal);
+            }
+          }
+        }
       }
+
+      // Sequence the authorization future to ensure the handlers
+      // are invoked in the same order that requests arrive.
+      authorization = handlers.httpSequence->add<bool>(
+          [authorization]() { return authorization; });
 
       // Install a callback on the authorization result.
       return authorization
