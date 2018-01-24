@@ -32,59 +32,7 @@
 class Duration
 {
 public:
-  static Try<Duration> parse(const std::string& s)
-  {
-    // TODO(benh): Support negative durations (i.e., starts with '-').
-    size_t index = 0;
-    while (index < s.size()) {
-      if (isdigit(s[index]) || s[index] == '.') {
-        index++;
-        continue;
-      }
-
-      Try<double> value = numify<double>(s.substr(0, index));
-
-      if (value.isError()) {
-        return Error(value.error());
-      }
-
-      const std::string unit = s.substr(index);
-
-      int64_t factor;
-      if (unit == "ns") {
-        factor = NANOSECONDS;
-      } else if (unit == "us") {
-        factor = MICROSECONDS;
-      } else if (unit == "ms") {
-        factor = MILLISECONDS;
-      } else if (unit == "secs") {
-        factor = SECONDS;
-      } else if (unit == "mins") {
-        factor = MINUTES;
-      } else if (unit == "hrs") {
-        factor = HOURS;
-      } else if (unit == "days") {
-        factor = DAYS;
-      } else if (unit == "weeks") {
-        factor = WEEKS;
-      } else {
-        return Error(
-            "Unknown duration unit '" + unit + "'; supported units are"
-            " 'ns', 'us', 'ms', 'secs', 'mins', 'hrs', 'days', and 'weeks'");
-      }
-
-      double nanos = value.get() * factor;
-      if (nanos > max().nanos || nanos < min().nanos) {
-        return Error(
-            "Argument out of the range that a Duration can represent due"
-            " to int64_t's size limit");
-      }
-
-      return Duration(value.get(), factor);
-    }
-
-    return Error("Invalid duration '" + s + "'");
-  }
+  static Try<Duration> parse(const std::string& s);
 
   static Try<Duration> create(double seconds);
 
@@ -409,6 +357,61 @@ inline std::ostream& operator<<(std::ostream& stream, const Duration& duration_)
   stream.precision(precision);
 
   return stream;
+}
+
+
+inline Try<Duration> Duration::parse(const std::string& s)
+{
+  // TODO(benh): Support negative durations (i.e., starts with '-').
+  size_t index = 0;
+  while (index < s.size()) {
+    if (isdigit(s[index]) || s[index] == '.') {
+      index++;
+      continue;
+    }
+
+    Try<double> value = numify<double>(s.substr(0, index));
+
+    if (value.isError()) {
+      return Error(value.error());
+    }
+
+    const std::string unit = s.substr(index);
+
+    int64_t factor;
+    if (unit == "ns") {
+      factor = NANOSECONDS;
+    } else if (unit == "us") {
+      factor = MICROSECONDS;
+    } else if (unit == "ms") {
+      factor = MILLISECONDS;
+    } else if (unit == "secs") {
+      factor = SECONDS;
+    } else if (unit == "mins") {
+      factor = MINUTES;
+    } else if (unit == "hrs") {
+      factor = HOURS;
+    } else if (unit == "days") {
+      factor = DAYS;
+    } else if (unit == "weeks") {
+      factor = WEEKS;
+    } else {
+      return Error(
+          "Unknown duration unit '" + unit + "'; supported units are"
+          " 'ns', 'us', 'ms', 'secs', 'mins', 'hrs', 'days', and 'weeks'");
+    }
+
+    double nanos = value.get() * factor;
+    if (nanos > max().nanos || nanos < min().nanos) {
+      return Error(
+          "Argument out of the range that a Duration can represent due"
+          " to int64_t's size limit");
+    }
+
+    return Duration(value.get(), factor);
+  }
+
+  return Error("Invalid duration '" + s + "'");
 }
 
 
