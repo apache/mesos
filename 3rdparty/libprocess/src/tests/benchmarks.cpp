@@ -674,10 +674,10 @@ private:
 // Measures performance of message passing in ProtobufProcess.
 TEST(ProcessTest, Process_BENCHMARK_ProtobufInstallHandler)
 {
-  const size_t submessages[] = {0, 1, 5, 10, 50, 100, 500, 1000, 5000, 10000};
+  const int submessages[] = {0, 1, 5, 10, 50, 100, 500, 1000, 5000, 10000};
 
   ProtobufInstallHandlerBenchmarkProcess process;
-  foreach (size_t num_submessages, submessages) {
+  foreach (int num_submessages, submessages) {
     process.run(num_submessages);
   }
 }
