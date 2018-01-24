@@ -91,7 +91,7 @@ namespace mesos {
 
 // Forward declarations.
 class Authorizer;
-class ObjectApprover;
+class ObjectApprovers;
 
 namespace internal {
 
@@ -1509,25 +1509,25 @@ private:
 
     process::Future<process::http::Response> __updateMaintenanceSchedule(
         const mesos::maintenance::Schedule& schedule,
-        const process::Owned<ObjectApprover>& approver) const;
+        const process::Owned<ObjectApprovers>& approvers) const;
 
     process::Future<process::http::Response> ___updateMaintenanceSchedule(
         const mesos::maintenance::Schedule& schedule,
         bool applied) const;
 
     mesos::maintenance::Schedule _getMaintenanceSchedule(
-        const process::Owned<ObjectApprover>& approver) const;
+        const process::Owned<ObjectApprovers>& approvers) const;
 
     process::Future<mesos::maintenance::ClusterStatus> _getMaintenanceStatus(
-        const process::Owned<ObjectApprover>& approver) const;
+        const process::Owned<ObjectApprovers>& approvers) const;
 
     process::Future<process::http::Response> _startMaintenance(
         const google::protobuf::RepeatedPtrField<MachineID>& machineIds,
-        const process::Owned<ObjectApprover>& approver) const;
+        const process::Owned<ObjectApprovers>& approvers) const;
 
     process::Future<process::http::Response> _stopMaintenance(
         const google::protobuf::RepeatedPtrField<MachineID>& machineIds,
-        const process::Owned<ObjectApprover>& approver) const;
+        const process::Owned<ObjectApprovers>& approvers) const;
 
     process::Future<process::http::Response> _reserve(
         const SlaveID& slaveId,
@@ -1589,7 +1589,7 @@ private:
         ContentType contentType) const;
 
     mesos::master::Response::GetAgents _getAgents(
-        const process::Owned<AuthorizationAcceptor>& rolesAcceptor) const;
+        const process::Owned<ObjectApprovers>& approvers) const;
 
     process::Future<process::http::Response> getFlags(
         const mesos::master::Call& call,
@@ -1672,8 +1672,7 @@ private:
         ContentType contentType) const;
 
     mesos::master::Response::GetTasks _getTasks(
-        const process::Owned<ObjectApprover>& frameworksApprover,
-        const process::Owned<ObjectApprover>& tasksApprover) const;
+        const process::Owned<ObjectApprovers>& approvers) const;
 
     process::Future<process::http::Response> createVolumes(
         const mesos::master::Call& call,
@@ -1701,7 +1700,7 @@ private:
         ContentType contentType) const;
 
     mesos::master::Response::GetFrameworks _getFrameworks(
-        const process::Owned<ObjectApprover>& frameworksApprover) const;
+        const process::Owned<ObjectApprovers>& approvers) const;
 
     process::Future<process::http::Response> getExecutors(
         const mesos::master::Call& call,
@@ -1709,8 +1708,7 @@ private:
         ContentType contentType) const;
 
     mesos::master::Response::GetExecutors _getExecutors(
-        const process::Owned<ObjectApprover>& frameworksApprover,
-        const process::Owned<ObjectApprover>& executorsApprover) const;
+        const process::Owned<ObjectApprovers>& approvers) const;
 
     process::Future<process::http::Response> getState(
         const mesos::master::Call& call,
@@ -1718,10 +1716,7 @@ private:
         ContentType contentType) const;
 
     mesos::master::Response::GetState _getState(
-        const process::Owned<ObjectApprover>& frameworksApprover,
-        const process::Owned<ObjectApprover>& taskApprover,
-        const process::Owned<ObjectApprover>& executorsApprover,
-        const process::Owned<AuthorizationAcceptor>& rolesAcceptor) const;
+        const process::Owned<ObjectApprovers>& approvers) const;
 
     process::Future<process::http::Response> subscribe(
         const mesos::master::Call& call,
@@ -2013,18 +2008,11 @@ private:
       Subscriber(const Subscriber&) = delete;
       Subscriber& operator=(const Subscriber&) = delete;
 
-      // The `AuthorizationAcceptor` parameters here are not all required for
-      // every event, but we currently construct and pass them all regardless
-      // of the event type.
-      //
       // TODO(greggomann): Refactor this function into multiple event-specific
       // overloads. See MESOS-8475.
       void send(
           const process::Shared<mesos::master::Event>& event,
-          const process::Owned<AuthorizationAcceptor>& authorizeRole,
-          const process::Owned<AuthorizationAcceptor>& authorizeFramework,
-          const process::Owned<AuthorizationAcceptor>& authorizeTask,
-          const process::Owned<AuthorizationAcceptor>& authorizeExecutor,
+          const process::Owned<ObjectApprovers>& approvers,
           const process::Shared<FrameworkInfo>& frameworkInfo,
           const process::Shared<Task>& task);
 

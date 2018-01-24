@@ -52,7 +52,7 @@ struct UPID;
 
 namespace mesos {
 
-class AuthorizationAcceptor;
+class ObjectApprovers;
 
 namespace internal {
 
@@ -419,8 +419,7 @@ mesos::master::Event createFrameworkRemoved(const FrameworkInfo& frameworkInfo);
 // Helper for creating an `Agent` response.
 mesos::master::Response::GetAgents::Agent createAgentResponse(
     const mesos::internal::master::Slave& slave,
-    const Option<process::Owned<AuthorizationAcceptor>>& rolesAcceptor =
-      None());
+    const Option<process::Owned<ObjectApprovers>>& approvers = None());
 
 
 // Helper for creating an `AGENT_ADDED` event from a `Slave`.
