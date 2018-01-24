@@ -266,39 +266,6 @@ inline bool ObjectApprovers::approved<authorization::VIEW_ROLE>(
 }
 
 
-// Determines which objects will be accepted based on authorization.
-class AuthorizationAcceptor
-{
-public:
-  static process::Future<process::Owned<AuthorizationAcceptor>> create(
-      const Option<process::http::authentication::Principal>& principal,
-      const Option<Authorizer*>& authorizer,
-      const authorization::Action& action);
-
-  template <typename... Args>
-  bool accept(Args&... args)
-  {
-    Try<bool> approved =
-      objectApprover->approved(ObjectApprover::Object(args...));
-    if (approved.isError()) {
-      LOG(WARNING) << "Error during authorization: " << approved.error();
-      return false;
-    }
-
-    return approved.get();
-  }
-
-protected:
-  // TODO(qleng): Currently, `Owned` is implemented with `shared_ptr` and allows
-  // copying. In the future, if `Owned` is implemented with `unique_ptr`, we
-  // will need to pass by rvalue reference here instead (see MESOS-5122).
-  AuthorizationAcceptor(const process::Owned<ObjectApprover>& approver)
-    : objectApprover(approver) {}
-
-  const process::Owned<ObjectApprover> objectApprover;
-};
-
-
 /**
  * Used to filter results for API handlers. Provides the 'accept()' method to
  * test whether the supplied ID is equal to a stored target ID. If no target
@@ -331,32 +298,6 @@ protected:
 };
 
 
-bool approveViewFrameworkInfo(
-    const process::Owned<ObjectApprover>& frameworksApprover,
-    const FrameworkInfo& frameworkInfo);
-
-
-bool approveViewExecutorInfo(
-    const process::Owned<ObjectApprover>& executorsApprover,
-    const ExecutorInfo& executorInfo,
-    const FrameworkInfo& frameworkInfo);
-
-
-bool approveViewTaskInfo(
-    const process::Owned<ObjectApprover>& tasksApprover,
-    const TaskInfo& taskInfo,
-    const FrameworkInfo& frameworkInfo);
-
-
-bool approveViewTask(
-    const process::Owned<ObjectApprover>& tasksApprover,
-    const Task& task,
-    const FrameworkInfo& frameworkInfo);
-
-
-bool approveViewFlags(const process::Owned<ObjectApprover>& flagsApprover);
-
-
 // Authorizes access to an HTTP endpoint. The `method` parameter
 // determines which ACL action will be used in the authorization.
 // It is expected that the caller has validated that `method` is
@@ -369,20 +310,6 @@ process::Future<bool> authorizeEndpoint(
     const std::string& method,
     const Option<Authorizer*>& authorizer,
     const Option<process::http::authentication::Principal>& principal);
-
-
-bool approveViewRole(
-    const process::Owned<ObjectApprover>& rolesApprover,
-    const std::string& role);
-
-
-// Authorizes resources in either the pre- or the post-reservation-refinement
-// formats.
-// TODO(arojas): Update this helper to only accept the
-// post-reservation-refinement format once MESOS-7851 is resolved.
-bool authorizeResource(
-    const Resource& resource,
-    const Option<process::Owned<AuthorizationAcceptor>>& acceptor);
 
 
 /**

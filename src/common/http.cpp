@@ -898,84 +898,6 @@ Future<Owned<ObjectApprovers>> ObjectApprovers::create(
 }
 
 
-bool approveViewFrameworkInfo(
-    const Owned<ObjectApprover>& frameworksApprover,
-    const FrameworkInfo& frameworkInfo)
-{
-  Try<bool> approved =
-    frameworksApprover->approved(ObjectApprover::Object(frameworkInfo));
-  if (approved.isError()) {
-    LOG(WARNING) << "Error during FrameworkInfo authorization: "
-                 << approved.error();
-    // TODO(joerg84): Consider exposing these errors to the caller.
-    return false;
-  }
-  return approved.get();
-}
-
-
-bool approveViewExecutorInfo(
-    const Owned<ObjectApprover>& executorsApprover,
-    const ExecutorInfo& executorInfo,
-    const FrameworkInfo& frameworkInfo)
-{
-  Try<bool> approved = executorsApprover->approved(
-      ObjectApprover::Object(executorInfo, frameworkInfo));
-  if (approved.isError()) {
-    LOG(WARNING) << "Error during ExecutorInfo authorization: "
-                 << approved.error();
-    // TODO(joerg84): Consider exposing these errors to the caller.
-    return false;
-  }
-  return approved.get();
-}
-
-
-bool approveViewTaskInfo(
-    const Owned<ObjectApprover>& tasksApprover,
-    const TaskInfo& taskInfo,
-    const FrameworkInfo& frameworkInfo)
-{
-  Try<bool> approved =
-    tasksApprover->approved(ObjectApprover::Object(taskInfo, frameworkInfo));
-  if (approved.isError()) {
-    LOG(WARNING) << "Error during TaskInfo authorization: " << approved.error();
-    // TODO(joerg84): Consider exposing these errors to the caller.
-    return false;
-  }
-  return approved.get();
-}
-
-
-bool approveViewTask(
-    const Owned<ObjectApprover>& tasksApprover,
-    const Task& task,
-    const FrameworkInfo& frameworkInfo)
-{
-  Try<bool> approved =
-    tasksApprover->approved(ObjectApprover::Object(task, frameworkInfo));
-  if (approved.isError()) {
-    LOG(WARNING) << "Error during Task authorization: " << approved.error();
-    // TODO(joerg84): Consider exposing these errors to the caller.
-    return false;
-  }
-  return approved.get();
-}
-
-
-bool approveViewFlags(
-    const Owned<ObjectApprover>& flagsApprover)
-{
-  Try<bool> approved = flagsApprover->approved(ObjectApprover::Object());
-  if (approved.isError()) {
-    LOG(WARNING) << "Error during Flags authorization: " << approved.error();
-    // TODO(joerg84): Consider exposing these errors to the caller.
-    return false;
-  }
-  return approved.get();
-}
-
-
 process::Future<bool> authorizeEndpoint(
     const string& endpoint,
     const string& method,
@@ -1015,52 +937,6 @@ process::Future<bool> authorizeEndpoint(
             << " the '" << endpoint << "' endpoint";
 
   return authorizer.get()->authorized(request);
-}
-
-
-bool approveViewRole(
-    const Owned<ObjectApprover>& rolesApprover,
-    const string& role)
-{
-  Try<bool> approved = rolesApprover->approved(ObjectApprover::Object(role));
-  if (approved.isError()) {
-    LOG(WARNING) << "Error during Roles authorization: " << approved.error();
-    // TODO(joerg84): Consider exposing these errors to the caller.
-    return false;
-  }
-  return approved.get();
-}
-
-
-bool authorizeResource(
-    const Resource& resource,
-    const Option<Owned<AuthorizationAcceptor>>& acceptor)
-{
-  if (acceptor.isNone()) {
-    return true;
-  }
-
-  // Necessary because recovered agents are presented in old format.
-  if (resource.has_role() && resource.role() != "*" &&
-      !acceptor.get()->accept(resource.role())) {
-    return false;
-  }
-
-  if (resource.has_allocation_info() &&
-      !acceptor.get()->accept(resource.allocation_info().role())) {
-    return false;
-  }
-
-  // Reservations follow a path model where each entry is a child of the
-  // previous one. Therefore, to accept the resource the acceptor has to
-  // accept all entries.
-  foreach (Resource::ReservationInfo reservation, resource.reservations()) {
-    if (!acceptor.get()->accept(reservation.role())) {
-      return false;
-    }
-  }
-
-  return true;
 }
 
 
@@ -1229,28 +1105,5 @@ void logRequest(const process::http::Request& request)
                 ? " with X-Forwarded-For='" + forwardedFor.get() + "'"
                 : "");
 }
-
-
-Future<Owned<AuthorizationAcceptor>> AuthorizationAcceptor::create(
-    const Option<Principal>& principal,
-    const Option<Authorizer*>& authorizer,
-    const authorization::Action& action)
-{
-  if (authorizer.isNone()) {
-    return Owned<AuthorizationAcceptor>(
-        new AuthorizationAcceptor(Owned<ObjectApprover>(
-            new AcceptingObjectApprover())));
-  }
-
-  const Option<authorization::Subject> subject =
-    authorization::createSubject(principal);
-
-  return authorizer.get()->getObjectApprover(subject, action)
-    .then([=](const Owned<ObjectApprover>& approver) {
-      return Owned<AuthorizationAcceptor>(
-          new AuthorizationAcceptor(approver));
-    });
-}
-
 
 }  // namespace mesos {
