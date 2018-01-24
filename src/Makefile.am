@@ -24,26 +24,26 @@ include ../3rdparty/versions.am
 
 # TODO(charles): Move these into an included automakefile and have
 # them include $(top_builddir) as appropriate.
+BOOST = 3rdparty/boost-$(BOOST_VERSION)
+CONCURRENTQUEUE = 3rdparty/concurrentqueue-$(CONCURRENTQUEUE_VERSION)
 CSI = 3rdparty/csi-$(CSI_VERSION)
+ELFIO = 3rdparty/elfio-$(ELFIO_VERSION)
+GLOG = 3rdparty/glog-$(GLOG_VERSION)
+GMOCK = $(GOOGLETEST)/googlemock
+GOOGLETEST = 3rdparty/googletest-release-$(GOOGLETEST_VERSION)
+GRPC = 3rdparty/grpc-$(GRPC_VERSION)
+GTEST = $(GOOGLETEST)/googletest
 LEVELDB = 3rdparty/leveldb-$(LEVELDB_VERSION)
+LIBPROCESS = 3rdparty/libprocess
+NVML = 3rdparty/nvml-$(NVML_VERSION)
+PICOJSON = 3rdparty/picojson-$(PICOJSON_VERSION)
 PIP = 3rdparty/pip-$(PIP_VERSION)
+PROTOBUF = 3rdparty/protobuf-$(PROTOBUF_VERSION)
 SETUPTOOLS = 3rdparty/setuptools-$(SETUPTOOLS_VERSION)
+STOUT = 3rdparty/stout
 WHEEL = 3rdparty/wheel-$(WHEEL_VERSION)
 ZOOKEEPER = 3rdparty/zookeeper-$(ZOOKEEPER_VERSION)/src/c
 ZOOKEEPER_JAR = 3rdparty/zookeeper-$(ZOOKEEPER_VERSION)/zookeeper-$(ZOOKEEPER_VERSION).jar
-LIBPROCESS = 3rdparty/libprocess
-STOUT = 3rdparty/stout
-BOOST = 3rdparty/boost-$(BOOST_VERSION)
-CONCURRENTQUEUE = 3rdparty/concurrentqueue-$(CONCURRENTQUEUE_VERSION)
-ELFIO = 3rdparty/elfio-$(ELFIO_VERSION)
-GLOG = 3rdparty/glog-$(GLOG_VERSION)
-GOOGLETEST = 3rdparty/googletest-release-$(GOOGLETEST_VERSION)
-GMOCK = $(GOOGLETEST)/googlemock
-GTEST = $(GOOGLETEST)/googletest
-GRPC = 3rdparty/grpc-$(GRPC_VERSION)
-PROTOBUF = 3rdparty/protobuf-$(PROTOBUF_VERSION)
-PICOJSON = 3rdparty/picojson-$(PICOJSON_VERSION)
-NVML = 3rdparty/nvml-$(NVML_VERSION)
 
 
 # Unfortunatley, 'pkglibexecdir' and 'pkgsysconfdir' are not set

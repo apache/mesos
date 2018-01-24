@@ -148,34 +148,6 @@ AC_CONFIG_FILES([mpi/mpiexec-mesos], [chmod +x mpi/mpiexec-mesos])
 # Optional features.
 ###############################################################################
 
-# TODO(benh): Eventually make this enabled by default.
-AC_ARG_ENABLE([last_in_first_out_fixed_size_semaphore],
-              AS_HELP_STRING([--enable-last-in-first-out-fixed-size-semaphore],
-                             [enables the optimized LIFO fixed-size semaphore in libprocess]),
-                             [], [enable_last_in_first_out_fixed_size_semaphore=no])
-
-# TODO(benh): Eventually make this enabled by default.
-AC_ARG_ENABLE([lock_free_event_queue],
-              AS_HELP_STRING([--enable-lock-free-event-queue],
-                             [enables the lock-free event queue in libprocess]),
-                             [], [enable_lock_free_event_queue=no])
-
-# TODO(benh): Eventually make this enabled by default.
-AC_ARG_ENABLE([lock_free_run_queue],
-              AS_HELP_STRING([--enable-lock-free-run-queue],
-                             [enables the lock-free run queue in libprocess]),
-                             [], [enable_lock_free_run_queue=no])
-
-AC_ARG_ENABLE([hardening],
-              AS_HELP_STRING([--disable-hardening],
-                             [disables security measures such as stack
-                             protection and position independent library code]),
-                             [], [enable_hardening=yes])
-
-AC_ARG_ENABLE([gc-unused],
-              AS_HELP_STRING([--enable-gc-unused],
-                             [enable garbage collection of unused program segments]),
-                             [], [enable_gc_unused=no])
 
 AC_ARG_ENABLE([bundled],
               AS_HELP_STRING([--disable-bundled],
@@ -207,18 +179,30 @@ AC_ARG_ENABLE([bundled-wheel],
 AC_ARG_ENABLE([debug],
               AS_HELP_STRING([--enable-debug],
                              [enable debugging. If CFLAGS/CXXFLAGS are set, this
-                              option won't change them]),
+                              option will not change them]),
               [], [enable_debug=no])
+
+AC_ARG_ENABLE([gc-unused],
+              AS_HELP_STRING([--enable-gc-unused],
+                             [enable garbage collection of unused program segments]),
+                             [], [enable_gc_unused=no])
 
 AC_ARG_ENABLE([grpc],
               AS_HELP_STRING([--enable-grpc],
                              [enable grpc support]),
               [], [enable_grpc=no])
 
-AC_ARG_ENABLE([port-mapping-isolator],
-              AS_HELP_STRING([--enable-port-mapping-isolator],
-                             [enable port mapping network isolator]),
-              [], [enable_port_mapping_isolator=no])
+AC_ARG_ENABLE([hardening],
+              AS_HELP_STRING([--disable-hardening],
+                             [disables security measures such as stack
+                             protection and position independent library code]),
+                             [], [enable_hardening=yes])
+
+AC_ARG_ENABLE([install-module-dependencies],
+              AS_HELP_STRING([--enable-install-module-dependencies],
+                             [Install third-party bundled dependencies required
+                              for module development]),
+              [], [enable_install_module_dependencies=no])
 
 AC_ARG_ENABLE([network-ports-isolator],
               AS_HELP_STRING([--enable-network-ports-isolator],
@@ -227,19 +211,31 @@ AC_ARG_ENABLE([network-ports-isolator],
 
 AC_ARG_ENABLE([java],
               AS_HELP_STRING([--disable-java],
-                             [don't build Java bindings]),
+                             [do not build Java bindings]),
               [], [enable_java=yes])
+
+# TODO(benh): Eventually make this enabled by default.
+AC_ARG_ENABLE([last_in_first_out_fixed_size_semaphore],
+              AS_HELP_STRING([--enable-last-in-first-out-fixed-size-semaphore],
+                             [enables the optimized LIFO fixed-size semaphore in libprocess]),
+                             [], [enable_last_in_first_out_fixed_size_semaphore=no])
 
 AC_ARG_ENABLE([libevent],
               AS_HELP_STRING([--enable-libevent],
                              [use libevent instead of libev]),
               [], [enable_libevent=no])
 
-AC_ARG_ENABLE([install-module-dependencies],
-              AS_HELP_STRING([--enable-install-module-dependencies],
-                             [Install third-party bundled dependencies required
-                              for module development]),
-              [], [enable_install_module_dependencies=no])
+# TODO(benh): Eventually make this enabled by default.
+AC_ARG_ENABLE([lock_free_event_queue],
+              AS_HELP_STRING([--enable-lock-free-event-queue],
+                             [enables the lock-free event queue in libprocess]),
+                             [], [enable_lock_free_event_queue=no])
+
+# TODO(benh): Eventually make this enabled by default.
+AC_ARG_ENABLE([lock_free_run_queue],
+              AS_HELP_STRING([--enable-lock-free-run-queue],
+                             [enables the lock-free run queue in libprocess]),
+                             [], [enable_lock_free_run_queue=no])
 
 AC_ARG_ENABLE([libtool-wrappers],
               AS_HELP_STRING([--disable-libtool-wrappers],
@@ -254,17 +250,26 @@ AC_ARG_ENABLE([libtool-wrappers],
 AC_ARG_ENABLE([optimize],
               AS_HELP_STRING([--enable-optimize],
                              [enable optimizations. If CFLAGS/CXXFLAGS are set,
-                              this option won't change them]),
+                              this option will not change them]),
               [], [enable_optimize=no])
+
+AC_ARG_ENABLE([parallel_test_execution],
+              AS_HELP_STRING([--enable-parallel-test-execution],
+                             [execute tests in parallel where possible]))
 
 AC_ARG_ENABLE([perftools],
               AS_HELP_STRING([--enable-perftools],
                              [enable Google perftools]),
               [], [enable_perftools=no])
 
+AC_ARG_ENABLE([port-mapping-isolator],
+              AS_HELP_STRING([--enable-port-mapping-isolator],
+                             [enable port mapping network isolator]),
+              [], [enable_port_mapping_isolator=no])
+
 AC_ARG_ENABLE([python],
               AS_HELP_STRING([--disable-python],
-                             [don't build Python bindings]),
+                             [do not build Python bindings]),
               [], [enable_python=yes])
 
 # This is used to make distcheck and python install work together. For more
@@ -293,19 +298,14 @@ AC_ARG_ENABLE([tests-install],
                              [build and install tests and their helper tools]),
               [], [enable_tests_install=no])
 
-AC_ARG_ENABLE([xfs-disk-isolator],
-              AS_HELP_STRING([--enable-xfs-disk-isolator],
-                             [builds the XFS disk isolator]),
-              [], [enable_xfs_disk_isolator=no])
-
-AC_ARG_ENABLE([parallel_test_execution],
-              AS_HELP_STRING([--enable-parallel-test-execution],
-                             [execute tests in parallel where possible]))
-
 AC_ARG_ENABLE([werror],
               AS_HELP_STRING([--disable-werror],
                              [do not treat compiler warnings as fatal errors]))
 
+AC_ARG_ENABLE([xfs-disk-isolator],
+              AS_HELP_STRING([--enable-xfs-disk-isolator],
+                             [builds the XFS disk isolator]),
+              [], [enable_xfs_disk_isolator=no])
 
 ###############################################################################
 # Optional packages.
