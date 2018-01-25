@@ -662,10 +662,6 @@ Future<http::Connection> IOSwitchboard::_connect(
   }
 
   // Get the io switchboard address from the `containerId`.
-  //
-  // NOTE: We explicitly don't want to check for the existence of
-  // `containerId` in our `infos` struct. Otherwise we wouldn't be
-  // able to reconnect to the io switchboard after agent restarts.
   Result<unix::Address> address = getContainerIOSwitchboardAddress(
       flags.runtime_dir, containerId);
 
