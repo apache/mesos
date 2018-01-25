@@ -206,6 +206,22 @@ string getContainerIOSwitchboardSocketPath(
 }
 
 
+string getContainerIOSwitchboardSocketProvisionalPath(
+    const std::string& socketPath)
+{
+  return socketPath + "_provisional";
+}
+
+
+string getContainerIOSwitchboardSocketProvisionalPath(
+    const std::string& runtimeDir,
+    const ContainerID& containerId)
+{
+  return getContainerIOSwitchboardSocketProvisionalPath(
+      getContainerIOSwitchboardSocketPath(runtimeDir, containerId));
+}
+
+
 Result<unix::Address> getContainerIOSwitchboardAddress(
     const string& runtimeDir,
     const ContainerID& containerId)

@@ -691,10 +691,6 @@ Future<http::Connection> IOSwitchboard::_connect(
         return Failure("I/O switchboard has shutdown");
       }
 
-      // TODO(jieyu): We might still get a connection refused error
-      // here because the server might not have started listening on
-      // the socket yet. Consider retrying if 'http::connect' failed
-      // with ECONNREFUSED.
       return http::connect(address.get(), http::Scheme::HTTP);
     }));
 #endif // __WINDOWS__
@@ -833,16 +829,24 @@ Future<Nothing> IOSwitchboard::cleanup(
         // this container's `IOSwitchboardServer`. If it hasn't been
         // checkpointed yet, or the socket file itself hasn't been created,
         // we simply continue without error.
+        //
+        // NOTE: As the I/O switchboard creates a unix domain socket using
+        // a provisional address before initialiazing and renaming it, we assume
+        // that the absence of the unix socket at the original address means
+        // that the the I/O switchboard has been terminated before renaming.
         Result<unix::Address> address = getContainerIOSwitchboardAddress(
             flags.runtime_dir, containerId);
 
-        if (address.isSome()) {
-          Try<Nothing> rm = os::rm(address->path());
-          if (rm.isError()) {
-            LOG(ERROR) << "Failed to remove unix domain socket file"
-                       << " '" << address->path() << "' for container"
-                       << " '" << containerId << "': " << rm.error();
-          }
+        const string socketPath = address.isSome()
+          ? address->path()
+          : getContainerIOSwitchboardSocketProvisionalPath(
+                flags.runtime_dir, containerId);
+
+        Try<Nothing> rm = os::rm(socketPath);
+        if (rm.isError()) {
+          LOG(ERROR) << "Failed to remove unix domain socket file"
+                     << " '" << socketPath << "' for container"
+                     << " '" << containerId << "': " << rm.error();
         }
 
         return Nothing();
@@ -1039,22 +1043,35 @@ Try<Owned<IOSwitchboardServer>> IOSwitchboardServer::create(
     return Error("Failed to create socket: " + socket.error());
   }
 
-  Try<unix::Address> address = unix::Address::create(socketPath);
+  // Agent connects to the switchboard once it sees a unix socket. However,
+  // the unix socket is not ready to accept connections until `listen()` has
+  // been called. Therefore we initialize a unix socket using a provisional path
+  // and rename it after `listen()` has been called.
+  const string socketProvisionalPath =
+      getContainerIOSwitchboardSocketProvisionalPath(socketPath);
+
+  Try<unix::Address> address = unix::Address::create(socketProvisionalPath);
   if (address.isError()) {
-    return Error("Failed to build address from '" + socketPath + "':"
+    return Error("Failed to build address from '" + socketProvisionalPath + "':"
                  " " + address.error());
   }
 
   Try<unix::Address> bind = socket->bind(address.get());
   if (bind.isError()) {
-    return Error("Failed to bind to address '" + socketPath + "':"
+    return Error("Failed to bind to address '" + socketProvisionalPath + "':"
                  " " + bind.error());
   }
 
   Try<Nothing> listen = socket->listen(64);
   if (listen.isError()) {
     return Error("Failed to listen on socket at address"
-                 " '" + socketPath + "': " + listen.error());
+                 " '" + socketProvisionalPath + "': " + listen.error());
+  }
+
+  Try<Nothing> renameSocket = os::rename(socketProvisionalPath, socketPath);
+  if (renameSocket.isError()) {
+    return Error("Failed to rename socket from '" + socketProvisionalPath + "'"
+                 " to '" + socketPath + "': " + renameSocket.error());
   }
 
   return new IOSwitchboardServer(
