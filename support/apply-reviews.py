@@ -339,13 +339,16 @@ def reviewboard_data(options):
     user = url_to_json(reviewboard_user_url(
         review.get('links').get('submitter').get('title'))).get('user')
 
+    # Only include a description if it is not identical to the summary.
+    message_data = [review.get('summary')]
+    if review.get('description') != review.get('summary'):
+        message_data.append(review.get('description'))
+    message_data.append('Review: {review_url}'.format(review_url=url))
+
     author = u'{author} <{email}>'.format(
         author=user.get('fullname'),
         email=user.get('email'))
-    message = '\n\n'.join([
-        review.get('summary'),
-        review.get('description'),
-        'Review: {review_url}'.format(review_url=url)])
+    message = '\n\n'.join(message_data)
 
     review_data = {
         "summary": review.get('summary'),
