@@ -125,6 +125,26 @@ If both "file" and "name" are specified, "name" is ignored.
 
 Here are the various module kinds currently available.
 
+| kind                                                | description                                                             |
+|-----------------------------------------------------|-------------------------------------------------------------------------|
+| [`Allocator`](#allocator)                           | Provides available resources to schedulers.                             |
+| [`Anonymous`](#anonymous)                           | Coexists with parent process without providing any callbacks.           |
+| [`Authenticatee`](#authentication)                  | Provides the client side of an RPC authentication.                      |
+| [`Authenticator`](#authentication)                  | Provides the server side of an RPC authentication.                      |
+| [`Authorizer`](#authorization)                      | Allows certain principals to perform specific actions.                  |
+| `ContainerLogger`                                   | Container logger modules implement container log management.            |
+| [`Hook`](#hook)                                     | Provides means of tying into specific callbacks.                        |
+| [`HttpAuthenticatee`](#authentication)              | Provides the client side of an HTTP authentication.                     |
+| [`HttpAuthenticator`](#authentication)              | Provides the server side of an HTTP authentication.                     |
+| [`Isolator`](#isolator)                             | Enables experimenting with specialized isolation and monitoring.        |
+| [`MasterContender`](#master_contender_and_detector) | Contender modules allow implementing custom leader election mechanisms. |
+| [`MasterDetector`](#master_contender_and_detector)  | Detector modules allow implementing custom master detection mechanisms. |
+| `QoSController`                                     | QoS modules allow providing task performance guarantees.                |
+| `ResourceEstimator`                                 | Estimator modules allow predicting the resources total used.            |
+| `SecretResolver`                                    | Secret resolver modules allow interfacing with secure data providers.   |
+| `TestModule`                                        | Used internally for testing purposes only.                              |
+
+
 ### Allocator
 
 The Mesos master's _allocator_ periodically determines which framework(s) should be offered the cluster's available resources. Allocator modules enable experimenting with specialized resource allocation algorithms. An example of these could be an allocator that provides a feature currently not supported by the built-in Hierarchical Dominant Resource Fairness allocator, like oversubscription with preemption.
@@ -154,11 +174,23 @@ Anonymous modules do not require any specific selectors (flags) as
 they are immediately instantiated when getting loaded via the
 `--modules` flag by the Mesos master or agent.
 
+
 ### Authentication
 
 Authenticatee and Authenticator modules allow for third parties to quickly
 develop and plug-in new authentication methods. An example for such modules
 could be to support PAM (LDAP, MySQL, NIS, UNIX) backed authentication.
+
+Mesos currently supports two variants of authentication; RPC authentication
+as used by schedulers and agents to authenticate against the master and HTTP
+authentication for securing all kinds of HTTP endpoints. See [Authentication](authentication.md) for more.
+
+
+### Authorization
+
+The authorization subsystem permits operators to configure the actions that certain
+principals are allowed to perform. See [Authorization](authorization.md) for more.
+
 
 ### Hook
 
@@ -168,9 +200,9 @@ modules but rather lets them define actions on so-called hooks.
 
 The available hooks API is defined in mesos/hook.hpp and for each hook defines
 the insertion point and available context. An example of this context is the
-task information which is passed to masterLaunchTaskHook.
+task information which is passed to `masterLaunchTaskHook`.
 
-Some hooks take in an object (e.g. TaskInfo) and return all or part of that
+Some hooks take in an object (e.g. `TaskInfo`) and return all or part of that
 object (e.g. task labels), so that the hook can modify or replace the contents
 in-flight. These hooks are referred to as _decorators_.
 
@@ -228,6 +260,7 @@ The standard location for such stored state is:
 
     <runtime_dir>/isolators/<name_of_isolator>/
 
+
 ### Master Contender and Detector
 
 Contender and Detector modules enable developers to implement custom leader
@@ -252,6 +285,7 @@ For example, the following command runs Mesos master with
 And this one runs Mesos slave with `org_apache_mesos_TestMasterDetector`:
 
 `./bin/mesos-slave.sh --modules="file://<path-to-modules-config>.json" --master_detector=org_apache_mesos_TestMasterDetector`
+
 
 ## Writing Mesos modules
 
