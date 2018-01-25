@@ -516,11 +516,8 @@ libapr-1 is required for libprocess to build.
 ])])
 
 
-# We use "-isystem" instead of "-I" to add Boost to the include search
-# path. This disables compiler warnings inside Boost headers since we
-# can't easily fix them. See MESOS-3799.
 if test -n "`echo $with_boost`"; then
-  CPPFLAGS="$CPPFLAGS -isystem ${with_boost}/include"
+  CPPFLAGS="$CPPFLAGS -I${with_boost}/include"
 fi
 
 # Check if user has asked us to use a preinstalled Boost, or if they
@@ -552,11 +549,8 @@ fi
 AM_CONDITIONAL([WITH_BUNDLED_BOOST], [test "x$with_bundled_boost" = "xyes"])
 
 
-# We use "-isystem" instead of "-I" to add concurrentqueue to the include
-# search path. This disables compiler warnings inside concurrentqueue
-# headers since we don't own the library.
 if test -n "`echo $with_concurrentqueue`"; then
-  CPPFLAGS="$CPPFLAGS -isystem ${with_concurrentqueue}"
+  CPPFLAGS="$CPPFLAGS -I${with_concurrentqueue}"
 fi
 
 # Check if user has asked us to use a preinstalled concurrentqueue,
@@ -889,7 +883,7 @@ AM_CONDITIONAL([WITH_BUNDLED_PICOJSON], [test "x$with_bundled_picojson" = "xyes"
 
 
 if test -n "`echo $with_protobuf`"; then
-  PROTOBUF_CPPFLAGS="-isystem ${with_protobuf}/include"
+  PROTOBUF_CPPFLAGS="-I${with_protobuf}/include"
   PROTOBUF_LINKERFLAGS="-L${with_protobuf}/lib"
 
   CPPFLAGS="$PROTOBUF_CPPFLAGS $CPPFLAGS"
@@ -969,7 +963,7 @@ if test -z "`echo $with_ssl`" &&
 fi
 
 if test -n "`echo $with_ssl`"; then
-  SSL_CPPFLAGS="-isystem ${with_ssl}/include"
+  SSL_CPPFLAGS="-I${with_ssl}/include"
   SSL_LINKERFLAGS="-L${with_ssl}/lib"
 
   CPPFLAGS="$SSL_CPPFLAGS $CPPFLAGS"
@@ -1111,7 +1105,7 @@ libsubversion-1 is required for libprocess to build.
 # the CPPFLAGS and LDFLAGS with respective /include and /lib path
 # suffixes.
 if test -n "`echo $with_zlib`" ; then
-  ZLIB_CPPFLAGS="-isystem ${with_zlib}/include"
+  ZLIB_CPPFLAGS="-I${with_zlib}/include"
   ZLIB_LINKERFLAGS="-L${with_zlib}/lib"
 
   CPPFLAGS="$ZLIB_CPPFLAGS $CPPFLAGS"
@@ -1150,7 +1144,7 @@ location of protobuf used by grpc by providing a prefix path via
     ])
   fi
 
-  CPPFLAGS="$CPPFLAGS -isystem ${with_grpc}/include"
+  CPPFLAGS="$CPPFLAGS -I${with_grpc}/include"
   LDFLAGS="$LDFLAGS -L${with_grpc}/lib"
 fi
 
