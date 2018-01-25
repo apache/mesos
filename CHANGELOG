@@ -373,6 +373,7 @@ All Resolved Issues:
   * [MESOS-8328] - Improve logs displayed after a slave failed recovery.
   * [MESOS-8358] - Create agent endpoints for pruning images.
   * [MESOS-8365] - Create AuthN support for prune images API.
+  * [MESOS-8413] - Zookeeper configuration passwords are shown in clear text.
   * [MESOS-8421] - Duration operators drop precision, even when used with integers.
   * [MESOS-8455] - Avoid unnecessary copying of protobuf in the v1 API.
 
