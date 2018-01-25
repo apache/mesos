@@ -26,6 +26,7 @@ import atexit
 import json
 import linecache
 import os
+import pipes
 import platform
 import re
 import ssl
@@ -268,6 +269,13 @@ def commit_patch(options):
         lambda: os.path.exists(message_file) and os.remove(message_file))
 
     with open(message_file, 'w') as message:
+        # Add a shell command creating the message file for dry-run mode.
+        if options["dry_run"]:
+            shell(
+                "printf {msg} > {file}".format(
+                    msg=pipes.quote(data['message']).replace('\n', '\\n'),
+                    file=message_file),
+                True)
         message.write(data['message'])
 
     cmd = u'git commit' \
