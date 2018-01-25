@@ -150,17 +150,11 @@ MESOS_CPPFLAGS += -DPICOJSON_USE_INT64
 MESOS_CPPFLAGS += -D__STDC_FORMAT_MACROS
 
 if WITH_BUNDLED_BOOST
-# We use "-isystem" instead of "-I" to add Boost to the include search
-# path. This disables compiler warnings inside Boost headers since we
-# can't easily fix them. See MESOS-3799.
-MESOS_CPPFLAGS += -isystem ../$(BOOST)
+MESOS_CPPFLAGS += -I../$(BOOST)
 endif
 
 if WITH_BUNDLED_CONCURRENTQUEUE
-# We use "-isystem" instead of "-I" to add concurrentqueue to the include
-# search path. This disables compiler warnings inside concurrentqueue
-# headers since we don't own the library.
-MESOS_CPPFLAGS += -isystem ../$(CONCURRENTQUEUE)
+MESOS_CPPFLAGS += -I../$(CONCURRENTQUEUE)
 endif
 
 if WITH_BUNDLED_ELFIO
@@ -2597,12 +2591,7 @@ mesos_tests_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_tests_CPPFLAGS += -DSOURCE_DIR=\"$(abs_top_srcdir)\"
 mesos_tests_CPPFLAGS += -DBUILD_DIR=\"$(abs_top_builddir)\"
 mesos_tests_CPPFLAGS += -I../$(GTEST)/include
-
-# We use "-isystem" instead of "-I" to add googlemock to the include
-# search path. This disables compiler warnings inside googlemock
-# headers since we can't easily fix them.
-mesos_tests_CPPFLAGS += -isystem ../$(GMOCK)/include
-
+mesos_tests_CPPFLAGS += -I../$(GMOCK)/include
 mesos_tests_CPPFLAGS += -DTESTLIBEXECDIR=\"$(testlibexecdir)\"
 mesos_tests_CPPFLAGS += -DSBINDIR=\"$(sbindir)\"
 
