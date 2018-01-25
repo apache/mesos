@@ -1703,7 +1703,7 @@ TEST_F(CniIsolatorPortMapperTest, ROOT_INTERNET_CURL_PortMapper)
 
   // Make sure we have a `ports` resource.
   ASSERT_SOME(resources.ports());
-  ASSERT_LE(1u, resources.ports()->range().size());
+  ASSERT_LE(1, resources.ports()->range().size());
 
   // Select a random port from the offer.
   std::srand(std::time(0));
@@ -1753,7 +1753,7 @@ TEST_F(CniIsolatorPortMapperTest, ROOT_INTERNET_CURL_PortMapper)
   ASSERT_TRUE(statusRunning->has_container_status());
 
   ContainerID containerId = statusRunning->container_status().container_id();
-  ASSERT_EQ(1u, statusRunning->container_status().network_infos().size());
+  ASSERT_EQ(1, statusRunning->container_status().network_infos().size());
 
   // Try connecting to the nginx server on port 80 through a
   // non-loopback IP address on `hostPort`.

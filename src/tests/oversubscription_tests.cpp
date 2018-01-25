@@ -542,7 +542,7 @@ TEST_F(OversubscriptionTest, RescindRevocableOfferWithIncreasedRevocable)
   Clock::advance(masterFlags.allocation_interval);
   Clock::settle();
 
-  ASSERT_GT(offers.size(), 0);
+  ASSERT_GT(offers.size(), 0u);
 
   // The total offered resources after the latest estimate.
   Resources resources3;

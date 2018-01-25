@@ -7051,7 +7051,7 @@ TEST_F(MasterTest, DISABLED_RecoverResourcesOrphanedTask)
 
     ASSERT_TRUE(tasks.IsInitialized());
     ASSERT_EQ(1, tasks.tasks().size());
-    EXPECT_EQ(TASK_FINISHED, tasks.tasks(0).state());
+    EXPECT_EQ(v1::TASK_FINISHED, tasks.tasks(0).state());
     EXPECT_TRUE(tasks.orphan_tasks().empty());
     EXPECT_TRUE(tasks.completed_tasks().empty());
   }
@@ -7250,7 +7250,7 @@ TEST_F(MasterTest, FailoverAgentReregisterFirst)
 
     // The state endpoint does not return "reregistered_time" if it is
     // the same as "registered_time".
-    EXPECT_EQ(0, framework.values.count("reregistered_time"));
+    EXPECT_EQ(0u, framework.values.count("reregistered_time"));
 
     JSON::Array unregisteredFrameworks =
       parse->values["unregistered_frameworks"].as<JSON::Array>();
@@ -8984,13 +8984,13 @@ TEST_P(MasterTestPrePostReservationRefinement, LaunchGroup)
 
   AWAIT_READY(startingUpdate);
 
-  EXPECT_EQ(TASK_STARTING, startingUpdate->status().state());
+  EXPECT_EQ(v1::TASK_STARTING, startingUpdate->status().state());
   EXPECT_EQ(taskInfo.task_id(), startingUpdate->status().task_id());
   EXPECT_TRUE(startingUpdate->status().has_timestamp());
 
   AWAIT_READY(runningUpdate);
 
-  EXPECT_EQ(TASK_STARTING, runningUpdate->status().state());
+  EXPECT_EQ(v1::TASK_STARTING, runningUpdate->status().state());
   EXPECT_EQ(taskInfo.task_id(), runningUpdate->status().task_id());
   EXPECT_TRUE(runningUpdate->status().has_timestamp());
 

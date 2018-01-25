@@ -6190,8 +6190,8 @@ TEST_F(SlaveTest, RunTaskGroupFailedSecretGeneration)
   const hashset<v1::TaskID> failedTasks{
       update1->status().task_id(), update2->status().task_id()};
 
-  ASSERT_EQ(TASK_FAILED, update1->status().state());
-  ASSERT_EQ(TASK_FAILED, update2->status().state());
+  ASSERT_EQ(v1::TASK_FAILED, update1->status().state());
+  ASSERT_EQ(v1::TASK_FAILED, update2->status().state());
 
   EXPECT_TRUE(strings::contains(update1->status().message(), failureMessage));
   EXPECT_TRUE(strings::contains(update2->status().message(), failureMessage));
@@ -6398,8 +6398,8 @@ TEST_F(SlaveTest, RunTaskGroupInvalidExecutorSecret)
   const hashset<v1::TaskID> failedTasks{
       update1->status().task_id(), update2->status().task_id()};
 
-  ASSERT_EQ(TASK_FAILED, update1->status().state());
-  ASSERT_EQ(TASK_FAILED, update2->status().state());
+  ASSERT_EQ(v1::TASK_FAILED, update1->status().state());
+  ASSERT_EQ(v1::TASK_FAILED, update2->status().state());
 
   const string failureMessage =
     "Secret of type VALUE must have the 'value' field set";
@@ -6610,8 +6610,8 @@ TEST_F(SlaveTest, RunTaskGroupReferenceTypeSecret)
   const hashset<v1::TaskID> failedTasks{
       update1->status().task_id(), update2->status().task_id()};
 
-  ASSERT_EQ(TASK_FAILED, update1->status().state());
-  ASSERT_EQ(TASK_FAILED, update2->status().state());
+  ASSERT_EQ(v1::TASK_FAILED, update1->status().state());
+  ASSERT_EQ(v1::TASK_FAILED, update2->status().state());
 
   const string failureMessage =
     "Expecting generated secret to be of VALUE type instead of REFERENCE type";
@@ -6848,8 +6848,8 @@ TEST_F(SlaveTest, RunTaskGroupGenerateSecretAfterShutdown)
   const hashset<v1::TaskID> failedTasks{
       update1->status().task_id(), update2->status().task_id()};
 
-  ASSERT_EQ(TASK_FAILED, update1->status().state());
-  ASSERT_EQ(TASK_FAILED, update2->status().state());
+  ASSERT_EQ(v1::TASK_FAILED, update1->status().state());
+  ASSERT_EQ(v1::TASK_FAILED, update2->status().state());
 
   const string failureMessage = "Executor terminating";
 
@@ -7028,12 +7028,12 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
   AWAIT_READY(updateStarting);
 
-  ASSERT_EQ(TASK_STARTING, updateStarting->status().state());
+  ASSERT_EQ(v1::TASK_STARTING, updateStarting->status().state());
   ASSERT_EQ(taskInfo.task_id(), updateStarting->status().task_id());
 
   AWAIT_READY(updateRunning);
 
-  ASSERT_EQ(TASK_RUNNING, updateRunning->status().state());
+  ASSERT_EQ(v1::TASK_RUNNING, updateRunning->status().state());
   ASSERT_EQ(taskInfo.task_id(), updateRunning->status().task_id());
 
   // Restart the agent.
@@ -7282,8 +7282,8 @@ TEST_F(SlaveTest, KillTaskGroupBetweenRunTaskParts)
   const hashset<v1::TaskID> killedTasks{
     update1->status().task_id(), update2->status().task_id()};
 
-  EXPECT_EQ(TASK_KILLED, update1->status().state());
-  EXPECT_EQ(TASK_KILLED, update2->status().state());
+  EXPECT_EQ(v1::TASK_KILLED, update1->status().state());
+  EXPECT_EQ(v1::TASK_KILLED, update2->status().state());
   EXPECT_EQ(tasks, killedTasks);
 }
 
@@ -7542,8 +7542,8 @@ TEST_F(SlaveTest, KillQueuedTaskGroup)
   const hashset<v1::TaskID> killedTasks{
     update1->status().task_id(), update2->status().task_id()};
 
-  EXPECT_EQ(TASK_KILLED, update1->status().state());
-  EXPECT_EQ(TASK_KILLED, update2->status().state());
+  EXPECT_EQ(v1::TASK_KILLED, update1->status().state());
+  EXPECT_EQ(v1::TASK_KILLED, update2->status().state());
   EXPECT_EQ(tasks, killedTasks);
 
   EXPECT_CALL(*executor, subscribed(_, _));
@@ -8046,7 +8046,7 @@ TEST_F(SlaveTest, BrowseExecutorSandboxByVirtualPath)
 
     Try<JSON::Array> parse = JSON::parse<JSON::Array>(response->body);
     ASSERT_SOME(parse);
-    EXPECT_NE(0, parse->values.size());
+    EXPECT_NE(0u, parse->values.size());
   }
 
   {
@@ -8096,7 +8096,7 @@ TEST_F(SlaveTest, BrowseExecutorSandboxByVirtualPath)
 
     Try<JSON::Array> parse = JSON::parse<JSON::Array>(response->body);
     ASSERT_SOME(parse);
-    EXPECT_NE(0, parse->values.size());
+    EXPECT_NE(0u, parse->values.size());
   }
 
   {

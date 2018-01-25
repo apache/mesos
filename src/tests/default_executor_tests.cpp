@@ -183,7 +183,7 @@ TEST_P(DefaultExecutorTest, TaskRunning)
 
   AWAIT_READY(startingUpdate);
 
-  ASSERT_EQ(TASK_STARTING, startingUpdate->status().state());
+  ASSERT_EQ(v1::TASK_STARTING, startingUpdate->status().state());
   EXPECT_EQ(taskInfo.task_id(), startingUpdate->status().task_id());
   EXPECT_TRUE(startingUpdate->status().has_timestamp());
 
@@ -863,7 +863,7 @@ TEST_P(DefaultExecutorTest, TaskUsesExecutor)
 
   AWAIT_READY(update);
 
-  ASSERT_EQ(TASK_STARTING, update->status().state());
+  ASSERT_EQ(v1::TASK_STARTING, update->status().state());
   EXPECT_EQ(taskInfo.task_id(), update->status().task_id());
   EXPECT_TRUE(update->status().has_timestamp());
 }
@@ -1096,13 +1096,13 @@ TEST_P(DefaultExecutorTest, CommitSuicideOnTaskFailure)
               executorInfo, v1::createTaskGroupInfo({taskInfo}))}));
 
   AWAIT_READY(startingUpdate);
-  ASSERT_EQ(TASK_STARTING, startingUpdate->status().state());
+  ASSERT_EQ(v1::TASK_STARTING, startingUpdate->status().state());
 
   AWAIT_READY(runningUpdate);
-  ASSERT_EQ(TASK_RUNNING, runningUpdate->status().state());
+  ASSERT_EQ(v1::TASK_RUNNING, runningUpdate->status().state());
 
   AWAIT_READY(failedUpdate);
-  ASSERT_EQ(TASK_FAILED, failedUpdate->status().state());
+  ASSERT_EQ(v1::TASK_FAILED, failedUpdate->status().state());
 
   // The executor should commit suicide when the task exits with
   // a non-zero status code.
@@ -1367,7 +1367,7 @@ TEST_P(DefaultExecutorTest, ReservedResources)
   mesos.send(v1::createCallAccept(frameworkId, offer, {reserve, launchGroup}));
 
   AWAIT_READY(startingUpdate);
-  ASSERT_EQ(TASK_STARTING, startingUpdate->status().state());
+  ASSERT_EQ(v1::TASK_STARTING, startingUpdate->status().state());
   ASSERT_EQ(taskInfo.task_id(), startingUpdate->status().task_id());
 }
 
@@ -1464,12 +1464,12 @@ TEST_P(DefaultExecutorTest, SigkillExecutor)
 
   AWAIT_READY(startingUpdate);
 
-  ASSERT_EQ(TASK_STARTING, startingUpdate->status().state());
+  ASSERT_EQ(v1::TASK_STARTING, startingUpdate->status().state());
   EXPECT_EQ(taskInfo.task_id(), startingUpdate->status().task_id());
 
   AWAIT_READY(runningUpdate);
 
-  ASSERT_EQ(TASK_RUNNING, runningUpdate->status().state());
+  ASSERT_EQ(v1::TASK_RUNNING, runningUpdate->status().state());
   EXPECT_EQ(taskInfo.task_id(), runningUpdate->status().task_id());
   EXPECT_TRUE(runningUpdate->status().has_timestamp());
   ASSERT_TRUE(runningUpdate->status().has_container_status());
@@ -1609,10 +1609,10 @@ TEST_P(DefaultExecutorTest, ROOT_NoTransitionFromKillingToFinished)
               executorInfo, v1::createTaskGroupInfo({taskInfo}))}));
 
   AWAIT_READY_FOR(startingUpdate, Seconds(60));
-  ASSERT_EQ(TASK_STARTING, startingUpdate->status().state());
+  ASSERT_EQ(v1::TASK_STARTING, startingUpdate->status().state());
 
   AWAIT_READY_FOR(runningUpdate, Seconds(60));
-  ASSERT_EQ(TASK_RUNNING, runningUpdate->status().state());
+  ASSERT_EQ(v1::TASK_RUNNING, runningUpdate->status().state());
   ASSERT_EQ(taskInfo.task_id(), runningUpdate->status().task_id());
 
   v1::ContainerStatus status = runningUpdate->status().container_status();
@@ -1669,11 +1669,11 @@ TEST_P(DefaultExecutorTest, ROOT_NoTransitionFromKillingToFinished)
   mesos.send(v1::createCallKill(frameworkId, taskInfo.task_id()));
 
   AWAIT_READY(killingUpdate);
-  ASSERT_EQ(TASK_KILLING, killingUpdate->status().state());
+  ASSERT_EQ(v1::TASK_KILLING, killingUpdate->status().state());
   ASSERT_EQ(taskInfo.task_id(), killingUpdate->status().task_id());
 
   AWAIT_READY(killedUpdate);
-  ASSERT_EQ(TASK_KILLED, killedUpdate->status().state());
+  ASSERT_EQ(v1::TASK_KILLED, killedUpdate->status().state());
   ASSERT_EQ(taskInfo.task_id(), killedUpdate->status().task_id());
 
   AWAIT_READY(wait);
@@ -1771,7 +1771,7 @@ TEST_P(DefaultExecutorTest, ROOT_MultiTaskgroupSharePidNamespace)
 
   AWAIT_READY(update1);
 
-  ASSERT_EQ(TASK_RUNNING, update1->status().state());
+  ASSERT_EQ(v1::TASK_RUNNING, update1->status().state());
   EXPECT_EQ(taskInfo1.task_id(), update1->status().task_id());
   EXPECT_TRUE(update1->status().has_timestamp());
 
@@ -1808,12 +1808,12 @@ TEST_P(DefaultExecutorTest, ROOT_MultiTaskgroupSharePidNamespace)
 
   AWAIT_READY(update2);
 
-  ASSERT_EQ(TASK_STARTING, update2->status().state());
+  ASSERT_EQ(v1::TASK_STARTING, update2->status().state());
   EXPECT_EQ(taskInfo2.task_id(), update2->status().task_id());
 
   AWAIT_READY(update3);
 
-  ASSERT_EQ(TASK_RUNNING, update3->status().state());
+  ASSERT_EQ(v1::TASK_RUNNING, update3->status().state());
   EXPECT_EQ(taskInfo2.task_id(), update3->status().task_id());
   EXPECT_TRUE(update3->status().has_timestamp());
 
@@ -1968,21 +1968,21 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 
   AWAIT_READY(starting);
 
-  EXPECT_EQ(TASK_STARTING, starting->status().state());
+  EXPECT_EQ(v1::TASK_STARTING, starting->status().state());
   EXPECT_EQ(taskInfo.task_id(), starting->status().task_id());
 
   AWAIT_READY(running);
 
-  EXPECT_EQ(TASK_RUNNING, running->status().state());
+  EXPECT_EQ(v1::TASK_RUNNING, running->status().state());
   EXPECT_EQ(taskInfo.task_id(), running->status().task_id());
 
   AWAIT_READY(failed);
 
   // We expect the failure to be a disk limitation that tells us something
   // about the disk resources.
-  EXPECT_EQ(TASK_FAILED, failed->status().state());
+  EXPECT_EQ(v1::TASK_FAILED, failed->status().state());
   EXPECT_EQ(
-      TaskStatus::REASON_CONTAINER_LIMITATION_DISK,
+      v1::TaskStatus::REASON_CONTAINER_LIMITATION_DISK,
       failed->status().reason());
 
   EXPECT_EQ(taskInfo.task_id(), failed->status().task_id());
@@ -2117,15 +2117,15 @@ TEST_P(DefaultExecutorTest, TaskWithFileURI)
               executorInfo, v1::createTaskGroupInfo({taskInfo}))}));
 
   AWAIT_READY(startingUpdate);
-  ASSERT_EQ(TASK_STARTING, startingUpdate->status().state());
+  ASSERT_EQ(v1::TASK_STARTING, startingUpdate->status().state());
   ASSERT_EQ(taskInfo.task_id(), startingUpdate->status().task_id());
 
   AWAIT_READY(runningUpdate);
-  ASSERT_EQ(TASK_RUNNING, runningUpdate->status().state());
+  ASSERT_EQ(v1::TASK_RUNNING, runningUpdate->status().state());
   ASSERT_EQ(taskInfo.task_id(), runningUpdate->status().task_id());
 
   AWAIT_READY(finishedUpdate);
-  ASSERT_EQ(TASK_FINISHED, finishedUpdate->status().state());
+  ASSERT_EQ(v1::TASK_FINISHED, finishedUpdate->status().state());
   ASSERT_EQ(taskInfo.task_id(), finishedUpdate->status().task_id());
 }
 
@@ -2243,15 +2243,15 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
               executorInfo, v1::createTaskGroupInfo({taskInfo}))}));
 
   AWAIT_READY(startingUpdate);
-  ASSERT_EQ(TASK_STARTING, startingUpdate->status().state());
+  ASSERT_EQ(v1::TASK_STARTING, startingUpdate->status().state());
   ASSERT_EQ(taskInfo.task_id(), startingUpdate->status().task_id());
 
   AWAIT_READY(runningUpdate);
-  ASSERT_EQ(TASK_RUNNING, runningUpdate->status().state());
+  ASSERT_EQ(v1::TASK_RUNNING, runningUpdate->status().state());
   ASSERT_EQ(taskInfo.task_id(), runningUpdate->status().task_id());
 
   AWAIT_READY(finishedUpdate);
-  ASSERT_EQ(TASK_FINISHED, finishedUpdate->status().state());
+  ASSERT_EQ(v1::TASK_FINISHED, finishedUpdate->status().state());
   ASSERT_EQ(taskInfo.task_id(), finishedUpdate->status().task_id());
 }
 
@@ -2403,15 +2403,15 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
       {reserve, create, launchGroup}));
 
   AWAIT_READY(updateStarting);
-  ASSERT_EQ(TASK_STARTING, updateStarting->status().state());
+  ASSERT_EQ(v1::TASK_STARTING, updateStarting->status().state());
   ASSERT_EQ(taskInfo.task_id(), updateStarting->status().task_id());
 
   AWAIT_READY(updateRunning);
-  ASSERT_EQ(TASK_RUNNING, updateRunning->status().state());
+  ASSERT_EQ(v1::TASK_RUNNING, updateRunning->status().state());
   ASSERT_EQ(taskInfo.task_id(), updateRunning->status().task_id());
 
   AWAIT_READY(updateFinished);
-  ASSERT_EQ(TASK_FINISHED, updateFinished->status().state());
+  ASSERT_EQ(v1::TASK_FINISHED, updateFinished->status().state());
   ASSERT_EQ(taskInfo.task_id(), updateFinished->status().task_id());
 
   string volumePath = slave::paths::getPersistentVolumePath(
@@ -2529,11 +2529,11 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
       {reserve, create, launchGroup}));
 
   AWAIT_READY(updateStarting);
-  ASSERT_EQ(TASK_STARTING, updateStarting->status().state());
+  ASSERT_EQ(v1::TASK_STARTING, updateStarting->status().state());
   ASSERT_EQ(taskInfo.task_id(), updateStarting->status().task_id());
 
   AWAIT_READY(updateRunning);
-  ASSERT_EQ(TASK_RUNNING, updateRunning->status().state());
+  ASSERT_EQ(v1::TASK_RUNNING, updateRunning->status().state());
   ASSERT_EQ(taskInfo.task_id(), updateRunning->status().task_id());
 
   string volumePath = slave::paths::getPersistentVolumePath(
@@ -2592,7 +2592,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 
     Try<JSON::Array> parse = JSON::parse<JSON::Array>(response->body);
     ASSERT_SOME(parse);
-    EXPECT_NE(0, parse->values.size());
+    EXPECT_NE(0u, parse->values.size());
   }
 
   {
@@ -2796,21 +2796,21 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 
     switch (taskStage.get()) {
       case Stage::INITIAL: {
-        ASSERT_EQ(TASK_STARTING, taskStatus.state());
+        ASSERT_EQ(v1::TASK_STARTING, taskStatus.state());
 
         taskStages[taskStatus.task_id()] = Stage::STARTING;
 
         break;
       }
       case Stage::STARTING: {
-        ASSERT_EQ(TASK_RUNNING, taskStatus.state());
+        ASSERT_EQ(v1::TASK_RUNNING, taskStatus.state());
 
         taskStages[taskStatus.task_id()] = Stage::RUNNING;
 
         break;
       }
       case Stage::RUNNING: {
-        ASSERT_EQ(TASK_FINISHED, taskStatus.state());
+        ASSERT_EQ(v1::TASK_FINISHED, taskStatus.state());
 
         taskStages[taskStatus.task_id()] = Stage::FINISHED;
 
@@ -3016,21 +3016,21 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 
     switch (taskStage.get()) {
       case Stage::INITIAL: {
-        ASSERT_EQ(TASK_STARTING, taskStatus.state());
+        ASSERT_EQ(v1::TASK_STARTING, taskStatus.state());
 
         taskStages[taskStatus.task_id()] = Stage::STARTING;
 
         break;
       }
       case Stage::STARTING: {
-        ASSERT_EQ(TASK_RUNNING, taskStatus.state());
+        ASSERT_EQ(v1::TASK_RUNNING, taskStatus.state());
 
         taskStages[taskStatus.task_id()] = Stage::RUNNING;
 
         break;
       }
       case Stage::RUNNING: {
-        ASSERT_EQ(TASK_FINISHED, taskStatus.state());
+        ASSERT_EQ(v1::TASK_FINISHED, taskStatus.state());
 
         taskStages[taskStatus.task_id()] = Stage::FINISHED;
 
@@ -3184,17 +3184,17 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
       {reserve, create, launchGroup}));
 
   AWAIT_READY(updateStarting);
-  ASSERT_EQ(TASK_STARTING, updateStarting->status().state());
+  ASSERT_EQ(v1::TASK_STARTING, updateStarting->status().state());
   ASSERT_EQ(taskInfo.task_id(), updateStarting->status().task_id());
 
   AWAIT_READY(updateRunning);
-  ASSERT_EQ(TASK_RUNNING, updateRunning->status().state());
+  ASSERT_EQ(v1::TASK_RUNNING, updateRunning->status().state());
   ASSERT_EQ(taskInfo.task_id(), updateRunning->status().task_id());
 
   AWAIT_READY(updateHealthy);
-  EXPECT_EQ(TASK_RUNNING, updateHealthy->status().state());
+  EXPECT_EQ(v1::TASK_RUNNING, updateHealthy->status().state());
   EXPECT_EQ(
-      TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      v1::TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
       updateHealthy->status().reason());
   EXPECT_TRUE(updateHealthy->status().has_healthy());
   EXPECT_TRUE(updateHealthy->status().healthy());

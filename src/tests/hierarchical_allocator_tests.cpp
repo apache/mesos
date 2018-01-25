@@ -2684,7 +2684,7 @@ TEST_F(HierarchicalAllocatorTest, UpdateSlaveCapabilities)
   // Add a MULTI_ROLE framework. We explicitly check the capability here
   // in case `createFrameworkInfo` helper changes in the future.
   FrameworkInfo framework = createFrameworkInfo({"role1"});
-  EXPECT_EQ(1u, framework.capabilities_size());
+  EXPECT_EQ(1, framework.capabilities_size());
   EXPECT_EQ(FrameworkInfo::Capability::MULTI_ROLE,
             framework.capabilities().begin()->type());
   allocator->addFramework(framework.id(), framework, {}, true, {});
@@ -7135,7 +7135,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AllocatorBacklog)
   watch.stop();
 
   metrics = Metrics();
-  ASSERT_EQ(1, metrics.values.count(metric));
+  ASSERT_EQ(1u, metrics.values.count(metric));
   int runs2 = metrics.values[metric].as<JSON::Number>().as<int>();
 
   cout << "Added " << agentCount << " agents in "
@@ -7157,7 +7157,7 @@ TEST_P(HierarchicalAllocator_BENCHMARK_Test, AllocatorBacklog)
   watch.stop();
 
   metrics = Metrics();
-  ASSERT_EQ(1, metrics.values.count(metric));
+  ASSERT_EQ(1u, metrics.values.count(metric));
   int runs3 = metrics.values[metric].as<JSON::Number>().as<int>();
 
   cout << "Processed " << frameworkCount << " `reviveOffers` calls"

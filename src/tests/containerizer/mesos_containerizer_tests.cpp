@@ -1348,7 +1348,7 @@ TEST_F(MesosLauncherStatusTest, ExecutorPIDTest)
   Future<ContainerStatus> validStatus = launcher.get()->status(containerId);
 
   AWAIT_READY(validStatus);
-  EXPECT_EQ(validStatus->executor_pid(), forked.get());
+  EXPECT_EQ(static_cast<pid_t>(validStatus->executor_pid()), forked.get());
 
   Future<ContainerStatus> invalidStatus =
     launcher.get()->status(invalidContainerId);

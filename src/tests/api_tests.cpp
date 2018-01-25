@@ -399,7 +399,7 @@ TEST_P(MasterAPITest, GetMetrics)
   }
 
   // Verifies that the response metrics is not empty.
-  ASSERT_LE(0, metrics.size());
+  ASSERT_LE(0u, metrics.size());
 }
 
 
@@ -539,8 +539,8 @@ TEST_P(MasterAPITest, GetState)
     ASSERT_EQ(v1::master::Response::GET_STATE, v1Response->type());
 
     const v1::master::Response::GetState& getState = v1Response->get_state();
-    ASSERT_EQ(1u, getState.get_frameworks().frameworks_size());
-    ASSERT_EQ(1u, getState.get_agents().agents_size());
+    ASSERT_EQ(1, getState.get_frameworks().frameworks_size());
+    ASSERT_EQ(1, getState.get_agents().agents_size());
     ASSERT_TRUE(getState.get_tasks().tasks().empty());
     ASSERT_TRUE(getState.get_executors().executors().empty());
   }
@@ -583,7 +583,7 @@ TEST_P(MasterAPITest, GetState)
     ASSERT_EQ(v1::master::Response::GET_STATE, v1Response->type());
 
     const v1::master::Response::GetState& getState = v1Response->get_state();
-    ASSERT_EQ(1u, getState.get_tasks().tasks_size());
+    ASSERT_EQ(1, getState.get_tasks().tasks_size());
     ASSERT_TRUE(getState.get_tasks().completed_tasks().empty());
   }
 
@@ -618,7 +618,7 @@ TEST_P(MasterAPITest, GetState)
     ASSERT_EQ(v1::master::Response::GET_STATE, v1Response->type());
 
     const v1::master::Response::GetState& getState = v1Response->get_state();
-    ASSERT_EQ(1u, getState.get_tasks().completed_tasks_size());
+    ASSERT_EQ(1, getState.get_tasks().completed_tasks_size());
     ASSERT_TRUE(getState.get_tasks().tasks().empty());
   }
 
@@ -2026,7 +2026,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(MasterAPITest, GetRecoveredAgents)
     ASSERT_TRUE(v1Response->IsInitialized());
     ASSERT_EQ(v1::master::Response::GET_AGENTS, v1Response->type());
     ASSERT_TRUE(v1Response->get_agents().agents().empty());
-    ASSERT_EQ(1u, v1Response->get_agents().recovered_agents_size());
+    ASSERT_EQ(1, v1Response->get_agents().recovered_agents_size());
     ASSERT_EQ(agentId, v1Response->get_agents().recovered_agents(0).id());
   }
 
@@ -2054,7 +2054,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(MasterAPITest, GetRecoveredAgents)
     AWAIT_READY(v1Response);
     ASSERT_TRUE(v1Response->IsInitialized());
     ASSERT_EQ(v1::master::Response::GET_AGENTS, v1Response->type());
-    ASSERT_EQ(1u, v1Response->get_agents().agents_size());
+    ASSERT_EQ(1, v1Response->get_agents().agents_size());
     ASSERT_TRUE(v1Response->get_agents().recovered_agents().empty());
   }
 }
@@ -2149,8 +2149,8 @@ TEST_P(MasterAPITest, Subscribe)
   const v1::master::Response::GetState& getState =
       event->get().subscribed().get_state();
 
-  EXPECT_EQ(1u, getState.get_frameworks().frameworks_size());
-  EXPECT_EQ(1u, getState.get_agents().agents_size());
+  EXPECT_EQ(1, getState.get_frameworks().frameworks_size());
+  EXPECT_EQ(1, getState.get_agents().agents_size());
   EXPECT_TRUE(getState.get_tasks().tasks().empty());
   EXPECT_TRUE(getState.get_executors().executors().empty());
 
@@ -2395,10 +2395,10 @@ TEST_P(MasterAPITest, EventAuthorizationFiltering)
     const v1::master::Response::GetState& getState =
         event->get().subscribed().get_state();
 
-    EXPECT_EQ(1u, getState.get_frameworks().frameworks_size());
-    EXPECT_EQ(1u, getState.get_agents().agents_size());
-    EXPECT_EQ(0u, getState.get_tasks().tasks_size());
-    EXPECT_EQ(0u, getState.get_executors().executors_size());
+    EXPECT_EQ(1, getState.get_frameworks().frameworks_size());
+    EXPECT_EQ(1, getState.get_agents().agents_size());
+    EXPECT_EQ(0, getState.get_tasks().tasks_size());
+    EXPECT_EQ(0, getState.get_executors().executors_size());
   }
 
   {
@@ -2463,7 +2463,7 @@ TEST_P(MasterAPITest, EventAuthorizationFiltering)
   ASSERT_EQ(task1.task_id(), event->get().task_added().task().task_id());
 
   AWAIT_READY(updateRunning1);
-  EXPECT_EQ(updateRunning1->status().state(), TASK_RUNNING);
+  EXPECT_EQ(updateRunning1->status().state(), v1::TASK_RUNNING);
 
   event = decoder.read();
 
@@ -2780,10 +2780,10 @@ TEST_P(MasterAPITest, Heartbeat)
   const v1::master::Response::GetState& getState =
       event->get().subscribed().get_state();
 
-  EXPECT_EQ(0u, getState.get_frameworks().frameworks_size());
-  EXPECT_EQ(0u, getState.get_agents().agents_size());
-  EXPECT_EQ(0u, getState.get_tasks().tasks_size());
-  EXPECT_EQ(0u, getState.get_executors().executors_size());
+  EXPECT_EQ(0, getState.get_frameworks().frameworks_size());
+  EXPECT_EQ(0, getState.get_agents().agents_size());
+  EXPECT_EQ(0, getState.get_tasks().tasks_size());
+  EXPECT_EQ(0, getState.get_executors().executors_size());
 
   event = decoder.read();
 
@@ -3241,7 +3241,7 @@ TEST_P(MasterAPITest, ReadFile)
     ASSERT_EQ(v1::master::Response::READ_FILE, v1Response->type());
 
     ASSERT_EQ("od", v1Response->read_file().data());
-    ASSERT_EQ(4, v1Response->read_file().size());
+    ASSERT_EQ(4u, v1Response->read_file().size());
   }
 
   // Read the file with `offset >= size`. This should return the size of file
@@ -3264,7 +3264,7 @@ TEST_P(MasterAPITest, ReadFile)
     ASSERT_EQ(v1::master::Response::READ_FILE, v1Response->type());
 
     ASSERT_EQ("", v1Response->read_file().data());
-    ASSERT_EQ(4, v1Response->read_file().size());
+    ASSERT_EQ(4u, v1Response->read_file().size());
   }
 
   // Read the file without length being set and `offset=0`. This should read
@@ -3286,7 +3286,7 @@ TEST_P(MasterAPITest, ReadFile)
     ASSERT_EQ(v1::master::Response::READ_FILE, v1Response->type());
 
     ASSERT_EQ("body", v1Response->read_file().data());
-    ASSERT_EQ(4, v1Response->read_file().size());
+    ASSERT_EQ(4u, v1Response->read_file().size());
   }
 
   // Read the file with `length > size - offset`. This should return the
@@ -3309,7 +3309,7 @@ TEST_P(MasterAPITest, ReadFile)
     ASSERT_EQ(v1::master::Response::READ_FILE, v1Response->type());
 
     ASSERT_EQ("ody", v1Response->read_file().data());
-    ASSERT_EQ(4, v1Response->read_file().size());
+    ASSERT_EQ(4u, v1Response->read_file().size());
   }
 }
 
@@ -3998,7 +3998,7 @@ TEST_P(AgentAPITest, GetMetrics)
   }
 
   // Verifies that the response metrics is not empty.
-  ASSERT_LE(0, metrics.size());
+  ASSERT_LE(0u, metrics.size());
 }
 
 
@@ -4315,7 +4315,7 @@ TEST_P(AgentAPITest, ReadFile)
     ASSERT_EQ(v1::agent::Response::READ_FILE, v1Response->type());
 
     ASSERT_EQ("od", v1Response->read_file().data());
-    ASSERT_EQ(4, v1Response->read_file().size());
+    ASSERT_EQ(4u, v1Response->read_file().size());
   }
 
   // Read the file with `offset >= size`. This should return the size of file
@@ -4338,7 +4338,7 @@ TEST_P(AgentAPITest, ReadFile)
     ASSERT_EQ(v1::agent::Response::READ_FILE, v1Response->type());
 
     ASSERT_EQ("", v1Response->read_file().data());
-    ASSERT_EQ(4, v1Response->read_file().size());
+    ASSERT_EQ(4u, v1Response->read_file().size());
   }
 
   // Read the file without length being set and `offset=0`. This should read
@@ -4360,7 +4360,7 @@ TEST_P(AgentAPITest, ReadFile)
     ASSERT_EQ(v1::agent::Response::READ_FILE, v1Response->type());
 
     ASSERT_EQ("body", v1Response->read_file().data());
-    ASSERT_EQ(4, v1Response->read_file().size());
+    ASSERT_EQ(4u, v1Response->read_file().size());
   }
 
   // Read the file with `length > size - offset`. This should return the
@@ -4383,7 +4383,7 @@ TEST_P(AgentAPITest, ReadFile)
     ASSERT_EQ(v1::agent::Response::READ_FILE, v1Response->type());
 
     ASSERT_EQ("ody", v1Response->read_file().data());
-    ASSERT_EQ(4, v1Response->read_file().size());
+    ASSERT_EQ(4u, v1Response->read_file().size());
   }
 }
 
@@ -4898,11 +4898,11 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetState)
     ASSERT_EQ(v1::agent::Response::GET_STATE, v1Response->type());
 
     const v1::agent::Response::GetState& getState = v1Response->get_state();
-    ASSERT_EQ(1u, getState.get_frameworks().frameworks_size());
+    ASSERT_EQ(1, getState.get_frameworks().frameworks_size());
     ASSERT_TRUE(getState.get_frameworks().completed_frameworks().empty());
-    ASSERT_EQ(1u, getState.get_tasks().launched_tasks_size());
+    ASSERT_EQ(1, getState.get_tasks().launched_tasks_size());
     ASSERT_TRUE(getState.get_tasks().completed_tasks().empty());
-    ASSERT_EQ(1u, getState.get_executors().executors_size());
+    ASSERT_EQ(1, getState.get_executors().executors_size());
     ASSERT_TRUE(getState.get_executors().completed_executors().empty());
   }
 
@@ -4954,11 +4954,11 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetState)
 
     const v1::agent::Response::GetState& getState = v1Response->get_state();
     ASSERT_TRUE(getState.get_frameworks().frameworks().empty());
-    ASSERT_EQ(1u, getState.get_frameworks().completed_frameworks_size());
+    ASSERT_EQ(1, getState.get_frameworks().completed_frameworks_size());
     ASSERT_TRUE(getState.get_tasks().launched_tasks().empty());
-    ASSERT_EQ(1u, getState.get_tasks().completed_tasks_size());
+    ASSERT_EQ(1, getState.get_tasks().completed_tasks_size());
     ASSERT_TRUE(getState.get_executors().executors().empty());
-    ASSERT_EQ(1u, getState.get_executors().completed_executors_size());
+    ASSERT_EQ(1, getState.get_executors().completed_executors_size());
   }
 }
 
