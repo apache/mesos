@@ -10,11 +10,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License
 
+#include <list>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include <gtest/gtest.h>
 
+#include <stout/hashmap.hpp>
 #include <stout/lambda.hpp>
 #include <stout/numify.hpp>
-
 
 struct OnlyMoveable
 {
@@ -102,6 +107,29 @@ TEST(LambdaTest, Map)
   for (const OnlyMoveable& o : result) {
     EXPECT_EQ(o.i, o.j);
   }
+}
+
+
+TEST(LambdaTest, Zip)
+{
+  std::vector<int> ints = {1, 2, 3, 4, 5, 6, 7, 8};
+  std::list<std::string> strings = {"hello", "world"};
+
+  hashmap<int, std::string> zip1 = lambda::zip(ints, strings);
+
+  ASSERT_EQ(2u, zip1.size());
+  EXPECT_EQ(std::string("hello"), zip1[1]);
+  EXPECT_EQ(std::string("world"), zip1[2]);
+
+  ints = {1, 2};
+  strings = {"hello", "world", "!"};
+
+  std::vector<std::pair<int, std::string>> zip2 =
+    lambda::zipto<std::vector>(ints, strings);
+
+  ASSERT_EQ(2u, zip2.size());
+  EXPECT_EQ(std::make_pair(1, std::string("hello")), zip2.at(0));
+  EXPECT_EQ(std::make_pair(2, std::string("world")), zip2.at(1));
 }
 
 
