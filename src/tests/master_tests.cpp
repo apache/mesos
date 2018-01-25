@@ -8612,7 +8612,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(MasterTest, RegistryGcByCount)
 // that isn't motivated by (re-)registration (e.g. when adding
 // resources) is correctly handled by agent and master: Offers are
 // rescinded and new resources are offered.
-TEST_F(MasterTest, UpdateSlaveMessageWithPendingOffers)
+//
+// TODO(alexr): Enable after MESOS-8490 is resolved.
+TEST_F(MasterTest, DISABLED_UpdateSlaveMessageWithPendingOffers)
 {
   Clock::pause();
 
