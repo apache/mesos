@@ -77,6 +77,8 @@ namespace http = process::http;
 namespace unix = process::network::unix;
 #endif // __WINDOWS__
 
+using namespace mesos::internal::slave::containerizer::paths;
+
 using std::list;
 using std::map;
 using std::string;
@@ -175,7 +177,7 @@ Future<Nothing> IOSwitchboard::recover(
   foreach (const ContainerState& state, states) {
     const ContainerID& containerId = state.container_id();
 
-    const string path = containerizer::paths::getContainerIOSwitchboardPath(
+    const string path = getContainerIOSwitchboardPath(
         flags.runtime_dir, containerId);
 
     // If we don't have a checkpoint directory created for this
@@ -186,7 +188,7 @@ Future<Nothing> IOSwitchboard::recover(
       continue;
     }
 
-    Result<pid_t> pid = containerizer::paths::getContainerIOSwitchboardPid(
+    Result<pid_t> pid = getContainerIOSwitchboardPid(
         flags.runtime_dir, containerId);
 
     // For active containers that have an io switchboard directory,
@@ -211,7 +213,7 @@ Future<Nothing> IOSwitchboard::recover(
 
   // Recover the io switchboards from any orphaned containers.
   foreach (const ContainerID& orphan, orphans) {
-    const string path = containerizer::paths::getContainerIOSwitchboardPath(
+    const string path = getContainerIOSwitchboardPath(
         flags.runtime_dir, orphan);
 
     // If we don't have a checkpoint directory created for this
@@ -220,7 +222,7 @@ Future<Nothing> IOSwitchboard::recover(
       continue;
     }
 
-    Result<pid_t> pid = containerizer::paths::getContainerIOSwitchboardPid(
+    Result<pid_t> pid = getContainerIOSwitchboardPid(
         flags.runtime_dir, orphan);
 
     // If we were able to retrieve the checkpointed pid, we simply
@@ -520,8 +522,7 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
   // container. The lack of any expected files in this directroy
   // during recovery/cleanup indicates that something went wrong and
   // we need to take appropriate action.
-  string path = containerizer::paths::getContainerIOSwitchboardPath(
-      flags.runtime_dir, containerId);
+  string path = getContainerIOSwitchboardPath(flags.runtime_dir, containerId);
 
   Try<Nothing> mkdir = os::mkdir(path);
   if (mkdir.isError()) {
@@ -598,8 +599,7 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
 
   // Now that the child has come up, we checkpoint the socket
   // address we told it to bind to so we can access it later.
-  path = containerizer::paths::getContainerIOSwitchboardSocketPath(
-      flags.runtime_dir, containerId);
+  path = getContainerIOSwitchboardSocketPath(flags.runtime_dir, containerId);
 
   Try<Nothing> checkpointed = slave::state::checkpoint(
       path, switchboardFlags.socket_path.get());
@@ -611,8 +611,7 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
   }
 
   // We also checkpoint the child's pid.
-  path = containerizer::paths::getContainerIOSwitchboardPidPath(
-      flags.runtime_dir, containerId);
+  path = getContainerIOSwitchboardPidPath(flags.runtime_dir, containerId);
 
   checkpointed = slave::state::checkpoint(path, stringify(child->pid()));
 
@@ -667,9 +666,8 @@ Future<http::Connection> IOSwitchboard::_connect(
   // NOTE: We explicitly don't want to check for the existence of
   // `containerId` in our `infos` struct. Otherwise we wouldn't be
   // able to reconnect to the io switchboard after agent restarts.
-  Result<unix::Address> address =
-    containerizer::paths::getContainerIOSwitchboardAddress(
-        flags.runtime_dir, containerId);
+  Result<unix::Address> address = getContainerIOSwitchboardAddress(
+      flags.runtime_dir, containerId);
 
   if (!address.isSome()) {
     return Failure("Failed to get the io switchboard address"
@@ -835,9 +833,8 @@ Future<Nothing> IOSwitchboard::cleanup(
         // this container's `IOSwitchboardServer`. If it hasn't been
         // checkpointed yet, or the socket file itself hasn't been created,
         // we simply continue without error.
-        Result<unix::Address> address =
-          containerizer::paths::getContainerIOSwitchboardAddress(
-              flags.runtime_dir, containerId);
+        Result<unix::Address> address = getContainerIOSwitchboardAddress(
+            flags.runtime_dir, containerId);
 
         if (address.isSome()) {
           Try<Nothing> rm = os::rm(address->path());
