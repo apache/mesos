@@ -1740,7 +1740,9 @@ TEST_F(
 
 // This test verifies that the storage local resource provider can
 // convert pre-existing CSI volumes into mount or block volumes.
-TEST_F(StorageLocalResourceProviderTest, ROOT_ConvertPreExistingVolume)
+//
+// TODO(alexr): Enable after MESOS-8474 is resolved.
+TEST_F(StorageLocalResourceProviderTest, DISABLED_ROOT_ConvertPreExistingVolume)
 {
   setupResourceProviderConfig(Bytes(0), "volume1:2GB;volume2:2GB");
 
