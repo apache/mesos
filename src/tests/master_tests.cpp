@@ -2657,7 +2657,9 @@ TEST_F(MasterTest, SlavesEndpointQuerySlave)
 
 // Tests that the master correctly updates the slave info on
 // slave re-registration.
-TEST_F(MasterTest, RegistryUpdateAfterReconfiguration)
+//
+// TODO(alexr): Enable after MESOS-8336 is resolved.
+TEST_F(MasterTest, DISABLED_RegistryUpdateAfterReconfiguration)
 {
   // Start a master.
   master::Flags masterFlags = CreateMasterFlags();
