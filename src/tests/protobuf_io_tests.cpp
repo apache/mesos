@@ -150,7 +150,7 @@ TEST_F(ProtobufIOTest, RepeatedPtrField)
   Try<Nothing> write = ::protobuf::write(file, expected);
   ASSERT_SOME(write);
 
-  Try<RepeatedPtrField<FrameworkID>> actual =
+  Result<RepeatedPtrField<FrameworkID>> actual =
     ::protobuf::read<RepeatedPtrField<FrameworkID>>(file);
 
   ASSERT_SOME(actual);

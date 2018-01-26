@@ -151,7 +151,8 @@ Try<SlaveState> SlaveState::recover(
     return state;
   }
 
-  Try<SlaveInfo> slaveInfo = state::read<SlaveInfo>(path);
+  Result<SlaveInfo> slaveInfo = state::read<SlaveInfo>(path);
+
   if (slaveInfo.isError()) {
     const string& message = "Failed to read agent info from '" + path + "': " +
                             slaveInfo.error();
@@ -162,6 +163,13 @@ Try<SlaveState> SlaveState::recover(
       state.errors++;
       return state;
     }
+  }
+
+  if (slaveInfo.isNone()) {
+    // This could happen if the slave died after opening the file for
+    // writing but before it checkpointed anything.
+    LOG(WARNING) << "Found empty agent info file '" << path << "'";
+    return state;
   }
 
   state.info = slaveInfo.get();
@@ -215,7 +223,8 @@ Try<FrameworkState> FrameworkState::recover(
     return state;
   }
 
-  const Try<FrameworkInfo> frameworkInfo = state::read<FrameworkInfo>(path);
+  const Result<FrameworkInfo> frameworkInfo = state::read<FrameworkInfo>(path);
+
   if (frameworkInfo.isError()) {
     message = "Failed to read framework info from '" + path + "': " +
               frameworkInfo.error();
@@ -227,6 +236,13 @@ Try<FrameworkState> FrameworkState::recover(
       state.errors++;
       return state;
     }
+  }
+
+  if (frameworkInfo.isNone()) {
+    // This could happen if the slave died after opening the file for
+    // writing but before it checkpointed anything.
+    LOG(WARNING) << "Found empty framework info file '" << path << "'";
+    return state;
   }
 
   state.info = frameworkInfo.get();
@@ -373,7 +389,8 @@ Try<ExecutorState> ExecutorState::recover(
     return state;
   }
 
-  Try<ExecutorInfo> executorInfo = state::read<ExecutorInfo>(path);
+  Result<ExecutorInfo> executorInfo = state::read<ExecutorInfo>(path);
+
   if (executorInfo.isError()) {
     message = "Failed to read executor info from '" + path + "': " +
               executorInfo.error();
@@ -385,6 +402,13 @@ Try<ExecutorState> ExecutorState::recover(
       state.errors++;
       return state;
     }
+  }
+
+  if (executorInfo.isNone()) {
+    // This could happen if the slave died after opening the file for
+    // writing but before it checkpointed anything.
+    LOG(WARNING) << "Found empty executor info file '" << path << "'";
+    return state;
   }
 
   state.info = executorInfo.get();
@@ -562,7 +586,8 @@ Try<TaskState> TaskState::recover(
     return state;
   }
 
-  Try<Task> task = state::read<Task>(path);
+  Result<Task> task = state::read<Task>(path);
+
   if (task.isError()) {
     message = "Failed to read task info from '" + path + "': " + task.error();
 
@@ -573,6 +598,13 @@ Try<TaskState> TaskState::recover(
       state.errors++;
       return state;
     }
+  }
+
+  if (task.isNone()) {
+    // This could happen if the slave died after opening the file for
+    // writing but before it checkpointed anything.
+    LOG(WARNING) << "Found empty task info file '" << path << "'";
+    return state;
   }
 
   state.info = task.get();
