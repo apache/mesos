@@ -2113,6 +2113,35 @@ bool HasTCPRetransSegs(const ResourceStatistics& statistics)
 }
 
 
+Try<Interval<uint16_t>> getEphemeralPortRange(pid_t pid)
+{
+  Try<string> out = os::shell(
+      "ip netns exec " + stringify(pid) +
+      " cat /proc/sys/net/ipv4/ip_local_port_range");
+  if (out.isError()) {
+    return Error("Failed to read ip_local_port_range: " + out.error());
+  }
+
+  vector<string> ports = strings::split(strings::trim(out.get()), "\t");
+  if (ports.size() != 2) {
+    return Error("Unexpected ip_local_port_range format: " + out.get());
+  }
+
+  Try<uint16_t> begin = numify<uint16_t>(ports[0]);
+  if (begin.isError()) {
+    return Error("Failed to parse begin of ip_local_port_range: " + ports[0]);
+  }
+
+  Try<uint16_t> end = numify<uint16_t>(ports[1]);
+  if (end.isError()) {
+    return Error("Failed to parse end of ip_local_port_range: " + ports[1]);
+  }
+
+  return (Bound<uint16_t>::closed(begin.get()),
+          Bound<uint16_t>::closed(end.get()));
+}
+
+
 // Test that RTT can be returned properly from usage(). This test is
 // very similar to SmallEgressLimitTest in its setup.
 TEST_F(PortMappingIsolatorTest, ROOT_NC_PortMappingStatistics)
@@ -2231,6 +2260,20 @@ TEST_F(PortMappingIsolatorTest, ROOT_NC_PortMappingStatistics)
     if (usage->has_net_tcp_rtt_microsecs_p50() &&
         usage->has_net_tcp_active_connections()) {
       EXPECT_GT(usage->net_tcp_active_connections(), 0);
+
+      // Test that requested number of ephemeral ports is reported.
+      ASSERT_TRUE(usage->has_net_ephemeral_ports());
+      const Value::Range& ephemeralPorts = usage->net_ephemeral_ports();
+      EXPECT_EQ(flags.ephemeral_ports_per_container,
+                ephemeralPorts.end() - ephemeralPorts.begin() + 1u);
+
+      // Test that reported ports range is same as the one inside the
+      // container.
+      Try<Interval<uint16_t>> ports = getEphemeralPortRange(pid.get());
+      ASSERT_SOME(ports);
+      EXPECT_EQ(ports->lower(), ephemeralPorts.begin());
+      EXPECT_EQ(ports->upper() - 1u, ephemeralPorts.end());
+
       break;
     }
   } while (waited < Seconds(5));

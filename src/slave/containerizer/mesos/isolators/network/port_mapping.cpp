@@ -4233,6 +4233,18 @@ Future<ResourceStatistics> PortMappingIsolatorProcess::usage(
     }
   }
 
+  // Include ephemeral ports range of the container. Check for an
+  // empty interval, because the container may have no ephemeral ports
+  // if it was only partially isolated due to agent crash.
+  // 
+  // Note: Interval::upper() is exclusive, however, net_ephemeral_ports::end is
+  //       inclusive, so we substract from Interval::upper().
+  if (info->ephemeralPorts != Interval<uint16_t>()) {
+    Value::Range* const ports = result.mutable_net_ephemeral_ports();
+    ports->set_begin(info->ephemeralPorts.lower());
+    ports->set_end(info->ephemeralPorts.upper() - 1);
+  }
+
   // Retrieve the socket information from inside the container.
   PortMappingStatistics statistics;
   statistics.flags.pid = info->pid.get();
