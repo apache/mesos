@@ -293,7 +293,7 @@ Result<ContainerTermination> getContainerTermination(
     return None();
   }
 
-  Try<ContainerTermination> termination =
+  Result<ContainerTermination> termination =
     state::read<ContainerTermination>(path);
 
   if (termination.isError()) {
@@ -341,7 +341,8 @@ Result<ContainerConfig> getContainerConfig(
     return None();
   }
 
-  Try<ContainerConfig> containerConfig = state::read<ContainerConfig>(path);
+  Result<ContainerConfig> containerConfig = state::read<ContainerConfig>(path);
+
   if (containerConfig.isError()) {
     return Error("Failed to read launch config of container: " +
                  containerConfig.error());
@@ -436,7 +437,7 @@ Result<ContainerLaunchInfo> getContainerLaunchInfo(
     return None();
   }
 
-  Try<ContainerLaunchInfo> containerLaunchInfo =
+  Result<ContainerLaunchInfo> containerLaunchInfo =
     state::read<ContainerLaunchInfo>(path);
 
   if (containerLaunchInfo.isError()) {
