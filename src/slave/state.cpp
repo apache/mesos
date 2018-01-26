@@ -86,7 +86,7 @@ Try<State> recover(const string& rootDir, bool strict)
 
   const string& bootIdPath = paths::getBootIdPath(rootDir);
   if (os::exists(bootIdPath)) {
-    Try<string> read = state::read<string>(bootIdPath);
+    Result<string> read = state::read<string>(bootIdPath);
     if (read.isError()) {
       LOG(WARNING) << "Failed to read '"
                    << bootIdPath << "': " << read.error();
@@ -240,7 +240,7 @@ Try<FrameworkState> FrameworkState::recover(
     return state;
   }
 
-  Try<string> pid = state::read<string>(path);
+  Result<string> pid = state::read<string>(path);
 
   if (pid.isError()) {
     message =
@@ -455,7 +455,7 @@ Try<RunState> RunState::recover(
     return state;
   }
 
-  Try<string> pid = state::read<string>(path);
+  Result<string> pid = state::read<string>(path);
 
   if (pid.isError()) {
     message = "Failed to read executor forked pid from '" + path +
@@ -681,7 +681,7 @@ Try<ResourcesState> ResourcesState::recover(
     return state;
   }
 
-  Try<Resources> info = state::read<Resources>(infoPath);
+  Result<Resources> info = state::read<Resources>(infoPath);
   if (info.isError()) {
     string message =
       "Failed to read resources file '" + infoPath + "': " + info.error();
@@ -695,7 +695,9 @@ Try<ResourcesState> ResourcesState::recover(
     }
   }
 
-  state.resources = info.get();
+  if (info.isSome()) {
+    state.resources = info.get();
+  }
 
   // Process the target resources.
   const string& targetPath = paths::getResourcesTargetPath(rootDir);
@@ -703,7 +705,7 @@ Try<ResourcesState> ResourcesState::recover(
     return state;
   }
 
-  Try<Resources> target = state::read<Resources>(targetPath);
+  Result<Resources> target = state::read<Resources>(targetPath);
   if (target.isError()) {
     string message =
       "Failed to read resources file '" + targetPath + "': " + target.error();
@@ -717,7 +719,9 @@ Try<ResourcesState> ResourcesState::recover(
     }
   }
 
-  state.target = target.get();
+  if (target.isSome()) {
+    state.target = target.get();
+  }
 
   return state;
 }

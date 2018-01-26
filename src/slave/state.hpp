@@ -78,32 +78,40 @@ Try<State> recover(const std::string& rootDir, bool strict);
 // `T` may be either a single protobuf message or a sequence of messages
 // if `T` is a specialization of `google::protobuf::RepeatedPtrField`.
 template <typename T>
-Try<T> read(const std::string& path)
+Result<T> read(const std::string& path)
 {
-  Try<T> result = ::protobuf::read<T>(path);
-  if (result.isError()) {
-    return Error(result.error());
+  Result<T> result = ::protobuf::read<T>(path);
+  if (result.isSome()) {
+    upgradeResources(&result.get());
   }
 
-  upgradeResources(&result.get());
   return result;
 }
 
+
+// While we return a `Result<string>` here in order to keep the return
+// type of `state::read` consistent, the `None` case does not arise here.
+// That is, an empty file will result in an empty string, rather than
+// the `Result` ending up in a `None` state.
 template <>
-inline Try<std::string> read<std::string>(const std::string& path)
+inline Result<std::string> read<std::string>(const std::string& path)
 {
   return os::read(path);
 }
 
 
 template <>
-inline Try<Resources> read<Resources>(const std::string& path)
+inline Result<Resources> read<Resources>(const std::string& path)
 {
-  Try<google::protobuf::RepeatedPtrField<Resource>> resources =
+  Result<google::protobuf::RepeatedPtrField<Resource>> resources =
     read<google::protobuf::RepeatedPtrField<Resource>>(path);
 
   if (resources.isError()) {
     return Error(resources.error());
+  }
+
+  if (resources.isNone()) {
+    return None();
   }
 
   return std::move(resources.get());
