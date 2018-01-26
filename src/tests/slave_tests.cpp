@@ -3761,8 +3761,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 // deciding to re-admit the agent.
 //
 // TODO(andschwa): Enable when Windows supports replicated log. See MESOS-5932.
+//
+// TODO(alexr): Enable after MESOS-8232 is resolved.
 TEST_F_TEMP_DISABLED_ON_WINDOWS(
-    SlaveTest, RegisteredAgentReregisterAfterFailover)
+    SlaveTest, DISABLED_RegisteredAgentReregisterAfterFailover)
 {
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.registry = "replicated_log";
