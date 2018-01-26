@@ -625,7 +625,9 @@ TEST_F(ReconciliationTest, RecoveredAgentReregistrationInProgress)
 // This test ensures that when an agent has started but not finished
 // the unregistration process, explicit reconciliation indicates that
 // the agent is still registered.
-TEST_F(ReconciliationTest, RemovalInProgress)
+//
+// TODO(alexr): Enable after MESOS-8210 is resolved.
+TEST_F(ReconciliationTest, DISABLED_RemovalInProgress)
 {
   master::Flags masterFlags = CreateMasterFlags();
   Try<Owned<cluster::Master>> master = StartMaster();
