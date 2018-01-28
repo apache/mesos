@@ -1039,7 +1039,7 @@ TEST_F(OsTest, SYMLINK_Realpath)
 TEST_F(OsTest, Which)
 {
   // TODO(jieyu): Test PATH search ordering and file execution bit.
-  Option<string> which = os::which("ping");
+  Option<string> which = os::which("cat");
   ASSERT_SOME(which);
 
   which = os::which("bar");
