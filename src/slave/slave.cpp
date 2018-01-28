@@ -6626,7 +6626,7 @@ Future<Nothing> Slave::recover(const Try<state::State>& state)
     } else if (state->rebooted) {
       // Prior to Mesos 1.4 we directly bypass the state recovery and
       // start as a new agent upon reboot (introduced in MESOS-844).
-      // This unncessarily discards the existing agent ID (MESOS-6223).
+      // This unnecessarily discards the existing agent ID (MESOS-6223).
       // Starting in Mesos 1.4 we'll attempt to recover the slave state
       // even after reboot but in case of an incompatible slave info change
       // we'll fall back to recovering as a new agent (existing behavior).
