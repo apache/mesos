@@ -301,8 +301,13 @@
 
             if (scope.columnKey === key) {
               scope.sortOrder = !scope.sortOrder;
+            } else if (el.hasClass('ascending')) {
+              // We can order the table the other way around by adding
+              // 'class="ascending"' to the table header.
+              scope.sortOrder = !defaultOrder;
+            } else {
+              scope.sortOrder = defaultOrder;
             }
-            else { scope.sortOrder = defaultOrder }
 
             scope.columnKey = key;
 
