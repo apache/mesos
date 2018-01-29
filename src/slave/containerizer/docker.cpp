@@ -2459,7 +2459,7 @@ Future<Nothing> DockerContainerizerProcess::destroyTimeout(
       // Ignoring the error from killing process as it can already
       // have exited.
       VLOG(1) << "Ignoring error when killing process pid "
-              << container->executorPid.get() << " in destroy, error: "
+              << container->pid.get() << " in destroy, error: "
               << kill.error();
     }
   }
