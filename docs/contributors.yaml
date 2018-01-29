@@ -71,6 +71,7 @@
   affiliations:
     - {organization: Mesosphere}
   emails:
+    - anand@apache.org
     - mazumdar.anand@gmail.com
   jira_user: anandmazumdar
   reviewboard_user: anandmazumdar
@@ -156,6 +157,8 @@
     - {organization: Mesosphere, start_date: 2014-09-22}
     - {organization: Twitter, end_date: 2014-09-21}
   emails:
+    - benh@apache.org
+    - benh@berkeley.edu
     - benjamin.hindman@gmail.com
   jira_user: benjaminhindman
   reviewboard_user: benjaminhindman
@@ -270,7 +273,9 @@
   affiliations:
     - {organization: Mesosphere}
   emails:
+    - gaston.kleiman@gmail.com
     - gaston@mesosphere.com
+    - gaston@mesosphere.io
   jira_user: gkleiman
   reviewboard_user: gaston
 
@@ -288,6 +293,7 @@
     - {organization: Mesosphere}
   emails:
     - greg@mesosphere.io
+    - gregorywmann@gmail.com
   jira_user: greggomann
   reviewboard_user: greggomann
 
@@ -467,6 +473,7 @@
     - {organization: Mesosphere}
   emails:
     - joseph@mesosphere.io
+    - josephwu@apache.org
   jira_user: kaysoky
   reviewboard_user: kaysoky
 
