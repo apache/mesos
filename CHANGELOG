@@ -39,8 +39,24 @@ This release contains the following new features:
     in-memory storage represented by the log “hot”).
 
   * Several improvements and fixes to the enforcement of quota
-    guarantees have been made: MESOS-4527, MESOS-7099, MESOS-8293,
-    MESOS-8339, MESOS-8352.
+    guarantees have been made:
+      * [MESOS-4527]: Previously a role could "game" the quota system
+        by amassing reservations that it leaves unused. This is now
+        prevented by accounting for reservations when allocating
+        resources.
+      * [MESOS-7099]: Resources are now allocated in a fine-grained
+        manner to prevent roles from exceeding their quota.
+      * [MESOS-8293]: There was a bug where a role may not receive its
+        reservation when it does not have quota, this has been fixed.
+      * [MESOS-8339]: When a role has more reservations than quota,
+        there was a bug previously where an insufficient amount of
+        quota headroom was held. This has been fixed.
+      * [MESOS-8352]: When allocating to a role with quota, we
+        previously included all other resources on the agent that the
+        role does not have quota for. This made it possible to violate
+        the quota guarantees of a different role. This has been fixed
+        by taking into account the headroom that is needed when
+        allocating the resources.
 
 Deprecations/Removals:
   * [MESOS-7305] - Some nested container agent APIs `****_NESTED_CONTAINER`
