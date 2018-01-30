@@ -253,6 +253,14 @@
   jira_user: cinchurge
   reviewboard_user: cinchurge
 
+- name: Eric Mumau
+affiliations:
+    - {organization: Microsoft}
+  emails:
+    - ermumau@microsoft.com
+  jira_user: ermumau
+  reviewboard_user: ermumau
+
 - name: Ezra Silvera
   affiliations:
     - {organization: IBM}
