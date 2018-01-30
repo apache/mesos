@@ -22,7 +22,7 @@ import time
 
 import mesos.interface
 from mesos.interface import mesos_pb2
-import mesos.native
+from mesos.scheduler import MesosSchedulerDriver
 
 TOTAL_TASKS = 5
 
@@ -188,7 +188,7 @@ if __name__ == "__main__":
 
         framework.principal = os.getenv("DEFAULT_PRINCIPAL")
 
-        driver = mesos.native.MesosSchedulerDriver(
+        driver = MesosSchedulerDriver(
             TestScheduler(implicitAcknowledgements, executor),
             framework,
             sys.argv[1],
@@ -197,7 +197,7 @@ if __name__ == "__main__":
     else:
         framework.principal = "test-framework-python"
 
-        driver = mesos.native.MesosSchedulerDriver(
+        driver = MesosSchedulerDriver(
             TestScheduler(implicitAcknowledgements, executor),
             framework,
             sys.argv[1],
