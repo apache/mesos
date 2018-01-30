@@ -21,9 +21,12 @@
 
 #include <mesos/scheduler.hpp>
 
+#include <mesos/authorizer/acls.hpp>
+
 #include <stout/exit.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/protobuf.hpp>
 
 #include "examples/flags.hpp"
 
@@ -200,6 +203,18 @@ int main(int argc, char** argv)
   framework.add_roles(flags.role);
   framework.add_capabilities()->set_type(
       FrameworkInfo::Capability::RESERVATION_REFINEMENT);
+
+  if (flags.master == "local") {
+    // Configure master.
+    os::setenv("MESOS_ROLES", flags.role);
+    os::setenv("MESOS_AUTHENTICATE_FRAMEWORKS", stringify(flags.authenticate));
+
+    ACLs acls;
+    ACL::RegisterFramework* acl = acls.add_register_frameworks();
+    acl->mutable_principals()->set_type(ACL::Entity::ANY);
+    acl->mutable_roles()->add_values("*");
+    os::setenv("MESOS_ACLS", stringify(JSON::protobuf(acls)));
+  }
 
   DockerNoExecutorScheduler scheduler;
 

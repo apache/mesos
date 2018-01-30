@@ -386,6 +386,7 @@ int main(int argc, char** argv)
 
   if (flags.master == "local") {
     // Configure master.
+    os::setenv("MESOS_ROLES", flags.role);
     os::setenv("MESOS_AUTHENTICATE_FRAMEWORKS", stringify(flags.authenticate));
 
     ACLs acls;

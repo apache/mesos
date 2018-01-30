@@ -19,6 +19,8 @@
 
 #include <mesos/scheduler.hpp>
 
+#include <mesos/authorizer/acls.hpp>
+
 #include <process/defer.hpp>
 #include <process/process.hpp>
 #include <process/timeout.hpp>
@@ -26,6 +28,7 @@
 #include <stout/numify.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/protobuf.hpp>
 #include <stout/stopwatch.hpp>
 #include <stout/strings.hpp>
 
@@ -289,7 +292,20 @@ int main(int argc, char** argv)
       FrameworkInfo::Capability::RESERVATION_REFINEMENT);
   framework.set_checkpoint(flags.checkpoint);
 
+  if (flags.master == "local") {
+    // Configure master.
+    os::setenv("MESOS_ROLES", flags.role);
+    os::setenv("MESOS_AUTHENTICATE_FRAMEWORKS", stringify(flags.authenticate));
+
+    ACLs acls;
+    ACL::RegisterFramework* acl = acls.add_register_frameworks();
+    acl->mutable_principals()->set_type(ACL::Entity::ANY);
+    acl->mutable_roles()->add_values("*");
+    os::setenv("MESOS_ACLS", stringify(JSON::protobuf(acls)));
+  }
+
   MesosSchedulerDriver* driver;
+
   if (flags.authenticate) {
     LOG(INFO) << "Enabling authentication for the framework";
 

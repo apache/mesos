@@ -24,6 +24,8 @@
 #include <mesos/v1/resources.hpp>
 #include <mesos/v1/scheduler.hpp>
 
+#include <mesos/authorizer/acls.hpp>
+
 #include <process/delay.hpp>
 #include <process/owned.hpp>
 #include <process/process.hpp>
@@ -40,6 +42,7 @@
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
+#include <stout/protobuf.hpp>
 #include <stout/stringify.hpp>
 
 #include <stout/os/realpath.hpp>
@@ -454,6 +457,23 @@ int main(int argc, char** argv)
       credential_.set_secret(flags.secret.get());
     }
     credential = credential_;
+  }
+
+  if (flags.master == "local") {
+    // Configure master.
+    os::setenv("MESOS_ROLES", flags.role);
+
+    os::setenv(
+        "MESOS_AUTHENTICATE_HTTP_FRAMEWORKS",
+        stringify(flags.authenticate));
+
+    os::setenv("MESOS_HTTP_FRAMEWORK_AUTHENTICATORS", "basic");
+
+    mesos::ACLs acls;
+    mesos::ACL::RegisterFramework* acl = acls.add_register_frameworks();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_roles()->add_values("*");
+    os::setenv("MESOS_ACLS", stringify(JSON::protobuf(acls)));
   }
 
   process::Owned<HTTPScheduler> scheduler(
