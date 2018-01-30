@@ -2084,7 +2084,8 @@ int NetworkCniIsolatorSetup::execute()
       "network namespace of pid " + stringify(flags.pid.get());
 
     if (status == -1) {
-      cerr << message << ": " << "os::spawn failed" << endl;
+      cerr << message << ": " << "os::spawn failed: "
+           << os::strerror(errno) << endl;
       return EXIT_FAILURE;
     }
 
