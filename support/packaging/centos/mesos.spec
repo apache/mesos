@@ -94,6 +94,7 @@ This package provides files for developing Mesos frameworks/modules.
     --enable-install-module-dependencies \
     --enable-libevent \
     --enable-ssl \
+    --enable-grpc \
     --enable-hardening \
     --enable-xfs-disk-isolator=%{_with_xfs}
 
