@@ -140,6 +140,11 @@ public:
       context->set_deadline(
           std::chrono::system_clock::now() + std::chrono::seconds(5));
 
+      // Enable the gRPC wait-for-ready semantics by default. See:
+      // https://github.com/grpc/grpc/blob/master/doc/wait-for-ready.md
+      // TODO(chhsiao): Allow the caller to set the option.
+      context->set_wait_for_ready(true);
+
       // Create a `Promise` and a callback lambda as a tag and invokes
       // an asynchronous gRPC call through the `CompletionQueue`
       // managed by `data`. The `Promise` will be set by the callback
