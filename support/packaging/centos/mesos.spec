@@ -26,7 +26,6 @@ Source5:       %{name}-master.service
 Source6:       %{name}-slave.service
 %endif
 
-
 BuildRequires: apache-maven
 BuildRequires: libtool
 BuildRequires: automake
@@ -133,7 +132,6 @@ install -m 0644 %{SOURCE5} %{SOURCE6} %{buildroot}%{_unitdir}
 
 mkdir -p -m0755 %{buildroot}%{_datadir}/java
 install -m 0644 src/java/target/mesos-*.jar %{buildroot}%{_datadir}/java/
-
 
 %files
 %doc LICENSE NOTICE
