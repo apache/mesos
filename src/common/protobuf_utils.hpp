@@ -24,6 +24,8 @@
 
 #include <sys/stat.h>
 
+#include <google/protobuf/map.h>
+
 #include <mesos/mesos.hpp>
 
 #include <mesos/maintenance/maintenance.hpp>
