@@ -5710,8 +5710,8 @@ void Master::statusUpdateAcknowledgement(
 
   if (framework == nullptr) {
     LOG(WARNING)
-      << "Ignoring status update acknowledgement "
-      << uuid_.get() << " for task " << taskId << " of framework "
+      << "Ignoring status update acknowledgement for status "
+      << uuid_.get() << " of task " << taskId << " of framework "
       << frameworkId << " on agent " << slaveId << " because the framework "
       << "cannot be found";
     metrics->invalid_status_update_acknowledgements++;
@@ -5720,8 +5720,8 @@ void Master::statusUpdateAcknowledgement(
 
   if (framework->pid != from) {
     LOG(WARNING)
-      << "Ignoring status update acknowledgement "
-      << uuid_.get() << " for task " << taskId << " of framework "
+      << "Ignoring status update acknowledgement for status "
+      << uuid_.get() << " of task " << taskId << " of framework "
       << *framework << " on agent " << slaveId << " because it is not "
       << "expected from " << from;
     metrics->invalid_status_update_acknowledgements++;
@@ -5756,8 +5756,8 @@ void Master::acknowledge(
 
   if (slave == nullptr) {
     LOG(WARNING)
-      << "Cannot send status update acknowledgement " << uuid
-      << " for task " << taskId << " of framework " << *framework
+      << "Cannot send status update acknowledgement for status " << uuid
+      << " of task " << taskId << " of framework " << *framework
       << " to agent " << slaveId << " because agent is not registered";
     metrics->invalid_status_update_acknowledgements++;
     return;
@@ -5765,15 +5765,18 @@ void Master::acknowledge(
 
   if (!slave->connected) {
     LOG(WARNING)
-      << "Cannot send status update acknowledgement " << uuid
-      << " for task " << taskId << " of framework " << *framework
+      << "Cannot send status update acknowledgement for status " << uuid
+      << " of task " << taskId << " of framework " << *framework
       << " to agent " << *slave << " because agent is disconnected";
     metrics->invalid_status_update_acknowledgements++;
     return;
   }
 
-  LOG(INFO) << "Processing ACKNOWLEDGE call " << uuid << " for task " << taskId
-            << " of framework " << *framework << " on agent " << slaveId;
+  LOG(INFO)
+    << "Processing ACKNOWLEDGE call for status " << uuid
+    << " for task " << taskId
+    << " of framework " << *framework
+    << " on agent " << slaveId;
 
   Task* task = slave->getTask(framework->id(), taskId);
 
@@ -5792,8 +5795,8 @@ void Master::acknowledge(
       // retry the update, at which point the master will set the
       // status update state.
       LOG(WARNING)
-        << "Ignoring status update acknowledgement " << uuid
-        << " for task " << taskId << " of framework " << *framework
+        << "Ignoring status update acknowledgement for status " << uuid
+        << " of task " << taskId << " of framework " << *framework
         << " to agent " << *slave << " because the update was not"
         << " sent by this master";
       metrics->invalid_status_update_acknowledgements++;
