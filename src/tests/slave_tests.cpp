@@ -3761,11 +3761,13 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 // deciding to re-admit the agent.
 //
 // TODO(andschwa): Enable when Windows supports replicated log. See MESOS-5932.
-//
-// TODO(alexr): Enable after MESOS-8232 is resolved.
 TEST_F_TEMP_DISABLED_ON_WINDOWS(
-    SlaveTest, DISABLED_RegisteredAgentReregisterAfterFailover)
+    SlaveTest, RegisteredAgentReregisterAfterFailover)
 {
+  // Pause the clock to avoid registration retries and the agent
+  // being deemed unreachable.
+  Clock::pause();
+
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.registry = "replicated_log";
 
@@ -3782,10 +3784,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
-  AWAIT_READY(slaveRegisteredMessage);
+  Clock::advance(slaveFlags.registration_backoff_factor);
 
-  // Pause the clock so the terminated agent is not deemed unreachable.
-  Clock::pause();
+  AWAIT_READY(slaveRegisteredMessage);
 
   // There should be no registrar operation across both agent termination
   // and reregistration.
