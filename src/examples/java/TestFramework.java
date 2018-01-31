@@ -228,22 +228,22 @@ public class TestFramework {
         : new TestScheduler(implicitAcknowledgements, executor, Integer.parseInt(args[1]));
 
     MesosSchedulerDriver driver = null;
-    if (System.getenv("MESOS_AUTHENTICATE_FRAMEWORKS") != null) {
+    if (System.getenv("MESOS_EXAMPLE_AUTHENTICATE") != null) {
       System.out.println("Enabling authentication for the framework");
 
-      if (System.getenv("DEFAULT_PRINCIPAL") == null) {
+      if (System.getenv("MESOS_EXAMPLE_PRINCIPAL") == null) {
         System.err.println("Expecting authentication principal in the environment");
         System.exit(1);
       }
 
       Credential.Builder credentialBuilder = Credential.newBuilder()
-        .setPrincipal(System.getenv("DEFAULT_PRINCIPAL"));
+        .setPrincipal(System.getenv("MESOS_EXAMPLE_PRINCIPAL"));
 
-      if (System.getenv("DEFAULT_SECRET") != null) {
-          credentialBuilder.setSecret(System.getenv("DEFAULT_SECRET"));
+      if (System.getenv("MESOS_EXAMPLE_SECRET") != null) {
+          credentialBuilder.setSecret(System.getenv("MESOS_EXAMPLE_SECRET"));
       }
 
-      frameworkBuilder.setPrincipal(System.getenv("DEFAULT_PRINCIPAL"));
+      frameworkBuilder.setPrincipal(System.getenv("MESOS_EXAMPLE_PRINCIPAL"));
 
       driver = new MesosSchedulerDriver(
           scheduler,

@@ -190,10 +190,10 @@ int main(int argc, char** argv)
       FrameworkInfo::Capability::RESERVATION_REFINEMENT);
 
   MesosSchedulerDriver* driver;
-  if (os::getenv("MESOS_AUTHENTICATE_FRAMEWORKS").isSome()) {
+  if (os::getenv("MESOS_EXAMPLE_AUTHENTICATE").isSome()) {
     cout << "Enabling authentication for the framework" << endl;
 
-    Option<string> value = os::getenv("DEFAULT_PRINCIPAL");
+    Option<string> value = os::getenv("MESOS_EXAMPLE_PRINCIPAL");
     if (value.isNone()) {
       EXIT(EXIT_FAILURE)
         << "Expecting authentication principal in the environment";
@@ -204,7 +204,7 @@ int main(int argc, char** argv)
 
     framework.set_principal(value.get());
 
-    value = os::getenv("DEFAULT_SECRET");
+    value = os::getenv("MESOS_EXAMPLE_SECRET");
     if (value.isNone()) {
       EXIT(EXIT_FAILURE)
         << "Expecting authentication secret in the environment";

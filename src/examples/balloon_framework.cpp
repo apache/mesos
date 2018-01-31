@@ -491,7 +491,7 @@ private:
 int main(int argc, char** argv)
 {
   Flags flags;
-  Try<flags::Warnings> load = flags.load("MESOS_", argc, argv);
+  Try<flags::Warnings> load = flags.load("MESOS_EXAMPLE_", argc, argv);
 
   if (flags.help) {
     std::cout << flags.usage() << std::endl;

@@ -85,25 +85,25 @@ public class TestExceptionFramework {
         .setName("Exception Framework (Java)");
 
     MesosSchedulerDriver driver = null;
-    if (System.getenv("MESOS_AUTHENTICATE_FRAMEWORKS") != null) {
+    if (System.getenv("MESOS_EXAMPLE_AUTHENTICATE") != null) {
       System.out.println("Enabling authentication for the framework");
 
-      if (System.getenv("DEFAULT_PRINCIPAL") == null) {
+      if (System.getenv("MESOS_EXAMPLE_PRINCIPAL") == null) {
         System.err.println("Expecting authentication principal in the environment");
         System.exit(1);
       }
 
-      if (System.getenv("DEFAULT_SECRET") == null) {
+      if (System.getenv("MESOS_EXAMPLE_SECRET") == null) {
         System.err.println("Expecting authentication secret in the environment");
         System.exit(1);
       }
 
       Credential credential = Credential.newBuilder()
-        .setPrincipal(System.getenv("DEFAULT_PRINCIPAL"))
-        .setSecret(System.getenv("DEFAULT_SECRET"))
+        .setPrincipal(System.getenv("MESOS_EXAMPLE_PRINCIPAL"))
+        .setSecret(System.getenv("MESOS_EXAMPLE_SECRET"))
         .build();
 
-      frameworkBuilder.setPrincipal(System.getenv("DEFAULT_PRINCIPAL"));
+      frameworkBuilder.setPrincipal(System.getenv("MESOS_EXAMPLE_PRINCIPAL"));
 
       driver = new MesosSchedulerDriver(
           new TestExceptionScheduler(),

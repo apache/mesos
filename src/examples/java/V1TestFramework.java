@@ -339,13 +339,13 @@ public class V1TestFramework {
 
     Credential.Builder credentialBuilder = null;
 
-    if (System.getenv("DEFAULT_PRINCIPAL") != null) {
-      frameworkBuilder.setPrincipal(System.getenv("DEFAULT_PRINCIPAL"));
+    if (System.getenv("MESOS_EXAMPLE_PRINCIPAL") != null) {
+      frameworkBuilder.setPrincipal(System.getenv("MESOS_EXAMPLE_PRINCIPAL"));
 
-      if (System.getenv("DEFAULT_SECRET") != null) {
+      if (System.getenv("MESOS_EXAMPLE_SECRET") != null) {
         credentialBuilder = Credential.newBuilder()
-          .setPrincipal(System.getenv("DEFAULT_PRINCIPAL"))
-          .setSecret(System.getenv("DEFAULT_SECRET"));
+          .setPrincipal(System.getenv("MESOS_EXAMPLE_PRINCIPAL"))
+          .setSecret(System.getenv("MESOS_EXAMPLE_SECRET"));
       }
     }
 

@@ -173,20 +173,20 @@ if __name__ == "__main__":
         print "Enabling explicit status update acknowledgements"
         implicitAcknowledgements = 0
 
-    if os.getenv("MESOS_AUTHENTICATE_FRAMEWORKS"):
+    if os.getenv("MESOS_EXAMPLE_AUTHENTICATE"):
         print "Enabling authentication for the framework"
 
-        if not os.getenv("DEFAULT_PRINCIPAL"):
+        if not os.getenv("MESOS_EXAMPLE_PRINCIPAL"):
             print "Expecting authentication principal in the environment"
             sys.exit(1);
 
         credential = mesos_pb2.Credential()
-        credential.principal = os.getenv("DEFAULT_PRINCIPAL")
+        credential.principal = os.getenv("MESOS_EXAMPLE_PRINCIPAL")
 
-        if os.getenv("DEFAULT_SECRET"):
-            credential.secret = os.getenv("DEFAULT_SECRET")
+        if os.getenv("MESOS_EXAMPLE_SECRET"):
+            credential.secret = os.getenv("MESOS_EXAMPLE_SECRET")
 
-        framework.principal = os.getenv("DEFAULT_PRINCIPAL")
+        framework.principal = os.getenv("MESOS_EXAMPLE_PRINCIPAL")
 
         driver = MesosSchedulerDriver(
             TestScheduler(implicitAcknowledgements, executor),

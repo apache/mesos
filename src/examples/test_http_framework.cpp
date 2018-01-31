@@ -424,7 +424,7 @@ int main(int argc, char** argv)
 
   Flags flags;
 
-  Try<flags::Warnings> load = flags.load(None(), argc, argv);
+  Try<flags::Warnings> load = flags.load("MESOS_EXAMPLE_", argc, argv);
 
   if (flags.help) {
     cout << flags.usage() << endl;
