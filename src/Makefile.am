@@ -1128,6 +1128,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   credentials/credentials.hpp						\
   docker/docker.hpp							\
   docker/executor.hpp							\
+  examples/flags.hpp							\
   examples/test_anonymous_module.hpp					\
   examples/test_module.hpp						\
   examples/utils.hpp							\
