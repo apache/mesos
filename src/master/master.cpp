@@ -2419,9 +2419,10 @@ void Master::receive(
     }
 
     case scheduler::Call::ACKNOWLEDGE_OPERATION_STATUS: {
-      acknowledgeOperationStatus(
-          framework,
-          call.acknowledge_operation_status());
+      drop(
+          from,
+          call,
+          "'ACKNOWLEDGE_OPERATION_STATUS' is not supported by the v0 API");
       break;
     }
 
