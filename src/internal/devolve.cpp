@@ -199,7 +199,8 @@ scheduler::Call devolve(const v1::scheduler::Call& call)
   scheduler::Call _call = devolve<scheduler::Call>(call);
 
   // Certain conversions require special handling.
-  if (_call.type() == scheduler::Call::SUBSCRIBE) {
+  if (call.type() == v1::scheduler::Call::SUBSCRIBE &&
+      call.has_subscribe()) {
     // v1 Subscribe.suppressed_roles cannot be automatically converted
     // because its tag is used by another field in the internal Subscribe.
     *(_call.mutable_subscribe()->mutable_suppressed_roles()) =
