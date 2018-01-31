@@ -32,15 +32,12 @@
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
-#include "logging/logging.hpp"
-
 #include "examples/flags.hpp"
+
+#include "logging/logging.hpp"
 
 using namespace mesos;
 
-using std::cerr;
-using std::cout;
-using std::endl;
 using std::string;
 using std::vector;
 
@@ -334,20 +331,12 @@ class Flags : public virtual mesos::internal::examples::Flags
 public:
   Flags()
   {
-    // Using non unified role flag as this framework needs a non "*"
-    // default role.
-    add(&Flags::role,
-        "role",
-        "Role to use when registering.",
-        "test");
-
     add(&Flags::command,
         "command",
         "The command to run for each task.",
         "echo hello");
   }
 
-  string role;
   string command;
 };
 
@@ -358,19 +347,12 @@ int main(int argc, char** argv)
   Try<flags::Warnings> load = flags.load("MESOS_EXAMPLE_", argc, argv);
 
   if (flags.help) {
-    cout << flags.usage() << endl;
+    std::cout << flags.usage() << std::endl;
     return EXIT_SUCCESS;
   }
 
   if (load.isError()) {
-    cerr << flags.usage(load.error()) << endl;
-    return EXIT_FAILURE;
-  }
-
-  if (flags.role == "*") {
-    cerr << flags.usage(
-                "Role is incorrect; the default '*' role cannot be used")
-         << endl;
+    std::cerr << flags.usage(load.error()) << std::endl;
     return EXIT_FAILURE;
   }
 
@@ -381,10 +363,16 @@ int main(int argc, char** argv)
     LOG(WARNING) << warning.message;
   }
 
+  if (flags.role == "*") {
+    EXIT(EXIT_FAILURE) << flags.usage(
+        "Role is incorrect; the default '*' role cannot be used");
+  }
+
   FrameworkInfo framework;
   framework.set_user(""); // Mesos'll fill in the current user.
   framework.set_principal(flags.principal);
   framework.set_name(FRAMEWORK_NAME);
+  framework.set_checkpoint(flags.checkpoint);
   framework.add_roles(flags.role);
   framework.add_capabilities()->set_type(
       FrameworkInfo::Capability::MULTI_ROLE);
@@ -398,7 +386,7 @@ int main(int argc, char** argv)
 
   if (flags.master == "local") {
     // Configure master.
-    os::setenv("MESOS_AUTHENTICATE_FRAMEWORKS", "false");
+    os::setenv("MESOS_AUTHENTICATE_FRAMEWORKS", stringify(flags.authenticate));
 
     ACLs acls;
     ACL::RegisterFramework* acl = acls.add_register_frameworks();
@@ -407,10 +395,28 @@ int main(int argc, char** argv)
     os::setenv("MESOS_ACLS", stringify(JSON::protobuf(acls)));
   }
 
-  MesosSchedulerDriver* driver = new MesosSchedulerDriver(
-      &scheduler,
-      framework,
-      flags.master);
+  MesosSchedulerDriver* driver;
+
+  if (flags.authenticate) {
+    LOG(INFO) << "Enabling authentication for the framework";
+
+    Credential credential;
+    credential.set_principal(flags.principal);
+    if (flags.secret.isSome()) {
+      credential.set_secret(flags.secret.get());
+    }
+
+    driver = new MesosSchedulerDriver(
+        &scheduler,
+        framework,
+        flags.master,
+        credential);
+  } else {
+    driver = new MesosSchedulerDriver(
+        &scheduler,
+        framework,
+        flags.master);
+  }
 
   int status = driver->run() == DRIVER_STOPPED ? 0 : 1;
 

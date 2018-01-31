@@ -44,4 +44,4 @@ export MESOS_ISOLATION="filesystem/posix,posix/cpu,posix/mem"
 export MESOS_LAUNCHER="posix"
 
 # Check that the framework executes without crashing (returns 0).
-exec ${MESOS_HELPER_DIR}/persistent-volume-framework --master=local
+exec ${MESOS_HELPER_DIR}/persistent-volume-framework --master=local --role=test

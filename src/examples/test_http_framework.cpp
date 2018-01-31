@@ -46,7 +46,8 @@
 
 #include "common/status_utils.hpp"
 
-#include "logging/flags.hpp"
+#include "examples/flags.hpp"
+
 #include "logging/logging.hpp"
 
 using namespace mesos::v1;
@@ -76,24 +77,13 @@ class HTTPScheduler : public process::Process<HTTPScheduler>
 public:
   HTTPScheduler(const FrameworkInfo& _framework,
                 const ExecutorInfo& _executor,
-                const string& _master)
-    : framework(_framework),
-      role(_framework.roles(0)),
-      executor(_executor),
-      master(_master),
-      state(INITIALIZING),
-      tasksLaunched(0),
-      tasksFinished(0),
-      totalTasks(5) {}
-
-  HTTPScheduler(const FrameworkInfo& _framework,
-                const ExecutorInfo& _executor,
                 const string& _master,
-                const Credential& credential)
+                const Option<Credential>& _credential)
     : framework(_framework),
       role(_framework.roles(0)),
       executor(_executor),
       master(_master),
+      credential(_credential),
       state(INITIALIZING),
       tasksLaunched(0),
       tasksFinished(0),
@@ -224,7 +214,7 @@ protected:
             process::defer(self(), &Self::connected),
             process::defer(self(), &Self::disconnected),
             process::defer(self(), &Self::received, lambda::_1),
-            None()));
+            credential));
   }
 
 private:
@@ -372,6 +362,7 @@ private:
   const string role;
   const ExecutorInfo executor;
   const string master;
+  const Option<Credential> credential;
   process::Owned<scheduler::Mesos> mesos;
 
   enum State
@@ -396,18 +387,7 @@ void usage(const char* argv0, const flags::FlagsBase& flags)
 }
 
 
-class Flags : public virtual mesos::internal::logging::Flags
-{
-public:
-  Flags()
-  {
-    add(&Flags::role, "role", "Role to use when registering", "*");
-    add(&Flags::master, "master", "ip:port of master to connect");
-  }
-
-  string role;
-  Option<string> master;
-};
+class Flags : public virtual mesos::internal::examples::Flags {};
 
 
 int main(int argc, char** argv)
@@ -436,11 +416,6 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
-  if (flags.master.isNone()) {
-    cerr << flags.usage("Missing --master") << endl;
-    return EXIT_FAILURE;
-  }
-
   mesos::internal::logging::initialize(argv[0], true, flags); // Catch signals.
 
   // Log any flag warnings.
@@ -449,7 +424,9 @@ int main(int argc, char** argv)
   }
 
   FrameworkInfo framework;
+  framework.set_principal(flags.principal);
   framework.set_name(FRAMEWORK_NAME);
+  framework.set_checkpoint(flags.checkpoint);
   framework.add_roles(flags.role);
   framework.add_capabilities()->set_type(
       FrameworkInfo::Capability::MULTI_ROLE);
@@ -461,26 +438,26 @@ int main(int argc, char** argv)
   CHECK_SOME(user);
   framework.set_user(user.get());
 
-  value = os::getenv("MESOS_CHECKPOINT");
-  if (value.isSome()) {
-    framework.set_checkpoint(numify<bool>(value.get()).get());
-  }
-
   ExecutorInfo executor;
   executor.mutable_executor_id()->set_value("default");
   executor.mutable_command()->set_value(uri);
   executor.set_name(EXECUTOR_NAME);
 
-  value = os::getenv("DEFAULT_PRINCIPAL");
-  if (value.isNone()) {
-    EXIT(EXIT_FAILURE)
-      << "Expecting authentication principal in the environment";
+  Option<Credential> credential = None();
+
+  if (flags.authenticate) {
+    LOG(INFO) << "Enabling authentication for the framework";
+
+    Credential credential_;
+    credential_.set_principal(flags.principal);
+    if (flags.secret.isSome()) {
+      credential_.set_secret(flags.secret.get());
+    }
+    credential = credential_;
   }
 
-  framework.set_principal(value.get());
-
   process::Owned<HTTPScheduler> scheduler(
-      new HTTPScheduler(framework, executor, flags.master.get()));
+      new HTTPScheduler(framework, executor, flags.master, credential));
 
   process::spawn(scheduler.get());
   process::wait(scheduler.get());
