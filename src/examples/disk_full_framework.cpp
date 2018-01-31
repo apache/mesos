@@ -38,6 +38,8 @@
 #include <stout/os.hpp>
 #include <stout/try.hpp>
 
+#include "examples/flags.hpp"
+
 #include "logging/logging.hpp"
 
 using namespace mesos;
@@ -54,11 +56,10 @@ const double CPUS_PER_TASK = 0.1;
 const int MEMORY_PER_TASK = 16;
 const Bytes DISK_PER_TASK = Megabytes(5);
 
-constexpr char FRAMEWORK_PRINCIPAL[] = "disk-full-framework-cpp";
 constexpr char FRAMEWORK_METRICS_PREFIX[] = "disk_full_framework";
 
 
-class Flags : public virtual flags::FlagsBase
+class Flags : public virtual mesos::internal::examples::Flags
 {
 public:
   Flags()
@@ -67,10 +68,6 @@ public:
         "name",
         "Name to be used by the framework.",
         "Disk Full Framework");
-
-    add(&Flags::master,
-        "master",
-        "Master to connect to.");
 
     add(&Flags::run_once,
         "run_once",
@@ -105,7 +102,6 @@ public:
   }
 
   string name;
-  string master;
   bool run_once;
   Duration pre_sleep_duration;
   Duration post_sleep_duration;
@@ -466,9 +462,10 @@ int main(int argc, char** argv)
 
   FrameworkInfo framework;
   framework.set_user(""); // Have Mesos fill the current user.
+  framework.set_principal(flags.principal);
   framework.set_name(flags.name);
-  framework.set_checkpoint(true);
-  framework.add_roles("*");
+  framework.set_checkpoint(flags.checkpoint);
+  framework.add_roles(flags.role);
   framework.add_capabilities()->set_type(
       FrameworkInfo::Capability::MULTI_ROLE);
   framework.add_capabilities()->set_type(
@@ -478,36 +475,25 @@ int main(int argc, char** argv)
 
   MesosSchedulerDriver* driver;
 
-  // TODO(hartem): Refactor these into a common set of flags.
-  Option<string> value = os::getenv("MESOS_AUTHENTICATE_FRAMEWORKS");
-  if (value.isSome()) {
+  if (flags.authenticate) {
     LOG(INFO) << "Enabling authentication for the framework";
 
-    value = os::getenv("DEFAULT_PRINCIPAL");
-    if (value.isNone()) {
-      EXIT(EXIT_FAILURE)
-        << "Expecting authentication principal in the environment";
-    }
-
     Credential credential;
-    credential.set_principal(value.get());
-
-    framework.set_principal(value.get());
-
-    value = os::getenv("DEFAULT_SECRET");
-    if (value.isNone()) {
-      EXIT(EXIT_FAILURE)
-        << "Expecting authentication secret in the environment";
+    credential.set_principal(flags.principal);
+    if (flags.secret.isSome()) {
+      credential.set_secret(flags.secret.get());
     }
-
-    credential.set_secret(value.get());
 
     driver = new MesosSchedulerDriver(
-        &scheduler, framework, flags.master, credential);
+        &scheduler,
+        framework,
+        flags.master,
+        credential);
   } else {
-    framework.set_principal(FRAMEWORK_PRINCIPAL);
-
-    driver = new MesosSchedulerDriver(&scheduler, framework, flags.master);
+    driver = new MesosSchedulerDriver(
+        &scheduler,
+        framework,
+        flags.master);
   }
 
   int status = driver->run() == DRIVER_STOPPED ? 0 : 1;

@@ -25,14 +25,14 @@
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 
+#include "examples/flags.hpp"
+
+#include "logging/logging.hpp"
+
 using namespace mesos;
 
 using boost::lexical_cast;
 
-using std::cout;
-using std::cerr;
-using std::endl;
-using std::flush;
 using std::string;
 using std::vector;
 
@@ -40,7 +40,6 @@ const int32_t CPUS_PER_TASK = 1;
 const int32_t MEM_PER_TASK = 32;
 
 constexpr char FRAMEWORK_NAME[] = "Docker No Executor Framework (C++)";
-constexpr char FRAMEWORK_PRINCIPAL[] = "no-executor-framework-cpp";
 
 
 class DockerNoExecutorScheduler : public Scheduler
@@ -55,7 +54,7 @@ public:
                           const FrameworkID&,
                           const MasterInfo&)
   {
-    cout << "Registered!" << endl;
+    LOG(INFO) << "Registered!";
   }
 
   virtual void reregistered(SchedulerDriver*, const MasterInfo& masterInfo) {}
@@ -65,7 +64,8 @@ public:
   virtual void resourceOffers(SchedulerDriver* driver,
                               const vector<Offer>& offers)
   {
-    cout << "." << flush;
+    LOG(INFO) << ".";
+
     for (size_t i = 0; i < offers.size(); i++) {
       const Offer& offer = offers[i];
 
@@ -93,8 +93,7 @@ public:
              mem >= MEM_PER_TASK) {
         int taskId = tasksLaunched++;
 
-        cout << "Starting task " << taskId << " on "
-             << offer.hostname() << endl;
+        LOG(INFO) << "Starting task " << taskId << " on " << offer.hostname();
 
         TaskInfo task;
         task.set_name("Task " + lexical_cast<string>(taskId));
@@ -141,7 +140,7 @@ public:
   {
     int taskId = lexical_cast<int>(status.task_id().value());
 
-    cout << "Task " << taskId << " is in state " << status.state() << endl;
+    LOG(INFO) << "Task " << taskId << " is in state " << status.state();
 
     if (status.state() == TASK_FINISHED) {
       tasksFinished++;
@@ -173,51 +172,58 @@ private:
 };
 
 
+class Flags : public virtual mesos::internal::examples::Flags {};
+
+
 int main(int argc, char** argv)
 {
-  if (argc != 2) {
-    cerr << "Usage: " << argv[0] << " <master>" << endl;
-    return -1;
+  Flags flags;
+  Try<flags::Warnings> load = flags.load("MESOS_EXAMPLE_", argc, argv);
+
+  if (flags.help) {
+    std::cout << flags.usage() << std::endl;
+    return EXIT_SUCCESS;
   }
 
-  DockerNoExecutorScheduler scheduler;
+  if (load.isError()) {
+    std::cerr << flags.usage(load.error()) << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  internal::logging::initialize(argv[0], false);
 
   FrameworkInfo framework;
   framework.set_user(""); // Have Mesos fill in the current user.
+  framework.set_principal(flags.principal);
   framework.set_name(FRAMEWORK_NAME);
-  framework.set_checkpoint(true);
+  framework.set_checkpoint(flags.checkpoint);
+  framework.add_roles(flags.role);
   framework.add_capabilities()->set_type(
       FrameworkInfo::Capability::RESERVATION_REFINEMENT);
 
-  MesosSchedulerDriver* driver;
-  if (os::getenv("MESOS_EXAMPLE_AUTHENTICATE").isSome()) {
-    cout << "Enabling authentication for the framework" << endl;
+  DockerNoExecutorScheduler scheduler;
 
-    Option<string> value = os::getenv("MESOS_EXAMPLE_PRINCIPAL");
-    if (value.isNone()) {
-      EXIT(EXIT_FAILURE)
-        << "Expecting authentication principal in the environment";
-    }
+  MesosSchedulerDriver* driver;
+
+  if (flags.authenticate) {
+    LOG(INFO) << "Enabling authentication for the framework";
 
     Credential credential;
-    credential.set_principal(value.get());
-
-    framework.set_principal(value.get());
-
-    value = os::getenv("MESOS_EXAMPLE_SECRET");
-    if (value.isNone()) {
-      EXIT(EXIT_FAILURE)
-        << "Expecting authentication secret in the environment";
+    credential.set_principal(flags.principal);
+    if (flags.secret.isSome()) {
+      credential.set_secret(flags.secret.get());
     }
 
-    credential.set_secret(value.get());
-
     driver = new MesosSchedulerDriver(
-        &scheduler, framework, argv[1], credential);
+        &scheduler,
+        framework,
+        argv[1],
+        credential);
   } else {
-    framework.set_principal(FRAMEWORK_PRINCIPAL);
-
-    driver = new MesosSchedulerDriver(&scheduler, framework, argv[1]);
+    driver = new MesosSchedulerDriver(
+        &scheduler,
+        framework,
+        argv[1]);
   }
 
   int status = driver->run() == DRIVER_STOPPED ? 0 : 1;

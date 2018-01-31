@@ -42,6 +42,8 @@
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
+#include "examples/flags.hpp"
+
 using namespace mesos;
 using namespace mesos::internal;
 
@@ -490,27 +492,17 @@ private:
 };
 
 
-class Flags : public virtual logging::Flags
+class Flags : public virtual mesos::internal::examples::Flags,
+              public virtual logging::Flags
 {
 public:
   Flags()
   {
-    add(&Flags::master,
-        "master",
-        "The master to connect to. May be one of:\n"
-        "  master@addr:port (The PID of the master)\n"
-        "  zk://host1:port1,host2:port2,.../path\n"
-        "  zk://username:password@host1:port1,host2:port2,.../path\n"
-        "  file://path/to/file (where file contains one of the above)");
-
+    // Using non unified role flag as this framework needs a non "*"
+    // default role.
     add(&Flags::role,
         "role",
         "Role to use when registering",
-        "test");
-
-    add(&Flags::principal,
-        "principal",
-        "The principal used to identify this framework",
         "test");
 
     add(&Flags::num_shards,
@@ -529,9 +521,7 @@ public:
         2);
   }
 
-  Option<string> master;
   string role;
-  string principal;
   size_t num_shards;
   size_t num_shared_shards;
   size_t tasks_per_shard;
@@ -553,11 +543,6 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
-  if (flags.master.isNone()) {
-    cerr << flags.usage("Missing required option --master") << endl;
-    return EXIT_FAILURE;
-  }
-
   logging::initialize(argv[0], true, flags); // Catch signals.
 
   // Log any flag warnings (after logging is initialized).
@@ -567,27 +552,26 @@ int main(int argc, char** argv)
 
   FrameworkInfo framework;
   framework.set_user(""); // Have Mesos fill in the current user.
+  framework.set_principal(flags.principal);
   framework.set_name(FRAMEWORK_NAME);
   framework.add_roles(flags.role);
   framework.add_capabilities()->set_type(
       FrameworkInfo::Capability::MULTI_ROLE);
   framework.set_checkpoint(true);
-  framework.set_principal(flags.principal);
   framework.add_capabilities()->set_type(
       FrameworkInfo::Capability::SHARED_RESOURCES);
   framework.add_capabilities()->set_type(
       FrameworkInfo::Capability::RESERVATION_REFINEMENT);
 
-  if (flags.master.get() == "local") {
+  if (flags.master == "local") {
     // Configure master.
     os::setenv("MESOS_ROLES", flags.role);
-    os::setenv("MESOS_AUTHENTICATE_FRAMEWORKS", "false");
+    os::setenv("MESOS_AUTHENTICATE_FRAMEWORKS", stringify(flags.authenticate));
 
     ACLs acls;
     ACL::RegisterFramework* acl = acls.add_register_frameworks();
     acl->mutable_principals()->set_type(ACL::Entity::ANY);
     acl->mutable_roles()->add_values(flags.role);
-
     os::setenv("MESOS_ACLS", stringify(JSON::protobuf(acls)));
 
     // Configure agent.
@@ -603,7 +587,7 @@ int main(int argc, char** argv)
   MesosSchedulerDriver* driver = new MesosSchedulerDriver(
       &scheduler,
       framework,
-      flags.master.get());
+      flags.master);
 
   int status = driver->run() == DRIVER_STOPPED ? EXIT_SUCCESS : EXIT_FAILURE;
 

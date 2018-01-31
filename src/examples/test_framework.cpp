@@ -37,6 +37,8 @@
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
+#include "examples/flags.hpp"
+
 using namespace mesos;
 
 using boost::lexical_cast;
@@ -56,8 +58,6 @@ const int32_t MEM_PER_TASK = 128;
 constexpr char EXECUTOR_BINARY[] = "test-executor";
 constexpr char EXECUTOR_NAME[] = "Test Executor (C++)";
 constexpr char FRAMEWORK_NAME[] = "Test Framework (C++)";
-constexpr char FRAMEWORK_PRINCIPAL[] = "test-framework-cpp";
-
 
 class TestScheduler : public Scheduler
 {
@@ -211,18 +211,7 @@ void usage(const char* argv0, const flags::FlagsBase& flags)
 }
 
 
-class Flags : public virtual mesos::internal::logging::Flags
-{
-public:
-  Flags()
-  {
-    add(&Flags::role, "role", "Role to use when registering", "*");
-    add(&Flags::master, "master", "ip:port of master to connect");
-  }
-
-  string role;
-  Option<string> master;
-};
+class Flags : public virtual mesos::internal::examples::Flags {};
 
 
 int main(int argc, char** argv)
@@ -251,11 +240,6 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
-  if (flags.master.isNone()) {
-    cerr << flags.usage("Missing --master") << endl;
-    return EXIT_FAILURE;
-  }
-
   internal::logging::initialize(argv[0], true, flags); // Catch signals.
 
   // Log any flag warnings (after logging is initialized).
@@ -270,17 +254,14 @@ int main(int argc, char** argv)
 
   FrameworkInfo framework;
   framework.set_user(""); // Have Mesos fill in the current user.
+  framework.set_principal(flags.principal);
   framework.set_name(FRAMEWORK_NAME);
   framework.add_roles(flags.role);
   framework.add_capabilities()->set_type(
       FrameworkInfo::Capability::MULTI_ROLE);
   framework.add_capabilities()->set_type(
       FrameworkInfo::Capability::RESERVATION_REFINEMENT);
-
-  value = os::getenv("MESOS_CHECKPOINT");
-  if (value.isSome()) {
-    framework.set_checkpoint(numify<bool>(value.get()).get());
-  }
+  framework.set_checkpoint(flags.checkpoint);
 
   bool implicitAcknowledgements = true;
   if (os::getenv("MESOS_EXPLICIT_ACKNOWLEDGEMENTS").isSome()) {
@@ -292,41 +273,26 @@ int main(int argc, char** argv)
   MesosSchedulerDriver* driver;
   TestScheduler scheduler(implicitAcknowledgements, executor, flags.role);
 
-  if (os::getenv("MESOS_AUTHENTICATE_FRAMEWORKS").isSome()) {
+  if (flags.authenticate) {
     cout << "Enabling authentication for the framework" << endl;
 
-    value = os::getenv("DEFAULT_PRINCIPAL");
-    if (value.isNone()) {
-      EXIT(EXIT_FAILURE)
-        << "Expecting authentication principal in the environment";
-    }
-
     Credential credential;
-    credential.set_principal(value.get());
-
-    framework.set_principal(value.get());
-
-    value = os::getenv("DEFAULT_SECRET");
-    if (value.isNone()) {
-      EXIT(EXIT_FAILURE)
-        << "Expecting authentication secret in the environment";
+    credential.set_principal(flags.principal);
+    if (flags.secret.isSome()) {
+      credential.set_secret(flags.secret.get());
     }
-
-    credential.set_secret(value.get());
 
     driver = new MesosSchedulerDriver(
         &scheduler,
         framework,
-        flags.master.get(),
+        flags.master,
         implicitAcknowledgements,
         credential);
   } else {
-    framework.set_principal(FRAMEWORK_PRINCIPAL);
-
     driver = new MesosSchedulerDriver(
         &scheduler,
         framework,
-        flags.master.get(),
+        flags.master,
         implicitAcknowledgements);
   }
 
