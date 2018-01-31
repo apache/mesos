@@ -5746,7 +5746,10 @@ void Master::acknowledge(
 
   const SlaveID& slaveId = acknowledge.slave_id();
   const TaskID& taskId = acknowledge.task_id();
-  const id::UUID uuid = id::UUID::fromBytes(acknowledge.uuid()).get();
+
+  Try<id::UUID> uuid_ = id::UUID::fromBytes(acknowledge.uuid());
+  CHECK_SOME(uuid_);
+  const id::UUID uuid = uuid_.get();
 
   Slave* slave = slaves.registered.get(slaveId);
 
