@@ -159,7 +159,7 @@ Try<Nothing> setns(
 }
 
 
-Try<Nothing> setns(pid_t pid, const string& ns)
+Try<Nothing> setns(pid_t pid, const string& ns, bool checkMultithreaded)
 {
   if (!os::exists(pid)) {
     return Error("Pid " + ::stringify(pid) + " does not exist");
@@ -170,7 +170,7 @@ Try<Nothing> setns(pid_t pid, const string& ns)
     return Error("Namespace '" + ns + "' is not supported");
   }
 
-  return ns::setns(path, ns);
+  return ns::setns(path, ns, checkMultithreaded);
 }
 
 

@@ -107,7 +107,10 @@ Try<Nothing> setns(
 
 // Re-associate the calling process with the specified namespace. The
 // pid specifies the process whose namespace we will associate.
-Try<Nothing> setns(pid_t pid, const std::string& ns);
+Try<Nothing> setns(
+    pid_t pid,
+    const std::string& ns,
+    bool checkMultithreaded = true);
 
 
 // Get the inode number of the specified namespace for the specified
