@@ -2414,24 +2414,11 @@ void Master::receive(
       break;
 
     case scheduler::Call::ACKNOWLEDGE: {
-      Try<id::UUID> uuid = id::UUID::fromBytes(call.acknowledge().uuid());
-      if (uuid.isError()) {
-        drop(from, call, uuid.error());
-        return;
-      }
-
       acknowledge(framework, call.acknowledge());
       break;
     }
 
     case scheduler::Call::ACKNOWLEDGE_OPERATION_STATUS: {
-      Try<id::UUID> uuid = id::UUID::fromBytes(
-          call.acknowledge_operation_status().uuid());
-      if (uuid.isError()) {
-        drop(from, call, uuid.error());
-        return;
-      }
-
       acknowledgeOperationStatus(
           framework,
           call.acknowledge_operation_status());
