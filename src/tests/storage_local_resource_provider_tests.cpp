@@ -119,6 +119,14 @@ public:
     const string testCsiPluginPath =
       path::join(tests::flags.build_dir, "src", "test-csi-plugin");
 
+    // NOTE: Using the same container ID to launch the CSI plugin would
+    // result in imperfect test isolation since the same cgroup
+    // would be used in different test runs. Therefore, we use a random
+    // plugin name to avoid this.
+    // TODO(chhsiao): This won't be needed once MESOS-8399 is done.
+    const string testCsiPluginName =
+      strings::remove(id::UUID::random().toString(), "-");
+
     Try<string> resourceProviderConfig = strings::format(
         R"~(
         {
@@ -133,7 +141,7 @@ public:
           "storage": {
             "plugin": {
               "type": "org.apache.mesos.csi.test",
-              "name": "slrp_test",
+              "name": "%s",
               "containers": [
                 {
                   "services": [
@@ -156,6 +164,7 @@ public:
           }
         }
         )~",
+        testCsiPluginName,
         testCsiPluginPath,
         testCsiPluginPath,
         stringify(capacity),
