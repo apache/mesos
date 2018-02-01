@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-#
+
 #     http://www.apache.org/licenses/LICENSE-2.0
-#
+
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -19,12 +19,27 @@
 set -e
 set -o pipefail
 
+: "${OS:?"Environment variable 'OS' must be set"}"
+: "${BUILDTOOL:?"Environment variable 'BUILDTOOL' must be set"}"
+: "${COMPILER:?"Environment variable 'COMPILER' must be set"}"
+: "${CONFIGURATION:?"Environment variable 'CONFIGURATION' must be set"}"
+: "${ENVIRONMENT:?"Environment variable 'ENVIRONMENT' must be set"}"
+: "${JOBS:=$(nproc)}"
+
 MESOS_DIR=$(git rev-parse --show-toplevel)
 
-function remove_image {
-  docker rmi $(docker images -q mesos/mesos-build) || true
-}
+# Check for unstaged or uncommitted changes.
+if ! $(git diff-index --quiet HEAD --); then
+  echo 'Please commit or stash any changes before running `mesos-build`.'
+  exit 1
+fi
 
-trap remove_image EXIT
-
-"${MESOS_DIR}"/support/mesos-build.sh
+docker run \
+  --rm \
+  -v "${MESOS_DIR}":/SRC:Z \
+  -e BUILDTOOL="${BUILDTOOL}" \
+  -e COMPILER="${COMPILER}" \
+  -e CONFIGURATION="${CONFIGURATION}" \
+  -e ENVIRONMENT="${ENVIRONMENT}" \
+  -e JOBS="${JOBS}" \
+  "mesos/mesos-build:${OS//:/-}"
