@@ -21,9 +21,4 @@ set -o pipefail
 
 MESOS_DIR=$(git rev-parse --show-toplevel)
 
-# Install `virtualenv`, needed by `support/mesos-style.py`.
-pip install --user virtualenv
-
-"${MESOS_DIR}"/support/mesos-style.py
-
 "${MESOS_DIR}"/support/docker-build.sh
