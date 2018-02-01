@@ -254,7 +254,7 @@
   reviewboard_user: cinchurge
 
 - name: Eric Mumau
-affiliations:
+  affiliations:
     - {organization: Microsoft}
   emails:
     - ermumau@microsoft.com
