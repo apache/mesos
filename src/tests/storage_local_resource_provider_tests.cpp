@@ -1490,36 +1490,39 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesRecovery)
   MesosSchedulerDriver driver(
       &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  // We use the following filter so that the resources will not be
-  // filtered for 5 seconds (the default).
-  Filters acceptFilters;
-  acceptFilters.set_refuse_seconds(0);
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  // The framework is expected to see the following offers in sequence:
+  //   1. One containing a RAW disk resource before `CREATE_VOLUME`.
+  //   2. One containing a MOUNT disk resource after `CREATE_VOLUME`.
+  //   3. One containing a persistent volume after `CREATE` and `LAUNCH`.
+  //   4. One containing the same persistent volume after the agent
+  //      recovers from a failover.
+  //   5. One containing the same persistent volume after another `LAUNCH`.
+  //   6. One containing the original RAW disk resource after `DESTROY`
+  //      and `DESTROY_VOLUME`.
+  //
+  // We set up the expectations for these offers as the test progresses.
+  Future<vector<Offer>> rawDiskOffers;
+  Future<vector<Offer>> volumeCreatedOffers;
+  Future<vector<Offer>> task1FinishedOffers;
+  Future<vector<Offer>> slaveRecoveredOffers;
+  Future<vector<Offer>> task2FinishedOffers;
+  Future<vector<Offer>> volumeDestroyedOffers;
+
+  Sequence offers;
 
   // We use the following filter to filter offers that do not have
   // wanted resources for 365 days (the maximum).
   Filters declineFilters;
   declineFilters.set_refuse_seconds(Days(365).secs());
 
-  EXPECT_CALL(sched, registered(&driver, _, _));
+  // Decline offers that contain only the agent's default resources.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillRepeatedly(DeclineOffers(declineFilters));
 
-  // The framework is expected to see the following offers in sequence:
-  //   1. One containing a RAW disk resource before `CREATE_VOLUME`.
-  //   2. One containing a MOUNT disk resource after `CREATE_VOLUME`.
-  //   3. One containing the same MOUNT disk resource after `CREADE`,
-  //      `LAUNCH` and `DESTROY`.
-  //   4. One containing the same RAW disk resource after `DESTROY_VOLUME`.
-  //
-  // We set up the expectations for these offers as the test progresses.
-  Future<vector<Offer>> rawDiskOffers;
-  Future<vector<Offer>> volumeCreatedOffers;
-  Future<vector<Offer>> taskFinishedOffers;
-  Future<vector<Offer>> agentRecoveredOffers;
-  Future<vector<Offer>> volumeDestroyedOffers;
-
-  Sequence offers;
-
-  // We are only interested in storage pools and volume created from
-  // them, which have a "volume-default" profile.
+  // We are only interested in any storage pool or created volume which
+  // has a "volume-default" profile.
   auto hasSourceType = [](
       const Resource& r,
       const Resource::DiskInfo::Source::Type& type) {
@@ -1530,17 +1533,10 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesRecovery)
       r.disk().source().type() == type;
   };
 
-  // Decline offers that contain only the agent's default resources.
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillRepeatedly(DeclineOffers(declineFilters));
-
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
       std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::RAW))))
     .InSequence(offers)
     .WillOnce(FutureArg<1>(&rawDiskOffers));
-
-  EXPECT_CALL(sched, offerRescinded(_, _))
-    .Times(AtLeast(1));
 
   driver.start();
 
@@ -1563,6 +1559,11 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesRecovery)
       std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::MOUNT))))
     .InSequence(offers)
     .WillOnce(FutureArg<1>(&volumeCreatedOffers));
+
+  // We use the following filter so that the resources will not be
+  // filtered for 5 seconds (the default).
+  Filters acceptFilters;
+  acceptFilters.set_refuse_seconds(0);
 
   driver.acceptOffers(
       {rawDiskOffers->at(0).id()},
@@ -1601,9 +1602,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesRecovery)
   ASSERT_SOME(volumePath);
   EXPECT_TRUE(os::exists(volumePath.get()));
 
-  // Put a file into the volume.
-  ASSERT_SOME(os::touch(path::join(volumePath.get(), "file")));
-
   // Create a persistent volume on the CSI volume, then launch a task to
   // use the persistent volume.
   Resource persistentVolume = volume.get();
@@ -1615,49 +1613,94 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesRecovery)
     ->set_container_path("volume");
   persistentVolume.mutable_disk()->mutable_volume()->set_mode(Volume::RW);
 
-  Future<TaskStatus> taskStarting;
-  Future<TaskStatus> taskRunning;
-  Future<TaskStatus> taskFinished;
+  {
+    Future<TaskStatus> taskStarting;
+    Future<TaskStatus> taskRunning;
+    Future<TaskStatus> taskFinished;
 
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&taskStarting))
-    .WillOnce(FutureArg<1>(&taskRunning))
-    .WillOnce(FutureArg<1>(&taskFinished));
+    EXPECT_CALL(sched, statusUpdate(&driver, _))
+      .WillOnce(FutureArg<1>(&taskStarting))
+      .WillOnce(FutureArg<1>(&taskRunning))
+      .WillOnce(FutureArg<1>(&taskFinished));
+
+    EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveResource(
+        persistentVolume)))
+      .InSequence(offers)
+      .WillOnce(FutureArg<1>(&task1FinishedOffers));
+
+    driver.acceptOffers(
+        {volumeCreatedOffers->at(0).id()},
+        {CREATE(persistentVolume),
+         LAUNCH({createTask(
+             volumeCreatedOffers->at(0).slave_id(),
+             persistentVolume,
+             createCommandInfo("touch " + path::join("volume", "file")))})},
+        acceptFilters);
+
+    AWAIT_READY(taskStarting);
+    EXPECT_EQ(TASK_STARTING, taskStarting->state());
+
+    AWAIT_READY(taskRunning);
+    EXPECT_EQ(TASK_RUNNING, taskRunning->state());
+
+    AWAIT_READY(taskFinished);
+    EXPECT_EQ(TASK_FINISHED, taskFinished->state());
+  }
+
+  AWAIT_READY(task1FinishedOffers);
+
+  // Restart the agent.
+  EXPECT_CALL(sched, offerRescinded(_, _));
+
+  slave.get()->terminate();
 
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveResource(
       persistentVolume)))
     .InSequence(offers)
-    .WillOnce(FutureArg<1>(&taskFinishedOffers))
-    .WillOnce(FutureArg<1>(&agentRecoveredOffers));
-
-  driver.acceptOffers(
-      {volumeCreatedOffers->at(0).id()},
-      {CREATE(persistentVolume),
-       LAUNCH({createTask(
-           volumeCreatedOffers->at(0).slave_id(),
-           persistentVolume,
-           createCommandInfo("test -f " + path::join("volume", "file")))})},
-      acceptFilters);
-
-  AWAIT_READY(taskStarting);
-  EXPECT_EQ(TASK_STARTING, taskStarting->state());
-
-  AWAIT_READY(taskRunning);
-  EXPECT_EQ(TASK_RUNNING, taskRunning->state());
-
-  AWAIT_READY(taskFinished);
-  EXPECT_EQ(TASK_FINISHED, taskFinished->state());
-
-  AWAIT_READY(taskFinishedOffers);
-
-  // Restart the agent.
-  slave.get()->terminate();
+    .WillOnce(FutureArg<1>(&slaveRecoveredOffers));
 
   slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
-  AWAIT_READY(agentRecoveredOffers);
-  ASSERT_FALSE(agentRecoveredOffers->empty());
+  AWAIT_READY(slaveRecoveredOffers);
+  ASSERT_FALSE(slaveRecoveredOffers->empty());
+
+  // Launch another task to read the file that is created by the
+  // previous task on the persistent volume.
+  {
+    Future<TaskStatus> taskStarting;
+    Future<TaskStatus> taskRunning;
+    Future<TaskStatus> taskFinished;
+
+    EXPECT_CALL(sched, statusUpdate(&driver, _))
+      .WillOnce(FutureArg<1>(&taskStarting))
+      .WillOnce(FutureArg<1>(&taskRunning))
+      .WillOnce(FutureArg<1>(&taskFinished));
+
+    EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveResource(
+        persistentVolume)))
+      .InSequence(offers)
+      .WillOnce(FutureArg<1>(&task2FinishedOffers));
+
+    driver.acceptOffers(
+        {slaveRecoveredOffers->at(0).id()},
+        {LAUNCH({createTask(
+             slaveRecoveredOffers->at(0).slave_id(),
+             persistentVolume,
+             createCommandInfo("test -f " + path::join("volume", "file")))})},
+        acceptFilters);
+
+    AWAIT_READY(taskStarting);
+    EXPECT_EQ(TASK_STARTING, taskStarting->state());
+
+    AWAIT_READY(taskRunning);
+    EXPECT_EQ(TASK_RUNNING, taskRunning->state());
+
+    AWAIT_READY(taskFinished);
+    EXPECT_EQ(TASK_FINISHED, taskFinished->state());
+  }
+
+  AWAIT_READY(task2FinishedOffers);
 
   // Destroy the persistent volume and the CSI volume.
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveResource(source.get())))
@@ -1665,7 +1708,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesRecovery)
     .WillOnce(FutureArg<1>(&volumeDestroyedOffers));
 
   driver.acceptOffers(
-      {agentRecoveredOffers->at(0).id()},
+      {task2FinishedOffers->at(0).id()},
       {DESTROY(persistentVolume),
        DESTROY_VOLUME(volume.get())},
       acceptFilters);
