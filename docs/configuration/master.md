@@ -135,7 +135,7 @@ Example:
   <td>
 The timeout within which an agent is expected to respond to a
 ping from the master. Agents that do not respond within
-max_agent_ping_timeouts ping retries will be asked to shutdown.
+max_agent_ping_timeouts ping retries will be marked unreachable.
 <b>NOTE</b>: The total ping timeout (<code>agent_ping_timeout</code> multiplied by
 <code>max_agent_ping_timeouts</code>) should be greater than the ZooKeeper
 session timeout to prevent useless re-registration attempts.
@@ -370,7 +370,7 @@ conjunction with <code>--zk</code>. Must be used in conjunction with
   <td>
 The number of times an agent can fail to respond to a
 ping from the master. Agents that do not respond within
-<code>max_agent_ping_timeouts</code> ping retries will be asked to shutdown.
+<code>max_agent_ping_timeouts</code> ping retries will be marked unreachable.
 (default: 5)
   </td>
 </tr>

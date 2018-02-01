@@ -484,7 +484,7 @@ mesos::internal::master::Flags::Flags()
       flags::DeprecatedName("slave_ping_timeout"),
       "The timeout within which an agent is expected to respond to a\n"
       "ping from the master. Agents that do not respond within\n"
-      "max_agent_ping_timeouts ping retries will be asked to shutdown.\n"
+      "max_agent_ping_timeouts ping retries will be marked unreachable.\n"
       "NOTE: The total ping timeout (`agent_ping_timeout` multiplied by\n"
       "`max_agent_ping_timeouts`) should be greater than the ZooKeeper\n"
       "session timeout to prevent useless re-registration attempts.\n",
@@ -503,7 +503,7 @@ mesos::internal::master::Flags::Flags()
       flags::DeprecatedName("max_slave_ping_timeouts"),
       "The number of times an agent can fail to respond to a\n"
       "ping from the master. Agents that do not respond within\n"
-      "`max_agent_ping_timeouts` ping retries will be asked to shutdown.\n",
+      "`max_agent_ping_timeouts` ping retries will be marked unreachable.\n",
       DEFAULT_MAX_AGENT_PING_TIMEOUTS,
       [](size_t value) -> Option<Error> {
         if (value < 1) {
