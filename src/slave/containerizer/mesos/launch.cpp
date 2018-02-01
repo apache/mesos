@@ -36,6 +36,8 @@
 #include <stout/os.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/path.hpp>
+#include <stout/stringify.hpp>
+#include <stout/try.hpp>
 #include <stout/unreachable.hpp>
 
 #include <stout/os/int_fd.hpp>
@@ -43,6 +45,10 @@
 #include <stout/os/realpath.hpp>
 #include <stout/os/which.hpp>
 #include <stout/os/write.hpp>
+
+#ifdef __WINDOWS__
+#include <stout/windows/os.hpp>
+#endif // __WINDOWS__
 
 #include <mesos/mesos.hpp>
 #include <mesos/type_utils.hpp>
@@ -508,6 +514,29 @@ int MesosContainerizerLaunch::execute()
   Try<Nothing> signals = installSignalHandlers();
   if (signals.isError()) {
     cerr << "Failed to install signal handlers: " << signals.error() << endl;
+    exitWithStatus(EXIT_FAILURE);
+  }
+#else
+  // We need a handle to the job object which this container is associated with.
+  // Without this handle, the job object would be destroyed by the OS when the
+  // agent exits (or crashes), making recovery impossible. By holding a handle,
+  // we tie the lifetime of the job object to the container itself. In this way,
+  // a recovering agent can reattach to the container by opening a new handle to
+  // the job object.
+  const pid_t pid = ::GetCurrentProcessId();
+  const Try<std::wstring> name = os::name_job(pid);
+  if (name.isError()) {
+    cerr << "Failed to create job object name from pid: " << name.error()
+         << endl;
+    exitWithStatus(EXIT_FAILURE);
+  }
+
+  // NOTE: This handle will not be destructed, even though it is a
+  // `SharedHandle`, because it will (purposefully) never go out of scope.
+  Try<SharedHandle> handle = os::open_job(JOB_OBJECT_QUERY, false, name.get());
+  if (handle.isError()) {
+    cerr << "Failed to open job object '" << stringify(name.get())
+         << "' for the current container: " << handle.error() << endl;
     exitWithStatus(EXIT_FAILURE);
   }
 #endif // __WINDOWS__
@@ -1037,6 +1066,10 @@ int MesosContainerizerLaunch::execute()
   }
 #endif // __WINDOWS__
 
+  // NOTE: On Windows, these functions call `CreateProcess` and then wait for
+  // the new process to exit. Because of this, the `SharedHandle` to the job
+  // object does not go out of scope. This is unlike the POSIX behavior of
+  // `exec`, as the process image is intentionally not replaced.
   if (envp.isSome()) {
     os::execvpe(executable.c_str(), argv, envp.get());
   } else {
