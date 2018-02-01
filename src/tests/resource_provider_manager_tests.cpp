@@ -56,6 +56,7 @@
 #include "slave/slave.hpp"
 
 #include "tests/mesos.hpp"
+#include "tests/utils.hpp"
 
 namespace http = process::http;
 
@@ -1310,6 +1311,58 @@ TEST_F(ResourceProviderManagerHttpApiTest, ResourceProviderSubscribeDisconnect)
 
   AWAIT_READY(disconnected1);
   AWAIT_READY(subscribed2);
+}
+
+
+TEST_F(ResourceProviderManagerHttpApiTest, Metrics)
+{
+  Clock::pause();
+
+  // Start master and agent.
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(agent);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  Clock::settle();
+
+  AWAIT_READY(updateSlaveMessage);
+
+  mesos::v1::ResourceProviderInfo resourceProviderInfo;
+  resourceProviderInfo.set_type("org.apache.mesos.rp.test");
+  resourceProviderInfo.set_name("test");
+
+  Owned<v1::MockResourceProvider> resourceProvider(
+      new v1::MockResourceProvider(resourceProviderInfo));
+
+  // Start and register a resource provider.
+  Owned<EndpointDetector> endpointDetector(
+      resource_provider::createEndpointDetector(agent.get()->pid));
+
+  Future<Event::Subscribed> subscribed;
+  EXPECT_CALL(*resourceProvider, subscribed(_))
+    .WillOnce(FutureArg<0>(&subscribed));
+
+  resourceProvider->start(
+      endpointDetector,
+      ContentType::PROTOBUF,
+      v1::DEFAULT_CREDENTIAL);
+
+  AWAIT_READY(subscribed);
+
+  const JSON::Object snapshot = Metrics();
+
+  EXPECT_EQ(1, snapshot.values.at("resource_provider_manager/subscribed"));
 }
 
 } // namespace tests {
