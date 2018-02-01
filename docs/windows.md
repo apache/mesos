@@ -54,7 +54,7 @@ Following are the instructions for Windows 10.
 
     # The Windows agent exposes new isolators that must be used as with
     # the `--isolation` flag. To get started point the agent to a working
-    # master, using eiher an IP address or zookeeper information.
+    # master, using either an IP address or zookeeper information.
     src\mesos-agent.exe --master=<master> --work_dir=<work folder> --launcher_dir=<repository>\build\src
 
 

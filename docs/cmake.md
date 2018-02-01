@@ -106,7 +106,7 @@ target_include_directories(mylib PRIVATE mylib/private)
 # The folder of public headers, added to the compilation of any consumer.
 target_include_directories(mylib PUBLIC mylib/include)
 
-# A new exectuable with a single source file.
+# A new executable with a single source file.
 add_executable(myprogram main.cpp)
 
 # The creation of the link dependency `myprogram` -> `mylib`.

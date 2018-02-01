@@ -22,5 +22,5 @@ The key is the metric name, and the value is a double-type.
 
 
 ### AUTHENTICATION ###
-This endpoint requires authentication iff HTTP authentication is
+This endpoint requires authentication if HTTP authentication is
 enabled.

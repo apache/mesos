@@ -49,7 +49,7 @@ Example (**Note**: this is not exhaustive):
 
 
 ### AUTHENTICATION ###
-This endpoint requires authentication iff HTTP authentication is
+This endpoint requires authentication if HTTP authentication is
 enabled.
 
 ### AUTHORIZATION ###

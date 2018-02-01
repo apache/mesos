@@ -90,7 +90,7 @@ Following are the instructions for Mac OS X El Capitan. When building Mesos with
 
 When compiling on macOS 10.12, the following is needed:
 
-    # There is an incompatiblity with the system installed svn and apr headers.
+    # There is an incompatibility with the system installed svn and apr headers.
     # We need the svn and apr headers from a brew installation of subversion.
     # You may need to unlink the existing version of subversion installed via
     # brew in order to configure correctly.
@@ -201,7 +201,7 @@ Following are the instructions for stock CentOS 7.1. If you are using a differen
     # This flag was first introduced in 'systemd version 218', which is
     # lower than the default version installed by centos. Luckily, centos
     # 7.1 has a patched 'systemd < 218' that contains the 'Delegate' flag.
-    # Explicity update systemd to this patched version.
+    # Explicitly update systemd to this patched version.
     $ sudo yum update systemd
 
     # Install essential development tools.

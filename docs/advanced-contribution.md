@@ -23,7 +23,7 @@ If you'd like to make significant contributions to Mesos, then you'll want to be
     * A code review request should be created for every JIRA that involves a change to the codebase.
 * Once your JIRA and Review Board accounts are in place please go ahead and create a review or GitHub pull request with an entry for yourself in [contributors.yaml](https://github.com/apache/mesos/blob/master/docs/contributors.yaml) file.
     * The file is used to map contributions to the JIRA and Review Board accounts of their respective authors. We also use this mapping to track contributions of various organizations to Apache Mesos.
-    * Feel free to omit the `affiliations` field out in case you do not want your contribution to be atributed to a particular organization.
+    * Feel free to omit the `affiliations` field out in case you do not want your contribution to be attributed to a particular organization.
     * In the `email` field please specify the email that your local git client is setup with.
 * Joining the following mailing lists will help you stay up-to-date on Mesos development:
     * Developer list: [dev-subscribe@mesos.apache.org](mailto:dev-subscribe@mesos.apache.org)

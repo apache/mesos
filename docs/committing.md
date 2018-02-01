@@ -24,7 +24,7 @@ If you are a committer, here are some guidelines for committing changes:
        character or less summary because that restriction tends to cause
        people to write poorly.
 3. **Keep the 'Author' intact**: `support/apply-review.sh` will handle
-   this for you, but be careful when rebasing or ammending.
+   this for you, but be careful when rebasing or amending.
 4. **Never ever commit a merge**: always rebase instead, as appropriate.
    Likewise, never 'force push'.
 5. **Don't break the build**: we support Linux, Mac OS X, and Windows. However,

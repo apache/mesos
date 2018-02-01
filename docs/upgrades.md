@@ -382,7 +382,7 @@ We categorize the changes as follows:
 
 * A new [`network/ports`](isolators/network-ports.md) isolator has been added. The isolator supports the following new agent flags:
   * `--container_ports_watch_interval` specifies the interval at which the isolator reconciles port assignments.
-  * `--check_agent_port_range_only` excludes ports outside the agent's range from port reconcilation.
+  * `--check_agent_port_range_only` excludes ports outside the agent's range from port reconciliation.
 
 <a name="1-5-x-executor-secret-key"></a>
 
@@ -416,7 +416,7 @@ We categorize the changes as follows:
 
 <a name="1-4-x-bounding-capabilities"></a>
 
-* Explicitly setting the bounding capabilities of a task independently of the effective capabilities is now supported. Frameworks can specifiy the task bounding capabilities by using the `LinuxInfo.bounding_capabilities` message. Operators can specify the default bounding capabilities using the agent `--bounding_capabilities` flag. This flag also specifies the maximum bounding set that a framework is allowed to specify.
+* Explicitly setting the bounding capabilities of a task independently of the effective capabilities is now supported. Frameworks can specify the task bounding capabilities by using the `LinuxInfo.bounding_capabilities` message. Operators can specify the default bounding capabilities using the agent `--bounding_capabilities` flag. This flag also specifies the maximum bounding set that a framework is allowed to specify.
 
 <a name="1-4-x-agent-recovery"></a>
 
@@ -561,7 +561,7 @@ In order to upgrade a running cluster:
 
 <a name="1-1-x-allocator-updateallocation"></a>
 
-* Mesos 1.1 adds an `offeredResources` argument to the `Allocator::updateAllocation()` method. It is used to indicate the resources that the operations passed to `updateAllocation()` are applied to. [MESOS-4431](https://issues.apache.org/jira/browse/MESOS-4431) (paticularly [/r/45961/](https://reviews.apache.org/r/45961/)) has more details on the motivation.
+* Mesos 1.1 adds an `offeredResources` argument to the `Allocator::updateAllocation()` method. It is used to indicate the resources that the operations passed to `updateAllocation()` are applied to. [MESOS-4431](https://issues.apache.org/jira/browse/MESOS-4431) (particularly [/r/45961/](https://reviews.apache.org/r/45961/)) has more details on the motivation.
 
 ## Upgrading from 0.28.x to 1.0.x ##
 
@@ -670,7 +670,7 @@ In order to upgrade a running cluster:
 
 <a name="1-0-x-http-authentication-flags"></a>
 
-* The `--authenticate_http` flag has been deprecated in favor of `--authenticate_http_readwrite`. Setting `--authenticate_http_readwrite` will now enable authentication for all endpoints which previously had authentication support. These happen to be the endpoints which allow modifiication of the cluster state, or "read-write" endpoints. Note that `/logging/toggle`, `/profiler/start`, `/profiler/stop`, `/maintenance/schedule`, `/machine/up`, and `/machine/down` previously did not have authentication support, but in 1.0 if either `--authenticate_http` or `--authenticate_http_readwrite` is set, those endpoints will now require authentication. A new flag has also been introduced, `--authenticate_http_readonly`, which enables authentication for endpoints which support authentication and do not allow modification of the state of the cluster, like `/state` or `/flags`.
+* The `--authenticate_http` flag has been deprecated in favor of `--authenticate_http_readwrite`. Setting `--authenticate_http_readwrite` will now enable authentication for all endpoints which previously had authentication support. These happen to be the endpoints which allow modification of the cluster state, or "read-write" endpoints. Note that `/logging/toggle`, `/profiler/start`, `/profiler/stop`, `/maintenance/schedule`, `/machine/up`, and `/machine/down` previously did not have authentication support, but in 1.0 if either `--authenticate_http` or `--authenticate_http_readwrite` is set, those endpoints will now require authentication. A new flag has also been introduced, `--authenticate_http_readonly`, which enables authentication for endpoints which support authentication and do not allow modification of the state of the cluster, like `/state` or `/flags`.
 
 <a name="1-0-x-endpoint-authorization"></a>
 
@@ -864,7 +864,7 @@ of checkpointing their tasks.
 * The stats.json endpoints for masters and agents have been deprecated.
 Please refer to the metrics/snapshot endpoint.
 
-* The C++/Java/Python scheduler bindings have been updated. In particular, the driver can be constructed with an additional argument that specifies whether to use implicit driver acknowledgements. In `statusUpdate`, the `TaskStatus` now includes a UUID to make explicit acknowledgements possible.
+* The C++/Java/Python scheduler bindings have been updated. In particular, the driver can be constructed with an additional argument that specifies whether to use implicit driver acknowledgments. In `statusUpdate`, the `TaskStatus` now includes a UUID to make explicit acknowledgments possible.
 
 * The Authentication API has changed slightly in this release to support additional authentication mechanisms. The change from 'string' to 'bytes' for AuthenticationStartMessage.data has no impact on C++ or the over-the-wire representation, so it only impacts pure language bindings for languages like Java and Python that use different types for UTF-8 strings vs. byte arrays.
 
@@ -937,7 +937,7 @@ In order to upgrade a running cluster:
         from mesos import Executor, MesosExecutorDriver, MesosSchedulerDriver, Scheduler
         import mesos_pb2
 
-* If you're using a pure language binding, please ensure that it sends status update acknowledgements through the master before upgrading.
+* If you're using a pure language binding, please ensure that it sends status update acknowledgments through the master before upgrading.
 
 In order to upgrade a running cluster:
 

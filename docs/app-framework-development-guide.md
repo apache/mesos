@@ -91,13 +91,13 @@ virtual void offerRescinded(SchedulerDriver* driver, const OfferID& offerId);
  * Invoked when the status of a task has changed (e.g., a slave is
  * lost and so the task is lost, a task finishes and an executor
  * sends a status update saying so, etc). If implicit
- * acknowledgements are being used, then returning from this
+ * acknowledgments are being used, then returning from this
  * callback _acknowledges_ receipt of this status update! If for
  * whatever reason the scheduler aborts during this callback (or
  * the process exits) another status update will be delivered (note,
  * however, that this is currently not true if the slave sending the
  * status update is lost/fails during that time). If explicit
- * acknowledgements are in use, the scheduler must acknowledge this
+ * acknowledgments are in use, the scheduler must acknowledge this
  * status on the driver.
  */
 virtual void statusUpdate(SchedulerDriver* driver, const TaskStatus& status);
@@ -262,7 +262,7 @@ virtual Status suppressOffers();
 
 // Acknowledges the status update. This should only be called
 // once the status update is processed durably by the scheduler.
-// Not that explicit acknowledgements must be requested via the
+// Not that explicit acknowledgments must be requested via the
 // constructor argument, otherwise a call to this method will
 // cause the driver to crash.
 virtual Status acknowledgeStatusUpdate(const TaskStatus& status);

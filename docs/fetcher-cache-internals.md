@@ -65,7 +65,7 @@ While a cache entry is referenced it cannot be evicted by the current or any oth
 
 The two blue states are essentially the same: no cache file exists. The two green disk states on the right are also the same.
 
-The figure only depicts what happens from the point of view of one isolated fetch run. Any given cache entry can be referenced simultaniously by another concurrent fetch run. It must not be evicted as long as it is referenced by any fetching activity. We implement this by reference counting. Every cache entry has a reference count field that gets incremented at the beginning of its use by a fetch run and decremented at its end. The latter must happen no matter whether the run has been successful or whether there has been an error. Increments happen when:
+The figure only depicts what happens from the point of view of one isolated fetch run. Any given cache entry can be referenced simultaneously by another concurrent fetch run. It must not be evicted as long as it is referenced by any fetching activity. We implement this by reference counting. Every cache entry has a reference count field that gets incremented at the beginning of its use by a fetch run and decremented at its end. The latter must happen no matter whether the run has been successful or whether there has been an error. Increments happen when:
 
 - A new cache entry is created. It is immediately referenced.
 - An existing cache entry's file download is going to be waited for.
@@ -77,7 +77,7 @@ Every increment is recorded in a list. At the very end of the fetch procedure, n
 
 ### The per-URI control flow
 
-As menitoned above, the fetcher process' main control flow concerns sorting out what to do with each URI presented to it in a fetch request. An overview of the ensuing control flow for a given URI is depicted in this figure.
+As mentioned above, the fetcher process' main control flow concerns sorting out what to do with each URI presented to it in a fetch request. An overview of the ensuing control flow for a given URI is depicted in this figure.
 
 ![Determining Fetcher Actions](images/fetch_flow.jpg)
 
