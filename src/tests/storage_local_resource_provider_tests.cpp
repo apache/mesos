@@ -683,8 +683,8 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolume)
 
   Sequence offers;
 
-  // We are only interested in storage pools and volume created from
-  // them, which have a "volume-default" profile.
+  // We are only interested in any storage pool or created volume which
+  // has a "volume-default" profile.
   auto hasSourceType = [](
       const Resource& r,
       const Resource::DiskInfo::Source::Type& type) {
@@ -873,8 +873,8 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolumeRecovery)
 
   Sequence offers;
 
-  // We are only interested in storage pools and volume created from
-  // them, which have a "volume-default" profile.
+  // We are only interested in any storage pool or created volume which
+  // has a "volume-default" profile.
   auto hasSourceType = [](
       const Resource& r,
       const Resource::DiskInfo::Source::Type& type) {
@@ -1279,9 +1279,9 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResources)
   // The framework is expected to see the following offers in sequence:
   //   1. One containing a RAW disk resource before `CREATE_VOLUME`.
   //   2. One containing a MOUNT disk resource after `CREATE_VOLUME`.
-  //   3. One containing the same MOUNT disk resource after `CREADE`,
-  //      `LAUNCH` and `DESTROY`.
-  //   4. One containing the same RAW disk resource after `DESTROY_VOLUME`.
+  //   3. One containing a persistent volume after `CREATE` and `LAUNCH`.
+  //   4. One containing the original RAW disk resource after `DESTROY`
+  //      and `DESTROY_VOLUME`.
   //
   // We set up the expectations for these offers as the test progresses.
   Future<vector<Offer>> rawDiskOffers;
@@ -1291,8 +1291,8 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResources)
 
   Sequence offers;
 
-  // We are only interested in storage pools and volume created from
-  // them, which have a "volume-default" profile.
+  // We are only interested in any storage pool or created volume which
+  // has a "volume-default" profile.
   auto hasSourceType = [](
       const Resource& r,
       const Resource::DiskInfo::Source::Type& type) {
@@ -1812,8 +1812,8 @@ TEST_F(
 
   Sequence offers;
 
-  // We are only interested in storage pools and volume created from
-  // them, which have a "volume-default" profile.
+  // We are only interested in any storage pool or created volume which
+  // has a "volume-default" profile.
   auto hasSourceType = [](
       const Resource& r,
       const Resource::DiskInfo::Source::Type& type) {
@@ -2066,18 +2066,18 @@ TEST_F(StorageLocalResourceProviderTest, DISABLED_ROOT_ConvertPreExistingVolume)
   EXPECT_CALL(sched, registered(&driver, _, _));
 
   // The framework is expected to see the following offers in sequence:
-  //   1. One containing two RAW disk resources for pre-existing volumes
-  //      before `CREATE_VOLUME` and `CREATE_BLOCK`.
+  //   1. One containing two RAW pre-existing volumes before
+  //      `CREATE_VOLUME` and `CREATE_BLOCK`.
   //   2. One containing a MOUNT and a BLOCK disk resources after
   //      `CREATE_VOLUME` and `CREATE_BLOCK`.
-  //   3. One containing two RAW disk resources for pre-existing volumes
-  //      resource after `DESTROY_VOLUME` and `DESTROY_BLOCK`.
+  //   3. One containing two RAW pre-existing volumes after
+  //      `DESTROY_VOLUME` and `DESTROY_BLOCK`.
   Future<vector<Offer>> rawDisksOffers;
   Future<vector<Offer>> disksConvertedOffers;
   Future<vector<Offer>> disksRevertedOffers;
 
-  // We are only interested in pre-existing volumes, which have IDs but
-  // no profile.
+  // We are only interested in any pre-existing volume, which has an ID
+  // but no profile.
   auto isPreExistingVolume = [](const Resource& r) {
     return r.has_disk() &&
       r.disk().has_source() &&
