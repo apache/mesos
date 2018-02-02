@@ -2890,6 +2890,26 @@ TEST(RevocableResourceTest, Filter)
 }
 
 
+// This test verifies that `Resources::find()` correctly distinguishes
+// between revocable and non-revocable resources.
+TEST(RevocableResourceTest, Find)
+{
+  Resources r1 = createRevocableResource("cpus", "1", "*", true);
+  EXPECT_EQ(r1, r1.revocable());
+  EXPECT_TRUE(r1.nonRevocable().empty());
+
+  Resources r2 = Resources::parse("cpus:1").get();
+  EXPECT_EQ(r2, r2.nonRevocable());
+  EXPECT_TRUE(r2.revocable().empty());
+
+  EXPECT_SOME_EQ(r1, (r1 + r2).find(r1));
+  EXPECT_SOME_EQ(r2, (r1 + r2).find(r2));
+
+  EXPECT_NONE(r1.find(r2));
+  EXPECT_NONE(r2.find(r1));
+}
+
+
 // This test checks that the resources in the "pre-reservation-refinement"
 // format are valid. In the "pre-reservation-refinement" format, the reservation
 // state is represented by `Resource.role` and `Resource.reservation` fields.
