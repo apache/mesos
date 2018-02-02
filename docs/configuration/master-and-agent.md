@@ -95,6 +95,9 @@ different zones). Agents configured to use a different region than the
 master's region will not appear in resource offers to frameworks that have
 not enabled the <code>REGION_AWARE</code> capability. This value can be
 specified as either a JSON-formatted string or a file path containing JSON.
+
+See the [documentation](../fault-domains.md) for further details.
+
 <p/>
 Example:
 <pre><code>{
