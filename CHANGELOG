@@ -316,6 +316,7 @@ All Resolved Issues:
   * [MESOS-8460] - `Slave::detachFile` can segfault because it could use invalid Framework*.
   * [MESOS-8461] - SLRP should no assume a CSI plugin always has GetNodeID implemented.
   * [MESOS-8469] - Mesos master might drop some events in the operator API stream.
+  * [MESOS-8481] - Agent reboot during checkpointing may result in empty checkpoints.
   * [MESOS-8514] - SLRP failed to connect to CSI endpoint.
 
 ** Documentation
