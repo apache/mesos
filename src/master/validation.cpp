@@ -242,7 +242,10 @@ Option<Error> validate(const mesos::master::Call& call)
       return None();
 
     case mesos::master::Call::UPDATE_QUOTA:
-      return Error("Not implemented");
+      if (!call.has_update_quota()) {
+        return Error("Expecting 'update_quota' to be present");
+      }
+      return None();
 
     // TODO(bmahler): Add this to a deprecated call section
     // at the bottom once deprecated by `UPDATE_QUOTA`.
