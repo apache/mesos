@@ -82,6 +82,24 @@ namespace internal {
 namespace tests {
 
 
+TEST(MasterCallValidationTest, UpdateQuota)
+{
+  Option<Error> error;
+
+  mesos::master::Call updateQuota;
+  updateQuota.set_type(mesos::master::Call::UPDATE_QUOTA);
+
+  // Missing `update_quota` field.
+  error = master::validation::master::call::validate(updateQuota);
+  EXPECT_SOME(error);
+
+  updateQuota.mutable_update_quota();
+
+  error = master::validation::master::call::validate(updateQuota);
+  EXPECT_NONE(error);
+}
+
+
 class ResourceValidationTest : public ::testing::Test
 {
 protected:
