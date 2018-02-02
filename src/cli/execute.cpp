@@ -1055,11 +1055,11 @@ int main(int argc, char** argv)
       << "Flags '--docker-image' and '--appc-image' are both set";
   }
 
-  // Always enable the RESERVATION_REFINEMENT and TASK_KILLING_STATE
-  // capabilities.
+  // Always enable the following capabilities.
   vector<FrameworkInfo::Capability::Type> frameworkCapabilities = {
     FrameworkInfo::Capability::RESERVATION_REFINEMENT,
     FrameworkInfo::Capability::TASK_KILLING_STATE,
+    FrameworkInfo::Capability::REVOCABLE_RESOURCES,
   };
 
   // Enable PARTITION_AWARE unless disabled by the user.
