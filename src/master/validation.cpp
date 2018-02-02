@@ -60,9 +60,7 @@ namespace validation {
 namespace master {
 namespace call {
 
-Option<Error> validate(
-    const mesos::master::Call& call,
-    const Option<Principal>& principal)
+Option<Error> validate(const mesos::master::Call& call)
 {
   if (!call.IsInitialized()) {
     return Error("Not initialized: " + call.InitializationErrorString());

@@ -51,9 +51,7 @@ namespace call {
 
 // Validates that a master:Call is well-formed.
 // TODO(bmahler): Add unit tests.
-Option<Error> validate(
-    const mesos::master::Call& call,
-    const Option<process::http::authentication::Principal>& principal = None());
+Option<Error> validate(const mesos::master::Call& call);
 
 } // namespace call {
 

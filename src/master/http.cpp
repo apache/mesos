@@ -250,7 +250,7 @@ Future<Response> Master::Http::api(
 
   mesos::master::Call call = devolve(v1Call);
 
-  Option<Error> error = validation::master::call::validate(call, principal);
+  Option<Error> error = validation::master::call::validate(call);
 
   if (error.isSome()) {
     return BadRequest("Failed to validate master::Call: " + error->message);
