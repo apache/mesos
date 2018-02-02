@@ -50,6 +50,12 @@ namespace master {
 namespace call {
 
 // Validates that a master:Call is well-formed.
+//
+// TODO(bmahler): Note that this does not validate the fields within
+// the nested messages (e.g. `ReserveResources`) which is unintuitive.
+// Consider moving all `master::Call` validation that does not require
+// master state into this function.
+//
 // TODO(bmahler): Add unit tests.
 Option<Error> validate(const mesos::master::Call& call);
 
