@@ -59,6 +59,9 @@ namespace tests {
 constexpr char URI_DISK_PROFILE_ADAPTOR_NAME[] =
   "org_apache_mesos_UriDiskProfileAdaptor";
 
+constexpr char TEST_SLRP_TYPE[] = "org.apache.mesos.rp.local.storage";
+constexpr char TEST_SLRP_NAME[] = "test";
+
 
 class StorageLocalResourceProviderTest : public MesosTest
 {
@@ -131,8 +134,8 @@ public:
     Try<string> resourceProviderConfig = strings::format(
         R"~(
         {
-          "type": "org.apache.mesos.rp.local.storage",
-          "name": "test",
+          "type": "%s",
+          "name": "%s",
           "default_reservations": [
             {
               "type": "DYNAMIC",
@@ -165,6 +168,8 @@ public:
           }
         }
         )~",
+        TEST_SLRP_TYPE,
+        TEST_SLRP_NAME,
         testCsiPluginName,
         testCsiPluginPath,
         testCsiPluginPath,
@@ -2532,6 +2537,116 @@ TEST_F(
 
   driver.stop();
   driver.join();
+}
+
+
+// This test verifies that storage local resource provider metrics are
+// properly reported.
+TEST_F(StorageLocalResourceProviderTest, ROOT_Metrics)
+{
+  loadUriDiskProfileModule();
+
+  setupResourceProviderConfig(Gigabytes(4));
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.isolation = "filesystem/linux";
+
+  // Disable HTTP authentication to simplify resource provider interactions.
+  slaveFlags.authenticate_http_readwrite = false;
+
+  // Set the resource provider capability.
+  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
+  SlaveInfo::Capability capability;
+  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
+  capabilities.push_back(capability);
+
+  slaveFlags.agent_features = SlaveCapabilities();
+  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
+      {capabilities.begin(), capabilities.end()});
+
+  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
+  slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
+
+  slave::Fetcher fetcher(slaveFlags);
+
+  Try<slave::MesosContainerizer*> _containerizer =
+    slave::MesosContainerizer::create(slaveFlags, false, &fetcher);
+
+  ASSERT_SOME(_containerizer);
+
+  Owned<slave::MesosContainerizer> containerizer(_containerizer.get());
+
+  // Since the local resource provider daemon is started after the agent
+  // is registered, it is guaranteed that the slave will send two
+  // `UpdateSlaveMessage`s, where the latter one contains resources from
+  // the storage local resource provider.
+  // NOTE: The order of the two `FUTURE_PROTOBUF`s are reversed because
+  // Google Mock will search the expectations in reverse order.
+  Future<UpdateSlaveMessage> updateSlave2 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+  Future<UpdateSlaveMessage> updateSlave1 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      detector.get(),
+      containerizer.get(),
+      slaveFlags);
+
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(updateSlave1);
+  AWAIT_READY(updateSlave2);
+
+  const string prefix =
+    "resource_providers/" + stringify(TEST_SLRP_TYPE) +
+    "." + stringify(TEST_SLRP_NAME) + "/";
+
+  JSON::Object snapshot = Metrics();
+
+  ASSERT_NE(0, snapshot.values.count(
+      prefix + "csi_controller_plugin_terminations"));
+  EXPECT_EQ(0, snapshot.values.at(
+      prefix + "csi_controller_plugin_terminations"));
+  ASSERT_NE(0, snapshot.values.count(
+      prefix + "csi_node_plugin_terminations"));
+  EXPECT_EQ(0, snapshot.values.at(
+      prefix + "csi_node_plugin_terminations"));
+
+  // Get the ID of the CSI plugin container.
+  Future<hashset<ContainerID>> pluginContainers = containerizer->containers();
+
+  AWAIT_READY(pluginContainers);
+  ASSERT_EQ(1u, pluginContainers->size());
+
+  const ContainerID& pluginContainerId = *pluginContainers->begin();
+
+  Future<Nothing> pluginRestarted =
+    FUTURE_DISPATCH(_, &ContainerDaemonProcess::launchContainer);
+
+  // Kill the plugin container and wait for it to restart.
+  Future<int> pluginKilled = containerizer->status(pluginContainerId)
+    .then([](const ContainerStatus& status) {
+      return os::kill(status.executor_pid(), SIGKILL);
+    });
+
+  AWAIT_ASSERT_EQ(0, pluginKilled);
+  AWAIT_READY(pluginRestarted);
+
+  snapshot = Metrics();
+
+  ASSERT_NE(0, snapshot.values.count(
+      prefix + "csi_controller_plugin_terminations"));
+  EXPECT_EQ(1, snapshot.values.at(
+      prefix + "csi_controller_plugin_terminations"));
+  ASSERT_NE(0, snapshot.values.count(
+      prefix + "csi_node_plugin_terminations"));
+  EXPECT_EQ(1, snapshot.values.at(
+      prefix + "csi_node_plugin_terminations"));
 }
 
 } // namespace tests {

@@ -33,6 +33,9 @@
 #include <process/sequence.hpp>
 #include <process/timeout.hpp>
 
+#include <process/metrics/counter.hpp>
+#include <process/metrics/metrics.hpp>
+
 #include <mesos/resources.hpp>
 #include <mesos/type_utils.hpp>
 
@@ -99,6 +102,8 @@ using process::spawn;
 using process::undiscardable;
 
 using process::http::authentication::Principal;
+
+using process::metrics::Counter;
 
 using mesos::internal::protobuf::convertLabelsToStringMap;
 using mesos::internal::protobuf::convertStringMapToLabels;
@@ -300,7 +305,8 @@ public:
       strict(_strict),
       reconciling(false),
       resourceVersion(id::UUID::random()),
-      operationSequence("operation-sequence")
+      operationSequence("operation-sequence"),
+      metrics("resource_providers/" + info.type() + "." + info.name() + "/")
   {
     diskProfileAdaptor = DiskProfileAdaptor::getAdaptor();
     CHECK_NOTNULL(diskProfileAdaptor.get());
@@ -472,6 +478,15 @@ private:
   // creation or destroy. These operations will not be sequentialized
   // through the sequence. It is simply used to wait for them to finish.
   Sequence operationSequence;
+
+  struct Metrics
+  {
+    explicit Metrics(const string& prefix);
+    ~Metrics();
+
+    Counter csi_controller_plugin_terminations;
+    Counter csi_node_plugin_terminations;
+  } metrics;
 };
 
 
@@ -1806,6 +1821,14 @@ Future<csi::Client> StorageLocalResourceProviderProcess::getService(
           }));
       })),
       std::function<Future<Nothing>()>(defer(self(), [=]() -> Future<Nothing> {
+        if (containerId == controllerContainerId) {
+          metrics.csi_controller_plugin_terminations++;
+        }
+
+        if (containerId == nodeContainerId) {
+          metrics.csi_node_plugin_terminations++;
+        }
+
         services.at(containerId)->discard();
         services.at(containerId).reset(new Promise<csi::Client>());
 
@@ -3130,6 +3153,24 @@ void StorageLocalResourceProviderProcess::sendOperationStatusUpdate(
   driver->send(evolve(call))
     .onFailed(std::bind(err, uuid.get(), lambda::_1))
     .onDiscarded(std::bind(err, uuid.get(), "future discarded"));
+}
+
+
+StorageLocalResourceProviderProcess::Metrics::Metrics(const string& prefix)
+  : csi_controller_plugin_terminations(
+        prefix + "csi_controller_plugin_terminations"),
+    csi_node_plugin_terminations(
+        prefix + "csi_node_plugin_terminations")
+{
+  process::metrics::add(csi_controller_plugin_terminations);
+  process::metrics::add(csi_node_plugin_terminations);
+}
+
+
+StorageLocalResourceProviderProcess::Metrics::~Metrics()
+{
+  process::metrics::remove(csi_controller_plugin_terminations);
+  process::metrics::remove(csi_node_plugin_terminations);
 }
 
 
