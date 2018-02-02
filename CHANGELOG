@@ -1,11 +1,3 @@
-Release Notes - Mesos - Version 1.5.1 (WIP)
--------------------------------------------
-* This is a bug fix release.
-
-** Bug
-  * [MESOS-8480] - Mesos returns high resource usage when killing a Docker task.
-
-
 Release Notes - Mesos - Version 1.5.0
 -------------------------------------------
 This release contains the following new features:
@@ -316,6 +308,7 @@ All Resolved Issues:
   * [MESOS-8460] - `Slave::detachFile` can segfault because it could use invalid Framework*.
   * [MESOS-8461] - SLRP should no assume a CSI plugin always has GetNodeID implemented.
   * [MESOS-8469] - Mesos master might drop some events in the operator API stream.
+  * [MESOS-8480] - Mesos returns high resource usage when killing a Docker task.
   * [MESOS-8481] - Agent reboot during checkpointing may result in empty checkpoints.
   * [MESOS-8514] - SLRP failed to connect to CSI endpoint.
 
