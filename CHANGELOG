@@ -134,7 +134,6 @@ Unresolved Critical Issues:
   * [MESOS-7966] - check for maintenance on agent causes fatal error.
   * [MESOS-7991] - fatal, check failed !framework->recovered().
   * [MESOS-8038] - Launching GPU task sporadically fails.
-  * [MESOS-8125] - Agent should properly handle recovering an executor when its pid is reused.
   * [MESOS-8137] - Mesos agent can hang during startup.
   * [MESOS-8256] - Libprocess can silently deadlock due to worker thread exhaustion.
   * [MESOS-8411] - Killing a queued task can lead to the command executor never terminating.
@@ -249,6 +248,7 @@ All Resolved Issues:
   * [MESOS-8119] - ROOT_DOCKER_DockerHealthyTask segfaults in debian 8.
   * [MESOS-8121] - Unified Containerizer Auto backend should check xfs ftype for overlayfs backend.
   * [MESOS-8123] - GPU tests are failing due to TASK_STARTING.
+  * [MESOS-8125] - Agent should properly handle recovering an executor when its pid is reused.
   * [MESOS-8135] - Masters can lose track of tasks' executor IDs.
   * [MESOS-8136] - Update XFS isolator tests to handle TASK_STARTING.
   * [MESOS-8157] - Review #62775 broke the build.
