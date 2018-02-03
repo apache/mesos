@@ -63,7 +63,8 @@ constexpr char TEST_SLRP_TYPE[] = "org.apache.mesos.rp.local.storage";
 constexpr char TEST_SLRP_NAME[] = "test";
 
 
-class StorageLocalResourceProviderTest : public MesosTest
+class StorageLocalResourceProviderTest
+  : public ContainerizerTest<slave::MesosContainerizer>
 {
 public:
   virtual void SetUp()
