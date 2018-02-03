@@ -2609,11 +2609,11 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_Metrics)
 
   JSON::Object snapshot = Metrics();
 
-  ASSERT_NE(0, snapshot.values.count(
+  ASSERT_NE(0u, snapshot.values.count(
       prefix + "csi_controller_plugin_terminations"));
   EXPECT_EQ(0, snapshot.values.at(
       prefix + "csi_controller_plugin_terminations"));
-  ASSERT_NE(0, snapshot.values.count(
+  ASSERT_NE(0u, snapshot.values.count(
       prefix + "csi_node_plugin_terminations"));
   EXPECT_EQ(0, snapshot.values.at(
       prefix + "csi_node_plugin_terminations"));
@@ -2640,11 +2640,11 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_Metrics)
 
   snapshot = Metrics();
 
-  ASSERT_NE(0, snapshot.values.count(
+  ASSERT_NE(0u, snapshot.values.count(
       prefix + "csi_controller_plugin_terminations"));
   EXPECT_EQ(1, snapshot.values.at(
       prefix + "csi_controller_plugin_terminations"));
-  ASSERT_NE(0, snapshot.values.count(
+  ASSERT_NE(0u, snapshot.values.count(
       prefix + "csi_node_plugin_terminations"));
   EXPECT_EQ(1, snapshot.values.at(
       prefix + "csi_node_plugin_terminations"));
