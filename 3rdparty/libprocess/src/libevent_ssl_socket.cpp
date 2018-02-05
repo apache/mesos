@@ -165,7 +165,13 @@ Try<Nothing, SocketError> LibeventSSLSocketImpl::shutdown(int how)
       CHECK(recv_request.get() == nullptr);
       CHECK(send_request.get() == nullptr);
 
-      return SocketError(ENOTCONN);
+      // We expect this to fail and generate an 'ENOTCONN' failure as
+      // no connection should exist at this point.
+      if (::shutdown(s, how) < 0) {
+        return SocketError();
+      }
+
+      return Nothing();
     }
   }
 
