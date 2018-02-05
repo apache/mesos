@@ -108,19 +108,20 @@ def main():
         print 'Please install RBTools before proceeding'
         sys.exit(1)
 
-    # Don't do anything if people have unstaged changes.
+    # Warn if people have unstaged changes.
     diff_stat = execute(['git', 'diff', '--shortstat']).strip()
 
     if diff_stat:
-        print 'Please commit or stash any changes before using post-reviews!'
-        sys.exit(1)
+        print >> sys.stderr, \
+            'WARNING: Worktree contains unstaged changes, continuing anyway.'
 
-    # Don't do anything if people have uncommitted changes.
+    # Warn if people have uncommitted changes.
     diff_stat = execute(['git', 'diff', '--shortstat', '--staged']).strip()
 
     if diff_stat:
-        print 'Please commit staged changes before using post-reviews!'
-        sys.exit(1)
+        print >> sys.stderr, \
+            'WARNING: Worktree contains staged but uncommitted changes, ' \
+            'continuing anyway.'
 
     # Grab a reference to the repo's git directory. Usually this is simply
     # .git in the repo's top level directory. However, when submodules are
