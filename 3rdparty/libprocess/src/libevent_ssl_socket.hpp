@@ -56,7 +56,7 @@ public:
   // do not have a concept of read/write-only shutdown. If either end
   // of the socket is closed, then the futures of any outstanding read
   // requests will be completed (possibly as failures).
-  Try<Nothing> shutdown(int how) override;
+  Try<Nothing, SocketError> shutdown(int how) override;
 
   // We need a post-initializer because 'shared_from_this()' is not
   // valid until the constructor has finished.

@@ -916,7 +916,9 @@ TEST_F(SSLTest, ShutdownThenSend)
 
   AWAIT_ASSERT_READY(socket);
 
-  EXPECT_SOME(Socket(socket.get()).shutdown());
+  // TODO(tillt): Workaround for the lack of EXPECT_SOME for
+  // typed errors in a `Try`. See MESOS-7220.
+  EXPECT_TRUE(Socket(socket.get()).shutdown().isSome());
 
   // This send should fail now that the socket is shut down.
   AWAIT_FAILED(Socket(socket.get()).send("Hello World"));

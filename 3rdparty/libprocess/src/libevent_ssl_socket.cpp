@@ -154,7 +154,7 @@ void LibeventSSLSocketImpl::initialize()
 }
 
 
-Try<Nothing> LibeventSSLSocketImpl::shutdown(int how)
+Try<Nothing, SocketError> LibeventSSLSocketImpl::shutdown(int how)
 {
   // Nothing to do if this socket was never initialized.
   synchronized (lock) {
@@ -165,7 +165,7 @@ Try<Nothing> LibeventSSLSocketImpl::shutdown(int how)
       CHECK(recv_request.get() == nullptr);
       CHECK(send_request.get() == nullptr);
 
-      return ErrnoError(ENOTCONN);
+      return SocketError(ENOTCONN);
     }
   }
 

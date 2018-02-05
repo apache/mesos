@@ -94,6 +94,7 @@
 #endif // __WINDOWS__
 
 #include <stout/duration.hpp>
+#include <stout/error.hpp>
 #include <stout/flags.hpp>
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
@@ -1635,9 +1636,10 @@ void SocketManager::link(
         // the final socket reference. This will not result in an
         // `ExitedEvent` because we have already removed the `existing`
         // socket from the mapping of linkees and linkers.
-        Try<Nothing> shutdown = existing.shutdown();
+        Try<Nothing, SocketError> shutdown = existing.shutdown();
         if (shutdown.isError()) {
-          VLOG(1) << "Failed to shutdown old link: " << shutdown.error();
+          VLOG(1) << "Failed to shutdown old link: "
+                  << shutdown.error().message;
         }
 
         connect = true;
@@ -2081,7 +2083,7 @@ Encoder* SocketManager::next(int_fd s)
           Socket socket = iterator->second;
           sockets.erase(iterator);
 
-          Try<Nothing> shutdown = socket.shutdown();
+          Try<Nothing, SocketError> shutdown = socket.shutdown();
 
           // Failure here could be due to reasons including that the underlying
           // socket is already closed so it by itself doesn't necessarily
@@ -2091,7 +2093,7 @@ Encoder* SocketManager::next(int_fd s)
                       << ", address " << (socket.address().isSome()
                                             ? stringify(socket.address().get())
                                             : "N/A")
-                      << ": " << shutdown.error();
+                      << ": " << shutdown.error().message;
           }
         }
       }
@@ -2173,13 +2175,21 @@ void SocketManager::close(int_fd s)
       // Failure here could be due to reasons including that the underlying
       // socket is already closed so it by itself doesn't necessarily
       // suggest anything wrong.
-      Try<Nothing> shutdown = socket.shutdown();
-      if (shutdown.isError()) {
-        LOG(INFO) << "Failed to shutdown socket with fd " << socket.get()
-                  << ", address " << (socket.address().isSome()
-                                        ? stringify(socket.address().get())
-                                        : "N/A")
-                  << ": " << shutdown.error();
+      Try<Nothing, SocketError> shutdown = socket.shutdown();
+
+      // Avoid logging an error when the shutdown was triggered on a
+      // socket that is not connected.
+      if (shutdown.isError() &&
+#ifdef __WINDOWS__
+          shutdown.error().code != WSAENOTCONN) {
+#else // __WINDOWS__
+          shutdown.error().code != ENOTCONN) {
+#endif // __WINDOWS__
+        LOG(ERROR) << "Failed to shutdown socket with fd " << socket.get()
+                   << ", address " << (socket.address().isSome()
+                                         ? stringify(socket.address().get())
+                                         : "N/A")
+                   << ": " << shutdown.error().message;
       }
     }
   }
