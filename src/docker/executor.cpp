@@ -246,6 +246,47 @@ public:
           driver->sendStatusUpdate(status);
         }
 
+        // This is a workaround for the Docker issue below:
+        // https://github.com/moby/moby/issues/33820
+        // Due to this issue, Docker daemon can fail to catch a container exit,
+        // which will lead to the `docker run` command that we execute in this
+        // executor never returning although the container has already exited.
+        // To workaround this issue, here we reap the container process directly
+        // so we will be notified when the container exits.
+        if (container.pid.isSome()) {
+          process::reap(container.pid.get())
+            .then(defer(self(), [=](const Option<int>& status) {
+              // We cannot get the actual exit status of the container
+              // process since it is not a child process of this executor,
+              // so here `status` must be `None`.
+              CHECK_NONE(status);
+
+              // There will be a race between the method `reaped` and this
+              // lambda; ideally when the Docker issue mentioned above does
+              // not occur, `reaped` will be invoked (i.e., the `docker run`
+              // command returns) to get the actual exit status of the
+              // container, so here we wait a few seconds for `reaped` to be
+              // invoked. If `reaped` is not invoked within the timeout, that
+              // means we hit that Docker issue.
+              delay(
+                  Seconds(3),
+                  self(),
+                  &Self::reapedContainer,
+                  container.pid.get());
+
+              return Nothing();
+            }));
+        } else {
+          // This is the case that the container process has already exited,
+          // Similar to the above case, let's wait a few seconds for `reaped`
+          // to be invoked.
+          delay(
+              Seconds(3),
+              self(),
+              &Self::reapedContainer,
+              None());
+        }
+
         return Nothing();
       }));
 
@@ -461,8 +502,27 @@ private:
     }
   }
 
+  void reapedContainer(Option<pid_t> pid)
+  {
+    // Do nothing if the method `reaped` has already been invoked.
+    if (terminated) {
+      return;
+    }
+
+    // This means the Docker issue mentioned in `launchTask` occurs.
+    LOG(WARNING) << "The container process"
+                 << (pid.isSome() ? " (pid: " + stringify(pid.get()) + ")" : "")
+                 << " has exited, but Docker daemon failed to catch it.";
+
+    reaped(None());
+  }
+
   void reaped(const Future<Option<int>>& run)
   {
+    if (terminated) {
+      return;
+    }
+
     terminated = true;
 
     // Stop health checking the task.
