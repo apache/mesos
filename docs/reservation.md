@@ -623,18 +623,18 @@ We send an HTTP POST request to the master's
               "name": "cpus",
               "type": "SCALAR",
               "scalar": { "value": 8 },
-              "role": "ads",
               "reservation": {
-                "principal": <operator_principal>
+                "principal": <operator_principal>,
+                "role": "ads"
               }
             },
             {
               "name": "mem",
               "type": "SCALAR",
               "scalar": { "value": 4096 },
-              "role": "ads",
               "reservation": {
-                "principal": <operator_principal>
+                "principal": <operator_principal>,
+                "role": "ads"
               }
             }
           ]' \
@@ -671,18 +671,18 @@ We can send an HTTP POST request to the master's
               "name": "cpus",
               "type": "SCALAR",
               "scalar": { "value": 8 },
-              "role": "ads",
               "reservation": {
-                "principal": <reserver_principal>
+                "principal": <reserver_principal>,
+                "role": "ads"
               }
             },
             {
               "name": "mem",
               "type": "SCALAR",
               "scalar": { "value": 4096 },
-              "role": "ads",
               "reservation": {
-                "principal": <reserver_principal>
+                "principal": <reserver_principal>,
+                "role": "ads"
               }
             }
           ]' \
