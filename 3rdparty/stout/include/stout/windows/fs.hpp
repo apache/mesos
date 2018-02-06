@@ -92,6 +92,7 @@ inline Try<Nothing> symlink(
 // `/root/dir/subdir/*.txt` or `/root/dir/subdir/file?.txt`.
 inline Try<std::list<std::string>> list(const std::string& pattern)
 {
+  const std::string dirname(Path(pattern).dirname());
   std::list<std::string> found_files;
   WIN32_FIND_DATAW found;
   const SharedHandle search_handle(
@@ -101,14 +102,12 @@ inline Try<std::list<std::string>> list(const std::string& pattern)
   if (search_handle.get() == INVALID_HANDLE_VALUE) {
     // For compliance with the POSIX implementation (which uses `::glob`),
     // return an empty list instead of an error when the path does not exist.
-    int error = ::GetLastError();
+    const DWORD error = ::GetLastError();
     if (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND) {
       return found_files;
     }
 
-    return WindowsError(
-        "'fs::list' failed when searching for files with pattern '" +
-        pattern + "'");
+    return WindowsError(error, "FindFirstFile failed");
   }
 
   do {
@@ -116,16 +115,13 @@ inline Try<std::list<std::string>> list(const std::string& pattern)
 
     // Ignore `.` and `..` entries.
     if (current_file.compare(L".") != 0 && current_file.compare(L"..") != 0) {
-      found_files.push_back(stringify(current_file));
+      found_files.push_back(path::join(dirname, stringify(current_file)));
     }
   } while (::FindNextFileW(search_handle.get(), &found));
 
   const DWORD error = ::GetLastError();
   if (error != ERROR_NO_MORE_FILES) {
-    return WindowsError(
-        error,
-        "'fs::list': 'FindNextFile' failed when searching for files with "
-        "'pattern '" + pattern + "'");
+    return WindowsError(error, "FindNextFile failed");
   }
 
   return found_files;
