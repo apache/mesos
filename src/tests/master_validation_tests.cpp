@@ -38,6 +38,7 @@
 #include <stout/uuid.hpp>
 
 #include "master/master.hpp"
+#include "master/quota.hpp"
 #include "master/validation.hpp"
 
 #include "master/detector/standalone.hpp"
@@ -86,6 +87,7 @@ TEST(MasterCallValidationTest, UpdateQuota)
 {
   Option<Error> error;
 
+  // Test validation at the call level.
   mesos::master::Call updateQuota;
   updateQuota.set_type(mesos::master::Call::UPDATE_QUOTA);
 
@@ -96,6 +98,250 @@ TEST(MasterCallValidationTest, UpdateQuota)
   updateQuota.mutable_update_quota();
 
   error = master::validation::master::call::validate(updateQuota);
+  EXPECT_NONE(error);
+
+  // Test validation at the request level.
+  mesos::quota::QuotaRequest request;
+
+  error = mesos::internal::master::quota::validate(request);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(strings::contains(
+      error->message,
+      "'QuotaRequest.role' must be set"))
+    << error->message;
+
+  request.set_role("");
+
+  error = mesos::internal::master::quota::validate(request);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(strings::contains(
+      error->message,
+      "Invalid 'QuotaRequest.role'"))
+    << error->message;
+
+  request.set_role("*");
+
+  error = mesos::internal::master::quota::validate(request);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(strings::contains(
+      error->message,
+      "Invalid 'QuotaRequest.role':"
+      " setting quota for the default '*' role is not supported"))
+    << error->message;
+
+  // Once a role is set, it is valid to have no guarantee and no limit.
+  request.set_role("role");
+
+  error = mesos::internal::master::quota::validate(request);
+  ASSERT_NONE(error);
+
+  auto validateGuaranteeOrLimit = [](
+      const string& fieldName,
+      RepeatedPtrField<Resource>* (mesos::quota::QuotaRequest::*field)()) {
+    Option<Error> error;
+    mesos::quota::QuotaRequest request;
+    request.set_role("role");
+
+    // Ensure 'Resource.name' must be set.
+    Resource empty;
+    (request.*field)()->Clear();
+    (request.*field)()->Add()->CopyFrom(empty);
+
+    error = mesos::internal::master::quota::validate(request);
+    ASSERT_SOME(error);
+    EXPECT_TRUE(strings::contains(
+        error->message,
+        "Invalid 'QuotaRequest." + fieldName + "':"
+        " Resource ':0' is invalid: Empty resource name"))
+      << error->message;
+
+    // Ensure 'Resource.reservation' cannot be set.
+    Resource reservation;
+    reservation.set_name("disk");
+    reservation.set_type(Value::SCALAR);
+    reservation.mutable_scalar()->set_value(1.0);
+    reservation.mutable_reservation()->set_role("role");
+    (request.*field)()->Clear();
+    (request.*field)()->Add()->CopyFrom(reservation);
+
+    error = mesos::internal::master::quota::validate(request);
+    ASSERT_SOME(error);
+    EXPECT_TRUE(strings::contains(
+        error->message,
+        "Invalid 'QuotaRequest." + fieldName + "':"
+        " 'Resource.reservation' must not be set"))
+      << error->message;
+
+    // Ensure 'Resource.reservations' cannot be set.
+    Resource reservations =
+      CHECK_NOTERROR(Resources::parse("cpus", "1.0", "role"));
+    (request.*field)()->Clear();
+    (request.*field)()->Add()->CopyFrom(reservations);
+
+    error = mesos::internal::master::quota::validate(request);
+    ASSERT_SOME(error);
+    EXPECT_TRUE(strings::contains(
+        error->message,
+        "Invalid 'QuotaRequest." + fieldName + "':"
+        " 'Resource.reservations' must not be set"))
+      << error->message;
+
+    // Ensure 'Resource.disk' cannot be set.
+    Resource disk = CHECK_NOTERROR(Resources::parse("disk", "1.0", "*"));
+    disk.mutable_disk();
+    (request.*field)()->Clear();
+    (request.*field)()->Add()->CopyFrom(disk);
+
+    error = mesos::internal::master::quota::validate(request);
+    ASSERT_SOME(error);
+    EXPECT_TRUE(strings::contains(
+        error->message,
+        "Invalid 'QuotaRequest." + fieldName + "':"
+        " 'Resource.disk' must not be set"))
+      << error->message;
+
+    // Ensure 'Resource.revocable' cannot be set.
+    Resource revocable = CHECK_NOTERROR(Resources::parse("cpus", "1.0", "*"));
+    revocable.mutable_revocable();
+    (request.*field)()->Clear();
+    (request.*field)()->Add()->CopyFrom(revocable);
+
+    error = mesos::internal::master::quota::validate(request);
+    ASSERT_SOME(error);
+    EXPECT_TRUE(strings::contains(
+        error->message,
+        "Invalid 'QuotaRequest." + fieldName + "':"
+        " 'Resource.revocable' must not be set"))
+      << error->message;
+
+    // Ensure non-SCALAR types are disallowed.
+    Resource ports;
+    ports.set_name("ports");
+    ports.set_type(Value::RANGES);
+    ports.mutable_ranges();
+    (request.*field)()->Clear();
+    (request.*field)()->Add()->CopyFrom(ports);
+
+    error = mesos::internal::master::quota::validate(request);
+    ASSERT_SOME(error);
+    EXPECT_TRUE(strings::contains(
+        error->message,
+        "Invalid 'QuotaRequest." + fieldName + "':"
+        " 'Resource.type' must be 'SCALAR'"))
+      << error->message;
+
+    // Ensure 'Resource.shared' cannot be set.
+    Resource shared;
+    shared.set_name("disk");
+    shared.set_type(Value::SCALAR);
+    shared.mutable_scalar()->set_value(1.0);
+    shared.mutable_shared();
+    (request.*field)()->Clear();
+    (request.*field)()->Add()->CopyFrom(shared);
+
+    error = mesos::internal::master::quota::validate(request);
+    ASSERT_SOME(error);
+    EXPECT_TRUE(strings::contains(
+        error->message,
+        "Invalid 'QuotaRequest." + fieldName + "':"
+        " 'Resource.shared' must not be set"))
+      << error->message;
+
+    // Ensure 'Resource.provider_id' cannot be set.
+    Resource withProvider;
+    withProvider.set_name("disk");
+    withProvider.set_type(Value::SCALAR);
+    withProvider.mutable_scalar()->set_value(1.0);
+    withProvider.mutable_provider_id()->set_value("ID");
+    (request.*field)()->Clear();
+    (request.*field)()->Add()->CopyFrom(withProvider);
+
+    error = mesos::internal::master::quota::validate(request);
+    ASSERT_SOME(error);
+    EXPECT_TRUE(strings::contains(
+        error->message,
+        "Invalid 'QuotaRequest." + fieldName + "':"
+        " 'Resource.provider_id' must not be set"))
+      << error->message;
+
+    // Ensure only a single entry for each resource name.
+    Resource cpu = CHECK_NOTERROR(Resources::parse("cpus", "1.0", "*"));
+    (request.*field)()->Clear();
+    (request.*field)()->Add()->CopyFrom(cpu);
+    (request.*field)()->Add()->CopyFrom(cpu);
+
+    error = mesos::internal::master::quota::validate(request);
+    ASSERT_SOME(error);
+    EXPECT_TRUE(strings::contains(
+        error->message,
+        "Invalid 'QuotaRequest." + fieldName + "':"
+        " Duplicate 'cpus'; only a single entry"
+        " for each resource is supported"))
+      << error->message;
+  };
+
+  validateGuaranteeOrLimit(
+      "guarantee",
+      &mesos::quota::QuotaRequest::mutable_guarantee);
+
+  validateGuaranteeOrLimit(
+      "limit",
+      &mesos::quota::QuotaRequest::mutable_limit);
+
+  // Now test the guarantee <= limit validation.
+  // No guarantee and no limit.
+  error = mesos::internal::master::quota::validate(request);
+  EXPECT_NONE(error);
+
+  // Guarantee > limit.
+  Resources subset = CHECK_NOTERROR(Resources::parse("cpus:10;mem:20"));
+  Resources superset = CHECK_NOTERROR(Resources::parse("cpus:20;mem:40"));
+
+  request.mutable_guarantee()->CopyFrom(superset);
+  request.mutable_limit()->CopyFrom(subset);
+
+  error = mesos::internal::master::quota::validate(request);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(strings::contains(
+      error->message,
+      "'QuotaRequest.guarantee' (cpus:20; mem:40)"
+      " is not contained within the 'QuotaRequest.limit' (cpus:10; mem:20)"))
+    << error->message;
+
+  // Guarantee = limit.
+  request.mutable_guarantee()->CopyFrom(subset);
+  request.mutable_limit()->CopyFrom(subset);
+
+  error = mesos::internal::master::quota::validate(request);
+  EXPECT_NONE(error);
+
+  // Guarantee < limit.
+  request.mutable_guarantee()->CopyFrom(subset);
+  request.mutable_limit()->CopyFrom(superset);
+
+  error = mesos::internal::master::quota::validate(request);
+  EXPECT_NONE(error);
+
+  // Now we ensure that the guarantee <= limit check is a
+  // per-resource check. This is important because it's ok to:
+  //
+  //   (1) Set a limit for a resource when there is no guarantee
+  //       for the resource.
+  //
+  //   (2) Set a guarantee for a resource when there is no limit
+  //       for the resource.
+  //
+  // We test both cases at once by having both guarantee and
+  // limit contain a resource not specified in the other.
+  Resources cpuMemWithDisk =
+    CHECK_NOTERROR(Resources::parse("cpus:10;mem:20;disk:10"));
+  Resources cpuMemWithGpu =
+    CHECK_NOTERROR(Resources::parse("cpus:10;mem:20;gpu:1"));
+
+  request.mutable_guarantee()->CopyFrom(cpuMemWithDisk);
+  request.mutable_limit()->CopyFrom(cpuMemWithGpu);
+
+  error = mesos::internal::master::quota::validate(request);
   EXPECT_NONE(error);
 }
 
