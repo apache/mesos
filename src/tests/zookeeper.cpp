@@ -72,12 +72,11 @@ void ZooKeeperTest::SetUpTestCase()
 
     foreach (const string& jar, jars.get()) {
 #ifdef __WINDOWS__
-      // TODO(andschwa): `fs::list` on Windows only returns the file names, not
-      // the full paths. Remove this work-around when MESOS-7803 is resolved.
-      classpath += ";" + path::join(zkHome, "lib", jar);
+      classpath += ";";
 #else
-      classpath += ":" + jar;
+      classpath += ":";
 #endif
+      classpath += jar;
     }
 
     LOG(INFO) << "Using Java classpath: " << classpath;
