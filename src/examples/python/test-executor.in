@@ -33,5 +33,6 @@ test ! -e ${SCRIPT} && \
   echo "${RED}Failed to find ${SCRIPT}${NORMAL}" && \
   exit 1
 
-PYTHONPATH="${SETUPTOOLS}:${PROTOBUF}:${MESOS_EGGS}" \
+PYTHONPATH="${SETUPTOOLS}:${PROTOBUF}:${MESOS_EGGS}"  \
+  PYTHON_EGG_CACHE="${MESOS_SANDBOX}/.python-eggs"    \
   exec ${PYTHON} ${SCRIPT} "${@}"
