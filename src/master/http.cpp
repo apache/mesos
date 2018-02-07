@@ -980,6 +980,7 @@ Future<Response> Master::Http::scheduler(
   Option<Error> error = validation::scheduler::call::validate(call, principal);
 
   if (error.isSome()) {
+    master->metrics->incrementInvalidSchedulerCalls(call);
     return BadRequest("Failed to validate scheduler::Call: " +
                       error.get().message);
   }

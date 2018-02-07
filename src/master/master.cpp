@@ -2336,6 +2336,7 @@ void Master::receive(
   Option<Error> error = validation::scheduler::call::validate(call);
 
   if (error.isSome()) {
+    metrics->incrementInvalidSchedulerCalls(call);
     drop(from, call, error->message);
     return;
   }
