@@ -27,6 +27,8 @@
 
 #include "linux/fs.hpp"
 
+#include "master/detector/standalone.hpp"
+
 #include "module/manager.hpp"
 
 #include "slave/container_daemon_process.hpp"
@@ -47,11 +49,13 @@ using std::vector;
 using mesos::internal::slave::ContainerDaemonProcess;
 
 using mesos::master::detector::MasterDetector;
+using mesos::master::detector::StandaloneMasterDetector;
 
 using process::Clock;
 using process::Future;
 using process::Owned;
 
+using testing::AtMost;
 using testing::Sequence;
 
 namespace mesos {
@@ -3046,6 +3050,221 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_Metrics)
       prefix + "csi_node_plugin_terminations"));
   EXPECT_EQ(1, snapshot.values.at(
       prefix + "csi_node_plugin_terminations"));
+}
+
+
+// Master reconciles operations that are missing from a re-registering slave.
+// In this case, the `ApplyOperationMessage` is dropped, so the resource
+// provider should send OPERATION_DROPPED. Operations on agent default
+// resources are also tested here; for such operations, the agent generates the
+// dropped status.
+TEST_F(StorageLocalResourceProviderTest, ROOT_ReconcileDroppedOperation)
+{
+  Clock::pause();
+
+  setupResourceProviderConfig(Bytes(0), "volume1:2GB;volume2:2GB");
+
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  StandaloneMasterDetector detector(master.get()->pid);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.isolation = "filesystem/linux";
+
+  // Disable HTTP authentication to simplify resource provider interactions.
+  slaveFlags.authenticate_http_readwrite = false;
+
+  // Set the resource provider capability.
+  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
+  SlaveInfo::Capability capability;
+  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
+  capabilities.push_back(capability);
+
+  slaveFlags.agent_features = SlaveCapabilities();
+  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
+      {capabilities.begin(), capabilities.end()});
+
+  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  // Since the local resource provider daemon is started after the agent is
+  // registered, it is guaranteed that the agent will send two
+  // `UpdateSlaveMessage`s, where the latter one contains resources from the
+  // storage local resource provider.
+  //
+  // NOTE: The order of the two `FUTURE_PROTOBUF`s is reversed because
+  // Google Mock will search the expectations in reverse order.
+  Future<UpdateSlaveMessage> updateSlave2 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+  Future<UpdateSlaveMessage> updateSlave1 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Advance the clock to trigger agent registration.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // NOTE: We need to resume the clock so that the resource provider can
+  // periodically check if the CSI endpoint socket has been created by the
+  // plugin container, which runs in another Linux process. Since we do not have
+  // a `Future` linked to the standalone container launch to await on, it is
+  // difficult to accomplish this without resuming the clock.
+  Clock::resume();
+
+  AWAIT_READY(updateSlave2);
+  ASSERT_TRUE(updateSlave2->has_resource_providers());
+  ASSERT_EQ(1, updateSlave2->resource_providers().providers_size());
+
+  Clock::pause();
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_roles(0, "storage");
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  // We are only interested in pre-existing volumes, which have IDs but no
+  // profile. We use pre-existing volumes to make it easy to send multiple
+  // operations on multiple resources.
+  auto isPreExistingVolume = [](const Resource& r) {
+    return r.has_disk() &&
+      r.disk().has_source() &&
+      r.disk().source().has_id() &&
+      !r.disk().source().has_profile();
+  };
+
+  // We use the filter explicitly here so that the resources will not
+  // be filtered for 5 seconds (the default).
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  // Decline offers that contain only the agent's default resources.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillRepeatedly(DeclineOffers(filters));
+
+  Future<vector<Offer>> offersBeforeOperations;
+
+  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
+      isPreExistingVolume)))
+    .WillOnce(FutureArg<1>(&offersBeforeOperations))
+    .WillRepeatedly(DeclineOffers(filters)); // Decline further matching offers.
+
+  driver.start();
+
+  AWAIT_READY(offersBeforeOperations);
+  ASSERT_FALSE(offersBeforeOperations->empty());
+
+  vector<Resource> sources;
+
+  foreach (
+      const Resource& resource,
+      offersBeforeOperations->at(0).resources()) {
+    if (isPreExistingVolume(resource) &&
+        resource.disk().source().type() == Resource::DiskInfo::Source::RAW) {
+      sources.push_back(resource);
+    }
+  }
+
+  ASSERT_EQ(2u, sources.size());
+
+  // Drop one of the operations on the way to the agent.
+  Future<ApplyOperationMessage> applyOperationMessage =
+    DROP_PROTOBUF(ApplyOperationMessage(), _, _);
+
+  // The successful operation will result in a terminal update.
+  Future<UpdateOperationStatusMessage> operationFinishedStatus =
+    FUTURE_PROTOBUF(UpdateOperationStatusMessage(), _, _);
+
+  // Attempt the creation of two volumes.
+  driver.acceptOffers(
+      {offersBeforeOperations->at(0).id()},
+      {CREATE_VOLUME(sources.at(0), Resource::DiskInfo::Source::MOUNT),
+       CREATE_VOLUME(sources.at(1), Resource::DiskInfo::Source::MOUNT)},
+      filters);
+
+  // Ensure that the operations are processed.
+  Clock::settle();
+
+  AWAIT_READY(applyOperationMessage);
+  AWAIT_READY(operationFinishedStatus);
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  // Observe explicit operation reconciliation between master and agent.
+  Future<ReconcileOperationsMessage> reconcileOperationsMessage =
+    FUTURE_PROTOBUF(ReconcileOperationsMessage(), _, _);
+  Future<UpdateOperationStatusMessage> operationDroppedStatus =
+    FUTURE_PROTOBUF(UpdateOperationStatusMessage(), _, _);
+
+  // The master may send an offer with the agent's resources after the agent
+  // reregisters, but before an `UpdateSlaveMessage` is sent containing the
+  // resource provider's resources. In this case, the offer will be rescinded.
+  EXPECT_CALL(sched, offerRescinded(&driver, _))
+    .Times(AtMost(1));
+
+  // Simulate a spurious master change event (e.g., due to ZooKeeper
+  // expiration) at the slave to force re-registration.
+  detector.appoint(master.get()->pid);
+
+  // Advance the clock to trigger agent registration.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(slaveReregisteredMessage);
+  AWAIT_READY(reconcileOperationsMessage);
+  AWAIT_READY(operationDroppedStatus);
+
+  std::set<OperationState> expectedStates =
+    {OperationState::OPERATION_DROPPED,
+     OperationState::OPERATION_FINISHED};
+
+  std::set<OperationState> observedStates =
+    {operationFinishedStatus->status().state(),
+     operationDroppedStatus->status().state()};
+
+  ASSERT_EQ(expectedStates, observedStates);
+
+  Future<vector<Offer>> offersAfterOperations;
+
+  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
+      isPreExistingVolume)))
+    .WillOnce(FutureArg<1>(&offersAfterOperations));
+
+  // Advance the clock to trigger a batch allocation.
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offersAfterOperations);
+  ASSERT_FALSE(offersAfterOperations->empty());
+
+  vector<Resource> converted;
+
+  foreach (const Resource& resource, offersAfterOperations->at(0).resources()) {
+    if (isPreExistingVolume(resource) &&
+        resource.disk().source().type() == Resource::DiskInfo::Source::MOUNT) {
+      converted.push_back(resource);
+    }
+  }
+
+  ASSERT_EQ(1u, converted.size());
+
+  // TODO(greggomann): Add inspection of dropped operation metrics here once
+  // such metrics have been added. See MESOS-8406.
+
+  // Settle the clock to ensure that unexpected messages will cause errors.
+  Clock::settle();
+
+  driver.stop();
+  driver.join();
 }
 
 } // namespace tests {
