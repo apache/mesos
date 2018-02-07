@@ -228,6 +228,7 @@ class CppLinter(LinterBase):
                    os.path.join('3rdparty', 'stout')]
 
     exclude_files = '(' \
+                    r'elfio\-3\.2|' \
                     r'protobuf\-2\.4\.1|' \
                     r'googletest\-release\-1\.8\.0|' \
                     r'glog\-0\.3\.3|' \
