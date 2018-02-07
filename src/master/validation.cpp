@@ -596,11 +596,26 @@ Option<Error> validate(
         return Error("Expecting 'acknowledge_operation_status' to be present");
       }
 
-      Try<id::UUID> uuid = id::UUID::fromBytes(
-          call.acknowledge_operation_status().uuid());
+      const mesos::scheduler::Call::AcknowledgeOperationStatus& acknowledge =
+        call.acknowledge_operation_status();
+
+      Try<id::UUID> uuid = id::UUID::fromBytes(acknowledge.uuid());
       if (uuid.isError()) {
         return uuid.error();
       }
+
+      // TODO(gkleiman): Revisit this once we introduce support for external
+      // resource providers.
+      if (!acknowledge.has_slave_id()) {
+        return Error("Expecting 'agent_id' to be present");
+      }
+
+      // TODO(gkleiman): Revisit this once agent supports sending status
+      // updates for operations affecting default resources (MESOS-8194).
+      if (!acknowledge.has_resource_provider_id()) {
+        return Error("Expecting 'resource_provider_id' to be present");
+      }
+
       return None();
     }
 
