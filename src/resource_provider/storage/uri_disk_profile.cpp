@@ -124,7 +124,7 @@ UriDiskProfileAdaptorProcess::UriDiskProfileAdaptorProcess(
     const Flags& _flags)
   : ProcessBase(ID::generate("uri-volume-profile")),
     flags(_flags),
-    watchPromise(new Promise<hashset<string>>()) {}
+    watchPromise(new Promise<Nothing>()) {}
 
 
 void UriDiskProfileAdaptorProcess::initialize()
@@ -138,11 +138,21 @@ Future<DiskProfileAdaptor::ProfileInfo>
       const string& profile,
       const ResourceProviderInfo& resourceProviderInfo)
 {
-  if (data.count(profile) != 1) {
+  if (profileMatrix.count(profile) != 1) {
     return Failure("Profile '" + profile + "' not found");
   }
 
-  return data.at(profile);
+  const DiskProfileMapping::CSIManifest& manifest = profileMatrix.at(profile);
+
+  // TODO(chhsiao): A storage resource provider may need to translate
+  // a profile that no longer applies to it to replay a `CREATE_VOLUME`
+  // or `CREATE_BLOCK` operation during recovery, so resource provider
+  // selection is only done in `watch()` but not here. We should do the
+  // selection once profiles are checkpointed in the resource provider.
+  return DiskProfileAdaptor::ProfileInfo{
+    manifest.volume_capabilities(),
+    manifest.create_parameters()
+  };
 }
 
 
@@ -150,11 +160,31 @@ Future<hashset<string>> UriDiskProfileAdaptorProcess::watch(
     const hashset<string>& knownProfiles,
     const ResourceProviderInfo& resourceProviderInfo)
 {
-  if (profiles != knownProfiles) {
-    return profiles;
+  // Calculate the new set of profiles for the resource provider.
+  // TODO(chhsiao): A storage resource provider assumes that the new set
+  // should be a superset of `knownProfiles`, so we bypass resource
+  // provider selection if a profile is already known. We should do the
+  // selection once profiles are checkpointed in the resource provider.
+  hashset<string> newProfiles = knownProfiles;
+  foreachpair (const string& profile,
+               const DiskProfileMapping::CSIManifest& manifest,
+               profileMatrix) {
+    if (knownProfiles.contains(profile)) {
+      continue;
+    }
+
+    if (isSelectedResourceProvider(manifest, resourceProviderInfo)) {
+      newProfiles.insert(profile);
+    }
   }
 
-  return watchPromise->future();
+  if (newProfiles != knownProfiles) {
+    return newProfiles;
+  }
+
+  // Wait for the next update if there is no change.
+  return watchPromise->future()
+    .then(defer(self(), &Self::watch, knownProfiles, resourceProviderInfo));
 }
 
 
@@ -212,7 +242,9 @@ void UriDiskProfileAdaptorProcess::notify(
 {
   bool hasErrors = false;
 
-  foreachkey (const string& profile, data) {
+  foreachpair (const string& profile,
+               const DiskProfileMapping::CSIManifest& manifest,
+               profileMatrix) {
     if (parsed.profile_matrix().count(profile) != 1) {
       hasErrors = true;
 
@@ -223,11 +255,11 @@ void UriDiskProfileAdaptorProcess::notify(
     }
 
     bool matchingCapability =
-      data.at(profile).capability ==
+      manifest.volume_capabilities() ==
         parsed.profile_matrix().at(profile).volume_capabilities();
 
     bool matchingParameters =
-      data.at(profile).parameters ==
+      manifest.create_parameters() ==
         parsed.profile_matrix().at(profile).create_parameters();
 
     if (!matchingCapability || !matchingParameters) {
@@ -249,35 +281,26 @@ void UriDiskProfileAdaptorProcess::notify(
 
   // Profiles can only be added, so if the parsed data is the same size,
   // nothing has changed and no notifications need to be sent.
-  if (parsed.profile_matrix().size() <= data.size()) {
+  if (parsed.profile_matrix().size() <= profileMatrix.size()) {
     return;
   }
 
   // The fetched mapping satisfies our invariants.
 
-  // Save the protobuf as a map we can expose through the module interface.
-  // And update the convenience set of profile names.
-  profiles.clear();
-  auto iterator = parsed.profile_matrix().begin();
-  while (iterator != parsed.profile_matrix().end()) {
-    data[iterator->first] = {
-      iterator->second.volume_capabilities(),
-      iterator->second.create_parameters()
-    };
-
-    profiles.insert(iterator->first);
-    iterator++;
-  }
+  // Save the protobuf as a map.
+  profileMatrix = map<string, DiskProfileMapping::CSIManifest>(
+      parsed.profile_matrix().begin(),
+      parsed.profile_matrix().end());
 
   // Notify any watchers and then prepare a new promise for the next
   // iteration of polling.
   //
   // TODO(josephw): Delay this based on the `--max_random_wait` option.
-  watchPromise->set(profiles);
-  watchPromise.reset(new Promise<hashset<string>>());
+  watchPromise->set(Nothing());
+  watchPromise.reset(new Promise<Nothing>());
 
   LOG(INFO)
-    << "Updated disk profile mapping to " << profiles.size()
+    << "Updated disk profile mapping to " << profileMatrix.size()
     << " total profiles";
 }
 
