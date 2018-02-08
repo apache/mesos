@@ -54,14 +54,18 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
+constexpr char TEST_SLRP_TYPE[] = "org.apache.mesos.rp.local.storage";
+constexpr char TEST_SLRP_NAME[] = "test";
+
+
 class AgentResourceProviderConfigApiTest
-  : public MesosTest,
+  : public ContainerizerTest<slave::MesosContainerizer>,
     public WithParamInterface<ContentType>
 {
 public:
   virtual void SetUp()
   {
-    MesosTest::SetUp();
+    ContainerizerTest<slave::MesosContainerizer>::SetUp();
 
     resourceProviderConfigDir =
       path::join(sandbox.get(), "resource_provider_configs");
@@ -71,64 +75,81 @@ public:
 
   ResourceProviderInfo createResourceProviderInfo(const string& volumes)
   {
-    Try<string> testCsiPluginWorkDir =
-      os::mkdtemp(path::join(sandbox.get(), "plugin_XXXXXX"));
-    CHECK_SOME(testCsiPluginWorkDir);
+    Option<ResourceProviderInfo> info;
 
-    string testCsiPluginPath =
-      path::join(tests::flags.build_dir, "src", "test-csi-plugin");
+    // This extra closure is necessary in order to use `ASSERT_*`, as
+    // these macros require a void return type.
+    [&]() {
+      // Randomize the plugin name so we get a clean work directory for
+      // each created config.
+      const string testCsiPluginName =
+        "test_csi_plugin_" +
+        strings::remove(id::UUID::random().toString(), "-");
 
-    Try<string> resourceProviderConfig = strings::format(
-        R"~(
-        {
-          "type": "org.apache.mesos.rp.local.storage",
-          "name": "test",
-          "default_reservations": [
-            {
-              "type": "DYNAMIC",
-              "role": "storage"
-            }
-          ],
-          "storage": {
-            "plugin": {
-              "type": "org.apache.mesos.csi.test",
-              "name": "plugin",
-              "containers": [
-                {
-                  "services": [
-                    "CONTROLLER_SERVICE",
-                    "NODE_SERVICE"
-                  ],
-                  "command": {
-                    "shell": false,
-                    "value": "%s",
-                    "arguments": [
-                      "%s",
-                      "--available_capacity=0B",
-                      "--work_dir=%s",
-                      "--volumes=%s"
-                    ]
+      const string testCsiPluginPath =
+        path::join(tests::flags.build_dir, "src", "test-csi-plugin");
+
+      const string testCsiPluginWorkDir =
+        path::join(sandbox.get(), testCsiPluginName);
+      ASSERT_SOME(os::mkdir(testCsiPluginWorkDir));
+
+      Try<string> resourceProviderConfig = strings::format(
+          R"~(
+          {
+            "type": "%s",
+            "name": "%s",
+            "default_reservations": [
+              {
+                "type": "DYNAMIC",
+                "role": "storage"
+              }
+            ],
+            "storage": {
+              "plugin": {
+                "type": "org.apache.mesos.csi.test",
+                "name": "%s",
+                "containers": [
+                  {
+                    "services": [
+                      "CONTROLLER_SERVICE",
+                      "NODE_SERVICE"
+                    ],
+                    "command": {
+                      "shell": false,
+                      "value": "%s",
+                      "arguments": [
+                        "%s",
+                        "--available_capacity=0B",
+                        "--volumes=%s",
+                        "--work_dir=%s"
+                      ]
+                    }
                   }
-                }
-              ]
+                ]
+              }
             }
           }
-        }
-        )~",
-        testCsiPluginPath,
-        testCsiPluginPath,
-        testCsiPluginWorkDir.get(),
-        volumes);
+          )~",
+          TEST_SLRP_TYPE,
+          TEST_SLRP_NAME,
+          testCsiPluginName,
+          testCsiPluginPath,
+          testCsiPluginPath,
+          volumes,
+          testCsiPluginWorkDir);
 
-    CHECK_SOME(resourceProviderConfig);
+      ASSERT_SOME(resourceProviderConfig);
 
-    Try<JSON::Object> json =
-      JSON::parse<JSON::Object>(resourceProviderConfig.get());
-    CHECK_SOME(json);
+      Try<JSON::Object> json =
+        JSON::parse<JSON::Object>(resourceProviderConfig.get());
+      ASSERT_SOME(json);
 
-    Try<ResourceProviderInfo> info =
-      ::protobuf::parse<ResourceProviderInfo>(json.get());
-    CHECK_SOME(info);
+      Try<ResourceProviderInfo> _info =
+        ::protobuf::parse<ResourceProviderInfo>(json.get());
+      ASSERT_SOME(_info);
+
+      info = _info.get();
+    }();
 
     return info.get();
   }
