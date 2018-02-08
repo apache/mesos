@@ -115,6 +115,9 @@ TEST_F(UriDiskProfileTest, ParseExample)
     {
       "profile_matrix" : {
         "my-profile" : {
+          "csi_plugin_type_selector" : {
+            "plugin_type" : "org.apache.mesos.csi.test"
+          },
           "volume_capabilities" : {
             "block" : {},
             "access_mode" : { "mode" : "SINGLE_NODE_WRITER" }
@@ -175,10 +178,19 @@ TEST_F(UriDiskProfileTest, ParseInvalids)
         }
       })~",
 
+    // Missing one of 'resource_provider_selector' or
+    // 'csi_plugin_type_selector'.
+    R"~({
+        "profile_matrix" : {
+          "profile" : {}
+        }
+      })~",
+
     R"~({
         "profile_matrix" : {
           "profile" : {
-            "volume_capabilities" : "Wrong JSON type"
+            "resource_provider_selector" : "Wrong JSON type"
+            }
           }
         }
       })~",
@@ -186,7 +198,108 @@ TEST_F(UriDiskProfileTest, ParseInvalids)
     R"~({
         "profile_matrix" : {
           "profile" : {
+            "resource_provider_selector" : {
+              "resource_providers" : "Wrong JSON type"
+            }
+          }
+        }
+      })~",
+
+    // Empty 'resource_providers' in 'resource_provider_selector'.
+    R"~({
+        "profile_matrix" : {
+          "profile" : {
+            "resource_provider_selector" : {
+              "resource_providers" : []
+            }
+          }
+        }
+      })~",
+
+    R"~({
+        "profile_matrix" : {
+          "profile" : {
+            "resource_provider_selector" : {
+              "resource_providers" : [
+                {
+                  "not-type" : "Missing required key"
+                }
+              ]
+            }
+          }
+        }
+      })~",
+
+    R"~({
+        "profile_matrix" : {
+          "profile" : {
+            "resource_provider_selector" : {
+              "resource_providers" : [
+                {
+                  "type" : "org.apache.mesos.rp.local.storage",
+                  "not-name" : "Missing required key"
+                }
+              ]
+            }
+          }
+        }
+      })~",
+
+    R"~({
+        "profile_matrix" : {
+          "profile" : {
+            "csi_plugin_type_selector" : "Wrong JSON type"
+          }
+        }
+      })~",
+
+    R"~({
+        "profile_matrix" : {
+          "profile" : {
+            "csi_plugin_type_selector" : {
+              "not-plugin_type" : "Missing required key",
+            }
+          }
+        }
+      })~",
+
+    // More than one selector.
+    R"~({
+        "profile_matrix" : {
+          "profile" : {
+            "resource_provider_selector" : {
+              "resource_providers" : [
+                {
+                  "type" : "org.apache.mesos.rp.local.storage",
+                  "name" : "test"
+                }
+              ]
+            },
+            "csi_plugin_type_selector" : {
+              "plugin_type" : "org.apache.mesos.csi.test",
+            }
+          }
+        }
+      })~",
+
+    R"~({
+        "profile_matrix" : {
+          "profile" : {
+            "csi_plugin_type_selector" : {
+              "plugin_type" : "org.apache.mesos.csi.test",
+            },
             "not-volume_capabilities" : "Missing required key"
+          }
+        }
+      })~",
+
+    R"~({
+        "profile_matrix" : {
+          "profile" : {
+            "csi_plugin_type_selector" : {
+              "plugin_type" : "org.apache.mesos.csi.test",
+            },
+            "volume_capabilities" : "Wrong JSON type"
           }
         }
       })~",
@@ -195,6 +308,9 @@ TEST_F(UriDiskProfileTest, ParseInvalids)
     R"~({
         "profile_matrix" : {
           "profile" : {
+            "csi_plugin_type_selector" : {
+              "plugin_type" : "org.apache.mesos.csi.test",
+            },
             "volume_capabilities" : {}
           }
         }
@@ -203,6 +319,9 @@ TEST_F(UriDiskProfileTest, ParseInvalids)
     R"~({
         "profile_matrix" : {
           "profile" : {
+            "csi_plugin_type_selector" : {
+              "plugin_type" : "org.apache.mesos.csi.test",
+            },
             "volume_capabilities" : {
               "mount" : {
                 "fs_type" : [ "This should not be an array" ]
@@ -215,6 +334,9 @@ TEST_F(UriDiskProfileTest, ParseInvalids)
     R"~({
         "profile_matrix" : {
           "profile" : {
+            "csi_plugin_type_selector" : {
+              "plugin_type" : "org.apache.mesos.csi.test",
+            },
             "volume_capabilities" : {
               "block" : {},
               "access_mode" : { "mode": "No-enum-of-this-name" }
@@ -226,6 +348,9 @@ TEST_F(UriDiskProfileTest, ParseInvalids)
     R"~({
         "profile_matrix" : {
           "profile" : {
+            "csi_plugin_type_selector" : {
+              "plugin_type" : "org.apache.mesos.csi.test",
+            },
             "volume_capabilities" : {
               "mount" : {
                 "mount_flags" : [ "a", "b", "c" ]
@@ -240,6 +365,9 @@ TEST_F(UriDiskProfileTest, ParseInvalids)
     R"~({
         "profile_matrix" : {
           "profile" : {
+            "csi_plugin_type_selector" : {
+              "plugin_type" : "org.apache.mesos.csi.test",
+            },
             "volume_capabilities" : {
               "mount" : { "fs_type" : "abc" },
               "access_mode" : { "mode": "SINGLE_NODE_READER_ONLY" }
@@ -254,6 +382,9 @@ TEST_F(UriDiskProfileTest, ParseInvalids)
     R"~({
         "profile_matrix" : {
           "profile" : {
+            "csi_plugin_type_selector" : {
+              "plugin_type" : "org.apache.mesos.csi.test",
+            },
             "volume_capabilities" : {
               "block" : {},
               "access_mode" : { "mode": "MULTI_NODE_READER_ONLY" }
@@ -288,6 +419,14 @@ TEST_F(UriDiskProfileTest, FetchFromFile)
     {
       "profile_matrix" : {
         "profile" : {
+          "resource_provider_selector" : {
+            "resource_providers" : [
+              {
+                "type" : "resource_provider_type",
+                "name" : "resource_provider_name"
+              }
+            ]
+          },
           "volume_capabilities" : {
             "block" : {},
             "access_mode" : { "mode": "MULTI_NODE_SINGLE_WRITER" }
@@ -301,8 +440,8 @@ TEST_F(UriDiskProfileTest, FetchFromFile)
   const Duration pollInterval = Seconds(10);
 
   ResourceProviderInfo resourceProviderInfo;
-  resourceProviderInfo.set_type("ignored");
-  resourceProviderInfo.set_name("ignored");
+  resourceProviderInfo.set_type("resource_provider_type");
+  resourceProviderInfo.set_name("resource_provider_name");
 
   Parameters params;
 
@@ -310,7 +449,7 @@ TEST_F(UriDiskProfileTest, FetchFromFile)
   pollIntervalFlag->set_key("poll_interval");
   pollIntervalFlag->set_value(stringify(pollInterval));
 
-  // NOTE: We cannot use the `file://` URI to sepcify the file location,
+  // NOTE: We cannot use the `file://` URI to specify the file location,
   // otherwise the file contents will be prematurely read. Therefore, we
   // specify the absolute path of the file in the `uri` flag.
   Parameter* uriFlag = params.add_parameter();
@@ -402,6 +541,14 @@ TEST_F(UriDiskProfileTest, FetchFromHTTP)
     {
       "profile_matrix" : {
         "profile" : {
+          "resource_provider_selector" : {
+            "resource_providers" : [
+              {
+                "type" : "resource_provider_type",
+                "name" : "resource_provider_name"
+              }
+            ]
+          },
           "volume_capabilities" : {
             "block" : {},
             "access_mode" : { "mode": "MULTI_NODE_MULTI_WRITER" }
@@ -414,6 +561,14 @@ TEST_F(UriDiskProfileTest, FetchFromHTTP)
     {
       "profile_matrix" : {
         "renamed-profile" : {
+          "resource_provider_selector" : {
+            "resource_providers" : [
+              {
+                "type" : "resource_provider_type",
+                "name" : "resource_provider_name"
+              }
+            ]
+          },
           "volume_capabilities" : {
             "block" : {},
             "access_mode" : { "mode": "SINGLE_NODE_WRITER" }
@@ -426,12 +581,28 @@ TEST_F(UriDiskProfileTest, FetchFromHTTP)
     {
       "profile_matrix" : {
         "profile" : {
+          "resource_provider_selector" : {
+            "resource_providers" : [
+              {
+                "type" : "resource_provider_type",
+                "name" : "resource_provider_name"
+              }
+            ]
+          },
           "volume_capabilities" : {
             "block" : {},
             "access_mode" : { "mode": "MULTI_NODE_MULTI_WRITER" }
           }
         },
         "another-profile" : {
+          "resource_provider_selector" : {
+            "resource_providers" : [
+              {
+                "type" : "resource_provider_type",
+                "name" : "resource_provider_name"
+              }
+            ]
+          },
           "volume_capabilities" : {
             "block" : {},
             "access_mode" : { "mode": "SINGLE_NODE_WRITER" }
@@ -443,8 +614,8 @@ TEST_F(UriDiskProfileTest, FetchFromHTTP)
   const Duration pollInterval = Seconds(10);
 
   ResourceProviderInfo resourceProviderInfo;
-  resourceProviderInfo.set_type("ignored");
-  resourceProviderInfo.set_name("ignored");
+  resourceProviderInfo.set_type("resource_provider_type");
+  resourceProviderInfo.set_name("resource_provider_name");
 
   ServerWrapper server;
 

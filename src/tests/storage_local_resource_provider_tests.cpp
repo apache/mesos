@@ -121,6 +121,9 @@ public:
         {
           "profile_matrix": {
             "default" : {
+              "csi_plugin_type_selector": {
+                "plugin_type": "org.apache.mesos.csi.test"
+              },
               "volume_capabilities" : {
                 "mount" : {},
                 "access_mode" : { "mode" : "SINGLE_NODE_WRITER" }
