@@ -216,7 +216,18 @@ class CurlFilter : public TestFilter
 public:
   CurlFilter()
   {
+#ifndef __WINDOWS__
     curlError = os::which("curl").isNone();
+#else
+    // NOTE: We cannot use `os::which` here because it specifically checks the
+    // `PATH` for `curl`, but on Windows, we rely on `curl` being placed by the
+    // build next to the other executables (e.g. `mesos-agent` and
+    // `mesos-tests`). When placed like this, `::CreateProcess` is guaranteed to
+    // find it, regardless of `PATH` (and likewise `os::which`). Because it is
+    // built and placed as a build dependency of `mesos-agent`, it will always
+    // be available for testing.
+    curlError = false;
+#endif // __WINDOWS__
     if (curlError) {
       std::cerr
         << "-------------------------------------------------------------\n"
