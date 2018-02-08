@@ -299,7 +299,10 @@ TEST_F(UriDiskProfileTest, FetchFromFile)
   const string profileName = "profile";
   const string profileFile = path::join(sandbox.get(), "profiles.json");
   const Duration pollInterval = Seconds(10);
-  const string csiPluginType = "ignored";
+
+  ResourceProviderInfo resourceProviderInfo;
+  resourceProviderInfo.set_type("ignored");
+  resourceProviderInfo.set_name("ignored");
 
   Parameters params;
 
@@ -328,7 +331,7 @@ TEST_F(UriDiskProfileTest, FetchFromFile)
   // because when the module reads from file, it does so immediately upon
   // being initialized.
   Future<hashset<string>> future =
-    module.get()->watch(hashset<string>::EMPTY, csiPluginType);
+    module.get()->watch(hashset<string>::EMPTY, resourceProviderInfo);
 
   // Write the single profile to the file.
   ASSERT_SOME(os::write(profileFile, contents));
@@ -342,7 +345,7 @@ TEST_F(UriDiskProfileTest, FetchFromFile)
 
   // Translate the profile name into the profile mapping.
   Future<DiskProfileAdaptor::ProfileInfo> mapping =
-    module.get()->translate(profileName, csiPluginType);
+    module.get()->translate(profileName, resourceProviderInfo);
 
   AWAIT_ASSERT_READY(mapping);
   ASSERT_TRUE(mapping.get().capability.has_block());
@@ -438,7 +441,10 @@ TEST_F(UriDiskProfileTest, FetchFromHTTP)
     })~";
 
   const Duration pollInterval = Seconds(10);
-  const string csiPluginType = "ignored";
+
+  ResourceProviderInfo resourceProviderInfo;
+  resourceProviderInfo.set_type("ignored");
+  resourceProviderInfo.set_name("ignored");
 
   ServerWrapper server;
 
@@ -476,14 +482,14 @@ TEST_F(UriDiskProfileTest, FetchFromHTTP)
 
   // Wait for the first HTTP poll to complete.
   Future<hashset<string>> future =
-    module.get()->watch(hashset<string>::EMPTY, csiPluginType);
+    module.get()->watch(hashset<string>::EMPTY, resourceProviderInfo);
 
   AWAIT_ASSERT_READY(future);
   ASSERT_EQ(1u, future->size());
   EXPECT_EQ("profile", *(future->begin()));
 
   // Start watching for an update to the list of profiles.
-  future = module.get()->watch({"profile"}, csiPluginType);
+  future = module.get()->watch({"profile"}, resourceProviderInfo);
 
   // Trigger the second HTTP poll.
   Clock::advance(pollInterval);
@@ -491,7 +497,7 @@ TEST_F(UriDiskProfileTest, FetchFromHTTP)
 
   // Dispatch a call to the module, which ensures that the polling has actually
   // completed (not just the HTTP call).
-  AWAIT_ASSERT_READY(module.get()->translate("profile", csiPluginType));
+  AWAIT_ASSERT_READY(module.get()->translate("profile", resourceProviderInfo));
 
   // We don't expect the module to notify watcher(s) because the server's
   // response is considered invalid (the module does not allow profiles
