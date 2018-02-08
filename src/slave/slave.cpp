@@ -2087,8 +2087,8 @@ void Slave::_run(
   }
 
   CHECK(allPending != allRemoved)
-    << "BUG: The task group " << taskOrTaskGroup(task, taskGroup)
-    << " was killed partially";
+    << "BUG: The " << taskOrTaskGroup(task, taskGroup)
+    << " was partially killed";
 
   if (allRemoved) {
     LOG(WARNING) << "Ignoring running " << taskOrTaskGroup(task, taskGroup)
@@ -2230,8 +2230,8 @@ void Slave::__run(
   }
 
   CHECK(allPending != allRemoved)
-    << "BUG: The task group " << taskOrTaskGroup(task, taskGroup)
-    << " was killed partially";
+    << "BUG: The " << taskOrTaskGroup(task, taskGroup)
+    << " was partially killed";
 
   if (allRemoved) {
     LOG(WARNING) << "Ignoring running " << taskOrTaskGroup(task, taskGroup)
@@ -2859,20 +2859,19 @@ void Slave::___run(
     }
 
     CHECK(allQueued != allRemoved)
-      << "BUG: The task group " << taskOrTaskGroup(None(), taskGroup)
-      << " was killed partially";
+      << "BUG: The " << taskOrTaskGroup(None(), taskGroup)
+      << " was partially killed";
 
     if (allRemoved) {
       // This is the case where the task group is killed. No need to send
       // status update because it should be handled in 'killTask'.
-      LOG(WARNING) << "Ignoring sending queued task group "
+      LOG(WARNING) << "Ignoring sending queued "
                    << taskOrTaskGroup(None(), taskGroup) << " to executor "
                    << *executor << " because the task group has been killed";
       continue;
     }
 
-    LOG(INFO) << "Sending queued task group"
-              << " " << taskOrTaskGroup(None(), taskGroup)
+    LOG(INFO) << "Sending queued " << taskOrTaskGroup(None(), taskGroup)
               << " to executor " << *executor;
 
     foreach (const TaskInfo& task, taskGroup.tasks()) {
@@ -7510,7 +7509,7 @@ void Slave::updateOperation(
     operation->add_statuses()->CopyFrom(status);
   }
 
-  LOG(INFO) << "Updating the state of operation '"
+  LOG(INFO) << "Updating the state of operation"
             << (operation->info().has_id()
                  ? " '" + stringify(operation->info().id()) + "'"
                  : " with no ID")
@@ -9527,7 +9526,7 @@ static string taskOrTaskGroup(
     foreach (const TaskInfo& task, taskGroup->tasks()) {
       taskIds.push_back(task.task_id());
     }
-     out << "task group containing tasks " << taskIds;
+    out << "task group containing tasks " << taskIds;
   }
 
   return out.str();
