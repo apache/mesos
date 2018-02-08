@@ -93,7 +93,7 @@ protected:
 };
 
 
-TEST_F_TEMP_DISABLED_ON_WINDOWS(CurlFetcherPluginTest, CURL_ValidUri)
+TEST_F(CurlFetcherPluginTest, CURL_ValidUri)
 {
   URI uri = uri::http(
       stringify(server.self().address.ip),
@@ -112,7 +112,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CurlFetcherPluginTest, CURL_ValidUri)
 }
 
 
-TEST_F_TEMP_DISABLED_ON_WINDOWS(CurlFetcherPluginTest, CURL_InvalidUri)
+TEST_F(CurlFetcherPluginTest, CURL_InvalidUri)
 {
   URI uri = uri::http(
       stringify(server.self().address.ip),
@@ -130,7 +130,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CurlFetcherPluginTest, CURL_InvalidUri)
 
 
 // This test verifies invoking 'fetch' by plugin name.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(CurlFetcherPluginTest, CURL_InvokeFetchByName)
+TEST_F(CurlFetcherPluginTest, CURL_InvokeFetchByName)
 {
   URI uri = uri::http(
       stringify(server.self().address.ip),
