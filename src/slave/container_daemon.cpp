@@ -116,9 +116,9 @@ void ContainerDaemonProcess::initialize()
 
 void ContainerDaemonProcess::launchContainer()
 {
-  LOG(INFO)
-    << "Launching container '" << launchCall.launch_container().container_id()
-    << "'";
+  const ContainerID& containerId = launchCall.launch_container().container_id();
+
+  LOG(INFO) << "Launching container '" << containerId << "'";
 
   http::post(
       agentUrl,
@@ -136,7 +136,14 @@ void ContainerDaemonProcess::launchContainer()
             response.body + ")");
       }
 
-      return postStartHook.isSome() ? postStartHook.get()() : Nothing();
+      if (postStartHook.isSome()) {
+        LOG(INFO)
+          << "Invoking post-start hook for container '" << containerId << "'";
+
+        return postStartHook.get()();
+      }
+
+      return Nothing();
     }))
     .onReady(defer(self(), &Self::waitContainer))
     .onFailed(defer(self(), [=](const string& failure) {
@@ -159,9 +166,9 @@ void ContainerDaemonProcess::launchContainer()
 
 void ContainerDaemonProcess::waitContainer()
 {
-  LOG(INFO)
-    << "Waiting for container '" << waitCall.wait_container().container_id()
-    << "'";
+  const ContainerID& containerId = waitCall.wait_container().container_id();
+
+  LOG(INFO) << "Waiting for container '" << containerId << "'";
 
   http::post(
       agentUrl,
@@ -178,7 +185,14 @@ void ContainerDaemonProcess::waitContainer()
             response.body + ")");
       }
 
-      return postStopHook.isSome() ? postStopHook.get()() : Nothing();
+      if (postStopHook.isSome()) {
+        LOG(INFO)
+          << "Invoking post-stop hook for container '" << containerId << "'";
+
+        return postStopHook.get()();
+      }
+
+      return Nothing();
     }))
     .onReady(defer(self(), &Self::launchContainer))
     .onFailed(defer(self(), [=](const string& failure) {
