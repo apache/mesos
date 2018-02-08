@@ -2952,8 +2952,6 @@ TEST_F(
 // properly reported.
 TEST_F(StorageLocalResourceProviderTest, ROOT_Metrics)
 {
-  loadUriDiskProfileModule();
-
   setupResourceProviderConfig(Gigabytes(4));
 
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -2978,7 +2976,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_Metrics)
       {capabilities.begin(), capabilities.end()});
 
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
-  slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
   slave::Fetcher fetcher(slaveFlags);
 
@@ -2989,16 +2986,8 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_Metrics)
 
   Owned<slave::MesosContainerizer> containerizer(_containerizer.get());
 
-  // Since the local resource provider daemon is started after the agent
-  // is registered, it is guaranteed that the slave will send two
-  // `UpdateSlaveMessage`s, where the latter one contains resources from
-  // the storage local resource provider.
-  // NOTE: The order of the two `FUTURE_PROTOBUF`s are reversed because
-  // Google Mock will search the expectations in reverse order.
-  Future<UpdateSlaveMessage> updateSlave2 =
-    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
-  Future<UpdateSlaveMessage> updateSlave1 =
-    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+  Future<Nothing> pluginConnected =
+    FUTURE_DISPATCH(_, &ContainerDaemonProcess::waitContainer);
 
   Try<Owned<cluster::Slave>> slave = StartSlave(
       detector.get(),
@@ -3007,8 +2996,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_Metrics)
 
   ASSERT_SOME(slave);
 
-  AWAIT_READY(updateSlave1);
-  AWAIT_READY(updateSlave2);
+  AWAIT_READY(pluginConnected);
 
   const string prefix =
     "resource_providers/" + stringify(TEST_SLRP_TYPE) +
@@ -3037,6 +3025,9 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_Metrics)
     FUTURE_DISPATCH(_, &ContainerDaemonProcess::launchContainer);
 
   // Kill the plugin container and wait for it to restart.
+  // NOTE: We need to wait for `pluginConnected` before issuing the
+  // kill, or it may kill the plugin before it created the endpoint
+  // socket and the resource provider would wait for one minute.
   Future<int> pluginKilled = containerizer->status(pluginContainerId)
     .then([](const ContainerStatus& status) {
       return os::kill(status.executor_pid(), SIGKILL);
