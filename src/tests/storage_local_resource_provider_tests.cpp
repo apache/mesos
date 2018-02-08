@@ -73,9 +73,6 @@ public:
   {
     ContainerizerTest<slave::MesosContainerizer>::SetUp();
 
-    testCsiPluginWorkDir = path::join(sandbox.get(), "test");
-    ASSERT_SOME(os::mkdir(testCsiPluginWorkDir));
-
     resourceProviderConfigDir =
       path::join(sandbox.get(), "resource_provider_configs");
     ASSERT_SOME(os::mkdir(resourceProviderConfigDir));
@@ -162,16 +159,14 @@ public:
       const Bytes& capacity,
       const Option<string> volumes = None())
   {
+    const string testCsiPluginName = "test_csi_plugin";
+
     const string testCsiPluginPath =
       path::join(tests::flags.build_dir, "src", "test-csi-plugin");
 
-    // NOTE: Using the same container ID to launch the CSI plugin would
-    // result in imperfect test isolation since the same cgroup
-    // would be used in different test runs. Therefore, we use a random
-    // plugin name to avoid this.
-    // TODO(chhsiao): This won't be needed once MESOS-8399 is done.
-    const string testCsiPluginName =
-      strings::remove(id::UUID::random().toString(), "-");
+    const string testCsiPluginWorkDir =
+      path::join(sandbox.get(), testCsiPluginName);
+    ASSERT_SOME(os::mkdir(testCsiPluginWorkDir));
 
     Try<string> resourceProviderConfig = strings::format(
         R"~(
@@ -260,7 +255,6 @@ protected:
   Modules modules;
   vector<string> slaveWorkDirs;
   string resourceProviderConfigDir;
-  string testCsiPluginWorkDir;
   string uriDiskProfileConfigPath;
 };
 
