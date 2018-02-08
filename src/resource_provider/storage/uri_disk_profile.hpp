@@ -58,17 +58,23 @@ struct Flags : public virtual flags::FlagsBase
         "This module supports both HTTP(s) and file URIs\n."
         "\n"
         "The JSON object should consist of some top-level string keys\n"
-        "corresponding to the disk profile name. Each value should\n"
-        "contain a `VolumeCapability` under a 'volume_capabilities'\n"
+        "corresponding to the disk profile name. Each value should contain\n"
+        "a `ResourceProviderSelector` under 'resource_provider_selector' or\n"
+        "a `CSIPluginTypeSelector` under 'csi_plugin_type_selector' to\n"
+        "specify the set of resource providers this profile applies to,\n"
+        "followed by a `VolumeCapability` under 'volume_capabilities'\n"
         "and a free-form string-string mapping under 'create_parameters'.\n"
         "\n"
         "The JSON is modeled after a protobuf found in\n"
-        "`src/csi/uri_disk_profile.proto`.\n"
+        "`src/resource_provider/storage/disk_profile.proto`.\n"
         "\n"
         "For example:\n"
         "{\n"
         "  \"profile_matrix\" : {\n"
         "    \"my-profile\" : {\n"
+        "      \"csi_plugin_type_selector\": {\n"
+        "        \"plugin_type\" : \"org.apache.mesos.csi.test\"\n"
+        "      \"},\n"
         "      \"volume_capabilities\" : {\n"
         "        \"block\" : {},\n"
         "        \"access_mode\" : { \"mode\" : \"SINGLE_NODE_WRITER\" }\n"
@@ -171,14 +177,14 @@ struct Flags : public virtual flags::FlagsBase
 // and assumes that all fetched profiles are meant for all resource providers.
 //
 // See `Flags` above for more information.
-class UriDiskProfileAdaptor : public mesos::DiskProfileAdaptor
+class UriDiskProfileAdaptor : public DiskProfileAdaptor
 {
 public:
   UriDiskProfileAdaptor(const Flags& _flags);
 
   virtual ~UriDiskProfileAdaptor();
 
-  virtual process::Future<mesos::DiskProfileAdaptor::ProfileInfo> translate(
+  virtual process::Future<DiskProfileAdaptor::ProfileInfo> translate(
       const std::string& profile,
       const ResourceProviderInfo& resourceProviderInfo) override;
 
@@ -200,7 +206,7 @@ public:
 
   virtual void initialize() override;
 
-  process::Future<mesos::DiskProfileAdaptor::ProfileInfo> translate(
+  process::Future<DiskProfileAdaptor::ProfileInfo> translate(
       const std::string& profile,
       const ResourceProviderInfo& resourceProviderInfo);
 
@@ -226,19 +232,16 @@ private:
   Flags flags;
 
   // The last fetched profile mapping.
-  // This module assumes that profiles can only be added and never removed.
-  // Once added, profiles cannot be changed either.
+  // This module assumes that profiles can only be added and never
+  // removed. Once added, a profile's volume capability and parameters
+  // cannot be changed either.
   //
   // TODO(josephw): Consider persisting this mapping across agent restarts.
-  std::map<std::string, DiskProfileAdaptor::ProfileInfo> data;
+  std::map<std::string, resource_provider::DiskProfileMapping::CSIManifest>
+    profileMatrix;
 
-  // Convenience set of the keys in `data` above.
-  // This module does not filter based on `CSIPluginInfo::type`, so this
-  // is valid for all input to `watch(...)`.
-  hashset<std::string> profiles;
-
-  // Will be satisfied whenever `data` is changed.
-  process::Owned<process::Promise<hashset<std::string>>> watchPromise;
+  // Will be satisfied whenever `profileMatrix` is changed.
+  process::Owned<process::Promise<Nothing>> watchPromise;
 };
 
 } // namespace profile {
