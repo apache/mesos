@@ -17,24 +17,23 @@
 #include <stdarg.h> // For va_list, va_start, etc.
 
 #include <algorithm>
+#include <array>
 #include <map>
-#include <ostream>
 #include <string>
-#include <tuple>
 #include <vector>
 
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
-#include <stout/os/int_fd.hpp>
 #include <stout/try.hpp>
-#include <stout/unimplemented.hpp>
-
 #include <stout/windows.hpp>
 
-namespace internal {
+#include <stout/os/windows/fd.hpp>
 
+#include <stout/internal/windows/inherit.hpp>
+
+namespace internal {
 namespace windows {
 
 // Retrieves system environment in a `std::map`, ignoring
@@ -208,11 +207,13 @@ inline std::wstring stringify_args(const std::vector<std::string>& argv)
   return command;
 }
 
+
 struct ProcessData {
   SharedHandle process_handle;
   SharedHandle thread_handle;
   pid_t pid;
 };
+
 
 // Provides an interface for creating a child process on Windows.
 //
@@ -227,6 +228,10 @@ struct ProcessData {
 // The caller can specify explicit `stdin`, `stdout`, and `stderr` handles,
 // in that order, for the process via the `pipes` argument.
 //
+// NOTE: If `pipes` are specified, they will be temporarily set to
+// inheritable, and then set to uninheritable. This is a side effect
+// on each `HANDLE`.
+//
 // The return value is a `ProcessData` struct, with the process and thread
 // handles each saved in a `SharedHandle`, ensuring they are closed when struct
 // goes out of scope.
@@ -235,10 +240,10 @@ inline Try<ProcessData> create_process(
     const std::vector<std::string>& argv,
     const Option<std::map<std::string, std::string>>& environment,
     const bool create_suspended = false,
-    const Option<std::tuple<int_fd, int_fd, int_fd>> pipes = None())
+    const Option<std::array<os::WindowsFD, 3>> pipes = None())
 {
   // TODO(andschwa): Assert that `command` and `argv[0]` are the same.
-  std::wstring arg_string = stringify_args(argv);
+  const std::wstring arg_string = stringify_args(argv);
   std::vector<wchar_t> arg_buffer(arg_string.begin(), arg_string.end());
   arg_buffer.push_back(L'\0');
 
@@ -249,7 +254,7 @@ inline Try<ProcessData> create_process(
   }
 
   // Construct the environment that will be passed to `::CreateProcessW`.
-  Option<std::wstring> env_string = create_process_env(environment);
+  const Option<std::wstring> env_string = create_process_env(environment);
   std::vector<wchar_t> env_buffer;
   if (env_string.isSome()) {
     // This string contains the necessary null characters.
@@ -258,11 +263,9 @@ inline Try<ProcessData> create_process(
 
   wchar_t* process_env = env_buffer.empty() ? nullptr : env_buffer.data();
 
-  PROCESS_INFORMATION process_info;
-  memset(&process_info, 0, sizeof(PROCESS_INFORMATION));
+  PROCESS_INFORMATION process_info = {};
 
-  STARTUPINFOW startup_info;
-  memset(&startup_info, 0, sizeof(STARTUPINFOW));
+  STARTUPINFOW startup_info = {};
   startup_info.cb = sizeof(STARTUPINFOW);
 
   // Hook up the stdin/out/err pipes and use the `STARTF_USESTDHANDLES`
@@ -272,42 +275,71 @@ inline Try<ProcessData> create_process(
   // [1] https://msdn.microsoft.com/en-us/library/windows/desktop/ms686331(v=vs.85).aspx
   // [2] https://msdn.microsoft.com/en-us/library/windows/desktop/ms682499(v=vs.85).aspx
   if (pipes.isSome()) {
+    // Each of these handles must be inheritable.
+    foreach (const os::WindowsFD& fd, pipes.get()) {
+      const Try<Nothing> inherit = set_inherit(fd, true);
+      if (inherit.isError()) {
+        return Error(inherit.error());
+      }
+    }
+
+    startup_info.dwFlags |= STARTF_USESTDHANDLES;
     startup_info.hStdInput = std::get<0>(pipes.get());
     startup_info.hStdOutput = std::get<1>(pipes.get());
     startup_info.hStdError = std::get<2>(pipes.get());
-    startup_info.dwFlags |= STARTF_USESTDHANDLES;
   }
 
-  BOOL create_process_result = ::CreateProcessW(
+  const BOOL result = ::CreateProcessW(
       // This is replaced by the first token of `arg_buffer` string.
       static_cast<LPCWSTR>(nullptr),
       static_cast<LPWSTR>(arg_buffer.data()),
       static_cast<LPSECURITY_ATTRIBUTES>(nullptr),
       static_cast<LPSECURITY_ATTRIBUTES>(nullptr),
-      TRUE, // Inherited parent process handles.
+      TRUE, // Inherit parent process handles (such as those in `pipes`).
       creation_flags,
       static_cast<LPVOID>(process_env),
-      static_cast<LPCWSTR>(nullptr), // Inherited working directory.
+      static_cast<LPCWSTR>(nullptr), // Inherit working directory.
       &startup_info,
       &process_info);
 
-  if (!create_process_result) {
+  // NOTE: The MSDN documentation for `CreateProcess` states that it
+  // returns before the process has "finished initialization," but is
+  // not clear on precisely what initialization entails. It would seem
+  // that this does not affect inherited handles, as it stands to
+  // reason that the system call to `CreateProcess` causes inheritable
+  // handles to become inherited, and not some "initialization" of the
+  // child process. However, if an inheritance race condition
+  // manifests, this assumption should be re-evaluated.
+
+  if (pipes.isSome()) {
+    // These handles should no longer be inheritable. This prevents other child
+    // processes from accidentally inheriting the wrong handles.
+    //
+    // NOTE: This is explicit, and does not take into account the
+    // previous inheritance semantics of each `HANDLE`. It is assumed
+    // that users of this function send non-inheritable handles.
+    foreach (const os::WindowsFD& fd, pipes.get()) {
+      const Try<Nothing> inherit = set_inherit(fd, false);
+      if (inherit.isError()) {
+        return Error(inherit.error());
+      }
+    }
+  }
+
+  if (result == FALSE) {
     return WindowsError(
         "Failed to call `CreateProcess`: " + stringify(arg_string));
   }
 
-  return ProcessData{
-    SharedHandle{process_info.hProcess, ::CloseHandle},
-    SharedHandle{process_info.hThread, ::CloseHandle},
-    static_cast<pid_t>(process_info.dwProcessId)};
+  return ProcessData{SharedHandle{process_info.hProcess, ::CloseHandle},
+                     SharedHandle{process_info.hThread, ::CloseHandle},
+                     static_cast<pid_t>(process_info.dwProcessId)};
 }
 
 } // namespace windows {
-
 } // namespace internal {
 
 namespace os {
-
 namespace Shell {
 
 // Canonical constants used as platform-dependent args to `exec` calls.
@@ -346,11 +378,11 @@ inline int spawn(
 
   // Wait for the process synchronously.
   ::WaitForSingleObject(
-      process_data.get().process_handle.get_handle(), INFINITE);
+      process_data->process_handle.get_handle(), INFINITE);
 
   DWORD status;
   if (!::GetExitCodeProcess(
-           process_data.get().process_handle.get_handle(),
+           process_data->process_handle.get_handle(),
            &status)) {
     LOG(WARNING) << "Failed to `GetExitCodeProcess`: " << command;
     return -1;
