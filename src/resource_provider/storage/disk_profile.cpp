@@ -16,8 +16,6 @@
 
 #include <string>
 
-#include <mesos/mesos.hpp>
-
 #include <mesos/module/disk_profile.hpp>
 
 #include <mesos/resource_provider/storage/disk_profile.hpp>
@@ -52,14 +50,14 @@ public:
 
   virtual Future<DiskProfileAdaptor::ProfileInfo> translate(
       const string& profile,
-      const string& csiPluginInfoType) override
+      const ResourceProviderInfo& resourceProviderInfo) override
   {
     return Failure("By default, disk profiles are not supported");
   }
 
   virtual Future<hashset<string>> watch(
       const hashset<string>& knownProfiles,
-      const string& csiPluginInfoType) override
+      const ResourceProviderInfo& resourceProviderInfo) override
   {
     // If the input set of profiles is empty, that means the caller is in sync
     // with this module. Hence, we return a future that will never be satisified

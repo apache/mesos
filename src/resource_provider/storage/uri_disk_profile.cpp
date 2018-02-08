@@ -20,8 +20,6 @@
 #include <string>
 #include <tuple>
 
-#include <mesos/mesos.hpp>
-
 #include <mesos/module/disk_profile.hpp>
 
 #include <mesos/resource_provider/storage/disk_profile.hpp>
@@ -100,25 +98,25 @@ UriDiskProfileAdaptor::~UriDiskProfileAdaptor()
 
 Future<DiskProfileAdaptor::ProfileInfo> UriDiskProfileAdaptor::translate(
     const string& profile,
-    const std::string& csiPluginInfoType)
+    const ResourceProviderInfo& resourceProviderInfo)
 {
   return dispatch(
       process.get(),
       &UriDiskProfileAdaptorProcess::translate,
       profile,
-      csiPluginInfoType);
+      resourceProviderInfo);
 }
 
 
 Future<hashset<string>> UriDiskProfileAdaptor::watch(
     const hashset<string>& knownProfiles,
-    const std::string& csiPluginInfoType)
+    const ResourceProviderInfo& resourceProviderInfo)
 {
   return dispatch(
       process.get(),
       &UriDiskProfileAdaptorProcess::watch,
       knownProfiles,
-      csiPluginInfoType);
+      resourceProviderInfo);
 }
 
 
@@ -138,7 +136,7 @@ void UriDiskProfileAdaptorProcess::initialize()
 Future<DiskProfileAdaptor::ProfileInfo>
   UriDiskProfileAdaptorProcess::translate(
       const string& profile,
-      const std::string& csiPluginInfoType)
+      const ResourceProviderInfo& resourceProviderInfo)
 {
   if (data.count(profile) != 1) {
     return Failure("Profile '" + profile + "' not found");
@@ -150,7 +148,7 @@ Future<DiskProfileAdaptor::ProfileInfo>
 
 Future<hashset<string>> UriDiskProfileAdaptorProcess::watch(
     const hashset<string>& knownProfiles,
-    const std::string& csiPluginInfoType)
+    const ResourceProviderInfo& resourceProviderInfo)
 {
   if (profiles != knownProfiles) {
     return profiles;

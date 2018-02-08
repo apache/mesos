@@ -21,13 +21,15 @@
 #include <string>
 #include <tuple>
 
+#include <csi/spec.hpp>
+
+#include <mesos/mesos.hpp>
+
 #include <process/future.hpp>
 
 #include <stout/hashset.hpp>
 #include <stout/none.hpp>
 #include <stout/nothing.hpp>
-
-#include <csi/spec.hpp>
 
 namespace mesos {
 
@@ -97,43 +99,46 @@ public:
   virtual ~DiskProfileAdaptor() {}
 
   /**
-   * Called before a Storage Resource Provider makes an affected CSI request.
-   * The caller is responsible for copying the returned values into the request
-   * object.
+   * Returns the CSI volume capability and the parameters to create CSI
+   * volumes associated with the profile.
    *
-   * This method is expected to return a Failure if a matching "profile"
+   * This method is expected to return a Failure if a matching profile
    * cannot be found or retrieved. The caller should not proceed with
    * any of the affected CSI requests if this method returns a failure.
    *
-   * The `csiPluginInfoType` parameter is the `CSIPluginInfo::type` field
-   * found inside `ResourceProviderInfo::storage`. This module may choose to
-   * filter results based on the type of CSI plugin.
+   * The `resourceProviderInfo` parameter is the `ResourceProviderInfo`
+   * of the storage resource provider. This module may choose to filter
+   * results based on the type and name of the resource provider, or
+   * based on the type of the CSI plugin.
    *
-   * NOTE: This module assumes that profiles are immutable after creation.
-   * Changing the `VolumeCapability` or Parameters of a profile after creation
-   * may result in undefined behavior from the SLRP or CSI plugins.
+   * NOTE: This module assumes that profiles are immutable after
+   * creation. Changing the CSI volume capability or parameters of a
+   * profile after creation may result in undefined behavior from the
+   * storage resource provider.
    */
   virtual process::Future<ProfileInfo> translate(
       const std::string& profile,
-      const std::string& csiPluginInfoType) = 0;
+      const ResourceProviderInfo& resourceProviderInfo) = 0;
 
   /**
-   * Returns a future that will be satisifed iff the set of profiles known
-   * by the module differs from the `knownProfiles` parameter.
+   * Returns a future that will be satisifed iff the set of profiles
+   * known by the module differs from the `knownProfiles` parameter.
    *
-   * The `csiPluginInfoType` parameter is the `CSIPluginInfo::type` field
-   * found inside `ResourceProviderInfo::storage`. This module may choose to
-   * filter results based on the type of CSI plugin.
+   * The `resourceProviderInfo` parameter is the `ResourceProviderInfo`
+   * of the storage resource provider. This module may choose to filter
+   * results based on the type and name of the resource provider, or
+   * based on the type of the CSI plugin.
    *
-   * NOTE: It is highly recommended for the module to insert a random delay
-   * between discovering a different set of profiles and satisfying this
-   * future, because the SLRP is expected to update the set of offered
-   * resources based on this future. Adding a random delay may prevent
-   * a thundering herd of resource updates to the Mesos master.
+   * NOTE: It is highly recommended for the module to insert a random
+   * delay between discovering a different set of profiles and
+   * satisfying this future, because the storage resource provider is
+   * expected to update the set of offered resources based on this
+   * future. Adding a random delay may prevent a thundering herd of
+   * resource updates to the Mesos master.
    */
   virtual process::Future<hashset<std::string>> watch(
       const hashset<std::string>& knownProfiles,
-      const std::string& csiPluginInfoType) = 0;
+      const ResourceProviderInfo& resourceProviderInfo) = 0;
 
 protected:
   DiskProfileAdaptor() {}

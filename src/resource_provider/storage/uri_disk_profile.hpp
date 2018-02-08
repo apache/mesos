@@ -180,11 +180,11 @@ public:
 
   virtual process::Future<mesos::DiskProfileAdaptor::ProfileInfo> translate(
       const std::string& profile,
-      const std::string& csiPluginInfoType) override;
+      const ResourceProviderInfo& resourceProviderInfo) override;
 
   virtual process::Future<hashset<std::string>> watch(
       const hashset<std::string>& knownProfiles,
-      const std::string& csiPluginInfoType) override;
+      const ResourceProviderInfo& resourceProviderInfo) override;
 
 protected:
   Flags flags;
@@ -202,11 +202,11 @@ public:
 
   process::Future<mesos::DiskProfileAdaptor::ProfileInfo> translate(
       const std::string& profile,
-      const std::string& csiPluginInfoType);
+      const ResourceProviderInfo& resourceProviderInfo);
 
   process::Future<hashset<std::string>> watch(
       const hashset<std::string>& knownProfiles,
-      const std::string& csiPluginInfoType);
+      const ResourceProviderInfo& resourceProviderInfo);
 
 private:
   // Helpers for fetching the `--uri`.
