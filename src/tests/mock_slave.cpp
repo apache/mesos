@@ -118,6 +118,8 @@ MockSlave::MockSlave(
         authorizer)
 {
   // Set up default behaviors, calling the original methods.
+  EXPECT_CALL(*this, ___run(_, _, _, _, _, _))
+    .WillRepeatedly(Invoke(this, &MockSlave::unmocked____run));
   EXPECT_CALL(*this, runTask(_, _, _, _, _, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_runTask));
   EXPECT_CALL(*this, _run(_, _, _, _, _, _))
@@ -138,6 +140,26 @@ MockSlave::MockSlave(
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_executorTerminated));
   EXPECT_CALL(*this, shutdownExecutor(_, _, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_shutdownExecutor));
+  EXPECT_CALL(*this, _shutdownExecutor(_, _))
+    .WillRepeatedly(Invoke(this, &MockSlave::unmocked__shutdownExecutor));
+}
+
+
+void MockSlave::unmocked____run(
+    const Future<Nothing>& future,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const ContainerID& containerId,
+    const list<TaskInfo>& tasks,
+    const list<TaskGroupInfo>& taskGroups)
+{
+  slave::Slave::___run(
+      future,
+      frameworkId,
+      executorId,
+      containerId,
+      tasks,
+      taskGroups);
 }
 
 
@@ -241,6 +263,15 @@ void MockSlave::unmocked_shutdownExecutor(
 {
   slave::Slave::shutdownExecutor(from, frameworkId, executorId);
 }
+
+
+void MockSlave::unmocked__shutdownExecutor(
+    slave::Framework* framework,
+    slave::Executor* executor)
+{
+  slave::Slave::_shutdownExecutor(framework, executor);
+}
+
 
 } // namespace tests {
 } // namespace internal {

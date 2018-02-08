@@ -101,6 +101,22 @@ public:
       SecretGenerator* secretGenerator,
       const Option<Authorizer*>& authorizer);
 
+  MOCK_METHOD6(___run, void(
+      const process::Future<Nothing>& future,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const ContainerID& containerId,
+      const std::list<TaskInfo>& tasks,
+      const std::list<TaskGroupInfo>& taskGroups));
+
+  void unmocked____run(
+      const process::Future<Nothing>& future,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const ContainerID& containerId,
+      const std::list<TaskInfo>& tasks,
+      const std::list<TaskGroupInfo>& taskGroups);
+
   MOCK_METHOD6(runTask, void(
       const process::UPID& from,
       const FrameworkInfo& frameworkInfo,
@@ -200,6 +216,14 @@ public:
       const process::UPID& from,
       const FrameworkID& frameworkId,
       const ExecutorID& executorId);
+
+  MOCK_METHOD2(_shutdownExecutor, void(
+      slave::Framework* framework,
+      slave::Executor* executor));
+
+  void unmocked__shutdownExecutor(
+      slave::Framework* framework,
+      slave::Executor* executor);
 };
 
 } // namespace tests {

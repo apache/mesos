@@ -170,6 +170,20 @@ public:
       const Option<TaskGroupInfo>& taskGroup,
       const std::vector<ResourceVersionUUID>& resourceVersionUuids);
 
+  // This is called when the resource limits of the container have
+  // been updated for the given tasks and task groups. If the update is
+  // successful, we flush the given tasks to the executor by sending
+  // RunTaskMessages or `LAUNCH_GROUP` events.
+  //
+  // Made 'virtual' for Slave mocking.
+  virtual void ___run(
+      const process::Future<Nothing>& future,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const ContainerID& containerId,
+      const std::list<TaskInfo>& tasks,
+      const std::list<TaskGroupInfo>& taskGroups);
+
   // Made 'virtual' for Slave mocking.
   virtual void runTaskGroup(
       const process::UPID& from,
@@ -188,6 +202,15 @@ public:
       const process::UPID& from,
       const FrameworkID& frameworkId,
       const ExecutorID& executorId);
+
+  // Shut down an executor. This is a two phase process. First, an
+  // executor receives a shut down message (shut down phase), then
+  // after a configurable timeout the slave actually forces a kill
+  // (kill phase, via the isolator) if the executor has not
+  // exited.
+  //
+  // Made 'virtual' for Slave mocking.
+  virtual void _shutdownExecutor(Framework* framework, Executor* executor);
 
   void shutdownFramework(
       const process::UPID& from,
@@ -379,18 +402,6 @@ public:
       const Option<TaskGroupInfo>& taskGroup,
       const std::vector<ResourceVersionUUID>& resourceVersionUuids);
 
-  // This is called when the resource limits of the container have
-  // been updated for the given tasks and task groups. If the update is
-  // successful, we flush the given tasks to the executor by sending
-  // RunTaskMessages or `LAUNCH_GROUP` events.
-  void ___run(
-      const process::Future<Nothing>& future,
-      const FrameworkID& frameworkId,
-      const ExecutorID& executorId,
-      const ContainerID& containerId,
-      const std::list<TaskInfo>& tasks,
-      const std::list<TaskGroupInfo>& taskGroups);
-
   process::Future<Secret> generateSecret(
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
@@ -547,13 +558,6 @@ private:
 
   void _authenticate();
   void authenticationTimeout(process::Future<bool> future);
-
-  // Shut down an executor. This is a two phase process. First, an
-  // executor receives a shut down message (shut down phase), then
-  // after a configurable timeout the slave actually forces a kill
-  // (kill phase, via the isolator) if the executor has not
-  // exited.
-  void _shutdownExecutor(Framework* framework, Executor* executor);
 
   // Process creation of persistent volumes (for CREATE) and/or deletion
   // of persistent volumes (for DESTROY) as a part of handling
