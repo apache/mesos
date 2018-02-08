@@ -233,6 +233,9 @@ public:
         {
           "profile_matrix": {
             "volume-default": {
+              "csi_plugin_type_selector": {
+                "plugin_type": "org.apache.mesos.csi.test"
+              },
               "volume_capabilities": {
                 "mount": {},
                 "access_mode": {
@@ -241,6 +244,9 @@ public:
               }
             },
             "block-default": {
+              "csi_plugin_type_selector": {
+                "plugin_type": "org.apache.mesos.csi.test"
+              },
               "volume_capabilities": {
                 "block": {},
                 "access_mode": {
