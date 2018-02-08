@@ -235,16 +235,19 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Add)
 {
   const ContentType contentType = GetParam();
 
-  Try<Owned<cluster::Master>> master = StartMaster();
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.allocation_interval = Milliseconds(50);
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "filesystem/linux";
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.isolation = "filesystem/linux";
 
   // Disable HTTP authentication to simplify resource provider interactions.
-  flags.authenticate_http_readwrite = false;
+  slaveFlags.authenticate_http_readwrite = false;
 
   // Set the resource provider capability.
   vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
@@ -252,16 +255,16 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Add)
   capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
   capabilities.push_back(capability);
 
-  flags.agent_features = SlaveCapabilities();
-  flags.agent_features->mutable_capabilities()->CopyFrom(
+  slaveFlags.agent_features = SlaveCapabilities();
+  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
       {capabilities.begin(), capabilities.end()});
 
-  flags.resource_provider_config_dir = resourceProviderConfigDir;
+  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -277,11 +280,16 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Add)
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
-  Future<vector<Offer>> offers;
+  // We use the following filter to filter offers that do not have
+  // wanted resources for 365 days (the maximum).
+  Filters declineFilters;
+  declineFilters.set_refuse_seconds(Days(365).secs());
 
   // Decline offers that contain only the agent's default resources.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillRepeatedly(DeclineOffers());
+    .WillOnce(DeclineOffers(declineFilters));
+
+  Future<vector<Offer>> offers;
 
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
       std::bind(&Resources::hasResourceProvider, lambda::_1))))
@@ -324,16 +332,19 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_AddConflict)
 {
   const ContentType contentType = GetParam();
 
-  Try<Owned<cluster::Master>> master = StartMaster();
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.allocation_interval = Milliseconds(50);
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "filesystem/linux";
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.isolation = "filesystem/linux";
 
   // Disable HTTP authentication to simplify resource provider interactions.
-  flags.authenticate_http_readwrite = false;
+  slaveFlags.authenticate_http_readwrite = false;
 
   // Set the resource provider capability.
   vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
@@ -341,11 +352,11 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_AddConflict)
   capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
   capabilities.push_back(capability);
 
-  flags.agent_features = SlaveCapabilities();
-  flags.agent_features->mutable_capabilities()->CopyFrom(
+  slaveFlags.agent_features = SlaveCapabilities();
+  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
       {capabilities.begin(), capabilities.end()});
 
-  flags.resource_provider_config_dir = resourceProviderConfigDir;
+  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   // Generate a pre-existing config.
   const string configPath = path::join(resourceProviderConfigDir, "test.json");
@@ -356,7 +367,7 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_AddConflict)
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -393,16 +404,19 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Update)
 {
   const ContentType contentType = GetParam();
 
-  Try<Owned<cluster::Master>> master = StartMaster();
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.allocation_interval = Milliseconds(50);
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "filesystem/linux";
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.isolation = "filesystem/linux";
 
   // Disable HTTP authentication to simplify resource provider interactions.
-  flags.authenticate_http_readwrite = false;
+  slaveFlags.authenticate_http_readwrite = false;
 
   // Set the resource provider capability.
   vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
@@ -410,11 +424,11 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Update)
   capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
   capabilities.push_back(capability);
 
-  flags.agent_features = SlaveCapabilities();
-  flags.agent_features->mutable_capabilities()->CopyFrom(
+  slaveFlags.agent_features = SlaveCapabilities();
+  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
       {capabilities.begin(), capabilities.end()});
 
-  flags.resource_provider_config_dir = resourceProviderConfigDir;
+  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   // Generate a pre-existing config.
   const string configPath = path::join(resourceProviderConfigDir, "test.json");
@@ -425,7 +439,7 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Update)
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -441,27 +455,37 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Update)
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
-  Future<vector<Offer>> oldOffers;
-  Future<vector<Offer>> newOffers;
+  // We use the following filter to filter offers that do not have
+  // wanted resources for 365 days (the maximum).
+  Filters declineFilters;
+  declineFilters.set_refuse_seconds(Days(365).secs());
 
   // Decline offers that contain only the agent's default resources.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillRepeatedly(DeclineOffers());
+    .WillOnce(DeclineOffers(declineFilters));
+
+  Future<vector<Offer>> oldOffers;
 
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
       std::bind(&Resources::hasResourceProvider, lambda::_1))))
-    .WillOnce(FutureArg<1>(&oldOffers))
-    .WillOnce(FutureArg<1>(&newOffers));
-
-  Future<OfferID> rescinded;
-
-  EXPECT_CALL(sched, offerRescinded(&driver, _))
-    .WillOnce(FutureArg<1>(&rescinded));
+    .WillOnce(FutureArg<1>(&oldOffers));
 
   driver.start();
 
   // Wait for an offer having the old provider resource.
   AWAIT_READY(oldOffers);
+  ASSERT_FALSE(oldOffers->empty());
+
+  Future<OfferID> rescinded;
+
+  EXPECT_CALL(sched, offerRescinded(&driver, oldOffers->at(0).id()))
+    .WillOnce(FutureArg<1>(&rescinded));
+
+  Future<vector<Offer>> newOffers;
+
+  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
+      std::bind(&Resources::hasResourceProvider, lambda::_1))))
+    .WillOnce(FutureArg<1>(&newOffers));
 
   ResourceProviderInfo info = createResourceProviderInfo("volume1:2GB");
 
@@ -505,12 +529,15 @@ TEST_P(AgentResourceProviderConfigApiTest, UpdateNotFound)
 {
   const ContentType contentType = GetParam();
 
-  Try<Owned<cluster::Master>> master = StartMaster();
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.allocation_interval = Milliseconds(50);
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  slave::Flags flags = CreateSlaveFlags();
+  slave::Flags slaveFlags = CreateSlaveFlags();
 
   // Set the resource provider capability.
   vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
@@ -518,16 +545,16 @@ TEST_P(AgentResourceProviderConfigApiTest, UpdateNotFound)
   capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
   capabilities.push_back(capability);
 
-  flags.agent_features = SlaveCapabilities();
-  flags.agent_features->mutable_capabilities()->CopyFrom(
+  slaveFlags.agent_features = SlaveCapabilities();
+  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
       {capabilities.begin(), capabilities.end()});
 
-  flags.resource_provider_config_dir = resourceProviderConfigDir;
+  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -551,16 +578,19 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Remove)
 {
   const ContentType contentType = GetParam();
 
-  Try<Owned<cluster::Master>> master = StartMaster();
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.allocation_interval = Milliseconds(50);
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "filesystem/linux";
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.isolation = "filesystem/linux";
 
   // Disable HTTP authentication to simplify resource provider interactions.
-  flags.authenticate_http_readwrite = false;
+  slaveFlags.authenticate_http_readwrite = false;
 
   // Set the resource provider capability.
   vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
@@ -568,11 +598,11 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Remove)
   capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
   capabilities.push_back(capability);
 
-  flags.agent_features = SlaveCapabilities();
-  flags.agent_features->mutable_capabilities()->CopyFrom(
+  slaveFlags.agent_features = SlaveCapabilities();
+  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
       {capabilities.begin(), capabilities.end()});
 
-  flags.resource_provider_config_dir = resourceProviderConfigDir;
+  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   // Generate a pre-existing config.
   const string configPath = path::join(resourceProviderConfigDir, "test.json");
@@ -582,7 +612,7 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Remove)
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -598,25 +628,31 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Remove)
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
-  Future<vector<Offer>> oldOffers;
+  // We use the following filter to filter offers that do not have
+  // wanted resources for 365 days (the maximum).
+  Filters declineFilters;
+  declineFilters.set_refuse_seconds(Days(365).secs());
 
   // Decline offers that contain only the agent's default resources.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillRepeatedly(DeclineOffers());
+    .WillOnce(DeclineOffers(declineFilters));
+
+  Future<vector<Offer>> oldOffers;
 
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
       std::bind(&Resources::hasResourceProvider, lambda::_1))))
     .WillOnce(FutureArg<1>(&oldOffers));
 
-  Future<OfferID> rescinded;
-
-  EXPECT_CALL(sched, offerRescinded(&driver, _))
-    .WillOnce(FutureArg<1>(&rescinded));
-
   driver.start();
 
   // Wait for an offer having the old provider resource.
   AWAIT_READY(oldOffers);
+  ASSERT_FALSE(oldOffers->empty());
+
+  Future<OfferID> rescinded;
+
+  EXPECT_CALL(sched, offerRescinded(&driver, oldOffers->at(0).id()))
+    .WillOnce(FutureArg<1>(&rescinded));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       http::OK().status,
@@ -637,12 +673,15 @@ TEST_P(AgentResourceProviderConfigApiTest, RemoveNotFound)
 {
   const ContentType contentType = GetParam();
 
-  Try<Owned<cluster::Master>> master = StartMaster();
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.allocation_interval = Milliseconds(50);
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  slave::Flags flags = CreateSlaveFlags();
+  slave::Flags slaveFlags = CreateSlaveFlags();
 
   // Set the resource provider capability.
   vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
@@ -650,16 +689,16 @@ TEST_P(AgentResourceProviderConfigApiTest, RemoveNotFound)
   capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
   capabilities.push_back(capability);
 
-  flags.agent_features = SlaveCapabilities();
-  flags.agent_features->mutable_capabilities()->CopyFrom(
+  slaveFlags.agent_features = SlaveCapabilities();
+  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
       {capabilities.begin(), capabilities.end()});
 
-  flags.resource_provider_config_dir = resourceProviderConfigDir;
+  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
