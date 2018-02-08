@@ -52,7 +52,6 @@ using process::Clock;
 using process::Future;
 using process::Owned;
 
-using testing::AtLeast;
 using testing::Sequence;
 
 namespace mesos {
@@ -449,17 +448,21 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_SmallDisk)
   MesosSchedulerDriver driver(
       &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
 
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> rawDisksOffers;
+
   // We use the following filter to filter offers that do not have
   // wanted resources for 365 days (the maximum).
   Filters declineFilters;
   declineFilters.set_refuse_seconds(Days(365).secs());
 
-  EXPECT_CALL(sched, registered(&driver, _, _));
+  // Decline offers that do not contain wanted resources.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillRepeatedly(DeclineOffers(declineFilters));
 
-  Future<vector<Offer>> rawDisksOffers;
-
-  // We are interested in offers that contains both the storage pool and
-  // the pre-existing volume.
+  // We expect to receive an offer that contains a storage pool and a
+  // pre-existing volume.
   auto isStoragePool = [](const Resource& r) {
     return r.has_disk() &&
       r.disk().has_source() &&
@@ -475,13 +478,9 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_SmallDisk)
       !r.disk().source().has_profile();
   };
 
-  // Since the master may send out offers before the resource provider
-  // reports the storage pool, we decline offers that do not have any
-  // storage pool. This would also decline offers that contain only the
-  // agent's default resources.
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillRepeatedly(DeclineOffers(declineFilters));
-
+  // Since the resource provider always reports the pre-existing volume,
+  // but only reports the storage pool after it gets the profile, an
+  // offer containing the latter will also contain the former.
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
       isStoragePool)))
     .WillOnce(FutureArg<1>(&rawDisksOffers));
@@ -594,15 +593,20 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NewProfile)
       1,
       updateSlave3->resource_providers().providers(0).total_resources_size());
 
+  // A storage pool is a RAW disk that has a profile but no ID.
+  auto isStoragePool = [](const Resource& r) {
+    return r.has_disk() &&
+      r.disk().has_source() &&
+      r.disk().source().type() == Resource::DiskInfo::Source::RAW &&
+      !r.disk().source().has_id() &&
+      r.disk().source().has_profile();
+  };
+
   Option<Resource> volumeStoragePool;
   Option<Resource> blockStoragePool;
   foreach (const Resource& resource,
            updateSlave3->resource_providers().providers(0).total_resources()) {
-    if (!resource.has_disk() ||
-        !resource.disk().has_source() ||
-        resource.disk().source().type() != Resource::DiskInfo::Source::RAW ||
-        !resource.disk().source().has_profile() ||
-        resource.disk().source().has_id()) {
+    if (!isStoragePool(resource)) {
       continue;
     }
 
@@ -670,27 +674,28 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolume)
   MesosSchedulerDriver driver(
       &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  // We use the following filter so that the resources will not be
-  // filtered for 5 seconds (the default).
-  Filters acceptFilters;
-  acceptFilters.set_refuse_seconds(0);
-
-  // We use the following filter to filter offers that do not have
-  // wanted resources for 365 days (the maximum).
-  Filters declineFilters;
-  declineFilters.set_refuse_seconds(Days(365).secs());
-
   EXPECT_CALL(sched, registered(&driver, _, _));
 
   // The framework is expected to see the following offers in sequence:
   //   1. One containing a RAW disk resource before `CREATE_VOLUME`.
   //   2. One containing a MOUNT disk resource after `CREATE_VOLUME`.
   //   3. One containing a RAW disk resource after `DESTROY_VOLUME`.
+  //
+  // We set up the expectations for these offers as the test progresses.
   Future<vector<Offer>> rawDiskOffers;
   Future<vector<Offer>> volumeCreatedOffers;
   Future<vector<Offer>> volumeDestroyedOffers;
 
   Sequence offers;
+
+  // We use the following filter to filter offers that do not have
+  // wanted resources for 365 days (the maximum).
+  Filters declineFilters;
+  declineFilters.set_refuse_seconds(Days(365).secs());
+
+  // Decline offers that contain only the agent's default resources.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillRepeatedly(DeclineOffers(declineFilters));
 
   // We are only interested in any storage pool or created volume which
   // has a "volume-default" profile.
@@ -704,24 +709,10 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolume)
       r.disk().source().type() == type;
   };
 
-  // Decline offers that contain only the agent's default resources.
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillRepeatedly(DeclineOffers(declineFilters));
-
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
       std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::RAW))))
     .InSequence(offers)
     .WillOnce(FutureArg<1>(&rawDiskOffers));
-
-  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::MOUNT))))
-    .InSequence(offers)
-    .WillOnce(FutureArg<1>(&volumeCreatedOffers));
-
-  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::RAW))))
-    .InSequence(offers)
-    .WillOnce(FutureArg<1>(&volumeDestroyedOffers));
 
   driver.start();
 
@@ -740,6 +731,16 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolume)
   ASSERT_SOME(source);
 
   // Create a volume.
+  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
+      std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::MOUNT))))
+    .InSequence(offers)
+    .WillOnce(FutureArg<1>(&volumeCreatedOffers));
+
+  // We use the following filter so that the resources will not be
+  // filtered for 5 seconds (the default).
+  Filters acceptFilters;
+  acceptFilters.set_refuse_seconds(0);
+
   driver.acceptOffers(
       {rawDiskOffers->at(0).id()},
       {CREATE_VOLUME(source.get(), Resource::DiskInfo::Source::MOUNT)},
@@ -778,6 +779,11 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolume)
   EXPECT_TRUE(os::exists(volumePath.get()));
 
   // Destroy the created volume.
+  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
+      std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::RAW))))
+    .InSequence(offers)
+    .WillOnce(FutureArg<1>(&volumeDestroyedOffers));
+
   driver.acceptOffers(
       {volumeCreatedOffers->at(0).id()},
       {DESTROY_VOLUME(volume.get())},
@@ -857,16 +863,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolumeRecovery)
   MesosSchedulerDriver driver(
       &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  // We use the following filter so that the resources will not be
-  // filtered for 5 seconds (the default).
-  Filters acceptFilters;
-  acceptFilters.set_refuse_seconds(0);
-
-  // We use the following filter to filter offers that do not have
-  // wanted resources for 365 days (the maximum).
-  Filters declineFilters;
-  declineFilters.set_refuse_seconds(Days(365).secs());
-
   EXPECT_CALL(sched, registered(&driver, _, _));
 
   // The framework is expected to see the following offers in sequence:
@@ -875,12 +871,23 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolumeRecovery)
   //   3. One containing a MOUNT disk resource after the agent recovers
   //      from a failover.
   //   4. One containing a RAW disk resource after `DESTROY_VOLUME`.
+  //
+  // We set up the expectations for these offers as the test progresses.
   Future<vector<Offer>> rawDiskOffers;
   Future<vector<Offer>> volumeCreatedOffers;
-  Future<vector<Offer>> agentRecoveredOffers;
+  Future<vector<Offer>> slaveRecoveredOffers;
   Future<vector<Offer>> volumeDestroyedOffers;
 
   Sequence offers;
+
+  // We use the following filter to filter offers that do not have
+  // wanted resources for 365 days (the maximum).
+  Filters declineFilters;
+  declineFilters.set_refuse_seconds(Days(365).secs());
+
+  // Decline offers that contain only the agent's default resources.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillRepeatedly(DeclineOffers(declineFilters));
 
   // We are only interested in any storage pool or created volume which
   // has a "volume-default" profile.
@@ -894,28 +901,10 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolumeRecovery)
       r.disk().source().type() == type;
   };
 
-  // Decline offers that contain only the agent's default resources.
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillRepeatedly(DeclineOffers(declineFilters));
-
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
       std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::RAW))))
     .InSequence(offers)
     .WillOnce(FutureArg<1>(&rawDiskOffers));
-
-  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::MOUNT))))
-    .InSequence(offers)
-    .WillOnce(FutureArg<1>(&volumeCreatedOffers))
-    .WillOnce(FutureArg<1>(&agentRecoveredOffers));
-
-  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::RAW))))
-    .InSequence(offers)
-    .WillOnce(FutureArg<1>(&volumeDestroyedOffers));
-
-  EXPECT_CALL(sched, offerRescinded(_, _))
-    .Times(AtLeast(1));
 
   driver.start();
 
@@ -934,6 +923,16 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolumeRecovery)
   ASSERT_SOME(source);
 
   // Create a volume.
+  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
+      std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::MOUNT))))
+    .InSequence(offers)
+    .WillOnce(FutureArg<1>(&volumeCreatedOffers));
+
+  // We use the following filter so that the resources will not be
+  // filtered for 5 seconds (the default).
+  Filters acceptFilters;
+  acceptFilters.set_refuse_seconds(0);
+
   driver.acceptOffers(
       {rawDiskOffers->at(0).id()},
       {CREATE_VOLUME(source.get(), Resource::DiskInfo::Source::MOUNT)},
@@ -972,17 +971,29 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolumeRecovery)
   EXPECT_TRUE(os::exists(volumePath.get()));
 
   // Restart the agent.
+  EXPECT_CALL(sched, offerRescinded(_, _));
+
   slave.get()->terminate();
+
+  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
+      std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::MOUNT))))
+    .InSequence(offers)
+    .WillOnce(FutureArg<1>(&slaveRecoveredOffers));
 
   slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
-  AWAIT_READY(agentRecoveredOffers);
-  ASSERT_FALSE(agentRecoveredOffers->empty());
+  AWAIT_READY(slaveRecoveredOffers);
+  ASSERT_FALSE(slaveRecoveredOffers->empty());
 
   // Destroy the created volume.
+  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
+      std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::RAW))))
+    .InSequence(offers)
+    .WillOnce(FutureArg<1>(&volumeDestroyedOffers));
+
   driver.acceptOffers(
-      {agentRecoveredOffers->at(0).id()},
+      {slaveRecoveredOffers->at(0).id()},
       {DESTROY_VOLUME(volume.get())},
       acceptFilters);
 
@@ -1273,16 +1284,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResources)
   MesosSchedulerDriver driver(
       &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  // We use the following filter so that the resources will not be
-  // filtered for 5 seconds (the default).
-  Filters acceptFilters;
-  acceptFilters.set_refuse_seconds(0);
-
-  // We use the following filter to filter offers that do not have
-  // wanted resources for 365 days (the maximum).
-  Filters declineFilters;
-  declineFilters.set_refuse_seconds(Days(365).secs());
-
   EXPECT_CALL(sched, registered(&driver, _, _));
 
   // The framework is expected to see the following offers in sequence:
@@ -1300,6 +1301,15 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResources)
 
   Sequence offers;
 
+  // We use the following filter to filter offers that do not have
+  // wanted resources for 365 days (the maximum).
+  Filters declineFilters;
+  declineFilters.set_refuse_seconds(Days(365).secs());
+
+  // Decline offers that contain only the agent's default resources.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillRepeatedly(DeclineOffers(declineFilters));
+
   // We are only interested in any storage pool or created volume which
   // has a "volume-default" profile.
   auto hasSourceType = [](
@@ -1311,10 +1321,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResources)
       r.disk().source().profile() == "volume-default" &&
       r.disk().source().type() == type;
   };
-
-  // Decline offers that contain only the agent's default resources.
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillRepeatedly(DeclineOffers(declineFilters));
 
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
       std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::RAW))))
@@ -1342,6 +1348,11 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResources)
       std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::MOUNT))))
     .InSequence(offers)
     .WillOnce(FutureArg<1>(&volumeCreatedOffers));
+
+  // We use the following filter so that the resources will not be
+  // filtered for 5 seconds (the default).
+  Filters acceptFilters;
+  acceptFilters.set_refuse_seconds(0);
 
   driver.acceptOffers(
       {rawDiskOffers->at(0).id()},
@@ -2115,16 +2126,6 @@ TEST_F(
   MesosSchedulerDriver driver(
       &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  // We use the following filter so that the resources will not be
-  // filtered for 5 seconds (the default).
-  Filters acceptFilters;
-  acceptFilters.set_refuse_seconds(0);
-
-  // We use the following filter to filter offers that do not have
-  // wanted resources for 365 days (the maximum).
-  Filters declineFilters;
-  declineFilters.set_refuse_seconds(Days(365).secs());
-
   EXPECT_CALL(sched, registered(&driver, _, _));
 
   // The framework is expected to see the following offers in sequence:
@@ -2142,6 +2143,15 @@ TEST_F(
 
   Sequence offers;
 
+  // We use the following filter to filter offers that do not have
+  // wanted resources for 365 days (the maximum).
+  Filters declineFilters;
+  declineFilters.set_refuse_seconds(Days(365).secs());
+
+  // Decline offers that contain only the agent's default resources.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillRepeatedly(DeclineOffers(declineFilters));
+
   // We are only interested in any storage pool or created volume which
   // has a "volume-default" profile.
   auto hasSourceType = [](
@@ -2153,10 +2163,6 @@ TEST_F(
       r.disk().source().profile() == "volume-default" &&
       r.disk().source().type() == type;
   };
-
-  // Decline offers that contain only the agent's default resources.
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillRepeatedly(DeclineOffers(declineFilters));
 
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
       std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::RAW))))
@@ -2204,6 +2210,11 @@ TEST_F(
       std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::MOUNT))))
     .InSequence(offers)
     .WillOnce(FutureArg<1>(&volumeCreatedOffers));
+
+  // We use the following filter so that the resources will not be
+  // filtered for 5 seconds (the default).
+  Filters acceptFilters;
+  acceptFilters.set_refuse_seconds(0);
 
   driver.acceptOffers(
       {rawDiskOffers->at(0).id()},
@@ -2383,16 +2394,6 @@ TEST_F(StorageLocalResourceProviderTest, DISABLED_ROOT_ConvertPreExistingVolume)
   MesosSchedulerDriver driver(
       &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  // We use the following filter so that the resources will not be
-  // filtered for 5 seconds (the default).
-  Filters acceptFilters;
-  acceptFilters.set_refuse_seconds(0);
-
-  // We use the following filter to filter offers that do not have
-  // wanted resources for 365 days (the maximum).
-  Filters declineFilters;
-  declineFilters.set_refuse_seconds(Days(365).secs());
-
   EXPECT_CALL(sched, registered(&driver, _, _));
 
   // The framework is expected to see the following offers in sequence:
@@ -2406,6 +2407,17 @@ TEST_F(StorageLocalResourceProviderTest, DISABLED_ROOT_ConvertPreExistingVolume)
   Future<vector<Offer>> disksConvertedOffers;
   Future<vector<Offer>> disksRevertedOffers;
 
+  Sequence offers;
+
+  // We use the following filter to filter offers that do not have
+  // wanted resources for 365 days (the maximum).
+  Filters declineFilters;
+  declineFilters.set_refuse_seconds(Days(365).secs());
+
+  // Decline offers that contain only the agent's default resources.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillRepeatedly(DeclineOffers(declineFilters));
+
   // We are only interested in any pre-existing volume, which has an ID
   // but no profile.
   auto isPreExistingVolume = [](const Resource& r) {
@@ -2415,15 +2427,10 @@ TEST_F(StorageLocalResourceProviderTest, DISABLED_ROOT_ConvertPreExistingVolume)
       !r.disk().source().has_profile();
   };
 
-  // Decline offers that contain only the agent's default resources.
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillRepeatedly(DeclineOffers(declineFilters));
-
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
       isPreExistingVolume)))
-    .WillOnce(FutureArg<1>(&rawDisksOffers))
-    .WillOnce(FutureArg<1>(&disksConvertedOffers))
-    .WillOnce(FutureArg<1>(&disksRevertedOffers));
+    .InSequence(offers)
+    .WillOnce(FutureArg<1>(&rawDisksOffers));
 
   driver.start();
 
@@ -2442,6 +2449,16 @@ TEST_F(StorageLocalResourceProviderTest, DISABLED_ROOT_ConvertPreExistingVolume)
   ASSERT_EQ(2u, sources.size());
 
   // Create a volume and a block.
+  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
+      isPreExistingVolume)))
+    .InSequence(offers)
+    .WillOnce(FutureArg<1>(&disksConvertedOffers));
+
+  // We use the following filter so that the resources will not be
+  // filtered for 5 seconds (the default).
+  Filters acceptFilters;
+  acceptFilters.set_refuse_seconds(0);
+
   driver.acceptOffers(
       {rawDisksOffers->at(0).id()},
       {CREATE_VOLUME(sources.at(0), Resource::DiskInfo::Source::MOUNT),
@@ -2474,6 +2491,11 @@ TEST_F(StorageLocalResourceProviderTest, DISABLED_ROOT_ConvertPreExistingVolume)
   ASSERT_SOME(block);
 
   // Destroy the created volume.
+  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
+      isPreExistingVolume)))
+    .InSequence(offers)
+    .WillOnce(FutureArg<1>(&disksRevertedOffers));
+
   driver.acceptOffers(
       {disksConvertedOffers->at(0).id()},
       {DESTROY_VOLUME(volume.get()),
