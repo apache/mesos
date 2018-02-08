@@ -17,6 +17,8 @@
 #ifndef __RESOURCE_PROVIDER_URI_DISK_PROFILE_UTILS_HPP__
 #define __RESOURCE_PROVIDER_URI_DISK_PROFILE_UTILS_HPP__
 
+#include <mesos/mesos.hpp>
+
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 
@@ -30,6 +32,12 @@ namespace profile {
 // Helper for parsing a string as the expected data format.
 Try<resource_provider::DiskProfileMapping> parseDiskProfileMapping(
     const std::string& data);
+
+
+// Helper for checking if a resource provider is selected for a profile.
+bool isSelectedResourceProvider(
+    const resource_provider::DiskProfileMapping::CSIManifest& profileManifest,
+    const ResourceProviderInfo& resourceProviderInfo);
 
 
 // Checks the fields inside a `DiskProfileMapping` according to the
