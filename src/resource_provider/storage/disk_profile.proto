@@ -23,6 +23,29 @@ package mesos.resource_provider;
 
 message DiskProfileMapping {
   message CSIManifest {
+    // Use this selector if the profile applies to certain resource
+    // provider instances.
+    message ResourceProviderSelector {
+      message ResourceProvider {
+        string type = 1; // REQUIRED.
+        string name = 2; // REQUIRED.
+      }
+
+      repeated ResourceProvider resource_providers = 1; // REQUIRED.
+    }
+
+    // Use this selector if the profile applies to all resource
+    // providers running a specific CSI plugin implementation.
+    message CSIPluginTypeSelector {
+      string plugin_type = 1; // REQUIRED.
+    }
+
+    // One of the selectors MUST be specified.
+    oneof selector {
+      ResourceProviderSelector resource_provider_selector = 3;
+      CSIPluginTypeSelector csi_plugin_type_selector = 4;
+    }
+
     // Capabilities used for creating, publishing, and validating volumes.
     // This field is REQUIRED.
     //
