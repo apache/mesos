@@ -651,9 +651,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::recover()
       loop(
           self(),
           [=] {
-            return diskProfileAdaptor->watch(
-                knownProfiles,
-                info.storage().plugin().type())
+            return diskProfileAdaptor->watch(knownProfiles, info)
               .then(defer(self(), [=](const hashset<string>& profiles) {
                 // Save the returned set of profiles so that we
                 // can watch the module for changes to it.
@@ -995,11 +993,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverProfiles()
   // required profiles have been recovered.
   return loop(
       self(),
-      [=] {
-        return diskProfileAdaptor->watch(
-            knownProfiles,
-            info.storage().plugin().type());
-      },
+      [=] { return diskProfileAdaptor->watch(knownProfiles, info); },
       [=](const hashset<string>& profiles) -> ControlFlow<Nothing> {
         // Save the returned set of profiles so that we can watch the
         // module for changes to it, both in this loop and after
@@ -1283,8 +1277,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::updateProfiles()
       continue;
     }
 
-    futures.push_back(diskProfileAdaptor->translate(
-        profile, info.storage().plugin().type())
+    futures.push_back(diskProfileAdaptor->translate(profile, info)
       .then(defer(self(), [=](const DiskProfileAdaptor::ProfileInfo& info) {
         profileInfos.put(profile, info);
         return Nothing();
