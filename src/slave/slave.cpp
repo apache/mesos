@@ -2817,6 +2817,12 @@ void Slave::___run(
     return;
   }
 
+  // At this point, we must have either sent some tasks to the running
+  // executor or there are queued tasks that need to be delivered.
+  // Otherwise, the executor state would have been synchronously
+  // transitioned to TERMINATING when the queued tasks were killed.
+  CHECK(executor->everSentTask() || !executor->queuedTasks.empty());
+
   foreach (const TaskInfo& task, tasks) {
     // This is the case where the task is killed. No need to send
     // status update because it should be handled in 'killTask'.
@@ -3351,6 +3357,10 @@ void Slave::killTask(
         statusUpdate(update, UPID());
       }
 
+      // TODO(mzhu): Consider shutting down the executor here
+      // if all of its initial tasks are killed rather than
+      // waiting for it to register.
+
       break;
     }
     case Executor::TERMINATING:
@@ -3406,6 +3416,19 @@ void Slave::killTask(
           // 'executor->queuedTaskGroup', so that if the executor registers at
           // a later point in time, it won't get this task.
           statusUpdate(update, UPID());
+        }
+
+        // Shutdown the executor if all of its initial tasks are killed.
+        // See MESOS-8411. This is a workaround for those executors (e.g.,
+        // command executor, default executor) that do not have a proper
+        // self terminating logic when they haven't received the task or
+        // task group within a timeout.
+        if (!executor->everSentTask() && executor->queuedTasks.empty()) {
+          LOG(WARNING) << "Shutting down executor " << *executor
+                       << " because it has never been sent a task and all of"
+                       << " its queued tasks have been killed before delivery";
+
+          _shutdownExecutor(framework, executor);
         }
       } else {
         // Send a message to the executor and wait for
@@ -4220,15 +4243,10 @@ void Slave::subscribe(
       // those executors (e.g., command executor, default executor) that do not
       // have a proper self terminating logic when they haven't received the
       // task or task group within a timeout.
-      if (state != RECOVERING &&
-          executor->queuedTasks.empty() &&
-          executor->queuedTaskGroups.empty()) {
-        CHECK(executor->launchedTasks.empty())
-            << " Newly registered executor '" << executor->id
-            << "' has launched tasks";
-
-        LOG(WARNING) << "Shutting down the executor " << *executor
-                     << " because it has no tasks to run";
+      if (!executor->everSentTask() && executor->queuedTasks.empty()) {
+        LOG(WARNING) << "Shutting down subscribing executor " << *executor
+                     << " because it was never sent a task and"
+                     << " has no tasks to run";
 
         _shutdownExecutor(framework, executor);
 
@@ -4303,7 +4321,7 @@ void Slave::subscribe(
       // TODO(vinod): Consider checkpointing 'TaskInfo' instead of
       // 'Task' so that we can relaunch such tasks! Currently we don't
       // do it because 'TaskInfo.data' could be huge.
-      foreachvalue (Task* task, executor->launchedTasks) {
+      foreach (Task* task, executor->launchedTasks.values()) {
         if (task->state() == TASK_STAGING &&
             !unackedTasks.contains(task->task_id())) {
           mesos::TaskState newTaskState = TASK_DROPPED;
@@ -4447,12 +4465,8 @@ void Slave::registerExecutor(
       // this shutdown message, it is safe because the executor driver shuts
       // down the executor if it gets disconnected from the agent before
       // registration.
-      if (executor->queuedTasks.empty()) {
-        CHECK(executor->launchedTasks.empty())
-            << " Newly registered executor '" << executor->id
-            << "' has launched tasks";
-
-        LOG(WARNING) << "Shutting down the executor " << *executor
+      if (!executor->everSentTask() && executor->queuedTasks.empty()) {
+        LOG(WARNING) << "Shutting down registering executor " << *executor
                      << " because it has no tasks to run";
 
         _shutdownExecutor(framework, executor);
@@ -4648,7 +4662,7 @@ void Slave::reregisterExecutor(
       // TODO(vinod): Consider checkpointing 'TaskInfo' instead of
       // 'Task' so that we can relaunch such tasks! Currently we
       // don't do it because 'TaskInfo.data' could be huge.
-      foreachvalue (Task* task, executor->launchedTasks) {
+      foreach (Task* task, executor->launchedTasks.values()) {
         if (task->state() == TASK_STAGING &&
             !unackedTasks.contains(task->task_id())) {
           mesos::TaskState newTaskState = TASK_DROPPED;
@@ -4678,8 +4692,21 @@ void Slave::reregisterExecutor(
         }
       }
 
-      // TODO(vinod): Similar to what we do in `registerExecutor()` the executor
-      // should be shutdown if it hasn't received any tasks.
+      // Shutdown the executor if all of its initial tasks are killed.
+      // This is a workaround for those executors (e.g.,
+      // command executor, default executor) that do not have a proper
+      // self terminating logic when they haven't received the task or
+      // task group within a timeout.
+      if (!executor->everSentTask() && executor->queuedTasks.empty()) {
+        LOG(WARNING) << "Shutting down re-registering executor " << *executor
+                     << " because it has no tasks to run and"
+                     << " has never been sent a task";
+
+        _shutdownExecutor(framework, executor);
+
+        return;
+      }
+
       break;
     }
   }
@@ -4987,10 +5014,20 @@ void Slave::statusUpdate(StatusUpdate update, const Option<UPID>& pid)
   // do not need to send the container status and we must
   // synchronously transition the task to ensure that it is removed
   // from the queued tasks before the run task path continues.
+  //
+  // Also if the task is in `launchedTasks` but was dropped by the
+  // agent, we know that the task did not reach the executor. We
+  // will synchronously transition the task to ensure that the
+  // agent re-registration logic can call `everSentTask()` after
+  // dropping tasks.
   if (executor->queuedTasks.contains(status.task_id())) {
     CHECK(protobuf::isTerminalState(status.state()))
         << "Queued tasks can only be transitioned to terminal states";
 
+    _statusUpdate(update, pid, executor->id, None());
+  } else if (executor->launchedTasks.contains(status.task_id()) &&
+            (status.state() == TASK_DROPPED || status.state() == TASK_LOST) &&
+            status.source() == TaskStatus::SOURCE_SLAVE) {
     _statusUpdate(update, pid, executor->id, None());
   } else {
     // NOTE: If the executor sets the ContainerID inside the
@@ -8948,10 +8985,23 @@ Executor::Executor(
     user(_user),
     checkpoint(_checkpoint),
     http(None()),
-    pid(None()),
-    completedTasks(MAX_COMPLETED_TASKS_PER_EXECUTOR)
+    pid(None())
 {
   CHECK_NOTNULL(slave);
+
+  // NOTE: This should be greater than zero because the agent looks
+  // for completed tasks to determine (with false positives) whether
+  // an executor ever received tasks. See MESOS-8411.
+  //
+  // TODO(mzhu): Remove this check once we can determine whether an
+  // executor ever received tasks without looking through the
+  // completed tasks.
+  static_assert(
+      MAX_COMPLETED_TASKS_PER_EXECUTOR > 0,
+      "Max completed tasks per executor should be greater than zero");
+
+  completedTasks =
+    boost::circular_buffer<shared_ptr<Task>>(MAX_COMPLETED_TASKS_PER_EXECUTOR);
 
   // TODO(jieyu): The way we determine if an executor is generated for
   // a command task (either command or docker executor) is really
@@ -9257,6 +9307,32 @@ bool Executor::incompleteTasks()
   return !queuedTasks.empty() ||
          !launchedTasks.empty() ||
          !terminatedTasks.empty();
+}
+
+
+bool Executor::everSentTask() const
+{
+  if (!launchedTasks.empty()) {
+    return true;
+  }
+
+  foreachvalue (Task* task, terminatedTasks) {
+    foreach (const TaskStatus& status, task->statuses()) {
+      if (status.source() == TaskStatus::SOURCE_EXECUTOR) {
+        return true;
+      }
+    }
+  }
+
+  foreach (const shared_ptr<Task>& task, completedTasks) {
+    foreach (const TaskStatus& status, task->statuses()) {
+      if (status.source() == TaskStatus::SOURCE_EXECUTOR) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 
