@@ -26,6 +26,8 @@
 
 #include "common/http.hpp"
 
+#include "csi/paths.hpp"
+
 #include "internal/evolve.hpp"
 
 #include "slave/slave.hpp"
@@ -154,6 +156,50 @@ public:
     return info.get();
   }
 
+  virtual void TearDown()
+  {
+    foreach (const string& slaveWorkDir, slaveWorkDirs) {
+      // Clean up CSI endpoint directories if there is any.
+      const string csiRootDir = slave::paths::getCsiRootDir(slaveWorkDir);
+
+      Try<list<string>> csiContainerPaths =
+        csi::paths::getContainerPaths(csiRootDir, "*", "*");
+      ASSERT_SOME(csiContainerPaths);
+
+      foreach (const string& path, csiContainerPaths.get()) {
+        Try<csi::paths::ContainerPath> containerPath =
+          csi::paths::parseContainerPath(csiRootDir, path);
+        ASSERT_SOME(containerPath);
+
+        Result<string> endpointDir =
+          os::realpath(csi::paths::getEndpointDirSymlinkPath(
+              csiRootDir,
+              containerPath->type,
+              containerPath->name,
+              containerPath->containerId));
+
+        if (endpointDir.isSome()) {
+          ASSERT_SOME(os::rmdir(endpointDir.get()));
+        }
+      }
+    }
+
+    ContainerizerTest<slave::MesosContainerizer>::TearDown();
+  }
+
+  virtual slave::Flags CreateSlaveFlags()
+  {
+    slave::Flags flags =
+      ContainerizerTest<slave::MesosContainerizer>::CreateSlaveFlags();
+
+    // Store the agent work directory for cleaning up CSI endpoint
+    // directories during teardown.
+    // NOTE: DO NOT change the work directory afterward.
+    slaveWorkDirs.push_back(flags.work_dir);
+
+    return flags;
+  }
+
   Future<http::Response> addResourceProviderConfig(
       const PID<Slave>& pid,
       const ContentType& contentType,
@@ -219,6 +265,7 @@ public:
   }
 
 protected:
+  vector<string> slaveWorkDirs;
   string resourceProviderConfigDir;
 };
 
