@@ -2386,14 +2386,13 @@ TEST_F(
 
 // This test verifies that the storage local resource provider can
 // convert pre-existing CSI volumes into mount or block volumes.
-//
-// TODO(alexr): Enable after MESOS-8474 is resolved.
-TEST_F(StorageLocalResourceProviderTest, DISABLED_ROOT_ConvertPreExistingVolume)
+TEST_F(StorageLocalResourceProviderTest, ROOT_ConvertPreExistingVolume)
 {
+  Clock::pause();
+
   setupResourceProviderConfig(Bytes(0), "volume1:2GB;volume2:2GB");
 
   master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.allocation_interval = Milliseconds(50);
 
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
@@ -2418,13 +2417,34 @@ TEST_F(StorageLocalResourceProviderTest, DISABLED_ROOT_ConvertPreExistingVolume)
 
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
-  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
-    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+  // Since the local resource provider daemon is started after the agent
+  // is registered, it is guaranteed that the slave will send two
+  // `UpdateSlaveMessage`s, where the latter one contains resources from
+  // the storage local resource provider.
+  // NOTE: The order of the two `FUTURE_PROTOBUF`s are reversed because
+  // Google Mock will search the expectations in reverse order.
+  Future<UpdateSlaveMessage> updateSlave2 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+  Future<UpdateSlaveMessage> updateSlave1 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
-  AWAIT_READY(slaveRegisteredMessage);
+  // Advance the clock to trigger agent registration and prevent retry.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(updateSlave1);
+
+  // NOTE: We need to resume the clock so that the resource provider can
+  // periodically check if the CSI endpoint socket has been created by
+  // the plugin container, which runs in another Linux process.
+  Clock::resume();
+
+  AWAIT_READY(updateSlave2);
+  ASSERT_TRUE(updateSlave2->has_resource_providers());
+
+  Clock::pause();
 
   // Register a framework to exercise operations.
   FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
@@ -2443,20 +2463,11 @@ TEST_F(StorageLocalResourceProviderTest, DISABLED_ROOT_ConvertPreExistingVolume)
   //      `CREATE_VOLUME` and `CREATE_BLOCK`.
   //   3. One containing two RAW pre-existing volumes after
   //      `DESTROY_VOLUME` and `DESTROY_BLOCK`.
+  //
+  // We set up the expectations for these offers as the test progresses.
   Future<vector<Offer>> rawDisksOffers;
   Future<vector<Offer>> disksConvertedOffers;
   Future<vector<Offer>> disksRevertedOffers;
-
-  Sequence offers;
-
-  // We use the following filter to filter offers that do not have
-  // wanted resources for 365 days (the maximum).
-  Filters declineFilters;
-  declineFilters.set_refuse_seconds(Days(365).secs());
-
-  // Decline offers that contain only the agent's default resources.
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillRepeatedly(DeclineOffers(declineFilters));
 
   // We are only interested in any pre-existing volume, which has an ID
   // but no profile.
@@ -2469,7 +2480,6 @@ TEST_F(StorageLocalResourceProviderTest, DISABLED_ROOT_ConvertPreExistingVolume)
 
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
       isPreExistingVolume)))
-    .InSequence(offers)
     .WillOnce(FutureArg<1>(&rawDisksOffers));
 
   driver.start();
@@ -2491,19 +2501,25 @@ TEST_F(StorageLocalResourceProviderTest, DISABLED_ROOT_ConvertPreExistingVolume)
   // Create a volume and a block.
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
       isPreExistingVolume)))
-    .InSequence(offers)
     .WillOnce(FutureArg<1>(&disksConvertedOffers));
 
-  // We use the following filter so that the resources will not be
-  // filtered for 5 seconds (the default).
-  Filters acceptFilters;
-  acceptFilters.set_refuse_seconds(0);
+  // NOTE: The order of the two `FUTURE_PROTOBUF`s are reversed because
+  // Google Mock will search the expectations in reverse order.
+  Future<UpdateOperationStatusMessage> createBlockStatusUpdate =
+    FUTURE_PROTOBUF(UpdateOperationStatusMessage(), _, _);
+  Future<UpdateOperationStatusMessage> createVolumeStatusUpdate =
+    FUTURE_PROTOBUF(UpdateOperationStatusMessage(), _, _);
 
   driver.acceptOffers(
       {rawDisksOffers->at(0).id()},
       {CREATE_VOLUME(sources.at(0), Resource::DiskInfo::Source::MOUNT),
-       CREATE_BLOCK(sources.at(1))},
-      acceptFilters);
+       CREATE_BLOCK(sources.at(1))});
+
+  AWAIT_READY(createVolumeStatusUpdate);
+  AWAIT_READY(createBlockStatusUpdate);
+
+  // Advance the clock to trigger another allocation.
+  Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(disksConvertedOffers);
   ASSERT_FALSE(disksConvertedOffers->empty());
@@ -2533,14 +2549,25 @@ TEST_F(StorageLocalResourceProviderTest, DISABLED_ROOT_ConvertPreExistingVolume)
   // Destroy the created volume.
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
       isPreExistingVolume)))
-    .InSequence(offers)
     .WillOnce(FutureArg<1>(&disksRevertedOffers));
+
+  // NOTE: The order of the two `FUTURE_PROTOBUF`s are reversed because
+  // Google Mock will search the expectations in reverse order.
+  Future<UpdateOperationStatusMessage> destroyBlockStatusUpdate =
+    FUTURE_PROTOBUF(UpdateOperationStatusMessage(), _, _);
+  Future<UpdateOperationStatusMessage> destroyVolumeStatusUpdate =
+    FUTURE_PROTOBUF(UpdateOperationStatusMessage(), _, _);
 
   driver.acceptOffers(
       {disksConvertedOffers->at(0).id()},
       {DESTROY_VOLUME(volume.get()),
-       DESTROY_BLOCK(block.get())},
-      acceptFilters);
+       DESTROY_BLOCK(block.get())});
+
+  AWAIT_READY(destroyVolumeStatusUpdate);
+  AWAIT_READY(destroyBlockStatusUpdate);
+
+  // Advance the clock to trigger another allocation.
+  Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(disksRevertedOffers);
   ASSERT_FALSE(disksRevertedOffers->empty());
