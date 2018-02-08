@@ -141,6 +141,7 @@ using testing::AtMost;
 using testing::DoAll;
 using testing::Eq;
 using testing::Invoke;
+using testing::InvokeWithoutArgs;
 using testing::Return;
 using testing::SaveArg;
 using testing::WithParamInterface;
@@ -4557,6 +4558,198 @@ TEST_F(SlaveTest, KillTaskUnregisteredHTTPExecutor)
   }
 
   AWAIT_READY(shutdown);
+}
+
+
+// This test verifies that the executor is shutdown if all of its initial
+// tasks could not be delivered, even after the executor has been registered.
+// See MESOS-8411.
+TEST_F(SlaveTest, KillAllInitialTasksTerminatesExecutor)
+{
+  // Start a master.
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+
+  // Start a mock slave.
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), &containerizer, CreateSlaveFlags(), true);
+
+  ASSERT_SOME(slave);
+  ASSERT_NE(nullptr, slave.get()->mock());
+
+  slave.get()->start();
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  Resources executorResources = Resources::parse("cpus:0.1;mem:32").get();
+  executorResources.allocate("*");
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(offers->at(0).slave_id());
+  task.mutable_resources()->MergeFrom(
+      Resources(offers->at(0).resources()) - executorResources);
+
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+  task.mutable_executor()->mutable_resources()->CopyFrom(executorResources);
+
+  Future<TaskStatus> killTaskStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&killTaskStatus));
+
+  // Saved arguments from `Slave::___run()`.
+  Future<Nothing> future;
+  FrameworkID frameworkId;
+  ExecutorID executorId;
+  ContainerID containerId;
+  list<TaskInfo> tasks;
+  list<TaskGroupInfo> taskGroups;
+
+  // Kill the task after executor registration but before
+  // task launch in `___run()`.
+  Future<Nothing> ___run;
+  EXPECT_CALL(*slave.get()->mock(), ___run(_, _, _, _, _, _))
+    .WillOnce(DoAll(
+        SaveArg<0>(&future),
+        SaveArg<1>(&frameworkId),
+        SaveArg<2>(&executorId),
+        SaveArg<3>(&containerId),
+        SaveArg<4>(&tasks),
+        SaveArg<5>(&taskGroups),
+        FutureSatisfy(&___run)
+        ));
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .Times(0);
+
+  // The exeuctor is killed because its initial task is killed
+  // and cannot be delivered.
+  Future<Nothing> executorShutdown;
+  EXPECT_CALL(exec, shutdown(_))
+    .WillOnce(FutureSatisfy(&executorShutdown));
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(___run);
+
+  driver.killTask(task.task_id());
+
+  // Task is killed before the actual `___run()` is triggered.
+  AWAIT_READY(killTaskStatus);
+  EXPECT_EQ(TASK_KILLED, killTaskStatus->state());
+  EXPECT_EQ(
+      TaskStatus::REASON_TASK_KILLED_DURING_LAUNCH,
+      killTaskStatus->reason());
+
+  slave.get()->mock()->unmocked____run(
+      future,
+      frameworkId,
+      executorId,
+      containerId,
+      tasks,
+      taskGroups);
+
+  AWAIT_READY(executorShutdown);
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test verifies that the executor is shutdown during re-registration if
+// all of its initial tasks could not be delivered.
+TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest,
+    AgentFailoverTerminatesExecutorWithNoTask)
+{
+  // Start a master.
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  // Start a mock slave.
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), slaveFlags, true);
+
+  ASSERT_SOME(slave);
+  ASSERT_NE(nullptr, slave.get()->mock());
+
+  slave.get()->start();
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_checkpoint(true);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  TaskInfo task = createTask(offers->front(), "sleep 1000");
+
+  // Before sending the the task to the executor, restart the agent.
+  Future<Nothing> ___run;
+  EXPECT_CALL(*slave.get()->mock(), ___run(_, _, _, _, _, _))
+    .WillOnce(FutureSatisfy(&___run));
+
+  driver.launchTasks(offers->at(0).id(), {task});
+
+  AWAIT_READY(___run);
+
+  slave.get()->terminate();
+
+  slave = StartSlave(detector.get(), slaveFlags, true);
+
+  ASSERT_SOME(slave);
+  ASSERT_NE(nullptr, slave.get()->mock());
+
+  Future<Nothing> shutdownExecutor;
+  EXPECT_CALL(*slave.get()->mock(), _shutdownExecutor(_, _))
+    .WillOnce(FutureSatisfy(&shutdownExecutor));
+
+  slave.get()->start();
+
+  // The executor is killed during reregistration because its initial task is
+  // killed and cannot be delivered.
+  AWAIT_READY(shutdownExecutor);
+
+  driver.stop();
+  driver.join();
 }
 
 
