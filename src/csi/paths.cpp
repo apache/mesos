@@ -80,6 +80,41 @@ string getContainerPath(
 }
 
 
+Try<ContainerPath> parseContainerPath(const string& rootDir, const string& dir)
+{
+  // TODO(chhsiao): Consider using `<regex>`, which requires GCC 4.9+.
+
+  // Make sure there's a separator at the end of the `rootDir` so that
+  // we don't accidentally slice off part of a directory.
+  const string prefix = path::join(rootDir, "");
+
+  if (!strings::startsWith(dir, prefix)) {
+    return Error(
+        "Directory '" + dir + "' does not fall under the root directory '" +
+        rootDir + "'");
+  }
+
+  vector<string> tokens = strings::tokenize(
+      dir.substr(prefix.size()),
+      stringify(os::PATH_SEPARATOR));
+
+  // A complete container path consists of 4 tokens:
+  //   <type>/<name>/containers/<volume_id>
+  if (tokens.size() != 4 || tokens[2] != CONTAINERS_DIR) {
+    return Error(
+        "Path '" + path::join(tokens) + "' does not match the structure of a "
+        "container path");
+  }
+
+  ContainerPath path;
+  path.type = tokens[0];
+  path.name = tokens[1];
+  path.containerId.set_value(tokens[3]);
+
+  return path;
+}
+
+
 string getContainerInfoPath(
     const string& rootDir,
     const string& type,
@@ -186,7 +221,7 @@ Try<VolumePath> parseVolumePath(const string& rootDir, const string& dir)
 {
   // TODO(chhsiao): Consider using `<regex>`, which requires GCC 4.9+.
 
-  // Make sure there's a separator at the end of the `rootdir` so that
+  // Make sure there's a separator at the end of the `rootDir` so that
   // we don't accidentally slice off part of a directory.
   const string prefix = path::join(rootDir, "");
 

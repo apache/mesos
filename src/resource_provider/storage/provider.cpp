@@ -706,8 +706,21 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverServices()
   list<Future<Nothing>> futures;
 
   foreach (const string& path, containerPaths.get()) {
-    ContainerID containerId;
-    containerId.set_value(Path(path).basename());
+    Try<csi::paths::ContainerPath> containerPath =
+      csi::paths::parseContainerPath(
+          slave::paths::getCsiRootDir(workDir),
+          path);
+
+    if (containerPath.isError()) {
+      return Failure(
+          "Failed to parse container path '" + path + "': " +
+          containerPath.error());
+    }
+
+    CHECK_EQ(info.storage().plugin().type(), containerPath->type);
+    CHECK_EQ(info.storage().plugin().name(), containerPath->name);
+
+    const ContainerID& containerId = containerPath->containerId;
 
     // Do not kill the up-to-date controller or node container.
     // Otherwise, kill them and perform cleanups.
