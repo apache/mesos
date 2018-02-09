@@ -570,10 +570,17 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
     return Failure("Container has already been prepared");
   }
 
+  bool needsSeparateNs = false;
+  if ((containerConfig.has_container_info() &&
+        containerConfig.container_info().network_infos().size() > 0) ||
+            !containerId.has_parent()) {
+    needsSeparateNs = true;
+  }
+
   hashmap<string, ContainerNetwork> containerNetworks;
   Option<string> hostname;
 
-  if (!containerId.has_parent()) {
+  if (needsSeparateNs) {
     const ExecutorInfo& executorInfo = containerConfig.executor_info();
     if (!executorInfo.has_container()) {
       return None();
@@ -618,13 +625,6 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
     // `ContainerConfig.container` is set, it implies that the nested
     // container needs to have a separate network namespace, else the
     // nested container shares its network namespace with the parent.
-    if (containerConfig.has_container_info() &&
-        containerConfig.container_info().network_infos().size() > 0) {
-      return Failure(
-          "Currently, we don't support different network namespaces for "
-          "parent and nested containers.");
-    }
-
     ContainerID rootContainerId = protobuf::getRootContainerId(containerId);
 
     // NOTE: The `network/cni` isolator checkpoints only the following
@@ -721,7 +721,7 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
     env->set_name("LIBPROCESS_IP");
     env->set_value("0.0.0.0");
 
-    if (!containerId.has_parent()) {
+    if (needsSeparateNs) {
       auto mesosTestNetwork = [=]() {
         foreachkey (const string& networkName, containerNetworks) {
           // We can specify test networks to the `network/cni` isolator
@@ -751,10 +751,11 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
         launchInfo.add_clone_namespaces(CLONE_NEWNET);
         launchInfo.add_clone_namespaces(CLONE_NEWNS);
         launchInfo.add_clone_namespaces(CLONE_NEWUTS);
+        infos[containerId]->needsSeparateNs = needsSeparateNs;
       }
     } else {
-      // This is a nested container. This shares the parent's network
-      // and UTS namespace. For non-DEBUG containers it also needs a
+      // This is a nested container and wants to share parent's network
+      // and UTS namespace. For non-DEBUG containers, it also needs a
       // new mount namespace.
       launchInfo.add_enter_namespaces(CLONE_NEWNET);
       launchInfo.add_enter_namespaces(CLONE_NEWUTS);
@@ -820,18 +821,16 @@ Future<Nothing> NetworkCniIsolatorProcess::isolate(
   CHECK_SOME(rootDir);
   CHECK_SOME(pluginDir);
 
-  if (containerId.has_parent()) {
+  if (!infos[containerId]->needsSeparateNs) {
     // We create network files for only those containers for which we
-    // create a new network namespace. Therefore, in a nested
-    // container hierarchy only the container at the root of the
-    // hierarchy (the top level container) would have network files
-    // created. Hence, find the top level container for the hierarchy
-    // to which this container belongs. We will use the network files
-    // of the top level root container to setup the network files for
-    // this nested container.
+    // create a new network namespace. Therefore, for nested
+    // containers that want to share network namespace with the parent
+    // container, find the top level container in the nested container
+    // hierarchy. We will use the network files of the top level root
+    // container to setup the network files for this nested container.
     ContainerID rootContainerId = protobuf::getRootContainerId(containerId);
 
-    // Since the nested container joins non-host networks, its root
+    // Since this nested container wants to join non-host networks, its root
     // container has to join non-host networks because we have the
     // invariant that all containers in a hierarchy join the same
     // networks.
@@ -865,7 +864,7 @@ Future<Nothing> NetworkCniIsolatorProcess::isolate(
     // Setup the required network files and the hostname in the
     // container's filesystem and UTS namespace.
     //
-    // NOTE: Since nested containers share the UTS and network
+    // NOTE: For nested container that want to share the UTS and network
     // namespace with their root container, we do not need to setup
     // the hostname here. The hostname should have already been setup
     // when setting up the network namespace for the root container.
@@ -959,6 +958,16 @@ Future<Nothing> NetworkCniIsolatorProcess::_isolate(
   string hostname = info->hostname.isSome()
     ? info->hostname.get()
     : stringify(containerId);
+
+  // ContainerId for nested containers is in this format:
+  // "Parent ContainerId.child ContainerId". To ensure that it
+  // is not longer than HOST_NAME_MAX, we remove the parent's
+  // container id from hostname.
+  if (hostname.find(".") != string::npos) {
+    hostname = hostname.substr(
+        hostname.find(".") + 1,
+        hostname.length() - 1);
+  }
 
   const string containerDir =
     paths::getContainerDir(rootDir.get(), containerId.value());
