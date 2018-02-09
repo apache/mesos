@@ -417,18 +417,18 @@ public:
 
   virtual Future<ProfileInfo> translate(
       const std::string& profile,
-      const std::string& csiPluginInfoType) = 0;
+      const ResourceProviderInfo& resourceProviderInfo) = 0;
 
   virtual Future<hashset<std::string>> watch(
       const hashset<std::string>& knownProfiles,
-      const std::string& csiPluginInfoType) = 0;
+      const ResourceProviderInfo& resourceProviderInfo) = 0;
 };
 ```
 
 The module interface has a `translate` method that takes a profile and returns
 the corresponding [CSI volume capability](https://github.com/container-storage-interface/spec/blob/v0.1.0/spec.md#createvolume)
 (i.e., the `capability` field) and [CSI volume creation parameters](https://github.com/container-storage-interface/spec/blob/v0.1.0/spec.md#createvolume)
-(i.e., the `parameter` field) for that profile. These two fields will be used to
+(i.e., the `parameters` field) for that profile. These two fields will be used to
 call the CSI `CreateVolume` interface during dynamic provisioning (i.e.,
 `CREATE_VOLUME` and `CREATE_BLOCK`), or CSI `ControllerPublishVolume` and
 `NodePublishVolume` when publishing (i.e., when a task using the disk resources
@@ -454,14 +454,20 @@ module parameters that can be used to configure the module:
 
 * `uri`: URI to a JSON object containing the profile mapping. The module
   supports both HTTP(s) and file URIs. The JSON object should consist of some
-  top-level string keys corresponding to the profile.  Each value should contain
-  a `VolumeCapability` under `volumeCapabilities` and arbitrary key-value
-  pairs under `createParameters`. For example:
+  top-level string keys corresponding to the disk profile name. Each value
+  should contain a `ResourceProviderSelector` under `resource_provider_selector`
+  or a `CSIPluginTypeSelector` under `csi_plugin_type_selector` to specify the
+  set of resource providers this profile applies to, followed by a
+  `VolumeCapability` under `volume_capabilities` and arbitrary key-value pairs
+  under `create_parameters`. For example:
 
 ```json
 {
   "profile_matrix": {
     "my-profile": {
+      "csi_plugin_type_selector": {
+        "plugin_type": "org.apache.mesos.csi.test"
+      },
       "volume_capabilities": {
         "mount": {
           "fs_type": "xfs"
@@ -481,8 +487,8 @@ module parameters that can be used to configure the module:
 ```
 * `poll_interval`: How long to wait between polling the specified `uri`.  If the
   poll interval has elapsed since the last fetch, then the URI is re-fetched;
-  otherwise, a cached ProfileInfo is returned. If not specified, the URI is only
-  fetched once.
+  otherwise, a cached `ProfileInfo` is returned. If not specified, the URI is
+  only fetched once.
 * `max_random_wait`: How long at most to wait between discovering a new set of
   profiles and notifying the callers of `watch`. The actual wait time is a
   uniform random value between 0 and this value. If the `--uri` points to a
@@ -501,14 +507,14 @@ add the following JSON to the `--modules` agent flag, and set agent flag
       "modules": [
         {
           "name": "org_apache_mesos_UriDiskProfileAdaptor",
-          "parameters" : [
+          "parameters": [
             {
               "key": "uri",
-              "value" : "/PATH/TO/my_profile.json"
+              "value": "/PATH/TO/my_profile.json"
             },
             {
               "key": "poll_interval",
-              "value" : "1secs"
+              "value": "1secs"
             }
           ]
         }
