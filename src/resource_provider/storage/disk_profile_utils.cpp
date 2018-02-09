@@ -91,6 +91,8 @@ bool isSelectedResourceProvider(
       UNREACHABLE();
     }
   }
+
+  UNREACHABLE();
 }
 
 
