@@ -95,8 +95,7 @@ private:
           const Option<std::string>& _hostname = None())
       : containerNetworks (_containerNetworks),
         rootfs(_rootfs),
-        hostname(_hostname),
-        needsSeparateNs(false) {}
+        hostname(_hostname) {}
 
     // CNI network information keyed by network name.
     //
@@ -111,6 +110,7 @@ private:
     const Option<std::string> rootfs;
 
     const Option<std::string> hostname;
+
     bool needsSeparateNs = false;
   };
 
