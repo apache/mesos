@@ -5125,7 +5125,11 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceForward)
   // Scheduler expectations.
   EXPECT_CALL(sched, registered(_, _, _));
 
+  Future<TaskStatus> statusStarting;
+  Future<TaskStatus> statusRunning;
   EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
+    .WillOnce(FutureArg<1>(&statusRunning))
     .WillRepeatedly(Return());
 
   Future<vector<Offer>> offers1;
@@ -5156,6 +5160,13 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceForward)
   ASSERT_EQ(1u, containers->size());
 
   ContainerID containerId = *(containers->begin());
+
+  // Wait until task is running.
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   // Stop the slave.
   slave.get()->terminate();
@@ -5229,7 +5240,11 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceBackward)
   // Scheduler expectations.
   EXPECT_CALL(sched, registered(_, _, _));
 
+  Future<TaskStatus> statusStarting;
+  Future<TaskStatus> statusRunning;
   EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
+    .WillOnce(FutureArg<1>(&statusRunning))
     .WillRepeatedly(Return());
 
   Future<vector<Offer>> offers1;
@@ -5260,6 +5275,13 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceBackward)
   ASSERT_EQ(1u, containers->size());
 
   ContainerID containerId = *(containers->begin());
+
+  // Wait until task is running.
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   // Stop the slave.
   slave.get()->terminate();
