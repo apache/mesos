@@ -1,0 +1,14 @@
+[Unit]
+Description=Marathon: container orchestration engine.
+
+[Service]
+Restart=always
+StartLimitInterval=0
+RestartSec=5
+LimitNOFILE=16384
+Environment="LIBPROCESS_IP=0.0.0.0"
+Environment="MARATHON_HOSTNAME=localhost"
+ExecStart=/usr/local/marathon/bin/marathon.sh
+
+[Install]
+WantedBy=multi-user.target
