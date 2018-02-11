@@ -496,6 +496,7 @@ Release Notes - Mesos - Version 1.4.2 (WIP)
 ** Bug
  * [MESOS-7504] - Parent's mount namespace cannot be determined when launching a nested container.
  * [MESOS-7975] - The command/default/docker executor can incorrectly send a TASK_FINISHED update even when the task is killed.
+ * [MESOS-8125] - Agent should properly handle recovering an executor when its pid is reused.
  * [MESOS-8159] - ns::clone uses an async signal unsafe stack.
  * [MESOS-8237] - Strip (Offer|Resource).allocation_info for non-MULTI_ROLE schedulers.
  * [MESOS-8297] - Built-in driver-based executors ignore kill task if the task has not been launched.
