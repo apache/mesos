@@ -8612,9 +8612,7 @@ TEST_F(MasterTest, RegistryGcByCount)
 // that isn't motivated by (re-)registration (e.g. when adding
 // resources) is correctly handled by agent and master: Offers are
 // rescinded and new resources are offered.
-//
-// TODO(alexr): Enable after MESOS-8490 is resolved.
-TEST_F(MasterTest, DISABLED_UpdateSlaveMessageWithPendingOffers)
+TEST_F(MasterTest, UpdateSlaveMessageWithPendingOffers)
 {
   Clock::pause();
 
@@ -8718,7 +8716,9 @@ TEST_F(MasterTest, DISABLED_UpdateSlaveMessageWithPendingOffers)
   updateState->mutable_resource_version_uuid()->set_value(
       id::UUID::random().toBytes());
 
-  EXPECT_CALL(*scheduler, rescind(_, _));
+  Future<Nothing> rescinded;
+  EXPECT_CALL(*scheduler, rescind(_, _))
+    .WillOnce(FutureSatisfy(&rescinded));
 
   EXPECT_CALL(*scheduler, offers(_, _))
     .WillOnce(FutureArg<1>(&offers));
@@ -8726,6 +8726,11 @@ TEST_F(MasterTest, DISABLED_UpdateSlaveMessageWithPendingOffers)
   resourceProvider->send(call);
 
   AWAIT_READY(updateSlaveMessage);
+
+  AWAIT_READY(rescinded);
+
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::settle();
 
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->offers().empty());
