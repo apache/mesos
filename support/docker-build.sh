@@ -71,6 +71,8 @@ case $OS in
       *16.04*)
         echo "Install Ubuntu 16.04 LTS (Xenial Xerus) specific packages"
         append_dockerfile "RUN apt-get install -y openjdk-8-jdk zlib1g-dev"
+        # Install ping required by OsTest.Which
+        append_dockerfile "RUN apt-get install -y iputils-ping"
        ;;
       *)
         append_dockerfile "RUN apt-get install -y openjdk-7-jdk"
