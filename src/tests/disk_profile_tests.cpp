@@ -411,7 +411,9 @@ TEST_F(UriDiskProfileTest, ParseInvalids)
 // This creates a UriDiskProfile module configured to read from a file
 // and tests the basic `watch` -> `translate` workflow which callers of
 // the module are expected to follow.
-TEST_F(UriDiskProfileTest, FetchFromFile)
+//
+// Enable this test once MESOS-8567 is resolved.
+TEST_F(UriDiskProfileTest, DISABLED_FetchFromFile)
 {
   Clock::pause();
 
