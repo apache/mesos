@@ -12,6 +12,7 @@ Release Notes - Mesos - Version 1.4.2 (WIP)
  * [MESOS-8356] - Persistent volume ownership is set to root despite of sandbox owner (frameworkInfo.user) when docker executor is used.
  * [MESOS-8411] - Killing a queued task can lead to the command executor never terminating.
  * [MESOS-8480] - Mesos returns high resource usage when killing a Docker task.
+ * [MESOS-8552] - CGROUPS_ROOT_PidNamespaceForward and CGROUPS_ROOT_PidNamespaceBackward tests fail.
 
 
 Release Notes - Mesos - Version 1.4.1
