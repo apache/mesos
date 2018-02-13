@@ -129,6 +129,94 @@ TEST_F(FetcherTest, FileURI)
 }
 
 
+TEST_F(FetcherTest, LogSuccessToStderr)
+{
+  // Valid test file with data.
+  string fromDir = path::join(os::getcwd(), "from");
+  ASSERT_SOME(os::mkdir(fromDir));
+  string testFile = path::join(fromDir, "test");
+  EXPECT_SOME(os::write(testFile, "data"));
+
+  string localFile = path::join(os::getcwd(), "test");
+  EXPECT_FALSE(os::exists(localFile));
+
+  // Fetcher stderr file.
+  string stderrFile = path::join(os::getcwd(), "stderr");
+  EXPECT_FALSE(os::exists(stderrFile));
+
+  slave::Flags flags;
+  flags.launcher_dir = getLauncherDir();
+
+  ContainerID containerId;
+  containerId.set_value(id::UUID::random().toString());
+
+  CommandInfo commandInfo;
+  CommandInfo::URI* uri = commandInfo.add_uris();
+  uri->set_value(uri::from_path(testFile));
+
+  Fetcher fetcher(flags);
+
+  Future<Nothing> fetch =
+    fetcher.fetch(containerId, commandInfo, os::getcwd(), None());
+  AWAIT_READY(fetch);
+
+  EXPECT_TRUE(os::exists(localFile));
+
+  // Fetcher created log file.
+  EXPECT_TRUE(os::exists(stderrFile));
+
+  // Fetcher logged success to stderr.
+  const Try<string> stderrContent = os::read(stderrFile);
+  EXPECT_SOME(stderrContent);
+  EXPECT_TRUE(strings::contains(
+      stderrContent.get(), "Fetching directly into the sandbox directory"));
+  EXPECT_TRUE(strings::contains(
+      stderrContent.get(), "Successfully fetched all URIs into"));
+}
+
+
+TEST_F(FetcherTest, LogFailureToStderr)
+{
+  // Purposefully invalid file to fetch.
+  string testFile = path::join(os::getcwd(), "test");
+  EXPECT_FALSE(os::exists(testFile));
+
+  string localFile = path::join(os::getcwd(), "test");
+  EXPECT_FALSE(os::exists(localFile));
+
+  // Fetcher stderr file.
+  string stderrFile = path::join(os::getcwd(), "stderr");
+  EXPECT_FALSE(os::exists(stderrFile));
+
+  slave::Flags flags;
+  flags.launcher_dir = getLauncherDir();
+
+  ContainerID containerId;
+  containerId.set_value(id::UUID::random().toString());
+
+  CommandInfo commandInfo;
+  CommandInfo::URI* uri = commandInfo.add_uris();
+  uri->set_value(uri::from_path(testFile));
+
+  Fetcher fetcher(flags);
+
+  Future<Nothing> fetch =
+    fetcher.fetch(containerId, commandInfo, os::getcwd(), None());
+  AWAIT_FAILED(fetch);
+
+  // Failed to fetch.
+  EXPECT_FALSE(os::exists(localFile));
+
+  // Fetcher created log file.
+  EXPECT_TRUE(os::exists(stderrFile));
+
+  // Fetcher logged failure to stderr.
+  Try<string> stderrContent = os::read(stderrFile);
+  EXPECT_SOME(stderrContent);
+  EXPECT_TRUE(strings::contains(stderrContent.get(), "Failed to fetch"));
+}
+
+
 // TODO(coffler): Test uses os::getuid(), which does not exist on Windows.
 //     Disable test until privilege model is worked out on Windows.
 #ifndef __WINDOWS__
