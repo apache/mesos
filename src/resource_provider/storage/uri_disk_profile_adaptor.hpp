@@ -216,13 +216,15 @@ public:
       const hashset<std::string>& knownProfiles,
       const ResourceProviderInfo& resourceProviderInfo);
 
-private:
   // Helpers for fetching the `--uri`.
   // If `--poll_interval` is set, this method will dispatch to itself with
   // a delay once the fetch is complete.
+  // Made public for testing purpose.
   void poll();
-  void _poll(const Try<std::string>& fetched);
+  void _poll(const process::Future<process::http::Response>& future);
+  void __poll(const Try<std::string>& fetched);
 
+private:
   // Helper that is called upon successfully polling and parsing the `--uri`.
   // This method will check the following conditions before updating the state
   // of the module:
@@ -230,7 +232,6 @@ private:
   //   * All properties of known profiles must match those in the updated set.
   void notify(const resource_provider::DiskProfileMapping& parsed);
 
-private:
   UriDiskProfileAdaptor::Flags flags;
 
   // The last fetched profile mapping.

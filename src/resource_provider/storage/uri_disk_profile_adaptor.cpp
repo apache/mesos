@@ -197,24 +197,28 @@ void UriDiskProfileAdaptorProcess::poll()
     CHECK_SOME(url);
 
     http::get(url.get())
-      .onAny(defer(self(), [=](const Future<http::Response>& future) {
-        if (future.isReady()) {
-          // NOTE: We don't check the HTTP status code because we don't know
-          // what potential codes are considered successful.
-          _poll(future->body);
-        } else if (future.isFailed()) {
-          _poll(Error(future.failure()));
-        } else {
-          _poll(Error("Future discarded or abandoned"));
-        }
-      }));
+      .onAny(defer(self(), &Self::_poll, lambda::_1));
   } else {
-    _poll(os::read(flags.uri.string()));
+    __poll(os::read(flags.uri.string()));
   }
 }
 
 
-void UriDiskProfileAdaptorProcess::_poll(const Try<string>& fetched)
+void UriDiskProfileAdaptorProcess::_poll(const Future<http::Response>& future)
+{
+  if (future.isReady()) {
+    // NOTE: We don't check the HTTP status code because we don't know
+    // what potential codes are considered successful.
+    __poll(future->body);
+  } else if (future.isFailed()) {
+    __poll(Error(future.failure()));
+  } else {
+    __poll(Error("Future discarded or abandoned"));
+  }
+}
+
+
+void UriDiskProfileAdaptorProcess::__poll(const Try<string>& fetched)
 {
   if (fetched.isSome()) {
     Try<DiskProfileMapping> parsed = parseDiskProfileMapping(fetched.get());

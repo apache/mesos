@@ -40,8 +40,8 @@
 
 #include "module/manager.hpp"
 
-#include "resource_provider/storage/uri_disk_profile_adaptor.hpp"
 #include "resource_provider/storage/disk_profile_utils.hpp"
+#include "resource_provider/storage/uri_disk_profile_adaptor.hpp"
 
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
@@ -400,9 +400,7 @@ TEST_F(UriDiskProfileAdaptorTest, ParseInvalids)
 // This creates a UriDiskProfileAdaptor module configured to read from a
 // file and tests the basic `watch` -> `translate` workflow which
 // callers of the module are expected to follow.
-//
-// Enable this test once MESOS-8567 is resolved.
-TEST_F(UriDiskProfileAdaptorTest, DISABLED_FetchFromFile)
+TEST_F(UriDiskProfileAdaptorTest, FetchFromFile)
 {
   Clock::pause();
 
@@ -456,6 +454,7 @@ TEST_F(UriDiskProfileAdaptorTest, DISABLED_FetchFromFile)
         params);
 
   ASSERT_SOME(_module);
+
   Owned<DiskProfileAdaptor> module(_module.get());
 
   // Start watching for updates.
@@ -646,6 +645,7 @@ TEST_F(UriDiskProfileAdaptorTest, FetchFromHTTP)
         params);
 
   ASSERT_SOME(_module);
+
   Owned<DiskProfileAdaptor> module(_module.get());
 
   // Wait for the first HTTP poll to complete.
@@ -659,13 +659,16 @@ TEST_F(UriDiskProfileAdaptorTest, FetchFromHTTP)
   // Start watching for an update to the list of profiles.
   future = module->watch({"profile"}, resourceProviderInfo);
 
+  Future<Nothing> contentsPolled =
+    FUTURE_DISPATCH(_, &storage::UriDiskProfileAdaptorProcess::_poll);
+
   // Trigger the second HTTP poll.
   Clock::advance(pollInterval);
   AWAIT_ASSERT_READY(secondCall);
 
-  // Dispatch a call to the module, which ensures that the polling has actually
-  // completed (not just the HTTP call).
-  AWAIT_ASSERT_READY(module->translate("profile", resourceProviderInfo));
+  // Ensure that the polling has actually completed.
+  AWAIT_ASSERT_READY(contentsPolled);
+  Clock::settle();
 
   // We don't expect the module to notify watcher(s) because the server's
   // response is considered invalid (the module does not allow profiles

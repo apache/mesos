@@ -2661,7 +2661,12 @@ mesos_tests_CPPFLAGS += -I../$(GMOCK)/include
 mesos_tests_CPPFLAGS += -DTESTLIBEXECDIR=\"$(testlibexecdir)\"
 mesos_tests_CPPFLAGS += -DSBINDIR=\"$(sbindir)\"
 
-mesos_tests_LDADD = ../3rdparty/libgmock.la libmesos.la $(LIB_GRPC) $(LDADD)
+mesos_tests_LDADD =                                             \
+  ../3rdparty/libgmock.la                                       \
+  libmesos.la                                                   \
+  liburi_disk_profile_adaptor.la                                \
+  $(LIB_GRPC)                                                   \
+  $(LDADD)
 
 if !OS_FREEBSD
   mesos_tests_LDADD += -ldl # FreeBSD includes dynamic lib utils in libc.
@@ -2670,6 +2675,7 @@ endif
 mesos_tests_DEPENDENCIES =					\
   ../3rdparty/libgmock.la					\
   libmesos.la							\
+  liburi_disk_profile_adaptor.la                                \
   $(MESOS_TEST_MODULES)
 
 if OS_LINUX
