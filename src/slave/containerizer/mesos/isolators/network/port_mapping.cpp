@@ -62,6 +62,7 @@
 #include "linux/fs.hpp"
 #include "linux/ns.hpp"
 
+#include "linux/routing/internal.hpp"
 #include "linux/routing/route.hpp"
 #include "linux/routing/utils.hpp"
 
@@ -73,6 +74,7 @@
 
 #include "linux/routing/handle.hpp"
 
+#include "linux/routing/link/internal.hpp"
 #include "linux/routing/link/link.hpp"
 #include "linux/routing/link/veth.hpp"
 
@@ -1588,20 +1590,13 @@ Option<Statistics<uint64_t>> PercentileRatesCollector::txErrorRate() const
 }
 
 
-void PercentileRatesCollector::sample()
-{
-  const Time ts = Clock::now();
-
-  Result<hashmap<string, uint64_t>> stats = link::statistics(link);
-  if (stats.isSome()) {
-    sample(ts, std::move(stats.get()));
-  }
-}
-
-
 void PercentileRatesCollector::sample(
     const Time& ts, hashmap<string, uint64_t>&& statistics)
 {
+  if (statistics.empty()) {
+    return;
+  }
+
   if (previous.isSome() && previous.get() < ts) {
     // We sample statistics on the host end of the veth pair, so we
     // need to reverse RX and TX to get statistics inside the
@@ -1652,7 +1647,7 @@ public:
 
   void initialize() override
   {
-    schedule();
+    sample();
   }
 
   Future<ResourceStatistics> usage(const ContainerID& containerId)
@@ -1724,13 +1719,54 @@ public:
   }
 
 private:
-  void schedule()
+  // This method is mostly a copy of routing::link::statistics(), but
+  // with the ability to use the existing links cache. It was copied
+  // here to preserve libnl-agnostic interface of routing package and
+  // ease the cleanup when this collector will be replaced with eBPF.
+  static hashmap<string, uint64_t> statistics(
+      const Netlink<struct nl_cache>& cache,
+      const string& link)
   {
-    foreachvalue (PercentileRatesCollector& collector, collectors) {
-      collector.sample();
+    hashmap<string, uint64_t> results;
+
+    struct rtnl_link* l = rtnl_link_get_by_name(cache.get(), link.c_str());
+    if (l) {
+      Netlink<struct rtnl_link> _link(l);
+
+      rtnl_link_stat_id_t stats[] = {
+        RTNL_LINK_RX_PACKETS,
+        RTNL_LINK_RX_BYTES,
+        RTNL_LINK_RX_ERRORS,
+        RTNL_LINK_RX_DROPPED,
+        RTNL_LINK_TX_PACKETS,
+        RTNL_LINK_TX_BYTES,
+        RTNL_LINK_TX_ERRORS,
+        RTNL_LINK_TX_DROPPED,
+      };
+
+      char buf[32];
+      size_t size = sizeof(stats) / sizeof(stats[0]);
+      for (size_t i = 0; i < size; i++) {
+        rtnl_link_stat2str(stats[i], buf, 32);
+        results[buf] = rtnl_link_get_stat(_link.get(), stats[i]);
+      }
     }
 
-    delay(interval, self(), &Self::schedule);
+    return results;
+  }
+
+  void sample()
+  {
+    const Time timestamp = Clock::now();
+
+    Try<Netlink<struct nl_cache>> cache = link::internal::get();
+    if (cache.isSome()) {
+      foreachvalue (PercentileRatesCollector& collector, collectors) {
+        collector.sample(timestamp, statistics(cache.get(), collector.link));
+      }
+    }
+
+    delay(interval, self(), &Self::sample);
   }
 
   void copyRate(
