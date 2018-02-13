@@ -104,8 +104,14 @@ MockSlave::MockSlave(
     QoSController* qosController,
     SecretGenerator* secretGenerator,
     const Option<Authorizer*>& authorizer)
-  : slave::Slave(
-        process::ID::generate("slave"),
+  // It is necessary to explicitly call `ProcessBase` constructor here even
+  // though the direct parent `Slave` already does this. This is because
+  // `ProcessBase` being a virtual base class, if not being explicitly
+  // constructed here by passing `id`, will be constructed implicitly first with
+  // a default constructor, resulting in lost argument `id`.
+  : ProcessBase(id),
+    slave::Slave(
+        id,
         flags,
         detector,
         containerizer,
