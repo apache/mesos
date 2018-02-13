@@ -4924,6 +4924,125 @@ TEST_F(SlaveTest, KillAllInitialTasksTerminatesHTTPExecutor)
 }
 
 
+// This test verifies that if an agent fails over after registering
+// a v1 executor but before delivering its initial task groups, the
+// executor will be shut down since all of its initial task groups
+// were dropped. See MESOS-8411.
+//
+// TODO(mzhu): This test could be simplified if we had a test scheduler that
+// provides some basic task launching functionality (see MESOS-8511).
+TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest,
+    AgentFailoverTerminatesHTTPExecutorWithNoTask)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  string processId = process::ID::generate("slave");
+
+  // Start a mock slave.
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), processId, slaveFlags, true);
+
+  ASSERT_SOME(slave);
+  ASSERT_NE(nullptr, slave.get()->mock());
+
+  slave.get()->start();
+
+  // Enable checkpointing for the framework.
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_checkpoint(true);
+
+  v1::Resources resources =
+    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+
+  v1::ExecutorInfo executorInfo = v1::DEFAULT_EXECUTOR_INFO;
+  executorInfo.clear_command();
+  executorInfo.set_type(v1::ExecutorInfo::DEFAULT);
+  executorInfo.mutable_resources()->CopyFrom(resources);
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(FutureSatisfy(&connected));
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(connected);
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  mesos.send(
+      v1::createCallSubscribe(frameworkInfo));
+
+  AWAIT_READY(subscribed);
+
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  // Update `executorInfo` with the subscribed `frameworkId`.
+  executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+
+  const v1::Offer& offer = offers->offers(0);
+  const v1::AgentID& agentId = offer.agent_id();
+
+  Future<Nothing> ___run;
+  EXPECT_CALL(*slave.get()->mock(), ___run(_, _, _, _, _, _))
+    .WillOnce(FutureSatisfy(&___run));
+
+  v1::TaskInfo task1 =
+    v1::createTask(agentId, resources, "sleep 1000");
+
+  v1::TaskInfo task2 =
+    v1::createTask(agentId, resources, "sleep 1000");
+
+  v1::TaskGroupInfo taskGroup;
+  taskGroup.add_tasks()->CopyFrom(task1);
+  taskGroup.add_tasks()->CopyFrom(task2);
+
+  v1::Offer::Operation launchGroup = v1::LAUNCH_GROUP(executorInfo, taskGroup);
+
+  mesos.send(
+      v1::createCallAccept(frameworkId, offer, {launchGroup}));
+
+  // Before sending the the task to the executor, restart the agent.
+  AWAIT_READY(___run);
+
+  slave.get()->terminate();
+  slave->reset();
+
+  slave = StartSlave(detector.get(), processId, slaveFlags, true);
+
+  slave.get()->start();
+
+  Future<Nothing> _shutdownExecutor;
+  EXPECT_CALL(*slave.get()->mock(), _shutdownExecutor(_, _))
+    .WillOnce(FutureSatisfy(&_shutdownExecutor));
+
+  // The executor is killed because all of its initial tasks are killed
+  // and cannot be delivered.
+  AWAIT_READY(_shutdownExecutor);
+}
+
+
 // This test verifies that when a slave re-registers with the master
 // it correctly includes the latest and status update task states.
 TEST_F(SlaveTest, ReregisterWithStatusUpdateTaskState)

@@ -381,14 +381,23 @@ Try<Owned<cluster::Slave>> MesosTest::StartSlave(
 Try<Owned<cluster::Slave>> MesosTest::StartSlave(
     MasterDetector* detector,
     const string& id,
-    const Option<slave::Flags>& flags)
+    const Option<slave::Flags>& flags,
+    bool mock)
 {
   Try<Owned<cluster::Slave>> slave = cluster::Slave::create(
       detector,
       flags.isNone() ? CreateSlaveFlags() : flags.get(),
-      id);
+      id,
+      None(),
+      None(),
+      None(),
+      None(),
+      None(),
+      None(),
+      None(),
+      mock);
 
-  if (slave.isSome()) {
+  if (slave.isSome() && !mock) {
     slave.get()->start();
   }
 
