@@ -3558,6 +3558,11 @@ Future<Response> Http::launchNestedContainerSession(
         .then(defer(slave->self(),
                     [=](const Response& response) -> Future<Response> {
           if (response.status != OK().status) {
+            LOG(WARNING) << "Failed to attach to nested container "
+                         << containerId << ": '" << response.status << "' ("
+                         << response.body << ")";
+
+            destroy(containerId);
             return response;
           }
 
