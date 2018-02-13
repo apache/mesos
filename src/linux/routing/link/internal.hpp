@@ -52,9 +52,8 @@ inline void cleanup(struct rtnl_link* link)
 namespace link {
 namespace internal {
 
-// Returns the netlink link object associated with a given link by its
-// name. Returns None if the link is not found.
-inline Result<Netlink<struct rtnl_link>> get(const std::string& link)
+// Returns the cache of all link objects from the kernel.
+inline Try<Netlink<struct nl_cache>> get()
 {
   Try<Netlink<struct nl_sock>> socket = routing::socket();
   if (socket.isError()) {
@@ -69,8 +68,20 @@ inline Result<Netlink<struct rtnl_link>> get(const std::string& link)
     return Error(nl_geterror(error));
   }
 
-  Netlink<struct nl_cache> cache(c);
-  struct rtnl_link* l = rtnl_link_get_by_name(cache.get(), link.c_str());
+  return Netlink<struct nl_cache>(c);
+}
+
+
+// Returns the netlink link object associated with a given link by its
+// name. Returns None if the link is not found.
+inline Result<Netlink<struct rtnl_link>> get(const std::string& link)
+{
+  Try<Netlink<struct nl_cache>> cache = get();
+  if (cache.isError()) {
+    return Error(cache.error());
+  }
+
+  struct rtnl_link* l = rtnl_link_get_by_name(cache->get(), link.c_str());
   if (l == nullptr) {
     return None();
   }
@@ -83,21 +94,12 @@ inline Result<Netlink<struct rtnl_link>> get(const std::string& link)
 // interface index. Returns None if the link is not found.
 inline Result<Netlink<struct rtnl_link>> get(int index)
 {
-  Try<Netlink<struct nl_sock>> socket = routing::socket();
-  if (socket.isError()) {
-    return Error(socket.error());
+  Try<Netlink<struct nl_cache>> cache = get();
+  if (cache.isError()) {
+    return Error(cache.error());
   }
 
-  // Dump all the netlink link objects from kernel. Note that the flag
-  // AF_UNSPEC means all available families.
-  struct nl_cache* c = nullptr;
-  int error = rtnl_link_alloc_cache(socket->get(), AF_UNSPEC, &c);
-  if (error != 0) {
-    return Error(nl_geterror(error));
-  }
-
-  Netlink<struct nl_cache> cache(c);
-  struct rtnl_link* l = rtnl_link_get(cache.get(), index);
+  struct rtnl_link* l = rtnl_link_get(cache->get(), index);
   if (l == nullptr) {
     return None();
   }
