@@ -534,16 +534,6 @@ protected:
       }
     }
 
-    // This could happen if the agent process failed after the child
-    // containers were launched. Shutdown the executor if this happens.
-    if (state == DISCONNECTED || state == CONNECTED) {
-      LOG(ERROR) << "Unable to complete the operation of launching child "
-                 << "containers as the executor is in state " << state;
-      _shutdown();
-      return;
-    }
-
-    CHECK_EQ(SUBSCRIBED, state);
     CHECK(launched);
     CHECK_EQ(containerIds.size(), (size_t) taskGroup.tasks().size());
 
@@ -643,7 +633,17 @@ protected:
       << stringify(taskIds()) << " in child containers "
       << stringify(containerIds);
 
-    wait(taskIds());
+    if (state == SUBSCRIBED) {
+      // `wait()` requires the executor to be subscribed.
+      //
+      // Upon subscription, `received()` will call `wait()` on all containers,
+      // so it is safe to skip it here if we are not subscribed.
+      wait(taskIds());
+    } else {
+      LOG(INFO) << "Skipped waiting on child containers of tasks "
+                << stringify(taskIds()) << " until the connection "
+                << "to the agent is reestablished";
+    }
   }
 
   void wait(const list<TaskID>& taskIds)
@@ -651,6 +651,8 @@ protected:
     CHECK_EQ(SUBSCRIBED, state);
     CHECK(launched);
     CHECK_SOME(connectionId);
+
+    LOG(INFO) << "Waiting on child containers of tasks " << stringify(taskIds);
 
     list<Future<Connection>> connections;
     for (size_t i = 0; i < taskIds.size(); i++) {
