@@ -420,30 +420,46 @@ public:
 
   Nothing detachFile(const std::string& path);
 
-  // TODO(qianzhang): This is a workaround to make the default executor
-  // task's volume directory visible in MESOS UI. In MESOS-7225, we made
-  // sure a task can access any volumes specified in its disk resources
-  // from its sandbox by introducing a workaround to the default executor,
-  // i.e., adding a `SANDBOX_PATH` volume with type `PARENT` to the
-  // corresponding nested container. This volume gets translated into a
-  // bind mount in the nested container's mount namespace, which is is not
-  // visible in Mesos UI because it operates in the host namespace. See
-  // Mesos-8279 for details.
+  // TODO(qianzhang): This is a workaround to make the default executor task's
+  // volume directory visible in MESOS UI. It handles two cases:
+  //   1. The task has disk resources specified. In this case any disk resources
+  //      specified for the task are mounted on the top level container since
+  //      currently all resources of nested containers are merged in the top
+  //      level executor container. To make sure the task can access any volumes
+  //      specified in its disk resources from its sandbox, a workaround was
+  //      introduced to the default executor in MESOS-7225, i.e., adding a
+  //      `SANDBOX_PATH` volume with type `PARENT` to the corresponding nested
+  //      container. This volume gets translated into a bind mount in the nested
+  //      container's mount namespace, which is not visible in Mesos UI because
+  //      it operates in the host namespace. See MESOS-8279 for details.
+  //   2. The executor has disk resources specified and the task's ContainerInfo
+  //      has a `SANDBOX_PATH` volume with type `PARENT` specified to share the
+  //      executor's disk volume. Similar to the first case, this `SANDBOX_PATH`
+  //      volume gets translated into a bind mount which is not visible in Mesos
+  //      UI. See MESOS-8565 for details.
   //
-  // To make the task's volume directory visible in Mesos UI, here we
-  // attach the executor's volume directory to it, so when users browse
-  // task's volume directory in Mesos UI, what they actually browse is the
-  // executor's volume directory. Note when calling `Files::attach()`, the
-  // third argument `authorized` is not specified because it is already
-  // specified when we do the attach for the executor's sandbox and it also
-  // applies to the executor's tasks.
+  // To make the task's volume directory visible in Mesos UI, here we attach the
+  // executor's volume directory to it so that it can be accessed via the /files
+  // endpoint. So when users browse task's volume directory in Mesos UI, what
+  // they actually browse is the executor's volume directory. Note when calling
+  // `Files::attach()`, the third argument `authorized` is not specified because
+  // it is already specified when we do the attach for the executor's sandbox
+  // and it also applies to the executor's tasks. Note that for the second case
+  // we can not do the attach when the task's ContainerInfo has a `SANDBOX_PATH`
+  // volume with type `PARENT` but the executor has NO disk resources, because
+  // in such case the attach will fail due to the executor's volume directory
+  // not existing which will actually be created by the `volume/sandbox_path`
+  // isolator when launching the nested container. But if the executor has disk
+  // resources, then we will not have this issue since the executor's volume
+  // directory will be created by the `filesystem/linux` isolator when launching
+  // the executor before we do the attach.
   void attachTaskVolumeDirectory(
       const ExecutorInfo& executorInfo,
       const ContainerID& executorContainerId,
       const Task& task);
 
   // TODO(qianzhang): Remove the task's volume directory from the /files
-  // endpoint. This is a workaround for MESOS-8279.
+  // endpoint. This is a workaround for MESOS-8279 and MESOS-8565.
   void detachTaskVolumeDirectories(
       const ExecutorInfo& executorInfo,
       const ContainerID& executorContainerId,
