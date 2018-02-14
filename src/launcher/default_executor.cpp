@@ -114,7 +114,7 @@ private:
     // TODO(bennoe): Create a real state machine instead of adding
     // more and more ad-hoc boolean values.
 
-    // Indicates whether a container has been launched.
+    // Indicates whether the child container has been launched.
     bool launched;
 
     // Indicates whether a status update acknowledgement
@@ -139,7 +139,6 @@ public:
     : ProcessBase(process::ID::generate("default-executor")),
       state(DISCONNECTED),
       contentType(ContentType::PROTOBUF),
-      launched(false),
       shuttingDown(false),
       unhealthy(false),
       frameworkInfo(None()),
@@ -207,7 +206,7 @@ public:
         // It is possible that the agent process had failed after we
         // had launched the child containers. We can resume waiting on the
         // child containers again.
-        if (launched) {
+        if (!containers.empty()) {
           wait(containers.keys());
         }
 
@@ -348,8 +347,6 @@ protected:
   void launchGroup(const TaskGroupInfo& taskGroup)
   {
     CHECK_EQ(SUBSCRIBED, state);
-
-    launched = true;
 
     process::http::connect(agent)
       .onAny(defer(self(), &Self::_launchGroup, taskGroup, lambda::_1));
@@ -540,7 +537,6 @@ protected:
       return;
     }
 
-    CHECK(launched);
     CHECK_EQ(containerIds.size(), (size_t) taskGroup.tasks().size());
     CHECK_EQ(containerIds.size(), responses->size());
 
@@ -666,7 +662,7 @@ protected:
   void wait(const list<TaskID>& taskIds)
   {
     CHECK_EQ(SUBSCRIBED, state);
-    CHECK(launched);
+    CHECK(!containers.empty());
     CHECK_SOME(connectionId);
 
     LOG(INFO) << "Waiting on child containers of tasks " << stringify(taskIds);
@@ -1014,7 +1010,7 @@ protected:
 
     shuttingDown = true;
 
-    if (!launched) {
+    if (containers.empty()) {
       _shutdown();
       return;
     }
@@ -1550,7 +1546,6 @@ private:
   } state;
 
   const ContentType contentType;
-  bool launched;
   bool shuttingDown;
   bool unhealthy; // Set to true if any of the tasks are reported unhealthy.
   Option<FrameworkInfo> frameworkInfo;
