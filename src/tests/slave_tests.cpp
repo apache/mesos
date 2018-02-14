@@ -4571,6 +4571,162 @@ TEST_F(SlaveTest, KillTaskUnregisteredHTTPExecutor)
 }
 
 
+// This test ensures that the agent sends an `ExitedExecutorMessage` when the
+// executor is never launched, so that the master's executor bookkeeping entry
+// is removed. See MESOS-1720.
+TEST_F(SlaveTest, RemoveExecutorUponFailedLaunch)
+{
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "cpus:2;mem:512;disk:512;ports:[]";
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  // Start a mock slave.
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), &containerizer, slaveFlags, true);
+
+  ASSERT_SOME(slave);
+  ASSERT_NE(nullptr, slave.get()->mock());
+
+  slave.get()->start();
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  Resources executorResources = Resources::parse("cpus:0.1;mem:32").get();
+  executorResources.allocate("*");
+
+  TaskInfo task;
+  task.set_name("");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(offers.get()[0].slave_id());
+  task.mutable_resources()->MergeFrom(
+      Resources(offers.get()[0].resources()) - executorResources);
+
+  task.mutable_executor()->MergeFrom(DEFAULT_EXECUTOR_INFO);
+  task.mutable_executor()->mutable_resources()->CopyFrom(executorResources);
+
+  EXPECT_CALL(exec, registered(_, _, _, _))
+    .Times(0);
+
+  Future<TaskStatus> killTaskStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&killTaskStatus));
+
+  Future<ExitedExecutorMessage> exitedExecutorMessage =
+    FUTURE_PROTOBUF(ExitedExecutorMessage(), _, _);
+
+  // Saved arguments from `Slave::_run()`.
+  Future<list<bool>> unschedules;
+  FrameworkInfo frameworkInfo;
+  ExecutorInfo executorInfo_;
+  Option<TaskGroupInfo> taskGroup_;
+  Option<TaskInfo> task_;
+  vector<ResourceVersionUUID> resourceVersionUuids;
+  Option<bool> launchExecutor;
+
+  // Before launching the executor in `__run`, we kill the task, so that
+  // no executor is launched.
+  Future<Nothing> _run;
+  EXPECT_CALL(*slave.get()->mock(), _run(_, _, _, _, _, _, _))
+    .WillOnce(DoAll(FutureSatisfy(&_run),
+                  SaveArg<0>(&unschedules),
+                  SaveArg<1>(&frameworkInfo),
+                  SaveArg<2>(&executorInfo_),
+                  SaveArg<3>(&task_),
+                  SaveArg<4>(&taskGroup_),
+                  SaveArg<5>(&resourceVersionUuids),
+                  SaveArg<6>(&launchExecutor)));
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(_run);
+
+  Future<Nothing> killTask;
+  EXPECT_CALL(*slave.get()->mock(), killTask(_, _))
+    .WillOnce(DoAll(Invoke(slave.get()->mock(),
+                           &MockSlave::unmocked_killTask),
+                    FutureSatisfy(&killTask)));
+
+  driver.killTask(task.task_id());
+
+  AWAIT_READY(killTask);
+
+  process::dispatch(slave.get()->pid, [&] {
+    slave.get()->mock()->unmocked__run(
+        unschedules,
+        frameworkInfo,
+        executorInfo_,
+        task_,
+        taskGroup_,
+        resourceVersionUuids,
+        launchExecutor);
+  });
+
+  // Agent needs to send `ExitedExecutorMessage` to the master because
+  // the executor never launched.
+  AWAIT_READY(exitedExecutorMessage);
+
+  // Helper function to post a request to '/api/v1' master endpoint
+  // and return the response.
+  auto post = [](
+      const process::PID<master::Master>& pid,
+      const v1::master::Call& call,
+      const ContentType& contentType)
+  {
+    process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers["Accept"] = stringify(contentType);
+
+    return process::http::post(
+        pid,
+        "api/v1",
+        headers,
+        serialize(contentType, call),
+        stringify(contentType));
+  };
+
+  v1::master::Call v1Call;
+  v1Call.set_type(v1::master::Call::GET_EXECUTORS);
+
+  Future<process::http::Response> response =
+    post(master.get()->pid, v1Call, ContentType::PROTOBUF);
+
+  response.await();
+  ASSERT_EQ(response->status, process::http::OK().status);
+
+  Future<v1::master::Response> v1Response =
+    deserialize<v1::master::Response>(ContentType::PROTOBUF, response->body);
+
+  // Master has no executor entry because the executor never launched.
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::master::Response::GET_EXECUTORS, v1Response->type());
+  ASSERT_EQ(0, v1Response->get_executors().executors_size());
+
+  driver.stop();
+  driver.join();
+}
+
+
 // This test verifies that the executor is shutdown if all of its initial
 // tasks could not be delivered, even after the executor has been registered.
 // See MESOS-8411.
