@@ -3883,7 +3883,42 @@ Future<bool> Master::authorizeSlave(const Option<string>& principal)
 }
 
 
-Resources Master::addTask(
+bool Master::isLaunchExecutor(
+    const ExecutorID& executorId,
+    Framework* framework,
+    Slave* slave) const
+{
+  CHECK_NOTNULL(framework);
+  CHECK_NOTNULL(slave);
+
+  if (!slave->hasExecutor(framework->id(), executorId)) {
+    CHECK(!framework->hasExecutor(slave->id, executorId))
+      << "Executor '" << executorId
+      << "' known to the framework " << *framework
+      << " but unknown to the agent " << *slave;
+    return true;
+  }
+
+  return false;
+}
+
+
+void Master::addExecutor(
+    const ExecutorInfo& executorInfo,
+    Framework* framework,
+    Slave* slave)
+{
+  CHECK_NOTNULL(framework);
+  CHECK_NOTNULL(slave);
+  CHECK(slave->connected) << "Adding executor " << executorInfo.executor_id()
+                          << " to disconnected agent " << *slave;
+
+  slave->addExecutor(framework->id(), executorInfo);
+  framework->addExecutor(slave->id, executorInfo);
+}
+
+
+void Master::addTask(
     const TaskInfo& task,
     Framework* framework,
     Slave* slave)
@@ -3893,34 +3928,11 @@ Resources Master::addTask(
   CHECK(slave->connected) << "Adding task " << task.task_id()
                           << " to disconnected agent " << *slave;
 
-  // The resources consumed.
-  Resources resources = task.resources();
-
-  // Determine if this task launches an executor, and if so make sure
-  // the slave and framework state has been updated accordingly.
-
-  if (task.has_executor()) {
-    // TODO(benh): Refactor this code into Slave::addTask.
-    if (!slave->hasExecutor(framework->id(), task.executor().executor_id())) {
-      CHECK(!framework->hasExecutor(slave->id, task.executor().executor_id()))
-        << "Executor '" << task.executor().executor_id()
-        << "' known to the framework " << *framework
-        << " but unknown to the agent " << *slave;
-
-      slave->addExecutor(framework->id(), task.executor());
-      framework->addExecutor(slave->id, task.executor());
-
-      resources += task.executor().resources();
-    }
-  }
-
   // Add the task to the framework and slave.
   Task* t = new Task(protobuf::createTask(task, TASK_STAGING, framework->id()));
 
   slave->addTask(t);
   framework->addTask(t);
-
-  return resources;
 }
 
 
@@ -4953,7 +4965,23 @@ void Master::_accept(
 
           // Add task.
           if (pending) {
-            const Resources consumed = addTask(task, framework, slave);
+            Resources consumed;
+
+            bool launchExecutor = true;
+            if (task.has_executor()) {
+              launchExecutor = isLaunchExecutor(
+                  task.executor().executor_id(), framework, slave);
+
+              // Master tracks the new executor only if the task is not a
+              // command task.
+              if (launchExecutor) {
+                addExecutor(task.executor(), framework, slave);
+                consumed += task.executor().resources();
+              }
+            }
+
+            addTask(task, framework, slave);
+            consumed += task.resources();
 
             CHECK(available.contains(consumed))
               << available << " does not contain " << consumed;
@@ -4995,6 +5023,8 @@ void Master::_accept(
             message.set_pid(framework->pid.getOrElse(UPID()));
             message.mutable_task()->MergeFrom(task);
 
+            message.set_launch_executor(launchExecutor);
+
             if (HookManager::hooksAvailable()) {
               // Set labels retrieved from label-decorator hooks.
               message.mutable_task()->mutable_labels()->CopyFrom(
@@ -5013,11 +5043,11 @@ void Master::_accept(
               CHECK_SOME(downgradeResources(&message));
             }
 
-            // TODO(bmahler): Consider updating this log message to
-            // indicate when the executor is also being launched.
             LOG(INFO) << "Launching task " << task.task_id() << " of framework "
                       << *framework << " with resources " << task.resources()
-                      << " on agent " << *slave;
+                      << " on agent " << *slave << " on "
+                      << (launchExecutor ?
+                          " new executor" : " existing executor");
 
             send(slave->pid, message);
           }
@@ -5176,18 +5206,25 @@ void Master::_accept(
 
         set<TaskID> taskIds;
         Resources totalResources;
+        Resources executorResources;
+
+        bool launchExecutor =
+          isLaunchExecutor(executor.executor_id(), framework, slave);
+
+        if (launchExecutor) {
+          addExecutor(executor, framework, slave);
+          executorResources = executor.resources();
+          totalResources += executorResources;
+        }
+
+        message.set_launch_executor(launchExecutor);
 
         foreach (
             TaskInfo& task, *message.mutable_task_group()->mutable_tasks()) {
           taskIds.insert(task.task_id());
           totalResources += task.resources();
 
-          const Resources consumed = addTask(task, framework, slave);
-
-          CHECK(_offeredResources.contains(consumed))
-            << _offeredResources << " does not contain " << consumed;
-
-          _offeredResources -= consumed;
+          addTask(task, framework, slave);
 
           if (HookManager::hooksAvailable()) {
             // Set labels retrieved from label-decorator hooks.
@@ -5198,6 +5235,11 @@ void Master::_accept(
                     slave->info));
           }
         }
+
+        CHECK(_offeredResources.contains(totalResources))
+          << _offeredResources << " does not contain " << totalResources;
+
+        _offeredResources -= totalResources;
 
         // If the agent does not support reservation refinement, downgrade
         // the task and executor resources to the "pre-reservation-refinement"
@@ -5210,7 +5252,9 @@ void Master::_accept(
 
         LOG(INFO) << "Launching task group " << stringify(taskIds)
                   << " of framework " << *framework << " with resources "
-                  << totalResources << " on agent " << *slave;
+                  << totalResources -  executorResources << " on agent "
+                  << *slave << " on "
+                  << (launchExecutor ? " new executor" : " existing executor");
 
         send(slave->pid, message);
 
