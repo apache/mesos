@@ -3209,6 +3209,258 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   EXPECT_SOME_EQ("abc\n", os::read(filePath));
 }
 
+
+// This is a regression test for MESOS-8468. It verifies that upon a
+// `LAUNCH_GROUP` failure the default executor kills the corresponding task
+// group, but that it doesn't affect tasks from other task groups.
+TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, ROOT_LaunchGroupFailure)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Configure the agent in such a way that tasks requiring an appc image will
+  // pass validation (won't result in a TASK_ERROR), but will trigger a
+  // `LAUNCH_NESTED_CONTAINER` failure.
+  slave::Flags flags = CreateSlaveFlags();
+  flags.containerizers = GetParam();
+  flags.isolation = "filesystem/linux";
+  flags.image_providers = "APPC";
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(v1::scheduler::SendSubscribe(v1::DEFAULT_FRAMEWORK_INFO));
+
+  Future<Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(subscribed);
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  v1::Resources resources =
+    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+
+  const v1::Offer& offer = offers->offers(0);
+  const v1::AgentID& agentId = offer.agent_id();
+
+  v1::TaskInfo sleepTaskInfo1 = v1::createTask(
+      agentId,
+      resources,
+      SLEEP_COMMAND(1000),
+      None(),
+      "sleepTask1",
+      "sleepTask1");
+
+  v1::TaskGroupInfo taskGroup1 =
+    v1::createTaskGroupInfo({sleepTaskInfo1});
+
+  v1::TaskInfo sleepTaskInfo2 = v1::createTask(
+      agentId,
+      resources,
+      SLEEP_COMMAND(1000),
+      None(),
+      "sleepTask2",
+      "sleepTask2");
+
+  // Create a task that requires an appc image. The agent wasn't configured to
+  // support appc, so it should trigger a `LAUNCH_NESTED_CONTAINER` failure.
+  v1::TaskInfo failingTaskInfo = v1::createTask(
+      agentId,
+      resources,
+      SLEEP_COMMAND(1000),
+      None(),
+      "failingTask",
+      "failingTask");
+
+  mesos::v1::ContainerInfo* container = failingTaskInfo.mutable_container();
+  container->set_type(mesos::v1::ContainerInfo::MESOS);
+
+  mesos::v1::Image* image = container->mutable_mesos()->mutable_image();
+  image->set_type(mesos::v1::Image::APPC);
+  image->mutable_appc()->set_name("foobar");
+
+  v1::TaskGroupInfo taskGroup2 =
+    v1::createTaskGroupInfo({sleepTaskInfo2, failingTaskInfo});
+
+  testing::Sequence sleepTask1;
+  Future<v1::scheduler::Event::Update> sleepTaskStartingUpdate1;
+  Future<v1::scheduler::Event::Update> sleepTaskRunningUpdate1;
+  Future<v1::scheduler::Event::Update> sleepTaskKilledUpdate1;
+
+  EXPECT_CALL(
+      *scheduler,
+      update(_, AllOf(
+          TaskStatusUpdateTaskIdEq(sleepTaskInfo1),
+          TaskStatusUpdateStateEq(v1::TASK_STARTING))))
+    .InSequence(sleepTask1)
+    .WillOnce(
+        DoAll(
+            FutureArg<1>(&sleepTaskStartingUpdate1),
+            v1::scheduler::SendAcknowledge(frameworkId, agentId)));
+
+  EXPECT_CALL(
+      *scheduler,
+      update(_, AllOf(
+          TaskStatusUpdateTaskIdEq(sleepTaskInfo1),
+          TaskStatusUpdateStateEq(v1::TASK_RUNNING))))
+    .InSequence(sleepTask1)
+    .WillOnce(
+        DoAll(
+            FutureArg<1>(&sleepTaskRunningUpdate1),
+            v1::scheduler::SendAcknowledge(frameworkId, agentId)));
+
+  EXPECT_CALL(
+      *scheduler,
+      update(_, AllOf(
+          TaskStatusUpdateTaskIdEq(sleepTaskInfo1),
+          TaskStatusUpdateStateEq(v1::TASK_KILLED))))
+    .InSequence(sleepTask1)
+    .WillOnce(
+        DoAll(
+            FutureArg<1>(&sleepTaskKilledUpdate1),
+            v1::scheduler::SendAcknowledge(frameworkId, agentId)));
+
+  testing::Sequence sleepTask2;
+  Future<v1::scheduler::Event::Update> sleepTaskStartingUpdate2;
+  Future<v1::scheduler::Event::Update> sleepTaskRunningUpdate2;
+  Future<v1::scheduler::Event::Update> sleepTaskKilledUpdate2;
+
+  EXPECT_CALL(
+      *scheduler,
+      update(_, AllOf(
+          TaskStatusUpdateTaskIdEq(sleepTaskInfo2),
+          TaskStatusUpdateStateEq(v1::TASK_STARTING))))
+    .InSequence(sleepTask2)
+    .WillOnce(
+        DoAll(
+            FutureArg<1>(&sleepTaskStartingUpdate2),
+            v1::scheduler::SendAcknowledge(frameworkId, agentId)));
+
+  EXPECT_CALL(
+      *scheduler,
+      update(_, AllOf(
+          TaskStatusUpdateTaskIdEq(sleepTaskInfo2),
+          TaskStatusUpdateStateEq(v1::TASK_RUNNING))))
+    .InSequence(sleepTask2)
+    .WillOnce(
+        DoAll(
+            FutureArg<1>(&sleepTaskRunningUpdate2),
+            v1::scheduler::SendAcknowledge(frameworkId, agentId)));
+
+  EXPECT_CALL(
+      *scheduler,
+      update(_, AllOf(
+          TaskStatusUpdateTaskIdEq(sleepTaskInfo2),
+          TaskStatusUpdateStateEq(v1::TASK_KILLED))))
+    .InSequence(sleepTask2)
+    .WillOnce(
+        DoAll(
+            FutureArg<1>(&sleepTaskKilledUpdate2),
+            v1::scheduler::SendAcknowledge(frameworkId, agentId)));
+
+  testing::Sequence failingTask;
+  Future<v1::scheduler::Event::Update> failingTaskStartingUpdate;
+  Future<v1::scheduler::Event::Update> failingTaskFailedUpdate;
+
+  EXPECT_CALL(
+      *scheduler,
+      update(_, AllOf(
+          TaskStatusUpdateTaskIdEq(failingTaskInfo),
+          TaskStatusUpdateStateEq(v1::TASK_STARTING))))
+    .InSequence(failingTask)
+    .WillOnce(
+        DoAll(
+            FutureArg<1>(&failingTaskStartingUpdate),
+            v1::scheduler::SendAcknowledge(frameworkId, agentId)));
+
+  EXPECT_CALL(
+      *scheduler,
+      update(_, AllOf(
+          TaskStatusUpdateTaskIdEq(failingTaskInfo),
+          TaskStatusUpdateStateEq(v1::TASK_FAILED))))
+    .InSequence(failingTask)
+    .WillOnce(
+        DoAll(
+            FutureArg<1>(&failingTaskFailedUpdate),
+            v1::scheduler::SendAcknowledge(frameworkId, agentId)));
+
+  Future<v1::scheduler::Event::Failure> executorFailure;
+  EXPECT_CALL(*scheduler, failure(_, _))
+    .WillOnce(FutureArg<1>(&executorFailure));
+
+  v1::ExecutorInfo executorInfo = v1::createExecutorInfo(
+      v1::DEFAULT_EXECUTOR_ID,
+      None(),
+      resources,
+      v1::ExecutorInfo::DEFAULT,
+      frameworkId);
+
+  mesos.send(v1::createCallAccept(
+      frameworkId,
+      offer,
+      {v1::LAUNCH_GROUP(executorInfo, taskGroup1),
+       v1::LAUNCH_GROUP(executorInfo, taskGroup2)}));
+
+  // The `LAUNCH_NESTED_CONTAINER` call for `failingTask` should fail, bacause
+  // it requires an appc image, but the agent is not properly configured to
+  // support fetching appc images.
+  //
+  // That means that the default executor should send `TASK_STARTING` followed
+  // by `TASK_FAILED`.
+  AWAIT_READY(failingTaskStartingUpdate);
+  AWAIT_READY(failingTaskFailedUpdate);
+
+  // The default executor will be able to launch `sleepTask2`, so it should
+  // send `TASK_STARTING` and `TASK_RUNNING` updates. The task is in the same
+  // task group as `failingTask`, so the executor should kill it when
+  // `failingTask` fails to launch.
+  AWAIT_READY(sleepTaskStartingUpdate2);
+  AWAIT_READY(sleepTaskRunningUpdate2);
+  AWAIT_READY(sleepTaskKilledUpdate2);
+
+  // The default executor will be able to launch `sleepTask1`, so it should
+  // send `TASK_STARTING` and `TASK_RUNNING` updates. The task is NOT in the
+  // same task group as `failingTask`, so it shouldn't be killed until the
+  // scheduler sends a kill request.
+  AWAIT_READY(sleepTaskStartingUpdate1);
+  AWAIT_READY(sleepTaskRunningUpdate1);
+  ASSERT_TRUE(sleepTaskKilledUpdate1.isPending());
+
+  // The executor should still be alive after the second task group has been
+  // killed.
+  ASSERT_TRUE(executorFailure.isPending());
+
+  // Now kill the only task present in the first task group.
+  mesos.send(v1::createCallKill(frameworkId, sleepTaskInfo1.task_id()));
+
+  AWAIT_READY(sleepTaskKilledUpdate1);
+
+  // The executor should commit suicide after all the tasks have been
+  // killed.
+  AWAIT_READY(executorFailure);
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
