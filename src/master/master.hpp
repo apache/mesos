@@ -859,11 +859,20 @@ protected:
       const Offer::Operation::Destroy& destroy,
       const Option<process::http::authentication::Principal>& principal);
 
-  // Add the task and its executor (if not already running) to the
-  // framework and slave. Returns the resources consumed as a result,
-  // which includes resources for the task and its executor
-  // (if not already running).
-  Resources addTask(const TaskInfo& task, Framework* framework, Slave* slave);
+  // Determine if a new executor needs to be launched.
+  bool isLaunchExecutor (
+      const ExecutorID& executorId,
+      Framework* framework,
+      Slave* slave) const;
+
+  // Add executor to the framework and slave.
+  void addExecutor(
+      const ExecutorInfo& executorInfo,
+      Framework* framework,
+      Slave* slave);
+
+  // Add task to the framework and slave.
+  void addTask(const TaskInfo& task, Framework* framework, Slave* slave);
 
   // Transitions the task, and recovers resources if the task becomes
   // terminal.
