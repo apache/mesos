@@ -31,6 +31,7 @@
 #include <stout/os/getcwd.hpp>
 #include <stout/os/ls.hpp>
 #include <stout/os/write.hpp>
+#include <stout/uri.hpp>
 
 #include <stout/tests/utils.hpp>
 
@@ -158,12 +159,17 @@ public:
 
     // Create a fake hadoop command line tool. It emulates the hadoop
     // client's logic while operating on the local filesystem.
+#ifndef __WINDOWS__
     hadoop = path::join(os::getcwd(), "hadoop");
+#else
+    hadoop = path::join(os::getcwd(), "hadoop.bat");
+#endif // __WINDOWS__
 
     // The script emulating 'hadoop fs -copyToLocal <from> <to>'.
     // NOTE: We emulate a version call here which is exercised when
     // creating the HDFS client. But, we don't expect any other
     // command to be called.
+#ifndef __WINDOWS__
     ASSERT_SOME(os::write(
         hadoop,
         "#!/bin/sh\n"
@@ -178,12 +184,23 @@ public:
         "fi\n"
         "cp $3 $4\n"));
 
-    // Make sure the script has execution permission. On Windows, we always
-    // have permission.
-#ifndef __WINDOWS__
+    // Make sure the script has execution permission.
     ASSERT_SOME(os::chmod(
         hadoop,
         S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH));
+#else
+    // NOTE: This is a `.bat` file instead of PowerShell so that it can be
+    // directly executed. Windows "knows" how to launch files ending in `.bat`,
+    // similar to the shebang logic for POSIX. However, this does not extend to
+    // PowerShell's `.ps1` scripts.
+    ASSERT_SOME(os::write(
+        hadoop,
+        "if \"%1\" == \"version\" (exit 0)\n"
+        "if NOT \"%1\" == \"fs\" (exit 1)\n"
+        "if NOT \"%2\" == \"-copyToLocal\" (exit 1)\n"
+        "copy %3 %4\n"));
+
+    // Windows has no notion of "execution permission".
 #endif // __WINDOWS__
   }
 
@@ -192,9 +209,6 @@ protected:
 };
 
 
-// TODO(hausdorff): Will not compile until HDFS is supported on Windows. See
-// MESOS-5460.
-#ifndef __WINDOWS__
 TEST_F(HadoopFetcherPluginTest, FetchExistingFile)
 {
   string file = path::join(os::getcwd(), "file");
@@ -215,12 +229,8 @@ TEST_F(HadoopFetcherPluginTest, FetchExistingFile)
 
   EXPECT_SOME_EQ("abc", os::read(path::join(dir, "file")));
 }
-#endif // __WINDOWS__
 
 
-// TODO(hausdorff): Will not compile until HDFS is supported on Windows. See
-// MESOS-5460.
-#ifndef __WINDOWS__
 TEST_F(HadoopFetcherPluginTest, FetchNonExistingFile)
 {
   URI uri = uri::hdfs(path::join(os::getcwd(), "non-exist"));
@@ -235,12 +245,8 @@ TEST_F(HadoopFetcherPluginTest, FetchNonExistingFile)
 
   AWAIT_FAILED(fetcher.get()->fetch(uri, dir));
 }
-#endif // __WINDOWS__
 
 
-// TODO(hausdorff): Will not compile until HDFS is supported on Windows. See
-// MESOS-5460.
-#ifndef __WINDOWS__
 // This test verifies invoking 'fetch' by plugin name.
 TEST_F(HadoopFetcherPluginTest, InvokeFetchByName)
 {
@@ -262,7 +268,6 @@ TEST_F(HadoopFetcherPluginTest, InvokeFetchByName)
 
   EXPECT_SOME_EQ("abc", os::read(path::join(dir, "file")));
 }
-#endif // __WINDOWS__
 
 
 // TODO(jieyu): Expose this constant so that other docker related

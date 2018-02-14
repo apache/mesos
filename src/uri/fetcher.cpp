@@ -50,10 +50,10 @@ Try<Owned<Fetcher>> create(const Option<Flags>& _flags)
        [flags]() { return CurlFetcherPlugin::create(flags); }},
     {CopyFetcherPlugin::NAME,
        [flags]() { return CopyFetcherPlugin::create(flags); }},
-#ifndef __WINDOWS__
-    // TODO(dpravat): Enable `Hadoop` and `Docker` plugins. See MESOS-5473.
     {HadoopFetcherPlugin::NAME,
        [flags]() { return HadoopFetcherPlugin::create(flags); }},
+#ifndef __WINDOWS__
+    // TODO(coffler): Enable Docker plugin. See MESOS-8570.
     {DockerFetcherPlugin::NAME,
        [flags]() { return DockerFetcherPlugin::create(flags); }},
 #endif // __WINDOWS__

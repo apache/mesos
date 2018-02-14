@@ -143,7 +143,7 @@ Try<Owned<HDFS>> HDFS::create(const Option<string>& _hadoop)
 static string normalize(const string& hdfsPath)
 {
   if (strings::contains(hdfsPath, "://") || // A URI or a malformed path.
-      strings::startsWith(hdfsPath, "/")) { // Already an absolute path.
+      path::absolute(hdfsPath)) { // Already an absolute path.
     return hdfsPath;
   }
 
@@ -316,7 +316,7 @@ Future<Nothing> HDFS::copyToLocal(const string& from, const string& to)
 {
   Try<Subprocess> s = subprocess(
       hadoop,
-      {"hadoop", "fs", "-copyToLocal", normalize(from), to},
+      {hadoop, "fs", "-copyToLocal", normalize(from), to},
       Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE());

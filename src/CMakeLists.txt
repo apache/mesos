@@ -373,12 +373,12 @@ set(URI_SRC
   uri/fetcher.cpp
   uri/utils.cpp
   uri/fetchers/copy.cpp
-  uri/fetchers/curl.cpp)
+  uri/fetchers/curl.cpp
+  uri/fetchers/hadoop.cpp)
 
 if (NOT WIN32)
   list(APPEND URI_SRC
-    uri/fetchers/docker.cpp
-    uri/fetchers/hadoop.cpp)
+    uri/fetchers/docker.cpp)
 endif ()
 
 set(USAGE_SRC
