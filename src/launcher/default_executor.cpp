@@ -357,7 +357,7 @@ protected:
       const Future<Connection>& connection)
   {
     if (shuttingDown) {
-      LOG(WARNING) << "Ignoring the launch operation as the "
+      LOG(WARNING) << "Ignoring the launch group operation as the "
                    << "executor is shutting down";
       return;
     }
@@ -373,7 +373,7 @@ protected:
     // It is possible that the agent process failed after the connection was
     // established. Shutdown the executor if this happens.
     if (state == DISCONNECTED || state == CONNECTED) {
-      LOG(ERROR) << "Unable to complete the launch operation "
+      LOG(ERROR) << "Unable to complete the launch group operation "
                  << "as the executor is in state " << state;
       _shutdown();
       return;
@@ -506,7 +506,7 @@ protected:
       const Future<list<Response>>& responses)
   {
     if (shuttingDown) {
-      LOG(WARNING) << "Ignoring the launch operation as the "
+      LOG(WARNING) << "Ignoring the launch group operation as the "
                    << "executor is shutting down";
       return;
     }
