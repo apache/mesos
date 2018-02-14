@@ -615,6 +615,11 @@ private:
       const FrameworkID& frameworkId,
       const Executor* executor);
 
+  void sendExitedExecutorMessage(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const Option<int>& status = None());
+
   // Forwards the current total of oversubscribed resources.
   void forwardOversubscribed();
   void _forwardOversubscribed(
