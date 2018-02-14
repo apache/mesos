@@ -144,6 +144,12 @@ public:
 
   void doReliableRegistration(Duration maxBackoff);
 
+  // TODO(mzhu): Combine this with `runTask()' and replace all `runTask()'
+  // mock with `run()` mock.
+  void handleRunTaskMessage(
+      const process::UPID& from,
+      RunTaskMessage&& runTaskMessage);
+
   // Made 'virtual' for Slave mocking.
   virtual void runTask(
       const process::UPID& from,
@@ -151,7 +157,8 @@ public:
       const FrameworkID& frameworkId,
       const process::UPID& pid,
       const TaskInfo& task,
-      const std::vector<ResourceVersionUUID>& resourceVersionUuids);
+      const std::vector<ResourceVersionUUID>& resourceVersionUuids,
+      const Option<bool>& launchExecutor);
 
   void run(
       const FrameworkInfo& frameworkInfo,
@@ -184,13 +191,20 @@ public:
       const std::list<TaskInfo>& tasks,
       const std::list<TaskGroupInfo>& taskGroups);
 
+  // TODO(mzhu): Combine this with `runTaskGroup()' and replace all
+  // `runTaskGroup()' mock with `run()` mock.
+  void handleRunTaskGroupMessage(
+      const process::UPID& from,
+      RunTaskGroupMessage&& runTaskGroupMessage);
+
   // Made 'virtual' for Slave mocking.
   virtual void runTaskGroup(
       const process::UPID& from,
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo,
       const TaskGroupInfo& taskGroupInfo,
-      const std::vector<ResourceVersionUUID>& resourceVersionUuids);
+      const std::vector<ResourceVersionUUID>& resourceVersionUuids,
+      const Option<bool>& launchExecutor);
 
   // Made 'virtual' for Slave mocking.
   virtual void killTask(

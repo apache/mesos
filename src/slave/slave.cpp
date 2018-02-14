@@ -672,19 +672,10 @@ void Slave::initialize()
       &SlaveReregisteredMessage::connection);
 
   install<RunTaskMessage>(
-      &Slave::runTask,
-      &RunTaskMessage::framework,
-      &RunTaskMessage::framework_id,
-      &RunTaskMessage::pid,
-      &RunTaskMessage::task,
-      &RunTaskMessage::resource_version_uuids);
+      &Slave::handleRunTaskMessage);
 
   install<RunTaskGroupMessage>(
-      &Slave::runTaskGroup,
-      &RunTaskGroupMessage::framework,
-      &RunTaskGroupMessage::executor,
-      &RunTaskGroupMessage::task_group,
-      &RunTaskGroupMessage::resource_version_uuids);
+      &Slave::handleRunTaskGroupMessage);
 
   install<KillTaskMessage>(
       &Slave::killTask);
@@ -1900,6 +1891,22 @@ void Slave::doReliableRegistration(Duration maxBackoff)
 }
 
 
+void Slave::handleRunTaskMessage(
+    const UPID& from,
+    RunTaskMessage&& runTaskMessage)
+{
+  runTask(
+      from,
+      runTaskMessage.framework(),
+      runTaskMessage.framework_id(),
+      runTaskMessage.pid(),
+      runTaskMessage.task(),
+      google::protobuf::convert(runTaskMessage.resource_version_uuids()),
+      runTaskMessage.has_launch_executor() ?
+          Option<bool>(runTaskMessage.launch_executor()) : None());
+}
+
+
 // TODO(vinod): Instead of crashing the slave on checkpoint errors,
 // send TASK_LOST to the framework.
 void Slave::runTask(
@@ -1908,7 +1915,8 @@ void Slave::runTask(
     const FrameworkID& frameworkId,
     const UPID& pid,
     const TaskInfo& task,
-    const vector<ResourceVersionUUID>& resourceVersionUuids)
+    const vector<ResourceVersionUUID>& resourceVersionUuids,
+    const Option<bool>& launchExecutor)
 {
   CHECK_NE(task.has_executor(), task.has_command())
     << "Task " << task.task_id()
@@ -3267,12 +3275,28 @@ void Slave::launchExecutor(
 }
 
 
+void Slave::handleRunTaskGroupMessage(
+    const UPID& from,
+    RunTaskGroupMessage&& runTaskGroupMessage)
+{
+  runTaskGroup(
+      from,
+      runTaskGroupMessage.framework(),
+      runTaskGroupMessage.executor(),
+      runTaskGroupMessage.task_group(),
+      google::protobuf::convert(runTaskGroupMessage.resource_version_uuids()),
+      runTaskGroupMessage.has_launch_executor() ?
+          Option<bool>(runTaskGroupMessage.launch_executor()) : None());
+}
+
+
 void Slave::runTaskGroup(
     const UPID& from,
     const FrameworkInfo& frameworkInfo,
     const ExecutorInfo& executorInfo,
     const TaskGroupInfo& taskGroupInfo,
-    const vector<ResourceVersionUUID>& resourceVersionUuids)
+    const vector<ResourceVersionUUID>& resourceVersionUuids,
+    const Option<bool>& launchExecutor)
 {
   if (master != from) {
     LOG(WARNING) << "Ignoring run task group message from " << from
