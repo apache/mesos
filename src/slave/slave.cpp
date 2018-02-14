@@ -1031,6 +1031,7 @@ void Slave::attachTaskVolumeDirectory(
 
   CHECK_EQ(task.executor_id(), executorInfo.executor_id());
 
+  // This is the case that the task has disk resources specified.
   foreach (const Resource& resource, task.resources()) {
     // Ignore if there are no disk resources or if the
     // disk resources did not specify a volume mapping.
@@ -1040,15 +1041,15 @@ void Slave::attachTaskVolumeDirectory(
 
     const Volume& volume = resource.disk().volume();
 
-    const string executorDirectory = paths::getExecutorRunPath(
+    const string executorRunPath = paths::getExecutorRunPath(
         flags.work_dir,
         info.id(),
         task.framework_id(),
         task.executor_id(),
         executorContainerId);
 
-    const string executorVolumePath =
-      path::join(executorDirectory, volume.container_path());
+    const string executorDirectoryPath =
+      path::join(executorRunPath, volume.container_path());
 
     const string taskPath = paths::getTaskPath(
         flags.work_dir,
@@ -1058,16 +1059,86 @@ void Slave::attachTaskVolumeDirectory(
         executorContainerId,
         task.task_id());
 
-    const string taskVolumePath =
+    const string taskDirectoryPath =
       path::join(taskPath, volume.container_path());
 
-    files->attach(executorVolumePath, taskVolumePath)
+    files->attach(executorDirectoryPath, taskDirectoryPath)
       .onAny(defer(
           self(),
           &Self::fileAttached,
           lambda::_1,
-          executorVolumePath,
-          taskVolumePath));
+          executorDirectoryPath,
+          taskDirectoryPath));
+  }
+
+  // This is the case that the executor has disk resources specified
+  // and the task's ContainerInfo has a `SANDBOX_PATH` volume with type
+  // `PARENT` to share the executor's disk volume.
+  hashset<string> executorContainerPaths;
+  foreach (const Resource& resource, executorInfo.resources()) {
+    // Ignore if there are no disk resources or if the
+    // disk resources did not specify a volume mapping.
+    if (!resource.has_disk() || !resource.disk().has_volume()) {
+      continue;
+    }
+
+    const Volume& volume = resource.disk().volume();
+    executorContainerPaths.insert(volume.container_path());
+  }
+
+  if (executorContainerPaths.empty()) {
+    return;
+  }
+
+  if (task.has_container()) {
+    foreach (const Volume& volume, task.container().volumes()) {
+      if (!volume.has_source() ||
+          volume.source().type() != Volume::Source::SANDBOX_PATH) {
+        continue;
+      }
+
+      CHECK(volume.source().has_sandbox_path());
+
+      const Volume::Source::SandboxPath& sandboxPath =
+        volume.source().sandbox_path();
+
+      if (sandboxPath.type() != Volume::Source::SandboxPath::PARENT) {
+        continue;
+      }
+
+      if (!executorContainerPaths.contains(sandboxPath.path())) {
+        continue;
+      }
+
+      const string executorRunPath = paths::getExecutorRunPath(
+          flags.work_dir,
+          info.id(),
+          task.framework_id(),
+          task.executor_id(),
+          executorContainerId);
+
+      const string executorDirectoryPath =
+        path::join(executorRunPath, sandboxPath.path());
+
+      const string taskPath = paths::getTaskPath(
+          flags.work_dir,
+          info.id(),
+          task.framework_id(),
+          task.executor_id(),
+          executorContainerId,
+          task.task_id());
+
+      const string taskDirectoryPath =
+        path::join(taskPath, volume.container_path());
+
+      files->attach(executorDirectoryPath, taskDirectoryPath)
+        .onAny(defer(
+            self(),
+            &Self::fileAttached,
+            lambda::_1,
+            executorDirectoryPath,
+            taskDirectoryPath));
+    }
   }
 }
 
@@ -1083,9 +1154,22 @@ void Slave::detachTaskVolumeDirectories(
         (executorInfo.has_type() &&
          executorInfo.type() == ExecutorInfo::DEFAULT));
 
+  hashset<string> executorContainerPaths;
+  foreach (const Resource& resource, executorInfo.resources()) {
+    // Ignore if there are no disk resources or if the
+    // disk resources did not specify a volume mapping.
+    if (!resource.has_disk() || !resource.disk().has_volume()) {
+      continue;
+    }
+
+    const Volume& volume = resource.disk().volume();
+    executorContainerPaths.insert(volume.container_path());
+  }
+
   foreach (const Task& task, tasks) {
     CHECK_EQ(task.executor_id(), executorInfo.executor_id());
 
+    // This is the case that the task has disk resources specified.
     foreach (const Resource& resource, task.resources()) {
       // Ignore if there are no disk resources or if the
       // disk resources did not specify a volume mapping.
@@ -1103,10 +1187,52 @@ void Slave::detachTaskVolumeDirectories(
           executorContainerId,
           task.task_id());
 
-      const string taskVolumePath =
+      const string taskDirectoryPath =
         path::join(taskPath, volume.container_path());
 
-      files->detach(taskVolumePath);
+      files->detach(taskDirectoryPath);
+    }
+
+    if (executorContainerPaths.empty()) {
+      continue;
+    }
+
+    // This is the case that the executor has disk resources specified
+    // and the task's ContainerInfo has a `SANDBOX_PATH` volume with type
+    // `PARENT` to share the executor's disk volume.
+    if (task.has_container()) {
+      foreach (const Volume& volume, task.container().volumes()) {
+        if (!volume.has_source() ||
+            volume.source().type() != Volume::Source::SANDBOX_PATH) {
+          continue;
+        }
+
+        CHECK(volume.source().has_sandbox_path());
+
+        const Volume::Source::SandboxPath& sandboxPath =
+          volume.source().sandbox_path();
+
+        if (sandboxPath.type() != Volume::Source::SandboxPath::PARENT) {
+          continue;
+        }
+
+        if (!executorContainerPaths.contains(sandboxPath.path())) {
+          continue;
+        }
+
+        const string taskPath = paths::getTaskPath(
+            flags.work_dir,
+            info.id(),
+            task.framework_id(),
+            task.executor_id(),
+            executorContainerId,
+            task.task_id());
+
+        const string taskDirectoryPath =
+          path::join(taskPath, volume.container_path());
+
+        files->detach(taskDirectoryPath);
+      }
     }
   }
 }
