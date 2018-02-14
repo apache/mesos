@@ -166,7 +166,8 @@ public:
       Option<TaskInfo> task,
       Option<TaskGroupInfo> taskGroup,
       const std::vector<ResourceVersionUUID>& resourceVersionUuids,
-      const process::UPID& pid);
+      const process::UPID& pid,
+      const Option<bool>& launchExecutor);
 
   // Made 'virtual' for Slave mocking.
   virtual void _run(
@@ -175,7 +176,8 @@ public:
       const ExecutorInfo& executorInfo,
       const Option<TaskInfo>& task,
       const Option<TaskGroupInfo>& taskGroup,
-      const std::vector<ResourceVersionUUID>& resourceVersionUuids);
+      const std::vector<ResourceVersionUUID>& resourceVersionUuids,
+      const Option<bool>& launchExecutor);
 
   // This is called when the resource limits of the container have
   // been updated for the given tasks and task groups. If the update is
@@ -414,7 +416,9 @@ public:
       const ExecutorInfo& executorInfo,
       const Option<TaskInfo>& task,
       const Option<TaskGroupInfo>& taskGroup,
-      const std::vector<ResourceVersionUUID>& resourceVersionUuids);
+      const std::vector<ResourceVersionUUID>& resourceVersionUuids,
+      const Option<bool>& launchExecutor);
+
 
   process::Future<Secret> generateSecret(
       const FrameworkID& frameworkId,

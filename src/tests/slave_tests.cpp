@@ -1835,7 +1835,7 @@ TEST_F(SlaveTest, GetStateTaskGroupPending)
   // unmocked `_run()` method. Instead, we want to do nothing so that tasks
   // remain in the framework's 'pending' list.
   Future<Nothing> _run;
-  EXPECT_CALL(*slave.get()->mock(), _run(_, _, _, _, _, _))
+  EXPECT_CALL(*slave.get()->mock(), _run(_, _, _, _, _, _, _))
     .WillOnce(FutureSatisfy(&_run));
 
   // The executor should not be launched.
@@ -4124,18 +4124,20 @@ TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
   Option<TaskGroupInfo> taskGroup;
   Option<TaskInfo> task_;
   vector<ResourceVersionUUID> resourceVersionUuids;
+  Option<bool> launchExecutor;
   // Skip what Slave::_run() normally does, save its arguments for
   // later, tie reaching the critical moment when to kill the task to
   // a future.
   Future<Nothing> _run;
-  EXPECT_CALL(*slave.get()->mock(), _run(_, _, _, _, _, _))
+  EXPECT_CALL(*slave.get()->mock(), _run(_, _, _, _, _, _, _))
     .WillOnce(DoAll(FutureSatisfy(&_run),
                     SaveArg<0>(&unschedules),
                     SaveArg<1>(&frameworkInfo),
                     SaveArg<2>(&executorInfo),
                     SaveArg<3>(&task_),
                     SaveArg<4>(&taskGroup),
-                    SaveArg<5>(&resourceVersionUuids)));
+                    SaveArg<5>(&resourceVersionUuids),
+                    SaveArg<6>(&launchExecutor)));
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
@@ -4167,7 +4169,8 @@ TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
       executorInfo,
       task_,
       taskGroup,
-      resourceVersionUuids);
+      resourceVersionUuids,
+      launchExecutor);
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_KILLED, status->state());
@@ -4252,23 +4255,26 @@ TEST_F(SlaveTest, KillMultiplePendingTasks)
   Option<TaskGroupInfo> taskGroup1, taskGroup2;
   Option<TaskInfo> task_1, task_2;
   vector<ResourceVersionUUID> resourceVersionUuids1, resourceVersionUuids2;
+  Option<bool> launchExecutor1, launchExecutor2;
 
   Future<Nothing> _run1, _run2;
-  EXPECT_CALL(*slave.get()->mock(), _run(_, _, _, _, _, _))
+  EXPECT_CALL(*slave.get()->mock(), _run(_, _, _, _, _, _, _))
     .WillOnce(DoAll(FutureSatisfy(&_run1),
                     SaveArg<0>(&unschedules1),
                     SaveArg<1>(&frameworkInfo1),
                     SaveArg<2>(&executorInfo1),
                     SaveArg<3>(&task_1),
                     SaveArg<4>(&taskGroup1),
-                    SaveArg<5>(&resourceVersionUuids1)))
+                    SaveArg<5>(&resourceVersionUuids1),
+                    SaveArg<6>(&launchExecutor1)))
     .WillOnce(DoAll(FutureSatisfy(&_run2),
                     SaveArg<0>(&unschedules2),
                     SaveArg<1>(&frameworkInfo2),
                     SaveArg<2>(&executorInfo2),
                     SaveArg<3>(&task_2),
                     SaveArg<4>(&taskGroup2),
-                    SaveArg<5>(&resourceVersionUuids2)));
+                    SaveArg<5>(&resourceVersionUuids2),
+                    SaveArg<6>(&launchExecutor2)));
 
   driver.launchTasks(offers.get()[0].id(), {task1, task2});
 
@@ -4310,7 +4316,8 @@ TEST_F(SlaveTest, KillMultiplePendingTasks)
       executorInfo1,
       task_1,
       taskGroup1,
-      resourceVersionUuids1);
+      resourceVersionUuids1,
+      launchExecutor1);
 
   slave.get()->mock()->unmocked__run(
       unschedules2,
@@ -4318,7 +4325,8 @@ TEST_F(SlaveTest, KillMultiplePendingTasks)
       executorInfo2,
       task_2,
       taskGroup2,
-      resourceVersionUuids2);
+      resourceVersionUuids2,
+      launchExecutor2);
 
   Clock::settle();
 
@@ -7679,19 +7687,21 @@ TEST_F(SlaveTest, KillTaskGroupBetweenRunTaskParts)
   Option<TaskGroupInfo> taskGroup_;
   Option<TaskInfo> task_;
   vector<ResourceVersionUUID> resourceVersionUuids;
+  Option<bool> launchExecutor;
 
   // Skip what `Slave::_run()` normally does, save its arguments for
   // later, till reaching the critical moment when to kill the task
   // in the future.
   Future<Nothing> _run;
-  EXPECT_CALL(*slave.get()->mock(), _run(_, _, _, _, _, _))
+  EXPECT_CALL(*slave.get()->mock(), _run(_, _, _, _, _, _, _))
     .WillOnce(DoAll(FutureSatisfy(&_run),
                     SaveArg<0>(&unschedules),
                     SaveArg<1>(&frameworkInfo),
                     SaveArg<2>(&executorInfo_),
                     SaveArg<3>(&task_),
                     SaveArg<4>(&taskGroup_),
-                    SaveArg<5>(&resourceVersionUuids)));
+                    SaveArg<5>(&resourceVersionUuids),
+                    SaveArg<6>(&launchExecutor)));
 
   const v1::Offer& offer = offers->offers(0);
   const SlaveID slaveId = devolve(offer.agent_id());
@@ -7757,7 +7767,8 @@ TEST_F(SlaveTest, KillTaskGroupBetweenRunTaskParts)
       executorInfo_,
       task_,
       taskGroup_,
-      resourceVersionUuids);
+      resourceVersionUuids,
+      launchExecutor);
 
   AWAIT_READY(update1);
   AWAIT_READY(update2);
