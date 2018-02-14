@@ -118,11 +118,11 @@ MockSlave::MockSlave(
         authorizer)
 {
   // Set up default behaviors, calling the original methods.
-  EXPECT_CALL(*this, runTask(_, _, _, _, _, _))
+  EXPECT_CALL(*this, runTask(_, _, _, _, _, _, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_runTask));
   EXPECT_CALL(*this, _run(_, _, _, _, _, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked__run));
-  EXPECT_CALL(*this, runTaskGroup(_, _, _, _, _))
+  EXPECT_CALL(*this, runTaskGroup(_, _, _, _, _, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_runTaskGroup));
   EXPECT_CALL(*this, killTask(_, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_killTask));
@@ -147,7 +147,8 @@ void MockSlave::unmocked_runTask(
     const FrameworkID& frameworkId,
     const UPID& pid,
     const TaskInfo& task,
-    const vector<ResourceVersionUUID>& resourceVersionUuids)
+    const vector<ResourceVersionUUID>& resourceVersionUuids,
+    const Option<bool>& launchExecutor)
 {
   slave::Slave::runTask(
       from,
@@ -155,7 +156,8 @@ void MockSlave::unmocked_runTask(
       frameworkInfo.id(),
       pid,
       task,
-      resourceVersionUuids);
+      resourceVersionUuids,
+      launchExecutor);
 }
 
 
@@ -182,14 +184,16 @@ void MockSlave::unmocked_runTaskGroup(
     const FrameworkInfo& frameworkInfo,
     const ExecutorInfo& executorInfo,
     const TaskGroupInfo& taskGroup,
-    const vector<ResourceVersionUUID>& resourceVersionUuids)
+    const vector<ResourceVersionUUID>& resourceVersionUuids,
+    const Option<bool>& launchExecutor)
 {
   slave::Slave::runTaskGroup(
       from,
       frameworkInfo,
       executorInfo,
       taskGroup,
-      resourceVersionUuids);
+      resourceVersionUuids,
+      launchExecutor);
 }
 
 
