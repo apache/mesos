@@ -366,19 +366,33 @@ protected:
     }
 
     if (!connection.isReady()) {
-      LOG(ERROR)
-        << "Unable to establish connection with the agent: "
-        << (connection.isFailed() ? connection.failure() : "discarded");
-      _shutdown();
+      LOG(WARNING) << "Unable to establish connection with the agent to "
+                   << "complete the launch group operation: "
+                   << (connection.isFailed() ? connection.failure()
+                                             : "discarded");
+      dropTaskGroup(taskGroup);
+
+      // Shutdown the executor if all the active child containers have
+      // terminated.
+      if (containers.empty()) {
+        _shutdown();
+      }
+
       return;
     }
 
     // It is possible that the agent process failed after the connection was
-    // established. Shutdown the executor if this happens.
+    // established. Drop the task group if this happens.
     if (state == DISCONNECTED || state == CONNECTED) {
-      LOG(ERROR) << "Unable to complete the launch group operation "
-                 << "as the executor is in state " << state;
-      _shutdown();
+      LOG(WARNING) << "Unable to complete the launch group operation "
+                   << "as the executor is in state " << state;
+      dropTaskGroup(taskGroup);
+
+      // Shutdown the executor if all the active child containers have
+      // terminated.
+      if (containers.empty()) {
+        _shutdown();
+      }
       return;
     }
 
@@ -1513,6 +1527,19 @@ private:
         connectionId.get(),
         connection.get(),
         taskId);
+  }
+
+  void dropTaskGroup(const TaskGroupInfo& taskGroup)
+  {
+    TaskState taskState =
+      protobuf::frameworkHasCapability(
+          frameworkInfo.get(), FrameworkInfo::Capability::PARTITION_AWARE)
+        ? TASK_DROPPED
+        : TASK_LOST;
+
+    foreach (const TaskInfo& task, taskGroup.tasks()) {
+      forward(createTaskStatus(task.task_id(), taskState));
+    }
   }
 
   enum State
