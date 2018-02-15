@@ -98,9 +98,10 @@ When compiling on macOS 10.12, the following is needed:
     $ brew install subversion
 
     # When configuring, the svn and apr headers from brew will be automatically
-    # detected, so no need to explicitly point to them. Also,
-    # `-Wno-deprecated-declarations` is needed to suppress warnings.
-    $ ../configure CXXFLAGS=-Wno-deprecated-declarations
+    # detected, so no need to explicitly point to them.
+    # If the build fails due to compiler warnings, `--disable-werror` can be passed
+    # to configure to not treat warnings as errors.
+    $ ../configure
 
     # Lastly, you may encounter the following error when the libprocess tests run:
     $ ./libprocess-tests
