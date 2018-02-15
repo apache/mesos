@@ -300,6 +300,7 @@ class JsLinter(LinterBase):
     exclude_files = '(' \
                     r'angular\-1\.2\.32|' \
                     r'angular\-route\-1\.2\.32|' \
+                    r'bootstrap\-table\-1\.11\.1|' \
                     r'clipboard\-1\.5\.16|' \
                     r'jquery\-3\.2\.1|' \
                     r'relative\-date|' \

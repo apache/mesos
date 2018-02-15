@@ -1783,6 +1783,7 @@ nobase_dist_pkgdata_DATA +=						\
 # Need to distribute/install webui CSS.
 nobase_dist_pkgdata_DATA +=						\
   webui/master/static/css/bootstrap-3.3.6.min.css			\
+  webui/master/static/css/bootstrap-table-1.11.1.min.css		\
   webui/master/static/css/mesos.css
 
 # Need to distribute/install webui HTML.
@@ -1824,6 +1825,8 @@ nobase_dist_pkgdata_DATA +=						\
   webui/master/static/js/angular-1.2.32.min.js				\
   webui/master/static/js/angular-route-1.2.32.js			\
   webui/master/static/js/angular-route-1.2.32.min.js			\
+  webui/master/static/js/bootstrap-table-1.11.1.js			\
+  webui/master/static/js/bootstrap-table-1.11.1.min.js			\
   webui/master/static/js/clipboard-1.5.16.js				\
   webui/master/static/js/clipboard-1.5.16.min.js			\
   webui/master/static/js/jquery-3.2.1.js				\
