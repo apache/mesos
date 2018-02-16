@@ -35,6 +35,7 @@
 
 #include <process/dispatch.hpp>
 #include <process/gmock.hpp>
+#include <process/gtest.hpp>
 #include <process/http.hpp>
 #include <process/owned.hpp>
 #include <process/reap.hpp>
@@ -940,7 +941,7 @@ TYPED_TEST(SlaveRecoveryTest, PingTimeoutDuringRecovery)
   // Set the executor re-register timeout to a value greater than
   // (agent_ping_timeout * (max_agent_ping_timeouts + 1)).
   slave::Flags slaveFlags = this->CreateSlaveFlags();
-  slaveFlags.executor_reregistration_timeout = Seconds(15);
+  slaveFlags.executor_reregistration_timeout = process::TEST_AWAIT_TIMEOUT;
 
   Fetcher fetcher(slaveFlags);
 

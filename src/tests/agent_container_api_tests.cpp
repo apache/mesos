@@ -66,6 +66,7 @@ using mesos::internal::slave::MesosContainerizer;
 using mesos::internal::slave::Slave;
 
 using process::Clock;
+using process::TEST_AWAIT_TIMEOUT;
 using process::Failure;
 using process::Future;
 using process::Owned;
@@ -179,7 +180,7 @@ public:
 
         normal->driver->start();
 
-        offers.await(Seconds(15));
+        offers.await(TEST_AWAIT_TIMEOUT);
         if (!offers.isReady() || offers->empty()) {
           return Error("Failed to get offer(s)");
         }
@@ -193,7 +194,7 @@ public:
 
         normal->driver->launchTasks(offers->front().id(), {task});
 
-        statusRunning.await(Seconds(15));
+        statusRunning.await(TEST_AWAIT_TIMEOUT);
         if (!statusRunning.isReady() &&
             statusRunning->state() != TASK_RUNNING) {
           return Error("Failed to launch parent container");
@@ -205,7 +206,7 @@ public:
 
         Future<v1::agent::Response> containers = deserialize(post(slave, call));
 
-        containers.await(Seconds(15));
+        containers.await(TEST_AWAIT_TIMEOUT);
         if (!containers.isReady() ||
             containers->get_containers().containers_size() != 1u) {
           return Error("Failed to get parent ContainerID");
@@ -220,7 +221,7 @@ public:
         Future<SlaveRegisteredMessage> slaveRegisteredMessage =
           FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-        slaveRegisteredMessage.await(Seconds(15));
+        slaveRegisteredMessage.await(TEST_AWAIT_TIMEOUT);
         if (!slaveRegisteredMessage.isReady()) {
           return Error("Failed to register agent");
         }

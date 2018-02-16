@@ -158,7 +158,7 @@ public:
           Subprocess::PATH(os::DEV_NULL));
 
       if (cmdProcess.isSome()) {
-        cmdProcess->status().await(Seconds(15));
+        cmdProcess->status().await(process::TEST_AWAIT_TIMEOUT);
       }
     }
 

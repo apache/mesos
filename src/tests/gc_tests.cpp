@@ -28,6 +28,7 @@
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
+#include <process/gtest.hpp>
 #include <process/http.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
@@ -987,7 +988,7 @@ TEST_F(GarbageCollectorIntegrationTest, ROOT_BusyMountPoint)
   EXPECT_TRUE(os::exists(sandbox));
 
   // Wait for the task to create these paths.
-  Timeout timeout = Timeout::in(Seconds(15));
+  Timeout timeout = Timeout::in(process::TEST_AWAIT_TIMEOUT);
   while (!os::exists(path::join(sandbox, mountPoint)) ||
          !os::exists(path::join(sandbox, regularFile)) ||
          !timeout.expired()) {

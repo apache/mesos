@@ -21,6 +21,7 @@
 
 #include <mesos/module/module.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/flags.hpp>
 #include <stout/option.hpp>
 
@@ -45,6 +46,7 @@ public:
   Option<std::string> modulesDir;
   Option<std::string> isolation;
   std::string authenticators;
+  Duration test_await_timeout;
 };
 
 // Global flags for running the tests.

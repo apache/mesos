@@ -28,6 +28,7 @@
 
 #include <process/clock.hpp>
 #include <process/future.hpp>
+#include <process/gtest.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
 #include <process/protobuf.hpp>
@@ -469,7 +470,7 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, ContenderDetectorShutdownNetwork)
 
   ASSERT_SOME(url);
 
-  Duration sessionTimeout = Seconds(15);
+  Duration sessionTimeout = process::TEST_AWAIT_TIMEOUT;
 
   ZooKeeperMasterContender contender(url.get(), sessionTimeout);
 
