@@ -87,6 +87,7 @@ class Executable(object):
     def __init__(self):
         self.name = ""
         self.executable = ""
+        self.shell = False
         self.flags = {}
         self.proc = None
 
@@ -106,8 +107,13 @@ class Executable(object):
             flags = ["--{key}={value}".format(key=key, value=value)
                      for key, value in self.flags.iteritems()]
 
+            if self.shell:
+                cmd = ["/bin/sh", self.executable] + flags
+            else:
+                cmd = [self.executable] + flags
+
             proc = subprocess.Popen(
-                [self.executable] + flags,
+                cmd,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT)
@@ -172,6 +178,7 @@ class Master(Executable):
             CLITestCase.MESOS_BUILD_DIR,
             "bin",
             "mesos-{name}.sh".format(name=self.name))
+        self.shell = True
 
     def __del__(self):
         super(Master, self).__del__()
@@ -224,6 +231,7 @@ class Agent(Executable):
             CLITestCase.MESOS_BUILD_DIR,
             "bin",
             "mesos-{name}.sh".format(name=self.name))
+        self.shell = True
 
     def __del__(self):
         super(Agent, self).__del__()
