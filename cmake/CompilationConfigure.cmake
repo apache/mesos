@@ -52,7 +52,7 @@ if (ENABLE_PRECOMPILED_HEADERS)
   set(COTIRE_VERBOSE ${VERBOSE})
 endif ()
 
-if (WIN32)
+if (CMAKE_GENERATOR MATCHES "Visual Studio")
   # In MSVC 1900, there are two bugs in the linker, one that causes linking
   # libmesos to occasionally take hours, and one that causes us to be able to
   # fail to open the `mesos-x.lib` file. These have been confirmed as bugs with
@@ -192,7 +192,7 @@ if (WIN32)
   if (NOT CMAKE_GENERATOR MATCHES ${PREFERRED_GENERATOR})
     message(
       WARNING
-      "Mesos is deprecating support for ${CMAKE_GENERATOR}. "
+      "Mesos does not officially support ${CMAKE_GENERATOR}. "
       "Please use ${PREFERRED_GENERATOR}.")
   endif ()
 
@@ -325,10 +325,17 @@ if (WIN32)
     # NOTE: We do not add CRT here because dependencies will use it incorrectly.
     string(APPEND CMAKE_${lang}_FLAGS " /MP -DUNICODE -D_UNICODE")
 
-    # Debug library for debug configuration.
-    string(APPEND CMAKE_${lang}_FLAGS_DEBUG "${CRT}d")
+    # Debug library for debug configuration, release otherwise.
 
-    # All other configurations.
+    # Handle single-configuration generators such as Ninja.
+    if (CMAKE_BUILD_TYPE MATCHES Debug)
+      string(APPEND CMAKE_${lang}_FLAGS "${CRT}d")
+    else ()
+      string(APPEND CMAKE_${lang}_FLAGS ${CRT})
+    endif ()
+
+    # Handle multi-configuration generators such as Visual Studio.
+    string(APPEND CMAKE_${lang}_FLAGS_DEBUG "${CRT}d")
     foreach (config RELEASE RELWITHDEBINFO MINSIZEREL)
       string(APPEND CMAKE_${lang}_FLAGS_${config} ${CRT})
     endforeach ()
