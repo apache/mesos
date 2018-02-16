@@ -186,9 +186,9 @@ endif
 noinst_LTLIBRARIES = libprocess.la
 
 libprocess_la_SOURCES =		\
-  src/authenticator_manager.hpp	\
-  src/authenticator_manager.cpp	\
   src/authenticator.cpp		\
+  src/authenticator_manager.cpp	\
+  src/authenticator_manager.hpp	\
   src/clock.cpp			\
   src/config.hpp		\
   src/decoder.hpp		\
@@ -197,6 +197,7 @@ libprocess_la_SOURCES =		\
   src/event_queue.hpp		\
   src/firewall.cpp		\
   src/gate.hpp			\
+  src/gtest_constants.cpp	\
   src/help.cpp			\
   src/http.cpp			\
   src/http_proxy.cpp		\
@@ -209,9 +210,9 @@ libprocess_la_SOURCES =		\
   src/pid.cpp			\
   src/poll_socket.cpp		\
   src/poll_socket.hpp		\
-  src/profiler.cpp		\
   src/process.cpp		\
   src/process_reference.hpp	\
+  src/profiler.cpp		\
   src/reap.cpp			\
   src/run_queue.hpp		\
   src/semaphore.hpp		\

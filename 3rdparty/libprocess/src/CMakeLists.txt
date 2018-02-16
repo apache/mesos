@@ -25,9 +25,9 @@ endif ()
 # SOURCE FILES FOR THE PROCESS LIBRARY.
 #######################################
 set(PROCESS_SRC
+  authenticator.cpp
   authenticator_manager.cpp
   authenticator_manager.hpp
-  authenticator.cpp
   clock.cpp
   config.hpp
   decoder.hpp
@@ -36,6 +36,7 @@ set(PROCESS_SRC
   event_queue.hpp
   firewall.cpp
   gate.hpp
+  gtest_constants.cpp
   help.cpp
   http.cpp
   http_proxy.cpp
@@ -48,9 +49,9 @@ set(PROCESS_SRC
   pid.cpp
   poll_socket.cpp
   poll_socket.hpp
-  profiler.cpp
   process.cpp
   process_reference.hpp
+  profiler.cpp
   reap.cpp
   run_queue.hpp
   semaphore.hpp

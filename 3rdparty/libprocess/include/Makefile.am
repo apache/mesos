@@ -32,6 +32,7 @@ nobase_include_HEADERS =		\
   process/gmock.hpp			\
   process/grpc.hpp			\
   process/gtest.hpp			\
+  process/gtest_constants.hpp		\
   process/help.hpp			\
   process/http.hpp			\
   process/id.hpp			\
