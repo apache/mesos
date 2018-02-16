@@ -12,6 +12,7 @@
 
 #include <signal.h>
 
+#include <iostream>
 #include <memory>
 #include <string>
 #include <vector>
@@ -27,7 +28,9 @@
 #include <process/gtest.hpp>
 #include <process/process.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/exit.hpp>
+#include <stout/flags.hpp>
 
 #ifndef __WINDOWS__
 #include <stout/os/signals.hpp>
@@ -35,6 +38,9 @@
 
 #include <stout/tests/environment.hpp>
 
+using std::cerr;
+using std::cout;
+using std::endl;
 using std::make_shared;
 using std::shared_ptr;
 using std::string;
@@ -46,18 +52,46 @@ using stout::internal::tests::TestFilter;
 using std::shared_ptr;
 using std::vector;
 
-// NOTE: We use RAW_LOG instead of LOG because RAW_LOG doesn't
-// allocate any memory or grab locks. And according to
-// https://code.google.com/p/google-glog/issues/detail?id=161
-// it should work in 'most' cases in signal handlers.
-inline void handler(int signal)
+namespace {
+
+class Flags : public virtual flags::FlagsBase
 {
-  RAW_LOG(FATAL, "Unexpected signal in signal handler: %d", signal);
-}
+public:
+  Flags()
+  {
+    add(&Flags::test_await_timeout,
+        "test_await_timeout",
+        "The default timeout for awaiting test events.",
+        process::TEST_AWAIT_TIMEOUT);
+  }
+
+  Duration test_await_timeout;
+};
+
+} // namespace {
 
 
 int main(int argc, char** argv)
 {
+  Flags flags;
+
+  // Load flags from environment and command line but allow unknown
+  // flags (since we might have gtest/gmock flags as well).
+  Try<flags::Warnings> load = flags.load("LIBPROCESS_", argc, argv, true);
+
+  if (flags.help) {
+    cout << flags.usage() << endl;
+    testing::InitGoogleMock(&argc, argv); // Get usage from gtest too.
+    return EXIT_SUCCESS;
+  }
+
+  if (load.isError()) {
+    cerr << flags.usage(load.error()) << endl;
+    return EXIT_FAILURE;
+  }
+
+  process::TEST_AWAIT_TIMEOUT = flags.test_await_timeout;
+
   // Initialize Google Mock/Test.
   testing::InitGoogleMock(&argc, argv);
 

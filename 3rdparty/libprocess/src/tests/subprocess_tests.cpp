@@ -619,18 +619,20 @@ TEST_F(SubprocessTest, Default)
 #endif // __WINDOWS__
 
 
-struct Flags : public virtual flags::FlagsBase
+namespace {
+
+struct TestFlags : public virtual flags::FlagsBase
 {
-  Flags()
+  TestFlags()
   {
-    add(&Flags::b, "b", "bool");
-    add(&Flags::i, "i", "int");
-    add(&Flags::s, "s", "string");
-    add(&Flags::s2, "s2", "string with single quote");
-    add(&Flags::s3, "s3", "string with double quote");
-    add(&Flags::d, "d", "Duration");
-    add(&Flags::y, "y", "Bytes");
-    add(&Flags::j, "j", "JSON::Object");
+    add(&TestFlags::b, "b", "bool");
+    add(&TestFlags::i, "i", "int");
+    add(&TestFlags::s, "s", "string");
+    add(&TestFlags::s2, "s2", "string with single quote");
+    add(&TestFlags::s3, "s3", "string with double quote");
+    add(&TestFlags::d, "d", "Duration");
+    add(&TestFlags::y, "y", "Bytes");
+    add(&TestFlags::j, "j", "JSON::Object");
   }
 
   Option<bool> b;
@@ -643,6 +645,8 @@ struct Flags : public virtual flags::FlagsBase
   Option<JSON::Object> j;
 };
 
+} // namespace {
+
 
 // NOTE: These tests can't be run on Windows because the rely on functionality
 // that does not exist on Windows. For example, `os::nonblock` will not work on
@@ -650,7 +654,7 @@ struct Flags : public virtual flags::FlagsBase
 #ifndef __WINDOWS__
 TEST_F(SubprocessTest, Flags)
 {
-  Flags flags;
+  TestFlags flags;
   flags.b = true;
   flags.i = 42;
   flags.s = "hello";
@@ -714,7 +718,7 @@ TEST_F(SubprocessTest, Flags)
     argv[i] = ::strdup(split[i - 1].c_str());
   }
 
-  Flags flags2;
+  TestFlags flags2;
   Try<flags::Warnings> load = flags2.load(None(), argc, argv);
   ASSERT_SOME(load);
   EXPECT_TRUE(load->warnings.empty());
