@@ -805,11 +805,6 @@ private:
       // the previous one and gives the task _more_ time to clean up. Other
       // systems, e.g., docker, do not allow this.
       //
-      // The escalation grace period can be only decreased. We intentionally
-      // do not support increasing the total grace period for the terminating
-      // task, because we do not want users to "slow down" a kill that is in
-      // progress. Also note that docker does not support this currently.
-      //
       // Here are some examples to illustrate:
       //
       // 20, 30 -> Increased grace period is a no-op, grace period remains 20.
