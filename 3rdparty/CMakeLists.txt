@@ -154,16 +154,14 @@ endfunction()
 # explicitly set.
 # https://cmake.org/pipermail/cmake/2015-April/060234.html
 function(GET_BYPRODUCTS TARGET)
-  if (WIN32)
-    get_target_property(DEBUG ${TARGET} IMPORTED_LOCATION_DEBUG)
-    get_target_property(RELEASE ${TARGET} IMPORTED_LOCATION_RELEASE)
-    set(BYPRODUCTS ${DEBUG} ${RELEASE})
-  else ()
-    get_target_property(BYPRODUCTS ${TARGET} IMPORTED_LOCATION)
-  endif ()
-
   string(TOUPPER ${TARGET} NAME)
-  set(${NAME}_BYPRODUCTS ${BYPRODUCTS} PARENT_SCOPE)
+  if (CMAKE_GENERATOR MATCHES "Ninja")
+    get_target_property(BYPRODUCTS ${TARGET} IMPORTED_LOCATION)
+    set(${NAME}_BYPRODUCTS ${BYPRODUCTS} PARENT_SCOPE)
+  else ()
+    # Make this function a no-op when not using Ninja.
+    set(${NAME}_BYPRODUCTS "" PARENT_SCOPE)
+  endif()
 endfunction()
 
 
@@ -218,10 +216,19 @@ if (WIN32)
 
   set_target_properties(
     sasl2 PROPERTIES
-    IMPORTED_LOCATION_DEBUG ${SASL2_ROOT}-build/Debug/libsasl2${LIBRARY_SUFFIX}
-    IMPORTED_LOCATION_RELEASE ${SASL2_ROOT}-build/Release/libsasl2${LIBRARY_SUFFIX}
     INTERFACE_INCLUDE_DIRECTORIES ${SASL2_ROOT}-build/include
     INTERFACE_COMPILE_DEFINITIONS LIBSASL_EXPORTS=1)
+
+  if (CMAKE_GENERATOR MATCHES "Visual Studio")
+    set_target_properties(
+      sasl2 PROPERTIES
+      IMPORTED_LOCATION_DEBUG ${SASL2_ROOT}-build/Debug/libsasl2${LIBRARY_SUFFIX}
+      IMPORTED_LOCATION_RELEASE ${SASL2_ROOT}-build/Release/libsasl2${LIBRARY_SUFFIX})
+  else ()
+    set_target_properties(
+      sasl2 PROPERTIES
+      IMPORTED_LOCATION ${SASL2_ROOT}-build/libsasl2${LIBRARY_SUFFIX})
+  endif ()
 
   # Patch SASL to include a minimal CMake build system which encompasses
   # only the parts that Mesos relies on (CRAM MD5).
@@ -296,14 +303,24 @@ if (WIN32)
 
   set_target_properties(
     glog PROPERTIES
-    IMPORTED_LOCATION_DEBUG ${GLOG_ROOT}-build/Debug/glog${LIBRARY_SUFFIX}
-    IMPORTED_LOCATION_RELEASE ${GLOG_ROOT}-build/Release/glog${LIBRARY_SUFFIX}
-    IMPORTED_IMPLIB_DEBUG ${GLOG_ROOT}-build/Debug/glog${CMAKE_IMPORT_LIBRARY_SUFFIX}
-    IMPORTED_IMPLIB_RELEASE ${GLOG_ROOT}-build/Release/glog${CMAKE_IMPORT_LIBRARY_SUFFIX}
     INTERFACE_INCLUDE_DIRECTORIES ${GLOG_ROOT}/src/windows
     # TODO(andschwa): Remove this when glog is updated.
     IMPORTED_LINK_INTERFACE_LIBRARIES DbgHelp
     INTERFACE_COMPILE_DEFINITIONS "${GLOG_COMPILE_DEFINITIONS}")
+
+  if (CMAKE_GENERATOR MATCHES "Visual Studio")
+    set_target_properties(
+      glog PROPERTIES
+      IMPORTED_LOCATION_DEBUG ${GLOG_ROOT}-build/Debug/glog${LIBRARY_SUFFIX}
+      IMPORTED_LOCATION_RELEASE ${GLOG_ROOT}-build/Release/glog${LIBRARY_SUFFIX}
+      IMPORTED_IMPLIB_DEBUG ${GLOG_ROOT}-build/Debug/glog${CMAKE_IMPORT_LIBRARY_SUFFIX}
+      IMPORTED_IMPLIB_RELEASE ${GLOG_ROOT}-build/Release/glog${CMAKE_IMPORT_LIBRARY_SUFFIX})
+  else ()
+    set_target_properties(
+      glog PROPERTIES
+      IMPORTED_LOCATION ${GLOG_ROOT}-build/glog${LIBRARY_SUFFIX}
+      IMPORTED_IMPLIB ${GLOG_ROOT}-build/glog${CMAKE_IMPORT_LIBRARY_SUFFIX})
+  endif ()
 else ()
   # TODO(andschwa): Build with CMake instead when glog is updated.
   set(GLOG_CONFIG_CMD  ${GLOG_ROOT}/src/../configure --with-pic GTEST_CONFIG=no --prefix=${GLOG_ROOT}-build)
@@ -393,10 +410,16 @@ set_target_properties(
   INTERFACE_INCLUDE_DIRECTORIES ${HTTP_PARSER_ROOT})
 
 if (WIN32)
-  set_target_properties(
-    http_parser PROPERTIES
-    IMPORTED_LOCATION_DEBUG ${HTTP_PARSER_ROOT}-build/Debug/http_parser${CMAKE_STATIC_LIBRARY_SUFFIX}
-    IMPORTED_LOCATION_RELEASE ${HTTP_PARSER_ROOT}-build/Release/http_parser${CMAKE_STATIC_LIBRARY_SUFFIX})
+  if (CMAKE_GENERATOR MATCHES "Visual Studio")
+    set_target_properties(
+      http_parser PROPERTIES
+      IMPORTED_LOCATION_DEBUG ${HTTP_PARSER_ROOT}-build/Debug/http_parser${CMAKE_STATIC_LIBRARY_SUFFIX}
+      IMPORTED_LOCATION_RELEASE ${HTTP_PARSER_ROOT}-build/Release/http_parser${CMAKE_STATIC_LIBRARY_SUFFIX})
+  else ()
+    set_target_properties(
+      http_parser PROPERTIES
+      IMPORTED_LOCATION ${HTTP_PARSER_ROOT}-build/http_parser${CMAKE_STATIC_LIBRARY_SUFFIX})
+  endif ()
 else ()
   set_target_properties(
     http_parser PROPERTIES
@@ -438,10 +461,16 @@ if (ENABLE_LIBEVENT)
     INTERFACE_INCLUDE_DIRECTORIES "${LIBEVENT_ROOT}/include;${LIBEVENT_ROOT}-build/include")
 
   if (WIN32)
-    set_target_properties(
-      libevent PROPERTIES
-      IMPORTED_LOCATION_DEBUG ${LIBEVENT_ROOT}-build/lib/Debug/event${LIBRARY_SUFFIX}
-      IMPORTED_LOCATION_RELEASE ${LIBEVENT_ROOT}-build/lib/Release/event${LIBRARY_SUFFIX})
+    if (CMAKE_GENERATOR MATCHES "Visual Studio")
+      set_target_properties(
+        libevent PROPERTIES
+        IMPORTED_LOCATION_DEBUG ${LIBEVENT_ROOT}-build/lib/Debug/event${LIBRARY_SUFFIX}
+        IMPORTED_LOCATION_RELEASE ${LIBEVENT_ROOT}-build/lib/Release/event${LIBRARY_SUFFIX})
+    else ()
+      set_target_properties(
+        libevent PROPERTIES
+        IMPORTED_LOCATION ${LIBEVENT_ROOT}-build/lib/event${LIBRARY_SUFFIX})
+    endif ()
   else ()
     set_target_properties(
       libevent PROPERTIES
@@ -515,9 +544,18 @@ if (WIN32)
 
   set_target_properties(
     apr PROPERTIES
-    IMPORTED_LOCATION_DEBUG ${LIBAPR_ROOT}-build/Debug/libapr-1${CMAKE_STATIC_LIBRARY_SUFFIX}
-    IMPORTED_LOCATION_RELEASE ${LIBAPR_ROOT}-build/Release/libapr-1${CMAKE_STATIC_LIBRARY_SUFFIX}
     INTERFACE_INCLUDE_DIRECTORIES "${LIBAPR_ROOT}/include;${LIBAPR_ROOT}-build")
+
+  if (CMAKE_GENERATOR MATCHES "Visual Studio")
+    set_target_properties(
+      apr PROPERTIES
+      IMPORTED_LOCATION_DEBUG ${LIBAPR_ROOT}-build/Debug/libapr-1${CMAKE_STATIC_LIBRARY_SUFFIX}
+      IMPORTED_LOCATION_RELEASE ${LIBAPR_ROOT}-build/Release/libapr-1${CMAKE_STATIC_LIBRARY_SUFFIX})
+  else ()
+    set_target_properties(
+      apr PROPERTIES
+      IMPORTED_LOCATION ${LIBAPR_ROOT}-build/libapr-1${CMAKE_STATIC_LIBRARY_SUFFIX})
+  endif ()
 
   MAKE_INCLUDE_DIR(apr)
   GET_BYPRODUCTS(apr)
@@ -596,17 +634,33 @@ if (WIN32)
 
   set_target_properties(
     libcurl PROPERTIES
-    IMPORTED_LOCATION_DEBUG ${CURL_ROOT}-build/lib/Debug/libcurl-d${LIBRARY_SUFFIX}
-    IMPORTED_LOCATION_RELEASE ${CURL_ROOT}-build/lib/Release/libcurl${LIBRARY_SUFFIX}
-    IMPORTED_IMPLIB_DEBUG ${CURL_ROOT}-build/lib/Debug/libcurl_imp${CMAKE_IMPORT_LIBRARY_SUFFIX}
-    IMPORTED_IMPLIB_RELEASE ${CURL_ROOT}-build/lib/Release/libcurl_imp${CMAKE_IMPORT_LIBRARY_SUFFIX}
     INTERFACE_INCLUDE_DIRECTORIES ${CURL_ROOT}/include
     INTERFACE_LINK_LIBRARIES crypt32)
 
-  set_target_properties(
-    curl PROPERTIES
-    IMPORTED_LOCATION_DEBUG ${CURL_ROOT}-build/src/Debug/curl-d.exe
-    IMPORTED_LOCATION_RELEASE ${CURL_ROOT}-build/src/Release/curl.exe)
+  if (CMAKE_GENERATOR MATCHES "Visual Studio")
+    set_target_properties(
+      libcurl PROPERTIES
+      IMPORTED_LOCATION_DEBUG ${CURL_ROOT}-build/lib/Debug/libcurl-d${LIBRARY_SUFFIX}
+      IMPORTED_LOCATION_RELEASE ${CURL_ROOT}-build/lib/Release/libcurl${LIBRARY_SUFFIX}
+      IMPORTED_IMPLIB_DEBUG ${CURL_ROOT}-build/lib/Debug/libcurl_imp${CMAKE_IMPORT_LIBRARY_SUFFIX}
+      IMPORTED_IMPLIB_RELEASE ${CURL_ROOT}-build/lib/Release/libcurl_imp${CMAKE_IMPORT_LIBRARY_SUFFIX})
+
+    set_target_properties(
+      curl PROPERTIES
+      IMPORTED_LOCATION_DEBUG ${CURL_ROOT}-build/src/Debug/curl-d.exe
+      IMPORTED_LOCATION_RELEASE ${CURL_ROOT}-build/src/Release/curl.exe)
+  else ()
+    set_target_properties(
+      libcurl PROPERTIES
+      # TODO(andschwa): Use generator expression to remove `-d` in Release.
+      IMPORTED_LOCATION ${CURL_ROOT}-build/lib/libcurl-d${LIBRARY_SUFFIX}
+      IMPORTED_IMPLIB ${CURL_ROOT}-build/lib/libcurl_imp${CMAKE_IMPORT_LIBRARY_SUFFIX})
+
+    set_target_properties(
+      curl PROPERTIES
+      # TODO(andschwa): Use generator expression to remove `-d` in Release.
+      IMPORTED_LOCATION ${CURL_ROOT}-build/src/curl-d.exe)
+  endif ()
 
   MAKE_INCLUDE_DIR(libcurl)
   GET_BYPRODUCTS(libcurl)
@@ -658,11 +712,22 @@ if (WIN32)
 
   set_target_properties(
     zlib PROPERTIES
-    IMPORTED_LOCATION_DEBUG ${ZLIB_ROOT}-build/Debug/zlib${ZLIB_STATIC}d${ZLIB_SHARED}${LIBRARY_SUFFIX}
-    IMPORTED_LOCATION_RELEASE ${ZLIB_ROOT}-build/Release/zlib${ZLIB_STATIC}${ZLIB_SHARED}${LIBRARY_SUFFIX}
-    IMPORTED_IMPLIB_DEBUG ${ZLIB_ROOT}-build/Debug/zlib${ZLIB_STATIC}d${CMAKE_IMPORT_LIBRARY_SUFFIX}
-    IMPORTED_IMPLIB_RELEASE ${ZLIB_ROOT}-build/Release/zlib${ZLIB_STATIC}${CMAKE_IMPORT_LIBRARY_SUFFIX}
     INTERFACE_INCLUDE_DIRECTORIES "${ZLIB_ROOT};${ZLIB_ROOT}-build")
+
+  if (CMAKE_GENERATOR MATCHES "Visual Studio")
+    set_target_properties(
+      zlib PROPERTIES
+      IMPORTED_LOCATION_DEBUG ${ZLIB_ROOT}-build/Debug/zlib${ZLIB_STATIC}d${ZLIB_SHARED}${LIBRARY_SUFFIX}
+      IMPORTED_LOCATION_RELEASE ${ZLIB_ROOT}-build/Release/zlib${ZLIB_STATIC}${ZLIB_SHARED}${LIBRARY_SUFFIX}
+      IMPORTED_IMPLIB_DEBUG ${ZLIB_ROOT}-build/Debug/zlib${ZLIB_STATIC}d${CMAKE_IMPORT_LIBRARY_SUFFIX}
+      IMPORTED_IMPLIB_RELEASE ${ZLIB_ROOT}-build/Release/zlib${ZLIB_STATIC}${CMAKE_IMPORT_LIBRARY_SUFFIX})
+  else ()
+    set_target_properties(
+      zlib PROPERTIES
+      # TODO(andschwa): Use generator expression to remove `d` in Release.
+      IMPORTED_LOCATION ${ZLIB_ROOT}-build/zlib${ZLIB_STATIC}d${ZLIB_SHARED}${LIBRARY_SUFFIX}
+      IMPORTED_IMPLIB ${ZLIB_ROOT}-build/zlib${ZLIB_STATIC}d${CMAKE_IMPORT_LIBRARY_SUFFIX})
+  endif ()
 
   MAKE_INCLUDE_DIR(zlib)
   GET_BYPRODUCTS(zlib)
@@ -716,16 +781,29 @@ set(GOOGLETEST_CMAKE_FORWARD_ARGS ${CMAKE_FORWARD_ARGS})
 
 if (WIN32)
   set_target_properties(
-    gmock PROPERTIES
-    IMPORTED_LOCATION_DEBUG ${GOOGLETEST_ROOT}-build/googlemock/Debug/gmock${CMAKE_STATIC_LIBRARY_SUFFIX}
-    IMPORTED_LOCATION_RELEASE ${GOOGLETEST_ROOT}-build/googlemock/Release/gmock${CMAKE_STATIC_LIBRARY_SUFFIX})
-
-  set_target_properties(
     gtest PROPERTIES
     # Silence deprecation warning in the interface of Google Test.
-    INTERFACE_COMPILE_DEFINITIONS _SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING
-    IMPORTED_LOCATION_DEBUG ${GOOGLETEST_ROOT}-build/googlemock/gtest/Debug/gtest${CMAKE_STATIC_LIBRARY_SUFFIX}
-    IMPORTED_LOCATION_RELEASE ${GOOGLETEST_ROOT}-build/googlemock/gtest/Release/gtest${CMAKE_STATIC_LIBRARY_SUFFIX})
+    INTERFACE_COMPILE_DEFINITIONS _SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING)
+
+  if (CMAKE_GENERATOR MATCHES "Visual Studio")
+    set_target_properties(
+      gmock PROPERTIES
+      IMPORTED_LOCATION_DEBUG ${GOOGLETEST_ROOT}-build/googlemock/Debug/gmock${CMAKE_STATIC_LIBRARY_SUFFIX}
+      IMPORTED_LOCATION_RELEASE ${GOOGLETEST_ROOT}-build/googlemock/Release/gmock${CMAKE_STATIC_LIBRARY_SUFFIX})
+
+    set_target_properties(
+      gtest PROPERTIES
+      IMPORTED_LOCATION_DEBUG ${GOOGLETEST_ROOT}-build/googlemock/gtest/Debug/gtest${CMAKE_STATIC_LIBRARY_SUFFIX}
+      IMPORTED_LOCATION_RELEASE ${GOOGLETEST_ROOT}-build/googlemock/gtest/Release/gtest${CMAKE_STATIC_LIBRARY_SUFFIX})
+  else ()
+    set_target_properties(
+      gmock PROPERTIES
+      IMPORTED_LOCATION ${GOOGLETEST_ROOT}-build/googlemock/gmock${CMAKE_STATIC_LIBRARY_SUFFIX})
+
+    set_target_properties(
+      gtest PROPERTIES
+      IMPORTED_LOCATION ${GOOGLETEST_ROOT}-build/googlemock/gtest/gtest${CMAKE_STATIC_LIBRARY_SUFFIX})
+  endif ()
 
   # Silence new deprecation warning in Visual Studio 15.5.
   # NOTE: This has been patched upstream, but we don't patch Google Test.
@@ -781,17 +859,28 @@ set_target_properties(
   INTERFACE_INCLUDE_DIRECTORIES ${PROTOBUF_ROOT}/src)
 
 if (WIN32)
-  set_target_properties(
-    protobuf PROPERTIES
-    IMPORTED_LOCATION_DEBUG ${PROTOBUF_ROOT}-build/Debug/libprotobufd${LIBRARY_SUFFIX}
-    IMPORTED_LOCATION_RELEASE ${PROTOBUF_ROOT}-build/Release/libprotobuf${LIBRARY_SUFFIX})
-
   PATCH_CMD(PROTOBUF_PATCH_CMD protobuf-${PROTOBUF_VERSION}.patch)
 
-  set_target_properties(
-    protoc PROPERTIES
-    IMPORTED_LOCATION_DEBUG ${PROTOBUF_ROOT}-build/Debug/protoc.exe
-    IMPORTED_LOCATION_RELEASE ${PROTOBUF_ROOT}-build/Release/protoc.exe)
+  if (CMAKE_GENERATOR MATCHES "Visual Studio")
+    set_target_properties(
+      protobuf PROPERTIES
+      IMPORTED_LOCATION_DEBUG ${PROTOBUF_ROOT}-build/Debug/libprotobufd${LIBRARY_SUFFIX}
+      IMPORTED_LOCATION_RELEASE ${PROTOBUF_ROOT}-build/Release/libprotobuf${LIBRARY_SUFFIX})
+
+    set_target_properties(
+      protoc PROPERTIES
+      IMPORTED_LOCATION_DEBUG ${PROTOBUF_ROOT}-build/Debug/protoc.exe
+      IMPORTED_LOCATION_RELEASE ${PROTOBUF_ROOT}-build/Release/protoc.exe)
+  else ()
+    set_target_properties(
+      protobuf PROPERTIES
+      # TODO(andschwa): Use generator expression to remove `d` in Release.
+      IMPORTED_LOCATION ${PROTOBUF_ROOT}-build/libprotobufd${LIBRARY_SUFFIX})
+
+    set_target_properties(
+      protoc PROPERTIES
+      IMPORTED_LOCATION ${PROTOBUF_ROOT}-build/protoc.exe)
+  endif ()
 else ()
   # This is for single-configuration generators such as GNU Make.
   if (CMAKE_BUILD_TYPE MATCHES Debug)
@@ -841,15 +930,25 @@ set_target_properties(
 PATCH_CMD(ZOOKEEPER_PATCH_CMD zookeeper-${ZOOKEEPER_VERSION}.patch)
 
 if (WIN32)
-  set_target_properties(
-    zookeeper PROPERTIES
-    IMPORTED_LOCATION_DEBUG ${ZOOKEEPER_ROOT}-build/Debug/zookeeper${CMAKE_STATIC_LIBRARY_SUFFIX}
-    IMPORTED_LOCATION_RELEASE ${ZOOKEEPER_ROOT}-build/Release/zookeeper${CMAKE_STATIC_LIBRARY_SUFFIX})
+  if (CMAKE_GENERATOR MATCHES "Visual Studio")
+    set_target_properties(
+      zookeeper PROPERTIES
+      IMPORTED_LOCATION_DEBUG ${ZOOKEEPER_ROOT}-build/Debug/zookeeper${CMAKE_STATIC_LIBRARY_SUFFIX}
+      IMPORTED_LOCATION_RELEASE ${ZOOKEEPER_ROOT}-build/Release/zookeeper${CMAKE_STATIC_LIBRARY_SUFFIX})
 
-  set_target_properties(
-    zk-hashtable PROPERTIES
-    IMPORTED_LOCATION_DEBUG ${ZOOKEEPER_ROOT}-build/Debug/hashtable${CMAKE_STATIC_LIBRARY_SUFFIX}
-    IMPORTED_LOCATION_RELEASE ${ZOOKEEPER_ROOT}-build/Release/hashtable${CMAKE_STATIC_LIBRARY_SUFFIX})
+    set_target_properties(
+      zk-hashtable PROPERTIES
+      IMPORTED_LOCATION_DEBUG ${ZOOKEEPER_ROOT}-build/Debug/hashtable${CMAKE_STATIC_LIBRARY_SUFFIX}
+      IMPORTED_LOCATION_RELEASE ${ZOOKEEPER_ROOT}-build/Release/hashtable${CMAKE_STATIC_LIBRARY_SUFFIX})
+  else ()
+    set_target_properties(
+      zookeeper PROPERTIES
+      IMPORTED_LOCATION ${ZOOKEEPER_ROOT}-build/zookeeper${CMAKE_STATIC_LIBRARY_SUFFIX})
+
+    set_target_properties(
+      zk-hashtable PROPERTIES
+      IMPORTED_LOCATION ${ZOOKEEPER_ROOT}-build/hashtable${CMAKE_STATIC_LIBRARY_SUFFIX})
+  endif ()
 else ()
   set_target_properties(
     zookeeper PROPERTIES
