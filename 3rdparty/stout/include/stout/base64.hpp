@@ -107,6 +107,17 @@ inline Try<std::string> decode(const std::string& s, const std::string& chars)
       break; // Reached the padding.
     }
 
+    // The base RFC (https://tools.ietf.org/html/rfc4648#section-3.3) explicitly
+    // asks to reject non-alphabet characters including newlines and
+    // whitespaces. However, other specifications like MIME simply ignore
+    // characters outside the base alphabet ("be liberal in what you accept").
+    // Further, most implementation ignore whiltespace characters when
+    // processing encoded data. This allows tools to delimit encoded with
+    // newlines or other whitespace characters for better readability, etc.
+    if (isspace(c)) {
+      continue;
+    }
+
     if (!isBase64(c)) {
       return Error("Invalid character '" + stringify(c) + "'");
     }
