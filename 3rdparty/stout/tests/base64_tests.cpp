@@ -29,9 +29,14 @@ TEST(Base64Test, Decode)
   EXPECT_SOME_EQ("user:password", base64::decode("dXNlcjpwYXNzd29yZA="));
   EXPECT_SOME_EQ("user:password", base64::decode("dXNlcjpwYXNzd29yZA"));
 
-  // Whitespace is not allowed.
-  EXPECT_ERROR(base64::decode("d XNlcjpwYXNzd29yZA=="));
-  EXPECT_ERROR(base64::decode("d\r\nXNlcjpwYXNzd29yZA=="));
+  // Whitespaces are allowed.
+  EXPECT_SOME_EQ("user:password", base64::decode("d XNlcjpwYXNzd29yZA=="));
+  EXPECT_SOME_EQ("user:password", base64::decode("d\tXNlcjpwYXNzd29yZA=="));
+  EXPECT_SOME_EQ("user:password", base64::decode("d\nXNlcjpwYXNzd29yZA=="));
+  EXPECT_SOME_EQ("user:password", base64::decode("d\vXNlcjpwYXNzd29yZA=="));
+  EXPECT_SOME_EQ("user:password", base64::decode("d\fXNlcjpwYXNzd29yZA=="));
+  EXPECT_SOME_EQ("user:password", base64::decode("d\rXNlcjpwYXNzd29yZA=="));
+  EXPECT_SOME_EQ("user:password", base64::decode("d\r\nXNlcjpwYXNzd29yZA=="));
 
   // Invalid characters.
   EXPECT_ERROR(base64::decode("abc("));
