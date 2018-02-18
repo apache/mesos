@@ -22,10 +22,7 @@ if [ -d "${SOURCE_DIR}/centos7" ]; then
   exit 1
 fi
 
-TMP_BUILD_DIR=$(mktemp -d)
-
 function cleanup {
-  rm -rf "${TMP_BUILD_DIR}"
   rm -rf "${SOURCE_DIR}/centos7"
 }
 
@@ -49,12 +46,15 @@ docker run \
   /bin/bash -c "${SOURCE_DIR}/support/packaging/centos/build_rpm.sh && chown -R ${USER_ID}:${GROUP_ID} ${SOURCE_DIR}/centos7"
 
 # Build the image for running Mesos.
-cp "${SOURCE_DIR}"/centos7/rpmbuild/RPMS/x86_64/*.rpm "${TMP_BUILD_DIR}"
+DOCKER_CONTEXT_DIR="${SOURCE_DIR}/centos7/rpmbuild/RPMS/x86_64"
 
-cat <<EOF > "${TMP_BUILD_DIR}/Dockerfile"
+cat <<EOF > "${DOCKER_CONTEXT_DIR}/Dockerfile"
 FROM centos:7
 ADD mesos-?.?.?-*.rpm /
 RUN yum --nogpgcheck -y localinstall /mesos-*.rpm
 EOF
 
-docker build --rm -t ${DOCKER_IMAGE_DISTRO}:${DOCKER_IMAGE_TAG} ${TMP_BUILD_DIR}
+docker build \
+  --rm \
+  -t ${DOCKER_IMAGE_DISTRO}:${DOCKER_IMAGE_TAG} \
+  "${DOCKER_CONTEXT_DIR}"
