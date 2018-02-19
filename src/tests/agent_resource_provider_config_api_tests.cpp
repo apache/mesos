@@ -24,6 +24,8 @@
 #include <stout/protobuf.hpp>
 #include <stout/stringify.hpp>
 
+#include <stout/os/realpath.hpp>
+
 #include "common/http.hpp"
 
 #include "csi/paths.hpp"
