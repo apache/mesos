@@ -16,6 +16,8 @@
 
 #include <ostream>
 
+#include <google/protobuf/util/message_differencer.h>
+
 #include <stout/protobuf.hpp>
 #include <stout/uuid.hpp>
 
@@ -392,6 +394,18 @@ bool operator==(const MasterInfo& left, const MasterInfo& right)
     left.hostname() == right.hostname() &&
     left.version() == right.version() &&
     left.domain() == right.domain();
+}
+
+
+bool operator==(const Offer::Operation& left, const Offer::Operation& right)
+{
+  return google::protobuf::util::MessageDifferencer::Equals(left, right);
+}
+
+
+bool operator!=(const Offer::Operation& left, const Offer::Operation& right)
+{
+  return !(left == right);
 }
 
 
