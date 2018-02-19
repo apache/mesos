@@ -1,6 +1,6 @@
 FROM mesos/mesos-centos
 
-RUN yum install -y java-1.8.0-openjdk
+RUN yum install -y java-1.8.0-openjdk iptables
 
 # Prepare systemd environment.
 ENV container docker
@@ -31,6 +31,21 @@ CMD ["/usr/sbin/init"]
 
 STOPSIGNAL SIGRTMIN+3
 
+# Prepare Docker environment.
+ARG DOCKER_RUL=https://download.docker.com/linux/static/stable/x86_64/docker-17.12.0-ce.tgz
+
+RUN mkdir -p /etc/docker && \
+    touch /etc/docker/env && \
+    curl -s $DOCKER_RUL -o /docker.tgz && \
+    tar -xzvf /docker.tgz -C /usr/local/bin --strip 1 && \
+    rm -f /docker.tgz
+
+RUN groupadd docker
+
+COPY docker.service /usr/lib/systemd/system/docker.service
+COPY docker_env.sh /etc/docker/env.sh
+COPY docker_daemon.json /etc/docker/daemon.json
+
 # Prepare Mesos environment.
 RUN chmod +x /usr/bin/mesos-init-wrapper && \
     rm -f /etc/mesos-master/work_dir && \
@@ -51,6 +66,7 @@ RUN mkdir -p $MARATHON_INSTALL_DIR && \
 COPY marathon.sh $MARATHON_INSTALL_DIR/bin/
 COPY marathon.service /usr/lib/systemd/system/marathon.service
 
-RUN systemctl enable mesos-slave && \
+RUN systemctl enable docker && \
+    systemctl enable mesos-slave && \
     systemctl enable mesos-master && \
     systemctl enable marathon
