@@ -1004,6 +1004,151 @@ TEST_P(MasterAPITest, GetRoles)
 }
 
 
+TEST_P(MasterAPITest, GetOperations)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+
+  Try<Owned<cluster::Master>> master = this->StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  // Start one agent.
+  Future<UpdateSlaveMessage> updateAgentMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  // TODO(nfnt): Remove this once 'MockResourceProvider' supports
+  // authentication.
+  slaveFlags.authenticate_http_readwrite = false;
+
+  // Set the resource provider capability.
+  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
+  SlaveInfo::Capability capability;
+  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
+  capabilities.push_back(capability);
+
+  slaveFlags.agent_features = SlaveCapabilities();
+  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
+      {capabilities.begin(), capabilities.end()});
+
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(agent);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  AWAIT_READY(updateAgentMessage);
+
+  mesos::v1::ResourceProviderInfo info;
+  info.set_type("org.apache.mesos.rp.test");
+  info.set_name("test");
+
+  v1::MockResourceProvider resourceProvider(
+      info,
+      v1::createDiskResource(
+          "200", "*", None(), None(), v1::createDiskSourceRaw()));
+
+  // Start and register resource provider.
+  Owned<EndpointDetector> endpointDetector(
+      resource_provider::createEndpointDetector(agent.get()->pid));
+
+  updateAgentMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  const ContentType contentType = GetParam();
+
+  resourceProvider.start(endpointDetector, contentType, v1::DEFAULT_CREDENTIAL);
+
+  // Wait until the agent's resources have been updated to include the
+  // resource provider resources.
+  AWAIT_READY(updateAgentMessage);
+
+  v1::master::Call v1Call;
+  v1Call.set_type(v1::master::Call::GET_OPERATIONS);
+
+  Future<v1::master::Response> v1Response =
+    post(master.get()->pid, v1Call, contentType);
+
+  AWAIT_READY(v1Response);
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::master::Response::GET_OPERATIONS, v1Response->type());
+  EXPECT_TRUE(v1Response->get_operations().operations().empty());
+
+  // Start a framework to operate on offers.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  // We settle here to make sure that the framework has been authenticated
+  // before advancing the clock. Otherwise we would run into a authentication
+  // timeout due to the large allocation interval (1000s) of this fixture.
+  Clock::settle();
+
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::settle();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+  const Offer& offer = offers->front();
+
+  Option<Resource> rawDisk;
+
+  foreach (const Resource& resource, offer.resources()) {
+    if (resource.has_provider_id() &&
+        resource.has_disk() &&
+        resource.disk().has_source() &&
+        resource.disk().source().type() == Resource::DiskInfo::Source::RAW) {
+      rawDisk = resource;
+      break;
+    }
+  }
+
+  ASSERT_SOME(rawDisk);
+
+  // The operation is still pending when we receive this event.
+  Future<mesos::v1::resource_provider::Event::ApplyOperation> operation;
+  EXPECT_CALL(resourceProvider, applyOperation(_))
+    .WillOnce(FutureArg<0>(&operation));
+
+  // Start an operation.
+  driver.acceptOffers(
+      {offer.id()},
+      {CREATE_VOLUME(rawDisk.get(), Resource::DiskInfo::Source::MOUNT)});
+
+  AWAIT_READY(operation);
+
+  v1Response = post(master.get()->pid, v1Call, contentType);
+
+  AWAIT_READY(v1Response);
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::master::Response::GET_OPERATIONS, v1Response->type());
+  EXPECT_EQ(1, v1Response->get_operations().operations_size());
+  EXPECT_EQ(
+      operation->framework_id(),
+      v1Response->get_operations().operations(0).framework_id());
+  EXPECT_EQ(
+      evolve(updateAgentMessage->slave_id()),
+      v1Response->get_operations().operations(0).agent_id());
+  EXPECT_EQ(
+      operation->info(), v1Response->get_operations().operations(0).info());
+  EXPECT_EQ(
+      operation->operation_uuid(),
+      v1Response->get_operations().operations(0).uuid());
+
+  driver.stop();
+  driver.join();
+}
+
+
 TEST_P(MasterAPITest, GetMaster)
 {
   master::Flags masterFlags = CreateMasterFlags();
@@ -6369,6 +6514,150 @@ TEST_P(AgentAPITest, GetResourceProviders)
 
   EXPECT_EQ(info.type(), responseInfo.type());
   EXPECT_EQ(info.name(), responseInfo.name());
+}
+
+
+TEST_P(AgentAPITest, GetOperations)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+
+  Try<Owned<cluster::Master>> master = this->StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  // TODO(nfnt): Remove this once 'MockResourceProvider' supports
+  // authentication.
+  slaveFlags.authenticate_http_readwrite = false;
+
+  // Set the resource provider capability.
+  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
+  SlaveInfo::Capability capability;
+  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
+  capabilities.push_back(capability);
+
+  slaveFlags.agent_features = SlaveCapabilities();
+  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
+      {capabilities.begin(), capabilities.end()});
+
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(agent);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  AWAIT_READY(updateSlaveMessage);
+
+  mesos::v1::ResourceProviderInfo info;
+  info.set_type("org.apache.mesos.rp.test");
+  info.set_name("test");
+
+  v1::MockResourceProvider resourceProvider(
+      info,
+      v1::createDiskResource(
+          "200", "*", None(), None(), v1::createDiskSourceRaw()));
+
+  // Start and register a resource provider.
+  Owned<EndpointDetector> endpointDetector(
+      resource_provider::createEndpointDetector(agent.get()->pid));
+
+  updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  const ContentType contentType = GetParam();
+
+  resourceProvider.start(endpointDetector, contentType, v1::DEFAULT_CREDENTIAL);
+
+  // Wait until the agent's resources have been updated to include the
+  // resource provider resources.
+  AWAIT_READY(updateSlaveMessage);
+
+  v1::agent::Call v1Call;
+  v1Call.set_type(v1::agent::Call::GET_OPERATIONS);
+
+  Future<v1::agent::Response> v1Response =
+    post(agent.get()->pid, v1Call, contentType);
+
+  AWAIT_READY(v1Response);
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::agent::Response::GET_OPERATIONS, v1Response->type());
+  EXPECT_TRUE(v1Response->get_operations().operations().empty());
+
+  // Start a framework to operate on offers.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  // We settle here to make sure that the framework has been authenticated
+  // before advancing the clock. Otherwise we would run into a authentication
+  // timeout due to the large allocation interval (1000s) of this fixture.
+  Clock::settle();
+
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::settle();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+  const Offer& offer = offers->front();
+
+  Option<Resource> rawDisk;
+
+  foreach (const Resource& resource, offer.resources()) {
+    if (resource.has_provider_id() &&
+        resource.has_disk() &&
+        resource.disk().has_source() &&
+        resource.disk().source().type() == Resource::DiskInfo::Source::RAW) {
+      rawDisk = resource;
+      break;
+    }
+  }
+
+  ASSERT_SOME(rawDisk);
+
+  // The operation is still pending when we receive this event.
+  Future<mesos::v1::resource_provider::Event::ApplyOperation> operation;
+  EXPECT_CALL(resourceProvider, applyOperation(_))
+    .WillOnce(FutureArg<0>(&operation));
+
+  // Start an operation.
+  driver.acceptOffers(
+      {offer.id()},
+      {CREATE_VOLUME(rawDisk.get(), Resource::DiskInfo::Source::MOUNT)});
+
+  AWAIT_READY(operation);
+
+  v1Response = post(agent.get()->pid, v1Call, contentType);
+
+  AWAIT_READY(v1Response);
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::agent::Response::GET_OPERATIONS, v1Response->type());
+  EXPECT_EQ(1, v1Response->get_operations().operations_size());
+  EXPECT_EQ(
+      operation->framework_id(),
+      v1Response->get_operations().operations(0).framework_id());
+  EXPECT_EQ(
+      evolve(updateSlaveMessage->slave_id()),
+      v1Response->get_operations().operations(0).agent_id());
+  EXPECT_EQ(
+      operation->info(), v1Response->get_operations().operations(0).info());
+  EXPECT_EQ(
+      operation->operation_uuid(),
+      v1Response->get_operations().operations(0).uuid());
+
+  driver.stop();
+  driver.join();
 }
 
 

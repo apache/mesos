@@ -1640,6 +1640,11 @@ private:
         const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
+    process::Future<process::http::Response> getOperations(
+        const mesos::master::Call& call,
+        const Option<process::http::authentication::Principal>& principal,
+        ContentType contentType) const;
+
     process::Future<process::http::Response> getTasks(
         const mesos::master::Call& call,
         const Option<process::http::authentication::Principal>& principal,

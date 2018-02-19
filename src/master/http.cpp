@@ -732,6 +732,9 @@ Future<Response> Master::Http::api(
     case mesos::master::Call::GET_EXECUTORS:
       return getExecutors(call, principal, acceptType);
 
+    case mesos::master::Call::GET_OPERATIONS:
+      return getOperations(call, principal, acceptType);
+
     case mesos::master::Call::GET_TASKS:
       return getTasks(call, principal, acceptType);
 
@@ -3884,6 +3887,31 @@ Future<Response> Master::Http::teardown(
   CHECK_EQ(mesos::master::Call::TEARDOWN, call.type());
 
   return _teardown(call.teardown().framework_id(), principal);
+}
+
+
+Future<Response> Master::Http::getOperations(
+    const mesos::master::Call& call,
+    const Option<Principal>& principal,
+    ContentType contentType) const
+{
+  CHECK_EQ(mesos::master::Call::GET_OPERATIONS, call.type());
+
+  // TODO(nfnt): Authorize this call (MESOS-8473).
+
+  mesos::master::Response response;
+  response.set_type(mesos::master::Response::GET_OPERATIONS);
+
+  mesos::master::Response::GetOperations* operations =
+    response.mutable_get_operations();
+
+  foreachvalue (const Slave* slave, master->slaves.registered) {
+    foreachvalue (Operation* operation, slave->operations) {
+      operations->add_operations()->CopyFrom(*operation);
+    }
+  }
+
+  return OK(serialize(contentType, evolve(response)), stringify(contentType));
 }
 
 

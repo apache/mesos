@@ -150,6 +150,9 @@ Option<Error> validate(
     case mesos::agent::Call::GET_EXECUTORS:
       return None();
 
+    case mesos::agent::Call::GET_OPERATIONS:
+      return None();
+
     case mesos::agent::Call::GET_TASKS:
       return None();
 
