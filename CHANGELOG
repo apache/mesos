@@ -10,6 +10,7 @@ Release Notes - Mesos - Version 1.5.1 (WIP)
  * [MESOS-8510] - URI disk profile adaptor does not consider plugin type for a profile.
  * [MESOS-8552] - CGROUPS_ROOT_PidNamespaceForward and CGROUPS_ROOT_PidNamespaceBackward tests fail.
  * [MESOS-8565] - Persistent volumes are not visible in Mesos UI when launching a pod using default executor.
+ * [MESOS-8569] - Allow newline characters when decoding base64 strings in stout.
  * [MESOS-8577] - Destroy nested container if `LAUNCH_NESTED_CONTAINER_SESSION` fails.
  * [MESOS-1720] - Slave should send exited executor message when the executor is never launched.
 
