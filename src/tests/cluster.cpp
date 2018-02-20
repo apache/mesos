@@ -692,8 +692,18 @@ void Slave::shutdown()
 {
   cleanUpContainersInDestructor = false;
 
+  bool paused = process::Clock::paused();
+
+  if (paused) {
+    process::Clock::resume();
+  }
+
   process::dispatch(slave.get(), &slave::Slave::shutdown, process::UPID(), "");
   wait();
+
+  if (paused) {
+    process::Clock::pause();
+  }
 }
 
 
