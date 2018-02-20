@@ -153,7 +153,7 @@ Future<Nothing> OverlayBackendProcess::provision(
   Try<string> mktemp = os::mkdtemp();
   if (mktemp.isError()) {
     return Failure(
-      "Failued to create temporary directory for symlinks to layers: " +
+      "Failed to create temporary directory for symlinks to layers: " +
       mktemp.error());
   }
 
