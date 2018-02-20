@@ -515,7 +515,7 @@ Try<pid_t> LinuxLauncherProcess::fork(
   // (1) Create the freezer cgroup, and add the child to the cgroup.
   // (2) Create the systemd cgroup, and add the child to the cgroup.
   //
-  // NOTE: The order is important here because the destory code will
+  // NOTE: The order is important here because the destroy code will
   // always kill the container based on the pids in the freezer
   // cgroup. The systemd cgroup will be removed after that. Therefore,
   // we want to make sure that if the pid is in the systemd cgroup, it
