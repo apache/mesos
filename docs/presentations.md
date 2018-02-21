@@ -133,6 +133,10 @@ Presented Summer 2010 at [Yahoo](http://yahoo.com)
 # Apache Mesos - Training
 _(Listed in date descending order)_
 
+## Docker, Apache Mesos & DCOS: Run and manage cloud datacenter ([Video](https://www.packtpub.com/networking-and-servers/docker-apache-mesos-dcos-run-and-manage-cloud-datacenter-video))
+Manuj Aggarwal, TetraTutorials Team
+Packt (January 2018) 
+
 ## Automated Machine Learning Pipeline with Mesos ([Video](https://www.packtpub.com/big-data-and-business-intelligence/automated-machine-learning-pipeline-mesos-integrated-course))
 Karl Whitford
 Packt (November 2017)
