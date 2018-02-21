@@ -919,11 +919,11 @@ Try<T> parse(const std::string& s)
     return Error(value.error());
   }
 
-  if (!value.get().is<T>()) {
+  if (!value->is<T>()) {
     return Error("Unexpected JSON type parsed");
   }
 
-  return value.get().as<T>();
+  return value->as<T>();
 }
 
 

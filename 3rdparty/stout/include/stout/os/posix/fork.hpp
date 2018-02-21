@@ -368,7 +368,7 @@ private:
     // Execute or wait.
     if (exec.isSome()) {
       // Execute the command (via '/bin/sh -c command').
-      const char* command = exec.get().command.c_str();
+      const char* command = exec->command.c_str();
       execlp("sh", "sh", "-c", command, (char*) nullptr);
       EXIT(EXIT_FAILURE)
         << "Failed to execute '" << command << "': " << os::strerror(errno);
@@ -406,7 +406,7 @@ private:
         None(),
         None(),
         None(),
-        self.isSome() ? self.get().command : "",
+        self.isSome() ? self->command : "",
         false);
 
     std::list<ProcessTree> children;

@@ -46,7 +46,7 @@ inline Result<Process> process(pid_t pid)
 
   if (processes.isError()) {
     return Error("Failed to get process via sysctl: " + processes.error());
-  } else if (processes.get().size() != 1) {
+  } else if (processes->size() != 1) {
     return None();
   }
 
@@ -75,7 +75,7 @@ inline Result<Process> process(pid_t pid)
   Try<std::string> args = os::sysctl(CTL_KERN, KERN_PROCARGS2, pid).string();
 
   if (args.isSome()) {
-    int argc = *((int*) args.get().data());
+    int argc = *((int*) args->data());
 
     if (argc > 0) {
       // Now grab the arguments.

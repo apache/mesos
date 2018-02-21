@@ -301,11 +301,11 @@ TEST_F(OsTest, Sysctl)
 
   Try<string> release = os::sysctl(CTL_KERN, KERN_OSRELEASE).string();
 
-  EXPECT_SOME_EQ(uname.get().release, release);
+  EXPECT_SOME_EQ(uname->release, release);
 
   Try<string> type = os::sysctl(CTL_KERN, KERN_OSTYPE).string();
 
-  EXPECT_SOME_EQ(uname.get().sysname, type);
+  EXPECT_SOME_EQ(uname->sysname, type);
 
   // Integer test.
   Try<int> maxproc = os::sysctl(CTL_KERN, KERN_MAXPROC).integer();
@@ -337,8 +337,8 @@ TEST_F(OsTest, Sysctl)
   timeval time;
   gettimeofday(&time, nullptr);
 
-  EXPECT_GT(Seconds(bootTime.get().tv_sec), Seconds(0));
-  EXPECT_LT(Seconds(bootTime.get().tv_sec), Seconds(time.tv_sec));
+  EXPECT_GT(Seconds(bootTime->tv_sec), Seconds(0));
+  EXPECT_LT(Seconds(bootTime->tv_sec), Seconds(time.tv_sec));
 }
 #endif // __APPLE__ || __FreeBSD__
 
@@ -358,18 +358,18 @@ TEST_F(OsTest, Children)
          Exec(SLEEP_COMMAND(10)))();
 
   ASSERT_SOME(tree);
-  ASSERT_EQ(1u, tree.get().children.size());
+  ASSERT_EQ(1u, tree->children.size());
 
-  pid_t child = tree.get().process.pid;
-  pid_t grandchild = tree.get().children.front().process.pid;
+  pid_t child = tree->process.pid;
+  pid_t grandchild = tree->children.front().process.pid;
 
   // Ensure the non-recursive children does not include the
   // grandchild.
   children = os::children(getpid(), false);
 
   ASSERT_SOME(children);
-  EXPECT_EQ(1u, children.get().size());
-  EXPECT_EQ(1u, children.get().count(child));
+  EXPECT_EQ(1u, children->size());
+  EXPECT_EQ(1u, children->count(child));
 
   children = os::children(getpid());
 
@@ -380,11 +380,11 @@ TEST_F(OsTest, Children)
   // might simply for exec the command above (i.e., 'sleep 10') while
   // others might fork/exec the command, keeping around a 'sh -c'
   // process as well.
-  EXPECT_LE(2u, children.get().size());
-  EXPECT_GE(4u, children.get().size());
+  EXPECT_LE(2u, children->size());
+  EXPECT_GE(4u, children->size());
 
-  EXPECT_EQ(1u, children.get().count(child));
-  EXPECT_EQ(1u, children.get().count(grandchild));
+  EXPECT_EQ(1u, children->count(child));
+  EXPECT_EQ(1u, children->count(grandchild));
 
   // Cleanup by killing the descendant processes.
   EXPECT_EQ(0, kill(grandchild, SIGKILL));
@@ -433,15 +433,15 @@ TEST_F(OsTest, Killtree)
   //   \--- greatGreatGrandchild sleep 10
 
   // Grab the pids from the instantiated process tree.
-  ASSERT_EQ(1u, tree.get().children.size());
-  ASSERT_EQ(1u, tree.get().children.front().children.size());
-  ASSERT_EQ(1u, tree.get().children.front().children.front().children.size());
+  ASSERT_EQ(1u, tree->children.size());
+  ASSERT_EQ(1u, tree->children.front().children.size());
+  ASSERT_EQ(1u, tree->children.front().children.front().children.size());
 
   pid_t child = tree.get();
-  pid_t grandchild = tree.get().children.front();
-  pid_t greatGrandchild = tree.get().children.front().children.front();
+  pid_t grandchild = tree->children.front();
+  pid_t greatGrandchild = tree->children.front().children.front();
   pid_t greatGreatGrandchild =
-    tree.get().children.front().children.front().children.front();
+    tree->children.front().children.front().children.front();
 
   // Now wait for the grandchild to exit splitting the process tree.
   Duration elapsed = Duration::zero();
@@ -450,13 +450,13 @@ TEST_F(OsTest, Killtree)
 
     ASSERT_FALSE(process.isError());
 
-    if (process.isNone() || process.get().zombie) {
+    if (process.isNone() || process->zombie) {
       break;
     }
 
     if (elapsed > Seconds(10)) {
-      FAIL() << "Granchild process '" << process.get().pid << "' "
-             << "(" << process.get().command << ") did not terminate";
+      FAIL() << "Granchild process '" << process->pid << "' "
+             << "(" << process->command << ") did not terminate";
     }
 
     os::sleep(Milliseconds(5));
@@ -470,7 +470,7 @@ TEST_F(OsTest, Killtree)
 
   ASSERT_SOME(trees);
 
-  EXPECT_EQ(2u, trees.get().size()) << stringify(trees.get());
+  EXPECT_EQ(2u, trees->size()) << stringify(trees.get());
 
   foreach (const ProcessTree& tree, trees.get()) {
     if (tree.process.pid == child) {
@@ -502,7 +502,7 @@ TEST_F(OsTest, Killtree)
     if (os::process(greatGreatGrandchild).isNone() &&
         os::process(greatGrandchild).isNone() &&
         os::process(grandchild).isNone() &&
-        _child.get().zombie) {
+        _child->zombie) {
       break;
     }
 
@@ -519,7 +519,7 @@ TEST_F(OsTest, Killtree)
   EXPECT_NONE(os::process(greatGrandchild));
   EXPECT_NONE(os::process(grandchild));
   EXPECT_SOME(os::process(child));
-  EXPECT_TRUE(os::process(child).get().zombie);
+  EXPECT_TRUE(os::process(child)->zombie);
 
   // We have to reap the child for running the tests in repetition.
   ASSERT_EQ(child, waitpid(child, nullptr, 0));
@@ -556,12 +556,12 @@ TEST_F(OsTest, KilltreeNoRoot)
   //   \-+- great grandchild sleep 100
 
   // Grab the pids from the instantiated process tree.
-  ASSERT_EQ(1u, tree.get().children.size());
-  ASSERT_EQ(1u, tree.get().children.front().children.size());
+  ASSERT_EQ(1u, tree->children.size());
+  ASSERT_EQ(1u, tree->children.front().children.size());
 
   pid_t child = tree.get();
-  pid_t grandchild = tree.get().children.front();
-  pid_t greatGrandchild = tree.get().children.front().children.front();
+  pid_t grandchild = tree->children.front();
+  pid_t greatGrandchild = tree->children.front().children.front();
 
   // Wait for the child to exit.
   Duration elapsed = Duration::zero();
@@ -569,7 +569,7 @@ TEST_F(OsTest, KilltreeNoRoot)
     Result<os::Process> process = os::process(child);
     ASSERT_FALSE(process.isError());
 
-    if (process.get().zombie) {
+    if (process->zombie) {
       break;
     }
 
@@ -583,7 +583,7 @@ TEST_F(OsTest, KilltreeNoRoot)
 
   // Ensure we reap our child now.
   EXPECT_SOME(os::process(child));
-  EXPECT_TRUE(os::process(child).get().zombie);
+  EXPECT_TRUE(os::process(child)->zombie);
   ASSERT_EQ(child, waitpid(child, nullptr, 0));
 
   // Check the grandchild and great grandchild are still running.
@@ -597,8 +597,8 @@ TEST_F(OsTest, KilltreeNoRoot)
   // meaning we can't just check that the parent pid == 1.
   Result<os::Process> _grandchild = os::process(grandchild);
   ASSERT_SOME(_grandchild);
-  ASSERT_NE(child, _grandchild.get().parent);
-  ASSERT_FALSE(_grandchild.get().zombie);
+  ASSERT_NE(child, _grandchild->parent);
+  ASSERT_FALSE(_grandchild->zombie);
 
   // Check to see if we're in a jail on FreeBSD in case we've been
   // reparented to pid 1
@@ -606,9 +606,9 @@ TEST_F(OsTest, KilltreeNoRoot)
   if (!isJailed()) {
 #endif
   // Check that grandchild's parent is also not a zombie.
-  Result<os::Process> currentParent = os::process(_grandchild.get().parent);
+  Result<os::Process> currentParent = os::process(_grandchild->parent);
   ASSERT_SOME(currentParent);
-  ASSERT_FALSE(currentParent.get().zombie);
+  ASSERT_FALSE(currentParent->zombie);
 #ifdef __FreeBSD__
   }
 #endif
@@ -620,7 +620,7 @@ TEST_F(OsTest, KilltreeNoRoot)
   Try<list<ProcessTree>> trees = os::killtree(child, SIGKILL, true, true);
 
   ASSERT_SOME(trees);
-  EXPECT_FALSE(trees.get().empty());
+  EXPECT_FALSE(trees->empty());
 
   // All processes should be reparented and reaped by init.
   elapsed = Duration::zero();
@@ -679,7 +679,7 @@ TEST_F(OsTest, ProcessExists)
     Result<os::Process> process = os::process(pid);
     ASSERT_SOME(process);
 
-    if (process.get().zombie) {
+    if (process->zombie) {
       break;
     }
 
@@ -742,7 +742,7 @@ TEST_F(OsTest, User)
     strings::split(strings::trim(gids_.get(), strings::ANY, "\n"), " ");
 
   ASSERT_SOME(tokens);
-  std::sort(tokens.get().begin(), tokens.get().end());
+  std::sort(tokens->begin(), tokens->end());
 
   Try<vector<gid_t>> gids = os::getgrouplist(user.get());
   EXPECT_SOME(gids);

@@ -74,7 +74,7 @@ public:
   {
     if (!data.isSome()) {
       assert(error_.isSome());
-      ABORT("Try::get() but state == ERROR: " + error_.get().message);
+      ABORT("Try::get() but state == ERROR: " + error_->message);
     }
     return data.get();
   }

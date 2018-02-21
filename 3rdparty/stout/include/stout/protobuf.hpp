@@ -223,7 +223,7 @@ struct Read
       return Error("Failed to read size: " + result.error());
     } else if (result.isNone()) {
       return None(); // No more protobufs to read.
-    } else if (result.get().size() < sizeof(size)) {
+    } else if (result->size() < sizeof(size)) {
       // Hit EOF unexpectedly.
       if (undoFailed) {
         // Restore the offset to before the size read.
@@ -237,7 +237,7 @@ struct Read
     }
 
     // Parse the size from the bytes.
-    memcpy((void*) &size, (void*) result.get().data(), sizeof(size));
+    memcpy((void*)&size, (void*)result->data(), sizeof(size));
 
     // NOTE: Instead of specifically checking for corruption in 'size',
     // we simply try to read 'size' bytes. If we hit EOF early, it is an
@@ -250,7 +250,7 @@ struct Read
         os::lseek(fd, offset, SEEK_SET);
       }
       return Error("Failed to read message: " + result.error());
-    } else if (result.isNone() || result.get().size() < size) {
+    } else if (result.isNone() || result->size() < size) {
       // Hit EOF unexpectedly.
       if (undoFailed) {
         // Restore the offset to before the size read.

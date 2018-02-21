@@ -78,7 +78,7 @@ Try<std::string> shell(const std::string& fmt, const T&... t)
   FILE* file;
   std::ostringstream stdout;
 
-  if ((file = popen(command.get().c_str(), "r")) == nullptr) {
+  if ((file = popen(command->c_str(), "r")) == nullptr) {
     return Error("Failed to run '" + command.get() + "'");
   }
 

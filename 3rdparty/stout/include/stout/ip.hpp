@@ -580,7 +580,7 @@ inline Try<IP::Network> IP::Network::create(
 
   switch (address.family()) {
     case AF_INET: {
-      uint32_t mask = ntohl(netmask.in().get().s_addr);
+      uint32_t mask = ntohl(netmask.in()->s_addr);
       if (((~mask + 1) & (~mask)) != 0) {
         return Error("IPv4 netmask is not valid");
       }
@@ -691,7 +691,7 @@ struct hash<net::IP>
 
     switch (ip.family()) {
       case AF_INET:
-        boost::hash_combine(seed, htonl(ip.in().get().s_addr));
+        boost::hash_combine(seed, htonl(ip.in()->s_addr));
         return seed;
       case AF_INET6: {
         in6_addr in6 = ip.in6().get();

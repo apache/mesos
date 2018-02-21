@@ -48,7 +48,7 @@ inline Try<std::string> bootId()
   if (boot_time.isError()) {
     return Error(boot_time.error());
   }
-  return stringify(boot_time.get().tv_sec);
+  return stringify(boot_time->tv_sec);
 #else
   return Error("Not implemented");
 #endif

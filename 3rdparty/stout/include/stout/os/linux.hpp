@@ -199,23 +199,24 @@ inline Result<Process> process(pid_t pid)
   // These are similar reports:
   // http://lkml.indiana.edu/hypermail/linux/kernel/1207.1/01388.html
   // https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1023214
-  Try<Duration> utime = Duration::create(status.get().utime / (double) ticks);
-  Try<Duration> stime = Duration::create(status.get().stime / (double) ticks);
+  Try<Duration> utime = Duration::create(status->utime / (double)ticks);
+  Try<Duration> stime = Duration::create(status->stime / (double)ticks);
 
-  // The command line from 'status.get().comm' is only "arg0" from
-  // "argv" (i.e., the canonical executable name). To get the entire
-  // command line we grab '/proc/[pid]/cmdline'.
+  // The command line from 'status->comm' is only "arg0" from "argv"
+  // (i.e., the canonical executable name). To get the entire command
+  // line we grab '/proc/[pid]/cmdline'.
   Result<std::string> cmdline = proc::cmdline(pid);
 
-  return Process(status.get().pid,
-                 status.get().ppid,
-                 status.get().pgrp,
-                 status.get().session,
-                 Bytes(status.get().rss * pageSize),
-                 utime.isSome() ? utime.get() : Option<Duration>::none(),
-                 stime.isSome() ? stime.get() : Option<Duration>::none(),
-                 cmdline.isSome() ? cmdline.get() : status.get().comm,
-                 status.get().state == 'Z');
+  return Process(
+      status->pid,
+      status->ppid,
+      status->pgrp,
+      status->session,
+      Bytes(status->rss * pageSize),
+      utime.isSome() ? utime.get() : Option<Duration>::none(),
+      stime.isSome() ? stime.get() : Option<Duration>::none(),
+      cmdline.isSome() ? cmdline.get() : status->comm,
+      status->state == 'Z');
 }
 
 

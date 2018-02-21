@@ -46,7 +46,7 @@ TEST(NetTest, LinkDevice)
       string addr = stringify(network.get());
       string prefix = addr.substr(addr.find('/') + 1);
       ASSERT_SOME(numify<int>(prefix));
-      EXPECT_EQ(network.get().prefix(), numify<int>(prefix).get());
+      EXPECT_EQ(network->prefix(), numify<int>(prefix).get());
 
       vector<string> tokens =
         strings::split(addr.substr(0, addr.find('/')), ".");
@@ -178,8 +178,8 @@ TEST(NetTest, ConstructIPv4Network)
       net::IP::Network::create(net::IP(address), net::IP(netmask));
 
   ASSERT_SOME(network);
-  EXPECT_EQ(net::IP(address), network.get().address());
-  EXPECT_EQ(net::IP(netmask), network.get().netmask());
+  EXPECT_EQ(net::IP(address), network->address());
+  EXPECT_EQ(net::IP(netmask), network->netmask());
   EXPECT_EQ("1.2.3.4/8", stringify(network.get()));
 
   Try<net::IP::Network> network2 =
@@ -228,8 +228,8 @@ TEST(NetTest, ConstructIPv6Network)
     net::IP::Network::create(address.get(), netmask1.get());
 
   ASSERT_SOME(network);
-  EXPECT_EQ(address.get(), network.get().address());
-  EXPECT_EQ(netmask1.get(), network.get().netmask());
+  EXPECT_EQ(address.get(), network->address());
+  EXPECT_EQ(netmask1.get(), network->netmask());
   EXPECT_EQ("2001:cdba::3257:9652/9", stringify(network.get()));
 
   Try<net::IP::Network> network2 =

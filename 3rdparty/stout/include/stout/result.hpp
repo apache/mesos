@@ -108,8 +108,8 @@ public:
 
   // 'isSome', 'isNone', and 'isError' are mutually exclusive. They
   // correspond to the underlying unioned state of the Option and Try.
-  bool isSome() const { return data.isSome() && data.get().isSome(); }
-  bool isNone() const { return data.isSome() && data.get().isNone(); }
+  bool isSome() const { return data.isSome() && data->isSome(); }
+  bool isNone() const { return data.isSome() && data->isNone(); }
   bool isError() const { return data.isError(); }
 
   const T& get() const
@@ -123,7 +123,7 @@ public:
       }
       ABORT(errorMessage);
     }
-    return data.get().get();
+    return data->get();
   }
 
   T& get()

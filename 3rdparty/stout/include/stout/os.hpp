@@ -174,7 +174,7 @@ inline Try<std::string> sysname()
     return Error(info.error());
   }
 
-  return info.get().sysname;
+  return info->sysname;
 }
 #endif // __WINDOWS__
 
