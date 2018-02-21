@@ -62,14 +62,14 @@ void run_subprocess(const lambda::function<Try<Subprocess>()>& createSubprocess)
 
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
-  while (s.get().status().isPending()) {
+  while (s->status().isPending()) {
     Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
 
   // Check process exited cleanly.
-  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s.get().status());
+  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s->status());
 }
 
 
@@ -240,13 +240,13 @@ TEST_F(SubprocessTest, Status)
 
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
-  while (s.get().status().isPending()) {
+  while (s->status().isPending()) {
     Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
 
-  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s.get().status());
+  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s->status());
 
   // Exit 1.
   s = subprocess("exit 1");
@@ -255,47 +255,47 @@ TEST_F(SubprocessTest, Status)
 
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
-  while (s.get().status().isPending()) {
+  while (s->status().isPending()) {
     Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
 
-  AWAIT_EXPECT_WEXITSTATUS_EQ(1, s.get().status());
+  AWAIT_EXPECT_WEXITSTATUS_EQ(1, s->status());
 
   // SIGTERM.
   s = subprocess(SLEEP_COMMAND(60));
 
   ASSERT_SOME(s);
 
-  kill(s.get().pid(), SIGTERM);
+  kill(s->pid(), SIGTERM);
 
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
-  while (s.get().status().isPending()) {
+  while (s->status().isPending()) {
     Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
 
-  AWAIT_EXPECT_WTERMSIG_EQ(SIGTERM, s.get().status());
+  AWAIT_EXPECT_WTERMSIG_EQ(SIGTERM, s->status());
 
   // SIGKILL.
   s = subprocess(SLEEP_COMMAND(60));
 
   ASSERT_SOME(s);
 
-  kill(s.get().pid(), SIGKILL);
+  kill(s->pid(), SIGKILL);
 
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
-  while (s.get().status().isPending()) {
+  while (s->status().isPending()) {
     Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
 
-  AWAIT_EXPECT_WTERMSIG_EQ(SIGKILL, s.get().status());
+  AWAIT_EXPECT_WTERMSIG_EQ(SIGKILL, s->status());
 }
 
 
@@ -309,18 +309,18 @@ TEST_F(SubprocessTest, PipeOutput)
       Subprocess::FD(STDERR_FILENO));
 
   ASSERT_SOME(s);
-  ASSERT_SOME(s.get().out());
-  AWAIT_EXPECT_EQ("hello\n", io::read(s.get().out().get()));
+  ASSERT_SOME(s->out());
+  AWAIT_EXPECT_EQ("hello\n", io::read(s->out().get()));
 
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
-  while (s.get().status().isPending()) {
+  while (s->status().isPending()) {
     Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
 
-  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s.get().status());
+  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s->status());
 
   // Standard error.
   s = subprocess(
@@ -330,18 +330,18 @@ TEST_F(SubprocessTest, PipeOutput)
       Subprocess::PIPE());
 
   ASSERT_SOME(s);
-  ASSERT_SOME(s.get().err());
-  AWAIT_EXPECT_EQ("hello\n", io::read(s.get().err().get()));
+  ASSERT_SOME(s->err());
+  AWAIT_EXPECT_EQ("hello\n", io::read(s->err().get()));
 
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
-  while (s.get().status().isPending()) {
+  while (s->status().isPending()) {
     Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
 
-  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s.get().status());
+  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s->status());
 }
 
 
@@ -354,21 +354,21 @@ TEST_F(SubprocessTest, PipeInput)
       Subprocess::FD(STDERR_FILENO));
 
   ASSERT_SOME(s);
-  ASSERT_SOME(s.get().in());
-  ASSERT_SOME(os::write(s.get().in().get(), "hello\n"));
+  ASSERT_SOME(s->in());
+  ASSERT_SOME(os::write(s->in().get(), "hello\n"));
 
-  ASSERT_SOME(s.get().out());
-  AWAIT_EXPECT_EQ("hello\n", io::read(s.get().out().get()));
+  ASSERT_SOME(s->out());
+  AWAIT_EXPECT_EQ("hello\n", io::read(s->out().get()));
 
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
-  while (s.get().status().isPending()) {
+  while (s->status().isPending()) {
     Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
 
-  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s.get().status());
+  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s->status());
 }
 
 
@@ -393,22 +393,22 @@ TEST_F(SubprocessTest, PipeRedirect)
   ASSERT_SOME(fd);
   ASSERT_SOME(os::nonblock(fd.get()));
 
-  ASSERT_SOME(s.get().out());
-  ASSERT_SOME(os::nonblock(s.get().out().get()));
-  AWAIT_READY(io::redirect(s.get().out().get(), fd.get()));
+  ASSERT_SOME(s->out());
+  ASSERT_SOME(os::nonblock(s->out().get()));
+  AWAIT_READY(io::redirect(s->out().get(), fd.get()));
 
   // Close our copy of the fd.
   EXPECT_SOME(os::close(fd.get()));
 
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
-  while (s.get().status().isPending()) {
+  while (s->status().isPending()) {
     Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
 
-  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s.get().status());
+  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s->status());
 
   // Now make sure all the data is there!
   Try<string> read = os::read(path);
@@ -433,13 +433,13 @@ TEST_F(SubprocessTest, PathOutput)
 
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
-  while (s.get().status().isPending()) {
+  while (s->status().isPending()) {
     Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
 
-  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s.get().status());
+  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s->status());
 
   Try<string> read = os::read(out);
   ASSERT_SOME(read);
@@ -456,13 +456,13 @@ TEST_F(SubprocessTest, PathOutput)
 
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
-  while (s.get().status().isPending()) {
+  while (s->status().isPending()) {
     Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
 
-  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s.get().status());
+  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s->status());
 
   read = os::read(err);
   ASSERT_SOME(read);
@@ -483,18 +483,18 @@ TEST_F(SubprocessTest, PathInput)
       Subprocess::FD(STDERR_FILENO));
 
   ASSERT_SOME(s);
-  ASSERT_SOME(s.get().out());
-  AWAIT_EXPECT_EQ("hello\n", io::read(s.get().out().get()));
+  ASSERT_SOME(s->out());
+  AWAIT_EXPECT_EQ("hello\n", io::read(s->out().get()));
 
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
-  while (s.get().status().isPending()) {
+  while (s->status().isPending()) {
     Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
 
-  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s.get().status());
+  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s->status());
 }
 
 
@@ -522,13 +522,13 @@ TEST_F(SubprocessTest, FdOutput)
 
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
-  while (s.get().status().isPending()) {
+  while (s->status().isPending()) {
     Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
 
-  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s.get().status());
+  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s->status());
 
   Try<string> read = os::read(out);
   ASSERT_SOME(read);
@@ -553,13 +553,13 @@ TEST_F(SubprocessTest, FdOutput)
 
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
-  while (s.get().status().isPending()) {
+  while (s->status().isPending()) {
     Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
 
-  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s.get().status());
+  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s->status());
 
   read = os::read(err);
   ASSERT_SOME(read);
@@ -585,18 +585,18 @@ TEST_F(SubprocessTest, FdInput)
   ASSERT_SOME(os::close(inFd.get()));
 
   ASSERT_SOME(s);
-  ASSERT_SOME(s.get().out());
-  AWAIT_EXPECT_EQ("hello\n", io::read(s.get().out().get()));
+  ASSERT_SOME(s->out());
+  AWAIT_EXPECT_EQ("hello\n", io::read(s->out().get()));
 
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
-  while (s.get().status().isPending()) {
+  while (s->status().isPending()) {
     Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
 
-  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s.get().status());
+  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s->status());
 }
 
 
@@ -608,13 +608,13 @@ TEST_F(SubprocessTest, Default)
 
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
-  while (s.get().status().isPending()) {
+  while (s->status().isPending()) {
     Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
 
-  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s.get().status());
+  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s->status());
 }
 #endif // __WINDOWS__
 
@@ -695,13 +695,13 @@ TEST_F(SubprocessTest, Flags)
 
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
-  while (s.get().status().isPending()) {
+  while (s->status().isPending()) {
     Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
 
-  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s.get().status());
+  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s->status());
 
   // Parse the output and make sure that it matches the flags we
   // specified in the beginning.
@@ -753,18 +753,18 @@ TEST_F(SubprocessTest, Environment)
       environment);
 
   ASSERT_SOME(s);
-  ASSERT_SOME(s.get().out());
-  AWAIT_EXPECT_EQ("hello\n", io::read(s.get().out().get()));
+  ASSERT_SOME(s->out());
+  AWAIT_EXPECT_EQ("hello\n", io::read(s->out().get()));
 
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
-  while (s.get().status().isPending()) {
+  while (s->status().isPending()) {
     Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
 
-  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s.get().status());
+  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s->status());
 
   // Multiple key-value pairs.
   environment.clear();
@@ -779,18 +779,18 @@ TEST_F(SubprocessTest, Environment)
       environment);
 
   ASSERT_SOME(s);
-  ASSERT_SOME(s.get().out());
-  AWAIT_EXPECT_EQ("hello world\n", io::read(s.get().out().get()));
+  ASSERT_SOME(s->out());
+  AWAIT_EXPECT_EQ("hello world\n", io::read(s->out().get()));
 
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
-  while (s.get().status().isPending()) {
+  while (s->status().isPending()) {
     Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
 
-  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s.get().status());
+  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s->status());
 }
 
 
@@ -808,18 +808,18 @@ TEST_F(SubprocessTest, EnvironmentWithSpaces)
       environment);
 
   ASSERT_SOME(s);
-  ASSERT_SOME(s.get().out());
-  AWAIT_EXPECT_EQ("hello world\n", io::read(s.get().out().get()));
+  ASSERT_SOME(s->out());
+  AWAIT_EXPECT_EQ("hello world\n", io::read(s->out().get()));
 
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
-  while (s.get().status().isPending()) {
+  while (s->status().isPending()) {
     Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
 
-  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s.get().status());
+  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s->status());
 }
 
 
@@ -837,18 +837,18 @@ TEST_F(SubprocessTest, EnvironmentWithSpacesAndQuotes)
       environment);
 
   ASSERT_SOME(s);
-  ASSERT_SOME(s.get().out());
-  AWAIT_EXPECT_EQ("\"hello world\"\n", io::read(s.get().out().get()));
+  ASSERT_SOME(s->out());
+  AWAIT_EXPECT_EQ("\"hello world\"\n", io::read(s->out().get()));
 
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
-  while (s.get().status().isPending()) {
+  while (s->status().isPending()) {
     Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
 
-  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s.get().status());
+  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s->status());
 }
 
 
@@ -869,18 +869,18 @@ TEST_F(SubprocessTest, EnvironmentOverride)
       environment);
 
   ASSERT_SOME(s);
-  ASSERT_SOME(s.get().out());
-  AWAIT_EXPECT_EQ("goodbye\n", io::read(s.get().out().get()));
+  ASSERT_SOME(s->out());
+  AWAIT_EXPECT_EQ("goodbye\n", io::read(s->out().get()));
 
   // Advance time until the internal reaper reaps the subprocess.
   Clock::pause();
-  while (s.get().status().isPending()) {
+  while (s->status().isPending()) {
     Clock::advance(MAX_REAP_INTERVAL());
     Clock::settle();
   }
   Clock::resume();
 
-  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s.get().status());
+  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s->status());
 }
 #endif // __WINDOWS__
 

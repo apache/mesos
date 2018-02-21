@@ -423,15 +423,15 @@ inline ::testing::AssertionResult AwaitAssertResponseStatusEq(
     AwaitAssertReady(actualExpr, durationExpr, actual, duration);
 
   if (result) {
-    if (expected == actual.get().status) {
+    if (expected == actual->status) {
       return ::testing::AssertionSuccess();
     } else {
       return ::testing::AssertionFailure()
-        << "Value of: (" << actualExpr << ").get().status\n"
-        << "  Actual: " << ::testing::PrintToString(actual.get().status) << "\n"
-        << "Expected: " << expectedExpr << "\n"
-        << "Which is: " << ::testing::PrintToString(expected) << "\n"
-        << "    Body: " << ::testing::PrintToString(actual.get().body);
+             << "Value of: (" << actualExpr << ")->status\n"
+             << "  Actual: " << ::testing::PrintToString(actual->status) << "\n"
+             << "Expected: " << expectedExpr << "\n"
+             << "Which is: " << ::testing::PrintToString(expected) << "\n"
+             << "    Body: " << ::testing::PrintToString(actual->body);
     }
   }
 
@@ -473,14 +473,14 @@ inline ::testing::AssertionResult AwaitAssertResponseBodyEq(
     AwaitAssertReady(actualExpr, durationExpr, actual, duration);
 
   if (result) {
-    if (expected == actual.get().body) {
+    if (expected == actual->body) {
       return ::testing::AssertionSuccess();
     } else {
       return ::testing::AssertionFailure()
-        << "Value of: (" << actualExpr << ").get().body\n"
-        << "  Actual: " << ::testing::PrintToString(actual.get().body) << "\n"
-        << "Expected: " << expectedExpr << "\n"
-        << "Which is: " << ::testing::PrintToString(expected);
+             << "Value of: (" << actualExpr << ")->body\n"
+             << "  Actual: " << ::testing::PrintToString(actual->body) << "\n"
+             << "Expected: " << expectedExpr << "\n"
+             << "Which is: " << ::testing::PrintToString(expected);
     }
   }
 
@@ -524,7 +524,7 @@ inline ::testing::AssertionResult AwaitAssertResponseHeaderEq(
     AwaitAssertReady(actualExpr, durationExpr, actual, duration);
 
   if (result) {
-    const Option<std::string> value = actual.get().headers.get(key);
+    const Option<std::string> value = actual->headers.get(key);
     if (value.isNone()) {
       return ::testing::AssertionFailure()
         << "Response does not contain header '" << key << "'";
@@ -532,7 +532,7 @@ inline ::testing::AssertionResult AwaitAssertResponseHeaderEq(
       return ::testing::AssertionSuccess();
     } else {
       return ::testing::AssertionFailure()
-        << "Value of: (" << actualExpr << ").get().headers[" << keyExpr << "]\n"
+        << "Value of: (" << actualExpr << ")->headers[" << keyExpr << "]\n"
         << "  Actual: " << ::testing::PrintToString(value.get()) << "\n"
         << "Expected: " << expectedExpr << "\n"
         << "Which is: " << ::testing::PrintToString(expected);

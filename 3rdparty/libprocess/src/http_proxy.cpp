@@ -257,12 +257,12 @@ void HttpProxy::stream(
   if (chunk.isReady()) {
     std::ostringstream out;
 
-    if (chunk.get().empty()) {
+    if (chunk->empty()) {
       // Finished reading.
       out << "0\r\n" << "\r\n";
       finished = true;
     } else {
-      out << std::hex << chunk.get().size() << "\r\n";
+      out << std::hex << chunk->size() << "\r\n";
       out << chunk.get();
       out << "\r\n";
 

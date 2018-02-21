@@ -635,26 +635,26 @@ TEST_P(HTTPTest, PathParse)
     http::path::parse(pattern, "/books/0304827484/chapters/3");
 
   ASSERT_SOME(parse);
-  EXPECT_EQ(4u, parse.get().size());
-  EXPECT_SOME_EQ("books", parse.get().get("books"));
-  EXPECT_SOME_EQ("0304827484", parse.get().get("isbn"));
-  EXPECT_SOME_EQ("chapters", parse.get().get("chapters"));
-  EXPECT_SOME_EQ("3", parse.get().get("chapter"));
+  EXPECT_EQ(4u, parse->size());
+  EXPECT_SOME_EQ("books", parse->get("books"));
+  EXPECT_SOME_EQ("0304827484", parse->get("isbn"));
+  EXPECT_SOME_EQ("chapters", parse->get("chapters"));
+  EXPECT_SOME_EQ("3", parse->get("chapter"));
 
   parse = http::path::parse(pattern, "/books/0304827484");
 
   ASSERT_SOME(parse);
-  EXPECT_EQ(2u, parse.get().size());
-  EXPECT_SOME_EQ("books", parse.get().get("books"));
-  EXPECT_SOME_EQ("0304827484", parse.get().get("isbn"));
+  EXPECT_EQ(2u, parse->size());
+  EXPECT_SOME_EQ("books", parse->get("books"));
+  EXPECT_SOME_EQ("0304827484", parse->get("isbn"));
 
   parse = http::path::parse(pattern, "/books/0304827484/chapters");
 
   ASSERT_SOME(parse);
-  EXPECT_EQ(3u, parse.get().size());
-  EXPECT_SOME_EQ("books", parse.get().get("books"));
-  EXPECT_SOME_EQ("0304827484", parse.get().get("isbn"));
-  EXPECT_SOME_EQ("chapters", parse.get().get("chapters"));
+  EXPECT_EQ(3u, parse->size());
+  EXPECT_SOME_EQ("books", parse->get("books"));
+  EXPECT_SOME_EQ("0304827484", parse->get("isbn"));
+  EXPECT_SOME_EQ("chapters", parse->get("chapters"));
 
   parse = http::path::parse(pattern, "/foo/0304827484/chapters");
 
@@ -776,11 +776,11 @@ TEST_P(HTTPTest, StreamingGetComplete)
   // The response should be ready since the headers were sent.
   AWAIT_READY(response);
 
-  EXPECT_SOME_EQ("chunked", response.get().headers.get("Transfer-Encoding"));
-  ASSERT_EQ(http::Response::PIPE, response.get().type);
-  ASSERT_SOME(response.get().reader);
+  EXPECT_SOME_EQ("chunked", response->headers.get("Transfer-Encoding"));
+  ASSERT_EQ(http::Response::PIPE, response->type);
+  ASSERT_SOME(response->reader);
 
-  http::Pipe::Reader reader = response.get().reader.get();
+  http::Pipe::Reader reader = response->reader.get();
 
   // There is no data to read yet.
   Future<string> read = reader.read();
@@ -818,11 +818,11 @@ TEST_P(HTTPTest, StreamingGetFailure)
   // The response should be ready since the headers were sent.
   AWAIT_READY(response);
 
-  EXPECT_SOME_EQ("chunked", response.get().headers.get("Transfer-Encoding"));
-  ASSERT_EQ(http::Response::PIPE, response.get().type);
-  ASSERT_SOME(response.get().reader);
+  EXPECT_SOME_EQ("chunked", response->headers.get("Transfer-Encoding"));
+  ASSERT_EQ(http::Response::PIPE, response->type);
+  ASSERT_SOME(response->reader);
 
-  http::Pipe::Reader reader = response.get().reader.get();
+  http::Pipe::Reader reader = response->reader.get();
 
   // There is no data to read yet.
   Future<string> read = reader.read();
@@ -1734,24 +1734,24 @@ TEST(URLTest, ParseUrls)
 {
   Try<http::URL> url = URL::parse("https://auth.docker.com");
   EXPECT_SOME(url);
-  EXPECT_SOME_EQ("https", url.get().scheme);
-  EXPECT_SOME_EQ(443, url.get().port);
-  EXPECT_SOME_EQ("auth.docker.com", url.get().domain);
-  EXPECT_EQ("/", url.get().path);
+  EXPECT_SOME_EQ("https", url->scheme);
+  EXPECT_SOME_EQ(443, url->port);
+  EXPECT_SOME_EQ("auth.docker.com", url->domain);
+  EXPECT_EQ("/", url->path);
 
   url = URL::parse("http://docker.com/");
   EXPECT_SOME(url);
-  EXPECT_SOME_EQ("http", url.get().scheme);
-  EXPECT_SOME_EQ(80, url.get().port);
-  EXPECT_SOME_EQ("docker.com", url.get().domain);
-  EXPECT_EQ("/", url.get().path);
+  EXPECT_SOME_EQ("http", url->scheme);
+  EXPECT_SOME_EQ(80, url->port);
+  EXPECT_SOME_EQ("docker.com", url->domain);
+  EXPECT_EQ("/", url->path);
 
   url = URL::parse("http://registry.docker.com:1234/abc/1");
   EXPECT_SOME(url);
-  EXPECT_SOME_EQ("http", url.get().scheme);
-  EXPECT_SOME_EQ(1234, url.get().port);
-  EXPECT_SOME_EQ("registry.docker.com", url.get().domain);
-  EXPECT_EQ("/abc/1", url.get().path);
+  EXPECT_SOME_EQ("http", url->scheme);
+  EXPECT_SOME_EQ(1234, url->port);
+  EXPECT_SOME_EQ("registry.docker.com", url->domain);
+  EXPECT_EQ("/abc/1", url->path);
 
   // Missing scheme.
   EXPECT_ERROR(URL::parse("mesos.com"));
@@ -1843,7 +1843,7 @@ TEST_F(HttpAuthenticationTest, Unauthorized)
 
   EXPECT_EQ(
       authentication.unauthorized->headers.get("WWW-Authenticate"),
-      response.get().headers.get("WWW-Authenticate"));
+      response->headers.get("WWW-Authenticate"));
 }
 
 

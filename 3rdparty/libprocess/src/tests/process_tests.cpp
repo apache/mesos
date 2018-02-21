@@ -1576,7 +1576,7 @@ TEST(ProcessTest, Async)
   EXPECT_EQ("42", async(&itoa2, &i).get());
 
   // Non-void function that returns a future.
-  EXPECT_EQ("42", async(&itoa1, &i).get().get());
+  EXPECT_EQ("42", async(&itoa1, &i)->get());
 }
 
 
@@ -1622,7 +1622,7 @@ TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Provide)
 
   AWAIT_READY(response);
 
-  ASSERT_EQ(LOREM_IPSUM, response.get().body);
+  ASSERT_EQ(LOREM_IPSUM, response->body);
 
   terminate(server);
   wait(server);

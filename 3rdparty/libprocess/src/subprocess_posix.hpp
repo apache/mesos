@@ -225,7 +225,7 @@ inline Try<pid_t> cloneChild(
 
   if (environment.isSome()) {
     // NOTE: We add 1 to the size for a `nullptr` terminator.
-    envp = new char*[environment.get().size() + 1];
+    envp = new char*[environment->size() + 1];
 
     size_t index = 0;
     foreachpair (

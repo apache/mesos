@@ -401,10 +401,9 @@ MATCHER_P4(UnionHttpMatcher, message, unionType, path, deserializer, "")
     return false;
   }
 
-  return (testing::Matcher<unionType_type>(unionType).Matches(
-            message_.get().type()) &&
-          testing::Matcher<std::string>(path).Matches(
-            event.request->url.path));
+  return (
+      testing::Matcher<unionType_type>(unionType).Matches(message_->type()) &&
+      testing::Matcher<std::string>(path).Matches(event.request->url.path));
 }
 
 

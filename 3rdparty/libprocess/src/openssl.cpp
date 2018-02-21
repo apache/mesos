@@ -541,13 +541,11 @@ void reinitialize()
   if (ssl_flags->verify_cert) {
     // Set CA locations.
     if (ssl_flags->ca_file.isSome() || ssl_flags->ca_dir.isSome()) {
-      const char* ca_file = ssl_flags->ca_file.isSome()
-        ? ssl_flags->ca_file.get().c_str()
-        : nullptr;
+      const char* ca_file =
+        ssl_flags->ca_file.isSome() ? ssl_flags->ca_file->c_str() : nullptr;
 
-      const char* ca_dir = ssl_flags->ca_dir.isSome()
-        ? ssl_flags->ca_dir.get().c_str()
-        : nullptr;
+      const char* ca_dir =
+        ssl_flags->ca_dir.isSome() ? ssl_flags->ca_dir->c_str() : nullptr;
 
       if (SSL_CTX_load_verify_locations(ctx, ca_file, ca_dir) != 1) {
         unsigned long error = ERR_get_error();
@@ -614,7 +612,7 @@ void reinitialize()
   // Set certificate chain.
   if (SSL_CTX_use_certificate_chain_file(
           ctx,
-          ssl_flags->cert_file.get().c_str()) != 1) {
+          ssl_flags->cert_file->c_str()) != 1) {
     unsigned long error = ERR_get_error();
     EXIT(EXIT_FAILURE)
       << "Could not load cert file '" << ssl_flags->cert_file.get() << "' "
@@ -623,9 +621,7 @@ void reinitialize()
 
   // Set private key.
   if (SSL_CTX_use_PrivateKey_file(
-          ctx,
-          ssl_flags->key_file.get().c_str(),
-          SSL_FILETYPE_PEM) != 1) {
+          ctx, ssl_flags->key_file->c_str(), SSL_FILETYPE_PEM) != 1) {
     unsigned long error = ERR_get_error();
     EXIT(EXIT_FAILURE)
       << "Could not load key file '" << ssl_flags->key_file.get() << "' "

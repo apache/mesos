@@ -903,7 +903,7 @@ void on_accept(const Future<Socket>& socket)
 
     StreamingRequestDecoder* decoder = new StreamingRequestDecoder();
 
-    socket.get().recv(data, size)
+    socket->recv(data, size)
       .onAny(lambda::bind(
           &internal::decode_recv,
           lambda::_1,
@@ -1588,7 +1588,7 @@ void SocketManager::link(
           return;
         }
         socket = create.get();
-        int_fd s = socket.get().get();
+        int_fd s = socket->get();
 
         CHECK(sockets.count(s) == 0);
         sockets.emplace(s, socket.get());
@@ -1903,7 +1903,7 @@ void SocketManager::send_connect(
       }
 
       CHECK_SOME(poll_socket);
-      Future<Nothing> connect = poll_socket.get().connect(message.to.address);
+      Future<Nothing> connect = poll_socket->connect(message.to.address);
       connect.onAny(lambda::bind(
           // TODO(benh): with C++14 we can use lambda instead of
           // `std::bind` and capture `message` with a `std::move`.
@@ -2454,7 +2454,7 @@ long ProcessManager::init_threads()
   Option<string> value = os::getenv(env_var);
   if (value.isSome()) {
     constexpr long maxval = 1024;
-    Try<long> number = numify<long>(value.get().c_str());
+    Try<long> number = numify<long>(value->c_str());
     if (number.isSome() && number.get() > 0L && number.get() <= maxval) {
       VLOG(1) << "Overriding default number of worker threads "
               << num_worker_threads << ", using the value "
@@ -2684,7 +2684,7 @@ void ProcessManager::handle(
     foreach (const Owned<firewall::FirewallRule>& rule, firewallRules) {
       Option<Response> rejection = rule->apply(socket, *request);
       if (rejection.isSome()) {
-        VLOG(1) << "Returning '"<< rejection.get().status << "' for '"
+        VLOG(1) << "Returning '" << rejection->status << "' for '"
                 << request->url.path << "' (firewall rule forbids request)";
 
         // TODO(arojas): Get rid of the duplicated code to return an

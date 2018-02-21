@@ -43,11 +43,9 @@ TEST(SystemTest, DISABLED_Metrics)
 
   AWAIT_READY(response);
 
-  EXPECT_SOME_EQ(
-      "application/json",
-      response.get().headers.get("Content-Type"));
+  EXPECT_SOME_EQ("application/json", response->headers.get("Content-Type"));
 
-  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response.get().body);
+  Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(parse);
 
   JSON::Object stats = parse.get();

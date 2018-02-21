@@ -292,7 +292,7 @@ bool Request::acceptsEncoding(const string& encoding) const
   // then the server SHOULD use the "identity" content-coding...
   Option<string> accept = headers.get("Accept-Encoding");
 
-  if (accept.isNone() || accept.get().empty()) {
+  if (accept.isNone() || accept->empty()) {
     return false;
   }
 
