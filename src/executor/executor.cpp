@@ -710,7 +710,7 @@ protected:
       return;
     }
 
-    receive(event.get().get(), false);
+    receive(event->get(), false);
     read();
   }
 

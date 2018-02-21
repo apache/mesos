@@ -323,9 +323,9 @@ void ZooKeeperStorageProcess::connected(int64_t sessionId, bool reconnect)
     // Authenticate if necessary (and we are connected for the first
     // time, or after a session expiration).
     if (auth.isSome()) {
-      LOG(INFO) << "Authenticating with ZooKeeper using " << auth.get().scheme;
+      LOG(INFO) << "Authenticating with ZooKeeper using " << auth->scheme;
 
-      int code = zk->authenticate(auth.get().scheme, auth.get().credentials);
+      int code = zk->authenticate(auth->scheme, auth->credentials);
 
       if (code != ZOK) { // TODO(benh): Authentication retries?
         error = "Failed to authenticate with ZooKeeper: " + zk->message(code);

@@ -212,7 +212,7 @@ Future<http::Response> Master::WeightsHandler::_updateWeights(
     if (roleError.isSome()) {
       return BadRequest(
           "Failed to validate update weights request JSON: Invalid role '" +
-          role + "': " + roleError.get().message);
+          role + "': " + roleError->message);
     }
 
     // Check that the role is on the role whitelist, if it exists.

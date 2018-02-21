@@ -154,7 +154,7 @@ static JSON::Value value(
 {
   switch (type) {
     case Value::SCALAR:
-      return resources.get<Value::Scalar>(name).get().value();
+      return resources.get<Value::Scalar>(name)->value();
     case Value::RANGES:
       return stringify(resources.get<Value::Ranges>(name).get());
     case Value::SET:

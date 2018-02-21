@@ -87,7 +87,7 @@ Try<Nothing> Initialize::execute(int argc, char** argv)
   // Get the current status of the replica.
   Future<Metadata::Status> status = replica.status();
   if (timeout.isSome()) {
-    status.await(timeout.get().remaining());
+    status.await(timeout->remaining());
   } else {
     status.await();
   }
@@ -108,7 +108,7 @@ Try<Nothing> Initialize::execute(int argc, char** argv)
   // Update the status of the replica to VOTING.
   Future<bool> update = replica.update(Metadata::VOTING);
   if (timeout.isSome()) {
-    update.await(timeout.get().remaining());
+    update.await(timeout->remaining());
   } else {
     update.await();
   }

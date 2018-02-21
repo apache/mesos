@@ -1338,14 +1338,14 @@ Future<Nothing> NetworkCniIsolatorProcess::_attach(
         plugin + "': " + parse.error());
   }
 
-  if (parse.get().has_ip4()) {
-    LOG(INFO) << "Got assigned IPv4 address '" << parse.get().ip4().ip()
+  if (parse->has_ip4()) {
+    LOG(INFO) << "Got assigned IPv4 address '" << parse->ip4().ip()
               << "' from CNI network '" << networkName
               << "' for container " << containerId;
   }
 
-  if (parse.get().has_ip6()) {
-    LOG(INFO) << "Got assigned IPv6 address '" << parse.get().ip6().ip()
+  if (parse->has_ip6()) {
+    LOG(INFO) << "Got assigned IPv6 address '" << parse->ip6().ip()
               << "' from CNI network '" << networkName
               << "' for container " << containerId;
   }

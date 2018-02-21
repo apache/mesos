@@ -139,7 +139,7 @@ Try<Launcher*> LinuxLauncher::create(const Flags& flags)
     return Error(
         "Failed to get the list of attached subsystems for hierarchy " +
         freezerHierarchy.get());
-  } else if (subsystems.get().size() != 1) {
+  } else if (subsystems->size() != 1) {
     return Error(
         "Unexpected subsystems found attached to the hierarchy " +
         freezerHierarchy.get());
@@ -574,7 +574,7 @@ Try<pid_t> LinuxLauncherProcess::fork(
 
   Container container;
   container.id = containerId;
-  container.pid = child.get().pid();
+  container.pid = child->pid();
 
   containers.put(container.id, container);
 

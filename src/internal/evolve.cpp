@@ -585,7 +585,7 @@ v1::master::Response evolve<v1::master::Response::GET_FLAGS>(
 
   foreachpair (const string& key,
                const JSON::Value& value,
-               flags.get().values) {
+               flags->values) {
     v1::Flag* flag = getFlags->add_flags();
     flag->set_name(key);
 
@@ -614,7 +614,7 @@ v1::agent::Response evolve<v1::agent::Response::GET_FLAGS>(
 
   foreachpair (const string& key,
                const JSON::Value& value,
-               flags.get().values) {
+               flags->values) {
     v1::Flag* flag = getFlags->add_flags();
     flag->set_name(key);
 
@@ -680,21 +680,21 @@ v1::agent::Response evolve<v1::agent::Response::GET_CONTAINERS>(
       object.find<JSON::String>("container_id");
 
     CHECK_SOME(container_id);
-    container->mutable_container_id()->set_value(container_id.get().value);
+    container->mutable_container_id()->set_value(container_id->value);
 
     Result<JSON::String> framework_id =
       object.find<JSON::String>("framework_id");
 
     CHECK(!framework_id.isError());
     if (framework_id.isSome()) {
-      container->mutable_framework_id()->set_value(framework_id.get().value);
+      container->mutable_framework_id()->set_value(framework_id->value);
     }
 
     Result<JSON::String> executor_id = object.find<JSON::String>("executor_id");
 
     CHECK(!executor_id.isError());
     if (executor_id.isSome()) {
-      container->mutable_executor_id()->set_value(executor_id.get().value);
+      container->mutable_executor_id()->set_value(executor_id->value);
     }
 
     Result<JSON::String> executor_name =
@@ -702,7 +702,7 @@ v1::agent::Response evolve<v1::agent::Response::GET_CONTAINERS>(
 
     CHECK(!executor_name.isError());
     if (executor_name.isSome()) {
-      container->set_executor_name(executor_name.get().value);
+      container->set_executor_name(executor_name->value);
     }
 
     Result<JSON::Object> container_status = object.find<JSON::Object>("status");

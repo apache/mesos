@@ -216,7 +216,7 @@ protected:
 
       endpoint = None();
     } else {
-      endpoint = future.get().get();
+      endpoint = future->get();
 
       LOG(INFO) << "New endpoint detected at " << endpoint.get();
 
@@ -452,7 +452,7 @@ protected:
     if (event->isError()) {
       LOG(ERROR) << "Failed to de-serialize event: " << event->error();
     } else {
-      receive(event.get().get());
+      receive(event->get());
     }
 
     read();

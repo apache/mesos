@@ -287,13 +287,13 @@ TaskStatus HookManager::slaveTaskStatusDecorator(
       // NOTE: Labels/ContainerStatus remain unchanged if the hook returns
       // None().
       if (result.isSome()) {
-        if (result.get().has_labels()) {
-          status.mutable_labels()->CopyFrom(result.get().labels());
+        if (result->has_labels()) {
+          status.mutable_labels()->CopyFrom(result->labels());
         }
 
-        if (result.get().has_container_status()) {
+        if (result->has_container_status()) {
           status.mutable_container_status()->CopyFrom(
-              result.get().container_status());
+              result->container_status());
         }
       } else if (result.isError()) {
         LOG(WARNING) << "Agent TaskStatus decorator hook failed for "

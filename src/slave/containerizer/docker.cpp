@@ -149,7 +149,7 @@ Option<ContainerID> parse(const Docker::Container& container)
 
     // Check if id is a valid UUID.
     if (containerId.isSome()) {
-      Try<id::UUID> uuid = id::UUID::fromString(containerId.get().value());
+      Try<id::UUID> uuid = id::UUID::fromString(containerId->value());
       if (uuid.isError()) {
         return None();
       }
@@ -659,7 +659,7 @@ Try<Nothing> DockerContainerizerProcess::unmountPersistentVolumes(
   vector<string> unmountErrors;
 
   foreach (const fs::MountInfoTable::Entry& entry,
-           adaptor::reverse(table.get().entries)) {
+           adaptor::reverse(table->entries)) {
     // TODO(tnachen): We assume there is only one docker container
     // running per container Id and no other mounts will have the
     // container Id name. We might need to revisit if this is no
@@ -967,8 +967,8 @@ Future<Nothing> DockerContainerizerProcess::_recover(
         const ContainerID& containerId = executor.latest.get();
         Option<RunState> run = executor.runs.get(containerId);
         CHECK_SOME(run);
-        CHECK_SOME(run.get().id);
-        CHECK_EQ(containerId, run.get().id.get());
+        CHECK_SOME(run->id);
+        CHECK_EQ(containerId, run->id.get());
 
         // We need the pid so the reaper can monitor the executor so skip this
         // executor if it's not present. We will also skip this executor if the
@@ -977,11 +977,11 @@ Future<Nothing> DockerContainerizerProcess::_recover(
         // immediately. Both of these two cases are safe to skip because the
         // slave will try to wait on the container which will return `None()`
         // and everything will get cleaned up.
-        if (run.get().forkedPid.isNone() || run.get().libprocessPid.isNone()) {
+        if (run->forkedPid.isNone() || run->libprocessPid.isNone()) {
           continue;
         }
 
-        if (run.get().completed) {
+        if (run->completed) {
           VLOG(1) << "Skipping recovery of executor '" << executor.id
                   << "' of framework " << framework.id
                   << " because its latest run "
@@ -1032,7 +1032,7 @@ Future<Nothing> DockerContainerizerProcess::_recover(
         // by another process or two processes respectively after the agent
         // host reboots we will still reap an irrelevant process, but that
         // should be highly unlikely.
-        pid_t pid = run.get().forkedPid.get();
+        pid_t pid = run->forkedPid.get();
 
         // Create a TCP socket.
         int_fd socket = ::socket(AF_INET, SOCK_STREAM, 0);
@@ -1044,7 +1044,7 @@ Future<Nothing> DockerContainerizerProcess::_recover(
 
         Try<Nothing, SocketError> connect = process::network::connect(
             socket,
-            run.get().libprocessPid->address);
+            run->libprocessPid->address);
 
         if (connect.isSome()) {
           container->status.set(process::reap(pid));
@@ -1060,8 +1060,8 @@ Future<Nothing> DockerContainerizerProcess::_recover(
         shutdown(socket, SHUT_RDWR);
         close(socket);
 
-        container->status.future().get()
-          .onAny(defer(self(), &Self::reaped, containerId));
+        container->status.future()
+          ->onAny(defer(self(), &Self::reaped, containerId));
 
         if (pids.containsValue(pid)) {
           // This should (almost) never occur. There is the
@@ -1615,7 +1615,7 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
       return Failure("Failed to fork executor: " + s.error());
     }
 
-    return s.get().pid();
+    return s->pid();
   }));
 }
 
@@ -1658,8 +1658,8 @@ Future<Nothing> DockerContainerizerProcess::reapExecutor(
   // And finally watch for when the container gets reaped.
   container->status.set(process::reap(pid));
 
-  container->status.future().get()
-    .onAny(defer(self(), &Self::reaped, containerId));
+  container->status.future()
+    ->onAny(defer(self(), &Self::reaped, containerId));
 
   return Nothing();
 }
@@ -1960,7 +1960,7 @@ Future<ResourceStatistics> DockerContainerizerProcess::usage(
     const Resources& resource = container->resources;
     const Option<Bytes> mem = resource.mem();
     if (mem.isSome()) {
-      result.set_mem_limit_bytes(mem.get().bytes());
+      result.set_mem_limit_bytes(mem->bytes());
     }
 
     const Option<double> cpus = resource.cpus();
@@ -2072,15 +2072,15 @@ Try<ResourceStatistics> DockerContainerizerProcess::cgroupsStatistics(
         memStats.error());
   }
 
-  if (!memStats.get().contains("rss")) {
+  if (!memStats->contains("rss")) {
     return Error("cgroups memory stats does not contain 'rss' data");
   }
 
   ResourceStatistics result;
   result.set_timestamp(Clock::now().secs());
-  result.set_cpus_system_time_secs(cpuAcctStat.get().system.secs());
-  result.set_cpus_user_time_secs(cpuAcctStat.get().user.secs());
-  result.set_mem_rss_bytes(memStats.get().at("rss"));
+  result.set_cpus_system_time_secs(cpuAcctStat->system.secs());
+  result.set_cpus_user_time_secs(cpuAcctStat->user.secs());
+  result.set_mem_rss_bytes(memStats->at("rss"));
 
   // Add the cpu.stat information only if CFS is enabled.
   if (flags.cgroups_enable_cfs) {
@@ -2112,17 +2112,17 @@ Try<ResourceStatistics> DockerContainerizerProcess::cgroupsStatistics(
       return Error("Failed to read cpu.stat: " + stat.error());
     }
 
-    Option<uint64_t> nr_periods = stat.get().get("nr_periods");
+    Option<uint64_t> nr_periods = stat->get("nr_periods");
     if (nr_periods.isSome()) {
       result.set_cpus_nr_periods(nr_periods.get());
     }
 
-    Option<uint64_t> nr_throttled = stat.get().get("nr_throttled");
+    Option<uint64_t> nr_throttled = stat->get("nr_throttled");
     if (nr_throttled.isSome()) {
       result.set_cpus_nr_throttled(nr_throttled.get());
     }
 
-    Option<uint64_t> throttled_time = stat.get().get("throttled_time");
+    Option<uint64_t> throttled_time = stat->get("throttled_time");
     if (throttled_time.isSome()) {
       result.set_cpus_throttled_time_secs(
           Nanoseconds(throttled_time.get()).secs());
@@ -2398,8 +2398,8 @@ void DockerContainerizerProcess::__destroy(
   // Status must be ready since we did a Docker::kill.
   CHECK_READY(container->status.future());
 
-  container->status.future().get()
-    .onAny(defer(self(), &Self::___destroy, containerId, killed, lambda::_1));
+  container->status.future()
+    ->onAny(defer(self(), &Self::___destroy, containerId, killed, lambda::_1));
 }
 
 
@@ -2443,8 +2443,8 @@ void DockerContainerizerProcess::____destroy(
 
   ContainerTermination termination;
 
-  if (status.isReady() && status.get().isSome()) {
-    termination.set_status(status.get().get());
+  if (status.isReady() && status->isSome()) {
+    termination.set_status(status->get());
   }
 
   termination.set_message(

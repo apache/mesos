@@ -777,7 +777,7 @@ void HierarchicalAllocatorProcess::updateWhitelist(
   if (whitelist.isSome()) {
     LOG(INFO) << "Updated agent whitelist: " << stringify(whitelist.get());
 
-    if (whitelist.get().empty()) {
+    if (whitelist->empty()) {
       LOG(WARNING) << "Whitelist is empty, no offers will be made!";
     }
   } else {
@@ -1043,7 +1043,7 @@ void HierarchicalAllocatorProcess::updateInverseOffer(
       // should guard against this. This goes against the pattern of not
       // checking external invariants; however, the allocator and master are
       // currently so tightly coupled that this check is valuable.
-      CHECK_NE(status.get().status(), InverseOfferStatus::UNKNOWN);
+      CHECK_NE(status->status(), InverseOfferStatus::UNKNOWN);
 
       // If the framework responded, we update our state to match.
       maintenance.statuses[frameworkId].CopyFrom(status.get());
@@ -1122,7 +1122,7 @@ HierarchicalAllocatorProcess::getInverseOfferStatuses()
   // Make a copy of the most recent statuses.
   foreachpair (const SlaveID& id, const Slave& slave, slaves) {
     if (slave.maintenance.isSome()) {
-      result[id] = slave.maintenance.get().statuses;
+      result[id] = slave.maintenance->statuses;
     }
   }
 

@@ -117,7 +117,7 @@ inline Try<hashmap<std::string, std::string>> parse(const std::string& value)
   hashmap<std::string, std::string> map;
   foreachpair (const std::string& key,
                const JSON::Value& value,
-               json.get().values) {
+               json->values) {
     if (!value.is<JSON::String>()) {
       return Error(
           "The value of key '" + key + "' in '" + stringify(json.get()) + "'"

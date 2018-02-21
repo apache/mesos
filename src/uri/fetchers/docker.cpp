@@ -125,9 +125,9 @@ static Future<http::Response> curl(
   }
 
   return await(
-      s.get().status(),
-      io::read(s.get().out().get()),
-      io::read(s.get().err().get()))
+      s->status(),
+      io::read(s->out().get()),
+      io::read(s->err().get()))
     .then([](const tuple<
         Future<Option<int>>,
         Future<string>,
@@ -240,9 +240,9 @@ static Future<int> download(
   }
 
   return await(
-      s.get().status(),
-      io::read(s.get().out().get()),
-      io::read(s.get().err().get()))
+      s->status(),
+      io::read(s->out().get()),
+      io::read(s->err().get()))
     .then([=](const tuple<
         Future<Option<int>>,
         Future<string>,

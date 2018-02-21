@@ -530,7 +530,7 @@ void RegistrarProcess::_update(
   updating = false;
 
   // Abort if the storage operation did not succeed.
-  if (!store.isReady() || store.get().isNone()) {
+  if (!store.isReady() || store->isNone()) {
     string message = "Failed to update registry: ";
 
     if (store.isFailed()) {
@@ -551,7 +551,7 @@ void RegistrarProcess::_update(
 
   LOG(INFO) << "Successfully updated the registry in " << elapsed;
 
-  variable = store.get().get();
+  variable = store->get();
   registry->Swap(updatedRegistry.get());
 
   // Remove the operations.

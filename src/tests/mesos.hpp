@@ -1444,9 +1444,8 @@ inline mesos::slave::ContainerConfig createContainerConfig(
   if (taskInfo.isSome()) {
     containerConfig.mutable_task_info()->CopyFrom(taskInfo.get());
 
-    if (taskInfo.get().has_container()) {
-      containerConfig.mutable_container_info()
-        ->CopyFrom(taskInfo.get().container());
+    if (taskInfo->has_container()) {
+      containerConfig.mutable_container_info()->CopyFrom(taskInfo->container());
     }
   } else {
     if (executorInfo.has_container()) {
@@ -2194,7 +2193,7 @@ inline void createDockerIPv6UserNetwork()
   AWAIT_READY(err);
 
   ASSERT_SOME(s->status().get());
-  ASSERT_EQ(s->status().get().get(), 0)
+  ASSERT_EQ(s->status()->get(), 0)
     << "Unable to create the Docker IPv6 network "
     << DOCKER_IPv6_NETWORK
     << " : " << err.get();
@@ -2226,7 +2225,7 @@ inline void removeDockerIPv6UserNetwork()
   AWAIT_READY(err);
 
   ASSERT_SOME(s->status().get());
-  ASSERT_EQ(s->status().get().get(), 0)
+  ASSERT_EQ(s->status()->get(), 0)
     << "Unable to delete the Docker IPv6 network "
     << DOCKER_IPv6_NETWORK
     << " : " << err.get();

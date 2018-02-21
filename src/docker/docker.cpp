@@ -167,7 +167,7 @@ Future<Version> Docker::version() const
     return Failure("Failed to create subprocess '" + cmd + "': " + s.error());
   }
 
-  return s.get().status()
+  return s->status()
     .then(lambda::bind(&Docker::_version, cmd, s.get()));
 }
 
@@ -276,7 +276,7 @@ Try<Docker::Container> Docker::Container::create(const string& output)
     return Error("Error finding Id in container: " + idValue.error());
   }
 
-  string id = idValue.get().value;
+  string id = idValue->value;
 
   Result<JSON::String> nameValue = json.find<JSON::String>("Name");
   if (nameValue.isNone()) {
@@ -285,7 +285,7 @@ Try<Docker::Container> Docker::Container::create(const string& output)
     return Error("Error finding Name in container: " + nameValue.error());
   }
 
-  string name = nameValue.get().value;
+  string name = nameValue->value;
 
   Result<JSON::Object> stateValue = json.find<JSON::Object>("State");
   if (stateValue.isNone()) {
@@ -294,14 +294,14 @@ Try<Docker::Container> Docker::Container::create(const string& output)
     return Error("Error finding State in container: " + stateValue.error());
   }
 
-  Result<JSON::Number> pidValue = stateValue.get().find<JSON::Number>("Pid");
+  Result<JSON::Number> pidValue = stateValue->find<JSON::Number>("Pid");
   if (pidValue.isNone()) {
     return Error("Unable to find Pid in State");
   } else if (pidValue.isError()) {
     return Error("Error finding Pid in State: " + pidValue.error());
   }
 
-  pid_t pid = pid_t(pidValue.get().as<int64_t>());
+  pid_t pid = pid_t(pidValue->as<int64_t>());
 
   Option<pid_t> optionalPid;
   if (pid != 0) {
@@ -309,14 +309,14 @@ Try<Docker::Container> Docker::Container::create(const string& output)
   }
 
   Result<JSON::String> startedAtValue =
-    stateValue.get().find<JSON::String>("StartedAt");
+    stateValue->find<JSON::String>("StartedAt");
   if (startedAtValue.isNone()) {
     return Error("Unable to find StartedAt in State");
   } else if (startedAtValue.isError()) {
     return Error("Error finding StartedAt in State: " + startedAtValue.error());
   }
 
-  bool started = startedAtValue.get().value != "0001-01-01T00:00:00Z";
+  bool started = startedAtValue->value != "0001-01-01T00:00:00Z";
 
   Option<string> ipAddress;
   Option<string> ip6Address;
@@ -520,13 +520,12 @@ Try<Docker::Image> Docker::Image::create(const JSON::Object& json)
 
   Option<vector<string>> entrypointOption = None();
 
-  if (!entrypoint.get().is<JSON::Null>()) {
-    if (!entrypoint.get().is<JSON::Array>()) {
+  if (!entrypoint->is<JSON::Null>()) {
+    if (!entrypoint->is<JSON::Array>()) {
       return Error("Unexpected type found for 'ContainerConfig.Entrypoint'");
     }
 
-    const vector<JSON::Value>& values =
-        entrypoint.get().as<JSON::Array>().values;
+    const vector<JSON::Value>& values = entrypoint->as<JSON::Array>().values;
     if (values.size() != 0) {
       vector<string> result;
 
@@ -553,12 +552,12 @@ Try<Docker::Image> Docker::Image::create(const JSON::Object& json)
 
   Option<map<string, string>> envOption = None();
 
-  if (!env.get().is<JSON::Null>()) {
-    if (!env.get().is<JSON::Array>()) {
+  if (!env->is<JSON::Null>()) {
+    if (!env->is<JSON::Array>()) {
       return Error("Unexpected type found for 'ContainerConfig.Env'");
     }
 
-    const vector<JSON::Value>& values = env.get().as<JSON::Array>().values;
+    const vector<JSON::Value>& values = env->as<JSON::Array>().values;
     if (values.size() != 0) {
       map<string, string> result;
 
@@ -613,7 +612,7 @@ Try<Docker::RunOptions> Docker::RunOptions::create(
 
   if (resources.isSome()) {
     // TODO(yifan): Support other resources (e.g. disk).
-    Option<double> cpus = resources.get().cpus();
+    Option<double> cpus = resources->cpus();
     if (cpus.isSome()) {
       options.cpuShares =
         std::max((uint64_t) (CPU_SHARES_PER_CPU * cpus.get()), MIN_CPU_SHARES);
@@ -626,7 +625,7 @@ Try<Docker::RunOptions> Docker::RunOptions::create(
       }
     }
 
-    Option<Bytes> mem = resources.get().mem();
+    Option<Bytes> mem = resources->mem();
     if (mem.isSome()) {
       options.memory = std::max(mem.get(), MIN_MEMORY);
     }
@@ -641,7 +640,7 @@ Try<Docker::RunOptions> Docker::RunOptions::create(
   foreach (const Environment::Variable& variable,
            commandInfo.environment().variables()) {
     if (env.isSome() &&
-        env.get().find(variable.name()) != env.get().end()) {
+        env->find(variable.name()) != env->end()) {
       // Skip to avoid duplicate environment variables.
       continue;
     }
@@ -814,7 +813,7 @@ Try<Docker::RunOptions> Docker::RunOptions::create(
       return Error("Port mappings require resources");
     }
 
-    Option<Value::Ranges> portRanges = resources.get().ports();
+    Option<Value::Ranges> portRanges = resources->ports();
 
     if (!portRanges.isSome()) {
       return Error("Port mappings require port resources");
@@ -823,7 +822,7 @@ Try<Docker::RunOptions> Docker::RunOptions::create(
     foreach (const ContainerInfo::DockerInfo::PortMapping& mapping,
              dockerInfo.port_mappings()) {
       bool found = false;
-      foreach (const Value::Range& range, portRanges.get().range()) {
+      foreach (const Value::Range& range, portRanges->range()) {
         if (mapping.host_port() >= range.begin() &&
             mapping.host_port() <= range.end()) {
           found = true;
@@ -1186,7 +1185,7 @@ Future<Nothing> Docker::stop(
     return Failure("Failed to create subprocess '" + cmd + "': " + s.error());
   }
 
-  return s.get().status()
+  return s->status()
     .then(lambda::bind(
         &Docker::_stop,
         *this,
@@ -1308,9 +1307,9 @@ void Docker::_inspect(
   // Start reading from stdout so writing to the pipe won't block
   // to handle cases where the output is larger than the pipe
   // capacity.
-  const Future<string> output = io::read(s.get().out().get());
+  const Future<string> output = io::read(s->out().get());
 
-  s.get().status()
+  s->status()
     .onAny([=]() { __inspect(cmd, promise, retryInterval, output, s.get()); });
 }
 
@@ -1393,7 +1392,7 @@ void Docker::___inspect(
     return;
   }
 
-  if (retryInterval.isSome() && !container.get().started) {
+  if (retryInterval.isSome() && !container->started) {
     VLOG(1) << "Retrying inspect since container not yet started. cmd: '"
             << cmd << "', interval: " << stringify(retryInterval.get());
     Clock::timer(retryInterval.get(),
@@ -1426,9 +1425,9 @@ Future<list<Docker::Container>> Docker::ps(
   // Start reading from stdout so writing to the pipe won't block
   // to handle cases where the output is larger than the pipe
   // capacity.
-  const Future<string>& output = io::read(s.get().out().get());
+  const Future<string>& output = io::read(s->out().get());
 
-  return s.get().status()
+  return s->status()
     .then(lambda::bind(&Docker::_ps, *this, cmd, s.get(), prefix, output));
 }
 
@@ -1597,11 +1596,11 @@ Future<Docker::Image> Docker::pull(
   // Start reading from stdout so writing to the pipe won't block
   // to handle cases where the output is larger than the pipe
   // capacity.
-  const Future<string> output = io::read(s.get().out().get());
+  const Future<string> output = io::read(s->out().get());
 
   // We assume docker inspect to exit quickly and do not need to be
   // discarded.
-  return s.get().status()
+  return s->status()
     .then(lambda::bind(
         &Docker::_pull,
         *this,
@@ -1734,7 +1733,7 @@ Future<Docker::Image> Docker::__pull(
   // Docker pull can run for a long time due to large images, so
   // we allow the future to be discarded and it will kill the pull
   // process.
-  return s_.get().status()
+  return s_->status()
     .then(lambda::bind(
         &Docker::___pull,
         docker,

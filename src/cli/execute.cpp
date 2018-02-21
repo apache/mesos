@@ -499,7 +499,7 @@ protected:
         << "Either task or task group should be set but not both";
 
       if (task.isSome()) {
-        requiredResources = Resources(task.get().resources());
+        requiredResources = Resources(task->resources());
       } else {
         foreach (const TaskInfo& _task, taskGroup->tasks()) {
           requiredResources += Resources(_task.resources());
@@ -602,7 +602,7 @@ protected:
        mesos->send(call);
 
        if (task.isSome()) {
-         cout << "Submitted task '" << task.get().name() << "' to agent '"
+         cout << "Submitted task '" << task->name() << "' to agent '"
               << offer.agent_id() << "'" << endl;
        } else {
          vector<TaskID> taskIds;

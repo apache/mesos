@@ -370,7 +370,7 @@ int main(int argc, char** argv)
           << " registry when using ZooKeeper";
       }
 
-      Try<zookeeper::URL> url = zookeeper::URL::parse(flags.zk.get().value);
+      Try<zookeeper::URL> url = zookeeper::URL::parse(flags.zk->value);
       if (url.isError()) {
         EXIT(EXIT_FAILURE) << "Error parsing ZooKeeper URL: " << url.error();
       }
@@ -378,10 +378,10 @@ int main(int argc, char** argv)
       log = new Log(
           flags.quorum.get(),
           path::join(flags.work_dir.get(), "replicated_log"),
-          url.get().servers,
+          url->servers,
           flags.zk_session_timeout,
-          path::join(url.get().path, "log_replicas"),
-          url.get().authentication,
+          path::join(url->path, "log_replicas"),
+          url->authentication,
           flags.log_auto_initialize,
           "registrar/");
     } else {

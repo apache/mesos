@@ -119,7 +119,7 @@ Try<Nothing> setns(
       return Error(
           "Failed to get the threads of the current process: " +
           threads.error());
-    } else if (threads.get().size() > 1) {
+    } else if (threads->size() > 1) {
       return Error("Multiple threads exist in the current process");
     }
   }

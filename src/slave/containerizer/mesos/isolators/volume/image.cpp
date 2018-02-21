@@ -217,7 +217,7 @@ Future<Option<ContainerLaunchInfo>> VolumeImageIsolatorProcess::_prepare(
       continue;
     }
 
-    sources.push_back(future.get().rootfs);
+    sources.push_back(future->rootfs);
   }
 
   if (!messages.empty()) {

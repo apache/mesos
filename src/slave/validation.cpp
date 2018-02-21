@@ -383,14 +383,14 @@ Option<Error> validate(
       // General resource validation first.
       error = Resources::validate(call.launch_container().resources());
       if (error.isSome()) {
-        return Error("Invalid resources: " + error.get().message);
+        return Error("Invalid resources: " + error->message);
       }
 
       error = common::validation::validateGpus(
           call.launch_container().resources());
 
       if (error.isSome()) {
-        return Error("Invalid GPU resources: " + error.get().message);
+        return Error("Invalid GPU resources: " + error->message);
       }
 
       // Because standalone containers are launched outside of the master's

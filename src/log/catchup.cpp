@@ -122,8 +122,8 @@ private:
     } else {
       // Update the proposal number so that we can save a proposal
       // number bump round trip if we need to invoke fill again.
-      CHECK(filling.get().promised() >= proposal);
-      proposal = filling.get().promised();
+      CHECK(filling->promised() >= proposal);
+      proposal = filling->promised();
 
       check();
     }

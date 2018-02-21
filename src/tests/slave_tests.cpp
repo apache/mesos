@@ -2231,8 +2231,7 @@ TEST_F(SlaveTest, HTTPExecutorBadAuthentication)
       ->CopyFrom(containerId);
 
     process::http::Headers headers;
-    headers["Authorization"] =
-      "Bearer " + authenticationToken.get().value().data();
+    headers["Authorization"] = "Bearer " + authenticationToken->value().data();
 
     Future<Response> response = process::http::post(
       slavePid,

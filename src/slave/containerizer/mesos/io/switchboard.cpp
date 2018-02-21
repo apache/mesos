@@ -1316,8 +1316,10 @@ void IOSwitchboardServerProcess::heartbeatLoop()
   message.set_type(agent::ProcessIO::CONTROL);
   message.mutable_control()->set_type(
       agent::ProcessIO::Control::HEARTBEAT);
-  message.mutable_control()->mutable_heartbeat()
-      ->mutable_interval()->set_nanoseconds(heartbeatInterval.get().ns());
+  message.mutable_control()
+    ->mutable_heartbeat()
+    ->mutable_interval()
+    ->set_nanoseconds(heartbeatInterval->ns());
 
   foreach (HttpConnection& connection, outputConnections) {
     connection.send(message);

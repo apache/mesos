@@ -404,7 +404,7 @@ struct SlaveWriter
     writer->field("registered_time", slave_.registeredTime.secs());
 
     if (slave_.reregisteredTime.isSome()) {
-      writer->field("reregistered_time", slave_.reregisteredTime.get().secs());
+      writer->field("reregistered_time", slave_.reregisteredTime->secs());
     }
 
     const Resources& totalResources = slave_.totalResources;
@@ -627,7 +627,7 @@ Future<Response> Master::Http::api(
 
   CHECK_SOME(master->recovered);
 
-  if (!master->recovered.get().isReady()) {
+  if (!master->recovered->isReady()) {
     return ServiceUnavailable("Master has not finished recovery");
   }
 
@@ -675,8 +675,7 @@ Future<Response> Master::Http::api(
   Option<Error> error = validation::master::call::validate(call, principal);
 
   if (error.isSome()) {
-    return BadRequest("Failed to validate master::Call: " +
-                      error.get().message);
+    return BadRequest("Failed to validate master::Call: " + error->message);
   }
 
   LOG(INFO) << "Processing call " << call.type();
@@ -935,7 +934,7 @@ Future<Response> Master::Http::scheduler(
 
   CHECK_SOME(master->recovered);
 
-  if (!master->recovered.get().isReady()) {
+  if (!master->recovered->isReady()) {
     return ServiceUnavailable("Master has not finished recovery");
   }
 
@@ -984,8 +983,7 @@ Future<Response> Master::Http::scheduler(
 
   if (error.isSome()) {
     master->metrics->incrementInvalidSchedulerCalls(call);
-    return BadRequest("Failed to validate scheduler::Call: " +
-                      error.get().message);
+    return BadRequest("Failed to validate scheduler::Call: " + error->message);
   }
 
   if (call.type() == scheduler::Call::SUBSCRIBE) {
@@ -1081,7 +1079,7 @@ Future<Response> Master::Http::scheduler(
   }
 
   const string& streamId = request.headers.at("Mesos-Stream-Id");
-  if (streamId != framework->http.get().streamId.toString()) {
+  if (streamId != framework->http->streamId.toString()) {
     return BadRequest(
         "The stream ID '" + streamId + "' included in this request "
         "didn't match the stream ID currently associated with framework ID "
@@ -1263,7 +1261,7 @@ Future<Response> Master::Http::createVolumes(
   }
 
   RepeatedPtrField<Resource> volumes;
-  foreach (const JSON::Value& value, parse.get().values) {
+  foreach (const JSON::Value& value, parse->values) {
     Try<Resource> volume = ::protobuf::parse<Resource>(value);
     if (volume.isError()) {
       return BadRequest(
@@ -1437,7 +1435,7 @@ Future<Response> Master::Http::destroyVolumes(
   }
 
   RepeatedPtrField<Resource> volumes;
-  foreach (const JSON::Value& value, parse.get().values) {
+  foreach (const JSON::Value& value, parse->values) {
     Try<Resource> volume = ::protobuf::parse<Resource>(value);
     if (volume.isError()) {
       return BadRequest(
@@ -2257,7 +2255,7 @@ Future<Response> Master::Http::getMaster(
 
   getMaster->set_start_time(master->startTime.secs());
   if (master->electedTime.isSome()) {
-    getMaster->set_elected_time(master->electedTime.get().secs());
+    getMaster->set_elected_time(master->electedTime->secs());
   }
 
   return OK(serialize(contentType, evolve(response)),
@@ -2431,7 +2429,7 @@ Future<Response> Master::Http::reserve(
   }
 
   RepeatedPtrField<Resource> resources;
-  foreach (const JSON::Value& value, parse.get().values) {
+  foreach (const JSON::Value& value, parse->values) {
     Try<Resource> resource = ::protobuf::parse<Resource>(value);
     if (resource.isError()) {
       return BadRequest(
@@ -2921,7 +2919,7 @@ Future<Response> Master::Http::state(
         writer->field("start_time", master->startTime.secs());
 
         if (master->electedTime.isSome()) {
-          writer->field("elected_time", master->electedTime.get().secs());
+          writer->field("elected_time", master->electedTime->secs());
         }
 
         writer->field("id", master->info().id());
@@ -5211,7 +5209,7 @@ Future<Response> Master::Http::unreserve(
   }
 
   RepeatedPtrField<Resource> resources;
-  foreach (const JSON::Value& value, parse.get().values) {
+  foreach (const JSON::Value& value, parse->values) {
     Try<Resource> resource = ::protobuf::parse<Resource>(value);
     if (resource.isError()) {
       return BadRequest(

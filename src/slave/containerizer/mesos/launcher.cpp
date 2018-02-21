@@ -137,13 +137,13 @@ Try<pid_t> SubprocessLauncher::fork(
     return Error("Failed to fork a child process: " + child.error());
   }
 
-  LOG(INFO) << "Forked child with pid '" << child.get().pid()
+  LOG(INFO) << "Forked child with pid '" << child->pid()
             << "' for container '" << containerId << "'";
 
   // Store the pid (session id and process group id).
-  pids.put(containerId, child.get().pid());
+  pids.put(containerId, child->pid());
 
-  return child.get().pid();
+  return child->pid();
 }
 
 

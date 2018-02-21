@@ -204,7 +204,7 @@ void LeaderContenderProcess::cancel()
     return;
   }
 
-  LOG(INFO) << "Now cancelling the membership: " << candidacy.get().id();
+  LOG(INFO) << "Now cancelling the membership: " << candidacy->id();
 
   group->cancel(candidacy.get())
     .onAny(defer(self(), &Self::cancelled, lambda::_1));
@@ -214,7 +214,7 @@ void LeaderContenderProcess::cancel()
 void LeaderContenderProcess::cancelled(const Future<bool>& result)
 {
   CHECK_READY(candidacy);
-  LOG(INFO) << "Membership cancelled: " << candidacy.get().id();
+  LOG(INFO) << "Membership cancelled: " << candidacy->id();
 
   // Can be called as a result of either withdraw() or server side
   // expiration.
@@ -265,7 +265,7 @@ void LeaderContenderProcess::joined()
     return;
   }
 
-  LOG(INFO) << "New candidate (id='" << candidacy.get().id()
+  LOG(INFO) << "New candidate (id='" << candidacy->id()
             << "') has entered the contest for leadership";
 
   // Transition to 'watching' state.
@@ -275,7 +275,7 @@ void LeaderContenderProcess::joined()
   if (contending.get()->set(watching.get()->future())) {
     // Continue to watch that our membership is not removed (if the
     // client still cares about it).
-    candidacy.get().cancelled()
+    candidacy->cancelled()
       .onAny(defer(self(), &Self::cancelled, lambda::_1));
   }
 }

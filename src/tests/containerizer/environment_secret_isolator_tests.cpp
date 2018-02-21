@@ -119,11 +119,11 @@ TEST_F(EnvironmentSecretIsolatorTest, ResolveSecret)
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(statusStarting);
-  EXPECT_EQ(TASK_STARTING, statusStarting.get().state());
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
   AWAIT_READY(statusFinished);
-  EXPECT_EQ(TASK_FINISHED, statusFinished.get().state());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
 
   driver.stop();
   driver.join();

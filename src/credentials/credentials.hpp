@@ -40,7 +40,7 @@ inline Result<Credentials> read(const Path& path)
   if (read.isError()) {
     return Error("Failed to read credentials file '" + path.string() +
                  "': " + read.error());
-  } else if (read.get().empty()) {
+  } else if (read->empty()) {
     return None();
   }
 
@@ -48,7 +48,7 @@ inline Result<Credentials> read(const Path& path)
   if (permissions.isError()) {
     LOG(WARNING) << "Failed to stat credentials file '" << path
                  << "': " << permissions.error();
-  } else if (permissions.get().others.rwx) {
+  } else if (permissions->others.rwx) {
     LOG(WARNING) << "Permissions on credentials file '" << path
                  << "' are too open; it is recommended that your"
                  << " credentials file is NOT accessible by others";
@@ -89,7 +89,7 @@ inline Result<Credential> readCredential(const Path& path)
   if (read.isError()) {
     return Error("Failed to read credential file '" + path.string() +
                  "': " + read.error());
-  } else if (read.get().empty()) {
+  } else if (read->empty()) {
     return None();
   }
 
@@ -97,7 +97,7 @@ inline Result<Credential> readCredential(const Path& path)
   if (permissions.isError()) {
     LOG(WARNING) << "Failed to stat credential file '" << path
                  << "': " << permissions.error();
-  } else if (permissions.get().others.rwx) {
+  } else if (permissions->others.rwx) {
     LOG(WARNING) << "Permissions on credential file '" << path
                  << "' are too open; it is recommended that your"
                  << " credential file is NOT accessible by others";

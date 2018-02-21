@@ -2034,18 +2034,18 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
       {offers->front().id()}, {LAUNCH_GROUP(executor, taskGroup)});
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_STARTING, statusStarting.get().state());
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   AWAIT_READY(statusHealthy);
-  EXPECT_EQ(TASK_RUNNING, statusHealthy.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
   EXPECT_EQ(
       TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
       statusHealthy->reason());
-  EXPECT_TRUE(statusHealthy.get().has_healthy());
-  EXPECT_TRUE(statusHealthy.get().healthy());
+  EXPECT_TRUE(statusHealthy->has_healthy());
+  EXPECT_TRUE(statusHealthy->healthy());
 
   Future<hashset<ContainerID>> containerIds = containerizer->containers();
 
@@ -2170,18 +2170,18 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
       {offers->front().id()}, {LAUNCH_GROUP(executor, taskGroup)});
 
   AWAIT_READY(statusStarting);
-  EXPECT_EQ(TASK_STARTING, statusStarting.get().state());
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
 
   AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   AWAIT_READY(statusHealthy);
-  EXPECT_EQ(TASK_RUNNING, statusHealthy.get().state());
+  EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
   EXPECT_EQ(
       TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
       statusHealthy->reason());
-  EXPECT_TRUE(statusHealthy.get().has_healthy());
-  EXPECT_TRUE(statusHealthy.get().healthy());
+  EXPECT_TRUE(statusHealthy->has_healthy());
+  EXPECT_TRUE(statusHealthy->healthy());
 
   Future<hashset<ContainerID>> containerIds = containerizer->containers();
 

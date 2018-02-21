@@ -148,7 +148,7 @@ Try<Resources> Containerizer::resources(const Flags& flags)
                     << "' ; defaulting to DEFAULT_MEM";
       mem = DEFAULT_MEM;
     } else {
-      Bytes total = mem_.get().total;
+      Bytes total = mem_->total;
       if (total >= Gigabytes(2)) {
         mem = total - Gigabytes(1); // Leave 1GB free.
       } else {

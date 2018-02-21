@@ -385,7 +385,7 @@ public:
       std::cerr
         << "-------------------------------------------------------------\n"
         << "We cannot run any overlay backend tests because:\n"
-        << dtypeError.get().message << "\n"
+        << dtypeError->message << "\n"
         << "-------------------------------------------------------------\n";
       return;
     }

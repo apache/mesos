@@ -268,7 +268,7 @@ Future<Nothing> MetadataManagerProcess::recover()
     return Failure("Unexpected empty images file '" + storedImagesPath + "'");
   }
 
-  foreach (const Image& image, images.get().images()) {
+  foreach (const Image& image, images->images()) {
     const string imageReference = stringify(image.reference());
 
     if (storedImages.contains(imageReference)) {

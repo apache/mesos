@@ -4437,7 +4437,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Non_Root_Sandbox)
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
-  SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
+  SlaveID slaveId = slaveRegisteredMessage->slave_id();
 
   FrameworkInfo framework;
   framework.set_name("default");
@@ -5093,13 +5093,13 @@ TEST_F(
 
     ASSERT_SOME(ip);
 
-    if (protocol.get().value == "IPv4") {
-      EXPECT_EQ(ip.get().value, containerIPv4.get());
+    if (protocol->value == "IPv4") {
+      EXPECT_EQ(ip->value, containerIPv4.get());
     } else {
-      EXPECT_EQ(ip.get().value, containerIPv6.get());
+      EXPECT_EQ(ip->value, containerIPv6.get());
     }
 
-    LOG(INFO) << "IP: " << ip.get().value;
+    LOG(INFO) << "IP: " << ip->value;
   }
 
   ASSERT_TRUE(exists(docker, containerId.get()));

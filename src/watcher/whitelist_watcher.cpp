@@ -65,7 +65,7 @@ void WhitelistWatcher::initialize()
   // 'whitelist' which represented "accept all nodes" was the string
   // value '*' rather than 'None'. For backwards compatibility we
   // still check for '*'. Can be removed after 0.23.
-  if (path.isSome() && path.get().string() == "*") {
+  if (path.isSome() && path->string() == "*") {
     LOG(WARNING)
       << "Explicitly specifying '*' for the whitelist in order to "
       << "\"accept all\" is deprecated and will be removed in a future "
@@ -73,7 +73,7 @@ void WhitelistWatcher::initialize()
       << "\"accept all\" agents";
   }
 
-  if (path.isNone() || path.get().string() == "*") { // Accept all nodes.
+  if (path.isNone() || path->string() == "*") { // Accept all nodes.
     VLOG(1) << "No whitelist given";
     if (lastWhitelist.isSome()) {
       subscriber(None());
@@ -93,14 +93,14 @@ void WhitelistWatcher::watch()
   Option<hashset<string>> whitelist;
 
   CHECK_SOME(path);
-  Try<string> read = os::read(path.get().string());
+  Try<string> read = os::read(path->string());
 
   if (read.isError()) {
     LOG(ERROR) << "Error reading whitelist file: " << read.error() << ". "
                << "Retrying";
     whitelist = lastWhitelist;
-  } else if (read.get().empty()) {
-    VLOG(1) << "Empty whitelist file " << path.get().string();
+  } else if (read->empty()) {
+    VLOG(1) << "Empty whitelist file " << path->string();
     whitelist = hashset<string>();
   } else {
     hashset<string> hostnames;

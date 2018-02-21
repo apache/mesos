@@ -584,7 +584,7 @@ int main(int argc, char** argv)
       LOG(WARNING) << "Failed to stat jwt secret key file '"
                    << flags.jwt_secret_key.get()
                    << "': " << permissions.error();
-    } else if (permissions.get().others.rwx) {
+    } else if (permissions->others.rwx) {
       LOG(WARNING) << "Permissions on executor secret key file '"
                    << flags.jwt_secret_key.get()
                    << "' are too open; it is recommended that your"

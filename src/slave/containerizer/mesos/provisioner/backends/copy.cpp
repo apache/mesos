@@ -323,7 +323,7 @@ Future<bool> CopyBackendProcess::destroy(const string& rootfs)
     return Failure("Failed to create 'rm' subprocess: " + s.error());
   }
 
-  return s.get().status()
+  return s->status()
     .then([](const Option<int>& status) -> Future<bool> {
       if (status.isNone()) {
         return Failure("Failed to reap subprocess to destroy rootfs");

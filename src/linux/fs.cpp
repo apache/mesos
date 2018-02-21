@@ -495,11 +495,11 @@ Try<Nothing> mount(const Option<string>& source,
   //           unsigned long mountflags,
   //           const void *data);
   if (::mount(
-        (source.isSome() ? source.get().c_str() : nullptr),
-        target.c_str(),
-        (type.isSome() ? type.get().c_str() : nullptr),
-        flags,
-        data) < 0) {
+          (source.isSome() ? source->c_str() : nullptr),
+          target.c_str(),
+          (type.isSome() ? type->c_str() : nullptr),
+          flags,
+          data) < 0) {
     return ErrnoError();
   }
 
@@ -518,7 +518,7 @@ Try<Nothing> mount(const Option<string>& source,
       target,
       type,
       flags,
-      options.isSome() ? options.get().c_str() : nullptr);
+      options.isSome() ? options->c_str() : nullptr);
 }
 
 
@@ -542,7 +542,7 @@ Try<Nothing> unmountAll(const string& target, int flags)
   }
 
   foreach (const MountTable::Entry& entry,
-           adaptor::reverse(mountTable.get().entries)) {
+           adaptor::reverse(mountTable->entries)) {
     if (strings::startsWith(entry.dir, target)) {
       Try<Nothing> unmount = fs::unmount(entry.dir, flags);
       if (unmount.isError()) {
@@ -900,7 +900,7 @@ Try<Nothing> enter(const string& root)
   // The old root is now relative to chroot so remove the chroot path.
   const string relativeOld = strings::remove(old.get(), root, strings::PREFIX);
 
-  foreach (const fs::MountTable::Entry& entry, mountTable.get().entries) {
+  foreach (const fs::MountTable::Entry& entry, mountTable->entries) {
     // TODO(idownes): sort the entries and remove depth first so we
     // don't rely on the lazy umount and can check the status.
     if (strings::startsWith(entry.dir, relativeOld)) {

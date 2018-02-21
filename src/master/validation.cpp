@@ -864,22 +864,22 @@ Option<Error> validate(const RepeatedPtrField<Resource>& resources)
 {
   Option<Error> error = Resources::validate(resources);
   if (error.isSome()) {
-    return Error("Invalid resources: " + error.get().message);
+    return Error("Invalid resources: " + error->message);
   }
 
   error = common::validation::validateGpus(resources);
   if (error.isSome()) {
-    return Error("Invalid 'gpus' resource: " + error.get().message);
+    return Error("Invalid 'gpus' resource: " + error->message);
   }
 
   error = validateDiskInfo(resources);
   if (error.isSome()) {
-    return Error("Invalid DiskInfo: " + error.get().message);
+    return Error("Invalid DiskInfo: " + error->message);
   }
 
   error = validateDynamicReservationInfo(resources);
   if (error.isSome()) {
-    return Error("Invalid ReservationInfo: " + error.get().message);
+    return Error("Invalid ReservationInfo: " + error->message);
   }
 
   return None();
@@ -1957,13 +1957,13 @@ Option<Error> validate(
   // NOTE: this ensures the reservation is not being made to the "*" role.
   Option<Error> error = resource::validate(reserve.resources());
   if (error.isSome()) {
-    return Error("Invalid resources: " + error.get().message);
+    return Error("Invalid resources: " + error->message);
   }
 
   error =
     resource::internal::validateSingleResourceProvider(reserve.resources());
   if (error.isSome()) {
-    return Error("Invalid resources: " + error.get().message);
+    return Error("Invalid resources: " + error->message);
   }
 
   Option<hashset<string>> frameworkRoles;
@@ -2101,13 +2101,13 @@ Option<Error> validate(
 {
   Option<Error> error = resource::validate(unreserve.resources());
   if (error.isSome()) {
-    return Error("Invalid resources: " + error.get().message);
+    return Error("Invalid resources: " + error->message);
   }
 
   error =
     resource::internal::validateSingleResourceProvider(unreserve.resources());
   if (error.isSome()) {
-    return Error("Invalid resources: " + error.get().message);
+    return Error("Invalid resources: " + error->message);
   }
 
   // NOTE: We don't check that 'FrameworkInfo.principal' matches
@@ -2144,17 +2144,17 @@ Option<Error> validate(
 {
   Option<Error> error = resource::validate(create.volumes());
   if (error.isSome()) {
-    return Error("Invalid resources: " + error.get().message);
+    return Error("Invalid resources: " + error->message);
   }
 
   error = resource::internal::validateSingleResourceProvider(create.volumes());
   if (error.isSome()) {
-    return Error("Invalid resources: " + error.get().message);
+    return Error("Invalid resources: " + error->message);
   }
 
   error = resource::validatePersistentVolume(create.volumes());
   if (error.isSome()) {
-    return Error("Not a persistent volume: " + error.get().message);
+    return Error("Not a persistent volume: " + error->message);
   }
 
   error = resource::validateUniquePersistenceID(
@@ -2175,7 +2175,7 @@ Option<Error> validate(
       return Error(
           "Create volume operation for '" + stringify(volume) +
           "' has been attempted by framework '" +
-          stringify(frameworkInfo.get().id()) +
+          stringify(frameworkInfo->id()) +
           "' with no SHARED_RESOURCES capability");
     }
 
@@ -2264,17 +2264,17 @@ Option<Error> validate(
 
   Option<Error> error = resource::validate(volumes);
   if (error.isSome()) {
-    return Error("Invalid resources: " + error.get().message);
+    return Error("Invalid resources: " + error->message);
   }
 
   error = resource::internal::validateSingleResourceProvider(volumes);
   if (error.isSome()) {
-    return Error("Invalid resources: " + error.get().message);
+    return Error("Invalid resources: " + error->message);
   }
 
   error = resource::validatePersistentVolume(volumes);
   if (error.isSome()) {
-    return Error("Not a persistent volume: " + error.get().message);
+    return Error("Not a persistent volume: " + error->message);
   }
 
   foreach (const Resource volume, volumes) {
@@ -2378,7 +2378,7 @@ Option<Error> validate(const Offer::Operation::CreateBlock& createBlock)
 
   Option<Error> error = resource::validate(Resources(source));
   if (error.isSome()) {
-    return Error("Invalid resource: " + error.get().message);
+    return Error("Invalid resource: " + error->message);
   }
 
   if (!Resources::hasResourceProvider(source)) {
@@ -2399,7 +2399,7 @@ Option<Error> validate(const Offer::Operation::DestroyBlock& destroyBlock)
 
   Option<Error> error = resource::validate(Resources(block));
   if (error.isSome()) {
-    return Error("Invalid resource: " + error.get().message);
+    return Error("Invalid resource: " + error->message);
   }
 
   if (!Resources::hasResourceProvider(block)) {

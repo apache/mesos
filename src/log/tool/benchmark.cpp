@@ -194,7 +194,7 @@ Try<Nothing> Benchmark::execute(int argc, char** argv)
   vector<Time> timestamps;
 
   // Read sizes from the input trace file.
-  ifstream input(flags.input.get().c_str());
+  ifstream input(flags.input->c_str());
   if (!input.is_open()) {
     return Error("Failed to open the trace file " + flags.input.get());
   }
@@ -239,7 +239,7 @@ Try<Nothing> Benchmark::execute(int argc, char** argv)
                    (position.isFailed()
                     ? position.failure()
                     : "Discarded future"));
-    } else if (position.get().isNone()) {
+    } else if (position->isNone()) {
       return Error("Failed to append: exclusive write promise lost");
     }
 
@@ -251,7 +251,7 @@ Try<Nothing> Benchmark::execute(int argc, char** argv)
   cout << "Total time used: " << stopwatch.elapsed() << endl;
 
   // Ouput statistics.
-  ofstream output(flags.output.get().c_str());
+  ofstream output(flags.output->c_str());
   if (!output.is_open()) {
     return Error("Failed to open the output file " + flags.output.get());
   }

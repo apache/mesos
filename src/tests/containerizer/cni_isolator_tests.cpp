@@ -1081,8 +1081,8 @@ TEST_F(CniIsolatorTest, ROOT_VerifyResolverConfig)
       echo '  }'
       echo '}'
       )~",
-      hostNetwork.get().address(),
-      hostNetwork.get().prefix());
+      hostNetwork->address(),
+      hostNetwork->prefix());
 
   ASSERT_SOME(mockPlugin);
 
@@ -1209,8 +1209,8 @@ TEST_F(CniIsolatorTest, ROOT_INTERNET_VerifyResolverConfig)
       echo '  }'
       echo '}'
       )~",
-      hostNetwork.get().address(),
-      hostNetwork.get().prefix());
+      hostNetwork->address(),
+      hostNetwork->prefix());
 
   ASSERT_SOME(mockPlugin);
 
@@ -1793,7 +1793,7 @@ TEST_F(CniIsolatorPortMapperTest, ROOT_INTERNET_CURL_PortMapper)
 
   AWAIT_READY(statusKilled);
 
-  EXPECT_EQ(TASK_KILLED, statusKilled.get().state());
+  EXPECT_EQ(TASK_KILLED, statusKilled->state());
 
   AWAIT_READY(gcSchedule);
 
@@ -1897,8 +1897,8 @@ TEST_P(DefaultContainerDNSCniTest, ROOT_VerifyDefaultDNS)
       echo '  }'
       echo '}'
       )~",
-      hostNetwork.get().address(),
-      hostNetwork.get().prefix());
+      hostNetwork->address(),
+      hostNetwork->prefix());
 
   ASSERT_SOME(mockPlugin);
 

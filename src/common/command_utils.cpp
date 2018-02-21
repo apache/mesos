@@ -63,9 +63,9 @@ static Future<string> launch(
   }
 
   return await(
-      s.get().status(),
-      process::io::read(s.get().out().get()),
-      process::io::read(s.get().err().get()))
+      s->status(),
+      process::io::read(s->out().get()),
+      process::io::read(s->err().get()))
     .then([command](const tuple<
         Future<Option<int>>,
         Future<string>,

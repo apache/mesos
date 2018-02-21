@@ -253,8 +253,8 @@ Try<ImageManifest> parse(const JSON::Object& json)
           "Failed to parse 'Labels' as a JSON value: " + value.error());
     }
 
-    if (value.isSome() && !value.get().is<JSON::Null>()) {
-      const JSON::Object labels = value.get().as<JSON::Object>();
+    if (value.isSome() && !value->is<JSON::Null>()) {
+      const JSON::Object labels = value->as<JSON::Object>();
 
       foreachpair (const string& key,
                    const JSON::Value& value,
@@ -288,8 +288,8 @@ Try<ImageManifest> parse(const JSON::Object& json)
           "Failed to parse 'Labels' as a JSON value: " + value.error());
     }
 
-    if (value.isSome() && !value.get().is<JSON::Null>()) {
-      const JSON::Object labels = value.get().as<JSON::Object>();
+    if (value.isSome() && !value->is<JSON::Null>()) {
+      const JSON::Object labels = value->as<JSON::Object>();
 
       foreachpair (const string& key,
                    const JSON::Value& value,
@@ -308,8 +308,8 @@ Try<ImageManifest> parse(const JSON::Object& json)
 
   Option<Error> error = validate(manifest.get());
   if (error.isSome()) {
-    return Error("Docker v1 image manifest validation failed: " +
-                 error.get().message);
+    return Error(
+        "Docker v1 image manifest validation failed: " + error->message);
   }
 
   return manifest.get();
@@ -368,9 +368,9 @@ Try<ImageManifest> parse(const JSON::Object& json)
     return Error("Protobuf parse failed: " + manifest.error());
   }
 
-  for (int i = 0; i < manifest.get().history_size(); i++) {
-    Try<JSON::Object> v1Compatibility = JSON::parse<JSON::Object>(
-        manifest.get().history(i).v1compatibility());
+  for (int i = 0; i < manifest->history_size(); i++) {
+    Try<JSON::Object> v1Compatibility =
+      JSON::parse<JSON::Object>(manifest->history(i).v1compatibility());
 
     if (v1Compatibility.isError()) {
       return Error("Parsing v1Compatibility JSON failed: " +
@@ -382,15 +382,15 @@ Try<ImageManifest> parse(const JSON::Object& json)
       return Error("Parsing v1Compatibility protobuf failed: " + v1.error());
     }
 
-    CHECK(!manifest.get().history(i).has_v1());
+    CHECK(!manifest->history(i).has_v1());
 
     manifest->mutable_history(i)->mutable_v1()->CopyFrom(v1.get());
   }
 
   Option<Error> error = validate(manifest.get());
   if (error.isSome()) {
-    return Error("Docker v2 image manifest validation failed: " +
-                 error.get().message);
+    return Error(
+        "Docker v2 image manifest validation failed: " + error->message);
   }
 
   return manifest.get();

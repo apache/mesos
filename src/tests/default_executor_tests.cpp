@@ -2661,14 +2661,14 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   v1::FrameworkID frameworkId(subscribed->framework_id());
 
   v1::Resources individualResources =
-    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get()
-      .pushReservation(
+    v1::Resources::parse("cpus:0.1;mem:32;disk:32")
+      ->pushReservation(
           v1::createDynamicReservationInfo(
               frameworkInfo.roles(0), frameworkInfo.principal()));
 
   v1::Resources totalResources =
-    v1::Resources::parse("cpus:0.3;mem:96;disk:96").get()
-      .pushReservation(
+    v1::Resources::parse("cpus:0.3;mem:96;disk:96")
+      ->pushReservation(
           v1::createDynamicReservationInfo(
               frameworkInfo.roles(0), frameworkInfo.principal()));
 
@@ -2878,14 +2878,14 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   v1::FrameworkID frameworkId(subscribed->framework_id());
 
   v1::Resources individualResources =
-    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get()
-      .pushReservation(
+    v1::Resources::parse("cpus:0.1;mem:32;disk:32")
+      ->pushReservation(
           v1::createDynamicReservationInfo(
               frameworkInfo.roles(0), frameworkInfo.principal()));
 
   v1::Resources totalResources =
-    v1::Resources::parse("cpus:0.3;mem:96;disk:96").get()
-      .pushReservation(
+    v1::Resources::parse("cpus:0.3;mem:96;disk:96")
+      ->pushReservation(
           v1::createDynamicReservationInfo(
               frameworkInfo.roles(0), frameworkInfo.principal()));
 

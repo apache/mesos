@@ -917,11 +917,11 @@ private:
       message =
         "Failed to get exit status for Command: " +
         (status_.isFailed() ? status_.failure() : "future discarded");
-    } else if (status_.get().isNone()) {
+    } else if (status_->isNone()) {
       taskState = TASK_FAILED;
       message = "Failed to get exit status for Command";
     } else {
-      int status = status_.get().get();
+      int status = status_->get();
       CHECK(WIFEXITED(status) || WIFSIGNALED(status))
         << "Unexpected wait status " << status;
 

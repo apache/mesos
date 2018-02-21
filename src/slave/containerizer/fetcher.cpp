@@ -205,7 +205,7 @@ Result<string> Fetcher::uriToLocalPath(
       return Error("File URI only supports absolute paths");
     }
 
-    if (frameworksHome.isNone() || frameworksHome.get().empty()) {
+    if (frameworksHome.isNone() || frameworksHome->empty()) {
       return Error("A relative path was passed for the resource but the "
                    "Mesos framework home was not specified. "
                    "Please either provide this config option "
@@ -483,14 +483,14 @@ Future<Nothing> FetcherProcess::_fetch(
                    const Option<Future<shared_ptr<Cache::Entry>>>& entry,
                    entries) {
         if (entry.isSome()) {
-          if (entry.get().isReady()) {
-            result[uri] = entry.get().get();
+          if (entry->isReady()) {
+            result[uri] = entry->get();
           } else {
             LOG(WARNING)
               << "Reverting to fetching directly into the sandbox for '"
               << uri.value()
               << "', due to failure to fetch through the cache, "
-              << "with error: " << entry.get().failure();
+              << "with error: " << entry->failure();
 
             result[uri] = None();
           }
@@ -658,10 +658,11 @@ Try<list<Path>> FetcherProcess::cacheFiles() const
                  flags.fetcher_cache_dir + "' with error: " + find.error());
   }
 
-  transform(find.get().begin(),
-            find.get().end(),
-            std::back_inserter(result),
-            [](const string& path) { return Path(path); });
+  transform(
+      find->begin(),
+      find->end(),
+      std::back_inserter(result),
+      [](const string& path) { return Path(path); });
 
   return result;
 }

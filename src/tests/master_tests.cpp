@@ -2402,7 +2402,7 @@ TEST_F(MasterTest, SlavesEndpointFiltering)
   master::Flags flags = CreateMasterFlags();
 
   {
-    mesos::ACL::ViewRole* acl = flags.acls.get().add_view_roles();
+    mesos::ACL::ViewRole* acl = flags.acls->add_view_roles();
     acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
     acl->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
   }
@@ -7950,7 +7950,7 @@ TEST_F(MasterTest, MultiRoleSchedulerUnsubscribeFromRole)
         JSON::Array {
           JSON::Object {
             { "name", "foo" },
-            { "frameworks", JSON::Array { frameworkId.get().value() } }
+            { "frameworks", JSON::Array { frameworkId->value() } }
           }
         }
       }
