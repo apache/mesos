@@ -24,6 +24,8 @@ Lists known tasks.
 The information shown might be filtered based on the user
 accessing the endpoint.
 
+Filtering via the query parameters is available starting Mesos version 1.4.0.
+
 Query parameters:
 
 >        framework_id=VALUE   Only return tasks belonging to the framework with this ID.
