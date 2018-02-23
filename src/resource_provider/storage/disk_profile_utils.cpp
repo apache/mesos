@@ -107,12 +107,6 @@ static Option<Error> validateSelector(
 
       const auto& selector = profileManifest.resource_provider_selector();
 
-      if (selector.resource_providers_size() == 0) {
-        return Error(
-            "Expecting one or more 'resource_providers' for "
-            "ResourceProviderSelector");
-      }
-
       foreach (const auto& resourceProvider, selector.resource_providers()) {
         if (resourceProvider.type().empty()) {
           return Error(

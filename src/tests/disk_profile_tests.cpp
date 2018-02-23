@@ -205,17 +205,6 @@ TEST_F(UriDiskProfileTest, ParseInvalids)
         }
       })~",
 
-    // Empty 'resource_providers' in 'resource_provider_selector'.
-    R"~({
-        "profile_matrix" : {
-          "profile" : {
-            "resource_provider_selector" : {
-              "resource_providers" : []
-            }
-          }
-        }
-      })~",
-
     R"~({
         "profile_matrix" : {
           "profile" : {
