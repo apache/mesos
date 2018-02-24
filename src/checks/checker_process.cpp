@@ -563,21 +563,33 @@ Future<int> CheckerProcess::dockerCommandCheck(
   if (command.shell()) {
     commandArguments.push_back("sh");
     commandArguments.push_back("-c");
-    commandArguments.push_back("\"");
-    commandArguments.push_back(command.value());
-    commandArguments.push_back("\"");
-  } else {
-    commandArguments.push_back(command.value());
 
-    foreach (const string& argument, command.arguments()) {
-      commandArguments.push_back(argument);
+    // We don't need to quote the arguments, because we're converting the
+    // shell command to the executable form.
+    commandArguments.push_back(command.value());
+  } else {
+    // The format is `docker exec [OPTIONS] CONTAINER COMMAND [ARG...]`, so we
+    // have `COMMAND == command.value()` or `COMMAND == command.arguments()[0]`.
+    // So, `command.arguments()[0]` can either be executable name or the "real"
+    // first argument to the program (`argv[1]`). This matches the logic in
+    // `docker->run`.
+    if (command.has_value()) {
+      commandArguments.push_back(command.value());
     }
+
+    commandArguments.insert(
+        commandArguments.end(),
+        command.arguments().cbegin(),
+        command.arguments().cend());
   }
 
   CommandInfo dockerCmd(command);
-  dockerCmd.set_shell(true);
+  dockerCmd.set_shell(false);
+  dockerCmd.set_value(commandArguments[0]);
   dockerCmd.clear_arguments();
-  dockerCmd.set_value(strings::join(" ", commandArguments));
+  foreach (const string& argument, commandArguments) {
+    dockerCmd.add_arguments(argument);
+  }
 
   return commandCheck(
       check::Command(dockerCmd),
