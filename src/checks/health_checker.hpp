@@ -28,6 +28,10 @@
 #include <stout/error.hpp>
 #include <stout/lambda.hpp>
 #include <stout/option.hpp>
+#include <stout/variant.hpp>
+
+#include "checks/checks_runtime.hpp"
+#include "checks/checks_types.hpp"
 
 #include "messages/messages.hpp"
 
@@ -45,18 +49,14 @@ public:
    * Attempts to create a `HealthChecker` object. In case of success, health
    * checking starts immediately after initialization.
    *
-   * If the check is a command health check, the checker will fork a process,
-   * enter the task's namespaces, and execute the command.
+   * The check performed is based off the check type and the given runtime.
    *
    * @param healthCheck The protobuf message definition of health check.
    * @param launcherDir A directory where Mesos helper binaries are located.
    * @param callback A callback HealthChecker uses to send health status
    *     updates to its owner (usually an executor).
    * @param taskId The TaskID of the target task.
-   * @param taskPid The target task's pid used to enter the specified
-   *     namespaces.
-   * @param namespaces The namespaces to enter prior to performing the health
-   *     check.
+   * @param runtime The runtime that launched the task.
    * @return A `HealthChecker` object or an error if `create` fails.
    *
    * @todo A better approach would be to return a stream of updates, e.g.,
@@ -70,39 +70,7 @@ public:
       const std::string& launcherDir,
       const lambda::function<void(const TaskHealthStatus&)>& callback,
       const TaskID& taskId,
-      const Option<pid_t>& taskPid,
-      const std::vector<std::string>& namespaces);
-
-  /**
-   * Attempts to create a `HealthChecker` object. In case of success, health
-   * checking starts immediately after initialization.
-   *
-   * If the check is a command health check, the checker will delegate the
-   * execution of the check to the Mesos agent via the
-   * `LaunchNestedContainerSession` API call.
-   *
-   * @param healthCheck The protobuf message definition of health check.
-   * @param launcherDir A directory where Mesos helper binaries are located.
-   * @param callback A callback HealthChecker uses to send health status
-   *     updates to its owner (usually an executor).
-   * @param taskId The TaskID of the target task.
-   * @param taskContainerId The ContainerID of the target task.
-   * @param agentURL The URL of the agent.
-   * @param authorizationHeader The authorization header the health checker
-   *     should use to authenticate with the agent operator API.
-   * @return A `HealthChecker` object or an error if `create` fails.
-   *
-   * @todo A better approach would be to return a stream of updates, e.g.,
-   * `process::Stream<TaskHealthStatus>` rather than invoking a callback.
-   */
-  static Try<process::Owned<HealthChecker>> create(
-      const HealthCheck& healthCheck,
-      const std::string& launcherDir,
-      const lambda::function<void(const TaskHealthStatus&)>& callback,
-      const TaskID& taskId,
-      const ContainerID& taskContainerId,
-      const process::http::URL& agentURL,
-      const Option<std::string>& authorizationHeader);
+      Variant<runtime::Plain, runtime::Docker, runtime::Nested> runtime);
 
   ~HealthChecker();
 
@@ -113,15 +81,10 @@ public:
 private:
   HealthChecker(
       const HealthCheck& _healthCheck,
-      const TaskID& _taskId,
-      const lambda::function<void(const TaskHealthStatus&)>& _callback,
       const std::string& launcherDir,
-      const Option<pid_t>& taskPid,
-      const std::vector<std::string>& namespaces,
-      const Option<ContainerID>& taskContainerId,
-      const Option<process::http::URL>& agentURL,
-      const Option<std::string>& authorizationHeader,
-      bool commandCheckViaAgent);
+      const lambda::function<void(const TaskHealthStatus&)>& _callback,
+      const TaskID& _taskId,
+      Variant<runtime::Plain, runtime::Docker, runtime::Nested> runtime);
 
   void processCheckResult(const Try<CheckStatusInfo>& result);
   void failure();
@@ -129,9 +92,10 @@ private:
 
   const HealthCheck healthCheck;
   const lambda::function<void(const TaskHealthStatus&)> callback;
+  const TaskID taskId;
+
   const std::string name;
   const process::Time startTime;
-  const TaskID taskId;
 
   Duration checkGracePeriod;
   uint32_t consecutiveFailures;

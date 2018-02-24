@@ -32,6 +32,10 @@
 #include <stout/option.hpp>
 #include <stout/stopwatch.hpp>
 #include <stout/try.hpp>
+#include <stout/variant.hpp>
+
+#include "checks/checks_runtime.hpp"
+#include "checks/checks_types.hpp"
 
 namespace mesos {
 namespace internal {
@@ -43,20 +47,20 @@ public:
   // TODO(gkleiman): Instead of passing an optional scheme as a parameter,
   // consider introducing a global `TLSInfo` protobuf and using it in HTTP
   // checks. See MESOS-7356.
+  //
+  // TODO(qianzhang): Once we figure out how the IPv4/IPv6 should be supported
+  // in the health check API (i.e., the `CheckInfo` protobuf message), we may
+  // consider to remove the ipv6 parameter field which is a temporary solution
+  // for now.
   CheckerProcess(
-      const CheckInfo& _check,
-      const std::string& _launcherDir,
+      const CheckInfo& checkInfo,
+      const std::string& launcherDir,
       const lambda::function<void(const Try<CheckStatusInfo>&)>& _callback,
       const TaskID& _taskId,
-      const Option<pid_t>& _taskPid,
-      const std::vector<std::string>& _namespaces,
-      const Option<ContainerID>& _taskContainerId,
-      const Option<process::http::URL>& _agentURL,
-      const Option<std::string>& _authorizationHeader,
-      const Option<std::string>& _scheme,
       const std::string& _name,
-      bool _commandCheckViaAgent,
-      bool _ipv6 = false);
+      Variant<runtime::Plain, runtime::Docker, runtime::Nested> _runtime,
+      const Option<std::string>& scheme,
+      bool ipv6 = false);
 
   void pause();
   void resume();
@@ -74,27 +78,43 @@ private:
       const Stopwatch& stopwatch,
       const Result<CheckStatusInfo>& result);
 
-  process::Future<int> commandCheck();
+  process::Future<int> commandCheck(
+      const check::Command& cmd,
+      const runtime::Plain& plain);
 
-  process::Future<int> nestedCommandCheck();
-  void _nestedCommandCheck(std::shared_ptr<process::Promise<int>> promise);
+  process::Future<int> dockerCommandCheck(
+      const check::Command& cmd,
+      const runtime::Docker& docker);
+
+  process::Future<int> nestedCommandCheck(
+      const check::Command& cmd,
+      const runtime::Nested& nested);
+  void _nestedCommandCheck(
+      std::shared_ptr<process::Promise<int>> promise,
+      check::Command cmd,
+      runtime::Nested nested);
   void __nestedCommandCheck(
       std::shared_ptr<process::Promise<int>> promise,
-      process::http::Connection connection);
+      process::http::Connection connection,
+      check::Command cmd,
+      runtime::Nested nested);
   void ___nestedCommandCheck(
       std::shared_ptr<process::Promise<int>> promise,
       const ContainerID& checkContainerId,
-      const process::http::Response& launchResponse);
+      const process::http::Response& launchResponse,
+      runtime::Nested nested);
 
   void nestedCommandCheckFailure(
       std::shared_ptr<process::Promise<int>> promise,
       process::http::Connection connection,
       const ContainerID& checkContainerId,
       std::shared_ptr<bool> checkTimedOut,
-      const std::string& failure);
+      const std::string& failure,
+      runtime::Nested nested);
 
   process::Future<Option<int>> waitNestedContainer(
-      const ContainerID& containerId);
+      const ContainerID& containerId,
+      runtime::Nested nested);
   process::Future<Option<int>> _waitNestedContainer(
       const ContainerID& containerId,
       const process::http::Response& httpResponse);
@@ -103,7 +123,9 @@ private:
       const Stopwatch& stopwatch,
       const process::Future<int>& future);
 
-  process::Future<int> httpCheck();
+  process::Future<int> httpCheck(
+      const check::Http& http,
+      const Option<runtime::Plain>& plain);
   process::Future<int> _httpCheck(
       const std::tuple<process::Future<Option<int>>,
                        process::Future<std::string>,
@@ -112,7 +134,16 @@ private:
       const Stopwatch& stopwatch,
       const process::Future<int>& future);
 
-  process::Future<bool> tcpCheck();
+  // The docker HTTP health check is only performed differently on Windows.
+#ifdef __WINDOWS__
+  process::Future<int> dockerHttpCheck(
+      const check::Http& http,
+      const runtime::Docker& docker);
+#endif // __WINDOWS__
+
+  process::Future<bool> tcpCheck(
+      const check::Tcp& tcp,
+      const Option<runtime::Plain>& plain);
   process::Future<bool> _tcpCheck(
       const std::tuple<process::Future<Option<int>>,
                        process::Future<std::string>,
@@ -121,34 +152,25 @@ private:
       const Stopwatch& stopwatch,
       const process::Future<bool>& future);
 
-  const CheckInfo check;
-  Duration checkDelay;
-  Duration checkInterval;
-  Duration checkTimeout;
-
-  // Contains the binary for TCP checks.
-  const std::string launcherDir;
+  // The docker TCP health check is only performed differently on Windows.
+#ifdef __WINDOWS__
+  process::Future<bool> dockerTcpCheck(
+      const check::Tcp& tcp,
+      const runtime::Docker& docker);
+#endif // __WINDOWS__
 
   const lambda::function<void(const Try<CheckStatusInfo>&)> updateCallback;
   const TaskID taskId;
-  const Option<pid_t> taskPid;
-  const std::vector<std::string> namespaces;
-  const Option<ContainerID> taskContainerId;
-  const Option<process::http::URL> agentURL;
-  const Option<std::string> authorizationHeader;
-  const Option<std::string> scheme;
   const std::string name;
-  const bool commandCheckViaAgent;
+  const Variant<runtime::Plain, runtime::Docker,  runtime::Nested> runtime;
 
-  // If set to true, the TCP/HTTP(S) check will be performed over IPv6,
-  // otherwise, it will be performed over IPv4.
-  //
-  // TODO(qianzhang): Once we figure out how the IPv4/IPv6 should be supported
-  // in the health check API (i.e., the `CheckInfo` protobuf message), we may
-  // consider to remove this field which is a temporary solution for now.
-  const bool ipv6;
+  // The `CheckerProcess` constructor parses the given `CheckInfo` struct and
+  // prepares this `Variant`.
+  const Variant<check::Command, check::Http, check::Tcp> check;
 
-  Option<lambda::function<pid_t(const lambda::function<int()>&)>> clone;
+  Duration checkDelay;
+  Duration checkInterval;
+  Duration checkTimeout;
 
   bool paused;
 

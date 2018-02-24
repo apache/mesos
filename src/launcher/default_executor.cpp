@@ -44,6 +44,7 @@
 #include <stout/uuid.hpp>
 
 #include "checks/checker.hpp"
+#include "checks/checks_runtime.hpp"
 #include "checks/health_checker.hpp"
 
 #include "common/http.hpp"
@@ -563,6 +564,9 @@ protected:
 
       container->launched = true;
 
+      const checks::runtime::Nested nestedRuntime{
+        containerId, agent, authorizationHeader};
+
       if (task.has_check()) {
         Try<Owned<checks::Checker>> checker =
           checks::Checker::create(
@@ -570,9 +574,7 @@ protected:
               launcherDirectory,
               defer(self(), &Self::taskCheckUpdated, taskId, lambda::_1),
               taskId,
-              containerId,
-              agent,
-              authorizationHeader);
+              nestedRuntime);
 
         if (checker.isError()) {
           // TODO(anand): Should we send a TASK_FAILED instead?
@@ -591,9 +593,7 @@ protected:
               launcherDirectory,
               defer(self(), &Self::taskHealthUpdated, lambda::_1),
               taskId,
-              containerId,
-              agent,
-              authorizationHeader);
+              nestedRuntime);
 
         if (healthChecker.isError()) {
           // TODO(anand): Should we send a TASK_FAILED instead?

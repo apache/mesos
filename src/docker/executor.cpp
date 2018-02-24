@@ -40,6 +40,7 @@
 
 #include <stout/os/killtree.hpp>
 
+#include "checks/checks_runtime.hpp"
 #include "checks/health_checker.hpp"
 
 #include "common/protobuf_utils.hpp"
@@ -713,14 +714,21 @@ private:
       namespaces.push_back("net");
     }
 
+    const checks::runtime::Docker dockerRuntime{
+      namespaces,
+      containerPid,
+      docker->getPath(),
+      docker->getSocket(),
+      containerName
+    };
+
     Try<Owned<checks::HealthChecker>> _checker =
       checks::HealthChecker::create(
           healthCheck,
           launcherDir,
           defer(self(), &Self::taskHealthUpdated, lambda::_1),
           task.task_id(),
-          containerPid,
-          namespaces);
+          dockerRuntime);
 
     if (_checker.isError()) {
       // TODO(gilbert): Consider ABORT and return a TASK_FAILED here.

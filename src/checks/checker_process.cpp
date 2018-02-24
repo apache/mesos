@@ -51,10 +51,14 @@
 #include <stout/stopwatch.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
+#include <stout/unreachable.hpp>
 #include <stout/uuid.hpp>
 
 #include <stout/os/environment.hpp>
 #include <stout/os/killtree.hpp>
+
+#include "checks/checks_runtime.hpp"
+#include "checks/checks_types.hpp"
 
 #include "common/http.hpp"
 #include "common/protobuf_utils.hpp"
@@ -91,13 +95,6 @@ constexpr char TCP_CHECK_COMMAND[] = "mesos-tcp-connect";
 constexpr char HTTP_CHECK_COMMAND[] = "curl.exe";
 constexpr char TCP_CHECK_COMMAND[] = "mesos-tcp-connect.exe";
 #endif // __WINDOWS__
-
-static const string DEFAULT_HTTP_SCHEME = "http";
-
-// Use '127.0.0.1' and '::1' instead of 'localhost', because the
-// host file in some container images may not contain 'localhost'.
-constexpr char DEFAULT_IPV4_DOMAIN[] = "127.0.0.1";
-constexpr char DEFAULT_IPV6_DOMAIN[] = "::1";
 
 
 #ifdef __linux__
@@ -139,6 +136,27 @@ static pid_t cloneWithSetns(
   }
 }
 #endif
+
+
+// The return type matches the `clone` function parameter in
+// `process::subprocess`.
+static Option<lambda::function<pid_t(const lambda::function<int()>&)>>
+getCustomCloneFunc(const Option<runtime::Plain>& plain)
+{
+  if (plain.isNone() || plain->namespaces.empty()) {
+    return None();
+  }
+
+#ifdef __linux__
+  return lambda::bind(
+      &cloneWithSetns,
+      lambda::_1,
+      plain->taskPid,
+      plain->namespaces);
+#else
+  return None();
+#endif // __linux__
+}
 
 
 // Reads `ProcessIO::Data` records from a string containing "Record-IO"
@@ -184,55 +202,71 @@ static Try<tuple<string, string>> decodeProcessIOData(const string& data)
 }
 
 
+static Variant<check::Command, check::Http, check::Tcp> checkInfoToCheck(
+    const CheckInfo& checkInfo,
+    const string& launcherDir,
+    const Option<string>& scheme,
+    bool ipv6)
+{
+  // Use the `CheckInfo` struct to create the right
+  // `check::{Command, Http, Tcp}` struct.
+  switch (checkInfo.type()) {
+    case CheckInfo::COMMAND: {
+      return check::Command(checkInfo.command().command());
+    }
+    case CheckInfo::HTTP: {
+      const CheckInfo::Http& http = checkInfo.http();
+      return check::Http(
+          http.port(),
+          http.has_path() ? http.path() : "",
+          scheme.getOrElse(check::DEFAULT_HTTP_SCHEME),
+          ipv6);
+    }
+    case CheckInfo::TCP: {
+      return check::Tcp(checkInfo.tcp().port(), launcherDir);
+    }
+    case CheckInfo::UNKNOWN: {
+      // TODO(josephw): Add validation at the agent or master level.
+      // Without validation, this is considered a mis-configuration of the
+      // task (user error).
+      LOG(FATAL) << "Received UNKNOWN check type";
+    }
+  }
+
+  UNREACHABLE();
+}
+
+
 CheckerProcess::CheckerProcess(
-    const CheckInfo& _check,
-    const string& _launcherDir,
+    const CheckInfo& checkInfo,
+    const string& launcherDir,
     const lambda::function<void(const Try<CheckStatusInfo>&)>& _callback,
     const TaskID& _taskId,
-    const Option<pid_t>& _taskPid,
-    const vector<string>& _namespaces,
-    const Option<ContainerID>& _taskContainerId,
-    const Option<http::URL>& _agentURL,
-    const Option<string>& _authorizationHeader,
-    const Option<string>& _scheme,
-    const std::string& _name,
-    bool _commandCheckViaAgent,
-    bool _ipv6)
+    const string& _name,
+    Variant<runtime::Plain, runtime::Docker, runtime::Nested> _runtime,
+    const Option<string>& scheme,
+    bool ipv6)
   : ProcessBase(process::ID::generate("checker")),
-    check(_check),
-    launcherDir(_launcherDir),
     updateCallback(_callback),
     taskId(_taskId),
-    taskPid(_taskPid),
-    namespaces(_namespaces),
-    taskContainerId(_taskContainerId),
-    agentURL(_agentURL),
-    authorizationHeader(_authorizationHeader),
-    scheme(_scheme),
     name(_name),
-    commandCheckViaAgent(_commandCheckViaAgent),
-    ipv6(_ipv6),
+    runtime(std::move(_runtime)),
+    check(checkInfoToCheck(checkInfo, launcherDir, scheme, ipv6)),
     paused(false)
 {
-  Try<Duration> create = Duration::create(check.delay_seconds());
+  Try<Duration> create = Duration::create(checkInfo.delay_seconds());
   CHECK_SOME(create);
   checkDelay = create.get();
 
-  create = Duration::create(check.interval_seconds());
+  create = Duration::create(checkInfo.interval_seconds());
   CHECK_SOME(create);
   checkInterval = create.get();
 
   // Zero value means infinite timeout.
-  create = Duration::create(check.timeout_seconds());
+  create = Duration::create(checkInfo.timeout_seconds());
   CHECK_SOME(create);
   checkTimeout =
     (create.get() > Duration::zero()) ? create.get() : Duration::max();
-
-#ifdef __linux__
-  if (!namespaces.empty()) {
-    clone = lambda::bind(&cloneWithSetns, lambda::_1, taskPid, namespaces);
-  }
-#endif
 }
 
 
@@ -257,35 +291,103 @@ void CheckerProcess::performCheck()
   Stopwatch stopwatch;
   stopwatch.start();
 
-  switch (check.type()) {
-    case CheckInfo::COMMAND: {
-      Future<int> future = commandCheckViaAgent ? nestedCommandCheck()
-                                                : commandCheck();
-      future.onAny(defer(
-          self(),
-          &Self::processCommandCheckResult, stopwatch, lambda::_1));
-      break;
-    }
+  // There are 3 checks (CMD/HTTP/TCP) for 3 runtimes (PLAIN/DOCKER/NESTED)
+  // for 2 different OSes (Linux/Windows), so we have a 3x3x2 matrix of
+  // possibilities. Luckily, a lot of the cases have the same implementation,
+  // so we don't need to have 18 different code paths.
+  //
+  // Here is a matrix of all the different implementations with explanations.
+  // Note that the format is "Linux/Windows", so the Linux implementation is
+  // before Windows if they differ.
+  //
+  //         | CMD  | HTTP | TCP
+  // --------+------+------+-------
+  //  Plain  | A*/A |  B   |  C
+  //  Docker |  D   | B*/E | C*/F
+  //  Nested |  G/- |  B   |  C
+  //
+  // Explanations:
+  // - A, B, C: Standard check launched directly by the library's user, i.e.,
+  //   the executor. Specifically, it launches the given command for CMD checks,
+  //   `curl` for HTTP checks, and `mesos-tcp-connect` for TCP checks.
+  // - A*, B*, C*: On Linux, the proper namespaces will be entered, which are
+  //   the optional "mnt" for CMD and the required "net" for Docker HTTP/TCP.
+  //   These checks are executed by the library's user, i.e., the executor.
+  // - D: Delegate the command to Docker by wrapping the command with
+  //   `docker exec` to run in the container's namespaces.
+  // - E, F: On Windows, delegate the network checks to Docker by wrapping the
+  //   check with the `docker run --network=container:id ...` command to
+  //   run the check in the container's namespaces.
+  // - G: The library uses Agent API to delegate running the command in a
+  //   nested container on Linux.
+  // - '-': Not implemented (nested command checks on Windows).
+  check.visit(
+      [=](const check::Command& cmd) {
+        Future<int> future = runtime.visit(
+            [=](const runtime::Plain& plain) {
+              // Case A* and A
+              return commandCheck(cmd, plain);
+            },
+            [=](const runtime::Docker& docker) {
+              // Case D
+              return dockerCommandCheck(cmd, docker);
+            },
+            [=](const runtime::Nested& nested) {
+              // Case G
+              return nestedCommandCheck(cmd, nested);
+            });
 
-    case CheckInfo::HTTP: {
-      httpCheck().onAny(defer(
-          self(),
-          &Self::processHttpCheckResult, stopwatch, lambda::_1));
-      break;
-    }
+        future.onAny(defer(
+            self(), &Self::processCommandCheckResult, stopwatch, lambda::_1));
+      },
+      [=](const check::Http& http) {
+        Future<int> future = runtime.visit(
+            [=](const runtime::Plain& plain) {
+              // Case B
+              return httpCheck(http, plain);
+            },
+            [=](const runtime::Docker& docker) {
+#ifdef __WINDOWS__
+              // Case E
+              return dockerHttpCheck(http, docker);
+#else
+              // Case B*
+              return httpCheck(
+                  http, runtime::Plain{docker.namespaces, docker.taskPid});
+#endif // __WINDOWS__
+            },
+            [=](const runtime::Nested&) {
+              // Case B
+              return httpCheck(http, None());
+            });
 
-    case CheckInfo::TCP: {
-      tcpCheck().onAny(defer(
-          self(),
-          &Self::processTcpCheckResult, stopwatch, lambda::_1));
-      break;
-    }
+        future.onAny(defer(
+            self(), &Self::processHttpCheckResult, stopwatch, lambda::_1));
+      },
+      [=](const check::Tcp& tcp) {
+        Future<bool> future = runtime.visit(
+            [=](const runtime::Plain& plain) {
+              // Case C
+              return tcpCheck(tcp, plain);
+            },
+            [=](const runtime::Docker& docker) {
+#ifdef __WINDOWS__
+              // Case F
+              return dockerTcpCheck(tcp, docker);
+#else
+              // Case C*
+              return tcpCheck(
+                  tcp, runtime::Plain{docker.namespaces, docker.taskPid});
+#endif // __WINDOWS__
+            },
+            [=](const runtime::Nested&) {
+              // Case C
+              return tcpCheck(tcp, None());
+            });
 
-    case CheckInfo::UNKNOWN: {
-      LOG(FATAL) << "Received UNKNOWN check type";
-      break;
-    }
-  }
+        future.onAny(
+            defer(self(), &Self::processTcpCheckResult, stopwatch, lambda::_1));
+      });
 }
 
 
@@ -359,12 +461,11 @@ void CheckerProcess::processCheckResult(
 }
 
 
-Future<int> CheckerProcess::commandCheck()
+Future<int> CheckerProcess::commandCheck(
+    const check::Command& cmd,
+    const runtime::Plain& plain)
 {
-  CHECK_EQ(CheckInfo::COMMAND, check.type());
-  CHECK(check.has_command());
-
-  const CommandInfo& command = check.command().command();
+  const CommandInfo& command = cmd.info;
 
   map<string, string> environment = os::environment();
 
@@ -387,7 +488,7 @@ Future<int> CheckerProcess::commandCheck()
         Subprocess::FD(STDERR_FILENO),
         Subprocess::FD(STDERR_FILENO),
         environment,
-        clone);
+        getCustomCloneFunc(plain));
   } else {
     // Use the exec variant.
     vector<string> argv(
@@ -404,7 +505,7 @@ Future<int> CheckerProcess::commandCheck()
         Subprocess::FD(STDERR_FILENO),
         nullptr,
         environment,
-        clone);
+        getCustomCloneFunc(plain));
   }
 
   if (s.isError()) {
@@ -445,13 +546,20 @@ Future<int> CheckerProcess::commandCheck()
 }
 
 
-Future<int> CheckerProcess::nestedCommandCheck()
+Future<int> CheckerProcess::dockerCommandCheck(
+    const check::Command& cmd,
+    const runtime::Docker& docker)
 {
-  CHECK_EQ(CheckInfo::COMMAND, check.type());
-  CHECK(check.has_command());
-  CHECK_SOME(taskContainerId);
-  CHECK_SOME(agentURL);
+  // TODO(akagup): Stub this method for this patch. Next patch will move the
+  // docker exec logic to here.
+  return commandCheck(cmd, runtime::Plain{docker.namespaces, docker.taskPid});
+}
 
+
+Future<int> CheckerProcess::nestedCommandCheck(
+    const check::Command& cmd,
+    const runtime::Nested& nested)
+{
   VLOG(1) << "Launching " << name << " for task '" << taskId << "'";
 
   // We don't want recoverable errors, e.g., the agent responding with
@@ -475,13 +583,13 @@ Future<int> CheckerProcess::nestedCommandCheck()
 
     http::Request request;
     request.method = "POST";
-    request.url = agentURL.get();
+    request.url = nested.agentURL;
     request.body = serialize(ContentType::PROTOBUF, evolve(call));
     request.headers = {{"Accept", stringify(ContentType::PROTOBUF)},
                        {"Content-Type", stringify(ContentType::PROTOBUF)}};
 
-    if (authorizationHeader.isSome()) {
-      request.headers["Authorization"] = authorizationHeader.get();
+    if (nested.authorizationHeader.isSome()) {
+      request.headers["Authorization"] = nested.authorizationHeader.get();
     }
 
     http::request(request, false)
@@ -496,7 +604,9 @@ Future<int> CheckerProcess::nestedCommandCheck()
         // as a transient failure and discard the promise.
         promise->discard();
       }))
-      .onReady(defer(self(), [this, promise](const http::Response& response) {
+      .onReady(defer(self(),
+                     [this, promise, cmd, nested]
+                     (const http::Response& response) {
         if (response.code != http::Status::OK) {
           // The agent was unable to remove the check container, we
           // treat this as a transient failure and discard the promise.
@@ -510,24 +620,27 @@ Future<int> CheckerProcess::nestedCommandCheck()
         }
 
         previousCheckContainerId = None();
-        _nestedCommandCheck(promise);
+        _nestedCommandCheck(promise, cmd, nested);
       }));
   } else {
-    _nestedCommandCheck(promise);
+    _nestedCommandCheck(promise, cmd, nested);
   }
 
   return promise->future();
 }
 
 
-void CheckerProcess::_nestedCommandCheck(shared_ptr<Promise<int>> promise)
+void CheckerProcess::_nestedCommandCheck(
+    shared_ptr<Promise<int>> promise,
+    check::Command cmd,
+    runtime::Nested nested)
 {
   // TODO(alexr): Use lambda named captures for
   // these cached values once they are available.
   const TaskID _taskId = taskId;
   const string _name = name;
 
-  http::connect(agentURL.get())
+  http::connect(nested.agentURL)
     .onFailed(defer(self(), [_taskId, _name, promise](const string& failure) {
       LOG(WARNING) << "Unable to establish connection with the agent to launch "
                    << _name << " for task '" << _taskId << "'"
@@ -536,21 +649,28 @@ void CheckerProcess::_nestedCommandCheck(shared_ptr<Promise<int>> promise)
       // We treat this as a transient failure.
       promise->discard();
     }))
-    .onReady(defer(self(), &Self::__nestedCommandCheck, promise, lambda::_1));
+    .onReady(defer(self(),
+                   &Self::__nestedCommandCheck,
+                   promise,
+                   lambda::_1,
+                   cmd,
+                   nested));
 }
 
 
 void CheckerProcess::__nestedCommandCheck(
     shared_ptr<Promise<int>> promise,
-    http::Connection connection)
+    http::Connection connection,
+    check::Command cmd,
+    runtime::Nested nested)
 {
   ContainerID checkContainerId;
   checkContainerId.set_value("check-" + id::UUID::random().toString());
-  checkContainerId.mutable_parent()->CopyFrom(taskContainerId.get());
+  checkContainerId.mutable_parent()->CopyFrom(nested.taskContainerId);
 
   previousCheckContainerId = checkContainerId;
 
-  CommandInfo command(check.command().command());
+  CommandInfo command(cmd.info);
 
   agent::Call call;
   call.set_type(agent::Call::LAUNCH_NESTED_CONTAINER_SESSION);
@@ -563,14 +683,14 @@ void CheckerProcess::__nestedCommandCheck(
 
   http::Request request;
   request.method = "POST";
-  request.url = agentURL.get();
+  request.url = nested.agentURL;
   request.body = serialize(ContentType::PROTOBUF, evolve(call));
   request.headers = {{"Accept", stringify(ContentType::RECORDIO)},
                      {"Message-Accept", stringify(ContentType::PROTOBUF)},
                      {"Content-Type", stringify(ContentType::PROTOBUF)}};
 
-  if (authorizationHeader.isSome()) {
-    request.headers["Authorization"] = authorizationHeader.get();
+  if (nested.authorizationHeader.isSome()) {
+    request.headers["Authorization"] = nested.authorizationHeader.get();
   }
 
   // TODO(alexr): Use a lambda named capture for
@@ -610,19 +730,22 @@ void CheckerProcess::__nestedCommandCheck(
                     connection,
                     checkContainerId,
                     checkTimedOut,
-                    lambda::_1))
+                    lambda::_1,
+                    nested))
     .onReady(defer(self(),
                    &Self::___nestedCommandCheck,
                    promise,
                    checkContainerId,
-                   lambda::_1));
+                   lambda::_1,
+                   nested));
 }
 
 
 void CheckerProcess::___nestedCommandCheck(
     shared_ptr<Promise<int>> promise,
     const ContainerID& checkContainerId,
-    const http::Response& launchResponse)
+    const http::Response& launchResponse,
+    runtime::Nested nested)
 {
   if (launchResponse.code != http::Status::OK) {
     // The agent was unable to launch the check container,
@@ -654,7 +777,7 @@ void CheckerProcess::___nestedCommandCheck(
               << "' (stderr):" << std::endl << stderrReceived;
   }
 
-  waitNestedContainer(checkContainerId)
+  waitNestedContainer(checkContainerId, nested)
     .onFailed([promise](const string& failure) {
       promise->fail(
           "Unable to get the exit code: " + failure);
@@ -681,7 +804,8 @@ void CheckerProcess::nestedCommandCheckFailure(
     http::Connection connection,
     const ContainerID& checkContainerId,
     shared_ptr<bool> checkTimedOut,
-    const string& failure)
+    const string& failure,
+    runtime::Nested nested)
 {
   if (*checkTimedOut) {
     // The check timed out, closing the connection will make the agent
@@ -695,7 +819,7 @@ void CheckerProcess::nestedCommandCheckFailure(
     // beginning of the next check. In order to prevent a failure, the
     // promise should only be completed once we're sure that the
     // container has terminated.
-    waitNestedContainer(checkContainerId)
+    waitNestedContainer(checkContainerId, nested)
       .onAny([failure, promise](const Future<Option<int>>&) {
         // We assume that once `WaitNestedContainer` returns,
         // irrespective of whether the response contains a failure, the
@@ -722,7 +846,8 @@ void CheckerProcess::nestedCommandCheckFailure(
 
 
 Future<Option<int>> CheckerProcess::waitNestedContainer(
-    const ContainerID& containerId)
+    const ContainerID& containerId,
+    runtime::Nested nested)
 {
   agent::Call call;
   call.set_type(agent::Call::WAIT_NESTED_CONTAINER);
@@ -734,13 +859,13 @@ Future<Option<int>> CheckerProcess::waitNestedContainer(
 
   http::Request request;
   request.method = "POST";
-  request.url = agentURL.get();
+  request.url = nested.agentURL;
   request.body = serialize(ContentType::PROTOBUF, evolve(call));
   request.headers = {{"Accept", stringify(ContentType::PROTOBUF)},
                      {"Content-Type", stringify(ContentType::PROTOBUF)}};
 
-  if (authorizationHeader.isSome()) {
-    request.headers["Authorization"] = authorizationHeader.get();
+  if (nested.authorizationHeader.isSome()) {
+    request.headers["Authorization"] = nested.authorizationHeader.get();
   }
 
   // TODO(alexr): Use a lambda named capture for
@@ -801,7 +926,7 @@ void CheckerProcess::processCommandCheckResult(
     LOG(INFO) << name << " for task '" << taskId << "' returned: " << exitCode;
 
     CheckStatusInfo checkStatusInfo;
-    checkStatusInfo.set_type(check.type());
+    checkStatusInfo.set_type(CheckInfo::COMMAND);
     checkStatusInfo.mutable_command()->set_exit_code(
         static_cast<int32_t>(exitCode));
 
@@ -819,25 +944,12 @@ void CheckerProcess::processCommandCheckResult(
 }
 
 
-Future<int> CheckerProcess::httpCheck()
+Future<int> CheckerProcess::httpCheck(
+    const check::Http& http,
+    const Option<runtime::Plain>& plain)
 {
-  CHECK_EQ(CheckInfo::HTTP, check.type());
-  CHECK(check.has_http());
-
-  const CheckInfo::Http& http = check.http();
-
-  const string _scheme = scheme.isSome() ? scheme.get() : DEFAULT_HTTP_SCHEME;
-  const string path = http.has_path() ? http.path() : "";
-
-  // As per "curl --manual", the square brackets are required to tell curl that
-  // it's an IPv6 address, and we need to set "-g" option below to stop curl
-  // from interpreting the square brackets as special globbing characters.
-  const string domain = ipv6 ?
-                        "[" + string(DEFAULT_IPV6_DOMAIN) + "]" :
-                        DEFAULT_IPV4_DOMAIN;
-
-  const string url = _scheme + "://" + domain + ":" +
-                     stringify(http.port()) + path;
+  const string url = http.scheme + "://" + http.domain + ":" +
+                     stringify(http.port) + http.path;
 
   VLOG(1) << "Launching " << name << " '" << url << "'"
           << " for task '" << taskId << "'";
@@ -864,7 +976,7 @@ Future<int> CheckerProcess::httpCheck()
       Subprocess::PIPE(),
       nullptr,
       None(),
-      clone);
+      getCustomCloneFunc(plain));
 
   if (s.isError()) {
     return Failure(
@@ -972,7 +1084,7 @@ void CheckerProcess::processHttpCheckResult(
               << " returned: " << future.get();
 
     CheckStatusInfo checkStatusInfo;
-    checkStatusInfo.set_type(check.type());
+    checkStatusInfo.set_type(CheckInfo::HTTP);
     checkStatusInfo.mutable_http()->set_status_code(
         static_cast<uint32_t>(future.get()));
 
@@ -990,26 +1102,30 @@ void CheckerProcess::processHttpCheckResult(
 }
 
 
-Future<bool> CheckerProcess::tcpCheck()
+#ifdef __WINDOWS__
+Future<int> CheckerProcess::dockerHttpCheck(
+    const check::Http& http,
+    const runtime::Docker& docker)
 {
-  CHECK_EQ(CheckInfo::TCP, check.type());
-  CHECK(check.has_tcp());
+  // TODO(akagup): A later patch will implement this.
+  return httpCheck(http, runtime::Plain{docker.namespaces, docker.taskPid});
+}
+#endif // __WINDOWS__
 
-  // TCP_CHECK_COMMAND should be reachable.
-  CHECK(os::exists(launcherDir));
 
-  const CheckInfo::Tcp& tcp = check.tcp();
-
+Future<bool> CheckerProcess::tcpCheck(
+    const check::Tcp& tcp,
+    const Option<runtime::Plain>& plain)
+{
   VLOG(1) << "Launching " << name << " for task '" << taskId << "'"
-          << " at port " << tcp.port();
+          << " at port " << tcp.port;
 
-  const string command = path::join(launcherDir, TCP_CHECK_COMMAND);
-  const string domain = ipv6 ? DEFAULT_IPV6_DOMAIN : DEFAULT_IPV4_DOMAIN;
+  const string command = path::join(tcp.launcherDir, TCP_CHECK_COMMAND);
 
   const vector<string> argv = {
     command,
-    "--ip=" + domain,
-    "--port=" + stringify(tcp.port())
+    "--ip=" + tcp.domain,
+    "--port=" + stringify(tcp.port)
   };
 
   // TODO(alexr): Consider launching the helper binary once per task lifetime,
@@ -1022,7 +1138,7 @@ Future<bool> CheckerProcess::tcpCheck()
       Subprocess::PIPE(),
       nullptr,
       None(),
-      clone);
+      getCustomCloneFunc(plain));
 
   if (s.isError()) {
     return Failure(
@@ -1114,7 +1230,7 @@ void CheckerProcess::processTcpCheckResult(
               << " returned: " << future.get();
 
     CheckStatusInfo checkStatusInfo;
-    checkStatusInfo.set_type(check.type());
+    checkStatusInfo.set_type(CheckInfo::TCP);
     checkStatusInfo.mutable_tcp()->set_succeeded(future.get());
 
     result = Result<CheckStatusInfo>(checkStatusInfo);
@@ -1129,6 +1245,17 @@ void CheckerProcess::processTcpCheckResult(
 
   processCheckResult(stopwatch, result);
 }
+
+
+#ifdef __WINDOWS__
+Future<bool> CheckerProcess::dockerTcpCheck(
+    const check::Tcp& tcp,
+    const runtime::Docker& docker)
+{
+  // TODO(akagup): A later patch will implement this.
+  return tcpCheck(tcp, runtime::Plain{docker.namespaces, docker.taskPid});
+}
+#endif // __WINDOWS__
 
 } // namespace checks {
 } // namespace internal {

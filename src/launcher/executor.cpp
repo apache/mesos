@@ -67,6 +67,8 @@
 #endif // __WINDOWS__
 
 #include "checks/checker.hpp"
+#include "checks/checks_runtime.hpp"
+#include "checks/checks_types.hpp"
 #include "checks/health_checker.hpp"
 
 #include "common/http.hpp"
@@ -671,14 +673,14 @@ protected:
         namespaces.push_back("mnt");
       }
 
+      const checks::runtime::Plain plainRuntime{namespaces, pid};
       Try<Owned<checks::Checker>> _checker =
         checks::Checker::create(
             task.check(),
             launcherDir,
             defer(self(), &Self::taskCheckUpdated, taskId.get(), lambda::_1),
             taskId.get(),
-            pid,
-            namespaces);
+            plainRuntime);
 
       if (_checker.isError()) {
         // TODO(alexr): Consider ABORT and return a TASK_FAILED here.
@@ -701,14 +703,14 @@ protected:
         namespaces.push_back("mnt");
       }
 
+      const checks::runtime::Plain plainRuntime{namespaces, pid};
       Try<Owned<checks::HealthChecker>> _healthChecker =
         checks::HealthChecker::create(
             task.health_check(),
             launcherDir,
             defer(self(), &Self::taskHealthUpdated, lambda::_1),
             taskId.get(),
-            pid,
-            namespaces);
+            plainRuntime);
 
       if (_healthChecker.isError()) {
         // TODO(gilbert): Consider ABORT and return a TASK_FAILED here.
