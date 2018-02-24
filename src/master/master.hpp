@@ -2004,8 +2004,8 @@ private:
           const process::Owned<AuthorizationAcceptor>& authorizeFramework,
           const process::Owned<AuthorizationAcceptor>& authorizeTask,
           const process::Owned<AuthorizationAcceptor>& authorizeExecutor,
-          const Option<process::Shared<FrameworkInfo>>& frameworkInfo,
-          const Option<process::Shared<Task>>& task);
+          const process::Shared<FrameworkInfo>& frameworkInfo,
+          const process::Shared<Task>& task);
 
       ~Subscriber()
       {
@@ -2026,7 +2026,10 @@ private:
     };
 
     // Sends the event to all subscribers connected to the 'api/vX' endpoint.
-    void send(mesos::master::Event&& event);
+    void send(
+        mesos::master::Event&& event,
+        const Option<FrameworkInfo>& frameworkInfo = None(),
+        const Option<Task>& task = None());
 
     Master* master;
 
@@ -2273,6 +2276,12 @@ struct Framework
       if (!isTrackedUnderRole(role)) {
         trackUnderRole(role);
       }
+    }
+
+    if (!master->subscribers.subscribed.empty()) {
+      master->subscribers.send(
+          protobuf::master::event::createTaskAdded(*task),
+          info);
     }
   }
 
