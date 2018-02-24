@@ -1114,6 +1114,8 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   authorizer/local/authorizer.hpp					\
   checks/checker.hpp							\
   checks/checker_process.hpp						\
+  checks/checks_runtime.hpp						\
+  checks/checks_types.hpp						\
   checks/health_checker.hpp						\
   common/build.hpp							\
   common/command_utils.hpp						\
