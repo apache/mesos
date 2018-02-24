@@ -10223,8 +10223,18 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
   task->mutable_statuses(task->statuses_size() - 1)->clear_data();
 
   if (sendSubscribersUpdate && !subscribers.subscribed.empty()) {
-    subscribers.send(protobuf::master::event::createTaskUpdated(
-        *task, task->state(), status));
+    // If the framework has been removed, the task would have already
+    // transitioned to `TASK_KILLED` by `removeFramework()`, thus
+    // `sendSubscribersUpdate` shouldn't have been set to true.
+    // TODO(chhsiao): This may be changed after MESOS-6608 is resolved.
+    Framework* framework = getFramework(task->framework_id());
+    CHECK_NOTNULL(framework);
+
+    subscribers.send(
+        protobuf::master::event::createTaskUpdated(
+            *task, task->state(), status),
+        framework->info,
+        *task);
   }
 
   LOG(INFO) << "Updating the state of task " << task->task_id()
@@ -11172,56 +11182,24 @@ static bool isValidFailoverTimeout(const FrameworkInfo& frameworkInfo)
 }
 
 
-void Master::Subscribers::send(mesos::master::Event&& event)
+void Master::Subscribers::send(
+    mesos::master::Event&& event,
+    const Option<FrameworkInfo>& frameworkInfo,
+    const Option<Task>& task)
 {
   VLOG(1) << "Notifying all active subscribers about " << event.type()
           << " event";
 
-  Option<Shared<FrameworkInfo>> frameworkInfo;
-  Option<Shared<Task>> task;
-
-  // Copy metadata associated with the event if necessary, so that we capture
-  // the current state before we make asynchronous calls below.
-  switch (event.type()) {
-    case mesos::master::Event::TASK_ADDED: {
-      Framework* framework =
-        master->getFramework(event.task_added().task().framework_id());
-
-      CHECK_NOTNULL(framework);
-
-      frameworkInfo = Shared<FrameworkInfo>(new FrameworkInfo(framework->info));
-      break;
-    }
-    case mesos::master::Event::TASK_UPDATED: {
-      Framework* framework =
-        master->getFramework(event.task_updated().framework_id());
-
-      CHECK_NOTNULL(framework);
-
-      frameworkInfo = Shared<FrameworkInfo>(new FrameworkInfo(framework->info));
-
-      Task* storedTask =
-        framework->getTask(event.task_updated().status().task_id());
-
-      CHECK_NOTNULL(storedTask);
-
-      task = Shared<Task>(new Task(*storedTask));
-      break;
-    }
-    case mesos::master::Event::FRAMEWORK_ADDED:
-    case mesos::master::Event::FRAMEWORK_UPDATED:
-    case mesos::master::Event::FRAMEWORK_REMOVED:
-    case mesos::master::Event::AGENT_ADDED:
-    case mesos::master::Event::AGENT_REMOVED:
-    case mesos::master::Event::SUBSCRIBED:
-    case mesos::master::Event::HEARTBEAT:
-    case mesos::master::Event::UNKNOWN:
-      break;
-  }
-
   // Create a single copy of the event for all subscribers to share.
   Shared<mesos::master::Event> sharedEvent(
       new mesos::master::Event(std::move(event)));
+
+  // Create a single copy of `FrameworkInfo` and `Task` for all
+  // subscribers to share.
+  Shared<FrameworkInfo> sharedFrameworkInfo(
+      frameworkInfo.isSome()
+        ? new FrameworkInfo(frameworkInfo.get()) : nullptr);
+  Shared<Task> sharedTask(task.isSome() ? new Task(task.get()) : nullptr);
 
   foreachvalue (const Owned<Subscriber>& subscriber, subscribed) {
     Future<Owned<AuthorizationAcceptor>> authorizeRole =
@@ -11270,8 +11248,8 @@ void Master::Subscribers::send(mesos::master::Event&& event)
             authorizeFramework,
             authorizeTask,
             authorizeExecutor,
-            frameworkInfo,
-            task);
+            sharedFrameworkInfo,
+            sharedTask);
 
         return Nothing();
       }));
@@ -11285,30 +11263,26 @@ void Master::Subscribers::Subscriber::send(
     const Owned<AuthorizationAcceptor>& authorizeFramework,
     const Owned<AuthorizationAcceptor>& authorizeTask,
     const Owned<AuthorizationAcceptor>& authorizeExecutor,
-    const Option<Shared<FrameworkInfo>>& frameworkInfo,
-    const Option<Shared<Task>>& task)
+    const Shared<FrameworkInfo>& frameworkInfo,
+    const Shared<Task>& task)
 {
   switch (event->type()) {
     case mesos::master::Event::TASK_ADDED: {
-      CHECK_SOME(frameworkInfo);
-      CHECK_NOTNULL(&frameworkInfo.get());
+      CHECK_NOTNULL(frameworkInfo.get());
 
       if (authorizeTask->accept(
-              event->task_added().task(), *frameworkInfo.get()) &&
-          authorizeFramework->accept(*frameworkInfo.get())) {
+              event->task_added().task(), *frameworkInfo) &&
+          authorizeFramework->accept(*frameworkInfo)) {
         http.send<mesos::master::Event, v1::master::Event>(*event);
       }
       break;
     }
     case mesos::master::Event::TASK_UPDATED: {
-      CHECK_SOME(frameworkInfo);
-      CHECK_NOTNULL(&frameworkInfo.get());
+      CHECK_NOTNULL(frameworkInfo.get());
+      CHECK_NOTNULL(task.get());
 
-      CHECK_SOME(task);
-      CHECK_NOTNULL(&task.get());
-
-      if (authorizeTask->accept(*task.get(), *frameworkInfo.get()) &&
-          authorizeFramework->accept(*frameworkInfo.get())) {
+      if (authorizeTask->accept(*task, *frameworkInfo) &&
+          authorizeFramework->accept(*frameworkInfo)) {
         http.send<mesos::master::Event, v1::master::Event>(*event);
       }
       break;
@@ -11534,10 +11508,6 @@ void Slave::addTask(Task* task)
 
   if (!Master::isRemovable(task->state())) {
     usedResources[frameworkId] += resources;
-  }
-
-  if (!master->subscribers.subscribed.empty()) {
-    master->subscribers.send(protobuf::master::event::createTaskAdded(*task));
   }
 
   // Note that we use `Resources` for output as it's faster than
