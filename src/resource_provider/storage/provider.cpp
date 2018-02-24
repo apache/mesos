@@ -2459,7 +2459,7 @@ Future<string> StorageLocalResourceProviderProcess::validateCapability(
       google::protobuf::Map<string, string> volumeAttributes;
 
       if (metadata.isSome()) {
-        volumeAttributes.swap(convertLabelsToStringMap(metadata.get()).get());
+        volumeAttributes = convertLabelsToStringMap(metadata.get()).get();
       }
 
       csi::ValidateVolumeCapabilitiesRequest request;
