@@ -972,7 +972,8 @@ Future<Nothing> Docker::stop(
         containerName,
         cmd,
         s.get(),
-        remove));
+        remove))
+    .onDiscard(lambda::bind(&commandDiscarded, s.get(), cmd));
 }
 
 Future<Nothing> Docker::_stop(
@@ -1388,7 +1389,8 @@ Future<Docker::Image> Docker::pull(
         path,
         socket,
         config,
-        output));
+        output))
+    .onDiscard(lambda::bind(&commandDiscarded, s.get(), cmd));
 }
 
 
