@@ -680,6 +680,8 @@ private:
 
       vector<string> commandArguments;
       commandArguments.push_back(docker->getPath());
+      commandArguments.push_back("-H");
+      commandArguments.push_back(docker->getSocket());
       commandArguments.push_back("exec");
       commandArguments.push_back(containerName);
 

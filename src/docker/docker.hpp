@@ -313,6 +313,11 @@ public:
     return path;
   }
 
+  virtual std::string getSocket()
+  {
+    return socket;
+  }
+
 protected:
   // Uses the specified path to the Docker CLI tool.
   Docker(const std::string& _path,
