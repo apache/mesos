@@ -5116,6 +5116,83 @@ TEST_F(
   ASSERT_FALSE(
     exists(docker, containerId.get(), ContainerState::RUNNING));
 }
+
+
+class HungDockerTest : public DockerContainerizerTest
+{
+public:
+  const string testDockerEnvFile = "test-docker.env";
+  const string testDockerBinary = "docker";
+  const string testDockerScript = "test-docker.sh";
+  string commandsEnv;
+  string delayEnv;
+
+  virtual slave::Flags CreateSlaveFlags()
+  {
+    slave::Flags flags = MesosTest::CreateSlaveFlags();
+
+    flags.docker = path::join(os::getcwd(), testDockerScript);
+
+    return flags;
+  }
+
+  void writeEnv()
+  {
+    // TODO(greggomann): This write operation is not atomic, which means an
+    // ill-timed write may cause the shell script to be invoked when this
+    // file is in an unintended state. We should make this atomic.
+    Try<Nothing> write =
+      os::write(testDockerEnvFile, commandsEnv + "\n" + delayEnv);
+    ASSERT_SOME(write);
+  }
+
+  void setDelayedCommands(const std::vector<string>& commands)
+  {
+    commandsEnv = "DELAYED_COMMANDS=( ";
+    foreach (const string& command, commands) {
+      commandsEnv += (command + " ");
+    }
+    commandsEnv += ")";
+
+    writeEnv();
+  }
+
+  void setDelay(const int seconds)
+  {
+    delayEnv = "DELAY_SECONDS=" + stringify(seconds);
+
+    writeEnv();
+  }
+
+  virtual void SetUp()
+  {
+    DockerContainerizerTest::SetUp();
+
+    // Write a wrapper script which allows us to delay Docker commands.
+    const string dockerScriptText =
+      "#!/usr/bin/env bash\n"
+      "source " + stringify(path::join(os::getcwd(), testDockerEnvFile)) + "\n"
+      "ACTIVE_COMMAND=$3\n"
+      "for DELAYED_COMMAND in \"${DELAYED_COMMANDS[@]}\"; do\n"
+      "  if [ \"$ACTIVE_COMMAND\" == \"$DELAYED_COMMAND\" ]; then\n"
+      "    sleep $DELAY_SECONDS\n"
+      "  fi\n"
+      "done\n" +
+      testDockerBinary + " $@\n";
+
+    Try<Nothing> write = os::write(testDockerScript, dockerScriptText);
+    ASSERT_SOME(write);
+
+    Try<Nothing> chmod = os::chmod(
+        testDockerScript, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+    ASSERT_SOME(chmod);
+
+    // Set a very long delay by default to simulate an indefinitely
+    // hung Docker daemon.
+    setDelay(999999);
+  }
+};
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
