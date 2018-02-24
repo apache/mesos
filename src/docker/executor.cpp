@@ -675,35 +675,6 @@ private:
                    << validateVersion.error();
         return;
       }
-
-      // Wrap the original health check command in `docker exec`.
-      const CommandInfo& command = healthCheck.command();
-
-      vector<string> commandArguments;
-      commandArguments.push_back(docker->getPath());
-      commandArguments.push_back("-H");
-      commandArguments.push_back(docker->getSocket());
-      commandArguments.push_back("exec");
-      commandArguments.push_back(containerName);
-
-      if (command.shell()) {
-        commandArguments.push_back("sh");
-        commandArguments.push_back("-c");
-        commandArguments.push_back("\"");
-        commandArguments.push_back(command.value());
-        commandArguments.push_back("\"");
-      } else {
-        commandArguments.push_back(command.value());
-
-        foreach (const string& argument, command.arguments()) {
-          commandArguments.push_back(argument);
-        }
-      }
-
-      healthCheck.mutable_command()->set_shell(true);
-      healthCheck.mutable_command()->clear_arguments();
-      healthCheck.mutable_command()->set_value(
-          strings::join(" ", commandArguments));
     }
 
     vector<string> namespaces;

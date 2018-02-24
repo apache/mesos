@@ -550,9 +550,38 @@ Future<int> CheckerProcess::dockerCommandCheck(
     const check::Command& cmd,
     const runtime::Docker& docker)
 {
-  // TODO(akagup): Stub this method for this patch. Next patch will move the
-  // docker exec logic to here.
-  return commandCheck(cmd, runtime::Plain{docker.namespaces, docker.taskPid});
+  // Wrap the original health check command in `docker exec`.
+  const CommandInfo& command = cmd.info;
+
+  vector<string> commandArguments;
+  commandArguments.push_back(docker.dockerPath);
+  commandArguments.push_back("-H");
+  commandArguments.push_back(docker.socketName);
+  commandArguments.push_back("exec");
+  commandArguments.push_back(docker.containerName);
+
+  if (command.shell()) {
+    commandArguments.push_back("sh");
+    commandArguments.push_back("-c");
+    commandArguments.push_back("\"");
+    commandArguments.push_back(command.value());
+    commandArguments.push_back("\"");
+  } else {
+    commandArguments.push_back(command.value());
+
+    foreach (const string& argument, command.arguments()) {
+      commandArguments.push_back(argument);
+    }
+  }
+
+  CommandInfo dockerCmd(command);
+  dockerCmd.set_shell(true);
+  dockerCmd.clear_arguments();
+  dockerCmd.set_value(strings::join(" ", commandArguments));
+
+  return commandCheck(
+      check::Command(dockerCmd),
+      runtime::Plain{docker.namespaces, docker.taskPid});
 }
 
 
