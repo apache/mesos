@@ -46,7 +46,8 @@ Try<Isolator*> NamespacesPidIsolatorProcess::create(const Flags& flags)
   }
 
   // Verify that pid namespaces are available on this kernel.
-  if (ns::namespaces().count("pid") == 0) {
+  Try<bool> pidSupported = ns::supported(CLONE_NEWPID);
+  if (pidSupported.isError() || !pidSupported.get()) {
     return Error("Pid namespaces are not supported by this kernel");
   }
 
