@@ -41,6 +41,12 @@ namespace mesos {
 namespace internal {
 namespace checks {
 
+#ifdef __WINDOWS__
+// TODO(akagup): Change this to a newer nanoserver image once they come with
+// curl by default. See MESOS-8499.
+constexpr char DOCKER_HEALTH_CHECK_IMAGE[] = "microsoft/powershell:nanoserver";
+#endif // __WINDOWS__
+
 class CheckerProcess : public ProtobufProcess<CheckerProcess>
 {
 public:
@@ -127,6 +133,9 @@ private:
       const check::Http& http,
       const Option<runtime::Plain>& plain);
   process::Future<int> _httpCheck(
+      const std::vector<std::string>& cmdArgv,
+      const Option<runtime::Plain>& plain);
+  process::Future<int> __httpCheck(
       const std::tuple<process::Future<Option<int>>,
                        process::Future<std::string>,
                        process::Future<std::string>>& t);
@@ -145,6 +154,9 @@ private:
       const check::Tcp& tcp,
       const Option<runtime::Plain>& plain);
   process::Future<bool> _tcpCheck(
+      const std::vector<std::string>& cmdArgv,
+      const Option<runtime::Plain>& plain);
+  process::Future<bool> __tcpCheck(
       const std::tuple<process::Future<Option<int>>,
                        process::Future<std::string>,
                        process::Future<std::string>>& t);

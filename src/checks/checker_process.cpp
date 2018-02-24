@@ -561,8 +561,8 @@ Future<int> CheckerProcess::dockerCommandCheck(
   commandArguments.push_back(docker.containerName);
 
   if (command.shell()) {
-    commandArguments.push_back("sh");
-    commandArguments.push_back("-c");
+    commandArguments.push_back(os::Shell::name);
+    commandArguments.push_back(os::Shell::arg1);
 
     // We don't need to quote the arguments, because we're converting the
     // shell command to the executable form.
@@ -992,9 +992,6 @@ Future<int> CheckerProcess::httpCheck(
   const string url = http.scheme + "://" + http.domain + ":" +
                      stringify(http.port) + http.path;
 
-  VLOG(1) << "Launching " << name << " '" << url << "'"
-          << " for task '" << taskId << "'";
-
   const vector<string> argv = {
     HTTP_CHECK_COMMAND,
     "-s",                 // Don't show progress meter or error messages.
@@ -1007,11 +1004,22 @@ Future<int> CheckerProcess::httpCheck(
     url
   };
 
+  return _httpCheck(argv, plain);
+}
+
+
+Future<int> CheckerProcess::_httpCheck(
+    const vector<string>& cmdArgv,
+    const Option<runtime::Plain>& plain)
+{
+  VLOG(1) << "Launching " << name << " with command '"
+          << strings::join(" ", cmdArgv) << "' for task '" << taskId << "'";
+
   // TODO(alexr): Consider launching the helper binary once per task lifetime,
   // see MESOS-6766.
   Try<Subprocess> s = process::subprocess(
-      HTTP_CHECK_COMMAND,
-      argv,
+      cmdArgv[0],
+      cmdArgv,
       Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
@@ -1056,11 +1064,11 @@ Future<int> CheckerProcess::httpCheck(
           string(HTTP_CHECK_COMMAND) + " timed out after " +
           stringify(timeout));
     })
-    .then(defer(self(), &Self::_httpCheck, lambda::_1));
+    .then(defer(self(), &Self::__httpCheck, lambda::_1));
 }
 
 
-Future<int> CheckerProcess::_httpCheck(
+Future<int> CheckerProcess::__httpCheck(
     const tuple<Future<Option<int>>, Future<string>, Future<string>>& t)
 {
   const Future<Option<int>>& status = std::get<0>(t);
@@ -1101,7 +1109,7 @@ Future<int> CheckerProcess::_httpCheck(
           << "': " << commandOutput.get();
 
   // Parse the output and get the HTTP status code.
-  Try<int> statusCode = numify<int>(commandOutput.get());
+  Try<int> statusCode = numify<int>(strings::trim(commandOutput.get()));
   if (statusCode.isError()) {
     return Failure(
         "Unexpected output from " + string(HTTP_CHECK_COMMAND) + ": " +
@@ -1144,12 +1152,58 @@ void CheckerProcess::processHttpCheckResult(
 
 
 #ifdef __WINDOWS__
+static vector<string> dockerNetworkRunCommand(
+    const runtime::Docker& docker,
+    const string& image)
+{
+  return {
+    docker.dockerPath,
+    "-H",
+    docker.socketName,
+    "run",
+    "--rm",
+    "--network=container:" + docker.containerName,
+    image,
+    "pwsh",
+    "-Command"
+  };
+}
+
+
+// On Windows, we can't directly change a process's namespace. So, for the
+// Docker HTTP checks, we need to use the network=container feature in
+// Docker to run the network check in the right namespace.
 Future<int> CheckerProcess::dockerHttpCheck(
     const check::Http& http,
     const runtime::Docker& docker)
 {
-  // TODO(akagup): A later patch will implement this.
-  return httpCheck(http, runtime::Plain{docker.namespaces, docker.taskPid});
+  vector<string> argv =
+    dockerNetworkRunCommand(docker, DOCKER_HEALTH_CHECK_IMAGE);
+
+  const string url = http.scheme + "://" + http.domain + ":" +
+                     stringify(http.port) + http.path;
+
+  vector<string> httpCheckCommandParameters = {
+    "Invoke-WebRequest",
+    "-Uri", url,
+    "-UseBasicParsing",                     // Needed for nanoserver.
+    "-SkipCertificateCheck",                // Similar to `curl -k`.
+    "|",
+    "Out-File",                             // Write status to file.
+    "-InputObject", "{$_.StatusCode}",      // Just return status code.
+    "-Path", "$HOME\\status",
+    "-Encoding", "ASCII",                   // Avoid UTF-16 encoding.
+    "-NoNewline",
+    ";",
+    "Get-Content", "-Raw", "$HOME\\status"  // Output status code.
+  };
+
+  argv.insert(
+      argv.end(),
+      httpCheckCommandParameters.cbegin(),
+      httpCheckCommandParameters.cend());
+
+  return _httpCheck(argv, runtime::Plain{docker.namespaces, docker.taskPid});
 }
 #endif // __WINDOWS__
 
@@ -1158,9 +1212,6 @@ Future<bool> CheckerProcess::tcpCheck(
     const check::Tcp& tcp,
     const Option<runtime::Plain>& plain)
 {
-  VLOG(1) << "Launching " << name << " for task '" << taskId << "'"
-          << " at port " << tcp.port;
-
   const string command = path::join(tcp.launcherDir, TCP_CHECK_COMMAND);
 
   const vector<string> argv = {
@@ -1168,12 +1219,21 @@ Future<bool> CheckerProcess::tcpCheck(
     "--ip=" + tcp.domain,
     "--port=" + stringify(tcp.port)
   };
+  return _tcpCheck(argv, plain);
+}
+
+Future<bool> CheckerProcess::_tcpCheck(
+    const vector<string>& cmdArgv,
+    const Option<runtime::Plain>& plain)
+{
+  VLOG(1) << "Launching " << name << " for task '" << taskId << "'"
+          << " with command '" << strings::join(" ", cmdArgv) << "'";
 
   // TODO(alexr): Consider launching the helper binary once per task lifetime,
   // see MESOS-6766.
   Try<Subprocess> s = subprocess(
-      command,
-      argv,
+      cmdArgv[0],
+      cmdArgv,
       Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
@@ -1183,7 +1243,7 @@ Future<bool> CheckerProcess::tcpCheck(
 
   if (s.isError()) {
     return Failure(
-        "Failed to create the " + command + " subprocess: " + s.error());
+        "Failed to create the " + cmdArgv[0] + " subprocess: " + s.error());
   }
 
   // TODO(alexr): Use lambda named captures for
@@ -1216,11 +1276,11 @@ Future<bool> CheckerProcess::tcpCheck(
       return Failure(
           string(TCP_CHECK_COMMAND) + " timed out after " + stringify(timeout));
     })
-    .then(defer(self(), &Self::_tcpCheck, lambda::_1));
+    .then(defer(self(), &Self::__tcpCheck, lambda::_1));
 }
 
 
-Future<bool> CheckerProcess::_tcpCheck(
+Future<bool> CheckerProcess::__tcpCheck(
     const tuple<Future<Option<int>>, Future<string>, Future<string>>& t)
 {
   const Future<Option<int>>& status = std::get<0>(t);
@@ -1289,12 +1349,31 @@ void CheckerProcess::processTcpCheckResult(
 
 
 #ifdef __WINDOWS__
+// On Windows, we can't directly change a process's namespace. So, for the
+// Docker TCP checks, we need to use the network=container feature in
+// Docker to run the network check in the right namespace.
 Future<bool> CheckerProcess::dockerTcpCheck(
     const check::Tcp& tcp,
     const runtime::Docker& docker)
 {
-  // TODO(akagup): A later patch will implement this.
-  return tcpCheck(tcp, runtime::Plain{docker.namespaces, docker.taskPid});
+  vector<string> argv =
+    dockerNetworkRunCommand(docker, DOCKER_HEALTH_CHECK_IMAGE);
+
+  // Test-NetConnection doesn't exist on PowerShell Core, so we
+  // call the C# TcpClient library instead. Command looks like:
+  // (New-Object System.Net.Sockets.TcpClient(IP, PORT)).Close()
+  vector<string> tcpCheckCommandParameters = {
+    "(New-Object",
+    "System.Net.Sockets.TcpClient(\"" + tcp.domain + "\",",
+    stringify(tcp.port) + ")).Close()"
+  };
+
+  argv.insert(
+      argv.end(),
+      tcpCheckCommandParameters.cbegin(),
+      tcpCheckCommandParameters.cend());
+
+  return _tcpCheck(argv, runtime::Plain{docker.namespaces, docker.taskPid});
 }
 #endif // __WINDOWS__
 
