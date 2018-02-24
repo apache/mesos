@@ -14,6 +14,7 @@ Release Notes - Mesos - Version 1.5.1 (WIP)
  * [MESOS-8569] - Allow newline characters when decoding base64 strings in stout.
  * [MESOS-8577] - Destroy nested container if `LAUNCH_NESTED_CONTAINER_SESSION` fails.
  * [MESOS-8598] - Allow empty resource provider selector in `UriDiskProfileAdaptor`.
+ * [MESOS-8601] - Master crashes during slave reregistration after failover.
 
 
 Release Notes - Mesos - Version 1.5.0
