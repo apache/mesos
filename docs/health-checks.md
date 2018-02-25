@@ -381,9 +381,10 @@ task.mutable_health_check()->CopyFrom(healthCheck);
 
 HTTP(S) health checks are described by the `HealthCheck.HTTPCheckInfo` protobuf
 with `scheme`, `port`, `path`, and `statuses` fields. A `GET` request is sent to
-`scheme://<host>:port/path` using the `curl` command. Note that `<host>` is
-currently not configurable and is set automatically to `127.0.0.1` (see
-[limitations](#current-limitations)), hence the health checked task must listen
+`scheme://<host>:port/path` using the `curl` command or for the Windows docker
+executor, PowerShell's `Invoke-WebRequest`. Note that `<host>` is currently not
+configurable and is set automatically to `127.0.0.1`
+(see [limitations](#current-limitations)), hence the health checked task must listen
 on the loopback interface along with any other routeable interface it might be
 listening on. The `scheme` field supports `"http"` and `"https"` values only.
 Field `port` must specify an actual port the task is listening on, not a mapped
@@ -422,8 +423,10 @@ TCP health checks are described by the `HealthCheck.TCPCheckInfo` protobuf,
 which has a single `port` field, which must specify an actual port the task is
 listening on, not a mapped one. The task is probed using Mesos'
 `mesos-tcp-connect` command, which tries to establish a TCP connection to
-`<host>:port`. Note that `<host>` is currently not configurable and is set
-automatically to `127.0.0.1` (see [limitations](#current-limitations)), hence
+`<host>:port`. For the Windows docker executor, it uses PowerShell to call
+.NET's `System.Net.Sockets.TcpClient` library. Note that `<host>` is currently
+not configurable and is set automatically to `127.0.0.1`
+(see [limitations](#current-limitations)), hence
 the health checked task must listen on the loopback interface along with any
 other routeable interface it might be listening on. Field `port` must specify an
 actual port the task is listening on, not a mapped one.
@@ -533,6 +536,20 @@ with the checked process; in case of docker containerizer `setns()` for `net`
 namespace is explicitly called, while mesos containerizer guarantees an executor
 and its tasks are in the same network namespace.
 
+On Windows, the implementation differs between the [mesos containerizer](mesos-containerizer.md)
+and [docker containerizer](docker-containerizer.md). The
+[mesos containerizer](mesos-containerizer.md) does not provide network or mount
+namespace isolation, so `curl`, `mesos-tcp-connect` or the command health check
+simply run as regular processes on the host. In constrast, the
+[docker containerizer](docker-containerizer.md) provides network and mount
+isolation. For the command health check, the command enters the container's
+namespace through `docker exec`. For the network health checks, the docker
+executor launches a `microsoft/powershell:nanoserver` container and enters the
+original container's network namespace through the `--network=container:<ID>`
+parameter in `docker run`. The `microsoft/powershell:nanoserver` container uses
+`Invoke-WebRequest` and `System.Net.Sockets.TcpClient` instead of `curl` and
+`mesos-tcp-connect`.
+
 **NOTE:** Custom executors may or may not use this library. Please consult the
 respective framework's documentation.
 
@@ -566,8 +583,12 @@ and/or health check is specified.
   tasks want to support HTTP or TCP health checks, they should listen on the
   loopback interface in addition to whatever interface they require (see
   [MESOS-6517](https://issues.apache.org/jira/browse/MESOS-6517)).
-* HTTP(S) health checks rely on the `curl` command; if it is not available, a
-  health check is considered failed.
+* HTTP(S) health checks rely on the `curl` command for Linux health checks
+  and Windows [mesos containerizer](mesos-containerizer.md) health checks.
+  For Windows [docker containerizer](docker-containerizer.md), HTTP(S) and
+  TCP health checks rely on the `microsoft/powershell:nanoserver` image. A
+  health check is considered failed if the required command or image is not
+  available.
 * TCP health checks are not supported on Windows (see
   [MESOS-6117](https://issues.apache.org/jira/browse/MESOS-6117)).
 * Only a single health check per task is allowed (see
