@@ -38,6 +38,8 @@
 #include "tests/resources_utils.hpp"
 #include "tests/utils.hpp"
 
+#include "tests/containerizer/docker_common.hpp"
+
 #ifdef __linux__
 #include "tests/containerizer/docker_archive.hpp"
 #endif // __linux__

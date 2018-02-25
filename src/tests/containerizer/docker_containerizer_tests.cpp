@@ -49,6 +49,8 @@
 #include "tests/mesos.hpp"
 #include "tests/mock_docker.hpp"
 
+#include "tests/containerizer/docker_common.hpp"
+
 using namespace mesos::internal::slave::paths;
 using namespace mesos::internal::slave::state;
 

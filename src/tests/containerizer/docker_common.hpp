@@ -1,0 +1,171 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef __TEST_DOCKER_COMMON_HPP__
+#define __TEST_DOCKER_COMMON_HPP__
+
+#include <string>
+
+#include <process/future.hpp>
+#include <process/gtest.hpp>
+#include <process/io.hpp>
+#include <process/owned.hpp>
+#include <process/subprocess.hpp>
+
+#include <stout/format.hpp>
+#include <stout/gtest.hpp>
+#include <stout/lambda.hpp>
+#include <stout/nothing.hpp>
+#include <stout/try.hpp>
+
+#include <stout/os/mkdtemp.hpp>
+
+#include "docker/docker.hpp"
+
+#include "tests/flags.hpp"
+
+namespace mesos {
+namespace internal {
+namespace tests {
+
+#ifdef __WINDOWS__
+// The following image is the microsoft/powershell:nanoserver image with
+// ContainerAdministrator as the default user. There are some permission bugs
+// with accessing volume mounts in process (but not Hyper-V) isolation as
+// the regular ContainerUser user, but accesing them as ContainerAdministrator
+// works fine. Note that this image runs the 1709 version, so the host needs
+// to be 1709 if running on Windows Server. Running on a 1709 host is
+// recommended anyway since it fixes bugs that made these tests run slowly.
+static constexpr char DOCKER_TEST_IMAGE[] = "akagup/pwsh-nano-admin";
+
+// The powershell image uses Powershell Core, which calls the executable as
+// `pwsh` instead of `powershell`. So the regular sleep macro doesn't work.
+#define DOCKER_SLEEP_CMD(x) "pwsh -Command Start-Sleep -Seconds " #x
+#else
+static constexpr char DOCKER_TEST_IMAGE[] = "alpine";
+#define DOCKER_SLEEP_CMD(x) SLEEP_COMMAND(x)
+#endif // __WINDOWS__
+
+constexpr char DOCKER_IPv6_NETWORK[] = "mesos-docker-ip6-test";
+
+
+inline process::Future<Nothing> pullDockerImage(const std::string& imageName)
+{
+  Try<process::Owned<Docker>> docker =
+    Docker::create(tests::flags.docker, tests::flags.docker_socket, false);
+
+  if (docker.isError()) {
+    return process::Failure(docker.error());
+  }
+
+  const Try<std::string> directory = os::mkdtemp();
+  if (directory.isError()) {
+    return process::Failure(docker.error());
+  }
+
+  return docker.get()->pull(directory.get(), imageName)
+    .then([]() {
+      // `Docker::pull` returns a `Future<Docker::Image`>, but we only really
+      // if the pull was successful, so we just return `Nothing` to match the
+      // return type of `pullDockerImage`.
+      return Nothing();
+    })
+    .onAny([directory]() -> process::Future<Nothing> {
+      Try<Nothing> rmdir = os::rmdir(directory.get());
+      if (rmdir.isError()) {
+        return process::Failure(rmdir.error());
+      }
+      return Nothing();
+    });
+}
+
+
+inline void createDockerIPv6UserNetwork()
+{
+  // Docker IPv6 is not supported on Windows, so no-op on that platform.
+  // TODO(akagup): Remove the #ifdef when Windows supports IPv6 networks
+  // in docker containers. See MESOS-8566.
+#ifndef __WINDOWS__
+  // Create a Docker user network with IPv6 enabled.
+  Try<std::string> dockerCommand = strings::format(
+      "docker network create --driver=bridge --ipv6 "
+      "--subnet=fd01::/64 %s",
+      DOCKER_IPv6_NETWORK);
+
+  Try<process::Subprocess> s = process::subprocess(
+      dockerCommand.get(),
+      process::Subprocess::PATH("/dev/null"),
+      process::Subprocess::PATH("/dev/null"),
+      process::Subprocess::PIPE());
+
+  ASSERT_SOME(s) << "Unable to create the Docker IPv6 network: "
+                 << DOCKER_IPv6_NETWORK;
+
+  process::Future<std::string> err = process::io::read(s->err().get());
+
+  // Wait for the network to be created.
+  AWAIT_READY(s->status());
+  AWAIT_READY(err);
+
+  ASSERT_SOME(s->status().get());
+  ASSERT_EQ(s->status()->get(), 0)
+    << "Unable to create the Docker IPv6 network "
+    << DOCKER_IPv6_NETWORK
+    << " : " << err.get();
+#endif // __WINDOWS__
+}
+
+
+inline void removeDockerIPv6UserNetwork()
+{
+  // Docker IPv6 is not supported on Windows, so no-op on that platform.
+  // TODO(akagup): Remove the #ifdef when Windows supports IPv6 networks
+  // in docker containers. See MESOS-8566.
+#ifndef __WINDOWS__
+  // Delete the Docker user network.
+  Try<std::string> dockerCommand =
+    strings::format("docker network rm %s", DOCKER_IPv6_NETWORK);
+
+  Try<process::Subprocess> s = subprocess(
+      dockerCommand.get(),
+      process::Subprocess::PATH("/dev/null"),
+      process::Subprocess::PATH("/dev/null"),
+      process::Subprocess::PIPE());
+
+  // This is best effort cleanup. In case of an error just a log an
+  // error.
+  ASSERT_SOME(s) << "Unable to delete the Docker IPv6 network: "
+                 << DOCKER_IPv6_NETWORK;
+
+  process::Future<std::string> err = process::io::read(s->err().get());
+
+  // Wait for the network to be deleted.
+  AWAIT_READY(s->status());
+  AWAIT_READY(err);
+
+  ASSERT_SOME(s->status().get());
+  ASSERT_EQ(s->status()->get(), 0)
+    << "Unable to delete the Docker IPv6 network "
+    << DOCKER_IPv6_NETWORK
+    << " : " << err.get();
+#endif // __WINDOWS__
+}
+
+} // namespace tests {
+} // namespace internal {
+} // namespace mesos {
+
+#endif // __TEST_DOCKER_COMMON_HPP__

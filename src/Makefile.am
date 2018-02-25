@@ -1273,6 +1273,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   tests/zookeeper_test_server.hpp					\
   tests/containerizer/capabilities_test_helper.hpp			\
   tests/containerizer/docker_archive.hpp				\
+  tests/containerizer/docker_common.hpp					\
   tests/containerizer/isolator.hpp					\
   tests/containerizer/launcher.hpp					\
   tests/containerizer/memory_test_helper.hpp				\
