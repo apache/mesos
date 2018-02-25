@@ -253,6 +253,13 @@ public:
         // executor never returning although the container has already exited.
         // To workaround this issue, here we reap the container process directly
         // so we will be notified when the container exits.
+        //
+        // The issue has only been reported on Linux, so it's not clear if
+        // Windows also has this issue. Regardless, we don't use this workaround
+        // for Windows, because the pid legitimately might not exist. For
+        // example, if the container is running in Hyper-V isolation, the pid
+        // will only exist in the guest OS.
+#ifndef __WINDOWS__
         if (container.pid.isSome()) {
           process::reap(container.pid.get())
             .then(defer(self(), [=](const Option<int>& status) {
@@ -286,6 +293,7 @@ public:
               &Self::reapedContainer,
               None());
         }
+#endif // __WINDOWS__
 
         return Nothing();
       }));
