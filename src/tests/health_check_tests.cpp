@@ -90,21 +90,35 @@ namespace tests {
 //   - Attempt to remove the nonexistent temporary file.
 //   - Create the temporary file.
 //   - Exit with a non-zero status.
-#ifndef __WINDOWS__
+#ifdef __WINDOWS__
 #define HEALTH_CHECK_COMMAND(path) \
-  "rm " + path + " || (touch " + path + " && exit 1)"
+  "powershell -NoProfile -Command " \
+  "$ri_err = Remove-Item -ErrorAction SilentlyContinue \"" + \
+  path + "\"; if (-not $?) { Set-Content -Path (\"" + path + \
+  "\") -Value ($null); exit 1 }"
 #else
 #define HEALTH_CHECK_COMMAND(path) \
-  "powershell -command " \
-  "$ri_err = Remove-Item -ErrorAction SilentlyContinue \"" + \
-  path + "\"; if (-not $?) { set-content -Path (\"" + path + \
-  "\") -Value ($null); exit 1 }"
-#endif // !__WINDOWS__
+  "rm " + path + " || (touch " + path + " && exit 1)"
+#endif // __WINDOWS__
 
 
 class HealthCheckTest : public MesosTest
 {
 public:
+  // Manually pull the images before the tests are run, since the pull can
+  // time out the test.
+  static void SetUpTestCase()
+  {
+    Future<Nothing> pull = pullDockerImage(DOCKER_TEST_IMAGE);
+
+    LOG(WARNING) << "Downloading " << string(DOCKER_TEST_IMAGE)
+                 << ". This may take a while...";
+
+    // The Windows image is ~200 MB, while the Linux image is ~2MB, so
+    // hopefully this is enough time for the Windows image.
+    AWAIT_READY_FOR(pull, Minutes(10));
+  }
+
   vector<TaskInfo> populateTasks(
       const string& cmd,
       const string& healthCmd,
@@ -564,7 +578,7 @@ TEST_F(HealthCheckTest, ROOT_HealthyTaskWithContainerImage)
 
 // This test creates a healthy task using the Docker executor and
 // verifies that the healthy status is reported to the scheduler.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, ROOT_DOCKER_DockerHealthyTask)
+TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthyTask)
 {
   Shared<Docker> docker(new MockDocker(
       tests::flags.docker, tests::flags.docker_socket));
@@ -622,11 +636,11 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, ROOT_DOCKER_DockerHealthyTask)
 
   // TODO(tnachen): Use local image to test if possible.
   ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
+  dockerInfo.set_image(DOCKER_TEST_IMAGE);
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
   vector<TaskInfo> tasks = populateTasks(
-      SLEEP_COMMAND(120),
+      DOCKER_SLEEP_CMD(120),
       "exit 0",
       offers.get()[0],
       0,
@@ -727,7 +741,7 @@ TEST_F(HealthCheckTest, HealthyTaskNonShell)
 #else
   command.set_value("true");
   command.add_arguments("true");
-#endif // __WINDOWS
+#endif // __WINDOWS__
 
   vector<TaskInfo> tasks =
     populateTasks(SLEEP_COMMAND(120), command, offers.get()[0]);
@@ -851,8 +865,7 @@ TEST_F(HealthCheckTest, HealthStatusChange)
 // This test creates a task that uses the Docker executor and whose
 // health flaps. It then verifies that the health status updates are
 // sent to the framework scheduler.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(
-    HealthCheckTest, ROOT_DOCKER_DockerHealthStatusChange)
+TEST_F(HealthCheckTest, ROOT_DOCKER_DockerHealthStatusChange)
 {
   Shared<Docker> docker(new MockDocker(
       tests::flags.docker, tests::flags.docker_socket));
@@ -910,7 +923,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
   // TODO(tnachen): Use local image to test if possible.
   ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
+  dockerInfo.set_image(DOCKER_TEST_IMAGE);
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
   // Create a temporary file in host and then we could this file to
@@ -928,12 +941,23 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   //
   // Case 1:
   //   - Remove the temporary file.
+#ifdef __WINDOWS__
+  const string healthCheckCmd =
+    "pwsh -Command "
+    "Remove-Item -ErrorAction SilentlyContinue \"" + tmpPath + "\"; "
+    "if (-Not $?) { "
+      "New-Item -ItemType Directory -Force \"" + os::getcwd() + "\"; "
+      "Set-Content -Path \"" + tmpPath + "\" -Value foo; "
+      "exit 1 "
+    "}";
+#else
   const string healthCheckCmd =
     "rm " + tmpPath + " || "
     "(mkdir -p " + os::getcwd() + " && echo foo >" + tmpPath + " && exit 1)";
+#endif // __WINDOWS__
 
   vector<TaskInfo> tasks = populateTasks(
-      SLEEP_COMMAND(60),
+      DOCKER_SLEEP_CMD(60),
       healthCheckCmd,
       offers.get()[0],
       0,
@@ -2205,6 +2229,25 @@ class DockerContainerizerHealthCheckTest
   : public MesosTest,
     public ::testing::WithParamInterface<NetworkInfo::Protocol>
 {
+public:
+  // Manually pull images, so that the pull time isn't counted
+  // as part of the task launching.
+  static void SetUpTestCase()
+  {
+    Future<Nothing> httpPull = pullDockerImage(DOCKER_HTTP_IMAGE);
+    Future<Nothing> httpsPull = pullDockerImage(DOCKER_HTTPS_IMAGE);
+
+    LOG(WARNING) << "Pulling " << string(DOCKER_HTTP_IMAGE) << " and "
+                 << string(DOCKER_HTTPS_IMAGE) << ". "
+                 << "This might take a while...";
+
+    // The Windows image is ~200 MB, while the Linux image is ~2MB, so
+    // hopefully this is enough time for the Windows image. There should
+    // be some parallelism too, since we're pulling both simultaneously.
+    AWAIT_READY_FOR(httpPull, Minutes(10));
+    AWAIT_READY_FOR(httpsPull, Minutes(10));
+  }
+
 protected:
   virtual void SetUp()
   {
@@ -2236,17 +2279,25 @@ protected:
 
 
 // The tests are parameterized by the network protocol.
+// On Windows, Docker IPv6 doesn't work, so just do IPv4.
+#ifdef __WINDOWS__
+INSTANTIATE_TEST_CASE_P(
+    NetworkProtocol,
+    DockerContainerizerHealthCheckTest,
+    ::testing::Values(NetworkInfo::IPv4));
+#else
 INSTANTIATE_TEST_CASE_P(
     NetworkProtocol,
     DockerContainerizerHealthCheckTest,
     ::testing::Values(NetworkInfo::IPv4, NetworkInfo::IPv6));
+#endif // __WINDOWS__
 
 
 // Tests a healthy Docker task via HTTP. To emulate a task responsive
 // to HTTP health checks, starts Netcat in the Docker "alpine" image.
-TEST_P_TEMP_DISABLED_ON_WINDOWS(
+TEST_P(
     DockerContainerizerHealthCheckTest,
-    ROOT_DOCKER_USERNETWORK_HealthyTaskViaHTTP)
+    ROOT_DOCKER_USERNETWORK_NETNAMESPACE_HealthyTaskViaHTTP)
 {
   Shared<Docker> docker(new MockDocker(
       tests::flags.docker, tests::flags.docker_socket));
@@ -2289,21 +2340,20 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  // Use Netcat to launch a HTTP server.
-  TaskInfo task = createTask(
-      offers.get()[0],
-      "nc -lk -p 80 -e echo -e \"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\"");
+  TaskInfo task = createTask(offers.get()[0], DOCKER_HTTP_COMMAND);
 
   // TODO(tnachen): Use local image to test if possible.
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
-  containerInfo.mutable_docker()->set_image("alpine");
+  containerInfo.mutable_docker()->set_image(DOCKER_HTTP_IMAGE);
+#ifndef __WINDOWS__
   containerInfo.mutable_docker()->set_network(ContainerInfo::DockerInfo::USER);
 
   // Setup the Docker IPv6 network.
   NetworkInfo networkInfo;
   networkInfo.set_name(DOCKER_IPv6_NETWORK);
   containerInfo.add_network_infos()->CopyFrom(networkInfo);
+#endif // __WINDOWS__
 
   task.mutable_container()->CopyFrom(containerInfo);
 
@@ -2367,10 +2417,11 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 
 // Tests a healthy Docker task via HTTPS. To emulate a task
 // responsive to HTTPS health checks, starts an HTTPS server
-// in the Docker "zhq527725/https-server" image.
-TEST_P_TEMP_DISABLED_ON_WINDOWS(
+// in the Docker "zhq527725/https-server" image. On Windows,
+// it runs an HTTPS IIS server.
+TEST_P(
     DockerContainerizerHealthCheckTest,
-    ROOT_DOCKER_USERNETWORK_HealthyTaskViaHTTPS)
+    ROOT_DOCKER_USERNETWORK_NETNAMESPACE_HealthyTaskViaHTTPS)
 {
   Shared<Docker> docker(new MockDocker(
       tests::flags.docker, tests::flags.docker_socket));
@@ -2413,23 +2464,20 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  TaskInfo task = createTask(
-      offers.get()[0],
-      "python https_server.py 443");
+  TaskInfo task = createTask(offers.get()[0], DOCKER_HTTPS_COMMAND);
 
-  // Refer to https://github.com/qianzhangxa/https-server for
-  // how the Docker image `zhq527725/https-server` works.
-  //
   // TODO(qianzhang): Use local image to test if possible.
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
-  containerInfo.mutable_docker()->set_image("zhq527725/https-server");
+  containerInfo.mutable_docker()->set_image(DOCKER_HTTPS_IMAGE);
+#ifndef __WINDOWS__
   containerInfo.mutable_docker()->set_network(ContainerInfo::DockerInfo::USER);
 
   // Setup the Docker IPv6 network.
   NetworkInfo networkInfo;
   networkInfo.set_name(DOCKER_IPv6_NETWORK);
   containerInfo.add_network_infos()->CopyFrom(networkInfo);
+#endif // __WINDOWS__
 
   task.mutable_container()->CopyFrom(containerInfo);
 
@@ -2498,9 +2546,9 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 // NOTE:
 // This test is almost identical to ROOT_DOCKER_USERNETWORK_HealthyTaskViaHTTP
 // with the difference being TCP health check.
-TEST_P_TEMP_DISABLED_ON_WINDOWS(
+TEST_P(
     DockerContainerizerHealthCheckTest,
-    ROOT_DOCKER_USERNETWORK_HealthyTaskViaTCP)
+    ROOT_DOCKER_USERNETWORK_NETNAMESPACE_HealthyTaskViaTCP)
 {
   Shared<Docker> docker(new MockDocker(
       tests::flags.docker, tests::flags.docker_socket));
@@ -2543,21 +2591,21 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  // Use Netcat to launch a HTTP server.
-  TaskInfo task = createTask(
-      offers.get()[0],
-      "nc -lk -p 80 -e echo -e \"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\"");
+  // Since HTTP runs over TCP, we can just run the HTTP server.
+  TaskInfo task = createTask(offers.get()[0], DOCKER_HTTP_COMMAND);
 
   // TODO(tnachen): Use local image to test if possible.
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
-  containerInfo.mutable_docker()->set_image("alpine");
+  containerInfo.mutable_docker()->set_image(DOCKER_HTTP_IMAGE);
+#ifndef __WINDOWS__
   containerInfo.mutable_docker()->set_network(ContainerInfo::DockerInfo::USER);
 
   // Setup the Docker IPv6 network.
   NetworkInfo networkInfo;
   networkInfo.set_name(DOCKER_IPv6_NETWORK);
   containerInfo.add_network_infos()->CopyFrom(networkInfo);
+#endif // __WINDOWS__
 
   task.mutable_container()->CopyFrom(containerInfo);
 

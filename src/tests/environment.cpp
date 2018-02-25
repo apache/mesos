@@ -30,8 +30,11 @@
 
 #include <gtest/gtest.h>
 
+#include <checks/checker_process.hpp>
+
 #include "docker/docker.hpp"
 
+#include <process/defer.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
 #include <process/owned.hpp>
@@ -39,11 +42,13 @@
 #include <stout/check.hpp>
 #include <stout/error.hpp>
 #include <stout/exit.hpp>
+#include <stout/lambda.hpp>
 #include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/result.hpp>
+#include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 
 #include <stout/os/exists.hpp>
@@ -77,6 +82,8 @@ using std::set;
 using std::string;
 using std::vector;
 
+using process::Failure;
+using process::Future;
 using process::Owned;
 
 using stout::internal::tests::TestFilter;
@@ -290,6 +297,18 @@ public:
     } else {
       dockerError = docker.error();
     }
+
+#ifdef __WINDOWS__
+    // On Windows, the ability to enter another container's namespace was
+    // enabled on newer Windows builds (>=1709). So, check if we can do
+    // this to run the docker health check tests.
+    LOG(WARNING) << "Testing shared container network namespaces on Windows. "
+                 << "This might take up to 30 seconds...";
+
+    if (dockerError.isNone() && dockerUserNetworkError.isNone()) {
+      dockerNamespaceError = runNetNamespaceCheck(docker.get());
+    }
+#endif // __WINDOWS__
 #else
     dockerError = Error("Docker tests are not supported on this platform");
 #endif // __linux__ || __WINDOWS__
@@ -311,6 +330,15 @@ public:
         << "-------------------------------------------------------------"
         << std::endl;
     }
+
+    if (dockerNamespaceError.isSome()) {
+      std::cerr
+        << "-------------------------------------------------------------\n"
+        << "We cannot run any Docker network health checks tests because:\n"
+        << dockerNamespaceError->message << "\n"
+        << "-------------------------------------------------------------"
+        << std::endl;
+    }
   }
 
   bool disable(const ::testing::TestInfo* test) const
@@ -319,13 +347,92 @@ public:
       return matches(test, "DOCKER_");
     }
 
-    return matches(test, "DOCKER_USERNETWORK_") &&
-      dockerUserNetworkError.isSome();
+    if (dockerUserNetworkError.isSome()) {
+      return matches(test, "DOCKER_USERNETWORK_");
+    }
+
+    return matches(test, "DOCKER_") &&
+      matches(test, "NETNAMESPACE_") &&
+      dockerNamespaceError.isSome();
   }
 
 private:
+#ifdef __WINDOWS__
+  Future<Nothing> launchContainer(
+      const Owned<Docker>& docker,
+      const string& containerName,
+      const string& networkName)
+  {
+    Docker::RunOptions opts;
+    opts.privileged = false;
+    opts.name = containerName;
+    opts.network = networkName;
+    opts.additionalOptions = {"-d", "--rm"};
+    opts.image = mesos::internal::checks::DOCKER_HEALTH_CHECK_IMAGE;
+    opts.arguments = {"pwsh", "-Command", "Start-Sleep", "-Seconds", "60"};
+
+    // Launches the container in detached mode, which means that docker
+    // run should return as soon as the container successfully launched.
+    return docker->run(opts, process::Subprocess::PATH(os::DEV_NULL))
+      .then([=](const Option<int>& status) -> Future<Nothing> {
+        if (!status.isSome()) {
+          return Failure(
+              "Container " + containerName + " failed with unknown exit code");
+        }
+
+        if (status.get() != 0) {
+          return Failure(
+              "Container " + containerName + " returned exit code " +
+              stringify(status.get()));
+        }
+
+        return Nothing();
+      });
+  }
+
+  Option<Error> runNetNamespaceCheck(const Owned<Docker>& docker)
+  {
+    // Use `os::system` here because `docker->inspect()` only works on
+    // containers even though `docker inspect` cli command works on images.
+    const int res = os::system(
+        docker->getPath() + " -H " + docker->getSocket() + " inspect " +
+        string(mesos::internal::checks::DOCKER_HEALTH_CHECK_IMAGE) + " > NUL");
+
+    if (res != 0) {
+      return Error(
+          "Cannot find " +
+          string(mesos::internal::checks::DOCKER_HEALTH_CHECK_IMAGE));
+    }
+
+    // Launch two containers. One with regular network settings and the
+    // other with "--network=container:<ID>" to enter the first container's
+    // namespace.
+    const string container1 = id::UUID::random().toString();
+    const string container2 = id::UUID::random().toString();
+
+    Future<Nothing> containers =
+      launchContainer(docker, container1, "nat").then(process::defer([=]() {
+        return launchContainer(docker, container2, "container:" + container1)
+          .then(lambda::bind(&Docker::rm, docker, container2, true))
+          .onAny(lambda::bind(&Docker::rm, docker, container1, true));
+      }));
+
+    // A minute should be enough for both containers to lauch and delete.
+    containers.await(Minutes(1));
+
+    if (containers.isFailed()) {
+      return Error("Failed to launch containers: " + containers.failure());
+    } else if (!containers.isReady()) {
+      return Error("Container launch timed out");
+    }
+
+    return None();
+  }
+#endif // __WINDOWS__
+
   Option<Error> dockerError;
   Option<Error> dockerUserNetworkError;
+  Option<Error> dockerNamespaceError;
 };
 
 

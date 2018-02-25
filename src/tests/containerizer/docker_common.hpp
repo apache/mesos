@@ -54,9 +54,29 @@ static constexpr char DOCKER_TEST_IMAGE[] = "akagup/pwsh-nano-admin";
 // The powershell image uses Powershell Core, which calls the executable as
 // `pwsh` instead of `powershell`. So the regular sleep macro doesn't work.
 #define DOCKER_SLEEP_CMD(x) "pwsh -Command Start-Sleep -Seconds " #x
+
+// We use a custom HTTP(S) server here, because the official `microsoft/iis`
+// HTTP server image is ~20x larger than this one, so pulling it takes too
+// long. This server supports HTTP and HTTPS listening on port 80 and 443.
+// For more information, see https://github.com/gupta-ak/https-server.
+static constexpr char DOCKER_HTTP_IMAGE[] = "akagup/https-server";
+static constexpr char DOCKER_HTTP_COMMAND[] = "http.exe";
+static constexpr char DOCKER_HTTPS_IMAGE[] = "akagup/https-server";
+static constexpr char DOCKER_HTTPS_COMMAND[] = "http.exe";
 #else
 static constexpr char DOCKER_TEST_IMAGE[] = "alpine";
+
 #define DOCKER_SLEEP_CMD(x) SLEEP_COMMAND(x)
+
+// The HTTP server is netcat running on alpine.
+static constexpr char DOCKER_HTTP_IMAGE[] = "alpine";
+static constexpr char DOCKER_HTTP_COMMAND[] =
+  "nc -lk -p 80 -e echo -e \"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\"";
+
+// Refer to https://github.com/qianzhangxa/https-server for
+// how the Docker image `zhq527725/https-server` works.
+static constexpr char DOCKER_HTTPS_IMAGE[] = "zhq527725/https-server";
+static constexpr char DOCKER_HTTPS_COMMAND[] = "python https_server.py 443";
 #endif // __WINDOWS__
 
 constexpr char DOCKER_IPv6_NETWORK[] = "mesos-docker-ip6-test";
