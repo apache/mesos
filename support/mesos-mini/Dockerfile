@@ -1,4 +1,5 @@
-FROM mesos/mesos-centos
+#FROM mesos/mesos-centos
+FROM jieyu/mesos
 
 RUN yum install -y java-1.8.0-openjdk iptables
 
@@ -27,16 +28,12 @@ RUN for service in\
     systemd-vconsole-setup.service\
     ; do systemctl mask $service; done
 
-CMD ["/usr/sbin/init"]
-
-STOPSIGNAL SIGRTMIN+3
-
 # Prepare Docker environment.
-ARG DOCKER_RUL=https://download.docker.com/linux/static/stable/x86_64/docker-17.12.0-ce.tgz
+ARG DOCKER_URL=https://download.docker.com/linux/static/stable/x86_64/docker-17.12.0-ce.tgz
 
 RUN mkdir -p /etc/docker && \
     touch /etc/docker/env && \
-    curl -s $DOCKER_RUL -o /docker.tgz && \
+    curl -s $DOCKER_URL -o /docker.tgz && \
     tar -xzvf /docker.tgz -C /usr/local/bin --strip 1 && \
     rm -f /docker.tgz
 
@@ -66,7 +63,11 @@ RUN mkdir -p $MARATHON_INSTALL_DIR && \
 COPY marathon.sh $MARATHON_INSTALL_DIR/bin/
 COPY marathon.service /usr/lib/systemd/system/marathon.service
 
-RUN systemctl enable docker && \
-    systemctl enable mesos-slave && \
-    systemctl enable mesos-master && \
-    systemctl enable marathon
+RUN systemctl enable docker mesos-slave mesos-master marathon
+
+# Prepare entrypoint.
+COPY entrypoint.sh /
+
+CMD ["/entrypoint.sh"]
+
+STOPSIGNAL SIGRTMIN+3
