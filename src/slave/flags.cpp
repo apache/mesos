@@ -1307,6 +1307,18 @@ mesos::internal::slave::Flags::Flags()
       "Amount of data in Bytes that can be received at the higher ceil rate."
       "This flag is used by the `network/port_mapping_isolator`.");
 
+  add(&Flags::ingress_isolate_existing_containers,
+      "ingress_isolate_existing_containers",
+      "Whether to turn on ingress bandwidth isolation for already running\n"
+      "containers that don't have the ingress isolation enabled. This flag\n"
+      "exists for synchronization with ECN support enabling. ECNs are used by\n"
+      "the ingress bandwidth limiting mechanism to avoid dropping packets.\n"
+      "The use of ECNs has to be negotiated between the endpoints during the\n"
+      "TCP handshake and thus ECN support has to be enabled at the time when\n"
+      "the containers are launched. This flag is used by the\n"
+      "`network/port_mapping` isolator.",
+      true);
+
   add(&Flags::network_link_speed,
       "network_link_speed",
       "Physical network link speed in Bytes/s. This flag is used only when\n"

@@ -90,6 +90,7 @@ using mesos::master::detector::MasterDetector;
 
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
+using mesos::slave::ContainerState;
 using mesos::slave::ContainerTermination;
 using mesos::slave::Isolator;
 
@@ -2081,6 +2082,150 @@ TEST_F(PortMappingIsolatorTest, ROOT_ScaleIngressWithCPUAutoConfig)
   // Kill the container
   AWAIT_READY(launcher.get()->destroy(containerId1));
   AWAIT_READY(isolator.get()->cleanup(containerId1));
+}
+
+
+TEST_F(PortMappingIsolatorTest, ROOT_Upgrade)
+{
+  const Bytes rate = Bytes(1000);
+
+  flags.minimum_egress_rate_limit = 0;
+  flags.egress_rate_limit_per_container = None();
+  flags.minimum_ingress_rate_limit = 0;
+  flags.ingress_rate_limit_per_container = None();
+  flags.ingress_isolate_existing_containers = false;
+
+  Try<Resources> resources = Resources::parse("cpus:1;mem:128;disk:1024");
+  ASSERT_SOME(resources);
+
+  Try<Isolator*> isolator = PortMappingIsolatorProcess::create(flags);
+  ASSERT_SOME(isolator);
+
+  Try<Launcher*> launcher = LinuxLauncher::create(flags);
+  ASSERT_SOME(launcher);
+
+  ExecutorInfo executorInfo;
+  executorInfo.mutable_resources()->CopyFrom(resources.get());
+
+  ContainerID containerId;
+  containerId.set_value(id::UUID::random().toString());
+
+  ContainerConfig containerConfig;
+  containerConfig.mutable_executor_info()->CopyFrom(executorInfo);
+
+  Future<Option<ContainerLaunchInfo>> launchInfo =
+    isolator.get()->prepare(containerId, containerConfig);
+  AWAIT_READY(launchInfo);
+  ASSERT_SOME(launchInfo.get());
+  ASSERT_EQ(1, launchInfo.get()->pre_exec_commands().size());
+
+  int pipes[2];
+  ASSERT_NE(-1, ::pipe(pipes));
+
+  Try<pid_t> pid = launchHelper(
+      launcher.get(),
+      pipes,
+      containerId,
+      "touch " + container1Ready + " && sleep 1000",
+      launchInfo.get());
+  ASSERT_SOME(pid);
+
+  // Reap the forked child.
+  Future<Option<int>> status = process::reap(pid.get());
+
+  // Continue in the parent.
+  ::close(pipes[0]);
+
+  // Isolate the forked child.
+  AWAIT_READY(isolator.get()->isolate(containerId, pid.get()));
+
+  // Signal forked child to continue.
+  char dummy;
+  ASSERT_LT(0, ::write(pipes[1], &dummy, sizeof(dummy)));
+  ::close(pipes[1]);
+
+  // Wait for command to start to ensure all pre-exec scripts have
+  // executed.
+  ASSERT_TRUE(waitForFileCreation(container1Ready));
+
+  const string veth = slave::PORT_MAPPING_VETH_PREFIX() + stringify(pid.get());
+  const routing::Handle cls(routing::Handle(1, 0), 1);
+
+  Result<htb::cls::Config> egressConfig =
+    recoverHTBConfig(pid.get(), eth0, flags);
+  ASSERT_NONE(egressConfig);
+
+  Result<htb::cls::Config> ingressConfig = htb::cls::getConfig(veth, cls);
+  ASSERT_NONE(ingressConfig);
+
+  // Turn rate limiting on.
+  flags.egress_rate_limit_per_container = rate;
+  flags.ingress_rate_limit_per_container = rate;
+
+  // Recreate the isolator with the new flags.
+  delete isolator.get();
+  isolator = PortMappingIsolatorProcess::create(flags);
+  ASSERT_SOME(isolator);
+
+  ContainerState containerState;
+  containerState.mutable_container_id()->CopyFrom(containerId);
+  containerState.set_pid(pid.get());
+
+  // Recover and rightsize the container as the agent does upon
+  // executor re-registration.
+  AWAIT_READY(isolator.get()->recover({containerState}, {}));
+  AWAIT_READY(isolator.get()->update(containerId, resources.get()));
+
+  egressConfig = recoverHTBConfig(pid.get(), eth0, flags);
+  ASSERT_SOME(egressConfig);
+  ASSERT_EQ(rate, egressConfig->rate);
+
+  // Ingress isolation should not be turned on because we didn't allow
+  // upgrading existing containers.
+  ingressConfig = htb::cls::getConfig(veth, cls);
+  ASSERT_NONE(ingressConfig);
+
+  // Enable turning on ingress isolation for existing containers.
+  flags.ingress_isolate_existing_containers = true;
+
+  // Recreate the isolator with the new flags.
+  delete isolator.get();
+  isolator = PortMappingIsolatorProcess::create(flags);
+  ASSERT_SOME(isolator);
+  AWAIT_READY(isolator.get()->recover({containerState}, {}));
+  AWAIT_READY(isolator.get()->update(containerId, resources.get()));
+
+  egressConfig = recoverHTBConfig(pid.get(), eth0, flags);
+  ASSERT_SOME(egressConfig);
+  ASSERT_EQ(rate, egressConfig->rate);
+
+  ingressConfig = htb::cls::getConfig(veth, cls);
+  ASSERT_SOME(ingressConfig);
+  ASSERT_EQ(rate, ingressConfig->rate);
+
+  // Turn rate limiting off.
+  flags.egress_rate_limit_per_container = None();
+  flags.ingress_rate_limit_per_container = None();
+
+  // Recreate the isolator with the new flags.
+  delete isolator.get();
+  isolator = PortMappingIsolatorProcess::create(flags);
+  ASSERT_SOME(isolator);
+  AWAIT_READY(isolator.get()->recover({containerState}, {}));
+  AWAIT_READY(isolator.get()->update(containerId, resources.get()));
+
+  egressConfig = recoverHTBConfig(pid.get(), eth0, flags);
+  ASSERT_NONE(egressConfig);
+
+  ingressConfig = htb::cls::getConfig(veth, cls);
+  ASSERT_NONE(ingressConfig);
+
+  // Kill the container.
+  AWAIT_READY(launcher.get()->destroy(containerId));
+  AWAIT_READY(isolator.get()->cleanup(containerId));
+
+  delete launcher.get();
+  delete isolator.get();
 }
 
 

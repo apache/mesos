@@ -697,6 +697,41 @@ static Try<Nothing> updateHTB(
 }
 
 
+// Creates an HTB qdisc, HTB class, and FQ_CoDel qdisc.
+static Try<Nothing> createIngressHTB(
+    const string& link,
+    const htb::cls::Config& config)
+{
+  Try<bool> create = htb::create(
+      link,
+      EGRESS_ROOT,
+      CONTAINER_TX_HTB_HANDLE,
+      htb::DisciplineConfig(1));
+  if (create.isError()) {
+    return Error("Failed to add HTB qdisc: " + create.error());
+  }
+
+  create = htb::cls::create(
+      link,
+      CONTAINER_TX_HTB_HANDLE,
+      CONTAINER_TX_HTB_CLASS_ID,
+      config);
+  if (create.isError()) {
+    return Error("Failed to add HTB class: " + create.error());
+  }
+
+  create = fq_codel::create(
+      link,
+      CONTAINER_TX_HTB_CLASS_ID,
+      None());
+  if (create.isError()) {
+    return Error("Failed to add fq_codel qdisc: " + create.error());
+  }
+
+  return Nothing();
+}
+
+
 static Try<Nothing> updateIngressHTB(
     const string& link,
     const Option<htb::cls::Config>& config)
@@ -719,6 +754,14 @@ static Try<Nothing> updateIngressHTB(
     }
   }
 
+  // Add an HTB qdisc, an HTB class and an FQ_CoDel qdisc.
+  if (config.isSome() && !exists.get()) {
+    Try<Nothing> create = createIngressHTB(link, config.get());
+    if (create.isError()) {
+      return Error(create.error());
+    }
+  }
+
   // Change an existing HTB class.
   if (config.isSome() && exists.get()) {
     Try<bool> update = htb::cls::update(
@@ -730,11 +773,6 @@ static Try<Nothing> updateIngressHTB(
     }
   }
 
-  // Do not turn on ingress bandwidth limiting for existing
-  // containers. The reason we do this is because we use ECNs to limit
-  // the ingress traffic and we don't want to drop packets. The use of
-  // ECNs has to be negotiated between the endpoints during the TCP
-  // handshake and thus won't be turned on for existing connections.
   return Nothing();
 }
 
@@ -3782,32 +3820,10 @@ Future<Nothing> PortMappingIsolatorProcess::isolate(
               << jsonify(info->ingressConfig.get())
               << " for container " << containerId;
 
-    // Add an HTB qdisc for veth of the container.
-    Try<bool> vethQdisc = htb::create(
-        veth(pid),
-        EGRESS_ROOT,
-        CONTAINER_TX_HTB_HANDLE,
-        htb::DisciplineConfig(1));
-    if (vethQdisc.isError()) {
-      return Failure("Failed to add HTB qdisc: " + vethQdisc.error());
-    }
-
-    // Add an HTB class.
-    Try<bool> vethClass = htb::cls::create(
-        veth(pid),
-        CONTAINER_TX_HTB_HANDLE,
-        CONTAINER_TX_HTB_CLASS_ID,
-        info->ingressConfig.get());
-    if (vethClass.isError()) {
-      return Failure("Failed to add HTB class: " + vethClass.error());
-    }
-
-    Try<bool> vethCoDel = fq_codel::create(
-        veth(pid),
-        CONTAINER_TX_HTB_CLASS_ID,
-        None());
-    if (vethCoDel.isError()) {
-      return Failure("Failed to add fq_codel qdisc: " + vethCoDel.error());
+    Try<Nothing> create = createIngressHTB(
+        veth(pid), info->ingressConfig.get());
+    if (create.isError()) {
+      return Failure(create.error());
     }
   }
 
@@ -3924,7 +3940,9 @@ Future<Nothing> PortMappingIsolatorProcess::update(
   Option<htb::cls::Config> ingressConfig = ingressHTBConfig(resources);
 
   // Update ingress HTB configuration.
-  if (ingressConfig != info->ingressConfig) {
+  if (ingressConfig != info->ingressConfig &&
+      (info->ingressConfig.isSome() ||
+       flags.ingress_isolate_existing_containers)) {
     LOG(INFO) << "Setting ingress HTB config to "
               << (ingressConfig.isSome()
                   ? jsonify(ingressConfig.get()) : string("None"))
