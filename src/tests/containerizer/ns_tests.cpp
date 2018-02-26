@@ -99,7 +99,9 @@ TEST(NsTest, ROOT_setns)
 
 
 // Test the ns::supported() API.
-TEST(NsTest, SupportedNamespaces)
+//
+// TODO(alexr): Enable after MESOS-8610 is resolved.
+TEST(NsTest, DISABLED_SupportedNamespaces)
 {
   set<int> namespaces = ns::nstypes();
   ASSERT_FALSE(namespaces.empty());
