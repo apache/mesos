@@ -99,9 +99,7 @@ TEST(NsTest, ROOT_setns)
 
 
 // Test the ns::supported() API.
-//
-// TODO(alexr): Enable after MESOS-8610 is resolved.
-TEST(NsTest, DISABLED_SupportedNamespaces)
+TEST(NsTest, SupportedNamespaces)
 {
   set<int> namespaces = ns::nstypes();
   ASSERT_FALSE(namespaces.empty());
@@ -114,7 +112,7 @@ TEST(NsTest, DISABLED_SupportedNamespaces)
 
   foreach (const int& n, namespaces) {
     // Exclude user namespaces because they depend on the kernel version.
-    if (n == CLONE_NEWNS) {
+    if (n == CLONE_NEWUSER) {
       continue;
     }
 
