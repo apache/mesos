@@ -166,6 +166,7 @@ public:
   Option<Bytes> maximum_ingress_rate_limit;
   Option<Bytes> ingress_ceil_limit;
   Option<Bytes> ingress_burst;
+  bool ingress_isolate_existing_containers;
   Option<Bytes> network_link_speed;
   bool network_enable_socket_statistics_summary;
   bool network_enable_socket_statistics_details;
