@@ -1,5 +1,4 @@
-#FROM mesos/mesos-centos
-FROM jieyu/mesos
+FROM mesos/mesos-centos
 
 RUN yum install -y java-1.8.0-openjdk iptables
 
