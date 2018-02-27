@@ -45,10 +45,15 @@ COPY docker_daemon.json /etc/docker/daemon.json
 # Prepare Mesos environment.
 RUN chmod +x /usr/bin/mesos-init-wrapper && \
     rm -f /etc/mesos-master/work_dir && \
-    rm -f /etc/mesos-slave/work_dir
+    rm -f /etc/mesos-slave/work_dir && \
+    mkdir -p /etc/mesos/resource_providers && \
+    mkdir -p /etc/mesos/cni && \
+    mkdir -p /usr/libexec/mesos/cni
 
-COPY mesos_master_environment /etc/default/mesos-master
-COPY mesos_agent_environment /etc/default/mesos-agent
+COPY mesos/master_environment /etc/default/mesos-master
+COPY mesos/agent_environment /etc/default/mesos-agent
+COPY mesos/agent_features.json /etc/mesos/agent_features.json
+COPY mesos/modules /etc/mesos/modules
 
 # Prepare Marathon environment.
 ARG MARATHON_URL=https://downloads.mesosphere.com/marathon/releases/1.5.5/marathon-1.5.5.tgz
