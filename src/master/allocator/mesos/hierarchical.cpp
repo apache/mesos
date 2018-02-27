@@ -1594,29 +1594,33 @@ void HierarchicalAllocatorProcess::__allocate()
       roleSorter->allocationScalarQuantities(role).toUnreserved();
   }
 
-  // Subtract all unallocated reservations.
-  foreachkey (const string& role, reservationScalarQuantities) {
+  // Calculate total allocated reservations. Note that we need to ensure
+  // we count a reservation for "a" being allocated to "a/b", therefore
+  // we cannot simply loop over the reservations' roles.
+  Resources totalAllocatedReservationScalarQuantities;
+  foreachkey (const string& role, roles) {
     hashmap<SlaveID, Resources> allocations;
     if (quotaRoleSorter->contains(role)) {
       allocations = quotaRoleSorter->allocation(role);
     } else if (roleSorter->contains(role)) {
       allocations = roleSorter->allocation(role);
+    } else {
+      continue; // This role has no allocation.
     }
-
-    Resources unallocatedReservations =
-      reservationScalarQuantities.get(role).getOrElse(Resources());
 
     foreachvalue (const Resources& resources, allocations) {
       // NOTE: `totalScalarQuantities` omits dynamic reservation,
       // persistent volume info, and allocation info. We additionally
       // remove the static reservations here via `toUnreserved()`.
-      unallocatedReservations -=
+      totalAllocatedReservationScalarQuantities +=
         resources.reserved().createStrippedScalarQuantity().toUnreserved();
     }
-
-    // Subtract the unallocated reservations for this role from the headroom.
-    availableHeadroom -= unallocatedReservations;
   }
+
+  // Subtract total unallocated reservations.
+  availableHeadroom -=
+    Resources::sum(reservationScalarQuantities) -
+    totalAllocatedReservationScalarQuantities;
 
   // Subtract revocable resources.
   foreachvalue (const Slave& slave, slaves) {
