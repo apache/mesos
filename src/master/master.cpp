@@ -8412,7 +8412,7 @@ void Master::_reconcileTasks(
                  " for framework " << *framework;
 
     foreachvalue (const TaskInfo& task, framework->pendingTasks) {
-      const StatusUpdate& update = protobuf::createStatusUpdate(
+      StatusUpdate update = protobuf::createStatusUpdate(
           framework->id(),
           task.slave_id(),
           task.task_id(),
@@ -8430,7 +8430,7 @@ void Master::_reconcileTasks(
       // TODO(bmahler): Consider using forward(); might lead to too
       // much logging.
       StatusUpdateMessage message;
-      message.mutable_update()->CopyFrom(update);
+      *message.mutable_update() = std::move(update);
       framework->send(message);
     }
 
@@ -8443,7 +8443,7 @@ void Master::_reconcileTasks(
           ? Option<ExecutorID>(task->executor_id())
           : None();
 
-      const StatusUpdate& update = protobuf::createStatusUpdate(
+      StatusUpdate update = protobuf::createStatusUpdate(
           framework->id(),
           task->slave_id(),
           task->task_id(),
@@ -8466,7 +8466,7 @@ void Master::_reconcileTasks(
       // TODO(bmahler): Consider using forward(); might lead to too
       // much logging.
       StatusUpdateMessage message;
-      message.mutable_update()->CopyFrom(update);
+      *message.mutable_update() = std::move(update);
       framework->send(message);
     }
 
@@ -8642,7 +8642,7 @@ void Master::_reconcileTasks(
       // TODO(bmahler): Consider using forward(); might lead to too
       // much logging.
       StatusUpdateMessage message;
-      message.mutable_update()->CopyFrom(update.get());
+      *message.mutable_update() = std::move(update.get());
       framework->send(message);
     }
   }
