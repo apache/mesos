@@ -2657,10 +2657,10 @@ TEST_F(MasterTest, SlavesEndpointQuerySlave)
 
 // Tests that the master correctly updates the slave info on
 // slave re-registration.
-//
-// TODO(alexr): Enable after MESOS-8336 is resolved.
-TEST_F(MasterTest, DISABLED_RegistryUpdateAfterReconfiguration)
+TEST_F(MasterTest, RegistryUpdateAfterReconfiguration)
 {
+  Clock::pause();
+
   // Start a master.
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.registry = "replicated_log";
@@ -2679,6 +2679,7 @@ TEST_F(MasterTest, DISABLED_RegistryUpdateAfterReconfiguration)
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
+  Clock::advance(slaveFlags.registration_backoff_factor);
   AWAIT_READY(slaveRegisteredMessage);
 
   // Restart slave with changed resources.
@@ -2693,6 +2694,7 @@ TEST_F(MasterTest, DISABLED_RegistryUpdateAfterReconfiguration)
   slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
+  Clock::advance(slaveFlags.registration_backoff_factor);
   AWAIT_READY(slaveReregisteredMessage);
 
   // Verify master has correctly updated the slave state.
