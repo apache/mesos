@@ -976,7 +976,12 @@ int main(int argc, char** argv)
     if (user.isError()) {
       EXIT(EXIT_FAILURE) << "Failed to get username: " << user.error();
     } else {
+#ifndef __WINDOWS__
       EXIT(EXIT_FAILURE) << "No username for uid " << ::getuid();
+#else
+      // NOTE: The `::getuid()` function does not exist on Windows.
+      EXIT(EXIT_FAILURE) << "No username for current user";
+#endif // __WINDOWS__
     }
   }
 
