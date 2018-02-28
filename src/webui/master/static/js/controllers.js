@@ -548,22 +548,37 @@
     pollMetrics();
   }]);
 
+  mesosApp.controller('HomeCtrl', function($scope, $http) {
+    var hostname = $scope.$location.host() + ':' + $scope.$location.port();
 
-  mesosApp.controller('HomeCtrl', function($dialog, $scope) {
-    $scope.log = function(_$event) {
-      if (!$scope.state.external_log_file && !$scope.state.log_dir) {
-        $dialog.messageBox(
-          'Logging to a file is not enabled',
-          "Set the 'external_log_file' or 'log_dir' option if you wish to access the logs.",
-          [{label: 'Continue'}]
-        ).open();
-      } else {
+    var update = function() {
+      $scope.streamLogs = function(_$event) {
         pailer(
-            '//' + $scope.$location.host() + ':' + $scope.$location.port(),
+            '//' + hostname,
             '/master/log',
-            'Mesos Master (' + $scope.$location.host() + ':' + $scope.$location.port() + ')');
-      }
+            'Mesos Master (' + hostname + ')');
+      };
+
+      // We must query the '/flags' endpoint of *this* master since
+      // `$scope.state` contains the leader master state.
+      $http.jsonp('//' + hostname + '/flags?jsonp=JSON_CALLBACK')
+        .success(function (response) {
+          // The master attaches a "/master/log" file when either
+          // of these flags are set.
+          $scope.log_file_attached = response.flags.external_log_file || response.flags.log_dir;
+        })
+        .error(function(reason) {
+          $scope.alert_message = 'Failed to get master flags: ' + reason;
+          $('#alert').show();
+        });
     };
+
+    if ($scope.state) {
+      update();
+    }
+
+    var removeListener = $scope.$on('state_updated', update);
+    $scope.$on('$routeChangeStart', removeListener);
   });
 
   mesosApp.controller('FrameworksCtrl', function() {});
@@ -645,8 +660,8 @@
 
 
   mesosApp.controller('AgentCtrl', [
-      '$dialog', '$scope', '$routeParams', '$http', '$q', '$timeout', 'top',
-      function($dialog, $scope, $routeParams, $http, $q, $timeout, $top) {
+      '$scope', '$routeParams', '$http', '$q', '$timeout', 'top',
+      function($scope, $routeParams, $http, $q, $timeout, $top) {
     $scope.agent_id = $routeParams.agent_id;
 
     var update = function() {
@@ -658,16 +673,8 @@
 
       var agent = $scope.agents[$routeParams.agent_id];
 
-      $scope.log = function(_$event) {
-        if (!$scope.state.external_log_file && !$scope.state.log_dir) {
-          $dialog.messageBox(
-            'Logging to a file is not enabled',
-            "Set the 'external_log_file' or 'log_dir' option if you wish to access the logs.",
-            [{label: 'Continue'}]
-          ).open();
-        } else {
-          pailer(agentURLPrefix(agent, false), '/slave/log', 'Mesos Agent (' + agent.id + ')');
-        }
+      $scope.streamLogs = function(_$event) {
+        pailer(agentURLPrefix(agent, false), '/slave/log', 'Mesos Agent (' + agent.id + ')');
       };
 
 
@@ -686,6 +693,11 @@
           $scope.agent = {};
           $scope.agent.frameworks = {};
           $scope.agent.completed_frameworks = {};
+          $scope.agent.url_prefix = agentURLPrefix(agent, false);
+
+          // The agent attaches a "/slave/log" file when either
+          // of these flags are set.
+          $scope.agent.log_file_attached = $scope.state.external_log_file || $scope.state.log_dir;
 
           // Convert the reserved resources map into an array for inclusion
           // in an `ng-repeat` table.
