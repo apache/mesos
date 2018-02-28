@@ -108,6 +108,12 @@
   jira_user: anindya.sinha
   reviewboard_user: anisinha
 
+- name: Anurag Bihani
+  emails:
+    - anuragbihani@gmail.com
+  jira_user: anuragbihani
+  reviewboard_user: anuragbihani
+
 - name: Armand Grillet
   affiliations:
     - {organization: Mesosphere}
