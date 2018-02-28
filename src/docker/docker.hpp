@@ -19,7 +19,9 @@
 
 #include <list>
 #include <map>
+#include <mutex>
 #include <string>
+#include <utility>
 
 #include <process/future.hpp>
 #include <process/owned.hpp>
@@ -345,20 +347,26 @@ private:
   static void _inspect(
       const std::string& cmd,
       const process::Owned<process::Promise<Container>>& promise,
-      const Option<Duration>& retryInterval);
+      const Option<Duration>& retryInterval,
+      std::shared_ptr<std::pair<lambda::function<void()>, std::mutex>>
+        callback);
 
   static void __inspect(
       const std::string& cmd,
       const process::Owned<process::Promise<Container>>& promise,
       const Option<Duration>& retryInterval,
       process::Future<std::string> output,
-      const process::Subprocess& s);
+      const process::Subprocess& s,
+      std::shared_ptr<std::pair<lambda::function<void()>, std::mutex>>
+        callback);
 
   static void ___inspect(
       const std::string& cmd,
       const process::Owned<process::Promise<Container>>& promise,
       const Option<Duration>& retryInterval,
-      const process::Future<std::string>& output);
+      const process::Future<std::string>& output,
+      std::shared_ptr<std::pair<lambda::function<void()>, std::mutex>>
+        callback);
 
   static process::Future<std::list<Container>> _ps(
       const Docker& docker,
