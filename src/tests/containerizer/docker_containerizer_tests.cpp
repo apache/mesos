@@ -5180,7 +5180,7 @@ public:
       "    sleep $DELAY_SECONDS\n"
       "  fi\n"
       "done\n" +
-      testDockerBinary + " $@\n";
+      testDockerBinary + " \"$@\"\n";
 
     Try<Nothing> write = os::write(testDockerScript, dockerScriptText);
     ASSERT_SOME(write);
