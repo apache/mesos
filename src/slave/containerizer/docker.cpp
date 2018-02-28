@@ -1442,15 +1442,15 @@ Future<Docker::Container> DockerContainerizerProcess::launchExecutorContainer(
 
     run.onAny([=]() mutable {
       if (!run.isReady()) {
-        inspect.discard();
         promise->fail(run.isFailed() ? run.failure() : "discarded");
-      } else if (run->isNone()) {
         inspect.discard();
+      } else if (run->isNone()) {
         promise->fail("Failed to obtain exit status of container");
+        inspect.discard();
       } else {
         if (!WSUCCEEDED(run->get())) {
-          inspect.discard();
           promise->fail("Container " + WSTRINGIFY(run->get()));
+          inspect.discard();
         }
 
         // TODO(bmahler): Handle the case where the 'run' exits
