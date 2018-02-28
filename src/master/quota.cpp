@@ -85,22 +85,28 @@ Try<bool> RemoveQuota::perform(
 }
 
 
-Try<QuotaInfo> createQuotaInfo(const QuotaRequest& request)
-{
-  return createQuotaInfo(request.role(), request.guarantee());
-}
+namespace {
 
-
-Try<QuotaInfo> createQuotaInfo(
+QuotaInfo createQuotaInfo(
     const string& role,
-    const RepeatedPtrField<Resource>& resources)
+    const RepeatedPtrField<Resource>& guarantee,
+    const RepeatedPtrField<Resource>& limit)
 {
   QuotaInfo quota;
 
   quota.set_role(role);
-  quota.mutable_guarantee()->CopyFrom(resources);
+  quota.mutable_guarantee()->CopyFrom(guarantee);
+  quota.mutable_limit()->CopyFrom(limit);
 
   return quota;
+}
+
+} // namespace {
+
+
+QuotaInfo createQuotaInfo(const QuotaRequest& request)
+{
+  return createQuotaInfo(request.role(), request.guarantee(), request.limit());
 }
 
 

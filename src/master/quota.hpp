@@ -93,16 +93,8 @@ private:
 /**
  * Creates a `QuotaInfo` protobuf from the `QuotaRequest` protobuf.
  */
-Try<mesos::quota::QuotaInfo> createQuotaInfo(
+mesos::quota::QuotaInfo createQuotaInfo(
     const mesos::quota::QuotaRequest& request);
-
-/**
- * Creates a `QuotaInfo` protobuf from its components.
- */
-Try<mesos::quota::QuotaInfo> createQuotaInfo(
-    const std::string& role,
-    const google::protobuf::RepeatedPtrField<Resource>& resources);
-
 
 namespace validation {
 
