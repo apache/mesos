@@ -328,6 +328,7 @@ int main(int argc, char** argv)
 
     os::setenv("LIBPROCESS_IP", strings::trim(ipAddress.get()));
 #else
+    // TODO(andschwa): Support this when `os::shell` is enabled.
     EXIT(EXIT_FAILURE)
       << "The `--ip_discovery_command` is not yet supported on Windows";
 #endif // __WINDOWS__
@@ -344,6 +345,7 @@ int main(int argc, char** argv)
 
     os::setenv("LIBPROCESS_IP6", strings::trim(ip6Address.get()));
 #else
+    // TODO(andschwa): Support this when `os::shell` is enabled.
     EXIT(EXIT_FAILURE)
       << "The `--ip6_discovery_command` is not yet supported on Windows";
 #endif // __WINDOWS__
