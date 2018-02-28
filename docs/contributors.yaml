@@ -674,6 +674,12 @@
   jira_user: sachinparyani
   reviewboard_user: sachinparyani
 
+- name: Shubham Kumar
+  emails:
+    - shukumar@umail.iu.edu
+  jira_user: shukumar
+  reviewboard_user: shukumar
+
 - name: Stephen Hankinson
   affiliations:
     - {organization: Affinio Inc.}
