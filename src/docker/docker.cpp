@@ -15,6 +15,8 @@
 // limitations under the License.
 
 #include <map>
+#include <mutex>
+#include <utility>
 #include <vector>
 
 #include <stout/error.hpp>
@@ -56,6 +58,9 @@ using namespace process;
 
 using std::list;
 using std::map;
+using std::mutex;
+using std::pair;
+using std::shared_ptr;
 using std::string;
 using std::vector;
 
@@ -1054,20 +1059,29 @@ Future<Docker::Container> Docker::inspect(
 {
   Owned<Promise<Docker::Container>> promise(new Promise<Docker::Container>());
 
-  const string cmd =  path + " -H " + socket + " inspect " + containerName;
-  _inspect(cmd, promise, retryInterval);
+  // Holds a callback used for cleanup in case this call to 'docker inspect' is
+  // discarded, and a mutex to control access to the callback.
+  auto callback = std::make_shared<pair<lambda::function<void()>, mutex>>();
 
-  return promise->future();
+  const string cmd = path + " -H " + socket + " inspect " + containerName;
+  _inspect(cmd, promise, retryInterval, callback);
+
+  return promise->future()
+    .onDiscard([callback]() {
+      synchronized (callback->second) {
+        callback->first();
+      }
+    });
 }
 
 
 void Docker::_inspect(
     const string& cmd,
     const Owned<Promise<Docker::Container>>& promise,
-    const Option<Duration>& retryInterval)
+    const Option<Duration>& retryInterval,
+    shared_ptr<pair<lambda::function<void()>, mutex>> callback)
 {
   if (promise->future().hasDiscard()) {
-    promise->discard();
     return;
   }
 
@@ -1084,13 +1098,25 @@ void Docker::_inspect(
     return;
   }
 
+  // Set the `onDiscard` callback which will clean up the subprocess if the
+  // caller discards the `Future` that we returned.
+  synchronized (callback->second) {
+    callback->first = [promise, s, cmd]() {
+      promise->discard();
+      CHECK_SOME(s);
+      commandDiscarded(s.get(), cmd);
+    };
+  }
+
   // Start reading from stdout so writing to the pipe won't block
   // to handle cases where the output is larger than the pipe
   // capacity.
   const Future<string> output = io::read(s.get().out().get());
 
   s.get().status()
-    .onAny([=]() { __inspect(cmd, promise, retryInterval, output, s.get()); });
+    .onAny([=]() {
+      __inspect(cmd, promise, retryInterval, output, s.get(), callback);
+    });
 }
 
 
@@ -1099,11 +1125,10 @@ void Docker::__inspect(
     const Owned<Promise<Docker::Container>>& promise,
     const Option<Duration>& retryInterval,
     Future<string> output,
-    const Subprocess& s)
+    const Subprocess& s,
+    shared_ptr<pair<lambda::function<void()>, mutex>> callback)
 {
   if (promise->future().hasDiscard()) {
-    promise->discard();
-    output.discard();
     return;
   }
 
@@ -1121,7 +1146,7 @@ void Docker::__inspect(
       VLOG(1) << "Retrying inspect with non-zero status code. cmd: '"
               << cmd << "', interval: " << stringify(retryInterval.get());
       Clock::timer(retryInterval.get(),
-                   [=]() { _inspect(cmd, promise, retryInterval); } );
+                   [=]() { _inspect(cmd, promise, retryInterval, callback); });
       return;
     }
 
@@ -1143,7 +1168,7 @@ void Docker::__inspect(
   CHECK_SOME(s.out());
   output
     .onAny([=](const Future<string>& output) {
-      ___inspect(cmd, promise, retryInterval, output);
+      ___inspect(cmd, promise, retryInterval, output, callback);
     });
 }
 
@@ -1152,10 +1177,10 @@ void Docker::___inspect(
     const string& cmd,
     const Owned<Promise<Docker::Container>>& promise,
     const Option<Duration>& retryInterval,
-    const Future<string>& output)
+    const Future<string>& output,
+    shared_ptr<pair<lambda::function<void()>, mutex>> callback)
 {
   if (promise->future().hasDiscard()) {
-    promise->discard();
     return;
   }
 
@@ -1176,7 +1201,7 @@ void Docker::___inspect(
     VLOG(1) << "Retrying inspect since container not yet started. cmd: '"
             << cmd << "', interval: " << stringify(retryInterval.get());
     Clock::timer(retryInterval.get(),
-                 [=]() { _inspect(cmd, promise, retryInterval); } );
+                 [=]() { _inspect(cmd, promise, retryInterval, callback); } );
     return;
   }
 
