@@ -668,6 +668,12 @@
   jira_user: okuryu
   reviewboard_user: okuryu
 
+- name: Sachin Paryani
+  emails:
+    - sachin.paryani@gmail.com
+  jira_user: sachinparyani
+  reviewboard_user: sachinparyani
+
 - name: Stephen Hankinson
   affiliations:
     - {organization: Affinio Inc.}
