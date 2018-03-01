@@ -1729,10 +1729,19 @@ Future<Docker::Image> Docker::__pull(
   // provided which is a docker config file we want docker to be
   // able to pick it up from the sandbox directory where we store
   // all the URI downloads.
+  //
+  // NOTE: On Windows, Docker users $USERPROFILE instead of $HOME.
+  // See MESOS-8619 for more details.
+  //
   // TODO(gilbert): Deprecate the fetching docker config file
   // specified as URI method on 0.30.0 release.
+#ifdef __WINDOWS__
+  const std::string HOME = "USERPROFILE";
+#else
+  const std::string HOME = "HOME";
+#endif // __WINDOWS__
   map<string, string> environment = os::environment();
-  environment["HOME"] = directory;
+  environment[HOME] = directory;
 
   bool configExisted =
     os::exists(path::join(directory, ".docker", "config.json")) ||
@@ -1743,7 +1752,7 @@ Future<Docker::Image> Docker::__pull(
   // and another docker config file is specified using the
   // '--docker_config' agent flag.
   if (!configExisted && home.isSome()) {
-    environment["HOME"] = home.get();
+    environment[HOME] = home.get();
   }
 
   Try<Subprocess> s_ = subprocess(
