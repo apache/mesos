@@ -169,6 +169,20 @@ Option<Error> quotaInfo(const QuotaInfo& quotaInfo)
     names.insert(resource.name());
   }
 
+  // TODO(bmahler): We ensure the limit is not set here to enforce
+  // that the v0 API and v1 SET_QUOTA Call cannot set an explicit
+  // limit. Ideally this check would be done during call validation
+  // but, at the time of writing this comment, call validation does
+  // not validate the call type specific messages within `Call`.
+  // Once we start to allow limit to be set via UPDATE_QUOTA, this
+  // check will have to be moved into a SET_QUOTA validator and
+  // a v0 /quota validator.
+  if (quotaInfo.limit_size() > 0) {
+    return Error("Setting QuotaInfo.limit is not supported via"
+                 " /quota and the SET_QUOTA Call,"
+                 "please use the UPDATE_QUOTA Call");
+  }
+
   return None();
 }
 
