@@ -266,6 +266,55 @@ TEST_F(MasterQuotaTest, InvalidSetRequest)
 }
 
 
+// v0 /quota requests and SET_QUOTA calls cannot specify a limit.
+TEST_F(MasterQuotaTest, V0WithLimitDisallowed)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Ensure a /quota POST request with limit is rejected.
+  QuotaRequest quotaRequest;
+  quotaRequest.set_role("role");
+  *quotaRequest.mutable_guarantee() =
+    CHECK_NOTERROR(Resources::parse("cpus:10;mem:20"));
+  *quotaRequest.mutable_limit() =
+    CHECK_NOTERROR(Resources::parse("cpus:20;mem:40"));
+
+  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+
+  Future<Response> response = process::http::post(
+      master.get()->pid,
+      "quota",
+      headers,
+      string(jsonify(JSON::Protobuf(quotaRequest))));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+  EXPECT_TRUE(strings::contains(
+      response->body,
+      "Setting QuotaInfo.limit is not supported"))
+    << response->body;
+
+  // Ensure a SET_QUOTA Call with limit is rejected.
+  mesos::master::Call call;
+  call.set_type(mesos::master::Call::SET_QUOTA);
+  *call.mutable_set_quota()->mutable_quota_request() = quotaRequest;
+
+  headers["Content-Type"] = APPLICATION_PROTOBUF;
+
+  response = process::http::post(
+      master.get()->pid,
+      "api/v1",
+      headers,
+      call.SerializeAsString());
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+  EXPECT_TRUE(strings::contains(
+      response->body,
+      "Setting QuotaInfo.limit is not supported"))
+    << response->body;
+}
+
+
 // Checks that a quota set request is not satisfied if an invalid
 // field is set or provided data are not supported.
 TEST_F(MasterQuotaTest, SetRequestWithInvalidData)
