@@ -15,6 +15,7 @@
 
 #include <sys/utime.h>
 
+#include <algorithm>
 #include <list>
 #include <map>
 #include <memory>
@@ -795,14 +796,18 @@ inline Try<Nothing> set_job_cpu_limit(pid_t pid, double cpus)
   // `(cpus / os::cpus()) * 100 * 100`, or the requested `cpus` divided by the
   // number of CPUs to obtain a fractional representation, multiplied by 100 to
   // make it a percentage, multiplied again by 100 to become a `CpuRate`.
-  Try<long> total_cpus = os::cpus();
-  control_info.CpuRate =
-    static_cast<DWORD>((cpus / total_cpus.get()) * 100 * 100);
-  // This must not be set to 0, so 1 is the minimum.
-  if (control_info.CpuRate < 1) {
-    control_info.CpuRate = 1;
-  }
-
+  //
+  // Mathematically, we're normalizing the requested CPUS to a range
+  // of [1, 10000] cycles. However, because the input is not
+  // sanitized, we have to handle the edge case of the ratio being
+  // greater than 1. So we take the `min(max(ratio * 10000, 1),
+  // 10000)`. We don't consider going out of bounds an error because
+  // CPU limitations are inherently imprecise.
+  const long total_cpus = os::cpus().get(); // This doesn't fail on Windows.
+  // This must be constrained. We don't care about perfect precision.
+  const long cycles = static_cast<long>((cpus / total_cpus) * 10000L);
+  const long cpu_rate = std::min(std::max(cycles, 1L), 10000L);
+  control_info.CpuRate = static_cast<DWORD>(cpu_rate);
   Try<SharedHandle> job_handle = os::open_job(
       JOB_OBJECT_SET_ATTRIBUTES,
       false,
