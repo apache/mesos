@@ -286,8 +286,9 @@
           })
           // ---
 
-          // --- Allow sorting by column based on the <th> data-key attr
-          var th = element.find('th');
+          // --- Allow sorting by column based on the <th> data-key attribute.
+          // Does not apply for group columns as their children are sortable.
+          var th = element.find('th').not('.group-column');
           th.attr('ng-click', 'sortColumn($event)');
           $compile(th)(scope);
 
