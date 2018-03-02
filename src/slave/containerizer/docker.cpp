@@ -1711,7 +1711,47 @@ Future<Nothing> DockerContainerizerProcess::update(
     return __update(containerId, _resources, container->pid.get());
   }
 
-  return docker->inspect(containers_.at(containerId)->containerName)
+  string containerName = containers_.at(containerId)->containerName;
+
+  // Since the Docker daemon might hang, we have to retry the inspect command.
+  //
+  // NOTE: This code is duplicated from the built-in docker executor, but
+  // the retry interval is not passed to `inspect`, because the container might
+  // be terminated.
+  // TODO(abudnik): Consider using a class helper for retrying docker commands.
+  auto inspectLoop = loop(
+      self(),
+      [=]() {
+        return await(
+            docker->inspect(containerName)
+              .after(
+                  slave::DOCKER_INSPECT_TIMEOUT,
+                  [=](Future<Docker::Container> future) {
+                    LOG(WARNING) << "Docker inspect timed out after "
+                                 << slave::DOCKER_INSPECT_TIMEOUT
+                                 << " for container "
+                                 << "'" << containerName << "'";
+
+                    // We need to clean up the hanging Docker CLI process.
+                    // Discarding the inspect future triggers a callback in
+                    // the Docker library that kills the subprocess and
+                    // transitions the future.
+                    future.discard();
+                    return future;
+                  }));
+      },
+      [](const Future<Docker::Container>& future)
+          -> Future<ControlFlow<Docker::Container>> {
+        if (future.isReady()) {
+          return Break(future.get());
+        }
+        if (future.isFailed()) {
+          return Failure(future.failure());
+        }
+        return Continue();
+      });
+
+  return inspectLoop
     .then(defer(self(), &Self::_update, containerId, _resources, lambda::_1));
 #else
   return Nothing();

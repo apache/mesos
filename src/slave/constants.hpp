@@ -135,6 +135,9 @@ constexpr Duration DOCKER_REMOVE_DELAY = Hours(6);
 // container.
 constexpr Duration DOCKER_INSPECT_DELAY = Seconds(1);
 
+// Default duration to wait for `inspect` command completion.
+constexpr Duration DOCKER_INSPECT_TIMEOUT = Seconds(5);
+
 // Default maximum number of docker inspect calls docker ps will invoke
 // in parallel to prevent hitting system's open file descriptor limit.
 constexpr size_t DOCKER_PS_MAX_INSPECT_CALLS = 100;
