@@ -971,7 +971,7 @@ launcher if it's running as root on Linux.
     --launcher_dir=VALUE
   </td>
   <td>
-Directory path of Mesos binaries. Mesos looks for the health-check,
+Directory path of Mesos binaries. Mesos looks for the
 fetcher, containerizer, and executor binary files under this
 directory. (default: /usr/local/libexec/mesos)
   </td>
