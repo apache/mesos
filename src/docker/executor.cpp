@@ -97,7 +97,6 @@ public:
       killed(false),
       terminated(false),
       killedByHealthCheck(false),
-      killingInProgress(false),
       launcherDir(launcherDir),
       docker(docker),
       containerName(containerName),
@@ -323,6 +322,13 @@ public:
         return Nothing();
       }));
 
+    inspect
+      .after(DOCKER_INSPECT_TIMEOUT, [=](const Future<Nothing>&) {
+        LOG(WARNING) << "Docker inspect has not finished after "
+                     << DOCKER_INSPECT_TIMEOUT;
+        return inspect;
+      });
+
     inspect.onFailed(defer(self(), [=](const string& failure) {
       LOG(ERROR) << "Failed to inspect container '" << containerName << "'"
                  << ": " << failure;
@@ -442,9 +448,8 @@ private:
     // TODO(alexr): If a kill is in progress, consider adjusting
     // the grace period if a new one is provided.
 
-    // Issue the kill signal if the container is running
-    // and kill attempt is not in progress.
-    if (run.isSome() && !killingInProgress) {
+    // Issue the kill signal if there was an attempt to launch the container.
+    if (run.isSome()) {
       // We have to issue the kill after 'docker inspect' has
       // completed, otherwise we may race with 'docker run'
       // and docker may not know about the container. Note
@@ -453,6 +458,15 @@ private:
       // issued the kill.
       inspect
         .onAny(defer(self(), &Self::_killTask, _taskId, gracePeriod));
+
+      // If the inspect takes too long we discard it to ensure we
+      // don't wait forever, however in this case there may be no
+      // TASK_RUNNING update.
+      inspect
+        .after(DOCKER_INSPECT_TIMEOUT, [=](const Future<Nothing>&) {
+          inspect.discard();
+          return inspect;
+        });
     }
   }
 
@@ -463,9 +477,7 @@ private:
     CHECK_SOME(taskId);
     CHECK_EQ(taskId_, taskId.get());
 
-    if (!terminated && !killingInProgress) {
-      killingInProgress = true;
-
+    if (!terminated) {
       // Once the task has been transitioned to `killed`,
       // there is no way back, even if the kill attempt
       // failed. This also allows us to send TASK_KILLING
@@ -500,27 +512,42 @@ private:
         }
       }
 
+      // If a previous attempt to stop a Docker container is still in progress,
+      // we need to kill the hanging Docker CLI subprocess. Discarding this
+      // future triggers a callback in the Docker library that kills the
+      // subprocess.
+      if (stop.isPending()) {
+        LOG(WARNING) << "Previous docker stop has not terminated yet"
+                     << " for container '" << containerName << "'";
+        stop.discard();
+      }
+
       // TODO(bmahler): Replace this with 'docker kill' so
       // that we can adjust the grace period in the case of
       // a `KillPolicy` override.
+      //
+      // NOTE: `docker stop` may or may not finish. Our behaviour is to give
+      // the subprocess a chance to finish until next time `_killtask` is
+      // invoked. Also, invoking `docker stop` might be unsuccessful, in which
+      // case the container most probably does not receive the signal.
+      // In any case we should allow schedulers to retry the kill operation or,
+      // if the kill was initiated by a failing health check, retry ourselves.
+      // We do not bail out nor stop retrying to avoid sending a terminal
+      // status update while the container might still be running.
       stop = docker->stop(containerName, gracePeriod);
 
-      // Invoking `docker stop` might be unsuccessful, in which case the
-      // container most probably does not receive the signal. In this case we
-      // should allow schedulers to retry the kill operation or, if the kill
-      // was initiated by a failing health check, retry ourselves. We do not
-      // bail out nor stop retrying to avoid sending a terminal status update
-      // while the container might still be running.
-      //
-      // NOTE: `docker stop` might also hang. We do not address this for now,
-      // because there is no evidence that in this case docker daemon might
-      // function properly, i.e., it's only the docker cli command that hangs,
-      // and hence there is not so much we can do. See MESOS-6743.
+      if (killedByHealthCheck) {
+        stop
+          .after(KILL_RETRY_INTERVAL, defer(self(), [=](Future<Nothing>) {
+            LOG(INFO) << "Retrying to kill task";
+            _killTask(taskId_, gracePeriod);
+            return stop;
+          }));
+      }
+
       stop.onFailed(defer(self(), [=](const string& failure) {
         LOG(ERROR) << "Failed to stop container '" << containerName << "'"
                    << ": " << failure;
-
-        killingInProgress = false;
 
         if (killedByHealthCheck) {
           LOG(INFO) << "Retrying to kill task in " << KILL_RETRY_INTERVAL;
@@ -724,7 +751,6 @@ private:
   bool terminated;
 
   bool killedByHealthCheck;
-  bool killingInProgress; // Guard against simultaneous kill attempts.
 
   string launcherDir;
   Owned<Docker> docker;
