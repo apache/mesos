@@ -1293,6 +1293,13 @@ void Docker::_inspect(
   // Set the `onDiscard` callback which will clean up the subprocess if the
   // caller discards the `Future` that we returned.
   synchronized (callback->second) {
+    // It's possible that the caller has discarded their future while we were
+    // creating a new subprocess, so we clean up here if necessary.
+    if (promise->future().hasDiscard()) {
+      commandDiscarded(s.get(), cmd);
+      return;
+    }
+
     callback->first = [promise, s, cmd]() {
       promise->discard();
       CHECK_SOME(s);
