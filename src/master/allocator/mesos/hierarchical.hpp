@@ -444,19 +444,13 @@ protected:
   // (e.g. some tasks and/or executors are consuming resources under the role).
   hashmap<std::string, hashset<FrameworkID>> roles;
 
-  // Configured quota for each role, if any. Setting quota for a role
-  // changes the order that the role's frameworks are offered
-  // resources. Quota comes before fair share, hence setting quota moves
-  // the role's frameworks towards the front of the allocation queue.
-  //
-  // NOTE: We currently associate quota with roles, but this may
-  // change in the future.
+  // Configured quota for each role, if any. If a role does not have
+  // an entry here it has the default quota of (no guarantee, no limit).
   hashmap<std::string, Quota> quotas;
 
   // Aggregated resource reservations on all agents tied to a
   // particular role, if any. These are stripped scalar quantities
-  // that contain no meta-data. Used for accounting resource
-  // reservations for quota limit.
+  // that contain no meta-data.
   //
   // Only roles with non-empty reservations will be stored in the map.
   hashmap<std::string, Resources> reservationScalarQuantities;
@@ -473,11 +467,14 @@ protected:
   // The master's domain, if any.
   Option<DomainInfo> domain;
 
-  // There are two stages of allocation. During the first stage resources
-  // are allocated only to frameworks under roles with quota set. During
-  // the second stage remaining resources that would not be required to
-  // satisfy un-allocated quota are then allocated to frameworks under
-  // roles with no quota set.
+  // There are two stages of allocation:
+  //
+  //   Stage 1: Allocate to satisfy quota guarantees.
+  //
+  //   Stage 2: Allocate above quota guarantees up to quota limits.
+  //            Note that we need to hold back enough "headroom"
+  //            to ensure that any unsatisfied quota can be
+  //            satisfied later.
   //
   // Each stage comprises two levels of sorting, hence "hierarchical".
   // Level 1 sorts across roles:
@@ -510,24 +507,16 @@ protected:
   // The total cluster resources are used as the resource pool.
   process::Owned<Sorter> roleSorter;
 
-  // A dedicated sorter for roles for which quota is set. This sorter
-  // determines the order in which quota'ed roles are allocated resources
-  // during Level 1 of the first stage. Quota'ed roles have resources
-  // allocated up to their allocated quota (the first stage) prior to
-  // non-quota'ed roles (the second stage). Since only non-revocable
+  // A dedicated sorter for roles that have a non-default quota.
+  // This sorter determines the order in which guarantees are allocated
+  // during Level 1 of the first stage. Since only non-revocable
   // resources are available for quota, the total cluster non-revocable
-  // resoures are used as the resource pool.
+  // resources are used as the resource pool.
   //
-  // NOTE: A role appears in `quotaRoleSorter` if it has a quota (even if
-  // no frameworks are currently registered in that role). In contrast,
-  // `roleSorter` only contains entries for roles with one or more
-  // registered frameworks.
-  //
-  // NOTE: We do not include revocable resources in the quota role sorter,
-  // because the quota role sorter's job is to perform fair sharing between
-  // the quota roles as it pertains to their level of quota satisfaction.
-  // Since revocable resources do not increase a role's level of satisfaction
-  // toward its quota, we choose to exclude them from the quota role sorter.
+  // NOTE: A role appears in `quotaRoleSorter` if it has a non-default
+  // quota (even if no frameworks are currently registered in that role).
+  // In contrast, `roleSorter` only contains entries for roles with one
+  // or more registered frameworks.
   process::Owned<Sorter> quotaRoleSorter;
 
   // A collection of sorters, one per active role. Each sorter determines
