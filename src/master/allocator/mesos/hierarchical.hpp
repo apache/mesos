@@ -507,6 +507,13 @@ protected:
   // The total cluster resources are used as the resource pool.
   process::Owned<Sorter> roleSorter;
 
+  // TODO(bmahler): Remove this in favor of either using the same sorting
+  // between satisfying guarantees and bursting above guarantees up to
+  // limits, or have a different sorting technique specifically for
+  // satisfying guarantees (e.g. MESOS-8026). This is tech debt from
+  // when a "quota role" was considered different from a "non-quota"
+  // role. However, they are the same, one just has a default quota.
+  //
   // A dedicated sorter for roles that have a non-default quota.
   // This sorter determines the order in which guarantees are allocated
   // during Level 1 of the first stage. Since only non-revocable
