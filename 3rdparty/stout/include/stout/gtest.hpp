@@ -249,6 +249,7 @@ inline ::testing::AssertionResult AssertExited(
 {
   if (WIFEXITED(actual)) {
     return ::testing::AssertionSuccess();
+#ifndef __WINDOWS__
   } else if (WIFSIGNALED(actual)) {
     return ::testing::AssertionFailure()
       << "Expecting WIFEXITED(" << actualExpr << ") but "
@@ -259,6 +260,7 @@ inline ::testing::AssertionResult AssertExited(
       << "Expecting WIFEXITED(" << actualExpr << ") but"
       << " WIFSTOPPED(" << actualExpr << ") is true and "
       << "WSTOPSIG(" << actualExpr << ") is " << strsignal(WSTOPSIG(actual));
+#endif // __WINDOWS__
   }
 
   return ::testing::AssertionFailure()
@@ -340,6 +342,8 @@ inline ::testing::AssertionResult AssertExitStatusNe(
   EXPECT_PRED_FORMAT2(AssertExitStatusNe, expected, actual)
 
 
+// Signals aren't used in Windows, so #ifdef these out.
+#ifndef __WINDOWS__
 inline ::testing::AssertionResult AssertSignaled(
     const char* actualExpr,
     const int actual)
@@ -434,5 +438,6 @@ inline ::testing::AssertionResult AssertTermSigNe(
 
 #define EXPECT_WTERMSIG_NE(expected, actual)                    \
   EXPECT_PRED_FORMAT2(AssertTermSigNe, expected, actual)
+#endif // __WINDOWS__
 
 #endif // __STOUT_GTEST_HPP__

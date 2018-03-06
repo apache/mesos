@@ -380,35 +380,10 @@ inline const char* strsignal(int signum)
 #define WIFSIGNALED(x) ((x) != -1)
 #endif // WIFSIGNALED
 
-// Returns the number of the signal that caused the child process to
-// terminate, only be used if WIFSIGNALED is true.
-#ifndef WTERMSIG
-#define WTERMSIG(x) 0
-#endif // WTERMSIG
-
-// Whether the child produced a core dump, only be used if WIFSIGNALED is true.
-#ifndef WCOREDUMP
-#define WCOREDUMP(x) false
-#endif // WCOREDUMP
-
-// Whether the child was stopped by delivery of a signal.
-#ifndef WIFSTOPPED
-#define WIFSTOPPED(x) false
-#endif // WIFSTOPPED
-
-// Whether the child was stopped by delivery of a signal.
-#ifndef WSTOPSIG
-#define WSTOPSIG(x) 0
-#endif // WSTOPSIG
-
 // Specifies that `::waitpid` should return immediately rather than
 // blocking and waiting for child to notify of state change.
 #ifndef WNOHANG
 #define WNOHANG 1
 #endif // WNOHANG
-
-#ifndef WUNTRACED
-#define WUNTRACED   2 // Tell about stopped, untraced children.
-#endif // WUNTRACED
 
 #endif // __STOUT_WINDOWS_HPP__
