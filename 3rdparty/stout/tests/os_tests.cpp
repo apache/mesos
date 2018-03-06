@@ -145,14 +145,14 @@ TEST_F(OsTest, Argv)
 
 TEST_F(OsTest, System)
 {
-  EXPECT_EQ(0, os::system("exit 0"));
-  EXPECT_EQ(0, os::system(SLEEP_COMMAND(0)));
-  EXPECT_NE(0, os::system("exit 1"));
-  EXPECT_NE(0, os::system("invalid.command"));
+  EXPECT_SOME_EQ(0, os::system("exit 0"));
+  EXPECT_SOME_EQ(0, os::system(SLEEP_COMMAND(0)));
+  EXPECT_SOME_NE(0, os::system("exit 1"));
+  EXPECT_SOME_NE(0, os::system("invalid.command"));
 
   // Note that ::system returns 0 for the following two cases as well.
-  EXPECT_EQ(0, os::system(""));
-  EXPECT_EQ(0, os::system(" "));
+  EXPECT_SOME_EQ(0, os::system(""));
+  EXPECT_SOME_EQ(0, os::system(" "));
 }
 
 

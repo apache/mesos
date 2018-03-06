@@ -25,6 +25,8 @@
 
 #include <stout/error.hpp>
 #include <stout/format.hpp>
+#include <stout/none.hpp>
+#include <stout/option.hpp>
 #include <stout/try.hpp>
 
 #include <stout/os/raw/argv.hpp>
@@ -117,22 +119,22 @@ Try<std::string> shell(const std::string& fmt, const T&... t)
 
 
 // Executes a command by calling "/bin/sh -c <command>", and returns
-// after the command has been completed. Returns 0 if succeeds, and
-// return -1 on error (e.g., fork/exec/waitpid failed). This function
-// is async signal safe. We return int instead of returning a Try
-// because Try involves 'new', which is not async signal safe.
+// after the command has been completed. Returns the exit code on success
+// and `None` on error (e.g., fork/exec/waitpid failed). This function
+// is async signal safe. We return an `Option<int>` instead of a `Try<int>`,
+// because although `Try` does not dynamically allocate, `Error` uses
+// `std::string`, which is not async signal safe.
 //
 // Note: Be cautious about shell injection
 // (https://en.wikipedia.org/wiki/Code_injection#Shell_injection)
 // when using this method and use proper validation and sanitization
 // on the `command`. For this reason in general `os::spawn` is
 // preferred if a shell is not required.
-inline int system(const std::string& command)
+inline Option<int> system(const std::string& command)
 {
   pid_t pid = ::fork();
-
   if (pid == -1) {
-    return -1;
+    return None();
   } else if (pid == 0) {
     // In child process.
     ::execlp(
@@ -143,7 +145,7 @@ inline int system(const std::string& command)
     int status;
     while (::waitpid(pid, &status, 0) == -1) {
       if (errno != EINTR) {
-        return -1;
+        return None();
       }
     }
 

@@ -24,6 +24,7 @@
 
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
+#include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/try.hpp>
@@ -394,17 +395,22 @@ inline int spawn(
 
 
 // Executes a command by calling "cmd /c <command>", and returns
-// after the command has been completed. Returns exit code if succeeds, and
-// return -1 on error.
+// after the command has been completed. Returns the process exit
+// code on success and `None` on error.
 //
 // Note: Be cautious about shell injection
 // (https://en.wikipedia.org/wiki/Code_injection#Shell_injection)
 // when using this method and use proper validation and sanitization
 // on the `command`. For this reason in general `os::spawn` is
 // preferred if a shell is not required.
-inline int system(const std::string& command)
+inline Option<int> system(const std::string& command)
 {
-  return os::spawn(Shell::name, {Shell::arg0, Shell::arg1, command});
+  // TODO(akagup): Change `os::spawn` to return `Option<int>` as well.
+  int pid = os::spawn(Shell::name, {Shell::arg0, Shell::arg1, command});
+  if (pid == -1) {
+    return None();
+  }
+  return pid;
 }
 
 

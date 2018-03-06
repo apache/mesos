@@ -442,7 +442,8 @@ TEST_F(RmdirContinueOnErrorTest, RemoveWithContinueOnError)
   ASSERT_SOME(os::mkdir(mountPoint_));
   ASSERT_SOME(os::touch(regularFile));
 
-  ASSERT_EQ(0, os::system("mount --bind " + mountPoint_ + " " + mountPoint_));
+  ASSERT_SOME_EQ(0, os::system(
+      "mount --bind " + mountPoint_ + " " + mountPoint_));
 
   // Register the mount point for cleanup.
   mountPoint = Option<string>(mountPoint_);
