@@ -23,6 +23,7 @@
 
 #include <sys/mman.h>
 
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <thread>
@@ -39,8 +40,43 @@
 using namespace mesos;
 
 
+// Helper function to check whether the system uses swap.
+//
+// TODO(bbannier): Augment this implementation to explicitly check for swap
+// on platforms other than Linux as well. It might make sense to move this
+// function to stout once the implementation becomes more complete.
+Try<bool> hasSwap() {
+  // We read `/proc/swaps` and check whether any active swap
+  // partitions are listed. The format of that file is e.g.,
+  //
+  //     Filename  Type      Size       Used Priority
+  //     /dev/sda4 partition 1234567890 348  -1
+  //     /dev/sdb4 partition 1234567890 0    -2
+  //
+  // If we find more than one line (including the header) the
+  // system likely uses swap.
+  int numberOfLines = 0;
+
+  std::ifstream swaps("/proc/swaps");
+  std::string line;
+
+  while (std::getline(swaps, line)) {
+    ++numberOfLines;
+  }
+
+  // Check for read errors. This provides a default implementation
+  // for platforms without proc filesystem as well.
+  if (!swaps.eof()) {
+    return Error("Could not determine whether this system uses swap");
+  }
+
+  return numberOfLines > 1;
+}
+
+
 // The amount of memory in MB each balloon step consumes.
 const static size_t BALLOON_STEP_MB = 64;
+
 
 // This function will increase the memory footprint gradually.
 // `TaskInfo.data` specifies the upper limit (in MB) of the memory
@@ -61,6 +97,19 @@ void run(ExecutorDriver* driver, const TaskInfo& task)
   CHECK(_limit.isSome());
   const size_t limit = _limit->bytes() / Bytes::MEGABYTES;
 
+  // On systems with swap partitions we explicitly prevent memory used by the
+  // executor from being swapped out with `mlock`. Since the amount of memory a
+  // process can lock is controlled by an rlimit, we only `mlock` when
+  // strictly necessary to prevent complicating the test setup.
+  Try<bool> hasSwap_ = hasSwap();
+  const bool lockMemory = hasSwap_.isError() || hasSwap_.get();
+
+  if (lockMemory) {
+    LOG(INFO)
+      << "System might use swap partitions, will explicitly"
+      << " lock memory to prevent swapping";
+  }
+
   const size_t chunk = BALLOON_STEP_MB * 1024 * 1024;
   for (size_t i = 0; i < limit / BALLOON_STEP_MB; i++) {
     LOG(INFO)
@@ -73,14 +122,16 @@ void run(ExecutorDriver* driver, const TaskInfo& task)
           "Failed to allocate page-aligned memory, posix_memalign").message;
     }
 
-    // We use memset and mlock here to make sure that the memory
-    // actually gets paged in and thus accounted for.
+    // We use `memset` and possibly `mlock` here to make sure that the
+    // memory actually gets paged in and thus accounted for.
     if (memset(buffer, 1, chunk) != buffer) {
       LOG(FATAL) << ErrnoError("Failed to fill memory, memset").message;
     }
 
-    if (mlock(buffer, chunk) != 0) {
-      LOG(FATAL) << ErrnoError("Failed to lock memory, mlock").message;
+    if (lockMemory) {
+      if (mlock(buffer, chunk) != 0) {
+        LOG(FATAL) << ErrnoError("Failed to lock memory, mlock").message;
+      }
     }
 
     // Try not to increase the memory footprint too fast.
