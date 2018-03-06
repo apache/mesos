@@ -761,6 +761,22 @@ struct hash<mesos::ResourceProviderID>
   }
 };
 
+
+template <>
+struct hash<mesos::UUID>
+{
+  typedef size_t result_type;
+
+  typedef mesos::UUID argument_type;
+
+  result_type operator()(const argument_type& uuid) const
+  {
+    size_t seed = 0;
+    boost::hash_combine(seed, uuid.value());
+    return seed;
+  }
+};
+
 } // namespace std {
 
 #endif // __MESOS_TYPE_UTILS_H__
