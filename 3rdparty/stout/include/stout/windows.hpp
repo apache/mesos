@@ -364,10 +364,13 @@ inline const char* strsignal(int signum)
 
 #define SIGPIPE 100
 
-// `os::system` returns -1 if the processor cannot be started
-// therefore any return value indicates the process has been started
+// On Windows, the exit code, unlike Linux, is simply a 32 bit unsigned integer
+// with no special encoding. Since the `status` value from `waitpid` returns a
+// 32 bit integer, we can't use it to determine if the process exited normally,
+// because all the possibilities could be valid exit codes. So, we assume that
+// if we get an exit code, the process exited normally.
 #ifndef WIFEXITED
-#define WIFEXITED(x) ((x) != -1)
+#define WIFEXITED(x) true
 #endif // WIFEXITED
 
 // Returns the exit status of the child.
@@ -376,8 +379,12 @@ inline const char* strsignal(int signum)
 #define WEXITSTATUS(x) static_cast<DWORD>(x)
 #endif // WEXITSTATUS
 
+// A signaled Windows process always exits with status code 3, but it's
+// impossible to distinguish that from a process that exits normally with
+// status code 3. Since signals aren't really used on Windows, we will
+// assume that the process is not signaled.
 #ifndef WIFSIGNALED
-#define WIFSIGNALED(x) ((x) != -1)
+#define WIFSIGNALED(x) false
 #endif // WIFSIGNALED
 
 // Specifies that `::waitpid` should return immediately rather than
