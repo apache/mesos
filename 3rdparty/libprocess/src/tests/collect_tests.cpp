@@ -274,38 +274,3 @@ TEST(AwaitTest, AwaitSingleDiscard)
 
   EXPECT_TRUE(promise.future().hasDiscard());
 }
-
-
-TEST(AwaitTest, AwaitSingleAbandon)
-{
-  Owned<Promise<int>> promise(new Promise<int>());
-
-  auto bar = [&]() {
-    return promise->future();
-  };
-
-  auto foo = [&]() {
-    return await(bar())
-      .then([](const Future<int>& f) {
-        return f
-          .then([](int i) {
-            return stringify(i);
-          });
-      });
-  };
-
-  // There is a race from the time that we reset the promise to when
-  // the await process is terminated so we need to use Future::recover
-  // to properly handle this case.
-  Future<string> future = foo()
-    .recover([](const Future<string>& f) -> Future<string> {
-      if (f.isAbandoned()) {
-        return "hello";
-      }
-      return f;
-    });
-
-  promise.reset();
-
-  AWAIT_EQ("hello", future);
-}
