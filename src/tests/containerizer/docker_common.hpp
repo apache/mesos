@@ -29,6 +29,7 @@
 #include <stout/gtest.hpp>
 #include <stout/lambda.hpp>
 #include <stout/nothing.hpp>
+#include <stout/option.hpp>
 #include <stout/try.hpp>
 
 #include <stout/os/mkdtemp.hpp>
@@ -181,6 +182,18 @@ inline void removeDockerIPv6UserNetwork()
     << "Unable to delete the Docker IPv6 network "
     << DOCKER_IPv6_NETWORK
     << " : " << err.get();
+#endif // __WINDOWS__
+}
+
+
+inline void assertDockerKillStatus(process::Future<Option<int>>& status)
+{
+#ifdef __WINDOWS__
+  // On Windows, there is no standard exit code for determining if a process
+  // as been killed. However, in Docker, it will not return 0.
+  AWAIT_EXPECT_WEXITSTATUS_NE(0, status.get());
+#else
+  AWAIT_EXPECT_WEXITSTATUS_EQ(128 + SIGKILL, status);
 #endif // __WINDOWS__
 }
 

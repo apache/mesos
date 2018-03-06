@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <algorithm>
 #include <list>
 #include <string>
 #include <vector>
@@ -39,6 +40,8 @@
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
 
+#include "tests/containerizer/docker_common.hpp"
+
 using namespace process;
 
 using std::list;
@@ -52,9 +55,35 @@ namespace tests {
 
 static const string NAME_PREFIX = "mesos-docker";
 
+#ifdef __WINDOWS__
+static constexpr char DOCKER_MAPPED_DIR_PATH[] = "C:\\mnt\\mesos\\sandbox";
+static constexpr char LIST_COMMAND[] = "dir";
+#else
+static constexpr char DOCKER_MAPPED_DIR_PATH[] = "/mnt/mesos/sandbox";
+
+// Since Mesos doesn't support the `z/Z` flags for docker volumes, if you have
+// SELinux on your system, regular `ls` will faill with permission denied.
+// `ls -d` just lists the directory name if it exists, which is sufficient for
+// these tests.
+static constexpr char LIST_COMMAND[] = "ls -d";
+#endif // __WINDOWS__
+
+static constexpr char TEST_DIR_NAME[] = "test_dir";
 
 class DockerTest : public MesosTest
 {
+  virtual void SetUp()
+  {
+    Future<Nothing> pull = pullDockerImage(DOCKER_TEST_IMAGE);
+
+    LOG_FIRST_N(WARNING, 1) << "Downloading " << string(DOCKER_TEST_IMAGE)
+                            << ". This may take a while...";
+
+    // The Windows image is ~200 MB, while the Linux image is ~2MB, so
+    // hopefully this is enough time for the Windows image.
+    AWAIT_READY_FOR(pull, Minutes(10));
+  }
+
   virtual void TearDown()
   {
     Try<Owned<Docker>> docker = Docker::create(
@@ -76,6 +105,15 @@ class DockerTest : public MesosTest
   }
 
 protected:
+  // Converts `path` to C:\`path` on Windows and /`path` on Linux.
+  string fromRootDir(const string& str) {
+#ifdef __WINDOWS__
+    return path::join("C:", str);
+#else
+    return "/" + str;
+#endif // __WINDOWS__
+  }
+
   Volume createDockerVolume(
       const string& driver,
       const string& name,
@@ -98,7 +136,7 @@ protected:
 
 
 // This test tests the functionality of the docker's interfaces.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(DockerTest, ROOT_DOCKER_interface)
+TEST_F(DockerTest, ROOT_DOCKER_interface)
 {
   const string containerName = NAME_PREFIX + "-test";
   Resources resources = Resources::parse("cpus:1;mem:512").get();
@@ -122,18 +160,19 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DockerTest, ROOT_DOCKER_interface)
   containerInfo.set_type(ContainerInfo::DOCKER);
 
   ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
+  dockerInfo.set_image(DOCKER_TEST_IMAGE);
+
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
   CommandInfo commandInfo;
-  commandInfo.set_value("sleep 120");
+  commandInfo.set_value(DOCKER_SLEEP_CMD(120));
 
   Try<Docker::RunOptions> runOptions = Docker::RunOptions::create(
       containerInfo,
       commandInfo,
       containerName,
       directory.get(),
-      "/mnt/mesos/sandbox",
+      DOCKER_MAPPED_DIR_PATH,
       resources);
 
   ASSERT_SOME(runOptions);
@@ -167,7 +206,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DockerTest, ROOT_DOCKER_interface)
   Future<Nothing> stop = docker->stop(containerName);
   AWAIT_READY(stop);
 
-  AWAIT_EXPECT_WEXITSTATUS_EQ(128 + SIGKILL, status);
+  assertDockerKillStatus(status);
 
   // Now, the container should not appear in the result of ps().
   // But it should appear in the result of ps(true).
@@ -219,7 +258,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DockerTest, ROOT_DOCKER_interface)
       commandInfo,
       containerName,
       directory.get(),
-      "/mnt/mesos/sandbox",
+      DOCKER_MAPPED_DIR_PATH,
       resources);
 
   ASSERT_SOME(runOptions);
@@ -247,7 +286,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DockerTest, ROOT_DOCKER_interface)
   rm = docker->rm(containerName, true);
   AWAIT_READY(rm);
 
-  AWAIT_EXPECT_WEXITSTATUS_EQ(128 + SIGKILL, status);
+  assertDockerKillStatus(status);
 
   // Verify that the container is totally removed, that is we can't
   // find it by ps() or ps(true).
@@ -265,7 +304,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DockerTest, ROOT_DOCKER_interface)
 
 
 // This tests our 'docker kill' wrapper.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(DockerTest, ROOT_DOCKER_kill)
+TEST_F(DockerTest, ROOT_DOCKER_kill)
 {
   const string containerName = NAME_PREFIX + "-test";
   Resources resources = Resources::parse("cpus:1;mem:512").get();
@@ -282,18 +321,19 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DockerTest, ROOT_DOCKER_kill)
   containerInfo.set_type(ContainerInfo::DOCKER);
 
   ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
+  dockerInfo.set_image(DOCKER_TEST_IMAGE);
+
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
   CommandInfo commandInfo;
-  commandInfo.set_value("sleep 120");
+  commandInfo.set_value(DOCKER_SLEEP_CMD(120));
 
   Try<Docker::RunOptions> runOptions = Docker::RunOptions::create(
       containerInfo,
       commandInfo,
       containerName,
       directory.get(),
-      "/mnt/mesos/sandbox",
+      DOCKER_MAPPED_DIR_PATH,
       resources);
 
   ASSERT_SOME(runOptions);
@@ -315,7 +355,40 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DockerTest, ROOT_DOCKER_kill)
 
   AWAIT_READY(kill);
 
-  AWAIT_EXPECT_WEXITSTATUS_EQ(128 + SIGKILL, run);
+  assertDockerKillStatus(run);
+
+  // Now, the container should not appear in the result of ps().
+  // But it should appear in the result of ps(true).
+  Future<list<Docker::Container>> containers = docker->ps();
+  AWAIT_READY(containers);
+
+  auto nameEq = [&containerName](const Docker::Container& container) {
+    return "/" + containerName == container.name;
+  };
+
+  EXPECT_TRUE(std::none_of(containers->begin(), containers->end(), nameEq));
+
+  containers = docker->ps(true, containerName);
+  AWAIT_READY(containers);
+  auto ps = std::find_if(containers->begin(), containers->end(), nameEq);
+  ASSERT_TRUE(ps != containers->end());
+
+  // The container returned from ps should match the name from inspect.
+  // Note that the name is different from the name in `docker ps`,
+  // because `docker->ps()` internally calls `docker inspect` for each
+  // container shown by `docker ps`.
+  EXPECT_EQ(inspect->name, ps->name);
+  EXPECT_EQ(inspect->id, ps->id);
+
+  // Check the container's info, both id and name should remain the
+  // same since we haven't removed it, but the pid should be none
+  // since it's not running.
+  inspect = docker->inspect(containerName);
+  AWAIT_READY(inspect);
+
+  EXPECT_EQ(ps->id, inspect->id);
+  EXPECT_EQ(ps->name, inspect->name);
+  EXPECT_NONE(inspect->pid);
 }
 
 
@@ -356,7 +429,7 @@ TEST_F(DockerTest, ROOT_DOCKER_Version)
 }
 
 
-TEST_F_TEMP_DISABLED_ON_WINDOWS(DockerTest, ROOT_DOCKER_CheckCommandWithShell)
+TEST_F(DockerTest, ROOT_DOCKER_CheckCommandWithShell)
 {
   Owned<Docker> docker = Docker::create(
       tests::flags.docker,
@@ -367,7 +440,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DockerTest, ROOT_DOCKER_CheckCommandWithShell)
   containerInfo.set_type(ContainerInfo::DOCKER);
 
   ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
+  dockerInfo.set_image(DOCKER_TEST_IMAGE);
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
   CommandInfo commandInfo;
@@ -378,13 +451,13 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DockerTest, ROOT_DOCKER_CheckCommandWithShell)
       commandInfo,
       "testContainer",
       "dir",
-      "/mnt/mesos/sandbox");
+      DOCKER_MAPPED_DIR_PATH);
 
   ASSERT_ERROR(runOptions);
 }
 
 
-TEST_F_TEMP_DISABLED_ON_WINDOWS(DockerTest, ROOT_DOCKER_CheckPortResource)
+TEST_F(DockerTest, ROOT_DOCKER_CheckPortResource)
 {
   const string containerName = NAME_PREFIX + "-port-resource-test";
 
@@ -402,7 +475,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DockerTest, ROOT_DOCKER_CheckPortResource)
   containerInfo.set_type(ContainerInfo::DOCKER);
 
   ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
+  dockerInfo.set_image(DOCKER_TEST_IMAGE);
   dockerInfo.set_network(ContainerInfo::DockerInfo::BRIDGE);
 
   ContainerInfo::DockerInfo::PortMapping portMapping;
@@ -413,8 +486,13 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DockerTest, ROOT_DOCKER_CheckPortResource)
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
   CommandInfo commandInfo;
+#ifdef __WINDOWS__
+  commandInfo.set_shell(true);
+  commandInfo.set_value("exit 0");
+#else
   commandInfo.set_shell(false);
   commandInfo.set_value("true");
+#endif // __WINDOWS__
 
   Resources resources =
     Resources::parse("ports:[9998-9999];ports:[10001-11000]").get();
@@ -424,7 +502,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DockerTest, ROOT_DOCKER_CheckPortResource)
       commandInfo,
       containerName,
       "dir",
-      "/mnt/mesos/sandbox",
+      DOCKER_MAPPED_DIR_PATH,
       resources);
 
   ASSERT_ERROR(runOptions);
@@ -439,7 +517,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DockerTest, ROOT_DOCKER_CheckPortResource)
       commandInfo,
       containerName,
       directory.get(),
-      "/mnt/mesos/sandbox",
+      DOCKER_MAPPED_DIR_PATH,
       resources);
 
   ASSERT_SOME(runOptions);
@@ -450,7 +528,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DockerTest, ROOT_DOCKER_CheckPortResource)
 }
 
 
-TEST_F_TEMP_DISABLED_ON_WINDOWS(DockerTest, ROOT_DOCKER_CancelPull)
+TEST_F(DockerTest, ROOT_DOCKER_CancelPull)
 {
   // Delete the test image if it exists.
 
@@ -486,7 +564,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DockerTest, ROOT_DOCKER_CancelPull)
 
 // This test verifies mounting in a relative host path when running a
 // docker container works.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(DockerTest, ROOT_DOCKER_MountRelativeHostPath)
+TEST_F(DockerTest, ROOT_DOCKER_MountRelativeHostPath)
 {
   Owned<Docker> docker = Docker::create(
       tests::flags.docker,
@@ -496,32 +574,35 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DockerTest, ROOT_DOCKER_MountRelativeHostPath)
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
 
+  const string containerPath = fromRootDir(path::join("tmp", TEST_DIR_NAME));
+  const string command = string(LIST_COMMAND) + " " + containerPath;
+
   Volume* volume = containerInfo.add_volumes();
-  volume->set_host_path("test_file");
-  volume->set_container_path("/tmp/test_file");
+  volume->set_host_path(TEST_DIR_NAME);
+  volume->set_container_path(containerPath);
   volume->set_mode(Volume::RO);
 
   ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
+  dockerInfo.set_image(DOCKER_TEST_IMAGE);
 
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
   CommandInfo commandInfo;
   commandInfo.set_shell(true);
-  commandInfo.set_value("ls /tmp/test_file");
+  commandInfo.set_value(command);
 
   Try<string> directory = environment->mkdtemp();
   ASSERT_SOME(directory);
 
-  const string testFile = path::join(directory.get(), "test_file");
-  EXPECT_SOME(os::write(testFile, "data"));
+  const string testDir = path::join(directory.get(), TEST_DIR_NAME);
+  EXPECT_SOME(os::mkdir(testDir));
 
   Try<Docker::RunOptions> runOptions = Docker::RunOptions::create(
       containerInfo,
       commandInfo,
       NAME_PREFIX + "-mount-relative-host-path-test",
       directory.get(),
-      "/mnt/mesos/sandbox");
+      DOCKER_MAPPED_DIR_PATH);
 
   Future<Option<int>> run = docker->run(runOptions.get());
 
@@ -531,7 +612,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DockerTest, ROOT_DOCKER_MountRelativeHostPath)
 
 // This test verifies mounting in an absolute host path when running a
 // docker container works.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(DockerTest, ROOT_DOCKER_MountAbsoluteHostPath)
+TEST_F(DockerTest, ROOT_DOCKER_MountAbsoluteHostPath)
 {
   Owned<Docker> docker = Docker::create(
       tests::flags.docker,
@@ -544,29 +625,32 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DockerTest, ROOT_DOCKER_MountAbsoluteHostPath)
   Try<string> directory = environment->mkdtemp();
   ASSERT_SOME(directory);
 
-  const string testFile = path::join(directory.get(), "test_file");
-  EXPECT_SOME(os::write(testFile, "data"));
+  const string testDir = path::join(directory.get(), TEST_DIR_NAME);
+  EXPECT_SOME(os::mkdir(testDir));
+
+  const string containerPath = fromRootDir(path::join("tmp", TEST_DIR_NAME));
+  const string command = string(LIST_COMMAND) + " " + containerPath;
 
   Volume* volume = containerInfo.add_volumes();
-  volume->set_host_path(testFile);
-  volume->set_container_path("/tmp/test_file");
+  volume->set_host_path(testDir);
+  volume->set_container_path(containerPath);
   volume->set_mode(Volume::RO);
 
   ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
+  dockerInfo.set_image(DOCKER_TEST_IMAGE);
 
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
   CommandInfo commandInfo;
   commandInfo.set_shell(true);
-  commandInfo.set_value("ls /tmp/test_file");
+  commandInfo.set_value(command);
 
   Try<Docker::RunOptions> runOptions = Docker::RunOptions::create(
       containerInfo,
       commandInfo,
       NAME_PREFIX + "-mount-absolute-host-path-test",
       directory.get(),
-      "/mnt/mesos/sandbox");
+      DOCKER_MAPPED_DIR_PATH);
 
   ASSERT_SOME(runOptions);
 
@@ -577,7 +661,8 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DockerTest, ROOT_DOCKER_MountAbsoluteHostPath)
 
 // This test verifies mounting in an absolute host path to
 // a relative container path when running a docker container
-// works.
+// works. Windows does not support mounting volumes inside
+// other volumes, so skip this test for Windows.
 TEST_F_TEMP_DISABLED_ON_WINDOWS(
   DockerTest, ROOT_DOCKER_MountRelativeContainerPath)
 {
@@ -592,29 +677,34 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   Try<string> directory = environment->mkdtemp();
   ASSERT_SOME(directory);
 
-  const string testFile = path::join(directory.get(), "test_file");
-  EXPECT_SOME(os::write(testFile, "data"));
+  const string testDir = path::join(directory.get(), TEST_DIR_NAME);
+  EXPECT_SOME(os::mkdir(testDir));
+
+  const string containerPath = path::join("tmp", TEST_DIR_NAME);
+  const string command =
+    string(LIST_COMMAND) + " " +
+    path::join(DOCKER_MAPPED_DIR_PATH, containerPath);
 
   Volume* volume = containerInfo.add_volumes();
-  volume->set_host_path(testFile);
-  volume->set_container_path("tmp/test_file");
+  volume->set_host_path(testDir);
+  volume->set_container_path(containerPath);
   volume->set_mode(Volume::RO);
 
   ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
+  dockerInfo.set_image(DOCKER_TEST_IMAGE);
 
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
   CommandInfo commandInfo;
   commandInfo.set_shell(true);
-  commandInfo.set_value("ls /mnt/mesos/sandbox/tmp/test_file");
+  commandInfo.set_value(command);
 
   Try<Docker::RunOptions> runOptions = Docker::RunOptions::create(
       containerInfo,
       commandInfo,
       NAME_PREFIX + "-mount-relative-container-path-test",
       directory.get(),
-      "/mnt/mesos/sandbox");
+      DOCKER_MAPPED_DIR_PATH);
 
   ASSERT_SOME(runOptions);
 
@@ -626,8 +716,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
 // This test verifies a docker container mounting relative host
 // path to a relative container path fails.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(
-  DockerTest, ROOT_DOCKER_MountRelativeHostPathRelativeContainerPath)
+TEST_F(DockerTest, ROOT_DOCKER_MountRelativeHostPathRelativeContainerPath)
 {
   Owned<Docker> docker = Docker::create(
       tests::flags.docker,
@@ -637,32 +726,37 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
 
+  const string containerPath = path::join("tmp", TEST_DIR_NAME);
+  const string command =
+    string(LIST_COMMAND) + " " +
+    path::join(DOCKER_MAPPED_DIR_PATH, containerPath);
+
   Volume* volume = containerInfo.add_volumes();
-  volume->set_host_path("test_file");
-  volume->set_container_path("tmp/test_file");
+  volume->set_host_path(TEST_DIR_NAME);
+  volume->set_container_path(containerPath);
   volume->set_mode(Volume::RO);
 
   ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
+  dockerInfo.set_image(DOCKER_TEST_IMAGE);
 
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
   CommandInfo commandInfo;
   commandInfo.set_shell(true);
-  commandInfo.set_value("ls /mnt/mesos/sandbox/tmp/test_file");
+  commandInfo.set_value(command);
 
   Try<string> directory = environment->mkdtemp();
   ASSERT_SOME(directory);
 
-  const string testFile = path::join(directory.get(), "test_file");
-  EXPECT_SOME(os::write(testFile, "data"));
+  const string testDir = path::join(directory.get(), TEST_DIR_NAME);
+  EXPECT_SOME(os::mkdir(testDir));
 
   Try<Docker::RunOptions> runOptions = Docker::RunOptions::create(
       containerInfo,
       commandInfo,
       NAME_PREFIX + "-mount-relative-host-path/container-path-test",
       directory.get(),
-      "/mnt/mesos/sandbox");
+      DOCKER_MAPPED_DIR_PATH);
 
   ASSERT_ERROR(runOptions);
 }
@@ -673,7 +767,7 @@ class DockerImageTest : public MesosTest {};
 
 // This test verifies that docker image constructor is able to read
 // entrypoint and environment from a docker inspect JSON object.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(DockerImageTest, ParseInspectonImage)
+TEST_F(DockerImageTest, ParseInspectonImage)
 {
   JSON::Value inspect = JSON::parse(
     "{"
@@ -789,6 +883,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DockerImageTest, ParseInspectonImage)
 
 // Tests the --devices flag of 'docker run' by adding the
 // /dev/nvidiactl device (present alongside Nvidia GPUs).
+// Skip this test on Windows, since GPU support does not work yet.
 //
 // TODO(bmahler): Avoid needing Nvidia GPUs to test this.
 TEST_F_TEMP_DISABLED_ON_WINDOWS(DockerTest, ROOT_DOCKER_NVIDIA_GPU_DeviceAllow)
@@ -846,6 +941,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DockerTest, ROOT_DOCKER_NVIDIA_GPU_DeviceAllow)
 
 
 // Tests that devices are parsed correctly from 'docker inspect'.
+// Skip this test on Windows, since GPU support does not work yet.
 //
 // TODO(bmahler): Avoid needing Nvidia GPUs to test this and
 // merge this into a more general inspect test.
@@ -921,8 +1017,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
 // This tests verifies that a task requiring more than one volume driver (in
 // multiple Volumes) is rejected.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(
-  DockerTest, ROOT_DOCKER_ConflictingVolumeDriversInMultipleVolumes)
+TEST_F(DockerTest, ROOT_DOCKER_ConflictingVolumeDriversInMultipleVolumes)
 {
   Owned<Docker> docker = Docker::create(
       tests::flags.docker,
@@ -932,14 +1027,17 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
 
-  Volume volume1 = createDockerVolume("driver1", "name1", "/tmp/test1");
+  const string containerPath1 = fromRootDir(path::join("tmp", "test1"));
+  const string containerPath2 = fromRootDir(path::join("tmp", "test2"));
+
+  Volume volume1 = createDockerVolume("driver1", "name1", containerPath1);
   containerInfo.add_volumes()->CopyFrom(volume1);
 
-  Volume volume2 = createDockerVolume("driver2", "name2", "/tmp/test2");
+  Volume volume2 = createDockerVolume("driver2", "name2", containerPath2);
   containerInfo.add_volumes()->CopyFrom(volume2);
 
   ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
+  dockerInfo.set_image(DOCKER_TEST_IMAGE);
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
   CommandInfo commandInfo;
@@ -950,7 +1048,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
       commandInfo,
       "testContainer",
       "dir",
-      "/mnt/mesos/sandbox");
+      DOCKER_MAPPED_DIR_PATH);
 
   ASSERT_ERROR(runOptions);
 }
@@ -959,8 +1057,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 // This tests verifies that a task requiring more than one volume driver (via
 // Volume.Source.DockerInfo.driver and ContainerInfo.DockerInfo.volume_driver)
 // is rejected.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(
-  DockerTest, ROOT_DOCKER_ConflictingVolumeDrivers)
+TEST_F(DockerTest, ROOT_DOCKER_ConflictingVolumeDrivers)
 {
   Owned<Docker> docker = Docker::create(
       tests::flags.docker,
@@ -970,11 +1067,13 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
 
-  Volume volume1 = createDockerVolume("driver", "name1", "/tmp/test1");
+  const string containerPath = fromRootDir(path::join("tmp", "test1"));
+
+  Volume volume1 = createDockerVolume("driver", "name1", containerPath);
   containerInfo.add_volumes()->CopyFrom(volume1);
 
   ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
+  dockerInfo.set_image(DOCKER_TEST_IMAGE);
   dockerInfo.set_volume_driver("driver1");
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
@@ -986,7 +1085,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
       commandInfo,
       "testContainer",
       "dir",
-      "/mnt/mesos/sandbox");
+      DOCKER_MAPPED_DIR_PATH);
 
   ASSERT_ERROR(runOptions);
 }
