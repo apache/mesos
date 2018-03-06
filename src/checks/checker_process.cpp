@@ -826,13 +826,17 @@ void CheckerProcess::___nestedCommandCheck(
     .onReady([promise](const Option<int>& status) -> void {
       if (status.isNone()) {
         promise->fail("Unable to get the exit code");
-      // TODO(gkleiman): Make sure that the following block works on Windows.
+#ifndef __WINDOWS__
+      // TODO(akagup): Implement this for Windows. The `WaitNestedContainer`
+      // has a `TaskState` field, so we can probably use that for determining
+      // if the task failed.
       } else if (WIFSIGNALED(status.get()) &&
                  WTERMSIG(status.get()) == SIGKILL) {
         // The check container was signaled, probably because the task
         // finished while the check was still in-flight, so we discard
         // the result.
         promise->discard();
+#endif // __WINDOWS__
       } else {
         promise->set(status.get());
       }
