@@ -712,6 +712,8 @@ inline ::testing::AssertionResult AwaitAssertExitStatusNe(
       process::TEST_AWAIT_TIMEOUT)
 
 
+// Signals are't used on Windows, so #ifdef these out.
+#ifndef __WINDOWS__
 inline ::testing::AssertionResult AwaitAssertSignaled(
     const char* actualExpr,
     const char* durationExpr,
@@ -851,5 +853,6 @@ inline ::testing::AssertionResult AwaitAssertTermSigNe(
 // inline ::testing::AssertionResult AwaitAssertStopped(...)
 // inline ::testing::AssertionResult AwaitAssertStopSigEq(...)
 // inline ::testing::AssertionResult AwaitAssertStopSigNe(...)
+#endif // __WINDOWS__
 
 #endif // __PROCESS_GTEST_HPP__
