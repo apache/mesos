@@ -45,7 +45,18 @@
         </dd>
       </dl>
 
-      <p><a href="" ng-click="log($event)">LOG</a></p>
+      <p ng-if="log_file_attached">
+        <b>Master Log:</b>
+        <span class="btn-group">
+          <!-- Links can look like buttons using Bootstrap classes. -->
+          <a class="btn btn-xs btn-default" href="//{{$location.host()}}:{{$location.port()}}/files/download?path=/master/log">
+            Download
+          </a>
+          <button class="btn btn-xs btn-default" ng-click="streamLogs($event)">
+            View
+          </button>
+        </span>
+      </p>
 
       <h4>Agents</h4>
       <table class="table table-condensed">

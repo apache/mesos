@@ -170,6 +170,22 @@ inline void unsetenv(const std::string& key)
 }
 
 
+// Erases the value associated with the specified key from the set of
+// environment variables.
+inline void eraseenv(const std::string& key)
+{
+  char * value = ::getenv(key.c_str());
+
+  // Erase the old value so that on Linux it can't be inspected through
+  // /proc/$pid/environ.
+  if (value) {
+    ::memset(value, '\0', ::strlen(value));
+  }
+
+  ::unsetenv(key.c_str());
+}
+
+
 // This function is a portable version of execvpe ('p' means searching
 // executable from PATH and 'e' means setting environments). We add
 // this function because it is not available on all systems.
@@ -386,17 +402,17 @@ inline Try<Version> release()
   // TODO(karya): Replace sscanf with Version::parse() once Version
   // starts supporting labels and build metadata.
   if (::sscanf(
-          info.get().release.c_str(),
+          info->release.c_str(),
           "%d.%d.%d",
           &major,
           &minor,
           &patch) != 3) {
-    return Error("Failed to parse: " + info.get().release);
+    return Error("Failed to parse: " + info->release);
   }
 #else
   // TODO(dforsyth): Handle FreeBSD patch versions (-pX).
-  if (::sscanf(info.get().release.c_str(), "%d.%d-%*s", &major, &minor) != 2) {
-    return Error("Failed to parse: " + info.get().release);
+  if (::sscanf(info->release.c_str(), "%d.%d-%*s", &major, &minor) != 2) {
+    return Error("Failed to parse: " + info->release);
   }
 #endif
   return Version(major, minor, patch);

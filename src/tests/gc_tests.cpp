@@ -28,6 +28,7 @@
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
+#include <process/gtest.hpp>
 #include <process/http.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
@@ -285,9 +286,7 @@ class GarbageCollectorIntegrationTest : public MesosTest {};
 
 // This test ensures that garbage collection does not remove
 // the slave working directory after a slave restart.
-//
-// TODO(andschwa): Enable this when MESOS-7604 is fixed.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(GarbageCollectorIntegrationTest, Restart)
+TEST_F(GarbageCollectorIntegrationTest, Restart)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -989,7 +988,7 @@ TEST_F(GarbageCollectorIntegrationTest, ROOT_BusyMountPoint)
   EXPECT_TRUE(os::exists(sandbox));
 
   // Wait for the task to create these paths.
-  Timeout timeout = Timeout::in(Seconds(15));
+  Timeout timeout = Timeout::in(process::TEST_AWAIT_TIMEOUT);
   while (!os::exists(path::join(sandbox, mountPoint)) ||
          !os::exists(path::join(sandbox, regularFile)) ||
          !timeout.expired()) {

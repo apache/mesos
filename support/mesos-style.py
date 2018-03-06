@@ -228,6 +228,7 @@ class CppLinter(LinterBase):
                    os.path.join('3rdparty', 'stout')]
 
     exclude_files = '(' \
+                    r'elfio\-3\.2|' \
                     r'protobuf\-2\.4\.1|' \
                     r'googletest\-release\-1\.8\.0|' \
                     r'glog\-0\.3\.3|' \
@@ -299,6 +300,7 @@ class JsLinter(LinterBase):
     exclude_files = '(' \
                     r'angular\-1\.2\.32|' \
                     r'angular\-route\-1\.2\.32|' \
+                    r'bootstrap\-table\-1\.11\.1|' \
                     r'clipboard\-1\.5\.16|' \
                     r'jquery\-3\.2\.1|' \
                     r'relative\-date|' \

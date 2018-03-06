@@ -80,16 +80,16 @@ public:
     bool overloaded = false;
 
     if (loadThreshold5Min.isSome()) {
-      if (load.get().five > loadThreshold5Min.get()) {
-        LOG(INFO) << "System 5 minutes load average " << load.get().five
+      if (load->five > loadThreshold5Min.get()) {
+        LOG(INFO) << "System 5 minutes load average " << load->five
                   << " exceeds threshold " << loadThreshold5Min.get();
         overloaded = true;
       }
     }
 
     if (loadThreshold15Min.isSome()) {
-      if (load.get().fifteen > loadThreshold15Min.get()) {
-        LOG(INFO) << "System 15 minutes load average " << load.get().fifteen
+      if (load->fifteen > loadThreshold15Min.get()) {
+        LOG(INFO) << "System 15 minutes load average " << load->fifteen
                   << " exceeds threshold " << loadThreshold15Min.get();
         overloaded = true;
       }

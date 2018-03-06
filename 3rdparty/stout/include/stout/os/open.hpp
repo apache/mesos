@@ -32,6 +32,7 @@
 
 #ifndef O_CLOEXEC
 #error "missing O_CLOEXEC support on this platform"
+// NOTE: On Windows, `fnctl.hpp` defines `O_CLOEXEC` to a no-op.
 #endif
 
 namespace os {
@@ -43,7 +44,10 @@ inline Try<int_fd> open(const std::string& path, int oflag, mode_t mode = 0)
   // By default, Windows will perform "text translation" meaning that it will
   // automatically write CR/LF instead of LF line feeds. To prevent this, and
   // use the POSIX semantics, we open with `O_BINARY`.
-  int_fd fd = ::_wopen(longpath.data(), oflag | O_BINARY, mode);
+  //
+  // Also by default, we will mimic the Windows (non-CRT) APIs and make all
+  // opened handles non-inheritable.
+  int_fd fd = ::_wopen(longpath.data(), oflag | O_BINARY | O_NOINHERIT, mode);
 #else
   int_fd fd = ::open(path.c_str(), oflag, mode);
 #endif // __WINDOWS__

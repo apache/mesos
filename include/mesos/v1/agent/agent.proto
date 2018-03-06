@@ -60,6 +60,9 @@ message Call {
     // Retrieves the information about known executors.
     GET_EXECUTORS = 12;
 
+    // Retrieves the information about known operations.
+    GET_OPERATIONS = 31;
+
     // Retrieves the information about known tasks.
     GET_TASKS = 13;
 
@@ -413,6 +416,7 @@ message Response {
     GET_CONTAINERS = 9;
     GET_FRAMEWORKS = 10;           // See 'GetFrameworks' below.
     GET_EXECUTORS = 11;            // See 'GetExecutors' below.
+    GET_OPERATIONS = 17;           // See 'GetOperations' below.
     GET_TASKS = 12;                // See 'GetTasks' below.
     GET_AGENT = 14;                // See 'GetAgent' below.
     GET_RESOURCE_PROVIDERS = 16;   // See 'GetResourceProviders' below.
@@ -504,6 +508,12 @@ message Response {
 
     repeated Executor executors = 1;
     repeated Executor completed_executors = 2;
+  }
+
+  // Lists information about all operations known to the agent at the
+  // current time.
+  message GetOperations {
+    repeated Operation operations = 1;
   }
 
   // Lists information about all the tasks known to the agent at the current
@@ -599,6 +609,7 @@ message Response {
   optional GetContainers get_containers = 10;
   optional GetFrameworks get_frameworks = 11;
   optional GetExecutors get_executors = 12;
+  optional GetOperations get_operations = 18;
   optional GetTasks get_tasks = 13;
   optional GetAgent get_agent = 15;
   optional GetResourceProviders get_resource_providers = 17;

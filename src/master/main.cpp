@@ -199,6 +199,7 @@ int main(int argc, char** argv)
   }
 
   if (flags.ip_discovery_command.isSome()) {
+#ifndef __WINDOWS__
     Try<string> ipAddress = os::shell(flags.ip_discovery_command.get());
 
     if (ipAddress.isError()) {
@@ -206,6 +207,11 @@ int main(int argc, char** argv)
     }
 
     os::setenv("LIBPROCESS_IP", strings::trim(ipAddress.get()));
+#else
+    // TODO(andschwa): Support this when `os::shell` is enabled.
+    EXIT(EXIT_FAILURE)
+      << "The `--ip.discovery_command` is not yet supported on Windows";
+#endif // __WINDOWS__
   } else if (flags.ip.isSome()) {
     os::setenv("LIBPROCESS_IP", flags.ip.get());
   }
@@ -370,7 +376,7 @@ int main(int argc, char** argv)
           << " registry when using ZooKeeper";
       }
 
-      Try<zookeeper::URL> url = zookeeper::URL::parse(flags.zk.get().value);
+      Try<zookeeper::URL> url = zookeeper::URL::parse(flags.zk->value);
       if (url.isError()) {
         EXIT(EXIT_FAILURE) << "Error parsing ZooKeeper URL: " << url.error();
       }
@@ -378,10 +384,10 @@ int main(int argc, char** argv)
       log = new Log(
           flags.quorum.get(),
           path::join(flags.work_dir.get(), "replicated_log"),
-          url.get().servers,
+          url->servers,
           flags.zk_session_timeout,
-          path::join(url.get().path, "log_replicas"),
-          url.get().authentication,
+          path::join(url->path, "log_replicas"),
+          url->authentication,
           flags.log_auto_initialize,
           "registrar/");
     } else {

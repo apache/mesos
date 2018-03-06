@@ -2144,14 +2144,14 @@ ostream& operator<<(ostream& stream, const Resource::DiskInfo::Source& source)
       return stream
         << "MOUNT"
         << ((source.has_id() || source.has_profile())
-              ? "(" + source.id() + "," + source.profile() + ")" : "")
-        << (source.mount().has_root() ? ":" + source.mount().root() : "");
+              ? "(" + source.id() + "," + source.profile() + ")"
+              : (source.mount().has_root() ? ":" + source.mount().root() : ""));
     case Resource::DiskInfo::Source::PATH:
       return stream
         << "PATH"
         << ((source.has_id() || source.has_profile())
-              ? "(" + source.id() + "," + source.profile() + ")" : "")
-        << (source.path().has_root() ? ":" + source.path().root() : "");
+              ? "(" + source.id() + "," + source.profile() + ")"
+              : (source.path().has_root() ? ":" + source.path().root() : ""));
     case Resource::DiskInfo::Source::BLOCK:
       return stream
         << "BLOCK"

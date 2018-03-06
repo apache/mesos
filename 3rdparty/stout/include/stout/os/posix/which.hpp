@@ -54,9 +54,9 @@ inline Option<std::string> which(
       continue;
     }
 
-    if (!permissions.get().owner.x &&
-        !permissions.get().group.x &&
-        !permissions.get().others.x) {
+    if (!permissions->owner.x &&
+        !permissions->group.x &&
+        !permissions->others.x) {
       continue;
     }
 

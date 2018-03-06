@@ -562,7 +562,7 @@ Future<http::Response> Master::QuotaHandler::__set(
     if (error.isSome()) {
       return Conflict(
           "Heuristic capacity check for set quota request failed: " +
-          error.get().message);
+          error->message);
     }
   }
 

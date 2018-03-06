@@ -21,9 +21,10 @@ set -o pipefail
 
 MESOS_DIR=$(git rev-parse --show-toplevel)
 
-# Install `virtualenv`, needed by `support/mesos-style.py`.
-pip install --user virtualenv
+function remove_image {
+  docker rmi $(docker images -q mesos/mesos-build) || true
+}
 
-"${MESOS_DIR}"/support/mesos-style.py
+trap remove_image EXIT
 
-"${MESOS_DIR}"/support/docker-build.sh
+"${MESOS_DIR}"/support/mesos-build.sh

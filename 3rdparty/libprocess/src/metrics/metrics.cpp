@@ -86,7 +86,7 @@ MetricsProcess* MetricsProcess::create(
           << "Failed to parse LIBPROCESS_METRICS_SNAPSHOT_ENDPOINT_RATE_LIMIT "
           << "'" << limit.get() << "'"
           << " (format is <number of requests>/<interval duration>)"
-          << (reason.isSome() ? ": " + reason.get().message : "");
+          << (reason.isSome() ? ": " + reason->message : "");
     }
   }
 
@@ -239,15 +239,15 @@ Future<map<string, double>> MetricsProcess::__snapshot(
     Option<Statistics<double>> statistics_ = statistics.get(key).get();
 
     if (statistics_.isSome()) {
-      snapshot[key + "/count"] = static_cast<double>(statistics_.get().count);
-      snapshot[key + "/min"] = statistics_.get().min;
-      snapshot[key + "/max"] = statistics_.get().max;
-      snapshot[key + "/p50"] = statistics_.get().p50;
-      snapshot[key + "/p90"] = statistics_.get().p90;
-      snapshot[key + "/p95"] = statistics_.get().p95;
-      snapshot[key + "/p99"] = statistics_.get().p99;
-      snapshot[key + "/p999"] = statistics_.get().p999;
-      snapshot[key + "/p9999"] = statistics_.get().p9999;
+      snapshot[key + "/count"] = static_cast<double>(statistics_->count);
+      snapshot[key + "/min"] = statistics_->min;
+      snapshot[key + "/max"] = statistics_->max;
+      snapshot[key + "/p50"] = statistics_->p50;
+      snapshot[key + "/p90"] = statistics_->p90;
+      snapshot[key + "/p95"] = statistics_->p95;
+      snapshot[key + "/p99"] = statistics_->p99;
+      snapshot[key + "/p999"] = statistics_->p999;
+      snapshot[key + "/p9999"] = statistics_->p9999;
     }
   }
 

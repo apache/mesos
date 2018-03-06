@@ -22,7 +22,7 @@ import time
 
 import mesos.interface
 from mesos.interface import mesos_pb2
-import mesos.native
+from mesos.executor import MesosExecutorDriver
 
 class MyExecutor(mesos.interface.Executor):
     def launchTask(self, driver, task):
@@ -55,5 +55,5 @@ class MyExecutor(mesos.interface.Executor):
 
 if __name__ == "__main__":
     print "Starting executor"
-    driver = mesos.native.MesosExecutorDriver(MyExecutor())
+    driver = MesosExecutorDriver(MyExecutor())
     sys.exit(0 if driver.run() == mesos_pb2.DRIVER_STOPPED else 1)

@@ -201,6 +201,8 @@ struct Metrics
   std::vector<process::metrics::Gauge> resources_revocable_used;
   std::vector<process::metrics::Gauge> resources_revocable_percent;
 
+  void incrementInvalidSchedulerCalls(const scheduler::Call& call);
+
   void incrementTasksStates(
       const TaskState& state,
       const TaskStatus::Source& source,

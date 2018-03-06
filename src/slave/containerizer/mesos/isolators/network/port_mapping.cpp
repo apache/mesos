@@ -1366,7 +1366,8 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
 
   // Verify that the network namespace is available by checking the
   // existence of the network namespace handle of the current process.
-  if (ns::namespaces().count("net") == 0) {
+  Try<bool> netSupported = ns::supported(CLONE_NEWNET);
+  if (netSupported.isError() || !netSupported.get()) {
     return Error(
         "Using network isolator requires network namespace. "
         "Make sure your kernel is newer than 3.4");

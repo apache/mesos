@@ -178,7 +178,7 @@ endfunction()
 EXTERNAL(boost ${BOOST_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
 add_library(boost INTERFACE)
 add_dependencies(boost ${BOOST_TARGET})
-target_include_directories(boost SYSTEM INTERFACE ${BOOST_ROOT})
+target_include_directories(boost INTERFACE ${BOOST_ROOT})
 
 ExternalProject_Add(
   ${BOOST_TARGET}
@@ -196,7 +196,7 @@ ExternalProject_Add(
 EXTERNAL(concurrentqueue ${CONCURRENTQUEUE_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
 add_library(concurrentqueue INTERFACE)
 add_dependencies(concurrentqueue ${CONCURRENTQUEUE_TARGET})
-target_include_directories(concurrentqueue SYSTEM INTERFACE ${CONCURRENTQUEUE_ROOT})
+target_include_directories(concurrentqueue INTERFACE ${CONCURRENTQUEUE_ROOT})
 
 ExternalProject_Add(
   ${CONCURRENTQUEUE_TARGET}
@@ -251,7 +251,7 @@ endif ()
 EXTERNAL(elfio ${ELFIO_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
 add_library(elfio INTERFACE)
 add_dependencies(elfio ${ELFIO_TARGET})
-target_include_directories(elfio SYSTEM INTERFACE ${ELFIO_ROOT})
+target_include_directories(elfio INTERFACE ${ELFIO_ROOT})
 
 ExternalProject_Add(
   ${ELFIO_TARGET}
@@ -336,7 +336,7 @@ ExternalProject_Add(
 EXTERNAL(picojson ${PICOJSON_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
 add_library(picojson INTERFACE)
 add_dependencies(picojson ${PICOJSON_TARGET})
-target_include_directories(picojson SYSTEM INTERFACE ${PICOJSON_ROOT})
+target_include_directories(picojson INTERFACE ${PICOJSON_ROOT})
 
 # Enable the INT64 support for PicoJSON.
 # NOTE: PicoJson requires __STDC_FORMAT_MACROS to be defined before importing
@@ -364,7 +364,7 @@ ExternalProject_Add(
 EXTERNAL(nvml ${NVML_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
 add_library(nvml INTERFACE)
 add_dependencies(nvml ${NVML_TARGET})
-target_include_directories(nvml SYSTEM INTERFACE ${NVML_ROOT})
+target_include_directories(nvml INTERFACE ${NVML_ROOT})
 
 ExternalProject_Add(
   ${NVML_TARGET}
@@ -547,7 +547,7 @@ if (NOT WIN32)
   # executable, but we're looking for the library.
   find_package(Svn REQUIRED)
   add_library(svn INTERFACE)
-  target_include_directories(svn SYSTEM INTERFACE ${SVN_INCLUDE_DIR})
+  target_include_directories(svn INTERFACE ${SVN_INCLUDE_DIR})
 
   # `FindSvn` returns finds three separate libraries.
   foreach (lib ${SVN_LIBS})

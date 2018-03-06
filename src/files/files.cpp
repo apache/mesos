@@ -406,7 +406,7 @@ Future<http::Response> FilesProcess::_browse(
 {
   Option<string> path = request.url.query.get("path");
 
-  if (!path.isSome() || path.get().empty()) {
+  if (!path.isSome() || path->empty()) {
     return BadRequest("Expecting 'path=value' in query.\n");
   }
 
@@ -527,7 +527,7 @@ Future<http::Response> FilesProcess::__read(
 {
   Option<string> path = request.url.query.get("path");
 
-  if (!path.isSome() || path.get().empty()) {
+  if (!path.isSome() || path->empty()) {
     return BadRequest("Expecting 'path=value' in query.\n");
   }
 
@@ -762,7 +762,7 @@ Future<http::Response> FilesProcess::download(
 {
   Option<string> path = request.url.query.get("path");
 
-  if (!path.isSome() || path.get().empty()) {
+  if (!path.isSome() || path->empty()) {
     return BadRequest("Expecting 'path=value' in query.\n");
   }
 

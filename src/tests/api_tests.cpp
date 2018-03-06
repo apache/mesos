@@ -94,6 +94,7 @@ using process::Promise;
 
 using recordio::Decoder;
 
+using std::set;
 using std::string;
 using std::tuple;
 using std::vector;
@@ -103,6 +104,7 @@ using testing::AtMost;
 using testing::DoAll;
 using testing::Eq;
 using testing::Return;
+using testing::Sequence;
 using testing::WithParamInterface;
 
 namespace mesos {
@@ -399,7 +401,7 @@ TEST_P(MasterAPITest, GetMetrics)
   }
 
   // Verifies that the response metrics is not empty.
-  ASSERT_LE(0, metrics.size());
+  ASSERT_LE(0u, metrics.size());
 }
 
 
@@ -539,8 +541,8 @@ TEST_P(MasterAPITest, GetState)
     ASSERT_EQ(v1::master::Response::GET_STATE, v1Response->type());
 
     const v1::master::Response::GetState& getState = v1Response->get_state();
-    ASSERT_EQ(1u, getState.get_frameworks().frameworks_size());
-    ASSERT_EQ(1u, getState.get_agents().agents_size());
+    ASSERT_EQ(1, getState.get_frameworks().frameworks_size());
+    ASSERT_EQ(1, getState.get_agents().agents_size());
     ASSERT_TRUE(getState.get_tasks().tasks().empty());
     ASSERT_TRUE(getState.get_executors().executors().empty());
   }
@@ -583,7 +585,7 @@ TEST_P(MasterAPITest, GetState)
     ASSERT_EQ(v1::master::Response::GET_STATE, v1Response->type());
 
     const v1::master::Response::GetState& getState = v1Response->get_state();
-    ASSERT_EQ(1u, getState.get_tasks().tasks_size());
+    ASSERT_EQ(1, getState.get_tasks().tasks_size());
     ASSERT_TRUE(getState.get_tasks().completed_tasks().empty());
   }
 
@@ -618,7 +620,7 @@ TEST_P(MasterAPITest, GetState)
     ASSERT_EQ(v1::master::Response::GET_STATE, v1Response->type());
 
     const v1::master::Response::GetState& getState = v1Response->get_state();
-    ASSERT_EQ(1u, getState.get_tasks().completed_tasks_size());
+    ASSERT_EQ(1, getState.get_tasks().completed_tasks_size());
     ASSERT_TRUE(getState.get_tasks().tasks().empty());
   }
 
@@ -814,7 +816,7 @@ TEST_P(MasterAPITest, SetLoggingLevel)
 
   {
     // Default principal 2 is not allowed to set the logging level.
-    mesos::ACL::SetLogLevel* acl = flags.acls.get().add_set_log_level();
+    mesos::ACL::SetLogLevel* acl = flags.acls->add_set_log_level();
     acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
     acl->mutable_level()->set_type(mesos::ACL::Entity::NONE);
   }
@@ -997,6 +999,151 @@ TEST_P(MasterAPITest, GetRoles)
           devolve(v1::Resources::parse(slaveFlags.resources.get()).get()),
           "role1"),
       devolve(v1Response->get_roles().roles(1).resources()));
+
+  driver.stop();
+  driver.join();
+}
+
+
+TEST_P(MasterAPITest, GetOperations)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+
+  Try<Owned<cluster::Master>> master = this->StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  // Start one agent.
+  Future<UpdateSlaveMessage> updateAgentMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  // TODO(nfnt): Remove this once 'MockResourceProvider' supports
+  // authentication.
+  slaveFlags.authenticate_http_readwrite = false;
+
+  // Set the resource provider capability.
+  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
+  SlaveInfo::Capability capability;
+  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
+  capabilities.push_back(capability);
+
+  slaveFlags.agent_features = SlaveCapabilities();
+  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
+      {capabilities.begin(), capabilities.end()});
+
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(agent);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  AWAIT_READY(updateAgentMessage);
+
+  mesos::v1::ResourceProviderInfo info;
+  info.set_type("org.apache.mesos.rp.test");
+  info.set_name("test");
+
+  v1::MockResourceProvider resourceProvider(
+      info,
+      v1::createDiskResource(
+          "200", "*", None(), None(), v1::createDiskSourceRaw()));
+
+  // Start and register resource provider.
+  Owned<EndpointDetector> endpointDetector(
+      resource_provider::createEndpointDetector(agent.get()->pid));
+
+  updateAgentMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  const ContentType contentType = GetParam();
+
+  resourceProvider.start(endpointDetector, contentType, v1::DEFAULT_CREDENTIAL);
+
+  // Wait until the agent's resources have been updated to include the
+  // resource provider resources.
+  AWAIT_READY(updateAgentMessage);
+
+  v1::master::Call v1Call;
+  v1Call.set_type(v1::master::Call::GET_OPERATIONS);
+
+  Future<v1::master::Response> v1Response =
+    post(master.get()->pid, v1Call, contentType);
+
+  AWAIT_READY(v1Response);
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::master::Response::GET_OPERATIONS, v1Response->type());
+  EXPECT_TRUE(v1Response->get_operations().operations().empty());
+
+  // Start a framework to operate on offers.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  // We settle here to make sure that the framework has been authenticated
+  // before advancing the clock. Otherwise we would run into a authentication
+  // timeout due to the large allocation interval (1000s) of this fixture.
+  Clock::settle();
+
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::settle();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+  const Offer& offer = offers->front();
+
+  Option<Resource> rawDisk;
+
+  foreach (const Resource& resource, offer.resources()) {
+    if (resource.has_provider_id() &&
+        resource.has_disk() &&
+        resource.disk().has_source() &&
+        resource.disk().source().type() == Resource::DiskInfo::Source::RAW) {
+      rawDisk = resource;
+      break;
+    }
+  }
+
+  ASSERT_SOME(rawDisk);
+
+  // The operation is still pending when we receive this event.
+  Future<mesos::v1::resource_provider::Event::ApplyOperation> operation;
+  EXPECT_CALL(resourceProvider, applyOperation(_))
+    .WillOnce(FutureArg<0>(&operation));
+
+  // Start an operation.
+  driver.acceptOffers(
+      {offer.id()},
+      {CREATE_VOLUME(rawDisk.get(), Resource::DiskInfo::Source::MOUNT)});
+
+  AWAIT_READY(operation);
+
+  v1Response = post(master.get()->pid, v1Call, contentType);
+
+  AWAIT_READY(v1Response);
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::master::Response::GET_OPERATIONS, v1Response->type());
+  EXPECT_EQ(1, v1Response->get_operations().operations_size());
+  EXPECT_EQ(
+      operation->framework_id(),
+      v1Response->get_operations().operations(0).framework_id());
+  EXPECT_EQ(
+      evolve(updateAgentMessage->slave_id()),
+      v1Response->get_operations().operations(0).agent_id());
+  EXPECT_EQ(
+      operation->info(), v1Response->get_operations().operations(0).info());
+  EXPECT_EQ(
+      operation->operation_uuid(),
+      v1Response->get_operations().operations(0).uuid());
 
   driver.stop();
   driver.join();
@@ -1250,7 +1397,7 @@ TEST_P(MasterAPITest, UpdateAndGetMaintenanceSchedule)
   {
     // Default principal 2 is not allowed to update any maintenance schedule.
     mesos::ACL::UpdateMaintenanceSchedule* acl =
-      flags.acls.get().add_update_maintenance_schedules();
+      flags.acls->add_update_maintenance_schedules();
     acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
     acl->mutable_machines()->set_type(mesos::ACL::Entity::NONE);
   }
@@ -1258,7 +1405,7 @@ TEST_P(MasterAPITest, UpdateAndGetMaintenanceSchedule)
   {
     // Default principal 2 is not allowed to view any maintenance schedule.
     mesos::ACL::GetMaintenanceSchedule* acl =
-      flags.acls.get().add_get_maintenance_schedules();
+      flags.acls->add_get_maintenance_schedules();
     acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
     acl->mutable_machines()->set_type(mesos::ACL::Entity::NONE);
   }
@@ -1369,7 +1516,7 @@ TEST_P(MasterAPITest, GetMaintenanceStatus)
   {
     // Default principal 2 is not allowed to view any maintenance status.
     mesos::ACL::GetMaintenanceStatus* acl =
-      flags.acls.get().add_get_maintenance_statuses();
+      flags.acls->add_get_maintenance_statuses();
     acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
     acl->mutable_machines()->set_type(mesos::ACL::Entity::NONE);
   }
@@ -1460,16 +1607,14 @@ TEST_P(MasterAPITest, StartAndStopMaintenance)
 
   {
     // Default principal 2 is not allowed to start maintenance in any machine.
-    mesos::ACL::StartMaintenance* acl =
-      flags.acls.get().add_start_maintenances();
+    mesos::ACL::StartMaintenance* acl = flags.acls->add_start_maintenances();
     acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
     acl->mutable_machines()->set_type(mesos::ACL::Entity::NONE);
   }
 
   {
     // Default principal 2 is not allowed to stop maintenance in any machine.
-    mesos::ACL::StopMaintenance* acl =
-      flags.acls.get().add_stop_maintenances();
+    mesos::ACL::StopMaintenance* acl = flags.acls->add_stop_maintenances();
     acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
     acl->mutable_machines()->set_type(mesos::ACL::Entity::NONE);
   }
@@ -1719,21 +1864,21 @@ TEST_P(MasterAPITest, GetAgentsFiltering)
   const string roleMuggle = "muggle";
 
   {
-    mesos::ACL::ViewRole* acl = flags.acls.get().add_view_roles();
+    mesos::ACL::ViewRole* acl = flags.acls->add_view_roles();
     acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
     acl->mutable_roles()->add_values(roleSuperhero);
 
-    acl = flags.acls.get().add_view_roles();
+    acl = flags.acls->add_view_roles();
     acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
     acl->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
   }
 
   {
-    mesos::ACL::ViewRole* acl = flags.acls.get().add_view_roles();
+    mesos::ACL::ViewRole* acl = flags.acls->add_view_roles();
     acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
     acl->mutable_roles()->add_values(roleMuggle);
 
-    acl = flags.acls.get().add_view_roles();
+    acl = flags.acls->add_view_roles();
     acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
     acl->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
   }
@@ -1934,7 +2079,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(MasterAPITest, GetRecoveredAgents)
 
   // This forces the authorizer to be initialized.
   {
-    mesos::ACL::ViewRole* acl = masterFlags.acls.get().add_view_roles();
+    mesos::ACL::ViewRole* acl = masterFlags.acls->add_view_roles();
     acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
     acl->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
   }
@@ -2026,7 +2171,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(MasterAPITest, GetRecoveredAgents)
     ASSERT_TRUE(v1Response->IsInitialized());
     ASSERT_EQ(v1::master::Response::GET_AGENTS, v1Response->type());
     ASSERT_TRUE(v1Response->get_agents().agents().empty());
-    ASSERT_EQ(1u, v1Response->get_agents().recovered_agents_size());
+    ASSERT_EQ(1, v1Response->get_agents().recovered_agents_size());
     ASSERT_EQ(agentId, v1Response->get_agents().recovered_agents(0).id());
   }
 
@@ -2054,7 +2199,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(MasterAPITest, GetRecoveredAgents)
     AWAIT_READY(v1Response);
     ASSERT_TRUE(v1Response->IsInitialized());
     ASSERT_EQ(v1::master::Response::GET_AGENTS, v1Response->type());
-    ASSERT_EQ(1u, v1Response->get_agents().agents_size());
+    ASSERT_EQ(1, v1Response->get_agents().agents_size());
     ASSERT_TRUE(v1Response->get_agents().recovered_agents().empty());
   }
 }
@@ -2149,8 +2294,8 @@ TEST_P(MasterAPITest, Subscribe)
   const v1::master::Response::GetState& getState =
       event->get().subscribed().get_state();
 
-  EXPECT_EQ(1u, getState.get_frameworks().frameworks_size());
-  EXPECT_EQ(1u, getState.get_agents().agents_size());
+  EXPECT_EQ(1, getState.get_frameworks().frameworks_size());
+  EXPECT_EQ(1, getState.get_agents().agents_size());
   EXPECT_TRUE(getState.get_tasks().tasks().empty());
   EXPECT_TRUE(getState.get_executors().executors().empty());
 
@@ -2242,6 +2387,175 @@ TEST_P(MasterAPITest, Subscribe)
 
   EXPECT_CALL(*executor, disconnected(_))
     .Times(AtMost(1));
+}
+
+
+// This test verifies that subscribing to the 'api/v1' endpoint between
+// a master failover and an agent re-registration won't cause the master
+// to crash. See MESOS-8601.
+TEST_P(MasterAPITest, MasterFailover)
+{
+  ContentType contentType = GetParam();
+
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  StandaloneMasterDetector detector(master.get()->pid);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
+  ASSERT_SOME(slave);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  // Advance the clock to trigger agent registration.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(v1::scheduler::SendSubscribe(v1::DEFAULT_FRAMEWORK_INFO));
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  Owned<v1::scheduler::TestMesos> mesos(new v1::scheduler::TestMesos(
+      master.get()->pid,
+      contentType,
+      scheduler));
+
+  AWAIT_READY(subscribed);
+  const v1::FrameworkID& frameworkId = subscribed->framework_id();
+
+  // Settle the clock to get the first offer.
+  Clock::settle();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+  const v1::AgentID& agentId = offers->offers(0).agent_id();
+
+  // Launch a task using the scheduler. This should result in a
+  // `TASK_STARTING` followed by a `TASK_RUNNING` status update.
+  Future<v1::scheduler::Event::Update> taskStarting;
+  Future<v1::scheduler::Event::Update> taskRunning;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(DoAll(
+        FutureArg<1>(&taskStarting),
+        v1::scheduler::SendAcknowledge(frameworkId, agentId)))
+    .WillOnce(DoAll(
+        FutureArg<1>(&taskRunning),
+        v1::scheduler::SendAcknowledge(frameworkId, agentId)));
+
+  v1::TaskInfo task = v1::createTask(
+      agentId,
+      offers->offers(0).resources(),
+      "sleep 1000");
+
+  mesos->send(v1::createCallAccept(
+      frameworkId,
+      offers->offers(0),
+      {v1::LAUNCH({task})}));
+
+  AWAIT_READY(taskStarting);
+  EXPECT_EQ(v1::TASK_STARTING, taskStarting->status().state());
+
+  AWAIT_READY(taskRunning);
+  EXPECT_EQ(v1::TASK_RUNNING, taskRunning->status().state());
+
+  // Stop the scheduler and shutdown the master.
+  mesos.reset();
+  master->reset();
+
+  // Restart the master.
+  master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  detector.appoint(master.get()->pid);
+
+  // Create event stream after the master failover but before the agent
+  // re-registration. We should see no framework, agent, task and
+  // executor at all.
+  v1::master::Call v1Call;
+  v1Call.set_type(v1::master::Call::SUBSCRIBE);
+
+  http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+
+  headers["Accept"] = stringify(contentType);
+
+  Future<http::Response> response = http::streaming::post(
+      master.get()->pid,
+      "api/v1",
+      headers,
+      serialize(contentType, v1Call),
+      stringify(contentType));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ("chunked", "Transfer-Encoding", response);
+  ASSERT_EQ(http::Response::PIPE, response->type);
+  ASSERT_SOME(response->reader);
+
+  http::Pipe::Reader reader = response->reader.get();
+
+  auto deserializer =
+    lambda::bind(deserialize<v1::master::Event>, contentType, lambda::_1);
+
+  Reader<v1::master::Event> decoder(
+      Decoder<v1::master::Event>(deserializer), reader);
+
+  Future<Result<v1::master::Event>> event = decoder.read();
+  AWAIT_READY(event);
+
+  EXPECT_EQ(v1::master::Event::SUBSCRIBED, event->get().type());
+  const v1::master::Response::GetState& getState =
+      event->get().subscribed().get_state();
+
+  EXPECT_EQ(0, getState.get_frameworks().frameworks_size());
+  EXPECT_EQ(0, getState.get_agents().agents_size());
+  EXPECT_EQ(0, getState.get_tasks().tasks_size());
+  EXPECT_EQ(0, getState.get_executors().executors_size());
+
+  event = decoder.read();
+  AWAIT_READY(event);
+
+  EXPECT_EQ(v1::master::Event::HEARTBEAT, event->get().type());
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  // Advance the clock to trigger agent re-registration.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(slaveReregisteredMessage);
+
+  // The agent re-registration should result in an `AGENT_ADDED` event
+  // and a `TASK_ADDED` event.
+  set<v1::master::Event::Type> expectedEvents =
+    {v1::master::Event::AGENT_ADDED, v1::master::Event::TASK_ADDED};
+  set<v1::master::Event::Type> observedEvents;
+
+  event = decoder.read();
+  AWAIT_READY(event);
+  observedEvents.insert(event->get().type());
+
+  event = decoder.read();
+  AWAIT_READY(event);
+  observedEvents.insert(event->get().type());
+
+  EXPECT_EQ(expectedEvents, observedEvents);
 }
 
 
@@ -2395,10 +2709,10 @@ TEST_P(MasterAPITest, EventAuthorizationFiltering)
     const v1::master::Response::GetState& getState =
         event->get().subscribed().get_state();
 
-    EXPECT_EQ(1u, getState.get_frameworks().frameworks_size());
-    EXPECT_EQ(1u, getState.get_agents().agents_size());
-    EXPECT_EQ(0u, getState.get_tasks().tasks_size());
-    EXPECT_EQ(0u, getState.get_executors().executors_size());
+    EXPECT_EQ(1, getState.get_frameworks().frameworks_size());
+    EXPECT_EQ(1, getState.get_agents().agents_size());
+    EXPECT_EQ(0, getState.get_tasks().tasks_size());
+    EXPECT_EQ(0, getState.get_executors().executors_size());
   }
 
   {
@@ -2463,7 +2777,7 @@ TEST_P(MasterAPITest, EventAuthorizationFiltering)
   ASSERT_EQ(task1.task_id(), event->get().task_added().task().task_id());
 
   AWAIT_READY(updateRunning1);
-  EXPECT_EQ(updateRunning1->status().state(), TASK_RUNNING);
+  EXPECT_EQ(updateRunning1->status().state(), v1::TASK_RUNNING);
 
   event = decoder.read();
 
@@ -2555,6 +2869,249 @@ TEST_P(MasterAPITest, EventAuthorizationFiltering)
     .Times(AtMost(1));
 
   EXPECT_CALL(executor2, shutdown(_))
+    .Times(AtMost(1));
+}
+
+
+// Operator API events are sent using an asynchronous call chain. When
+// event-related state changes in the master before the authorizer returns, the
+// continuations which actually send the event should still have a consistent
+// view of the master state from the time when the event occurred. This test
+// forces task removal in the master before the authorizer returns in order to
+// verify that events are sent correctly in that case.
+TEST_P(MasterAPITest, EventAuthorizationDelayed)
+{
+  Clock::pause();
+
+  ContentType contentType = GetParam();
+
+  MockAuthorizer authorizer;
+  Try<Owned<cluster::Master>> master = StartMaster(&authorizer);
+  ASSERT_SOME(master);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+  auto executor = std::make_shared<v1::MockHTTPExecutor>();
+
+  ExecutorID executorId = DEFAULT_EXECUTOR_ID;
+  TestContainerizer containerizer(executorId, executor);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = MesosTest::CreateSlaveFlags();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), &containerizer, slaveFlags);
+  ASSERT_SOME(slave);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(v1::scheduler::SendSubscribe(v1::DEFAULT_FRAMEWORK_INFO));
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      contentType,
+      scheduler);
+
+  AWAIT_READY(subscribed);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+
+  // Create an event stream after seeing first offer but before a task is
+  // launched. We should see one framework, one agent, and no tasks/executors.
+  v1::master::Call v1Call;
+  v1Call.set_type(v1::master::Call::SUBSCRIBE);
+
+  http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+  headers["Accept"] = stringify(contentType);
+
+  Future<http::Response> response = http::streaming::post(
+      master.get()->pid,
+      "api/v1",
+      headers,
+      serialize(contentType, v1Call),
+      stringify(contentType));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ("chunked", "Transfer-Encoding", response);
+  ASSERT_EQ(http::Response::PIPE, response->type);
+  ASSERT_SOME(response->reader);
+
+  http::Pipe::Reader reader = response->reader.get();
+
+  auto deserializer =
+    lambda::bind(deserialize<v1::master::Event>, contentType, lambda::_1);
+
+  Reader<v1::master::Event> decoder(
+      Decoder<v1::master::Event>(deserializer), reader);
+
+  Future<Result<v1::master::Event>> event = decoder.read();
+  AWAIT_READY(event);
+
+  EXPECT_EQ(v1::master::Event::SUBSCRIBED, event->get().type());
+  const v1::master::Response::GetState& getState =
+    event->get().subscribed().get_state();
+
+  EXPECT_EQ(1, getState.get_frameworks().frameworks_size());
+  EXPECT_EQ(1, getState.get_agents().agents_size());
+  EXPECT_TRUE(getState.get_tasks().tasks().empty());
+  EXPECT_TRUE(getState.get_executors().executors().empty());
+
+  event = decoder.read();
+
+  AWAIT_READY(event);
+
+  EXPECT_EQ(v1::master::Event::HEARTBEAT, event->get().type());
+
+  event = decoder.read();
+  EXPECT_TRUE(event.isPending());
+
+  // When the authorizer is called, return pending futures
+  // that we can satisfy later.
+  Promise<Owned<ObjectApprover>> taskAddedApprover;
+  Promise<Owned<ObjectApprover>> updateRunningApprover;
+  Promise<Owned<ObjectApprover>> updateFinishedApprover;
+
+  Sequence approverSequence;
+
+  // Each event results in 4 calls into the authorizer.
+  // NOTE: This may change when the operator event stream code is refactored
+  // to avoid unnecessary authorizer calls. See MESOS-8475.
+  EXPECT_CALL(authorizer, getObjectApprover(_, _))
+    .Times(4)
+    .InSequence(approverSequence)
+    .WillRepeatedly(Return(taskAddedApprover.future()));
+  EXPECT_CALL(authorizer, getObjectApprover(_, _))
+    .Times(4)
+    .InSequence(approverSequence)
+    .WillRepeatedly(Return(updateRunningApprover.future()));
+  EXPECT_CALL(authorizer, getObjectApprover(_, _))
+    .Times(4)
+    .InSequence(approverSequence)
+    .WillRepeatedly(Return(updateFinishedApprover.future()));
+
+  const v1::Offer& offer = offers->offers(0);
+
+  v1::AgentID slaveId(offer.agent_id());
+
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(v1::scheduler::SendAcknowledge(frameworkId, slaveId))
+    .WillOnce(v1::scheduler::SendAcknowledge(frameworkId, slaveId));
+
+  // Capture the acknowledgement messages to the agent so that we can delay the
+  // authorizer until the master has processed the terminal acknowledgement.
+  // NOTE: These calls are in reverse order because they use `EXPECT_CALL` under
+  // the hood, and such expectations are evaluated in reverse order.
+  Future<StatusUpdateAcknowledgementMessage> acknowledgeFinished =
+    FUTURE_PROTOBUF(
+        StatusUpdateAcknowledgementMessage(),
+        master.get()->pid,
+        slave.get()->pid);
+  Future<StatusUpdateAcknowledgementMessage> acknowledgeRunning =
+    FUTURE_PROTOBUF(
+        StatusUpdateAcknowledgementMessage(),
+        master.get()->pid,
+        slave.get()->pid);
+
+  EXPECT_CALL(*executor, connected(_))
+    .WillOnce(v1::executor::SendSubscribe(frameworkId, evolve(executorId)));
+
+  EXPECT_CALL(*executor, subscribed(_, _));
+
+  EXPECT_CALL(*executor, launch(_, _))
+    .WillOnce(v1::executor::SendUpdateFromTask(
+        frameworkId, evolve(executorId), v1::TASK_RUNNING));
+
+  EXPECT_CALL(*executor, acknowledged(_, _))
+    .WillOnce(v1::executor::SendUpdateFromTaskID(
+        frameworkId, evolve(executorId), v1::TASK_FINISHED))
+    .WillOnce(Return());
+
+  TaskInfo task = createTask(devolve(offer), "", executorId);
+
+  mesos.send(v1::createCallAccept(
+      frameworkId,
+      offer,
+      {v1::LAUNCH({evolve(task)})}));
+
+  // Wait until the task has finished and task update acknowledgements
+  // have been processed to allow the authorizer to return.
+  AWAIT_READY(acknowledgeRunning);
+  AWAIT_READY(acknowledgeFinished);
+
+  {
+    taskAddedApprover.set(Owned<ObjectApprover>(new AcceptingObjectApprover()));
+
+    AWAIT_READY(event);
+
+    ASSERT_EQ(v1::master::Event::TASK_ADDED, event->get().type());
+    ASSERT_EQ(evolve(task.task_id()),
+              event->get().task_added().task().task_id());
+  }
+
+  event = decoder.read();
+
+  {
+    updateRunningApprover.set(Owned<ObjectApprover>(
+        new AcceptingObjectApprover()));
+
+    AWAIT_READY(event);
+
+    ASSERT_EQ(v1::master::Event::TASK_UPDATED, event->get().type());
+    ASSERT_EQ(v1::TASK_RUNNING,
+              event->get().task_updated().state());
+    ASSERT_EQ(v1::TASK_RUNNING,
+              event->get().task_updated().status().state());
+    ASSERT_EQ(evolve(task.task_id()),
+              event->get().task_updated().status().task_id());
+  }
+
+  event = decoder.read();
+
+  {
+    updateFinishedApprover.set(Owned<ObjectApprover>(
+        new AcceptingObjectApprover()));
+
+    AWAIT_READY(event);
+
+    ASSERT_EQ(v1::master::Event::TASK_UPDATED, event->get().type());
+    ASSERT_EQ(v1::TASK_FINISHED,
+              event->get().task_updated().state());
+    ASSERT_EQ(v1::TASK_FINISHED,
+              event->get().task_updated().status().state());
+    ASSERT_EQ(evolve(task.task_id()),
+              event->get().task_updated().status().task_id());
+  }
+
+  EXPECT_TRUE(reader.close());
+
+  EXPECT_CALL(authorizer, getObjectApprover(_, _))
+    .WillRepeatedly(Return(Owned<ObjectApprover>(
+        new AcceptingObjectApprover())));
+
+  EXPECT_CALL(*executor, shutdown(_))
+    .Times(AtMost(1));
+
+  EXPECT_CALL(*executor, disconnected(_))
     .Times(AtMost(1));
 }
 
@@ -2657,10 +3214,10 @@ TEST_P(MasterAPITest, FrameworksEvent)
   AWAIT_READY(event);
 
   {
-    EXPECT_EQ(v1::master::Event::FRAMEWORK_ADDED, event.get().get().type());
+    EXPECT_EQ(v1::master::Event::FRAMEWORK_ADDED, event.get()->type());
 
     const v1::master::Response::GetFrameworks::Framework& framework =
-      event.get().get().framework_added().framework();
+      event.get()->framework_added().framework();
 
     EXPECT_EQ(frameworkInfo, framework.framework_info());
     EXPECT_TRUE(framework.active());
@@ -2693,10 +3250,10 @@ TEST_P(MasterAPITest, FrameworksEvent)
   AWAIT_READY(event);
 
   {
-    EXPECT_EQ(v1::master::Event::FRAMEWORK_UPDATED, event.get().get().type());
+    EXPECT_EQ(v1::master::Event::FRAMEWORK_UPDATED, event.get()->type());
 
     const v1::master::Response::GetFrameworks::Framework& framework =
-      event.get().get().framework_updated().framework();
+      event.get()->framework_updated().framework();
 
     EXPECT_EQ(frameworkInfo, framework.framework_info());
   }
@@ -2723,10 +3280,10 @@ TEST_P(MasterAPITest, FrameworksEvent)
   AWAIT_READY(event);
 
   {
-    EXPECT_EQ(v1::master::Event::FRAMEWORK_REMOVED, event.get().get().type());
+    EXPECT_EQ(v1::master::Event::FRAMEWORK_REMOVED, event.get()->type());
 
     const v1::FrameworkID& frameworkId_ =
-      event.get().get().framework_removed().framework_info().id();
+      event.get()->framework_removed().framework_info().id();
 
     EXPECT_EQ(frameworkId, frameworkId_);
   }
@@ -2780,10 +3337,10 @@ TEST_P(MasterAPITest, Heartbeat)
   const v1::master::Response::GetState& getState =
       event->get().subscribed().get_state();
 
-  EXPECT_EQ(0u, getState.get_frameworks().frameworks_size());
-  EXPECT_EQ(0u, getState.get_agents().agents_size());
-  EXPECT_EQ(0u, getState.get_tasks().tasks_size());
-  EXPECT_EQ(0u, getState.get_executors().executors_size());
+  EXPECT_EQ(0, getState.get_frameworks().frameworks_size());
+  EXPECT_EQ(0, getState.get_agents().agents_size());
+  EXPECT_EQ(0, getState.get_tasks().tasks_size());
+  EXPECT_EQ(0, getState.get_executors().executors_size());
 
   event = decoder.read();
 
@@ -3241,7 +3798,7 @@ TEST_P(MasterAPITest, ReadFile)
     ASSERT_EQ(v1::master::Response::READ_FILE, v1Response->type());
 
     ASSERT_EQ("od", v1Response->read_file().data());
-    ASSERT_EQ(4, v1Response->read_file().size());
+    ASSERT_EQ(4u, v1Response->read_file().size());
   }
 
   // Read the file with `offset >= size`. This should return the size of file
@@ -3264,7 +3821,7 @@ TEST_P(MasterAPITest, ReadFile)
     ASSERT_EQ(v1::master::Response::READ_FILE, v1Response->type());
 
     ASSERT_EQ("", v1Response->read_file().data());
-    ASSERT_EQ(4, v1Response->read_file().size());
+    ASSERT_EQ(4u, v1Response->read_file().size());
   }
 
   // Read the file without length being set and `offset=0`. This should read
@@ -3286,7 +3843,7 @@ TEST_P(MasterAPITest, ReadFile)
     ASSERT_EQ(v1::master::Response::READ_FILE, v1Response->type());
 
     ASSERT_EQ("body", v1Response->read_file().data());
-    ASSERT_EQ(4, v1Response->read_file().size());
+    ASSERT_EQ(4u, v1Response->read_file().size());
   }
 
   // Read the file with `length > size - offset`. This should return the
@@ -3309,7 +3866,7 @@ TEST_P(MasterAPITest, ReadFile)
     ASSERT_EQ(v1::master::Response::READ_FILE, v1Response->type());
 
     ASSERT_EQ("ody", v1Response->read_file().data());
-    ASSERT_EQ(4, v1Response->read_file().size());
+    ASSERT_EQ(4u, v1Response->read_file().size());
   }
 }
 
@@ -3533,9 +4090,7 @@ TEST_P(MasterAPITest, Teardown)
 // This test verifies that a registered agent can be marked as gone and
 // shutdown by the master subsequently. Upon restarting the agent, it
 // should not be able to reregister with the master.
-//
-// TODO(andschwa): Enable this when MESOS-7604 is fixed.
-TEST_P_TEMP_DISABLED_ON_WINDOWS(MasterAPITest, MarkRegisteredAgentGone)
+TEST_P(MasterAPITest, MarkRegisteredAgentGone)
 {
   master::Flags masterFlags = CreateMasterFlags();
 
@@ -3606,8 +4161,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(MasterAPITest,
 
   {
     // Default principal is not allowed to mark agents as gone.
-    mesos::ACL::MarkAgentGone* acl =
-      masterFlags.acls.get().add_mark_agents_gone();
+    mesos::ACL::MarkAgentGone* acl = masterFlags.acls->add_mark_agents_gone();
 
     acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
     acl->mutable_agents()->set_type(mesos::ACL::Entity::NONE);
@@ -3656,9 +4210,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(MasterAPITest,
 
 // This test verifies that the master correctly sends 'TASK_GONE_BY_OPERATOR'
 // status updates when an agent running the tasks is marked as gone.
-//
-// TODO(andschwa): Enable this when MESOS-7604 is fixed.
-TEST_P_TEMP_DISABLED_ON_WINDOWS(MasterAPITest, TaskUpdatesUponAgentGone)
+TEST_P(MasterAPITest, TaskUpdatesUponAgentGone)
 {
   master::Flags masterFlags = CreateMasterFlags();
 
@@ -3998,7 +4550,7 @@ TEST_P(AgentAPITest, GetMetrics)
   }
 
   // Verifies that the response metrics is not empty.
-  ASSERT_LE(0, metrics.size());
+  ASSERT_LE(0u, metrics.size());
 }
 
 
@@ -4315,7 +4867,7 @@ TEST_P(AgentAPITest, ReadFile)
     ASSERT_EQ(v1::agent::Response::READ_FILE, v1Response->type());
 
     ASSERT_EQ("od", v1Response->read_file().data());
-    ASSERT_EQ(4, v1Response->read_file().size());
+    ASSERT_EQ(4u, v1Response->read_file().size());
   }
 
   // Read the file with `offset >= size`. This should return the size of file
@@ -4338,7 +4890,7 @@ TEST_P(AgentAPITest, ReadFile)
     ASSERT_EQ(v1::agent::Response::READ_FILE, v1Response->type());
 
     ASSERT_EQ("", v1Response->read_file().data());
-    ASSERT_EQ(4, v1Response->read_file().size());
+    ASSERT_EQ(4u, v1Response->read_file().size());
   }
 
   // Read the file without length being set and `offset=0`. This should read
@@ -4360,7 +4912,7 @@ TEST_P(AgentAPITest, ReadFile)
     ASSERT_EQ(v1::agent::Response::READ_FILE, v1Response->type());
 
     ASSERT_EQ("body", v1Response->read_file().data());
-    ASSERT_EQ(4, v1Response->read_file().size());
+    ASSERT_EQ(4u, v1Response->read_file().size());
   }
 
   // Read the file with `length > size - offset`. This should return the
@@ -4383,7 +4935,7 @@ TEST_P(AgentAPITest, ReadFile)
     ASSERT_EQ(v1::agent::Response::READ_FILE, v1Response->type());
 
     ASSERT_EQ("ody", v1Response->read_file().data());
-    ASSERT_EQ(4, v1Response->read_file().size());
+    ASSERT_EQ(4u, v1Response->read_file().size());
   }
 }
 
@@ -4898,11 +5450,11 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetState)
     ASSERT_EQ(v1::agent::Response::GET_STATE, v1Response->type());
 
     const v1::agent::Response::GetState& getState = v1Response->get_state();
-    ASSERT_EQ(1u, getState.get_frameworks().frameworks_size());
+    ASSERT_EQ(1, getState.get_frameworks().frameworks_size());
     ASSERT_TRUE(getState.get_frameworks().completed_frameworks().empty());
-    ASSERT_EQ(1u, getState.get_tasks().launched_tasks_size());
+    ASSERT_EQ(1, getState.get_tasks().launched_tasks_size());
     ASSERT_TRUE(getState.get_tasks().completed_tasks().empty());
-    ASSERT_EQ(1u, getState.get_executors().executors_size());
+    ASSERT_EQ(1, getState.get_executors().executors_size());
     ASSERT_TRUE(getState.get_executors().completed_executors().empty());
   }
 
@@ -4954,11 +5506,11 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(AgentAPITest, GetState)
 
     const v1::agent::Response::GetState& getState = v1Response->get_state();
     ASSERT_TRUE(getState.get_frameworks().frameworks().empty());
-    ASSERT_EQ(1u, getState.get_frameworks().completed_frameworks_size());
+    ASSERT_EQ(1, getState.get_frameworks().completed_frameworks_size());
     ASSERT_TRUE(getState.get_tasks().launched_tasks().empty());
-    ASSERT_EQ(1u, getState.get_tasks().completed_tasks_size());
+    ASSERT_EQ(1, getState.get_tasks().completed_tasks_size());
     ASSERT_TRUE(getState.get_executors().executors().empty());
-    ASSERT_EQ(1u, getState.get_executors().completed_executors_size());
+    ASSERT_EQ(1, getState.get_executors().completed_executors_size());
   }
 }
 
@@ -5192,8 +5744,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   {
     // Default principal is not allowed to launch nested container sessions.
     mesos::ACL::LaunchNestedContainerSessionUnderParentWithUser* acl =
-      flags.acls.get()
-        .add_launch_nested_container_sessions_under_parent_with_user();
+      flags.acls->add_launch_nested_container_sessions_under_parent_with_user();
     acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
     acl->mutable_users()->set_type(mesos::ACL::Entity::NONE);
   }
@@ -6129,6 +6680,150 @@ TEST_P(AgentAPITest, GetResourceProviders)
 
   EXPECT_EQ(info.type(), responseInfo.type());
   EXPECT_EQ(info.name(), responseInfo.name());
+}
+
+
+TEST_P(AgentAPITest, GetOperations)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+
+  Try<Owned<cluster::Master>> master = this->StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  // TODO(nfnt): Remove this once 'MockResourceProvider' supports
+  // authentication.
+  slaveFlags.authenticate_http_readwrite = false;
+
+  // Set the resource provider capability.
+  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
+  SlaveInfo::Capability capability;
+  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
+  capabilities.push_back(capability);
+
+  slaveFlags.agent_features = SlaveCapabilities();
+  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
+      {capabilities.begin(), capabilities.end()});
+
+  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(agent);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  AWAIT_READY(updateSlaveMessage);
+
+  mesos::v1::ResourceProviderInfo info;
+  info.set_type("org.apache.mesos.rp.test");
+  info.set_name("test");
+
+  v1::MockResourceProvider resourceProvider(
+      info,
+      v1::createDiskResource(
+          "200", "*", None(), None(), v1::createDiskSourceRaw()));
+
+  // Start and register a resource provider.
+  Owned<EndpointDetector> endpointDetector(
+      resource_provider::createEndpointDetector(agent.get()->pid));
+
+  updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  const ContentType contentType = GetParam();
+
+  resourceProvider.start(endpointDetector, contentType, v1::DEFAULT_CREDENTIAL);
+
+  // Wait until the agent's resources have been updated to include the
+  // resource provider resources.
+  AWAIT_READY(updateSlaveMessage);
+
+  v1::agent::Call v1Call;
+  v1Call.set_type(v1::agent::Call::GET_OPERATIONS);
+
+  Future<v1::agent::Response> v1Response =
+    post(agent.get()->pid, v1Call, contentType);
+
+  AWAIT_READY(v1Response);
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::agent::Response::GET_OPERATIONS, v1Response->type());
+  EXPECT_TRUE(v1Response->get_operations().operations().empty());
+
+  // Start a framework to operate on offers.
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  // We settle here to make sure that the framework has been authenticated
+  // before advancing the clock. Otherwise we would run into a authentication
+  // timeout due to the large allocation interval (1000s) of this fixture.
+  Clock::settle();
+
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::settle();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+  const Offer& offer = offers->front();
+
+  Option<Resource> rawDisk;
+
+  foreach (const Resource& resource, offer.resources()) {
+    if (resource.has_provider_id() &&
+        resource.has_disk() &&
+        resource.disk().has_source() &&
+        resource.disk().source().type() == Resource::DiskInfo::Source::RAW) {
+      rawDisk = resource;
+      break;
+    }
+  }
+
+  ASSERT_SOME(rawDisk);
+
+  // The operation is still pending when we receive this event.
+  Future<mesos::v1::resource_provider::Event::ApplyOperation> operation;
+  EXPECT_CALL(resourceProvider, applyOperation(_))
+    .WillOnce(FutureArg<0>(&operation));
+
+  // Start an operation.
+  driver.acceptOffers(
+      {offer.id()},
+      {CREATE_VOLUME(rawDisk.get(), Resource::DiskInfo::Source::MOUNT)});
+
+  AWAIT_READY(operation);
+
+  v1Response = post(agent.get()->pid, v1Call, contentType);
+
+  AWAIT_READY(v1Response);
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::agent::Response::GET_OPERATIONS, v1Response->type());
+  EXPECT_EQ(1, v1Response->get_operations().operations_size());
+  EXPECT_EQ(
+      operation->framework_id(),
+      v1Response->get_operations().operations(0).framework_id());
+  EXPECT_EQ(
+      evolve(updateSlaveMessage->slave_id()),
+      v1Response->get_operations().operations(0).agent_id());
+  EXPECT_EQ(
+      operation->info(), v1Response->get_operations().operations(0).info());
+  EXPECT_EQ(
+      operation->operation_uuid(),
+      v1Response->get_operations().operations(0).uuid());
+
+  driver.stop();
+  driver.join();
 }
 
 

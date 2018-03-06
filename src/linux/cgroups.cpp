@@ -309,7 +309,7 @@ static Try<Nothing> create(
     return Error(
         "Failed to determine if hierarchy '" + hierarchy +
         "' has the 'cpuset' subsystem attached: " + attached.error());
-  } else if (attached.get().count("cpuset") > 0) {
+  } else if (attached->count("cpuset") > 0) {
     string parent = Path(path::join("/", cgroup)).dirname();
     return cloneCpusetCpusMems(hierarchy, parent, cgroup);
   }
@@ -539,7 +539,7 @@ Try<set<string>> hierarchies()
   }
 
   set<string> results;
-  foreach (const fs::MountTable::Entry& entry, table.get().entries) {
+  foreach (const fs::MountTable::Entry& entry, table->entries) {
     if (entry.type == "cgroup") {
       Result<string> realpath = os::realpath(entry.dir);
       if (!realpath.isSome()) {
@@ -675,7 +675,7 @@ Try<set<string>> subsystems(const string& hierarchy)
 
   // Check if hierarchy is a mount point of type cgroup.
   Option<fs::MountTable::Entry> hierarchyEntry;
-  foreach (const fs::MountTable::Entry& entry, table.get().entries) {
+  foreach (const fs::MountTable::Entry& entry, table->entries) {
     if (entry.type == "cgroup") {
       Result<string> dirAbsPath = os::realpath(entry.dir);
       if (!dirAbsPath.isSome()) {
@@ -710,7 +710,7 @@ Try<set<string>> subsystems(const string& hierarchy)
 
   set<string> result;
   foreach (const string& name, names.get()) {
-    if (hierarchyEntry.get().hasOption(name)) {
+    if (hierarchyEntry->hasOption(name)) {
       result.insert(name);
     }
   }
@@ -781,7 +781,7 @@ Try<bool> mounted(const string& hierarchy, const string& subsystems)
         "Failed to get mounted hierarchies: " + hierarchies.error());
   }
 
-  if (hierarchies.get().count(realpath.get()) == 0) {
+  if (hierarchies->count(realpath.get()) == 0) {
     return false;
   }
 
@@ -794,7 +794,7 @@ Try<bool> mounted(const string& hierarchy, const string& subsystems)
   }
 
   foreach (const string& subsystem, strings::tokenize(subsystems, ",")) {
-    if (attached.get().count(subsystem) == 0) {
+    if (attached->count(subsystem) == 0) {
       return false;
     }
   }
@@ -829,7 +829,7 @@ Try<Nothing> remove(const string& hierarchy, const string& cgroup)
     return Error("Failed to get nested cgroups: " + cgroups.error());
   }
 
-  if (!cgroups.get().empty()) {
+  if (!cgroups->empty()) {
     return Error("Nested cgroups exist");
   }
 
@@ -874,7 +874,7 @@ Try<vector<string>> get(const string& hierarchy, const string& cgroup)
          : "No such file or directory"));
   }
 
-  char* paths[] = { const_cast<char*>(destAbsPath.get().c_str()), nullptr };
+  char* paths[] = {const_cast<char*>(destAbsPath->c_str()), nullptr};
 
   FTS* tree = fts_open(paths, FTS_NOCHDIR, nullptr);
   if (tree == nullptr) {
@@ -891,7 +891,7 @@ Try<vector<string>> get(const string& hierarchy, const string& cgroup)
     // FTS_DP indicates a directory being visited in postorder.
     if (node->fts_level > 0 && node->fts_info & FTS_DP) {
       string path =
-        strings::trim(node->fts_path + hierarchyAbsPath.get().length(), "/");
+        strings::trim(node->fts_path + hierarchyAbsPath->length(), "/");
       cgroups.push_back(path);
     }
   }
@@ -1293,7 +1293,7 @@ private:
     }
 
     // Inform failure and not listen again.
-    promise.get()->fail(error.get().message);
+    promise.get()->fail(error->message);
   }
 
   const string hierarchy;
@@ -1460,7 +1460,7 @@ protected:
   {
     Option<Error> error = verify(hierarchy, cgroup, "freezer.state");
     if (error.isSome()) {
-      promise.fail("Invalid freezer cgroup: " + error.get().message);
+      promise.fail("Invalid freezer cgroup: " + error->message);
       terminate(self());
       return;
     }
@@ -1614,7 +1614,7 @@ private:
     Try<set<pid_t>> processes = cgroups::processes(hierarchy, cgroup);
 
     // If the `cgroup` is already removed, treat this as a success.
-    if ((processes.isError() || !processes.get().empty()) &&
+    if ((processes.isError() || !processes->empty()) &&
         os::exists(path::join(hierarchy, cgroup))) {
       promise.fail("Failed to kill all processes in cgroup: " +
                    (processes.isError() ? processes.error()
@@ -2395,7 +2395,7 @@ Try<Stats> stat(
     return Error(stats.error());
   }
 
-  if (!stats.get().contains("user") || !stats.get().contains("system")) {
+  if (!stats->contains("user") || !stats->contains("system")) {
     return Error("Failed to get user/system value from cpuacct.stat");
   }
 
@@ -2407,8 +2407,7 @@ Try<Stats> stat(
     return ErrnoError("Failed to get _SC_CLK_TCK");
   }
 
-  Try<Duration> user =
-    Duration::create((double) stats.get().at("user") / userTicks);
+  Try<Duration> user = Duration::create((double)stats->at("user") / userTicks);
 
   if (user.isError()) {
     return Error(
@@ -2416,7 +2415,7 @@ Try<Stats> stat(
   }
 
   Try<Duration> system =
-    Duration::create((double) stats.get().at("system") / userTicks);
+    Duration::create((double)stats->at("system") / userTicks);
 
   if (system.isError()) {
     return Error(
@@ -3130,5 +3129,15 @@ Try<Nothing> classid(
 }
 
 } // namespace net_cls {
+
+
+namespace named {
+
+Result<string> cgroup(const string& hierarchyName, pid_t pid)
+{
+  return internal::cgroup(pid, "name=" + hierarchyName);
+}
+
+} // namespace named {
 
 } // namespace cgroups {

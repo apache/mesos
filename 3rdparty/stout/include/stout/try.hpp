@@ -70,19 +70,10 @@ public:
   bool isSome() const { return data.isSome(); }
   bool isError() const { return data.isNone(); }
 
-  const T& get() const
-  {
-    if (!data.isSome()) {
-      assert(error_.isSome());
-      ABORT("Try::get() but state == ERROR: " + error_.get().message);
-    }
-    return data.get();
-  }
-
-  T& get()
-  {
-    return const_cast<T&>(static_cast<const Try&>(*this).get());
-  }
+  T& get() & { return get(*this); }
+  const T& get() const & { return get(*this); }
+  T&& get() && { return get(std::move(*this)); }
+  const T&& get() const && { return get(std::move(*this)); }
 
   const T* operator->() const { return &get(); }
   T* operator->() { return &get(); }
@@ -100,6 +91,16 @@ public:
 
 private:
   static const std::string& error_impl(const Error& err) { return err.message; }
+
+  template <typename Self>
+  static auto get(Self&& self) -> decltype(std::forward<Self>(self).data.get())
+  {
+    if (!self.data.isSome()) {
+      assert(self.error_.isSome());
+      ABORT("Try::get() but state == ERROR: " + self.error_->message);
+    }
+    return std::forward<Self>(self).data.get();
+  }
 
   template <typename Err>
   static const Err& error_impl(const Err& err) { return err; }

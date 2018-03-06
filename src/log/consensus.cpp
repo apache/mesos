@@ -217,8 +217,7 @@ private:
           // An action has already been performed in this position, we
           // need to save the action with the highest proposal number.
           if (highestAckAction.isNone() ||
-              (highestAckAction.get().performed() <
-               response.action().performed())) {
+              (highestAckAction->performed() < response.action().performed())) {
             highestAckAction = response.action();
           }
         } else {

@@ -22,8 +22,10 @@
 #include <mesos/executor.hpp>
 #include <mesos/mesos.hpp>
 
+#include <process/collect.hpp>
 #include <process/delay.hpp>
 #include <process/id.hpp>
+#include <process/loop.hpp>
 #include <process/owned.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
@@ -40,6 +42,7 @@
 
 #include <stout/os/killtree.hpp>
 
+#include "checks/checks_runtime.hpp"
 #include "checks/health_checker.hpp"
 
 #include "common/protobuf_utils.hpp"
@@ -96,7 +99,6 @@ public:
       killed(false),
       terminated(false),
       killedByHealthCheck(false),
-      killingInProgress(false),
       launcherDir(launcherDir),
       docker(docker),
       containerName(containerName),
@@ -215,13 +217,46 @@ public:
 
     run->onAny(defer(self(), &Self::reaped, lambda::_1));
 
+    // Since the Docker daemon might hang, we have to retry the inspect command.
+    auto inspectLoop = loop(
+        self(),
+        [=]() {
+          return await(
+              docker->inspect(containerName, DOCKER_INSPECT_DELAY)
+                .after(
+                    DOCKER_INSPECT_TIMEOUT,
+                    [=](Future<Docker::Container> future) {
+                      LOG(WARNING) << "Docker inspect timed out after "
+                                   << DOCKER_INSPECT_TIMEOUT
+                                   << " for container "
+                                   << "'" << containerName << "'";
+
+                      // We need to clean up the hanging Docker CLI process.
+                      // Discarding the inspect future triggers a callback in
+                      // the Docker library that kills the subprocess and
+                      // transitions the future.
+                      future.discard();
+                      return future;
+                    }));
+        },
+        [](const Future<Docker::Container>& future)
+            -> Future<ControlFlow<Docker::Container>> {
+          if (future.isReady()) {
+            return Break(future.get());
+          }
+          if (future.isFailed()) {
+            return Failure(future.failure());
+          }
+          return Continue();
+        });
+
     // Delay sending TASK_RUNNING status update until we receive
     // inspect output. Note that we store a future that completes
     // after the sending of the running update. This allows us to
     // ensure that the terminal update is sent after the running
     // update (see `reaped()`).
-    inspect = docker->inspect(containerName, DOCKER_INSPECT_DELAY)
-      .then(defer(self(), [=](const Docker::Container& container) {
+    inspect =
+      inspectLoop.then(defer(self(), [=](const Docker::Container& container) {
         if (!killed) {
           containerPid = container.pid;
 
@@ -269,6 +304,55 @@ public:
           }
           driver->sendStatusUpdate(status);
         }
+
+        // This is a workaround for the Docker issue below:
+        // https://github.com/moby/moby/issues/33820
+        // Due to this issue, Docker daemon can fail to catch a container exit,
+        // which will lead to the `docker run` command that we execute in this
+        // executor never returning although the container has already exited.
+        // To workaround this issue, here we reap the container process directly
+        // so we will be notified when the container exits.
+        //
+        // The issue has only been reported on Linux, so it's not clear if
+        // Windows also has this issue. Regardless, we don't use this workaround
+        // for Windows, because the pid legitimately might not exist. For
+        // example, if the container is running in Hyper-V isolation, the pid
+        // will only exist in the guest OS.
+#ifndef __WINDOWS__
+        if (container.pid.isSome()) {
+          process::reap(container.pid.get())
+            .then(defer(self(), [=](const Option<int>& status) {
+              // We cannot get the actual exit status of the container
+              // process since it is not a child process of this executor,
+              // so here `status` must be `None`.
+              CHECK_NONE(status);
+
+              // There will be a race between the method `reaped` and this
+              // lambda; ideally when the Docker issue mentioned above does
+              // not occur, `reaped` will be invoked (i.e., the `docker run`
+              // command returns) to get the actual exit status of the
+              // container, so here we wait a few seconds for `reaped` to be
+              // invoked. If `reaped` is not invoked within the timeout, that
+              // means we hit that Docker issue.
+              delay(
+                  Seconds(3),
+                  self(),
+                  &Self::reapedContainer,
+                  container.pid.get());
+
+              return Nothing();
+            }));
+        } else {
+          // This is the case that the container process has already exited,
+          // Similar to the above case, let's wait a few seconds for `reaped`
+          // to be invoked.
+          delay(
+              Seconds(3),
+              self(),
+              &Self::reapedContainer,
+              None());
+        }
+#endif // __WINDOWS__
 
         return Nothing();
       }));
@@ -392,9 +476,8 @@ private:
     // TODO(alexr): If a kill is in progress, consider adjusting
     // the grace period if a new one is provided.
 
-    // Issue the kill signal if the container is running
-    // and kill attempt is not in progress.
-    if (run.isSome() && !killingInProgress) {
+    // Issue the kill signal if there was an attempt to launch the container.
+    if (run.isSome()) {
       // We have to issue the kill after 'docker inspect' has
       // completed, otherwise we may race with 'docker run'
       // and docker may not know about the container. Note
@@ -403,6 +486,15 @@ private:
       // issued the kill.
       inspect
         .onAny(defer(self(), &Self::_killTask, _taskId, gracePeriod));
+
+      // If the inspect takes too long we discard it to ensure we
+      // don't wait forever, however in this case there may be no
+      // TASK_RUNNING update.
+      inspect
+        .after(DOCKER_INSPECT_TIMEOUT, [=](const Future<Nothing>&) {
+          inspect.discard();
+          return inspect;
+        });
     }
   }
 
@@ -413,9 +505,7 @@ private:
     CHECK_SOME(taskId);
     CHECK_EQ(taskId_, taskId.get());
 
-    if (!terminated && !killingInProgress) {
-      killingInProgress = true;
-
+    if (!terminated) {
       // Once the task has been transitioned to `killed`,
       // there is no way back, even if the kill attempt
       // failed. This also allows us to send TASK_KILLING
@@ -450,27 +540,42 @@ private:
         }
       }
 
+      // If a previous attempt to stop a Docker container is still in progress,
+      // we need to kill the hanging Docker CLI subprocess. Discarding this
+      // future triggers a callback in the Docker library that kills the
+      // subprocess.
+      if (stop.isPending()) {
+        LOG(WARNING) << "Previous docker stop has not terminated yet"
+                     << " for container '" << containerName << "'";
+        stop.discard();
+      }
+
       // TODO(bmahler): Replace this with 'docker kill' so
       // that we can adjust the grace period in the case of
       // a `KillPolicy` override.
+      //
+      // NOTE: `docker stop` may or may not finish. Our behaviour is to give
+      // the subprocess a chance to finish until next time `_killtask` is
+      // invoked. Also, invoking `docker stop` might be unsuccessful, in which
+      // case the container most probably does not receive the signal.
+      // In any case we should allow schedulers to retry the kill operation or,
+      // if the kill was initiated by a failing health check, retry ourselves.
+      // We do not bail out nor stop retrying to avoid sending a terminal
+      // status update while the container might still be running.
       stop = docker->stop(containerName, gracePeriod);
 
-      // Invoking `docker stop` might be unsuccessful, in which case the
-      // container most probably does not receive the signal. In this case we
-      // should allow schedulers to retry the kill operation or, if the kill
-      // was initiated by a failing health check, retry ourselves. We do not
-      // bail out nor stop retrying to avoid sending a terminal status update
-      // while the container might still be running.
-      //
-      // NOTE: `docker stop` might also hang. We do not address this for now,
-      // because there is no evidence that in this case docker daemon might
-      // function properly, i.e., it's only the docker cli command that hangs,
-      // and hence there is not so much we can do. See MESOS-6743.
+      if (killedByHealthCheck) {
+        stop
+          .after(KILL_RETRY_INTERVAL, defer(self(), [=](Future<Nothing>) {
+            LOG(INFO) << "Retrying to kill task";
+            _killTask(taskId_, gracePeriod);
+            return stop;
+          }));
+      }
+
       stop.onFailed(defer(self(), [=](const string& failure) {
         LOG(ERROR) << "Failed to stop container '" << containerName << "'"
                    << ": " << failure;
-
-        killingInProgress = false;
 
         if (killedByHealthCheck) {
           LOG(INFO) << "Retrying to kill task in " << KILL_RETRY_INTERVAL;
@@ -485,8 +590,27 @@ private:
     }
   }
 
+  void reapedContainer(Option<pid_t> pid)
+  {
+    // Do nothing if the method `reaped` has already been invoked.
+    if (terminated) {
+      return;
+    }
+
+    // This means the Docker issue mentioned in `launchTask` occurs.
+    LOG(WARNING) << "The container process"
+                 << (pid.isSome() ? " (pid: " + stringify(pid.get()) + ")" : "")
+                 << " has exited, but Docker daemon failed to catch it.";
+
+    reaped(None());
+  }
+
   void reaped(const Future<Option<int>>& run)
   {
+    if (terminated) {
+      return;
+    }
+
     terminated = true;
 
     // Stop health checking the task.
@@ -614,33 +738,6 @@ private:
                    << validateVersion.error();
         return;
       }
-
-      // Wrap the original health check command in `docker exec`.
-      const CommandInfo& command = healthCheck.command();
-
-      vector<string> commandArguments;
-      commandArguments.push_back(docker->getPath());
-      commandArguments.push_back("exec");
-      commandArguments.push_back(containerName);
-
-      if (command.shell()) {
-        commandArguments.push_back("sh");
-        commandArguments.push_back("-c");
-        commandArguments.push_back("\"");
-        commandArguments.push_back(command.value());
-        commandArguments.push_back("\"");
-      } else {
-        commandArguments.push_back(command.value());
-
-        foreach (const string& argument, command.arguments()) {
-          commandArguments.push_back(argument);
-        }
-      }
-
-      healthCheck.mutable_command()->set_shell(true);
-      healthCheck.mutable_command()->clear_arguments();
-      healthCheck.mutable_command()->set_value(
-          strings::join(" ", commandArguments));
     }
 
     vector<string> namespaces;
@@ -651,14 +748,21 @@ private:
       namespaces.push_back("net");
     }
 
+    const checks::runtime::Docker dockerRuntime{
+      namespaces,
+      containerPid,
+      docker->getPath(),
+      docker->getSocket(),
+      containerName
+    };
+
     Try<Owned<checks::HealthChecker>> _checker =
       checks::HealthChecker::create(
           healthCheck,
           launcherDir,
           defer(self(), &Self::taskHealthUpdated, lambda::_1),
           task.task_id(),
-          containerPid,
-          namespaces);
+          dockerRuntime);
 
     if (_checker.isError()) {
       // TODO(gilbert): Consider ABORT and return a TASK_FAILED here.
@@ -675,7 +779,6 @@ private:
   bool terminated;
 
   bool killedByHealthCheck;
-  bool killingInProgress; // Guard against simultaneous kill attempts.
 
   string launcherDir;
   Owned<Docker> docker;

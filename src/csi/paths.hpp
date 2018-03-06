@@ -45,6 +45,14 @@ namespace paths {
 //               |-- <volume_id> (mount point)
 
 
+struct ContainerPath
+{
+  std::string type;
+  std::string name;
+  ContainerID containerId;
+};
+
+
 struct VolumePath
 {
   std::string type;
@@ -64,6 +72,11 @@ std::string getContainerPath(
     const std::string& type,
     const std::string& name,
     const ContainerID& containerId);
+
+
+Try<ContainerPath> parseContainerPath(
+    const std::string& rootDir,
+    const std::string& dir);
 
 
 std::string getContainerInfoPath(

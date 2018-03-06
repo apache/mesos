@@ -167,7 +167,7 @@ public:
     }
 
     if (error.isSome()) {
-      return process::Failure(error.get().message);
+      return process::Failure(error->message);
     }
 
     if (done) {
@@ -230,7 +230,7 @@ private:
     }
 
     // Have we reached EOF?
-    if (read.get().empty()) {
+    if (read->empty()) {
       complete();
       return;
     }

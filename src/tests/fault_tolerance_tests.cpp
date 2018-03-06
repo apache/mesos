@@ -912,7 +912,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FaultToleranceTest, FrameworkReregister)
       framework.values["registered_time"].as<JSON::Number>().as<double>(),
       1);
 
-  ASSERT_NE(0, framework.values.count("reregistered_time"));
+  ASSERT_NE(0u, framework.values.count("reregistered_time"));
   EXPECT_NEAR(
       reregisterTime.secs(),
       framework.values["reregistered_time"].as<JSON::Number>().as<double>(),

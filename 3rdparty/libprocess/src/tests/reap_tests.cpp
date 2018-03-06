@@ -58,8 +58,8 @@ TEST(ReapTest, NonChildProcess)
                                Fork(Exec(SLEEP_COMMAND(10))),
                                Exec("exit 0"))();
   ASSERT_SOME(tree);
-  ASSERT_EQ(1u, tree.get().children.size());
-  pid_t grandchild = tree.get().children.front();
+  ASSERT_EQ(1u, tree->children.size());
+  pid_t grandchild = tree->children.front();
 
   // Reap the grandchild process.
   Future<Option<int>> status = process::reap(grandchild);
@@ -83,10 +83,10 @@ TEST(ReapTest, NonChildProcess)
   AWAIT_READY(status);
 
   // The status is None because pid is not an immediate child.
-  ASSERT_NONE(status.get()) << status.get().get();
+  ASSERT_NONE(status.get()) << status->get();
 
   // Reap the child as well to clean up after ourselves.
-  status = process::reap(tree.get().process.pid);
+  status = process::reap(tree->process.pid);
 
   // Now advance time until the child is reaped.
   while (status.isPending()) {
@@ -151,7 +151,7 @@ TEST(ReapTest, TerminatedChildProcess)
     const Result<os::Process> process = os::process(child);
     ASSERT_SOME(process) << "Process " << child << " reaped unexpectedly";
 
-    if (process.get().zombie) {
+    if (process->zombie) {
       break;
     }
 

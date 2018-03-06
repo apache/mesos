@@ -64,7 +64,7 @@ Try<MasterDetector*> MasterDetector::create(
     if (url.isError()) {
       return Error(url.error());
     }
-    if (url.get().path == "/") {
+    if (url->path == "/") {
       return Error(
           "Expecting a (chroot) path for ZooKeeper ('/' is not supported)");
     }

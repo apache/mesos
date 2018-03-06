@@ -108,19 +108,20 @@ def main():
         print 'Please install RBTools before proceeding'
         sys.exit(1)
 
-    # Don't do anything if people have unstaged changes.
+    # Warn if people have unstaged changes.
     diff_stat = execute(['git', 'diff', '--shortstat']).strip()
 
     if diff_stat:
-        print 'Please commit or stash any changes before using post-reviews!'
-        sys.exit(1)
+        print >> sys.stderr, \
+            'WARNING: Worktree contains unstaged changes, continuing anyway.'
 
-    # Don't do anything if people have uncommitted changes.
+    # Warn if people have uncommitted changes.
     diff_stat = execute(['git', 'diff', '--shortstat', '--staged']).strip()
 
     if diff_stat:
-        print 'Please commit staged changes before using post-reviews!'
-        sys.exit(1)
+        print >> sys.stderr, \
+            'WARNING: Worktree contains staged but uncommitted changes, ' \
+            'continuing anyway.'
 
     # Grab a reference to the repo's git directory. Usually this is simply
     # .git in the repo's top level directory. However, when submodules are
@@ -198,6 +199,19 @@ def main():
     # Always put us back on the original branch.
     atexit.register(lambda: execute(['git', 'checkout', branch]))
 
+    # Warn if the tracking branch is no direct ancestor of this review chain.
+    if execute([
+            'git', 'merge-base', '--is-ancestor', tracking_branch, branch_ref],
+            ignore_errors=True) is None:
+        print >> sys.stderr, \
+            "WARNING: Tracking branch '%s' is no direct ancestor of HEAD." \
+            " Did you forget to rebase?" % tracking_branch
+
+        try:
+            raw_input("Press enter to continue or 'Ctrl-C' to abort.\n")
+        except KeyboardInterrupt:
+            sys.exit(0)
+
     merge_base = execute(
         ['git', 'merge-base', tracking_branch, branch_ref]).strip()
 
@@ -208,6 +222,7 @@ def main():
         '--pretty=format:%Cred%H%Creset -%C'
         '(yellow)%d%Creset %s %Cgreen(%cr)%Creset',
         merge_base + '..HEAD'])
+
     print 'Running \'%s\' across all of ...' % " ".join(post_review)
     print output
 
@@ -229,7 +244,7 @@ def main():
         sha = line.split()[0]
         shas.append(sha)
 
-    previous = tracking_branch
+    previous = merge_base
     parent_review_request_id = None
     for i, sha in enumerate(shas):
         execute(['git', 'branch', '-D', temporary_branch], True)

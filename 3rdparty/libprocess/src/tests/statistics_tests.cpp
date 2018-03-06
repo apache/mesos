@@ -57,15 +57,15 @@ TEST(StatisticsTest, Statistics)
 
   EXPECT_SOME(statistics);
 
-  EXPECT_EQ(11u, statistics.get().count);
+  EXPECT_EQ(11u, statistics->count);
 
-  EXPECT_DOUBLE_EQ(-5.0, statistics.get().min);
-  EXPECT_DOUBLE_EQ(5.0, statistics.get().max);
+  EXPECT_DOUBLE_EQ(-5.0, statistics->min);
+  EXPECT_DOUBLE_EQ(5.0, statistics->max);
 
-  EXPECT_DOUBLE_EQ(0.0, statistics.get().p50);
-  EXPECT_DOUBLE_EQ(4.0, statistics.get().p90);
-  EXPECT_DOUBLE_EQ(4.5, statistics.get().p95);
-  EXPECT_DOUBLE_EQ(4.9, statistics.get().p99);
-  EXPECT_DOUBLE_EQ(4.99, statistics.get().p999);
-  EXPECT_DOUBLE_EQ(4.999, statistics.get().p9999);
+  EXPECT_DOUBLE_EQ(0.0, statistics->p50);
+  EXPECT_DOUBLE_EQ(4.0, statistics->p90);
+  EXPECT_DOUBLE_EQ(4.5, statistics->p95);
+  EXPECT_DOUBLE_EQ(4.9, statistics->p99);
+  EXPECT_DOUBLE_EQ(4.99, statistics->p999);
+  EXPECT_DOUBLE_EQ(4.999, statistics->p9999);
 }

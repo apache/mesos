@@ -309,7 +309,7 @@ void AgentRegistrarProcess::_update(
 {
   updating = false;
   // Abort if the storage operation did not succeed.
-  if (!store.isReady() || store.get().isNone()) {
+  if (!store.isReady() || store->isNone()) {
     string message = "Failed to update registry: ";
 
     if (store.isFailed()) {

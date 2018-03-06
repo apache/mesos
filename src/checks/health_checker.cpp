@@ -50,11 +50,14 @@
 #include <stout/try.hpp>
 #include <stout/unreachable.hpp>
 #include <stout/uuid.hpp>
+#include <stout/variant.hpp>
 
 #include <stout/os/constants.hpp>
 #include <stout/os/killtree.hpp>
 
 #include "checks/checker_process.hpp"
+#include "checks/checks_runtime.hpp"
+#include "checks/checks_types.hpp"
 
 #include "common/http.hpp"
 #include "common/status_utils.hpp"
@@ -176,8 +179,7 @@ Try<Owned<HealthChecker>> HealthChecker::create(
     const string& launcherDir,
     const lambda::function<void(const TaskHealthStatus&)>& callback,
     const TaskID& taskId,
-    const Option<pid_t>& taskPid,
-    const vector<string>& namespaces)
+    Variant<runtime::Plain, runtime::Docker, runtime::Nested> runtime)
 {
   // Validate the 'HealthCheck' protobuf.
   Option<Error> error = validation::healthCheck(healthCheck);
@@ -188,64 +190,24 @@ Try<Owned<HealthChecker>> HealthChecker::create(
   return Owned<HealthChecker>(
       new HealthChecker(
           healthCheck,
-          taskId,
-          callback,
           launcherDir,
-          taskPid,
-          namespaces,
-          None(),
-          None(),
-          None(),
-          false));
-}
-
-
-Try<Owned<HealthChecker>> HealthChecker::create(
-    const HealthCheck& healthCheck,
-    const string& launcherDir,
-    const lambda::function<void(const TaskHealthStatus&)>& callback,
-    const TaskID& taskId,
-    const ContainerID& taskContainerId,
-    const process::http::URL& agentURL,
-    const Option<string>& authorizationHeader)
-{
-  // Validate the 'HealthCheck' protobuf.
-  Option<Error> error = validation::healthCheck(healthCheck);
-  if (error.isSome()) {
-    return error.get();
-  }
-
-  return Owned<HealthChecker>(
-      new HealthChecker(
-          healthCheck,
-          taskId,
           callback,
-          launcherDir,
-          None(),
-          {},
-          taskContainerId,
-          agentURL,
-          authorizationHeader,
-          true));
+          taskId,
+          std::move(runtime)));
 }
 
 
 HealthChecker::HealthChecker(
       const HealthCheck& _healthCheck,
-      const TaskID& _taskId,
+      const string& launcherDir,
       const lambda::function<void(const TaskHealthStatus&)>& _callback,
-      const std::string& launcherDir,
-      const Option<pid_t>& taskPid,
-      const std::vector<std::string>& namespaces,
-      const Option<ContainerID>& taskContainerId,
-      const Option<process::http::URL>& agentURL,
-      const Option<std::string>& authorizationHeader,
-      bool commandCheckViaAgent)
+      const TaskID& _taskId,
+      Variant<runtime::Plain, runtime::Docker, runtime::Nested> runtime)
   : healthCheck(_healthCheck),
     callback(_callback),
+    taskId(_taskId),
     name(HealthCheck::Type_Name(healthCheck.type()) + " health check"),
     startTime(Clock::now()),
-    taskId(_taskId),
     consecutiveFailures(0),
     initializing(true)
 {
@@ -276,14 +238,9 @@ HealthChecker::HealthChecker(
           launcherDir,
           std::bind(&HealthChecker::processCheckResult, this, lambda::_1),
           _taskId,
-          taskPid,
-          namespaces,
-          taskContainerId,
-          agentURL,
-          authorizationHeader,
-          scheme,
           name,
-          commandCheckViaAgent,
+          std::move(runtime),
+          scheme,
           ipv6));
 
   spawn(process.get());

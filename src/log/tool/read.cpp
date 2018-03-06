@@ -103,7 +103,7 @@ Try<Nothing> Read::execute(int argc, char** argv)
   // Get the beginning of the replica.
   Future<uint64_t> begin = replica.beginning();
   if (timeout.isSome()) {
-    begin.await(timeout.get().remaining());
+    begin.await(timeout->remaining());
   } else {
     begin.await();
   }
@@ -120,7 +120,7 @@ Try<Nothing> Read::execute(int argc, char** argv)
   // Get the ending of the replica.
   Future<uint64_t> end = replica.ending();
   if (timeout.isSome()) {
-    end.await(timeout.get().remaining());
+    end.await(timeout->remaining());
   } else {
     end.await();
   }
@@ -149,7 +149,7 @@ Try<Nothing> Read::execute(int argc, char** argv)
 
   Future<list<Action>> actions = replica.read(from.get(), to.get());
   if (timeout.isSome()) {
-    actions.await(timeout.get().remaining());
+    actions.await(timeout->remaining());
   } else {
     actions.await();
   }

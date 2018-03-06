@@ -74,12 +74,12 @@ BUNDLED_DEPS = # Initialize BUNDLED_DEPENDENCIES so we can add to it.
 	@cd $(BUNDLED_DIR) && $(MAKE) $(AM_MAKEFLAGS) $(@:$(BUNDLED_DIR)/%=%)
 
 if WITH_BUNDLED_BOOST
-BOOST_INCLUDE_FLAGS = -isystem $(BOOST)
+BOOST_INCLUDE_FLAGS = -I$(BOOST)
 BUNDLED_DEPS += $(BOOST)-stamp
 endif
 
 if WITH_BUNDLED_CONCURRENTQUEUE
-CONCURRENTQUEUE_INCLUDE_FLAGS = -isystem $(CONCURRENTQUEUE)
+CONCURRENTQUEUE_INCLUDE_FLAGS = -I$(CONCURRENTQUEUE)
 BUNDLED_DEPS += $(CONCURRENTQUEUE)-stamp
 endif
 
@@ -186,9 +186,9 @@ endif
 noinst_LTLIBRARIES = libprocess.la
 
 libprocess_la_SOURCES =		\
-  src/authenticator_manager.hpp	\
-  src/authenticator_manager.cpp	\
   src/authenticator.cpp		\
+  src/authenticator_manager.cpp	\
+  src/authenticator_manager.hpp	\
   src/clock.cpp			\
   src/config.hpp		\
   src/decoder.hpp		\
@@ -197,6 +197,7 @@ libprocess_la_SOURCES =		\
   src/event_queue.hpp		\
   src/firewall.cpp		\
   src/gate.hpp			\
+  src/gtest_constants.cpp	\
   src/help.cpp			\
   src/http.cpp			\
   src/http_proxy.cpp		\
@@ -209,9 +210,9 @@ libprocess_la_SOURCES =		\
   src/pid.cpp			\
   src/poll_socket.cpp		\
   src/poll_socket.hpp		\
-  src/profiler.cpp		\
   src/process.cpp		\
   src/process_reference.hpp	\
+  src/profiler.cpp		\
   src/reap.cpp			\
   src/run_queue.hpp		\
   src/semaphore.hpp		\
@@ -235,9 +236,6 @@ libprocess_la_SOURCES +=	\
 endif
 
 
-# We use "-isystem" instead of "-I" to add Boost to the include search
-# path. This disables compiler warnings inside Boost headers since we
-# can't easily fix them. See MESOS-3799.
 libprocess_la_CPPFLAGS =			\
   -DBUILD_DIR=\"$(LIBPROCESS_BUILD_DIR)\"	\
   -I$(srcdir)/include				\

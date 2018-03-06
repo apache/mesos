@@ -64,11 +64,8 @@ BUNDLED_DEPS = # Initialize BUNDLED_DEPS so we can add to it.
 %-stamp:
 	@cd $(BUNDLED_DIR) && $(MAKE) $(AM_MAKEFLAGS) $(@:$(BUNDLED_DIR)/%=%)
 
-# We use "-isystem" instead of "-I" to add Boost to the include search
-# path. This disables compiler warnings inside Boost headers since we
-# can't easily fix them. See MESOS-3799.
 if WITH_BUNDLED_BOOST
-BOOST_INCLUDE_FLAGS = -isystem $(BOOST)
+BOOST_INCLUDE_FLAGS = -I$(BOOST)
 BUNDLED_DEPS += $(BOOST)-stamp
 endif
 

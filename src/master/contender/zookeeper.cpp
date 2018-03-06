@@ -140,7 +140,7 @@ Future<Future<Nothing>> ZooKeeperMasterContenderProcess::contend()
   }
 
   // Should not recontend if the last election is still ongoing.
-  if (candidacy.isSome() && candidacy.get().isPending()) {
+  if (candidacy.isSome() && candidacy->isPending()) {
     return candidacy.get();
   }
 

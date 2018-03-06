@@ -190,7 +190,7 @@ Future<bool> BindBackendProcess::destroy(const string& rootfs)
     return Failure("Failed to read mount table: " + mountTable.error());
   }
 
-  foreach (const fs::MountInfoTable::Entry& entry, mountTable.get().entries) {
+  foreach (const fs::MountInfoTable::Entry& entry, mountTable->entries) {
     // TODO(xujyan): If MS_REC was used in 'provision()' we would need
     // to check `strings::startsWith(entry.target, rootfs)` here to
     // unmount all nested mounts.

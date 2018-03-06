@@ -119,6 +119,7 @@ set(MESOS_TESTS_SRC
   slave_authorization_tests.cpp
   slave_compatibility_tests.cpp
   slave_tests.cpp
+  slave_recovery_tests.cpp
   slave_validation_tests.cpp
   sorter_tests.cpp
   task_status_update_manager_tests.cpp
@@ -178,7 +179,6 @@ if (NOT WIN32)
     registrar_tests.cpp
     reservation_endpoints_tests.cpp
     reservation_tests.cpp
-    slave_recovery_tests.cpp
     state_tests.cpp
     teardown_tests.cpp
     upgrade_tests.cpp)

@@ -1,0 +1,4 @@
+{
+  "data-root": "/var/lib/docker",
+  "storage-driver": "vfs"
+}

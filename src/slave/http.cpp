@@ -575,6 +575,9 @@ Future<Response> Http::_api(
     case mesos::agent::Call::GET_EXECUTORS:
       return getExecutors(call, mediaTypes.accept, principal);
 
+    case mesos::agent::Call::GET_OPERATIONS:
+      return getOperations(call, mediaTypes.accept, principal);
+
     case mesos::agent::Call::GET_TASKS:
       return getTasks(call, mediaTypes.accept, principal);
 
@@ -1669,6 +1672,31 @@ mesos::agent::Response::GetExecutors Http::_getExecutors(
   }
 
   return getExecutors;
+}
+
+
+Future<Response> Http::getOperations(
+    const mesos::agent::Call& call,
+    ContentType acceptType,
+    const Option<Principal>& principal) const
+{
+  CHECK_EQ(mesos::agent::Call::GET_OPERATIONS, call.type());
+
+  LOG(INFO) << "Processing GET_OPERATIONS call";
+
+  // TODO(nfnt): Authorize this call (MESOS-8473).
+
+  agent::Response response;
+  response.set_type(mesos::agent::Response::GET_OPERATIONS);
+
+  agent::Response::GetOperations* operations =
+    response.mutable_get_operations();
+
+  foreachvalue (Operation* operation, slave->operations) {
+    operations->add_operations()->CopyFrom(*operation);
+  }
+
+  return OK(serialize(acceptType, evolve(response)), stringify(acceptType));
 }
 
 
@@ -3548,6 +3576,11 @@ Future<Response> Http::launchNestedContainerSession(
         .then(defer(slave->self(),
                     [=](const Response& response) -> Future<Response> {
           if (response.status != OK().status) {
+            LOG(WARNING) << "Failed to attach to nested container "
+                         << containerId << ": '" << response.status << "' ("
+                         << response.body << ")";
+
+            destroy(containerId);
             return response;
           }
 

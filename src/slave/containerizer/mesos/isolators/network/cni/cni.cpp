@@ -36,6 +36,7 @@
 #include <stout/os/which.hpp>
 
 #include "common/protobuf_utils.hpp"
+#include "common/status_utils.hpp"
 
 #include "linux/fs.hpp"
 #include "linux/ns.hpp"
@@ -1337,14 +1338,14 @@ Future<Nothing> NetworkCniIsolatorProcess::_attach(
         plugin + "': " + parse.error());
   }
 
-  if (parse.get().has_ip4()) {
-    LOG(INFO) << "Got assigned IPv4 address '" << parse.get().ip4().ip()
+  if (parse->has_ip4()) {
+    LOG(INFO) << "Got assigned IPv4 address '" << parse->ip4().ip()
               << "' from CNI network '" << networkName
               << "' for container " << containerId;
   }
 
-  if (parse.get().has_ip6()) {
-    LOG(INFO) << "Got assigned IPv6 address '" << parse.get().ip6().ip()
+  if (parse->has_ip6()) {
+    LOG(INFO) << "Got assigned IPv6 address '" << parse->ip6().ip()
               << "' from CNI network '" << networkName
               << "' for container " << containerId;
   }
@@ -2076,10 +2077,20 @@ int NetworkCniIsolatorSetup::execute()
       return EXIT_FAILURE;
     }
 
-    if (os::spawn("ifconfig", {"ifconfig", "lo", "up"}) != 0) {
-      cerr << "Failed to bring up the loopback interface in the new "
-           << "network namespace of pid " << flags.pid.get()
-           << ": " << os::strerror(errno) << endl;
+    int status = os::spawn("ifconfig", {"ifconfig", "lo", "up"});
+
+    const string message =
+      "Failed to bring up the loopback interface in the new "
+      "network namespace of pid " + stringify(flags.pid.get());
+
+    if (status == -1) {
+      cerr << message << ": " << "os::spawn failed: "
+           << os::strerror(errno) << endl;
+      return EXIT_FAILURE;
+    }
+
+    if (!WSUCCEEDED(status)) {
+      cerr << message << ": 'ifconfig lo up' " << WSTRINGIFY(status) << endl;
       return EXIT_FAILURE;
     }
   }

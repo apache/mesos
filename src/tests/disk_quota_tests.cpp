@@ -583,7 +583,7 @@ TEST_F(DiskQuotaTest, ResourceStatistics)
       EXPECT_LE(usage->disk_used_bytes(), usage->disk_limit_bytes());
     }
 
-    ASSERT_EQ(2u, usage->disk_statistics().size());
+    ASSERT_EQ(2, usage->disk_statistics().size());
 
     bool done = true;
     foreach (const DiskStatistics& statistics, usage->disk_statistics()) {
@@ -756,7 +756,7 @@ TEST_F(DiskQuotaTest, SlaveRecovery)
       }
     }
 
-    ASSERT_LT(elapsed, Seconds(15));
+    ASSERT_LT(elapsed, process::TEST_AWAIT_TIMEOUT);
 
     os::sleep(Milliseconds(1));
     elapsed += Milliseconds(1);

@@ -32,13 +32,12 @@
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
+#include "examples/flags.hpp"
+
 #include "logging/logging.hpp"
 
 using namespace mesos;
 
-using std::cerr;
-using std::cout;
-using std::endl;
 using std::string;
 using std::vector;
 
@@ -327,65 +326,33 @@ private:
 };
 
 
-class Flags : public virtual flags::FlagsBase
+class Flags : public virtual mesos::internal::examples::Flags
 {
 public:
   Flags()
   {
-    add(&Flags::master,
-        "master",
-        "The master to connect to. May be one of:\n"
-        "  master@addr:port (The PID of the master)\n"
-        "  zk://host1:port1,host2:port2,.../path\n"
-        "  zk://username:password@host1:port1,host2:port2,.../path\n"
-        "  file://path/to/file (where file contains one of the above)");
-
-    add(&Flags::role,
-        "role",
-        "Role to use when registering");
-
-    add(&Flags::principal,
-        "principal",
-        "The principal used to identify this framework",
-        "test");
-
     add(&Flags::command,
         "command",
         "The command to run for each task.",
         "echo hello");
   }
 
-  Option<string> master;
-  Option<string> role;
-  string principal;
   string command;
 };
+
 
 int main(int argc, char** argv)
 {
   Flags flags;
-  Try<flags::Warnings> load = flags.load(None(), argc, argv);
+  Try<flags::Warnings> load = flags.load("MESOS_EXAMPLE_", argc, argv);
 
   if (flags.help) {
-    cout << flags.usage() << endl;
+    std::cout << flags.usage() << std::endl;
     return EXIT_SUCCESS;
   }
 
   if (load.isError()) {
-    cerr << flags.usage(load.error()) << endl;
-    return EXIT_FAILURE;
-  }
-
-  if (flags.master.isNone()) {
-    cerr << flags.usage("Missing --master") << endl;
-    return EXIT_FAILURE;
-  } else if (flags.role.isNone()) {
-    cerr << flags.usage("Missing --role") << endl;
-    return EXIT_FAILURE;
-  } else if (flags.role.get() == "*") {
-    cerr << flags.usage(
-                "Role is incorrect; the default '*' role cannot be used")
-         << endl;
+    std::cerr << flags.usage(load.error()) << std::endl;
     return EXIT_FAILURE;
   }
 
@@ -396,36 +363,61 @@ int main(int argc, char** argv)
     LOG(WARNING) << warning.message;
   }
 
+  if (flags.role == "*") {
+    EXIT(EXIT_FAILURE) << flags.usage(
+        "Role is incorrect; the default '*' role cannot be used");
+  }
+
   FrameworkInfo framework;
   framework.set_user(""); // Mesos'll fill in the current user.
+  framework.set_principal(flags.principal);
   framework.set_name(FRAMEWORK_NAME);
-  framework.add_roles(flags.role.get());
+  framework.set_checkpoint(flags.checkpoint);
+  framework.add_roles(flags.role);
   framework.add_capabilities()->set_type(
       FrameworkInfo::Capability::MULTI_ROLE);
-  framework.set_principal(flags.principal);
   framework.add_capabilities()->set_type(
       FrameworkInfo::Capability::RESERVATION_REFINEMENT);
 
   DynamicReservationScheduler scheduler(
       flags.command,
-      flags.role.get(),
+      flags.role,
       flags.principal);
 
-  if (flags.master.get() == "local") {
+  if (flags.master == "local") {
     // Configure master.
-    os::setenv("MESOS_AUTHENTICATE_FRAMEWORKS", "false");
+    os::setenv("MESOS_ROLES", flags.role);
+    os::setenv("MESOS_AUTHENTICATE_FRAMEWORKS", stringify(flags.authenticate));
 
     ACLs acls;
     ACL::RegisterFramework* acl = acls.add_register_frameworks();
     acl->mutable_principals()->set_type(ACL::Entity::ANY);
-    acl->mutable_roles()->add_values(flags.role.get());
+    acl->mutable_roles()->add_values(flags.role);
     os::setenv("MESOS_ACLS", stringify(JSON::protobuf(acls)));
   }
 
-  MesosSchedulerDriver* driver = new MesosSchedulerDriver(
-      &scheduler,
-      framework,
-      flags.master.get());
+  MesosSchedulerDriver* driver;
+
+  if (flags.authenticate) {
+    LOG(INFO) << "Enabling authentication for the framework";
+
+    Credential credential;
+    credential.set_principal(flags.principal);
+    if (flags.secret.isSome()) {
+      credential.set_secret(flags.secret.get());
+    }
+
+    driver = new MesosSchedulerDriver(
+        &scheduler,
+        framework,
+        flags.master,
+        credential);
+  } else {
+    driver = new MesosSchedulerDriver(
+        &scheduler,
+        framework,
+        flags.master);
+  }
 
   int status = driver->run() == DRIVER_STOPPED ? 0 : 1;
 

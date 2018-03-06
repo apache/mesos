@@ -1,0 +1,22 @@
+{
+  "libraries": [
+    {
+      "file": "/usr/lib64/mesos/modules/liburi_disk_profile.so",
+      "modules": [
+        {
+          "name": "org_apache_mesos_UriDiskProfileAdaptor",
+          "parameters": [
+            {
+              "key": "uri",
+              "value": "http://localhost/mesos_disk_profiles.json"
+            },
+            {
+              "key": "poll_interval",
+              "value": "10secs"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

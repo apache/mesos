@@ -319,6 +319,7 @@ Master::Master(
     detector(_detector),
     authorizer(_authorizer),
     frameworks(flags),
+    subscribers(this),
     authenticator(None()),
     metrics(new Metrics(*this)),
     electedTime(None())
@@ -336,7 +337,7 @@ Master::Master(
   // TODO(marco): The ip, port, hostname fields above are
   //     being deprecated; the code should be removed once
   //     the deprecation cycle is complete.
-  info_.set_ip(self().address.ip.in().get().s_addr);
+  info_.set_ip(self().address.ip.in()->s_addr);
 
   info_.set_port(self().address.port);
   info_.set_pid(self());
@@ -645,7 +646,7 @@ void Master::initialize()
 
   if (flags.rate_limits.isSome()) {
     // Add framework rate limiters.
-    foreach (const RateLimit& limit_, flags.rate_limits.get().limits()) {
+    foreach (const RateLimit& limit_, flags.rate_limits->limits()) {
       if (frameworks.limiters.contains(limit_.principal())) {
         EXIT(EXIT_FAILURE)
           << "Duplicate principal " << limit_.principal()
@@ -672,22 +673,22 @@ void Master::initialize()
       }
     }
 
-    if (flags.rate_limits.get().has_aggregate_default_qps() &&
-        flags.rate_limits.get().aggregate_default_qps() <= 0) {
+    if (flags.rate_limits->has_aggregate_default_qps() &&
+        flags.rate_limits->aggregate_default_qps() <= 0) {
       EXIT(EXIT_FAILURE)
         << "Invalid aggregate_default_qps: "
-        << flags.rate_limits.get().aggregate_default_qps()
+        << flags.rate_limits->aggregate_default_qps()
         << ". It must be a positive number";
     }
 
-    if (flags.rate_limits.get().has_aggregate_default_qps()) {
+    if (flags.rate_limits->has_aggregate_default_qps()) {
       Option<uint64_t> capacity;
-      if (flags.rate_limits.get().has_aggregate_default_capacity()) {
-        capacity = flags.rate_limits.get().aggregate_default_capacity();
+      if (flags.rate_limits->has_aggregate_default_capacity()) {
+        capacity = flags.rate_limits->aggregate_default_capacity();
       }
-      frameworks.defaultLimiter = Owned<BoundedRateLimiter>(
-          new BoundedRateLimiter(
-              flags.rate_limits.get().aggregate_default_qps(), capacity));
+      frameworks.defaultLimiter =
+        Owned<BoundedRateLimiter>(new BoundedRateLimiter(
+            flags.rate_limits->aggregate_default_qps(), capacity));
     }
 
     LOG(INFO) << "Framework rate limiting enabled";
@@ -714,15 +715,15 @@ void Master::initialize()
 
     roleWhitelist = hashset<string>();
     foreach (const string& role, roles.get()) {
-      roleWhitelist.get().insert(role);
+      roleWhitelist->insert(role);
     }
 
-    if (roleWhitelist.get().size() < roles.get().size()) {
+    if (roleWhitelist->size() < roles->size()) {
       LOG(WARNING) << "Duplicate values in '--roles': " << flags.roles.get();
     }
 
     // The default role is always allowed.
-    roleWhitelist.get().insert("*");
+    roleWhitelist->insert("*");
   }
 
   // Add role weights.
@@ -1269,8 +1270,7 @@ void Master::finalize()
 void Master::exited(const FrameworkID& frameworkId, const HttpConnection& http)
 {
   foreachvalue (Framework* framework, frameworks.registered) {
-    if (framework->http.isSome() &&
-        framework->http.get().writer == http.writer) {
+    if (framework->http.isSome() && framework->http->writer == http.writer) {
       CHECK_EQ(frameworkId, framework->id());
       _exited(framework);
       return;
@@ -1510,7 +1510,7 @@ void Master::consume(MessageEvent&& event)
   // through recover(). What are the performance implications of
   // the additional queueing delay and the accumulated backlog
   // of messages post-recovery?
-  if (!recovered.get().isReady()) {
+  if (!recovered->isReady()) {
     VLOG(1) << "Dropping '" << event.message.name << "' message since "
             << "not recovered yet";
     ++metrics->dropped_messages;
@@ -2089,8 +2089,8 @@ void Master::contended(const Future<Future<Nothing>>& candidacy)
   }
 
   // Watch for candidacy change.
-  candidacy.get()
-    .onAny(defer(self(), &Master::lostCandidacy, lambda::_1));
+  candidacy
+    ->onAny(defer(self(), &Master::lostCandidacy, lambda::_1));
 }
 
 
@@ -2335,6 +2335,7 @@ void Master::receive(
   Option<Error> error = validation::scheduler::call::validate(call);
 
   if (error.isSome()) {
+    metrics->incrementInvalidSchedulerCalls(call);
     drop(from, call, error->message);
     return;
   }
@@ -2413,27 +2414,15 @@ void Master::receive(
       break;
 
     case scheduler::Call::ACKNOWLEDGE: {
-      Try<id::UUID> uuid = id::UUID::fromBytes(call.acknowledge().uuid());
-      if (uuid.isError()) {
-        drop(from, call, uuid.error());
-        return;
-      }
-
       acknowledge(framework, call.acknowledge());
       break;
     }
 
     case scheduler::Call::ACKNOWLEDGE_OPERATION_STATUS: {
-      Try<id::UUID> uuid = id::UUID::fromBytes(
-          call.acknowledge_operation_status().uuid());
-      if (uuid.isError()) {
-        drop(from, call, uuid.error());
-        return;
-      }
-
-      acknowledgeOperationStatus(
-          framework,
-          call.acknowledge_operation_status());
+      drop(
+          from,
+          call,
+          "'ACKNOWLEDGE_OPERATION_STATUS' is not supported by the v0 API");
       break;
     }
 
@@ -2603,10 +2592,10 @@ void Master::subscribe(
   if (validationError.isSome()) {
     LOG(INFO) << "Refusing subscription of framework"
               << " '" << frameworkInfo.name() << "': "
-              << validationError.get().message;
+              << validationError->message;
 
     FrameworkErrorMessage message;
-    message.set_message(validationError.get().message);
+    message.set_message(validationError->message);
 
     http.send(message);
     http.close();
@@ -2655,10 +2644,10 @@ void Master::_subscribe(
   if (authorizationError.isSome()) {
     LOG(INFO) << "Refusing subscription of framework"
               << " '" << frameworkInfo.name() << "'"
-              << ": " << authorizationError.get().message;
+              << ": " << authorizationError->message;
 
     FrameworkErrorMessage message;
-    message.set_message(authorizationError.get().message);
+    message.set_message(authorizationError->message);
     http.send(message);
     http.close();
     return;
@@ -2869,10 +2858,10 @@ void Master::subscribe(
   if (validationError.isSome()) {
     LOG(INFO) << "Refusing subscription of framework"
               << " '" << frameworkInfo.name() << "' at " << from << ": "
-              << validationError.get().message;
+              << validationError->message;
 
     FrameworkErrorMessage message;
-    message.set_message(validationError.get().message);
+    message.set_message(validationError->message);
     send(from, message);
     return;
   }
@@ -2935,10 +2924,10 @@ void Master::_subscribe(
   if (authorizationError.isSome()) {
     LOG(INFO) << "Refusing subscription of framework"
               << " '" << frameworkInfo.name() << "' at " << from
-              << ": " << authorizationError.get().message;
+              << ": " << authorizationError->message;
 
     FrameworkErrorMessage message;
-    message.set_message(authorizationError.get().message);
+    message.set_message(authorizationError->message);
 
     send(from, message);
     return;
@@ -2953,7 +2942,7 @@ void Master::_subscribe(
   if (authenticationError.isSome()) {
     LOG(INFO) << "Dropping SUBSCRIBE call for framework"
               << " '" << frameworkInfo.name() << "' at " << from
-              << ": " << authenticationError.get().message;
+              << ": " << authenticationError->message;
     return;
   }
 
@@ -3237,7 +3226,7 @@ void Master::disconnect(Framework* framework)
 
     // Close the HTTP connection, which may already have
     // been closed due to scheduler disconnection.
-    framework->http.get().close();
+    framework->http->close();
   }
 }
 
@@ -3427,7 +3416,7 @@ bool Master::isWhitelistedRole(const string& name) const
     return true;
   }
 
-  return roleWhitelist.get().contains(name);
+  return roleWhitelist->contains(name);
 }
 
 
@@ -3840,7 +3829,42 @@ Future<bool> Master::authorizeSlave(
 }
 
 
-Resources Master::addTask(
+bool Master::isLaunchExecutor(
+    const ExecutorID& executorId,
+    Framework* framework,
+    Slave* slave) const
+{
+  CHECK_NOTNULL(framework);
+  CHECK_NOTNULL(slave);
+
+  if (!slave->hasExecutor(framework->id(), executorId)) {
+    CHECK(!framework->hasExecutor(slave->id, executorId))
+      << "Executor '" << executorId
+      << "' known to the framework " << *framework
+      << " but unknown to the agent " << *slave;
+    return true;
+  }
+
+  return false;
+}
+
+
+void Master::addExecutor(
+    const ExecutorInfo& executorInfo,
+    Framework* framework,
+    Slave* slave)
+{
+  CHECK_NOTNULL(framework);
+  CHECK_NOTNULL(slave);
+  CHECK(slave->connected) << "Adding executor " << executorInfo.executor_id()
+                          << " to disconnected agent " << *slave;
+
+  slave->addExecutor(framework->id(), executorInfo);
+  framework->addExecutor(slave->id, executorInfo);
+}
+
+
+void Master::addTask(
     const TaskInfo& task,
     Framework* framework,
     Slave* slave)
@@ -3850,34 +3874,11 @@ Resources Master::addTask(
   CHECK(slave->connected) << "Adding task " << task.task_id()
                           << " to disconnected agent " << *slave;
 
-  // The resources consumed.
-  Resources resources = task.resources();
-
-  // Determine if this task launches an executor, and if so make sure
-  // the slave and framework state has been updated accordingly.
-
-  if (task.has_executor()) {
-    // TODO(benh): Refactor this code into Slave::addTask.
-    if (!slave->hasExecutor(framework->id(), task.executor().executor_id())) {
-      CHECK(!framework->hasExecutor(slave->id, task.executor().executor_id()))
-        << "Executor '" << task.executor().executor_id()
-        << "' known to the framework " << *framework
-        << " but unknown to the agent " << *slave;
-
-      slave->addExecutor(framework->id(), task.executor());
-      framework->addExecutor(slave->id, task.executor());
-
-      resources += task.executor().resources();
-    }
-  }
-
   // Add the task to the framework and slave.
   Task* t = new Task(protobuf::createTask(task, TASK_STAGING, framework->id()));
 
   slave->addTask(t);
   framework->addTask(t);
-
-  return resources;
 }
 
 
@@ -4910,7 +4911,23 @@ void Master::_accept(
 
           // Add task.
           if (pending) {
-            const Resources consumed = addTask(task, framework, slave);
+            Resources consumed;
+
+            bool launchExecutor = true;
+            if (task.has_executor()) {
+              launchExecutor = isLaunchExecutor(
+                  task.executor().executor_id(), framework, slave);
+
+              // Master tracks the new executor only if the task is not a
+              // command task.
+              if (launchExecutor) {
+                addExecutor(task.executor(), framework, slave);
+                consumed += task.executor().resources();
+              }
+            }
+
+            addTask(task, framework, slave);
+            consumed += task.resources();
 
             CHECK(available.contains(consumed))
               << available << " does not contain " << consumed;
@@ -4952,6 +4969,8 @@ void Master::_accept(
             message.set_pid(framework->pid.getOrElse(UPID()));
             message.mutable_task()->MergeFrom(task);
 
+            message.set_launch_executor(launchExecutor);
+
             if (HookManager::hooksAvailable()) {
               // Set labels retrieved from label-decorator hooks.
               message.mutable_task()->mutable_labels()->CopyFrom(
@@ -4970,11 +4989,11 @@ void Master::_accept(
               CHECK_SOME(downgradeResources(&message));
             }
 
-            // TODO(bmahler): Consider updating this log message to
-            // indicate when the executor is also being launched.
             LOG(INFO) << "Launching task " << task.task_id() << " of framework "
                       << *framework << " with resources " << task.resources()
-                      << " on agent " << *slave;
+                      << " on agent " << *slave << " on "
+                      << (launchExecutor ?
+                          " new executor" : " existing executor");
 
             send(slave->pid, message);
           }
@@ -5133,18 +5152,25 @@ void Master::_accept(
 
         set<TaskID> taskIds;
         Resources totalResources;
+        Resources executorResources;
+
+        bool launchExecutor =
+          isLaunchExecutor(executor.executor_id(), framework, slave);
+
+        if (launchExecutor) {
+          addExecutor(executor, framework, slave);
+          executorResources = executor.resources();
+          totalResources += executorResources;
+        }
+
+        message.set_launch_executor(launchExecutor);
 
         foreach (
             TaskInfo& task, *message.mutable_task_group()->mutable_tasks()) {
           taskIds.insert(task.task_id());
           totalResources += task.resources();
 
-          const Resources consumed = addTask(task, framework, slave);
-
-          CHECK(_offeredResources.contains(consumed))
-            << _offeredResources << " does not contain " << consumed;
-
-          _offeredResources -= consumed;
+          addTask(task, framework, slave);
 
           if (HookManager::hooksAvailable()) {
             // Set labels retrieved from label-decorator hooks.
@@ -5155,6 +5181,11 @@ void Master::_accept(
                     slave->info));
           }
         }
+
+        CHECK(_offeredResources.contains(totalResources))
+          << _offeredResources << " does not contain " << totalResources;
+
+        _offeredResources -= totalResources;
 
         // If the agent does not support reservation refinement, downgrade
         // the task and executor resources to the "pre-reservation-refinement"
@@ -5167,7 +5198,9 @@ void Master::_accept(
 
         LOG(INFO) << "Launching task group " << stringify(taskIds)
                   << " of framework " << *framework << " with resources "
-                  << totalResources << " on agent " << *slave;
+                  << totalResources -  executorResources << " on agent "
+                  << *slave << " on "
+                  << (launchExecutor ? " new executor" : " existing executor");
 
         send(slave->pid, message);
 
@@ -5721,8 +5754,8 @@ void Master::statusUpdateAcknowledgement(
 
   if (framework == nullptr) {
     LOG(WARNING)
-      << "Ignoring status update acknowledgement "
-      << uuid_.get() << " for task " << taskId << " of framework "
+      << "Ignoring status update acknowledgement for status "
+      << uuid_.get() << " of task " << taskId << " of framework "
       << frameworkId << " on agent " << slaveId << " because the framework "
       << "cannot be found";
     metrics->invalid_status_update_acknowledgements++;
@@ -5731,8 +5764,8 @@ void Master::statusUpdateAcknowledgement(
 
   if (framework->pid != from) {
     LOG(WARNING)
-      << "Ignoring status update acknowledgement "
-      << uuid_.get() << " for task " << taskId << " of framework "
+      << "Ignoring status update acknowledgement for status "
+      << uuid_.get() << " of task " << taskId << " of framework "
       << *framework << " on agent " << slaveId << " because it is not "
       << "expected from " << from;
     metrics->invalid_status_update_acknowledgements++;
@@ -5758,14 +5791,17 @@ void Master::acknowledge(
 
   const SlaveID& slaveId = acknowledge.slave_id();
   const TaskID& taskId = acknowledge.task_id();
-  const id::UUID uuid = id::UUID::fromBytes(acknowledge.uuid()).get();
+
+  Try<id::UUID> uuid_ = id::UUID::fromBytes(acknowledge.uuid());
+  CHECK_SOME(uuid_);
+  const id::UUID uuid = uuid_.get();
 
   Slave* slave = slaves.registered.get(slaveId);
 
   if (slave == nullptr) {
     LOG(WARNING)
-      << "Cannot send status update acknowledgement " << uuid
-      << " for task " << taskId << " of framework " << *framework
+      << "Cannot send status update acknowledgement for status " << uuid
+      << " of task " << taskId << " of framework " << *framework
       << " to agent " << slaveId << " because agent is not registered";
     metrics->invalid_status_update_acknowledgements++;
     return;
@@ -5773,15 +5809,18 @@ void Master::acknowledge(
 
   if (!slave->connected) {
     LOG(WARNING)
-      << "Cannot send status update acknowledgement " << uuid
-      << " for task " << taskId << " of framework " << *framework
+      << "Cannot send status update acknowledgement for status " << uuid
+      << " of task " << taskId << " of framework " << *framework
       << " to agent " << *slave << " because agent is disconnected";
     metrics->invalid_status_update_acknowledgements++;
     return;
   }
 
-  LOG(INFO) << "Processing ACKNOWLEDGE call " << uuid << " for task " << taskId
-            << " of framework " << *framework << " on agent " << slaveId;
+  LOG(INFO)
+    << "Processing ACKNOWLEDGE call for status " << uuid
+    << " for task " << taskId
+    << " of framework " << *framework
+    << " on agent " << slaveId;
 
   Task* task = slave->getTask(framework->id(), taskId);
 
@@ -5800,8 +5839,8 @@ void Master::acknowledge(
       // retry the update, at which point the master will set the
       // status update state.
       LOG(WARNING)
-        << "Ignoring status update acknowledgement " << uuid
-        << " for task " << taskId << " of framework " << *framework
+        << "Ignoring status update acknowledgement for status " << uuid
+        << " of task " << taskId << " of framework " << *framework
         << " to agent " << *slave << " because the update was not"
         << " sent by this master";
       metrics->invalid_status_update_acknowledgements++;
@@ -7769,7 +7808,7 @@ void Master::updateUnavailability(
         // TODO(jmlvanre): Add stream operator for unavailability.
         LOG(INFO) << "Updating unavailability of agent " << *slave
                   << ", starting at "
-                  << Nanoseconds(unavailability.get().start().nanoseconds());
+                  << Nanoseconds(unavailability->start().nanoseconds());
       } else {
         LOG(INFO) << "Removing unavailability of agent " << *slave;
       }
@@ -8373,7 +8412,7 @@ void Master::_reconcileTasks(
                  " for framework " << *framework;
 
     foreachvalue (const TaskInfo& task, framework->pendingTasks) {
-      const StatusUpdate& update = protobuf::createStatusUpdate(
+      StatusUpdate update = protobuf::createStatusUpdate(
           framework->id(),
           task.slave_id(),
           task.task_id(),
@@ -8391,7 +8430,7 @@ void Master::_reconcileTasks(
       // TODO(bmahler): Consider using forward(); might lead to too
       // much logging.
       StatusUpdateMessage message;
-      message.mutable_update()->CopyFrom(update);
+      *message.mutable_update() = std::move(update);
       framework->send(message);
     }
 
@@ -8404,7 +8443,7 @@ void Master::_reconcileTasks(
           ? Option<ExecutorID>(task->executor_id())
           : None();
 
-      const StatusUpdate& update = protobuf::createStatusUpdate(
+      StatusUpdate update = protobuf::createStatusUpdate(
           framework->id(),
           task->slave_id(),
           task->task_id(),
@@ -8427,7 +8466,7 @@ void Master::_reconcileTasks(
       // TODO(bmahler): Consider using forward(); might lead to too
       // much logging.
       StatusUpdateMessage message;
-      message.mutable_update()->CopyFrom(update);
+      *message.mutable_update() = std::move(update);
       framework->send(message);
     }
 
@@ -8596,14 +8635,14 @@ void Master::_reconcileTasks(
 
     if (update.isSome()) {
       VLOG(1) << "Sending explicit reconciliation state "
-              << update.get().status().state()
-              << " for task " << update.get().status().task_id()
+              << update->status().state()
+              << " for task " << update->status().task_id()
               << " of framework " << *framework;
 
       // TODO(bmahler): Consider using forward(); might lead to too
       // much logging.
       StatusUpdateMessage message;
-      message.mutable_update()->CopyFrom(update.get());
+      *message.mutable_update() = std::move(update.get());
       framework->send(message);
     }
   }
@@ -9002,7 +9041,7 @@ void Master::_authenticate(
     const UPID& pid,
     const Future<Option<string>>& future)
 {
-  if (!future.isReady() || future.get().isNone()) {
+  if (!future.isReady() || future->isNone()) {
     const string& error = future.isReady()
         ? "Refused authentication"
         : (future.isFailed() ? future.failure() : "future discarded");
@@ -9010,10 +9049,10 @@ void Master::_authenticate(
     LOG(WARNING) << "Failed to authenticate " << pid
                  << ": " << error;
   } else {
-    LOG(INFO) << "Successfully authenticated principal '" << future.get().get()
+    LOG(INFO) << "Successfully authenticated principal '" << future->get()
               << "' at " << pid;
 
-    authenticated.put(pid, future.get().get());
+    authenticated.put(pid, future->get());
   }
 
   CHECK(authenticating.contains(pid));
@@ -10157,38 +10196,33 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
     latestState = update.latest_state();
   }
 
-  // Indicated whether we should send a notification to all subscribers if the
-  // task transitioned to a new state.
+  // Determine whether the task transitioned to terminal or
+  // unreachable prior to changing the task state.
+  auto isTerminalOrUnreachableState = [](const TaskState& state) {
+    return protobuf::isTerminalState(state) || state == TASK_UNREACHABLE;
+  };
+
+  bool transitionedToTerminalOrUnreachable =
+    !isTerminalOrUnreachableState(task->state()) &&
+    isTerminalOrUnreachableState(latestState.getOrElse(status.state()));
+
+  // Indicates whether we should send a notification to subscribers,
+  // set if the task transitioned to a new state.
   bool sendSubscribersUpdate = false;
 
-  // Set 'removable' to true if this is the first time the task
-  // transitioned to a removable state. Also set the latest state.
-  bool removable;
-  if (latestState.isSome()) {
-    removable = !isRemovable(task->state()) && isRemovable(latestState.get());
-
-    // If the task has already transitioned to a terminal state,
-    // do not update its state.
-    if (!protobuf::isTerminalState(task->state())) {
-      if (latestState.get() != task->state()) {
-        sendSubscribersUpdate = true;
-      }
-
-      task->set_state(latestState.get());
+  // If the task has already transitioned to a terminal state,
+  // do not update its state. Note that we are being defensive
+  // here because this should not happen unless there is a bug
+  // in the master code.
+  //
+  // TODO(bmahler): Check that we're not transitioning from
+  // TASK_UNREACHABLE to another state.
+  if (!protobuf::isTerminalState(task->state())) {
+    if (status.state() != task->state()) {
+      sendSubscribersUpdate = true;
     }
-  } else {
-    removable = !isRemovable(task->state()) && isRemovable(status.state());
 
-    // If the task has already transitioned to a terminal state, do not update
-    // its state. Note that we are being defensive here because this should not
-    // happen unless there is a bug in the master code.
-    if (!protobuf::isTerminalState(task->state())) {
-      if (status.state() != task->state()) {
-        sendSubscribersUpdate = true;
-      }
-
-      task->set_state(status.state());
-    }
+    task->set_state(latestState.getOrElse(status.state()));
   }
 
   // TODO(brenden): Consider wiping the `message` field?
@@ -10207,8 +10241,18 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
   task->mutable_statuses(task->statuses_size() - 1)->clear_data();
 
   if (sendSubscribersUpdate && !subscribers.subscribed.empty()) {
-    subscribers.send(protobuf::master::event::createTaskUpdated(
-        *task, task->state(), status));
+    // If the framework has been removed, the task would have already
+    // transitioned to `TASK_KILLED` by `removeFramework()`, thus
+    // `sendSubscribersUpdate` shouldn't have been set to true.
+    // TODO(chhsiao): This may be changed after MESOS-6608 is resolved.
+    Framework* framework = getFramework(task->framework_id());
+    CHECK_NOTNULL(framework);
+
+    subscribers.send(
+        protobuf::master::event::createTaskUpdated(
+            *task, task->state(), status),
+        framework->info,
+        *task);
   }
 
   LOG(INFO) << "Updating the state of task " << task->task_id()
@@ -10216,8 +10260,9 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
             << " (latest state: " << task->state()
             << ", status update state: " << status.state() << ")";
 
-  // Once the task becomes removable, recover the resources.
-  if (removable) {
+  // Once the task transitioned to terminal or unreachable,
+  // recover the resources.
+  if (transitionedToTerminalOrUnreachable) {
     allocator->recoverResources(
         task->framework_id(),
         task->slave_id(),
@@ -10236,38 +10281,24 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
     }
 
     switch (status.state()) {
-      case TASK_FINISHED:
-        ++metrics->tasks_finished;
-        break;
-      case TASK_FAILED:
-        ++metrics->tasks_failed;
-        break;
-      case TASK_KILLED:
-        ++metrics->tasks_killed;
-        break;
-      case TASK_LOST:
-        ++metrics->tasks_lost;
-        break;
-      case TASK_ERROR:
-        ++metrics->tasks_error;
-        break;
-      case TASK_DROPPED:
-        ++metrics->tasks_dropped;
-        break;
-      case TASK_GONE:
-        ++metrics->tasks_gone;
-        break;
-      case TASK_GONE_BY_OPERATOR:
-        ++metrics->tasks_gone_by_operator;
-        break;
-      case TASK_STARTING:
-      case TASK_STAGING:
-      case TASK_RUNNING:
-      case TASK_KILLING:
-      case TASK_UNREACHABLE:
-        break;
+      case TASK_FINISHED:         ++metrics->tasks_finished;         break;
+      case TASK_FAILED:           ++metrics->tasks_failed;           break;
+      case TASK_KILLED:           ++metrics->tasks_killed;           break;
+      case TASK_LOST:             ++metrics->tasks_lost;             break;
+      case TASK_ERROR:            ++metrics->tasks_error;            break;
+      case TASK_DROPPED:          ++metrics->tasks_dropped;          break;
+      case TASK_GONE:             ++metrics->tasks_gone;             break;
+      case TASK_GONE_BY_OPERATOR: ++metrics->tasks_gone_by_operator; break;
+
+      // The following are non-terminal and use gauge based metrics.
+      case TASK_STARTING:    break;
+      case TASK_STAGING:     break;
+      case TASK_RUNNING:     break;
+      case TASK_KILLING:     break;
+      case TASK_UNREACHABLE: break;
+
+      // Should not happen.
       case TASK_UNKNOWN:
-        // Should not happen.
         LOG(FATAL) << "Unexpected TASK_UNKNOWN for in-memory task";
         break;
     }
@@ -10296,17 +10327,25 @@ void Master::removeTask(Task* task, bool unreachable)
   // Conversion is safe, as resources have already passed validation.
   const Resources resources = task->resources();
 
-  if (!isRemovable(task->state())) {
+  // The invariant here is that the master will recover the resources
+  // prior to removing terminal or unreachable tasks. If the task is
+  // not terminal or unreachable, we must recover the resources here.
+  //
+  // TODO(bmahler): Currently, only `Master::finalize()` will call
+  // `removeTask()` with a non-terminal task. Consider fixing this
+  // and instead CHECKing here to simplify the logic.
+  if (!protobuf::isTerminalState(task->state()) &&
+      task->state() != TASK_UNREACHABLE) {
+    CHECK(!unreachable) << task->task_id();
+
     // Note that we use `Resources` for output as it's faster than
     // logging raw protobuf data.
     LOG(WARNING) << "Removing task " << task->task_id()
                  << " with resources " << resources
                  << " of framework " << task->framework_id()
                  << " on agent " << *slave
-                 << " in non-removable state " << task->state();
+                 << " in non-terminal state " << task->state();
 
-    // If the task is not removable, then the resources have
-    // not yet been recovered.
     allocator->recoverResources(
         task->framework_id(),
         task->slave_id(),
@@ -11156,38 +11195,52 @@ static bool isValidFailoverTimeout(const FrameworkInfo& frameworkInfo)
 }
 
 
-void Master::Subscribers::send(const mesos::master::Event& event)
+void Master::Subscribers::send(
+    mesos::master::Event&& event,
+    const Option<FrameworkInfo>& frameworkInfo,
+    const Option<Task>& task)
 {
   VLOG(1) << "Notifying all active subscribers about " << event.type()
           << " event";
+
+  // Create a single copy of the event for all subscribers to share.
+  Shared<mesos::master::Event> sharedEvent(
+      new mesos::master::Event(std::move(event)));
+
+  // Create a single copy of `FrameworkInfo` and `Task` for all
+  // subscribers to share.
+  Shared<FrameworkInfo> sharedFrameworkInfo(
+      frameworkInfo.isSome()
+        ? new FrameworkInfo(frameworkInfo.get()) : nullptr);
+  Shared<Task> sharedTask(task.isSome() ? new Task(task.get()) : nullptr);
 
   foreachvalue (const Owned<Subscriber>& subscriber, subscribed) {
     Future<Owned<AuthorizationAcceptor>> authorizeRole =
       AuthorizationAcceptor::create(
           subscriber->principal,
-          subscriber->master->authorizer,
+          master->authorizer,
           authorization::VIEW_ROLE);
 
     Future<Owned<AuthorizationAcceptor>> authorizeFramework =
       AuthorizationAcceptor::create(
           subscriber->principal,
-          subscriber->master->authorizer,
+          master->authorizer,
           authorization::VIEW_FRAMEWORK);
 
     Future<Owned<AuthorizationAcceptor>> authorizeTask =
       AuthorizationAcceptor::create(
           subscriber->principal,
-          subscriber->master->authorizer,
+          master->authorizer,
           authorization::VIEW_TASK);
 
     Future<Owned<AuthorizationAcceptor>> authorizeExecutor =
       AuthorizationAcceptor::create(
           subscriber->principal,
-          subscriber->master->authorizer,
+          master->authorizer,
           authorization::VIEW_EXECUTOR);
 
     collect(authorizeRole, authorizeFramework, authorizeTask, authorizeExecutor)
-      .then(defer(subscriber->master->self(),
+      .then(defer(master->self(),
           [=](const tuple<Owned<AuthorizationAcceptor>,
                           Owned<AuthorizationAcceptor>,
                           Owned<AuthorizationAcceptor>,
@@ -11202,11 +11255,14 @@ void Master::Subscribers::send(const mesos::master::Event& event)
             authorizeTask,
             authorizeExecutor) = acceptors;
 
-        subscriber->send(event,
+        subscriber->send(
+            sharedEvent,
             authorizeRole,
             authorizeFramework,
             authorizeTask,
-            authorizeExecutor);
+            authorizeExecutor,
+            sharedFrameworkInfo,
+            sharedTask);
 
         return Nothing();
       }));
@@ -11215,52 +11271,39 @@ void Master::Subscribers::send(const mesos::master::Event& event)
 
 
 void Master::Subscribers::Subscriber::send(
-    const mesos::master::Event& event,
+    const Shared<mesos::master::Event>& event,
     const Owned<AuthorizationAcceptor>& authorizeRole,
     const Owned<AuthorizationAcceptor>& authorizeFramework,
     const Owned<AuthorizationAcceptor>& authorizeTask,
-    const Owned<AuthorizationAcceptor>& authorizeExecutor)
+    const Owned<AuthorizationAcceptor>& authorizeExecutor,
+    const Shared<FrameworkInfo>& frameworkInfo,
+    const Shared<Task>& task)
 {
-  switch (event.type()) {
+  switch (event->type()) {
     case mesos::master::Event::TASK_ADDED: {
-      Framework* framework =
-        master->getFramework(event.task_added().task().framework_id());
+      CHECK_NOTNULL(frameworkInfo.get());
 
-      if (framework == nullptr) {
-        break;
-      }
-
-      if (authorizeTask->accept(event.task_added().task(), framework->info) &&
-          authorizeFramework->accept(framework->info)) {
-        http.send<mesos::master::Event, v1::master::Event>(event);
+      if (authorizeTask->accept(
+              event->task_added().task(), *frameworkInfo) &&
+          authorizeFramework->accept(*frameworkInfo)) {
+        http.send<mesos::master::Event, v1::master::Event>(*event);
       }
       break;
     }
     case mesos::master::Event::TASK_UPDATED: {
-      Framework* framework =
-        master->getFramework(event.task_updated().framework_id());
+      CHECK_NOTNULL(frameworkInfo.get());
+      CHECK_NOTNULL(task.get());
 
-      if (framework == nullptr) {
-        break;
-      }
-
-      Task* task =
-        framework->getTask(event.task_updated().status().task_id());
-
-      if (task == nullptr) {
-        break;
-      }
-
-      if (authorizeTask->accept(*task, framework->info) &&
-          authorizeFramework->accept(framework->info)) {
-        http.send<mesos::master::Event, v1::master::Event>(event);
+      if (authorizeTask->accept(*task, *frameworkInfo) &&
+          authorizeFramework->accept(*frameworkInfo)) {
+        http.send<mesos::master::Event, v1::master::Event>(*event);
       }
       break;
     }
     case mesos::master::Event::FRAMEWORK_ADDED: {
       if (authorizeFramework->accept(
-              event.framework_added().framework().framework_info())) {
-        mesos::master::Event event_(event);
+              event->framework_added().framework().framework_info())) {
+        mesos::master::Event event_(*event);
         event_.mutable_framework_added()->mutable_framework()->
           mutable_allocated_resources()->Clear();
         event_.mutable_framework_added()->mutable_framework()->
@@ -11268,7 +11311,7 @@ void Master::Subscribers::Subscriber::send(
 
         foreach(
             const Resource& resource,
-            event.framework_added().framework().allocated_resources()) {
+            event->framework_added().framework().allocated_resources()) {
           if (authorizeResource(resource, authorizeRole)) {
             event_.mutable_framework_added()->mutable_framework()->
               add_allocated_resources()->CopyFrom(resource);
@@ -11277,7 +11320,7 @@ void Master::Subscribers::Subscriber::send(
 
         foreach(
             const Resource& resource,
-            event.framework_added().framework().offered_resources()) {
+            event->framework_added().framework().offered_resources()) {
           if (authorizeResource(resource, authorizeRole)) {
             event_.mutable_framework_added()->mutable_framework()->
               add_offered_resources()->CopyFrom(resource);
@@ -11290,8 +11333,8 @@ void Master::Subscribers::Subscriber::send(
     }
     case mesos::master::Event::FRAMEWORK_UPDATED: {
       if (authorizeFramework->accept(
-              event.framework_updated().framework().framework_info())) {
-        mesos::master::Event event_(event);
+              event->framework_updated().framework().framework_info())) {
+        mesos::master::Event event_(*event);
         event_.mutable_framework_updated()->mutable_framework()->
           mutable_allocated_resources()->Clear();
         event_.mutable_framework_updated()->mutable_framework()->
@@ -11299,7 +11342,7 @@ void Master::Subscribers::Subscriber::send(
 
         foreach(
             const Resource& resource,
-            event.framework_updated().framework().allocated_resources()) {
+            event->framework_updated().framework().allocated_resources()) {
           if (authorizeResource(resource, authorizeRole)) {
             event_.mutable_framework_updated()->mutable_framework()->
               add_allocated_resources()->CopyFrom(resource);
@@ -11308,7 +11351,7 @@ void Master::Subscribers::Subscriber::send(
 
         foreach(
             const Resource& resource,
-            event.framework_updated().framework().offered_resources()) {
+            event->framework_updated().framework().offered_resources()) {
           if (authorizeResource(resource, authorizeRole)) {
             event_.mutable_framework_updated()->mutable_framework()->
               add_offered_resources()->CopyFrom(resource);
@@ -11321,19 +11364,19 @@ void Master::Subscribers::Subscriber::send(
     }
     case mesos::master::Event::FRAMEWORK_REMOVED: {
       if (authorizeFramework->accept(
-              event.framework_removed().framework_info())) {
-        http.send<mesos::master::Event, v1::master::Event>(event);
+              event->framework_removed().framework_info())) {
+        http.send<mesos::master::Event, v1::master::Event>(*event);
       }
       break;
     }
     case mesos::master::Event::AGENT_ADDED: {
-      mesos::master::Event event_(event);
+      mesos::master::Event event_(*event);
       event_.mutable_agent_added()->mutable_agent()->
         mutable_total_resources()->Clear();
 
       foreach(
           const Resource& resource,
-          event.agent_added().agent().total_resources()) {
+          event->agent_added().agent().total_resources()) {
         if (authorizeResource(resource, authorizeRole)) {
           event_.mutable_agent_added()->mutable_agent()->add_total_resources()
             ->CopyFrom(resource);
@@ -11343,8 +11386,11 @@ void Master::Subscribers::Subscriber::send(
       http.send<mesos::master::Event, v1::master::Event>(event_);
       break;
     }
-    default:
-      http.send<mesos::master::Event, v1::master::Event>(event);
+    case mesos::master::Event::AGENT_REMOVED:
+    case mesos::master::Event::SUBSCRIBED:
+    case mesos::master::Event::HEARTBEAT:
+    case mesos::master::Event::UNKNOWN:
+      http.send<mesos::master::Event, v1::master::Event>(*event);
       break;
   }
 }
@@ -11380,7 +11426,7 @@ void Master::subscribe(
   subscribers.subscribed.put(
       http.streamId,
       Owned<Subscribers::Subscriber>(
-          new Subscribers::Subscriber{this, http, principal}));
+          new Subscribers::Subscriber{http, principal}));
 }
 
 
@@ -11473,12 +11519,12 @@ void Slave::addTask(Task* task)
   // Conversion is safe, as resources have already passed validation.
   const Resources resources = task->resources();
 
-  if (!Master::isRemovable(task->state())) {
-    usedResources[frameworkId] += resources;
-  }
+  CHECK(task->state() != TASK_UNREACHABLE)
+    << "Task '" << taskId << "' of framework " << frameworkId
+    << " added in TASK_UNREACHABLE state";
 
-  if (!master->subscribers.subscribed.empty()) {
-    master->subscribers.send(protobuf::master::event::createTaskAdded(*task));
+  if (!protobuf::isTerminalState(task->state())) {
+    usedResources[frameworkId] += resources;
   }
 
   // Note that we use `Resources` for output as it's faster than
@@ -11494,7 +11540,11 @@ void Slave::recoverResources(Task* task)
   const TaskID& taskId = task->task_id();
   const FrameworkID& frameworkId = task->framework_id();
 
-  CHECK(Master::isRemovable(task->state()));
+  CHECK(protobuf::isTerminalState(task->state()) ||
+        task->state() == TASK_UNREACHABLE)
+    << "Task '" << taskId << "' of framework " << frameworkId
+    << " is in unexpected state " << task->state();
+
   CHECK(tasks.at(frameworkId).contains(taskId))
     << "Unknown task " << taskId << " of framework " << frameworkId;
 
@@ -11513,7 +11563,17 @@ void Slave::removeTask(Task* task)
   CHECK(tasks.at(frameworkId).contains(taskId))
     << "Unknown task " << taskId << " of framework " << frameworkId;
 
-  if (!Master::isRemovable(task->state())) {
+  // The invariant here is that the master will have already called
+  // `recoverResources()` prior to removing terminal or unreachable tasks.
+  //
+  // TODO(bmahler): The unreachable case could be avoided if
+  // we updated `removeSlave` in the allocator to recover the
+  // resources (see MESOS-621) so that the master could just
+  // remove the unreachable agent from the allocator.
+  if (!protobuf::isTerminalState(task->state()) &&
+      task->state() != TASK_UNREACHABLE) {
+    // We cannot call `Slave::recoverResources()` here because
+    // it expects the task to be terminal or unreachable.
     usedResources[frameworkId] -= task->resources();
     if (usedResources[frameworkId].empty()) {
       usedResources.erase(frameworkId);
@@ -11647,7 +11707,7 @@ bool Slave::hasExecutor(const FrameworkID& frameworkId,
                         const ExecutorID& executorId) const
 {
   return executors.contains(frameworkId) &&
-    executors.get(frameworkId).get().contains(executorId);
+    executors.get(frameworkId)->contains(executorId);
 }
 
 

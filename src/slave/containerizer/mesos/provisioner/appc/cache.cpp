@@ -96,11 +96,11 @@ Try<Nothing> Cache::add(const string& imageId)
   }
 
   map<string, string> labels;
-  foreach (const spec::ImageManifest::Label& label, manifest.get().labels()) {
+  foreach (const spec::ImageManifest::Label& label, manifest->labels()) {
     labels.insert({label.name(), label.value()});
   }
 
-  imageIds.put(Key(manifest.get().name(), labels), imageId);
+  imageIds.put(Key(manifest->name(), labels), imageId);
 
   VLOG(1) << "Added image with id '" << imageId << "' to cache";
 

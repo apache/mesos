@@ -43,7 +43,7 @@ Try<ImageManifest> parse(const string& value)
 
   Option<Error> error = validateManifest(manifest.get());
   if (error.isSome()) {
-    return Error("Schema validation failed: " + error.get().message);
+    return Error("Schema validation failed: " + error->message);
   }
 
   return manifest.get();

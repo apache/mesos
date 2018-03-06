@@ -46,6 +46,7 @@
 #include <process/socket.hpp>
 #include <process/state_machine.hpp>
 
+#include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/ip.hpp>
 #include <stout/lambda.hpp>
@@ -291,7 +292,7 @@ bool Request::acceptsEncoding(const string& encoding) const
   // then the server SHOULD use the "identity" content-coding...
   Option<string> accept = headers.get("Accept-Encoding");
 
-  if (accept.isNone() || accept.get().empty()) {
+  if (accept.isNone() || accept->empty()) {
     return false;
   }
 
@@ -1152,7 +1153,7 @@ public:
 
   Future<Nothing> disconnect(const Option<string>& message = None())
   {
-    Try<Nothing> shutdown = socket.shutdown(
+    Try<Nothing, SocketError> shutdown = socket.shutdown(
         network::Socket::Shutdown::READ_WRITE);
 
     // If a response is still streaming, we send EOF to
@@ -1170,7 +1171,8 @@ public:
 
     disconnection.set(Nothing());
 
-    return shutdown;
+    return shutdown.isSome() ? Future<Nothing>(Nothing())
+                             : Failure(shutdown.error().message);
   }
 
   Future<Nothing> disconnected()

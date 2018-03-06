@@ -42,7 +42,19 @@
         <dt>Master:</dt>
         <dd>{{state.master_hostname}}</dd>
       </dl>
-      <p><a href="" ng-click="log($event)">LOG</a></p>
+
+      <p ng-if="agent.log_file_attached">
+        <b>Agent Log:</b>
+        <span class="btn-group">
+          <!-- Links can look like buttons using Bootstrap classes. -->
+          <a class="btn btn-xs btn-default" href="{{agent.url_prefix}}/files/download?path=/slave/log">
+            Download
+          </a>
+          <button class="btn btn-xs btn-default" ng-click="streamLogs($event)">
+            View
+          </button>
+        </span>
+      </p>
 
       <h4>Tasks</h4>
       <table class="table table-condensed">

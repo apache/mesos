@@ -726,16 +726,13 @@ Try<Resources> Resources::parse(
 
   Resources result;
 
-  // Validate the Resource objects and convert them
-  // to the "post-reservation-refinement" format.
+  // Validate the Resource objects.
   foreach (Resource resource, resources.get()) {
     // If invalid, propgate error instead of skipping the resource.
     Option<Error> error = Resources::validate(resource);
     if (error.isSome()) {
       return error.get();
     }
-
-    upgradeResource(&resource);
 
     result.add(resource);
   }
@@ -775,6 +772,8 @@ Try<vector<Resource>> Resources::fromJSON(
     if (!resource.has_role() && resource.reservations_size() == 0) {
       resource.set_role(defaultRole);
     }
+
+    upgradeResource(&resource);
 
     // We add the Resource object even if it is empty or invalid.
     result.push_back(resource);
@@ -823,6 +822,8 @@ Try<vector<Resource>> Resources::fromSimpleString(
     if (resource.isError()) {
       return Error(resource.error());
     }
+
+    upgradeResource(&(resource.get()));
 
     // We add the Resource object even if it is empty or invalid.
     resources.push_back(resource.get());
@@ -2133,14 +2134,14 @@ ostream& operator<<(ostream& stream, const Resource::DiskInfo::Source& source)
       return stream
         << "MOUNT"
         << ((source.has_id() || source.has_profile())
-              ? "(" + source.id() + "," + source.profile() + ")" : "")
-        << (source.mount().has_root() ? ":" + source.mount().root() : "");
+              ? "(" + source.id() + "," + source.profile() + ")"
+              : (source.mount().has_root() ? ":" + source.mount().root() : ""));
     case Resource::DiskInfo::Source::PATH:
       return stream
         << "PATH"
         << ((source.has_id() || source.has_profile())
-              ? "(" + source.id() + "," + source.profile() + ")" : "")
-        << (source.path().has_root() ? ":" + source.path().root() : "");
+              ? "(" + source.id() + "," + source.profile() + ")"
+              : (source.path().has_root() ? ":" + source.path().root() : ""));
     case Resource::DiskInfo::Source::BLOCK:
       return stream
         << "BLOCK"

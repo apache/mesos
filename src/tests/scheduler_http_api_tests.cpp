@@ -664,7 +664,7 @@ TEST_P(SchedulerHttpApiTest, UpdateHttpToPidSchedulerAndBack)
   driver.start();
 
   AWAIT_READY(frameworkId);
-  ASSERT_NE("", frameworkId.get().value());
+  ASSERT_NE("", frameworkId->value());
 
   frameworkInfo.mutable_id()->CopyFrom(evolve(frameworkId.get()));
 
@@ -692,9 +692,9 @@ TEST_P(SchedulerHttpApiTest, UpdateHttpToPidSchedulerAndBack)
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   AWAIT_EXPECT_RESPONSE_HEADER_EQ("chunked", "Transfer-Encoding", response);
-  ASSERT_EQ(Response::PIPE, response.get().type);
+  ASSERT_EQ(Response::PIPE, response->type);
 
-  Option<Pipe::Reader> reader = response.get().reader;
+  Option<Pipe::Reader> reader = response->reader;
   ASSERT_SOME(reader);
 
   auto deserializer = lambda::bind(

@@ -223,7 +223,7 @@ struct Read
       return Error("Failed to read size: " + result.error());
     } else if (result.isNone()) {
       return None(); // No more protobufs to read.
-    } else if (result.get().size() < sizeof(size)) {
+    } else if (result->size() < sizeof(size)) {
       // Hit EOF unexpectedly.
       if (undoFailed) {
         // Restore the offset to before the size read.
@@ -237,7 +237,7 @@ struct Read
     }
 
     // Parse the size from the bytes.
-    memcpy((void*) &size, (void*) result.get().data(), sizeof(size));
+    memcpy((void*)&size, (void*)result->data(), sizeof(size));
 
     // NOTE: Instead of specifically checking for corruption in 'size',
     // we simply try to read 'size' bytes. If we hit EOF early, it is an
@@ -250,7 +250,7 @@ struct Read
         os::lseek(fd, offset, SEEK_SET);
       }
       return Error("Failed to read message: " + result.error());
-    } else if (result.isNone() || result.get().size() < size) {
+    } else if (result.isNone() || result->size() < size) {
       // Hit EOF unexpectedly.
       if (undoFailed) {
         // Restore the offset to before the size read.
@@ -340,7 +340,7 @@ Result<T> read(int_fd fd, bool ignorePartial = false, bool undoFailed = false)
 // A wrapper function that wraps the above read() with open and
 // closing the file.
 template <typename T>
-Try<T> read(const std::string& path)
+Result<T> read(const std::string& path)
 {
   Try<int_fd> fd = os::open(
       path,
@@ -358,13 +358,7 @@ Try<T> read(const std::string& path)
   // read(). Also an unsuccessful close() doesn't affect the read.
   os::close(fd.get());
 
-  if (result.isSome()) {
-    return result.get();
-  }
-
-  // `read(fd)` returning `None` here means that the file is empty.
-  // Since this is a partial read of `T`, we report it as an error.
-  return Error(result.isError() ? result.error() : "Found an empty file");
+  return result;
 }
 
 
@@ -900,9 +894,9 @@ inline Object protobuf(const google::protobuf::Message& message)
             break;
           case google::protobuf::FieldDescriptor::TYPE_BOOL:
             if (reflection->GetRepeatedBool(message, field, i)) {
-              array.values.push_back(JSON::True());
+              array.values.push_back(JSON::Boolean(true));
             } else {
-              array.values.push_back(JSON::False());
+              array.values.push_back(JSON::Boolean(false));
             }
             break;
           case google::protobuf::FieldDescriptor::TYPE_STRING:
@@ -963,9 +957,9 @@ inline Object protobuf(const google::protobuf::Message& message)
           break;
         case google::protobuf::FieldDescriptor::TYPE_BOOL:
           if (reflection->GetBool(message, field)) {
-            object.values[field->name()] = JSON::True();
+            object.values[field->name()] = JSON::Boolean(true);
           } else {
-            object.values[field->name()] = JSON::False();
+            object.values[field->name()] = JSON::Boolean(false);
           }
           break;
         case google::protobuf::FieldDescriptor::TYPE_STRING:

@@ -330,7 +330,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(updateTaskRunning);
   const v1::TaskStatus& taskRunning = updateTaskRunning->status();
 
-  ASSERT_EQ(TASK_RUNNING, taskRunning.state());
+  ASSERT_EQ(v1::TASK_RUNNING, taskRunning.state());
   EXPECT_EQ(taskInfo.task_id(), taskRunning.task_id());
   EXPECT_TRUE(taskRunning.has_check_status());
   EXPECT_TRUE(taskRunning.check_status().has_command());
@@ -341,7 +341,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(updateCheckResult);
   const v1::TaskStatus& checkResult = updateCheckResult->status();
 
-  ASSERT_EQ(TASK_RUNNING, checkResult.state());
+  ASSERT_EQ(v1::TASK_RUNNING, checkResult.state());
   ASSERT_EQ(
       v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
       checkResult.reason());
@@ -362,7 +362,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   const v1::TaskStatus& explicitReconciliation =
     updateExplicitReconciliation->status();
 
-  ASSERT_EQ(TASK_RUNNING, explicitReconciliation.state());
+  ASSERT_EQ(v1::TASK_RUNNING, explicitReconciliation.state());
   ASSERT_EQ(
       v1::TaskStatus::REASON_RECONCILIATION,
       explicitReconciliation.reason());
@@ -380,7 +380,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   const v1::TaskStatus& implicitReconciliation =
     updateImplicitReconciliation->status();
 
-  ASSERT_EQ(TASK_RUNNING, implicitReconciliation.state());
+  ASSERT_EQ(v1::TASK_RUNNING, implicitReconciliation.state());
   ASSERT_EQ(
       v1::TaskStatus::REASON_RECONCILIATION,
       implicitReconciliation.reason());
@@ -475,7 +475,7 @@ TEST_F(CommandExecutorCheckTest, CommandCheckStatusChange)
   acknowledge(&mesos, frameworkId, updateTaskStarting->status());
 
   AWAIT_READY(updateTaskRunning);
-  ASSERT_EQ(TASK_RUNNING, updateTaskRunning->status().state());
+  ASSERT_EQ(v1::TASK_RUNNING, updateTaskRunning->status().state());
   EXPECT_EQ(taskInfo.task_id(), updateTaskRunning->status().task_id());
 
   acknowledge(&mesos, frameworkId, updateTaskRunning->status());
@@ -483,7 +483,7 @@ TEST_F(CommandExecutorCheckTest, CommandCheckStatusChange)
   AWAIT_READY(updateCheckResult);
   const v1::TaskStatus& checkResult = updateCheckResult->status();
 
-  ASSERT_EQ(TASK_RUNNING, checkResult.state());
+  ASSERT_EQ(v1::TASK_RUNNING, checkResult.state());
   ASSERT_EQ(
       v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
       checkResult.reason());
@@ -495,7 +495,7 @@ TEST_F(CommandExecutorCheckTest, CommandCheckStatusChange)
   AWAIT_READY(updateCheckResultChanged);
   const v1::TaskStatus& checkResultChanged = updateCheckResultChanged->status();
 
-  ASSERT_EQ(TASK_RUNNING, checkResultChanged.state());
+  ASSERT_EQ(v1::TASK_RUNNING, checkResultChanged.state());
   ASSERT_EQ(
       v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
       checkResultChanged.reason());
@@ -507,7 +507,7 @@ TEST_F(CommandExecutorCheckTest, CommandCheckStatusChange)
   AWAIT_READY(updateCheckResultBack);
   const v1::TaskStatus& checkResultBack = updateCheckResultBack->status();
 
-  ASSERT_EQ(TASK_RUNNING, checkResultBack.state());
+  ASSERT_EQ(v1::TASK_RUNNING, checkResultBack.state());
   ASSERT_EQ(
       v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
       checkResultBack.reason());
@@ -605,7 +605,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(updateTaskStarting);
   const v1::TaskStatus& taskStarting = updateTaskStarting->status();
 
-  ASSERT_EQ(TASK_STARTING, taskStarting.state());
+  ASSERT_EQ(v1::TASK_STARTING, taskStarting.state());
   EXPECT_EQ(taskInfo.task_id(), taskStarting.task_id());
 
   acknowledge(&mesos, frameworkId, taskStarting);
@@ -613,7 +613,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(updateTaskRunning);
   const v1::TaskStatus& taskRunning = updateTaskRunning->status();
 
-  ASSERT_EQ(TASK_RUNNING, taskRunning.state());
+  ASSERT_EQ(v1::TASK_RUNNING, taskRunning.state());
   EXPECT_EQ(taskInfo.task_id(), taskRunning.task_id());
 
   acknowledge(&mesos, frameworkId, taskRunning);
@@ -621,7 +621,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(updateCheckResult);
   const v1::TaskStatus& checkResult = updateCheckResult->status();
 
-  ASSERT_EQ(TASK_RUNNING, checkResult.state());
+  ASSERT_EQ(v1::TASK_RUNNING, checkResult.state());
   ASSERT_EQ(
       v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
       checkResult.reason());
@@ -712,7 +712,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(updateTaskStarting);
   const v1::TaskStatus& taskStarting = updateTaskStarting->status();
 
-  ASSERT_EQ(TASK_STARTING, taskStarting.state());
+  ASSERT_EQ(v1::TASK_STARTING, taskStarting.state());
   EXPECT_EQ(taskInfo.task_id(), taskStarting.task_id());
 
   acknowledge(&mesos, frameworkId, taskStarting);
@@ -720,7 +720,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(updateTaskRunning);
   const v1::TaskStatus& taskRunning = updateTaskRunning->status();
 
-  ASSERT_EQ(TASK_RUNNING, taskRunning.state());
+  ASSERT_EQ(v1::TASK_RUNNING, taskRunning.state());
   EXPECT_EQ(taskInfo.task_id(), taskRunning.task_id());
 
   acknowledge(&mesos, frameworkId, taskRunning);
@@ -728,7 +728,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(updateCheckResult);
   const v1::TaskStatus& checkResult = updateCheckResult->status();
 
-  ASSERT_EQ(TASK_RUNNING, checkResult.state());
+  ASSERT_EQ(v1::TASK_RUNNING, checkResult.state());
   ASSERT_EQ(
       v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
       checkResult.reason());
@@ -752,7 +752,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
     AWAIT_READY(updateCheckResult2);
     const v1::TaskStatus& checkResult2 = updateCheckResult2->status();
 
-    ASSERT_EQ(TASK_RUNNING, checkResult2.state());
+    ASSERT_EQ(v1::TASK_RUNNING, checkResult2.state());
     ASSERT_EQ(
         v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
         checkResult2.reason());
@@ -840,13 +840,13 @@ TEST_F(CommandExecutorCheckTest, CommandCheckTimeout)
   launchTask(&mesos, offer, taskInfo);
 
   AWAIT_READY(updateTaskStarting);
-  ASSERT_EQ(TASK_STARTING, updateTaskStarting->status().state());
+  ASSERT_EQ(v1::TASK_STARTING, updateTaskStarting->status().state());
   EXPECT_EQ(taskInfo.task_id(), updateTaskStarting->status().task_id());
 
   acknowledge(&mesos, frameworkId, updateTaskStarting->status());
 
   AWAIT_READY(updateTaskRunning);
-  ASSERT_EQ(TASK_RUNNING, updateTaskRunning->status().state());
+  ASSERT_EQ(v1::TASK_RUNNING, updateTaskRunning->status().state());
   EXPECT_EQ(taskInfo.task_id(), updateTaskRunning->status().task_id());
 
   acknowledge(&mesos, frameworkId, updateTaskRunning->status());
@@ -854,7 +854,7 @@ TEST_F(CommandExecutorCheckTest, CommandCheckTimeout)
   AWAIT_READY(updateCheckResult);
   const v1::TaskStatus& checkResult = updateCheckResult->status();
 
-  ASSERT_EQ(TASK_RUNNING, checkResult.state());
+  ASSERT_EQ(v1::TASK_RUNNING, checkResult.state());
   ASSERT_EQ(
       v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
       checkResult.reason());
@@ -866,7 +866,7 @@ TEST_F(CommandExecutorCheckTest, CommandCheckTimeout)
   AWAIT_READY(updateCheckResultTimeout);
   const v1::TaskStatus& checkResultTimeout = updateCheckResultTimeout->status();
 
-  ASSERT_EQ(TASK_RUNNING, checkResultTimeout.state());
+  ASSERT_EQ(v1::TASK_RUNNING, checkResultTimeout.state());
   ASSERT_EQ(
       v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
       checkResultTimeout.reason());
@@ -972,7 +972,7 @@ TEST_F(CommandExecutorCheckTest, CommandCheckAndHealthCheckNoShadowing)
   acknowledge(&mesos, frameworkId, updateTaskStarting->status());
 
   AWAIT_READY(updateTaskRunning);
-  ASSERT_EQ(TASK_RUNNING, updateTaskRunning->status().state());
+  ASSERT_EQ(v1::TASK_RUNNING, updateTaskRunning->status().state());
   EXPECT_EQ(taskInfo.task_id(), updateTaskRunning->status().task_id());
 
   acknowledge(&mesos, frameworkId, updateTaskRunning->status());
@@ -980,7 +980,7 @@ TEST_F(CommandExecutorCheckTest, CommandCheckAndHealthCheckNoShadowing)
   AWAIT_READY(updateCheckResult);
   const v1::TaskStatus& checkResult = updateCheckResult->status();
 
-  ASSERT_EQ(TASK_RUNNING, checkResult.state());
+  ASSERT_EQ(v1::TASK_RUNNING, checkResult.state());
   ASSERT_EQ(
       v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
       checkResult.reason());
@@ -995,7 +995,7 @@ TEST_F(CommandExecutorCheckTest, CommandCheckAndHealthCheckNoShadowing)
   AWAIT_READY(updateHealthResult);
   const v1::TaskStatus& healthResult = updateHealthResult->status();
 
-  ASSERT_EQ(TASK_RUNNING, healthResult.state());
+  ASSERT_EQ(v1::TASK_RUNNING, healthResult.state());
   ASSERT_EQ(
       v1::TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
       healthResult.reason());
@@ -1015,7 +1015,7 @@ TEST_F(CommandExecutorCheckTest, CommandCheckAndHealthCheckNoShadowing)
   const v1::TaskStatus& implicitReconciliation =
     updateImplicitReconciliation->status();
 
-  ASSERT_EQ(TASK_RUNNING, implicitReconciliation.state());
+  ASSERT_EQ(v1::TASK_RUNNING, implicitReconciliation.state());
   ASSERT_EQ(
       v1::TaskStatus::REASON_RECONCILIATION,
       implicitReconciliation.reason());
@@ -1120,7 +1120,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CommandExecutorCheckTest, HTTPCheckDelivered)
   AWAIT_READY(updateTaskRunning);
   const v1::TaskStatus& taskRunning = updateTaskRunning->status();
 
-  ASSERT_EQ(TASK_RUNNING, taskRunning.state());
+  ASSERT_EQ(v1::TASK_RUNNING, taskRunning.state());
   EXPECT_EQ(taskInfo.task_id(), taskRunning.task_id());
   EXPECT_TRUE(taskRunning.has_check_status());
   EXPECT_TRUE(taskRunning.check_status().has_http());
@@ -1131,7 +1131,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CommandExecutorCheckTest, HTTPCheckDelivered)
   AWAIT_READY(updateCheckResult);
   const v1::TaskStatus& checkResult = updateCheckResult->status();
 
-  ASSERT_EQ(TASK_RUNNING, checkResult.state());
+  ASSERT_EQ(v1::TASK_RUNNING, checkResult.state());
   ASSERT_EQ(
       v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
       checkResult.reason());
@@ -1156,14 +1156,14 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CommandExecutorCheckTest, HTTPCheckDelivered)
     AWAIT_READY(updateCheckResult2);
     const v1::TaskStatus& checkResult2 = updateCheckResult2->status();
 
-    ASSERT_EQ(TASK_RUNNING, checkResult2.state());
+    ASSERT_EQ(v1::TASK_RUNNING, checkResult2.state());
     ASSERT_EQ(
         v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
         checkResult2.reason());
     EXPECT_EQ(taskInfo.task_id(), checkResult2.task_id());
     EXPECT_TRUE(checkResult2.has_check_status());
     EXPECT_TRUE(checkResult2.check_status().http().has_status_code());
-    EXPECT_EQ(200, checkResult2.check_status().http().status_code());
+    EXPECT_EQ(200u, checkResult2.check_status().http().status_code());
   }
 }
 
@@ -1254,7 +1254,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CommandExecutorCheckTest, TCPCheckDelivered)
   AWAIT_READY(updateTaskStarting);
   const v1::TaskStatus& taskStarting = updateTaskStarting->status();
 
-  ASSERT_EQ(TASK_STARTING, taskStarting.state());
+  ASSERT_EQ(v1::TASK_STARTING, taskStarting.state());
   EXPECT_EQ(taskInfo.task_id(), taskStarting.task_id());
 
   acknowledge(&mesos, frameworkId, taskStarting);
@@ -1262,7 +1262,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CommandExecutorCheckTest, TCPCheckDelivered)
   AWAIT_READY(updateTaskRunning);
   const v1::TaskStatus& taskRunning = updateTaskRunning->status();
 
-  ASSERT_EQ(TASK_RUNNING, taskRunning.state());
+  ASSERT_EQ(v1::TASK_RUNNING, taskRunning.state());
   EXPECT_EQ(taskInfo.task_id(), taskRunning.task_id());
   EXPECT_TRUE(taskRunning.has_check_status());
   EXPECT_TRUE(taskRunning.check_status().has_tcp());
@@ -1273,7 +1273,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CommandExecutorCheckTest, TCPCheckDelivered)
   AWAIT_READY(updateCheckResult);
   const v1::TaskStatus& checkResult = updateCheckResult->status();
 
-  ASSERT_EQ(TASK_RUNNING, checkResult.state());
+  ASSERT_EQ(v1::TASK_RUNNING, checkResult.state());
   ASSERT_EQ(
       v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
       checkResult.reason());
@@ -1298,7 +1298,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CommandExecutorCheckTest, TCPCheckDelivered)
     AWAIT_READY(updateCheckResult2);
     const v1::TaskStatus& checkResult2 = updateCheckResult2->status();
 
-    ASSERT_EQ(TASK_RUNNING, checkResult2.state());
+    ASSERT_EQ(v1::TASK_RUNNING, checkResult2.state());
     ASSERT_EQ(
         v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
         checkResult2.reason());
@@ -1472,7 +1472,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(updateTaskStarting);
   const v1::TaskStatus& taskStarting = updateTaskStarting->status();
 
-  ASSERT_EQ(TASK_STARTING, taskStarting.state());
+  ASSERT_EQ(v1::TASK_STARTING, taskStarting.state());
   EXPECT_EQ(taskInfo.task_id(), taskStarting.task_id());
 
   acknowledge(&mesos, frameworkId, taskStarting);
@@ -1480,7 +1480,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(updateTaskRunning);
   const v1::TaskStatus& taskRunning = updateTaskRunning->status();
 
-  ASSERT_EQ(TASK_RUNNING, taskRunning.state());
+  ASSERT_EQ(v1::TASK_RUNNING, taskRunning.state());
   EXPECT_EQ(taskInfo.task_id(), taskRunning.task_id());
   EXPECT_TRUE(taskRunning.has_check_status());
   EXPECT_TRUE(taskRunning.check_status().has_command());
@@ -1491,7 +1491,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(updateCheckResult);
   const v1::TaskStatus& checkResult = updateCheckResult->status();
 
-  ASSERT_EQ(TASK_RUNNING, checkResult.state());
+  ASSERT_EQ(v1::TASK_RUNNING, checkResult.state());
   ASSERT_EQ(
       v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
       checkResult.reason());
@@ -1512,7 +1512,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   const v1::TaskStatus& explicitReconciliation =
     updateExplicitReconciliation->status();
 
-  ASSERT_EQ(TASK_RUNNING, explicitReconciliation.state());
+  ASSERT_EQ(v1::TASK_RUNNING, explicitReconciliation.state());
   ASSERT_EQ(
       v1::TaskStatus::REASON_RECONCILIATION,
       explicitReconciliation.reason());
@@ -1530,7 +1530,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   const v1::TaskStatus& implicitReconciliation =
     updateImplicitReconciliation->status();
 
-  ASSERT_EQ(TASK_RUNNING, implicitReconciliation.state());
+  ASSERT_EQ(v1::TASK_RUNNING, implicitReconciliation.state());
   ASSERT_EQ(
       v1::TaskStatus::REASON_RECONCILIATION,
       implicitReconciliation.reason());
@@ -1667,13 +1667,13 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   launchTaskGroup(&mesos, offer, executorInfo, taskGroup);
 
   AWAIT_READY(updateTaskStarting);
-  ASSERT_EQ(TASK_STARTING, updateTaskStarting->status().state());
+  ASSERT_EQ(v1::TASK_STARTING, updateTaskStarting->status().state());
   EXPECT_EQ(taskInfo.task_id(), updateTaskStarting->status().task_id());
 
   acknowledge(&mesos, frameworkId, updateTaskStarting->status());
 
   AWAIT_READY(updateTaskRunning);
-  ASSERT_EQ(TASK_RUNNING, updateTaskRunning->status().state());
+  ASSERT_EQ(v1::TASK_RUNNING, updateTaskRunning->status().state());
   EXPECT_EQ(taskInfo.task_id(), updateTaskRunning->status().task_id());
 
   acknowledge(&mesos, frameworkId, updateTaskRunning->status());
@@ -1681,7 +1681,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(updateCheckResult);
   const v1::TaskStatus& checkResult = updateCheckResult->status();
 
-  ASSERT_EQ(TASK_RUNNING, checkResult.state());
+  ASSERT_EQ(v1::TASK_RUNNING, checkResult.state());
   ASSERT_EQ(
       v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
       checkResult.reason());
@@ -1693,7 +1693,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(updateCheckResultChanged);
   const v1::TaskStatus& checkResultChanged = updateCheckResultChanged->status();
 
-  ASSERT_EQ(TASK_RUNNING, checkResultChanged.state());
+  ASSERT_EQ(v1::TASK_RUNNING, checkResultChanged.state());
   ASSERT_EQ(
       v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
       checkResultChanged.reason());
@@ -1705,7 +1705,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(updateCheckResultBack);
   const v1::TaskStatus& checkResultBack = updateCheckResultBack->status();
 
-  ASSERT_EQ(TASK_RUNNING, checkResultBack.state());
+  ASSERT_EQ(v1::TASK_RUNNING, checkResultBack.state());
   ASSERT_EQ(
       v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
       checkResultBack.reason());
@@ -1844,7 +1844,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(updateTaskStarting);
   const v1::TaskStatus& taskStarting = updateTaskStarting->status();
 
-  ASSERT_EQ(TASK_STARTING, taskStarting.state());
+  ASSERT_EQ(v1::TASK_STARTING, taskStarting.state());
   EXPECT_EQ(taskInfo.task_id(), taskStarting.task_id());
 
   acknowledge(&mesos, frameworkId, taskStarting);
@@ -1852,7 +1852,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(updateTaskRunning);
   const v1::TaskStatus& taskRunning = updateTaskRunning->status();
 
-  ASSERT_EQ(TASK_RUNNING, taskRunning.state());
+  ASSERT_EQ(v1::TASK_RUNNING, taskRunning.state());
   EXPECT_EQ(taskInfo.task_id(), taskRunning.task_id());
 
   acknowledge(&mesos, frameworkId, taskRunning);
@@ -1860,7 +1860,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(updateCheckResult);
   const v1::TaskStatus& checkResult = updateCheckResult->status();
 
-  ASSERT_EQ(TASK_RUNNING, checkResult.state());
+  ASSERT_EQ(v1::TASK_RUNNING, checkResult.state());
   ASSERT_EQ(
       v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
       checkResult.reason());
@@ -2021,7 +2021,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(updateTaskStarting);
   const v1::TaskStatus& taskStarting = updateTaskStarting->status();
 
-  ASSERT_EQ(TASK_STARTING, taskStarting.state());
+  ASSERT_EQ(v1::TASK_STARTING, taskStarting.state());
   EXPECT_EQ(taskInfo.task_id(), taskStarting.task_id());
 
   acknowledge(&mesos, frameworkId, taskStarting);
@@ -2029,7 +2029,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(updateTaskRunning);
   const v1::TaskStatus& taskRunning = updateTaskRunning->status();
 
-  ASSERT_EQ(TASK_RUNNING, taskRunning.state());
+  ASSERT_EQ(v1::TASK_RUNNING, taskRunning.state());
   EXPECT_EQ(taskInfo.task_id(), taskRunning.task_id());
 
   acknowledge(&mesos, frameworkId, taskRunning);
@@ -2037,7 +2037,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(updateCheckResult);
   const v1::TaskStatus& checkResult = updateCheckResult->status();
 
-  ASSERT_EQ(TASK_RUNNING, checkResult.state());
+  ASSERT_EQ(v1::TASK_RUNNING, checkResult.state());
   ASSERT_EQ(
       v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
       checkResult.reason());
@@ -2168,13 +2168,13 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorCheckTest, CommandCheckTimeout)
   launchTaskGroup(&mesos, offer, executorInfo, taskGroup);
 
   AWAIT_READY(updateTaskStarting);
-  ASSERT_EQ(TASK_STARTING, updateTaskStarting->status().state());
+  ASSERT_EQ(v1::TASK_STARTING, updateTaskStarting->status().state());
   EXPECT_EQ(taskInfo.task_id(), updateTaskStarting->status().task_id());
 
   acknowledge(&mesos, frameworkId, updateTaskStarting->status());
 
   AWAIT_READY(updateTaskRunning);
-  ASSERT_EQ(TASK_RUNNING, updateTaskRunning->status().state());
+  ASSERT_EQ(v1::TASK_RUNNING, updateTaskRunning->status().state());
   EXPECT_EQ(taskInfo.task_id(), updateTaskRunning->status().task_id());
 
   acknowledge(&mesos, frameworkId, updateTaskRunning->status());
@@ -2182,7 +2182,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorCheckTest, CommandCheckTimeout)
   AWAIT_READY(updateCheckResult);
   const v1::TaskStatus& checkResult = updateCheckResult->status();
 
-  ASSERT_EQ(TASK_RUNNING, checkResult.state());
+  ASSERT_EQ(v1::TASK_RUNNING, checkResult.state());
   ASSERT_EQ(
       v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
       checkResult.reason());
@@ -2194,7 +2194,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorCheckTest, CommandCheckTimeout)
   AWAIT_READY(updateCheckResultTimeout);
   const v1::TaskStatus& checkResultTimeout = updateCheckResultTimeout->status();
 
-  ASSERT_EQ(TASK_RUNNING, checkResultTimeout.state());
+  ASSERT_EQ(v1::TASK_RUNNING, checkResultTimeout.state());
   ASSERT_EQ(
       v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
       checkResultTimeout.reason());
@@ -2338,7 +2338,7 @@ TEST_F(DefaultExecutorCheckTest, CommandCheckAndHealthCheckNoShadowing)
   acknowledge(&mesos, frameworkId, updateTaskStarting->status());
 
   AWAIT_READY(updateTaskRunning);
-  ASSERT_EQ(TASK_RUNNING, updateTaskRunning->status().state());
+  ASSERT_EQ(v1::TASK_RUNNING, updateTaskRunning->status().state());
   EXPECT_EQ(taskInfo.task_id(), updateTaskRunning->status().task_id());
 
   acknowledge(&mesos, frameworkId, updateTaskRunning->status());
@@ -2346,7 +2346,7 @@ TEST_F(DefaultExecutorCheckTest, CommandCheckAndHealthCheckNoShadowing)
   AWAIT_READY(updateCheckResult);
   const v1::TaskStatus& checkResult = updateCheckResult->status();
 
-  ASSERT_EQ(TASK_RUNNING, checkResult.state());
+  ASSERT_EQ(v1::TASK_RUNNING, checkResult.state());
   ASSERT_EQ(
       v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
       checkResult.reason());
@@ -2361,7 +2361,7 @@ TEST_F(DefaultExecutorCheckTest, CommandCheckAndHealthCheckNoShadowing)
   AWAIT_READY(updateHealthResult);
   const v1::TaskStatus& healthResult = updateHealthResult->status();
 
-  ASSERT_EQ(TASK_RUNNING, healthResult.state());
+  ASSERT_EQ(v1::TASK_RUNNING, healthResult.state());
   ASSERT_EQ(
       v1::TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
       healthResult.reason());
@@ -2381,7 +2381,7 @@ TEST_F(DefaultExecutorCheckTest, CommandCheckAndHealthCheckNoShadowing)
   const v1::TaskStatus& implicitReconciliation =
     updateImplicitReconciliation->status();
 
-  ASSERT_EQ(TASK_RUNNING, implicitReconciliation.state());
+  ASSERT_EQ(v1::TASK_RUNNING, implicitReconciliation.state());
   ASSERT_EQ(
       v1::TaskStatus::REASON_RECONCILIATION,
       implicitReconciliation.reason());
@@ -2536,7 +2536,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
         break;
       }
       case Stage::RUNNING: {
-        ASSERT_EQ(TASK_RUNNING, taskStatus.state());
+        ASSERT_EQ(v1::TASK_RUNNING, taskStatus.state());
         ASSERT_EQ(
             v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
             taskStatus.reason());
@@ -2660,7 +2660,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorCheckTest, HTTPCheckDelivered)
   AWAIT_READY(updateTaskStarting);
   const v1::TaskStatus& taskStarting = updateTaskStarting->status();
 
-  ASSERT_EQ(TASK_STARTING, taskStarting.state());
+  ASSERT_EQ(v1::TASK_STARTING, taskStarting.state());
 
   // Acknowledge (to be able to get the next update).
   acknowledge(&mesos, frameworkId, taskStarting);
@@ -2668,7 +2668,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorCheckTest, HTTPCheckDelivered)
   AWAIT_READY(updateTaskRunning);
   const v1::TaskStatus& taskRunning = updateTaskRunning->status();
 
-  ASSERT_EQ(TASK_RUNNING, taskRunning.state());
+  ASSERT_EQ(v1::TASK_RUNNING, taskRunning.state());
   EXPECT_EQ(taskInfo.task_id(), taskRunning.task_id());
   EXPECT_TRUE(taskRunning.has_check_status());
   EXPECT_TRUE(taskRunning.check_status().has_http());
@@ -2680,7 +2680,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorCheckTest, HTTPCheckDelivered)
   AWAIT_READY(updateCheckResult);
   const v1::TaskStatus& checkResult = updateCheckResult->status();
 
-  ASSERT_EQ(TASK_RUNNING, checkResult.state());
+  ASSERT_EQ(v1::TASK_RUNNING, checkResult.state());
   ASSERT_EQ(
       v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
       checkResult.reason());
@@ -2705,14 +2705,14 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorCheckTest, HTTPCheckDelivered)
     AWAIT_READY(updateCheckResult2);
     const v1::TaskStatus& checkResult2 = updateCheckResult2->status();
 
-    ASSERT_EQ(TASK_RUNNING, checkResult2.state());
+    ASSERT_EQ(v1::TASK_RUNNING, checkResult2.state());
     ASSERT_EQ(
         v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
         checkResult2.reason());
     EXPECT_EQ(taskInfo.task_id(), checkResult2.task_id());
     EXPECT_TRUE(checkResult2.has_check_status());
     EXPECT_TRUE(checkResult2.check_status().http().has_status_code());
-    EXPECT_EQ(200, checkResult2.check_status().http().status_code());
+    EXPECT_EQ(200u, checkResult2.check_status().http().status_code());
   }
 }
 
@@ -2818,7 +2818,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorCheckTest, TCPCheckDelivered)
   AWAIT_READY(updateTaskStarting);
   const v1::TaskStatus& taskStarting = updateTaskStarting->status();
 
-  ASSERT_EQ(TASK_STARTING, taskStarting.state());
+  ASSERT_EQ(v1::TASK_STARTING, taskStarting.state());
   EXPECT_EQ(taskInfo.task_id(), taskStarting.task_id());
 
   // Acknowledge (to be able to get the next update).
@@ -2827,7 +2827,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorCheckTest, TCPCheckDelivered)
   AWAIT_READY(updateTaskRunning);
   const v1::TaskStatus& taskRunning = updateTaskRunning->status();
 
-  ASSERT_EQ(TASK_RUNNING, taskRunning.state());
+  ASSERT_EQ(v1::TASK_RUNNING, taskRunning.state());
   EXPECT_EQ(taskInfo.task_id(), taskRunning.task_id());
   EXPECT_TRUE(taskRunning.has_check_status());
   EXPECT_TRUE(taskRunning.check_status().has_tcp());
@@ -2839,7 +2839,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorCheckTest, TCPCheckDelivered)
   AWAIT_READY(updateCheckResult);
   const v1::TaskStatus& checkResult = updateCheckResult->status();
 
-  ASSERT_EQ(TASK_RUNNING, checkResult.state());
+  ASSERT_EQ(v1::TASK_RUNNING, checkResult.state());
   ASSERT_EQ(
       v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
       checkResult.reason());
@@ -2864,7 +2864,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorCheckTest, TCPCheckDelivered)
     AWAIT_READY(updateCheckResult2);
     const v1::TaskStatus& checkResult2 = updateCheckResult2->status();
 
-    ASSERT_EQ(TASK_RUNNING, checkResult2.state());
+    ASSERT_EQ(v1::TASK_RUNNING, checkResult2.state());
     ASSERT_EQ(
         v1::TaskStatus::REASON_TASK_CHECK_STATUS_UPDATED,
         checkResult2.reason());

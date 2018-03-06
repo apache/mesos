@@ -1546,7 +1546,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_ParentSigterm)
   AWAIT_READY(process::io::poll(pipes[0], process::io::READ));
   close(pipes[0]);
 
-  ASSERT_EQ(0u, os::kill(status->executor_pid(), SIGTERM));
+  ASSERT_EQ(0, os::kill(status->executor_pid(), SIGTERM));
 
   AWAIT_READY(wait);
   ASSERT_SOME(wait.get());
@@ -1674,12 +1674,12 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_RecoverNested)
   status = containerizer->status(containerId);
   AWAIT_READY(status);
   ASSERT_TRUE(status->has_executor_pid());
-  EXPECT_EQ(pid, status->executor_pid());
+  EXPECT_EQ(pid, static_cast<pid_t>(status->executor_pid()));
 
   status = containerizer->status(nestedContainerId);
   AWAIT_READY(status);
   ASSERT_TRUE(status->has_executor_pid());
-  EXPECT_EQ(nestedPid, status->executor_pid());
+  EXPECT_EQ(nestedPid, static_cast<pid_t>(status->executor_pid()));
 
   Future<Option<ContainerTermination>> nestedWait = containerizer->wait(
       nestedContainerId);
@@ -1823,12 +1823,12 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_RecoverNestedWithoutConfig)
   status = containerizer->status(containerId);
   AWAIT_READY(status);
   ASSERT_TRUE(status->has_executor_pid());
-  EXPECT_EQ(pid, status->executor_pid());
+  EXPECT_EQ(pid, static_cast<pid_t>(status->executor_pid()));
 
   status = containerizer->status(nestedContainerId);
   AWAIT_READY(status);
   ASSERT_TRUE(status->has_executor_pid());
-  EXPECT_EQ(nestedPid, status->executor_pid());
+  EXPECT_EQ(nestedPid, static_cast<pid_t>(status->executor_pid()));
 
   Future<Option<ContainerTermination>> nestedWait = containerizer->wait(
       nestedContainerId);
@@ -2010,7 +2010,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_RecoverNestedLauncherOrphans)
   status = containerizer->status(containerId);
   AWAIT_READY(status);
   ASSERT_TRUE(status->has_executor_pid());
-  EXPECT_EQ(pid, status->executor_pid());
+  EXPECT_EQ(pid, static_cast<pid_t>(status->executor_pid()));
 
   Future<Option<ContainerTermination>> wait = containerizer->wait(
       nestedContainerId);
@@ -2218,7 +2218,7 @@ TEST_F(NestedMesosContainerizerTest,
   status = containerizer->status(containerId);
   AWAIT_READY(status);
   ASSERT_TRUE(status->has_executor_pid());
-  EXPECT_EQ(pid, status->executor_pid());
+  EXPECT_EQ(pid, static_cast<pid_t>(status->executor_pid()));
 
   Future<Option<ContainerTermination>> nestedWait1 = containerizer->wait(
       nestedContainerId1);
@@ -2367,12 +2367,12 @@ TEST_F(NestedMesosContainerizerTest,
   status = containerizer->status(containerId);
   AWAIT_READY(status);
   ASSERT_TRUE(status->has_executor_pid());
-  EXPECT_EQ(pid, status->executor_pid());
+  EXPECT_EQ(pid, static_cast<pid_t>(status->executor_pid()));
 
   status = containerizer->status(nestedContainerId1);
   AWAIT_READY(status);
   ASSERT_TRUE(status->has_executor_pid());
-  EXPECT_EQ(nestedPid1, status->executor_pid());
+  EXPECT_EQ(nestedPid1, static_cast<pid_t>(status->executor_pid()));
 
   Future<Option<ContainerTermination>> wait = containerizer->wait(
       nestedContainerId2);

@@ -15,8 +15,8 @@
 
 #include <signal.h>
 
+#include <array>
 #include <string>
-#include <tuple>
 
 #include <glog/logging.h>
 
@@ -53,41 +53,52 @@ inline Try<::internal::windows::ProcessData> createChildProcess(
     const OutputFileDescriptors stdoutfds,
     const OutputFileDescriptors stderrfds)
 {
+  const std::array<os::WindowsFD, 3> fds{
+    stdinfds.read, stdoutfds.write, stderrfds.write};
+
   Try<::internal::windows::ProcessData> process_data =
     ::internal::windows::create_process(
         path,
         argv,
         environment,
         true, // Create suspended.
-        std::make_tuple(stdinfds.read, stdoutfds.write, stderrfds.write));
+        fds);
+
+  // Close the child-ends of the file descriptors that are created
+  // by this function.
+  foreach (const os::WindowsFD& fd, fds) {
+    if (fd >= 0) {
+      os::close(fd);
+    }
+  }
 
   if (process_data.isError()) {
-    return process_data;
+    return Error(process_data.error());
   }
 
   // Run the parent hooks.
-  const pid_t pid = process_data.get().pid;
+  const pid_t pid = process_data->pid;
   foreach (const Subprocess::ParentHook& hook, parent_hooks) {
-    Try<Nothing> parentSetup = hook.parent_setup(pid);
+    Try<Nothing> parent_setup = hook.parent_setup(pid);
 
     // If the hook callback fails, we shouldn't proceed with the
     // execution and hence the child process should be killed.
-    if (parentSetup.isError()) {
+    if (parent_setup.isError()) {
       // Attempt to kill the process. Since it is still in suspended state, we
       // do not need to kill any descendents. We also can't use `os::kill_job`
       // because this process is not in a Job Object unless one of the parent
       // hooks added it.
-      ::TerminateProcess(process_data.get().process_handle.get_handle(), 1);
+      ::TerminateProcess(process_data->process_handle.get_handle(), 1);
 
       return Error(
           "Failed to execute Parent Hook in child '" + stringify(pid) +
           "' with command '" + stringify(argv) + "': " +
-          parentSetup.error());
+          parent_setup.error());
     }
   }
 
   // Start child process.
-  if (::ResumeThread(process_data.get().thread_handle.get_handle()) == -1) {
+  if (::ResumeThread(process_data->thread_handle.get_handle()) == -1) {
     return WindowsError(
         "Failed to resume child process with command '" +
         stringify(argv) + "'");

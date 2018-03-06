@@ -1065,8 +1065,6 @@ TEST_F(CreateOperationValidationTest, SharedVolumeBasedOnCapability)
 // than the offered disk resource results won't succeed.
 TEST_F(CreateOperationValidationTest, InsufficientDiskResource)
 {
-  protobuf::slave::Capabilities capabilities;
-
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_roles(0, "role1");
 
@@ -4136,10 +4134,10 @@ TEST_F(FrameworkInfoValidationTest, DowngradeFromMultipleRoles)
 
   // Downgrade `frameworkInfo` to remove `MULTI_ROLE` capability, and
   // migrate from `roles` to `role` field.
-  ASSERT_EQ(2u, frameworkInfo.roles_size());
+  ASSERT_EQ(2, frameworkInfo.roles_size());
   frameworkInfo.set_role(frameworkInfo.roles(0));
   frameworkInfo.clear_roles();
-  ASSERT_EQ(1u, frameworkInfo.capabilities_size());
+  ASSERT_EQ(1, frameworkInfo.capabilities_size());
   frameworkInfo.clear_capabilities();
 
   {

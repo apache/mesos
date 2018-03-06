@@ -24,6 +24,7 @@
 #include <process/future.hpp>
 
 #include <stout/abort.hpp>
+#include <stout/error.hpp>
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
 #include <stout/unreachable.hpp>
@@ -187,10 +188,10 @@ public:
    * Shuts down the socket. Accepts an integer which specifies the
    * shutdown mode.
    */
-  virtual Try<Nothing> shutdown(int how)
+  virtual Try<Nothing, SocketError> shutdown(int how)
   {
     if (::shutdown(s, how) < 0) {
-      return ErrnoError();
+      return SocketError();
     }
 
     return Nothing();
@@ -396,7 +397,7 @@ public:
 
   // TODO(benh): Replace the default to Shutdown::READ_WRITE or remove
   // all together since it's unclear what the default should be.
-  Try<Nothing> shutdown(Shutdown shutdown = Shutdown::READ)
+  Try<Nothing, SocketError> shutdown(Shutdown shutdown = Shutdown::READ)
   {
     int how = [&]() {
       switch (shutdown) {

@@ -86,7 +86,7 @@ Try<State> recover(const string& rootDir, bool strict)
 
   const string& bootIdPath = paths::getBootIdPath(rootDir);
   if (os::exists(bootIdPath)) {
-    Try<string> read = state::read<string>(bootIdPath);
+    Result<string> read = state::read<string>(bootIdPath);
     if (read.isError()) {
       LOG(WARNING) << "Failed to read '"
                    << bootIdPath << "': " << read.error();
@@ -151,7 +151,8 @@ Try<SlaveState> SlaveState::recover(
     return state;
   }
 
-  Try<SlaveInfo> slaveInfo = state::read<SlaveInfo>(path);
+  Result<SlaveInfo> slaveInfo = state::read<SlaveInfo>(path);
+
   if (slaveInfo.isError()) {
     const string& message = "Failed to read agent info from '" + path + "': " +
                             slaveInfo.error();
@@ -162,6 +163,13 @@ Try<SlaveState> SlaveState::recover(
       state.errors++;
       return state;
     }
+  }
+
+  if (slaveInfo.isNone()) {
+    // This could happen if the slave died after opening the file for
+    // writing but before it checkpointed anything.
+    LOG(WARNING) << "Found empty agent info file '" << path << "'";
+    return state;
   }
 
   state.info = slaveInfo.get();
@@ -215,7 +223,8 @@ Try<FrameworkState> FrameworkState::recover(
     return state;
   }
 
-  const Try<FrameworkInfo> frameworkInfo = state::read<FrameworkInfo>(path);
+  const Result<FrameworkInfo> frameworkInfo = state::read<FrameworkInfo>(path);
+
   if (frameworkInfo.isError()) {
     message = "Failed to read framework info from '" + path + "': " +
               frameworkInfo.error();
@@ -229,6 +238,13 @@ Try<FrameworkState> FrameworkState::recover(
     }
   }
 
+  if (frameworkInfo.isNone()) {
+    // This could happen if the slave died after opening the file for
+    // writing but before it checkpointed anything.
+    LOG(WARNING) << "Found empty framework info file '" << path << "'";
+    return state;
+  }
+
   state.info = frameworkInfo.get();
 
   // Read the framework pid.
@@ -240,7 +256,7 @@ Try<FrameworkState> FrameworkState::recover(
     return state;
   }
 
-  Try<string> pid = state::read<string>(path);
+  Result<string> pid = state::read<string>(path);
 
   if (pid.isError()) {
     message =
@@ -373,7 +389,8 @@ Try<ExecutorState> ExecutorState::recover(
     return state;
   }
 
-  Try<ExecutorInfo> executorInfo = state::read<ExecutorInfo>(path);
+  Result<ExecutorInfo> executorInfo = state::read<ExecutorInfo>(path);
+
   if (executorInfo.isError()) {
     message = "Failed to read executor info from '" + path + "': " +
               executorInfo.error();
@@ -385,6 +402,13 @@ Try<ExecutorState> ExecutorState::recover(
       state.errors++;
       return state;
     }
+  }
+
+  if (executorInfo.isNone()) {
+    // This could happen if the slave died after opening the file for
+    // writing but before it checkpointed anything.
+    LOG(WARNING) << "Found empty executor info file '" << path << "'";
+    return state;
   }
 
   state.info = executorInfo.get();
@@ -455,7 +479,7 @@ Try<RunState> RunState::recover(
     return state;
   }
 
-  Try<string> pid = state::read<string>(path);
+  Result<string> pid = state::read<string>(path);
 
   if (pid.isError()) {
     message = "Failed to read executor forked pid from '" + path +
@@ -562,7 +586,8 @@ Try<TaskState> TaskState::recover(
     return state;
   }
 
-  Try<Task> task = state::read<Task>(path);
+  Result<Task> task = state::read<Task>(path);
+
   if (task.isError()) {
     message = "Failed to read task info from '" + path + "': " + task.error();
 
@@ -573,6 +598,13 @@ Try<TaskState> TaskState::recover(
       state.errors++;
       return state;
     }
+  }
+
+  if (task.isNone()) {
+    // This could happen if the slave died after opening the file for
+    // writing but before it checkpointed anything.
+    LOG(WARNING) << "Found empty task info file '" << path << "'";
+    return state;
   }
 
   state.info = task.get();
@@ -681,7 +713,7 @@ Try<ResourcesState> ResourcesState::recover(
     return state;
   }
 
-  Try<Resources> info = state::read<Resources>(infoPath);
+  Result<Resources> info = state::read<Resources>(infoPath);
   if (info.isError()) {
     string message =
       "Failed to read resources file '" + infoPath + "': " + info.error();
@@ -695,7 +727,9 @@ Try<ResourcesState> ResourcesState::recover(
     }
   }
 
-  state.resources = info.get();
+  if (info.isSome()) {
+    state.resources = info.get();
+  }
 
   // Process the target resources.
   const string& targetPath = paths::getResourcesTargetPath(rootDir);
@@ -703,7 +737,7 @@ Try<ResourcesState> ResourcesState::recover(
     return state;
   }
 
-  Try<Resources> target = state::read<Resources>(targetPath);
+  Result<Resources> target = state::read<Resources>(targetPath);
   if (target.isError()) {
     string message =
       "Failed to read resources file '" + targetPath + "': " + target.error();
@@ -717,7 +751,9 @@ Try<ResourcesState> ResourcesState::recover(
     }
   }
 
-  state.target = target.get();
+  if (target.isSome()) {
+    state.target = target.get();
+  }
 
   return state;
 }

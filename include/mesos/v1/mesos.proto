@@ -731,12 +731,12 @@ message ExecutorInfo {
   }
 
   // For backwards compatibility, if this field is not set when using `LAUNCH`
-  // operation, Mesos will infer the type by checking if `command` is
-  // set (`CUSTOM`) or unset (`DEFAULT`). `type` must be set when using
+  // operation, Mesos will infer the type by checking if `command` is set
+  // (`CUSTOM`) or unset (`DEFAULT`). `type` must be set when using
   // `LAUNCH_GROUP` operation.
   //
-  // TODO(vinod): Add support for explicitly setting `type` to `DEFAULT `
-  // in `LAUNCH` operation.
+  // TODO(vinod): Add support for explicitly setting `type` to `DEFAULT` in
+  // `LAUNCH` operation.
   optional Type type = 15;
 
   required ExecutorID executor_id = 1;
@@ -1032,7 +1032,7 @@ message CSIPluginInfo {
 
   // A list of container configurations to run CSI plugin components.
   // The controller service will be served by the first configuration
-  // that containers `CONTROLLER_SERVICE`, and the node service will be
+  // that contains `CONTROLLER_SERVICE`, and the node service will be
   // served by the first configuration that contains `NODE_SERVICE`.
   repeated CSIPluginContainerInfo containers = 3;
 }
@@ -1300,13 +1300,12 @@ message Resource {
   //       a reservation that refines the previous `ReservationInfo`.
 
   message ReservationInfo {
-    // TODO(mpark): Explain the two resource formats.
-
     // Describes a reservation. A static reservation is set by the operator on
     // the command-line and they are immutable without agent restart. A dynamic
-    // reservation is acquired by an operator via the '/reserve' HTTP endpoint
+    // reservation is made by an operator via the '/reserve' HTTP endpoint
     // or by a framework via the offer cycle by sending back an
     // 'Offer::Operation::Reserve' message.
+    //
     // NOTE: We currently do not allow frameworks with role "*" to make dynamic
     // reservations.
 
@@ -1317,11 +1316,15 @@ message Resource {
     }
 
     // The type of this reservation.
+    //
     // NOTE: This field must not be set for `Resource.reservation`.
+    //       See the 'Resource Format' section for more details.
     optional Type type = 4;
 
     // The role to which this reservation is made for.
+    //
     // NOTE: This field must not be set for `Resource.reservation`.
+    //       See the 'Resource Format' section for more details.
     optional string role = 3;
 
     // Indicates the principal, if any, of the framework or operator
@@ -1344,7 +1347,11 @@ message Resource {
   // If this is set, this resource was dynamically reserved by an
   // operator or a framework. Otherwise, this resource is either unreserved
   // or statically reserved by an operator via the --resources flag.
+  //
   // NOTE: Frameworks must not set this field if `reservations` is set.
+  //       See the 'Resource Format' section for more details.
+  //
+  // TODO(mpark): Deprecate once `reservations` is no longer experimental.
   optional ReservationInfo reservation = 8;
 
   // The stack of reservations. If this field is empty, it indicates that this
@@ -1354,7 +1361,11 @@ message Resource {
   // one by pushing a new `ReservationInfo` to the back. The last
   // `ReservationInfo` in this stack is the "current" reservation. The new
   // reservation's role must be a child of the current reservation's role.
+  //
   // NOTE: Frameworks must not set this field if `reservation` is set.
+  //       See the 'Resource Format' section for more details.
+  //
+  // TODO(mpark): Deprecate `role` and `reservation` once this is stable.
   repeated ReservationInfo reservations = 13;  // EXPERIMENTAL.
 
   message DiskInfo {
@@ -2456,7 +2467,7 @@ message TaskStatus {
   // acted upon by Mesos itself. As opposed to the data field, labels
   // will be kept in memory on master and agent processes. Therefore,
   // labels should be used to tag TaskStatus message with light-weight
-  // meta-data.  Labels should not contain duplicate key-value pairs.
+  // meta-data. Labels should not contain duplicate key-value pairs.
   optional Labels labels = 12;
 
   // Container related information that is resolved dynamically such as

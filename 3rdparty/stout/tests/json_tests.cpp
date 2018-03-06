@@ -355,8 +355,6 @@ TEST(JsonTest, Find)
   EXPECT_NONE(object.find<JSON::Number>("nested1.nested2.null"));
   EXPECT_NONE(object.find<JSON::Object>("nested1.nested2.null"));
   EXPECT_NONE(object.find<JSON::Array>("nested1.nested2.null"));
-  EXPECT_NONE(object.find<JSON::True>("nested1.nested2.null"));
-  EXPECT_NONE(object.find<JSON::False>("nested1.nested2.null"));
   EXPECT_NONE(object.find<JSON::Boolean>("nested1.nested2.null"));
 
   // Also test getting JSON::Value when you don't know the type.

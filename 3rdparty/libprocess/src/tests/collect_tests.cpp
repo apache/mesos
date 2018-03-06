@@ -33,7 +33,7 @@ TEST(CollectTest, Ready)
   Future<list<int>> collect = process::collect(empty);
 
   AWAIT_READY(collect);
-  EXPECT_TRUE(collect.get().empty());
+  EXPECT_TRUE(collect->empty());
 
   Promise<int> promise1;
   Promise<int> promise2;
@@ -168,7 +168,7 @@ TEST(AwaitTest, Success)
   list<Future<int>> empty;
   Future<list<Future<int>>> future = process::await(empty);
   AWAIT_ASSERT_READY(future);
-  EXPECT_TRUE(future.get().empty());
+  EXPECT_TRUE(future->empty());
 
   Promise<int> promise1;
   Promise<int> promise2;
@@ -191,7 +191,7 @@ TEST(AwaitTest, Success)
 
   AWAIT_ASSERT_READY(future);
 
-  EXPECT_EQ(futures.size(), future.get().size());
+  EXPECT_EQ(futures.size(), future->size());
 
   // We expect them to be returned in the same order as the
   // future list that was passed in.

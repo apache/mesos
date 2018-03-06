@@ -101,13 +101,30 @@ public:
       SecretGenerator* secretGenerator,
       const Option<Authorizer*>& authorizer);
 
-  MOCK_METHOD6(runTask, void(
+  MOCK_METHOD6(___run, void(
+      const process::Future<Nothing>& future,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const ContainerID& containerId,
+      const std::list<TaskInfo>& tasks,
+      const std::list<TaskGroupInfo>& taskGroups));
+
+  void unmocked____run(
+      const process::Future<Nothing>& future,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const ContainerID& containerId,
+      const std::list<TaskInfo>& tasks,
+      const std::list<TaskGroupInfo>& taskGroups);
+
+  MOCK_METHOD7(runTask, void(
       const process::UPID& from,
       const FrameworkInfo& frameworkInfo,
       const FrameworkID& frameworkId,
       const process::UPID& pid,
       const TaskInfo& task,
-      const std::vector<ResourceVersionUUID>& resourceVersionUuids));
+      const std::vector<ResourceVersionUUID>& resourceVersionUuids,
+      const Option<bool>& launchExecutor));
 
   void unmocked_runTask(
       const process::UPID& from,
@@ -115,15 +132,17 @@ public:
       const FrameworkID& frameworkId,
       const process::UPID& pid,
       const TaskInfo& task,
-      const std::vector<ResourceVersionUUID>& resourceVersionUuids);
+      const std::vector<ResourceVersionUUID>& resourceVersionUuids,
+      const Option<bool>& launchExecutor);
 
-  MOCK_METHOD6(_run, void(
+  MOCK_METHOD7(_run, void(
       const process::Future<std::list<bool>>& unschedules,
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo,
       const Option<TaskInfo>& task,
       const Option<TaskGroupInfo>& taskGroup,
-      const std::vector<ResourceVersionUUID>& resourceVersionUuids));
+      const std::vector<ResourceVersionUUID>& resourceVersionUuids,
+      const Option<bool>& launchExecutor));
 
   void unmocked__run(
       const process::Future<std::list<bool>>& unschedules,
@@ -131,21 +150,42 @@ public:
       const ExecutorInfo& executorInfo,
       const Option<TaskInfo>& task,
       const Option<TaskGroupInfo>& taskGroup,
-      const std::vector<ResourceVersionUUID>& resourceVersionUuids);
+      const std::vector<ResourceVersionUUID>& resourceVersionUuids,
+      const Option<bool>& launchExecutor);
 
-  MOCK_METHOD5(runTaskGroup, void(
+  MOCK_METHOD7(__run, void(
+      const process::Future<std::list<bool>>& future,
+      const FrameworkInfo& frameworkInfo,
+      const ExecutorInfo& executorInfo,
+      const Option<TaskInfo>& task,
+      const Option<TaskGroupInfo>& taskGroup,
+      const std::vector<ResourceVersionUUID>& resourceVersionUuids,
+      const Option<bool>& launchExecutor));
+
+  void unmocked___run(
+      const process::Future<std::list<bool>>& future,
+      const FrameworkInfo& frameworkInfo,
+      const ExecutorInfo& executorInfo,
+      const Option<TaskInfo>& task,
+      const Option<TaskGroupInfo>& taskGroup,
+      const std::vector<ResourceVersionUUID>& resourceVersionUuids,
+      const Option<bool>& launchExecutor);
+
+  MOCK_METHOD6(runTaskGroup, void(
       const process::UPID& from,
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo,
       const TaskGroupInfo& taskGroup,
-      const std::vector<ResourceVersionUUID>& resourceVersionUuids));
+      const std::vector<ResourceVersionUUID>& resourceVersionUuids,
+      const Option<bool>& launchExecutor));
 
   void unmocked_runTaskGroup(
       const process::UPID& from,
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo,
       const TaskGroupInfo& taskGroup,
-      const std::vector<ResourceVersionUUID>& resourceVersionUuids);
+      const std::vector<ResourceVersionUUID>& resourceVersionUuids,
+      const Option<bool>& launchExecutor);
 
   MOCK_METHOD2(killTask, void(
       const process::UPID& from,
@@ -200,6 +240,14 @@ public:
       const process::UPID& from,
       const FrameworkID& frameworkId,
       const ExecutorID& executorId);
+
+  MOCK_METHOD2(_shutdownExecutor, void(
+      slave::Framework* framework,
+      slave::Executor* executor));
+
+  void unmocked__shutdownExecutor(
+      slave::Framework* framework,
+      slave::Executor* executor);
 };
 
 } // namespace tests {

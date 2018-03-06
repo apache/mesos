@@ -293,8 +293,6 @@ message ReviveOffersMessage {
 
 
 /**
- * Depending on the `TaskInfo`, this message either notifies an existing
- * executor to run the task, or starts a new executor and runs the task.
  * This message is sent when scheduler::Call::Accept is sent with
  * Offer::Operation::Launch.
  *
@@ -326,13 +324,19 @@ message RunTaskMessage {
   // forward executor messages through the master. For schedulers
   // still using the driver, this will remain set.
   optional string pid = 3;
+
+  // If this field is absent (as prior to 1.5), depending on the `TaskInfo`,
+  // this message either notifies an existing executor to run the task, or
+  // starts a new executor and runs the task.
+  //
+  // Starting 1.5, this field will always be set. Agent should only launch
+  // an executor if this field value is true.
+  optional bool launch_executor = 6;
 }
 
 
 /**
- * This message either notifies an existing executor to run a task
- * group, or starts a new executor and runs the task group. This
- * message is sent when scheduler::Call::Accept is sent with
+ * This message is sent when scheduler::Call::Accept is sent with
  * Offer::Operation::LaunchGroup.
  *
  * See executor::Event::LaunchGroup.
@@ -354,6 +358,14 @@ message RunTaskGroupMessage {
   // because this means the operation is operating on resources that
   // might have already been invalidated.
   repeated ResourceVersionUUID resource_version_uuids = 4;
+
+  // If this field is absent (as prior to 1.5), depending on the `TaskInfo`,
+  // this message either notifies an existing executor to run the task, or
+  // starts a new executor and runs the task.
+  //
+  // Starting 1.5, this field will always be set. Agent should only launch
+  // an executor if this field value is true.
+  optional bool launch_executor = 5;
 }
 
 

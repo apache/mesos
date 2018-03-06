@@ -131,7 +131,7 @@ private:
     if (messageSize.isError()) {
       return http::BadRequest("Invalid 'messageSize': " + messageSize.error());
     }
-    message = string(messageSize.get().bytes(), '1');
+    message = string(messageSize->bytes(), '1');
 
     Try<size_t> numify_ = numify<size_t>(parameters["requests"].get());
     if (numify_.isError()) {
@@ -279,7 +279,7 @@ TEST(ProcessTest, Process_BENCHMARK_ClientServer)
 
     Try<Duration> elapsed = Duration::parse(response.body);
     ASSERT_SOME(elapsed);
-    double throughput = numRequests / elapsed.get().secs();
+    double throughput = numRequests / elapsed->secs();
 
     cout << "Client " << i << ": " << throughput << " rpcs / sec" << endl;
 
@@ -674,10 +674,10 @@ private:
 // Measures performance of message passing in ProtobufProcess.
 TEST(ProcessTest, Process_BENCHMARK_ProtobufInstallHandler)
 {
-  const size_t submessages[] = {0, 1, 5, 10, 50, 100, 500, 1000, 5000, 10000};
+  const int submessages[] = {0, 1, 5, 10, 50, 100, 500, 1000, 5000, 10000};
 
   ProtobufInstallHandlerBenchmarkProcess process;
-  foreach (size_t num_submessages, submessages) {
+  foreach (int num_submessages, submessages) {
     process.run(num_submessages);
   }
 }

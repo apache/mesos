@@ -2349,13 +2349,25 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
   EXPECT_EQ(expectedReserved.get(), reservedValue);
 
   JSON::Value unreservedValue = slaveObject.values["unreserved_resources_full"];
-  EXPECT_EQ(expectedUnreserved.get(), unreservedValue);
+  EXPECT_EQ(
+      Resources(CHECK_NOTERROR(
+          Resources::fromJSON(expectedUnreserved->as<JSON::Array>()))),
+      Resources(CHECK_NOTERROR(
+          Resources::fromJSON(unreservedValue.as<JSON::Array>()))));
 
   JSON::Value usedValue = slaveObject.values["used_resources_full"];
-  EXPECT_EQ(expectedUsed.get(), usedValue);
+  EXPECT_EQ(
+      Resources(CHECK_NOTERROR(
+          Resources::fromJSON(expectedUsed->as<JSON::Array>()))),
+      Resources(CHECK_NOTERROR(
+          Resources::fromJSON(usedValue.as<JSON::Array>()))));
 
   JSON::Value offeredValue = slaveObject.values["offered_resources_full"];
-  EXPECT_EQ(expectedOffered.get(), offeredValue);
+  EXPECT_EQ(
+      Resources(CHECK_NOTERROR(
+          Resources::fromJSON(expectedOffered.get().as<JSON::Array>()))),
+      Resources(CHECK_NOTERROR(
+          Resources::fromJSON(offeredValue.as<JSON::Array>()))));
 
   driver.stop();
   driver.join();

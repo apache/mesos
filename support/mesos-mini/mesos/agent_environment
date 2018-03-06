@@ -1,0 +1,17 @@
+MESOS_ADVERTISE_IP=127.0.0.1
+MESOS_HOSTNAME_LOOKUP=false
+MESOS_WORK_DIR=/var/lib/mesos/agent
+MESOS_MASTER=127.0.0.1:5050
+MESOS_CONTAINERIZERS=mesos,docker
+MESOS_ISOLATION=filesystem/linux,network/cni,cgroups/cpu,cgroups/mem,cgroups/blkio,cgroups/devices,disk/du,docker/runtime,volume/sandbox_path,volume/host_path,posix/rlimits,namespaces/pid,linux/capabilities
+MESOS_LAUNCHER=linux
+MESOS_CGROUPS_ROOT=`grep memory /proc/1/cgroup | cut -d: -f3`/mesos
+MESOS_IMAGE_PROVIDERS=DOCKER
+MESOS_IMAGE_PROVISIONER_BACKEND=copy
+MESOS_NETWORK_CNI_CONFIG_DIR=/etc/mesos/cni
+MESOS_NETWORK_CNI_PLUGINS_DIR=/usr/libexec/mesos/cni/:/usr/libexec/mesos/
+MESOS_SYSTEMD_ENABLE_SUPPORT=false
+MESOS_AGENT_FEATURES=file:///etc/mesos/agent_features.json
+MESOS_RESOURCE_PROVIDER_CONFIG_DIR=/etc/mesos/resource_providers
+MESOS_DISK_PROFILE_ADAPTOR=org_apache_mesos_UriDiskProfileAdaptor
+MESOS_MODULES_DIR=/etc/mesos/modules

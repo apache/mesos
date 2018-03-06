@@ -39,7 +39,8 @@ Try<Isolator*> NamespacesIPCIsolatorProcess::create(const Flags& flags)
   }
 
   // Verify that IPC namespaces are available on this kernel.
-  if (ns::namespaces().count("ipc") == 0) {
+  Try<bool> ipcSupported = ns::supported(CLONE_NEWIPC);
+  if (ipcSupported.isError() || !ipcSupported.get()) {
     return Error("IPC namespaces are not supported by this kernel");
   }
 

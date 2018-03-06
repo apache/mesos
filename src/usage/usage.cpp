@@ -54,7 +54,7 @@ Try<ResourceStatistics> usage(pid_t pid, bool mem, bool cpus)
     if (mem) {
       if (tree.process.rss.isSome()) {
         statistics.set_mem_rss_bytes(
-            statistics.mem_rss_bytes() + tree.process.rss.get().bytes());
+            statistics.mem_rss_bytes() + tree.process.rss->bytes());
       }
     }
 
@@ -63,12 +63,10 @@ Try<ResourceStatistics> usage(pid_t pid, bool mem, bool cpus)
     if (cpus) {
       if (tree.process.utime.isSome() && tree.process.stime.isSome()) {
         statistics.set_cpus_user_time_secs(
-            statistics.cpus_user_time_secs() +
-            tree.process.utime.get().secs());
+            statistics.cpus_user_time_secs() + tree.process.utime->secs());
 
         statistics.set_cpus_system_time_secs(
-            statistics.cpus_system_time_secs() +
-            tree.process.stime.get().secs());
+            statistics.cpus_system_time_secs() + tree.process.stime->secs());
       }
     }
 

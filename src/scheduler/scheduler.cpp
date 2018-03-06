@@ -473,7 +473,7 @@ protected:
       master = None();
       latest = None();
     } else {
-      const UPID& upid = future.get().get().pid();
+      const UPID& upid = future.get()->pid();
       latest = future.get();
 
       string scheme = "http";
@@ -718,7 +718,7 @@ protected:
     if (event->isError()) {
       error("Failed to de-serialize event: " + event->error());
     } else {
-      receive(event.get().get(), false);
+      receive(event->get(), false);
     }
 
     read();

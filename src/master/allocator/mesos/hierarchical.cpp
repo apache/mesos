@@ -777,7 +777,7 @@ void HierarchicalAllocatorProcess::updateWhitelist(
   if (whitelist.isSome()) {
     LOG(INFO) << "Updated agent whitelist: " << stringify(whitelist.get());
 
-    if (whitelist.get().empty()) {
+    if (whitelist->empty()) {
       LOG(WARNING) << "Whitelist is empty, no offers will be made!";
     }
   } else {
@@ -1043,7 +1043,7 @@ void HierarchicalAllocatorProcess::updateInverseOffer(
       // should guard against this. This goes against the pattern of not
       // checking external invariants; however, the allocator and master are
       // currently so tightly coupled that this check is valuable.
-      CHECK_NE(status.get().status(), InverseOfferStatus::UNKNOWN);
+      CHECK_NE(status->status(), InverseOfferStatus::UNKNOWN);
 
       // If the framework responded, we update our state to match.
       maintenance.statuses[frameworkId].CopyFrom(status.get());
@@ -1122,7 +1122,7 @@ HierarchicalAllocatorProcess::getInverseOfferStatuses()
   // Make a copy of the most recent statuses.
   foreachpair (const SlaveID& id, const Slave& slave, slaves) {
     if (slave.maintenance.isSome()) {
-      result[id] = slave.maintenance.get().statuses;
+      result[id] = slave.maintenance->statuses;
     }
   }
 
@@ -1556,12 +1556,13 @@ void HierarchicalAllocatorProcess::__allocate()
   // TODO(vinod): Implement a smarter sorting algorithm.
   std::random_shuffle(slaveIds.begin(), slaveIds.end());
 
-  // Returns the __quantity__ of resources allocated to a quota role. Since we
-  // account for reservations and persistent volumes toward quota, we strip
-  // reservation and persistent volume related information for comparability.
-  // The result is used to determine whether a role's quota is satisfied, and
-  // also to determine how many resources the role would need in order to meet
-  // its quota.
+  // Returns the __quantity__ of resources allocated to a role with
+  // non-default quota. Since we account for reservations and persistent
+  // volumes toward quota, we strip reservation and persistent volumes
+  // related information for comparability. The result is used to
+  // determine whether a role's quota guarantee is satisfied, and
+  // also to determine how many resources the role would need in
+  // order to meet its quota guarantee.
   //
   // NOTE: Revocable resources are excluded in `quotaRoleSorter`.
   auto getQuotaRoleAllocatedResources = [this](const string& role) {
@@ -1574,8 +1575,8 @@ void HierarchicalAllocatorProcess::__allocate()
   };
 
   // We need to keep track of allocated reserved resources for roles
-  // with quota in order to enforce their quota limit. Note these are
-  // __quantities__ with no meta-data.
+  // with a non-default quota in order to enforce their quota.
+  // Note these are __quantities__ with no meta-data.
   hashmap<string, Resources> allocatedReservationScalarQuantities;
 
   // We build the map here to avoid repetitive aggregation
@@ -1615,15 +1616,17 @@ void HierarchicalAllocatorProcess::__allocate()
     }
   }
 
-  // We need to constantly make sure that we are holding back enough unreserved
-  // resources that the remaining quota can later be satisfied when needed:
+  // We need to constantly make sure that we are holding back enough
+  // unreserved resources that the remaining quota guarantee can later
+  // be satisfied when needed:
   //
   //   Required unreserved headroom =
-  //     sum (unsatisfied quota(r) - unallocated reservations(r))
-  //       for each quota role r
+  //     sum (unsatisfied quota guarantee(r) - unallocated reservations(r))
+  //       for each role r
   //
-  // Given the above, if a role has more reservations than quota,
-  // we don't need to hold back any unreserved headroom for it.
+  // Given the above, if a role has more reservations than quota
+  // guarantee, we don't need to hold back any unreserved headroom
+  // for it.
   Resources requiredHeadroom;
   foreachpair (const string& role, const Quota& quota, quotas) {
     // NOTE: Revocable resources are excluded in `quotaRoleSorter`.
@@ -1633,7 +1636,7 @@ void HierarchicalAllocatorProcess::__allocate()
     const Resources guarantee = quota.info.guarantee();
 
     if (allocated.contains(guarantee)) {
-      continue; // Quota already satisifed.
+      continue; // Quota guarantee already satisfied.
     }
 
     Resources unallocated = guarantee - allocated;
@@ -1647,7 +1650,7 @@ void HierarchicalAllocatorProcess::__allocate()
 
   // We will allocate resources while ensuring that the required
   // unreserved non-revocable headroom is still available. Otherwise,
-  // we will not be able to satisfy quota later.
+  // we will not be able to satisfy the quota guarantee later.
   //
   //   available headroom = unallocated unreserved non-revocable resources
   //
@@ -1673,29 +1676,33 @@ void HierarchicalAllocatorProcess::__allocate()
       roleSorter->allocationScalarQuantities(role).toUnreserved();
   }
 
-  // Subtract all unallocated reservations.
-  foreachkey (const string& role, reservationScalarQuantities) {
+  // Calculate total allocated reservations. Note that we need to ensure
+  // we count a reservation for "a" being allocated to "a/b", therefore
+  // we cannot simply loop over the reservations' roles.
+  Resources totalAllocatedReservationScalarQuantities;
+  foreachkey (const string& role, roles) {
     hashmap<SlaveID, Resources> allocations;
     if (quotaRoleSorter->contains(role)) {
       allocations = quotaRoleSorter->allocation(role);
     } else if (roleSorter->contains(role)) {
       allocations = roleSorter->allocation(role);
+    } else {
+      continue; // This role has no allocation.
     }
-
-    Resources unallocatedReservations =
-      reservationScalarQuantities.get(role).getOrElse(Resources());
 
     foreachvalue (const Resources& resources, allocations) {
       // NOTE: `totalScalarQuantities` omits dynamic reservation,
       // persistent volume info, and allocation info. We additionally
       // remove the static reservations here via `toUnreserved()`.
-      unallocatedReservations -=
+      totalAllocatedReservationScalarQuantities +=
         resources.reserved().createStrippedScalarQuantity().toUnreserved();
     }
-
-    // Subtract the unallocated reservations for this role from the headroom.
-    availableHeadroom -= unallocatedReservations;
   }
+
+  // Subtract total unallocated reservations.
+  availableHeadroom -=
+    Resources::sum(reservationScalarQuantities) -
+    totalAllocatedReservationScalarQuantities;
 
   // Subtract revocable resources.
   foreachvalue (const Slave& slave, slaves) {
@@ -1717,9 +1724,19 @@ void HierarchicalAllocatorProcess::__allocate()
   // allocated in the current cycle.
   hashmap<SlaveID, Resources> offeredSharedResources;
 
-  // Quota comes first and fair share second. Here we process only those
-  // roles for which quota is set (quota'ed roles). Such roles form a
-  // special allocation group with a dedicated sorter.
+  // Quota guarantee comes first and bursting above the quota guarantee
+  // up to the quota limit comes second. Here we process only those
+  // roles for that have a non-empty quota guarantee.
+  //
+  // NOTE: Even though we keep track of the available headroom, we still
+  // dedicate the first stage to satisfy role's quota guarantee. The reason
+  // is that quota guarantee headroom only acts as a quantity guarantee.
+  // Frameworks might have filters or capabilities such that those resources
+  // set aside for the headroom cannot be used by these frameworks, resulting
+  // in unsatisfied quota guarantee (despite enough quota headroom). Thus
+  // we try to satisfy the quota guarantee in this first stage so that those
+  // roles with unsatisfied guarantee can have more choices and higher
+  // probability in getting their guarantee satisfied.
   foreach (const SlaveID& slaveId, slaveIds) {
     foreach (const string& role, quotaRoleSorter->sort()) {
       CHECK(quotas.contains(role));
@@ -1756,11 +1773,8 @@ void HierarchicalAllocatorProcess::__allocate()
           (getQuotaRoleAllocatedResources(role) -
                roleAllocatedReservationScalarQuantities);
 
-      // If quota for the role is considered satisfied, then we only
-      // further allocate reservations for the role.
-      //
       // This is a scalar quantity with no meta-data.
-      Resources unsatisfiedQuota = Resources(quota.info.guarantee()) -
+      Resources unsatisfiedQuotaGuarantee = Resources(quota.info.guarantee()) -
         resourcesChargedAgainstQuota;
 
       // Fetch frameworks according to their fair share.
@@ -1811,19 +1825,19 @@ void HierarchicalAllocatorProcess::__allocate()
           }
         }
 
-        // We allocate the role's reservations as well as any unreserved
-        // resources while ensuring the role stays within its quota limits.
-        // This means that we'll "chop" the unreserved resources up to
-        // the quota limit if necessary.
+        // In this first stage, we allocate the role's reservations as well as
+        // any unreserved resources while ensuring the role stays within its
+        // quota guarantee. This means that we'll "chop" the unreserved
+        // resources up to the quota guarantee if necessary.
         //
         // E.g. A role has no allocations or reservations yet and a 10 cpu
         //      quota limit. We'll chop a 15 cpu agent down to only
-        //      allocate 10 cpus to the role to keep it within its limit.
+        //      allocate 10 cpus to the role to keep it within its guarantee.
         //
         // In the case that the role needs some of the resources on this
         // agent to make progress towards its quota, or the role is being
         // allocated some reservation(s), we'll *also* allocate all of
-        // the resources for which it does not have quota.
+        // the resources for which it does not have quota guarantee.
         //
         // E.g. The agent has 1 cpu, 1024 mem, 1024 disk, 1 gpu, 5 ports
         //      and the role has quota for 1 cpu, 1024 mem. We'll include
@@ -1853,19 +1867,19 @@ void HierarchicalAllocatorProcess::__allocate()
         // These are __quantities__ with no meta-data.
         Resources newQuotaAllocationScalarQuantities;
 
-        // We put resource that this role has no quota for in
-        // `nonQuotaResources` tentatively.
-        Resources nonQuotaResources;
+        // We put resource that this role has no quota guarantee for in
+        // `nonQuotaGuaranteeResources` tentatively.
+        Resources nonQuotaGuaranteeResources;
 
         Resources unreserved = available.nonRevocable().unreserved();
 
-        set<string> quotaResourceNames =
+        set<string> quotaGuaranteeResourceNames =
           Resources(quota.info.guarantee()).names();
 
         // When "chopping" resources, there is more than 1 "chop" that
-        // can be done to satisfy the limits. Consider the case with
+        // can be done to satisfy the guarantee. Consider the case with
         // two disks of 1GB, one is PATH and another is MOUNT. And a
-        // role has a "disk" quota of 1GB. We could pick either of
+        // role has a "disk" quota guarantee of 1GB. We could pick either of
         // the disks here, but not both.
         //
         // In order to avoid repeatedly choosing the same "chop" of
@@ -1878,14 +1892,13 @@ void HierarchicalAllocatorProcess::__allocate()
         foreach (Resource& resource, resourceVector) {
           if (resource.type() != Value::SCALAR) {
             // We currently do not support quota for non-scalar resources,
-            // add it to `nonQuotaResources`. See `nonQuotaResources`
-            // regarding how these resources are allocated.
-            nonQuotaResources += resource;
+            // add it to `nonQuotaGuaranteeResources`.
+            nonQuotaGuaranteeResources += resource;
             continue;
           }
 
-          if (quotaResourceNames.count(resource.name()) == 0) {
-            // Allocating resource that this role has NO quota for,
+          if (quotaGuaranteeResourceNames.count(resource.name()) == 0) {
+            // Allocating resource that this role has NO quota guarantee for,
             // the limit concern here is that it should not break the
             // quota headroom.
             //
@@ -1894,7 +1907,7 @@ void HierarchicalAllocatorProcess::__allocate()
             Resources upperLimitScalarQuantities =
               availableHeadroom - requiredHeadroom -
               (newQuotaAllocationScalarQuantities +
-                nonQuotaResources.createStrippedScalarQuantity());
+                nonQuotaGuaranteeResources.createStrippedScalarQuantity());
 
             Option<Value::Scalar> limitScalar =
               upperLimitScalarQuantities.get<Value::Scalar>(resource.name());
@@ -1904,20 +1917,21 @@ void HierarchicalAllocatorProcess::__allocate()
             }
 
             if (Resources::shrink(&resource, limitScalar.get())) {
-              nonQuotaResources += resource;
+              nonQuotaGuaranteeResources += resource;
             }
           } else {
-            // Allocating resource that this role has quota for,
+            // Allocating resource that this role has quota guarantee for,
             // the limit concern is that it should not exceed this
-            // role's unsatisfied quota.
+            // role's unsatisfied quota guarantee.
             Resources upperLimitScalarQuantities =
-              unsatisfiedQuota - newQuotaAllocationScalarQuantities;
+              unsatisfiedQuotaGuarantee -
+                newQuotaAllocationScalarQuantities;
 
             Option<Value::Scalar> limitScalar =
               upperLimitScalarQuantities.get<Value::Scalar>(resource.name());
 
             if (limitScalar.isNone()) {
-              continue; // Quota limit already met.
+              continue; // Quota guarantee already met.
             }
 
             if (Resources::shrink(&resource, limitScalar.get())) {
@@ -1928,12 +1942,11 @@ void HierarchicalAllocatorProcess::__allocate()
           }
         }
 
-        // We include the non-quota resources (with headroom taken
+        // We include the non-quota guarantee resources (with headroom taken
         // into account) if this role is being allocated some resources
-        // already: either some quota resources or a reservation
-        // (possibly with quota resources).
+        // already: either some quota guarantee resources or a reservation.
         if (!resources.empty()) {
-          resources += nonQuotaResources;
+          resources += nonQuotaGuaranteeResources;
         }
 
         // It is safe to break here, because all frameworks under a role would
@@ -1964,8 +1977,7 @@ void HierarchicalAllocatorProcess::__allocate()
           });
         }
 
-        // If the framework filters these resources, ignore. The unallocated
-        // part of the quota will not be allocated to other roles.
+        // If the framework filters these resources, ignore.
         if (isFiltered(frameworkId, role, slaveId, resources)) {
           continue;
         }
@@ -1976,15 +1988,13 @@ void HierarchicalAllocatorProcess::__allocate()
 
         resources.allocate(role);
 
-        // NOTE: We perform "coarse-grained" allocation for quota'ed
-        // resources, which may lead to overcommitment of resources beyond
-        // quota. This is fine since quota currently represents a guarantee.
         offerable[frameworkId][role][slaveId] += resources;
         offeredSharedResources[slaveId] += resources.shared();
 
-        unsatisfiedQuota -= newQuotaAllocationScalarQuantities;
+        unsatisfiedQuotaGuarantee -=
+          newQuotaAllocationScalarQuantities;
 
-        // Track quota headroom change.
+        // Track quota guarantee headroom change.
         requiredHeadroom -= newQuotaAllocationScalarQuantities;
         availableHeadroom -=
           resources.unreserved().createStrippedScalarQuantity();
@@ -2012,11 +2022,12 @@ void HierarchicalAllocatorProcess::__allocate()
   }
 
   // Similar to the first stage, we will allocate resources while ensuring
-  // that the required unreserved non-revocable headroom is still available.
-  // Otherwise, we will not be able to satisfy quota later. Reservations to
-  // non-quota roles and revocable resources will always be included
-  // in the offers since these are not part of the headroom (and
-  // therefore can't be used to satisfy quota).
+  // that the required unreserved non-revocable headroom is still available
+  // for unsastified quota guarantees. Otherwise, we will not be able to
+  // satisfy quota guarantees later. Reservations to non-quota roles and
+  // revocable resources will always be included in the offers since these
+  // are not part of the headroom (and therefore can't be used to satisfy
+  // quota guarantees).
 
   foreach (const SlaveID& slaveId, slaveIds) {
     foreach (const string& role, roleSorter->sort()) {
@@ -2148,9 +2159,6 @@ void HierarchicalAllocatorProcess::__allocate()
 
         // NOTE: We perform "coarse-grained" allocation, meaning that we always
         // allocate the entire remaining slave resources to a single framework.
-        //
-        // NOTE: We may have already allocated some resources on the current
-        // agent as part of quota.
         offerable[frameworkId][role][slaveId] += resources;
         offeredSharedResources[slaveId] += resources.shared();
 

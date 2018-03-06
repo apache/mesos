@@ -429,18 +429,20 @@ Future<Nothing> ProvisionerProcess::recover(
       VLOG(1) << "Layers path '" << path << "' is missing for container' "
               << containerId << "'";
     } else {
-      Try<ContainerLayers> layers = state::read<ContainerLayers>(path);
+      Result<ContainerLayers> layers = state::read<ContainerLayers>(path);
       if (layers.isError()) {
         return Failure(
             "Failed to recover layers for container '" +
             stringify(containerId) + "': " + layers.error());
       }
 
-      info->layers = vector<string>();
-      std::copy(
-          layers->paths().begin(),
-          layers->paths().end(),
-          std::back_inserter(info->layers.get()));
+      if (layers.isSome()) {
+        info->layers = vector<string>();
+        std::copy(
+            layers->paths().begin(),
+            layers->paths().end(),
+            std::back_inserter(info->layers.get()));
+      }
     }
 
     infos.put(containerId, info);

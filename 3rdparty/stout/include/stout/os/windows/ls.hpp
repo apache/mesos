@@ -11,7 +11,7 @@
 // limitations under the License.
 
 #ifndef __STOUT_OS_WINDOWS_LS_HPP__
-#define __STOUT_OS_LWINDOWS_S_HPP__
+#define __STOUT_OS_WINDOWS_LS_HPP__
 
 #include <list>
 #include <string>

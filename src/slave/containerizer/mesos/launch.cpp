@@ -36,11 +36,19 @@
 #include <stout/os.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/path.hpp>
+#include <stout/stringify.hpp>
+#include <stout/try.hpp>
 #include <stout/unreachable.hpp>
 
+#include <stout/os/int_fd.hpp>
+#include <stout/os/open.hpp>
 #include <stout/os/realpath.hpp>
 #include <stout/os/which.hpp>
 #include <stout/os/write.hpp>
+
+#ifdef __WINDOWS__
+#include <stout/windows/os.hpp>
+#endif // __WINDOWS__
 
 #include <mesos/mesos.hpp>
 #include <mesos/type_utils.hpp>
@@ -108,11 +116,9 @@ MesosContainerizerLaunch::Flags::Flags()
       "properly in the subprocess. It's used to synchronize with the \n"
       "parent process. If not specified, no synchronization will happen.");
 
-#ifndef __WINDOWS__
   add(&Flags::runtime_directory,
       "runtime_directory",
       "The runtime directory for the container (used for checkpointing)");
-#endif // __WINDOWS__
 
 #ifdef __linux__
   add(&Flags::namespace_mnt_target,
@@ -130,7 +136,7 @@ MesosContainerizerLaunch::Flags::Flags()
 
 static Option<pid_t> containerPid = None();
 static Option<string> containerStatusPath = None();
-static Option<int> containerStatusFd = None();
+static Option<int_fd> containerStatusFd = None();
 
 static void exitWithSignal(int sig);
 static void exitWithStatus(int status);
@@ -472,7 +478,6 @@ int MesosContainerizerLaunch::execute()
     return EXIT_SUCCESS;
   }
 
-#ifndef __WINDOWS__
   // The existence of the `runtime_directory` flag implies that we
   // want to checkpoint the container's status upon exit.
   if (flags.runtime_directory.isSome()) {
@@ -480,7 +485,7 @@ int MesosContainerizerLaunch::execute()
         flags.runtime_directory.get(),
         containerizer::paths::STATUS_FILE);
 
-    Try<int> open = os::open(
+    Try<int_fd> open = os::open(
         containerStatusPath.get(),
         O_WRONLY | O_CREAT | O_CLOEXEC,
         S_IRUSR | S_IWUSR);
@@ -495,6 +500,7 @@ int MesosContainerizerLaunch::execute()
     containerStatusFd = open.get();
   }
 
+#ifndef __WINDOWS__
   // We need a signal fence here to ensure that `containerStatusFd` is
   // actually written to memory and not just to a temporary register.
   // Without this, it's possible that the signal handler we are about
@@ -508,6 +514,29 @@ int MesosContainerizerLaunch::execute()
   Try<Nothing> signals = installSignalHandlers();
   if (signals.isError()) {
     cerr << "Failed to install signal handlers: " << signals.error() << endl;
+    exitWithStatus(EXIT_FAILURE);
+  }
+#else
+  // We need a handle to the job object which this container is associated with.
+  // Without this handle, the job object would be destroyed by the OS when the
+  // agent exits (or crashes), making recovery impossible. By holding a handle,
+  // we tie the lifetime of the job object to the container itself. In this way,
+  // a recovering agent can reattach to the container by opening a new handle to
+  // the job object.
+  const pid_t pid = ::GetCurrentProcessId();
+  const Try<std::wstring> name = os::name_job(pid);
+  if (name.isError()) {
+    cerr << "Failed to create job object name from pid: " << name.error()
+         << endl;
+    exitWithStatus(EXIT_FAILURE);
+  }
+
+  // NOTE: This handle will not be destructed, even though it is a
+  // `SharedHandle`, because it will (purposefully) never go out of scope.
+  Try<SharedHandle> handle = os::open_job(JOB_OBJECT_QUERY, false, name.get());
+  if (handle.isError()) {
+    cerr << "Failed to open job object '" << stringify(name.get())
+         << "' for the current container: " << handle.error() << endl;
     exitWithStatus(EXIT_FAILURE);
   }
 #endif // __WINDOWS__
@@ -909,12 +938,9 @@ int MesosContainerizerLaunch::execute()
     ? os::Shell::name
     : launchInfo.command().value().c_str());
 
-#ifndef __WINDOWS__
   // Search executable in the current working directory as well.
   // execvpe and execvp will only search executable from the current
   // working directory if environment variable PATH is not set.
-  // TODO(aaron.wood): 'os::which' current does not work on Windows.
-  // Remove the ifndef guard once it's supported on Windows.
   if (!path::absolute(executable) &&
       launchInfo.has_working_directory()) {
     Option<string> which = os::which(
@@ -925,7 +951,6 @@ int MesosContainerizerLaunch::execute()
       executable = which.get();
     }
   }
-#endif // __WINDOWS__
 
   os::raw::Argv argv(launchInfo.command().shell()
     ? vector<string>({
@@ -1041,6 +1066,10 @@ int MesosContainerizerLaunch::execute()
   }
 #endif // __WINDOWS__
 
+  // NOTE: On Windows, these functions call `CreateProcess` and then wait for
+  // the new process to exit. Because of this, the `SharedHandle` to the job
+  // object does not go out of scope. This is unlike the POSIX behavior of
+  // `exec`, as the process image is intentionally not replaced.
   if (envp.isSome()) {
     os::execvpe(executable.c_str(), argv, envp.get());
   } else {

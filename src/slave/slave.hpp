@@ -144,6 +144,12 @@ public:
 
   void doReliableRegistration(Duration maxBackoff);
 
+  // TODO(mzhu): Combine this with `runTask()' and replace all `runTask()'
+  // mock with `run()` mock.
+  void handleRunTaskMessage(
+      const process::UPID& from,
+      RunTaskMessage&& runTaskMessage);
+
   // Made 'virtual' for Slave mocking.
   virtual void runTask(
       const process::UPID& from,
@@ -151,7 +157,8 @@ public:
       const FrameworkID& frameworkId,
       const process::UPID& pid,
       const TaskInfo& task,
-      const std::vector<ResourceVersionUUID>& resourceVersionUuids);
+      const std::vector<ResourceVersionUUID>& resourceVersionUuids,
+      const Option<bool>& launchExecutor);
 
   void run(
       const FrameworkInfo& frameworkInfo,
@@ -159,7 +166,8 @@ public:
       Option<TaskInfo> task,
       Option<TaskGroupInfo> taskGroup,
       const std::vector<ResourceVersionUUID>& resourceVersionUuids,
-      const process::UPID& pid);
+      const process::UPID& pid,
+      const Option<bool>& launchExecutor);
 
   // Made 'virtual' for Slave mocking.
   virtual void _run(
@@ -168,7 +176,38 @@ public:
       const ExecutorInfo& executorInfo,
       const Option<TaskInfo>& task,
       const Option<TaskGroupInfo>& taskGroup,
-      const std::vector<ResourceVersionUUID>& resourceVersionUuids);
+      const std::vector<ResourceVersionUUID>& resourceVersionUuids,
+      const Option<bool>& launchExecutor);
+
+  // Made 'virtual' for Slave mocking.
+  virtual void __run(
+      const process::Future<std::list<bool>>& future,
+      const FrameworkInfo& frameworkInfo,
+      const ExecutorInfo& executorInfo,
+      const Option<TaskInfo>& task,
+      const Option<TaskGroupInfo>& taskGroup,
+      const std::vector<ResourceVersionUUID>& resourceVersionUuids,
+      const Option<bool>& launchExecutor);
+
+  // This is called when the resource limits of the container have
+  // been updated for the given tasks and task groups. If the update is
+  // successful, we flush the given tasks to the executor by sending
+  // RunTaskMessages or `LAUNCH_GROUP` events.
+  //
+  // Made 'virtual' for Slave mocking.
+  virtual void ___run(
+      const process::Future<Nothing>& future,
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const ContainerID& containerId,
+      const std::list<TaskInfo>& tasks,
+      const std::list<TaskGroupInfo>& taskGroups);
+
+  // TODO(mzhu): Combine this with `runTaskGroup()' and replace all
+  // `runTaskGroup()' mock with `run()` mock.
+  void handleRunTaskGroupMessage(
+      const process::UPID& from,
+      RunTaskGroupMessage&& runTaskGroupMessage);
 
   // Made 'virtual' for Slave mocking.
   virtual void runTaskGroup(
@@ -176,7 +215,8 @@ public:
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo,
       const TaskGroupInfo& taskGroupInfo,
-      const std::vector<ResourceVersionUUID>& resourceVersionUuids);
+      const std::vector<ResourceVersionUUID>& resourceVersionUuids,
+      const Option<bool>& launchExecutor);
 
   // Made 'virtual' for Slave mocking.
   virtual void killTask(
@@ -188,6 +228,15 @@ public:
       const process::UPID& from,
       const FrameworkID& frameworkId,
       const ExecutorID& executorId);
+
+  // Shut down an executor. This is a two phase process. First, an
+  // executor receives a shut down message (shut down phase), then
+  // after a configurable timeout the slave actually forces a kill
+  // (kill phase, via the isolator) if the executor has not
+  // exited.
+  //
+  // Made 'virtual' for Slave mocking.
+  virtual void _shutdownExecutor(Framework* framework, Executor* executor);
 
   void shutdownFramework(
       const process::UPID& from,
@@ -371,26 +420,6 @@ public:
   virtual void finalize();
   virtual void exited(const process::UPID& pid);
 
-  void __run(
-      const process::Future<std::list<bool>>& future,
-      const FrameworkInfo& frameworkInfo,
-      const ExecutorInfo& executorInfo,
-      const Option<TaskInfo>& task,
-      const Option<TaskGroupInfo>& taskGroup,
-      const std::vector<ResourceVersionUUID>& resourceVersionUuids);
-
-  // This is called when the resource limits of the container have
-  // been updated for the given tasks and task groups. If the update is
-  // successful, we flush the given tasks to the executor by sending
-  // RunTaskMessages or `LAUNCH_GROUP` events.
-  void ___run(
-      const process::Future<Nothing>& future,
-      const FrameworkID& frameworkId,
-      const ExecutorID& executorId,
-      const ContainerID& containerId,
-      const std::list<TaskInfo>& tasks,
-      const std::list<TaskGroupInfo>& taskGroups);
-
   process::Future<Secret> generateSecret(
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
@@ -409,30 +438,46 @@ public:
 
   Nothing detachFile(const std::string& path);
 
-  // TODO(qianzhang): This is a workaround to make the default executor
-  // task's volume directory visible in MESOS UI. In MESOS-7225, we made
-  // sure a task can access any volumes specified in its disk resources
-  // from its sandbox by introducing a workaround to the default executor,
-  // i.e., adding a `SANDBOX_PATH` volume with type `PARENT` to the
-  // corresponding nested container. This volume gets translated into a
-  // bind mount in the nested container's mount namespace, which is is not
-  // visible in Mesos UI because it operates in the host namespace. See
-  // Mesos-8279 for details.
+  // TODO(qianzhang): This is a workaround to make the default executor task's
+  // volume directory visible in MESOS UI. It handles two cases:
+  //   1. The task has disk resources specified. In this case any disk resources
+  //      specified for the task are mounted on the top level container since
+  //      currently all resources of nested containers are merged in the top
+  //      level executor container. To make sure the task can access any volumes
+  //      specified in its disk resources from its sandbox, a workaround was
+  //      introduced to the default executor in MESOS-7225, i.e., adding a
+  //      `SANDBOX_PATH` volume with type `PARENT` to the corresponding nested
+  //      container. This volume gets translated into a bind mount in the nested
+  //      container's mount namespace, which is not visible in Mesos UI because
+  //      it operates in the host namespace. See MESOS-8279 for details.
+  //   2. The executor has disk resources specified and the task's ContainerInfo
+  //      has a `SANDBOX_PATH` volume with type `PARENT` specified to share the
+  //      executor's disk volume. Similar to the first case, this `SANDBOX_PATH`
+  //      volume gets translated into a bind mount which is not visible in Mesos
+  //      UI. See MESOS-8565 for details.
   //
-  // To make the task's volume directory visible in Mesos UI, here we
-  // attach the executor's volume directory to it, so when users browse
-  // task's volume directory in Mesos UI, what they actually browse is the
-  // executor's volume directory. Note when calling `Files::attach()`, the
-  // third argument `authorized` is not specified because it is already
-  // specified when we do the attach for the executor's sandbox and it also
-  // applies to the executor's tasks.
+  // To make the task's volume directory visible in Mesos UI, here we attach the
+  // executor's volume directory to it so that it can be accessed via the /files
+  // endpoint. So when users browse task's volume directory in Mesos UI, what
+  // they actually browse is the executor's volume directory. Note when calling
+  // `Files::attach()`, the third argument `authorized` is not specified because
+  // it is already specified when we do the attach for the executor's sandbox
+  // and it also applies to the executor's tasks. Note that for the second case
+  // we can not do the attach when the task's ContainerInfo has a `SANDBOX_PATH`
+  // volume with type `PARENT` but the executor has NO disk resources, because
+  // in such case the attach will fail due to the executor's volume directory
+  // not existing which will actually be created by the `volume/sandbox_path`
+  // isolator when launching the nested container. But if the executor has disk
+  // resources, then we will not have this issue since the executor's volume
+  // directory will be created by the `filesystem/linux` isolator when launching
+  // the executor before we do the attach.
   void attachTaskVolumeDirectory(
       const ExecutorInfo& executorInfo,
       const ContainerID& executorContainerId,
       const Task& task);
 
   // TODO(qianzhang): Remove the task's volume directory from the /files
-  // endpoint. This is a workaround for MESOS-8279.
+  // endpoint. This is a workaround for MESOS-8279 and MESOS-8565.
   void detachTaskVolumeDirectories(
       const ExecutorInfo& executorInfo,
       const ContainerID& executorContainerId,
@@ -548,13 +593,6 @@ private:
   void _authenticate();
   void authenticationTimeout(process::Future<bool> future);
 
-  // Shut down an executor. This is a two phase process. First, an
-  // executor receives a shut down message (shut down phase), then
-  // after a configurable timeout the slave actually forces a kill
-  // (kill phase, via the isolator) if the executor has not
-  // exited.
-  void _shutdownExecutor(Framework* framework, Executor* executor);
-
   // Process creation of persistent volumes (for CREATE) and/or deletion
   // of persistent volumes (for DESTROY) as a part of handling
   // checkpointed resources, and commit the checkpointed resources on
@@ -580,6 +618,11 @@ private:
           mesos::slave::ContainerTermination>>& termination,
       const FrameworkID& frameworkId,
       const Executor* executor);
+
+  void sendExitedExecutorMessage(
+      const FrameworkID& frameworkId,
+      const ExecutorID& executorId,
+      const Option<int>& status = None());
 
   // Forwards the current total of oversubscribed resources.
   void forwardOversubscribed();
@@ -861,6 +904,30 @@ public:
 
   // Returns true if there are any queued/launched/terminated tasks.
   bool incompleteTasks();
+
+  // Returns true if the agent ever sent any tasks to this executor.
+  // More precisely, this function returns whether either:
+  //
+  //  (1) There are terminated/completed tasks with a
+  //      SOURCE_EXECUTOR status.
+  //
+  //  (2) `launchedTasks` is not empty.
+  //
+  // If this function returns false and there are no queued tasks,
+  // we probably (see TODO below) have killed or dropped all of its
+  // initial tasks, in which case the agent will shut down the executor.
+  //
+  // TODO(mzhu): Note however, that since we look through the cache
+  // of completed tasks, we can have false positives when a task
+  // that was delivered to the executor has been evicted from the
+  // completed task cache by tasks that have been killed by the
+  // agent before delivery. This should be fixed.
+  //
+  // NOTE: This function checks whether any tasks has ever been sent,
+  // this does not necessarily mean the executor has ever received
+  // any tasks. Specifically, tasks in `launchedTasks` may be dropped
+  // before received by the executor if the agent restarts.
+  bool everSentTask() const;
 
   // Sends a message to the connected executor.
   template <typename Message>

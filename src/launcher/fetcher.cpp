@@ -408,7 +408,7 @@ static Try<string> fetchThroughCache(
     const string& sandboxDirectory,
     const Option<string>& frameworksHome)
 {
-  if (cacheDirectory.isNone() || cacheDirectory.get().empty()) {
+  if (cacheDirectory.isNone() || cacheDirectory->empty()) {
     return Error("Cache directory not specified");
   }
 
@@ -559,10 +559,10 @@ int main(int argc, char* argv[])
   CHECK_SOME(fetcherInfo)
     << "Failed to parse FetcherInfo: " << fetcherInfo.error();
 
-  CHECK(!fetcherInfo.get().sandbox_directory().empty())
+  CHECK(!fetcherInfo->sandbox_directory().empty())
     << "Missing sandbox directory";
 
-  const string sandboxDirectory = fetcherInfo.get().sandbox_directory();
+  const string sandboxDirectory = fetcherInfo->sandbox_directory();
 
   Try<Nothing> result = createCacheDirectory(fetcherInfo.get());
   if (result.isError()) {
@@ -572,30 +572,29 @@ int main(int argc, char* argv[])
 
   // If the `FetcherInfo` specifies a user, use `os::su()` to fetch files as the
   // task's user to ensure that filesystem permissions are enforced.
-  if (fetcherInfo.get().has_user()) {
-    // TODO(coffler): No support for os::su on Windows, see MESOS-8063
+  if (fetcherInfo->has_user()) {
+  // TODO(coffler): No support for os::su on Windows, see MESOS-8063
 #ifndef __WINDOWS__
-    result = os::su(fetcherInfo.get().user());
+    result = os::su(fetcherInfo->user());
     if (result.isError()) {
-      EXIT(EXIT_FAILURE)
-        << "Fetcher could not execute `os::su()` for user '"
-        << fetcherInfo.get().user() << "'";
+      EXIT(EXIT_FAILURE) << "Fetcher could not execute `os::su()` for user '"
+                         << fetcherInfo->user() << "'";
     }
 #endif // __WINDOWS__
   }
 
   const Option<string> cacheDirectory =
-    fetcherInfo.get().has_cache_directory() ?
-      Option<string>::some(fetcherInfo.get().cache_directory()) :
-        Option<string>::none();
+    fetcherInfo->has_cache_directory()
+      ? Option<string>::some(fetcherInfo->cache_directory())
+      : Option<string>::none();
 
   const Option<string> frameworksHome =
-    fetcherInfo.get().has_frameworks_home() ?
-      Option<string>::some(fetcherInfo.get().frameworks_home()) :
-        Option<string>::none();
+    fetcherInfo->has_frameworks_home()
+      ? Option<string>::some(fetcherInfo->frameworks_home())
+      : Option<string>::none();
 
   // Fetch each URI to a local file and chmod if necessary.
-  foreach (const FetcherInfo::Item& item, fetcherInfo.get().items()) {
+  foreach (const FetcherInfo::Item& item, fetcherInfo->items()) {
     Try<string> fetched =
       fetch(item, cacheDirectory, sandboxDirectory, frameworksHome);
     if (fetched.isError()) {

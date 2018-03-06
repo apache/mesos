@@ -35,7 +35,7 @@ cmake -DCMAKE_BUILD_TYPE=Release \
 
 # Build the external dependencies.
 # TODO(mpark): Use an external dependencies target once MESOS-6924 is resolved.
-cmake --build 3rdparty --target boost-1.53.0 -- -j $(nproc)
+cmake --build 3rdparty --target boost-1.65.0 -- -j $(nproc)
 cmake --build 3rdparty --target elfio-3.2 -- -j $(nproc)
 cmake --build 3rdparty --target glog-0.3.3 -- -j $(nproc)
 cmake --build 3rdparty --target googletest-1.8.0 -- -j $(nproc)

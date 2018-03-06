@@ -26,6 +26,7 @@ import atexit
 import json
 import linecache
 import os
+import pipes
 import platform
 import re
 import ssl
@@ -109,6 +110,8 @@ def review_chain(review_id):
     # Stop as soon as we stumble upon a submitted request.
     status = json_obj.get('review_request').get('status')
     if status == "submitted":
+        sys.stderr.write('Warning: Review {review} has already'
+                         ' been applied\n'.format(review=review_id))
         return []
 
     # Verify that the review has exactly one parent.
@@ -268,6 +271,13 @@ def commit_patch(options):
         lambda: os.path.exists(message_file) and os.remove(message_file))
 
     with open(message_file, 'w') as message:
+        # Add a shell command creating the message file for dry-run mode.
+        if options["dry_run"]:
+            shell(
+                "printf {msg} > {file}".format(
+                    msg=pipes.quote(data['message']).replace('\n', '\\n'),
+                    file=message_file),
+                True)
         message.write(data['message'])
 
     cmd = u'git commit' \
@@ -339,13 +349,16 @@ def reviewboard_data(options):
     user = url_to_json(reviewboard_user_url(
         review.get('links').get('submitter').get('title'))).get('user')
 
+    # Only include a description if it is not identical to the summary.
+    message_data = [review.get('summary')]
+    if review.get('description') != review.get('summary'):
+        message_data.append(review.get('description'))
+    message_data.append('Review: {review_url}'.format(review_url=url))
+
     author = u'{author} <{email}>'.format(
         author=user.get('fullname'),
         email=user.get('email'))
-    message = '\n\n'.join([
-        review.get('summary'),
-        review.get('description'),
-        'Review: {review_url}'.format(review_url=url)])
+    message = '\n\n'.join(message_data)
 
     review_data = {
         "summary": review.get('summary'),

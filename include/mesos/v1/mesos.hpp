@@ -60,6 +60,7 @@ bool operator==(const FileInfo& left, const FileInfo& right);
 bool operator==(const Label& left, const Label& right);
 bool operator==(const Labels& left, const Labels& right);
 bool operator==(const MasterInfo& left, const MasterInfo& right);
+bool operator==(const Offer::Operation& left, const Offer::Operation& right);
 
 bool operator==(
     const ResourceProviderInfo& left,
@@ -75,6 +76,7 @@ bool operator==(const URL& left, const URL& right);
 bool operator==(const Volume& left, const Volume& right);
 
 bool operator!=(const Labels& left, const Labels& right);
+bool operator!=(const Offer::Operation& left, const Offer::Operation& right);
 bool operator!=(const TaskStatus& left, const TaskStatus& right);
 
 
@@ -117,6 +119,12 @@ inline bool operator==(const OperationID& left, const OperationID& right)
 inline bool operator==(
     const ResourceProviderID& left,
     const ResourceProviderID& right)
+{
+  return left.value() == right.value();
+}
+
+
+inline bool operator==(const UUID& left, const UUID& right)
 {
   return left.value() == right.value();
 }
@@ -275,6 +283,12 @@ inline bool operator!=(
 }
 
 
+inline bool operator!=(const UUID& left, const UUID& right)
+{
+  return !(left == right);
+}
+
+
 inline bool operator!=(const AgentID& left, const AgentID& right)
 {
   return left.value() != right.value();
@@ -393,6 +407,9 @@ std::ostream& operator<<(
 std::ostream& operator<<(
     std::ostream& stream,
     const ResourceProviderInfo& resourceProviderInfo);
+
+
+std::ostream& operator<<(std::ostream& stream, const TaskStatus& status);
 
 
 std::ostream& operator<<(std::ostream& stream, const AgentID& agentId);

@@ -288,7 +288,7 @@ Future<Image> StoreProcess::_get(
     // layer exists for a cached image.
     bool layerMissed = false;
 
-    foreach (const string& layerId, image.get().layer_ids()) {
+    foreach (const string& layerId, image->layer_ids()) {
       const string rootfsPath = paths::getImageLayerRootfsPath(
           flags.docker_store_dir,
           layerId,

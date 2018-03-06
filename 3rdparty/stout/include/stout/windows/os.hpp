@@ -15,6 +15,7 @@
 
 #include <sys/utime.h>
 
+#include <algorithm>
 #include <list>
 #include <map>
 #include <memory>
@@ -171,6 +172,13 @@ inline void unsetenv(const std::string& key)
   // Per MSDN documentation[1], passing `nullptr` as the value will cause
   // `SetEnvironmentVariable` to delete the key from the process's environment.
   ::SetEnvironmentVariableW(wide_stringify(key).data(), nullptr);
+}
+
+
+// NOTE: This exists for compatibility with the POSIX API.
+inline void eraseenv(const std::string& key)
+{
+  unsetenv(key);
 }
 
 
@@ -597,11 +605,6 @@ inline Try<SharedHandle> open_job(
 }
 
 // `create_job` function creates a named job object using `name`.
-// This returns the safe job handle, which closes the job handle
-// when destructed. Because the job is destroyed when its last
-// handle is closed and all associated processes have exited,
-// a running process must be assigned to the created job
-// before the returned handle is closed.
 inline Try<SharedHandle> create_job(const std::wstring& name)
 {
   SharedHandle job_handle(
@@ -614,27 +617,6 @@ inline Try<SharedHandle> create_job(const std::wstring& name)
   if (job_handle.get_handle() == nullptr) {
     return WindowsError(
         "os::create_job: Call to `CreateJobObject` failed for job: " +
-        stringify(name));
-  }
-
-  JOBOBJECT_EXTENDED_LIMIT_INFORMATION info = {};
-
-  // The job object will be terminated when the job handle closes. This allows
-  // the job tree to be terminated in case of errors by closing the handle.
-  // We set this flag so that the death of the agent process will
-  // always kill any running jobs, as the OS will close the remaining open
-  // handles if all destructors failed to run (catastrophic death).
-  info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-
-  const BOOL result = ::SetInformationJobObject(
-      job_handle.get_handle(),
-      JobObjectExtendedLimitInformation,
-      &info,
-      sizeof(info));
-
-  if (result == FALSE) {
-    return WindowsError(
-        "os::create_job: `SetInformationJobObject` failed for job: " +
         stringify(name));
   }
 
@@ -776,6 +758,38 @@ inline Try<Bytes> get_job_mem(pid_t pid) {
 }
 
 
+// `set_job_kill_on_close_limit` causes the job object to terminate all
+// processes assigned to it when the last handle to the job object is closed.
+// This can be used to limit the lifetime of the process group represented by
+// the job object. Without this limit set, the processes will continue to run.
+inline Try<Nothing> set_job_kill_on_close_limit(pid_t pid)
+{
+  Try<SharedHandle> job_handle =
+    os::open_job(JOB_OBJECT_SET_ATTRIBUTES, false, pid);
+
+  if (job_handle.isError()) {
+    return Error(job_handle.error());
+  }
+
+  JOBOBJECT_EXTENDED_LIMIT_INFORMATION info = {};
+  info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+
+  const BOOL result = ::SetInformationJobObject(
+      job_handle->get_handle(),
+      JobObjectExtendedLimitInformation,
+      &info,
+      sizeof(info));
+
+  if (result == FALSE) {
+    return WindowsError(
+        "os::set_job_kill_on_close_limit: call to `SetInformationJobObject` "
+        "failed");
+  }
+
+  return Nothing();
+}
+
+
 // `set_job_cpu_limit` sets a CPU limit for the process represented by
 // `pid`, assuming it is assigned to a job object. This function will fail
 // otherwise. This limit is a hard cap enforced by the OS.
@@ -795,14 +809,18 @@ inline Try<Nothing> set_job_cpu_limit(pid_t pid, double cpus)
   // `(cpus / os::cpus()) * 100 * 100`, or the requested `cpus` divided by the
   // number of CPUs to obtain a fractional representation, multiplied by 100 to
   // make it a percentage, multiplied again by 100 to become a `CpuRate`.
-  Try<long> total_cpus = os::cpus();
-  control_info.CpuRate =
-    static_cast<DWORD>((cpus / total_cpus.get()) * 100 * 100);
-  // This must not be set to 0, so 1 is the minimum.
-  if (control_info.CpuRate < 1) {
-    control_info.CpuRate = 1;
-  }
-
+  //
+  // Mathematically, we're normalizing the requested CPUS to a range
+  // of [1, 10000] cycles. However, because the input is not
+  // sanitized, we have to handle the edge case of the ratio being
+  // greater than 1. So we take the `min(max(ratio * 10000, 1),
+  // 10000)`. We don't consider going out of bounds an error because
+  // CPU limitations are inherently imprecise.
+  const long total_cpus = os::cpus().get(); // This doesn't fail on Windows.
+  // This must be constrained. We don't care about perfect precision.
+  const long cycles = static_cast<long>((cpus / total_cpus) * 10000L);
+  const long cpu_rate = std::min(std::max(cycles, 1L), 10000L);
+  control_info.CpuRate = static_cast<DWORD>(cpu_rate);
   Try<SharedHandle> job_handle = os::open_job(
       JOB_OBJECT_SET_ATTRIBUTES,
       false,

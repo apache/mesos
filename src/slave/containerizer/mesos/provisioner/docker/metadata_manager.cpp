@@ -256,13 +256,19 @@ Future<Nothing> MetadataManagerProcess::recover()
     return Nothing();
   }
 
-  Try<Images> images = state::read<Images>(storedImagesPath);
+  Result<Images> images = state::read<Images>(storedImagesPath);
   if (images.isError()) {
     return Failure("Failed to read images from '" + storedImagesPath + "' " +
                    images.error());
   }
 
-  foreach (const Image& image, images.get().images()) {
+  if (images.isNone()) {
+    // This could happen if the slave died after opening the file for
+    // writing but before persisted on disk.
+    return Failure("Unexpected empty images file '" + storedImagesPath + "'");
+  }
+
+  foreach (const Image& image, images->images()) {
     const string imageReference = stringify(image.reference());
 
     if (storedImages.contains(imageReference)) {

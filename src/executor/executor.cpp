@@ -228,6 +228,10 @@ public:
       authenticationToken = value.get();
     }
 
+    // Erase the auth token from the environment so that it is not visible to
+    // other processes in the same PID namespace.
+    os::eraseenv("MESOS_EXECUTOR_AUTHENTICATION_TOKEN");
+
     // Get checkpointing status from environment.
     value = os::getenv("MESOS_CHECKPOINT");
     checkpoint = value.isSome() && value.get() == "1";
@@ -706,7 +710,7 @@ protected:
       return;
     }
 
-    receive(event.get().get(), false);
+    receive(event->get(), false);
     read();
   }
 

@@ -29,6 +29,10 @@
 #include <stout/lambda.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
+#include <stout/variant.hpp>
+
+#include "checks/checks_runtime.hpp"
+#include "checks/checks_types.hpp"
 
 namespace mesos {
 namespace internal {
@@ -44,8 +48,7 @@ public:
    * Attempts to create a `Checker` object. In case of success, checking
    * starts immediately after initialization.
    *
-   * If the check is a COMMAND check, the checker will fork a process, enter
-   * the task's namespaces, and execute the command.
+   * The check performed is based off the check type and the given runtime.
    *
    * @param check The protobuf message definition of a check.
    * @param launcherDir A directory where Mesos helper binaries are located.
@@ -53,9 +56,7 @@ public:
    * @param callback A callback `Checker` uses to send check status updates
    *     to its owner (usually an executor).
    * @param taskId The TaskID of the target task.
-   * @param taskPid The target task's pid used to enter the specified
-   *     namespaces.
-   * @param namespaces The namespaces to enter prior to performing the check.
+   * @param runtime The runtime that launched the task.
    * @return A `Checker` object or an error if `create` fails.
    *
    * @todo A better approach would be to return a stream of updates, e.g.,
@@ -66,40 +67,7 @@ public:
       const std::string& launcherDir,
       const lambda::function<void(const CheckStatusInfo&)>& callback,
       const TaskID& taskId,
-      const Option<pid_t>& taskPid,
-      const std::vector<std::string>& namespaces);
-
-  /**
-   * Attempts to create a `Checker` object. In case of success, checking
-   * starts immediately after initialization.
-   *
-   * If the check is a COMMAND check, the checker will delegate the execution
-   * of the check to the Mesos agent via the `LaunchNestedContainerSession`
-   * API call.
-   *
-   * @param check The protobuf message definition of a check.
-   * @param launcherDir A directory where Mesos helper binaries are located.
-   *     Executor must have access to this directory for TCP checks.
-   * @param callback A callback `Checker` uses to send check status updates
-   *     to its owner (usually an executor).
-   * @param taskId The TaskID of the target task.
-   * @param taskContainerId The ContainerID of the target task.
-   * @param agentURL The URL of the agent.
-   * @param authorizationHeader The authorization header the checker should use
-   *     to authenticate with the agent operator API.
-   * @return A `Checker` object or an error if `create` fails.
-   *
-   * @todo A better approach would be to return a stream of updates, e.g.,
-   * `process::Stream<CheckStatusInfo>` rather than invoking a callback.
-   */
-  static Try<process::Owned<Checker>> create(
-      const CheckInfo& check,
-      const std::string& launcherDir,
-      const lambda::function<void(const CheckStatusInfo&)>& callback,
-      const TaskID& taskId,
-      const ContainerID& taskContainerId,
-      const process::http::URL& agentURL,
-      const Option<std::string>& authorizationHeader);
+      Variant<runtime::Plain, runtime::Docker, runtime::Nested> runtime);
 
   ~Checker();
 
@@ -117,19 +85,14 @@ private:
       const std::string& _launcherDir,
       const lambda::function<void(const CheckStatusInfo&)>& _callback,
       const TaskID& _taskId,
-      const Option<pid_t>& taskPid,
-      const std::vector<std::string>& _namespaces,
-      const Option<ContainerID>& _taskContainerId,
-      const Option<process::http::URL>& _agentURL,
-      const Option<std::string>& _authorizationHeader,
-      bool _commandCheckViaAgent);
+      Variant<runtime::Plain, runtime::Docker, runtime::Nested> _runtime);
 
   void processCheckResult(const Try<CheckStatusInfo>& result);
 
   const CheckInfo check;
   const lambda::function<void(const CheckStatusInfo&)> callback;
-  const std::string name;
   const TaskID taskId;
+  const std::string name;
 
   CheckStatusInfo previousCheckStatus;
   process::Owned<CheckerProcess> process;

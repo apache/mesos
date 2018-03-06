@@ -26,22 +26,22 @@ TEST_F(SystemsTests, Uname)
 
   ASSERT_SOME(info);
 #ifdef __linux__
-  EXPECT_EQ(info.get().sysname, "Linux");
+  EXPECT_EQ(info->sysname, "Linux");
 
   // Machine arch must be non-empty.
-  EXPECT_FALSE(info.get().machine.empty());
+  EXPECT_FALSE(info->machine.empty());
 #elif defined(__APPLE__)
-  EXPECT_EQ(info.get().sysname, "Darwin");
+  EXPECT_EQ(info->sysname, "Darwin");
 
   // Machine arch must be non-empty.
-  EXPECT_FALSE(info.get().machine.empty());
+  EXPECT_FALSE(info->machine.empty());
 #endif // __linux__
 
   // The `release`, `version`, and `nodename` properties should all be
   // populated with a string of at least 1 character.
-  EXPECT_GT(info.get().release.size(), 0u);
-  EXPECT_GT(info.get().version.size(), 0u);
-  EXPECT_GT(info.get().nodename.size(), 0u);
+  EXPECT_GT(info->release.size(), 0u);
+  EXPECT_GT(info->version.size(), 0u);
+  EXPECT_GT(info->nodename.size(), 0u);
 }
 
 

@@ -286,8 +286,9 @@
           })
           // ---
 
-          // --- Allow sorting by column based on the <th> data-key attr
-          var th = element.find('th');
+          // --- Allow sorting by column based on the <th> data-key attribute.
+          // Does not apply for group columns as their children are sortable.
+          var th = element.find('th').not('.group-column');
           th.attr('ng-click', 'sortColumn($event)');
           $compile(th)(scope);
 
@@ -301,8 +302,13 @@
 
             if (scope.columnKey === key) {
               scope.sortOrder = !scope.sortOrder;
+            } else if (el.hasClass('ascending')) {
+              // We can order the table the other way around by adding
+              // 'class="ascending"' to the table header.
+              scope.sortOrder = !defaultOrder;
+            } else {
+              scope.sortOrder = defaultOrder;
             }
-            else { scope.sortOrder = defaultOrder }
 
             scope.columnKey = key;
 

@@ -85,12 +85,21 @@ namespace ns {
 Try<int> nstype(const std::string& ns);
 
 
-// Returns all the supported namespaces by the kernel.
-std::set<std::string> namespaces();
+// Given a single CLONE_NEW* constant, return the corresponding namespace
+// name. This is the inverse of ns::nstype().
+Try<std::string> nsname(int nsType);
 
 
-// Returns all the supported namespaces by the kernel.
+// Returns all the configured kernel namespaces.
 std::set<int> nstypes();
+
+
+// Returns true if all the given CLONE_NEW* constants are supported
+// in the running kernel. If CLONE_NEWUSER is specified, the kernel
+// version must be at least 3.12.0 since prior to that version, major
+// kernel subsystems (e.g. XFS) did not implement user namespace
+// support. See also user_namespaces(7).
+Try<bool> supported(int nsTypes);
 
 
 // Re-associate the calling process with the specified namespace. The
@@ -107,7 +116,10 @@ Try<Nothing> setns(
 
 // Re-associate the calling process with the specified namespace. The
 // pid specifies the process whose namespace we will associate.
-Try<Nothing> setns(pid_t pid, const std::string& ns);
+Try<Nothing> setns(
+    pid_t pid,
+    const std::string& ns,
+    bool checkMultithreaded = true);
 
 
 // Get the inode number of the specified namespace for the specified

@@ -16,7 +16,10 @@
 
 #include <ostream>
 
+#include <google/protobuf/util/message_differencer.h>
+
 #include <stout/protobuf.hpp>
+#include <stout/uuid.hpp>
 
 #include <mesos/v1/attributes.hpp>
 #include <mesos/v1/mesos.hpp>
@@ -394,6 +397,18 @@ bool operator==(const MasterInfo& left, const MasterInfo& right)
 }
 
 
+bool operator==(const Offer::Operation& left, const Offer::Operation& right)
+{
+  return google::protobuf::util::MessageDifferencer::Equals(left, right);
+}
+
+
+bool operator!=(const Offer::Operation& left, const Offer::Operation& right)
+{
+  return !(left == right);
+}
+
+
 bool operator==(
     const ResourceProviderInfo::Storage& left,
     const ResourceProviderInfo::Storage& right)
@@ -597,6 +612,42 @@ ostream& operator<<(
 ostream& operator<<(ostream& stream, const RLimitInfo& limits)
 {
   return stream << JSON::protobuf(limits);
+}
+
+
+ostream& operator<<(ostream& stream, const TaskStatus& status)
+{
+  stream << status.state();
+
+  if (status.has_uuid()) {
+    stream << " (Status UUID: "
+           << stringify(id::UUID::fromBytes(status.uuid()).get()) << ")";
+  }
+
+  if (status.has_source()) {
+    stream << " Source: " << TaskStatus::Source_Name(status.source());
+  }
+
+  if (status.has_reason()) {
+    stream << " Reason: " << TaskStatus::Reason_Name(status.reason());
+  }
+
+  if (status.has_message()) {
+    stream << " Message: '" << status.message() << "'";
+  }
+
+  stream << " for task '" << status.task_id() << "'";
+
+  if (status.has_agent_id()) {
+    stream << " on agent: " << status.agent_id() << "";
+  }
+
+  if (status.has_healthy()) {
+    stream << " in health state "
+           << (status.healthy() ? "healthy" : "unhealthy");
+  }
+
+  return stream;
 }
 
 

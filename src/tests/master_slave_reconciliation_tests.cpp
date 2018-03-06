@@ -705,7 +705,7 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterFrameworks)
   // active frameworks.
   AWAIT_READY(reregisterSlave);
 
-  EXPECT_EQ(1u, reregisterSlave->frameworks().size());
+  EXPECT_EQ(1, reregisterSlave->frameworks().size());
 
   EXPECT_CALL(exec, shutdown(_))
     .Times(AtMost(1));
@@ -841,7 +841,7 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterTaskExecutorIds)
 
   // Both tasks should be present; the command executor task shouldn't have an
   // executor ID, but the default executor task should have one.
-  EXPECT_EQ(2u, reregisterSlaveMessage->tasks().size());
+  EXPECT_EQ(2, reregisterSlaveMessage->tasks().size());
   foreach (const Task& task, reregisterSlaveMessage->tasks()) {
     if (task.task_id() == commandExecutorTask.task_id()) {
       EXPECT_FALSE(task.has_executor_id())

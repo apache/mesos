@@ -49,6 +49,8 @@
 #include "tests/mesos.hpp"
 #include "tests/mock_docker.hpp"
 
+#include "tests/containerizer/docker_common.hpp"
+
 using namespace mesos::internal::slave::paths;
 using namespace mesos::internal::slave::state;
 
@@ -4437,7 +4439,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Non_Root_Sandbox)
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
-  SlaveID slaveId = slaveRegisteredMessage.get().slave_id();
+  SlaveID slaveId = slaveRegisteredMessage->slave_id();
 
   FrameworkInfo framework;
   framework.set_name("default");
@@ -5093,13 +5095,13 @@ TEST_F(
 
     ASSERT_SOME(ip);
 
-    if (protocol.get().value == "IPv4") {
-      EXPECT_EQ(ip.get().value, containerIPv4.get());
+    if (protocol->value == "IPv4") {
+      EXPECT_EQ(ip->value, containerIPv4.get());
     } else {
-      EXPECT_EQ(ip.get().value, containerIPv6.get());
+      EXPECT_EQ(ip->value, containerIPv6.get());
     }
 
-    LOG(INFO) << "IP: " << ip.get().value;
+    LOG(INFO) << "IP: " << ip->value;
   }
 
   ASSERT_TRUE(exists(docker, containerId.get()));
@@ -5116,6 +5118,184 @@ TEST_F(
   ASSERT_FALSE(
     exists(docker, containerId.get(), ContainerState::RUNNING));
 }
+
+
+class HungDockerTest : public DockerContainerizerTest
+{
+public:
+  const string testDockerEnvFile = "test-docker.env";
+  const string testDockerBinary = "docker";
+  const string testDockerScript = "test-docker.sh";
+  string commandsEnv;
+  string delayEnv;
+
+  virtual slave::Flags CreateSlaveFlags()
+  {
+    slave::Flags flags = MesosTest::CreateSlaveFlags();
+
+    flags.docker = path::join(os::getcwd(), testDockerScript);
+
+    return flags;
+  }
+
+  void writeEnv()
+  {
+    // TODO(greggomann): This write operation is not atomic, which means an
+    // ill-timed write may cause the shell script to be invoked when this
+    // file is in an unintended state. We should make this atomic.
+    Try<Nothing> write =
+      os::write(testDockerEnvFile, commandsEnv + "\n" + delayEnv);
+    ASSERT_SOME(write);
+  }
+
+  void setDelayedCommands(const std::vector<string>& commands)
+  {
+    commandsEnv = "DELAYED_COMMANDS=( ";
+    foreach (const string& command, commands) {
+      commandsEnv += (command + " ");
+    }
+    commandsEnv += ")";
+
+    writeEnv();
+  }
+
+  void setDelay(const int seconds)
+  {
+    delayEnv = "DELAY_SECONDS=" + stringify(seconds);
+
+    writeEnv();
+  }
+
+  virtual void SetUp()
+  {
+    DockerContainerizerTest::SetUp();
+
+    // Write a wrapper script which allows us to delay Docker commands.
+    const string dockerScriptText =
+      "#!/usr/bin/env bash\n"
+      "source " + stringify(path::join(os::getcwd(), testDockerEnvFile)) + "\n"
+      "ACTIVE_COMMAND=$3\n"
+      "for DELAYED_COMMAND in \"${DELAYED_COMMANDS[@]}\"; do\n"
+      "  if [ \"$ACTIVE_COMMAND\" == \"$DELAYED_COMMAND\" ]; then\n"
+      "    sleep $DELAY_SECONDS\n"
+      "  fi\n"
+      "done\n" +
+      testDockerBinary + " \"$@\"\n";
+
+    Try<Nothing> write = os::write(testDockerScript, dockerScriptText);
+    ASSERT_SOME(write);
+
+    Try<Nothing> chmod = os::chmod(
+        testDockerScript, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+    ASSERT_SOME(chmod);
+
+    // Set a very long delay by default to simulate an indefinitely
+    // hung Docker daemon.
+    setDelay(999999);
+  }
+};
+
+
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    HungDockerTest, ROOT_DOCKER_InspectHungDuringPull)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  // When the 'executor_registration_timeout' elapses, the agent will destroy
+  // the container whose 'docker pull' command is stuck. This should cause the
+  // launch to fail and the terminal task status update to be sent.
+  flags.executor_registration_timeout = Milliseconds(100);
+
+  MockDocker* mockDocker =
+    new MockDocker(flags.docker, tests::flags.docker_socket);
+  Shared<Docker> docker(mockDocker);
+
+  Fetcher fetcher(flags);
+
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  MockDockerContainerizer dockerContainerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), &dockerContainerizer, flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  // Causing the 'docker inspect' call preceding the container pull to hang
+  // should result in a TASK_FAILED update.
+  setDelayedCommands({"inspect"});
+
+  const Offer& offer = offers.get()[0];
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      offer.resources(),
+      SLEEP_COMMAND(1000));
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  // TODO(tnachen): Use local image to test if possible.
+  ContainerInfo::DockerInfo dockerInfo;
+  dockerInfo.set_image("alpine");
+  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+
+  task.mutable_container()->CopyFrom(containerInfo);
+
+  Future<ContainerID> containerId;
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
+    .WillOnce(DoAll(FutureArg<0>(&containerId),
+                    Invoke(&dockerContainerizer,
+                           &MockDockerContainerizer::_launch)));
+
+  Future<TaskStatus> statusFailed;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusFailed))
+    .WillRepeatedly(DoDefault());
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(statusFailed);
+  EXPECT_EQ(TASK_FAILED, statusFailed->state());
+  EXPECT_EQ(
+      TaskStatus::REASON_CONTAINER_LAUNCH_FAILED,
+      statusFailed->reason());
+
+  driver.stop();
+  driver.join();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

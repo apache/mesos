@@ -114,7 +114,7 @@ inline Try<std::list<ProcessTree>> pstrees(
       std::list<ProcessTree> trees_ = trees;
       trees.clear();
       foreach (const ProcessTree& t, trees_) {
-        if (tree.get().contains(t.process.pid)) {
+        if (tree->contains(t.process.pid)) {
           continue;
         }
         trees.push_back(t);

@@ -19,6 +19,8 @@
 
 #include <ostream>
 
+#include <mesos/v1/mesos.hpp>
+
 // ONLY USEFUL AFTER RUNNING PROTOC.
 #include <mesos/v1/scheduler/scheduler.pb.h>
 
@@ -35,6 +37,14 @@ inline std::ostream& operator<<(std::ostream& stream, const Call::Type& type)
 inline std::ostream& operator<<(std::ostream& stream, const Event::Type& type)
 {
   return stream << Event::Type_Name(type);
+}
+
+
+inline std::ostream& operator<<(
+    std::ostream& stream,
+    const Event::Update& update)
+{
+  return stream << update.status();
 }
 
 } // namespace scheduler {

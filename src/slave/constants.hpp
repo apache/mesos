@@ -86,6 +86,14 @@ constexpr size_t MAX_COMPLETED_FRAMEWORKS = 50;
 constexpr size_t DEFAULT_MAX_COMPLETED_EXECUTORS_PER_FRAMEWORK = 150;
 
 // Maximum number of completed tasks per executor to store in memory.
+//
+// NOTE: This should be greater than zero because the agent looks
+// for completed tasks to determine (with false positives) whether
+// an executor ever received tasks. See MESOS-8411.
+//
+// TODO(mzhu): Remove this note once we can determine whether an
+// executor ever received tasks without looking through the
+// completed tasks.
 constexpr size_t MAX_COMPLETED_TASKS_PER_EXECUTOR = 200;
 
 // Default cpus offered by the slave.
@@ -126,6 +134,9 @@ constexpr Duration DOCKER_REMOVE_DELAY = Hours(6);
 // Default duration to wait before retry inspecting a docker
 // container.
 constexpr Duration DOCKER_INSPECT_DELAY = Seconds(1);
+
+// Default duration to wait for `inspect` command completion.
+constexpr Duration DOCKER_INSPECT_TIMEOUT = Seconds(5);
 
 // Default maximum number of docker inspect calls docker ps will invoke
 // in parallel to prevent hitting system's open file descriptor limit.

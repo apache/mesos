@@ -56,8 +56,7 @@ public:
   {
     const Option<Entry>& option = entries.get(entry.name());
 
-    if (option.isSome() &&
-        id::UUID::fromBytes(option.get().uuid()).get() != uuid) {
+    if (option.isSome() && id::UUID::fromBytes(option->uuid()).get() != uuid) {
       return false;
     }
 
@@ -73,7 +72,7 @@ public:
       return false;
     }
 
-    if (id::UUID::fromBytes(option.get().uuid()).get() !=
+    if (id::UUID::fromBytes(option->uuid()).get() !=
         id::UUID::fromBytes(entry.uuid()).get()) {
       return false;
     }

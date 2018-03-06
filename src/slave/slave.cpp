@@ -342,7 +342,7 @@ void Slave::initialize()
       LOG(WARNING) << "Failed to stat jwt secret key file '"
                    << flags.jwt_secret_key.get()
                    << "': " << permissions.error();
-    } else if (permissions.get().others.rwx) {
+    } else if (permissions->others.rwx) {
       LOG(WARNING) << "Permissions on executor secret key file '"
                    << flags.jwt_secret_key.get()
                    << "' are too open; it is recommended that your"
@@ -672,19 +672,10 @@ void Slave::initialize()
       &SlaveReregisteredMessage::connection);
 
   install<RunTaskMessage>(
-      &Slave::runTask,
-      &RunTaskMessage::framework,
-      &RunTaskMessage::framework_id,
-      &RunTaskMessage::pid,
-      &RunTaskMessage::task,
-      &RunTaskMessage::resource_version_uuids);
+      &Slave::handleRunTaskMessage);
 
   install<RunTaskGroupMessage>(
-      &Slave::runTaskGroup,
-      &RunTaskGroupMessage::framework,
-      &RunTaskGroupMessage::executor,
-      &RunTaskGroupMessage::task_group,
-      &RunTaskGroupMessage::resource_version_uuids);
+      &Slave::handleRunTaskGroupMessage);
 
   install<KillTaskMessage>(
       &Slave::killTask);
@@ -1031,6 +1022,7 @@ void Slave::attachTaskVolumeDirectory(
 
   CHECK_EQ(task.executor_id(), executorInfo.executor_id());
 
+  // This is the case that the task has disk resources specified.
   foreach (const Resource& resource, task.resources()) {
     // Ignore if there are no disk resources or if the
     // disk resources did not specify a volume mapping.
@@ -1040,15 +1032,15 @@ void Slave::attachTaskVolumeDirectory(
 
     const Volume& volume = resource.disk().volume();
 
-    const string executorDirectory = paths::getExecutorRunPath(
+    const string executorRunPath = paths::getExecutorRunPath(
         flags.work_dir,
         info.id(),
         task.framework_id(),
         task.executor_id(),
         executorContainerId);
 
-    const string executorVolumePath =
-      path::join(executorDirectory, volume.container_path());
+    const string executorDirectoryPath =
+      path::join(executorRunPath, volume.container_path());
 
     const string taskPath = paths::getTaskPath(
         flags.work_dir,
@@ -1058,16 +1050,86 @@ void Slave::attachTaskVolumeDirectory(
         executorContainerId,
         task.task_id());
 
-    const string taskVolumePath =
+    const string taskDirectoryPath =
       path::join(taskPath, volume.container_path());
 
-    files->attach(executorVolumePath, taskVolumePath)
+    files->attach(executorDirectoryPath, taskDirectoryPath)
       .onAny(defer(
           self(),
           &Self::fileAttached,
           lambda::_1,
-          executorVolumePath,
-          taskVolumePath));
+          executorDirectoryPath,
+          taskDirectoryPath));
+  }
+
+  // This is the case that the executor has disk resources specified
+  // and the task's ContainerInfo has a `SANDBOX_PATH` volume with type
+  // `PARENT` to share the executor's disk volume.
+  hashset<string> executorContainerPaths;
+  foreach (const Resource& resource, executorInfo.resources()) {
+    // Ignore if there are no disk resources or if the
+    // disk resources did not specify a volume mapping.
+    if (!resource.has_disk() || !resource.disk().has_volume()) {
+      continue;
+    }
+
+    const Volume& volume = resource.disk().volume();
+    executorContainerPaths.insert(volume.container_path());
+  }
+
+  if (executorContainerPaths.empty()) {
+    return;
+  }
+
+  if (task.has_container()) {
+    foreach (const Volume& volume, task.container().volumes()) {
+      if (!volume.has_source() ||
+          volume.source().type() != Volume::Source::SANDBOX_PATH) {
+        continue;
+      }
+
+      CHECK(volume.source().has_sandbox_path());
+
+      const Volume::Source::SandboxPath& sandboxPath =
+        volume.source().sandbox_path();
+
+      if (sandboxPath.type() != Volume::Source::SandboxPath::PARENT) {
+        continue;
+      }
+
+      if (!executorContainerPaths.contains(sandboxPath.path())) {
+        continue;
+      }
+
+      const string executorRunPath = paths::getExecutorRunPath(
+          flags.work_dir,
+          info.id(),
+          task.framework_id(),
+          task.executor_id(),
+          executorContainerId);
+
+      const string executorDirectoryPath =
+        path::join(executorRunPath, sandboxPath.path());
+
+      const string taskPath = paths::getTaskPath(
+          flags.work_dir,
+          info.id(),
+          task.framework_id(),
+          task.executor_id(),
+          executorContainerId,
+          task.task_id());
+
+      const string taskDirectoryPath =
+        path::join(taskPath, volume.container_path());
+
+      files->attach(executorDirectoryPath, taskDirectoryPath)
+        .onAny(defer(
+            self(),
+            &Self::fileAttached,
+            lambda::_1,
+            executorDirectoryPath,
+            taskDirectoryPath));
+    }
   }
 }
 
@@ -1083,9 +1145,22 @@ void Slave::detachTaskVolumeDirectories(
         (executorInfo.has_type() &&
          executorInfo.type() == ExecutorInfo::DEFAULT));
 
+  hashset<string> executorContainerPaths;
+  foreach (const Resource& resource, executorInfo.resources()) {
+    // Ignore if there are no disk resources or if the
+    // disk resources did not specify a volume mapping.
+    if (!resource.has_disk() || !resource.disk().has_volume()) {
+      continue;
+    }
+
+    const Volume& volume = resource.disk().volume();
+    executorContainerPaths.insert(volume.container_path());
+  }
+
   foreach (const Task& task, tasks) {
     CHECK_EQ(task.executor_id(), executorInfo.executor_id());
 
+    // This is the case that the task has disk resources specified.
     foreach (const Resource& resource, task.resources()) {
       // Ignore if there are no disk resources or if the
       // disk resources did not specify a volume mapping.
@@ -1103,10 +1178,52 @@ void Slave::detachTaskVolumeDirectories(
           executorContainerId,
           task.task_id());
 
-      const string taskVolumePath =
+      const string taskDirectoryPath =
         path::join(taskPath, volume.container_path());
 
-      files->detach(taskVolumePath);
+      files->detach(taskDirectoryPath);
+    }
+
+    if (executorContainerPaths.empty()) {
+      continue;
+    }
+
+    // This is the case that the executor has disk resources specified
+    // and the task's ContainerInfo has a `SANDBOX_PATH` volume with type
+    // `PARENT` to share the executor's disk volume.
+    if (task.has_container()) {
+      foreach (const Volume& volume, task.container().volumes()) {
+        if (!volume.has_source() ||
+            volume.source().type() != Volume::Source::SANDBOX_PATH) {
+          continue;
+        }
+
+        CHECK(volume.source().has_sandbox_path());
+
+        const Volume::Source::SandboxPath& sandboxPath =
+          volume.source().sandbox_path();
+
+        if (sandboxPath.type() != Volume::Source::SandboxPath::PARENT) {
+          continue;
+        }
+
+        if (!executorContainerPaths.contains(sandboxPath.path())) {
+          continue;
+        }
+
+        const string taskPath = paths::getTaskPath(
+            flags.work_dir,
+            info.id(),
+            task.framework_id(),
+            task.executor_id(),
+            executorContainerId,
+            task.task_id());
+
+        const string taskDirectoryPath =
+          path::join(taskPath, volume.container_path());
+
+        files->detach(taskDirectoryPath);
+      }
     }
   }
 }
@@ -1774,6 +1891,22 @@ void Slave::doReliableRegistration(Duration maxBackoff)
 }
 
 
+void Slave::handleRunTaskMessage(
+    const UPID& from,
+    RunTaskMessage&& runTaskMessage)
+{
+  runTask(
+      from,
+      runTaskMessage.framework(),
+      runTaskMessage.framework_id(),
+      runTaskMessage.pid(),
+      runTaskMessage.task(),
+      google::protobuf::convert(runTaskMessage.resource_version_uuids()),
+      runTaskMessage.has_launch_executor() ?
+          Option<bool>(runTaskMessage.launch_executor()) : None());
+}
+
+
 // TODO(vinod): Instead of crashing the slave on checkpoint errors,
 // send TASK_LOST to the framework.
 void Slave::runTask(
@@ -1782,7 +1915,8 @@ void Slave::runTask(
     const FrameworkID& frameworkId,
     const UPID& pid,
     const TaskInfo& task,
-    const vector<ResourceVersionUUID>& resourceVersionUuids)
+    const vector<ResourceVersionUUID>& resourceVersionUuids,
+    const Option<bool>& launchExecutor)
 {
   CHECK_NE(task.has_executor(), task.has_command())
     << "Task " << task.task_id()
@@ -1803,7 +1937,13 @@ void Slave::runTask(
 
   const ExecutorInfo executorInfo = getExecutorInfo(frameworkInfo, task);
 
-  run(frameworkInfo, executorInfo, task, None(), resourceVersionUuids, pid);
+  run(frameworkInfo,
+      executorInfo,
+      task,
+      None(),
+      resourceVersionUuids,
+      pid,
+      launchExecutor);
 }
 
 
@@ -1813,7 +1953,8 @@ void Slave::run(
     Option<TaskInfo> task,
     Option<TaskGroupInfo> taskGroup,
     const vector<ResourceVersionUUID>& resourceVersionUuids,
-    const UPID& pid)
+    const UPID& pid,
+    const Option<bool>& launchExecutor)
 {
   CHECK_NE(task.isSome(), taskGroup.isSome())
     << "Either task or task group should be set but not both";
@@ -1897,6 +2038,10 @@ void Slave::run(
   if (state == RECOVERING || state == TERMINATING) {
     LOG(WARNING) << "Ignoring running " << taskOrTaskGroup(task, taskGroup)
                  << " because the agent is " << state;
+
+    // We do not send `ExitedExecutorMessage` here because the disconnected
+    // agent is expected to (eventually) reregister and reconcile the executor
+    // states with the master.
 
     // TODO(vinod): Consider sending a TASK_LOST here.
     // Currently it is tricky because 'statusUpdate()'
@@ -2018,7 +2163,8 @@ void Slave::run(
                  executorInfo,
                  task,
                  taskGroup,
-                 resourceVersionUuids));
+                 resourceVersionUuids,
+                 launchExecutor));
 }
 
 
@@ -2028,7 +2174,8 @@ void Slave::_run(
     const ExecutorInfo& executorInfo,
     const Option<TaskInfo>& task,
     const Option<TaskGroupInfo>& taskGroup,
-    const std::vector<ResourceVersionUUID>& resourceVersionUuids)
+    const std::vector<ResourceVersionUUID>& resourceVersionUuids,
+    const Option<bool>& launchExecutor)
 {
   // TODO(anindya_sinha): Consider refactoring the initial steps common
   // to `_run()` and `__run()`.
@@ -2050,6 +2197,14 @@ void Slave::_run(
     LOG(WARNING) << "Ignoring running " << taskOrTaskGroup(task, taskGroup)
                  << " because the framework " << frameworkId
                  << " does not exist";
+
+    if (launchExecutor.isSome() && launchExecutor.get()) {
+      // Master expects new executor to be launched for this task(s) launch.
+      // To keep the master executor entries updated, the agent needs to send
+      // 'ExitedExecutorMessage' even though no executor launched.
+      sendExitedExecutorMessage(frameworkId, executorInfo.executor_id());
+    }
+
     return;
   }
 
@@ -2070,6 +2225,13 @@ void Slave::_run(
       removeFramework(framework);
     }
 
+    if (launchExecutor.isSome() && launchExecutor.get()) {
+      // Master expects new executor to be launched for this task(s) launch.
+      // To keep the master executor entries updated, the agent needs to send
+      // 'ExitedExecutorMessage' even though no executor launched.
+      sendExitedExecutorMessage(frameworkId, executorInfo.executor_id());
+    }
+
     return;
   }
 
@@ -2087,13 +2249,21 @@ void Slave::_run(
   }
 
   CHECK(allPending != allRemoved)
-    << "BUG: The task group " << taskOrTaskGroup(task, taskGroup)
-    << " was killed partially";
+    << "BUG: The " << taskOrTaskGroup(task, taskGroup)
+    << " was partially killed";
 
   if (allRemoved) {
     LOG(WARNING) << "Ignoring running " << taskOrTaskGroup(task, taskGroup)
                  << " of framework " << frameworkId
                  << " because it has been killed in the meantime";
+
+    if (launchExecutor.isSome() && launchExecutor.get()) {
+      // Master expects new executor to be launched for this task(s) launch.
+      // To keep the master executor entries updated, the agent needs to send
+      // 'ExitedExecutorMessage' even though no executor launched.
+      sendExitedExecutorMessage(frameworkId, executorInfo.executor_id());
+    }
+
     return;
   }
 
@@ -2138,6 +2308,13 @@ void Slave::_run(
       removeFramework(framework);
     }
 
+    if (launchExecutor.isSome() && launchExecutor.get()) {
+      // Master expects new executor to be launched for this task(s) launch.
+      // To keep the master executor entries updated, the agent needs to send
+      // 'ExitedExecutorMessage' even though no executor launched.
+      sendExitedExecutorMessage(frameworkId, executorInfo.executor_id());
+    }
+
     return;
   }
 
@@ -2161,7 +2338,8 @@ void Slave::_run(
                  executorInfo,
                  task,
                  taskGroup,
-                 resourceVersionUuids));
+                 resourceVersionUuids,
+                 launchExecutor));
 }
 
 
@@ -2171,7 +2349,8 @@ void Slave::__run(
     const ExecutorInfo& executorInfo,
     const Option<TaskInfo>& task,
     const Option<TaskGroupInfo>& taskGroup,
-    const vector<ResourceVersionUUID>& resourceVersionUuids)
+    const vector<ResourceVersionUUID>& resourceVersionUuids,
+    const Option<bool>& launchExecutor)
 {
   CHECK_NE(task.isSome(), taskGroup.isSome())
     << "Either task or task group should be set but not both";
@@ -2191,6 +2370,14 @@ void Slave::__run(
     LOG(WARNING) << "Ignoring running " << taskOrTaskGroup(task, taskGroup)
                  << " because the framework " << frameworkId
                  << " does not exist";
+
+    if (launchExecutor.isSome() && launchExecutor.get()) {
+      // Master expects new executor to be launched for this task(s) launch.
+      // To keep the master executor entries updated, the agent needs to send
+      // 'ExitedExecutorMessage' even though no executor launched.
+      sendExitedExecutorMessage(frameworkId, executorInfo.executor_id());
+    }
+
     return;
   }
 
@@ -2213,6 +2400,13 @@ void Slave::__run(
       removeFramework(framework);
     }
 
+    if (launchExecutor.isSome() && launchExecutor.get()) {
+      // Master expects new executor to be launched for this task(s) launch.
+      // To keep the master executor entries updated, the agent needs to send
+      // 'ExitedExecutorMessage' even though no executor launched.
+      sendExitedExecutorMessage(frameworkId, executorInfo.executor_id());
+    }
+
     return;
   }
 
@@ -2230,13 +2424,21 @@ void Slave::__run(
   }
 
   CHECK(allPending != allRemoved)
-    << "BUG: The task group " << taskOrTaskGroup(task, taskGroup)
-    << " was killed partially";
+    << "BUG: The " << taskOrTaskGroup(task, taskGroup)
+    << " was partially killed";
 
   if (allRemoved) {
     LOG(WARNING) << "Ignoring running " << taskOrTaskGroup(task, taskGroup)
                  << " of framework " << frameworkId
                  << " because it has been killed in the meantime";
+
+    if (launchExecutor.isSome() && launchExecutor.get()) {
+      // Master expects new executor to be launched for this task(s) launch.
+      // To keep the master executor entries updated, the agent needs to send
+      // 'ExitedExecutorMessage' even though no executor launched.
+      sendExitedExecutorMessage(frameworkId, executorInfo.executor_id());
+    }
+
     return;
   }
 
@@ -2311,6 +2513,13 @@ void Slave::__run(
     // for why we need this.
     if (framework->idle()) {
       removeFramework(framework);
+    }
+
+    if (launchExecutor.isSome() && launchExecutor.get()) {
+      // Master expects new executor to be launched for this task(s) launch.
+      // To keep the master executor entries updated, the agent needs to send
+      // 'ExitedExecutorMessage' even though no executor launched.
+      sendExitedExecutorMessage(frameworkId, executorInfo.executor_id());
     }
 
     return;
@@ -2393,6 +2602,13 @@ void Slave::__run(
       removeFramework(framework);
     }
 
+    if (launchExecutor.isSome() && launchExecutor.get()) {
+      // Master expects new executor to be launched for this task(s) launch.
+      // To keep the master executor entries updated, the agent needs to send
+      // 'ExitedExecutorMessage' even though no executor launched.
+      sendExitedExecutorMessage(frameworkId, executorInfo.executor_id());
+    }
+
     return;
   }
 
@@ -2460,6 +2676,13 @@ void Slave::__run(
       removeFramework(framework);
     }
 
+    if (launchExecutor.isSome() && launchExecutor.get()) {
+      // Master expects new executor to be launched for this task(s) launch.
+      // To keep the master executor entries updated, the agent needs to send
+      // 'ExitedExecutorMessage' even though no executor launched.
+      sendExitedExecutorMessage(frameworkId, executorInfo.executor_id());
+    }
+
     return;
   }
 
@@ -2513,6 +2736,13 @@ void Slave::__run(
       removeFramework(framework);
     }
 
+    if (launchExecutor.isSome() && launchExecutor.get()) {
+      // Master expects new executor to be launched for this task(s) launch.
+      // To keep the master executor entries updated, the agent needs to send
+      // 'ExitedExecutorMessage' even though no executor launched.
+      sendExitedExecutorMessage(frameworkId, executorInfo.executor_id());
+    }
+
     return;
   }
 
@@ -2532,8 +2762,8 @@ void Slave::__run(
       removeFramework(framework);
     }
 
-    // We don't send a TASK_LOST here because the slave is
-    // terminating.
+    // We don't send TASK_LOST or ExitedExecutorMessage here because the slave
+    // is terminating.
     return;
   }
 
@@ -2542,28 +2772,158 @@ void Slave::__run(
   LOG(INFO) << "Launching " << taskOrTaskGroup(task, taskGroup)
             << " for framework " << frameworkId;
 
-  // Either send the task/task group to an executor or start a new executor
-  // and queue it until the executor has started.
-  Executor* executor = framework->getExecutor(executorId);
-
-  if (executor == nullptr) {
-    executor = framework->addExecutor(executorInfo);
+  auto doLaunchExecutor = [&]() {
+    Executor* executor = framework->addExecutor(executorInfo);
 
     if (secretGenerator) {
       generateSecret(framework->id(), executor->id, executor->containerId)
         .onAny(defer(
-            self(),
-            &Self::launchExecutor,
-            lambda::_1,
-            frameworkId,
-            executorId,
-            taskGroup.isNone() ? task.get() : Option<TaskInfo>::none()));
+              self(),
+              &Self::launchExecutor,
+              lambda::_1,
+              frameworkId,
+              executorId,
+              taskGroup.isNone() ? task.get() : Option<TaskInfo>::none()));
     } else {
-      launchExecutor(
+      Slave::launchExecutor(
           None(),
           frameworkId,
           executorId,
           taskGroup.isNone() ? task.get() : Option<TaskInfo>::none());
+    }
+
+    return executor;
+  };
+
+  Executor* executor = framework->getExecutor(executorId);
+
+  if (launchExecutor.isNone()) {
+    // This is the legacy case where the master did not set the
+    // `launch_executor` flag. Executor will be launched if there is none.
+    if (executor == nullptr) {
+      executor = doLaunchExecutor();
+    }
+  } else {
+    if (taskGroup.isNone() && task.get().has_command()) {
+      // We are dealing with command task; a new command executor will be
+      // launched.
+      CHECK(executor == nullptr);
+      executor = doLaunchExecutor();
+    } else {
+      // Master set the `launch_executor` flag and this is not a command task.
+      if (launchExecutor.get()) {
+        // Master requests launching a new executor.
+        if (executor == nullptr) {
+          executor = doLaunchExecutor();
+        } else {
+          // Master requests launching executor but an executor still exits
+          // on the agent. In this case we will drop tasks. This could happen if
+          // the executor is already terminated on the agent (and agent has sent
+          // out the `ExitedExecutorMessage` and it was received by the master)
+          // but the agent is still waiting for all the status updates to be
+          // acked before removing the executor struct.
+
+          // We report TASK_DROPPED to the framework because the task was
+          // never launched. For non-partition-aware frameworks, we report
+          // TASK_LOST for backward compatibility.
+          mesos::TaskState taskState = TASK_DROPPED;
+          if (!protobuf::frameworkHasCapability(
+              frameworkInfo, FrameworkInfo::Capability::PARTITION_AWARE)) {
+            taskState = TASK_LOST;
+          }
+
+          foreach (const TaskInfo& _task, tasks) {
+            const StatusUpdate update = protobuf::createStatusUpdate(
+                frameworkId,
+                info.id(),
+                _task.task_id(),
+                taskState,
+                TaskStatus::SOURCE_SLAVE,
+                id::UUID::random(),
+                "Master wants to launch executor, but there already exits one",
+                TaskStatus::REASON_EXECUTOR_TERMINATED,
+                executorId);
+
+            statusUpdate(update, UPID());
+          }
+
+          // Master expects new executor to be launched for this task(s) launch.
+          // To keep the master executor entries updated, the agent needs to
+          // send 'ExitedExecutorMessage' even though no executor launched.
+          if (executor->state == Executor::TERMINATED) {
+            sendExitedExecutorMessage(frameworkId, executorInfo.executor_id());
+          } else {
+            // This could happen if the following sequence of events happen:
+            //
+            //  (1) Master sends `runTaskMessage` to agent with
+            //      `launch_executor = true`;
+            //
+            //  (2) Before the agent got the `runTaskMessage`, it reconnects and
+            //      reconciles with the master. Master then removes the executor
+            //      entry it asked the agent to launch in step (1);
+            //
+            //  (3) Agent got the `runTaskMessage` sent in step (1), launches
+            //      the task and the executor (that the master does not know
+            //      about).
+            //
+            //  (4) Master now sends another `runTaskMessage` for the same
+            //      executor id with `launch_executor = true`.
+            //
+            // The agent ends up with a lingering executor that the master does
+            // not know about. We will shutdown the executor.
+            //
+            // TODO(mzhu): This could be avoided if the agent can
+            // tell whether the master's message was sent before or after the
+            // reconnection and discard the message in the former case.
+            //
+            // TODO(mzhu): Master needs to do proper executor reconciliation
+            // with the agent to avoid this from happening.
+            _shutdownExecutor(framework, executor);
+          }
+
+          return;
+        }
+      } else {
+        // Master does not want to launch executor.
+        if (executor == nullptr) {
+          // Master wants no new executor launched and there is none running on
+          // the agent. This could happen if the task expects some previous
+          // tasks to launch the executor. However, the earlier task got killed
+          // or dropped hence did not launch the executor but the master doesn't
+          // know about it yet because the `ExitedExecutorMessage` is still in
+          // flight. In this case, we will drop the task.
+          //
+          // We report TASK_DROPPED to the framework because the task was
+          // never launched. For non-partition-aware frameworks, we report
+          // TASK_LOST for backward compatibility.
+          mesos::TaskState taskState = TASK_DROPPED;
+          if (!protobuf::frameworkHasCapability(
+              frameworkInfo, FrameworkInfo::Capability::PARTITION_AWARE)) {
+            taskState = TASK_LOST;
+          }
+
+          foreach (const TaskInfo& _task, tasks) {
+            const StatusUpdate update = protobuf::createStatusUpdate(
+                frameworkId,
+                info.id(),
+                _task.task_id(),
+                taskState,
+                TaskStatus::SOURCE_SLAVE,
+                id::UUID::random(),
+                "No executor is expected to launch and there is none running",
+                TaskStatus::REASON_EXECUTOR_TERMINATED,
+                executorId);
+
+            statusUpdate(update, UPID());
+          }
+
+          // We do not send `ExitedExecutorMessage` here because the expectation
+          // is that there is already one on the fly to master. If the message
+          // gets dropped, we will hopefully reconcile with the master later.
+
+          return;
+        }
+      }
     }
   }
 
@@ -2817,6 +3177,12 @@ void Slave::___run(
     return;
   }
 
+  // At this point, we must have either sent some tasks to the running
+  // executor or there are queued tasks that need to be delivered.
+  // Otherwise, the executor state would have been synchronously
+  // transitioned to TERMINATING when the queued tasks were killed.
+  CHECK(executor->everSentTask() || !executor->queuedTasks.empty());
+
   foreach (const TaskInfo& task, tasks) {
     // This is the case where the task is killed. No need to send
     // status update because it should be handled in 'killTask'.
@@ -2859,20 +3225,19 @@ void Slave::___run(
     }
 
     CHECK(allQueued != allRemoved)
-      << "BUG: The task group " << taskOrTaskGroup(None(), taskGroup)
-      << " was killed partially";
+      << "BUG: The " << taskOrTaskGroup(None(), taskGroup)
+      << " was partially killed";
 
     if (allRemoved) {
       // This is the case where the task group is killed. No need to send
       // status update because it should be handled in 'killTask'.
-      LOG(WARNING) << "Ignoring sending queued task group "
+      LOG(WARNING) << "Ignoring sending queued "
                    << taskOrTaskGroup(None(), taskGroup) << " to executor "
                    << *executor << " because the task group has been killed";
       continue;
     }
 
-    LOG(INFO) << "Sending queued task group"
-              << " " << taskOrTaskGroup(None(), taskGroup)
+    LOG(INFO) << "Sending queued " << taskOrTaskGroup(None(), taskGroup)
               << " to executor " << *executor;
 
     foreach (const TaskInfo& task, taskGroup.tasks()) {
@@ -3136,12 +3501,28 @@ void Slave::launchExecutor(
 }
 
 
+void Slave::handleRunTaskGroupMessage(
+    const UPID& from,
+    RunTaskGroupMessage&& runTaskGroupMessage)
+{
+  runTaskGroup(
+      from,
+      runTaskGroupMessage.framework(),
+      runTaskGroupMessage.executor(),
+      runTaskGroupMessage.task_group(),
+      google::protobuf::convert(runTaskGroupMessage.resource_version_uuids()),
+      runTaskGroupMessage.has_launch_executor() ?
+          Option<bool>(runTaskGroupMessage.launch_executor()) : None());
+}
+
+
 void Slave::runTaskGroup(
     const UPID& from,
     const FrameworkInfo& frameworkInfo,
     const ExecutorInfo& executorInfo,
     const TaskGroupInfo& taskGroupInfo,
-    const vector<ResourceVersionUUID>& resourceVersionUuids)
+    const vector<ResourceVersionUUID>& resourceVersionUuids,
+    const Option<bool>& launchExecutor)
 {
   if (master != from) {
     LOG(WARNING) << "Ignoring run task group message from " << from
@@ -3156,20 +3537,22 @@ void Slave::runTaskGroup(
     return;
   }
 
+  // TODO(mzhu): Consider doing a `CHECK` here since this shouldn't be possible.
   if (taskGroupInfo.tasks().empty()) {
     LOG(ERROR) << "Ignoring run task group message from " << from
                << " for framework " << frameworkInfo.id()
                << " because it has no tasks";
+
     return;
   }
 
-  run(
-      frameworkInfo,
+  run(frameworkInfo,
       executorInfo,
       None(),
       taskGroupInfo,
       resourceVersionUuids,
-      UPID());
+      UPID(),
+      launchExecutor);
 }
 
 
@@ -3352,6 +3735,10 @@ void Slave::killTask(
         statusUpdate(update, UPID());
       }
 
+      // TODO(mzhu): Consider shutting down the executor here
+      // if all of its initial tasks are killed rather than
+      // waiting for it to register.
+
       break;
     }
     case Executor::TERMINATING:
@@ -3407,6 +3794,19 @@ void Slave::killTask(
           // 'executor->queuedTaskGroup', so that if the executor registers at
           // a later point in time, it won't get this task.
           statusUpdate(update, UPID());
+        }
+
+        // Shutdown the executor if all of its initial tasks are killed.
+        // See MESOS-8411. This is a workaround for those executors (e.g.,
+        // command executor, default executor) that do not have a proper
+        // self terminating logic when they haven't received the task or
+        // task group within a timeout.
+        if (!executor->everSentTask() && executor->queuedTasks.empty()) {
+          LOG(WARNING) << "Shutting down executor " << *executor
+                       << " because it has never been sent a task and all of"
+                       << " its queued tasks have been killed before delivery";
+
+          _shutdownExecutor(framework, executor);
         }
       } else {
         // Send a message to the executor and wait for
@@ -4216,39 +4616,6 @@ void Slave::subscribe(
         CHECK_SOME(os::touch(path));
       }
 
-      // Here, we kill the executor if it no longer has any task or task group
-      // to run (e.g., framework sent a `killTask()`). This is a workaround for
-      // those executors (e.g., command executor, default executor) that do not
-      // have a proper self terminating logic when they haven't received the
-      // task or task group within a timeout.
-      if (state != RECOVERING &&
-          executor->queuedTasks.empty() &&
-          executor->queuedTaskGroups.empty()) {
-        CHECK(executor->launchedTasks.empty())
-            << " Newly registered executor '" << executor->id
-            << "' has launched tasks";
-
-        LOG(WARNING) << "Shutting down the executor " << *executor
-                     << " because it has no tasks to run";
-
-        _shutdownExecutor(framework, executor);
-
-        return;
-      }
-
-      // Tell executor it's registered and give it any queued tasks
-      // or task groups.
-      executor::Event event;
-      event.set_type(executor::Event::SUBSCRIBED);
-
-      executor::Event::Subscribed* subscribed = event.mutable_subscribed();
-      subscribed->mutable_executor_info()->CopyFrom(executor->info);
-      subscribed->mutable_framework_info()->MergeFrom(framework->info);
-      subscribed->mutable_slave_info()->CopyFrom(info);
-      subscribed->mutable_container_id()->CopyFrom(executor->containerId);
-
-      executor->send(event);
-
       // Handle all the pending updates.
       // The task status update manager might have already checkpointed
       // some of these pending updates (for example, if the slave died
@@ -4263,30 +4630,6 @@ void Slave::subscribe(
             info.id()),
             None());
       }
-
-      // Split the queued tasks between the task groups and tasks.
-      LinkedHashMap<TaskID, TaskInfo> queuedTasks = executor->queuedTasks;
-
-      foreach (const TaskGroupInfo& taskGroup, executor->queuedTaskGroups) {
-        foreach (const TaskInfo& task, taskGroup.tasks()) {
-          queuedTasks.erase(task.task_id());
-        }
-      }
-
-      publishResources()
-        .then(defer(self(), [=] {
-          return containerizer->update(
-              executor->containerId,
-              executor->allocatedResources());
-        }))
-        .onAny(defer(self(),
-                     &Self::___run,
-                     lambda::_1,
-                     framework->id(),
-                     executor->id,
-                     executor->containerId,
-                     queuedTasks.values(),
-                     executor->queuedTaskGroups));
 
       hashmap<TaskID, TaskInfo> unackedTasks;
       foreach (const TaskInfo& task, subscribe.unacknowledged_tasks()) {
@@ -4304,7 +4647,7 @@ void Slave::subscribe(
       // TODO(vinod): Consider checkpointing 'TaskInfo' instead of
       // 'Task' so that we can relaunch such tasks! Currently we don't
       // do it because 'TaskInfo.data' could be huge.
-      foreachvalue (Task* task, executor->launchedTasks) {
+      foreach (Task* task, executor->launchedTasks.values()) {
         if (task->state() == TASK_STAGING &&
             !unackedTasks.contains(task->task_id())) {
           mesos::TaskState newTaskState = TASK_DROPPED;
@@ -4333,6 +4676,58 @@ void Slave::subscribe(
           statusUpdate(update, UPID());
         }
       }
+
+      // Shutdown the executor if all of its initial tasks are killed.
+      // See MESOS-8411. This is a workaround for those executors (e.g.,
+      // command executor, default executor) that do not have a proper
+      // self terminating logic when they haven't received the task or
+      // task group within a timeout.
+      if (!executor->everSentTask() && executor->queuedTasks.empty()) {
+        LOG(WARNING) << "Shutting down executor " << *executor
+                     << " because it has never been sent a task and all of"
+                     << " its queued tasks have been killed before delivery";
+
+        _shutdownExecutor(framework, executor);
+
+        return;
+      }
+
+      // Tell executor it's registered and give it any queued tasks
+      // or task groups.
+      executor::Event event;
+      event.set_type(executor::Event::SUBSCRIBED);
+
+      executor::Event::Subscribed* subscribed = event.mutable_subscribed();
+      subscribed->mutable_executor_info()->CopyFrom(executor->info);
+      subscribed->mutable_framework_info()->MergeFrom(framework->info);
+      subscribed->mutable_slave_info()->CopyFrom(info);
+      subscribed->mutable_container_id()->CopyFrom(executor->containerId);
+
+      executor->send(event);
+
+      // Split the queued tasks between the task groups and tasks.
+      LinkedHashMap<TaskID, TaskInfo> queuedTasks = executor->queuedTasks;
+
+      foreach (const TaskGroupInfo& taskGroup, executor->queuedTaskGroups) {
+        foreach (const TaskInfo& task, taskGroup.tasks()) {
+          queuedTasks.erase(task.task_id());
+        }
+      }
+
+      publishResources()
+        .then(defer(self(), [=] {
+          return containerizer->update(
+              executor->containerId,
+              executor->allocatedResources());
+        }))
+        .onAny(defer(self(),
+                     &Self::___run,
+                     lambda::_1,
+                     framework->id(),
+                     executor->id,
+                     executor->containerId,
+                     queuedTasks.values(),
+                     executor->queuedTaskGroups));
 
       break;
     }
@@ -4448,12 +4843,8 @@ void Slave::registerExecutor(
       // this shutdown message, it is safe because the executor driver shuts
       // down the executor if it gets disconnected from the agent before
       // registration.
-      if (executor->queuedTasks.empty()) {
-        CHECK(executor->launchedTasks.empty())
-            << " Newly registered executor '" << executor->id
-            << "' has launched tasks";
-
-        LOG(WARNING) << "Shutting down the executor " << *executor
+      if (!executor->everSentTask() && executor->queuedTasks.empty()) {
+        LOG(WARNING) << "Shutting down registering executor " << *executor
                      << " because it has no tasks to run";
 
         _shutdownExecutor(framework, executor);
@@ -4649,7 +5040,7 @@ void Slave::reregisterExecutor(
       // TODO(vinod): Consider checkpointing 'TaskInfo' instead of
       // 'Task' so that we can relaunch such tasks! Currently we
       // don't do it because 'TaskInfo.data' could be huge.
-      foreachvalue (Task* task, executor->launchedTasks) {
+      foreach (Task* task, executor->launchedTasks.values()) {
         if (task->state() == TASK_STAGING &&
             !unackedTasks.contains(task->task_id())) {
           mesos::TaskState newTaskState = TASK_DROPPED;
@@ -4679,8 +5070,21 @@ void Slave::reregisterExecutor(
         }
       }
 
-      // TODO(vinod): Similar to what we do in `registerExecutor()` the executor
-      // should be shutdown if it hasn't received any tasks.
+      // Shutdown the executor if all of its initial tasks are killed.
+      // This is a workaround for those executors (e.g.,
+      // command executor, default executor) that do not have a proper
+      // self terminating logic when they haven't received the task or
+      // task group within a timeout.
+      if (!executor->everSentTask() && executor->queuedTasks.empty()) {
+        LOG(WARNING) << "Shutting down re-registering executor " << *executor
+                     << " because it has no tasks to run and"
+                     << " has never been sent a task";
+
+        _shutdownExecutor(framework, executor);
+
+        return;
+      }
+
       break;
     }
   }
@@ -4988,10 +5392,20 @@ void Slave::statusUpdate(StatusUpdate update, const Option<UPID>& pid)
   // do not need to send the container status and we must
   // synchronously transition the task to ensure that it is removed
   // from the queued tasks before the run task path continues.
+  //
+  // Also if the task is in `launchedTasks` but was dropped by the
+  // agent, we know that the task did not reach the executor. We
+  // will synchronously transition the task to ensure that the
+  // agent re-registration logic can call `everSentTask()` after
+  // dropping tasks.
   if (executor->queuedTasks.contains(status.task_id())) {
     CHECK(protobuf::isTerminalState(status.state()))
         << "Queued tasks can only be transitioned to terminal states";
 
+    _statusUpdate(update, pid, executor->id, None());
+  } else if (executor->launchedTasks.contains(status.task_id()) &&
+            (status.state() == TASK_DROPPED || status.state() == TASK_LOST) &&
+            status.source() == TaskStatus::SOURCE_SLAVE) {
     _statusUpdate(update, pid, executor->id, None());
   } else {
     // NOTE: If the executor sets the ContainerID inside the
@@ -5885,13 +6299,7 @@ void Slave::executorTerminated(
       // are generated by the slave.
       // TODO(vinod): Reliably forward this message to the master.
       if (!executor->isGeneratedForCommandTask()) {
-        ExitedExecutorMessage message;
-        message.mutable_slave_id()->MergeFrom(info.id());
-        message.mutable_framework_id()->MergeFrom(frameworkId);
-        message.mutable_executor_id()->MergeFrom(executorId);
-        message.set_status(status);
-
-        if (master.isSome()) { send(master.get(), message); }
+        sendExitedExecutorMessage(frameworkId, executorId, status);
       }
 
       // Remove the executor if either the slave or framework is
@@ -6626,7 +7034,7 @@ Future<Nothing> Slave::recover(const Try<state::State>& state)
     } else if (state->rebooted) {
       // Prior to Mesos 1.4 we directly bypass the state recovery and
       // start as a new agent upon reboot (introduced in MESOS-844).
-      // This unncessarily discards the existing agent ID (MESOS-6223).
+      // This unnecessarily discards the existing agent ID (MESOS-6223).
       // Starting in Mesos 1.4 we'll attempt to recover the slave state
       // even after reboot but in case of an incompatible slave info change
       // we'll fall back to recovering as a new agent (existing behavior).
@@ -7510,7 +7918,7 @@ void Slave::updateOperation(
     operation->add_statuses()->CopyFrom(status);
   }
 
-  LOG(INFO) << "Updating the state of operation '"
+  LOG(INFO) << "Updating the state of operation"
             << (operation->info().has_id()
                  ? " '" + stringify(operation->info().id()) + "'"
                  : " with no ID")
@@ -8106,6 +8514,23 @@ void Slave::sendExecutorTerminatedStatusUpdate(
           None(),
           limitedResources),
       UPID());
+}
+
+
+void Slave::sendExitedExecutorMessage(
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const Option<int>& status)
+{
+  ExitedExecutorMessage message;
+  message.mutable_slave_id()->MergeFrom(info.id());
+  message.mutable_framework_id()->MergeFrom(frameworkId);
+  message.mutable_executor_id()->MergeFrom(executorId);
+  message.set_status(status.getOrElse(-1));
+
+  if (master.isSome()) {
+    send(master.get(), message);
+  }
 }
 
 
@@ -8949,10 +9374,23 @@ Executor::Executor(
     user(_user),
     checkpoint(_checkpoint),
     http(None()),
-    pid(None()),
-    completedTasks(MAX_COMPLETED_TASKS_PER_EXECUTOR)
+    pid(None())
 {
   CHECK_NOTNULL(slave);
+
+  // NOTE: This should be greater than zero because the agent looks
+  // for completed tasks to determine (with false positives) whether
+  // an executor ever received tasks. See MESOS-8411.
+  //
+  // TODO(mzhu): Remove this check once we can determine whether an
+  // executor ever received tasks without looking through the
+  // completed tasks.
+  static_assert(
+      MAX_COMPLETED_TASKS_PER_EXECUTOR > 0,
+      "Max completed tasks per executor should be greater than zero");
+
+  completedTasks =
+    boost::circular_buffer<shared_ptr<Task>>(MAX_COMPLETED_TASKS_PER_EXECUTOR);
 
   // TODO(jieyu): The way we determine if an executor is generated for
   // a command task (either command or docker executor) is really
@@ -9261,6 +9699,32 @@ bool Executor::incompleteTasks()
 }
 
 
+bool Executor::everSentTask() const
+{
+  if (!launchedTasks.empty()) {
+    return true;
+  }
+
+  foreachvalue (Task* task, terminatedTasks) {
+    foreach (const TaskStatus& status, task->statuses()) {
+      if (status.source() == TaskStatus::SOURCE_EXECUTOR) {
+        return true;
+      }
+    }
+  }
+
+  foreach (const shared_ptr<Task>& task, completedTasks) {
+    foreach (const TaskStatus& status, task->statuses()) {
+      if (status.source() == TaskStatus::SOURCE_EXECUTOR) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+
 bool Executor::isGeneratedForCommandTask() const
 {
   return isGeneratedForCommandTask_;
@@ -9527,7 +9991,7 @@ static string taskOrTaskGroup(
     foreach (const TaskInfo& task, taskGroup->tasks()) {
       taskIds.push_back(task.task_id());
     }
-     out << "task group containing tasks " << taskIds;
+    out << "task group containing tasks " << taskIds;
   }
 
   return out.str();

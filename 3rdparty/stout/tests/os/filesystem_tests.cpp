@@ -359,17 +359,17 @@ TEST_F(FsTest, List)
   // Search all files in folder
   Try<list<string>> allFiles = fs::list(path::join(testdir, "*"));
   ASSERT_SOME(allFiles);
-  EXPECT_EQ(3u, allFiles.get().size());
+  EXPECT_EQ(3u, allFiles->size());
 
   // Search .jpg files in folder
   Try<list<string>> jpgFiles = fs::list(path::join(testdir, "*.jpg"));
   ASSERT_SOME(jpgFiles);
-  EXPECT_EQ(1u, jpgFiles.get().size());
+  EXPECT_EQ(1u, jpgFiles->size());
 
   // Search test*.txt files in folder
   Try<list<string>> testTxtFiles = fs::list(path::join(testdir, "*.txt"));
   ASSERT_SOME(testTxtFiles);
-  EXPECT_EQ(2u, testTxtFiles.get().size());
+  EXPECT_EQ(2u, testTxtFiles->size());
 
   // Verify that we return empty list when we provide an invalid path.
   Try<list<string>> noFiles = fs::list("this_path_does_not_exist");
@@ -399,7 +399,7 @@ TEST_F(FsTest, Rename)
   // Search all files in folder
   Try<list<string>> allFiles = fs::list(path::join(testdir, "*"));
   ASSERT_SOME(allFiles);
-  EXPECT_EQ(2u, allFiles.get().size());
+  EXPECT_EQ(2u, allFiles->size());
 
   // Rename a `file1` to `file3`, which does not exist yet. Verify `file3`
   // contains the text that was in `file1`, and make sure the count of files in
@@ -412,7 +412,7 @@ TEST_F(FsTest, Rename)
 
   allFiles = fs::list(path::join(testdir, "*"));
   ASSERT_SOME(allFiles);
-  EXPECT_EQ(2u, allFiles.get().size());
+  EXPECT_EQ(2u, allFiles->size());
 
   // Rename `file3` -> `file2`. `file2` exists, so this will replace it. Verify
   // text in the file, and that the count of files in the directory have gone
@@ -424,7 +424,7 @@ TEST_F(FsTest, Rename)
 
   allFiles = fs::list(path::join(testdir, "*"));
   ASSERT_SOME(allFiles);
-  EXPECT_EQ(1u, allFiles.get().size());
+  EXPECT_EQ(1u, allFiles->size());
 
   // Rename a fake file, verify failure.
   const string fakeFile = testdir + "does_not_exist";
@@ -434,7 +434,7 @@ TEST_F(FsTest, Rename)
 
   allFiles = fs::list(path::join(testdir, "*"));
   ASSERT_SOME(allFiles);
-  EXPECT_EQ(1u, allFiles.get().size());
+  EXPECT_EQ(1u, allFiles->size());
 }
 
 

@@ -104,8 +104,14 @@ MockSlave::MockSlave(
     QoSController* qosController,
     SecretGenerator* secretGenerator,
     const Option<Authorizer*>& authorizer)
-  : slave::Slave(
-        process::ID::generate("slave"),
+  // It is necessary to explicitly call `ProcessBase` constructor here even
+  // though the direct parent `Slave` already does this. This is because
+  // `ProcessBase` being a virtual base class, if not being explicitly
+  // constructed here by passing `id`, will be constructed implicitly first with
+  // a default constructor, resulting in lost argument `id`.
+  : ProcessBase(id),
+    slave::Slave(
+        id,
         flags,
         detector,
         containerizer,
@@ -118,11 +124,15 @@ MockSlave::MockSlave(
         authorizer)
 {
   // Set up default behaviors, calling the original methods.
-  EXPECT_CALL(*this, runTask(_, _, _, _, _, _))
+  EXPECT_CALL(*this, ___run(_, _, _, _, _, _))
+    .WillRepeatedly(Invoke(this, &MockSlave::unmocked____run));
+  EXPECT_CALL(*this, runTask(_, _, _, _, _, _, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_runTask));
-  EXPECT_CALL(*this, _run(_, _, _, _, _, _))
+  EXPECT_CALL(*this, _run(_, _, _, _, _, _, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked__run));
-  EXPECT_CALL(*this, runTaskGroup(_, _, _, _, _))
+  EXPECT_CALL(*this, __run(_, _, _, _, _, _, _))
+    .WillRepeatedly(Invoke(this, &MockSlave::unmocked___run));
+  EXPECT_CALL(*this, runTaskGroup(_, _, _, _, _, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_runTaskGroup));
   EXPECT_CALL(*this, killTask(_, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_killTask));
@@ -138,6 +148,26 @@ MockSlave::MockSlave(
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_executorTerminated));
   EXPECT_CALL(*this, shutdownExecutor(_, _, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_shutdownExecutor));
+  EXPECT_CALL(*this, _shutdownExecutor(_, _))
+    .WillRepeatedly(Invoke(this, &MockSlave::unmocked__shutdownExecutor));
+}
+
+
+void MockSlave::unmocked____run(
+    const Future<Nothing>& future,
+    const FrameworkID& frameworkId,
+    const ExecutorID& executorId,
+    const ContainerID& containerId,
+    const list<TaskInfo>& tasks,
+    const list<TaskGroupInfo>& taskGroups)
+{
+  slave::Slave::___run(
+      future,
+      frameworkId,
+      executorId,
+      containerId,
+      tasks,
+      taskGroups);
 }
 
 
@@ -147,7 +177,8 @@ void MockSlave::unmocked_runTask(
     const FrameworkID& frameworkId,
     const UPID& pid,
     const TaskInfo& task,
-    const vector<ResourceVersionUUID>& resourceVersionUuids)
+    const vector<ResourceVersionUUID>& resourceVersionUuids,
+    const Option<bool>& launchExecutor)
 {
   slave::Slave::runTask(
       from,
@@ -155,7 +186,8 @@ void MockSlave::unmocked_runTask(
       frameworkInfo.id(),
       pid,
       task,
-      resourceVersionUuids);
+      resourceVersionUuids,
+      launchExecutor);
 }
 
 
@@ -165,7 +197,8 @@ void MockSlave::unmocked__run(
     const ExecutorInfo& executorInfo,
     const Option<TaskInfo>& taskInfo,
     const Option<TaskGroupInfo>& taskGroup,
-    const std::vector<ResourceVersionUUID>& resourceVersionUuids)
+    const std::vector<ResourceVersionUUID>& resourceVersionUuids,
+    const Option<bool>& launchExecutor)
 {
   slave::Slave::_run(
       unschedules,
@@ -173,7 +206,28 @@ void MockSlave::unmocked__run(
       executorInfo,
       taskInfo,
       taskGroup,
-      resourceVersionUuids);
+      resourceVersionUuids,
+      launchExecutor);
+}
+
+
+void MockSlave::unmocked___run(
+    const Future<list<bool>>& future,
+    const FrameworkInfo& frameworkInfo,
+    const ExecutorInfo& executorInfo,
+    const Option<TaskInfo>& task,
+    const Option<TaskGroupInfo>& taskGroup,
+    const std::vector<ResourceVersionUUID>& resourceVersionUuids,
+    const Option<bool>& launchExecutor)
+{
+  slave::Slave::__run(
+      future,
+      frameworkInfo,
+      executorInfo,
+      task,
+      taskGroup,
+      resourceVersionUuids,
+      launchExecutor);
 }
 
 
@@ -182,14 +236,16 @@ void MockSlave::unmocked_runTaskGroup(
     const FrameworkInfo& frameworkInfo,
     const ExecutorInfo& executorInfo,
     const TaskGroupInfo& taskGroup,
-    const vector<ResourceVersionUUID>& resourceVersionUuids)
+    const vector<ResourceVersionUUID>& resourceVersionUuids,
+    const Option<bool>& launchExecutor)
 {
   slave::Slave::runTaskGroup(
       from,
       frameworkInfo,
       executorInfo,
       taskGroup,
-      resourceVersionUuids);
+      resourceVersionUuids,
+      launchExecutor);
 }
 
 
@@ -241,6 +297,15 @@ void MockSlave::unmocked_shutdownExecutor(
 {
   slave::Slave::shutdownExecutor(from, frameworkId, executorId);
 }
+
+
+void MockSlave::unmocked__shutdownExecutor(
+    slave::Framework* framework,
+    slave::Executor* executor)
+{
+  slave::Slave::_shutdownExecutor(framework, executor);
+}
+
 
 } // namespace tests {
 } // namespace internal {

@@ -145,17 +145,17 @@ Future<ResourceStatistics> CpuSubsystem::usage(
       return Failure("Failed to read 'cpu.stat': " + stat.error());
     }
 
-    Option<uint64_t> nr_periods = stat.get().get("nr_periods");
+    Option<uint64_t> nr_periods = stat->get("nr_periods");
     if (nr_periods.isSome()) {
       result.set_cpus_nr_periods(nr_periods.get());
     }
 
-    Option<uint64_t> nr_throttled = stat.get().get("nr_throttled");
+    Option<uint64_t> nr_throttled = stat->get("nr_throttled");
     if (nr_throttled.isSome()) {
       result.set_cpus_nr_throttled(nr_throttled.get());
     }
 
-    Option<uint64_t> throttled_time = stat.get().get("throttled_time");
+    Option<uint64_t> throttled_time = stat->get("throttled_time");
     if (throttled_time.isSome()) {
       result.set_cpus_throttled_time_secs(
           Nanoseconds(throttled_time.get()).secs());

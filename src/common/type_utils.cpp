@@ -16,6 +16,8 @@
 
 #include <ostream>
 
+#include <google/protobuf/util/message_differencer.h>
+
 #include <mesos/attributes.hpp>
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
@@ -439,6 +441,12 @@ bool operator==(
 }
 
 
+bool operator==(const Offer::Operation& left, const Offer::Operation& right)
+{
+  return google::protobuf::util::MessageDifferencer::Equals(left, right);
+}
+
+
 bool operator==(const OperationStatus& left, const OperationStatus& right)
 {
   if (left.has_operation_id() != right.has_operation_id()) {
@@ -475,6 +483,12 @@ bool operator==(const OperationStatus& left, const OperationStatus& right)
   }
 
   return true;
+}
+
+
+bool operator!=(const Offer::Operation& left, const Offer::Operation& right)
+{
+  return !(left == right);
 }
 
 

@@ -339,7 +339,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     return Error("Failed to create provisioner: " + _provisioner.error());
   }
 
-  Shared<Provisioner> provisioner = _provisioner.get().share();
+  Shared<Provisioner> provisioner = _provisioner->share();
 
   // Create the isolators.
   //
@@ -677,7 +677,7 @@ Future<Nothing> MesosContainerizerProcess::recover(
   list<ContainerState> recoverable;
   if (state.isSome()) {
     // Gather the latest run of checkpointed executors.
-    foreachvalue (const FrameworkState& framework, state.get().frameworks) {
+    foreachvalue (const FrameworkState& framework, state->frameworks) {
       foreachvalue (const ExecutorState& executor, framework.executors) {
         if (executor.info.isNone()) {
           LOG(WARNING) << "Skipping recovery of executor '" << executor.id
@@ -697,18 +697,18 @@ Future<Nothing> MesosContainerizerProcess::recover(
         const ContainerID& containerId = executor.latest.get();
         Option<RunState> run = executor.runs.get(containerId);
         CHECK_SOME(run);
-        CHECK_SOME(run.get().id);
+        CHECK_SOME(run->id);
 
         // We need the pid so the reaper can monitor the executor so
         // skip this executor if it's not present. This is not an
         // error because the slave will try to wait on the container
         // which will return a failed ContainerTermination and
         // everything will get cleaned up.
-        if (!run.get().forkedPid.isSome()) {
+        if (!run->forkedPid.isSome()) {
           continue;
         }
 
-        if (run.get().completed) {
+        if (run->completed) {
           VLOG(1) << "Skipping recovery of executor '" << executor.id
                   << "' of framework " << framework.id
                   << " because its latest run "
@@ -737,7 +737,7 @@ Future<Nothing> MesosContainerizerProcess::recover(
         // directory to be non-existent.
         const string& directory = paths::getExecutorRunPath(
             flags.work_dir,
-            state.get().id,
+            state->id,
             framework.id,
             executor.id,
             containerId);
@@ -747,8 +747,8 @@ Future<Nothing> MesosContainerizerProcess::recover(
         ContainerState executorRunState =
           protobuf::slave::createContainerState(
               executorInfo,
-              run.get().id.get(),
-              run.get().forkedPid.get(),
+              run->id.get(),
+              run->forkedPid.get(),
               directory);
 
         recoverable.push_back(executorRunState);
@@ -2198,12 +2198,12 @@ Future<ResourceStatistics> _usage(
 
   if (resources.isSome()) {
     // Set the resource allocations.
-    Option<Bytes> mem = resources.get().mem();
+    Option<Bytes> mem = resources->mem();
     if (mem.isSome()) {
-      result.set_mem_limit_bytes(mem.get().bytes());
+      result.set_mem_limit_bytes(mem->bytes());
     }
 
-    Option<double> cpus = resources.get().cpus();
+    Option<double> cpus = resources->cpus();
     if (cpus.isSome()) {
       result.set_cpus_limit(cpus.get());
     }
@@ -2503,8 +2503,8 @@ void MesosContainerizerProcess::___destroy(
   // be) and continue the destroy.
   CHECK_SOME(container->status);
 
-  container->status.get()
-    .onAny(defer(self(), &Self::____destroy, containerId, termination));
+  container->status
+    ->onAny(defer(self(), &Self::____destroy, containerId, termination));
 }
 
 
@@ -2810,7 +2810,7 @@ void MesosContainerizerProcess::limited(
   if (future.isReady()) {
     LOG_BASED_ON_CLASS(containers_.at(containerId)->containerClass())
       << "Container " << containerId << " has reached its limit for resource "
-      << future.get().resources() << " and will be terminated";
+      << future->resources() << " and will be terminated";
 
     termination = ContainerTermination();
     termination->set_state(TaskState::TASK_FAILED);

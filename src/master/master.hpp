@@ -859,11 +859,20 @@ protected:
       const Offer::Operation::Destroy& destroy,
       const Option<process::http::authentication::Principal>& principal);
 
-  // Add the task and its executor (if not already running) to the
-  // framework and slave. Returns the resources consumed as a result,
-  // which includes resources for the task and its executor
-  // (if not already running).
-  Resources addTask(const TaskInfo& task, Framework* framework, Slave* slave);
+  // Determine if a new executor needs to be launched.
+  bool isLaunchExecutor (
+      const ExecutorID& executorId,
+      Framework* framework,
+      Slave* slave) const;
+
+  // Add executor to the framework and slave.
+  void addExecutor(
+      const ExecutorInfo& executorInfo,
+      Framework* framework,
+      Slave* slave);
+
+  // Add task to the framework and slave.
+  void addTask(const TaskInfo& task, Framework* framework, Slave* slave);
 
   // Transitions the task, and recovers resources if the task becomes
   // terminal.
@@ -1094,22 +1103,6 @@ private:
    * (and access control is done via ACLs).
    */
   bool isWhitelistedRole(const std::string& name) const;
-
-  /**
-   * Indicates whether a task in the given state can safely be removed
-   * from the master's in-memory state. When a task becomes removable,
-   * it is erased from the master's primary task data structures; a
-   * limited number of such tasks are kept as a cache (see
-   * `framework.unreachableTasks` and `framework.completedTasks`).
-   */
-  static bool isRemovable(const TaskState& state)
-  {
-    if (state == TASK_UNREACHABLE) {
-      return true;
-    }
-
-    return protobuf::isTerminalState(state);
-  }
 
   /**
    * Inner class used to namespace the handling of quota requests.
@@ -1647,6 +1640,11 @@ private:
         const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
+    process::Future<process::http::Response> getOperations(
+        const mesos::master::Call& call,
+        const Option<process::http::authentication::Principal>& principal,
+        ContentType contentType) const;
+
     process::Future<process::http::Response> getTasks(
         const mesos::master::Call& call,
         const Option<process::http::authentication::Principal>& principal,
@@ -1961,6 +1959,8 @@ private:
 
   struct Subscribers
   {
+    Subscribers(Master* _master) : master(_master) {};
+
     // Represents a client subscribed to the 'api/vX' endpoint.
     //
     // TODO(anand): Add support for filtering. Some subscribers
@@ -1968,11 +1968,9 @@ private:
     struct Subscriber
     {
       Subscriber(
-          Master* _master,
           const HttpConnection& _http,
           const Option<process::http::authentication::Principal> _principal)
-        : master(_master),
-          http(_http),
+        : http(_http),
           principal(_principal)
       {
         mesos::master::Event event;
@@ -1994,11 +1992,20 @@ private:
       Subscriber(const Subscriber&) = delete;
       Subscriber& operator=(const Subscriber&) = delete;
 
-      void send(const mesos::master::Event& event,
+      // The `AuthorizationAcceptor` parameters here are not all required for
+      // every event, but we currently construct and pass them all regardless
+      // of the event type.
+      //
+      // TODO(greggomann): Refactor this function into multiple event-specific
+      // overloads. See MESOS-8475.
+      void send(
+          const process::Shared<mesos::master::Event>& event,
           const process::Owned<AuthorizationAcceptor>& authorizeRole,
           const process::Owned<AuthorizationAcceptor>& authorizeFramework,
           const process::Owned<AuthorizationAcceptor>& authorizeTask,
-          const process::Owned<AuthorizationAcceptor>& authorizeExecutor);
+          const process::Owned<AuthorizationAcceptor>& authorizeExecutor,
+          const process::Shared<FrameworkInfo>& frameworkInfo,
+          const process::Shared<Task>& task);
 
       ~Subscriber()
       {
@@ -2012,7 +2019,6 @@ private:
         wait(heartbeater.get());
       }
 
-      Master* master;
       HttpConnection http;
       process::Owned<Heartbeater<mesos::master::Event, v1::master::Event>>
         heartbeater;
@@ -2020,12 +2026,19 @@ private:
     };
 
     // Sends the event to all subscribers connected to the 'api/vX' endpoint.
-    void send(const mesos::master::Event& event);
+    void send(
+        mesos::master::Event&& event,
+        const Option<FrameworkInfo>& frameworkInfo = None(),
+        const Option<Task>& task = None());
+
+    Master* master;
 
     // Active subscribers to the 'api/vX' endpoint keyed by the stream
     // identifier.
     hashmap<id::UUID, process::Owned<Subscriber>> subscribed;
-  } subscribers;
+  };
+
+  Subscribers subscribers;
 
   hashmap<OfferID, Offer*> offers;
   hashmap<OfferID, process::Timer> offerTimers;
@@ -2229,7 +2242,20 @@ struct Framework
 
     tasks[task->task_id()] = task;
 
-    if (!Master::isRemovable(task->state())) {
+    // Unreachable tasks should be added via `addUnreachableTask`.
+    CHECK(task->state() != TASK_UNREACHABLE)
+      << "Task '" << task->task_id() << "' of framework " << id()
+      << " added in TASK_UNREACHABLE state";
+
+    // Since we track terminal but unacknowledged tasks within
+    // `tasks` rather than `completedTasks`, we need to handle
+    // them here: don't count them as consuming resources.
+    //
+    // TODO(bmahler): Users currently get confused because
+    // terminal tasks can show up as "active" tasks in the UI and
+    // endpoints. Ideally, we show the terminal unacknowledged
+    // tasks as "completed" as well.
+    if (!protobuf::isTerminalState(task->state())) {
       // Note that we explicitly convert from protobuf to `Resources` once
       // and then use the result for calculations to avoid performance penalty
       // for multiple conversions and validations implied by `+=` with protobuf
@@ -2250,6 +2276,12 @@ struct Framework
       if (!isTrackedUnderRole(role)) {
         trackUnderRole(role);
       }
+    }
+
+    if (!master->subscribers.subscribed.empty()) {
+      master->subscribers.send(
+          protobuf::master::event::createTaskAdded(*task),
+          info);
     }
   }
 
@@ -2299,7 +2331,7 @@ struct Framework
     }
 
     if (http.isSome()) {
-      if (!http.get().send(message)) {
+      if (!http->send(message)) {
         LOG(WARNING) << "Unable to send event to framework " << *this << ":"
                      << " connection closed";
       }
@@ -2335,13 +2367,20 @@ struct Framework
       << "Unknown task " << task->task_id()
       << " of framework " << task->framework_id();
 
-    if (!Master::isRemovable(task->state())) {
+    // The invariant here is that the master will have already called
+    // `recoverResources()` prior to removing terminal or unreachable tasks.
+    if (!protobuf::isTerminalState(task->state()) &&
+        task->state() != TASK_UNREACHABLE) {
       recoverResources(task);
     }
 
     if (unreachable) {
       addUnreachableTask(*task);
     } else {
+      CHECK(task->state() != TASK_UNREACHABLE);
+
+      // TODO(bmahler): This moves a potentially non-terminal task into
+      // the completed list!
       addCompletedTask(Task(*task));
     }
 
@@ -2731,7 +2770,7 @@ struct Framework
   {
     CHECK_SOME(http);
 
-    if (connected() && !http.get().close()) {
+    if (connected() && !http->close()) {
       LOG(WARNING) << "Failed to close HTTP pipe for " << *this;
     }
 
@@ -2739,8 +2778,8 @@ struct Framework
 
     CHECK_SOME(heartbeater);
 
-    terminate(heartbeater.get().get());
-    wait(heartbeater.get().get());
+    terminate(heartbeater->get());
+    wait(heartbeater->get());
 
     heartbeater = None();
   }
@@ -2762,7 +2801,7 @@ struct Framework
           http.get(),
           DEFAULT_HEARTBEAT_INTERVAL);
 
-    process::spawn(heartbeater.get().get());
+    process::spawn(heartbeater->get());
   }
 
   bool active() const    { return state == ACTIVE; }

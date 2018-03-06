@@ -60,6 +60,7 @@ message Call {
     GET_AGENTS = 10;
     GET_FRAMEWORKS = 11;
     GET_EXECUTORS = 12;     // Retrieves the information about all executors.
+    GET_OPERATIONS = 33;    // Retrieves the information about known operations.
     GET_TASKS = 13;         // Retrieves the information about all known tasks.
     GET_ROLES = 14;         // Retrieves the information about roles.
 
@@ -258,6 +259,7 @@ message Response {
     GET_AGENTS = 9;
     GET_FRAMEWORKS = 10;
     GET_EXECUTORS = 11;            // See 'GetExecutors' below.
+    GET_OPERATIONS = 19;           // See 'GetOperations' below.
     GET_TASKS = 12;                // See 'GetTasks' below.
     GET_ROLES = 13;                // See 'GetRoles' below.
 
@@ -413,6 +415,12 @@ message Response {
     repeated Executor orphan_executors = 2 [deprecated=true];
   }
 
+  // Lists information about all operations known to the master at the
+  // current time.
+  message GetOperations {
+    repeated Operation operations = 1;
+  }
+
   // Lists information about all the tasks known to the master at the current
   // time. Note that there might be tasks unknown to the master running on
   // partitioned or unsubscribed agents.
@@ -494,6 +502,7 @@ message Response {
   optional GetAgents get_agents = 10;
   optional GetFrameworks get_frameworks = 11;
   optional GetExecutors get_executors = 12;
+  optional GetOperations get_operations = 20;
   optional GetTasks get_tasks = 13;
   optional GetRoles get_roles = 14;
   optional GetWeights get_weights = 15;

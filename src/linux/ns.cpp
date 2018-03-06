@@ -39,6 +39,7 @@
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
+#include <stout/version.hpp>
 
 #include <stout/os/exists.hpp>
 #include <stout/os/ls.hpp>
@@ -50,6 +51,26 @@ using std::string;
 using std::vector;
 
 namespace ns {
+
+static Try<Version> kernelVersion()
+{
+  Try<os::UTSInfo> uname = os::uname();
+  if (!uname.isSome()) {
+    return Error("Unable to determine kernel version: " + uname.error());
+  }
+
+  vector<string> parts = strings::split(uname->release, ".");
+  parts.resize(2);
+
+  Try<Version> version = Version::parse(strings::join(".", parts));
+  if (!version.isSome()) {
+    return Error("Failed to parse kernel version '" + uname->release +
+        "': " + version.error());
+  }
+
+  return version;
+}
+
 
 Try<int> nstype(const string& ns)
 {
@@ -73,7 +94,32 @@ Try<int> nstype(const string& ns)
 }
 
 
-set<string> namespaces()
+Try<string> nsname(int nsType)
+{
+  const hashmap<int, string> nsnames = {
+    {CLONE_NEWNS, "mnt"},
+    {CLONE_NEWUTS, "uts"},
+    {CLONE_NEWIPC, "ipc"},
+    {CLONE_NEWNET, "net"},
+    {CLONE_NEWUSER, "user"},
+    {CLONE_NEWPID, "pid"},
+    {CLONE_NEWCGROUP, "cgroup"}
+  };
+
+  Option<string> nsname = nsnames.get(nsType);
+
+  if (nsname.isNone()) {
+    return Error("Unknown namespace");
+  }
+
+  return nsname.get();
+}
+
+
+// TODO(jpeach): As we move namespace parameters from strings to CLONE
+// constants, we should be able to eventually remove the internal uses
+// of this function.
+static set<string> namespaces()
 {
   set<string> result;
 
@@ -107,6 +153,32 @@ set<int> nstypes()
 }
 
 
+Try<bool> supported(int nsTypes)
+{
+  int supported = 0;
+
+  foreach (const int n, nstypes()) {
+    if (nsTypes & n) {
+      supported |= n;
+    }
+  }
+
+  if ((nsTypes & CLONE_NEWUSER) && (supported & CLONE_NEWUSER)) {
+    Try<Version> version = kernelVersion();
+
+    if (version.isError()) {
+      return Error(version.error());
+    }
+
+    if (version.get() < Version(3, 12, 0)) {
+      return false;
+    }
+  }
+
+  return supported == nsTypes;
+}
+
+
 Try<Nothing> setns(
     const string& path,
     const string& ns,
@@ -119,7 +191,7 @@ Try<Nothing> setns(
       return Error(
           "Failed to get the threads of the current process: " +
           threads.error());
-    } else if (threads.get().size() > 1) {
+    } else if (threads->size() > 1) {
       return Error("Multiple threads exist in the current process");
     }
   }
@@ -159,7 +231,7 @@ Try<Nothing> setns(
 }
 
 
-Try<Nothing> setns(pid_t pid, const string& ns)
+Try<Nothing> setns(pid_t pid, const string& ns, bool checkMultithreaded)
 {
   if (!os::exists(pid)) {
     return Error("Pid " + ::stringify(pid) + " does not exist");
@@ -170,7 +242,7 @@ Try<Nothing> setns(pid_t pid, const string& ns)
     return Error("Namespace '" + ns + "' is not supported");
   }
 
-  return ns::setns(path, ns);
+  return ns::setns(path, ns, checkMultithreaded);
 }
 
 

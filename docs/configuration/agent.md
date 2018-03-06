@@ -507,6 +507,19 @@ this role. (default: *)
 </tr>
 <tr>
   <td>
+    --disk_profile_adaptor=VALUE
+  </td>
+  <td>
+The name of the disk profile adaptor module that storage resource
+providers should use for translating a 'disk profile' into inputs
+consumed by various Container Storage Interface (CSI) plugins.
+If this flag is not specified, the default behavior for storage
+resource providers is to only expose resources for pre-existing
+volumes and not publish RAW volumes.
+  </td>
+</tr>
+<tr>
+  <td>
     --disk_watch_interval=VALUE
   </td>
   <td>
@@ -902,6 +915,33 @@ Example:
 </tr>
 <tr>
   <td>
+    --ip6=VALUE
+  </td>
+  <td>
+IPv6 address to listen on. This cannot be used in conjunction
+with <code>--ip6_discovery_command</code>.
+<p/>
+NOTE: Currently Mesos doesn't listen on IPv6 sockets and hence
+this IPv6 address is only used to advertise IPv6 addresses for
+containers running on the host network.
+  </td>
+</tr>
+<tr>
+  <td>
+    --ip6_discovery_command=VALUE
+  </td>
+  <td>
+Optional IPv6 discovery binary: if set, it is expected to emit
+the IPv6 address on which Mesos will try to bind when IPv6 socket
+support is enabled in Mesos.
+<p/>
+NOTE: Currently Mesos doesn't listen on IPv6 sockets and hence
+this IPv6 address is only used to advertise IPv6 addresses for
+containers running on the host network.
+  </td>
+</tr>
+<tr>
+  <td>
     --isolation=VALUE
   </td>
   <td>
@@ -931,7 +971,7 @@ launcher if it's running as root on Linux.
     --launcher_dir=VALUE
   </td>
   <td>
-Directory path of Mesos binaries. Mesos looks for the health-check,
+Directory path of Mesos binaries. Mesos looks for the
 fetcher, containerizer, and executor binary files under this
 directory. (default: /usr/local/libexec/mesos)
   </td>

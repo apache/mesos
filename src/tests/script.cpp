@@ -122,9 +122,6 @@ void execute(const string& script)
     // Enable replicated log based registry.
     os::setenv("MESOS_REGISTRY", "replicated_log");
 
-    // Enable authentication.
-    os::setenv("MESOS_AUTHENTICATE_FRAMEWORKS", "true");
-
     // Create test credentials.
     const string& credentials =
       DEFAULT_CREDENTIAL.principal() + " " + DEFAULT_CREDENTIAL.secret();
@@ -137,14 +134,15 @@ void execute(const string& script)
 
     os::setenv("MESOS_CREDENTIALS", uri::from_path(credentialsPath));
 
-    // We set test credentials here for example frameworks to use.
-    os::setenv("DEFAULT_PRINCIPAL", DEFAULT_CREDENTIAL.principal());
-    os::setenv("DEFAULT_SECRET", DEFAULT_CREDENTIAL.secret());
+    // Enable framework authentication on the master.
+    os::setenv("MESOS_AUTHENTICATE_FRAMEWORKS", "true");
 
-    // TODO(bmahler): Update the example frameworks to use flags and
-    // remove the special DEFAULT_* environment variables above.
-    os::setenv("MESOS_PRINCIPAL", DEFAULT_CREDENTIAL.principal());
-    os::setenv("MESOS_SECRET", DEFAULT_CREDENTIAL.secret());
+    // Enable authentication on the test framework.
+    os::setenv("MESOS_EXAMPLE_AUTHENTICATE", "true");
+
+    // We set test credentials here for example frameworks to use.
+    os::setenv("MESOS_EXAMPLE_PRINCIPAL", DEFAULT_CREDENTIAL.principal());
+    os::setenv("MESOS_EXAMPLE_SECRET", DEFAULT_CREDENTIAL.secret());
 
     // Create test ACLs.
     ACLs acls;

@@ -44,8 +44,8 @@ TEST(ProcTest, Pids)
 
   ASSERT_SOME(pids);
   EXPECT_FALSE(pids->empty());
-  EXPECT_EQ(1u, pids.get().count(getpid()));
-  EXPECT_EQ(1u, pids.get().count(1));
+  EXPECT_EQ(1u, pids->count(getpid()));
+  EXPECT_EQ(1u, pids->count(1));
 }
 
 
@@ -54,7 +54,7 @@ TEST(ProcTest, Cpus)
   Try<std::list<CPU>> cpus = proc::cpus();
 
   ASSERT_SOME(cpus);
-  EXPECT_LE(1u, cpus.get().size());
+  EXPECT_LE(1u, cpus->size());
 }
 
 
@@ -63,7 +63,7 @@ TEST(ProcTest, SystemStatus)
   Try<SystemStatus> status = proc::status();
 
   ASSERT_SOME(status);
-  EXPECT_NE(0u, status.get().btime);
+  EXPECT_NE(0u, status->btime);
 }
 
 
@@ -72,8 +72,8 @@ TEST(ProcTest, ProcessStatus)
   Result<ProcessStatus> status = proc::status(getpid());
 
   ASSERT_SOME(status);
-  EXPECT_EQ(getpid(), status.get().pid);
-  EXPECT_EQ(getppid(), status.get().ppid);
+  EXPECT_EQ(getpid(), status->pid);
+  EXPECT_EQ(getppid(), status->ppid);
 }
 
 
@@ -84,8 +84,8 @@ TEST(ProcTest, SingleThread)
   Try<set<pid_t>> threads = proc::threads(::getpid());
 
   ASSERT_SOME(threads);
-  EXPECT_EQ(1u, threads.get().size());
-  EXPECT_EQ(1u, threads.get().count(::getpid()));
+  EXPECT_EQ(1u, threads->size());
+  EXPECT_EQ(1u, threads->count(::getpid()));
 }
 
 
@@ -116,8 +116,8 @@ TEST(ProcTest, MultipleThreads)
   Try<set<pid_t>> threads = proc::threads(::getpid());
 
   ASSERT_SOME(threads);
-  EXPECT_EQ(1u + numThreads, threads.get().size());
-  EXPECT_EQ(1u, threads.get().count(::getpid()));
+  EXPECT_EQ(1u + numThreads, threads->size());
+  EXPECT_EQ(1u, threads->count(::getpid()));
 
   // Terminate the additional threads.
   synchronized (mutex) {
@@ -140,7 +140,7 @@ TEST(ProcTest, MultipleThreads)
     threads = proc::threads(::getpid());
     ASSERT_SOME(threads);
 
-    if (threads.get().size() == 1) {
+    if (threads->size() == 1) {
       break;
     }
 

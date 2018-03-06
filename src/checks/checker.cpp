@@ -34,8 +34,10 @@
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
+#include <stout/variant.hpp>
 
 #include "checks/checker_process.hpp"
+#include "checks/checks_runtime.hpp"
 
 #include "common/http.hpp"
 #include "common/status_utils.hpp"
@@ -88,8 +90,7 @@ Try<Owned<Checker>> Checker::create(
     const string& launcherDir,
     const lambda::function<void(const CheckStatusInfo&)>& callback,
     const TaskID& taskId,
-    const Option<pid_t>& taskPid,
-    const vector<string>& namespaces)
+    Variant<runtime::Plain, runtime::Docker, runtime::Nested> runtime)
 {
   // Validate the `CheckInfo` protobuf.
   Option<Error> error = validation::checkInfo(check);
@@ -103,42 +104,7 @@ Try<Owned<Checker>> Checker::create(
           launcherDir,
           callback,
           taskId,
-          taskPid,
-          namespaces,
-          None(),
-          None(),
-          None(),
-          false));
-}
-
-
-Try<Owned<Checker>> Checker::create(
-    const CheckInfo& check,
-    const string& launcherDir,
-    const lambda::function<void(const CheckStatusInfo&)>& callback,
-    const TaskID& taskId,
-    const ContainerID& taskContainerId,
-    const http::URL& agentURL,
-    const Option<string>& authorizationHeader)
-{
-  // Validate the `CheckInfo` protobuf.
-  Option<Error> error = validation::checkInfo(check);
-  if (error.isSome()) {
-    return error.get();
-  }
-
-  return Owned<Checker>(
-      new Checker(
-          check,
-          launcherDir,
-          callback,
-          taskId,
-          None(),
-          {},
-          taskContainerId,
-          agentURL,
-          authorizationHeader,
-          true));
+          std::move(runtime)));
 }
 
 
@@ -147,16 +113,11 @@ Checker::Checker(
     const string& _launcherDir,
     const lambda::function<void(const CheckStatusInfo&)>& _callback,
     const TaskID& _taskId,
-    const Option<pid_t>& _taskPid,
-    const vector<string>& _namespaces,
-    const Option<ContainerID>& _taskContainerId,
-    const Option<http::URL>& _agentURL,
-    const Option<string>& _authorizationHeader,
-    bool _commandCheckViaAgent)
+    Variant<runtime::Plain, runtime::Docker, runtime::Nested> _runtime)
   : check(_check),
     callback(_callback),
-    name(CheckInfo::Type_Name(check.type()) + " check"),
     taskId(_taskId),
+    name(CheckInfo::Type_Name(check.type()) + " check"),
     previousCheckStatus(createEmptyCheckStatusInfo(_check))
 {
   VLOG(1) << "Check configuration for task '" << taskId << "':"
@@ -168,14 +129,10 @@ Checker::Checker(
           _launcherDir,
           std::bind(&Checker::processCheckResult, this, lambda::_1),
           _taskId,
-          _taskPid,
-          _namespaces,
-          _taskContainerId,
-          _agentURL,
-          _authorizationHeader,
-          None(),
           name,
-          _commandCheckViaAgent));
+          std::move(_runtime),
+          None(),
+          false));
 
   spawn(process.get());
 }

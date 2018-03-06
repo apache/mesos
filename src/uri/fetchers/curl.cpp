@@ -96,10 +96,16 @@ Future<Nothing> CurlFetcherPlugin::fetch(
   }
 
   // TODO(jieyu): Allow user to specify the name of the output file.
-  const string output = path::join(directory, Path(uri.path()).basename());
+  const string output =
+    path::join(directory, Path(path::from_uri(uri.path())).basename());
+#ifndef __WINDOWS__
+  const string curl = "curl";
+#else
+  const string curl = "curl.exe";
+#endif // __WINDOWS__
 
   const vector<string> argv = {
-    "curl",
+    curl,
     "-s",                 // Don't show progress meter or error messages.
     "-S",                 // Makes curl show an error message if it fails.
     "-L",                 // Follow HTTP 3xx redirects.
@@ -109,7 +115,7 @@ Future<Nothing> CurlFetcherPlugin::fetch(
   };
 
   Try<Subprocess> s = subprocess(
-      "curl",
+      curl,
       argv,
       Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
@@ -120,9 +126,9 @@ Future<Nothing> CurlFetcherPlugin::fetch(
   }
 
   return await(
-      s.get().status(),
-      io::read(s.get().out().get()),
-      io::read(s.get().err().get()))
+      s->status(),
+      io::read(s->out().get()),
+      io::read(s->err().get()))
     .then([](const tuple<
         Future<Option<int>>,
         Future<string>,

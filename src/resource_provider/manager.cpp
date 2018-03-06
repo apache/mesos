@@ -32,6 +32,9 @@
 #include <process/id.hpp>
 #include <process/process.hpp>
 
+#include <process/metrics/gauge.hpp>
+#include <process/metrics/metrics.hpp>
+
 #include <stout/hashmap.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/uuid.hpp>
@@ -80,6 +83,7 @@ using process::http::UnsupportedMediaType;
 
 using process::http::authentication::Principal;
 
+using process::metrics::Gauge;
 
 namespace mesos {
 namespace internal {
@@ -188,17 +192,28 @@ private:
 
   ResourceProviderID newResourceProviderId();
 
+  double gaugeSubscribed();
+
   struct ResourceProviders
   {
     hashmap<ResourceProviderID, Owned<ResourceProvider>> subscribed;
   } resourceProviders;
+
+  struct Metrics
+  {
+    explicit Metrics(const ResourceProviderManagerProcess& manager);
+    ~Metrics();
+
+    Gauge subscribed;
+  };
+
+  Metrics metrics;
 };
 
 
 ResourceProviderManagerProcess::ResourceProviderManagerProcess()
-  : ProcessBase(process::ID::generate("resource-provider-manager"))
-{
-}
+  : ProcessBase(process::ID::generate("resource-provider-manager")),
+    metrics(*this) {}
 
 
 Future<http::Response> ResourceProviderManagerProcess::api(
@@ -739,6 +754,28 @@ ResourceProviderID ResourceProviderManagerProcess::newResourceProviderId()
   ResourceProviderID resourceProviderId;
   resourceProviderId.set_value(id::UUID::random().toString());
   return resourceProviderId;
+}
+
+
+double ResourceProviderManagerProcess::gaugeSubscribed()
+{
+  return static_cast<double>(resourceProviders.subscribed.size());
+}
+
+
+ResourceProviderManagerProcess::Metrics::Metrics(
+    const ResourceProviderManagerProcess& manager)
+  : subscribed(
+      "resource_provider_manager/subscribed",
+      defer(manager, &ResourceProviderManagerProcess::gaugeSubscribed))
+{
+  process::metrics::add(subscribed);
+}
+
+
+ResourceProviderManagerProcess::Metrics::~Metrics()
+{
+  process::metrics::remove(subscribed);
 }
 
 

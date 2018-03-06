@@ -623,19 +623,25 @@ We send an HTTP POST request to the master's
               "name": "cpus",
               "type": "SCALAR",
               "scalar": { "value": 8 },
-              "role": "ads",
-              "reservation": {
-                "principal": <operator_principal>
-              }
+              "reservations": [
+                {
+                  type: DYNAMIC,
+                  role: "ads",
+                  principal: <operator_principal>,
+                }
+              ]
             },
             {
               "name": "mem",
               "type": "SCALAR",
               "scalar": { "value": 4096 },
-              "role": "ads",
-              "reservation": {
-                "principal": <operator_principal>
-              }
+              "reservations": [
+                {
+                  type: DYNAMIC,
+                  role: "ads",
+                  principal: <operator_principal>,
+                }
+              ]
             }
           ]' \
           -X POST http://<ip>:<port>/master/reserve
@@ -671,19 +677,25 @@ We can send an HTTP POST request to the master's
               "name": "cpus",
               "type": "SCALAR",
               "scalar": { "value": 8 },
-              "role": "ads",
-              "reservation": {
-                "principal": <reserver_principal>
-              }
+              "reservations": [
+                {
+                  type: DYNAMIC,
+                  role: "ads",
+                  principal: <reserver_principal>,
+                }
+              ]
             },
             {
               "name": "mem",
               "type": "SCALAR",
               "scalar": { "value": 4096 },
-              "role": "ads",
-              "reservation": {
-                "principal": <reserver_principal>
-              }
+              "reservations": [
+                {
+                  type: DYNAMIC,
+                  role: "ads",
+                  principal: <reserver_principal>,
+                }
+              ]
             }
           ]' \
           -X POST http://<ip>:<port>/master/unreserve

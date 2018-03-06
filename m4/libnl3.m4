@@ -46,10 +46,10 @@ AC_ARG_WITH([nl],
 # this macro is used.
 AS_IF([test x$ac_mesos_have_libnl3 = x], [
   AS_IF([test -n "$with_nl"], [
-    CPPFLAGS="-isystem ${with_nl}/include/libnl3 $CPPFLAGS"
+    CPPFLAGS="-I${with_nl}/include/libnl3 $CPPFLAGS"
     LDFLAGS="-L${with_nl}/lib $LDFLAGS"
   ], [
-    CPPFLAGS="-isystem /usr/include/libnl3 $CPPFLAGS"
+    CPPFLAGS="-I/usr/include/libnl3 $CPPFLAGS"
   ])
 ])
 

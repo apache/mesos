@@ -271,7 +271,7 @@ protected:
    * Sets up a handler for HTTP requests with the specified name.
    *
    * @param name The endpoint or URL to route.
-   *     Must begin with a `/`.
+   *     Must begin with a `/` and must not end with a '/'.
    */
   void route(
       const std::string& name,

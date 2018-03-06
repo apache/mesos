@@ -37,7 +37,7 @@ TEST(SomeTest, Some)
   Try<Option<int>> t1 = Some(42);
   ASSERT_SOME(t1);
   EXPECT_SOME(t1.get());
-  EXPECT_EQ(42, t1.get().get());
+  EXPECT_EQ(42, t1->get());
   t1 = None();
   ASSERT_SOME(t1);
   EXPECT_NONE(t1.get());
@@ -45,27 +45,27 @@ TEST(SomeTest, Some)
   Try<Result<int>> t2 = Some(42);
   ASSERT_SOME(t2);
   EXPECT_SOME(t2.get());
-  EXPECT_EQ(42, t2.get().get());
+  EXPECT_EQ(42, t2->get());
 
   Option<Result<int>> o2 = Some(42);
   ASSERT_SOME(o2);
   EXPECT_SOME(o2.get());
-  EXPECT_EQ(42, o2.get().get());
+  EXPECT_EQ(42, o2->get());
 
   Option<Result<int>> o3 = Some(Some(42));
   ASSERT_SOME(o3);
   EXPECT_SOME(o3.get());
-  EXPECT_EQ(42, o3.get().get());
+  EXPECT_EQ(42, o3->get());
 
   Result<Option<int>> r2 = Some(42);
   ASSERT_SOME(r2);
   EXPECT_SOME(r2.get());
-  EXPECT_EQ(42, r2.get().get());
+  EXPECT_EQ(42, r2->get());
 
   Result<Option<int>> r3 = Some(Some(42));
   ASSERT_SOME(r3);
   EXPECT_SOME(r3.get());
-  EXPECT_EQ(42, r3.get().get());
+  EXPECT_EQ(42, r3->get());
 
   Option<string> o4 = Some("hello");
   EXPECT_SOME(o4);

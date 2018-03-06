@@ -62,8 +62,13 @@
 #include <stout/os/environment.hpp>
 #include <stout/os/kill.hpp>
 #include <stout/os/killtree.hpp>
+#ifdef __WINDOWS__
+#include <stout/windows/os.hpp>
+#endif // __WINDOWS__
 
 #include "checks/checker.hpp"
+#include "checks/checks_runtime.hpp"
+#include "checks/checks_types.hpp"
 #include "checks/health_checker.hpp"
 
 #include "common/http.hpp"
@@ -485,6 +490,11 @@ protected:
     vector<process::Subprocess::ParentHook> parentHooks;
 #ifdef __WINDOWS__
     parentHooks.emplace_back(Subprocess::ParentHook::CREATE_JOB());
+    // Setting the "kill on close" job object limit ties the lifetime of the
+    // task to that of the executor. This ensures that if the executor exits,
+    // its task exits too.
+    parentHooks.emplace_back(Subprocess::ParentHook(
+        [](pid_t pid) { return os::set_job_kill_on_close_limit(pid); }));
 #endif // __WINDOWS__
 
     Try<Subprocess> s = subprocess(
@@ -663,14 +673,14 @@ protected:
         namespaces.push_back("mnt");
       }
 
+      const checks::runtime::Plain plainRuntime{namespaces, pid};
       Try<Owned<checks::Checker>> _checker =
         checks::Checker::create(
             task.check(),
             launcherDir,
             defer(self(), &Self::taskCheckUpdated, taskId.get(), lambda::_1),
             taskId.get(),
-            pid,
-            namespaces);
+            plainRuntime);
 
       if (_checker.isError()) {
         // TODO(alexr): Consider ABORT and return a TASK_FAILED here.
@@ -693,14 +703,14 @@ protected:
         namespaces.push_back("mnt");
       }
 
+      const checks::runtime::Plain plainRuntime{namespaces, pid};
       Try<Owned<checks::HealthChecker>> _healthChecker =
         checks::HealthChecker::create(
             task.health_check(),
             launcherDir,
             defer(self(), &Self::taskHealthUpdated, lambda::_1),
             taskId.get(),
-            pid,
-            namespaces);
+            plainRuntime);
 
       if (_healthChecker.isError()) {
         // TODO(gilbert): Consider ABORT and return a TASK_FAILED here.
@@ -796,11 +806,6 @@ private:
       // order to avoid possible confusion when a subsequent kill overrides
       // the previous one and gives the task _more_ time to clean up. Other
       // systems, e.g., docker, do not allow this.
-      //
-      // The escalation grace period can be only decreased. We intentionally
-      // do not support increasing the total grace period for the terminating
-      // task, because we do not want users to "slow down" a kill that is in
-      // progress. Also note that docker does not support this currently.
       //
       // Here are some examples to illustrate:
       //
@@ -914,11 +919,11 @@ private:
       message =
         "Failed to get exit status for Command: " +
         (status_.isFailed() ? status_.failure() : "future discarded");
-    } else if (status_.get().isNone()) {
+    } else if (status_->isNone()) {
       taskState = TASK_FAILED;
       message = "Failed to get exit status for Command";
     } else {
-      int status = status_.get().get();
+      int status = status_->get();
       CHECK(WIFEXITED(status) || WIFSIGNALED(status))
         << "Unexpected wait status " << status;
 

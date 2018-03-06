@@ -46,8 +46,8 @@ public:
 #else
     Option<int> pipe_read;
     Option<int> pipe_write;
-    Option<std::string> runtime_directory;
 #endif // __WINDOWS__
+    Option<std::string> runtime_directory;
 #ifdef __linux__
     Option<pid_t> namespace_mnt_target;
     bool unshare_namespace_mnt;

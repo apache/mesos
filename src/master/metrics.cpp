@@ -481,6 +481,20 @@ Metrics::~Metrics()
 }
 
 
+void Metrics::incrementInvalidSchedulerCalls(const scheduler::Call& call) {
+  if (call.type() == scheduler::Call::ACKNOWLEDGE) {
+    invalid_status_update_acknowledgements++;
+  }
+
+  if (call.type() == scheduler::Call::MESSAGE) {
+    invalid_framework_to_executor_messages++;
+  }
+
+  // TODO(gkleiman): Increment other metrics when we add counters for all
+  // the different types of scheduler calls. See MESOS-8533.
+}
+
+
 void Metrics::incrementTasksStates(
     const TaskState& state,
     const TaskStatus::Source& source,

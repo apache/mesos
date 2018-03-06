@@ -404,7 +404,7 @@ struct SlaveWriter
     writer->field("registered_time", slave_.registeredTime.secs());
 
     if (slave_.reregisteredTime.isSome()) {
-      writer->field("reregistered_time", slave_.reregisteredTime.get().secs());
+      writer->field("reregistered_time", slave_.reregisteredTime->secs());
     }
 
     const Resources& totalResources = slave_.totalResources;
@@ -627,7 +627,7 @@ Future<Response> Master::Http::api(
 
   CHECK_SOME(master->recovered);
 
-  if (!master->recovered.get().isReady()) {
+  if (!master->recovered->isReady()) {
     return ServiceUnavailable("Master has not finished recovery");
   }
 
@@ -675,8 +675,7 @@ Future<Response> Master::Http::api(
   Option<Error> error = validation::master::call::validate(call, principal);
 
   if (error.isSome()) {
-    return BadRequest("Failed to validate master::Call: " +
-                      error.get().message);
+    return BadRequest("Failed to validate master::Call: " + error->message);
   }
 
   LOG(INFO) << "Processing call " << call.type();
@@ -731,6 +730,9 @@ Future<Response> Master::Http::api(
 
     case mesos::master::Call::GET_EXECUTORS:
       return getExecutors(call, principal, acceptType);
+
+    case mesos::master::Call::GET_OPERATIONS:
+      return getOperations(call, principal, acceptType);
 
     case mesos::master::Call::GET_TASKS:
       return getTasks(call, principal, acceptType);
@@ -932,7 +934,7 @@ Future<Response> Master::Http::scheduler(
 
   CHECK_SOME(master->recovered);
 
-  if (!master->recovered.get().isReady()) {
+  if (!master->recovered->isReady()) {
     return ServiceUnavailable("Master has not finished recovery");
   }
 
@@ -980,8 +982,8 @@ Future<Response> Master::Http::scheduler(
   Option<Error> error = validation::scheduler::call::validate(call, principal);
 
   if (error.isSome()) {
-    return BadRequest("Failed to validate scheduler::Call: " +
-                      error.get().message);
+    master->metrics->incrementInvalidSchedulerCalls(call);
+    return BadRequest("Failed to validate scheduler::Call: " + error->message);
   }
 
   if (call.type() == scheduler::Call::SUBSCRIBE) {
@@ -1077,7 +1079,7 @@ Future<Response> Master::Http::scheduler(
   }
 
   const string& streamId = request.headers.at("Mesos-Stream-Id");
-  if (streamId != framework->http.get().streamId.toString()) {
+  if (streamId != framework->http->streamId.toString()) {
     return BadRequest(
         "The stream ID '" + streamId + "' included in this request "
         "didn't match the stream ID currently associated with framework ID "
@@ -1259,7 +1261,7 @@ Future<Response> Master::Http::createVolumes(
   }
 
   RepeatedPtrField<Resource> volumes;
-  foreach (const JSON::Value& value, parse.get().values) {
+  foreach (const JSON::Value& value, parse->values) {
     Try<Resource> volume = ::protobuf::parse<Resource>(value);
     if (volume.isError()) {
       return BadRequest(
@@ -1433,7 +1435,7 @@ Future<Response> Master::Http::destroyVolumes(
   }
 
   RepeatedPtrField<Resource> volumes;
-  foreach (const JSON::Value& value, parse.get().values) {
+  foreach (const JSON::Value& value, parse->values) {
     Try<Resource> volume = ::protobuf::parse<Resource>(value);
     if (volume.isError()) {
       return BadRequest(
@@ -2253,7 +2255,7 @@ Future<Response> Master::Http::getMaster(
 
   getMaster->set_start_time(master->startTime.secs());
   if (master->electedTime.isSome()) {
-    getMaster->set_elected_time(master->electedTime.get().secs());
+    getMaster->set_elected_time(master->electedTime->secs());
   }
 
   return OK(serialize(contentType, evolve(response)),
@@ -2427,7 +2429,7 @@ Future<Response> Master::Http::reserve(
   }
 
   RepeatedPtrField<Resource> resources;
-  foreach (const JSON::Value& value, parse.get().values) {
+  foreach (const JSON::Value& value, parse->values) {
     Try<Resource> resource = ::protobuf::parse<Resource>(value);
     if (resource.isError()) {
       return BadRequest(
@@ -2917,7 +2919,7 @@ Future<Response> Master::Http::state(
         writer->field("start_time", master->startTime.secs());
 
         if (master->electedTime.isSome()) {
-          writer->field("elected_time", master->electedTime.get().secs());
+          writer->field("elected_time", master->electedTime->secs());
         }
 
         writer->field("id", master->info().id());
@@ -3883,6 +3885,31 @@ Future<Response> Master::Http::teardown(
   CHECK_EQ(mesos::master::Call::TEARDOWN, call.type());
 
   return _teardown(call.teardown().framework_id(), principal);
+}
+
+
+Future<Response> Master::Http::getOperations(
+    const mesos::master::Call& call,
+    const Option<Principal>& principal,
+    ContentType contentType) const
+{
+  CHECK_EQ(mesos::master::Call::GET_OPERATIONS, call.type());
+
+  // TODO(nfnt): Authorize this call (MESOS-8473).
+
+  mesos::master::Response response;
+  response.set_type(mesos::master::Response::GET_OPERATIONS);
+
+  mesos::master::Response::GetOperations* operations =
+    response.mutable_get_operations();
+
+  foreachvalue (const Slave* slave, master->slaves.registered) {
+    foreachvalue (Operation* operation, slave->operations) {
+      operations->add_operations()->CopyFrom(*operation);
+    }
+  }
+
+  return OK(serialize(contentType, evolve(response)), stringify(contentType));
 }
 
 
@@ -5182,7 +5209,7 @@ Future<Response> Master::Http::unreserve(
   }
 
   RepeatedPtrField<Resource> resources;
-  foreach (const JSON::Value& value, parse.get().values) {
+  foreach (const JSON::Value& value, parse->values) {
     Try<Resource> resource = ::protobuf::parse<Resource>(value);
     if (resource.isError()) {
       return BadRequest(

@@ -118,7 +118,7 @@ TEST(SorterTest, DRFSorter)
 
   EXPECT_FALSE(sorter.contains("a"));
 
-  EXPECT_EQ(5, sorter.count());
+  EXPECT_EQ(5u, sorter.count());
 
   sorter.deactivate("d");
 
@@ -126,7 +126,7 @@ TEST(SorterTest, DRFSorter)
 
   EXPECT_EQ(vector<string>({"e", "b", "c", "f"}), sorter.sort());
 
-  EXPECT_EQ(5, sorter.count());
+  EXPECT_EQ(5u, sorter.count());
 
   sorter.activate("d");
 
@@ -385,7 +385,7 @@ TEST(SorterTest, ShallowHierarchy)
 
   EXPECT_FALSE(sorter.contains("a/a"));
 
-  EXPECT_EQ(5, sorter.count());
+  EXPECT_EQ(5u, sorter.count());
 
   sorter.deactivate("d/d");
 
@@ -393,7 +393,7 @@ TEST(SorterTest, ShallowHierarchy)
 
   EXPECT_EQ(vector<string>({"e/e", "b/b", "c/c", "f/f"}), sorter.sort());
 
-  EXPECT_EQ(5, sorter.count());
+  EXPECT_EQ(5u, sorter.count());
 
   sorter.activate("d/d");
 
@@ -482,7 +482,7 @@ TEST(SorterTest, DeepHierarchy)
 
   EXPECT_FALSE(sorter.contains("a/a/a/a/a"));
 
-  EXPECT_EQ(5, sorter.count());
+  EXPECT_EQ(5u, sorter.count());
 
   sorter.deactivate("d/d");
 
@@ -491,7 +491,7 @@ TEST(SorterTest, DeepHierarchy)
   EXPECT_EQ(vector<string>({"e/e/e/e/e/e", "b/b/b/b", "c/c/c", "f/f"}),
             sorter.sort());
 
-  EXPECT_EQ(5, sorter.count());
+  EXPECT_EQ(5u, sorter.count());
 
   sorter.activate("d/d");
 
@@ -517,7 +517,7 @@ TEST(SorterTest, HierarchicalAllocation)
   sorter.activate("b/c");
   sorter.activate("b/d");
 
-  EXPECT_EQ(3, sorter.count());
+  EXPECT_EQ(3u, sorter.count());
   EXPECT_TRUE(sorter.contains("a"));
   EXPECT_FALSE(sorter.contains("b"));
   EXPECT_TRUE(sorter.contains("b/c"));
@@ -545,7 +545,7 @@ TEST(SorterTest, HierarchicalAllocation)
     hashmap<string, Resources> agentAllocation =
       sorter.allocation(slaveId);
 
-    EXPECT_EQ(3, agentAllocation.size());
+    EXPECT_EQ(3u, agentAllocation.size());
     EXPECT_EQ(aResources, agentAllocation.at("a"));
     EXPECT_EQ(cResources, agentAllocation.at("b/c"));
     EXPECT_EQ(dResources, agentAllocation.at("b/d"));
@@ -581,7 +581,7 @@ TEST(SorterTest, HierarchicalAllocation)
   sorter.remove("b/e/f");
 
   EXPECT_FALSE(sorter.contains("b/e/f"));
-  EXPECT_EQ(3, sorter.count());
+  EXPECT_EQ(3u, sorter.count());
 
   // Shares: b/d = 0.03, b/c = 0.04, a = 0.08.
   EXPECT_EQ(vector<string>({"b/d", "b/c", "a"}), sorter.sort());
@@ -601,7 +601,7 @@ TEST(SorterTest, HierarchicalAllocation)
   // Shares: b/c = 0.01, b/d = 0.03, b/e/f = 0.035, a = 0.08.
   EXPECT_EQ(vector<string>({"b/c", "b/d", "b/e/f", "a"}), sorter.sort());
 
-  EXPECT_EQ(4, sorter.count());
+  EXPECT_EQ(4u, sorter.count());
 }
 
 
@@ -1361,7 +1361,7 @@ TEST(SorterTest, SharedResources)
 
   EXPECT_FALSE(sorter.contains("a"));
 
-  EXPECT_EQ(3, sorter.count());
+  EXPECT_EQ(3u, sorter.count());
 }
 
 

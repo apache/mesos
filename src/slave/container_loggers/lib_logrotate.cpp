@@ -209,7 +209,7 @@ public:
     // ownership of the FDs.  See the NOTE above.
     if (::pipe(pipefd) == -1) {
       os::close(outfds.write.get());
-      os::killtree(outProcess.get().pid(), SIGKILL);
+      os::killtree(outProcess->pid(), SIGKILL);
       return Failure(ErrnoError("Failed to create pipe").message);
     }
 
@@ -224,7 +224,7 @@ public:
       os::close(outfds.write.get());
       os::close(errfds.read);
       os::close(errfds.write.get());
-      os::killtree(outProcess.get().pid(), SIGKILL);
+      os::killtree(outProcess->pid(), SIGKILL);
       return Failure("Failed to cloexec: " + cloexec.error());
     }
 
@@ -250,7 +250,7 @@ public:
     if (errProcess.isError()) {
       os::close(outfds.write.get());
       os::close(errfds.write.get());
-      os::killtree(outProcess.get().pid(), SIGKILL);
+      os::killtree(outProcess->pid(), SIGKILL);
       return Failure("Failed to create logger process: " + errProcess.error());
     }
 

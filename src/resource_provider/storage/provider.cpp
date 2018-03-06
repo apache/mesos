@@ -33,6 +33,9 @@
 #include <process/sequence.hpp>
 #include <process/timeout.hpp>
 
+#include <process/metrics/counter.hpp>
+#include <process/metrics/metrics.hpp>
+
 #include <mesos/resources.hpp>
 #include <mesos/type_utils.hpp>
 
@@ -99,6 +102,8 @@ using process::spawn;
 using process::undiscardable;
 
 using process::http::authentication::Principal;
+
+using process::metrics::Counter;
 
 using mesos::internal::protobuf::convertLabelsToStringMap;
 using mesos::internal::protobuf::convertStringMapToLabels;
@@ -300,7 +305,8 @@ public:
       strict(_strict),
       reconciling(false),
       resourceVersion(id::UUID::random()),
-      operationSequence("operation-sequence")
+      operationSequence("operation-sequence"),
+      metrics("resource_providers/" + info.type() + "." + info.name() + "/")
   {
     diskProfileAdaptor = DiskProfileAdaptor::getAdaptor();
     CHECK_NOTNULL(diskProfileAdaptor.get());
@@ -472,6 +478,15 @@ private:
   // creation or destroy. These operations will not be sequentialized
   // through the sequence. It is simply used to wait for them to finish.
   Sequence operationSequence;
+
+  struct Metrics
+  {
+    explicit Metrics(const string& prefix);
+    ~Metrics();
+
+    Counter csi_controller_plugin_terminations;
+    Counter csi_node_plugin_terminations;
+  } metrics;
 };
 
 
@@ -636,9 +651,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::recover()
       loop(
           self(),
           [=] {
-            return diskProfileAdaptor->watch(
-                knownProfiles,
-                info.storage().plugin().type())
+            return diskProfileAdaptor->watch(knownProfiles, info)
               .then(defer(self(), [=](const hashset<string>& profiles) {
                 // Save the returned set of profiles so that we
                 // can watch the module for changes to it.
@@ -691,8 +704,21 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverServices()
   list<Future<Nothing>> futures;
 
   foreach (const string& path, containerPaths.get()) {
-    ContainerID containerId;
-    containerId.set_value(Path(path).basename());
+    Try<csi::paths::ContainerPath> containerPath =
+      csi::paths::parseContainerPath(
+          slave::paths::getCsiRootDir(workDir),
+          path);
+
+    if (containerPath.isError()) {
+      return Failure(
+          "Failed to parse container path '" + path + "': " +
+          containerPath.error());
+    }
+
+    CHECK_EQ(info.storage().plugin().type(), containerPath->type);
+    CHECK_EQ(info.storage().plugin().name(), containerPath->name);
+
+    const ContainerID& containerId = containerPath->containerId;
 
     // Do not kill the up-to-date controller or node container.
     // Otherwise, kill them and perform cleanups.
@@ -705,7 +731,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverServices()
           containerId);
 
       if (os::exists(configPath)) {
-        Try<CSIPluginContainerInfo> config =
+        Result<CSIPluginContainerInfo> config =
           slave::state::read<CSIPluginContainerInfo>(configPath);
 
         if (config.isError()) {
@@ -714,7 +740,8 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverServices()
               configPath + "': " + config.error());
         }
 
-        if (getCSIPluginContainerInfo(info, containerId) == config.get()) {
+        if (config.isSome() &&
+            getCSIPluginContainerInfo(info, containerId) == config.get()) {
           continue;
         }
       }
@@ -799,7 +826,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverVolumes()
       continue;
     }
 
-    Try<csi::state::VolumeState> volumeState =
+    Result<csi::state::VolumeState> volumeState =
       slave::state::read<csi::state::VolumeState>(statePath);
 
     if (volumeState.isError()) {
@@ -808,67 +835,69 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverVolumes()
           volumeState.error());
     }
 
-    volumes.put(volumeId, std::move(volumeState.get()));
+    if (volumeState.isSome()) {
+      volumes.put(volumeId, std::move(volumeState.get()));
 
-    Future<Nothing> recovered = Nothing();
+      Future<Nothing> recovered = Nothing();
 
-    switch (volumes.at(volumeId).state.state()) {
-      case csi::state::VolumeState::CREATED:
-      case csi::state::VolumeState::NODE_READY: {
-        break;
-      }
-      case csi::state::VolumeState::PUBLISHED: {
-        if (volumes.at(volumeId).state.boot_id() != bootId) {
-          // The node has been restarted since the volume is mounted,
-          // so it is no longer in the `PUBLISHED` state.
-          volumes.at(volumeId).state.set_state(
-              csi::state::VolumeState::NODE_READY);
-          volumes.at(volumeId).state.clear_boot_id();
-          checkpointVolumeState(volumeId);
+      switch (volumes.at(volumeId).state.state()) {
+        case csi::state::VolumeState::CREATED:
+        case csi::state::VolumeState::NODE_READY: {
+          break;
         }
-        break;
-      }
-      case csi::state::VolumeState::CONTROLLER_PUBLISH: {
-        recovered =
-          volumes.at(volumeId).sequence->add(std::function<Future<Nothing>()>(
-              defer(self(), &Self::controllerPublish, volumeId)));
-        break;
-      }
-      case csi::state::VolumeState::CONTROLLER_UNPUBLISH: {
-        recovered =
-          volumes.at(volumeId).sequence->add(std::function<Future<Nothing>()>(
-              defer(self(), &Self::controllerUnpublish, volumeId)));
-        break;
-      }
-      case csi::state::VolumeState::NODE_PUBLISH: {
-        recovered =
-          volumes.at(volumeId).sequence->add(std::function<Future<Nothing>()>(
-              defer(self(), &Self::nodePublish, volumeId)));
-        break;
-      }
-      case csi::state::VolumeState::NODE_UNPUBLISH: {
-        recovered =
-          volumes.at(volumeId).sequence->add(std::function<Future<Nothing>()>(
-              defer(self(), &Self::nodeUnpublish, volumeId)));
-        break;
-      }
-      case csi::state::VolumeState::UNKNOWN: {
-        recovered = Failure(
-            "Volume '" + volumeId + "' is in " +
-            stringify(volumes.at(volumeId).state.state()) + " state");
+        case csi::state::VolumeState::PUBLISHED: {
+          if (volumes.at(volumeId).state.boot_id() != bootId) {
+            // The node has been restarted since the volume is mounted,
+            // so it is no longer in the `PUBLISHED` state.
+            volumes.at(volumeId).state.set_state(
+                csi::state::VolumeState::NODE_READY);
+            volumes.at(volumeId).state.clear_boot_id();
+            checkpointVolumeState(volumeId);
+          }
+          break;
+        }
+        case csi::state::VolumeState::CONTROLLER_PUBLISH: {
+          recovered =
+            volumes.at(volumeId).sequence->add(std::function<Future<Nothing>()>(
+                defer(self(), &Self::controllerPublish, volumeId)));
+          break;
+        }
+        case csi::state::VolumeState::CONTROLLER_UNPUBLISH: {
+          recovered =
+            volumes.at(volumeId).sequence->add(std::function<Future<Nothing>()>(
+                defer(self(), &Self::controllerUnpublish, volumeId)));
+          break;
+        }
+        case csi::state::VolumeState::NODE_PUBLISH: {
+          recovered =
+            volumes.at(volumeId).sequence->add(std::function<Future<Nothing>()>(
+                defer(self(), &Self::nodePublish, volumeId)));
+          break;
+        }
+        case csi::state::VolumeState::NODE_UNPUBLISH: {
+          recovered =
+            volumes.at(volumeId).sequence->add(std::function<Future<Nothing>()>(
+                defer(self(), &Self::nodeUnpublish, volumeId)));
+          break;
+        }
+        case csi::state::VolumeState::UNKNOWN: {
+          recovered = Failure(
+              "Volume '" + volumeId + "' is in " +
+              stringify(volumes.at(volumeId).state.state()) + " state");
+        }
+
+        // NOTE: We avoid using a default clause for the following
+        // values in proto3's open enum to enable the compiler to detect
+        // missing enum cases for us. See:
+        // https://github.com/google/protobuf/issues/3917
+        case google::protobuf::kint32min:
+        case google::protobuf::kint32max: {
+          UNREACHABLE();
+        }
       }
 
-      // NOTE: We avoid using a default clause for the following
-      // values in proto3's open enum to enable the compiler to detect
-      // missing enum cases for us. See:
-      // https://github.com/google/protobuf/issues/3917
-      case google::protobuf::kint32min:
-      case google::protobuf::kint32max: {
-        UNREACHABLE();
-      }
+      futures.push_back(recovered);
     }
-
-    futures.push_back(recovered);
   }
 
   return collect(futures).then([] { return Nothing(); });
@@ -903,7 +932,7 @@ StorageLocalResourceProviderProcess::recoverResourceProviderState()
       return Nothing();
     }
 
-    Try<ResourceProviderState> resourceProviderState =
+    Result<ResourceProviderState> resourceProviderState =
       slave::state::read<ResourceProviderState>(statePath);
 
     if (resourceProviderState.isError()) {
@@ -912,16 +941,18 @@ StorageLocalResourceProviderProcess::recoverResourceProviderState()
           "': " + resourceProviderState.error());
     }
 
-    foreach (const Operation& operation,
-             resourceProviderState->operations()) {
-      Try<id::UUID> uuid = id::UUID::fromBytes(operation.uuid().value());
+    if (resourceProviderState.isSome()) {
+      foreach (const Operation& operation,
+               resourceProviderState->operations()) {
+        Try<id::UUID> uuid = id::UUID::fromBytes(operation.uuid().value());
 
-      CHECK_SOME(uuid);
+        CHECK_SOME(uuid);
 
-      operations[uuid.get()] = operation;
+        operations[uuid.get()] = operation;
+      }
+
+      totalResources = resourceProviderState->resources();
     }
-
-    totalResources = resourceProviderState->resources();
   }
 
   return Nothing();
@@ -962,11 +993,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverProfiles()
   // required profiles have been recovered.
   return loop(
       self(),
-      [=] {
-        return diskProfileAdaptor->watch(
-            knownProfiles,
-            info.storage().plugin().type());
-      },
+      [=] { return diskProfileAdaptor->watch(knownProfiles, info); },
       [=](const hashset<string>& profiles) -> ControlFlow<Nothing> {
         // Save the returned set of profiles so that we can watch the
         // module for changes to it, both in this loop and after
@@ -1250,8 +1277,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::updateProfiles()
       continue;
     }
 
-    futures.push_back(diskProfileAdaptor->translate(
-        profile, info.storage().plugin().type())
+    futures.push_back(diskProfileAdaptor->translate(profile, info)
       .then(defer(self(), [=](const DiskProfileAdaptor::ProfileInfo& info) {
         profileInfos.put(profile, info);
         return Nothing();
@@ -1801,6 +1827,14 @@ Future<csi::Client> StorageLocalResourceProviderProcess::getService(
           }));
       })),
       std::function<Future<Nothing>()>(defer(self(), [=]() -> Future<Nothing> {
+        if (containerId == controllerContainerId) {
+          metrics.csi_controller_plugin_terminations++;
+        }
+
+        if (containerId == nodeContainerId) {
+          metrics.csi_node_plugin_terminations++;
+        }
+
         services.at(containerId)->discard();
         services.at(containerId).reset(new Promise<csi::Client>());
 
@@ -2425,7 +2459,7 @@ Future<string> StorageLocalResourceProviderProcess::validateCapability(
       google::protobuf::Map<string, string> volumeAttributes;
 
       if (metadata.isSome()) {
-        volumeAttributes.swap(convertLabelsToStringMap(metadata.get()).get());
+        volumeAttributes = convertLabelsToStringMap(metadata.get()).get();
       }
 
       csi::ValidateVolumeCapabilitiesRequest request;
@@ -3125,6 +3159,24 @@ void StorageLocalResourceProviderProcess::sendOperationStatusUpdate(
   driver->send(evolve(call))
     .onFailed(std::bind(err, uuid.get(), lambda::_1))
     .onDiscarded(std::bind(err, uuid.get(), "future discarded"));
+}
+
+
+StorageLocalResourceProviderProcess::Metrics::Metrics(const string& prefix)
+  : csi_controller_plugin_terminations(
+        prefix + "csi_controller_plugin_terminations"),
+    csi_node_plugin_terminations(
+        prefix + "csi_node_plugin_terminations")
+{
+  process::metrics::add(csi_controller_plugin_terminations);
+  process::metrics::add(csi_node_plugin_terminations);
+}
+
+
+StorageLocalResourceProviderProcess::Metrics::~Metrics()
+{
+  process::metrics::remove(csi_controller_plugin_terminations);
+  process::metrics::remove(csi_node_plugin_terminations);
 }
 
 

@@ -190,17 +190,17 @@ TEST_F(MetricsTest, Statistics)
   Option<Statistics<double>> statistics = counter.statistics();
   EXPECT_SOME(statistics);
 
-  EXPECT_EQ(11u, statistics.get().count);
+  EXPECT_EQ(11u, statistics->count);
 
-  EXPECT_DOUBLE_EQ(0.0, statistics.get().min);
-  EXPECT_DOUBLE_EQ(10.0, statistics.get().max);
+  EXPECT_DOUBLE_EQ(0.0, statistics->min);
+  EXPECT_DOUBLE_EQ(10.0, statistics->max);
 
-  EXPECT_DOUBLE_EQ(5.0, statistics.get().p50);
-  EXPECT_DOUBLE_EQ(9.0, statistics.get().p90);
-  EXPECT_DOUBLE_EQ(9.5, statistics.get().p95);
-  EXPECT_DOUBLE_EQ(9.9, statistics.get().p99);
-  EXPECT_DOUBLE_EQ(9.99, statistics.get().p999);
-  EXPECT_DOUBLE_EQ(9.999, statistics.get().p9999);
+  EXPECT_DOUBLE_EQ(5.0, statistics->p50);
+  EXPECT_DOUBLE_EQ(9.0, statistics->p90);
+  EXPECT_DOUBLE_EQ(9.5, statistics->p95);
+  EXPECT_DOUBLE_EQ(9.9, statistics->p99);
+  EXPECT_DOUBLE_EQ(9.99, statistics->p999);
+  EXPECT_DOUBLE_EQ(9.999, statistics->p9999);
 
   AWAIT_READY(metrics::remove(counter));
 }
@@ -235,11 +235,10 @@ TEST_F(MetricsTest, THREADSAFE_Snapshot)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   // Parse the response.
-  Try<JSON::Object> responseJSON =
-      JSON::parse<JSON::Object>(response.get().body);
+  Try<JSON::Object> responseJSON = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(responseJSON);
 
-  map<string, JSON::Value> values = responseJSON.get().values;
+  map<string, JSON::Value> values = responseJSON->values;
 
   EXPECT_EQ(1u, values.count("test/counter"));
   EXPECT_DOUBLE_EQ(0.0, values["test/counter"].as<JSON::Number>().as<double>());
@@ -270,10 +269,10 @@ TEST_F(MetricsTest, THREADSAFE_Snapshot)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   // Parse the response.
-  responseJSON = JSON::parse<JSON::Object>(response.get().body);
+  responseJSON = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(responseJSON);
 
-  values = responseJSON.get().values;
+  values = responseJSON->values;
   EXPECT_EQ(0u, values.count("test/counter"));
   EXPECT_EQ(0u, values.count("test/gauge"));
   EXPECT_EQ(0u, values.count("test/gauge_fail"));
@@ -387,14 +386,13 @@ TEST_F(MetricsTest, THREADSAFE_SnapshotTimeout)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   // Parse the response.
-  Try<JSON::Object> responseJSON =
-      JSON::parse<JSON::Object>(response.get().body);
+  Try<JSON::Object> responseJSON = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(responseJSON);
 
   // We can't use simple JSON equality testing here as initializing
   // libprocess adds metrics to the system. We want to only check if
   // the metrics from this test are correctly handled.
-  map<string, JSON::Value> values = responseJSON.get().values;
+  map<string, JSON::Value> values = responseJSON->values;
 
   EXPECT_EQ(1u, values.count("test/counter"));
   EXPECT_DOUBLE_EQ(0.0, values["test/counter"].as<JSON::Number>().as<double>());
@@ -422,10 +420,10 @@ TEST_F(MetricsTest, THREADSAFE_SnapshotTimeout)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   // Parse the response.
-  responseJSON = JSON::parse<JSON::Object>(response.get().body);
+  responseJSON = JSON::parse<JSON::Object>(response->body);
   ASSERT_SOME(responseJSON);
 
-  values = responseJSON.get().values;
+  values = responseJSON->values;
 
   ASSERT_SOME(responseJSON);
   EXPECT_EQ(0u, values.count("test/counter"));
@@ -477,8 +475,7 @@ TEST_F(MetricsTest, SnapshotStatistics)
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
-  Try<JSON::Object> responseJSON =
-      JSON::parse<JSON::Object>(response.get().body);
+  Try<JSON::Object> responseJSON = JSON::parse<JSON::Object>(response->body);
 
   ASSERT_SOME(responseJSON);
 
@@ -486,7 +483,7 @@ TEST_F(MetricsTest, SnapshotStatistics)
   hashmap<string, double> responseValues;
   foreachpair (const string& key,
                const JSON::Value& value,
-               responseJSON.get().values) {
+               responseJSON->values) {
     if (value.is<JSON::Number>()) {
       // "test/counter/count" is an integer, everything else is a double.
       JSON::Number number = value.as<JSON::Number>();

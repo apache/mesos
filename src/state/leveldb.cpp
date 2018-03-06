@@ -163,8 +163,8 @@ Future<bool> LevelDBStorageProcess::set(
     return Failure(option.error());
   }
 
-  if (option.get().isSome()) {
-    if (id::UUID::fromBytes(option.get().get().uuid()).get() != uuid) {
+  if (option->isSome()) {
+    if (id::UUID::fromBytes(option.get()->uuid()).get() != uuid) {
       return false;
     }
   }
@@ -198,11 +198,11 @@ Future<bool> LevelDBStorageProcess::expunge(const Entry& entry)
     return Failure(option.error());
   }
 
-  if (option.get().isNone()) {
+  if (option->isNone()) {
     return false;
   }
 
-  if (id::UUID::fromBytes(option.get().get().uuid()).get() !=
+  if (id::UUID::fromBytes(option.get()->uuid()).get() !=
       id::UUID::fromBytes(entry.uuid()).get()) {
     return false;
   }

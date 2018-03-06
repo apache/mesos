@@ -95,6 +95,7 @@ public:
   Future();
 
   /*implicit*/ Future(const T& _t);
+  /*implicit*/ Future(T&& _t);
 
   template <typename U>
   /*implicit*/ Future(const U& u);
@@ -103,9 +104,8 @@ public:
 
   /*implicit*/ Future(const ErrnoFailure& failure);
 
-  /*implicit*/ Future(const Future<T>& that);
-
-  /*implicit*/ Future(Future<T>&& that);
+  /*implicit*/ Future(const Future<T>& that) = default;
+  /*implicit*/ Future(Future<T>&& that) = default;
 
   /*implicit*/ Future(const Try<T>& t);
 
@@ -116,7 +116,8 @@ public:
   // Futures are assignable (and copyable). This results in the
   // reference to the previous future data being decremented and a
   // reference to 'that' being incremented.
-  Future<T>& operator=(const Future<T>& that);
+  Future<T>& operator=(const Future<T>& that) = default;
+  Future<T>& operator=(Future<T>&& that) = default;
 
   // Comparison operators useful for using futures in collections.
   bool operator==(const Future<T>& that) const;
@@ -1082,6 +1083,14 @@ Future<T>::Future(const T& _t)
 
 
 template <typename T>
+Future<T>::Future(T&& _t)
+  : data(new Data())
+{
+  set(std::move(_t));
+}
+
+
+template <typename T>
 template <typename U>
 Future<T>::Future(const U& u)
   : data(new Data())
@@ -1107,16 +1116,6 @@ Future<T>::Future(const ErrnoFailure& failure)
 
 
 template <typename T>
-Future<T>::Future(const Future<T>& that)
-  : data(that.data) {}
-
-
-template <typename T>
-Future<T>::Future(Future<T>&& that)
-  : data(std::move(that.data)) {}
-
-
-template <typename T>
 Future<T>::Future(const Try<T>& t)
   : data(new Data())
 {
@@ -1135,16 +1134,6 @@ Future<T>::Future(const Try<Future<T>>& t)
   if (!t.isSome()) {
     fail(t.error());
   }
-}
-
-
-template <typename T>
-Future<T>& Future<T>::operator=(const Future<T>& that)
-{
-  if (this != &that) {
-    data = that.data;
-  }
-  return *this;
 }
 
 

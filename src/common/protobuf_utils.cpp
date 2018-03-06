@@ -146,8 +146,8 @@ StatusUpdate createStatusUpdate(
   status->set_timestamp(update.timestamp());
 
   if (uuid.isSome()) {
-    update.set_uuid(uuid.get().toBytes());
-    status->set_uuid(uuid.get().toBytes());
+    update.set_uuid(uuid->toBytes());
+    status->set_uuid(uuid->toBytes());
   }
 
   if (reason.isSome()) {
@@ -520,7 +520,7 @@ MasterInfo createMasterInfo(const UPID& pid)
   // be fixed. See MESOS-1201 for more details.
   // TODO(marco): `ip` and `port` are deprecated in favor of `address`;
   //     remove them both after the deprecation cycle.
-  info.set_ip(pid.address.ip.in().get().s_addr);
+  info.set_ip(pid.address.ip.in()->s_addr);
   info.set_port(pid.address.port);
 
   info.mutable_address()->set_ip(stringify(pid.address.ip));
@@ -1073,7 +1073,7 @@ Unavailability createUnavailability(
   unavailability.mutable_start()->set_nanoseconds(start.duration().ns());
 
   if (duration.isSome()) {
-    unavailability.mutable_duration()->set_nanoseconds(duration.get().ns());
+    unavailability.mutable_duration()->set_nanoseconds(duration->ns());
   }
 
   return unavailability;
@@ -1241,7 +1241,7 @@ mesos::master::Response::GetAgents::Agent createAgentResponse(
 
   if (slave.reregisteredTime.isSome()) {
     agent.mutable_reregistered_time()->set_nanoseconds(
-        slave.reregisteredTime.get().duration().ns());
+        slave.reregisteredTime->duration().ns());
   }
 
   agent.mutable_agent_info()->clear_resources();

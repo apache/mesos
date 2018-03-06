@@ -24,26 +24,26 @@ include ../3rdparty/versions.am
 
 # TODO(charles): Move these into an included automakefile and have
 # them include $(top_builddir) as appropriate.
+BOOST = 3rdparty/boost-$(BOOST_VERSION)
+CONCURRENTQUEUE = 3rdparty/concurrentqueue-$(CONCURRENTQUEUE_VERSION)
 CSI = 3rdparty/csi-$(CSI_VERSION)
+ELFIO = 3rdparty/elfio-$(ELFIO_VERSION)
+GLOG = 3rdparty/glog-$(GLOG_VERSION)
+GMOCK = $(GOOGLETEST)/googlemock
+GOOGLETEST = 3rdparty/googletest-release-$(GOOGLETEST_VERSION)
+GRPC = 3rdparty/grpc-$(GRPC_VERSION)
+GTEST = $(GOOGLETEST)/googletest
 LEVELDB = 3rdparty/leveldb-$(LEVELDB_VERSION)
+LIBPROCESS = 3rdparty/libprocess
+NVML = 3rdparty/nvml-$(NVML_VERSION)
+PICOJSON = 3rdparty/picojson-$(PICOJSON_VERSION)
 PIP = 3rdparty/pip-$(PIP_VERSION)
+PROTOBUF = 3rdparty/protobuf-$(PROTOBUF_VERSION)
 SETUPTOOLS = 3rdparty/setuptools-$(SETUPTOOLS_VERSION)
+STOUT = 3rdparty/stout
 WHEEL = 3rdparty/wheel-$(WHEEL_VERSION)
 ZOOKEEPER = 3rdparty/zookeeper-$(ZOOKEEPER_VERSION)/src/c
 ZOOKEEPER_JAR = 3rdparty/zookeeper-$(ZOOKEEPER_VERSION)/zookeeper-$(ZOOKEEPER_VERSION).jar
-LIBPROCESS = 3rdparty/libprocess
-STOUT = 3rdparty/stout
-BOOST = 3rdparty/boost-$(BOOST_VERSION)
-CONCURRENTQUEUE = 3rdparty/concurrentqueue-$(CONCURRENTQUEUE_VERSION)
-ELFIO = 3rdparty/elfio-$(ELFIO_VERSION)
-GLOG = 3rdparty/glog-$(GLOG_VERSION)
-GOOGLETEST = 3rdparty/googletest-release-$(GOOGLETEST_VERSION)
-GMOCK = $(GOOGLETEST)/googlemock
-GTEST = $(GOOGLETEST)/googletest
-GRPC = 3rdparty/grpc-$(GRPC_VERSION)
-PROTOBUF = 3rdparty/protobuf-$(PROTOBUF_VERSION)
-PICOJSON = 3rdparty/picojson-$(PICOJSON_VERSION)
-NVML = 3rdparty/nvml-$(NVML_VERSION)
 
 
 # Unfortunatley, 'pkglibexecdir' and 'pkgsysconfdir' are not set
@@ -150,17 +150,11 @@ MESOS_CPPFLAGS += -DPICOJSON_USE_INT64
 MESOS_CPPFLAGS += -D__STDC_FORMAT_MACROS
 
 if WITH_BUNDLED_BOOST
-# We use "-isystem" instead of "-I" to add Boost to the include search
-# path. This disables compiler warnings inside Boost headers since we
-# can't easily fix them. See MESOS-3799.
-MESOS_CPPFLAGS += -isystem ../$(BOOST)
+MESOS_CPPFLAGS += -I../$(BOOST)
 endif
 
 if WITH_BUNDLED_CONCURRENTQUEUE
-# We use "-isystem" instead of "-I" to add concurrentqueue to the include
-# search path. This disables compiler warnings inside concurrentqueue
-# headers since we don't own the library.
-MESOS_CPPFLAGS += -isystem ../$(CONCURRENTQUEUE)
+MESOS_CPPFLAGS += -I../$(CONCURRENTQUEUE)
 endif
 
 if WITH_BUNDLED_ELFIO
@@ -1120,6 +1114,8 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   authorizer/local/authorizer.hpp					\
   checks/checker.hpp							\
   checks/checker_process.hpp						\
+  checks/checks_runtime.hpp						\
+  checks/checks_types.hpp						\
   checks/health_checker.hpp						\
   common/build.hpp							\
   common/command_utils.hpp						\
@@ -1134,6 +1130,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   credentials/credentials.hpp						\
   docker/docker.hpp							\
   docker/executor.hpp							\
+  examples/flags.hpp							\
   examples/test_anonymous_module.hpp					\
   examples/test_module.hpp						\
   examples/utils.hpp							\
@@ -1276,6 +1273,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   tests/zookeeper_test_server.hpp					\
   tests/containerizer/capabilities_test_helper.hpp			\
   tests/containerizer/docker_archive.hpp				\
+  tests/containerizer/docker_common.hpp					\
   tests/containerizer/isolator.hpp					\
   tests/containerizer/launcher.hpp					\
   tests/containerizer/memory_test_helper.hpp				\
@@ -1788,6 +1786,7 @@ nobase_dist_pkgdata_DATA +=						\
 # Need to distribute/install webui CSS.
 nobase_dist_pkgdata_DATA +=						\
   webui/master/static/css/bootstrap-3.3.6.min.css			\
+  webui/master/static/css/bootstrap-table-1.11.1.min.css		\
   webui/master/static/css/mesos.css
 
 # Need to distribute/install webui HTML.
@@ -1829,6 +1828,8 @@ nobase_dist_pkgdata_DATA +=						\
   webui/master/static/js/angular-1.2.32.min.js				\
   webui/master/static/js/angular-route-1.2.32.js			\
   webui/master/static/js/angular-route-1.2.32.min.js			\
+  webui/master/static/js/bootstrap-table-1.11.1.js			\
+  webui/master/static/js/bootstrap-table-1.11.1.min.js			\
   webui/master/static/js/clipboard-1.5.16.js				\
   webui/master/static/js/clipboard-1.5.16.min.js			\
   webui/master/static/js/jquery-3.2.1.js				\
@@ -1908,7 +1909,7 @@ if HAS_JAVA
 
 $(MESOS_JAR): $(MESOS_JAR_SOURCE) $(MESOS_JAR_GENERATED) java/mesos.pom
 	@echo "Building mesos-$(PACKAGE_VERSION).jar ..."
-	@cd $(abs_top_builddir)/src/java && $(MVN) -B -f mesos.pom clean package
+	@cd $(abs_top_builddir)/src/java && $(MVN) -B -q -f mesos.pom clean package
 
 # Convenience library for JNI bindings.
 # TODO(Charles Reiss): We really should be building the Java library
@@ -2046,7 +2047,7 @@ $(EXAMPLES_JAR): $(EXAMPLES_SOURCE)
 CLEANFILES += $(EXAMPLES_JAR)
 
 maven-install: $(MESOS_JAR) java/mesos.pom
-	$(MVN) -B -f java/mesos.pom install
+	$(MVN) -B -q -f java/mesos.pom install
 
 PHONY_TARGETS += maven-install
 endif # HAS_JAVA
@@ -2215,7 +2216,7 @@ all-local: $(MESOS_EGGS)
 endif # HAS_PYTHON
 
 clean-python:
-	find python \( -name "build" -o -name "dist" -o -name "*.pyc"	\
+	-find python \( -name "build" -o -name "dist" -o -name "*.pyc"	\
 	  -o -name "*.egg-info" \) -exec rm -rf '{}' \+
 
 PHONY_TARGETS += clean-python
@@ -2597,12 +2598,7 @@ mesos_tests_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_tests_CPPFLAGS += -DSOURCE_DIR=\"$(abs_top_srcdir)\"
 mesos_tests_CPPFLAGS += -DBUILD_DIR=\"$(abs_top_builddir)\"
 mesos_tests_CPPFLAGS += -I../$(GTEST)/include
-
-# We use "-isystem" instead of "-I" to add googlemock to the include
-# search path. This disables compiler warnings inside googlemock
-# headers since we can't easily fix them.
-mesos_tests_CPPFLAGS += -isystem ../$(GMOCK)/include
-
+mesos_tests_CPPFLAGS += -I../$(GMOCK)/include
 mesos_tests_CPPFLAGS += -DTESTLIBEXECDIR=\"$(testlibexecdir)\"
 mesos_tests_CPPFLAGS += -DSBINDIR=\"$(sbindir)\"
 

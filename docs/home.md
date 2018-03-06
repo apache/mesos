@@ -26,6 +26,7 @@ layout: documentation
 * [Monitoring](monitoring.md)
 * [Operational Guide](operational-guide.md)
 * [Fetcher Cache Configuration](fetcher.md)
+* [Fault Domains](fault-domains.md)
 
 ## Resource Management
 * [Attributes and Resources](attributes-resources.md) for how to describe the agents that comprise a cluster.

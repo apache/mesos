@@ -267,8 +267,7 @@ Future<Nothing> LogStorageProcess::_start(
     return start(); // TODO(benh): Don't try again forever?
   }
 
-  VLOG(2) << "Writer got elected at position "
-          << position.get().identity();
+  VLOG(2) << "Writer got elected at position " << position->identity();
 
   // Now read and apply log entries. Since 'start' can be called
   // multiple times (i.e., since we reset 'starting' after getting a
@@ -343,14 +342,14 @@ Future<Nothing> LogStorageProcess::apply(const list<Log::Entry>& entries)
 
           CHECK_SOME(snapshot);
 
-          Try<Snapshot> patched = snapshot.get().patch(operation.diff());
+          Try<Snapshot> patched = snapshot->patch(operation.diff());
 
           if (patched.isError()) {
             return Failure("Failed to apply the diff: " + patched.error());
           }
 
           // Replace the snapshot with the patched snapshot.
-          snapshots.put(patched.get().entry.name(), patched.get());
+          snapshots.put(patched->entry.name(), patched.get());
           break;
         }
 
@@ -455,7 +454,7 @@ Future<Option<Entry>> LogStorageProcess::_get(const string& name)
     return None();
   }
 
-  return snapshot.get().entry;
+  return snapshot->entry;
 }
 
 
@@ -486,19 +485,17 @@ Future<bool> LogStorageProcess::__set(
 
   // Check the version first (if we've already got a snapshot).
   if (snapshot.isSome() &&
-      id::UUID::fromBytes(snapshot.get().entry.uuid()).get() != uuid) {
+      id::UUID::fromBytes(snapshot->entry.uuid()).get() != uuid) {
     return false;
   }
 
   // Check if we should try to compute a diff.
-  if (snapshot.isSome() && snapshot.get().diffs < diffsBetweenSnapshots) {
+  if (snapshot.isSome() && snapshot->diffs < diffsBetweenSnapshots) {
     // Keep metrics for the time to calculate diffs.
     metrics.diff.start();
 
     // Construct the diff of the last snapshot.
-    Try<svn::Diff> diff = svn::diff(
-        snapshot.get().entry.value(),
-        entry.value());
+    Try<svn::Diff> diff = svn::diff(snapshot->entry.value(), entry.value());
 
     Duration elapsed = metrics.diff.stop();
 
@@ -508,17 +505,17 @@ Future<bool> LogStorageProcess::__set(
     }
 
     VLOG(1) << "Created an SVN diff in " << elapsed
-            << " of size " << Bytes(diff.get().data.size()) << " which is "
-            << (diff.get().data.size() / (double) entry.value().size()) * 100.0
+            << " of size " << Bytes(diff->data.size()) << " which is "
+            << (diff->data.size() / (double) entry.value().size()) * 100.0
             << "% the original size (" << Bytes(entry.value().size()) << ")";
 
     // Only write the diff if it provides a reduction in size.
-    if (diff.get().data.size() < entry.value().size()) {
+    if (diff->data.size() < entry.value().size()) {
       // Append a diff operation.
       Operation operation;
       operation.set_type(Operation::DIFF);
       operation.mutable_diff()->mutable_entry()->CopyFrom(entry);
-      operation.mutable_diff()->mutable_entry()->set_value(diff.get().data);
+      operation.mutable_diff()->mutable_entry()->set_value(diff->data);
 
       string value;
       if (!operation.SerializeToString(&value)) {
@@ -529,7 +526,7 @@ Future<bool> LogStorageProcess::__set(
         .then(defer(self(),
                     &Self::___set,
                     entry,
-                    snapshot.get().diffs + 1,
+                    snapshot->diffs + 1,
                     lambda::_1));
     }
   }
@@ -569,7 +566,7 @@ Future<bool> LogStorageProcess::___set(
   // use the returned position (i.e., do nothing).
   if (diffs > 0) {
     CHECK(snapshots.contains(entry.name()));
-    position = snapshots.get(entry.name()).get().position;
+    position = snapshots.get(entry.name())->position;
   }
 
   Snapshot snapshot(position.get(), entry, diffs);
@@ -606,7 +603,7 @@ Future<bool> LogStorageProcess::__expunge(const Entry& entry)
   }
 
   // Check the version first.
-  if (id::UUID::fromBytes(snapshot.get().entry.uuid()).get() !=
+  if (id::UUID::fromBytes(snapshot->entry.uuid()).get() !=
       id::UUID::fromBytes(entry.uuid()).get()) {
     return false;
   }

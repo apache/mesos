@@ -22,6 +22,7 @@
 
 #include <mesos/mesos.hpp>
 
+#include <stout/nothing.hpp>
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
 

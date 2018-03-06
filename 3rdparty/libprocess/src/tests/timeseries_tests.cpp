@@ -49,7 +49,7 @@ TEST(TimeSeriesTest, Set)
   const Option<TimeSeries<int>::Value> latest = series.latest();
 
   ASSERT_SOME(latest);
-  ASSERT_EQ(1, latest.get().data);
+  ASSERT_EQ(1, latest->data);
 }
 
 

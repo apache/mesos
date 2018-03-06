@@ -59,24 +59,20 @@ TEST(NsTest, ROOT_setns)
 {
   // Clone then exec the setns-test-helper into a new namespace for
   // each available namespace.
-  set<string> namespaces = ns::namespaces();
-  ASSERT_FALSE(namespaces.empty());
-
   int flags = 0;
 
-  foreach (const string& ns, namespaces) {
+  foreach (int nsType, ns::nstypes()) {
     // Skip 'user' namespace because it causes 'clone' to change us
     // from being user 'root' to user 'nobody', but these tests
     // require root. See MESOS-3083.
-    if (ns == "user") {
+    if (nsType == CLONE_NEWUSER) {
       continue;
     }
 
-    Try<int> nstype = ns::nstype(ns);
-    ASSERT_SOME(nstype);
-
-    flags |= nstype.get();
+    flags |= nsType;
   }
+
+  ASSERT_NE(0, flags);
 
   vector<string> argv;
   argv.push_back("test-helper");
@@ -102,11 +98,44 @@ TEST(NsTest, ROOT_setns)
 }
 
 
+// Test the ns::supported() API.
+TEST(NsTest, SupportedNamespaces)
+{
+  set<int> namespaces = ns::nstypes();
+  ASSERT_FALSE(namespaces.empty());
+
+  int allNamespaces = 0;
+
+  // SIG* constants are guaranteed to not collide with genuine CLONE_NEW*
+  // constants, so we can use them to test the negative case.
+  EXPECT_SOME_FALSE(ns::supported(SIGCHLD));
+
+  foreach (const int& n, namespaces) {
+    // Exclude user namespaces because they depend on the kernel version.
+    if (n == CLONE_NEWUSER) {
+      continue;
+    }
+
+    EXPECT_SOME_TRUE(ns::supported(n)) << ns::stringify(n);
+    allNamespaces |= n;
+  }
+
+  // Verify that ns::supported() correctly handles a bitmask.
+  EXPECT_SOME_TRUE(ns::supported(allNamespaces))
+    << ns::stringify(allNamespaces);
+
+  // Verify that the user namespace special casing matches the generic probe.
+  if (ns::supported(CLONE_NEWUSER).get()) {
+    EXPECT_EQ(1u, namespaces.count(CLONE_NEWUSER));
+  }
+}
+
+
 // Test that setns correctly refuses to re-associate to a namespace if
 // the caller is multi-threaded.
 TEST(NsTest, ROOT_setnsMultipleThreads)
 {
-  set<string> namespaces = ns::namespaces();
+  set<int> namespaces = ns::nstypes();
   EXPECT_LT(0u, namespaces.size());
 
   Latch* latch = new Latch();
@@ -117,8 +146,8 @@ TEST(NsTest, ROOT_setnsMultipleThreads)
     latch->await();
   });
 
-  foreach (const string& ns, namespaces) {
-    EXPECT_ERROR(ns::setns(::getpid(), ns));
+  foreach (int nsType, namespaces) {
+    EXPECT_ERROR(ns::setns(::getpid(), ns::nsname(nsType).get()));
   }
 
   // Terminate the thread.
@@ -142,14 +171,14 @@ static int childGetns()
 // Test that we can get the namespace inodes for a forked child.
 TEST(NsTest, ROOT_getns)
 {
-  set<string> namespaces = ns::namespaces();
+  set<int> namespaces = ns::nstypes();
 
   // ns::setns() does not support "pid".
-  namespaces.erase("pid");
+  namespaces.erase(CLONE_NEWPID);
 
   // Use the first other namespace available.
   ASSERT_FALSE(namespaces.empty());
-  string ns = *(namespaces.begin());
+  string ns = ns::nsname(*(namespaces.begin())).get();
 
   ASSERT_SOME(ns::getns(::getpid(), ns));
 
@@ -211,12 +240,13 @@ TEST(NsTest, ROOT_clone)
 
   ASSERT_SOME(child);
 
-  foreach (const string& ns, ns::namespaces()) {
+  foreach (int nsType, ns::nstypes()) {
     // See comment above as to why we're skipping the namespace.
-    if (ns == "user") {
+    if (nsType == CLONE_NEWUSER) {
       continue;
     }
 
+    const string ns = ns::nsname(nsType).get();
     Result<ino_t> inode = ns::getns(parent, ns);
     ASSERT_SOME(inode);
     EXPECT_SOME_NE(inode.get(), ns::getns(getpid(), ns));

@@ -28,47 +28,56 @@
 template <typename T>
 Try<T> numify(const std::string& s)
 {
+  // Since even with a `0x` prefix `boost::lexical_cast` cannot always
+  // cast all hexadecimal numbers on all platforms (parsing of some
+  // floating point literals seems to work e.g., on macOS, but fails on
+  // some Linuxes), we have to workaround this issue here. We also
+  // process negative hexadecimal numbers `-0x` here to keep it
+  // consistent with non-hexadecimal numbers.
+  bool maybeHex = false;
+
+  if (strings::startsWith(s, "0x") || strings::startsWith(s, "0X") ||
+      strings::startsWith(s, "-0x") || strings::startsWith(s, "-0X")) {
+    maybeHex = true;
+
+    // We disallow hexadecimal floating point numbers.
+    if (strings::contains(s, ".") || strings::contains(s, "p")) {
+      return Error("Failed to convert '" + s + "' to number");
+    }
+  }
+
   try {
     return boost::lexical_cast<T>(s);
   } catch (const boost::bad_lexical_cast&) {
-    // Unfortunately boost::lexical_cast cannot cast a hexadecimal
-    // number even with a "0x" prefix, we have to workaround this
-    // issue here. We also process negative hexadecimal number "-0x"
-    // here to keep it consistent with non-hexadecimal numbers.
-    if (strings::startsWith(s, "0x") || strings::startsWith(s, "0X") ||
-        strings::startsWith(s, "-0x") || strings::startsWith(s, "-0X")) {
-      // NOTE: Hexadecimal floating-point constants (e.g., 0x1p-5,
-      // 0x10.0), are allowed in C99, but cannot be used as floating
-      // point literals in standard C++. Some C++ compilers might
-      // accept them as an extension; for consistency, we always
-      // disallow them.  See:
-      // https://gcc.gnu.org/onlinedocs/gcc/Hex-Floats.html
-      if (!strings::contains(s, ".") && !strings::contains(s, "p")) {
-        T result;
-        std::stringstream ss;
-        // Process negative hexadecimal numbers.
-        if (strings::startsWith(s, "-")) {
-          ss << std::hex << s.substr(1);
-          ss >> result;
-          // Note: When numify is instantiated with unsigned scalars
-          // the expected behaviour is as follow:
-          // numify<T>("-1") == std::numeric_limits<T>::max();
-          // Disabled unary negation warning for all types.
+    // Try to parse hexadecimal numbers by hand if `boost::lexical_cast` failed.
+    if (maybeHex) {
+      T result;
+      std::stringstream ss;
+      // Process negative hexadecimal numbers.
+      if (strings::startsWith(s, "-")) {
+        ss << std::hex << s.substr(1);
+        ss >> result;
+        // NOTE: Negating `result` is safe even if `T` is an unsigned
+        // integer type, because the C++ standard defines the result
+        // to be modulo 2^n in that case.
+        //
+        //     numify<T>("-1") == std::numeric_limits<T>::max();
+        //
+        // Disabled unary negation warning for all types.
 #ifdef __WINDOWS__
-          #pragma warning(disable:4146)
+#pragma warning(disable:4146)
 #endif
-          result = -result;
+        result = -result;
 #ifdef __WINDOWS__
-          #pragma warning(default:4146)
+#pragma warning(default:4146)
 #endif
-        } else {
-          ss << std::hex << s;
-          ss >> result;
-        }
-        // Make sure we really hit the end of the string.
-        if (!ss.fail() && ss.eof()) {
-          return result;
-        }
+      } else {
+        ss << std::hex << s;
+        ss >> result;
+      }
+      // Make sure we really hit the end of the string.
+      if (!ss.fail() && ss.eof()) {
+        return result;
       }
     }
 

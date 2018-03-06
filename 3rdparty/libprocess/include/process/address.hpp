@@ -30,8 +30,6 @@
 
 #include <ostream>
 
-#include <boost/variant.hpp>
-
 #include <boost/functional/hash.hpp>
 
 #include <stout/abort.hpp>

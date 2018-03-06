@@ -154,7 +154,7 @@ void LibeventSSLSocketImpl::initialize()
 }
 
 
-Try<Nothing> LibeventSSLSocketImpl::shutdown(int how)
+Try<Nothing, SocketError> LibeventSSLSocketImpl::shutdown(int how)
 {
   // Nothing to do if this socket was never initialized.
   synchronized (lock) {
@@ -165,7 +165,13 @@ Try<Nothing> LibeventSSLSocketImpl::shutdown(int how)
       CHECK(recv_request.get() == nullptr);
       CHECK(send_request.get() == nullptr);
 
-      return ErrnoError(ENOTCONN);
+      // We expect this to fail and generate an 'ENOTCONN' failure as
+      // no connection should exist at this point.
+      if (::shutdown(s, how) < 0) {
+        return SocketError();
+      }
+
+      return Nothing();
     }
   }
 
@@ -952,6 +958,14 @@ Try<Nothing> LibeventSSLSocketImpl::listen(int backlog)
 
 Future<std::shared_ptr<SocketImpl>> LibeventSSLSocketImpl::accept()
 {
+  // Note that due to MESOS-8448, when the caller discards, it's
+  // possible that we pull an accepted socket out of the queue but
+  // drop it when `.then` transitions to discarded rather than
+  // executing the continuation. This is currently acceptable since
+  // callers only discard when they're breaking their accept loop.
+  // However, from an API perspective, we shouldn't be dropping
+  // the socket on the floor.
+  //
   // We explicitly specify the return type to avoid a type deduction
   // issue in some versions of clang. See MESOS-2943.
   return accept_queue.get()

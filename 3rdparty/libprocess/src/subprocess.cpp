@@ -426,26 +426,13 @@ Try<Subprocess> subprocess(
           stderrfds);
 
     if (process_data.isError()) {
-      process::internal::close(stdinfds, stdoutfds, stderrfds);
-      return Error(
-          "Could not launch child process: " + process_data.error());
+      // NOTE: `createChildProcess` either succeeds entirely or returns an
+      // `Error`. There is no need to check the value of the PID.
+      return Error(process_data.error());
     }
-
-    if (process_data.get().pid == -1) {
-      // Save the errno as 'close' below might overwrite it.
-      ErrnoError error("Failed to clone");
-      process::internal::close(stdinfds, stdoutfds, stderrfds);
-      return error;
-    }
-
-    // Close the child-ends of the file descriptors that are created
-    // by this function.
-    // TODO(jieyu): We should move the closing of FDs to
-    // 'createChildProcess' to be consistent with the posix path.
-    internal::close({stdinfds.read, stdoutfds.write, stderrfds.write});
 
     process.data->process_data = process_data.get();
-    process.data->pid = process_data.get().pid;
+    process.data->pid = process_data->pid;
 #endif // __WINDOWS__
   }
 

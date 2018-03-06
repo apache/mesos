@@ -510,7 +510,7 @@ inline void FlagsBase::add(const Flag& flag)
 
   flags_[flag.name.value] = flag;
   if (flag.alias.isSome()) {
-    aliases[flag.alias.get().value] = flag.name.value;
+    aliases[flag.alias->value] = flag.name.value;
   }
 }
 

@@ -94,6 +94,7 @@
 #endif // __WINDOWS__
 
 #include <stout/duration.hpp>
+#include <stout/error.hpp>
 #include <stout/flags.hpp>
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
@@ -491,8 +492,19 @@ static ProcessManager* process_manager = nullptr;
 // Used for authenticating HTTP requests.
 static AuthenticatorManager* authenticator_manager = nullptr;
 
-// Authorization callbacks for HTTP endpoints.
-static AuthorizationCallbacks* authorization_callbacks = nullptr;
+// Authorization callbacks for HTTP endpoints. Note that we use
+// an atomic + mutex in order to do "double-checked locking" to
+// avoid the cost of acquiring the mutex when authorization is
+// not enabled. The mutex is non-recursive, which means that
+// an authorization callback must not set or unset the callbacks
+// or else we will deadlock! This is already a requirement,
+// since a callback calling in to clear or re-set the callbacks
+// is thereby deleting itself!
+//
+// TODO(bmahler): Consider using a read/write lock.
+static std::atomic<AuthorizationCallbacks*> authorization_callbacks =
+  ATOMIC_VAR_INIT(nullptr);
+static std::mutex* authorization_callbacks_mutex = new std::mutex();
 
 // Global route that returns process information.
 static Route* processes_route = nullptr;
@@ -557,21 +569,25 @@ namespace authorization {
 
 void setCallbacks(const AuthorizationCallbacks& callbacks)
 {
-  if (authorization_callbacks != nullptr) {
-    delete authorization_callbacks;
-  }
+  synchronized (authorization_callbacks_mutex) {
+    if (authorization_callbacks.load() != nullptr) {
+      delete authorization_callbacks.load();
+    }
 
-  authorization_callbacks = new AuthorizationCallbacks(callbacks);
+    authorization_callbacks.store(new AuthorizationCallbacks(callbacks));
+  }
 }
 
 
 void unsetCallbacks()
 {
-  if (authorization_callbacks != nullptr) {
-    delete authorization_callbacks;
-  }
+  synchronized (authorization_callbacks_mutex) {
+    if (authorization_callbacks.load() != nullptr) {
+      delete authorization_callbacks.load();
+    }
 
-  authorization_callbacks = nullptr;
+    authorization_callbacks.store(nullptr);
+  }
 }
 
 } // namespace authorization {
@@ -867,7 +883,18 @@ namespace internal {
 
 void on_accept(const Future<Socket>& socket)
 {
-  if (socket.isReady()) {
+  // We stop the accept loop when libprocess is finalizing.
+  // Either we'll see a discarded socket here, or we'll see
+  // the server socket set to null below.
+  bool stopped = false;
+
+  if (socket.isDiscarded()) {
+    stopped = true;
+  } else if (socket.isFailed()) {
+    LOG(WARNING) << "Failed to accept socket: " << socket.failure();
+  } else {
+    CHECK_READY(socket);
+
     // Inform the socket manager for proper bookkeeping.
     socket_manager->accepted(socket.get());
 
@@ -876,7 +903,7 @@ void on_accept(const Future<Socket>& socket)
 
     StreamingRequestDecoder* decoder = new StreamingRequestDecoder();
 
-    socket.get().recv(data, size)
+    socket->recv(data, size)
       .onAny(lambda::bind(
           &internal::decode_recv,
           lambda::_1,
@@ -884,17 +911,22 @@ void on_accept(const Future<Socket>& socket)
           size,
           socket.get(),
           decoder));
-  } else {
-     LOG(INFO) << "Failed to accept socket: "
-               << (socket.isFailed() ? socket.failure() : "future discarded");
   }
 
   // NOTE: `__s__` may be cleaned up during `process::finalize`.
-  synchronized (socket_mutex) {
-    if (__s__ != nullptr) {
-      future_accept = __s__->accept()
-        .onAny(lambda::bind(&on_accept, lambda::_1));
+  if (!stopped) {
+    synchronized (socket_mutex) {
+      if (__s__ != nullptr) {
+        future_accept = __s__->accept()
+          .onAny(lambda::bind(&on_accept, lambda::_1));
+      } else {
+        stopped = true;
+      }
     }
+  }
+
+  if (stopped) {
+    LOG(INFO) << "Stopped the socket accept loop";
   }
 }
 
@@ -1556,7 +1588,7 @@ void SocketManager::link(
           return;
         }
         socket = create.get();
-        int_fd s = socket.get().get();
+        int_fd s = socket->get();
 
         CHECK(sockets.count(s) == 0);
         sockets.emplace(s, socket.get());
@@ -1604,9 +1636,10 @@ void SocketManager::link(
         // the final socket reference. This will not result in an
         // `ExitedEvent` because we have already removed the `existing`
         // socket from the mapping of linkees and linkers.
-        Try<Nothing> shutdown = existing.shutdown();
+        Try<Nothing, SocketError> shutdown = existing.shutdown();
         if (shutdown.isError()) {
-          VLOG(1) << "Failed to shutdown old link: " << shutdown.error();
+          VLOG(1) << "Failed to shutdown old link: "
+                  << shutdown.error().message;
         }
 
         connect = true;
@@ -1870,7 +1903,7 @@ void SocketManager::send_connect(
       }
 
       CHECK_SOME(poll_socket);
-      Future<Nothing> connect = poll_socket.get().connect(message.to.address);
+      Future<Nothing> connect = poll_socket->connect(message.to.address);
       connect.onAny(lambda::bind(
           // TODO(benh): with C++14 we can use lambda instead of
           // `std::bind` and capture `message` with a `std::move`.
@@ -2050,7 +2083,7 @@ Encoder* SocketManager::next(int_fd s)
           Socket socket = iterator->second;
           sockets.erase(iterator);
 
-          Try<Nothing> shutdown = socket.shutdown();
+          Try<Nothing, SocketError> shutdown = socket.shutdown();
 
           // Failure here could be due to reasons including that the underlying
           // socket is already closed so it by itself doesn't necessarily
@@ -2060,7 +2093,7 @@ Encoder* SocketManager::next(int_fd s)
                       << ", address " << (socket.address().isSome()
                                             ? stringify(socket.address().get())
                                             : "N/A")
-                      << ": " << shutdown.error();
+                      << ": " << shutdown.error().message;
           }
         }
       }
@@ -2142,13 +2175,21 @@ void SocketManager::close(int_fd s)
       // Failure here could be due to reasons including that the underlying
       // socket is already closed so it by itself doesn't necessarily
       // suggest anything wrong.
-      Try<Nothing> shutdown = socket.shutdown();
-      if (shutdown.isError()) {
-        LOG(INFO) << "Failed to shutdown socket with fd " << socket.get()
-                  << ", address " << (socket.address().isSome()
-                                        ? stringify(socket.address().get())
-                                        : "N/A")
-                  << ": " << shutdown.error();
+      Try<Nothing, SocketError> shutdown = socket.shutdown();
+
+      // Avoid logging an error when the shutdown was triggered on a
+      // socket that is not connected.
+      if (shutdown.isError() &&
+#ifdef __WINDOWS__
+          shutdown.error().code != WSAENOTCONN) {
+#else // __WINDOWS__
+          shutdown.error().code != ENOTCONN) {
+#endif // __WINDOWS__
+        LOG(ERROR) << "Failed to shutdown socket with fd " << socket.get()
+                   << ", address " << (socket.address().isSome()
+                                         ? stringify(socket.address().get())
+                                         : "N/A")
+                   << ": " << shutdown.error().message;
       }
     }
   }
@@ -2413,7 +2454,7 @@ long ProcessManager::init_threads()
   Option<string> value = os::getenv(env_var);
   if (value.isSome()) {
     constexpr long maxval = 1024;
-    Try<long> number = numify<long>(value.get().c_str());
+    Try<long> number = numify<long>(value->c_str());
     if (number.isSome() && number.get() > 0L && number.get() <= maxval) {
       VLOG(1) << "Overriding default number of worker threads "
               << num_worker_threads << ", using the value "
@@ -2643,7 +2684,7 @@ void ProcessManager::handle(
     foreach (const Owned<firewall::FirewallRule>& rule, firewallRules) {
       Option<Response> rejection = rule->apply(socket, *request);
       if (rejection.isSome()) {
-        VLOG(1) << "Returning '"<< rejection.get().status << "' for '"
+        VLOG(1) << "Returning '" << rejection->status << "' for '"
                 << request->url.path << "' (firewall rule forbids request)";
 
         // TODO(arojas): Get rid of the duplicated code to return an
@@ -3548,6 +3589,11 @@ void ProcessBase::consume(HttpEvent&& event)
       event.request->url.path, "/" + tokens[0], strings::PREFIX);
   name = strings::trim(name, strings::PREFIX, "/");
 
+  // Normalize the name by trimming the trailing '/'. We enforce that requests
+  // to ".../path/" are resolved with the ".../path" route. The trailing slash
+  // is stripped here in order to accomplish this.
+  name = strings::trim(name, strings::SUFFIX, "/");
+
   // Look for an endpoint handler for this path. We begin with the full path,
   // but if no handler is found and the path is nested, we shorten it and look
   // again. For example: if the request is for '/a/b/c' and no handler is found,
@@ -3666,25 +3712,43 @@ Future<Response> ProcessBase::_consume(
         principal = authentication->principal;
       }
 
-      // The result of a call to an authorization callback.
-      Future<bool> authorization;
+      // Look for an authorization callback installed for this endpoint.
+      //
+      // NOTE: we use double-checked locking here to avoid
+      // head-of-line blocking that occurs when the first thread
+      // attempts to check for authorization callbacks.
+      //
+      // TODO(bmahler): Consider a read/write lock in addition to
+      // double checked locking. Since we expect the callbacks to
+      // be set in production, it would be ideal to avoid locking
+      // altogether. This would be possible if authorization
+      // callbacks were bound to the lifetime of libprocess
+      // initialization and finalization.
+      //
+      // TODO(benh): Consider optimizing this further to not be
+      // sequentially consistent. For more details see:
+      // http://preshing.com/20130930/double-checked-locking-is-fixed-in-cpp11.
+      Future<bool> authorization = true;
 
-      // Look for an authorization callback installed for this endpoint path.
-      // If none is found, use a trivial one.
-      const string callback_path = path::join("/" + pid.id, name);
-      if (authorization_callbacks != nullptr &&
-          authorization_callbacks->count(callback_path) > 0) {
-        authorization = authorization_callbacks->at(callback_path)(
-            *request, principal);
+      if (authorization_callbacks.load() != nullptr) {
+        const string callback_path = path::join("/" + pid.id, name);
 
-        // Sequence the authorization future to ensure the handlers
-        // are invoked in the same order that requests arrive.
-        authorization = handlers.httpSequence->add<bool>(
-            [authorization]() { return authorization; });
-      } else {
-        authorization = handlers.httpSequence->add<bool>(
-            []() { return true; });
+        synchronized (authorization_callbacks_mutex) {
+          AuthorizationCallbacks* callbacks = authorization_callbacks.load();
+
+          if (callbacks != nullptr) {
+            auto callback = callbacks->find(callback_path);
+            if (callback != callbacks->end()) {
+              authorization = (callback->second)(*request, principal);
+            }
+          }
+        }
       }
+
+      // Sequence the authorization future to ensure the handlers
+      // are invoked in the same order that requests arrive.
+      authorization = handlers.httpSequence->add<bool>(
+          [authorization]() { return authorization; });
 
       // Install a callback on the authorization result.
       return authorization
@@ -3740,6 +3804,10 @@ void ProcessBase::route(
   // Routes must start with '/'.
   CHECK(name.find('/') == 0);
 
+  // To avoid ambiguity between "/path" and "/path/" we disallow the latter.
+  CHECK(name.size() == 1 || name.back() != '/')
+    << "Routes must not end with '/'" << ": " << name;
+
   HttpEndpoint endpoint;
   endpoint.handler = handler;
   endpoint.options = options;
@@ -3759,6 +3827,10 @@ void ProcessBase::route(
 {
   // Routes must start with '/'.
   CHECK(name.find('/') == 0);
+
+  // To avoid ambiguity between "/path" and "/path/" we disallow the latter.
+  CHECK(name.size() == 1 || name.back() != '/')
+    << "Routes must not end with '/'" << ": " << name;
 
   HttpEndpoint endpoint;
   endpoint.realm = realm;

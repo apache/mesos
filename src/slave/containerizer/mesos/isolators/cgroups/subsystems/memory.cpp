@@ -323,7 +323,7 @@ Future<ResourceStatistics> MemorySubsystem::usage(
     return Failure("Failed to parse 'memory.usage_in_bytes': " + usage.error());
   }
 
-  result.set_mem_total_bytes(usage.get().bytes());
+  result.set_mem_total_bytes(usage->bytes());
 
   if (flags.cgroups_limit_swap) {
     Try<Bytes> usage = cgroups::memory::memsw_usage_in_bytes(hierarchy, cgroup);
@@ -333,7 +333,7 @@ Future<ResourceStatistics> MemorySubsystem::usage(
         "Failed to parse 'memory.memsw.usage_in_bytes': " + usage.error());
     }
 
-    result.set_mem_total_memsw_bytes(usage.get().bytes());
+    result.set_mem_total_memsw_bytes(usage->bytes());
   }
 
   // TODO(bmahler): Add namespacing to cgroups to enforce the expected
@@ -347,7 +347,7 @@ Future<ResourceStatistics> MemorySubsystem::usage(
     return Failure("Failed to read 'memory.stat': " + stat.error());
   }
 
-  Option<uint64_t> total_cache = stat.get().get("total_cache");
+  Option<uint64_t> total_cache = stat->get("total_cache");
   if (total_cache.isSome()) {
     // TODO(chzhcn): mem_file_bytes is deprecated in 0.23.0 and will
     // be removed in 0.24.0.
@@ -355,7 +355,7 @@ Future<ResourceStatistics> MemorySubsystem::usage(
     result.set_mem_cache_bytes(total_cache.get());
   }
 
-  Option<uint64_t> total_rss = stat.get().get("total_rss");
+  Option<uint64_t> total_rss = stat->get("total_rss");
   if (total_rss.isSome()) {
     // TODO(chzhcn): mem_anon_bytes is deprecated in 0.23.0 and will
     // be removed in 0.24.0.
@@ -363,17 +363,17 @@ Future<ResourceStatistics> MemorySubsystem::usage(
     result.set_mem_rss_bytes(total_rss.get());
   }
 
-  Option<uint64_t> total_mapped_file = stat.get().get("total_mapped_file");
+  Option<uint64_t> total_mapped_file = stat->get("total_mapped_file");
   if (total_mapped_file.isSome()) {
     result.set_mem_mapped_file_bytes(total_mapped_file.get());
   }
 
-  Option<uint64_t> total_swap = stat.get().get("total_swap");
+  Option<uint64_t> total_swap = stat->get("total_swap");
   if (total_swap.isSome()) {
     result.set_mem_swap_bytes(total_swap.get());
   }
 
-  Option<uint64_t> total_unevictable = stat.get().get("total_unevictable");
+  Option<uint64_t> total_unevictable = stat->get("total_unevictable");
   if (total_unevictable.isSome()) {
     result.set_mem_unevictable_bytes(total_unevictable.get());
   }

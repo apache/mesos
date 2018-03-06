@@ -183,7 +183,7 @@ int InMemoryAuxiliaryPropertyPlugin::initialize(
     Option<list<string>> values = lookup(user, name);
 
     if (values.isSome()) {
-      if (values.get().empty()) {
+      if (values->empty()) {
         // Add the 'nullptr' value to indicate there were no values.
         utils->prop_set(sparams->propctx, property->name, nullptr, 0);
       } else {

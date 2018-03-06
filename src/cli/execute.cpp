@@ -499,7 +499,7 @@ protected:
         << "Either task or task group should be set but not both";
 
       if (task.isSome()) {
-        requiredResources = Resources(task.get().resources());
+        requiredResources = Resources(task->resources());
       } else {
         foreach (const TaskInfo& _task, taskGroup->tasks()) {
           requiredResources += Resources(_task.resources());
@@ -602,7 +602,7 @@ protected:
        mesos->send(call);
 
        if (task.isSome()) {
-         cout << "Submitted task '" << task.get().name() << "' to agent '"
+         cout << "Submitted task '" << task->name() << "' to agent '"
               << offer.agent_id() << "'" << endl;
        } else {
          vector<TaskID> taskIds;
@@ -976,7 +976,12 @@ int main(int argc, char** argv)
     if (user.isError()) {
       EXIT(EXIT_FAILURE) << "Failed to get username: " << user.error();
     } else {
+#ifndef __WINDOWS__
       EXIT(EXIT_FAILURE) << "No username for uid " << ::getuid();
+#else
+      // NOTE: The `::getuid()` function does not exist on Windows.
+      EXIT(EXIT_FAILURE) << "No username for current user";
+#endif // __WINDOWS__
     }
   }
 
@@ -1055,11 +1060,11 @@ int main(int argc, char** argv)
       << "Flags '--docker-image' and '--appc-image' are both set";
   }
 
-  // Always enable the RESERVATION_REFINEMENT and TASK_KILLING_STATE
-  // capabilities.
+  // Always enable the following capabilities.
   vector<FrameworkInfo::Capability::Type> frameworkCapabilities = {
     FrameworkInfo::Capability::RESERVATION_REFINEMENT,
     FrameworkInfo::Capability::TASK_KILLING_STATE,
+    FrameworkInfo::Capability::REVOCABLE_RESOURCES,
   };
 
   // Enable PARTITION_AWARE unless disabled by the user.

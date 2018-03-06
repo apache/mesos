@@ -71,6 +71,7 @@
   affiliations:
     - {organization: Mesosphere}
   emails:
+    - anand@apache.org
     - mazumdar.anand@gmail.com
   jira_user: anandmazumdar
   reviewboard_user: anandmazumdar
@@ -112,6 +113,12 @@
     - anton.dan@hotmail.com
   jira_user: antondan
   reviewboard_user: antondan
+  
+- name: Anurag Bihani
+  emails:
+    - anuragbihani@gmail.com
+  jira_user: anuragbihani
+  reviewboard_user: anuragbihani
 
 - name: Armand Grillet
   affiliations:
@@ -162,6 +169,8 @@
     - {organization: Mesosphere, start_date: 2014-09-22}
     - {organization: Twitter, end_date: 2014-09-21}
   emails:
+    - benh@apache.org
+    - benh@berkeley.edu
     - benjamin.hindman@gmail.com
   jira_user: benjaminhindman
   reviewboard_user: benjaminhindman
@@ -256,6 +265,14 @@
   jira_user: cinchurge
   reviewboard_user: cinchurge
 
+- name: Eric Mumau
+  affiliations:
+    - {organization: Microsoft}
+  emails:
+    - ermumau@microsoft.com
+  jira_user: ermumau
+  reviewboard_user: ermumau
+
 - name: Ezra Silvera
   affiliations:
     - {organization: IBM}
@@ -276,7 +293,9 @@
   affiliations:
     - {organization: Mesosphere}
   emails:
+    - gaston.kleiman@gmail.com
     - gaston@mesosphere.com
+    - gaston@mesosphere.io
   jira_user: gkleiman
   reviewboard_user: gaston
 
@@ -294,6 +313,7 @@
     - {organization: Mesosphere}
   emails:
     - greg@mesosphere.io
+    - gregorywmann@gmail.com
   jira_user: greggomann
   reviewboard_user: greggomann
 
@@ -473,6 +493,7 @@
     - {organization: Mesosphere}
   emails:
     - joseph@mesosphere.io
+    - josephwu@apache.org
   jira_user: kaysoky
   reviewboard_user: kaysoky
 
@@ -658,6 +679,18 @@
     - okuryu@okuryu.com
   jira_user: okuryu
   reviewboard_user: okuryu
+
+- name: Sachin Paryani
+  emails:
+    - sachin.paryani@gmail.com
+  jira_user: sachinparyani
+  reviewboard_user: sachinparyani
+
+- name: Shubham Kumar
+  emails:
+    - shukumar@umail.iu.edu
+  jira_user: shukumar
+  reviewboard_user: shukumar
 
 - name: Stephen Hankinson
   affiliations:

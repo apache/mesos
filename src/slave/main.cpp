@@ -328,6 +328,7 @@ int main(int argc, char** argv)
 
     os::setenv("LIBPROCESS_IP", strings::trim(ipAddress.get()));
 #else
+    // TODO(andschwa): Support this when `os::shell` is enabled.
     EXIT(EXIT_FAILURE)
       << "The `--ip_discovery_command` is not yet supported on Windows";
 #endif // __WINDOWS__
@@ -344,6 +345,7 @@ int main(int argc, char** argv)
 
     os::setenv("LIBPROCESS_IP6", strings::trim(ip6Address.get()));
 #else
+    // TODO(andschwa): Support this when `os::shell` is enabled.
     EXIT(EXIT_FAILURE)
       << "The `--ip6_discovery_command` is not yet supported on Windows";
 #endif // __WINDOWS__
@@ -584,7 +586,7 @@ int main(int argc, char** argv)
       LOG(WARNING) << "Failed to stat jwt secret key file '"
                    << flags.jwt_secret_key.get()
                    << "': " << permissions.error();
-    } else if (permissions.get().others.rwx) {
+    } else if (permissions->others.rwx) {
       LOG(WARNING) << "Permissions on executor secret key file '"
                    << flags.jwt_secret_key.get()
                    << "' are too open; it is recommended that your"
