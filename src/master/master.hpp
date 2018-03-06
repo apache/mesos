@@ -124,7 +124,7 @@ Slave(Master* const _master,
         std::vector<SlaveInfo::Capability> _capabilites,
         const process::Time& _registeredTime,
         std::vector<Resource> _checkpointedResources,
-        const Option<id::UUID>& resourceVersion,
+        const Option<UUID>& resourceVersion,
         std::vector<ExecutorInfo> executorInfos = std::vector<ExecutorInfo>(),
         std::vector<Task> tasks = std::vector<Task>());
 
@@ -152,7 +152,7 @@ Slave(Master* const _master,
 
   void removeOperation(Operation* operation);
 
-  Operation* getOperation(const id::UUID& uuid) const;
+  Operation* getOperation(const UUID& uuid) const;
 
   void addOffer(Offer* offer);
 
@@ -181,7 +181,7 @@ Slave(Master* const _master,
       const std::string& _version,
       const std::vector<SlaveInfo::Capability>& _capabilites,
       const Resources& _checkpointedResources,
-      const Option<id::UUID>& resourceVersion);
+      const Option<UUID>& resourceVersion);
 
   Master* const master;
   const SlaveID id;
@@ -245,7 +245,7 @@ Slave(Master* const _master,
 
   // Pending operations or terminal operations that have
   // unacknowledged status updates on this agent.
-  hashmap<id::UUID, Operation*> operations;
+  hashmap<UUID, Operation*> operations;
 
   // Active offers on this slave.
   hashset<Offer*> offers;
@@ -278,7 +278,7 @@ Slave(Master* const _master,
 
   SlaveObserver* observer;
 
-  hashmap<Option<ResourceProviderID>, id::UUID> resourceVersions;
+  hashmap<Option<ResourceProviderID>, UUID> resourceVersions;
   hashmap<ResourceProviderID, ResourceProviderInfo> resourceProviders;
 
 private:
@@ -2508,18 +2508,17 @@ struct Framework
 
     const FrameworkID& frameworkId = operation->framework_id();
 
-    Try<id::UUID> uuid = id::UUID::fromBytes(operation->uuid().value());
-    CHECK_SOME(uuid);
+    const UUID& uuid = operation->uuid();
 
-    CHECK(!operations.contains(uuid.get()))
+    CHECK(!operations.contains(uuid))
       << "Duplicate operation '" << operation->info().id()
-      << "' (uuid: " << uuid->toString() << ") "
+      << "' (uuid: " << uuid << ") "
       << "of framework " << frameworkId;
 
-    operations.put(uuid.get(), operation);
+    operations.put(uuid, operation);
 
     if (operation->info().has_id()) {
-      operationUUIDs.put(operation->info().id(), uuid.get());
+      operationUUIDs.put(operation->info().id(), uuid);
     }
 
     if (!protobuf::isSpeculativeOperation(operation->info()) &&
@@ -2595,12 +2594,11 @@ struct Framework
 
   void removeOperation(Operation* operation)
   {
-    Try<id::UUID> uuid = id::UUID::fromBytes(operation->uuid().value());
-    CHECK_SOME(uuid);
+    const UUID& uuid = operation->uuid();
 
-    CHECK(operations.contains(uuid.get()))
+    CHECK(operations.contains(uuid))
       << "Unknown operation '" << operation->info().id()
-      << "' (uuid: " << uuid->toString() << ") "
+      << "' (uuid: " << uuid << ") "
       << "of framework " << operation->framework_id();
 
     if (!protobuf::isSpeculativeOperation(operation->info()) &&
@@ -2608,7 +2606,7 @@ struct Framework
       recoverResources(operation);
     }
 
-    operations.erase(uuid.get());
+    operations.erase(uuid);
   }
 
   const FrameworkID id() const { return info.id(); }
@@ -2865,11 +2863,11 @@ struct Framework
 
   // Pending operations or terminal operations that have
   // unacknowledged status updates.
-  hashmap<id::UUID, Operation*> operations;
+  hashmap<UUID, Operation*> operations;
 
   // The map from the framework-specified operation ID to the
   // corresponding internal operation UUID.
-  hashmap<OperationID, id::UUID> operationUUIDs;
+  hashmap<OperationID, UUID> operationUUIDs;
 
   // NOTE: For the used and offered resources below, we keep the
   // total as well as partitioned by SlaveID.

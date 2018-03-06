@@ -48,9 +48,9 @@ struct ResourceProviderMessage
   struct UpdateState
   {
     ResourceProviderInfo info;
-    id::UUID resourceVersion;
+    UUID resourceVersion;
     Resources totalResources;
-    hashmap<id::UUID, Operation> operations;
+    hashmap<UUID, Operation> operations;
   };
 
   struct UpdateOperationStatus

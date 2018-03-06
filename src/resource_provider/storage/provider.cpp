@@ -1162,9 +1162,12 @@ Future<Nothing> StorageLocalResourceProviderProcess::reconcileStatusUpdates()
             ? statusUpdateManagerState.streams.at(uuid)->updates.size() : 0;
 
         for (int i = numStatuses; i < operation.statuses().size(); i++) {
+          UUID uuid_;
+          uuid_.set_value(uuid.toBytes());
+
           UpdateOperationStatusMessage update =
             protobuf::createUpdateOperationStatusMessage(
-                uuid,
+                uuid_,
                 operation.statuses(i),
                 None(),
                 operation.has_framework_id()
@@ -1433,13 +1436,16 @@ void StorageLocalResourceProviderProcess::applyOperation(
         " (expected: " + stringify(resourceVersion) + ")");
   }
 
+  UUID uuid_;
+  uuid_.set_value(uuid->toBytes());
+
   CHECK(!operations.contains(uuid.get()));
   operations[uuid.get()] = protobuf::createOperation(
       operation.info(),
       protobuf::createOperationStatus(OPERATION_PENDING, operationId),
       frameworkId,
       slaveId,
-      uuid.get());
+      uuid_);
 
   checkpointResourceProviderState();
 
@@ -2716,9 +2722,12 @@ void StorageLocalResourceProviderProcess::dropOperation(
   LOG(WARNING)
     << "Dropping operation (uuid: " << operationUuid << "): " << message;
 
+  UUID operationUuid_;
+  operationUuid_.set_value(operationUuid.toBytes());
+
   UpdateOperationStatusMessage update =
     protobuf::createUpdateOperationStatusMessage(
-       operationUuid,
+       operationUuid_,
        protobuf::createOperationStatus(
            OPERATION_DROPPED,
            operationId,
@@ -3018,10 +3027,13 @@ Try<Nothing> StorageLocalResourceProviderProcess::updateOperationStatus(
 
   checkpointResourceProviderState();
 
+  UUID operationUuid_;
+  operationUuid_.set_value(operationUuid.toBytes());
+
   // Send out the status update for the operation.
   UpdateOperationStatusMessage update =
     protobuf::createUpdateOperationStatusMessage(
-        operationUuid,
+        operationUuid_,
         operation.latest_status(),
         None(),
         operation.has_framework_id()

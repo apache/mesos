@@ -148,7 +148,7 @@ struct ResourceProvider
 
   ResourceProviderInfo info;
   HttpConnection http;
-  hashmap<id::UUID, Owned<Promise<Nothing>>> publishes;
+  hashmap<UUID, Owned<Promise<Nothing>>> publishes;
 };
 
 
@@ -545,12 +545,12 @@ Future<Nothing> ResourceProviderManagerProcess::publishResources(
   foreachpair (const ResourceProviderID& resourceProviderId,
                const Resources& resources,
                providedResources) {
-    id::UUID uuid = id::UUID::random();
+    UUID uuid;
+    uuid.set_value(id::UUID::random().toBytes());
 
     Event event;
     event.set_type(Event::PUBLISH_RESOURCES);
-    event.mutable_publish_resources()
-      ->mutable_uuid()->set_value(uuid.toBytes());
+    event.mutable_publish_resources()->mutable_uuid()->CopyFrom(uuid);
     event.mutable_publish_resources()->mutable_resources()->CopyFrom(resources);
 
     ResourceProvider* resourceProvider =
@@ -676,19 +676,9 @@ void ResourceProviderManagerProcess::updateState(
 
   // TODO(chhsiao): Report pending operations.
 
-  Try<id::UUID> resourceVersion =
-    id::UUID::fromBytes(update.resource_version_uuid().value());
-
-  CHECK_SOME(resourceVersion)
-    << "Could not deserialize version of resource provider "
-    << resourceProvider->info.id() << ": " << resourceVersion.error();
-
-  hashmap<id::UUID, Operation> operations;
+  hashmap<UUID, Operation> operations;
   foreach (const Operation &operation, update.operations()) {
-    Try<id::UUID> uuid = id::UUID::fromBytes(operation.uuid().value());
-    CHECK_SOME(uuid);
-
-    operations.put(uuid.get(), operation);
+    operations.put(operation.uuid(), operation);
   }
 
   LOG(INFO)
@@ -698,7 +688,7 @@ void ResourceProviderManagerProcess::updateState(
 
   ResourceProviderMessage::UpdateState updateState{
       resourceProvider->info,
-      resourceVersion.get(),
+      update.resource_version_uuid(),
       update.resources(),
       std::move(operations)};
 
@@ -714,38 +704,32 @@ void ResourceProviderManagerProcess::updatePublishResourcesStatus(
     ResourceProvider* resourceProvider,
     const Call::UpdatePublishResourcesStatus& update)
 {
-  Try<id::UUID> uuid = id::UUID::fromBytes(update.uuid().value());
-  if (uuid.isError()) {
-    LOG(ERROR) << "Invalid UUID in UpdatePublishResourcesStatus from resource"
-               << " provider " << resourceProvider->info.id()
-               << ": " << uuid.error();
-    return;
-  }
+  const UUID& uuid = update.uuid();
 
-  if (!resourceProvider->publishes.contains(uuid.get())) {
+  if (!resourceProvider->publishes.contains(uuid)) {
     LOG(ERROR) << "Ignoring UpdatePublishResourcesStatus from resource"
                << " provider " << resourceProvider->info.id()
-               << " because UUID " << uuid->toString() << " is unknown";
+               << " because UUID " << uuid << " is unknown";
     return;
   }
 
   LOG(INFO)
     << "Received UPDATE_PUBLISH_RESOURCES_STATUS call for PUBLISH_RESOURCES"
-    << " event " << uuid.get() << " with " << update.status()
+    << " event " << uuid << " with " << update.status()
     << " status from resource provider " << resourceProvider->info.id();
 
   if (update.status() == Call::UpdatePublishResourcesStatus::OK) {
-    resourceProvider->publishes.at(uuid.get())->set(Nothing());
+    resourceProvider->publishes.at(uuid)->set(Nothing());
   } else {
     // TODO(jieyu): Consider to include an error message in
     // 'UpdatePublishResourcesStatus' and surface that to the caller.
-    resourceProvider->publishes.at(uuid.get())->fail(
+    resourceProvider->publishes.at(uuid)->fail(
         "Failed to publish resources for resource provider " +
         stringify(resourceProvider->info.id()) + ": Received " +
         stringify(update.status()) + " status");
   }
 
-  resourceProvider->publishes.erase(uuid.get());
+  resourceProvider->publishes.erase(uuid);
 }
 
 

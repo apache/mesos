@@ -225,8 +225,10 @@ Slave::Slave(const string& id,
     resourceEstimator(_resourceEstimator),
     qosController(_qosController),
     secretGenerator(_secretGenerator),
-    authorizer(_authorizer),
-    resourceVersion(id::UUID::random()) {}
+    authorizer(_authorizer)
+    {
+      resourceVersion.set_value(id::UUID::random().toBytes());
+    }
 
 
 Slave::~Slave()
@@ -1743,8 +1745,7 @@ void Slave::doReliableRegistration(Duration maxBackoff)
     // Include checkpointed resources.
     message.mutable_checkpointed_resources()->CopyFrom(checkpointedResources);
 
-    message.mutable_resource_version_uuid()->set_value(
-        resourceVersion.toBytes());
+    message.mutable_resource_version_uuid()->CopyFrom(resourceVersion);
 
     // If the `Try` from `downgradeResources` returns an `Error`, we currently
     // continue to send the resources to the master in a partially downgraded
@@ -1768,9 +1769,7 @@ void Slave::doReliableRegistration(Duration maxBackoff)
     // Include checkpointed resources.
     message.mutable_checkpointed_resources()->CopyFrom(checkpointedResources);
 
-    message.mutable_resource_version_uuid()->set_value(
-        resourceVersion.toBytes());
-
+    message.mutable_resource_version_uuid()->CopyFrom(resourceVersion);
     message.mutable_slave()->CopyFrom(info);
 
     foreachvalue (Framework* framework, frameworks) {
@@ -2546,7 +2545,7 @@ void Slave::__run(
       }
     }
 
-    const hashmap<Option<ResourceProviderID>, id::UUID>
+    const hashmap<Option<ResourceProviderID>, UUID>
       receivedResourceVersions = protobuf::parseResourceVersions(
           {resourceVersionUuids.begin(), resourceVersionUuids.end()});
 
@@ -4269,24 +4268,15 @@ void Slave::applyOperation(const ApplyOperationMessage& message)
     ? message.framework_id()
     : Option<FrameworkID>::none();
 
-  Try<id::UUID> uuid = id::UUID::fromBytes(message.operation_uuid().value());
-  if (uuid.isError()) {
-    LOG(ERROR) << "Failed to parse operation UUID for operation "
-               << "'" << message.operation_info().id() << "' from "
-               << (frameworkId.isSome()
-                     ? "framework " + stringify(frameworkId.get())
-                     : "an operator API call")
-               << ": " << uuid.error();
-    return;
-  }
-
   Result<ResourceProviderID> resourceProviderId =
     getResourceProviderId(message.operation_info());
+
+  const UUID& uuid = message.operation_uuid();
 
   if (resourceProviderId.isError()) {
     LOG(ERROR) << "Failed to get the resource provider ID of operation "
                << "'" << message.operation_info().id() << "' "
-               << "(uuid: " << uuid->toString() << ") from "
+               << "(uuid: " << uuid << ") from "
                << (frameworkId.isSome()
                      ? "framework " + stringify(frameworkId.get())
                      : "an operator API call")
@@ -4300,7 +4290,7 @@ void Slave::applyOperation(const ApplyOperationMessage& message)
           protobuf::createOperationStatus(OPERATION_PENDING),
           frameworkId,
           info.id(),
-          uuid.get()));
+          uuid));
 
   addOperation(operation);
 
@@ -4330,7 +4320,7 @@ void Slave::applyOperation(const ApplyOperationMessage& message)
 
   UpdateOperationStatusMessage update =
     protobuf::createUpdateOperationStatusMessage(
-        uuid.get(),
+        uuid,
         protobuf::createOperationStatus(OPERATION_FINISHED),
         None(),
         frameworkId,
@@ -4358,16 +4348,12 @@ void Slave::reconcileOperations(const ReconcileOperationsMessage& message)
       continue;
     }
 
-    Try<id::UUID> operationUuid =
-      id::UUID::fromBytes(operation.operation_uuid().value());
-    CHECK_SOME(operationUuid);
-
     // The master reconciles when it notices that an operation is missing from
     // an `UpdateSlaveMessage`. If we cannot find an operation in the agent
     // state, we send an update to inform the master. If we do find the
     // operation, then the master and agent state are consistent and we do not
     // need to do anything.
-    Operation* storedOperation = getOperation(operationUuid.get());
+    Operation* storedOperation = getOperation(operation.operation_uuid());
     if (storedOperation == nullptr) {
       // For agent default resources, we send best-effort operation status
       // updates to the master. This is satisfactory because a dropped message
@@ -4375,7 +4361,7 @@ void Slave::reconcileOperations(const ReconcileOperationsMessage& message)
       // `UpdateSlaveMessage` would be sent with pending operations.
       UpdateOperationStatusMessage update =
         protobuf::createUpdateOperationStatusMessage(
-            operationUuid.get(),
+            operation.operation_uuid(),
             protobuf::createOperationStatus(OPERATION_DROPPED),
             None(),
             None(),
@@ -4428,6 +4414,9 @@ void Slave::statusUpdateAcknowledgement(
     }
   }
 
+  UUID uuid_;
+  uuid_.set_value(uuid);
+
   taskStatusUpdateManager->acknowledgement(
       taskId, frameworkId, id::UUID::fromBytes(uuid).get())
     .onAny(defer(self(),
@@ -4435,7 +4424,7 @@ void Slave::statusUpdateAcknowledgement(
                  lambda::_1,
                  taskId,
                  frameworkId,
-                 id::UUID::fromBytes(uuid).get()));
+                 uuid_));
 }
 
 
@@ -4443,7 +4432,7 @@ void Slave::_statusUpdateAcknowledgement(
     const Future<bool>& future,
     const TaskID& taskId,
     const FrameworkID& frameworkId,
-    const id::UUID& uuid)
+    const UUID& uuid)
 {
   // The future could fail if this is a duplicate status update acknowledgement.
   if (!future.isReady()) {
@@ -4513,11 +4502,7 @@ void Slave::operationStatusAcknowledgement(
     const UPID& from,
     const AcknowledgeOperationStatusMessage& acknowledgement)
 {
-  Try<id::UUID> operationUuid =
-    id::UUID::fromBytes(acknowledgement.operation_uuid().value());
-  CHECK_SOME(operationUuid);
-
-  Operation* operation = getOperation(operationUuid.get());
+  Operation* operation = getOperation(acknowledgement.operation_uuid());
   if (operation != nullptr) {
     resourceProviderManager.acknowledgeOperationStatus(acknowledgement);
 
@@ -7506,7 +7491,7 @@ UpdateSlaveMessage Slave::generateResourceProviderUpdate() const
   UpdateSlaveMessage message;
   message.mutable_slave_id()->CopyFrom(info.id());
   message.set_update_oversubscribed_resources(false);
-  message.mutable_resource_version_uuid()->set_value(resourceVersion.toBytes());
+  message.mutable_resource_version_uuid()->CopyFrom(resourceVersion);
   message.mutable_operations();
 
   foreachvalue (const Operation* operation, operations) {
@@ -7527,8 +7512,8 @@ UpdateSlaveMessage Slave::generateResourceProviderUpdate() const
         resourceProvider->info);
     provider->mutable_total_resources()->CopyFrom(
         resourceProvider->totalResources);
-    provider->mutable_resource_version_uuid()->set_value(
-        resourceProvider->resourceVersion.toBytes());
+    provider->mutable_resource_version_uuid()->CopyFrom(
+        resourceProvider->resourceVersion);
 
     provider->mutable_operations();
 
@@ -7623,10 +7608,8 @@ void Slave::handleResourceProviderMessage(
         // We only update operations which are not contained in both
         // the known and just received sets. All other operations will
         // be updated via relayed operation status updates.
-        const hashset<id::UUID> knownUuids =
-          resourceProvider->operations.keys();
-
-        const hashset<id::UUID> receivedUuids = updateState.operations.keys();
+        const hashset<UUID> knownUuids = resourceProvider->operations.keys();
+        const hashset<UUID> receivedUuids = updateState.operations.keys();
 
         // Handle operations known to the agent but not reported by
         // the resource provider. These could be operations where the
@@ -7636,16 +7619,14 @@ void Slave::handleResourceProviderMessage(
         //
         // NOTE: We do not mutate operations statuses here; this would
         // be the responsibility of a operation status update handler.
-        hashset<id::UUID> disappearedOperations;
-        std::set_difference(
-            knownUuids.begin(),
-            knownUuids.end(),
-            receivedUuids.begin(),
-            receivedUuids.end(),
-            std::inserter(
-                disappearedOperations, disappearedOperations.begin()));
+        hashset<UUID> disappearedOperations;
+        foreach (const UUID& knownUuid, knownUuids) {
+          if (!receivedUuids.contains(knownUuid)) {
+            disappearedOperations.insert(knownUuid);
+          }
+        }
 
-        foreach (const id::UUID& uuid, disappearedOperations) {
+        foreach (const UUID& uuid, disappearedOperations) {
           // TODO(bbannier): Instead of simply dropping an operation
           // with `removeOperation` here we should instead send a
           // `Reconcile` message with a failed state to the resource
@@ -7658,15 +7639,14 @@ void Slave::handleResourceProviderMessage(
         // Handle operations known to the resource provider but not
         // the agent. This can happen if the agent failed over and the
         // resource provider reregistered.
-        hashset<id::UUID> reappearedOperations;
-        std::set_difference(
-            receivedUuids.begin(),
-            receivedUuids.end(),
-            knownUuids.begin(),
-            knownUuids.end(),
-            std::inserter(reappearedOperations, reappearedOperations.begin()));
+        hashset<UUID> reappearedOperations;
+        foreach (const UUID& receivedUuid, receivedUuids) {
+          if (!knownUuids.contains(receivedUuid)) {
+            reappearedOperations.insert(receivedUuid);
+          }
+        }
 
-        foreach (const id::UUID& uuid, reappearedOperations) {
+        foreach (const UUID& uuid, reappearedOperations) {
           // Start tracking this operation.
           //
           // NOTE: We do not need to update total resources here as its
@@ -7707,11 +7687,9 @@ void Slave::handleResourceProviderMessage(
       const UpdateOperationStatusMessage& update =
         message->updateOperationStatus->update;
 
-      Try<id::UUID> operationUUID =
-        id::UUID::fromBytes(update.operation_uuid().value());
-      CHECK_SOME(operationUUID);
+      const UUID& operationUUID = update.operation_uuid();
 
-      Operation* operation = getOperation(operationUUID.get());
+      Operation* operation = getOperation(operationUUID);
 
       if (operation != nullptr) {
         // The agent might not know about the operation in the
@@ -7750,7 +7728,7 @@ void Slave::handleResourceProviderMessage(
             << (update.status().has_operation_id()
                  ? " '" + stringify(update.status().operation_id()) + "'"
                  : " with no ID")
-            << " (operation_uuid: " << operationUUID->toString() << ")"
+            << " (operation_uuid: " << operationUUID << ")"
             << (update.has_framework_id()
                  ? " for framework " + stringify(update.framework_id())
                  : " for an operator API call")
@@ -7764,7 +7742,7 @@ void Slave::handleResourceProviderMessage(
             << (update.status().has_operation_id()
                  ? " '" + stringify(update.status().operation_id()) + "'"
                  : " with no ID")
-            << " (operation_uuid: " << operationUUID->toString() << ")"
+            << " (operation_uuid: " << operationUUID << ")"
             << (update.has_framework_id()
                  ? " for framework " + stringify(update.framework_id())
                  : " for an operator API call");
@@ -7841,10 +7819,7 @@ void Slave::handleResourceProviderMessage(
 
 void Slave::addOperation(Operation* operation)
 {
-  Try<id::UUID> uuid = id::UUID::fromBytes(operation->uuid().value());
-  CHECK_SOME(uuid);
-
-  operations.put(uuid.get(), operation);
+  operations.put(operation->uuid(), operation);
 
   Result<ResourceProviderID> resourceProviderId =
     getResourceProviderId(operation->info());
@@ -7965,8 +7940,7 @@ void Slave::updateOperation(
 
 void Slave::removeOperation(Operation* operation)
 {
-  Try<id::UUID> uuid = id::UUID::fromBytes(operation->uuid().value());
-  CHECK_SOME(uuid);
+  const UUID& uuid = operation->uuid();
 
   Result<ResourceProviderID> resourceProviderId =
     getResourceProviderId(operation->info());
@@ -7984,15 +7958,15 @@ void Slave::removeOperation(Operation* operation)
     resourceProvider->removeOperation(operation);
   }
 
-  CHECK(operations.contains(uuid.get()))
-    << "Unknown operation (uuid: " << uuid->toString() << ")";
+  CHECK(operations.contains(uuid))
+    << "Unknown operation (uuid: " << uuid << ")";
 
-  operations.erase(uuid.get());
+  operations.erase(uuid);
   delete operation;
 }
 
 
-Operation* Slave::getOperation(const id::UUID& uuid) const
+Operation* Slave::getOperation(const UUID& uuid) const
 {
   if (operations.contains(uuid)) {
     return operations.at(uuid);
@@ -9775,25 +9749,23 @@ Resources Executor::allocatedResources() const
 
 void ResourceProvider::addOperation(Operation* operation)
 {
-  Try<id::UUID> uuid = id::UUID::fromBytes(operation->uuid().value());
-  CHECK_SOME(uuid);
+  const UUID& uuid = operation->uuid();
 
-  CHECK(!operations.contains(uuid.get()))
-    << "Operation (uuid: " << uuid->toString() << ") already exists";
+  CHECK(!operations.contains(uuid))
+    << "Operation (uuid: " << uuid << ") already exists";
 
-  operations.put(uuid.get(), operation);
+  operations.put(uuid, operation);
 }
 
 
 void ResourceProvider::removeOperation(Operation* operation)
 {
-  Try<id::UUID> uuid = id::UUID::fromBytes(operation->uuid().value());
-  CHECK_SOME(uuid);
+  const UUID& uuid = operation->uuid();
 
-  CHECK(operations.contains(uuid.get()))
-    << "Unknown operation (uuid: " << uuid->toString() << ")";
+  CHECK(operations.contains(uuid))
+    << "Unknown operation (uuid: " << uuid << ")";
 
-  operations.erase(uuid.get());
+  operations.erase(uuid);
 }
 
 

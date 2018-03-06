@@ -6296,13 +6296,9 @@ void Master::__registerSlave(
   vector<Resource> checkpointedResources = google::protobuf::convert(
       std::move(*registerSlaveMessage.mutable_checkpointed_resources()));
 
-  Option<id::UUID> resourceVersion;
+  Option<UUID> resourceVersion;
   if (registerSlaveMessage.has_resource_version_uuid()) {
-    Try<id::UUID> uuid = id::UUID::fromBytes(
-        registerSlaveMessage.resource_version_uuid().value());
-
-    CHECK_SOME(uuid);
-    resourceVersion = uuid.get();
+    resourceVersion = registerSlaveMessage.resource_version_uuid();
   }
 
   Slave* slave = new Slave(
@@ -6852,13 +6848,9 @@ void Master::__reregisterSlave(
   vector<ExecutorInfo> executorInfos = google::protobuf::convert(
       std::move(*reregisterSlaveMessage.mutable_executor_infos()));
 
-  Option<id::UUID> resourceVersion;
+  Option<UUID> resourceVersion;
   if (reregisterSlaveMessage.has_resource_version_uuid()) {
-    Try<id::UUID> uuid = id::UUID::fromBytes(
-        reregisterSlaveMessage.resource_version_uuid().value());
-
-    CHECK_SOME(uuid);
-    resourceVersion = uuid.get();
+    resourceVersion = reregisterSlaveMessage.resource_version_uuid();
   }
 
   slaves.recovered.erase(slaveInfo.id());
@@ -7000,13 +6992,9 @@ void Master::___reregisterSlave(
   const vector<SlaveInfo::Capability> agentCapabilities =
     google::protobuf::convert(reregisterSlaveMessage.agent_capabilities());
 
-  Option<id::UUID> resourceVersion;
+  Option<UUID> resourceVersion;
   if (reregisterSlaveMessage.has_resource_version_uuid()) {
-    Try<id::UUID> uuid = id::UUID::fromBytes(
-        reregisterSlaveMessage.resource_version_uuid().value());
-
-    CHECK_SOME(uuid);
-    resourceVersion = uuid.get();
+    resourceVersion = reregisterSlaveMessage.resource_version_uuid();
   }
 
   // Update our view of checkpointed agent resources for resource
@@ -7308,13 +7296,9 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
     message.has_resource_providers();
 
   if (message.has_resource_version_uuid()) {
-    hashmap<Option<ResourceProviderID>, id::UUID> resourceVersions;
+    hashmap<Option<ResourceProviderID>, UUID> resourceVersions;
 
-    const Try<id::UUID> slaveResourceVersion =
-      id::UUID::fromBytes(message.resource_version_uuid().value());
-
-    CHECK_SOME(slaveResourceVersion);
-    resourceVersions.insert({None(), slaveResourceVersion.get()});
+    resourceVersions.insert({None(), message.resource_version_uuid()});
 
     foreach (
         const UpdateSlaveMessage::ResourceProvider& resourceProvider,
@@ -7323,18 +7307,14 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
         continue;
       }
 
-      Try<id::UUID> resourceVersion =
-        id::UUID::fromBytes(resourceProvider.resource_version_uuid().value());
-
-      CHECK_SOME(resourceVersion);
-
       CHECK(resourceProvider.info().has_id());
 
       const ResourceProviderID& resourceProviderId =
         resourceProvider.info().id();
 
       CHECK(!resourceVersions.contains(resourceProviderId));
-      resourceVersions.insert({resourceProviderId, resourceVersion.get()});
+      resourceVersions.insert(
+          {resourceProviderId, resourceProvider.resource_version_uuid()});
     }
 
     updated = updated || slave->resourceVersions != resourceVersions;
@@ -7342,14 +7322,11 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
   }
 
   // Check if the known operations for this agent changed.
-  const hashset<id::UUID> knownOperations = slave->operations.keys();
-  hashset<id::UUID> receivedOperations;
+  const hashset<UUID> knownOperations = slave->operations.keys();
+  hashset<UUID> receivedOperations;
 
   foreach (const Operation& operation, message.operations().operations()) {
-    Try<id::UUID> operationUuid = id::UUID::fromBytes(operation.uuid().value());
-    CHECK_SOME(operationUuid);
-
-    receivedOperations.insert(operationUuid.get());
+    receivedOperations.insert(operation.uuid());
   }
 
   if (message.has_resource_providers()) {
@@ -7358,11 +7335,7 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
         message.resource_providers().providers()) {
       foreach (const Operation& operation,
                resourceProvider.operations().operations()) {
-        Try<id::UUID> operationUuid =
-          id::UUID::fromBytes(operation.uuid().value());
-        CHECK_SOME(operationUuid);
-
-        receivedOperations.insert(operationUuid.get());
+        receivedOperations.insert(operation.uuid());
       }
     }
   }
@@ -7379,8 +7352,8 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
   {
     Option<Resources> oldTotal;
     Option<Resources> newTotal;
-    Option<hashmap<id::UUID, Operation>> oldOperations;
-    Option<hashmap<id::UUID, Operation>> newOperations;
+    Option<hashmap<UUID, Operation>> oldOperations;
+    Option<hashmap<UUID, Operation>> newOperations;
     Option<ResourceProviderInfo> info;
   };
 
@@ -7417,7 +7390,7 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
     }
 
     // Process known operations.
-    foreachpair (const id::UUID& uuid,
+    foreachpair (const UUID& uuid,
                  Operation* operation,
                  slave->operations) {
       Result<ResourceProviderID> providerId_ =
@@ -7436,7 +7409,7 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
       // create a record for this resource provider if needed.
       if (resourceProviders[providerId].oldOperations.isNone()) {
         resourceProviders.at(providerId).oldOperations =
-          hashmap<id::UUID, Operation>();
+          hashmap<UUID, Operation>();
       }
 
       resourceProviders.at(providerId)
@@ -7449,16 +7422,11 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
 
     // Process received agent operations.
     resourceProviders[None()].newOperations =
-      hashmap<id::UUID, Operation>();
+      hashmap<UUID, Operation>();
 
     foreach (const Operation& operation, message.operations().operations()) {
-      Try<id::UUID> uuid = id::UUID::fromBytes(operation.uuid().value());
-
-      CHECK_SOME(uuid)
-        << "Could not deserialize operation id when reconciling operations";
-
       resourceProviders.at(None())
-        .newOperations->emplace(uuid.get(), operation);
+        .newOperations->emplace(operation.uuid(), operation);
     }
 
     // Process explicitly received resource provider information.
@@ -7476,17 +7444,12 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
 
         provider.newTotal = resourceProvider.total_resources();
         if (provider.newOperations.isNone()) {
-          provider.newOperations = hashmap<id::UUID, Operation>();
+          provider.newOperations = hashmap<UUID, Operation>();
         }
 
         foreach (const Operation& operation,
                  resourceProvider.operations().operations()) {
-          Try<id::UUID> uuid = id::UUID::fromBytes(operation.uuid().value());
-
-          CHECK_SOME(uuid)
-            << "Could not deserialize operation id when reconciling operations";
-
-          provider.newOperations->emplace(uuid.get(), operation);
+          provider.newOperations->emplace(operation.uuid(), operation);
         }
       }
     }
@@ -7514,9 +7477,9 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
         // acknowledgement, or the agent initiates an unrelated
         // `UpdateSlaveMessage`.
         auto extractPendingOperations =
-          [](const hashmap<id::UUID, Operation>& source,
-             hashset<id::UUID>* target) {
-            foreachpair (const id::UUID& uuid,
+          [](const hashmap<UUID, Operation>& source,
+             hashset<UUID>* target) {
+            foreachpair (const UUID& uuid,
                          const Operation& operation,
                          source) {
               if (!protobuf::isTerminalState(
@@ -7526,8 +7489,8 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
             }
           };
 
-        hashset<id::UUID> oldPendingOperations;
-        hashset<id::UUID> newPendingOperations;
+        hashset<UUID> oldPendingOperations;
+        hashset<UUID> newPendingOperations;
 
         if (provider.oldOperations.isSome()) {
           extractPendingOperations(
@@ -7539,10 +7502,10 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
               provider.newOperations.get(), &newPendingOperations);
         }
 
-        foreach (const id::UUID& uuid, newPendingOperations) {
+        foreach (const UUID& uuid, newPendingOperations) {
           CHECK(oldPendingOperations.contains(uuid))
             << "Agent tried to reconcile unknown non-terminal operation "
-            << uuid.toString();
+            << uuid;
         }
       }
 
@@ -7619,12 +7582,12 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
       hashmap<FrameworkID, Resources> usedByOperations;
 
       if (provider.newOperations.isSome()) {
-        foreachpair (const id::UUID& uuid,
+        foreachpair (const UUID& uuid,
                      const Operation& operation,
                      provider.newOperations.get()) {
           // Update to bookkeeping of operations.
           CHECK(!slave->operations.contains(uuid))
-            << "New operation " << uuid.toString() << " is already known";
+            << "New operation " << uuid << " is already known";
 
           Framework* framework = nullptr;
           if (operation.has_framework_id()) {
@@ -7657,18 +7620,17 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
       // status update will be generated and the master will remove
       // the operation from its state upon receipt of that update.
       if (provider.oldOperations.isSome()) {
-        foreachkey (const id::UUID& uuid, provider.oldOperations.get()) {
+        foreachkey (const UUID& uuid, provider.oldOperations.get()) {
           if (provider.newOperations.isNone() ||
               !provider.newOperations->contains(uuid)) {
             LOG(WARNING) << "Performing explicit reconciliation with agent for"
-                         << " known operation " << uuid.toString()
+                         << " known operation " << uuid
                          << " since it was not present in original"
                          << " reconciliation message from agent";
 
             ReconcileOperationsMessage::Operation* reconcileOperation =
               reconcile.add_operations();
-            reconcileOperation->mutable_operation_uuid()->set_value(
-                uuid.toBytes());
+            reconcileOperation->mutable_operation_uuid()->CopyFrom(uuid);
 
             if (providerId.isSome()) {
               reconcileOperation->mutable_resource_provider_id()
@@ -7983,18 +7945,9 @@ void Master::updateOperationStatus(
     ? update.framework_id()
     : Option<FrameworkID>::none();
 
-  Try<id::UUID> uuid = id::UUID::fromBytes(update.operation_uuid().value());
-  if (uuid.isError()) {
-    LOG(ERROR) << "Failed to parse operation UUID for operation "
-               << "'" << update.status().operation_id() << "' for "
-               << (frameworkId.isSome()
-                     ? "framework " + stringify(frameworkId.get())
-                     : "an operator API call")
-               << " from agent " << slaveId << ": " << uuid.error();
-    return;
-  }
-
   Slave* slave = slaves.registered.get(slaveId);
+
+  const UUID& uuid = update.operation_uuid();
 
   // This is possible if the agent is marked as unreachable or gone,
   // or has initiated a graceful shutdown. In either of those cases,
@@ -8010,7 +7963,7 @@ void Master::updateOperationStatus(
   if (slave == nullptr) {
     LOG(WARNING) << "Ignoring status update for operation '"
                  << update.status().operation_id()
-                 << "' (uuid: " << uuid->toString() << ") for "
+                 << "' (uuid: " << uuid << ") for "
                  << (frameworkId.isSome()
                        ? "framework " + stringify(frameworkId.get())
                        : "an operator API call")
@@ -8018,12 +7971,11 @@ void Master::updateOperationStatus(
     return;
   }
 
-  Operation* operation = slave->getOperation(uuid.get());
+  Operation* operation = slave->getOperation(update.operation_uuid());
   if (operation == nullptr) {
     LOG(ERROR) << "Failed to find the operation '"
-               << update.status().operation_id() << "' (uuid: "
-               << uuid->toString() << ") for "
-               << (frameworkId.isSome()
+               << update.status().operation_id() << "' (uuid: " << uuid << ")"
+               << " for " << (frameworkId.isSome()
                      ? "framework " + stringify(frameworkId.get())
                      : "an operator API call")
                << " on agent " << slaveId;
@@ -8041,7 +7993,7 @@ void Master::updateOperationStatus(
     if (framework == nullptr || !framework->connected()) {
       LOG(WARNING) << "Received status update for operation '"
                    << update.status().operation_id()
-                   << "' (uuid: " << uuid->toString() << ") "
+                   << "' (uuid: " << uuid << ") "
                    << "for framework " << frameworkId.get()
                    << ", but the framework is "
                    << (framework == nullptr ? "unknown" : "disconnected");
@@ -10617,7 +10569,7 @@ void Master::_apply(
     // This must have been validated by the caller.
     CHECK(!resourceProviderId.isError());
 
-    Option<id::UUID> resourceVersion = resourceProviderId.isSome()
+    Option<UUID> resourceVersion = resourceProviderId.isSome()
       ? slave->resourceVersions.get(resourceProviderId.get())
       : slave->resourceVersions.get(None());
 
@@ -10662,8 +10614,9 @@ void Master::_apply(
         ->mutable_resource_provider_id()
         ->CopyFrom(resourceProviderId.get());
     }
-    message.mutable_resource_version_uuid()->mutable_uuid()->set_value(
-        resourceVersion->toBytes());
+
+    message.mutable_resource_version_uuid()->mutable_uuid()->CopyFrom(
+        resourceVersion.get());
 
     LOG(INFO) << "Sending operation '" << operation->info().id()
               << "' (uuid: " << operation->uuid() << ") "
@@ -11439,7 +11392,7 @@ Slave::Slave(
     vector<SlaveInfo::Capability> _capabilites,
     const Time& _registeredTime,
     vector<Resource> _checkpointedResources,
-    const Option<id::UUID>& resourceVersion,
+    const Option<UUID>& resourceVersion,
     vector<ExecutorInfo> executorInfos,
     vector<Task> tasks)
   : master(_master),
@@ -11591,10 +11544,7 @@ void Slave::removeTask(Task* task)
 
 void Slave::addOperation(Operation* operation)
 {
-  Try<id::UUID> uuid = id::UUID::fromBytes(operation->uuid().value());
-  CHECK_SOME(uuid);
-
-  operations.put(uuid.get(), operation);
+  operations.put(operation->uuid(), operation);
 
   if (!protobuf::isSpeculativeOperation(operation->info()) &&
       !protobuf::isTerminalState(operation->latest_status().state())) {
@@ -11642,11 +11592,10 @@ void Slave::recoverResources(Operation* operation)
 
 void Slave::removeOperation(Operation* operation)
 {
-  Try<id::UUID> uuid = id::UUID::fromBytes(operation->uuid().value());
-  CHECK_SOME(uuid);
+  const UUID& uuid = operation->uuid();
 
-  CHECK(operations.contains(uuid.get()))
-    << "Unknown operation (uuid: " << uuid->toString() << ")"
+  CHECK(operations.contains(uuid))
+    << "Unknown operation (uuid: " << uuid << ")"
     << " to agent " << *this;
 
   if (!protobuf::isSpeculativeOperation(operation->info()) &&
@@ -11654,11 +11603,11 @@ void Slave::removeOperation(Operation* operation)
     recoverResources(operation);
   }
 
-  operations.erase(uuid.get());
+  operations.erase(uuid);
 }
 
 
-Operation* Slave::getOperation(const id::UUID& uuid) const
+Operation* Slave::getOperation(const UUID& uuid) const
 {
   if (operations.contains(uuid)) {
     return operations.at(uuid);
@@ -11764,7 +11713,7 @@ Try<Nothing> Slave::update(
     const string& _version,
     const vector<SlaveInfo::Capability>& _capabilities,
     const Resources& _checkpointedResources,
-    const Option<id::UUID>& resourceVersion)
+    const Option<UUID>& resourceVersion)
 {
   Try<Resources> resources = applyCheckpointedResources(
       _info.resources(),

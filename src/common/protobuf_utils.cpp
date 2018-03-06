@@ -450,7 +450,7 @@ Operation createOperation(
     const OperationStatus& latestStatus,
     const Option<FrameworkID>& frameworkId,
     const Option<SlaveID>& slaveId,
-    const Option<id::UUID>& operationUUID)
+    const Option<UUID>& operationUUID)
 {
   Operation operation;
   if (frameworkId.isSome()) {
@@ -462,7 +462,7 @@ Operation createOperation(
   operation.mutable_info()->CopyFrom(info);
   operation.mutable_latest_status()->CopyFrom(latestStatus);
   if (operationUUID.isSome()) {
-    operation.mutable_uuid()->set_value(operationUUID->toBytes());
+    operation.mutable_uuid()->CopyFrom(operationUUID.get());
   } else {
     operation.mutable_uuid()->set_value(id::UUID::random().toBytes());
   }
@@ -472,7 +472,7 @@ Operation createOperation(
 
 
 UpdateOperationStatusMessage createUpdateOperationStatusMessage(
-    const id::UUID& operationUUID,
+    const UUID& operationUUID,
     const OperationStatus& status,
     const Option<OperationStatus>& latestStatus,
     const Option<FrameworkID>& frameworkId,
@@ -489,7 +489,7 @@ UpdateOperationStatusMessage createUpdateOperationStatusMessage(
   if (latestStatus.isSome()) {
     update.mutable_latest_status()->CopyFrom(latestStatus.get());
   }
-  update.mutable_operation_uuid()->set_value(operationUUID.toBytes());
+  update.mutable_operation_uuid()->CopyFrom(operationUUID);
 
   return update;
 }
@@ -856,30 +856,30 @@ bool isSpeculativeOperation(const Offer::Operation& operation)
 
 
 RepeatedPtrField<ResourceVersionUUID> createResourceVersions(
-    const hashmap<Option<ResourceProviderID>, id::UUID>& resourceVersions)
+    const hashmap<Option<ResourceProviderID>, UUID>& resourceVersions)
 {
   RepeatedPtrField<ResourceVersionUUID> result;
 
   foreachpair (
       const Option<ResourceProviderID>& resourceProviderId,
-      const id::UUID& uuid,
+      const UUID& uuid,
       resourceVersions) {
     ResourceVersionUUID* entry = result.Add();
 
     if (resourceProviderId.isSome()) {
       entry->mutable_resource_provider_id()->CopyFrom(resourceProviderId.get());
     }
-    entry->mutable_uuid()->set_value(uuid.toBytes());
+    entry->mutable_uuid()->CopyFrom(uuid);
   }
 
   return result;
 }
 
 
-hashmap<Option<ResourceProviderID>, id::UUID> parseResourceVersions(
+hashmap<Option<ResourceProviderID>, UUID> parseResourceVersions(
     const RepeatedPtrField<ResourceVersionUUID>& resourceVersionUUIDs)
 {
-  hashmap<Option<ResourceProviderID>, id::UUID> result;
+  hashmap<Option<ResourceProviderID>, UUID> result;
 
   foreach (
       const ResourceVersionUUID& resourceVersionUUID,
@@ -891,11 +891,7 @@ hashmap<Option<ResourceProviderID>, id::UUID> parseResourceVersions(
 
     CHECK(!result.contains(resourceProviderId));
 
-    const Try<id::UUID> uuid =
-      id::UUID::fromBytes(resourceVersionUUID.uuid().value());
-    CHECK_SOME(uuid);
-
-    result.insert({std::move(resourceProviderId), std::move(uuid.get())});
+    result.insert({std::move(resourceProviderId), resourceVersionUUID.uuid()});
   }
 
   return result;
