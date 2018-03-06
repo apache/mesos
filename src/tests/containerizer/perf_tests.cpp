@@ -24,6 +24,7 @@
 #include <process/gtest.hpp>
 
 #include <stout/gtest.hpp>
+#include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/stringify.hpp>
 
@@ -137,7 +138,8 @@ TEST_F(PerfTest, Version)
   // version, make sure we can parse it using the perf library.
   // Note that on some systems, perf is a stub that asks you to
   // install the right packages.
-  if (WSUCCEEDED(os::spawn("perf", {"perf", "--version"}))) {
+  const Option<int> status = os::spawn("perf", {"perf", "--version"});
+  if (status.isSome() && WSUCCEEDED(status.get())) {
     AWAIT_READY(perf::version());
   }
 

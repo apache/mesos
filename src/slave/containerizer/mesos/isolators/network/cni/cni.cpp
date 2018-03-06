@@ -27,6 +27,7 @@
 
 #include <stout/adaptor.hpp>
 #include <stout/net.hpp>
+#include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
@@ -2077,20 +2078,21 @@ int NetworkCniIsolatorSetup::execute()
       return EXIT_FAILURE;
     }
 
-    int status = os::spawn("ifconfig", {"ifconfig", "lo", "up"});
+    const Option<int> status = os::spawn("ifconfig", {"ifconfig", "lo", "up"});
 
     const string message =
       "Failed to bring up the loopback interface in the new "
       "network namespace of pid " + stringify(flags.pid.get());
 
-    if (status == -1) {
+    if (status.isNone()) {
       cerr << message << ": " << "os::spawn failed: "
            << os::strerror(errno) << endl;
       return EXIT_FAILURE;
     }
 
-    if (!WSUCCEEDED(status)) {
-      cerr << message << ": 'ifconfig lo up' " << WSTRINGIFY(status) << endl;
+    if (!WSUCCEEDED(status.get())) {
+      cerr << message << ": 'ifconfig lo up' "
+           << WSTRINGIFY(status.get()) << endl;
       return EXIT_FAILURE;
     }
   }

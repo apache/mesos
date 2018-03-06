@@ -38,15 +38,15 @@ extern "C" {
 #include <stout/adaptor.hpp>
 #include <stout/check.hpp>
 #include <stout/error.hpp>
+#include <stout/fs.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
 #include <stout/numify.hpp>
+#include <stout/option.hpp>
+#include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
 #include <stout/synchronized.hpp>
-
-#include <stout/fs.hpp>
-#include <stout/os.hpp>
 
 #include <stout/os/read.hpp>
 #include <stout/os/realpath.hpp>
@@ -554,17 +554,18 @@ Try<Nothing> unmountAll(const string& target, int flags)
       // still catch the error here in case there's an error somewhere
       // else while running this command.
       // TODO(xujyan): Consider using `setmntent(3)` to implement this.
-      int status = os::spawn("umount", {"umount", "--fake", entry.dir});
+      const Option<int> status =
+        os::spawn("umount", {"umount", "--fake", entry.dir});
 
       const string message =
         "Failed to clean up '" + entry.dir + "' in /etc/mtab";
 
-      if (status == -1) {
+      if (status.isNone()) {
         return ErrnoError(message);
       }
 
-      if (!WSUCCEEDED(status)) {
-        return Error(message + ": " + WSTRINGIFY(status));
+      if (!WSUCCEEDED(status.get())) {
+        return Error(message + ": " + WSTRINGIFY(status.get()));
       }
     }
   }
