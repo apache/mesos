@@ -33,6 +33,7 @@
 
 #include <stout/adaptor.hpp>
 #include <stout/foreach.hpp>
+#include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/path.hpp>
@@ -641,7 +642,7 @@ int MesosContainerizerLaunch::execute()
     cout << "Executing pre-exec command '"
          << JSON::protobuf(command) << "'" << endl;
 
-    int status = 0;
+    Option<int> status;
 
     if (command.shell()) {
       // Execute the command using the system shell.
@@ -657,11 +658,14 @@ int MesosContainerizerLaunch::execute()
       status = os::spawn(command.value(), args);
     }
 
-    if (!WSUCCEEDED(status)) {
+    if (status.isNone() || !WSUCCEEDED(status.get())) {
       cerr << "Failed to execute pre-exec command '"
-           << JSON::protobuf(command) << "': "
-           << WSTRINGIFY(status)
-           << endl;
+           << JSON::protobuf(command) << "': ";
+      if (status.isNone()) {
+        cerr << "exited with unknown status" << endl;
+      } else {
+        cerr << WSTRINGIFY(status.get()) << endl;
+      }
       exitWithStatus(EXIT_FAILURE);
     }
   }

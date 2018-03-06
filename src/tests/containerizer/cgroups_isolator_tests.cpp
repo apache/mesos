@@ -217,7 +217,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_NET_CLS_UserCgroup)
 
     // Verify that the user cannot manipulate the container's cgroup
     // control files as their owner is root.
-    EXPECT_NE(0, os::system(strings::format(
+    EXPECT_SOME_NE(0, os::system(strings::format(
         "su - nobody -s /bin/sh -c 'echo $$ > %s'",
         path::join(hierarchy.get(), cgroup, "cgroup.procs")).get()));
 
@@ -225,13 +225,13 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_NET_CLS_UserCgroup)
     // cgroup as the isolator changes the owner of the cgroup.
     string userCgroup = path::join(cgroup, "user");
 
-    EXPECT_EQ(0, os::system(strings::format(
+    EXPECT_SOME_EQ(0, os::system(strings::format(
         "su - nobody -s /bin/sh -c 'mkdir %s'",
         path::join(hierarchy.get(), userCgroup)).get()));
 
     // Verify that the user can manipulate control files in the
     // created cgroup as it's owned by the user.
-    EXPECT_EQ(0, os::system(strings::format(
+    EXPECT_SOME_EQ(0, os::system(strings::format(
         "su - nobody -s /bin/sh -c 'echo $$ > %s'",
         path::join(hierarchy.get(), userCgroup, "cgroup.procs")).get()));
 

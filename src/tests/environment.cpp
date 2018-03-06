@@ -394,7 +394,7 @@ private:
   {
     // Use `os::system` here because `docker->inspect()` only works on
     // containers even though `docker inspect` cli command works on images.
-    const int res = os::system(
+    const Option<int> res = os::system(
         docker->getPath() + " -H " + docker->getSocket() + " inspect " +
         string(mesos::internal::checks::DOCKER_HEALTH_CHECK_IMAGE) + " > NUL");
 
