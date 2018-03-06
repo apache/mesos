@@ -17,11 +17,12 @@
 
 #include <stout/error.hpp>
 #include <stout/nothing.hpp>
-#include <stout/os/stat.hpp>
+#include <stout/option.hpp>
 #include <stout/path.hpp>
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
+#include <stout/os/stat.hpp>
 
 namespace os {
 
@@ -56,14 +57,14 @@ inline Try<Nothing> copyfile(
     return Error("`destination` was a relative path");
   }
 
-  const int status = os::spawn("cp", {"cp", source, destination});
+  const Option<int> status = os::spawn("cp", {"cp", source, destination});
 
-  if (status == -1) {
+  if (status.isNone()) {
     return ErrnoError("os::spawn failed");
   }
 
-  if (!(WIFEXITED(status) && WEXITSTATUS(status) == 0)) {
-    return Error("cp failed with status: " + stringify(status));
+  if (!(WIFEXITED(status.get()) && WEXITSTATUS(status.get()) == 0)) {
+    return Error("cp failed with status: " + stringify(status.get()));
   }
 
   return Nothing();

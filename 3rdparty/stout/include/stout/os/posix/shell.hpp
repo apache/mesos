@@ -153,19 +153,20 @@ inline Option<int> system(const std::string& command)
   }
 }
 
-// Executes a command by calling "<command> <arguments...>", and
-// returns after the command has been completed. Returns 0 if
-// succeeds, and -1 on error (e.g., fork/exec/waitpid failed). This
-// function is async signal safe. We return int instead of returning a
-// Try because Try involves 'new', which is not async signal safe.
-inline int spawn(
+// Executes a command by calling "<command> <arguments...>", and returns after
+// the command has been completed. Returns the exit code on success and `None`
+// on error (e.g., fork/exec/waitpid failed). This function is async signal
+// safe. We return an `Option<int>` instead of a `Try<int>`, because although
+// `Try` does not dynamically allocate, `Error` uses `std::string`, which is
+// not async signal safe.
+inline Option<int> spawn(
     const std::string& command,
     const std::vector<std::string>& arguments)
 {
   pid_t pid = ::fork();
 
   if (pid == -1) {
-    return -1;
+    return None();
   } else if (pid == 0) {
     // In child process.
     ::execvp(command.c_str(), os::raw::Argv(arguments));
@@ -175,7 +176,7 @@ inline int spawn(
     int status;
     while (::waitpid(pid, &status, 0) == -1) {
       if (errno != EINTR) {
-        return -1;
+        return None();
       }
     }
 

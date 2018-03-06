@@ -362,9 +362,9 @@ inline int execlp(const char* file, T... t) = delete;
 
 
 // Executes a command by calling "<command> <arguments...>", and
-// returns after the command has been completed. Returns process exit code if
-// succeeds, and -1 on error.
-inline int spawn(
+// returns after the command has been completed. Returns the process exit
+// code on success and `None` on error.
+inline Option<int> spawn(
     const std::string& command,
     const std::vector<std::string>& arguments,
     const Option<std::map<std::string, std::string>>& environment = None())
@@ -374,7 +374,7 @@ inline int spawn(
 
   if (process_data.isError()) {
     LOG(WARNING) << process_data.error();
-    return -1;
+    return None();
   }
 
   // Wait for the process synchronously.
@@ -386,7 +386,7 @@ inline int spawn(
            process_data->process_handle.get_handle(),
            &status)) {
     LOG(WARNING) << "Failed to `GetExitCodeProcess`: " << command;
-    return -1;
+    return None();
   }
 
   // Return the child exit code.
@@ -405,12 +405,7 @@ inline int spawn(
 // preferred if a shell is not required.
 inline Option<int> system(const std::string& command)
 {
-  // TODO(akagup): Change `os::spawn` to return `Option<int>` as well.
-  int pid = os::spawn(Shell::name, {Shell::arg0, Shell::arg1, command});
-  if (pid == -1) {
-    return None();
-  }
-  return pid;
+  return os::spawn(Shell::name, {Shell::arg0, Shell::arg1, command});
 }
 
 
@@ -421,7 +416,7 @@ inline int execvp(
     const std::string& command,
     const std::vector<std::string>& argv)
 {
-  exit(os::spawn(command, argv));
+  exit(os::spawn(command, argv).getOrElse(-1));
   return -1;
 }
 
@@ -434,7 +429,7 @@ inline int execvpe(
     const std::vector<std::string>& argv,
     const std::map<std::string, std::string>& envp)
 {
-  exit(os::spawn(command, argv, envp));
+  exit(os::spawn(command, argv, envp).getOrElse(-1));
   return -1;
 }
 
