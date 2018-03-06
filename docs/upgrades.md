@@ -581,7 +581,7 @@ In order to upgrade a running cluster:
 
 <a name="1-0-x-executor-environment-variables"></a>
 
-* By default, executors will no longer inherit environment variables from the agent. The operator can still use the `--executor-environment-variables` flag on the agent to explicitly specify what environment variables the executors will get. Mesos generated environment variables (i.e., `$MESOS_`, `$LIBPROCESS_`) will not be affected. If `$PATH` is not specified for an executor, a default value `/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin` will be used.
+* By default, executors will no longer inherit environment variables from the agent. The operator can still use the `--executor_environment_variables` flag on the agent to explicitly specify what environment variables the executors will get. Mesos generated environment variables (i.e., `$MESOS_`, `$LIBPROCESS_`) will not be affected. If `$PATH` is not specified for an executor, a default value `/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin` will be used.
 
 <a name="1-0-x-allocator-metrics"></a>
 
