@@ -8528,6 +8528,12 @@ TEST_F(MasterTest, RegistryGcByCount)
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
   }
 
+  // Wait for outstanding messages to be dropped, for example if
+  // the `SlaveRegisteredMessage` was re-sent after a timeout.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
   Future<SlaveRegisteredMessage> slaveRegisteredMessage2 =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
 
@@ -8605,8 +8611,8 @@ TEST_F(MasterTest, RegistryGcByCount)
   AWAIT_READY(reconcileUpdate1);
   AWAIT_READY(reconcileUpdate2);
 
-  ASSERT_EQ(TASK_UNKNOWN, reconcileUpdate1->state());
-  ASSERT_EQ(TASK_GONE_BY_OPERATOR, reconcileUpdate2->state());
+  EXPECT_EQ(TASK_UNKNOWN, reconcileUpdate1->state());
+  EXPECT_EQ(TASK_GONE_BY_OPERATOR, reconcileUpdate2->state());
 }
 
 
