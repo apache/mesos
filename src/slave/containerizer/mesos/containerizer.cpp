@@ -769,7 +769,7 @@ Future<Nothing> MesosContainerizerProcess::recover(
     // successfully launched, therefore we can assume checkpointed
     // containers should be running after recover.
     container->state = RUNNING;
-    container->pid = state.pid();
+    container->pid = static_cast<pid_t>(state.pid());
     container->directory = state.directory();
 
     // Attempt to read the launch config of the container.

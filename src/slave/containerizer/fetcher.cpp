@@ -258,13 +258,13 @@ FetcherProcess::Metrics::Metrics(FetcherProcess *fetcher)
         "containerizer/fetcher/cache_size_total_bytes",
         [=]() {
           // This value is safe to read while it is concurrently updated.
-          return fetcher->cache.totalSpace().bytes();
+          return static_cast<double>(fetcher->cache.totalSpace().bytes());
         }),
     cache_size_used_bytes(
         "containerizer/fetcher/cache_size_used_bytes",
         [=]() {
           // This value is safe to read while it is concurrently updated.
-          return fetcher->cache.usedSpace().bytes();
+          return static_cast<double>(fetcher->cache.usedSpace().bytes());
         })
 {
   process::metrics::add(task_fetches_succeeded);

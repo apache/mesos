@@ -621,14 +621,15 @@ Try<Docker::RunOptions> Docker::RunOptions::create(
     // TODO(yifan): Support other resources (e.g. disk).
     Option<double> cpus = resources->cpus();
     if (cpus.isSome()) {
-      options.cpuShares =
-        std::max((uint64_t) (CPU_SHARES_PER_CPU * cpus.get()), MIN_CPU_SHARES);
+      options.cpuShares = std::max(
+          static_cast<uint64_t>(CPU_SHARES_PER_CPU * cpus.get()),
+          MIN_CPU_SHARES);
 
       if (enableCfsQuota) {
         const Duration quota =
           std::max(CPU_CFS_PERIOD * cpus.get(), MIN_CPU_CFS_QUOTA);
 
-        options.cpuQuota = quota.us();
+        options.cpuQuota = static_cast<uint64_t>(quota.us());
       }
     }
 
