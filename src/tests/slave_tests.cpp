@@ -1374,12 +1374,19 @@ TEST_F(SlaveTest, MetricsInMetricsEndpoint)
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
+  // Make sure slave finishes recovery.
+  Future<RegisterSlaveMessage> registerSlave = FUTURE_PROTOBUF(
+      RegisterSlaveMessage(), slave.get()->pid, master.get()->pid);
+
+  AWAIT_READY(registerSlave);
+
   JSON::Object snapshot = Metrics();
 
   EXPECT_EQ(1u, snapshot.values.count("slave/uptime_secs"));
   EXPECT_EQ(1u, snapshot.values.count("slave/registered"));
 
   EXPECT_EQ(1u, snapshot.values.count("slave/recovery_errors"));
+  EXPECT_EQ(1u, snapshot.values.count("slave/recovery_time_secs"));
 
   EXPECT_EQ(1u, snapshot.values.count("slave/frameworks_active"));
 
