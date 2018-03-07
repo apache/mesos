@@ -14,7 +14,7 @@ Mesos 1.0.0 introduced experimental support for Windows.
 ### System Requirements
 
 1. Install the latest [Visual Studio 2017](https://www.visualstudio.com/downloads/):
-   The "Community" edition is sufficient (and free).
+   The "Community" edition is sufficient (and free of charge).
    During installation, choose the "Desktop development with C++" workload.
 
 2. Install [CMake 3.8.0](https://cmake.org/download/) or later.
@@ -62,7 +62,7 @@ Following are the instructions for Windows 10.
 
 The current implementation is known to have the following limitations:
 
-* Only the agent should be run on Windows.  The Mesos master can be
+* Only the agent should be run on Windows. The Mesos master can be
   launched, but only for testing as the master does not support
   high-availability setups on Windows.
 
@@ -74,15 +74,38 @@ The current implementation is known to have the following limitations:
   It is likely that this will increase, due to evolving Windows container
   support and developer features which ease porting.
 
+* The ability to [create symlinks][] as a non-admin user requires
+  Developer Mode to be enabled. Otherwise the agent will need to be
+  run under an administrator.
+
 [server]: https://docs.microsoft.com/en-us/windows-server/get-started/get-started-with-1709
+[create symlinks]: https://blogs.windows.com/buildingapps/2016/12/02/symlinks-windows-10/
 
-
-## Status
-
-For more information regarding the status of Windows support in Mesos,
-please refer to the [JIRA epic](https://issues.apache.org/jira/browse/MESOS-3094).
 
 ## Build Configuration Examples
+
+### Building with Ninja
+
+Instead of using MSBuild, it is also possible to build Mesos on
+Windows using [Ninja](https://ninja-build.org/), which can result in
+significantly faster builds. To use Ninja, you need to download it and
+ensure `ninja.exe` is in your `PATH`.
+
+* Download the [Windows binary](https://github.com/ninja-build/ninja/releases).
+* Unzip it and place `ninja.exe` in your `PATH`.
+* Open an "x64 Native Tools Command Prompt for VS 2017" to set your
+  environment.
+* In that command prompt, type `powershell` to use a better shell.
+* Similar to above, configure CMake with
+  `cmake .. -G Ninja -DENABLE_LIBEVENT=1`.
+* Now you can use `ninja` to build the various targets.
+* You may want to use `ninja -v` to make it verbose, as it's otherwise
+  very quiet.
+
+Note that with Ninja it is imperative to open the correct developer
+command prompt so that the 64-bit build tools are used, as Ninja does
+not otherwise know how to find them.
+
 
 ### Building with Java
 
