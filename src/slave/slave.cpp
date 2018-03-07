@@ -7304,6 +7304,8 @@ void Slave::__recover(const Future<Nothing>& future)
   }
 
   recoveryInfo.recovered.set(Nothing()); // Signal recovery.
+
+  metrics.setRecoveryTime(process::Clock::now() - startTime);
 }
 
 

@@ -243,6 +243,24 @@ Metrics::~Metrics()
     process::metrics::remove(gauge);
   }
   resources_revocable_percent.clear();
+
+  if (recovery_time_secs.isSome()) {
+    process::metrics::remove(recovery_time_secs.get());
+  }
+}
+
+
+void Metrics::setRecoveryTime(const Duration& duration)
+{
+  CHECK_NONE(recovery_time_secs);
+
+  const double recovery_seconds = duration.secs();
+
+  recovery_time_secs = process::metrics::Gauge(
+        "slave/recovery_time_secs",
+        [recovery_seconds]() { return recovery_seconds;});
+
+  process::metrics::add(recovery_time_secs.get());
 }
 
 } // namespace slave {

@@ -35,10 +35,13 @@ struct Metrics
 
   ~Metrics();
 
+  void setRecoveryTime(const Duration& duration);
+
   process::metrics::Gauge uptime_secs;
   process::metrics::Gauge registered;
 
   process::metrics::Counter recovery_errors;
+  Option<process::metrics::Gauge> recovery_time_secs;
 
   process::metrics::Gauge frameworks_active;
 
