@@ -1028,7 +1028,7 @@ private:
 
   void decline(
       Framework* framework,
-      const scheduler::Call::Decline& decline);
+      scheduler::Call::Decline&& decline);
 
   void declineInverseOffers(
       Framework* framework,

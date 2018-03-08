@@ -2384,7 +2384,7 @@ void Master::receive(
       break;
 
     case scheduler::Call::DECLINE:
-      decline(framework, call.decline());
+      decline(framework, std::move(*call.mutable_decline()));
       break;
 
     case scheduler::Call::ACCEPT_INVERSE_OFFERS:
@@ -3467,7 +3467,7 @@ void Master::launchTasks(
     *message.mutable_offer_ids() =
       std::move(*launchTasksMessage.mutable_offer_ids());
 
-    decline(framework, message);
+    decline(framework, std::move(message));
   }
 }
 
@@ -5444,7 +5444,7 @@ void Master::acceptInverseOffers(
 
 void Master::decline(
     Framework* framework,
-    const scheduler::Call::Decline& decline)
+    scheduler::Call::Decline&& decline)
 {
   CHECK_NOTNULL(framework);
 

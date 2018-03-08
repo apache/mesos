@@ -1100,7 +1100,7 @@ Future<Response> Master::Http::scheduler(
       return Accepted();
 
     case scheduler::Call::DECLINE:
-      master->decline(framework, call.decline());
+      master->decline(framework, std::move(*call.mutable_decline()));
       return Accepted();
 
     case scheduler::Call::ACCEPT_INVERSE_OFFERS:
