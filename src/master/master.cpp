@@ -831,11 +831,7 @@ void Master::initialize()
       &KillTaskMessage::task_id);
 
   install<StatusUpdateAcknowledgementMessage>(
-      &Master::statusUpdateAcknowledgement,
-      &StatusUpdateAcknowledgementMessage::slave_id,
-      &StatusUpdateAcknowledgementMessage::framework_id,
-      &StatusUpdateAcknowledgementMessage::task_id,
-      &StatusUpdateAcknowledgementMessage::uuid);
+      &Master::statusUpdateAcknowledgement);
 
   install<FrameworkToExecutorMessage>(
       &Master::schedulerMessage,
@@ -5722,11 +5718,17 @@ void Master::kill(Framework* framework, const scheduler::Call::Kill& kill)
 
 void Master::statusUpdateAcknowledgement(
     const UPID& from,
-    const SlaveID& slaveId,
-    const FrameworkID& frameworkId,
-    const TaskID& taskId,
-    const string& uuid)
+    StatusUpdateAcknowledgementMessage&& statusUpdateAcknowledgementMessage)
 {
+  const SlaveID& slaveId =
+    statusUpdateAcknowledgementMessage.slave_id();
+  const FrameworkID& frameworkId =
+    statusUpdateAcknowledgementMessage.framework_id();
+  const TaskID& taskId =
+    statusUpdateAcknowledgementMessage.task_id();
+  const string& uuid =
+    statusUpdateAcknowledgementMessage.uuid();
+
   // TODO(bmahler): Consider adding a message validator abstraction
   // for the master that takes care of all this boilerplate. Ideally
   // by the time we process messages in the critical master code, we
@@ -5767,9 +5769,13 @@ void Master::statusUpdateAcknowledgement(
   }
 
   scheduler::Call::Acknowledge message;
-  message.mutable_slave_id()->CopyFrom(slaveId);
-  message.mutable_task_id()->CopyFrom(taskId);
-  message.set_uuid(uuid);
+
+  *message.mutable_slave_id() =
+    std::move(*statusUpdateAcknowledgementMessage.mutable_slave_id());
+  *message.mutable_task_id() =
+    std::move(*statusUpdateAcknowledgementMessage.mutable_task_id());
+  *message.mutable_uuid() =
+    std::move(*statusUpdateAcknowledgementMessage.mutable_uuid());
 
   acknowledge(framework, message);
 }

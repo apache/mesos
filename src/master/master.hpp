@@ -447,10 +447,7 @@ public:
 
   void statusUpdateAcknowledgement(
       const process::UPID& from,
-      const SlaveID& slaveId,
-      const FrameworkID& frameworkId,
-      const TaskID& taskId,
-      const std::string& uuid);
+      StatusUpdateAcknowledgementMessage&& statusUpdateAcknowledgementMessage);
 
   void schedulerMessage(
       const process::UPID& from,
