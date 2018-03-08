@@ -33,6 +33,12 @@ string getContainerDir(const string& rootDir, const string& containerId)
   return path::join(rootDir, containerId);
 }
 
+string getJoinParentsNetworkPath(const string& rootDir,
+    const string& containerId) {
+  return path::join(getContainerDir(rootDir, containerId),
+       "joinParentsNetworkConfig");
+}
+
 
 string getNamespacePath(const string& rootDir, const string& containerId)
 {

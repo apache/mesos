@@ -67,6 +67,11 @@ string getNetworkConfigPath(
     const string& networkName);
 
 
+string getJoinParentsNetworkPath(
+    const string& rootDir,
+    const string& containerId);
+
+
 string getInterfaceDir(
     const string& rootDir,
     const string& containerId,

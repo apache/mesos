@@ -386,8 +386,17 @@ Future<Nothing> NetworkCniIsolatorProcess::recover(
     const ContainerID& containerId = state.container_id();
 
     if (containerId.has_parent()) {
-      // We do not need to recover nested containers.
-      continue;
+      // Check if this nested container shares the network namespace with its
+      // parent container or not.
+      const string joinParentsNetworkPath = paths::getJoinParentsNetworkPath(
+            rootDir.get(), containerId.value());
+
+      Try<string> joinParentsNetwork = os::read(
+        path::join("/var", joinParentsNetworkPath));
+      if (joinParentsNetwork.isError()) {
+        // This nested container wants to join parent's network.
+        continue;
+      }
     }
 
     Try<Nothing> recover = _recover(containerId, state);
@@ -408,7 +417,6 @@ Future<Nothing> NetworkCniIsolatorProcess::recover(
   foreach (const string& entry, entries.get()) {
     ContainerID containerId;
     containerId.set_value(Path(entry).basename());
-
     if (infos.contains(containerId)) {
       continue;
     }
@@ -557,6 +565,7 @@ Try<Nothing> NetworkCniIsolatorProcess::_recover(
   // remove the container directory. In that case, we still rely on 'cleanup'
   // to clean it up.
   infos.put(containerId, Owned<Info>(new Info(containerNetworks)));
+  infos[containerId]->joinParentsNetwork = containerId.has_parent();
 
   return Nothing();
 }
@@ -570,33 +579,50 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
     return Failure("Container has already been prepared");
   }
 
-  bool needsSeparateNs = false;
-  if ((containerConfig.has_container_info() &&
-        containerConfig.container_info().network_infos().size() > 0) ||
-            !containerId.has_parent()) {
-    needsSeparateNs = true;
-  }
-
   hashmap<string, ContainerNetwork> containerNetworks;
   Option<string> hostname;
 
-  if (needsSeparateNs) {
-    const ExecutorInfo& executorInfo = containerConfig.executor_info();
-    if (!executorInfo.has_container()) {
-      return None();
-    }
+  bool isNestedContainer = containerId.has_parent();
+  bool isDebugContainer = containerConfig.container_class() ==
+    ContainerClass::DEBUG;
+  bool joinParentsNetwork =
+    !containerConfig.has_container_info() ||
+      containerConfig.container_info().network_infos().empty();
 
-    if (executorInfo.container().type() != ContainerInfo::MESOS) {
+  if (isDebugContainer || (isNestedContainer && joinParentsNetwork)) {
+      // This is a nested container that wants to join parent's network.
+
+      // NOTE: The `network/cni` isolator checkpoints only the following
+      // top-level containers:
+      // * Containers joining the host network with an image.
+      // * Containers joining a non-host network.
+      //
+      // Therefore, after `recover` it can happen that `infos` does not
+      // contain top-level containers that have joined the host-network.
+      // Hence, we cannot return a `Failure` here if we do not find the
+      // `rootContainerId` in `infos`. If the `rootContainerId` is not
+      // found, it's implied that the root container is a container
+      // attached to the host network, which in turn implies that
+      // `containerNetworks` should be left empty.
+
+      ContainerID rootContainerId = protobuf::getRootContainerId(containerId);
+      if (infos.contains(rootContainerId)) {
+        containerNetworks = infos[rootContainerId]->containerNetworks;
+      }
+  } else {
+    const ContainerInfo& containerInfo = containerConfig.container_info();
+
+    if (containerInfo.type() != ContainerInfo::MESOS) {
       return Failure("Can only prepare CNI networks for a MESOS container");
     }
 
-    if (executorInfo.container().has_hostname()) {
-      hostname = executorInfo.container().hostname();
+    if (containerInfo.has_hostname()) {
+      hostname = containerInfo.hostname();
     }
 
     int ifIndex = 0;
     foreach (const mesos::NetworkInfo& networkInfo,
-             executorInfo.container().network_infos()) {
+             containerInfo.network_infos()) {
       if (!networkInfo.has_name()) {
         continue;
       }
@@ -620,42 +646,20 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
 
       containerNetworks.put(name, containerNetwork);
     }
-  } else {
-    // This is a nested container. If the `NetworkInfo` in
-    // `ContainerConfig.container` is set, it implies that the nested
-    // container needs to have a separate network namespace, else the
-    // nested container shares its network namespace with the parent.
-    ContainerID rootContainerId = protobuf::getRootContainerId(containerId);
-
-    // NOTE: The `network/cni` isolator checkpoints only the following
-    // top-level containers:
-    // * Containers joining the host network with an image.
-    // * Containers joining a non-host network.
-    //
-    // Therefore, after `recover` it can happen that `infos` does not
-    // contain top-level containers that have joined the host-network.
-    // Hence, we cannot return a `Failure` here if we do not find the
-    // `rootContainerId` in `infos`. If the `rootContainerId` is not
-    // found, it's implied that the root container is a container
-    // attached to the host network, which in turn implies that
-    // `containerNetworks` should be left empty.
-    if (infos.contains(rootContainerId)) {
-      containerNetworks = infos[rootContainerId]->containerNetworks;
-    }
   }
 
   // There are two groups of cases that need to be handled when
   // attaching containers to networks.
-  // * Cases where the containers don't need a new mount namespace:
-  //    a) Containers (nested or stand alone) join the host network
-  //       without an image.
-  //    b) Nested DEBUG containers join the same mount namespace as
-  //       their parent.
-  // * Cases where the container needs a new mount namespace:
-  //    a) Containers (nested or stand alone) join the host network
-  //       with an image.
-  //    b) Containers (nested or stand alone) join a non-host network,
-  //       with or without image.
+  //   * Cases where the containers don't need a new mount namespace:
+  //      a) Containers (nested or stand alone) join the host network
+  //         without an image.
+  //      b) Nested DEBUG containers join the same mount namespace as
+  //         their parent.
+  //   * Cases where the container needs a new mount namespace:
+  //      a) Containers (nested or stand alone) join the host network
+  //         with an image.
+  //      b) Containers (nested or stand alone) join a non-host network,
+  //         with or without image.
   //
   // The `network/cni` isolator will add any container needing a new
   // mount namespace to the `infos` structure. Reason being that for
@@ -693,7 +697,7 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
     // isolator to be used here). We must set the clone flags
     // ourselves explicitly.
 
-    if (containerId.has_parent() &&
+    if (isNestedContainer &&
         containerConfig.has_container_class() &&
         containerConfig.container_class() == ContainerClass::DEBUG) {
       // Nested DEBUG containers never need a new MOUNT namespace, so
@@ -721,7 +725,7 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
     env->set_name("LIBPROCESS_IP");
     env->set_value("0.0.0.0");
 
-    if (needsSeparateNs) {
+    if (!isDebugContainer && (!isNestedContainer || !joinParentsNetwork)) {
       auto mesosTestNetwork = [=]() {
         foreachkey (const string& networkName, containerNetworks) {
           // We can specify test networks to the `network/cni` isolator
@@ -748,10 +752,9 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
         launchInfo.add_clone_namespaces(CLONE_NEWNS);
         launchInfo.add_clone_namespaces(CLONE_NEWUTS);
       } else {
-        launchInfo.add_clone_namespaces(CLONE_NEWNET);
         launchInfo.add_clone_namespaces(CLONE_NEWNS);
+        launchInfo.add_clone_namespaces(CLONE_NEWNET);
         launchInfo.add_clone_namespaces(CLONE_NEWUTS);
-        infos[containerId]->needsSeparateNs = needsSeparateNs;
       }
     } else {
       // This is a nested container and wants to share parent's network
@@ -760,11 +763,11 @@ Future<Option<ContainerLaunchInfo>> NetworkCniIsolatorProcess::prepare(
       launchInfo.add_enter_namespaces(CLONE_NEWNET);
       launchInfo.add_enter_namespaces(CLONE_NEWUTS);
 
-      if (!containerConfig.has_container_class() ||
-          containerConfig.container_class() != ContainerClass::DEBUG) {
+      if (!isDebugContainer) {
         launchInfo.add_clone_namespaces(CLONE_NEWNS);
       }
     }
+    infos[containerId]->joinParentsNetwork = joinParentsNetwork;
 
     return launchInfo;
   }
@@ -781,6 +784,7 @@ Future<Nothing> NetworkCniIsolatorProcess::isolate(
   if (!infos.contains(containerId)) {
     return Nothing();
   }
+  const bool isNestedContainer = containerId.has_parent();
 
   // We first deal with containers (both top level or nested) that
   // want to join the host network. Given the above 'contains' check,
@@ -821,7 +825,9 @@ Future<Nothing> NetworkCniIsolatorProcess::isolate(
   CHECK_SOME(rootDir);
   CHECK_SOME(pluginDir);
 
-  if (!infos[containerId]->needsSeparateNs) {
+  // NOTE: DEBUG container should not have Info struct. Thus if the control
+  // reaches here, the container is not a DEBUG container.
+  if (isNestedContainer && infos[containerId]->joinParentsNetwork) {
     // We create network files for only those containers for which we
     // create a new network namespace. Therefore, for nested
     // containers that want to share network namespace with the parent
@@ -1260,6 +1266,24 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
         stringify(networkConfigJSON.get()) + "': " + write.error());
   }
 
+  if (containerId.has_parent()) {
+    // Checkpoint whether the nested container is connected to parent's
+    // network or not. This information will be used while recovering
+    // the container.
+    const string joinParentsNetworkPath = paths::getJoinParentsNetworkPath(
+        rootDir.get(),
+        containerId.value());
+
+    Try<Nothing> w =
+      os::write(joinParentsNetworkPath, "");
+
+    if (w.isError()) {
+    return Failure(
+        "Failed to checkpoint the joinParentsNetwork flag '" +
+        joinParentsNetworkPath + "': " + w.error());
+    }
+  }
+
   VLOG(1) << "Invoking CNI plugin '" << plugin.get()
           << "' with network configuration '"
           << stringify(networkConfigJSON.get())
@@ -1388,15 +1412,12 @@ Future<Nothing> NetworkCniIsolatorProcess::_attach(
 Future<ContainerStatus> NetworkCniIsolatorProcess::status(
     const ContainerID& containerId)
 {
-  // NOTE: Currently, nested containers share their network namespace
-  // with the parent containers in the hierarchy to which they belong.
-  // Hence, in order to obtain the IP address of this nested container
-  // one should always look up the IP address of the root container of
-  // the hierarchy to which this container belongs.
-  //
-  // TODO(jieyu): Revisit this once we allow nested containers to use
-  // different network namespaces than their parent container.
-  if (containerId.has_parent()) {
+  // In order to obtain the IP address of this nested container that wants to
+  // joins the parent's netowrk, we should look up the IP address of the
+  // root container of the hierarchy to which this container belongs.
+  if (containerId.has_parent() && infos[containerId]->joinParentsNetwork) {
+    // This nested container joins parent's network, so no need to generate a
+    // status for this container.
     return status(containerId.parent());
   }
 
@@ -1447,7 +1468,6 @@ Future<ContainerStatus> NetworkCniIsolatorProcess::status(
       // TODO(djosborne): Perform subnet strip on ipv6 addresses.
     }
   }
-
   return status;
 }
 
@@ -1463,8 +1483,9 @@ Future<Nothing> NetworkCniIsolatorProcess::cleanup(
     return Nothing();
   }
 
-  // For nested containers, we just need to remove it from `infos`.
-  if (containerId.has_parent()) {
+  // For nested containers that joins parent's network, we just need to remove
+  // it from `infos`.
+  if (infos[containerId]->joinParentsNetwork) {
     infos.erase(containerId);
     return Nothing();
   }

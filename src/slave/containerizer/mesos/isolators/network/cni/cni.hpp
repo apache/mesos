@@ -95,7 +95,8 @@ private:
           const Option<std::string>& _hostname = None())
       : containerNetworks (_containerNetworks),
         rootfs(_rootfs),
-        hostname(_hostname) {}
+        hostname(_hostname),
+        joinParentsNetwork(true) {}
 
     // CNI network information keyed by network name.
     //
@@ -110,8 +111,7 @@ private:
     const Option<std::string> rootfs;
 
     const Option<std::string> hostname;
-
-    bool needsSeparateNs = false;
+    bool joinParentsNetwork = true;
   };
 
   // Reads each CNI config present in `configDir`, validates if the
