@@ -1061,7 +1061,7 @@ private:
 
   void message(
       Framework* framework,
-      const scheduler::Call::Message& message);
+      scheduler::Call::Message&& message);
 
   void request(
       Framework* framework,

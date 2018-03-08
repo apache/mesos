@@ -2425,7 +2425,7 @@ void Master::receive(
       break;
 
     case scheduler::Call::MESSAGE:
-      message(framework, call.message());
+      message(framework, std::move(*call.mutable_message()));
       break;
 
     case scheduler::Call::REQUEST:
@@ -5904,7 +5904,7 @@ void Master::schedulerMessage(
   message_.mutable_executor_id()->CopyFrom(executorId);
   message_.set_data(data);
 
-  message(framework, message_);
+  message(framework, std::move(message_));
 }
 
 
@@ -5969,7 +5969,7 @@ void Master::executorMessage(
 
 void Master::message(
     Framework* framework,
-    const scheduler::Call::Message& message)
+    scheduler::Call::Message&& message)
 {
   CHECK_NOTNULL(framework);
 
@@ -5997,10 +5997,11 @@ void Master::message(
             << *framework << " to agent " << *slave;
 
   FrameworkToExecutorMessage message_;
-  message_.mutable_slave_id()->MergeFrom(message.slave_id());
-  message_.mutable_framework_id()->MergeFrom(framework->id());
-  message_.mutable_executor_id()->MergeFrom(message.executor_id());
-  message_.set_data(message.data());
+  *message_.mutable_slave_id() = std::move(*message.mutable_slave_id());
+  *message_.mutable_framework_id() = framework->id();
+  *message_.mutable_executor_id() = std::move(*message.mutable_executor_id());
+  *message_.mutable_data() = std::move(*message.mutable_data());
+
   send(slave->pid, message_);
 
   metrics->valid_framework_to_executor_messages++;

@@ -1144,7 +1144,7 @@ Future<Response> Master::Http::scheduler(
       return Forbidden("Operation reconciliation is not yet implemented");
 
     case scheduler::Call::MESSAGE:
-      master->message(framework, call.message());
+      master->message(framework, std::move(*call.mutable_message()));
       return Accepted();
 
     case scheduler::Call::REQUEST:
