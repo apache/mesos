@@ -818,11 +818,7 @@ void Master::initialize()
       &ResourceRequestMessage::requests);
 
   install<LaunchTasksMessage>(
-      &Master::launchTasks,
-      &LaunchTasksMessage::framework_id,
-      &LaunchTasksMessage::tasks,
-      &LaunchTasksMessage::filters,
-      &LaunchTasksMessage::offer_ids);
+      &Master::launchTasks);
 
   install<ReviveOffersMessage>(
       &Master::reviveOffers,
@@ -3420,17 +3416,15 @@ bool Master::isWhitelistedRole(const string& name) const
 
 void Master::launchTasks(
     const UPID& from,
-    const FrameworkID& frameworkId,
-    const vector<TaskInfo>& tasks,
-    const Filters& filters,
-    const vector<OfferID>& offerIds)
+    LaunchTasksMessage&& launchTasksMessage)
 {
-  Framework* framework = getFramework(frameworkId);
+  Framework* framework = getFramework(launchTasksMessage.framework_id());
 
   if (framework == nullptr) {
     LOG(WARNING)
-      << "Ignoring launch tasks message for offers " << stringify(offerIds)
-      << " of framework " << frameworkId
+      << "Ignoring launch tasks message for offers "
+      << stringify(launchTasksMessage.offer_ids())
+      << " of framework " << launchTasksMessage.framework_id()
       << " because the framework cannot be found";
 
     return;
@@ -3438,7 +3432,8 @@ void Master::launchTasks(
 
   if (framework->pid != from) {
     LOG(WARNING)
-      << "Ignoring launch tasks message for offers " << stringify(offerIds)
+      << "Ignoring launch tasks message for offers "
+      << stringify(launchTasksMessage.offer_ids())
       << " from '" << from << "' because it is not from the"
       << " registered framework " << *framework;
 
@@ -3447,29 +3442,30 @@ void Master::launchTasks(
 
   // Currently when no tasks are specified in the launchTasks message
   // it is implicitly considered a decline of the offers.
-  if (!tasks.empty()) {
+  if (!launchTasksMessage.tasks().empty()) {
     scheduler::Call::Accept message;
-    message.mutable_filters()->CopyFrom(filters);
+
+    *message.mutable_filters() =
+      std::move(*launchTasksMessage.mutable_filters());
+
+    *message.mutable_offer_ids() =
+      std::move(*launchTasksMessage.mutable_offer_ids());
 
     Offer::Operation* operation = message.add_operations();
     operation->set_type(Offer::Operation::LAUNCH);
 
-    foreach (const TaskInfo& task, tasks) {
-      operation->mutable_launch()->add_task_infos()->CopyFrom(task);
-    }
-
-    foreach (const OfferID& offerId, offerIds) {
-      message.add_offer_ids()->CopyFrom(offerId);
-    }
+    *operation->mutable_launch()->mutable_task_infos() =
+      std::move(*launchTasksMessage.mutable_tasks());
 
     accept(framework, message);
   } else {
     scheduler::Call::Decline message;
-    message.mutable_filters()->CopyFrom(filters);
 
-    foreach (const OfferID& offerId, offerIds) {
-      message.add_offer_ids()->CopyFrom(offerId);
-    }
+    *message.mutable_filters() =
+      std::move(*launchTasksMessage.mutable_filters());
+
+    *message.mutable_offer_ids() =
+      std::move(*launchTasksMessage.mutable_offer_ids());
 
     decline(framework, message);
   }

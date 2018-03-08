@@ -433,10 +433,7 @@ public:
 
   void launchTasks(
       const process::UPID& from,
-      const FrameworkID& frameworkId,
-      const std::vector<TaskInfo>& tasks,
-      const Filters& filters,
-      const std::vector<OfferID>& offerIds);
+      LaunchTasksMessage&& launchTasksMessage);
 
   void reviveOffers(
       const process::UPID& from,
