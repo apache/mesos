@@ -482,8 +482,7 @@ public:
       const SlaveID& slaveId);
 
   void statusUpdate(
-      StatusUpdate update,
-      const process::UPID& pid);
+      StatusUpdateMessage&& statusUpdateMessage);
 
   void reconcileTasks(
       const process::UPID& from,

@@ -859,9 +859,7 @@ void Master::initialize()
       &UnregisterSlaveMessage::slave_id);
 
   install<StatusUpdateMessage>(
-      &Master::statusUpdate,
-      &StatusUpdateMessage::update,
-      &StatusUpdateMessage::pid);
+      &Master::statusUpdate);
 
   // Added in 0.24.0 to support HTTP schedulers. Since
   // these do not have a pid, the slave must forward
@@ -7816,8 +7814,11 @@ void Master::updateUnavailability(
 // because the status updates will be sent by the slave.
 //
 // TODO(vinod): Add a benchmark test for status update handling.
-void Master::statusUpdate(StatusUpdate update, const UPID& pid)
+void Master::statusUpdate(StatusUpdateMessage&& statusUpdateMessage)
 {
+  const StatusUpdate& update = statusUpdateMessage.update();
+  const UPID& pid = statusUpdateMessage.pid();
+
   CHECK_NE(pid, UPID());
 
   ++metrics->messages_status_update;
