@@ -316,14 +316,7 @@ if (WIN32)
   # Build against the multi-threaded version of the C runtime library (CRT).
   if (BUILD_SHARED_LIBS)
     message(WARNING "Building with shared libraries is a work-in-progress.")
-
     set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
-
-    # Use dynamic CRT.
-    set(CRT " /MD")
-  else ()
-    # Use static CRT.
-    set(CRT " /MT")
   endif ()
 
   if (ENABLE_SSL)
@@ -337,25 +330,6 @@ if (WIN32)
 
   # Force use of Unicode C and C++ Windows APIs.
   add_definitions(-DUNICODE -D_UNICODE)
-
-  # NOTE: We APPEND ${CRT} rather than REPLACE so it gets picked up by
-  # dependencies.
-  foreach (lang C CXX)
-    # Debug library for debug configuration, release otherwise.
-
-    # Handle single-configuration generators such as Ninja.
-    if (CMAKE_BUILD_TYPE MATCHES Debug)
-      string(APPEND CMAKE_${lang}_FLAGS "${CRT}d")
-    else ()
-      string(APPEND CMAKE_${lang}_FLAGS ${CRT})
-    endif ()
-
-    # Handle multi-configuration generators such as Visual Studio.
-    string(APPEND CMAKE_${lang}_FLAGS_DEBUG "${CRT}d")
-    foreach (config RELEASE RELWITHDEBINFO MINSIZEREL)
-      string(APPEND CMAKE_${lang}_FLAGS_${config} ${CRT})
-    endforeach ()
-  endforeach ()
 
   # Convenience flags to simplify Windows support in C++ source; used to
   # `#ifdef` out some platform-specific parts of Mesos.  We choose to define
