@@ -2535,19 +2535,31 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_RetryOperationStatusUpdate)
 
   Future<vector<Offer>> offers;
 
-  auto isRaw = [](
-      const Resource& r) {
+  // Decline offers without RAW disk resources. The master can send such offers
+  // before the resource provider reports its RAW resources, or after receiving
+  // the `UpdateOperationStatusMessage`.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillRepeatedly(DeclineOffers());
+
+  auto isRaw = [](const Resource& r) {
     return r.has_disk() &&
       r.disk().has_source() &&
       r.disk().source().has_profile() &&
       r.disk().source().type() == Resource::DiskInfo::Source::RAW;
   };
 
-  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(isRaw, lambda::_1))))
+  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(isRaw)))
     .WillOnce(FutureArg<1>(&offers));
 
   driver.start();
+
+  // NOTE: If the framework has not declined an unwanted offer yet when the
+  // resource provider reports its RAW resources, the new allocation triggered
+  // by this update won't generate an allocatable offer due to no CPU and memory
+  // resources. So we first settle the clock to ensure that the unwanted offer
+  // has been declined, then advance the clock to trigger another allocation.
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
@@ -2596,12 +2608,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_RetryOperationStatusUpdate)
   // The master acknowledged the operation status update, so the SLRP shouldn't
   // send further operation status updates.
   EXPECT_NO_FUTURE_PROTOBUFS(UpdateOperationStatusMessage(), _, _);
-
-  // The master received the `UpdateOperationStatusMessage`, so it can now
-  // offer the `MOUNT` disk - no further offers are needed, so they can be
-  // declined.
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillRepeatedly(DeclineOffers());
 
   Clock::advance(slave::STATUS_UPDATE_RETRY_INTERVAL_MIN);
   Clock::settle();
@@ -2686,19 +2692,31 @@ TEST_F(
 
   Future<vector<Offer>> offers;
 
-  auto isRaw = [](
-      const Resource& r) {
+  // Decline offers without RAW disk resources. The master can send such offers
+  // before the resource provider reports its RAW resources, or after receiving
+  // the `UpdateOperationStatusMessage`.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillRepeatedly(DeclineOffers());
+
+  auto isRaw = [](const Resource& r) {
     return r.has_disk() &&
       r.disk().has_source() &&
       r.disk().source().has_profile() &&
       r.disk().source().type() == Resource::DiskInfo::Source::RAW;
   };
 
-  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(isRaw, lambda::_1))))
+  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(isRaw)))
     .WillOnce(FutureArg<1>(&offers));
 
   driver.start();
+
+  // NOTE: If the framework has not declined an unwanted offer yet when the
+  // resource provider reports its RAW resources, the new allocation triggered
+  // by this update won't generate an allocatable offer due to no CPU and memory
+  // resources. So we first settle the clock to ensure that the unwanted offer
+  // has been declined, then advance the clock to trigger another allocation.
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
@@ -2748,12 +2766,6 @@ TEST_F(
   // The master should acknowledge the operation status update once.
   Future<AcknowledgeOperationStatusMessage> acknowledgeOperationStatusMessage =
     FUTURE_PROTOBUF(AcknowledgeOperationStatusMessage(), master.get()->pid, _);
-
-  // Decline offers without RAW disk resources, the master can send such offers
-  // once it receives the first `UpdateSlaveMessage` after the agent failover,
-  // or after receiving the `UpdateOperationStatusMessage`.
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillRepeatedly(DeclineOffers());
 
   slave = StartSlave(detector.get(), flags);
   ASSERT_SOME(slave);
@@ -3701,8 +3713,8 @@ TEST_F(
       r.disk().source().type() == v1::Resource::DiskInfo::Source::RAW;
   };
 
-  EXPECT_CALL(*scheduler, offers(_, v1::scheduler::OffersHaveAnyResource(
-      std::bind(isRaw, lambda::_1))))
+  EXPECT_CALL(
+      *scheduler, offers(_, v1::scheduler::OffersHaveAnyResource(isRaw)))
     .WillOnce(FutureArg<1>(&offers));
 
   v1::scheduler::TestMesos mesos(
@@ -3886,8 +3898,8 @@ TEST_F(
       r.disk().source().type() == v1::Resource::DiskInfo::Source::RAW;
   };
 
-  EXPECT_CALL(*scheduler, offers(_, v1::scheduler::OffersHaveAnyResource(
-      std::bind(isRaw, lambda::_1))))
+  EXPECT_CALL(
+      *scheduler, offers(_, v1::scheduler::OffersHaveAnyResource(isRaw)))
     .WillOnce(FutureArg<1>(&offers));
 
   v1::scheduler::TestMesos mesos(
