@@ -164,6 +164,13 @@ endif ()
 
 # SYSTEM CHECKS.
 ################
+
+# Set the default standard to C++11 for all targets.
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+# Do not use, for example, `-std=gnu++11`.
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 # Check that we are targeting a 64-bit architecture.
 if (NOT (CMAKE_SIZEOF_VOID_P EQUAL 8))
   message(
@@ -178,12 +185,6 @@ if (NOT (CMAKE_SIZEOF_VOID_P EQUAL 8))
     "    `cmake -DCMAKE_OSX_ARCHITECTURES=x86_64`.\n")
 endif ()
 
-# Make sure C++ 11 features we need are supported.
-# This is split into two cases: Windows and "other platforms".
-#   * For "other platforms", we simply check if the C++11 flags work
-#   * For Windows, C++11 is enabled by default on MSVC 1900.
-#     We just check the MSVC version.
-CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
 if (WIN32)
   # Versions of Visual Studio older than 2017 do not support all core features
   # of C++14, which prevents Mesos from moving past C++11. This adds a
@@ -220,15 +221,6 @@ endif ()
 # POSIX CONFIGURATION.
 ######################
 if (NOT WIN32)
-  if (NOT COMPILER_SUPPORTS_CXX11)
-    message(
-      FATAL_ERROR
-      "The compiler ${CMAKE_CXX_COMPILER} does not support the `-std=c++11` "
-      "flag. Please use a different C++ compiler.")
-  endif ()
-
-  string(APPEND CMAKE_CXX_FLAGS " -std=c++11")
-
   # Warn about use of format functions that can produce security issues.
   string(APPEND CMAKE_CXX_FLAGS " -Wformat-security")
 
