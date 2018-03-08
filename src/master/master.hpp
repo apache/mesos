@@ -451,10 +451,7 @@ public:
 
   void schedulerMessage(
       const process::UPID& from,
-      const SlaveID& slaveId,
-      const FrameworkID& frameworkId,
-      const ExecutorID& executorId,
-      const std::string& data);
+      FrameworkToExecutorMessage&& frameworkToExecutorMessage);
 
   void executorMessage(
       const process::UPID& from,

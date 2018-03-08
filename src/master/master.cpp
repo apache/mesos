@@ -834,11 +834,7 @@ void Master::initialize()
       &Master::statusUpdateAcknowledgement);
 
   install<FrameworkToExecutorMessage>(
-      &Master::schedulerMessage,
-      &FrameworkToExecutorMessage::slave_id,
-      &FrameworkToExecutorMessage::framework_id,
-      &FrameworkToExecutorMessage::executor_id,
-      &FrameworkToExecutorMessage::data);
+      &Master::schedulerMessage);
 
   install<RegisterSlaveMessage>(
       &Master::registerSlave);
@@ -5874,11 +5870,11 @@ void Master::acknowledgeOperationStatus(
 
 void Master::schedulerMessage(
     const UPID& from,
-    const SlaveID& slaveId,
-    const FrameworkID& frameworkId,
-    const ExecutorID& executorId,
-    const string& data)
+    FrameworkToExecutorMessage&& frameworkToExecutorMessage)
 {
+  const FrameworkID& frameworkId = frameworkToExecutorMessage.framework_id();
+  const ExecutorID& executorId = frameworkToExecutorMessage.executor_id();
+
   Framework* framework = getFramework(frameworkId);
 
   if (framework == nullptr) {
@@ -5900,9 +5896,12 @@ void Master::schedulerMessage(
   }
 
   scheduler::Call::Message message_;
-  message_.mutable_slave_id()->CopyFrom(slaveId);
-  message_.mutable_executor_id()->CopyFrom(executorId);
-  message_.set_data(data);
+  *message_.mutable_slave_id() =
+    std::move(*frameworkToExecutorMessage.mutable_slave_id());
+  *message_.mutable_executor_id() =
+    std::move(*frameworkToExecutorMessage.mutable_executor_id());
+  *message_.mutable_data() =
+    std::move(*frameworkToExecutorMessage.mutable_data());
 
   message(framework, std::move(message_));
 }
