@@ -1045,7 +1045,7 @@ private:
 
   void acknowledge(
       Framework* framework,
-      const scheduler::Call::Acknowledge& acknowledge);
+      scheduler::Call::Acknowledge&& acknowledge);
 
   void acknowledgeOperationStatus(
       Framework* framework,

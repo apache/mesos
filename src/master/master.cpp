@@ -2404,7 +2404,7 @@ void Master::receive(
       break;
 
     case scheduler::Call::ACKNOWLEDGE: {
-      acknowledge(framework, call.acknowledge());
+      acknowledge(framework, std::move(*call.mutable_acknowledge()));
       break;
     }
 
@@ -5777,13 +5777,13 @@ void Master::statusUpdateAcknowledgement(
   *message.mutable_uuid() =
     std::move(*statusUpdateAcknowledgementMessage.mutable_uuid());
 
-  acknowledge(framework, message);
+  acknowledge(framework, std::move(message));
 }
 
 
 void Master::acknowledge(
     Framework* framework,
-    const scheduler::Call::Acknowledge& acknowledge)
+    scheduler::Call::Acknowledge&& acknowledge)
 {
   CHECK_NOTNULL(framework);
 
@@ -5855,10 +5855,10 @@ void Master::acknowledge(
   }
 
   StatusUpdateAcknowledgementMessage message;
-  message.mutable_slave_id()->CopyFrom(slaveId);
-  message.mutable_framework_id()->CopyFrom(framework->id());
-  message.mutable_task_id()->CopyFrom(taskId);
-  message.set_uuid(uuid.toBytes());
+  *message.mutable_slave_id() = std::move(*acknowledge.mutable_slave_id());
+  *message.mutable_framework_id() = framework->id();
+  *message.mutable_task_id() = std::move(*acknowledge.mutable_task_id());
+  *message.mutable_uuid() = std::move(*acknowledge.mutable_uuid());
 
   send(slave->pid, message);
 

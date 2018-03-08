@@ -1128,7 +1128,7 @@ Future<Response> Master::Http::scheduler(
       return Accepted();
 
     case scheduler::Call::ACKNOWLEDGE:
-      master->acknowledge(framework, call.acknowledge());
+      master->acknowledge(framework, std::move(*call.mutable_acknowledge()));
       return Accepted();
 
     // TODO(greggomann): Implement operation status acknowledgement.
