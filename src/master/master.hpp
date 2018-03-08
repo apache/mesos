@@ -1013,13 +1013,13 @@ private:
 
   void accept(
       Framework* framework,
-      scheduler::Call::Accept accept);
+      scheduler::Call::Accept&& accept);
 
   void _accept(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
       const Resources& offeredResources,
-      const scheduler::Call::Accept& accept,
+      scheduler::Call::Accept&& accept,
       const process::Future<std::list<process::Future<bool>>>& authorizations);
 
   void acceptInverseOffers(

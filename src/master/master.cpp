@@ -2380,7 +2380,7 @@ void Master::receive(
       break;
 
     case scheduler::Call::ACCEPT:
-      accept(framework, call.accept());
+      accept(framework, std::move(*call.mutable_accept()));
       break;
 
     case scheduler::Call::DECLINE:
@@ -3457,7 +3457,7 @@ void Master::launchTasks(
     *operation->mutable_launch()->mutable_task_infos() =
       std::move(*launchTasksMessage.mutable_tasks());
 
-    accept(framework, message);
+    accept(framework, std::move(message));
   } else {
     scheduler::Call::Decline message;
 
@@ -3878,7 +3878,7 @@ void Master::addTask(
 
 void Master::accept(
     Framework* framework,
-    scheduler::Call::Accept accept)
+    scheduler::Call::Accept&& accept)
 {
   CHECK_NOTNULL(framework);
 
@@ -4360,7 +4360,7 @@ void Master::accept(
                  framework->id(),
                  slaveId.get(),
                  offeredResources,
-                 accept,
+                 std::move(accept),
                  lambda::_1));
 }
 
@@ -4369,7 +4369,7 @@ void Master::_accept(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
     const Resources& offeredResources,
-    const scheduler::Call::Accept& accept,
+    scheduler::Call::Accept&& accept,
     const Future<list<Future<bool>>>& _authorizations)
 {
   Framework* framework = getFramework(frameworkId);

@@ -1096,7 +1096,7 @@ Future<Response> Master::Http::scheduler(
       return Accepted();
 
     case scheduler::Call::ACCEPT:
-      master->accept(framework, call.accept());
+      master->accept(framework, std::move(*call.mutable_accept()));
       return Accepted();
 
     case scheduler::Call::DECLINE:
