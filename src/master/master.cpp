@@ -853,11 +853,7 @@ void Master::initialize()
   // these do not have a pid, the slave must forward
   // messages through the master.
   install<ExecutorToFrameworkMessage>(
-      &Master::executorMessage,
-      &ExecutorToFrameworkMessage::slave_id,
-      &ExecutorToFrameworkMessage::framework_id,
-      &ExecutorToFrameworkMessage::executor_id,
-      &ExecutorToFrameworkMessage::data);
+      &Master::executorMessage);
 
   install<ReconcileTasksMessage>(
       &Master::reconcileTasks,
@@ -5909,11 +5905,12 @@ void Master::schedulerMessage(
 
 void Master::executorMessage(
     const UPID& from,
-    const SlaveID& slaveId,
-    const FrameworkID& frameworkId,
-    const ExecutorID& executorId,
-    const string& data)
+    ExecutorToFrameworkMessage&& executorToFrameworkMessage)
 {
+  const SlaveID& slaveId = executorToFrameworkMessage.slave_id();
+  const FrameworkID& frameworkId = executorToFrameworkMessage.framework_id();
+  const ExecutorID& executorId = executorToFrameworkMessage.executor_id();
+
   metrics->messages_executor_to_framework++;
 
   if (slaves.removed.get(slaveId).isSome()) {
@@ -5955,10 +5952,14 @@ void Master::executorMessage(
   }
 
   ExecutorToFrameworkMessage message;
-  message.mutable_slave_id()->MergeFrom(slaveId);
-  message.mutable_framework_id()->MergeFrom(frameworkId);
-  message.mutable_executor_id()->MergeFrom(executorId);
-  message.set_data(data);
+  *message.mutable_slave_id() =
+    std::move(*executorToFrameworkMessage.mutable_slave_id());
+  *message.mutable_framework_id() =
+    std::move(*executorToFrameworkMessage.mutable_framework_id());
+  *message.mutable_executor_id() =
+    std::move(*executorToFrameworkMessage.mutable_executor_id());
+  *message.mutable_data() =
+    std::move(*executorToFrameworkMessage.mutable_data());
 
   framework->send(message);
 

@@ -455,10 +455,7 @@ public:
 
   void executorMessage(
       const process::UPID& from,
-      const SlaveID& slaveId,
-      const FrameworkID& frameworkId,
-      const ExecutorID& executorId,
-      const std::string& data);
+      ExecutorToFrameworkMessage&& executorToFrameworkMessage);
 
   void registerSlave(
       const process::UPID& from,
