@@ -217,21 +217,46 @@ if (WIN32)
   endif ()
 endif ()
 
+# GLOBAL WARNINGS.
+##################
+if (CMAKE_CXX_COMPILER_ID MATCHES GNU
+    OR CMAKE_CXX_COMPILER_ID MATCHES Clang) # Also matches AppleClang.
+  # TODO(andschwa): Add `-Wextra`, `-Wpedantic`, `-Wconversion`.
+  add_compile_options(
+    -Wall
+    -Wsign-compare)
+elseif (CMAKE_CXX_COMPILER_ID MATCHES MSVC)
+  # TODO(andschwa): Switch to `/W4` and re-enable possible-loss-of-data warnings.
+  #
+  # The last two warnings are disabled (well, put into `/W4`) because
+  # there is no easy equivalent to enable them for GCC/Clang without
+  # also fixing all the warnings from `-Wconversion`.
+  add_compile_options(
+    # Like `-Wall`; `/W4` is more like `-Wall -Wextra`.
+    /W3
+    # Disable permissiveness.
+    /permissive-
+    # C4244 is a possible loss of data warning for integer conversions.
+    /w44244
+    # C4267 is a possible loss of data warning when converting from `size_t`.
+    /w44267)
+endif ()
+
 
 # POSIX CONFIGURATION.
 ######################
 if (NOT WIN32)
   # Warn about use of format functions that can produce security issues.
-  string(APPEND CMAKE_CXX_FLAGS " -Wformat-security")
+  add_compile_options(-Wformat-security)
 
   # Protect many of the functions with stack guards. The exact flag
   # depends on compiler support.
   CHECK_CXX_COMPILER_FLAG(-fstack-protector-strong STRONG_STACK_PROTECTORS)
   CHECK_CXX_COMPILER_FLAG(-fstack-protector STACK_PROTECTORS)
   if (STRONG_STACK_PROTECTORS)
-    string(APPEND CMAKE_CXX_FLAGS " -fstack-protector-strong")
+    add_compile_options(-fstack-protector-strong)
   elseif (STACK_PROTECTORS)
-    string(APPEND CMAKE_CXX_FLAGS " -fstack-protector")
+    add_compile_options(-fstack-protector)
   else ()
     message(
       WARNING
@@ -259,7 +284,7 @@ if (ENABLE_GC_UNUSED)
   set(CMAKE_REQUIRED_FLAGS "-ffunction-sections -fdata-sections -Wl,--gc-sections")
   CHECK_CXX_COMPILER_FLAG("" GC_FUNCTION_SECTIONS)
   if (GC_FUNCTION_SECTIONS)
-    string(APPEND CMAKE_CXX_FLAGS " -ffunction-sections -fdata-sections")
+    add_compile_options(-ffunction-sections -fdata-sections)
     string(APPEND CMAKE_EXE_LINKER_FLAGS " -Wl,--gc-sections")
     string(APPEND CMAKE_SHARED_LINKER_FLAGS " -Wl,--gc-sections")
   else ()
@@ -282,14 +307,11 @@ string(COMPARE EQUAL ${CMAKE_SYSTEM_NAME} "Linux" LINUX)
 if (WIN32)
   # COFF/PE and friends are somewhat limited in the number of sections they
   # allow for an object file. We use this to avoid those problems.
-  string(APPEND CMAKE_CXX_FLAGS " /bigobj /vd2")
-
-  # Disable permissiveness.
-  string(APPEND CMAKE_CXX_FLAGS " /permissive-")
+  add_compile_options(/bigobj /vd2)
 
   # Fix Warning C4530: C++ exception handler used, but unwind semantics are not
   # enabled.
-  string(APPEND CMAKE_CXX_FLAGS " /EHsc")
+  add_compile_options(/EHsc)
 
   # Build against the multi-threaded version of the C runtime library (CRT).
   if (BUILD_SHARED_LIBS)
@@ -310,13 +332,15 @@ if (WIN32)
     set(OPENSSL_MSVC_STATIC_RT TRUE)
   endif ()
 
+  # Enable multi-threaded compilation for `cl.exe`.
+  add_compile_options(/MP)
+
+  # Force use of Unicode C and C++ Windows APIs.
+  add_definitions(-DUNICODE -D_UNICODE)
+
   # NOTE: We APPEND ${CRT} rather than REPLACE so it gets picked up by
   # dependencies.
   foreach (lang C CXX)
-    # Enable multi-threaded and UNICODE compilation.
-    # NOTE: We do not add CRT here because dependencies will use it incorrectly.
-    string(APPEND CMAKE_${lang}_FLAGS " /MP -DUNICODE -D_UNICODE")
-
     # Debug library for debug configuration, release otherwise.
 
     # Handle single-configuration generators such as Ninja.
