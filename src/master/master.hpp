@@ -980,7 +980,7 @@ private:
   // Call handlers.
   void receive(
       const process::UPID& from,
-      const scheduler::Call& call);
+      scheduler::Call&& call);
 
   void subscribe(
       HttpConnection http,

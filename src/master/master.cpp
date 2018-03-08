@@ -2322,7 +2322,7 @@ void Master::drop(
 
 void Master::receive(
     const UPID& from,
-    const scheduler::Call& call)
+    scheduler::Call&& call)
 {
   // TODO(vinod): Add metrics for calls.
 
