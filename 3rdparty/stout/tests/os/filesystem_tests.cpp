@@ -259,6 +259,43 @@ TEST_F(FsTest, CreateDirectoryLongerThanMaxPath)
   EXPECT_SOME_TRUE(os::access(testfile, R_OK | W_OK));
   EXPECT_SOME_EQ(testfile, os::realpath(testfile));
 }
+
+
+// This test ensures that `os::realpath` will work on open files.
+TEST_F(FsTest, RealpathValidationOnOpenFile)
+{
+  // Open a file to write, with "SHARE" read/write permissions,
+  // then call `os::realpath` on that file.
+  const string file = path::join(sandbox.get(), id::UUID::random().toString());
+
+  const string data = "data";
+
+  const SharedHandle handle(
+      ::CreateFileW(
+          wide_stringify(file).data(),
+          FILE_APPEND_DATA,
+          FILE_SHARE_READ | FILE_SHARE_WRITE,
+          nullptr,  // No inheritance.
+          CREATE_ALWAYS,
+          FILE_ATTRIBUTE_NORMAL,
+          nullptr), // No template file.
+      ::CloseHandle);
+  EXPECT_NE(handle.get_handle(), INVALID_HANDLE_VALUE);
+
+  DWORD bytes_written;
+  BOOL written = ::WriteFile(
+      handle.get_handle(),
+      data.c_str(),
+      static_cast<DWORD>(data.size()),
+      &bytes_written,
+      nullptr); // No overlapped I/O.
+  EXPECT_EQ(written, TRUE);
+  EXPECT_EQ(data.size(), bytes_written);
+
+  // Verify that `os::realpath` (which calls `CreateFileW` on Windows) is
+  // successful even though the file is open elsewhere.
+  EXPECT_SOME_EQ(file, os::realpath(file));
+}
 #endif // __WINDOWS__
 
 

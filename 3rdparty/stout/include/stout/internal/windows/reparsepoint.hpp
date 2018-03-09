@@ -179,8 +179,9 @@ inline Try<SharedHandle> get_handle_follow(const std::string& absolute_path)
   // can be found in MSDN[2].
   //
   // The `GENERIC_READ` flag is being used because it's the most common way of
-  // opening a file for reading only. The `FILE_SHARE_READ` allows other
-  // processes to read the file at the same time. MSDN[1] provides a more
+  // opening a file for reading only. The `SHARE` flags allow other processes
+  // to read the file at the same time, as well as allow this process to read
+  // files that were also opened with these flags. MSDN[1] provides a more
   // detailed explanation of these flags.
   //
   // [1] https://msdn.microsoft.com/en-us/library/windows/desktop/aa363858(v=vs.85).aspx // NOLINT(whitespace/line_length)
@@ -192,7 +193,9 @@ inline Try<SharedHandle> get_handle_follow(const std::string& absolute_path)
   const HANDLE handle = ::CreateFileW(
       longpath(absolute_path).data(),
       GENERIC_READ,     // Open the file for reading only.
-      FILE_SHARE_READ,  // Just reading this file, allow others to do the same.
+      // Must pass in all SHARE flags below, in case file is already open.
+      // Otherwise, we may get an access denied error.
+      FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
       nullptr,          // Ignored.
       OPEN_EXISTING,    // Open existing file.
       access_flags,     // Open file, not the symlink itself.
@@ -234,8 +237,9 @@ inline Try<SharedHandle> get_handle_no_follow(const std::string& absolute_path)
   // can be found in MSDN[2].
   //
   // The `GENERIC_READ` flag is being used because it's the most common way of
-  // opening a file for reading only. The `FILE_SHARE_READ` allows other
-  // processes to read the file at the same time. MSDN[1] provides a more
+  // opening a file for reading only. The `SHARE` flags allow other processes
+  // to read the file at the same time, as well as allow this process to read
+  // files that were also opened with these flags. MSDN[1] provides a more
   // detailed explanation of these flags.
   //
   // [1] https://msdn.microsoft.com/en-us/library/windows/desktop/aa363858(v=vs.85).aspx // NOLINT(whitespace/line_length)
@@ -247,7 +251,9 @@ inline Try<SharedHandle> get_handle_no_follow(const std::string& absolute_path)
   const HANDLE handle = ::CreateFileW(
       longpath(absolute_path).data(),
       GENERIC_READ,     // Open the file for reading only.
-      FILE_SHARE_READ,  // Just reading this file, allow others to do the same.
+      // Must pass in all SHARE flags below, in case file is already open.
+      // Otherwise, we may get an access denied error.
+      FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
       nullptr,          // Ignored.
       OPEN_EXISTING,    // Open existing symlink.
       access_flags,     // Open symlink, not the file it points to.
