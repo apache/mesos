@@ -76,6 +76,7 @@ layout: documentation
 * [Motus](http://www.motus.com)
 * [Ndustrial.io](http://www.ndustrial.io)
 * [Netflix](http://www.netflix.com)
+* [Nitro](https://www.gonitro.com)
 * [Oakmore Labs](http://www.oakmorelabs.com)
 * [OLA](https://www.olacabs.com)
 * [Orbitz Worldwide](http://www.orbitz.com/)
