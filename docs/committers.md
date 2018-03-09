@@ -104,6 +104,13 @@ We'd like to thank the following committers to the Apache Mesos project who have
       <td>ianh@apache.org</td>
     </tr>
     <tr>
+      <td>-8</td>
+      <td>Chun-Hung Hsiao</td>
+      <td>Mesosphere</td>
+      <td></td>
+      <td>chhsiao@apache.org</td>
+    </tr>
+    <tr>
       <td>+8</td>
       <td>Haosdent Huang</td>
       <td>Shopee</td>
