@@ -504,17 +504,20 @@ if (ENABLE_LIBEVENT)
       IMPORTED_LOCATION ${LIBEVENT_ROOT}-build/lib/libevent${LIBRARY_SUFFIX})
   endif ()
 
-  set(LIBEVENT_CMAKE_ARGS
+  set(LIBEVENT_CMAKE_FORWARD_ARGS
     ${CMAKE_FORWARD_ARGS}
     ${CMAKE_SSL_FORWARD_ARGS}
     # NOTE: Libevent does not respect the BUILD_SHARED_LIBS global flag.
     -DEVENT__BUILD_SHARED_LIBRARIES=${BUILD_SHARED_LIBS}
     -DEVENT__DISABLE_OPENSSL=$<NOT:$<BOOL:${ENABLE_SSL}>>
-    -DCMAKE_C_FLAGS=$<IF:$<PLATFORM_ID:Windows>,"",-fPIC>
     -DEVENT__DISABLE_BENCHMARK=ON
     -DEVENT__DISABLE_REGRESS=ON
     -DEVENT__DISABLE_SAMPLES=ON
     -DEVENT__DISABLE_TESTS=ON)
+
+  if (CMAKE_C_COMPILER_ID MATCHES GNU OR CMAKE_C_COMPILER_ID MATCHES Clang)
+    list(APPEND LIBEVENT_CMAKE_FORWARD_ARGS -DCMAKE_C_FLAGS=-fPIC)
+  endif ()
 
   MAKE_INCLUDE_DIR(libevent)
   GET_BYPRODUCTS(libevent)
@@ -523,7 +526,7 @@ if (ENABLE_LIBEVENT)
     ${LIBEVENT_TARGET}
     PREFIX            ${LIBEVENT_CMAKE_ROOT}
     BUILD_BYPRODUCTS  ${LIBEVENT_BYPRODUCTS}
-    CMAKE_ARGS        ${LIBEVENT_CMAKE_ARGS}
+    CMAKE_ARGS        ${LIBEVENT_CMAKE_FORWARD_ARGS}
     INSTALL_COMMAND   ${CMAKE_NOOP}
     URL               ${LIBEVENT_URL}
     URL_HASH          ${LIBEVENT_HASH})
@@ -643,7 +646,7 @@ if (WIN32)
   # `add_dependencies` creates a cycle.
   add_executable(curl IMPORTED GLOBAL)
 
-  set(CURL_CMAKE_ARGS
+  set(CURL_CMAKE_FORWARD_ARGS
     ${CMAKE_FORWARD_ARGS}
     -DCMAKE_USE_WINSSL=ON
     -DCURL_DISABLE_LDAP=ON
@@ -652,7 +655,7 @@ if (WIN32)
   # NOTE: cURL does not respect BUILD_SHARED_LIBS.
   if (NOT BUILD_SHARED_LIBS)
     # This is both a CMake argument and a pre-processor definition.
-    list(APPEND CURL_CMAKE_ARGS -DCURL_STATICLIB=ON)
+    list(APPEND CURL_CMAKE_FORWARD_ARGS -DCURL_STATICLIB=ON)
 
     set_target_properties(
       libcurl PROPERTIES
@@ -698,7 +701,7 @@ if (WIN32)
     PREFIX            ${CURL_CMAKE_ROOT}
     BUILD_BYPRODUCTS  ${LIBCURL_BYPRODUCTS};${CURL_BYPRODUCTS}
     PATCH_COMMAND     ${CMAKE_NOOP}
-    CMAKE_ARGS        ${CURL_CMAKE_ARGS}
+    CMAKE_ARGS        ${CURL_CMAKE_FORWARD_ARGS}
     INSTALL_COMMAND   ${CMAKE_NOOP}
     URL               ${CURL_URL}
     URL_HASH          ${CURL_HASH})
@@ -855,9 +858,9 @@ GET_BYPRODUCTS(gtest)
 # Unconditionally build static libraries.
 list(APPEND GOOGLETEST_CMAKE_FORWARD_ARGS -DBUILD_SHARED_LIBS=OFF)
 
-# Link to the correct CRT based on other libraries' linkage.
+# But also link to the CRT dynamically.
 list(APPEND GOOGLETEST_CMAKE_FORWARD_ARGS
-  -Dgtest_force_shared_crt=${BUILD_SHARED_LIBS})
+  -Dgtest_force_shared_crt=ON)
 
 ExternalProject_Add(
   ${GOOGLETEST_TARGET}
@@ -885,8 +888,15 @@ set_target_properties(
   protobuf PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES ${PROTOBUF_ROOT}/src)
 
+set(PROTOBUF_CMAKE_FORWARD_ARGS ${CMAKE_FORWARD_ARGS}
+  -Dprotobuf_BUILD_TESTS=OFF)
+
 if (WIN32)
   PATCH_CMD(PROTOBUF_PATCH_CMD protobuf-${PROTOBUF_VERSION}.patch)
+
+  # Link to the CRT dynamically.
+  list(APPEND PROTOBUF_CMAKE_FORWARD_ARGS
+    -Dprotobuf_MSVC_STATIC_RUNTIME=OFF)
 
   if (CMAKE_GENERATOR MATCHES "Visual Studio")
     set_target_properties(
@@ -932,7 +942,7 @@ ExternalProject_Add(
   PATCH_COMMAND     ${PROTOBUF_PATCH_CMD}
   BUILD_BYPRODUCTS  ${PROTOBUF_BYPRODUCTS}
   SOURCE_SUBDIR     cmake
-  CMAKE_ARGS        ${CMAKE_FORWARD_ARGS};-Dprotobuf_BUILD_TESTS=OFF
+  CMAKE_ARGS        ${PROTOBUF_CMAKE_FORWARD_ARGS}
   INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${PROTOBUF_URL}
   URL_HASH          ${PROTOBUF_HASH})
