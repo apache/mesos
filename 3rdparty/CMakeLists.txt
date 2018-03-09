@@ -177,6 +177,12 @@ endfunction()
 EXTERNAL(boost ${BOOST_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
 add_library(boost INTERFACE)
 add_dependencies(boost ${BOOST_TARGET})
+if (CMAKE_CXX_COMPILER_ID MATCHES GNU OR CMAKE_CXX_COMPILER_ID MATCHES Clang)
+  # Headers including Boost 1.65.0 fail to compile with GCC 7.2 and
+  # CLang 3.6 without `-Wno-unused-local-typedefs`.
+  # TODO(andschwa): Remove this when Boost has a resolution.
+  target_compile_options(boost INTERFACE -Wno-unused-local-typedefs)
+endif ()
 target_include_directories(boost INTERFACE ${BOOST_ROOT})
 
 ExternalProject_Add(

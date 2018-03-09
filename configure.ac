@@ -540,7 +540,7 @@ AS_CASE($ax_cv_cxx_compiler_vendor,
   [clang], [
     # Check if -Wno-unused-local-typedef is needed by checking a sample
     # compilation which contains a local unused typedef.
-    # This is needed because Boost 1.53.0 fails to compile with upstream
+    # This is needed because Boost 1.65.0 fails to compile with upstream
     # Clang 3.6 without -Wno-unused-local-typedef. Apple LLVM based on
     # Clang 3.6 doesn't have the same behavior.
     AC_LANG_PUSH([C++])
@@ -571,7 +571,7 @@ AS_CASE($ax_cv_cxx_compiler_vendor,
     fi
 
     AC_MSG_NOTICE([Setting up CXXFLAGS for g++ version >= 4.8])
-    # Boost 1.53.0 fails to compile with GCC 4.8 without
+    # Boost 1.65.0 fails to compile with GCC 7.2 without
     # -Wno-unused-local-typedefs, and automake does not recognize the
     # flag.
     # TODO(brenden): Remove this when Boost has a resolution.
