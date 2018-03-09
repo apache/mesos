@@ -864,9 +864,7 @@ void Master::initialize()
       &Master::executorMessage);
 
   install<ReconcileTasksMessage>(
-      &Master::reconcileTasks,
-      &ReconcileTasksMessage::framework_id,
-      &ReconcileTasksMessage::statuses);
+      &Master::reconcileTasks);
 
   install<UpdateOperationStatusMessage>(
       &Master::updateOperationStatus);
@@ -2423,7 +2421,7 @@ void Master::receive(
     }
 
     case scheduler::Call::RECONCILE:
-      reconcile(framework, call.reconcile());
+      reconcile(framework, std::move(*call.mutable_reconcile()));
       break;
 
     case scheduler::Call::RECONCILE_OPERATIONS:
@@ -5707,13 +5705,16 @@ void Master::kill(Framework* framework, const scheduler::Call::Kill& kill)
                  << " of framework " << *framework
                  << " because it is unknown; performing reconciliation";
 
-    TaskStatus status;
-    status.mutable_task_id()->CopyFrom(taskId);
+    scheduler::Call::Reconcile message;
+    scheduler::Call::Reconcile::Task* t = message.add_tasks();
+
+    *t->mutable_task_id() = taskId;
+
     if (slaveId.isSome()) {
-      status.mutable_slave_id()->CopyFrom(slaveId.get());
+      *t->mutable_slave_id() = slaveId.get();
     }
 
-    _reconcileTasks(framework, {status});
+    reconcile(framework, std::move(message));
     return;
   }
 
@@ -8339,34 +8340,12 @@ void Master::markGone(Slave* slave, const TimeInfo& goneTime)
 }
 
 
-void Master::reconcile(
-    Framework* framework,
-    const scheduler::Call::Reconcile& reconcile)
-{
-  CHECK_NOTNULL(framework);
-
-  // Construct 'TaskStatus'es from 'Reconcile::Task's.
-  vector<TaskStatus> statuses;
-  foreach (const scheduler::Call::Reconcile::Task& task, reconcile.tasks()) {
-    TaskStatus status;
-    status.mutable_task_id()->CopyFrom(task.task_id());
-    status.set_state(TASK_RUNNING); // Dummy status.
-    if (task.has_slave_id()) {
-      status.mutable_slave_id()->CopyFrom(task.slave_id());
-    }
-
-    statuses.push_back(status);
-  }
-
-  _reconcileTasks(framework, statuses);
-}
-
-
 void Master::reconcileTasks(
     const UPID& from,
-    const FrameworkID& frameworkId,
-    const vector<TaskStatus>& statuses)
+    ReconcileTasksMessage&& reconcileTasksMessage)
 {
+  const FrameworkID& frameworkId = reconcileTasksMessage.framework_id();
+
   Framework* framework = getFramework(frameworkId);
   if (framework == nullptr) {
     LOG(WARNING) << "Unknown framework " << frameworkId << " at " << from
@@ -8383,19 +8362,32 @@ void Master::reconcileTasks(
     return;
   }
 
-  _reconcileTasks(framework, statuses);
+  scheduler::Call::Reconcile message;
+  message.mutable_tasks()->Reserve(reconcileTasksMessage.statuses_size());
+
+  foreach (TaskStatus& status, *reconcileTasksMessage.mutable_statuses()) {
+    scheduler::Call::Reconcile::Task* t = message.add_tasks();
+
+    *t->mutable_task_id() = std::move(status.task_id());
+
+    if (status.has_slave_id()) {
+      *t->mutable_slave_id() = std::move(status.slave_id());
+    }
+  }
+
+  reconcile(framework, std::move(message));
 }
 
 
-void Master::_reconcileTasks(
+void Master::reconcile(
     Framework* framework,
-    const vector<TaskStatus>& statuses)
+    scheduler::Call::Reconcile&& reconcile)
 {
   CHECK_NOTNULL(framework);
 
   ++metrics->messages_reconcile_tasks;
 
-  if (statuses.empty()) {
+  if (reconcile.tasks().empty()) {
     // Implicit reconciliation.
     LOG(INFO) << "Performing implicit task state reconciliation"
                  " for framework " << *framework;
@@ -8463,8 +8455,9 @@ void Master::_reconcileTasks(
   }
 
   // Explicit reconciliation.
-  LOG(INFO) << "Performing explicit task state reconciliation for "
-            << statuses.size() << " tasks of framework " << *framework;
+  LOG(INFO) << "Performing explicit task state reconciliation"
+            << " for " << reconcile.tasks().size() << " tasks"
+            << " of framework " << *framework;
 
   // Explicit reconciliation occurs for the following cases:
   //   (1) Task is known, but pending: TASK_STAGING.
@@ -8482,18 +8475,18 @@ void Master::_reconcileTasks(
   //
   // For cases (4), (5), (6) and (7) TASK_LOST is sent instead if the
   // framework has not opted-in to the PARTITION_AWARE capability.
-  foreach (const TaskStatus& status, statuses) {
+  foreach (const scheduler::Call::Reconcile::Task& t, reconcile.tasks()) {
     Option<SlaveID> slaveId = None();
-    if (status.has_slave_id()) {
-      slaveId = status.slave_id();
+    if (t.has_slave_id()) {
+      slaveId = t.slave_id();
     }
 
     Option<StatusUpdate> update = None();
-    Task* task = framework->getTask(status.task_id());
+    Task* task = framework->getTask(t.task_id());
 
-    if (framework->pendingTasks.contains(status.task_id())) {
+    if (framework->pendingTasks.contains(t.task_id())) {
       // (1) Task is known, but pending: TASK_STAGING.
-      const TaskInfo& task_ = framework->pendingTasks[status.task_id()];
+      const TaskInfo& task_ = framework->pendingTasks[t.task_id()];
       update = protobuf::createStatusUpdate(
           framework->id(),
           task_.slave_id(),
@@ -8533,7 +8526,7 @@ void Master::_reconcileTasks(
       // will have to retry this and will not receive a response until
       // the agent either registers, or is marked unreachable after the
       // timeout.
-      LOG(INFO) << "Dropping reconciliation of task " << status.task_id()
+      LOG(INFO) << "Dropping reconciliation of task " << t.task_id()
                 << " for framework " << *framework << " because "
                 << (slaveId.isSome() ?
                       "agent " + stringify(slaveId.get()) + " has" :
@@ -8551,7 +8544,7 @@ void Master::_reconcileTasks(
       update = protobuf::createStatusUpdate(
           framework->id(),
           slaveId.get(),
-          status.task_id(),
+          t.task_id(),
           taskState,
           TaskStatus::SOURCE_MASTER,
           None(),
@@ -8572,7 +8565,7 @@ void Master::_reconcileTasks(
       update = protobuf::createStatusUpdate(
           framework->id(),
           slaveId.get(),
-          status.task_id(),
+          t.task_id(),
           taskState,
           TaskStatus::SOURCE_MASTER,
           None(),
@@ -8596,7 +8589,7 @@ void Master::_reconcileTasks(
       update = protobuf::createStatusUpdate(
           framework->id(),
           slaveId.get(),
-          status.task_id(),
+          t.task_id(),
           taskState,
           TaskStatus::SOURCE_MASTER,
           None(),
@@ -8614,7 +8607,7 @@ void Master::_reconcileTasks(
       update = protobuf::createStatusUpdate(
           framework->id(),
           slaveId,
-          status.task_id(),
+          t.task_id(),
           taskState,
           TaskStatus::SOURCE_MASTER,
           None(),

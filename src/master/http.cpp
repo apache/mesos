@@ -1106,7 +1106,7 @@ Future<Response> Master::Http::scheduler(
       return Forbidden("Operation status updates are not yet implemented");
 
     case scheduler::Call::RECONCILE:
-      master->reconcile(framework, call.reconcile());
+      master->reconcile(framework, std::move(*call.mutable_reconcile()));
       return Accepted();
 
     // TODO(greggomann): Implement operation reconciliation.

@@ -508,8 +508,7 @@ public:
 
   void reconcileTasks(
       const process::UPID& from,
-      const FrameworkID& frameworkId,
-      const std::vector<TaskStatus>& statuses);
+      ReconcileTasksMessage&& reconcileTasksMessage);
 
   void updateOperationStatus(
       const UpdateOperationStatusMessage& update);
@@ -665,12 +664,6 @@ protected:
 
   // Invoked when the contender has entered the contest.
   void contended(const process::Future<process::Future<Nothing>>& candidacy);
-
-  // Task reconciliation, split from the message handler
-  // to allow re-use.
-  void _reconcileTasks(
-      Framework* framework,
-      const std::vector<TaskStatus>& statuses);
 
   // When a slave that was previously registered with this master
   // reregisters, we need to reconcile the master's view of the
@@ -1081,7 +1074,7 @@ private:
 
   void reconcile(
       Framework* framework,
-      const scheduler::Call::Reconcile& reconcile);
+      scheduler::Call::Reconcile&& reconcile);
 
   void reconcileOperations(
       Framework* framework,
