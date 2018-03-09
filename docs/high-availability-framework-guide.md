@@ -14,7 +14,7 @@ should consider include:
   example by crashing or by losing network connectivity. If the master has been
   configured to use [high-availability mode](high-availability.md), this will
   result in promoting another Mesos master replica to become the current
-  leader. In this situation, the scheduler should re-register with the new
+  leader. In this situation, the scheduler should reregister with the new
   master and ensure that task state is consistent.
 
 * The host where a framework scheduler is running might fail. To ensure that the

@@ -727,7 +727,7 @@ TEST_F(DiskQuotaTest, SlaveRecovery)
   // Wait for slave to schedule reregister timeout.
   Clock::settle();
 
-  // Ensure the executor re-registers before completing recovery.
+  // Ensure the executor reregisters before completing recovery.
   AWAIT_READY(reregisterExecutorMessage);
 
   // Ensure the slave considers itself recovered.

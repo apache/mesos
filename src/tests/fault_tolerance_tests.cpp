@@ -106,7 +106,7 @@ class FaultToleranceTest : public MesosTest {};
 // This test ensures that a framework connecting with a
 // failed over master gets a registered callback.
 // Note that this behavior might change in the future and
-// the scheduler might receive a re-registered callback.
+// the scheduler might receive a reregistered callback.
 TEST_F_TEMP_DISABLED_ON_WINDOWS(FaultToleranceTest, MasterFailover)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -499,7 +499,7 @@ TEST_F(FaultToleranceTest, SchedulerFailover)
 }
 
 
-// This test verifies that a framework attempting to re-register
+// This test verifies that a framework attempting to reregister
 // after its failover timeout has elapsed is disallowed.
 TEST_F(FaultToleranceTest, SchedulerReregisterAfterFailoverTimeout)
 {
@@ -588,7 +588,7 @@ TEST_F(FaultToleranceTest, SchedulerReregisterAfterFailoverTimeout)
 }
 
 
-// This test verifies that a framework attempting to re-register
+// This test verifies that a framework attempting to reregister
 // after it is unregistered is disallowed.
 TEST_F(FaultToleranceTest, SchedulerReregisterAfterUnregistration)
 {
@@ -785,7 +785,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 }
 
 
-// This test ensures framework re-registers with master after failover.
+// This test ensures framework reregisters with master after failover.
 // Previous offers are rescinded and re-offered to the framework after
 // re-registration.
 TEST_F_TEMP_DISABLED_ON_WINDOWS(FaultToleranceTest, FrameworkReregister)
@@ -871,7 +871,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(FaultToleranceTest, FrameworkReregister)
   Clock::advance(masterFlags.allocation_interval);
   Clock::resume();
 
-  // The re-registered framework should get offers.
+  // The reregistered framework should get offers.
   AWAIT_READY(resourceOffers2);
 
   // Check that the framework is displayed correctly in the "/state" endpoint.
@@ -1228,7 +1228,7 @@ TEST_F(FaultToleranceTest, ReregisterFrameworkExitedExecutor)
 
   slaveDetector.appoint(master.get()->pid);
 
-  // Wait for the slave to re-register.
+  // Wait for the slave to reregister.
   AWAIT_READY(slaveReregisteredMessage);
 
   // Allow the executor exited message and drop the status update,
@@ -1549,7 +1549,7 @@ TEST_F(FaultToleranceTest, SchedulerFailoverFrameworkToExecutorMessage)
 
 // This test verifies that a partitioned framework that still
 // thinks it is registered with the master cannot kill a task because
-// the master has re-registered another instance of the framework.
+// the master has reregistered another instance of the framework.
 // What this test does:
 // 1. Launch a master, slave and scheduler.
 // 2. Scheduler launches a task.
@@ -2017,7 +2017,7 @@ TEST_F(FaultToleranceTest, SplitBrainMasters)
 }
 
 
-// This test verifies that when a framework re-registers with updated
+// This test verifies that when a framework reregisters with updated
 // FrameworkInfo, it gets updated in the master. The steps involved
 // are:
 //   1. Launch a master, slave and scheduler.
@@ -2162,7 +2162,7 @@ TEST_F(FaultToleranceTest, UpdateFrameworkInfoOnSchedulerFailover)
 }
 
 
-// This test verifies that when a framework re-registers after master
+// This test verifies that when a framework reregisters after master
 // failover with an updated FrameworkInfo, the updated FrameworkInfo
 // is reflected in the master.
 TEST_F_TEMP_DISABLED_ON_WINDOWS(
@@ -2232,9 +2232,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   driver1.stop();
   driver1.join();
 
-  // Restart master; ensure the agent re-registers before the second
+  // Restart master; ensure the agent reregisters before the second
   // scheduler connects. This ensures the first framework's
-  // FrameworkInfo is recovered from the re-registering agent.
+  // FrameworkInfo is recovered from the reregistering agent.
   Future<SlaveReregisteredMessage> slaveReregistered = FUTURE_PROTOBUF(
       SlaveReregisteredMessage(), _, slave.get()->pid);
 

@@ -689,9 +689,9 @@ shutting it down (e.g., 60secs, 3mins, etc) (default: 1mins)
     --executor_reregistration_timeout=VALUE
   </td>
   <td>
-The timeout within which an executor is expected to re-register after
+The timeout within which an executor is expected to reregister after
 the agent has restarted, before the agent considers it gone and shuts
-it down. Note that currently, the agent will not re-register with the
+it down. Note that currently, the agent will not reregister with the
 master until this timeout has elapsed (see MESOS-7539). (default: 2secs)
   </td>
 </tr>

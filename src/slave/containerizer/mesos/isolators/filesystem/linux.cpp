@@ -540,7 +540,7 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::update(
       // target existed:
       // 1. This is possible because 'info->resources' will be reset
       //    when slave restarts and recovers. When the slave calls
-      //    'containerizer->update' after the executor re-registers,
+      //    'containerizer->update' after the executor reregisters,
       //    we'll try to re-mount all the already mounted volumes.
       // 2. There may be multiple references to the persistent
       //    volume's mount target. E.g., a host volume and a

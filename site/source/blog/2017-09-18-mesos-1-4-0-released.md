@@ -18,7 +18,7 @@ The latest Mesos release, 1.4.0, is now available for [download](/downloads). Th
   not have wanted it.
 
   * [MESOS-6223](https://issues.apache.org/jira/browse/MESOS-6223) -
-  With partition awareness, the agents are now allowed to re-register after they
+  With partition awareness, the agents are now allowed to reregister after they
   have been marked Unreachable. Thus, they can recover their agent ID after a
   host reboot. See docs/upgrades.md for details.
 

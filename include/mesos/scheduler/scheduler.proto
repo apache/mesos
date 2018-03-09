@@ -275,8 +275,8 @@ message Call {
 
     // NOTE: 'force' field is not present in v1/scheduler.proto because it is
     // only used by the scheduler driver. The driver sets it to true when the
-    // scheduler re-registers for the first time after a failover. Once
-    // re-registered all subsequent re-registration attempts (e.g., due to ZK
+    // scheduler reregisters for the first time after a failover. Once
+    // reregistered all subsequent re-registration attempts (e.g., due to ZK
     // blip) will have 'force' set to false. This is important because master
     // uses this field to know when it needs to send FrameworkRegisteredMessage
     // vs FrameworkReregisteredMessage.

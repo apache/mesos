@@ -328,7 +328,7 @@ TEST_F(GarbageCollectorIntegrationTest, Restart)
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   // Ignore offerRescinded calls. The scheduler might receive it
-  // because the slave might re-register due to ping timeout.
+  // because the slave might reregister due to ping timeout.
   EXPECT_CALL(sched, offerRescinded(_, _))
     .WillRepeatedly(Return());
 
@@ -556,7 +556,7 @@ TEST_F(GarbageCollectorIntegrationTest, ExitedExecutor)
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   // Ignore offerRescinded calls. The scheduler might receive it
-  // because the slave might re-register due to ping timeout.
+  // because the slave might reregister due to ping timeout.
   EXPECT_CALL(sched, offerRescinded(_, _))
     .WillRepeatedly(Return());
 

@@ -2178,14 +2178,14 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(MasterAPITest, GetRecoveredAgents)
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), master.get()->pid, _);
 
-  // Start the agent to make it re-register with the master.
+  // Start the agent to make it reregister with the master.
   detector = master.get()->createDetector();
   slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveReregisteredMessage);
 
-  // After the agent has successfully re-registered with the master,
+  // After the agent has successfully reregistered with the master,
   // the `GetAgents.recovered_agents` field would be empty.
   {
     v1::master::Call v1Call;
@@ -3236,7 +3236,7 @@ TEST_P(MasterAPITest, FrameworksEvent)
     .WillRepeatedly(Return()); // Ignore future invocations.
 
   // Force a reconnection with the master. This should result in a
-  // 'FRAMEWORK_UPDATED' event when the scheduler re-registers with the master.
+  // 'FRAMEWORK_UPDATED' event when the scheduler reregisters with the master.
   mesos.reconnect();
 
   AWAIT_READY(disconnected);
@@ -4137,7 +4137,7 @@ TEST_P(MasterAPITest, MarkRegisteredAgentGone)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
   AWAIT_READY(shutdownMessage);
 
-  // The agent should not be able to re-register with
+  // The agent should not be able to reregister with
   // the master upon restart.
 
   slave.get()->terminate();

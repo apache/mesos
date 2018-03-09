@@ -251,12 +251,12 @@ protected:
   void reregistered(const SlaveID& slaveId, const SlaveInfo& slaveInfo)
   {
     if (aborted.load()) {
-      VLOG(1) << "Ignoring re-registered message from agent " << slaveId
+      VLOG(1) << "Ignoring reregistered message from agent " << slaveId
               << " because the driver is aborted!";
       return;
     }
 
-    LOG(INFO) << "Executor re-registered on agent " << slaveId;
+    LOG(INFO) << "Executor reregistered on agent " << slaveId;
 
     connected = true;
     connection = id::UUID::random();

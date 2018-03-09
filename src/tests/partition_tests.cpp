@@ -1066,7 +1066,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 // This test causes a slave to be partitioned while it is running a
 // task for a PARTITION_AWARE framework. The scheduler is shutdown
 // before the partition heals; the task should be shutdown after the
-// agent re-registers.
+// agent reregisters.
 TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, PartitionedSlaveOrphanedTask)
 {
   Clock::pause();
@@ -1185,7 +1185,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, PartitionedSlaveOrphanedTask)
   driver.stop();
   driver.join();
 
-  // Before the agent re-registers, check how `task` is displayed by
+  // Before the agent reregisters, check how `task` is displayed by
   // the master's "/state" endpoint.
   {
     Future<Response> response = process::http::get(
@@ -1240,7 +1240,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, PartitionedSlaveOrphanedTask)
         completedTask.values["state"].as<JSON::String>().value);
   }
 
-  // Cause the slave to re-register with the master; the master should
+  // Cause the slave to reregister with the master; the master should
   // send a `ShutdownFrameworkMessage` to the slave.
   Future<SlaveReregisteredMessage> slaveReregistered = FUTURE_PROTOBUF(
       SlaveReregisteredMessage(), master.get()->pid, slave.get()->pid);
@@ -1256,7 +1256,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, PartitionedSlaveOrphanedTask)
 
   Clock::resume();
 
-  // After the agent re-registers, check how `task` is displayed by
+  // After the agent reregisters, check how `task` is displayed by
   // the master's "/state" endpoint.
   {
     Future<Response> response = process::http::get(
@@ -3251,7 +3251,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcRace)
 
   AWAIT_READY(slaveLost1);
 
-  // `slave1` will try to re-register below when we advance the clock.
+  // `slave1` will try to reregister below when we advance the clock.
   // Prevent this by dropping all future messages from it.
   DROP_MESSAGES(_, slave1.get()->pid, _);
 
@@ -3288,7 +3288,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcRace)
 
   AWAIT_READY(slaveLost2);
 
-  // `slave2` will try to re-register below when we advance the clock.
+  // `slave2` will try to reregister below when we advance the clock.
   // Prevent this by dropping the next `ReregisterSlaveMessage` from it.
   Future<Message> reregisterSlave2 =
     DROP_MESSAGE(Eq(ReregisterSlaveMessage().GetTypeName()),
@@ -3332,7 +3332,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcRace)
   Clock::advance(agentFlags2.registration_backoff_factor);
   AWAIT_READY(reregisterSlave2);
 
-  // `slave3` will try to re-register below when we advance the clock.
+  // `slave3` will try to reregister below when we advance the clock.
   // Prevent this by dropping all future messages from it.
   DROP_MESSAGES(_, slave3.get()->pid, _);
 
@@ -3581,7 +3581,7 @@ class OneWayPartitionTest : public MesosTest {};
 
 // This test verifies that if the master --> slave socket closes and
 // the slave is unaware of it (i.e., one-way network partition), slave
-// will re-register with the master.
+// will reregister with the master.
 TEST_F_TEMP_DISABLED_ON_WINDOWS(OneWayPartitionTest, MasterToSlave)
 {
   // Pausing the clock ensures that the agent does not attempt to
@@ -3632,7 +3632,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(OneWayPartitionTest, MasterToSlave)
   AWAIT_READY(ping);
   EXPECT_FALSE(ping->connected());
 
-  // Slave should re-register.
+  // Slave should reregister.
   Clock::resume();
   AWAIT_READY(slaveReregisteredMessage);
 }

@@ -275,7 +275,7 @@ told to shutdown.  These agents are removed from the master, which means that a
 `TASK_LOST` status update will be sent for every task running on each of those
 agents. The scheduler driver's `slaveLost` callback will also be invoked for
 each of the removed agents. Any agents on machines in maintenance are also
-prevented from re-registering with the master in the future (until maintenance
+prevented from reregistering with the master in the future (until maintenance
 is completed and the machine is brought back up).
 
 ### Completing maintenance

@@ -24,9 +24,9 @@ Full release notes are available on [JIRA](https://issues.apache.org/jira/secure
 Mesos 0.19.0 introduces the ["Registrar"](https://cwiki.apache.org/confluence/display/MESOS/Registrar+Design+Document): the master now persists the list of registered slaves in a durable replicated manner. The previous lack of durable state was an intentional design decision that simplified failover and allowed masters to be run and migrated with ease. However, the stateless design had issues:
 
 * In the event of a dual failure (slave fails while master is down), no lost task notifications are sent. This leads to a task running according to the framework but unknown to Mesos.
-* When a new master is elected, we may allow rogue slaves to re-register with the master. This leads to tasks running on the slave that are not known to the framework.
+* When a new master is elected, we may allow rogue slaves to reregister with the master. This leads to tasks running on the slave that are not known to the framework.
 
-Persisting the list of registered slaves allows failed over masters to detect slaves that do not re-register, and notify frameworks accordingly. It also allows us to prevent rogue slaves from re-registering; terminating the rogue tasks in the process.
+Persisting the list of registered slaves allows failed over masters to detect slaves that do not reregister, and notify frameworks accordingly. It also allows us to prevent rogue slaves from reregistering; terminating the rogue tasks in the process.
 
 The state is persisted using the [replicated log](http://mesos.apache.org/blog/mesos-0-17-0-released-featuring-autorecovery/) (available since 0.9.0).
 

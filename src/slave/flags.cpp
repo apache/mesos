@@ -382,9 +382,9 @@ mesos::internal::slave::Flags::Flags()
 
   add(&Flags::executor_reregistration_timeout,
       "executor_reregistration_timeout",
-      "The timeout within which an executor is expected to re-register after\n"
+      "The timeout within which an executor is expected to reregister after\n"
       "the agent has restarted, before the agent considers it gone and shuts\n"
-      "it down. Note that currently, the agent will not re-register with the\n"
+      "it down. Note that currently, the agent will not reregister with the\n"
       "master until this timeout has elapsed (see MESOS-7539).",
       EXECUTOR_REREGISTRATION_TIMEOUT,
       [](const Duration& value) -> Option<Error> {

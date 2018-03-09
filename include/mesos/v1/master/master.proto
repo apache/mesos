@@ -209,7 +209,7 @@ message Call {
   // NOTE: It is possible that the tasks might still be running
   // if the operator's assertion was wrong and the agent was partitioned
   // away from the master. The agent would be shutdown when it tries to
-  // re-register with the master when the partition heals.
+  // reregister with the master when the partition heals.
   message MarkAgentGone {
     required AgentID agent_id = 1;
   }
@@ -366,7 +366,7 @@ message Response {
       // If true, this framework was previously subscribed but hasn't
       // yet re-subscribed after a master failover. Recovered frameworks
       // are only reported if one or more agents running a task or
-      // executor for the framework have re-registered after master
+      // executor for the framework have reregistered after master
       // failover.
       required bool recovered = 11;
 
@@ -577,7 +577,7 @@ message Event {
     required Response.GetFrameworks.Framework framework = 1;
   }
 
-  // Forwarded by the master when a framework re-registers with the master
+  // Forwarded by the master when a framework reregisters with the master
   // upon a disconnection (network error) or upon a master failover.
   message FrameworkUpdated {
     required Response.GetFrameworks.Framework framework = 1;
@@ -585,7 +585,7 @@ message Event {
 
   // Forwarded by the master when a framework is removed. This can happen when
   // a framework is explicitly teardown by the operator or if it fails to
-  // re-register with the master within the failover timeout.
+  // reregister with the master within the failover timeout.
   message FrameworkRemoved {
     required FrameworkInfo framework_info = 1;
   }

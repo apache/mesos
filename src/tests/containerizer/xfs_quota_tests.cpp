@@ -944,7 +944,7 @@ TEST_F(ROOT_XFS_QuotaTest, CheckpointRecovery)
   slave = StartSlave(detector.get(), flags);
   ASSERT_SOME(slave);
 
-  // Wait for the slave to re-register.
+  // Wait for the slave to reregister.
   AWAIT_READY(slaveReregisteredMessage);
 
   Future<ResourceUsage> usage2 =
@@ -1070,7 +1070,7 @@ TEST_F(ROOT_XFS_QuotaTest, RecoverOldContainers)
   slave = StartSlave(detector.get(), CreateSlaveFlags());
   ASSERT_SOME(slave);
 
-  // Wait for the slave to re-register.
+  // Wait for the slave to reregister.
   AWAIT_READY(slaveReregisteredMessage);
 
   {

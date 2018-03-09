@@ -432,11 +432,11 @@ All Resolved Issues:
   * [MESOS-7469] - Add resource provider driver.
   * [MESOS-7491] - Build a CSI client to talk to a CSI plugin.
   * [MESOS-7533] - Add a function stub for resource provider re-registration.
-  * [MESOS-7534] - Notify resource providers if they've been re-registered.
+  * [MESOS-7534] - Notify resource providers if they've been reregistered.
   * [MESOS-7535] - Distinguish between active and inactive resource providers in RP Manager.
   * [MESOS-7550] - Publish Local Resource Provider resources in the agent before container launch or update.
   * [MESOS-7555] - Add resource provider IDs to the registry.
-  * [MESOS-7557] - Test that resource providers can re-register after agent fails over.
+  * [MESOS-7557] - Test that resource providers can reregister after agent fails over.
   * [MESOS-7561] - Add storage resource provider specific information in ResourceProviderInfo.
   * [MESOS-7578] - Write a proposal to make the I/O Switchboards optional.
   * [MESOS-7594] - Implement 'apply' for resource provider related operations.
@@ -724,7 +724,7 @@ All Resolved Issues:
   * [MESOS-5116] - Add support for accounting only mode in XFS isolator.
   * [MESOS-5417] - define WSTRINGIFY behaviour on Windows
   * [MESOS-6053] - Combine test helpers into one single binary.
-  * [MESOS-6223] - Allow agents to re-register post a host reboot
+  * [MESOS-6223] - Allow agents to reregister post a host reboot
   * [MESOS-6535] - The default executor should support kill policies
   * [MESOS-6549] - Asynchronous dir removal in agent GC
   * [MESOS-6782] - Inherit Environment from parent container when launching DEBUG container.
@@ -1134,7 +1134,7 @@ All Resolved Issues:
   * [MESOS-7047] - Update agent for hierarchical roles.
   * [MESOS-7048] - Remove adjustment code within Resources::apply.
   * [MESOS-7061] - Re-persist tasks/executors with allocation info during agent recovery.
-  * [MESOS-7063] - Add a test for a MULTI_ROLE master re-registering an old agent.
+  * [MESOS-7063] - Add a test for a MULTI_ROLE master reregistering an old agent.
   * [MESOS-7269] - Migrate setting in config.py to a TOML file.
   * [MESOS-7282] - Create a table abstraction for the Mesos CLI.
   * [MESOS-7320] - Remove deprecated ACL `ShutdownFramework`.
@@ -1300,7 +1300,7 @@ Additional API Changes:
     the master might now mark an agent unreachable that would previously
     have been able to eventually recover successfully.
 
-  * [MESOS-6419] - When a framework re-registers after master failover,
+  * [MESOS-6419] - When a framework reregisters after master failover,
     it is only allowed to change certain fields in its FrameworkInfo.
     For example, changing "failover_timeout" is allowed, but changing
     "role" is not. In previous Mesos releases, the same restrictions on
@@ -1442,7 +1442,7 @@ All Issues:
     * [MESOS-6588] - LinuxRootfs misses required files
     * [MESOS-6597] - Include v1 Operator API protos in generated JAR and python packages.
     * [MESOS-6598] - Broken Link Framework Development Page
-    * [MESOS-6602] - Shutdown completed frameworks when unreachable agent re-registers
+    * [MESOS-6602] - Shutdown completed frameworks when unreachable agent reregisters
     * [MESOS-6604] - Uninitialized member ObjectApprover::weight_info.
     * [MESOS-6606] - Reject optimized builds with libcxx before 3.9
     * [MESOS-6618] - Some tests use hardcoded port numbers.
@@ -2525,7 +2525,7 @@ All Issues:
     * [MESOS-4658] - process::Connection can lead to process::wait deadlock
     * [MESOS-4662] - PortMapping network isolator should not assume BIND_MOUNT_ROOT is a realpath.
     * [MESOS-4672] - Implement aufs based provisioner backend.
-    * [MESOS-4673] - Agent fails to shutdown after re-registering period timed-out.
+    * [MESOS-4673] - Agent fails to shutdown after reregistering period timed-out.
     * [MESOS-4680] - HTTP requests to non leading mesos-master redirect to top level page
     * [MESOS-4684] - Create base docker image for test suite.
     * [MESOS-4705] - Linux 'perf' parsing logic may fail when OS distribution has perf backports.
@@ -5112,7 +5112,7 @@ HTTP endpoint changes:
 
 Deprecations:
   * [MESOS-1219] - Master should disallow completed frameworks from
-    re-registering with same framework id.
+    reregistering with same framework id.
 
   * [MESOS-1695] - "/stats.json" on the slave exposes "registered" value as
     string instead of integer.
@@ -5317,7 +5317,7 @@ All Issues:
   * [MESOS-578] - configure fails on OSX 10.8.4
   * [MESOS-682] - Master should properly consolidate "slaves" and "deactivated" maps
   * [MESOS-743] - ReservationAllocatorTest.ResourcesReturned test is flaky
-  * [MESOS-767] - Slave should re-register with completed frameworks/executors
+  * [MESOS-767] - Slave should reregister with completed frameworks/executors
   * [MESOS-779] - mesos python examples use 2 space indent
   * [MESOS-873] - Crash in os::killtree on Mavericks
   * [MESOS-931] - post-review is deprecated.
@@ -5541,7 +5541,7 @@ All Issues:
   * [MESOS-1095] - Build failure on OSX when using gcc-4.7
   * [MESOS-1121] - /usr/include/c++/4.7/type_traits:1834:9: error: no match for call to '(std::_Bind<process::Future<process::http::Response> (*(std::_Placeholder<1>))(const std::basic_string<char>&)>) ()'
   * [MESOS-1128] - ':' colon in executor work directories is unusual
-  * [MESOS-1135] - A re-registering framework that authenticates with Master might not get any offers
+  * [MESOS-1135] - A reregistering framework that authenticates with Master might not get any offers
   * [MESOS-1176] - make distcheck fails when enabling c++11
 
 ** Documentation
@@ -5737,7 +5737,7 @@ All Issues:
   * [MESOS-725] - Slave should cleanup meta directory if started in non-strict mode and slave info changes.
 
 ** Bug
-  * [MESOS-420] - Master crashes when re-registering framework
+  * [MESOS-420] - Master crashes when reregistering framework
   * [MESOS-488] - The Master incorrectly sends a "Framework failed over" message when the scheduler driver retries an initial failover re-registration.
   * [MESOS-641] - Stout killtree / pstree tests fail on Ubuntu 10.04.
   * [MESOS-658] - A framework can be incorrectly removed by the Master.
@@ -5789,7 +5789,7 @@ All Issues:
   * [MESOS-380] - Command Executor doesn't send TASK_KILLED for killed tasks.
   * [MESOS-434] - Process isolator libprocess throws exception
   * [MESOS-449] - CgroupsTests are flaky on Ubuntu
-  * [MESOS-451] - Always update resources for re-registered executors.
+  * [MESOS-451] - Always update resources for reregistered executors.
   * [MESOS-461] - Freezer failure while in FREEZING state.
   * [MESOS-479] - SlaveRecoveryTest/0.CleanupExecutor failure.
   * [MESOS-485] - Latest trunk fails on strict aliasing on CentOS
@@ -5817,7 +5817,7 @@ All Issues:
   * [MESOS-633] - Master should inform a recovered slave about frameworks that were completed
   * [MESOS-635] - Master doesn't update the task state when it generates TASK_LOST
   * [MESOS-636] - Executors under cgroups isolator die immediately when a slave dies if it has a controlling TTY attached
-  * [MESOS-637] - Executor should re-register with the updates in the same order as it received them
+  * [MESOS-637] - Executor should reregister with the updates in the same order as it received them
   * [MESOS-638] - Slave should not send command executor infos to master when it reregisters
   * [MESOS-640] - Duplicate status update with same UUID crashes the slave
   * [MESOS-644] - Slave doesn't correctly handle checkpointed terminal update whose ack doesn't reach the executor
@@ -5900,7 +5900,7 @@ All Issues:
   * [MESOS-407] - Google test filter processing is incorrect for the empty string.
   * [MESOS-408] - FaultToleranceTest.SlavePartitioned is flaky
   * [MESOS-412] - MasterTest.ShutdownUnregisteredExecutor flaky
-  * [MESOS-423] - A slave asked to shutdown should not re-register with a new slave id
+  * [MESOS-423] - A slave asked to shutdown should not reregister with a new slave id
   * [MESOS-424] - CgroupsIsolatorTest.BalloonFramework runs forever
   * [MESOS-436] - FaultToleranceTest.SchedulerFailover test is flaky
   * [MESOS-437] - ResourceOffersTest.ResourceOfferWithMultipleSlaves is flaky

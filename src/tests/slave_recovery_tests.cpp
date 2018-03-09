@@ -717,7 +717,7 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_ROOT_CGROUPS_ReconnectDefaultExecutor)
 
 // The slave is stopped before the first update for a task is received
 // from the executor. When it comes back up with recovery=reconnect, make
-// sure the executor re-registers and the slave properly sends the update.
+// sure the executor reregisters and the slave properly sends the update.
 TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
 {
   Try<Owned<cluster::Master>> master = this->StartMaster();
@@ -793,7 +793,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutor)
   slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  // Ensure the executor re-registers.
+  // Ensure the executor reregisters.
   AWAIT_READY(reregister);
 
   // Executor should inform about the unacknowledged updates.
@@ -893,7 +893,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutorRetry)
   slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  // The first attempt by the executor to re-register is dropped
+  // The first attempt by the executor to reregister is dropped
   // so that the agent will retry the reconnect.
   AWAIT_READY(reregisterExecutorMessage);
 
@@ -906,7 +906,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutorRetry)
   AWAIT_READY(reregisterExecutorMessage);
 
   // Now ensure that further retries do not occur, since the
-  // executor is already re-registered.
+  // executor is already reregistered.
   EXPECT_NO_FUTURE_PROTOBUFS(ReregisterExecutorMessage(), _, _);
 
   Clock::advance(flags.executor_reregistration_retry_interval.get());
@@ -927,7 +927,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconnectExecutorRetry)
 // re-registration timeout to a duration longer than (agent_ping_timeout *
 // (max_agent_ping_timeouts + 1)), and then confirming that the agent is not
 // marked unreachable after the max ping timeout has elapsed, even if all
-// executors have re-registered. Agent recovery currently does not complete
+// executors have reregistered. Agent recovery currently does not complete
 // until the executor re-registration timeout has elapsed (see MESOS-7539).
 TYPED_TEST(SlaveRecoveryTest, PingTimeoutDuringRecovery)
 {
@@ -938,7 +938,7 @@ TYPED_TEST(SlaveRecoveryTest, PingTimeoutDuringRecovery)
   Try<Owned<cluster::Master>> master = this->StartMaster(masterFlags);
   ASSERT_SOME(master);
 
-  // Set the executor re-register timeout to a value greater than
+  // Set the executor reregister timeout to a value greater than
   // (agent_ping_timeout * (max_agent_ping_timeouts + 1)).
   slave::Flags slaveFlags = this->CreateSlaveFlags();
   slaveFlags.executor_reregistration_timeout = process::TEST_AWAIT_TIMEOUT;
@@ -1023,7 +1023,7 @@ TYPED_TEST(SlaveRecoveryTest, PingTimeoutDuringRecovery)
       slaveFlags);
   ASSERT_SOME(slave);
 
-  // Ensure the executor re-registers.
+  // Ensure the executor reregisters.
   AWAIT_READY(reregisterExecutor);
 
   Clock::pause();
@@ -1065,10 +1065,10 @@ TYPED_TEST(SlaveRecoveryTest, PingTimeoutDuringRecovery)
   ASSERT_EQ(TaskStatus::SOURCE_MASTER, statusUpdate2->source());
   ASSERT_EQ(TaskStatus::REASON_RECONCILIATION, statusUpdate2->reason());
 
-  // Ensure that the agent has not re-registered yet.
+  // Ensure that the agent has not reregistered yet.
   ASSERT_TRUE(reregisterSlave.isPending());
 
-  // Advance the clock to prompt the agent to re-register.
+  // Advance the clock to prompt the agent to reregister.
   Clock::pause();
   Clock::advance(slaveFlags.executor_reregistration_timeout);
   Clock::resume();
@@ -1995,7 +1995,7 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_CleanupHTTPExecutor)
 
   slave.get()->terminate();
 
-  // Slave in cleanup mode shouldn't re-register with the master and
+  // Slave in cleanup mode shouldn't reregister with the master and
   // hence no offers should be made by the master.
   EXPECT_CALL(sched, resourceOffers(_, _))
     .Times(0);
@@ -2119,7 +2119,7 @@ TYPED_TEST(SlaveRecoveryTest, CleanupExecutor)
 
   slave.get()->terminate();
 
-  // Slave in cleanup mode shouldn't re-register with the master and
+  // Slave in cleanup mode shouldn't reregister with the master and
   // hence no offers should be made by the master.
   EXPECT_CALL(sched, resourceOffers(_, _))
     .Times(0);
@@ -2465,7 +2465,7 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_KillTaskWithHTTPExecutor)
   // Wait for the executor to subscribe again.
   AWAIT_READY(subscribeCall);
 
-  // Wait for the slave to re-register.
+  // Wait for the slave to reregister.
   AWAIT_READY(slaveReregisteredMessage);
 
   Future<TaskStatus> status;
@@ -2585,14 +2585,14 @@ TYPED_TEST(SlaveRecoveryTest, KillTask)
 
   Clock::pause();
 
-  // Wait for the executor to re-register.
+  // Wait for the executor to reregister.
   AWAIT_READY(reregisterExecutorMessage);
 
   // Ensure the slave considers itself recovered.
   Clock::advance(flags.executor_reregistration_timeout);
   Clock::resume();
 
-  // Wait for the slave to re-register.
+  // Wait for the slave to reregister.
   AWAIT_READY(slaveReregisteredMessage);
 
   Future<TaskStatus> status;
@@ -3142,7 +3142,7 @@ TYPED_TEST(SlaveRecoveryTest, GCExecutor)
 
 
 // The slave is asked to shutdown. When it comes back up, it should
-// re-register as the same agent.
+// reregister as the same agent.
 TYPED_TEST(SlaveRecoveryTest, ShutdownSlave)
 {
   Try<Owned<cluster::Master>> master = this->StartMaster();
@@ -3599,7 +3599,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileKillTask)
 }
 
 
-// This test verifies that when the slave recovers and re-registers
+// This test verifies that when the slave recovers and reregisters
 // with a framework that was shutdown when the slave was down, it gets
 // a ShutdownFramework message.
 TYPED_TEST(SlaveRecoveryTest, ReconcileShutdownFramework)
@@ -3800,7 +3800,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
 
   // Start a task on the slave so that the master has knowledge of it.
   // We'll ensure the slave does not have this task when it
-  // re-registers by wiping the relevant meta directory.
+  // reregisters by wiping the relevant meta directory.
   TaskInfo task = createTask(offers1.get()[0], SLEEP_COMMAND(10));
 
   Future<TaskStatus> starting;
@@ -3901,7 +3901,7 @@ TYPED_TEST(SlaveRecoveryTest, ReconcileTasksMissingFromSlave)
 
   AWAIT_READY(_recover);
 
-  // Wait for the slave to re-register.
+  // Wait for the slave to reregister.
   AWAIT_READY(slaveReregisteredMessage);
 
   // Wait for TASK_DROPPED update.
@@ -4043,14 +4043,14 @@ TYPED_TEST(SlaveRecoveryTest, SchedulerFailover)
 
   Clock::pause();
 
-  // Wait for the executor to re-register.
+  // Wait for the executor to reregister.
   AWAIT_READY(reregisterExecutorMessage);
 
   // Ensure the slave considers itself recovered.
   Clock::advance(flags.executor_reregistration_timeout);
   Clock::resume();
 
-  // Wait for the slave to re-register.
+  // Wait for the slave to reregister.
   AWAIT_READY(slaveReregisteredMessage);
 
   Future<TaskStatus> status;
@@ -4198,14 +4198,14 @@ TYPED_TEST_TEMP_DISABLED_ON_WINDOWS(SlaveRecoveryTest, MasterFailover)
 
   Clock::pause();
 
-  // Wait for the executor to re-register.
+  // Wait for the executor to reregister.
   AWAIT_READY(reregisterExecutorMessage);
 
   // Ensure the slave considers itself recovered.
   Clock::advance(flags.executor_reregistration_timeout);
   Clock::resume();
 
-  // Wait for the slave to re-register.
+  // Wait for the slave to reregister.
   AWAIT_READY(slaveReregisteredMessage);
 
   Future<TaskStatus> status;
@@ -4367,7 +4367,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
 
   Clock::pause();
 
-  // Wait for the executors to re-register.
+  // Wait for the executors to reregister.
   AWAIT_READY(reregisterExecutorMessage1);
   AWAIT_READY(reregisterExecutorMessage2);
 
@@ -4375,7 +4375,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleFrameworks)
   Clock::advance(flags.executor_reregistration_timeout);
   Clock::resume();
 
-  // Wait for the slave to re-register.
+  // Wait for the slave to reregister.
   AWAIT_READY(slaveReregisteredMessage);
 
   // Expectations for the status changes as a result of killing the
@@ -4567,7 +4567,7 @@ TYPED_TEST(SlaveRecoveryTest, MultipleSlaves)
   Clock::advance(flags1.executor_reregistration_timeout);
   Clock::resume();
 
-  // Wait for the slaves to re-register.
+  // Wait for the slaves to reregister.
   AWAIT_READY(slaveReregisteredMessage1);
   AWAIT_READY(slaveReregisteredMessage2);
 
@@ -5110,7 +5110,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, ResourceStatistics)
   slave.get()->terminate();
 
   // Set up so we can wait until the new slave updates the container's
-  // resources (this occurs after the executor has re-registered).
+  // resources (this occurs after the executor has reregistered).
   Future<Nothing> update =
     FUTURE_DISPATCH(_, &MesosContainerizerProcess::update);
 

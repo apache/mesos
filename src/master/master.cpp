@@ -468,7 +468,7 @@ void Master::initialize()
                  << "**************************************************";
   }
 
-  // NOTE: We enforce a minimum slave re-register timeout because the
+  // NOTE: We enforce a minimum slave reregister timeout because the
   // slave bounds its (re-)registration retries based on the minimum.
   if (flags.agent_reregister_timeout < MIN_AGENT_REREGISTER_TIMEOUT) {
     EXIT(EXIT_FAILURE)
@@ -1338,14 +1338,14 @@ void Master::exited(const UPID& pid)
       // If the master -> agent socket breaks, we expect that either
       // (a) the agent will fail to respond to pings and be marked
       // unreachable, or (b) the agent will receive a ping, notice the
-      // master thinks it is disconnected, and then re-register. There
+      // master thinks it is disconnected, and then reregister. There
       // is a third possibility: if the agent restarts but hangs
       // during agent recovery, it will respond to pings but never
-      // attempt to re-register (MESOS-6286).
+      // attempt to reregister (MESOS-6286).
       //
       // To handle this case, we expect that an agent whose socket has
-      // broken will re-register within `agent_reregister_timeout`. If
-      // the agent doesn't re-register, it is marked unreachable.
+      // broken will reregister within `agent_reregister_timeout`. If
+      // the agent doesn't reregister, it is marked unreachable.
       slave->reregistrationTimer =
         delay(flags.agent_reregister_timeout,
               self(),
@@ -1366,7 +1366,7 @@ void Master::agentReregisterTimeout(const SlaveID& slaveId)
 {
   Slave* slave = slaves.registered.get(slaveId);
 
-  // The slave might have been removed or re-registered concurrently
+  // The slave might have been removed or reregistered concurrently
   // with the timeout expiring.
   if (slave == nullptr || slave->connected) {
     return;
@@ -1379,7 +1379,7 @@ void Master::agentReregisterTimeout(const SlaveID& slaveId)
   if (slaves.limiter.isSome()) {
       LOG(INFO) << "Scheduling removal of agent "
                 << *slave
-                << "; did not re-register within "
+                << "; did not reregister within "
                 << flags.agent_reregister_timeout << " after disconnecting";
 
       acquire = slaves.limiter.get()->acquire();
@@ -1396,7 +1396,7 @@ Nothing Master::_agentReregisterTimeout(const SlaveID& slaveId)
 {
   Slave* slave = slaves.registered.get(slaveId);
 
-  // The slave might have been removed or re-registered while we were
+  // The slave might have been removed or reregistered while we were
   // waiting to acquire the rate limit.
   if (slave == nullptr || slave->connected) {
     ++metrics->slave_unreachable_canceled;
@@ -1408,7 +1408,7 @@ Nothing Master::_agentReregisterTimeout(const SlaveID& slaveId)
   markUnreachable(
       slave->info,
       false,
-      "agent did not re-register within " +
+      "agent did not reregister within " +
       stringify(flags.agent_reregister_timeout) +
       " after disconnecting");
 
@@ -1726,7 +1726,7 @@ Future<Nothing> Master::_recover(const Registry& registry)
   // Set up a timer for age-based registry GC.
   scheduleRegistryGc();
 
-  // Set up a timeout for slaves to re-register.
+  // Set up a timeout for slaves to reregister.
   slaves.recoveredTimer =
     delay(flags.agent_reregister_timeout,
           self(),
@@ -1805,7 +1805,7 @@ Future<Nothing> Master::_recover(const Registry& registry)
   LOG(INFO) << "Recovered " << registry.slaves().slaves().size() << " agents"
             << " from the registry (" << Bytes(registry.ByteSize()) << ")"
             << "; allowing " << flags.agent_reregister_timeout
-            << " for agents to re-register";
+            << " for agents to reregister";
 
   return Nothing();
 }
@@ -1975,7 +1975,7 @@ void Master::recoveredSlavesTimeout(const Registry& registry)
       << flags.agent_reregister_timeout
       << " there were " << slaves.recovered.size()
       << " (" << removalPercentage * 100 << "%) agents recovered from the"
-      << " registry that did not re-register: \n"
+      << " registry that did not reregister: \n"
       << stringify(slaves.recovered.keys()) << "\n "
       << " The configured removal limit is " << limit * 100 << "%. Please"
       << " investigate or increase this limit to proceed further";
@@ -1986,7 +1986,7 @@ void Master::recoveredSlavesTimeout(const Registry& registry)
   foreach (const Registry::Slave& slave, registry.slaves().slaves()) {
     // The slave is removed from `recovered` when it completes the
     // re-registration process. If the slave is in `reregistering`, it
-    // has started but not yet finished re-registering. In either
+    // has started but not yet finished reregistering. In either
     // case, we don't want to try to remove it.
     if (!slaves.recovered.contains(slave.info().id()) ||
         slaves.reregistering.contains(slave.info().id())) {
@@ -1998,7 +1998,7 @@ void Master::recoveredSlavesTimeout(const Registry& registry)
     if (slaves.limiter.isSome()) {
       LOG(INFO) << "Scheduling removal of agent "
                 << slave.info().id() << " (" << slave.info().hostname() << ")"
-                << "; did not re-register within "
+                << "; did not reregister within "
                 << flags.agent_reregister_timeout << " after master failover";
 
       acquire = slaves.limiter.get()->acquire();
@@ -2009,10 +2009,10 @@ void Master::recoveredSlavesTimeout(const Registry& registry)
     // TODO(bmahler): Cancelation currently occurs within by returning
     // early from `markUnreachable` *without* the "discarder" having
     // discarded the rate limit token. This approach means that if
-    // agents re-register while many of the marking unreachable
+    // agents reregister while many of the marking unreachable
     // operations are in progress, the rate that we mark unreachable
     // will "slow down" rather than stay constant. We should instead
-    // discard the rate limit token when the agent re-registers and
+    // discard the rate limit token when the agent reregisters and
     // handle the discard here. See MESOS-8386.
     acquire
       .onFailed(lambda::bind(fail, failure, lambda::_1))
@@ -2021,7 +2021,7 @@ void Master::recoveredSlavesTimeout(const Registry& registry)
                   &Self::markUnreachable,
                   slave.info(),
                   true,
-                  "did not re-register within"
+                  "did not reregister within"
                   " " + stringify(flags.agent_reregister_timeout) +
                   " after master failover"))
       .then(defer(self(), [=](bool marked) {
@@ -2690,8 +2690,8 @@ void Master::_subscribe(
   Framework* framework = getFramework(frameworkInfo.id());
 
   if (framework == nullptr) {
-    // The framework has not yet re-registered after master failover.
-    // Furthermore, no agents have re-registered running one of this
+    // The framework has not yet reregistered after master failover.
+    // Furthermore, no agents have reregistered running one of this
     // framework's tasks. Reconstruct a `Framework` object from the
     // supplied `FrameworkInfo`.
     recoverFramework(frameworkInfo, suppressedRoles);
@@ -2711,7 +2711,7 @@ void Master::_subscribe(
     // Always failover the old framework connection. See MESOS-4712 for details.
     failoverFramework(framework, http);
   } else {
-    // The framework has not yet re-registered after master failover.
+    // The framework has not yet reregistered after master failover.
     Try<Nothing> activate = activateRecoveredFramework(
         framework, frameworkInfo, None(), http, suppressedRoles);
 
@@ -3009,8 +3009,8 @@ void Master::_subscribe(
   Framework* framework = getFramework(frameworkInfo.id());
 
   if (framework == nullptr) {
-    // The framework has not yet re-registered after master failover.
-    // Furthermore, no agents have re-registered running one of this
+    // The framework has not yet reregistered after master failover.
+    // Furthermore, no agents have reregistered running one of this
     // framework's tasks. Reconstruct a `Framework` object from the
     // supplied `FrameworkInfo`.
     recoverFramework(frameworkInfo, suppressedRoles);
@@ -3117,7 +3117,7 @@ void Master::_subscribe(
       return;
     }
   } else {
-    // The framework has not yet re-registered after master failover.
+    // The framework has not yet reregistered after master failover.
     Try<Nothing> activate = activateRecoveredFramework(
         framework, frameworkInfo, from, None(), suppressedRoles);
 
@@ -5700,7 +5700,7 @@ void Master::kill(Framework* framework, const scheduler::Call::Kill& kill)
   slave->killedTasks.put(framework->id(), taskId);
 
   // NOTE: This task will be properly reconciled when the disconnected slave
-  // re-registers with the master.
+  // reregisters with the master.
   // We send the KillTaskMessage even if we have already sent one, just in case
   // the previous one was dropped by the network but it didn't trigger a slave
   // re-registration (and hence reconciliation).
@@ -5721,7 +5721,7 @@ void Master::kill(Framework* framework, const scheduler::Call::Kill& kill)
     LOG(WARNING) << "Cannot kill task " << taskId
                  << " of framework " << *framework
                  << " because the agent " << *slave << " is disconnected."
-                 << " Kill will be retried if the agent re-registers";
+                 << " Kill will be retried if the agent reregisters";
   }
 }
 
@@ -6357,7 +6357,7 @@ void Master::reregisterSlave(
   if (flags.authenticate_agents && !authenticated.contains(from)) {
     // This could happen if another authentication request came
     // through before we are here or if a slave tried to
-    // re-register without authentication.
+    // reregister without authentication.
     LOG(WARNING) << "Refusing re-registration of agent at " << from
                  << " because it is not authenticated";
     ShutdownMessage message;
@@ -6374,7 +6374,7 @@ void Master::reregisterSlave(
   const SlaveInfo& slaveInfo = reregisterSlaveMessage.slave();
   if (slaves.reregistering.contains(slaveInfo.id())) {
     LOG(INFO)
-      << "Ignoring re-register agent message from agent "
+      << "Ignoring reregister agent message from agent "
       << slaveInfo.id() << " at " << from << " ("
       << slaveInfo.hostname() << ") as re-registration is already in progress";
     return;
@@ -6382,7 +6382,7 @@ void Master::reregisterSlave(
 
   if (slaves.markingGone.contains(slaveInfo.id())) {
     LOG(INFO)
-      << "Ignoring re-register agent message from agent "
+      << "Ignoring reregister agent message from agent "
       << slaveInfo.id() << " at " << from << " ("
       << slaveInfo.hostname() << ") as a gone operation is already in progress";
     return;
@@ -6408,7 +6408,7 @@ void Master::reregisterSlave(
     return;
   }
 
-  LOG(INFO) << "Received re-register agent message from agent "
+  LOG(INFO) << "Received reregister agent message from agent "
             << slaveInfo.id() << " at " << from << " ("
             << slaveInfo.hostname() << ")";
 
@@ -6462,7 +6462,7 @@ void Master::_reregisterSlave(
     authorizationError = "Authorization failure: " + authorized.failure();
   } else if (!authorized.get()) {
     authorizationError =
-      "Not authorized to re-register agent providing resources "
+      "Not authorized to reregister agent providing resources "
       "'" + stringify(Resources(slaveInfo.resources())) + "' " +
       (principal.isSome()
        ? "with principal '" + stringify(principal.get()) + "'"
@@ -6484,7 +6484,7 @@ void Master::_reregisterSlave(
 
   if (slaves.markingGone.contains(slaveInfo.id())) {
     LOG(INFO)
-      << "Ignoring re-register agent message from agent "
+      << "Ignoring reregister agent message from agent "
       << slaveInfo.id() << " at " << pid << " ("
       << slaveInfo.hostname() << ") as a gone operation is already in progress";
 
@@ -6511,7 +6511,7 @@ void Master::_reregisterSlave(
   machineId.set_hostname(slaveInfo.hostname());
   machineId.set_ip(stringify(pid.address.ip));
 
-  // Slaves are not allowed to re-register while the machine they are on is in
+  // Slaves are not allowed to reregister while the machine they are on is in
   // 'DOWN` mode.
   if (machines.contains(machineId) &&
       machines[machineId].info.mode() == MachineInfo::DOWN) {
@@ -6552,7 +6552,7 @@ void Master::_reregisterSlave(
 
   // If the agent is configured with a domain but the master is not,
   // we can't determine whether the agent is remote. To be safe, we
-  // don't allow the agent to re-register. We don't shutdown the agent
+  // don't allow the agent to reregister. We don't shutdown the agent
   // so that any tasks on the agent can continue to run.
   //
   // TODO(neilc): Consider sending a warning to agent (MESOS-7615).
@@ -6582,7 +6582,7 @@ void Master::_reregisterSlave(
     CHECK(!slaves.recovered.contains(slaveInfo.id()));
 
     // NOTE: This handles the case where a slave tries to
-    // re-register with an existing master (e.g. because of a
+    // reregister with an existing master (e.g. because of a
     // spurious Zookeeper session expiration or after the slave
     // recovers after a restart).
     // For now, we assume this slave is not nefarious (eventually
@@ -6591,7 +6591,7 @@ void Master::_reregisterSlave(
     VLOG(1) << "Agent is already marked as registered: " << slaveInfo.id()
             << " at " << pid << " (" << slaveInfo.hostname() << ")";
 
-    // We don't allow re-registering this way with a different IP or
+    // We don't allow reregistering this way with a different IP or
     // hostname. This is because maintenance is scheduled at the
     // machine level; so we would need to re-validate the slave's
     // unavailability if the machine it is running on changed.
@@ -6599,13 +6599,13 @@ void Master::_reregisterSlave(
         slave->info.hostname() != slaveInfo.hostname()) {
       LOG(WARNING) << "Agent " << slaveInfo.id() << " at " << pid
                    << " (" << slaveInfo.hostname() << ") attempted to "
-                   << "re-register with different IP / hostname; expected "
+                   << "reregister with different IP / hostname; expected "
                    << slave->pid.address.ip << " (" << slave->info.hostname()
                    << ") shutting it down";
 
       ShutdownMessage message;
       message.set_message(
-          "Agent attempted to re-register with different IP / hostname");
+          "Agent attempted to reregister with different IP / hostname");
 
       send(pid, message);
 
@@ -6629,7 +6629,7 @@ void Master::_reregisterSlave(
             lambda::_1));
     }
   } else if (slaves.recovered.contains(slaveInfo.id())) {
-    // The agent likely is re-registering after a master failover as it
+    // The agent likely is reregistering after a master failover as it
     // is in the list recovered from the registry.
     VLOG(1) << "Re-admitting recovered agent " << slaveInfo.id()
             << " at " << pid << "(" << slaveInfo.hostname() << ")";
@@ -6693,7 +6693,7 @@ void Master::__reregisterSlave(
 
   if (slaves.markingGone.contains(slaveInfo.id())) {
     LOG(INFO)
-      << "Ignoring re-register agent message from agent "
+      << "Ignoring reregister agent message from agent "
       << slaveInfo.id() << " at " << pid << " ("
       << slaveInfo.hostname() << ") as a gone operation is already in progress";
 
@@ -6777,7 +6777,7 @@ void Master::__reregisterSlave(
   machineId.set_ip(stringify(pid.address.ip));
 
   // For easy lookup, first determine the set of FrameworkIDs on the
-  // re-registering agent that are partition-aware.
+  // reregistering agent that are partition-aware.
   hashset<FrameworkID> partitionAwareFrameworks;
 
   foreach (const FrameworkInfo& framework,
@@ -6809,7 +6809,7 @@ void Master::__reregisterSlave(
 
       const string message = slaves.unreachable.contains(slaveInfo.id())
           ? "Unreachable agent re-reregistered"
-          : "Unknown agent re-registered";
+          : "Unknown agent reregistered";
 
       const StatusUpdate& update = protobuf::createStatusUpdate(
           task.framework_id(),
@@ -6907,7 +6907,7 @@ void Master::__reregisterSlave(
            reregisterSlaveMessage.frameworks()) {
     if (isCompletedFramework(framework.id())) {
       LOG(INFO) << "Shutting down framework " << framework.id()
-                << " at re-registered agent " << *slave
+                << " at reregistered agent " << *slave
                 << " because the framework has been shutdown at the master";
 
       ShutdownFrameworkMessage message;
@@ -6944,7 +6944,7 @@ void Master::___reregisterSlave(
 
   if (slaves.markingGone.contains(slaveInfo.id())) {
     LOG(INFO)
-      << "Ignoring re-register agent message from agent "
+      << "Ignoring reregister agent message from agent "
       << slaveInfo.id() << " at " << pid << " ("
       << slaveInfo.hostname() << ") as a gone operation is already in progress";
 
@@ -7097,7 +7097,7 @@ void Master::___reregisterSlave(
       // the agent is downgraded before the partition heals.
       //
       // TODO(neilc): It would probably be better to prevent the agent
-      // from re-registering in this scenario.
+      // from reregistering in this scenario.
       Try<Nothing> result = downgradeResources(&message);
       if (result.isError()) {
         LOG(WARNING) << "Not sending updated checkpointed resources "
@@ -7157,7 +7157,7 @@ void Master::updateSlaveFrameworks(
       }
 
       LOG(INFO) << "Recovering framework " << frameworkInfo.id()
-                << " from re-registering agent " << *slave;
+                << " from reregistering agent " << *slave;
 
       recoverFramework(frameworkInfo, {});
     }
@@ -7862,7 +7862,7 @@ void Master::statusUpdate(StatusUpdate update, const UPID& pid)
 
   Framework* framework = getFramework(update.framework_id());
 
-  // A framework might not have re-registered upon a master failover or
+  // A framework might not have reregistered upon a master failover or
   // got disconnected.
   if (framework != nullptr && framework->connected()) {
     forward(update, pid, framework);
@@ -7879,7 +7879,7 @@ void Master::statusUpdate(StatusUpdate update, const UPID& pid)
   if (task == nullptr) {
     // TODO(neilc): We might see status updates for non-partition
     // aware tasks running on a partitioned agent that has
-    // re-registered with the master. The master marks such tasks
+    // reregistered with the master. The master marks such tasks
     // completed when the agent partitions; it will shutdown the
     // framework when the agent-reregisters, but we may see a number
     // of status updates before the framework is shutdown.
@@ -8147,7 +8147,7 @@ Future<bool> Master::markUnreachable(
   if (duringMasterFailover && !slaves.recovered.contains(slave.id())) {
     LOG(INFO) << "Skipping transition of agent"
               << " " << slave.id() << " (" << slave.hostname() << ")"
-              << " to unreachable because it re-registered in the interim";
+              << " to unreachable because it reregistered in the interim";
     return false;
   }
 
@@ -8168,7 +8168,7 @@ Future<bool> Master::markUnreachable(
   if (slaves.reregistering.contains(slave.id())) {
     LOG(INFO) << "Skipping transition of agent"
               << " " << slave.id() << " (" << slave.hostname() << ")"
-              << " to unreachable because it is re-registering";
+              << " to unreachable because it is reregistering";
     return false;
   }
 
@@ -8440,7 +8440,7 @@ void Master::_reconcileTasks(
   //
   // For case (3), if the slave ID is not provided, we err on the
   // side of caution and do not reply if there are *any* recovered
-  // slaves that haven't re-registered, since the task could reside
+  // slaves that haven't reregistered, since the task could reside
   // on one of these slaves.
   //
   // For cases (4), (5), (6) and (7) TASK_LOST is sent instead if the
@@ -8501,7 +8501,7 @@ void Master::_reconcileTasks(
                 << (slaveId.isSome() ?
                       "agent " + stringify(slaveId.get()) + " has" :
                       "some agents have")
-                << " not yet re-registered with the master";
+                << " not yet reregistered with the master";
     } else if (slaveId.isSome() && slaves.registered.contains(slaveId.get())) {
       // (4) Task is unknown, slave is registered: TASK_GONE. If the
       // framework does not have the PARTITION_AWARE capability, send
@@ -8614,7 +8614,7 @@ void Master::frameworkFailoverTimeout(const FrameworkID& frameworkId,
 
   if (framework != nullptr && !framework->connected()) {
     // If the re-registration time has not changed, then the framework
-    // has not re-registered within the failover timeout.
+    // has not reregistered within the failover timeout.
     if (framework->reregisteredTime == reregisteredTime) {
       LOG(INFO) << "Framework failover timeout, removing framework "
                 << *framework;
@@ -8921,17 +8921,17 @@ void Master::authenticate(const UPID& from, const UPID& pid)
   // 3. Client restarted.
   //   3.1. We are here after receiving 'exited()' from old client.
   //        This is safe because the client will be first marked as
-  //        disconnected and then when it re-registers it will be
+  //        disconnected and then when it reregisters it will be
   //        marked as connected.
   //
   //  3.2. We are here before receiving 'exited()' from old client.
   //       This is tricky only if the PID of the client doesn't change
   //       after restart; true for slave but not for framework.
   //       If the PID doesn't change the master might mark the client
-  //       disconnected *after* the client re-registers.
+  //       disconnected *after* the client reregisters.
   //       This is safe because the client (slave) will be informed
   //       about this discrepancy via ping messages so that it can
-  //       re-register.
+  //       reregister.
 
   authenticated.erase(pid);
 
@@ -9172,7 +9172,7 @@ void Master::reconcileKnownSlave(
                 frameworks.completed) {
     if (slaveTasks.contains(framework->id())) {
       LOG(WARNING) << "Agent " << *slave
-                   << " re-registered with completed framework " << *framework
+                   << " reregistered with completed framework " << *framework
                    << ". Shutting down the framework on the agent";
 
       ShutdownFrameworkMessage message;
@@ -9337,8 +9337,8 @@ Try<Nothing> Master::activateRecoveredFramework(
 
   if (pid.isSome()) {
     // TODO(bmahler): We have to send a registered message here for
-    // the re-registering framework, per the API contract. Send
-    // re-register here per MESOS-786; requires deprecation or it
+    // the reregistering framework, per the API contract. Send
+    // reregister here per MESOS-786; requires deprecation or it
     // will break frameworks.
     FrameworkRegisteredMessage message;
     message.mutable_framework_id()->MergeFrom(framework->id());
@@ -9524,7 +9524,7 @@ void Master::removeFramework(Framework* framework)
   foreachvalue (Task* task, utils::copy(framework->tasks)) {
     Slave* slave = slaves.registered.get(task->slave_id());
 
-    // Since we only find out about tasks when the slave re-registers,
+    // Since we only find out about tasks when the slave reregisters,
     // it must be the case that the slave exists!
     CHECK(slave != nullptr)
       << "Unknown agent " << task->slave_id()
@@ -9570,7 +9570,7 @@ void Master::removeFramework(Framework* framework)
 
     // TODO(neilc): Per comment above, using TASK_KILLED here is not
     // ideal. It would be better to use TASK_UNREACHABLE here and only
-    // transition it to a terminal state when the agent re-registers
+    // transition it to a terminal state when the agent reregisters
     // and the task is shutdown (MESOS-6608).
     const StatusUpdate& update = protobuf::createStatusUpdate(
         task->framework_id(),
@@ -9747,8 +9747,8 @@ void Master::addSlave(
   foreachkey (const FrameworkID& frameworkId, slave->executors) {
     Framework* framework = getFramework(frameworkId);
 
-    // If the framework has not re-registered yet and this is the
-    // first agent to re-register that is running the framework, we
+    // If the framework has not reregistered yet and this is the
+    // first agent to reregister that is running the framework, we
     // skip adding the framework's executors here. Instead, the
     // framework will be recovered in `__reregisterSlave` and its
     // executors will be added by `recoverFramework`.
@@ -9766,8 +9766,8 @@ void Master::addSlave(
   foreachkey (const FrameworkID& frameworkId, slave->tasks) {
     Framework* framework = getFramework(frameworkId);
 
-    // If the framework has not re-registered yet and this is the
-    // first agent to re-register that is running the framework, we
+    // If the framework has not reregistered yet and this is the
+    // first agent to reregister that is running the framework, we
     // skip adding the framework's tasks here. Instead, the framework
     // will be recovered in `__reregisterSlave` and its tasks will be
     // added by `recoverFramework`.
@@ -9800,7 +9800,7 @@ void Master::addSlave(
                 << " that ran on agent " << *slave;
         framework->addCompletedTask(std::move(task));
       } else {
-        // The framework might not be re-registered yet.
+        // The framework might not be reregistered yet.
         //
         // TODO(vinod): Revisit these semantics when we store frameworks'
         // information in the registrar.
@@ -10314,7 +10314,7 @@ void Master::removeTask(Task* task, bool unreachable)
 
   // Remove from framework.
   Framework* framework = getFramework(task->framework_id());
-  if (framework != nullptr) { // A framework might not be re-registered yet.
+  if (framework != nullptr) { // A framework might not be reregistered yet.
     framework->removeTask(task, unreachable);
   }
 
@@ -10343,7 +10343,7 @@ void Master::removeExecutor(
       frameworkId, slave->id, executor.resources(), None());
 
   Framework* framework = getFramework(frameworkId);
-  if (framework != nullptr) { // The framework might not be re-registered yet.
+  if (framework != nullptr) { // The framework might not be reregistered yet.
     framework->removeExecutor(slave->id, executorId);
   }
 
@@ -10653,7 +10653,7 @@ void Master::_apply(
       // the agent is downgraded before the partition heals.
       //
       // TODO(neilc): It would probably be better to prevent the agent
-      // from re-registering in this scenario.
+      // from reregistering in this scenario.
       Try<Nothing> result = downgradeResources(&message);
       if (result.isError()) {
         LOG(WARNING) << "Not sending updated checkpointed resources "
@@ -11732,7 +11732,7 @@ Try<Nothing> Slave::update(
   // There is a short window here where `totalResources` can have an old value,
   // but it should be relatively short because the agent will send
   // an `UpdateSlaveMessage` with the new total resources immediately after
-  // re-registering in this case.
+  // reregistering in this case.
   totalResources = resources.get();
 
   if (resourceVersion.isSome()) {

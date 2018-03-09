@@ -43,7 +43,7 @@ virtual void registered(
     const MasterInfo& masterInfo);
 
 /*
- * Invoked when the scheduler re-registers with a newly elected Mesos master.
+ * Invoked when the scheduler reregisters with a newly elected Mesos master.
  * This is only called when the scheduler has previously been registered.
  * `MasterInfo` containing the updated information about the elected master
  * is provided as an argument.
@@ -387,7 +387,7 @@ virtual void registered(
     const SlaveInfo& slaveInfo);
 
 /*
- * Invoked when the executor re-registers with a restarted slave.
+ * Invoked when the executor reregisters with a restarted slave.
  */
 virtual void reregistered(ExecutorDriver* driver, const SlaveInfo& slaveInfo);
 

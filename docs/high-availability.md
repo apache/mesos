@@ -52,7 +52,7 @@ When a network partition disconnects an agent from the leader:
 
 * The leader marks the agent as deactivated and sends its tasks to the LOST state. The  [Framework Development Guide](app-framework-development-guide.md) describes these various task states.
 
-* Deactivated agents may not re-register with the leader and are told to shut down upon any post-deactivation communication.
+* Deactivated agents may not reregister with the leader and are told to shut down upon any post-deactivation communication.
 
 ## Implementation Details
 Mesos implements two levels of ZooKeeper leader election abstractions, one in `src/zookeeper` and the other in `src/master` (look for `contender|detector.hpp|cpp`).

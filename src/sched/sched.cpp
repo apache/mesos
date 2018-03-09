@@ -769,26 +769,26 @@ protected:
       const MasterInfo& masterInfo)
   {
     if (!running.load()) {
-      VLOG(1) << "Ignoring framework re-registered message because "
+      VLOG(1) << "Ignoring framework reregistered message because "
               << "the driver is not running!";
       return;
     }
 
     if (connected) {
-      VLOG(1) << "Ignoring framework re-registered message because "
+      VLOG(1) << "Ignoring framework reregistered message because "
               << "the driver is already connected!";
       return;
     }
 
     if (master.isNone() || from != master->pid()) {
       LOG(WARNING)
-        << "Ignoring framework re-registered message because it was sent "
+        << "Ignoring framework reregistered message because it was sent "
         << "from '" << from << "' instead of the leading master '"
         << (master.isSome() ? UPID(master->pid()) : UPID()) << "'";
       return;
     }
 
-    LOG(INFO) << "Framework re-registered with " << frameworkId;
+    LOG(INFO) << "Framework reregistered with " << frameworkId;
 
     CHECK(framework.id() == frameworkId);
 
@@ -1517,7 +1517,7 @@ protected:
     VLOG(2) << "Asked to send framework message to agent "
             << slaveId;
 
-    // TODO(benh): After a scheduler has re-registered it won't have
+    // TODO(benh): After a scheduler has reregistered it won't have
     // any saved slave PIDs, maybe it makes sense to try and save each
     // PID that this scheduler tries to send a message to? Or we can
     // just wait for them to recollect as new offers come in and get

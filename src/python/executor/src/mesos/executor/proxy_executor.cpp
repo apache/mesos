@@ -101,7 +101,7 @@ void ProxyExecutor::reregistered(ExecutorDriver* driver,
                             impl,
                             slaveInfoObj);
   if (res == nullptr) {
-    cerr << "Failed to call executor re-registered" << endl;
+    cerr << "Failed to call executor reregistered" << endl;
     goto cleanup;
   }
 

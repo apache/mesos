@@ -2842,7 +2842,7 @@ TEST_F(SlaveTest, ContainersEndpoint)
 
 
 // This test ensures that when a slave is shutting down, it will not
-// try to re-register with the master.
+// try to reregister with the master.
 TEST_F(SlaveTest, DISABLED_TerminatingSlaveDoesNotReregister)
 {
   // Start a master.
@@ -3283,7 +3283,7 @@ TEST_F(SlaveTest, TaskLaunchContainerizerUpdateFails)
 }
 
 
-// This test ensures that the slave will re-register with the master
+// This test ensures that the slave will reregister with the master
 // if it does not receive any pings after registering.
 TEST_F(SlaveTest, PingTimeoutNoPings)
 {
@@ -3338,7 +3338,7 @@ TEST_F(SlaveTest, PingTimeoutNoPings)
 }
 
 
-// This test ensures that the slave will re-register with the master
+// This test ensures that the slave will reregister with the master
 // if it stops receiving pings.
 TEST_F(SlaveTest, PingTimeoutSomePings)
 {
@@ -4221,7 +4221,7 @@ TEST_F(SlaveTest, KillMultiplePendingTasks)
   ASSERT_FALSE(offers->empty());
 
   // We only pause the clock after receiving the offer since the
-  // agent uses a delay to re-register.
+  // agent uses a delay to reregister.
   //
   // TODO(bmahler): Remove the initial agent delay within the tests.
   Clock::pause();
@@ -5512,7 +5512,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest,
 }
 
 
-// This test verifies that when a slave re-registers with the master
+// This test verifies that when a slave reregisters with the master
 // it correctly includes the latest and status update task states.
 TEST_F(SlaveTest, ReregisterWithStatusUpdateTaskState)
 {
@@ -6662,10 +6662,10 @@ TEST_F(SlaveTest, HTTPSchedulerSlaveRestart)
   slave = StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  // Let the executor re-register.
+  // Let the executor reregister.
   AWAIT_READY(reregisterExecutorMessage);
 
-  // Ensure the slave considers itself recovered and re-registers.
+  // Ensure the slave considers itself recovered and reregisters.
   Clock::settle();
   Clock::advance(flags.executor_reregistration_timeout);
 
@@ -8691,7 +8691,7 @@ TEST_F(SlaveTest, MaxCompletedExecutorsPerFrameworkFlag)
 
 
 // This ensures that if the executor reconnect retry is disabled,
-// PID-based V0 executors are disallowed from re-registering in
+// PID-based V0 executors are disallowed from reregistering in
 // the steady state.
 //
 // TODO(bmahler): It should be simpler to write a test that
@@ -9213,7 +9213,7 @@ TEST_F(SlaveTest, DisconnectedExecutorDropsMessages)
 
 
 // This test verifies that the 'executor_reregistration_timeout' agent flag
-// successfully extends the timeout within which an executor can re-register.
+// successfully extends the timeout within which an executor can reregister.
 TEST_F(SlaveTest, ExecutorReregistrationTimeoutFlag)
 {
   Clock::pause();
@@ -9222,7 +9222,7 @@ TEST_F(SlaveTest, ExecutorReregistrationTimeoutFlag)
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
-  // Set the executor re-register timeout to a value greater than the default.
+  // Set the executor reregister timeout to a value greater than the default.
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.executor_reregistration_timeout = process::TEST_AWAIT_TIMEOUT;
 
@@ -9306,7 +9306,7 @@ TEST_F(SlaveTest, ExecutorReregistrationTimeoutFlag)
   slave = StartSlave(detector.get(), containerizer.get(), slaveFlags);
   ASSERT_SOME(slave);
 
-  // Ensure that the executor attempts to re-register, so that we can capture
+  // Ensure that the executor attempts to reregister, so that we can capture
   // its re-registration message.
   AWAIT_READY(reregisterExecutor);
 
@@ -9319,9 +9319,9 @@ TEST_F(SlaveTest, ExecutorReregistrationTimeoutFlag)
   // Send the executor's delayed re-registration message.
   process::post(slave.get()->pid, reregisterExecutor.get());
 
-  // Advance the clock to prompt the agent to re-register, and ensure that the
+  // Advance the clock to prompt the agent to reregister, and ensure that the
   // executor's task would have been marked unreachable if the executor had not
-  // re-registered successfully.
+  // reregistered successfully.
   Clock::advance(slaveFlags.executor_reregistration_timeout * 0.2);
 
   Clock::resume();
@@ -9905,7 +9905,7 @@ TEST_F(SlaveTest, ResourceVersions)
     FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
 
   // Simulate a new master detected event on the slave,
-  // so that the slave will attempt to re-register.
+  // so that the slave will attempt to reregister.
   detector.appoint(master.get()->pid);
 
   Clock::settle();

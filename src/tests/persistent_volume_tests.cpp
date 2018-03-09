@@ -2186,7 +2186,7 @@ TEST_P(PersistentVolumeTest, SlaveRecovery)
 
   Clock::resume();
 
-  // Wait for the slave to re-register.
+  // Wait for the slave to reregister.
   AWAIT_READY(slaveReregisteredMessage);
 
   // The framework should not receive a TASK_FAILED here since the

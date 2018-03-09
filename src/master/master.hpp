@@ -209,10 +209,10 @@ Slave(Master* const _master,
   bool active;
 
   // Timer for marking slaves unreachable that become disconnected and
-  // don't re-register. This timeout is larger than the slave
+  // don't reregister. This timeout is larger than the slave
   // observer's timeout, so typically the slave observer will be the
   // one to mark such slaves unreachable; this timer is a backup for
-  // when a slave responds to pings but does not re-register (e.g.,
+  // when a slave responds to pings but does not reregister (e.g.,
   // because agent recovery has hung).
   Option<process::Timer> reregistrationTimer;
 
@@ -240,7 +240,7 @@ Slave(Master* const _master,
   hashmap<FrameworkID, hashmap<TaskID, Task*>> tasks;
 
   // Tasks that were asked to kill by frameworks.
-  // This is used for reconciliation when the slave re-registers.
+  // This is used for reconciliation when the slave reregisters.
   multihashmap<FrameworkID, TaskID> killedTasks;
 
   // Pending operations or terminal operations that have
@@ -652,7 +652,7 @@ protected:
       const std::vector<TaskStatus>& statuses);
 
   // When a slave that was previously registered with this master
-  // re-registers, we need to reconcile the master's view of the
+  // reregisters, we need to reconcile the master's view of the
   // slave's tasks and executors.  This function also sends the
   // `SlaveReregisteredMessage`.
   void reconcileKnownSlave(
@@ -667,7 +667,7 @@ protected:
 
   // Recover a framework from its `FrameworkInfo`. This happens after
   // master failover, when an agent running one of the framework's
-  // tasks re-registers or when the framework itself re-registers,
+  // tasks reregisters or when the framework itself reregisters,
   // whichever happens first. The result of this function is a
   // registered, inactive framework with state `RECOVERED`.
   void recoverFramework(
@@ -676,7 +676,7 @@ protected:
 
   // Transition a framework from `RECOVERED` to `CONNECTED` state and
   // activate it. This happens at most once after master failover, the
-  // first time that the framework re-registers with the new master.
+  // first time that the framework reregisters with the new master.
   // Exactly one of `newPid` or `http` must be provided.
   Try<Nothing> activateRecoveredFramework(
       Framework* framework,
@@ -1798,13 +1798,13 @@ private:
     Slaves() : removed(MAX_REMOVED_SLAVES) {}
 
     // Imposes a time limit for slaves that we recover from the
-    // registry to re-register with the master.
+    // registry to reregister with the master.
     Option<process::Timer> recoveredTimer;
 
     // Slaves that have been recovered from the registrar after master
     // failover. Slaves are removed from this collection when they
-    // either re-register with the master or are marked unreachable
-    // because they do not re-register before `recoveredTimer` fires.
+    // either reregister with the master or are marked unreachable
+    // because they do not reregister before `recoveredTimer` fires.
     // We must not answer questions related to these slaves (e.g.,
     // during task reconciliation) until we determine their fate
     // because their are in this transitioning state.
@@ -2170,8 +2170,8 @@ struct Framework
   enum State
   {
     // Framework has never connected to this master. This implies the
-    // master failed over and the framework has not yet re-registered,
-    // but some framework state has been recovered from re-registering
+    // master failed over and the framework has not yet reregistered,
+    // but some framework state has been recovered from reregistering
     // agents that are running tasks for the framework.
     RECOVERED,
 

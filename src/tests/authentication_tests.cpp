@@ -693,7 +693,7 @@ TEST_F(AuthenticationTest, LeaderElectionDuringSlaveAuthentication)
 
 
 // This test verifies that if a scheduler fails over in the midst of
-// authentication it successfully re-authenticates and re-registers
+// authentication it successfully re-authenticates and reregisters
 // with the master when it comes back up.
 TEST_F(AuthenticationTest, SchedulerFailover)
 {

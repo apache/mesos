@@ -1650,7 +1650,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
                       FutureSatisfy(&addSlave)));
 
     // Expect the framework to be added but to be inactive when the
-    // agent re-registers, until the framework re-registers below.
+    // agent reregisters, until the framework reregisters below.
     Future<Nothing> addFramework;
     EXPECT_CALL(allocator2, addFramework(_, _, _, false, _))
       .WillOnce(DoAll(InvokeAddFramework(&allocator2),
@@ -1673,7 +1673,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
     EXPECT_CALL(sched, registered(&driver, _, _));
 
     // Because the framework was re-added above, we expect to only
-    // activate the framework when it re-registers.
+    // activate the framework when it reregisters.
     EXPECT_CALL(allocator2, addFramework(_, _, _, _, _))
       .Times(0);
 

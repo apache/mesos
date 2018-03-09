@@ -1137,7 +1137,7 @@ TEST_F(MasterAuthorizationTest, DuplicateRegistration)
 // This test verifies that an authentication request that comes from
 // the same instance of the framework (e.g., ZK blip) before
 // 'Master::_reregisterFramework()' from an earlier attempt, causes
-// the master to successfully re-register the framework.
+// the master to successfully reregister the framework.
 TEST_F(MasterAuthorizationTest, DuplicateReregistration)
 {
   MockAuthorizer authorizer;
@@ -1304,7 +1304,7 @@ TEST_F(MasterAuthorizationTest, FrameworkRemovedBeforeReregistration)
 
   EXPECT_CALL(sched, disconnected(&driver));
 
-  // Framework should not be re-registered.
+  // Framework should not be reregistered.
   EXPECT_CALL(sched, reregistered(&driver, _))
     .Times(0);
 
@@ -2173,7 +2173,7 @@ TYPED_TEST(MasterAuthorizerTest, FilterRolesEndpoint)
 // default users are allowed to to view high level frameworks, but
 // only one is allowed to view the tasks. Although the tasks are
 // "orphaned" (in the sense that their framework has not yet
-// re-registered), they are now reported under the "tasks" key.
+// reregistered), they are now reported under the "tasks" key.
 TYPED_TEST(MasterAuthorizerTest, FilterOrphanedTasks)
 {
   ACLs acls;
@@ -2280,7 +2280,7 @@ TYPED_TEST(MasterAuthorizerTest, FilterOrphanedTasks)
   // Simulate a new master detected event to the slave.
   detector.appoint(master.get()->pid);
 
-  // The framework will not re-register with the new master as the
+  // The framework will not reregister with the new master as the
   // scheduler is bound to the old master pid.
 
   AWAIT_READY(slaveReregisteredMessage);
@@ -2418,7 +2418,7 @@ TEST_F(MasterAuthorizationTest, UnauthorizedToRegisterAgent)
 
 
 // This test verifies that an agent authorized to register can be
-// unauthorized to re-register due to master ACL change (after failover).
+// unauthorized to reregister due to master ACL change (after failover).
 TEST_F(MasterAuthorizationTest, UnauthorizedToReregisterAgent)
 {
   // Set up ACLs so that the agent can register.
@@ -2447,7 +2447,7 @@ TEST_F(MasterAuthorizationTest, UnauthorizedToReregisterAgent)
   // Master fails over.
   master->reset();
 
-  // The new master doesn't allow this agent principal to re-register.
+  // The new master doesn't allow this agent principal to reregister.
   acl->mutable_agents()->set_type(ACL::Entity::NONE);
   flags.acls = acls;
 

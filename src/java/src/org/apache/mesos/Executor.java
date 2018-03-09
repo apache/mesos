@@ -61,9 +61,9 @@ public interface Executor {
                   SlaveInfo slaveInfo);
 
   /**
-   * Invoked when the executor re-registers with a restarted slave.
+   * Invoked when the executor reregisters with a restarted slave.
    *
-   * @param driver      The executor driver that was re-registered with the
+   * @param driver      The executor driver that was reregistered with the
    *                    Mesos master.
    * @param slaveInfo   Describes the slave that will be used to launch
    *                    the tasks for this executor.

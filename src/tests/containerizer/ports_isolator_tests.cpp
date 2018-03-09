@@ -924,7 +924,7 @@ TEST_F(NetworkPortsIsolatorTest, ROOT_NC_RecoverBadTask)
   slave = StartSlave(detector.get(), flags);
   ASSERT_SOME(slave);
 
-  // Wait for the slave to re-register.
+  // Wait for the slave to reregister.
   AWAIT_READY(slaveReregisteredMessage);
 
   // Now force a ports check, which should terminate the nc command.
@@ -1051,7 +1051,7 @@ TEST_F(NetworkPortsIsolatorTest, ROOT_NC_RecoverGoodTask)
   slave = StartSlave(detector.get(), flags);
   ASSERT_SOME(slave);
 
-  // Wait for the slave to re-register.
+  // Wait for the slave to reregister.
   AWAIT_READY(slaveReregisteredMessage);
 
   // We should not get any status updates because the task should
@@ -1365,7 +1365,7 @@ TEST_F(NetworkPortsIsolatorTest, ROOT_NC_RecoverNestedBadTask)
 
   slave.get()->start();
 
-  // Wait for the slave to re-register.
+  // Wait for the slave to reregister.
   AWAIT_READY(slaveReregisteredMessage);
 
   Future<Event::Update> updateFinished;
@@ -1542,7 +1542,7 @@ TEST_F(NetworkPortsIsolatorTest, ROOT_NC_RecoverNestedGoodTask)
 
   slave.get()->start();
 
-  // Wait for the slave to re-register.
+  // Wait for the slave to reregister.
   AWAIT_READY(slaveReregisteredMessage);
 
   // We expect that the task will continue to run, so the health check

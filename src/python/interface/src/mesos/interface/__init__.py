@@ -47,7 +47,7 @@ class Scheduler(object):
 
   def reregistered(self, driver, masterInfo):
     """
-      Invoked when the scheduler re-registers with a newly elected Mesos
+      Invoked when the scheduler reregisters with a newly elected Mesos
       master.  This is only called when the scheduler has previously been
       registered.  masterInfo contains information about the newly elected
       master.
@@ -292,7 +292,7 @@ class Executor(object):
 
   def reregistered(self, driver, slaveInfo):
     """
-      Invoked when the executor re-registers with a restarted slave.
+      Invoked when the executor reregisters with a restarted slave.
     """
 
   def disconnected(self, driver):

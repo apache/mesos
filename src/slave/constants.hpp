@@ -35,11 +35,11 @@ namespace slave {
 constexpr Duration EXECUTOR_REGISTRATION_TIMEOUT = Minutes(1);
 constexpr Duration EXECUTOR_REREGISTRATION_TIMEOUT = Seconds(2);
 
-// The maximum timeout within which an executor can re-register.
+// The maximum timeout within which an executor can reregister.
 // Note that this value has to be << 'MIN_AGENT_REREGISTER_TIMEOUT'
 // declared in 'master/constants.hpp'; since agent recovery will only
 // complete after this timeout has elapsed, this ensures that the
-// agent can re-register with the master before it is marked
+// agent can reregister with the master before it is marked
 // unreachable and its tasks are transitioned to TASK_UNREACHABLE or
 // TASK_LOST.
 constexpr Duration MAX_EXECUTOR_REREGISTRATION_TIMEOUT = Seconds(15);

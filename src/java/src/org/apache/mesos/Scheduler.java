@@ -57,12 +57,12 @@ public interface Scheduler {
                   MasterInfo masterInfo);
 
   /**
-   * Invoked when the scheduler re-registers with a newly elected Mesos master.
+   * Invoked when the scheduler reregisters with a newly elected Mesos master.
    * This is only called when the scheduler has previously been registered.
    * MasterInfo containing the updated information about the elected master
    * is provided as an argument.
    *
-   * @param driver      The driver that was re-registered.
+   * @param driver      The driver that was reregistered.
    * @param masterInfo  The updated information about the elected master.
    *
    * @see SchedulerDriver

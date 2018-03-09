@@ -63,9 +63,9 @@ constexpr Duration DEFAULT_AGENT_PING_TIMEOUT = Seconds(15);
 constexpr size_t DEFAULT_MAX_AGENT_PING_TIMEOUTS = 5;
 
 // The minimum timeout that can be used by a newly elected leader to
-// allow re-registration of slaves. Any slaves that do not re-register
+// allow re-registration of slaves. Any slaves that do not reregister
 // within this timeout will be marked unreachable; if/when the agent
-// re-registers, non-partition-aware tasks running on the agent will
+// reregisters, non-partition-aware tasks running on the agent will
 // be terminated.
 constexpr Duration MIN_AGENT_REREGISTER_TIMEOUT = Minutes(10);
 

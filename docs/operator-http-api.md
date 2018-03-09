@@ -2330,7 +2330,7 @@ for all the running tasks. This signal can be used by stateful frameworks to
 re-schedule their workloads (volumes, reservations etc.) to other agent
 instances. It is possible that the tasks might still be running if the
 operator's assertion was wrong and the agent was partitioned away from
-the master. The agent would be shutdown when it tries to re-register with the
+the master. The agent would be shutdown when it tries to reregister with the
 master when the partition heals. This call is idempotent.
 
 ```
@@ -2413,7 +2413,7 @@ HEARTBEAT Event (JSON)
 
 ### TASK_ADDED
 
-Sent whenever a task has been added to the master. This can happen either when a new task launch is processed by the master or when an agent re-registers with a failed over master.
+Sent whenever a task has been added to the master. This can happen either when a new task launch is processed by the master or when an agent reregisters with a failed over master.
 
 ```
 TASK_ADDED Event (JSON)
@@ -2521,7 +2521,7 @@ FRAMEWORK_ADDED Event (JSON)
 
 ### FRAMEWORK_UPDATED
 
-Sent whenever a framework re-registers with the master upon a disconnection (network error) or upon a master failover.
+Sent whenever a framework reregisters with the master upon a disconnection (network error) or upon a master failover.
 
 ```
 FRAMEWORK_UPDATED Event (JSON)
@@ -2565,7 +2565,7 @@ FRAMEWORK_UPDATED Event (JSON)
 
 ### FRAMEWORK_REMOVED
 
-Sent whenever a framework is removed. This can happen when a framework is explicitly teardown by the operator or if it fails to re-register with the master within the failover timeout.
+Sent whenever a framework is removed. This can happen when a framework is explicitly teardown by the operator or if it fails to reregister with the master within the failover timeout.
 
 ```
 FRAMEWORK_REMOVED Event (JSON)

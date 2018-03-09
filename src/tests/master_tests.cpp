@@ -1342,7 +1342,7 @@ TEST_F(MasterTest, MasterInfoOnReElection)
   Clock::advance(masterFlags.allocation_interval);
   Clock::resume();
 
-  // The re-registered framework should get offers.
+  // The reregistered framework should get offers.
   AWAIT_READY(resourceOffers2);
 
   driver.stop();
@@ -2915,9 +2915,9 @@ TEST_F(MasterTest, RegistryUpdateAfterMasterFailover)
 
 
 // This test ensures that when a slave is recovered from the registry
-// but does not re-register with the master, it is marked unreachable
+// but does not reregister with the master, it is marked unreachable
 // in the registry, the framework is informed that the slave is lost,
-// and the slave is allowed to re-register.
+// and the slave is allowed to reregister.
 TEST_F(MasterTest, RecoveredSlaveCanReregister)
 {
   // Step 1: Start a master.
@@ -2983,11 +2983,11 @@ TEST_F(MasterTest, RecoveredSlaveCanReregister)
 
   Clock::resume();
 
-  // Step 7: Ensure the slave can re-register.
+  // Step 7: Ensure the slave can reregister.
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), master.get()->pid, _);
 
-  // Expect a resource offer from the re-registered slave.
+  // Expect a resource offer from the reregistered slave.
   Future<Nothing> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureSatisfy(&offers));
@@ -3073,14 +3073,14 @@ TEST_F(MasterTest, UnreachableTaskAfterFailover)
   AWAIT_READY(statusUpdateAck2);
 
   // Step 4: Simulate master failover. We leave the slave without a
-  // master so it does not attempt to re-register.
+  // master so it does not attempt to reregister.
   slaveDetector.appoint(None());
 
   master->reset();
   master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
-  // Cause the scheduler to re-register with the master.
+  // Cause the scheduler to reregister with the master.
   Future<Nothing> disconnected;
   EXPECT_CALL(sched, disconnected(&driver))
     .WillOnce(FutureSatisfy(&disconnected));
@@ -3125,7 +3125,7 @@ TEST_F(MasterTest, UnreachableTaskAfterFailover)
   EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate1->reason());
   EXPECT_EQ(unreachableTime, reconcileUpdate1->unreachable_time());
 
-  // Cause the slave to re-register with the master.
+  // Cause the slave to reregister with the master.
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
@@ -3241,7 +3241,7 @@ TEST_F(MasterTest, RateLimitRecoveredSlaveRemoval)
 
 
 // This test ensures that slave removals that get scheduled during
-// master recovery can be canceled if the slave re-registers.
+// master recovery can be canceled if the slave reregisters.
 TEST_F(MasterTest, CancelRecoveredSlaveRemoval)
 {
   // Start a master.
@@ -3310,7 +3310,7 @@ TEST_F(MasterTest, CancelRecoveredSlaveRemoval)
   Clock::settle();
   ASSERT_TRUE(slaveLost.isPending());
 
-  // Ignore resource offers from the re-registered slave.
+  // Ignore resource offers from the reregistered slave.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(Return());
 
@@ -3336,7 +3336,7 @@ TEST_F(MasterTest, CancelRecoveredSlaveRemoval)
 
 
 // This test ensures that when a slave is recovered from the registry
-// and re-registers with the master, it is *not* removed after the
+// and reregisters with the master, it is *not* removed after the
 // re-registration timeout elapses.
 TEST_F(MasterTest, RecoveredSlaveReregisters)
 {
@@ -3378,7 +3378,7 @@ TEST_F(MasterTest, RecoveredSlaveReregisters)
     .WillOnce(FutureSatisfy(&registered));
 
   // Ignore all offer related calls. The scheduler might receive
-  // offerRescinded calls because the slave might re-register due to
+  // offerRescinded calls because the slave might reregister due to
   // ping timeout.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(Return());
@@ -3598,7 +3598,7 @@ TEST_F(MasterZooKeeperTest, MasterInfoAddress)
 
 
 // This test ensures that when a master fails over, tasks that belong
-// to frameworks that have not re-registered will be reported in the
+// to frameworks that have not reregistered will be reported in the
 // "/state" endpoint. The framework itself should have the "recovered"
 // field set to true.
 TEST_F(MasterTest, RecoveredFramework)
@@ -3764,7 +3764,7 @@ TEST_F(MasterTest, RecoveredFramework)
   Future<FrameworkRegisteredMessage> frameworkRegisteredMessage =
     FUTURE_PROTOBUF(FrameworkRegisteredMessage(), _, _);
 
-  // Advance the clock to let the framework re-register with the master.
+  // Advance the clock to let the framework reregister with the master.
   Clock::advance(Seconds(1));
   Clock::settle();
   Clock::resume();
@@ -3817,7 +3817,7 @@ TEST_F(MasterTest, RecoveredFramework)
 }
 
 
-// This test verifies that a framework that has not yet re-registered
+// This test verifies that a framework that has not yet reregistered
 // after a master failover doesn't show up multiple times in
 // "frameworks" when querying "/state" or "/frameworks" endpoints. This
 // is to catch any regressions for MESOS-4973 and MESOS-6461.
@@ -5245,14 +5245,14 @@ TEST_F(MasterTest, RecoveredSlaves)
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), master.get()->pid, _);
 
-  // Start the agent to make it re-register with the master.
+  // Start the agent to make it reregister with the master.
   detector = master.get()->createDetector();
   slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveReregisteredMessage);
 
-  // After the agent has successfully re-registered with the master, the
+  // After the agent has successfully reregistered with the master, the
   // `recovered_slaves` field would be empty in both `/state` and `slave`
   // endpoints.
 
@@ -6133,7 +6133,7 @@ TEST_F(MasterTest, DuplicatedSlaveIdWhenSlaveReregister)
   Future<SlaveReregisteredMessage> slaveReregisteredMessage1 =
       FUTURE_PROTOBUF(SlaveReregisteredMessage(), master.get()->pid, _);
 
-  // Now let the first slave re-register.
+  // Now let the first slave reregister.
   slaveDetector1.appoint(master.get()->pid);
 
   // If both the slaves get the same SlaveID, the re-registration would
@@ -6978,7 +6978,7 @@ TEST_F(MasterTest, DISABLED_RecoverResourcesOrphanedTask)
 
   AWAIT_READY(disconnected);
 
-  // Have the agent re-register with the master.
+  // Have the agent reregister with the master.
   detector.appoint(master.get()->pid);
 
   // Ensure re-registration is complete.
@@ -7070,7 +7070,7 @@ TEST_F(MasterTest, DISABLED_RecoverResourcesOrphanedTask)
 
 // This test checks that the "/state" endpoint displays the correct
 // information when the master fails over and an agent running one of
-// the framework's tasks re-registers before the framework does.
+// the framework's tasks reregisters before the framework does.
 TEST_F(MasterTest, FailoverAgentReregisterFirst)
 {
   master::Flags masterFlags = CreateMasterFlags();
@@ -7131,7 +7131,7 @@ TEST_F(MasterTest, FailoverAgentReregisterFirst)
   AWAIT_READY(statusUpdateAck2);
 
   // Simulate master failover. We leave the scheduler without a master
-  // so it does not attempt to re-register yet.
+  // so it does not attempt to reregister yet.
   EXPECT_CALL(sched, disconnected(&driver));
 
   schedDetector.appoint(None());
@@ -7149,7 +7149,7 @@ TEST_F(MasterTest, FailoverAgentReregisterFirst)
   AWAIT_READY(slaveReregisteredMessage);
 
   // Check the master's "/state" endpoint. Because the slave has
-  // re-registered, the master should know about the framework but
+  // reregistered, the master should know about the framework but
   // view it as disconnected and inactive.
   {
     Future<Response> response = process::http::get(
@@ -7192,7 +7192,7 @@ TEST_F(MasterTest, FailoverAgentReregisterFirst)
     EXPECT_TRUE(completedFrameworks.values.empty());
   }
 
-  // Cause the scheduler to re-register. We pause the clock to ensure
+  // Cause the scheduler to reregister. We pause the clock to ensure
   // the re-registration time is predictable. We get a "registered"
   // callback in the scheduler driver because of MESOS-786.
   Future<Nothing> registered;
@@ -7273,7 +7273,7 @@ TEST_F(MasterTest, FailoverAgentReregisterFirst)
 
 
 // In this test, an agent restarts, responds to pings, but does not
-// re-register with the master; the master should mark the agent
+// reregister with the master; the master should mark the agent
 // unreachable after waiting for `agent_reregister_timeout`. In
 // practice, this typically happens because agent recovery hangs; to
 // simplify the test case, we instead drop the agent -> master
@@ -7303,7 +7303,7 @@ TEST_F(MasterTest, AgentRestartNoReregister)
 
   // We use the same UPID when we restart the agent below, so that the
   // agent continues to receive pings from the master before it
-  // successfully re-registers.
+  // successfully reregisters.
   const string agentPid = "agent";
 
   Try<Owned<cluster::Slave>> slave =
@@ -7386,7 +7386,7 @@ TEST_F(MasterTest, AgentRestartNoReregister)
   slave = StartSlave(&detector, containerizer.get(), agentPid, agentFlags);
   ASSERT_SOME(slave);
 
-  // Wait for the executor to re-register.
+  // Wait for the executor to reregister.
   AWAIT_READY(reregisterExecutorMessage);
 
   // The agent waits for the executor reregister timeout to expire,
@@ -7394,7 +7394,7 @@ TEST_F(MasterTest, AgentRestartNoReregister)
   Clock::advance(agentFlags.executor_reregistration_timeout);
   Clock::settle();
 
-  // Agent will try to re-register after completing recovery; prevent
+  // Agent will try to reregister after completing recovery; prevent
   // this from succeeding by dropping the re-reregistration message.
   Clock::advance(agentFlags.registration_backoff_factor);
   AWAIT_READY(reregisterSlave1);
@@ -7479,7 +7479,7 @@ TEST_F(MasterTest, AgentRestartNoReregister)
 }
 
 
-// When removing agents that haven't re-registered after a socket
+// When removing agents that haven't reregistered after a socket
 // error (see notes in `AgentRestartNoReregister`) above, this test
 // checks that the master respects the agent removal rate limit.
 TEST_F(MasterTest, AgentRestartNoReregisterRateLimit)
@@ -7505,7 +7505,7 @@ TEST_F(MasterTest, AgentRestartNoReregisterRateLimit)
 
   // We use the same UPID when we restart the agent below, so that the
   // agent continues to receive pings from the master before it
-  // successfully re-registers.
+  // successfully reregisters.
   const string agentPid = "agent";
 
   Try<Owned<cluster::Slave>> slave =
@@ -7548,7 +7548,7 @@ TEST_F(MasterTest, AgentRestartNoReregisterRateLimit)
   slave = StartSlave(&detector, containerizer.get(), agentPid, agentFlags);
   ASSERT_SOME(slave);
 
-  // Agent will try to re-register after completing recovery; prevent
+  // Agent will try to reregister after completing recovery; prevent
   // this from succeeding by dropping the re-reregistration message.
   Clock::advance(agentFlags.registration_backoff_factor);
   AWAIT_READY(reregisterSlave);
@@ -8263,7 +8263,7 @@ TEST_F(MasterTest, RegistrationWithoutRequiredAgentDomain)
 
 
 // This test checks that if the `--require_agent_domain` flag is set and
-// the agent does not have a domain configured when trying to re-register,
+// the agent does not have a domain configured when trying to reregister,
 // the re-registration attempt will fail.
 TEST_F(MasterTest, ReregistrationWithoutRequiredAgentDomain)
 {
@@ -8290,7 +8290,7 @@ TEST_F(MasterTest, ReregistrationWithoutRequiredAgentDomain)
 
   AWAIT_READY(slaveRegisteredMessage);
 
-  // Shut down slave and re-register without domain. We do this by
+  // Shut down slave and reregister without domain. We do this by
   // intercepting the `ReregisterSlaveMessage` and erasing the domain
   // before passing it on to the master.
   Future<ReregisterSlaveMessage> reregisterSlaveMessage =
@@ -8320,7 +8320,7 @@ TEST_F(MasterTest, ReregistrationWithoutRequiredAgentDomain)
 
 
 // This test checks that if the agent is configured with a domain but
-// the master is not, the agent is not allowed to re-register. This
+// the master is not, the agent is not allowed to reregister. This
 // might happen if the leading master is configured with a domain but
 // one of the standby masters is not, and then the leader fails over.
 TEST_F(MasterTest, AgentDomainMismatchOnReregister)
@@ -8358,7 +8358,7 @@ TEST_F(MasterTest, AgentDomainMismatchOnReregister)
   Future<ReregisterSlaveMessage> reregisterSlaveMessage =
     FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
 
-  // If the agent is allowed to re-register, the master will update
+  // If the agent is allowed to reregister, the master will update
   // the registry. The agent should not be allowed to register, so we
   // expect that no registrar operations will be observed.
   EXPECT_CALL(*master.get()->registrar, apply(_))
@@ -8428,7 +8428,7 @@ TEST_F(MasterTest, IgnoreOldAgentRegistration)
 }
 
 
-// Check that the master does not allow old Mesos agents to re-register.
+// Check that the master does not allow old Mesos agents to reregister.
 // We do this by intercepting the agent's `ReregisterSlaveMessage` and
 // then re-sending it with a tweaked version number.
 TEST_F(MasterTest, IgnoreOldAgentReregistration)
@@ -8456,7 +8456,7 @@ TEST_F(MasterTest, IgnoreOldAgentReregistration)
     DROP_PROTOBUF(ReregisterSlaveMessage(), _, _);
 
   // Simulate a new master detected event on the slave,
-  // so that the slave will attempt to re-register.
+  // so that the slave will attempt to reregister.
   detector.appoint(master.get()->pid);
 
   Clock::settle();
@@ -8901,7 +8901,7 @@ TEST_F(MasterTest, OperationUpdateDuringFailover)
   // Drop the operation update for the finished operation.
   // As we fail over the master immediately afterwards, we expect
   // that the operation update will be part of the agent's
-  // `UPDATE_STATE` message when re-registering with the master.
+  // `UPDATE_STATE` message when reregistering with the master.
   Future<UpdateOperationStatusMessage> updateOperationStatusMessage =
     DROP_PROTOBUF(UpdateOperationStatusMessage(), _, _);
 

@@ -86,7 +86,7 @@ This technique for explicit reconciliation reconciles all non-terminal tasks
 until an update is received for each task, using exponential backoff to retry
 tasks that remain unreconciled. Retries are needed because the master temporarily
 may not be able to reply for a particular task. For example, during master
-failover the master must re-register all of the agents to rebuild its
+failover the master must reregister all of the agents to rebuild its
 set of known tasks (this process can take minutes for large clusters, and
 is bounded by the `--agent_reregister_timeout` flag on the master).
 

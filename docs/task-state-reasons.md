@@ -470,7 +470,7 @@ update was sent.
 
 
 <tr><td><code>     REASON_SLAVE_REREGISTERED
-</code></td><td>   The agent on which the task was running has re-registered
+</code></td><td>   The agent on which the task was running has reregistered
                    after being marked unreachable by the master.
 <br/><strong>      Note:
 </strong>          Due to garbage collection of the unreachable and gone agents

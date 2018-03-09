@@ -80,10 +80,10 @@ behavior of a Mesos agent:
       executors and tasks running at an agent die when the agent dies and are
       not recovered.
 
-A restarted agent should re-register with master within a timeout (75 seconds
+A restarted agent should reregister with master within a timeout (75 seconds
 by default: see the `--max_agent_ping_timeouts` and `--agent_ping_timeout`
 [configuration flags](configuration.md)). If the agent takes longer than this
-timeout to re-register, the master shuts down the agent, which in turn will
+timeout to reregister, the master shuts down the agent, which in turn will
 shutdown any live executors/tasks.
 
 Therefore, it is highly recommended to automate the process of restarting an

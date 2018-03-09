@@ -3061,7 +3061,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_Metrics)
 }
 
 
-// Master reconciles operations that are missing from a re-registering slave.
+// Master reconciles operations that are missing from a reregistering slave.
 // In this case, the `ApplyOperationMessage` is dropped, so the resource
 // provider should send OPERATION_DROPPED. Operations on agent default
 // resources are also tested here; for such operations, the agent generates the

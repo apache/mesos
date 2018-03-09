@@ -229,7 +229,7 @@ Future<Nothing> PosixFilesystemIsolatorProcess::update(
     if (os::exists(link)) {
       // NOTE: This is possible because 'info->resources' will be
       // reset when slave restarts and recovers. When the slave calls
-      // 'containerizer->update' after the executor re-registers,
+      // 'containerizer->update' after the executor reregisters,
       // we'll try to relink all the already symlinked volumes.
       Result<string> realpath = os::realpath(link);
       if (!realpath.isSome()) {

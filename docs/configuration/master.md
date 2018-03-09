@@ -162,11 +162,11 @@ checks. The value is of the form <code>(Number of agents)/(Duration)</code>.
     --slave_reregister_timeout=VALUE
   </td>
   <td>
-The timeout within which an agent is expected to re-register.
-Agents re-register when they become disconnected from the master
+The timeout within which an agent is expected to reregister.
+Agents reregister when they become disconnected from the master
 or when a new master is elected as the leader. Agents that do not
-re-register within the timeout will be marked unreachable in the
-registry; if/when the agent re-registers with the master, any
+reregister within the timeout will be marked unreachable in the
+registry; if/when the agent reregisters with the master, any
 non-partition-aware tasks running on the agent will be terminated.
 <b>NOTE</b>: This value has to be at least 10mins. (default: 10mins)
   </td>

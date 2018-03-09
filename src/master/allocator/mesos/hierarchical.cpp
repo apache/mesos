@@ -200,7 +200,7 @@ void HierarchicalAllocatorProcess::recover(
   CHECK(_expectedAgentCount >= 0);
 
   // If there is no quota, recovery is a no-op. Otherwise, we need
-  // to delay allocations while agents are re-registering because
+  // to delay allocations while agents are reregistering because
   // otherwise we perform allocations on a partial view of resources!
   // We would consequently perform unnecessary allocations to satisfy
   // quota constraints, which can over-allocate non-revocable resources
@@ -643,7 +643,7 @@ void HierarchicalAllocatorProcess::updateSlave(
 
     // We unconditionally overwrite the old domain and hostname: Even though
     // the master places some restrictions on this (i.e. agents are not allowed
-    // to re-register with a different hostname) inside the allocator it
+    // to reregister with a different hostname) inside the allocator it
     // doesn't matter, as the algorithm will work correctly either way.
     slave.info = info;
   }

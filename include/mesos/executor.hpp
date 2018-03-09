@@ -87,7 +87,7 @@ public:
       const FrameworkInfo& frameworkInfo,
       const SlaveInfo& slaveInfo) = 0;
 
-  // Invoked when the executor re-registers with a restarted slave.
+  // Invoked when the executor reregisters with a restarted slave.
   virtual void reregistered(
       ExecutorDriver* driver,
       const SlaveInfo& slaveInfo) = 0;

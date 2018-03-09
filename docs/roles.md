@@ -66,7 +66,7 @@ recommended practice is to only use ACLs to define which roles can be used; the
 A framework specifies which roles it would like to subscribe to when it
 subscribes with the master. This is done via the `roles` field in
 `FrameworkInfo`. A framework can also change which roles it is
-subscribed to by re-registering with an updated `FrameworkInfo`.
+subscribed to by reregistering with an updated `FrameworkInfo`.
 
 As a user, you can typically specify which role(s) a framework will
 subscribe to when you start the framework. How to do this depends on the

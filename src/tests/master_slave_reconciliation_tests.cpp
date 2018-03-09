@@ -72,11 +72,11 @@ namespace tests {
 class MasterSlaveReconciliationTest : public MesosTest {};
 
 
-// This test verifies that a re-registering slave sends the terminal
+// This test verifies that a reregistering slave sends the terminal
 // unacknowledged tasks for a terminal executor. This is required
 // for the master to correctly reconcile its view with the slave's
 // view of tasks. This test drops a terminal update to the master
-// and then forces the slave to re-register.
+// and then forces the slave to reregister.
 TEST_F(MasterSlaveReconciliationTest, SlaveReregisterTerminatedExecutor)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -167,7 +167,7 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterTerminatedExecutor)
 
 
 // This test verifies that the master reconciles non-partition-aware
-// tasks that are missing from a re-registering slave. In this case,
+// tasks that are missing from a reregistering slave. In this case,
 // we drop the RunTaskMessage, so the slave should send TASK_LOST.
 TEST_F(MasterSlaveReconciliationTest, ReconcileLostTask)
 {
@@ -258,7 +258,7 @@ TEST_F(MasterSlaveReconciliationTest, ReconcileLostTask)
 
 
 // This test verifies that the master reconciles partition-aware tasks
-// that are missing from a re-registering slave. In this case, we drop
+// that are missing from a reregistering slave. In this case, we drop
 // the RunTaskMessage, so the slave should send TASK_DROPPED.
 TEST_F(MasterSlaveReconciliationTest, ReconcileDroppedTask)
 {
@@ -353,7 +353,7 @@ TEST_F(MasterSlaveReconciliationTest, ReconcileDroppedTask)
 
 
 // This test verifies that the master reconciles tasks that are
-// missing from a re-registering slave. In this case, we trigger
+// missing from a reregistering slave. In this case, we trigger
 // a race between the slave re-registration message and the launch
 // message. There should be no TASK_LOST / TASK_DROPPED.
 // This was motivated by MESOS-1696.
@@ -485,7 +485,7 @@ TEST_F(MasterSlaveReconciliationTest, ReconcileRace)
 
 
 // This test verifies that the slave reports pending tasks when
-// re-registering, otherwise the master will report them as being
+// reregistering, otherwise the master will report them as being
 // lost.
 TEST_F(MasterSlaveReconciliationTest, SlaveReregisterPendingTask)
 {
@@ -550,7 +550,7 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterPendingTask)
 }
 
 
-// This test verifies that when the slave re-registers, the master
+// This test verifies that when the slave reregisters, the master
 // does not send TASK_LOST update for a task that has reached terminal
 // state but is waiting for an acknowledgement.
 TEST_F(MasterSlaveReconciliationTest, SlaveReregisterTerminalTask)
@@ -596,7 +596,7 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterTerminalTask)
     .WillOnce(SendStatusUpdateFromTask(TASK_FINISHED));
 
   // Drop the status update from slave to the master, so that
-  // the slave has a pending terminal update when it re-registers.
+  // the slave has a pending terminal update when it reregisters.
   DROP_PROTOBUF(StatusUpdateMessage(), _, master.get()->pid);
 
   Future<Nothing> _statusUpdate = FUTURE_DISPATCH(_, &Slave::_statusUpdate);
@@ -620,7 +620,7 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterTerminalTask)
   AWAIT_READY(slaveReregisteredMessage);
 
   // The master should not send a TASK_LOST after the slave
-  // re-registers. We check this by calling Clock::settle() so that
+  // reregisters. We check this by calling Clock::settle() so that
   // the only update the scheduler receives is the retried
   // TASK_FINISHED update.
   // NOTE: The task status update manager resends the status update
@@ -639,7 +639,7 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterTerminalTask)
 }
 
 
-// This test verifies that when the slave re-registers, we correctly
+// This test verifies that when the slave reregisters, we correctly
 // send the information about actively running frameworks.
 TEST_F(MasterSlaveReconciliationTest, SlaveReregisterFrameworks)
 {
@@ -715,7 +715,7 @@ TEST_F(MasterSlaveReconciliationTest, SlaveReregisterFrameworks)
 }
 
 
-// This test verifies that when re-registering, the slave sends the
+// This test verifies that when reregistering, the slave sends the
 // executor ID of a non-command executor task, but not the one of a
 // command executor task. We then check that the master's API has
 // task IDs absent only for the command executor case.

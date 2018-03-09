@@ -2642,7 +2642,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Args)
 
 // The slave is stopped before the first update for a task is received
 // from the executor. When it comes back up we make sure the executor
-// re-registers and the slave properly sends the update.
+// reregisters and the slave properly sends the update.
 TEST_F(DockerContainerizerTest, ROOT_DOCKER_SlaveRecoveryTaskContainer)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -2762,7 +2762,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SlaveRecoveryTaskContainer)
   slave = StartSlave(detector.get(), dockerContainerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  // Ensure the executor re-registers.
+  // Ensure the executor reregisters.
   AWAIT_READY(reregisterExecutorMessage);
 
   ReregisterExecutorMessage reregister;
@@ -2793,7 +2793,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SlaveRecoveryTaskContainer)
 
 // The slave is stopped before the first update for a task is received
 // from the executor. When it comes back up we make sure the executor
-// re-registers and the slave properly sends the update.
+// reregisters and the slave properly sends the update.
 //
 // TODO(benh): This test is currently disabled because the executor
 // inside the image mesosphere/test-executor does not properly set the
@@ -2947,7 +2947,7 @@ TEST_F(DockerContainerizerTest,
   slave = StartSlave(detector.get(), dockerContainerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  // Ensure the executor re-registers.
+  // Ensure the executor reregisters.
   AWAIT_READY(reregisterExecutorMessage);
 
   ReregisterExecutorMessage reregister;

@@ -737,7 +737,7 @@ messages may indicate that there is a problem with the network.
   <td>
   <code>master/recovery_slave_removals</code>
   </td>
-  <td>Number of agents not re-registered during master failover</td>
+  <td>Number of agents not reregistered during master failover</td>
   <td>Counter</td>
 </tr>
 <tr>

@@ -1349,7 +1349,7 @@ TEST_F(FetcherCacheHttpTest, DISABLED_HttpCachedRecovery)
   containerizer.reset(_containerizer.get());
 
   // Set up so we can wait until the new slave updates the container's
-  // resources (this occurs after the executor has re-registered).
+  // resources (this occurs after the executor has reregistered).
   Future<Nothing> update =
     FUTURE_DISPATCH(_, &MesosContainerizerProcess::update);
 

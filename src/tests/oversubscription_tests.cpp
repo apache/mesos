@@ -860,7 +860,7 @@ TEST_F(OversubscriptionTest, QoSFetchResourceUsage)
 
 
 // Ensures the slave forwards the estimation whenever receiving
-// a registered or re-registered message from the master, even
+// a registered or reregistered message from the master, even
 // if the total oversubscribable resources does not change.
 TEST_F(OversubscriptionTest, Reregistration)
 {
@@ -1191,7 +1191,7 @@ TEST_F(OversubscriptionTest, QoSCorrectionKillPartitionAware)
 }
 
 
-// This test verifies that when a framework re-registers with updated
+// This test verifies that when a framework reregisters with updated
 // FrameworkInfo, it gets updated in the allocator. The steps involved
 // are:
 //   1. Launch a master, slave and scheduler.

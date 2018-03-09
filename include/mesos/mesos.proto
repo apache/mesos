@@ -892,7 +892,7 @@ message MasterInfo {
       UNKNOWN = 0;
 
       // The master can handle slaves whose state
-      // changes after re-registering.
+      // changes after reregistering.
       AGENT_UPDATE = 1;
     }
     optional Type type = 1;
@@ -2196,7 +2196,7 @@ enum TaskState {
   //
   // NOTE: This state is not always terminal. For example, tasks might
   // transition from TASK_LOST to TASK_RUNNING or other states when a
-  // partitioned agent re-registers.
+  // partitioned agent reregisters.
   TASK_LOST = 5;     // The task failed but can be rescheduled.
 
   // The following task states are only sent when the framework

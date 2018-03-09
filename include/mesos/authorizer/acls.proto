@@ -347,7 +347,7 @@ message ACL {
     required Entity level = 2;
   }
 
-  // Which principals are authorized to register (and re-register) as agents.
+  // Which principals are authorized to register (and reregister) as agents.
   message RegisterAgent {
     // Subjects: Agent principals.
     required Entity principals = 1;

@@ -321,7 +321,7 @@ TEST_F(TeardownTest, NoHeader)
 
 
 // This test checks that the teardown operation can be used on a
-// framework that has not re-registered after master failover.
+// framework that has not reregistered after master failover.
 TEST_F(TeardownTest, RecoveredFrameworkAfterMasterFailover)
 {
   master::Flags masterFlags = CreateMasterFlags();
@@ -380,7 +380,7 @@ TEST_F(TeardownTest, RecoveredFrameworkAfterMasterFailover)
   AWAIT_READY(statusUpdateAck2);
 
   // Simulate master failover. We leave the scheduler without a master
-  // so it does not attempt to re-register.
+  // so it does not attempt to reregister.
   EXPECT_CALL(sched, disconnected(&driver));
 
   schedDetector.appoint(None());
@@ -397,7 +397,7 @@ TEST_F(TeardownTest, RecoveredFrameworkAfterMasterFailover)
 
   AWAIT_READY(slaveReregisteredMessage);
 
-  // Teardown the framework, which has not yet re-registered with the
+  // Teardown the framework, which has not yet reregistered with the
   // new master.
   {
     Future<Response> response = process::http::post(
