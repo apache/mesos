@@ -412,7 +412,6 @@ struct Parser : boost::static_visitor<Try<Nothing>>
         break;
       case google::protobuf::FieldDescriptor::TYPE_BYTES: {
         Try<std::string> decode = base64::decode(string.value);
-
         if (decode.isError()) {
           return Error("Failed to base64 decode bytes field"
                        " '" + field->name() + "': " + decode.error());
@@ -451,6 +450,37 @@ struct Parser : boost::static_visitor<Try<Nothing>>
           reflection->SetEnum(message, field, descriptor);
         }
         break;
+      }
+      case google::protobuf::FieldDescriptor::TYPE_DOUBLE:
+      case google::protobuf::FieldDescriptor::TYPE_FLOAT:
+      case google::protobuf::FieldDescriptor::TYPE_INT64:
+      case google::protobuf::FieldDescriptor::TYPE_SINT64:
+      case google::protobuf::FieldDescriptor::TYPE_SFIXED64:
+      case google::protobuf::FieldDescriptor::TYPE_UINT64:
+      case google::protobuf::FieldDescriptor::TYPE_FIXED64:
+      case google::protobuf::FieldDescriptor::TYPE_INT32:
+      case google::protobuf::FieldDescriptor::TYPE_SINT32:
+      case google::protobuf::FieldDescriptor::TYPE_SFIXED32:
+      case google::protobuf::FieldDescriptor::TYPE_UINT32:
+      case google::protobuf::FieldDescriptor::TYPE_FIXED32: {
+        Try<JSON::Number> number = JSON::parse<JSON::Number>(string.value);
+        if (number.isError()) {
+          return Error(
+              "Failed to parse '" + string.value + "' as a JSON number "
+              "for field '" + field->name() + "': " + number.error());
+        }
+
+        return operator()(number.get());
+      }
+      case google::protobuf::FieldDescriptor::TYPE_BOOL: {
+        Try<JSON::Boolean> boolean = JSON::parse<JSON::Boolean>(string.value);
+        if (boolean.isError()) {
+          return Error(
+              "Failed to parse '" + string.value + "' as a JSON boolean "
+              "for field '" + field->name() + "': " + boolean.error());
+        }
+
+        return operator()(boolean.get());
       }
       default:
         return Error("Not expecting a JSON string for field '" +
