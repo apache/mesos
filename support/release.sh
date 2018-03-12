@@ -43,7 +43,7 @@ echo "${GREEN}Checking out svn release repo ...${NORMAL}"
 svn co --depth=empty ${SVN_RELEASE_REPO} ${SVN_RELEASE_LOCAL}
 
 echo "${GREEN}Uploading the artifacts (the distribution," \
-  "signature, and MD5) to the release repo ${NORMAL}"
+  "signature, and checksum) to the release repo ${NORMAL}"
 
 mv ${TAG} ${SVN_RELEASE_LOCAL}/${VERSION}
 
