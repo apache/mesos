@@ -1035,27 +1035,27 @@ mesos::internal::slave::Flags::Flags()
       "eth0_name",
       "The name of the public network interface (e.g., `eth0`). If it is\n"
       "not specified, the network isolator will try to guess it based\n"
-      "on the host default gateway. This flag is used for the\n"
+      "on the host default gateway. This flag is used by the\n"
       "`network/port_mapping` isolator.");
 
   add(&Flags::lo_name,
       "lo_name",
       "The name of the loopback network interface (e.g., lo). If it is\n"
       "not specified, the network isolator will try to guess it. This\n"
-      "flag is used for the `network/port_mapping` isolator.");
+      "flag is used by the `network/port_mapping` isolator.");
 
   add(&Flags::egress_rate_limit_per_container,
       "egress_rate_limit_per_container",
       "The limit of the egress traffic for each container, in Bytes/s.\n"
       "If not specified or specified as zero, the network isolator will\n"
       "impose no limits to containers' egress traffic throughput.\n"
-      "This flag uses the Bytes type (defined in stout) and is used for\n"
+      "This flag uses the Bytes type (defined in stout) and is used by\n"
       "the `network/port_mapping` isolator.");
 
   add(&Flags::egress_unique_flow_per_container,
       "egress_unique_flow_per_container",
       "Whether to assign an individual flow for each container for the\n"
-      "egress traffic. This flag is used for the `network/port_mapping`\n"
+      "egress traffic. This flag is used by the `network/port_mapping`\n"
       "isolator.",
       false);
 
@@ -1070,20 +1070,20 @@ mesos::internal::slave::Flags::Flags()
   add(&Flags::network_enable_socket_statistics_summary,
       "network_enable_socket_statistics_summary",
       "Whether to collect socket statistics summary for each container.\n"
-      "This flag is used for the `network/port_mapping` isolator.",
+      "This flag is used by the `network/port_mapping` isolator.",
       false);
 
   add(&Flags::network_enable_socket_statistics_details,
       "network_enable_socket_statistics_details",
       "Whether to collect socket statistics details (e.g., TCP RTT) for\n"
-      "each container. This flag is used for the `network/port_mapping`\n"
+      "each container. This flag is used by the `network/port_mapping`\n"
       "isolator.",
       false);
 
   add(&Flags::network_enable_snmp_statistics,
       "network_enable_snmp_statistics",
       "Whether to collect SNMP statistics details (e.g., TCPRetransSegs) for\n"
-      "each container. This flag is used for the 'network/port_mapping'\n"
+      "each container. This flag is used by the 'network/port_mapping'\n"
       "isolator.",
       false);
 
@@ -1122,7 +1122,7 @@ mesos::internal::slave::Flags::Flags()
   add(&Flags::container_disk_watch_interval,
       "container_disk_watch_interval",
       "The interval between disk quota checks for containers. This flag is\n"
-      "used for the `disk/du` isolator.",
+      "used by the `disk/du` isolator.",
       Seconds(15));
 
   // TODO(jieyu): Consider enabling this flag by default. Remember
@@ -1130,7 +1130,7 @@ mesos::internal::slave::Flags::Flags()
   add(&Flags::enforce_container_disk_quota,
       "enforce_container_disk_quota",
       "Whether to enable disk quota enforcement for containers. This flag\n"
-      "is used for the `disk/du` and `disk/xfs` isolators.",
+      "is used by the `disk/du` and `disk/xfs` isolators.",
       false);
 
   // This help message for --modules flag is the same for
