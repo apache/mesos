@@ -7,6 +7,7 @@ All Issues:
   * [MESOS-8411] - Killing a queued task can lead to the command executor never terminating.
   * [MESOS-8125] - Agent should properly handle recovering an executor when its pid is reused.
   * [MESOS-8480] - Mesos returns high resource usage when killing a Docker task.
+  * [MESOS-8488] - Docker bug can cause unkillable tasks.
   * [MESOS-8552] - CGROUPS_ROOT_PidNamespaceForward and CGROUPS_ROOT_PidNamespaceBackward tests fail.
 
 
