@@ -1130,7 +1130,7 @@ mesos::internal::slave::Flags::Flags()
   add(&Flags::enforce_container_disk_quota,
       "enforce_container_disk_quota",
       "Whether to enable disk quota enforcement for containers. This flag\n"
-      "is used for the `disk/du` isolator.",
+      "is used for the `disk/du` and `disk/xfs` isolators.",
       false);
 
   // This help message for --modules flag is the same for
