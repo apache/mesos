@@ -19,6 +19,7 @@ Release Notes - Mesos - Version 1.4.2 (WIP)
  * [MESOS-8574] - Docker executor makes no progress when 'docker inspect' hangs.
  * [MESOS-8575] - Improve discard handling for 'Docker::stop' and 'Docker::pull'.
  * [MESOS-8576] - Improve discard handling of 'Docker::inspect()'.
+ * [MESOS-8605] - Terminal task status update will not send if 'docker inspect' is hung.
 
 
 Release Notes - Mesos - Version 1.4.1
