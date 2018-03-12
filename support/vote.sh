@@ -19,6 +19,11 @@ VERSION=${1}
 CANDIDATE=${2}
 TAG="${VERSION}-rc${CANDIDATE}"
 
+# Releases are signed with `sha512sum` which is installed as
+# `gsha512sum` from Homebrew's `coreutils` package.
+echo "Checking for sha512sum or gsha512sum"
+SHA512SUM=$(command -v sha512sum || command -v gsha512sum)
+
 echo "${GREEN}Voting for mesos-${VERSION} candidate ${CANDIDATE}${NORMAL}"
 
 read -p "Hit enter to continue ... "
@@ -75,10 +80,10 @@ echo "${GREEN}Signing the distribution ...${NORMAL}"
 # Sign the tarball.
 gpg --armor --output ${TARBALL}.asc --detach-sig ${TARBALL}
 
-echo "${GREEN}Creating a MD5 checksum...${NORMAL}"
+echo "${GREEN}Creating a SHA512 checksum ...${NORMAL}"
 
-# Create MD5 checksum.
-gpg --print-md MD5 ${TARBALL} > ${TARBALL}.md5
+# Create SHA512 checksum.
+"${SHA512SUM}" ${TARBALL} > ${TARBALL}.sha512
 
 SVN_DEV_REPO="https://dist.apache.org/repos/dist/dev/mesos"
 SVN_DEV_LOCAL="${WORK_DIR}/dev"
@@ -90,11 +95,11 @@ echo "${GREEN}Checking out svn dev repo ...${NORMAL}"
 svn co --depth=empty ${SVN_DEV_REPO} ${SVN_DEV_LOCAL}
 
 echo "${GREEN}Uploading the artifacts (the distribution," \
-  "signature, and MD5) ...${NORMAL}"
+  "signature, and checksum) ...${NORMAL}"
 
 RELEASE_DIRECTORY="${SVN_DEV_LOCAL}/${TAG}"
 mkdir ${RELEASE_DIRECTORY}
-mv ${TARBALL} ${TARBALL}.asc ${TARBALL}.md5 ${RELEASE_DIRECTORY}
+mv ${TARBALL} ${TARBALL}.asc ${TARBALL}.sha512 ${RELEASE_DIRECTORY}
 
 popd # build
 popd # mesos
@@ -135,8 +140,8 @@ ${SVN_DEV_REPO}/${TAG}/${TARBALL}
 The tag to be voted on is ${TAG}:
 https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=commit;h=${TAG}
 
-The MD5 checksum of the tarball can be found at:
-${SVN_DEV_REPO}/${TAG}/${TARBALL}.md5
+The SHA512 checksum of the tarball can be found at:
+${SVN_DEV_REPO}/${TAG}/${TARBALL}.sha512
 
 The signature of the tarball can be found at:
 ${SVN_DEV_REPO}/${TAG}/${TARBALL}.asc
