@@ -7596,6 +7596,37 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
           }
 
           addOperation(framework, slave, new Operation(operation));
+
+          if (!protobuf::isTerminalState(operation.latest_status().state())) {
+            // If we do not yet know the `FrameworkInfo` of the framework the
+            // operation originated from, we cannot properly track the operation
+            // at this point.
+            //
+            // TODO(bbannier): Consider introducing ways of making
+            // sure an agent always knows the `FrameworkInfo` of
+            // operations triggered on its resources, e.g., by adding
+            // an explicit `FrameworkInfo` to operations like is
+            // already done for `RunTaskMessage`, see MESOS-8582.
+            if (framework == nullptr) {
+              LOG(WARNING)
+                << "Cannot properly account for operation " << operation.uuid()
+                << " learnt in reconciliation of agent " << slaveId
+                << " since framework " << operation.framework_id()
+                << " is unknown; this can lead to assertion failures after the"
+                   " operation terminates, see MESOS-8536";
+              continue;
+            }
+
+            Try<Resources> consumedResources =
+              protobuf::getConsumedResources(operation.info());
+
+            CHECK_SOME(consumedResources)
+              << "Could not determine resources consumed by operation "
+              << operation.uuid();
+
+            usedByOperations[operation.framework_id()] +=
+              consumedResources.get();
+          }
         }
       }
 
