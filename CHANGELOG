@@ -508,23 +508,23 @@ Release Notes - Mesos - Version 1.4.2 (WIP)
 * This is a bug fix release.
 
 ** Bug
- * [MESOS-6616] - Error: dereferencing type-punned pointer will break strict-aliasing rules.
- * [MESOS-7504] - Parent's mount namespace cannot be determined when launching a nested container.
- * [MESOS-7975] - The command/default/docker executor can incorrectly send a TASK_FINISHED update even when the task is killed.
- * [MESOS-8125] - Agent should properly handle recovering an executor when its pid is reused.
- * [MESOS-8159] - ns::clone uses an async signal unsafe stack.
- * [MESOS-8237] - Strip (Offer|Resource).allocation_info for non-MULTI_ROLE schedulers.
- * [MESOS-8297] - Built-in driver-based executors ignore kill task if the task has not been launched.
- * [MESOS-8356] - Persistent volume ownership is set to root despite of sandbox owner (frameworkInfo.user) when docker executor is used.
- * [MESOS-8411] - Killing a queued task can lead to the command executor never terminating.
- * [MESOS-8480] - Mesos returns high resource usage when killing a Docker task.
- * [MESOS-8488] - Docker bug can cause unkillable tasks.
- * [MESOS-8552] - CGROUPS_ROOT_PidNamespaceForward and CGROUPS_ROOT_PidNamespaceBackward tests fail.
- * [MESOS-8569] - Allow newline characters when decoding base64 strings in stout.
- * [MESOS-8574] - Docker executor makes no progress when 'docker inspect' hangs.
- * [MESOS-8575] - Improve discard handling for 'Docker::stop' and 'Docker::pull'.
- * [MESOS-8576] - Improve discard handling of 'Docker::inspect()'.
- * [MESOS-8605] - Terminal task status update will not send if 'docker inspect' is hung.
+  * [MESOS-6616] - Error: dereferencing type-punned pointer will break strict-aliasing rules.
+  * [MESOS-7504] - Parent's mount namespace cannot be determined when launching a nested container.
+  * [MESOS-7975] - The command/default/docker executor can incorrectly send a TASK_FINISHED update even when the task is killed.
+  * [MESOS-8125] - Agent should properly handle recovering an executor when its pid is reused.
+  * [MESOS-8159] - ns::clone uses an async signal unsafe stack.
+  * [MESOS-8237] - Strip (Offer|Resource).allocation_info for non-MULTI_ROLE schedulers.
+  * [MESOS-8297] - Built-in driver-based executors ignore kill task if the task has not been launched.
+  * [MESOS-8356] - Persistent volume ownership is set to root despite of sandbox owner (frameworkInfo.user) when docker executor is used.
+  * [MESOS-8411] - Killing a queued task can lead to the command executor never terminating.
+  * [MESOS-8480] - Mesos returns high resource usage when killing a Docker task.
+  * [MESOS-8488] - Docker bug can cause unkillable tasks.
+  * [MESOS-8552] - CGROUPS_ROOT_PidNamespaceForward and CGROUPS_ROOT_PidNamespaceBackward tests fail.
+  * [MESOS-8569] - Allow newline characters when decoding base64 strings in stout.
+  * [MESOS-8574] - Docker executor makes no progress when 'docker inspect' hangs.
+  * [MESOS-8575] - Improve discard handling for 'Docker::stop' and 'Docker::pull'.
+  * [MESOS-8576] - Improve discard handling of 'Docker::inspect()'.
+  * [MESOS-8605] - Terminal task status update will not send if 'docker inspect' is hung.
 
 
 Release Notes - Mesos - Version 1.4.1
@@ -532,17 +532,17 @@ Release Notes - Mesos - Version 1.4.1
 * This is a bug fix release.
 
 ** Bug
- * [MESOS-7873] - Expose `ExecutorInfo.ContainerInfo.NetworkInfo` in Mesos `state` endpoint.
- * [MESOS-7921] - ProcessManager::resume sometimes crashes accessing EventQueue.
- * [MESOS-7964] - Heavy-duty GC makes the agent unresponsive.
- * [MESOS-7968] - Handle `/proc/self/ns/pid_for_children` when parsing available namespace.
- * [MESOS-7969] - Handle cgroups v2 hierarchy when parsing /proc/self/cgroups.
- * [MESOS-7980] - Stout fails to compile with libc >= 2.26.
- * [MESOS-8051] - Killing TASK_GROUP fail to kill some tasks.
- * [MESOS-8080] - The default executor does not propagate missing task exit status correctly.
- * [MESOS-8090] - Mesos 1.4.0 crashes with 1.3.x agent with oversubscription
- * [MESOS-8135] - Masters can lose track of tasks' executor IDs.
- * [MESOS-8169] - Incorrect master validation forces executor IDs to be globally unique.
+  * [MESOS-7873] - Expose `ExecutorInfo.ContainerInfo.NetworkInfo` in Mesos `state` endpoint.
+  * [MESOS-7921] - ProcessManager::resume sometimes crashes accessing EventQueue.
+  * [MESOS-7964] - Heavy-duty GC makes the agent unresponsive.
+  * [MESOS-7968] - Handle `/proc/self/ns/pid_for_children` when parsing available namespace.
+  * [MESOS-7969] - Handle cgroups v2 hierarchy when parsing /proc/self/cgroups.
+  * [MESOS-7980] - Stout fails to compile with libc >= 2.26.
+  * [MESOS-8051] - Killing TASK_GROUP fail to kill some tasks.
+  * [MESOS-8080] - The default executor does not propagate missing task exit status correctly.
+  * [MESOS-8090] - Mesos 1.4.0 crashes with 1.3.x agent with oversubscription
+  * [MESOS-8135] - Masters can lose track of tasks' executor IDs.
+  * [MESOS-8169] - Incorrect master validation forces executor IDs to be globally unique.
 
 
 Release Notes - Mesos - Version 1.4.0
