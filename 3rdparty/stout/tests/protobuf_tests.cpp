@@ -136,12 +136,56 @@ TEST(ProtobufTest, JSON)
       "}",
       " ");
 
+  // The only difference between this JSON string and the above one is, all
+  // the bools and numbers are in the format of strings.
+  string accepted = strings::remove(
+      "{"
+      "  \"b\": \"true\","
+      "  \"bytes\": \"Ynl0ZXM=\","
+      "  \"d\": \"1.0\","
+      "  \"e\": \"ONE\","
+      "  \"f\": \"1.0\","
+      "  \"int32\": \"-1\","
+      "  \"int64\": \"-1\","
+      "  \"nested\": { \"str\": \"nested\"},"
+      "  \"optional_default\": \"42.0\","
+      "  \"repeated_bool\": [\"true\"],"
+      "  \"repeated_bytes\": [\"cmVwZWF0ZWRfYnl0ZXM=\"],"
+      "  \"repeated_double\": [\"1.0\", \"2.0\"],"
+      "  \"repeated_enum\": [\"TWO\"],"
+      "  \"repeated_float\": [\"1.0\"],"
+      "  \"repeated_int32\": [\"-2\"],"
+      "  \"repeated_int64\": [\"-2\"],"
+      "  \"repeated_nested\": [ { \"str\": \"repeated_nested\" } ],"
+      "  \"repeated_sint32\": [\"-2\"],"
+      "  \"repeated_sint64\": [\"-2\"],"
+      "  \"repeated_string\": [\"repeated_string\"],"
+      "  \"repeated_uint32\": [\"2\"],"
+      "  \"repeated_uint64\": [\"2\"],"
+      "  \"sint32\": \"-1\","
+      "  \"sint64\": \"-1\","
+      "  \"str\": \"string\","
+      "  \"uint32\": \"1\","
+      "  \"uint64\": \"1\""
+      "}",
+      " ");
+
   JSON::Object object = JSON::protobuf(message);
 
   EXPECT_EQ(expected, stringify(object));
 
   // Test parsing too.
   Try<tests::Message> parse = protobuf::parse<tests::Message>(object);
+  ASSERT_SOME(parse);
+
+  EXPECT_EQ(object, JSON::protobuf(parse.get()));
+
+  // Test all the bools and numbers in the JSON string `accepted` can be
+  // successfully parsed.
+  Try<JSON::Object> json = JSON::parse<JSON::Object>(accepted);
+  ASSERT_SOME(json);
+
+  parse = protobuf::parse<tests::Message>(json.get());
   ASSERT_SOME(parse);
 
   EXPECT_EQ(object, JSON::protobuf(parse.get()));
