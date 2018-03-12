@@ -13,6 +13,9 @@ Release Notes - Mesos - Version 1.5.1 (WIP)
  * [MESOS-8552] - CGROUPS_ROOT_PidNamespaceForward and CGROUPS_ROOT_PidNamespaceBackward tests fail.
  * [MESOS-8565] - Persistent volumes are not visible in Mesos UI when launching a pod using default executor.
  * [MESOS-8569] - Allow newline characters when decoding base64 strings in stout.
+ * [MESOS-8574] - Docker executor makes no progress when 'docker inspect' hangs.
+ * [MESOS-8575] - Improve discard handling for 'Docker::stop' and 'Docker::pull'.
+ * [MESOS-8576] - Improve discard handling of 'Docker::inspect()'.
  * [MESOS-8577] - Destroy nested container if `LAUNCH_NESTED_CONTAINER_SESSION` fails.
  * [MESOS-8598] - Allow empty resource provider selector in `UriDiskProfileAdaptor`.
  * [MESOS-8601] - Master crashes during slave reregistration after failover.
