@@ -58,7 +58,7 @@ When a network partition disconnects an agent from the leader:
 Mesos implements two levels of ZooKeeper leader election abstractions, one in `src/zookeeper` and the other in `src/master` (look for `contender|detector.hpp|cpp`).
 
 * The lower level `LeaderContender` and `LeaderDetector` implement a generic ZooKeeper election algorithm loosely modeled after this
-[recipe](http://zookeeper.apache.org/doc/trunk/recipes.html#sc_leaderElection) (sans herd effect handling due to the master group's small size, which is often 3).
+[recipe](http://zookeeper.apache.org/doc/current/recipes.html#sc_leaderElection) (sans herd effect handling due to the master group's small size, which is often 3).
 
 * The higher level `MasterContender` and `MasterDetector` wrap around ZooKeeper's contender and detector abstractions as adapters to provide/interpret the ZooKeeper data.
 
