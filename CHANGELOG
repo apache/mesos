@@ -3,27 +3,27 @@ Release Notes - Mesos - Version 1.5.1 (WIP)
 * This is a bug fix release.
 
 ** Bug
- * [MESOS-1720] - Slave should send exited executor message when the executor is never launched.
- * [MESOS-7742] - Race conditions in IOSwitchboard: listening on unix socket and premature closing of the connection.
- * [MESOS-8125] - Agent should properly handle recovering an executor when its pid is reused.
- * [MESOS-8411] - Killing a queued task can lead to the command executor never terminating.
- * [MESOS-8468] - `LAUNCH_GROUP` failure tears down the default executor.
- * [MESOS-8488] - Docker bug can cause unkillable tasks.
- * [MESOS-8510] - URI disk profile adaptor does not consider plugin type for a profile.
- * [MESOS-8552] - CGROUPS_ROOT_PidNamespaceForward and CGROUPS_ROOT_PidNamespaceBackward tests fail.
- * [MESOS-8565] - Persistent volumes are not visible in Mesos UI when launching a pod using default executor.
- * [MESOS-8569] - Allow newline characters when decoding base64 strings in stout.
- * [MESOS-8574] - Docker executor makes no progress when 'docker inspect' hangs.
- * [MESOS-8575] - Improve discard handling for 'Docker::stop' and 'Docker::pull'.
- * [MESOS-8576] - Improve discard handling of 'Docker::inspect()'.
- * [MESOS-8577] - Destroy nested container if `LAUNCH_NESTED_CONTAINER_SESSION` fails.
- * [MESOS-8598] - Allow empty resource provider selector in `UriDiskProfileAdaptor`.
- * [MESOS-8601] - Master crashes during slave reregistration after failover.
- * [MESOS-8604] - Quota headroom tracking may be incorrect in the presence of hierarchical reservation.
- * [MESOS-8605] - Terminal task status update will not send if 'docker inspect' is hung.
- * [MESOS-8619] - Docker on Windows uses `USERPROFILE` instead of `HOME` for credentials.
- * [MESOS-8631] - Agent should be able to start a task with every CPU on a Windows machine.
- * [MESOS-8646] - Agent should be able to resolve file names on open files.
+  * [MESOS-1720] - Slave should send exited executor message when the executor is never launched.
+  * [MESOS-7742] - Race conditions in IOSwitchboard: listening on unix socket and premature closing of the connection.
+  * [MESOS-8125] - Agent should properly handle recovering an executor when its pid is reused.
+  * [MESOS-8411] - Killing a queued task can lead to the command executor never terminating.
+  * [MESOS-8468] - `LAUNCH_GROUP` failure tears down the default executor.
+  * [MESOS-8488] - Docker bug can cause unkillable tasks.
+  * [MESOS-8510] - URI disk profile adaptor does not consider plugin type for a profile.
+  * [MESOS-8552] - CGROUPS_ROOT_PidNamespaceForward and CGROUPS_ROOT_PidNamespaceBackward tests fail.
+  * [MESOS-8565] - Persistent volumes are not visible in Mesos UI when launching a pod using default executor.
+  * [MESOS-8569] - Allow newline characters when decoding base64 strings in stout.
+  * [MESOS-8574] - Docker executor makes no progress when 'docker inspect' hangs.
+  * [MESOS-8575] - Improve discard handling for 'Docker::stop' and 'Docker::pull'.
+  * [MESOS-8576] - Improve discard handling of 'Docker::inspect()'.
+  * [MESOS-8577] - Destroy nested container if `LAUNCH_NESTED_CONTAINER_SESSION` fails.
+  * [MESOS-8598] - Allow empty resource provider selector in `UriDiskProfileAdaptor`.
+  * [MESOS-8601] - Master crashes during slave reregistration after failover.
+  * [MESOS-8604] - Quota headroom tracking may be incorrect in the presence of hierarchical reservation.
+  * [MESOS-8605] - Terminal task status update will not send if 'docker inspect' is hung.
+  * [MESOS-8619] - Docker on Windows uses `USERPROFILE` instead of `HOME` for credentials.
+  * [MESOS-8631] - Agent should be able to start a task with every CPU on a Windows machine.
+  * [MESOS-8646] - Agent should be able to resolve file names on open files.
 
 
 Release Notes - Mesos - Version 1.5.0
