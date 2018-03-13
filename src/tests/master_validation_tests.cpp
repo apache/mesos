@@ -2775,6 +2775,56 @@ TEST_F(TaskValidationTest, TaskEnvironmentInvalid)
   driver.join();
 }
 
+
+// This test verifies that a task that has `ContainerInfo` set as DOCKER
+// but has no `DockerInfo` is rejected during `TaskInfo` validation.
+TEST_F(TaskValidationTest, TaskMissingDockerInfo)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  Future<TaskStatus> status;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status));
+
+  // Create an invalid task that has `ContainerInfo` set
+  // as DOCKER but has no `DockerInfo`.
+  TaskInfo task = createTask(offers.get()[0], "exit 0");
+  task.mutable_container()->set_type(ContainerInfo::DOCKER);
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY(status);
+  EXPECT_EQ(TASK_ERROR, status->state());
+  EXPECT_EQ(
+      "Task's `ContainerInfo` is invalid: "
+      "DockerInfo 'docker' is not set for DOCKER typed ContainerInfo",
+      status->message());
+
+  driver.stop();
+  driver.join();
+}
+
 // TODO(jieyu): Add tests for checking duplicated persistence ID
 // against offered resources.
 
