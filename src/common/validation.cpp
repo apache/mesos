@@ -273,6 +273,17 @@ Option<Error> validateContainerInfo(const ContainerInfo& containerInfo)
       return Error(
           "DockerInfo 'docker' is not set for DOCKER typed ContainerInfo");
     }
+
+    // We do not support setting `name` parameter in Docker info because
+    // Docker containerizer has its own way to name the Docker container,
+    // otherwise Docker containerizer will not be able to recognize the
+    // created container, see MESOS-8497 for details.
+    foreach (const Parameter& parameter,
+             containerInfo.docker().parameters()) {
+      if (parameter.key() == "name") {
+        return Error("Parameter in DockerInfo must not be 'name'");
+      }
+    }
   }
 
   return None();
