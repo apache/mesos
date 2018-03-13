@@ -1574,44 +1574,55 @@ void HierarchicalAllocatorProcess::__allocate()
     return quotaRoleSorter->allocationScalarQuantities(role).toUnreserved();
   };
 
-  // We need to keep track of allocated reserved resources for roles
-  // with a non-default quota in order to enforce their quota.
-  // Note these are __quantities__ with no meta-data.
-  hashmap<string, Resources> allocatedReservationScalarQuantities;
-
-  // We build the map here to avoid repetitive aggregation
-  // in the allocation loop. Note, this map will still need to be
-  // updated during the allocation loop when new allocations
-  // are made.
+  // To enforce quota, we keep track of consumed quota for roles with a
+  // non-default quota.
   //
-  // TODO(mzhu): Ideally, we want to buildup and persist this information
-  // across allocation cycles in track/untrackAllocatedResources().
-  // But due to the presence of shared resources, we need to keep track of
-  // the allocated resources (and not just scalar quantities) on a slave
-  // to account for multiple copies of the same shared resources.
-  // While the `allocated` info in the `struct slave` gives us just that,
-  // we can not simply use that in track/untrackAllocatedResources() since
-  // `allocated` is currently updated outside the scope of
-  // track/untrackAllocatedResources(), meaning that it may get updated
-  // either before or after the tracking calls.
+  // NOTE: We build the map here to avoid repetitive aggregation in the
+  // allocation loop. But this map will still need to be updated in the
+  // allocation loop as we make new allocations.
   //
-  // TODO(mzhu): Ideally, we want these helpers to instead track the
-  // reservations as *allocated* in the sorters even when the
-  // reservations have not been allocated yet. This will help to:
+  // TODO(mzhu): Build and persist this information across allocation cycles in
+  // track/untrackAllocatedResources().
+  //
+  // TODO(mzhu): Ideally, we want the sorter to track consumed quota. It then
+  // could use consumed quota instead of allocated resources (the former
+  // includes unallocated reservations while the latter does not) to calculate
+  // the DRF share. This would help to:
   //
   //   (1) Solve the fairness issue when roles with unallocated
   //       reservations may game the allocator (See MESOS-8299).
   //
   //   (2) Simplify the quota enforcement logic -- the allocator
   //       would no longer need to track reservations separately.
+  //
+  // Note these are __quantities__ with no meta-data.
+  hashmap<string, Resources> rolesConsumedQuotaScalarQuantites;
+
+  // We charge a role against its quota by considering its allocation as well
+  // as any unallocated reservations since reservations are bound to the role.
+  // In other words, we always consider reservations as consuming quota,
+  // regardless of whether they are allocated.
+  // It is calculated as:
+  //
+  //   Consumed Quota = reservations + unreserved allocation
+  //                  = reservations + allocation - allocated reservations
   foreachkey (const string& role, quotas) {
+    // First add reservations.
+    rolesConsumedQuotaScalarQuantites[role] +=
+      reservationScalarQuantities.get(role).getOrElse(Resources());
+
+    // Then add allocated resoruces.
+    rolesConsumedQuotaScalarQuantites[role] +=
+      getQuotaRoleAllocatedResources(role);
+
+    // Lastly subtract allocated reservations on each agent.
     const hashmap<SlaveID, Resources> allocations =
       quotaRoleSorter->allocation(role);
 
     foreachvalue (const Resources& resources, allocations) {
       // We need to remove the static reservation metadata here via
       // `toUnreserved()`.
-      allocatedReservationScalarQuantities[role] +=
+      rolesConsumedQuotaScalarQuantites[role] -=
         resources.reserved().createStrippedScalarQuantity().toUnreserved();
     }
   }
@@ -1621,31 +1632,18 @@ void HierarchicalAllocatorProcess::__allocate()
   // be satisfied when needed:
   //
   //   Required unreserved headroom =
-  //     sum (unsatisfied quota guarantee(r) - unallocated reservations(r))
-  //       for each role r
+  //     sum (guarantee - consumed quota) for each role.
   //
-  // Given the above, if a role has more reservations than quota
-  // guarantee, we don't need to hold back any unreserved headroom
-  // for it.
+  // Given the above, if a role has more reservations (which count towards
+  // consumed quota) than quota guarantee, we don't need to hold back any
+  // unreserved headroom for it.
   Resources requiredHeadroom;
   foreachpair (const string& role, const Quota& quota, quotas) {
-    // NOTE: Revocable resources are excluded in `quotaRoleSorter`.
-    // NOTE: Only scalars are considered for quota.
-    // NOTE: The following should all be quantities with no meta-data!
-    Resources allocated = getQuotaRoleAllocatedResources(role);
-    const Resources guarantee = quota.info.guarantee();
-
-    if (allocated.contains(guarantee)) {
-      continue; // Quota guarantee already satisfied.
-    }
-
-    Resources unallocated = guarantee - allocated;
-
-    Resources unallocatedReservations =
-      reservationScalarQuantities.get(role).getOrElse(Resources()) -
-      allocatedReservationScalarQuantities.get(role).getOrElse(Resources());
-
-    requiredHeadroom += unallocated - unallocatedReservations;
+    // We can safely subtract resources without checking inclusion. If the
+    // minuend resource is less than the subtrahend resource, the result is an
+    // empty resource.
+    requiredHeadroom += Resources(quota.info.guarantee()) -
+      rolesConsumedQuotaScalarQuantites.get(role).getOrElse(Resources());
   }
 
   // We will allocate resources while ensuring that the required
@@ -1749,34 +1747,6 @@ void HierarchicalAllocatorProcess::__allocate()
         continue;
       }
 
-      // This is a __quantity__ with no meta-data.
-      Resources roleReservationScalarQuantities =
-        reservationScalarQuantities.get(role).getOrElse(Resources());
-
-      // This is a __quantity__ with no meta-data.
-      Resources roleAllocatedReservationScalarQuantities =
-        allocatedReservationScalarQuantities.get(role).getOrElse(Resources());
-
-      // We charge a role against its quota by considering its
-      // allocation as well as any unallocated reservations
-      // since reservations are bound to the role. In other
-      // words, we always consider reservations as consuming
-      // quota, regardless of whether they are allocated.
-      // The equation used here is:
-      //
-      //   Consumed Quota = reservations + unreserved allocation
-      //                  = reservations + (allocation - allocated reservations)
-      //
-      // This is a __quantity__ with no meta-data.
-      Resources resourcesChargedAgainstQuota =
-        roleReservationScalarQuantities +
-          (getQuotaRoleAllocatedResources(role) -
-               roleAllocatedReservationScalarQuantities);
-
-      // This is a scalar quantity with no meta-data.
-      Resources unsatisfiedQuotaGuarantee = Resources(quota.info.guarantee()) -
-        resourcesChargedAgainstQuota;
-
       // Fetch frameworks according to their fair share.
       // NOTE: Suppressed frameworks are not included in the sort.
       CHECK(frameworkSorters.contains(role));
@@ -1860,6 +1830,11 @@ void HierarchicalAllocatorProcess::__allocate()
         // NOTE: Since we currently only support top-level roles to
         // have quota, there are no ancestor reservations involved here.
         Resources resources = available.reserved(role).nonRevocable();
+
+        // This is a scalar quantity with no meta-data.
+        Resources unsatisfiedQuotaGuarantee =
+          Resources(quota.info.guarantee()) -
+            rolesConsumedQuotaScalarQuantites.get(role).getOrElse(Resources());
 
         // Unreserved resources that are tentatively going to be
         // allocated towards this role's quota. These resources may
@@ -1991,28 +1966,24 @@ void HierarchicalAllocatorProcess::__allocate()
         offerable[frameworkId][role][slaveId] += resources;
         offeredSharedResources[slaveId] += resources.shared();
 
-        unsatisfiedQuotaGuarantee -=
-          newQuotaAllocationScalarQuantities;
-
-        // Track quota guarantee headroom change.
-        requiredHeadroom -= newQuotaAllocationScalarQuantities;
-        availableHeadroom -=
+        Resources allocatedUnreserved =
           resources.unreserved().createStrippedScalarQuantity();
 
-        // Update the tracking of allocated reservations.
-        //
-        // Note it is important to do this before updating `slave.allocated`
-        // because we rely on `slave.allocated` to check against accounting
-        // multiple copies of the same shared resources.
-        const Resources newShared = resources.shared()
-          .filter([this, &slaveId](const Resources& resource) {
-            return !slaves.at(slaveId).allocated.contains(resource);
-          });
+        // Update role consumed quota.
+        rolesConsumedQuotaScalarQuantites[role] += allocatedUnreserved;
 
-        // We remove the static reservation metadata here via `toUnreserved()`.
-        allocatedReservationScalarQuantities[role] +=
-          (resources.reserved(role).nonShared() + newShared)
-            .createStrippedScalarQuantity().toUnreserved();
+        // Track quota guarantee headroom change.
+
+        // `requiredHeadroom` counts total unsatisfied quota guarantee. Thus
+        // only the part of the allocated resources that satisfy some of the
+        // role's guarantee should be subtracted. Allocation of reserved
+        // resources or resources that this role has unset guarantee do not
+        // affect `requiredHeadroom`.
+        requiredHeadroom -= newQuotaAllocationScalarQuantities;
+
+        // `availableHeadroom` counts total unreserved non-revocable resources
+        // in the cluster.
+        availableHeadroom -= allocatedUnreserved;
 
         slave.allocated += resources;
 
