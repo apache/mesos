@@ -3385,6 +3385,7 @@ TEST_F(TaskGroupValidationTest, TaskUsesDockerContainerInfo)
   task1.mutable_slave_id()->MergeFrom(offer.slave_id());
   task1.mutable_resources()->MergeFrom(resources);
   task1.mutable_container()->set_type(ContainerInfo::DOCKER);
+  task1.mutable_container()->mutable_docker()->set_image("alpine");
 
   // Create a valid task.
   TaskInfo task2;
