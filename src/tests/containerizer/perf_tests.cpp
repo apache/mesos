@@ -120,6 +120,31 @@ TEST_F(PerfTest, Parse)
   EXPECT_TRUE(statistics.has_task_clock());
   EXPECT_EQ(0.0, statistics.task_clock());
 
+  // Due to a bug 'perf stat' may append extra CSV separators. Check
+  // that we handle this situation correctly.
+  parse = perf::parse(
+      "<not supported>,,stalled-cycles-backend,cgroup1,0,100.00,,,,");
+  ASSERT_SOME(parse);
+  ASSERT_TRUE(parse->contains("cgroup1"));
+
+  statistics = parse->get("cgroup1").get();
+  EXPECT_FALSE(statistics.has_stalled_cycles_backend());
+
+  // Some additional metrics (e.g. stalled cycles per instruction) can
+  // be printed without an event. They should be ignored.
+  parse = perf::parse(
+      "11651954,,instructions,cgroup1,1041690,10.63,0.58,insn per cycle\n"
+      ",,,,,,1.29,stalled cycles per insn\n"
+      "14995512,,stalled-cycles-frontend,cgroup1,1464204,14.94,75.26,frontend cycles idle"); // NOLINT(whitespace/line_length)
+  ASSERT_SOME(parse);
+  ASSERT_TRUE(parse->contains("cgroup1"));
+
+  statistics = parse->get("cgroup1").get();
+  EXPECT_TRUE(statistics.has_instructions());
+  EXPECT_EQ(11651954u, statistics.instructions());
+  EXPECT_TRUE(statistics.has_stalled_cycles_frontend());
+  EXPECT_EQ(14995512u, statistics.stalled_cycles_frontend());
+
   // Check parsing fails.
   parse = perf::parse("1,cycles\ngarbage");
   EXPECT_ERROR(parse);

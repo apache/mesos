@@ -377,6 +377,22 @@ struct Sample
       case 8:
         return Sample({tokens[0], internal::normalize(tokens[2]), tokens[3]});
 
+      // This is the same format as the one with 8 fields. Due to a
+      // bug 'perf stat' may print 4 CSV separators instead of 2 empty
+      // fields (https://lkml.org/lkml/2018/3/6/22).
+      case 10:
+        // Check that the last 4 fields are empty. Otherwise this is
+        // an unknown format.
+        for (int i = 6; i < 10; ++i) {
+          if (!tokens[i].empty()) {
+            return Error(
+                "Unexpected number of fields (" + stringify(tokens.size()) +
+                ")");
+          }
+        }
+
+        return Sample({tokens[0], internal::normalize(tokens[2]), tokens[3]});
+
       // Bail out if the format is not recognized.
       default:
         return Error(
@@ -397,6 +413,12 @@ Try<hashmap<string, mesos::PerfStatistics>> parse(
     if (sample.isError()) {
       return Error("Failed to parse perf sample line '" + line + "': " +
                    sample.error());
+    }
+
+    // Some additional metrics (e.g. stalled cycles per instruction)
+    // are printed without an event. Ignore them.
+    if (sample->event.empty()) {
+      continue;
     }
 
     if (!statistics.contains(sample->cgroup)) {
