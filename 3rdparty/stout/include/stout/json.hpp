@@ -779,13 +779,26 @@ inline Try<Value> parse(const std::string& s)
   // Because PicoJson supports repeated parsing of multiple objects/arrays in a
   // stream, it will quietly ignore trailing non-whitespace characters. We would
   // rather throw an error, however, so use `last_char` to check for this.
+  //
+  // TODO(alexr): Address cases when `s` is empty or consists only of whitespace
+  // characters.
   const char* lastVisibleChar =
     parseBegin + s.find_last_not_of(strings::WHITESPACE);
 
-  // Parse the string, returning a pointer to the character
-  // immediately following the last one parsed.
-  const char* parseEnd =
-    picojson::parse(value, parseBegin, parseBegin + s.size(), &error);
+  // Parse the string, returning a pointer to the character immediately
+  // following the last one parsed. Convert exceptions to `Error`s.
+  //
+  // TODO(alexr): Remove `try-catch` wrapper once picojson stops throwing
+  // on parsing, see https://github.com/kazuho/picojson/issues/94
+  const char* parseEnd;
+  try {
+    parseEnd =
+      picojson::parse(value, parseBegin, parseBegin + s.size(), &error);
+  } catch (const std::overflow_error&) {
+    return Error("Value out of range");
+  } catch (...) {
+    return Error("Unknown JSON parse error");
+  }
 
   if (!error.empty()) {
     return Error(error);
