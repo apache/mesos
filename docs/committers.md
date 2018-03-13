@@ -146,6 +146,13 @@ We'd like to thank the following committers to the Apache Mesos project who have
       <td>dlester@apache.org</td>
     </tr>
     <tr>
+      <td>-8</td>
+      <td>Zhitao Li</td>
+      <td>Uber</td>
+      <td>zhitao</td>
+      <td>zhitao@apache.org</td>
+    </tr>
+    <tr>
       <td>+8</td>
       <td>Guangya Liu</td>
       <td>IBM</td>
