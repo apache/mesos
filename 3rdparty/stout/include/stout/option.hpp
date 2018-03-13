@@ -123,8 +123,17 @@ public:
   const T* operator->() const { return &get(); }
   T* operator->() { return &get(); }
 
-  // This must return a copy to avoid returning a reference to a temporary.
-  T getOrElse(const T& _t) const { return isNone() ? _t : t; }
+  template <typename U>
+  T getOrElse(U&& u) const &
+  {
+    return isNone() ? static_cast<T>(std::forward<U>(u)) : t;
+  }
+
+  template <typename U>
+  T getOrElse(U&& u) &&
+  {
+    return isNone() ? static_cast<T>(std::forward<U>(u)) : std::move(t);
+  }
 
   bool operator==(const Option<T>& that) const
   {
