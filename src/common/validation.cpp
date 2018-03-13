@@ -268,6 +268,13 @@ Option<Error> validateContainerInfo(const ContainerInfo& containerInfo)
     }
   }
 
+  if (containerInfo.type() == ContainerInfo::DOCKER) {
+    if (!containerInfo.has_docker()) {
+      return Error(
+          "DockerInfo 'docker' is not set for DOCKER typed ContainerInfo");
+    }
+  }
+
   return None();
 }
 
