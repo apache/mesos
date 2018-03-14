@@ -447,6 +447,12 @@ bool operator==(const Offer::Operation& left, const Offer::Operation& right)
 }
 
 
+bool operator==(const Operation& left, const Operation& right)
+{
+  return google::protobuf::util::MessageDifferencer::Equals(left, right);
+}
+
+
 bool operator==(const OperationStatus& left, const OperationStatus& right)
 {
   if (left.has_operation_id() != right.has_operation_id()) {
@@ -487,6 +493,12 @@ bool operator==(const OperationStatus& left, const OperationStatus& right)
 
 
 bool operator!=(const Offer::Operation& left, const Offer::Operation& right)
+{
+  return !(left == right);
+}
+
+
+bool operator!=(const Operation& left, const Operation& right)
 {
   return !(left == right);
 }

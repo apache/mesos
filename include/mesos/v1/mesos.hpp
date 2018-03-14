@@ -61,6 +61,7 @@ bool operator==(const Label& left, const Label& right);
 bool operator==(const Labels& left, const Labels& right);
 bool operator==(const MasterInfo& left, const MasterInfo& right);
 bool operator==(const Offer::Operation& left, const Offer::Operation& right);
+bool operator==(const Operation& left, const Operation& right);
 
 bool operator==(
     const ResourceProviderInfo& left,
@@ -77,6 +78,7 @@ bool operator==(const Volume& left, const Volume& right);
 
 bool operator!=(const Labels& left, const Labels& right);
 bool operator!=(const Offer::Operation& left, const Offer::Operation& right);
+bool operator!=(const Operation& left, const Operation& right);
 bool operator!=(const TaskStatus& left, const TaskStatus& right);
 
 

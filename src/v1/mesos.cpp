@@ -403,7 +403,19 @@ bool operator==(const Offer::Operation& left, const Offer::Operation& right)
 }
 
 
+bool operator==(const Operation& left, const Operation& right)
+{
+  return google::protobuf::util::MessageDifferencer::Equals(left, right);
+}
+
+
 bool operator!=(const Offer::Operation& left, const Offer::Operation& right)
+{
+  return !(left == right);
+}
+
+
+bool operator!=(const Operation& left, const Operation& right)
 {
   return !(left == right);
 }
