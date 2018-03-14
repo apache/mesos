@@ -58,6 +58,14 @@ Result<ResourceProviderID> getResourceProviderId(
     const Offer::Operation& operation);
 
 
+// Returns the ID of the resource provider affected by a resource
+// conversion. Returns None() if the conversion is on agent default
+// resources. We assume a single conversion only being applied on
+// resources from a single resource provider.
+Result<ResourceProviderID> getResourceProviderId(
+    const ResourceConversion& conversion);
+
+
 // Returns the resource conversions from the given offer operation.
 // This helper assumes that the given operation has already been
 // validated.

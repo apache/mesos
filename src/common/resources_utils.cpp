@@ -285,6 +285,34 @@ Result<ResourceProviderID> getResourceProviderId(
 }
 
 
+Result<ResourceProviderID> getResourceProviderId(
+    const ResourceConversion& conversion)
+{
+  if (conversion.consumed.empty()) {
+    return Error("Could not determine resource provider");
+  }
+
+  const Resource& consumed = *conversion.consumed.begin();
+
+  const Option<ResourceProviderID> resourceProviderId =
+    consumed.has_provider_id()
+      ? consumed.provider_id()
+      : Option<ResourceProviderID>::none();
+
+
+  foreach (const Resource& resource, conversion.consumed) {
+    const Option<ResourceProviderID> resourceProviderId_ =
+      resource.has_provider_id()
+        ? resource.provider_id()
+        : Option<ResourceProviderID>::none();
+    if (resourceProviderId_ != resourceProviderId) {
+      return Error("Conversion works on multiple resource providers");
+    }
+  }
+
+  return resourceProviderId;
+}
+
 void convertResourceFormat(Resource* resource, ResourceFormat format)
 {
   switch (format) {
