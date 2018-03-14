@@ -124,7 +124,7 @@ Slave(Master* const _master,
         std::vector<SlaveInfo::Capability> _capabilites,
         const process::Time& _registeredTime,
         std::vector<Resource> _checkpointedResources,
-        const Option<UUID>& resourceVersion,
+        const Option<UUID>& _resourceVersion,
         std::vector<ExecutorInfo> executorInfos = std::vector<ExecutorInfo>(),
         std::vector<Task> tasks = std::vector<Task>());
 
@@ -276,10 +276,44 @@ Slave(Master* const _master,
   // providers as well.
   Resources totalResources;
 
+  // Used to establish the relationship between the operation and the
+  // resources that the operation is operating on. Each resource
+  // provider will keep a resource version UUID, and change it when it
+  // believes that the resources from this resource provider are out
+  // of sync from the master's view.  The master will keep track of
+  // the last known resource version UUID for each resource provider,
+  // and attach the resource version UUID in each operation it sends
+  // out. The resource provider should reject operations that have a
+  // different resource version UUID than that it maintains, because
+  // this means the operation is operating on resources that might
+  // have already been invalidated.
+  Option<UUID> resourceVersion;
+
   SlaveObserver* observer;
 
-  hashmap<Option<ResourceProviderID>, UUID> resourceVersions;
-  hashmap<ResourceProviderID, ResourceProviderInfo> resourceProviders;
+  struct ResourceProvider {
+    ResourceProviderInfo info;
+    Resources totalResources;
+
+    // Used to establish the relationship between the operation and the
+    // resources that the operation is operating on. Each resource
+    // provider will keep a resource version UUID, and change it when it
+    // believes that the resources from this resource provider are out
+    // of sync from the master's view.  The master will keep track of
+    // the last known resource version UUID for each resource provider,
+    // and attach the resource version UUID in each operation it sends
+    // out. The resource provider should reject operations that have a
+    // different resource version UUID than that it maintains, because
+    // this means the operation is operating on resources that might
+    // have already been invalidated.
+    UUID resourceVersion;
+
+    // Pending operations or terminal operations that have
+    // unacknowledged status updates.
+    hashmap<UUID, Operation*> operations;
+  };
+
+  hashmap<ResourceProviderID, ResourceProvider> resourceProviders;
 
 private:
   Slave(const Slave&);              // No copying.

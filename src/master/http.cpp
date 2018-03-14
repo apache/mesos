@@ -3907,6 +3907,14 @@ Future<Response> Master::Http::getOperations(
     foreachvalue (Operation* operation, slave->operations) {
       operations->add_operations()->CopyFrom(*operation);
     }
+
+    foreachvalue (
+        const Slave::ResourceProvider resourceProvider,
+        slave->resourceProviders) {
+      foreachvalue (Operation* operation, resourceProvider.operations) {
+        operations->add_operations()->CopyFrom(*operation);
+      }
+    }
   }
 
   return OK(serialize(contentType, evolve(response)), stringify(contentType));
