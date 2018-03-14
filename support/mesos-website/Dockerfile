@@ -1,26 +1,31 @@
-FROM centos:7
+FROM mesos/mesos-build:ubuntu-16.04
 MAINTAINER "dev@mesos.apache.org"
 
 LABEL Description="This image is used for generating Mesos web site."
 
-# Install Mesos build dependencies.
-RUN yum install -y which
-RUN yum groupinstall -y 'Development Tools'
-RUN yum install -y epel-release
-RUN yum install -y clang git maven cmake
-RUN yum install -y java-1.8.0-openjdk-devel python-devel zlib-devel libcurl-devel openssl-devel cyrus-sasl-devel cyrus-sasl-md5 apr-devel subversion-devel apr-utils-devel libevent-devel libev-devel
+# The mesos build image drops down to user `mesos`, but
+# we need priviledged access to install packages below.
+USER root
 
-# Install website dependencies.
-RUN yum install -y ruby ruby-devel doxygen
+# Install dependencies.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      doxygen \
+      locales \
+      ruby \
+      ruby-dev \
+      rubygems && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
 RUN gem install bundler
 
-
-# Setup environment to build Mesos and website.
-ENV CC gcc
-ENV CXX g++
+RUN locale-gen en_US.UTF-8
 ENV LANG en_US.UTF-8
 ENV LC_ALL en_US.UTF-8
 
+ENV CC gcc
+ENV CXX g++
 
 WORKDIR /mesos
 CMD bash support/mesos-website/entrypoint.sh
