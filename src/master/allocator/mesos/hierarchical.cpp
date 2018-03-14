@@ -1565,7 +1565,7 @@ void HierarchicalAllocatorProcess::__allocate()
   // order to meet its quota guarantee.
   //
   // NOTE: Revocable resources are excluded in `quotaRoleSorter`.
-  auto getQuotaRoleAllocatedResources = [this](const string& role) {
+  auto getQuotaRoleAllocatedScalarQuantities = [this](const string& role) {
     CHECK(quotas.contains(role));
 
     // NOTE: `allocationScalarQuantities` omits dynamic reservation,
@@ -1613,7 +1613,7 @@ void HierarchicalAllocatorProcess::__allocate()
 
     // Then add allocated resoruces.
     rolesConsumedQuotaScalarQuantites[role] +=
-      getQuotaRoleAllocatedResources(role);
+      getQuotaRoleAllocatedScalarQuantities(role);
 
     // Lastly subtract allocated reservations on each agent.
     const hashmap<SlaveID, Resources> allocations =
