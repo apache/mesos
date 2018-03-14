@@ -1629,6 +1629,14 @@ on the agent.
   <td>Number of errors encountered during agent recovery</td>
   <td>Gauge</td>
 </tr>
+<tr>
+  <td>
+  <code>slave/recovery_time_secs</code>
+  </td>
+  <td>Agent recovery time in seconds. This value is only available after agent
+  recovery succeeded and remains constant for the life of the Mesos agent.</td>
+  <td>Gauge</td>
+</tr>
 </table>
 
 #### Tasks
