@@ -94,10 +94,6 @@ EXTRA_DIST =			\
 EXTRA_DIST +=		\
   $(GLOG).patch
 
-# We patch grpc for compilation issues. See `grpc-1.8.3.readme`.
-EXTRA_DIST +=		\
-  $(GRPC).patch
-
 # We need to patch leveldb to prevent it from linking to snappy and
 # tcmalloc; see MESOS-1054, MESOS-1624.
 EXTRA_DIST +=		\

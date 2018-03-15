@@ -1,0 +1,7 @@
+The bundled `grpc-1.10.0.tar.gz` package is generated with the following command:
+
+```sh
+git clone -b v1.10.0 https://github.com/grpc/grpc.git grpc-1.10.0
+(cd grpc-1.10.0 && git submodule update --init third_party/cares)
+tar zcvf grpc-1.10.0.tar.gz --exclude .git grpc-1.10.0
+```
