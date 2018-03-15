@@ -65,10 +65,6 @@ EXTRA_DIST =			\
 EXTRA_DIST +=		\
   $(GLOG).patch
 
-# We patch grpc for CMake compilation issues.
-EXTRA_DIST +=		\
-  $(GRPC).patch
-
 # We patch http-parser to avoid a name collision with our `flags` namespace.
 EXTRA_DIST +=		\
   $(HTTP_PARSER).patch
@@ -209,24 +205,32 @@ endif
 
 if ENABLE_GRPC
 if WITH_BUNDLED_GRPC
-LIB_GRPC = $(GRPC)/libs/opt/libgrpc++.a		\
-           $(GRPC)/libs/opt/libgrpc.a		\
+LIB_GRPC = $(GRPC)/libs/opt/libgrpc++.a			\
+           $(GRPC)/libs/opt/libgrpc.a			\
            $(GRPC)/libs/opt/libgpr.a
 
 $(LIB_GRPC): $(GRPC)-build-stamp
 
-$(GRPC)-build-stamp: $(GRPC)-stamp		\
+# NOTE: The `-Wno-deprecated-declarations` flag is added so that gRPC
+# can be built with OpenSSL 1.1.0. See:
+# https://github.com/grpc/grpc/pull/11496
+# NOTE: The `-Wno-unused-function` flag is added to address errors when
+# compling `src/core/tsi/ssl_transport_security.c`. See:
+# https://github.com/grpc/grpc/pull/11675
+$(GRPC)-build-stamp: $(GRPC)-stamp			\
                      $(PROTOBUF)-build-stamp
-	cd $(GRPC) &&				\
-	  CPPFLAGS="$(PROTOBUF_INCLUDE_FLAGS)	\
-	            $(SSL_INCLUDE_FLAGS)	\
-	            $(ZLIB_INCLUDE_FLAGS)"	\
-	  LDFLAGS="$(PROTOBUF_LINKER_FLAGS)	\
-	           $(SSL_LINKER_FLAGS)		\
-	           $(ZLIB_LINKERFLAGS)"		\
-	  $(MAKE) $(AM_MAKEFLAGS)		\
-	          HAS_PKG_CONFIG=false		\
-	          NO_PROTOC=false		\
+	cd $(GRPC) &&					\
+	  CPPFLAGS="-Wno-deprecated-declarations	\
+	            -Wno-unused-function		\
+	            $(PROTOBUF_INCLUDE_FLAGS)		\
+	            $(SSL_INCLUDE_FLAGS)		\
+	            $(ZLIB_INCLUDE_FLAGS)"		\
+	  LDFLAGS="$(PROTOBUF_LINKER_FLAGS)		\
+	           $(SSL_LINKER_FLAGS)			\
+	           $(ZLIB_LINKERFLAGS)"			\
+	  $(MAKE) $(AM_MAKEFLAGS)			\
+	          HAS_PKG_CONFIG=false			\
+	          NO_PROTOC=false			\
 	          PROTOC=$(PROTOC)
 	touch $@
 
