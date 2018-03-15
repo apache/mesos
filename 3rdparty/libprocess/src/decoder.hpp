@@ -629,7 +629,11 @@ private:
   {
     StreamingResponseDecoder* decoder = (StreamingResponseDecoder*) p->data;
 
-    CHECK_NOTNULL(decoder->response);
+    // TODO(alexr): We currently do not support trailers, i.e., headers after
+    // `on_headers_complete` has been called, and instead treat them as errors.
+    if (decoder->response == nullptr) {
+      return 1;
+    }
 
     if (decoder->header != HEADER_FIELD) {
       decoder->response->headers[decoder->field] = decoder->value;
@@ -647,7 +651,11 @@ private:
   {
     StreamingResponseDecoder* decoder = (StreamingResponseDecoder*) p->data;
 
-    CHECK_NOTNULL(decoder->response);
+    // TODO(alexr): We currently do not support trailers, i.e., headers after
+    // `on_headers_complete` has been called, and instead treat them as errors.
+    if (decoder->response == nullptr) {
+      return 1;
+    }
 
     decoder->value.append(data, length);
     decoder->header = HEADER_VALUE;
@@ -658,6 +666,8 @@ private:
   {
     StreamingResponseDecoder* decoder = (StreamingResponseDecoder*) p->data;
 
+    // This asserts not only that `on_message_begin` has been previously called,
+    // but also that `on_headers_complete` is not called more than once.
     CHECK_NOTNULL(decoder->response);
 
     // Add final header.
@@ -692,6 +702,11 @@ private:
     // Send the response to the caller, but keep a Pipe::Writer for
     // streaming the body content into the response.
     decoder->responses.push_back(decoder->response);
+
+    // TODO(alexr): We currently do not support trailers, i.e., extra headers
+    // after `on_headers_complete` has been called. When we add trailer support,
+    // we need a thread-safe way to surface them up in the response or some
+    // auxiliary data structure.
     decoder->response = nullptr;
 
     return 0;
@@ -865,7 +880,10 @@ private:
   {
     StreamingRequestDecoder* decoder = (StreamingRequestDecoder*) p->data;
 
-    CHECK_NOTNULL(decoder->request);
+    // URL should not be parsed after `on_headers_complete` has been called.
+    if (decoder->request == nullptr) {
+      return 1;
+    }
 
     // The current http_parser library (version 2.6.2 and below)
     // does not support incremental parsing of URLs. To compensate
@@ -880,7 +898,11 @@ private:
   {
     StreamingRequestDecoder* decoder = (StreamingRequestDecoder*) p->data;
 
-    CHECK_NOTNULL(decoder->request);
+    // TODO(alexr): We currently do not support trailers, i.e., headers after
+    // `on_headers_complete` has been called, and instead treat them as errors.
+    if (decoder->request == nullptr) {
+      return 1;
+    }
 
     if (decoder->header != HEADER_FIELD) {
       decoder->request->headers[decoder->field] = decoder->value;
@@ -898,7 +920,11 @@ private:
   {
     StreamingRequestDecoder* decoder = (StreamingRequestDecoder*) p->data;
 
-    CHECK_NOTNULL(decoder->request);
+    // TODO(alexr): We currently do not support trailers, i.e., headers after
+    // `on_headers_complete` has been called, and instead treat them as errors.
+    if (decoder->request == nullptr) {
+      return 1;
+    }
 
     decoder->value.append(data, length);
     decoder->header = HEADER_VALUE;
@@ -909,6 +935,8 @@ private:
   {
     StreamingRequestDecoder* decoder = (StreamingRequestDecoder*) p->data;
 
+    // This asserts not only that `on_message_begin` has been previously called,
+    // but also that `on_headers_complete` is not called more than once.
     CHECK_NOTNULL(decoder->request);
 
     // Add final header.
@@ -979,6 +1007,11 @@ private:
     // Send the request to the caller, but keep a Pipe::Writer for
     // streaming the body content into the request.
     decoder->requests.push_back(decoder->request);
+
+    // TODO(alexr): We currently do not support trailers, i.e., extra headers
+    // after `on_headers_complete` has been called. When we add trailer support,
+    // we need a thread-safe way to surface them up in the request or some
+    // auxiliary data structure.
     decoder->request = nullptr;
 
     return 0;
