@@ -21,7 +21,7 @@
 
 #include <google/protobuf/message.h>
 
-#include <grpc++/grpc++.h>
+#include <grpcpp/grpcpp.h>
 
 #include <process/future.hpp>
 #include <process/owned.hpp>

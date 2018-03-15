@@ -1164,9 +1164,9 @@ if test "x$enable_grpc" = "xyes"; then
     saved_LIBS="$LIBS"
     LIBS="-lgrpc++ -lgrpc -lgpr $LIBS"
     AC_LANG_PUSH([C++])
-    AC_CHECK_HEADERS([grpc++/grpc++.h],
+    AC_CHECK_HEADERS([grpcpp/grpcpp.h],
                      [AC_LINK_IFELSE(
-                         [AC_LANG_PROGRAM([#include <grpc++/grpc++.h>],
+                         [AC_LANG_PROGRAM([#include <grpcpp/grpcpp.h>],
                                           [grpc::Version();])],
                          [found_grpc=yes],
                          [found_grpc=no])],
