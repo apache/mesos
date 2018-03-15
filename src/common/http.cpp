@@ -868,7 +868,9 @@ Future<Owned<ObjectApprovers>> ObjectApprovers::create(
     std::initializer_list<authorization::Action> actions)
 {
   // Ensures there are no repeated elements.
-  hashset<authorization::Action> _actions(actions);
+  // Note: `set` is necessary because we relay in the order of the elements
+  // while doing `zip` below.
+  set<authorization::Action> _actions(actions);
 
   Option<authorization::Subject> subject =
     authorization::createSubject(principal);
