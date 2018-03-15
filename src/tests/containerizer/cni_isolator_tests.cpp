@@ -376,23 +376,23 @@ TEST_F(CniIsolatorTest, ROOT_VerifyCheckpointedInfo)
 
   // Check if the CNI related information is checkpointed successfully.
   const string containerDir =
-    paths::getContainerDir(paths::ROOT_DIR, containerId.value());
+    paths::getContainerDir(paths::ROOT_DIR, containerId);
 
   EXPECT_TRUE(os::exists(containerDir));
   EXPECT_TRUE(os::exists(paths::getNetworkDir(
-      paths::ROOT_DIR, containerId.value(), "__MESOS_TEST__")));
+      paths::ROOT_DIR, containerId, "__MESOS_TEST__")));
 
   EXPECT_TRUE(os::exists(paths::getNetworkConfigPath(
-      paths::ROOT_DIR, containerId.value(), "__MESOS_TEST__")));
+      paths::ROOT_DIR, containerId, "__MESOS_TEST__")));
 
   EXPECT_TRUE(os::exists(paths::getInterfaceDir(
-      paths::ROOT_DIR, containerId.value(), "__MESOS_TEST__", "eth0")));
+      paths::ROOT_DIR, containerId, "__MESOS_TEST__", "eth0")));
 
   EXPECT_TRUE(os::exists(paths::getNetworkInfoPath(
-      paths::ROOT_DIR, containerId.value(), "__MESOS_TEST__", "eth0")));
+      paths::ROOT_DIR, containerId, "__MESOS_TEST__", "eth0")));
 
   EXPECT_TRUE(os::exists(paths::getNamespacePath(
-      paths::ROOT_DIR, containerId.value())));
+      paths::ROOT_DIR, containerId)));
 
   EXPECT_TRUE(os::exists(path::join(containerDir, "hostname")));
   EXPECT_TRUE(os::exists(path::join(containerDir, "hosts")));

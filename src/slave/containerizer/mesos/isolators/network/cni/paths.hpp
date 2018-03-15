@@ -17,8 +17,12 @@
 #ifndef __ISOLATOR_CNI_PATHS_HPP__
 #define __ISOLATOR_CNI_PATHS_HPP__
 
-using std::string;
-using std::list;
+#include <list>
+#include <string>
+
+#include <mesos/mesos.hpp>
+
+#include <stout/try.hpp>
 
 namespace mesos {
 namespace internal {
@@ -44,47 +48,51 @@ namespace paths {
 constexpr char ROOT_DIR[] = "/var/run/mesos/isolators/network/cni";
 
 
-string getContainerDir(const string& rootDir, const string& containerId);
+std::string getContainerDir(
+    const std::string& rootDir,
+    const ContainerID& containerId);
 
 
-string getNamespacePath(const string& rootDir, const string& containerId);
+std::string getNamespacePath(
+    const std::string& rootDir,
+    const ContainerID& containerId);
 
 
-string getNetworkDir(
-    const string& rootDir,
-    const string& containerId,
-    const string& networkName);
+std::string getNetworkDir(
+    const std::string& rootDir,
+    const ContainerID& containerId,
+    const std::string& networkName);
 
 
-Try<list<string>> getNetworkNames(
-    const string& rootDir,
-    const string& containerId);
+Try<std::list<std::string>> getNetworkNames(
+    const std::string& rootDir,
+    const ContainerID& containerId);
 
 
-string getNetworkConfigPath(
-    const string& rootDir,
-    const string& containerId,
-    const string& networkName);
+std::string getNetworkConfigPath(
+    const std::string& rootDir,
+    const ContainerID& containerId,
+    const std::string& networkName);
 
 
-string getInterfaceDir(
-    const string& rootDir,
-    const string& containerId,
-    const string& networkName,
-    const string& ifName);
+std::string getInterfaceDir(
+    const std::string& rootDir,
+    const ContainerID& containerId,
+    const std::string& networkName,
+    const std::string& ifName);
 
 
-Try<list<string>> getInterfaces(
-    const string& rootDir,
-    const string& containerId,
-    const string& networkName);
+Try<std::list<std::string>> getInterfaces(
+    const std::string& rootDir,
+    const ContainerID& containerId,
+    const std::string& networkName);
 
 
-string getNetworkInfoPath(
-    const string& rootDir,
-    const string& containerId,
-    const string& networkName,
-    const string& ifName);
+std::string getNetworkInfoPath(
+    const std::string& rootDir,
+    const ContainerID& containerId,
+    const std::string& networkName,
+    const std::string& ifName);
 
 } // namespace paths {
 } // namespace cni {
