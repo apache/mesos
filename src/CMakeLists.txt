@@ -29,6 +29,10 @@ set(JAVA_PROTOBUF_SRC "")
 # Build the protobuf structs.
 #
 # NOTE: The following `PROTOC_GENERATE` calls will list append to
+# `PUBLIC_PROTO_PATH`, `PUBLIC_PROTOBUF_INCLUDE_DIR` and `PUBLIC_PROTOBUF_SRC`.
+PROTOC_GENERATE(GRPC LIB csi TARGET csi)
+
+# NOTE: The following `PROTOC_GENERATE` calls will list append to
 # `PUBLIC_PROTOBUF_SRC`.
 PROTOC_GENERATE(TARGET mesos/agent/agent)
 PROTOC_GENERATE(TARGET mesos/allocator/allocator)

@@ -25,6 +25,7 @@ endif ()
 # TODO(andschwa): Move each URL to the dependency itself.
 set(BOOST_URL           ${FETCH_URL}/boost-${BOOST_VERSION}.tar.gz)
 set(CONCURRENTQUEUE_URL ${FETCH_URL}/concurrentqueue-${CONCURRENTQUEUE_VERSION}.tar.gz)
+set(CSI_URL             ${FETCH_URL}/csi-${CSI_VERSION}.tar.gz)
 set(ELFIO_URL           ${FETCH_URL}/elfio-${ELFIO_VERSION}.tar.gz)
 set(GLOG_URL            ${FETCH_URL}/glog-${GLOG_VERSION}.tar.gz)
 set(GOOGLETEST_URL      ${FETCH_URL}/googletest-release-${GOOGLETEST_VERSION}.tar.gz)
@@ -252,6 +253,26 @@ else ()
     message(FATAL_ERROR "Could not find sasl2 dependency.")
   endif ()
 endif ()
+
+
+# CSI: Container Storage Interface Specification.
+# https://github.com/container-storage-interface/spec
+#####################################################
+EXTERNAL(csi ${CSI_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
+add_library(csi INTERFACE)
+add_dependencies(csi ${CSI_TARGET})
+target_include_directories(csi INTERFACE ${CSI_ROOT})
+
+# NOTE: We hard-code `csi.proto` as a byproduct since it exists in the tarball.
+ExternalProject_Add(
+  ${CSI_TARGET}
+  PREFIX            ${CSI_CMAKE_ROOT}
+  BUILD_BYPRODUCTS  ${CSI_ROOT}/csi.proto
+  CONFIGURE_COMMAND ${CMAKE_NOOP}
+  BUILD_COMMAND     ${CMAKE_NOOP}
+  INSTALL_COMMAND   ${CMAKE_NOOP}
+  URL               ${CSI_URL}
+  URL_HASH          ${CSI_HASH})
 
 
 # ELFIO: library for reading and generating ELF files.
