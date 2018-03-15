@@ -104,71 +104,77 @@ TEST(ProtobufTest, JSON)
   //  Reflection* message.getReflection();
 
   // The keys are in alphabetical order.
-  string expected = strings::remove(
-      "{"
-      "  \"b\": true,"
-      "  \"bytes\": \"Ynl0ZXM=\","
-      "  \"d\": 1.0,"
-      "  \"e\": \"ONE\","
-      "  \"f\": 1.0,"
-      "  \"int32\": -1,"
-      "  \"int64\": -1,"
-      "  \"nested\": { \"str\": \"nested\"},"
-      "  \"optional_default\": 42.0,"
-      "  \"repeated_bool\": [true],"
-      "  \"repeated_bytes\": [\"cmVwZWF0ZWRfYnl0ZXM=\"],"
-      "  \"repeated_double\": [1.0, 2.0],"
-      "  \"repeated_enum\": [\"TWO\"],"
-      "  \"repeated_float\": [1.0],"
-      "  \"repeated_int32\": [-2],"
-      "  \"repeated_int64\": [-2],"
-      "  \"repeated_nested\": [ { \"str\": \"repeated_nested\" } ],"
-      "  \"repeated_sint32\": [-2],"
-      "  \"repeated_sint64\": [-2],"
-      "  \"repeated_string\": [\"repeated_string\"],"
-      "  \"repeated_uint32\": [2],"
-      "  \"repeated_uint64\": [2],"
-      "  \"sint32\": -1,"
-      "  \"sint64\": -1,"
-      "  \"str\": \"string\","
-      "  \"uint32\": 1,"
-      "  \"uint64\": 1"
-      "}",
-      " ");
+  string expected =
+    R"~(
+    {
+      "b": true,
+      "bytes": "Ynl0ZXM=",
+      "d": 1.0,
+      "e": "ONE",
+      "f": 1.0,
+      "int32": -1,
+      "int64": -1,
+      "nested": { "str": "nested"},
+      "optional_default": 42.0,
+      "repeated_bool": [true],
+      "repeated_bytes": ["cmVwZWF0ZWRfYnl0ZXM="],
+      "repeated_double": [1.0, 2.0],
+      "repeated_enum": ["TWO"],
+      "repeated_float": [1.0],
+      "repeated_int32": [-2],
+      "repeated_int64": [-2],
+      "repeated_nested": [ { "str": "repeated_nested" } ],
+      "repeated_sint32": [-2],
+      "repeated_sint64": [-2],
+      "repeated_string": ["repeated_string"],
+      "repeated_uint32": [2],
+      "repeated_uint64": [2],
+      "sint32": -1,
+      "sint64": -1,
+      "str": "string",
+      "uint32": 1,
+      "uint64": 1
+    })~";
+
+  // Remove ' ' and '\n' from `expected` so that we can compare
+  // it with the JSON string parsed from protobuf message.
+  expected.erase(
+      std::remove_if(expected.begin(), expected.end(), ::isspace),
+      expected.end());
 
   // The only difference between this JSON string and the above one is, all
   // the bools and numbers are in the format of strings.
-  string accepted = strings::remove(
-      "{"
-      "  \"b\": \"true\","
-      "  \"bytes\": \"Ynl0ZXM=\","
-      "  \"d\": \"1.0\","
-      "  \"e\": \"ONE\","
-      "  \"f\": \"1.0\","
-      "  \"int32\": \"-1\","
-      "  \"int64\": \"-1\","
-      "  \"nested\": { \"str\": \"nested\"},"
-      "  \"optional_default\": \"42.0\","
-      "  \"repeated_bool\": [\"true\"],"
-      "  \"repeated_bytes\": [\"cmVwZWF0ZWRfYnl0ZXM=\"],"
-      "  \"repeated_double\": [\"1.0\", \"2.0\"],"
-      "  \"repeated_enum\": [\"TWO\"],"
-      "  \"repeated_float\": [\"1.0\"],"
-      "  \"repeated_int32\": [\"-2\"],"
-      "  \"repeated_int64\": [\"-2\"],"
-      "  \"repeated_nested\": [ { \"str\": \"repeated_nested\" } ],"
-      "  \"repeated_sint32\": [\"-2\"],"
-      "  \"repeated_sint64\": [\"-2\"],"
-      "  \"repeated_string\": [\"repeated_string\"],"
-      "  \"repeated_uint32\": [\"2\"],"
-      "  \"repeated_uint64\": [\"2\"],"
-      "  \"sint32\": \"-1\","
-      "  \"sint64\": \"-1\","
-      "  \"str\": \"string\","
-      "  \"uint32\": \"1\","
-      "  \"uint64\": \"1\""
-      "}",
-      " ");
+  string accepted =
+    R"~(
+    {
+      "b": "true",
+      "bytes": "Ynl0ZXM=",
+      "d": "1.0",
+      "e": "ONE",
+      "f": "1.0",
+      "int32": "-1",
+      "int64": "-1",
+      "nested": { "str": "nested"},
+      "optional_default": "42.0",
+      "repeated_bool": ["true"],
+      "repeated_bytes": ["cmVwZWF0ZWRfYnl0ZXM="],
+      "repeated_double": ["1.0", "2.0"],
+      "repeated_enum": ["TWO"],
+      "repeated_float": ["1.0"],
+      "repeated_int32": ["-2"],
+      "repeated_int64": ["-2"],
+      "repeated_nested": [ { "str": "repeated_nested" } ],
+      "repeated_sint32": ["-2"],
+      "repeated_sint64": ["-2"],
+      "repeated_string": ["repeated_string"],
+      "repeated_uint32": ["2"],
+      "repeated_uint64": ["2"],
+      "sint32": "-1",
+      "sint64": "-1",
+      "str": "string",
+      "uint32": "1",
+      "uint64": "1"
+    })~";
 
   JSON::Object object = JSON::protobuf(message);
 
@@ -221,18 +227,24 @@ TEST(ProtobufTest, JSONArray)
   message2.add_numbers(2);
 
   // The keys are in alphabetical order.
-  string expected = strings::remove(
-      "["
-      "  {"
-      "    \"id\": \"message1\","
-      "    \"numbers\": [1, 2]"
-      "  },"
-      "  {"
-      "    \"id\": \"message2\","
-      "    \"numbers\": [1, 2]"
-      "  }"
-      "]",
-      " ");
+  string expected =
+    R"~(
+    [
+      {
+        "id": "message1",
+        "numbers": [1, 2]
+      },
+      {
+        "id": "message2",
+        "numbers": [1, 2]
+      }
+    ])~";
+
+  // Remove ' ' and '\n' from `expected` so that we can compare
+  // it with the JSON string parsed from protobuf message.
+  expected.erase(
+      std::remove_if(expected.begin(), expected.end(), ::isspace),
+      expected.end());
 
   tests::ArrayMessage arrayMessage;
   arrayMessage.add_values()->CopyFrom(message1);
@@ -273,30 +285,36 @@ TEST(ProtobufTest, JsonLargeIntegers)
   message.mutable_nested()->set_str("nested");
 
   // The keys are in alphabetical order.
-  string expected = strings::remove(
-      "{"
-      "  \"b\": true,"
-      "  \"bytes\": \"Ynl0ZXM=\","
-      "  \"d\": 1.0,"
-      "  \"e\": \"ONE\","
-      "  \"f\": 1.0,"
-      "  \"int32\": -2147483647,"
-      "  \"int64\": -9223372036854775807,"
-      "  \"nested\": {\"str\": \"nested\"},"
-      "  \"optional_default\": 42.0,"
-      "  \"repeated_int32\": [-2000000000],"
-      "  \"repeated_int64\": [-9000000000000000000],"
-      "  \"repeated_sint32\": [-1000000000],"
-      "  \"repeated_sint64\": [-8000000000000000000],"
-      "  \"repeated_uint32\": [3000000000],"
-      "  \"repeated_uint64\": [7000000000000000000],"
-      "  \"sint32\": -1234567890,"
-      "  \"sint64\": -1234567890123456789,"
-      "  \"str\": \"string\","
-      "  \"uint32\": 4294967295,"
-      "  \"uint64\": 9223372036854775807"
-      "}",
-      " ");
+  string expected =
+    R"~(
+    {
+      "b": true,
+      "bytes": "Ynl0ZXM=",
+      "d": 1.0,
+      "e": "ONE",
+      "f": 1.0,
+      "int32": -2147483647,
+      "int64": -9223372036854775807,
+      "nested": {"str": "nested"},
+      "optional_default": 42.0,
+      "repeated_int32": [-2000000000],
+      "repeated_int64": [-9000000000000000000],
+      "repeated_sint32": [-1000000000],
+      "repeated_sint64": [-8000000000000000000],
+      "repeated_uint32": [3000000000],
+      "repeated_uint64": [7000000000000000000],
+      "sint32": -1234567890,
+      "sint64": -1234567890123456789,
+      "str": "string",
+      "uint32": 4294967295,
+      "uint64": 9223372036854775807
+    })~";
+
+  // Remove ' ' and '\n' from `expected` so that we can compare
+  // it with the JSON string parsed from protobuf message.
+  expected.erase(
+      std::remove_if(expected.begin(), expected.end(), ::isspace),
+      expected.end());
 
   // Check JSON -> String.
   JSON::Object object = JSON::protobuf(message);
@@ -394,10 +412,11 @@ TEST(ProtobufTest, ParseJSONNull)
 
   // Test message with optional field set to 'null'.
   string message =
-    "{"
-    "  \"str\": \"value\","
-    "  \"optional_str\": null"
-    "}";
+    R"~(
+    {
+      "str": "value",
+      "optional_str": null
+    })~";
 
   Try<JSON::Object> json = JSON::parse<JSON::Object>(message);
   ASSERT_SOME(json);
@@ -409,10 +428,11 @@ TEST(ProtobufTest, ParseJSONNull)
 
   // Test message with repeated field set to 'null'.
   message =
-    "{"
-    "  \"str\": \"value\","
-    "  \"repeated_str\": null"
-    "}";
+    R"~(
+    {
+      "str": "value",
+      "repeated_str": null
+    })~";
 
   json = JSON::parse<JSON::Object>(message);
   ASSERT_SOME(json);
@@ -424,9 +444,10 @@ TEST(ProtobufTest, ParseJSONNull)
 
   // Test message with required field set to 'null'.
   message =
-    "{"
-    "  \"str\": null"
-    "}";
+    R"~(
+    {
+      "str": null
+    })~";
 
   json = JSON::parse<JSON::Object>(message);
   ASSERT_SOME(json);
@@ -437,19 +458,21 @@ TEST(ProtobufTest, ParseJSONNull)
 
 TEST(ProtobufTest, ParseJSONNestedError)
 {
-  // Here we trigger an error parsing the 'nested' message.
+  // Here we trigger an error parsing the 'nested' message, i.e., set
+  // the string type field `nested.str` to a number.
   string message =
-    "{"
-    "  \"b\": true,"
-    "  \"str\": \"string\","
-    "  \"bytes\": \"Ynl0ZXM=\","
-    "  \"f\": 1.0,"
-    "  \"d\": 1.0,"
-    "  \"e\": \"ONE\","
-    "  \"nested\": {"
-    "      \"str\": 1.0" // Error due to int for string type.
-    "  }"
-    "}";
+    R"~(
+    {
+      "b": true,
+      "str": "string",
+      "bytes": "Ynl0ZXM=",
+      "f": 1.0,
+      "d": 1.0,
+      "e": "ONE",
+      "nested": {
+          "str": 1.0
+      }
+    })~";
 
   Try<JSON::Object> json = JSON::parse<JSON::Object>(message);
   ASSERT_SOME(json);
@@ -470,11 +493,12 @@ TEST(ProtobufTest, ParseJSONNestedError)
 TEST(ProtobufTest, ParseJSONUnrecognizedEnum)
 {
   string message =
-    "{"
-    "  \"e1\": \"XXX\","
-    "  \"e2\": \"\","
-    "  \"repeated_enum\": [\"ONE\", \"XXX\", \"\", \"TWO\"]"
-    "}";
+    R"~(
+    {
+      "e1": "XXX",
+      "e2": "",
+      "repeated_enum": ["ONE", "XXX", "", "TWO"]
+    })~";
 
   Try<JSON::Object> json = JSON::parse<JSON::Object>(message);
   ASSERT_SOME(json);
@@ -528,53 +552,59 @@ TEST(ProtobufTest, Jsonify)
 
   // TODO(bmahler): To dynamically generate a protobuf message,
   // see the commented-out code below.
-//  DescriptorProto proto;
-//
-//  proto.set_name("Message");
-//
-//  FieldDescriptorProto* field = proto.add_field();
-//  field->set_name("str");
-//  field->set_type(FieldDescriptorProto::TYPE_STRING);
-//
-//  const Descriptor* descriptor = proto.descriptor();
-//
-//  DynamicMessageFactory factory;
-//  Message* message = factory.GetPrototype(descriptor);
-//
-//  Reflection* message.getReflection();
+  //  DescriptorProto proto;
+  //
+  //  proto.set_name("Message");
+  //
+  //  FieldDescriptorProto* field = proto.add_field();
+  //  field->set_name("str");
+  //  field->set_type(FieldDescriptorProto::TYPE_STRING);
+  //
+  //  const Descriptor* descriptor = proto.descriptor();
+  //
+  //  DynamicMessageFactory factory;
+  //  Message* message = factory.GetPrototype(descriptor);
+  //
+  //  Reflection* message.getReflection();
 
   // The keys are in alphabetical order.
-  string expected = strings::remove(
-      "{"
-      "  \"b\": true,"
-      "  \"str\": \"string\","
-      "  \"bytes\": \"Ynl0ZXM=\","
-      "  \"int32\": -1,"
-      "  \"int64\": -1,"
-      "  \"uint32\": 1,"
-      "  \"uint64\": 1,"
-      "  \"sint32\": -1,"
-      "  \"sint64\": -1,"
-      "  \"f\": 1.0,"
-      "  \"d\": 1.0,"
-      "  \"e\": \"ONE\","
-      "  \"nested\": { \"str\": \"nested\"},"
-      "  \"repeated_bool\": [true],"
-      "  \"repeated_string\": [\"repeated_string\"],"
-      "  \"repeated_bytes\": [\"cmVwZWF0ZWRfYnl0ZXM=\"],"
-      "  \"repeated_int32\": [-2],"
-      "  \"repeated_int64\": [-2],"
-      "  \"repeated_uint32\": [2],"
-      "  \"repeated_uint64\": [2],"
-      "  \"repeated_sint32\": [-2],"
-      "  \"repeated_sint64\": [-2],"
-      "  \"repeated_float\": [1.0],"
-      "  \"repeated_double\": [1.0, 2.0],"
-      "  \"repeated_enum\": [\"TWO\"],"
-      "  \"repeated_nested\": [ { \"str\": \"repeated_nested\" } ],"
-      "  \"optional_default\": 42.0"
-      "}",
-      " ");
+  string expected =
+    R"~(
+    {
+      "b": true,
+      "str": "string",
+      "bytes": "Ynl0ZXM=",
+      "int32": -1,
+      "int64": -1,
+      "uint32": 1,
+      "uint64": 1,
+      "sint32": -1,
+      "sint64": -1,
+      "f": 1.0,
+      "d": 1.0,
+      "e": "ONE",
+      "nested": { "str": "nested"},
+      "repeated_bool": [true],
+      "repeated_string": ["repeated_string"],
+      "repeated_bytes": ["cmVwZWF0ZWRfYnl0ZXM="],
+      "repeated_int32": [-2],
+      "repeated_int64": [-2],
+      "repeated_uint32": [2],
+      "repeated_uint64": [2],
+      "repeated_sint32": [-2],
+      "repeated_sint64": [-2],
+      "repeated_float": [1.0],
+      "repeated_double": [1.0, 2.0],
+      "repeated_enum": ["TWO"],
+      "repeated_nested": [ { "str": "repeated_nested" } ],
+      "optional_default": 42.0
+    })~";
+
+  // Remove ' ' and '\n' from `expected` so that we can compare
+  // it with the JSON string parsed from protobuf message.
+  expected.erase(
+      std::remove_if(expected.begin(), expected.end(), ::isspace),
+      expected.end());
 
   EXPECT_EQ(expected, string(jsonify(JSON::Protobuf(message))));
 }
@@ -594,18 +624,24 @@ TEST(ProtobufTest, JsonifyArray)
   message2.add_numbers(2);
 
   // The keys are in alphabetical order.
-  string expected = strings::remove(
-      "["
-      "  {"
-      "    \"id\": \"message1\","
-      "    \"numbers\": [1, 2]"
-      "  },"
-      "  {"
-      "    \"id\": \"message2\","
-      "    \"numbers\": [1, 2]"
-      "  }"
-      "]",
-      " ");
+  string expected =
+    R"~(
+    [
+      {
+        "id": "message1",
+        "numbers": [1, 2]
+      },
+      {
+        "id": "message2",
+        "numbers": [1, 2]
+      }
+    ])~";
+
+  // Remove ' ' and '\n' from `expected` so that we can compare
+  // it with the JSON string parsed from protobuf message.
+  expected.erase(
+      std::remove_if(expected.begin(), expected.end(), ::isspace),
+      expected.end());
 
   tests::ArrayMessage arrayMessage;
   arrayMessage.add_values()->CopyFrom(message1);
@@ -650,30 +686,36 @@ TEST(ProtobufTest, JsonifyLargeIntegers)
   message.mutable_nested()->set_str("nested");
 
   // The keys are in alphabetical order.
-  string expected = strings::remove(
-      "{"
-      "  \"b\": true,"
-      "  \"str\": \"string\","
-      "  \"bytes\": \"Ynl0ZXM=\","
-      "  \"int32\": -2147483647,"
-      "  \"int64\": -9223372036854775807,"
-      "  \"uint32\": 4294967295,"
-      "  \"uint64\": 9223372036854775807,"
-      "  \"sint32\": -1234567890,"
-      "  \"sint64\": -1234567890123456789,"
-      "  \"f\": 1.0,"
-      "  \"d\": 1.0,"
-      "  \"e\": \"ONE\","
-      "  \"nested\": {\"str\": \"nested\"},"
-      "  \"repeated_int32\": [-2000000000],"
-      "  \"repeated_int64\": [-9000000000000000000],"
-      "  \"repeated_uint32\": [3000000000],"
-      "  \"repeated_uint64\": [7000000000000000000],"
-      "  \"repeated_sint32\": [-1000000000],"
-      "  \"repeated_sint64\": [-8000000000000000000],"
-      "  \"optional_default\": 42.0"
-      "}",
-      " ");
+  string expected =
+    R"~(
+    {
+      "b": true,
+      "str": "string",
+      "bytes": "Ynl0ZXM=",
+      "int32": -2147483647,
+      "int64": -9223372036854775807,
+      "uint32": 4294967295,
+      "uint64": 9223372036854775807,
+      "sint32": -1234567890,
+      "sint64": -1234567890123456789,
+      "f": 1.0,
+      "d": 1.0,
+      "e": "ONE",
+      "nested": {"str": "nested"},
+      "repeated_int32": [-2000000000],
+      "repeated_int64": [-9000000000000000000],
+      "repeated_uint32": [3000000000],
+      "repeated_uint64": [7000000000000000000],
+      "repeated_sint32": [-1000000000],
+      "repeated_sint64": [-8000000000000000000],
+      "optional_default": 42.0
+    })~";
+
+  // Remove ' ' and '\n' from `expected` so that we can compare
+  // it with the JSON string parsed from protobuf message.
+  expected.erase(
+      std::remove_if(expected.begin(), expected.end(), ::isspace),
+      expected.end());
 
   // Check JSON -> String.
   EXPECT_EQ(expected, string(jsonify(JSON::Protobuf(message))));
@@ -717,75 +759,81 @@ TEST(ProtobufTest, JsonifyMap)
 
   // The keys are in alphabetical order.
   // The value of `string_to_bytes` is base64 encoded.
-  string expected = strings::remove(
-      "{"
-      "  \"bool_to_string\": {"
-      "    \"false\": \"value2\","
-      "    \"true\": \"value1\""
-      "  },"
-      "  \"int32_to_string\": {"
-      "    \"-2147483647\": \"value\""
-      "  },"
-      "  \"int64_to_string\": {"
-      "    \"-9223372036854775807\": \"value\""
-      "  },"
-      "  \"sint32_to_string\": {"
-      "    \"-1234567890\": \"value\""
-      "  },"
-      "  \"sint64_to_string\": {"
-      "    \"-1234567890123456789\": \"value\""
-      "  },"
-      "  \"string_to_bool\": {"
-      "    \"key1\": true,"
-      "    \"key2\": false"
-      "  },"
-      "  \"string_to_bytes\": {"
-      "    \"key\": \"Ynl0ZXM=\""
-      "  },"
-      "  \"string_to_double\": {"
-      "    \"key\": 1.0"
-      "  },"
-      "  \"string_to_enum\": {"
-      "    \"key\": \"ONE\""
-      "  },"
-      "  \"string_to_float\": {"
-      "    \"key\": 1.0"
-      "  },"
-      "  \"string_to_int32\": {"
-      "    \"key\": -2147483647"
-      "  },"
-      "  \"string_to_int64\": {"
-      "    \"key\": -9223372036854775807"
-      "  },"
-      "  \"string_to_nested\": {"
-      "    \"key\": {"
-      "      \"str\": \"nested\""
-      "    }"
-      "  },"
-      "  \"string_to_sint32\": {"
-      "    \"key\": -1234567890"
-      "  },"
-      "  \"string_to_sint64\": {"
-      "    \"key\": -1234567890123456789"
-      "  },"
-      "  \"string_to_string\": {"
-      "    \"key1\": \"value1\","
-      "    \"key2\": \"value2\""
-      "  },"
-      "  \"string_to_uint32\": {"
-      "    \"key\": 4294967295"
-      "  },"
-      "  \"string_to_uint64\": {"
-      "    \"key\": 9223372036854775807"
-      "  },"
-      "  \"uint32_to_string\": {"
-      "    \"4294967295\": \"value\""
-      "  },"
-      "  \"uint64_to_string\": {"
-      "    \"9223372036854775807\": \"value\""
-      "  }"
-      "}",
-      " ");
+  string expected =
+    R"~(
+    {
+      "bool_to_string": {
+        "false": "value2",
+        "true": "value1"
+      },
+      "int32_to_string": {
+        "-2147483647": "value"
+      },
+      "int64_to_string": {
+        "-9223372036854775807": "value"
+      },
+      "sint32_to_string": {
+        "-1234567890": "value"
+      },
+      "sint64_to_string": {
+        "-1234567890123456789": "value"
+      },
+      "string_to_bool": {
+        "key1": true,
+        "key2": false
+      },
+      "string_to_bytes": {
+        "key": "Ynl0ZXM="
+      },
+      "string_to_double": {
+        "key": 1.0
+      },
+      "string_to_enum": {
+        "key": "ONE"
+      },
+      "string_to_float": {
+        "key": 1.0
+      },
+      "string_to_int32": {
+        "key": -2147483647
+      },
+      "string_to_int64": {
+        "key": -9223372036854775807
+      },
+      "string_to_nested": {
+        "key": {
+          "str": "nested"
+        }
+      },
+      "string_to_sint32": {
+        "key": -1234567890
+      },
+      "string_to_sint64": {
+        "key": -1234567890123456789
+      },
+      "string_to_string": {
+        "key1": "value1",
+        "key2": "value2"
+      },
+      "string_to_uint32": {
+        "key": 4294967295
+      },
+      "string_to_uint64": {
+        "key": 9223372036854775807
+      },
+      "uint32_to_string": {
+        "4294967295": "value"
+      },
+      "uint64_to_string": {
+        "9223372036854775807": "value"
+      }
+    })~";
+
+  // Remove ' ' and '\n' from `expected` so that we can compare
+  // it with the JSON string parsed from protobuf message.
+  expected.erase(
+      std::remove_if(expected.begin(), expected.end(), ::isspace),
+      expected.end());
 
   JSON::Object object = JSON::protobuf(message);
   EXPECT_EQ(expected, stringify(object));
