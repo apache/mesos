@@ -13,51 +13,14 @@
 #ifndef __STOUT_OS_OPEN_HPP__
 #define __STOUT_OS_OPEN_HPP__
 
-#include <sys/stat.h>
-#include <sys/types.h>
 
-#include <string>
-
-#include <stout/error.hpp>
-#include <stout/nothing.hpp>
-#include <stout/try.hpp>
-
-#include <stout/os/close.hpp>
-#include <stout/os/fcntl.hpp>
-#include <stout/os/int_fd.hpp>
-
+// For readability, we minimize the number of #ifdef blocks in the code by
+// splitting platform specific system calls into separate directories.
 #ifdef __WINDOWS__
-#include <stout/internal/windows/longpath.hpp>
-#endif // __WINDOWS__
-
-#ifndef O_CLOEXEC
-#error "missing O_CLOEXEC support on this platform"
-// NOTE: On Windows, `fnctl.hpp` defines `O_CLOEXEC` to a no-op.
-#endif
-
-namespace os {
-
-inline Try<int_fd> open(const std::string& path, int oflag, mode_t mode = 0)
-{
-#ifdef __WINDOWS__
-  std::wstring longpath = ::internal::windows::longpath(path);
-  // By default, Windows will perform "text translation" meaning that it will
-  // automatically write CR/LF instead of LF line feeds. To prevent this, and
-  // use the POSIX semantics, we open with `O_BINARY`.
-  //
-  // Also by default, we will mimic the Windows (non-CRT) APIs and make all
-  // opened handles non-inheritable.
-  int_fd fd = ::_wopen(longpath.data(), oflag | O_BINARY | O_NOINHERIT, mode);
+#include <stout/os/windows/open.hpp>
 #else
-  int_fd fd = ::open(path.c_str(), oflag, mode);
+#include <stout/os/posix/open.hpp>
 #endif // __WINDOWS__
-  if (fd < 0) {
-    return ErrnoError();
-  }
 
-  return fd;
-}
-
-} // namespace os {
 
 #endif // __STOUT_OS_OPEN_HPP__

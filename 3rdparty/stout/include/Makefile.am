@@ -139,6 +139,7 @@ nobase_include_HEADERS =			\
   stout/os/posix/mkdir.hpp			\
   stout/os/posix/mkdtemp.hpp			\
   stout/os/posix/mktemp.hpp			\
+  stout/os/posix/open.hpp			\
   stout/os/posix/pagesize.hpp			\
   stout/os/posix/pipe.hpp			\
   stout/os/posix/read.hpp			\
@@ -180,6 +181,7 @@ nobase_include_HEADERS =			\
   stout/os/windows/mkdir.hpp			\
   stout/os/windows/mktemp.hpp			\
   stout/os/windows/mkdtemp.hpp			\
+  stout/os/windows/open.hpp			\
   stout/os/windows/pagesize.hpp			\
   stout/os/windows/pipe.hpp			\
   stout/os/windows/read.hpp			\
