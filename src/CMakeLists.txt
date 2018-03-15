@@ -18,12 +18,18 @@
 #########################################
 include(MesosProtobuf)
 
+set(PUBLIC_PROTO_PATH "")
+set(PUBLIC_PROTOBUF_INCLUDE_DIR "")
+set(PUBLIC_PROTOBUF_SRC "")
+set(INTERNAL_PROTO_PATH "")
+set(INTERNAL_PROTOBUF_INCLUDE_DIR "")
+set(INTERNAL_PROTOBUF_SRC "")
+set(JAVA_PROTOBUF_SRC "")
+
 # Build the protobuf structs.
 #
-# NOTE: `PROTOC_GENERATE` will list append to `PUBLIC_PROTOBUF_SRC`,
-# `INTERNAL_PROTOBUF_SRC`, and/or `JAVA_PROTOBUF_SRC` depending on the
-# `INTERNAL` and `JAVA` options.
-set(PUBLIC_PROTOBUF_SRC "")
+# NOTE: The following `PROTOC_GENERATE` calls will list append to
+# `PUBLIC_PROTOBUF_SRC`.
 PROTOC_GENERATE(TARGET mesos/agent/agent)
 PROTOC_GENERATE(TARGET mesos/allocator/allocator)
 PROTOC_GENERATE(TARGET mesos/appc/spec)
@@ -45,8 +51,9 @@ PROTOC_GENERATE(TARGET mesos/slave/oversubscription)
 PROTOC_GENERATE(TARGET mesos/state/state)
 PROTOC_GENERATE(TARGET mesos/uri/uri)
 
-# NOTE: The JAVA option is a noop if Java is disabled.
-set(JAVA_PROTOBUF_SRC "")
+# NOTE: The following `PROTOC_GENERATE` calls will list append to
+# `PUBLIC_PROTOBUF_SRC` and/or `JAVA_PROTOBUF_SRC`. The JAVA option is a noop if
+# Java is disabled.
 PROTOC_GENERATE(JAVA TARGET mesos/executor/executor)
 PROTOC_GENERATE(JAVA TARGET mesos/fetcher/fetcher)
 PROTOC_GENERATE(JAVA TARGET mesos/mesos)
@@ -61,7 +68,8 @@ PROTOC_GENERATE(JAVA TARGET mesos/v1/quota/quota)
 PROTOC_GENERATE(JAVA TARGET mesos/v1/resource_provider/resource_provider)
 PROTOC_GENERATE(JAVA TARGET mesos/v1/scheduler/scheduler)
 
-set(INTERNAL_PROTOBUF_SRC "")
+# NOTE: The following `PROTOC_GENERATE` calls will list append to
+# `INTERNAL_PROTOBUF_SRC`.
 PROTOC_GENERATE(INTERNAL TARGET messages/flags)
 PROTOC_GENERATE(INTERNAL TARGET messages/log)
 PROTOC_GENERATE(INTERNAL TARGET messages/messages)
@@ -94,7 +102,13 @@ add_library(
 
 target_link_libraries(mesos-protobufs PUBLIC protobuf)
 target_include_directories(
-  mesos-protobufs PUBLIC ${MESOS_PROTOBUF_HEADER_INCLUDE_DIRS})
+  mesos-protobufs
+  PUBLIC
+  ${MESOS_PROTOBUF_HEADER_INCLUDE_DIRS}
+  ${PUBLIC_PROTOBUF_INCLUDE_DIR}
+
+  PRIVATE
+  ${INTERNAL_PROTOBUF_INCLUDE_DIR})
 
 
 # BUILD JAVA ARTIFACTS.
@@ -483,10 +497,7 @@ target_compile_definitions(mesos PUBLIC USE_CMAKE_BUILD_CONFIG)
 target_include_directories(
   mesos PUBLIC
   ${MESOS_PUBLIC_INCLUDE_DIR}
-
-  # Contains (e.g.) compiled *.pb.h files.
   ${MESOS_BIN_INCLUDE_DIR}
-  ${MESOS_BIN_INCLUDE_DIR}/mesos
   ${MESOS_BIN_SRC_DIR}
   ${MESOS_SRC_DIR})
 
