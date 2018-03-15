@@ -11179,7 +11179,7 @@ void Master::Subscribers::Subscriber::send(
       CHECK_NOTNULL(frameworkInfo.get());
       CHECK_NOTNULL(task.get());
 
-      if (approvers->approved<VIEW_TASK>(*task.get(), *frameworkInfo) &&
+      if (approvers->approved<VIEW_TASK>(*task, *frameworkInfo) &&
           approvers->approved<VIEW_FRAMEWORK>(*frameworkInfo)) {
         http.send<mesos::master::Event, v1::master::Event>(*event);
       }
