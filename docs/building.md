@@ -66,7 +66,7 @@ Following are the instructions for stock Ubuntu 16.04. If you are using a differ
     $ sudo apt-get install -y autoconf libtool
 
     # Install other Mesos dependencies.
-    $ sudo apt-get -y install build-essential python-dev python-six python-virtualenv libcurl4-nss-dev libsasl2-dev libsasl2-modules maven libapr1-dev libsvn-dev zlib1g-dev
+    $ sudo apt-get -y install build-essential python-dev python-six python-virtualenv libcurl4-nss-dev libsasl2-dev libsasl2-modules maven libapr1-dev libsvn-dev zlib1g-dev iputils-ping
 
 ### Mac OS X 10.11 (El Capitan), macOS 10.12 (Sierra)
 
