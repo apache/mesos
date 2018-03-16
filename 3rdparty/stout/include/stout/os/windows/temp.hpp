@@ -29,7 +29,7 @@ namespace os {
 // where none of these are found, this function returns the current directory.
 inline std::string temp()
 {
-  size_t size = static_cast<size_t>(MAX_PATH) + 2;
+  const size_t size = static_cast<size_t>(MAX_PATH) + 2;
   std::vector<wchar_t> buffer;
   buffer.reserve(size);
   if (::GetTempPathW(static_cast<DWORD>(size), buffer.data()) == 0) {

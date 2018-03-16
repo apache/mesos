@@ -73,7 +73,7 @@ inline Try<SharedHandle> open_job(
 inline Try<SharedHandle> open_job(
     const DWORD desired_access, const BOOL inherit_handles, const pid_t pid)
 {
-  Try<std::wstring> name = os::name_job(pid);
+  const Try<std::wstring> name = os::name_job(pid);
   if (name.isError()) {
     return Error(name.error());
   }
@@ -115,7 +115,7 @@ inline Try<JOBOBJECT_BASIC_ACCOUNTING_INFORMATION> get_job_info(pid_t pid)
 
   JOBOBJECT_BASIC_ACCOUNTING_INFORMATION info = {};
 
-  BOOL result = ::QueryInformationJobObject(
+  const BOOL result = ::QueryInformationJobObject(
       job_handle->get_handle(),
       JobObjectBasicAccountingInformation,
       &info,
@@ -144,7 +144,7 @@ Result<std::set<Process>> _get_job_processes(const SharedHandle& job_handle)
     DWORD ProcessIdList[max_pids];
   } pid_list;
 
-  BOOL result = ::QueryInformationJobObject(
+  const BOOL result = ::QueryInformationJobObject(
       job_handle.get_handle(),
       JobObjectBasicProcessIdList,
       reinterpret_cast<JOBOBJECT_BASIC_PROCESS_ID_LIST*>(&pid_list),
@@ -300,7 +300,7 @@ inline Try<Nothing> set_job_cpu_limit(pid_t pid, double cpus)
     return Error(job_handle.error());
   }
 
-  BOOL result = ::SetInformationJobObject(
+  const BOOL result = ::SetInformationJobObject(
       job_handle->get_handle(),
       JobObjectCpuRateControlInformation,
       &control_info,
@@ -331,7 +331,7 @@ inline Try<Nothing> set_job_mem_limit(pid_t pid, Bytes limit)
     return Error(job_handle.error());
   }
 
-  BOOL result = ::SetInformationJobObject(
+  const BOOL result = ::SetInformationJobObject(
       job_handle->get_handle(),
       JobObjectExtendedLimitInformation,
       &info,

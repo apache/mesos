@@ -32,7 +32,7 @@ inline Try<std::list<ProcessTree>> killtree(
     bool groups = false,
     bool sessions = false)
 {
-  Try<std::wstring> name = os::name_job(pid);
+  const Try<std::wstring> name = os::name_job(pid);
   if (name.isError()) {
     return Error("Failed to determine job object name: " + name.error());
   }

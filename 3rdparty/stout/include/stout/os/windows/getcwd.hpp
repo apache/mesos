@@ -29,13 +29,13 @@ namespace os {
 inline std::string getcwd()
 {
   // First query for the buffer size required.
-  DWORD length = ::GetCurrentDirectoryW(0, nullptr);
+  const DWORD length = ::GetCurrentDirectoryW(0, nullptr);
   CHECK(length != 0) << "Failed to retrieve current directory buffer size";
 
   std::vector<wchar_t> buffer;
   buffer.reserve(static_cast<size_t>(length));
 
-  DWORD result = ::GetCurrentDirectoryW(length, buffer.data());
+  const DWORD result = ::GetCurrentDirectoryW(length, buffer.data());
   CHECK(result != 0) << "Failed to determine current directory";
 
   return strings::remove(

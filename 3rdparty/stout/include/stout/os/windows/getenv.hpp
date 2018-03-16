@@ -36,7 +36,8 @@ inline Option<std::string> getenv(const std::string& key)
   // the value itself. It is possible to have `::GetEnvironmentVariable`
   // allocate the space for this, but we explicitly do it this way to avoid
   // that.
-  DWORD buffer_size = ::GetEnvironmentVariableW(wide_key.data(), nullptr, 0);
+  const DWORD buffer_size =
+    ::GetEnvironmentVariableW(wide_key.data(), nullptr, 0);
   if (buffer_size == 0) {
     if (::GetLastError() == ERROR_ENVVAR_NOT_FOUND) {
       return None();

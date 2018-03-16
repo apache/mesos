@@ -38,7 +38,7 @@ inline Result<std::string> realpath(const std::string& path)
   }
 
   // First query for the buffer size required.
-  DWORD length = ::GetFinalPathNameByHandleW(
+  const DWORD length = ::GetFinalPathNameByHandleW(
       handle.get().get_handle(), nullptr, 0, FILE_NAME_NORMALIZED);
   if (length == 0) {
     return WindowsError("Failed to retrieve realpath buffer size");

@@ -87,7 +87,8 @@ inline Result<std::string> user(Option<uid_t> uid = None())
     }
   }
 
-  std::vector<wchar_t> user_name(buffer_size);
+  std::vector<wchar_t> user_name;
+  user_name.reserve(buffer_size);
   if (::GetUserNameExW(username_format, user_name.data(), &buffer_size)
       == FALSE) {
     return WindowsError("os::user: Failed to get username from OS");
