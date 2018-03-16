@@ -857,7 +857,6 @@ Future<Response> Master::Http::subscribe(
           ok.reader = pipe.reader();
 
           HttpConnection http{pipe.writer(), contentType, id::UUID::random()};
-          master->subscribe(http, principal);
 
           mesos::master::Event event;
           event.set_type(mesos::master::Event::SUBSCRIBED);
@@ -876,6 +875,10 @@ Future<Response> Master::Http::subscribe(
           mesos::master::Event heartbeatEvent;
           heartbeatEvent.set_type(mesos::master::Event::HEARTBEAT);
           http.send<mesos::master::Event, v1::master::Event>(heartbeatEvent);
+
+          // Master::subscribe will start the heartbeater process, which should
+          // only happen after `SUBSCRIBED` event is sent.
+          master->subscribe(http, principal);
 
           return ok;
     }));
