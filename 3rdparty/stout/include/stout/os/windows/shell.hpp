@@ -30,7 +30,7 @@
 #include <stout/try.hpp>
 #include <stout/windows.hpp>
 
-#include <stout/os/windows/fd.hpp>
+#include <stout/os/int_fd.hpp>
 
 #include <stout/internal/windows/inherit.hpp>
 
@@ -241,7 +241,7 @@ inline Try<ProcessData> create_process(
     const std::vector<std::string>& argv,
     const Option<std::map<std::string, std::string>>& environment,
     const bool create_suspended = false,
-    const Option<std::array<os::WindowsFD, 3>> pipes = None())
+    const Option<std::array<int_fd, 3>>& pipes = None())
 {
   // TODO(andschwa): Assert that `command` and `argv[0]` are the same.
   const std::wstring arg_string = stringify_args(argv);
@@ -277,7 +277,7 @@ inline Try<ProcessData> create_process(
   // [2] https://msdn.microsoft.com/en-us/library/windows/desktop/ms682499(v=vs.85).aspx
   if (pipes.isSome()) {
     // Each of these handles must be inheritable.
-    foreach (const os::WindowsFD& fd, pipes.get()) {
+    foreach (const int_fd& fd, pipes.get()) {
       const Try<Nothing> inherit = set_inherit(fd, true);
       if (inherit.isError()) {
         return Error(inherit.error());
@@ -319,7 +319,7 @@ inline Try<ProcessData> create_process(
     // NOTE: This is explicit, and does not take into account the
     // previous inheritance semantics of each `HANDLE`. It is assumed
     // that users of this function send non-inheritable handles.
-    foreach (const os::WindowsFD& fd, pipes.get()) {
+    foreach (const int_fd& fd, pipes.get()) {
       const Try<Nothing> inherit = set_inherit(fd, false);
       if (inherit.isError()) {
         return Error(inherit.error());

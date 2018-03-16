@@ -19,12 +19,13 @@
 #include <stout/try.hpp>
 #include <stout/windows/error.hpp>
 
-#include <stout/os/windows/fd.hpp>
+#include <stout/os/int_fd.hpp>
+
 #include <stout/os/windows/socket.hpp>
 
 namespace os {
 
-inline Try<Nothing> close(const WindowsFD& fd)
+inline Try<Nothing> close(const int_fd& fd)
 {
   switch (fd.type()) {
     case WindowsFD::FD_CRT:

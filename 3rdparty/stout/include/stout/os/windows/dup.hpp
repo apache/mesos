@@ -18,11 +18,11 @@
 #include <stout/unreachable.hpp>
 #include <stout/windows.hpp> // For `WinSock2.h`.
 
-#include <stout/os/windows/fd.hpp>
+#include <stout/os/int_fd.hpp>
 
 namespace os {
 
-inline Try<WindowsFD> dup(const WindowsFD& fd)
+inline Try<int_fd> dup(const int_fd& fd)
 {
   switch (fd.type()) {
     case WindowsFD::FD_CRT:

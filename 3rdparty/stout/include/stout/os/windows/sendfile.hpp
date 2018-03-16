@@ -19,7 +19,7 @@
 #include <stout/try.hpp>
 #include <stout/windows.hpp> // For `winioctl.h`.
 
-#include <stout/os/windows/fd.hpp>
+#include <stout/os/int_fd.hpp>
 
 namespace os {
 
@@ -27,33 +27,27 @@ namespace os {
 // descriptor to the output socket.
 // On error, `Try<ssize_t, SocketError>` contains the error.
 inline Try<ssize_t, SocketError> sendfile(
-    const WindowsFD& s, const WindowsFD& fd, off_t offset, size_t length)
+    const int_fd& s, const int_fd& fd, off_t offset, size_t length)
 {
   // NOTE: We convert the `offset` here to avoid potential data loss
   // in the type casting and bitshifting below.
   uint64_t offset_ = offset;
 
   OVERLAPPED from = {
-      0,
-      0,
-      {static_cast<DWORD>(offset_), static_cast<DWORD>(offset_ >> 32)},
-      nullptr};
+    0,
+    0,
+    {static_cast<DWORD>(offset_), static_cast<DWORD>(offset_ >> 32)},
+    nullptr};
 
   CHECK_LE(length, MAXDWORD);
-  if (TransmitFile(
-          s,
-          fd,
-          static_cast<DWORD>(length),
-          0,
-          &from,
-          nullptr,
-          0) == FALSE &&
-      (WSAGetLastError() == WSA_IO_PENDING ||
-       WSAGetLastError() == ERROR_IO_PENDING)) {
+  if (::TransmitFile(s, fd, static_cast<DWORD>(length), 0, &from, nullptr, 0) ==
+        FALSE &&
+      (::WSAGetLastError() == WSA_IO_PENDING ||
+       ::WSAGetLastError() == ERROR_IO_PENDING)) {
     DWORD sent = 0;
     DWORD flags = 0;
 
-    if (WSAGetOverlappedResult(s, &from, &sent, TRUE, &flags) == TRUE) {
+    if (::WSAGetOverlappedResult(s, &from, &sent, TRUE, &flags) == TRUE) {
       return sent;
     }
   }

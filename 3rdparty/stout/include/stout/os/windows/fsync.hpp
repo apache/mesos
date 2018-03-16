@@ -20,14 +20,13 @@
 #include <stout/try.hpp>
 #include <stout/windows.hpp>
 
-#include <stout/os/windows/fd.hpp>
-
+#include <stout/os/int_fd.hpp>
 
 namespace os {
 
-inline Try<Nothing> fsync(const WindowsFD& fd)
+inline Try<Nothing> fsync(const int_fd& fd)
 {
-  if (!FlushFileBuffers(fd)) {
+  if (!::FlushFileBuffers(fd)) {
     return WindowsError(
         "os::fsync: Could not flush file buffers for given file descriptor");
   }

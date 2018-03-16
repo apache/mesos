@@ -42,7 +42,6 @@
 #include <stout/os/read.hpp>
 
 #include <stout/os/raw/environment.hpp>
-#include <stout/os/windows/fd.hpp>
 
 // NOTE: These system headers must be included after `stout/windows.hpp`
 // as they may include `Windows.h`. See comments in `stout/windows.hpp`

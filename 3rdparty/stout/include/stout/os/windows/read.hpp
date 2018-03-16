@@ -19,13 +19,12 @@
 #include <stout/unreachable.hpp>
 #include <stout/windows.hpp> // For order-dependent networking headers.
 
+#include <stout/os/int_fd.hpp>
 #include <stout/os/socket.hpp>
-#include <stout/os/windows/fd.hpp>
-
 
 namespace os {
 
-inline ssize_t read(const WindowsFD& fd, void* data, size_t size)
+inline ssize_t read(const int_fd& fd, void* data, size_t size)
 {
   CHECK_LE(size, UINT_MAX);
 

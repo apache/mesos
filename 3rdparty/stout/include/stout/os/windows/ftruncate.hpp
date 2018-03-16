@@ -20,13 +20,12 @@
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
-#include <stout/os/windows/fd.hpp>
-
+#include <stout/os/int_fd.hpp>
 
 namespace os {
 
 // Identical in functionality to POSIX standard `ftruncate`.
-inline Try<Nothing> ftruncate(const WindowsFD& fd, __int64 length)
+inline Try<Nothing> ftruncate(const int_fd& fd, __int64 length)
 {
   if (::_chsize_s(fd.crt(), length) != 0) {
     return ErrnoError(

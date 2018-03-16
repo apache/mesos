@@ -16,10 +16,9 @@
 #include <stout/error.hpp>
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
-
-#include <stout/os/windows/fd.hpp>
 #include <stout/windows.hpp>
 
+#include <stout/os/int_fd.hpp>
 
 namespace internal {
 namespace windows {
@@ -29,7 +28,7 @@ namespace windows {
 // NOTE: By default, handles on Windows are not inheritable, so this is
 // primarily used to enable inheritance when passing handles to child processes,
 // and subsequently disable inheritance.
-inline Try<Nothing> set_inherit(const os::WindowsFD& fd, const bool inherit)
+inline Try<Nothing> set_inherit(const int_fd& fd, const bool inherit)
 {
   const BOOL result = ::SetHandleInformation(
       fd, HANDLE_FLAG_INHERIT, inherit ? HANDLE_FLAG_INHERIT : 0);
