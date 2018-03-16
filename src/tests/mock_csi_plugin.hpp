@@ -22,7 +22,7 @@
 
 #include <gmock/gmock.h>
 
-#include <grpc++/grpc++.h>
+#include <grpcpp/grpcpp.h>
 
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
