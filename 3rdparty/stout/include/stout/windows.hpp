@@ -335,11 +335,6 @@ const mode_t S_ISUID = 0x08000000;        // No-op.
 const mode_t S_ISGID = 0x04000000;        // No-op.
 const mode_t S_ISVTX = 0x02000000;        // No-op.
 
-
-// Flags not supported by Windows.
-const mode_t O_SYNC     = 0x00000000;     // No-op.
-const mode_t O_NONBLOCK = 0x00000000;     // No-op.
-
 // Even though SIGKILL doesn't exist on Windows, we define
 // it here, because Docker defines it. So, the docker
 // executor needs this signal value to properly kill containers.

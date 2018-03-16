@@ -56,6 +56,7 @@
 #include <stout/try.hpp>
 
 #include <stout/os/int_fd.hpp>
+#include <stout/os/close.hpp>
 #include <stout/os/open.hpp>
 
 #ifdef __WINDOWS__

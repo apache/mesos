@@ -22,16 +22,6 @@
 #include <stout/os/socket.hpp>
 #include <stout/os/windows/fd.hpp>
 
-#define O_RDONLY _O_RDONLY
-#define O_WRONLY _O_WRONLY
-#define O_RDWR _O_RDWR
-#define O_CREAT _O_CREAT
-#define O_TRUNC _O_TRUNC
-#define O_APPEND _O_APPEND
-// NOTE: Windows does not support the semantics of close-on-exec. Instead, by
-// default we set all handles to be non-inheritable.
-#define O_CLOEXEC 0
-
 namespace os {
 
 inline Try<Nothing> cloexec(const WindowsFD& fd)

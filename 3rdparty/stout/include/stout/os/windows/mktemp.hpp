@@ -61,7 +61,8 @@ inline Try<std::string> mktemp(
   // attempt to match POSIX's specification of `mkstemp`. We use `_S_IREAD` and
   // `_S_IWRITE` here instead of the POSIX equivalents. On Windows the file is
   // is not present, we use `_O_CREAT` option when opening the file.
-  Try<int_fd> fd = os::open(temp_file, _O_CREAT, _S_IREAD | _S_IWRITE);
+  Try<int_fd> fd =
+    os::open(temp_file, O_RDWR | O_CREAT | O_EXCL, _S_IREAD | _S_IWRITE);
   if (fd.isError()) {
     return Error(fd.error());
   }
