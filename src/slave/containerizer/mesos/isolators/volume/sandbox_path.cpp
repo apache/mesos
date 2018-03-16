@@ -288,6 +288,16 @@ Future<Option<ContainerLaunchInfo>> VolumeSandboxPathIsolatorProcess::prepare(
   return launchInfo;
 }
 
+
+Future<Nothing> VolumeSandboxPathIsolatorProcess::cleanup(
+    const ContainerID& containerId)
+{
+  // Remove the current container's sandbox path from `sandboxes`.
+  sandboxes.erase(containerId);
+
+  return Nothing();
+}
+
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {

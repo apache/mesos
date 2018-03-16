@@ -46,6 +46,9 @@ public:
       const ContainerID& containerId,
       const mesos::slave::ContainerConfig& containerConfig);
 
+  virtual process::Future<Nothing> cleanup(
+      const ContainerID& containerId);
+
 private:
   VolumeSandboxPathIsolatorProcess(
       const Flags& flags,
