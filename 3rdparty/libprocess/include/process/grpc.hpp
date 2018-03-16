@@ -64,6 +64,9 @@ public:
             ::grpc::InsecureChannelCredentials())
     : channel(::grpc::CreateChannel(uri, credentials)) {}
 
+  explicit Channel(std::shared_ptr<::grpc::Channel> _channel)
+    : channel(std::move(_channel)) {}
+
 private:
   std::shared_ptr<::grpc::Channel> channel;
 
