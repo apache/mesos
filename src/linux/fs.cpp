@@ -682,14 +682,124 @@ Try<Nothing> mountSpecialFilesystems(const string& root)
   // List of special filesystems useful for a chroot environment.
   // NOTE: This list is ordered, e.g., mount /proc before bind
   // mounting /proc/sys and then making it read-only.
-  const vector<Mount> mounts = {
-    {"proc",      "/proc",     "proc",   None(),      MS_NOSUID | MS_NOEXEC | MS_NODEV},             // NOLINT(whitespace/line_length)
-    {"/proc/sys", "/proc/sys", None(),   None(),      MS_BIND},
-    {None(),      "/proc/sys", None(),   None(),      MS_BIND | MS_RDONLY | MS_REMOUNT},             // NOLINT(whitespace/line_length)
-    {"sysfs",     "/sys",      "sysfs",  None(),      MS_RDONLY | MS_NOSUID | MS_NOEXEC | MS_NODEV}, // NOLINT(whitespace/line_length)
-    {"tmpfs",     "/dev",      "tmpfs",  "mode=755",  MS_NOSUID | MS_STRICTATIME | MS_NOEXEC},       // NOLINT(whitespace/line_length)
-    {"devpts",    "/dev/pts",  "devpts", "newinstance,ptmxmode=0666", MS_NOSUID | MS_NOEXEC},        // NOLINT(whitespace/line_length)
-    {"tmpfs",     "/dev/shm",  "tmpfs",  "mode=1777", MS_NOSUID | MS_NODEV | MS_STRICTATIME},        // NOLINT(whitespace/line_length)
+  //
+  // TODO(jasonlai): These special filesystem mount points need to be
+  // bind-mounted prior to all other mount points specified in
+  // `ContainerLaunchInfo`.
+  //
+  // One example of the known issues caused by this behavior is:
+  // https://issues.apache.org/jira/browse/MESOS-6798
+  // There will be follow-up efforts on moving the logic below to
+  // proper isolators.
+  //
+  // TODO(jasonlai): Consider adding knobs to allow write access to
+  // those system files if configured by the operator.
+  static const vector<Mount> mounts = {
+    {
+      "proc",
+      "/proc",
+      "proc",
+      None(),
+      MS_NOSUID | MS_NOEXEC | MS_NODEV
+    },
+    {
+      "/proc/bus",
+      "/proc/bus",
+      None(),
+      None(),
+      MS_BIND
+    },
+    {
+      None(),
+      "/proc/bus",
+      None(),
+      None(),
+      MS_BIND | MS_RDONLY | MS_REMOUNT | MS_NOSUID | MS_NOEXEC | MS_NODEV
+    },
+    {
+      "/proc/fs",
+      "/proc/fs",
+      None(),
+      None(),
+      MS_BIND
+    },
+    {
+      None(),
+      "/proc/fs",
+      None(),
+      None(),
+      MS_BIND | MS_RDONLY | MS_REMOUNT | MS_NOSUID | MS_NOEXEC | MS_NODEV
+    },
+    {
+      "/proc/irq",
+      "/proc/irq",
+      None(),
+      None(),
+      MS_BIND
+    },
+    {
+      None(),
+      "/proc/irq",
+      None(),
+      None(),
+      MS_BIND | MS_RDONLY | MS_REMOUNT | MS_NOSUID | MS_NOEXEC | MS_NODEV
+    },
+    {
+      "/proc/sys",
+      "/proc/sys",
+      None(),
+      None(),
+      MS_BIND
+    },
+    {
+      None(),
+      "/proc/sys",
+      None(),
+      None(),
+      MS_BIND | MS_RDONLY | MS_REMOUNT | MS_NOSUID | MS_NOEXEC | MS_NODEV
+    },
+    {
+      "/proc/sysrq-trigger",
+      "/proc/sysrq-trigger",
+      None(),
+      None(),
+      MS_BIND
+    },
+    {
+      None(),
+      "/proc/sysrq-trigger",
+      None(),
+      None(),
+      MS_BIND | MS_RDONLY | MS_REMOUNT | MS_NOSUID | MS_NOEXEC | MS_NODEV
+    },
+    {
+      "sysfs",
+      "/sys",
+      "sysfs",
+      None(),
+      MS_RDONLY | MS_NOSUID | MS_NOEXEC | MS_NODEV
+    },
+    {
+      "tmpfs",
+      "/dev",
+      "tmpfs",
+      "mode=755",
+      MS_NOSUID | MS_STRICTATIME | MS_NOEXEC
+    },
+    {
+      "devpts",
+      "/dev/pts",
+      "devpts",
+      "newinstance,ptmxmode=0666",
+      MS_NOSUID | MS_NOEXEC
+    },
+    {
+      "tmpfs",
+      "/dev/shm",
+      "tmpfs",
+      "mode=1777",
+      MS_NOSUID | MS_NODEV | MS_STRICTATIME
+    },
   };
 
   foreach (const Mount& mount, mounts) {
