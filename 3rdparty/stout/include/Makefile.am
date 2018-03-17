@@ -136,6 +136,7 @@ nobase_include_HEADERS =			\
   stout/os/posix/kill.hpp			\
   stout/os/posix/killtree.hpp			\
   stout/os/posix/ls.hpp				\
+  stout/os/posix/lseek.hpp			\
   stout/os/posix/mkdir.hpp			\
   stout/os/posix/mkdtemp.hpp			\
   stout/os/posix/mktemp.hpp			\
@@ -178,6 +179,7 @@ nobase_include_HEADERS =			\
   stout/os/windows/kill.hpp			\
   stout/os/windows/killtree.hpp			\
   stout/os/windows/ls.hpp			\
+  stout/os/windows/lseek.hpp			\
   stout/os/windows/mkdir.hpp			\
   stout/os/windows/mktemp.hpp			\
   stout/os/windows/mkdtemp.hpp			\

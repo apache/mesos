@@ -10,17 +10,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __STOUT_OS_LSEEK_HPP__
-#define __STOUT_OS_LSEEK_HPP__
+#ifndef __STOUT_OS_POSIX_LSEEK_HPP__
+#define __STOUT_OS_POSIX_LSEEK_HPP__
 
+#include <unistd.h>
 
-// For readability, we minimize the number of #ifdef blocks in the code by
-// splitting platform specific system calls into separate directories.
-#ifdef __WINDOWS__
-#include <stout/os/windows/lseek.hpp>
-#else
-#include <stout/os/posix/lseek.hpp>
-#endif // __WINDOWS__
+#include <stout/error.hpp>
+#include <stout/try.hpp>
 
+#include <stout/os/int_fd.hpp>
 
-#endif // __STOUT_OS_LSEEK_HPP__
+namespace os {
+
+inline Try<off_t> lseek(int_fd fd, off_t offset, int whence)
+{
+  off_t result = ::lseek(fd, offset, whence);
+  if (result < 0) {
+    return ErrnoError();
+  }
+  return result;
+}
+
+} // namespace os {
+
+#endif // __STOUT_OS_POSIX_LSEEK_HPP__
