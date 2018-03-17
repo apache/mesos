@@ -13,10 +13,9 @@
 #ifndef __STOUT_OS_WINDOWS_LSEEK_HPP__
 #define __STOUT_OS_WINDOWS_LSEEK_HPP__
 
-#include <io.h>
-
 #include <stout/error.hpp>
 #include <stout/try.hpp>
+#include <stout/windows.hpp>
 
 #include <stout/os/int_fd.hpp>
 
@@ -24,11 +23,26 @@ namespace os {
 
 inline Try<off_t> lseek(int_fd fd, off_t offset, int whence)
 {
-  off_t result = ::_lseek(fd.crt(), offset, whence);
-  if (result < 0) {
-    return ErrnoError();
+  // NOTE: The values for `SEEK_SET`, `SEEK_CUR`, and `SEEK_END` are
+  // 0, 1, 2, the same as `FILE_BEGIN`, `FILE_CURRENT`, and
+  // `FILE_END`. Thus we don't need to map them, and they can be
+  // casted to a `DWORD` safely.
+
+  LARGE_INTEGER offset_;
+  offset_.QuadPart = offset;
+
+  LARGE_INTEGER new_offset;
+
+  // TODO(andschwa): This may need to be synchronized if users aren't
+  // careful about sharing their file handles among threads.
+  const BOOL result =
+    ::SetFilePointerEx(fd, offset_, &new_offset, static_cast<DWORD>(whence));
+
+  if (result == FALSE) {
+    return WindowsError();
   }
-  return result;
+
+  return static_cast<off_t>(new_offset.QuadPart);
 }
 
 } // namespace os {
