@@ -19,9 +19,9 @@
 
 #include <string>
 
-#include <process/grpc.hpp>
-
 #include <csi/spec.hpp>
+
+#include <process/grpc.hpp>
 
 namespace mesos {
 namespace csi {

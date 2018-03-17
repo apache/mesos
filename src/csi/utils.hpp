@@ -20,6 +20,8 @@
 #include <ostream>
 #include <type_traits>
 
+#include <csi/spec.hpp>
+
 #include <google/protobuf/map.h>
 
 #include <google/protobuf/util/json_util.h>
@@ -30,7 +32,6 @@
 #include <stout/try.hpp>
 #include <stout/unreachable.hpp>
 
-#include "csi/spec.hpp"
 #include "csi/state.hpp"
 
 namespace csi {

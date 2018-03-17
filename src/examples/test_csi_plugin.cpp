@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <csi/spec.hpp>
+
 #include <grpcpp/server.h>
 #include <grpcpp/server_builder.h>
 #include <grpcpp/server_context.h>
@@ -32,7 +34,6 @@
 #include <stout/os/mkdir.hpp>
 #include <stout/os/rmdir.hpp>
 
-#include "csi/spec.hpp"
 #include "csi/utils.hpp"
 
 #include "linux/fs.hpp"

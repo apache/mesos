@@ -20,14 +20,14 @@
 #include <memory>
 #include <string>
 
+#include <csi/spec.hpp>
+
 #include <gmock/gmock.h>
 
 #include <grpcpp/grpcpp.h>
 
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
-
-#include <csi/spec.hpp>
 
 namespace mesos {
 namespace internal {

@@ -20,6 +20,8 @@
 #include <string>
 #include <tuple>
 
+#include <csi/spec.hpp>
+
 #include <mesos/module/disk_profile.hpp>
 
 #include <mesos/resource_provider/storage/disk_profile.hpp>
@@ -39,8 +41,7 @@
 #include <stout/result.hpp>
 #include <stout/strings.hpp>
 
-#include <csi/spec.hpp>
-#include <csi/utils.hpp>
+#include "csi/utils.hpp"
 
 #include "resource_provider/storage/disk_profile_utils.hpp"
 

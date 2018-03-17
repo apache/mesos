@@ -16,6 +16,8 @@
 
 #include <string>
 
+#include <csi/spec.hpp>
+
 #include <mesos/module/disk_profile.hpp>
 
 #include <mesos/resource_provider/storage/disk_profile.hpp>
@@ -23,8 +25,6 @@
 #include <process/future.hpp>
 
 #include <stout/hashset.hpp>
-
-#include <csi/spec.hpp>
 
 #include "module/manager.hpp"
 
