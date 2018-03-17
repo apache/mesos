@@ -26,7 +26,11 @@
 
 #include <grpcpp/grpcpp.h>
 
+#include <process/grpc.hpp>
+
+#include <stout/none.hpp>
 #include <stout/nothing.hpp>
+#include <stout/option.hpp>
 #include <stout/try.hpp>
 
 namespace mesos {
@@ -67,8 +71,9 @@ public:
 
   CSI_METHOD_FOREACH(DECLARE_MOCK_CSI_METHOD)
 
-  Try<Nothing> Startup(const std::string& address);
-  Try<Nothing> Shutdown();
+  Try<process::grpc::Channel> startup(
+      const Option<std::string>& address = None());
+  Try<Nothing> shutdown();
 
 private:
   std::unique_ptr<grpc::Server> server;

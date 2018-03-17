@@ -23,11 +23,14 @@ using csi::Controller;
 using csi::Identity;
 using csi::Node;
 
+using grpc::ChannelArguments;
 using grpc::InsecureServerCredentials;
 using grpc::Server;
 using grpc::ServerBuilder;
 using grpc::ServerContext;
 using grpc::Status;
+
+using process::grpc::Channel;
 
 using testing::_;
 using testing::Return;
@@ -46,10 +49,14 @@ MockCSIPlugin::MockCSIPlugin()
 }
 
 
-Try<Nothing> MockCSIPlugin::Startup(const string& address)
+Try<Channel> MockCSIPlugin::startup(const Option<string>& address)
 {
   ServerBuilder builder;
-  builder.AddListeningPort(address, InsecureServerCredentials());
+
+  if (address.isSome()) {
+    builder.AddListeningPort(address.get(), InsecureServerCredentials());
+  }
+
   builder.RegisterService(static_cast<Identity::Service*>(this));
   builder.RegisterService(static_cast<Controller::Service*>(this));
   builder.RegisterService(static_cast<Node::Service*>(this));
@@ -59,11 +66,13 @@ Try<Nothing> MockCSIPlugin::Startup(const string& address)
     return Error("Unable to start a mock CSI plugin.");
   }
 
-  return Nothing();
+  return address.isSome()
+    ? Channel(address.get())
+    : Channel(server->InProcessChannel(ChannelArguments()));
 }
 
 
-Try<Nothing> MockCSIPlugin::Shutdown()
+Try<Nothing> MockCSIPlugin::shutdown()
 {
   server->Shutdown();
   server->Wait();

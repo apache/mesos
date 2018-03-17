@@ -29,10 +29,9 @@ namespace csi {
 class Client
 {
 public:
-  Client(const std::string& uri,
+  Client(const process::grpc::Channel& _channel,
          const process::grpc::client::Runtime& _runtime)
-    : channel(uri),
-      runtime(_runtime) {}
+    : channel(_channel), runtime(_runtime) {}
 
   // RPCs for the Identity service.
   process::Future<GetSupportedVersionsResponse>
