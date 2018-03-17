@@ -17,8 +17,15 @@
 #ifndef __CSI_SPEC_HPP__
 #define __CSI_SPEC_HPP__
 
+// ONLY USEFUL AFTER RUNNING PROTOC.
+#include <csi/csi.pb.h>
+
+// TODO(chhsiao): Consider removing the conditional inclusion to make
+// this public header not depend on a build flag. See MESOS-8715.
+#ifdef ENABLE_GRPC
 // ONLY USEFUL AFTER RUNNING PROTOC WITH GRPC CPP PLUGIN.
 #include <csi/csi.grpc.pb.h>
+#endif // ENABLE_GRPC
 
 namespace mesos {
 namespace csi {

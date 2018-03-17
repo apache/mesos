@@ -46,9 +46,7 @@ public:
   bool hostname_lookup;
   Option<std::string> resources;
   Option<std::string> resource_provider_config_dir;
-#ifdef ENABLE_GRPC
   Option<std::string> disk_profile_adaptor;
-#endif
   std::string isolation;
   std::string launcher;
 

@@ -339,9 +339,9 @@ $(GRPC)-build-stamp:
 endif
 endif
 
-if ENABLE_GRPC
+# NOTE: We extract `csi.proto` even if gRPC is disabled because it is
+# imported by other proto files.
 ALL_LOCAL += $(CSI)-stamp
-endif
 
 # Convenience library for gmock/gtest.
 check_LTLIBRARIES = libgmock.la

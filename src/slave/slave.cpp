@@ -36,9 +36,7 @@
 
 #include <mesos/module/authenticatee.hpp>
 
-#ifdef ENABLE_GRPC
 #include <mesos/resource_provider/storage/disk_profile.hpp>
-#endif
 
 #include <process/after.hpp>
 #include <process/async.hpp>
@@ -424,7 +422,6 @@ void Slave::initialize()
       << mkdir.error();
   }
 
-#ifdef ENABLE_GRPC
   // Create the DiskProfileAdaptor module and set it globally so
   // any component that needs the module can share this instance.
   Try<DiskProfileAdaptor*> _diskProfileAdaptor =
@@ -440,7 +437,6 @@ void Slave::initialize()
     shared_ptr<DiskProfileAdaptor>(_diskProfileAdaptor.get());
 
   DiskProfileAdaptor::setAdaptor(diskProfileAdaptor);
-#endif
 
   string scheme = "http";
 

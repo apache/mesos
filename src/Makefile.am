@@ -235,16 +235,13 @@ LDADD += -lzookeeper_mt
 endif
 
 # Set up include paths for the protocol buffer compiler.
-PROTOCFLAGS = -I$(top_srcdir)/include -I$(srcdir)
-if ENABLE_GRPC
-PROTOCFLAGS += -I../$(CSI)
+PROTOCFLAGS = -I$(top_srcdir)/include -I$(srcdir) -I../$(CSI)
 
 # TODO(josephw): This is a temporary include directory which points to the
 # generated CSI protocol buffer code. Derivative protocol buffers need
 # this include in order to build. When the 3rdparty CSI repo builds its own
 # generated code, this can be changed to include that directory instead.
 MESOS_CPPFLAGS += -I../include/csi
-endif
 
 # README: we build the Mesos library out of a collection of
 # convenience libraries (that is, libraries that do not get installed
@@ -375,18 +372,20 @@ CXX_PROTOS +=								\
   slave/containerizer/mesos/isolators/network/cni/spec.pb.cc		\
   slave/containerizer/mesos/isolators/network/cni/spec.pb.h
 
-if ENABLE_GRPC
 CXX_PROTOS +=								\
   resource_provider/storage/disk_profile.pb.cc				\
   resource_provider/storage/disk_profile.pb.h
 
 CXX_CSI_PROTOS =							\
-  ../include/csi/csi.grpc.pb.cc						\
-  ../include/csi/csi.grpc.pb.h						\
   ../include/csi/csi.pb.cc						\
   ../include/csi/csi.pb.h						\
   csi/state.pb.cc							\
   csi/state.pb.h
+
+if ENABLE_GRPC
+CXX_CSI_PROTOS +=							\
+  ../include/csi/csi.grpc.pb.cc						\
+  ../include/csi/csi.grpc.pb.h
 endif
 
 CXX_LOG_PROTOS =							\
@@ -728,6 +727,7 @@ module_HEADERS =							\
   $(top_srcdir)/include/mesos/module/container_logger.hpp		\
   $(top_srcdir)/include/mesos/module/contender.hpp			\
   $(top_srcdir)/include/mesos/module/detector.hpp			\
+  $(top_srcdir)/include/mesos/module/disk_profile.hpp			\
   $(top_srcdir)/include/mesos/module/hook.hpp				\
   $(top_srcdir)/include/mesos/module/hook.proto				\
   $(top_srcdir)/include/mesos/module/http_authenticatee.hpp		\
@@ -739,11 +739,6 @@ module_HEADERS =							\
   $(top_srcdir)/include/mesos/module/resource_estimator.hpp		\
   $(top_srcdir)/include/mesos/module/secret_generator.hpp		\
   $(top_srcdir)/include/mesos/module/secret_resolver.hpp
-
-if ENABLE_GRPC
-module_HEADERS +=							\
-  $(top_srcdir)/include/mesos/module/disk_profile.hpp
-endif
 
 nodist_module_HEADERS =							\
   ../include/mesos/module/hook.pb.h					\
@@ -771,12 +766,8 @@ resourceproviderdir = $(pkgincludedir)/resource_provider
 
 resourceprovider_HEADERS =						\
   $(top_srcdir)/include/mesos/resource_provider/resource_provider.hpp	\
-  $(top_srcdir)/include/mesos/resource_provider/resource_provider.proto
-
-if ENABLE_GRPC
-resourceprovider_HEADERS +=						\
+  $(top_srcdir)/include/mesos/resource_provider/resource_provider.proto	\
   $(top_srcdir)/include/mesos/resource_provider/storage/disk_profile.hpp
-endif
 
 nodist_resourceprovider_HEADERS =					\
   ../include/mesos/resource_provider/resource_provider.pb.h
@@ -1470,18 +1461,16 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   authentication/executor/jwt_secret_generator.hpp
 endif
 
-if ENABLE_GRPC
 libmesos_no_3rdparty_la_SOURCES +=					\
   resource_provider/storage/disk_profile.cpp				\
   resource_provider/storage/disk_profile.proto				\
   resource_provider/storage/disk_profile_utils.cpp			\
   resource_provider/storage/disk_profile_utils.hpp
 
-if OS_LINUX
+if ENABLE_GRPC
 libmesos_no_3rdparty_la_SOURCES +=					\
   resource_provider/storage/provider.cpp				\
   resource_provider/storage/provider.hpp
-endif
 endif
 
 libmesos_no_3rdparty_la_CPPFLAGS = $(MESOS_CPPFLAGS)
@@ -1527,25 +1516,28 @@ libbuild_la_CPPFLAGS += -DBUILD_FLAGS="\"$$BUILD_FLAGS\""
 libmesos_no_3rdparty_la_LIBADD += libbuild.la
 
 
-if ENABLE_GRPC
 # Convenience library for build the CSI client.
 noinst_LTLIBRARIES += libcsi.la
 libcsi_la_SOURCES =							\
-  csi/client.cpp							\
   csi/paths.cpp								\
   csi/utils.cpp
 libcsi_la_SOURCES +=							\
   ../include/csi/spec.hpp						\
-  csi/client.hpp							\
   csi/paths.hpp								\
   csi/state.hpp								\
   csi/state.proto							\
   csi/utils.hpp
+
+if ENABLE_GRPC
+libcsi_la_SOURCES +=							\
+  csi/client.cpp							\
+  csi/client.hpp
+endif
+
 nodist_libcsi_la_SOURCES = $(CXX_CSI_PROTOS)
 libcsi_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 
 libmesos_no_3rdparty_la_LIBADD += libcsi.la
-endif
 
 
 # Convenience library for building the replicated log in order to
@@ -2298,12 +2290,10 @@ disk_full_framework_CPPFLAGS = $(MESOS_CPPFLAGS)
 disk_full_framework_LDADD = libmesos.la $(LDADD)
 
 if ENABLE_GRPC
-if OS_LINUX
 check_PROGRAMS += test-csi-plugin
 test_csi_plugin_SOURCES = examples/test_csi_plugin.cpp
 test_csi_plugin_CPPFLAGS = $(MESOS_CPPFLAGS)
 test_csi_plugin_LDADD = libmesos.la $(LIB_PROTOBUF) $(LIB_GRPC) $(LDADD)
-endif
 endif
 
 check_PROGRAMS += test-helper
@@ -2352,7 +2342,6 @@ libload_qos_controller_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libload_qos_controller_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
 
 # Library containing the URI disk profile module.
-if ENABLE_GRPC
 pkgmodule_LTLIBRARIES += liburi_disk_profile.la
 liburi_disk_profile_la_SOURCES =				\
   resource_provider/storage/uri_disk_profile.cpp		\
@@ -2360,7 +2349,6 @@ liburi_disk_profile_la_SOURCES =				\
   resource_provider/storage/disk_profile_utils.hpp
 liburi_disk_profile_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 liburi_disk_profile_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
-endif
 
 MESOS_TEST_MODULE_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
 
@@ -2483,6 +2471,7 @@ mesos_tests_SOURCES =						\
   tests/cram_md5_authentication_tests.cpp			\
   tests/credentials_tests.cpp					\
   tests/default_executor_tests.cpp				\
+  tests/disk_profile_tests.cpp					\
   tests/disk_quota_tests.cpp					\
   tests/dynamic_weights_tests.cpp				\
   tests/environment.cpp						\
@@ -2589,6 +2578,13 @@ mesos_tests_SOURCES =						\
   tests/containerizer/provisioner_paths_tests.cpp		\
   tests/containerizer/volume_sandbox_path_isolator_tests.cpp
 
+if ENABLE_GRPC
+mesos_tests_SOURCES +=						\
+  tests/csi_client_tests.cpp					\
+  tests/mock_csi_plugin.cpp					\
+  tests/mock_csi_plugin.hpp
+endif
+
 if ENABLE_XFS_DISK_ISOLATOR
 mesos_tests_SOURCES +=						\
   tests/containerizer/xfs_quota_tests.cpp
@@ -2638,6 +2634,12 @@ mesos_tests_SOURCES +=						\
   tests/containerizer/volume_host_path_isolator_tests.cpp	\
   tests/containerizer/volume_image_isolator_tests.cpp		\
   tests/containerizer/volume_secret_isolator_tests.cpp
+
+if ENABLE_GRPC
+mesos_tests_SOURCES +=						\
+  tests/agent_resource_provider_config_api_tests.cpp		\
+  tests/storage_local_resource_provider_tests.cpp
+endif
 endif
 
 if ENABLE_LINUX_ROUTING
@@ -2653,20 +2655,6 @@ endif
 if ENABLE_NETWORK_PORTS_ISOLATOR
 mesos_tests_SOURCES +=						\
   tests/containerizer/ports_isolator_tests.cpp
-endif
-
-if ENABLE_GRPC
-mesos_tests_SOURCES +=						\
-  tests/csi_client_tests.cpp					\
-  tests/mock_csi_plugin.cpp					\
-  tests/mock_csi_plugin.hpp					\
-  tests/disk_profile_tests.cpp
-
-if OS_LINUX
-mesos_tests_SOURCES +=						\
-  tests/agent_resource_provider_config_api_tests.cpp		\
-  tests/storage_local_resource_provider_tests.cpp
-endif
 endif
 
 if ENABLE_SSL
