@@ -953,8 +953,20 @@ Option<Error> Resources::validate(const Resource& resource)
           break;
         case Resource::DiskInfo::Source::BLOCK:
         case Resource::DiskInfo::Source::RAW:
-          // TODO(bbannier): Update with validation once the exact format of
-          // `BLOCK` and `RAW` messages have taken some form.
+          if (source.has_mount()) {
+            return Error(
+                "Mount should not be set for " +
+                Resource::DiskInfo::Source::Type_Name(source.type()) +
+                " disk source");
+          }
+
+          if (source.has_path()) {
+            return Error(
+                "Path should not be set for " +
+                Resource::DiskInfo::Source::Type_Name(source.type()) +
+                " disk source");
+          }
+
           break;
         case Resource::DiskInfo::Source::UNKNOWN:
           return Error(
