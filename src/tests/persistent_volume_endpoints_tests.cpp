@@ -2365,7 +2365,7 @@ TEST_F(PersistentVolumeEndpointsTest, SlavesEndpointFullResources)
   JSON::Value offeredValue = slaveObject.values["offered_resources_full"];
   EXPECT_EQ(
       Resources(CHECK_NOTERROR(
-          Resources::fromJSON(expectedOffered.get().as<JSON::Array>()))),
+          Resources::fromJSON(expectedOffered->as<JSON::Array>()))),
       Resources(CHECK_NOTERROR(
           Resources::fromJSON(offeredValue.as<JSON::Array>()))));
 

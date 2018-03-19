@@ -2804,7 +2804,7 @@ void Slave::__run(
       executor = doLaunchExecutor();
     }
   } else {
-    if (taskGroup.isNone() && task.get().has_command()) {
+    if (taskGroup.isNone() && task->has_command()) {
       // We are dealing with command task; a new command executor will be
       // launched.
       CHECK(executor == nullptr);
