@@ -29,11 +29,16 @@
 #include <stout/result.hpp>
 #include <stout/try.hpp>
 #ifdef __WINDOWS__
+#include <stout/stringify.hpp>
 #include <stout/windows.hpp>
 #endif // __WINDOWS__
 
 #include <stout/os/int_fd.hpp>
 #include <stout/os/socket.hpp>
+
+#ifdef __WINDOWS__
+#include <stout/internal/windows/longpath.hpp>
+#endif // __WINDOWS__
 
 #ifdef __WINDOWS__
 #include <stout/os/windows/read.hpp>
@@ -56,17 +61,21 @@ inline Result<std::string> read(int_fd fd, size_t size)
     ssize_t length = os::read(fd, buffer + offset, size - offset);
 
 #ifdef __WINDOWS__
-      int error = WSAGetLastError();
+    // NOTE: There is no actual difference between `WSAGetLastError` and
+    // `GetLastError`, the former is an alias for the latter. As such, there is
+    // no difference between `WindowsError` and `WindowsSocketError`, so we can
+    // simply use the former here for both `HANDLE` and `SOCKET` types of
+    // `int_fd`. See MESOS-8764.
+    WindowsError error;
 #else
-      int error = errno;
+    ErrnoError error;
 #endif // __WINDOWS__
 
     if (length < 0) {
       // TODO(bmahler): Handle a non-blocking fd? (EAGAIN, EWOULDBLOCK)
-      if (net::is_restartable_error(error)) {
+      if (net::is_restartable_error(error.code)) {
         continue;
       }
-      ErrnoError error; // Constructed before 'delete' to capture errno.
       delete[] buffer;
       return error;
     } else if (length == 0) {
@@ -90,9 +99,9 @@ inline Result<std::string> read(int_fd fd, size_t size)
 }
 
 
-// Returns the contents of the file. NOTE: getline is not available on Solaris
-// or Windows, so we use STL.
-#if defined(__sun) || defined(__WINDOWS__)
+// Returns the contents of the file.
+// NOTE: getline is not available on Solaris so we use STL.
+#if defined(__sun)
 inline Try<std::string> read(const std::string& path)
 {
   std::ifstream file(path.c_str());
@@ -100,6 +109,24 @@ inline Try<std::string> read(const std::string& path)
     // Does ifstream actually set errno?
     return ErrnoError("Failed to open file");
   }
+  return std::string((std::istreambuf_iterator<char>(file)),
+                     (std::istreambuf_iterator<char>()));
+}
+// NOTE: Windows needs Unicode long path support.
+#elif defined(__WINDOWS__)
+inline Try<std::string> read(const std::string& path)
+{
+  const std::wstring longpath = ::internal::windows::longpath(path);
+  // NOTE: The `wchar_t` constructor of `ifstream` is an MSVC
+  // extension.
+  //
+  // TODO(andschwa): This might need `io_base::binary` like other
+  // streams on Windows.
+  std::ifstream file(longpath.data());
+  if (!file.is_open()) {
+    return Error("Failed to open file");
+  }
+
   return std::string((std::istreambuf_iterator<char>(file)),
                      (std::istreambuf_iterator<char>()));
 }
