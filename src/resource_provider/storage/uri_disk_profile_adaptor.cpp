@@ -120,8 +120,8 @@ Future<hashset<string>> UriDiskProfileAdaptor::watch(
 
 
 UriDiskProfileAdaptorProcess::UriDiskProfileAdaptorProcess(
-    const Flags& _flags)
-  : ProcessBase(ID::generate("uri-volume-profile")),
+    const UriDiskProfileAdaptor::Flags& _flags)
+  : ProcessBase(ID::generate("uri-disk-profile-adaptor")),
     flags(_flags),
     watchPromise(new Promise<Nothing>()) {}
 
@@ -324,7 +324,7 @@ org_apache_mesos_UriDiskProfileAdaptor(
       }
 
       // Load and validate flags from the map.
-      mesos::internal::storage::Flags flags;
+      mesos::internal::storage::UriDiskProfileAdaptor::Flags flags;
       Try<flags::Warnings> load = flags.load(values);
 
       if (load.isError()) {

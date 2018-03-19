@@ -70,7 +70,7 @@ constexpr char URI_DISK_PROFILE_ADAPTOR_NAME[] =
   "org_apache_mesos_UriDiskProfileAdaptor";
 
 
-class UriDiskProfileTest : public MesosTest
+class UriDiskProfileAdaptorTest : public MesosTest
 {
 public:
   virtual void SetUp()
@@ -108,8 +108,8 @@ protected:
 
 
 // Exercises the disk profile map parsing method with the example found
-// in the UriDiskProfile module's help string.
-TEST_F(UriDiskProfileTest, ParseExample)
+// in the UriDiskProfileAdaptor module's help string.
+TEST_F(UriDiskProfileAdaptorTest, ParseExample)
 {
   const string example = R"~(
     {
@@ -167,7 +167,7 @@ TEST_F(UriDiskProfileTest, ParseExample)
 // Exercises the disk profile map parsing method with some slightly incorrect
 // inputs. Each item in the array of examples should error at a different area
 // of the code (and are ordered corresponding to the code as well).
-TEST_F(UriDiskProfileTest, ParseInvalids)
+TEST_F(UriDiskProfileAdaptorTest, ParseInvalids)
 {
   const vector<string> examples = {
     "Not an object, but still JSON",
@@ -397,12 +397,12 @@ TEST_F(UriDiskProfileTest, ParseInvalids)
 }
 
 
-// This creates a UriDiskProfile module configured to read from a file
-// and tests the basic `watch` -> `translate` workflow which callers of
-// the module are expected to follow.
+// This creates a UriDiskProfileAdaptor module configured to read from a
+// file and tests the basic `watch` -> `translate` workflow which
+// callers of the module are expected to follow.
 //
 // Enable this test once MESOS-8567 is resolved.
-TEST_F(UriDiskProfileTest, DISABLED_FetchFromFile)
+TEST_F(UriDiskProfileAdaptorTest, DISABLED_FetchFromFile)
 {
   Clock::pause();
 
@@ -487,7 +487,8 @@ TEST_F(UriDiskProfileTest, DISABLED_FetchFromFile)
 }
 
 
-// Basic helper for UriDiskProfile modules configured to fetch from HTTP URIs.
+// Basic helper for UriDiskProfileAdaptor modules configured to fetch
+// from HTTP URIs.
 class MockProfileServer : public Process<MockProfileServer>
 {
 public:
@@ -519,12 +520,13 @@ public:
 };
 
 
-// This creates a UriDiskProfile module configured to read from an HTTP URI.
-// The HTTP server will return a different profile mapping between each of the
-// calls. We expect the module to ignore the second call because the module
-// does not allow profiles to be renamed. This is not a fatal error however,
-// as the HTTP server can be "fixed" without restarting the agent.
-TEST_F(UriDiskProfileTest, FetchFromHTTP)
+// This creates a UriDiskProfileAdaptor module configured to read from
+// an HTTP URI. The HTTP server will return a different profile mapping
+// between each of the calls. We expect the module to ignore the second
+// call because the module does not allow profiles to be renamed. This
+// is not a fatal error however, as the HTTP server can be "fixed"
+// without restarting the agent.
+TEST_F(UriDiskProfileAdaptorTest, FetchFromHTTP)
 {
   Clock::pause();
 

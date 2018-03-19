@@ -47,124 +47,6 @@ namespace storage {
 // Forward declaration.
 class UriDiskProfileAdaptorProcess;
 
-struct Flags : public virtual flags::FlagsBase
-{
-  Flags()
-  {
-    add(&Flags::uri,
-        "uri",
-        None(),
-        "URI to a JSON object containing the disk profile mapping.\n"
-        "This module supports both HTTP(s) and file URIs\n."
-        "\n"
-        "The JSON object should consist of some top-level string keys\n"
-        "corresponding to the disk profile name. Each value should contain\n"
-        "a `ResourceProviderSelector` under 'resource_provider_selector' or\n"
-        "a `CSIPluginTypeSelector` under 'csi_plugin_type_selector' to\n"
-        "specify the set of resource providers this profile applies to,\n"
-        "followed by a `VolumeCapability` under 'volume_capabilities'\n"
-        "and a free-form string-string mapping under 'create_parameters'.\n"
-        "\n"
-        "The JSON is modeled after a protobuf found in\n"
-        "`src/resource_provider/storage/disk_profile.proto`.\n"
-        "\n"
-        "For example:\n"
-        "{\n"
-        "  \"profile_matrix\" : {\n"
-        "    \"my-profile\" : {\n"
-        "      \"csi_plugin_type_selector\": {\n"
-        "        \"plugin_type\" : \"org.apache.mesos.csi.test\"\n"
-        "      \"},\n"
-        "      \"volume_capabilities\" : {\n"
-        "        \"block\" : {},\n"
-        "        \"access_mode\" : { \"mode\" : \"SINGLE_NODE_WRITER\" }\n"
-        "      },\n"
-        "      \"create_parameters\" : {\n"
-        "        \"mesos-does-not\" : \"interpret-these\",\n"
-        "        \"type\" : \"raid5\",\n"
-        "        \"stripes\" : \"3\",\n"
-        "        \"stripesize\" : \"64\"\n"
-        "      }\n"
-        "    }\n"
-        "  }\n"
-        "}",
-        static_cast<const Path*>(nullptr),
-        [](const Path& value) -> Option<Error> {
-          // For now, just check if the URI has a supported scheme.
-          //
-          // TODO(josephw): Once we have a proper URI class and parser,
-          // consider validating this URI more thoroughly.
-          if (strings::startsWith(value.string(), "http://")
-#ifdef USE_SSL_SOCKET
-              || (process::network::openssl::flags().enabled &&
-                  strings::startsWith(value.string(), "https://"))
-#endif // USE_SSL_SOCKET
-          ) {
-            Try<process::http::URL> url =
-              process::http::URL::parse(value.string());
-
-            if (url.isError()) {
-              return Error("Failed to parse URI: " + url.error());
-            }
-
-            return None();
-          }
-
-          // NOTE: The `Path` class will strip off the 'file://' prefix.
-          if (strings::contains(value.string(), "://")) {
-            return Error("--uri must use a supported scheme (file or http(s))");
-          }
-
-          // We only allow absolute paths for file paths.
-          if (!value.absolute()) {
-            return Error("--uri to a file must be an absolute path");
-          }
-
-          return None();
-        });
-
-    add(&Flags::poll_interval,
-        "poll_interval",
-        "How long to wait between polling the specified `--uri`.\n"
-        "The time is checked each time the `translate` method is called.\n"
-        "If the given time has elapsed, then the URI is re-fetched."
-        "If not specified, the URI is only fetched once.",
-        [](const Option<Duration>& value) -> Option<Error> {
-          if (value.isSome() && value.get() <= Seconds(0)) {
-            return Error("--poll_interval must be non-negative");
-          }
-
-          return None();
-        });
-
-    add(&Flags::max_random_wait,
-        "max_random_wait",
-        "How long at most to wait between discovering a new set of profiles\n"
-        "and notifying the callers of `watch`. The actual wait time is a\n"
-        "uniform random value between 0 and this value. If the `--uri` points\n"
-        "to a centralized location, it may be good to scale this number\n"
-        "according to the number of resource providers in the cluster.",
-        Seconds(0),
-        [](const Duration& value) -> Option<Error> {
-          if (value < Seconds(0)) {
-            return Error("--max_random_wait must be zero or greater");
-          }
-
-          return None();
-        });
-  }
-
-  // NOTE: We use the `Path` type here so that the stout flags parser
-  // does not attempt to read a file if given a `file://` prefixed value.
-  //
-  // TODO(josephw): Replace with a URI type when stout gets one.
-  Path uri;
-
-  Option<Duration> poll_interval;
-  Duration max_random_wait;
-};
-
-
 // The `UriDiskProfileAdaptor` is an example DiskProfileAdaptor module
 // that takes a URI as a module parameter and fetches that URI
 // periodically. The fetched data is parsed into the required CSI
@@ -177,10 +59,129 @@ struct Flags : public virtual flags::FlagsBase
 // `CSIPluginInfo::type` and assumes that all fetched profiles are meant
 // for all resource providers.
 //
-// See `Flags` above for more information.
+// See `UriDiskProfileAdaptor::Flags` below for more information.
 class UriDiskProfileAdaptor : public DiskProfileAdaptor
 {
 public:
+  struct Flags : public virtual flags::FlagsBase
+  {
+    Flags()
+    {
+      add(&Flags::uri,
+          "uri",
+          None(),
+          "URI to a JSON object containing the disk profile mapping.\n"
+          "This module supports both HTTP(s) and file URIs\n."
+          "\n"
+          "The JSON object should consist of some top-level string keys\n"
+          "corresponding to the disk profile name. Each value should contain\n"
+          "a `ResourceProviderSelector` under 'resource_provider_selector' or\n"
+          "a `CSIPluginTypeSelector` under 'csi_plugin_type_selector' to\n"
+          "specify the set of resource providers this profile applies to,\n"
+          "followed by a `VolumeCapability` under 'volume_capabilities'\n"
+          "and a free-form string-string mapping under 'create_parameters'.\n"
+          "\n"
+          "The JSON is modeled after a protobuf found in\n"
+          "`src/resource_provider/storage/disk_profile.proto`.\n"
+          "\n"
+          "For example:\n"
+          "{\n"
+          "  \"profile_matrix\" : {\n"
+          "    \"my-profile\" : {\n"
+          "      \"csi_plugin_type_selector\": {\n"
+          "        \"plugin_type\" : \"org.apache.mesos.csi.test\"\n"
+          "      \"},\n"
+          "      \"volume_capabilities\" : {\n"
+          "        \"block\" : {},\n"
+          "        \"access_mode\" : { \"mode\" : \"SINGLE_NODE_WRITER\" }\n"
+          "      },\n"
+          "      \"create_parameters\" : {\n"
+          "        \"mesos-does-not\" : \"interpret-these\",\n"
+          "        \"type\" : \"raid5\",\n"
+          "        \"stripes\" : \"3\",\n"
+          "        \"stripesize\" : \"64\"\n"
+          "      }\n"
+          "    }\n"
+          "  }\n"
+          "}",
+          static_cast<const Path*>(nullptr),
+          [](const Path& value) -> Option<Error> {
+            // For now, just check if the URI has a supported scheme.
+            //
+            // TODO(josephw): Once we have a proper URI class and parser,
+            // consider validating this URI more thoroughly.
+            if (strings::startsWith(value.string(), "http://")
+#ifdef USE_SSL_SOCKET
+                || (process::network::openssl::flags().enabled &&
+                    strings::startsWith(value.string(), "https://"))
+#endif // USE_SSL_SOCKET
+            ) {
+              Try<process::http::URL> url =
+                process::http::URL::parse(value.string());
+
+              if (url.isError()) {
+                return Error("Failed to parse URI: " + url.error());
+              }
+
+              return None();
+            }
+
+            // NOTE: The `Path` class will strip off the 'file://' prefix.
+            if (strings::contains(value.string(), "://")) {
+              return Error(
+                  "--uri must use a supported scheme (file or http(s))");
+            }
+
+            // We only allow absolute paths for file paths.
+            if (!value.absolute()) {
+              return Error("--uri to a file must be an absolute path");
+            }
+
+            return None();
+          });
+
+      add(&Flags::poll_interval,
+          "poll_interval",
+          "How long to wait between polling the specified `--uri`.\n"
+          "The time is checked each time the `translate` method is called.\n"
+          "If the given time has elapsed, then the URI is re-fetched.\n"
+          "If not specified, the URI is only fetched once.",
+          [](const Option<Duration>& value) -> Option<Error> {
+            if (value.isSome() && value.get() <= Seconds(0)) {
+              return Error("--poll_interval must be non-negative");
+            }
+
+            return None();
+          });
+
+      add(&Flags::max_random_wait,
+          "max_random_wait",
+          "How long at most to wait between discovering a new set of profiles\n"
+          "and notifying the callers of `watch`. The actual wait time is a\n"
+          "uniform random value between 0 and this value. If `--uri` points\n"
+          "to a centralized location, it may be good to scale this number\n"
+          "according to the number of resource providers in the cluster.",
+          Seconds(0),
+          [](const Duration& value) -> Option<Error> {
+            if (value < Seconds(0)) {
+              return Error("--max_random_wait must be zero or greater");
+            }
+
+            return None();
+          });
+    }
+
+    // NOTE: We use the `Path` type here so that the stout flags parser
+    // does not attempt to read a file if given a `file://` prefixed value.
+    //
+    // TODO(josephw): Replace with a URI type when stout gets one.
+    Path uri;
+
+    Option<Duration> poll_interval;
+    Duration max_random_wait;
+  };
+
+
   UriDiskProfileAdaptor(const Flags& _flags);
 
   virtual ~UriDiskProfileAdaptor();
@@ -203,7 +204,7 @@ class UriDiskProfileAdaptorProcess :
   public process::Process<UriDiskProfileAdaptorProcess>
 {
 public:
-  UriDiskProfileAdaptorProcess(const Flags& _flags);
+  UriDiskProfileAdaptorProcess(const UriDiskProfileAdaptor::Flags& _flags);
 
   virtual void initialize() override;
 
@@ -230,7 +231,7 @@ private:
   void notify(const resource_provider::DiskProfileMapping& parsed);
 
 private:
-  Flags flags;
+  UriDiskProfileAdaptor::Flags flags;
 
   // The last fetched profile mapping.
   // This module assumes that profiles can only be added and never

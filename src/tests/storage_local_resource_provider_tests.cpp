@@ -83,7 +83,7 @@ public:
       path::join(sandbox.get(), "resource_provider_configs");
     ASSERT_SOME(os::mkdir(resourceProviderConfigDir));
 
-    uriDiskProfileConfigPath =
+    uriDiskProfileMappingPath =
       path::join(sandbox.get(), "disk_profiles.json");
   }
 
@@ -140,7 +140,7 @@ public:
     return flags;
   }
 
-  void loadUriDiskProfileModule()
+  void loadUriDiskProfileAdaptorModule()
   {
     const string libraryPath = getModulePath("uri_disk_profile_adaptor");
 
@@ -153,7 +153,7 @@ public:
 
     Parameter* uri = module->add_parameters();
     uri->set_key("uri");
-    uri->set_value(uriDiskProfileConfigPath);
+    uri->set_value(uriDiskProfileMappingPath);
     Parameter* pollInterval = module->add_parameters();
     pollInterval->set_key("poll_interval");
     pollInterval->set_value("1secs");
@@ -227,10 +227,10 @@ public:
         resourceProviderConfig.get()));
   }
 
-  void setupDiskProfileConfig()
+  void setupDiskProfileMapping()
   {
     Try<Nothing> write = os::write(
-        uriDiskProfileConfigPath,
+        uriDiskProfileMappingPath,
         R"~(
         {
           "profile_matrix": {
@@ -267,7 +267,7 @@ protected:
   Modules modules;
   vector<string> slaveWorkDirs;
   string resourceProviderConfigDir;
-  string uriDiskProfileConfigPath;
+  string uriDiskProfileMappingPath;
 };
 
 
@@ -441,10 +441,10 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ZeroSizedDisk)
 // handle disks less than 1MB correctly.
 TEST_F(StorageLocalResourceProviderTest, ROOT_SmallDisk)
 {
-  loadUriDiskProfileModule();
+  loadUriDiskProfileAdaptorModule();
 
   setupResourceProviderConfig(Kilobytes(512), "volume0:512KB");
-  setupDiskProfileConfig();
+  setupDiskProfileMapping();
 
   master::Flags masterFlags = CreateMasterFlags();
 
@@ -565,7 +565,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NewProfile)
 {
   Clock::pause();
 
-  loadUriDiskProfileModule();
+  loadUriDiskProfileAdaptorModule();
 
   setupResourceProviderConfig(Gigabytes(4));
 
@@ -627,7 +627,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NewProfile)
     FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   // Add new profiles.
-  setupDiskProfileConfig();
+  setupDiskProfileMapping();
 
   // A new storage pool for profile "volume-default" should be reported
   // by the resource provider. Still expect no storage pool for
@@ -672,10 +672,10 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NewProfile)
 // create then destroy a new volume from a storage pool.
 TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolume)
 {
-  loadUriDiskProfileModule();
+  loadUriDiskProfileAdaptorModule();
 
   setupResourceProviderConfig(Gigabytes(4));
-  setupDiskProfileConfig();
+  setupDiskProfileMapping();
 
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
@@ -861,10 +861,10 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolume)
 // destroy a volume created from a storage pool after recovery.
 TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolumeRecovery)
 {
-  loadUriDiskProfileModule();
+  loadUriDiskProfileAdaptorModule();
 
   setupResourceProviderConfig(Gigabytes(4));
-  setupDiskProfileConfig();
+  setupDiskProfileMapping();
 
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
@@ -1070,10 +1070,10 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolumeRecovery)
 // created volume becomes a pre-existing volume.
 TEST_F(StorageLocalResourceProviderTest, ROOT_AgentRegisteredWithNewId)
 {
-  loadUriDiskProfileModule();
+  loadUriDiskProfileAdaptorModule();
 
   setupResourceProviderConfig(Gigabytes(4));
-  setupDiskProfileConfig();
+  setupDiskProfileMapping();
 
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
@@ -1282,10 +1282,10 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_AgentRegisteredWithNewId)
 // volume after the task finishes.
 TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResources)
 {
-  loadUriDiskProfileModule();
+  loadUriDiskProfileAdaptorModule();
 
   setupResourceProviderConfig(Gigabytes(4));
-  setupDiskProfileConfig();
+  setupDiskProfileMapping();
 
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
@@ -1508,10 +1508,10 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResources)
 // destroy a published volume after recovery.
 TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesRecovery)
 {
-  loadUriDiskProfileModule();
+  loadUriDiskProfileAdaptorModule();
 
   setupResourceProviderConfig(Gigabytes(4));
-  setupDiskProfileConfig();
+  setupDiskProfileMapping();
 
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
@@ -1791,10 +1791,10 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesRecovery)
 // destroy a published volume after agent reboot.
 TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesReboot)
 {
-  loadUriDiskProfileModule();
+  loadUriDiskProfileAdaptorModule();
 
   setupResourceProviderConfig(Gigabytes(4));
-  setupDiskProfileConfig();
+  setupDiskProfileMapping();
 
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
@@ -2115,10 +2115,10 @@ TEST_F(
     StorageLocalResourceProviderTest,
     ROOT_PublishUnpublishResourcesPluginKilled)
 {
-  loadUriDiskProfileModule();
+  loadUriDiskProfileAdaptorModule();
 
   setupResourceProviderConfig(Gigabytes(4));
-  setupDiskProfileConfig();
+  setupDiskProfileMapping();
 
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
@@ -2622,10 +2622,10 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_RetryOperationStatusUpdate)
 {
   Clock::pause();
 
-  loadUriDiskProfileModule();
+  loadUriDiskProfileAdaptorModule();
 
   setupResourceProviderConfig(Gigabytes(4));
-  setupDiskProfileConfig();
+  setupDiskProfileMapping();
 
   master::Flags masterFlags = CreateMasterFlags();
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
@@ -2785,10 +2785,10 @@ TEST_F(
 {
   Clock::pause();
 
-  loadUriDiskProfileModule();
+  loadUriDiskProfileAdaptorModule();
 
   setupResourceProviderConfig(Gigabytes(4));
-  setupDiskProfileConfig();
+  setupDiskProfileMapping();
 
   master::Flags masterFlags = CreateMasterFlags();
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
