@@ -359,7 +359,7 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
   int stdoutFromFd = -1;
   int stderrFromFd = -1;
 
-  // A list of file decriptors we've opened so far.
+  // A list of file descriptors we've opened so far.
   hashset<int> openedFds = {};
 
   // A list of file descriptors that will be passed to the I/O
