@@ -2643,7 +2643,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Args)
 // The slave is stopped before the first update for a task is received
 // from the executor. When it comes back up we make sure the executor
 // reregisters and the slave properly sends the update.
-TEST_F(DockerContainerizerTest, ROOT_DOCKER_SlaveRecoveryTaskContainer)
+//
+// TODO(alexr): Enable after MESOS-8258 is resolved.
+TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_SlaveRecoveryTaskContainer)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
