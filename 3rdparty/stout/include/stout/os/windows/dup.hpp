@@ -25,17 +25,31 @@ namespace os {
 inline Try<int_fd> dup(const int_fd& fd)
 {
   switch (fd.type()) {
-    case WindowsFD::FD_CRT:
-    case WindowsFD::FD_HANDLE: {
-      // TODO(andschwa): Replace this with `::DuplicateHandle` after figuring
-      // out how to make it compatible with handles to stdin/stdout/stderr, as
-      // well as defining sane inheritance semantics.
+    // TODO(andschwa): Remove this when `FD_CRT` is removed, MESOS-8675.
+    case WindowsFD::FD_CRT: {
       int result = ::_dup(fd.crt());
       if (result == -1) {
         return ErrnoError();
       }
 
       return result;
+    }
+    case WindowsFD::FD_HANDLE: {
+      HANDLE duplicate = INVALID_HANDLE_VALUE;
+      const BOOL result = ::DuplicateHandle(
+          ::GetCurrentProcess(),  // Source process == current.
+          fd,                     // Handle to duplicate.
+          ::GetCurrentProcess(),  // Target process == current.
+          &duplicate,
+          0,                      // Ignored (DUPLICATE_SAME_ACCESS).
+          FALSE,                  // Non-inheritable handle.
+          DUPLICATE_SAME_ACCESS); // Same access level as source.
+
+      if (result == FALSE) {
+        return WindowsError();
+      }
+
+      return duplicate;
     }
     case WindowsFD::FD_SOCKET: {
       WSAPROTOCOL_INFOW info;
