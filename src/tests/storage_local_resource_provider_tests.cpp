@@ -142,10 +142,10 @@ public:
 
   void loadUriDiskProfileModule()
   {
-    const string libraryPath = getModulePath("uri_disk_profile");
+    const string libraryPath = getModulePath("uri_disk_profile_adaptor");
 
     Modules::Library* library = modules.add_libraries();
-    library->set_name("uri_disk_profile");
+    library->set_name("uri_disk_profile_adaptor");
     library->set_file(libraryPath);
 
     Modules::Library::Module* module = library->add_modules();

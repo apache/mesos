@@ -36,7 +36,7 @@
 
 #include <mesos/module/authenticatee.hpp>
 
-#include <mesos/resource_provider/storage/disk_profile.hpp>
+#include <mesos/resource_provider/storage/disk_profile_adaptor.hpp>
 
 #include <process/after.hpp>
 #include <process/async.hpp>

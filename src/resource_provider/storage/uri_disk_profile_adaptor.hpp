@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __RESOURCE_PROVIDER_URI_DISK_PROFILE_HPP__
-#define __RESOURCE_PROVIDER_URI_DISK_PROFILE_HPP__
+#ifndef __RESOURCE_PROVIDER_URI_DISK_PROFILE_ADAPTOR_HPP__
+#define __RESOURCE_PROVIDER_URI_DISK_PROFILE_ADAPTOR_HPP__
 
 #include <map>
 #include <string>
@@ -23,7 +23,7 @@
 
 #include <csi/spec.hpp>
 
-#include <mesos/resource_provider/storage/disk_profile.hpp>
+#include <mesos/resource_provider/storage/disk_profile_adaptor.hpp>
 
 #include <process/future.hpp>
 #include <process/owned.hpp>
@@ -165,16 +165,17 @@ struct Flags : public virtual flags::FlagsBase
 };
 
 
-// The `UriDiskProfileAdaptor` is an example DiskProfile module that
-// takes a URI as a module parameter and fetches that URI periodically.
-// The fetched data is parsed into the required CSI protobufs
-// (which also acts as validation).
+// The `UriDiskProfileAdaptor` is an example DiskProfileAdaptor module
+// that takes a URI as a module parameter and fetches that URI
+// periodically. The fetched data is parsed into the required CSI
+// protobufs (which also acts as validation).
 //
 // If there is an error during fetching, any previously fetched results
 // will be used until fetching is successful.
 //
-// This module does not filter return results based on `CSIPluginInfo::type`
-// and assumes that all fetched profiles are meant for all resource providers.
+// This module does not filter return results based on
+// `CSIPluginInfo::type` and assumes that all fetched profiles are meant
+// for all resource providers.
 //
 // See `Flags` above for more information.
 class UriDiskProfileAdaptor : public DiskProfileAdaptor
@@ -248,4 +249,4 @@ private:
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __RESOURCE_PROVIDER_URI_DISK_PROFILE_HPP__
+#endif // __RESOURCE_PROVIDER_URI_DISK_PROFILE_ADAPTOR_HPP__

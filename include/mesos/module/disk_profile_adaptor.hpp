@@ -14,13 +14,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __MESOS_MODULE_DISK_PROFILE_HPP__
-#define __MESOS_MODULE_DISK_PROFILE_HPP__
+#ifndef __MESOS_MODULE_DISK_PROFILE_ADAPTOR_HPP__
+#define __MESOS_MODULE_DISK_PROFILE_ADAPTOR_HPP__
 
 #include <mesos/mesos.hpp>
 #include <mesos/module.hpp>
 
-#include <mesos/resource_provider/storage/disk_profile.hpp>
+#include <mesos/resource_provider/storage/disk_profile_adaptor.hpp>
 
 namespace mesos {
 namespace modules {
@@ -60,4 +60,4 @@ struct Module<mesos::DiskProfileAdaptor> : ModuleBase
 } // namespace modules {
 } // namespace mesos {
 
-#endif // __MESOS_MODULE_DISK_PROFILE_HPP__
+#endif // __MESOS_MODULE_DISK_PROFILE_ADAPTOR_HPP__

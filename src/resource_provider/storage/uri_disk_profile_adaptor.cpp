@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "resource_provider/storage/uri_disk_profile.hpp"
+#include "resource_provider/storage/uri_disk_profile_adaptor.hpp"
 
 #include <map>
 #include <string>
@@ -22,9 +22,7 @@
 
 #include <csi/spec.hpp>
 
-#include <mesos/module/disk_profile.hpp>
-
-#include <mesos/resource_provider/storage/disk_profile.hpp>
+#include <mesos/module/disk_profile_adaptor.hpp>
 
 #include <process/defer.hpp>
 #include <process/delay.hpp>

@@ -19,9 +19,9 @@
 #include <tuple>
 #include <vector>
 
-#include <mesos/module/disk_profile.hpp>
+#include <mesos/module/disk_profile_adaptor.hpp>
 
-#include <mesos/resource_provider/storage/disk_profile.hpp>
+#include <mesos/resource_provider/storage/disk_profile_adaptor.hpp>
 
 #include <process/clock.hpp>
 #include <process/future.hpp>
@@ -40,7 +40,7 @@
 
 #include "module/manager.hpp"
 
-#include "resource_provider/storage/uri_disk_profile.hpp"
+#include "resource_provider/storage/uri_disk_profile_adaptor.hpp"
 #include "resource_provider/storage/disk_profile_utils.hpp"
 
 #include "tests/flags.hpp"
@@ -77,10 +77,10 @@ public:
   {
     MesosTest::SetUp();
 
-    string libraryPath = getModulePath("uri_disk_profile");
+    string libraryPath = getModulePath("uri_disk_profile_adaptor");
 
     Modules::Library* library = modules.add_libraries();
-    library->set_name("uri_disk_profile");
+    library->set_name("uri_disk_profile_adaptor");
     library->set_file(libraryPath);
 
     Modules::Library::Module* module = library->add_modules();

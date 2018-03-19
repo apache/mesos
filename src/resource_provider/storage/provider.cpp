@@ -40,7 +40,7 @@
 #include <mesos/type_utils.hpp>
 
 #include <mesos/resource_provider/resource_provider.hpp>
-#include <mesos/resource_provider/storage/disk_profile.hpp>
+#include <mesos/resource_provider/storage/disk_profile_adaptor.hpp>
 
 #include <mesos/v1/resource_provider.hpp>
 

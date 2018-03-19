@@ -727,7 +727,7 @@ module_HEADERS =							\
   $(top_srcdir)/include/mesos/module/container_logger.hpp		\
   $(top_srcdir)/include/mesos/module/contender.hpp			\
   $(top_srcdir)/include/mesos/module/detector.hpp			\
-  $(top_srcdir)/include/mesos/module/disk_profile.hpp			\
+  $(top_srcdir)/include/mesos/module/disk_profile_adaptor.hpp		\
   $(top_srcdir)/include/mesos/module/hook.hpp				\
   $(top_srcdir)/include/mesos/module/hook.proto				\
   $(top_srcdir)/include/mesos/module/http_authenticatee.hpp		\
@@ -764,10 +764,10 @@ nodist_quota_HEADERS =							\
 
 resourceproviderdir = $(pkgincludedir)/resource_provider
 
-resourceprovider_HEADERS =						\
-  $(top_srcdir)/include/mesos/resource_provider/resource_provider.hpp	\
-  $(top_srcdir)/include/mesos/resource_provider/resource_provider.proto	\
-  $(top_srcdir)/include/mesos/resource_provider/storage/disk_profile.hpp
+resourceprovider_HEADERS =							\
+  $(top_srcdir)/include/mesos/resource_provider/resource_provider.hpp		\
+  $(top_srcdir)/include/mesos/resource_provider/resource_provider.proto		\
+  $(top_srcdir)/include/mesos/resource_provider/storage/disk_profile_adaptor.hpp
 
 nodist_resourceprovider_HEADERS =					\
   ../include/mesos/resource_provider/resource_provider.pb.h
@@ -1462,7 +1462,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 endif
 
 libmesos_no_3rdparty_la_SOURCES +=					\
-  resource_provider/storage/disk_profile.cpp				\
+  resource_provider/storage/disk_profile_adaptor.cpp			\
   resource_provider/storage/disk_profile.proto				\
   resource_provider/storage/disk_profile_utils.cpp			\
   resource_provider/storage/disk_profile_utils.hpp
@@ -2341,14 +2341,14 @@ libload_qos_controller_la_SOURCES += slave/qos_controllers/load.cpp
 libload_qos_controller_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 libload_qos_controller_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
 
-# Library containing the URI disk profile module.
-pkgmodule_LTLIBRARIES += liburi_disk_profile.la
-liburi_disk_profile_la_SOURCES =				\
-  resource_provider/storage/uri_disk_profile.cpp		\
-  resource_provider/storage/uri_disk_profile.hpp		\
+# Library containing the URI disk profile adaptor module.
+pkgmodule_LTLIBRARIES += liburi_disk_profile_adaptor.la
+liburi_disk_profile_adaptor_la_SOURCES =			\
+  resource_provider/storage/uri_disk_profile_adaptor.cpp	\
+  resource_provider/storage/uri_disk_profile_adaptor.hpp	\
   resource_provider/storage/disk_profile_utils.hpp
-liburi_disk_profile_la_CPPFLAGS = $(MESOS_CPPFLAGS)
-liburi_disk_profile_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
+liburi_disk_profile_adaptor_la_CPPFLAGS = $(MESOS_CPPFLAGS)
+liburi_disk_profile_adaptor_la_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
 
 MESOS_TEST_MODULE_LDFLAGS = $(MESOS_MODULE_LDFLAGS)
 

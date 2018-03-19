@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __MESOS_RESOURCE_PROVIDER_DISK_PROFILE_HPP__
-#define __MESOS_RESOURCE_PROVIDER_DISK_PROFILE_HPP__
+#ifndef __MESOS_RESOURCE_PROVIDER_DISK_PROFILE_ADAPTOR_HPP__
+#define __MESOS_RESOURCE_PROVIDER_DISK_PROFILE_ADAPTOR_HPP__
 
 #include <memory>
 #include <string>
@@ -77,8 +77,8 @@ public:
    * Factory method used to create a DiskProfileAdaptor instance.
    * If the `name` parameter is provided, the module is instantiated
    * using the `ModuleManager`. Otherwise, a "default" disk profile
-   * adaptor instance (defined in `src/resource_provider/disk_profile.cpp`)
-   * is returned.
+   * adaptor instance (defined in
+   * `src/resource_provider/disk_profile_adaptor.cpp`) is returned.
    *
    * NOTE: The lifecycle of the returned object is delegated to the caller.
    */
@@ -146,4 +146,4 @@ protected:
 
 } // namespace mesos {
 
-#endif // __MESOS_RESOURCE_PROVIDER_DISK_PROFILE_HPP__
+#endif // __MESOS_RESOURCE_PROVIDER_DISK_PROFILE_ADAPTOR_HPP__
