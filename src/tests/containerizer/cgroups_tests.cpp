@@ -1087,7 +1087,8 @@ protected:
 };
 
 
-TEST_F(CgroupsAnyHierarchyMemoryPressureTest, ROOT_IncreaseRSS)
+// TODO(alexr): Enable after MESOS-3160 is resolved.
+TEST_F(CgroupsAnyHierarchyMemoryPressureTest, DISABLED_ROOT_IncreaseRSS)
 {
   Try<os::Memory> memory = os::memory();
   ASSERT_SOME(memory);
