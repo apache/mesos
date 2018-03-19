@@ -462,6 +462,7 @@ void Master::initialize()
 {
   LOG(INFO) << "Master " << info_.id() << " (" << info_.hostname() << ")"
             << " started on " << string(self()).substr(7);
+
   LOG(INFO) << "Flags at startup: " << flags;
 
   if (process::address().ip.isLoopback()) {
@@ -569,6 +570,7 @@ void Master::initialize()
   if (authenticatorNames[0] == DEFAULT_AUTHENTICATOR) {
     LOG(INFO) << "Using default '" << DEFAULT_AUTHENTICATOR
               << "' authenticator";
+
     authenticator = new cram_md5::CRAMMD5Authenticator();
   } else {
     Try<Authenticator*> module =
@@ -599,6 +601,7 @@ void Master::initialize()
       LOG(WARNING) << "Only non-authenticating frameworks and agents are "
                    << "allowed to connect. "
                    << "Authentication is disabled: " << error;
+
       delete authenticator.get();
       authenticator = None();
     }
@@ -1268,6 +1271,7 @@ void Master::exited(const FrameworkID& frameworkId, const HttpConnection& http)
     if (frameworkId == framework->id()) {
       LOG(INFO) << "Ignoring disconnection for framework "
                 << *framework << " as it has already reconnected";
+
       return;
     }
   }
@@ -1486,6 +1490,7 @@ void Master::consume(MessageEvent&& event)
   if (!elected()) {
     VLOG(1) << "Dropping '" << event.message.name << "' message since "
             << "not elected yet";
+
     ++metrics->dropped_messages;
     return;
   }
@@ -1500,6 +1505,7 @@ void Master::consume(MessageEvent&& event)
   if (!recovered->isReady()) {
     VLOG(1) << "Dropping '" << event.message.name << "' message since "
             << "not recovered yet";
+
     ++metrics->dropped_messages;
     return;
   }
@@ -1866,6 +1872,7 @@ void Master::doRegistryGc()
   if (toRemoveUnreachable.empty() && toRemoveGone.empty()) {
     VLOG(1) << "Skipping periodic registry garbage collection: "
             << "no agents qualify for removal";
+
     return;
   }
 
@@ -1909,6 +1916,7 @@ void Master::_doRegistryGc(
     if (!slaves.unreachable.contains(slave)) {
       LOG(WARNING) << "Failed to garbage collect " << slave
                    << " from the unreachable list";
+
       continue;
     }
 
@@ -1921,6 +1929,7 @@ void Master::_doRegistryGc(
     if (!slaves.gone.contains(slave)) {
       LOG(WARNING) << "Failed to garbage collect " << slave
                    << " from the gone list";
+
       continue;
     }
 
@@ -2930,6 +2939,7 @@ void Master::_subscribe(
     LOG(INFO) << "Dropping SUBSCRIBE call for framework"
               << " '" << frameworkInfo.name() << "' at " << from
               << ": " << authenticationError->message;
+
     return;
   }
 
@@ -2945,6 +2955,7 @@ void Master::_subscribe(
       if (framework->pid == from) {
         LOG(INFO) << "Framework " << *framework
                   << " already subscribed, resending acknowledgement";
+
         FrameworkRegisteredMessage message;
         message.mutable_framework_id()->MergeFrom(framework->id());
         message.mutable_master_info()->MergeFrom(info_);
@@ -2988,6 +2999,7 @@ void Master::_subscribe(
         LOG(ERROR) << "Dropping SUBSCRIBE call for framework '"
                    << frameworkInfo.name() << "': " << *framework
                    << " already connected at " << from;
+
         return;
       }
     }
@@ -3168,6 +3180,7 @@ void Master::deactivateFramework(
     LOG(WARNING)
       << "Ignoring deactivate framework message for framework " << frameworkId
       << " because the framework cannot be found";
+
     return;
   }
 
@@ -3175,6 +3188,7 @@ void Master::deactivateFramework(
     LOG(WARNING)
       << "Ignoring deactivate framework message for framework " << *framework
       << " because it is not expected from " << from;
+
     return;
   }
 
@@ -3182,6 +3196,7 @@ void Master::deactivateFramework(
     LOG(INFO)
       << "Ignoring deactivate framework message for framework" << *framework
       << " because it is disconnected";
+
     return;
   }
 
@@ -3322,6 +3337,7 @@ void Master::resourceRequest(
     LOG(WARNING)
       << "Ignoring resource request message from framework " << frameworkId
       << " because the framework cannot be found";
+
     return;
   }
 
@@ -3329,6 +3345,7 @@ void Master::resourceRequest(
     LOG(WARNING)
       << "Ignoring resource request message from framework " << *framework
       << " because it is not expected from " << from;
+
     return;
   }
 
@@ -3829,6 +3846,7 @@ bool Master::isLaunchExecutor(
       << "Executor '" << executorId
       << "' known to the framework " << *framework
       << " but unknown to the agent " << *slave;
+
     return true;
   }
 
@@ -5547,6 +5565,7 @@ void Master::reviveOffers(
     LOG(WARNING)
       << "Ignoring revive offers message for framework " << frameworkId
       << " because the framework cannot be found";
+
     return;
   }
 
@@ -5554,6 +5573,7 @@ void Master::reviveOffers(
     LOG(WARNING)
       << "Ignoring revive offers message for framework " << *framework
       << " because it is not expected from " << from;
+
     return;
   }
 
@@ -5617,6 +5637,7 @@ void Master::killTask(
     LOG(WARNING)
       << "Ignoring kill task message for task " << taskId << " of framework "
       << frameworkId << " because the framework cannot be found";
+
     return;
   }
 
@@ -5624,6 +5645,7 @@ void Master::killTask(
     LOG(WARNING)
       << "Ignoring kill task message for task " << taskId << " of framework "
       << *framework << " because it is not expected from " << from;
+
     return;
   }
 
@@ -5700,6 +5722,7 @@ void Master::kill(Framework* framework, const scheduler::Call::Kill& kill)
                  << slaveId.get() << " of framework " << *framework
                  << " because it belongs to different agent "
                  << task->slave_id();
+
     // TODO(vinod): Return a "Bad Request" when using HTTP API.
     return;
   }
@@ -5765,6 +5788,7 @@ void Master::statusUpdateAcknowledgement(
       << "Ignoring status update acknowledgement "
       << " for task " << taskId << " of framework " << frameworkId
       << " on agent " << slaveId << " due to: " << uuid_.error();
+
     metrics->invalid_status_update_acknowledgements++;
     return;
   }
@@ -5777,6 +5801,7 @@ void Master::statusUpdateAcknowledgement(
       << uuid_.get() << " of task " << taskId << " of framework "
       << frameworkId << " on agent " << slaveId << " because the framework "
       << "cannot be found";
+
     metrics->invalid_status_update_acknowledgements++;
     return;
   }
@@ -5787,6 +5812,7 @@ void Master::statusUpdateAcknowledgement(
       << uuid_.get() << " of task " << taskId << " of framework "
       << *framework << " on agent " << slaveId << " because it is not "
       << "expected from " << from;
+
     metrics->invalid_status_update_acknowledgements++;
     return;
   }
@@ -5826,6 +5852,7 @@ void Master::acknowledge(
       << "Cannot send status update acknowledgement for status " << uuid
       << " of task " << taskId << " of framework " << *framework
       << " to agent " << slaveId << " because agent is not registered";
+
     metrics->invalid_status_update_acknowledgements++;
     return;
   }
@@ -5835,6 +5862,7 @@ void Master::acknowledge(
       << "Cannot send status update acknowledgement for status " << uuid
       << " of task " << taskId << " of framework " << *framework
       << " to agent " << *slave << " because agent is disconnected";
+
     metrics->invalid_status_update_acknowledgements++;
     return;
   }
@@ -5866,6 +5894,7 @@ void Master::acknowledge(
         << " of task " << taskId << " of framework " << *framework
         << " to agent " << *slave << " because the update was not"
         << " sent by this master";
+
       metrics->invalid_status_update_acknowledgements++;
       return;
     }
@@ -5909,6 +5938,7 @@ void Master::schedulerMessage(
                  << " for executor '" << executorId << "'"
                  << " of framework " << frameworkId
                  << " because the framework cannot be found";
+
     metrics->invalid_framework_to_executor_messages++;
     return;
   }
@@ -5918,6 +5948,7 @@ void Master::schedulerMessage(
       << "Ignoring framework message for executor '" << executorId
       << "' of framework " << *framework
       << " because it is not expected from " << from;
+
     metrics->invalid_framework_to_executor_messages++;
     return;
   }
@@ -5953,6 +5984,7 @@ void Master::executorMessage(
                  << " from executor" << " '" << executorId << "'"
                  << " of framework " << frameworkId
                  << " on removed agent " << slaveId;
+
     metrics->invalid_executor_to_framework_messages++;
     return;
   }
@@ -5966,6 +5998,7 @@ void Master::executorMessage(
                  << " from executor '" << executorId << "'"
                  << " of framework " << frameworkId
                  << " on unknown agent " << slaveId;
+
     metrics->invalid_executor_to_framework_messages++;
     return;
   }
@@ -5978,6 +6011,7 @@ void Master::executorMessage(
                  << " of framework " << frameworkId
                  << " on agent " << *slave
                  << " because the framework is unknown";
+
     metrics->invalid_executor_to_framework_messages++;
     return;
   }
@@ -6012,6 +6046,7 @@ void Master::message(
     LOG(WARNING) << "Cannot send framework message for framework "
                  << *framework << " to agent " << message.slave_id()
                  << " because agent is not registered";
+
     metrics->invalid_framework_to_executor_messages++;
     return;
   }
@@ -6020,6 +6055,7 @@ void Master::message(
     LOG(WARNING) << "Cannot send framework message for framework "
                  << *framework << " to agent " << *slave
                  << " because agent is disconnected";
+
     metrics->invalid_framework_to_executor_messages++;
     return;
   }
@@ -6063,6 +6099,7 @@ void Master::registerSlave(
     // without authentication.
     LOG(WARNING) << "Refusing registration of agent at " << from
                  << " because it is not authenticated";
+
     ShutdownMessage message;
     message.set_message("Agent is not authenticated");
     send(from, message);
@@ -6076,6 +6113,7 @@ void Master::registerSlave(
     LOG(WARNING) << "Dropping registration of agent at " << from
                  << " because it sent an invalid registration: "
                  << error->message;
+
     return;
   }
 
@@ -6083,6 +6121,7 @@ void Master::registerSlave(
     LOG(INFO) << "Ignoring register agent message from " << from
               << " (" << registerSlaveMessage.slave().hostname()
               << ") as registration is already in progress";
+
     return;
   }
 
@@ -6240,6 +6279,7 @@ void Master::_registerSlave(
       // the master removed the old slave from its map.
       LOG(INFO) << "Removing old disconnected agent " << *slave
                 << " because a registration attempt occurred";
+
       removeSlave(slave,
                   "a new agent registered at the same address",
                   metrics->slave_removals_reason_registered);
@@ -6392,6 +6432,7 @@ void Master::reregisterSlave(
     // reregister without authentication.
     LOG(WARNING) << "Refusing re-registration of agent at " << from
                  << " because it is not authenticated";
+
     ShutdownMessage message;
     message.set_message("Agent is not authenticated");
     send(from, message);
@@ -6409,6 +6450,7 @@ void Master::reregisterSlave(
       << "Ignoring reregister agent message from agent "
       << slaveInfo.id() << " at " << from << " ("
       << slaveInfo.hostname() << ") as re-registration is already in progress";
+
     return;
   }
 
@@ -6417,6 +6459,7 @@ void Master::reregisterSlave(
       << "Ignoring reregister agent message from agent "
       << slaveInfo.id() << " at " << from << " ("
       << slaveInfo.hostname() << ") as a gone operation is already in progress";
+
     return;
   }
 
@@ -6437,6 +6480,7 @@ void Master::reregisterSlave(
     LOG(WARNING) << "Dropping re-registration of agent at " << from
                  << " because it sent an invalid re-registration: "
                  << error->message;
+
     return;
   }
 
@@ -7206,12 +7250,14 @@ void Master::unregisterSlave(const UPID& from, const SlaveID& slaveId)
   if (slave == nullptr) {
     LOG(WARNING) << "Ignoring unregister agent message from " << from
                  << " for unknown agent";
+
     return;
   }
 
   if (slave->pid != from) {
     LOG(WARNING) << "Ignoring unregister agent message from " << from
                  << " because it is not the agent " << slave->pid;
+
     return;
   }
 
@@ -7394,6 +7440,7 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
   if (!updated) {
     LOG(INFO) << "Ignoring update on agent " << *slave
               << " as it reports no changes";
+
     return;
   }
 
@@ -7800,6 +7847,7 @@ void Master::statusUpdate(StatusUpdateMessage&& statusUpdateMessage)
     LOG(WARNING) << "Ignoring status update " << update
                  << " from removed agent " << pid
                  << " with id " << update.slave_id();
+
     metrics->invalid_status_updates++;
     return;
   }
@@ -7810,6 +7858,7 @@ void Master::statusUpdate(StatusUpdateMessage&& statusUpdateMessage)
     LOG(WARNING) << "Ignoring status update " << update
                  << " from unknown agent " << pid
                  << " with id " << update.slave_id();
+
     metrics->invalid_status_updates++;
     return;
   }
@@ -7819,6 +7868,7 @@ void Master::statusUpdate(StatusUpdateMessage&& statusUpdateMessage)
     LOG(WARNING) << "Ignoring status update "
                  << " from agent " << *slave
                  << ": " << uuid.error();
+
     ++metrics->invalid_status_updates;
     return;
   }
@@ -7855,6 +7905,7 @@ void Master::statusUpdate(StatusUpdateMessage&& statusUpdateMessage)
     // of status updates before the framework is shutdown.
     LOG(WARNING) << "Could not lookup task for status update " << update
                  << " from agent " << *slave;
+
     metrics->invalid_status_updates++;
     return;
   }
@@ -7938,6 +7989,7 @@ void Master::updateOperationStatus(
                        ? "framework " + stringify(frameworkId.get())
                        : "an operator API call")
                  << ": Agent " << slaveId << " is not registered";
+
     return;
   }
 
@@ -7949,6 +8001,7 @@ void Master::updateOperationStatus(
                      ? "framework " + stringify(frameworkId.get())
                      : "an operator API call")
                << " on agent " << slaveId;
+
     return;
   }
 
@@ -8026,6 +8079,7 @@ void Master::exitedExecutor(
     LOG(WARNING) << "Ignoring exited executor '" << executorId
                  << "' of framework " << frameworkId
                  << " on removed agent " << slaveId;
+
     return;
   }
 
@@ -8035,6 +8089,7 @@ void Master::exitedExecutor(
     LOG(WARNING) << "Ignoring exited executor '" << executorId
                  << "' of framework " << frameworkId
                  << " on unknown agent " << slaveId;
+
     return;
   }
 
@@ -8045,6 +8100,7 @@ void Master::exitedExecutor(
     LOG(WARNING) << "Ignoring unknown exited executor '" << executorId
                  << "' of framework " << frameworkId
                  << " on agent " << *slave;
+
     return;
   }
 
@@ -8096,6 +8152,7 @@ void Master::shutdown(
     LOG(WARNING) << "Unable to shutdown executor '" << executorId
                  << "' of framework " << frameworkId
                  << " of unknown agent " << slaveId;
+
     return;
   }
 
@@ -8118,6 +8175,7 @@ Future<bool> Master::markUnreachable(
     LOG(INFO) << "Skipping transition of agent"
               << " " << slave.id() << " (" << slave.hostname() << ")"
               << " to unreachable because it reregistered in the interim";
+
     return false;
   }
 
@@ -8130,6 +8188,7 @@ Future<bool> Master::markUnreachable(
                  << " " << slave.id() << " (" << slave.hostname() << ")"
                  << " to unreachable because it has already been removed"
                  << " or marked unreachable";
+
     return false;
   }
 
@@ -8139,6 +8198,7 @@ Future<bool> Master::markUnreachable(
     LOG(INFO) << "Skipping transition of agent"
               << " " << slave.id() << " (" << slave.hostname() << ")"
               << " to unreachable because it is reregistering";
+
     return false;
   }
 
@@ -8155,6 +8215,7 @@ Future<bool> Master::markUnreachable(
                  << " " << slave.id() << " (" << slave.hostname() << ")"
                  << " to unreachable because another unreachable"
                  << " transition is already in progress";
+
     return false;
   }
 
@@ -8162,6 +8223,7 @@ Future<bool> Master::markUnreachable(
     LOG(WARNING) << "Skipping transition of agent"
                  << " " << slave.id() << " (" << slave.hostname() << ")"
                  << " to unreachable because it is being removed";
+
     return false;
   }
 
@@ -8169,6 +8231,7 @@ Future<bool> Master::markUnreachable(
     LOG(WARNING) << "Skipping transition of agent"
                  << " " << slave.id() << " (" << slave.hostname() << ")"
                  << " to unreachable because it has been removed";
+
     return false;
   }
 
@@ -8176,6 +8239,7 @@ Future<bool> Master::markUnreachable(
     LOG(WARNING) << "Skipping transition of agent"
                  << " " << slave.id() << " (" << slave.hostname() << ")"
                  << " to unreachable because it is being marked as gone";
+
     return false;
   }
 
@@ -8183,6 +8247,7 @@ Future<bool> Master::markUnreachable(
     LOG(WARNING) << "Skipping transition of agent"
                  << " " << slave.id() << " (" << slave.hostname() << ")"
                  << " to unreachable because it has been marked as gone";
+
     return false;
   }
 
@@ -8306,6 +8371,7 @@ void Master::reconcileTasks(
   if (framework == nullptr) {
     LOG(WARNING) << "Unknown framework " << frameworkId << " at " << from
                  << " attempted to reconcile tasks";
+
     return;
   }
 
@@ -8313,6 +8379,7 @@ void Master::reconcileTasks(
     LOG(WARNING)
       << "Ignoring reconcile tasks message for framework " << *framework
       << " because it is not expected from " << from;
+
     return;
   }
 
@@ -8588,6 +8655,7 @@ void Master::frameworkFailoverTimeout(const FrameworkID& frameworkId,
     if (framework->reregisteredTime == reregisteredTime) {
       LOG(INFO) << "Framework failover timeout, removing framework "
                 << *framework;
+
       removeFramework(framework);
     }
   }
@@ -8662,6 +8730,7 @@ void Master::offer(
           LOG(WARNING) << "Master returning resources offered because agent "
                        << *slave << " has reached the maximum number of "
                        << "executors";
+
           // Pass a default filter to avoid getting this same offer immediately
           // from the allocator.
           allocator->recoverResources(frameworkId, slaveId, offered, Filters());
@@ -8786,6 +8855,7 @@ void Master::inverseOffer(
       !frameworks.registered[frameworkId]->active()) {
     LOG(INFO) << "Master ignoring inverse offers to framework " << frameworkId
               << " because the framework has terminated or is inactive";
+
     return;
   }
 
@@ -8802,6 +8872,7 @@ void Master::inverseOffer(
       LOG(INFO)
         << "Master ignoring inverse offers to framework " << *framework
         << " because agent " << slaveId << " is not valid";
+
       continue;
     }
 
@@ -9768,6 +9839,7 @@ void Master::addSlave(
         VLOG(2) << "Re-adding completed task " << task.task_id()
                 << " of framework " << *framework
                 << " that ran on agent " << *slave;
+
         framework->addCompletedTask(std::move(task));
       } else {
         // The framework might not be reregistered yet.
@@ -9815,12 +9887,14 @@ void Master::removeSlave(
   if (slaves.markingUnreachable.contains(slave->id)) {
     LOG(WARNING) << "Ignoring removal of agent " << *slave
                  << " that is in the process of being marked unreachable";
+
     return;
   }
 
   if (slaves.markingGone.contains(slave->id)) {
     LOG(WARNING) << "Ignoring removal of agent " << *slave
                  << " that is in the process of being marked gone";
+
     return;
   }
 
@@ -9829,6 +9903,7 @@ void Master::removeSlave(
   if (slaves.removing.contains(slave->id)) {
     LOG(WARNING) << "Ignoring removal of agent " << *slave
                  << " that is in the process of being removed";
+
     return;
   }
 
