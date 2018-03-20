@@ -100,6 +100,14 @@ Try<Isolator*> NetworkCniIsolatorProcess::create(const Flags& flags)
     return Error("The 'network/cni' isolator requires root permissions");
   }
 
+  Try<bool> supported =
+    ns::supported(CLONE_NEWNS | CLONE_NEWNET | CLONE_NEWUTS);
+  if (supported.isError() || !supported.get()) {
+    return Error(
+        "The 'network/cni' isolator requires "
+        "network, mount and UTS namespace support");
+  }
+
   if (flags.network_cni_plugins_dir.isNone() ||
       flags.network_cni_plugins_dir->empty()) {
     return Error("Missing required '--network_cni_plugins_dir' flag");

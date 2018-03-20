@@ -56,14 +56,15 @@ SharedFilesystemIsolatorProcess::~SharedFilesystemIsolatorProcess() {}
 
 Try<Isolator*> SharedFilesystemIsolatorProcess::create(const Flags& flags)
 {
-  Result<string> user = os::user();
-  if (!user.isSome()) {
-    return Error("Failed to determine user: " +
-                 (user.isError() ? user.error() : "username not found"));
+  if (::geteuid() != 0) {
+    return Error("The 'filesystem/shared' isolator requires root privileges");
   }
 
-  if (user.get() != "root") {
-    return Error("SharedFilesystemIsolator requires root privileges");
+
+  Try<bool> supported = ns::supported(CLONE_NEWNS);
+  if (supported.isError() || !supported.get()) {
+    return Error(
+        "The 'filesystem/shared' isolator requires mount namespace support");
   }
 
   process::Owned<MesosIsolatorProcess> process(

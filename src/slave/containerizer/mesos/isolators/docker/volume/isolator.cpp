@@ -24,6 +24,8 @@
 #include <stout/os/realpath.hpp>
 #include <stout/os/which.hpp>
 
+#include "linux/ns.hpp"
+
 #include "slave/flags.hpp"
 #include "slave/state.hpp"
 
@@ -83,6 +85,12 @@ Try<Isolator*> DockerVolumeIsolatorProcess::create(const Flags& flags)
   // Check for root permission.
   if (geteuid() != 0) {
     return Error("The 'docker/volume' isolator requires root permissions");
+  }
+
+  Try<bool> supported = ns::supported(CLONE_NEWNS);
+  if (supported.isError() || !supported.get()) {
+    return Error(
+        "The 'docker/volume' isolator requires mount namespace support");
   }
 
   // TODO(gyliu513): Check dvdcli version, the version need to be

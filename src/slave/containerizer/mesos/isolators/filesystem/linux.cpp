@@ -78,6 +78,13 @@ Try<Isolator*> LinuxFilesystemIsolatorProcess::create(const Flags& flags)
     return Error("'filesystem/linux' isolator requires 'linux' launcher");
   }
 
+
+  Try<bool> supported = ns::supported(CLONE_NEWNS);
+  if (supported.isError() || !supported.get()) {
+    return Error(
+        "The 'filesystem/linux' isolator requires mount namespace support");
+  }
+
   // Make sure that slave's working directory is in a shared mount so
   // that when forking a child process (with a new mount namespace),
   // the child process does not hold extra references to container's
