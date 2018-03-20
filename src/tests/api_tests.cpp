@@ -226,10 +226,10 @@ TEST_P(MasterAPITest, GetAgents)
   info.set_type("org.apache.mesos.rp.test");
   info.set_name("test");
 
-  v1::MockResourceProvider resourceProvider(
-      info,
-      v1::createDiskResource(
-          "200", "*", None(), None(), v1::createDiskSourceRaw()));
+  v1::Resource resource = v1::createDiskResource(
+      "200", "*", None(), None(), v1::createDiskSourceRaw());
+
+  v1::MockResourceProvider resourceProvider(info, resource);
 
   // Start and register a resource provider.
   Owned<EndpointDetector> endpointDetector(
@@ -260,6 +260,17 @@ TEST_P(MasterAPITest, GetAgents)
 
   EXPECT_EQ(info.type(), responseInfo.type());
   EXPECT_EQ(info.name(), responseInfo.name());
+
+  ASSERT_TRUE(responseInfo.has_id());
+  resource.mutable_provider_id()->CopyFrom(responseInfo.id());
+
+  const v1::Resources responseResources =
+    v1Response->get_agents()
+      .agents(0)
+      .resource_providers(0)
+      .total_resources();
+
+  EXPECT_EQ(v1::Resources(resource), responseResources);
 }
 
 
