@@ -7,9 +7,7 @@ layout: documentation
 
 Mesos 1.0.0 introduced experimental support for Windows.
 
-
 ## Building Mesos
-
 
 ### System Requirements
 
@@ -34,7 +32,6 @@ Mesos 1.0.0 introduced experimental support for Windows.
    (not Python 3), in order to use our support scripts (e.g. to post and apply
    patches, or lint source code).
 
-
 ### Build Instructions
 
 Following are the instructions for Windows 10.
@@ -57,6 +54,10 @@ Following are the instructions for Windows 10.
     # master, using eiher an IP address or zookeeper information.
     src\mesos-agent.exe --master=<master> --work_dir=<work folder> --launcher_dir=<repository>\build\src
 
+## Running Mesos
+
+If you deploy the executables to another machine, you must also
+install the [Microsoft Visual C++ Redistributable for Visual Studio 2017](https://aka.ms/vs/15/release/VC_redist.x64.exe).
 
 ## Known Limitations
 
@@ -81,7 +82,6 @@ The current implementation is known to have the following limitations:
 [server]: https://docs.microsoft.com/en-us/windows-server/get-started/get-started-with-1709
 [create symlinks]: https://blogs.windows.com/buildingapps/2016/12/02/symlinks-windows-10/
 
-
 ## Build Configuration Examples
 
 ### Building with Ninja
@@ -105,7 +105,6 @@ ensure `ninja.exe` is in your `PATH`.
 Note that with Ninja it is imperative to open the correct developer
 command prompt so that the 64-bit build tools are used, as Ninja does
 not otherwise know how to find them.
-
 
 ### Building with Java
 
