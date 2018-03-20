@@ -13,12 +13,10 @@
 #ifndef __STOUT_OS_WINDOWS_WRITE_HPP__
 #define __STOUT_OS_WINDOWS_WRITE_HPP__
 
-#include <io.h>
-
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
 #include <stout/unreachable.hpp>
-#include <stout/windows.hpp> // For order-dependent networking headers.
+#include <stout/windows.hpp>
 
 #include <stout/os/int_fd.hpp>
 #include <stout/os/socket.hpp>
@@ -30,9 +28,20 @@ inline ssize_t write(const int_fd& fd, const void* data, size_t size)
   CHECK_LE(size, INT_MAX);
 
   switch (fd.type()) {
-    case WindowsFD::FD_CRT:
-    case WindowsFD::FD_HANDLE: {
+    // TODO(andschwa): Remove this when `FD_CRT` is removed, MESOS-8675.
+    case WindowsFD::FD_CRT: {
       return ::_write(fd.crt(), data, static_cast<unsigned int>(size));
+    }
+    case WindowsFD::FD_HANDLE: {
+      DWORD bytes;
+      // TODO(andschwa): Handle overlapped I/O.
+      const BOOL result =
+        ::WriteFile(fd, data, static_cast<DWORD>(size), &bytes, nullptr);
+      if (result == FALSE) {
+        return -1; // Indicates an error, but we can't return a `WindowsError`.
+      }
+
+      return static_cast<ssize_t>(bytes);
     }
     case WindowsFD::FD_SOCKET: {
       return ::send(fd, (const char*)data, static_cast<int>(size), 0);

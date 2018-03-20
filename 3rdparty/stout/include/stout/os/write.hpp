@@ -44,7 +44,11 @@ inline ssize_t write_impl(int_fd fd, const char* buffer, size_t count)
 
     if (length < 0) {
 #ifdef __WINDOWS__
-      int error = WSAGetLastError();
+      // NOTE: There is no actual difference between `WSAGetLastError` and
+      // `GetLastError`, the former is an alias for the latter. So we can
+      // simply use the former here for both `HANDLE` and `SOCKET` types of
+      // `int_fd`. See MESOS-8764.
+      int error = ::GetLastError();
 #else
       int error = errno;
 #endif // __WINDOWS__
@@ -95,7 +99,11 @@ inline Try<Nothing> write(int_fd fd, const std::string& message)
 {
   ssize_t result = signal_safe::write(fd, message);
   if (result < 0) {
+#ifdef __WINDOWS__
+    return WindowsError();
+#else
     return ErrnoError();
+#endif // __WINDOWS__
   }
 
   return Nothing();
@@ -112,7 +120,7 @@ inline Try<Nothing> write(const std::string& path, const std::string& message)
       S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   if (fd.isError()) {
-    return ErrnoError("Failed to open file '" + path + "'");
+    return Error(fd.error());
   }
 
   Try<Nothing> result = write(fd.get(), message);
