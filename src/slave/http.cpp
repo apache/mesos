@@ -1790,6 +1790,9 @@ Future<Response> Http::getResourceProviders(
 
     provider->mutable_resource_provider_info()
       ->CopyFrom(resourceProvider->info);
+
+    provider->mutable_total_resources()->CopyFrom(
+        resourceProvider->totalResources);
   }
 
   return OK(serialize(acceptType, evolve(response)), stringify(acceptType));

@@ -547,6 +547,7 @@ message Response {
   message GetResourceProviders {
     message ResourceProvider {
       required ResourceProviderInfo resource_provider_info = 1;
+      repeated Resource total_resources = 2;
     }
 
     repeated ResourceProvider resource_providers = 1;
