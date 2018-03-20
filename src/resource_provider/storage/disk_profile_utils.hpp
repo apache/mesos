@@ -27,7 +27,7 @@
 
 namespace mesos {
 namespace internal {
-namespace profile {
+namespace storage {
 
 // Helper for parsing a string as the expected data format.
 Try<resource_provider::DiskProfileMapping> parseDiskProfileMapping(
@@ -49,7 +49,7 @@ Option<Error> validate(const resource_provider::DiskProfileMapping& mapping);
 // comments above the protobuf.
 Option<Error> validate(const csi::VolumeCapability& capability);
 
-} // namespace profile {
+} // namespace storage {
 } // namespace internal {
 } // namespace mesos {
 

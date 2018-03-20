@@ -56,7 +56,7 @@ using mesos::resource_provider::DiskProfileMapping;
 
 namespace mesos {
 namespace internal {
-namespace profile {
+namespace storage {
 
 bool operator==(
     const Map<string, string>& left,
@@ -303,7 +303,7 @@ void UriDiskProfileAdaptorProcess::notify(
     << " total profiles";
 }
 
-} // namespace profile {
+} // namespace storage {
 } // namespace internal {
 } // namespace mesos {
 
@@ -324,7 +324,7 @@ org_apache_mesos_UriDiskProfileAdaptor(
       }
 
       // Load and validate flags from the map.
-      mesos::internal::profile::Flags flags;
+      mesos::internal::storage::Flags flags;
       Try<flags::Warnings> load = flags.load(values);
 
       if (load.isError()) {
@@ -337,5 +337,5 @@ org_apache_mesos_UriDiskProfileAdaptor(
         LOG(WARNING) << warning.message;
       }
 
-      return new mesos::internal::profile::UriDiskProfileAdaptor(flags);
+      return new mesos::internal::storage::UriDiskProfileAdaptor(flags);
     });

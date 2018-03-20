@@ -27,9 +27,9 @@ using std::string;
 
 using mesos::resource_provider::DiskProfileMapping;
 
-namespace mesos{
+namespace mesos {
 namespace internal {
-namespace profile {
+namespace storage {
 
 Try<DiskProfileMapping> parseDiskProfileMapping(
     const string& data)
@@ -208,6 +208,6 @@ Option<Error> validate(const csi::VolumeCapability& capability)
   return None();
 }
 
-} // namespace profile {
+} // namespace storage {
 } // namespace internal {
 } // namespace mesos {

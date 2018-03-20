@@ -133,7 +133,7 @@ TEST_F(UriDiskProfileTest, ParseExample)
     })~";
 
   Try<DiskProfileMapping> parsed =
-    mesos::internal::profile::parseDiskProfileMapping(example);
+    mesos::internal::storage::parseDiskProfileMapping(example);
   ASSERT_SOME(parsed);
 
   const string key = "my-profile";
@@ -387,7 +387,7 @@ TEST_F(UriDiskProfileTest, ParseInvalids)
   hashset<string> errors;
   for (size_t i = 0; i < examples.size(); i++) {
     Try<DiskProfileMapping> parsed =
-      mesos::internal::profile::parseDiskProfileMapping(examples[i]);
+      mesos::internal::storage::parseDiskProfileMapping(examples[i]);
 
     ASSERT_ERROR(parsed) << examples[i];
     ASSERT_EQ(0u, errors.count(parsed.error())) << parsed.error();

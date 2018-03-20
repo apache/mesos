@@ -42,7 +42,7 @@
 
 namespace mesos {
 namespace internal {
-namespace profile {
+namespace storage {
 
 // Forward declaration.
 class UriDiskProfileAdaptorProcess;
@@ -245,7 +245,7 @@ private:
   process::Owned<process::Promise<Nothing>> watchPromise;
 };
 
-} // namespace profile {
+} // namespace storage {
 } // namespace internal {
 } // namespace mesos {
 
