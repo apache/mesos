@@ -23,16 +23,20 @@
 #include <process/subprocess.hpp>
 
 #include <stout/error.hpp>
-#include <stout/lambda.hpp>
 #include <stout/foreach.hpp>
+#include <stout/lambda.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
-#include <stout/os/strerror.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 #include <stout/windows.hpp>
 
-#include <stout/internal/windows/longpath.hpp>
+#include <stout/os/int_fd.hpp>
+#include <stout/os/open.hpp>
+#include <stout/os/pipe.hpp>
+#include <stout/os/strerror.hpp>
+
+#include <stout/internal/windows/inherit.hpp>
 
 using std::array;
 using std::string;
@@ -41,60 +45,6 @@ namespace process {
 
 using InputFileDescriptors = Subprocess::IO::InputFileDescriptors;
 using OutputFileDescriptors = Subprocess::IO::OutputFileDescriptors;
-
-namespace internal {
-
-// Creates a file for a subprocess's stdin, stdout, or stderr.
-//
-// NOTE: For portability, Libprocess implements POSIX-style semantics for these
-// files, and make no assumptions about who has access to them. For example, we
-// do not enforce a process-level write lock on stdin, and we do not enforce a
-// similar read lock from stdout.
-static Try<HANDLE> createIoPath(const string& path, DWORD accessFlags)
-{
-  // Per function comment, the flags `FILE_SHARE_READ`, `FILE_SHARE_WRITE`, and
-  // `OPEN_ALWAYS` are all important. The former two make sure we do not
-  // acquire a process-level lock on reading/writing the file, and the last one
-  // ensures that we open the file if it exists, and create it if it does not.
-  // Note that we specify both `FILE_SHARE_READ` and `FILE_SHARE_WRITE` because
-  // the documentation is not clear about whether `FILE_SHARE_WRITE` also
-  // ensures we don't take a read lock out.
-  SECURITY_ATTRIBUTES sa = { sizeof(SECURITY_ATTRIBUTES), nullptr, TRUE };
-  const HANDLE handle = ::CreateFileW(
-      ::internal::windows::longpath(path).data(),
-      accessFlags,
-      FILE_SHARE_READ | FILE_SHARE_WRITE,
-      &sa,
-      OPEN_ALWAYS,
-      FILE_ATTRIBUTE_NORMAL,
-      nullptr);
-
-  if (handle == INVALID_HANDLE_VALUE) {
-    return WindowsError("Failed to open '" + path + "'");
-  }
-
-  return handle;
-}
-
-
-static Try<HANDLE> createInputFile(const string& path)
-{
-  // Get a handle to the `stdin` file. Use `GENERIC_READ` and
-  // `FILE_SHARE_READ` to make the handle read-only (as `stdin` should
-  // be), but allow others to read from the same file.
-  return createIoPath(path, GENERIC_READ);
-}
-
-
-static Try<HANDLE> createOutputFile(const string& path)
-{
-  // Get a handle to the `stdout` file. Use `GENERIC_WRITE` to make the
-  // handle writeable (as `stdout` should be), but still allow other processes
-  // to read from the file.
-  return createIoPath(path, GENERIC_WRITE);
-}
-
-}  // namespace internal {
 
 // Opens an inheritable pipe[1] represented as a pair of file handles. On
 // success, the first handle returned receives the 'read' handle of the pipe,
@@ -107,39 +57,35 @@ Subprocess::IO Subprocess::PIPE()
 {
   return Subprocess::IO(
       []() -> Try<InputFileDescriptors> {
-        const Try<array<os::WindowsFD, 2>> handles = os::pipe();
-        if (handles.isError()) {
-          return Error(handles.error());
+        const Try<array<int_fd, 2>> pipefd = os::pipe();
+        if (pipefd.isError()) {
+          return Error(pipefd.error());
         }
 
         // Create STDIN pipe and set the 'write' component to not be
         // inheritable.
-        if (!::SetHandleInformation(handles.get()[1], HANDLE_FLAG_INHERIT, 0)) {
-          return WindowsError(
-              "PIPE: Failed to call SetHandleInformation on stdin pipe");
+        const Try<Nothing> inherit =
+          ::internal::windows::set_inherit(pipefd.get()[1], false);
+        if (inherit.isError()) {
+          return Error(inherit.error());
         }
 
-        InputFileDescriptors fds;
-        fds.read = handles.get()[0];
-        fds.write = handles.get()[1];
-        return fds;
+        return InputFileDescriptors{pipefd.get()[0], pipefd.get()[1]};
       },
       []() -> Try<OutputFileDescriptors> {
-        const Try<array<os::WindowsFD, 2>> handles = os::pipe();
-        if (handles.isError()) {
-          return Error(handles.error());
+        const Try<array<int_fd, 2>> pipefd = os::pipe();
+        if (pipefd.isError()) {
+          return Error(pipefd.error());
         }
 
         // Create OUT pipe and set the 'read' component to not be inheritable.
-        if (!::SetHandleInformation(handles.get()[0], HANDLE_FLAG_INHERIT, 0)) {
-          return WindowsError(
-              "PIPE: Failed to call SetHandleInformation on out pipe");
+        const Try<Nothing> inherit =
+          ::internal::windows::set_inherit(pipefd.get()[0], false);
+        if (inherit.isError()) {
+          return Error(inherit.error());
         }
 
-        OutputFileDescriptors fds;
-        fds.read = handles.get()[0];
-        fds.write = handles.get()[1];
-        return fds;
+        return OutputFileDescriptors{pipefd.get()[0], pipefd.get()[1]};
       });
 }
 
@@ -148,26 +94,34 @@ Subprocess::IO Subprocess::PATH(const string& path)
 {
   return Subprocess::IO(
       [path]() -> Try<InputFileDescriptors> {
-        const Try<HANDLE> inHandle = internal::createInputFile(path);
+        const Try<int_fd> open = os::open(path, O_RDONLY);
 
-        if (inHandle.isError()) {
-          return Error(inHandle.error());
+        if (open.isError()) {
+          return Error(open.error());
         }
 
-        InputFileDescriptors inDescriptors;
-        inDescriptors.read = inHandle.get();
-        return inDescriptors;
+        const Try<Nothing> inherit =
+          ::internal::windows::set_inherit(open.get(), true);
+        if (inherit.isError()) {
+          return Error(inherit.error());
+        }
+
+        return InputFileDescriptors{open.get(), None()};
       },
       [path]() -> Try<OutputFileDescriptors> {
-        const Try<HANDLE> outHandle = internal::createOutputFile(path);
+        const Try<int_fd> open = os::open(path, O_WRONLY | O_CREAT | O_APPEND);
 
-        if (outHandle.isError()) {
-          return Error(outHandle.error());
+        if (open.isError()) {
+          return Error(open.error());
         }
 
-        OutputFileDescriptors outDescriptors;
-        outDescriptors.write = outHandle.get();
-        return outDescriptors;
+        const Try<Nothing> inherit =
+          ::internal::windows::set_inherit(open.get(), true);
+        if (inherit.isError()) {
+          return Error(inherit.error());
+        }
+
+        return OutputFileDescriptors{None(), open.get()};
       });
 }
 
