@@ -374,11 +374,11 @@ TEST_F(UpgradeTest, UpgradeSlaveIntoMultiRole)
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
-  detector.appoint(master.get()->pid);
-
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
+
+  detector.appoint(master.get()->pid);
 
   Clock::advance(slaveFlags.authentication_backoff_factor);
   Clock::advance(slaveFlags.registration_backoff_factor);
@@ -647,10 +647,10 @@ TEST_F(UpgradeTest, UpgradeAgentIntoHierarchicalRoleForNonHierarchicalRole)
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
 
-  detector.appoint(master.get()->pid);
-
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillOnce(FutureArg<1>(&offers));
+
+  detector.appoint(master.get()->pid);
 
   Clock::advance(slaveFlags.authentication_backoff_factor);
   Clock::advance(slaveFlags.registration_backoff_factor);
