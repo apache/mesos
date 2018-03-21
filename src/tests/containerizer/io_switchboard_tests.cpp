@@ -918,6 +918,8 @@ TEST_F(IOSwitchboardTest, KillSwitchboardContainerDestroyed)
 
 
 // This test verifies that the io switchboard isolator recovers properly.
+//
+// TODO(alexr): Enable after MESOS-7023 is resolved.
 TEST_F(IOSwitchboardTest, DISABLED_RecoverThenKillSwitchboardContainerDestroyed)
 {
   Try<Owned<cluster::Master>> master = StartMaster();

@@ -438,6 +438,8 @@ TYPED_TEST(SlaveRecoveryTest, RecoverTaskStatusUpdateManager)
 // The slave is stopped before the first update for a task is received from the
 // HTTP based command executor. When it comes back up with recovery=reconnect,
 // make sure the executor subscribes and the slave properly sends the update.
+//
+// TODO(alexr): Enable after MESOS-6623 is resolved.
 TYPED_TEST(SlaveRecoveryTest, DISABLED_ReconnectHTTPExecutor)
 {
   Try<Owned<cluster::Master>> master = this->StartMaster();
@@ -533,6 +535,8 @@ TYPED_TEST(SlaveRecoveryTest, DISABLED_ReconnectHTTPExecutor)
 //
 // TODO(anand): Remove the `ROOT_CGROUPS` prefix once the posix isolator
 // is nested aware.
+//
+// TODO(alexr): Enable after MESOS-6623 is resolved.
 TYPED_TEST(SlaveRecoveryTest, DISABLED_ROOT_CGROUPS_ReconnectDefaultExecutor)
 {
   Try<Owned<cluster::Master>> master = this->StartMaster();
@@ -1083,6 +1087,8 @@ TYPED_TEST(SlaveRecoveryTest, PingTimeoutDuringRecovery)
 // The slave is stopped before the HTTP based command executor is
 // registered. When it comes back up with recovery=reconnect, make
 // sure the executor is killed and the task is transitioned to LOST.
+//
+// TODO(alexr): Enable after MESOS-6623 is resolved.
 TYPED_TEST(SlaveRecoveryTest, DISABLED_RecoverUnregisteredHTTPExecutor)
 {
   Try<Owned<cluster::Master>> master = this->StartMaster();
@@ -1930,6 +1936,8 @@ TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
 // The slave is stopped before a terminal update is received from the HTTP
 // based command executor. The slave is then restarted in recovery=cleanup mode.
 // It kills the executor, and terminates. Master should then send TASK_LOST.
+//
+// TODO(alexr): Enable after MESOS-6623 is resolved.
 TYPED_TEST(SlaveRecoveryTest, DISABLED_CleanupHTTPExecutor)
 {
   master::Flags masterFlags = this->CreateMasterFlags();
@@ -2390,6 +2398,8 @@ TYPED_TEST(SlaveRecoveryTest, NonCheckpointingFramework)
 // command executor that has been running before the slave restarted.
 // This test ensures that a restarted slave is able to communicate
 // with all components (scheduler, master, executor).
+//
+// TODO(alexr): Enable after MESOS-6623 is resolved.
 TYPED_TEST(SlaveRecoveryTest, DISABLED_KillTaskWithHTTPExecutor)
 {
   Try<Owned<cluster::Master>> master = this->StartMaster();

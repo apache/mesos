@@ -1878,8 +1878,7 @@ TEST_P(DefaultExecutorTest, ROOT_MultiTaskgroupSharePidNamespace)
 
 // This test verifies that a resource limitation incurred on a nested
 // container is propagated all the way up to the scheduler.
-TEST_P_TEMP_DISABLED_ON_WINDOWS(
-    DefaultExecutorTest, ResourceLimitation)
+TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, ResourceLimitation)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);

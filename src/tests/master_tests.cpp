@@ -6863,6 +6863,8 @@ TEST_F(MasterTest, RejectFrameworkWithInvalidFailoverTimeout)
 
 // This test verifies that we recover resources when an orphaned task reaches
 // a terminal state.
+//
+// TODO(alexr): Enable after MESOS-6623 is resolved.
 TEST_F(MasterTest, DISABLED_RecoverResourcesOrphanedTask)
 {
   Try<Owned<cluster::Master>> master = StartMaster();

@@ -1119,6 +1119,8 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 // specified user. We use (and assume the presence) of the
 // unprivileged 'nobody' user which should be available on both Linux
 // and Mac OS X.
+//
+// TODO(alexr): Enable after MESOS-2199 is resolved.
 TEST_F(SlaveTest, DISABLED_ROOT_RunTaskWithCommandInfoWithUser)
 {
   // TODO(nnielsen): Introduce STOUT abstraction for user verification
@@ -2850,6 +2852,8 @@ TEST_F(SlaveTest, ContainersEndpoint)
 
 // This test ensures that when a slave is shutting down, it will not
 // try to reregister with the master.
+//
+// TODO(alexr): Enable after MESOS-3509 is resolved.
 TEST_F(SlaveTest, DISABLED_TerminatingSlaveDoesNotReregister)
 {
   // Start a master.
@@ -9367,7 +9371,8 @@ TEST_F(SlaveTest, ExecutorReregistrationTimeoutFlag)
 // all tasks) is necessary, because changing the agent's domain is an
 // incompatible change to its SlaveInfo.
 //
-// TODO(anand): Re-enable this test when fault domain upgrade is supported.
+// TODO(anand): Re-enable this test when fault domain upgrade is supported,
+// see MESOS-8711.
 TEST_F(SlaveTest, DISABLED_ChangeDomain)
 {
   Clock::pause();

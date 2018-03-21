@@ -152,6 +152,7 @@ TEST_F(CapabilitiesTest, ROOT_PingWithJustNetRawSysAdminCap)
 }
 
 
+// TODO(alexr): Enable after MESOS-8707 is resolved.
 TEST(AmbientCapabilities, DISABLED_Supported)
 {
   Try<Capabilities> manager = Capabilities::create();

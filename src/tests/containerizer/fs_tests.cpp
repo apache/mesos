@@ -153,6 +153,7 @@ TEST_F(FsTest, MountInfoTableParse)
 }
 
 
+// TODO(alexr): Enable after MESOS-8709 is resolved.
 TEST_F(FsTest, DISABLED_MountInfoTableRead)
 {
   // Examine the calling process's mountinfo table.
