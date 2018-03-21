@@ -184,6 +184,11 @@ UpdateOperationStatusMessage createUpdateOperationStatusMessage(
     const Option<SlaveID>& slaveId = None());
 
 
+// Create a `UUID`. If `uuid` is given it is used to initialize
+// the created `UUID`; otherwise a random `UUID` is returned.
+UUID createUUID(const Option<id::UUID>& uuid = None());
+
+
 // Helper function that creates a MasterInfo from UPID.
 MasterInfo createMasterInfo(const process::UPID& pid);
 

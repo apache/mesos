@@ -1162,12 +1162,9 @@ Future<Nothing> StorageLocalResourceProviderProcess::reconcileStatusUpdates()
             ? statusUpdateManagerState.streams.at(uuid)->updates.size() : 0;
 
         for (int i = numStatuses; i < operation.statuses().size(); i++) {
-          UUID uuid_;
-          uuid_.set_value(uuid.toBytes());
-
           UpdateOperationStatusMessage update =
             protobuf::createUpdateOperationStatusMessage(
-                uuid_,
+                protobuf::createUUID(uuid),
                 operation.statuses(i),
                 None(),
                 operation.has_framework_id()
@@ -1436,16 +1433,13 @@ void StorageLocalResourceProviderProcess::applyOperation(
         " (expected: " + stringify(resourceVersion) + ")");
   }
 
-  UUID uuid_;
-  uuid_.set_value(uuid->toBytes());
-
   CHECK(!operations.contains(uuid.get()));
   operations[uuid.get()] = protobuf::createOperation(
       operation.info(),
       protobuf::createOperationStatus(OPERATION_PENDING, operationId),
       frameworkId,
       slaveId,
-      uuid_);
+      protobuf::createUUID(uuid.get()));
 
   checkpointResourceProviderState();
 
@@ -2722,12 +2716,9 @@ void StorageLocalResourceProviderProcess::dropOperation(
   LOG(WARNING)
     << "Dropping operation (uuid: " << operationUuid << "): " << message;
 
-  UUID operationUuid_;
-  operationUuid_.set_value(operationUuid.toBytes());
-
   UpdateOperationStatusMessage update =
     protobuf::createUpdateOperationStatusMessage(
-       operationUuid_,
+       protobuf::createUUID(operationUuid),
        protobuf::createOperationStatus(
            OPERATION_DROPPED,
            operationId,
@@ -3027,13 +3018,10 @@ Try<Nothing> StorageLocalResourceProviderProcess::updateOperationStatus(
 
   checkpointResourceProviderState();
 
-  UUID operationUuid_;
-  operationUuid_.set_value(operationUuid.toBytes());
-
   // Send out the status update for the operation.
   UpdateOperationStatusMessage update =
     protobuf::createUpdateOperationStatusMessage(
-        operationUuid_,
+        protobuf::createUUID(operationUuid),
         operation.latest_status(),
         None(),
         operation.has_framework_id()
@@ -3114,7 +3102,8 @@ void StorageLocalResourceProviderProcess::sendResourceProviderStateUpdate()
 
   Call::UpdateState* update = call.mutable_update_state();
   update->mutable_resources()->CopyFrom(totalResources);
-  update->mutable_resource_version_uuid()->set_value(resourceVersion.toBytes());
+  update->mutable_resource_version_uuid()->CopyFrom(
+      protobuf::createUUID(resourceVersion));
 
   foreachvalue (const Operation& operation, operations) {
     update->add_operations()->CopyFrom(operation);

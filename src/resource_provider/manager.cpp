@@ -40,6 +40,7 @@
 #include <stout/uuid.hpp>
 
 #include "common/http.hpp"
+#include "common/protobuf_utils.hpp"
 #include "common/recordio.hpp"
 #include "common/resources_utils.hpp"
 
@@ -545,8 +546,7 @@ Future<Nothing> ResourceProviderManagerProcess::publishResources(
   foreachpair (const ResourceProviderID& resourceProviderId,
                const Resources& resources,
                providedResources) {
-    UUID uuid;
-    uuid.set_value(id::UUID::random().toBytes());
+    UUID uuid = protobuf::createUUID();
 
     Event event;
     event.set_type(Event::PUBLISH_RESOURCES);

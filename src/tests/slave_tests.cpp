@@ -10196,8 +10196,8 @@ TEST_F(SlaveTest, ResourceProviderReconciliation)
     v1::resource_provider::Call::UpdateState* updateState =
       call.mutable_update_state();
 
-    updateState->mutable_resource_version_uuid()->set_value(
-        resourceVersionUuid.toBytes());
+    updateState->mutable_resource_version_uuid()->CopyFrom(
+        evolve(protobuf::createUUID(resourceVersionUuid)));
     updateState->mutable_resources()->CopyFrom(resourceProviderResources_);
 
     mesos::v1::Operation* _operation = updateState->add_operations();
@@ -10348,8 +10348,8 @@ TEST_F(SlaveTest, RunTaskResourceVersions)
     v1::resource_provider::Call::UpdateState* updateState =
       call.mutable_update_state();
 
-    updateState->mutable_resource_version_uuid()->set_value(
-        id::UUID::random().toBytes());
+    updateState->mutable_resource_version_uuid()->CopyFrom(
+        evolve(protobuf::createUUID()));
     updateState->mutable_resources()->CopyFrom(resourceProviderResources_);
 
     AWAIT_READY(resourceProvider.send(call));

@@ -226,10 +226,8 @@ Slave::Slave(const string& id,
     resourceEstimator(_resourceEstimator),
     qosController(_qosController),
     secretGenerator(_secretGenerator),
-    authorizer(_authorizer)
-    {
-      resourceVersion.set_value(id::UUID::random().toBytes());
-    }
+    authorizer(_authorizer),
+    resourceVersion(protobuf::createUUID()) {}
 
 
 Slave::~Slave()

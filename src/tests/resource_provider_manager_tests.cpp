@@ -46,6 +46,7 @@
 #include <stout/try.hpp>
 
 #include "common/http.hpp"
+#include "common/protobuf_utils.hpp"
 #include "common/recordio.hpp"
 
 #include "internal/devolve.hpp"
@@ -316,8 +317,8 @@ TEST_P(ResourceProviderManagerHttpApiTest, UpdateState)
     Call::UpdateState* updateState = call.mutable_update_state();
 
     updateState->mutable_resources()->CopyFrom(v1::Resources(resources));
-    updateState->mutable_resource_version_uuid()->set_value(
-        id::UUID::random().toBytes());
+    updateState->mutable_resource_version_uuid()->CopyFrom(
+        evolve(protobuf::createUUID()));
 
     http::Request request;
     request.method = "POST";
@@ -416,8 +417,7 @@ TEST_P(ResourceProviderManagerHttpApiTest, UpdateOperationStatus)
     mesos::v1::OperationStatus status;
     status.set_state(mesos::v1::OperationState::OPERATION_FINISHED);
 
-    mesos::v1::UUID operationUUID;
-    operationUUID.set_value(id::UUID::random().toBytes());
+    mesos::v1::UUID operationUUID = evolve(protobuf::createUUID());;
 
     Call call;
     call.set_type(Call::UPDATE_OPERATION_STATUS);

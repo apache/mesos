@@ -33,6 +33,8 @@
 
 #include <stout/os/ftruncate.hpp>
 
+#include "common/protobuf_utils.hpp"
+
 #include "slave/constants.hpp"
 
 #include "tests/mesos.hpp"
@@ -98,7 +100,8 @@ protected:
   {
     UpdateOperationStatusMessage statusUpdate;
 
-    statusUpdate.mutable_operation_uuid()->set_value(operationUuid.toBytes());
+    statusUpdate.mutable_operation_uuid()->CopyFrom(
+        protobuf::createUUID(operationUuid));
 
     if (frameworkId.isSome()) {
       statusUpdate.mutable_framework_id()->CopyFrom(frameworkId.get());
@@ -106,7 +109,7 @@ protected:
 
     OperationStatus* status = statusUpdate.mutable_status();
     status->set_state(state);
-    status->mutable_uuid()->set_value(uuid.toBytes());
+    status->mutable_uuid()->CopyFrom(protobuf::createUUID(uuid));
 
     return statusUpdate;
   }
