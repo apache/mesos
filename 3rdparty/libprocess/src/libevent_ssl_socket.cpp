@@ -813,7 +813,15 @@ Future<size_t> LibeventSSLSocketImpl::sendfile(
     return Failure(dup.error());
   }
 
-  int_fd owned_fd = dup.get();
+  // NOTE: This is *not* an `int_fd` because `libevent` requires a CRT
+  // integer file descriptor, which we allocate and then use
+  // exclusively here.
+#ifdef __WINDOWS__
+  int owned_fd = dup->crt();
+  // The `os::cloexec` and `os::nonblock` functions do nothing on
+  // Windows, and cannot be called because they take `int_fd`.
+#else
+  int owned_fd = dup.get();
 
   // Set the close-on-exec flag.
   Try<Nothing> cloexec = os::cloexec(owned_fd);
@@ -832,6 +840,7 @@ Future<size_t> LibeventSSLSocketImpl::sendfile(
         "Failed to make duplicated file descriptor non-blocking: " +
         nonblock.error());
   }
+#endif // __WINDOWS__
 
   // Extend the life-time of 'this' through the execution of the
   // lambda in the event loop. Note: The 'self' needs to be explicitly
@@ -861,16 +870,18 @@ Future<size_t> LibeventSSLSocketImpl::sendfile(
           // descriptor and close it after it has finished reading it.
           int result = evbuffer_add_file(
               bufferevent_get_output(self->bev),
-#ifdef __WINDOWS__
-              owned_fd.crt(),
-#else
               owned_fd,
-#endif // __WINDOWS__
               offset,
               size);
           CHECK_EQ(0, result);
         } else {
+#ifdef __WINDOWS__
+          // NOTE: `os::close()` on Windows is not compatible with CRT
+          // file descriptors, only `HANDLE` and `SOCKET` types.
+          ::_close(owned_fd);
+#else
           os::close(owned_fd);
+#endif // __WINDOWS__
         }
       },
       DISALLOW_SHORT_CIRCUIT);
@@ -905,6 +916,7 @@ Try<Nothing> LibeventSSLSocketImpl::listen(int backlog)
 
         std::shared_ptr<LibeventSSLSocketImpl> impl(handle->lock());
 
+#ifndef __WINDOWS__
         // NOTE: Passing the flag `LEV_OPT_CLOSE_ON_EXEC` into
         // `evconnlistener_new` would atomically set `SOCK_CLOEXEC`
         // on the accepted socket. However, this flag is not supported
@@ -922,6 +934,7 @@ Try<Nothing> LibeventSSLSocketImpl::listen(int backlog)
           os::close(socket);
           return;
         }
+#endif // __WINDOWS__
 
         if (impl != nullptr) {
           Try<net::IP> ip = net::IP::create(*addr);
@@ -934,7 +947,11 @@ Try<Nothing> LibeventSSLSocketImpl::listen(int backlog)
           // is set.
           AcceptRequest* request =
             new AcceptRequest(
-                  socket,
+                  // NOTE: The `int_fd` must be explicitly constructed
+                  // to avoid the `intptr_t` being casted to an `int`,
+                  // resulting in a `HANDLE` instead of a `SOCKET` on
+                  // Windows.
+                  int_fd(socket),
                   listener,
                   ip.isSome() ? Option<net::IP>(ip.get()) : None());
 
@@ -1032,7 +1049,11 @@ void LibeventSSLSocketImpl::peek_callback(
     accept_SSL_callback(request);
   } else {
     // Downgrade to a non-SSL socket implementation.
-    Try<std::shared_ptr<SocketImpl>> impl = PollSocketImpl::create(fd);
+    //
+    // NOTE: The `int_fd` must be explicitly constructed to avoid the
+    // `intptr_t` being casted to an `int`, resulting in a `HANDLE`
+    // instead of a `SOCKET` on Windows.
+    Try<std::shared_ptr<SocketImpl>> impl = PollSocketImpl::create(int_fd(fd));
     if (impl.isError()) {
       request->promise.fail(impl.error());
     } else {
