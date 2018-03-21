@@ -62,6 +62,17 @@ inline Try<struct ::stat> stat(
   UNREACHABLE();
 }
 
+
+inline Try<struct ::stat> stat(const int_fd fd)
+{
+  struct ::stat s;
+
+  if (::fstat(fd, &s) < 0) {
+    return ErrnoError();
+  }
+  return s;
+}
+
 } // namespace internal {
 
 inline bool islink(const std::string& path)
@@ -84,6 +95,14 @@ inline bool isdir(
 }
 
 
+// TODO(andschwa): Share logic with other overload.
+inline bool isdir(const int_fd fd)
+{
+  Try<struct ::stat> s = internal::stat(fd);
+  return s.isSome() && S_ISDIR(s->st_mode);
+}
+
+
 inline bool isfile(
     const std::string& path,
     const FollowSymlink follow = FollowSymlink::FOLLOW_SYMLINK)
@@ -102,6 +121,18 @@ inline Try<Bytes> size(
     const FollowSymlink follow = FollowSymlink::FOLLOW_SYMLINK)
 {
   Try<struct ::stat> s = internal::stat(path, follow);
+  if (s.isError()) {
+    return Error(s.error());
+  }
+
+  return Bytes(s->st_size);
+}
+
+
+// TODO(andschwa): Share logic with other overload.
+inline Try<Bytes> size(const int_fd fd)
+{
+  Try<struct ::stat> s = internal::stat(fd);
   if (s.isError()) {
     return Error(s.error());
   }

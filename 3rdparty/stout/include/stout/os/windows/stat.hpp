@@ -20,6 +20,8 @@
 #include <stout/unreachable.hpp>
 #include <stout/windows.hpp>
 
+#include <stout/os/int_fd.hpp>
+
 #include <stout/internal/windows/attributes.hpp>
 #include <stout/internal/windows/longpath.hpp>
 #include <stout/internal/windows/reparsepoint.hpp>
@@ -54,6 +56,19 @@ inline bool isdir(
   }
 
   return attributes.get() & FILE_ATTRIBUTE_DIRECTORY;
+}
+
+
+// TODO(andschwa): Refactor `GetFileInformationByHandle` into its own function.
+inline bool isdir(const int_fd& fd)
+{
+  BY_HANDLE_FILE_INFORMATION info;
+  const BOOL result = ::GetFileInformationByHandle(fd, &info);
+  if (result == FALSE) {
+    return false;
+  }
+
+  return info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY;
 }
 
 
@@ -110,6 +125,18 @@ inline Try<Bytes> size(
   LARGE_INTEGER file_size;
 
   if (::GetFileSizeEx(handle->get_handle(), &file_size) == 0) {
+    return WindowsError();
+  }
+
+  return Bytes(file_size.QuadPart);
+}
+
+
+inline Try<Bytes> size(const int_fd& fd)
+{
+  LARGE_INTEGER file_size;
+
+  if (::GetFileSizeEx(fd, &file_size) == 0) {
     return WindowsError();
   }
 
