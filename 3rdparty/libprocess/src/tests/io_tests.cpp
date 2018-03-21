@@ -213,6 +213,7 @@ TEST_F(IOTest, Write)
 }
 
 
+// TODO(alexr): Enable after MESOS-973 is resolved.
 TEST_F(IOTest, DISABLED_BlockingWrite)
 {
   int pipes[2];
