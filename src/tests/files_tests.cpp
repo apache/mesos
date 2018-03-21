@@ -337,18 +337,18 @@ TEST_F(FilesTest, BrowseTest)
   JSON::Array expected;
 
   // TODO(johnkord): As per MESOS-8275, we don't want to use stat on Windows.
-  ASSERT_EQ(0, stat(path::join("1", "2").c_str(), &s));
+  ASSERT_EQ(0, ::stat(path::join("1", "2").c_str(), &s));
   expected.values.push_back(
-      model(protobuf::createFileInfo(path::join("one", "2").c_str(), s)));
-  ASSERT_EQ(0, stat(path::join("1", "3").c_str(), &s));
+      model(protobuf::createFileInfo(path::join("one", "2"), s)));
+  ASSERT_EQ(0, ::stat(path::join("1", "3").c_str(), &s));
   expected.values.push_back(
-      model(protobuf::createFileInfo(path::join("one", "3").c_str(), s)));
-  ASSERT_EQ(0, stat(path::join("1", "three").c_str(), &s));
+      model(protobuf::createFileInfo(path::join("one", "3"), s)));
+  ASSERT_EQ(0, ::stat(path::join("1", "three").c_str(), &s));
   expected.values.push_back(
-      model(protobuf::createFileInfo(path::join("one", "three").c_str(), s)));
-  ASSERT_EQ(0, stat(path::join("1", "two").c_str(), &s));
+      model(protobuf::createFileInfo(path::join("one", "three"), s)));
+  ASSERT_EQ(0, ::stat(path::join("1", "two").c_str(), &s));
   expected.values.push_back(
-      model(protobuf::createFileInfo(path::join("one", "two").c_str(), s)));
+      model(protobuf::createFileInfo(path::join("one", "two"), s)));
 
   Future<Response> response =
       process::http::get(upid, "browse", "path=one/");
