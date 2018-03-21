@@ -52,6 +52,10 @@
 #include <stout/os/read.hpp>
 #include <stout/os/write.hpp>
 
+#ifdef __WINDOWS__
+#include <stout/os/dup.hpp>
+#endif // __WINDOWS__
+
 namespace protobuf {
 
 // TODO(bmahler): Re-use stout's 'recordio' facilities here. Note
@@ -80,12 +84,31 @@ inline Try<Nothing> write(int_fd fd, const google::protobuf::Message& message)
   }
 
 #ifdef __WINDOWS__
-  if (!message.SerializeToFileDescriptor(fd.crt())) {
-#else
-  if (!message.SerializeToFileDescriptor(fd)) {
-#endif
+  // NOTE: On Windows, we need to explicitly allocate a CRT file
+  // descriptor because the Protobuf library requires it. Because
+  // users of `protobuf::write` are likely to call `os::close` on the
+  // `fd` we were given, we need to duplicate it before allocating the
+  // CRT fd. This is because once the CRT fd is allocated, it must be
+  // closed with `_close` instead of `os::close`. Since we need to
+  // call `_close` here, we duplicate the fd to prevent the users call
+  // of `os::close` from closing twice.
+  Try<int_fd> dup = os::dup(fd);
+  if (dup.isError()) {
+    return Error("Failed to duplicate handle: " + dup.error());
+  }
+
+  int crt = dup->crt();
+
+  if (!message.SerializeToFileDescriptor(crt)) {
+    ::_close(crt);
     return Error("Failed to write/serialize message");
   }
+  ::_close(crt);
+#else
+  if (!message.SerializeToFileDescriptor(fd)) {
+    return Error("Failed to write/serialize message");
+  }
+#endif
 
   return Nothing();
 }
