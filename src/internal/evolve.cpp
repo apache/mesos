@@ -205,6 +205,12 @@ v1::TaskStatus evolve(const TaskStatus& status)
 }
 
 
+v1::UUID evolve(const UUID& uuid)
+{
+  return evolve<v1::UUID>(uuid);
+}
+
+
 v1::agent::Call evolve(const mesos::agent::Call& call)
 {
   return evolve<v1::agent::Call>(call);

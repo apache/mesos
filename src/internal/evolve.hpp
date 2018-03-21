@@ -81,6 +81,7 @@ v1::Task evolve(const Task& task);
 v1::TaskID evolve(const TaskID& taskId);
 v1::TaskInfo evolve(const TaskInfo& taskInfo);
 v1::TaskStatus evolve(const TaskStatus& status);
+v1::UUID evolve(const UUID& uuid);
 
 v1::agent::Call evolve(const mesos::agent::Call& call);
 v1::agent::ProcessIO evolve(const mesos::agent::ProcessIO& processIO);
