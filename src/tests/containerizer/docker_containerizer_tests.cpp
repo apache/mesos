@@ -2643,9 +2643,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Args)
 // The slave is stopped before the first update for a task is received
 // from the executor. When it comes back up we make sure the executor
 // reregisters and the slave properly sends the update.
-//
-// TODO(alexr): Enable after MESOS-8258 is resolved.
-TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_SlaveRecoveryTaskContainer)
+TEST_F(DockerContainerizerTest, ROOT_DOCKER_SlaveRecoveryTaskContainer)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -2730,16 +2728,23 @@ TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_SlaveRecoveryTaskContainer)
                     Invoke(dockerContainerizer.get(),
                            &MockDockerContainerizer::_launch)));
 
-  // Drop the first update from the executor.
-  Future<StatusUpdateMessage> statusUpdateMessage =
+  // Drop the status updates from the executor. We actually wait until we can
+  // drop the `TASK_RUNNING` update here because the window between the two is
+  // small enough that we could still successfully receive `TASK_RUNNING` after
+  // we have dropped `TASK_STARTING`.
+  Future<StatusUpdateMessage> runningUpdate =
+    DROP_PROTOBUF(StatusUpdateMessage(), _, _);
+
+  Future<StatusUpdateMessage> startingUpdate =
     DROP_PROTOBUF(StatusUpdateMessage(), _, _);
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(containerId);
 
-  // Stop the slave before the status update is received.
-  AWAIT_READY(statusUpdateMessage);
+  // Stop the slave before the status updates are received.
+  AWAIT_READY(startingUpdate);
+  AWAIT_READY(runningUpdate);
 
   slave.get()->terminate();
 
@@ -2770,11 +2775,16 @@ TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_SlaveRecoveryTaskContainer)
   ReregisterExecutorMessage reregister;
   reregister.ParseFromString(reregisterExecutorMessage->body);
 
-  // Executor should inform about the unacknowledged update.
-  ASSERT_EQ(1, reregister.updates_size());
-  const StatusUpdate& update = reregister.updates(0);
-  ASSERT_EQ(task.task_id(), update.status().task_id());
-  ASSERT_EQ(TASK_STARTING, update.status().state());
+  // Executor should inform about the unacknowledged updates.
+  ASSERT_EQ(2, reregister.updates_size());
+
+  const StatusUpdate& updateStarting = reregister.updates(0);
+  ASSERT_EQ(task.task_id(), updateStarting.status().task_id());
+  ASSERT_EQ(TASK_STARTING, updateStarting.status().state());
+
+  const StatusUpdate& updateRunning = reregister.updates(1);
+  ASSERT_EQ(task.task_id(), updateRunning.status().task_id());
+  ASSERT_EQ(TASK_RUNNING, updateRunning.status().state());
 
   // Scheduler should receive the recovered update.
   AWAIT_READY(status);
