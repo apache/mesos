@@ -217,10 +217,13 @@ TEST_F(FsTest, WindowsInternalLongPath)
   EXPECT_EQ(longpath(os::LONGPATH_PREFIX + path),
             wide_stringify(os::LONGPATH_PREFIX + path));
 }
+#endif // __WINDOWS__
 
 
 // This test attempts to perform some basic file operations on a file
 // with an absolute path at exactly the internal `MAX_PATH` of 248.
+//
+// NOTE: This tests an edge case on Windows, but is a cross-platform test.
 TEST_F(FsTest, CreateDirectoryAtMaxPath)
 {
   const size_t max_path_length = 248;
@@ -242,14 +245,17 @@ TEST_F(FsTest, CreateDirectoryAtMaxPath)
 
 // This test attempts to perform some basic file operations on a file
 // with an absolute path longer than the `MAX_PATH`.
+//
+// NOTE: This tests an edge case on Windows, but is a cross-platform test.
 TEST_F(FsTest, CreateDirectoryLongerThanMaxPath)
 {
   string testdir = sandbox.get();
-  while (testdir.length() <= MAX_PATH) {
+  const size_t max_path_length = 260;
+  while (testdir.length() <= max_path_length) {
     testdir = path::join(testdir, id::UUID::random().toString());
   }
 
-  EXPECT_TRUE(testdir.length() > MAX_PATH);
+  EXPECT_TRUE(testdir.length() > max_path_length);
   ASSERT_SOME(os::mkdir(testdir));
 
   const string testfile = path::join(testdir, "file.txt");
@@ -262,41 +268,23 @@ TEST_F(FsTest, CreateDirectoryLongerThanMaxPath)
 
 
 // This test ensures that `os::realpath` will work on open files.
+//
+// NOTE: This tests an edge case on Windows, but is a cross-platform test.
 TEST_F(FsTest, RealpathValidationOnOpenFile)
 {
   // Open a file to write, with "SHARE" read/write permissions,
   // then call `os::realpath` on that file.
   const string file = path::join(sandbox.get(), id::UUID::random().toString());
 
-  const string data = "data";
-
-  const SharedHandle handle(
-      ::CreateFileW(
-          wide_stringify(file).data(),
-          FILE_APPEND_DATA,
-          FILE_SHARE_READ | FILE_SHARE_WRITE,
-          nullptr,  // No inheritance.
-          CREATE_ALWAYS,
-          FILE_ATTRIBUTE_NORMAL,
-          nullptr), // No template file.
-      ::CloseHandle);
-  EXPECT_NE(handle.get_handle(), INVALID_HANDLE_VALUE);
-
-  DWORD bytes_written;
-  BOOL written = ::WriteFile(
-      handle.get_handle(),
-      data.c_str(),
-      static_cast<DWORD>(data.size()),
-      &bytes_written,
-      nullptr); // No overlapped I/O.
-  EXPECT_EQ(written, TRUE);
-  EXPECT_EQ(data.size(), bytes_written);
+  const Try<int_fd> fd = os::open(file, O_CREAT | O_RDWR);
+  ASSERT_SOME(fd);
+  EXPECT_SOME(os::write(fd.get(), "data"));
 
   // Verify that `os::realpath` (which calls `CreateFileW` on Windows) is
   // successful even though the file is open elsewhere.
   EXPECT_SOME_EQ(file, os::realpath(file));
+  EXPECT_SOME(os::close(fd.get()));
 }
-#endif // __WINDOWS__
 
 
 TEST_F(FsTest, SYMLINK_Symlink)
@@ -475,15 +463,22 @@ TEST_F(FsTest, Rename)
 }
 
 
-TEST_F(FsTest, Close)
-{
 #ifdef __WINDOWS__
-  // On Windows, CRT functions like `_close` will cause an assert dialog box
-  // to pop up if you pass them a bad file descriptor. For this test, we prefer
-  // to just have the functions error out.
-  const int previous_report_mode = _CrtSetReportMode(_CRT_ASSERT, 0);
+TEST_F(FsTest, IntFD)
+{
+  const int_fd fd(INVALID_HANDLE_VALUE);
+  EXPECT_EQ(int_fd::Type::HANDLE, fd.type());
+  EXPECT_FALSE(fd.is_valid());
+  EXPECT_EQ(fd, int_fd(-1));
+  EXPECT_EQ(-1, fd);
+  EXPECT_LT(fd, 0);
+  EXPECT_GT(0, fd);
+}
 #endif // __WINDOWS__
 
+
+TEST_F(FsTest, Close)
+{
   const string testfile =
     path::join(os::getcwd(), id::UUID::random().toString());
 
@@ -495,70 +490,32 @@ TEST_F(FsTest, Close)
 
   // Open a file, and verify that writing to that file descriptor succeeds
   // before we close it, and fails after.
-  const Try<int_fd> open_valid_fd = os::open(testfile, O_RDWR);
-  ASSERT_SOME(open_valid_fd);
-  ASSERT_SOME(os::write(open_valid_fd.get(), test_message1));
-
-  EXPECT_SOME(os::close(open_valid_fd.get()));
-
-  EXPECT_ERROR(os::write(open_valid_fd.get(), error_message));
-
-  const Result<string> read_valid_fd = os::read(testfile);
-  EXPECT_SOME(read_valid_fd);
-  ASSERT_EQ(test_message1, read_valid_fd.get());
-
+  const Try<int_fd> fd = os::open(testfile, O_CREAT | O_RDWR);
+  ASSERT_SOME(fd);
 #ifdef __WINDOWS__
-  // Open a file with the traditional Windows `HANDLE` API, then verify that
-  // writing to that `HANDLE` succeeds before we close it, and fails after.
-  const HANDLE open_valid_handle = CreateFileW(
-      wide_stringify(testfile).data(),
-      FILE_APPEND_DATA,
-      0,                     // No sharing mode.
-      nullptr,               // Default security.
-      OPEN_EXISTING,         // Open only if it exists.
-      FILE_ATTRIBUTE_NORMAL, // Open a normal file.
-      nullptr);              // No attribute tempate file.
-  ASSERT_NE(INVALID_HANDLE_VALUE, open_valid_handle);
-
-  DWORD bytes_written;
-  BOOL written = WriteFile(
-      open_valid_handle,
-      test_message1.c_str(),                     // Data to write.
-      static_cast<DWORD>(test_message1.size()),  // Bytes to write.
-      &bytes_written,                            // Bytes written.
-      nullptr);                                  // No overlapped I/O.
-  ASSERT_TRUE(written == TRUE);
-  ASSERT_EQ(test_message1.size(), bytes_written);
-
-  EXPECT_SOME(os::close(open_valid_handle));
-
-  written = WriteFile(
-      open_valid_handle,
-      error_message.c_str(),                     // Data to write.
-      static_cast<DWORD>(error_message.size()),  // Bytes to write.
-      &bytes_written,                            // Bytes written.
-      nullptr);                                  // No overlapped I/O.
-  ASSERT_TRUE(written == FALSE);
-  ASSERT_EQ(0, bytes_written);
-
-  const Result<string> read_valid_handle = os::read(testfile);
-  EXPECT_SOME(read_valid_handle);
-  ASSERT_EQ(test_message1 + test_message1, read_valid_handle.get());
+  ASSERT_EQ(fd->type(), os::WindowsFD::Type::HANDLE);
+  ASSERT_TRUE(fd->is_valid());
 #endif // __WINDOWS__
 
+  ASSERT_SOME(os::write(fd.get(), test_message1));
+
+  EXPECT_SOME(os::close(fd.get()));
+
+  EXPECT_ERROR(os::write(fd.get(), error_message));
+
+  const Result<string> read = os::read(testfile);
+  EXPECT_SOME(read);
+  ASSERT_EQ(test_message1, read.get());
+
   // Try `close` with invalid file descriptor.
+  // NOTE: This should work on both Windows and POSIX because the implicit
+  // conversion to `int_fd` maps `-1` to `INVALID_HANDLE_VALUE` on Windows.
   EXPECT_ERROR(os::close(static_cast<int>(-1)));
 
 #ifdef __WINDOWS__
-  // Try `close` with invalid `SOCKET` and `HANDLE`.
-  EXPECT_ERROR(os::close(static_cast<SOCKET>(INVALID_SOCKET)));
-  EXPECT_ERROR(os::close(INVALID_SOCKET));
-  EXPECT_ERROR(os::close(static_cast<HANDLE>(open_valid_handle)));
-#endif // __WINDOWS__
-
-#ifdef __WINDOWS__
-  // Reset the CRT assert dialog settings.
-  _CrtSetReportMode(_CRT_ASSERT, previous_report_mode);
+  // Try `close` with invalid `HANDLE` and `SOCKET`.
+  EXPECT_ERROR(os::close(int_fd(INVALID_HANDLE_VALUE)));
+  EXPECT_ERROR(os::close(int_fd(INVALID_SOCKET)));
 #endif // __WINDOWS__
 }
 

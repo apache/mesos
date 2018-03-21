@@ -45,7 +45,7 @@ inline Try<std::array<int_fd, 2>> pipe()
     return WindowsError();
   }
 
-  return std::array<int_fd, 2>{read_handle, write_handle};
+  return std::array<int_fd, 2>{int_fd(read_handle), int_fd(write_handle)};
 }
 
 } // namespace os {

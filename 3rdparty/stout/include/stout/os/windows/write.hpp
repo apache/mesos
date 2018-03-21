@@ -28,11 +28,7 @@ inline ssize_t write(const int_fd& fd, const void* data, size_t size)
   CHECK_LE(size, INT_MAX);
 
   switch (fd.type()) {
-    // TODO(andschwa): Remove this when `FD_CRT` is removed, MESOS-8675.
-    case WindowsFD::FD_CRT: {
-      return ::_write(fd.crt(), data, static_cast<unsigned int>(size));
-    }
-    case WindowsFD::FD_HANDLE: {
+    case WindowsFD::Type::HANDLE: {
       DWORD bytes;
       // TODO(andschwa): Handle overlapped I/O.
       const BOOL result =
@@ -43,7 +39,7 @@ inline ssize_t write(const int_fd& fd, const void* data, size_t size)
 
       return static_cast<ssize_t>(bytes);
     }
-    case WindowsFD::FD_SOCKET: {
+    case WindowsFD::Type::SOCKET: {
       return ::send(fd, (const char*)data, static_cast<int>(size), 0);
     }
   }

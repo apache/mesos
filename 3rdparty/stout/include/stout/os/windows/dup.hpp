@@ -25,16 +25,7 @@ namespace os {
 inline Try<int_fd> dup(const int_fd& fd)
 {
   switch (fd.type()) {
-    // TODO(andschwa): Remove this when `FD_CRT` is removed, MESOS-8675.
-    case WindowsFD::FD_CRT: {
-      int result = ::_dup(fd.crt());
-      if (result == -1) {
-        return ErrnoError();
-      }
-
-      return result;
-    }
-    case WindowsFD::FD_HANDLE: {
+    case WindowsFD::Type::HANDLE: {
       HANDLE duplicate = INVALID_HANDLE_VALUE;
       const BOOL result = ::DuplicateHandle(
           ::GetCurrentProcess(),  // Source process == current.
@@ -51,7 +42,7 @@ inline Try<int_fd> dup(const int_fd& fd)
 
       return duplicate;
     }
-    case WindowsFD::FD_SOCKET: {
+    case WindowsFD::Type::SOCKET: {
       WSAPROTOCOL_INFOW info;
       const int result =
         ::WSADuplicateSocketW(fd, ::GetCurrentProcessId(), &info);
@@ -62,6 +53,7 @@ inline Try<int_fd> dup(const int_fd& fd)
       return ::WSASocketW(0, 0, 0, &info, 0, 0);
     }
   }
+
   UNREACHABLE();
 }
 

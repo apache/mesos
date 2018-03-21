@@ -10,6 +10,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License
 
+#include <stout/os/int_fd.hpp>
 #include <stout/os/socket.hpp>
 
 #include <stout/tests/utils.hpp>
@@ -30,5 +31,17 @@ TEST_F(SocketTests, InitSocket)
   // `wsa_cleanup` should always return `true`.
   ASSERT_TRUE(net::wsa_cleanup());
   ASSERT_TRUE(net::wsa_cleanup());
+}
+
+
+TEST_F(SocketTests, IntFD)
+{
+  const int_fd fd(INVALID_SOCKET);
+  EXPECT_EQ(int_fd::Type::SOCKET, fd.type());
+  EXPECT_FALSE(fd.is_valid());
+  EXPECT_EQ(fd, int_fd(-1));
+  EXPECT_EQ(-1, fd);
+  EXPECT_LT(fd, 0);
+  EXPECT_GT(0, fd);
 }
 #endif // __WINDOWS__

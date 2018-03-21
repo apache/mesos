@@ -45,12 +45,11 @@ inline Try<bool> isCloexec(const int_fd& fd)
 inline Try<Nothing> nonblock(const int_fd& fd)
 {
   switch (fd.type()) {
-    case WindowsFD::FD_CRT:
-    case WindowsFD::FD_HANDLE: {
+    case WindowsFD::Type::HANDLE: {
       /* Do nothing. */
-      break;
+      return Nothing();
     }
-    case WindowsFD::FD_SOCKET: {
+    case WindowsFD::Type::SOCKET: {
       const u_long non_block_mode = 1;
       u_long mode = non_block_mode;
 
@@ -58,10 +57,11 @@ inline Try<Nothing> nonblock(const int_fd& fd)
       if (result != NO_ERROR) {
         return WindowsSocketError();
       }
-      break;
+      return Nothing();
     }
   }
-  return Nothing();
+
+  UNREACHABLE();
 }
 
 
