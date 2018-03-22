@@ -2134,7 +2134,7 @@ void Master::lostCandidacy(const Future<Nothing>& lost)
   }
 
   if (elected()) {
-    EXIT(EXIT_FAILURE) << "Lost leadership... committing suicide!";
+    EXIT(EXIT_FAILURE) << "Lost candidacy as a leader... committing suicide!";
   }
 
   LOG(INFO) << "Lost candidacy as a follower... Contend again";
@@ -2171,15 +2171,14 @@ void Master::detected(const Future<Option<MasterInfo>>& _leader)
       // but the same leading master is elected as leader.
       LOG(INFO) << "Re-elected as the leading master";
     }
-  } else {
+  } else if (leader.isSome()) {
     // A different node has been elected as the leading master.
-    LOG(INFO) << "The newly elected leader is "
-              << (leader.isSome()
-                  ? (leader->pid() + " with id " + leader->id())
-                  : "None");
+    LOG(INFO) << "The newly elected leader is " << leader->pid()
+              << " with id " << leader->id();
 
     if (wasElected) {
-      EXIT(EXIT_FAILURE) << "Lost leadership... committing suicide!";
+      EXIT(EXIT_FAILURE) << "Conceded leadership to another master..."
+                         << " committing suicide!";
     }
 
     // If this master and the current leader both have a configured
@@ -2209,6 +2208,14 @@ void Master::detected(const Future<Option<MasterInfo>>& _leader)
                              << "same cluster must use the same region";
         }
       }
+    }
+  } else {
+    // If an election occured and no leader was elected, `None` is returned.
+    LOG(INFO) << "No master was elected.";
+
+    if (wasElected) {
+      EXIT(EXIT_FAILURE) << "Lost leadership after indecisive election..."
+                         << " committing suicide!";
     }
   }
 
