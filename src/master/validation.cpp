@@ -1498,6 +1498,15 @@ Option<Error> validateTask(
   }
 
   if (task.has_container()) {
+    if (task.has_health_check() &&
+        task.container().network_infos().size() > 0) {
+        if (task.health_check().type() ==
+            HealthCheck::HTTP || HealthCheck::TCP) {
+          return Error("HTTP and TCP health checks are not supported for "
+                       "nested containers not joining parent's network");
+        }
+    }
+
     if (task.container().type() == ContainerInfo::DOCKER) {
       return Error("Docker ContainerInfo is not supported on the task");
     }
