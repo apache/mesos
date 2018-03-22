@@ -14,10 +14,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <stout/path.hpp>
-#include <stout/fs.hpp>
-
 #include "slave/containerizer/mesos/isolators/network/cni/paths.hpp"
+
+#include <mesos/type_utils.hpp>
+
+#include <stout/fs.hpp>
+#include <stout/path.hpp>
+#include <stout/stringify.hpp>
 
 using std::string;
 using std::list;
@@ -28,13 +31,17 @@ namespace slave {
 namespace cni {
 namespace paths {
 
-string getContainerDir(const string& rootDir, const string& containerId)
+string getContainerDir(
+    const string& rootDir,
+    const ContainerID& containerId)
 {
-  return path::join(rootDir, containerId);
+  return path::join(rootDir, stringify(containerId));
 }
 
 
-string getNamespacePath(const string& rootDir, const string& containerId)
+string getNamespacePath(
+    const string& rootDir,
+    const ContainerID& containerId)
 {
   return path::join(getContainerDir(rootDir, containerId), "ns");
 }
@@ -42,7 +49,7 @@ string getNamespacePath(const string& rootDir, const string& containerId)
 
 string getNetworkDir(
     const string& rootDir,
-    const string& containerId,
+    const ContainerID& containerId,
     const string& networkName)
 {
   return path::join(getContainerDir(rootDir, containerId), networkName);
@@ -51,7 +58,7 @@ string getNetworkDir(
 
 Try<list<string>> getNetworkNames(
     const string& rootDir,
-    const string& containerId)
+    const ContainerID& containerId)
 {
   const string& networkInfoDir = getContainerDir(rootDir, containerId);
 
@@ -77,7 +84,7 @@ Try<list<string>> getNetworkNames(
 
 string getNetworkConfigPath(
     const string& rootDir,
-    const string& containerId,
+    const ContainerID& containerId,
     const string& networkName)
 {
   return path::join(
@@ -88,7 +95,7 @@ string getNetworkConfigPath(
 
 string getInterfaceDir(
     const string& rootDir,
-    const string& containerId,
+    const ContainerID& containerId,
     const string& networkName,
     const string& ifName)
 {
@@ -98,7 +105,7 @@ string getInterfaceDir(
 
 Try<list<string>> getInterfaces(
     const string& rootDir,
-    const string& containerId,
+    const ContainerID& containerId,
     const string& networkName)
 {
   const string& networkDir = getNetworkDir(rootDir, containerId, networkName);
@@ -125,7 +132,7 @@ Try<list<string>> getInterfaces(
 
 string getNetworkInfoPath(
     const string& rootDir,
-    const string& containerId,
+    const ContainerID& containerId,
     const string& networkName,
     const string& ifName)
 {

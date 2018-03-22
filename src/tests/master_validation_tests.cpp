@@ -3540,11 +3540,15 @@ TEST_F(TaskGroupValidationTest, TaskUsesDockerContainerInfo)
 
 
 // Ensures that a task in a task group that has `NetworkInfo`
-// set is rejected during `TaskGroupInfo` validation.
-TEST_F(TaskGroupValidationTest, TaskUsesNetworkInfo)
+// set does not have HTTP health checks during `TaskGroupInfo` validation.
+TEST_F(TaskGroupValidationTest,
+       NestedTaskWithNetworkInfosDoesNotHaveHTTPHealthChecks)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.mutable_id()->set_value("Test_Framework");
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
@@ -3552,7 +3556,7 @@ TEST_F(TaskGroupValidationTest, TaskUsesNetworkInfo)
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
@@ -3567,37 +3571,126 @@ TEST_F(TaskGroupValidationTest, TaskUsesNetworkInfo)
   ASSERT_FALSE(offers->empty());
   Offer offer = offers.get()[0];
 
-  Resources resources = Resources::parse("cpus:1;mem:512;disk:32").get();
+  Resources resources = Resources::parse("cpus:0.5;mem:300;disk:100").get();
 
   ExecutorInfo executor(DEFAULT_EXECUTOR_INFO);
   executor.set_type(ExecutorInfo::CUSTOM);
   executor.mutable_resources()->CopyFrom(resources);
+  executor.mutable_framework_id()->CopyFrom(frameworkInfo.id());
 
-  // Create an invalid task that has NetworkInfos set.
-  TaskInfo task1;
-  task1.set_name("1");
-  task1.mutable_task_id()->set_value("1");
-  task1.mutable_slave_id()->MergeFrom(offer.slave_id());
-  task1.mutable_resources()->MergeFrom(resources);
-  task1.mutable_container()->set_type(ContainerInfo::MESOS);
-  task1.mutable_container()->add_network_infos();
+  TaskInfo task;
+  task.set_name("1");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(offer.slave_id());
+  task.mutable_resources()->MergeFrom(resources);
+  task.mutable_container()->set_type(ContainerInfo::MESOS);
+  task.mutable_container()->add_network_infos();
 
-  // Create a valid task.
-  TaskInfo task2;
-  task2.set_name("2");
-  task2.mutable_task_id()->set_value("2");
-  task2.mutable_slave_id()->MergeFrom(offer.slave_id());
-  task2.mutable_resources()->MergeFrom(resources);
+  // Add a HTTP health check to this task.
+  HealthCheck healthCheck;
+  healthCheck.set_type(HealthCheck::HTTP);
+  healthCheck.mutable_http()->set_port(80);
+  healthCheck.set_delay_seconds(0);
+  healthCheck.set_interval_seconds(0);
+  healthCheck.set_grace_period_seconds(15);
+
+  task.mutable_health_check()->CopyFrom(healthCheck);
 
   TaskGroupInfo taskGroup;
-  taskGroup.add_tasks()->CopyFrom(task1);
-  taskGroup.add_tasks()->CopyFrom(task2);
+  taskGroup.add_tasks()->CopyFrom(task);
 
-  Future<TaskStatus> task1Status;
-  Future<TaskStatus> task2Status;
+  Future<TaskStatus> taskStatus;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&task1Status))
-    .WillOnce(FutureArg<1>(&task2Status));
+    .WillOnce(FutureArg<1>(&taskStatus));
+
+  Offer::Operation operation;
+  operation.set_type(Offer::Operation::LAUNCH_GROUP);
+
+  Offer::Operation::LaunchGroup* launchGroup =
+    operation.mutable_launch_group();
+
+  launchGroup->mutable_executor()->CopyFrom(executor);
+  launchGroup->mutable_task_group()->CopyFrom(taskGroup);
+
+  driver.acceptOffers({offer.id()}, {operation});
+  const string expected =
+    "Task '1' is invalid: HTTP and TCP health checks are not supported "
+    "for nested containers not joining parent's network";
+
+  AWAIT_READY(taskStatus);
+  EXPECT_EQ(task.task_id(), taskStatus->task_id());
+  EXPECT_EQ(TASK_ERROR, taskStatus->state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_GROUP_INVALID, taskStatus->reason());
+  EXPECT_EQ(expected, taskStatus->message());
+
+  driver.stop();
+  driver.join();
+}
+
+
+// Ensures that a task in a task group that has `NetworkInfo`
+// set does not have TCP health checks during `TaskGroupInfo` validation.
+TEST_F(TaskGroupValidationTest,
+       NestedTaskWithNetworkInfosDoesNotHaveTCPHealthChecks)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.mutable_id()->set_value("Test_Framework");
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+  Offer offer = offers.get()[0];
+
+  Resources resources = Resources::parse("cpus:0.5;mem:300;disk:100").get();
+
+  ExecutorInfo executor(DEFAULT_EXECUTOR_INFO);
+  executor.set_type(ExecutorInfo::DEFAULT);
+  executor.mutable_resources()->CopyFrom(resources);
+  executor.mutable_framework_id()->CopyFrom(frameworkInfo.id());
+
+  TaskInfo task;
+  task.set_name("1");
+  task.mutable_task_id()->set_value("1");
+  task.mutable_slave_id()->MergeFrom(offer.slave_id());
+  task.mutable_resources()->MergeFrom(resources);
+  task.mutable_container()->set_type(ContainerInfo::MESOS);
+  task.mutable_container()->add_network_infos();
+
+  // Add a TCP health check to this task.
+  HealthCheck healthCheck;
+  healthCheck.set_type(HealthCheck::TCP);
+  healthCheck.mutable_tcp()->set_port(30000);
+  healthCheck.set_delay_seconds(0);
+  healthCheck.set_interval_seconds(0);
+  healthCheck.set_grace_period_seconds(15);
+
+  task.mutable_health_check()->CopyFrom(healthCheck);
+
+  TaskGroupInfo taskGroup;
+  taskGroup.add_tasks()->CopyFrom(task);
+
+  Future<TaskStatus> taskStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&taskStatus));
 
   Offer::Operation operation;
   operation.set_type(Offer::Operation::LAUNCH_GROUP);
@@ -3610,17 +3703,15 @@ TEST_F(TaskGroupValidationTest, TaskUsesNetworkInfo)
 
   driver.acceptOffers({offer.id()}, {operation});
 
-  AWAIT_READY(task1Status);
-  EXPECT_EQ(task1.task_id(), task1Status->task_id());
-  EXPECT_EQ(TASK_ERROR, task1Status->state());
-  EXPECT_EQ(TaskStatus::REASON_TASK_GROUP_INVALID, task1Status->reason());
-  EXPECT_EQ("Task '1' is invalid: NetworkInfos must not be set on the task",
-            task1Status->message());
+  const string expected =
+    "Task '1' is invalid: HTTP and TCP health checks are not supported "
+    "for nested containers not joining parent's network";
 
-  AWAIT_READY(task2Status);
-  EXPECT_EQ(task2.task_id(), task2Status->task_id());
-  EXPECT_EQ(TASK_ERROR, task2Status->state());
-  EXPECT_EQ(TaskStatus::REASON_TASK_GROUP_INVALID, task2Status->reason());
+  AWAIT_READY(taskStatus);
+  EXPECT_EQ(task.task_id(), taskStatus->task_id());
+  EXPECT_EQ(TASK_ERROR, taskStatus->state());
+  EXPECT_EQ(TaskStatus::REASON_TASK_GROUP_INVALID, taskStatus->reason());
+  EXPECT_EQ(expected, taskStatus->message());
 
   driver.stop();
   driver.join();
