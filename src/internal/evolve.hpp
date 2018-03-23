@@ -74,6 +74,7 @@ v1::MachineID evolve(const MachineID& machineId);
 v1::MasterInfo evolve(const MasterInfo& masterInfo);
 v1::Offer evolve(const Offer& offer);
 v1::OfferID evolve(const OfferID& offerId);
+v1::OperationStatus evolve(const OperationStatus& status);
 v1::Resource evolve(const Resource& resource);
 v1::ResourceProviderID evolve(const ResourceProviderID& resourceProviderId);
 v1::Resources evolve(const Resources& resources);
@@ -133,6 +134,7 @@ v1::scheduler::Event evolve(const ResourceOffersMessage& message);
 v1::scheduler::Event evolve(const RescindInverseOfferMessage& message);
 v1::scheduler::Event evolve(const RescindResourceOfferMessage& message);
 v1::scheduler::Event evolve(const StatusUpdateMessage& message);
+v1::scheduler::Event evolve(const UpdateOperationStatusMessage& message);
 
 v1::executor::Call evolve(const executor::Call& call);
 v1::executor::Event evolve(const executor::Event& event);

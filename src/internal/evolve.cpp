@@ -158,6 +158,12 @@ v1::OfferID evolve(const OfferID& offerId)
 }
 
 
+v1::OperationStatus evolve(const OperationStatus& status)
+{
+  return evolve<v1::OperationStatus>(status);
+}
+
+
 v1::Resource evolve(const Resource& resource)
 {
   return evolve<v1::Resource>(resource);
@@ -466,6 +472,17 @@ v1::scheduler::Event evolve(const StatusUpdateMessage& message)
   } else {
     update->mutable_status()->set_uuid(message.update().uuid());
   }
+
+  return event;
+}
+
+
+v1::scheduler::Event evolve(const UpdateOperationStatusMessage& message)
+{
+  v1::scheduler::Event event;
+  event.set_type(v1::scheduler::Event::UPDATE_OPERATION_STATUS);
+  event.mutable_update_operation_status()->mutable_status()->CopyFrom(
+      evolve(message.status()));
 
   return event;
 }
