@@ -8203,59 +8203,60 @@ void Master::updateOperationStatus(
     return;
   }
 
-  // TODO(greggomann): Remove this CHECK once operation feedback is
-  // implemented. See MESOS-8054.
-  CHECK(!operation->info().has_id());
-
-  // Forward the status update to the framework if needed.
-  if (frameworkId.isSome()) {
-    Framework* framework = getFramework(frameworkId.get());
-
-    if (framework == nullptr || !framework->connected()) {
-      LOG(WARNING) << "Received status update for operation '"
-                   << update.status().operation_id()
-                   << "' (uuid: " << uuid << ") "
-                   << "for framework " << frameworkId.get()
-                   << ", but the framework is "
-                   << (framework == nullptr ? "unknown" : "disconnected");
-    } else {
-      // TODO(jieyu): Forward the status update to the framework.
-    }
-  }
-
   updateOperation(operation, update);
 
   CHECK(operation->statuses_size() > 0);
 
-  // If this update is being sent reliably, send an acknowledgement.
-  if (operation->statuses(operation->statuses_size() - 1).has_uuid()) {
-    Result<ResourceProviderID> resourceProviderId =
-      getResourceProviderId(operation->info());
+  const OperationStatus& latestStatus = *operation->statuses().rbegin();
 
-    // TODO(greggomann): Remove this CHECK once the agent is sending reliable
-    // updates for operations on its default resources. See MESOS-8194.
-    CHECK_SOME(resourceProviderId);
+  if (operation->info().has_id()) {
+    // Only operations done via the scheduler API can have an ID.
+    CHECK_SOME(frameworkId);
 
-    AcknowledgeOperationStatusMessage acknowledgement;
-    acknowledgement.mutable_status_uuid()->CopyFrom(
-        operation->statuses(operation->statuses_size() - 1).uuid());
-    acknowledgement.mutable_operation_uuid()->CopyFrom(
-        operation->uuid());
+    // Forward the status update to the framework.
+    Framework* framework = getFramework(frameworkId.get());
 
-    acknowledgement.mutable_resource_provider_id()
-      ->CopyFrom(resourceProviderId.get());
+    if (framework == nullptr || !framework->connected()) {
+      LOG(WARNING) << "Received operation status update " << update
+                   << ", but the framework is "
+                   << (framework == nullptr ? "unknown" : "disconnected");
+    } else {
+      LOG(INFO) << "Forwarding operation status update " << update;
+      framework->send(update);
+    }
 
-    CHECK(slave->capabilities.resourceProvider);
+    if (protobuf::isTerminalState(latestStatus.state()) &&
+        !latestStatus.has_uuid()) {
+      // Remove the operation if the update is terminal and it is not
+      // reliably sent.
+      removeOperation(operation);
+    }
+  } else {
+    if (latestStatus.has_uuid()) {
+      // This update is being sent reliably, and it doesn't have an operation
+      // ID, so the master has to send an acknowledgement.
 
-    send(slave->pid, acknowledgement);
-  }
+      Result<ResourceProviderID> resourceProviderId =
+        getResourceProviderId(operation->info());
 
-  // If the operation is terminal and no acknowledgement from the
-  // framework (or the operation API endpoint) is needed, remove the
-  // operation.
-  if (protobuf::isTerminalState(
-          operation->statuses(operation->statuses_size() - 1).state())) {
-    removeOperation(operation);
+      // TODO(greggomann): Remove this CHECK once the agent is sending reliable
+      // updates for operations on its default resources. See MESOS-8194.
+      CHECK_SOME(resourceProviderId);
+
+      AcknowledgeOperationStatusMessage acknowledgement;
+      acknowledgement.mutable_status_uuid()->CopyFrom(latestStatus.uuid());
+      acknowledgement.mutable_operation_uuid()->CopyFrom(operation->uuid());
+      acknowledgement.mutable_resource_provider_id()->CopyFrom(
+          resourceProviderId.get());
+
+      CHECK(slave->capabilities.resourceProvider);
+
+      send(slave->pid, acknowledgement);
+    }
+
+    if (protobuf::isTerminalState(latestStatus.state())) {
+      removeOperation(operation);
+    }
   }
 }
 
