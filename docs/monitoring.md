@@ -574,6 +574,13 @@ messages may indicate that there is a problem with the network.
 </tr>
 <tr>
   <td>
+  <code>master/invalid_operation_status_update_acknowledgements</code>
+  </td>
+  <td>Number of invalid operation status update acknowledgements</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
   <code>master/invalid_status_update_acknowledgements</code>
   </td>
   <td>Number of invalid status update acknowledgements</td>
@@ -647,6 +654,13 @@ messages may indicate that there is a problem with the network.
   <code>master/messages_launch_tasks</code>
   </td>
   <td>Number of launch task messages</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
+  <code>master/messages_operation_status_update_acknowledgement</code>
+  </td>
+  <td>Number of operation status update acknowledgement messages</td>
   <td>Counter</td>
 </tr>
 <tr>
@@ -766,6 +780,13 @@ messages may indicate that there is a problem with the network.
   <code>master/valid_framework_to_executor_messages</code>
   </td>
   <td>Number of valid framework to executor messages</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
+  <code>master/valid_operation_status_update_acknowledgements</code>
+  </td>
+  <td>Number of valid operation status update acknowledgement messages</td>
   <td>Counter</td>
 </tr>
 <tr>

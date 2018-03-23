@@ -137,6 +137,7 @@ struct Metrics
   process::metrics::Counter messages_suppress_offers;
   process::metrics::Counter messages_reconcile_tasks;
   process::metrics::Counter messages_framework_to_executor;
+  process::metrics::Counter messages_operation_status_update_acknowledgement;
 
   // Messages from executors.
   process::metrics::Counter messages_executor_to_framework;
@@ -162,6 +163,9 @@ struct Metrics
 
   process::metrics::Counter valid_status_update_acknowledgements;
   process::metrics::Counter invalid_status_update_acknowledgements;
+
+  process::metrics::Counter valid_operation_status_update_acknowledgements;
+  process::metrics::Counter invalid_operation_status_update_acknowledgements;
 
   // Recovery counters.
   process::metrics::Counter recovery_slave_removals;
