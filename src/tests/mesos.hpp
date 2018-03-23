@@ -1345,12 +1345,18 @@ inline typename TOffer::Operation LAUNCH_GROUP(
 template <typename TResource, typename TTargetType, typename TOffer>
 inline typename TOffer::Operation CREATE_VOLUME(
     const TResource& source,
-    const TTargetType& type)
+    const TTargetType& type,
+    const Option<std::string> operationId = None())
 {
   typename TOffer::Operation operation;
   operation.set_type(TOffer::Operation::CREATE_VOLUME);
   operation.mutable_create_volume()->mutable_source()->CopyFrom(source);
   operation.mutable_create_volume()->set_target_type(type);
+
+  if (operationId.isSome()) {
+    operation.mutable_id()->set_value(operationId.get());
+  }
+
   return operation;
 }
 
