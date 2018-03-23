@@ -2722,6 +2722,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_RetryOperationStatusUpdate)
       break;
     }
   }
+
   ASSERT_SOME(source);
 
   // We'll drop the first operation status update from the agent to the master.
@@ -2885,6 +2886,7 @@ TEST_F(
       break;
     }
   }
+
   ASSERT_SOME(source);
 
   // We'll drop the first operation status update from the agent to the master.
