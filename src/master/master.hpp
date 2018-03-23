@@ -1070,7 +1070,7 @@ private:
 
   void acknowledgeOperationStatus(
       Framework* framework,
-      const scheduler::Call::AcknowledgeOperationStatus& acknowledge);
+      scheduler::Call::AcknowledgeOperationStatus&& acknowledge);
 
   void reconcile(
       Framework* framework,

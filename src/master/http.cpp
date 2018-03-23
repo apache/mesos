@@ -1101,9 +1101,10 @@ Future<Response> Master::Http::scheduler(
       master->acknowledge(framework, std::move(*call.mutable_acknowledge()));
       return Accepted();
 
-    // TODO(greggomann): Implement operation status acknowledgement.
     case scheduler::Call::ACKNOWLEDGE_OPERATION_STATUS:
-      return Forbidden("Operation status updates are not yet implemented");
+      master->acknowledgeOperationStatus(
+          framework, std::move(*call.mutable_acknowledge_operation_status()));
+      return Accepted();
 
     case scheduler::Call::RECONCILE:
       master->reconcile(framework, std::move(*call.mutable_reconcile()));

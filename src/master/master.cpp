@@ -6006,10 +6006,120 @@ void Master::acknowledge(
 }
 
 
-// TODO(greggomann): Implement operation status acknowledgement.
 void Master::acknowledgeOperationStatus(
     Framework* framework,
-    const scheduler::Call::AcknowledgeOperationStatus& acknowledge) {}
+    scheduler::Call::AcknowledgeOperationStatus&& acknowledge)
+{
+  CHECK_NOTNULL(framework);
+
+  metrics->messages_operation_status_update_acknowledgement++;
+
+  const OperationID& operationId = acknowledge.operation_id();
+
+  Try<id::UUID> statusUuid_ = id::UUID::fromBytes(acknowledge.uuid());
+
+  CHECK_SOME(statusUuid_);
+  const id::UUID statusUuid = statusUuid_.get();
+
+  CHECK(acknowledge.has_slave_id());
+  const SlaveID& slaveId = acknowledge.slave_id();
+
+  CHECK(acknowledge.has_resource_provider_id());
+
+  Slave* slave = slaves.registered.get(slaveId);
+  if (slave == nullptr) {
+    LOG(WARNING)
+      << "Cannot send operation status update acknowledgement for status "
+      << statusUuid << " of operation '" << operationId << "'"
+      << " of framework " << *framework << " to agent " << slaveId
+      << " because agent is not registered";
+
+    metrics->invalid_operation_status_update_acknowledgements++;
+    return;
+  }
+
+  if (!slave->connected) {
+    LOG(WARNING)
+      << "Cannot send operation status update acknowledgement for status "
+      << statusUuid << " of operation '" << operationId << "'"
+      << " of framework " << *framework << " to agent " << slaveId
+      << " because agent is disconnected";
+
+    metrics->invalid_operation_status_update_acknowledgements++;
+    return;
+  }
+
+  if (!slave->capabilities.resourceProvider) {
+    LOG(WARNING)
+      << "Cannot send operation status update acknowledgement for status "
+      << statusUuid << " of operation '" << operationId << "'"
+      << " of framework " << *framework << " to agent " << slaveId
+      << " because the agent does not support resource providers";
+
+    metrics->invalid_operation_status_update_acknowledgements++;
+    return;
+  }
+
+  const Option<UUID> operationUuid_ =
+    framework->operationUUIDs.get(operationId);
+
+  if (operationUuid_.isNone()) {
+    LOG(WARNING)
+      << "Cannot send operation status update acknowledgement for status "
+      << statusUuid << " of operation '" << operationId << "'"
+      << " of framework" << *framework << " to agent " << slaveId
+      << " because the operation is unknown";
+
+    metrics->invalid_operation_status_update_acknowledgements++;
+    return;
+  }
+  const UUID operationUuid = operationUuid_.get();
+
+  Operation* operation = slave->getOperation(operationUuid);
+  CHECK_NOTNULL(operation);
+
+  auto it = std::find_if(
+      operation->statuses().begin(),
+      operation->statuses().end(),
+      [&statusUuid](const OperationStatus& operationStatus) {
+        return operationStatus.has_uuid() &&
+               operationStatus.uuid().value() == statusUuid.toBytes();
+      });
+
+  if (it == operation->statuses().end()) {
+    LOG(WARNING)
+      << "Ignoring operation status acknowledgement for status " << statusUuid
+      << " of operation '" << operationId << "'"
+      << " (uuid " << operationUuid << ")"
+      << " of framework" << *framework
+      << " because the operation status is unknown";
+
+    metrics->invalid_status_update_acknowledgements++;
+    return;
+  }
+
+  const OperationStatus& acknowledgedStatus = *it;
+
+  LOG(INFO) << "Processing ACKNOWLEDGE_OPERATION_STATUS call for status "
+            << statusUuid << " of operation '" << operationId << "'"
+            << " (uuid " << operationUuid << ")"
+            << " of framework " << *framework << " on agent " << slaveId;
+
+  // If the acknowledged status update is terminal, remove the operation.
+  if (protobuf::isTerminalState(acknowledgedStatus.state())) {
+    removeOperation(operation);
+  }
+
+  AcknowledgeOperationStatusMessage message;
+  message.mutable_status_uuid()->set_value(statusUuid.toBytes());
+  *message.mutable_operation_uuid() = std::move(operationUuid);
+  *message.mutable_resource_provider_id() =
+    std::move(*acknowledge.mutable_resource_provider_id());
+
+  send(slave->pid, message);
+
+  metrics->valid_operation_status_update_acknowledgements++;
+}
 
 
 void Master::schedulerMessage(
