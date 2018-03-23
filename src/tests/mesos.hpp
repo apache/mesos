@@ -2627,6 +2627,25 @@ ACTION_P2(SendAcknowledge, frameworkId, agentId)
   arg0->send(call);
 }
 
+
+ACTION_P3(
+    SendAcknowledgeOperationStatus, frameworkId, agentId, resourceProviderId)
+{
+  Call call;
+  call.set_type(Call::ACKNOWLEDGE_OPERATION_STATUS);
+  call.mutable_framework_id()->CopyFrom(frameworkId);
+
+  Call::AcknowledgeOperationStatus* acknowledge =
+    call.mutable_acknowledge_operation_status();
+
+  acknowledge->mutable_agent_id()->CopyFrom(agentId);
+  acknowledge->mutable_resource_provider_id()->CopyFrom(resourceProviderId);
+  acknowledge->set_uuid(arg1.status().uuid().value());
+  acknowledge->mutable_operation_id()->CopyFrom(arg1.status().operation_id());
+
+  arg0->send(call);
+}
+
 } // namespace scheduler {
 
 using MockHTTPScheduler = tests::scheduler::MockHTTPScheduler<
