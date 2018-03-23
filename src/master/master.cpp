@@ -3959,7 +3959,9 @@ void Master::accept(
   }
 
   // If invalid, send TASK_DROPPED for the launch attempts. If the
-  // framework is not partition-aware, send TASK_LOST instead.
+  // framework is not partition-aware, send TASK_LOST instead. If
+  // other operations have their `id` field set, then send
+  // OPERATION_DROPPED updates for them.
   //
   // TODO(jieyu): Consider adding a 'drop' overload for ACCEPT call to
   // consistently handle message dropping. It would be ideal if the
@@ -3977,6 +3979,20 @@ void Master::accept(
     foreach (const Offer::Operation& operation, accept.operations()) {
       if (operation.type() != Offer::Operation::LAUNCH &&
           operation.type() != Offer::Operation::LAUNCH_GROUP) {
+        if (operation.has_id()) {
+          scheduler::Event update;
+          update.set_type(scheduler::Event::UPDATE_OPERATION_STATUS);
+
+          *update.mutable_update_operation_status()->mutable_status() =
+            protobuf::createOperationStatus(
+                OperationState::OPERATION_DROPPED,
+                operation.id(),
+                "Operation attempted with invalid offers: " +
+                  error->message);
+
+          framework->send(update);
+        }
+
         continue;
       }
 
@@ -4018,13 +4034,32 @@ void Master::accept(
     return;
   }
 
-  // Validate and upgrade all of the resources in `accept.operations`.
+  CHECK_SOME(slaveId);
+  Slave* slave = slaves.registered.get(slaveId.get());
+  CHECK_NOTNULL(slave);
+
+  // Validate and upgrade all of the resources in `accept.operations`:
   //
-  // If a RESERVE, UNRESERVE, CREATE, or DESTROY operation
-  // contains invalid resources, we just drop the operation.
+  // For a RESERVE, UNRESERVE, CREATE, or DESTROY operation
+  // which contains invalid resources,
+  //   - if the framework has elected to receive feedback by setting the `id`
+  //     field, then we send an offer operation status update with a state of
+  //     OFFER_OPERATION_ERROR.
+  //   - if the framework has not set the `id` field,
+  //     then we simply drop the operation.
   //
-  // If a LAUNCH or LAUNCH_GROUP operation contains invalid resources,
-  // we drop the operation and send a TASK_ERROR status update per task.
+  // If a LAUNCH or LAUNCH_GROUP operation contains invalid
+  // resources, we send a TASK_ERROR status update per task.
+  //
+  //
+  // If the framework is requesting offer operation status updates by setting
+  // the `id` field in an operation, then also verify that the relevant agent
+  // has the RESOURCE_PROVIDER capability. If it does not, then send an offer
+  // operation status update with a state of OFFER_OPERATION_ERROR.
+  //
+  // LAUNCH and LAUNCH_GROUP operations cannot receive offer operation status,
+  // updates, so we send a TASK_ERROR status update per task when these
+  // operations set the `id` field.
   {
     // Used to send TASK_ERROR status updates for tasks in invalid LAUNCH
     // and LAUNCH_GROUP operations. Note that we don't need to recover
@@ -4073,6 +4108,20 @@ void Master::accept(
           case Offer::Operation::DESTROY_VOLUME:
           case Offer::Operation::CREATE_BLOCK:
           case Offer::Operation::DESTROY_BLOCK: {
+            if (operation.has_id()) {
+              scheduler::Event update;
+              update.set_type(scheduler::Event::UPDATE_OPERATION_STATUS);
+
+              *update.mutable_update_operation_status()->mutable_status() =
+                protobuf::createOperationStatus(
+                    OperationState::OPERATION_ERROR,
+                    operation.id(),
+                    "Operation attempted with invalid resources: " +
+                      error->message);
+
+              framework->send(update);
+            }
+
             drop(framework, operation, error->message);
             break;
           }
@@ -4097,24 +4146,21 @@ void Master::accept(
             break;
           }
         }
-
-        continue;
       } else if (operation.has_id()) {
-        // If any operation has the `id` field set we drop it, and in the case
-        // of LAUNCH or LAUNCH_GROUP we send task status updates as well.
+        // The `id` field is set, which means operation feedback is requested.
         //
-        // TODO(greggomann): Remove this once operation feedback is
-        // implemented. See MESOS-8054.
-        const string message =
-          "The `id` field was set on this operation, but operation "
-          "status updates are not yet supported";
-
+        // Operation feedback is not supported for LAUNCH or LAUNCH_GROUP
+        // operations, so we drop them and send TASK_ERROR status updates.
+        //
+        // For other operations, verify that they have been sent by an HTTP
+        // framework and that they are destined for an agent with the
+        // RESOURCE_PROVIDER capability.
         switch (operation.type()) {
           case Offer::Operation::LAUNCH: {
             sendStatusUpdates(
                 operation.launch().task_infos(),
                 TaskStatus::REASON_TASK_INVALID,
-                message);
+                "The `id` field cannot be set on LAUNCH operations");
 
             break;
           }
@@ -4122,7 +4168,7 @@ void Master::accept(
             sendStatusUpdates(
                 operation.launch_group().task_group().tasks(),
                 TaskStatus::REASON_TASK_GROUP_INVALID,
-                message);
+                "The `id` field cannot be set on LAUNCH_GROUP operations");
 
             break;
           }
@@ -4134,7 +4180,45 @@ void Master::accept(
           case Offer::Operation::DESTROY_VOLUME:
           case Offer::Operation::CREATE_BLOCK:
           case Offer::Operation::DESTROY_BLOCK: {
-            drop(framework, operation, message);
+            if (framework->http.isNone()) {
+              const string message =
+                "The 'id' field was set in an offer operation, but operation"
+                " feedback is not supported for the SchedulerDriver API";
+
+              drop(framework, operation, message);
+
+              // Send an error which will cause the scheduler driver to abort.
+              FrameworkErrorMessage frameworkError;
+              frameworkError.set_message(
+                  message +
+                  "; please use the HTTP scheduler API for this feature");
+              framework->send(frameworkError);
+
+              break;
+            }
+
+            if (!slave->capabilities.resourceProvider) {
+              const string message =
+                "Operation requested feedback, but agent " +
+                stringify(slaveId.get()) +
+                " does not have the required RESOURCE_PROVIDER capability";
+
+              scheduler::Event update;
+              update.set_type(scheduler::Event::UPDATE_OPERATION_STATUS);
+
+              *update.mutable_update_operation_status()->mutable_status() =
+                protobuf::createOperationStatus(
+                    OperationState::OPERATION_ERROR,
+                    operation.id(),
+                    message);
+
+              framework->send(update);
+
+              drop(framework, operation, message);
+              break;
+            }
+
+            accept.add_operations()->CopyFrom(operation);
             break;
           }
           case Offer::Operation::UNKNOWN: {
@@ -4142,11 +4226,11 @@ void Master::accept(
             break;
           }
         }
-
-        continue;
+      } else {
+        // Resource validation succeeded and feedback is not requested,
+        // so add the operation.
+        accept.add_operations()->CopyFrom(operation);
       }
-
-      accept.add_operations()->CopyFrom(operation);
     }
   }
 
@@ -4234,10 +4318,6 @@ void Master::accept(
       }
     }
   }
-
-  CHECK_SOME(slaveId);
-  Slave* slave = slaves.registered.get(slaveId.get());
-  CHECK_NOTNULL(slave);
 
   LOG(INFO) << "Processing ACCEPT call for offers: " << accept.offer_ids()
             << " on agent " << *slave << " for framework " << *framework;
