@@ -1010,6 +1010,262 @@ TEST_P(SchedulerTest, KillTask)
 }
 
 
+// Verifies invalidation of LAUNCH and LAUNCH_GROUP operations with `id` set.
+TEST_P(SchedulerTest, OperationFeedbackValidationWithResourceProviderCapability)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
+  SlaveInfo::Capability capability;
+  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
+  capabilities.push_back(capability);
+
+  slaveFlags.agent_features = SlaveCapabilities();
+  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
+      {capabilities.begin(), capabilities.end()});
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(v1::scheduler::SendSubscribe(v1::DEFAULT_FRAMEWORK_INFO));
+
+  Future<Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  Future<Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  ContentType contentType = GetParam();
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      contentType,
+      scheduler);
+
+  AWAIT_READY(subscribed);
+
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::settle();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+
+  Future<v1::scheduler::Event::Update> taskStatusUpdate1;
+  Future<v1::scheduler::Event::Update> taskStatusUpdate2;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(FutureArg<1>(&taskStatusUpdate1))
+    .WillOnce(FutureArg<1>(&taskStatusUpdate2));
+
+  // LAUNCH and LAUNCH_GROUP operations should not have the `id` field set.
+  v1::Resources resources =
+    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+
+  const v1::Offer& offer = offers->offers(0);
+  const v1::AgentID& agentId = offer.agent_id();
+
+  v1::TaskInfo taskInfo1 =
+    v1::createTask(agentId, resources, SLEEP_COMMAND(1000));
+
+  v1::Offer::Operation launch = v1::LAUNCH({taskInfo1});
+  launch.mutable_id()->set_value("LAUNCH_OPERATION");
+
+  v1::TaskInfo taskInfo2 = taskInfo1;
+  taskInfo2.mutable_task_id()->set_value("TASK_ID_2");
+
+  v1::ExecutorInfo executorInfo = v1::createExecutorInfo(
+      v1::DEFAULT_EXECUTOR_ID,
+      None(),
+      resources,
+      v1::ExecutorInfo::DEFAULT,
+      frameworkId);
+
+  v1::Offer::Operation launchGroup = v1::LAUNCH_GROUP(
+      executorInfo, v1::createTaskGroupInfo({taskInfo2}));
+  launchGroup.mutable_id()->set_value("LAUNCH_GROUP_OPERATION");
+
+  mesos.send(
+      v1::createCallAccept(
+          frameworkId,
+          offer,
+          {launch, launchGroup}));
+
+  AWAIT_READY(taskStatusUpdate1);
+  AWAIT_READY(taskStatusUpdate2);
+
+  EXPECT_EQ(v1::TASK_ERROR, taskStatusUpdate1->status().state());
+  EXPECT_EQ(v1::TASK_ERROR, taskStatusUpdate2->status().state());
+}
+
+
+// Verifies invalidation of RESERVE operations with `id` set, acting upon an
+// offer from an agent without the RESOURCE_PROVIDER capability.
+TEST_P(SchedulerTest, OperationFeedbackValidationNoResourceProviderCapability)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.add_roles("framework-role");
+
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(v1::scheduler::SendSubscribe(frameworkInfo));
+
+  Future<Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  Future<Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  ContentType contentType = GetParam();
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      contentType,
+      scheduler);
+
+  AWAIT_READY(subscribed);
+
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::settle();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+
+  Future<v1::scheduler::Event::UpdateOperationStatus> updateOperationStatus;
+  EXPECT_CALL(*scheduler, updateOperationStatus(_, _))
+    .WillOnce(FutureArg<1>(&updateOperationStatus));
+
+  // RESERVE operations should not have the `id` field set when acting upon
+  // resources from an agent without the RESOURCE_PROVIDER capability.
+  const v1::Offer& offer = offers->offers(0);
+
+  v1::Resources resources = v1::Resources::parse("cpus:0.1").get();
+  resources.pushReservation(v1::createDynamicReservationInfo(
+      frameworkInfo.roles(1),
+      frameworkInfo.principal()));
+
+  v1::Offer::Operation operation = v1::RESERVE(resources);
+  operation.mutable_id()->set_value("RESERVE_OPERATION");
+
+  mesos.send(v1::createCallAccept(frameworkId, offer, {operation}));
+
+  AWAIT_READY(updateOperationStatus);
+
+  EXPECT_EQ(
+      mesos::v1::OPERATION_ERROR,
+      updateOperationStatus->status().state());
+}
+
+
+// Verifies invalidation of RESERVE operations with `id` set, when sent by a
+// `SchedulerDriver` framework.
+TEST_P(SchedulerTest, OperationFeedbackValidationSchedulerDriverFramework)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
+  SlaveInfo::Capability capability;
+  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
+  capabilities.push_back(capability);
+
+  slaveFlags.agent_features = SlaveCapabilities();
+  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
+      {capabilities.begin(), capabilities.end()});
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.add_roles("framework-role");
+
+  MockScheduler scheduler;
+  MesosSchedulerDriver driver(
+      &scheduler,
+      frameworkInfo,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(scheduler, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(scheduler, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::settle();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  Future<Nothing> schedulerError;
+  EXPECT_CALL(scheduler, error(_, _))
+    .WillOnce(FutureSatisfy(&schedulerError));
+
+  const Offer& offer = offers->at(0);
+
+  Resources resources = Resources::parse("cpus:0.1").get();
+  resources.pushReservation(createDynamicReservationInfo(
+      frameworkInfo.roles(1),
+      frameworkInfo.principal()));
+
+  Offer::Operation operation = RESERVE(resources);
+  operation.mutable_id()->set_value("RESERVE_OPERATION");
+
+  driver.acceptOffers({offer.id()}, {operation});
+
+  AWAIT_READY(schedulerError);
+}
+
+
 TEST_P(SchedulerTest, ShutdownExecutor)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
