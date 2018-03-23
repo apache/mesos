@@ -365,8 +365,7 @@ set(RESOURCE_PROVIDER_SRC
   resource_provider/local.cpp
   resource_provider/manager.cpp
   resource_provider/registrar.cpp
-  resource_provider/validation.cpp
-  resource_provider/storage/disk_profile_adaptor.cpp)
+  resource_provider/validation.cpp)
 
 set(SCHEDULER_SRC
   sched/sched.cpp

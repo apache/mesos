@@ -111,6 +111,7 @@ mesos::internal::slave::Flags::Flags()
       "  \"name\": \"lvm\"\n"
       "}");
 
+#ifdef ENABLE_GRPC
   add(&Flags::disk_profile_adaptor,
       "disk_profile_adaptor",
       "The name of the disk profile adaptor module that storage resource\n"
@@ -119,6 +120,7 @@ mesos::internal::slave::Flags::Flags()
       "If this flag is not specified, the default behavior for storage\n"
       "resource providers is to only expose resources for pre-existing\n"
       "volumes and not publish RAW volumes.");
+#endif
 
   add(&Flags::isolation,
       "isolation",
