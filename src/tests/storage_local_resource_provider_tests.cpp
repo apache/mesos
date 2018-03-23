@@ -58,6 +58,7 @@ using process::Future;
 using process::Owned;
 
 using testing::AtMost;
+using testing::DoAll;
 using testing::Sequence;
 
 namespace mesos {
@@ -3273,6 +3274,203 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ReconcileDroppedOperation)
 
   driver.stop();
   driver.join();
+}
+
+
+// This test verifies that if an operation ID is specified, operation status
+// updates are resent to the scheduler until acknowledged.
+TEST_F(
+    StorageLocalResourceProviderTest,
+    ROOT_RetryOperationStatusUpdateToScheduler)
+{
+  Clock::pause();
+
+  loadUriDiskProfileAdaptorModule();
+
+  setupResourceProviderConfig(Gigabytes(4));
+  setupDiskProfileMapping();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "filesystem/linux";
+
+  // Disable HTTP authentication to simplify resource provider interactions.
+  flags.authenticate_http_readwrite = false;
+
+  // Set the resource provider capability.
+  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
+  SlaveInfo::Capability capability;
+  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
+  capabilities.push_back(capability);
+
+  flags.agent_features = SlaveCapabilities();
+  flags.agent_features->mutable_capabilities()->CopyFrom(
+      {capabilities.begin(), capabilities.end()});
+
+  flags.resource_provider_config_dir = resourceProviderConfigDir;
+  flags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
+
+  // Since the local resource provider daemon is started after the agent
+  // is registered, it is guaranteed that the slave will send two
+  // `UpdateSlaveMessage`s, where the latter one contains resources from
+  // the storage local resource provider.
+  //
+  // NOTE: The order of the two `FUTURE_PROTOBUF`s is reversed because
+  // Google Mock will search the expectations in reverse order.
+  Future<UpdateSlaveMessage> updateSlave2 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+  Future<UpdateSlaveMessage> updateSlave1 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  // Advance the clock to trigger agent registration.
+  Clock::advance(flags.registration_backoff_factor);
+
+  AWAIT_READY(updateSlave1);
+
+  // NOTE: We need to resume the clock so that the resource provider can
+  // periodically check if the CSI endpoint socket has been created by
+  // the plugin container, which runs in another Linux process.
+  Clock::resume();
+
+  AWAIT_READY(updateSlave2);
+  ASSERT_TRUE(updateSlave2->has_resource_providers());
+  ASSERT_EQ(1, updateSlave2->resource_providers().providers_size());
+
+  Clock::pause();
+
+  // Register a framework to exercise an operation.
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_roles(0, "storage");
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(v1::scheduler::SendSubscribe(frameworkInfo));
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  // Decline offers that do not contain wanted resources.
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillRepeatedly(v1::scheduler::DeclineOffers());
+
+  Future<v1::scheduler::Event::Offers> offers;
+
+  auto isRaw = [](const v1::Resource& r) {
+    return r.has_disk() &&
+      r.disk().has_source() &&
+      r.disk().source().has_profile() &&
+      r.disk().source().type() == v1::Resource::DiskInfo::Source::RAW;
+  };
+
+  EXPECT_CALL(*scheduler, offers(_, v1::scheduler::OffersHaveAnyResource(
+      std::bind(isRaw, lambda::_1))))
+    .WillOnce(FutureArg<1>(&offers));
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(subscribed);
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  // NOTE: If the framework has not declined an unwanted offer yet when
+  // the master updates the agent with the RAW disk resource, the new
+  // allocation triggered by this update won't generate an allocatable
+  // offer due to no CPU and memory resources. So here we first settle
+  // the clock to ensure that the unwanted offer has been declined, then
+  // advance the clock to trigger another allocation.
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+
+  const v1::Offer& offer = offers->offers(0);
+
+  Option<v1::Resource> source;
+  Option<mesos::v1::ResourceProviderID> resourceProviderId;
+  foreach (const v1::Resource& resource, offer.resources()) {
+    if (isRaw(resource)) {
+      source = resource;
+
+      ASSERT_TRUE(resource.has_provider_id());
+      resourceProviderId = resource.provider_id();
+
+      break;
+    }
+  }
+
+  ASSERT_SOME(source);
+  ASSERT_SOME(resourceProviderId);
+
+  Future<v1::scheduler::Event::UpdateOperationStatus> update;
+  Future<v1::scheduler::Event::UpdateOperationStatus> retriedUpdate;
+
+  EXPECT_CALL(*scheduler, updateOperationStatus(_, _))
+    .WillOnce(FutureArg<1>(&update))
+    .WillOnce(FutureArg<1>(&retriedUpdate));
+
+  // Create a volume.
+  const string& operationId = "operation";
+  mesos.send(v1::createCallAccept(
+      frameworkId,
+      offer,
+      {v1::CREATE_VOLUME(
+          source.get(), v1::Resource::DiskInfo::Source::MOUNT, operationId)}));
+
+  AWAIT_READY(update);
+
+  ASSERT_EQ(operationId, update->status().operation_id().value());
+  ASSERT_EQ(
+      mesos::v1::OperationState::OPERATION_FINISHED, update->status().state());
+  ASSERT_TRUE(update->status().has_uuid());
+
+  ASSERT_TRUE(retriedUpdate.isPending());
+
+  Clock::advance(slave::STATUS_UPDATE_RETRY_INTERVAL_MIN);
+  Clock::settle();
+
+  // The scheduler didn't acknowledge the operation status update, so the SLRP
+  // should resend it after the status update retry interval minimum.
+  AWAIT_READY(retriedUpdate);
+
+  ASSERT_EQ(operationId, retriedUpdate->status().operation_id().value());
+  ASSERT_EQ(
+      mesos::v1::OperationState::OPERATION_FINISHED,
+      retriedUpdate->status().state());
+  ASSERT_TRUE(retriedUpdate->status().has_uuid());
+
+  // The scheduler will acknowledge the operation status update, so the agent
+  // should receive an acknowledgement.
+  Future<AcknowledgeOperationStatusMessage> acknowledgeOperationStatusMessage =
+    FUTURE_PROTOBUF(
+      AcknowledgeOperationStatusMessage(), master.get()->pid, slave.get()->pid);
+
+  mesos.send(v1::createCallAcknowledgeOperationStatus(
+      frameworkId, offer.agent_id(), resourceProviderId.get(), update.get()));
+
+  AWAIT_READY(acknowledgeOperationStatusMessage);
+
+  // Now that the SLRP has received the acknowledgement, the SLRP shouldn't
+  // send further operation status updates.
+  EXPECT_NO_FUTURE_PROTOBUFS(UpdateOperationStatusMessage(), _, _);
+
+  Clock::advance(slave::STATUS_UPDATE_RETRY_INTERVAL_MIN);
+  Clock::settle();
 }
 
 } // namespace tests {
