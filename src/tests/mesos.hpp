@@ -2554,6 +2554,42 @@ using TestMesos = tests::scheduler::TestMesos<
     mesos::v1::scheduler::Event>;
 
 
+// This matcher is used to match an offer event that contains a vector of offers
+// having any resource that passes the filter.
+MATCHER_P(OffersHaveAnyResource, filter, "")
+{
+  foreach (const Offer& offer, arg.offers()) {
+    foreach (const Resource& resource, offer.resources()) {
+      if (filter(resource)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+
+// Like LaunchTasks, but decline the entire offer and don't launch any tasks.
+ACTION(DeclineOffers)
+{
+  Call call;
+  call.set_type(Call::DECLINE);
+
+  Call::Decline* decline = call.mutable_decline();
+
+  foreach (const Offer& offer, arg1.offers()) {
+    decline->add_offer_ids()->CopyFrom(offer.id());
+
+    if (!call.has_framework_id()) {
+      call.mutable_framework_id()->CopyFrom(offer.framework_id());
+    }
+  }
+
+  arg0->send(call);
+}
+
+
 ACTION_P(SendSubscribe, frameworkInfo)
 {
   Call call;
