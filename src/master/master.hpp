@@ -2608,6 +2608,10 @@ struct Framework
       recoverResources(operation);
     }
 
+    if (operation->info().has_id()) {
+      operationUUIDs.erase(operation->info().id());
+    }
+
     operations.erase(uuid);
   }
 
