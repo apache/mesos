@@ -3687,6 +3687,10 @@ Future<Response> ProcessBase::_consume(
         *request, endpoint.realm.get());
   }
 
+  // TODO(bmahler): This is an interim check to diagnose MESOS-8687.
+  CHECK(handlers.httpSequence.get() != nullptr)
+    << "PID '" << pid << "' with endpoint name '" << name << "'";
+
   // Sequence the authentication future to ensure the handlers
   // are invoked in the same order that requests arrive.
   authentication = handlers.httpSequence->add<Option<AuthenticationResult>>(
