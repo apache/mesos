@@ -77,115 +77,57 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-enum ResourceProviderCapability
-{
-  DISABLED,
-  ENABLED
-};
-
-
-class ReservationTest
-  : public MesosTest,
-    public ::testing::WithParamInterface<ResourceProviderCapability>
+class ReservationTest : public MesosTest
 {
 public:
-  slave::Flags CreateSlaveFlags() override
-  {
-    slave::Flags slaveFlags = MesosTest::CreateSlaveFlags();
-    if (GetParam() == ENABLED) {
-      // Set the resource provider capability.
-      vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
-      SlaveInfo::Capability capability;
-      capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
-      capabilities.push_back(capability);
-
-      slaveFlags.agent_features = SlaveCapabilities();
-      slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
-          {capabilities.begin(), capabilities.end()});
-    }
-
-    return slaveFlags;
-  }
-
   // Depending on the agent capability, the master will send different
   // messages to the agent when a reservation is applied.
   template <typename To>
   Future<Resources> getOperationMessage(To to)
   {
-    if (GetParam() == ENABLED) {
-      return FUTURE_PROTOBUF(ApplyOperationMessage(), _, to)
-        .then([](const ApplyOperationMessage& message) {
-          switch (message.operation_info().type()) {
-            case Offer::Operation::UNKNOWN:
-            case Offer::Operation::LAUNCH:
-            case Offer::Operation::LAUNCH_GROUP:
-            case Offer::Operation::CREATE_VOLUME:
-            case Offer::Operation::DESTROY_VOLUME:
-            case Offer::Operation::CREATE_BLOCK:
-            case Offer::Operation::DESTROY_BLOCK:
-              UNREACHABLE();
-            case Offer::Operation::RESERVE: {
-              Resources resources =
-                message.operation_info().reserve().resources();
-              resources.unallocate();
+    return FUTURE_PROTOBUF(ApplyOperationMessage(), _, to)
+      .then([](const ApplyOperationMessage& message) {
+        switch (message.operation_info().type()) {
+          case Offer::Operation::UNKNOWN:
+          case Offer::Operation::LAUNCH:
+          case Offer::Operation::LAUNCH_GROUP:
+          case Offer::Operation::CREATE_VOLUME:
+          case Offer::Operation::DESTROY_VOLUME:
+          case Offer::Operation::CREATE_BLOCK:
+          case Offer::Operation::DESTROY_BLOCK:
+            UNREACHABLE();
+          case Offer::Operation::RESERVE: {
+            Resources resources =
+              message.operation_info().reserve().resources();
+            resources.unallocate();
 
-              return resources;
-            }
-            case Offer::Operation::UNRESERVE: {
-              Resources resources =
-                message.operation_info().unreserve().resources();
-              resources.unallocate();
-
-              return resources;
-            }
-            case Offer::Operation::CREATE: {
-              Resources resources = message.operation_info().create().volumes();
-              resources.unallocate();
-
-              return resources;
-            }
-            case Offer::Operation::DESTROY: {
-              Resources resources =
-                message.operation_info().destroy().volumes();
-              resources.unallocate();
-
-              return resources;
-            }
+            return resources;
           }
+          case Offer::Operation::UNRESERVE: {
+            Resources resources =
+              message.operation_info().unreserve().resources();
+            resources.unallocate();
 
-          UNREACHABLE();
-        });
-    }
+            return resources;
+          }
+          case Offer::Operation::CREATE: {
+            Resources resources = message.operation_info().create().volumes();
+            resources.unallocate();
 
-    return FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, to)
-      .then([](const CheckpointResourcesMessage& message) {
-        return Resources(message.resources());
+            return resources;
+          }
+          case Offer::Operation::DESTROY: {
+            Resources resources = message.operation_info().destroy().volumes();
+            resources.unallocate();
+
+            return resources;
+          }
+        }
+
+        UNREACHABLE();
       });
-  }
-
-  // Agents with enabled 'RESOURCE_PROVIDER' capability will send a
-  // 'UpdateSlaveMessage' after (re-)registration. Offers will be
-  // rescinded if they were created prior to this message. Hence, we
-  // have to wait for this message before accepting offers.
-  Future<Nothing> getSlaveReady()
-  {
-    if (GetParam() == ENABLED) {
-      return FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _).then([] {
-        return Nothing();
-      });
-    }
-
-    return Nothing();
   }
 };
-
-
-INSTANTIATE_TEST_CASE_P(
-    ResourceProviderCapability,
-    ReservationTest,
-    ::testing::Values(
-        ResourceProviderCapability::DISABLED,
-        ResourceProviderCapability::ENABLED));
 
 
 // This tests that a framework can send back a Reserve operation
@@ -194,7 +136,7 @@ INSTANTIATE_TEST_CASE_P(
 // the framework. The framework then sends back an Unreserved offer
 // operation to unreserve the reserved resources. Finally, We test
 // that the framework receives the unreserved resources.
-TEST_P(ReservationTest, ReserveThenUnreserve)
+TEST_F(ReservationTest, ReserveThenUnreserve)
 {
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_roles(0, "role");
@@ -209,13 +151,14 @@ TEST_P(ReservationTest, ReserveThenUnreserve)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = "cpus:1;mem:512";
 
-  Future<Nothing> slaveReady = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
-  AWAIT_READY(slaveReady);
+  AWAIT_READY(updateSlaveMessage);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -295,7 +238,7 @@ TEST_P(ReservationTest, ReserveThenUnreserve)
 // the framework. The framework then sends back a new resource reservation
 // request which involves a floating point value for the resources being
 // reserved, which in turn triggers a problematic floating point comparison.
-TEST_P(ReservationTest, ReserveTwiceWithDoubleValue)
+TEST_F(ReservationTest, ReserveTwiceWithDoubleValue)
 {
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_roles(0, "role");
@@ -309,13 +252,14 @@ TEST_P(ReservationTest, ReserveTwiceWithDoubleValue)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = "cpus:24;mem:4096";
 
-  Future<Nothing> slaveReady = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
-  AWAIT_READY(slaveReady);
+  AWAIT_READY(updateSlaveMessage);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -401,7 +345,7 @@ TEST_P(ReservationTest, ReserveTwiceWithDoubleValue)
 // sends back an Unreserved operation to unreserve the reserved
 // resources. We test that the framework receives the unreserved
 // resources.
-TEST_P(ReservationTest, ReserveAndLaunchThenUnreserve)
+TEST_F(ReservationTest, ReserveAndLaunchThenUnreserve)
 {
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_roles(0, "role");
@@ -419,7 +363,8 @@ TEST_P(ReservationTest, ReserveAndLaunchThenUnreserve)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = "cpus:1;mem:512";
 
-  Future<Nothing> slaveReady = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -427,7 +372,7 @@ TEST_P(ReservationTest, ReserveAndLaunchThenUnreserve)
     StartSlave(detector.get(), &containerizer, slaveFlags);
   ASSERT_SOME(slave);
 
-  AWAIT_READY(slaveReady);
+  AWAIT_READY(updateSlaveMessage);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -524,7 +469,7 @@ TEST_P(ReservationTest, ReserveAndLaunchThenUnreserve)
 // the next resource offer, framework1 declines the offer. This
 // should lead to framework2 receiving the resources that framework1
 // reserved.
-TEST_P(ReservationTest, ReserveShareWithinRole)
+TEST_F(ReservationTest, ReserveShareWithinRole)
 {
   string role = "role";
 
@@ -546,13 +491,14 @@ TEST_P(ReservationTest, ReserveShareWithinRole)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = "cpus:1;mem:512";
 
-  Future<Nothing> slaveReady = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
-  AWAIT_READY(slaveReady);
+  AWAIT_READY(updateSlaveMessage);
 
   MockScheduler sched1;
   MesosSchedulerDriver driver1(
@@ -644,7 +590,7 @@ TEST_P(ReservationTest, ReserveShareWithinRole)
 // This tests that a Reserve operation where the specified resources
 // does not exist in the given offer (too large, in this case) is
 // dropped.
-TEST_P(ReservationTest, DropReserveTooLarge)
+TEST_F(ReservationTest, DropReserveTooLarge)
 {
   TestAllocator<> allocator;
 
@@ -665,13 +611,14 @@ TEST_P(ReservationTest, DropReserveTooLarge)
 
   EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
 
-  Future<Nothing> slaveReady = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
-  AWAIT_READY(slaveReady);
+  AWAIT_READY(updateSlaveMessage);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -742,7 +689,7 @@ TEST_P(ReservationTest, DropReserveTooLarge)
 // This test verifies that the slave checkpoints the resources for
 // dynamic reservations to the disk, recovers them upon restart, and
 // sends them to the master during re-registration.
-TEST_P(ReservationTest, ResourcesCheckpointing)
+TEST_F(ReservationTest, ResourcesCheckpointing)
 {
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_roles(0, "role");
@@ -758,13 +705,14 @@ TEST_P(ReservationTest, ResourcesCheckpointing)
   slaveFlags.recover = "reconnect";
   slaveFlags.resources = "cpus:8;mem:4096";
 
-  Future<Nothing> slaveReady = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
-  AWAIT_READY(slaveReady);
+  AWAIT_READY(updateSlaveMessage);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -839,7 +787,7 @@ TEST_P(ReservationTest, ResourcesCheckpointing)
 // This test verifies the case where a slave that has checkpointed
 // dynamic reservations reregisters with a failed over master, and the
 // dynamic reservations are later correctly offered to the framework.
-TEST_P(ReservationTest, MasterFailover)
+TEST_F(ReservationTest, MasterFailover)
 {
   // Pause the cock and control it manually in order to
   // control the timing of the offer cycle.
@@ -858,7 +806,8 @@ TEST_P(ReservationTest, MasterFailover)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = "cpus:8;mem:2048";
 
-  Future<Nothing> slaveReady1 = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   StandaloneMasterDetector detector(master1.get()->pid);
 
@@ -867,7 +816,7 @@ TEST_P(ReservationTest, MasterFailover)
 
   Clock::advance(slaveFlags.registration_backoff_factor);
   Clock::settle();
-  AWAIT_READY(slaveReady1);
+  AWAIT_READY(updateSlaveMessage);
 
   MockScheduler sched;
   TestingMesosSchedulerDriver driver(&sched, &detector, frameworkInfo);
@@ -965,7 +914,7 @@ TEST_P(ReservationTest, MasterFailover)
 // This test verifies that a slave can restart as long as the
 // checkpointed resources it recovers are compatible with the slave
 // resources specified using the '--resources' flag.
-TEST_P(ReservationTest, CompatibleCheckpointedResources)
+TEST_F(ReservationTest, CompatibleCheckpointedResources)
 {
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_roles(0, "role");
@@ -980,7 +929,8 @@ TEST_P(ReservationTest, CompatibleCheckpointedResources)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = "cpus:8;mem:4096";
 
-  Future<Nothing> slaveReady = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
   TestContainerizer containerizer(&exec);
@@ -998,7 +948,7 @@ TEST_P(ReservationTest, CompatibleCheckpointedResources)
 
   slave1.get()->start();
 
-  AWAIT_READY(slaveReady);
+  AWAIT_READY(updateSlaveMessage);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -1088,7 +1038,7 @@ TEST_P(ReservationTest, CompatibleCheckpointedResources)
 // checkpointed resources (including persistent volumes) it recovers
 // are compatible with the slave resources specified using the
 // '--resources' flag.
-TEST_P(ReservationTest, CompatibleCheckpointedResourcesWithPersistentVolumes)
+TEST_F(ReservationTest, CompatibleCheckpointedResourcesWithPersistentVolumes)
 {
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_roles(0, "role");
@@ -1103,7 +1053,8 @@ TEST_P(ReservationTest, CompatibleCheckpointedResourcesWithPersistentVolumes)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = "cpus:8;mem:4096;disk:2048";
 
-  Future<Nothing> slaveReady = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
   TestContainerizer containerizer(&exec);
@@ -1121,7 +1072,7 @@ TEST_P(ReservationTest, CompatibleCheckpointedResourcesWithPersistentVolumes)
 
   slave1.get()->start();
 
-  AWAIT_READY(slaveReady);
+  AWAIT_READY(updateSlaveMessage);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -1251,7 +1202,7 @@ TEST_P(ReservationTest, CompatibleCheckpointedResourcesWithPersistentVolumes)
 // This test verifies that a slave will refuse to start if the
 // checkpointed resources it recovers are not compatible with the
 // slave resources specified using the '--resources' flag.
-TEST_P(ReservationTest, IncompatibleCheckpointedResources)
+TEST_F(ReservationTest, IncompatibleCheckpointedResources)
 {
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_roles(0, "role");
@@ -1266,7 +1217,8 @@ TEST_P(ReservationTest, IncompatibleCheckpointedResources)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = "cpus:8;mem:4096";
 
-  Future<Nothing> slaveReady = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
   TestContainerizer containerizer(&exec);
@@ -1284,7 +1236,7 @@ TEST_P(ReservationTest, IncompatibleCheckpointedResources)
 
   slave1.get()->start();
 
-  AWAIT_READY(slaveReady);
+  AWAIT_READY(updateSlaveMessage);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -1371,7 +1323,7 @@ TEST_P(ReservationTest, IncompatibleCheckpointedResources)
 
 // This test verifies that reserve and unreserve operations complete
 // successfully when authorization succeeds.
-TEST_P(ReservationTest, GoodACLReserveThenUnreserve)
+TEST_F(ReservationTest, GoodACLReserveThenUnreserve)
 {
   ACLs acls;
 
@@ -1403,13 +1355,14 @@ TEST_P(ReservationTest, GoodACLReserveThenUnreserve)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = "cpus:1;mem:512";
 
-  Future<Nothing> slaveReady = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
-  AWAIT_READY(slaveReady);
+  AWAIT_READY(updateSlaveMessage);
 
   // Create a scheduler.
   MockScheduler sched;
@@ -1485,7 +1438,7 @@ TEST_P(ReservationTest, GoodACLReserveThenUnreserve)
 
 // This test verifies that a reserve operation
 // gets dropped if authorization fails.
-TEST_P(ReservationTest, BadACLDropReserve)
+TEST_F(ReservationTest, BadACLDropReserve)
 {
   ACLs acls;
 
@@ -1510,13 +1463,14 @@ TEST_P(ReservationTest, BadACLDropReserve)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = "cpus:1;mem:512";
 
-  Future<Nothing> slaveReady = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
-  AWAIT_READY(slaveReady);
+  AWAIT_READY(updateSlaveMessage);
 
   // Create a scheduler.
   MockScheduler sched;
@@ -1577,7 +1531,7 @@ TEST_P(ReservationTest, BadACLDropReserve)
 
 // This test verifies that an unreserve operation
 // gets dropped if authorization fails.
-TEST_P(ReservationTest, BadACLDropUnreserve)
+TEST_F(ReservationTest, BadACLDropUnreserve)
 {
   ACLs acls;
 
@@ -1607,13 +1561,14 @@ TEST_P(ReservationTest, BadACLDropUnreserve)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = "cpus:2;mem:1024";
 
-  Future<Nothing> slaveReady = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
-  AWAIT_READY(slaveReady);
+  AWAIT_READY(updateSlaveMessage);
 
   // Create a scheduler.
   MockScheduler sched;
@@ -1706,7 +1661,7 @@ TEST_P(ReservationTest, BadACLDropUnreserve)
 
 // Tests a couple more complex combinations of `RESERVE`, `UNRESERVE`, and
 // `LAUNCH` operations to verify that they work with authorization.
-TEST_P(ReservationTest, ACLMultipleOperations)
+TEST_F(ReservationTest, ACLMultipleOperations)
 {
   // Pause the clock and control it manually in order to
   // control the timing of the offer cycle.
@@ -1743,7 +1698,8 @@ TEST_P(ReservationTest, ACLMultipleOperations)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = "cpus:2;mem:1024";
 
-  Future<Nothing> slaveReady = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -1753,7 +1709,7 @@ TEST_P(ReservationTest, ACLMultipleOperations)
 
   Clock::advance(slaveFlags.registration_backoff_factor);
   Clock::settle();
-  AWAIT_READY(slaveReady);
+  AWAIT_READY(updateSlaveMessage);
 
   // Create a scheduler.
   MockScheduler sched;
@@ -1921,7 +1877,7 @@ TEST_P(ReservationTest, ACLMultipleOperations)
 
 // Confirms that reserve and unreserve operations work without authentication
 // when a framework has no principal.
-TEST_P(ReservationTest, WithoutAuthenticationWithoutPrincipal)
+TEST_F(ReservationTest, WithoutAuthenticationWithoutPrincipal)
 {
   // Pause the clock and control it manually in order to
   // control the timing of the offer cycle.
@@ -1942,7 +1898,8 @@ TEST_P(ReservationTest, WithoutAuthenticationWithoutPrincipal)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = "cpus:1;mem:512";
 
-  Future<Nothing> slaveReady = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
@@ -1950,7 +1907,7 @@ TEST_P(ReservationTest, WithoutAuthenticationWithoutPrincipal)
 
   Clock::advance(slaveFlags.registration_backoff_factor);
   Clock::settle();
-  AWAIT_READY(slaveReady);
+  AWAIT_READY(updateSlaveMessage);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(&sched, frameworkInfo, master.get()->pid);
@@ -2035,7 +1992,7 @@ TEST_P(ReservationTest, WithoutAuthenticationWithoutPrincipal)
 
 // Confirms that reserve and unreserve operations work without authentication
 // when a framework has a principal.
-TEST_P(ReservationTest, WithoutAuthenticationWithPrincipal)
+TEST_F(ReservationTest, WithoutAuthenticationWithPrincipal)
 {
   // Pause the clock and control it manually in order to
   // control the timing of the offer cycle.
@@ -2055,7 +2012,8 @@ TEST_P(ReservationTest, WithoutAuthenticationWithPrincipal)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = "cpus:1;mem:512";
 
-  Future<Nothing> slaveReady = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
@@ -2063,7 +2021,7 @@ TEST_P(ReservationTest, WithoutAuthenticationWithPrincipal)
 
   Clock::advance(slaveFlags.registration_backoff_factor);
   Clock::settle();
-  AWAIT_READY(slaveReady);
+  AWAIT_READY(updateSlaveMessage);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(&sched, frameworkInfo, master.get()->pid);
@@ -2149,7 +2107,7 @@ TEST_P(ReservationTest, WithoutAuthenticationWithPrincipal)
 
 // This tests that a framework can't reserve resources using a role different
 // from the one it registered with.
-TEST_P(ReservationTest, DropReserveWithDifferentRole)
+TEST_F(ReservationTest, DropReserveWithDifferentRole)
 {
   const string frameworkRole = "role";
 
@@ -2168,7 +2126,8 @@ TEST_P(ReservationTest, DropReserveWithDifferentRole)
   slave::Flags agentFlags = CreateSlaveFlags();
   agentFlags.resources = "cpus:1;mem:512";
 
-  Future<Nothing> slaveReady = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
 
@@ -2176,7 +2135,7 @@ TEST_P(ReservationTest, DropReserveWithDifferentRole)
   Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), agentFlags);
   ASSERT_SOME(agent);
 
-  AWAIT_READY(slaveReady);
+  AWAIT_READY(updateSlaveMessage);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -2245,7 +2204,7 @@ TEST_P(ReservationTest, DropReserveWithDifferentRole)
 
 // This test ensures that a framework can't unreserve resources
 // reserved by a framework with another role.
-TEST_P(ReservationTest, PreventUnreservingAlienResources)
+TEST_F(ReservationTest, PreventUnreservingAlienResources)
 {
   const string frameworkRole1 = "role1";
   FrameworkInfo frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
@@ -2269,13 +2228,14 @@ TEST_P(ReservationTest, PreventUnreservingAlienResources)
   slave::Flags agentFlags = CreateSlaveFlags();
   agentFlags.resources = "cpus:1;mem:512";
 
-  Future<Nothing> slaveReady = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), agentFlags);
   ASSERT_SOME(agent);
 
-  AWAIT_READY(slaveReady);
+  AWAIT_READY(updateSlaveMessage);
 
   MockScheduler sched1;
   MesosSchedulerDriver driver1(
@@ -2433,6 +2393,18 @@ TEST_F(ReservationCheckpointingTest, SendingCheckpointResourcesMessage)
 
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = "cpus:8;mem:4096";
+
+  // The master only sends `CheckpointResourcesMessage` to
+  // agents which are not resource provider-capable.
+  slaveFlags.agent_features = SlaveCapabilities();
+
+  foreach (
+      const SlaveInfo::Capability& slaveCapability,
+      slave::AGENT_CAPABILITIES()) {
+    if (slaveCapability.type() != SlaveInfo::Capability::RESOURCE_PROVIDER) {
+      slaveFlags.agent_features->add_capabilities()->CopyFrom(slaveCapability);
+    }
+  }
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);

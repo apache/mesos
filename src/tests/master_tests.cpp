@@ -5044,10 +5044,11 @@ TEST_F(MasterTest, StateEndpointAgentCapabilities)
   ASSERT_EQ(1u, slaveInfo.values.count("capabilities"));
   JSON::Value slaveCapabilities = slaveInfo.values.at("capabilities");
 
-  // Agents should always have MULTI_ROLE, HIERARCHICAL_ROLE, and
-  // RESERVATION_REFINEMENT capabilities in current implementation.
+  // Agents should have MULTI_ROLE, HIERARCHICAL_ROLE, RESERVATION_REFINEMENT,
+  // and RESOURCE_PROVIDER capabilities in current implementation.
   Try<JSON::Value> expectedCapabilities = JSON::parse(
-      "[\"MULTI_ROLE\",\"HIERARCHICAL_ROLE\",\"RESERVATION_REFINEMENT\"]");
+      "[\"MULTI_ROLE\",\"HIERARCHICAL_ROLE\",\"RESERVATION_REFINEMENT\","
+      "\"RESOURCE_PROVIDER\"]");
 
   ASSERT_SOME(expectedCapabilities);
   EXPECT_TRUE(slaveCapabilities.contains(expectedCapabilities.get()));
@@ -8639,16 +8640,6 @@ TEST_F(MasterTest, UpdateSlaveMessageWithPendingOffers)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.authenticate_http_readwrite = false;
 
-  // Set the resource provider capability.
-  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
-  SlaveInfo::Capability capability;
-  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
-  capabilities.push_back(capability);
-
-  slaveFlags.agent_features = SlaveCapabilities();
-  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
-      {capabilities.begin(), capabilities.end()});
-
   Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(agent);
 
@@ -8769,16 +8760,6 @@ TEST_F(MasterTest, OperationUpdateDuringFailover)
   // TODO(nfnt): Remove this once 'MockResourceProvider' supports
   // authentication.
   slaveFlags.authenticate_http_readwrite = false;
-
-  // Set the resource provider capability.
-  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
-  SlaveInfo::Capability capability;
-  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
-  capabilities.push_back(capability);
-
-  slaveFlags.agent_features = SlaveCapabilities();
-  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
-      {capabilities.begin(), capabilities.end()});
 
   Future<UpdateSlaveMessage> updateSlaveMessage =
     FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);

@@ -180,16 +180,6 @@ TEST_P(MasterAPITest, GetAgents)
   slaveFlags.hostname = "host";
   slaveFlags.domain = createDomainInfo("region-xyz", "zone-456");
 
-  // Set the resource provider capability.
-  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
-  SlaveInfo::Capability capability;
-  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
-  capabilities.push_back(capability);
-
-  slaveFlags.agent_features = SlaveCapabilities();
-  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
-      {capabilities.begin(), capabilities.end()});
-
   Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(agent);
 
@@ -1036,16 +1026,6 @@ TEST_P(MasterAPITest, GetOperations)
   // TODO(nfnt): Remove this once 'MockResourceProvider' supports
   // authentication.
   slaveFlags.authenticate_http_readwrite = false;
-
-  // Set the resource provider capability.
-  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
-  SlaveInfo::Capability capability;
-  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
-  capabilities.push_back(capability);
-
-  slaveFlags.agent_features = SlaveCapabilities();
-  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
-      {capabilities.begin(), capabilities.end()});
 
   Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(agent);
@@ -6625,16 +6605,6 @@ TEST_P(AgentAPITest, GetResourceProviders)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.authenticate_http_readwrite = false;
 
-  // Set the resource provider capability.
-  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
-  SlaveInfo::Capability capability;
-  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
-  capabilities.push_back(capability);
-
-  slaveFlags.agent_features = SlaveCapabilities();
-  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
-      {capabilities.begin(), capabilities.end()});
-
   Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
   ASSERT_SOME(slave);
 
@@ -6723,16 +6693,6 @@ TEST_P(AgentAPITest, GetOperations)
   // TODO(nfnt): Remove this once 'MockResourceProvider' supports
   // authentication.
   slaveFlags.authenticate_http_readwrite = false;
-
-  // Set the resource provider capability.
-  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
-  SlaveInfo::Capability capability;
-  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
-  capabilities.push_back(capability);
-
-  slaveFlags.agent_features = SlaveCapabilities();
-  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
-      {capabilities.begin(), capabilities.end()});
 
   Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(agent);

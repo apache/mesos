@@ -91,18 +91,9 @@ enum PersistentVolumeSourceType
 };
 
 
-enum ResourceProviderCapability
-{
-  DISABLED,
-  ENABLED
-};
-
-
 class PersistentVolumeTest
   : public MesosTest,
-    public WithParamInterface<::testing::tuple<
-        PersistentVolumeSourceType,
-        ResourceProviderCapability>>
+    public WithParamInterface<PersistentVolumeSourceType>
 {
 protected:
   virtual void SetUp()
@@ -114,7 +105,7 @@ protected:
 
     diskPath = path.get();
 
-    if (::testing::get<0>(GetParam()) == MOUNT) {
+    if (GetParam() == MOUNT) {
       // On linux we mount a `tmpfs`.
 #ifdef __linux__
       for (size_t i = 1; i <= NUM_DISKS; ++i) {
@@ -135,7 +126,7 @@ protected:
   virtual void TearDown()
   {
 #ifdef __linux__
-    if (::testing::get<0>(GetParam()) == MOUNT) {
+    if (GetParam() == MOUNT) {
       for (size_t i = 1; i <= NUM_DISKS; ++i) {
         ASSERT_SOME(
             fs::unmountAll(path::join(diskPath, "disk" + stringify(i))));
@@ -168,81 +159,40 @@ protected:
     return flags;
   }
 
-  virtual slave::Flags CreateSlaveFlags()
-  {
-    slave::Flags slaveFlags = MesosTest::CreateSlaveFlags();
-    if (::testing::get<1>(GetParam()) == ENABLED) {
-      // Set the resource provider capability.
-      vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
-      SlaveInfo::Capability capability;
-      capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
-      capabilities.push_back(capability);
-
-      slaveFlags.agent_features = SlaveCapabilities();
-      slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
-          {capabilities.begin(), capabilities.end()});
-    }
-
-    return slaveFlags;
-  }
-
   // Depending on the agent capability, the master will send different
   // messages to the agent when a persistent volume is applied.
   template<typename To>
   Future<Resources> getOperationMessage(To to)
   {
-    if (::testing::get<1>(GetParam()) == ENABLED) {
-      return FUTURE_PROTOBUF(ApplyOperationMessage(), _, to)
-        .then([](const ApplyOperationMessage& message) {
-          switch (message.operation_info().type()) {
-            case Offer::Operation::UNKNOWN:
-            case Offer::Operation::LAUNCH:
-            case Offer::Operation::LAUNCH_GROUP:
-            case Offer::Operation::RESERVE:
-            case Offer::Operation::UNRESERVE:
-            case Offer::Operation::CREATE_VOLUME:
-            case Offer::Operation::DESTROY_VOLUME:
-            case Offer::Operation::CREATE_BLOCK:
-            case Offer::Operation::DESTROY_BLOCK:
-              UNREACHABLE();
-            case Offer::Operation::CREATE: {
-              Resources resources = message.operation_info().create().volumes();
-              resources.unallocate();
+    return FUTURE_PROTOBUF(ApplyOperationMessage(), _, to)
+      .then([](const ApplyOperationMessage& message) {
+        switch (message.operation_info().type()) {
+          case Offer::Operation::UNKNOWN:
+          case Offer::Operation::LAUNCH:
+          case Offer::Operation::LAUNCH_GROUP:
+          case Offer::Operation::RESERVE:
+          case Offer::Operation::UNRESERVE:
+          case Offer::Operation::CREATE_VOLUME:
+          case Offer::Operation::DESTROY_VOLUME:
+          case Offer::Operation::CREATE_BLOCK:
+          case Offer::Operation::DESTROY_BLOCK:
+            UNREACHABLE();
+          case Offer::Operation::CREATE: {
+            Resources resources = message.operation_info().create().volumes();
+            resources.unallocate();
 
-              return resources;
-            }
-            case Offer::Operation::DESTROY: {
-              Resources resources =
-                message.operation_info().destroy().volumes();
-              resources.unallocate();
-
-              return resources;
-            }
+            return resources;
           }
+          case Offer::Operation::DESTROY: {
+            Resources resources = message.operation_info().destroy().volumes();
+            resources.unallocate();
 
-          UNREACHABLE();
-        });
-    }
+            return resources;
+          }
+        }
 
-    return FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, to)
-      .then([](const CheckpointResourcesMessage& message) {
-        return Resources(message.resources());
+        UNREACHABLE();
       });
-  }
-
-  // Agents with enabled 'RESOURCE_PROVIDER' capability will send a
-  // 'UpdateSlaveMessage' after (re-)registration. Offers will be
-  // rescinded if they were created prior to this message. Hence, we
-  // have to wait for this message before accepting offers.
-  Future<Nothing> getSlaveReady()
-  {
-    if (::testing::get<1>(GetParam()) == ENABLED) {
-      return FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _).then([] {
-        return Nothing();
-      });
-    }
-
-    return Nothing();
   }
 
   // Creates a disk with / without a `source` based on the
@@ -254,7 +204,7 @@ protected:
     CHECK_GE(NUM_DISKS, id);
     Resource diskResource;
 
-    switch (::testing::get<0>(GetParam())) {
+    switch (GetParam()) {
       case NONE: {
         diskResource = createDiskResource(
             stringify((double) mb.bytes() / Bytes::MEGABYTES),
@@ -311,12 +261,8 @@ protected:
 INSTANTIATE_TEST_CASE_P(
     DiskResource,
     PersistentVolumeTest,
-    ::testing::Combine(
-        ::testing::Values(
-            PersistentVolumeSourceType::NONE, PersistentVolumeSourceType::PATH),
-        ::testing::Values(
-            ResourceProviderCapability::DISABLED,
-            ResourceProviderCapability::ENABLED)));
+    ::testing::Values(
+        PersistentVolumeSourceType::NONE, PersistentVolumeSourceType::PATH));
 
 
 // We also want to parameterize them for `MOUNT`. On linux this means
@@ -327,22 +273,14 @@ INSTANTIATE_TEST_CASE_P(
 INSTANTIATE_TEST_CASE_P(
     ROOT_MountDiskResource,
     PersistentVolumeTest,
-    ::testing::Combine(
-        ::testing::Values(PersistentVolumeSourceType::MOUNT),
-        ::testing::Values(
-            ResourceProviderCapability::DISABLED,
-            ResourceProviderCapability::ENABLED)));
+    ::testing::Values(PersistentVolumeSourceType::MOUNT));
 #else // __linux__
 // Otherwise we can run it without root privileges as we just require
 // a directory.
 INSTANTIATE_TEST_CASE_P(
     MountDiskResource,
     PersistentVolumeTest,
-    ::testing::Combine(
-        ::testing::Values(PersistentVolumeSourceType::MOUNT),
-        ::testing::Values(
-            ResourceProviderCapability::DISABLED,
-            ResourceProviderCapability::ENABLED)));
+    ::testing::Values(PersistentVolumeSourceType::MOUNT));
 #endif // __linux__
 
 
@@ -363,13 +301,14 @@ TEST_P(PersistentVolumeTest, CreateAndDestroyPersistentVolumes)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = getSlaveResources();
 
-  Future<Nothing> slaveReady = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
-  AWAIT_READY(slaveReady);
+  AWAIT_READY(updateSlaveMessage);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -420,7 +359,7 @@ TEST_P(PersistentVolumeTest, CreateAndDestroyPersistentVolumes)
   // exist (it is created by the test `SetUp()` function). For
   // non-MOUNT disks, the directory is created when the persistent
   // volume is created.
-  if (::testing::get<0>(GetParam()) == MOUNT) {
+  if (GetParam() == MOUNT) {
     EXPECT_TRUE(os::exists(volume1Path));
     EXPECT_TRUE(os::exists(volume2Path));
   } else {
@@ -479,12 +418,7 @@ TEST_P(PersistentVolumeTest, CreateAndDestroyPersistentVolumes)
       filters);
 
   AWAIT_READY(message3);
-  if (::testing::get<1>(GetParam()) == ENABLED) {
-    EXPECT_TRUE(message3->contains(volume1));
-  } else {
-    EXPECT_TRUE(message3->contains(volume2));
-    EXPECT_FALSE(message3->contains(volume1));
-  }
+  EXPECT_TRUE(message3->contains(volume1));
 
   // Ensure that the messages reach the slave.
   Clock::settle();
@@ -493,7 +427,7 @@ TEST_P(PersistentVolumeTest, CreateAndDestroyPersistentVolumes)
   // delete all of the files and subdirectories underneath it). For
   // non-MOUNT disks, the volume directory should be removed when the
   // volume is destroyed.
-  if (::testing::get<0>(GetParam()) == MOUNT) {
+  if (GetParam() == MOUNT) {
     EXPECT_TRUE(os::exists(volume1Path));
 
     Try<list<string>> files = ::fs::list(path::join(volume1Path, "*"));
@@ -523,13 +457,14 @@ TEST_P(PersistentVolumeTest, ResourcesCheckpointing)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = getSlaveResources();
 
-  Future<Nothing> slaveReady = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
-  AWAIT_READY(slaveReady);
+  AWAIT_READY(updateSlaveMessage);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
@@ -596,13 +531,14 @@ TEST_P(PersistentVolumeTest, PreparePersistentVolume)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = getSlaveResources();
 
-  Future<Nothing> slaveReady = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
-  AWAIT_READY(slaveReady);
+  AWAIT_READY(updateSlaveMessage);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
@@ -669,12 +605,13 @@ TEST_P(PersistentVolumeTest, MasterFailover)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = getSlaveResources();
 
-  Future<Nothing> slaveReady1 = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage1 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
   ASSERT_SOME(slave);
 
-  AWAIT_READY(slaveReady1);
+  AWAIT_READY(updateSlaveMessage1);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
@@ -723,10 +660,8 @@ TEST_P(PersistentVolumeTest, MasterFailover)
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
-  Future<SlaveReregisteredMessage> slaveReregistered =
-    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
-
-  Future<Nothing> slaveReady2 = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage2 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Future<vector<Offer>> offers2;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -746,8 +681,7 @@ TEST_P(PersistentVolumeTest, MasterFailover)
   Clock::settle();
   Clock::resume();
 
-  AWAIT_READY(slaveReregistered);
-  AWAIT_READY(slaveReady2);
+  AWAIT_READY(updateSlaveMessage2);
 
   AWAIT_READY(offers2);
   ASSERT_FALSE(offers2->empty());
@@ -773,7 +707,8 @@ TEST_P(PersistentVolumeTest, IncompatibleCheckpointedResources)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = getSlaveResources();
 
-  Future<Nothing> slaveReady = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
   TestContainerizer containerizer(&exec);
@@ -790,7 +725,7 @@ TEST_P(PersistentVolumeTest, IncompatibleCheckpointedResources)
 
   slave1.get()->start();
 
-  AWAIT_READY(slaveReady);
+  AWAIT_READY(updateSlaveMessage);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
@@ -879,7 +814,8 @@ TEST_P(PersistentVolumeTest, AccessPersistentVolume)
 
   slaveFlags.resources = getSlaveResources();
 
-  Future<Nothing> slaveReady = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
@@ -887,7 +823,7 @@ TEST_P(PersistentVolumeTest, AccessPersistentVolume)
 
   Clock::advance(slaveFlags.registration_backoff_factor);
   Clock::settle();
-  AWAIT_READY(slaveReady);
+  AWAIT_READY(updateSlaveMessage);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
@@ -1016,11 +952,7 @@ TEST_P(PersistentVolumeTest, AccessPersistentVolume)
   driver.acceptOffers({offer.id()}, {DESTROY(volume)});
 
   AWAIT_READY(message);
-  if (::testing::get<1>(GetParam()) == ENABLED) {
-    EXPECT_TRUE(message->contains(volume));
-  } else {
-    EXPECT_FALSE(message->contains(volume));
-  }
+  EXPECT_TRUE(message->contains(volume));
 
   // Ensure that operation message reaches the slave.
   Clock::settle();
@@ -1031,7 +963,7 @@ TEST_P(PersistentVolumeTest, AccessPersistentVolume)
   // delete all of the files and subdirectories underneath it). For
   // non-MOUNT disks, the volume directory should be removed when the
   // volume is destroyed.
-  if (::testing::get<0>(GetParam()) == MOUNT) {
+  if (GetParam() == MOUNT) {
     EXPECT_TRUE(os::exists(volumePath));
 
     Try<list<string>> files = ::fs::list(path::join(volumePath, "*"));
@@ -1059,13 +991,14 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleTasks)
   slaveFlags.resources =
     "cpus:2;mem:1024;disk(" + string(DEFAULT_TEST_ROLE) + "):1024";
 
-  Future<Nothing> slaveReady = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
-  AWAIT_READY(slaveReady);
+  AWAIT_READY(updateSlaveMessage);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
@@ -1182,7 +1115,8 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeRescindOnDestroy)
 
   slaveFlags.resources = getSlaveResources();
 
-  Future<Nothing> slaveReady = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
@@ -1190,7 +1124,7 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeRescindOnDestroy)
 
   Clock::advance(slaveFlags.registration_backoff_factor);
   Clock::settle();
-  AWAIT_READY(slaveReady);
+  AWAIT_READY(updateSlaveMessage);
 
   // 1. Create framework1 so that all resources are offered to this framework.
   FrameworkInfo frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
@@ -1362,7 +1296,8 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleFrameworks)
 
   slaveFlags.resources = getSlaveResources();
 
-  Future<Nothing> slaveReady = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
@@ -1370,7 +1305,7 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleFrameworks)
 
   Clock::advance(slaveFlags.registration_backoff_factor);
   Clock::settle();
-  AWAIT_READY(slaveReady);
+  AWAIT_READY(updateSlaveMessage);
 
   // 1. Create framework1 so that all resources are offered to this framework.
   FrameworkInfo frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
@@ -1557,12 +1492,13 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMasterFailover)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = getSlaveResources();
 
-  Future<Nothing> slaveReady1 = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage1 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
   ASSERT_SOME(slave);
 
-  AWAIT_READY(slaveReady1);
+  AWAIT_READY(updateSlaveMessage1);
 
   // Create the framework with SHARED_RESOURCES capability.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
@@ -1648,10 +1584,8 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMasterFailover)
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
-  Future<SlaveReregisteredMessage> slaveReregistered =
-    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
-
-  Future<Nothing> slaveReady2 = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage2 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Future<vector<Offer>> offers2;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1665,8 +1599,7 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMasterFailover)
   // slave will do a re-registration.
   detector.appoint(master.get()->pid);
 
-  AWAIT_READY(slaveReregistered);
-  AWAIT_READY(slaveReady2);
+  AWAIT_READY(updateSlaveMessage2);
 
   AWAIT_READY(offers2);
   ASSERT_FALSE(offers2->empty());
@@ -1715,7 +1648,8 @@ TEST_P(PersistentVolumeTest, DestroyPersistentVolumeMultipleTasks)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = getSlaveResources();
 
-  Future<Nothing> slaveReady = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
@@ -1723,7 +1657,7 @@ TEST_P(PersistentVolumeTest, DestroyPersistentVolumeMultipleTasks)
 
   Clock::advance(slaveFlags.registration_backoff_factor);
   Clock::settle();
-  AWAIT_READY(slaveReady);
+  AWAIT_READY(updateSlaveMessage);
 
   // Create a scheduler/framework.
   MockScheduler sched;
@@ -1935,7 +1869,8 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleIterations)
 
   slaveFlags.resources = getSlaveResources();
 
-  Future<Nothing> slaveReady = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
@@ -1943,7 +1878,7 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleIterations)
 
   Clock::advance(slaveFlags.registration_backoff_factor);
   Clock::settle();
-  AWAIT_READY(slaveReady);
+  AWAIT_READY(updateSlaveMessage);
 
   // 1. Create framework so that all resources are offered to this framework.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
@@ -2080,13 +2015,14 @@ TEST_P(PersistentVolumeTest, SlaveRecovery)
 
   slaveFlags.resources = getSlaveResources();
 
-  Future<Nothing> slaveReady = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
-  AWAIT_READY(slaveReady);
+  AWAIT_READY(updateSlaveMessage);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
@@ -2250,7 +2186,8 @@ TEST_P(PersistentVolumeTest, GoodACLCreateThenDestroy)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = getSlaveResources();
 
-  Future<Nothing> slaveReady = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
@@ -2258,7 +2195,7 @@ TEST_P(PersistentVolumeTest, GoodACLCreateThenDestroy)
 
   Clock::advance(slaveFlags.registration_backoff_factor);
   Clock::settle();
-  AWAIT_READY(slaveReady);
+  AWAIT_READY(updateSlaveMessage);
 
   // Create a scheduler/framework.
   MockScheduler sched;
@@ -2332,11 +2269,7 @@ TEST_P(PersistentVolumeTest, GoodACLCreateThenDestroy)
       filters);
 
   AWAIT_READY(message2);
-  if (::testing::get<1>(GetParam()) == ENABLED) {
-    EXPECT_TRUE(message2->contains(volume));
-  } else {
-    EXPECT_FALSE(message2->contains(volume));
-  }
+  EXPECT_TRUE(message2->contains(volume));
 
   // Expect an offer that does not contain the persistent volume.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -2406,7 +2339,8 @@ TEST_P(PersistentVolumeTest, GoodACLNoPrincipal)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = getSlaveResources();
 
-  Future<Nothing> slaveReady = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
@@ -2414,7 +2348,7 @@ TEST_P(PersistentVolumeTest, GoodACLNoPrincipal)
 
   Clock::advance(slaveFlags.registration_backoff_factor);
   Clock::settle();
-  AWAIT_READY(slaveReady);
+  AWAIT_READY(updateSlaveMessage);
 
   // Create a scheduler/framework.
   MockScheduler sched;
@@ -2504,11 +2438,7 @@ TEST_P(PersistentVolumeTest, GoodACLNoPrincipal)
   // Check that the persistent volume was not created.
   EXPECT_FALSE(Resources(offer.resources()).contains(
       allocatedResources(volume, frameworkInfo.roles(0))));
-  if (::testing::get<1>(GetParam()) == ENABLED) {
-    EXPECT_TRUE(message2->contains(volume));
-  } else {
-    EXPECT_FALSE(message2->contains(volume));
-  }
+  EXPECT_TRUE(message2->contains(volume));
 
   driver.stop();
   driver.join();
@@ -2571,7 +2501,8 @@ TEST_P(PersistentVolumeTest, BadACLNoPrincipal)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = getSlaveResources();
 
-  Future<Nothing> slaveReady = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
@@ -2579,7 +2510,7 @@ TEST_P(PersistentVolumeTest, BadACLNoPrincipal)
 
   Clock::advance(slaveFlags.registration_backoff_factor);
   Clock::settle();
-  AWAIT_READY(slaveReady);
+  AWAIT_READY(updateSlaveMessage);
 
   // Create a scheduler/framework.
   MockScheduler sched1;
@@ -2799,7 +2730,8 @@ TEST_P(PersistentVolumeTest, BadACLDropCreateAndDestroy)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = getSlaveResources();
 
-  Future<Nothing> slaveReady = getSlaveReady();
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
@@ -2807,7 +2739,7 @@ TEST_P(PersistentVolumeTest, BadACLDropCreateAndDestroy)
 
   Clock::advance(slaveFlags.registration_backoff_factor);
   Clock::settle();
-  AWAIT_READY(slaveReady);
+  AWAIT_READY(updateSlaveMessage);
 
   // Create a scheduler/framework.
   MockScheduler sched1;

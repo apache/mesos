@@ -1,8 +1,0 @@
-{
-  "capabilities": [
-    { "type": "MULTI_ROLE" },
-    { "type": "HIERARCHICAL_ROLE" },
-    { "type": "RESERVATION_REFINEMENT" },
-    { "type": "RESOURCE_PROVIDER"}
-  ]
-}

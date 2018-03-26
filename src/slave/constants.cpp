@@ -14,11 +14,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <vector>
-
 #include "master/constants.hpp"
 
 #include "slave/constants.hpp"
+
+#include <vector>
 
 using std::vector;
 
@@ -36,10 +36,10 @@ Duration DEFAULT_MASTER_PING_TIMEOUT()
 vector<SlaveInfo::Capability> AGENT_CAPABILITIES()
 {
   SlaveInfo::Capability::Type types[] = {
-    SlaveInfo::Capability::MULTI_ROLE,
     SlaveInfo::Capability::HIERARCHICAL_ROLE,
-    SlaveInfo::Capability::RESERVATION_REFINEMENT
-  };
+    SlaveInfo::Capability::MULTI_ROLE,
+    SlaveInfo::Capability::RESERVATION_REFINEMENT,
+    SlaveInfo::Capability::RESOURCE_PROVIDER};
 
   vector<SlaveInfo::Capability> result;
   foreach (SlaveInfo::Capability::Type type, types) {

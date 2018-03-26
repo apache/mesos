@@ -52,7 +52,6 @@ RUN chmod +x /usr/bin/mesos-init-wrapper && \
 
 COPY mesos/master_environment /etc/default/mesos-master
 COPY mesos/agent_environment /etc/default/mesos-agent
-COPY mesos/agent_features.json /etc/mesos/agent_features.json
 COPY mesos/modules /etc/mesos/modules
 
 # Prepare Marathon environment.

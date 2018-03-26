@@ -286,8 +286,9 @@ TEST_F(OversubscriptionTest, ForwardUpdateSlaveMessage)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  Future<SlaveRegisteredMessage> slaveRegistered =
-    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+  // The agent will send a single `UpdateSlaveMessage` after registration.
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   MockResourceEstimator resourceEstimator;
 
@@ -305,7 +306,7 @@ TEST_F(OversubscriptionTest, ForwardUpdateSlaveMessage)
     StartSlave(detector.get(), &resourceEstimator, flags);
   ASSERT_SOME(slave);
 
-  AWAIT_READY(slaveRegistered);
+  AWAIT_READY(updateSlaveMessage);
 
   Future<UpdateSlaveMessage> update =
     FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
@@ -333,7 +334,7 @@ TEST_F(OversubscriptionTest, ForwardUpdateSlaveMessage)
       1u,
       metrics.values.count("master/messages_update_slave"));
   ASSERT_EQ(
-      1u,
+      2u,
       metrics.values["master/messages_update_slave"]);
 
   ASSERT_EQ(

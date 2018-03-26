@@ -4865,6 +4865,18 @@ TYPED_TEST(SlaveRecoveryTest, CheckpointedResources)
 
   slave::Flags slaveFlags = this->CreateSlaveFlags();
 
+  // The master only sends `CheckpointResourcesMessage` to
+  // agents which are not resource provider-capable.
+  slaveFlags.agent_features = SlaveCapabilities();
+
+  foreach (
+      const SlaveInfo::Capability& slaveCapability,
+      slave::AGENT_CAPABILITIES()) {
+    if (slaveCapability.type() != SlaveInfo::Capability::RESOURCE_PROVIDER) {
+      slaveFlags.agent_features->add_capabilities()->CopyFrom(slaveCapability);
+    }
+  }
+
   StandaloneMasterDetector detector(master.get()->pid);
   Try<Owned<cluster::Slave>> slave = this->StartSlave(&detector, slaveFlags);
   ASSERT_SOME(slave);
@@ -4959,16 +4971,6 @@ TYPED_TEST(SlaveRecoveryTest, CheckpointedResourcesResourceProviderCapable)
   Try<Owned<cluster::Master>> master = this->StartMaster(masterFlags);
 
   slave::Flags slaveFlags = this->CreateSlaveFlags();
-
-  // Set the resource provider capability.
-  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
-  SlaveInfo::Capability capability;
-  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
-  capabilities.push_back(capability);
-
-  slaveFlags.agent_features = SlaveCapabilities();
-  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
-      {capabilities.begin(), capabilities.end()});
 
   Future<UpdateSlaveMessage> updateSlaveMessage =
     FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);

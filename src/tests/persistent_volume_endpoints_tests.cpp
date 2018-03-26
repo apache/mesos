@@ -1524,15 +1524,15 @@ TEST_F(PersistentVolumeEndpointsTest, OfferCreateThenEndpointRemove)
 
   EXPECT_EQ(offer.slave_id(), slaveId);
 
-  Future<CheckpointResourcesMessage> checkpointResources =
-    FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, _);
+  Future<UpdateOperationStatusMessage> updateOperationStatusMessage =
+    FUTURE_PROTOBUF(UpdateOperationStatusMessage(), _, _);
 
   // Reserve the resources.
   driver.acceptOffers({offer.id()}, {RESERVE(dynamicallyReserved)});
 
   // Make sure the allocator processes the `RESERVE` operation before summoning
   // an offer.
-  AWAIT_READY(checkpointResources);
+  AWAIT_READY(updateOperationStatusMessage);
 
   // Summon an offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1559,13 +1559,14 @@ TEST_F(PersistentVolumeEndpointsTest, OfferCreateThenEndpointRemove)
       None(),
       frameworkInfo.principal());
 
-  checkpointResources = FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, _);
+  updateOperationStatusMessage =
+    FUTURE_PROTOBUF(UpdateOperationStatusMessage(), _, _);
 
   // Create the volume.
   driver.acceptOffers({offer.id()}, {CREATE(volume)});
 
   // Make sure the master processes the accept call before summoning an offer.
-  AWAIT_READY(checkpointResources);
+  AWAIT_READY(updateOperationStatusMessage);
 
   // Summon an offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1726,13 +1727,13 @@ TEST_F(PersistentVolumeEndpointsTest, EndpointCreateThenOfferRemove)
   EXPECT_TRUE(Resources(offer.resources()).contains(
       allocatedResources(volume, frameworkInfo.roles(0))));
 
-  Future<CheckpointResourcesMessage> checkpointResources =
-    FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, _);
+  Future<UpdateOperationStatusMessage> updateOperationStatusMessage =
+    FUTURE_PROTOBUF(UpdateOperationStatusMessage(), _, _);
 
   driver.acceptOffers({offer.id()}, {DESTROY(volume)});
 
   // Make sure the master processes the accept call before summoning an offer.
-  AWAIT_READY(checkpointResources);
+  AWAIT_READY(updateOperationStatusMessage);
 
   // Summon an offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1752,13 +1753,14 @@ TEST_F(PersistentVolumeEndpointsTest, EndpointCreateThenOfferRemove)
     << Resources(offer.resources()) << " vs "
     << allocatedResources(dynamicallyReserved, frameworkInfo.roles(0));
 
-  checkpointResources = FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, _);
+  updateOperationStatusMessage =
+    FUTURE_PROTOBUF(UpdateOperationStatusMessage(), _, _);
 
   // Unreserve the resources.
   driver.acceptOffers({offer.id()}, {UNRESERVE(dynamicallyReserved)});
 
   // Make sure the master processes the accept call before summoning an offer.
-  AWAIT_READY(checkpointResources);
+  AWAIT_READY(updateOperationStatusMessage);
 
   // Summon an offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1854,10 +1856,11 @@ TEST_F(PersistentVolumeEndpointsTest, ReserveAndSlaveRemoval)
 
   ASSERT_EQ(2u, offers->size());
 
-  Future<CheckpointResourcesMessage> checkpointResources =
-    FUTURE_PROTOBUF(CheckpointResourcesMessage(),
-                    master.get()->pid,
-                    slave2.get()->pid);
+  Future<ApplyOperationMessage> applyOperationMessage =
+    FUTURE_PROTOBUF(ApplyOperationMessage(), _, _);
+
+  Future<UpdateOperationStatusMessage> updateOperationStatusMessage =
+    FUTURE_PROTOBUF(UpdateOperationStatusMessage(), _, _);
 
   // Use the offers API to reserve all CPUs on `slave2`.
   Resources slave2Unreserved = Resources::parse("cpus:3").get();
@@ -1878,9 +1881,15 @@ TEST_F(PersistentVolumeEndpointsTest, ReserveAndSlaveRemoval)
     }
   }
 
-  AWAIT_READY(checkpointResources);
-  EXPECT_EQ(Resources(checkpointResources->resources()),
-            slave2Reserved);
+  Resources sentResources =
+    applyOperationMessage->operation_info().reserve().resources();
+
+  sentResources.unallocate();
+
+  AWAIT_READY(applyOperationMessage);
+  EXPECT_EQ(sentResources, slave2Reserved);
+
+  AWAIT_READY(updateOperationStatusMessage);
 
   // Shutdown `slave2` with an explicit shutdown message.
   EXPECT_CALL(sched, offerRescinded(_, _));

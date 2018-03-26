@@ -298,16 +298,6 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Add)
   // Disable HTTP authentication to simplify resource provider interactions.
   slaveFlags.authenticate_http_readwrite = false;
 
-  // Set the resource provider capability.
-  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
-  SlaveInfo::Capability capability;
-  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
-  capabilities.push_back(capability);
-
-  slaveFlags.agent_features = SlaveCapabilities();
-  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
-      {capabilities.begin(), capabilities.end()});
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -395,16 +385,6 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_AddConflict)
   // Disable HTTP authentication to simplify resource provider interactions.
   slaveFlags.authenticate_http_readwrite = false;
 
-  // Set the resource provider capability.
-  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
-  SlaveInfo::Capability capability;
-  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
-  capabilities.push_back(capability);
-
-  slaveFlags.agent_features = SlaveCapabilities();
-  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
-      {capabilities.begin(), capabilities.end()});
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   // Generate a pre-existing config.
@@ -466,16 +446,6 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Update)
 
   // Disable HTTP authentication to simplify resource provider interactions.
   slaveFlags.authenticate_http_readwrite = false;
-
-  // Set the resource provider capability.
-  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
-  SlaveInfo::Capability capability;
-  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
-  capabilities.push_back(capability);
-
-  slaveFlags.agent_features = SlaveCapabilities();
-  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
-      {capabilities.begin(), capabilities.end()});
 
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
@@ -588,16 +558,6 @@ TEST_P(AgentResourceProviderConfigApiTest, UpdateNotFound)
 
   slave::Flags slaveFlags = CreateSlaveFlags();
 
-  // Set the resource provider capability.
-  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
-  SlaveInfo::Capability capability;
-  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
-  capabilities.push_back(capability);
-
-  slaveFlags.agent_features = SlaveCapabilities();
-  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
-      {capabilities.begin(), capabilities.end()});
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -640,16 +600,6 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Remove)
 
   // Disable HTTP authentication to simplify resource provider interactions.
   slaveFlags.authenticate_http_readwrite = false;
-
-  // Set the resource provider capability.
-  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
-  SlaveInfo::Capability capability;
-  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
-  capabilities.push_back(capability);
-
-  slaveFlags.agent_features = SlaveCapabilities();
-  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
-      {capabilities.begin(), capabilities.end()});
 
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
@@ -731,16 +681,6 @@ TEST_P(AgentResourceProviderConfigApiTest, RemoveNotFound)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-
-  // Set the resource provider capability.
-  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
-  SlaveInfo::Capability capability;
-  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
-  capabilities.push_back(capability);
-
-  slaveFlags.agent_features = SlaveCapabilities();
-  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
-      {capabilities.begin(), capabilities.end()});
 
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 

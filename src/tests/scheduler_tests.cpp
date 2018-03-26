@@ -1019,20 +1019,9 @@ TEST_P(SchedulerTest, OperationFeedbackValidationWithResourceProviderCapability)
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
-  slave::Flags slaveFlags = CreateSlaveFlags();
-
-  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
-  SlaveInfo::Capability capability;
-  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
-  capabilities.push_back(capability);
-
-  slaveFlags.agent_features = SlaveCapabilities();
-  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
-      {capabilities.begin(), capabilities.end()});
-
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
@@ -1127,7 +1116,19 @@ TEST_P(SchedulerTest, OperationFeedbackValidationNoResourceProviderCapability)
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  slaveFlags.agent_features = SlaveCapabilities();
+
+  foreach (
+      const SlaveInfo::Capability& slaveCapability,
+      slave::AGENT_CAPABILITIES()) {
+    if (slaveCapability.type() != SlaveInfo::Capability::RESOURCE_PROVIDER) {
+      slaveFlags.agent_features->add_capabilities()->CopyFrom(slaveCapability);
+    }
+  }
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
@@ -1202,20 +1203,9 @@ TEST_P(SchedulerTest, OperationFeedbackValidationSchedulerDriverFramework)
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
-  slave::Flags slaveFlags = CreateSlaveFlags();
-
-  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
-  SlaveInfo::Capability capability;
-  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
-  capabilities.push_back(capability);
-
-  slaveFlags.agent_features = SlaveCapabilities();
-  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
-      {capabilities.begin(), capabilities.end()});
-
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;

@@ -1528,22 +1528,22 @@ TEST_F(ReservationEndpointsTest, AgentStateEndpointResources)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = "cpus:4;mem:2048;disk:4096;cpus(role):2;mem(role):512";
 
-  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
-    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(agent);
 
-  AWAIT_READY(slaveRegisteredMessage);
-  const SlaveID& slaveId = slaveRegisteredMessage->slave_id();
+  AWAIT_READY(updateSlaveMessage);
+  const SlaveID& slaveId = updateSlaveMessage->slave_id();
 
   Resources unreserved = Resources::parse("cpus:1;mem:512;disk:1024").get();
   Resources dynamicallyReserved = unreserved.pushReservation(
       createDynamicReservationInfo("role1", DEFAULT_CREDENTIAL.principal()));
 
-  Future<CheckpointResourcesMessage> checkpointResources =
-    FUTURE_PROTOBUF(CheckpointResourcesMessage(), _, _);
+  Future<UpdateOperationStatusMessage> updateOperationStatusMessage =
+    FUTURE_PROTOBUF(UpdateOperationStatusMessage(), _, _);
 
   {
     Future<Response> response = process::http::post(
@@ -1555,10 +1555,10 @@ TEST_F(ReservationEndpointsTest, AgentStateEndpointResources)
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
   }
 
-  // Now verify the reservations from the agent's /state endpoint. We wait
-  // for the agent to receive and process CheckpointResourcesMessage first
-  // because dynamic reservations are propgated to the agent asynchronously.
-  AWAIT_READY(checkpointResources);
+  // Now verify the reservations from the agent's /state endpoint. We wait for
+  // the agent to receive and process the `ApplyOperationMessage` and respond
+  // with an initial operation status update.
+  AWAIT_READY(updateOperationStatusMessage);
 
   // Make sure CheckpointResourcesMessage handling is completed
   // before proceeding.
