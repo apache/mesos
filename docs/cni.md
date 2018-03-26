@@ -106,8 +106,8 @@ isolator) will not affect container orchestration.
 #### <a name="adding-modifying-deleting"></a>Adding/Deleting/Modifying CNI networks
 
 The `network/cni` isolator learns about all the CNI networks by
-reading the CNI configuration specified in `--network_cni_config_dir`
-. Hence, if the operator wants to add a CNI network, the corresponding
+reading the CNI configuration specified in `--network_cni_config_dir`.
+Hence, if the operator wants to add a CNI network, the corresponding
 configuration needs to be added to `--network_cni_config_dir`.
 
 While the `network/cni` isolator learns the CNI networks by reading
@@ -127,13 +127,13 @@ destroyed, even if the CNI configuration is deleted.
 The fact that the `network/cni` isolator always reads the CNI
 configurations from the disk allows the operator to dynamically add,
 modify and delete CNI configurations without the need to restart the
-agent. Whenever the operator adds a new CNI configuration, or modifies
-an existing CNI configuration, the agent will pick up this new CNI
-configuration when the next container is launched on that specific CNI
-network. Similarly when the operator deletes a CNI network the
-`network/cni` isolator will "unlearn" the CNI network (since it will
-have a reference to this CNI network when it started) in case a
-framework tries to launch a container on the deleted CNI network.
+agent. Whenever the operator modifies an existing CNI configuration,
+the agent will pick up this new CNI configuration when the next
+container is launched on that specific CNI network. Similarly when the
+operator deletes a CNI network the `network/cni` isolator will
+"unlearn" the CNI network (since it will have a reference to this CNI
+network when it started) in case a framework tries to launch a
+container on the deleted CNI network.
 
 #### <a name="attaching-containers-to-cni-networks"></a>Attaching containers to CNI networks
 
