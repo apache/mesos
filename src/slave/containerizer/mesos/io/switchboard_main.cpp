@@ -151,6 +151,8 @@ int main(int argc, char** argv)
   Future<Nothing> run = server.get()->run();
   run.await();
 
+  server->reset();
+
   // NOTE: We need to finalize libprocess, on Windows especially,
   // as any binary that uses the networking stack on Windows must
   // also clean up the networking stack before exiting.
