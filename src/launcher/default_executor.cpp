@@ -1245,7 +1245,13 @@ protected:
       return;
     }
 
-    kill(container.get(), killPolicy);
+    const ContainerID& containerId = container->containerId;
+    kill(container.get(), killPolicy)
+      .onFailed(defer(self(), [=](const string& failure) {
+          LOG(WARNING) << "Failed to kill the task '" << taskId
+                       << "' running in child container " << containerId << ": "
+                       << failure;
+      }));
   }
 
   void taskCheckUpdated(
