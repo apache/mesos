@@ -484,8 +484,8 @@ provide tenant isolation, security groups, and external reachability
 constraints.
 
 For information on setting up and using Calico-CNI, see [Calico's
-guide on adding Calico-CNI to
-Mesos](https://github.com/projectcalico/calico-containers/blob/master/docs/mesos/ManualInstallCalicoCNI.md).
+guide on integerating with
+Mesos](https://docs.projectcalico.org/v2.6/getting-started/mesos/).
 
 #### <a name="a-cilium-network">A Cilium network</a>
 
