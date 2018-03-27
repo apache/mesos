@@ -161,3 +161,31 @@ TEST(HashsetTest, Union)
 
   ASSERT_EQ(hs3, hs4);
 }
+
+
+TEST(HashsetTest, Difference)
+{
+  hashset<int> hs1;
+  hs1.insert(1);
+  hs1.insert(2);
+  hs1.insert(3);
+
+  hashset<int> hs2;
+  hs2.insert(3);
+  hs2.insert(4);
+  hs2.insert(5);
+
+  hashset<int> hs3 = hs1 - hs2;
+
+  ASSERT_EQ(2u, hs3.size());
+  ASSERT_TRUE(hs3.contains(1));
+  ASSERT_TRUE(hs3.contains(2));
+  ASSERT_FALSE(hs3.contains(3));
+  ASSERT_FALSE(hs3.contains(4));
+  ASSERT_FALSE(hs3.contains(5));
+
+  hashset<int> hs4 = hs1;
+  hs4 -= hs2;
+
+  ASSERT_EQ(hs3, hs4);
+}
