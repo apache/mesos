@@ -162,4 +162,30 @@ hashset<Elem, Hash, Equal>& operator|=(
   return left;
 }
 
+
+// Difference operator.
+template <typename Elem, typename Hash, typename Equal>
+hashset<Elem, Hash, Equal> operator-(
+    const hashset<Elem, Hash, Equal>& left,
+    const hashset<Elem, Hash, Equal>& right)
+{
+  hashset<Elem, Hash, Equal> result = left;
+  result -= right;
+  return result;
+}
+
+
+// Difference assignment operator.
+template <typename Elem, typename Hash, typename Equal>
+hashset<Elem, Hash, Equal>& operator-=(
+    hashset<Elem, Hash, Equal>& left,
+    const hashset<Elem, Hash, Equal>& right)
+{
+  foreach (const Elem& elem, right) {
+    left.erase(elem);
+  }
+
+  return left;
+}
+
 #endif // __STOUT_HASHSET_HPP__
