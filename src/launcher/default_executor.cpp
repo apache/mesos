@@ -30,6 +30,7 @@
 #include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/delay.hpp>
+#include <process/future.hpp>
 #include <process/id.hpp>
 #include <process/owned.hpp>
 #include <process/process.hpp>
@@ -62,6 +63,7 @@ using mesos::executor::Event;
 using mesos::v1::executor::Mesos;
 
 using process::Clock;
+using process::Failure;
 using process::Future;
 using process::Owned;
 using process::UPID;
@@ -1170,7 +1172,15 @@ protected:
     kill->set_signal(signal);
 
     return post(None(), call)
-      .then([](const Response& /* response */) {
+      .then([=](const Response& response) -> Future<Nothing> {
+        if (response.code != process::http::Status::OK) {
+          return Failure(
+              stringify("The agent failed to send signal") +
+              " " + strsignal(signal) + " (" + stringify(signal) + ")" +
+              " to the container " + stringify(containerId) +
+              ": " + response.body);
+        }
+
         return Nothing();
       });
   }
