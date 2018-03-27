@@ -172,7 +172,7 @@ public:
 
     // Disconnect all active connections used for
     // waiting on child containers.
-    foreachvalue (Owned<Container> container, containers) {
+    foreachvalue (Owned<Container>& container, containers) {
       if (container->waiting.isSome()) {
         container->waiting->disconnect();
         container->waiting = None();
@@ -180,7 +180,7 @@ public:
     }
 
     // Pause all checks and health checks.
-    foreachvalue (Owned<Container> container, containers) {
+    foreachvalue (Owned<Container>& container, containers) {
       if (container->checker.isSome()) {
         container->checker->get()->pause();
       }
@@ -214,7 +214,7 @@ public:
         }
 
         // Resume all checks and health checks.
-        foreachvalue (Owned<Container> container, containers) {
+        foreachvalue (Owned<Container>& container, containers) {
           if (container->checker.isSome()) {
             container->checker->get()->resume();
           }
@@ -726,7 +726,7 @@ protected:
     CHECK_SOME(connectionId);
     CHECK(containers.contains(taskId));
 
-    Owned<Container> container = containers.at(taskId);
+    Container* container = containers.at(taskId).get();
 
     LOG(INFO) << "Waiting for child container " << container->containerId
               << " of task '" << taskId << "'";
@@ -767,7 +767,7 @@ protected:
     CHECK_EQ(SUBSCRIBED, state);
     CHECK(containers.contains(taskId));
 
-    Owned<Container> container = containers.at(taskId);
+    Container* container = containers.at(taskId).get();
 
     CHECK_SOME(container->waiting);
 
@@ -932,34 +932,16 @@ protected:
 
     forward(taskStatus);
 
-    CHECK(containers.contains(taskId));
-    containers.erase(taskId);
-
     LOG(INFO)
       << "Child container " << container->containerId << " of task '" << taskId
       << "' completed in state " << stringify(taskState)
       << ": " << message.get();
 
-    // Shutdown the executor if all the active child containers have terminated.
-    if (containers.empty()) {
-      _shutdown();
-      return;
-    }
-
-    // Ignore if the executor is already in the process of shutting down.
-    if (shuttingDown) {
-      return;
-    }
-
-    // Ignore if this task group is already in the process of being killed.
-    if (container->killingTaskGroup) {
-      return;
-    }
-
     // The default restart policy for a task group is to kill all the
     // remaining child containers if one of them terminated with a
     // non-zero exit code.
-    if (taskState == TASK_FAILED || taskState == TASK_KILLED) {
+    if (!shuttingDown && !container->killingTaskGroup &&
+        (taskState == TASK_FAILED || taskState == TASK_KILLED)) {
       // Needed for logging.
       auto taskIds = [container]() {
         list<TaskID> taskIds_;
@@ -985,7 +967,7 @@ protected:
           continue;
         }
 
-        Owned<Container> container_ = containers.at(taskId);
+        Container* container_ = containers.at(taskId).get();
         container_->killingTaskGroup = true;
 
         // Ignore if the task is already being killed. This can happen
@@ -996,8 +978,16 @@ protected:
           continue;
         }
 
-        kill(container_.get());
+        kill(container_);
       }
+    }
+
+    CHECK(containers.contains(taskId));
+    containers.erase(taskId);
+
+    // Shutdown the executor if all the active child containers have terminated.
+    if (containers.empty()) {
+      _shutdown();
     }
   }
 
@@ -1238,7 +1228,7 @@ protected:
       return;
     }
 
-    const Owned<Container>& container = containers.at(taskId);
+    Container* container = containers.at(taskId).get();
     if (container->killing) {
       LOG(WARNING) << "Ignoring kill for task '" << taskId
                    << "' as it is in the process of getting killed";
@@ -1246,7 +1236,7 @@ protected:
     }
 
     const ContainerID& containerId = container->containerId;
-    kill(container.get(), killPolicy)
+    kill(container, killPolicy)
       .onFailed(defer(self(), [=](const string& failure) {
           LOG(WARNING) << "Failed to kill the task '" << taskId
                        << "' running in child container " << containerId << ": "
@@ -1386,7 +1376,7 @@ private:
     }
 
     CHECK(containers.contains(taskId));
-    const Owned<Container>& container = containers.at(taskId);
+    const Container* container = containers.at(taskId).get();
 
     // TODO(alexr): Augment health information in a way similar to
     // `CheckStatusInfo`. See MESOS-6417 for more details.
@@ -1504,7 +1494,7 @@ private:
     CHECK_SOME(connectionId);
     CHECK(containers.contains(taskId));
 
-    const Owned<Container>& container = containers.at(taskId);
+    const Container* container = containers.at(taskId).get();
 
     if (!connection.isReady()) {
       LOG(ERROR)
