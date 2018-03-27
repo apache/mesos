@@ -1142,6 +1142,19 @@ protected:
       forward(status);
     }
 
+
+    // Ideally we should detect and act on this kill's failure, and perform the
+    // following actions only once the kill is successful:
+    //
+    // 1) Stop (health) checking.
+    // 2) Send a `TASK_KILLING` task status update.
+    // 3) Schedule the kill escalation.
+    // 4) Set `container->killing` to `true`
+    //
+    // If the kill fails or times out, we could do one of the following options:
+    //
+    // 1) Automatically retry the kill (MESOS-8726).
+    // 2) Let the scheduler request another kill.
     return kill(containerId, SIGTERM);
   }
 
@@ -1218,7 +1231,7 @@ protected:
     // TODO(anand): Add support for adjusting the remaining grace period if
     // we receive another kill request while a task is being killed but has
     // not terminated yet. See similar comments in the command executor
-    // for more context.
+    // for more context. See MESOS-8557 for more details.
 
     LOG(INFO) << "Received kill for task '" << taskId << "'";
 
