@@ -283,6 +283,8 @@ TEST_F(OversubscriptionTest, FetchResourceUsage)
 // oversubscribed resources to the master.
 TEST_F(OversubscriptionTest, ForwardUpdateSlaveMessage)
 {
+  Clock::pause();
+
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
@@ -306,12 +308,15 @@ TEST_F(OversubscriptionTest, ForwardUpdateSlaveMessage)
     StartSlave(detector.get(), &resourceEstimator, flags);
   ASSERT_SOME(slave);
 
+  Clock::advance(flags.registration_backoff_factor);
+  Clock::advance(flags.authentication_backoff_factor);
+  Clock::settle();
+
   AWAIT_READY(updateSlaveMessage);
 
   Future<UpdateSlaveMessage> update =
     FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
-  Clock::pause();
   // No update should be sent until there is an estimate.
   Clock::advance(flags.oversubscribed_resources_interval);
   Clock::settle();
