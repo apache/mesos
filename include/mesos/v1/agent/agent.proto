@@ -297,17 +297,22 @@ message Call {
 
   // Adds a new resource provider config file.
   //
-  // The content of the 'info' field will be written into a new config
-  // file in the resource provider config directory. The 'info.id' field
-  // should not be set. A resource provider will be launched based on
-  // the new config asynchronously. Note that only config files that
-  // exist at agent startup will be checked against this call.
+  // The content of the `info` field will be written into a new config file in
+  // the resource provider config directory, and a new resource provider will be
+  // launched asynchronously based on the config. Callers must not set the
+  // `info.id` field. This call is idempotent, so if a config file identical to
+  // the content of the `info` field already exists, this call will return
+  // without launching a resource provider. Note that if a config file is
+  // placed into the resource provider config directory out-of-band after the
+  // agent starts up, it will not be checked against this call.
   //
-  // Returns 200 OK if a new config file is created.
-  // Returns 400 Bad Request if 'info' is not well-formed.
+  // Returns 200 OK if a new config file is created, or an identical config file
+  //   exists.
+  // Returns 400 Bad Request if `info` is not well-formed.
   // Returns 403 Forbidden if the call is not authorized.
   // Returns 409 Conflict if another config file that describes a
-  //   resource provider of the same type and name exists.
+  //   resource provider of the same type and name exists, but the content is
+  //   not identical.
   // Returns 500 Internal Server Error if anything goes wrong.
   message AddResourceProviderConfig {
     required ResourceProviderInfo info = 1;
@@ -315,19 +320,22 @@ message Call {
 
   // Updates an existing resource provider config file.
   //
-  // The content of the 'info' field  will be written into an existing
-  // config file that describes a resource provider of the specified
-  // type and name in the resource provider config directory. The
-  // 'info.id' field should not be set. The resource provider will be
-  // relaunched asynchronously to reflect the changes in its config.
-  // Note that only config files that exist at agent startup can be
-  // updated though this call.
+  // The content of the `info` field will be written into an existing config
+  // file that describes a resource provider of the specified type and name in
+  // the resource provider config directory, and the corresponding resource
+  // provider will be relaunched asynchronously to reflect the changes in the
+  // config. Callers must not set the `info.id` field. This call is idempotent,
+  // so if there is no change in the config, this call will return without
+  // relaunching the resource provider. Note that if a config file is placed
+  // into the resource provider config directory out-of-band after the agent
+  // starts up, it will not be checked against this call.
   //
-  // Returns 200 OK if an existing config file is updated.
-  // Returns 400 Bad Request if 'info' is not well-formed.
+  // Returns 200 OK if an existing config file is updated, or there is no change
+  //   in the config file.
+  // Returns 400 Bad Request if `info` is not well-formed.
   // Returns 403 Forbidden if the call is not authorized.
   // Returns 404 Not Found if no config file describes a resource
-  //  provider of the same type and name exists.
+  //   provider of the same type and name exists.
   // Returns 500 Internal Server Error if anything goes wrong.
   message UpdateResourceProviderConfig {
     required ResourceProviderInfo info = 1;
@@ -335,14 +343,17 @@ message Call {
 
   // Removes a config file from the resource provider config directory.
   //
-  // The config file that describes the resource provider of the
-  // specified type and name will be removed. The resource provider will
-  // be terminated asynchronously. Note that only config files that
-  // exists at agent startup can be removed though this call.
+  // The config file that describes the resource provider of the specified type
+  // and name will be removed, and the corresponding resource provider will be
+  // terminated asynchronously. This call is idempotent, so if no matching
+  // config file exists, this call will return without terminating any resource
+  // provider. Note that if a config file is placed into the resource provider
+  // config directory out-of-band after the agent starts up, it will not be
+  // checked against this call.
   //
-  // Returns 200 OK if the config file is removed.
+  // Returns 200 OK if the config file is removed, or no matching config file
+  //   exists.
   // Returns 403 Forbidden if the call is not authorized.
-  // Returns 404 Not Found if the config file does not exist.
   // Returns 500 Internal Server Error if anything goes wrong.
   message RemoveResourceProviderConfig {
     required string type = 1;
