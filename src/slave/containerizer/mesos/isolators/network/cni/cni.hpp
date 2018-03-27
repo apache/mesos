@@ -92,10 +92,12 @@ private:
   {
     Info (const hashmap<std::string, ContainerNetwork>& _containerNetworks,
           const Option<std::string>& _rootfs = None(),
-          const Option<std::string>& _hostname = None())
+          const Option<std::string>& _hostname = None(),
+          bool _joinsParentsNetwork = false)
       : containerNetworks (_containerNetworks),
         rootfs(_rootfs),
-        hostname(_hostname) {}
+        hostname(_hostname),
+        joinsParentsNetwork(_joinsParentsNetwork) {}
 
     // CNI network information keyed by network name.
     //
@@ -110,6 +112,7 @@ private:
     const Option<std::string> rootfs;
 
     const Option<std::string> hostname;
+    const bool joinsParentsNetwork;
   };
 
   // Reads each CNI config present in `configDir`, validates if the
@@ -140,7 +143,7 @@ private:
   process::Future<Nothing> _isolate(
       const ContainerID& containerId,
       pid_t pid,
-      const list<process::Future<Nothing>>& attaches);
+      const std::list<process::Future<Nothing>>& attaches);
 
   process::Future<Nothing> __isolate(
       const NetworkCniIsolatorSetup& setup);
@@ -202,7 +205,7 @@ private:
   hashmap<std::string, std::string> networkConfigs;
 
   // DNS informations of CNI networks keyed by CNI network name.
-  hashmap<string, ContainerDNSInfo::MesosInfo> cniDNSMap;
+  hashmap<std::string, ContainerDNSInfo::MesosInfo> cniDNSMap;
 
   // Default DNS information for all CNI networks.
   const Option<ContainerDNSInfo::MesosInfo> defaultCniDNS;

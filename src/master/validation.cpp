@@ -1501,8 +1501,13 @@ Option<Error> validateTask(
   }
 
   if (task.has_container()) {
-    if (task.container().network_infos().size() > 0) {
-      return Error("NetworkInfos must not be set on the task");
+    if (!task.container().network_infos().empty()) {
+      if (task.has_health_check() &&
+          (task.health_check().type() == HealthCheck::HTTP ||
+           task.health_check().type() == HealthCheck::TCP)) {
+        return Error("HTTP and TCP health checks are not supported for "
+                     "nested containers not joining parent's network");
+      }
     }
 
     if (task.container().type() == ContainerInfo::DOCKER) {
