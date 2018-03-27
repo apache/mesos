@@ -994,7 +994,7 @@ protected:
           continue;
         }
 
-        kill(container_);
+        kill(container_.get());
       }
     }
   }
@@ -1036,7 +1036,7 @@ protected:
         continue;
       }
 
-      killResponses.push_back(kill(container));
+      killResponses.push_back(kill(container.get()));
     }
 
     // It is possible that the agent process can fail while we are
@@ -1072,7 +1072,7 @@ protected:
   }
 
   Future<Nothing> kill(
-      Owned<Container> container,
+      Container* container,
       const Option<KillPolicy>& killPolicy = None())
   {
     CHECK_EQ(SUBSCRIBED, state);
@@ -1238,7 +1238,7 @@ protected:
       return;
     }
 
-    kill(container, killPolicy);
+    kill(container.get(), killPolicy);
   }
 
   void taskCheckUpdated(
