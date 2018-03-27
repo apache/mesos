@@ -706,12 +706,13 @@ inline TVolume createVolumeSandboxPath(
 }
 
 
-template <typename TVolume>
+template <typename TVolume, typename TMountPropagation>
 inline TVolume createVolumeHostPath(
     const std::string& containerPath,
     const std::string& hostPath,
     const typename TVolume::Mode& mode,
-    const Option<MountPropagation::Mode>& mountPropagationMode = None())
+    const Option<typename TMountPropagation::Mode>& mountPropagationMode =
+      None())
 {
   TVolume volume;
   volume.set_container_path(containerPath);
@@ -1532,7 +1533,8 @@ inline Volume createVolumeSandboxPath(Args&&... args)
 template <typename... Args>
 inline Volume createVolumeHostPath(Args&&... args)
 {
-  return common::createVolumeHostPath<Volume>(std::forward<Args>(args)...);
+  return common::createVolumeHostPath<Volume, MountPropagation>(
+      std::forward<Args>(args)...);
 }
 
 
@@ -1812,8 +1814,9 @@ inline mesos::v1::Volume createVolumeSandboxPath(Args&&... args)
 template <typename... Args>
 inline mesos::v1::Volume createVolumeHostPath(Args&&... args)
 {
-  return common::createVolumeHostPath<mesos::v1::Volume>(
-      std::forward<Args>(args)...);
+  return common::createVolumeHostPath<
+      mesos::v1::Volume,
+      mesos::v1::MountPropagation>(std::forward<Args>(args)...);
 }
 
 
