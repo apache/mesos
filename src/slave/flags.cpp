@@ -808,8 +808,10 @@ mesos::internal::slave::Flags::Flags()
 
   add(&Flags::docker_remove_delay,
       "docker_remove_delay",
-      "The amount of time to wait before removing docker containers\n"
-      "(e.g., `3days`, `2weeks`, etc).\n",
+      "The amount of time to wait before removing docker containers \n"
+      "(i.e., `docker rm`) after Mesos regards the container as TERMINATED\n"
+      "(e.g., `3days`, `2weeks`, etc). This only applies for the Docker\n"
+      "Containerizer.\n",
       DOCKER_REMOVE_DELAY);
 
   add(&Flags::docker_kill_orphans,
