@@ -1142,7 +1142,6 @@ protected:
       forward(status);
     }
 
-
     // Ideally we should detect and act on this kill's failure, and perform the
     // following actions only once the kill is successful:
     //
@@ -1203,19 +1202,20 @@ protected:
       << " did not terminate after " << timeout << ", sending SIGKILL"
       << " to the container";
 
-    kill(containerId, SIGKILL).onFailed([=](const string& failure) {
-      const Duration duration = Seconds(1);
+    kill(containerId, SIGKILL)
+      .onFailed(defer(self(), [=](const string& failure) {
+        const Duration duration = Seconds(1);
 
-      LOG(WARNING)
-        << "Escalation to SIGKILL the task '" << taskId
-        << "' running in child container " << containerId
-        << " failed: " << failure << "; Retrying in " << duration;
+        LOG(WARNING)
+          << "Escalation to SIGKILL the task '" << taskId
+          << "' running in child container " << containerId
+          << " failed: " << failure << "; Retrying in " << duration;
 
-      process::delay(
-          duration, self(), &Self::escalated, containerId, taskId, timeout);
+        process::delay(
+            duration, self(), &Self::escalated, containerId, taskId, timeout);
 
-      return;
-    });
+        return;
+      }));
   }
 
   void killTask(
@@ -1251,9 +1251,9 @@ protected:
     const ContainerID& containerId = container->containerId;
     kill(container, killPolicy)
       .onFailed(defer(self(), [=](const string& failure) {
-          LOG(WARNING) << "Failed to kill the task '" << taskId
-                       << "' running in child container " << containerId << ": "
-                       << failure;
+        LOG(WARNING) << "Failed to kill the task '" << taskId
+                     << "' running in child container " << containerId << ": "
+                     << failure;
       }));
   }
 
