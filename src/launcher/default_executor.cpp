@@ -958,16 +958,16 @@ protected:
 
       container->killingTaskGroup = true;
       foreach (const TaskInfo& task, container->taskGroup.tasks()) {
-        const TaskID& taskId = task.task_id();
+        const TaskID& taskId_ = task.task_id();
 
         // Ignore if it's the same task that triggered this callback or
         // if the task is no longer active.
-        if (taskId == container->taskInfo.task_id() ||
-            !containers.contains(taskId)) {
+        if (taskId_ == container->taskInfo.task_id() ||
+            !containers.contains(taskId_)) {
           continue;
         }
 
-        Container* container_ = containers.at(taskId).get();
+        Container* container_ = containers.at(taskId_).get();
         container_->killingTaskGroup = true;
 
         // Ignore if the task is already being killed. This can happen
