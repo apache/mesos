@@ -14,6 +14,7 @@
 #define __PROCESS_SHARED_HPP__
 
 #include <atomic>
+#include <cstddef>
 #include <memory>
 
 #include <glog/logging.h>
@@ -34,6 +35,7 @@ class Shared
 public:
   Shared();
   explicit Shared(T* t);
+  /*implicit*/ Shared(std::nullptr_t) : Shared(static_cast<T*>(nullptr)) {}
 
   bool operator==(const Shared<T>& that) const;
   bool operator<(const Shared<T>& that) const;

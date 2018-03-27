@@ -14,6 +14,7 @@
 #define __PROCESS_OWNED_HPP__
 
 #include <atomic>
+#include <cstddef>
 #include <memory>
 
 #include <glog/logging.h>
@@ -37,6 +38,7 @@ class Owned
 public:
   Owned();
   explicit Owned(T* t);
+  /*implicit*/ Owned(std::nullptr_t) : Owned(static_cast<T*>(nullptr)) {};
 
   bool operator==(const Owned<T>& that) const;
   bool operator<(const Owned<T>& that) const;
