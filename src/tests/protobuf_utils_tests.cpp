@@ -23,6 +23,8 @@
 #include <mesos/mesos.hpp>
 #include <mesos/type_utils.hpp>
 
+#include <stout/stringify.hpp>
+
 #include "common/protobuf_utils.hpp"
 
 #include "tests/mesos.hpp"
@@ -349,6 +351,20 @@ TEST(ProtobufUtilTest, LargeMessageEvolve)
   executorInfo_.set_data(data);
 
   evolve(executorInfo_);
+}
+
+
+TEST(ProtobufUtilTest, ParseContainerID)
+{
+  ContainerID parent;
+  parent.set_value("parent");
+
+  ContainerID child;
+  child.set_value("child");
+  child.mutable_parent()->CopyFrom(parent);
+
+  EXPECT_EQ(parent, protobuf::parseContainerId(stringify(parent)));
+  EXPECT_EQ(child, protobuf::parseContainerId(stringify(child)));
 }
 
 } // namespace tests {

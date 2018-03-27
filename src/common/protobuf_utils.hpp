@@ -249,6 +249,9 @@ FileInfo createFileInfo(const std::string& path, const struct stat& s);
 ContainerID getRootContainerId(const ContainerID& containerId);
 
 
+ContainerID parseContainerId(const std::string& value);
+
+
 Try<Resources> getConsumedResources(const Offer::Operation& operation);
 
 namespace slave {

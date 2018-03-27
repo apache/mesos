@@ -966,6 +966,27 @@ ContainerID getRootContainerId(const ContainerID& containerId)
 }
 
 
+ContainerID parseContainerId(const string& value)
+{
+  vector<string> tokens = strings::split(value, ".");
+
+  Option<ContainerID> result;
+  foreach (const string& token, tokens) {
+    ContainerID id;
+    id.set_value(token);
+
+    if (result.isSome()) {
+      id.mutable_parent()->CopyFrom(result.get());
+    }
+
+    result = id;
+  }
+
+  CHECK_SOME(result);
+  return result.get();
+}
+
+
 Try<Resources> getConsumedResources(const Offer::Operation& operation)
 {
   switch (operation.type()) {
