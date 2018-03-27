@@ -1200,7 +1200,19 @@ protected:
       << " did not terminate after " << timeout << ", sending SIGKILL"
       << " to the container";
 
-    kill(containerId, SIGKILL);
+    kill(containerId, SIGKILL).onFailed([=](const string& failure) {
+      const Duration duration = Seconds(1);
+
+      LOG(WARNING)
+        << "Escalation to SIGKILL the task '" << taskId
+        << "' running in child container " << containerId
+        << " failed: " << failure << "; Retrying in " << duration;
+
+      process::delay(
+          duration, self(), &Self::escalated, containerId, taskId, timeout);
+
+      return;
+    });
   }
 
   void killTask(
