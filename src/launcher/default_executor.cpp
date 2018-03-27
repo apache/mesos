@@ -1077,8 +1077,6 @@ protected:
       Container* container,
       const Option<KillPolicy>& killPolicy = None())
   {
-    CHECK_EQ(SUBSCRIBED, state);
-
     if (!container->launched) {
       // We can get here if we're killing a task group for which multiple
       // containers failed to launch.
@@ -1140,7 +1138,6 @@ protected:
     delay(gracePeriod,
           self(),
           &Self::escalated,
-          connectionId.get(),
           containerId,
           container->taskInfo.task_id(),
           gracePeriod);
@@ -1160,8 +1157,6 @@ protected:
 
   Future<Nothing> kill(const ContainerID& containerId, int signal)
   {
-    CHECK_EQ(SUBSCRIBED, state);
-
     agent::Call call;
     call.set_type(agent::Call::KILL_NESTED_CONTAINER);
 
@@ -1186,18 +1181,10 @@ protected:
   }
 
   void escalated(
-      const id::UUID& _connectionId,
       const ContainerID& containerId,
       const TaskID& taskId,
       const Duration& timeout)
   {
-    if (connectionId != _connectionId) {
-      VLOG(1) << "Ignoring signal escalation timeout from a stale connection";
-      return;
-    }
-
-    CHECK_EQ(SUBSCRIBED, state);
-
     // It might be possible that the container is already terminated.
     // If that happens, don't bother escalating to SIGKILL.
     if (!containers.contains(taskId)) {
@@ -1225,8 +1212,6 @@ protected:
                    << "' since the executor is shutting down";
       return;
     }
-
-    CHECK_EQ(SUBSCRIBED, state);
 
     // TODO(anand): Add support for adjusting the remaining grace period if
     // we receive another kill request while a task is being killed but has
