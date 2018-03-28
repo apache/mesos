@@ -16,6 +16,7 @@
 
 #include <mesos/type_utils.hpp>
 
+#include <process/clock.hpp>
 #include <process/gtest.hpp>
 #include <process/gmock.hpp>
 
@@ -43,6 +44,7 @@ using mesos::internal::slave::Slave;
 
 using mesos::master::detector::MasterDetector;
 
+using process::Clock;
 using process::Future;
 using process::Owned;
 using process::PID;
@@ -297,6 +299,74 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Add)
 }
 
 
+// This test checks that adding a resource provider config that is identical to
+// an existing one is allowed due to idempotency.
+TEST_P(AgentResourceProviderConfigApiTest, ROOT_IdempotentAdd)
+{
+  const ContentType contentType = GetParam();
+
+  Clock::pause();
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.isolation = "filesystem/linux";
+
+  // Disable HTTP authentication to simplify resource provider interactions.
+  slaveFlags.authenticate_http_readwrite = false;
+
+  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
+
+  // Generate a pre-existing config.
+  const string configPath = path::join(resourceProviderConfigDir, "test.json");
+  ResourceProviderInfo info = createResourceProviderInfo("volume1:4GB");
+  ASSERT_SOME(os::write(configPath, stringify(JSON::protobuf(info))));
+
+  // Since the local resource provider daemon is started after the agent is
+  // registered, it is guaranteed that the slave will send two
+  // `UpdateSlaveMessage`s, where the latter one contains resources from the
+  // storage local resource provider.
+  // NOTE: The order of the two `FUTURE_PROTOBUF`s are reversed because GMock
+  // will search the expectations in reverse order.
+  Future<UpdateSlaveMessage> updateSlave2 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+  Future<UpdateSlaveMessage> updateSlave1 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Advance the clock to trigger agent registration and prevent retry.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(updateSlave1);
+
+  // NOTE: We need to resume the clock so that the resource provider can
+  // periodically check if the CSI endpoint socket has been created by the
+  // plugin container, which runs in another Linux process.
+  Clock::resume();
+
+  AWAIT_READY(updateSlave2);
+  ASSERT_TRUE(updateSlave2->has_resource_providers());
+  ASSERT_EQ(1, updateSlave2->resource_providers().providers_size());
+
+  Clock::pause();
+
+  // No update message should be triggered by an idempotent add.
+  EXPECT_NO_FUTURE_PROTOBUFS(UpdateSlaveMessage(), _, _);
+
+  // Add a resource provider config that is identical to the existing one.
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      http::OK().status,
+      addResourceProviderConfig(slave.get()->pid, contentType, info));
+
+  Clock::settle();
+}
+
+
 // This test checks that adding a resource provider config that already
 // exists is not allowed.
 TEST_P(AgentResourceProviderConfigApiTest, ROOT_AddConflict)
@@ -478,6 +548,74 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Update)
 }
 
 
+// This test checks that updating an existing resource provider config with an
+// identical one will not relaunch the resource provider due to idempotency.
+TEST_P(AgentResourceProviderConfigApiTest, ROOT_IdempotentUpdate)
+{
+  const ContentType contentType = GetParam();
+
+  Clock::pause();
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.isolation = "filesystem/linux";
+
+  // Disable HTTP authentication to simplify resource provider interactions.
+  slaveFlags.authenticate_http_readwrite = false;
+
+  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
+
+  // Generate a pre-existing config.
+  const string configPath = path::join(resourceProviderConfigDir, "test.json");
+  ResourceProviderInfo info = createResourceProviderInfo("volume1:4GB");
+  ASSERT_SOME(os::write(configPath, stringify(JSON::protobuf(info))));
+
+  // Since the local resource provider daemon is started after the agent is
+  // registered, it is guaranteed that the slave will send two
+  // `UpdateSlaveMessage`s, where the latter one contains resources from the
+  // storage local resource provider.
+  // NOTE: The order of the two `FUTURE_PROTOBUF`s are reversed because GMock
+  // will search the expectations in reverse order.
+  Future<UpdateSlaveMessage> updateSlave2 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+  Future<UpdateSlaveMessage> updateSlave1 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Advance the clock to trigger agent registration and prevent retry.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(updateSlave1);
+
+  // NOTE: We need to resume the clock so that the resource provider can
+  // periodically check if the CSI endpoint socket has been created by the
+  // plugin container, which runs in another Linux process.
+  Clock::resume();
+
+  AWAIT_READY(updateSlave2);
+  ASSERT_TRUE(updateSlave2->has_resource_providers());
+  ASSERT_EQ(1, updateSlave2->resource_providers().providers_size());
+
+  Clock::pause();
+
+  // No update message should be triggered by an idempotent update.
+  EXPECT_NO_FUTURE_PROTOBUFS(UpdateSlaveMessage(), _, _);
+
+  // Update the resource provider with an identical config.
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      http::OK().status,
+      updateResourceProviderConfig(slave.get()->pid, contentType, info));
+
+  Clock::settle();
+}
+
+
 // This test checks that updating a nonexistent resource provider config
 // is not allowed.
 TEST_P(AgentResourceProviderConfigApiTest, UpdateNotFound)
@@ -610,9 +748,9 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Remove)
 }
 
 
-// This test checks that removing a nonexistent resource provider config
-// is not allowed.
-TEST_P(AgentResourceProviderConfigApiTest, RemoveNotFound)
+// This test checks that removing a nonexistent resource provider config is
+// allowed due to idempotency.
+TEST_P(AgentResourceProviderConfigApiTest, IdempotentRemove)
 {
   const ContentType contentType = GetParam();
 
@@ -646,7 +784,7 @@ TEST_P(AgentResourceProviderConfigApiTest, RemoveNotFound)
   ResourceProviderInfo info = createResourceProviderInfo("volume1:4GB");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
-      http::NotFound().status,
+      http::OK().status,
       removeResourceProviderConfig(
           slave.get()->pid, contentType, info.type(), info.name()));
 }
