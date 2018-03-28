@@ -133,28 +133,6 @@ Try<Descriptor> parse(const string& s)
     return Error("Protobuf parse failed: " + descriptor.error());
   }
 
-  // Manually parse 'annotations' field.
-  Result<JSON::Value> annotations = json->find<JSON::Value>("annotations");
-  if (annotations.isError()) {
-    return Error(
-        "Failed to find 'annotations': " + annotations.error());
-  }
-
-  if (annotations.isSome() && !annotations->is<JSON::Null>()) {
-    foreachpair (const string& key,
-                 const JSON::Value& value,
-                 annotations->as<JSON::Object>().values) {
-      if (!value.is<JSON::String>()) {
-        return Error(
-            "The value of annotation key '" + key + "' is not a JSON string");
-      }
-
-      Label* annotation = descriptor->add_annotations();
-      annotation->set_key(key);
-      annotation->set_value(value.as<JSON::String>().value);
-    }
-  }
-
   Option<Error> error = internal::validateDigest(descriptor->digest());
   if (error.isSome()) {
     return Error(
@@ -178,8 +156,8 @@ Try<Index> parse(const string& s)
     return Error("Protobuf parse failed: " + index.error());
   }
 
-  // Manually parse 'manifest.annotations', 'manifest.platform.os.version'
-  // and 'manifest.platform.os.features'.
+  // Manually parse 'manifest.platform.os.version' and
+  // 'manifest.platform.os.features'.
   Result<JSON::Array> manifests = json->at<JSON::Array>("manifests");
   if (manifests.isError()) {
     return Error("Failed to find 'manifests': " + manifests.error());
@@ -212,27 +190,6 @@ Try<Index> parse(const string& s)
       return Error(
           "Unable to find the manifest whose digest is '" +
           digest->value + "'");
-    }
-
-    Result<JSON::Value> annotations = manifest.find<JSON::Value>("annotations");
-    if (annotations.isError()) {
-      return Error(
-          "Failed to find 'annotations': " + annotations.error());
-    }
-
-    if (annotations.isSome() && !annotations->is<JSON::Null>()) {
-      foreachpair (const string& key,
-                   const JSON::Value& value,
-                   annotations->as<JSON::Object>().values) {
-        if (!value.is<JSON::String>()) {
-          return Error(
-              "The value of annotation key '" + key + "' is not a JSON string");
-        }
-
-        Label* annotation = _manifest->add_annotations();
-        annotation->set_key(key);
-        annotation->set_value(value.as<JSON::String>().value);
-      }
     }
 
     Result<JSON::Object> platform = manifest.at<JSON::Object>("platform");
@@ -274,28 +231,6 @@ Try<Index> parse(const string& s)
     }
   }
 
-  // Manually parse 'annotations' field.
-  Result<JSON::Value> annotations = json->find<JSON::Value>("annotations");
-  if (annotations.isError()) {
-    return Error(
-        "Failed to find 'annotations': " + annotations.error());
-  }
-
-  if (annotations.isSome() && !annotations->is<JSON::Null>()) {
-    foreachpair (const string& key,
-                 const JSON::Value& value,
-                 annotations->as<JSON::Object>().values) {
-      if (!value.is<JSON::String>()) {
-        return Error(
-            "The value of annotation key '" + key + "' is not a JSON string");
-      }
-
-      Label* annotation = index->add_annotations();
-      annotation->set_key(key);
-      annotation->set_value(value.as<JSON::String>().value);
-    }
-  }
-
   Option<Error> error = internal::validate(index.get());
   if (error.isSome()) {
     return Error(
@@ -317,28 +252,6 @@ Try<Manifest> parse(const string& s)
   Try<Manifest> manifest = protobuf::parse<Manifest>(json.get());
   if (manifest.isError()) {
     return Error("Protobuf parse failed: " + manifest.error());
-  }
-
-  // Manually parse 'annotations' field.
-  Result<JSON::Value> annotations = json->find<JSON::Value>("annotations");
-  if (annotations.isError()) {
-    return Error(
-        "Failed to find 'annotations': " + annotations.error());
-  }
-
-  if (annotations.isSome() && !annotations->is<JSON::Null>()) {
-    foreachpair (const string& key,
-                 const JSON::Value& value,
-                 annotations->as<JSON::Object>().values) {
-      if (!value.is<JSON::String>()) {
-        return Error(
-            "The value of annotation key '" + key + "' is not a JSON string");
-      }
-
-      Label* annotation = manifest->add_annotations();
-      annotation->set_key(key);
-      annotation->set_value(value.as<JSON::String>().value);
-    }
   }
 
   Option<Error> error = internal::validate(manifest.get());
@@ -369,53 +282,6 @@ Try<Configuration> parse(const string& s)
   Result<JSON::Object> config = json->find<JSON::Object>("config");
   if (config.isError()) {
     return Error("Failed to find 'config': " + config.error());
-  }
-
-  if (config.isSome()) {
-    // Manually parse 'ExposedPorts' field.
-    Result<JSON::Value> value = config->find<JSON::Value>("ExposedPorts");
-    if (value.isError()) {
-      return Error("Failed to find 'ExposedPorts': " + value.error());
-    }
-
-    if (value.isSome() && !value->is<JSON::Null>()) {
-      foreachkey (const string& key, value->as<JSON::Object>().values) {
-        configuration->mutable_config()->add_exposedports(key);
-      }
-    }
-
-    // Manually parse 'Volumes' field.
-    value = config->find<JSON::Value>("Volumes");
-    if (value.isError()) {
-      return Error("Failed to find 'Volumes': " + value.error());
-    }
-
-    if (value.isSome() && !value->is<JSON::Null>()) {
-      foreachkey (const string& key, value->as<JSON::Object>().values) {
-        configuration->mutable_config()->add_volumes(key);
-      }
-    }
-
-    // Manually parse 'Labels' field.
-    value = config->find<JSON::Value>("Labels");
-    if (value.isError()) {
-      return Error("Failed to find 'Labels': " + value.error());
-    }
-
-    if (value.isSome() && !value->is<JSON::Null>()) {
-      foreachpair (const string& key,
-                   const JSON::Value& value,
-                   value->as<JSON::Object>().values) {
-        if (!value.is<JSON::String>()) {
-          return Error(
-              "The value of label key '" + key + "' is not a JSON string");
-        }
-
-        Label* label = configuration->mutable_config()->add_labels();
-        label->set_key(key);
-        label->set_value(value.as<JSON::String>().value);
-      }
-    }
   }
 
   Option<Error> error = internal::validate(configuration.get());

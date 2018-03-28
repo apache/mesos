@@ -29,11 +29,7 @@ message Descriptor {
   required string digest = 2;
   required int64 size = 3;
   repeated string urls = 4;
-
-  // NOTE: We cannot use 'annotations' here because otherwise,
-  // json->protobuf parsing will fail. 'Annotations' is manually
-  // set during parsing.
-  repeated Label Annotations = 5;
+  map<string, string> annotations = 5;
 }
 
 
@@ -57,20 +53,7 @@ message ManifestDescriptor {
   required int64 size = 3;
   optional Platform platform = 4;
   repeated string urls = 5;
-
-  // NOTE: We cannot use 'annotations' here because otherwise,
-  // json->protobuf parsing will fail. 'Annotations' is manually
-  // set during parsing.
-  repeated Label Annotations = 6;
-}
-
-
-/**
- * Protobuf for the string-string map field entry.
- */
-message Label {
-  required string key = 1;
-  required string value = 2;
+  map<string, string> annotations = 6;
 }
 
 
@@ -84,11 +67,7 @@ message Label {
 message Index {
   required int64 schemaVersion = 1;
   repeated ManifestDescriptor manifests = 2;
-
-  // NOTE: We cannot use 'annotations' here because otherwise,
-  // json->protobuf parsing will fail. 'Annotations' is manually
-  // set during parsing.
-  repeated Label Annotations = 3;
+  map<string, string> annotations = 3;
 }
 
 
@@ -103,11 +82,7 @@ message Manifest {
   required int64 schemaVersion = 1;
   required Descriptor config = 2;
   repeated Descriptor layers = 3;
-
-  // NOTE: We cannot use 'annotations' here because otherwise,
-  // json->protobuf parsing will fail. 'Annotations' is manually
-  // set during parsing.
-  repeated Label Annotations = 4;
+  map<string, string> annotations = 4;
 }
 
 
@@ -132,26 +107,16 @@ message Configuration {
   optional string author = 5;
 
   message Config {
-    optional string User = 1;
+    message Empty {}
 
-    // NOTE: We cannot use 'ExposedPorts' here because otherwise,
-    // json->protobuf parsing will fail. 'exposedPorts' is manually
-    // set during parsing.
-    repeated string exposedPorts = 2;
+    optional string User = 1;
+    map<string, Empty> ExposedPorts = 2;
     repeated string Env = 3;
     repeated string Entrypoint = 4;
     repeated string Cmd = 5;
-
-    // NOTE: We cannot use 'Volumes' here because otherwise,
-    // json->protobuf parsing will fail. 'volumes' is manually
-    // set during parsing.
-    repeated string volumes = 6;
+    map<string, Empty> Volumes = 6;
     optional string WorkingDir = 7;
-
-    // NOTE: We cannot use 'Labels' here because otherwise,
-    // json->protobuf parsing will fail. 'labels' is manually
-    // set during parsing.
-    repeated Label labels = 8;
+    map<string, string> Labels = 8;
   }
 
   optional Config config = 6;

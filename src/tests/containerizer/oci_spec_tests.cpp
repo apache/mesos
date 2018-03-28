@@ -138,20 +138,12 @@ TEST_F(OCISpecTest, ParseIndex)
       index->manifests(1).platform().os_features(0));
 
   EXPECT_EQ(
-      "com.example.key1",
-      index->annotations(0).key());
-
-  EXPECT_EQ(
       "value1",
-      index->annotations(0).value());
-
-  EXPECT_EQ(
-      "com.example.key2",
-      index->annotations(1).key());
+      index->annotations().at("com.example.key1"));
 
   EXPECT_EQ(
       "value2",
-      index->annotations(1).value());
+      index->annotations().at("com.example.key2"));
 }
 
 
@@ -222,20 +214,12 @@ TEST_F(OCISpecTest, ParseManifest)
       manifest->layers(1).digest());
 
   EXPECT_EQ(
-      "com.example.key1",
-      manifest->annotations(0).key());
-
-  EXPECT_EQ(
       "value1",
-      manifest->annotations(0).value());
-
-  EXPECT_EQ(
-      "com.example.key2",
-      manifest->annotations(1).key());
+      manifest->annotations().at("com.example.key1"));
 
   EXPECT_EQ(
       "value2",
-      manifest->annotations(1).value());
+      manifest->annotations().at("com.example.key2"));
 }
 
 
@@ -320,8 +304,8 @@ TEST_F(OCISpecTest, ParseConfiguration)
       configuration->config().user());
 
   EXPECT_EQ(
-      "8080/tcp",
-      configuration->config().exposedports(0));
+      1u,
+      configuration->config().exposedports().count("8080/tcp"));
 
   EXPECT_EQ(
       "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
@@ -344,32 +328,24 @@ TEST_F(OCISpecTest, ParseConfiguration)
       configuration->config().cmd(1));
 
   EXPECT_EQ(
-      "/var/job-result-data",
-      configuration->config().volumes(0));
+      1u,
+      configuration->config().volumes().count("/var/job-result-data"));
 
   EXPECT_EQ(
-      "/var/log/my-app-logs",
-      configuration->config().volumes(1));
+      1u,
+      configuration->config().volumes().count("/var/log/my-app-logs"));
 
   EXPECT_EQ(
       "/home/alice",
       configuration->config().workingdir());
 
   EXPECT_EQ(
-      "com.example.project.git.commit",
-      configuration->config().labels(0).key());
-
-  EXPECT_EQ(
       "45a939b2999782a3f005621a8d0f29aa387e1d6b",
-      configuration->config().labels(0).value());
-
-  EXPECT_EQ(
-      "com.example.project.git.url",
-      configuration->config().labels(1).key());
+      configuration->config().labels().at("com.example.project.git.commit"));
 
   EXPECT_EQ(
       "https://example.com/project.git",
-      configuration->config().labels(1).value());
+      configuration->config().labels().at("com.example.project.git.url"));
 
   EXPECT_EQ(
       "sha256:c6f988f4874bb0add23a778f753c65efe992244e148a1d2ec2a8b664fb66bbd1",
