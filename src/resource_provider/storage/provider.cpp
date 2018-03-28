@@ -3134,6 +3134,10 @@ Try<Owned<LocalResourceProvider>> StorageLocalResourceProvider::create(
     const Option<string>& authToken,
     bool strict)
 {
+  if (info.has_id()) {
+    return Error("'ResourceProviderInfo.id' must not be set");
+  }
+
   // Verify that the name follows Java package naming convention.
   // TODO(chhsiao): We should move this check to a validation function
   // for `ResourceProviderInfo`.

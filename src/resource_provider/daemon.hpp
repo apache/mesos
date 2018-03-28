@@ -61,7 +61,7 @@ public:
 
   process::Future<bool> add(const ResourceProviderInfo& info);
   process::Future<bool> update(const ResourceProviderInfo& info);
-  process::Future<bool> remove(
+  process::Future<Nothing> remove(
       const std::string& type,
       const std::string& name);
 

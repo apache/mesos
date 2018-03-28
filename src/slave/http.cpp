@@ -3447,11 +3447,8 @@ Future<Response> Http::removeResourceProviderConfig(
         << "' and name '" << name << "'";
 
       return slave->localResourceProviderDaemon->remove(type, name)
-        .then([](bool removed) -> Response {
-          if (!removed) {
-            return NotFound();
-          }
-
+        .then([]() -> Response {
+          // Config removal is always successful due to idempotency.
           return OK();
         })
         .repair([type, name](const Future<Response>& future) {
