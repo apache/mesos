@@ -437,7 +437,7 @@ TEST_P(ResourceProviderManagerHttpApiTest, UpdateOperationStatus)
 
     AWAIT_READY(message);
 
-    EXPECT_EQ(
+    ASSERT_EQ(
         ResourceProviderMessage::Type::UPDATE_OPERATION_STATUS,
         message->type);
     EXPECT_EQ(
