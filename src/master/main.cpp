@@ -172,7 +172,8 @@ int main(int argc, char** argv)
   }
 
   if (load.isError()) {
-    cerr << flags.usage(load.error()) << endl;
+    cerr << load.error() << "\n\n"
+         << "See `mesos-master --help` for a list of supported flags." << endl;
     return EXIT_FAILURE;
   }
 
@@ -194,8 +195,8 @@ int main(int argc, char** argv)
   }
 
   if (flags.ip_discovery_command.isSome() && flags.ip.isSome()) {
-    EXIT(EXIT_FAILURE) << flags.usage(
-        "Only one of `--ip` or `--ip_discovery_command` should be specified");
+    EXIT(EXIT_FAILURE)
+      << "Only one of `--ip` or `--ip_discovery_command` should be specified";
   }
 
   if (flags.ip_discovery_command.isSome()) {
@@ -229,15 +230,15 @@ int main(int argc, char** argv)
   if (flags.zk.isNone()) {
     if (flags.master_contender.isSome() ^ flags.master_detector.isSome()) {
       EXIT(EXIT_FAILURE)
-        << flags.usage("Both --master_contender and --master_detector should "
-                       "be specified or omitted.");
+        << "Both --master_contender and --master_detector should "
+           "be specified or omitted.";
     }
   } else {
     if (flags.master_contender.isSome() || flags.master_detector.isSome()) {
       EXIT(EXIT_FAILURE)
-        << flags.usage("Only one of --zk or the "
-                       "--master_contender/--master_detector "
-                       "pair should be specified.");
+        << "Only one of --zk or the "
+           "--master_contender/--master_detector "
+           "pair should be specified.";
     }
   }
 
@@ -289,7 +290,7 @@ int main(int argc, char** argv)
   // Initialize modules.
   if (flags.modules.isSome() && flags.modulesDir.isSome()) {
     EXIT(EXIT_FAILURE) <<
-      flags.usage("Only one of --modules or --modules_dir should be specified");
+      "Only one of --modules or --modules_dir should be specified";
   }
 
   if (flags.modulesDir.isSome()) {

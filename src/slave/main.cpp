@@ -276,7 +276,8 @@ int main(int argc, char** argv)
   }
 
   if (load.isError()) {
-    cerr << flags.usage(load.error()) << endl;
+    cerr << load.error() << "\n\n"
+         << "See `mesos-agent --help` for a list of supported flags." << endl;
     return EXIT_FAILURE;
   }
 
@@ -298,24 +299,24 @@ int main(int argc, char** argv)
   }
 
   if (flags.master.isNone() && flags.master_detector.isNone()) {
-    EXIT(EXIT_FAILURE) << flags.usage(
-        "Missing required option `--master` or `--master_detector`");
+    EXIT(EXIT_FAILURE)
+      << "Missing required option `--master` or `--master_detector`";
   }
 
   if (flags.master.isSome() && flags.master_detector.isSome()) {
-    EXIT(EXIT_FAILURE) << flags.usage(
-        "Only one of `--master` or `--master_detector` should be specified");
+    EXIT(EXIT_FAILURE)
+      << "Only one of `--master` or `--master_detector` should be specified";
   }
 
   // Initialize libprocess.
   if (flags.ip_discovery_command.isSome() && flags.ip.isSome()) {
-    EXIT(EXIT_FAILURE) << flags.usage(
-        "Only one of `--ip` or `--ip_discovery_command` should be specified");
+    EXIT(EXIT_FAILURE)
+      << "Only one of `--ip` or `--ip_discovery_command` should be specified";
   }
 
   if (flags.ip6_discovery_command.isSome() && flags.ip6.isSome()) {
-    EXIT(EXIT_FAILURE) << flags.usage(
-        "Only one of `--ip6` or `--ip6_discovery_command` should be specified");
+    EXIT(EXIT_FAILURE)
+      << "Only one of `--ip6` or `--ip6_discovery_command` should be specified";
   }
 
   if (flags.ip_discovery_command.isSome()) {
@@ -422,7 +423,7 @@ int main(int argc, char** argv)
   // Initialize modules.
   if (flags.modules.isSome() && flags.modulesDir.isSome()) {
     EXIT(EXIT_FAILURE) <<
-      flags.usage("Only one of --modules or --modules_dir should be specified");
+      "Only one of --modules or --modules_dir should be specified";
   }
 
   if (flags.modulesDir.isSome()) {
