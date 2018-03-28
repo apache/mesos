@@ -411,38 +411,22 @@ TEST_F(DockerSpecTest, ParseV1ImageManifest)
       manifest->container_config().cmd(2));
 
   EXPECT_EQ(
-      "com.nvidia.caffe.version",
-      manifest->container_config().labels(0).key());
-
-  EXPECT_EQ(
       "0.14",
-      manifest->container_config().labels(0).value());
-
-  EXPECT_EQ(
-      "com.nvidia.digits.version",
-      manifest->container_config().labels(1).key());
+      manifest->container_config().labels().at("com.nvidia.caffe.version"));
 
   EXPECT_EQ(
       "3.0",
-      manifest->container_config().labels(1).value());
+      manifest->container_config().labels().at("com.nvidia.digits.version"));
 
   EXPECT_EQ("sh", manifest->config().cmd(0));
 
   EXPECT_EQ(
-      "com.nvidia.cuda.version",
-      manifest->config().labels(0).key());
-
-  EXPECT_EQ(
       "7.5",
-      manifest->config().labels(0).value());
-
-  EXPECT_EQ(
-      "com.nvidia.volumes.needed",
-      manifest->config().labels(1).key());
+      manifest->config().labels().at("com.nvidia.cuda.version"));
 
   EXPECT_EQ(
       "nvidia_driver",
-      manifest->config().labels(1).value());
+      manifest->config().labels().at("com.nvidia.volumes.needed"));
 
   EXPECT_EQ("1.8.2", manifest->docker_version());
   EXPECT_EQ("amd64", manifest->architecture());

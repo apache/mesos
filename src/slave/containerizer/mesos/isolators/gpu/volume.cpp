@@ -422,20 +422,18 @@ Try<NvidiaVolume> NvidiaVolume::create()
 }
 
 
-// We use the the `com.nvidia.volumes.needed` label from
-// nvidia-docker to decide if we should inject the volume or not:
+// We use the `com.nvidia.volumes.needed` label from nvidia-docker
+// to decide if we should inject the volume or not:
 //
 // https://github.com/NVIDIA/nvidia-docker/wiki/Image-inspection
 bool NvidiaVolume::shouldInject(const ImageManifest& manifest) const
 {
-  foreach (const docker::spec::v1::Label& label, manifest.config().labels()) {
-    if (label.key() == "com.nvidia.volumes.needed") {
-      // The label value is used as the name of the volume that
-      // nvidia-docker-plugin registers with Docker. We therefore
-      // don't need to use it as we simply pass the host path
-      // of the volume directly.
-      return true;
-    }
+  if (manifest.config().labels().count("com.nvidia.volumes.needed")) {
+    // The label value is used as the name of the volume that
+    // nvidia-docker-plugin registers with Docker. We therefore
+    // don't need to use it as we simply pass the host path
+    // of the volume directly.
+    return true;
   }
 
   return false;

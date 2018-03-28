@@ -19,16 +19,6 @@ syntax = "proto2";
 package docker.spec.v1;
 
 /**
- * The Label of a docker image, used for adding custom metadata.
- * https://docs.docker.com/engine/userguide/labels-custom-metadata
- */
-message Label {
-  optional string key = 1;
-  optional string value = 2;
-}
-
-
-/**
  * Protobuf for the Docker v1 image manifest JSON schema:
  * https://github.com/docker/docker/blob/master/image/spec/v1.md
  */
@@ -49,7 +39,7 @@ message ImageManifest {
   optional string container = 5;
 
   // TODO(gilbert): Add other config fields.
-  // Currently necessary rumtime config fields only. Please see:
+  // Currently necessary runtime config fields only. Please see:
   // https://github.com/docker/docker/blob/master/runconfig/config.go
   message Config {
     optional string Hostname = 1;
@@ -62,10 +52,9 @@ message ImageManifest {
     // Name of the image as it was passed by the operator.
     optional string Image = 8;
 
-    // NOTE: We cannot use 'Labels' here because otherwise,
-    // json->protobuf parsing will fail. 'labels' is manually
-    // set during parsing.
-    repeated Label labels = 9;
+    // The Label of a docker image, used for adding custom metadata.
+    // https://docs.docker.com/engine/userguide/labels-custom-metadata
+    map<string, string> Labels = 9;
 
     // TODO(gilbert): Create a message including string-message
     // pair to match ExposedPorts' map (map[nat.Port]struct{}).
