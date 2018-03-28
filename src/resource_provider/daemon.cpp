@@ -96,7 +96,7 @@ public:
 
   Future<bool> add(const ResourceProviderInfo& info);
   Future<bool> update(const ResourceProviderInfo& info);
-  Future<bool> remove(const string& type, const string& name);
+  Future<Nothing> remove(const string& type, const string& name);
 
 protected:
   void initialize() override;
@@ -178,15 +178,18 @@ void LocalResourceProviderDaemonProcess::start(const SlaveID& _slaveId)
 Future<bool> LocalResourceProviderDaemonProcess::add(
     const ResourceProviderInfo& info)
 {
+  CHECK(!info.has_id()); // Should have already been validated by the agent.
+
   if (configDir.isNone()) {
-    return Failure("`--resource_provider_config_dir` must be specified");
+    return Failure("Missing required flag --resource_provider_config_dir");
   }
 
+  // Return true if the info has been added for idempotency.
   if (providers[info.type()].contains(info.name())) {
-    return false;
+    return providers[info.type()].at(info.name()).info == info;
   }
 
-  // Generate a filename for the the config.
+  // Generate a filename for the config.
   // NOTE: We use the following template `<type>.<name>.<uuid>.json`
   // with a random UUID to generate a new filename to avoid any conflict
   // with existing ad-hoc config files.
@@ -224,8 +227,10 @@ Future<bool> LocalResourceProviderDaemonProcess::add(
 Future<bool> LocalResourceProviderDaemonProcess::update(
     const ResourceProviderInfo& info)
 {
+  CHECK(!info.has_id()); // Should have already been validated by the agent.
+
   if (configDir.isNone()) {
-    return Failure("`--resource_provider_config_dir` must be specified");
+    return Failure("Missing required flag --resource_provider_config_dir");
   }
 
   if (!providers[info.type()].contains(info.name())) {
@@ -233,6 +238,11 @@ Future<bool> LocalResourceProviderDaemonProcess::update(
   }
 
   ProviderData& data = providers[info.type()].at(info.name());
+
+  // Return true if the info has been updated for idempotency.
+  if (data.info == info) {
+    return true;
+  }
 
   Try<Nothing> _save = save(data.path, info);
   if (_save.isError()) {
@@ -262,16 +272,17 @@ Future<bool> LocalResourceProviderDaemonProcess::update(
 }
 
 
-Future<bool> LocalResourceProviderDaemonProcess::remove(
+Future<Nothing> LocalResourceProviderDaemonProcess::remove(
     const string& type,
     const string& name)
 {
   if (configDir.isNone()) {
-    return Failure("`--resource_provider_config_dir` must be specified");
+    return Failure("Missing required flag --resource_provider_config_dir");
   }
 
+  // Do nothing if the info has been removed for idempotency.
   if (!providers[type].contains(name)) {
-    return false;
+    return Nothing();
   }
 
   const string path = providers[type].at(name).path;
@@ -286,7 +297,7 @@ Future<bool> LocalResourceProviderDaemonProcess::remove(
   // provider to be destructed.
   providers[type].erase(name);
 
-  return true;
+  return Nothing();
 }
 
 
@@ -340,6 +351,10 @@ Try<Nothing> LocalResourceProviderDaemonProcess::load(const string& path)
     return Error("Not a valid resource provider config: " + info.error());
   }
 
+  if (info->has_id()) {
+    return Error("'ResourceProviderInfo.id' must not be set");
+  }
+
   // Ensure that ('type', 'name') pair is unique.
   if (providers[info->type()].contains(info->name())) {
     return Error(
@@ -362,7 +377,7 @@ Try<Nothing> LocalResourceProviderDaemonProcess::save(
 {
   CHECK_SOME(configDir);
 
-  // NOTE: We create the staging direcotry in the resource provider
+  // NOTE: We create the staging directory in the resource provider
   // config directory to make sure that the renaming below does not
   // cross devices (MESOS-2319).
   // TODO(chhsiao): Consider adding a way to garbage collect the staging
@@ -560,7 +575,7 @@ Future<bool> LocalResourceProviderDaemon::update(
 }
 
 
-Future<bool> LocalResourceProviderDaemon::remove(
+Future<Nothing> LocalResourceProviderDaemon::remove(
     const string& type,
     const string& name)
 {

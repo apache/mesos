@@ -3176,12 +3176,12 @@ Future<Response> Http::addResourceProviderConfig(
 
           return slave->localResourceProviderDaemon->add(info)
             .then([](bool added) -> Response {
-                if (!added) {
-                  return Conflict();
-                }
+              if (!added) {
+                return Conflict();
+              }
 
-                return OK();
-              })
+              return OK();
+            })
             .repair([info](const Future<Response>& future) {
                 LOG(ERROR)
                     << "Failed to add resource provider config with type '"
@@ -3221,12 +3221,12 @@ Future<Response> Http::updateResourceProviderConfig(
 
           return slave->localResourceProviderDaemon->update(info)
             .then([](bool updated) -> Response {
-                if (!updated) {
-                  return NotFound();
-                }
+              if (!updated) {
+                return NotFound();
+              }
 
-                return OK();
-              })
+              return OK();
+            })
             .repair([info](const Future<Response>& future) {
                 LOG(ERROR)
                     << "Failed to update resource provider config with type '"
@@ -3265,13 +3265,10 @@ Future<Response> Http::removeResourceProviderConfig(
               << type << "' and name '" << name << "'";
 
           return slave->localResourceProviderDaemon->remove(type, name)
-            .then([](bool removed) -> Response {
-                if (!removed) {
-                  return NotFound();
-                }
-
-                return OK();
-              })
+            .then([]() -> Response {
+              // Config removal is always successful due to idempotency.
+              return OK();
+            })
             .repair([type, name](const Future<Response>& future) {
               LOG(ERROR)
                   << "Failed to remove resource provider config with type '"
