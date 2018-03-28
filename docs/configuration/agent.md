@@ -603,9 +603,10 @@ containerizer. (default: https://registry-1.docker.io)
     --docker_remove_delay=VALUE
   </td>
   <td>
-The amount of time to wait before removing docker containers
+The amount of time to wait before removing docker containers (i.e., `docker rm`)
+after Mesos regards the container as TERMINATED
 (e.g., <code>3days</code>, <code>2weeks</code>, etc).
-(default: 6hrs)
+This only applies for the Docker Containerizer. (default: 6hrs)
   </td>
 </tr>
 <tr>
