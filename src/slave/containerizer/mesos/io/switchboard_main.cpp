@@ -116,8 +116,6 @@ int main(int argc, char** argv)
                        << " '" + stringify(strsignal(SIGTERM)) << "'";
   }
 
-  process::initialize();
-
   Try<Owned<IOSwitchboardServer>> server = IOSwitchboardServer::create(
       flags.tty,
       flags.stdin_to_fd.get(),
@@ -152,11 +150,6 @@ int main(int argc, char** argv)
   run.await();
 
   server->reset();
-
-  // NOTE: We need to finalize libprocess, on Windows especially,
-  // as any binary that uses the networking stack on Windows must
-  // also clean up the networking stack before exiting.
-  process::finalize(true);
 
   if (!run.isReady()) {
     EXIT(EXIT_FAILURE) << "The io switchboard server failed: "
