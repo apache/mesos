@@ -1738,6 +1738,18 @@ Size of the fetcher cache in Bytes. (default: 2GB)
 </tr>
 <tr>
   <td>
+    --fetcher_stall_timeout=VALUE
+  </td>
+  <td>
+Amount of time for the fetcher to wait before considering a download
+being too slow and abort it when the download stalls (i.e., the speed
+keeps below one byte per second).
+<b>NOTE</b>: This feature only applies when downloading data from the net and
+does not apply to HDFS. (default: 1mins)
+  </td>
+</tr>
+<tr>
+  <td>
     --frameworks_home=VALUE
   </td>
   <td>
