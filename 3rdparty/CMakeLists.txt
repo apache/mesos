@@ -141,13 +141,6 @@ if (ENABLE_SSL)
     list(APPEND CMAKE_SSL_FORWARD_ARGS
       -DOPENSSL_MSVC_STATIC_RT=${OPENSSL_MSVC_STATIC_RT})
   endif ()
-
-  # Setting this but not setting 'OPENSSL_ROOT_DIR' still provides enough
-  # information for the `FindOpenSSL` module to find the OpenSSL libraries.
-  if (OPENSSL_INCLUDE_DIR)
-    list(APPEND CMAKE_SSL_FORWARD_ARGS
-      -DOPENSSL_INCLUDE_DIR=${OPENSSL_INCLUDE_DIR})
-  endif ()
 endif ()
 
 # This function works around a CMake issue with setting include directories of
