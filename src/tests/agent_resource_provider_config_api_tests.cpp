@@ -318,6 +318,16 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_IdempotentAdd)
   // Disable HTTP authentication to simplify resource provider interactions.
   slaveFlags.authenticate_http_readwrite = false;
 
+  // Set the resource provider capability.
+  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
+  SlaveInfo::Capability capability;
+  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
+  capabilities.push_back(capability);
+
+  slaveFlags.agent_features = SlaveCapabilities();
+  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
+      {capabilities.begin(), capabilities.end()});
+
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   // Generate a pre-existing config.
@@ -364,6 +374,7 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_IdempotentAdd)
       addResourceProviderConfig(slave.get()->pid, contentType, info));
 
   Clock::settle();
+  Clock::resume();
 }
 
 
@@ -567,6 +578,16 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_IdempotentUpdate)
   // Disable HTTP authentication to simplify resource provider interactions.
   slaveFlags.authenticate_http_readwrite = false;
 
+  // Set the resource provider capability.
+  vector<SlaveInfo::Capability> capabilities = slave::AGENT_CAPABILITIES();
+  SlaveInfo::Capability capability;
+  capability.set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
+  capabilities.push_back(capability);
+
+  slaveFlags.agent_features = SlaveCapabilities();
+  slaveFlags.agent_features->mutable_capabilities()->CopyFrom(
+      {capabilities.begin(), capabilities.end()});
+
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   // Generate a pre-existing config.
@@ -613,6 +634,7 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_IdempotentUpdate)
       updateResourceProviderConfig(slave.get()->pid, contentType, info));
 
   Clock::settle();
+  Clock::resume();
 }
 
 
