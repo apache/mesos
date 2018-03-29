@@ -248,6 +248,15 @@ mesos::internal::slave::Flags::Flags()
       "    each other when occupying a shared space (i.e. disk contention).",
       path::join(os::temp(), "mesos", "fetch"));
 
+  add(&Flags::fetcher_stall_timeout,
+      "fetcher_stall_timeout",
+      "Amount of time for the fetcher to wait before considering a download\n"
+      "being too slow and abort it when the download stalls (i.e., the speed\n"
+      "keeps below one byte per second).\n"
+      "NOTE: This feature only applies when downloading data from the net and\n"
+      "does not apply to HDFS.",
+      DEFAULT_FETCHER_STALL_TIMEOUT);
+
   add(&Flags::work_dir,
       "work_dir",
       "Path of the agent work directory. This is where executor sandboxes\n"

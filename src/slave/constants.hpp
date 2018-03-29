@@ -175,6 +175,9 @@ constexpr char EXECUTOR_HTTP_AUTHENTICATION_REALM[] = "mesos-agent-executor";
 // Default maximum storage space to be used by the fetcher cache.
 constexpr Bytes DEFAULT_FETCHER_CACHE_SIZE = Gigabytes(2);
 
+// Default timeout for the fetcher to wait when a net download stalls.
+constexpr Duration DEFAULT_FETCHER_STALL_TIMEOUT = Minutes(1);
+
 // If no pings received within this timeout, then the slave will
 // trigger a re-detection of the master to cause a re-registration.
 Duration DEFAULT_MASTER_PING_TIMEOUT();

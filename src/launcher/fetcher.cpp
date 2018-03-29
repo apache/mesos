@@ -165,7 +165,8 @@ static Try<string> downloadWithHadoopClient(
 
 static Try<string> downloadWithNet(
     const string& sourceUri,
-    const string& destinationPath)
+    const string& destinationPath,
+    const Option<Duration>& stallTimeout)
 {
   // The net::download function only supports these protocols.
   CHECK(strings::startsWith(sourceUri, "http://")  ||
@@ -176,7 +177,7 @@ static Try<string> downloadWithNet(
   LOG(INFO) << "Downloading resource from '" << sourceUri
             << "' to '" << destinationPath << "'";
 
-  Try<int> code = net::download(sourceUri, destinationPath);
+  Try<int> code = net::download(sourceUri, destinationPath, stallTimeout);
   if (code.isError()) {
     return Error("Error downloading resource: " + code.error());
   } else {
@@ -217,7 +218,8 @@ static Try<string> copyFile(
 static Try<string> download(
     const string& _sourceUri,
     const string& destinationPath,
-    const Option<string>& frameworksHome)
+    const Option<string>& frameworksHome,
+    const Option<Duration>& stallTimeout)
 {
   // Trim leading whitespace for 'sourceUri'.
   const string sourceUri = strings::trim(_sourceUri, strings::PREFIX);
@@ -243,7 +245,7 @@ static Try<string> download(
   // 2. Try to fetch URI using os::net / libcurl implementation.
   // We consider http, https, ftp, ftps compatible with libcurl.
   if (Fetcher::isNetUri(sourceUri)) {
-    return downloadWithNet(sourceUri, destinationPath);
+    return downloadWithNet(sourceUri, destinationPath, stallTimeout);
   }
 
   // 3. Try to fetch the URI using hadoop client.
@@ -286,7 +288,8 @@ static Try<string> chmodExecutable(const string& filePath)
 static Try<string> fetchBypassingCache(
     const CommandInfo::URI& uri,
     const string& sandboxDirectory,
-    const Option<string>& frameworksHome)
+    const Option<string>& frameworksHome,
+    const Option<Duration>& stallTimeout)
 {
   LOG(INFO) << "Fetching directly into the sandbox directory";
 
@@ -315,7 +318,8 @@ static Try<string> fetchBypassingCache(
 
   string path = path::join(sandboxDirectory, outputFile.get());
 
-  Try<string> downloaded = download(uri.value(), path, frameworksHome);
+  Try<string> downloaded =
+    download(uri.value(), path, frameworksHome, stallTimeout);
   if (downloaded.isError()) {
     return Error(downloaded.error());
   }
@@ -404,7 +408,8 @@ static Try<string> fetchThroughCache(
     const FetcherInfo::Item& item,
     const Option<string>& cacheDirectory,
     const string& sandboxDirectory,
-    const Option<string>& frameworksHome)
+    const Option<string>& frameworksHome,
+    const Option<Duration>& stallTimeout)
 {
   if (cacheDirectory.isNone() || cacheDirectory.get().empty()) {
     return Error("Cache directory not specified");
@@ -428,7 +433,8 @@ static Try<string> fetchThroughCache(
     Try<string> downloaded = download(
         item.uri().value(),
         path::join(cacheDirectory.get(), item.cache_filename()),
-        frameworksHome);
+        frameworksHome,
+        stallTimeout);
 
     if (downloaded.isError()) {
       return Error(downloaded.error());
@@ -445,7 +451,8 @@ static Try<string> fetch(
     const FetcherInfo::Item& item,
     const Option<string>& cacheDirectory,
     const string& sandboxDirectory,
-    const Option<string>& frameworksHome)
+    const Option<string>& frameworksHome,
+    const Option<Duration>& stallTimeout)
 {
   LOG(INFO) << "Fetching URI '" << item.uri().value() << "'";
 
@@ -453,14 +460,16 @@ static Try<string> fetch(
     return fetchBypassingCache(
         item.uri(),
         sandboxDirectory,
-        frameworksHome);
+        frameworksHome,
+        stallTimeout);
   }
 
   return fetchThroughCache(
       item,
       cacheDirectory,
       sandboxDirectory,
-      frameworksHome);
+      frameworksHome,
+      stallTimeout);
 }
 
 
@@ -592,10 +601,15 @@ int main(int argc, char* argv[])
       Option<string>::some(fetcherInfo.get().frameworks_home()) :
         Option<string>::none();
 
+  const Option<Duration> stallTimeout =
+    fetcherInfo.get().has_stall_timeout()
+      ? Nanoseconds(fetcherInfo.get().stall_timeout().nanoseconds())
+      : Option<Duration>::none();
+
   // Fetch each URI to a local file and chmod if necessary.
   foreach (const FetcherInfo::Item& item, fetcherInfo.get().items()) {
-    Try<string> fetched =
-      fetch(item, cacheDirectory, sandboxDirectory, frameworksHome);
+    Try<string> fetched = fetch(
+        item, cacheDirectory, sandboxDirectory, frameworksHome, stallTimeout);
     if (fetched.isError()) {
       EXIT(EXIT_FAILURE)
         << "Failed to fetch '" << item.uri().value() << "': " + fetched.error();

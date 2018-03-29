@@ -64,4 +64,7 @@ message FetcherInfo {
   repeated Item items = 3;
   optional string user = 4;
   optional string frameworks_home = 5;
+
+  // Only applies when fetching artifacts from the net.
+  optional DurationInfo stall_timeout = 6;
 }
