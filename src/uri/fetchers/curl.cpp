@@ -54,6 +54,16 @@ using process::Subprocess;
 namespace mesos {
 namespace uri {
 
+CurlFetcherPlugin::Flags::Flags()
+{
+  add(&Flags::curl_stall_timeout,
+      "curl_stall_timeout",
+      "Amount of time for the fetcher to wait before considering a download\n"
+      "being too slow and abort it when the download stalls (i.e., the speed\n"
+      "keeps below one byte per second).\n");
+}
+
+
 const char CurlFetcherPlugin::NAME[] = "curl";
 
 
@@ -61,7 +71,7 @@ Try<Owned<Fetcher::Plugin>> CurlFetcherPlugin::create(const Flags& flags)
 {
   // TODO(jieyu): Make sure curl is available.
 
-  return Owned<Fetcher::Plugin>(new CurlFetcherPlugin());
+  return Owned<Fetcher::Plugin>(new CurlFetcherPlugin(flags));
 }
 
 
@@ -98,7 +108,7 @@ Future<Nothing> CurlFetcherPlugin::fetch(
   // TODO(jieyu): Allow user to specify the name of the output file.
   const string output = path::join(directory, Path(uri.path()).basename());
 
-  const vector<string> argv = {
+  vector<string> argv = {
     "curl",
     "-s",                 // Don't show progress meter or error messages.
     "-S",                 // Makes curl show an error message if it fails.
@@ -107,6 +117,15 @@ Future<Nothing> CurlFetcherPlugin::fetch(
     "-o", output,         // Write output to the file.
     strings::trim(stringify(uri))
   };
+
+  // Add a timeout for curl to abort when the download speed keeps low
+  // (1 byte per second by default) for the specified duration. See:
+  // https://curl.haxx.se/docs/manpage.html#-y
+  if (flags.curl_stall_timeout.isSome()) {
+    argv.push_back("-y");
+    argv.push_back(
+        std::to_string(static_cast<long>(flags.curl_stall_timeout->secs())));
+  }
 
   Try<Subprocess> s = subprocess(
       "curl",

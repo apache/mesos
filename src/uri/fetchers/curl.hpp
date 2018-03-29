@@ -30,7 +30,13 @@ namespace uri {
 class CurlFetcherPlugin : public Fetcher::Plugin
 {
 public:
-  class Flags : public virtual flags::FlagsBase {};
+  class Flags : public virtual flags::FlagsBase
+  {
+  public:
+    Flags();
+
+    Option<Duration> curl_stall_timeout;
+  };
 
   static const char NAME[];
 
@@ -48,7 +54,9 @@ public:
       const Option<std::string>& data = None()) const;
 
 private:
-  CurlFetcherPlugin() {}
+  explicit CurlFetcherPlugin(const Flags& _flags) : flags(_flags) {}
+
+  const Flags flags;
 };
 
 } // namespace uri {

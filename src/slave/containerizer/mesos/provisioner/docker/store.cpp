@@ -141,6 +141,7 @@ Try<Owned<slave::Store>> Store::create(
   // TODO(dpravat): Remove after resolving MESOS-5473.
 #ifndef __WINDOWS__
   _flags.docker_config = flags.docker_config;
+  _flags.docker_stall_timeout = flags.fetcher_stall_timeout;
 #endif
 
   Try<Owned<uri::Fetcher>> fetcher = uri::fetcher::create(_flags);

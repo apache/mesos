@@ -40,6 +40,7 @@ public:
     Flags();
 
     Option<JSON::Object> docker_config;
+    Option<Duration> docker_stall_timeout;
   };
 
   static const char NAME[];
