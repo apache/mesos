@@ -65,6 +65,7 @@ public:
   Option<std::string> attributes;
   Bytes fetcher_cache_size;
   std::string fetcher_cache_dir;
+  Duration fetcher_stall_timeout;
   std::string work_dir;
   std::string runtime_dir;
   std::string launcher_dir;

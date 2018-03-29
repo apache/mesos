@@ -561,6 +561,9 @@ Future<Nothing> FetcherProcess::__fetch(
     info.set_frameworks_home(flags.frameworks_home);
   }
 
+  info.mutable_stall_timeout()
+    ->set_nanoseconds(flags.fetcher_stall_timeout.ns());
+
   return run(containerId, sandboxDirectory, user, info)
     .repair(defer(self(), [=](const Future<Nothing>& future) {
       ++metrics.task_fetches_failed;
