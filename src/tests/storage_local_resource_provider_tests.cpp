@@ -297,7 +297,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NoResource)
   // is registered, it is guaranteed that the slave will send two
   // `UpdateSlaveMessage`s, where the latter one contains resources from
   // the storage local resource provider.
-  // NOTE: The order of the two `FUTURE_PROTOBUF`s are reversed because
+  // NOTE: The order of the two `FUTURE_PROTOBUF`s is reversed because
   // Google Mock will search the expectations in reverse order.
   Future<UpdateSlaveMessage> updateSlave2 =
     FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
@@ -333,7 +333,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NoResource)
   // is registered, it is guaranteed that the slave will send two
   // `UpdateSlaveMessage`s, where the latter one contains resources from
   // the storage local resource provider.
-  // NOTE: The order of the two `FUTURE_PROTOBUF`s are reversed because
+  // NOTE: The order of the two `FUTURE_PROTOBUF`s is reversed because
   // Google Mock will search the expectations in reverse order.
   Future<UpdateSlaveMessage> updateSlave4 =
     FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
@@ -385,7 +385,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ZeroSizedDisk)
   // is registered, it is guaranteed that the slave will send two
   // `UpdateSlaveMessage`s, where the latter one contains resources from
   // the storage local resource provider.
-  // NOTE: The order of the two `FUTURE_PROTOBUF`s are reversed because
+  // NOTE: The order of the two `FUTURE_PROTOBUF`s is reversed because
   // Google Mock will search the expectations in reverse order.
   Future<UpdateSlaveMessage> updateSlave2 =
     FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
@@ -558,7 +558,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NewProfile)
   // is registered, it is guaranteed that the slave will send two
   // `UpdateSlaveMessage`s, where the latter one contains resources from
   // the storage local resource provider.
-  // NOTE: The order of the two `FUTURE_PROTOBUF`s are reversed because
+  // NOTE: The order of the two `FUTURE_PROTOBUF`s is reversed because
   // Google Mock will search the expectations in reverse order.
   Future<UpdateSlaveMessage> updateSlave2 =
     FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
@@ -2308,7 +2308,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ConvertPreExistingVolume)
   // is registered, it is guaranteed that the slave will send two
   // `UpdateSlaveMessage`s, where the latter one contains resources from
   // the storage local resource provider.
-  // NOTE: The order of the two `FUTURE_PROTOBUF`s are reversed because
+  // NOTE: The order of the two `FUTURE_PROTOBUF`s is reversed because
   // Google Mock will search the expectations in reverse order.
   Future<UpdateSlaveMessage> updateSlave2 =
     FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
@@ -2390,7 +2390,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ConvertPreExistingVolume)
       isPreExistingVolume)))
     .WillOnce(FutureArg<1>(&disksConvertedOffers));
 
-  // NOTE: The order of the two `FUTURE_PROTOBUF`s are reversed because
+  // NOTE: The order of the two `FUTURE_PROTOBUF`s is reversed because
   // Google Mock will search the expectations in reverse order.
   Future<UpdateOperationStatusMessage> createBlockStatusUpdate =
     FUTURE_PROTOBUF(UpdateOperationStatusMessage(), _, _);
@@ -2438,7 +2438,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ConvertPreExistingVolume)
       isPreExistingVolume)))
     .WillOnce(FutureArg<1>(&disksRevertedOffers));
 
-  // NOTE: The order of the two `FUTURE_PROTOBUF`s are reversed because
+  // NOTE: The order of the two `FUTURE_PROTOBUF`s is reversed because
   // Google Mock will search the expectations in reverse order.
   Future<UpdateOperationStatusMessage> destroyBlockStatusUpdate =
     FUTURE_PROTOBUF(UpdateOperationStatusMessage(), _, _);
@@ -2528,7 +2528,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_RetryOperationStatusUpdate)
   // `UpdateSlaveMessage`s, where the latter one contains resources from
   // the storage local resource provider.
   //
-  // NOTE: The order of the two `FUTURE_PROTOBUF`s are reversed because
+  // NOTE: The order of the two `FUTURE_PROTOBUF`s is reversed because
   // Google Mock will search the expectations in reverse order.
   Future<UpdateSlaveMessage> updateSlave2 =
     FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
@@ -2682,7 +2682,7 @@ TEST_F(
   // `UpdateSlaveMessage`s, where the latter one contains resources from
   // the storage local resource provider.
   //
-  // NOTE: The order of the two `FUTURE_PROTOBUF`s are reversed because
+  // NOTE: The order of the two `FUTURE_PROTOBUF`s is reversed because
   // Google Mock will search the expectations in reverse order.
   Future<UpdateSlaveMessage> updateSlave2 =
     FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
