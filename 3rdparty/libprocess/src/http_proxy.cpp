@@ -150,22 +150,27 @@ bool HttpProxy::process(const Future<Response>& future, const Request& request)
     response.body.clear();
 
     const string& path = response.path;
-    int_fd fd = open(path.c_str(), O_RDONLY);
-    if (fd < 0) {
-      if (errno == ENOENT || errno == ENOTDIR) {
+    Try<int_fd> fd = os::open(path, O_RDONLY);
+    if (fd.isError()) {
+#ifdef __WINDOWS__
+      const int error = ::GetLastError();
+      if (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND) {
+#else
+      const int error = errno;
+      if (error == ENOENT || error == ENOTDIR) {
+#endif // __WINDOWS__
           VLOG(1) << "Returning '404 Not Found' for path '" << path << "'";
           socket_manager->send(NotFound(), request, socket);
       } else {
-        const string error = os::strerror(errno);
-        VLOG(1) << "Failed to send file at '" << path << "': " << error;
+        VLOG(1) << "Failed to send file at '" << path << "': " << fd.error();
         socket_manager->send(InternalServerError(), request, socket);
       }
     } else {
-      const Try<Bytes> size = os::stat::size(fd);
+      const Try<Bytes> size = os::stat::size(fd.get());
       if (size.isError()) {
         VLOG(1) << "Failed to send file at '" << path << "': " << size.error();
         socket_manager->send(InternalServerError(), request, socket);
-      } else if (os::stat::isdir(fd)) {
+      } else if (os::stat::isdir(fd.get())) {
         VLOG(1) << "Returning '404 Not Found' for directory '" << path << "'";
         socket_manager->send(NotFound(), request, socket);
       } else {
@@ -190,7 +195,7 @@ bool HttpProxy::process(const Future<Response>& future, const Request& request)
 
         // Note the file descriptor gets closed by FileEncoder.
         socket_manager->send(
-            new FileEncoder(fd, size->bytes()),
+            new FileEncoder(fd.get(), size->bytes()),
             request.keepAlive,
             socket);
       }
