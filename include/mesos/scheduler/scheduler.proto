@@ -222,7 +222,8 @@ message Response {
     repeated OperationStatus operation_statuses = 1;
   }
 
-  optional ReconcileOperations reconcile_operations = 1;
+  optional Type type = 1;
+  optional ReconcileOperations reconcile_operations = 2;
 }
 
 
