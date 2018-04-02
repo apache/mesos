@@ -4267,6 +4267,10 @@ void Slave::applyOperation(const ApplyOperationMessage& message)
     ? message.framework_id()
     : Option<FrameworkID>::none();
 
+  Option<OperationID> operationId = message.operation_info().has_id()
+    ? message.operation_info().id()
+    : Option<OperationID>::none();
+
   Result<ResourceProviderID> resourceProviderId =
     getResourceProviderId(message.operation_info());
 
@@ -4286,7 +4290,7 @@ void Slave::applyOperation(const ApplyOperationMessage& message)
   Operation* operation = new Operation(
       protobuf::createOperation(
           message.operation_info(),
-          protobuf::createOperationStatus(OPERATION_PENDING),
+          protobuf::createOperationStatus(OPERATION_PENDING, operationId),
           frameworkId,
           info.id(),
           uuid));
@@ -4320,7 +4324,7 @@ void Slave::applyOperation(const ApplyOperationMessage& message)
   UpdateOperationStatusMessage update =
     protobuf::createUpdateOperationStatusMessage(
         uuid,
-        protobuf::createOperationStatus(OPERATION_FINISHED),
+        protobuf::createOperationStatus(OPERATION_FINISHED, operationId),
         None(),
         frameworkId,
         info.id());
