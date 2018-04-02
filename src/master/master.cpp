@@ -2432,7 +2432,10 @@ void Master::receive(
       break;
 
     case scheduler::Call::RECONCILE_OPERATIONS:
-      reconcileOperations(framework, call.reconcile_operations());
+      drop(
+          from,
+          call,
+          "'RECONCILE_OPERATIONS' is not supported by the v0 API");
       break;
 
     case scheduler::Call::MESSAGE:
