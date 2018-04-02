@@ -10820,7 +10820,11 @@ void Master::_apply(
     Operation* operation = new Operation(
         protobuf::createOperation(
             operationInfo,
-            protobuf::createOperationStatus(OPERATION_PENDING),
+            protobuf::createOperationStatus(
+              OPERATION_PENDING,
+              operationInfo.has_id()
+                ? operationInfo.id()
+                : Option<OperationID>::none()),
             framework != nullptr
               ? framework->id()
               : Option<FrameworkID>::none(),
