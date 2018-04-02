@@ -3257,7 +3257,7 @@ TEST_F(
     .WillOnce(FutureArg<1>(&retriedUpdate));
 
   // Create a volume.
-  const string& operationId = "operation";
+  const string operationId = "operation";
   mesos.send(v1::createCallAccept(
       frameworkId,
       offer,
