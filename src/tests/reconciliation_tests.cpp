@@ -448,14 +448,11 @@ TEST_F(ReconciliationTest, RecoveredAgent)
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
-  // Reuse slaveFlags so both StartSlave() use the same work_dir.
-  slave::Flags slaveFlags = CreateSlaveFlags();
-
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   // Wait for the slave to register and get the slave id.
