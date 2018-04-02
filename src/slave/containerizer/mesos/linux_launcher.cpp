@@ -203,7 +203,7 @@ bool LinuxLauncher::available()
 {
   // Make sure:
   //   1. Are running as root.
-  //   2. 'freezer' subsytem is enabled.
+  //   2. 'freezer' subsystem is enabled.
   Try<bool> freezer = cgroups::enabled("freezer");
   return ::geteuid() == 0 && freezer.isSome() && freezer.get();
 }
