@@ -40,6 +40,12 @@
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 
+#include <stout/os/chdir.hpp>
+#include <stout/os/close.hpp>
+#include <stout/os/dup.hpp>
+#include <stout/os/fcntl.hpp>
+#include <stout/os/signals.hpp>
+
 #ifdef __WINDOWS__
 #include "subprocess_windows.hpp"
 #else
@@ -70,8 +76,9 @@ Subprocess::ChildHook Subprocess::ChildHook::CHDIR(
     const std::string& working_directory)
 {
   return Subprocess::ChildHook([working_directory]() -> Try<Nothing> {
-    if (::chdir(working_directory.c_str()) == -1) {
-      return Error("Could not chdir");
+    const Try<Nothing> result = os::chdir(working_directory);
+    if (result.isError()) {
+      return Error(result.error());
     }
 
     return Nothing();
