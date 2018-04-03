@@ -16,16 +16,18 @@
 
 // For readability, we minimize the number of #ifdef blocks in the code by
 // splitting platform specific system calls into separate directories.
-#ifdef __WINDOWS__
-#include <stout/os/windows/signals.hpp>
-#else
+//
+// NOTE: The `os::signals` namespace is not, and will not be,
+// implemented on Windows. We do not throw an error error here so that
+// the inclusion of this header does not need to guarded; however,
+// uses of `os::signals` will need to be guarded.
+#ifndef __WINDOWS__
 #include <stout/os/posix/signals.hpp>
-#endif // __WINDOWS__
-
 
 #define SUPPRESS(signal) \
   if (os::signals::internal::Suppressor suppressor ## signal = \
       os::signals::internal::Suppressor(signal))
+#endif // __WINDOWS__
 
 
 #endif // __STOUT_OS_SIGNALS_HPP__
