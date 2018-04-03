@@ -161,34 +161,25 @@ bool HttpProxy::process(const Future<Response>& future, const Request& request)
         socket_manager->send(InternalServerError(), request, socket);
       }
     } else {
-      struct stat s; // Need 'struct' because of function named 'stat'.
-      // We don't bother introducing a `os::fstat` since this is only
-      // one of two places where we use `fstat` in the entire codebase
-      // as of writing this comment.
-#ifdef __WINDOWS__
-      if (::fstat(fd.crt(), &s) != 0) {
-#else
-      if (::fstat(fd, &s) != 0) {
-#endif
-        const string error = os::strerror(errno);
-        VLOG(1) << "Failed to send file at '" << path << "': " << error;
+      const Try<Bytes> size = os::stat::size(fd);
+      if (size.isError()) {
+        VLOG(1) << "Failed to send file at '" << path << "': " << size.error();
         socket_manager->send(InternalServerError(), request, socket);
-      } else if (S_ISDIR(s.st_mode)) {
+      } else if (os::stat::isdir(fd)) {
         VLOG(1) << "Returning '404 Not Found' for directory '" << path << "'";
         socket_manager->send(NotFound(), request, socket);
       } else {
         // While the user is expected to properly set a 'Content-Type'
         // header, we fill in (or overwrite) 'Content-Length' header.
-        stringstream out;
-        out << s.st_size;
-        response.headers["Content-Length"] = out.str();
+        response.headers["Content-Length"] = stringify(size->bytes());
 
-        if (s.st_size == 0) {
+        if (size.get() == 0) {
           socket_manager->send(response, request, socket);
           return true; // All done, can process next request.
         }
 
-        VLOG(1) << "Sending file at '" << path << "' with length " << s.st_size;
+        VLOG(1) << "Sending file at '" << path << "' with length "
+                << size.get();
 
         // TODO(benh): Consider a way to have the socket manager turn
         // on TCP_CORK for both sends and then turn it off.
@@ -199,7 +190,7 @@ bool HttpProxy::process(const Future<Response>& future, const Request& request)
 
         // Note the file descriptor gets closed by FileEncoder.
         socket_manager->send(
-            new FileEncoder(fd, s.st_size),
+            new FileEncoder(fd, size->bytes()),
             request.keepAlive,
             socket);
       }

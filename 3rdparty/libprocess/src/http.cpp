@@ -1549,23 +1549,16 @@ Future<Nothing> sendfile(
     return send(socket, InternalServerError(body), request);
   }
 
-  struct stat s; // Need 'struct' because of function named 'stat'.
-  // We don't bother introducing a `os::fstat` since this is only
-  // one of two places where we use `fstat` in the entire codebase
-  // as of writing this comment.
-#ifdef __WINDOWS__
-  if (::fstat(fd->crt(), &s) != 0) {
-#else
-  if (::fstat(fd.get(), &s) != 0) {
-#endif
+  const Try<Bytes> size = os::stat::size(fd.get());
+  if (size.isError()) {
     const string body =
-      "Failed to fstat '" + response.path + "': " + os::strerror(errno);
+      "Failed to fstat '" + response.path + "': " + size.error();
     // TODO(benh): VLOG(1)?
     // TODO(benh): Don't send error back as part of InternalServiceError?
     // TODO(benh): Copy headers from `response`?
     os::close(fd.get());
     return send(socket, InternalServerError(body), request);
-  } else if (S_ISDIR(s.st_mode)) {
+  } else if (os::stat::isdir(fd.get())) {
     const string body = "'" + response.path + "' is a directory";
     // TODO(benh): VLOG(1)?
     // TODO(benh): Don't send error back as part of InternalServiceError?
@@ -1576,7 +1569,7 @@ Future<Nothing> sendfile(
 
   // While the user is expected to properly set a 'Content-Type'
   // header, we'll fill in (or overwrite) 'Content-Length' header.
-  response.headers["Content-Length"] = stringify(s.st_size);
+  response.headers["Content-Length"] = stringify(size->bytes());
 
   // TODO(benh): If this is a TCP socket consider turning on TCP_CORK
   // for both sends and then turning it off.
@@ -1593,7 +1586,7 @@ Future<Nothing> sendfile(
     })
     .then([=]() mutable -> Future<Nothing> {
       // NOTE: the file descriptor gets closed by FileEncoder.
-      Encoder* encoder = new FileEncoder(fd.get(), s.st_size);
+      Encoder* encoder = new FileEncoder(fd.get(), size->bytes());
       return send(socket, encoder)
         .onAny([=]() {
           delete encoder;
