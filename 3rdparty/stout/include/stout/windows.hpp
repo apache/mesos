@@ -30,18 +30,12 @@
 #include <winioctl.h> // For `DeviceIoControl`
 #include <Windows.h>  // For everything else.
 
-#include <direct.h>   // For `_mkdir`.
-#include <errno.h>    // For `_set_errno`.
-#include <fcntl.h>    // For file access flags like `_O_CREAT`.
-#include <io.h>       // For `_read`, `_write`.
-#include <process.h>  // For `_getpid`.
-#include <stdlib.h>   // For `_PATH_MAX`.
-
 #include <sys/stat.h> // For permissions flags.
 
 #include <basetsd.h>  // For `SSIZE_T`.
 
 #include <memory>
+#include <type_traits>
 
 #include <glog/logging.h>
 

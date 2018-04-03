@@ -26,10 +26,7 @@
 #include <stout/os/rm.hpp>
 #include <stout/os/stat.hpp>
 
-#include <stout/windows/error.hpp>
-
 #include <stout/internal/windows/longpath.hpp>
-
 
 namespace os {
 namespace internal {

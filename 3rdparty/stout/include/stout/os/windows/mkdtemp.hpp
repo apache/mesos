@@ -17,8 +17,6 @@
 #ifndef __STOUT_OS_WINDOWS_MKDTEMP_HPP__
 #define __STOUT_OS_WINDOWS_MKDTEMP_HPP__
 
-#include <stdlib.h>
-
 #include <random>
 #include <string>
 

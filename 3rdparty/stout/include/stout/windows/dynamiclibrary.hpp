@@ -15,12 +15,11 @@
 
 #include <string>
 
+#include <stout/error.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
-
-#include <stout/windows/error.hpp>
 
 /**
  * DynamicLibrary is a very simple wrapper around the programming interface

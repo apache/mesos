@@ -64,7 +64,6 @@ inline int kill(pid_t pid, int sig)
              << "Valid Signal values for Windows os::kill() are "
              << "'SIGTERM' and 'SIGKILL'";
 
-  _set_errno(EINVAL);
   return KILL_FAIL;
 }
 

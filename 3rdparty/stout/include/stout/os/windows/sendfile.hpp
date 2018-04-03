@@ -13,8 +13,6 @@
 #ifndef __STOUT_OS_WINDOWS_SENDFILE_HPP__
 #define __STOUT_OS_WINDOWS_SENDFILE_HPP__
 
-#include <errno.h>
-
 #include <stout/error.hpp>
 #include <stout/try.hpp>
 #include <stout/windows.hpp> // For `winioctl.h`.

@@ -46,11 +46,9 @@
 // NOTE: These system headers must be included after `stout/windows.hpp`
 // as they may include `Windows.h`. See comments in `stout/windows.hpp`
 // for why this ordering is important.
-#include <direct.h>
-#include <io.h>
-#include <Psapi.h>
-#include <TlHelp32.h>
-#include <Userenv.h>
+#include <Psapi.h>    // For `EnumProcesses` and `GetProcessMemoryInfo`.
+#include <TlHelp32.h> // For `PROCESSENTRY32W` and `CreateToolhelp32Snapshot`.
+#include <Userenv.h>  // For `GetAllUsersProfileDirectoryW`.
 
 namespace os {
 namespace internal {

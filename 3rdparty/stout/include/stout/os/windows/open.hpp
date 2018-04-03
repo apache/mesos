@@ -13,6 +13,8 @@
 #ifndef __STOUT_OS_WINDOWS_OPEN_HPP__
 #define __STOUT_OS_WINDOWS_OPEN_HPP__
 
+#include <fcntl.h> // For file access flags like `_O_CREAT`.
+
 #include <string>
 
 #include <stout/error.hpp>
