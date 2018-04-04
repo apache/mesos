@@ -2206,10 +2206,12 @@ void Slave::run(
       return unschedules;
   };
 
-  // Handle any unschedule GC failure. If unschedule GC succeeds, trigger
-  // the next continuations.
+  // `taskLaunch` encapsulates each task's launch steps from this point
+  // to the end of `_run` (the completion of task authorization).
   Future<Nothing> taskLaunch = collect(unschedules)
+    // Handle the failure iff unschedule GC fails.
     .repair(defer(self(), onUnscheduleGCFailure))
+    // If unschedule GC succeeds, trigger the next continuation.
     .then(defer(
         self(),
         &Self::_run,
@@ -2220,27 +2222,80 @@ void Slave::run(
         resourceVersionUuids,
         launchExecutor));
 
-  taskLaunch
-    .onReady(defer(
-        self(),
-        &Self::__run,
-        frameworkInfo,
-        executorInfo,
-        task,
-        taskGroup,
-        resourceVersionUuids,
-        launchExecutor))
-    .onFailed(defer(self(), [=](const string& failure) {
-      if (launchExecutor.isSome() && launchExecutor.get()) {
-        // Master expects new executor to be launched for this task launch.
-        // To keep the master executor entries updated, the agent needs to send
-        // 'ExitedExecutorMessage' even though no executor launched.
-        sendExitedExecutorMessage(frameworkId, executorInfo.executor_id());
-      }
+  // Use a sequence to ensure that task launch order is preserved.
+  framework->taskLaunchSequences[executorId]
+    .add<Nothing>([taskLaunch]() -> Future<Nothing> {
+      // We use this sequence only to maintain the task launching order. If the
+      // sequence is deleted, we do not want the resulting discard event to
+      // propagate up the chain, which would prevent the previous `.then()` or
+      // `.repair()` callbacks from being invoked. Thus, we use `undiscardable`
+      // to protect each `taskLaunch`.
+      return undiscardable(taskLaunch);
+    })
+    // We register `onAny` on the future returned by the sequence (referred to
+    // as `seqFuture` below). The following scenarios could happen:
+    //
+    // (1) `seqFuture` becomes ready. This happens when all previous tasks'
+    // `taskLaunch` futures are in non-pending state AND this task's own
+    // `taskLaunch` future is in ready state. The `onReady` call registered
+    // below will be triggered and continue the success path.
+    //
+    // (2) `seqFuture` becomes failed. This happens when all previous tasks'
+    // `taskLaunch` futures are in non-pending state AND this task's own
+    // `taskLaunch` future is in failed state (e.g. due to unschedule GC
+    // failure or some other failure). The `onFailed` call registered below
+    // will be triggered to handle the failure.
+    //
+    // (3) `seqFuture` becomes discarded. This happens when the sequence is
+    // destructed (see declaration of `taskLaunchSequences` on its lifecycle)
+    // while the `seqFuture` is still pending. In this case, we wait until
+    // this task's own `taskLaunch` future becomes non-pending and trigger
+    // callbacks accordingly.
+    //
+    // TODO(mzhu): In case (3), the destruction of the sequence means that the
+    // agent will eventually discover that the executor is absent and drop
+    // the task. While `__run` is capable of handling this case, it is more
+    // optimal to handle the failure earlier here rather than waiting for
+    // the `taskLaunch` transition and directing control to `__run`.
+    .onAny(defer(self(), [=](const Future<Nothing>&) {
+      // We only want to execute the following callbacks once the work performed
+      // in the `taskLaunch` chain is complete. Thus, we add them onto the
+      // `taskLaunch` chain rather than dispatching directly.
+      taskLaunch
+        .onReady(defer(
+            self(),
+            &Self::__run,
+            frameworkInfo,
+            executorInfo,
+            task,
+            taskGroup,
+            resourceVersionUuids,
+            launchExecutor))
+        .onFailed(defer(self(), [=](const string& failure) {
+          Framework* _framework = getFramework(frameworkId);
+          if (_framework == nullptr) {
+            LOG(WARNING) << "Ignoring running "
+                         << taskOrTaskGroup(task, taskGroup)
+                         << " because the framework " << stringify(frameworkId)
+                         << " does not exist";
+          }
+
+          if (launchExecutor.isSome() && launchExecutor.get()) {
+            // Master expects a new executor to be launched for this task(s).
+            // To keep the master executor entries updated, the agent needs to
+            // send `ExitedExecutorMessage` even though no executor launched.
+            sendExitedExecutorMessage(frameworkId, executorInfo.executor_id());
+
+            // See the declaration of `taskLaunchSequences` regarding its
+            // lifecycle management.
+            if (_framework != nullptr) {
+              _framework->taskLaunchSequences.erase(executorInfo.executor_id());
+            }
+          }
+        }));
     }));
 
-  // TODO(mzhu): Consolidate error handling code in `__run` here with
-  // then/recover pattern.
+  // TODO(mzhu): Consolidate error handling code in `__run` here.
 }
 
 
@@ -2377,10 +2432,8 @@ Future<Nothing> Slave::_run(
   };
 
   return collect(authorizations)
-    .recover(defer(self(),
+    .repair(defer(self(),
       [=](const Future<list<bool>>& future) -> Future<list<bool>> {
-        CHECK(future.isFailed());
-
         Framework* _framework = getFramework(frameworkId);
         if (_framework == nullptr) {
           const string error =
@@ -2469,10 +2522,13 @@ void Slave::__run(
                  << " does not exist";
 
     if (launchExecutor.isSome() && launchExecutor.get()) {
-      // Master expects new executor to be launched for this task(s) launch.
+      // Master expects a new executor to be launched for this task(s).
       // To keep the master executor entries updated, the agent needs to send
-      // 'ExitedExecutorMessage' even though no executor launched.
+      // `ExitedExecutorMessage` even though no executor launched.
       sendExitedExecutorMessage(frameworkId, executorInfo.executor_id());
+
+      // There is no need to clean up the task launch sequence here since
+      // the framework (along with the sequence) no longer exists.
     }
 
     return;
@@ -2498,10 +2554,14 @@ void Slave::__run(
     }
 
     if (launchExecutor.isSome() && launchExecutor.get()) {
-      // Master expects new executor to be launched for this task(s) launch.
+      // Master expects a new executor to be launched for this task(s).
       // To keep the master executor entries updated, the agent needs to send
-      // 'ExitedExecutorMessage' even though no executor launched.
+      // `ExitedExecutorMessage` even though no executor launched.
       sendExitedExecutorMessage(frameworkId, executorInfo.executor_id());
+
+      // See the declaration of `taskLaunchSequences` regarding its lifecycle
+      // management.
+      framework->taskLaunchSequences.erase(executorInfo.executor_id());
     }
 
     return;
@@ -2530,10 +2590,14 @@ void Slave::__run(
                  << " because it has been killed in the meantime";
 
     if (launchExecutor.isSome() && launchExecutor.get()) {
-      // Master expects new executor to be launched for this task(s) launch.
+      // Master expects a new executor to be launched for this task(s).
       // To keep the master executor entries updated, the agent needs to send
-      // 'ExitedExecutorMessage' even though no executor launched.
+      // `ExitedExecutorMessage` even though no executor launched.
       sendExitedExecutorMessage(frameworkId, executorInfo.executor_id());
+
+      // See the declaration of `taskLaunchSequences` regarding its lifecycle
+      // management.
+      framework->taskLaunchSequences.erase(executorInfo.executor_id());
     }
 
     return;
@@ -2621,10 +2685,14 @@ void Slave::__run(
     }
 
     if (launchExecutor.isSome() && launchExecutor.get()) {
-      // Master expects new executor to be launched for this task(s) launch.
+      // Master expects a new executor to be launched for this task(s).
       // To keep the master executor entries updated, the agent needs to send
-      // 'ExitedExecutorMessage' even though no executor launched.
+      // `ExitedExecutorMessage` even though no executor launched.
       sendExitedExecutorMessage(frameworkId, executorInfo.executor_id());
+
+      // See the declaration of `taskLaunchSequences` regarding its lifecycle
+      // management.
+      framework->taskLaunchSequences.erase(executorInfo.executor_id());
     }
 
     return;
@@ -2695,10 +2763,14 @@ void Slave::__run(
     }
 
     if (launchExecutor.isSome() && launchExecutor.get()) {
-      // Master expects new executor to be launched for this task(s) launch.
+      // Master expects a new executor to be launched for this task(s).
       // To keep the master executor entries updated, the agent needs to send
-      // 'ExitedExecutorMessage' even though no executor launched.
+      // `ExitedExecutorMessage` even though no executor launched.
       sendExitedExecutorMessage(frameworkId, executorInfo.executor_id());
+
+      // See the declaration of `taskLaunchSequences` regarding its lifecycle
+      // management.
+      framework->taskLaunchSequences.erase(executorInfo.executor_id());
     }
 
     return;
@@ -2755,10 +2827,14 @@ void Slave::__run(
     }
 
     if (launchExecutor.isSome() && launchExecutor.get()) {
-      // Master expects new executor to be launched for this task(s) launch.
+      // Master expects a new executor to be launched for this task(s).
       // To keep the master executor entries updated, the agent needs to send
-      // 'ExitedExecutorMessage' even though no executor launched.
+      // `ExitedExecutorMessage` even though no executor launched.
       sendExitedExecutorMessage(frameworkId, executorInfo.executor_id());
+
+      // See the declaration of `taskLaunchSequences` regarding its lifecycle
+      // management.
+      framework->taskLaunchSequences.erase(executorInfo.executor_id());
     }
 
     return;
@@ -2865,9 +2941,9 @@ void Slave::__run(
             statusUpdate(update, UPID());
           }
 
-          // Master expects new executor to be launched for this task(s) launch.
+          // Master expects a new executor to be launched for this task(s).
           // To keep the master executor entries updated, the agent needs to
-          // send 'ExitedExecutorMessage' even though no executor launched.
+          // send `ExitedExecutorMessage` even though no executor launched.
           if (executor->state == Executor::TERMINATED) {
             sendExitedExecutorMessage(frameworkId, executorInfo.executor_id());
           } else {
@@ -8958,6 +9034,10 @@ void Framework::destroyExecutor(const ExecutorID& executorId)
   if (executors.contains(executorId)) {
     Executor* executor = executors[executorId];
     executors.erase(executorId);
+
+    // See the declaration of `taskLaunchSequences` regarding its
+    // lifecycle management.
+    taskLaunchSequences.erase(executorId);
 
     // Pass ownership of the executor pointer.
     completedExecutors.push_back(Owned<Executor>(executor));
