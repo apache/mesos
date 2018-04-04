@@ -2953,10 +2953,6 @@ Content-Type: application/json
         "value": "0.1"
       },
       {
-        "name": "hadoop_home",
-        "value": ""
-      },
-      {
         "name": "help",
         "value": "false"
       },

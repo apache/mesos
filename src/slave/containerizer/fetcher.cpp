@@ -861,8 +861,8 @@ Future<Nothing> FetcherProcess::run(
 
   environment["MESOS_FETCHER_INFO"] = stringify(JSON::protobuf(info));
 
-  if (!flags.hadoop_home.empty()) {
-    environment["HADOOP_HOME"] = flags.hadoop_home;
+  if (flags.hadoop_home.isSome()) {
+    environment["HADOOP_HOME"] = flags.hadoop_home.get();
   }
 
   // TODO(jieyu): This is to make sure the libprocess of the fetcher

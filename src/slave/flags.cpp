@@ -307,8 +307,7 @@ mesos::internal::slave::Flags::Flags()
       "Path to find Hadoop installed (for\n"
       "fetching framework executors from HDFS)\n"
       "(no default, look for `HADOOP_HOME` in\n"
-      "environment or find hadoop on `PATH`)",
-      "");
+      "environment or find hadoop on `PATH`)");
 
 #ifndef __WINDOWS__
   add(&Flags::switch_user,

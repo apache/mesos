@@ -69,7 +69,7 @@ public:
   std::string work_dir;
   std::string runtime_dir;
   std::string launcher_dir;
-  std::string hadoop_home; // TODO(benh): Make an Option.
+  Option<std::string> hadoop_home;
   size_t max_completed_executors_per_framework;
 
 #ifndef __WINDOWS__

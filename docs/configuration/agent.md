@@ -890,7 +890,7 @@ be a value between 0.0 and 1.0 (default: 0.1)
 Path to find Hadoop installed (for
 fetching framework executors from HDFS)
 (no default, look for <code>HADOOP_HOME</code> in
-environment or find hadoop on <code>PATH</code>) (default: )
+environment or find hadoop on <code>PATH</code>)
   </td>
 </tr>
 

@@ -1217,7 +1217,6 @@ string Http::STATE_HELP() {
         "         \"docker_kill_orphans\" : \"true\",",
         "         \"switch_user\" : \"true\",",
         "         \"logging_level\" : \"INFO\",",
-        "         \"hadoop_home\" : \"\",",
         "         \"strict\" : \"true\",",
         "         \"executor_registration_timeout\" : \"1mins\",",
         "         \"recovery_timeout\" : \"15mins\",",
