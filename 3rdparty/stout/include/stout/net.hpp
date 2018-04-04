@@ -167,19 +167,32 @@ inline Try<int> download(
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, nullptr);
   curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, true);
 
-  // We don't bother introducing a `os::fdopen` since this is the only place
-  // we use `fdopen` in the entire codebase as of writing this comment.
+  // We don't bother introducing a `os::fdopen()` since this is the
+  // only place we use `fdopen()` in the entire codebase as of writing
+  // this comment.
 #ifdef __WINDOWS__
+  // This explicitly allocates a CRT integer file descriptor, which
+  // when closed, also closes the underlying handle, so we do not call
+  // `CloseHandle()` (or `os::close()`).
+  const int crt = fd->crt();
   // We open in "binary" mode on Windows to avoid line-ending translation.
-  FILE* file = ::_fdopen(fd->crt(), "wb");
+  FILE* file = ::_fdopen(crt, "wb");
+  if (file == nullptr) {
+    curl_easy_cleanup(curl);
+    // NOTE: This is not `os::close()` because we allocated a CRT int
+    // fd earlier.
+    ::_close(crt);
+    return ErrnoError("Failed to open file handle of '" + path + "'");
+  }
 #else
   FILE* file = ::fdopen(fd.get(), "w");
-#endif
   if (file == nullptr) {
     curl_easy_cleanup(curl);
     os::close(fd.get());
     return ErrnoError("Failed to open file handle of '" + path + "'");
   }
+#endif // __WINDOWS__
+
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, file);
 
   if (stall_timeout.isSome()) {
@@ -195,7 +208,9 @@ inline Try<int> download(
   CURLcode curlErrorCode = curl_easy_perform(curl);
   if (curlErrorCode != 0) {
     curl_easy_cleanup(curl);
-    fclose(file);
+    // NOTE: `fclose()` also closes the associated file descriptor, so
+    // we do not call `close()`.
+    ::fclose(file);
     return Error(curl_easy_strerror(curlErrorCode));
   }
 
@@ -203,7 +218,7 @@ inline Try<int> download(
   curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &code);
   curl_easy_cleanup(curl);
 
-  if (fclose(file) != 0) {
+  if (::fclose(file) != 0) {
     return ErrnoError("Failed to close file handle of '" + path + "'");
   }
 
