@@ -393,14 +393,12 @@ public:
   virtual void exited(const process::UPID& pid);
 
   void __run(
-      const process::Future<std::list<bool>>& future,
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo,
       const Option<TaskInfo>& task,
       const Option<TaskGroupInfo>& taskGroup,
       const std::vector<ResourceVersionUUID>& resourceVersionUuids,
       const Option<bool>& launchExecutor);
-
 
   // This is called when the resource limits of the container have
   // been updated for the given tasks and task groups. If the update is
