@@ -55,17 +55,19 @@ if (WIN32)
   set(GLOG_URL   ${3RDPARTY_DEPENDENCIES}/glog-${GLOG_VERSION}.tar.gz)
 endif ()
 
-# On platforms like FreeBSD where gmake is not the default, we need to look for
-# gmake explicitly to make sure LevelDB can build.
-# TODO(dforsyth): Remove this once LevelDB is upgraded to a version that uses
-# CMake (https://issues.apache.org/jira/browse/MESOS-8757).
-find_program(
-  MAKE_PROGRAM
-  NAMES gmake make
-  DOCS "External 'make' executable.")
+if (NOT WIN32)
+  # On platforms like FreeBSD where gmake is not the default, we need
+  # to look for gmake explicitly to make sure LevelDB can build.
+  # TODO(dforsyth): Remove this once LevelDB is upgraded to a version
+  # that uses CMake. See MESOS-8757.
+  find_program(
+    MAKE_PROGRAM
+    NAMES gmake make
+    DOCS "External 'make' executable.")
 
-if (NOT MAKE_PROGRAM)
-  message(FATAL_ERROR "Could not find an external 'make' executable.")
+  if (NOT MAKE_PROGRAM)
+    message(FATAL_ERROR "Could not find an external 'make' executable.")
+  endif ()
 endif ()
 
 # Helper utilities for dealing with third-party dependencies.
