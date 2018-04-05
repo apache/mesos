@@ -62,8 +62,9 @@
 #include <stout/os/environment.hpp>
 #include <stout/os/kill.hpp>
 #include <stout/os/killtree.hpp>
+
 #ifdef __WINDOWS__
-#include <stout/windows/os.hpp>
+#include <stout/os/windows/jobobject.hpp>
 #endif // __WINDOWS__
 
 #include "checks/checker.hpp"

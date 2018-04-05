@@ -48,7 +48,7 @@
 #include <stout/os/write.hpp>
 
 #ifdef __WINDOWS__
-#include <stout/windows/os.hpp>
+#include <stout/os/windows/jobobject.hpp>
 #endif // __WINDOWS__
 
 #include <mesos/mesos.hpp>
