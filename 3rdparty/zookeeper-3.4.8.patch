@@ -1,6 +1,6 @@
 diff --git c/src/c/CMakeLists.txt w/src/c/CMakeLists.txt
 new file mode 100644
-index 000000000..0f256b59c
+index 000000000..57677caef
 --- /dev/null
 +++ w/src/c/CMakeLists.txt
 @@ -0,0 +1,232 @@
@@ -151,7 +151,7 @@ index 000000000..0f256b59c
 +# hashtable library
 +set(hashtable_sources src/hashtable/hashtable_itr.c src/hashtable/hashtable.c)
 +add_library(hashtable STATIC ${hashtable_sources})
-+target_link_libraries(hashtable PUBLIC $<$<PLATFORM_ID:Linux>:m>)
++target_link_libraries(hashtable PUBLIC $<$<OR:$<PLATFORM_ID:Linux>,$<PLATFORM_ID:FreeBSD>>:m>)
 +
 +# zookeeper library
 +set(zookeeper_sources
@@ -867,10 +867,9 @@ index 06c377e93..c273a932a 100644
 -#ifndef EINPROGRESS
 -#define EINPROGRESS WSAEINPROGRESS
 -#endif
--
--typedef int pid_t;
 +#define ACL ZKACL /* Conflict with windows API */
-+
+
+-typedef int pid_t;
  #endif
 diff --git c/src/c/include/winstdint.h w/src/c/include/winstdint.h
 deleted file mode 100644
