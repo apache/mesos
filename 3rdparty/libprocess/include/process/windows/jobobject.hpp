@@ -19,7 +19,8 @@
 #include <stout/lambda.hpp>
 #include <stout/nothing.hpp>
 #include <stout/windows.hpp> // For `SharedHandle`.
-#include <stout/windows/os.hpp> // For `os` namespace.
+
+#include <stout/os/windows/jobobject.hpp>
 
 #include <process/defer.hpp>
 #include <process/future.hpp>
