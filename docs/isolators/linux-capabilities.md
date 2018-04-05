@@ -52,8 +52,8 @@ A possible agent startup invocation could be
 sudo mesos-agent --master=<master ip> --ip=<agent ip>
   --work_dir=/var/lib/mesos
   --isolation=linux/capabilities[,other isolation flags]
-  --effective_capabilities='{"capabilities":[NET_RAW,MKNOD]}'
-  --bounding_capabilities='{"capabilities":[NET_RAW,MKNOD,SYSLOG]}'
+  --effective_capabilities='{"capabilities":["NET_RAW","MKNOD"]}'
+  --bounding_capabilities='{"capabilities":["NET_RAW","MKNOD","SYSLOG"]}'
 ```
 
 
