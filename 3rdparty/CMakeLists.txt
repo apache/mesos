@@ -277,6 +277,9 @@ else ()
   if (NOT SASL2_LIB)
     message(FATAL_ERROR "Could not find sasl2 dependency.")
   endif ()
+
+  add_library(sasl2 SHARED IMPORTED GLOBAL)
+  set_property(TARGET sasl2 PROPERTY IMPORTED_LOCATION ${SASL2_LIB})
 endif ()
 
 
