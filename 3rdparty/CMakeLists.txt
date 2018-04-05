@@ -55,6 +55,18 @@ if (WIN32)
   set(GLOG_URL   ${3RDPARTY_DEPENDENCIES}/glog-${GLOG_VERSION}.tar.gz)
 endif ()
 
+# On platforms like FreeBSD where gmake is not the default, we need to look for
+# gmake explicitly to make sure LevelDB can build.
+# TODO(dforsyth): Remove this once LevelDB is upgraded to a version that uses
+# CMake (https://issues.apache.org/jira/browse/MESOS-8757).
+find_program(
+  MAKE_PROGRAM
+  NAMES gmake make
+  DOCS "External 'make' executable.")
+
+if (NOT MAKE_PROGRAM)
+  message(FATAL_ERROR "Could not find an external 'make' executable.")
+endif ()
 
 # Helper utilities for dealing with third-party dependencies.
 #############################################################
@@ -356,8 +368,8 @@ if (WIN32)
 else ()
   # TODO(andschwa): Build with CMake instead when glog is updated.
   set(GLOG_CONFIG_CMD  ${GLOG_ROOT}/src/../configure --with-pic GTEST_CONFIG=no --prefix=${GLOG_ROOT}-build)
-  set(GLOG_BUILD_CMD   make)
-  set(GLOG_INSTALL_CMD make install)
+  set(GLOG_BUILD_CMD   ${MAKE_PROGRAM})
+  set(GLOG_INSTALL_CMD ${MAKE_PROGRAM} install)
 
   set_target_properties(
     glog PROPERTIES
@@ -560,8 +572,8 @@ else ()
     BUILD_BYPRODUCTS  ${LIBEV_BYPRODUCTS}
     PATCH_COMMAND     ${LIBEV_PATCH_CMD}
     CONFIGURE_COMMAND ${LIBEV_ROOT}/configure --prefix=${LIBEV_ROOT}-build
-    BUILD_COMMAND     make
-    INSTALL_COMMAND   make install
+    BUILD_COMMAND     ${MAKE_PROGRAM}
+    INSTALL_COMMAND   ${MAKE_PROGRAM} install
     URL               ${LIBEV_URL}
     URL_HASH          ${LIBEV_HASH})
 endif ()
@@ -1045,7 +1057,7 @@ if (NOT WIN32)
     PATCH_COMMAND     ${LEVELDB_PATCH_CMD}
     CONFIGURE_COMMAND ${CMAKE_NOOP}
     BUILD_IN_SOURCE   1
-    BUILD_COMMAND     make OPT=-O2\ -DNDEBUG\ -fPIC all
+    BUILD_COMMAND     ${MAKE_PROGRAM} OPT=-O2\ -DNDEBUG\ -fPIC all
     INSTALL_COMMAND   ${CMAKE_NOOP}
     URL               ${LEVELDB_URL}
     URL_HASH          ${LEVELDB_HASH})
