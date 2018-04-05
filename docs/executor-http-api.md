@@ -206,7 +206,9 @@ Accept: application/json
     "value": "9aaa9d0d-e00d-444f-bfbd-23dd197939a0-0000"
   },
   "type": "MESSAGE",
-  "data": "t+Wonz5fRFKMzCnEptlv5A=="
+  "message": {
+    "data": "t+Wonz5fRFKMzCnEptlv5A=="
+  }
 }
 
 MESSAGE Response:
