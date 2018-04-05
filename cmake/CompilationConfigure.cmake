@@ -301,6 +301,9 @@ endif()
 ######################
 string(COMPARE EQUAL ${CMAKE_SYSTEM_NAME} "Linux" LINUX)
 
+# FREEBSD CONFIGURATION.
+######################
+string(COMPARE EQUAL ${CMAKE_SYSTEM_NAME} "FreeBSD" FREEBSD)
 
 # WINDOWS CONFIGURATION.
 ########################

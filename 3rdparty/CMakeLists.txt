@@ -370,6 +370,9 @@ if (WIN32)
 else ()
   # TODO(andschwa): Build with CMake instead when glog is updated.
   set(GLOG_CONFIG_CMD  ${GLOG_ROOT}/src/../configure --with-pic GTEST_CONFIG=no --prefix=${GLOG_ROOT}-build)
+  if (FREEBSD)
+    list(APPEND GLOG_CONFIG_CMD LDFLAGS=-lexecinfo)
+  endif ()
   set(GLOG_BUILD_CMD   ${MAKE_PROGRAM})
   set(GLOG_INSTALL_CMD ${MAKE_PROGRAM} install)
 
