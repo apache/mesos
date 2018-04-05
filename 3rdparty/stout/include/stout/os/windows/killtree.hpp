@@ -13,13 +13,11 @@
 #ifndef __STOUT_OS_WINDOWS_KILLTREE_HPP__
 #define __STOUT_OS_WINDOWS_KILLTREE_HPP__
 
-#include <stdlib.h>
-
 #include <stout/os.hpp>
+#include <stout/try.hpp>
+#include <stout/windows.hpp> // For `SharedHandle` and `pid_t`.
 
-#include <stout/os.hpp>       // For `kill_job`.
-#include <stout/try.hpp>      // For `Try<>`.
-#include <stout/windows.hpp>  // For `SharedHandle`.
+#include <stout/os/windows/jobobject.hpp>
 
 namespace os {
 
