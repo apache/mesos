@@ -3213,6 +3213,18 @@ public:
 };
 
 
+// Definition of a MockGarbageCollector that can be used in tests with gmock.
+class MockGarbageCollector : public slave::GarbageCollector
+{
+public:
+  MockGarbageCollector();
+  virtual ~MockGarbageCollector();
+
+  // The default action is to always return `true`.
+  MOCK_METHOD1(unschedule, process::Future<bool>(const std::string& path));
+};
+
+
 class MockSecretGenerator : public SecretGenerator
 {
 public:

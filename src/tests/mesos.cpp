@@ -682,6 +682,15 @@ MockAuthorizer::MockAuthorizer()
 MockAuthorizer::~MockAuthorizer() {}
 
 
+MockGarbageCollector::MockGarbageCollector()
+{
+  EXPECT_CALL(*this, unschedule(_)).WillRepeatedly(Return(true));
+}
+
+
+MockGarbageCollector::~MockGarbageCollector() {}
+
+
 slave::Flags ContainerizerTest<slave::MesosContainerizer>::CreateSlaveFlags()
 {
   slave::Flags flags = MesosTest::CreateSlaveFlags();
