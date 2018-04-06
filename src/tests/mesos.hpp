@@ -204,7 +204,8 @@ protected:
   virtual Try<process::Owned<cluster::Slave>> StartSlave(
       mesos::master::detector::MasterDetector* detector,
       slave::GarbageCollector* gc,
-      const Option<slave::Flags>& flags = None());
+      const Option<slave::Flags>& flags = None(),
+      bool mock = false);
 
   // Starts a slave with the specified detector, resource estimator, and flags.
   virtual Try<process::Owned<cluster::Slave>> StartSlave(

@@ -4752,9 +4752,13 @@ TEST_F(SlaveTest, RemoveExecutorUponFailedTaskGroupLaunch)
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
+  MockGarbageCollector mockGarbageCollector;
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
   // Start a mock slave.
   Try<Owned<cluster::Slave>> slave =
-    StartSlave(detector.get(), CreateSlaveFlags(), true);
+    StartSlave(detector.get(), &mockGarbageCollector, slaveFlags, true);
 
   ASSERT_SOME(slave);
   ASSERT_NE(nullptr, slave.get()->mock());
@@ -4816,49 +4820,28 @@ TEST_F(SlaveTest, RemoveExecutorUponFailedTaskGroupLaunch)
 
   v1::Offer::Operation launchGroup = v1::LAUNCH_GROUP(executorInfo, taskGroup);
 
-  // Saved arguments from `Slave::_run()`.
-  Future<list<bool>> _unschedules;
-  FrameworkInfo _frameworkInfo;
-  ExecutorInfo _executorInfo;
-  Option<TaskGroupInfo> _taskGroup;
-  Option<TaskInfo> _task;
-  vector<ResourceVersionUUID> _resourceVersionUuids;
-  Option<bool> _launchExecutor;
+  // The `unschedule()` function is used to prevent premature garbage
+  // collection when the executor directory already exists due to a
+  // previously-launched task. Simulate this scenario by creating the
+  // executor directory manually.
+  string path = paths::getExecutorPath(
+      slaveFlags.work_dir,
+      devolve(agentId),
+      devolve(frameworkId),
+      devolve(executorInfo.executor_id()));
 
-  // Capture `_run` arguments.
-  Future<Nothing> _run;
-  EXPECT_CALL(*slave.get()->mock(), _run(_, _, _, _, _, _, _))
-    .WillOnce(DoAll(FutureSatisfy(&_run),
-                  SaveArg<0>(&_unschedules),
-                  SaveArg<1>(&_frameworkInfo),
-                  SaveArg<2>(&_executorInfo),
-                  SaveArg<3>(&_task),
-                  SaveArg<4>(&_taskGroup),
-                  SaveArg<5>(&_resourceVersionUuids),
-                  SaveArg<6>(&_launchExecutor)));
+  Try<Nothing> mkdir = os::mkdir(path, true);
+  CHECK_SOME(mkdir);
+
+  // Induce agent unschedule GC failure. This will result in
+  // task launch failure before the executor launch.
+  EXPECT_CALL(mockGarbageCollector, unschedule(_))
+    .WillRepeatedly(Return(Failure("")));
 
   Future<ExitedExecutorMessage> exitedExecutorMessage =
     FUTURE_PROTOBUF(ExitedExecutorMessage(), _, _);
 
   mesos.send(v1::createCallAccept(frameworkId, offer, {launchGroup}));
-
-  AWAIT_READY(_run);
-
-  // Induce a failed GC unschedule.
-  Promise<list<bool>> promise;
-  Future<list<bool>> failedFuture = promise.future();
-  promise.fail("");
-
-  process::dispatch(slave.get()->pid, [&] {
-    slave.get()->mock()->unmocked__run(
-        failedFuture,
-        _frameworkInfo,
-        _executorInfo,
-        _task,
-        _taskGroup,
-        _resourceVersionUuids,
-        _launchExecutor);
-  });
 
   AWAIT_READY(exitedExecutorMessage);
 
