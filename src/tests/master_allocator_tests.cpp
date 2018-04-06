@@ -162,8 +162,6 @@ TYPED_TEST_CASE(MasterAllocatorTest, AllocatorTypes);
 // the slave's resources are offered to the framework.
 TYPED_TEST(MasterAllocatorTest, SingleFramework)
 {
-  Clock::pause();
-
   TestAllocator<TypeParam> allocator;
 
   EXPECT_CALL(allocator, initialize(_, _, _, _, _, _));
@@ -175,15 +173,12 @@ TYPED_TEST(MasterAllocatorTest, SingleFramework)
   flags.resources = Some("cpus:2;mem:1024;disk:0");
 
   EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _))
-    .WillOnce(InvokeAddSlave(&allocator));
+    .WillOnce(InvokeAddSlave(&allocator))
+    .WillRepeatedly(Return());
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = this->StartSlave(detector.get(), flags);
   ASSERT_SOME(slave);
-
-  // Skip all the backoffs to make sure the sent a registration request.
-  Clock::advance(flags.authentication_backoff_factor);
-  Clock::advance(flags.registration_backoff_factor);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -233,7 +228,8 @@ TYPED_TEST(MasterAllocatorTest, ResourcesUnused)
   Future<Nothing> addSlave;
   EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _))
     .WillOnce(DoAll(InvokeAddSlave(&allocator),
-                    FutureSatisfy(&addSlave)));
+                    FutureSatisfy(&addSlave)))
+    .WillRepeatedly(Return());
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -326,8 +322,6 @@ TYPED_TEST(MasterAllocatorTest, ResourcesUnused)
 // recoverResources is called for an already removed framework.
 TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
 {
-  Clock::pause();
-
   TestAllocator<TypeParam> allocator;
 
   EXPECT_CALL(allocator, initialize(_, _, _, _, _, _));
@@ -339,16 +333,14 @@ TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
   slaveFlags.resources = Some("cpus:2;mem:1024");
 
   EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _))
-    .WillOnce(InvokeAddSlave(&allocator));
+    .WillOnce(InvokeAddSlave(&allocator))
+    .WillRepeatedly(Return());
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   Try<Owned<cluster::Slave>> slave =
     this->StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
-
-  Clock::advance(slaveFlags.authentication_backoff_factor);
-  Clock::advance(slaveFlags.registration_backoff_factor);
 
   FrameworkInfo frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo1.set_user("user1");
@@ -461,8 +453,6 @@ TYPED_TEST(MasterAllocatorTest, OutOfOrderDispatch)
 // is running.
 TYPED_TEST(MasterAllocatorTest, SchedulerFailover)
 {
-  Clock::pause();
-
   TestAllocator<TypeParam> allocator;
 
   EXPECT_CALL(allocator, initialize(_, _, _, _, _, _));
@@ -477,16 +467,14 @@ TYPED_TEST(MasterAllocatorTest, SchedulerFailover)
   flags.resources = Some("cpus:3;mem:1024");
 
   EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _))
-    .WillOnce(InvokeAddSlave(&allocator));
+    .WillOnce(InvokeAddSlave(&allocator))
+    .WillRepeatedly(Return());
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   Try<Owned<cluster::Slave>> slave =
     this->StartSlave(detector.get(), &containerizer, flags);
   ASSERT_SOME(slave);
-
-  Clock::advance(flags.authentication_backoff_factor);
-  Clock::advance(flags.registration_backoff_factor);
 
   FrameworkInfo frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
   frameworkInfo1.set_name("framework1");
@@ -628,7 +616,8 @@ TYPED_TEST(MasterAllocatorTest, FrameworkExited)
   Future<Nothing> addSlave;
   EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _))
     .WillOnce(DoAll(InvokeAddSlave(&allocator),
-                    FutureSatisfy(&addSlave)));
+                    FutureSatisfy(&addSlave)))
+    .WillRepeatedly(Return());
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -758,8 +747,6 @@ TYPED_TEST(MasterAllocatorTest, FrameworkExited)
 // slave, never offered again.
 TYPED_TEST(MasterAllocatorTest, SlaveLost)
 {
-  Clock::pause();
-
   TestAllocator<TypeParam> allocator;
 
   EXPECT_CALL(allocator, initialize(_, _, _, _, _, _));
@@ -777,17 +764,13 @@ TYPED_TEST(MasterAllocatorTest, SlaveLost)
   flags1.executor_shutdown_grace_period = Milliseconds(50);
   flags1.resources = Some("cpus:2;mem:1024");
 
-  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _))
-    .WillOnce(InvokeAddSlave(&allocator));
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   Try<Owned<cluster::Slave>> slave1 =
     this->StartSlave(detector.get(), &containerizer, flags1);
   ASSERT_SOME(slave1);
-
-  Clock::advance(flags1.authentication_backoff_factor);
-  Clock::advance(flags1.registration_backoff_factor);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -852,8 +835,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveLost)
   flags2.resources = string("cpus:3;gpus:0;mem:256;"
                             "disk:1024;ports:[31000-32000]");
 
-  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _))
-    .WillOnce(InvokeAddSlave(&allocator));
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
 
   // Eventually after slave2 is launched, we should get
   // an offer that contains all of slave2's resources
@@ -864,9 +846,6 @@ TYPED_TEST(MasterAllocatorTest, SlaveLost)
 
   Try<Owned<cluster::Slave>> slave2 = this->StartSlave(detector.get(), flags2);
   ASSERT_SOME(slave2);
-
-  Clock::advance(flags2.authentication_backoff_factor);
-  Clock::advance(flags2.registration_backoff_factor);
 
   AWAIT_READY(resourceOffers);
 
@@ -892,8 +871,6 @@ TYPED_TEST(MasterAllocatorTest, SlaveLost)
 // resources and offered appropriately.
 TYPED_TEST(MasterAllocatorTest, SlaveAdded)
 {
-  Clock::pause();
-
   TestAllocator<TypeParam> allocator;
 
   EXPECT_CALL(allocator, initialize(_, _, _, _, _, _));
@@ -909,17 +886,13 @@ TYPED_TEST(MasterAllocatorTest, SlaveAdded)
   slave::Flags flags1 = this->CreateSlaveFlags();
   flags1.resources = Some("cpus:3;mem:1024");
 
-  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _))
-    .WillOnce(InvokeAddSlave(&allocator));
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   Try<Owned<cluster::Slave>> slave1 =
     this->StartSlave(detector.get(), &containerizer, flags1);
   ASSERT_SOME(slave1);
-
-  Clock::advance(flags1.authentication_backoff_factor);
-  Clock::advance(flags1.registration_backoff_factor);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -965,8 +938,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveAdded)
   slave::Flags flags2 = this->CreateSlaveFlags();
   flags2.resources = Some("cpus:4;mem:2048");
 
-  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _))
-    .WillOnce(InvokeAddSlave(&allocator));
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
 
   // After slave2 launches, all of its resources are combined with the
   // resources on slave1 that the task isn't using.
@@ -976,9 +948,6 @@ TYPED_TEST(MasterAllocatorTest, SlaveAdded)
 
   Try<Owned<cluster::Slave>> slave2 = this->StartSlave(detector.get(), flags2);
   ASSERT_SOME(slave2);
-
-  // TODO(tillt): Allow for a fully paused clock throughout this test.
-  Clock::resume();
 
   AWAIT_READY(resourceOffers);
 
@@ -998,8 +967,6 @@ TYPED_TEST(MasterAllocatorTest, SlaveAdded)
 // resources are recovered and reoffered correctly.
 TYPED_TEST(MasterAllocatorTest, TaskFinished)
 {
-  Clock::pause();
-
   TestAllocator<TypeParam> allocator;
 
   EXPECT_CALL(allocator, initialize(_, _, _, _, _, _));
@@ -1017,16 +984,14 @@ TYPED_TEST(MasterAllocatorTest, TaskFinished)
   flags.resources = Some("cpus:3;mem:1024");
 
   EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _))
-    .WillOnce(InvokeAddSlave(&allocator));
+    .WillOnce(InvokeAddSlave(&allocator))
+    .WillRepeatedly(Return());
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   Try<Owned<cluster::Slave>> slave =
     this->StartSlave(detector.get(), &containerizer, flags);
   ASSERT_SOME(slave);
-
-  Clock::advance(flags.authentication_backoff_factor);
-  Clock::advance(flags.registration_backoff_factor);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -1090,9 +1055,6 @@ TYPED_TEST(MasterAllocatorTest, TaskFinished)
 
   execDriver->sendStatusUpdate(status);
 
-  // TODO(tillt): Allow for a fully paused clock throughout this test.
-  Clock::resume();
-
   AWAIT_READY(resourceOffers);
 
   EXPECT_CALL(exec, shutdown(_))
@@ -1111,8 +1073,6 @@ TYPED_TEST(MasterAllocatorTest, TaskFinished)
 // and tasks using only cpus are launched.
 TYPED_TEST(MasterAllocatorTest, CpusOnlyOfferedAndTaskLaunched)
 {
-  Clock::pause();
-
   TestAllocator<TypeParam> allocator;
 
   EXPECT_CALL(allocator, initialize(_, _, _, _, _, _));
@@ -1131,16 +1091,14 @@ TYPED_TEST(MasterAllocatorTest, CpusOnlyOfferedAndTaskLaunched)
   flags.resources = Some("cpus:2;mem:0");
 
   EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _))
-    .WillOnce(InvokeAddSlave(&allocator));
+    .WillOnce(InvokeAddSlave(&allocator))
+    .WillRepeatedly(Return());
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   Try<Owned<cluster::Slave>> slave =
     this->StartSlave(detector.get(), &containerizer, flags);
   ASSERT_SOME(slave);
-
-  Clock::advance(flags.authentication_backoff_factor);
-  Clock::advance(flags.registration_backoff_factor);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -1183,9 +1141,6 @@ TYPED_TEST(MasterAllocatorTest, CpusOnlyOfferedAndTaskLaunched)
 
   execDriver->sendStatusUpdate(status);
 
-  // TODO(tillt): Allow for a fully paused clock throughout this test.
-  Clock::resume();
-
   AWAIT_READY(resourceOffers);
 
   EXPECT_CALL(exec, shutdown(_))
@@ -1201,8 +1156,6 @@ TYPED_TEST(MasterAllocatorTest, CpusOnlyOfferedAndTaskLaunched)
 // and tasks using only memory are launched.
 TYPED_TEST(MasterAllocatorTest, MemoryOnlyOfferedAndTaskLaunched)
 {
-  Clock::pause();
-
   TestAllocator<TypeParam> allocator;
 
   EXPECT_CALL(allocator, initialize(_, _, _, _, _, _));
@@ -1221,16 +1174,14 @@ TYPED_TEST(MasterAllocatorTest, MemoryOnlyOfferedAndTaskLaunched)
   flags.resources = Some("cpus:0;mem:200");
 
   EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _))
-    .WillOnce(InvokeAddSlave(&allocator));
+    .WillOnce(InvokeAddSlave(&allocator))
+    .WillRepeatedly(Return());
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   Try<Owned<cluster::Slave>> slave =
     this->StartSlave(detector.get(), &containerizer, flags);
   ASSERT_SOME(slave);
-
-  Clock::advance(flags.authentication_backoff_factor);
-  Clock::advance(flags.registration_backoff_factor);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -1272,9 +1223,6 @@ TYPED_TEST(MasterAllocatorTest, MemoryOnlyOfferedAndTaskLaunched)
     .WillOnce(FutureSatisfy(&resourceOffers));
 
   execDriver->sendStatusUpdate(status);
-
-  // TODO(tillt): Allow for a fully paused clock throughout this test.
-  Clock::resume();
 
   AWAIT_READY(resourceOffers);
 
@@ -1343,8 +1291,6 @@ TYPED_TEST(MasterAllocatorTest, Whitelist)
 // master's command line flags.
 TYPED_TEST(MasterAllocatorTest, RoleTest)
 {
-  Clock::pause();
-
   TestAllocator<TypeParam> allocator;
 
   EXPECT_CALL(allocator, initialize(_, _, _, _, _, _));
@@ -1424,8 +1370,6 @@ TYPED_TEST(MasterAllocatorTest, RoleTest)
 // accounted for correctly.
 TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
 {
-  Clock::pause();
-
   // Objects that persist after the election of a new master.
   StandaloneMasterDetector slaveDetector;
   StandaloneMasterDetector schedulerDetector;
@@ -1453,17 +1397,13 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
     slaveDetector.appoint(master.get()->pid);
     schedulerDetector.appoint(master.get()->pid);
 
-    EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _))
-      .WillOnce(InvokeAddSlave(&allocator));
+    EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
 
     slave::Flags flags = this->CreateSlaveFlags();
     flags.resources = Some("cpus:2;mem:1024");
 
     slave = this->StartSlave(&slaveDetector, &containerizer, flags);
     ASSERT_SOME(slave);
-
-    Clock::advance(flags.authentication_backoff_factor);
-    Clock::advance(flags.registration_backoff_factor);
 
     EXPECT_CALL(allocator, addFramework(_, _, _, _, _));
 
@@ -1535,9 +1475,6 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
     // Inform the slave about the new master.
     slaveDetector.appoint(master2.get()->pid);
 
-    // Trigger a batch allocation.
-    Clock::advance(masterFlags.allocation_interval);
-
     AWAIT_READY(resourceOffers2);
 
     // Since the task is still running on the slave, the framework
@@ -1561,8 +1498,6 @@ TYPED_TEST(MasterAllocatorTest, FrameworkReregistersFirst)
 // accounted for correctly.
 TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
 {
-  Clock::pause();
-
   // Objects that persist after the election of a new master.
   StandaloneMasterDetector slaveDetector;
   StandaloneMasterDetector schedulerDetector;
@@ -1571,10 +1506,6 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
   TestContainerizer containerizer(&exec);
   TestingMesosSchedulerDriver driver(&sched, &schedulerDetector);
   Try<Owned<cluster::Slave>> slave = nullptr;
-  master::Flags masterFlags = this->CreateMasterFlags();
-
-  slave::Flags slaveFlags = this->CreateSlaveFlags();
-  slaveFlags.resources = Some("cpus:2;mem:1024");
 
   // Explicit scope is to ensure all object associated with the
   // leading master (e.g. allocator) are destroyed once the master
@@ -1585,8 +1516,7 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
 
     EXPECT_CALL(allocator, initialize(_, _, _, _, _, _));
 
-    Try<Owned<cluster::Master>> master =
-      this->StartMaster(&allocator, masterFlags);
+    Try<Owned<cluster::Master>> master = this->StartMaster(&allocator);
 
     ASSERT_SOME(master);
 
@@ -1594,13 +1524,14 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
     schedulerDetector.appoint(master.get()->pid);
 
     EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _))
-      .WillOnce(InvokeAddSlave(&allocator));
+      .WillOnce(InvokeAddSlave(&allocator))
+      .WillRepeatedly(Return());
 
-    slave = this->StartSlave(&slaveDetector, &containerizer, slaveFlags);
+    slave::Flags flags = this->CreateSlaveFlags();
+    flags.resources = Some("cpus:2;mem:1024");
+
+    slave = this->StartSlave(&slaveDetector, &containerizer, flags);
     ASSERT_SOME(slave);
-
-    Clock::advance(slaveFlags.authentication_backoff_factor);
-    Clock::advance(slaveFlags.registration_backoff_factor);
 
     EXPECT_CALL(allocator, addFramework(_, _, _, _, _));
     EXPECT_CALL(allocator, recoverResources(_, _, _, _));
@@ -1662,9 +1593,6 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
     // Inform the slave about the new master.
     slaveDetector.appoint(master2.get()->pid);
 
-    Clock::advance(slaveFlags.authentication_backoff_factor);
-    Clock::advance(slaveFlags.registration_backoff_factor);
-
     AWAIT_READY(addSlave);
     AWAIT_READY(addFramework);
 
@@ -1685,9 +1613,6 @@ TYPED_TEST(MasterAllocatorTest, SlaveReregistersFirst)
 
     // Inform the scheduler about the new master.
     schedulerDetector.appoint(master2.get()->pid);
-
-    // Trigger a batch allocation.
-    Clock::advance(masterFlags.allocation_interval);
 
     AWAIT_READY(resourceOffers2);
 
@@ -1734,7 +1659,8 @@ TYPED_TEST(MasterAllocatorTest, RebalancedForUpdatedWeights)
     Future<Nothing> addSlave;
     EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _))
       .WillOnce(DoAll(InvokeAddSlave(&allocator),
-                      FutureSatisfy(&addSlave)));
+                      FutureSatisfy(&addSlave)))
+      .WillRepeatedly(Return());
 
     slave::Flags flags = this->CreateSlaveFlags();
     flags.resources = stringify(agentResources);
@@ -1915,8 +1841,7 @@ TYPED_TEST(MasterAllocatorTest, NestedRoles)
     this->StartMaster(&allocator, masterFlags);
   ASSERT_SOME(master);
 
-  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _))
-    .WillOnce(InvokeAddSlave(&allocator));
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
 
   MockExecutor exec1(DEFAULT_EXECUTOR_ID);
   TestContainerizer containerizer1(&exec1);
@@ -2007,8 +1932,7 @@ TYPED_TEST(MasterAllocatorTest, NestedRoles)
   MockExecutor exec2(DEFAULT_EXECUTOR_ID);
   TestContainerizer containerizer2(&exec2);
 
-  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _))
-    .WillOnce(InvokeAddSlave(&allocator));
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _));
 
   EXPECT_CALL(sched3, resourceOffers(&driver3, OfferEq(1, 512)))
     .WillOnce(LaunchTasks(DEFAULT_EXECUTOR_INFO, 1, 1, 512, "b/x"));
