@@ -3600,6 +3600,47 @@ MATCHER_P(TaskStatusUpdateStateEq, taskState, "")
 }
 
 
+// This matcher is used to match the task id of
+// `authorization::Request.Object.TaskInfo`.
+MATCHER_P(AuthorizationRequestHasTaskID, taskId, "")
+{
+  if (!arg.has_object()) {
+    return false;
+  }
+
+  if (!arg.object().has_task_info()) {
+    return false;
+  }
+
+  return arg.object().task_info().task_id() == taskId;
+}
+
+
+// This matcher is used to match the task id of `Option<TaskInfo>`.
+MATCHER_P(OptionTaskHasTaskID, taskId, "")
+{
+  return arg.isNone() ? false : arg->task_id() == taskId;
+}
+
+
+// This matcher is used to match an `Option<TaskGroupInfo>` which contains a
+// task with the specified task id.
+MATCHER_P(OptionTaskGroupHasTaskID, taskId, "")
+{
+  if (arg.isNone()) {
+    return false;
+  }
+
+  foreach(const TaskInfo& taskInfo, arg->tasks()) {
+    if (taskInfo.task_id() == taskId) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
 struct ParamExecutorType
 {
 public:
