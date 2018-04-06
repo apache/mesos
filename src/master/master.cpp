@@ -6475,9 +6475,12 @@ void Master::_registerSlave(
   if (Slave* slave = slaves.registered.get(pid)) {
     if (!slave->connected) {
       // The slave was previously disconnected but it is now trying
-      // to register as a new slave. This could happen if the slave
-      // failed recovery and hence registering as a new slave before
-      // the master removed the old slave from its map.
+      // to register as a new slave.
+      // There are several possible reasons for this to happen:
+      // - If the slave failed recovery and hence registering as a new
+      //   slave before the master removed the old slave from its map.
+      // - If the slave was shutting down while it had a registration
+      //   retry scheduled. See MESOS-8463.
       LOG(INFO) << "Removing old disconnected agent " << *slave
                 << " because a registration attempt occurred";
 
