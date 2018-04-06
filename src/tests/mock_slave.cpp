@@ -128,7 +128,7 @@ MockSlave::MockSlave(
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked____run));
   EXPECT_CALL(*this, runTask(_, _, _, _, _, _, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_runTask));
-  EXPECT_CALL(*this, _run(_, _, _, _, _, _, _))
+  EXPECT_CALL(*this, _run(_, _, _, _, _, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked__run));
   EXPECT_CALL(*this, __run(_, _, _, _, _, _, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked___run));
@@ -191,8 +191,7 @@ void MockSlave::unmocked_runTask(
 }
 
 
-void MockSlave::unmocked__run(
-    const Future<list<bool>>& unschedules,
+Future<Nothing> MockSlave::unmocked__run(
     const FrameworkInfo& frameworkInfo,
     const ExecutorInfo& executorInfo,
     const Option<TaskInfo>& taskInfo,
@@ -200,8 +199,7 @@ void MockSlave::unmocked__run(
     const std::vector<ResourceVersionUUID>& resourceVersionUuids,
     const Option<bool>& launchExecutor)
 {
-  slave::Slave::_run(
-      unschedules,
+  return slave::Slave::_run(
       frameworkInfo,
       executorInfo,
       taskInfo,
