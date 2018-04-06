@@ -53,6 +53,7 @@
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 #include <process/shared.hpp>
+#include <process/sequence.hpp>
 
 #include <stout/boundedhashmap.hpp>
 #include <stout/bytes.hpp>
@@ -1142,6 +1143,19 @@ public:
 
   // Executors with pending tasks.
   hashmap<ExecutorID, hashmap<TaskID, TaskInfo>> pendingTasks;
+
+  // Sequences in this map are used to enforce the order of tasks launched on
+  // each executor.
+  //
+  // Note on the lifecycle of the sequence: if the corresponding executor struct
+  // has not been created, we tie the lifecycle of the sequence to the first
+  // task in the sequence (which must have the `launch_executor` flag set to
+  // true modulo MESOS-3870). If the task fails to launch before creating the
+  // executor struct, we will delete the sequence. Once the executor struct is
+  // created, we tie the lifecycle of the sequence to the executor struct.
+  //
+  // TODO(mzhu): Create the executor struct early and put the sequence in it.
+  hashmap<ExecutorID, process::Sequence> taskLaunchSequences;
 
   // Pending task groups. This is needed for correctly sending
   // TASK_KILLED status updates for all tasks in the group if
