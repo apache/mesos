@@ -151,8 +151,7 @@ public:
       const std::vector<ResourceVersionUUID>& resourceVersionUuids,
       const Option<bool>& launchExecutor);
 
-  MOCK_METHOD7(__run, void(
-      const process::Future<std::list<bool>>& future,
+  MOCK_METHOD6(__run, void(
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo,
       const Option<TaskInfo>& task,
@@ -161,7 +160,6 @@ public:
       const Option<bool>& launchExecutor));
 
   void unmocked___run(
-      const process::Future<std::list<bool>>& future,
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo,
       const Option<TaskInfo>& task,

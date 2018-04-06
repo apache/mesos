@@ -186,7 +186,6 @@ public:
 
   // Made 'virtual' for Slave mocking.
   virtual void __run(
-      const process::Future<std::list<bool>>& future,
       const FrameworkInfo& frameworkInfo,
       const ExecutorInfo& executorInfo,
       const Option<TaskInfo>& task,

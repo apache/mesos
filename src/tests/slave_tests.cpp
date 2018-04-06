@@ -1844,12 +1844,14 @@ TEST_F(SlaveTest, GetStateTaskGroupPending)
   const SlaveID slaveId = devolve(offer.agent_id());
 
   // Override the default expectation, which forwards calls to the agent's
-  // unmocked `_run()` method. Instead, we want to do nothing so that tasks
-  // remain in the framework's 'pending' list.
+  // unmocked `_run()` method. Instead, we return a pending future to pause
+  // the original continuation so that tasks remain in the framework's
+  // 'pending' list.
+  Promise<Nothing> promise;
   Future<Nothing> _run;
   EXPECT_CALL(*slave.get()->mock(), _run(_, _, _, _, _, _))
     .WillOnce(DoAll(FutureSatisfy(&_run),
-                    Return(Nothing())));
+                    Return(promise.future())));
 
   // The executor should not be launched.
   EXPECT_CALL(*executor, connected(_))
@@ -4138,9 +4140,11 @@ TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
   Option<TaskInfo> task_;
   vector<ResourceVersionUUID> resourceVersionUuids;
   Option<bool> launchExecutor;
+
   // Skip what Slave::_run() normally does, save its arguments for
-  // later, tie reaching the critical moment when to kill the task to
-  // a future.
+  // later, return a pending future to pause the original continuation,
+  // so that we can control when the task is killed.
+  Promise<Nothing> promise;
   Future<Nothing> _run;
   EXPECT_CALL(*slave.get()->mock(), _run(_, _, _, _, _, _))
     .WillOnce(DoAll(FutureSatisfy(&_run),
@@ -4150,7 +4154,7 @@ TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
                     SaveArg<3>(&taskGroup),
                     SaveArg<4>(&resourceVersionUuids),
                     SaveArg<5>(&launchExecutor),
-                    Return(Nothing())));
+                    Return(promise.future())));
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
@@ -4180,16 +4184,17 @@ TEST_F(SlaveTest, KillTaskBetweenRunTaskParts)
   AWAIT_READY(removeFramework);
 
   Future<Nothing> unmocked__run = process::dispatch(slave.get()->pid, [=] {
-    slave.get()->mock()->unmocked__run(
+    return slave.get()->mock()->unmocked__run(
         frameworkInfo,
         executorInfo,
         task_,
         taskGroup,
         resourceVersionUuids,
         launchExecutor);
-
-    return Nothing();
   });
+
+  // Resume the original continuation once `unmocked__run` is complete.
+  promise.associate(unmocked__run);
 
   AWAIT_READY(status);
   EXPECT_EQ(TASK_KILLED, status->state());
@@ -4268,8 +4273,8 @@ TEST_F(SlaveTest, KillMultiplePendingTasks)
     .WillOnce(Invoke(slave.get()->mock(), &MockSlave::unmocked_runTask));
 
   // Skip what Slave::_run() normally does, save its arguments for
-  // later, tie reaching the critical moment when to kill the task to
-  // a future.
+  // later, return a pending future to pause the original continuation,
+  // so that we can control when the task is killed.
   FrameworkInfo frameworkInfo1, frameworkInfo2;
   ExecutorInfo executorInfo1, executorInfo2;
   Option<TaskGroupInfo> taskGroup1, taskGroup2;
@@ -4277,6 +4282,7 @@ TEST_F(SlaveTest, KillMultiplePendingTasks)
   vector<ResourceVersionUUID> resourceVersionUuids1, resourceVersionUuids2;
   Option<bool> launchExecutor1, launchExecutor2;
 
+  Promise<Nothing> promise1, promise2;
   Future<Nothing> _run1, _run2;
   EXPECT_CALL(*slave.get()->mock(), _run(_, _, _, _, _, _))
     .WillOnce(DoAll(FutureSatisfy(&_run1),
@@ -4286,7 +4292,7 @@ TEST_F(SlaveTest, KillMultiplePendingTasks)
                     SaveArg<3>(&taskGroup1),
                     SaveArg<4>(&resourceVersionUuids1),
                     SaveArg<5>(&launchExecutor1),
-                    Return(Nothing())))
+                    Return(promise1.future())))
     .WillOnce(DoAll(FutureSatisfy(&_run2),
                     SaveArg<0>(&frameworkInfo2),
                     SaveArg<1>(&executorInfo2),
@@ -4294,7 +4300,7 @@ TEST_F(SlaveTest, KillMultiplePendingTasks)
                     SaveArg<3>(&taskGroup2),
                     SaveArg<4>(&resourceVersionUuids2),
                     SaveArg<5>(&launchExecutor2),
-                    Return(Nothing())));
+                    Return(promise2.future())));
 
   driver.launchTasks(offers.get()[0].id(), {task1, task2});
 
@@ -4330,8 +4336,8 @@ TEST_F(SlaveTest, KillMultiplePendingTasks)
   AWAIT_READY(removeFramework);
 
   // The `__run` continuations should have no effect.
-  process::dispatch(slave.get()->pid, [=] {
-    slave.get()->mock()->unmocked__run(
+  Future<Nothing> unmocked__run1 = process::dispatch(slave.get()->pid, [=] {
+    return slave.get()->mock()->unmocked__run(
         frameworkInfo1,
         executorInfo1,
         task_1,
@@ -4340,8 +4346,8 @@ TEST_F(SlaveTest, KillMultiplePendingTasks)
         launchExecutor1);
   });
 
-  process::dispatch(slave.get()->pid, [=] {
-    slave.get()->mock()->unmocked__run(
+  Future<Nothing> unmocked__run2 = process::dispatch(slave.get()->pid, [=] {
+    return slave.get()->mock()->unmocked__run(
         frameworkInfo2,
         executorInfo2,
         task_2,
@@ -4349,6 +4355,10 @@ TEST_F(SlaveTest, KillMultiplePendingTasks)
         resourceVersionUuids2,
         launchExecutor2);
   });
+
+  // Resume the original continuation once unmocked__run is complete.
+  promise1.associate(unmocked__run1);
+  promise2.associate(unmocked__run2);
 
   Clock::settle();
 
@@ -8176,8 +8186,9 @@ TEST_F(SlaveTest, KillTaskGroupBetweenRunTaskParts)
   Option<bool> launchExecutor;
 
   // Skip what `Slave::_run()` normally does, save its arguments for
-  // later, till reaching the critical moment when to kill the task
-  // in the future.
+  // later, return a pending future to pause the original continuation,
+  // till reaching the critical moment when to kill the task in the future.
+  Promise<Nothing> promise;
   Future<Nothing> _run;
   EXPECT_CALL(*slave.get()->mock(), _run(_, _, _, _, _, _))
     .WillOnce(DoAll(FutureSatisfy(&_run),
@@ -8187,7 +8198,7 @@ TEST_F(SlaveTest, KillTaskGroupBetweenRunTaskParts)
                     SaveArg<3>(&taskGroup_),
                     SaveArg<4>(&resourceVersionUuids),
                     SaveArg<5>(&launchExecutor),
-                    Return(Nothing())));
+                    Return(promise.future())));
 
   const v1::Offer& offer = offers->offers(0);
   const SlaveID slaveId = devolve(offer.agent_id());
@@ -8248,16 +8259,17 @@ TEST_F(SlaveTest, KillTaskGroupBetweenRunTaskParts)
   AWAIT_READY(removeFramework);
 
   Future<Nothing> unmocked__run = process::dispatch(slave.get()->pid, [=] {
-    slave.get()->mock()->unmocked__run(
+    return slave.get()->mock()->unmocked__run(
         frameworkInfo,
         executorInfo_,
         task_,
         taskGroup_,
         resourceVersionUuids,
         launchExecutor);
-
-    return Nothing();
   });
+
+  // Resume the original continuation once `unmocked__run` is complete.
+  promise.associate(unmocked__run);
 
   AWAIT_READY(update1);
   AWAIT_READY(update2);
