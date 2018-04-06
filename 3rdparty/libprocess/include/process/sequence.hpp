@@ -113,6 +113,15 @@ public:
     // discarded. We use weak futures here to avoid cyclic dependencies.
 
     // Discard the future associated with this notifier.
+    //
+    // NOTE: When we discard the notifier future, any `onDiscard()` callbacks
+    // registered on `promise->future` will be invoked, but `onDiscard`
+    // callbacks registered on the future returned by `add()` will NOT be
+    // invoked. This is because currently discards do not propagate through
+    // `dispatch()`. In other words, users should be careful when registering
+    // `onDiscard` callbacks on the returned future.
+    //
+    // TODO(*): Propagate `onDiscard` through `dispatch`.
     notifier->future().onDiscard(
         lambda::bind(
             &internal::discard<T>,
@@ -175,7 +184,11 @@ inline Sequence::Sequence(const std::string& id)
 
 inline Sequence::~Sequence()
 {
-  process::terminate(process);
+  // We set `inject` to false so that the terminate message is added to the
+  // end of the sequence actor message queue. This guarantees that all `add()`
+  // calls which happened before the sequence destruction are processed.
+  // See MESOS-8741.
+  process::terminate(process, false);
   process::wait(process);
   delete process;
 }

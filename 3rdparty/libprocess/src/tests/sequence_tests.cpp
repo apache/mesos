@@ -195,12 +195,6 @@ TEST(SequenceTest, DiscardAll)
   EXPECT_CALL(process, func3())
     .Times(0);
 
-  // Flush the event queue to make sure that all callbacks have been
-  // added to the sequence.
-  Clock::pause();
-  Clock::settle();
-  Clock::resume();
-
   // This should cancel all pending callbacks.
   sequence.reset();
 
