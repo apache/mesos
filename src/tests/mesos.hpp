@@ -240,7 +240,8 @@ protected:
   virtual Try<process::Owned<cluster::Slave>> StartSlave(
       mesos::master::detector::MasterDetector* detector,
       mesos::Authorizer* authorizer,
-      const Option<slave::Flags>& flags = None());
+      const Option<slave::Flags>& flags = None(),
+      bool mock = false);
 
   // Starts a slave with the specified detector, containerizer, authorizer,
   // and flags.

@@ -5076,6 +5076,145 @@ TEST_F(SlaveTest, LaunchTasksReorderUnscheduleGC)
 }
 
 
+// This test ensures that tasks using the same executor are successfully
+// launched in the order in which the agent receives the RunTask(Group)Message,
+// even when we manually reorder the completion of the asynchronous task
+// authorization step. See MESOS-8624.
+TEST_F(SlaveTest, LaunchTasksReorderTaskAuthorization)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  MockAuthorizer mockAuthorizer;
+
+  // Start a mock slave.
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), &mockAuthorizer, CreateSlaveFlags(), true);
+
+  ASSERT_SOME(slave);
+  ASSERT_NE(nullptr, slave.get()->mock());
+
+  slave.get()->start();
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(v1::scheduler::SendSubscribe(v1::DEFAULT_FRAMEWORK_INFO));
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid, ContentType::PROTOBUF, scheduler);
+
+  // Advance the clock to trigger both agent registration and a batch
+  // allocation.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(subscribed);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+
+  const v1::Offer& offer = offers->offers(0);
+  const v1::AgentID& agentId = offer.agent_id();
+
+  v1::Resources resources =
+    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  v1::ExecutorInfo executorInfo = v1::createExecutorInfo(
+      "default", None(), resources, v1::ExecutorInfo::DEFAULT, frameworkId);
+
+  // Create two separate task groups that use the same executor.
+  v1::TaskInfo taskInfo1 = v1::createTask(agentId, resources, "sleep 1000");
+  v1::TaskGroupInfo taskGroup1 = v1::createTaskGroupInfo({taskInfo1});
+
+  v1::TaskInfo taskInfo2 = v1::createTask(agentId, resources, "sleep 1000");
+  v1::TaskGroupInfo taskGroup2 = v1::createTaskGroupInfo({taskInfo2});
+
+  v1::Offer::Operation launchGroup1 =
+    v1::LAUNCH_GROUP(executorInfo, taskGroup1);
+  v1::Offer::Operation launchGroup2 =
+    v1::LAUNCH_GROUP(executorInfo, taskGroup2);
+
+  // Catch the task authorization step by returning a pending future.
+  Promise<bool> promise1, promise2;
+  EXPECT_CALL(
+      mockAuthorizer,
+      authorized(AuthorizationRequestHasTaskID(devolve(taskInfo1.task_id()))))
+    .WillOnce(Return(promise1.future()));
+  EXPECT_CALL(
+      mockAuthorizer,
+      authorized(AuthorizationRequestHasTaskID(devolve(taskInfo2.task_id()))))
+    .WillOnce(Return(promise2.future()));
+
+  Future<v1::scheduler::Event::Update> taskStarting1, taskStarting2;
+  Future<v1::scheduler::Event::Update> taskRunning1, taskRunning2;
+  EXPECT_CALL(*scheduler, update(_, TaskStatusUpdateTaskIdEq(taskInfo1)))
+    .WillOnce(DoAll(
+        FutureArg<1>(&taskStarting1),
+        v1::scheduler::SendAcknowledge(frameworkId, agentId)))
+    .WillOnce(DoAll(
+        FutureArg<1>(&taskRunning1),
+        v1::scheduler::SendAcknowledge(frameworkId, agentId)));
+  EXPECT_CALL(*scheduler, update(_, TaskStatusUpdateTaskIdEq(taskInfo2)))
+    .WillOnce(DoAll(
+        FutureArg<1>(&taskStarting2),
+        v1::scheduler::SendAcknowledge(frameworkId, agentId)))
+    .WillOnce(DoAll(
+        FutureArg<1>(&taskRunning2),
+        v1::scheduler::SendAcknowledge(frameworkId, agentId)));
+
+  // Launch the two task groups.
+  mesos.send(
+      v1::createCallAccept(frameworkId, offer, {launchGroup1, launchGroup2}));
+
+  // Reorder the task group launches by resuming
+  // the processing of `taskGroup2` first.
+  promise2.set(true);
+
+  // Settle the clock to finish the processing of `taskGroup2`.
+  Clock::settle();
+
+  ASSERT_TRUE(taskStarting2.isPending());
+
+  promise1.set(true);
+
+  // If taskgroup2 tries to launch the executor first (i.e. if the order is
+  // not corrected by the agent), taskgroup2 will be subsequently dropped. The
+  // successful launch of both tasks verifies that the agent enforces the task
+  // launch order.
+  AWAIT_READY(taskStarting1);
+  AWAIT_READY(taskStarting2);
+
+  ASSERT_EQ(v1::TASK_STARTING, taskStarting1->status().state());
+  ASSERT_EQ(v1::TASK_STARTING, taskStarting2->status().state());
+
+  AWAIT_READY(taskRunning1);
+  AWAIT_READY(taskRunning2);
+
+  ASSERT_EQ(v1::TASK_RUNNING, taskRunning1->status().state());
+  ASSERT_EQ(v1::TASK_RUNNING, taskRunning2->status().state());
+}
+
+
 // This test ensures that agent sends ExitedExecutorMessage when the task
 // fails to launch due to task authorization failure and that master's executor
 // bookkeeping entry is removed.
