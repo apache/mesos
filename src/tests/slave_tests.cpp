@@ -4910,14 +4910,19 @@ TEST_F(SlaveTest, RemoveExecutorUponFailedTaskAuthorization)
 
   MockExecutor exec(DEFAULT_EXECUTOR_ID);
   TestContainerizer containerizer(&exec);
+  MockAuthorizer mockAuthorizer;
 
   slave::Flags slaveFlags = CreateSlaveFlags();
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   // Start a mock slave.
-  Try<Owned<cluster::Slave>> slave =
-    StartSlave(detector.get(), &containerizer, slaveFlags, true);
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      detector.get(),
+      &containerizer,
+      &mockAuthorizer,
+      slaveFlags,
+      true);
 
   ASSERT_SOME(slave);
   ASSERT_NE(nullptr, slave.get()->mock());
@@ -4956,54 +4961,24 @@ TEST_F(SlaveTest, RemoveExecutorUponFailedTaskAuthorization)
   EXPECT_CALL(exec, registered(_, _, _, _))
     .Times(0);
 
-  Future<TaskStatus> killTaskStatus;
+  Future<TaskStatus> statusError;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&killTaskStatus));
+    .WillOnce(FutureArg<1>(&statusError));
 
   Future<ExitedExecutorMessage> exitedExecutorMessage =
     FUTURE_PROTOBUF(ExitedExecutorMessage(), _, _);
 
-  Future<list<bool>> _future;
-  FrameworkInfo _frameworkInfo;
-  ExecutorInfo _executorInfo;
-  Option<TaskInfo> _task;
-  Option<TaskGroupInfo> _taskGroup;
-  vector<ResourceVersionUUID> _resourceVersionUuids;
-  Option<bool> _launchExecutor;
-
-  // Capture `__run` arguments.
-  Future<Nothing> __run;
-  EXPECT_CALL(*slave.get()->mock(), __run(_, _, _, _, _, _, _))
-    .WillOnce(DoAll(FutureSatisfy(&__run),
-                  SaveArg<0>(&_future),
-                  SaveArg<1>(&_frameworkInfo),
-                  SaveArg<2>(&_executorInfo),
-                  SaveArg<3>(&_task),
-                  SaveArg<4>(&_taskGroup),
-                  SaveArg<5>(&_resourceVersionUuids),
-                  SaveArg<6>(&_launchExecutor)));
+  // Induce agent task authorization failure. This will result in
+  // task launch failure before the executor launch.
+  EXPECT_CALL(mockAuthorizer, authorized(_))
+    .WillRepeatedly(Return(false));
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
-  AWAIT_READY(__run);
-
-  // Induce a task authorization failure.
-  Promise<list<bool>> promise;
-  Future<list<bool>> failedFuture = promise.future();
-  promise.fail("");
-
-  process::dispatch(slave.get()->pid, [&] {
-    slave.get()->mock()->unmocked___run(
-        failedFuture,
-        _frameworkInfo,
-        _executorInfo,
-        _task,
-        _taskGroup,
-        _resourceVersionUuids,
-        _launchExecutor);
-  });
-
   AWAIT_READY(exitedExecutorMessage);
+
+  AWAIT_READY(statusError);
+  ASSERT_EQ(TASK_ERROR, statusError->state());
 
   // Helper function to post a request to '/api/v1' master endpoint
   // and return the response.
