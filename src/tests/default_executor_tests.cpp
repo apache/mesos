@@ -1372,6 +1372,104 @@ TEST_P(DefaultExecutorTest, ReservedResources)
 }
 
 
+// This test verifies that the agent could recover if the agent
+// metadata is checkpointed.
+TEST_P(DefaultExecutorTest, SlaveRecoveryWithMetadataCheckpointed)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
+  frameworkInfo.set_checkpoint(true);
+
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(v1::scheduler::SendSubscribe(frameworkInfo));
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(subscribed);
+
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+  v1::ExecutorInfo executorInfo = v1::createExecutorInfo(
+      v1::DEFAULT_EXECUTOR_ID,
+      None(),
+      "cpus:0.1;mem:32;disk:32",
+      v1::ExecutorInfo::DEFAULT,
+      frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+
+  const v1::Offer& offer = offers->offers(0);
+  const v1::AgentID& agentId = offer.agent_id();
+
+  v1::TaskInfo taskInfo = v1::createTask(
+      agentId,
+      v1::Resources::parse("cpus:0.1;mem:32;disk:32").get(),
+      "sleep 1000");
+
+  v1::Offer::Operation launchGroup =
+    v1::LAUNCH_GROUP(executorInfo, v1::createTaskGroupInfo({taskInfo}));
+
+  Future<v1::scheduler::Event::Update> startingUpdate;
+  Future<v1::scheduler::Event::Update> runningUpdate;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(DoAll(
+        FutureArg<1>(&startingUpdate),
+        v1::scheduler::SendAcknowledge(frameworkId, agentId)))
+    .WillOnce(DoAll(
+        FutureArg<1>(&runningUpdate),
+        v1::scheduler::SendAcknowledge(frameworkId, agentId)))
+    .WillRepeatedly(Return()); // Ignore subsequent status updates.
+
+  mesos.send(v1::createCallAccept(frameworkId, offer, {launchGroup}));
+
+  AWAIT_READY(startingUpdate);
+  ASSERT_EQ(v1::TASK_STARTING, startingUpdate->status().state());
+  ASSERT_EQ(taskInfo.task_id(), startingUpdate->status().task_id());
+
+  AWAIT_READY(runningUpdate);
+  ASSERT_EQ(v1::TASK_RUNNING, runningUpdate->status().state());
+  EXPECT_EQ(taskInfo.task_id(), runningUpdate->status().task_id());
+  EXPECT_TRUE(runningUpdate->status().has_timestamp());
+  ASSERT_TRUE(runningUpdate->status().has_container_status());
+
+  slave.get()->terminate();
+  slave->reset();
+
+  Future<Nothing> _recover = FUTURE_DISPATCH(_, &Slave::_recover);
+
+  slave = this->StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(_recover);
+}
+
+
 // This is a regression test for MESOS-7926. It verifies that if
 // the default executor process is killed, the future of the nested
 // container destroy will be discarded and that discard will
