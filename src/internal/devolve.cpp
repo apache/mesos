@@ -124,6 +124,12 @@ ResourceProviderID devolve(const v1::ResourceProviderID& resourceProviderId)
   return id;
 }
 
+ResourceProviderInfo devolve(
+    const v1::ResourceProviderInfo& resourceProviderInfo)
+{
+  return devolve<ResourceProviderInfo>(resourceProviderInfo);
+}
+
 
 Resources devolve(const v1::Resources& resources)
 {
