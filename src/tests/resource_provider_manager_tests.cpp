@@ -857,11 +857,17 @@ TEST_F(ResourceProviderRegistrarTest, AgentRegistrar)
 
   AWAIT_READY(registrar.get()->recover());
 
-  AWAIT_READY(registrar.get()->apply(Owned<Registrar::Operation>(
-      new AdmitResourceProvider(resourceProviderId))));
+  Future<bool> admitResourceProvider =
+    registrar.get()->apply(Owned<Registrar::Operation>(
+        new AdmitResourceProvider(resourceProviderId)));
+  AWAIT_READY(admitResourceProvider);
+  EXPECT_TRUE(admitResourceProvider.get());
 
-  AWAIT_READY(registrar.get()->apply(Owned<Registrar::Operation>(
-      new RemoveResourceProvider(resourceProviderId))));
+  Future<bool> removeResourceProvider =
+    registrar.get()->apply(Owned<Registrar::Operation>(
+        new RemoveResourceProvider(resourceProviderId)));
+  AWAIT_READY(removeResourceProvider);
+  EXPECT_TRUE(removeResourceProvider.get());
 }
 
 
@@ -888,11 +894,17 @@ TEST_F(ResourceProviderRegistrarTest, MasterRegistrar)
 
   AWAIT_READY(masterRegistrar.recover(masterInfo));
 
-  AWAIT_READY(registrar.get()->apply(Owned<Registrar::Operation>(
-      new AdmitResourceProvider(resourceProviderId))));
+  Future<bool> admitResourceProvider =
+    registrar.get()->apply(Owned<Registrar::Operation>(
+        new AdmitResourceProvider(resourceProviderId)));
+  AWAIT_READY(admitResourceProvider);
+  EXPECT_TRUE(admitResourceProvider.get());
 
-  AWAIT_READY(registrar.get()->apply(Owned<Registrar::Operation>(
-      new RemoveResourceProvider(resourceProviderId))));
+  Future<bool> removeResourceProvider =
+    registrar.get()->apply(Owned<Registrar::Operation>(
+        new RemoveResourceProvider(resourceProviderId)));
+  AWAIT_READY(removeResourceProvider);
+  EXPECT_TRUE(removeResourceProvider.get());
 }
 
 
