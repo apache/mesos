@@ -1109,6 +1109,7 @@ TEST_P(ResourceProviderManagerHttpApiTest, ResubscribeResourceProvider)
   Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
 
   // The agent failover.
+  EXPECT_CALL(*resourceProvider, disconnected());
   agent->reset();
   agent = StartSlave(detector.get(), slaveFlags);
 
