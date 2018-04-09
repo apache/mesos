@@ -45,6 +45,19 @@ struct ResourceProviderMessage
     DISCONNECT
   };
 
+  friend std::ostream& operator<<(std::ostream& stream, const Type& type) {
+    switch (type) {
+      case Type::UPDATE_STATE:
+        return stream << "UPDATE_STATE";
+      case Type::UPDATE_OPERATION_STATUS:
+        return stream << "UPDATE_OPERATION_STATUS";
+      case Type::DISCONNECT:
+        return stream << "DISCONNECT";
+    }
+
+    UNREACHABLE();
+  }
+
   struct UpdateState
   {
     ResourceProviderInfo info;
@@ -75,6 +88,8 @@ inline std::ostream& operator<<(
     std::ostream& stream,
     const ResourceProviderMessage& resourceProviderMessage)
 {
+  stream << stringify(resourceProviderMessage.type) << ": ";
+
   switch (resourceProviderMessage.type) {
     case ResourceProviderMessage::Type::UPDATE_STATE: {
       const Option<ResourceProviderMessage::UpdateState>&
@@ -83,7 +98,6 @@ inline std::ostream& operator<<(
       CHECK_SOME(updateState);
 
       return stream
-          << "UPDATE_STATE: "
           << updateState->info.id() << " "
           << updateState->totalResources;
     }
@@ -96,7 +110,7 @@ inline std::ostream& operator<<(
       CHECK_SOME(updateOperationStatus);
 
       return stream
-          << "UPDATE_OPERATION_STATUS: (uuid: "
+          << "(uuid: "
           << updateOperationStatus->update.operation_uuid()
           << ") for framework "
           << updateOperationStatus->update.framework_id()
@@ -113,7 +127,7 @@ inline std::ostream& operator<<(
       CHECK_SOME(disconnect);
 
       return stream
-          << "DISCONNECT: resource provider "
+          << "resource provider "
           << disconnect->resourceProviderId;
     }
   }
