@@ -855,10 +855,11 @@ Future<Nothing> MesosContainerizerProcess::recover(
       containerizer::paths::isStandaloneContainer(
           flags.runtime_dir, containerId);
 
+    const ContainerID& rootContainerId =
+      protobuf::getRootContainerId(containerId);
+
     Option<string> directory;
     if (containerId.has_parent()) {
-      const ContainerID& rootContainerId =
-        protobuf::getRootContainerId(containerId);
       CHECK(containers_.contains(rootContainerId));
 
       if (containers_[rootContainerId]->directory.isSome()) {
@@ -905,7 +906,8 @@ Future<Nothing> MesosContainerizerProcess::recover(
     // elsewhere.
     const bool isRecoverableNestedContainer =
       containerId.has_parent() &&
-      (containers_.contains(protobuf::getRootContainerId(containerId))) &&
+      containers_.contains(rootContainerId) &&
+      !orphans.contains(rootContainerId) &&
       pid.isSome() &&
       !containerizer::paths::getContainerForceDestroyOnRecovery(
           flags.runtime_dir, containerId);
