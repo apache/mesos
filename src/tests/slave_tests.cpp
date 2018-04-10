@@ -10575,13 +10575,13 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ResourceProviderPublishAll)
   slave::Flags flags = CreateSlaveFlags();
   flags.authenticate_http_readwrite = false;
 
-  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
-    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
   ASSERT_SOME(slave);
 
-  AWAIT_READY(slaveRegisteredMessage);
+  AWAIT_READY(updateSlaveMessage);
 
   // Register a mock local resource provider with the agent.
   v1::ResourceProviderInfo resourceProviderInfo;
@@ -10598,10 +10598,14 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ResourceProviderPublishAll)
   Owned<EndpointDetector> endpointDetector(
       resource_provider::createEndpointDetector(slave.get()->pid));
 
+  updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
   resourceProvider.start(
       endpointDetector,
       ContentType::PROTOBUF,
       v1::DEFAULT_CREDENTIAL);
+
+  AWAIT_READY(updateSlaveMessage);
 
   // We want to register two frameworks to launch two concurrent tasks
   // that use the provider resources, and verify that when the second
