@@ -579,7 +579,7 @@ void ResourceProviderManagerProcess::subscribe(
     const HttpConnection& http,
     const Call::Subscribe& subscribe)
 {
-  ResourceProviderInfo resourceProviderInfo =
+  const ResourceProviderInfo& resourceProviderInfo =
     subscribe.resource_provider_info();
 
   LOG(INFO) << "Subscribing resource provider " << resourceProviderInfo;
