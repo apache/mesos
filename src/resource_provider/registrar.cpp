@@ -282,7 +282,13 @@ void AgentRegistrarProcess::update()
   Registry updatedRegistry = registry.get();
 
   foreach (Owned<Registrar::Operation>& operation, operations) {
-    (*operation)(&updatedRegistry);
+    Try<bool> operationResult = (*operation)(&updatedRegistry);
+
+    if (operationResult.isError()) {
+      LOG(WARNING)
+        << "Failed to apply operation on resource provider manager registry: "
+        << operationResult.error();
+    }
   }
 
   // Serialize updated registry.
