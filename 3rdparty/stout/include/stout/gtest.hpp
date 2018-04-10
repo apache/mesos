@@ -235,11 +235,15 @@ template <typename T1, typename T2>
 // with a count.  On Windows, `ping` waits one second between pings.
 // Additionally, because `ping` requires a count greater than 0,
 // we simply `exit 0` if the sleep is too short.
+//
+// This must not be replaced with `powershell -c Start-Sleep`, because
+// that causes flaky tests due to PowerShell crashing when a test
+// machine is overloaded. See MESOS-8308.
 #ifndef __WINDOWS__
 #define SLEEP_COMMAND(x) "sleep " #x
 #else
 #define SLEEP_COMMAND(x) \
-  "powershell -NoProfile -Command Start-Sleep -Seconds " #x
+  ((x) > 0 ? "ping 127.0.0.1 -n " #x " > NUL" : "cmd /C exit 0")
 #endif // __WINDOWS__
 
 
