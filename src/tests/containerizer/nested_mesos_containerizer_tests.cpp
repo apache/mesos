@@ -1706,6 +1706,113 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_RecoverNested)
 }
 
 
+// This test verifies that the agent could recover if the agent
+// metadata is empty but container runtime dir is not cleaned
+// up. This is a regression test for MESOS-8416.
+TEST_F(NestedMesosContainerizerTest,
+       ROOT_CGROUPS_RecoverNestedWithoutSlaveState)
+{
+  slave::Flags flags = CreateSlaveFlags();
+  flags.launcher = "linux";
+  flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
+
+  Fetcher fetcher(flags);
+
+  Try<MesosContainerizer*> create = MesosContainerizer::create(
+      flags,
+      false,
+      &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<MesosContainerizer> containerizer(create.get());
+
+  SlaveState state;
+  state.id = SlaveID();
+
+  AWAIT_READY(containerizer->recover(state));
+
+  ContainerID containerId;
+  containerId.set_value(id::UUID::random().toString());
+
+  ExecutorInfo executor = createExecutorInfo(
+      "executor",
+      "sleep 1000",
+      "cpus:1");
+
+  Try<string> directory = environment->mkdtemp();
+  ASSERT_SOME(directory);
+
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
+      containerId,
+      createContainerConfig(None(), executor, directory.get()),
+      map<string, string>(),
+      slave::paths::getForkedPidPath(
+          slave::paths::getMetaRootDir(flags.work_dir),
+          state.id,
+          executor.framework_id(),
+          executor.executor_id(),
+          containerId));
+
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
+
+  Future<ContainerStatus> status = containerizer->status(containerId);
+  AWAIT_READY(status);
+  ASSERT_TRUE(status->has_executor_pid());
+
+  // Now launch nested container.
+  ContainerID nestedContainerId;
+  nestedContainerId.mutable_parent()->CopyFrom(containerId);
+  nestedContainerId.set_value(id::UUID::random().toString());
+
+  launch = containerizer->launch(
+      nestedContainerId,
+      createContainerConfig(createCommandInfo("sleep 1000")),
+      map<string, string>(),
+      None());
+
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
+
+  status = containerizer->status(nestedContainerId);
+  AWAIT_READY(status);
+  ASSERT_TRUE(status->has_executor_pid());
+
+  // Force a delete on the containerizer before we create the new one.
+  containerizer.reset();
+
+  create = MesosContainerizer::create(
+      flags,
+      false,
+      &fetcher);
+
+  ASSERT_SOME(create);
+
+  containerizer.reset(create.get());
+
+  // Pass an empty slave state to simulate that the agent metadata
+  // is removed.
+  AWAIT_READY(containerizer->recover(state));
+
+  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
+  Future<Option<ContainerTermination>> nestedWait = containerizer->wait(
+      nestedContainerId);
+
+  AWAIT_READY(nestedWait);
+  ASSERT_SOME(nestedWait.get());
+
+  // We expect a wait status of SIGKILL on the nested container.
+  // Since the kernel will destroy these via a SIGKILL, we expect
+  // a SIGKILL here.
+  ASSERT_TRUE(nestedWait.get()->has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, nestedWait.get()->status());
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait.get()->has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, wait.get()->status());
+}
+
+
 TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_RecoverNestedWithoutConfig)
 {
   slave::Flags flags = CreateSlaveFlags();
