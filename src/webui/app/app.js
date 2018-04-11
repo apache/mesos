@@ -21,25 +21,25 @@
     config(['paginationConfig', '$routeProvider', function(paginationConfig, $routeProvider) {
       $routeProvider
         .when('/',
-          {templateUrl: 'static/home.html', controller: 'HomeCtrl'})
+          {templateUrl: 'app/home.html', controller: 'HomeCtrl'})
         .when('/agents',
-          {templateUrl: 'static/agents.html', controller: 'AgentsCtrl'})
+          {templateUrl: 'app/agents/agents.html', controller: 'AgentsCtrl'})
         .when('/agents/:agent_id',
-          {templateUrl: 'static/agent.html', controller: 'AgentCtrl'})
+          {templateUrl: 'app/agents/agent.html', controller: 'AgentCtrl'})
         .when('/agents/:agent_id/frameworks/:framework_id',
-          {templateUrl: 'static/agent_framework.html', controller: 'AgentFrameworkCtrl'})
+          {templateUrl: 'app/agents/agent-framework.html', controller: 'AgentFrameworkCtrl'})
         .when('/agents/:agent_id/frameworks/:framework_id/executors/:executor_id',
-          {templateUrl: 'static/agent_executor.html', controller: 'AgentExecutorCtrl'})
+          {templateUrl: 'app/agents/agent-executor.html', controller: 'AgentExecutorCtrl'})
         .when('/frameworks',
-          {templateUrl: 'static/frameworks.html', controller: 'FrameworksCtrl'})
+          {templateUrl: 'app/frameworks/frameworks.html', controller: 'FrameworksCtrl'})
         .when('/frameworks/:id',
-          {templateUrl: 'static/framework.html', controller: 'FrameworkCtrl'})
+          {templateUrl: 'app/frameworks/framework.html', controller: 'FrameworkCtrl'})
         .when('/maintenance',
-          {templateUrl: 'static/maintenance.html', controller: 'MaintenanceCtrl'})
+          {templateUrl: 'app/maintenance/maintenance.html', controller: 'MaintenanceCtrl'})
         .when('/offers',
-          {templateUrl: 'static/offers.html', controller: 'OffersCtrl'})
+          {templateUrl: 'app/offers/offers.html', controller: 'OffersCtrl'})
         .when('/roles',
-          {templateUrl: 'static/roles.html', controller: 'RolesCtrl'})
+          {templateUrl: 'app/roles/roles.html', controller: 'RolesCtrl'})
 
         // TODO(tomxing): Remove the following '/slaves/*' paths once the
         // slave->agent rename is complete(MESOS-3779).
@@ -64,7 +64,7 @@
         .when('/agents/:agent_id/frameworks/:framework_id/executors/:executor_id/tasks/:task_id/browse',
           {template: ' ', controller: 'AgentTaskAndExecutorRerouterCtrl'})
         .when('/agents/:agent_id/browse',
-          {templateUrl: 'static/browse.html', controller: 'BrowseCtrl'})
+          {templateUrl: 'app/agents/agent-browse.html', controller: 'BrowseCtrl'})
 
         // TODO(tomxing): Remove the following '/slaves/*' paths once the
         // slave->agent rename is complete(MESOS-3779).
@@ -254,14 +254,14 @@
             $rootScope.$broadcast('mTimestamp.toggle');
           };
         },
-        templateUrl: 'static/directives/timestamp.html'
+        templateUrl: 'app/shared/timestamp.html'
       }
     }])
     .directive('mPagination', function() {
-      return { templateUrl: 'static/directives/pagination.html' }
+      return { templateUrl: 'app/shared/pagination.html' }
     })
     .directive('mTableHeader', function() {
-      return { templateUrl: 'static/directives/tableHeader.html' }
+      return { templateUrl: 'app/shared/table-header.html' }
     })
     .directive('mTable', ['$compile', '$filter', function($compile, $filter) {
       /* This directive does not have a template. The DOM doesn't like

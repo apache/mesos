@@ -78,7 +78,7 @@
     localStorage.setItem(storageKey, url);
 
     var pailer =
-      window.open('static/pailer.html', storageKey, 'width=580px, height=700px');
+      window.open('app/shared/pailer.html', storageKey, 'width=580px, height=700px');
 
     // Need to use window.onload instead of document.ready to make
     // sure the title doesn't get overwritten.
@@ -472,7 +472,7 @@
         resolve: {
           scope: function() { return $scope; }
         },
-        templateUrl: "template/dialog/masterGone.html"
+        templateUrl: "template/dialog/master-gone.html"
       });
 
       // Make it such that everytime we hide the error-modal, we stop the

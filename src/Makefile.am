@@ -1778,60 +1778,60 @@ dist_bin_SCRIPTS +=							\
 # that 'datadir' (e.g., /usr/local/share) is for read-only "data" and
 # 'sysconfdir' (e.g., /usr/local/var) is for modifiable "data".
 nobase_dist_pkgdata_DATA +=						\
-  webui/master/static/js/app.js						\
-  webui/master/static/js/controllers.js					\
-  webui/master/static/js/jquery.pailer.js				\
-  webui/master/static/js/services.js
+  webui/app/app.js							\
+  webui/app/controllers.js						\
+  webui/app/services.js
 
 # Need to distribute/install webui CSS.
 nobase_dist_pkgdata_DATA +=						\
-  webui/master/static/css/bootstrap-3.3.6.min.css			\
-  webui/master/static/css/bootstrap-table-1.11.1.min.css		\
-  webui/master/static/css/mesos.css
+  webui/assets/css/bootstrap-3.3.6.min.css                              \
+  webui/assets/css/bootstrap-table-1.11.1.min.css\
+  webui/assets/css/mesos.css
 
 # Need to distribute/install webui HTML.
 nobase_dist_pkgdata_DATA +=						\
-  webui/master/static/agent.html					\
-  webui/master/static/agents.html					\
-  webui/master/static/agent_executor.html				\
-  webui/master/static/agent_framework.html				\
-  webui/master/static/browse.html					\
-  webui/master/static/framework.html					\
-  webui/master/static/frameworks.html					\
-  webui/master/static/home.html						\
-  webui/master/static/index.html					\
-  webui/master/static/maintenance.html					\
-  webui/master/static/offers.html					\
-  webui/master/static/pailer.html					\
-  webui/master/static/roles.html					\
-  webui/master/static/directives/pagination.html			\
-  webui/master/static/directives/tableHeader.html			\
-  webui/master/static/directives/timestamp.html
+  webui/index.html							\
+  webui/app/home.html							\
+  webui/app/agents/agent.html						\
+  webui/app/agents/agent-browse.html					\
+  webui/app/agents/agent-executor.html					\
+  webui/app/agents/agent-framework.html					\
+  webui/app/agents/agents.html						\
+  webui/app/frameworks/framework.html					\
+  webui/app/frameworks/frameworks.html					\
+  webui/app/maintenance/maintenance.html				\
+  webui/app/offers/offers.html						\
+  webui/app/roles/roles.html						\
+  webui/app/shared/pagination.html					\
+  webui/app/shared/pailer.html						\
+  webui/app/shared/table-header.html					\
+  webui/app/shared/timestamp.html
 
 # Need to distribute/install webui images.
 nobase_dist_pkgdata_DATA +=						\
-  webui/master/static/ico/favicon.ico					\
-  webui/master/static/img/loading.gif					\
-  webui/master/static/img/mesos_logo.png
+  webui/assets/ico/favicon.ico						\
+  webui/assets/img/loading.gif						\
+  webui/assets/img/mesos-logo.png
 
 # Need to distribute/install webui fonts.
 nobase_dist_pkgdata_DATA +=						\
-  webui/master/static/fonts/glyphicons-halflings-regular.eot		\
-  webui/master/static/fonts/glyphicons-halflings-regular.svg		\
-  webui/master/static/fonts/glyphicons-halflings-regular.ttf		\
-  webui/master/static/fonts/glyphicons-halflings-regular.woff		\
-  webui/master/static/fonts/glyphicons-halflings-regular.woff2
+  webui/assets/fonts/glyphicons-halflings-regular.eot			\
+  webui/assets/fonts/glyphicons-halflings-regular.svg			\
+  webui/assets/fonts/glyphicons-halflings-regular.ttf			\
+  webui/assets/fonts/glyphicons-halflings-regular.woff			\
+  webui/assets/fonts/glyphicons-halflings-regular.woff2
 
 # Need to distribute/install third-party javascript.
 nobase_dist_pkgdata_DATA +=						\
-  webui/master/static/js/angular-1.2.32.min.js				\
-  webui/master/static/js/angular-route-1.2.32.min.js			\
-  webui/master/static/js/bootstrap-table-1.11.1.min.js			\
-  webui/master/static/js/clipboard-1.5.16.min.js			\
-  webui/master/static/js/jquery-3.2.1.min.js				\
-  webui/master/static/js/relative-date.js				\
-  webui/master/static/js/ui-bootstrap-tpls-0.9.0.min.js			\
-  webui/master/static/js/underscore-1.4.3.min.js
+  webui/assets/libs/angular-1.2.32.min.js				\
+  webui/assets/libs/angular-route-1.2.32.min.js				\
+  webui/assets/libs/bootstrap-table-1.11.1.min.js			\
+  webui/assets/libs/clipboard-1.5.16.min.js				\
+  webui/assets/libs/jquery-3.2.1.min.js					\
+  webui/assets/libs/jquery.pailer.js					\
+  webui/assets/libs/relative-date.js					\
+  webui/assets/libs/ui-bootstrap-tpls-0.9.0.min.js			\
+  webui/assets/libs/underscore-1.4.3.min.js
 
 # And the deploy related stuff.
 nodist_sbin_SCRIPTS +=							\

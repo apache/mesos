@@ -1092,8 +1092,9 @@ void Master::initialize()
   // build directory before 'make install') or determined at build
   // time via the preprocessor macro '-DMESOS_WEBUI_DIR' set in the
   // Makefile.
-  provide("", path::join(flags.webui_dir, "master/static/index.html"));
-  provide("static", path::join(flags.webui_dir, "master/static"));
+  provide("", path::join(flags.webui_dir, "index.html"));
+  provide("app", path::join(flags.webui_dir, "app"));
+  provide("assets", path::join(flags.webui_dir, "assets"));
 
   const PID<Master> masterPid = self();
 
