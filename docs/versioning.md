@@ -16,15 +16,15 @@ This document describes the release strategy for Mesos post 1.0.0 release.
 
 ## Release Schedule
 
-Mesos releases are time-based, not feature-based. This gives users and developers a predictable cadence to consume and produce features.
+Mesos releases are time-based, though we do make limited adjustments to the release schedule to accommodate feature development. This gives users and developers a predictable cadence to consume and produce features, while ensuring that each release can include the developments that users are waiting for.
 
-If a feature is not ready by the time a release is cut, that feature should be disabled. This means that features should be developed in such a way that they are opt-in by default and can be easily disabled (e.g., flag). A feature completion should not typically block a release.
+If a feature is not ready by the time a release is cut, that feature should be disabled. This means that features should be developed in such a way that they are opt-in by default and can be easily disabled (e.g., flag).
 
-A new Mesos release is cut every **2 months**. The versioning scheme is [SemVer](http://semver.org). Typically, the minor release version is incremented by 1 (e.g., 1.1, 1.2, 1.3 etc) for every release, unless it is a major release.
+A new Mesos release is cut approximately every **3 months**. The versioning scheme is [SemVer](http://semver.org). Typically, the minor release version is incremented by 1 (e.g., 1.1, 1.2, 1.3 etc) for every release, unless it is a major release.
 
-Every (minor) release is a stable release and recommended for production use. This means a release candidate will go through rigorous testing (unit tests, integration tests, benchmark tests, cluster tests, scalability etc) before being officially released. In the rare case that a regular release is not deemed stable, a patch release will be released that will stabilize it.
+Every (minor) release is a stable release and recommended for production use. This means a release candidate will go through rigorous testing (unit tests, integration tests, benchmark tests, cluster tests, scalability, etc.) before being officially released. In the rare case that a regular release is not deemed stable, a patch release will be released that will stabilize it.
 
-Every (minor) release is supported for a period of **6 months**. Support means fixing of *critical issues* that affect the release. Once a release reaches End Of Life (i.e., support period has ended), no more patch releases will be made for that release. Note that this is not related to backwards compatibility guarantees and deprecation periods (discussed later).
+At any given time, 3 releases are supported: the latest release and the two prior. Support means fixing of *critical issues* that affect the release. Once an issue is deemed critical, it will be fixed in only those **affected** releases that are still **supported**. This is called a patch release and increments the patch version by 1 (e.g., 1.2.1). Once a release reaches End Of Life (i.e., support period has ended), no more patch releases will be made for that release. Note that this is not related to backwards compatibility guarantees and deprecation periods (discussed later).
 
 Which issues are considered critical?
 
@@ -35,8 +35,6 @@ Which issues are considered critical?
 * Fixes for 3rd party integration (e.g., Docker remote API)
 
 Whether an issue is considered critical or not is sometimes subjective. In some cases it is obvious and sometimes it is fuzzy. Users should work with committers to figure out the criticality of an issue and get agreement and commitment for support.
-
-Once an issue is deemed critical, it will be fixed in only those **affected** releases that are still **supported**. This is called a patch release and increments the patch version by 1 (e.g., 1.2.1).
 
 Patch releases are normally done **once per month**.
 
