@@ -458,35 +458,6 @@ Try<string> prepare(
     }
   }
 
-  // Test for nested cgroup support.
-  // TODO(jieyu): Consider doing this test only once.
-  const string& testCgroup = path::join(cgroup, "test");
-
-  // Create a nested test cgroup if it doesn't exist.
-  exists = cgroups::exists(hierarchy.get(), testCgroup);
-  if (exists.isError()) {
-    return Error(
-        "Failed to check existence of the nested test cgroup " +
-        path::join(hierarchy.get(), testCgroup) +
-        ": " + exists.error());
-  }
-
-  if (!exists.get()) {
-    // Make sure this kernel supports creating nested cgroups.
-    Try<Nothing> create = cgroups::create(hierarchy.get(), testCgroup);
-    if (create.isError()) {
-      return Error(
-          "Your kernel might be too old to support nested cgroup: " +
-          create.error());
-    }
-  }
-
-  // Remove the nested 'test' cgroup.
-  Try<Nothing> remove = cgroups::remove(hierarchy.get(), testCgroup);
-  if (remove.isError()) {
-    return Error("Failed to remove the nested test cgroup: " + remove.error());
-  }
-
   return hierarchy.get();
 }
 
