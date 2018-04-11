@@ -1868,7 +1868,7 @@ void HierarchicalAllocatorProcess::__allocate()
         //
         // NOTE: Since we currently only support top-level roles to
         // have quota, there are no ancestor reservations involved here.
-        Resources resources = available.reserved(role).nonRevocable();
+        Resources toAllocate = available.reserved(role).nonRevocable();
 
         // This is a scalar quantity with no meta-data.
         Resources unsatisfiedQuotaGuarantee =
@@ -1894,14 +1894,14 @@ void HierarchicalAllocatorProcess::__allocate()
         newQuotaAllocation = shrinkResources(newQuotaAllocation,
             unsatisfiedQuotaGuaranteeScalarLimit);
 
-        resources += newQuotaAllocation;
+        toAllocate += newQuotaAllocation;
 
         // We only include the non-quota guarantee resources (with headroom
         // taken into account) if this role is getting any other resources
         // as well i.e. it is getting either some quota guarantee resources or
         // a reservation. Otherwise, this role is not going to get any
         // allocation. We can safely `continue` here.
-        if (resources.empty()) {
+        if (toAllocate.empty()) {
           continue;
         }
 
@@ -1939,12 +1939,12 @@ void HierarchicalAllocatorProcess::__allocate()
         nonQuotaGuaranteeResources =
           shrinkResources(nonQuotaGuaranteeResources, headroomScalarLimit);
 
-        resources += nonQuotaGuaranteeResources;
+        toAllocate += nonQuotaGuaranteeResources;
 
         // Lastly, allocate non-scalar resources--we currently do not support
         // setting quota for non-scalar resources. They are always allocated
         // in full.
-        resources +=
+        toAllocate +=
           unreserved.filter([] (const Resource& resource) {
             return resource.type() != Value::SCALAR;
           });
@@ -1958,7 +1958,7 @@ void HierarchicalAllocatorProcess::__allocate()
         // NOTE: The resources may not be allocatable here, but they can be
         // accepted by one of the frameworks during the second allocation
         // stage.
-        if (!allocatable(resources)) {
+        if (!allocatable(toAllocate)) {
           break;
         }
 
@@ -1972,27 +1972,27 @@ void HierarchicalAllocatorProcess::__allocate()
         // resources with refined reservations if the framework does not have
         // the capability.
         if (!framework.capabilities.reservationRefinement) {
-          resources = resources.filter([](const Resource& resource) {
+          toAllocate = toAllocate.filter([](const Resource& resource) {
             return !Resources::hasRefinedReservations(resource);
           });
         }
 
         // If the framework filters these resources, ignore.
-        if (isFiltered(frameworkId, role, slaveId, resources)) {
+        if (isFiltered(frameworkId, role, slaveId, toAllocate)) {
           continue;
         }
 
-        VLOG(2) << "Allocating " << resources << " on agent " << slaveId
+        VLOG(2) << "Allocating " << toAllocate << " on agent " << slaveId
                 << " to role " << role << " of framework " << frameworkId
                 << " as part of its role quota";
 
-        resources.allocate(role);
+        toAllocate.allocate(role);
 
-        offerable[frameworkId][role][slaveId] += resources;
-        offeredSharedResources[slaveId] += resources.shared();
+        offerable[frameworkId][role][slaveId] += toAllocate;
+        offeredSharedResources[slaveId] += toAllocate.shared();
 
         Resources allocatedUnreserved =
-          resources.unreserved().createStrippedScalarQuantity();
+          toAllocate.unreserved().createStrippedScalarQuantity();
 
         // Update role consumed quota.
         rolesConsumedQuotaScalarQuantites[role] += allocatedUnreserved;
@@ -2010,9 +2010,9 @@ void HierarchicalAllocatorProcess::__allocate()
         // in the cluster.
         availableHeadroom -= allocatedUnreserved;
 
-        slave.allocated += resources;
+        slave.allocated += toAllocate;
 
-        trackAllocatedResources(slaveId, frameworkId, resources);
+        trackAllocatedResources(slaveId, frameworkId, toAllocate);
       }
     }
   }
@@ -2086,7 +2086,7 @@ void HierarchicalAllocatorProcess::__allocate()
         // Calling reserved('*') returns an empty Resources object.
         //
         // TODO(mpark): Offer unreserved resources as revocable beyond quota.
-        Resources resources = available.allocatableTo(role);
+        Resources toAllocate = available.allocatableTo(role);
 
         // It is safe to break here, because all frameworks under a role would
         // consider the same resources, so in case we don't have allocatable
@@ -2098,13 +2098,13 @@ void HierarchicalAllocatorProcess::__allocate()
         // check for revocable resources, which can be disabled on a per frame-
         // work basis, which requires us to go through all frameworks in case we
         // have allocatable revocable resources.
-        if (!allocatable(resources)) {
+        if (!allocatable(toAllocate)) {
           break;
         }
 
         // Remove revocable resources if the framework has not opted for them.
         if (!framework.capabilities.revocableResources) {
-          resources = resources.nonRevocable();
+          toAllocate = toAllocate.nonRevocable();
         }
 
         // When reservation refinements are present, old frameworks without the
@@ -2117,14 +2117,14 @@ void HierarchicalAllocatorProcess::__allocate()
         // resources with refined reservations if the framework does not have
         // the capability.
         if (!framework.capabilities.reservationRefinement) {
-          resources = resources.filter([](const Resource& resource) {
+          toAllocate = toAllocate.filter([](const Resource& resource) {
             return !Resources::hasRefinedReservations(resource);
           });
         }
 
         // If allocating these resources would reduce the headroom
         // below what is required, we will hold them back.
-        const Resources headroomToAllocate = resources
+        const Resources headroomToAllocate = toAllocate
           .scalars().unreserved().nonRevocable();
 
         bool sufficientHeadroom =
@@ -2133,39 +2133,39 @@ void HierarchicalAllocatorProcess::__allocate()
             .contains(requiredHeadroom);
 
         if (!sufficientHeadroom) {
-          resources -= headroomToAllocate;
+          toAllocate -= headroomToAllocate;
         }
 
         // If the resources are not allocatable, ignore. We cannot break
         // here, because another framework under the same role could accept
         // revocable resources and breaking would skip all other frameworks.
-        if (!allocatable(resources)) {
+        if (!allocatable(toAllocate)) {
           continue;
         }
 
         // If the framework filters these resources, ignore.
-        if (isFiltered(frameworkId, role, slaveId, resources)) {
+        if (isFiltered(frameworkId, role, slaveId, toAllocate)) {
           continue;
         }
 
-        VLOG(2) << "Allocating " << resources << " on agent " << slaveId
+        VLOG(2) << "Allocating " << toAllocate << " on agent " << slaveId
                 << " to role " << role << " of framework " << frameworkId;
 
-        resources.allocate(role);
+        toAllocate.allocate(role);
 
         // NOTE: We perform "coarse-grained" allocation, meaning that we always
         // allocate the entire remaining slave resources to a single framework.
-        offerable[frameworkId][role][slaveId] += resources;
-        offeredSharedResources[slaveId] += resources.shared();
+        offerable[frameworkId][role][slaveId] += toAllocate;
+        offeredSharedResources[slaveId] += toAllocate.shared();
 
         if (sufficientHeadroom) {
           availableHeadroom -=
             headroomToAllocate.createStrippedScalarQuantity();
         }
 
-        slave.allocated += resources;
+        slave.allocated += toAllocate;
 
-        trackAllocatedResources(slaveId, frameworkId, resources);
+        trackAllocatedResources(slaveId, frameworkId, toAllocate);
       }
     }
   }
