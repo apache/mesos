@@ -116,7 +116,8 @@ public:
 
   MOCK_METHOD1(
       destroy,
-      process::Future<bool>(const ContainerID&));
+      process::Future<Option<mesos::slave::ContainerTermination>>(
+          const ContainerID&));
 
   MOCK_METHOD2(
       kill,
@@ -128,7 +129,7 @@ public:
 
   // Additional destroy method for testing because we won't know the
   // ContainerID created for each container.
-  process::Future<bool> destroy(
+  process::Future<Option<mesos::slave::ContainerTermination>> destroy(
       const FrameworkID& frameworkId,
       const ExecutorID& executorId);
 
@@ -164,7 +165,7 @@ private:
   process::Future<Option<mesos::slave::ContainerTermination>> _wait(
       const ContainerID& containerId);
 
-  process::Future<bool> _destroy(
+  process::Future<Option<mesos::slave::ContainerTermination>> _destroy(
       const ContainerID& containerId);
 
   process::Future<bool> _kill(

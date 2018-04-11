@@ -655,7 +655,8 @@ Slave::~Slave()
       process::Future<Option<ContainerTermination>> wait =
         containerizer->wait(containerId);
 
-      process::Future<bool> destroy = containerizer->destroy(containerId);
+      process::Future<Option<ContainerTermination>> destroy =
+        containerizer->destroy(containerId);
 
       AWAIT(destroy);
       AWAIT(wait);

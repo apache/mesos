@@ -89,7 +89,7 @@ TEST_F(ComposingContainerizerTest, DestroyDuringUnsupportedLaunchLoop)
     .WillOnce(Return(launchPromise.future()));
 
   Future<Nothing> destroy;
-  Promise<bool> destroyPromise;
+  Promise<Option<ContainerTermination>> destroyPromise;
   EXPECT_CALL(*mockContainerizer1, destroy(_))
     .WillOnce(DoAll(FutureSatisfy(&destroy),
                     Return(destroyPromise.future())));
@@ -104,7 +104,8 @@ TEST_F(ComposingContainerizerTest, DestroyDuringUnsupportedLaunchLoop)
 
   EXPECT_TRUE(launched.isPending());
 
-  Future<bool> destroyed = containerizer.destroy(containerId);
+  Future<Option<ContainerTermination>> destroyed =
+    containerizer.destroy(containerId);
 
   EXPECT_CALL(*mockContainerizer2, launch(_, _, _, _))
     .Times(0);
@@ -115,13 +116,15 @@ TEST_F(ComposingContainerizerTest, DestroyDuringUnsupportedLaunchLoop)
   AWAIT_READY(destroy);
 
   launchPromise.set(Containerizer::LaunchResult::NOT_SUPPORTED);
-  destroyPromise.set(false);
+  destroyPromise.set(Option<ContainerTermination>::none());
 
   // `launched` should be a failure and `destroyed` should be true
   // because the launch was stopped from being tried on the 2nd
   // containerizer because of the destroy.
   AWAIT_FAILED(launched);
-  AWAIT_EXPECT_EQ(true, destroyed);
+
+  AWAIT_READY(destroyed);
+  EXPECT_SOME(destroyed.get());
 }
 
 
@@ -155,7 +158,7 @@ TEST_F(ComposingContainerizerTest, DestroyDuringSupportedLaunchLoop)
     .WillOnce(Return(launchPromise.future()));
 
   Future<Nothing> destroy;
-  Promise<bool> destroyPromise;
+  Promise<Option<ContainerTermination>> destroyPromise;
   EXPECT_CALL(*mockContainerizer1, destroy(_))
     .WillOnce(DoAll(FutureSatisfy(&destroy),
                     Return(destroyPromise.future())));
@@ -170,7 +173,8 @@ TEST_F(ComposingContainerizerTest, DestroyDuringSupportedLaunchLoop)
 
   EXPECT_TRUE(launched.isPending());
 
-  Future<bool> destroyed = containerizer.destroy(containerId);
+  Future<Option<ContainerTermination>> destroyed =
+    containerizer.destroy(containerId);
 
   EXPECT_CALL(*mockContainerizer2, launch(_, _, _, _))
     .Times(0);
@@ -181,12 +185,14 @@ TEST_F(ComposingContainerizerTest, DestroyDuringSupportedLaunchLoop)
   AWAIT_READY(destroy);
 
   launchPromise.set(Containerizer::LaunchResult::SUCCESS);
-  destroyPromise.set(false);
+  destroyPromise.set(Option<ContainerTermination>::none());
 
   // `launched` should return true and `destroyed` should return false
   // because the launch succeeded and `destroyPromise` was set to false.
   AWAIT_EXPECT_EQ(Containerizer::LaunchResult::SUCCESS, launched);
-  AWAIT_EXPECT_EQ(false, destroyed);
+
+  AWAIT_READY(destroyed);
+  EXPECT_NONE(destroyed.get());
 }
 
 
@@ -217,7 +223,7 @@ TEST_F(ComposingContainerizerTest, DestroyAfterLaunchLoop)
     .WillOnce(Return(launchPromise.future()));
 
   Future<Nothing> destroy;
-  Promise<bool> destroyPromise;
+  Promise<Option<ContainerTermination>> destroyPromise;
   EXPECT_CALL(*mockContainerizer1, destroy(_))
     .WillOnce(DoAll(FutureSatisfy(&destroy),
                     Return(destroyPromise.future())));
@@ -232,18 +238,21 @@ TEST_F(ComposingContainerizerTest, DestroyAfterLaunchLoop)
 
   EXPECT_TRUE(launched.isPending());
 
-  Future<bool> destroyed = containerizer.destroy(containerId);
+  Future<Option<ContainerTermination>> destroyed =
+    containerizer.destroy(containerId);
 
   // We make sure the destroy is being called on the containerizer.
   AWAIT_READY(destroy);
 
   launchPromise.set(Containerizer::LaunchResult::NOT_SUPPORTED);
-  destroyPromise.set(false);
+  destroyPromise.set(Option<ContainerTermination>::none());
 
   // `launch` should return false and `destroyed` should return false
   // because none of the containerizers support the launch.
   AWAIT_EXPECT_EQ(Containerizer::LaunchResult::NOT_SUPPORTED, launched);
-  AWAIT_EXPECT_EQ(false, destroyed);
+
+  AWAIT_READY(destroyed);
+  EXPECT_NONE(destroyed.get());
 }
 
 
@@ -264,7 +273,11 @@ TEST_F(ComposingContainerizerTest, DestroyUnknownContainer)
   ContainerID containerId;
   containerId.set_value(id::UUID::random().toString());
 
-  AWAIT_EXPECT_FALSE(containerizer.destroy(containerId));
+  Future<Option<ContainerTermination>> destroyed =
+    containerizer.destroy(containerId);
+
+  AWAIT_READY(destroyed);
+  EXPECT_NONE(destroyed.get());
 }
 
 

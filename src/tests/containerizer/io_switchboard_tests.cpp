@@ -756,7 +756,8 @@ TEST_F(IOSwitchboardTest, ContainerAttach)
 
   Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
 
-  Future<bool> destroy = containerizer->destroy(containerId);
+  Future<Option<ContainerTermination>> destroy =
+    containerizer->destroy(containerId);
   AWAIT_READY(destroy);
 
   AWAIT_READY(wait);

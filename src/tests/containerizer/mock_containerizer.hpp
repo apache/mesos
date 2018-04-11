@@ -76,7 +76,8 @@ public:
 
   MOCK_METHOD1(
       destroy,
-      process::Future<bool>(const ContainerID&));
+      process::Future<Option<mesos::slave::ContainerTermination>>(
+          const ContainerID&));
 
   MOCK_METHOD0(
       containers,

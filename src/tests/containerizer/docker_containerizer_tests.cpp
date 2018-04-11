@@ -3512,7 +3512,11 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyUnknownContainer)
   ContainerID containerId;
   containerId.set_value(id::UUID::random().toString());
 
-  AWAIT_EXPECT_FALSE(containerizer->destroy(containerId));
+  Future<Option<ContainerTermination>> destroyed =
+    containerizer->destroy(containerId);
+
+  AWAIT_READY(destroyed);
+  EXPECT_NONE(destroyed.get());
 }
 
 
