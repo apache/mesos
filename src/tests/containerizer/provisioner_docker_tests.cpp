@@ -459,6 +459,148 @@ TEST_F(ProvisionerDockerTest, ROOT_LocalPullerSimpleCommand)
 }
 
 
+class ProvisionerDockerHdfsTest
+  : public MesosTest,
+    public WithParamInterface<string> {};
+
+
+// The host of HDFS can be a remote host or local directory.
+INSTANTIATE_TEST_CASE_P(
+    HdfsHost,
+    ProvisionerDockerHdfsTest,
+    ::testing::ValuesIn(vector<string>({
+        "hdfs://localhost:8020",
+        "hdfs://"})));
+
+
+// This test verifies that the local puller could pull image
+// with the hdfs uri fetcher plugin.
+TEST_P(ProvisionerDockerHdfsTest, ROOT_LocalPullerHdfsFetcherSimpleCommand)
+{
+  string hadoopPath = os::getcwd();
+  ASSERT_TRUE(os::exists(hadoopPath));
+
+  string hadoopBinPath = path::join(hadoopPath, "bin");
+  ASSERT_SOME(os::mkdir(hadoopBinPath));
+  ASSERT_SOME(os::chmod(hadoopBinPath, S_IRWXU | S_IRWXG | S_IRWXO));
+
+  const string& proof = path::join(hadoopPath, "proof");
+
+  // This acts exactly as "hadoop" for testing purposes. On some platforms, the
+  // "hadoop" wrapper command will emit a warning that Hadoop installation has
+  // no native code support. We always emit that here to make sure it is parsed
+  // correctly.
+  string mockHadoopScript =
+    "#!/usr/bin/env bash\n"
+    "\n"
+    "touch " + proof + "\n"
+    "\n"
+    "now=$(date '+%y/%m/%d %I:%M:%S')\n"
+    "echo \"$now WARN util.NativeCodeLoader: "
+      "Unable to load native-hadoop library for your platform...\" 1>&2\n"
+    "\n"
+    "if [[ 'version' == $1 ]]; then\n"
+    "  echo $0 'for Mesos testing'\n"
+    "fi\n"
+    "\n"
+    "# hadoop fs -copyToLocal $3 $4\n"
+    "if [[ 'fs' == $1 && '-copyToLocal' == $2 ]]; then\n"
+    "  if [[ $3 == 'hdfs://'* ]]; then\n"
+    "    # Remove 'hdfs://<host>/' and use just the (absolute) path.\n"
+    "    withoutProtocol=${3/'hdfs:'\\/\\//}\n"
+    "    withoutHost=${withoutProtocol#*\\/}\n"
+    "    absolutePath='/'$withoutHost\n"
+    "   cp $absolutePath $4\n"
+    "  else\n"
+    "    cp $3 $4\n"
+    "  fi\n"
+    "fi\n";
+
+  string hadoopCommand = path::join(hadoopBinPath, "hadoop");
+  ASSERT_SOME(os::write(hadoopCommand, mockHadoopScript));
+  ASSERT_SOME(os::chmod(hadoopCommand,
+                        S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH));
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  const string directory = path::join(os::getcwd(), "archives");
+
+  Future<Nothing> testImage = DockerArchive::create(directory, "alpine");
+  AWAIT_READY(testImage);
+
+  ASSERT_TRUE(os::exists(path::join(directory, "alpine.tar")));
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "docker/runtime,filesystem/linux";
+  flags.image_providers = "docker";
+  flags.docker_registry = GetParam() + directory;
+  flags.docker_store_dir = path::join(os::getcwd(), "store");
+  flags.hadoop_home = hadoopPath;
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
+
+  const Offer& offer = offers.get()[0];
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:128").get(),
+      "ls -al /");
+
+  Image image;
+  image.set_type(Image::DOCKER);
+  image.mutable_docker()->set_name("alpine");
+
+  ContainerInfo* container = task.mutable_container();
+  container->set_type(ContainerInfo::MESOS);
+  container->mutable_mesos()->mutable_image()->CopyFrom(image);
+
+  Future<TaskStatus> statusStarting;
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFinished;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished));
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY_FOR(statusStarting, Seconds(60));
+  EXPECT_EQ(task.task_id(), statusStarting->task_id());
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
+
+  AWAIT_READY_FOR(statusRunning, Seconds(60));
+  EXPECT_EQ(task.task_id(), statusRunning->task_id());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  AWAIT_READY(statusFinished);
+  EXPECT_EQ(task.task_id(), statusFinished->task_id());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
+
+  driver.stop();
+  driver.join();
+}
+
+
 // For official Docker images, users can omit the 'library/' prefix
 // when specifying the repository name (e.g., 'busybox'). The registry
 // puller normalize docker official images if necessary.
