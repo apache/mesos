@@ -2589,7 +2589,7 @@ Future<Response> Http::_launchContainer(
           << (launchResult.isFailed() ? launchResult.failure() : "discarded");
 
         slave->containerizer->destroy(containerId)
-          .onAny([=](const Future<bool>& destroy) {
+          .onAny([=](const Future<Option<ContainerTermination>>& destroy) {
             if (destroy.isReady()) {
               return;
             }

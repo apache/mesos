@@ -87,7 +87,8 @@ public:
   Future<Option<ContainerTermination>> wait(
       const ContainerID& containerId);
 
-  Future<bool> destroy(const ContainerID& containerId);
+  Future<Option<ContainerTermination>> destroy(
+      const ContainerID& containerId);
 
   Future<bool> kill(const ContainerID& containerId, int signal);
 
@@ -135,7 +136,7 @@ private:
   {
     State state;
     Containerizer* containerizer;
-    Promise<bool> destroyed;
+    Promise<Option<ContainerTermination>> destroyed;
   };
 
   hashmap<ContainerID, Container*> containers_;
@@ -228,7 +229,8 @@ Future<Option<ContainerTermination>> ComposingContainerizer::wait(
 }
 
 
-Future<bool> ComposingContainerizer::destroy(const ContainerID& containerId)
+Future<Option<ContainerTermination>> ComposingContainerizer::destroy(
+    const ContainerID& containerId)
 {
   return dispatch(process,
                   &ComposingContainerizerProcess::destroy,
@@ -370,10 +372,10 @@ Future<Containerizer::LaunchResult> ComposingContainerizerProcess::_launch(
   if (containerizer == containerizers_.end()) {
     // If we are here none of the containerizers support the launch.
 
-    // We set this to `false` because the container has no chance of
+    // We set this to `None` because the container has no chance of
     // getting launched by any containerizer. This is similar to what
     // would happen if the destroy "started" after launch returned false.
-    container->destroyed.set(false);
+    container->destroyed.set(Option<ContainerTermination>::none());
 
     // We destroy the container irrespective whether
     // a destroy is already in progress, for simplicity.
@@ -389,9 +391,10 @@ Future<Containerizer::LaunchResult> ComposingContainerizerProcess::_launch(
     // potentially launch this container. But since a destroy is in progress
     // we do not try any other containerizers.
 
-    // We set this to `true` because the destroy-in-progress stopped an
+    // We set this because the destroy-in-progress stopped an
     // launch-in-progress (using the next containerizer).
-    container->destroyed.set(true);
+    container->destroyed.set(
+        Option<ContainerTermination>(ContainerTermination()));
 
     containers_.erase(containerId);
     delete container;
@@ -511,10 +514,10 @@ Future<Containerizer::LaunchResult> ComposingContainerizerProcess::_launch(
 
   // If we are here, the launch is not supported by the containerizer.
 
-  // We set this to `false` because the container has no chance of
+  // We set this to `None` because the container has no chance of
   // getting launched. This is similar to what would happen if the
   // destroy "started" after launch returned false.
-  container->destroyed.set(false);
+  container->destroyed.set(Option<ContainerTermination>::none());
 
   // We destroy the container irrespective whether
   // a destroy is already in progress, for simplicity.
@@ -590,7 +593,7 @@ Future<Option<ContainerTermination>> ComposingContainerizerProcess::wait(
 }
 
 
-Future<bool> ComposingContainerizerProcess::destroy(
+Future<Option<ContainerTermination>> ComposingContainerizerProcess::destroy(
     const ContainerID& containerId)
 {
   if (!containers_.contains(containerId)) {
@@ -599,7 +602,7 @@ Future<bool> ComposingContainerizerProcess::destroy(
     // Move this logging into the callers.
     LOG(WARNING) << "Attempted to destroy unknown container " << containerId;
 
-    return false;
+    return None();
   }
 
   Container* container = containers_.at(containerId);
@@ -619,24 +622,26 @@ Future<bool> ComposingContainerizerProcess::destroy(
       // container. If the launch returns false, we will stop trying
       // to launch the container on other containerizers.
       container->containerizer->destroy(containerId)
-        .onAny(defer(self(), [=](const Future<bool>& destroy) {
-          // We defer the association of the promise in order to
-          // surface a successful destroy (by setting
-          // `Container.destroyed` to true in `_launch()`) when
-          // the containerizer cannot handle this type of container
-          // (`launch()` returns false). If we do not defer here and
-          // instead associate the future right away, the setting of
-          // `Container.destroy` in `_launch()` will be a no-op;
-          // this might result in users waiting on the future
-          // incorrectly thinking that the destroy failed when in
-          // fact the destroy is implicitly successful because the
-          // launch failed.
-          if (containers_.contains(containerId)) {
-            containers_.at(containerId)->destroyed.associate(destroy);
-            delete containers_.at(containerId);
-            containers_.erase(containerId);
-          }
-        }));
+        .onAny(defer(
+            self(),
+            [=](const Future<Option<ContainerTermination>>& destroy) {
+              // We defer the association of the promise in order to
+              // surface a successful destroy (by setting
+              // `Container.destroyed` to true in `_launch()`) when
+              // the containerizer cannot handle this type of container
+              // (`launch()` returns false). If we do not defer here and
+              // instead associate the future right away, the setting of
+              // `Container.destroy` in `_launch()` will be a no-op;
+              // this might result in users waiting on the future
+              // incorrectly thinking that the destroy failed when in
+              // fact the destroy is implicitly successful because the
+              // launch failed.
+              if (containers_.contains(containerId)) {
+                containers_.at(containerId)->destroyed.associate(destroy);
+                delete containers_.at(containerId);
+                containers_.erase(containerId);
+              }
+            }));
 
       break;
 
@@ -647,12 +652,14 @@ Future<bool> ComposingContainerizerProcess::destroy(
           container->containerizer->destroy(containerId));
 
       container->destroyed.future()
-        .onAny(defer(self(), [=](const Future<bool>& destroy) {
-          if (containers_.contains(containerId)) {
-            delete containers_.at(containerId);
-            containers_.erase(containerId);
-          }
-        }));
+        .onAny(defer(
+            self(),
+            [=](const Future<Option<ContainerTermination>>& destroy) {
+              if (containers_.contains(containerId)) {
+                delete containers_.at(containerId);
+                containers_.erase(containerId);
+              }
+            }));
 
       break;
   }

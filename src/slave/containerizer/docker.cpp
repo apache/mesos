@@ -870,7 +870,8 @@ Future<Option<ContainerTermination>> DockerContainerizer::wait(
 }
 
 
-Future<bool> DockerContainerizer::destroy(const ContainerID& containerId)
+Future<Option<ContainerTermination>> DockerContainerizer::destroy(
+    const ContainerID& containerId)
 {
   return dispatch(
       process.get(),
@@ -2197,7 +2198,7 @@ Future<Option<ContainerTermination>> DockerContainerizerProcess::wait(
 }
 
 
-Future<bool> DockerContainerizerProcess::destroy(
+Future<Option<ContainerTermination>> DockerContainerizerProcess::destroy(
     const ContainerID& containerId,
     bool killed)
 {
@@ -2207,7 +2208,7 @@ Future<bool> DockerContainerizerProcess::destroy(
     // Move this logging into the callers.
     LOG(WARNING) << "Attempted to destroy unknown container " << containerId;
 
-    return false;
+    return None();
   }
 
   // TODO(klueska): Ideally, we would do this check as the first thing
@@ -2230,19 +2231,21 @@ Future<bool> DockerContainerizerProcess::destroy(
     // cleanup.
     CHECK_PENDING(container->status.future());
 
+    ContainerTermination termination;
+
     // NOTE: The launch error message will be retrieved by the slave
     // and properly set in the corresponding status update.
-    container->termination.set(ContainerTermination());
+    container->termination.set(termination);
 
     containers_.erase(containerId);
     delete container;
 
-    return true;
+    return termination;
   }
 
   if (container->state == Container::DESTROYING) {
     return container->termination.future()
-      .then([]() { return true; });
+      .then(Option<ContainerTermination>::some);
   }
 
   // It's possible that destroy is getting called before
@@ -2281,7 +2284,7 @@ Future<bool> DockerContainerizerProcess::destroy(
     containers_.erase(containerId);
     delete container;
 
-    return true;
+    return termination;
   }
 
   if (container->state == Container::PULLING) {
@@ -2296,7 +2299,7 @@ Future<bool> DockerContainerizerProcess::destroy(
     containers_.erase(containerId);
     delete container;
 
-    return true;
+    return termination;
   }
 
   if (container->state == Container::MOUNTING) {
@@ -2317,7 +2320,7 @@ Future<bool> DockerContainerizerProcess::destroy(
     containers_.erase(containerId);
     delete container;
 
-    return true;
+    return termination;
   }
 
   CHECK(container->state == Container::RUNNING);
@@ -2352,7 +2355,7 @@ Future<bool> DockerContainerizerProcess::destroy(
     .onAny(defer(self(), &Self::_destroy, containerId, killed));
 
   return container->termination.future()
-    .then([]() { return true; });
+    .then(Option<ContainerTermination>::some);
 }
 
 

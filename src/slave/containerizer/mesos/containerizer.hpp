@@ -107,7 +107,7 @@ public:
   virtual process::Future<Option<mesos::slave::ContainerTermination>> wait(
       const ContainerID& containerId);
 
-  virtual process::Future<bool> destroy(
+  virtual process::Future<Option<mesos::slave::ContainerTermination>> destroy(
       const ContainerID& containerId);
 
   virtual process::Future<bool> kill(
@@ -179,7 +179,7 @@ public:
       const ContainerID& containerId,
       int_fd pipeWrite);
 
-  virtual process::Future<bool> destroy(
+  virtual process::Future<Option<mesos::slave::ContainerTermination>> destroy(
       const ContainerID& containerId,
       const Option<mesos::slave::ContainerTermination>& termination);
 
@@ -245,7 +245,8 @@ private:
       const ContainerID& containerId,
       const Option<mesos::slave::ContainerTermination>& termination,
       const State& previousState,
-      const std::list<process::Future<bool>>& destroys);
+      const std::list<
+        process::Future<Option<mesos::slave::ContainerTermination>>>& destroys);
 
   // Continues '_destroy()' once isolators has completed.
   void __destroy(
