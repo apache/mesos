@@ -38,6 +38,8 @@
 #include "common/status_utils.hpp"
 #include "hdfs/hdfs.hpp"
 
+#include "uri/schemes/hdfs.hpp"
+
 using namespace process;
 
 using std::string;
@@ -134,6 +136,60 @@ Try<Owned<HDFS>> HDFS::create(const Option<string>& _hadoop)
   }
 
   return Owned<HDFS>(new HDFS(hadoop));
+}
+
+
+Try<mesos::URI> HDFS::parse(const string& uri)
+{
+  size_t schemePos = uri.find("://");
+  if (schemePos == string::npos) {
+    return Error("Missing scheme in url string");
+  }
+
+  const string uriPath = uri.substr(schemePos + 3);
+
+  size_t pathPos = uriPath.find_first_of('/');
+  if (pathPos == 0) {
+    return mesos::uri::hdfs(uriPath);
+  }
+
+  // If path is specified in the URL, try to capture the host and path
+  // separately.
+  string host = uriPath;
+  string path = "/";
+  if (pathPos != string::npos) {
+    host = host.substr(0, pathPos);
+    path = uriPath.substr(pathPos);
+  }
+
+  if (host.empty()) {
+    return mesos::uri::hdfs(path);
+  }
+
+  const vector<string> tokens = strings::tokenize(host, ":");
+
+  if (tokens[0].empty()) {
+    return Error("Host not found in url");
+  }
+
+  if (tokens.size() > 2) {
+    return Error("Found multiple ports in url");
+  }
+
+  Option<int> port;
+  if (tokens.size() == 2) {
+    Try<int> numifyPort = numify<int>(tokens[1]);
+    if (numifyPort.isError()) {
+      return Error("Failed to parse port: " + numifyPort.error());
+    }
+
+    port = numifyPort.get();
+  } else {
+    // Default port for HDFS.
+    port = 8020;
+  }
+
+  return mesos::uri::hdfs(path, tokens[0], port.get());
 }
 
 

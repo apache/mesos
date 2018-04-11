@@ -21,6 +21,8 @@
 
 #include <mesos/docker/spec.hpp>
 
+#include <mesos/uri/fetcher.hpp>
+
 #include "slave/containerizer/mesos/provisioner/docker/puller.hpp"
 
 #include "slave/flags.hpp"
@@ -42,7 +44,9 @@ class LocalPullerProcess;
 class LocalPuller : public Puller
 {
 public:
-  static Try<process::Owned<Puller>> create(const Flags& flags);
+  static Try<process::Owned<Puller>> create(
+      const Flags& flags,
+      const process::Shared<uri::Fetcher>& fetcher);
 
   ~LocalPuller();
 

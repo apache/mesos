@@ -28,6 +28,8 @@
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 
+#include <mesos/uri/uri.hpp>
+
 
 // TODO(benh): We should get the hostname:port (or ip:port) of the
 // server via:
@@ -48,6 +50,12 @@ class HDFS
 public:
   static Try<process::Owned<HDFS>> create(
       const Option<std::string>& hadoop = None());
+
+  // TODO(gilbert): Remove this helper function once we have URI Parser
+  // support (see MESOS-5254 for details). Ideally, we should support
+  // other schemes (e.g., hftp, s3, s3n etc) with hadoop plugin. It is
+  // hard coded for HDFS for now.
+  static Try<mesos::URI> parse(const std::string& uri);
 
   process::Future<bool> exists(const std::string& path);
   process::Future<Bytes> du(const std::string& path);

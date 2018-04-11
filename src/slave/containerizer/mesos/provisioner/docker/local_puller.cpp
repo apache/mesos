@@ -32,6 +32,11 @@
 
 #include "common/command_utils.hpp"
 
+#include "hdfs/hdfs.hpp"
+
+#include "uri/schemes/file.hpp"
+#include "uri/schemes/hdfs.hpp"
+
 #include "slave/containerizer/mesos/provisioner/docker/local_puller.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/paths.hpp"
 
@@ -50,10 +55,14 @@ namespace docker {
 class LocalPullerProcess : public Process<LocalPullerProcess>
 {
 public:
-  LocalPullerProcess(const string& _storeDir, const string& _archivesDir)
+  LocalPullerProcess(
+      const string& _storeDir,
+      const URI& _archivesUri,
+      const Shared<uri::Fetcher>& _fetcher)
     : ProcessBase(process::ID::generate("docker-provisioner-local-puller")),
       storeDir(_storeDir),
-      archivesDir(_archivesDir) {}
+      archivesUri(_archivesUri),
+      fetcher(_fetcher) {}
 
   ~LocalPullerProcess() {}
 
@@ -83,22 +92,47 @@ private:
       const string& backend);
 
   const string storeDir;
-  const string archivesDir;
+  const URI archivesUri;
+
+  Shared<uri::Fetcher> fetcher;
 };
 
 
-Try<Owned<Puller>> LocalPuller::create(const Flags& flags)
+static Try<URI> parseUri(const string& uri)
+{
+  if (strings::startsWith(uri, "/")) {
+    return uri::file(uri);
+  }
+
+  return HDFS::parse(uri);
+}
+
+
+Try<Owned<Puller>> LocalPuller::create(
+    const Flags& flags,
+    const Shared<uri::Fetcher>& fetcher)
 {
   // This should already been verified at puller.cpp.
-  if (!strings::startsWith(flags.docker_registry, "/")) {
-    return Error("Expecting registry url starting with '/'");
+  if (!strings::startsWith(flags.docker_registry, "/") &&
+      !strings::startsWith(flags.docker_registry, "hdfs://")) {
+    return Error("Expecting registry url starting with '/' or 'hdfs'");
+  }
+
+  Try<URI> uri = parseUri(flags.docker_registry);
+  if (uri.isError()) {
+    return Error(
+        "Failed to parse the agent flag --docker_registry '" +
+        flags.docker_registry + "': " + uri.error());
   }
 
   VLOG(1) << "Creating local puller with docker registry '"
           << flags.docker_registry << "'";
 
   Owned<LocalPullerProcess> process(
-      new LocalPullerProcess(flags.docker_store_dir, flags.docker_registry));
+      new LocalPullerProcess(
+          flags.docker_store_dir,
+          uri.get(),
+          fetcher));
 
   return Owned<Puller>(new LocalPuller(process));
 }
@@ -140,14 +174,37 @@ Future<vector<string>> LocalPullerProcess::pull(
 {
   // TODO(jieyu): We need to handle the case where the image reference
   // contains a slash '/'.
+  const string image = stringify(reference);
+
+  // TODO(gilbert): Support 'http' and 'https'.
+  if (archivesUri.scheme() == "hdfs") {
+    URI uri = archivesUri;
+    uri.set_path(paths::getImageArchiveTarPath(archivesUri.path(), image));
+
+    VLOG(1) << "Fetching image '" << reference
+            << "' from '" << uri
+            << "' to '" << directory << "' using HDFS uri fetcher";
+
+    return fetcher->fetch(uri, directory)
+      .then(defer(self(), [=]() -> Future<vector<string>> {
+        const string source = paths::getImageArchiveTarPath(directory, image);
+
+        VLOG(1) << "Untarring image '" << reference
+                << "' from '" << source
+                << "' to '" << directory << "'";
+
+        return command::untar(Path(source), Path(directory))
+          .then(defer(self(), &Self::_pull, reference, directory, backend));
+      }));
+  }
+
   const string tarPath = paths::getImageArchiveTarPath(
-      archivesDir,
-      stringify(reference));
+      archivesUri.path(), image);
 
   if (!os::exists(tarPath)) {
     return Failure(
         "Failed to find archive for image '" +
-        stringify(reference) + "' at '" + tarPath + "'");
+        image + "' at '" + tarPath + "'");
   }
 
   VLOG(1) << "Untarring image '" << reference

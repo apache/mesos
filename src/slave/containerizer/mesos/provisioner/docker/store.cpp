@@ -144,6 +144,10 @@ Try<Owned<slave::Store>> Store::create(
   _flags.docker_stall_timeout = flags.fetcher_stall_timeout;
 #endif
 
+  if (flags.hadoop_home.isSome()) {
+    _flags.hadoop_client = path::join(flags.hadoop_home.get(), "bin", "hadoop");
+  }
+
   Try<Owned<uri::Fetcher>> fetcher = uri::fetcher::create(_flags);
   if (fetcher.isError()) {
     return Error("Failed to create the URI fetcher: " + fetcher.error());
