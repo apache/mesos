@@ -141,7 +141,7 @@ public:
       killed(false),
       killedByHealthCheck(false),
       terminated(false),
-      pid(-1),
+      pid(None()),
       shutdownGracePeriod(_shutdownGracePeriod),
       frameworkInfo(None()),
       taskId(None()),
@@ -659,7 +659,7 @@ protected:
         effectiveCapabilities,
         boundingCapabilities);
 
-    LOG(INFO) << "Forked command at " << pid;
+    LOG(INFO) << "Forked command at " << pid.get();
 
     if (task.has_check()) {
       vector<string> namespaces;
@@ -674,7 +674,7 @@ protected:
         namespaces.push_back("mnt");
       }
 
-      const checks::runtime::Plain plainRuntime{namespaces, pid};
+      const checks::runtime::Plain plainRuntime{namespaces, pid.get()};
       Try<Owned<checks::Checker>> _checker =
         checks::Checker::create(
             task.check(),
@@ -704,7 +704,7 @@ protected:
         namespaces.push_back("mnt");
       }
 
-      const checks::runtime::Plain plainRuntime{namespaces, pid};
+      const checks::runtime::Plain plainRuntime{namespaces, pid.get()};
       Try<Owned<checks::HealthChecker>> _healthChecker =
         checks::HealthChecker::create(
             task.health_check(),
@@ -723,8 +723,8 @@ protected:
     }
 
     // Monitor this process.
-    process::reap(pid)
-      .onAny(defer(self(), &Self::reaped, pid, lambda::_1));
+    process::reap(pid.get())
+      .onAny(defer(self(), &Self::reaped, pid.get(), lambda::_1));
 
     TaskStatus status = createTaskStatus(taskId.get(), TASK_RUNNING);
 
@@ -864,20 +864,20 @@ private:
       }
 
       // Now perform signal escalation to begin killing the task.
-      CHECK_GT(pid, static_cast<pid_t>(0));
+      CHECK_SOME(pid);
 
-      LOG(INFO) << "Sending SIGTERM to process tree at pid " << pid;
+      LOG(INFO) << "Sending SIGTERM to process tree at pid " << pid.get();
 
       Try<std::list<os::ProcessTree>> trees =
-        os::killtree(pid, SIGTERM, true, true);
+        os::killtree(pid.get(), SIGTERM, true, true);
 
       if (trees.isError()) {
-        LOG(ERROR) << "Failed to kill the process tree rooted at pid " << pid
-                   << ": " << trees.error();
+        LOG(ERROR) << "Failed to kill the process tree rooted at pid "
+                   << pid.get() << ": " << trees.error();
 
         // Send SIGTERM directly to process 'pid' as it may not have
         // received signal before os::killtree() failed.
-        os::kill(pid, SIGTERM);
+        os::kill(pid.get(), SIGTERM);
       } else {
         LOG(INFO) << "Sent SIGTERM to the following process trees:\n"
                   << stringify(trees.get());
@@ -894,7 +894,7 @@ private:
     }
   }
 
-  void reaped(pid_t pid, const Future<Option<int>>& status_)
+  void reaped(pid_t _pid, const Future<Option<int>>& status_)
   {
     terminated = true;
 
@@ -941,7 +941,7 @@ private:
       message = "Command " + WSTRINGIFY(status);
     }
 
-    LOG(INFO) << message << " (pid: " << pid << ")";
+    LOG(INFO) << message << " (pid: " << _pid << ")";
 
     CHECK_SOME(taskId);
 
@@ -980,24 +980,27 @@ private:
       return;
     }
 
-    LOG(INFO) << "Process " << pid << " did not terminate after " << timeout
-              << ", sending SIGKILL to process tree at " << pid;
+    CHECK_SOME(pid);
+
+    LOG(INFO) << "Process " << pid.get() << " did not terminate after "
+              << timeout << ", sending SIGKILL to process tree at "
+              << pid.get();
 
     // TODO(nnielsen): Sending SIGTERM in the first stage of the
     // shutdown may leave orphan processes hanging off init. This
     // scenario will be handled when PID namespace encapsulated
     // execution is in place.
     Try<std::list<os::ProcessTree>> trees =
-      os::killtree(pid, SIGKILL, true, true);
+      os::killtree(pid.get(), SIGKILL, true, true);
 
     if (trees.isError()) {
       LOG(ERROR) << "Failed to kill the process tree rooted at pid "
-                 << pid << ": " << trees.error();
+                 << pid.get() << ": " << trees.error();
 
       // Process 'pid' may not have received signal before
       // os::killtree() failed. To make sure process 'pid' is reaped
       // we send SIGKILL directly.
-      os::kill(pid, SIGKILL);
+      os::kill(pid.get(), SIGKILL);
     } else {
       LOG(INFO) << "Killed the following process trees:\n"
                 << stringify(trees.get());
@@ -1132,7 +1135,7 @@ private:
   Option<Time> killGracePeriodStart;
   Option<Timer> killGracePeriodTimer;
 
-  pid_t pid;
+  Option<pid_t> pid;
   Duration shutdownGracePeriod;
   Option<KillPolicy> killPolicy;
   Option<FrameworkInfo> frameworkInfo;
