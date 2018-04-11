@@ -744,11 +744,15 @@ TEST_F(LinuxCapabilitiesIsolatorFlagsTest, ROOT_IsolatorFlags)
   slave = StartSlave(&detector, flags);
   ASSERT_SOME(slave);
 
+  slave->reset();
+
   // Allowed is a subset of bounding, which is OK.
   flags.effective_capabilities = convert(set<Capability>({NET_RAW}));
   flags.bounding_capabilities = convert(set<Capability>({NET_RAW, NET_ADMIN}));
   slave = StartSlave(&detector, flags);
   ASSERT_SOME(slave);
+
+  slave->reset();
 
   // Both sets are allowed to be missing.
   flags.effective_capabilities = None();
@@ -756,11 +760,15 @@ TEST_F(LinuxCapabilitiesIsolatorFlagsTest, ROOT_IsolatorFlags)
   slave = StartSlave(&detector, flags);
   ASSERT_SOME(slave);
 
+  slave->reset();
+
   // Bounding capabilities are allowed to be missing.
   flags.effective_capabilities = convert(set<Capability>({NET_RAW}));
   flags.bounding_capabilities = None();
   slave = StartSlave(&detector, flags);
   ASSERT_SOME(slave);
+
+  slave->reset();
 
   // Effective capabilities are allowed to be missing.
   flags.effective_capabilities = None();
