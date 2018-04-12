@@ -20,6 +20,7 @@
 #include <sys/types.h>
 #endif
 
+#include <chrono>
 #include <cstdlib> // For rand.
 #include <list>
 #include <map>
@@ -156,8 +157,14 @@ TEST_F(OsTest, System)
 }
 
 
-// NOTE: Disabled because `os::cloexec` is not implemented on Windows.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(OsTest, Cloexec)
+// NOTE: `os::cloexec` is a stub on Windows that returns `true`.
+#ifdef __WINDOWS__
+TEST_F(OsTest, Cloexec)
+{
+  ASSERT_SOME_TRUE(os::isCloexec(int_fd(INVALID_HANDLE_VALUE)));
+}
+#else
+TEST_F(OsTest, Cloexec)
 {
   Try<int_fd> fd = os::open(
       "cloexec",
@@ -185,10 +192,36 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(OsTest, Cloexec)
 
   close(fd.get());
 }
+#endif // __WINDOWS__
 
 
-// NOTE: Disabled because `os::nonblock` doesn't exist on Windows.
-#ifndef __WINDOWS__
+// NOTE: `os::isNonblock` is a stub on Windows that returns `true`.
+#ifdef __WINDOWS__
+TEST_F(OsTest, Nonblock)
+{
+  // `os::isNonblock` is a stub on Windows that returns `true`.
+  EXPECT_SOME_TRUE(os::isNonblock(int_fd(INVALID_HANDLE_VALUE)));
+
+  // `os::nonblock` is a no-op for handles.
+  EXPECT_SOME(os::nonblock(int_fd(INVALID_HANDLE_VALUE)));
+
+  // `os::nonblock` should fail for an invalid socket.
+  EXPECT_ERROR(os::nonblock(int_fd(INVALID_SOCKET)));
+
+  // NOTE: There is no way on Windows to check if the socket is in
+  // blocking or non-blocking mode, so `os::isNonblock` is a stub. A
+  // Windows socket always starts in blocking mode, and then can be
+  // set as non-blocking. All we can check here is that `os::nonblock`
+  // does not fail on a valid socket.
+  ASSERT_TRUE(net::wsa_initialize());
+  Try<int_fd> socket =
+    net::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP, WSA_FLAG_NO_HANDLE_INHERIT);
+  ASSERT_SOME(socket);
+  EXPECT_SOME(os::nonblock(socket.get()));
+  EXPECT_SOME(os::close(socket.get()));
+  ASSERT_TRUE(net::wsa_cleanup());
+}
+#else
 TEST_F(OsTest, Nonblock)
 {
   int pipes[2];
@@ -263,23 +296,24 @@ TEST_F(OsTest, BootId)
   Try<string> read = os::read("/proc/sys/kernel/random/boot_id");
   ASSERT_SOME(read);
   EXPECT_EQ(bootId.get(), strings::trim(read.get()));
-#elif defined(__APPLE__) || defined(__FreeBSD__)
-  // For OS X and FreeBSD systems, the boot id is the system boot time in
-  // seconds, so assert it can be numified and is a reasonable value.
+#elif defined(__APPLE__) || defined(__FreeBSD__) || defined(__WINDOWS__)
+  // For OS X, FreeBSD, and Windows systems, the boot id is the system
+  // boot time in seconds, so assert it can be numified and is a
+  // reasonable value.
   Try<uint64_t> numified = numify<uint64_t>(bootId.get());
   ASSERT_SOME(numified);
-
-  timeval time;
-  gettimeofday(&time, nullptr);
   EXPECT_GT(Seconds(numified.get()), Seconds(0));
-  EXPECT_LT(Seconds(numified.get()), Seconds(time.tv_sec));
-#endif
+
+  using namespace std::chrono;
+  EXPECT_LT(
+      Seconds(numified.get()),
+      Seconds(duration_cast<seconds>(system_clock::now().time_since_epoch())
+                .count()));
+#endif // APPLE / FreeBSD / WINDOWS
 }
 
 
-// TODO(hausdorff): Enable test on Windows after we fix. The test hangs. See
-// MESOS-3441.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(OsTest, Sleep)
+TEST_F(OsTest, Sleep)
 {
   Duration duration = Milliseconds(10);
   Stopwatch stopwatch;
@@ -888,12 +922,12 @@ TEST_F(OsTest, TrivialUser)
 }
 
 
-// TODO(hausdorff): Look into enabling this on Windows. Right now,
-// `LD_LIBRARY_PATH` doesn't exist on Windows, so `setPaths` doesn't work. See
-// MESOS-5940.
 // Test setting/resetting/appending to LD_LIBRARY_PATH environment
 // variable (DYLD_LIBRARY_PATH on OS X).
-TEST_F_TEMP_DISABLED_ON_WINDOWS(OsTest, Libraries)
+//
+// NOTE: This will never be enabled on Windows as there is no equivalent.
+#ifndef __WINDOWS__
+TEST_F(OsTest, Libraries)
 {
   const string path1 = "/tmp/path1";
   const string path2 = "/tmp/path1";
@@ -929,6 +963,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(OsTest, Libraries)
   os::libraries::setPaths(originalLibraryPath);
   EXPECT_EQ(os::libraries::paths(), originalLibraryPath);
 }
+#endif // __WINDOWS__
 
 
 // NOTE: `os::shell()` is explicitly disallowed on Windows.

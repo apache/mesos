@@ -24,7 +24,7 @@ namespace os {
 
 inline Try<std::string> bootId()
 {
-  // NOTE: we follow the precedent of the OS X design here and use the boot
+  // NOTE: We follow the precedent of the OS X design here and use the boot
   // time in seconds since the Unix epoch as a boot ID. See comment in
   // `stout/os/posix/bootid.hpp` for discussion of this approach. Note also
   // that we can't use milliseconds here instead of seconds because the
@@ -32,7 +32,7 @@ inline Try<std::string> bootId()
   // to return a different number nearly every time it was called.
 
   std::chrono::milliseconds uptime =
-    std::chrono::milliseconds(GetTickCount64());
+    std::chrono::milliseconds(::GetTickCount64());
 
   std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
   std::chrono::system_clock::time_point boot_time = now - uptime;
