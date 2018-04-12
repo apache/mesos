@@ -357,6 +357,34 @@ string(COMPARE EQUAL ${CMAKE_SYSTEM_NAME} "Linux" LINUX)
 ######################
 string(COMPARE EQUAL ${CMAKE_SYSTEM_NAME} "FreeBSD" FREEBSD)
 
+# There is a problem linking with BFD linkers when using Clang on
+# FreeBSD (MESOS-8761). CMake uses the compiler to link, and the
+# compiler uses `/usr/bin/ld` by default. On FreeBSD the default
+# compiler is Clang but the default linker is GNU ld (BFD). Since LLD
+# is available in the base system, and GOLD is available from
+# `devel/binutils`, we look for a more modern linker and tell Clang to
+# use that instead.
+#
+# TODO(dforsyth): Understand why this is failing and add a check to
+# make sure we have a compatible linker (MESOS-8765), or wait until
+# FreeBSD makes lld the default linker.
+if (${CMAKE_SYSTEM_NAME} MATCHES FreeBSD
+    AND CMAKE_CXX_COMPILER_ID MATCHES Clang)
+
+  find_program(LD_PROGRAM
+    NAMES ld.lld ld.gold)
+
+  if (NOT LD_PROGRAM)
+    message(FATAL_ERROR
+      "Please set LD_PROGRAM to a working (non-BFD) linker (MESOS-8761) to \
+      build on FreeBSD.")
+  endif ()
+
+  foreach (type EXE SHARED STATIC MODULE)
+    string(APPEND CMAKE_${type}_LINKER_FLAGS " -fuse-ld=${LD_PROGRAM}")
+  endforeach ()
+endif ()
+
 # WINDOWS CONFIGURATION.
 ########################
 if (WIN32)
