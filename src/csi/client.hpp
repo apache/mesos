@@ -25,6 +25,7 @@
 
 namespace mesos {
 namespace csi {
+namespace v0 {
 
 class Client
 {
@@ -34,11 +35,14 @@ public:
     : channel(_channel), runtime(_runtime) {}
 
   // RPCs for the Identity service.
-  process::Future<GetSupportedVersionsResponse>
-    GetSupportedVersions(const GetSupportedVersionsRequest& request);
-
   process::Future<GetPluginInfoResponse>
     GetPluginInfo(const GetPluginInfoRequest& request);
+
+  process::Future<GetPluginCapabilitiesResponse>
+    GetPluginCapabilities(const GetPluginCapabilitiesRequest& request);
+
+  process::Future<ProbeResponse>
+    Probe(const ProbeRequest& request);
 
   // RPCs for the Controller service.
   process::Future<CreateVolumeResponse>
@@ -63,24 +67,24 @@ public:
   process::Future<GetCapacityResponse>
     GetCapacity(const GetCapacityRequest& request);
 
-  process::Future<ControllerProbeResponse>
-    ControllerProbe(const ControllerProbeRequest& request);
-
   process::Future<ControllerGetCapabilitiesResponse>
     ControllerGetCapabilities(const ControllerGetCapabilitiesRequest& request);
 
   // RPCs for the Node service.
+  process::Future<NodeStageVolumeResponse>
+    NodeStageVolume(const NodeStageVolumeRequest& request);
+
+  process::Future<NodeUnstageVolumeResponse>
+    NodeUnstageVolume(const NodeUnstageVolumeRequest& request);
+
   process::Future<NodePublishVolumeResponse>
     NodePublishVolume(const NodePublishVolumeRequest& request);
 
   process::Future<NodeUnpublishVolumeResponse>
     NodeUnpublishVolume(const NodeUnpublishVolumeRequest& request);
 
-  process::Future<GetNodeIDResponse>
-    GetNodeID(const GetNodeIDRequest& request);
-
-  process::Future<NodeProbeResponse>
-    NodeProbe(const NodeProbeRequest& request);
+  process::Future<NodeGetIdResponse>
+    NodeGetId(const NodeGetIdRequest& request);
 
   process::Future<NodeGetCapabilitiesResponse>
     NodeGetCapabilities(const NodeGetCapabilitiesRequest& request);
@@ -90,6 +94,7 @@ private:
   process::grpc::client::Runtime runtime;
 };
 
+} // namespace v0 {
 } // namespace csi {
 } // namespace mesos {
 

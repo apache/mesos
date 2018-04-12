@@ -37,34 +37,35 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-#define CSI_METHOD_FOREACH(macro)        \
-  macro(GetSupportedVersions)            \
-  macro(GetPluginInfo)                   \
-  macro(CreateVolume)                    \
-  macro(DeleteVolume)                    \
-  macro(ControllerPublishVolume)         \
-  macro(ControllerUnpublishVolume)       \
-  macro(ValidateVolumeCapabilities)      \
-  macro(ListVolumes)                     \
-  macro(GetCapacity)                     \
-  macro(ControllerProbe)                 \
-  macro(ControllerGetCapabilities)       \
-  macro(NodePublishVolume)               \
-  macro(NodeUnpublishVolume)             \
-  macro(GetNodeID)                       \
-  macro(NodeProbe)                       \
+#define CSI_METHOD_FOREACH(macro)            \
+  macro(GetPluginInfo)                       \
+  macro(GetPluginCapabilities)               \
+  macro(Probe)                               \
+  macro(CreateVolume)                        \
+  macro(DeleteVolume)                        \
+  macro(ControllerPublishVolume)             \
+  macro(ControllerUnpublishVolume)           \
+  macro(ValidateVolumeCapabilities)          \
+  macro(ListVolumes)                         \
+  macro(GetCapacity)                         \
+  macro(ControllerGetCapabilities)           \
+  macro(NodeStageVolume)                     \
+  macro(NodeUnstageVolume)                   \
+  macro(NodePublishVolume)                   \
+  macro(NodeUnpublishVolume)                 \
+  macro(NodeGetId)                           \
   macro(NodeGetCapabilities)
 
-#define DECLARE_MOCK_CSI_METHOD(name)    \
-  MOCK_METHOD3(name, grpc::Status(       \
-      grpc::ServerContext* context,      \
-      const csi::name##Request* request, \
-      csi::name##Response* response));
+#define DECLARE_MOCK_CSI_METHOD(name)        \
+  MOCK_METHOD3(name, grpc::Status(           \
+      grpc::ServerContext* context,          \
+      const csi::v0::name##Request* request, \
+      csi::v0::name##Response* response));
 
 // Definition of a mock CSI plugin to be used in tests with gmock.
-class MockCSIPlugin : public csi::Identity::Service,
-                      public csi::Controller::Service,
-                      public csi::Node::Service
+class MockCSIPlugin : public csi::v0::Identity::Service,
+                      public csi::v0::Controller::Service,
+                      public csi::v0::Node::Service
 {
 public:
   MockCSIPlugin();

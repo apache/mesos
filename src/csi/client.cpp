@@ -23,14 +23,15 @@ using process::grpc::RpcResult;
 
 namespace mesos {
 namespace csi {
+namespace v0 {
 
-Future<GetSupportedVersionsResponse> Client::GetSupportedVersions(
-    const GetSupportedVersionsRequest& request)
+Future<GetPluginInfoResponse> Client::GetPluginInfo(
+    const GetPluginInfoRequest& request)
 {
   return runtime
-    .call(channel, GRPC_RPC(Identity, GetSupportedVersions), request)
-    .then([](const RpcResult<GetSupportedVersionsResponse>& result)
-        -> Future<GetSupportedVersionsResponse> {
+    .call(channel, GRPC_RPC(Identity, GetPluginInfo), request)
+    .then([](const RpcResult<GetPluginInfoResponse>& result)
+        -> Future<GetPluginInfoResponse> {
       if (result.status.ok()) {
         return result.response;
       } else {
@@ -40,13 +41,29 @@ Future<GetSupportedVersionsResponse> Client::GetSupportedVersions(
 }
 
 
-Future<GetPluginInfoResponse> Client::GetPluginInfo(
-    const GetPluginInfoRequest& request)
+Future<GetPluginCapabilitiesResponse> Client::GetPluginCapabilities(
+    const GetPluginCapabilitiesRequest& request)
 {
   return runtime
-    .call(channel, GRPC_RPC(Identity, GetPluginInfo), request)
-    .then([](const RpcResult<GetPluginInfoResponse>& result)
-        -> Future<GetPluginInfoResponse> {
+    .call(channel, GRPC_RPC(Identity, GetPluginCapabilities), request)
+    .then([](const RpcResult<GetPluginCapabilitiesResponse>& result)
+        -> Future<GetPluginCapabilitiesResponse> {
+      if (result.status.ok()) {
+        return result.response;
+      } else {
+        return Failure(result.status.error_message());
+      }
+    });
+}
+
+
+Future<ProbeResponse> Client::Probe(
+    const ProbeRequest& request)
+{
+  return runtime
+    .call(channel, GRPC_RPC(Identity, Probe), request)
+    .then([](const RpcResult<ProbeResponse>& result)
+        -> Future<ProbeResponse> {
       if (result.status.ok()) {
         return result.response;
       } else {
@@ -168,13 +185,13 @@ Future<GetCapacityResponse> Client::GetCapacity(
 }
 
 
-Future<ControllerProbeResponse> Client::ControllerProbe(
-    const ControllerProbeRequest& request)
+Future<ControllerGetCapabilitiesResponse> Client::ControllerGetCapabilities(
+    const ControllerGetCapabilitiesRequest& request)
 {
   return runtime
-    .call(channel, GRPC_RPC(Controller, ControllerProbe), request)
-    .then([](const RpcResult<ControllerProbeResponse>& result)
-        -> Future<ControllerProbeResponse> {
+    .call(channel, GRPC_RPC(Controller, ControllerGetCapabilities), request)
+    .then([](const RpcResult<ControllerGetCapabilitiesResponse>& result)
+        -> Future<ControllerGetCapabilitiesResponse> {
       if (result.status.ok()) {
         return result.response;
       } else {
@@ -184,13 +201,29 @@ Future<ControllerProbeResponse> Client::ControllerProbe(
 }
 
 
-Future<ControllerGetCapabilitiesResponse> Client::ControllerGetCapabilities(
-    const ControllerGetCapabilitiesRequest& request)
+Future<NodeStageVolumeResponse> Client::NodeStageVolume(
+    const NodeStageVolumeRequest& request)
 {
   return runtime
-    .call(channel, GRPC_RPC(Controller, ControllerGetCapabilities), request)
-    .then([](const RpcResult<ControllerGetCapabilitiesResponse>& result)
-        -> Future<ControllerGetCapabilitiesResponse> {
+    .call(channel, GRPC_RPC(Node, NodeStageVolume), request)
+    .then([](const RpcResult<NodeStageVolumeResponse>& result)
+        -> Future<NodeStageVolumeResponse> {
+      if (result.status.ok()) {
+        return result.response;
+      } else {
+        return Failure(result.status.error_message());
+      }
+    });
+}
+
+
+Future<NodeUnstageVolumeResponse> Client::NodeUnstageVolume(
+    const NodeUnstageVolumeRequest& request)
+{
+  return runtime
+    .call(channel, GRPC_RPC(Node, NodeUnstageVolume), request)
+    .then([](const RpcResult<NodeUnstageVolumeResponse>& result)
+        -> Future<NodeUnstageVolumeResponse> {
       if (result.status.ok()) {
         return result.response;
       } else {
@@ -232,29 +265,13 @@ Future<NodeUnpublishVolumeResponse> Client::NodeUnpublishVolume(
 }
 
 
-Future<GetNodeIDResponse> Client::GetNodeID(
-    const GetNodeIDRequest& request)
+Future<NodeGetIdResponse> Client::NodeGetId(
+    const NodeGetIdRequest& request)
 {
   return runtime
-    .call(channel, GRPC_RPC(Node, GetNodeID), request)
-    .then([](const RpcResult<GetNodeIDResponse>& result)
-        -> Future<GetNodeIDResponse> {
-      if (result.status.ok()) {
-        return result.response;
-      } else {
-        return Failure(result.status.error_message());
-      }
-    });
-}
-
-
-Future<NodeProbeResponse> Client::NodeProbe(
-    const NodeProbeRequest& request)
-{
-  return runtime
-    .call(channel, GRPC_RPC(Node, NodeProbe), request)
-    .then([](const RpcResult<NodeProbeResponse>& result)
-        -> Future<NodeProbeResponse> {
+    .call(channel, GRPC_RPC(Node, NodeGetId), request)
+    .then([](const RpcResult<NodeGetIdResponse>& result)
+        -> Future<NodeGetIdResponse> {
       if (result.status.ok()) {
         return result.response;
       } else {
@@ -279,5 +296,6 @@ Future<NodeGetCapabilitiesResponse> Client::NodeGetCapabilities(
     });
 }
 
+} // namespace v0 {
 } // namespace csi {
 } // namespace mesos {

@@ -28,7 +28,7 @@
 
 using std::string;
 
-using mesos::csi::Client;
+using mesos::csi::v0::Client;
 
 using process::Future;
 
@@ -104,8 +104,9 @@ INSTANTIATE_TEST_CASE_P(
     Identity,
     CSIClientTest,
     Values(
-        RPC_PARAM(Client::GetSupportedVersions),
-        RPC_PARAM(Client::GetPluginInfo)),
+        RPC_PARAM(Client::GetPluginInfo),
+        RPC_PARAM(Client::GetPluginCapabilities),
+        RPC_PARAM(Client::Probe)),
     RPCParam::Printer());
 
 INSTANTIATE_TEST_CASE_P(
@@ -119,7 +120,6 @@ INSTANTIATE_TEST_CASE_P(
         RPC_PARAM(Client::ValidateVolumeCapabilities),
         RPC_PARAM(Client::ListVolumes),
         RPC_PARAM(Client::GetCapacity),
-        RPC_PARAM(Client::ControllerProbe),
         RPC_PARAM(Client::ControllerGetCapabilities)),
     RPCParam::Printer());
 
@@ -127,10 +127,11 @@ INSTANTIATE_TEST_CASE_P(
     Node,
     CSIClientTest,
     Values(
+        RPC_PARAM(Client::NodeStageVolume),
+        RPC_PARAM(Client::NodeUnstageVolume),
         RPC_PARAM(Client::NodePublishVolume),
         RPC_PARAM(Client::NodeUnpublishVolume),
-        RPC_PARAM(Client::GetNodeID),
-        RPC_PARAM(Client::NodeProbe),
+        RPC_PARAM(Client::NodeGetId),
         RPC_PARAM(Client::NodeGetCapabilities)),
     RPCParam::Printer());
 

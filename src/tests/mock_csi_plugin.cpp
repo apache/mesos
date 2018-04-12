@@ -19,16 +19,16 @@
 using std::string;
 using std::unique_ptr;
 
-using csi::Controller;
-using csi::Identity;
-using csi::Node;
-
 using grpc::ChannelArguments;
 using grpc::InsecureServerCredentials;
 using grpc::Server;
 using grpc::ServerBuilder;
 using grpc::ServerContext;
 using grpc::Status;
+
+using mesos::csi::v0::Controller;
+using mesos::csi::v0::Identity;
+using mesos::csi::v0::Node;
 
 using process::grpc::Channel;
 
