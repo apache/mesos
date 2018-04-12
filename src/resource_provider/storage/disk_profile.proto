@@ -52,7 +52,7 @@ message DiskProfileMapping {
     // NOTE: The name of this field is plural because some CSI requests
     // support multiple capabilities. However, Mesos currently does not
     // support this.
-    .csi.VolumeCapability volume_capabilities = 1;
+    .csi.v0.VolumeCapability volume_capabilities = 1;
 
     // Parameters passed to the CSI CreateVolume RPC.
     // This field is OPTIONAL.

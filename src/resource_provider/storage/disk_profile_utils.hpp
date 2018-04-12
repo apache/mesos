@@ -17,6 +17,8 @@
 #ifndef __RESOURCE_PROVIDER_URI_DISK_PROFILE_UTILS_HPP__
 #define __RESOURCE_PROVIDER_URI_DISK_PROFILE_UTILS_HPP__
 
+#include <csi/spec.hpp>
+
 #include <mesos/mesos.hpp>
 
 #include <stout/option.hpp>
@@ -47,7 +49,7 @@ Option<Error> validate(const resource_provider::DiskProfileMapping& mapping);
 
 // Checks the fields inside a `VolumeCapability` according to the
 // comments above the protobuf.
-Option<Error> validate(const csi::VolumeCapability& capability);
+Option<Error> validate(const csi::v0::VolumeCapability& capability);
 
 } // namespace storage {
 } // namespace internal {

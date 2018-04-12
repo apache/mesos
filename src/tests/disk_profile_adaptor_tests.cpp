@@ -139,13 +139,13 @@ TEST_F(UriDiskProfileAdaptorTest, ParseExample)
   const string key = "my-profile";
   ASSERT_EQ(1u, parsed->profile_matrix().count(key));
 
-  csi::VolumeCapability capability =
+  csi::v0::VolumeCapability capability =
     parsed->profile_matrix().at(key).volume_capabilities();
 
   ASSERT_TRUE(capability.has_block());
   ASSERT_TRUE(capability.has_access_mode());
   ASSERT_EQ(
-      csi::VolumeCapability::AccessMode::SINGLE_NODE_WRITER,
+      csi::v0::VolumeCapability::AccessMode::SINGLE_NODE_WRITER,
       capability.access_mode().mode());
 
   Map<string, string> parameters =
@@ -480,7 +480,7 @@ TEST_F(UriDiskProfileAdaptorTest, DISABLED_FetchFromFile)
   AWAIT_ASSERT_READY(mapping);
   ASSERT_TRUE(mapping.get().capability.has_block());
   ASSERT_EQ(
-      csi::VolumeCapability::AccessMode::MULTI_NODE_SINGLE_WRITER,
+      csi::v0::VolumeCapability::AccessMode::MULTI_NODE_SINGLE_WRITER,
       mapping.get().capability.access_mode().mode());
 
   Clock::resume();

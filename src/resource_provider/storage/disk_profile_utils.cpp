@@ -178,7 +178,7 @@ Option<Error> validate(const DiskProfileMapping& mapping)
 
 
 // TODO(chhsiao): Move this to CSI validation implementation file.
-Option<Error> validate(const csi::VolumeCapability& capability)
+Option<Error> validate(const csi::v0::VolumeCapability& capability)
 {
   if (capability.has_mount()) {
     // The total size of this repeated field may not exceed 4 KB.
@@ -201,7 +201,7 @@ Option<Error> validate(const csi::VolumeCapability& capability)
   }
 
   if (capability.access_mode().mode() ==
-      csi::VolumeCapability::AccessMode::UNKNOWN) {
+      csi::v0::VolumeCapability::AccessMode::UNKNOWN) {
     return Error("'access_mode.mode' is unknown or not set");
   }
 

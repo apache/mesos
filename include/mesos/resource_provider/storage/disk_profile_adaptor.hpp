@@ -63,7 +63,7 @@ public:
      * of `VolumeCapability` objects, the module will only allow a single
      * `VolumeCapability`.
      */
-    csi::VolumeCapability capability;
+    csi::v0::VolumeCapability capability;
 
     /**
      * Free-form key-value pairs which should be passed into the body
