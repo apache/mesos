@@ -21,4 +21,19 @@
 // ONLY USEFUL AFTER RUNNING PROTOC.
 #include "csi/state.pb.h"
 
+namespace mesos {
+namespace csi {
+namespace state {
+
+inline std::ostream& operator<<(
+    std::ostream& stream,
+    const VolumeState::State& state)
+{
+  return stream << VolumeState::State_Name(state);
+}
+
+} // namespace state {
+} // namespace csi {
+} // namespace mesos {
+
 #endif // __CSI_STATE_HPP__

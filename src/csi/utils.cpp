@@ -26,6 +26,7 @@ using std::string;
 using google::protobuf::util::MessageToJsonString;
 
 namespace csi {
+namespace v0 {
 
 bool operator==(
     const ControllerServiceCapability::RPC& left,
@@ -41,14 +42,6 @@ bool operator==(
 {
   return left.has_rpc() == right.has_rpc() &&
     (!left.has_rpc() || left.rpc() == right.rpc());
-}
-
-
-bool operator==(const Version& left, const Version& right)
-{
-  return left.major() == right.major() &&
-    left.minor() == right.minor() &&
-    left.patch() == right.patch();
 }
 
 
@@ -93,12 +86,6 @@ bool operator==(const VolumeCapability& left, const VolumeCapability& right) {
 }
 
 
-bool operator!=(const Version& left, const Version& right)
-{
-  return !(left == right);
-}
-
-
 ostream& operator<<(
     ostream& stream,
     const ControllerServiceCapability::RPC::Type& type)
@@ -106,28 +93,5 @@ ostream& operator<<(
   return stream << ControllerServiceCapability::RPC::Type_Name(type);
 }
 
-
-ostream& operator<<(ostream& stream, const Version& version)
-{
-  return stream << strings::join(
-      ".",
-      version.major(),
-      version.minor(),
-      version.patch());
-}
-
+} // namespace v0 {
 } // namespace csi {
-
-
-namespace mesos {
-namespace csi {
-namespace state {
-
-ostream& operator<<(ostream& stream, const VolumeState::State& state)
-{
-  return stream << VolumeState::State_Name(state);
-}
-
-} // namespace state {
-} // namespace csi {
-} // namespace mesos {
