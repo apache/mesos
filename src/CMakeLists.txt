@@ -523,7 +523,6 @@ if (ENABLE_PRECOMPILED_HEADERS)
   cotire(mesos)
 endif ()
 
-
 # BUILD THE MESOS EXECUTABLES.
 ##############################
 add_subdirectory(checks)
@@ -534,6 +533,7 @@ add_subdirectory(launcher)
 add_subdirectory(local)
 add_subdirectory(log)
 add_subdirectory(master)
+add_subdirectory(python/cli_new)
 add_subdirectory(slave)
 add_subdirectory(slave/containerizer/mesos)
 add_subdirectory(usage)
@@ -542,3 +542,4 @@ add_subdirectory(usage)
 # BUILD THE MESOS TESTS.
 ########################
 add_subdirectory(tests)
+add_subdirectory(python/cli_new/tests)

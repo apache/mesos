@@ -57,7 +57,13 @@ add_subdirectory(src)
 # TESTS.
 ########
 add_custom_target(check COMMAND ctest -V -C $<CONFIG> DEPENDS tests)
-add_custom_target(tests DEPENDS stout-tests libprocess-tests mesos-tests)
+add_custom_target(
+  tests
+  DEPENDS stout-tests libprocess-tests mesos-tests)
+
+if (ENABLE_NEW_CLI)
+  add_dependencies(tests cli-tests)
+endif ()
 
 # PACKAGING.
 ############

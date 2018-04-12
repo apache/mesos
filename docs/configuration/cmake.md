@@ -141,6 +141,14 @@ See more information in the [CMake documentation](../cmake.md).
   </tr>
   <tr>
     <td>
+      -DENABLE_NEW_CLI=(TRUE|FALSE)
+    </td>
+    <td>
+      Build the new CLI instead of the old one. [default=FALSE]
+    </td>
+  </tr>
+  <tr>
+    <td>
       -D3RDPARTY_DEPENDENCIES=[path_or_url]
     </td>
     <td>

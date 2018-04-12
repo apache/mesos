@@ -99,7 +99,59 @@ option(
   "Build libprocess with LIFO fixed size semaphore."
   FALSE)
 
-option(ENABLE_JAVA
+option(
+  ENABLE_NEW_CLI
+  "Build the new CLI instead of the old one."
+  FALSE)
+
+if (ENABLE_NEW_CLI)
+  find_package(PythonInterp)
+  find_package(PythonLibs)
+
+  if (NOT PYTHON_LIBRARY)
+    message(
+      FATAL_ERROR
+      "Python not found.\n"
+      "The new CLI requires Python version 2.6 or 2.7 in order to build.\n"
+      "Your Python version is ${PYTHONLIBS_VERSION_STRING}.\n"
+      "You may wish to set the PYTHON environment variable to an "
+      "appropriate value if Python is not installed in your PATH.")
+  endif ()
+
+  if (${PYTHONLIBS_VERSION_STRING} VERSION_LESS "2.6.0")
+    message(
+      FATAL_ERROR
+      "Python version too old.\n"
+      "The new CLI requires Python version 2.6 or 2.7 in order to build.\n"
+      "Your Python version is ${PYTHONLIBS_VERSION_STRING}.\n"
+      "You may wish to set the PYTHON environment variable to an "
+      "appropriate value to assure the right Python executable is found.")
+  endif ()
+
+  if (${PYTHONLIBS_VERSION_STRING} VERSION_EQUAL "3.0.0" OR
+      ${PYTHONLIBS_VERSION_STRING} VERSION_GREATER "3.0.0")
+    message(
+      FATAL_ERROR
+      "Python version too new.\n"
+      "The new CLI requires Python version 2.6 or 2.7 in order to build.\n"
+      "Your Python version is ${PYTHONLIBS_VERSION_STRING}.\n"
+      "You may wish to set the PYTHON environment variable to an "
+      "appropriate value to assure the right Python executable is found.")
+  endif ()
+
+  find_program(VIRTUALENV virtualenv)
+  if (NOT VIRTUALENV)
+    message(
+      FATAL_ERROR
+      "Cannot find virtualenv.\n"
+      "The new CLI requires 'virtualenv' be installed as part of your "
+      "Python ${PYTHONLIBS_VERSION_STRING} installation.\n"
+      "You may wish to install it via 'pip install virtualenv'.")
+  endif ()
+endif ()
+
+option(
+  ENABLE_JAVA
   "Build Java components. Warning: this is SLOW."
   FALSE)
 

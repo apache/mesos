@@ -237,6 +237,11 @@ AC_ARG_ENABLE([lock_free_run_queue],
                              [enables the lock-free run queue in libprocess]),
                              [], [enable_lock_free_run_queue=no])
 
+AC_ARG_ENABLE([new_cli],
+              AS_HELP_STRING([--enable-new-cli],
+                             [Build the new CLI instead of the old one, default:
+              [], [enable_new_cli=no]]))
+
 AC_ARG_ENABLE([libtool-wrappers],
               AS_HELP_STRING([--disable-libtool-wrappers],
                              [Directly create binaries instead of libtool
@@ -2438,6 +2443,39 @@ correct if you're already doing this.
 
   has_python=yes
 fi
+
+AS_IF([test "x$enable_new_cli" = "xyes"], [
+  AM_PATH_PYTHON([2.6])
+
+  AX_COMPARE_VERSION([$PYTHON_VERSION], [gt], [2.7],
+    AC_MSG_ERROR([Python version too new
+-------------------------------------------------------------------
+The new CLI requires Python version 2.6 or 2.7 in order to build.
+Your Python version is $PYTHON_VERSION.
+
+You may wish to set the PYTHON environment variable to an
+appropriate value to assure the right Python executable is found.
+-------------------------------------------------------------------
+  ]))
+
+  AC_CHECK_PROG([VIRTUALENV_CHECK], [virtualenv], [yes])
+  AS_IF([test "x$VIRTUALENV_CHECK" = "xyes"],, [
+     AC_MSG_ERROR([Cannot find virtualenv
+-------------------------------------------------------------------
+The new CLI requires 'virtualenv' be installed as part of your
+Python $PYTHON_VERSION installation.
+
+You may wish to install it via 'pip install virtualenv'.
+-------------------------------------------------------------------
+  ])])
+])
+
+AC_MSG_CHECKING([whether to enable new CLI])
+AS_IF([test "x$enable_new_cli" = "xyes"],
+      [AC_MSG_RESULT([yes])],
+      [AC_MSG_RESULT([no])])
+
+AM_CONDITIONAL([ENABLE_NEW_CLI], [test "x$enable_new_cli" = "xyes"])
 
 AM_CONDITIONAL([HAS_PYTHON], [test "x$has_python" = "xyes"])
 
