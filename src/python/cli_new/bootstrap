@@ -94,16 +94,31 @@ PYTHONPATH="${OLD_PYTHONPATH}"
 complete -r mesos
 EOF
 
+echo ""
+echo "Setup complete!"
+echo ""
+echo "To begin working, simply activate your virtual"
+echo "environment and deactivate it when you are done."
+echo ""
+
 if [ "${VIRTUALENV_DIRECTORY}" = "${CURRDIR}/.virtualenv" ]; then
   # Print some info about the sucess of the installation.
-  echo ""
-  echo "Setup complete!"
-  echo ""
-  echo "To begin working, simply activate your virtual"
-  echo "environment and deactivate it when you are done."
-  echo ""
   echo "    $ source activate"
   echo "    $ mesos <command> [<args>...]"
   echo "    $ source deactivate"
+  echo ""
+else
+  echo "    $ source ${VIRTUALENV_DIRECTORY}/bin/activate"
+  echo "    $ source ${VIRTUALENV_DIRECTORY}/bin/postactivate"
+  echo "    $ mesos <command> [<args>...]"
+  echo "    $ source ${VIRTUALENV_DIRECTORY}/bin/predeactivate"
+  echo "    $ deactivate"
+  echo ""
+  echo "The postactivate and predeactivate files set up autocompletion."
+  echo "Add the mesos binary parent directory"
+  echo "${CURRDIR}/bin/"
+  echo "to your path, export it, and source"
+  echo "${CURRDIR}/mesos.bash_completion"
+  echo "to skip these two steps in the future."
   echo ""
 fi
