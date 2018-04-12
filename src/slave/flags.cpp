@@ -498,7 +498,7 @@ mesos::internal::slave::Flags::Flags()
       "For partition-aware frameworks, it makes sense to set this higher\n"
       "than the timeout that the framework uses to give up on the task,\n"
       "otherwise the executor might terminate even if the task could still\n"
-      "sucessfully reconnect to the framework.",
+      "successfully reconnect to the framework.",
       RECOVERY_TIMEOUT);
 
   add(&Flags::reconfiguration_policy,
