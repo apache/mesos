@@ -216,6 +216,16 @@ public:
       const csi::v0::ControllerGetCapabilitiesRequest* request,
       csi::v0::ControllerGetCapabilitiesResponse* response) override;
 
+  virtual Status NodeStageVolume(
+      ServerContext* context,
+      const csi::v0::NodeStageVolumeRequest* request,
+      csi::v0::NodeStageVolumeResponse* response) override;
+
+  virtual Status NodeUnstageVolume(
+      ServerContext* context,
+      const csi::v0::NodeUnstageVolumeRequest* request,
+      csi::v0::NodeUnstageVolumeResponse* response) override;
+
   virtual Status NodePublishVolume(
       ServerContext* context,
       const csi::v0::NodePublishVolumeRequest* request,
@@ -594,6 +604,112 @@ Status TestCSIPlugin::ControllerGetCapabilities(
 }
 
 
+Status TestCSIPlugin::NodeStageVolume(
+    ServerContext* context,
+    const csi::v0::NodeStageVolumeRequest* request,
+    csi::v0::NodeStageVolumeResponse* response)
+{
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
+
+  // TODO(chhsiao): Validate required fields.
+
+  if (!volumes.contains(request->volume_id())) {
+    return Status(
+        grpc::NOT_FOUND,
+        "Volume '" + request->volume_id() + "' is not found");
+  }
+
+  const VolumeInfo& volumeInfo = volumes.at(request->volume_id());
+  const string path = getVolumePath(volumeInfo);
+
+  auto it = request->volume_attributes().find("path");
+  if (it == request->volume_attributes().end() || it->second != path) {
+    return Status(grpc::INVALID_ARGUMENT, "Invalid volume attributes");
+  }
+
+  if (!os::exists(request->staging_target_path())) {
+    return Status(
+        grpc::INVALID_ARGUMENT,
+        "Target path '" + request->staging_target_path() + "' is not found");
+  }
+
+  Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
+  if (table.isError()) {
+    return Status(
+        grpc::INTERNAL,
+        "Failed to get mount table: " + table.error());
+  }
+
+  foreach (const fs::MountInfoTable::Entry& entry, table->entries) {
+    if (entry.target == request->staging_target_path()) {
+      return Status::OK;
+    }
+  }
+
+  Try<Nothing> mount = fs::mount(
+      path,
+      request->staging_target_path(),
+      None(),
+      MS_BIND,
+      None());
+
+  if (mount.isError()) {
+    return Status(
+        grpc::INTERNAL,
+        "Failed to mount from '" + path + "' to '" +
+        request->staging_target_path() + "': " + mount.error());
+  }
+
+  return Status::OK;
+}
+
+
+Status TestCSIPlugin::NodeUnstageVolume(
+    ServerContext* context,
+    const csi::v0::NodeUnstageVolumeRequest* request,
+    csi::v0::NodeUnstageVolumeResponse* response)
+{
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
+
+  // TODO(chhsiao): Validate required fields.
+
+  if (!volumes.contains(request->volume_id())) {
+    return Status(
+        grpc::NOT_FOUND,
+        "Volume '" + request->volume_id() + "' is not found");
+  }
+
+  Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
+  if (table.isError()) {
+    return Status(
+        grpc::INTERNAL,
+        "Failed to get mount table: " + table.error());
+  }
+
+  bool found = false;
+  foreach (const fs::MountInfoTable::Entry& entry, table->entries) {
+    if (entry.target == request->staging_target_path()) {
+      found = true;
+      break;
+    }
+  }
+
+  if (!found) {
+    return Status::OK;
+  }
+
+  Try<Nothing> unmount = fs::unmount(request->staging_target_path());
+  if (unmount.isError()) {
+    return Status(
+        grpc::INTERNAL,
+        "Failed to unmount '" + request->staging_target_path() +
+        "': " + unmount.error());
+  }
+
+  return Status::OK;
+}
+
+
 Status TestCSIPlugin::NodePublishVolume(
     ServerContext* context,
     const csi::v0::NodePublishVolumeRequest* request,
@@ -623,11 +739,31 @@ Status TestCSIPlugin::NodePublishVolume(
         "Target path '" + request->target_path() + "' is not found");
   }
 
+  if (request->staging_target_path().empty()) {
+    return Status(
+        grpc::FAILED_PRECONDITION,
+        "Expecting 'staging_target_path' to be set");
+  }
+
   Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
   if (table.isError()) {
     return Status(
         grpc::INTERNAL,
         "Failed to get mount table: " + table.error());
+  }
+
+  bool found = false;
+  foreach (const fs::MountInfoTable::Entry& entry, table->entries) {
+    if (entry.target == request->staging_target_path()) {
+      found = true;
+      break;
+    }
+  }
+
+  if (!found) {
+    return Status(
+        grpc::FAILED_PRECONDITION,
+        "Volume '" + request->volume_id() + "' has not been staged yet");
   }
 
   foreach (const fs::MountInfoTable::Entry& entry, table->entries) {
@@ -637,7 +773,7 @@ Status TestCSIPlugin::NodePublishVolume(
   }
 
   Try<Nothing> mount = fs::mount(
-      path,
+      request->staging_target_path(),
       request->target_path(),
       None(),
       MS_BIND,
@@ -700,9 +836,6 @@ Status TestCSIPlugin::NodeUnpublishVolume(
     return Status::OK;
   }
 
-  const VolumeInfo& volumeInfo = volumes.at(request->volume_id());
-  const string path = getVolumePath(volumeInfo);
-
   Try<Nothing> unmount = fs::unmount(request->target_path());
   if (unmount.isError()) {
     return Status(
@@ -734,6 +867,9 @@ Status TestCSIPlugin::NodeGetCapabilities(
     csi::v0::NodeGetCapabilitiesResponse* response)
 {
   LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
+
+  response->add_capabilities()->mutable_rpc()->set_type(
+      csi::v0::NodeServiceCapability::RPC::STAGE_UNSTAGE_VOLUME);
 
   return Status::OK;
 }
