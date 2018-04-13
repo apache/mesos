@@ -40,7 +40,7 @@ Each replica keeps an array of log entries. The array index is the log position.
 
 ### Reaching consensus for a single log entry
 
-A Paxos round can help all replicas reach consensus on a single log entry's value. It has two phases: a promise phase and a write phase. Note that we are using slightly different terminology from the [original Paxos paper](https://research.microsoft.com/en-us/um/people/lamport/pubs/paxes-simple.pdf). In our implementation, the _prepare_ and _accept_ phases in the original paper are referred to as the _promise_ and _write_ phases, respectively. Consequently, a prepare request (response) is referred to as a promise request (response), and an accept request (response) is referred to as a write request (response).
+A Paxos round can help all replicas reach consensus on a single log entry's value. It has two phases: a promise phase and a write phase. Note that we are using slightly different terminology from the [original Paxos paper](https://research.microsoft.com/en-us/um/people/lamport/pubs/paxos-simple.pdf). In our implementation, the _prepare_ and _accept_ phases in the original paper are referred to as the _promise_ and _write_ phases, respectively. Consequently, a prepare request (response) is referred to as a promise request (response), and an accept request (response) is referred to as a write request (response).
 
 To append value _X_ to the log at position _p_, the coordinator first broadcasts a promise request to all replicas with proposal number _n_, asking replicas to promise that they will not respond to any request (promise/write request) with a proposal number lower than _n_. We assume that _n_ is higher than any other previously used proposal number, and will explain how we do this later.
 
@@ -107,7 +107,7 @@ Here is our correctness argument. For a log entry at position _e_ where _e_ is l
 
 ### Auto initialization
 
-Since we don't allow an empty replica (a replica in EMPTY status) to respond to requests from coordinators, that raises a question for bootstrapping because initially, each replica is empty. The replicated log provides two choices here. One choice is to use a tool (`mesos-log) to explicitly initialize the log on each replica by setting the replica's status to VOTING, but that requires an extra step when setting up an application.
+Since we don't allow an empty replica (a replica in EMPTY status) to respond to requests from coordinators, that raises a question for bootstrapping because initially, each replica is empty. The replicated log provides two choices here. One choice is to use a tool (`mesos-log`) to explicitly initialize the log on each replica by setting the replica's status to VOTING, but that requires an extra step when setting up an application.
 
 The other choice is to do automatic initialization. Our idea is: we allow a replica in EMPTY status to become VOTING immediately if it finds all replicas are in EMPTY status. This is based on the assumption that the only time _all_ replicas are in EMPTY status is during start-up. This may not be true if a catastrophic failure causes all replicas to lose their durable state, and that's exactly the reason we allow conservative users to disable auto-initialization.
 
