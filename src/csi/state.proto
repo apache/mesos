@@ -26,10 +26,13 @@ message VolumeState {
   enum State {
     UNKNOWN = 0;
     CREATED = 1;              // The volume is provisioned but not published.
-    NODE_READY = 2;           // The volume is attached to the node.
-    PUBLISHED =  3;           // The volume is mounted on the node.
+    NODE_READY = 2;           // The volume is made available on the node.
+    VOL_READY = 8;            // The volume is made publishable on the node.
+    PUBLISHED = 3;            // The volume is published on the node.
     CONTROLLER_PUBLISH = 4;   // `ControllerPublishVolume` is being called.
     CONTROLLER_UNPUBLISH = 5; // `ControllerUnpublishVolume` is being called.
+    NODE_STAGE = 9;           // `NodeStageVolume` is being called.
+    NODE_UNSTAGE = 10;        // `NodeUnstageVolume` is being called.
     NODE_PUBLISH = 6;         // `NodePublishVolume` is being called.
     NODE_UNPUBLISH = 7;       // `NodeUnpublishVolume` is being called.
   }
@@ -37,25 +40,23 @@ message VolumeState {
   // The state of the volume. This is a REQUIRED field.
   State state = 1;
 
-  // The capability used to publish the volume. This is a
-  // REQUIRED field.
+  // The capability used to publish the volume. This is a REQUIRED field.
   .csi.v0.VolumeCapability volume_capability = 2;
 
-  // Attributes of the volume to be used on the node. This field MUST
-  // match the attributes of the `Volume` returned by `CreateVolume`.
-  // This is an OPTIONAL field.
+  // Attributes of the volume to be used on the node. This field MUST match the
+  // attributes of the `Volume` returned by `CreateVolume`. This is an OPTIONAL
+  // field.
   map<string, string> volume_attributes = 3;
 
-  // If the plugin has the `PUBLISH_UNPUBLISH_VOLUME` controller
-  // capability, this field MUST be set to the value returned by
-  // `ControllerPublishVolume`. Otherwise, this field MUST remain unset.
-  // This is an OPTIONAL field.
+  // If the plugin has the `PUBLISH_UNPUBLISH_VOLUME` controller capability,
+  // this field MUST be set to the value returned by `ControllerPublishVolume`.
+  // Otherwise, this field MUST remain unset. This is an OPTIONAL field.
   map<string, string> publish_info = 4;
 
-  // This field is used to check if the node has been rebooted since the
-  // last time the volume is mounted. If yes, `NodePublishVolume` needs
-  // to be called to mount the volume again. It MUST be set to the boot
-  // ID of the node if the volume is mounted, and SHOULD remain unset
-  // otherwise. This is an OPTIONAL field.
+  // This field is used to check if the node has been rebooted since the volume
+  // was transitioned to `VOL_READY` state. If yes, `NodeStageVolume` needs to
+  // be called to make the volume publishable again. It MUST be set to the boot
+  // ID of the node if the volume is in `VOL_READY` state, and SHOULD remain
+  // unset otherwise. This is an OPTIONAL field.
   string boot_id = 5;
 }
