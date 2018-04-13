@@ -33,29 +33,15 @@ public:
 protected:
   virtual void initialize()
   {
-    if (authenticationRealm.isSome()) {
-      route("/start",
-            authenticationRealm.get(),
-            START_HELP(),
-            &Profiler::start);
+    route("/start",
+          authenticationRealm,
+          START_HELP(),
+          &Profiler::start);
 
-      route("/stop",
-            authenticationRealm.get(),
-            STOP_HELP(),
-            &Profiler::stop);
-    } else {
-      route("/start",
-            START_HELP(),
-            [this](const http::Request& request) {
-              return Profiler::start(request, None());
-            });
-
-      route("/stop",
-            STOP_HELP(),
-            [this](const http::Request& request) {
-              return Profiler::stop(request, None());
-            });
-    }
+    route("/stop",
+          authenticationRealm,
+          STOP_HELP(),
+          &Profiler::stop);
   }
 
 private:

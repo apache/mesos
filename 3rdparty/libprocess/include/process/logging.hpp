@@ -44,15 +44,7 @@ public:
 protected:
   virtual void initialize()
   {
-    if (authenticationRealm.isSome()) {
-      route("/toggle", authenticationRealm.get(), TOGGLE_HELP(), &This::toggle);
-    } else {
-      route("/toggle",
-            TOGGLE_HELP(),
-            [this](const http::Request& request) {
-              return This::toggle(request, None());
-            });
-    }
+    route("/toggle", authenticationRealm, TOGGLE_HELP(), &This::toggle);
   }
 
 private:

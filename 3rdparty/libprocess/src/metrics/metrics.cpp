@@ -96,18 +96,10 @@ MetricsProcess* MetricsProcess::create(
 
 void MetricsProcess::initialize()
 {
-  if (authenticationRealm.isSome()) {
-    route("/snapshot",
-          authenticationRealm.get(),
-          help(),
-          &MetricsProcess::_snapshot);
-  } else {
-    route("/snapshot",
-          help(),
-          [this](const http::Request& request) {
-            return _snapshot(request, None());
-          });
-  }
+  route("/snapshot",
+        authenticationRealm,
+        help(),
+        &MetricsProcess::_snapshot);
 }
 
 

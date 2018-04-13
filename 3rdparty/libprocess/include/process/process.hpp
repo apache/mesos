@@ -323,6 +323,8 @@ protected:
           AuthenticatedHttpRequestHandler;
 
   // TODO(arojas): Consider introducing an `authentication::Realm` type.
+  // TODO(bevers): Consider changing the type of the second argument to
+  // `const Option<std::string>&` for consistency with the version below.
   void route(
       const std::string& name,
       const std::string& realm,
@@ -331,24 +333,30 @@ protected:
       const RouteOptions& options = RouteOptions());
 
   /**
-   * @copydoc process::ProcessBase::route
+   * Forwards to the correct overload of `process::ProcessBase::route()`,
+   * depending on whether the authentication realm `realm` is present.
    */
-  template <typename T>
+  template<typename T>
   void route(
-      const std::string& name,
-      const std::string& realm,
-      const Option<std::string>& help,
-      Future<http::Response> (T::*method)(
-          const http::Request&,
-          const Option<http::authentication::Principal>&),
-      const RouteOptions& options = RouteOptions())
+    const std::string& name,
+    const Option<std::string>& realm,
+    const Option<std::string>& help,
+    Future<http::Response>(T::*method)(
+        const http::Request&, const Option<http::authentication::Principal>&),
+    const RouteOptions& options = RouteOptions())
   {
     // Note that we use dynamic_cast here so a process can use
     // multiple inheritance if it sees so fit (e.g., to implement
     // multiple callback interfaces).
-    AuthenticatedHttpRequestHandler handler =
-      lambda::bind(method, dynamic_cast<T*>(this), lambda::_1, lambda::_2);
-    route(name, realm, help, handler, options);
+    if (realm.isSome()) {
+      AuthenticatedHttpRequestHandler handler =
+        lambda::bind(method, dynamic_cast<T*>(this), lambda::_1, lambda::_2);
+      route(name, realm.get(), help, handler, options);
+    } else {
+      HttpRequestHandler handler =
+        lambda::bind(method, dynamic_cast<T*>(this), lambda::_1, None());
+      route(name, help, handler, options);
+    }
   }
 
   /**
