@@ -99,11 +99,12 @@ using process::collect;
 using process::defer;
 using process::loop;
 using process::spawn;
-using process::undiscardable;
 
 using process::http::authentication::Principal;
 
 using process::metrics::Counter;
+
+using mesos::csi::state::VolumeState;
 
 using mesos::internal::protobuf::convertLabelsToStringMap;
 using mesos::internal::protobuf::convertStringMapToLabels;
@@ -325,10 +326,10 @@ public:
 private:
   struct VolumeData
   {
-    VolumeData(const csi::state::VolumeState& _state)
+    VolumeData(const VolumeState& _state)
       : state(_state), sequence(new Sequence("volume-sequence")) {}
 
-    csi::state::VolumeState state;
+    VolumeState state;
 
     // We run all CSI operations for the same volume on a sequence to
     // ensure that they are processed in a sequential order.
@@ -827,8 +828,8 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverVolumes()
       continue;
     }
 
-    Result<csi::state::VolumeState> volumeState =
-      slave::state::read<csi::state::VolumeState>(statePath);
+    Result<VolumeState> volumeState =
+      slave::state::read<VolumeState>(statePath);
 
     if (volumeState.isError()) {
       return Failure(
@@ -838,53 +839,53 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverVolumes()
 
     if (volumeState.isSome()) {
       volumes.put(volumeId, std::move(volumeState.get()));
+      VolumeData& volume = volumes.at(volumeId);
 
       Future<Nothing> recovered = Nothing();
 
-      switch (volumes.at(volumeId).state.state()) {
-        case csi::state::VolumeState::CREATED:
-        case csi::state::VolumeState::NODE_READY: {
+      switch (volume.state.state()) {
+        case VolumeState::CREATED:
+        case VolumeState::NODE_READY: {
           break;
         }
-        case csi::state::VolumeState::PUBLISHED: {
-          if (volumes.at(volumeId).state.boot_id() != bootId) {
+        case VolumeState::PUBLISHED: {
+          if (volume.state.boot_id() != bootId) {
             // The node has been restarted since the volume is mounted,
             // so it is no longer in the `PUBLISHED` state.
-            volumes.at(volumeId).state.set_state(
-                csi::state::VolumeState::NODE_READY);
-            volumes.at(volumeId).state.clear_boot_id();
+            volume.state.set_state(VolumeState::NODE_READY);
+            volume.state.clear_boot_id();
             checkpointVolumeState(volumeId);
           }
           break;
         }
-        case csi::state::VolumeState::CONTROLLER_PUBLISH: {
+        case VolumeState::CONTROLLER_PUBLISH: {
           recovered =
-            volumes.at(volumeId).sequence->add(std::function<Future<Nothing>()>(
+            volume.sequence->add(std::function<Future<Nothing>()>(
                 defer(self(), &Self::controllerPublish, volumeId)));
           break;
         }
-        case csi::state::VolumeState::CONTROLLER_UNPUBLISH: {
+        case VolumeState::CONTROLLER_UNPUBLISH: {
           recovered =
-            volumes.at(volumeId).sequence->add(std::function<Future<Nothing>()>(
+            volume.sequence->add(std::function<Future<Nothing>()>(
                 defer(self(), &Self::controllerUnpublish, volumeId)));
           break;
         }
-        case csi::state::VolumeState::NODE_PUBLISH: {
+        case VolumeState::NODE_PUBLISH: {
           recovered =
-            volumes.at(volumeId).sequence->add(std::function<Future<Nothing>()>(
+            volume.sequence->add(std::function<Future<Nothing>()>(
                 defer(self(), &Self::nodePublish, volumeId)));
           break;
         }
-        case csi::state::VolumeState::NODE_UNPUBLISH: {
+        case VolumeState::NODE_UNPUBLISH: {
           recovered =
-            volumes.at(volumeId).sequence->add(std::function<Future<Nothing>()>(
+            volume.sequence->add(std::function<Future<Nothing>()>(
                 defer(self(), &Self::nodeUnpublish, volumeId)));
           break;
         }
-        case csi::state::VolumeState::UNKNOWN: {
+        case VolumeState::UNKNOWN: {
           recovered = Failure(
               "Volume '" + volumeId + "' is in " +
-              stringify(volumes.at(volumeId).state.state()) + " state");
+              stringify(volume.state.state()) + " state");
         }
 
         // NOTE: We avoid using a default clause for the following
@@ -1513,26 +1514,40 @@ void StorageLocalResourceProviderProcess::publishResources(
 
           Future<Nothing> published = Nothing();
 
-          // NOTE: We don't break for `CREATED` and `NODE_READY` as
-          // publishing the volume in these states needs all operations
-          // beneath it.
           switch (volumes.at(volumeId).state.state()) {
-            case csi::state::VolumeState::CREATED: {
+            case VolumeState::CONTROLLER_UNPUBLISH: {
               published = published
-                .then(defer(self(), &Self::controllerPublish, volumeId));
+                .then(defer(self(), &Self::controllerUnpublish, volumeId));
+
+              // NOTE: We continue to the next case to publish the volume in
+              // `CREATED` state once the above is done.
             }
-            case csi::state::VolumeState::NODE_READY: {
+            case VolumeState::CREATED:
+            case VolumeState::CONTROLLER_PUBLISH: {
               published = published
+                .then(defer(self(), &Self::controllerPublish, volumeId))
                 .then(defer(self(), &Self::nodePublish, volumeId));
-            }
-            case csi::state::VolumeState::PUBLISHED: {
+
               break;
             }
-            case csi::state::VolumeState::UNKNOWN:
-            case csi::state::VolumeState::CONTROLLER_PUBLISH:
-            case csi::state::VolumeState::CONTROLLER_UNPUBLISH:
-            case csi::state::VolumeState::NODE_PUBLISH:
-            case csi::state::VolumeState::NODE_UNPUBLISH: {
+            case VolumeState::NODE_UNPUBLISH: {
+              published = published
+                .then(defer(self(), &Self::nodeUnpublish, volumeId));
+
+              // NOTE: We continue to the next case to publish the volume in
+              // `NODE_READY` state once the above is done.
+            }
+            case VolumeState::NODE_READY:
+            case VolumeState::NODE_PUBLISH: {
+              published = published
+                .then(defer(self(), &Self::nodePublish, volumeId));
+
+              break;
+            }
+            case VolumeState::PUBLISHED: {
+              break;
+            }
+            case VolumeState::UNKNOWN: {
               UNREACHABLE();
             }
 
@@ -2051,261 +2066,232 @@ Future<Nothing> StorageLocalResourceProviderProcess::prepareNodeService()
 }
 
 
+// Transitions the state of the specified volume from `CREATED` or
+// `CONTROLLER_PUBLISH` to `NODE_READY`.
 // NOTE: This can only be called after `prepareControllerService` and
 // `prepareNodeService`.
 Future<Nothing> StorageLocalResourceProviderProcess::controllerPublish(
     const string& volumeId)
 {
-  CHECK(!controllerCapabilities.publishUnpublishVolume || nodeId.isSome());
-
   CHECK(volumes.contains(volumeId));
-  if (volumes.at(volumeId).state.state() ==
-        csi::state::VolumeState::CONTROLLER_PUBLISH) {
-    // The resource provider failed over during the last
-    // `ControllerPublishVolume` call.
-    CHECK_EQ(RECOVERING, state);
-  } else {
-    CHECK_EQ(csi::state::VolumeState::CREATED,
-             volumes.at(volumeId).state.state());
+  VolumeData& volume = volumes.at(volumeId);
 
-    volumes.at(volumeId).state.set_state(
-        csi::state::VolumeState::CONTROLLER_PUBLISH);
+  if (!controllerCapabilities.publishUnpublishVolume) {
+    CHECK_EQ(VolumeState::CREATED, volume.state.state());
+
+    volume.state.set_state(VolumeState::NODE_READY);
     checkpointVolumeState(volumeId);
+
+    return Nothing();
   }
 
-  Future<Nothing> controllerPublished;
+  CHECK_SOME(controllerContainerId);
+  CHECK_SOME(nodeId);
 
-  if (controllerCapabilities.publishUnpublishVolume) {
-    CHECK_SOME(controllerContainerId);
+  return getService(controllerContainerId.get())
+    .then(defer(self(), [this, volumeId](
+        csi::v0::Client client) -> Future<Nothing> {
+      VolumeData& volume = volumes.at(volumeId);
 
-    controllerPublished = getService(controllerContainerId.get())
-      .then(defer(self(), [=](csi::v0::Client client) {
-        csi::v0::ControllerPublishVolumeRequest request;
-        request.set_volume_id(volumeId);
-        request.set_node_id(nodeId.get());
-        request.mutable_volume_capability()
-          ->CopyFrom(volumes.at(volumeId).state.volume_capability());
-        request.set_readonly(false);
-        *request.mutable_volume_attributes() =
-          volumes.at(volumeId).state.volume_attributes();
+      if (volume.state.state() == VolumeState::CREATED) {
+        volume.state.set_state(VolumeState::CONTROLLER_PUBLISH);
+        checkpointVolumeState(volumeId);
+      }
 
-        return client.ControllerPublishVolume(request)
-          .then(defer(self(), [=](
-              const csi::v0::ControllerPublishVolumeResponse& response) {
-            *volumes.at(volumeId).state.mutable_publish_info() =
-              response.publish_info();
+      CHECK_EQ(VolumeState::CONTROLLER_PUBLISH, volume.state.state());
 
-            return Nothing();
-          }));
-      }));
-  } else {
-    controllerPublished = Nothing();
-  }
+      csi::v0::ControllerPublishVolumeRequest request;
+      request.set_volume_id(volumeId);
+      request.set_node_id(nodeId.get());
+      request.mutable_volume_capability()
+        ->CopyFrom(volume.state.volume_capability());
+      request.set_readonly(false);
+      *request.mutable_volume_attributes() = volume.state.volume_attributes();
 
-  return controllerPublished
-    .then(defer(self(), [=] {
-      volumes.at(volumeId).state.set_state(csi::state::VolumeState::NODE_READY);
-      checkpointVolumeState(volumeId);
+      return client.ControllerPublishVolume(request)
+        .then(defer(self(), [this, volumeId](
+            const csi::v0::ControllerPublishVolumeResponse& response) {
+          VolumeData& volume = volumes.at(volumeId);
 
-      return Nothing();
-    }))
-    .repair(defer(self(), [=](const Future<Nothing>& future) {
-      volumes.at(volumeId).state.set_state(csi::state::VolumeState::CREATED);
-      checkpointVolumeState(volumeId);
+          volume.state.set_state(VolumeState::NODE_READY);
+          *volume.state.mutable_publish_info() = response.publish_info();
+          checkpointVolumeState(volumeId);
 
-      return future;
+          return Nothing();
+        }));
     }));
 }
 
 
+// Transitions the state of the specified volume from `NODE_READY`,
+// `CONTROLLER_PUBLISH` or `CONTROLLER_UNPUBLISH` to `CREATED`.
 // NOTE: This can only be called after `prepareControllerService` and
 // `prepareNodeService`.
 Future<Nothing> StorageLocalResourceProviderProcess::controllerUnpublish(
     const string& volumeId)
 {
-  CHECK_SOME(controllerContainerId);
-  CHECK(!controllerCapabilities.publishUnpublishVolume || nodeId.isSome());
-
   CHECK(volumes.contains(volumeId));
-  if (volumes.at(volumeId).state.state() ==
-        csi::state::VolumeState::CONTROLLER_UNPUBLISH) {
-    // The resource provider failed over during the last
-    // `ControllerUnpublishVolume` call.
-    CHECK_EQ(RECOVERING, state);
-  } else {
-    CHECK_EQ(csi::state::VolumeState::NODE_READY,
-             volumes.at(volumeId).state.state());
+  VolumeData& volume = volumes.at(volumeId);
 
-    volumes.at(volumeId).state.set_state(
-        csi::state::VolumeState::CONTROLLER_UNPUBLISH);
+  if (!controllerCapabilities.publishUnpublishVolume) {
+    CHECK_EQ(VolumeState::NODE_READY, volume.state.state());
+
+    volume.state.set_state(VolumeState::CREATED);
     checkpointVolumeState(volumeId);
+
+    return Nothing();
   }
 
-  Future<Nothing> controllerUnpublished;
+  CHECK_SOME(controllerContainerId);
+  CHECK_SOME(nodeId);
 
-  if (controllerCapabilities.publishUnpublishVolume) {
-    controllerUnpublished = getService(controllerContainerId.get())
-      .then(defer(self(), [=](csi::v0::Client client) {
-        csi::v0::ControllerUnpublishVolumeRequest request;
-        request.set_volume_id(volumeId);
-        request.set_node_id(nodeId.get());
+  return getService(controllerContainerId.get())
+    .then(defer(self(), [this, volumeId](csi::v0::Client client) {
+      VolumeData& volume = volumes.at(volumeId);
 
-        return client.ControllerUnpublishVolume(request)
-          .then([] { return Nothing(); });
-      }));
-  } else {
-    controllerUnpublished = Nothing();
-  }
+      // A previously failed `ControllerPublishVolume` call can be recovered
+      // through the current `ControllerUnpublishVolume` call. See:
+      // https://github.com/container-storage-interface/spec/blob/v0.2.0/spec.md#controllerpublishvolume // NOLINT
+      if (volume.state.state() == VolumeState::NODE_READY ||
+          volume.state.state() == VolumeState::CONTROLLER_PUBLISH) {
+        volume.state.set_state(VolumeState::CONTROLLER_UNPUBLISH);
+        checkpointVolumeState(volumeId);
+      }
 
-  return controllerUnpublished
-    .then(defer(self(), [=] {
-      volumes.at(volumeId).state.set_state(csi::state::VolumeState::CREATED);
-      volumes.at(volumeId).state.mutable_publish_info()->clear();
-      checkpointVolumeState(volumeId);
+      CHECK_EQ(VolumeState::CONTROLLER_UNPUBLISH, volume.state.state());
 
-      return Nothing();
-    }))
-    .repair(defer(self(), [=](const Future<Nothing>& future) {
-      volumes.at(volumeId).state.set_state(csi::state::VolumeState::NODE_READY);
-      checkpointVolumeState(volumeId);
+      csi::v0::ControllerUnpublishVolumeRequest request;
+      request.set_volume_id(volumeId);
+      request.set_node_id(nodeId.get());
 
-      return future;
+      return client.ControllerUnpublishVolume(request)
+        .then(defer(self(), [this, volumeId] {
+          VolumeData& volume = volumes.at(volumeId);
+
+          volume.state.set_state(VolumeState::CREATED);
+          volume.state.mutable_publish_info()->clear();
+          checkpointVolumeState(volumeId);
+
+          return Nothing();
+        }));
     }));
 }
 
 
+// Transition the state of the specified volume from `NODE_READY` or
+// `NODE_PUBLISH` to `PUBLISHED`.
+// NOTE: This can only be called after `prepareNodeService`.
 Future<Nothing> StorageLocalResourceProviderProcess::nodePublish(
     const string& volumeId)
 {
   // TODO(chhsiao): Implement `STAGE_UNSTAGE_VOLUME` support.
 
+  CHECK(volumes.contains(volumeId));
   CHECK_SOME(nodeContainerId);
 
-  CHECK(volumes.contains(volumeId));
-  if (volumes.at(volumeId).state.state() ==
-        csi::state::VolumeState::NODE_PUBLISH) {
-    // The resource provider failed over during the last
-    // `NodePublishVolume` call.
-    CHECK_EQ(RECOVERING, state);
-  } else {
-    CHECK_EQ(csi::state::VolumeState::NODE_READY,
-             volumes.at(volumeId).state.state());
-
-    volumes.at(volumeId).state.set_state(csi::state::VolumeState::NODE_PUBLISH);
-    checkpointVolumeState(volumeId);
-  }
-
-  const string mountPath = csi::paths::getMountPath(
-      slave::paths::getCsiRootDir(workDir),
-      info.storage().plugin().type(),
-      info.storage().plugin().name(),
-      volumeId);
-
-  Try<Nothing> mkdir = os::mkdir(mountPath);
-  if (mkdir.isError()) {
-    return Failure(
-        "Failed to create mount point '" + mountPath + "': " + mkdir.error());
-  }
-
   return getService(nodeContainerId.get())
-    .then(defer(self(), [=](csi::v0::Client client) {
+    .then(defer(self(), [this, volumeId](
+        csi::v0::Client client) -> Future<Nothing> {
+      VolumeData& volume = volumes.at(volumeId);
+
+      const string mountPath = csi::paths::getMountPath(
+          slave::paths::getCsiRootDir(workDir),
+          info.storage().plugin().type(),
+          info.storage().plugin().name(),
+          volumeId);
+
+      Try<Nothing> mkdir = os::mkdir(mountPath);
+      if (mkdir.isError()) {
+        return Failure(
+            "Failed to create mount point '" + mountPath + "': " +
+            mkdir.error());
+      }
+
+      if (volume.state.state() == VolumeState::NODE_READY) {
+        volume.state.set_state(VolumeState::NODE_PUBLISH);
+        checkpointVolumeState(volumeId);
+      }
+
+      CHECK_EQ(VolumeState::NODE_PUBLISH, volume.state.state());
+
       csi::v0::NodePublishVolumeRequest request;
       request.set_volume_id(volumeId);
-      *request.mutable_publish_info() =
-        volumes.at(volumeId).state.publish_info();
+      *request.mutable_publish_info() = volume.state.publish_info();
       request.set_target_path(mountPath);
       request.mutable_volume_capability()
-        ->CopyFrom(volumes.at(volumeId).state.volume_capability());
+        ->CopyFrom(volume.state.volume_capability());
       request.set_readonly(false);
-      *request.mutable_volume_attributes() =
-        volumes.at(volumeId).state.volume_attributes();
+      *request.mutable_volume_attributes() = volume.state.volume_attributes();
 
-      return client.NodePublishVolume(request);
-    }))
-    .then(defer(self(), [=] {
-      volumes.at(volumeId).state.set_state(csi::state::VolumeState::PUBLISHED);
-      volumes.at(volumeId).state.set_boot_id(bootId);
-      checkpointVolumeState(volumeId);
+      return client.NodePublishVolume(request)
+        .then(defer(self(), [this, volumeId] {
+          VolumeData& volume = volumes.at(volumeId);
 
-      return Nothing();
-    }))
-    .repair(defer(self(), [=](const Future<Nothing>& future) {
-      volumes.at(volumeId).state.set_state(csi::state::VolumeState::NODE_READY);
-      checkpointVolumeState(volumeId);
+          volume.state.set_state(VolumeState::PUBLISHED);
+          volume.state.set_boot_id(bootId);
+          checkpointVolumeState(volumeId);
 
-      return future;
+          return Nothing();
+        }));
     }));
 }
 
 
+// Transition the state of the specified volume from `PUBLISHED`,
+// `NODE_PUBLISH` or `NODE_UNPUBLISH` to `NODE_READY`.
+// NOTE: This can only be called after `prepareNodeService`.
 Future<Nothing> StorageLocalResourceProviderProcess::nodeUnpublish(
     const string& volumeId)
 {
   // TODO(chhsiao): Implement `STAGE_UNSTAGE_VOLUME` support.
 
+  CHECK(volumes.contains(volumeId));
   CHECK_SOME(nodeContainerId);
 
-  CHECK(volumes.contains(volumeId));
-  if (volumes.at(volumeId).state.state() ==
-        csi::state::VolumeState::NODE_UNPUBLISH) {
-    // The resource provider failed over during the last
-    // `NodeUnpublishVolume` call.
-    CHECK_EQ(RECOVERING, state);
-  } else {
-    CHECK_EQ(csi::state::VolumeState::PUBLISHED,
-             volumes.at(volumeId).state.state());
+  return getService(nodeContainerId.get())
+    .then(defer(self(), [this, volumeId](csi::v0::Client client) {
+      VolumeData& volume = volumes.at(volumeId);
 
-    volumes.at(volumeId).state.set_state(
-        csi::state::VolumeState::NODE_UNPUBLISH);
-    checkpointVolumeState(volumeId);
-  }
+      const string mountPath = csi::paths::getMountPath(
+          slave::paths::getCsiRootDir(workDir),
+          info.storage().plugin().type(),
+          info.storage().plugin().name(),
+          volumeId);
 
-  const string mountPath = csi::paths::getMountPath(
-      slave::paths::getCsiRootDir(workDir),
-      info.storage().plugin().type(),
-      info.storage().plugin().name(),
-      volumeId);
+      CHECK(os::exists(mountPath));
 
-  Future<Nothing> nodeUnpublished;
-
-  if (os::exists(mountPath)) {
-    nodeUnpublished = getService(nodeContainerId.get())
-      .then(defer(self(), [=](csi::v0::Client client) {
-        csi::v0::NodeUnpublishVolumeRequest request;
-        request.set_volume_id(volumeId);
-        request.set_target_path(mountPath);
-
-        return client.NodeUnpublishVolume(request)
-          .then([] { return Nothing(); });
-      }));
-  } else {
-    // The volume has been actually unpublished before failover.
-    CHECK_EQ(RECOVERING, state);
-
-    nodeUnpublished = Nothing();
-  }
-
-  return nodeUnpublished
-    .then(defer(self(), [=]() -> Future<Nothing> {
-      volumes.at(volumeId).state.set_state(csi::state::VolumeState::NODE_READY);
-      volumes.at(volumeId).state.clear_boot_id();
-
-      Try<Nothing> rmdir = os::rmdir(mountPath);
-      if (rmdir.isError()) {
-        return Failure(
-            "Failed to remove mount point '" + mountPath + "': " +
-            rmdir.error());
+      // A previously failed `NodePublishVolume` call can be recovered through
+      // the current `NodeUnpublishVolume` call. See:
+      // https://github.com/container-storage-interface/spec/blob/v0.2.0/spec.md#nodepublishvolume // NOLINT
+      if (volume.state.state() == VolumeState::PUBLISHED ||
+          volume.state.state() == VolumeState::NODE_PUBLISH) {
+        volume.state.set_state(VolumeState::NODE_UNPUBLISH);
+        checkpointVolumeState(volumeId);
       }
 
-      checkpointVolumeState(volumeId);
+      CHECK_EQ(VolumeState::NODE_UNPUBLISH, volume.state.state());
 
-      return Nothing();
-    }))
-    .repair(defer(self(), [=](const Future<Nothing>& future) {
-      volumes.at(volumeId).state.set_state(csi::state::VolumeState::PUBLISHED);
-      checkpointVolumeState(volumeId);
+      csi::v0::NodeUnpublishVolumeRequest request;
+      request.set_volume_id(volumeId);
+      request.set_target_path(mountPath);
 
-      return future;
+      return client.NodeUnpublishVolume(request)
+        .then(defer(self(), [this, volumeId, mountPath]() -> Future<Nothing> {
+          VolumeData& volume = volumes.at(volumeId);
+
+          volume.state.set_state(VolumeState::NODE_READY);
+          volume.state.clear_boot_id();
+          checkpointVolumeState(volumeId);
+
+          Try<Nothing> rmdir = os::rmdir(mountPath);
+          if (rmdir.isError()) {
+            return Failure(
+                "Failed to remove mount point '" + mountPath + "': " +
+                rmdir.error());
+          }
+
+          return Nothing();
+        }));
     }));
 }
 
@@ -2343,11 +2329,11 @@ Future<string> StorageLocalResourceProviderProcess::createVolume(
             // The resource provider failed over after the last
             // `CreateVolume` call, but before the operation status was
             // checkpointed.
-            CHECK_EQ(csi::state::VolumeState::CREATED,
+            CHECK_EQ(VolumeState::CREATED,
                      volumes.at(volume.id()).state.state());
           } else {
-            csi::state::VolumeState volumeState;
-            volumeState.set_state(csi::state::VolumeState::CREATED);
+            VolumeState volumeState;
+            volumeState.set_state(VolumeState::CREATED);
             volumeState.mutable_volume_capability()
               ->CopyFrom(profileInfo.capability);
             *volumeState.mutable_volume_attributes() = volume.attributes();
@@ -2368,8 +2354,6 @@ Future<Nothing> StorageLocalResourceProviderProcess::deleteVolume(
     const string& volumeId,
     bool preExisting)
 {
-  CHECK(!controllerCapabilities.publishUnpublishVolume || nodeId.isSome());
-
   // We do not need the capability for pre-existing volumes since no
   // actual `DeleteVolume` call will be made.
   if (!preExisting && !controllerCapabilities.createDeleteVolume) {
@@ -2377,71 +2361,84 @@ Future<Nothing> StorageLocalResourceProviderProcess::deleteVolume(
         "Controller capability 'CREATE_DELETE_VOLUME' is not supported");
   }
 
-  CHECK_SOME(controllerContainerId);
-
   const string volumePath = csi::paths::getVolumePath(
       slave::paths::getCsiRootDir(workDir),
       info.storage().plugin().type(),
       info.storage().plugin().name(),
       volumeId);
 
-  Future<Nothing> deleted = Nothing();
-
-  if (volumes.contains(volumeId)) {
-    // NOTE: We don't break for `PUBLISHED` and `NODE_READY` as deleting
-    // the volume in these states needs all operations beneath it.
-    switch (volumes.at(volumeId).state.state()) {
-      case csi::state::VolumeState::PUBLISHED: {
-        deleted = deleted
-          .then(defer(self(), &Self::nodeUnpublish, volumeId));
-      }
-      case csi::state::VolumeState::NODE_READY: {
-        deleted = deleted
-          .then(defer(self(), &Self::controllerUnpublish, volumeId));
-      }
-      case csi::state::VolumeState::CREATED: {
-        if (!preExisting) {
-          deleted = deleted
-            .then(defer(self(), &Self::getService, controllerContainerId.get()))
-            .then(defer(self(), [=](csi::v0::Client client) {
-              csi::v0::DeleteVolumeRequest request;
-              request.set_volume_id(volumeId);
-
-              return client.DeleteVolume(request)
-                .then([] { return Nothing(); });
-            }));
-        }
-
-        deleted = deleted
-          .then(defer(self(), [=] {
-            // NOTE: This will destruct the volume's sequence!
-            volumes.erase(volumeId);
-            CHECK_SOME(os::rmdir(volumePath));
-
-            return Nothing();
-          }));
-        break;
-      }
-      case csi::state::VolumeState::UNKNOWN:
-      case csi::state::VolumeState::CONTROLLER_PUBLISH:
-      case csi::state::VolumeState::CONTROLLER_UNPUBLISH:
-      case csi::state::VolumeState::NODE_PUBLISH:
-      case csi::state::VolumeState::NODE_UNPUBLISH:
-      case google::protobuf::kint32min:
-      case google::protobuf::kint32max: {
-        UNREACHABLE();
-      }
-    }
-  } else {
+  if (!volumes.contains(volumeId)) {
     // The resource provider failed over after the last `DeleteVolume`
     // call, but before the operation status was checkpointed.
     CHECK(!os::exists(volumePath));
+
+    return Nothing();
   }
 
-  // NOTE: We make the returned future undiscardable because the
-  // deletion may cause the volume's sequence to be destructed, which
-  // will in turn discard all futures in the sequence.
-  return undiscardable(deleted);
+  CHECK_SOME(controllerContainerId);
+
+  Future<Nothing> deleted = Nothing();
+
+  switch (volumes.at(volumeId).state.state()) {
+    case VolumeState::PUBLISHED:
+    case VolumeState::NODE_PUBLISH:
+    case VolumeState::NODE_UNPUBLISH: {
+      deleted = deleted
+        .then(defer(self(), &Self::nodeUnpublish, volumeId));
+
+      // NOTE: We continue to the next case to delete the volume in `NODE_READY`
+      // state once the above is done.
+    }
+    case VolumeState::NODE_READY:
+    case VolumeState::CONTROLLER_PUBLISH:
+    case VolumeState::CONTROLLER_UNPUBLISH: {
+      deleted = deleted
+        .then(defer(self(), &Self::controllerUnpublish, volumeId));
+
+      // NOTE: We continue to the next case to delete the volume in `CREATED`
+      // state once the above is done.
+    }
+    case VolumeState::CREATED: {
+      if (!preExisting) {
+        deleted = deleted
+          .then(defer(self(), &Self::getService, controllerContainerId.get()))
+          .then(defer(self(), [=](csi::v0::Client client) {
+            csi::v0::DeleteVolumeRequest request;
+            request.set_volume_id(volumeId);
+
+            return client.DeleteVolume(request)
+              .then([] { return Nothing(); });
+          }));
+      }
+
+      break;
+    }
+    case VolumeState::UNKNOWN: {
+      UNREACHABLE();
+    }
+
+    // NOTE: We avoid using a default clause for the following values in
+    // proto3's open enum to enable the compiler to detect missing enum cases
+    // for us. See:
+    // https://github.com/google/protobuf/issues/3917
+    case google::protobuf::kint32min:
+    case google::protobuf::kint32max: {
+      UNREACHABLE();
+    }
+  }
+
+  // NOTE: The last asynchronous continuation of `deleteVolume`, which is
+  // supposed to be run in the volume's sequence, would cause the sequence to be
+  // destructed, which would in turn discard the returned future. However, since
+  // the continuation would have already been run, the returned future will
+  // become ready, making the future returned by the sequence ready as well.
+  return deleted
+    .then(defer(self(), [=] {
+      volumes.erase(volumeId);
+      CHECK_SOME(os::rmdir(volumePath));
+
+      return Nothing();
+    }));
 }
 
 
@@ -2487,8 +2484,8 @@ Future<string> StorageLocalResourceProviderProcess::validateCapability(
                 "': " + response.message());
           }
 
-          csi::state::VolumeState volumeState;
-          volumeState.set_state(csi::state::VolumeState::CREATED);
+          VolumeState volumeState;
+          volumeState.set_state(VolumeState::CREATED);
           volumeState.mutable_volume_capability()->CopyFrom(capability);
           *volumeState.mutable_volume_attributes() = volumeAttributes;
 
@@ -2517,7 +2514,7 @@ Future<Resources> StorageLocalResourceProviderProcess::listVolumes()
   return getService(controllerContainerId.get())
     .then(defer(self(), [=](csi::v0::Client client) {
       // TODO(chhsiao): Set the max entries and use a loop to do
-      // mutliple `ListVolumes` calls.
+      // multiple `ListVolumes` calls.
       return client.ListVolumes(csi::v0::ListVolumesRequest())
         .then(defer(self(), [=](const csi::v0::ListVolumesResponse& response) {
           Resources resources;
@@ -2877,7 +2874,7 @@ StorageLocalResourceProviderProcess::applyCreateVolumeOrBlock(
   return created
     .then(defer(self(), [=](const string& volumeId) {
       CHECK(volumes.contains(volumeId));
-      const csi::state::VolumeState& volumeState = volumes.at(volumeId).state;
+      const VolumeState& volumeState = volumes.at(volumeId).state;
 
       Resource converted = resource;
       converted.mutable_disk()->mutable_source()->set_id(volumeId);
