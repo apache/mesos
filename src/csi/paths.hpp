@@ -42,7 +42,9 @@ namespace paths {
 //           |   |-- <volume_id>
 //           |        |-- volume.state
 //           |-- mounts
-//               |-- <volume_id> (mount point)
+//               |-- <volume_id>
+//                    |- staging (staging mount point)
+//                    |- target (mount point)
 
 
 struct ContainerPath
@@ -134,10 +136,13 @@ std::string getMountRootDir(
     const std::string& name);
 
 
-std::string getMountPath(
-    const std::string& rootDir,
-    const std::string& type,
-    const std::string& name,
+std::string getMountStagingPath(
+    const std::string& mountRootDir,
+    const std::string& volumeId);
+
+
+std::string getMountTargetPath(
+    const std::string& mountRootDir,
     const std::string& volumeId);
 
 } // namespace paths {

@@ -42,18 +42,20 @@ namespace csi {
 namespace paths {
 
 // File names.
-const char CONTAINER_INFO_FILE[] = "container.info";
-const char ENDPOINT_SOCKET_FILE[] = "endpoint.sock";
-const char VOLUME_STATE_FILE[] = "volume.state";
+constexpr char CONTAINER_INFO_FILE[] = "container.info";
+constexpr char ENDPOINT_SOCKET_FILE[] = "endpoint.sock";
+constexpr char VOLUME_STATE_FILE[] = "volume.state";
 
 
-const char CONTAINERS_DIR[] = "containers";
-const char VOLUMES_DIR[] = "volumes";
-const char MOUNTS_DIR[] = "mounts";
+constexpr char CONTAINERS_DIR[] = "containers";
+constexpr char VOLUMES_DIR[] = "volumes";
+constexpr char MOUNTS_DIR[] = "mounts";
+constexpr char STAGING_DIR[] = "staging";
+constexpr char TARGET_DIR[] = "target";
 
 
-const char ENDPOINT_DIR_SYMLINK[] = "endpoint";
-const char ENDPOINT_DIR[] = "mesos-csi-XXXXXX";
+constexpr char ENDPOINT_DIR_SYMLINK[] = "endpoint";
+constexpr char ENDPOINT_DIR[] = "mesos-csi-XXXXXX";
 
 
 Try<list<string>> getContainerPaths(
@@ -276,15 +278,19 @@ string getMountRootDir(
 }
 
 
-string getMountPath(
-    const string& rootDir,
-    const string& type,
-    const string& name,
+string getMountStagingPath(
+    const string& mountRootDir,
     const string& volumeId)
 {
-  return path::join(
-      getMountRootDir(rootDir, type, name),
-      http::encode(volumeId));
+  return path::join(mountRootDir, http::encode(volumeId), STAGING_DIR);
+}
+
+
+string getMountTargetPath(
+    const string& mountRootDir,
+    const string& volumeId)
+{
+  return path::join(mountRootDir, http::encode(volumeId), TARGET_DIR);
 }
 
 } // namespace paths {

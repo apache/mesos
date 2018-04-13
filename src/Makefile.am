@@ -1524,28 +1524,29 @@ libbuild_la_CPPFLAGS += -DBUILD_FLAGS="\"$$BUILD_FLAGS\""
 libmesos_no_3rdparty_la_LIBADD += libbuild.la
 
 
-if ENABLE_GRPC
 # Convenience library for build the CSI client.
 noinst_LTLIBRARIES += libcsi.la
 libcsi_la_SOURCES =							\
-  csi/paths.cpp								\
-  csi/utils.cpp
-libcsi_la_SOURCES +=							\
-  ../include/csi/spec.hpp						\
-  csi/paths.hpp								\
-  csi/state.hpp								\
-  csi/state.proto							\
-  csi/utils.hpp
+  csi/paths.cpp
 
 libcsi_la_SOURCES +=							\
+  csi/paths.hpp
+
+if ENABLE_GRPC
+libcsi_la_SOURCES +=							\
+  ../include/csi/spec.hpp						\
   csi/client.cpp							\
-  csi/client.hpp
+  csi/client.hpp							\
+  csi/state.hpp								\
+  csi/state.proto							\
+  csi/utils.cpp								\
+  csi/utils.hpp
+endif
 
 nodist_libcsi_la_SOURCES = $(CXX_CSI_PROTOS)
 libcsi_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 
 libmesos_no_3rdparty_la_LIBADD += libcsi.la
-endif
 
 
 # Convenience library for building the replicated log in order to

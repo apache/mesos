@@ -36,6 +36,8 @@
 
 #include "common/validation.hpp"
 
+#include "csi/paths.hpp"
+
 #include "messages/messages.hpp"
 
 #include "slave/paths.hpp"
@@ -673,10 +675,18 @@ string getPersistentVolumePath(
       CHECK(volume.disk().source().has_path());
       CHECK(volume.disk().source().path().has_root());
       string root = volume.disk().source().path().root();
+
       if (!path::absolute(root)) {
         // A relative path in `root` is relative to agent work dir.
         root = path::join(workDir, root);
       }
+
+      if (volume.disk().source().has_id()) {
+        // For a CSI volume the mount point is derived from `root` and `id`.
+        root =
+          csi::paths::getMountTargetPath(root, volume.disk().source().id());
+      }
+
       return getPersistentVolumePath(
           root,
           role,
@@ -687,10 +697,18 @@ string getPersistentVolumePath(
       CHECK(volume.disk().source().has_mount());
       CHECK(volume.disk().source().mount().has_root());
       string root = volume.disk().source().mount().root();
+
       if (!path::absolute(root)) {
         // A relative path in `root` is relative to agent work dir.
         root = path::join(workDir, root);
       }
+
+      if (volume.disk().source().has_id()) {
+        // For a CSI volume the mount point is derived from `root` and `id`.
+        root =
+          csi::paths::getMountTargetPath(root, volume.disk().source().id());
+      }
+
       return root;
     }
     case Resource::DiskInfo::Source::BLOCK:

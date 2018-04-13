@@ -1785,24 +1785,23 @@ Future<csi::v0::Client> StorageLocalResourceProviderProcess::getService(
   endpointVolume->set_host_path(endpointDir);
 
   // Prepare the directory where the mount points will be placed.
-  const string mountDir = csi::paths::getMountRootDir(
+  const string mountRootDir = csi::paths::getMountRootDir(
       slave::paths::getCsiRootDir(workDir),
       info.storage().plugin().type(),
       info.storage().plugin().name());
 
-  Try<Nothing> mkdir = os::mkdir(mountDir);
+  Try<Nothing> mkdir = os::mkdir(mountRootDir);
   if (mkdir.isError()) {
     return Failure(
-        "Failed to create directory '" + mountDir +
-        "': " + mkdir.error());
+        "Failed to create directory '" + mountRootDir + "': " + mkdir.error());
   }
 
   // Prepare a volume where the mount points will be placed.
   Volume* mountVolume = containerInfo.add_volumes();
   mountVolume->set_mode(Volume::RW);
-  mountVolume->set_container_path(mountDir);
+  mountVolume->set_container_path(mountRootDir);
   mountVolume->mutable_source()->set_type(Volume::Source::HOST_PATH);
-  mountVolume->mutable_source()->mutable_host_path()->set_path(mountDir);
+  mountVolume->mutable_source()->mutable_host_path()->set_path(mountRootDir);
   mountVolume->mutable_source()->mutable_host_path()
     ->mutable_mount_propagation()->set_mode(MountPropagation::BIDIRECTIONAL);
 
@@ -2194,16 +2193,17 @@ Future<Nothing> StorageLocalResourceProviderProcess::nodePublish(
         csi::v0::Client client) -> Future<Nothing> {
       VolumeData& volume = volumes.at(volumeId);
 
-      const string mountPath = csi::paths::getMountPath(
-          slave::paths::getCsiRootDir(workDir),
-          info.storage().plugin().type(),
-          info.storage().plugin().name(),
+      const string targetPath = csi::paths::getMountTargetPath(
+          csi::paths::getMountRootDir(
+              slave::paths::getCsiRootDir(workDir),
+              info.storage().plugin().type(),
+              info.storage().plugin().name()),
           volumeId);
 
-      Try<Nothing> mkdir = os::mkdir(mountPath);
+      Try<Nothing> mkdir = os::mkdir(targetPath);
       if (mkdir.isError()) {
         return Failure(
-            "Failed to create mount point '" + mountPath + "': " +
+            "Failed to create mount target path '" + targetPath + "': " +
             mkdir.error());
       }
 
@@ -2217,7 +2217,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::nodePublish(
       csi::v0::NodePublishVolumeRequest request;
       request.set_volume_id(volumeId);
       *request.mutable_publish_info() = volume.state.publish_info();
-      request.set_target_path(mountPath);
+      request.set_target_path(targetPath);
       request.mutable_volume_capability()
         ->CopyFrom(volume.state.volume_capability());
       request.set_readonly(false);
@@ -2252,13 +2252,14 @@ Future<Nothing> StorageLocalResourceProviderProcess::nodeUnpublish(
     .then(defer(self(), [this, volumeId](csi::v0::Client client) {
       VolumeData& volume = volumes.at(volumeId);
 
-      const string mountPath = csi::paths::getMountPath(
-          slave::paths::getCsiRootDir(workDir),
-          info.storage().plugin().type(),
-          info.storage().plugin().name(),
+      const string targetPath = csi::paths::getMountTargetPath(
+          csi::paths::getMountRootDir(
+              slave::paths::getCsiRootDir(workDir),
+              info.storage().plugin().type(),
+              info.storage().plugin().name()),
           volumeId);
 
-      CHECK(os::exists(mountPath));
+      CHECK(os::exists(targetPath));
 
       // A previously failed `NodePublishVolume` call can be recovered through
       // the current `NodeUnpublishVolume` call. See:
@@ -2273,20 +2274,20 @@ Future<Nothing> StorageLocalResourceProviderProcess::nodeUnpublish(
 
       csi::v0::NodeUnpublishVolumeRequest request;
       request.set_volume_id(volumeId);
-      request.set_target_path(mountPath);
+      request.set_target_path(targetPath);
 
       return client.NodeUnpublishVolume(request)
-        .then(defer(self(), [this, volumeId, mountPath]() -> Future<Nothing> {
+        .then(defer(self(), [this, volumeId, targetPath]() -> Future<Nothing> {
           VolumeData& volume = volumes.at(volumeId);
 
           volume.state.set_state(VolumeState::NODE_READY);
           volume.state.clear_boot_id();
           checkpointVolumeState(volumeId);
 
-          Try<Nothing> rmdir = os::rmdir(mountPath);
+          Try<Nothing> rmdir = os::rmdir(targetPath);
           if (rmdir.isError()) {
             return Failure(
-                "Failed to remove mount point '" + mountPath + "': " +
+                "Failed to remove mount point '" + targetPath + "': " +
                 rmdir.error());
           }
 
@@ -2885,23 +2886,24 @@ StorageLocalResourceProviderProcess::applyCreateVolumeOrBlock(
           ->CopyFrom(convertStringMapToLabels(volumeState.volume_attributes()));
       }
 
-      const string mountPath = csi::paths::getMountPath(
+      const string mountRootDir = csi::paths::getMountRootDir(
           slave::paths::getCsiRootDir("."),
           info.storage().plugin().type(),
-          info.storage().plugin().name(),
-          volumeId);
+          info.storage().plugin().name());
 
       switch (type) {
         case Resource::DiskInfo::Source::PATH: {
           // Set the root path relative to agent work dir.
           converted.mutable_disk()->mutable_source()->mutable_path()
-            ->set_root(mountPath);
+            ->set_root(mountRootDir);
+
           break;
         }
         case Resource::DiskInfo::Source::MOUNT: {
           // Set the root path relative to agent work dir.
           converted.mutable_disk()->mutable_source()->mutable_mount()
-            ->set_root(mountPath);
+            ->set_root(mountRootDir);
+
           break;
         }
         case Resource::DiskInfo::Source::BLOCK: {

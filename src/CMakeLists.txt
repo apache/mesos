@@ -226,6 +226,9 @@ set(COMMON_SRC
   common/validation.cpp
   common/values.cpp)
 
+set(CSI_SRC
+  csi/paths.cpp)
+
 set(DOCKER_SRC
   docker/docker.cpp
   docker/spec.cpp)
@@ -428,6 +431,7 @@ set(MESOS_SRC
   ${AUTHENTICATION_SRC}
   ${AUTHORIZER_SRC}
   ${COMMON_SRC}
+  ${CSI_SRC}
   ${DOCKER_SRC}
   ${EXECUTOR_SRC}
   ${FILES_SRC}
