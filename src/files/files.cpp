@@ -172,6 +172,23 @@ private:
       const http::Request& request,
       const Option<Principal>& principal);
 
+  // These functions log the request before continuing to the actual function.
+  Future<http::Response> loggedBrowse(
+      const http::Request& request,
+      const Option<Principal>& principal);
+
+  Future<http::Response> loggedRead(
+      const http::Request& request,
+      const Option<Principal>& principal);
+
+  Future<http::Response> loggedDownload(
+      const http::Request& request,
+      const Option<Principal>& principal);
+
+  Future<http::Response> loggedDebug(
+      const http::Request& request,
+      const Option<Principal>& principal);
+
   const static string BROWSE_HELP;
   const static string READ_HELP;
   const static string DOWNLOAD_HELP;
@@ -205,103 +222,77 @@ FilesProcess::FilesProcess(
 
 void FilesProcess::initialize()
 {
-  if (authenticationRealm.isSome()) {
-    auto browse_ = [this](
-        const http::Request& request,
-        const Option<Principal>& principal) {
-      logRequest(request);
-      return _browse(request, principal);
-    };
-
-    auto read_ = [this](
-        const http::Request& request,
-        const Option<Principal>& principal) {
-      logRequest(request);
-      return __read(request, principal);
-    };
-
-    auto download_ = [this](
-        const http::Request& request,
-        const Option<Principal>& principal) {
-      logRequest(request);
-      return download(request, principal);
-    };
-
-    auto debug_ = [this](
-        const http::Request& request,
-        const Option<Principal>& principal) {
-      logRequest(request);
-      return debug(request, principal);
-    };
-
     // TODO(ijimenez): Remove these endpoints at the end of the
     // deprecation cycle on 0.26.
     route("/browse.json",
-          authenticationRealm.get(),
+          authenticationRealm,
           FilesProcess::BROWSE_HELP,
-          browse_);
+          &FilesProcess::loggedBrowse);
     route("/read.json",
-          authenticationRealm.get(),
+          authenticationRealm,
           FilesProcess::READ_HELP,
-          read_);
+          &FilesProcess::loggedRead);
     route("/download.json",
-          authenticationRealm.get(),
+          authenticationRealm,
           FilesProcess::DOWNLOAD_HELP,
-          download_);
+          &FilesProcess::loggedDownload);
     route("/debug.json",
-          authenticationRealm.get(),
+          authenticationRealm,
           FilesProcess::DEBUG_HELP,
-          debug_);
+          &FilesProcess::loggedDebug);
 
     route("/browse",
-          authenticationRealm.get(),
+          authenticationRealm,
           FilesProcess::BROWSE_HELP,
-          browse_);
+          &FilesProcess::loggedBrowse);
     route("/read",
-          authenticationRealm.get(),
+          authenticationRealm,
           FilesProcess::READ_HELP,
-          read_);
+          &FilesProcess::loggedRead);
     route("/download",
-          authenticationRealm.get(),
+          authenticationRealm,
           FilesProcess::DOWNLOAD_HELP,
-          download_);
+          &FilesProcess::loggedDownload);
     route("/debug",
-          authenticationRealm.get(),
+          authenticationRealm,
           FilesProcess::DEBUG_HELP,
-          debug_);
-  } else {
-    auto browse_ = [this](const http::Request& request) {
-      logRequest(request);
-      return _browse(request, None());
-    };
+          &FilesProcess::loggedDebug);
+}
 
-    auto read_ = [this](const http::Request& request) {
-      logRequest(request);
-      return __read(request, None());
-    };
 
-    auto download_ = [this](const http::Request& request) {
-      logRequest(request);
-      return download(request, None());
-    };
+Future<http::Response> FilesProcess::loggedBrowse(
+    const http::Request& request,
+    const Option<Principal>& principal)
+{
+  logRequest(request);
+  return _browse(request, principal);
+}
 
-    auto debug_ = [this](const http::Request& request) {
-      logRequest(request);
-      return debug(request, None());
-    };
 
-    // TODO(ijimenez): Remove these endpoints at the end of the
-    // deprecation cycle on 0.26.
-    route("/browse.json", FilesProcess::BROWSE_HELP, browse_);
-    route("/read.json", FilesProcess::READ_HELP, read_);
-    route("/download.json", FilesProcess::DOWNLOAD_HELP, download_);
-    route("/debug.json", FilesProcess::DEBUG_HELP, debug_);
+Future<http::Response> FilesProcess::loggedRead(
+    const http::Request& request,
+    const Option<Principal>& principal)
+{
+  logRequest(request);
+  return __read(request, principal);
+}
 
-    route("/browse", FilesProcess::BROWSE_HELP, browse_);
-    route("/read", FilesProcess::READ_HELP, read_);
-    route("/download", FilesProcess::DOWNLOAD_HELP, download_);
-    route("/debug", FilesProcess::DEBUG_HELP, debug_);
-  }
+
+Future<http::Response> FilesProcess::loggedDownload(
+    const http::Request& request,
+    const Option<Principal>& principal)
+{
+  logRequest(request);
+  return download(request, principal);
+}
+
+
+Future<http::Response> FilesProcess::loggedDebug(
+    const http::Request& request,
+    const Option<Principal>& principal)
+{
+  logRequest(request);
+  return debug(request, principal);
 }
 
 

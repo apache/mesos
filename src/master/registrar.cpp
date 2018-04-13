@@ -105,19 +105,11 @@ public:
 protected:
   virtual void initialize()
   {
-    if (authenticationRealm.isSome()) {
       route(
           "/registry",
-          authenticationRealm.get(),
+          authenticationRealm,
           registryHelp(),
           &RegistrarProcess::getRegistry);
-    } else {
-      route(
-          "/registry",
-          registryHelp(),
-          lambda::bind(
-              &RegistrarProcess::getRegistry, this, lambda::_1, None()));
-    }
   }
 
 private:
