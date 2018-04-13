@@ -408,6 +408,10 @@ We categorize the changes as follows:
 
 * Protobuf version 3+ is required to build Mesos. Please upgrade your Protobuf library if you are using an unbundled one.
 
+<a name="1-5-x-log-reader-catchup"></a>
+
+* A new `catchup()` method has been added to the replicated log reader API. The method allows to catch-up positions missing in the local non-leading replica to allow safe eventually consistent reads from it. Note about backwards compatibility: In order for the feature to work correctly in presence of log truncations all log replicas need to be updated.
+
 ## Upgrading from 1.3.x to 1.4.x ##
 
 <a name="1-4-x-ambient-capabilities"></a>
