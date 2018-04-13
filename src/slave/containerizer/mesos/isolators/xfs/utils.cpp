@@ -468,6 +468,78 @@ Try<bool> isQuotaEnabled(const string& path)
   return statv.qs_flags & (FS_QUOTA_PDQ_ACCT | FS_QUOTA_PDQ_ENFD);
 }
 
+
+static Try<bool> checkQuotaFlags(const std::string& path, uint16_t mask)
+{
+  Try<string> devname = getDeviceForPath(path);
+  if (devname.isError()) {
+    return Error(devname.error());
+  }
+
+  struct fs_quota_statv statv = {FS_QSTATV_VERSION1};
+
+  // The quota `type` argument to QCMD() doesn't apply to QCMD_XGETQSTATV
+  // since it is for quota subsystem information that can include all
+  // types of quotas. Equally, the quotactl() `id` argument doesn't apply
+  // because we are getting global information rather than information for
+  // a specific identity (eg. a projectId).
+  if (::quotactl(QCMD(Q_XGETQSTATV, 0),
+                 devname.get().c_str(),
+                 0, // id
+                 reinterpret_cast<caddr_t>(&statv)) == -1) {
+    // ENOSYS means that quotas are not enabled at all.
+    if (errno == ENOSYS) {
+      return false;
+    }
+
+    return ErrnoError();
+  }
+
+  return statv.qs_flags & mask;
+}
+
+
+Try<bool> isUserQuotaEnforcementEnabled(const std::string& path)
+{
+  return checkQuotaFlags(path, FS_QUOTA_UDQ_ENFD);
+}
+
+
+Try<bool> isGroupQuotaEnforcementEnabled(const std::string& path)
+{
+  return checkQuotaFlags(path, FS_QUOTA_GDQ_ENFD);
+}
+
+
+Try<bool> isProjectQuotaEnforcementEnabled(const std::string& path)
+{
+  return checkQuotaFlags(path, FS_QUOTA_PDQ_ENFD);
+}
+
+
+Try<Nothing> enableQuota(const string& path)
+{
+  Try<string> devname = getDeviceForPath(path);
+  if (devname.isError()) {
+    return Error(devname.error());
+  }
+
+  unsigned int flags = FS_QUOTA_PDQ_ACCT | FS_QUOTA_PDQ_ENFD;
+  if (::quotactl(QCMD(Q_XQUOTAON, 0),
+                 devname->c_str(),
+                 0, // id is ignored
+                 reinterpret_cast<caddr_t>(&flags)) == -1) {
+    // EEXIST means that the desired options are already enabled.
+    if (errno == EEXIST) {
+      return Nothing();
+    }
+
+    return ErrnoError();
+  }
+
+  return Nothing();
+}
+
 } // namespace xfs {
 } // namespace internal {
 } // namespace mesos {

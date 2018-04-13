@@ -136,6 +136,12 @@ static Option<Bytes> getSandboxDisk(
 
 Try<Isolator*> XfsDiskIsolatorProcess::create(const Flags& flags)
 {
+  Try<Nothing> enable = xfs::enableQuota(flags.work_dir);
+  if (enable.isError()) {
+    return Error("Failed to enable XFS project quotas on '" +
+                  flags.work_dir + "': " + enable.error());
+  }
+
   Try<Nothing> supported = isPathSupported(flags.work_dir);
   if (supported.isError()) {
     return Error(supported.error());

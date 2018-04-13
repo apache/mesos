@@ -333,6 +333,16 @@ INSTANTIATE_TEST_CASE_P(
     ParamDiskQuota::Printer());
 
 
+// ROOT_XFS_NoProjectQuotaEnforcement sets up an XFS filesystem on
+// loopback with no project quota enforcement.
+class ROOT_XFS_NoProjectQuotaEnforcement : public ROOT_XFS_TestBase
+{
+public:
+  ROOT_XFS_NoProjectQuotaEnforcement()
+    : ROOT_XFS_TestBase("usrquota,grpquota,pqnoenforce") {}
+};
+
+
 TEST_F(ROOT_XFS_QuotaTest, QuotaGetSet)
 {
   prid_t projectId = 44;
@@ -2290,6 +2300,24 @@ TEST_F(ROOT_XFS_NoProjectQuota, CheckQuotaEnabled)
 {
   EXPECT_SOME_EQ(false, xfs::isQuotaEnabled(mountPoint.get()));
   EXPECT_ERROR(XfsDiskIsolatorProcess::create(CreateSlaveFlags()));
+}
+
+
+TEST_F(ROOT_XFS_NoProjectQuotaEnforcement, CheckQuotaEnabled)
+{
+  EXPECT_SOME_EQ(true, xfs::isUserQuotaEnforcementEnabled(mountPoint.get()));
+  EXPECT_SOME_EQ(true, xfs::isGroupQuotaEnforcementEnabled(mountPoint.get()));
+  EXPECT_SOME_EQ(
+      false, xfs::isProjectQuotaEnforcementEnabled(mountPoint.get()));
+
+  slave::Flags flags = CreateSlaveFlags();
+  Try<mesos::slave::Isolator*> isolator = XfsDiskIsolatorProcess::create(flags);
+  EXPECT_SOME(isolator);
+  delete isolator.get();
+
+  EXPECT_SOME_EQ(true, xfs::isUserQuotaEnforcementEnabled(mountPoint.get()));
+  EXPECT_SOME_EQ(true, xfs::isGroupQuotaEnforcementEnabled(mountPoint.get()));
+  EXPECT_SOME_EQ(true, xfs::isProjectQuotaEnforcementEnabled(mountPoint.get()));
 }
 
 

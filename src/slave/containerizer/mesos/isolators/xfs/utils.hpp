@@ -145,6 +145,18 @@ Try<Nothing> setProjectId(
 Try<Nothing> clearProjectId(
     const std::string& directory);
 
+
+// Test whether XFS user, group or project quotas enforcement are
+// enabled on the filesystem at the given path.
+Try<bool> isUserQuotaEnforcementEnabled(const std::string& path);
+Try<bool> isGroupQuotaEnforcementEnabled(const std::string& path);
+Try<bool> isProjectQuotaEnforcementEnabled(const std::string& path);
+
+
+// Enable XFS project quotas (accounting and enforcement) on the
+// filesystem at the given path.
+Try<Nothing> enableQuota(const std::string& path);
+
 } // namespace xfs {
 } // namespace internal {
 } // namespace mesos {
