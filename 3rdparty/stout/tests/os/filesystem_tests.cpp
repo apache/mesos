@@ -27,6 +27,7 @@
 #include <stout/os/getcwd.hpp>
 #include <stout/os/int_fd.hpp>
 #include <stout/os/ls.hpp>
+#include <stout/os/lseek.hpp>
 #include <stout/os/mkdir.hpp>
 #include <stout/os/read.hpp>
 #include <stout/os/realpath.hpp>
@@ -475,6 +476,101 @@ TEST_F(FsTest, IntFD)
   EXPECT_GT(0, fd);
 }
 #endif // __WINDOWS__
+
+
+// NOTE: These tests may not make a lot of sense on Linux, as `open`
+// is expected to be implemented correctly by the system. However, on
+// Windows we map the POSIX semantics of `open` to `CreateFile`, which
+// this checks. These tests passing on Linux assert that the tests
+// themselves are correct.
+TEST_F(FsTest, Open)
+{
+  const string testfile =
+    path::join(os::getcwd(), id::UUID::random().toString());
+  const string data = "data";
+
+  // Without `O_CREAT`, opening a non-existing file should fail.
+  EXPECT_FALSE(os::exists(testfile));
+  EXPECT_ERROR(os::open(testfile, O_RDONLY));
+#ifdef __WINDOWS__
+  // `O_EXCL` without `O_CREAT` is undefined, but on Windows, we error.
+  EXPECT_ERROR(os::open(testfile, O_RDONLY | O_EXCL));
+  EXPECT_ERROR(os::open(testfile, O_RDONLY | O_EXCL | O_TRUNC));
+#endif // __WINDOWS__
+  EXPECT_ERROR(os::open(testfile, O_RDONLY | O_TRUNC));
+
+  // With `O_CREAT | O_EXCL`, open a non-existing file should succeed.
+  Try<int_fd> fd = os::open(testfile, O_CREAT | O_EXCL | O_RDONLY, S_IRWXU);
+  ASSERT_SOME(fd);
+  EXPECT_TRUE(os::exists(testfile));
+  EXPECT_SOME(os::close(fd.get()));
+
+  // File already exists, so `O_EXCL` should fail.
+  EXPECT_ERROR(os::open(testfile, O_CREAT | O_EXCL | O_RDONLY));
+  EXPECT_ERROR(os::open(testfile, O_CREAT | O_EXCL | O_TRUNC | O_RDONLY));
+
+  // With `O_CREAT` but no `O_EXCL`, it should still open.
+  fd = os::open(testfile, O_CREAT | O_RDONLY);
+  ASSERT_SOME(fd);
+  EXPECT_SOME(os::close(fd.get()));
+
+  // `O_RDWR` should be able to write data, and read it back.
+  fd = os::open(testfile, O_RDWR);
+  ASSERT_SOME(fd);
+  EXPECT_SOME(os::write(fd.get(), data));
+  // Seek back to beginning to read the written data.
+  EXPECT_SOME_EQ(0, os::lseek(fd.get(), 0, SEEK_SET));
+  EXPECT_SOME_EQ(data, os::read(fd.get(), data.size()));
+  EXPECT_SOME(os::close(fd.get()));
+
+  // `O_RDONLY` should be able to read the previously written data,
+  // but fail writing more.
+  fd = os::open(testfile, O_RDONLY);
+  ASSERT_SOME(fd);
+  EXPECT_SOME_EQ(data, os::read(fd.get(), data.size()));
+  EXPECT_ERROR(os::write(fd.get(), data));
+  EXPECT_SOME(os::close(fd.get()));
+
+  // `O_WRONLY` should be able to overwrite the data, but fail reading.
+  fd = os::open(testfile, O_WRONLY);
+  ASSERT_SOME(fd);
+  EXPECT_SOME(os::write(fd.get(), data));
+  EXPECT_ERROR(os::read(fd.get(), data.size()));
+  EXPECT_SOME(os::close(fd.get()));
+
+  // `O_APPEND` should write to an existing file.
+  fd = os::open(testfile, O_APPEND | O_RDWR);
+  ASSERT_SOME(fd);
+  EXPECT_SOME_EQ(data, os::read(fd.get(), data.size()));
+  EXPECT_SOME(os::write(fd.get(), data));
+  const string datadata = "datadata";
+  // Seek back to beginning to read the written data.
+  EXPECT_SOME_EQ(0, os::lseek(fd.get(), 0, SEEK_SET));
+  EXPECT_SOME_EQ(datadata, os::read(fd.get(), datadata.size()));
+  EXPECT_SOME(os::close(fd.get()));
+
+  // `O_TRUNC` should truncate an existing file.
+  fd = os::open(testfile, O_TRUNC | O_RDWR);
+  ASSERT_SOME(fd);
+  EXPECT_NONE(os::read(fd.get(), 1));
+  EXPECT_SOME(os::write(fd.get(), data));
+  // Seek back to beginning to read the written data.
+  EXPECT_SOME_EQ(0, os::lseek(fd.get(), 0, SEEK_SET));
+  EXPECT_SOME_EQ(data, os::read(fd.get(), data.size()));
+  EXPECT_SOME(os::close(fd.get()));
+
+  // `O_CREAT | O_TRUNC` should create an empty file.
+  const string testtruncfile =
+    path::join(os::getcwd(), id::UUID::random().toString());
+  fd = os::open(testtruncfile, O_CREAT | O_TRUNC | O_RDWR, S_IRWXU);
+  ASSERT_SOME(fd);
+  EXPECT_NONE(os::read(fd.get(), 1));
+  EXPECT_SOME(os::write(fd.get(), data));
+  // Seek back to beginning to read the written data.
+  EXPECT_SOME_EQ(0, os::lseek(fd.get(), 0, SEEK_SET));
+  EXPECT_SOME_EQ(data, os::read(fd.get(), data.size()));
+  EXPECT_SOME(os::close(fd.get()));
+}
 
 
 TEST_F(FsTest, Close)
