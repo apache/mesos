@@ -23,115 +23,245 @@
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 
+#include "jwt_keys.hpp"
+
 using process::http::authentication::JWT;
 using process::http::authentication::JWTError;
 
 using process::network::openssl::generate_hmac_sha256;
+using process::network::openssl::sign_rsa_sha256;
+using process::network::openssl::RSA_shared_ptr;
+using process::network::openssl::pemToRSAPrivateKey;
+using process::network::openssl::pemToRSAPublicKey;
 
 using std::string;
 
+template<typename SignatureBuilder>
+string create_token(string header, string payload,
+  SignatureBuilder signatureBuilder) {
+  header = base64::encode_url_safe(header, false);
+  payload = base64::encode_url_safe(payload, false);
+
+  const string rawSignature = signatureBuilder(header, payload);
+  const string signature = base64::encode_url_safe(rawSignature, false);
+
+  return strings::join(".", header, payload, signature);
+}
+
+std::function<string(string, string)> create_hs256_token_generator(
+  string secret) {
+  auto generate_mac = [secret](string header, string payload) {
+    return generate_hmac_sha256(
+      strings::join(".", header, payload), secret).get();
+  };
+  return [generate_mac](string header, string payload) {
+    return create_token(header, payload, generate_mac);
+  };
+}
+
+std::function<string(string, string)> create_rs256_token_generator(
+  RSA_shared_ptr privateKey) {
+  auto generate_rsa = [privateKey](string header, string payload) {
+    return sign_rsa_sha256(
+        strings::join(".", header, payload), privateKey).get();
+  };
+
+  return [generate_rsa](string header, string payload) {
+    return create_token(header, payload, generate_rsa);
+  };
+}
 
 TEST(JWTTest, Parse)
 {
   const string secret = "secret";
 
-  auto create_token = [secret](string header, string payload) {
-    header = base64::encode_url_safe(header, false);
-    payload = base64::encode_url_safe(payload, false);
+  Try<RSA_shared_ptr> privateKey = pemToRSAPrivateKey(PRIVATE_KEY);
+  Try<RSA_shared_ptr> publicKey = pemToRSAPublicKey(PUBLIC_KEY);
 
-    const string mac =
-      generate_hmac_sha256(strings::join(".", header, payload), secret).get();
-
-    const string signature = base64::encode_url_safe(mac, false);
-
-    return strings::join(".", header, payload, signature);
-  };
+  auto create_hs256_token = create_hs256_token_generator(secret);
+  auto create_rs256_token = create_rs256_token_generator(privateKey.get());
 
   // Invalid token header.
   {
-    const string token = create_token(
-        "NOT A VALID HEADER",
-        "{\"exp\":9999999999,\"sub\":\"foo\"}");
+    // HS256
+    {
+      const string token = create_hs256_token(
+          "NOT A VALID HEADER",
+          "{\"exp\":9999999999,\"sub\":\"foo\"}");
 
-    const Try<JWT, JWTError> jwt = JWT::parse(token, secret);
+      const Try<JWT, JWTError> jwt = JWT::parse(token, secret);
 
-    EXPECT_ERROR(jwt);
+      EXPECT_ERROR(jwt);
+    }
+    // RS256
+    {
+      const string token = create_rs256_token(
+          "NOT A VALID HEADER",
+          "{\"exp\":9999999999,\"sub\":\"foo\"}");
+
+      const Try<JWT, JWTError> jwt = JWT::parse(token, publicKey.get());
+
+      EXPECT_ERROR(jwt);
+    }
   }
 
   // Invalid token payload.
   {
-    const string token = create_token(
-        "{\"alg\":\"HS256\",\"typ\":\"JWT\"}",
-        "INVALID PAYLOAD");
+    // HS256
+    {
+      const string token = create_hs256_token(
+          "{\"alg\":\"HS256\",\"typ\":\"JWT\"}",
+          "INVALID PAYLOAD");
 
-    const Try<JWT, JWTError> jwt = JWT::parse(token, secret);
+      const Try<JWT, JWTError> jwt = JWT::parse(token, secret);
 
-    EXPECT_ERROR(jwt);
+      EXPECT_ERROR(jwt);
+    }
+    // RS256
+    {
+      const string token = create_rs256_token(
+          "{\"alg\":\"RS256\",\"typ\":\"JWT\"}",
+          "INVALID PAYLOAD");
+
+      const Try<JWT, JWTError> jwt = JWT::parse(token, publicKey.get());
+
+      EXPECT_ERROR(jwt);
+    }
   }
 
   // Unsupported token alg.
   {
-    const string token = create_token(
-        "{\"alg\":\"RS256\",\"typ\":\"JWT\"}",
-        "{\"exp\":9999999999,\"sub\":\"foo\"}");
+    // HS256
+    {
+      const string token = create_hs256_token(
+          "{\"alg\":\"RS512\",\"typ\":\"JWT\"}",
+          "{\"exp\":9999999999,\"sub\":\"foo\"}");
 
-    const Try<JWT, JWTError> jwt = JWT::parse(token, secret);
+      const Try<JWT, JWTError> jwt = JWT::parse(token, secret);
 
-    EXPECT_ERROR(jwt);
+      EXPECT_ERROR(jwt);
+    }
+    // RS256
+    {
+      const string token = create_rs256_token(
+          "{\"alg\":\"RS512\",\"typ\":\"JWT\"}",
+          "{\"exp\":9999999999,\"sub\":\"foo\"}");
+
+      const Try<JWT, JWTError> jwt = JWT::parse(token, publicKey.get());
+
+      EXPECT_ERROR(jwt);
+    }
   }
 
   // Unknown token alg.
   {
-    const string token = create_token(
-        "{\"alg\":\"NOT A VALID ALG\",\"typ\":\"JWT\"}",
-        "{\"exp\":9999999999,\"sub\":\"foo\"}");
+    // HS256
+    {
+      const string token = create_hs256_token(
+          "{\"alg\":\"NOT A VALID ALG\",\"typ\":\"JWT\"}",
+          "{\"exp\":9999999999,\"sub\":\"foo\"}");
 
-    const Try<JWT, JWTError> jwt = JWT::parse(token, secret);
+      const Try<JWT, JWTError> jwt = JWT::parse(token, secret);
 
-    EXPECT_ERROR(jwt);
+      EXPECT_ERROR(jwt);
+    }
+    // RS256
+    {
+      const string token = create_rs256_token(
+          "{\"alg\":\"NOT A VALID ALG\",\"typ\":\"JWT\"}",
+          "{\"exp\":9999999999,\"sub\":\"foo\"}");
+
+      const Try<JWT, JWTError> jwt = JWT::parse(token, publicKey.get());
+
+      EXPECT_ERROR(jwt);
+    }
   }
 
   // 'crit' in header.
   {
-    const string token = create_token(
-        "{\"alg\":\"HS256\",\"crit\":[\"exp\"],\"exp\":99,\"typ\":\"JWT\"}",
-        "{\"exp\":9999999999,\"sub\":\"foo\"}");
+    // HS256
+    {
+      const string token = create_hs256_token(
+          "{\"alg\":\"HS256\",\"crit\":[\"exp\"],\"exp\":99,\"typ\":\"JWT\"}",
+          "{\"exp\":9999999999,\"sub\":\"foo\"}");
 
-    const Try<JWT, JWTError> jwt = JWT::parse(token, secret);
+      const Try<JWT, JWTError> jwt = JWT::parse(token, secret);
 
-    EXPECT_ERROR(jwt);
+      EXPECT_ERROR(jwt);
+    }
+    // RS256
+    {
+      const string token = create_rs256_token(
+          "{\"alg\":\"RS256\",\"crit\":[\"exp\"],\"exp\":99,\"typ\":\"JWT\"}",
+          "{\"exp\":9999999999,\"sub\":\"foo\"}");
+
+      const Try<JWT, JWTError> jwt = JWT::parse(token, publicKey.get());
+
+      EXPECT_ERROR(jwt);
+    }
   }
 
   // Missing signature.
   {
-    const string token =
-      base64::encode_url_safe("{\"alg\":\"HS256\",\"typ\":\"JWT\"}", false) +
-      "." +
-      base64::encode_url_safe("{\"exp\":9999999999,\"sub\":\"foo\"}", false) +
-      ".";
+    // HS256
+    {
+      const string token =
+        base64::encode_url_safe("{\"alg\":\"HS256\",\"typ\":\"JWT\"}", false) +
+        "." +
+        base64::encode_url_safe("{\"exp\":9999999999,\"sub\":\"foo\"}", false) +
+        ".";
 
-    const Try<JWT, JWTError> jwt = JWT::parse(token, secret);
+      const Try<JWT, JWTError> jwt = JWT::parse(token, secret);
 
-    EXPECT_ERROR(jwt);
+      EXPECT_ERROR(jwt);
+    }
+    // RS256
+    {
+      const string token =
+        base64::encode_url_safe("{\"alg\":\"RS256\",\"typ\":\"JWT\"}", false) +
+        "." +
+        base64::encode_url_safe("{\"exp\":9999999999,\"sub\":\"foo\"}", false) +
+        ".";
+
+      const Try<JWT, JWTError> jwt = JWT::parse(token, publicKey.get());
+
+      EXPECT_ERROR(jwt);
+    }
   }
 
   // Wrong signature.
   {
-    const string token =
-      base64::encode_url_safe("{\"alg\":\"HS256\",\"typ\":\"JWT\"}", false) +
-      "." +
-      base64::encode_url_safe("{\"exp\":9999999999,\"sub\":\"foo\"}", false) +
-      "." +
-      "rm4sQe5q4sdHIJgt7mjKsnuZeP4eRquoZuncSsscqbQ";
+    // HS256
+    {
+      const string token =
+        base64::encode_url_safe("{\"alg\":\"HS256\",\"typ\":\"JWT\"}", false) +
+        "." +
+        base64::encode_url_safe("{\"exp\":9999999999,\"sub\":\"foo\"}", false) +
+        "." +
+        "rm4sQe5q4sdHIJgt7mjKsnuZeP4eRquoZuncSsscqbQ";
 
-    const Try<JWT, JWTError> jwt = JWT::parse(token, secret);
+      const Try<JWT, JWTError> jwt = JWT::parse(token, secret);
 
-    EXPECT_ERROR(jwt);
+      EXPECT_ERROR(jwt);
+    }
+    // RS256
+    {
+      const string token =
+        base64::encode_url_safe("{\"alg\":\"RS256\",\"typ\":\"JWT\"}", false) +
+        "." +
+        base64::encode_url_safe("{\"exp\":9999999999,\"sub\":\"foo\"}", false) +
+        "." +
+        "rm4sQe5q4sdHIJgt7mjKsnuZeP4eRquoZuncSsscqbQ";
+
+      const Try<JWT, JWTError> jwt = JWT::parse(token, publicKey.get());
+
+      EXPECT_ERROR(jwt);
+    }
   }
 
   // 'none' alg with signature.
   {
-    const string token = create_token(
+    const string token = create_hs256_token(
         "{\"alg\":\"none\",\"typ\":\"JWT\"}",
         "{\"exp\":9999999999,\"sub\":\"foo\"}");
 
@@ -154,37 +284,78 @@ TEST(JWTTest, Parse)
 
   // Expiration date is not a number.
   {
-    const string token = create_token(
-        "{\"alg\":\"HS256\",\"typ\":\"JWT\"}",
-        "{\"exp\":\"NOT A NUMBER\",\"sub\":\"foo\"}");
+    // HS256
+    {
+      const string token = create_hs256_token(
+          "{\"alg\":\"HS256\",\"typ\":\"JWT\"}",
+          "{\"exp\":\"NOT A NUMBER\",\"sub\":\"foo\"}");
 
-    const Try<JWT, JWTError> jwt = JWT::parse(token, secret);
+      const Try<JWT, JWTError> jwt = JWT::parse(token, secret);
 
-    EXPECT_ERROR(jwt);
+      EXPECT_ERROR(jwt);
+    }
+    // RS256
+    {
+      const string token = create_rs256_token(
+          "{\"alg\":\"RS256\",\"typ\":\"JWT\"}",
+          "{\"exp\":\"NOT A NUMBER\",\"sub\":\"foo\"}");
+
+      const Try<JWT, JWTError> jwt = JWT::parse(token, publicKey.get());
+
+      EXPECT_ERROR(jwt);
+    }
   }
 
   // Expiration date expired.
   {
-    const string token = create_token(
-        "{\"alg\":\"HS256\",\"typ\":\"JWT\"}",
-        "{\"exp\":0,\"sub\":\"foo\"}");
+    // HS256
+    {
+      const string token = create_hs256_token(
+          "{\"alg\":\"HS256\",\"typ\":\"JWT\"}",
+          "{\"exp\":0,\"sub\":\"foo\"}");
 
-    const Try<JWT, JWTError> jwt = JWT::parse(token, secret);
+      const Try<JWT, JWTError> jwt = JWT::parse(token, secret);
 
-    EXPECT_ERROR(jwt);
+      EXPECT_ERROR(jwt);
+    }
+    // RS256
+    {
+      const string token = create_rs256_token(
+          "{\"alg\":\"RS256\",\"typ\":\"JWT\"}",
+          "{\"exp\":0,\"sub\":\"foo\"}");
+
+      const Try<JWT, JWTError> jwt = JWT::parse(token, publicKey.get());
+
+      EXPECT_ERROR(jwt);
+    }
   }
 
   // Expiration date not set.
   {
-    const string token = create_token(
-        "{\"alg\":\"HS256\",\"typ\":\"JWT\"}",
-        "{\"sub\":\"foo\"}");
+    // HS256
+    {
+      const string token = create_hs256_token(
+          "{\"alg\":\"HS256\",\"typ\":\"JWT\"}",
+          "{\"sub\":\"foo\"}");
 
-    const Try<JWT, JWTError> jwt = JWT::parse(token, secret);
+      const Try<JWT, JWTError> jwt = JWT::parse(token, secret);
 
-    // TODO(nfnt): Change this to `EXPECT_SOME(jwt)`
-    // once MESOS-7220 is resolved.
-    EXPECT_TRUE(jwt.isSome());
+      // TODO(nfnt): Change this to `EXPECT_SOME(jwt)`
+      // once MESOS-7220 is resolved.
+      EXPECT_TRUE(jwt.isSome());
+    }
+    // RS256
+    {
+      const string token = create_rs256_token(
+          "{\"alg\":\"RS256\",\"typ\":\"JWT\"}",
+          "{\"sub\":\"foo\"}");
+
+      const Try<JWT, JWTError> jwt = JWT::parse(token, publicKey.get());
+
+      // TODO(nfnt): Change this to `EXPECT_SOME(jwt)`
+      // once MESOS-7220 is resolved.
+      EXPECT_TRUE(jwt.isSome());
+    }
   }
 
   // Valid unsecure token.
@@ -204,7 +375,7 @@ TEST(JWTTest, Parse)
 
   // Valid HS256 token.
   {
-    const string token = create_token(
+    const string token = create_hs256_token(
         "{\"alg\":\"HS256\",\"typ\":\"JWT\"}",
         "{\"exp\":9999999999,\"sub\":\"foo\"}");
 
@@ -214,20 +385,43 @@ TEST(JWTTest, Parse)
     // once MESOS-7220 is resolved.
     EXPECT_TRUE(jwt.isSome());
   }
+
+  // Valid RS256 token.
+  {
+    const string token = create_rs256_token(
+        "{\"alg\":\"RS256\",\"typ\":\"JWT\"}",
+        "{\"exp\":9999999999,\"sub\":\"foo\"}");
+
+    const Try<JWT, JWTError> jwt = JWT::parse(token, publicKey.get());
+
+    EXPECT_TRUE(jwt.isSome());
+  }
 }
 
 
 TEST(JWTTest, Create)
 {
   const string secret = "secret";
+  Try<RSA_shared_ptr> privateKey = pemToRSAPrivateKey(PRIVATE_KEY);
 
-  auto create_signature = [secret](const JSON::Object& payload) {
+  auto create_hs256_signature = [secret](const JSON::Object& payload) {
     const string message = strings::join(
         ".",
         base64::encode_url_safe("{\"alg\":\"HS256\",\"typ\":\"JWT\"}", false),
         base64::encode_url_safe(stringify(payload), false));
 
     const string mac = generate_hmac_sha256(message, secret).get();
+
+    return base64::encode_url_safe(mac, false);
+  };
+
+  auto create_rs256_signature = [privateKey](const JSON::Object& payload) {
+    const string message = strings::join(
+        ".",
+        base64::encode_url_safe("{\"alg\":\"RS256\",\"typ\":\"JWT\"}", false),
+        base64::encode_url_safe(stringify(payload), false));
+
+    const string mac = sign_rsa_sha256(message, privateKey.get()).get();
 
     return base64::encode_url_safe(mac, false);
   };
@@ -249,7 +443,23 @@ TEST(JWTTest, Create)
 
     EXPECT_EQ(payload, jwt->payload);
 
-    EXPECT_SOME_EQ(create_signature(payload), jwt->signature);
+    EXPECT_SOME_EQ(create_hs256_signature(payload), jwt->signature);
+  }
+
+  // RS256 signed JWT.
+  {
+    const Try<JWT, JWTError> jwt = JWT::create(payload, privateKey.get());
+
+    // TODO(nfnt): Change this to `EXPECT_SOME(jwt)`
+    // once MESOS-7220 is resolved.
+    EXPECT_TRUE(jwt.isSome());
+
+    EXPECT_EQ(JWT::Alg::RS256, jwt->header.alg);
+    EXPECT_SOME_EQ("JWT", jwt->header.typ);
+
+    EXPECT_EQ(payload, jwt->payload);
+
+    EXPECT_SOME_EQ(create_rs256_signature(payload), jwt->signature);
   }
 
   // Unsecured JWT.
@@ -272,21 +482,51 @@ TEST(JWTTest, Create)
 
 TEST(JWTTest, Stringify)
 {
-  JSON::Object payload;
-  payload.values["exp"] = 9999999999;
-  payload.values["sub"] = "foo";
+  // HS256
+  {
+    JSON::Object payload;
+    payload.values["exp"] = 9999999999;
+    payload.values["sub"] = "foo";
 
-  const Try<JWT, JWTError> jwt = JWT::create(payload, "secret");
+    const Try<JWT, JWTError> jwt = JWT::create(payload, "secret");
 
-  // TODO(nfnt): Change this to `EXPECT_SOME(jwt)`
-  // once MESOS-7220 is resolved.
-  EXPECT_TRUE(jwt.isSome());
+    // TODO(nfnt): Change this to `EXPECT_SOME(jwt)`
+    // once MESOS-7220 is resolved.
+    EXPECT_TRUE(jwt.isSome());
 
-  const string token = stringify(jwt.get());
+    const string token = stringify(jwt.get());
 
-  EXPECT_EQ(
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
-      "eyJleHAiOjk5OTk5OTk5OTksInN1YiI6ImZvbyJ9."
-      "7dwSK1mIRKqJTPQT8-AGnI-r8nnefw2hhai3kgBg7bs",
-      token);
+    EXPECT_EQ(
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
+        "eyJleHAiOjk5OTk5OTk5OTksInN1YiI6ImZvbyJ9."
+        "7dwSK1mIRKqJTPQT8-AGnI-r8nnefw2hhai3kgBg7bs",
+        token);
+  }
+  // RS256
+  {
+    Try<RSA_shared_ptr> privateKey = pemToRSAPrivateKey(PRIVATE_KEY);
+    JSON::Object payload;
+    payload.values["exp"] = 9999999999;
+    payload.values["sub"] = "foo";
+
+    const Try<JWT, JWTError> jwt = JWT::create(payload, privateKey.get());
+
+    // TODO(nfnt): Change this to `EXPECT_SOME(jwt)`
+    // once MESOS-7220 is resolved.
+    EXPECT_TRUE(jwt.isSome());
+
+    const string token = stringify(jwt.get());
+
+    EXPECT_EQ(
+        "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9."
+        "eyJleHAiOjk5OTk5OTk5OTksInN1YiI6ImZvbyJ9."
+        "kNVM5tQWMHCsKzxgoUYrQ-oNrRDaTdnXXT01_Kf3DG9rGAWegQ1GC9H"
+        "iKJr0Nces_C7kDg3xhg0TAKc4sumlRHnQf40Y6P6NGAw__71qTvCptb"
+        "NS97sQypPeI7iFGcZGg-WfO2e1u0ztbZZi0PnrSO_5TL4qPXNE0UZTw"
+        "Si3f8nOPbBoIDdXHZKBWDVbP7evgcsSTeg26i0kwNI3SMLFa0nUt3rw"
+        "BVflxaAPK2PDD16s6hEmg0EB9MXHXYQGmh2Q01G5o7XKWsAe5H46CWD"
+        "LnJFpU3NN4iGd4EkbN_wPjOQ0FjlzypCTqF0QRM0Stf219qwVIw4_rt"
+        "j8V4bZUdp-wg",
+        token);
+  }
 }

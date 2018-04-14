@@ -130,6 +130,70 @@ Try<std::string> generate_hmac_sha256(
     const std::string& message,
     const std::string& key);
 
+
+/**
+ * Helper type wrapping a dynamically allocated openssl RSA struct.
+ *
+ * One must provide a custom deleter for the pointer to be automatically
+ * released.
+ */
+typedef std::shared_ptr<RSA> RSA_shared_ptr;
+
+
+/**
+ * Helper function converting a PEM representation of a private key
+ * into a RSA private key usable by openssl.
+ *
+ * @param pem The PEM representation of the private key.
+ *
+ * @return A shared pointer to an openssl-compatible private key if
+ *     successful otherwise an Error.
+ */
+Try<RSA_shared_ptr> pemToRSAPrivateKey(const std::string& pem);
+
+
+/**
+ * Helper function converting a PEM representation of a public key
+ * into a RSA private key usable by openssl.
+ *
+ * @param pem The PEM representation of the public key.
+ *
+ * @return A shared pointer to an openssl-compatible private key if
+ *     successful otherwise an Error.
+ */
+Try<RSA_shared_ptr> pemToRSAPublicKey(const std::string& pem);
+
+
+/**
+ * Create a signature of a message with a private key and the RSA SHA256
+ * algorithm.
+ *
+ * @param message The message to sign.
+ * @param privateKey The private key used to sign the message.
+ *
+ * @return The signature of message if successful or an Error.
+ */
+Try<std::string> sign_rsa_sha256(
+    const std::string& message,
+    RSA_shared_ptr privateKey);
+
+
+/**
+ * Verify the signature of a message with a public key and the RSA SHA256
+ * algorithm.
+ *
+ * @param message The message to verify signature of.
+ * @param signature The signature to verify.
+ * @param publicKey The public key used to verify the signature.
+ *
+ * @return A boolean set to true if the signature is valid or false if the
+ *     signature is invalid of if the computation failed.
+ */
+bool verify_rsa_sha256(
+    const std::string& message,
+    const std::string& signature,
+    RSA_shared_ptr publicKey);
+
 } // namespace openssl {
 } // namespace network {
 } // namespace process {
