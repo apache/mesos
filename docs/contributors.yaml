@@ -216,6 +216,15 @@
   jira_user: chhsia0
   reviewboard_user: chhsia0
 
+- name: Clément Michaud
+  affiliations:
+    - {organization: Criteo}
+  emails:
+    - clement.michaud34@gmail.com
+    - c.michaud@criteo.com
+  jira_user: clems4ever
+  reviewboard_user: clems4ever
+
 - name: Daniel Pravat
   affiliations:
     - {organization: Microsoft}
