@@ -369,6 +369,77 @@ Try<std::string> generate_hmac_sha256(
   return std::string(reinterpret_cast<char*>(rc), md_len);
 }
 
+template<typename Reader>
+Try<RSA_shared_ptr> pemToRSA(const std::string& pem, Reader reader)
+{
+    BIO *bio = BIO_new_mem_buf(pem.c_str(), -1);
+    if (!bio) {
+        return Error("Failed to create RSA key bio");
+    }
+    RSA *rsa = reader(bio, nullptr, nullptr, nullptr);
+    BIO_free(bio);
+    if(!rsa) {
+        return Error("Failed to create RSA from key bio");
+    }
+    return RSA_shared_ptr(rsa, RSA_free);
+}
+
+Try<RSA_shared_ptr> pemToRSAPrivateKey(const std::string& pem) {
+    return pemToRSA(pem, PEM_read_bio_RSAPrivateKey);
+}
+
+Try<RSA_shared_ptr> pemToRSAPublicKey(const std::string& pem) {
+    return pemToRSA(pem, PEM_read_bio_RSA_PUBKEY);
+}
+
+Try<std::string> sign_rsa_sha256(
+    const std::string& message,
+    RSA_shared_ptr privateKey) {
+    std::unique_ptr<unsigned char, std::function<void(void*)>> signatureData(
+      (unsigned char*) malloc(RSA_size(privateKey.get())), free);
+    unsigned int signatureLength;
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+
+    SHA256(
+        reinterpret_cast<const unsigned char*>(message.c_str()),
+        message.size(),
+        hash);
+
+    int r = RSA_sign(
+        NID_sha256,
+        hash,
+        SHA256_DIGEST_LENGTH,
+        signatureData.get(),
+        &signatureLength,
+        privateKey.get());
+    if(r == 0) {
+        return Error("Failed to sign the message");
+    }
+    return std::string(reinterpret_cast<char*>(signatureData.get()),
+        signatureLength);
+}
+
+bool verify_rsa_sha256(
+    const std::string& message,
+    const std::string& signature,
+    RSA_shared_ptr publicKey) {
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+
+    SHA256(
+        reinterpret_cast<const unsigned char*>(message.c_str()),
+        message.size(),
+        hash);
+
+    return RSA_verify(
+        NID_sha256,
+        hash,
+        SHA256_DIGEST_LENGTH,
+        reinterpret_cast<const unsigned char*>(signature.data()),
+        signature.size(),
+        publicKey.get()) == 1;
+}
+
+
 } // namespace openssl {
 } // namespace network {
 } // namespace process {
