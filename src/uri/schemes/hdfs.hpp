@@ -29,9 +29,12 @@ namespace uri {
 /**
  * Creates an hdfs URI with the given path.
  */
-inline URI hdfs(const std::string& path)
+inline URI hdfs(
+    const std::string& path,
+    const Option<std::string>& host = None(),
+    const Option<int>& port = None())
 {
-  return construct("hdfs", path);
+  return construct("hdfs", path, host, port);
 }
 
 } // namespace uri {
