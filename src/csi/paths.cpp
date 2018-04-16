@@ -31,7 +31,6 @@
 #include <stout/os/realpath.hpp>
 
 namespace http = process::http;
-namespace unix = process::network::unix;
 
 using std::list;
 using std::string;
@@ -147,6 +146,9 @@ Try<string> getEndpointSocketPath(
     const string& name,
     const ContainerID& containerId)
 {
+#ifdef __WINDOWS__
+  return Error("CSI is not supported on Windows");
+#else
   const string symlinkPath =
     getEndpointDirSymlinkPath(rootDir, type, name, containerId);
 
@@ -188,7 +190,8 @@ Try<string> getEndpointSocketPath(
   const string socketPath = path::join(mkdtemp.get(), ENDPOINT_SOCKET_FILE);
 
   // Check if the socket path is too long.
-  Try<unix::Address> address = unix::Address::create(socketPath);
+  Try<process::network::unix::Address> address =
+    process::network::unix::Address::create(socketPath);
   if (address.isError()) {
     return Error(
         "Failed to create address from '" + socketPath + "': " +
@@ -196,6 +199,7 @@ Try<string> getEndpointSocketPath(
   }
 
   return socketPath;
+#endif // __WINDOWS__
 }
 
 
