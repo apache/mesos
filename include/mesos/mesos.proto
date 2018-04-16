@@ -3448,7 +3448,7 @@ message FileInfo {
 
 
 /**
- * Describes information abount a device.
+ * Describes information about a device.
  */
 message Device {
   message Number {
