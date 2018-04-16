@@ -785,6 +785,8 @@ inline void setAgentID(TaskInfo* task, const SlaveID& slaveId)
 {
   task->mutable_slave_id()->CopyFrom(slaveId);
 }
+
+
 inline void setAgentID(
     mesos::v1::TaskInfo* task,
     const mesos::v1::AgentID& agentId)

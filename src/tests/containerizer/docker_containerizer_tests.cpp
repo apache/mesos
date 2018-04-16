@@ -237,22 +237,17 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  const Offer& offer = offers.get()[0];
-
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->CopyFrom(offer.slave_id());
-  task.mutable_resources()->CopyFrom(offer.resources());
-
-  ExecutorInfo executorInfo;
   ExecutorID executorId;
   executorId.set_value("e1");
-  executorInfo.mutable_executor_id()->CopyFrom(executorId);
 
   CommandInfo command;
   command.set_value("/bin/test-executor");
-  executorInfo.mutable_command()->CopyFrom(command);
+
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      offers->front().resources(),
+      command,
+      executorId);
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
@@ -262,9 +257,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor)
   dockerInfo.set_image("tnachen/test-executor");
 
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
-  executorInfo.mutable_container()->CopyFrom(containerInfo);
 
-  task.mutable_executor()->CopyFrom(executorInfo);
+  task.mutable_executor()->mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
   EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
@@ -363,22 +357,17 @@ TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_Launch_Executor_Bridged)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  const Offer& offer = offers.get()[0];
-
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->CopyFrom(offer.slave_id());
-  task.mutable_resources()->CopyFrom(offer.resources());
-
-  ExecutorInfo executorInfo;
   ExecutorID executorId;
   executorId.set_value("e1");
-  executorInfo.mutable_executor_id()->CopyFrom(executorId);
 
   CommandInfo command;
   command.set_value("/bin/test-executor");
-  executorInfo.mutable_command()->CopyFrom(command);
+
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      offers->front().resources(),
+      command,
+      executorId);
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
@@ -389,9 +378,8 @@ TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_Launch_Executor_Bridged)
   dockerInfo.set_network(ContainerInfo::DockerInfo::BRIDGE);
 
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
-  executorInfo.mutable_container()->CopyFrom(containerInfo);
 
-  task.mutable_executor()->CopyFrom(executorInfo);
+  task.mutable_executor()->mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
   EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
@@ -481,16 +469,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  const Offer& offer = offers.get()[0];
-
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->CopyFrom(offer.slave_id());
-  task.mutable_resources()->CopyFrom(offer.resources());
-
-  CommandInfo command;
-  command.set_value("sleep 1000");
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      offers->front().resources(),
+      SLEEP_COMMAND(1000));
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
@@ -500,7 +482,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
   dockerInfo.set_image("alpine");
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
-  task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
@@ -635,16 +616,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Kill)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  const Offer& offer = offers.get()[0];
-
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->CopyFrom(offer.slave_id());
-  task.mutable_resources()->CopyFrom(offer.resources());
-
-  CommandInfo command;
-  command.set_value("sleep 1000");
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      offers->front().resources(),
+      SLEEP_COMMAND(1000));
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
@@ -654,7 +629,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Kill)
   dockerInfo.set_image("alpine");
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
-  task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
@@ -767,16 +741,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_TaskKillingCapability)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  const Offer& offer = offers.get()[0];
-
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->CopyFrom(offer.slave_id());
-  task.mutable_resources()->CopyFrom(offer.resources());
-
-  CommandInfo command;
-  command.set_value("sleep 1000");
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      offers->front().resources(),
+      SLEEP_COMMAND(1000));
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
@@ -786,7 +754,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_TaskKillingCapability)
   dockerInfo.set_image("alpine");
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
-  task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
@@ -892,17 +859,14 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Usage)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  const Offer& offer = offers.get()[0];
-
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->CopyFrom(offer.slave_id());
-  task.mutable_resources()->CopyFrom(offer.resources());
-
   CommandInfo command;
   // Run a CPU intensive command, so we can measure utime and stime later.
   command.set_value("dd if=/dev/zero of=/dev/null");
+
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      offers->front().resources(),
+      command);
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
@@ -912,7 +876,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Usage)
   dockerInfo.set_image("alpine");
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
-  task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
@@ -1042,16 +1005,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  const Offer& offer = offers.get()[0];
-
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->CopyFrom(offer.slave_id());
-  task.mutable_resources()->CopyFrom(offer.resources());
-
-  CommandInfo command;
-  command.set_value("sleep 1000");
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      offers->front().resources(),
+      SLEEP_COMMAND(1000));
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
@@ -1061,7 +1018,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
   dockerInfo.set_image("alpine");
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
-  task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
@@ -1631,8 +1587,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchWithPersistentVolumes)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  const Offer& offer = offers.get()[0];
-
   Resource volume = createPersistentVolume(
     Megabytes(64),
     "role1",
@@ -1642,16 +1596,14 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchWithPersistentVolumes)
     None(),
     frameworkInfo.principal());
 
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->CopyFrom(offer.slave_id());
-  task.mutable_resources()->CopyFrom(
-      Resources::parse("cpus:1;mem:64").get() + volume);
-
   CommandInfo command;
   command.set_value("echo abc > " +
                     path::join(flags.sandbox_directory, "path1", "file"));
+
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      Resources::parse("cpus:1;mem:64").get() + volume,
+      command);
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
@@ -1661,7 +1613,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchWithPersistentVolumes)
   dockerInfo.set_image("alpine");
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
-  task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
   // We use the filter explicitly here so that the resources will not
@@ -1687,7 +1638,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchWithPersistentVolumes)
     .WillRepeatedly(DoDefault());
 
   driver.acceptOffers(
-      {offer.id()},
+      {offers->front().id()},
       {CREATE(volume), LAUNCH({task})},
       filters);
 
@@ -1797,8 +1748,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverPersistentVolumes)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  const Offer& offer = offers.get()[0];
-
   Resource volume = createPersistentVolume(
     Megabytes(64),
     "role1",
@@ -1808,15 +1757,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverPersistentVolumes)
     None(),
     frameworkInfo.principal());
 
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->CopyFrom(offer.slave_id());
-  task.mutable_resources()->CopyFrom(
-      Resources::parse("cpus:1;mem:64").get() + volume);
-
-  CommandInfo command;
-  command.set_value("sleep 1000");
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      Resources::parse("cpus:1;mem:64").get() + volume,
+      SLEEP_COMMAND(1000));
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
@@ -1826,7 +1770,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverPersistentVolumes)
   dockerInfo.set_image("alpine");
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
-  task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
@@ -1845,7 +1788,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverPersistentVolumes)
     .WillRepeatedly(DoDefault());
 
   driver.acceptOffers(
-      {offer.id()},
+      {offers->front().id()},
       {CREATE(volume), LAUNCH({task})},
       filters);
 
@@ -1965,8 +1908,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverOrphanedPersistentVolumes)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  const Offer& offer = offers.get()[0];
-
   Resource volume = createPersistentVolume(
     Megabytes(64),
     "role1",
@@ -1976,15 +1917,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverOrphanedPersistentVolumes)
     None(),
     frameworkInfo.principal());
 
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->CopyFrom(offer.slave_id());
-  task.mutable_resources()->CopyFrom(
-      Resources::parse("cpus:1;mem:64").get() + volume);
-
-  CommandInfo command;
-  command.set_value("sleep 1000");
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      Resources::parse("cpus:1;mem:64").get() + volume,
+      SLEEP_COMMAND(1000));
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
@@ -1994,7 +1930,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverOrphanedPersistentVolumes)
   dockerInfo.set_image("alpine");
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
-  task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
@@ -2013,7 +1948,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverOrphanedPersistentVolumes)
     .WillRepeatedly(DoDefault());
 
   driver.acceptOffers(
-      {offer.id()},
+      {offers->front().id()},
       {CREATE(volume), LAUNCH({task})},
       filters);
 
@@ -2035,7 +1970,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverOrphanedPersistentVolumes)
   ASSERT_SOME(
       os::rmdir(getFrameworkPath(
           getMetaRootDir(flags.work_dir),
-          offer.slave_id(),
+          offers->front().slave_id(),
           frameworkId.get())));
 
   logger = ContainerLogger::create(flags.container_logger);
@@ -2133,14 +2068,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Logs)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  const Offer& offer = offers.get()[0];
-
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->CopyFrom(offer.slave_id());
-  task.mutable_resources()->CopyFrom(offer.resources());
-
   string uuid = id::UUID::random().toString();
 
   // NOTE: We prefix `echo` with `unbuffer` so that we can immediately
@@ -2152,6 +2079,11 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Logs)
       "unbuffer echo out" + uuid + " ; "
       "unbuffer echo err" + uuid + " 1>&2");
 
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      offers->front().resources(),
+      command);
+
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
 
@@ -2162,7 +2094,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Logs)
   dockerInfo.set_image("mesosphere/alpine-expect");
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
-  task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
@@ -2277,20 +2208,17 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  const Offer& offer = offers.get()[0];
-
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->CopyFrom(offer.slave_id());
-  task.mutable_resources()->CopyFrom(offer.resources());
-
   CommandInfo command;
   command.set_shell(false);
 
   // NOTE: By not setting CommandInfo::value we're testing that we
   // will still be able to run the container because it has a default
   // entrypoint!
+
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      offers->front().resources(),
+      command);
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
@@ -2300,7 +2228,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD)
   dockerInfo.set_image("mesosphere/inky");
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
-  task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
@@ -2414,14 +2341,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Override)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  const Offer& offer = offers.get()[0];
-
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->CopyFrom(offer.slave_id());
-  task.mutable_resources()->CopyFrom(offer.resources());
-
   string uuid = id::UUID::random().toString();
 
   CommandInfo command;
@@ -2431,6 +2350,11 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Override)
   // passed as an argument to the entrypoint, i.e., 'echo uuid'.
   command.set_value(uuid);
 
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      offers->front().resources(),
+      command);
+
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
 
@@ -2439,7 +2363,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Override)
   dockerInfo.set_image("mesosphere/inky");
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
-  task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
@@ -2556,14 +2479,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Args)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  const Offer& offer = offers.get()[0];
-
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->CopyFrom(offer.slave_id());
-  task.mutable_resources()->CopyFrom(offer.resources());
-
   string uuid = id::UUID::random().toString();
 
   CommandInfo command;
@@ -2574,6 +2489,11 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Args)
   // entrypoint!
   command.add_arguments(uuid);
 
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      offers->front().resources(),
+      command);
+
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
 
@@ -2582,7 +2502,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Args)
   dockerInfo.set_image("mesosphere/inky");
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
-  task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
@@ -2700,16 +2619,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SlaveRecoveryTaskContainer)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  const Offer& offer = offers.get()[0];
-
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->CopyFrom(offer.slave_id());
-  task.mutable_resources()->CopyFrom(offer.resources());
-
-  CommandInfo command;
-  command.set_value("sleep 1000");
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      offers->front().resources(),
+      SLEEP_COMMAND(1000));
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
@@ -2719,7 +2632,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SlaveRecoveryTaskContainer)
   dockerInfo.set_image("alpine");
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
-  task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
@@ -2875,22 +2787,17 @@ TEST_F(DockerContainerizerTest,
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  const Offer& offer = offers.get()[0];
-
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->CopyFrom(offer.slave_id());
-  task.mutable_resources()->CopyFrom(offer.resources());
-
-  ExecutorInfo executorInfo;
   ExecutorID executorId;
   executorId.set_value("e1");
-  executorInfo.mutable_executor_id()->CopyFrom(executorId);
 
   CommandInfo command;
   command.set_value("test-executor");
-  executorInfo.mutable_command()->CopyFrom(command);
+
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      offers->front().resources(),
+      command,
+      executorId);
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
@@ -2900,9 +2807,7 @@ TEST_F(DockerContainerizerTest,
   dockerInfo.set_image("mesosphere/test-executor");
 
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
-  executorInfo.mutable_container()->CopyFrom(containerInfo);
-
-  task.mutable_executor()->CopyFrom(executorInfo);
+  task.mutable_executor()->mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
   EXPECT_CALL(*dockerContainerizer, launch(_, _, _, _))
@@ -3046,20 +2951,17 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_NC_PortMapping)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  const Offer& offer = offers.get()[0];
-
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->CopyFrom(offer.slave_id());
-  task.mutable_resources()->CopyFrom(offer.resources());
-
   CommandInfo command;
   command.set_shell(false);
   command.set_value("nc");
   command.add_arguments("-l");
   command.add_arguments("-p");
   command.add_arguments("1000");
+
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      offers->front().resources(),
+      command);
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
@@ -3076,7 +2978,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_NC_PortMapping)
   dockerInfo.add_port_mappings()->CopyFrom(portMapping);
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
-  task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
@@ -3200,16 +3101,13 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchSandboxWithColon)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  const Offer& offer = offers.get()[0];
-
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("test:colon");
-  task.mutable_slave_id()->CopyFrom(offer.slave_id());
-  task.mutable_resources()->CopyFrom(offer.resources());
-
-  CommandInfo command;
-  command.set_value("sleep 1000");
+  // Create a sleep task whose name is "test:colon".
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      offers->front().resources(),
+      SLEEP_COMMAND(1000),
+      None(),
+      "test:colon");
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
@@ -3219,7 +3117,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchSandboxWithColon)
   dockerInfo.set_image("alpine");
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
-  task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
@@ -3321,16 +3218,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhileFetching)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  const Offer& offer = offers.get()[0];
-
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->CopyFrom(offer.slave_id());
-  task.mutable_resources()->CopyFrom(offer.resources());
-
-  CommandInfo command;
-  command.set_value("sleep 1000");
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      offers->front().resources(),
+      SLEEP_COMMAND(1000));
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
@@ -3340,7 +3231,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhileFetching)
   dockerInfo.set_image("alpine");
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
-  task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<TaskStatus> statusFailed;
@@ -3441,16 +3331,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhilePulling)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  const Offer& offer = offers.get()[0];
-
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->CopyFrom(offer.slave_id());
-  task.mutable_resources()->CopyFrom(offer.resources());
-
-  CommandInfo command;
-  command.set_value("sleep 1000");
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      offers->front().resources(),
+      SLEEP_COMMAND(1000));
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
@@ -3460,7 +3344,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhilePulling)
   dockerInfo.set_image("alpine");
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
-  task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<TaskStatus> statusFailed;
@@ -3584,16 +3467,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_ExecutorCleanupWhenLaunchFailed)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  const Offer& offer = offers.get()[0];
-
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->CopyFrom(offer.slave_id());
-  task.mutable_resources()->CopyFrom(offer.resources());
-
-  CommandInfo command;
-  command.set_value("ls");
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      offers->front().resources(),
+      "ls");
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
@@ -3602,7 +3479,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_ExecutorCleanupWhenLaunchFailed)
   dockerInfo.set_image("alpine");
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
-  task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<TaskStatus> statusGone;
@@ -3692,16 +3568,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_FetchFailure)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  const Offer& offer = offers.get()[0];
-
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->CopyFrom(offer.slave_id());
-  task.mutable_resources()->CopyFrom(offer.resources());
-
-  CommandInfo command;
-  command.set_value("ls");
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      offers->front().resources(),
+      "ls");
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
@@ -3710,7 +3580,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_FetchFailure)
   dockerInfo.set_image("alpine");
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
-  task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<TaskStatus> statusFailed;
@@ -3803,16 +3672,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DockerPullFailure)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  const Offer& offer = offers.get()[0];
-
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->CopyFrom(offer.slave_id());
-  task.mutable_resources()->CopyFrom(offer.resources());
-
-  CommandInfo command;
-  command.set_value("ls");
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      offers->front().resources(),
+      "ls");
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
@@ -3821,7 +3684,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DockerPullFailure)
   dockerInfo.set_image("alpine");
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
-  task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<TaskStatus> statusFailed;
@@ -3923,22 +3785,17 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DockerInspectDiscard)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  const Offer& offer = offers.get()[0];
-
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->CopyFrom(offer.slave_id());
-  task.mutable_resources()->CopyFrom(offer.resources());
-
-  ExecutorInfo executorInfo;
   ExecutorID executorId;
   executorId.set_value("e1");
-  executorInfo.mutable_executor_id()->CopyFrom(executorId);
 
   CommandInfo command;
   command.set_value("/bin/test-executor");
-  executorInfo.mutable_command()->CopyFrom(command);
+
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      offers->front().resources(),
+      command,
+      executorId);
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
@@ -3948,9 +3805,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DockerInspectDiscard)
   dockerInfo.set_image("tnachen/test-executor");
 
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
-  executorInfo.mutable_container()->CopyFrom(containerInfo);
 
-  task.mutable_executor()->CopyFrom(executorInfo);
+  task.mutable_executor()->mutable_container()->CopyFrom(containerInfo);
 
   Future<TaskStatus> statusFailed;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -4211,16 +4067,13 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_NoTransitionFromKillingToFinished)
   AWAIT_READY(offers);
   EXPECT_EQ(1u, offers->size());
 
-  const Offer& offer = offers.get()[0];
-
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->CopyFrom(offer.slave_id());
-  task.mutable_resources()->CopyFrom(offer.resources());
-
   CommandInfo command;
   command.set_shell(false);
+
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      offers->front().resources(),
+      command);
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
@@ -4233,7 +4086,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_NoTransitionFromKillingToFinished)
   dockerInfo.set_image("nginx:alpine");
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
-  task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
@@ -4342,16 +4194,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_CGROUPS_CFS_CgroupsEnableCFS)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  const Offer& offer = offers.get()[0];
-
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->CopyFrom(offer.slave_id());
-  task.mutable_resources()->CopyFrom(offer.resources());
-
-  CommandInfo command;
-  command.set_value("sleep 1000");
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      offers->front().resources(),
+      SLEEP_COMMAND(1000));
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
@@ -4361,7 +4207,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_CGROUPS_CFS_CgroupsEnableCFS)
   dockerInfo.set_image("alpine");
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
-  task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
@@ -4486,19 +4331,16 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Non_Root_Sandbox)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  const Offer& offer = offers.get()[0];
-
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->CopyFrom(offer.slave_id());
-  task.mutable_resources()->CopyFrom(offer.resources());
-
   // Start the task as a user without supplying an explicit command
   // user. This should inherit the framework user for the task
   // ownership.
-  CommandInfo* command = task.mutable_command();
-  command->set_value("echo \"foo\" && sleep 1000");
+  CommandInfo command;
+  command.set_value("echo \"foo\" && sleep 1000");
+
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      offers->front().resources(),
+      command);
 
   ContainerInfo* containerInfo = task.mutable_container();
   containerInfo->set_type(ContainerInfo::DOCKER);
@@ -4644,16 +4486,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DefaultDNS)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  const Offer& offer = offers.get()[0];
-
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("1");
-  task.mutable_slave_id()->CopyFrom(offer.slave_id());
-  task.mutable_resources()->CopyFrom(offer.resources());
-
-  CommandInfo command;
-  command.set_value("sleep 1000");
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      offers->front().resources(),
+      SLEEP_COMMAND(1000));
 
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::DOCKER);
@@ -4664,7 +4500,6 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DefaultDNS)
   dockerInfo.set_network(ContainerInfo::DockerInfo::BRIDGE);
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
-  task.mutable_command()->CopyFrom(command);
   task.mutable_container()->CopyFrom(containerInfo);
 
   Future<ContainerID> containerId;
