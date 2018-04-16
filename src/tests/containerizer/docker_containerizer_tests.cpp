@@ -98,6 +98,18 @@ namespace internal {
 namespace tests {
 
 
+static
+ContainerInfo createDockerInfo(const string& imageName)
+{
+  ContainerInfo containerInfo;
+
+  containerInfo.set_type(ContainerInfo::DOCKER);
+  containerInfo.mutable_docker()->set_image(imageName);
+
+  return containerInfo;
+}
+
+
 class DockerContainerizerTest : public MesosTest
 {
 public:
@@ -249,16 +261,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch_Executor)
       command,
       executorId);
 
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-
   // TODO(tnachen): Use local image to test if possible.
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("tnachen/test-executor");
-
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
-
-  task.mutable_executor()->mutable_container()->CopyFrom(containerInfo);
+  task.mutable_executor()->mutable_container()->CopyFrom(
+      createDockerInfo("tnachen/test-executor"));
 
   Future<ContainerID> containerId;
   EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
@@ -369,15 +374,11 @@ TEST_F(DockerContainerizerTest, DISABLED_ROOT_DOCKER_Launch_Executor_Bridged)
       command,
       executorId);
 
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-
   // TODO(tnachen): Use local image to test if possible.
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("tnachen/test-executor");
-  dockerInfo.set_network(ContainerInfo::DockerInfo::BRIDGE);
+  ContainerInfo containerInfo = createDockerInfo("alpine");
 
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+  containerInfo.mutable_docker()->set_network(
+      ContainerInfo::DockerInfo::BRIDGE);
 
   task.mutable_executor()->mutable_container()->CopyFrom(containerInfo);
 
@@ -474,15 +475,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
       offers->front().resources(),
       SLEEP_COMMAND(1000));
 
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-
   // TODO(tnachen): Use local image to test if possible.
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
-
-  task.mutable_container()->CopyFrom(containerInfo);
+  task.mutable_container()->CopyFrom(createDockerInfo("alpine"));
 
   Future<ContainerID> containerId;
   EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
@@ -621,15 +615,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Kill)
       offers->front().resources(),
       SLEEP_COMMAND(1000));
 
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-
   // TODO(tnachen): Use local image to test if possible.
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
-
-  task.mutable_container()->CopyFrom(containerInfo);
+  task.mutable_container()->CopyFrom(createDockerInfo("alpine"));
 
   Future<ContainerID> containerId;
   EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
@@ -746,15 +733,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_TaskKillingCapability)
       offers->front().resources(),
       SLEEP_COMMAND(1000));
 
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-
   // TODO(tnachen): Use local image to test if possible.
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
-
-  task.mutable_container()->CopyFrom(containerInfo);
+  task.mutable_container()->CopyFrom(createDockerInfo("alpine"));
 
   Future<ContainerID> containerId;
   EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
@@ -868,15 +848,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Usage)
       offers->front().resources(),
       command);
 
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-
   // TODO(tnachen): Use local image to test if possible.
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
-
-  task.mutable_container()->CopyFrom(containerInfo);
+  task.mutable_container()->CopyFrom(createDockerInfo("alpine"));
 
   Future<ContainerID> containerId;
   EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
@@ -1010,15 +983,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Update)
       offers->front().resources(),
       SLEEP_COMMAND(1000));
 
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-
   // TODO(tnachen): Use local image to test if possible.
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
-
-  task.mutable_container()->CopyFrom(containerInfo);
+  task.mutable_container()->CopyFrom(createDockerInfo("alpine"));
 
   Future<ContainerID> containerId;
   EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
@@ -1155,13 +1121,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Recover)
 
   Resources resources = Resources::parse("cpus:1;mem:512").get();
 
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-
   // TODO(tnachen): Use local image to test if possible.
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+  ContainerInfo containerInfo = createDockerInfo("alpine");
 
   CommandInfo commandInfo;
   commandInfo.set_value("sleep 1000");
@@ -1291,14 +1252,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_KillOrphanContainers)
 
   Resources resources = Resources::parse("cpus:1;mem:512").get();
 
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-
   // TODO(tnachen): Use local image to test if possible.
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
-
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+  ContainerInfo containerInfo = createDockerInfo("alpine");
 
   CommandInfo commandInfo;
   commandInfo.set_value("sleep 1000");
@@ -1481,19 +1436,14 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SkipRecoverMalformedUUID)
   ASSERT_TRUE(docker->rm(container, true).await(Seconds(30)));
 
   Resources resources = Resources::parse("cpus:1;mem:512").get();
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
 
   // TODO(tnachen): Use local image to test if possible.
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
   CommandInfo commandInfo;
   commandInfo.set_value("sleep 1000");
 
   Try<Docker::RunOptions> runOptions = Docker::RunOptions::create(
-      containerInfo,
+      createDockerInfo("alpine"),
       commandInfo,
       container,
       flags.work_dir,
@@ -1605,15 +1555,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchWithPersistentVolumes)
       Resources::parse("cpus:1;mem:64").get() + volume,
       command);
 
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-
   // TODO(tnachen): Use local image to test if possible.
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
-
-  task.mutable_container()->CopyFrom(containerInfo);
+  task.mutable_container()->CopyFrom(createDockerInfo("alpine"));
 
   // We use the filter explicitly here so that the resources will not
   // be filtered for 5 seconds (the default).
@@ -1762,15 +1705,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverPersistentVolumes)
       Resources::parse("cpus:1;mem:64").get() + volume,
       SLEEP_COMMAND(1000));
 
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-
   // TODO(tnachen): Use local image to test if possible.
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
-
-  task.mutable_container()->CopyFrom(containerInfo);
+  task.mutable_container()->CopyFrom(createDockerInfo("alpine"));
 
   Future<ContainerID> containerId;
   Future<ContainerConfig> containerConfig;
@@ -1922,15 +1858,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverOrphanedPersistentVolumes)
       Resources::parse("cpus:1;mem:64").get() + volume,
       SLEEP_COMMAND(1000));
 
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-
   // TODO(tnachen): Use local image to test if possible.
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
-
-  task.mutable_container()->CopyFrom(containerInfo);
+  task.mutable_container()->CopyFrom(createDockerInfo("alpine"));
 
   Future<ContainerID> containerId;
   Future<ContainerConfig> containerConfig;
@@ -2084,17 +2013,11 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Logs)
       offers->front().resources(),
       command);
 
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-
   // TODO(tnachen): Use local image to test if possible.
   // NOTE: This is an image that is exactly
   // `docker run -t -i alpine /bin/sh -c "apk add --update expect"`.
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("mesosphere/alpine-expect");
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
-
-  task.mutable_container()->CopyFrom(containerInfo);
+  task.mutable_container()->CopyFrom(
+      createDockerInfo("mesosphere/alpine-expect"));
 
   Future<ContainerID> containerId;
   Future<ContainerConfig> containerConfig;
@@ -2220,15 +2143,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD)
       offers->front().resources(),
       command);
 
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-
   // TODO(tnachen): Use local image to test if possible.
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("mesosphere/inky");
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
-
-  task.mutable_container()->CopyFrom(containerInfo);
+  task.mutable_container()->CopyFrom(createDockerInfo("mesosphere/inky"));
 
   Future<ContainerID> containerId;
   Future<ContainerConfig> containerConfig;
@@ -2355,15 +2271,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Override)
       offers->front().resources(),
       command);
 
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-
   // TODO(tnachen): Use local image to test if possible.
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("mesosphere/inky");
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
-
-  task.mutable_container()->CopyFrom(containerInfo);
+  task.mutable_container()->CopyFrom(createDockerInfo("mesosphere/inky"));
 
   Future<ContainerID> containerId;
   Future<ContainerConfig> containerConfig;
@@ -2494,15 +2403,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Default_CMD_Args)
       offers->front().resources(),
       command);
 
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-
   // TODO(tnachen): Use local image to test if possible.
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("mesosphere/inky");
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
-
-  task.mutable_container()->CopyFrom(containerInfo);
+  task.mutable_container()->CopyFrom(createDockerInfo("mesosphere/inky"));
 
   Future<ContainerID> containerId;
   Future<ContainerConfig> containerConfig;
@@ -2624,15 +2526,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_SlaveRecoveryTaskContainer)
       offers->front().resources(),
       SLEEP_COMMAND(1000));
 
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-
   // TODO(tnachen): Use local image to test if possible.
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
-
-  task.mutable_container()->CopyFrom(containerInfo);
+  task.mutable_container()->CopyFrom(createDockerInfo("alpine"));
 
   Future<ContainerID> containerId;
   EXPECT_CALL(*dockerContainerizer, launch(_, _, _, _))
@@ -2799,15 +2694,9 @@ TEST_F(DockerContainerizerTest,
       command,
       executorId);
 
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-
   // TODO(tnachen): Use local image to test if possible.
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("mesosphere/test-executor");
-
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
-  task.mutable_executor()->mutable_container()->CopyFrom(containerInfo);
+  task.mutable_executor()->mutable_container()->CopyFrom(
+      createDockerInfo("mesosphere/test-executor"));
 
   Future<ContainerID> containerId;
   EXPECT_CALL(*dockerContainerizer, launch(_, _, _, _))
@@ -2963,20 +2852,17 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_NC_PortMapping)
       offers->front().resources(),
       command);
 
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-
   // TODO(tnachen): Use local image to test if possible.
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
-  dockerInfo.set_network(ContainerInfo::DockerInfo::BRIDGE);
+  ContainerInfo containerInfo = createDockerInfo("alpine");
+
+  containerInfo.mutable_docker()->set_network(
+      ContainerInfo::DockerInfo::BRIDGE);
 
   ContainerInfo::DockerInfo::PortMapping portMapping;
   portMapping.set_host_port(10000);
   portMapping.set_container_port(1000);
 
-  dockerInfo.add_port_mappings()->CopyFrom(portMapping);
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+  containerInfo.mutable_docker()->add_port_mappings()->CopyFrom(portMapping);
 
   task.mutable_container()->CopyFrom(containerInfo);
 
@@ -3109,15 +2995,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_LaunchSandboxWithColon)
       None(),
       "test:colon");
 
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-
   // TODO(tnachen): Use local image to test if possible.
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
-
-  task.mutable_container()->CopyFrom(containerInfo);
+  task.mutable_container()->CopyFrom(createDockerInfo("alpine"));
 
   Future<ContainerID> containerId;
   EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
@@ -3223,15 +3102,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhileFetching)
       offers->front().resources(),
       SLEEP_COMMAND(1000));
 
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-
   // TODO(tnachen): Use local image to test if possible.
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
-
-  task.mutable_container()->CopyFrom(containerInfo);
+  task.mutable_container()->CopyFrom(createDockerInfo("alpine"));
 
   Future<TaskStatus> statusFailed;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -3336,15 +3208,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DestroyWhilePulling)
       offers->front().resources(),
       SLEEP_COMMAND(1000));
 
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-
   // TODO(tnachen): Use local image to test if possible.
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
-
-  task.mutable_container()->CopyFrom(containerInfo);
+  task.mutable_container()->CopyFrom(createDockerInfo("alpine"));
 
   Future<TaskStatus> statusFailed;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -3472,14 +3337,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_ExecutorCleanupWhenLaunchFailed)
       offers->front().resources(),
       "ls");
 
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
-
-  task.mutable_container()->CopyFrom(containerInfo);
+  task.mutable_container()->CopyFrom(createDockerInfo("alpine"));
 
   Future<TaskStatus> statusGone;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -3573,14 +3431,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_FetchFailure)
       offers->front().resources(),
       "ls");
 
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
-
-  task.mutable_container()->CopyFrom(containerInfo);
+  task.mutable_container()->CopyFrom(createDockerInfo("alpine"));
 
   Future<TaskStatus> statusFailed;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -3677,14 +3528,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DockerPullFailure)
       offers->front().resources(),
       "ls");
 
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
-
-  task.mutable_container()->CopyFrom(containerInfo);
+  task.mutable_container()->CopyFrom(createDockerInfo("alpine"));
 
   Future<TaskStatus> statusFailed;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -3797,16 +3641,9 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DockerInspectDiscard)
       command,
       executorId);
 
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-
   // TODO(tnachen): Use local image to test if possible.
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("tnachen/test-executor");
-
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
-
-  task.mutable_executor()->mutable_container()->CopyFrom(containerInfo);
+  task.mutable_executor()->mutable_container()->CopyFrom(
+      createDockerInfo("tnachen/test-executor"));
 
   Future<TaskStatus> statusFailed;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
@@ -3933,9 +3770,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_NoTransitionFromKillingToRunning)
   // The docker container runs in host network mode.
   //
   // TODO(tnachen): Use local image to test if possible.
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-  containerInfo.mutable_docker()->set_image("alpine");
+  ContainerInfo containerInfo = createDockerInfo("alpine");
+
   containerInfo.mutable_docker()->set_network(
       ContainerInfo::DockerInfo::HOST);
 
@@ -4075,18 +3911,11 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_NoTransitionFromKillingToFinished)
       offers->front().resources(),
       command);
 
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-
   // The "nginx:alpine" container returns an "EXIT_STATUS" of 0 on
   // receiving a SIGTERM.
   //
   // TODO(tnachen): Use local image to test if possible.
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("nginx:alpine");
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
-
-  task.mutable_container()->CopyFrom(containerInfo);
+  task.mutable_container()->CopyFrom(createDockerInfo("nginx:alpine"));
 
   Future<ContainerID> containerId;
   EXPECT_CALL(containerizer, launch(_, _, _, _))
@@ -4199,15 +4028,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_CGROUPS_CFS_CgroupsEnableCFS)
       offers->front().resources(),
       SLEEP_COMMAND(1000));
 
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-
   // TODO(tnachen): Use local image to test if possible.
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
-
-  task.mutable_container()->CopyFrom(containerInfo);
+  task.mutable_container()->CopyFrom(createDockerInfo("alpine"));
 
   Future<ContainerID> containerId;
   EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
@@ -4342,12 +4164,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Non_Root_Sandbox)
       offers->front().resources(),
       command);
 
-  ContainerInfo* containerInfo = task.mutable_container();
-  containerInfo->set_type(ContainerInfo::DOCKER);
-
   // TODO(tnachen): Use local image to test if possible.
-  ContainerInfo::DockerInfo* dockerInfo = containerInfo->mutable_docker();
-  dockerInfo->set_image("alpine");
+  task.mutable_container()->CopyFrom(createDockerInfo("alpine"));
 
   Future<ContainerID> containerId;
   EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
@@ -4491,14 +4309,11 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DefaultDNS)
       offers->front().resources(),
       SLEEP_COMMAND(1000));
 
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-
   // TODO(tnachen): Use local image to test if possible.
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
-  dockerInfo.set_network(ContainerInfo::DockerInfo::BRIDGE);
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+  ContainerInfo containerInfo = createDockerInfo("alpine");
+
+  containerInfo.mutable_docker()->set_network(
+      ContainerInfo::DockerInfo::BRIDGE);
 
   task.mutable_container()->CopyFrom(containerInfo);
 
@@ -4666,15 +4481,8 @@ TEST_F(DockerContainerizerIPv6Test, ROOT_DOCKER_LaunchIPv6HostNetwork)
       offer.resources(),
       SLEEP_COMMAND(10000));
 
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-
   // TODO(tnachen): Use local image to test if possible.
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
-
-  task.mutable_container()->CopyFrom(containerInfo);
+  task.mutable_container()->CopyFrom(createDockerInfo("alpine"));
 
   Future<ContainerID> containerId;
   EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
@@ -4858,14 +4666,11 @@ TEST_F(
       offer.resources(),
       SLEEP_COMMAND(10000));
 
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-
   // TODO(tnachen): Use local image to test if possible.
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
-  dockerInfo.set_network(ContainerInfo::DockerInfo::USER);
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
+  ContainerInfo containerInfo = createDockerInfo("alpine");
+
+  containerInfo.mutable_docker()->set_network(
+      ContainerInfo::DockerInfo::USER);
 
   // Setup the docker IPv6 network.
   NetworkInfo networkInfo;
@@ -5116,15 +4921,8 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
       offer.resources(),
       SLEEP_COMMAND(1000));
 
-  ContainerInfo containerInfo;
-  containerInfo.set_type(ContainerInfo::DOCKER);
-
   // TODO(tnachen): Use local image to test if possible.
-  ContainerInfo::DockerInfo dockerInfo;
-  dockerInfo.set_image("alpine");
-  containerInfo.mutable_docker()->CopyFrom(dockerInfo);
-
-  task.mutable_container()->CopyFrom(containerInfo);
+  task.mutable_container()->CopyFrom(createDockerInfo("alpine"));
 
   Future<ContainerID> containerId;
   EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
