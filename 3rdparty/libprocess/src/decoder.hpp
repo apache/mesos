@@ -41,6 +41,16 @@
 
 namespace process {
 
+namespace http_parsing {
+
+// We expect callbacks to return 0 on success and 1 on failure. These constants
+// are introduced solely to make decoders' code easier to read and are not meant
+// to be used outside.
+constexpr int SUCCESS = 0;
+constexpr int FAILURE = 1;
+
+} // namespace http_parsing {
+
 // TODO(benh): Make DataDecoder abstract and make RequestDecoder a
 // concrete subclass.
 class DataDecoder
@@ -115,17 +125,17 @@ private:
 
     decoder->request = new http::Request();
 
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_chunk_complete(http_parser* p)
   {
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_chunk_header(http_parser* p)
   {
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_url(http_parser* p, const char* data, size_t length)
@@ -139,7 +149,7 @@ private:
     // `on_message_complete`.
     decoder->url.append(data, length);
 
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_header_field(http_parser* p, const char* data, size_t length)
@@ -156,7 +166,7 @@ private:
     decoder->field.append(data, length);
     decoder->header = HEADER_FIELD;
 
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_header_value(http_parser* p, const char* data, size_t length)
@@ -165,7 +175,7 @@ private:
     CHECK_NOTNULL(decoder->request);
     decoder->value.append(data, length);
     decoder->header = HEADER_VALUE;
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_headers_complete(http_parser* p)
@@ -184,7 +194,7 @@ private:
 
     decoder->request->keepAlive = http_should_keep_alive(&decoder->parser) != 0;
 
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_body(http_parser* p, const char* data, size_t length)
@@ -192,7 +202,7 @@ private:
     DataDecoder* decoder = (DataDecoder*) p->data;
     CHECK_NOTNULL(decoder->request);
     decoder->request->body.append(data, length);
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_message_complete(http_parser* p)
@@ -237,7 +247,7 @@ private:
 
     if (decoded.isError()) {
       decoder->failure = true;
-      return 1;
+      return http_parsing::FAILURE;
     }
 
     decoder->request->url.query = decoded.get();
@@ -249,7 +259,7 @@ private:
       Try<std::string> decompressed = gzip::decompress(decoder->request->body);
       if (decompressed.isError()) {
         decoder->failure = true;
-        return 1;
+        return http_parsing::FAILURE;
       }
       decoder->request->body = decompressed.get();
 
@@ -262,7 +272,7 @@ private:
 
     decoder->requests.push_back(decoder->request);
     decoder->request = nullptr;
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   bool failure;
@@ -363,22 +373,22 @@ private:
     decoder->response->body.clear();
     decoder->response->path.clear();
 
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_chunk_complete(http_parser* p)
   {
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_chunk_header(http_parser* p)
   {
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_url(http_parser* p, const char* data, size_t length)
   {
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_header_field(http_parser* p, const char* data, size_t length)
@@ -395,7 +405,7 @@ private:
     decoder->field.append(data, length);
     decoder->header = HEADER_FIELD;
 
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_header_value(http_parser* p, const char* data, size_t length)
@@ -404,7 +414,7 @@ private:
     CHECK_NOTNULL(decoder->response);
     decoder->value.append(data, length);
     decoder->header = HEADER_VALUE;
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_headers_complete(http_parser* p)
@@ -418,7 +428,7 @@ private:
     decoder->field.clear();
     decoder->value.clear();
 
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_body(http_parser* p, const char* data, size_t length)
@@ -426,7 +436,7 @@ private:
     ResponseDecoder* decoder = (ResponseDecoder*) p->data;
     CHECK_NOTNULL(decoder->response);
     decoder->response->body.append(data, length);
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_message_complete(http_parser* p)
@@ -442,7 +452,7 @@ private:
         http::Status::string(decoder->parser.status_code);
     } else {
       decoder->failure = true;
-      return 1;
+      return http_parsing::FAILURE;
     }
 
     // We can only provide the gzip encoding.
@@ -452,7 +462,7 @@ private:
       Try<std::string> decompressed = gzip::decompress(decoder->response->body);
       if (decompressed.isError()) {
         decoder->failure = true;
-        return 1;
+        return http_parsing::FAILURE;
       }
       decoder->response->body = decompressed.get();
 
@@ -465,12 +475,12 @@ private:
 
     decoder->responses.push_back(decoder->response);
     decoder->response = nullptr;
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_status(http_parser* p, const char* data, size_t length)
   {
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   bool failure;
@@ -602,27 +612,27 @@ private:
     decoder->response->type = http::Response::PIPE;
     decoder->writer = None();
 
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_chunk_complete(http_parser* p)
   {
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_chunk_header(http_parser* p)
   {
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_status(http_parser* p, const char* data, size_t length)
   {
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_url(http_parser* p, const char* data, size_t length)
   {
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_header_field(http_parser* p, const char* data, size_t length)
@@ -632,7 +642,7 @@ private:
     // TODO(alexr): We currently do not support trailers, i.e., headers after
     // `on_headers_complete` has been called, and instead treat them as errors.
     if (decoder->response == nullptr) {
-      return 1;
+      return http_parsing::FAILURE;
     }
 
     if (decoder->header != HEADER_FIELD) {
@@ -644,7 +654,7 @@ private:
     decoder->field.append(data, length);
     decoder->header = HEADER_FIELD;
 
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_header_value(http_parser* p, const char* data, size_t length)
@@ -654,12 +664,12 @@ private:
     // TODO(alexr): We currently do not support trailers, i.e., headers after
     // `on_headers_complete` has been called, and instead treat them as errors.
     if (decoder->response == nullptr) {
-      return 1;
+      return http_parsing::FAILURE;
     }
 
     decoder->value.append(data, length);
     decoder->header = HEADER_VALUE;
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_headers_complete(http_parser* p)
@@ -682,7 +692,7 @@ private:
         http::Status::string(decoder->parser.status_code);
     } else {
       decoder->failure = true;
-      return 1;
+      return http_parsing::FAILURE;
     }
 
     // We cannot provide streaming gzip decompression!
@@ -690,7 +700,7 @@ private:
       decoder->response->headers.get("Content-Encoding");
     if (encoding.isSome() && encoding.get() == "gzip") {
       decoder->failure = true;
-      return 1;
+      return http_parsing::FAILURE;
     }
 
     CHECK_NONE(decoder->writer);
@@ -709,7 +719,7 @@ private:
     // auxiliary data structure.
     decoder->response = nullptr;
 
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_body(http_parser* p, const char* data, size_t length)
@@ -721,7 +731,7 @@ private:
     http::Pipe::Writer writer = decoder->writer.get(); // Remove const.
     writer.write(std::string(data, length));
 
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_message_complete(http_parser* p)
@@ -732,7 +742,7 @@ private:
     // earlier (e.g., due to invalid status code).
     if (decoder->writer.isNone()) {
       CHECK(decoder->failure);
-      return 1;
+      return http_parsing::FAILURE;
     }
 
     http::Pipe::Writer writer = decoder->writer.get(); // Remove const.
@@ -740,7 +750,7 @@ private:
 
     decoder->writer = None();
 
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   bool failure;
@@ -863,17 +873,17 @@ private:
     decoder->writer = None();
     decoder->decompressor.reset();
 
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_chunk_complete(http_parser* p)
   {
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_chunk_header(http_parser* p)
   {
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_url(http_parser* p, const char* data, size_t length)
@@ -882,7 +892,7 @@ private:
 
     // URL should not be parsed after `on_headers_complete` has been called.
     if (decoder->request == nullptr) {
-      return 1;
+      return http_parsing::FAILURE;
     }
 
     // The current http_parser library (version 2.6.2 and below)
@@ -891,7 +901,7 @@ private:
     // `on_header_complete`.
     decoder->url.append(data, length);
 
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_header_field(http_parser* p, const char* data, size_t length)
@@ -901,7 +911,7 @@ private:
     // TODO(alexr): We currently do not support trailers, i.e., headers after
     // `on_headers_complete` has been called, and instead treat them as errors.
     if (decoder->request == nullptr) {
-      return 1;
+      return http_parsing::FAILURE;
     }
 
     if (decoder->header != HEADER_FIELD) {
@@ -913,7 +923,7 @@ private:
     decoder->field.append(data, length);
     decoder->header = HEADER_FIELD;
 
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_header_value(http_parser* p, const char* data, size_t length)
@@ -923,12 +933,12 @@ private:
     // TODO(alexr): We currently do not support trailers, i.e., headers after
     // `on_headers_complete` has been called, and instead treat them as errors.
     if (decoder->request == nullptr) {
-      return 1;
+      return http_parsing::FAILURE;
     }
 
     decoder->value.append(data, length);
     decoder->header = HEADER_VALUE;
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_headers_complete(http_parser* p)
@@ -985,7 +995,7 @@ private:
 
     if (decoded.isError()) {
       decoder->failure = true;
-      return 1;
+      return http_parsing::FAILURE;
     }
 
     decoder->request->url.query = std::move(decoded.get());
@@ -1014,7 +1024,7 @@ private:
     // auxiliary data structure.
     decoder->request = nullptr;
 
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_body(http_parser* p, const char* data, size_t length)
@@ -1032,7 +1042,7 @@ private:
 
       if (decompressed.isError()) {
         decoder->failure = true;
-        return 1;
+        return http_parsing::FAILURE;
       }
 
       body = std::move(decompressed.get());
@@ -1042,7 +1052,7 @@ private:
 
     writer.write(std::move(body));
 
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   static int on_message_complete(http_parser* p)
@@ -1053,7 +1063,7 @@ private:
     // earlier (e.g., due to invalid query parameters).
     if (decoder->writer.isNone()) {
       CHECK(decoder->failure);
-      return 1;
+      return http_parsing::FAILURE;
     }
 
     http::Pipe::Writer writer = decoder->writer.get(); // Remove const.
@@ -1062,14 +1072,14 @@ private:
         !decoder->decompressor->finished()) {
       writer.fail("Failed to decompress body");
       decoder->failure = true;
-      return 1;
+      return http_parsing::FAILURE;
     }
 
     writer.close();
 
     decoder->writer = None();
 
-    return 0;
+    return http_parsing::SUCCESS;
   }
 
   bool failure;
