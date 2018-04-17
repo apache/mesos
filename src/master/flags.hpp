@@ -108,6 +108,7 @@ public:
   Option<std::string> advertise_ip;
   Option<std::string> advertise_port;
   Option<flags::SecurePathOrValue> zk;
+  bool memory_profiling;
 
   // Optional IP discover script that will set the Master IP.
   // If set, its output is expected to be a valid parseable IP string.

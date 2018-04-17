@@ -364,6 +364,8 @@ int main(int argc, char** argv)
     os::setenv("LIBPROCESS_ADVERTISE_PORT", flags.advertise_port.get());
   }
 
+  os::setenv("LIBPROCESS_MEMORY_PROFILING", stringify(flags.memory_profiling));
+
   // Log build information.
   LOG(INFO) << "Build: " << build::DATE << " by " << build::USER;
   LOG(INFO) << "Version: " << MESOS_VERSION;

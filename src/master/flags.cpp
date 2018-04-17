@@ -627,6 +627,17 @@ mesos::internal::master::Flags::Flags()
       "However, this port (along with `advertise_ip`) may be used to\n"
       "access this master.");
 
+  // TODO(bevers): Switch the default to `true` after gathering some
+  // real-world experience.
+  add(&Flags::memory_profiling,
+      "memory_profiling",
+      "This setting controls whether the memory profiling functionality of\n"
+      "libprocess should be exposed when jemalloc is detected.\n"
+      "NOTE: Even if set to true, memory profiling will not work unless\n"
+      "jemalloc is loaded into the address space of the binary, either by\n"
+      "linking against it at compile-time or using `LD_PRELOAD`.",
+      false);
+
   add(&Flags::zk,
       "zk",
       "ZooKeeper URL (used for leader election amongst masters).\n"

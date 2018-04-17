@@ -1394,6 +1394,17 @@ mesos::internal::slave::Flags::Flags()
       "this IPv6 address is only used to advertise IPv6 addresses for\n"
       "containers running on the host network.\n");
 
+  // TODO(bevers): Switch the default to `true` after gathering
+  // some real-world experience.
+  add(&Flags::memory_profiling,
+      "memory_profiling",
+      "This setting controls whether the memory profiling functionality of\n"
+      "libprocess should be exposed when jemalloc is detected.\n"
+      "NOTE: Even if set to true, memory profiling will not work unless\n"
+      "jemalloc is loaded into the address space of the binary, either by\n"
+      "linking against it at compile-time or using `LD_PRELOAD`.",
+      false);
+
   add(&Flags::domain,
       "domain",
       "Domain that the agent belongs to. Mesos currently only supports\n"
