@@ -108,7 +108,8 @@ environment variable, for example LD_PRELOAD=/usr/lib/libjemalloc.so
 
 If you're running a mesos binary, and want to have it linked
 against jemalloc by default, consider using the
---enable-jemalloc-allocator configuration option.)_";
+--enable-jemalloc-allocator configuration option.
+)_";
 
 
 constexpr char JEMALLOC_PROFILING_NOT_ENABLED_MESSAGE[] = R"_(
@@ -615,7 +616,8 @@ http::Response MemoryProfiler::DiskArtifact::asHttp() const
 {
   Try<std::string> _path = path();
   if (_path.isError()) {
-    return http::BadRequest("Could not compute file path: " + _path.error());
+    return http::BadRequest(
+        "Could not compute file path: " + _path.error() + ".\n");
   }
 
   // If we get here, we want to serve the file that *should* be on disk.
@@ -623,7 +625,7 @@ http::Response MemoryProfiler::DiskArtifact::asHttp() const
   //
   // TODO(bevers): Store a checksum and verify that it matches.
   if (!os::stat::isfile(_path.get())) {
-    return http::BadRequest("Requested file was deleted from local disk.");
+    return http::BadRequest("Requested file was deleted from local disk.\n");
   }
 
   process::http::OK response;
@@ -686,7 +688,7 @@ Future<http::Response> MemoryProfiler::start(
     Try<Duration> parsed = Duration::parse(durationParameter.get());
     if (parsed.isError()) {
       return http::BadRequest(
-          "Could not parse parameter 'duration': " + parsed.error());
+          "Could not parse parameter 'duration': " + parsed.error() + ".\n");
     }
     duration = parsed.get();
   }
@@ -696,7 +698,7 @@ Future<http::Response> MemoryProfiler::start(
     return http::BadRequest(
         "Duration '" + stringify(duration) + "' must be between "
         + stringify(MINIMUM_COLLECTION_TIME) + " and "
-        + stringify(MAXIMUM_COLLECTION_TIME) + ".");
+        + stringify(MAXIMUM_COLLECTION_TIME) + ".\n");
   }
 
   Try<bool> wasActive = jemalloc::startProfiling();
@@ -715,7 +717,7 @@ Future<http::Response> MemoryProfiler::start(
   // This can happpen when jemalloc was configured e.g. via the `MALLOC_CONF`
   // environment variable. We don't touch it in this case.
   if (!currentRun.isSome()) {
-    return http::Conflict("Heap profiling was started externally.");
+    return http::Conflict("Heap profiling was started externally.\n");
   }
 
   std::string message = wasActive.get() ?
@@ -748,7 +750,7 @@ Future<http::Response> MemoryProfiler::stop(
   Try<bool> active = jemalloc::profilingActive();
   if (active.isError()) {
     return http::BadRequest(
-        "Error interfacing with jemalloc: " + active.error());
+        "Error interfacing with jemalloc: " + active.error() + ".\n");
   }
 
   if (!currentRun.isSome() && active.get()) {
@@ -756,12 +758,12 @@ Future<http::Response> MemoryProfiler::stop(
     return http::BadRequest(
         "Profiling is active, but was not started by libprocess."
         " Accessing the raw profile through libprocess is currently"
-        " not supported.");
+        " not supported.\n");
   }
 
   Try<time_t> generated = stopAndGenerateRawProfile();
   if (generated.isError()) {
-    return http::BadRequest(generated.error());
+    return http::BadRequest(generated.error() + ".\n");
   }
 
   Try<bool> stillActive = jemalloc::profilingActive();
@@ -886,24 +888,25 @@ Future<http::Response> MemoryProfiler::downloadRaw(
 
   // Verify that `id` has the correct version if it was explicitly passed.
   if (requestedId.isError()) {
-    return http::BadRequest("Invalid parameter 'id': " + requestedId.error());
+    return http::BadRequest(
+        "Invalid parameter 'id': " + requestedId.error() + ".\n");
   }
 
   if (jemallocRawProfile.id().isError()) {
     return http::BadRequest(
-        "No heap profile exists: " + jemallocRawProfile.id().error());
+        "No heap profile exists: " + jemallocRawProfile.id().error() + ".\n");
   }
 
   if (requestedId.isSome() &&
       (requestedId.get() != jemallocRawProfile.id().get())) {
     return http::BadRequest(
-        "Cannot serve requested id #" + stringify(requestedId.get()));
+        "Cannot serve requested id #" + stringify(requestedId.get()) + ".\n");
   }
 
   if (currentRun.isSome() && !requestedId.isSome()) {
     return http::BadRequest(
         "A profiling run is currently in progress. To download results of a"
-        " previous run, please pass an `id` explicitly.");
+        " previous run, please pass an 'id' explicitly.\n");
   }
 
   return jemallocRawProfile.asHttp();
@@ -918,18 +921,19 @@ Future<http::Response> MemoryProfiler::downloadGraph(
 
   // Verify that `id` has the correct version if it was explicitly passed.
   if (requestedId.isError()) {
-    return http::BadRequest("Invalid parameter 'id': " + requestedId.error());
+    return http::BadRequest(
+        "Invalid parameter 'id': " + requestedId.error() + ".\n");
   }
 
   if (jemallocRawProfile.id().isError()) {
     return http::BadRequest(
-        "No source profile exists: " + jemallocRawProfile.id().error());
+        "No source profile exists: " + jemallocRawProfile.id().error() + ".\n");
   }
 
   if (currentRun.isSome() && !requestedId.isSome()) {
     return http::BadRequest(
         "A profiling run is currently in progress. To download results of a"
-        " previous run, please pass an `id` explicitly.");
+        " previous run, please pass an 'id' explicitly.\n");
   }
 
   time_t rawId = jemallocRawProfile.id().get();
@@ -954,7 +958,8 @@ Future<http::Response> MemoryProfiler::downloadGraph(
       });
 
   if (result.isError()) {
-    return http::BadRequest("Could not generate file: " + result.error());
+    return http::BadRequest(
+        "Could not generate file: " + result.error() + ".\n");
   }
 
   return jeprofGraph.asHttp();
@@ -969,18 +974,19 @@ Future<http::Response> MemoryProfiler::downloadTextProfile(
 
   // Verify that `id` has the correct version if it was explicitly passed.
   if (requestedId.isError()) {
-    return http::BadRequest("Invalid parameter 'id': " + requestedId.error());
+    return http::BadRequest(
+        "Invalid parameter 'id': " + requestedId.error() + ".\n");
   }
 
   if (jemallocRawProfile.id().isError()) {
     return http::BadRequest(
-        "No source profile exists: " + jemallocRawProfile.id().error());
+        "No source profile exists: " + jemallocRawProfile.id().error() + ".\n");
   }
 
   if (currentRun.isSome() && !requestedId.isSome()) {
     return http::BadRequest(
         "A profiling run is currently in progress. To download results of a"
-        " previous run, please pass an `id` explicitly.");
+        " previous run, please pass an `id` explicitly.\n");
   }
 
   time_t rawId = jemallocRawProfile.id().get();
@@ -1007,7 +1013,8 @@ Future<http::Response> MemoryProfiler::downloadTextProfile(
       });
 
   if (result.isError()) {
-    return http::BadRequest("Could not generate file: " + result.error());
+    return http::BadRequest(
+        "Could not generate file: " + result.error() + ".\n");
   }
 
   return jeprofSymbolizedProfile.asHttp();
