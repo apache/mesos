@@ -1888,7 +1888,7 @@ message Offer {
   repeated Resource resources = 5;
   repeated Attribute attributes = 7;
 
-  // Executors of the same framework running on the this agent.
+  // Executors of the same framework running on this agent.
   repeated ExecutorID executor_ids = 6;
 
   // Signifies that the resources in this Offer may be unavailable during
