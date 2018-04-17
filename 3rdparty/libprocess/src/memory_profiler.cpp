@@ -12,6 +12,11 @@
 
 #include "memory_profiler.hpp"
 
+#include <chrono>
+#include <fstream>
+#include <sstream>
+#include <string>
+
 #include <process/delay.hpp>
 #include <process/future.hpp>
 #include <process/help.hpp>
@@ -26,18 +31,13 @@
 
 #include <glog/logging.h>
 
-#include <chrono>
-#include <fstream>
-#include <sstream>
-#include <string>
-
-
 using process::Future;
 using process::HELP;
 using process::TLDR;
 using process::DESCRIPTION;
 using process::AUTHENTICATION;
 
+using std::string;
 
 // The main workflow to generate and download a heap profile
 // goes through the sequence of endpoints
@@ -281,13 +281,13 @@ Try<Path> getTemporaryDirectoryPath() {
 
   // TODO(bevers): Add a libprocess-specific override for the system-wide
   // `TMPDIR`, for example `LIBPROCESS_TMPDIR`.
-  std::string tmpdir =
+  const string tmpdir =
     os::getenv("TMPDIR").getOrElse(LIBPROCESS_DEFAULT_TMPDIR);
 
-  std::string pathTemplate = path::join(tmpdir, "libprocess.XXXXXX");
+  const string pathTemplate = path::join(tmpdir, "libprocess.XXXXXX");
 
   // TODO(bevers): Add an atexit-handler that cleans up the directory.
-  Try<std::string> dir = os::mkdtemp(pathTemplate);
+  Try<string> dir = os::mkdtemp(pathTemplate);
   if (dir.isError()) {
     return Error(dir.error());
   }
@@ -301,9 +301,9 @@ Try<Path> getTemporaryDirectoryPath() {
 
 
 Try<Nothing> generateJeprofFile(
-    const Try<std::string>& inputPath,
-    const std::string& options,
-    const std::string& outputPath)
+    const Try<string>& inputPath,
+    const string& options,
+    const string& outputPath)
 {
   if (inputPath.isError()) {
     return Error("Cannot read input file: " + inputPath.error());
@@ -316,7 +316,7 @@ Try<Nothing> generateJeprofFile(
   // trivially injected.
   // Apart from that, we dont need to be as careful here as with the actual
   // heap profile dump, because a failure will not crash the whole process.
-  Try<std::string> result = os::shell(strings::format(
+  Try<string> result = os::shell(strings::format(
       "jeprof %s /proc/self/exe %s > %s",
       options,
       inputPath.get(),
@@ -336,7 +336,7 @@ Try<Nothing> generateJeprofFile(
 // instead of having this here.
 Result<time_t> extractIdFromRequest(const process::http::Request& request)
 {
-  Option<std::string> idParameter = request.url.query.get("id");
+  Option<string> idParameter = request.url.query.get("id");
   if (idParameter.isNone()) {
     return None();
   }
@@ -384,7 +384,7 @@ Try<bool> profilingActive()
 }
 
 
-Try<Nothing> dump(const std::string& path)
+Try<Nothing> dump(const string& path)
 {
   // A profile is dumped every time the 'prof.dump' setting is written to.
   return writeJemallocSetting("prof.dump", path.c_str());
@@ -393,7 +393,7 @@ Try<Nothing> dump(const std::string& path)
 } // namespace jemalloc {
 
 
-const std::string MemoryProfiler::START_HELP()
+const string MemoryProfiler::START_HELP()
 {
   return HELP(
       TLDR(
@@ -413,7 +413,7 @@ const std::string MemoryProfiler::START_HELP()
 }
 
 
-const std::string MemoryProfiler::STOP_HELP()
+const string MemoryProfiler::STOP_HELP()
 {
   return HELP(
       TLDR(
@@ -427,7 +427,7 @@ const std::string MemoryProfiler::STOP_HELP()
 }
 
 
-const std::string MemoryProfiler::DOWNLOAD_RAW_HELP()
+const string MemoryProfiler::DOWNLOAD_RAW_HELP()
 {
   return HELP(
       TLDR(
@@ -447,7 +447,7 @@ const std::string MemoryProfiler::DOWNLOAD_RAW_HELP()
 }
 
 
-const std::string MemoryProfiler::DOWNLOAD_TEXT_HELP()
+const string MemoryProfiler::DOWNLOAD_TEXT_HELP()
 {
   return HELP(
       TLDR(
@@ -466,7 +466,7 @@ const std::string MemoryProfiler::DOWNLOAD_TEXT_HELP()
 }
 
 
-const std::string MemoryProfiler::DOWNLOAD_GRAPH_HELP()
+const string MemoryProfiler::DOWNLOAD_GRAPH_HELP()
 {
   return HELP(
       TLDR(
@@ -486,7 +486,7 @@ const std::string MemoryProfiler::DOWNLOAD_GRAPH_HELP()
 }
 
 
-const std::string MemoryProfiler::STATISTICS_HELP()
+const string MemoryProfiler::STATISTICS_HELP()
 {
   return HELP(
       TLDR(
@@ -503,7 +503,7 @@ const std::string MemoryProfiler::STATISTICS_HELP()
 }
 
 
-const std::string MemoryProfiler::STATE_HELP()
+const string MemoryProfiler::STATE_HELP()
 {
   return HELP(
       TLDR(
@@ -557,7 +557,7 @@ void MemoryProfiler::initialize()
 }
 
 
-MemoryProfiler::MemoryProfiler(const Option<std::string>& _authenticationRealm)
+MemoryProfiler::MemoryProfiler(const Option<string>& _authenticationRealm)
   : ProcessBase("memory-profiler"),
     authenticationRealm(_authenticationRealm),
     jemallocRawProfile(RAW_PROFILE_FILENAME),
@@ -591,7 +591,7 @@ void MemoryProfiler::ProfilingRun::extend(
 }
 
 
-MemoryProfiler::DiskArtifact::DiskArtifact(const std::string& _filename)
+MemoryProfiler::DiskArtifact::DiskArtifact(const string& _filename)
   : filename(_filename),
     timestamp(Error("Not yet generated"))
 {}
@@ -603,7 +603,7 @@ const Try<time_t>& MemoryProfiler::DiskArtifact::id() const
 }
 
 
-Try<std::string> MemoryProfiler::DiskArtifact::path() const
+Try<string> MemoryProfiler::DiskArtifact::path() const
 {
   Try<Path> tmpdir = getTemporaryDirectoryPath();
   if (tmpdir.isError()) {
@@ -616,7 +616,7 @@ Try<std::string> MemoryProfiler::DiskArtifact::path() const
 
 http::Response MemoryProfiler::DiskArtifact::asHttp() const
 {
-  Try<std::string> _path = path();
+  Try<string> _path = path();
   if (_path.isError()) {
     return http::BadRequest(
         "Could not compute file path: " + _path.error() + ".\n");
@@ -643,14 +643,14 @@ http::Response MemoryProfiler::DiskArtifact::asHttp() const
 
 Try<Nothing> MemoryProfiler::DiskArtifact::generate(
     time_t requestedTimestamp,
-    std::function<Try<Nothing>(const std::string&)> generator)
+    std::function<Try<Nothing>(const string&)> generator)
 {
   // Nothing to do if the requestd file already exists.
   if (timestamp.isSome() && timestamp.get() == requestedTimestamp) {
     return Nothing();
   }
 
-  Try<std::string> path_ = path();
+  Try<string> path_ = path();
   if (path_.isError()) {
     return Error("Could not determine target path: " + path_.get());
   }
@@ -678,14 +678,14 @@ Future<http::Response> MemoryProfiler::start(
   const Option<http::authentication::Principal>&)
 {
   if (!detectJemalloc()) {
-    return http::BadRequest(std::string(JEMALLOC_NOT_DETECTED_MESSAGE) + ".\n");
+    return http::BadRequest(string(JEMALLOC_NOT_DETECTED_MESSAGE) + ".\n");
   }
 
   Duration duration = DEFAULT_COLLECTION_TIME;
 
   // TODO(bevers): Introduce `http::Request::extractQueryParameter<T>(string)`
   // instead of doing it ad-hoc here.
-  Option<std::string> durationParameter = request.url.query.get("duration");
+  Option<string> durationParameter = request.url.query.get("duration");
   if (durationParameter.isSome()) {
     Try<Duration> parsed = Duration::parse(durationParameter.get());
     if (parsed.isError()) {
@@ -706,7 +706,7 @@ Future<http::Response> MemoryProfiler::start(
   Try<bool> wasActive = jemalloc::startProfiling();
   if (wasActive.isError()) {
     return http::BadRequest(
-        std::string(JEMALLOC_PROFILING_NOT_ENABLED_MESSAGE) + ".\n");
+        string(JEMALLOC_PROFILING_NOT_ENABLED_MESSAGE) + ".\n");
   }
 
   if (!wasActive.get()) {
@@ -723,7 +723,7 @@ Future<http::Response> MemoryProfiler::start(
     return http::Conflict("Heap profiling was started externally.\n");
   }
 
-  std::string message = wasActive.get() ?
+  string message = wasActive.get() ?
     "Heap profiling is already active." :
     "Successfully started new heap profiling run.";
 
@@ -749,7 +749,7 @@ Future<http::Response> MemoryProfiler::stop(
     const Option<http::authentication::Principal>&)
 {
   if (!detectJemalloc()) {
-    return http::BadRequest(std::string(JEMALLOC_NOT_DETECTED_MESSAGE) + ".\n");
+    return http::BadRequest(string(JEMALLOC_NOT_DETECTED_MESSAGE) + ".\n");
   }
 
   Try<bool> active = jemalloc::profilingActive();
@@ -773,27 +773,27 @@ Future<http::Response> MemoryProfiler::stop(
   Try<bool> stillActive = jemalloc::profilingActive();
   CHECK(stillActive.isError() || !stillActive.get());
 
-  std::string message =
+  const string message =
     "Successfully stopped memory profiling run."
     " Use one of the provided URLs to download results."
     " Note that in order to generate graphs or symbolized profiles,"
     " jeprof must be installed on the host machine and generation of"
     " these files can take several minutes.";
 
-  std::string id = stringify(generated.get());
+  const string id = stringify(generated.get());
 
   JSON::Object result;
   result.values["id"] = id;
   result.values["message"] = message;
 
   result.values["url_raw_profile"] =
-    "/" + this->self().id + "/download/raw?id=" + stringify(id);
+    "/" + this->self().id + "/download/raw?id=" + id;
 
   result.values["url_graph"] =
-    "/" + this->self().id + "/download/graph?id=" + stringify(id);
+    "/" + this->self().id + "/download/graph?id=" + id;
 
   result.values["url_symbolized_profile"] =
-    "/" + this->self().id + "/download/text?id=" + stringify(id);
+    "/" + this->self().id + "/download/text?id=" + id;
 
   return http::OK(result);
 }
@@ -854,10 +854,10 @@ Try<time_t> MemoryProfiler::stopAndGenerateRawProfile()
 
   Try<Nothing> generated = jemallocRawProfile.generate(
       runId,
-      [this](const std::string& outputPath) -> Try<Nothing> {
+      [this](const string& outputPath) -> Try<Nothing> {
         // Make sure we actually have permissions to write to the file and that
         // there is at least a little bit space left on the device.
-        const std::string data(DUMMY_FILE_SIZE, '\0');
+        const string data(DUMMY_FILE_SIZE, '\0');
         Try<Nothing> written = os::write(outputPath, data);
         if (written.isError()) {
           return Error(written.error());
@@ -875,7 +875,7 @@ Try<time_t> MemoryProfiler::stopAndGenerateRawProfile()
       });
 
   if (generated.isError()) {
-    std::string errorMessage = "Could not dump profile: " + generated.error();
+    const string errorMessage = "Could not dump profile: " + generated.error();
     LOG(WARNING) << errorMessage;
     return Error(errorMessage);
   }
@@ -950,7 +950,7 @@ Future<http::Response> MemoryProfiler::downloadGraph(
   // Generate the graph with the given id, or return the cached file on disk.
   Try<Nothing> result = jeprofGraph.generate(
       rawId,
-      [&](const std::string& outputPath) -> Try<Nothing> {
+      [&](const string& outputPath) -> Try<Nothing> {
         if (!(requestedId.get() == jemallocRawProfile.id().get())) {
           return Error("Requested version cannot be served");
         }
@@ -1004,7 +1004,7 @@ Future<http::Response> MemoryProfiler::downloadTextProfile(
   // on disk.
   Try<Nothing> result = jeprofSymbolizedProfile.generate(
       requestedId.get(),
-      [&](const std::string& outputPath) -> Try<Nothing>
+      [&](const string& outputPath) -> Try<Nothing>
       {
         if (!(requestedId.get() == jemallocRawProfile.id().get())) {
           return Error("Requested version cannot be served");
@@ -1031,16 +1031,16 @@ Future<http::Response> MemoryProfiler::statistics(
     const Option<http::authentication::Principal>&)
 {
   if (!detectJemalloc()) {
-    return http::BadRequest(std::string(JEMALLOC_NOT_DETECTED_MESSAGE) + ".\n");
+    return http::BadRequest(string(JEMALLOC_NOT_DETECTED_MESSAGE) + ".\n");
   }
 
-  const std::string options = "J";  // 'J' selects JSON output format.
+  const string options = "J";  // 'J' selects JSON output format.
 
-  std::string statistics;
+  string statistics;
 
 #ifdef LIBPROCESS_ALLOW_JEMALLOC
   ::malloc_stats_print([](void* opaque, const char* msg) {
-      std::string* statistics = static_cast<std::string*>(opaque);
+      string* statistics = static_cast<string*>(opaque);
       *statistics += msg;
     }, &statistics, options.c_str());
 #endif
