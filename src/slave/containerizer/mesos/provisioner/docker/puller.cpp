@@ -19,7 +19,7 @@
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 
-#include "slave/containerizer/mesos/provisioner/docker/local_puller.hpp"
+#include "slave/containerizer/mesos/provisioner/docker/image_tar_puller.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/puller.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/registry_puller.hpp"
 
@@ -45,9 +45,9 @@ Try<Owned<Puller>> Puller::create(
   // image tarballs or the remote docker registry.
   if (strings::startsWith(flags.docker_registry, "/") ||
       strings::startsWith(flags.docker_registry, "hdfs://")) {
-    Try<Owned<Puller>> puller = LocalPuller::create(flags, fetcher);
+    Try<Owned<Puller>> puller = ImageTarPuller::create(flags, fetcher);
     if (puller.isError()) {
-      return Error("Failed to create local puller: " + puller.error());
+      return Error("Failed to create image tar puller " + puller.error());
     }
 
     return puller.get();

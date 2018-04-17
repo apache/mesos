@@ -84,7 +84,7 @@ class DockerRuntimeIsolatorTest : public MesosTest {};
 // This test verifies that docker image default cmd is executed correctly.
 // This corresponds to the case in runtime isolator logic table: sh=0,
 // value=0, argv=1, entrypoint=0, cmd=1.
-TEST_F(DockerRuntimeIsolatorTest, ROOT_DockerDefaultCmdLocalPuller)
+TEST_F(DockerRuntimeIsolatorTest, ROOT_DockerDefaultCmdImageTarPuller)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -176,9 +176,9 @@ TEST_F(DockerRuntimeIsolatorTest, ROOT_DockerDefaultCmdLocalPuller)
 
 
 // This test verifies that docker image default entrypoint is executed
-// correctly using local puller. This corresponds to the case in runtime
-// isolator logic table: sh=0, value=0, argv=1, entrypoint=1, cmd=0.
-TEST_F(DockerRuntimeIsolatorTest, ROOT_DockerDefaultEntryptLocalPuller)
+// correctly using image tar puller. This corresponds to the case in
+// runtime isolator logic table: sh=0, value=0, argv=1, entrypoint=1, cmd=0.
+TEST_F(DockerRuntimeIsolatorTest, ROOT_DockerDefaultEntryptImageTarPuller)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -456,7 +456,7 @@ TEST_F(DockerRuntimeIsolatorTest, ROOT_INTERNET_CURL_NestedSimpleCommand)
 // This is a regression test for MESOS-6852. It corresponds to the
 // following case in runtime isolator logic table for nested
 // container: sh=0, value=0, argv=1, entrypoint=0, cmd=1.
-TEST_F(DockerRuntimeIsolatorTest, ROOT_NestedDockerDefaultCmdLocalPuller)
+TEST_F(DockerRuntimeIsolatorTest, ROOT_NestedDockerDefaultCmdImageTarPuller)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -579,7 +579,7 @@ TEST_F(DockerRuntimeIsolatorTest, ROOT_NestedDockerDefaultCmdLocalPuller)
 // It corresponds to the following case in runtime isolator
 // logic table for nested container: sh=0, value=0, argv=1,
 // entrypoint=1, cmd=0.
-TEST_F(DockerRuntimeIsolatorTest, ROOT_NestedDockerDefaultEntryptLocalPuller)
+TEST_F(DockerRuntimeIsolatorTest, ROOT_NestedDockerDefaultEntryptImageTarPuller)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);

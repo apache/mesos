@@ -37,7 +37,7 @@
 #include "uri/schemes/file.hpp"
 #include "uri/schemes/hdfs.hpp"
 
-#include "slave/containerizer/mesos/provisioner/docker/local_puller.hpp"
+#include "slave/containerizer/mesos/provisioner/docker/image_tar_puller.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/paths.hpp"
 
 using namespace process;
@@ -52,10 +52,10 @@ namespace internal {
 namespace slave {
 namespace docker {
 
-class LocalPullerProcess : public Process<LocalPullerProcess>
+class ImageTarPullerProcess : public Process<ImageTarPullerProcess>
 {
 public:
-  LocalPullerProcess(
+  ImageTarPullerProcess(
       const string& _storeDir,
       const URI& _archivesUri,
       const Shared<uri::Fetcher>& _fetcher)
@@ -64,7 +64,7 @@ public:
       archivesUri(_archivesUri),
       fetcher(_fetcher) {}
 
-  ~LocalPullerProcess() {}
+  ~ImageTarPullerProcess() {}
 
   Future<vector<string>> pull(
       const spec::ImageReference& reference,
@@ -108,7 +108,7 @@ static Try<URI> parseUri(const string& uri)
 }
 
 
-Try<Owned<Puller>> LocalPuller::create(
+Try<Owned<Puller>> ImageTarPuller::create(
     const Flags& flags,
     const Shared<uri::Fetcher>& fetcher)
 {
@@ -125,34 +125,34 @@ Try<Owned<Puller>> LocalPuller::create(
         flags.docker_registry + "': " + uri.error());
   }
 
-  VLOG(1) << "Creating local puller with docker registry '"
+  VLOG(1) << "Creating image tar puller with docker registry '"
           << flags.docker_registry << "'";
 
-  Owned<LocalPullerProcess> process(
-      new LocalPullerProcess(
+  Owned<ImageTarPullerProcess> process(
+      new ImageTarPullerProcess(
           flags.docker_store_dir,
           uri.get(),
           fetcher));
 
-  return Owned<Puller>(new LocalPuller(process));
+  return Owned<Puller>(new ImageTarPuller(process));
 }
 
 
-LocalPuller::LocalPuller(Owned<LocalPullerProcess> _process)
+ImageTarPuller::ImageTarPuller(Owned<ImageTarPullerProcess> _process)
   : process(_process)
 {
   spawn(process.get());
 }
 
 
-LocalPuller::~LocalPuller()
+ImageTarPuller::~ImageTarPuller()
 {
   terminate(process.get());
   wait(process.get());
 }
 
 
-Future<vector<string>> LocalPuller::pull(
+Future<vector<string>> ImageTarPuller::pull(
     const spec::ImageReference& reference,
     const string& directory,
     const string& backend,
@@ -160,14 +160,14 @@ Future<vector<string>> LocalPuller::pull(
 {
   return dispatch(
       process.get(),
-      &LocalPullerProcess::pull,
+      &ImageTarPullerProcess::pull,
       reference,
       directory,
       backend);
 }
 
 
-Future<vector<string>> LocalPullerProcess::pull(
+Future<vector<string>> ImageTarPullerProcess::pull(
     const spec::ImageReference& reference,
     const string& directory,
     const string& backend)
@@ -216,7 +216,7 @@ Future<vector<string>> LocalPullerProcess::pull(
 }
 
 
-Future<vector<string>> LocalPullerProcess::_pull(
+Future<vector<string>> ImageTarPullerProcess::_pull(
     const spec::ImageReference& reference,
     const string& directory,
     const string& backend)
@@ -298,7 +298,7 @@ Future<vector<string>> LocalPullerProcess::_pull(
 }
 
 
-Result<string> LocalPullerProcess::getParentLayerId(
+Result<string> ImageTarPullerProcess::getParentLayerId(
     const string& directory,
     const string& layerId)
 {
@@ -339,7 +339,7 @@ Result<string> LocalPullerProcess::getParentLayerId(
 }
 
 
-Future<Nothing> LocalPullerProcess::extractLayers(
+Future<Nothing> ImageTarPullerProcess::extractLayers(
     const string& directory,
     const vector<string>& layerIds,
     const string& backend)
@@ -363,7 +363,7 @@ Future<Nothing> LocalPullerProcess::extractLayers(
 }
 
 
-Future<Nothing> LocalPullerProcess::extractLayer(
+Future<Nothing> ImageTarPullerProcess::extractLayer(
     const string& directory,
     const string& layerId,
     const string& backend)

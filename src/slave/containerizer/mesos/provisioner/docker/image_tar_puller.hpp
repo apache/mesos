@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __PROVISIONER_DOCKER_LOCAL_PULLER_HPP__
-#define __PROVISIONER_DOCKER_LOCAL_PULLER_HPP__
+#ifndef __PROVISIONER_DOCKER_IMAGE_TAR_PULLER_HPP__
+#define __PROVISIONER_DOCKER_IMAGE_TAR_PULLER_HPP__
 
 #include <process/owned.hpp>
 
@@ -33,22 +33,22 @@ namespace slave {
 namespace docker {
 
 // Forward declaration.
-class LocalPullerProcess;
+class ImageTarPullerProcess;
 
 
 /**
- * LocalPuller assumes Docker images are stored in a local directory
+ * ImageTarPuller assumes Docker images are stored in a local directory
  * (configured with flags.docker_registry), with all the
  * images saved as tars with file names in the form of <repo>:<tag>.tar.
  */
-class LocalPuller : public Puller
+class ImageTarPuller : public Puller
 {
 public:
   static Try<process::Owned<Puller>> create(
       const Flags& flags,
       const process::Shared<uri::Fetcher>& fetcher);
 
-  ~LocalPuller();
+  ~ImageTarPuller();
 
   process::Future<std::vector<std::string>> pull(
       const ::docker::spec::ImageReference& reference,
@@ -57,12 +57,12 @@ public:
       const Option<Secret>& config = None());
 
 private:
-  explicit LocalPuller(process::Owned<LocalPullerProcess> _process);
+  explicit ImageTarPuller(process::Owned<ImageTarPullerProcess> _process);
 
-  LocalPuller(const LocalPuller&) = delete; // Not copyable.
-  LocalPuller& operator=(const LocalPuller&) = delete; // Not assignable.
+  ImageTarPuller(const ImageTarPuller&) = delete; // Not copyable.
+  ImageTarPuller& operator=(const ImageTarPuller&) = delete; // Not assignable.
 
-  process::Owned<LocalPullerProcess> process;
+  process::Owned<ImageTarPullerProcess> process;
 };
 
 } // namespace docker {
@@ -70,4 +70,4 @@ private:
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __PROVISIONER_DOCKER_LOCAL_PULLER_HPP__
+#endif // __PROVISIONER_DOCKER_IMAGE_TAR_PULLER_HPP__

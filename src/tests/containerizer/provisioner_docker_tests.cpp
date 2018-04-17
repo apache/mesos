@@ -378,7 +378,7 @@ class ProvisionerDockerTest
 
 // This test verifies that local docker image can be pulled and
 // provisioned correctly, and shell command should be executed.
-TEST_F(ProvisionerDockerTest, ROOT_LocalPullerSimpleCommand)
+TEST_F(ProvisionerDockerTest, ROOT_ImageTarPullerSimpleCommand)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -473,9 +473,9 @@ INSTANTIATE_TEST_CASE_P(
         "hdfs://"})));
 
 
-// This test verifies that the local puller could pull image
+// This test verifies that the image tar puller could pull image
 // with the hdfs uri fetcher plugin.
-TEST_P(ProvisionerDockerHdfsTest, ROOT_LocalPullerHdfsFetcherSimpleCommand)
+TEST_P(ProvisionerDockerHdfsTest, ROOT_ImageTarPullerHdfsFetcherSimpleCommand)
 {
   string hadoopPath = os::getcwd();
   ASSERT_TRUE(os::exists(hadoopPath));
