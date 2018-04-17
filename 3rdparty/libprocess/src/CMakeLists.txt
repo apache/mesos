@@ -44,6 +44,8 @@ set(PROCESS_SRC
   io.cpp
   latch.cpp
   logging.cpp
+  memory_profiler.cpp
+  memory_profiler.hpp
   metrics/metrics.cpp
   mime.cpp
   pid.cpp
@@ -113,6 +115,10 @@ target_compile_definitions(
   $<$<BOOL:${ENABLE_LOCK_FREE_RUN_QUEUE}>:LOCK_FREE_RUN_QUEUE>
   $<$<BOOL:${ENABLE_LOCK_FREE_EVENT_QUEUE}>:LOCK_FREE_EVENT_QUEUE>
   $<$<BOOL:${ENABLE_LAST_IN_FIRST_OUT_FIXED_SIZE_SEMAPHORE}>:LAST_IN_FIRST_OUT_FIXED_SIZE_SEMAPHORE>)
+
+if (LINUX)
+  target_compile_definitions(process PRIVATE LIBPROCESS_ALLOW_JEMALLOC)
+endif ()
 
 target_include_directories(process PUBLIC ../include)
 target_include_directories(process PRIVATE .)

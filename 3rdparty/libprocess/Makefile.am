@@ -205,6 +205,8 @@ libprocess_la_SOURCES =		\
   src/io.cpp			\
   src/latch.cpp			\
   src/logging.cpp		\
+  src/memory_profiler.cpp	\
+  src/memory_profiler.hpp	\
   src/metrics/metrics.cpp	\
   src/mime.cpp			\
   src/pid.cpp			\
@@ -274,6 +276,10 @@ if ENABLE_STATIC_LIBPROCESS
 # final shared library (e.g., libmesos.so) which includes everything necessary
 # (and only install that).
 libprocess_la_LDFLAGS = -static -fpic
+endif
+
+if OS_LINUX
+libprocess_la_CPPFLAGS += -DLIBPROCESS_ALLOW_JEMALLOC
 endif
 
 libprocess_la_LIBADD =		\
