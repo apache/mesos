@@ -96,9 +96,7 @@ private:
   // Internal functions and data members.
 
   // Deactivates data collection and attempts to dump the raw profile to disk.
-  Try<time_t> stopAndGenerateRawProfile();
-
-  void _stopAndGenerateRawProfile();
+  void stopAndGenerateRawProfile();
 
   // The authentication realm that the profiler's HTTP endpoints will be
   // installed into.

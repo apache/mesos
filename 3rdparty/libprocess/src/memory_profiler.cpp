@@ -574,7 +574,7 @@ MemoryProfiler::ProfilingRun::ProfilingRun(
     timer(delay(
         duration,
         profiler,
-        &MemoryProfiler::_stopAndGenerateRawProfile))
+        &MemoryProfiler::stopAndGenerateRawProfile))
 {}
 
 
@@ -587,7 +587,7 @@ void MemoryProfiler::ProfilingRun::extend(
   timer = delay(
       remaining + duration,
       profiler,
-      &MemoryProfiler::_stopAndGenerateRawProfile);
+      &MemoryProfiler::stopAndGenerateRawProfile);
 }
 
 
@@ -765,7 +765,10 @@ Future<http::Response> MemoryProfiler::stop(
         " raw profile through libprocess is currently not supported.\n");
   }
 
-  Try<time_t> generated = stopAndGenerateRawProfile();
+  // If stop is successful or a no-op, `jemallocRawProfile.id()` will be set.
+  stopAndGenerateRawProfile();
+
+  Try<time_t> generated = jemallocRawProfile.id();
   if (generated.isError()) {
     return http::BadRequest(generated.error() + ".\n");
   }
@@ -799,24 +802,15 @@ Future<http::Response> MemoryProfiler::stop(
 }
 
 
-// A simple wrapper to discard the result, so we can
-// use this as the target for `process::delay()`.
-void MemoryProfiler::_stopAndGenerateRawProfile()
-{
-  stopAndGenerateRawProfile();
-}
-
-
-Try<time_t> MemoryProfiler::stopAndGenerateRawProfile()
+void MemoryProfiler::stopAndGenerateRawProfile()
 {
   ASSERT(detectJemalloc());
 
   VLOG(1) << "Attempting to stop current profiling run";
 
-  // Return the id of the last successful run if there is no current
-  // profiling run.
+  // If there is no current profiling run, there is nothing to do.
   if (!currentRun.isSome()) {
-    return jemallocRawProfile.id();
+    return;
   }
 
   Try<bool> stopped = jemalloc::stopProfiling();
@@ -828,7 +822,7 @@ Try<time_t> MemoryProfiler::stopAndGenerateRawProfile()
     // the problem will be clearly visible in the logs.
     currentRun->extend(this, Seconds(5));
 
-    return Error(stopped.error());
+    return;
   }
 
   // Heap profiling should not be active any more.
@@ -847,9 +841,10 @@ Try<time_t> MemoryProfiler::stopAndGenerateRawProfile()
     // process stopped profiling independently of us.
     // If there was some valuable, un-dumped data it is still possible to get
     // it by starting a new run.
-    return Error(
-        "Memory profiling unexpectedly inactive; not dumping profile."
-        " Ensure nothing else is interfacing with jemalloc in this process");
+    LOG(WARNING)
+      << "Memory profiling unexpectedly inactive; not dumping profile. Ensure"
+      << " nothing else is interfacing with jemalloc in this process";
+    return;
   }
 
   Try<Nothing> generated = jemallocRawProfile.generate(
@@ -875,12 +870,8 @@ Try<time_t> MemoryProfiler::stopAndGenerateRawProfile()
       });
 
   if (generated.isError()) {
-    const string errorMessage = "Could not dump profile: " + generated.error();
-    LOG(WARNING) << errorMessage;
-    return Error(errorMessage);
+    LOG(WARNING) << "Could not dump profile: " + generated.error();
   }
-
-  return runId;
 }
 
 
