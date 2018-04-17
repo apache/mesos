@@ -444,6 +444,7 @@ const std::string MemoryProfiler::DOWNLOAD_RAW_HELP()
         "> id=VALUE                  Optional parameter to request a specific",
         ">                           version of the profile."),
     AUTHENTICATION(true),
+    None,
     REFERENCES("[manpage]: http://jemalloc.net/jemalloc.3.html"));
 }
 
@@ -473,7 +474,7 @@ const std::string MemoryProfiler::DOWNLOAD_GRAPH_HELP()
         "Generates and returns a graph visualization."),
     DESCRIPTION(
         "Generates a graphical representation of the raw profile in the SVG",
-        "Using this endpoint requires that that jeprof and dot are installed"
+        "Using this endpoint requires that that jeprof and dot are installed",
         "on the host machine.",
         "*NOTE*: Generating the returned file might take several minutes.",
         "",
