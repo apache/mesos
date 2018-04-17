@@ -16,8 +16,6 @@
 
 #include <process/clock.hpp>
 
-#include <process/ssl/utilities.hpp>
-
 #include <stout/base64.hpp>
 #include <stout/strings.hpp>
 
@@ -28,11 +26,13 @@ namespace authentication {
 using process::Clock;
 
 using process::network::openssl::generate_hmac_sha256;
+using process::network::openssl::RSA_shared_ptr;
+using process::network::openssl::verify_rsa_sha256;
+using process::network::openssl::sign_rsa_sha256;
 
 using std::ostream;
 using std::string;
 using std::vector;
-
 
 namespace {
 
@@ -100,6 +100,8 @@ Try<JWT::Header> parse_header(const string& component)
     alg = JWT::Alg::None;
   } else if (alg_value == "HS256") {
     alg = JWT::Alg::HS256;
+  } else if (alg_value == "RS256") {
+    alg = JWT::Alg::RS256;
   } else {
     return Error("Unsupported token algorithm: " + alg_value);
   }
@@ -257,6 +259,65 @@ Try<JWT, JWTError> JWT::parse(const string& token, const string& secret)
 }
 
 
+Try<JWT, JWTError> JWT::parse(const string& token,
+    RSA_shared_ptr publicKey)
+{
+  if (!publicKey) {
+    return JWTError(
+        "Invalid public key required to sign the JWT token",
+        JWTError::Type::UNKNOWN);
+  }
+
+  const vector<string> components = strings::split(token, ".");
+
+  if (components.size() != 3) {
+    return JWTError(
+        "Expected 3 components in token, got " + stringify(components.size()),
+        JWTError::Type::INVALID_TOKEN);
+  }
+
+  Try<JWT::Header> header = parse_header(components[0]);
+
+  if (header.isError()) {
+    return JWTError(header.error(), JWTError::Type::INVALID_TOKEN);
+  }
+
+  if (header->alg != JWT::Alg::RS256) {
+    return JWTError(
+        "Token 'alg' value \"" + stringify(header->alg) +
+        "\" does not match, expected \"RS256\"",
+        JWTError::Type::INVALID_TOKEN);
+  }
+
+  Try<JSON::Object> payload = parse_payload(components[1]);
+
+  if (payload.isError()) {
+    return JWTError(payload.error(), JWTError::Type::INVALID_TOKEN);
+  }
+
+  const Try<string> signature = base64::decode_url_safe(components[2]);
+
+  if (signature.isError()) {
+    return JWTError(
+        "Failed to base64url-decode token signature: " + signature.error(),
+        JWTError::Type::INVALID_TOKEN);
+  }
+
+  // Validate RSA SHA-256 signature
+
+  bool valid = verify_rsa_sha256(
+      components[0] + "." + components[1], signature.get(), publicKey);
+
+  if (!valid) {
+    return JWTError(
+        "Failed to verify token",
+        JWTError::Type::INVALID_TOKEN);
+  }
+
+  return JWT(header.get(), payload.get(), signature.get());
+}
+
+
 Try<JWT, JWTError> JWT::create(const JSON::Object& payload)
 {
   const Header header{Alg::None, "JWT"};
@@ -286,6 +347,34 @@ Try<JWT, JWTError> JWT::create(
 }
 
 
+Try<JWT, JWTError> JWT::create(
+    const JSON::Object& payload,
+    RSA_shared_ptr privateKey)
+{
+  if (!privateKey) {
+    return JWTError(
+        "Invalid private key required to sign the JWT token",
+        JWTError::Type::UNKNOWN);
+  }
+
+  const Header header{Alg::RS256, "JWT"};
+
+  const Try<string> signature = sign_rsa_sha256(
+      base64::encode_url_safe(stringify(header), false) + "." +
+        base64::encode_url_safe(stringify(payload), false),
+      privateKey);
+
+  if (signature.isError()) {
+    return JWTError(
+        "Failed to generate RSA signature: " + signature.error(),
+        JWTError::Type::UNKNOWN);
+  }
+
+  return JWT(header, payload, base64::encode_url_safe(signature.get(),
+      false));
+}
+
+
 JWT::JWT(
     const Header& _header,
     const JSON::Object& _payload,
@@ -302,8 +391,10 @@ ostream& operator<<(ostream& stream, const JWT::Alg& alg)
     case JWT::Alg::HS256:
       stream << "HS256";
       break;
+    case JWT::Alg::RS256:
+      stream << "RS256";
+      break;
   }
-
   return stream;
 }
 
