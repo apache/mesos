@@ -44,7 +44,6 @@ namespace process {
 class EventQueue;
 class Gate;
 class Logging;
-class MemoryProfiler;
 class Sequence;
 
 namespace firewall {

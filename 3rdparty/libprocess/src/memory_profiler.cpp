@@ -106,42 +106,39 @@ If the current binary was not compiled against jemalloc,
 consider adding the path to libjemalloc to the LD_PRELOAD
 environment variable, for example LD_PRELOAD=/usr/lib/libjemalloc.so
 
-If you're running a mesos binary, and want to have it linked
+If you're running a mesos binary and want to have it linked
 against jemalloc by default, consider using the
---enable-jemalloc-allocator configuration option.
-)_";
+--enable-jemalloc-allocator configuration option)_";
 
 
 constexpr char JEMALLOC_PROFILING_NOT_ENABLED_MESSAGE[] = R"_(
-The current process seems to be using jemalloc, but
-profiling couldn't be enabled.
+The current process seems to be using jemalloc, but profiling
+couldn't be enabled.
 
-If you're using a custom version of libjemalloc, make sure
-that MALLOC_CONF="prof:true" is part of the environment. (The
-`/state` endpoint can be used to double-check the current malloc
-configuration)
+If you're using a custom version of libjemalloc, make sure that
+MALLOC_CONF="prof:true" is part of the environment. (The '/state'
+endpoint can be used to double-check the current malloc
+configuration).
 
-If the environment looks correct, make sure jemalloc was built with
-the --enable-stats and --enable-prof options enabled.
+If the environment looks correct, make sure jemalloc was built
+with the --enable-stats and --enable-prof options enabled.
 
 If you're running a mesos binary that was built with the
---enable-memory-profiling option enabled and you're still seeing this
-message, please consider filing a bug report.
-)_";
+--enable-memory-profiling option enabled and you're still seeing
+this message, please consider filing a bug report)_";
 
 
-// Size in bytes of the dummy file that gets written when hitting '/start'.
+// Size in bytes of the dummy file that gets written when hitting `/start`.
 constexpr int DUMMY_FILE_SIZE = 64 * 1024; // 64 KiB
 
 
-// The `detectJemalloc()`function below was taken from the folly library
+// The `detectJemalloc()` function below was taken from the folly library
 // (called `usingJEMalloc()` there), originally distributed by Facebook, Inc
 // under the Apache License.
 //
-// It checks whether jemalloc is used as the current malloc implementation
-// by allocating one byte and checking whether the threads allocation counter
-// increased. This requires jemalloc to have been compiled with
-// the `--enable-stats option`.
+// It checks whether jemalloc is used as the current malloc implementation by
+// allocating one byte and checking if the threads allocation counter increases.
+// This requires jemalloc to have been compiled with `--enable-stats`.
 bool detectJemalloc() noexcept {
 #ifndef LIBPROCESS_ALLOW_JEMALLOC
   return false;
@@ -267,10 +264,10 @@ Try<Nothing> writeJemallocSetting(const char* name, const T& value)
 
 // All generated disk artifacts, i.e. profiles and graph files, are stored
 // in this directory. It is generated lazily on the first call to
-// `getTemporaryDirectoryPath()` and never changed afterwards.
-// Locking is not needed because all accesses go through the same process,
-// MemoryProfiler, and hence are are always serialized with respect to each
-// other.
+// `getTemporaryDirectoryPath()` and is never changed afterwards.
+// Locking is not needed because all accesses go through the same instance of
+// the `MemoryProfiler` process and hence are always serialized with respect
+// to each other.
 //
 // TODO(bevers): This should be made available libprocess-global eventually,
 // but right now this is the only class that has a use for it.
@@ -284,8 +281,8 @@ Try<Path> getTemporaryDirectoryPath() {
 
   // TODO(bevers): Add a libprocess-specific override for the system-wide
   // `TMPDIR`, for example `LIBPROCESS_TMPDIR`.
-  std::string tmpdir = os::getenv("TMPDIR")
-      .getOrElse(LIBPROCESS_DEFAULT_TMPDIR);
+  std::string tmpdir =
+    os::getenv("TMPDIR").getOrElse(LIBPROCESS_DEFAULT_TMPDIR);
 
   std::string pathTemplate = path::join(tmpdir, "libprocess.XXXXXX");
 
@@ -297,7 +294,7 @@ Try<Path> getTemporaryDirectoryPath() {
 
   temporaryDirectory = dir.get();
 
-  VLOG(1) << "Using path " << dir.get() << " to store temporary files.";
+  VLOG(1) << "Using path " << dir.get() << " to store temporary files";
 
   return temporaryDirectory.get();
 }
@@ -317,8 +314,8 @@ Try<Nothing> generateJeprofFile(
   // Note that the three parameters *MUST NOT* be controllable by the user
   // accessing the HTTP endpoints, otherwise arbitrary shell commands could be
   // trivially injected.
-  // Apart from that, we dont need to be as careful here as with the actual heap
-  // profile dump, because a failure will not crash the whole process.
+  // Apart from that, we dont need to be as careful here as with the actual
+  // heap profile dump, because a failure will not crash the whole process.
   Try<std::string> result = os::shell(strings::format(
       "jeprof %s /proc/self/exe %s > %s",
       options,
@@ -327,9 +324,8 @@ Try<Nothing> generateJeprofFile(
 
   if (result.isError()) {
     return Error(
-      "Error trying to run jeprof: " + result.error() + "."
-      " Please make sure that jeprof is installed and that"
-      " the input file contains data.");
+      "Error trying to run jeprof: " + result.error() + ". Please make sure"
+      " that jeprof is installed and that the input file contains data");
   }
 
   return Nothing();
@@ -405,13 +401,14 @@ const std::string MemoryProfiler::START_HELP()
       DESCRIPTION(
           "Activates memory profiling.",
           "The profiling works by statistically sampling the backtraces of",
-          "calls to `malloc()`. This requires some additional memory to store",
+          "calls to 'malloc()'. This requires some additional memory to store",
           "the collected data. The required additional space is expected to",
-          "grow logarithmically."
+          "grow logarithmically.",
           "",
-          "Query Parameters:",
-          "> duration=VALUE            How long to collect data before",
-          ">                           stopping. (default: 5mins)"),
+          "Query parameters:",
+          "",
+          ">        duration=VALUE   How long to collect data before",
+          ">                         stopping. (default: 5mins)"),
       AUTHENTICATION(true));
 }
 
@@ -425,7 +422,7 @@ const std::string MemoryProfiler::STOP_HELP()
           "Instructs the memory profiler to stop collecting data"
           "and dumps a file containing the collected data to disk,"
           "clearing that data from memory. Does nothing if profiling",
-          "was not started."),
+          "has not been started before."),
       AUTHENTICATION(true));
 }
 
@@ -433,87 +430,91 @@ const std::string MemoryProfiler::STOP_HELP()
 const std::string MemoryProfiler::DOWNLOAD_RAW_HELP()
 {
   return HELP(
-    TLDR(
-        "Returns a raw memory profile."),
-    DESCRIPTION(
-        "Returns a file that was generated when the `/stop` endpoint was",
-        "last accessed. See the jemalloc [manual page][manpage]",
-        "for information about the file format.",
-        "",
-        "Query Parameters:",
-        "> id=VALUE                  Optional parameter to request a specific",
-        ">                           version of the profile."),
-    AUTHENTICATION(true),
-    None,
-    REFERENCES("[manpage]: http://jemalloc.net/jemalloc.3.html"));
+      TLDR(
+          "Returns a raw memory profile."),
+      DESCRIPTION(
+          "Returns a file that was generated when the '/stop' endpoint",
+          "was last accessed. See the jemalloc [manual page][manpage] for",
+          "information about the file format.",
+          "",
+          "Query parameters:",
+          "",
+          ">        id=VALUE         Optional parameter to request a specific",
+          ">                         version of the profile."),
+      AUTHENTICATION(true),
+      None(),
+      REFERENCES("[manpage]: http://jemalloc.net/jemalloc.3.html"));
 }
 
 
 const std::string MemoryProfiler::DOWNLOAD_TEXT_HELP()
 {
   return HELP(
-    TLDR(
-        "Generates and returns a symbolized memory profile."),
-    DESCRIPTION(
-        "Generates a symbolized profile.",
-        "Requires that the running binary was built with symbols, and that",
-        "jeprof is installed on the host machine.",
-        "*NOTE*: Generating the returned file might take several minutes.",
-        "",
-        "Query Parameters:",
-        "> id=VALUE                  Optional parameter to request a specific",
-        ">                           version of the generated profile."),
-    AUTHENTICATION(true));
+      TLDR(
+          "Generates and returns a symbolized memory profile."),
+      DESCRIPTION(
+          "Generates a symbolized profile.",
+          "Requires that the running binary was built with symbols and that",
+          "jeprof is installed on the host machine.",
+          "",
+          "**NOTE:** Generating the returned file might take several minutes.",
+          "",
+          "Query parameters:",
+          ">        id=VALUE         Optional parameter to request a specific",
+          ">                         version of the generated profile."),
+      AUTHENTICATION(true));
 }
 
 
 const std::string MemoryProfiler::DOWNLOAD_GRAPH_HELP()
 {
   return HELP(
-    TLDR(
-        "Generates and returns a graph visualization."),
-    DESCRIPTION(
-        "Generates a graphical representation of the raw profile in the SVG",
-        "Using this endpoint requires that that jeprof and dot are installed",
-        "on the host machine.",
-        "*NOTE*: Generating the returned file might take several minutes.",
-        "",
-        "Query Parameters:",
-        "> id=VALUE                  Optional parameter to request a specific",
-        ">                           version of the generated graph."),
-    AUTHENTICATION(true));
+      TLDR(
+          "Generates and returns a graph visualization."),
+      DESCRIPTION(
+          "Generates a graphical representation of the raw profile in SVG.",
+          "Using this endpoint requires that that jeprof and dot are installed",
+          "on the host machine.",
+          "",
+          "**NOTE:** Generating the returned file might take several minutes.",
+          "",
+          "Query parameters:",
+          "",
+          ">        id=VALUE         Optional parameter to request a specific",
+          ">                         version of the generated graph."),
+      AUTHENTICATION(true));
 }
 
 
 const std::string MemoryProfiler::STATISTICS_HELP()
 {
   return HELP(
-    TLDR(
-        "Shows memory allocation statistics."),
-    DESCRIPTION(
-        "Memory allocation statistics as returned by `malloc_stats_print()`.",
-        "These track e.g. the total number of bytes allocated by the current",
-        "process and the bin-size of these allocations.",
-        "These statistics are unrelated to the profiling mechanism controlled",
-        "by the `/start` and `/stop` endpoints, and are always accurate.",
-        "",
-        "Returns a JSON object."),
-    AUTHENTICATION(true));
+      TLDR(
+          "Shows memory allocation statistics."),
+      DESCRIPTION(
+          "Memory allocation statistics as returned by 'malloc_stats_print()'.",
+          "These track e.g. the total number of bytes allocated by the current",
+          "process and the bin-size of these allocations.",
+          "These statistics are unrelated to the profiling mechanism managed",
+          "by the '/start' and '/stop' endpoints, and are always accurate.",
+          "",
+          "Returns a JSON object."),
+      AUTHENTICATION(true));
 }
 
 
 const std::string MemoryProfiler::STATE_HELP()
 {
   return HELP(
-    TLDR(
-        "Shows the configuration of the memory-profiler process."),
-    DESCRIPTION(
-        "Current memory profiler state. This shows, for example, whether",
-        "jemalloc was detected, whether profiling is currently active and",
-        "the directory used to store temporary files.",
-        "",
-        "Returns a JSON object."),
-    AUTHENTICATION(true));
+      TLDR(
+          "Shows the configuration of the memory profiler process."),
+      DESCRIPTION(
+          "Current memory profiler state. This shows, for example, whether",
+          "jemalloc was detected, whether profiling is currently active and",
+          "the directory used to store temporary files.",
+          "",
+          "Returns a JSON object."),
+      AUTHENTICATION(true));
 }
 
 
@@ -592,7 +593,7 @@ void MemoryProfiler::ProfilingRun::extend(
 
 MemoryProfiler::DiskArtifact::DiskArtifact(const std::string& _filename)
   : filename(_filename),
-    timestamp(Error("Not yet generated."))
+    timestamp(Error("Not yet generated"))
 {}
 
 
@@ -658,7 +659,7 @@ Try<Nothing> MemoryProfiler::DiskArtifact::generate(
 
   if (result.isError()) {
     // The old file might still be fine on disk, but there's no good way to
-    // verify so we assume that the error rendered it unusable.
+    // verify this hence we assume that the error rendered it unusable.
     timestamp = Error(result.error());
     return result;
   }
@@ -677,7 +678,7 @@ Future<http::Response> MemoryProfiler::start(
   const Option<http::authentication::Principal>&)
 {
   if (!detectJemalloc()) {
-    return http::BadRequest(JEMALLOC_NOT_DETECTED_MESSAGE);
+    return http::BadRequest(std::string(JEMALLOC_NOT_DETECTED_MESSAGE) + ".\n");
   }
 
   Duration duration = DEFAULT_COLLECTION_TIME;
@@ -704,7 +705,8 @@ Future<http::Response> MemoryProfiler::start(
 
   Try<bool> wasActive = jemalloc::startProfiling();
   if (wasActive.isError()) {
-    return http::BadRequest(JEMALLOC_PROFILING_NOT_ENABLED_MESSAGE);
+    return http::BadRequest(
+        std::string(JEMALLOC_PROFILING_NOT_ENABLED_MESSAGE) + ".\n");
   }
 
   if (!wasActive.get()) {
@@ -715,7 +717,7 @@ Future<http::Response> MemoryProfiler::start(
 
   JSON::Object response;
 
-  // This can happpen when jemalloc was configured e.g. via the `MALLOC_CONF`
+  // This can happen when jemalloc was configured e.g. via the `MALLOC_CONF`
   // environment variable. We don't touch it in this case.
   if (!currentRun.isSome()) {
     return http::Conflict("Heap profiling was started externally.\n");
@@ -724,15 +726,17 @@ Future<http::Response> MemoryProfiler::start(
   std::string message = wasActive.get() ?
     "Heap profiling is already active." :
     "Successfully started new heap profiling run.";
+
   message +=
-    " After the remaining time has elapsed, download the generated profile"
-    " at `/memory-profiler/download/raw?id=" + stringify(currentRun->id) + "`."
-    " Visit `/memory-profiler/stop` to end the run prematurely.";
-  response.values["id"] = currentRun->id;
+    " After the remaining time elapses, download the generated profile at '/" +
+    this->self().id + "/download/raw?id=" + stringify(currentRun->id) + "'." +
+    " Visit '/" + this->self().id + "/stop' to stop collection earlier.";
+
   // Adding 0.5 to round to nearest integer value.
   response.values["remaining_seconds"] = stringify(static_cast<int>(
       currentRun->timer.timeout().remaining().secs() + 0.5));
   response.values["message"] = message;
+  response.values["id"] = currentRun->id;
 
   return http::OK(response);
 }
@@ -745,7 +749,7 @@ Future<http::Response> MemoryProfiler::stop(
     const Option<http::authentication::Principal>&)
 {
   if (!detectJemalloc()) {
-    return http::BadRequest(JEMALLOC_NOT_DETECTED_MESSAGE);
+    return http::BadRequest(std::string(JEMALLOC_NOT_DETECTED_MESSAGE) + ".\n");
   }
 
   Try<bool> active = jemalloc::profilingActive();
@@ -757,9 +761,8 @@ Future<http::Response> MemoryProfiler::stop(
   if (!currentRun.isSome() && active.get()) {
     // TODO(bevers): Allow stopping even in this case.
     return http::BadRequest(
-        "Profiling is active, but was not started by libprocess."
-        " Accessing the raw profile through libprocess is currently"
-        " not supported.\n");
+        "Profiling is active, but was not started by libprocess. Accessing the"
+        " raw profile through libprocess is currently not supported.\n");
   }
 
   Try<time_t> generated = stopAndGenerateRawProfile();
@@ -784,19 +787,19 @@ Future<http::Response> MemoryProfiler::stop(
   result.values["message"] = message;
 
   result.values["url_raw_profile"] =
-    "./memory-profiler/download/raw?id=" + stringify(id);
+    "/" + this->self().id + "/download/raw?id=" + stringify(id);
 
   result.values["url_graph"] =
-    "./memory-profiler/download/graph?id=" + stringify(id);
+    "/" + this->self().id + "/download/graph?id=" + stringify(id);
 
   result.values["url_symbolized_profile"] =
-    "./memory-profiler/download/text?id=" + stringify(id);
+    "/" + this->self().id + "/download/text?id=" + stringify(id);
 
   return http::OK(result);
 }
 
 
-// A simple wrapper to discard the result, necessary so we can
+// A simple wrapper to discard the result, so we can
 // use this as the target for `process::delay()`.
 void MemoryProfiler::_stopAndGenerateRawProfile()
 {
@@ -808,7 +811,7 @@ Try<time_t> MemoryProfiler::stopAndGenerateRawProfile()
 {
   ASSERT(detectJemalloc());
 
-  VLOG(1) << "Attempting to stop current profiling run.";
+  VLOG(1) << "Attempting to stop current profiling run";
 
   // Return the id of the last successful run if there is no current
   // profiling run.
@@ -846,7 +849,7 @@ Try<time_t> MemoryProfiler::stopAndGenerateRawProfile()
     // it by starting a new run.
     return Error(
         "Memory profiling unexpectedly inactive; not dumping profile."
-        " Ensure nothing else is interfacing with jemalloc in this process.");
+        " Ensure nothing else is interfacing with jemalloc in this process");
   }
 
   Try<Nothing> generated = jemallocRawProfile.generate(
@@ -906,7 +909,7 @@ Future<http::Response> MemoryProfiler::downloadRaw(
 
   if (currentRun.isSome() && !requestedId.isSome()) {
     return http::BadRequest(
-        "A profiling run is currently in progress. To download results of a"
+        "A profiling run is currently in progress. To download results of the"
         " previous run, please pass an 'id' explicitly.\n");
   }
 
@@ -933,7 +936,7 @@ Future<http::Response> MemoryProfiler::downloadGraph(
 
   if (currentRun.isSome() && !requestedId.isSome()) {
     return http::BadRequest(
-        "A profiling run is currently in progress. To download results of a"
+        "A profiling run is currently in progress. To download results of the"
         " previous run, please pass an 'id' explicitly.\n");
   }
 
@@ -949,7 +952,7 @@ Future<http::Response> MemoryProfiler::downloadGraph(
       rawId,
       [&](const std::string& outputPath) -> Try<Nothing> {
         if (!(requestedId.get() == jemallocRawProfile.id().get())) {
-          return Error("Requested outdated version.");
+          return Error("Requested version cannot be served");
         }
 
         return generateJeprofFile(
@@ -986,8 +989,8 @@ Future<http::Response> MemoryProfiler::downloadTextProfile(
 
   if (currentRun.isSome() && !requestedId.isSome()) {
     return http::BadRequest(
-        "A profiling run is currently in progress. To download results of a"
-        " previous run, please pass an `id` explicitly.\n");
+        "A profiling run is currently in progress. To download results of the"
+        " previous run, please pass an 'id' explicitly.\n");
   }
 
   time_t rawId = jemallocRawProfile.id().get();
@@ -1004,7 +1007,7 @@ Future<http::Response> MemoryProfiler::downloadTextProfile(
       [&](const std::string& outputPath) -> Try<Nothing>
       {
         if (!(requestedId.get() == jemallocRawProfile.id().get())) {
-          return Error("Requested outdated version.");
+          return Error("Requested version cannot be served");
         }
 
         return generateJeprofFile(
@@ -1028,7 +1031,7 @@ Future<http::Response> MemoryProfiler::statistics(
     const Option<http::authentication::Principal>&)
 {
   if (!detectJemalloc()) {
-    return http::BadRequest(JEMALLOC_NOT_DETECTED_MESSAGE);
+    return http::BadRequest(std::string(JEMALLOC_NOT_DETECTED_MESSAGE) + ".\n");
   }
 
   const std::string options = "J";  // 'J' selects JSON output format.
@@ -1060,7 +1063,7 @@ Future<http::Response> MemoryProfiler::state(
     profilerState.values["jemalloc_detected"] = detected;
 
     profilerState.values["tmpdir"] = stringify(
-        temporaryDirectory.getOrElse("Not yet generated."));
+        temporaryDirectory.getOrElse("Not yet generated"));
 
     {
       JSON::Object runInformation;
