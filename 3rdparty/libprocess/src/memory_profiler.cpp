@@ -545,25 +545,16 @@ void MemoryProfiler::initialize()
         DOWNLOAD_GRAPH_HELP(),
         &MemoryProfiler::downloadGraph);
 
-  route("/state",
-        authenticationRealm,
-        STATE_HELP(),
-        &MemoryProfiler::state);
-
   route("/statistics",
         authenticationRealm,
         STATISTICS_HELP(),
         &MemoryProfiler::statistics);
+
+  route("/state",
+        authenticationRealm,
+        STATE_HELP(),
+        &MemoryProfiler::state);
 }
-
-
-MemoryProfiler::MemoryProfiler(const Option<string>& _authenticationRealm)
-  : ProcessBase("memory-profiler"),
-    authenticationRealm(_authenticationRealm),
-    jemallocRawProfile(RAW_PROFILE_FILENAME),
-    jeprofSymbolizedProfile(SYMBOLIZED_PROFILE_FILENAME),
-    jeprofGraph(GRAPH_FILENAME)
-{}
 
 
 MemoryProfiler::ProfilingRun::ProfilingRun(
@@ -669,6 +660,14 @@ Try<Nothing> MemoryProfiler::DiskArtifact::generate(
   return Nothing();
 }
 
+
+MemoryProfiler::MemoryProfiler(const Option<string>& _authenticationRealm)
+  : ProcessBase("memory-profiler"),
+    authenticationRealm(_authenticationRealm),
+    jemallocRawProfile(RAW_PROFILE_FILENAME),
+    jeprofSymbolizedProfile(SYMBOLIZED_PROFILE_FILENAME),
+    jeprofGraph(GRAPH_FILENAME)
+{}
 
 
 // TODO(bevers): Add a query parameter to select json or html format.
@@ -802,79 +801,6 @@ Future<http::Response> MemoryProfiler::stop(
 }
 
 
-void MemoryProfiler::stopAndGenerateRawProfile()
-{
-  ASSERT(detectJemalloc());
-
-  VLOG(1) << "Attempting to stop current profiling run";
-
-  // If there is no current profiling run, there is nothing to do.
-  if (!currentRun.isSome()) {
-    return;
-  }
-
-  Try<bool> stopped = jemalloc::stopProfiling();
-
-  if (stopped.isError()) {
-    LOG(WARNING) << "Failed to stop memory profiling: " << stopped.error();
-
-    // Don't give up. Probably it will fail again in the future, but at least
-    // the problem will be clearly visible in the logs.
-    currentRun->extend(this, Seconds(5));
-
-    return;
-  }
-
-  // Heap profiling should not be active any more.
-  // We won't retry stopping and generating a profile after this point:
-  // We're not actively sampling any more, and if the user still cares
-  // about this profile they will get the data with the next run.
-  Try<bool> stillActive = jemalloc::profilingActive();
-  CHECK(stillActive.isError() || !stillActive.get());
-
-  time_t runId = currentRun->id;
-  Clock::cancel(currentRun->timer);
-  currentRun = None();
-
-  if (!stopped.get()) {
-    // This is a weird state to end up in, apparently something else in this
-    // process stopped profiling independently of us.
-    // If there was some valuable, un-dumped data it is still possible to get
-    // it by starting a new run.
-    LOG(WARNING)
-      << "Memory profiling unexpectedly inactive; not dumping profile. Ensure"
-      << " nothing else is interfacing with jemalloc in this process";
-    return;
-  }
-
-  Try<Nothing> generated = jemallocRawProfile.generate(
-      runId,
-      [this](const string& outputPath) -> Try<Nothing> {
-        // Make sure we actually have permissions to write to the file and that
-        // there is at least a little bit space left on the device.
-        const string data(DUMMY_FILE_SIZE, '\0');
-        Try<Nothing> written = os::write(outputPath, data);
-        if (written.isError()) {
-          return Error(written.error());
-        }
-
-        // Verify independently that the file was actually written.
-        Try<Bytes> size = os::stat::size(outputPath);
-        if (size.isError() || size.get() != DUMMY_FILE_SIZE) {
-          return Error(strings::format(
-              "Couldn't verify integrity of dump file %s", outputPath).get());
-        }
-
-        // Finally, do the real dump.
-        return jemalloc::dump(outputPath);
-      });
-
-  if (generated.isError()) {
-    LOG(WARNING) << "Could not dump profile: " + generated.error();
-  }
-}
-
-
 Future<http::Response> MemoryProfiler::downloadRaw(
     const http::Request& request,
     const Option<http::authentication::Principal>&)
@@ -905,59 +831,6 @@ Future<http::Response> MemoryProfiler::downloadRaw(
   }
 
   return jemallocRawProfile.asHttp();
-}
-
-
-Future<http::Response> MemoryProfiler::downloadGraph(
-    const http::Request& request,
-    const Option<http::authentication::Principal>&)
-{
-  Result<time_t> requestedId = extractIdFromRequest(request);
-
-  // Verify that `id` has the correct version if it was explicitly passed.
-  if (requestedId.isError()) {
-    return http::BadRequest(
-        "Invalid parameter 'id': " + requestedId.error() + ".\n");
-  }
-
-  if (jemallocRawProfile.id().isError()) {
-    return http::BadRequest(
-        "No source profile exists: " + jemallocRawProfile.id().error() + ".\n");
-  }
-
-  if (currentRun.isSome() && !requestedId.isSome()) {
-    return http::BadRequest(
-        "A profiling run is currently in progress. To download results of the"
-        " previous run, please pass an 'id' explicitly.\n");
-  }
-
-  time_t rawId = jemallocRawProfile.id().get();
-
-  // Use the latest version as default.
-  if (requestedId.isNone()) {
-    requestedId = rawId;
-  }
-
-  // Generate the graph with the given id, or return the cached file on disk.
-  Try<Nothing> result = jeprofGraph.generate(
-      rawId,
-      [&](const string& outputPath) -> Try<Nothing> {
-        if (!(requestedId.get() == jemallocRawProfile.id().get())) {
-          return Error("Requested version cannot be served");
-        }
-
-        return generateJeprofFile(
-            jemallocRawProfile.path(),
-            "--svg",
-            outputPath);
-      });
-
-  if (result.isError()) {
-    return http::BadRequest(
-        "Could not generate file: " + result.error() + ".\n");
-  }
-
-  return jeprofGraph.asHttp();
 }
 
 
@@ -1013,6 +886,59 @@ Future<http::Response> MemoryProfiler::downloadTextProfile(
   }
 
   return jeprofSymbolizedProfile.asHttp();
+}
+
+
+Future<http::Response> MemoryProfiler::downloadGraph(
+    const http::Request& request,
+    const Option<http::authentication::Principal>&)
+{
+  Result<time_t> requestedId = extractIdFromRequest(request);
+
+  // Verify that `id` has the correct version if it was explicitly passed.
+  if (requestedId.isError()) {
+    return http::BadRequest(
+        "Invalid parameter 'id': " + requestedId.error() + ".\n");
+  }
+
+  if (jemallocRawProfile.id().isError()) {
+    return http::BadRequest(
+        "No source profile exists: " + jemallocRawProfile.id().error() + ".\n");
+  }
+
+  if (currentRun.isSome() && !requestedId.isSome()) {
+    return http::BadRequest(
+        "A profiling run is currently in progress. To download results of the"
+        " previous run, please pass an 'id' explicitly.\n");
+  }
+
+  time_t rawId = jemallocRawProfile.id().get();
+
+  // Use the latest version as default.
+  if (requestedId.isNone()) {
+    requestedId = rawId;
+  }
+
+  // Generate the graph with the given id, or return the cached file on disk.
+  Try<Nothing> result = jeprofGraph.generate(
+      rawId,
+      [&](const string& outputPath) -> Try<Nothing> {
+        if (!(requestedId.get() == jemallocRawProfile.id().get())) {
+          return Error("Requested version cannot be served");
+        }
+
+        return generateJeprofFile(
+            jemallocRawProfile.path(),
+            "--svg",
+            outputPath);
+      });
+
+  if (result.isError()) {
+    return http::BadRequest(
+        "Could not generate file: " + result.error() + ".\n");
+  }
+
+  return jeprofGraph.asHttp();
 }
 
 
@@ -1137,5 +1063,77 @@ Future<http::Response> MemoryProfiler::state(
   return http::OK(state);
 }
 
+
+void MemoryProfiler::stopAndGenerateRawProfile()
+{
+  ASSERT(detectJemalloc());
+
+  VLOG(1) << "Attempting to stop current profiling run";
+
+  // If there is no current profiling run, there is nothing to do.
+  if (!currentRun.isSome()) {
+    return;
+  }
+
+  Try<bool> stopped = jemalloc::stopProfiling();
+
+  if (stopped.isError()) {
+    LOG(WARNING) << "Failed to stop memory profiling: " << stopped.error();
+
+    // Don't give up. Probably it will fail again in the future, but at least
+    // the problem will be clearly visible in the logs.
+    currentRun->extend(this, Seconds(5));
+
+    return;
+  }
+
+  // Heap profiling should not be active any more.
+  // We won't retry stopping and generating a profile after this point:
+  // We're not actively sampling any more, and if the user still cares
+  // about this profile they will get the data with the next run.
+  Try<bool> stillActive = jemalloc::profilingActive();
+  CHECK(stillActive.isError() || !stillActive.get());
+
+  time_t runId = currentRun->id;
+  Clock::cancel(currentRun->timer);
+  currentRun = None();
+
+  if (!stopped.get()) {
+    // This is a weird state to end up in, apparently something else in this
+    // process stopped profiling independently of us.
+    // If there was some valuable, un-dumped data it is still possible to get
+    // it by starting a new run.
+    LOG(WARNING)
+      << "Memory profiling unexpectedly inactive; not dumping profile. Ensure"
+      << " nothing else is interfacing with jemalloc in this process";
+    return;
+  }
+
+  Try<Nothing> generated = jemallocRawProfile.generate(
+      runId,
+      [this](const string& outputPath) -> Try<Nothing> {
+        // Make sure we actually have permissions to write to the file and that
+        // there is at least a little bit space left on the device.
+        const string data(DUMMY_FILE_SIZE, '\0');
+        Try<Nothing> written = os::write(outputPath, data);
+        if (written.isError()) {
+          return Error(written.error());
+        }
+
+        // Verify independently that the file was actually written.
+        Try<Bytes> size = os::stat::size(outputPath);
+        if (size.isError() || size.get() != DUMMY_FILE_SIZE) {
+          return Error(strings::format(
+              "Couldn't verify integrity of dump file %s", outputPath).get());
+        }
+
+        // Finally, do the real dump.
+        return jemalloc::dump(outputPath);
+      });
+
+  if (generated.isError()) {
+    LOG(WARNING) << "Could not dump profile: " + generated.error();
+  }
+}
 
 } // namespace process {

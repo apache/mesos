@@ -10,8 +10,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License
 
-#ifndef __PROCESS_MEMORYPROFILER_HPP__
-#define __PROCESS_MEMORYPROFILER_HPP__
+#ifndef __PROCESS_MEMORY_PROFILER_HPP__
+#define __PROCESS_MEMORY_PROFILER_HPP__
 
 #include <functional>
 #include <string>
@@ -25,18 +25,16 @@
 #include <stout/path.hpp>
 #include <stout/try.hpp>
 
-
 namespace process {
 
-// This class provides support for taking advantage of the introspection
-// and memory profiling capabilities of the jemalloc memory allocator.
+// This class provides support for memory profiling and introspection
+// using the capabilities of the jemalloc memory allocator.
 //
 // For user-facing documentation on how to use the facilities provided
 // by this class, see `docs/memory-profiling.md` in the mesos repository.
 //
 // For more details about the implementation, see the comments
 // in `memory_profiler.cpp`.
-
 class MemoryProfiler : public Process<MemoryProfiler>
 {
 public:
@@ -49,11 +47,11 @@ protected:
 private:
   static const std::string START_HELP();
   static const std::string STOP_HELP();
-  static const std::string STATISTICS_HELP();
-  static const std::string STATE_HELP();
   static const std::string DOWNLOAD_RAW_HELP();
   static const std::string DOWNLOAD_TEXT_HELP();
   static const std::string DOWNLOAD_GRAPH_HELP();
+  static const std::string STATISTICS_HELP();
+  static const std::string STATE_HELP();
 
   // HTTP endpoints.
   // Refer to the `HELP()` messages for detailed documentation.
@@ -73,13 +71,13 @@ private:
       const http::Request& request,
       const Option<http::authentication::Principal>&);
 
-  // Generates and returns a call graph in svg format.
-  Future<http::Response> downloadGraph(
+  // Generates and returns a symbolized heap profile.
+  Future<http::Response> downloadTextProfile(
       const http::Request& request,
       const Option<http::authentication::Principal>&);
 
-  // Generates and returns a symbolized heap profile.
-  Future<http::Response> downloadTextProfile(
+  // Generates and returns a call graph in svg format.
+  Future<http::Response> downloadGraph(
       const http::Request& request,
       const Option<http::authentication::Principal>&);
 
@@ -93,7 +91,7 @@ private:
     const http::Request& request,
     const Option<http::authentication::Principal>&);
 
-  // Internal functions and data members.
+  // Internal functions, helper classes, and data members.
 
   // Deactivates data collection and attempts to dump the raw profile to disk.
   void stopAndGenerateRawProfile();
@@ -150,12 +148,10 @@ private:
   };
 
   DiskArtifact jemallocRawProfile;
-
   DiskArtifact jeprofSymbolizedProfile;
-
   DiskArtifact jeprofGraph;
 };
 
 } // namespace process {
 
-#endif // __PROCESS_MEMORYPROFILER_HPP__
+#endif // __PROCESS_MEMORY_PROFILER_HPP__
