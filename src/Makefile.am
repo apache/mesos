@@ -33,6 +33,7 @@ GMOCK = $(GOOGLETEST)/googlemock
 GOOGLETEST = 3rdparty/googletest-release-$(GOOGLETEST_VERSION)
 GRPC = 3rdparty/grpc-$(GRPC_VERSION)
 GTEST = $(GOOGLETEST)/googletest
+JEMALLOC = 3rdparty/jemalloc-$(JEMALLOC_VERSION)
 LEVELDB = 3rdparty/leveldb-$(LEVELDB_VERSION)
 LIBPROCESS = 3rdparty/libprocess
 NVML = 3rdparty/nvml-$(NVML_VERSION)
@@ -181,6 +182,17 @@ else
 LIB_GRPC = -lgrpc++ -lgrpc -lgpr -lssl -lcrypto
 GRPC_CPP_PLUGIN = @GRPC_CXX_PLUGIN@
 endif
+endif
+
+if WITH_BUNDLED_JEMALLOC
+# TODO(bennoe): We could call `jemalloc-conf --libs` to get the required
+# libs without hardcoding `-ldl`, but then a version bump could introduce
+# additional dependencies without us being aware of it.
+LIB_JEMALLOC = ../$(JEMALLOC)/lib/libjemalloc_pic.a -ldl
+else
+LIB_JEMALLOC = $(if $(WITH_JEMALLOC),\
+    -L$(WITH_JEMALLOC)/lib -ljemalloc -ldl,\
+    -ljemalloc -ldl)
 endif
 
 if WITH_BUNDLED_LEVELDB
@@ -1680,6 +1692,11 @@ bin_PROGRAMS += mesos-local
 mesos_local_SOURCES = local/main.cpp
 mesos_local_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_local_LDADD = libmesos.la $(LDADD)
+
+if ENABLE_JEMALLOC_ALLOCATOR
+mesos_agent_LDADD += $(LIB_JEMALLOC)
+mesos_master_LDADD  += $(LIB_JEMALLOC)
+endif
 
 pkglibexec_PROGRAMS += mesos-fetcher
 mesos_fetcher_SOURCES = launcher/fetcher.cpp

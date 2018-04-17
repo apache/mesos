@@ -214,6 +214,13 @@ AC_ARG_ENABLE([java],
                              [do not build Java bindings]),
               [], [enable_java=yes])
 
+# TODO(bevers): Eventually make this enabled by default.
+AC_ARG_ENABLE([jemalloc-allocator],
+               AS_HELP_STRING([--enable-jemalloc-allocator],
+                              [Use jemalloc as the default memory allocator for the
+                               mesos-master and mesos-agent binaries.]),
+               [], [enable_jemalloc_allocator=no])
+
 # TODO(benh): Eventually make this enabled by default.
 AC_ARG_ENABLE([last_in_first_out_fixed_size_semaphore],
               AS_HELP_STRING([--enable-last-in-first-out-fixed-size-semaphore],
@@ -375,6 +382,13 @@ AC_ARG_WITH([http-parser],
                            location prefixed by the given path]),
             [without_bundled_http_parser=yes], [])
 
+AC_ARG_WITH([jemalloc],
+            AS_HELP_STRING([--with-jemalloc@<:@=DIR@:>@],
+                          [excludes building and using the bundled jemalloc
+                          package in lieu of an installed version at a
+                          location prefixed by the given path.]),
+            [without_bundled_jemalloc=yes], [])
+
 AC_ARG_WITH([leveldb],
             AS_HELP_STRING([--with-leveldb@<:@=DIR@:>@],
                            [excludes building and using the bundled LevelDB
@@ -503,6 +517,10 @@ AS_IF([test "x$enable_lock_free_event_queue" = "xyes"],
 # Check if we should use the lock-free run queue.
 AS_IF([test "x$enable_lock_free_run_queue" = "xyes"],
       [AC_DEFINE([LOCK_FREE_RUN_QUEUE])])
+
+# Check if we should link the mesos binaries against jemalloc.
+AM_CONDITIONAL([ENABLE_JEMALLOC_ALLOCATOR],
+         [test x"$enable_jemalloc_allocator" = "xyes"])
 
 # Check to see if we should harden or not.
 AM_CONDITIONAL([ENABLE_HARDENING], [test x"$enable_hardening" = "xyes"])
@@ -697,7 +715,7 @@ AM_CONDITIONAL([ENABLE_STATIC_LIBPROCESS], [true])
 
 AC_MSG_NOTICE([Setting up build environment for ${target_cpu} ${target_os}])
 # Determine the current OS (TODO(benh): Does autotools do this for us?).
-case "${target_os}" in
+case "${host_os}" in
   linux*)
     OS_NAME=linux
     LIBS="$LIBS -lrt"
@@ -1080,6 +1098,64 @@ fi
 AM_CONDITIONAL([WITH_BUNDLED_HTTP_PARSER],
                [test "x$with_bundled_http_parser" = "xyes"])
 
+
+# NB: Since malloc() and free() are declared in stdlib.h, and the
+# jemalloc-specific api is detected at runtime, we dont need any
+# jemalloc headers or modify CPPFLAGS here.
+if test "x$enable_jemalloc_allocator" = "xyes"; then
+  if test "x$OS_NAME" != "xlinux"; then
+    # Building and linking against jemalloc is actually not a problem
+    # on OSX even now, but to make it actually *useful* we would have
+    # have to re-route all existing malloc/free calls through jemalloc.
+    # The recommended way of doing that on Mac seems to be call
+    # `malloc_default_zone()` and to overwrite the hooks in the
+    # returned `malloc_zone_t`.
+    AC_MSG_ERROR([
+--------------------------------------------------------------------
+You have requested the default memory allocator to be replaced by
+jemalloc, but your operating system was detected to be $OS_NAME.
+
+This feature is currently only supported on linux.
+--------------------------------------------------------------------
+    ])
+  fi
+
+  if test -n "`echo $with_jemalloc`"; then
+    WITH_JEMALLOC="${with_jemalloc}"
+  fi
+
+  # Check if the user asked us to use a preinstalled jemalloc, or if
+  # they asked us to ignore all bundled libraries while compiling and
+  # linking.
+  if test "x$without_bundled_jemalloc" = "xyes" || \
+     test "x$enable_bundled" != "xyes"; then
+
+    # Avoid AC_SEARCH_LIBS here because it would implicitly add jemalloc
+    # to LIBS, but we dont want to link it against libmesos, only the
+    # individual binaries
+    AC_CHECK_LIB([jemalloc], [malloc_stats_print], [found_jemalloc=yes])
+    if test "x$found_jemalloc" = "xyes"; then
+      with_bundled_jemalloc=no
+    else
+      AC_MSG_ERROR([cannot find jemalloc
+-------------------------------------------------------------------
+You have requested the use of a non-bundled jemalloc but no suitable
+library could be found.
+
+You may want specify the location of jemalloc by providing a prefix
+path via --with-jemalloc=DIR, or check that the path you provided is
+correct if you're already doing this.
+-------------------------------------------------------------------
+  ])
+    fi
+  else
+    with_bundled_jemalloc=yes
+  fi
+fi
+
+AC_SUBST(WITH_JEMALLOC)
+AM_CONDITIONAL([WITH_BUNDLED_JEMALLOC],
+         [test "x$with_bundled_jemalloc" = "xyes"])
 
 # TODO(benh): Consider using AS_IF instead of just shell 'if'
 # statements for better autoconf style (the AS_IF macros also make

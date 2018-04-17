@@ -5,6 +5,10 @@ This release contains the following new features:
   * [MESOS-8534] - **Experimental** A nested container is now allowed
     to join a separate CNI network than its parent container.
 
+  * [MESOS-7944] - **Experimental** On Linux, Mesos can now be
+    configured to use the jemalloc allocator by default via the
+    `--enable-jemalloc-allocator` configuration option.
+
 
 Release Notes - Mesos - Version 1.5.1 (WIP)
 -------------------------------------------

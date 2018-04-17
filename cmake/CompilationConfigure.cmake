@@ -353,6 +353,20 @@ endif()
 ######################
 string(COMPARE EQUAL ${CMAKE_SYSTEM_NAME} "Linux" LINUX)
 
+if (LINUX)
+  # We currenty only support using the bundled jemalloc on linux.
+  # While building it and linking against is actually not a problem
+  # on other platforms, to make it actually *useful* we need some
+  # additional platform-specific code in the mesos binaries that re-routes
+  # all existing malloc/free calls through jemalloc.
+  # On linux, that is not necessary because the default malloc implementation
+  # explicitly supports replacement via symbol interposition.
+  option(
+    ENABLE_JEMALLOC_ALLOCATOR
+    "Use jemalloc as memory allocator for the master and agent binaries."
+    FALSE)
+endif ()
+
 # FREEBSD CONFIGURATION.
 ######################
 string(COMPARE EQUAL ${CMAKE_SYSTEM_NAME} "FreeBSD" FREEBSD)

@@ -18,3 +18,6 @@
 ########################
 add_executable(mesos-master main.cpp)
 target_link_libraries(mesos-master PRIVATE mesos)
+if (ENABLE_JEMALLOC_ALLOCATOR)
+  target_link_libraries(mesos-master PRIVATE jemalloc)
+endif ()

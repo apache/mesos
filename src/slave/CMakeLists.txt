@@ -24,6 +24,10 @@ add_subdirectory(resource_estimators)
 add_executable(mesos-agent main.cpp)
 target_link_libraries(mesos-agent PRIVATE mesos)
 
+if (ENABLE_JEMALLOC_ALLOCATOR)
+  target_link_libraries(mesos-agent PRIVATE jemalloc)
+endif ()
+
 # Add binary dependencies
 add_dependencies(
   mesos-agent

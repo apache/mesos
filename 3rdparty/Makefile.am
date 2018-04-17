@@ -59,6 +59,7 @@ GPERFTOOLS = gperftools-$(GPERFTOOLS_VERSION)
 GRPC = grpc-$(GRPC_VERSION)
 GTEST = $(GOOGLETEST)/googletest
 HTTP_PARSER = http-parser-$(HTTP_PARSER_VERSION)
+JEMALLOC = jemalloc-$(JEMALLOC_VERSION)
 LEVELDB = leveldb-$(LEVELDB_VERSION)
 LIBEV = libev-$(LIBEV_VERSION)
 NVML = nvml-$(NVML_VERSION)
@@ -79,6 +80,7 @@ EXTRA_DIST =			\
   $(GPERFTOOLS).tar.gz		\
   $(GRPC).tar.gz		\
   $(HTTP_PARSER).tar.gz		\
+  $(JEMALLOC).tar.gz		\
   $(LEVELDB).tar.gz		\
   $(LIBEV).tar.gz		\
   $(NVML).tar.gz		\
@@ -117,6 +119,7 @@ CLEAN_EXTRACTED =		\
   $(GPERFTOOLS)			\
   $(GRPC)			\
   $(HTTP_PARSER)		\
+  $(JEMALLOC)			\
   $(LEVELDB)			\
   $(LIBEV)			\
   $(NVML)			\
@@ -247,6 +250,23 @@ BUILT_SOURCES += $(nodist_libry_http_parser_la_SOURCES)
 $(HTTP_PARSER)/http_parser.c: $(HTTP_PARSER)-stamp
 $(HTTP_PARSER)-build-stamp: libry_http_parser.la
 	touch $@
+endif
+
+
+if WITH_BUNDLED_JEMALLOC
+JEMALLOC_CONFIGURE_ARGS = \
+    --enable-stats --enable-prof --with-malloc-conf="prof:true,prof_active:false"
+
+LIB_JEMALLOC = $(JEMALLOC)/libjemalloc.la
+
+$(LIB_JEMALLOC): $(JEMALLOC)-build-stamp
+
+$(JEMALLOC)-build-stamp: $(JEMALLOC)-stamp
+	cd $(JEMALLOC) && ./configure $(JEMALLOC_CONFIGURE_ARGS) $(CONFIGURE_ARGS)
+	cd $(JEMALLOC) && $(MAKE) $(AM_MAKEFLAGS)
+	touch $@
+
+ALL_LOCAL += $(LIB_JEMALLOC)
 endif
 
 if WITH_BUNDLED_LIBEV
