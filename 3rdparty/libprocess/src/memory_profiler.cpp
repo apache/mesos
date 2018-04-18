@@ -818,6 +818,7 @@ Future<http::Response> MemoryProfiler::downloadRaw(
         "No heap profile exists: " + jemallocRawProfile.id().error() + ".\n");
   }
 
+  // Only requests for the latest available version are allowed.
   if (requestedId.isSome() &&
       (requestedId.get() != jemallocRawProfile.id().get())) {
     return http::BadRequest(
@@ -851,31 +852,27 @@ Future<http::Response> MemoryProfiler::downloadTextProfile(
         "No source profile exists: " + jemallocRawProfile.id().error() + ".\n");
   }
 
+  // Only requests for the latest available version are allowed.
+  if (requestedId.isSome() &&
+      (requestedId.get() != jemallocRawProfile.id().get())) {
+    return http::BadRequest(
+        "Cannot serve requested id #" + stringify(requestedId.get()) + ".\n");
+  }
+
   if (currentRun.isSome() && !requestedId.isSome()) {
     return http::BadRequest(
         "A profiling run is currently in progress. To download results of the"
         " previous run, please pass an 'id' explicitly.\n");
   }
 
-  time_t rawId = jemallocRawProfile.id().get();
-
-  // Use the latest version as default.
-  if (requestedId.isNone()) {
-    requestedId = rawId;
-  }
-
-  // Generate the profile with the given timestamp, or return the cached file
-  // on disk.
+  // Generate the profile for the latest available version,
+  // or return the cached file on disk.
+  Try<string> rawProfilePath = jemallocRawProfile.path();
   Try<Nothing> result = jeprofSymbolizedProfile.generate(
-      requestedId.get(),
-      [&](const string& outputPath) -> Try<Nothing>
-      {
-        if (!(requestedId.get() == jemallocRawProfile.id().get())) {
-          return Error("Requested version cannot be served");
-        }
-
+      jemallocRawProfile.id().get(),
+      [rawProfilePath](const string& outputPath) -> Try<Nothing> {
         return generateJeprofFile(
-            jemallocRawProfile.path(),
+            rawProfilePath,
             "--text",
             outputPath);
       });
@@ -906,29 +903,27 @@ Future<http::Response> MemoryProfiler::downloadGraph(
         "No source profile exists: " + jemallocRawProfile.id().error() + ".\n");
   }
 
+  // Only requests for the latest available version are allowed.
+  if (requestedId.isSome() &&
+      (requestedId.get() != jemallocRawProfile.id().get())) {
+    return http::BadRequest(
+        "Cannot serve requested id #" + stringify(requestedId.get()) + ".\n");
+  }
+
   if (currentRun.isSome() && !requestedId.isSome()) {
     return http::BadRequest(
         "A profiling run is currently in progress. To download results of the"
         " previous run, please pass an 'id' explicitly.\n");
   }
 
-  time_t rawId = jemallocRawProfile.id().get();
-
-  // Use the latest version as default.
-  if (requestedId.isNone()) {
-    requestedId = rawId;
-  }
-
-  // Generate the graph with the given id, or return the cached file on disk.
+  // Generate the profile for the latest available version,
+  // or return the cached file on disk.
+  Try<string> rawProfilePath = jemallocRawProfile.path();
   Try<Nothing> result = jeprofGraph.generate(
-      rawId,
-      [&](const string& outputPath) -> Try<Nothing> {
-        if (!(requestedId.get() == jemallocRawProfile.id().get())) {
-          return Error("Requested version cannot be served");
-        }
-
+      jemallocRawProfile.id().get(),
+      [rawProfilePath](const string& outputPath) -> Try<Nothing> {
         return generateJeprofFile(
-            jemallocRawProfile.path(),
+            rawProfilePath,
             "--svg",
             outputPath);
       });
@@ -1111,7 +1106,7 @@ void MemoryProfiler::stopAndGenerateRawProfile()
 
   Try<Nothing> generated = jemallocRawProfile.generate(
       runId,
-      [this](const string& outputPath) -> Try<Nothing> {
+      [](const string& outputPath) -> Try<Nothing> {
         // Make sure we actually have permissions to write to the file and that
         // there is at least a little bit space left on the device.
         const string data(DUMMY_FILE_SIZE, '\0');
