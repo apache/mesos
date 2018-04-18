@@ -417,7 +417,7 @@ message FrameworkInfo {
  * specifying one of the optional fields. Specifying more than one type
  * is an error.
  *
- * NOTE: This API is unstable and the related feature is experimental.
+ * NOTE: This API is subject to change and the related feature is experimental.
  */
 message CheckInfo {
   enum Type {
@@ -1911,10 +1911,10 @@ message Offer {
       UNRESERVE = 3;
       CREATE = 4;
       DESTROY = 5;
-      CREATE_VOLUME = 7;
-      DESTROY_VOLUME = 8;
-      CREATE_BLOCK = 9;
-      DESTROY_BLOCK = 10;
+      CREATE_VOLUME = 7;  // EXPERIMENTAL.
+      DESTROY_VOLUME = 8; // EXPERIMENTAL.
+      CREATE_BLOCK = 9;   // EXPERIMENTAL.
+      DESTROY_BLOCK = 10; // EXPERIMENTAL.
     }
 
     // TODO(vinod): Deprecate this in favor of `LaunchGroup` below.
@@ -1951,19 +1951,27 @@ message Offer {
       repeated Resource volumes = 1;
     }
 
+    // NOTE: For the time being, this API is subject to change and the related
+    // feature is experimental.
     message CreateVolume {
       required Resource source = 1;
       required Resource.DiskInfo.Source.Type target_type = 2;
     }
 
+    // NOTE: For the time being, this API is subject to change and the related
+    // feature is experimental.
     message DestroyVolume {
       required Resource volume = 1;
     }
 
+    // NOTE: For the time being, this API is subject to change and the related
+    // feature is experimental.
     message CreateBlock {
       required Resource source = 1;
     }
 
+    // NOTE: For the time being, this API is subject to change and the related
+    // feature is experimental.
     message DestroyBlock {
       required Resource block = 1;
     }
@@ -1973,7 +1981,7 @@ message Offer {
     // NOTE: The `id` field will allow frameworks to indicate that they wish to
     // receive feedback about an operation. Since this feature is not yet
     // implemented, the `id` field should NOT be set at present. See MESOS-8054.
-    optional OperationID id = 12; // Experimental.
+    optional OperationID id = 12; // EXPERIMENTAL.
 
     optional Launch launch = 2;
     optional LaunchGroup launch_group = 7;
@@ -2326,7 +2334,7 @@ message OperationStatus {
 * (e.g., the check timed out), these fields must contain empty messages, i.e.,
 * `exit_code` or `status_code` will be unset.
 *
-* NOTE: This API is unstable and the related feature is experimental.
+* NOTE: This API is subject to change and the related feature is experimental.
 */
 message CheckStatusInfo {
   message Command {
