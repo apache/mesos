@@ -67,12 +67,12 @@ private:
       const Option<http::authentication::Principal>&);
 
   // Returns a raw heap profile.
-  Future<http::Response> downloadRaw(
+  Future<http::Response> downloadRawProfile(
       const http::Request& request,
       const Option<http::authentication::Principal>&);
 
   // Generates and returns a symbolized heap profile.
-  Future<http::Response> downloadTextProfile(
+  Future<http::Response> downloadSymbolizedProfile(
       const http::Request& request,
       const Option<http::authentication::Principal>&);
 

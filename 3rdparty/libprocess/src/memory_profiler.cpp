@@ -533,12 +533,12 @@ void MemoryProfiler::initialize()
   route("/download/raw",
         authenticationRealm,
         DOWNLOAD_RAW_HELP(),
-        &MemoryProfiler::downloadRaw);
+        &MemoryProfiler::downloadRawProfile);
 
   route("/download/text",
         authenticationRealm,
         DOWNLOAD_TEXT_HELP(),
-        &MemoryProfiler::downloadTextProfile);
+        &MemoryProfiler::downloadSymbolizedProfile);
 
   route("/download/graph",
         authenticationRealm,
@@ -801,7 +801,7 @@ Future<http::Response> MemoryProfiler::stop(
 }
 
 
-Future<http::Response> MemoryProfiler::downloadRaw(
+Future<http::Response> MemoryProfiler::downloadRawProfile(
     const http::Request& request,
     const Option<http::authentication::Principal>&)
 {
@@ -835,7 +835,7 @@ Future<http::Response> MemoryProfiler::downloadRaw(
 }
 
 
-Future<http::Response> MemoryProfiler::downloadTextProfile(
+Future<http::Response> MemoryProfiler::downloadSymbolizedProfile(
     const http::Request& request,
     const Option<http::authentication::Principal>&)
 {
