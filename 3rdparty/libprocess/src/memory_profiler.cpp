@@ -300,15 +300,12 @@ Try<Path> getTemporaryDirectoryPath() {
 }
 
 
+// TODO(alexr): Consider making this asynchronous.
 Try<Nothing> generateJeprofFile(
-    const Try<string>& inputPath,
+    const string& inputPath,
     const string& options,
     const string& outputPath)
 {
-  if (inputPath.isError()) {
-    return Error("Cannot read input file: " + inputPath.error());
-  }
-
   // As jeprof doesn't have an option to specify an output file, we actually
   // need `os::shell()` here instead of `os::spawn()`.
   // Note that the three parameters *MUST NOT* be controllable by the user
@@ -319,7 +316,7 @@ Try<Nothing> generateJeprofFile(
   Try<string> result = os::shell(strings::format(
       "jeprof %s /proc/self/exe %s > %s",
       options,
-      inputPath.get(),
+      inputPath,
       outputPath).get());
 
   if (result.isError()) {
@@ -543,7 +540,7 @@ void MemoryProfiler::initialize()
   route("/download/graph",
         authenticationRealm,
         DOWNLOAD_GRAPH_HELP(),
-        &MemoryProfiler::downloadGraph);
+        &MemoryProfiler::downloadGraphProfile);
 
   route("/statistics",
         authenticationRealm,
@@ -582,91 +579,74 @@ void MemoryProfiler::ProfilingRun::extend(
 }
 
 
-MemoryProfiler::DiskArtifact::DiskArtifact(const string& _filename)
-  : filename(_filename),
-    timestamp(Error("Not yet generated"))
+MemoryProfiler::DiskArtifact::DiskArtifact(
+    const std::string& path,
+    time_t id)
+  : path(path),
+    id(id)
 {}
 
 
-const Try<time_t>& MemoryProfiler::DiskArtifact::id() const
+const time_t MemoryProfiler::DiskArtifact::getId() const
 {
-  return timestamp;
+  return id;
 }
 
 
-Try<string> MemoryProfiler::DiskArtifact::path() const
+string MemoryProfiler::DiskArtifact::getPath() const
 {
-  Try<Path> tmpdir = getTemporaryDirectoryPath();
-  if (tmpdir.isError()) {
-    return tmpdir.error();
-  }
-
-  return path::join(tmpdir.get(), filename);
+  return path;
 }
 
 
 http::Response MemoryProfiler::DiskArtifact::asHttp() const
 {
-  Try<string> _path = path();
-  if (_path.isError()) {
-    return http::BadRequest(
-        "Could not compute file path: " + _path.error() + ".\n");
-  }
-
   // If we get here, we want to serve the file that *should* be on disk.
   // Verify that it still exists before attempting to serve it.
   //
   // TODO(bevers): Store a checksum and verify that it matches.
-  if (!os::stat::isfile(_path.get())) {
+  if (!os::stat::isfile(path)) {
     return http::BadRequest("Requested file was deleted from local disk.\n");
   }
 
   process::http::OK response;
   response.type = response.PATH;
-  response.path = _path.get();
+  response.path = path;
   response.headers["Content-Type"] = "application/octet-stream";
   response.headers["Content-Disposition"] =
-    strings::format("attachment; filename=%s", _path.get()).get();
+    strings::format("attachment; filename=%s", path).get();
 
   return response;
 }
 
 
-Try<Nothing> MemoryProfiler::DiskArtifact::generate(
-    time_t requestedTimestamp,
+Try<MemoryProfiler::DiskArtifact> MemoryProfiler::DiskArtifact::create(
+    const string& filename,
+    time_t timestamp,
     std::function<Try<Nothing>(const string&)> generator)
 {
-  // Nothing to do if the requestd file already exists.
-  if (timestamp.isSome() && timestamp.get() == requestedTimestamp) {
-    return Nothing();
+  Try<Path> tmpdir = getTemporaryDirectoryPath();
+  if (tmpdir.isError()) {
+    return Error("Could not determine target path: " + tmpdir.error());
   }
 
-  Try<string> path_ = path();
-  if (path_.isError()) {
-    return Error("Could not determine target path: " + path_.get());
-  }
+  const string path = path::join(tmpdir.get(), filename);
 
-  Try<Nothing> result = generator(path_.get());
+  Try<Nothing> result = generator(path);
 
   if (result.isError()) {
     // The old file might still be fine on disk, but there's no good way to
     // verify this hence we assume that the error rendered it unusable.
-    timestamp = Error(result.error());
-    return result;
+    return Error("Failed to create artifact: " + result.error());
   }
 
-  timestamp = requestedTimestamp;
-
-  return Nothing();
+  return MemoryProfiler::DiskArtifact(path, timestamp);
 }
 
 
 MemoryProfiler::MemoryProfiler(const Option<string>& _authenticationRealm)
   : ProcessBase("memory-profiler"),
-    authenticationRealm(_authenticationRealm),
-    jemallocRawProfile(RAW_PROFILE_FILENAME),
-    jeprofSymbolizedProfile(SYMBOLIZED_PROFILE_FILENAME),
-    jeprofGraph(GRAPH_FILENAME)
+    authenticationRealm(_authenticationRealm)
 {}
 
 
@@ -764,12 +744,11 @@ Future<http::Response> MemoryProfiler::stop(
         " raw profile through libprocess is currently not supported.\n");
   }
 
-  // If stop is successful or a no-op, `jemallocRawProfile.id()` will be set.
+  // If stop is successful or a no-op, `jemallocRawProfile` will be `Some`.
   stopAndGenerateRawProfile();
 
-  Try<time_t> generated = jemallocRawProfile.id();
-  if (generated.isError()) {
-    return http::BadRequest(generated.error() + ".\n");
+  if (rawProfile.isError()) {
+    return http::BadRequest(rawProfile.error() + ".\n");
   }
 
   Try<bool> stillActive = jemalloc::profilingActive();
@@ -782,7 +761,7 @@ Future<http::Response> MemoryProfiler::stop(
     " jeprof must be installed on the host machine and generation of"
     " these files can take several minutes.";
 
-  const string id = stringify(generated.get());
+  const string id = stringify(rawProfile->getId());
 
   JSON::Object result;
   result.values["id"] = id;
@@ -791,7 +770,7 @@ Future<http::Response> MemoryProfiler::stop(
   result.values["url_raw_profile"] =
     "/" + this->self().id + "/download/raw?id=" + id;
 
-  result.values["url_graph"] =
+  result.values["url_graph_profile"] =
     "/" + this->self().id + "/download/graph?id=" + id;
 
   result.values["url_symbolized_profile"] =
@@ -813,25 +792,25 @@ Future<http::Response> MemoryProfiler::downloadRawProfile(
         "Invalid parameter 'id': " + requestedId.error() + ".\n");
   }
 
-  if (jemallocRawProfile.id().isError()) {
-    return http::BadRequest(
-        "No heap profile exists: " + jemallocRawProfile.id().error() + ".\n");
-  }
-
-  // Only requests for the latest available version are allowed.
-  if (requestedId.isSome() &&
-      (requestedId.get() != jemallocRawProfile.id().get())) {
-    return http::BadRequest(
-        "Cannot serve requested id #" + stringify(requestedId.get()) + ".\n");
-  }
-
   if (currentRun.isSome() && !requestedId.isSome()) {
     return http::BadRequest(
         "A profiling run is currently in progress. To download results of the"
         " previous run, please pass an 'id' explicitly.\n");
   }
 
-  return jemallocRawProfile.asHttp();
+  if (rawProfile.isError()) {
+    return http::BadRequest(
+        "Cannot access raw profile: " + rawProfile.error() + ".\n");
+  }
+
+  // Only requests for the latest available version are allowed.
+  if (requestedId.isSome() &&
+      (requestedId.get() != rawProfile->getId())) {
+    return http::BadRequest(
+        "Cannot serve requested id #" + stringify(requestedId.get()) + ".\n");
+  }
+
+  return rawProfile->asHttp();
 }
 
 
@@ -847,46 +826,52 @@ Future<http::Response> MemoryProfiler::downloadSymbolizedProfile(
         "Invalid parameter 'id': " + requestedId.error() + ".\n");
   }
 
-  if (jemallocRawProfile.id().isError()) {
-    return http::BadRequest(
-        "No source profile exists: " + jemallocRawProfile.id().error() + ".\n");
-  }
-
-  // Only requests for the latest available version are allowed.
-  if (requestedId.isSome() &&
-      (requestedId.get() != jemallocRawProfile.id().get())) {
-    return http::BadRequest(
-        "Cannot serve requested id #" + stringify(requestedId.get()) + ".\n");
-  }
-
   if (currentRun.isSome() && !requestedId.isSome()) {
     return http::BadRequest(
         "A profiling run is currently in progress. To download results of the"
         " previous run, please pass an 'id' explicitly.\n");
   }
 
-  // Generate the profile for the latest available version,
-  // or return the cached file on disk.
-  Try<string> rawProfilePath = jemallocRawProfile.path();
-  Try<Nothing> result = jeprofSymbolizedProfile.generate(
-      jemallocRawProfile.id().get(),
-      [rawProfilePath](const string& outputPath) -> Try<Nothing> {
-        return generateJeprofFile(
-            rawProfilePath,
-            "--text",
-            outputPath);
-      });
-
-  if (result.isError()) {
+  if (rawProfile.isError()) {
     return http::BadRequest(
-        "Could not generate file: " + result.error() + ".\n");
+        "No source profile exists: " + rawProfile.error() + ".\n");
   }
 
-  return jeprofSymbolizedProfile.asHttp();
+  const string rawProfilePath = rawProfile->getPath();
+  const time_t rawProfileId = rawProfile->getId();
+
+  // Only requests for the latest available version are allowed.
+  if (requestedId.isSome() && (requestedId.get() != rawProfileId)) {
+    return http::BadRequest(
+        "Cannot serve requested id #" + stringify(requestedId.get()) + ".\n");
+  }
+
+  // Generate the profile for the latest available version
+  // or return the cached file on disk.
+  if (symbolizedProfile.isError() ||
+      (symbolizedProfile->getId() != rawProfileId)) {
+    symbolizedProfile = DiskArtifact::create(
+        SYMBOLIZED_PROFILE_FILENAME,
+        rawProfileId,
+        [rawProfilePath](const string& outputPath) -> Try<Nothing> {
+          return generateJeprofFile(
+              rawProfilePath,
+              "--text",
+              outputPath);
+        });
+  }
+
+  if (symbolizedProfile.isSome()) {
+    return symbolizedProfile->asHttp();
+  } else {
+    const string message = "Cannot generate file: " + symbolizedProfile.error();
+    LOG(WARNING) << message;
+    return http::BadRequest(message + ".\n");
+  }
 }
 
 
-Future<http::Response> MemoryProfiler::downloadGraph(
+Future<http::Response> MemoryProfiler::downloadGraphProfile(
     const http::Request& request,
     const Option<http::authentication::Principal>&)
 {
@@ -898,42 +883,47 @@ Future<http::Response> MemoryProfiler::downloadGraph(
         "Invalid parameter 'id': " + requestedId.error() + ".\n");
   }
 
-  if (jemallocRawProfile.id().isError()) {
-    return http::BadRequest(
-        "No source profile exists: " + jemallocRawProfile.id().error() + ".\n");
-  }
-
-  // Only requests for the latest available version are allowed.
-  if (requestedId.isSome() &&
-      (requestedId.get() != jemallocRawProfile.id().get())) {
-    return http::BadRequest(
-        "Cannot serve requested id #" + stringify(requestedId.get()) + ".\n");
-  }
-
   if (currentRun.isSome() && !requestedId.isSome()) {
     return http::BadRequest(
         "A profiling run is currently in progress. To download results of the"
         " previous run, please pass an 'id' explicitly.\n");
   }
 
-  // Generate the profile for the latest available version,
-  // or return the cached file on disk.
-  Try<string> rawProfilePath = jemallocRawProfile.path();
-  Try<Nothing> result = jeprofGraph.generate(
-      jemallocRawProfile.id().get(),
-      [rawProfilePath](const string& outputPath) -> Try<Nothing> {
-        return generateJeprofFile(
-            rawProfilePath,
-            "--svg",
-            outputPath);
-      });
-
-  if (result.isError()) {
+  if (rawProfile.isError()) {
     return http::BadRequest(
-        "Could not generate file: " + result.error() + ".\n");
+        "No source profile exists: " + rawProfile.error() + ".\n");
   }
 
-  return jeprofGraph.asHttp();
+  const string rawProfilePath = rawProfile->getPath();
+  const time_t rawProfileId = rawProfile->getId();
+
+  // Only requests for the latest available version are allowed.
+  if (requestedId.isSome() && (requestedId.get() != rawProfileId)) {
+    return http::BadRequest(
+        "Cannot serve requested id #" + stringify(requestedId.get()) + ".\n");
+  }
+
+  // Generate the profile for the latest available version
+  // or return the cached file on disk.
+  if (graphProfile.isError() || (graphProfile->getId() != rawProfileId)) {
+    graphProfile = DiskArtifact::create(
+        GRAPH_FILENAME,
+        rawProfileId,
+        [rawProfilePath](const string& outputPath) -> Try<Nothing> {
+          return generateJeprofFile(
+              rawProfilePath,
+              "--svg",
+              outputPath);
+        });
+  }
+
+  if (graphProfile.isSome()) {
+    return graphProfile->asHttp();
+  } else {
+    const string message = "Cannot generate file: " + graphProfile.error();
+    LOG(WARNING) << message;
+    return http::BadRequest(message + ".\n");
+  }
 }
 
 
@@ -974,7 +964,7 @@ Future<http::Response> MemoryProfiler::state(
     JSON::Object profilerState;
     profilerState.values["jemalloc_detected"] = detected;
 
-    profilerState.values["tmpdir"] = stringify(
+    profilerState.values["tmp_dir"] = stringify(
         temporaryDirectory.getOrElse("Not yet generated"));
 
     {
@@ -983,8 +973,8 @@ Future<http::Response> MemoryProfiler::state(
         runInformation.values["id"] = currentRun->id;
         runInformation.values["remaining_seconds"] =
           currentRun->timer.timeout().remaining().secs();
-      } else if (jemallocRawProfile.id().isSome()) {
-        runInformation.values["id"] = jemallocRawProfile.id().get();
+      } else if (rawProfile.isSome()) {
+        runInformation.values["id"] = rawProfile->getId();
         runInformation.values["remaining_seconds"] = 0;
       } else {
         runInformation.values["id"] = JSON::Null();
@@ -1104,7 +1094,9 @@ void MemoryProfiler::stopAndGenerateRawProfile()
     return;
   }
 
-  Try<Nothing> generated = jemallocRawProfile.generate(
+  // We store the new artifact even in case of error to surface it to the user.
+  rawProfile = DiskArtifact::create(
+      RAW_PROFILE_FILENAME,
       runId,
       [](const string& outputPath) -> Try<Nothing> {
         // Make sure we actually have permissions to write to the file and that
@@ -1126,8 +1118,8 @@ void MemoryProfiler::stopAndGenerateRawProfile()
         return jemalloc::dump(outputPath);
       });
 
-  if (generated.isError()) {
-    LOG(WARNING) << "Could not dump profile: " + generated.error();
+  if (rawProfile.isError()) {
+    LOG(WARNING) << "Cannot dump profile: " + rawProfile.error();
   }
 }
 

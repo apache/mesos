@@ -77,7 +77,7 @@ private:
       const Option<http::authentication::Principal>&);
 
   // Generates and returns a call graph in svg format.
-  Future<http::Response> downloadGraph(
+  Future<http::Response> downloadGraphProfile(
       const http::Request& request,
       const Option<http::authentication::Principal>&);
 
@@ -120,36 +120,32 @@ private:
   class DiskArtifact
   {
   public:
-    DiskArtifact(const std::string& filename);
-
-    const Try<time_t>& id() const;
-
-    // This is generated lazily to avoid creating a temporary
-    // directory unless we actually need it.
-    Try<std::string> path() const;
-
-    // If the file with the given timestamp does not exist on disk, calls the
-    // supplied `generator` function that should write it to the specified
-    // location.
-    Try<Nothing> generate(
+    static Try<DiskArtifact> create(
+        const std::string& filename,
         time_t timestamp,
         std::function<Try<Nothing>(const std::string& outputPath)> generator);
+
+    const time_t getId() const;
+
+    std::string getPath() const;
 
     // Generates an error response if the file doesn't exist, or a download
     // if it does.
     http::Response asHttp() const;
 
   private:
-    std::string filename;
+    DiskArtifact(const std::string& path, time_t id);
 
-    // A timestamp of the last successful creation that serves as unique id,
-    // or the reason why it couldn't be created.
-    Try<time_t> timestamp;
+    std::string path;
+    time_t id;
   };
 
-  DiskArtifact jemallocRawProfile;
-  DiskArtifact jeprofSymbolizedProfile;
-  DiskArtifact jeprofGraph;
+  // This profile is obtained by telling jemalloc to dump its stats to a file.
+  Try<DiskArtifact> rawProfile = Error("Not yet generated");
+
+  // These profiles are obtained by running `jeprof` on the `raw` profile.
+  Try<DiskArtifact> symbolizedProfile = Error("Not yet generated");
+  Try<DiskArtifact> graphProfile = Error("Not yet generated");
 };
 
 } // namespace process {
