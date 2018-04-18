@@ -23,6 +23,9 @@ package mesos.resource_provider;
 option java_package = "org.apache.mesos.resource_provider";
 option java_outer_classname = "Protos";
 
+
+// NOTE: For the time being, this API is subject to change and the related
+// feature is experimental.
 message Event {
   enum Type {
     // This must be the first enum value in this list, to
@@ -104,6 +107,8 @@ message Event {
 }
 
 
+// NOTE: For the time being, this API is subject to change and the related
+// feature is experimental.
 message Call {
   enum Type {
     // This must be the first enum value in this list, to
