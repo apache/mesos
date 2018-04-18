@@ -29,6 +29,8 @@
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 
+#include <stout/os/write.hpp>
+
 #include <glog/logging.h>
 
 using process::Future;
@@ -307,22 +309,23 @@ Try<Nothing> generateJeprofFile(
     const string& outputPath)
 {
   // As jeprof doesn't have an option to specify an output file, we actually
-  // need `os::shell()` here instead of `os::spawn()`.
+  // cannot use `os::spawn()` here.
   // Note that the three parameters *MUST NOT* be controllable by the user
   // accessing the HTTP endpoints, otherwise arbitrary shell commands could be
   // trivially injected.
   // Apart from that, we dont need to be as careful here as with the actual
   // heap profile dump, because a failure will not crash the whole process.
-  Try<string> result = os::shell(strings::format(
+  Option<int> result = os::system(strings::format(
       "jeprof %s /proc/self/exe %s > %s",
       options,
       inputPath,
       outputPath).get());
 
-  if (result.isError()) {
+  if (result.isNone()) {
     return Error(
-      "Error trying to run jeprof: " + result.error() + ". Please make sure"
-      " that jeprof is installed and that the input file contains data");
+      "Error trying to run jeprof. Please make sure that jeprof is installed"
+      " and that the input file contains data. For more information, please"
+      " consult the log files of this process");
   }
 
   return Nothing();
