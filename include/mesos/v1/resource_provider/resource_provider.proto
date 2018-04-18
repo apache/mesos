@@ -24,6 +24,8 @@ option java_package = "org.apache.mesos.v1.resource_provider";
 option java_outer_classname = "Protos";
 
 
+// NOTE: For the time being, this API is subject to change and the related
+// feature is experimental.
 message Event {
   enum Type {
     // This must be the first enum value in this list, to
@@ -52,8 +54,8 @@ message Event {
     required Offer.Operation info = 2;
 
     // This is the internal UUID for the operation, which is kept
-    // independently from the framework specified operation id, which is
-    // optional.
+    // independently from the framework-specified operation ID, which
+    // is optional.
     required UUID operation_uuid = 3;
 
     // Used to establish the relationship between the operation and
@@ -105,6 +107,8 @@ message Event {
 }
 
 
+// NOTE: For the time being, this API is subject to change and the related
+// feature is experimental.
 message Call {
   enum Type {
     // This must be the first enum value in this list, to
@@ -131,8 +135,8 @@ message Call {
     optional OperationStatus latest_status = 3;
 
     // This is the internal UUID for the operation, which is kept
-    // independently from the framework specified operation id, which is
-    // optional.
+    // independently from the framework-specified operation ID, which
+    // is optional.
     required UUID operation_uuid = 4;
   }
 
