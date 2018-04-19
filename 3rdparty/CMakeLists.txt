@@ -706,16 +706,19 @@ if (WIN32)
       IMPORTED_LOCATION_DEBUG ${CURL_ROOT}-build/src/Debug/curl-d.exe
       IMPORTED_LOCATION_RELEASE ${CURL_ROOT}-build/src/Release/curl.exe)
   else ()
+    # This is for single-configuration generators such as Ninja.
+    if (CMAKE_BUILD_TYPE MATCHES Debug)
+      set(CURL_SUFFIX "-d")
+    endif ()
+
     set_target_properties(
       libcurl PROPERTIES
-      # TODO(andschwa): Use generator expression to remove `-d` in Release.
-      IMPORTED_LOCATION ${CURL_ROOT}-build/lib/libcurl-d${LIBRARY_SUFFIX}
+      IMPORTED_LOCATION ${CURL_ROOT}-build/lib/libcurl${CURL_SUFFIX}${LIBRARY_SUFFIX}
       IMPORTED_IMPLIB ${CURL_ROOT}-build/lib/libcurl_imp${CMAKE_IMPORT_LIBRARY_SUFFIX})
 
     set_target_properties(
       curl PROPERTIES
-      # TODO(andschwa): Use generator expression to remove `-d` in Release.
-      IMPORTED_LOCATION ${CURL_ROOT}-build/src/curl-d.exe)
+      IMPORTED_LOCATION ${CURL_ROOT}-build/src/curl${CURL_SUFFIX}.exe)
   endif ()
 
   MAKE_INCLUDE_DIR(libcurl)
@@ -778,11 +781,15 @@ if (WIN32)
       IMPORTED_IMPLIB_DEBUG ${ZLIB_ROOT}-build/Debug/zlib${ZLIB_STATIC}d${CMAKE_IMPORT_LIBRARY_SUFFIX}
       IMPORTED_IMPLIB_RELEASE ${ZLIB_ROOT}-build/Release/zlib${ZLIB_STATIC}${CMAKE_IMPORT_LIBRARY_SUFFIX})
   else ()
+    # This is for single-configuration generators such as Ninja.
+    if (CMAKE_BUILD_TYPE MATCHES Debug)
+      set(ZLIB_SUFFIX "d")
+    endif ()
+
     set_target_properties(
       zlib PROPERTIES
-      # TODO(andschwa): Use generator expression to remove `d` in Release.
-      IMPORTED_LOCATION ${ZLIB_ROOT}-build/zlib${ZLIB_STATIC}d${ZLIB_SHARED}${LIBRARY_SUFFIX}
-      IMPORTED_IMPLIB ${ZLIB_ROOT}-build/zlib${ZLIB_STATIC}d${CMAKE_IMPORT_LIBRARY_SUFFIX})
+      IMPORTED_LOCATION ${ZLIB_ROOT}-build/zlib${ZLIB_STATIC}${ZLIB_SUFFIX}${ZLIB_SHARED}${LIBRARY_SUFFIX}
+      IMPORTED_IMPLIB ${ZLIB_ROOT}-build/zlib${ZLIB_STATIC}${ZLIB_SUFFIX}${CMAKE_IMPORT_LIBRARY_SUFFIX})
   endif ()
 
   MAKE_INCLUDE_DIR(zlib)
@@ -935,10 +942,14 @@ if (WIN32)
       IMPORTED_LOCATION_DEBUG ${PROTOBUF_ROOT}-build/Debug/protoc.exe
       IMPORTED_LOCATION_RELEASE ${PROTOBUF_ROOT}-build/Release/protoc.exe)
   else ()
+    # This is for single-configuration generators such as Ninja.
+    if (CMAKE_BUILD_TYPE MATCHES Debug)
+      set(PROTOBUF_SUFFIX "d")
+    endif ()
+
     set_target_properties(
       protobuf PROPERTIES
-      # TODO(andschwa): Use generator expression to remove `d` in Release.
-      IMPORTED_LOCATION ${PROTOBUF_ROOT}-build/libprotobufd${LIBRARY_SUFFIX})
+      IMPORTED_LOCATION ${PROTOBUF_ROOT}-build/libprotobuf${PROTOBUF_SUFFIX}${LIBRARY_SUFFIX})
 
     set_target_properties(
       protoc PROPERTIES
