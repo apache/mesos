@@ -2731,7 +2731,7 @@ message Image {
     // (see MESOS-7088 for details).
     optional Credential credential = 2 [deprecated = true]; // Since 1.3.
 
-    // Docker config containing credentails to authenticate with
+    // Docker config containing credentials to authenticate with
     // docker registry. The secret is expected to be a docker
     // config file in JSON format with UTF-8 character encoding.
     optional Secret config = 3;
