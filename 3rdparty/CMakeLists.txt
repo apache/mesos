@@ -988,25 +988,27 @@ ExternalProject_Add(
 # Jemalloc: General-purpose malloc implementation.
 # http://jemalloc.net
 ##################################################
-EXTERNAL(jemalloc ${JEMALLOC_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
-add_library(jemalloc STATIC IMPORTED GLOBAL)
-add_dependencies(jemalloc ${JEMALLOC_TARGET})
+if (ENABLE_JEMALLOC_ALLOCATOR)
+  EXTERNAL(jemalloc ${JEMALLOC_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
+  add_library(jemalloc STATIC IMPORTED GLOBAL)
+  add_dependencies(jemalloc ${JEMALLOC_TARGET})
 
-set_target_properties(
-  jemalloc PROPERTIES
-  IMPORTED_LOCATION ${JEMALLOC_ROOT}-build/lib/libjemalloc_pic${CMAKE_STATIC_LIBRARY_SUFFIX})
+  set_target_properties(
+    jemalloc PROPERTIES
+    IMPORTED_LOCATION ${JEMALLOC_ROOT}-build/lib/libjemalloc_pic${CMAKE_STATIC_LIBRARY_SUFFIX})
 
-set(
-  JEMALLOC_CONFIGURE_COMMAND
-  ${JEMALLOC_ROOT}/configure --enable-stats --enable-prof --with-malloc-conf=prof:true,prof_active:false)
+  set(
+    JEMALLOC_CONFIGURE_COMMAND
+    ${JEMALLOC_ROOT}/configure --enable-stats --enable-prof --with-malloc-conf=prof:true,prof_active:false)
 
-ExternalProject_Add(
-  ${JEMALLOC_TARGET}
-  PREFIX            ${JEMALLOC_CMAKE_ROOT}
-  CONFIGURE_COMMAND ${JEMALLOC_CONFIGURE_COMMAND}
-  INSTALL_COMMAND   ${CMAKE_NOOP}
-  URL               ${JEMALLOC_URL}
-  URL_HASH          ${JEMALLOC_HASH})
+  ExternalProject_Add(
+    ${JEMALLOC_TARGET}
+    PREFIX            ${JEMALLOC_CMAKE_ROOT}
+    CONFIGURE_COMMAND ${JEMALLOC_CONFIGURE_COMMAND}
+    INSTALL_COMMAND   ${CMAKE_NOOP}
+    URL               ${JEMALLOC_URL}
+    URL_HASH          ${JEMALLOC_HASH})
+endif ()
 
 
 # Apache ZooKeeper: C Client Library to ZooKeeper.
