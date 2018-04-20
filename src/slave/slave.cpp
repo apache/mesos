@@ -2866,29 +2866,6 @@ void Slave::__run(
   LOG(INFO) << "Launching " << taskOrTaskGroup(task, taskGroup)
             << " for framework " << frameworkId;
 
-  auto doLaunchExecutor = [&]() {
-    Executor* executor = framework->addExecutor(executorInfo);
-
-    if (secretGenerator) {
-      generateSecret(framework->id(), executor->id, executor->containerId)
-        .onAny(defer(
-              self(),
-              &Self::launchExecutor,
-              lambda::_1,
-              frameworkId,
-              executorId,
-              taskGroup.isNone() ? task.get() : Option<TaskInfo>::none()));
-    } else {
-      Slave::launchExecutor(
-          None(),
-          frameworkId,
-          executorId,
-          taskGroup.isNone() ? task.get() : Option<TaskInfo>::none());
-    }
-
-    return executor;
-  };
-
   Executor* executor = framework->getExecutor(executorId);
 
   // If launchExecutor is NONE, this is the legacy case where the master
@@ -3016,7 +2993,70 @@ void Slave::__run(
   // or we are in the legacy case of launching one if there wasn't
   // one already. Either way, let's launch executor now.
   if (executor == nullptr) {
-    executor = doLaunchExecutor();
+    Try<Executor*> added = framework->addExecutor(executorInfo);
+
+    if (added.isError()) {
+      CHECK(framework->getExecutor(executorId) == nullptr);
+
+      mesos::TaskState taskState = TASK_DROPPED;
+      if (!protobuf::frameworkHasCapability(
+          frameworkInfo, FrameworkInfo::Capability::PARTITION_AWARE)) {
+        taskState = TASK_LOST;
+      }
+
+      foreach (const TaskInfo& _task, tasks) {
+        const StatusUpdate update = protobuf::createStatusUpdate(
+            frameworkId,
+            info.id(),
+            _task.task_id(),
+            taskState,
+            TaskStatus::SOURCE_SLAVE,
+            id::UUID::random(),
+            added.error(),
+            TaskStatus::REASON_EXECUTOR_TERMINATED,
+            executorId);
+
+        statusUpdate(update, UPID());
+      }
+
+      // Refer to the comment after 'framework->removePendingTask' above
+      // for why we need this.
+      if (framework->idle()) {
+        removeFramework(framework);
+      }
+
+      if (launchExecutor.isSome() && launchExecutor.get()) {
+        // Master expects a new executor to be launched for this task(s).
+        // To keep the master executor entries updated, the agent needs to send
+        // `ExitedExecutorMessage` even though no executor launched.
+        sendExitedExecutorMessage(frameworkId, executorInfo.executor_id());
+
+        // See the declaration of `taskLaunchSequences` regarding its lifecycle
+        // management.
+        framework->taskLaunchSequences.erase(executorInfo.executor_id());
+      }
+
+      return;
+    }
+
+    executor = added.get();
+
+    if (secretGenerator) {
+      generateSecret(framework->id(), executor->id, executor->containerId)
+        .onAny(defer(
+              self(),
+              &Self::launchExecutor,
+              lambda::_1,
+              frameworkId,
+              executorId,
+              taskGroup.isNone() ? task.get() : Option<TaskInfo>::none()));
+    } else {
+      Slave::launchExecutor(
+          None(),
+          frameworkId,
+          executorId,
+          taskGroup.isNone() ? task.get() : Option<TaskInfo>::none());
+    }
   }
 
   CHECK_NOTNULL(executor);
@@ -8855,7 +8895,7 @@ void Framework::checkpointFramework() const
 }
 
 
-Executor* Framework::addExecutor(const ExecutorInfo& executorInfo)
+Try<Executor*> Framework::addExecutor(const ExecutorInfo& executorInfo)
 {
   // Verify that Resource.AllocationInfo is set, if coming
   // from a MULTI_ROLE master this will be set, otherwise
@@ -8900,7 +8940,9 @@ Executor* Framework::addExecutor(const ExecutorInfo& executorInfo)
       containerId,
       user);
 
-  CHECK_SOME(directory);
+  if (directory.isError()) {
+    return Error(directory.error());
+  }
 
   Executor* executor = new Executor(
       slave,

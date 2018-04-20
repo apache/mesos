@@ -1079,7 +1079,7 @@ public:
 
   const FrameworkID id() const { return info.id(); }
 
-  Executor* addExecutor(const ExecutorInfo& executorInfo);
+  Try<Executor*> addExecutor(const ExecutorInfo& executorInfo);
   Executor* getExecutor(const ExecutorID& executorId) const;
   Executor* getExecutor(const TaskID& taskId) const;
 
