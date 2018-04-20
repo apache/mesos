@@ -1262,13 +1262,13 @@ TEST_F(SlaveTest, DISABLED_ROOT_RunTaskWithCommandInfoWithUser)
   driver.stop();
   driver.join();
 }
-#endif // __WINDOWS__
 
 
 // This test verifies that the agent gracefully drops tasks when
 // a scheduler launches as a user that is not present on the agent.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(
-    SlaveTest, ROOT_RunTaskWithCommandInfoWithInvalidUser)
+//
+// TODO(andschwa): Enable after `flags.switch_user` is added.
+TEST_F(SlaveTest, ROOT_RunTaskWithCommandInfoWithInvalidUser)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -1350,6 +1350,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   driver.stop();
   driver.join();
 }
+#endif // __WINDOWS__
 
 
 // This test ensures that a status update acknowledgement from a
