@@ -60,12 +60,17 @@ struct Permissions
 
 inline Try<Permissions> permissions(const std::string& path)
 {
+#ifdef __WINDOWS__
+  VLOG(2) << "`os::permissions` has been called, but is a stub on Windows";
+  return Permissions(0);
+#else
   struct stat status;
   if (::stat(path.c_str(), &status) < 0) {
     return ErrnoError();
   }
 
   return Permissions(status.st_mode);
+#endif // __WINDOWS__
 }
 
 

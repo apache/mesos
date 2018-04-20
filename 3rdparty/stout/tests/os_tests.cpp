@@ -20,6 +20,7 @@
 #include <sys/types.h>
 #endif
 
+#include <algorithm>
 #include <chrono>
 #include <cstdlib> // For rand.
 #include <list>
@@ -1049,11 +1050,36 @@ TEST_F(OsTest, SYMLINK_Realpath)
   ASSERT_SOME(fs::symlink(testFile, testLink));
 
   // Validate the symlink.
+#ifdef __WINDOWS__
+  Try<int_fd> handle = os::open(testFile, O_RDONLY);
+  ASSERT_SOME(handle);
+  FILE_ID_INFO fileInfo;
+  BOOL result = ::GetFileInformationByHandleEx(
+    handle.get(), FileIdInfo, &fileInfo, sizeof(fileInfo));
+  ASSERT_SOME(os::close(handle.get()));
+  ASSERT_EQ(TRUE, result);
+
+  handle = os::open(testLink, O_RDONLY);
+  ASSERT_SOME(handle);
+  FILE_ID_INFO linkInfo;
+  result = ::GetFileInformationByHandleEx(
+    handle.get(), FileIdInfo, &linkInfo, sizeof(linkInfo));
+  ASSERT_SOME(os::close(handle.get()));
+  ASSERT_EQ(TRUE, result);
+
+  ASSERT_EQ(fileInfo.VolumeSerialNumber, linkInfo.VolumeSerialNumber);
+  ASSERT_TRUE(std::equal(
+    std::begin(fileInfo.FileId.Identifier),
+    std::end(fileInfo.FileId.Identifier),
+    std::begin(linkInfo.FileId.Identifier),
+    std::end(linkInfo.FileId.Identifier)));
+#else
   const Try<ino_t> fileInode = os::stat::inode(testFile);
   ASSERT_SOME(fileInode);
   const Try<ino_t> linkInode = os::stat::inode(testLink);
   ASSERT_SOME(linkInode);
   ASSERT_EQ(fileInode.get(), linkInode.get());
+#endif // __WINDOWS__
 
   // Verify that the symlink resolves correctly.
   Result<string> resolved = os::realpath(testLink);

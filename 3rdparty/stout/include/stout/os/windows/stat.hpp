@@ -14,6 +14,7 @@
 #define __STOUT_OS_WINDOWS_STAT_HPP__
 
 #include <string>
+#include <type_traits>
 
 #include <stout/bytes.hpp>
 #include <stout/try.hpp>
@@ -26,11 +27,6 @@
 #include <stout/internal/windows/longpath.hpp>
 #include <stout/internal/windows/reparsepoint.hpp>
 #include <stout/internal/windows/symlink.hpp>
-
-#ifdef _USE_32BIT_TIME_T
-#error "Implementation of `os::stat::mtime` assumes 64-bit `time_t`."
-#endif // _USE_32BIT_TIME_T
-
 
 namespace os {
 namespace stat {
@@ -144,94 +140,75 @@ inline Try<Bytes> size(const int_fd& fd)
 }
 
 
-// TODO(andschwa): Replace `::_stat`. See MESOS-8275.
 inline Try<long> mtime(
     const std::string& path,
     const FollowSymlink follow = FollowSymlink::FOLLOW_SYMLINK)
 {
-  if (follow == FollowSymlink::DO_NOT_FOLLOW_SYMLINK) {
-    Try<::internal::windows::SymbolicLink> symlink =
-      ::internal::windows::query_symbolic_link_data(path);
-
-    if (symlink.isSome()) {
-      return Error(
-          "Requested mtime for '" + path +
-          "', but symbolic links don't have an mtime on Windows");
-    }
+  if (follow == FollowSymlink::DO_NOT_FOLLOW_SYMLINK && islink(path)) {
+    return Error(
+        "Requested mtime for '" + path +
+        "', but symbolic links don't have an mtime on Windows");
   }
 
-  struct _stat s;
-
-  if (::_stat(path.c_str(), &s) < 0) {
-    return ErrnoError("Error invoking stat for '" + path + "'");
+  Try<SharedHandle> handle =
+    (follow == FollowSymlink::FOLLOW_SYMLINK)
+      ? ::internal::windows::get_handle_follow(path)
+      : ::internal::windows::get_handle_no_follow(path);
+  if (handle.isError()) {
+    return Error(handle.error());
   }
 
-  // To be safe, we assert that `st_mtime` is represented as `__int64`. To
-  // conform to the POSIX, we also cast `st_mtime` to `long`; we choose to make
-  // this conversion explicit because we expect the truncation to not cause
-  // information loss.
+  FILETIME filetime;
+  // The last argument is file write time, AKA modification time.
+  const BOOL result =
+    ::GetFileTime(handle->get_handle(), nullptr, nullptr, &filetime);
+  if (result == FALSE) {
+    return WindowsError();
+  }
+
+  // Convert to 64-bit integer using Windows magic.
+  ULARGE_INTEGER largetime;
+  largetime.LowPart = filetime.dwLowDateTime;
+  largetime.HighPart = filetime.dwHighDateTime;
+  // Now the `QuadPart` field is the 64-bit representation due to the
+  // layout of the `ULARGE_INTEGER` struct.
   static_assert(
-      std::is_same<__int64, __time64_t>::value,
-      "Mesos assumes `__time64_t` is represented as `__int64`");
-  return static_cast<long>(s.st_mtime);
+      sizeof(largetime.QuadPart) == sizeof(__int64),
+      "Expected `QuadPart` to be of type `__int64`");
+  const __int64 windowstime = largetime.QuadPart;
+  // A file time is a 64-bit value that represents the number of
+  // 100-nanosecond intervals that have elapsed since 1601-01-01
+  // 00:00:00 +0000. However, users of this function expect UNIX time,
+  // which is seconds elapsed since the Epoch, 1970-01-01 00:00:00
+  // +0000.
+  //
+  // So first we convert 100-nanosecond intervals into seconds by
+  // doing `(x * 100) / (1,000^3)`, or `x / 10,000,000`, and then
+  // substracting the number of seconds between 1601-01-01 and
+  // 1970-01-01, or `11,644,473,600`.
+  const __int64 unixtime = (windowstime / 10000000) - 11644473600;
+  // We choose to make this conversion explicit because we expect the
+  // truncation to not cause information loss.
+  return static_cast<long>(unixtime);
 }
 
 
-// TODO(andschwa): Replace `::_stat`. See MESOS-8275.
+// NOTE: The following are deleted because implementing them would use
+// the CRT API `_stat`, which we want to avoid, and they're not
+// currently used on Windows.
 inline Try<mode_t> mode(
-    const std::string& path,
-    const FollowSymlink follow = FollowSymlink::FOLLOW_SYMLINK)
-{
-  struct _stat s;
-
-  if (follow == FollowSymlink::DO_NOT_FOLLOW_SYMLINK && islink(path)) {
-    return Error("lstat not supported for symlink '" + path + "'");
-  }
-
-  if (::_stat(path.c_str(), &s) < 0) {
-    return ErrnoError("Error invoking stat for '" + path + "'");
-  }
-
-  return s.st_mode;
-}
+  const std::string& path,
+  const FollowSymlink follow) = delete;
 
 
-// TODO(andschwa): Replace `::_stat`. See MESOS-8275.
 inline Try<dev_t> dev(
-    const std::string& path,
-    const FollowSymlink follow = FollowSymlink::FOLLOW_SYMLINK)
-{
-  struct _stat s;
-
-  if (follow == FollowSymlink::DO_NOT_FOLLOW_SYMLINK && islink(path)) {
-    return Error("lstat not supported for symlink '" + path + "'");
-  }
-
-  if (::_stat(path.c_str(), &s) < 0) {
-    return ErrnoError("Error invoking stat for '" + path + "'");
-  }
-
-  return s.st_dev;
-}
+  const std::string& path,
+  const FollowSymlink follow) = delete;
 
 
-// TODO(andschwa): Replace `::_stat`. See MESOS-8275.
 inline Try<ino_t> inode(
-    const std::string& path,
-    const FollowSymlink follow = FollowSymlink::FOLLOW_SYMLINK)
-{
-  struct _stat s;
-
-  if (follow == FollowSymlink::DO_NOT_FOLLOW_SYMLINK) {
-      return Error("Non-following stat not supported for '" + path + "'");
-  }
-
-  if (::_stat(path.c_str(), &s) < 0) {
-    return ErrnoError("Error invoking stat for '" + path + "'");
-  }
-
-  return s.st_ino;
-}
+  const std::string& path,
+  const FollowSymlink follow) = delete;
 
 } // namespace stat {
 } // namespace os {
