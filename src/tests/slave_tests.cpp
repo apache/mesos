@@ -1265,6 +1265,93 @@ TEST_F(SlaveTest, DISABLED_ROOT_RunTaskWithCommandInfoWithUser)
 #endif // __WINDOWS__
 
 
+// This test verifies that the agent gracefully drops tasks when
+// a scheduler launches as a user that is not present on the agent.
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    SlaveTest, ROOT_RunTaskWithCommandInfoWithInvalidUser)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  // Enable `switch_user` so the agent is forced to
+  // evaluate the provided user name.
+  flags.switch_user = true;
+
+  Fetcher fetcher(flags);
+
+  Try<MesosContainerizer*> _containerizer =
+    MesosContainerizer::create(flags, false, &fetcher);
+
+  ASSERT_SOME(_containerizer);
+  Owned<MesosContainerizer> containerizer(_containerizer.get());
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), containerizer.get());
+
+  ASSERT_SOME(slave);
+
+  // Enable partition awareness so that we can expect `TASK_DROPPED`
+  // rather than `TASK_LOST`.
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::PARTITION_AWARE);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  const string taskUser = id::UUID::random().toString();
+
+  // Create a command that would trivially succeed if only
+  // the user was valid.
+  CommandInfo command;
+  command.set_user(taskUser);
+  command.set_shell(true);
+  command.set_value("true");
+
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      offers->front().resources(),
+      command);
+
+  Future<TaskStatus> statusDropped;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusDropped));
+
+  driver.launchTasks(offers->front().id(), {task});
+
+  AWAIT_READY(statusDropped);
+  EXPECT_EQ(TASK_DROPPED, statusDropped->state());
+  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, statusDropped->source());
+
+  // Since we expect the task to fail because the task user didn't
+  // exist, it's reasonable to check that the user was mentioned in
+  // the status message.
+  EXPECT_TRUE(strings::contains(statusDropped->message(), taskUser))
+    << statusDropped->message();
+
+  driver.stop();
+  driver.join();
+}
+
+
 // This test ensures that a status update acknowledgement from a
 // non-leading master is ignored.
 TEST_F(SlaveTest, IgnoreNonLeaderStatusUpdateAcknowledgement)
