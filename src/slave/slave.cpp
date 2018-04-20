@@ -8872,6 +8872,7 @@ Executor* Framework::addExecutor(const ExecutorInfo& executorInfo)
   containerId.set_value(id::UUID::random().toString());
 
   Option<string> user = None();
+
 #ifndef __WINDOWS__
   if (slave->flags.switch_user) {
     // The command (either in form of task or executor command) can
@@ -8891,7 +8892,7 @@ Executor* Framework::addExecutor(const ExecutorInfo& executorInfo)
 #endif // __WINDOWS__
 
   // Create a directory for the executor.
-  const string directory = paths::createExecutorDirectory(
+  Try<string> directory = paths::createExecutorDirectory(
       slave->flags.work_dir,
       slave->info.id(),
       id(),
@@ -8899,12 +8900,14 @@ Executor* Framework::addExecutor(const ExecutorInfo& executorInfo)
       containerId,
       user);
 
+  CHECK_SOME(directory);
+
   Executor* executor = new Executor(
       slave,
       id(),
       executorInfo,
       containerId,
-      directory,
+      directory.get(),
       user,
       info.checkpoint());
 
@@ -8920,7 +8923,7 @@ Executor* Framework::addExecutor(const ExecutorInfo& executorInfo)
   LOG(INFO) << "Launching executor '" << executorInfo.executor_id()
             << "' of framework " << id()
             << " with resources " << executorInfo.resources()
-            << " in work directory '" << directory << "'";
+            << " in work directory '" << directory.get() << "'";
 
   const ExecutorID& executorId = executorInfo.executor_id();
   FrameworkID frameworkId = id();
@@ -9610,8 +9613,10 @@ void Executor::checkpointExecutor()
 
   // Create the meta executor directory.
   // NOTE: This creates the 'latest' symlink in the meta directory.
-  paths::createExecutorDirectory(
+  Try<string> mkdir = paths::createExecutorDirectory(
       slave->metaDir, slave->info.id(), frameworkId, id, containerId);
+
+  CHECK_SOME(mkdir);
 }
 
 
