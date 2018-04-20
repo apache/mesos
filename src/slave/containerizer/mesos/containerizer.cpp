@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <set>
+#include <utility>
 
 #include <mesos/module/isolator.hpp>
 
@@ -128,6 +129,7 @@ using process::http::Connection;
 
 using std::list;
 using std::map;
+using std::pair;
 using std::set;
 using std::string;
 using std::vector;
@@ -175,33 +177,36 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     return Error(isolations.error());
   }
 
-  // TODO(jpeach) We need to preserve the original ordering of the
-  // `--isolation` flag as per MESOS-7643.
-
-  if (flags.isolation == "process") {
-    LOG(WARNING) << "The 'process' isolation flag is deprecated, "
-                 << "please update your flags to "
-                 << "'--isolation=posix/cpu,posix/mem' (or "
-                 << "'--isolation=windows/cpu,windows/mem' "
-                 << "if you are on Windows).";
-
-    isolations->erase("process");
-
-#ifndef __WINDOWS__
-    isolations->insert("posix/cpu");
-    isolations->insert("posix/mem");
+  const hashmap<string, vector<string>> deprecations = {
+#ifdef __WINDOWS__
+    {"process", {"windows/cpu", "windows/mem"}},
 #else
-    isolations->insert("windows/cpu");
-    isolations->insert("windows/mem");
+    {"process", {"posix/cpu", "posix/mem"}},
 #endif // __WINDOWS__
-  } else if (flags.isolation == "cgroups") {
-    LOG(WARNING) << "The 'cgroups' isolation flag is deprecated, "
-                 << "please update your flags to"
-                 << " '--isolation=cgroups/cpu,cgroups/mem'.";
 
-    isolations->erase("cgroups");
-    isolations->insert("cgroups/cpu");
-    isolations->insert("cgroups/mem");
+#ifdef __linux__
+    {"cgroups", {"cgroups/cpu", "cgroups/mem"}},
+#endif // __linux__
+
+    {"posix/disk", {"disk/du"}}
+  };
+
+  // Replace any deprecated isolator names with their current equivalents.
+  foreachpair (const string& name,
+               const vector<string>& replacements,
+               deprecations) {
+    if (isolations->contains(name)) {
+      LOG(WARNING)
+        << "The '" << name << "' isolation flag is deprecated, "
+        << "please update your flags to"
+        << " '--isolation=" << strings::join(",", replacements) << "'.";
+
+      isolations->erase(name);
+
+      foreach (const string& isolator, replacements) {
+        isolations->insert(isolator);
+      }
+    }
   }
 
   // One and only one filesystem isolator is required. The filesystem
@@ -216,10 +221,10 @@ Try<MesosContainerizer*> MesosContainerizer::create(
         return strings::startsWith(s, "filesystem/");
       })) {
     case 0:
-#ifndef __WINDOWS__
-      isolations->insert("filesystem/posix");
-#else
+#ifdef __WINDOWS__
       isolations->insert("filesystem/windows");
+#else
+      isolations->insert("filesystem/posix");
 #endif // __WINDOWS__
       break;
 
@@ -229,16 +234,6 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     default:
       return Error(
           "Using multiple filesystem isolators simultaneously is disallowed");
-  }
-
-  if (isolations->contains("posix/disk")) {
-    LOG(WARNING) << "'posix/disk' has been renamed as 'disk/du', "
-                 << "please update your --isolation flag to use 'disk/du'";
-
-    if (isolations->contains("disk/du")) {
-      return Error(
-          "Using 'posix/disk' and 'disk/du' simultaneously is disallowed");
-    }
   }
 
 #ifdef __linux__
@@ -269,9 +264,6 @@ Try<MesosContainerizer*> MesosContainerizer::create(
           "Using multiple network isolators simultaneously is disallowed");
   }
 
-  // TODO(gilbert): Make sure the 'gpu/nvidia' isolator to be created
-  // after all volume isolators, so that the nvidia gpu libraries
-  // '/usr/local/nvidia' will be overwritten.
   if (isolations->contains("filesystem/linux")) {
     // Always enable 'volume/image', 'volume/host_path',
     // 'volume/sandbox_path' on linux if 'filesystem/linux' is enabled
@@ -341,55 +333,46 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 
   Shared<Provisioner> provisioner = _provisioner->share();
 
-  // Create the isolators.
+  // Built-in isolator definitions.
   //
-  // Currently, the order of the entries in the --isolation flag
-  // specifies the ordering of the isolators. Specifically, the
-  // `create` and `prepare` calls for each isolator are run serially
-  // in the order in which they appear in the --isolation flag, while
-  // the `cleanup` call is serialized in reverse order.
+  // The order of the entries in this table specifies the ordering of the
+  // isolators. Specifically, the `create` and `prepare` calls for each
+  // isolator are run serially in the order in which they appear in the
+  // table, while the `cleanup` call is serialized in reverse order.
   //
-  // It is the responsibility of each isolator to check its
-  // dependency requirements (if any) during its `create`
-  // execution. This means that if the operator specifies the
-  // flags in the wrong order, it will produce an error during
-  // isolator creation.
-  //
-  // NOTE: We ignore the placement of the filesystem isolator in
-  // the --isolation flag and place it at the front of the isolator
-  // list. This is a temporary hack until isolators are able to
-  // express and validate their ordering requirements.
-
-  const hashmap<string, lambda::function<Try<Isolator*>(const Flags&)>>
+  // The ordering of isolators below is:
+  //  - filesystem
+  //  - runtime (ie. resources, etc)
+  //  - volumes
+  //  - disk
+  //  - gpu
+  //  - network
+  //  - miscellaneous
+  const vector<pair<string, lambda::function<Try<Isolator*>(const Flags&)>>>
     creators = {
     // Filesystem isolators.
-#ifndef __WINDOWS__
-    {"filesystem/posix", &PosixFilesystemIsolatorProcess::create},
-#else
+
+#ifdef __WINDOWS__
     {"filesystem/windows", &WindowsFilesystemIsolatorProcess::create},
+#else
+    {"filesystem/posix", &PosixFilesystemIsolatorProcess::create},
 #endif // __WINDOWS__
+
 #ifdef __linux__
     {"filesystem/linux", &LinuxFilesystemIsolatorProcess::create},
-
     // TODO(jieyu): Deprecate this in favor of using filesystem/linux.
     {"filesystem/shared", &SharedFilesystemIsolatorProcess::create},
 #endif // __linux__
 
     // Runtime isolators.
+
 #ifndef __WINDOWS__
     {"posix/cpu", &PosixCpuIsolatorProcess::create},
     {"posix/mem", &PosixMemIsolatorProcess::create},
     {"posix/rlimits", &PosixRLimitsIsolatorProcess::create},
+#endif // __WINDOWS__
 
-    // "posix/disk" is deprecated in favor of the name "disk/du".
-    {"posix/disk", &PosixDiskIsolatorProcess::create},
-    {"disk/du", &PosixDiskIsolatorProcess::create},
-    {"volume/sandbox_path", &VolumeSandboxPathIsolatorProcess::create},
-
-#if ENABLE_XFS_DISK_ISOLATOR
-    {"disk/xfs", &XfsDiskIsolatorProcess::create},
-#endif // ENABLE_XFS_DISK_ISOLATOR
-#else
+#ifdef __WINDOWS__
     {"windows/cpu", &WindowsCpuIsolatorProcess::create},
     {"windows/mem", &WindowsMemIsolatorProcess::create},
 #endif // __WINDOWS__
@@ -405,12 +388,22 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     {"cgroups/net_prio", &CgroupsIsolatorProcess::create},
     {"cgroups/perf_event", &CgroupsIsolatorProcess::create},
     {"cgroups/pids", &CgroupsIsolatorProcess::create},
+
     {"appc/runtime", &AppcRuntimeIsolatorProcess::create},
     {"docker/runtime", &DockerRuntimeIsolatorProcess::create},
-    {"docker/volume", &DockerVolumeIsolatorProcess::create},
-    {"linux/capabilities", &LinuxCapabilitiesIsolatorProcess::create},
-    {"volume/host_path", &VolumeHostPathIsolatorProcess::create},
 
+    {"linux/capabilities", &LinuxCapabilitiesIsolatorProcess::create},
+
+    {"namespaces/ipc", &NamespacesIPCIsolatorProcess::create},
+    {"namespaces/pid", &NamespacesPidIsolatorProcess::create},
+#endif // __linux__
+
+    // Volume isolators.
+
+#ifdef __linux__
+    {"docker/volume", &DockerVolumeIsolatorProcess::create},
+    {"volume/sandbox_path", &VolumeSandboxPathIsolatorProcess::create},
+    {"volume/host_path", &VolumeHostPathIsolatorProcess::create},
     {"volume/image",
       [&provisioner] (const Flags& flags) -> Try<Isolator*> {
         return VolumeImageIsolatorProcess::create(flags, provisioner);
@@ -420,7 +413,24 @@ Try<MesosContainerizer*> MesosContainerizer::create(
       [secretResolver] (const Flags& flags) -> Try<Isolator*> {
         return VolumeSecretIsolatorProcess::create(flags, secretResolver);
       }},
+#endif // __linux__
 
+    // Disk isolators.
+
+#ifndef __WINDOWS__
+    {"disk/du", &PosixDiskIsolatorProcess::create},
+#endif // !__WINDOWS__
+
+#if ENABLE_XFS_DISK_ISOLATOR
+    {"disk/xfs", &XfsDiskIsolatorProcess::create},
+#endif // ENABLE_XFS_DISK_ISOLATOR
+
+    // GPU isolators.
+
+#ifdef __linux__
+    // The 'gpu/nvidia' isolator must be created after all volume
+    // isolators, so that the nvidia gpu libraries '/usr/local/nvidia'
+    // will not be overwritten.
     {"gpu/nvidia",
       [&nvidia] (const Flags& flags) -> Try<Isolator*> {
         if (!nvml::isAvailable()) {
@@ -433,9 +443,11 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 
         return NvidiaGpuIsolatorProcess::create(flags, nvidia.get());
       }},
+#endif // __linux__
 
-    {"namespaces/ipc", &NamespacesIPCIsolatorProcess::create},
-    {"namespaces/pid", &NamespacesPidIsolatorProcess::create},
+    // Network isolators.
+
+#ifdef __linux__
     {"network/cni", &NetworkCniIsolatorProcess::create},
 #endif // __linux__
 
@@ -446,6 +458,8 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 #ifdef ENABLE_NETWORK_PORTS_ISOLATOR
     {"network/ports", &NetworkPortsIsolatorProcess::create},
 #endif
+
+    // Secrets isolators.
 
     {"environment_secret",
       [secretResolver] (const Flags& flags) -> Try<Isolator*> {
@@ -460,38 +474,58 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   // been created or not.
   bool cgroupsIsolatorCreated = false;
 
-  foreach (const string& isolation, isolations.get()) {
-    if (strings::startsWith(isolation, "cgroups/")) {
-      if (cgroupsIsolatorCreated) {
-        // Skip when `CgroupsIsolatorProcess` have been created.
-        continue;
-      } else {
-        cgroupsIsolatorCreated = true;
-      }
+  // First, apply the built-in isolators, in dependency order.
+  foreach (const auto& creator, creators) {
+    if (!isolations->contains(creator.first)) {
+      continue;
     }
 
-    Try<Isolator*> isolator = [&]() -> Try<Isolator*> {
-      if (creators.contains(isolation)) {
-        return creators.at(isolation)(flags);
-      } else if (ModuleManager::contains<Isolator>(isolation)) {
-        return ModuleManager::create<Isolator>(isolation);
+    if (strings::startsWith(creator.first, "cgroups/")) {
+      if (cgroupsIsolatorCreated) {
+        // Skip when `CgroupsIsolatorProcess` have already been created.
+        continue;
       }
-      return Error("Unknown or unsupported isolator");
-    }();
 
+      cgroupsIsolatorCreated = true;
+    }
+
+    Try<Isolator*> isolator = creator.second(flags);
     if (isolator.isError()) {
-      return Error("Failed to create isolator '" + isolation + "': " +
+      return Error("Failed to create isolator '" + creator.first + "': " +
                    isolator.error());
     }
 
-    // NOTE: The filesystem isolator must be the first isolator used
-    // so that the runtime isolators can have a consistent view on the
-    // prepared filesystem (e.g., any volume mounts are performed).
-    if (strings::contains(isolation, "filesystem/")) {
-      isolators.insert(isolators.begin(), Owned<Isolator>(isolator.get()));
-    } else {
+    isolators.push_back(Owned<Isolator>(isolator.get()));
+  }
+
+  // Next, apply any custom isolators in the order given by the flags.
+  foreach (const string& name, strings::tokenize(flags.isolation, ",")) {
+    if (ModuleManager::contains<Isolator>(name)) {
+      Try<Isolator*> isolator = ModuleManager::create<Isolator>(name);
+
+      if (isolator.isError()) {
+        return Error("Failed to create isolator '" + name + "': " +
+                    isolator.error());
+      }
+
       isolators.push_back(Owned<Isolator>(isolator.get()));
+      continue;
     }
+
+    if (deprecations.contains(name)) {
+      continue;
+    }
+
+    if (std::find_if(
+        creators.begin(),
+        creators.end(),
+        [&name] (const decltype(creators)::value_type& creator) {
+          return creator.first == name;
+        }) != creators.end()) {
+      continue;
+    }
+
+    return Error("Unknown or unsupported isolator '" + name + "'");
   }
 
   return MesosContainerizer::create(
