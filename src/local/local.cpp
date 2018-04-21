@@ -57,6 +57,10 @@
 #include <stout/strings.hpp>
 
 #ifdef USE_SSL_SOCKET
+#include <stout/os/permissions.hpp>
+#endif // USE_SSL_SOCKET
+
+#ifdef USE_SSL_SOCKET
 #include "authentication/executor/jwt_secret_generator.hpp"
 #endif // USE_SSL_SOCKET
 
