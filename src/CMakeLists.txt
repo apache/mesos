@@ -30,6 +30,7 @@ set(JAVA_PROTOBUF_SRC "")
 #
 # NOTE: The following `PROTOC_GENERATE` calls will list append to
 # `PUBLIC_PROTO_PATH`, `PUBLIC_PROTOBUF_INCLUDE_DIR` and `PUBLIC_PROTOBUF_SRC`.
+# The GRPC option is a noop if gRPC is disabled.
 PROTOC_GENERATE(GRPC LIB csi TARGET csi)
 
 # NOTE: The following `PROTOC_GENERATE` calls will list append to
@@ -84,6 +85,8 @@ PROTOC_GENERATE(INTERNAL TARGET slave/containerizer/mesos/provisioner/docker/mes
 PROTOC_GENERATE(INTERNAL TARGET master/registry)
 PROTOC_GENERATE(INTERNAL TARGET resource_provider/registry)
 PROTOC_GENERATE(INTERNAL TARGET resource_provider/state)
+PROTOC_GENERATE(INTERNAL TARGET resource_provider/storage/disk_profile)
+PROTOC_GENERATE(INTERNAL TARGET csi/state)
 
 
 # BUILD PROTOBUFS.
@@ -104,7 +107,10 @@ add_library(
   ${PUBLIC_PROTOBUF_SRC}
   ${INTERNAL_PROTOBUF_SRC})
 
-target_link_libraries(mesos-protobufs PUBLIC protobuf)
+target_link_libraries(mesos-protobufs PUBLIC
+  protobuf
+  $<$<BOOL:${ENABLE_GRPC}>:grpc>)
+
 target_include_directories(
   mesos-protobufs
   PUBLIC
@@ -231,7 +237,13 @@ set(COMMON_SRC
   common/values.cpp)
 
 set(CSI_SRC
-  csi/paths.cpp)
+  csi/paths.cpp
+  csi/utils.cpp)
+
+if (ENABLE_GRPC)
+  list(APPEND CSI_SRC
+    csi/client.cpp)
+endif ()
 
 set(DOCKER_SRC
   docker/docker.cpp
@@ -369,7 +381,15 @@ set(RESOURCE_PROVIDER_SRC
   resource_provider/manager.cpp
   resource_provider/registrar.cpp
   resource_provider/validation.cpp
-  resource_provider/storage/disk_profile_adaptor.cpp)
+  resource_provider/storage/disk_profile_adaptor.cpp
+  resource_provider/storage/disk_profile_utils.cpp)
+
+# NOTE: The storage local resource provider uses Unix domain sockets to talk to
+# CSI plugins, thus it is currently not supported on Windows.
+if (ENABLE_GRPC AND NOT WIN32)
+  list(APPEND RESOURCE_PROVIDER_SRC
+    resource_provider/storage/provider.cpp)
+endif ()
 
 set(SCHEDULER_SRC
   sched/sched.cpp
@@ -381,15 +401,15 @@ set(SECRET_SRC
 set(STATE_SRC
   state/in_memory.cpp)
 
-set(STATUS_UPDATE_MANAGER_SRC
-  status_update_manager/operation.cpp)
-
 if (NOT WIN32)
   list(APPEND STATE_SRC
     state/leveldb.cpp
     state/log.cpp
     state/zookeeper.cpp)
 endif ()
+
+set(STATUS_UPDATE_MANAGER_SRC
+  status_update_manager/operation.cpp)
 
 set(URI_SRC
   uri/fetcher.cpp
@@ -543,6 +563,7 @@ add_subdirectory(local)
 add_subdirectory(log)
 add_subdirectory(master)
 add_subdirectory(python/cli_new)
+add_subdirectory(resource_provider/storage)
 add_subdirectory(slave)
 add_subdirectory(slave/containerizer/mesos)
 add_subdirectory(usage)

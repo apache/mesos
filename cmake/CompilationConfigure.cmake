@@ -478,6 +478,11 @@ add_definitions(
   -DVERSION="${PACKAGE_VERSION}"
   -DPKGDATADIR="${DATA_INSTALL_PREFIX}")
 
+if (ENABLE_GRPC)
+  # TODO(chhsiao): Make this non-global.
+  add_definitions(-DENABLE_GRPC=1)
+endif ()
+
 if (ENABLE_SSL)
   # TODO(andschwa): Make this non-global.
   add_definitions(-DUSE_SSL_SOCKET=1)

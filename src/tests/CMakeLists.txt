@@ -70,6 +70,12 @@ if (LINUX)
     containerizer/setns_test_helper.cpp)
 endif ()
 
+if (ENABLE_GRPC)
+  list(APPEND MESOS_TESTS_UTILS_SRC
+    csi_client_tests.cpp
+    mock_csi_plugin.cpp)
+endif ()
+
 
 # All the test sources.
 #######################
@@ -156,6 +162,7 @@ list(APPEND MESOS_TESTS_SRC
 if (NOT WIN32)
   list(APPEND MESOS_TESTS_SRC
     container_logger_tests.cpp
+    disk_profile_adaptor_tests.cpp
     disk_quota_tests.cpp
     dynamic_weights_tests.cpp
     examples_tests.cpp
@@ -228,20 +235,30 @@ if (LINUX)
     containerizer/volume_host_path_isolator_tests.cpp
     containerizer/volume_image_isolator_tests.cpp
     containerizer/volume_secret_isolator_tests.cpp)
+
+  if (ENABLE_GRPC)
+    list(APPEND MESOS_TESTS_SRC
+      agent_resource_provider_config_api_tests.cpp
+      storage_local_resource_provider_tests.cpp)
+  endif ()
 endif ()
 
 
 # THE TEST AND HELPER EXECUTABLES.
 ##################################
 add_library(mesos-tests-interface INTERFACE)
-target_link_libraries(mesos-tests-interface INTERFACE mesos googletest)
+target_link_libraries(
+  mesos-tests-interface INTERFACE
+  mesos
+  googletest)
 
 if (NOT WIN32)
   target_link_libraries(
     mesos-tests-interface INTERFACE
     load_qos_controller
     fixed_resource_estimator
-    logrotate_container_logger)
+    logrotate_container_logger
+    uri_disk_profile_adaptor)
 endif ()
 
 target_compile_definitions(
@@ -313,8 +330,16 @@ if (NOT WIN32)
     persistent-volume-framework
     test-executor
     test-framework
+    test-csi-user-framework
     test-http-executor
     test-http-framework)
+
+  # SLRP-related tests are Linux only and require the test CSI plugin binary.
+  if (ENABLE_GRPC AND LINUX)
+    add_dependencies(
+      mesos-tests
+      test-csi-plugin)
+  endif ()
 endif ()
 
 
