@@ -127,20 +127,22 @@ function(PROTOC_GENERATE)
     list(APPEND PROTOC_OPTIONS -I${INTERNAL_PROTO_PATH})
   endif ()
 
-  if (PROTOC_GRPC AND HAS_GRPC)
-    # TODO(chhsiao): Add the gRPC plugin.
-    list(APPEND PROTOC_OPTIONS --grpc_out=${CPP_OUT})
+  if (PROTOC_GRPC AND ENABLE_GRPC)
+    list(APPEND PROTOC_OPTIONS
+      --grpc_out=${CPP_OUT}
+      --plugin=protoc-gen-grpc=$<TARGET_FILE:grpc_cpp_plugin>)
   endif ()
 
   if (JAVA_OUT)
-    list(APPEND PROTOC_OPTIONS --java_out=${JAVA_OUT})
+    list(APPEND PROTOC_OPTIONS
+      --java_out=${JAVA_OUT})
   endif ()
 
   # Fully qualified paths for the output .pb.h and .pb.cc files.
   set(CC ${CPP_OUT}/${PROTOC_TARGET}.pb.cc)
   set(H ${CPP_OUT}/${PROTOC_TARGET}.pb.h)
 
-  if (PROTOC_GRPC AND HAS_GRPC)
+  if (PROTOC_GRPC AND ENABLE_GRPC)
     set(GRPC_CC ${CPP_OUT}/${PROTOC_TARGET}.grpc.pb.cc)
     set(GRPC_H ${CPP_OUT}/${PROTOC_TARGET}.grpc.pb.h)
   endif ()
@@ -208,8 +210,12 @@ function(PROTOC_GENERATE)
     endif ()
   endif ()
 
+  # Make sure that the gRPC plugin is built.
+  if (PROTOC_GRPC AND ENABLE_GRPC)
+    list(APPEND PROTOC_DEPENDS grpc_cpp_plugin)
+  endif ()
+
   # Compile the .proto file.
-  # TODO(chhsiao): Add a gRPC dependency.
   add_custom_command(
     OUTPUT ${CC} ${H} ${GRPC_CC} ${GRPC_H} ${JAVA}
     COMMAND protoc ${PROTOC_OPTIONS} ${PROTO}

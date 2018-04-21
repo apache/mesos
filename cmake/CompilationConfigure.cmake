@@ -75,6 +75,11 @@ option(
   TRUE)
 
 option(
+  ENABLE_GRPC
+  "Build libprocess with gRPC support."
+  FALSE)
+
+option(
   ENABLE_LIBEVENT
   "Use libevent instead of libev as the core event loop implementation."
   FALSE)
