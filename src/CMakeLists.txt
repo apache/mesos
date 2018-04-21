@@ -29,6 +29,10 @@ set(JAVA_PROTOBUF_SRC "")
 # Build the protobuf structs.
 #
 # NOTE: The following `PROTOC_GENERATE` calls will list append to
+# `PUBLIC_PROTO_PATH`, `PUBLIC_PROTOBUF_INCLUDE_DIR` and `PUBLIC_PROTOBUF_SRC`.
+PROTOC_GENERATE(GRPC LIB csi TARGET csi)
+
+# NOTE: The following `PROTOC_GENERATE` calls will list append to
 # `PUBLIC_PROTOBUF_SRC`.
 PROTOC_GENERATE(TARGET mesos/agent/agent)
 PROTOC_GENERATE(TARGET mesos/allocator/allocator)
@@ -364,7 +368,8 @@ set(RESOURCE_PROVIDER_SRC
   resource_provider/local.cpp
   resource_provider/manager.cpp
   resource_provider/registrar.cpp
-  resource_provider/validation.cpp)
+  resource_provider/validation.cpp
+  resource_provider/storage/disk_profile_adaptor.cpp)
 
 set(SCHEDULER_SRC
   sched/sched.cpp
