@@ -71,6 +71,11 @@ else ()
     subprocess_posix.cpp)
 endif ()
 
+if (ENABLE_GRPC)
+  list(APPEND PROCESS_SRC
+    grpc.cpp)
+endif ()
+
 if (ENABLE_LIBEVENT)
   list(APPEND PROCESS_SRC
     libevent.hpp
@@ -102,6 +107,7 @@ target_link_libraries(
   process PUBLIC
   stout
   http_parser
+  $<$<BOOL:${ENABLE_GRPC}>:grpc>
   $<$<BOOL:${ENABLE_SSL}>:OpenSSL::SSL>
   $<$<BOOL:${ENABLE_SSL}>:OpenSSL::Crypto>)
 

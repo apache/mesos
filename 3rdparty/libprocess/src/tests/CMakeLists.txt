@@ -49,6 +49,28 @@ if (NOT WIN32)
     reap_tests.cpp)
 endif ()
 
+if (ENABLE_GRPC)
+  set(GRPC_TESTS_PROTOS
+    grpc_tests.grpc.pb.cc
+    grpc_tests.grpc.pb.h
+    grpc_tests.pb.cc
+    grpc_tests.pb.h)
+
+  list(APPEND PROCESS_TESTS_SRC
+    grpc_tests.cpp
+    ${GRPC_TESTS_PROTOS})
+
+  add_custom_command(
+    OUTPUT ${GRPC_TESTS_PROTOS}
+    COMMAND protoc
+      -I${CMAKE_CURRENT_SOURCE_DIR}
+      --cpp_out=${CMAKE_CURRENT_BINARY_DIR}
+      --grpc_out=${CMAKE_CURRENT_BINARY_DIR}
+      --plugin=protoc-gen-grpc=$<TARGET_FILE:grpc_cpp_plugin>
+      ${CMAKE_CURRENT_SOURCE_DIR}/grpc_tests.proto
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/grpc_tests.proto)
+endif ()
+
 if (ENABLE_SSL)
   list(APPEND PROCESS_TESTS_SRC
     jwt_tests.cpp
@@ -61,6 +83,9 @@ target_include_directories(process-interface INTERFACE ..)
 
 add_executable(libprocess-tests EXCLUDE_FROM_ALL ${PROCESS_TESTS_SRC})
 target_link_libraries(libprocess-tests PRIVATE process-interface)
+
+# NOTE: This is for the generated gRPC headers.
+target_include_directories(libprocess-tests PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
 target_compile_definitions(
   libprocess-tests PRIVATE
