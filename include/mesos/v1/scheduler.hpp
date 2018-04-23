@@ -28,6 +28,10 @@
 
 #include <mesos/v1/scheduler/scheduler.hpp>
 
+#include <process/future.hpp>
+
+#include <stout/option.hpp>
+
 namespace mesos {
 
 namespace master {
@@ -48,6 +52,7 @@ public:
   // Empty virtual destructor (necessary to instantiate subclasses).
   virtual ~MesosBase() {}
   virtual void send(const Call& call) = 0;
+  virtual process::Future<APIResult> call(const Call& callMessage) = 0;
   virtual void reconnect() = 0;
 };
 
@@ -93,6 +98,40 @@ public:
   // calls are sent but no master is currently detected (i.e., we're
   // disconnected).
   virtual void send(const Call& call) override;
+
+  // Attempts to send a call to the master, returning the response.
+  //
+  // The scheduler should only invoke this method once it has received the
+  // 'connected' callback. Otherwise, a `Failure` will be returned.
+  //
+  // Some local validation of calls is performed, and the request will not be
+  // sent to the master if the validation fails.
+  //
+  // A `Failure` will be returned on validation failures or if an error happens
+  // when sending the request to the master, e.g., a master disconnection, or a
+  // deserialization error.
+  //
+  // If it was possible to receive a response from the server, the returned
+  // object will contain the HTTP response status code.
+  //
+  // There are three cases to consider depending on the HTTP response status
+  // code:
+  //
+  //  (1) '202 ACCEPTED': Indicates the call was accepted for processing and
+  //      neither `APIResult::response` nor `APIResult::error` will be set.
+  //
+  //  (2) '200 OK': Indicates the call completed successfully.
+  //      `APIResult::response` will be set if the `scheduler::Call::Type`
+  //      has a corresponding `scheduler::Response::Type`, `APIResult::error`
+  //      will not be set.
+  //
+  //  (3) For all other HTTP status codes, the `APIResult::response` field will
+  //      not be set and the `APIResult::error` field may be set to provide more
+  //      information.
+  //
+  // Note: This method cannot be used to send `SUBSCRIBE` calls, use `send()`
+  // instead.
+  virtual process::Future<APIResult> call(const Call& callMessage) override;
 
   // Force a reconnection with the master.
   //

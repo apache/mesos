@@ -114,6 +114,7 @@ using mesos::internal::recordio::Reader;
 using mesos::master::detector::MasterDetector;
 
 using process::collect;
+using process::Failure;
 using process::Owned;
 using process::wait; // Necessary on some OS's to disambiguate.
 
@@ -261,6 +262,49 @@ public:
     // TODO(tillt): Add support for multi-step authentication protocols.
     authenticatee->authenticate(request, credential)
       .onAny(defer(self(), &Self::_send, call, lambda::_1));
+  }
+
+  Future<APIResult> call(const Call& callMessage)
+  {
+    Option<Error> error =
+      validation::scheduler::call::validate(devolve(callMessage));
+
+    if (error.isSome()) {
+      return Failure(error->message);
+    }
+
+    if (callMessage.type() == Call::SUBSCRIBE) {
+      return Failure("This method doesn't support SUBSCRIBE calls");
+    }
+
+    if (state != SUBSCRIBED) {
+      return Failure(
+          "Cannot perform calls until subscribed. Current state: " +
+          stringify(state));
+    }
+
+    VLOG(1) << "Sending " << callMessage.type() << " call to " << master.get();
+
+    // TODO(vinod): Add support for sending MESSAGE calls directly
+    // to the slave, instead of relaying it through the master, as
+    // the scheduler driver does.
+
+    process::http::Request request;
+    request.method = "POST";
+    request.url = master.get();
+    request.body = serialize(contentType, callMessage);
+    request.keepAlive = true;
+    request.headers = {{"Accept", stringify(contentType)},
+                       {"Content-Type", stringify(contentType)}};
+
+    // TODO(tillt): Add support for multi-step authentication protocols.
+    return authenticatee->authenticate(request, credential)
+      .recover([](const Future<process::http::Request>& future) {
+        return Failure(
+            stringify("HTTP authenticatee ") +
+            (future.isFailed() ? "failed: " + future.failure() : "discarded"));
+      })
+      .then(defer(self(), &Self::_call, callMessage, lambda::_1));
   }
 
   void reconnect()
@@ -675,6 +719,68 @@ protected:
           response->body + ") for " + stringify(call.type()));
   }
 
+  Future<APIResult> _call(
+      const Call& callMessage,
+      process::http::Request request)
+  {
+    if (connections.isNone()) {
+      return Failure("Connection to master interrupted");
+    }
+
+    Future<process::http::Response> response;
+
+    CHECK_SOME(streamId);
+
+    // Set the stream ID associated with this connection.
+    request.headers["Mesos-Stream-Id"] = streamId->toString();
+
+    CHECK_SOME(connectionId);
+
+    return connections->nonSubscribe.send(request)
+      .then(defer(self(),
+                  &Self::__call,
+                  callMessage,
+                  lambda::_1));
+  }
+
+  Future<APIResult> __call(
+      const Call& callMessage,
+      const process::http::Response& response)
+  {
+    APIResult result;
+
+    result.set_status_code(response.code);
+
+    if (response.code == process::http::Status::ACCEPTED) {
+      // "202 Accepted" responses are asynchronously processed, so the body
+      // should be empty.
+      if (!response.body.empty()) {
+        LOG(WARNING) << "Response for " << callMessage.type()
+                     << " unexpectedly included body: '" << response.body
+                     << "'";
+      }
+    } else if (response.code == process::http::Status::OK) {
+      if (!response.body.empty()) {
+        Try<Response> deserializedResponse =
+          deserialize<Response>(contentType, response.body);
+
+        if (deserializedResponse.isError()) {
+          return Failure(
+              "Failed to deserialize the response '" + response.status + "'" +
+              " (" + response.body + "): " + deserializedResponse.error());
+        }
+
+        *result.mutable_response() = deserializedResponse.get();
+      }
+    } else {
+      result.set_error(
+          "Received unexpected '" + response.status + "'" + " (" +
+          response.body + ")");
+    }
+
+    return result;
+  }
+
   void read()
   {
     subscribed->decoder->read()
@@ -915,6 +1021,11 @@ Mesos::~Mesos()
 void Mesos::send(const Call& call)
 {
   dispatch(process, &MesosProcess::send, call);
+}
+
+Future<APIResult> Mesos::call(const Call& callMessage)
+{
+  return dispatch(process, &MesosProcess::call, callMessage);
 }
 
 

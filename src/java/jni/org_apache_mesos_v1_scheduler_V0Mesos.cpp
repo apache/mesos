@@ -28,6 +28,7 @@
 #include <process/clock.hpp>
 #include <process/delay.hpp>
 #include <process/dispatch.hpp>
+#include <process/future.hpp>
 #include <process/id.hpp>
 #include <process/owned.hpp>
 #include <process/process.hpp>
@@ -131,6 +132,14 @@ public:
   virtual void reconnect() override
   {
     // The driver does not support explicit reconnection with the master.
+    UNREACHABLE();
+  }
+
+  virtual process::Future<v1::scheduler::APIResult> call(
+      const v1::scheduler::Call& callMessage) override
+  {
+    // The driver does not support sending a `v1::scheduler::Call` that returns
+    // a `v1::scheduler::Response`.
     UNREACHABLE();
   }
 
