@@ -34,8 +34,11 @@ The scheduler interacts with Mesos via the [/api/v1/scheduler](endpoints/master/
 
 **Schedulers are expected to keep the subscription connection open as long as possible (barring errors in network, software, hardware, etc.) and incrementally process the response.** HTTP client libraries that can only parse the response after the connection is closed cannot be used. For the encoding used, please refer to **Events** section below.
 
-All subsequent (non-`SUBSCRIBE`) requests to the "/scheduler" endpoint (see details below in **Calls** section) must be sent using a different connection than the one used for subscription. The master responds to these HTTP POST requests with "202 Accepted" status codes (or, for unsuccessful requests, with 4xx or 5xx status codes; details in later sections). The "202 Accepted" response means that a request has been accepted for processing, not that the processing of the request has been completed. The request might or might not be acted upon by Mesos (e.g., master fails during the processing of the request). Any asynchronous responses from these requests will be streamed on the long-lived subscription connection. Schedulers can submit requests using more than one different HTTP connection.
+All subsequent (non-`SUBSCRIBE`) requests to the "/scheduler" endpoint (see details below in **Calls** section) must be sent using a different connection than the one used for subscription. Schedulers can submit requests using more than one different HTTP connection.
 
+The master responds to HTTP POST requests that require asynchronous processing with status **202 Accepted** (or, for unsuccessful requests, with 4xx or 5xx status codes; details in later sections). The **202 Accepted** response means that a request has been accepted for processing, not that the processing of the request has been completed. The request might or might not be acted upon by Mesos (e.g., master fails during the processing of the request). Any asynchronous responses from these requests will be streamed on the long-lived subscription connection.
+
+The master responds to HTTP POST requests that can be answered synchronously and immediately with status **200 OK** (or, for unsuccessful requests, with 4xx or 5xx status codes; details in later sections), possibly including a response body encoded in JSON or Protobuf. The encoding depends on the **Accept** header present in the request (the default encoding is JSON).
 
 ## Calls
 
@@ -170,6 +173,10 @@ Sent by the scheduler when it accepts offer(s) sent by the master. The `ACCEPT` 
 The scheduler API uses `Filters.refuse_seconds` to specify the duration for which resources are considered declined. If `filters` is not set, then the default value defined in [mesos.proto](https://github.com/apache/mesos/blob/master/include/mesos/v1/mesos.proto) will be used.
 
 NOTE: Mesos will cap `Filters.refuse_seconds` at 31536000 seconds (365 days).
+
+The master will send task status updates in response to `LAUNCH` and `LAUNCH_GROUP` operations. For other types of operations, if an operation ID is specified, the master will send operation status updates in response.
+
+NOTE: For the time being, an operation ID can only be set if the operation affects resources provided by a [resource provider](csi.md#resource-providers). See [MESOS-8194](https://issues.apache.org/jira/browse/MESOS-8371) for more details.
 
 ```
 ACCEPT Request (JSON):
@@ -358,6 +365,33 @@ HTTP/1.1 202 Accepted
 
 ```
 
+### ACKNOWLEDGE_OPERATION_STATUS
+Sent by the scheduler to acknowledge an operation status update. Schedulers are responsible for explicitly acknowledging the receipt of status updates that have `status.uuid` set. These status updates are retried until they are acknowledged by the scheduler. The scheduler must not acknowledge status updates that do not have `status.uuid` set, as they are not retried. The `uuid` field contains raw bytes encoded in Base64.
+
+```
+ACKNOWLEDGE_OPERATION_STATUS Request (JSON):
+POST /api/v1/scheduler  HTTP/1.1
+
+Host: masterhost:5050
+Content-Type: application/json
+Mesos-Stream-Id: 130ae4e3-6b13-4ef4-baa9-9f2e85c3e9af
+
+{
+  "framework_id": { "value": "12220-3440-12532-2345" },
+  "type": "ACKNOWLEDGE_OPERATION_STATUS",
+  "acknowledge_operation_status": {
+    "agent_id": { "value": "12220-3440-12532-S1233" },
+    "resource_provider_id": { "value": "12220-3440-12532-rp" },
+    "uuid": "jhadf73jhakdlfha723adf",
+    "operation_id": "73jhakdlfha723adf"
+  }
+}
+
+ACKNOWLEDGE_OPERATION_STATUS Response:
+HTTP/1.1 202 Accepted
+
+```
+
 ### RECONCILE
 Sent by the scheduler to query the status of non-terminal tasks. This causes the master to send back `UPDATE` events for each task in the list. Tasks that are no longer known to Mesos will result in `TASK_LOST` updates. If the list of tasks is empty, master will send `UPDATE` events for all currently known tasks of the framework.
 
@@ -383,6 +417,51 @@ Mesos-Stream-Id: 130ae4e3-6b13-4ef4-baa9-9f2e85c3e9af
 
 RECONCILE Response:
 HTTP/1.1 202 Accepted
+
+```
+
+### RECONCILE_OPERATIONS
+Sent by the scheduler to query the status of non-terminal operations. The master will respond with a `RECONCILE_OPERATIONS` response containing the status of each operation in the list. If the list of operations is empty, the master will include in the response all currently known operations of the framework.
+
+```
+RECONCILE_OPERATIONS Request (JSON):
+POST /api/v1/scheduler   HTTP/1.1
+
+Host: masterhost:5050
+Content-Type: application/json
+Accept: application/json
+Mesos-Stream-Id: 130ae4e3-6b13-4ef4-baa9-9f2e85c3e9af
+
+{
+  "framework_id": { "value": "12220-3440-12532-2345" },
+  "type": "RECONCILE_OPERATIONS",
+  "reconcile_operations": {
+    "operations": [
+      {
+        "operation_id": { "value": "312325" },
+        "agent_id": { "value": "123535" }
+      }
+    ]
+  }
+}
+
+RECONCILE_OPERATIONS Response:
+HTTP/1.1 200 Accepted
+
+Content-Type: application/json
+
+{
+  "type": "RECONCILE_OPERATIONS",
+  "reconcile_operations": {
+    "operation_statuses": [
+      {
+        "operation_id": { "value": "312325" },
+        "state": "OPERATION_PENDING",
+        "uuid": "adfadfadbhgvjayd23r2uahj"
+      }
+    ]
+  }
+}
 
 ```
 

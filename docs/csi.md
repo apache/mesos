@@ -345,27 +345,11 @@ It is important for the frameworks to get the results of the above offer
 operations so that they know if the dynamic disk provisioning is successful or
 not.
 
-Unfortunately, the current scheduler API does not provide a way to give explicit
-offer operation feedback. Frameworks have to infer the result of the operation
-by looking at various sources of information that are available to them. Here are
-the tips to get offer operation results:
-
-* Leverage [reservation labels](reservation.md#reservation-labels). Reservation
-  labels can be used to uniquely identify a resource. By looking at the
-  reservation labels of an offered resource, the framework can infer if an
-  operation is successful or not.
-* Use [operator API](operator-http-api.md) to get the current set of resources.
-
-##### Explicit Operation Feedback
-
-Even if there are tips to infer offer operation results, it is far from ideal.
-The biggest issue is that it is impossible to get the failure reason if an offer
-operation fails. For instance, a CSI plugin might return a failure when creating
-a volume, and it is important for the framework to know about that and surface
-that information to the end user.
-
-As a result, we need a way to get explicit operation feedback just like task
-status updates. This feature is [coming soon](https://issues.apache.org/jira/browse/MESOS-8054).
+Starting with Mesos 1.6.0 it is possible to opt-in to receive status updates
+related to operations that affect resources managed by a resource provider. In
+order to do so, the framework has to set the `id` field in the operation.
+Support for operations affecting the agent default resources is [coming
+soon](https://issues.apache.org/jira/browse/MESOS-8194).
 
 ## Profiles
 
