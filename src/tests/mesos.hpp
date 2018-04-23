@@ -2597,6 +2597,7 @@ public:
 namespace v1 {
 namespace scheduler {
 
+using APIResult = mesos::v1::scheduler::APIResult;
 using Call = mesos::v1::scheduler::Call;
 using Event = mesos::v1::scheduler::Event;
 using Mesos = mesos::v1::scheduler::Mesos;

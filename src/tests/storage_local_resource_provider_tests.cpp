@@ -3305,6 +3305,187 @@ TEST_F(
   Clock::settle();
 }
 
+
+// This test ensures that the master responds with the latest state
+// for operations that are terminal at the master, but have not been
+// acknowledged by the framework.
+TEST_F(
+    StorageLocalResourceProviderTest,
+    ROOT_ReconcileUnacknowledgedTerminalOperation)
+{
+  Clock::pause();
+
+  loadUriDiskProfileAdaptorModule();
+
+  setupResourceProviderConfig(Gigabytes(4));
+  setupDiskProfileMapping();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "filesystem/linux";
+
+  // Disable HTTP authentication to simplify resource provider interactions.
+  flags.authenticate_http_readwrite = false;
+
+  flags.resource_provider_config_dir = resourceProviderConfigDir;
+  flags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
+
+  // Since the local resource provider daemon is started after the agent
+  // is registered, it is guaranteed that the slave will send two
+  // `UpdateSlaveMessage`s, where the latter one contains resources from
+  // the storage local resource provider.
+  //
+  // NOTE: The order of the two `FUTURE_PROTOBUF`s is reversed because
+  // Google Mock will search the expectations in reverse order.
+  Future<UpdateSlaveMessage> updateSlave2 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+  Future<UpdateSlaveMessage> updateSlave1 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  // Advance the clock to trigger agent registration.
+  Clock::advance(flags.registration_backoff_factor);
+
+  AWAIT_READY(updateSlave1);
+
+  // NOTE: We need to resume the clock so that the resource provider can
+  // periodically check if the CSI endpoint socket has been created by
+  // the plugin container, which runs in another Linux process.
+  Clock::resume();
+
+  AWAIT_READY(updateSlave2);
+  ASSERT_TRUE(updateSlave2->has_resource_providers());
+  ASSERT_EQ(1, updateSlave2->resource_providers().providers_size());
+
+  Clock::pause();
+
+  // Register a framework to exercise an operation.
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_roles(0, "storage");
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(v1::scheduler::SendSubscribe(frameworkInfo));
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  // Decline offers that do not contain wanted resources.
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillRepeatedly(v1::scheduler::DeclineOffers());
+
+  Future<v1::scheduler::Event::Offers> offers;
+
+  auto isRaw = [](const v1::Resource& r) {
+    return r.has_disk() &&
+      r.disk().has_source() &&
+      r.disk().source().has_profile() &&
+      r.disk().source().type() == v1::Resource::DiskInfo::Source::RAW;
+  };
+
+  EXPECT_CALL(*scheduler, offers(_, v1::scheduler::OffersHaveAnyResource(
+      std::bind(isRaw, lambda::_1))))
+    .WillOnce(FutureArg<1>(&offers));
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(subscribed);
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  // NOTE: If the framework has not declined an unwanted offer yet when
+  // the master updates the agent with the RAW disk resource, the new
+  // allocation triggered by this update won't generate an allocatable
+  // offer due to no CPU and memory resources. So here we first settle
+  // the clock to ensure that the unwanted offer has been declined, then
+  // advance the clock to trigger another allocation.
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+
+  const v1::Offer& offer = offers->offers(0);
+  const v1::AgentID& agentId = offer.agent_id();
+
+  Future<v1::scheduler::Event::UpdateOperationStatus> update;
+  EXPECT_CALL(*scheduler, updateOperationStatus(_, _))
+    .WillOnce(FutureArg<1>(&update));
+
+  Option<v1::Resource> source;
+  Option<mesos::v1::ResourceProviderID> resourceProviderId;
+  foreach (const v1::Resource& resource, offer.resources()) {
+    if (isRaw(resource)) {
+      source = resource;
+
+      ASSERT_TRUE(resource.has_provider_id());
+      resourceProviderId = resource.provider_id();
+
+      break;
+    }
+  }
+
+  ASSERT_SOME(source);
+  ASSERT_SOME(resourceProviderId);
+
+  v1::OperationID operationId;
+  operationId.set_value("operation");
+
+  mesos.send(v1::createCallAccept(
+      frameworkId,
+      offer,
+      {v1::CREATE_VOLUME(
+          source.get(),
+          v1::Resource::DiskInfo::Source::MOUNT,
+          operationId.value())}));
+
+  AWAIT_READY(update);
+
+  ASSERT_EQ(operationId, update->status().operation_id());
+  ASSERT_EQ(v1::OperationState::OPERATION_FINISHED, update->status().state());
+  ASSERT_TRUE(update->status().has_uuid());
+
+  v1::scheduler::Call::ReconcileOperations::Operation operation;
+  operation.mutable_operation_id()->CopyFrom(operationId);
+  operation.mutable_agent_id()->CopyFrom(agentId);
+
+  const Future<v1::scheduler::APIResult> result =
+    mesos.call({v1::createCallReconcileOperations(frameworkId, {operation})});
+
+  AWAIT_READY(result);
+
+  // The master should respond with '200 OK' and with a `scheduler::Response`.
+  ASSERT_EQ(process::http::Status::OK, result->status_code());
+  ASSERT_TRUE(result->has_response());
+
+  const v1::scheduler::Response response = result->response();
+  ASSERT_EQ(v1::scheduler::Response::RECONCILE_OPERATIONS, response.type());
+  ASSERT_TRUE(response.has_reconcile_operations());
+
+  const v1::scheduler::Response::ReconcileOperations& reconcile =
+    response.reconcile_operations();
+  ASSERT_EQ(1, reconcile.operation_statuses_size());
+
+  const v1::OperationStatus& operationStatus = reconcile.operation_statuses(0);
+  ASSERT_EQ(operationId, operationStatus.operation_id());
+  ASSERT_EQ(v1::OPERATION_FINISHED, operationStatus.state());
+  ASSERT_TRUE(operationStatus.has_uuid());
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
