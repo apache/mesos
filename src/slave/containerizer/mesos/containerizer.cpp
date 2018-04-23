@@ -400,9 +400,12 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 
     // Volume isolators.
 
+#ifndef __WINDOWS__
+    {"volume/sandbox_path", &VolumeSandboxPathIsolatorProcess::create},
+#endif // __WINDOWS__
+
 #ifdef __linux__
     {"docker/volume", &DockerVolumeIsolatorProcess::create},
-    {"volume/sandbox_path", &VolumeSandboxPathIsolatorProcess::create},
     {"volume/host_path", &VolumeHostPathIsolatorProcess::create},
     {"volume/image",
       [&provisioner] (const Flags& flags) -> Try<Isolator*> {
