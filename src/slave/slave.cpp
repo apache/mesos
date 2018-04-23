@@ -7975,9 +7975,13 @@ void Slave::updateOperation(
       break;
     }
 
-    // Non-terminal. This shouldn't happen.
+    // Non-terminal or not sent by resource providers. This shouldn't happen.
+    case OPERATION_UNSUPPORTED:
     case OPERATION_PENDING:
-    case OPERATION_UNSUPPORTED: {
+    case OPERATION_UNREACHABLE:
+    case OPERATION_GONE_BY_OPERATOR:
+    case OPERATION_RECOVERING:
+    case OPERATION_UNKNOWN: {
       LOG(FATAL) << "Unexpected operation state "
                  << operation->latest_status().state();
     }

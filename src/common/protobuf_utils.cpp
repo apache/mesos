@@ -408,8 +408,12 @@ bool isTerminalState(const OperationState& state)
     case OPERATION_ERROR:
     case OPERATION_DROPPED:
       return true;
-    case OPERATION_PENDING:
     case OPERATION_UNSUPPORTED:
+    case OPERATION_PENDING:
+    case OPERATION_UNREACHABLE:
+    case OPERATION_GONE_BY_OPERATOR:
+    case OPERATION_RECOVERING:
+    case OPERATION_UNKNOWN:
       return false;
   }
 
