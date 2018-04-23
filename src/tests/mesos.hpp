@@ -2192,6 +2192,30 @@ inline mesos::v1::scheduler::Call createCallKill(
 }
 
 
+inline mesos::v1::scheduler::Call createCallReconcileOperations(
+    const mesos::v1::FrameworkID& frameworkId,
+    const std::vector<
+        mesos::v1::scheduler::Call::ReconcileOperations::Operation>&
+      operations = {})
+{
+  mesos::v1::scheduler::Call call;
+  call.set_type(mesos::v1::scheduler::Call::RECONCILE_OPERATIONS);
+  call.mutable_framework_id()->CopyFrom(frameworkId);
+
+  mesos::v1::scheduler::Call::ReconcileOperations* reconcile =
+    call.mutable_reconcile_operations();
+
+  foreach (
+      const mesos::v1::scheduler::Call::ReconcileOperations::Operation&
+        operation,
+      operations) {
+    reconcile->add_operations()->CopyFrom(operation);
+  }
+
+  return call;
+}
+
+
 inline mesos::v1::scheduler::Call createCallSubscribe(
   const mesos::v1::FrameworkInfo& frameworkInfo,
   const Option<mesos::v1::FrameworkID>& frameworkId = None())
