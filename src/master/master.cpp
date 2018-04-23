@@ -9491,7 +9491,7 @@ void Master::recoverFramework(
 
   Framework* framework = new Framework(this, flags, info);
 
-  // Add active tasks and executors to the framework.
+  // Add active operations, tasks, and executors to the framework.
   foreachvalue (Slave* slave, slaves.registered) {
     if (slave->tasks.contains(framework->id())) {
       foreachvalue (Task* task, slave->tasks.at(framework->id())) {
@@ -9507,7 +9507,20 @@ void Master::recoverFramework(
     }
 
     foreachvalue (Operation* operation, slave->operations) {
-      framework->addOperation(operation);
+      if (operation->has_framework_id() &&
+          operation->framework_id() == framework->id()) {
+        framework->addOperation(operation);
+      }
+    }
+
+    foreachvalue (const Slave::ResourceProvider& resourceProvider,
+                  slave->resourceProviders) {
+      foreachvalue (Operation* operation, resourceProvider.operations) {
+        if (operation->has_framework_id() &&
+            operation->framework_id() == framework->id()) {
+          framework->addOperation(operation);
+        }
+      }
     }
   }
 
