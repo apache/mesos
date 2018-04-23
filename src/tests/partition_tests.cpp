@@ -2300,36 +2300,36 @@ TEST_F(PartitionTest, PartitionAwareTaskCompletedOnPartitionedAgent)
   Future<UpdateFrameworkMessage> frameworkUpdate = DROP_PROTOBUF(
       UpdateFrameworkMessage(), master.get()->pid, slave.get()->pid);
 
-  // The `finsihedStatusFromMaster` status update is sent as
+  // The `finishedStatusFromMaster` status update is sent as
   // part of agent's re-registration with the master.
-  // The second status update `finsihedStatusFromAgent` here
+  // The second status update `finishedStatusFromAgent` here
   // is sent by the agent's status update manager after it
   // re-regsiters.
-  Future<TaskStatus> finsihedStatusFromMaster;
-  Future<TaskStatus> finsihedStatusFromAgent;
+  Future<TaskStatus> finishedStatusFromMaster;
+  Future<TaskStatus> finishedStatusFromAgent;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&finsihedStatusFromMaster))
-    .WillOnce(FutureArg<1>(&finsihedStatusFromAgent));
+    .WillOnce(FutureArg<1>(&finishedStatusFromMaster))
+    .WillOnce(FutureArg<1>(&finishedStatusFromAgent));
 
   detector.appoint(master.get()->pid);
 
   Clock::advance(agentFlags.registration_backoff_factor);
   AWAIT_READY(slaveReregistered);
 
-  AWAIT_READY(finsihedStatusFromMaster);
-  EXPECT_EQ(TASK_FINISHED, finsihedStatusFromMaster->state());
-  EXPECT_EQ(TaskStatus::SOURCE_MASTER, finsihedStatusFromMaster->source());
+  AWAIT_READY(finishedStatusFromMaster);
+  EXPECT_EQ(TASK_FINISHED, finishedStatusFromMaster->state());
+  EXPECT_EQ(TaskStatus::SOURCE_MASTER, finishedStatusFromMaster->source());
   EXPECT_EQ(TaskStatus::REASON_SLAVE_REREGISTERED,
-      finsihedStatusFromMaster->reason());
-  EXPECT_EQ(task.task_id(), finsihedStatusFromMaster->task_id());
+      finishedStatusFromMaster->reason());
+  EXPECT_EQ(task.task_id(), finishedStatusFromMaster->task_id());
 
   AWAIT_READY(frameworkUpdate);
 
-  AWAIT_READY(finsihedStatusFromAgent);
-  EXPECT_EQ(TASK_FINISHED, finsihedStatusFromAgent->state());
-  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, finsihedStatusFromAgent->source());
-  EXPECT_EQ(task.task_id(), finsihedStatusFromAgent->task_id());
-  EXPECT_EQ(slaveId, finsihedStatusFromAgent->slave_id());
+  AWAIT_READY(finishedStatusFromAgent);
+  EXPECT_EQ(TASK_FINISHED, finishedStatusFromAgent->state());
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, finishedStatusFromAgent->source());
+  EXPECT_EQ(task.task_id(), finishedStatusFromAgent->task_id());
+  EXPECT_EQ(slaveId, finishedStatusFromAgent->slave_id());
 
   // Perform explicit reconciliation. The task should not be running.
   TaskStatus status;
