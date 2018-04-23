@@ -471,10 +471,9 @@ message ReconcileTasksMessage {
 
 
 /**
- * The master uses this message to query an agent about the state of
- * one or more operations. This is useful to resolve
- * discrepancies between the master and agent's view after agent
- * reregistration.
+ * The master uses this message to query an agent about the state of one or
+ * more operations. This is useful to resolve discrepancies between the master
+ * and agent's view after agent reregistration.
  */
 message ReconcileOperationsMessage {
   message Operation {

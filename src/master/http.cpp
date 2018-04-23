@@ -956,12 +956,14 @@ Future<Response> Master::Http::scheduler(
     return BadRequest("Failed to validate scheduler::Call: " + error->message);
   }
 
-  if (call.type() == scheduler::Call::SUBSCRIBE) {
-    // We default to JSON 'Content-Type' in the response since an
-    // empty 'Accept' header results in all media types considered
-    // acceptable.
-    ContentType acceptType = ContentType::JSON;
+  ContentType acceptType;
 
+  // Ideally this handler would be consistent with the Operator API handler
+  // and determine the accept type regardless of the type of request.
+  // However, to maintain backwards compatibility, it determines the accept
+  // type only if the response will not be empty.
+  if (call.type() == scheduler::Call::SUBSCRIBE ||
+      call.type() == scheduler::Call::RECONCILE_OPERATIONS) {
     if (request.acceptsMediaType(APPLICATION_JSON)) {
       acceptType = ContentType::JSON;
     } else if (request.acceptsMediaType(APPLICATION_PROTOBUF)) {
@@ -971,7 +973,9 @@ Future<Response> Master::Http::scheduler(
           string("Expecting 'Accept' to allow ") +
           "'" + APPLICATION_PROTOBUF + "' or '" + APPLICATION_JSON + "'");
     }
+  }
 
+  if (call.type() == scheduler::Call::SUBSCRIBE) {
     // Make sure that a stream ID was not included in the request headers.
     if (request.headers.contains("Mesos-Stream-Id")) {
       return BadRequest(
@@ -1110,9 +1114,9 @@ Future<Response> Master::Http::scheduler(
       master->reconcile(framework, std::move(*call.mutable_reconcile()));
       return Accepted();
 
-    // TODO(greggomann): Implement operation reconciliation.
     case scheduler::Call::RECONCILE_OPERATIONS:
-      return Forbidden("Operation reconciliation is not yet implemented");
+      return reconcileOperations(
+          framework, call.reconcile_operations(), acceptType);
 
     case scheduler::Call::MESSAGE:
       master->message(framework, std::move(*call.mutable_message()));
@@ -5087,6 +5091,20 @@ Future<Response> Master::Http::_markAgentGone(const SlaveID& slaveId) const
   return gone.then([]() -> Future<Response> {
     return OK();
   });
+}
+
+
+Future<Response> Master::Http::reconcileOperations(
+    Framework* framework,
+    const scheduler::Call::ReconcileOperations& call,
+    ContentType contentType) const
+{
+  mesos::scheduler::Response response;
+  response.set_type(mesos::scheduler::Response::RECONCILE_OPERATIONS);
+  *response.mutable_reconcile_operations() =
+    master->reconcileOperations(framework, call);
+
+  return OK(serialize(contentType, evolve(response)), stringify(contentType));
 }
 
 } // namespace master {

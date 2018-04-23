@@ -426,7 +426,13 @@ message Call {
   message ReconcileOperations {
     message Operation {
       required OperationID operation_id = 1;
+
+      // If `agent_id` is not set and the master doesn't know the operation,
+      // then it will return `OPERATION_UNKNOWN`; if `agent_id` is set, it can
+      // return more fine-grained states depending on the state of the
+      // corresponding agent.
       optional AgentID agent_id = 2;
+
       optional ResourceProviderID resource_provider_id = 3;
     }
 

@@ -1076,7 +1076,7 @@ private:
       Framework* framework,
       scheduler::Call::Reconcile&& reconcile);
 
-  void reconcileOperations(
+  scheduler::Response::ReconcileOperations reconcileOperations(
       Framework* framework,
       const scheduler::Call::ReconcileOperations& reconcile);
 
@@ -1733,6 +1733,11 @@ private:
 
     process::Future<process::http::Response> _markAgentGone(
         const SlaveID& slaveId) const;
+
+    process::Future<process::http::Response> reconcileOperations(
+        Framework* framework,
+        const scheduler::Call::ReconcileOperations& call,
+        ContentType contentType) const;
 
     Master* master;
 
@@ -2547,6 +2552,20 @@ struct Framework
         }
       }
     }
+  }
+
+  Option<Operation*> getOperation(const OperationID& id) {
+    Option<UUID> uuid = operationUUIDs.get(id);
+
+    if (uuid.isNone()) {
+      return None();
+    }
+
+    Option<Operation*> operation = operations.get(uuid.get());
+
+    CHECK_SOME(operation);
+
+    return operation;
   }
 
   void recoverResources(Operation* operation)
