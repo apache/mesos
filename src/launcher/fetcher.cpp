@@ -305,7 +305,8 @@ static Try<string> fetchBypassingCache(
 
       if (result.isError()) {
         return Error(
-            "Unable to create subdirectory " + dirname + " in sandbox");
+            "Unable to create subdirectory " + dirname +
+            " in sandbox: " + result.error());
       }
     }
   }
@@ -360,7 +361,8 @@ static Try<string> fetchFromCache(
 
       if (result.isError()) {
         return Error(
-          "Unable to create subdirectory " + dirname + "in sandbox");
+          "Unable to create subdirectory " + dirname +
+          " in sandbox: " + result.error());
       }
     }
   }
