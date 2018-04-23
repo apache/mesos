@@ -217,19 +217,19 @@ v1::UUID evolve(const UUID& uuid)
 }
 
 
-v1::agent::Call evolve(const mesos::agent::Call& call)
+v1::agent::Call evolve(const agent::Call& call)
 {
   return evolve<v1::agent::Call>(call);
 }
 
 
-v1::agent::ProcessIO evolve(const mesos::agent::ProcessIO& processIO)
+v1::agent::ProcessIO evolve(const agent::ProcessIO& processIO)
 {
   return evolve<v1::agent::ProcessIO>(processIO);
 }
 
 
-v1::agent::Response evolve(const mesos::agent::Response& response)
+v1::agent::Response evolve(const agent::Response& response)
 {
   return evolve<v1::agent::Response>(response);
 }
@@ -253,14 +253,13 @@ v1::master::Response evolve(const mesos::master::Response& response)
 }
 
 
-v1::resource_provider::Call evolve(const mesos::resource_provider::Call& call)
+v1::resource_provider::Call evolve(const resource_provider::Call& call)
 {
   return evolve<v1::resource_provider::Call>(call);
 }
 
 
-v1::resource_provider::Event evolve(
-    const mesos::resource_provider::Event& event)
+v1::resource_provider::Event evolve(const resource_provider::Event& event)
 {
   return evolve<v1::resource_provider::Event>(event);
 }

@@ -84,20 +84,19 @@ v1::TaskInfo evolve(const TaskInfo& taskInfo);
 v1::TaskStatus evolve(const TaskStatus& status);
 v1::UUID evolve(const UUID& uuid);
 
-v1::agent::Call evolve(const mesos::agent::Call& call);
-v1::agent::ProcessIO evolve(const mesos::agent::ProcessIO& processIO);
-v1::agent::Response evolve(const mesos::agent::Response& response);
+
+v1::agent::Call evolve(const agent::Call& call);
+v1::agent::ProcessIO evolve(const agent::ProcessIO& processIO);
+v1::agent::Response evolve(const agent::Response& response);
+
 
 v1::maintenance::ClusterStatus evolve(
     const maintenance::ClusterStatus& cluster);
 v1::maintenance::Schedule evolve(const maintenance::Schedule& schedule);
 
-v1::master::Response evolve(const mesos::master::Response& response);
 
-
-v1::resource_provider::Call evolve(const mesos::resource_provider::Call& call);
-v1::resource_provider::Event evolve(
-    const mesos::resource_provider::Event& event);
+v1::resource_provider::Call evolve(const resource_provider::Call& call);
+v1::resource_provider::Event evolve(const resource_provider::Event& event);
 
 
 // Helper for repeated field evolving to 'T1' from 'T2'.
@@ -135,6 +134,7 @@ v1::scheduler::Event evolve(const RescindResourceOfferMessage& message);
 v1::scheduler::Event evolve(const StatusUpdateMessage& message);
 v1::scheduler::Event evolve(const UpdateOperationStatusMessage& message);
 
+
 v1::executor::Call evolve(const executor::Call& call);
 v1::executor::Event evolve(const executor::Event& event);
 
@@ -150,6 +150,7 @@ v1::executor::Event evolve(const StatusUpdateAcknowledgementMessage& message);
 
 
 v1::master::Event evolve(const mesos::master::Event& event);
+v1::master::Response evolve(const mesos::master::Response& response);
 
 
 // Before the v1 API we had REST endpoints that returned JSON. The JSON was not
@@ -169,6 +170,7 @@ v1::master::Response evolve(const JSON::Object& object);
 // REST endpoints pre v1 API.
 template <v1::agent::Response::Type T>
 v1::agent::Response evolve(const JSON::Object& object);
+
 
 template <v1::agent::Response::Type T>
 v1::agent::Response evolve(const JSON::Array& array);
