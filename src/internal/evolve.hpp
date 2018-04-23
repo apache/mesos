@@ -100,9 +100,6 @@ v1::resource_provider::Event evolve(
     const mesos::resource_provider::Event& event);
 
 
-v1::scheduler::Call evolve(const scheduler::Call& call);
-
-
 // Helper for repeated field evolving to 'T1' from 'T2'.
 template <typename T1, typename T2>
 google::protobuf::RepeatedPtrField<T1> evolve(
@@ -118,7 +115,9 @@ google::protobuf::RepeatedPtrField<T1> evolve(
 }
 
 
+v1::scheduler::Call evolve(const scheduler::Call& call);
 v1::scheduler::Event evolve(const scheduler::Event& event);
+v1::scheduler::Response evolve(const scheduler::Response& response);
 
 
 // Helper functions that evolve old style internal messages to a

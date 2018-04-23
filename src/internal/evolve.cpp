@@ -500,6 +500,12 @@ v1::executor::Event evolve(const executor::Event& event)
 }
 
 
+v1::scheduler::Response evolve(const scheduler::Response& response)
+{
+  return evolve<v1::scheduler::Response>(response);
+}
+
+
 v1::executor::Event evolve(const ExecutorRegisteredMessage& message)
 {
   v1::executor::Event event;
