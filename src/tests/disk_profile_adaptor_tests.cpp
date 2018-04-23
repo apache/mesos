@@ -450,18 +450,20 @@ TEST_F(UriDiskProfileAdaptorTest, DISABLED_FetchFromFile)
   // Create the module before we've written anything to the file.
   // This means the first poll will fail, so the module believes there
   // are no profiles at the moment.
-  Try<DiskProfileAdaptor*> module =
+  Try<DiskProfileAdaptor*> _module =
     modules::ModuleManager::create<DiskProfileAdaptor>(
         URI_DISK_PROFILE_ADAPTOR_NAME,
         params);
-  ASSERT_SOME(module);
+
+  ASSERT_SOME(_module);
+  Owned<DiskProfileAdaptor> module(_module.get());
 
   // Start watching for updates.
   // By the time this returns, we'll know that the first poll has finished
   // because when the module reads from file, it does so immediately upon
   // being initialized.
   Future<hashset<string>> future =
-    module.get()->watch(hashset<string>::EMPTY, resourceProviderInfo);
+    module->watch(hashset<string>::EMPTY, resourceProviderInfo);
 
   // Write the single profile to the file.
   ASSERT_SOME(os::write(profileFile, contents));
@@ -475,7 +477,7 @@ TEST_F(UriDiskProfileAdaptorTest, DISABLED_FetchFromFile)
 
   // Translate the profile name into the profile mapping.
   Future<DiskProfileAdaptor::ProfileInfo> mapping =
-    module.get()->translate(profileName, resourceProviderInfo);
+    module->translate(profileName, resourceProviderInfo);
 
   AWAIT_ASSERT_READY(mapping);
   ASSERT_TRUE(mapping.get().capability.has_block());
@@ -638,22 +640,24 @@ TEST_F(UriDiskProfileAdaptorTest, FetchFromHTTP)
       process::address().port,
       server.process->self().id + "/profiles")));
 
-  Try<DiskProfileAdaptor*> module =
+  Try<DiskProfileAdaptor*> _module =
     modules::ModuleManager::create<DiskProfileAdaptor>(
         URI_DISK_PROFILE_ADAPTOR_NAME,
         params);
-  ASSERT_SOME(module);
+
+  ASSERT_SOME(_module);
+  Owned<DiskProfileAdaptor> module(_module.get());
 
   // Wait for the first HTTP poll to complete.
   Future<hashset<string>> future =
-    module.get()->watch(hashset<string>::EMPTY, resourceProviderInfo);
+    module->watch(hashset<string>::EMPTY, resourceProviderInfo);
 
   AWAIT_ASSERT_READY(future);
   ASSERT_EQ(1u, future->size());
   EXPECT_EQ("profile", *(future->begin()));
 
   // Start watching for an update to the list of profiles.
-  future = module.get()->watch({"profile"}, resourceProviderInfo);
+  future = module->watch({"profile"}, resourceProviderInfo);
 
   // Trigger the second HTTP poll.
   Clock::advance(pollInterval);
@@ -661,7 +665,7 @@ TEST_F(UriDiskProfileAdaptorTest, FetchFromHTTP)
 
   // Dispatch a call to the module, which ensures that the polling has actually
   // completed (not just the HTTP call).
-  AWAIT_ASSERT_READY(module.get()->translate("profile", resourceProviderInfo));
+  AWAIT_ASSERT_READY(module->translate("profile", resourceProviderInfo));
 
   // We don't expect the module to notify watcher(s) because the server's
   // response is considered invalid (the module does not allow profiles
