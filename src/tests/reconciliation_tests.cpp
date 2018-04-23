@@ -1018,6 +1018,8 @@ TEST_F(ReconciliationTest, ReconcileStatusUpdateTaskState)
 {
   // Start a master.
   master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.registry = "replicated_log";
+
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
@@ -1087,7 +1089,7 @@ TEST_F(ReconciliationTest, ReconcileStatusUpdateTaskState)
 
   // Simulate master failover by restarting the master.
   master->reset();
-  master = StartMaster();
+  master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   Clock::resume();
