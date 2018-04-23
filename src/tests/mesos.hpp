@@ -1296,11 +1296,18 @@ inline TDomainInfo createDomainInfo(
 
 // Helpers for creating operations.
 template <typename TResources, typename TOffer>
-inline typename TOffer::Operation RESERVE(const TResources& resources)
+inline typename TOffer::Operation RESERVE(
+    const TResources& resources,
+    const Option<std::string> operationId = None())
 {
   typename TOffer::Operation operation;
   operation.set_type(TOffer::Operation::RESERVE);
   operation.mutable_reserve()->mutable_resources()->CopyFrom(resources);
+
+  if (operationId.isSome()) {
+    operation.mutable_id()->set_value(operationId.get());
+  }
+
   return operation;
 }
 
