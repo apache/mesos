@@ -413,6 +413,16 @@ namespace maintenance = mesos::v1::maintenance;
 namespace master = mesos::v1::master;
 namespace quota = mesos::v1::quota;
 
+using mesos::v1::OPERATION_PENDING;
+using mesos::v1::OPERATION_FINISHED;
+using mesos::v1::OPERATION_FAILED;
+using mesos::v1::OPERATION_ERROR;
+using mesos::v1::OPERATION_DROPPED;
+using mesos::v1::OPERATION_UNREACHABLE;
+using mesos::v1::OPERATION_GONE_BY_OPERATOR;
+using mesos::v1::OPERATION_RECOVERING;
+using mesos::v1::OPERATION_UNKNOWN;
+
 using mesos::v1::TASK_STAGING;
 using mesos::v1::TASK_STARTING;
 using mesos::v1::TASK_RUNNING;
@@ -444,7 +454,11 @@ using mesos::v1::InverseOffer;
 using mesos::v1::MachineID;
 using mesos::v1::Metric;
 using mesos::v1::Offer;
+using mesos::v1::OperationID;
+using mesos::v1::OperationState;
+using mesos::v1::OperationStatus;
 using mesos::v1::Resource;
+using mesos::v1::ResourceProviderID;
 using mesos::v1::ResourceProviderInfo;
 using mesos::v1::Resources;
 using mesos::v1::TaskID;
@@ -2555,6 +2569,7 @@ namespace scheduler {
 using Call = mesos::v1::scheduler::Call;
 using Event = mesos::v1::scheduler::Event;
 using Mesos = mesos::v1::scheduler::Mesos;
+using Response = mesos::v1::scheduler::Response;
 
 
 using TestMesos = tests::scheduler::TestMesos<
