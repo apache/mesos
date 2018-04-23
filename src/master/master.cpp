@@ -7775,7 +7775,8 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
 
         addOperation(framework, slave, new Operation(operation));
 
-        if (!protobuf::isTerminalState(operation.latest_status().state())) {
+        if (!protobuf::isTerminalState(operation.latest_status().state()) &&
+            operation.has_framework_id()) {
           // If we do not yet know the `FrameworkInfo` of the framework the
           // operation originated from, we cannot properly track the operation
           // at this point.
