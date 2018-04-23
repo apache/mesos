@@ -9,6 +9,26 @@ This release contains the following new features:
     configured to use the jemalloc allocator by default via the
     `--enable-jemalloc-allocator` configuration option.
 
+  * [MESOS-8572] - Improvements to the Docker containerizer and executor
+    to more gracefully handle situations in which the Docker CLI is
+    unresponsive.
+
+  * [MESOS-8607] - The ‘mesos-execute’ tool has been ported to Windows.
+
+Additional API Changes:
+  * [MESOS-8534] - Nested containers within a task group can now specify
+    separate network namespaces.
+
+  * [MESOS-8388] - Local resource provider resources are now included in
+    the responses to the GET_AGENTS and GET_RESOURCE_PROVIDER calls.
+
+  * [MESOS-8332] - Container sandbox permissions have been changed from
+    0755 to 0750.
+
+  * [MESOS-8306] - Authorization of resource reservation has been updated
+    to allow the restriction of which agents can statically reserve
+    resources for which roles.
+
 
 Release Notes - Mesos - Version 1.5.1 (WIP)
 -------------------------------------------
