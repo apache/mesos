@@ -129,6 +129,8 @@ Metrics::Metrics(const Master& master)
         "master/messages_revive_offers"),
     messages_suppress_offers(
         "master/messages_suppress_offers"),
+    messages_reconcile_operations(
+        "master/messages_reconcile_operations"),
     messages_reconcile_tasks(
         "master/messages_reconcile_tasks"),
     messages_framework_to_executor(
@@ -253,6 +255,7 @@ Metrics::Metrics(const Master& master)
   process::metrics::add(messages_decline_offers);
   process::metrics::add(messages_revive_offers);
   process::metrics::add(messages_suppress_offers);
+  process::metrics::add(messages_reconcile_operations);
   process::metrics::add(messages_reconcile_tasks);
   process::metrics::add(messages_framework_to_executor);
   process::metrics::add(messages_executor_to_framework);
@@ -403,6 +406,7 @@ Metrics::~Metrics()
   process::metrics::remove(messages_decline_offers);
   process::metrics::remove(messages_revive_offers);
   process::metrics::remove(messages_suppress_offers);
+  process::metrics::remove(messages_reconcile_operations);
   process::metrics::remove(messages_reconcile_tasks);
   process::metrics::remove(messages_framework_to_executor);
   process::metrics::remove(messages_executor_to_framework);

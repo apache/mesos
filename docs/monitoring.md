@@ -665,6 +665,13 @@ messages may indicate that there is a problem with the network.
 </tr>
 <tr>
   <td>
+  <code>master/messages_reconcile_operations</code>
+  </td>
+  <td>Number of reconcile operations messages</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
   <code>master/messages_reconcile_tasks</code>
   </td>
   <td>Number of reconcile task messages</td>
