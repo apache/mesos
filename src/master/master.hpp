@@ -1922,6 +1922,10 @@ private:
     // `registry_max_agent_age`, and `registry_max_agent_count` flags.
     LinkedHashMap<SlaveID, TimeInfo> unreachable;
 
+
+    // Holds the `FrameworkID` and set of `TaskID` for the agents marked unreachable.
+    hashmap<SlaveID, hashmap<FrameworkID, hashset<TaskID>>> unreachableAgentsToTasks;
+
     // Slaves that have been marked gone. We recover this from the
     // registry, so it includes slaves marked as gone by other instances
     // of the master. Note that we use a LinkedHashMap to ensure the order

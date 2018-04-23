@@ -1920,6 +1920,7 @@ void Master::_doRegistryGc(
     }
 
     slaves.unreachable.erase(slave);
+    slaves.unreachableAgentsToTasks.erase(slave);
     numRemovedUnreachable++;
   }
 
@@ -7073,6 +7074,7 @@ void Master::__reregisterSlave(
   // master (those tasks were previously marked "unreachable", so they
   // should be removed from that collection).
   vector<Task> recoveredTasks;
+  hashmap<FrameworkID, hashset<TaskID>> frameworkToTasks = slaves.unreachableAgentsToTasks[slaveInfo.id()];
   foreach (Task& task, *reregisterSlaveMessage.mutable_tasks()) {
     const FrameworkID& frameworkId = task.framework_id();
 
@@ -7086,6 +7088,7 @@ void Master::__reregisterSlave(
       Framework* framework = getFramework(frameworkId);
       if (framework != nullptr) {
         framework->unreachableTasks.erase(task.task_id());
+        frameworkToTasks[frameworkId].erase(task.task_id());
       }
 
       const string message = slaves.unreachable.contains(slaveInfo.id())
@@ -7123,6 +7126,17 @@ void Master::__reregisterSlave(
 
     recoveredTasks.push_back(std::move(task));
   }
+
+  foreachkey(FrameworkID frameworkId, frameworkToTasks) {
+    Framework* framework = getFramework(frameworkId);
+    if (framework != nullptr) {
+      foreach(TaskID taskId, frameworkToTasks[frameworkId]) {
+        framework->unreachableTasks.erase(taskId);
+      }
+    }
+    frameworkToTasks.erase(frameworkId);
+  }
+  slaves.unreachableAgentsToTasks.erase(slaveInfo.id());
 
   vector<Resource> checkpointedResources = google::protobuf::convert(
       std::move(*reregisterSlaveMessage.mutable_checkpointed_resources()));
@@ -10289,6 +10303,21 @@ void Master::__removeSlave(
       unreachable = false;
       newTaskState = TASK_GONE_BY_OPERATOR;
       newTaskReason = TaskStatus::REASON_SLAVE_REMOVED_BY_OPERATOR;
+    } else {
+      foreachvalue (Task* task, utils::copy(slave->tasks[frameworkId])) {
+        hashmap<FrameworkID, hashset<TaskID>> frameworkToTasks;
+        hashset<TaskID> tasks;
+
+        if (slaves.unreachableAgentsToTasks.contains(slave->id)) {
+          frameworkToTasks = slaves.unreachableAgentsToTasks[slave->id];
+          if (frameworkToTasks.contains(frameworkId)) {
+            tasks = frameworkToTasks[frameworkId];
+          }
+        }
+        tasks.insert(task->task_id());
+        frameworkToTasks[frameworkId] = tasks;
+        slaves.unreachableAgentsToTasks[slave->id] = frameworkToTasks;
+      }
     }
 
     foreachvalue (Task* task, utils::copy(slave->tasks[frameworkId])) {
