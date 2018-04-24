@@ -841,10 +841,6 @@ TEST_F(ResourceProviderRegistrarTest, GenericRegistrar)
   ASSERT_SOME(registrar);
   ASSERT_NE(nullptr, registrar->get());
 
-  // Applying operations on a not yet recovered registrar fails.
-  AWAIT_FAILED(registrar.get()->apply(Owned<Registrar::Operation>(
-      new AdmitResourceProvider(resourceProviderId))));
-
   AWAIT_READY(registrar.get()->recover());
 
   Future<bool> admitResourceProvider =
@@ -873,14 +869,15 @@ TEST_F(ResourceProviderRegistrarTest, MasterRegistrar)
 
   const MasterInfo masterInfo = protobuf::createMasterInfo({});
 
-  Try<Owned<Registrar>> registrar = Registrar::create(&masterRegistrar);
+  Future<Registry> registry = masterRegistrar.recover(masterInfo);
+  AWAIT_READY(registry);
+
+  Try<Owned<Registrar>> registrar = Registrar::create(
+      &masterRegistrar,
+      registry->resource_provider_registry());
 
   ASSERT_SOME(registrar);
   ASSERT_NE(nullptr, registrar->get());
-
-  // Applying operations on a not yet recovered registrar fails.
-  AWAIT_FAILED(registrar.get()->apply(Owned<Registrar::Operation>(
-      new AdmitResourceProvider(resourceProviderId))));
 
   AWAIT_READY(masterRegistrar.recover(masterInfo));
 
