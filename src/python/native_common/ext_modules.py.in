@@ -129,27 +129,25 @@ def _create_module(module_name):
     # only if gRPC is enabled.
     if '@ENABLE_GRPC_FALSE@' == '#':
         grpc = os.path.join('3rdparty', 'grpc-1.10.0')
-        libgrpcxx = os.path.join(abs_top_builddir, grpc, 'libs', 'opt', 'libgrpc++.a')
-        libgrpc = os.path.join(abs_top_builddir, grpc, 'libs', 'opt', 'libgrpc.a')
+        grpc_variant = '_unsecure' if '@ENABLE_SSL_TRUE@' == '#' else ''
+        libgrpcpp = os.path.join(abs_top_builddir, grpc, 'libs', 'opt', 'libgrpc++%s.a' % grpc_variant)
+        libgrpc = os.path.join(abs_top_builddir, grpc, 'libs', 'opt', 'libgrpc%s.a' % grpc_variant)
         libgpr = os.path.join(abs_top_builddir, grpc, 'libs', 'opt', 'libgpr.a')
 
-        if os.path.exists(libgrpcxx):
-            EXTRA_OBJECTS.append(libgrpcxx)
+        if os.path.exists(libgrpcpp):
+            EXTRA_OBJECTS.append(libgrpcpp)
         else:
-            EXTRA_OBJECTS.append('-lgrpc++')
+            EXTRA_OBJECTS.append('-lgrpc++%s' % grpc_variant)
 
         if os.path.exists(libgrpc):
             EXTRA_OBJECTS.append(libgrpc)
         else:
-            EXTRA_OBJECTS.append('-lgrpc')
+            EXTRA_OBJECTS.append('-lgrpc%s' % grpc_variant)
 
         if os.path.exists(libgpr):
             EXTRA_OBJECTS.append(libgpr)
         else:
             EXTRA_OBJECTS.append('-lgpr')
-
-        EXTRA_OBJECTS.append('-lssl')
-        EXTRA_OBJECTS.append('-lcrypto')
 
 
     # OSX uses a different linker (llvm-ld) and doesn't support --as-needed

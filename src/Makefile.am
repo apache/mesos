@@ -171,15 +171,18 @@ LDADD += -lglog
 endif
 
 if ENABLE_GRPC
+if !ENABLE_SSL
+GRPC_VARIANT = _unsecure
+endif
+
 if WITH_BUNDLED_GRPC
 MESOS_CPPFLAGS += -I../$(GRPC)/include
-LIB_GRPC = ../$(GRPC)/libs/opt/libgrpc++.a	\
-           ../$(GRPC)/libs/opt/libgrpc.a	\
-           ../$(GRPC)/libs/opt/libgpr.a		\
-           -lssl -lcrypto
+LIB_GRPC = ../$(GRPC)/libs/opt/libgrpc++$(GRPC_VARIANT).a	\
+           ../$(GRPC)/libs/opt/libgrpc$(GRPC_VARIANT).a		\
+           ../$(GRPC)/libs/opt/libgpr.a
 GRPC_CPP_PLUGIN = ../$(GRPC)/bins/opt/grpc_cpp_plugin
 else
-LIB_GRPC = -lgrpc++ -lgrpc -lgpr -lssl -lcrypto
+LIB_GRPC = -lgrpc++$(GRPC_VARIANT) -lgrpc$(GRPC_VARIANT) -lgpr
 GRPC_CPP_PLUGIN = @GRPC_CXX_PLUGIN@
 endif
 endif
