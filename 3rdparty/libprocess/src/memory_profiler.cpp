@@ -16,6 +16,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <utility>
 
 #include <process/delay.hpp>
 #include <process/future.hpp>
@@ -619,7 +620,7 @@ http::Response MemoryProfiler::DiskArtifact::asHttp() const
   response.headers["Content-Disposition"] =
     strings::format("attachment; filename=%s", path).get();
 
-  return response;
+  return std::move(response);
 }
 
 

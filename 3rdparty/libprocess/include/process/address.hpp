@@ -29,6 +29,7 @@
 #endif // __WINDOWS__
 
 #include <ostream>
+#include <utility>
 
 #include <boost/functional/hash.hpp>
 
@@ -524,7 +525,7 @@ inline Try<inet::Address> convert(Try<Address>&& address)
 template <>
 inline Try<Address> convert(Try<Address>&& address)
 {
-  return address;
+  return std::move(address);
 }
 
 } // namespace network {
