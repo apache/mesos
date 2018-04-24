@@ -101,6 +101,15 @@ public:
 
   // Inserts a key, value pair into the map replacing an old value
   // if the key is already present.
+  void put(const Key& key, Value&& value)
+  {
+    std::unordered_map<Key, Value, Hash, Equal>::erase(key);
+    std::unordered_map<Key, Value, Hash, Equal>::insert(
+        std::pair<Key, Value>(key, std::move(value)));
+  }
+
+  // Inserts a key, value pair into the map replacing an old value
+  // if the key is already present.
   void put(const Key& key, const Value& value)
   {
     std::unordered_map<Key, Value, Hash, Equal>::erase(key);
