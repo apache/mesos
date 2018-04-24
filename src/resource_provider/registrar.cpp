@@ -27,10 +27,6 @@
 
 #include <mesos/state/in_memory.hpp>
 
-#ifndef __WINDOWS__
-#include <mesos/state/leveldb.hpp>
-#endif // __WINDOWS__
-
 #include <mesos/state/protobuf.hpp>
 
 #include <process/defer.hpp>
@@ -52,12 +48,6 @@ using std::string;
 
 using mesos::resource_provider::registry::Registry;
 using mesos::resource_provider::registry::ResourceProvider;
-
-using mesos::state::InMemoryStorage;
-
-#ifndef __WINDOWS__
-using mesos::state::LevelDBStorage;
-#endif // __WINDOWS__
 
 using mesos::state::Storage;
 
@@ -96,11 +86,9 @@ bool Registrar::Operation::set()
 }
 
 
-Try<Owned<Registrar>> Registrar::create(
-    const slave::Flags& slaveFlags,
-    const SlaveID& slaveId)
+Try<Owned<Registrar>> Registrar::create(Owned<Storage> storage)
 {
-  return new AgentRegistrar(slaveFlags, slaveId);
+  return new AgentRegistrar(std::move(storage));
 }
 
 
@@ -160,7 +148,7 @@ Try<bool> RemoveResourceProvider::perform(Registry* registry)
 class AgentRegistrarProcess : public Process<AgentRegistrarProcess>
 {
 public:
-  AgentRegistrarProcess(const slave::Flags& flags, const SlaveID& slaveId);
+  AgentRegistrarProcess(Owned<Storage> storage);
 
   Future<Nothing> recover();
 
@@ -191,33 +179,12 @@ private:
   deque<Owned<Registrar::Operation>> operations;
 
   bool updating = false;
-
-  static Owned<Storage> createStorage(const std::string& path);
 };
 
 
-Owned<Storage> AgentRegistrarProcess::createStorage(const std::string& path)
-{
-  // The registrar uses LevelDB as underlying storage. Since LevelDB
-  // is currently not supported on Windows (see MESOS-5932), we fall
-  // back to in-memory storage there.
-  //
-  // TODO(bbannier): Remove this Windows workaround once MESOS-5932 is fixed.
-#ifndef __WINDOWS__
-  return Owned<Storage>(new LevelDBStorage(path));
-#else
-  LOG(WARNING)
-    << "Persisting resource provider manager state is not supported on Windows";
-  return Owned<Storage>(new InMemoryStorage());
-#endif // __WINDOWS__
-}
-
-
-AgentRegistrarProcess::AgentRegistrarProcess(
-    const slave::Flags& flags, const SlaveID& slaveId)
+AgentRegistrarProcess::AgentRegistrarProcess(Owned<Storage> _storage)
   : ProcessBase(process::ID::generate("resource-provider-agent-registrar")),
-    storage(createStorage(slave::paths::getResourceProviderRegistryPath(
-        flags.work_dir, slaveId))),
+    storage(std::move(_storage)),
     state(storage.get()) {}
 
 
@@ -355,10 +322,8 @@ void AgentRegistrarProcess::_update(
 }
 
 
-AgentRegistrar::AgentRegistrar(
-    const slave::Flags& slaveFlags,
-    const SlaveID& slaveId)
-  : process(new AgentRegistrarProcess(slaveFlags, slaveId))
+AgentRegistrar::AgentRegistrar(Owned<Storage> storage)
+  : process(new AgentRegistrarProcess(std::move(storage)))
 {
   process::spawn(process.get(), false);
 }

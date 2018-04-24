@@ -825,31 +825,8 @@ TEST_F(ResourceProviderRegistrarTest, AgentRegistrar)
   ResourceProviderID resourceProviderId;
   resourceProviderId.set_value("foo");
 
-  Try<Owned<cluster::Master>> master = StartMaster();
-  ASSERT_SOME(master);
-
-  Owned<MasterDetector> detector = master.get()->createDetector();
-
-  const slave::Flags flags = CreateSlaveFlags();
-
-  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
-    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
-
-  Future<UpdateSlaveMessage> updateSlaveMessage =
-    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
-
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
-  ASSERT_SOME(slave);
-
-  AWAIT_READY(slaveRegisteredMessage);
-
-  // The agent will send `UpdateSlaveMessage` after it has created its
-  // meta directories. Await the message to make sure the agent
-  // registrar can create its store in the meta hierarchy.
-  AWAIT_READY(updateSlaveMessage);
-
-  Try<Owned<Registrar>> registrar =
-    Registrar::create(flags, slaveRegisteredMessage->slave_id());
+  Owned<mesos::state::Storage> storage(new mesos::state::InMemoryStorage());
+  Try<Owned<Registrar>> registrar = Registrar::create(std::move(storage));
 
   ASSERT_SOME(registrar);
   ASSERT_NE(nullptr, registrar->get());
