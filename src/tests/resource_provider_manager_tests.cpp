@@ -819,8 +819,8 @@ TEST_P(ResourceProviderManagerHttpApiTest, AgentEndpoint)
 class ResourceProviderRegistrarTest : public tests::MesosTest {};
 
 
-// Test that the generic resource provider registrar works as expected.
-TEST_F(ResourceProviderRegistrarTest, GenericRegistrar)
+// Test that the agent resource provider registrar works as expected.
+TEST_F(ResourceProviderRegistrarTest, AgentRegistrar)
 {
   ResourceProviderID resourceProviderId;
   resourceProviderId.set_value("foo");

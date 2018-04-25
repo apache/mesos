@@ -105,22 +105,22 @@ private:
 };
 
 
-class GenericRegistrarProcess;
+class AgentRegistrarProcess;
 
 
-class GenericRegistrar : public Registrar
+class AgentRegistrar : public Registrar
 {
 public:
-  GenericRegistrar(process::Owned<state::Storage> storage);
+  AgentRegistrar(process::Owned<state::Storage> storage);
 
-  ~GenericRegistrar() override;
+  ~AgentRegistrar() override;
 
   process::Future<Nothing> recover() override;
 
   process::Future<bool> apply(process::Owned<Operation> operation) override;
 
 private:
-  std::unique_ptr<GenericRegistrarProcess> process;
+  std::unique_ptr<AgentRegistrarProcess> process;
 };
 
 

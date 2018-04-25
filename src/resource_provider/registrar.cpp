@@ -88,7 +88,7 @@ bool Registrar::Operation::set()
 
 Try<Owned<Registrar>> Registrar::create(Owned<Storage> storage)
 {
-  return new GenericRegistrar(std::move(storage));
+  return new AgentRegistrar(std::move(storage));
 }
 
 
@@ -145,10 +145,10 @@ Try<bool> RemoveResourceProvider::perform(Registry* registry)
 }
 
 
-class GenericRegistrarProcess : public Process<GenericRegistrarProcess>
+class AgentRegistrarProcess : public Process<AgentRegistrarProcess>
 {
 public:
-  GenericRegistrarProcess(Owned<Storage> storage);
+  AgentRegistrarProcess(Owned<Storage> storage);
 
   Future<Nothing> recover();
 
@@ -182,13 +182,13 @@ private:
 };
 
 
-GenericRegistrarProcess::GenericRegistrarProcess(Owned<Storage> _storage)
-  : ProcessBase(process::ID::generate("resource-provider-generic-registrar")),
+AgentRegistrarProcess::AgentRegistrarProcess(Owned<Storage> _storage)
+  : ProcessBase(process::ID::generate("resource-provider-agent-registrar")),
     storage(std::move(_storage)),
     state(storage.get()) {}
 
 
-Future<Nothing> GenericRegistrarProcess::recover()
+Future<Nothing> AgentRegistrarProcess::recover()
 {
   constexpr char NAME[] = "RESOURCE_PROVIDER_REGISTRAR";
 
@@ -206,8 +206,7 @@ Future<Nothing> GenericRegistrarProcess::recover()
 }
 
 
-Future<bool> GenericRegistrarProcess::apply(
-    Owned<Registrar::Operation> operation)
+Future<bool> AgentRegistrarProcess::apply(Owned<Registrar::Operation> operation)
 {
   if (recovered.isNone()) {
     return Failure("Attempted to apply the operation before recovering");
@@ -217,7 +216,7 @@ Future<bool> GenericRegistrarProcess::apply(
 }
 
 
-Future<bool> GenericRegistrarProcess::_apply(
+Future<bool> AgentRegistrarProcess::_apply(
     Owned<Registrar::Operation> operation)
 {
   if (error.isSome()) {
@@ -235,7 +234,7 @@ Future<bool> GenericRegistrarProcess::_apply(
 }
 
 
-void GenericRegistrarProcess::update()
+void AgentRegistrarProcess::update()
 {
   CHECK(!updating);
   CHECK_NONE(error);
@@ -276,7 +275,7 @@ void GenericRegistrarProcess::update()
 }
 
 
-void GenericRegistrarProcess::_update(
+void AgentRegistrarProcess::_update(
     const Future<Option<Variable<Registry>>>& store,
     const Registry& updatedRegistry,
     deque<Owned<Registrar::Operation>> applied)
@@ -323,31 +322,31 @@ void GenericRegistrarProcess::_update(
 }
 
 
-GenericRegistrar::GenericRegistrar(Owned<Storage> storage)
-  : process(new GenericRegistrarProcess(std::move(storage)))
+AgentRegistrar::AgentRegistrar(Owned<Storage> storage)
+  : process(new AgentRegistrarProcess(std::move(storage)))
 {
   process::spawn(process.get(), false);
 }
 
 
-GenericRegistrar::~GenericRegistrar()
+AgentRegistrar::~AgentRegistrar()
 {
   process::terminate(*process);
   process::wait(*process);
 }
 
 
-Future<Nothing> GenericRegistrar::recover()
+Future<Nothing> AgentRegistrar::recover()
 {
-  return dispatch(process.get(), &GenericRegistrarProcess::recover);
+  return dispatch(process.get(), &AgentRegistrarProcess::recover);
 }
 
 
-Future<bool> GenericRegistrar::apply(Owned<Operation> operation)
+Future<bool> AgentRegistrar::apply(Owned<Operation> operation)
 {
   return dispatch(
       process.get(),
-      &GenericRegistrarProcess::apply,
+      &AgentRegistrarProcess::apply,
       std::move(operation));
 }
 
