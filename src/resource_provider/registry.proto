@@ -35,5 +35,4 @@ message ResourceProvider {
 // A top level object that is managed by the Registrar and persisted.
 message Registry {
   repeated ResourceProvider resource_providers = 1;
-  repeated ResourceProvider removed_resource_providers = 2;
 }

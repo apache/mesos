@@ -115,15 +115,6 @@ Try<bool> AdmitResourceProvider::perform(Registry* registry)
     return Error("Resource provider already admitted");
   }
 
-  if (std::find_if(
-          registry->removed_resource_providers().begin(),
-          registry->removed_resource_providers().end(),
-          [this](const ResourceProvider& resourceProvider) {
-            return resourceProvider.id() == this->id;
-          }) != registry->removed_resource_providers().end()) {
-    return Error("Resource provider was removed");
-  }
-
   ResourceProvider resourceProvider;
   resourceProvider.mutable_id()->CopyFrom(id);
 
@@ -150,7 +141,6 @@ Try<bool> RemoveResourceProvider::perform(Registry* registry)
     return Error("Attempted to remove an unknown resource provider");
   }
 
-  registry->add_removed_resource_providers()->CopyFrom(*pos);
   registry->mutable_resource_providers()->erase(pos);
 
   return true; // Mutation.
