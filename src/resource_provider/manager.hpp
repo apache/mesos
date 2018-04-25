@@ -26,7 +26,6 @@
 #include "messages/messages.hpp"
 
 #include "resource_provider/message.hpp"
-#include "resource_provider/registrar.hpp"
 
 namespace mesos {
 namespace internal {
@@ -38,9 +37,7 @@ class ResourceProviderManagerProcess;
 class ResourceProviderManager
 {
 public:
-  ResourceProviderManager(
-      process::Owned<resource_provider::Registrar> registrar);
-
+  ResourceProviderManager();
   ~ResourceProviderManager();
 
   ResourceProviderManager(

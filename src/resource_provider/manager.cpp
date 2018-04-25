@@ -58,7 +58,6 @@ using mesos::internal::resource_provider::validation::call::validate;
 
 using mesos::resource_provider::Call;
 using mesos::resource_provider::Event;
-using mesos::resource_provider::Registrar;
 
 using process::Failure;
 using process::Future;
@@ -158,7 +157,7 @@ class ResourceProviderManagerProcess
   : public Process<ResourceProviderManagerProcess>
 {
 public:
-  ResourceProviderManagerProcess(Owned<Registrar> _registrar);
+  ResourceProviderManagerProcess();
 
   Future<http::Response> api(
       const http::Request& request,
@@ -213,13 +212,9 @@ private:
 };
 
 
-ResourceProviderManagerProcess::ResourceProviderManagerProcess(
-    Owned<Registrar> _registrar)
+ResourceProviderManagerProcess::ResourceProviderManagerProcess()
   : ProcessBase(process::ID::generate("resource-provider-manager")),
-    metrics(*this)
-{
-  CHECK_NOTNULL(_registrar.get());
-}
+    metrics(*this) {}
 
 
 Future<http::Response> ResourceProviderManagerProcess::api(
@@ -768,8 +763,8 @@ ResourceProviderManagerProcess::Metrics::~Metrics()
 }
 
 
-ResourceProviderManager::ResourceProviderManager(Owned<Registrar> registrar)
-  : process(new ResourceProviderManagerProcess(std::move(registrar)))
+ResourceProviderManager::ResourceProviderManager()
+  : process(new ResourceProviderManagerProcess())
 {
   spawn(CHECK_NOTNULL(process.get()));
 }

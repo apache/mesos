@@ -185,10 +185,7 @@ private:
 GenericRegistrarProcess::GenericRegistrarProcess(Owned<Storage> _storage)
   : ProcessBase(process::ID::generate("resource-provider-generic-registrar")),
     storage(std::move(_storage)),
-    state(storage.get())
-{
-  CHECK_NOTNULL(storage.get());
-}
+    state(storage.get()) {}
 
 
 Future<Nothing> GenericRegistrarProcess::recover()
