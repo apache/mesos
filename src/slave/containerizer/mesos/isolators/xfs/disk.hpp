@@ -55,9 +55,8 @@ public:
       const ContainerID& containerId,
       const mesos::slave::ContainerConfig& containerConfig);
 
-  virtual process::Future<Nothing> isolate(
-      const ContainerID& containerId,
-      pid_t pid);
+  virtual process::Future<mesos::slave::ContainerLimitation> watch(
+      const ContainerID& containerId);
 
   virtual process::Future<Nothing> update(
       const ContainerID& containerId,
@@ -69,11 +68,18 @@ public:
   virtual process::Future<Nothing> cleanup(
       const ContainerID& containerId);
 
+protected:
+  virtual void initialize();
+
 private:
   XfsDiskIsolatorProcess(
+      Duration watchInterval,
       xfs::QuotaPolicy quotaPolicy,
       const std::string& workDir,
       const IntervalSet<prid_t>& projectIds);
+
+  // Responsible for validating a container hasn't broken the soft limit.
+  void check();
 
   // Take the next project ID from the unallocated pool.
   Option<prid_t> nextProjectId();
@@ -89,8 +95,10 @@ private:
     const std::string directory;
     Bytes quota;
     const prid_t projectId;
+    process::Promise<mesos::slave::ContainerLimitation> limitation;
   };
 
+  const Duration watchInterval;
   xfs::QuotaPolicy quotaPolicy;
   const std::string workDir;
   const IntervalSet<prid_t> totalProjectIds;

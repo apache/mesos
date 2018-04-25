@@ -32,7 +32,8 @@ namespace xfs {
 
 struct QuotaInfo
 {
-  Bytes limit;
+  Bytes softLimit;
+  Bytes hardLimit;
   Bytes used;
 };
 
@@ -70,14 +71,18 @@ private:
 
 
 enum class QuotaPolicy {
-  ENFORCING,
   ACCOUNTING,
+  ENFORCING_ACTIVE,
+  ENFORCING_PASSIVE
 };
 
 
 inline bool operator==(const QuotaInfo& left, const QuotaInfo& right)
 {
-  return left.limit == right.limit && left.used == right.used;
+  return
+    left.hardLimit == right.hardLimit &&
+    left.softLimit == right.softLimit &&
+    left.used == right.used;
 }
 
 
@@ -101,7 +106,14 @@ Result<QuotaInfo> getProjectQuota(
 Try<Nothing> setProjectQuota(
     const std::string& path,
     prid_t projectId,
-    Bytes limit);
+    Bytes softLimit,
+    Bytes hardLimit);
+
+
+Try<Nothing> setProjectQuota(
+    const std::string& path,
+    prid_t projectId,
+    Bytes hardLimit);
 
 
 Try<Nothing> clearProjectQuota(

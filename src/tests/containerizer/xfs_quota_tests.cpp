@@ -77,7 +77,7 @@ static QuotaInfo makeQuotaInfo(
     Bytes limit,
     Bytes used)
 {
-  return {limit, used};
+  return {limit, limit, used};
 }
 
 
@@ -267,7 +267,7 @@ TEST_F(ROOT_XFS_QuotaTest, QuotaGetSet)
   Result<QuotaInfo> info = getProjectQuota(root, projectId);
   ASSERT_SOME(info);
 
-  EXPECT_EQ(limit, info->limit);
+  EXPECT_EQ(limit, info->hardLimit);
   EXPECT_EQ(Bytes(0), info->used);
 
   EXPECT_SOME(clearProjectQuota(root, projectId));

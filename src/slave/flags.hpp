@@ -178,6 +178,7 @@ public:
   Option<std::string> master_detector;
 #if ENABLE_XFS_DISK_ISOLATOR
   std::string xfs_project_range;
+  bool xfs_kill_containers;
 #endif
   bool http_command_executor;
   Option<SlaveCapabilities> agent_features;

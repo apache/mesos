@@ -134,7 +134,8 @@ namespace internal {
 static Try<Nothing> setProjectQuota(
     const string& path,
     prid_t projectId,
-    Bytes limit)
+    Bytes softLimit,
+    Bytes hardLimit)
 {
   Try<string> devname = getDeviceForPath(path);
   if (devname.isError()) {
@@ -148,14 +149,10 @@ static Try<Nothing> setProjectQuota(
   // Specify that we are setting a project quota for this ID.
   quota.d_id = projectId;
   quota.d_flags = FS_PROJ_QUOTA;
-
-  // Set both the hard and the soft limit to the same quota. Functionally
-  // all we need is the hard limit. The soft limit has no effect when it
-  // is the same as the hard limit but we set it for explicitness.
   quota.d_fieldmask = FS_DQ_BSOFT | FS_DQ_BHARD;
 
-  quota.d_blk_hardlimit = BasicBlocks(limit).blocks();
-  quota.d_blk_softlimit = BasicBlocks(limit).blocks();
+  quota.d_blk_hardlimit = BasicBlocks(hardLimit).blocks();
+  quota.d_blk_softlimit = BasicBlocks(softLimit).blocks();
 
   if (::quotactl(QCMD(Q_XSETQLIM, PRJQUOTA),
                  devname.get().c_str(),
@@ -246,7 +243,8 @@ Result<QuotaInfo> getProjectQuota(
   }
 
   QuotaInfo info;
-  info.limit = BasicBlocks(quota.d_blk_hardlimit).bytes();
+  info.softLimit = BasicBlocks(quota.d_blk_softlimit).bytes();
+  info.hardLimit = BasicBlocks(quota.d_blk_hardlimit).bytes();
   info.used = BasicBlocks(quota.d_bcount).bytes();
 
   return info;
@@ -256,7 +254,8 @@ Result<QuotaInfo> getProjectQuota(
 Try<Nothing> setProjectQuota(
     const string& path,
     prid_t projectId,
-    Bytes limit)
+    Bytes softLimit,
+    Bytes hardLimit)
 {
   if (projectId == NON_PROJECT_ID) {
     return nonProjectError();
@@ -264,11 +263,34 @@ Try<Nothing> setProjectQuota(
 
   // A 0 limit deletes the quota record. If that's desired, the
   // caller should use clearProjectQuota().
-  if (limit == 0) {
-    return Error( "Quota limit must be greater than 0");
+  if (hardLimit == 0) {
+    return Error("Quota hard limit must be greater than 0");
   }
 
-  return internal::setProjectQuota(path, projectId, limit);
+  if (softLimit == 0) {
+    return Error("Quota soft limit must be greater than 0");
+  }
+
+  return internal::setProjectQuota(path, projectId, softLimit, hardLimit);
+}
+
+
+Try<Nothing> setProjectQuota(
+    const string& path,
+    prid_t projectId,
+    Bytes hardLimit)
+{
+  if (projectId == NON_PROJECT_ID) {
+    return nonProjectError();
+  }
+
+  // A 0 limit deletes the quota record. If that's desired, the
+  // caller should use clearProjectQuota().
+  if (hardLimit == 0) {
+    return Error("Quota limit must be greater than 0");
+  }
+
+  return internal::setProjectQuota(path, projectId, hardLimit, hardLimit);
 }
 
 
@@ -280,7 +302,7 @@ Try<Nothing> clearProjectQuota(
     return nonProjectError();
   }
 
-  return internal::setProjectQuota(path, projectId, Bytes(0));
+  return internal::setProjectQuota(path, projectId, Bytes(0), Bytes(0));
 }
 
 

@@ -1131,7 +1131,7 @@ mesos::internal::slave::Flags::Flags()
   add(&Flags::container_disk_watch_interval,
       "container_disk_watch_interval",
       "The interval between disk quota checks for containers. This flag is\n"
-      "used by the `disk/du` isolator.",
+      "used by the `disk/du` and `disk/xfs` isolators.",
       Seconds(15));
 
   // TODO(jieyu): Consider enabling this flag by default. Remember
@@ -1310,6 +1310,12 @@ mesos::internal::slave::Flags::Flags()
       "xfs_project_range",
       "The ranges of XFS project IDs to use for tracking directory quotas",
       "[5000-10000]");
+
+  add(&Flags::xfs_kill_containers,
+      "xfs_kill_containers",
+      "Whether the `disk/xfs` isolator should detect and terminate\n"
+      "containers that exceed their allocated disk quota.",
+      false);
 #endif
 
   add(&Flags::http_command_executor,
