@@ -92,11 +92,9 @@ Try<Owned<Registrar>> Registrar::create(Owned<Storage> storage)
 }
 
 
-Try<Owned<Registrar>> Registrar::create(
-    master::Registrar* registrar,
-    Registry registry)
+Try<Owned<Registrar>> Registrar::create(master::Registrar* registrar)
 {
-  return new MasterRegistrar(registrar, std::move(registry));
+  return new MasterRegistrar(registrar);
 }
 
 
@@ -152,29 +150,28 @@ class GenericRegistrarProcess : public Process<GenericRegistrarProcess>
 public:
   GenericRegistrarProcess(Owned<Storage> storage);
 
-  Future<Registry> recover();
+  Future<Nothing> recover();
 
   Future<bool> apply(Owned<Registrar::Operation> operation);
 
-  void update();
-
-  void initialize() override;
-
-private:
   Future<bool> _apply(Owned<Registrar::Operation> operation);
+
+  void update();
 
   void _update(
       const Future<Option<Variable<Registry>>>& store,
+      const Registry& updatedRegistry,
       deque<Owned<Registrar::Operation>> applied);
 
-
+private:
   Owned<Storage> storage;
 
   // Use fully qualified type for `State` to disambiguate with `State`
   // enumeration in `ProcessBase`.
   mesos::state::protobuf::State state;
 
-  Promise<Nothing> recovered;
+  Option<Future<Nothing>> recovered;
+  Option<Registry> registry;
   Option<Variable<Registry>> variable;
 
   Option<Error> error;
@@ -194,36 +191,32 @@ GenericRegistrarProcess::GenericRegistrarProcess(Owned<Storage> _storage)
 }
 
 
-void GenericRegistrarProcess::initialize()
+Future<Nothing> GenericRegistrarProcess::recover()
 {
   constexpr char NAME[] = "RESOURCE_PROVIDER_REGISTRAR";
 
-  CHECK_NONE(variable);
+  if (recovered.isNone()) {
+    recovered = state.fetch<Registry>(NAME).then(
+        defer(self(), [this](const Variable<Registry>& recovery) {
+          registry = recovery.get();
+          variable = recovery;
 
-  recovered.associate(state.fetch<Registry>(NAME).then(
-      defer(self(), [this](const Variable<Registry>& recovery) {
-        variable = recovery;
-        return Nothing();
-      })));
-}
+          return Nothing();
+        }));
+  }
 
-
-Future<Registry> GenericRegistrarProcess::recover()
-{
-  // Prevent discards on the returned `Future` by marking the result as
-  // `undiscardable` so that we control the lifetime of the recovering registry.
-  return undiscardable(recovered.future()).then([this](const Nothing&) {
-    CHECK_SOME(this->variable);
-    return this->variable->get();
-  });
+  return recovered.get();
 }
 
 
 Future<bool> GenericRegistrarProcess::apply(
     Owned<Registrar::Operation> operation)
 {
-  return undiscardable(recovered.future()).then(
-      defer(self(), &Self::_apply, std::move(operation)));
+  if (recovered.isNone()) {
+    return Failure("Attempted to apply the operation before recovering");
+  }
+
+  return recovered->then(defer(self(), &Self::_apply, std::move(operation)));
 }
 
 
@@ -256,9 +249,8 @@ void GenericRegistrarProcess::update()
 
   updating = true;
 
-  CHECK_SOME(variable);
-
-  Registry updatedRegistry = variable->get();
+  CHECK_SOME(registry);
+  Registry updatedRegistry = registry.get();
 
   foreach (Owned<Registrar::Operation>& operation, operations) {
     Try<bool> operationResult = (*operation)(&updatedRegistry);
@@ -280,6 +272,7 @@ void GenericRegistrarProcess::update()
       self(),
       &Self::_update,
       lambda::_1,
+      updatedRegistry,
       std::move(operations)));
 
   operations.clear();
@@ -288,6 +281,7 @@ void GenericRegistrarProcess::update()
 
 void GenericRegistrarProcess::_update(
     const Future<Option<Variable<Registry>>>& store,
+    const Registry& updatedRegistry,
     deque<Owned<Registrar::Operation>> applied)
 {
   updating = false;
@@ -316,6 +310,7 @@ void GenericRegistrarProcess::_update(
   }
 
   variable = store->get();
+  registry = updatedRegistry;
 
   // Remove the operations.
   while (!applied.empty()) {
@@ -345,7 +340,7 @@ GenericRegistrar::~GenericRegistrar()
 }
 
 
-Future<Registry> GenericRegistrar::recover()
+Future<Nothing> GenericRegistrar::recover()
 {
   return dispatch(process.get(), &GenericRegistrarProcess::recover);
 }
@@ -369,8 +364,6 @@ class MasterRegistrarProcess : public Process<MasterRegistrarProcess>
   public:
     AdaptedOperation(Owned<Registrar::Operation> operation);
 
-    Future<registry::Registry> recover();
-
   private:
     Try<bool> perform(internal::Registry* registry, hashset<SlaveID>*) override;
 
@@ -383,17 +376,12 @@ class MasterRegistrarProcess : public Process<MasterRegistrarProcess>
   };
 
 public:
-  explicit MasterRegistrarProcess(
-      master::Registrar* registrar,
-      Registry registry);
+  explicit MasterRegistrarProcess(master::Registrar* registrar);
 
   Future<bool> apply(Owned<Registrar::Operation> operation);
 
-  Future<registry::Registry> recover() { return registry; }
-
 private:
   master::Registrar* registrar = nullptr;
-  Registry registry;
 };
 
 
@@ -410,12 +398,9 @@ Try<bool> MasterRegistrarProcess::AdaptedOperation::perform(
 }
 
 
-MasterRegistrarProcess::MasterRegistrarProcess(
-    master::Registrar* _registrar,
-    registry::Registry _registry)
+MasterRegistrarProcess::MasterRegistrarProcess(master::Registrar* _registrar)
   : ProcessBase(process::ID::generate("resource-provider-agent-registrar")),
-    registrar(_registrar),
-    registry(std::move(_registry)) {}
+    registrar(_registrar) {}
 
 
 Future<bool> MasterRegistrarProcess::apply(
@@ -428,10 +413,8 @@ Future<bool> MasterRegistrarProcess::apply(
 }
 
 
-MasterRegistrar::MasterRegistrar(
-    master::Registrar* registrar,
-    registry::Registry registry)
-  : process(new MasterRegistrarProcess(registrar, std::move(registry)))
+MasterRegistrar::MasterRegistrar(master::Registrar* registrar)
+  : process(new MasterRegistrarProcess(registrar))
 {
   spawn(process.get(), false);
 }
@@ -444,9 +427,9 @@ MasterRegistrar::~MasterRegistrar()
 }
 
 
-Future<Registry> MasterRegistrar::recover()
+Future<Nothing> MasterRegistrar::recover()
 {
-  return dispatch(process.get(), &MasterRegistrarProcess::recover);
+  return Nothing();
 }
 
 
