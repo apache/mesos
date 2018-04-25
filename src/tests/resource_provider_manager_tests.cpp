@@ -1150,67 +1150,6 @@ TEST_P(ResourceProviderManagerHttpApiTest, ResubscribeResourceProvider)
 }
 
 
-// Test that when a resource provider attempts to resubscribe with an
-// unknown ID it is not admitted but disconnected.
-TEST_P(ResourceProviderManagerHttpApiTest, ResubscribeUnknownID)
-{
-  Clock::pause();
-
-  // Start master and agent.
-  Try<Owned<cluster::Master>> master = StartMaster();
-  ASSERT_SOME(master);
-
-  Owned<MasterDetector> detector = master.get()->createDetector();
-
-  slave::Flags slaveFlags = CreateSlaveFlags();
-
-  // For the agent's resource provider manager to start,
-  // the agent needs to have been assigned an agent ID.
-  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
-    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
-
-  Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), slaveFlags);
-  ASSERT_SOME(agent);
-
-  Clock::advance(slaveFlags.registration_backoff_factor);
-  Clock::settle();
-
-  AWAIT_READY(slaveRegisteredMessage);
-
-  mesos::v1::ResourceProviderID resourceProviderId;
-  resourceProviderId.set_value(id::UUID::random().toString());
-
-  mesos::v1::ResourceProviderInfo resourceProviderInfo;
-  resourceProviderInfo.mutable_id()->CopyFrom(resourceProviderId);
-  resourceProviderInfo.set_type("org.apache.mesos.rp.test");
-  resourceProviderInfo.set_name("test");
-
-  Owned<v1::MockResourceProvider> resourceProvider(
-      new v1::MockResourceProvider(resourceProviderInfo));
-
-  // We explicitly reset the resource provider after the expected
-  // disconnect to prevent it from resubscribing indefinitely.
-  Future<Nothing> disconnected;
-  EXPECT_CALL(*resourceProvider, disconnected())
-    .WillOnce(DoAll(
-        Invoke([&resourceProvider]() { resourceProvider.reset(); }),
-        FutureSatisfy(&disconnected)));
-
-  // Start and register a resource provider.
-  Owned<EndpointDetector> endpointDetector(
-      resource_provider::createEndpointDetector(agent.get()->pid));
-
-  const ContentType contentType = GetParam();
-
-  resourceProvider->start(
-      endpointDetector,
-      contentType,
-      v1::DEFAULT_CREDENTIAL);
-
-  AWAIT_READY(disconnected);
-}
-
-
 // This test verifies that a disconnected resource provider will
 // result in an `UpdateSlaveMessage` to be sent to the master and the
 // total resources of the disconnected resource provider will be

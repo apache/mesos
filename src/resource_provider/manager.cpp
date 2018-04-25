@@ -678,18 +678,7 @@ void ResourceProviderManagerProcess::subscribe(
     // restarted or an agent failover. The 'ResourceProviderInfo' might
     // have been updated, but its type and name should remain the same.
     // We should checkpoint its 'type', 'name' and ID, then check if the
-    // resubscription is consistent with the checkpointed record.
-
-    const ResourceProviderID& resourceProviderId = resourceProviderInfo.id();
-
-    if (!resourceProviders.known.contains(resourceProviderId)) {
-      LOG(INFO)
-        << "Dropping resubscription attempt of resource provider with ID "
-        << resourceProviderId
-        << " since it is unknown";
-
-      return;
-    }
+    // resubscribption is consistent with the checkpointed record.
 
     // If the resource provider is known we do not need to admit it
     // again, and the registrar operation implicitly succeeded.
