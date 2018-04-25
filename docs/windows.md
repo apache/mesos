@@ -23,7 +23,10 @@ Mesos 1.0.0 introduced experimental support for Windows.
 4. If building from source, install [Git](https://git-scm.com/download/win).
    During installation, keep the defaults to "Use Git from the Windows
    Command Prompt", and "Checkout Windows-style, commit Unix-style
-   line endings" (i.e. `git config core.autocrlf true`).
+   line endings" (i.e. `git config --global core.autocrlf true`). The
+   last part is _very_ important, because GNU patch will crash with
+   "Assertion failed, hunk, file patch.c, line 343" if the patch files
+   on Windows are Unix-style (LF) instead of Windows-style (CRLF).
 
 5. Make sure there are no spaces in your build directory.
    For example, `C:/Program Files (x86)/mesos` is an invalid build directory.
