@@ -755,17 +755,14 @@ TEST_P(ResourceProviderManagerHttpApiTest, AgentEndpoint)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  Owned<MasterDetector> detector = master.get()->createDetector();
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
 
-  // For the agent's resource provider manager to start,
-  // the agent needs to have been assigned an agent ID.
-  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
-    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+  Owned<MasterDetector> detector = master.get()->createDetector();
 
   Try<Owned<cluster::Slave>> agent = StartSlave(detector.get());
   ASSERT_SOME(agent);
 
-  AWAIT_READY(slaveRegisteredMessage);
+  AWAIT_READY(__recover);
 
   // Wait for recovery to be complete.
   Clock::pause();
