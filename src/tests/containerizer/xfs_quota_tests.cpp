@@ -149,6 +149,12 @@ public:
       fs::unmount(mountPoint.get(), MNT_FORCE | MNT_DETACH);
     }
 
+    // Make sure we resume the clock so that we can wait on the
+    // `losetup` process.
+    if (Clock::paused()) {
+      Clock::resume();
+    }
+
     // Make a best effort to tear everything down. We don't make any assertions
     // here because even if something goes wrong we still want to clean up as
     // much as we can.
@@ -518,6 +524,98 @@ TEST_F(ROOT_XFS_QuotaTest, DiskUsageExceedsQuotaNoEnforce)
   AWAIT_READY(finishedStatus);
   EXPECT_EQ(task.task_id(), finishedStatus->task_id());
   EXPECT_EQ(TASK_FINISHED, finishedStatus->state());
+
+  driver.stop();
+  driver.join();
+}
+
+
+// Verify that when the `xfs_kill_containers` flag is enabled, tasks that
+// exceed their disk quota are killed with the correct container limitation.
+TEST_F(ROOT_XFS_QuotaTest, DiskUsageExceedsQuotaWithKill)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  // Enable killing containers on disk quota violations.
+  flags.xfs_kill_containers = true;
+
+  // Tune the watch interval down so that the isolator will detect
+  // the quota violation as soon as possible.
+  flags.container_disk_watch_interval = Milliseconds(1);
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  const Offer& offer = offers.get()[0];
+
+  // Create a task which requests 1MB disk, but actually uses 2MB. This
+  // waits a long time to ensure that the task lives long enough for the
+  // isolator to impose a container limitation.
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:128;disk:1").get(),
+      "dd if=/dev/zero of=file bs=1048576 count=2 && sleep 100000");
+
+  Future<TaskStatus> startingStatus;
+  Future<TaskStatus> runningStatus;
+  Future<TaskStatus> killedStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&startingStatus))
+    .WillOnce(FutureArg<1>(&runningStatus))
+    .WillOnce(FutureArg<1>(&killedStatus));
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(startingStatus);
+  EXPECT_EQ(task.task_id(), startingStatus->task_id());
+  EXPECT_EQ(TASK_STARTING, startingStatus->state());
+
+  AWAIT_READY(runningStatus);
+  EXPECT_EQ(task.task_id(), runningStatus->task_id());
+  EXPECT_EQ(TASK_RUNNING, runningStatus->state());
+
+  AWAIT_READY(killedStatus);
+  EXPECT_EQ(task.task_id(), killedStatus->task_id());
+  EXPECT_EQ(TASK_FAILED, killedStatus->state());
+
+  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, killedStatus->source());
+  EXPECT_EQ(
+      TaskStatus::REASON_CONTAINER_LIMITATION_DISK, killedStatus->reason());
+
+  ASSERT_TRUE(killedStatus->has_limitation())
+    << JSON::protobuf(killedStatus.get());
+
+  Resources limit = Resources(killedStatus->limitation().resources());
+
+  // Expect that we were limited on a single disk resource that represents
+  // the amount of disk that the task consumed. Note that while the task
+  // used up to 2MB, the executor logs might use more so we have to check
+  // for >= 2MB in this expectation.
+  EXPECT_EQ(1u, limit.size());
+  ASSERT_SOME(limit.disk());
+  EXPECT_GE(limit.disk().get(), Megabytes(2));
 
   driver.stop();
   driver.join();
