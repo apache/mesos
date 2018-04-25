@@ -22,7 +22,7 @@ import time
 
 import mesos.interface
 from mesos.interface import mesos_pb2
-from mesos.executor import MesosExecutorDriver
+from mesos.native import MesosExecutorDriver
 
 class MyExecutor(mesos.interface.Executor):
     def launchTask(self, driver, task):
