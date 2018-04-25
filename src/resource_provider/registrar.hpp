@@ -19,8 +19,6 @@
 
 #include <memory>
 
-#include <mesos/state/storage.hpp>
-
 #include <process/future.hpp>
 #include <process/owned.hpp>
 
@@ -66,13 +64,14 @@ public:
     bool success = false;
   };
 
-  // Create a registry on top of generic storage.
-  static Try<process::Owned<Registrar>> create(
-      process::Owned<state::Storage> storage);
-
   // Create a registry on top of a master's persistent state.
   static Try<process::Owned<Registrar>> create(
       mesos::internal::master::Registrar* registrar);
+
+  // Create a registry on top of an agent's persistent state.
+  static Try<process::Owned<Registrar>> create(
+      const mesos::internal::slave::Flags& slaveFlags,
+      const SlaveID& slaveId);
 
   virtual ~Registrar() = default;
 
@@ -111,7 +110,9 @@ class AgentRegistrarProcess;
 class AgentRegistrar : public Registrar
 {
 public:
-  AgentRegistrar(process::Owned<state::Storage> storage);
+  AgentRegistrar(
+      const mesos::internal::slave::Flags& slaveFlags,
+      const SlaveID& slaveId);
 
   ~AgentRegistrar() override;
 
