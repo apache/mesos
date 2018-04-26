@@ -37,6 +37,7 @@
 #include <stout/option.hpp>
 #include <stout/path.hpp>
 
+#include <stout/os/close.hpp>
 #include <stout/os/socket.hpp>
 
 using std::cerr;
@@ -87,9 +88,9 @@ int testTCPConnect(const string& ip, int port)
   }
 
   // Create a TCP socket.
-  int_fd socket = ::socket(parse->family(), SOCK_STREAM, 0);
-  if (socket < 0) {
-    cerr << "Failed to create socket: " << strerror(errno) << endl;
+  Try<int_fd> socket = net::socket(parse->family(), SOCK_STREAM, 0);
+  if (socket.isError()) {
+    cerr << "Failed to create socket: " << socket.error() << endl;
     return EXIT_FAILURE;
   }
 
@@ -97,19 +98,19 @@ int testTCPConnect(const string& ip, int port)
   // zero is returned, indicating the remote port is open.
   cout << "Connecting to " << ip << ":" << port << endl;
   Try<Nothing, SocketError> connect = process::network::connect(
-      socket,
+      socket.get(),
       process::network::inet::Address(parse.get(), port));
 
   if (connect.isError()) {
     cerr << connect.error().message << endl;
-    close(socket);
+    os::close(socket.get());
     return EXIT_FAILURE;
   }
 
   cout << "Successfully established TCP connection" << endl;
 
-  shutdown(socket, SHUT_RDWR);
-  close(socket);
+  shutdown(socket.get(), SHUT_RDWR);
+  os::close(socket.get());
 
   return EXIT_SUCCESS;
 }
