@@ -5,9 +5,12 @@ This release contains the following new features:
   * [MESOS-8534] - **Experimental** A nested container is now allowed
     to join a separate CNI network than its parent container.
 
-  * [MESOS-7944] - **Experimental** On Linux, Mesos can now be
+  * [MESOS-8801] - **Experimental** On Linux, Mesos can now be
     configured to use the jemalloc allocator by default via the
     `--enable-jemalloc-allocator` configuration option.
+
+  * [MESOS-7944] - **Experimental** Added a new `MemoryProfiler` class to
+    libprocess to aid in debugging memory issues.
 
   * [MESOS-8572] - Improvements to the Docker containerizer and executor
     to more gracefully handle situations in which the Docker CLI is

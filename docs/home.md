@@ -27,6 +27,7 @@ layout: documentation
 * [Operational Guide](operational-guide.md)
 * [Fetcher Cache Configuration](fetcher.md)
 * [Fault Domains](fault-domains.md)
+* [Memory Profiling](memory-profiling.md) for debugging potential memory leaks in Mesos.
 
 ## Resource Management
 * [Attributes and Resources](attributes-resources.md) for how to describe the agents that comprise a cluster.
