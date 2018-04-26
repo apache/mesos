@@ -40,13 +40,8 @@ public:
     Flags();
 
     Option<JSON::Object> launch_info;
-#ifdef __WINDOWS__
-    Option<HANDLE> pipe_read;
-    Option<HANDLE> pipe_write;
-#else
-    Option<int> pipe_read;
-    Option<int> pipe_write;
-#endif // __WINDOWS__
+    Option<int_fd> pipe_read;
+    Option<int_fd> pipe_write;
     Option<std::string> runtime_directory;
 #ifdef __linux__
     Option<pid_t> namespace_mnt_target;
