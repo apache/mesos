@@ -47,6 +47,7 @@ nobase_include_HEADERS =		\
   process/mutex.hpp			\
   process/metrics/counter.hpp		\
   process/metrics/gauge.hpp		\
+  process/metrics/push_gauge.hpp	\
   process/metrics/metric.hpp		\
   process/metrics/metrics.hpp		\
   process/metrics/timer.hpp		\
