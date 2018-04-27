@@ -32,7 +32,7 @@
 #include <process/id.hpp>
 #include <process/process.hpp>
 
-#include <process/metrics/gauge.hpp>
+#include <process/metrics/pull_gauge.hpp>
 #include <process/metrics/metrics.hpp>
 
 #include <stout/hashmap.hpp>
@@ -84,7 +84,7 @@ using process::http::UnsupportedMediaType;
 
 using process::http::authentication::Principal;
 
-using process::metrics::Gauge;
+using process::metrics::PullGauge;
 
 namespace mesos {
 namespace internal {
@@ -205,7 +205,7 @@ private:
     explicit Metrics(const ResourceProviderManagerProcess& manager);
     ~Metrics();
 
-    Gauge subscribed;
+    PullGauge subscribed;
   };
 
   Metrics metrics;

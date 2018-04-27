@@ -20,7 +20,7 @@
 
 #include <mesos/quota/quota.hpp>
 
-#include <process/metrics/gauge.hpp>
+#include <process/metrics/pull_gauge.hpp>
 #include <process/metrics/metrics.hpp>
 
 #include <stout/hashmap.hpp>
@@ -29,7 +29,7 @@
 
 using std::string;
 
-using process::metrics::Gauge;
+using process::metrics::PullGauge;
 
 namespace mesos {
 namespace internal {
@@ -67,13 +67,13 @@ Metrics::Metrics(const HierarchicalAllocatorProcess& _allocator)
   string resources[] = {"cpus", "mem", "disk"};
 
   foreach (const string& resource, resources) {
-    Gauge total(
+    PullGauge total(
         "allocator/mesos/resources/" + resource + "/total",
         defer(allocator,
               &HierarchicalAllocatorProcess::_resources_total,
               resource));
 
-    Gauge offered_or_allocated(
+    PullGauge offered_or_allocated(
         "allocator/mesos/resources/" + resource + "/offered_or_allocated",
         defer(allocator,
               &HierarchicalAllocatorProcess::_resources_offered_or_allocated,
@@ -96,27 +96,27 @@ Metrics::~Metrics()
   process::metrics::remove(allocation_run);
   process::metrics::remove(allocation_run_latency);
 
-  foreach (const Gauge& gauge, resources_total) {
+  foreach (const PullGauge& gauge, resources_total) {
     process::metrics::remove(gauge);
   }
 
-  foreach (const Gauge& gauge, resources_offered_or_allocated) {
+  foreach (const PullGauge& gauge, resources_offered_or_allocated) {
     process::metrics::remove(gauge);
   }
 
   foreachkey (const string& role, quota_allocated) {
-    foreachvalue (const Gauge& gauge, quota_allocated[role]) {
+    foreachvalue (const PullGauge& gauge, quota_allocated[role]) {
       process::metrics::remove(gauge);
     }
   }
 
   foreachkey (const string& role, quota_guarantee) {
-    foreachvalue (const Gauge& gauge, quota_guarantee[role]) {
+    foreachvalue (const PullGauge& gauge, quota_guarantee[role]) {
       process::metrics::remove(gauge);
     }
   }
 
-  foreachvalue (const Gauge& gauge, offer_filters_active) {
+  foreachvalue (const PullGauge& gauge, offer_filters_active) {
     process::metrics::remove(gauge);
   }
 }
@@ -126,21 +126,21 @@ void Metrics::setQuota(const string& role, const Quota& quota)
 {
   CHECK(!quota_allocated.contains(role));
 
-  hashmap<string, Gauge> allocated;
-  hashmap<string, Gauge> guarantees;
+  hashmap<string, PullGauge> allocated;
+  hashmap<string, PullGauge> guarantees;
 
   foreach (const Resource& resource, quota.info.guarantee()) {
     CHECK_EQ(Value::SCALAR, resource.type());
     double value = resource.scalar().value();
 
-    Gauge guarantee = Gauge(
+    PullGauge guarantee = PullGauge(
         "allocator/mesos/quota"
         "/roles/" + role +
         "/resources/" + resource.name() +
         "/guarantee",
         process::defer([value]() { return value; }));
 
-    Gauge offered_or_allocated(
+    PullGauge offered_or_allocated(
         "allocator/mesos/quota"
         "/roles/" + role +
         "/resources/" + resource.name() +
@@ -166,7 +166,7 @@ void Metrics::removeQuota(const string& role)
 {
   CHECK(quota_allocated.contains(role));
 
-  foreachvalue (const Gauge& gauge, quota_allocated[role]) {
+  foreachvalue (const PullGauge& gauge, quota_allocated[role]) {
     process::metrics::remove(gauge);
   }
 
@@ -178,7 +178,7 @@ void Metrics::addRole(const string& role)
 {
   CHECK(!offer_filters_active.contains(role));
 
-  Gauge gauge(
+  PullGauge gauge(
       "allocator/mesos/offer_filters/roles/" + role + "/active",
       defer(allocator,
             &HierarchicalAllocatorProcess::_offer_filters_active,
@@ -192,7 +192,7 @@ void Metrics::addRole(const string& role)
 
 void Metrics::removeRole(const string& role)
 {
-  Option<Gauge> gauge = offer_filters_active.get(role);
+  Option<PullGauge> gauge = offer_filters_active.get(role);
 
   CHECK_SOME(gauge);
 

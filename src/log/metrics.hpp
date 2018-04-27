@@ -19,7 +19,7 @@
 
 #include <string>
 
-#include <process/metrics/gauge.hpp>
+#include <process/metrics/pull_gauge.hpp>
 
 namespace mesos {
 namespace internal {
@@ -36,9 +36,9 @@ struct Metrics
 
   ~Metrics();
 
-  process::metrics::Gauge recovered;
+  process::metrics::PullGauge recovered;
 
-  process::metrics::Gauge ensemble_size;
+  process::metrics::PullGauge ensemble_size;
 };
 
 } // namespace log {

@@ -17,7 +17,7 @@
 #include <string>
 
 #include <process/metrics/counter.hpp>
-#include <process/metrics/gauge.hpp>
+#include <process/metrics/pull_gauge.hpp>
 #include <process/metrics/metrics.hpp>
 
 #include <stout/foreach.hpp>
@@ -26,7 +26,7 @@
 #include "master/metrics.hpp"
 
 using process::metrics::Counter;
-using process::metrics::Gauge;
+using process::metrics::PullGauge;
 
 using std::string;
 
@@ -313,15 +313,15 @@ Metrics::Metrics(const Master& master)
   const string resources[] = {"cpus", "gpus", "mem", "disk"};
 
   foreach (const string& resource, resources) {
-    Gauge total(
+    PullGauge total(
         "master/" + resource + "_total",
         defer(master, &Master::_resources_total, resource));
 
-    Gauge used(
+    PullGauge used(
         "master/" + resource + "_used",
         defer(master, &Master::_resources_used, resource));
 
-    Gauge percent(
+    PullGauge percent(
         "master/" + resource + "_percent",
         defer(master, &Master::_resources_percent, resource));
 
@@ -335,15 +335,15 @@ Metrics::Metrics(const Master& master)
   }
 
   foreach (const string& resource, resources) {
-    Gauge total(
+    PullGauge total(
         "master/" + resource + "_revocable_total",
         defer(master, &Master::_resources_revocable_total, resource));
 
-    Gauge used(
+    PullGauge used(
         "master/" + resource + "_revocable_used",
         defer(master, &Master::_resources_revocable_used, resource));
 
-    Gauge percent(
+    PullGauge percent(
         "master/" + resource + "_revocable_percent",
         defer(master, &Master::_resources_revocable_percent, resource));
 
@@ -458,32 +458,32 @@ Metrics::~Metrics()
   process::metrics::remove(slave_unreachable_completed);
   process::metrics::remove(slave_unreachable_canceled);
 
-  foreach (const Gauge& gauge, resources_total) {
+  foreach (const PullGauge& gauge, resources_total) {
     process::metrics::remove(gauge);
   }
   resources_total.clear();
 
-  foreach (const Gauge& gauge, resources_used) {
+  foreach (const PullGauge& gauge, resources_used) {
     process::metrics::remove(gauge);
   }
   resources_used.clear();
 
-  foreach (const Gauge& gauge, resources_percent) {
+  foreach (const PullGauge& gauge, resources_percent) {
     process::metrics::remove(gauge);
   }
   resources_percent.clear();
 
-  foreach (const Gauge& gauge, resources_revocable_total) {
+  foreach (const PullGauge& gauge, resources_revocable_total) {
     process::metrics::remove(gauge);
   }
   resources_revocable_total.clear();
 
-  foreach (const Gauge& gauge, resources_revocable_used) {
+  foreach (const PullGauge& gauge, resources_revocable_used) {
     process::metrics::remove(gauge);
   }
   resources_revocable_used.clear();
 
-  foreach (const Gauge& gauge, resources_revocable_percent) {
+  foreach (const PullGauge& gauge, resources_revocable_percent) {
     process::metrics::remove(gauge);
   }
   resources_revocable_percent.clear();

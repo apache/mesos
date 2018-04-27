@@ -26,7 +26,7 @@
 #include <process/process.hpp>
 #include <process/shared.hpp>
 
-#include <process/metrics/gauge.hpp>
+#include <process/metrics/pull_gauge.hpp>
 
 #include <stout/nothing.hpp>
 

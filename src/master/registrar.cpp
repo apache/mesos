@@ -30,7 +30,7 @@
 #include <process/owned.hpp>
 #include <process/process.hpp>
 
-#include <process/metrics/gauge.hpp>
+#include <process/metrics/pull_gauge.hpp>
 #include <process/metrics/metrics.hpp>
 #include <process/metrics/timer.hpp>
 
@@ -67,7 +67,7 @@ using process::http::OK;
 
 using process::http::authentication::Principal;
 
-using process::metrics::Gauge;
+using process::metrics::PullGauge;
 using process::metrics::Timer;
 
 using std::deque;
@@ -166,14 +166,14 @@ private:
       process::metrics::remove(state_store);
     }
 
-    Gauge queued_operations;
-    Gauge registry_size_bytes;
+    PullGauge queued_operations;
+    PullGauge registry_size_bytes;
 
     Timer<Milliseconds> state_fetch;
     Timer<Milliseconds> state_store;
   } metrics;
 
-  // Gauge handlers.
+  // PullGauge handlers.
   double _queued_operations()
   {
     return static_cast<double>(operations.size());

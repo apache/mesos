@@ -30,7 +30,7 @@ using std::string;
 using process::UPID;
 using process::defer;
 
-using process::metrics::Gauge;
+using process::metrics::PullGauge;
 
 namespace mesos {
 namespace internal {
@@ -48,7 +48,7 @@ Metrics::Metrics(
 
 Metrics::~Metrics()
 {
-  foreachvalue (const Gauge& gauge, dominantShares) {
+  foreachvalue (const PullGauge& gauge, dominantShares) {
     process::metrics::remove(gauge);
   }
 }
@@ -58,7 +58,7 @@ void Metrics::add(const string& client)
 {
   CHECK(!dominantShares.contains(client));
 
-  Gauge gauge(
+  PullGauge gauge(
       path::join(prefix, client, "/shares/", "/dominant"),
       defer(context, [this, client]() {
         // The client may have been removed if the dispatch

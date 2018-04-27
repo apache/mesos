@@ -61,7 +61,7 @@
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
-#include <process/metrics/gauge.hpp>
+#include <process/metrics/pull_gauge.hpp>
 #include <process/metrics/metrics.hpp>
 
 #include <stout/abort.hpp>
@@ -1611,8 +1611,8 @@ private:
     }
 
     // Process metrics.
-    process::metrics::Gauge event_queue_messages;
-    process::metrics::Gauge event_queue_dispatches;
+    process::metrics::PullGauge event_queue_messages;
+    process::metrics::PullGauge event_queue_dispatches;
   } metrics;
 
   double _event_queue_messages()

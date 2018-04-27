@@ -23,7 +23,7 @@
 #include <mesos/quota/quota.hpp>
 
 #include <process/metrics/counter.hpp>
-#include <process/metrics/gauge.hpp>
+#include <process/metrics/pull_gauge.hpp>
 #include <process/metrics/timer.hpp>
 
 #include <process/pid.hpp>
@@ -56,12 +56,12 @@ struct Metrics
   const process::PID<HierarchicalAllocatorProcess> allocator;
 
   // Number of dispatch events currently waiting in the allocator process.
-  process::metrics::Gauge event_queue_dispatches;
+  process::metrics::PullGauge event_queue_dispatches;
 
   // TODO(bbannier) This metric is identical to `event_queue_dispatches`, but
   // uses a name deprecated in 1.0. This metric should be removed after the
   // deprecation cycle.
-  process::metrics::Gauge event_queue_dispatches_;
+  process::metrics::PullGauge event_queue_dispatches_;
 
   // Number of times the allocation algorithm has run.
   process::metrics::Counter allocation_runs;
@@ -72,22 +72,22 @@ struct Metrics
   // The latency of allocation runs due to the batching of allocation requests.
   process::metrics::Timer<Milliseconds> allocation_run_latency;
 
-  // Gauges for the total amount of each resource in the cluster.
-  std::vector<process::metrics::Gauge> resources_total;
+  // PullGauges for the total amount of each resource in the cluster.
+  std::vector<process::metrics::PullGauge> resources_total;
 
-  // Gauges for the allocated amount of each resource in the cluster.
-  std::vector<process::metrics::Gauge> resources_offered_or_allocated;
+  // PullGauges for the allocated amount of each resource in the cluster.
+  std::vector<process::metrics::PullGauge> resources_offered_or_allocated;
 
-  // Gauges for the per-role quota allocation for each resource.
-  hashmap<std::string, hashmap<std::string, process::metrics::Gauge>>
+  // PullGauges for the per-role quota allocation for each resource.
+  hashmap<std::string, hashmap<std::string, process::metrics::PullGauge>>
     quota_allocated;
 
-  // Gauges for the per-role quota guarantee for each resource.
-  hashmap<std::string, hashmap<std::string, process::metrics::Gauge>>
+  // PullGauges for the per-role quota guarantee for each resource.
+  hashmap<std::string, hashmap<std::string, process::metrics::PullGauge>>
     quota_guarantee;
 
-  // Gauges for the per-role count of active offer filters.
-  hashmap<std::string, process::metrics::Gauge> offer_filters_active;
+  // PullGauges for the per-role count of active offer filters.
+  hashmap<std::string, process::metrics::PullGauge> offer_filters_active;
 };
 
 } // namespace internal {

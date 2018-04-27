@@ -20,7 +20,7 @@
 #include <vector>
 
 #include <process/metrics/counter.hpp>
-#include <process/metrics/gauge.hpp>
+#include <process/metrics/pull_gauge.hpp>
 
 
 namespace mesos {
@@ -37,27 +37,27 @@ struct Metrics
 
   void setRecoveryTime(const Duration& duration);
 
-  process::metrics::Gauge uptime_secs;
-  process::metrics::Gauge registered;
+  process::metrics::PullGauge uptime_secs;
+  process::metrics::PullGauge registered;
 
   process::metrics::Counter recovery_errors;
-  Option<process::metrics::Gauge> recovery_time_secs;
+  Option<process::metrics::PullGauge> recovery_time_secs;
 
-  process::metrics::Gauge frameworks_active;
+  process::metrics::PullGauge frameworks_active;
 
-  process::metrics::Gauge tasks_staging;
-  process::metrics::Gauge tasks_starting;
-  process::metrics::Gauge tasks_running;
-  process::metrics::Gauge tasks_killing;
+  process::metrics::PullGauge tasks_staging;
+  process::metrics::PullGauge tasks_starting;
+  process::metrics::PullGauge tasks_running;
+  process::metrics::PullGauge tasks_killing;
   process::metrics::Counter tasks_finished;
   process::metrics::Counter tasks_failed;
   process::metrics::Counter tasks_killed;
   process::metrics::Counter tasks_lost;
   process::metrics::Counter tasks_gone;
 
-  process::metrics::Gauge executors_registering;
-  process::metrics::Gauge executors_running;
-  process::metrics::Gauge executors_terminating;
+  process::metrics::PullGauge executors_registering;
+  process::metrics::PullGauge executors_running;
+  process::metrics::PullGauge executors_terminating;
   process::metrics::Counter executors_terminated;
   process::metrics::Counter executors_preempted;
 
@@ -67,19 +67,19 @@ struct Metrics
   process::metrics::Counter valid_framework_messages;
   process::metrics::Counter invalid_framework_messages;
 
-  process::metrics::Gauge executor_directory_max_allowed_age_secs;
+  process::metrics::PullGauge executor_directory_max_allowed_age_secs;
 
   process::metrics::Counter container_launch_errors;
 
   // Non-revocable resources.
-  std::vector<process::metrics::Gauge> resources_total;
-  std::vector<process::metrics::Gauge> resources_used;
-  std::vector<process::metrics::Gauge> resources_percent;
+  std::vector<process::metrics::PullGauge> resources_total;
+  std::vector<process::metrics::PullGauge> resources_used;
+  std::vector<process::metrics::PullGauge> resources_percent;
 
   // Revocable resources.
-  std::vector<process::metrics::Gauge> resources_revocable_total;
-  std::vector<process::metrics::Gauge> resources_revocable_used;
-  std::vector<process::metrics::Gauge> resources_revocable_percent;
+  std::vector<process::metrics::PullGauge> resources_revocable_total;
+  std::vector<process::metrics::PullGauge> resources_revocable_used;
+  std::vector<process::metrics::PullGauge> resources_revocable_percent;
 };
 
 } // namespace slave {

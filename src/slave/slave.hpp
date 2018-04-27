@@ -669,7 +669,7 @@ private:
   process::Future<Nothing> publishResources(
       const Option<Resources>& additionalResources = None());
 
-  // Gauge methods.
+  // PullGauge methods.
   double _frameworks_active()
   {
     return static_cast<double>(frameworks.size());

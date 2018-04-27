@@ -36,7 +36,7 @@
 #include <process/time.hpp>
 
 #include <process/metrics/counter.hpp>
-#include <process/metrics/gauge.hpp>
+#include <process/metrics/pull_gauge.hpp>
 #include <process/metrics/metrics.hpp>
 
 #include <stout/flags.hpp>
@@ -89,7 +89,7 @@ using process::TLDR;
 
 using process::http::OK;
 
-using process::metrics::Gauge;
+using process::metrics::PullGauge;
 using process::metrics::Counter;
 
 // NOTE: Per-task resources are nominal because all of the resources for the
@@ -487,8 +487,8 @@ private:
       process::metrics::remove(abnormal_terminations);
     }
 
-    process::metrics::Gauge uptime_secs;
-    process::metrics::Gauge subscribed;
+    process::metrics::PullGauge uptime_secs;
+    process::metrics::PullGauge subscribed;
 
     process::metrics::Counter offers_received;
     process::metrics::Counter tasks_launched;

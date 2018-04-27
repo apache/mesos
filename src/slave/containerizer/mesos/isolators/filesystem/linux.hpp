@@ -23,7 +23,7 @@
 #include <process/owned.hpp>
 #include <process/pid.hpp>
 
-#include <process/metrics/gauge.hpp>
+#include <process/metrics/pull_gauge.hpp>
 
 #include <stout/hashmap.hpp>
 
@@ -94,7 +94,7 @@ private:
         const process::PID<LinuxFilesystemIsolatorProcess>& isolator);
     ~Metrics();
 
-    process::metrics::Gauge containers_new_rootfs;
+    process::metrics::PullGauge containers_new_rootfs;
   } metrics;
 
   double _containers_new_rootfs();

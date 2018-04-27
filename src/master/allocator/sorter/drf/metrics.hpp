@@ -21,7 +21,7 @@
 
 #include <process/pid.hpp>
 
-#include <process/metrics/gauge.hpp>
+#include <process/metrics/pull_gauge.hpp>
 
 #include <stout/hashmap.hpp>
 
@@ -51,7 +51,7 @@ struct Metrics
   const std::string prefix;
 
   // Dominant share of each client.
-  hashmap<std::string, process::metrics::Gauge> dominantShares;
+  hashmap<std::string, process::metrics::PullGauge> dominantShares;
 };
 
 } // namespace allocator {
