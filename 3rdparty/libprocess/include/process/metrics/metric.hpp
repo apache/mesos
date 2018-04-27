@@ -29,7 +29,7 @@
 namespace process {
 namespace metrics {
 
-// The base class for Metrics such as Counter and Gauge.
+// The base class for Metrics.
 class Metric {
 public:
   virtual ~Metric() {}

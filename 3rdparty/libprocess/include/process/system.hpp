@@ -20,7 +20,7 @@
 #include <process/http.hpp>
 #include <process/process.hpp>
 
-#include <process/metrics/gauge.hpp>
+#include <process/metrics/pull_gauge.hpp>
 #include <process/metrics/metrics.hpp>
 
 #include <stout/os.hpp>
@@ -183,14 +183,14 @@ private:
     return http::OK(object, request.url.query.get("jsonp"));
   }
 
-  metrics::Gauge load_1min;
-  metrics::Gauge load_5min;
-  metrics::Gauge load_15min;
+  metrics::PullGauge load_1min;
+  metrics::PullGauge load_5min;
+  metrics::PullGauge load_15min;
 
-  metrics::Gauge cpus_total;
+  metrics::PullGauge cpus_total;
 
-  metrics::Gauge mem_total_bytes;
-  metrics::Gauge mem_free_bytes;
+  metrics::PullGauge mem_total_bytes;
+  metrics::PullGauge mem_free_bytes;
 };
 
 } // namespace process {

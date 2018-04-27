@@ -30,7 +30,7 @@ namespace http = process::http;
 using process::Future;
 
 // MESOS-1433
-// This test is disabled as the Gauges that are used for these metrics
+// This test is disabled as the pull-gauges that are used for these metrics
 // may return Failures. In this case we do not put the metric into the
 // endpoint. This has been observed specifically for the memory
 // metrics. If in the future we put the error message from the Failure

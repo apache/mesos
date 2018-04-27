@@ -30,8 +30,8 @@
 #include <process/time.hpp>
 
 #include <process/metrics/counter.hpp>
-#include <process/metrics/gauge.hpp>
 #include <process/metrics/metrics.hpp>
+#include <process/metrics/pull_gauge.hpp>
 #include <process/metrics/push_gauge.hpp>
 #include <process/metrics/timer.hpp>
 
@@ -48,7 +48,7 @@ using http::Response;
 using http::Unauthorized;
 
 using metrics::Counter;
-using metrics::Gauge;
+using metrics::PullGauge;
 using metrics::PushGauge;
 using metrics::Timer;
 
@@ -66,7 +66,7 @@ using std::map;
 using std::string;
 using std::vector;
 
-class GaugeProcess : public Process<GaugeProcess>
+class PullGaugeProcess : public Process<PullGaugeProcess>
 {
 public:
   double get()
@@ -145,14 +145,14 @@ TEST_F(MetricsTest, Counter)
 }
 
 
-TEST_F(MetricsTest, THREADSAFE_Gauge)
+TEST_F(MetricsTest, PullGauge)
 {
-  GaugeProcess process;
-  PID<GaugeProcess> pid = spawn(&process);
+  PullGaugeProcess process;
+  PID<PullGaugeProcess> pid = spawn(&process);
   ASSERT_TRUE(pid);
 
-  // Gauge with a value.
-  Gauge gauge("test/gauge", defer(pid, &GaugeProcess::get));
+  // PullGauge with a value.
+  PullGauge gauge("test/gauge", defer(pid, &PullGaugeProcess::get));
 
   AWAIT_READY(metrics::add(gauge));
 
@@ -161,7 +161,7 @@ TEST_F(MetricsTest, THREADSAFE_Gauge)
   AWAIT_READY(metrics::remove(gauge));
 
   // Failing gauge.
-  gauge = Gauge("test/failedgauge", defer(pid, &GaugeProcess::fail));
+  gauge = PullGauge("test/failedgauge", defer(pid, &PullGaugeProcess::fail));
 
   AWAIT_READY(metrics::add(gauge));
 
@@ -244,14 +244,14 @@ TEST_F(MetricsTest, THREADSAFE_Snapshot)
 
   Clock::pause();
 
-  // Add a gauge and a counter.
-  GaugeProcess process;
-  PID<GaugeProcess> pid = spawn(&process);
+  // Add a pull-gauge and a counter.
+  PullGaugeProcess process;
+  PID<PullGaugeProcess> pid = spawn(&process);
   ASSERT_TRUE(pid);
 
-  Gauge gauge("test/gauge", defer(pid, &GaugeProcess::get));
-  Gauge gaugeFail("test/gauge_fail", defer(pid, &GaugeProcess::fail));
-  Gauge gaugeConst("test/gauge_const", []() { return 99.0; });
+  PullGauge gauge("test/gauge", defer(pid, &PullGaugeProcess::get));
+  PullGauge gaugeFail("test/gauge_fail", defer(pid, &PullGaugeProcess::fail));
+  PullGauge gaugeConst("test/gauge_const", []() { return 99.0; });
   Counter counter("test/counter");
 
   AWAIT_READY(metrics::add(gauge));
@@ -382,15 +382,22 @@ TEST_F(MetricsTest, THREADSAFE_SnapshotTimeout)
   // Advance the clock to avoid rate limit.
   Clock::advance(Seconds(1));
 
-  // Add gauges and a counter.
-  GaugeProcess process;
-  PID<GaugeProcess> pid = spawn(&process);
+  // Add pull-gauges and a counter.
+  PullGaugeProcess process;
+  PID<PullGaugeProcess> pid = spawn(&process);
   ASSERT_TRUE(pid);
 
-  Gauge gauge("test/gauge", defer(pid, &GaugeProcess::get));
-  Gauge gaugeFail("test/gauge_fail", defer(pid, &GaugeProcess::fail));
-  Gauge gaugeTimeout("test/gauge_timeout", defer(pid, &GaugeProcess::pending));
-  Counter counter("test/counter");
+  PullGauge gauge(
+      "test/gauge",
+      defer(pid, &PullGaugeProcess::get));
+  PullGauge gaugeFail(
+      "test/gauge_fail",
+      defer(pid, &PullGaugeProcess::fail));
+  PullGauge gaugeTimeout(
+      "test/gauge_timeout",
+      defer(pid, &PullGaugeProcess::pending));
+  Counter counter(
+      "test/counter");
 
   AWAIT_READY(metrics::add(gauge));
   AWAIT_READY(metrics::add(gaugeFail));
