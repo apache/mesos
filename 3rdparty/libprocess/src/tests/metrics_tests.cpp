@@ -32,6 +32,7 @@
 #include <process/metrics/counter.hpp>
 #include <process/metrics/gauge.hpp>
 #include <process/metrics/metrics.hpp>
+#include <process/metrics/push_gauge.hpp>
 #include <process/metrics/timer.hpp>
 
 namespace authentication = process::http::authentication;
@@ -48,6 +49,7 @@ using http::Unauthorized;
 
 using metrics::Counter;
 using metrics::Gauge;
+using metrics::PushGauge;
 using metrics::Timer;
 
 using process::Clock;
@@ -169,6 +171,36 @@ TEST_F(MetricsTest, THREADSAFE_Gauge)
 
   terminate(process);
   wait(process);
+}
+
+
+TEST_F(MetricsTest, PushGauge)
+{
+  // Gauge with a value.
+  PushGauge gauge("test/gauge");
+
+  AWAIT_READY(metrics::add(gauge));
+
+  AWAIT_EXPECT_EQ(0.0, gauge.value());
+
+  ++gauge;
+  AWAIT_EXPECT_EQ(1.0, gauge.value());
+
+  gauge += 42;
+  AWAIT_EXPECT_EQ(43.0, gauge.value());
+
+  --gauge;
+  AWAIT_EXPECT_EQ(42.0, gauge.value());
+
+  gauge -= 42;
+  AWAIT_EXPECT_EQ(0.0, gauge.value());
+
+  gauge = 42;
+  AWAIT_EXPECT_EQ(42.0, gauge.value());
+
+  EXPECT_NONE(gauge.statistics());
+
+  AWAIT_READY(metrics::remove(gauge));
 }
 
 
