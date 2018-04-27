@@ -35,6 +35,7 @@ BuildRequires: python-devel
 BuildRequires: java-1.8.0-openjdk-devel
 BuildRequires: libnl3-devel
 BuildRequires: zlib-devel
+BuildRequires: libacl-devel
 BuildRequires: libcurl-devel
 BuildRequires: openssl-devel
 BuildRequires: cyrus-sasl-devel

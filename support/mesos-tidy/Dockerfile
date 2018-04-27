@@ -56,6 +56,7 @@ ENV PATH /opt/bin:$PATH
 # TODO(mpark): Remove `libssl-dev` from this list once `MESOS-6942` is resolved.
 RUN apt-get install -qy \
   autoconf \
+  libacl1-dev \
   libapr1-dev \
   libcurl4-nss-dev \
   libsasl2-dev \

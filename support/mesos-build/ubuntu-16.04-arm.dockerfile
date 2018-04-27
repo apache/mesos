@@ -25,6 +25,7 @@ RUN apt-get update && \
       curl \
       git \
       iputils-ping \
+      libacl1-dev \
       libapr1-dev \
       libcurl4-nss-dev \
       libev-dev \
