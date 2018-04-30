@@ -16,6 +16,8 @@
 
 syntax = "proto2";
 
+import "csi.proto";
+
 import "mesos/mesos.proto";
 
 package mesos.resource_provider;
@@ -25,11 +27,25 @@ option java_outer_classname = "Protos";
 
 
 message ResourceProviderState {
-  // This includes only pending operations. Operations that have
-  // unacknowledged statuses should be recovered through the status
-  // update manager.
+  // The list of operations that have unacknowledged terminal statuses.
   repeated Operation operations = 1;
 
   // The total resources provided by this resource provider.
   repeated Resource resources = 2;
+
+  // Storage resource provider related states.
+  message Storage {
+    // Describes a manifest of CSI properties associated with a profile.
+    // See DiskProfileAdaptor::ProfileInfo.
+    message ProfileInfo {
+      required .csi.v0.VolumeCapability capability = 1;
+      map<string, string> parameters = 2;
+    }
+
+    // The set of profiles associated with any storage pool in the total
+    // resources.
+    map<string, ProfileInfo> profiles = 1;
+  }
+
+  optional Storage storage = 3;
 }

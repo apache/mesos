@@ -345,7 +345,6 @@ private:
   Future<Nothing> recoverServices();
   Future<Nothing> recoverVolumes();
   Future<Nothing> recoverResourceProviderState();
-  Future<Nothing> recoverProfiles();
 
   void doReliableRegistration();
 
@@ -637,7 +636,6 @@ Future<Nothing> StorageLocalResourceProviderProcess::recover()
   return recoverServices()
     .then(defer(self(), &Self::recoverVolumes))
     .then(defer(self(), &Self::recoverResourceProviderState))
-    .then(defer(self(), &Self::recoverProfiles))
     .then(defer(self(), [=]() -> Future<Nothing> {
       LOG(INFO)
         << "Finished recovery for resource provider with type '" << info.type()
@@ -998,63 +996,36 @@ StorageLocalResourceProviderProcess::recoverResourceProviderState()
       }
 
       totalResources = resourceProviderState->resources();
+
+      const ResourceProviderState::Storage& storage =
+        resourceProviderState->storage();
+
+      using ProfileEntry = google::protobuf::MapPair<
+          string, ResourceProviderState::Storage::ProfileInfo>;
+
+      foreach (const ProfileEntry& entry, storage.profiles()) {
+        profileInfos.put(
+            entry.first,
+            {entry.second.capability(), entry.second.parameters()});
+      }
+
+      // We only checkpoint profiles associated with storage pools (i.e.,
+      // resources without IDs) in `checkpointResourceProviderState` as only
+      // these profiles might be used by pending operations, so we validate here
+      // that all such profiles exist.
+      foreach (const Resource& resource, totalResources) {
+        if (!resource.disk().source().has_id() &&
+            resource.disk().source().has_profile() &&
+            !profileInfos.contains(resource.disk().source().profile())) {
+          return Failure(
+              "Cannot recover profile for storage pool '" +
+              stringify(resource) + "' from '" + statePath + "'");
+        }
+      }
     }
   }
 
   return Nothing();
-}
-
-
-// NOTE: Currently we need to recover profiles for replaying pending
-// `CREATE_VOLUME` or `CREATE_BLOCK` operations after failover. Consider
-// either checkpointing the required profiles for these calls, or
-// checkpointing CSI volume states by volume names instead of IDs.
-Future<Nothing> StorageLocalResourceProviderProcess::recoverProfiles()
-{
-  // Rebuild the set of required profiles from the checkpointed storage
-  // pools (i.e., RAW resources that have no volume ID). We do not need
-  // to resolve profiles for resources that have volume IDs, since their
-  // volume capabilities are already checkpointed.
-  hashset<string> requiredProfiles;
-  foreach (const Resource& resource, totalResources) {
-    if (!resource.disk().source().has_id()) {
-      requiredProfiles.insert(resource.disk().source().profile());
-    }
-  }
-
-  // If no pending operation uses any profile, there is no need to
-  // recover any profile. Watching the DiskProfileAdaptor will be
-  // initiated later.
-  if (requiredProfiles.empty()) {
-    return Nothing();
-  }
-
-  LOG(INFO)
-    << "Waiting for DiskProfileAdaptor to recover profiles: "
-    << stringify(requiredProfiles);
-
-  // The DiskProfileAdapter module must at least have knowledge of
-  // the required profiles. Because the module is initialized separately
-  // from this resource provider, we must watch the module until all
-  // required profiles have been recovered.
-  return loop(
-      self(),
-      [=] { return diskProfileAdaptor->watch(knownProfiles, info); },
-      [=](const hashset<string>& profiles) -> ControlFlow<Nothing> {
-        // Save the returned set of profiles so that we can watch the
-        // module for changes to it, both in this loop and after
-        // recovery completes.
-        knownProfiles = profiles;
-
-        foreach (const string& profile, requiredProfiles) {
-          if (!knownProfiles.contains(profile)) {
-            return Continue();
-          }
-        }
-
-        return Break();
-      })
-    .then(defer(self(), &Self::updateProfiles));
 }
 
 
@@ -3280,6 +3251,33 @@ void StorageLocalResourceProviderProcess::checkpointResourceProviderState()
   }
 
   state.mutable_resources()->CopyFrom(totalResources);
+
+  ResourceProviderState::Storage* storage = state.mutable_storage();
+
+  // NOTE: We only checkpoint profiles associated with any storage
+  // pool (i.e., resource that has no volume ID) in the total resources.
+  // We do not need to checkpoint profiles for resources that have
+  // volume IDs, as their volume capabilities are already checkpointed.
+  hashset<string> requiredProfiles;
+  foreach (const Resource& resource, totalResources) {
+    if (!resource.disk().source().has_id()) {
+      CHECK(resource.disk().source().has_profile());
+      requiredProfiles.insert(resource.disk().source().profile());
+    }
+  }
+
+  foreach (const string& profile, requiredProfiles) {
+    CHECK(profileInfos.contains(profile));
+
+    const DiskProfileAdaptor::ProfileInfo& profileInfo =
+      profileInfos.at(profile);
+
+    ResourceProviderState::Storage::ProfileInfo& profileInfo_ =
+      (*storage->mutable_profiles())[profile];
+
+    *profileInfo_.mutable_capability() = profileInfo.capability;
+    *profileInfo_.mutable_parameters() = profileInfo.parameters;
+  }
 
   const string statePath = slave::paths::getResourceProviderStatePath(
       metaDir, slaveId, info.type(), info.name(), info.id());
