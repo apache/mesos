@@ -339,14 +339,21 @@ private:
   void initialize() override;
   void fatal();
 
+  // The recover functions are responsible to recover the state of the
+  // resource provider and CSI volumes from checkpointed data.
   Future<Nothing> recover();
   Future<Nothing> recoverServices();
   Future<Nothing> recoverVolumes();
   Future<Nothing> recoverResourceProviderState();
   Future<Nothing> recoverProfiles();
+
   void doReliableRegistration();
+
+  // The reconcile functions are responsible to reconcile the state of
+  // the resource provider from the recovered state and other sources of
+  // truth, such as CSI plugin responses or the status update manager.
   Future<Nothing> reconcileResourceProviderState();
-  Future<Nothing> reconcileStatusUpdates();
+  Future<Nothing> reconcileOperationStatuses();
   ResourceConversion reconcileResources(
       const Resources& checkpointed,
       const Resources& discovered);
@@ -1083,7 +1090,7 @@ void StorageLocalResourceProviderProcess::doReliableRegistration()
 Future<Nothing>
 StorageLocalResourceProviderProcess::reconcileResourceProviderState()
 {
-  return reconcileStatusUpdates()
+  return reconcileOperationStatuses()
     .then(defer(self(), [=] {
       return collect(list<Future<Resources>>{listVolumes(), getCapacities()})
         .then(defer(self(), [=](const list<Resources>& discovered) {
@@ -1120,7 +1127,8 @@ StorageLocalResourceProviderProcess::reconcileResourceProviderState()
 }
 
 
-Future<Nothing> StorageLocalResourceProviderProcess::reconcileStatusUpdates()
+Future<Nothing>
+StorageLocalResourceProviderProcess::reconcileOperationStatuses()
 {
   CHECK(info.has_id());
 
