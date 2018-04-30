@@ -480,10 +480,10 @@ TEST_F(UriDiskProfileAdaptorTest, DISABLED_FetchFromFile)
     module->translate(profileName, resourceProviderInfo);
 
   AWAIT_ASSERT_READY(mapping);
-  ASSERT_TRUE(mapping.get().capability.has_block());
+  ASSERT_TRUE(mapping->capability.has_block());
   ASSERT_EQ(
       csi::v0::VolumeCapability::AccessMode::MULTI_NODE_SINGLE_WRITER,
-      mapping.get().capability.access_mode().mode());
+      mapping->capability.access_mode().mode());
 
   Clock::resume();
 }
