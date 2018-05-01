@@ -1851,7 +1851,132 @@ TEST_F(PortMappingIsolatorTest, ROOT_ScaleIngressWithCPU)
   flags.ingress_rate_limit_per_container = None();
 
   const Bytes ingressRatePerCpu = 1000;
-  flags.ingress_rate_per_cpu = ingressRatePerCpu;
+  flags.ingress_rate_per_cpu = stringify(ingressRatePerCpu);
+
+  const Bytes minRate = 2000;
+  flags.minimum_ingress_rate_limit = minRate;
+
+  const Bytes maxRate = 4000;
+  flags.maximum_ingress_rate_limit = maxRate;
+
+  // CPU low enough for scaled network ingress to be increased to min
+  // limit: 1 * 1000 < 2000 ==> ingress is 2000.
+  Try<Resources> lowCpu = Resources::parse("cpus:1;mem:1024;disk:1024");
+  ASSERT_SOME(lowCpu);
+
+  // CPU sufficient to be in linear scaling region, greater than min
+  // and less than max: 2000 < 3.1 * 1000 < 4000.
+  Try<Resources> linearCpu = Resources::parse("cpus:3.1;mem:1024;disk:1024");
+  ASSERT_SOME(linearCpu);
+
+  // CPU high enough for scaled network ingress to be reduced to the
+  // max limit: 5 * 1000 > 4000.
+  Try<Resources> highCpu = Resources::parse("cpus:5;mem:1024;disk:1024");
+  ASSERT_SOME(highCpu);
+
+  Try<Isolator*> isolator = PortMappingIsolatorProcess::create(flags);
+  ASSERT_SOME(isolator);
+
+  Try<Launcher*> launcher = LinuxLauncher::create(flags);
+  ASSERT_SOME(launcher);
+
+  ExecutorInfo executorInfo;
+  executorInfo.mutable_resources()->CopyFrom(lowCpu.get());
+
+  ContainerID containerId1;
+  containerId1.set_value(id::UUID::random().toString());
+
+  ContainerConfig containerConfig1;
+  containerConfig1.mutable_executor_info()->CopyFrom(executorInfo);
+
+  Future<Option<ContainerLaunchInfo>> launchInfo1 =
+    isolator.get()->prepare(containerId1, containerConfig1);
+  AWAIT_READY(launchInfo1);
+  ASSERT_SOME(launchInfo1.get());
+  ASSERT_EQ(1, launchInfo1.get()->pre_exec_commands().size());
+
+  int pipes[2];
+  ASSERT_NE(-1, ::pipe(pipes));
+
+  Try<pid_t> pid = launchHelper(
+      launcher.get(),
+      pipes,
+      containerId1,
+      "touch " + container1Ready + " && sleep 1000",
+      launchInfo1.get());
+  ASSERT_SOME(pid);
+
+  // Reap the forked child.
+  Future<Option<int>> status = process::reap(pid.get());
+
+  // Continue in the parent.
+  ::close(pipes[0]);
+
+  // Isolate the forked child.
+  AWAIT_READY(isolator.get()->isolate(containerId1, pid.get()));
+
+  // Signal forked child to continue.
+  char dummy;
+  ASSERT_LT(0, ::write(pipes[1], &dummy, sizeof(dummy)));
+  ::close(pipes[1]);
+
+  // Wait for command to start to ensure all pre-exec scripts have
+  // executed.
+  ASSERT_TRUE(waitForFileCreation(container1Ready));
+
+  const string veth = slave::PORT_MAPPING_VETH_PREFIX() + stringify(pid.get());
+  const routing::Handle cls(routing::Handle(1, 0), 1);
+
+  Result<htb::cls::Config> config = htb::cls::getConfig(veth, cls);
+  ASSERT_SOME(config);
+  ASSERT_EQ(minRate, config->rate);
+
+  // Increase CPU to get to linear scaling.
+  Future<Nothing> update = isolator.get()->update(
+      containerId1,
+      linearCpu.get());
+  AWAIT_READY(update);
+
+  config = htb::cls::getConfig(veth, cls);
+  ASSERT_SOME(config);
+  ASSERT_EQ(
+      ingressRatePerCpu.bytes() * floor(linearCpu.get().cpus().get()),
+      config->rate);
+
+  // Increase CPU further to hit maximum limit.
+  update = isolator.get()->update(
+      containerId1,
+      highCpu.get());
+  AWAIT_READY(update);
+
+  config = htb::cls::getConfig(veth, cls);
+  ASSERT_SOME(config);
+  ASSERT_EQ(maxRate, config->rate);
+
+  // Kill the container
+  AWAIT_READY(launcher.get()->destroy(containerId1));
+  AWAIT_READY(isolator.get()->cleanup(containerId1));
+}
+
+
+TEST_F(PortMappingIsolatorTest, ROOT_ScaleIngressWithCPUAutoConfig)
+{
+  flags.ingress_rate_limit_per_container = None();
+  flags.network_link_speed = Bytes(10000);
+
+  // Change available CPUs to be 10.
+  vector<string> resources = strings::split(flags.resources.get(), ";");
+  std::replace_if(
+      resources.begin(),
+      resources.end(),
+      [](const string& s) {return strings::startsWith(s, "cpus:");},
+      "cpus:10");
+
+  flags.resources = strings::join(";", resources);
+
+  // Ingress rate limit per CPU should be 10000 / 10 = 1000.
+  const Bytes ingressRatePerCpu = Bytes(1000);
+  flags.ingress_rate_per_cpu = "auto";
 
   const Bytes minRate = 2000;
   flags.minimum_ingress_rate_limit = minRate;

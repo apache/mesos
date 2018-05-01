@@ -342,7 +342,8 @@ private:
       const IntervalSet<uint16_t>& _managedNonEphemeralPorts,
       const process::Owned<EphemeralPortsAllocator>& _ephemeralPortsAllocator,
       const std::set<uint16_t>& _flowIDs,
-      const process::Owned<RatesCollector>& _ratesCollector);
+      const process::Owned<RatesCollector>& _ratesCollector,
+      const Option<Bytes>& _ingressRatePerCpu);
 
   // Continuations.
   Try<Nothing> _cleanup(Info* info, const Option<ContainerID>& containerId);
@@ -422,6 +423,8 @@ private:
   hashset<ContainerID> unmanaged;
 
   process::Owned<RatesCollector> ratesCollector;
+
+  const Option<Bytes> ingressRatePerCpu;
 };
 
 

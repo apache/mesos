@@ -739,6 +739,7 @@ static Try<Nothing> updateIngressHTB(
 }
 
 
+// Computes the speed of a link in bytes per second. 
 static Result<Bytes> getLinkSpeed(const string& link)
 {
   const string linkSpeedPath = path::join("/sys/class/net", link, "speed");
@@ -2245,6 +2246,50 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
         " maximum ingress rate.");
   }
 
+  Option<Bytes> ingressRatePerCpu;
+  if (flags.ingress_rate_per_cpu.isSome()) {
+    if (flags.ingress_rate_per_cpu.get() == "auto") {
+      // Extract the number of CPUs from resources flag.
+      const uint64_t cpus = resources->cpus().getOrElse(0);
+      if (cpus == 0) {
+        return Error(
+            "CPUs resource has to be specified to determine per CPU ingress "
+            "rate limit");
+      }
+
+      // Link speed may be provided by the operator. If not, we can try to read
+      // the self-reported speed.
+      Result<Bytes> speed = flags.network_link_speed;
+      if (speed.isNone()) {
+        speed = getLinkSpeed(eth0.get());
+        if (!speed.isSome()) {
+          return Error(
+              "Failed to determine per CPU ingress rate limit: "
+              "Failed to determine link speed of " + eth0.get() + ": " +
+              (speed.isError() ? speed.error() : "Not supported"));
+        }
+      }
+
+      ingressRatePerCpu = speed.get() / cpus;
+
+      LOG(INFO) << "Using " << ingressRatePerCpu.get()
+                << " per CPU ingress rate limit"
+                << " (" << speed.get() << "/" << cpus << ")";
+    } else {
+      Try<Bytes> limit = Bytes::parse(flags.ingress_rate_per_cpu.get());
+      if (limit.isError()) {
+        return Error(
+            "Bad option for 'ingress_rate_per_cpu' flag: " + limit.error());
+      }
+
+      ingressRatePerCpu = limit.get();
+
+      LOG(INFO) << "Using " << ingressRatePerCpu.get()
+                << " per CPU ingress rate limit";
+    }
+    CHECK_SOME(ingressRatePerCpu);
+  }
+
   // If an egress or ingress rate limit is provided, do a sanity check
   // that it is not greater than the host physical link speed.
   if (flags.egress_rate_limit_per_container.isSome() ||
@@ -2723,7 +2768,8 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
           nonEphemeralPorts,
           ephemeralPortsAllocator,
           freeFlowIds,
-          ratesCollector)));
+          ratesCollector,
+          ingressRatePerCpu)));
 }
 
 
@@ -2741,7 +2787,8 @@ PortMappingIsolatorProcess::PortMappingIsolatorProcess(
     const IntervalSet<uint16_t>& _managedNonEphemeralPorts,
     const process::Owned<EphemeralPortsAllocator>& _ephemeralPortsAllocator,
     const std::set<uint16_t>& _flowIDs,
-    const Owned<RatesCollector>& _ratesCollector)
+    const Owned<RatesCollector>& _ratesCollector,
+    const Option<Bytes>& _ingressRatePerCpu)
   : ProcessBase(process::ID::generate("mesos-port-mapping-isolator")),
     flags(_flags),
     bindMountRoot(_bindMountRoot),
@@ -2756,7 +2803,8 @@ PortMappingIsolatorProcess::PortMappingIsolatorProcess(
     managedNonEphemeralPorts(_managedNonEphemeralPorts),
     ephemeralPortsAllocator(_ephemeralPortsAllocator),
     freeFlowIds(_flowIDs),
-    ratesCollector(_ratesCollector)
+    ratesCollector(_ratesCollector),
+    ingressRatePerCpu(_ingressRatePerCpu)
 {}
 
 
@@ -4979,9 +5027,8 @@ Option<htb::cls::Config> PortMappingIsolatorProcess::ingressHTBConfig(
   Bytes rate(0);
   if (flags.ingress_rate_limit_per_container.isSome()) {
     rate = flags.ingress_rate_limit_per_container.get();
-  } else if (flags.ingress_rate_per_cpu.isSome()) {
-    rate = flags.ingress_rate_per_cpu.get() *
-           floor(resources.cpus().getOrElse(0));
+  } else if (ingressRatePerCpu.isSome()) {
+    rate = ingressRatePerCpu.get() * floor(resources.cpus().getOrElse(0));
   } else {
     return None();
   }
