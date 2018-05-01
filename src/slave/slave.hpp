@@ -711,6 +711,10 @@ private:
       const SlaveInfo& previous,
       const SlaveInfo& current) const;
 
+  void initializeResourceProviderManager(
+      const Flags& flags,
+      const SlaveID& slaveId);
+
   protobuf::master::Capabilities requiredMasterCapabilities;
 
   const Flags flags;
@@ -812,7 +816,7 @@ private:
   // (allocated and oversubscribable) resources.
   Option<Resources> oversubscribedResources;
 
-  ResourceProviderManager resourceProviderManager;
+  process::Owned<ResourceProviderManager> resourceProviderManager;
   process::Owned<LocalResourceProviderDaemon> localResourceProviderDaemon;
 
   // Local resource providers known by the agent.
