@@ -843,17 +843,24 @@ TEST_F(ResourceProviderRegistrarTest, GenericRegistrar)
 
   AWAIT_READY(registrar.get()->recover());
 
-  Future<bool> admitResourceProvider =
+  Future<bool> admitResourceProvider1 =
     registrar.get()->apply(Owned<Registrar::Operation>(
         new AdmitResourceProvider(resourceProviderId)));
-  AWAIT_READY(admitResourceProvider);
-  EXPECT_TRUE(admitResourceProvider.get());
+  AWAIT_READY(admitResourceProvider1);
+  EXPECT_TRUE(admitResourceProvider1.get());
 
   Future<bool> removeResourceProvider =
     registrar.get()->apply(Owned<Registrar::Operation>(
         new RemoveResourceProvider(resourceProviderId)));
   AWAIT_READY(removeResourceProvider);
   EXPECT_TRUE(removeResourceProvider.get());
+
+  // A removed resource provider cannot be admitted again.
+  Future<bool> admitResourceProvider2 =
+    registrar.get()->apply(Owned<Registrar::Operation>(
+        new AdmitResourceProvider(resourceProviderId)));
+  AWAIT_READY(admitResourceProvider2);
+  EXPECT_FALSE(admitResourceProvider2.get());
 }
 
 
@@ -879,19 +886,24 @@ TEST_F(ResourceProviderRegistrarTest, MasterRegistrar)
   ASSERT_SOME(registrar);
   ASSERT_NE(nullptr, registrar->get());
 
-  AWAIT_READY(masterRegistrar.recover(masterInfo));
-
-  Future<bool> admitResourceProvider =
+  Future<bool> admitResourceProvider1 =
     registrar.get()->apply(Owned<Registrar::Operation>(
         new AdmitResourceProvider(resourceProviderId)));
-  AWAIT_READY(admitResourceProvider);
-  EXPECT_TRUE(admitResourceProvider.get());
+  AWAIT_READY(admitResourceProvider1);
+  EXPECT_TRUE(admitResourceProvider1.get());
 
   Future<bool> removeResourceProvider =
     registrar.get()->apply(Owned<Registrar::Operation>(
         new RemoveResourceProvider(resourceProviderId)));
   AWAIT_READY(removeResourceProvider);
   EXPECT_TRUE(removeResourceProvider.get());
+
+  // A removed resource provider cannot be admitted again.
+  Future<bool> admitResourceProvider2 =
+    registrar.get()->apply(Owned<Registrar::Operation>(
+        new AdmitResourceProvider(resourceProviderId)));
+  AWAIT_READY(admitResourceProvider2);
+  EXPECT_FALSE(admitResourceProvider2.get());
 }
 
 
