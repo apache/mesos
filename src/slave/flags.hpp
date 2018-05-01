@@ -161,11 +161,12 @@ public:
   bool egress_unique_flow_per_container;
   std::string egress_flow_classifier_parent;
   Option<Bytes> ingress_rate_limit_per_container;
-  Option<Bytes> ingress_rate_per_cpu;
+  Option<std::string> ingress_rate_per_cpu;
   Option<Bytes> minimum_ingress_rate_limit;
   Option<Bytes> maximum_ingress_rate_limit;
   Option<Bytes> ingress_ceil_limit;
   Option<Bytes> ingress_burst;
+  Option<Bytes> network_link_speed;
   bool network_enable_socket_statistics_summary;
   bool network_enable_socket_statistics_details;
   bool network_enable_snmp_statistics;

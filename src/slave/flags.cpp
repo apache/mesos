@@ -1307,6 +1307,13 @@ mesos::internal::slave::Flags::Flags()
       "Amount of data in Bytes that can be received at the higher ceil rate."
       "This flag is used by the `network/port_mapping_isolator`.");
 
+  add(&Flags::network_link_speed,
+      "network_link_speed",
+      "Physical network link speed in Bytes/s. This flag is used only when\n"
+      "--ingress_rate_per_cpu=\'auto\'. This provided link speed overrides\n"
+      "automatic detection of the link speed. This flag is used by the\n"
+      "`network/port_mapping_isolator`.");
+
   add(&Flags::network_enable_socket_statistics_summary,
       "network_enable_socket_statistics_summary",
       "Whether to collect socket statistics summary for each container.\n"
