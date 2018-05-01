@@ -49,11 +49,11 @@ inline Try<::internal::windows::ProcessData> createChildProcess(
     const std::vector<std::string>& argv,
     const Option<std::map<std::string, std::string>>& environment,
     const std::vector<Subprocess::ParentHook>& parent_hooks,
-    const InputFileDescriptors stdinfds,
-    const OutputFileDescriptors stdoutfds,
-    const OutputFileDescriptors stderrfds)
+    const InputFileDescriptors& stdinfds,
+    const OutputFileDescriptors& stdoutfds,
+    const OutputFileDescriptors& stderrfds)
 {
-  const std::array<os::WindowsFD, 3> fds{
+  const std::array<int_fd, 3> fds{
     stdinfds.read, stdoutfds.write, stderrfds.write};
 
   Try<::internal::windows::ProcessData> process_data =
@@ -66,9 +66,12 @@ inline Try<::internal::windows::ProcessData> createChildProcess(
 
   // Close the child-ends of the file descriptors that are created
   // by this function.
-  foreach (const os::WindowsFD& fd, fds) {
-    if (fd >= 0) {
-      os::close(fd);
+  foreach (const int_fd& fd, fds) {
+    if (fd.is_valid()) {
+      Try<Nothing> result = os::close(fd);
+      if (result.isError()) {
+        return Error(result.error());
+      }
     }
   }
 

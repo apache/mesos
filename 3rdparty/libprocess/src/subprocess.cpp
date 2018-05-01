@@ -438,6 +438,9 @@ Try<Subprocess> subprocess(
       return Error(process_data.error());
     }
 
+    // NOTE: We specifically tie the lifetime of the child process to
+    // the `Subprocess` object by saving the handles here so that
+    // there is zero chance of the `pid` getting reused.
     process.data->process_data = process_data.get();
     process.data->pid = process_data->pid;
 #endif // __WINDOWS__

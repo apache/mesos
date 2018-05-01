@@ -353,6 +353,63 @@ TEST_F(SubprocessTest, PipeOutput)
 }
 
 
+// This test checks that we can open a subprocess, have it write a
+// substantial amount of data (two memory pages) to a pipe held by the
+// parent process (this test) without hanging, and then check that the
+// process exits and is reaped correctly.
+TEST_F(SubprocessTest, PipeLargeOutput)
+{
+  const string output(2 * os::pagesize(), 'c');
+  const string outfile = path::join(sandbox.get(), "out.txt");
+  ASSERT_SOME(os::write(outfile, output));
+
+  Try<Subprocess> s = subprocess(
+#ifdef __WINDOWS__
+      "type " + outfile,
+#else
+      "cat " + outfile,
+#endif // __WINDOWS__
+      Subprocess::FD(STDIN_FILENO),
+      Subprocess::PIPE(),
+      Subprocess::FD(STDERR_FILENO));
+
+  ASSERT_SOME(s);
+  ASSERT_SOME(s->out());
+
+#ifdef __WINDOWS__
+  ::SetLastError(0);
+#endif // __WINDOWS__
+
+  AWAIT_EXPECT_EQ(output, io::read(s->out().get()));
+
+#ifdef __WINDOWS__
+  // NOTE: On Windows, this is the end-of-file condition when reading
+  // from a pipe being written to by a child process. When it finishes
+  // writing, the last read will successfully return all the data, and
+  // the Windows error will be set to this.
+  EXPECT_EQ(::GetLastError(), ERROR_BROKEN_PIPE);
+#endif // __WINDOWS__
+
+  // Advance time until the internal reaper reaps the subprocess.
+  Clock::pause();
+  while (s->status().isPending()) {
+    Clock::advance(MAX_REAP_INTERVAL());
+    Clock::settle();
+  }
+  Clock::resume();
+
+  // NOTE: Because we are specifically writing more data (two pages)
+  // than can be held by the OS-allocated buffer, (on Windows this is
+  // one page), we cannot reap the process before reading because it
+  // will not exit until it has written all its data. It can only
+  // successfully write all its data if we read it in the parent
+  // process, otherwise the buffer fills up, and the OS makes the
+  // process wait until the buffer is emptied.
+
+  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s->status());
+}
+
+
 TEST_F(SubprocessTest, PipeInput)
 {
   Try<Subprocess> s = subprocess(
