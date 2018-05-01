@@ -208,6 +208,10 @@ private:
   struct ResourceProviders
   {
     hashmap<ResourceProviderID, Owned<ResourceProvider>> subscribed;
+    hashmap<
+        ResourceProviderID,
+        mesos::resource_provider::registry::ResourceProvider>
+      known;
   } resourceProviders;
 
   struct Metrics
@@ -253,6 +257,13 @@ void ResourceProviderManagerProcess::initialize()
 Future<Nothing> ResourceProviderManagerProcess::recover(
     const mesos::resource_provider::registry::Registry& registry)
 {
+  foreach (
+      const mesos::resource_provider::registry::ResourceProvider&
+        resourceProvider,
+      registry.resource_providers()) {
+    resourceProviders.known.put(resourceProvider.id(), resourceProvider);
+  }
+
   recovered.set(Nothing());
 
   return Nothing();
@@ -697,6 +708,17 @@ void ResourceProviderManagerProcess::subscribe(
   resourceProviders.subscribed.put(
       resourceProviderId,
       std::move(resourceProvider));
+
+  if (!resourceProviders.known.contains(resourceProviderId)) {
+    mesos::resource_provider::registry::ResourceProvider resourceProvider_;
+    resourceProvider_.mutable_id()->CopyFrom(resourceProviderId);
+
+    resourceProviders.known.put(
+        resourceProviderId,
+        std::move(resourceProvider_));
+
+    // TODO(bbannier): Persist this information in the registry.
+  }
 }
 
 
