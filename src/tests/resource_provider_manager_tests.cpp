@@ -67,6 +67,7 @@ using mesos::master::detector::MasterDetector;
 
 using mesos::state::InMemoryStorage;
 using mesos::state::State;
+using mesos::state::Storage;
 
 using mesos::resource_provider::AdmitResourceProvider;
 using mesos::resource_provider::Registrar;
@@ -129,7 +130,8 @@ TEST_F(ResourceProviderManagerHttpApiTest, NoContentType)
   request.method = "POST";
   request.headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
 
-  ResourceProviderManager manager;
+  ResourceProviderManager manager(
+      Registrar::create(Owned<Storage>(new InMemoryStorage)).get());
 
   Future<http::Response> response = manager.api(request, None());
 
@@ -154,7 +156,8 @@ TEST_F(ResourceProviderManagerHttpApiTest, ValidJsonButInvalidProtobuf)
   request.headers["Content-Type"] = APPLICATION_JSON;
   request.body = stringify(object);
 
-  ResourceProviderManager manager;
+  ResourceProviderManager manager(
+      Registrar::create(Owned<Storage>(new InMemoryStorage)).get());
 
   Future<http::Response> response = manager.api(request, None());
 
@@ -177,7 +180,8 @@ TEST_P(ResourceProviderManagerHttpApiTest, MalformedContent)
   request.headers["Content-Type"] = stringify(contentType);
   request.body = "MALFORMED_CONTENT";
 
-  ResourceProviderManager manager;
+  ResourceProviderManager manager(
+      Registrar::create(Owned<Storage>(new InMemoryStorage)).get());
 
   Future<http::Response> response = manager.api(request, None());
 
@@ -223,7 +227,8 @@ TEST_P(ResourceProviderManagerHttpApiTest, UnsupportedContentMediaType)
   request.headers["Content-Type"] = unknownMediaType;
   request.body = serialize(contentType, call);
 
-  ResourceProviderManager manager;
+  ResourceProviderManager manager(
+      Registrar::create(Owned<Storage>(new InMemoryStorage)).get());
 
   Future<http::Response> response = manager.api(request, None());
 
@@ -235,7 +240,8 @@ TEST_P(ResourceProviderManagerHttpApiTest, UpdateState)
 {
   const ContentType contentType = GetParam();
 
-  ResourceProviderManager manager;
+  ResourceProviderManager manager(
+      Registrar::create(Owned<Storage>(new InMemoryStorage)).get());
 
   Option<id::UUID> streamId;
   Option<mesos::v1::ResourceProviderID> resourceProviderId;
@@ -342,7 +348,8 @@ TEST_P(ResourceProviderManagerHttpApiTest, UpdateOperationStatus)
 {
   const ContentType contentType = GetParam();
 
-  ResourceProviderManager manager;
+  ResourceProviderManager manager(
+      Registrar::create(Owned<Storage>(new InMemoryStorage)).get());
 
   Option<id::UUID> streamId;
   Option<mesos::v1::ResourceProviderID> resourceProviderId;
@@ -460,7 +467,8 @@ TEST_P(ResourceProviderManagerHttpApiTest, PublishResourcesSuccess)
 {
   const ContentType contentType = GetParam();
 
-  ResourceProviderManager manager;
+  ResourceProviderManager manager(
+      Registrar::create(Owned<Storage>(new InMemoryStorage)).get());
 
   Option<id::UUID> streamId;
   Option<mesos::v1::ResourceProviderID> resourceProviderId;
@@ -567,7 +575,8 @@ TEST_P(ResourceProviderManagerHttpApiTest, PublishResourcesFailure)
 {
   const ContentType contentType = GetParam();
 
-  ResourceProviderManager manager;
+  ResourceProviderManager manager(
+      Registrar::create(Owned<Storage>(new InMemoryStorage)).get());
 
   Option<id::UUID> streamId;
   Option<mesos::v1::ResourceProviderID> resourceProviderId;
@@ -674,7 +683,8 @@ TEST_P(ResourceProviderManagerHttpApiTest, PublishResourcesDisconnected)
 {
   const ContentType contentType = GetParam();
 
-  ResourceProviderManager manager;
+  ResourceProviderManager manager(
+      Registrar::create(Owned<Storage>(new InMemoryStorage)).get());
 
   Option<mesos::v1::ResourceProviderID> resourceProviderId;
   Option<http::Pipe::Reader> reader;
