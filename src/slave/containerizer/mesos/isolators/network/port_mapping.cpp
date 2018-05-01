@@ -737,6 +737,41 @@ static Try<Nothing> updateIngressHTB(
 }
 
 
+static Result<Bytes> getLinkSpeed(const string& link)
+{
+  const string linkSpeedPath = path::join("/sys/class/net", link, "speed");
+
+  // Some distributions do not support reading speed (depending on the
+  // driver).
+  if (!os::exists(linkSpeedPath)) {
+    LOG(WARNING) << "Cannot determine link speed of " << link
+                 << ": '" << linkSpeedPath << "' does not exist";
+    return None();
+  }
+
+  Try<string> value = os::read(linkSpeedPath);
+  if (value.isError()) {
+    return Error("Failed to read '" + linkSpeedPath + "': " + value.error());
+  }
+
+  Try<uint64_t> linkSpeed = numify<uint64_t>(strings::trim(value.get()));
+  if (linkSpeed.isError()) {
+    return Error(
+        "Failed to parse '" + linkSpeedPath + "': " + linkSpeed.error());
+  }
+
+  // It is possible that the NIC driver doesn't support reporting
+  // physical link speed.
+  if (linkSpeed.get() == 0xFFFFFFFF) {
+    LOG(WARNING) << "Link speed reporting is not supported for '" << link + "'";
+    return None();
+  }
+
+  // Link speed value is in MBits/s. Convert it to Bytes/s.
+  return Bytes(linkSpeed.get() * 1000000 / 8);
+}
+
+
 int PortMappingUpdate::execute()
 {
   if (flags.help) {
@@ -2183,87 +2218,60 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
       flags.minimum_ingress_rate_limit.isSome() ||
       flags.maximum_ingress_rate_limit.isSome()) {
     // Read host physical link speed from /sys/class/net/eth0/speed.
-    // This value is in MBits/s. Some distribution does not support
-    // reading speed (depending on the driver). If that's the case,
-    // simply print warnings.
-    const string eth0SpeedPath =
-      path::join("/sys/class/net", eth0.get(), "speed");
+    // Some distributions do not support reading speed (depending on
+    // the driver). If that's the case, simply print warnings.
+    Result<Bytes> speed = getLinkSpeed(eth0.get());
+    if (speed.isError()) {
+      return Error(
+          "Failed to determine link speed of '" + eth0.get() +
+          "': " + speed.error());
+    } else if (speed.isSome()) {
+      if (flags.egress_rate_limit_per_container.isSome() &&
+          speed.get() < flags.egress_rate_limit_per_container.get()) {
+        return Error(
+            "The given egress traffic limit for containers " +
+            stringify(flags.egress_rate_limit_per_container->bytes()) +
+            " Bytes/s is greater than the host link speed " +
+            stringify(speed->bytes()) + " Bytes/s");
+      }
 
-    if (!os::exists(eth0SpeedPath)) {
-      LOG(WARNING) << "Cannot determine link speed of " << eth0.get()
-                   << ": '" << eth0SpeedPath << "' does not exist";
-    } else {
-      Try<string> value = os::read(eth0SpeedPath);
-      if (value.isError()) {
-        // NOTE: Even if the speed file exists, the read might fail if
-        // the driver does not support reading the speed. Therefore,
-        // we print a warning here, instead of failing.
-        LOG(WARNING) << "Cannot determine link speed of " << eth0.get()
-                     << ": Failed to read '" << eth0SpeedPath
-                     << "': " << value.error();
-      } else {
-        Try<uint64_t> hostLinkSpeed =
-          numify<uint64_t>(strings::trim(value.get()));
+      if (flags.minimum_egress_rate_limit.isSome() &&
+          speed.get() < flags.minimum_egress_rate_limit.get()) {
+        return Error(
+            "The given minimum egress traffic limit for containers " +
+            stringify(flags.minimum_egress_rate_limit->bytes()) +
+            " Bytes/s is greater than the host link speed " +
+            stringify(speed->bytes()) + " Bytes/s");
+      }
 
-        CHECK_SOME(hostLinkSpeed);
+      if (flags.maximum_egress_rate_limit.isSome() &&
+          speed.get() < flags.maximum_egress_rate_limit.get()) {
+        LOG(WARNING) << "The given maximum egress rate limit is greater"
+                     << " than the link speed and will not be achieved.";
+      }
 
-        // It could be possible that the nic driver doesn't support
-        // reporting physical link speed. In that case, report error.
-        if (hostLinkSpeed.get() == 0xFFFFFFFF) {
-          LOG(WARNING) << "Link speed reporting is not supported for '"
-                       << eth0.get() + "'";
-        } else {
-          // Convert host link speed to Bytes/s for comparison.
-          Bytes speed(hostLinkSpeed.get() * 1000000 / 8);
+      if (flags.ingress_rate_limit_per_container.isSome() &&
+          speed.get() < flags.ingress_rate_limit_per_container.get()) {
+        return Error(
+            "The given ingress traffic limit for containers " +
+            stringify(flags.ingress_rate_limit_per_container->bytes()) +
+            " Bytes/s is greater than the host link speed " +
+            stringify(speed->bytes()) + " Bytes/s");
+      }
 
-          if (flags.egress_rate_limit_per_container.isSome() &&
-              (speed < flags.egress_rate_limit_per_container.get())) {
-            return Error(
-                "The given egress traffic limit for containers " +
-                stringify(flags.egress_rate_limit_per_container->bytes()) +
-                " Bytes/s is greater than the host link speed " +
-                stringify(speed.bytes()) + " Bytes/s");
-          }
+      if (flags.minimum_ingress_rate_limit.isSome() &&
+          speed.get() < flags.minimum_ingress_rate_limit.get()) {
+        return Error(
+            "The given minimum ingress traffic limit for containers " +
+            stringify(flags.minimum_ingress_rate_limit->bytes()) +
+            " Bytes/s is greater than the host link speed " +
+            stringify(speed->bytes()) + " Bytes/s");
+      }
 
-          if (flags.minimum_egress_rate_limit.isSome() &&
-              (speed < flags.minimum_egress_rate_limit.get())) {
-            return Error(
-                "The given minimum egress traffic limit for containers " +
-                stringify(flags.minimum_egress_rate_limit.get().bytes()) +
-                " Bytes/s is greater than the host link speed " +
-                stringify(speed.bytes()) + " Bytes/s");
-          }
-
-          if (flags.maximum_egress_rate_limit.isSome() &&
-              speed < flags.maximum_egress_rate_limit.get()) {
-            LOG(WARNING) << "The given maximum egress rate limit is greater"
-                         << " than the link speed and will not be achieved.";
-          }
-
-          if (flags.ingress_rate_limit_per_container.isSome() &&
-              speed < flags.ingress_rate_limit_per_container.get()) {
-            return Error(
-                "The given ingress traffic limit for containers " +
-                stringify(flags.ingress_rate_limit_per_container->bytes()) +
-                " Bytes/s is greater than the host link speed " +
-                stringify(speed.bytes()) + " Bytes/s");
-          }
-
-          if (flags.minimum_ingress_rate_limit.isSome() &&
-              speed < flags.minimum_ingress_rate_limit.get()) {
-            return Error(
-                "The given minimum ingress traffic limit for containers " +
-                stringify(flags.minimum_ingress_rate_limit->bytes()) +
-                " Bytes/s is greater than the host link speed " +
-                stringify(speed.bytes()) + " Bytes/s");
-          }
-
-          if (flags.maximum_ingress_rate_limit.isSome() &&
-              speed < flags.maximum_ingress_rate_limit.get()) {
-            LOG(WARNING) << "The given maximum ingress rate limit is greater"
-                         << " than the link speed and will not be achieved.";
-          }
-        }
+      if (flags.maximum_ingress_rate_limit.isSome() &&
+          speed.get() < flags.maximum_ingress_rate_limit.get()) {
+        LOG(WARNING) << "The given maximum ingress rate limit is greater"
+                     << " than the link speed and will not be achieved.";
       }
     }
   }
