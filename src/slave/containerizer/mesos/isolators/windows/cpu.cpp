@@ -212,14 +212,14 @@ Future<ResourceStatistics> WindowsCpuIsolatorProcess::usage(
     return result;
   }
 
-  result.set_processes(info.get().ActiveProcesses);
+  result.set_processes(info->ActiveProcesses);
 
   // The reported time fields are in 100-nanosecond ticks.
   result.set_cpus_user_time_secs(
-      Nanoseconds(info.get().TotalUserTime.QuadPart * 100).secs());
+      Nanoseconds(info->TotalUserTime.QuadPart * 100).secs());
 
   result.set_cpus_system_time_secs(
-      Nanoseconds(info.get().TotalKernelTime.QuadPart * 100).secs());
+      Nanoseconds(info->TotalKernelTime.QuadPart * 100).secs());
 
   return result;
 }

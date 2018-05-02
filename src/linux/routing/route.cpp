@@ -54,7 +54,7 @@ Try<vector<Rule>> table()
 
   // Dump all the routes (for IPv4) from kernel.
   struct nl_cache* c = nullptr;
-  int error = rtnl_route_alloc_cache(socket.get().get(), AF_INET, 0, &c);
+  int error = rtnl_route_alloc_cache(socket->get(), AF_INET, 0, &c);
   if (error != 0) {
     return Error(nl_geterror(error));
   }

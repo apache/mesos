@@ -43,7 +43,7 @@ Try<bool> create(
   }
 
   int error = rtnl_link_veth_add(
-      socket.get().get(),
+      socket->get(),
       veth.c_str(),
       peer.c_str(),
       (pid.isNone() ? getpid() : pid.get()));

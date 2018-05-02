@@ -64,7 +64,7 @@ inline Result<Netlink<struct rtnl_link>> get(const std::string& link)
   // Dump all the netlink link objects from kernel. Note that the flag
   // AF_UNSPEC means all available families.
   struct nl_cache* c = nullptr;
-  int error = rtnl_link_alloc_cache(socket.get().get(), AF_UNSPEC, &c);
+  int error = rtnl_link_alloc_cache(socket->get(), AF_UNSPEC, &c);
   if (error != 0) {
     return Error(nl_geterror(error));
   }
@@ -91,7 +91,7 @@ inline Result<Netlink<struct rtnl_link>> get(int index)
   // Dump all the netlink link objects from kernel. Note that the flag
   // AF_UNSPEC means all available families.
   struct nl_cache* c = nullptr;
-  int error = rtnl_link_alloc_cache(socket.get().get(), AF_UNSPEC, &c);
+  int error = rtnl_link_alloc_cache(socket->get(), AF_UNSPEC, &c);
   if (error != 0) {
     return Error(nl_geterror(error));
   }
@@ -117,7 +117,7 @@ inline Result<bool> test(const std::string& _link, unsigned int flags)
     return None();
   }
 
-  return flags == (rtnl_link_get_flags(link.get().get()) & flags);
+  return flags == (rtnl_link_get_flags(link->get()) & flags);
 }
 
 
@@ -137,7 +137,7 @@ inline Try<bool> set(const std::string& _link, unsigned int flags)
   memset(&ifr, 0, sizeof(ifr));
 
   // Get the existing flags and take a bit-wise OR.
-  ifr.ifr_flags = (rtnl_link_get_flags(link.get().get()) | flags);
+  ifr.ifr_flags = (rtnl_link_get_flags(link->get()) | flags);
 
   strncpy(ifr.ifr_name, _link.c_str(), IFNAMSIZ);
 

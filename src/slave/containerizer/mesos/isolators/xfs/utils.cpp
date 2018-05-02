@@ -155,7 +155,7 @@ static Try<Nothing> setProjectQuota(
   quota.d_blk_softlimit = BasicBlocks(softLimit).blocks();
 
   if (::quotactl(QCMD(Q_XSETQLIM, PRJQUOTA),
-                 devname.get().c_str(),
+                 devname->c_str(),
                  projectId,
                  reinterpret_cast<caddr_t>(&quota)) == -1) {
     return ErrnoError("Failed to set quota for project ID " +
@@ -230,7 +230,7 @@ Result<QuotaInfo> getProjectQuota(
   // date.
 
   if (::quotactl(QCMD(Q_XGETQUOTA, PRJQUOTA),
-                 devname.get().c_str(),
+                 devname->c_str(),
                  projectId,
                  reinterpret_cast<caddr_t>(&quota)) == -1) {
     return ErrnoError("Failed to get quota for project ID " +
@@ -429,7 +429,7 @@ Try<bool> isQuotaEnabled(const string& path)
   // because we are getting global information rather than information for
   // a specific identity (eg. a projectId).
   if (::quotactl(QCMD(Q_XGETQSTATV, 0),
-                 devname.get().c_str(),
+                 devname->c_str(),
                  0, // id
                  reinterpret_cast<caddr_t>(&statv)) == -1) {
     // ENOSYS means that quotas are not enabled at all.

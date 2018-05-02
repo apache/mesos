@@ -1091,8 +1091,8 @@ int PortMappingStatistics::execute()
       }
 
       // We consider all sockets that have non-zero rtt value.
-      if (info.tcpInfo.isSome() && info.tcpInfo.get().tcpi_rtt != 0) {
-        RTTs.push_back(info.tcpInfo.get().tcpi_rtt);
+      if (info.tcpInfo.isSome() && info.tcpInfo->tcpi_rtt != 0) {
+        RTTs.push_back(info.tcpInfo->tcpi_rtt);
       }
     }
 
@@ -1412,14 +1412,14 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
   // Get 'ports' resource from 'resources' flag. These ports will be
   // treated as non-ephemeral ports.
   IntervalSet<uint16_t> nonEphemeralPorts;
-  if (resources.get().ports().isSome()) {
+  if (resources->ports().isSome()) {
     Try<IntervalSet<uint16_t>> ports = rangesToIntervalSet<uint16_t>(
-        resources.get().ports().get());
+        resources->ports().get());
 
     if (ports.isError()) {
       return Error(
           "Invalid ports resource '" +
-          stringify(resources.get().ports().get()) +
+          stringify(resources->ports().get()) +
           "': " + ports.error());
     }
 
@@ -1429,14 +1429,14 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
   // Get 'ephemeral_ports' resource from 'resources' flag. These ports
   // will be allocated to each container as ephemeral ports.
   IntervalSet<uint16_t> ephemeralPorts;
-  if (resources.get().ephemeral_ports().isSome()) {
+  if (resources->ephemeral_ports().isSome()) {
     Try<IntervalSet<uint16_t>> ports = rangesToIntervalSet<uint16_t>(
-        resources.get().ephemeral_ports().get());
+        resources->ephemeral_ports().get());
 
     if (ports.isError()) {
       return Error(
           "Invalid ephemeral ports resource '" +
-          stringify(resources.get().ephemeral_ports().get()) +
+          stringify(resources->ephemeral_ports().get()) +
           "': " + ports.error());
     }
 
@@ -1632,10 +1632,10 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
         } else {
           // Convert host link speed to Bytes/s for comparason.
           if (hostLinkSpeed.get() * 1000000 / 8 <
-              flags.egress_rate_limit_per_container.get().bytes()) {
+              flags.egress_rate_limit_per_container->bytes()) {
             return Error(
                 "The given egress traffic limit for containers " +
-                stringify(flags.egress_rate_limit_per_container.get().bytes()) +
+                stringify(flags.egress_rate_limit_per_container->bytes()) +
                 " Bytes/s is greater than the host link speed " +
                 stringify(hostLinkSpeed.get() * 1000000 / 8) + " Bytes/s");
           }
@@ -1733,7 +1733,7 @@ Try<Isolator*> PortMappingIsolatorProcess::create(const Flags& flags)
     if (egressParentHandle.get() != EGRESS_ROOT) {
       // TODO(cwang): This is just a guess, we do not know if this
       // handle is available or not.
-      hostTxFqCodelHandle = Handle(egressParentHandle.get().primary() + 1, 0);
+      hostTxFqCodelHandle = Handle(egressParentHandle->primary() + 1, 0);
     }
 
     // Prepare a fq_codel queueing discipline on host public interface
@@ -2390,7 +2390,7 @@ PortMappingIsolatorProcess::_recover(pid_t pid)
           " detected on egress of " + eth0);
       }
 
-      flowIds[sourcePorts.get()] = classid.get().secondary();
+      flowIds[sourcePorts.get()] = classid->secondary();
     }
   }
 
@@ -2426,8 +2426,8 @@ PortMappingIsolatorProcess::_recover(pid_t pid)
     }
 
     Interval<uint16_t> ports =
-      (Bound<uint16_t>::closed(sourcePorts.get().begin()),
-       Bound<uint16_t>::closed(sourcePorts.get().end()));
+      (Bound<uint16_t>::closed(sourcePorts->begin()),
+       Bound<uint16_t>::closed(sourcePorts->end()));
 
     if (managedNonEphemeralPorts.contains(ports)) {
       nonEphemeralPorts += ports;
@@ -2933,16 +2933,16 @@ void PortMappingIsolatorProcess::_update(
     LOG(ERROR) << "Failed to start a process for updating container "
                << containerId << ": "
                << (status.isFailed() ? status.failure() : "discarded");
-  } else if (status.get().isNone()) {
+  } else if (status->isNone()) {
     ++metrics.updating_container_ip_filters_errors;
 
     LOG(ERROR) << "The process for updating container " << containerId
                << " is not expected to be reaped elsewhere";
-  } else if (status.get().get() != 0) {
+  } else if (status->get() != 0) {
     ++metrics.updating_container_ip_filters_errors;
 
     LOG(ERROR) << "The process for updating container " << containerId << " "
-               << WSTRINGIFY(status.get().get());
+               << WSTRINGIFY(status->get());
   } else {
     LOG(INFO) << "The process for updating container " << containerId
               << " finished successfully";
@@ -3036,8 +3036,8 @@ Future<Nothing> PortMappingIsolatorProcess::update(
     }
 
     Interval<uint16_t> ports =
-      (Bound<uint16_t>::closed(sourcePorts.get().begin()),
-       Bound<uint16_t>::closed(sourcePorts.get().end()));
+      (Bound<uint16_t>::closed(sourcePorts->begin()),
+       Bound<uint16_t>::closed(sourcePorts->end()));
 
     // Skip the ephemeral ports.
     if (ports == info->ephemeralPorts) {
@@ -3114,7 +3114,7 @@ Future<Nothing> PortMappingIsolatorProcess::update(
     return Failure("Failed to launch update subcommand: " + s.error());
   }
 
-  return s.get().status()
+  return s->status()
     .onAny(defer(
         PID<PortMappingIsolatorProcess>(this),
         &PortMappingIsolatorProcess::_update,
@@ -3171,42 +3171,42 @@ Future<ResourceStatistics> PortMappingIsolatorProcess::usage(
   // |          |                    |          |
   // +----------+                    +----------+
 
-  Option<uint64_t> rx_packets = stat.get().get("tx_packets");
+  Option<uint64_t> rx_packets = stat->get("tx_packets");
   if (rx_packets.isSome()) {
     result.set_net_rx_packets(rx_packets.get());
   }
 
-  Option<uint64_t> rx_bytes = stat.get().get("tx_bytes");
+  Option<uint64_t> rx_bytes = stat->get("tx_bytes");
   if (rx_bytes.isSome()) {
     result.set_net_rx_bytes(rx_bytes.get());
   }
 
-  Option<uint64_t> rx_errors = stat.get().get("tx_errors");
+  Option<uint64_t> rx_errors = stat->get("tx_errors");
   if (rx_errors.isSome()) {
     result.set_net_rx_errors(rx_errors.get());
   }
 
-  Option<uint64_t> rx_dropped = stat.get().get("tx_dropped");
+  Option<uint64_t> rx_dropped = stat->get("tx_dropped");
   if (rx_dropped.isSome()) {
     result.set_net_rx_dropped(rx_dropped.get());
   }
 
-  Option<uint64_t> tx_packets = stat.get().get("rx_packets");
+  Option<uint64_t> tx_packets = stat->get("rx_packets");
   if (tx_packets.isSome()) {
     result.set_net_tx_packets(tx_packets.get());
   }
 
-  Option<uint64_t> tx_bytes = stat.get().get("rx_bytes");
+  Option<uint64_t> tx_bytes = stat->get("rx_bytes");
   if (tx_bytes.isSome()) {
     result.set_net_tx_bytes(tx_bytes.get());
   }
 
-  Option<uint64_t> tx_errors = stat.get().get("rx_errors");
+  Option<uint64_t> tx_errors = stat->get("rx_errors");
   if (tx_errors.isSome()) {
     result.set_net_tx_errors(tx_errors.get());
   }
 
-  Option<uint64_t> tx_dropped = stat.get().get("rx_dropped");
+  Option<uint64_t> tx_dropped = stat->get("rx_dropped");
   if (tx_dropped.isSome()) {
     result.set_net_tx_dropped(tx_dropped.get());
   }
@@ -3244,7 +3244,7 @@ Future<ResourceStatistics> PortMappingIsolatorProcess::usage(
   // writing to its end of the pipe and never exit because the pipe
   // has limited buffer size, but we have been careful to send very
   // few bytes so this shouldn't be a problem.
-  return s.get().status()
+  return s->status()
     .then(defer(
         PID<PortMappingIsolatorProcess>(this),
         &PortMappingIsolatorProcess::_usage,
@@ -3286,7 +3286,7 @@ Future<ResourceStatistics> PortMappingIsolatorProcess::__usage(
   CHECK_READY(out);
 
   // NOTE: It's possible the subprocess has no output.
-  if (out.get().empty()) {
+  if (out->empty()) {
     return result;
   }
 
@@ -4079,7 +4079,7 @@ string PortMappingIsolatorProcess::scripts(Info* info)
     script << "tc class add dev " << eth0 << " parent "
            << CONTAINER_TX_HTB_HANDLE << " classid "
            << CONTAINER_TX_HTB_CLASS_ID << " htb rate "
-           << egressRateLimitPerContainer.get().bytes() * 8 << "bit\n";
+           << egressRateLimitPerContainer->bytes() * 8 << "bit\n";
 
     // Packets are buffered at the leaf qdisc if we send them faster
     // than the HTB rate limit and may be dropped when the queue is

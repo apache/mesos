@@ -210,7 +210,7 @@ Future<ResourceStatistics> WindowsMemIsolatorProcess::usage(
   const Try<Bytes> mem_total_bytes =
     os::get_job_mem(infos[containerId].pid.get());
   if (mem_total_bytes.isSome()) {
-    result.set_mem_total_bytes(mem_total_bytes.get().bytes());
+    result.set_mem_total_bytes(mem_total_bytes->bytes());
   }
 
   return result;

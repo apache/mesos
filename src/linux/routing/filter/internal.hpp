@@ -121,7 +121,7 @@ inline Try<Nothing> attach(
         std::string(nl_geterror(error)));
   }
 
-  rtnl_mirred_set_ifindex(act, rtnl_link_get_ifindex(link.get().get()));
+  rtnl_mirred_set_ifindex(act, rtnl_link_get_ifindex(link->get()));
   rtnl_mirred_set_action(act, TCA_EGRESS_REDIR);
   rtnl_mirred_set_policy(act, TC_ACT_STOLEN);
 
@@ -187,7 +187,7 @@ inline Try<Nothing> attach(
           std::string(nl_geterror(error)));
     }
 
-    rtnl_mirred_set_ifindex(act, rtnl_link_get_ifindex(link.get().get()));
+    rtnl_mirred_set_ifindex(act, rtnl_link_get_ifindex(link->get()));
     rtnl_mirred_set_action(act, TCA_EGRESS_MIRROR);
     rtnl_mirred_set_policy(act, TC_ACT_PIPE);
 
@@ -302,7 +302,7 @@ Result<U32Handle> generateU32Handle(
   // parent on the link.
   struct nl_cache* c = nullptr;
   int error = rtnl_cls_alloc_cache(
-      socket.get().get(),
+      socket->get(),
       rtnl_link_get_ifindex(link.get()),
       filter.parent.get(),
       &c);
@@ -338,7 +338,7 @@ Result<U32Handle> generateU32Handle(
   // If this filter has a new priority, we need to let the kernel
   // decide the handle because we don't know which 'htid' this
   // priority will be associated with.
-  if (!htids.contains(filter.priority.get().get())) {
+  if (!htids.contains(filter.priority->get())) {
     return None();
   }
 
@@ -346,7 +346,7 @@ Result<U32Handle> generateU32Handle(
   // means all filters will be in hash bucket 0. Also, kernel assigns
   // node id starting from 0x800 by default. Here, we keep the same
   // semantics as kernel.
-  uint32_t htid = htids[filter.priority.get().get()];
+  uint32_t htid = htids[filter.priority->get()];
   for (uint32_t node = 0x800; node <= 0xfff; node++) {
     if (!nodes[htid].contains(node)) {
       return U32Handle(htid, 0x0, node);
@@ -377,7 +377,7 @@ Try<Netlink<struct rtnl_cls>> encodeFilter(
 
   // Encode the priority.
   if (filter.priority.isSome()) {
-    rtnl_cls_set_prio(cls.get(), filter.priority.get().get());
+    rtnl_cls_set_prio(cls.get(), filter.priority->get());
   }
 
   // Encode the classifier using the classifier specific function.
@@ -396,7 +396,7 @@ Try<Netlink<struct rtnl_cls>> encodeFilter(
 
   // Encode the handle.
   if (filter.handle.isSome()) {
-    rtnl_tc_set_handle(TC_CAST(cls.get()), filter.handle.get().get());
+    rtnl_tc_set_handle(TC_CAST(cls.get()), filter.handle->get());
   } else {
     // NOTE: This is a workaround for MESOS-1617. Normally, if the
     // user does not specify the handle for a filter, the kernel will
@@ -414,7 +414,7 @@ Try<Netlink<struct rtnl_cls>> encodeFilter(
 
       // If 'handle' is none, let the kernel choose the handle.
       if (handle.isSome()) {
-        rtnl_tc_set_handle(TC_CAST(cls.get()), handle.get().get());
+        rtnl_tc_set_handle(TC_CAST(cls.get()), handle->get());
       }
     }
   }
@@ -422,9 +422,9 @@ Try<Netlink<struct rtnl_cls>> encodeFilter(
   // Set the classid if needed.
   if (filter.classid.isSome()) {
     if (rtnl_tc_get_kind(TC_CAST(cls.get())) == std::string("u32")) {
-      rtnl_u32_set_classid(cls.get(), filter.classid.get().get());
+      rtnl_u32_set_classid(cls.get(), filter.classid->get());
     } else if (rtnl_tc_get_kind(TC_CAST(cls.get())) == std::string("basic")) {
-      rtnl_basic_set_target(cls.get(), filter.classid.get().get());
+      rtnl_basic_set_target(cls.get(), filter.classid->get());
     }
   }
 
@@ -505,7 +505,7 @@ inline Try<std::vector<Netlink<struct rtnl_cls>>> getClses(
   // parent on the link.
   struct nl_cache* c = nullptr;
   int error = rtnl_cls_alloc_cache(
-      socket.get().get(),
+      socket->get(),
       rtnl_link_get_ifindex(link.get()),
       parent.get(),
       &c);
@@ -556,7 +556,7 @@ Result<Netlink<struct rtnl_cls>> getCls(
     Result<Filter<Classifier>> filter = decodeFilter<Classifier>(cls);
     if (filter.isError()) {
       return Error("Failed to decode: " + filter.error());
-    } else if (filter.isSome() && filter.get().classifier == classifier) {
+    } else if (filter.isSome() && filter->classifier == classifier) {
       return cls;
     }
   }
@@ -631,8 +631,8 @@ Try<bool> create(const std::string& _link, const Filter<Classifier>& filter)
   }
 
   int error = rtnl_cls_add(
-      socket.get().get(),
-      cls.get().get(),
+      socket->get(),
+      cls->get(),
       NLM_F_CREATE | NLM_F_EXCL);
 
   if (error != 0) {
@@ -678,7 +678,7 @@ Try<bool> remove(
     return Error(socket.error());
   }
 
-  int error = rtnl_cls_delete(socket.get().get(), cls.get().get(), 0);
+  int error = rtnl_cls_delete(socket->get(), cls.get().get(), 0);
   if (error != 0) {
     // TODO(jieyu): Interpret the error code and return false if it
     // indicates that the filter is not found.
@@ -716,24 +716,24 @@ Try<bool> update(const std::string& _link, const Filter<Classifier>& filter)
   // The kernel does not allow us to update the priority. So if the
   // user specifies a priority, we will check to make sure they match.
   if (filter.priority.isSome() &&
-      filter.priority.get().get() != rtnl_cls_get_prio(oldCls.get().get())) {
+      filter.priority->get() != rtnl_cls_get_prio(oldCls.get().get())) {
     return Error(
         "The priorities do not match. The old priority is " +
-        stringify(rtnl_cls_get_prio(oldCls.get().get())) +
+        stringify(rtnl_cls_get_prio(oldCls->get())) +
         " and the new priority is " +
-        stringify(filter.priority.get().get()));
+        stringify(filter.priority->get()));
   }
 
   // The kernel does not allow us to update the handle. So if the user
   // specifies a handle, we will check to make sure they match.
   if (filter.handle.isSome() &&
-      filter.handle.get().get() !=
-        rtnl_tc_get_handle(TC_CAST(oldCls.get().get()))) {
+      filter.handle->get() !=
+        rtnl_tc_get_handle(TC_CAST(oldCls->get()))) {
     return Error(
         "The handles do not match. The old handle is " +
-        stringify(rtnl_tc_get_handle(TC_CAST(oldCls.get().get()))) +
+        stringify(rtnl_tc_get_handle(TC_CAST(oldCls->get()))) +
         " and the new handle is " +
-        stringify(filter.handle.get().get()));
+        stringify(filter.handle->get()));
   }
 
   Try<Netlink<struct rtnl_cls>> newCls = encodeFilter(link.get(), filter);
@@ -743,20 +743,20 @@ Try<bool> update(const std::string& _link, const Filter<Classifier>& filter)
 
   // Set the handle of the new filter to match that of the old one.
   rtnl_tc_set_handle(
-      TC_CAST(newCls.get().get()),
-      rtnl_tc_get_handle(TC_CAST(oldCls.get().get())));
+      TC_CAST(newCls->get()),
+      rtnl_tc_get_handle(TC_CAST(oldCls->get())));
 
   // Set the priority of the new filter to match that of the old one.
   rtnl_cls_set_prio(
-      newCls.get().get(),
-      rtnl_cls_get_prio(oldCls.get().get()));
+      newCls->get(),
+      rtnl_cls_get_prio(oldCls->get()));
 
   Try<Netlink<struct nl_sock>> socket = routing::socket();
   if (socket.isError()) {
     return Error(socket.error());
   }
 
-  int error = rtnl_cls_change(socket.get().get(), newCls.get().get(), 0);
+  int error = rtnl_cls_change(socket->get(), newCls.get().get(), 0);
   if (error != 0) {
     if (error == -NLE_OBJ_NOTFOUND) {
       return false;

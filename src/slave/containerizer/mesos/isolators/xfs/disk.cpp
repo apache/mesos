@@ -140,16 +140,16 @@ Try<Isolator*> XfsDiskIsolatorProcess::create(const Flags& flags)
         flags.xfs_project_range + "'");
   }
 
-  if (projects.get().type() != Value::RANGES) {
+  if (projects->type() != Value::RANGES) {
     return Error(
         "Invalid XFS project resource type " +
-        mesos::Value_Type_Name(projects.get().type()) +
+        mesos::Value_Type_Name(projects->type()) +
         ", expecting " +
         mesos::Value_Type_Name(Value::RANGES));
   }
 
   Try<IntervalSet<prid_t>> totalProjectIds =
-    getIntervalSet(projects.get().ranges());
+    getIntervalSet(projects->ranges());
 
   if (totalProjectIds.isError()) {
     return Error(totalProjectIds.error());

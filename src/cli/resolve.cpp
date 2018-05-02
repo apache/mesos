@@ -118,7 +118,7 @@ int main(int argc, char** argv)
 
   // The future is not satisfied unless the result is Some.
   CHECK_SOME(masterInfo.get());
-  cout << strings::remove(masterInfo.get().get().pid(), "master@") << endl;
+  cout << strings::remove(masterInfo->get().pid(), "master@") << endl;
 
   return EXIT_SUCCESS;
 }

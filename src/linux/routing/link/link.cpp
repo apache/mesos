@@ -132,7 +132,7 @@ Try<bool> remove(const string& _link)
     return Error(socket.error());
   }
 
-  int error = rtnl_link_delete(socket.get().get(), link.get().get());
+  int error = rtnl_link_delete(socket->get(), link.get().get());
   if (error != 0) {
     if (error == -NLE_OBJ_NOTFOUND || error == -NLE_NODEV) {
       return false;
@@ -217,7 +217,7 @@ Result<int> index(const string& _link)
     return None();
   }
 
-  return rtnl_link_get_ifindex(link.get().get());
+  return rtnl_link_get_ifindex(link->get());
 }
 
 
@@ -230,7 +230,7 @@ Result<string> name(int index)
     return None();
   }
 
-  return rtnl_link_get_name(link.get().get());
+  return rtnl_link_get_name(link->get());
 }
 
 
@@ -308,7 +308,7 @@ Result<unsigned int> mtu(const string& _link)
     return None();
   }
 
-  return rtnl_link_get_mtu(link.get().get());
+  return rtnl_link_get_mtu(link->get());
 }
 
 
@@ -396,7 +396,7 @@ Result<hashmap<string, uint64_t>> statistics(const string& _link)
 
   for (size_t i = 0; i < size; i++) {
     rtnl_link_stat2str(stats[i], buf, 32);
-    results[buf] = rtnl_link_get_stat(link.get().get(), stats[i]);
+    results[buf] = rtnl_link_get_stat(link->get(), stats[i]);
   }
 
   return results;

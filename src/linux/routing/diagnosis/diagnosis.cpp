@@ -65,7 +65,7 @@ Try<vector<Info>> infos(int family, int states)
   }
 
   struct nl_cache* c = nullptr;
-  int error = idiagnl_msg_alloc_cache(socket.get().get(), family, states, &c);
+  int error = idiagnl_msg_alloc_cache(socket->get(), family, states, &c);
   if (error != 0) {
     return Error(nl_geterror(error));
   }

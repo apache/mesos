@@ -156,7 +156,7 @@ Try<Nothing> encode<ip::Classifier>(
   }
 
   if (classifier.destinationIP.isSome()) {
-    Try<struct in_addr> in = classifier.destinationIP.get().in();
+    Try<struct in_addr> in = classifier.destinationIP->in();
     if (in.isError()) {
       return Error(in.error());
     }
@@ -164,7 +164,7 @@ Try<Nothing> encode<ip::Classifier>(
     // To match those IP packets that have the given destination IP.
     error = rtnl_u32_add_key(
         cls.get(),
-        in.get().s_addr,
+        in->s_addr,
         htonl(0xffffffff),
         16,
         0);
@@ -187,8 +187,8 @@ Try<Nothing> encode<ip::Classifier>(
     //        |   Source Port   |   X    |   X    |
     //        +--------+--------+--------+--------+
     // Offset:    20       21       22       23
-    uint32_t value = ((uint32_t) classifier.sourcePorts.get().begin()) << 16;
-    uint32_t mask = ((uint32_t) classifier.sourcePorts.get().mask()) << 16;
+    uint32_t value = ((uint32_t) classifier.sourcePorts->begin()) << 16;
+    uint32_t mask = ((uint32_t) classifier.sourcePorts->mask()) << 16;
 
     // To match IP packets that have the given source ports.
     error = rtnl_u32_add_key(
@@ -211,8 +211,8 @@ Try<Nothing> encode<ip::Classifier>(
     //        |   X    |   X    |    Dest. Port   |
     //        +--------+--------+--------+--------+
     // Offset:    20       21       22       23
-    uint32_t value = (uint32_t) classifier.destinationPorts.get().begin();
-    uint32_t mask = (uint32_t) classifier.destinationPorts.get().mask();
+    uint32_t value = (uint32_t) classifier.destinationPorts->begin();
+    uint32_t mask = (uint32_t) classifier.destinationPorts->mask();
 
     // To match IP packets that have the given destination ports.
     error = rtnl_u32_add_key(

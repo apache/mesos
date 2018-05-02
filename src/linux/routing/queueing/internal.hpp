@@ -96,7 +96,7 @@ Try<Netlink<struct rtnl_qdisc>> encodeDiscipline(
   rtnl_tc_set_parent(TC_CAST(qdisc.get()), discipline.parent.get());
 
   if (discipline.handle.isSome()) {
-    rtnl_tc_set_handle(TC_CAST(qdisc.get()), discipline.handle.get().get());
+    rtnl_tc_set_handle(TC_CAST(qdisc.get()), discipline.handle->get());
   }
 
   int error = rtnl_tc_set_kind(TC_CAST(qdisc.get()), discipline.kind.c_str());
@@ -132,7 +132,7 @@ inline Try<std::vector<Netlink<struct rtnl_qdisc>>> getQdiscs(
 
   // Dump all the queueing discipline from kernel.
   struct nl_cache* c = nullptr;
-  int error = rtnl_qdisc_alloc_cache(socket.get().get(), &c);
+  int error = rtnl_qdisc_alloc_cache(socket->get(), &c);
   if (error != 0) {
     return Error(
         "Failed to get queueing discipline info from kernel: " +
@@ -241,8 +241,8 @@ Try<bool> create(
   // The flag NLM_F_EXCL tells libnl that if the qdisc already exists,
   // this function should return error.
   int error = rtnl_qdisc_add(
-      socket.get().get(),
-      qdisc.get().get(),
+      socket->get(),
+      qdisc->get(),
       NLM_F_CREATE | NLM_F_EXCL);
 
   if (error != 0) {
@@ -285,7 +285,7 @@ inline Try<bool> remove(
     return Error(socket.error());
   }
 
-  int error = rtnl_qdisc_delete(socket.get().get(), qdisc.get().get());
+  int error = rtnl_qdisc_delete(socket->get(), qdisc.get().get());
   if (error != 0) {
     // TODO(jieyu): Interpret the error code and return false if it
     // indicates that the queueing discipline is not found.
@@ -326,7 +326,7 @@ inline Result<hashmap<std::string, uint64_t>> statistics(
   for (size_t i = 0; i <= static_cast<size_t>(RTNL_TC_STATS_MAX); i++) {
     if (rtnl_tc_stat2str(static_cast<rtnl_tc_stat>(i), name, sizeof(name))) {
       results[name] = rtnl_tc_get_stat(
-          TC_CAST(qdisc.get().get()),
+          TC_CAST(qdisc->get()),
           static_cast<rtnl_tc_stat>(i));
     }
   }
