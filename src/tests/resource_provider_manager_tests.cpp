@@ -1044,7 +1044,14 @@ TEST_P(ResourceProviderManagerHttpApiTest, ConvertResources)
 
 // Test that resource provider can resubscribe with an agent after
 // a resource provider failover as well as an agent failover.
-TEST_P(ResourceProviderManagerHttpApiTest, ResubscribeResourceProvider)
+//
+// TODO(bbannier): This test is currently disabled on Windows as the resource
+// provider manager uses a LevelDB store which is at the moment not supported on
+// Windows (see MESOS-5932) and we use an in-memory store. The in-memory store
+// does not survive agent restarts so that resubscription attempts are rejected
+// (resource provider is unknown).
+TEST_P_TEMP_DISABLED_ON_WINDOWS(
+    ResourceProviderManagerHttpApiTest, ResubscribeResourceProvider)
 {
   Clock::pause();
 
