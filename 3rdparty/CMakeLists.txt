@@ -1142,9 +1142,12 @@ if (ENABLE_JEMALLOC_ALLOCATOR)
     JEMALLOC_CONFIGURE_COMMAND
     ${JEMALLOC_ROOT}/configure --enable-stats --enable-prof --with-malloc-conf=prof:true,prof_active:false)
 
+  GET_BYPRODUCTS(jemalloc)
+
   ExternalProject_Add(
     ${JEMALLOC_TARGET}
     PREFIX            ${JEMALLOC_CMAKE_ROOT}
+    BUILD_BYPRODUCTS  ${JEMALLOC_BYPRODUCTS}
     CONFIGURE_COMMAND ${JEMALLOC_CONFIGURE_COMMAND}
     INSTALL_COMMAND   ${CMAKE_NOOP}
     URL               ${JEMALLOC_URL}
