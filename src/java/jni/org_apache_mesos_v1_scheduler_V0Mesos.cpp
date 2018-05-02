@@ -560,7 +560,7 @@ void V0ToV1AdapterProcess::send(SchedulerDriver* driver, const Call& _call)
   }
 
   switch (call.type()) {
-    case Call::SUBSCRIBE: {
+    case scheduler::Call::SUBSCRIBE: {
       subscribeCall = true;
 
       heartbeatTimer = process::delay(interval, self(), &Self::heartbeat);
@@ -573,12 +573,12 @@ void V0ToV1AdapterProcess::send(SchedulerDriver* driver, const Call& _call)
       break;
     }
 
-    case Call::TEARDOWN: {
+    case scheduler::Call::TEARDOWN: {
       driver->stop(false);
       break;
     }
 
-    case Call::ACCEPT: {
+    case scheduler::Call::ACCEPT: {
       vector<OfferID> offerIds;
       foreach (const OfferID& offerId, call.accept().offer_ids()) {
         offerIds.emplace_back(offerId);
@@ -598,15 +598,15 @@ void V0ToV1AdapterProcess::send(SchedulerDriver* driver, const Call& _call)
       break;
     }
 
-    case Call::ACCEPT_INVERSE_OFFERS:
-    case Call::DECLINE_INVERSE_OFFERS:
-    case Call::SHUTDOWN: {
+    case scheduler::Call::ACCEPT_INVERSE_OFFERS:
+    case scheduler::Call::DECLINE_INVERSE_OFFERS:
+    case scheduler::Call::SHUTDOWN: {
       // TODO(anand): Throw java error.
       LOG(ERROR) << "Received an unexpected " << call.type() << " call";
       break;
     }
 
-    case Call::DECLINE: {
+    case scheduler::Call::DECLINE: {
       foreach (const OfferID& offerId, call.decline().offer_ids()) {
         if (call.decline().has_filters()) {
           driver->declineOffer(offerId, call.decline().filters());
@@ -618,17 +618,17 @@ void V0ToV1AdapterProcess::send(SchedulerDriver* driver, const Call& _call)
       break;
     }
 
-    case Call::REVIVE: {
+    case scheduler::Call::REVIVE: {
       driver->reviveOffers();
       break;
     }
 
-    case Call::KILL: {
+    case scheduler::Call::KILL: {
       driver->killTask(call.kill().task_id());
       break;
     }
 
-    case Call::ACKNOWLEDGE: {
+    case scheduler::Call::ACKNOWLEDGE: {
       TaskStatus status;
       status.mutable_task_id()->CopyFrom(call.acknowledge().task_id());
       status.mutable_slave_id()->CopyFrom(call.acknowledge().slave_id());
@@ -639,10 +639,10 @@ void V0ToV1AdapterProcess::send(SchedulerDriver* driver, const Call& _call)
     }
 
     // TODO(greggomann): Implement operation status acknowledgement.
-    case Call::ACKNOWLEDGE_OPERATION_STATUS:
+    case scheduler::Call::ACKNOWLEDGE_OPERATION_STATUS:
       break;
 
-    case Call::RECONCILE: {
+    case scheduler::Call::RECONCILE: {
       vector<TaskStatus> statuses;
 
       foreach (const scheduler::Call::Reconcile::Task& task,
@@ -657,10 +657,10 @@ void V0ToV1AdapterProcess::send(SchedulerDriver* driver, const Call& _call)
     }
 
     // TODO(greggomann): Implement operation reconciliation.
-    case Call::RECONCILE_OPERATIONS:
+    case scheduler::Call::RECONCILE_OPERATIONS:
       break;
 
-    case Call::MESSAGE: {
+    case scheduler::Call::MESSAGE: {
       driver->sendFrameworkMessage(
           call.message().executor_id(),
           call.message().slave_id(),
@@ -668,7 +668,7 @@ void V0ToV1AdapterProcess::send(SchedulerDriver* driver, const Call& _call)
       break;
     }
 
-    case Call::REQUEST: {
+    case scheduler::Call::REQUEST: {
       vector<Request> requests;
 
       foreach (const Request& request, call.request().requests()) {
@@ -679,12 +679,12 @@ void V0ToV1AdapterProcess::send(SchedulerDriver* driver, const Call& _call)
       break;
     }
 
-    case Call::SUPPRESS: {
+    case scheduler::Call::SUPPRESS: {
       driver->suppressOffers();
       break;
     }
 
-    case Call::UNKNOWN: {
+    case scheduler::Call::UNKNOWN: {
       EXIT(EXIT_FAILURE) << "Received an unexpected " << call.type()
                          << " call";
       break;
