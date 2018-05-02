@@ -23,6 +23,7 @@
 #include <stout/os/chdir.hpp>
 #include <stout/os/getcwd.hpp>
 #include <stout/os/mkdtemp.hpp>
+#include <stout/os/realpath.hpp>
 #include <stout/os/rmdir.hpp>
 
 #if __FreeBSD__
@@ -39,10 +40,19 @@ protected:
 
     // Create a temporary directory for the test.
     Try<std::string> directory = os::mkdtemp();
-
     ASSERT_SOME(directory) << "Failed to mkdtemp";
 
-    sandbox = directory.get();
+    // We get the `realpath` of the temporary directory because some
+    // platforms, like macOS, symlink `/tmp` to `/private/var`, but
+    // return the symlink name when creating temporary directories.
+    // This is problematic because a lot of tests compare the
+    // `realpath` of a temporary file.
+    Result<std::string> realpath = os::realpath(directory.get());
+    ASSERT_SOME(realpath) << "Failed to get realpath of '" << directory.get()
+                          << "': "
+                          << (realpath.isError() ? realpath.error()
+                                                 : "No such directory");
+    sandbox = realpath.get();
 
     // Run the test out of the temporary directory we created.
     ASSERT_SOME(os::chdir(sandbox.get()))
