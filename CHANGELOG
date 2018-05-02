@@ -563,6 +563,7 @@ Release Notes - Mesos - Version 1.4.2 (WIP)
   * [MESOS-8159] - ns::clone uses an async signal unsafe stack.
   * [MESOS-8171] - Using a failoverTimeout of 0 with Mesos native scheduler client can result in infinite subscribe loop.
   * [MESOS-8237] - Strip (Offer|Resource).allocation_info for non-MULTI_ROLE schedulers.
+  * [MESOS-8293] - Reservation may not be allocated when the role has no quota.
   * [MESOS-8297] - Built-in driver-based executors ignore kill task if the task has not been launched.
   * [MESOS-8356] - Persistent volume ownership is set to root despite of sandbox owner (frameworkInfo.user) when docker executor is used.
   * [MESOS-8411] - Killing a queued task can lead to the command executor never terminating.
