@@ -770,6 +770,15 @@
   jira_user: xds2000
   reviewboard_user: xds2000
 
+- name: Xudong Ni
+  affiliations:
+    - {organization: Apple}
+  emails:
+    - xd_ni@yahoo.com
+    - xudong_ni@apple.com
+  jira_user: fiu
+  reviewboard_user: fiu
+
 - name: Yanyan Hu
   affiliations:
     - {organization: IBM}
