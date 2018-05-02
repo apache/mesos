@@ -230,7 +230,7 @@ TEST_F(FsTest, CreateDirectoryAtMaxPath)
   const size_t max_path_length = 248;
   const string testdir = path::join(
     sandbox.get(),
-    string(max_path_length - sandbox.get().length() - 1 /* separator */, 'c'));
+    string(max_path_length - sandbox->length() - 1 /* separator */, 'c'));
 
   EXPECT_EQ(testdir.length(), max_path_length);
   ASSERT_SOME(os::mkdir(testdir));
