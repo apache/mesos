@@ -140,6 +140,7 @@ public:
       launched(false),
       killed(false),
       killedByHealthCheck(false),
+      killedByMaxCompletionTimer(false),
       terminated(false),
       pid(None()),
       shutdownGracePeriod(_shutdownGracePeriod),
@@ -646,6 +647,21 @@ protected:
       launchEnvironment.add_variables()->CopyFrom(variable);
     }
 
+    // Setup timer for max_completion_time.
+    if (task.max_completion_time().nanoseconds() > 0) {
+      Duration duration = Nanoseconds(task.max_completion_time().nanoseconds());
+
+      LOG(INFO) << "Task " << taskId.get() << " has a max completion time of "
+                << duration;
+
+      taskCompletionTimer = delay(
+          duration,
+          self(),
+          &Self::taskCompletionTimeout,
+          task.task_id(),
+          duration);
+    }
+
     LOG(INFO) << "Starting task " << taskId.get();
 
     pid = launchTaskSubprocess(
@@ -734,6 +750,12 @@ protected:
 
   void kill(const TaskID& _taskId, const Option<KillPolicy>& override = None())
   {
+    // Cancel the taskCompletionTimer if it is set and ongoing.
+    if (taskCompletionTimer.isSome()) {
+      Clock::cancel(taskCompletionTimer.get());
+      taskCompletionTimer = None();
+    }
+
     // Default grace period is set to 3s for backwards compatibility.
     //
     // TODO(alexr): Replace it with a more meaningful default, e.g.
@@ -846,10 +868,13 @@ private:
       CHECK_SOME(taskId);
       CHECK(taskId.get() == _taskId);
 
-      if (protobuf::frameworkHasCapability(
+      if (!killedByMaxCompletionTimer &&
+          protobuf::frameworkHasCapability(
               frameworkInfo.get(),
               FrameworkInfo::Capability::TASK_KILLING_STATE)) {
-        TaskStatus status = createTaskStatus(taskId.get(), TASK_KILLING);
+        TaskStatus status =
+          createTaskStatus(taskId.get(), TASK_KILLING);
+
         forward(status);
       }
 
@@ -915,6 +940,13 @@ private:
       Clock::cancel(killGracePeriodTimer.get());
     }
 
+    if (taskCompletionTimer.isSome()) {
+      Clock::cancel(taskCompletionTimer.get());
+      taskCompletionTimer = None();
+    }
+
+    Option<TaskStatus::Reason> reason = None();
+
     if (!status_.isReady()) {
       taskState = TASK_FAILED;
       message =
@@ -928,7 +960,10 @@ private:
       CHECK(WIFEXITED(status) || WIFSIGNALED(status))
         << "Unexpected wait status " << status;
 
-      if (killed) {
+      if (killedByMaxCompletionTimer) {
+        taskState = TASK_FAILED;
+        reason = TaskStatus::REASON_MAX_COMPLETION_TIME_REACHED;
+      } else if (killed) {
         // Send TASK_KILLED if the task was killed as a result of
         // kill() or shutdown().
         taskState = TASK_KILLED;
@@ -948,7 +983,7 @@ private:
     TaskStatus status = createTaskStatus(
         taskId.get(),
         taskState,
-        None(),
+        reason,
         message);
 
     // Indicate that a kill occurred due to a failing health check.
@@ -1006,6 +1041,23 @@ private:
                 << stringify(trees.get());
     }
   }
+
+
+  void taskCompletionTimeout(const TaskID& taskId, const Duration& duration)
+  {
+    CHECK(!terminated);
+    CHECK(!killed);
+
+    LOG(INFO) << "Killing task " << taskId
+              << " which exceeded its maximum completion time of " << duration;
+
+    taskCompletionTimer = None();
+    killedByMaxCompletionTimer = true;
+
+    // Use a zero gracePeriod to kill the task.
+    kill(taskId, Duration::zero());
+  }
+
 
   // Use this helper to create a status update from scratch, i.e., without
   // previously attached extra information like `data` or `check_status`.
@@ -1130,11 +1182,13 @@ private:
   bool launched;
   bool killed;
   bool killedByHealthCheck;
+  bool killedByMaxCompletionTimer;
+
   bool terminated;
 
   Option<Time> killGracePeriodStart;
   Option<Timer> killGracePeriodTimer;
-
+  Option<Timer> taskCompletionTimer;
   Option<pid_t> pid;
   Duration shutdownGracePeriod;
   Option<KillPolicy> killPolicy;
