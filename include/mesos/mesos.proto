@@ -2111,6 +2111,14 @@ message TaskInfo {
   // to use this information as needed and to handle tasks without
   // service discovery information.
   optional DiscoveryInfo discovery = 11;
+
+  // Maximum duration for task completion. If the task is non-terminal at the
+  // end of this duration, it will fail with the reason
+  // `REASON_MAX_COMPLETION_TIME_REACHED`. Mesos supports this field for
+  // executor-less tasks, and tasks that use Docker or default executors.
+  // It is the executor's responsibility to implement this, so it might not be
+  // supported by all custom executors.
+  optional DurationInfo max_completion_time = 14;
 }
 
 
@@ -2443,6 +2451,7 @@ message TaskStatus {
     REASON_CONTAINER_LIMITATION_MEMORY = 8;
     REASON_CONTAINER_PREEMPTED = 17;
     REASON_CONTAINER_UPDATE_FAILED = 22;
+    REASON_MAX_COMPLETION_TIME_REACHED = 33;
     REASON_EXECUTOR_REGISTRATION_TIMEOUT = 23;
     REASON_EXECUTOR_REREGISTRATION_TIMEOUT = 24;
     REASON_EXECUTOR_TERMINATED = 1;
