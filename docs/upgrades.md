@@ -424,7 +424,7 @@ We categorize the changes as follows:
 
 * A new [`network/ports`](isolators/network-ports.md) isolator has been added. The isolator supports the following new agent flags:
   * `--container_ports_watch_interval` specifies the interval at which the isolator reconciles port assignments.
-  * `--check_agent_port_range_only` excludes ports outside the agent's range from port reconcilation.
+  * `--check_agent_port_range_only` excludes ports outside the agent's range from port reconciliation.
 
 <a name="1-5-x-executor-secret-key"></a>
 
@@ -462,7 +462,7 @@ We categorize the changes as follows:
 
 <a name="1-4-x-bounding-capabilities"></a>
 
-* Explicitly setting the bounding capabilities of a task independently of the effective capabilities is now supported. Frameworks can specifiy the task bounding capabilities by using the `LinuxInfo.bounding_capabilities` message. Operators can specify the default bounding capabilities using the agent `--bounding_capabilities` flag. This flag also specifies the maximum bounding set that a framework is allowed to specify.
+* Explicitly setting the bounding capabilities of a task independently of the effective capabilities is now supported. Frameworks can specify the task bounding capabilities by using the `LinuxInfo.bounding_capabilities` message. Operators can specify the default bounding capabilities using the agent `--bounding_capabilities` flag. This flag also specifies the maximum bounding set that a framework is allowed to specify.
 
 <a name="1-4-x-agent-recovery"></a>
 
@@ -607,7 +607,7 @@ In order to upgrade a running cluster:
 
 <a name="1-1-x-allocator-updateallocation"></a>
 
-* Mesos 1.1 adds an `offeredResources` argument to the `Allocator::updateAllocation()` method. It is used to indicate the resources that the operations passed to `updateAllocation()` are applied to. [MESOS-4431](https://issues.apache.org/jira/browse/MESOS-4431) (paticularly [/r/45961/](https://reviews.apache.org/r/45961/)) has more details on the motivation.
+* Mesos 1.1 adds an `offeredResources` argument to the `Allocator::updateAllocation()` method. It is used to indicate the resources that the operations passed to `updateAllocation()` are applied to. [MESOS-4431](https://issues.apache.org/jira/browse/MESOS-4431) (particularly [/r/45961/](https://reviews.apache.org/r/45961/)) has more details on the motivation.
 
 ## Upgrading from 0.28.x to 1.0.x ##
 
@@ -695,7 +695,7 @@ In order to upgrade a running cluster:
 <a name="1-0-x-quota-acls"></a>
 
 * The `SetQuota` and `RemoveQuota` ACLs have been deprecated. To replace these, a new ACL `UpdateQuota` have been introduced. In addition, a new ACL `GetQuota` have been added; these control which principals are allowed to query quota information for which roles. These changes affect the `--acls` flag for the local authorizer in the following ways:
-  * The `update_quotas` ACL cannot be used in combination with either the `set_quotas` or `remove_quotas` ACL. The local authorizor will produce an error in such a case;
+  * The `update_quotas` ACL cannot be used in combination with either the `set_quotas` or `remove_quotas` ACL. The local authorizer will produce an error in such a case;
   * When upgrading a Mesos cluster that uses the `set_quotas` or `remove_quotas` ACLs, the operator should first upgrade the Mesos binaries. At this point, the deprecated ACLs will still be enforced. After the upgrade has been verified, the operator should replace deprecated values for `set_quotas` and `remove_quotas` with equivalent values for `update_quotas`;
   * If desired, the operator can use the `get_quotas` ACL after the upgrade to control which principals are allowed to query quota information.
 
@@ -716,7 +716,7 @@ In order to upgrade a running cluster:
 
 <a name="1-0-x-http-authentication-flags"></a>
 
-* The `--authenticate_http` flag has been deprecated in favor of `--authenticate_http_readwrite`. Setting `--authenticate_http_readwrite` will now enable authentication for all endpoints which previously had authentication support. These happen to be the endpoints which allow modifiication of the cluster state, or "read-write" endpoints. Note that `/logging/toggle`, `/profiler/start`, `/profiler/stop`, `/maintenance/schedule`, `/machine/up`, and `/machine/down` previously did not have authentication support, but in 1.0 if either `--authenticate_http` or `--authenticate_http_readwrite` is set, those endpoints will now require authentication. A new flag has also been introduced, `--authenticate_http_readonly`, which enables authentication for endpoints which support authentication and do not allow modification of the state of the cluster, like `/state` or `/flags`.
+* The `--authenticate_http` flag has been deprecated in favor of `--authenticate_http_readwrite`. Setting `--authenticate_http_readwrite` will now enable authentication for all endpoints which previously had authentication support. These happen to be the endpoints which allow modification of the cluster state, or "read-write" endpoints. Note that `/logging/toggle`, `/profiler/start`, `/profiler/stop`, `/maintenance/schedule`, `/machine/up`, and `/machine/down` previously did not have authentication support, but in 1.0 if either `--authenticate_http` or `--authenticate_http_readwrite` is set, those endpoints will now require authentication. A new flag has also been introduced, `--authenticate_http_readonly`, which enables authentication for endpoints which support authentication and do not allow modification of the state of the cluster, like `/state` or `/flags`.
 
 <a name="1-0-x-endpoint-authorization"></a>
 
