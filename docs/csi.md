@@ -8,7 +8,9 @@ layout: documentation
 This document describes the [Container Storage Interface](https://github.com/container-storage-interface/spec)
 (CSI) support in Mesos.
 
-Currently, only CSI spec version 0.1 is supported.
+Currently, only CSI spec version 0.2 is supported in Mesos 1.6 due to
+incompatible changes between CSI version 0.1 and version 0.2. CSI version 0.1 is
+supported in Mesos 1.5.
 
 ## Motivation
 
@@ -177,7 +179,7 @@ message Resource {
   from a CSI plugin. This field must not be set by frameworks.
 * `metadata`: This maps to CSI [Volume Attributes](https://github.com/container-storage-interface/spec/blob/v0.1.0/spec.md#createvolume)
   if the disk resource is backed by a [Volume](https://github.com/container-storage-interface/spec/blob/v0.1.0/spec.md#terminology)
-  from a CSI plugin. This field must not be set by framweworks.
+  from a CSI plugin. This field must not be set by frameworks.
 
 ### Storage Pool
 
