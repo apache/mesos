@@ -559,6 +559,114 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Launch)
 }
 
 
+// This test verifies that docker executor will terminate a task after it
+// reaches `max_completion_time`.
+TEST_F(DockerContainerizerTest, ROOT_DOCKER_MaxCompletionTime)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
+  Shared<Docker> docker(mockDocker);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  Fetcher fetcher(flags);
+
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  MockDockerContainerizer dockerContainerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), &dockerContainerizer, flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  const Offer& offer = offers.get()[0];
+
+  TaskInfo task =
+    createTask(offer.slave_id(), offer.resources(), SLEEP_COMMAND(1000));
+
+  // Set a `max_completion_time` for 2 seconds. Hopefully this should not
+  // block test too long and still keep it reliable.
+  task.mutable_max_completion_time()->set_nanoseconds(Seconds(2).ns());
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::DOCKER);
+
+  // TODO(tnachen): Use local image to test if possible.
+  task.mutable_container()->CopyFrom(createDockerInfo("alpine"));
+
+  Future<ContainerID> containerId;
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
+    .WillOnce(DoAll(FutureArg<0>(&containerId),
+                    Invoke(&dockerContainerizer,
+                           &MockDockerContainerizer::_launch)));
+
+  Future<TaskStatus> statusStarting;
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFailed;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFailed));
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  AWAIT_READY_FOR(containerId, Seconds(60));
+
+  Future<Option<ContainerTermination>> termination =
+dockerContainerizer.wait(containerId.get());
+
+  AWAIT_READY_FOR(statusStarting, Seconds(60));
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
+  AWAIT_READY_FOR(statusRunning, Seconds(60));
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+  AWAIT_READY(statusFailed);
+  EXPECT_EQ(TASK_FAILED, statusFailed->state());
+
+  EXPECT_EQ(
+      TaskStatus::REASON_MAX_COMPLETION_TIME_REACHED, statusFailed->reason());
+
+  AWAIT_READY(termination);
+  EXPECT_SOME(termination.get());
+
+  driver.stop();
+  driver.join();
+}
+
+
 TEST_F(DockerContainerizerTest, ROOT_DOCKER_Kill)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
