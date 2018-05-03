@@ -230,6 +230,81 @@ TEST_P(CommandExecutorTest, TaskKillingCapability)
 }
 
 
+// This test ensures that the command executor will terminate a task after it
+// reaches `max_completion_time`.
+TEST_P(CommandExecutorTest, MaxCompletionTime)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.http_command_executor = GetParam();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  // Although the framework is started with the task killing capability,
+  // it should not receive a `TASK_KILLING` status update.
+  FrameworkInfo::Capability capability;
+  capability.set_type(FrameworkInfo::Capability::TASK_KILLING_STATE);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.add_capabilities()->CopyFrom(capability);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  EXPECT_EQ(1u, offers->size());
+
+  // Launch a task with the command executor.
+  TaskInfo task = createTask(
+      offers->front().slave_id(),
+      offers->front().resources(),
+       SLEEP_COMMAND(1000));
+
+  // Set a `max_completion_time` for 2 seconds. Hopefully this should not
+  // block test too long and still keep it reliable.
+  task.mutable_max_completion_time()->set_nanoseconds(Seconds(2).ns());
+
+  Future<TaskStatus> statusStarting;
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFailed;
+
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFailed));
+
+  driver.launchTasks(offers->front().id(), {task});
+
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+  AWAIT_READY(statusFailed);
+  EXPECT_EQ(TASK_FAILED, statusFailed->state());
+
+  EXPECT_EQ(
+      TaskStatus::REASON_MAX_COMPLETION_TIME_REACHED, statusFailed->reason());
+
+  driver.stop();
+  driver.join();
+}
+
+
 // TODO(qianzhang): Kill policy helpers are not yet enabled on Windows. See
 // MESOS-8168.
 #ifndef __WINDOWS__
