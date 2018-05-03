@@ -66,6 +66,7 @@ using process::Clock;
 using process::Failure;
 using process::Future;
 using process::Owned;
+using process::Timer;
 using process::UPID;
 
 using process::http::Connection;
@@ -129,6 +130,11 @@ private:
 
     // Set to true if the task group is in the process of being killed.
     bool killingTaskGroup;
+
+    // Set to true if the task has exceeded its max completion timeout.
+    bool killedByCompletionTimeout;
+
+    Option<Timer> maxCompletionTimer;
   };
 
 public:
@@ -608,6 +614,15 @@ protected:
         container->healthChecker = healthChecker.get();
       }
 
+      // Setup timer for max_completion_time.
+      if (task.max_completion_time().nanoseconds() > 0) {
+        Duration duration =
+          Nanoseconds(task.max_completion_time().nanoseconds());
+
+        container->maxCompletionTimer = delay(
+            duration, self(), &Self::maxCompletion, task.task_id(), duration);
+      }
+
       // Currently, the Mesos agent does not expose the mapping from
       // `ContainerID` to `TaskID` for nested containers.
       // In order for the Web UI to access the task sandbox, we create
@@ -873,7 +888,10 @@ protected:
         CHECK(WIFEXITED(status) || WIFSIGNALED(status))
           << "Unexpected wait status " << status;
 
-        if (container->killing) {
+        if (container->killedByCompletionTimeout) {
+          taskState = TASK_FAILED;
+          reason = TaskStatus::REASON_MAX_COMPLETION_TIME_REACHED;
+        } else if (container->killing) {
           // Send TASK_KILLED if the task was killed as a result of
           // `killTask()` or `shutdown()`.
           taskState = TASK_KILLED;
@@ -1065,12 +1083,17 @@ protected:
 
   Future<Nothing> kill(
       Container* container,
-      const Option<KillPolicy>& killPolicy = None())
+      const Option<Duration>& _gracePeriod = None())
   {
     if (!container->launched) {
       // We can get here if we're killing a task group for which multiple
       // containers failed to launch.
       return Nothing();
+    }
+
+    if (container->maxCompletionTimer.isSome()) {
+      Clock::cancel(container->maxCompletionTimer.get());
+      container->maxCompletionTimer = None();
     }
 
     CHECK(!container->killing);
@@ -1105,19 +1128,8 @@ protected:
     // Default grace period is set to 3s.
     Duration gracePeriod = Seconds(3);
 
-    Option<KillPolicy> taskInfoKillPolicy;
-    if (container->taskInfo.has_kill_policy()) {
-      taskInfoKillPolicy = container->taskInfo.kill_policy();
-    }
-
-    // Kill policy provided in the `Kill` event takes precedence
-    // over kill policy specified when the task was launched.
-    if (killPolicy.isSome() && killPolicy->has_grace_period()) {
-      gracePeriod = Nanoseconds(killPolicy->grace_period().nanoseconds());
-    } else if (taskInfoKillPolicy.isSome() &&
-               taskInfoKillPolicy->has_grace_period()) {
-      gracePeriod =
-        Nanoseconds(taskInfoKillPolicy->grace_period().nanoseconds());
+    if (_gracePeriod.isSome()) {
+      gracePeriod = _gracePeriod.get();
     }
 
     LOG(INFO) << "Scheduling escalation to SIGKILL in " << gracePeriod
@@ -1135,7 +1147,8 @@ protected:
     // Send a 'TASK_KILLING' update if the framework can handle it.
     CHECK_SOME(frameworkInfo);
 
-    if (protobuf::frameworkHasCapability(
+    if (!container->killedByCompletionTimeout &&
+        protobuf::frameworkHasCapability(
             frameworkInfo.get(),
             FrameworkInfo::Capability::TASK_KILLING_STATE)) {
       TaskStatus status = createTaskStatus(taskId, TASK_KILLING);
@@ -1248,13 +1261,41 @@ protected:
       return;
     }
 
+    Option<Duration> gracePeriod = None();
+
+    // Kill policy provided in the `Kill` event takes precedence
+    // over kill policy specified when the task was launched.
+    if (killPolicy.isSome() && killPolicy->has_grace_period()) {
+      gracePeriod = Nanoseconds(killPolicy->grace_period().nanoseconds());
+    } else if (container->taskInfo.has_kill_policy() &&
+               container->taskInfo.kill_policy().has_grace_period()) {
+      gracePeriod = Nanoseconds(
+          container->taskInfo.kill_policy().grace_period().nanoseconds());
+    }
+
     const ContainerID& containerId = container->containerId;
-    kill(container, killPolicy)
+    kill(container, gracePeriod)
       .onFailed(defer(self(), [=](const string& failure) {
         LOG(WARNING) << "Failed to kill the task '" << taskId
                      << "' running in child container " << containerId << ": "
                      << failure;
       }));
+  }
+
+  void maxCompletion(const TaskID& taskId, const Duration& duration)
+  {
+    if (!containers.contains(taskId)) {
+      return;
+    }
+
+    LOG(INFO) << "Killing task " << taskId
+              << " which exceeded its maximum completion time of " << duration;
+
+    Container* container = containers.at(taskId).get();
+    container->maxCompletionTimer = None();
+    container->killedByCompletionTimeout = true;
+    // Use a zero grace period to kill the container.
+    kill(container, Duration::zero());
   }
 
   void taskCheckUpdated(
