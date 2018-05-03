@@ -189,6 +189,9 @@ Option<Error> validateTaskAndExecutorResources(const TaskInfo& task);
 // Validates the kill policy of the task.
 Option<Error> validateKillPolicy(const TaskInfo& task);
 
+// Validates `max_completion_time` of the task.
+Option<Error> validateMaxCompletionTime(const TaskInfo& task);
+
 // Validates the check of the task.
 Option<Error> validateCheck(const TaskInfo& task);
 

@@ -1187,6 +1187,18 @@ Option<Error> validateKillPolicy(const TaskInfo& task)
 }
 
 
+Option<Error> validateMaxCompletionTime(const TaskInfo& task)
+{
+  if (task.has_max_completion_time() &&
+      Nanoseconds(task.max_completion_time().nanoseconds()) <
+        Duration::zero()) {
+    return Error("Task's `max_completion_time` must be non-negative");
+  }
+
+  return None();
+}
+
+
 Option<Error> validateCheck(const TaskInfo& task)
 {
   if (task.has_check()) {
@@ -1321,6 +1333,7 @@ Option<Error> validateTask(
     lambda::bind(internal::validateUniqueTaskID, task, framework),
     lambda::bind(internal::validateSlaveID, task, slave),
     lambda::bind(internal::validateKillPolicy, task),
+    lambda::bind(internal::validateMaxCompletionTime, task),
     lambda::bind(internal::validateCheck, task),
     lambda::bind(internal::validateHealthCheck, task),
     lambda::bind(internal::validateResources, task),
