@@ -752,6 +752,7 @@ TEST_P(OperationReconciliationTest, AgentPendingOperationAfterMasterFailover)
   AWAIT_READY(applyOperation);
 
   // Simulate master failover.
+  EXPECT_CALL(*scheduler, disconnected(_));
 
   detector->appoint(None());
 
