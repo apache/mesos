@@ -25,6 +25,10 @@ This release contains the following new features:
   * [MESOS-4965] - **Experimental** Persistent volumes can be resized
     through new offer operations and V1 operator API now.
 
+  * [MESOS-8725] - Added a new `max_completion_time` field to `TaskInfo`.
+    Tasks which do not complete at the end of the specified duration will
+    fail with a new reason `REASON_MAX_COMPLETION_TIME_REACHED`.
+
 Additional API Changes:
   * [MESOS-8534] - Nested containers within a task group can now specify
     separate network namespaces.
