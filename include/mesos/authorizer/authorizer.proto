@@ -254,6 +254,9 @@ enum Action {
   // This action will not fill in any object fields. A principal is either
   // allowed to prune unused container images or is unauthorized.
   PRUNE_IMAGES = 41;
+
+  // `RESIZE_VOLUME` will have an object with `Resource` set.
+  RESIZE_VOLUME = 42;
 }
 
 

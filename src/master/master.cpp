@@ -3801,6 +3801,43 @@ Future<bool> Master::authorizeDestroyVolume(
 }
 
 
+Future<bool> Master::authorizeResizeVolume(
+    const Resource& volume,
+    const Option<Principal>& principal)
+{
+  if (authorizer.isNone()) {
+    return true; // Authorization is disabled.
+  }
+
+  authorization::Request request;
+  request.set_action(authorization::RESIZE_VOLUME);
+
+  Option<authorization::Subject> subject = createSubject(principal);
+  if (subject.isSome()) {
+    request.mutable_subject()->CopyFrom(subject.get());
+  }
+
+  request.mutable_object()->mutable_resource()->CopyFrom(volume);
+
+  string role;
+  if (volume.reservations_size() > 0) {
+    // Check for role in the "post-reservation-refinement" format.
+    role = volume.reservations().rbegin()->role();
+  } else {
+    // Check for role in the "pre-reservation-refinement" format.
+    role = volume.role();
+  }
+
+  request.mutable_object()->set_value(role);
+
+  LOG(INFO) << "Authorizing principal '"
+            << (principal.isSome() ? stringify(principal.get()) : "ANY")
+            << "' to resize volume '" << volume << "'";
+
+  return authorizer.get()->authorized(request);
+}
+
+
 Future<bool> Master::authorizeSlave(
     const SlaveInfo& slaveInfo,
     const Option<Principal>& principal)
@@ -4410,12 +4447,26 @@ void Master::accept(
       }
 
       case Offer::Operation::GROW_VOLUME: {
-        // TODO(zhitao): Add support for authorization of grow volume.
+        Option<Principal> principal = framework->info.has_principal()
+          ? Principal(framework->info.principal())
+          : Option<Principal>::none();
+
+        futures.push_back(
+            authorizeResizeVolume(
+                operation.grow_volume().volume(), principal));
+
         break;
       }
 
       case Offer::Operation::SHRINK_VOLUME: {
-        // TODO(zhitao): Add support for authorization of shrink volume.
+        Option<Principal> principal = framework->info.has_principal()
+          ? Principal(framework->info.principal())
+          : Option<Principal>::none();
+
+        futures.push_back(
+            authorizeResizeVolume(
+                operation.shrink_volume().volume(), principal));
+
         break;
       }
 
@@ -4907,7 +4958,29 @@ void Master::_accept(
       }
 
       case Offer::Operation::GROW_VOLUME: {
-        // TODO(zhitao): Authorize GROW_VOLUME from `authorizations`.
+        Future<bool> authorization = authorizations.front();
+        authorizations.pop_front();
+
+        CHECK(!authorization.isDiscarded());
+
+        if (authorization.isFailed()) {
+          // TODO(greggomann): We may want to retry this failed authorization
+          // request rather than dropping it immediately.
+          drop(framework,
+               operation,
+               "Authorization of principal '" + framework->info.principal() +
+               "' to grow a volume failed: " +
+               authorization.failure());
+
+          continue;
+        } else if (!authorization.get()) {
+          drop(framework,
+               operation,
+               "Not authorized to grow a volume as '" +
+                 framework->info.principal() + "'");
+
+          continue;
+        }
 
         // Make sure this grow volume operation is valid.
         Option<Error> error = validation::operation::validate(
@@ -4967,7 +5040,29 @@ void Master::_accept(
       }
 
       case Offer::Operation::SHRINK_VOLUME: {
-        // TODO(zhitao): Authorize SHRINK_VOLUME from `authorizations`.
+        Future<bool> authorization = authorizations.front();
+        authorizations.pop_front();
+
+        CHECK(!authorization.isDiscarded());
+
+        if (authorization.isFailed()) {
+          // TODO(greggomann): We may want to retry this failed authorization
+          // request rather than dropping it immediately.
+          drop(framework,
+               operation,
+               "Authorization of principal '" + framework->info.principal() +
+               "' to shrink a volume failed: " +
+               authorization.failure());
+
+          continue;
+        } else if (!authorization.get()) {
+          drop(framework,
+               operation,
+               "Not authorized to shrink a volume as '" +
+                 framework->info.principal() + "'");
+
+          continue;
+        }
 
         // Make sure this shrink volume operation is valid.
         Option<Error> error = validation::operation::validate(

@@ -114,6 +114,15 @@ message ACL {
     required Entity creator_principals = 2;
   }
 
+  // Specifies which roles a principal can resize volumes for.
+  message ResizeVolume {
+    // Subjects: Framework principal or Operator username.
+    required Entity principals = 1;
+
+    // Objects: The principal(s) can resize volumes for these roles.
+    required Entity roles = 2;
+  }
+
   // Which principals are authorized to see quotas for the given roles.
   message GetQuota {
     // Subjects: Operator username.
@@ -589,4 +598,5 @@ message ACLs {
   repeated ACL.ViewStandaloneContainer view_standalone_containers = 46;
   repeated ACL.ModifyResourceProviderConfig modify_resource_provider_configs = 45;
   repeated ACL.PruneImages prune_images = 47;
+  repeated ACL.ResizeVolume resize_volumes = 48;
 }

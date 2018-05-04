@@ -417,6 +417,7 @@ public:
 
           break;
         case authorization::CREATE_VOLUME:
+        case authorization::RESIZE_VOLUME:
         case authorization::GET_QUOTA:
         case authorization::RESERVE_RESOURCES:
         case authorization::UPDATE_QUOTA:
@@ -594,6 +595,7 @@ public:
     } else {
       switch (action_) {
         case authorization::CREATE_VOLUME:
+        case authorization::RESIZE_VOLUME:
         case authorization::RESERVE_RESOURCES: {
           entityObject.set_type(ACL::Entity::SOME);
           if (object->resource) {
@@ -875,6 +877,11 @@ public:
             createHierarchicalRoleACLs(acls.create_volumes());
         break;
       }
+      case authorization::RESIZE_VOLUME: {
+        hierarchicalRoleACLs =
+            createHierarchicalRoleACLs(acls.resize_volumes());
+        break;
+      }
       case authorization::RESERVE_RESOURCES: {
         hierarchicalRoleACLs =
             createHierarchicalRoleACLs(acls.reserve_resources());
@@ -1113,6 +1120,7 @@ public:
         return getNestedContainerObjectApprover(subject, action);
       }
       case authorization::CREATE_VOLUME:
+      case authorization::RESIZE_VOLUME:
       case authorization::RESERVE_RESOURCES:
       case authorization::UPDATE_WEIGHT:
       case authorization::VIEW_ROLE:
@@ -1520,6 +1528,7 @@ private:
         return acls_;
       case authorization::REGISTER_FRAMEWORK:
       case authorization::CREATE_VOLUME:
+      case authorization::RESIZE_VOLUME:
       case authorization::RESERVE_RESOURCES:
       case authorization::UPDATE_WEIGHT:
       case authorization::VIEW_ROLE:
