@@ -3126,6 +3126,12 @@ public:
         break;
       case Operation::DESTROY:
         break;
+      // TODO(zhitao): Implement default operation for `GROW_VOLUME` and
+      // `SHRINK_VOLUME` on mocked resource provider.
+      case Operation::GROW_VOLUME:
+        break;
+      case Operation::SHRINK_VOLUME:
+        break;
       case Operation::CREATE_VOLUME:
         update->mutable_status()->add_converted_resources()->CopyFrom(
             operation.info().create_volume().source());

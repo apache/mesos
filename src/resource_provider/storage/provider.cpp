@@ -2845,6 +2845,12 @@ Future<Nothing> StorageLocalResourceProviderProcess::_applyOperation(
 
       break;
     }
+    case Offer::Operation::GROW_VOLUME:
+    case Offer::Operation::SHRINK_VOLUME: {
+      // TODO(chhsiao): These operations are currently not supported for
+      // resource providers, and should have been validated by the master.
+      UNREACHABLE();
+    }
     case Offer::Operation::UNKNOWN:
     case Offer::Operation::LAUNCH:
     case Offer::Operation::LAUNCH_GROUP: {

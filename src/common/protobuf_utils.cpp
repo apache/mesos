@@ -37,6 +37,7 @@
 #include <stout/foreach.hpp>
 #include <stout/net.hpp>
 #include <stout/stringify.hpp>
+#include <stout/unimplemented.hpp>
 #include <stout/unreachable.hpp>
 #include <stout/uuid.hpp>
 
@@ -707,6 +708,11 @@ void injectAllocationInfo(
       break;
     }
 
+    case Offer::Operation::GROW_VOLUME:
+    case Offer::Operation::SHRINK_VOLUME: {
+      UNIMPLEMENTED;
+    }
+
     case Offer::Operation::CREATE_VOLUME: {
       inject(
           *operation->mutable_create_volume()->mutable_source(),
@@ -822,6 +828,11 @@ void stripAllocationInfo(Offer::Operation* operation)
       break;
     }
 
+    case Offer::Operation::GROW_VOLUME:
+    case Offer::Operation::SHRINK_VOLUME: {
+      UNIMPLEMENTED;
+    }
+
     case Offer::Operation::CREATE_VOLUME: {
       strip(*operation->mutable_create_volume()->mutable_source());
 
@@ -867,6 +878,10 @@ bool isSpeculativeOperation(const Offer::Operation& operation)
     case Offer::Operation::CREATE:
     case Offer::Operation::DESTROY:
       return true;
+    case Offer::Operation::GROW_VOLUME:
+    case Offer::Operation::SHRINK_VOLUME: {
+      UNIMPLEMENTED;
+    }
     case Offer::Operation::UNKNOWN:
       UNREACHABLE();
   }
@@ -1019,6 +1034,10 @@ Try<Resources> getConsumedResources(const Offer::Operation& operation)
       }
 
       return consumed;
+    }
+    case Offer::Operation::GROW_VOLUME:
+    case Offer::Operation::SHRINK_VOLUME: {
+      UNIMPLEMENTED;
     }
     case Offer::Operation::LAUNCH:
     case Offer::Operation::LAUNCH_GROUP:

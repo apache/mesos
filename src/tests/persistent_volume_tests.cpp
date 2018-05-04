@@ -176,6 +176,8 @@ protected:
           case Offer::Operation::DESTROY_VOLUME:
           case Offer::Operation::CREATE_BLOCK:
           case Offer::Operation::DESTROY_BLOCK:
+          case Offer::Operation::GROW_VOLUME:
+          case Offer::Operation::SHRINK_VOLUME:
             UNREACHABLE();
           case Offer::Operation::CREATE: {
             Resources resources = message.operation_info().create().volumes();

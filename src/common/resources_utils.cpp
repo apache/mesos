@@ -16,6 +16,7 @@
 
 #include <stout/foreach.hpp>
 #include <stout/stringify.hpp>
+#include <stout/unimplemented.hpp>
 
 #include "common/resources_utils.hpp"
 
@@ -195,6 +196,10 @@ Try<vector<TResourceConversion>> getResourceConversions(
       }
       break;
     }
+    case TOperation::GROW_VOLUME:
+    case TOperation::SHRINK_VOLUME: {
+      UNIMPLEMENTED;
+    }
   }
 
   return conversions;
@@ -259,6 +264,10 @@ Result<ResourceProviderID> getResourceProviderId(
       }
       resource = operation.destroy().volumes(0);
       break;
+    case Offer::Operation::GROW_VOLUME:
+    case Offer::Operation::SHRINK_VOLUME: {
+      UNIMPLEMENTED;
+    }
     case Offer::Operation::CREATE_VOLUME:
       resource = operation.create_volume().source();
       break;
@@ -630,6 +639,10 @@ Option<Error> validateAndUpgradeResources(Offer::Operation* operation)
       }
 
       break;
+    }
+    case Offer::Operation::GROW_VOLUME:
+    case Offer::Operation::SHRINK_VOLUME: {
+      UNIMPLEMENTED;
     }
     case Offer::Operation::LAUNCH: {
       // TODO(mpark): Once we perform a sanity check validation for

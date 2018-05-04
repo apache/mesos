@@ -69,6 +69,7 @@
 #include <stout/option.hpp>
 #include <stout/path.hpp>
 #include <stout/stringify.hpp>
+#include <stout/unimplemented.hpp>
 #include <stout/unreachable.hpp>
 #include <stout/utils.hpp>
 #include <stout/uuid.hpp>
@@ -4132,6 +4133,10 @@ void Master::accept(
 
             break;
           }
+          case Offer::Operation::GROW_VOLUME:
+          case Offer::Operation::SHRINK_VOLUME: {
+            UNIMPLEMENTED;
+          }
           case Offer::Operation::UNKNOWN: {
             LOG(WARNING) << "Ignoring unknown operation";
             break;
@@ -4203,6 +4208,10 @@ void Master::accept(
             accept.add_operations()->CopyFrom(operation);
             break;
           }
+          case Offer::Operation::GROW_VOLUME:
+          case Offer::Operation::SHRINK_VOLUME: {
+            UNIMPLEMENTED;
+          }
           case Offer::Operation::UNKNOWN: {
             LOG(WARNING) << "Ignoring unknown operation";
             break;
@@ -4238,6 +4247,10 @@ void Master::accept(
       case Offer::Operation::DESTROY_BLOCK: {
         // No-op.
         break;
+      }
+      case Offer::Operation::GROW_VOLUME:
+      case Offer::Operation::SHRINK_VOLUME: {
+        UNIMPLEMENTED;
       }
       case Offer::Operation::LAUNCH: {
         foreach (
@@ -4401,6 +4414,11 @@ void Master::accept(
                 operation.destroy(), principal));
 
         break;
+      }
+
+      case Offer::Operation::GROW_VOLUME:
+      case Offer::Operation::SHRINK_VOLUME: {
+        UNIMPLEMENTED;
       }
 
       case Offer::Operation::CREATE_VOLUME: {
@@ -4882,6 +4900,11 @@ void Master::_accept(
             _conversions->end());
 
         break;
+      }
+
+      case Offer::Operation::GROW_VOLUME:
+      case Offer::Operation::SHRINK_VOLUME: {
+        UNIMPLEMENTED;
       }
 
       case Offer::Operation::LAUNCH: {

@@ -1923,6 +1923,8 @@ message Offer {
       DESTROY_VOLUME = 8; // EXPERIMENTAL.
       CREATE_BLOCK = 9;   // EXPERIMENTAL.
       DESTROY_BLOCK = 10; // EXPERIMENTAL.
+      GROW_VOLUME = 11;   // EXPERIMENTAL.
+      SHRINK_VOLUME = 12; // EXPERIMENTAL.
     }
 
     // TODO(vinod): Deprecate this in favor of `LaunchGroup` below.
@@ -1957,6 +1959,24 @@ message Offer {
 
     message Destroy {
       repeated Resource volumes = 1;
+    }
+
+    // Grow a volume by an additional disk resource.
+    // NOTE: This is currently experimental and only for persistent volumes
+    // created on ROOT/PATH disk.
+    message GrowVolume {
+      required Resource volume = 1;
+      required Resource addition = 2;
+    }
+
+    // Shrink a volume by the size specified in the `subtract` field.
+    // NOTE: This is currently experimental and only for persistent volumes
+    // created on ROOT/PATH disk.
+    message ShrinkVolume {
+      required Resource volume = 1;
+
+      // See comments in `Value.Scalar` for maximum precision supported.
+      required Value.Scalar subtract = 2;
     }
 
     // NOTE: For the time being, this API is subject to change and the related
@@ -1997,6 +2017,8 @@ message Offer {
     optional Unreserve unreserve = 4;
     optional Create create = 5;
     optional Destroy destroy = 6;
+    optional GrowVolume grow_volume = 13; // EXPERIMENTAL.
+    optional ShrinkVolume shrink_volume = 14; // EXPERIMENTAL.
     optional CreateVolume create_volume = 8;
     optional DestroyVolume destroy_volume = 9;
     optional CreateBlock create_block = 10;
