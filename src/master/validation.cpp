@@ -190,6 +190,32 @@ Option<Error> validate(
       }
       return None();
 
+    case mesos::master::Call::GROW_VOLUME:
+      if (!call.has_grow_volume()) {
+        return Error("Expecting 'grow_volume' to be present");
+      }
+
+      if (!call.grow_volume().has_slave_id()) {
+        return Error(
+            "Expecting 'agent_id' to be present; only agent default resources "
+            "are supported right now");
+      }
+
+      return None();
+
+    case mesos::master::Call::SHRINK_VOLUME:
+      if (!call.has_shrink_volume()) {
+        return Error("Expecting 'shrink_volume' to be present");
+      }
+
+      if (!call.shrink_volume().has_slave_id()) {
+        return Error(
+            "Expecting 'agent_id' to be present; only agent default resources "
+            "are supported right now");
+      }
+
+      return None();
+
     case mesos::master::Call::GET_MAINTENANCE_STATUS:
       return None();
 

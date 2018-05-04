@@ -1700,6 +1700,16 @@ private:
         const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;
 
+    process::Future<process::http::Response> growVolume(
+        const mesos::master::Call& call,
+        const Option<process::http::authentication::Principal>& principal,
+        ContentType contentType) const;
+
+    process::Future<process::http::Response> shrinkVolume(
+        const mesos::master::Call& call,
+        const Option<process::http::authentication::Principal>& principal,
+        ContentType contentType) const;
+
     process::Future<process::http::Response> reserveResources(
         const mesos::master::Call& call,
         const Option<process::http::authentication::Principal>& principal,

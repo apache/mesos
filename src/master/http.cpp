@@ -773,6 +773,12 @@ Future<Response> Master::Http::api(
     case mesos::master::Call::DESTROY_VOLUMES:
       return destroyVolumes(call, principal, acceptType);
 
+    case mesos::master::Call::GROW_VOLUME:
+      return growVolume(call, principal, acceptType);
+
+    case mesos::master::Call::SHRINK_VOLUME:
+      return shrinkVolume(call, principal, acceptType);
+
     case mesos::master::Call::GET_MAINTENANCE_STATUS:
       return getMaintenanceStatus(call, principal, acceptType);
 
@@ -1487,6 +1493,140 @@ Future<Response> Master::Http::destroyVolumes(
   const RepeatedPtrField<Resource>& volumes = call.destroy_volumes().volumes();
 
   return _destroyVolumes(slaveId, volumes, principal);
+}
+
+
+Future<Response> Master::Http::growVolume(
+    const mesos::master::Call& call,
+    const Option<Principal>& principal,
+    ContentType /*contentType*/) const
+{
+  // TODO(greggomann): Remove this check once the `Principal` type is used in
+  // `ReservationInfo`, `DiskInfo`, and within the master's `principals` map.
+  // See MESOS-7202.
+  if (principal.isSome() && principal->value.isNone()) {
+    return Forbidden(
+        "The request's authenticated principal contains claims, but no value "
+        "string. The master currently requires that principals have a value");
+  }
+
+  CHECK_EQ(mesos::master::Call::GROW_VOLUME, call.type());
+  CHECK(call.has_grow_volume());
+
+  // Only agent default resources are supported right now.
+  CHECK(call.grow_volume().has_slave_id());
+
+  const SlaveID& slaveId = call.grow_volume().slave_id();
+
+  Slave* slave = master->slaves.registered.get(slaveId);
+  if (slave == nullptr) {
+    return BadRequest("No agent found with specified ID");
+  }
+
+  // Create an operation.
+  Offer::Operation operation;
+  operation.set_type(Offer::Operation::GROW_VOLUME);
+
+  operation.mutable_grow_volume()->mutable_volume()->CopyFrom(
+      call.grow_volume().volume());
+
+  operation.mutable_grow_volume()->mutable_addition()->CopyFrom(
+      call.grow_volume().addition());
+
+  Option<Error> error = validateAndUpgradeResources(&operation);
+  if (error.isSome()) {
+    return BadRequest(error->message);
+  }
+
+  error = validation::operation::validate(
+      operation.grow_volume(), slave->capabilities);
+
+  if (error.isSome()) {
+    return BadRequest(
+        "Invalid GROW_VOLUME operation on agent " +
+        stringify(*slave) + ": " + error->message);
+  }
+
+  return master->authorizeResizeVolume(
+      operation.grow_volume().volume(), principal)
+    .then(defer(master->self(), [=](bool authorized) -> Future<Response> {
+      if (!authorized) {
+        return Forbidden();
+      }
+
+      // The `volume` and `addition` fields contain the resources required for
+      // this operation.
+      return _operation(
+          slaveId,
+          Resources(operation.grow_volume().volume()) +
+            Resources(operation.grow_volume().addition()),
+          operation);
+    }));
+}
+
+
+Future<Response> Master::Http::shrinkVolume(
+    const mesos::master::Call& call,
+    const Option<Principal>& principal,
+    ContentType /*contentType*/) const
+{
+  // TODO(greggomann): Remove this check once the `Principal` type is used in
+  // `ReservationInfo`, `DiskInfo`, and within the master's `principals` map.
+  // See MESOS-7202.
+  if (principal.isSome() && principal->value.isNone()) {
+    return Forbidden(
+        "The request's authenticated principal contains claims, but no value "
+        "string. The master currently requires that principals have a value");
+  }
+
+  CHECK_EQ(mesos::master::Call::SHRINK_VOLUME, call.type());
+  CHECK(call.has_shrink_volume());
+
+  // Only persistent volumes are supported right now.
+  CHECK(call.shrink_volume().has_slave_id());
+
+  const SlaveID& slaveId = call.shrink_volume().slave_id();
+
+  Slave* slave = master->slaves.registered.get(slaveId);
+  if (slave == nullptr) {
+    return BadRequest("No agent found with specified ID");
+  }
+
+  // Create an operation.
+  Offer::Operation operation;
+  operation.set_type(Offer::Operation::SHRINK_VOLUME);
+
+  operation.mutable_shrink_volume()->mutable_volume()->CopyFrom(
+      call.shrink_volume().volume());
+
+  operation.mutable_shrink_volume()->mutable_subtract()->CopyFrom(
+      call.shrink_volume().subtract());
+
+  Option<Error> error = validateAndUpgradeResources(&operation);
+  if (error.isSome()) {
+    return BadRequest(error->message);
+  }
+
+  error = validation::operation::validate(
+      operation.shrink_volume(), slave->capabilities);
+
+  if (error.isSome()) {
+    return BadRequest(
+        "Invalid SHRINK_VOLUME operation on agent " +
+        stringify(*slave) + ": " + error->message);
+  }
+
+  return master->authorizeResizeVolume(
+      operation.shrink_volume().volume(), principal)
+    .then(defer(master->self(), [=](bool authorized) -> Future<Response> {
+      if (!authorized) {
+        return Forbidden();
+      }
+
+      // The `volume` field contains the resources required for this operation.
+      return _operation(
+          slaveId, operation.shrink_volume().volume(), operation);
+    }));
 }
 
 
