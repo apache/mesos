@@ -59,6 +59,38 @@ Additional API Changes:
 Changes to Dependencies:
   * Upgraded minimum required gRPC library to version 1.10+ for gRPC-enabled builds.
 
+Unresolved Critical Issues:
+  * [MESOS-8840] - `cpu.cfs_quota_us` may be accidentally set for command task using docker during agent recovery.
+  * [MESOS-8830] - Agent gc on old slave sandboxes could empty persistent volume data
+  * [MESOS-8803] - Libprocess deadlocks in a test.
+  * [MESOS-8769] - Agent crashes when CNI config not defined
+  * [MESOS-8731] - mesos master APIs become latent
+  * [MESOS-8703] - Mesos master can`t reconnect to zookeeper
+  * [MESOS-8679] - If the first KILL stuck in the default executor, all other KILLs will be ignored.
+  * [MESOS-8623] - Crashed framework brings down the whole Mesos cluster
+  * [MESOS-8522] - `prepareMounts` in Mesos containerizer is flaky.
+  * [MESOS-8257] - Unified Containerizer "leaks" a target container mount path to the host FS when the target resolves to an absolute path
+  * [MESOS-8256] - Libprocess can silently deadlock due to worker thread exhaustion.
+  * [MESOS-8137] - Mesos agent can hang during startup.
+  * [MESOS-7991] - fatal, check failed !framework->recovered()
+  * [MESOS-7966] - check for maintenance on agent causes fatal error
+  * [MESOS-7911] - Non-checkpointing framework's tasks should not be marked LOST when agent disconnects.
+  * [MESOS-7748] - Slow subscribers of streaming APIs can lead to Mesos OOMing.
+  * [MESOS-7721] - Master's agent removal rate limit also applies to agent unreachability.
+  * [MESOS-7622] - Agent can crash if a HTTP executor tries to retry subscription in running state.
+  * [MESOS-7566] - Master crash due to failed check in DRFSorter::remove
+  * [MESOS-7386] - Executor not cleaning up existing running docker containers if external logrotate/logger processes die/killed
+  * [MESOS-6632] - ContainerLogger might leak FD if container launch fails.
+  * [MESOS-5995] - Protobuf JSON deserialisation does not accept numbers formated as strings
+  * [MESOS-5989] - Libevent SSL Socket downgrade code accesses uninitialized memory / assumes single peek is sufficient.
+  * [MESOS-5396] - After failover, master does not remove agents with same UPID.
+  * [MESOS-3747] - HTTP Scheduler API no longer allows FrameworkInfo.user to be empty string
+  * [MESOS-3533] - Unable to find and run URIs files
+  * [MESOS-2842] - Update FrameworkInfo.principal on framework re-registration
+  * [MESOS-2774] - SIGSEGV received during process::MessageEncoder::encode()
+  * [MESOS-2554] - Slave flaps when using --slave_subsystems that are not used for isolation.
+  * [MESOS-1718] - Command executor can overcommit the agent.
+
 All Resolved Issues:
 
 ** Bug
