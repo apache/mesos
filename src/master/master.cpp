@@ -1920,6 +1920,7 @@ void Master::_doRegistryGc(
     }
 
     slaves.unreachable.erase(slave);
+    slaves.unreachableTasks.erase(slave);
     numRemovedUnreachable++;
   }
 
@@ -7342,6 +7343,23 @@ void Master::__reregisterSlave(
     recoveredTasks.push_back(std::move(task));
   }
 
+  // All tasks from this agent are now reachable so clean them up from
+  // the master's unreachable task records.
+  if (slaves.unreachableTasks.contains(slaveInfo.id())) {
+    foreachkey (FrameworkID frameworkId,
+               slaves.unreachableTasks.at(slaveInfo.id())) {
+      Framework* framework = getFramework(frameworkId);
+      if (framework != nullptr) {
+        foreach (TaskID taskId,
+                 slaves.unreachableTasks.at(slaveInfo.id()).get(frameworkId)) {
+          framework->unreachableTasks.erase(taskId);
+        }
+      }
+    }
+  }
+
+  slaves.unreachableTasks.erase(slaveInfo.id());
+
   vector<Resource> checkpointedResources = google::protobuf::convert(
       std::move(*reregisterSlaveMessage.mutable_checkpointed_resources()));
   vector<ExecutorInfo> executorInfos = google::protobuf::convert(
@@ -10888,6 +10906,8 @@ void Master::removeTask(Task* task, bool unreachable)
               << " of framework " << task->framework_id()
               << " on agent " << *slave;
   }
+
+  slaves.unreachableTasks[slave->id].put(task->framework_id(), task->task_id());
 
   // Remove from framework.
   Framework* framework = getFramework(task->framework_id());
