@@ -1460,6 +1460,304 @@ TEST_F(DestroyOperationValidationTest, MultipleResourceProviders)
 }
 
 
+class GrowVolumeOperationValidationTest : public MesosTest {
+protected:
+  Offer::Operation::GrowVolume createGrowVolume()
+  {
+    Resource volume = createPersistentVolume(
+        Megabytes(128),
+        "role1",
+        "id1",
+        "path1");
+
+    Resource addition = Resources::parse("disk", "128", "role1").get();
+
+    Offer::Operation::GrowVolume growVolume;
+    growVolume.mutable_volume()->CopyFrom(volume);
+    growVolume.mutable_addition()->CopyFrom(addition);
+
+    return growVolume;
+  }
+};
+
+
+// This test verifies that validation succeeds on a valid operation.
+TEST_F(GrowVolumeOperationValidationTest, Valid)
+{
+  protobuf::slave::Capabilities capabilities;
+  capabilities.resizeVolume = true;
+
+  Offer::Operation::GrowVolume growVolume = createGrowVolume();
+
+  Option<Error> error = operation::validate(growVolume, capabilities);
+  EXPECT_NONE(error);
+}
+
+
+// This test verifies that validation fails if `GrowVolume.volume` is not a
+// persistent volume.
+TEST_F(GrowVolumeOperationValidationTest, NonPersistentVolume)
+{
+  protobuf::slave::Capabilities capabilities;
+  capabilities.resizeVolume = true;
+
+  Offer::Operation::GrowVolume growVolume = createGrowVolume();
+  growVolume.mutable_volume()->mutable_disk()->clear_persistence();
+
+  Option<Error> error = operation::validate(growVolume, capabilities);
+  EXPECT_SOME(error);
+}
+
+
+// This test verifies that validation fails if `GrowVolume.addition` has a zero
+// value.
+TEST_F(GrowVolumeOperationValidationTest, ZeroAddition)
+{
+  protobuf::slave::Capabilities capabilities;
+  capabilities.resizeVolume = true;
+
+  Offer::Operation::GrowVolume growVolume = createGrowVolume();
+  growVolume.mutable_addition()->mutable_scalar()->set_value(0);
+
+  Option<Error> error = operation::validate(growVolume, capabilities);
+  EXPECT_SOME(error);
+}
+
+
+// This test verifies that validation fails if `GrowVolume.volume` and
+// `GrowVolume.addition' are incompatible.
+TEST_F(GrowVolumeOperationValidationTest, IncompatibleDisk)
+{
+  protobuf::slave::Capabilities capabilities;
+  capabilities.resizeVolume = true;
+
+  // Make the volume on a PATH disk so it cannot be grown with a ROOT disk.
+  Resource pathVolume = createPersistentVolume(
+       Megabytes(128),
+        "role1",
+        "id1",
+        "path1",
+        None(),
+        createDiskSourcePath("root"));
+
+  Offer::Operation::GrowVolume growVolume = createGrowVolume();
+  growVolume.mutable_volume()->CopyFrom(pathVolume);
+
+  Option<Error> error = operation::validate(growVolume, capabilities);
+  EXPECT_SOME(error);
+}
+
+
+// This test verifies that validation fails if `GrowVolume.volume` is a shared
+// persistent volume.
+TEST_F(GrowVolumeOperationValidationTest, Shared)
+{
+  protobuf::slave::Capabilities capabilities;
+  capabilities.resizeVolume = true;
+
+  Offer::Operation::GrowVolume growVolume = createGrowVolume();
+  growVolume.mutable_volume()->mutable_shared();
+
+  Option<Error> error = operation::validate(growVolume, capabilities);
+  EXPECT_SOME(error);
+}
+
+
+// This test verifies that validation fails if `GrowVolume.volume` has resource
+// provider id.
+TEST_F(GrowVolumeOperationValidationTest, ResourceProvider)
+{
+  protobuf::slave::Capabilities capabilities;
+  capabilities.resizeVolume = true;
+
+  Offer::Operation::GrowVolume growVolume = createGrowVolume();
+  growVolume.mutable_volume()->mutable_provider_id()->set_value("provider");
+
+  Option<Error> error = operation::validate(growVolume, capabilities);
+  EXPECT_SOME(error);
+}
+
+
+// This test verifies that validation fails if `GrowVolume.volume` and
+// `GrowVolume.addition` are on MOUNT disks, which are not addable.
+TEST_F(GrowVolumeOperationValidationTest, Mount)
+{
+  protobuf::slave::Capabilities capabilities;
+  capabilities.resizeVolume = true;
+
+  Resource mountVolume = createPersistentVolume(
+       Megabytes(128),
+        "role1",
+        "id1",
+        "path1",
+        None(),
+        createDiskSourceMount());
+
+  Resource mountDisk = createDiskResource(
+      "128", "role1", None(), None(), createDiskSourceMount());
+
+  Offer::Operation::GrowVolume growVolume = createGrowVolume();
+  growVolume.mutable_volume()->CopyFrom(mountVolume);
+  growVolume.mutable_addition()->CopyFrom(mountDisk);
+
+  Option<Error> error = operation::validate(growVolume, capabilities);
+  EXPECT_SOME(error);
+}
+
+
+// This test verifies that validation  fails if agent has no RESIZE_VOLUME
+// capability.
+TEST_F(GrowVolumeOperationValidationTest, MissingCapability)
+{
+  protobuf::slave::Capabilities capabilities;
+
+  Option<Error> error = operation::validate(createGrowVolume(), capabilities);
+  EXPECT_SOME(error);
+}
+
+
+class ShrinkVolumeOperationValidationTest : public MesosTest {
+protected:
+  Offer::Operation::ShrinkVolume createShrinkVolume()
+  {
+    Resource volume = createPersistentVolume(
+        Megabytes(128),
+        "role1",
+        "id1",
+        "path1");
+
+    Offer::Operation::ShrinkVolume shrinkVolume;
+    shrinkVolume.mutable_volume()->CopyFrom(volume);
+    shrinkVolume.mutable_subtract()->set_value(64);
+
+    return shrinkVolume;
+  }
+};
+
+
+// This test verifies that validation succeeds on a valid `ShrinkVolume`
+// operation.
+TEST_F(ShrinkVolumeOperationValidationTest, Valid)
+{
+  protobuf::slave::Capabilities capabilities;
+  capabilities.resizeVolume = true;
+
+  Offer::Operation::ShrinkVolume shrinkVolume = createShrinkVolume();
+
+  Option<Error> error = operation::validate(shrinkVolume, capabilities);
+  EXPECT_NONE(error);
+}
+
+
+// This test verifies that validation fails if `ShrinkVolume.volume` is not a
+// persistent volume.
+TEST_F(ShrinkVolumeOperationValidationTest, NonPersistentVolume)
+{
+  protobuf::slave::Capabilities capabilities;
+  capabilities.resizeVolume = true;
+
+  Offer::Operation::ShrinkVolume shrinkVolume = createShrinkVolume();
+  shrinkVolume.mutable_volume()->mutable_disk()->clear_persistence();
+
+  Option<Error> error = operation::validate(shrinkVolume, capabilities);
+  EXPECT_SOME(error);
+}
+
+
+// This test verifies that validation fails if `ShrinkVolume.subtract` has a
+// zero value.
+TEST_F(ShrinkVolumeOperationValidationTest, ZeroSubtract)
+{
+  protobuf::slave::Capabilities capabilities;
+  capabilities.resizeVolume = true;
+
+  Offer::Operation::ShrinkVolume shrinkVolume = createShrinkVolume();
+  shrinkVolume.mutable_subtract()->set_value(0);
+
+  Option<Error> error = operation::validate(shrinkVolume, capabilities);
+  EXPECT_SOME(error);
+}
+
+
+// This test verifies that validation fails if `ShrinkVolume.subtract` has a
+// value equal to the size of `ShrinkVolume.volume`
+TEST_F(ShrinkVolumeOperationValidationTest, EmptyAfterShrink)
+{
+  protobuf::slave::Capabilities capabilities;
+  capabilities.resizeVolume = true;
+
+  Offer::Operation::ShrinkVolume shrinkVolume = createShrinkVolume();
+  shrinkVolume.mutable_subtract()->CopyFrom(shrinkVolume.volume().scalar());
+
+  Option<Error> error = operation::validate(shrinkVolume, capabilities);
+  EXPECT_SOME(error);
+}
+
+
+// This test verifies that validation fails if `ShrinkVolume.volume` is a
+// MOUNT disk.
+TEST_F(ShrinkVolumeOperationValidationTest, Mount)
+{
+  protobuf::slave::Capabilities capabilities;
+  capabilities.resizeVolume = true;
+
+  Resource mountVolume = createPersistentVolume(
+       Megabytes(128),
+        "role1",
+        "id1",
+        "path1",
+        None(),
+        createDiskSourceMount());
+
+  Offer::Operation::ShrinkVolume shrinkVolume = createShrinkVolume();
+  shrinkVolume.mutable_volume()->CopyFrom(mountVolume);
+
+  Option<Error> error = operation::validate(shrinkVolume, capabilities);
+  EXPECT_SOME(error);
+}
+
+
+// This test verifies that validation fails if `ShrinkVolume.volume` is a
+// shared volume.
+TEST_F(ShrinkVolumeOperationValidationTest, Shared)
+{
+  protobuf::slave::Capabilities capabilities;
+  capabilities.resizeVolume = true;
+
+  Offer::Operation::ShrinkVolume shrinkVolume = createShrinkVolume();
+  shrinkVolume.mutable_volume()->mutable_shared();
+
+  Option<Error> error = operation::validate(shrinkVolume, capabilities);
+  EXPECT_SOME(error);
+}
+
+
+// This test verifies that validation fails if `ShrinkVolume.volume` has
+// resource provider id.
+TEST_F(ShrinkVolumeOperationValidationTest, ResourceProvider)
+{
+  protobuf::slave::Capabilities capabilities;
+  capabilities.resizeVolume = true;
+
+  Offer::Operation::ShrinkVolume shrinkVolume = createShrinkVolume();
+  shrinkVolume.mutable_volume()->mutable_provider_id()->set_value("provider");
+
+  Option<Error> error = operation::validate(shrinkVolume, capabilities);
+  EXPECT_SOME(error);
+}
+
+
+// This test verifies that validation fails if agent has no RESIZE_VOLUME
+// capability.
+TEST_F(ShrinkVolumeOperationValidationTest, MissingCapability)
+{
+  protobuf::slave::Capabilities capabilities;
+
+  Option<Error> error = operation::validate(createShrinkVolume(), capabilities);
+  EXPECT_SOME(error);
+}
+
+
 TEST(OperationValidationTest, CreateVolume)
 {
   Resource disk1 = createDiskResource(
