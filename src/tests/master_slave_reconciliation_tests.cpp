@@ -352,6 +352,73 @@ TEST_F(MasterSlaveReconciliationTest, ReconcileDroppedTask)
 }
 
 
+// This test verifies that the master reconciles operations that are missing
+// from a reregistering slave. In this case, we drop the ApplyOperationMessage
+// and expect the master to send a ReconcileOperationsMessage after the slave
+// reregisters.
+TEST_F(MasterSlaveReconciliationTest, ReconcileDroppedOperation)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  StandaloneMasterDetector detector(master.get()->pid);
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector);
+  ASSERT_SOME(slave);
+
+  // Register the framework in a non-`*` role so it can reserve resources.
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+
+  // We prevent the operation from reaching the agent.
+  Future<ApplyOperationMessage> applyOperationMessage =
+    DROP_PROTOBUF(ApplyOperationMessage(), _, _);
+
+  // Perform a reserve operation on the offered resources.
+  // This will trigger an `ApplyOperationMessage`.
+  ASSERT_FALSE(offers->empty());
+  const Offer& offer = offers->at(0);
+
+  Resources reservedResources = offer.resources();
+  reservedResources =
+    reservedResources.pushReservation(createDynamicReservationInfo(
+        frameworkInfo.roles(0), frameworkInfo.principal()));
+
+  driver.acceptOffers({offer.id()}, {RESERVE(reservedResources)});
+
+  AWAIT_READY(applyOperationMessage);
+
+  // We expect the master to detect the missing operation when the
+  // slave reregisters and to reconcile the operations on that slave.
+  Future<ReconcileOperationsMessage> reconcileOperationsMessage =
+    FUTURE_PROTOBUF(ReconcileOperationsMessage(), _, _);
+
+  // Simulate a master failover to trigger slave reregistration.
+  detector.appoint(master.get()->pid);
+
+  AWAIT_READY(reconcileOperationsMessage);
+
+  ASSERT_EQ(1, reconcileOperationsMessage->operations_size());
+  EXPECT_EQ(
+      applyOperationMessage->operation_uuid(),
+      reconcileOperationsMessage->operations(0).operation_uuid());
+}
+
 // This test verifies that the master reconciles tasks that are
 // missing from a reregistering slave. In this case, we trigger
 // a race between the slave re-registration message and the launch

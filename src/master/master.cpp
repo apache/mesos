@@ -7822,6 +7822,13 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
 
   // Check if the known operations for this agent changed.
   if (!updated) {
+    // Below we loop over all received operations and check whether
+    // they are known to the master; operations can be unknown to the
+    // master after a master failover. To handle dropped operations on
+    // agent failover we explicitly track the received operations and
+    // compare them against the operations known to the master.
+    hashset<UUID> receivedOperations;
+
     foreach (const Operation& operation, message.operations().operations()) {
       if (!slave->operations.contains(operation.uuid())) {
         updated = true;
@@ -7832,6 +7839,12 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
         updated = true;
         break;
       }
+
+      receivedOperations.insert(operation.uuid());
+    }
+
+    if (receivedOperations.size() != slave->operations.size()) {
+      updated = true;
     }
   }
 
