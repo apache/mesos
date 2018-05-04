@@ -209,6 +209,14 @@ entries, each representing an authorizable action:
   </td>
 </tr>
 <tr>
+  <td><code>resize_volume</code></td>
+  <td>Framework principal or Operator username.</td>
+  <td>Resource role of the volume.</td>
+  <td>Growing or shrinking
+      <a href="persistent-volume.md">persistent volumes</a>.
+  </td>
+</tr>
+<tr>
   <td><code>get_quotas</code></td>
   <td>Operator username.</td>
   <td>Resource role whose quota status will be queried.</td>
