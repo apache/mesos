@@ -322,7 +322,7 @@ Try<Nothing> generateJeprofFile(
       inputPath,
       outputPath).get());
 
-  if (result.isNone()) {
+  if (result != 0) {
     return Error(
       "Error trying to run jeprof. Please make sure that jeprof is installed"
       " and that the input file contains data. For more information, please"
