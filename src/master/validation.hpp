@@ -302,6 +302,16 @@ Option<Error> validate(
     const Option<FrameworkInfo>& frameworkInfo = None());
 
 
+Option<Error> validate(
+    const Offer::Operation::GrowVolume& growVolume,
+    const protobuf::slave::Capabilities& agentCapabilities);
+
+
+Option<Error> validate(
+    const Offer::Operation::ShrinkVolume& shrinkVolume,
+    const protobuf::slave::Capabilities& agentCapabilities);
+
+
 Option<Error> validate(const Offer::Operation::CreateVolume& createVolume);
 Option<Error> validate(const Offer::Operation::DestroyVolume& destroyVolume);
 Option<Error> validate(const Offer::Operation::CreateBlock& createBlock);

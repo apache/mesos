@@ -2342,6 +2342,135 @@ Option<Error> validate(
 }
 
 
+Option<Error> validate(
+    const Offer::Operation::GrowVolume& growVolume,
+    const protobuf::slave::Capabilities& agentCapabilities)
+{
+  Option<Error> error = Resources::validate(growVolume.volume());
+  if (error.isSome()) {
+    return Error(
+        "Invalid resource in the 'GrowVolume.volume' field: " +
+        error->message);
+  }
+
+  error = Resources::validate(growVolume.addition());
+  if (error.isSome()) {
+    return Error(
+        "Invalid resource in the 'GrowVolume.addition' field: " +
+        error->message);
+  }
+
+  Value::Scalar zero;
+  zero.set_value(0);
+
+  // The `Scalar` comparison contains a fixed-point conversion.
+  if (growVolume.addition().scalar() <= zero) {
+    return Error(
+        "The size of 'GrowVolume.addition' field must be greater than zero");
+  }
+
+  if (Resources::hasResourceProvider(growVolume.volume())) {
+    return Error("Growing a volume from a resource provider is not supported");
+  }
+
+  error = resource::validatePersistentVolume(Resources(growVolume.volume()));
+  if (error.isSome()) {
+    return Error(
+        "Invalid persistent volume in the 'GrowVolume.volume' field: " +
+        error->message);
+  }
+
+  if (growVolume.volume().has_shared()) {
+    return Error("Growing a shared persistent volume is not supported");
+  }
+
+  // TODO(zhitao): Move this to a helper function
+  // `Resources::stripPersistentVolume`.
+  Resource stripped = growVolume.volume();
+
+  if (stripped.disk().has_source()) {
+    // PATH/MOUNT disk.
+    stripped.mutable_disk()->clear_persistence();
+    stripped.mutable_disk()->clear_volume();
+  } else {
+    // ROOT disk.
+    stripped.clear_disk();
+  }
+
+  if ((Resources(stripped) + growVolume.addition()).size() != 1) {
+    return Error(
+        "Incompatible resources in the 'GrowVolume.volume' and "
+        "'GrowVolume.addition' fields");
+  }
+
+  if (!agentCapabilities.resizeVolume) {
+    return Error(
+        "Volume " + stringify(growVolume.volume()) +
+        " cannot be grown on an agent without RESIZE_VOLUME capability");
+  }
+
+  return None();
+}
+
+
+Option<Error> validate(
+    const Offer::Operation::ShrinkVolume& shrinkVolume,
+    const protobuf::slave::Capabilities& agentCapabilities)
+{
+  Option<Error> error = Resources::validate(shrinkVolume.volume());
+  if (error.isSome()) {
+    return Error(
+        "Invalid resource in the 'ShrinkVolume.volume' field: " +
+        error->message);
+  }
+
+  Value::Scalar zero;
+  zero.set_value(0);
+
+  // The `Scalar` comparison contains a fixed-point conversion.
+  if (shrinkVolume.subtract() <= zero) {
+    return Error(
+        "Value of 'ShrinkVolume.subtract' must be greater than zero");
+  }
+
+  if (shrinkVolume.volume().scalar() <= shrinkVolume.subtract()) {
+    return Error(
+        "Value of 'ShrinkVolume.subtract' must be smaller than the size "
+        "of 'ShrinkVolume.volume'");
+  }
+
+  if (Resources::hasResourceProvider(shrinkVolume.volume())) {
+    return Error(
+        "Shrinking a volume from a resource provider is not supported");
+  }
+
+  if (shrinkVolume.volume().disk().source().type() ==
+      Resource::DiskInfo::Source::MOUNT) {
+    return Error(
+        "Shrinking a volume on a MOUNT disk is not supported");
+  }
+
+  error = resource::validatePersistentVolume(Resources(shrinkVolume.volume()));
+  if (error.isSome()) {
+    return Error(
+        "Invalid persistent volume in the 'ShrinkVolume.volume' field: " +
+        error->message);
+  }
+
+  if (shrinkVolume.volume().has_shared()) {
+    return Error("Shrinking a shared persistent volume is not supported");
+  }
+
+  if (!agentCapabilities.resizeVolume) {
+    return Error(
+        "Volume " + stringify(shrinkVolume.volume()) +
+        " cannot be shrunk on an agent without RESIZE_VOLUME capability");
+  }
+
+  return None();
+}
+
+
 Option<Error> validate(const Offer::Operation::CreateVolume& createVolume)
 {
   const Resource& source = createVolume.source();

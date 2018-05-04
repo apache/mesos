@@ -16,7 +16,6 @@
 
 #include <stout/foreach.hpp>
 #include <stout/stringify.hpp>
-#include <stout/unimplemented.hpp>
 
 #include "common/resources_utils.hpp"
 
@@ -196,9 +195,56 @@ Try<vector<TResourceConversion>> getResourceConversions(
       }
       break;
     }
-    case TOperation::GROW_VOLUME:
+
+    case TOperation::GROW_VOLUME: {
+      const TResource& volume = operation.grow_volume().volume();
+      const TResource& addition = operation.grow_volume().addition();
+
+      if (TResources::hasResourceProvider(volume)) {
+        return Error("Operation not supported for resource provider");
+      }
+
+      // To grow a persistent volume, we consume the original volume and the
+      // additional resource and convert into a single volume with the new size.
+      TResource converted = volume;
+      *converted.mutable_scalar() += addition.scalar();
+
+      conversions.emplace_back(TResources(volume) + addition, converted);
+      break;
+    }
+
     case TOperation::SHRINK_VOLUME: {
-      UNIMPLEMENTED;
+      const TResource& volume = operation.shrink_volume().volume();
+
+      if (TResources::hasResourceProvider(volume)) {
+        return Error("Operation not supported for resource provider");
+      }
+
+      // To shrink a persistent volume, we consume the original volume and
+      // convert into a new volume with reduced size and a freed disk resource
+      // without persistent volume info.
+      TResource freed = volume;
+
+      *freed.mutable_scalar() = operation.shrink_volume().subtract();
+
+      // TODO(zhitao): Move this to helper function
+      // `Resources::stripPersistentVolume`.
+      if (freed.disk().has_source()) {
+        freed.mutable_disk()->clear_persistence();
+        freed.mutable_disk()->clear_volume();
+      } else {
+        freed.clear_disk();
+      }
+
+      // Since we only allow persistent volumes to be shared, the
+      // freed resource must be non-shared.
+      freed.clear_shared();
+
+      TResource shrunk = volume;
+      *shrunk.mutable_scalar() -= operation.shrink_volume().subtract();
+
+      conversions.emplace_back(volume, TResources(shrunk) + freed);
+      break;
     }
   }
 
@@ -265,9 +311,11 @@ Result<ResourceProviderID> getResourceProviderId(
       resource = operation.destroy().volumes(0);
       break;
     case Offer::Operation::GROW_VOLUME:
-    case Offer::Operation::SHRINK_VOLUME: {
-      UNIMPLEMENTED;
-    }
+      resource = operation.grow_volume().volume();
+      break;
+    case Offer::Operation::SHRINK_VOLUME:
+      resource = operation.shrink_volume().volume();
+      break;
     case Offer::Operation::CREATE_VOLUME:
       resource = operation.create_volume().source();
       break;
@@ -640,9 +688,49 @@ Option<Error> validateAndUpgradeResources(Offer::Operation* operation)
 
       break;
     }
-    case Offer::Operation::GROW_VOLUME:
+    case Offer::Operation::GROW_VOLUME: {
+      // TODO(mpark): Once we perform a sanity check validation for
+      // offer operations as specified in MESOS-7760, this should no
+      // longer have to be handled in this function.
+      if (!operation->has_grow_volume()) {
+        return Error(
+            "A GROW_VOLUME operation must have"
+            " the Offer.Operation.grow_volume field set");
+      }
+
+      Option<Error> error = Resources::validate(
+          operation->grow_volume().volume());
+
+      if (error.isSome()) {
+        return error;
+      }
+
+      error = Resources::validate(operation->grow_volume().addition());
+
+      if (error.isSome()) {
+        return error;
+      }
+
+      break;
+    }
     case Offer::Operation::SHRINK_VOLUME: {
-      UNIMPLEMENTED;
+      // TODO(mpark): Once we perform a sanity check validation for
+      // offer operations as specified in MESOS-7760, this should no
+      // longer have to be handled in this function.
+      if (!operation->has_shrink_volume()) {
+        return Error(
+            "A SHRINK_VOLUME offer operation must have"
+            " the Offer.Operation.shrink_volume field set");
+      }
+
+      Option<Error> error = Resources::validate(
+          operation->shrink_volume().volume());
+
+      if (error.isSome()) {
+        return error;
+      }
+
+      break;
     }
     case Offer::Operation::LAUNCH: {
       // TODO(mpark): Once we perform a sanity check validation for

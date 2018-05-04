@@ -69,7 +69,6 @@
 #include <stout/option.hpp>
 #include <stout/path.hpp>
 #include <stout/stringify.hpp>
-#include <stout/unimplemented.hpp>
 #include <stout/unreachable.hpp>
 #include <stout/utils.hpp>
 #include <stout/uuid.hpp>
@@ -4107,6 +4106,8 @@ void Master::accept(
           case Offer::Operation::UNRESERVE:
           case Offer::Operation::CREATE:
           case Offer::Operation::DESTROY:
+          case Offer::Operation::GROW_VOLUME:
+          case Offer::Operation::SHRINK_VOLUME:
           case Offer::Operation::CREATE_VOLUME:
           case Offer::Operation::DESTROY_VOLUME:
           case Offer::Operation::CREATE_BLOCK:
@@ -4132,10 +4133,6 @@ void Master::accept(
                 error->message);
 
             break;
-          }
-          case Offer::Operation::GROW_VOLUME:
-          case Offer::Operation::SHRINK_VOLUME: {
-            UNIMPLEMENTED;
           }
           case Offer::Operation::UNKNOWN: {
             LOG(WARNING) << "Ignoring unknown operation";
@@ -4172,6 +4169,8 @@ void Master::accept(
           case Offer::Operation::UNRESERVE:
           case Offer::Operation::CREATE:
           case Offer::Operation::DESTROY:
+          case Offer::Operation::GROW_VOLUME:
+          case Offer::Operation::SHRINK_VOLUME:
           case Offer::Operation::CREATE_VOLUME:
           case Offer::Operation::DESTROY_VOLUME:
           case Offer::Operation::CREATE_BLOCK:
@@ -4208,10 +4207,6 @@ void Master::accept(
             accept.add_operations()->CopyFrom(operation);
             break;
           }
-          case Offer::Operation::GROW_VOLUME:
-          case Offer::Operation::SHRINK_VOLUME: {
-            UNIMPLEMENTED;
-          }
           case Offer::Operation::UNKNOWN: {
             LOG(WARNING) << "Ignoring unknown operation";
             break;
@@ -4241,16 +4236,14 @@ void Master::accept(
       case Offer::Operation::UNRESERVE:
       case Offer::Operation::CREATE:
       case Offer::Operation::DESTROY:
+      case Offer::Operation::GROW_VOLUME:
+      case Offer::Operation::SHRINK_VOLUME:
       case Offer::Operation::CREATE_VOLUME:
       case Offer::Operation::DESTROY_VOLUME:
       case Offer::Operation::CREATE_BLOCK:
       case Offer::Operation::DESTROY_BLOCK: {
         // No-op.
         break;
-      }
-      case Offer::Operation::GROW_VOLUME:
-      case Offer::Operation::SHRINK_VOLUME: {
-        UNIMPLEMENTED;
       }
       case Offer::Operation::LAUNCH: {
         foreach (
@@ -4416,9 +4409,14 @@ void Master::accept(
         break;
       }
 
-      case Offer::Operation::GROW_VOLUME:
+      case Offer::Operation::GROW_VOLUME: {
+        // TODO(zhitao): Add support for authorization of grow volume.
+        break;
+      }
+
       case Offer::Operation::SHRINK_VOLUME: {
-        UNIMPLEMENTED;
+        // TODO(zhitao): Add support for authorization of shrink volume.
+        break;
       }
 
       case Offer::Operation::CREATE_VOLUME: {
@@ -4562,6 +4560,12 @@ void Master::_accept(
   // updated offered resources here. When a task is successfully
   // launched, we remove its resource from offered resources.
   Resources _offeredResources = offeredResources;
+
+  // Converted resources from volume resizes. These converted resources are not
+  // put into `_offeredResources`, so no other operations can consume them.
+  // TODO(zhitao): This will be unnecessary once `GROW_VOLUME` and
+  // `SHRINK_VOLUME` become non-speculative.
+  Resources resizedResources;
 
   // We keep track of the shared resources from the offers separately.
   // `offeredSharedResources` can be modified by CREATE/DESTROY but we
@@ -4902,9 +4906,124 @@ void Master::_accept(
         break;
       }
 
-      case Offer::Operation::GROW_VOLUME:
+      case Offer::Operation::GROW_VOLUME: {
+        // TODO(zhitao): Authorize GROW_VOLUME from `authorizations`.
+
+        // Make sure this grow volume operation is valid.
+        Option<Error> error = validation::operation::validate(
+            operation.grow_volume(), slave->capabilities);
+
+        if (error.isSome()) {
+          drop(
+              framework,
+              operation,
+              error->message + "; on agent " + stringify(*slave));
+          continue;
+        }
+
+        // TODO(zhitao): Convert this operation to non-speculative once we can
+        // support that in the operator API.
+        Try<vector<ResourceConversion>> _conversions =
+          getResourceConversions(operation);
+
+        if (_conversions.isError()) {
+          drop(framework, operation, _conversions.error());
+          continue;
+        }
+
+        CHECK_EQ(1u, _conversions->size());
+        const Resources& consumed = _conversions->at(0).consumed;
+        const Resources& converted = _conversions->at(0).converted;
+
+        if (!_offeredResources.contains(consumed)) {
+          drop(
+              framework,
+              operation,
+              "Invalid GROW_VOLUME operation: " +
+              stringify(_offeredResources) + " does not contain " +
+              stringify(consumed));
+
+          continue;
+        }
+
+        _offeredResources -= consumed;
+        resizedResources += converted;
+
+        LOG(INFO) << "Processing GROW_VOLUME operation for volume "
+                  << operation.grow_volume().volume()
+                  << " with additional resource "
+                  << operation.grow_volume().addition()
+                  << " from framework "
+                  << *framework << " on agent " << *slave;
+
+        _apply(slave, framework, operation);
+
+        conversions.insert(
+            conversions.end(),
+            _conversions->begin(),
+            _conversions->end());
+
+        break;
+      }
+
       case Offer::Operation::SHRINK_VOLUME: {
-        UNIMPLEMENTED;
+        // TODO(zhitao): Authorize SHRINK_VOLUME from `authorizations`.
+
+        // Make sure this shrink volume operation is valid.
+        Option<Error> error = validation::operation::validate(
+            operation.shrink_volume(), slave->capabilities);
+
+        if (error.isSome()) {
+          drop(
+              framework,
+              operation,
+              error->message + "; on agent " + stringify(*slave));
+          continue;
+        }
+
+        // TODO(zhitao): Convert this operation to non-speculative once we can
+        // support that in the operator API.
+        Try<vector<ResourceConversion>> _conversions =
+          getResourceConversions(operation);
+
+        if (_conversions.isError()) {
+          drop(framework, operation, _conversions.error());
+          continue;
+        }
+
+        CHECK_EQ(1u, _conversions->size());
+        const Resources& consumed = _conversions->at(0).consumed;
+        const Resources& converted = _conversions->at(0).converted;
+
+        if (!_offeredResources.contains(consumed)) {
+          drop(
+              framework,
+              operation,
+              "Invalid SHRINK_VOLUME operation: " +
+              stringify(_offeredResources) + " does not contain " +
+              stringify(consumed));
+
+          continue;
+        }
+
+        _offeredResources -= consumed;
+        resizedResources += converted;
+
+        LOG(INFO) << "Processing SHRINK_VOLUME operation for volume "
+                  << operation.shrink_volume().volume()
+                  << " subtracting scalar value "
+                  << operation.shrink_volume().subtract()
+                  << " from framework "
+                  << *framework << " on agent " << *slave;
+
+        _apply(slave, framework, operation);
+
+        conversions.insert(
+            conversions.end(),
+            _conversions->begin(),
+            _conversions->end());
+
+        break;
       }
 
       case Offer::Operation::LAUNCH: {
@@ -5500,12 +5619,15 @@ void Master::_accept(
         conversions);
   }
 
-  if (!_offeredResources.empty()) {
+
+  // TODO(zhitao): Remove `resizedResources` once `GROW_VOLUME` and
+  // `SHRINK_VOLUME` become non-speculative.
+  if (!_offeredResources.empty() || !resizedResources.empty()) {
     // Tell the allocator about the unused (e.g., refused) resources.
     allocator->recoverResources(
         frameworkId,
         slaveId,
-        _offeredResources,
+        _offeredResources + resizedResources,
         accept.filters());
   }
 }

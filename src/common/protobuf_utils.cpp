@@ -37,7 +37,6 @@
 #include <stout/foreach.hpp>
 #include <stout/net.hpp>
 #include <stout/stringify.hpp>
-#include <stout/unimplemented.hpp>
 #include <stout/unreachable.hpp>
 #include <stout/uuid.hpp>
 
@@ -708,9 +707,24 @@ void injectAllocationInfo(
       break;
     }
 
-    case Offer::Operation::GROW_VOLUME:
+    case Offer::Operation::GROW_VOLUME: {
+      inject(
+          *operation->mutable_grow_volume()->mutable_volume(),
+          allocationInfo);
+
+      inject(
+          *operation->mutable_grow_volume()->mutable_addition(),
+          allocationInfo);
+
+      break;
+    }
+
     case Offer::Operation::SHRINK_VOLUME: {
-      UNIMPLEMENTED;
+      inject(
+          *operation->mutable_shrink_volume()->mutable_volume(),
+          allocationInfo);
+
+      break;
     }
 
     case Offer::Operation::CREATE_VOLUME: {
@@ -828,9 +842,17 @@ void stripAllocationInfo(Offer::Operation* operation)
       break;
     }
 
-    case Offer::Operation::GROW_VOLUME:
+    case Offer::Operation::GROW_VOLUME: {
+      strip(*operation->mutable_grow_volume()->mutable_volume());
+      strip(*operation->mutable_grow_volume()->mutable_addition());
+
+      break;
+    }
+
     case Offer::Operation::SHRINK_VOLUME: {
-      UNIMPLEMENTED;
+      strip(*operation->mutable_shrink_volume()->mutable_volume());
+
+      break;
     }
 
     case Offer::Operation::CREATE_VOLUME: {
@@ -877,11 +899,12 @@ bool isSpeculativeOperation(const Offer::Operation& operation)
     case Offer::Operation::UNRESERVE:
     case Offer::Operation::CREATE:
     case Offer::Operation::DESTROY:
-      return true;
+    // TODO(zhitao): Convert `GROW_VOLUME` and `SHRINK_VOLUME` to
+    // non-speculative operations once we can support non-speculative operator
+    // API.
     case Offer::Operation::GROW_VOLUME:
-    case Offer::Operation::SHRINK_VOLUME: {
-      UNIMPLEMENTED;
-    }
+    case Offer::Operation::SHRINK_VOLUME:
+      return true;
     case Offer::Operation::UNKNOWN:
       UNREACHABLE();
   }
@@ -1020,7 +1043,9 @@ Try<Resources> getConsumedResources(const Offer::Operation& operation)
     case Offer::Operation::RESERVE:
     case Offer::Operation::UNRESERVE:
     case Offer::Operation::CREATE:
-    case Offer::Operation::DESTROY: {
+    case Offer::Operation::DESTROY:
+    case Offer::Operation::GROW_VOLUME:
+    case Offer::Operation::SHRINK_VOLUME: {
       Try<vector<ResourceConversion>> conversions =
         getResourceConversions(operation);
 
@@ -1034,10 +1059,6 @@ Try<Resources> getConsumedResources(const Offer::Operation& operation)
       }
 
       return consumed;
-    }
-    case Offer::Operation::GROW_VOLUME:
-    case Offer::Operation::SHRINK_VOLUME: {
-      UNIMPLEMENTED;
     }
     case Offer::Operation::LAUNCH:
     case Offer::Operation::LAUNCH_GROUP:
