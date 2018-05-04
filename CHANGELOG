@@ -22,6 +22,9 @@ This release contains the following new features:
 
   * [MESOS-8607] - The ‘mesos-execute’ tool has been ported to Windows.
 
+  * [MESOS-4965] - **Experimental** Persistent volumes can be resized
+    through new offer operations and V1 operator API now.
+
 Additional API Changes:
   * [MESOS-8534] - Nested containers within a task group can now specify
     separate network namespaces.
