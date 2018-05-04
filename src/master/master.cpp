@@ -807,9 +807,7 @@ void Master::initialize()
       &Master::registerFramework);
 
   install<ReregisterFrameworkMessage>(
-      &Master::reregisterFramework,
-      &ReregisterFrameworkMessage::framework,
-      &ReregisterFrameworkMessage::failover);
+      &Master::reregisterFramework);
 
   install<UnregisterFrameworkMessage>(
       &Master::unregisterFramework,
@@ -2496,9 +2494,11 @@ void Master::registerFramework(
 
 void Master::reregisterFramework(
     const UPID& from,
-    const FrameworkInfo& frameworkInfo,
-    bool failover)
+    ReregisterFrameworkMessage&& reregisterFrameworkMessage)
 {
+  FrameworkInfo frameworkInfo =
+    std::move(*reregisterFrameworkMessage.mutable_framework());
+
   if (!frameworkInfo.has_id() || frameworkInfo.id().value().empty()) {
     const string error = "Re-registering without an 'id'";
 
@@ -2513,8 +2513,8 @@ void Master::reregisterFramework(
   }
 
   scheduler::Call::Subscribe call;
-  call.mutable_framework_info()->CopyFrom(frameworkInfo);
-  call.set_force(failover);
+  *call.mutable_framework_info() = std::move(frameworkInfo);
+  call.set_force(reregisterFrameworkMessage.failover());
 
   subscribe(from, call);
 }

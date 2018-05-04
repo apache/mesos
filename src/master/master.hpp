@@ -448,8 +448,7 @@ public:
 
   void reregisterFramework(
       const process::UPID& from,
-      const FrameworkInfo& frameworkInfo,
-      bool failover);
+      ReregisterFrameworkMessage&& reregisterFrameworkMessage);
 
   void unregisterFramework(
       const process::UPID& from,
