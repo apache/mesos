@@ -43,6 +43,7 @@
 #include "common/http.hpp"
 #include "common/protobuf_utils.hpp"
 #include "common/recordio.hpp"
+#include "common/resources_utils.hpp"
 
 #include "internal/devolve.hpp"
 #include "internal/evolve.hpp"
@@ -3677,6 +3678,226 @@ TEST_P(MasterAPITest, CreateAndDestroyVolumes)
 
   driver.stop();
   driver.join();
+}
+
+
+// Test growing a persistent volume through the master operator API.
+TEST_P(MasterAPITest, GrowVolume)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // For capturing the SlaveID so we can use it in API calls.
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  // Do Static reservation so we can create persistent volumes from it.
+  slaveFlags.resources = "disk(role1):192";
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+  SlaveID slaveId = slaveRegisteredMessage->slave_id();
+
+  // Create the persistent volume.
+  v1::master::Call v1CreateVolumesCall;
+  v1CreateVolumesCall.set_type(v1::master::Call::CREATE_VOLUMES);
+  v1::master::Call_CreateVolumes* createVolumes =
+    v1CreateVolumesCall.mutable_create_volumes();
+
+  Resource volume = createPersistentVolume(
+      Megabytes(64),
+      "role1",
+      "id1",
+      "path1",
+      None(),
+      None(),
+      DEFAULT_CREDENTIAL.principal());
+
+  createVolumes->add_volumes()->CopyFrom(evolve(volume));
+  createVolumes->mutable_agent_id()->CopyFrom(evolve(slaveId));
+
+  ContentType contentType = GetParam();
+
+  http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+  headers["Accept"] = stringify(contentType);
+
+  Future<http::Response> v1CreateVolumesResponse = http::post(
+      master.get()->pid,
+      "api/v1",
+      headers,
+      serialize(contentType, v1CreateVolumesCall),
+      stringify(contentType));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      http::Accepted().status,
+      v1CreateVolumesResponse);
+
+  Resource addition = Resources::parse("disk", "128", "role1").get();
+
+  // Grow the persistent volume.
+  v1::master::Call v1GrowVolumeCall;
+  v1GrowVolumeCall.set_type(v1::master::Call::GROW_VOLUME);
+
+  v1::master::Call::GrowVolume* growVolume =
+    v1GrowVolumeCall.mutable_grow_volume();
+
+  growVolume->mutable_agent_id()->CopyFrom(evolve(slaveId));
+  growVolume->mutable_volume()->CopyFrom(evolve(volume));
+  growVolume->mutable_addition()->CopyFrom(evolve(addition));
+
+  Future<http::Response> v1GrowVolumeResponse = http::post(
+      master.get()->pid,
+      "api/v1",
+      headers,
+      serialize(contentType, v1GrowVolumeCall),
+      stringify(contentType));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      http::Accepted().status,
+      v1GrowVolumeResponse);
+
+  Resource grownVolume = createPersistentVolume(
+      Megabytes(192),
+      "role1",
+      "id1",
+      "path1",
+      None(),
+      None(),
+      DEFAULT_CREDENTIAL.principal());
+
+  v1::master::Call v1GetAgentsCall;
+  v1GetAgentsCall.set_type(v1::master::Call::GET_AGENTS);
+
+  Future<v1::master::Response> v1GetAgentsResponse =
+    post(master.get()->pid, v1GetAgentsCall, contentType);
+
+  AWAIT_READY(v1GetAgentsResponse);
+  ASSERT_TRUE(v1GetAgentsResponse->IsInitialized());
+  ASSERT_EQ(v1::master::Response::GET_AGENTS, v1GetAgentsResponse->type());
+  ASSERT_EQ(1, v1GetAgentsResponse->get_agents().agents_size());
+
+  RepeatedPtrField<Resource> agentResources = devolve<Resource>(
+      v1GetAgentsResponse->get_agents().agents(0).total_resources());
+
+  upgradeResources(&agentResources);
+
+  EXPECT_EQ(
+      Resources(grownVolume),
+      Resources(agentResources).persistentVolumes());
+}
+
+
+// Test shrinking a persistent volume through the master operator API.
+TEST_P(MasterAPITest, ShrinkVolume)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // For capturing the SlaveID so we can use it in API calls.
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  // Do static reservation so we can create persistent volumes from it.
+  slaveFlags.resources = "disk(role1):192";
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+  SlaveID slaveId = slaveRegisteredMessage->slave_id();
+
+  // Create a persistent volume with all disk space.
+  v1::master::Call v1CreateVolumesCall;
+  v1CreateVolumesCall.set_type(v1::master::Call::CREATE_VOLUMES);
+  v1::master::Call_CreateVolumes* createVolumes =
+    v1CreateVolumesCall.mutable_create_volumes();
+
+  Resource volume = createPersistentVolume(
+      Megabytes(192),
+      "role1",
+      "id1",
+      "path1",
+      None(),
+      None(),
+      DEFAULT_CREDENTIAL.principal());
+
+  createVolumes->add_volumes()->CopyFrom(evolve(volume));
+  createVolumes->mutable_agent_id()->CopyFrom(evolve(slaveId));
+
+  ContentType contentType = GetParam();
+
+  http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+  headers["Accept"] = stringify(contentType);
+
+  Future<http::Response> v1CreateVolumesResponse = http::post(
+      master.get()->pid,
+      "api/v1",
+      headers,
+      serialize(contentType, v1CreateVolumesCall),
+      stringify(contentType));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      http::Accepted().status,
+      v1CreateVolumesResponse);
+
+  Resource shrunkVolume = createPersistentVolume(
+      Megabytes(128),
+      "role1",
+      "id1",
+      "path1",
+      None(),
+      None(),
+      DEFAULT_CREDENTIAL.principal());
+
+  // Shrink the persistent volume.
+  v1::master::Call v1ShrinkVolumeCall;
+  v1ShrinkVolumeCall.set_type(v1::master::Call::SHRINK_VOLUME);
+
+  v1::master::Call::ShrinkVolume* shrinkVolume =
+    v1ShrinkVolumeCall.mutable_shrink_volume();
+
+  shrinkVolume->mutable_agent_id()->CopyFrom(evolve(slaveId));
+  shrinkVolume->mutable_volume()->CopyFrom(evolve(volume));
+  shrinkVolume->mutable_subtract()->set_value(64);
+
+  Future<http::Response> v1ShrinkVolumeResponse = http::post(
+      master.get()->pid,
+      "api/v1",
+      headers,
+      serialize(contentType, v1ShrinkVolumeCall),
+      stringify(contentType));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      http::Accepted().status,
+      v1ShrinkVolumeResponse);
+
+  v1::master::Call v1GetAgentsCall;
+  v1GetAgentsCall.set_type(v1::master::Call::GET_AGENTS);
+
+  Future<v1::master::Response> v1GetAgentsResponse =
+    post(master.get()->pid, v1GetAgentsCall, contentType);
+
+  AWAIT_READY(v1GetAgentsResponse);
+  ASSERT_TRUE(v1GetAgentsResponse->IsInitialized());
+  ASSERT_EQ(v1::master::Response::GET_AGENTS, v1GetAgentsResponse->type());
+  ASSERT_EQ(1, v1GetAgentsResponse->get_agents().agents_size());
+
+  RepeatedPtrField<Resource> agentResources = devolve<Resource>(
+      v1GetAgentsResponse->get_agents().agents(0).total_resources());
+
+  upgradeResources(&agentResources);
+
+  EXPECT_EQ(
+      Resources(shrunkVolume),
+      Resources(agentResources).persistentVolumes());
 }
 
 
