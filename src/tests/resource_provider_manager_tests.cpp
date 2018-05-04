@@ -1130,8 +1130,8 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   Future<Nothing> disconnected;
   EXPECT_CALL(*resourceProvider, disconnected())
     .WillOnce(DoAll(
-        FutureSatisfy(&disconnected),
-        Invoke([&resourceProvider]() { resourceProvider.reset(); })))
+        Invoke([&resourceProvider]() { resourceProvider.reset(); }),
+        FutureSatisfy(&disconnected)))
     .WillRepeatedly(Return()); // Ignore spurious calls concurrent with `reset`.
 
   // The agent failover.
@@ -1375,8 +1375,8 @@ TEST_F(ResourceProviderManagerHttpApiTest, ResourceProviderSubscribeDisconnect)
   Future<Nothing> disconnected1;
   EXPECT_CALL(*resourceProvider1, disconnected())
     .WillOnce(DoAll(
-        FutureSatisfy(&disconnected1),
-        Invoke([&resourceProvider1]() { resourceProvider1.reset(); })))
+        Invoke([&resourceProvider1]() { resourceProvider1.reset(); }),
+        FutureSatisfy(&disconnected1)))
     .WillRepeatedly(Return()); // Ignore spurious calls concurrent with `reset`.
 
   Future<Event::Subscribed> subscribed2;
