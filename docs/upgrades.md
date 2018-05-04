@@ -55,6 +55,7 @@ We categorize the changes as follows:
 
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Flags-->
     <ul style="padding-left:10px;">
+      <li>A <a href="#1-6-x-fetcher-stall-timeout">fetcher_stall_timeout</a></li>
     </ul>
   </td>
 
@@ -65,6 +66,7 @@ We categorize the changes as follows:
 
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Module API-->
     <ul style="padding-left:10px;">
+      <li>C <a href="#1-6-x-disk-profile-adaptor">Disk profile adaptor module changes</a></li>
     </ul>
   </td>
 
@@ -401,6 +403,14 @@ We categorize the changes as follows:
 <a name="1-6-x-csi-support"></a>
 
 * CSI v0.2 is now supported as experimental. Due to the incompatibility between CSI v0.1 and v0.2, the experimental support for CSI v0.1 is deprecated, and the operator must remove all storage local resource providers within an agent before upgrading the agent. NOTE: This is a **breaking change** for storage local resource providers.
+
+<a name="1-6-x-fetcher-stall-timeout"></a>
+
+* A new agent flag `--fetcher_stall_timeout` has been added. This flag specifies the amount of time for the container image and artifact fetchers to wait before aborting a stalled download (i.e., the speed keeps below one byte per second). NOTE: This flag only applies when downloading data from the net and does not apply to HDFS.
+
+<a name="1-6-x-disk-profile-adaptor"></a>
+
+* The disk profile adaptor module has been changed to support CSI v0.2, and its header file has been renamed to be consistent with other modules. See `disk_profile_adaptor.hpp` for interface changes.
 
 ## Upgrading from 1.4.x to 1.5.x ##
 
