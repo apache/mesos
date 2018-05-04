@@ -1977,6 +1977,300 @@ TYPED_TEST(AuthorizationTest, DestroyVolume)
 }
 
 
+// Tests the authorization of ACLs used for resizing volumes.
+TYPED_TEST(AuthorizationTest, ResizeVolume)
+{
+  ACLs acls;
+
+  {
+    // Principal "foo" can resize volumes for any role.
+    mesos::ACL::ResizeVolume* acl = acls.add_resize_volumes();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  {
+    // Principal "bar" can only resize volumes for the "panda" role.
+    mesos::ACL::ResizeVolume* acl = acls.add_resize_volumes();
+    acl->mutable_principals()->add_values("bar");
+    acl->mutable_roles()->add_values("panda");
+  }
+
+  {
+    // Principal "baz" cannot resize volumes.
+    mesos::ACL::ResizeVolume* acl = acls.add_resize_volumes();
+    acl->mutable_principals()->add_values("baz");
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  {
+    // Principal "elizabeth-ii" can resize volumes for the "king" role and its
+    // nested ones.
+    mesos::ACL::ResizeVolume* acl = acls.add_resize_volumes();
+    acl->mutable_principals()->add_values("elizabeth-ii");
+    acl->mutable_roles()->add_values("king/%");
+    acl->mutable_roles()->add_values("king");
+  }
+
+  {
+    // Principal "charles" can resize volumes for any role below the "king/"
+    // role. Not in "king" itself.
+    mesos::ACL::ResizeVolume* acl = acls.add_resize_volumes();
+    acl->mutable_principals()->add_values("charles");
+    acl->mutable_roles()->add_values("king/%");
+  }
+
+  {
+    // Principal "j-welby" can resize volumes only for the "king" role but
+    // not in any nested one.
+    mesos::ACL::ResizeVolume* acl = acls.add_resize_volumes();
+    acl->mutable_principals()->add_values("j-welby");
+    acl->mutable_roles()->add_values("king");
+  }
+
+  {
+    // No other principals can resize volumes.
+    mesos::ACL::ResizeVolume* acl = acls.add_resize_volumes();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  {
+    // No other principals can resize volumes.
+    mesos::ACL::ResizeVolume* acl = acls.add_resize_volumes();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  // Create an `Authorizer` with the ACLs.
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  // Principal "foo" can create volumes for any role, so this request will pass.
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESIZE_VOLUME);
+    request.mutable_subject()->set_value("foo");
+    request.mutable_object()->set_value("awesome_role");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESIZE_VOLUME);
+    request.mutable_subject()->set_value("foo");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("awesome_role");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  // Principal "bar" can create volumes for the "panda" role,
+  // so this request will pass.
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESIZE_VOLUME);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->set_value("panda");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESIZE_VOLUME);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("panda");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  // Principal "bar" cannot resize volumes for the "giraffe" role,
+  // so this request will fail.
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESIZE_VOLUME);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()->set_value("giraffe");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESIZE_VOLUME);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("giraffe");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+
+  // Principal "baz" cannot resize volumes for any role,
+  // so this request will fail.
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESIZE_VOLUME);
+    request.mutable_subject()->set_value("baz");
+    request.mutable_object()->set_value("panda");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESIZE_VOLUME);
+    request.mutable_subject()->set_value("baz");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("panda");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+
+  // Principal "zelda" is not mentioned in the ACLs of the Authorizer, so it
+  // will be caught by the final ACL, which provides a default case that denies
+  // access for all other principals. This request will fail.
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESIZE_VOLUME);
+    request.mutable_subject()->set_value("zelda");
+    request.mutable_object()->set_value("panda");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESIZE_VOLUME);
+    request.mutable_subject()->set_value("zelda");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("panda");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+
+  // "elizabeth-ii" has full permissions for the "king" role as well as all
+  // its nested roles. She should be able to resize volumes in the next
+  // three blocks.
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESIZE_VOLUME);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESIZE_VOLUME);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king/prince");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESIZE_VOLUME);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king/prince/duke");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  // "charles" doesn't have permissions for the "king" role, so the first
+  // test should fail. However he has permissions for "king"'s nested roles
+  // so the next two tests should succeed.
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESIZE_VOLUME);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESIZE_VOLUME);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king/prince");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESIZE_VOLUME);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king/prince/duke");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  // "j-welby" only has permissions for the role "king" itself, but not
+  // for its nested roles, therefore only the first of the following three
+  // tests should succeed.
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESIZE_VOLUME);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESIZE_VOLUME);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king/prince");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::RESIZE_VOLUME);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king/prince/duke");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+}
+
+
 // This tests the authorization of requests to update quotas.
 TYPED_TEST(AuthorizationTest, UpdateQuota)
 {
