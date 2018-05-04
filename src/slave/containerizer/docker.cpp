@@ -910,6 +910,8 @@ Future<Nothing> DockerContainerizerProcess::_recover(
     const Option<SlaveState>& state,
     const list<Docker::Container>& _containers)
 {
+  LOG(INFO) << "Got the list of Docker containers";
+
   if (state.isSome()) {
     // This mapping of ContainerIDs to running Docker container names
     // is established for two reasons:
@@ -1143,6 +1145,8 @@ Future<Nothing> DockerContainerizerProcess::__recover(
                          containerId.value() + "': " + unmount.error());
         }
       }
+
+      LOG(INFO) << "Finished processing orphaned Docker containers";
 
       return Nothing();
     }));

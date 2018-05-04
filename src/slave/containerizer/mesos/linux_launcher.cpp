@@ -300,6 +300,8 @@ LinuxLauncherProcess::LinuxLauncherProcess(
 Future<hashset<ContainerID>> LinuxLauncherProcess::recover(
     const list<ContainerState>& states)
 {
+  LOG(INFO) << "Recovering Linux launcher";
+
   // Recover all of the "containers" we know about based on the
   // existing cgroups. Note that we check both the freezer hierarchy
   // and the systemd hierarchy (if enabled), and combine the results.

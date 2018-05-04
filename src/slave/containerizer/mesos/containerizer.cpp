@@ -709,7 +709,7 @@ Future<Nothing> MesosContainerizer::pruneImages(
 Future<Nothing> MesosContainerizerProcess::recover(
     const Option<state::SlaveState>& state)
 {
-  LOG(INFO) << "Recovering containerizer";
+  LOG(INFO) << "Recovering Mesos containers";
 
   // Gather the container states that we will attempt to recover.
   list<ContainerState> recoverable;
@@ -1016,6 +1016,8 @@ Future<list<Nothing>> MesosContainerizerProcess::recoverIsolators(
     const list<ContainerState>& recoverable,
     const hashset<ContainerID>& orphans)
 {
+  LOG(INFO) << "Recovering isolators";
+
   list<Future<Nothing>> futures;
 
   // Then recover the isolators.
@@ -1053,6 +1055,8 @@ Future<Nothing> MesosContainerizerProcess::recoverProvisioner(
     const list<ContainerState>& recoverable,
     const hashset<ContainerID>& orphans)
 {
+  LOG(INFO) << "Recovering provisioner";
+
   // TODO(gilbert): Consolidate 'recoverProvisioner()' interface
   // once the launcher returns a full set of known containers.
   hashset<ContainerID> knownContainerIds = orphans;

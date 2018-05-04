@@ -329,6 +329,8 @@ Future<Nothing> ComposingContainerizerProcess::__recover(
 
 Future<Nothing> ComposingContainerizerProcess::___recover()
 {
+  LOG(INFO) << "Finished recovering all containerizers";
+
   return Nothing();
 }
 

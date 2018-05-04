@@ -6922,6 +6922,9 @@ Future<Nothing> Slave::recover(const Try<state::State>& state)
     return Failure(state.error());
   }
 
+  LOG(INFO) << "Finished recovering checkpointed state from '" << metaDir
+            << "', beginning agent recovery";
+
   Option<ResourcesState> resourcesState = state->resources;
   Option<SlaveState> slaveState = state->slave;
 
@@ -7148,6 +7151,8 @@ Future<Nothing> Slave::_recoverContainerizer(
 
 Future<Nothing> Slave::_recover()
 {
+  LOG(INFO) << "Recovering executors";
+
   // Alow HTTP based executors to subscribe after the
   // containerizer recovery is complete.
   recoveryInfo.reconnect = true;
