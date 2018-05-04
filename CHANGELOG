@@ -2,19 +2,18 @@ Release Notes - Mesos - Version 1.6.0 (WIP)
 -------------------------------------------
 This release contains the following new features:
 
+  * [MESOS-4965] - **Experimental** Persistent volumes can be resized
+    through new offer operations and V1 operator API now.
+
   * [MESOS-6575] - Added a new `--xfs_kill_containers` flag to the
     Mesos agent. This causes the `disk/xfs` isolator to terminate
     containers that exceed their disk quota.
 
-  * [MESOS-8534] - **Experimental** A nested container is now allowed
-    to join a separate CNI network than its parent container.
-
-  * [MESOS-8801] - **Experimental** On Linux, Mesos can now be
-    configured to use the jemalloc allocator by default via the
-    `--enable-jemalloc-allocator` configuration option.
-
   * [MESOS-7944] - **Experimental** Added a new `MemoryProfiler` class to
     libprocess to aid in debugging memory issues.
+
+  * [MESOS-8534] - **Experimental** A nested container is now allowed
+    to join a separate CNI network than its parent container.
 
   * [MESOS-8572] - Improvements to the Docker containerizer and executor
     to more gracefully handle situations in which the Docker CLI is
@@ -22,26 +21,39 @@ This release contains the following new features:
 
   * [MESOS-8607] - The ‘mesos-execute’ tool has been ported to Windows.
 
-  * [MESOS-4965] - **Experimental** Persistent volumes can be resized
-    through new offer operations and V1 operator API now.
+  * [MESOS-8649] - **Experimental** Support for Container Storage Interface
+    (CSI) version 0.2 in Mesos.
 
   * [MESOS-8725] - Added a new `max_completion_time` field to `TaskInfo`.
     Tasks which do not complete at the end of the specified duration will
     fail with a new reason `REASON_MAX_COMPLETION_TIME_REACHED`.
 
-Additional API Changes:
-  * [MESOS-8534] - Nested containers within a task group can now specify
-    separate network namespaces.
+  * [MESOS-8801] - **Experimental** On Linux, Mesos can now be
+    configured to use the jemalloc allocator by default via the
+    `--enable-jemalloc-allocator` configuration option.
 
-  * [MESOS-8388] - Local resource provider resources are now included in
-    the responses to the GET_AGENTS and GET_RESOURCE_PROVIDER calls.
+  * Agents now support the `--fetcher_stall_timeout` flag which allows container
+    image and artifact fetchers to abort after the timeout when downloads stall.
+
+Deprecations/Removals:
+  * Support for CSI v0.1 is deprecated in favor of CSI v0.2.
+
+Additional API Changes:
+  * [MESOS-8306] - Authorization of resource reservation has been updated
+    to allow the restriction of which agents can statically reserve
+    resources for which roles.
 
   * [MESOS-8332] - Container sandbox permissions have been changed from
     0755 to 0750.
 
-  * [MESOS-8306] - Authorization of resource reservation has been updated
-    to allow the restriction of which agents can statically reserve
-    resources for which roles.
+  * [MESOS-8388] - Local resource provider resources are now included in
+    the responses to the GET_AGENTS and GET_RESOURCE_PROVIDER calls.
+
+  * [MESOS-8534] - Nested containers within a task group can now specify
+    separate network namespaces.
+
+Changes to Dependencies:
+  * Upgraded minimum required gRPC library to version 1.10+ for gRPC-enabled builds.
 
 All Resolved Issues:
 
@@ -151,11 +163,12 @@ All Resolved Issues:
     * [MESOS-8787] - RP-related API should be experimental.
     * [MESOS-8804] - Fix Ninja Release builds on Windows
     * [MESOS-8818] - VolumeSandboxPathIsolatorTest.SharedParentTypeVolume fails on macOS
-    * [MESOS-8834] - libprocess底层internal::send和internal::_send相互调用， 当outgoing[socket]里一直有数据包要发送时，那么存在栈耗尽 core dump问题
+    * [MESOS-8834] - Indirect recursion between `send` and `_send` in libprocess may cause stack overflow.
     * [MESOS-8865] - Suspicious enum value comparisons in scheduler Java bindings
     * [MESOS-8866] - CMake builds are missing byproduct declaration for jemalloc.
     * [MESOS-8868] - Some 'FsTest' test cases fail on macOS
     * [MESOS-8870] - Master does not correctly reconcile dropped operations after agent failover
+    * [MESOS-8874] - ResourceProviderManagerHttpApiTest.ResubscribeResourceProvider is flaky.
 
 ** Improvement
     * [MESOS-2922] - Add move constructors / assignment to Future.
@@ -200,6 +213,7 @@ All Resolved Issues:
     * [MESOS-8725] - Support max_duration for tasks
     * [MESOS-8728] - Don't print full usage for invocation errors
     * [MESOS-8772] - Add slave recovery test for default executor.
+    * [MESOS-8793] - Add more logging to agent recovery path.
     * [MESOS-8801] - Add jemalloc as optional third-party memory allocator
     * [MESOS-8851] - Introduce a push-based gauge.
 
