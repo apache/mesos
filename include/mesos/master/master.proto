@@ -79,6 +79,9 @@ message Call {
     CREATE_VOLUMES = 21;     // See 'CreateVolumes' below.
     DESTROY_VOLUMES = 22;    // See 'DestroyVolumes' below.
 
+    GROW_VOLUME = 34;        // See 'GrowVolume' below.
+    SHRINK_VOLUME = 35;      // See 'ShrinkVolume' below.
+
     // Retrieves the cluster's maintenance status.
     GET_MAINTENANCE_STATUS = 23;
     // Retrieves the cluster's maintenance schedule.
@@ -169,6 +172,32 @@ message Call {
     repeated Resource volumes = 2;
   }
 
+  // Grow a volume by an additional disk resource.
+  // NOTE: This is currently experimental and only for persistent volumes
+  // created on ROOT/PATH disks.
+  message GrowVolume {
+    // `slave_id` must be set if `volume` is an agent-local resource, and must
+    // be unset if `volume` is an external resource.
+    optional SlaveID slave_id = 1;
+
+    required Resource volume = 2;
+    required Resource addition = 3;
+  }
+
+  // Shrink a volume by the size specified in the `subtract` field.
+  // NOTE: This is currently experimental and only for persistent volumes
+  // created on ROOT/PATH disks.
+  message ShrinkVolume {
+    // `slave_id` must be set if `volume` is an agent-local resource, and must
+    // be unset if `volume` is an external resource.
+    optional SlaveID slave_id = 1;
+
+    required Resource volume = 2;
+
+    // See comments in `Value.Scalar` for maximum precision supported.
+    required Value.Scalar subtract = 3;
+  }
+
   // Updates the cluster's maintenance schedule.
   message UpdateMaintenanceSchedule {
     required maintenance.Schedule schedule = 1;
@@ -227,6 +256,8 @@ message Call {
   optional UnreserveResources unreserve_resources = 8;
   optional CreateVolumes create_volumes = 9;
   optional DestroyVolumes destroy_volumes = 10;
+  optional GrowVolume grow_volume = 18;
+  optional ShrinkVolume shrink_volume = 19;
   optional UpdateMaintenanceSchedule update_maintenance_schedule = 11;
   optional StartMaintenance start_maintenance = 12;
   optional StopMaintenance stop_maintenance = 13;
