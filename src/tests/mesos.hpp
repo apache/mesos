@@ -1342,6 +1342,32 @@ inline typename TOffer::Operation DESTROY(const TResources& volumes)
 }
 
 
+template <typename TResource, typename TOffer>
+inline typename TOffer::Operation GROW_VOLUME(
+    const TResource& volume,
+    const TResource& addition)
+{
+  typename TOffer::Operation operation;
+  operation.set_type(TOffer::Operation::GROW_VOLUME);
+  operation.mutable_grow_volume()->mutable_volume()->CopyFrom(volume);
+  operation.mutable_grow_volume()->mutable_addition()->CopyFrom(addition);
+  return operation;
+}
+
+
+template <typename TResource, typename TOffer, typename TValueScalar>
+inline typename TOffer::Operation SHRINK_VOLUME(
+    const TResource& volume,
+    const TValueScalar& subtract)
+{
+  typename TOffer::Operation operation;
+  operation.set_type(TOffer::Operation::SHRINK_VOLUME);
+  operation.mutable_shrink_volume()->mutable_volume()->CopyFrom(volume);
+  operation.mutable_shrink_volume()->mutable_subtract()->CopyFrom(subtract);
+  return operation;
+}
+
+
 template <typename TOffer, typename TTaskInfo>
 inline typename TOffer::Operation LAUNCH(const std::vector<TTaskInfo>& tasks)
 {
@@ -1745,6 +1771,20 @@ inline Offer::Operation DESTROY(Args&&... args)
 }
 
 
+template <typename... Args>
+inline Offer::Operation GROW_VOLUME(Args&&... args)
+{
+  return common::GROW_VOLUME<Resource, Offer>(std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline Offer::Operation SHRINK_VOLUME(Args&&... args)
+{
+  return common::SHRINK_VOLUME<Resource, Offer>(std::forward<Args>(args)...);
+}
+
+
 // We specify the argument to allow brace initialized construction.
 inline Offer::Operation LAUNCH(const std::vector<TaskInfo>& tasks)
 {
@@ -2039,6 +2079,22 @@ template <typename... Args>
 inline mesos::v1::Offer::Operation DESTROY(Args&&... args)
 {
   return common::DESTROY<mesos::v1::Resources, mesos::v1::Offer>(
+      std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline mesos::v1::Offer::Operation GROW_VOLUME(Args&&... args)
+{
+  return common::GROW_VOLUME<mesos::v1::Resource, mesos::v1::Offer>(
+      std::forward<Args>(args)...);
+}
+
+
+template <typename... Args>
+inline mesos::v1::Offer::Operation SHRINK_VOLUME(Args&&... args)
+{
+  return common::SHRINK_VOLUME<mesos::v1::Resource, mesos::v1::Offer>(
       std::forward<Args>(args)...);
 }
 
