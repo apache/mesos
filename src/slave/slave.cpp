@@ -4231,8 +4231,31 @@ void Slave::checkpointResourcesMessage(
 Try<Nothing> Slave::syncCheckpointedResources(
     const Resources& newCheckpointedResources)
 {
-  Resources oldVolumes = checkpointedResources.persistentVolumes();
-  Resources newVolumes = newCheckpointedResources.persistentVolumes();
+  auto toPathMap = [](const string& workDir, const Resources& resources) {
+    hashmap<string, Resource> pathMap;
+    const Resources& persistentVolumes = resources.persistentVolumes();
+
+    foreach (const Resource& volume, persistentVolumes) {
+      // This is validated in master.
+      CHECK(Resources::isReserved(volume));
+      string path = paths::getPersistentVolumePath(workDir, volume);
+      pathMap[path] = volume;
+    }
+
+    return pathMap;
+  };
+
+  const hashmap<string, Resource> oldPathMap =
+    toPathMap(flags.work_dir, checkpointedResources);
+
+  const hashmap<string, Resource> newPathMap =
+    toPathMap(flags.work_dir, newCheckpointedResources);
+
+  const hashset<string> oldPaths = oldPathMap.keys();
+  const hashset<string> newPaths = newPathMap.keys();
+
+  const hashset<string> createPaths = newPaths - oldPaths;
+  const hashset<string> deletePaths = oldPaths - newPaths;
 
   // Create persistent volumes that do not already exist.
   //
@@ -4240,15 +4263,8 @@ Try<Nothing> Slave::syncCheckpointedResources(
   // to support multiple disks, or raw disks. Depending on the
   // DiskInfo, we may want to create either directories under a root
   // directory, or LVM volumes from a given device.
-  foreach (const Resource& volume, newVolumes) {
-    // This is validated in master.
-    CHECK(Resources::isReserved(volume));
-
-    if (oldVolumes.contains(volume)) {
-      continue;
-    }
-
-    string path = paths::getPersistentVolumePath(flags.work_dir, volume);
+  foreach (const string& path, createPaths) {
+    const Resource& volume = newPathMap.at(path);
 
     // If creation of persistent volume fails, the agent exits.
     string volumeDescription = "persistent volume " +
@@ -4278,12 +4294,8 @@ Try<Nothing> Slave::syncCheckpointedResources(
   // remove the filesystem objects for the removed volume. Note that
   // for MOUNT disks, we don't remove the root directory (mount point)
   // of the volume.
-  foreach (const Resource& volume, oldVolumes) {
-    if (newVolumes.contains(volume)) {
-      continue;
-    }
-
-    string path = paths::getPersistentVolumePath(flags.work_dir, volume);
+  foreach (const string& path, deletePaths) {
+    const Resource& volume = oldPathMap.at(path);
 
     LOG(INFO) << "Deleting persistent volume '"
               << volume.disk().persistence().id()
