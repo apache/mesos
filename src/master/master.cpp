@@ -804,8 +804,7 @@ void Master::initialize()
       &SubmitSchedulerRequest::name);
 
   install<RegisterFrameworkMessage>(
-      &Master::registerFramework,
-      &RegisterFrameworkMessage::framework);
+      &Master::registerFramework);
 
   install<ReregisterFrameworkMessage>(
       &Master::reregisterFramework,
@@ -2470,8 +2469,11 @@ void Master::receive(
 
 void Master::registerFramework(
     const UPID& from,
-    const FrameworkInfo& frameworkInfo)
+    RegisterFrameworkMessage&& registerFrameworkMessage)
 {
+  FrameworkInfo frameworkInfo =
+    std::move(*registerFrameworkMessage.mutable_framework());
+
   if (frameworkInfo.has_id() && !frameworkInfo.id().value().empty()) {
     const string error = "Registering with 'id' already set";
 
@@ -2486,7 +2488,7 @@ void Master::registerFramework(
   }
 
   scheduler::Call::Subscribe call;
-  call.mutable_framework_info()->CopyFrom(frameworkInfo);
+  *call.mutable_framework_info() = std::move(frameworkInfo);
 
   subscribe(from, call);
 }

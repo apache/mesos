@@ -444,7 +444,7 @@ public:
 
   void registerFramework(
       const process::UPID& from,
-      const FrameworkInfo& frameworkInfo);
+      RegisterFrameworkMessage&& registerFrameworkMessage);
 
   void reregisterFramework(
       const process::UPID& from,
