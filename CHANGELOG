@@ -23,10 +23,17 @@ This release contains the following new features:
     to more gracefully handle situations in which the Docker CLI is
     unresponsive.
 
-  * [MESOS-8607] - The ‘mesos-execute’ tool has been ported to Windows.
+  * [MESOS-8607] - The `mesos-execute` tool has been ported to Windows.
 
   * [MESOS-8649] - **Experimental** Support for Container Storage Interface
     (CSI) version 0.2 in Mesos.
+
+  * [MESOS-8659] - The Windows build now links the C runtime library
+    dynamically instead of statically. This requires the Visual Studio
+    redistributable to be available at runtime.
+
+  * [MESOS-8682] - The use of the C runtime library's POSIX wrappers on
+    Windows has been deprecated in favor of the native Windows APIs.
 
   * [MESOS-8725] - Added a new `max_completion_time` field to `TaskInfo`.
     Tasks which do not complete at the end of the specified duration will
