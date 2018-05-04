@@ -1699,12 +1699,18 @@ TEST_F(SlaveTest, StateEndpoint)
   EXPECT_FALSE(state.values["capabilities"].as<JSON::Array>().values.empty());
   JSON::Value slaveCapabilities = state.values.at("capabilities");
 
-  // Agents should always have MULTI_ROLE, HIERARCHICAL_ROLE,
-  // RESERVATION_REFINEMENT, and RESOURCE_PROVIDER capabilities
-  // in current implementation.
+  // Agents should have the following capabilities in the current
+  // implementation.
   Try<JSON::Value> expectedCapabilities = JSON::parse(
-      "[\"MULTI_ROLE\",\"HIERARCHICAL_ROLE\",\"RESERVATION_REFINEMENT\","
-      "\"RESOURCE_PROVIDER\"]");
+    R"~(
+      [
+        "MULTI_ROLE",
+        "HIERARCHICAL_ROLE",
+        "RESERVATION_REFINEMENT",
+        "RESOURCE_PROVIDER",
+        "RESIZE_VOLUME"
+      ]
+    )~");
 
   ASSERT_SOME(expectedCapabilities);
   EXPECT_TRUE(slaveCapabilities.contains(expectedCapabilities.get()));

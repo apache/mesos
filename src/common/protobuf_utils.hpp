@@ -281,6 +281,9 @@ struct Capabilities
         case SlaveInfo::Capability::RESOURCE_PROVIDER:
           resourceProvider = true;
           break;
+        case SlaveInfo::Capability::RESIZE_VOLUME:
+          resizeVolume = true;
+          break;
         // If adding another case here be sure to update the
         // equality operator.
       }
@@ -292,6 +295,7 @@ struct Capabilities
   bool hierarchicalRole = false;
   bool reservationRefinement = false;
   bool resourceProvider = false;
+  bool resizeVolume = false;
 
   google::protobuf::RepeatedPtrField<SlaveInfo::Capability>
   toRepeatedPtrField() const
@@ -308,6 +312,9 @@ struct Capabilities
     }
     if (resourceProvider) {
       result.Add()->set_type(SlaveInfo::Capability::RESOURCE_PROVIDER);
+    }
+    if (resizeVolume) {
+      result.Add()->set_type(SlaveInfo::Capability::RESIZE_VOLUME);
     }
 
     return result;

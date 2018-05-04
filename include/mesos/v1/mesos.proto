@@ -985,6 +985,10 @@ message AgentInfo {
       //
       // (2) The ability to provide operation feedback.
       RESOURCE_PROVIDER = 4;
+
+      // This expresses the capability for the agent to handle persistent volume
+      // resize operations safely. This capability is turned on by default.
+      RESIZE_VOLUME = 5;
     }
 
     // Enum fields should be optional, see: MESOS-4997.

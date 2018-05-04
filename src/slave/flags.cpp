@@ -740,6 +740,11 @@ mesos::internal::slave::Flags::Flags()
                 "At least the following agent features need to be enabled: "
                 "MULTI_ROLE, HIERARCHICAL_ROLE, RESERVATION_REFINEMENT");
           }
+
+          if (capabilities.resizeVolume && !capabilities.resourceProvider) {
+            return Error(
+                "RESIZE_VOLUME feature requires RESOURCE_PROVIDER feature");
+          }
         }
 
         return None();

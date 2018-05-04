@@ -1061,7 +1061,8 @@ bool operator==(const Capabilities& left, const Capabilities& right)
   return left.multiRole == right.multiRole &&
          left.hierarchicalRole == right.hierarchicalRole &&
          left.reservationRefinement == right.reservationRefinement &&
-         left.resourceProvider == right.resourceProvider;
+         left.resourceProvider == right.resourceProvider &&
+         left.resizeVolume == right.resizeVolume;
 }
 
 
