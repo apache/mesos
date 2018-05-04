@@ -1124,9 +1124,21 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 
   Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
 
+  // We terminate the resource provider once we have confirmed that it
+  // got disconnected. This avoids it to in turn resubscribe racing
+  // with the newly created resource provider.
+  Future<Nothing> disconnected;
+  EXPECT_CALL(*resourceProvider, disconnected())
+    .WillOnce(DoAll(
+        FutureSatisfy(&disconnected),
+        Invoke([&resourceProvider]() { resourceProvider.reset(); })))
+    .WillRepeatedly(Return()); // Ignore spurious calls concurrent with `reset`.
+
   // The agent failover.
-  EXPECT_CALL(*resourceProvider, disconnected());
   agent->reset();
+
+  AWAIT_READY(disconnected);
+
   agent = StartSlave(detector.get(), slaveFlags);
 
   Clock::advance(slaveFlags.registration_backoff_factor);
