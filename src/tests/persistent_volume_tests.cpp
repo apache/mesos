@@ -37,6 +37,8 @@
 
 #include <stout/os/exists.hpp>
 
+#include "common/resources_utils.hpp"
+
 #ifdef __linux__
 #include "linux/fs.hpp"
 #endif // __linux__
@@ -448,8 +450,8 @@ TEST_P(PersistentVolumeTest, CreateAndDestroyPersistentVolumes)
 }
 
 
-// This test verifies that a framework can grow a persistent volume and receive
-// the grown volume in further offers.
+// This test verifies that a framework can grow a persistent volume and use the
+// grown volume afterward.
 TEST_P(PersistentVolumeTest, GrowVolume)
 {
   if (GetParam() == MOUNT) {
@@ -463,8 +465,9 @@ TEST_P(PersistentVolumeTest, GrowVolume)
 
   Clock::pause();
 
+  // Register a framework with role "default-role/foo" for dynamic reservations.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
+  frameworkInfo.set_roles(0, strings::join("/", DEFAULT_TEST_ROLE, "foo"));
 
   // Create a master.
   master::Flags masterFlags = CreateMasterFlags();
@@ -503,6 +506,16 @@ TEST_P(PersistentVolumeTest, GrowVolume)
 
   Bytes additionBytes = Megabytes(512);
 
+  // Construct a dynamic reservation for all disk resources.
+  // NOTE: We dynamically reserve all disk resources so they become checkpointed
+  // resources and thus will be verified on the agent when launching a task.
+  Resource::ReservationInfo dynamicReservation = createDynamicReservationInfo(
+      frameworkInfo.roles(0),
+      frameworkInfo.principal());
+
+  Resource dynamicallyReserved = getDiskResource(totalBytes, 1);
+  dynamicallyReserved.add_reservations()->CopyFrom(dynamicReservation);
+
   // Construct a persistent volume which does not use up all disk resources.
   Resource volume = createPersistentVolume(
       getDiskResource(totalBytes - additionBytes, 1),
@@ -510,8 +523,12 @@ TEST_P(PersistentVolumeTest, GrowVolume)
       "path1",
       None(),
       frameworkInfo.principal());
+  volume.add_reservations()->CopyFrom(dynamicReservation);
+  ASSERT_TRUE(needCheckpointing(volume));
 
   Resource addition = getDiskResource(additionBytes, 1);
+  addition.add_reservations()->CopyFrom(dynamicReservation);
+  ASSERT_TRUE(needCheckpointing(addition));
 
   Resource grownVolume = createPersistentVolume(
       getDiskResource(totalBytes, 1),
@@ -519,6 +536,8 @@ TEST_P(PersistentVolumeTest, GrowVolume)
       "path1",
       None(),
       frameworkInfo.principal());
+  grownVolume.add_reservations()->CopyFrom(dynamicReservation);
+  ASSERT_TRUE(needCheckpointing(grownVolume));
 
   Future<vector<Offer>> offersBeforeGrow;
 
@@ -533,7 +552,7 @@ TEST_P(PersistentVolumeTest, GrowVolume)
   // Create the persistent volume.
   driver.acceptOffers(
       {offer.id()},
-      {CREATE(volume)},
+      {RESERVE(dynamicallyReserved), CREATE(volume)},
       filters);
 
   Clock::settle();
@@ -577,9 +596,6 @@ TEST_P(PersistentVolumeTest, GrowVolume)
   AWAIT_READY(offersAfterGrow);
   ASSERT_FALSE(offersAfterGrow->empty());
 
-  EXPECT_TRUE(os::exists(volumePath));
-  EXPECT_SOME_EQ("abc", os::read(filePath));
-
   offer = offersAfterGrow->at(0);
 
   EXPECT_EQ(
@@ -590,21 +606,52 @@ TEST_P(PersistentVolumeTest, GrowVolume)
       Resources(offer.resources()).contains(
       allocatedResources(addition, frameworkInfo.roles(0))));
 
-  Clock::resume();
+  Future<TaskStatus> taskStarting;
+  Future<TaskStatus> taskRunning;
+  Future<TaskStatus> taskFinished;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&taskStarting))
+    .WillOnce(FutureArg<1>(&taskRunning))
+    .WillOnce(FutureArg<1>(&taskFinished));
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      offer.resources(),
+      "test `cat path1/file` = abc");
+
+  // Launch a task to verify that `GROW_VOLUME` takes effect on the agent and
+  // the task can use the grown volume.
+  driver.acceptOffers({offer.id()}, {LAUNCH({task})}, filters);
+
+  AWAIT_READY(taskStarting);
+  EXPECT_EQ(task.task_id(), taskStarting->task_id());
+  EXPECT_EQ(TASK_STARTING, taskStarting->state());
+
+  AWAIT_READY(taskRunning);
+  EXPECT_EQ(task.task_id(), taskRunning->task_id());
+  EXPECT_EQ(TASK_RUNNING, taskRunning->state());
+
+  AWAIT_READY(taskFinished);
+  EXPECT_EQ(task.task_id(), taskFinished->task_id());
+  EXPECT_EQ(TASK_FINISHED, taskFinished->state());
 
   driver.stop();
   driver.join();
+
+  Clock::resume();
 }
 
 
-// This test verifies that a framework can shrink a persistent volume and see
-// the shrunk volume in further offers.
+// This test verifies that a framework can shrink a persistent volume and use
+// the shrunk volume afterward.
 TEST_P(PersistentVolumeTest, ShrinkVolume)
 {
   Clock::pause();
 
+  // Register a framework with role "default-role/foo" for dynamic reservations.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
+  frameworkInfo.set_roles(0, strings::join("/", DEFAULT_TEST_ROLE, "foo"));
 
   // Create a master.
   master::Flags masterFlags = CreateMasterFlags();
@@ -641,7 +688,17 @@ TEST_P(PersistentVolumeTest, ShrinkVolume)
   // The disk spaces will be merged if the fixture parameter is `NONE`.
   Bytes totalBytes = GetParam() == NONE ? Megabytes(4096) : Megabytes(2048);
 
-  Bytes shrinkBytes = Megabytes(512);
+  Bytes subtractBytes = Megabytes(512);
+
+  // Construct a dynamic reservation for all disk resources.
+  // NOTE: We dynamically reserve all disk resources so they become checkpointed
+  // resources and thus will be verified on the agent when launching a task.
+  Resource::ReservationInfo dynamicReservation = createDynamicReservationInfo(
+      frameworkInfo.roles(0),
+      frameworkInfo.principal());
+
+  Resource dynamicallyReserved = getDiskResource(totalBytes, 1);
+  dynamicallyReserved.add_reservations()->CopyFrom(dynamicReservation);
 
   // Construct a persistent volume which uses up all disk resources.
   Resource volume = createPersistentVolume(
@@ -650,15 +707,21 @@ TEST_P(PersistentVolumeTest, ShrinkVolume)
       "path1",
       None(),
       frameworkInfo.principal());
+  volume.add_reservations()->CopyFrom(dynamicReservation);
+  ASSERT_TRUE(needCheckpointing(volume));
 
-  Resource subtract = getDiskResource(shrinkBytes, 1);
+  Resource subtract = getDiskResource(subtractBytes, 1);
+  subtract.add_reservations()->CopyFrom(dynamicReservation);
+  ASSERT_TRUE(needCheckpointing(subtract));
 
   Resource shrunkVolume = createPersistentVolume(
-      getDiskResource(totalBytes - shrinkBytes, 1),
+      getDiskResource(totalBytes - subtractBytes, 1),
       "id1",
       "path1",
       None(),
       frameworkInfo.principal());
+  shrunkVolume.add_reservations()->CopyFrom(dynamicReservation);
+  ASSERT_TRUE(needCheckpointing(shrunkVolume));
 
   Future<vector<Offer>> offersBeforeShrink;
 
@@ -674,7 +737,7 @@ TEST_P(PersistentVolumeTest, ShrinkVolume)
   // Create the persistent volume.
   driver.acceptOffers(
       {offer.id()},
-      {CREATE(volume)},
+      {RESERVE(dynamicallyReserved), CREATE(volume)},
       filters);
 
   Clock::settle();
@@ -718,9 +781,6 @@ TEST_P(PersistentVolumeTest, ShrinkVolume)
   AWAIT_READY(offersAfterShrink);
   ASSERT_FALSE(offersAfterShrink->empty());
 
-  EXPECT_TRUE(os::exists(volumePath));
-  EXPECT_SOME_EQ("abc", os::read(filePath));
-
   offer = offersAfterShrink->at(0);
 
   if (GetParam() != MOUNT) {
@@ -741,15 +801,48 @@ TEST_P(PersistentVolumeTest, ShrinkVolume)
         allocatedResources(subtract, frameworkInfo.roles(0))));
   }
 
-  Clock::resume();
+  Future<TaskStatus> taskStarting;
+  Future<TaskStatus> taskRunning;
+  Future<TaskStatus> taskFinished;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&taskStarting))
+    .WillOnce(FutureArg<1>(&taskRunning))
+    .WillOnce(FutureArg<1>(&taskFinished));
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      offer.resources(),
+      "test `cat path1/file` = abc");
+
+  // Launch a task to verify that: if the fixture parameter is NONE or PATH,
+  // `SHRINK_VOLUME` takes effect on the agent and the task can use the shrunk
+  // volume as well as the freed disk resource; otherwise, `SHRINK_VOLUME`
+  // takes no effect on the agent.
+  driver.acceptOffers({offer.id()}, {LAUNCH({task})}, filters);
+
+  AWAIT_READY(taskStarting);
+  EXPECT_EQ(task.task_id(), taskStarting->task_id());
+  EXPECT_EQ(TASK_STARTING, taskStarting->state());
+
+  AWAIT_READY(taskRunning);
+  EXPECT_EQ(task.task_id(), taskRunning->task_id());
+  EXPECT_EQ(TASK_RUNNING, taskRunning->state());
+
+  AWAIT_READY(taskFinished);
+  EXPECT_EQ(task.task_id(), taskFinished->task_id());
+  EXPECT_EQ(TASK_FINISHED, taskFinished->state());
 
   driver.stop();
   driver.join();
+
+  Clock::resume();
 }
 
 
-// This test verifies that a subsequent `LAUNCH` depending on a grown volume
-// will be dropped because we intend to keep `GROW_VOLUME` non-speculative.
+// This test verifies that any task to launch after a `GROW_VOLUME` in the same
+// `ACCEPT` call is dropped if the task consumes the original or grown volume,
+// because we intend to make `GROW_VOLUME` non-speculative.
 TEST_P(PersistentVolumeTest, NonSpeculativeGrowAndLaunch)
 {
   if (GetParam() == MOUNT) {
@@ -821,14 +914,21 @@ TEST_P(PersistentVolumeTest, NonSpeculativeGrowAndLaunch)
       None(),
       frameworkInfo.principal());
 
-  Future<TaskStatus> taskError;
+  Future<TaskStatus> taskError1;
+  Future<TaskStatus> taskError2;
 
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&taskError));
+    .WillOnce(FutureArg<1>(&taskError1))
+    .WillOnce(FutureArg<1>(&taskError2));
 
-  TaskInfo task = createTask(
+  TaskInfo task1 = createTask(
       offer.slave_id(),
       Resources::parse("cpus:1;mem:128").get() + grownVolume,
+      "echo abc > path1/file");
+
+  TaskInfo task2 = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:128").get() + volume,
       "echo abc > path1/file");
 
   Future<vector<Offer>> offersAfterOperations;
@@ -841,16 +941,21 @@ TEST_P(PersistentVolumeTest, NonSpeculativeGrowAndLaunch)
   Filters filters;
   filters.set_refuse_seconds(0);
 
-  // Create and grow will succeed, but launch will be droppd with
-  // `TASK_ERROR`.
+  // The create and grow volume operations will succeed, but the tasks will be
+  // dropped with `TASK_ERROR`.
   driver.acceptOffers(
       {offer.id()},
-      {CREATE(volume), GROW_VOLUME(volume, addition), LAUNCH({task})},
+      {CREATE(volume), GROW_VOLUME(volume, addition), LAUNCH({task1, task2})},
       filters);
 
-  AWAIT_READY(taskError);
-  EXPECT_EQ(task.task_id(), taskError->task_id());
-  EXPECT_EQ(TASK_ERROR, taskError->state());
+  AWAIT_READY(taskError1);
+  AWAIT_READY(taskError2);
+
+  hashset<TaskID> expectedTasks = {task1.task_id(), task2.task_id()};
+  hashset<TaskID> actualTasks = {taskError1->task_id(), taskError2->task_id()};
+  EXPECT_EQ(expectedTasks, actualTasks);
+  EXPECT_EQ(TASK_ERROR, taskError1->state());
+  EXPECT_EQ(TASK_ERROR, taskError2->state());
 
   Clock::settle();
   Clock::advance(masterFlags.allocation_interval);
@@ -864,15 +969,16 @@ TEST_P(PersistentVolumeTest, NonSpeculativeGrowAndLaunch)
       allocatedResources(Resources(grownVolume), frameworkInfo.roles(0)),
       Resources(offer.resources()).persistentVolumes());
 
-  Clock::resume();
-
   driver.stop();
   driver.join();
+
+  Clock::resume();
 }
 
 
-// This test verifies that a subsequent `LAUNCH` depends on a shrunk volume
-// will be dropped because we intend to keep `SHRINK_VOLUME` non-speculative.
+// This test verifies that any task to launch after a `SHRINK_VOLUME` in the
+// same `ACCEPT` call is dropped if the task consumes the original or shrunk
+// volume, because we intend to make `SHRINK_VOLUME` non-speculative.
 TEST_P(PersistentVolumeTest, NonSpeculativeShrinkAndLaunch)
 {
   if (GetParam() == MOUNT) {
@@ -937,13 +1043,21 @@ TEST_P(PersistentVolumeTest, NonSpeculativeShrinkAndLaunch)
       None(),
       frameworkInfo.principal());
 
-  Future<TaskStatus> taskError;
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&taskError));
+  Future<TaskStatus> taskError1;
+  Future<TaskStatus> taskError2;
 
-  TaskInfo task = createTask(
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&taskError1))
+    .WillOnce(FutureArg<1>(&taskError2));
+
+  TaskInfo task1 = createTask(
       offer.slave_id(),
       Resources::parse("cpus:1;mem:128").get() + shrunkVolume,
+      "echo abc > path1/file");
+
+  TaskInfo task2 = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:128").get() + volume,
       "echo abc > path1/file");
 
   Future<vector<Offer>> offersAfterOperations;
@@ -956,16 +1070,21 @@ TEST_P(PersistentVolumeTest, NonSpeculativeShrinkAndLaunch)
   Filters filters;
   filters.set_refuse_seconds(0);
 
-  // Create and shrink volume will succeed, but launch will be dropped with
-  // `TASK_ERROR`.
+  // The create and shrink volume operations will succeed, but the tasks will be
+  // dropped with `TASK_ERROR`.
   driver.acceptOffers(
       {offer.id()},
-      {CREATE(volume), SHRINK_VOLUME(volume, subtract), LAUNCH({task})},
+      {CREATE(volume), SHRINK_VOLUME(volume, subtract), LAUNCH({task1, task2})},
       filters);
 
-  AWAIT_READY(taskError);
-  EXPECT_EQ(task.task_id(), taskError->task_id());
-  EXPECT_EQ(TASK_ERROR, taskError->state());
+  AWAIT_READY(taskError1);
+  AWAIT_READY(taskError2);
+
+  hashset<TaskID> expectedTasks = {task1.task_id(), task2.task_id()};
+  hashset<TaskID> actualTasks = {taskError1->task_id(), taskError2->task_id()};
+  EXPECT_EQ(expectedTasks, actualTasks);
+  EXPECT_EQ(TASK_ERROR, taskError1->state());
+  EXPECT_EQ(TASK_ERROR, taskError2->state());
 
   Clock::settle();
   Clock::advance(masterFlags.allocation_interval);
@@ -978,10 +1097,10 @@ TEST_P(PersistentVolumeTest, NonSpeculativeShrinkAndLaunch)
       allocatedResources(Resources(shrunkVolume), frameworkInfo.roles(0)),
       Resources(offer.resources()).persistentVolumes());
 
-  Clock::resume();
-
   driver.stop();
   driver.join();
+
+  Clock::resume();
 }
 
 
@@ -1124,10 +1243,10 @@ TEST_P(PersistentVolumeTest, GoodACLGrowThenShrink)
       Resources(offer.resources()).contains(
       allocatedResources(difference, frameworkInfo.roles(0))));
 
-  Clock::resume();
-
   driver.stop();
   driver.join();
+
+  Clock::resume();
 }
 
 // This test verifies that grow and shrink operations get dropped if
