@@ -98,6 +98,25 @@ Unresolved Critical Issues:
   * [MESOS-8830] - Agent gc on old slave sandboxes could empty persistent volume data
   * [MESOS-8840] - `cpu.cfs_quota_us` may be accidentally set for command task using docker during agent recovery.
 
+Feature Graduations:
+  * [MESOS-4828] - XFS disk quota isolator.
+  * [MESOS-6906] - Introduce a general non-interpreting task check.
+
+All Experimental Features:
+  * [MESOS-3094] - Mesos on Windows.
+  * [MESOS-3421] - Support sharing of resources across task instances.
+  * [MESOS-4312] - Porting Mesos on Power (ppc64le).
+  * [MESOS-4355] - Implement isolator for Docker volume.
+  * [MESOS-4965] - Persistent volume resizing.
+  * [MESOS-5344] - Partition-aware Mesos frameworks.
+  * [MESOS-5788] - Added JAVA API adapter for seamless transition to new scheduler API.
+  * [MESOS-5931] - Support auto backend in Mesos Containerizer.
+  * [MESOS-6014] - Added port mapping CNI plugin.
+  * [MESOS-7944] - Libprocess `MemoryProfiler`.
+  * [MESOS-8534] - Separate CNI networks for nested containers.
+  * [MESOS-8649] - Support for Container Storage Interface version 0.2.
+  * [MESOS-8801] - Linux support for jemalloc.
+
 All Resolved Issues:
 
 ** Bug
