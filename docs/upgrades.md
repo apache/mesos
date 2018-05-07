@@ -57,6 +57,9 @@ We categorize the changes as follows:
     <ul style="padding-left:10px;">
       <li>A <a href="#1-6-x-fetcher-stall-timeout">fetcher_stall_timeout</a></li>
     </ul>
+    <ul style="padding-left:10px;">
+      <li>A <a href="#1-6-x-xfs-kill-containers">xfs_kill_containers</a></li>
+    </ul>
   </td>
 
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Framework API-->
@@ -411,6 +414,11 @@ We categorize the changes as follows:
 <a name="1-6-x-disk-profile-adaptor"></a>
 
 * The disk profile adaptor module has been changed to support CSI v0.2, and its header file has been renamed to be consistent with other modules. See `disk_profile_adaptor.hpp` for interface changes.
+
+<a name="1-6-x-xfs-kill-containers"></a>
+
+* A new agent flag `--xfs_kill_containers` has been added. By setting this flag, the [`disk/xfs`](isolators/disk-xfs.md) isolator
+  will now kill containers that exceed the disk limit.
 
 ## Upgrading from 1.4.x to 1.5.x ##
 

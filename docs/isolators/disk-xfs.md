@@ -39,5 +39,14 @@ to display the `fsxattr.projid` field. For example:
 
     $ xfs_io -r -c stat /mnt/mesos/
 
-Note that the Posix Disk isolator `--container_disk_watch_interval`
-does not apply to the XFS Disk isolator.
+## Killing containers
+
+The XFS Disk isolator flag `--xfs_kill_containers` will create container
+quotas that have a gap between the soft and hard limits. The soft limit is
+equal to the limit requested for the `disk` resource and the hard limit
+is 10MB higher. If a container violates the soft limit then it will be
+killed. The isolator polls for soft limit violations at the interval
+specified by the `--container_disk_watch_interval` flag.
+
+Note that the `--container_disk_watch_interval` flag only applies to
+the XFS Disk isolator when `--xfs_kill_containers` is set to true.
