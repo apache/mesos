@@ -642,12 +642,10 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_MaxCompletionTime)
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillOnce(FutureArg<1>(&statusFailed));
 
+  Future<Nothing> executorTerminated =
+    FUTURE_DISPATCH(_, &Slave::executorTerminated);
+
   driver.launchTasks(offers.get()[0].id(), {task});
-
-  AWAIT_READY_FOR(containerId, Seconds(60));
-
-  Future<Option<ContainerTermination>> termination =
-dockerContainerizer.wait(containerId.get());
 
   AWAIT_READY_FOR(statusStarting, Seconds(60));
   EXPECT_EQ(TASK_STARTING, statusStarting->state());
@@ -659,8 +657,7 @@ dockerContainerizer.wait(containerId.get());
   EXPECT_EQ(
       TaskStatus::REASON_MAX_COMPLETION_TIME_REACHED, statusFailed->reason());
 
-  AWAIT_READY(termination);
-  EXPECT_SOME(termination.get());
+  AWAIT_READY(executorTerminated);
 
   driver.stop();
   driver.join();
