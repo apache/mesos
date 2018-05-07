@@ -610,12 +610,12 @@ TEST_F(ROOT_XFS_QuotaTest, DiskUsageExceedsQuotaWithKill)
   Resources limit = Resources(killedStatus->limitation().resources());
 
   // Expect that we were limited on a single disk resource that represents
-  // the amount of disk that the task consumed. Note that while the task
-  // used up to 2MB, the executor logs might use more so we have to check
-  // for >= 2MB in this expectation.
+  // the amount of disk that the task consumed. The task used up to 2MB
+  // and the the executor logs might use more, but as long we report that
+  // the task used more than the 1MB in its resources, we are happy.
   EXPECT_EQ(1u, limit.size());
   ASSERT_SOME(limit.disk());
-  EXPECT_GE(limit.disk().get(), Megabytes(2));
+  EXPECT_GT(limit.disk().get(), Megabytes(1));
 
   driver.stop();
   driver.join();
