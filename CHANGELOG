@@ -233,6 +233,7 @@ All Resolved Issues:
     * [MESOS-8874] - ResourceProviderManagerHttpApiTest.ResubscribeResourceProvider is flaky.
     * [MESOS-8876] - Normal exit of Docker container using rexray volume results in TASK_FAILED.
     * [MESOS-8881] - Enable epoll backend in libevent integration.
+    * [MESOS-8885] - Disable libevent debug mode.
 
 ** Improvement
     * [MESOS-2922] - Add move constructors / assignment to Future.
