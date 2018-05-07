@@ -4300,6 +4300,14 @@ Future<Response> Master::Http::__updateMaintenanceSchedule(
 
   return master->registrar->apply(Owned<RegistryOperation>(
       new maintenance::UpdateSchedule(schedule)))
+    .onAny([](const Future<bool>& result){
+      // TODO(fiu): Consider changing/refactoring the registrar itself
+      // so the individual call sites don't need to handle this separately.
+      // All registrar failures that cause it to abort should instead
+      // abort the process.
+      CHECK_READY(result)
+        << "Failed to update maintenance schedule in the registry";
+    })
     .then(defer(master->self(), [this, schedule](bool result) {
       return ___updateMaintenanceSchedule(schedule, result);
     }));
