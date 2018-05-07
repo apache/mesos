@@ -232,6 +232,7 @@ All Resolved Issues:
     * [MESOS-8870] - Master does not correctly reconcile dropped operations after agent failover
     * [MESOS-8874] - ResourceProviderManagerHttpApiTest.ResubscribeResourceProvider is flaky.
     * [MESOS-8876] - Normal exit of Docker container using rexray volume results in TASK_FAILED.
+    * [MESOS-8881] - Enable epoll backend in libevent integration.
 
 ** Improvement
     * [MESOS-2922] - Add move constructors / assignment to Future.
