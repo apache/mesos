@@ -1160,9 +1160,13 @@ if test "x$enable_grpc" = "xyes"; then
       GRPCPREFIX="/usr"
     fi
 
+    if test "x$enable_ssl" = "xno"; then
+      GRPC_VARIANT="_unsecure"
+    fi
+
     # Check if headers and library were located.
     saved_LIBS="$LIBS"
-    LIBS="-lgrpc++ -lgrpc -lgpr $LIBS"
+    LIBS="-lgrpc++$GRPC_VARIANT -lgrpc$GRPC_VARIANT -lgpr $LIBS"
     AC_LANG_PUSH([C++])
     AC_CHECK_HEADERS([grpcpp/grpcpp.h],
                      [AC_LINK_IFELSE(
@@ -1201,14 +1205,6 @@ correct if you are already doing this.
       ])
     fi
   else
-    if test "x$found_ssl" != "xyes"; then
-      AC_MSG_ERROR([cannot find libssl
--------------------------------------------------------------------
-libssl is required for gRPC to build.
--------------------------------------------------------------------
-      ])
-    fi
-
     with_bundled_grpc=yes
   fi
 fi

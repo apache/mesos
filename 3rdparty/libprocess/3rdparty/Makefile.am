@@ -204,26 +204,39 @@ PROTOC = @PROTOCOMPILER@
 endif
 
 if ENABLE_GRPC
+if !ENABLE_SSL
+GRPC_VARIANT = _unsecure
+endif
+
 if WITH_BUNDLED_GRPC
-LIB_GRPC = $(GRPC)/libs/opt/libgrpc++.a			\
-           $(GRPC)/libs/opt/libgrpc.a			\
+LIB_GRPC = $(GRPC)/libs/opt/libgrpc++$(GRPC_VARIANT).a	\
+           $(GRPC)/libs/opt/libgrpc$(GRPC_VARIANT).a	\
            $(GRPC)/libs/opt/libgpr.a
 
 $(LIB_GRPC): $(GRPC)-build-stamp
 
+# NOTE: We the include flags through the `CPPFLAGS` environment variable rather
+# than the command line because gRPC uses target-specific assignments to append
+# flags to `CPPFLAGS`, which will be overwritten by command line arguments. See:
+# https://www.gnu.org/software/make/manual/html_node/Target_002dspecific.html
 $(GRPC)-build-stamp: $(GRPC)-stamp			\
                      $(PROTOBUF)-build-stamp
 	cd $(GRPC) &&					\
 	  CPPFLAGS="$(PROTOBUF_INCLUDE_FLAGS)		\
 	            $(SSL_INCLUDE_FLAGS)		\
 	            $(ZLIB_INCLUDE_FLAGS)"		\
-	  LDFLAGS="$(PROTOBUF_LINKER_FLAGS)		\
-	           $(SSL_LINKER_FLAGS)			\
-	           $(ZLIB_LINKERFLAGS)"			\
 	  $(MAKE) $(AM_MAKEFLAGS)			\
-	          HAS_PKG_CONFIG=false			\
-	          NO_PROTOC=false			\
-	          PROTOC=$(PROTOC)
+	    $(LIB_GRPC:%=$(abs_builddir)/%)		\
+	    CC="$(CC)"					\
+	    CXX="$(CXX)"				\
+	    LD="$(CC)"					\
+	    LDXX="$(CXX)"				\
+	    LDFLAGS="$(PROTOBUF_LINKER_FLAGS)		\
+	             $(SSL_LINKER_FLAGS)		\
+	             $(ZLIB_LINKER_FLAGS)"		\
+	    HAS_PKG_CONFIG=false			\
+	    NO_PROTOC=false				\
+	    PROTOC="$(PROTOC)"
 	touch $@
 
 ALL_LOCAL += $(LIB_GRPC)
