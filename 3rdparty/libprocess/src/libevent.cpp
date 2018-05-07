@@ -199,10 +199,6 @@ void EventLoop::initialize()
 #error "Libevent must be compiled with either pthread or Windows thread support"
 #endif
 
-  // This enables debugging of libevent calls. We can remove this
-  // when the implementation settles and after we gain confidence.
-  event_enable_debug_mode();
-
   base = event_base_new();
 
   if (base == nullptr) {
