@@ -348,11 +348,11 @@ public:
               // lambda; ideally when the Docker issue mentioned above does
               // not occur, `reaped` will be invoked (i.e., the `docker run`
               // command returns) to get the actual exit status of the
-              // container, so here we wait a few seconds for `reaped` to be
+              // container, so here we wait 60 seconds for `reaped` to be
               // invoked. If `reaped` is not invoked within the timeout, that
               // means we hit that Docker issue.
               delay(
-                  Seconds(3),
+                  Seconds(60),
                   self(),
                   &Self::reapedContainer,
                   container.pid.get());
@@ -361,10 +361,10 @@ public:
             }));
         } else {
           // This is the case that the container process has already exited,
-          // Similar to the above case, let's wait a few seconds for `reaped`
+          // Similar to the above case, let's wait 60 seconds for `reaped`
           // to be invoked.
           delay(
-              Seconds(3),
+              Seconds(60),
               self(),
               &Self::reapedContainer,
               None());
