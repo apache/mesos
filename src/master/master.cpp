@@ -2279,7 +2279,11 @@ void Master::drop(
                << " operation from framework " << *framework
                << ": " << message;
 
-  if (operation.has_id()) {
+  // NOTE: The operation validation code should be refactored. Due to the order
+  // of validation, it's possible that this function will be called before the
+  // master validates that operations from v0 frameworks should not have their
+  // ID set.
+  if (operation.has_id() && framework->http.isSome()) {
     scheduler::Event update;
     update.set_type(scheduler::Event::UPDATE_OPERATION_STATUS);
 
