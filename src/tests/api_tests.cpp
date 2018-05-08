@@ -2472,6 +2472,8 @@ TEST_P(MasterAPITest, MasterFailover)
   mesos.reset();
   master->reset();
 
+  Clock::settle();
+
   // Restart the master.
   master = StartMaster(masterFlags);
   ASSERT_SOME(master);
