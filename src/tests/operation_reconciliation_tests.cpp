@@ -74,13 +74,59 @@ TEST_P(OperationReconciliationTest, PendingOperation)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
   Owned<MasterDetector> detector = master.get()->createDetector();
   mesos::internal::slave::Flags slaveFlags = CreateSlaveFlags();
+
+  // Disable HTTP authentication to simplify resource provider interactions.
+  slaveFlags.authenticate_http_readwrite = false;
+
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   // Advance the clock to trigger agent registration.
   Clock::advance(slaveFlags.registration_backoff_factor);
+
+  // Wait for the agent to register.
+  AWAIT_READY(updateSlaveMessage);
+
+  // Start and register a resource provider.
+
+  ResourceProviderInfo resourceProviderInfo;
+  resourceProviderInfo.set_type("org.apache.mesos.rp.test");
+  resourceProviderInfo.set_name("test");
+
+  Resource disk =
+    createDiskResource("200", "*", None(), None(), createDiskSourceRaw());
+
+  Owned<MockResourceProvider> resourceProvider(
+      new MockResourceProvider(
+          resourceProviderInfo,
+          Resources(disk)));
+
+  Owned<EndpointDetector> endpointDetector(
+      mesos::internal::tests::resource_provider::createEndpointDetector(
+          slave.get()->pid));
+
+  updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  // NOTE: We need to resume the clock so that the resource provider can
+  // fully register.
+  Clock::resume();
+
+  ContentType contentType = GetParam();
+
+  resourceProvider->start(endpointDetector, contentType, DEFAULT_CREDENTIAL);
+
+  // Wait until the agent's resources have been updated to include the
+  // resource provider resources.
+  AWAIT_READY(updateSlaveMessage);
+  ASSERT_TRUE(updateSlaveMessage->has_resource_providers());
+  ASSERT_EQ(1, updateSlaveMessage->resource_providers().providers_size());
+
+  Clock::pause();
 
   auto scheduler = std::make_shared<MockHTTPScheduler>();
 
@@ -114,17 +160,24 @@ TEST_P(OperationReconciliationTest, PendingOperation)
   const Offer& offer = offers->offers(0);
   const AgentID& agentId = offer.agent_id();
 
-  OperationID operationId;
-  operationId.set_value("operation");
-
-  const Resources reservedResources =
-    Resources(offer.resources())
-      .pushReservation(createDynamicReservationInfo(
-          frameworkInfo.roles(0), frameworkInfo.principal()));
-
   // We'll drop the `ApplyOperationMessage` from the master to the agent.
   Future<ApplyOperationMessage> applyOperationMessage =
     DROP_PROTOBUF(ApplyOperationMessage(), master.get()->pid, _);
+
+  Resources resources =
+    Resources(offer.resources()).filter([](const Resource& resource) {
+      return resource.has_provider_id();
+    });
+
+  ASSERT_FALSE(resources.empty());
+
+  Resource reservedResources = *(resources.begin());
+  reservedResources.add_reservations()->CopyFrom(
+      createDynamicReservationInfo(
+          frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal()));
+
+  OperationID operationId;
+  operationId.set_value("operation");
 
   mesos.send(createCallAccept(
       frameworkId,
