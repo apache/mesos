@@ -510,7 +510,7 @@ public:
       ReconcileTasksMessage&& reconcileTasksMessage);
 
   void updateOperationStatus(
-      const UpdateOperationStatusMessage& update);
+      UpdateOperationStatusMessage&& update);
 
   void exitedExecutor(
       const process::UPID& from,

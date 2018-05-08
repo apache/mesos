@@ -8417,8 +8417,7 @@ void Master::forward(
 }
 
 
-void Master::updateOperationStatus(
-    const UpdateOperationStatusMessage& update)
+void Master::updateOperationStatus(UpdateOperationStatusMessage&& update)
 {
   CHECK(update.has_slave_id())
     << "External resource provider is not supported yet";
@@ -8470,6 +8469,21 @@ void Master::updateOperationStatus(
     return;
   }
 
+  if (operation->info().has_id()) {
+    // Agents don't include the framework and operation IDs when sending
+    // operation status updates for dropped operations in response to a
+    // `ReconcileOperationsMessage`, but they can be deduced from the operation
+    // info kept on the master.
+
+    // Only operations done via the scheduler API can have an ID.
+    CHECK(operation->has_framework_id());
+
+    frameworkId = operation->framework_id();
+
+    update.mutable_status()->mutable_operation_id()->CopyFrom(
+        operation->info().id());
+  }
+
   updateOperation(operation, update);
 
   CHECK(operation->statuses_size() > 0);
@@ -8477,9 +8491,6 @@ void Master::updateOperationStatus(
   const OperationStatus& latestStatus = *operation->statuses().rbegin();
 
   if (operation->info().has_id()) {
-    // Only operations done via the scheduler API can have an ID.
-    CHECK_SOME(frameworkId);
-
     // Forward the status update to the framework.
     Framework* framework = getFramework(frameworkId.get());
 
