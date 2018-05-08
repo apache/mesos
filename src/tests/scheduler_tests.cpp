@@ -1193,69 +1193,6 @@ TEST_P(SchedulerTest, OperationFeedbackValidationNoResourceProviderCapability)
 }
 
 
-// Verifies invalidation of RESERVE operations with `id` set, when sent by a
-// `SchedulerDriver` framework.
-TEST_P(SchedulerTest, OperationFeedbackValidationSchedulerDriverFramework)
-{
-  Clock::pause();
-
-  master::Flags masterFlags = CreateMasterFlags();
-  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
-  ASSERT_SOME(master);
-
-  Owned<MasterDetector> detector = master.get()->createDetector();
-
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
-  ASSERT_SOME(slave);
-
-  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
-  frameworkInfo.add_roles("framework-role");
-
-  MockScheduler scheduler;
-  MesosSchedulerDriver driver(
-      &scheduler,
-      frameworkInfo,
-      master.get()->pid,
-      DEFAULT_CREDENTIAL);
-
-  Future<FrameworkID> frameworkId;
-  EXPECT_CALL(scheduler, registered(&driver, _, _))
-    .WillOnce(FutureArg<1>(&frameworkId));
-
-  Future<vector<Offer>> offers;
-  EXPECT_CALL(scheduler, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers));
-
-  driver.start();
-
-  AWAIT_READY(frameworkId);
-
-  Clock::advance(masterFlags.allocation_interval);
-  Clock::settle();
-
-  AWAIT_READY(offers);
-  ASSERT_FALSE(offers->empty());
-
-  Future<Nothing> schedulerError;
-  EXPECT_CALL(scheduler, error(_, _))
-    .WillOnce(FutureSatisfy(&schedulerError));
-
-  const Offer& offer = offers->at(0);
-
-  Resources resources = Resources::parse("cpus:0.1").get();
-  resources.pushReservation(createDynamicReservationInfo(
-      frameworkInfo.roles(1),
-      frameworkInfo.principal()));
-
-  Offer::Operation operation = RESERVE(resources);
-  operation.mutable_id()->set_value("RESERVE_OPERATION");
-
-  driver.acceptOffers({offer.id()}, {operation});
-
-  AWAIT_READY(schedulerError);
-}
-
-
 TEST_P(SchedulerTest, ShutdownExecutor)
 {
   Try<Owned<cluster::Master>> master = StartMaster();

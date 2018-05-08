@@ -1342,6 +1342,12 @@ protected:
 
     // Setting accept.operations.
     foreach (const Offer::Operation& _operation, operations) {
+      if (_operation.has_id()) {
+        ABORT("An offer operation's 'id' field was set, which is disallowed"
+              " because the SchedulerDriver cannot handle offer operation"
+              " status updates");
+      }
+
       Offer::Operation* operation = accept->add_operations();
       operation->CopyFrom(_operation);
     }
