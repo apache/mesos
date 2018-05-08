@@ -222,6 +222,7 @@ All Resolved Issues:
     * [MESOS-8749] - CSI proto is always included in the build when using CMake
     * [MESOS-8761] - Default linker fails to link tests on FreeBSD
     * [MESOS-8781] - Mesos master shouldn't silently drop operations
+    * [MESOS-8784] - OPERATION_DROPPED operation status updates should include the operation/framework IDs
     * [MESOS-8787] - RP-related API should be experimental.
     * [MESOS-8804] - Fix Ninja Release builds on Windows
     * [MESOS-8818] - VolumeSandboxPathIsolatorTest.SharedParentTypeVolume fails on macOS
