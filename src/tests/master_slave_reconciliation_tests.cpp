@@ -363,8 +363,17 @@ TEST_F(MasterSlaveReconciliationTest, ReconcileDroppedOperation)
 
   StandaloneMasterDetector detector(master.get()->pid);
 
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
   Try<Owned<cluster::Slave>> slave = StartSlave(&detector);
   ASSERT_SOME(slave);
+
+  // Since any out-of-sync operation state in `UpdateSlaveMessage` triggers a
+  // reconciliation, await the message from the initial agent registration
+  // sequence beforce continuing. Otherwise we risk the master reconciling with
+  // the agent before we fail over the master.
+  AWAIT_READY(updateSlaveMessage);
 
   // Register the framework in a non-`*` role so it can reserve resources.
   FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
