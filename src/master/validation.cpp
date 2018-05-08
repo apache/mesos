@@ -2507,7 +2507,7 @@ Option<Error> validate(const Offer::Operation::CreateVolume& createVolume)
   }
 
   if (!Resources::hasResourceProvider(source)) {
-    return Error("Does not have a resource provider");
+    return Error("'source' is not managed by a resource provider");
   }
 
   if (!Resources::isDisk(source, Resource::DiskInfo::Source::RAW)) {
@@ -2533,7 +2533,7 @@ Option<Error> validate(const Offer::Operation::DestroyVolume& destroyVolume)
   }
 
   if (!Resources::hasResourceProvider(volume)) {
-    return Error("Does not have a resource provider");
+    return Error("'volume' is not managed by a resource provider");
   }
 
   if (!Resources::isDisk(volume, Resource::DiskInfo::Source::MOUNT) &&
@@ -2555,7 +2555,7 @@ Option<Error> validate(const Offer::Operation::CreateBlock& createBlock)
   }
 
   if (!Resources::hasResourceProvider(source)) {
-    return Error("Does not have a resource provider");
+    return Error("'source' is not managed by a resource provider");
   }
 
   if (!Resources::isDisk(source, Resource::DiskInfo::Source::RAW)) {
@@ -2576,7 +2576,7 @@ Option<Error> validate(const Offer::Operation::DestroyBlock& destroyBlock)
   }
 
   if (!Resources::hasResourceProvider(block)) {
-    return Error("Does not have a resource provider");
+    return Error("'block' is not managed by a resource provider");
   }
 
   if (!Resources::isDisk(block, Resource::DiskInfo::Source::BLOCK)) {

@@ -1795,7 +1795,7 @@ TEST(OperationValidationTest, CreateVolume)
   ASSERT_SOME(error);
   EXPECT_TRUE(strings::contains(
       error->message,
-      "Does not have a resource provider"));
+      "'source' is not managed by a resource provider"));
 
   createVolume.mutable_source()->CopyFrom(disk1);
   createVolume.set_target_type(Resource::DiskInfo::Source::BLOCK);
@@ -1834,7 +1834,7 @@ TEST(OperationValidationTest, DestroyVolume)
   ASSERT_SOME(error);
   EXPECT_TRUE(strings::contains(
       error->message,
-      "Does not have a resource provider"));
+      "'volume' is not managed by a resource provider"));
 
   destroyVolume.mutable_volume()->CopyFrom(disk3);
 
@@ -1880,7 +1880,7 @@ TEST(OperationValidationTest, CreateBlock)
   ASSERT_SOME(error);
   EXPECT_TRUE(strings::contains(
       error->message,
-      "Does not have a resource provider"));
+      "'source' is not managed by a resource provider"));
 }
 
 
@@ -1910,7 +1910,7 @@ TEST(OperationValidationTest, DestroyBlock)
   ASSERT_SOME(error);
   EXPECT_TRUE(strings::contains(
       error->message,
-      "Does not have a resource provider"));
+      "'block' is not managed by a resource provider"));
 
   destroyBlock.mutable_block()->CopyFrom(disk3);
 
