@@ -155,8 +155,9 @@ def apply_review(options):
     # We store the patch ID in a local variable to ensure the lambda
     # captures the current patch ID.
     patch_file = '%s.patch' % patch_id(options)
-    atexit.register(
-        lambda: os.path.exists(patch_file) and os.remove(patch_file))
+    if not options["keep_patches"]:
+        atexit.register(
+            lambda: os.path.exists(patch_file) and os.remove(patch_file))
 
     fetch_patch(options)
     apply_patch(options)
@@ -382,6 +383,9 @@ def parse_options():
     parser.add_argument('-d', '--dry-run',
                         action='store_true',
                         help='Perform a dry run.')
+    parser.add_argument('-k', '--keep-patches',
+                        action='store_true',
+                        help="Do not delete downloaded patch files.")
     parser.add_argument('-n', '--no-amend',
                         action='store_true',
                         help='Do not amend commit message.')
@@ -409,6 +413,7 @@ def parse_options():
 
     options['review_id'] = args.review_id
     options['dry_run'] = args.dry_run
+    options['keep_patches'] = args.keep_patches
     options['no_amend'] = args.no_amend
     options['github'] = args.github
     options['chain'] = args.chain
