@@ -4300,7 +4300,7 @@ Future<Response> Master::Http::__updateMaintenanceSchedule(
 
   return master->registrar->apply(Owned<RegistryOperation>(
       new maintenance::UpdateSchedule(schedule)))
-    .onAny([](const Future<bool>& result){
+    .onAny([](const Future<bool>& result) {
       // TODO(fiu): Consider changing/refactoring the registrar itself
       // so the individual call sites don't need to handle this separately.
       // All registrar failures that cause it to abort should instead
