@@ -466,6 +466,7 @@ using mesos::v1::TaskInfo;
 using mesos::v1::TaskGroupInfo;
 using mesos::v1::TaskState;
 using mesos::v1::TaskStatus;
+using mesos::v1::UUID;
 using mesos::v1::WeightInfo;
 
 } // namespace v1 {
