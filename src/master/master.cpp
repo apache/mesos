@@ -4235,6 +4235,14 @@ void Master::accept(
               break;
             }
 
+            if (getResourceProviderId(operation).isNone()) {
+              drop(framework,
+                   operation,
+                   "Operation requested feedback, but it affects resources not"
+                   " managed by a resource provider");
+              break;
+            }
+
             if (!slave->capabilities.resourceProvider) {
               drop(framework,
                    operation,
