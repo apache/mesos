@@ -211,18 +211,10 @@ LIB_GRPC = $(GRPC)/libs/opt/libgrpc++.a			\
 
 $(LIB_GRPC): $(GRPC)-build-stamp
 
-# NOTE: The `-Wno-deprecated-declarations` flag is added so that gRPC
-# can be built with OpenSSL 1.1.0. See:
-# https://github.com/grpc/grpc/pull/11496
-# NOTE: The `-Wno-unused-function` flag is added to address errors when
-# compling `src/core/tsi/ssl_transport_security.c`. See:
-# https://github.com/grpc/grpc/pull/11675
 $(GRPC)-build-stamp: $(GRPC)-stamp			\
                      $(PROTOBUF)-build-stamp
 	cd $(GRPC) &&					\
-	  CPPFLAGS="-Wno-deprecated-declarations	\
-	            -Wno-unused-function		\
-	            $(PROTOBUF_INCLUDE_FLAGS)		\
+	  CPPFLAGS="$(PROTOBUF_INCLUDE_FLAGS)		\
 	            $(SSL_INCLUDE_FLAGS)		\
 	            $(ZLIB_INCLUDE_FLAGS)"		\
 	  LDFLAGS="$(PROTOBUF_LINKER_FLAGS)		\
