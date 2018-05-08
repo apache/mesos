@@ -54,10 +54,6 @@ TEST_F(SystemsTests, Sysname)
   EXPECT_EQ(name.get(), "Linux");
 #elif defined(__APPLE__)
   EXPECT_EQ(name.get(), "Darwin");
-#elif defined(__WINDOWS__)
-  // On Windows, `sysname` is one of 2 options.
-  hashset<string> server_types{ "Windows", "Windows Server" };
-  EXPECT_TRUE(server_types.contains(name.get()));
 #endif // __linux__
 }
 

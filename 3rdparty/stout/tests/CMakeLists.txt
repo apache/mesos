@@ -43,6 +43,8 @@ set(STOUT_ROOT_TESTS_SRC
   option_tests.cpp
   os_tests.cpp
   path_tests.cpp
+  protobuf_tests.cpp
+  protobuf_tests.pb.cc
   protobuf_tests.pb.h
   protobuf_tests.proto
   recordio_tests.cpp
@@ -58,8 +60,6 @@ set(STOUT_ROOT_TESTS_SRC
 
 if (NOT WIN32)
   list(APPEND STOUT_ROOT_TESTS_SRC
-    protobuf_tests.cpp
-    protobuf_tests.pb.cc
     svn_tests.cpp)
 endif ()
 
@@ -75,6 +75,8 @@ set(STOUT_OS_TESTS_SRC
 if (NOT WIN32)
   list(APPEND STOUT_OS_TESTS_SRC
     os/sendfile_tests.cpp
+    # NOTE: There is no intention to port the functions exercised in
+    # the following tests to Windows.
     os/signals_tests.cpp
     os/systems_tests.cpp)
 endif ()
