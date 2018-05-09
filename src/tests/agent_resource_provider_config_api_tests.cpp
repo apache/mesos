@@ -297,9 +297,6 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Add)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.isolation = "filesystem/linux";
 
-  // Disable HTTP authentication to simplify resource provider interactions.
-  slaveFlags.authenticate_http_readwrite = false;
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -383,9 +380,6 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_IdempotentAdd)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.isolation = "filesystem/linux";
 
-  // Disable HTTP authentication to simplify resource provider interactions.
-  slaveFlags.authenticate_http_readwrite = false;
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   // Generate a pre-existing config.
@@ -452,9 +446,6 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_AddConflict)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.isolation = "filesystem/linux";
 
-  // Disable HTTP authentication to simplify resource provider interactions.
-  slaveFlags.authenticate_http_readwrite = false;
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   // Generate a pre-existing config.
@@ -513,9 +504,6 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Update)
 
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.isolation = "filesystem/linux";
-
-  // Disable HTTP authentication to simplify resource provider interactions.
-  slaveFlags.authenticate_http_readwrite = false;
 
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
@@ -628,9 +616,6 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_IdempotentUpdate)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.isolation = "filesystem/linux";
 
-  // Disable HTTP authentication to simplify resource provider interactions.
-  slaveFlags.authenticate_http_readwrite = false;
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   // Generate a pre-existing config.
@@ -735,9 +720,6 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Remove)
 
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.isolation = "filesystem/linux";
-
-  // Disable HTTP authentication to simplify resource provider interactions.
-  slaveFlags.authenticate_http_readwrite = false;
 
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 

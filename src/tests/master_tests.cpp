@@ -8646,7 +8646,6 @@ TEST_F(MasterTest, UpdateSlaveMessageWithPendingOffers)
     FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.authenticate_http_readwrite = false;
 
   Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(agent);
@@ -8671,8 +8670,7 @@ TEST_F(MasterTest, UpdateSlaveMessageWithPendingOffers)
   Owned<EndpointDetector> endpointDetector(
       resource_provider::createEndpointDetector(agent.get()->pid));
 
-  resourceProvider->start(
-      endpointDetector, ContentType::PROTOBUF, v1::DEFAULT_CREDENTIAL);
+  resourceProvider->start(endpointDetector, ContentType::PROTOBUF);
 
   AWAIT_READY(updateSlaveMessage);
   ASSERT_TRUE(resourceProvider->info.has_id());
@@ -8765,10 +8763,6 @@ TEST_F(MasterTest, OperationUpdateDuringFailover)
 
   slave::Flags slaveFlags = CreateSlaveFlags();
 
-  // TODO(nfnt): Remove this once 'MockResourceProvider' supports
-  // authentication.
-  slaveFlags.authenticate_http_readwrite = false;
-
   Future<UpdateSlaveMessage> updateSlaveMessage =
     FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
@@ -8801,10 +8795,7 @@ TEST_F(MasterTest, OperationUpdateDuringFailover)
 
   updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
-  resourceProvider.start(
-      endpointDetector,
-      ContentType::PROTOBUF,
-      v1::DEFAULT_CREDENTIAL);
+  resourceProvider.start(endpointDetector, ContentType::PROTOBUF);
 
   AWAIT_READY(updateSlaveMessage);
 

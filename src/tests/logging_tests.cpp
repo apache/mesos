@@ -32,8 +32,6 @@
 
 #include "tests/mesos.hpp"
 
-namespace authentication = process::http::authentication;
-
 using mesos::http::authentication::BasicAuthenticatorFactory;
 
 using process::http::BadRequest;
@@ -41,6 +39,9 @@ using process::http::Forbidden;
 using process::http::OK;
 using process::http::Response;
 using process::http::Unauthorized;
+
+using process::http::authentication::setAuthenticator;
+using process::http::authentication::unsetAuthenticator;
 
 namespace mesos {
 namespace internal {
@@ -53,7 +54,7 @@ protected:
       const std::string& realm,
       const Credentials& credentials)
   {
-    Try<authentication::Authenticator*> authenticator =
+    Try<process::http::authentication::Authenticator*> authenticator =
       BasicAuthenticatorFactory::create(realm, credentials);
 
     ASSERT_SOME(authenticator);
@@ -62,9 +63,10 @@ protected:
     realms.insert(realm);
 
     // Pass ownership of the authenticator to libprocess.
-    AWAIT_READY(authentication::setAuthenticator(
+    AWAIT_READY(setAuthenticator(
         realm,
-        process::Owned<authentication::Authenticator>(authenticator.get())));
+        process::Owned<process::http::authentication::Authenticator>(
+            authenticator.get())));
   }
 
   virtual void TearDown()
@@ -72,7 +74,7 @@ protected:
     foreach (const std::string& realm, realms) {
       // We need to wait in order to ensure that the operation completes before
       // we leave `TearDown`. Otherwise, we may leak a mock object.
-      AWAIT_READY(authentication::unsetAuthenticator(realm));
+      AWAIT_READY(unsetAuthenticator(realm));
     }
 
     realms.clear();

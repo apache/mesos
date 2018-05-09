@@ -455,9 +455,6 @@ TEST_F(
 
   mesos::internal::slave::Flags slaveFlags = CreateSlaveFlags();
 
-  // Disable HTTP authentication to simplify resource provider interactions.
-  slaveFlags.authenticate_http_readwrite = false;
-
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(slave);
 
@@ -519,8 +516,7 @@ TEST_F(
 
   ContentType contentType = ContentType::PROTOBUF;
 
-  resourceProvider->start(
-      endpointDetector, contentType, v1::DEFAULT_CREDENTIAL);
+  resourceProvider->start(endpointDetector, contentType);
 
   // Wait until the agent's resources have been updated to include the
   // resource provider resources.

@@ -177,7 +177,6 @@ TEST_P(MasterAPITest, GetAgents)
     FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.authenticate_http_readwrite = false;
   slaveFlags.hostname = "host";
   slaveFlags.domain = createDomainInfo("region-xyz", "zone-456");
 
@@ -228,7 +227,7 @@ TEST_P(MasterAPITest, GetAgents)
 
   updateAgentMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
-  resourceProvider.start(endpointDetector, contentType, v1::DEFAULT_CREDENTIAL);
+  resourceProvider.start(endpointDetector, contentType);
 
   // Wait until the agent's resources have been updated to include the
   // resource provider resources.
@@ -1024,10 +1023,6 @@ TEST_P(MasterAPITest, GetOperations)
 
   slave::Flags slaveFlags = CreateSlaveFlags();
 
-  // TODO(nfnt): Remove this once 'MockResourceProvider' supports
-  // authentication.
-  slaveFlags.authenticate_http_readwrite = false;
-
   Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(agent);
 
@@ -1051,7 +1046,7 @@ TEST_P(MasterAPITest, GetOperations)
 
   const ContentType contentType = GetParam();
 
-  resourceProvider.start(endpointDetector, contentType, v1::DEFAULT_CREDENTIAL);
+  resourceProvider.start(endpointDetector, contentType);
 
   // Wait until the agent's resources have been updated to include the
   // resource provider resources.
@@ -6826,7 +6821,6 @@ TEST_P(AgentAPITest, GetResourceProviders)
     FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.authenticate_http_readwrite = false;
 
   Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
   ASSERT_SOME(slave);
@@ -6863,7 +6857,7 @@ TEST_P(AgentAPITest, GetResourceProviders)
 
   updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
-  resourceProvider.start(endpointDetector, contentType, v1::DEFAULT_CREDENTIAL);
+  resourceProvider.start(endpointDetector, contentType);
 
   // Wait until the agent's resources have been updated to include the
   // resource provider resources.
@@ -6913,10 +6907,6 @@ TEST_P(AgentAPITest, GetOperations)
 
   slave::Flags slaveFlags = CreateSlaveFlags();
 
-  // TODO(nfnt): Remove this once 'MockResourceProvider' supports
-  // authentication.
-  slaveFlags.authenticate_http_readwrite = false;
-
   Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(agent);
 
@@ -6940,7 +6930,7 @@ TEST_P(AgentAPITest, GetOperations)
 
   const ContentType contentType = GetParam();
 
-  resourceProvider.start(endpointDetector, contentType, v1::DEFAULT_CREDENTIAL);
+  resourceProvider.start(endpointDetector, contentType);
 
   // Wait until the agent's resources have been updated to include the
   // resource provider resources.

@@ -68,6 +68,8 @@
 #include <stout/unreachable.hpp>
 #include <stout/uuid.hpp>
 
+#include "authentication/executor/jwt_secret_generator.hpp"
+
 #include "common/http.hpp"
 
 #include "messages/messages.hpp" // For google::protobuf::Message.
@@ -3067,12 +3069,32 @@ public:
     return driver->send(call);
   }
 
-  template <typename Credential>
   void start(
       process::Owned<mesos::internal::EndpointDetector> detector,
-      ContentType contentType,
-      const Credential& credential)
+      ContentType contentType)
   {
+    Option<std::string> token;
+
+#ifdef USE_SSL_SOCKET
+    mesos::authentication::executor::JWTSecretGenerator secretGenerator(
+        DEFAULT_JWT_SECRET_KEY);
+
+    // For resource provider authentication the chosen claims don't matter,
+    // only the signature has to be valid.
+    // TODO(nfnt): Revisit this once there's authorization of resource provider
+    // API calls.
+    hashmap<std::string, std::string> claims;
+    claims["foo"] = "bar";
+
+    process::http::authentication::Principal principal(None(), claims);
+
+    process::Future<Secret> secret = secretGenerator.generate(principal);
+
+    AWAIT_READY(secret);
+
+    token = secret->value().data();
+#endif // USE_SSL_SOCKET
+
     driver.reset(new Driver(
         std::move(detector),
         contentType,
@@ -3116,7 +3138,7 @@ public:
                 Source>::events,
             this,
             lambda::_1),
-        None()));
+        token));
 
     driver->start();
   }

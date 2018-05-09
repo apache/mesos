@@ -74,7 +74,6 @@ using mesos::resource_provider::Registrar;
 using mesos::resource_provider::RemoveResourceProvider;
 
 using mesos::v1::resource_provider::Call;
-using mesos::v1::resource_provider::Driver;
 using mesos::v1::resource_provider::Event;
 
 using process::Clock;
@@ -103,18 +102,7 @@ namespace tests {
 
 class ResourceProviderManagerHttpApiTest
   : public MesosTest,
-    public WithParamInterface<ContentType>
-{
-public:
-  slave::Flags CreateSlaveFlags() override
-  {
-    slave::Flags slaveFlags = MesosTest::CreateSlaveFlags();
-
-    slaveFlags.authenticate_http_readwrite = false;
-
-    return slaveFlags;
-  }
-};
+    public WithParamInterface<ContentType> {};
 
 
 // The tests are parameterized by the content type of the request.
@@ -959,7 +947,7 @@ TEST_P(ResourceProviderManagerHttpApiTest, ConvertResources)
 
   const ContentType contentType = GetParam();
 
-  resourceProvider.start(endpointDetector, contentType, v1::DEFAULT_CREDENTIAL);
+  resourceProvider.start(endpointDetector, contentType);
 
   // Wait until the agent's resources have been updated to include the
   // resource provider resources.
@@ -1091,10 +1079,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 
   const ContentType contentType = GetParam();
 
-  resourceProvider->start(
-      endpointDetector,
-      contentType,
-      v1::DEFAULT_CREDENTIAL);
+  resourceProvider->start(endpointDetector, contentType);
 
   // Wait until the agent's resources have been updated to include the
   // resource provider resources. At this point the resource provider
@@ -1114,10 +1099,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   EXPECT_CALL(*resourceProvider, subscribed(_))
     .WillOnce(FutureArg<0>(&subscribed1));
 
-  resourceProvider->start(
-      endpointDetector,
-      contentType,
-      v1::DEFAULT_CREDENTIAL);
+  resourceProvider->start(endpointDetector, contentType);
 
   AWAIT_READY(subscribed1);
   EXPECT_EQ(resourceProviderInfo.id(), subscribed1->provider_id());
@@ -1157,10 +1139,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   EXPECT_CALL(*resourceProvider, subscribed(_))
     .WillOnce(FutureArg<0>(&subscribed2));
 
-  resourceProvider->start(
-      endpointDetector,
-      contentType,
-      v1::DEFAULT_CREDENTIAL);
+  resourceProvider->start(endpointDetector, contentType);
 
   AWAIT_READY(subscribed2);
   EXPECT_EQ(resourceProviderInfo.id(), subscribed2->provider_id());
@@ -1219,10 +1198,7 @@ TEST_P(ResourceProviderManagerHttpApiTest, ResubscribeUnknownID)
 
   const ContentType contentType = GetParam();
 
-  resourceProvider->start(
-      endpointDetector,
-      contentType,
-      v1::DEFAULT_CREDENTIAL);
+  resourceProvider->start(endpointDetector, contentType);
 
   AWAIT_READY(disconnected);
 }
@@ -1275,10 +1251,7 @@ TEST_P(ResourceProviderManagerHttpApiTest, ResourceProviderDisconnect)
 
   const ContentType contentType = GetParam();
 
-  resourceProvider->start(
-      endpointDetector,
-      contentType,
-      v1::DEFAULT_CREDENTIAL);
+  resourceProvider->start(endpointDetector, contentType);
 
   {
     // Wait until the agent's resources have been updated to include
@@ -1354,10 +1327,7 @@ TEST_F(ResourceProviderManagerHttpApiTest, ResourceProviderSubscribeDisconnect)
   EXPECT_CALL(*resourceProvider1, subscribed(_))
     .WillOnce(FutureArg<0>(&subscribed1));
 
-  resourceProvider1->start(
-      endpointDetector,
-      ContentType::PROTOBUF,
-      v1::DEFAULT_CREDENTIAL);
+  resourceProvider1->start(endpointDetector, ContentType::PROTOBUF);
 
   AWAIT_READY(subscribed1);
 
@@ -1383,10 +1353,7 @@ TEST_F(ResourceProviderManagerHttpApiTest, ResourceProviderSubscribeDisconnect)
   EXPECT_CALL(*resourceProvider2, subscribed(_))
     .WillOnce(FutureArg<0>(&subscribed2));
 
-  resourceProvider2->start(
-      endpointDetector,
-      ContentType::PROTOBUF,
-      v1::DEFAULT_CREDENTIAL);
+  resourceProvider2->start(endpointDetector, ContentType::PROTOBUF);
 
   AWAIT_READY(disconnected1);
   AWAIT_READY(subscribed2);
@@ -1431,10 +1398,7 @@ TEST_F(ResourceProviderManagerHttpApiTest, Metrics)
   EXPECT_CALL(*resourceProvider, subscribed(_))
     .WillOnce(FutureArg<0>(&subscribed));
 
-  resourceProvider->start(
-      endpointDetector,
-      ContentType::PROTOBUF,
-      v1::DEFAULT_CREDENTIAL);
+  resourceProvider->start(endpointDetector, ContentType::PROTOBUF);
 
   AWAIT_READY(subscribed);
 

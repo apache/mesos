@@ -288,9 +288,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NoResource)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.isolation = "filesystem/linux";
 
-  // Disable HTTP authentication to simplify resource provider interactions.
-  slaveFlags.authenticate_http_readwrite = false;
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   // Since the local resource provider daemon is started after the agent
@@ -376,9 +373,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ZeroSizedDisk)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.isolation = "filesystem/linux";
 
-  // Disable HTTP authentication to simplify resource provider interactions.
-  slaveFlags.authenticate_http_readwrite = false;
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   // Since the local resource provider daemon is started after the agent
@@ -442,9 +436,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_SmallDisk)
 
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.isolation = "filesystem/linux";
-
-  // Disable HTTP authentication to simplify resource provider interactions.
-  slaveFlags.authenticate_http_readwrite = false;
 
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
@@ -548,9 +539,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NewProfile)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.isolation = "filesystem/linux";
 
-  // Disable HTTP authentication to simplify resource provider interactions.
-  slaveFlags.authenticate_http_readwrite = false;
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
@@ -648,9 +636,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolume)
 
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.isolation = "filesystem/linux";
-
-  // Disable HTTP authentication to simplify resource provider interactions.
-  slaveFlags.authenticate_http_readwrite = false;
 
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
@@ -827,9 +812,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolumeRecovery)
 
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.isolation = "filesystem/linux";
-
-  // Disable HTTP authentication to simplify resource provider interactions.
-  slaveFlags.authenticate_http_readwrite = false;
 
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
@@ -1026,9 +1008,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_AgentRegisteredWithNewId)
 
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.isolation = "filesystem/linux";
-
-  // Disable HTTP authentication to simplify resource provider interactions.
-  slaveFlags.authenticate_http_readwrite = false;
 
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
@@ -1228,9 +1207,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResources)
 
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.isolation = "filesystem/linux";
-
-  // Disable HTTP authentication to simplify resource provider interactions.
-  slaveFlags.authenticate_http_readwrite = false;
 
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
@@ -1444,9 +1420,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesRecovery)
 
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.isolation = "filesystem/linux";
-
-  // Disable HTTP authentication to simplify resource provider interactions.
-  slaveFlags.authenticate_http_readwrite = false;
 
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
@@ -1717,9 +1690,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesReboot)
 
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.isolation = "filesystem/linux";
-
-  // Disable HTTP authentication to simplify resource provider interactions.
-  slaveFlags.authenticate_http_readwrite = false;
 
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
@@ -2032,9 +2002,6 @@ TEST_F(
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.isolation = "filesystem/linux";
 
-  // Disable HTTP authentication to simplify resource provider interactions.
-  slaveFlags.authenticate_http_readwrite = false;
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
@@ -2299,9 +2266,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ConvertPreExistingVolume)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.isolation = "filesystem/linux";
 
-  // Disable HTTP authentication to simplify resource provider interactions.
-  slaveFlags.authenticate_http_readwrite = false;
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   // Since the local resource provider daemon is started after the agent
@@ -2517,9 +2481,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_RetryOperationStatusUpdate)
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "filesystem/linux";
 
-  // Disable HTTP authentication to simplify resource provider interactions.
-  flags.authenticate_http_readwrite = false;
-
   flags.resource_provider_config_dir = resourceProviderConfigDir;
   flags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
@@ -2670,9 +2631,6 @@ TEST_F(
 
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "filesystem/linux";
-
-  // Disable HTTP authentication to simplify resource provider interactions.
-  flags.authenticate_http_readwrite = false;
 
   flags.resource_provider_config_dir = resourceProviderConfigDir;
   flags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
@@ -2837,9 +2795,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_Metrics)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.isolation = "filesystem/linux";
 
-  // Disable HTTP authentication to simplify resource provider interactions.
-  slaveFlags.authenticate_http_readwrite = false;
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   slave::Fetcher fetcher(slaveFlags);
@@ -2933,9 +2888,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ReconcileDroppedOperation)
 
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.isolation = "filesystem/linux";
-
-  // Disable HTTP authentication to simplify resource provider interactions.
-  slaveFlags.authenticate_http_readwrite = false;
 
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
@@ -3141,9 +3093,6 @@ TEST_F(
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "filesystem/linux";
 
-  // Disable HTTP authentication to simplify resource provider interactions.
-  flags.authenticate_http_readwrite = false;
-
   flags.resource_provider_config_dir = resourceProviderConfigDir;
   flags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
@@ -3328,9 +3277,6 @@ TEST_F(
 
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "filesystem/linux";
-
-  // Disable HTTP authentication to simplify resource provider interactions.
-  flags.authenticate_http_readwrite = false;
 
   flags.resource_provider_config_dir = resourceProviderConfigDir;
   flags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;

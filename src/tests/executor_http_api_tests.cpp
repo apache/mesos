@@ -96,7 +96,6 @@ protected:
     // currently has SSL as a dependency, so this is only necessary if Mesos was
     // built with SSL support.
     flags.authenticate_http_executors = false;
-    flags.jwt_secret_key = None();
 #endif // USE_SSL_SOCKET
 
     return flags;

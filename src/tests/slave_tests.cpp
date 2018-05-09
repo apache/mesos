@@ -10559,9 +10559,6 @@ TEST_F(SlaveTest, ResourceProviderSubscribe)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.resources = "cpus:2;mem:512;disk:512;ports:[]";
 
-  // Disable HTTP authentication to simplify resource provider interactions.
-  slaveFlags.authenticate_http_readwrite = false;
-
   StandaloneMasterDetector detector(master.get()->pid);
   Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
   ASSERT_SOME(slave);
@@ -10583,10 +10580,7 @@ TEST_F(SlaveTest, ResourceProviderSubscribe)
   Owned<EndpointDetector> endpointDetector(
       resource_provider::createEndpointDetector(slave.get()->pid));
 
-  resourceProvider.start(
-      endpointDetector,
-      ContentType::PROTOBUF,
-      v1::DEFAULT_CREDENTIAL);
+  resourceProvider.start(endpointDetector, ContentType::PROTOBUF);
 
   AWAIT_READY(connected);
 
@@ -10666,13 +10660,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ResourceProviderPublishAll)
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  slave::Flags flags = CreateSlaveFlags();
-  flags.authenticate_http_readwrite = false;
-
   Future<UpdateSlaveMessage> updateSlaveMessage =
     FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   AWAIT_READY(updateSlaveMessage);
@@ -10694,10 +10685,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ResourceProviderPublishAll)
 
   updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
-  resourceProvider.start(
-      endpointDetector,
-      ContentType::PROTOBUF,
-      v1::DEFAULT_CREDENTIAL);
+  resourceProvider.start(endpointDetector, ContentType::PROTOBUF);
 
   AWAIT_READY(updateSlaveMessage);
 
@@ -10955,7 +10943,6 @@ TEST_F(SlaveTest, ResourceProviderReconciliation)
   ASSERT_SOME(master);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.authenticate_http_readwrite = false;
 
   Future<UpdateSlaveMessage> updateSlaveMessage =
     FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
@@ -10990,8 +10977,7 @@ TEST_F(SlaveTest, ResourceProviderReconciliation)
 
   updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
-  resourceProvider.start(
-      endpointDetector, ContentType::PROTOBUF, v1::DEFAULT_CREDENTIAL);
+  resourceProvider.start(endpointDetector, ContentType::PROTOBUF);
 
   AWAIT_READY(updateSlaveMessage);
 
@@ -11162,7 +11148,6 @@ TEST_F(SlaveTest, RunTaskResourceVersions)
   ASSERT_SOME(master);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.authenticate_http_readwrite = false;
 
   Future<UpdateSlaveMessage> updateSlaveMessage =
     FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
@@ -11197,8 +11182,7 @@ TEST_F(SlaveTest, RunTaskResourceVersions)
 
   updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
-  resourceProvider.start(
-      endpointDetector, ContentType::PROTOBUF, v1::DEFAULT_CREDENTIAL);
+  resourceProvider.start(endpointDetector, ContentType::PROTOBUF);
 
   AWAIT_READY(updateSlaveMessage);
 
