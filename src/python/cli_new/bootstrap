@@ -69,7 +69,6 @@ echo "${CURRDIR}/../lib" >> ${SITE_PACKAGES}/_virtualenv_path_extensions.pth
 python -m pip install --upgrade pip
 python -m pip install -r ${CURRDIR}/pip-requirements.txt
 python -m pip install -r ${CURRDIR}/../lib/requirements.in
-python -m pip install -r ${CURRDIR}/../lib/requirements-test.in
 deactivate
 
 # Add custom postactivate / predeactivate scripts to add / remove
