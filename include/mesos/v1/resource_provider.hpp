@@ -74,13 +74,14 @@ public:
    *     driver is disconnected.
    * @param received a callback which will be invoked when the driver
    *     receives resource provider Events.
+   * @param token the token that will be used for authentication.
    */
   Driver(process::Owned<mesos::internal::EndpointDetector> detector,
          ContentType contentType,
          const std::function<void(void)>& connected,
          const std::function<void(void)>& disconnected,
          const std::function<void(const std::queue<Event>&)>& received,
-         const Option<Credential>& credential);
+         const Option<std::string>& token);
 
   ~Driver();
 

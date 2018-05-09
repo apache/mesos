@@ -60,11 +60,12 @@ Driver::Driver(
     const function<void(void)>& connected,
     const function<void(void)>& disconnected,
     const function<void(const queue<Event>&)>& received,
-    const Option<Credential>& credential)
+    const Option<string>& token)
   : process(new DriverProcess(
         "resource-provider-driver",
         std::move(detector),
         contentType,
+        token,
         validate,
         connected,
         disconnected,

@@ -681,7 +681,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::recover()
               events.pop();
             }
           }),
-          None())); // TODO(nfnt): Add authentication as part of MESOS-7854.
+          authToken));
 
       driver->start();
 

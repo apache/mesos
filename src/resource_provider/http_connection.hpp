@@ -85,6 +85,7 @@ public:
       const std::string& prefix,
       process::Owned<EndpointDetector> _detector,
       ContentType _contentType,
+      const Option<std::string>& _token,
       const std::function<Option<Error>(const Call&)>& validate,
       const std::function<void(void)>& connected,
       const std::function<void(void)>& disconnected,
@@ -92,6 +93,7 @@ public:
     : process::ProcessBase(process::ID::generate(prefix)),
       state(State::DISCONNECTED),
       contentType(_contentType),
+      token(_token),
       callbacks {validate, connected, disconnected, received},
       detector(std::move(_detector)) {}
 
@@ -135,6 +137,10 @@ public:
     request.keepAlive = true;
     request.headers = {{"Accept", stringify(contentType)},
                        {"Content-Type", stringify(contentType)}};
+
+    if (token.isSome()) {
+      request.headers["Authorization"] = "Bearer " + token.get();
+    }
 
     process::Future<process::http::Response> response;
     if (call.type() == Call::SUBSCRIBE) {
@@ -544,6 +550,7 @@ private:
   Option<SubscribedResponse> subscribed;
   Option<process::http::URL> endpoint;
   const mesos::ContentType contentType;
+  Option<std::string> token;
   const Callbacks callbacks;
   process::Mutex mutex; // Used to serialize the callback invocations.
   process::Owned<EndpointDetector> detector;
