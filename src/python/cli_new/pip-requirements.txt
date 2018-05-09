@@ -12,5 +12,5 @@ PyInstaller==3.1.1
 six==1.10.0
 termcolor==1.1.0
 toml==0.9.2
-tox==2.7.0
+tox==3.0.0
 wrapt==1.10.8
