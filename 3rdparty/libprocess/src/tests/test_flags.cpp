@@ -13,20 +13,18 @@
 /**
  * This process provides a target for testing flags
  * in libprocess.
- * It prints out argv separated by spaces
- *
+ * It prints out argv separated by spaces.
  */
 
 #include <stdio.h>
 
-int __cdecl main(int argc, char **argv)
+int __cdecl main(int argc, char** argv)
 {
-    printf("\n");
-    for (int i = 0; i < argc; i++)
-    {
-        printf("%s ", argv[i]);
-    }
-    printf("\n");
-    
-    return(0);
+  printf("\n");
+  for (int i = 0; i < argc; i++) {
+    printf("%s ", argv[i]);
+  }
+  printf("\n");
+
+  return (0);
 }
