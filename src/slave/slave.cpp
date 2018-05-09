@@ -779,7 +779,7 @@ void Slave::initialize()
         });
   route(
       "/api/v1/resource_provider",
-      READWRITE_HTTP_AUTHENTICATION_REALM,
+      RESOURCE_PROVIDER_HTTP_AUTHENTICATION_REALM,
       Http::RESOURCE_PROVIDER_HELP(),
       [this](const http::Request& request, const Option<Principal>& principal)
         -> Future<http::Response> {
