@@ -1021,16 +1021,17 @@ if (ENABLE_GRPC)
     -DgRPC_ZLIB_PROVIDER=package)
 
   if (ENABLE_SSL)
+    set(GRPC_VARIANT "")
     list(APPEND GRPC_CMAKE_ARGS -DgRPC_SSL_PROVIDER=package ${CMAKE_SSL_FORWARD_ARGS})
   else ()
-    set(GRPC_UNSECURE _unsecure)
+    set(GRPC_VARIANT "_unsecure")
     list(APPEND GRPC_CMAKE_ARGS -DgRPC_SSL_PROVIDER=none)
   endif ()
 
   set(GRPC_BUILD_CMD
     ${CMAKE_COMMAND} --build . --target gpr &&
-    ${CMAKE_COMMAND} --build . --target grpc${GRPC_UNSECURE} &&
-    ${CMAKE_COMMAND} --build . --target grpc++${GRPC_UNSECURE} &&
+    ${CMAKE_COMMAND} --build . --target grpc${GRPC_VARIANT} &&
+    ${CMAKE_COMMAND} --build . --target grpc++${GRPC_VARIANT} &&
     ${CMAKE_COMMAND} --build . --target grpc_cpp_plugin)
 
   set_target_properties(
@@ -1052,17 +1053,17 @@ if (ENABLE_GRPC)
 
       set_target_properties(
         libgrpc PROPERTIES
-        IMPORTED_LOCATION_DEBUG ${GRPC_ROOT}-build/Debug/grpc${GRPC_UNSECURE}${LIBRARY_SUFFIX}
-        IMPORTED_LOCATION_RELEASE ${GRPC_ROOT}-build/Release/grpc${GRPC_UNSECURE}${LIBRARY_SUFFIX}
-        IMPORTED_IMPLIB_DEBUG ${GRPC_ROOT}-build/Debug/grpc${GRPC_UNSECURE}${CMAKE_IMPORT_LIBRARY_SUFFIX}
-        IMPORTED_IMPLIB_RELEASE ${GRPC_ROOT}-build/Release/grpc${GRPC_UNSECURE}${CMAKE_IMPORT_LIBRARY_SUFFIX})
+        IMPORTED_LOCATION_DEBUG ${GRPC_ROOT}-build/Debug/grpc${GRPC_VARIANT}${LIBRARY_SUFFIX}
+        IMPORTED_LOCATION_RELEASE ${GRPC_ROOT}-build/Release/grpc${GRPC_VARIANT}${LIBRARY_SUFFIX}
+        IMPORTED_IMPLIB_DEBUG ${GRPC_ROOT}-build/Debug/grpc${GRPC_VARIANT}${CMAKE_IMPORT_LIBRARY_SUFFIX}
+        IMPORTED_IMPLIB_RELEASE ${GRPC_ROOT}-build/Release/grpc${GRPC_VARIANT}${CMAKE_IMPORT_LIBRARY_SUFFIX})
 
       set_target_properties(
         libgrpc++ PROPERTIES
-        IMPORTED_LOCATION_DEBUG ${GRPC_ROOT}-build/Debug/grpc++${GRPC_UNSECURE}${LIBRARY_SUFFIX}
-        IMPORTED_LOCATION_RELEASE ${GRPC_ROOT}-build/Release/grpc++${GRPC_UNSECURE}${LIBRARY_SUFFIX}
-        IMPORTED_IMPLIB_DEBUG ${GRPC_ROOT}-build/Debug/grpc++${GRPC_UNSECURE}${CMAKE_IMPORT_LIBRARY_SUFFIX}
-        IMPORTED_IMPLIB_RELEASE ${GRPC_ROOT}-build/Release/grpc++${GRPC_UNSECURE}${CMAKE_IMPORT_LIBRARY_SUFFIX})
+        IMPORTED_LOCATION_DEBUG ${GRPC_ROOT}-build/Debug/grpc++${GRPC_VARIANT}${LIBRARY_SUFFIX}
+        IMPORTED_LOCATION_RELEASE ${GRPC_ROOT}-build/Release/grpc++${GRPC_VARIANT}${LIBRARY_SUFFIX}
+        IMPORTED_IMPLIB_DEBUG ${GRPC_ROOT}-build/Debug/grpc++${GRPC_VARIANT}${CMAKE_IMPORT_LIBRARY_SUFFIX}
+        IMPORTED_IMPLIB_RELEASE ${GRPC_ROOT}-build/Release/grpc++${GRPC_VARIANT}${CMAKE_IMPORT_LIBRARY_SUFFIX})
 
       set_target_properties(
         grpc_cpp_plugin PROPERTIES
@@ -1076,13 +1077,13 @@ if (ENABLE_GRPC)
 
       set_target_properties(
         libgrpc PROPERTIES
-        IMPORTED_LOCATION ${GRPC_ROOT}-build/grpc${GRPC_UNSECURE}${LIBRARY_SUFFIX}
-        IMPORTED_IMPLIB ${GRPC_ROOT}-build/grpc${GRPC_UNSECURE}${CMAKE_IMPORT_LIBRARY_SUFFIX})
+        IMPORTED_LOCATION ${GRPC_ROOT}-build/grpc${GRPC_VARIANT}${LIBRARY_SUFFIX}
+        IMPORTED_IMPLIB ${GRPC_ROOT}-build/grpc${GRPC_VARIANT}${CMAKE_IMPORT_LIBRARY_SUFFIX})
 
       set_target_properties(
         libgrpc++ PROPERTIES
-        IMPORTED_LOCATION ${GRPC_ROOT}-build/grpc++${GRPC_UNSECURE}${LIBRARY_SUFFIX}
-        IMPORTED_IMPLIB ${GRPC_ROOT}-build/grpc++${GRPC_UNSECURE}${CMAKE_IMPORT_LIBRARY_SUFFIX})
+        IMPORTED_LOCATION ${GRPC_ROOT}-build/grpc++${GRPC_VARIANT}${LIBRARY_SUFFIX}
+        IMPORTED_IMPLIB ${GRPC_ROOT}-build/grpc++${GRPC_VARIANT}${CMAKE_IMPORT_LIBRARY_SUFFIX})
 
       set_target_properties(
         grpc_cpp_plugin PROPERTIES
@@ -1095,11 +1096,11 @@ if (ENABLE_GRPC)
 
     set_target_properties(
       libgrpc PROPERTIES
-      IMPORTED_LOCATION ${GRPC_ROOT}-build/libgrpc${GRPC_UNSECURE}${LIBRARY_SUFFIX})
+      IMPORTED_LOCATION ${GRPC_ROOT}-build/libgrpc${GRPC_VARIANT}${LIBRARY_SUFFIX})
 
     set_target_properties(
       libgrpc++ PROPERTIES
-      IMPORTED_LOCATION ${GRPC_ROOT}-build/libgrpc++${GRPC_UNSECURE}${LIBRARY_SUFFIX})
+      IMPORTED_LOCATION ${GRPC_ROOT}-build/libgrpc++${GRPC_VARIANT}${LIBRARY_SUFFIX})
 
     set_target_properties(
       grpc_cpp_plugin PROPERTIES
