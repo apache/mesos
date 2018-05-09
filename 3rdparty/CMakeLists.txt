@@ -1006,7 +1006,7 @@ if (ENABLE_GRPC)
   add_dependencies(libgrpc++ ${GRPC_TARGET})
 
   add_library(grpc INTERFACE)
-  target_link_libraries(grpc INTERFACE libgpr libgrpc libgrpc++)
+  target_link_libraries(grpc INTERFACE libgrpc++ libgrpc libgpr)
 
   # TODO(chhsiao): Move grpc so these don't have to be GLOBAL.
   add_executable(grpc_cpp_plugin IMPORTED GLOBAL)
