@@ -782,10 +782,17 @@ TEST_F(SubprocessTest, Flags)
 
   string out = path::join(os::getcwd(), "stdout");
 
+#ifdef __WINDOWS__
+  char executablePath[_MAX_PATH + 1];  // NOLINT
+  DWORD dw = GetModuleFileNameA(NULL, executablePath, _MAX_PATH);
+  EXPECT_EQ(GetLastError(), 0);
+  string dir = string(executablePath).substr(0, string(executablePath).find_last_of('\\'));
+#endif
+
   Try<Subprocess> s = subprocess(
 #ifdef __WINDOWS__
       os::Shell::name,
-      {os::Shell::arg0, os::Shell::arg1, "echo"},
+      {os::Shell::arg0, os::Shell::arg1, path::join(dir,  "test-flags.exe")},
 #else
       "/bin/echo",
       vector<string>(1, "echo"),
@@ -831,18 +838,11 @@ TEST_F(SubprocessTest, Flags)
   EXPECT_EQ(flags.i, flags2.i);
   EXPECT_EQ(flags.s, flags2.s);
   EXPECT_EQ(flags.s2, flags2.s2);
-  // TODO(andschwa): Fix the `flags.load()` or `stringify_args` logic.
-  // Currently, this gets escaped to `"\"--s3=\\\"geek\\\"\""` because
-  // it has double quotes in it. See MESOS-8857.
-#ifndef __WINDOWS__
+
   EXPECT_EQ(flags.s3, flags2.s3);
-#endif // __WINDOWS__
   EXPECT_EQ(flags.d, flags2.d);
   EXPECT_EQ(flags.y, flags2.y);
-  // TODO(andschwa): Same problem as above.
-#ifndef __WINDOWS__
   EXPECT_EQ(flags.j, flags2.j);
-#endif // __WINDOWS__
 
   for (int i = 1; i < argc; i++) {
     ::free(argv[i]);
