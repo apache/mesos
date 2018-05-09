@@ -351,7 +351,9 @@ class PyLinter(LinterBase):
     cli_dir = os.path.join('src', 'python', 'cli_new')
     lib_dir = os.path.join('src', 'python', 'lib')
     support_dir = 'support'
-    source_dirs = [cli_dir, lib_dir, support_dir]
+    source_dirs_to_lint_with_venv = [support_dir]
+    source_dirs_to_lint_with_tox = [cli_dir, lib_dir]
+    source_dirs = source_dirs_to_lint_with_tox + source_dirs_to_lint_with_venv
 
     exclude_files = '(' \
                     r'protobuf\-2\.4\.1|' \
@@ -366,38 +368,74 @@ class PyLinter(LinterBase):
 
     comment_prefix = '#'
 
+    pylint_config = os.path.abspath(os.path.join('support', 'pylint.config'))
+
+    def run_tox(self, configfile, args, tox_env=None, recreate=False):
+        """
+        Runs tox with given configfile and args. Optionally set tox env
+        and/or recreate the tox-managed virtualenv.
+        """
+        cmd = [os.path.join(os.path.dirname(__file__),
+                            '.virtualenv', 'bin', 'tox')]
+        cmd += ['-qq']
+        cmd += ['-c', configfile]
+        if tox_env is not None:
+            cmd += ['-e', tox_env]
+        if recreate:
+            cmd += ['--recreate']
+        cmd += ['--']
+        cmd += args
+
+        return subprocess.Popen(cmd, stdout=subprocess.PIPE)
+
+    def filter_source_files(self, source_dir, source_files):
+        """
+        Filters out files starting with source_dir.
+        """
+        return [f for f in source_files if f.startswith(source_dir)]
+
+    def lint_source_files_under_source_dir(self, source_dir, source_files):
+        """
+        Runs pylint directly or indirectly throgh tox on source_files which
+        are under source_dir. If tox is to be used, it must be configured
+        in source_dir, i.e. a tox.ini must be present.
+        """
+        filtered_source_files = self.filter_source_files(
+            source_dir, source_files)
+
+        if len(filtered_source_files) == 0:
+            return 0
+
+        if source_dir in self.source_dirs_to_lint_with_tox:
+            process = self.run_tox(
+                configfile=os.path.join(source_dir, 'tox.ini'),
+                args=['--rcfile='+self.pylint_config] + filtered_source_files,
+                tox_env='py27-lint')
+        else:
+            process = self.run_command_in_virtualenv(
+                'pylint --rcfile={rcfile} {files}'.format(
+                    rcfile=self.pylint_config,
+                    files=' '.join(filtered_source_files)))
+
+        num_errors = 0
+        for line in process.stdout:
+            if re.match(r'^[RCWEF]: *[\d]+', line):
+                num_errors += 1
+            sys.stderr.write(line)
+
+        return num_errors
+
     def run_lint(self, source_paths):
         """
         Runs pylint over given files.
 
         https://google.github.io/styleguide/pyguide.html
         """
-
         num_errors = 0
 
-        pylint_config = os.path.join('support', 'pylint.config')
-
-        source_files = ''
-
         for source_dir in self.source_dirs:
-            source_dir_files = []
-            for source_path in source_paths:
-                if source_path.startswith(source_dir):
-                    source_dir_files.append(source_path)
-
-            source_files = ' '.join([source_files, ' '.join(source_dir_files)])
-
-        process = self.run_command_in_virtualenv(
-            'pylint --rcfile={rcfile} {files}'.format(
-                rcfile=pylint_config,
-                files=source_files
-            )
-        )
-
-        for line in process.stdout:
-            if not line.startswith('*'):
-                num_errors += 1
-            sys.stderr.write(line)
+            num_errors += self.lint_source_files_under_source_dir(
+                source_dir, source_paths)
 
         return num_errors
 

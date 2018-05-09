@@ -73,7 +73,6 @@ pip install -r ${CURRDIR}/pip-requirements.txt
 # https://issues.apache.org/jira/browse/MESOS-8206
 pip install -r ${CURRDIR}/../src/python/cli_new/pip-requirements.txt
 pip install -r ${CURRDIR}/../src/python/lib/requirements.in
-pip install -r ${CURRDIR}/../src/python/lib/requirements-test.in
 
 # Add Node.js virtual environment to the existing virtual environment.
 nodeenv -p
