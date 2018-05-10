@@ -776,10 +776,11 @@ TEST_F(SubprocessTest, Flags)
   string out = path::join(os::getcwd(), "stdout");
 
 #ifdef __WINDOWS__
-  // echo simply reproduces the entire command line string.
-  // When an app gets command line args, text processing is applied by
-  // CommandLineToArgv to convert the command line string into an array of
-  // strings(argv). As a result, running the following command : cmd.exe /c echo
+  // echo,on windows,simply reproduces the entire command line string.
+  // When a regular windows app gets command line args, text processing is
+  // applied by CommandLineToArgv to convert the command line string into an
+  // array of strings(argv). As a result, running the following command :
+  // cmd.exe /c echo
   // "--s3=\"geek\""
   // Results in the following output :
   // "--s3=\"geek\""
