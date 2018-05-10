@@ -776,33 +776,35 @@ TEST_F(SubprocessTest, Flags)
   string out = path::join(os::getcwd(), "stdout");
 
 #ifdef __WINDOWS__
-  // Text processing applied by CommandLineToArgv does not apply to echo.
-  // As a result, running the following command :
-  // cmd.exe /c echo "--s3=\"geek\""
+  // echo simply reproduces the entire command line string.
+  // When an app gets command line args, text processing is applied by
+  // CommandLineToArgv to convert the command line string into an array of
+  // strings(argv). As a result, running the following command : cmd.exe /c echo
+  // "--s3=\"geek\""
   // Results in the following output :
   // "--s3=\"geek\""
   // However, feeding the same command line args to test-flags.exe which simply
-  // prints out each element of argv separated by a space cmd.exe /c test-flags
-  // "--s3=\"geek\"" Results in the following output :
-  // --s3="geek"
-  // as CommandLineToArgv has processed the command line as per rules described
-  // in
+  // prints out each element of argv separated by a space : cmd.exe /c
+  // test-flags "--s3=\"geek\""
+  // Results in the following output (which is what this test expects it to be)
+  // : test-flags --s3="geek" as CommandLineToArgv has processed the command
+  // line as per rules described in
   // https://msdn.microsoft.com/en-us/library/windows/desktop/bb776391(v=vs.85).aspx
-  // Therefore instead of using echo on Windows, we use test-flags.exe(which
+  // Therefore, instead of using echo on Windows, we use test-flags.exe(which
   // does the same as echo but receives it args with standard text processing
-  // applied)
-  char exepath[_MAX_PATH + 1];
-  DWORD dw = GetModuleFileNameA(NULL, exepath, _MAX_PATH);
+  // applied).
+  char exe_path[_MAX_PATH + 1];
+  DWORD dw = GetModuleFileNameA(NULL, exe_path, _MAX_PATH);
   EXPECT_EQ(GetLastError(), 0);
-  string testexepath = path::join(
-      string(exepath).substr(0, string(exepath).find_last_of('\\')),
+  string test_exe_path = path::join(
+      string(exe_path).substr(0, string(exe_path).find_last_of('\\')),
       "test-flags.exe");
 #endif
 
   Try<Subprocess> s = subprocess(
 #ifdef __WINDOWS__
       os::Shell::name,
-      {os::Shell::arg0, os::Shell::arg1, testexepath},
+      {os::Shell::arg0, os::Shell::arg1, test_exe_path},
 #else
       "/bin/echo",
       vector<string>(1, "echo"),
