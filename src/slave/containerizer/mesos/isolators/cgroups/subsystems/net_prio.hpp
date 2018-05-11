@@ -42,9 +42,9 @@ public:
       const Flags& flags,
       const std::string& hierarchy);
 
-  virtual ~NetPrioSubsystem() {}
+  ~NetPrioSubsystem() override = default;
 
-  virtual std::string name() const
+  std::string name() const override
   {
     return CGROUP_SUBSYSTEM_NET_PRIO_NAME;
   };
