@@ -31,6 +31,7 @@ Release Notes - Mesos - Version 1.5.1 (WIP)
   * [MESOS-8641] - Event stream could send heartbeat before subscribed.
   * [MESOS-8646] - Agent should be able to resolve file names on open files.
   * [MESOS-8651] - Potential memory leaks in the `volume/sandbox_path` isolator.
+  * [MESOS-8741] - `Add` to sequence will not run if it races with sequence destruction.
   * [MESOS-8742] - Agent resource provider config API calls should be idempotent.
   * [MESOS-8786] - CgroupIsolatorProcess accesses subsystem processes directly.
   * [MESOS-8787] - RP-related API should be experimental.
