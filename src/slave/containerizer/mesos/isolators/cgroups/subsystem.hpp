@@ -36,10 +36,12 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
+class SubsystemProcess;
+
 /**
  * An abstraction for cgroups subsystem.
  */
-class SubsystemProcess : public process::Process<SubsystemProcess>
+class Subsystem
 {
 public:
   /**
@@ -51,19 +53,26 @@ public:
    * @param hierarchy The hierarchy path of cgroups subsystem.
    * @return A specific `Subsystem` object or an error if `create` fails.
    */
-  static Try<process::Owned<SubsystemProcess>> create(
+  static Try<process::Owned<Subsystem>> create(
       const Flags& flags,
       const std::string& name,
       const std::string& hierarchy);
 
-  virtual ~SubsystemProcess() {}
+  // We have unique ownership of the wrapped process and
+  // enforce that objects of this class cannot be copied.
+  //
+  // TODO(bbannier): Remove this once MESOS-5122 is resolved.
+  Subsystem(const Subsystem&) = delete;
+  Subsystem& operator=(const Subsystem&) = delete;
+
+  ~Subsystem();
 
   /**
    * The cgroups subsystem name of this `Subsystem` object.
    *
    * @return The cgroups subsystem name.
    */
-  virtual std::string name() const = 0;
+  std::string name() const;
 
   /**
    * Recover the cgroups subsystem for the associated container.
@@ -72,7 +81,7 @@ public:
    * @param cgroup The target cgroup.
    * @return Nothing or an error if `recover` fails.
    */
-  virtual process::Future<Nothing> recover(
+  process::Future<Nothing> recover(
       const ContainerID& containerId,
       const std::string& cgroup);
 
@@ -83,7 +92,7 @@ public:
    * @param cgroup The target cgroup.
    * @return Nothing or an error if `prepare` fails.
    */
-  virtual process::Future<Nothing> prepare(
+  process::Future<Nothing> prepare(
       const ContainerID& containerId,
       const std::string& cgroup);
 
@@ -95,7 +104,7 @@ public:
    * @param pid The process id of container.
    * @return Nothing or an error if `isolate` fails.
    */
-  virtual process::Future<Nothing> isolate(
+  process::Future<Nothing> isolate(
       const ContainerID& containerId,
       const std::string& cgroup,
       pid_t pid);
@@ -108,7 +117,7 @@ public:
    * @return The resource limitation that impacts the container or an
    *     error if `watch` fails.
    */
-  virtual process::Future<mesos::slave::ContainerLimitation> watch(
+  process::Future<mesos::slave::ContainerLimitation> watch(
       const ContainerID& containerId,
       const std::string& cgroup);
 
@@ -121,7 +130,7 @@ public:
    * @param resources The resources need to update.
    * @return Nothing or an error if `update` fails.
    */
-  virtual process::Future<Nothing> update(
+  process::Future<Nothing> update(
       const ContainerID& containerId,
       const std::string& cgroup,
       const Resources& resources);
@@ -135,7 +144,7 @@ public:
    * @return The resource usage statistics or an error if gather statistics
    *     fails.
    */
-  virtual process::Future<ResourceStatistics> usage(
+  process::Future<ResourceStatistics> usage(
       const ContainerID& containerId,
       const std::string& cgroup);
 
@@ -147,7 +156,7 @@ public:
    * @param cgroup The target cgroup.
    * @return The container status or an error if get fails.
    */
-  virtual process::Future<ContainerStatus> status(
+  process::Future<ContainerStatus> status(
       const ContainerID& containerId,
       const std::string& cgroup);
 
@@ -163,6 +172,54 @@ public:
    * @param cgroup The target cgroup.
    * @return Nothing or an error if `cleanup` fails.
    */
+  process::Future<Nothing> cleanup(
+      const ContainerID& containerId,
+      const std::string& cgroup);
+
+private:
+  explicit Subsystem(process::Owned<SubsystemProcess> process);
+
+  process::Owned<SubsystemProcess> process;
+};
+
+
+class SubsystemProcess : public process::Process<SubsystemProcess>
+{
+public:
+  virtual ~SubsystemProcess() {}
+
+  virtual std::string name() const = 0;
+
+  virtual process::Future<Nothing> recover(
+      const ContainerID& containerId,
+      const std::string& cgroup);
+
+  virtual process::Future<Nothing> prepare(
+      const ContainerID& containerId,
+      const std::string& cgroup);
+
+  virtual process::Future<Nothing> isolate(
+      const ContainerID& containerId,
+      const std::string& cgroup,
+      pid_t pid);
+
+  virtual process::Future<mesos::slave::ContainerLimitation> watch(
+      const ContainerID& containerId,
+      const std::string& cgroup);
+
+  virtual process::Future<Nothing> update(
+      const ContainerID& containerId,
+      const std::string& cgroup,
+      const Resources& resources);
+
+  virtual process::Future<ResourceStatistics> usage(
+      const ContainerID& containerId,
+      const std::string& cgroup);
+
+  virtual process::Future<ContainerStatus> status(
+      const ContainerID& containerId,
+      const std::string& cgroup);
+
   virtual process::Future<Nothing> cleanup(
       const ContainerID& containerId,
       const std::string& cgroup);
