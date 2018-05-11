@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <utility>
+
 #include <stout/error.hpp>
 #include <stout/hashmap.hpp>
 
@@ -43,7 +45,27 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-Try<Owned<SubsystemProcess>> SubsystemProcess::create(
+Subsystem::Subsystem(Owned<SubsystemProcess> _process)
+  : process(std::move(_process))
+{
+  process::spawn(process.get());
+}
+
+
+Subsystem::~Subsystem()
+{
+  process::terminate(process.get());
+  process::wait(process.get());
+}
+
+
+string Subsystem::name() const
+{
+  return process->name();
+}
+
+
+Try<Owned<Subsystem>> Subsystem::create(
     const Flags& flags,
     const string& name,
     const string& hierarchy)
@@ -76,7 +98,107 @@ Try<Owned<SubsystemProcess>> SubsystemProcess::create(
         subsystemProcess.error());
   }
 
-  return subsystemProcess.get();
+  return Owned<Subsystem>(new Subsystem(subsystemProcess.get()));
+}
+
+
+Future<Nothing> Subsystem::recover(
+    const ContainerID& containerId,
+    const string& cgroup)
+{
+  return process::dispatch(
+      process.get(),
+      &SubsystemProcess::recover,
+      containerId,
+      cgroup);
+}
+
+
+Future<Nothing> Subsystem::prepare(
+    const ContainerID& containerId,
+    const string& cgroup)
+{
+  return process::dispatch(
+      process.get(),
+      &SubsystemProcess::prepare,
+      containerId,
+      cgroup);
+}
+
+
+Future<Nothing> Subsystem::isolate(
+    const ContainerID& containerId,
+    const string& cgroup,
+    pid_t pid)
+{
+  return process::dispatch(
+      process.get(),
+      &SubsystemProcess::isolate,
+      containerId,
+      cgroup,
+      pid);
+}
+
+
+Future<mesos::slave::ContainerLimitation> Subsystem::watch(
+    const ContainerID& containerId,
+    const string& cgroup)
+{
+  return process::dispatch(
+      process.get(),
+      &SubsystemProcess::watch,
+      containerId,
+      cgroup);
+}
+
+
+Future<Nothing> Subsystem::update(
+    const ContainerID& containerId,
+    const string& cgroup,
+    const Resources& resources)
+{
+  return process::dispatch(
+      process.get(),
+      &SubsystemProcess::update,
+      containerId,
+      cgroup,
+      resources);
+}
+
+
+Future<ResourceStatistics> Subsystem::usage(
+    const ContainerID& containerId,
+    const string& cgroup)
+{
+  return process::dispatch(
+      process.get(),
+      &SubsystemProcess::usage,
+      containerId,
+      cgroup);
+}
+
+
+Future<ContainerStatus> Subsystem::status(
+    const ContainerID& containerId,
+    const string& cgroup)
+{
+  return process::dispatch(
+      process.get(),
+      &SubsystemProcess::status,
+      containerId,
+      cgroup);
+}
+
+
+Future<Nothing> Subsystem::cleanup(
+    const ContainerID& containerId,
+    const string& cgroup)
+{
+  return process::dispatch(
+      process.get(),
+      &SubsystemProcess::cleanup,
+      containerId,
+      cgroup);
 }
 
 

@@ -57,7 +57,7 @@ namespace slave {
 CgroupsIsolatorProcess::CgroupsIsolatorProcess(
     const Flags& _flags,
     const hashmap<string, string>& _hierarchies,
-    const multihashmap<string, Owned<SubsystemProcess>>& _subsystems)
+    const multihashmap<string, Owned<Subsystem>>& _subsystems)
   : ProcessBase(process::ID::generate("cgroups-isolator")),
     flags(_flags),
     hierarchies(_hierarchies),
@@ -73,7 +73,7 @@ Try<Isolator*> CgroupsIsolatorProcess::create(const Flags& flags)
   hashmap<string, string> hierarchies;
 
   // Hierarchy path -> subsystem object.
-  multihashmap<string, Owned<SubsystemProcess>> subsystems;
+  multihashmap<string, Owned<Subsystem>> subsystems;
 
   // Multimap: isolator name -> subsystem name.
   multihashmap<string, string> isolatorMap = {
@@ -124,8 +124,8 @@ Try<Isolator*> CgroupsIsolatorProcess::create(const Flags& flags)
       }
 
       // Create and load the subsystem.
-      Try<Owned<SubsystemProcess>> subsystem =
-        SubsystemProcess::create(flags, subsystemName, hierarchy.get());
+      Try<Owned<Subsystem>> subsystem =
+        Subsystem::create(flags, subsystemName, hierarchy.get());
 
       if (subsystem.isError()) {
         return Error(
@@ -154,23 +154,6 @@ bool CgroupsIsolatorProcess::supportsNesting()
 bool CgroupsIsolatorProcess::supportsStandalone()
 {
   return true;
-}
-
-
-void CgroupsIsolatorProcess::initialize()
-{
-  foreachvalue (const Owned<SubsystemProcess>& subsystem, subsystems) {
-    spawn(subsystem.get());
-  }
-}
-
-
-void CgroupsIsolatorProcess::finalize()
-{
-  foreachvalue (const Owned<SubsystemProcess>& subsystem, subsystems) {
-    terminate(subsystem.get());
-    wait(subsystem.get());
-  }
 }
 
 
@@ -338,8 +321,7 @@ Future<Nothing> CgroupsIsolatorProcess::___recover(
       continue;
     }
 
-    foreach (
-        const Owned<SubsystemProcess>& subsystem, subsystems.get(hierarchy)) {
+    foreach (const Owned<Subsystem>& subsystem, subsystems.get(hierarchy)) {
       recoveredSubsystems.insert(subsystem->name());
       recovers.push_back(subsystem->recover(containerId, cgroup));
     }
@@ -439,8 +421,7 @@ Future<Option<ContainerLaunchInfo>> CgroupsIsolatorProcess::prepare(
           "'" + path + "': " + create.error());
     }
 
-    foreach (
-        const Owned<SubsystemProcess>& subsystem, subsystems.get(hierarchy)) {
+    foreach (const Owned<Subsystem>& subsystem, subsystems.get(hierarchy)) {
       infos[containerId]->subsystems.insert(subsystem->name());
       prepares.push_back(subsystem->prepare(
           containerId,
@@ -578,7 +559,7 @@ Future<Nothing> CgroupsIsolatorProcess::isolate(
   }
 
   list<Future<Nothing>> isolates;
-  foreachvalue (const Owned<SubsystemProcess>& subsystem, subsystems) {
+  foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
     isolates.push_back(subsystem->isolate(
         containerId,
         infos[containerId]->cgroup,
@@ -629,7 +610,7 @@ Future<ContainerLimitation> CgroupsIsolatorProcess::watch(
     return Failure("Unknown container");
   }
 
-  foreachvalue (const Owned<SubsystemProcess>& subsystem, subsystems) {
+  foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
     if (infos[containerId]->subsystems.contains(subsystem->name())) {
       subsystem->watch(containerId, infos[containerId]->cgroup)
         .onAny(defer(
@@ -671,7 +652,7 @@ Future<Nothing> CgroupsIsolatorProcess::update(
   }
 
   list<Future<Nothing>> updates;
-  foreachvalue (const Owned<SubsystemProcess>& subsystem, subsystems) {
+  foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
     if (infos[containerId]->subsystems.contains(subsystem->name())) {
       updates.push_back(subsystem->update(
           containerId,
@@ -722,7 +703,7 @@ Future<ResourceStatistics> CgroupsIsolatorProcess::usage(
   }
 
   list<Future<ResourceStatistics>> usages;
-  foreachvalue (const Owned<SubsystemProcess>& subsystem, subsystems) {
+  foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
     if (infos[containerId]->subsystems.contains(subsystem->name())) {
       usages.push_back(subsystem->usage(
           containerId,
@@ -765,7 +746,7 @@ Future<ContainerStatus> CgroupsIsolatorProcess::status(
   }
 
   list<Future<ContainerStatus>> statuses;
-  foreachvalue (const Owned<SubsystemProcess>& subsystem, subsystems) {
+  foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
     if (infos[containerId]->subsystems.contains(subsystem->name())) {
       statuses.push_back(subsystem->status(
           containerId,
@@ -808,7 +789,7 @@ Future<Nothing> CgroupsIsolatorProcess::cleanup(
   }
 
   list<Future<Nothing>> cleanups;
-  foreachvalue (const Owned<SubsystemProcess>& subsystem, subsystems) {
+  foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
     if (infos[containerId]->subsystems.contains(subsystem->name())) {
       cleanups.push_back(subsystem->cleanup(
           containerId,
@@ -850,8 +831,7 @@ Future<Nothing> CgroupsIsolatorProcess::_cleanup(
 
   // TODO(haosdent): Use foreachkey once MESOS-5037 is resolved.
   foreach (const string& hierarchy, subsystems.keys()) {
-    foreach (
-        const Owned<SubsystemProcess>& subsystem, subsystems.get(hierarchy)) {
+    foreach (const Owned<Subsystem>& subsystem, subsystems.get(hierarchy)) {
       if (infos[containerId]->subsystems.contains(subsystem->name())) {
         destroys.push_back(cgroups::destroy(
             hierarchy,
