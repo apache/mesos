@@ -26,19 +26,19 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-Try<Owned<Subsystem>> PidsSubsystem::create(
+Try<Owned<SubsystemProcess>> PidsSubsystemProcess::create(
     const Flags& flags,
     const string& hierarchy)
 {
-  return Owned<Subsystem>(new PidsSubsystem(flags, hierarchy));
+  return Owned<SubsystemProcess>(new PidsSubsystemProcess(flags, hierarchy));
 }
 
 
-PidsSubsystem::PidsSubsystem(
+PidsSubsystemProcess::PidsSubsystemProcess(
     const Flags& _flags,
     const string& _hierarchy)
   : ProcessBase(process::ID::generate("cgroups-pids-subsystem")),
-    Subsystem(_flags, _hierarchy) {}
+    SubsystemProcess(_flags, _hierarchy) {}
 
 } // namespace slave {
 } // namespace internal {

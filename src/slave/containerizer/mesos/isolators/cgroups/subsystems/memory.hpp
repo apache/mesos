@@ -41,14 +41,14 @@ namespace slave {
 /**
  * Represent cgroups memory subsystem.
  */
-class MemorySubsystem : public Subsystem
+class MemorySubsystemProcess : public SubsystemProcess
 {
 public:
-  static Try<process::Owned<Subsystem>> create(
+  static Try<process::Owned<SubsystemProcess>> create(
       const Flags& flags,
       const std::string& hierarchy);
 
-  ~MemorySubsystem() override = default;
+  ~MemorySubsystemProcess() override = default;
 
   std::string name() const override
   {
@@ -93,7 +93,7 @@ private:
     process::Promise<mesos::slave::ContainerLimitation> limitation;
   };
 
-  MemorySubsystem(const Flags& flags, const std::string& hierarchy);
+  MemorySubsystemProcess(const Flags& flags, const std::string& hierarchy);
 
   process::Future<ResourceStatistics> _usage(
       const ContainerID& containerId,
