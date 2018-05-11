@@ -46,24 +46,24 @@ public:
       const Flags& flags,
       const std::string& hierarchy);
 
-  virtual ~DevicesSubsystem() {}
+  ~DevicesSubsystem() override = default;
 
-  virtual std::string name() const
+  std::string name() const override
   {
     return CGROUP_SUBSYSTEM_DEVICES_NAME;
   }
 
-  virtual process::Future<Nothing> prepare(
+  process::Future<Nothing> prepare(
       const ContainerID& containerId,
-      const std::string& cgroup);
+      const std::string& cgroup) override;
 
-  virtual process::Future<Nothing> recover(
+  process::Future<Nothing> recover(
       const ContainerID& containerId,
-      const std::string& cgroup);
+      const std::string& cgroup) override;
 
-  virtual process::Future<Nothing> cleanup(
+  process::Future<Nothing> cleanup(
       const ContainerID& containerId,
-      const std::string& cgroup);
+      const std::string& cgroup) override;
 
 private:
   DevicesSubsystem(
