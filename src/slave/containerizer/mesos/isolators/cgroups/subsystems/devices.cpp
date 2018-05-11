@@ -69,7 +69,7 @@ static const char* DEFAULT_WHITELIST_ENTRIES[] = {
 };
 
 
-Try<Owned<Subsystem>> DevicesSubsystem::create(
+Try<Owned<SubsystemProcess>> DevicesSubsystemProcess::create(
     const Flags& flags,
     const string& hierarchy)
 {
@@ -131,21 +131,21 @@ Try<Owned<Subsystem>> DevicesSubsystem::create(
     }
   }
 
-  return Owned<Subsystem>(
-      new DevicesSubsystem(flags, hierarchy, whitelistDeviceEntries));
+  return Owned<SubsystemProcess>(
+      new DevicesSubsystemProcess(flags, hierarchy, whitelistDeviceEntries));
 }
 
 
-DevicesSubsystem::DevicesSubsystem(
+DevicesSubsystemProcess::DevicesSubsystemProcess(
     const Flags& _flags,
     const string& _hierarchy,
     const vector<cgroups::devices::Entry>& _whitelistDeviceEntries)
   : ProcessBase(process::ID::generate("cgroups-devices-subsystem")),
-    Subsystem(_flags, _hierarchy),
+    SubsystemProcess(_flags, _hierarchy),
     whitelistDeviceEntries(_whitelistDeviceEntries) {}
 
 
-Future<Nothing> DevicesSubsystem::recover(
+Future<Nothing> DevicesSubsystemProcess::recover(
     const ContainerID& containerId,
     const string& cgroup)
 {
@@ -161,7 +161,7 @@ Future<Nothing> DevicesSubsystem::recover(
 }
 
 
-Future<Nothing> DevicesSubsystem::prepare(
+Future<Nothing> DevicesSubsystemProcess::prepare(
     const ContainerID& containerId,
     const string& cgroup)
 {
@@ -213,7 +213,7 @@ Future<Nothing> DevicesSubsystem::prepare(
 }
 
 
-Future<Nothing> DevicesSubsystem::cleanup(
+Future<Nothing> DevicesSubsystemProcess::cleanup(
     const ContainerID& containerId,
     const string& cgroup)
 {

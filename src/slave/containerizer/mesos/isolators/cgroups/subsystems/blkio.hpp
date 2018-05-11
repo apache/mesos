@@ -35,14 +35,14 @@ namespace slave {
 /**
  * Represent cgroups blkio subsystem.
  */
-class BlkioSubsystem : public Subsystem
+class BlkioSubsystemProcess : public SubsystemProcess
 {
 public:
-  static Try<process::Owned<Subsystem>> create(
+  static Try<process::Owned<SubsystemProcess>> create(
       const Flags& flags,
       const std::string& hierarchy);
 
-  ~BlkioSubsystem() override = default;
+  ~BlkioSubsystemProcess() override = default;
 
   std::string name() const override
   {
@@ -50,7 +50,7 @@ public:
   };
 
 private:
-  BlkioSubsystem(const Flags& flags, const std::string& hierarchy);
+  BlkioSubsystemProcess(const Flags& flags, const std::string& hierarchy);
 };
 
 } // namespace slave {

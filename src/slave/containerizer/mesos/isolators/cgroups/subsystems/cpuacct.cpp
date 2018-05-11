@@ -31,22 +31,22 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-Try<Owned<Subsystem>> CpuacctSubsystem::create(
+Try<Owned<SubsystemProcess>> CpuacctSubsystemProcess::create(
     const Flags& flags,
     const string& hierarchy)
 {
-  return Owned<Subsystem>(new CpuacctSubsystem(flags, hierarchy));
+  return Owned<SubsystemProcess>(new CpuacctSubsystemProcess(flags, hierarchy));
 }
 
 
-CpuacctSubsystem::CpuacctSubsystem(
+CpuacctSubsystemProcess::CpuacctSubsystemProcess(
     const Flags& _flags,
     const string& _hierarchy)
   : ProcessBase(process::ID::generate("cgroups-cpuacct-subsystem")),
-    Subsystem(_flags, _hierarchy) {}
+    SubsystemProcess(_flags, _hierarchy) {}
 
 
-Future<ResourceStatistics> CpuacctSubsystem::usage(
+Future<ResourceStatistics> CpuacctSubsystemProcess::usage(
     const ContainerID& containerId,
     const string& cgroup)
 {

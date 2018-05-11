@@ -43,49 +43,51 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-Try<Owned<Subsystem>> Subsystem::create(
+Try<Owned<SubsystemProcess>> SubsystemProcess::create(
     const Flags& flags,
     const string& name,
     const string& hierarchy)
 {
-  hashmap<string, Try<Owned<Subsystem>>(*)(const Flags&, const string&)>
+  hashmap<string, Try<Owned<SubsystemProcess>>(*)(const Flags&, const string&)>
     creators = {
-    {CGROUP_SUBSYSTEM_BLKIO_NAME, &BlkioSubsystem::create},
-    {CGROUP_SUBSYSTEM_CPU_NAME, &CpuSubsystem::create},
-    {CGROUP_SUBSYSTEM_CPUACCT_NAME, &CpuacctSubsystem::create},
-    {CGROUP_SUBSYSTEM_CPUSET_NAME, &CpusetSubsystem::create},
-    {CGROUP_SUBSYSTEM_DEVICES_NAME, &DevicesSubsystem::create},
-    {CGROUP_SUBSYSTEM_HUGETLB_NAME, &HugetlbSubsystem::create},
-    {CGROUP_SUBSYSTEM_MEMORY_NAME, &MemorySubsystem::create},
-    {CGROUP_SUBSYSTEM_NET_CLS_NAME, &NetClsSubsystem::create},
-    {CGROUP_SUBSYSTEM_NET_PRIO_NAME, &NetPrioSubsystem::create},
-    {CGROUP_SUBSYSTEM_PERF_EVENT_NAME, &PerfEventSubsystem::create},
-    {CGROUP_SUBSYSTEM_PIDS_NAME, &PidsSubsystem::create},
+    {CGROUP_SUBSYSTEM_BLKIO_NAME, &BlkioSubsystemProcess::create},
+    {CGROUP_SUBSYSTEM_CPU_NAME, &CpuSubsystemProcess::create},
+    {CGROUP_SUBSYSTEM_CPUACCT_NAME, &CpuacctSubsystemProcess::create},
+    {CGROUP_SUBSYSTEM_CPUSET_NAME, &CpusetSubsystemProcess::create},
+    {CGROUP_SUBSYSTEM_DEVICES_NAME, &DevicesSubsystemProcess::create},
+    {CGROUP_SUBSYSTEM_HUGETLB_NAME, &HugetlbSubsystemProcess::create},
+    {CGROUP_SUBSYSTEM_MEMORY_NAME, &MemorySubsystemProcess::create},
+    {CGROUP_SUBSYSTEM_NET_CLS_NAME, &NetClsSubsystemProcess::create},
+    {CGROUP_SUBSYSTEM_NET_PRIO_NAME, &NetPrioSubsystemProcess::create},
+    {CGROUP_SUBSYSTEM_PERF_EVENT_NAME, &PerfEventSubsystemProcess::create},
+    {CGROUP_SUBSYSTEM_PIDS_NAME, &PidsSubsystemProcess::create},
   };
 
   if (!creators.contains(name)) {
     return Error("Unknown subsystem '" + name + "'");
   }
 
-  Try<Owned<Subsystem>> subsystem = creators[name](flags, hierarchy);
-  if (subsystem.isError()) {
+  Try<Owned<SubsystemProcess>> subsystemProcess =
+    creators[name](flags, hierarchy);
+
+  if (subsystemProcess.isError()) {
     return Error(
         "Failed to create subsystem '" + name + "': " +
-        subsystem.error());
+        subsystemProcess.error());
   }
 
-  return subsystem.get();
+  return subsystemProcess.get();
 }
 
 
-Subsystem::Subsystem(
+SubsystemProcess::SubsystemProcess(
     const Flags& _flags,
     const string& _hierarchy)
   : flags(_flags),
     hierarchy(_hierarchy) {}
 
 
-Future<Nothing> Subsystem::recover(
+Future<Nothing> SubsystemProcess::recover(
     const ContainerID& containerId,
     const string& cgroup)
 {
@@ -93,7 +95,7 @@ Future<Nothing> Subsystem::recover(
 }
 
 
-Future<Nothing> Subsystem::prepare(
+Future<Nothing> SubsystemProcess::prepare(
     const ContainerID& containerId,
     const string& cgroup)
 {
@@ -101,7 +103,7 @@ Future<Nothing> Subsystem::prepare(
 }
 
 
-Future<Nothing> Subsystem::isolate(
+Future<Nothing> SubsystemProcess::isolate(
     const ContainerID& containerId,
     const string& cgroup,
     pid_t pid)
@@ -110,7 +112,7 @@ Future<Nothing> Subsystem::isolate(
 }
 
 
-Future<ContainerLimitation> Subsystem::watch(
+Future<ContainerLimitation> SubsystemProcess::watch(
     const ContainerID& containerId,
     const string& cgroup)
 {
@@ -118,7 +120,7 @@ Future<ContainerLimitation> Subsystem::watch(
 }
 
 
-Future<Nothing> Subsystem::update(
+Future<Nothing> SubsystemProcess::update(
     const ContainerID& containerId,
     const string& cgroup,
     const Resources& resources)
@@ -127,7 +129,7 @@ Future<Nothing> Subsystem::update(
 }
 
 
-Future<ResourceStatistics> Subsystem::usage(
+Future<ResourceStatistics> SubsystemProcess::usage(
     const ContainerID& containerId,
     const string& cgroup)
 {
@@ -135,7 +137,7 @@ Future<ResourceStatistics> Subsystem::usage(
 }
 
 
-Future<ContainerStatus> Subsystem::status(
+Future<ContainerStatus> SubsystemProcess::status(
     const ContainerID& containerId,
     const string& cgroup)
 {
@@ -143,7 +145,7 @@ Future<ContainerStatus> Subsystem::status(
 }
 
 
-Future<Nothing> Subsystem::cleanup(
+Future<Nothing> SubsystemProcess::cleanup(
     const ContainerID& containerId,
     const string& cgroup)
 {

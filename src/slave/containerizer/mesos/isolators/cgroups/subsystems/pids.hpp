@@ -35,14 +35,14 @@ namespace slave {
 /**
  * Represent cgroups pids subsystem.
  */
-class PidsSubsystem : public Subsystem
+class PidsSubsystemProcess : public SubsystemProcess
 {
 public:
-  static Try<process::Owned<Subsystem>> create(
+  static Try<process::Owned<SubsystemProcess>> create(
       const Flags& flags,
       const std::string& hierarchy);
 
-  ~PidsSubsystem() override = default;
+  ~PidsSubsystemProcess() override = default;
 
   std::string name() const override
   {
@@ -50,7 +50,7 @@ public:
   };
 
 private:
-  PidsSubsystem(const Flags& flags, const std::string& hierarchy);
+  PidsSubsystemProcess(const Flags& flags, const std::string& hierarchy);
 };
 
 } // namespace slave {
