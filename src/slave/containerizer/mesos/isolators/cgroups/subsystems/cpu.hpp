@@ -42,21 +42,21 @@ public:
       const Flags& flags,
       const std::string& hierarchy);
 
-  virtual ~CpuSubsystem() {}
+  ~CpuSubsystem() override = default;
 
-  virtual std::string name() const
+  std::string name() const override
   {
     return CGROUP_SUBSYSTEM_CPU_NAME;
   };
 
-  virtual process::Future<Nothing> update(
+  process::Future<Nothing> update(
       const ContainerID& containerId,
       const std::string& cgroup,
-      const Resources& resources);
+      const Resources& resources) override;
 
-  virtual process::Future<ResourceStatistics> usage(
+  process::Future<ResourceStatistics> usage(
       const ContainerID& containerId,
-      const std::string& cgroup);
+      const std::string& cgroup) override;
 
 private:
   CpuSubsystem(const Flags& flags, const std::string& hierarchy);
