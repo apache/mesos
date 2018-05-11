@@ -26,19 +26,19 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-Try<Owned<Subsystem>> NetPrioSubsystem::create(
+Try<Owned<SubsystemProcess>> NetPrioSubsystemProcess::create(
     const Flags& flags,
     const string& hierarchy)
 {
-  return Owned<Subsystem>(new NetPrioSubsystem(flags, hierarchy));
+  return Owned<SubsystemProcess>(new NetPrioSubsystemProcess(flags, hierarchy));
 }
 
 
-NetPrioSubsystem::NetPrioSubsystem(
+NetPrioSubsystemProcess::NetPrioSubsystemProcess(
     const Flags& _flags,
     const string& _hierarchy)
   : ProcessBase(process::ID::generate("cgroups-net-prio-subsystem")),
-    Subsystem(_flags, _hierarchy) {}
+    SubsystemProcess(_flags, _hierarchy) {}
 
 } // namespace slave {
 } // namespace internal {

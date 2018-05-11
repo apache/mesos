@@ -41,14 +41,14 @@ namespace slave {
 /**
  * Represent cgroups perf_event subsystem.
  */
-class PerfEventSubsystem: public Subsystem
+class PerfEventSubsystemProcess: public SubsystemProcess
 {
 public:
-  static Try<process::Owned<Subsystem>> create(
+  static Try<process::Owned<SubsystemProcess>> create(
       const Flags& flags,
       const std::string& hierarchy);
 
-  ~PerfEventSubsystem() override = default;
+  ~PerfEventSubsystemProcess() override = default;
 
   std::string name() const override
   {
@@ -75,7 +75,7 @@ protected:
   void initialize() override;
 
 private:
-  PerfEventSubsystem(
+  PerfEventSubsystemProcess(
       const Flags& flags,
       const std::string& hierarchy,
       const std::set<std::string>& events);

@@ -39,7 +39,7 @@ namespace slave {
 /**
  * An abstraction for cgroups subsystem.
  */
-class Subsystem : public process::Process<Subsystem>
+class SubsystemProcess : public process::Process<SubsystemProcess>
 {
 public:
   /**
@@ -51,12 +51,12 @@ public:
    * @param hierarchy The hierarchy path of cgroups subsystem.
    * @return A specific `Subsystem` object or an error if `create` fails.
    */
-  static Try<process::Owned<Subsystem>> create(
+  static Try<process::Owned<SubsystemProcess>> create(
       const Flags& flags,
       const std::string& name,
       const std::string& hierarchy);
 
-  virtual ~Subsystem() {}
+  virtual ~SubsystemProcess() {}
 
   /**
    * The cgroups subsystem name of this `Subsystem` object.
@@ -168,7 +168,7 @@ public:
       const std::string& cgroup);
 
 protected:
-  Subsystem(const Flags& _flags, const std::string& _hierarchy);
+  SubsystemProcess(const Flags& _flags, const std::string& _hierarchy);
 
   /**
    * `Flags` used to launch the agent.
