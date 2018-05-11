@@ -48,31 +48,31 @@ public:
       const Flags& flags,
       const std::string& hierarchy);
 
-  virtual ~PerfEventSubsystem() {}
+  ~PerfEventSubsystem() override = default;
 
-  virtual std::string name() const
+  std::string name() const override
   {
     return CGROUP_SUBSYSTEM_PERF_EVENT_NAME;
   }
 
-  virtual process::Future<Nothing> prepare(
+  process::Future<Nothing> prepare(
       const ContainerID& containerId,
-      const std::string& cgroup);
+      const std::string& cgroup) override;
 
-  virtual process::Future<Nothing> recover(
+  process::Future<Nothing> recover(
       const ContainerID& containerId,
-      const std::string& cgroup);
+      const std::string& cgroup) override;
 
-  virtual process::Future<ResourceStatistics> usage(
+  process::Future<ResourceStatistics> usage(
       const ContainerID& containerId,
-      const std::string& cgroup);
+      const std::string& cgroup) override;
 
-  virtual process::Future<Nothing> cleanup(
+  process::Future<Nothing> cleanup(
       const ContainerID& containerId,
-      const std::string& cgroup);
+      const std::string& cgroup) override;
 
 protected:
-  virtual void initialize();
+  void initialize() override;
 
 private:
   PerfEventSubsystem(
