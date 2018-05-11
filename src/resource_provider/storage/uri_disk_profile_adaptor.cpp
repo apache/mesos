@@ -278,11 +278,8 @@ void UriDiskProfileAdaptorProcess::notify(
     return;
   }
 
-  // Profiles can only be added, so if the parsed data is the same size,
-  // nothing has changed and no notifications need to be sent.
-  if (parsed.profile_matrix().size() <= profileMatrix.size()) {
-    return;
-  }
+  // TODO(chhsiao): No need to update the profile matrix and send notifications
+  // if the parsed mapping has the same size and profile selectors.
 
   // The fetched mapping satisfies our invariants.
 
