@@ -47,19 +47,19 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-Try<Owned<Subsystem>> BlkioSubsystem::create(
+Try<Owned<SubsystemProcess>> BlkioSubsystemProcess::create(
     const Flags& flags,
     const string& hierarchy)
 {
-  return Owned<Subsystem>(new BlkioSubsystem(flags, hierarchy));
+  return Owned<SubsystemProcess>(new BlkioSubsystemProcess(flags, hierarchy));
 }
 
 
-BlkioSubsystem::BlkioSubsystem(
+BlkioSubsystemProcess::BlkioSubsystemProcess(
     const Flags& _flags,
     const string& _hierarchy)
   : ProcessBase(process::ID::generate("cgroups-blkio-subsystem")),
-    Subsystem(_flags, _hierarchy) {}
+    SubsystemProcess(_flags, _hierarchy) {}
 
 
 static void setValue(
@@ -92,7 +92,7 @@ static void setValue(
 }
 
 
-Future<ResourceStatistics> BlkioSubsystem::usage(
+Future<ResourceStatistics> BlkioSubsystemProcess::usage(
     const ContainerID& containerId,
     const string& cgroup)
 {

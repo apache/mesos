@@ -33,7 +33,7 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-Try<Owned<Subsystem>> CpuSubsystem::create(
+Try<Owned<SubsystemProcess>> CpuSubsystemProcess::create(
     const Flags& flags,
     const string& hierarchy)
 {
@@ -54,18 +54,18 @@ Try<Owned<Subsystem>> CpuSubsystem::create(
     }
   }
 
-  return Owned<Subsystem>(new CpuSubsystem(flags, hierarchy));
+  return Owned<SubsystemProcess>(new CpuSubsystemProcess(flags, hierarchy));
 }
 
 
-CpuSubsystem::CpuSubsystem(
+CpuSubsystemProcess::CpuSubsystemProcess(
     const Flags& _flags,
     const string& _hierarchy)
   : ProcessBase(process::ID::generate("cgroups-cpu-subsystem")),
-    Subsystem(_flags, _hierarchy) {}
+    SubsystemProcess(_flags, _hierarchy) {}
 
 
-Future<Nothing> CpuSubsystem::update(
+Future<Nothing> CpuSubsystemProcess::update(
     const ContainerID& containerId,
     const string& cgroup,
     const Resources& resources)
@@ -128,7 +128,7 @@ Future<Nothing> CpuSubsystem::update(
 }
 
 
-Future<ResourceStatistics> CpuSubsystem::usage(
+Future<ResourceStatistics> CpuSubsystemProcess::usage(
     const ContainerID& containerId,
     const string& cgroup)
 {

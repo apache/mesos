@@ -107,7 +107,8 @@ private:
   CgroupsIsolatorProcess(
       const Flags& _flags,
       const hashmap<std::string, std::string>& _hierarchies,
-      const multihashmap<std::string, process::Owned<Subsystem>>& _subsystems);
+      const multihashmap<std::string, process::Owned<SubsystemProcess>>&
+        _subsystems);
 
   process::Future<Nothing> _recover(
       const hashset<ContainerID>& orphans,
@@ -161,7 +162,7 @@ private:
   //   /cgroup/memory      -> memory
   // As we see, subsystem 'cpu' and 'cpuacct' are co-mounted at
   // '/cgroup/cpu,cpuacct'.
-  multihashmap<std::string, process::Owned<Subsystem>> subsystems;
+  multihashmap<std::string, process::Owned<SubsystemProcess>> subsystems;
 
   // Store cgroups associated information for containers.
   hashmap<ContainerID, process::Owned<Info>> infos;

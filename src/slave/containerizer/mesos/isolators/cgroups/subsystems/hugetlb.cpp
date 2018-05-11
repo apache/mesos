@@ -26,19 +26,19 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-Try<Owned<Subsystem>> HugetlbSubsystem::create(
+Try<Owned<SubsystemProcess>> HugetlbSubsystemProcess::create(
     const Flags& flags,
     const string& hierarchy)
 {
-  return Owned<Subsystem>(new HugetlbSubsystem(flags, hierarchy));
+  return Owned<SubsystemProcess>(new HugetlbSubsystemProcess(flags, hierarchy));
 }
 
 
-HugetlbSubsystem::HugetlbSubsystem(
+HugetlbSubsystemProcess::HugetlbSubsystemProcess(
     const Flags& _flags,
     const string& _hierarchy)
   : ProcessBase(process::ID::generate("cgroups-hugetlb-subsystem")),
-    Subsystem(_flags, _hierarchy) {}
+    SubsystemProcess(_flags, _hierarchy) {}
 
 } // namespace slave {
 } // namespace internal {
