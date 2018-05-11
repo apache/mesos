@@ -15,6 +15,7 @@ All Issues:
   * [MESOS-8576] - Improve discard handling of 'Docker::inspect()'.
   * [MESOS-8605] - Terminal task status update will not send if 'docker inspect' is hung.
   * [MESOS-8651] - Potential memory leaks in the `volume/sandbox_path` isolator.
+  * [MESOS-8786] - CgroupIsolatorProcess accesses subsystem processes directly.
   * [MESOS-8876] - Normal exit of Docker container using rexray volume results in TASK_FAILED.
   * [MESOS-8881] - Enable epoll backend in libevent integration.
   * [MESOS-8885] - Disable libevent debug mode.
