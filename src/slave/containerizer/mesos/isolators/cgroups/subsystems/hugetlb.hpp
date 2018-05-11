@@ -35,14 +35,14 @@ namespace slave {
 /**
  * Represent cgroups hugetlb subsystem.
  */
-class HugetlbSubsystem : public Subsystem
+class HugetlbSubsystemProcess : public SubsystemProcess
 {
 public:
-  static Try<process::Owned<Subsystem>> create(
+  static Try<process::Owned<SubsystemProcess>> create(
       const Flags& flags,
       const std::string& hierarchy);
 
-  ~HugetlbSubsystem() override = default;
+  ~HugetlbSubsystemProcess() override = default;
 
   std::string name() const override
   {
@@ -50,7 +50,7 @@ public:
   };
 
 private:
-  HugetlbSubsystem(const Flags& flags, const std::string& hierarchy);
+  HugetlbSubsystemProcess(const Flags& flags, const std::string& hierarchy);
 };
 
 } // namespace slave {

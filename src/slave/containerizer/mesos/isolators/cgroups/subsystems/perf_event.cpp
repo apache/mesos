@@ -40,7 +40,7 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-Try<Owned<Subsystem>> PerfEventSubsystem::create(
+Try<Owned<SubsystemProcess>> PerfEventSubsystemProcess::create(
     const Flags& flags,
     const string& hierarchy)
 {
@@ -73,27 +73,28 @@ Try<Owned<Subsystem>> PerfEventSubsystem::create(
             << "every '" << flags.perf_interval << "' "
             << "for events: " << stringify(events);
 
-  return Owned<Subsystem>(new PerfEventSubsystem(flags, hierarchy, events));
+  return Owned<SubsystemProcess>(
+      new PerfEventSubsystemProcess(flags, hierarchy, events));
 }
 
 
-PerfEventSubsystem::PerfEventSubsystem(
+PerfEventSubsystemProcess::PerfEventSubsystemProcess(
     const Flags& _flags,
     const string& _hierarchy,
     const set<string>& _events)
   : ProcessBase(process::ID::generate("cgroups-perf-event-subsystem")),
-    Subsystem(_flags, _hierarchy),
+    SubsystemProcess(_flags, _hierarchy),
     events(_events) {}
 
 
-void PerfEventSubsystem::initialize()
+void PerfEventSubsystemProcess::initialize()
 {
   // Start sampling.
   sample();
 }
 
 
-Future<Nothing> PerfEventSubsystem::recover(
+Future<Nothing> PerfEventSubsystemProcess::recover(
     const ContainerID& containerId,
     const string& cgroup)
 {
@@ -107,7 +108,7 @@ Future<Nothing> PerfEventSubsystem::recover(
 }
 
 
-Future<Nothing> PerfEventSubsystem::prepare(
+Future<Nothing> PerfEventSubsystemProcess::prepare(
     const ContainerID& containerId,
     const string& cgroup)
 {
@@ -121,7 +122,7 @@ Future<Nothing> PerfEventSubsystem::prepare(
 }
 
 
-Future<ResourceStatistics> PerfEventSubsystem::usage(
+Future<ResourceStatistics> PerfEventSubsystemProcess::usage(
     const ContainerID& containerId,
     const string& cgroup)
 {
@@ -138,7 +139,7 @@ Future<ResourceStatistics> PerfEventSubsystem::usage(
 }
 
 
-Future<Nothing> PerfEventSubsystem::cleanup(
+Future<Nothing> PerfEventSubsystemProcess::cleanup(
     const ContainerID& containerId,
     const string& cgroup)
 {
@@ -155,7 +156,7 @@ Future<Nothing> PerfEventSubsystem::cleanup(
 }
 
 
-void PerfEventSubsystem::sample()
+void PerfEventSubsystemProcess::sample()
 {
   // Collect a perf sample for all cgroups that are not being
   // destroyed. Since destroyal is asynchronous, 'perf stat' may
@@ -181,14 +182,14 @@ void PerfEventSubsystem::sample()
 
       return future;
     })
-    .onAny(defer(PID<PerfEventSubsystem>(this),
-                 &PerfEventSubsystem::_sample,
+    .onAny(defer(PID<PerfEventSubsystemProcess>(this),
+                 &PerfEventSubsystemProcess::_sample,
                  Clock::now() + flags.perf_interval,
                  lambda::_1));
 }
 
 
-void PerfEventSubsystem::_sample(
+void PerfEventSubsystemProcess::_sample(
     const Time& next,
     const Future<hashmap<string, PerfStatistics>>& statistics)
 {
@@ -210,8 +211,8 @@ void PerfEventSubsystem::_sample(
 
   // Schedule sample for the next time.
   delay(next - Clock::now(),
-        PID<PerfEventSubsystem>(this),
-        &PerfEventSubsystem::sample);
+        PID<PerfEventSubsystemProcess>(this),
+        &PerfEventSubsystemProcess::sample);
 }
 
 } // namespace slave {

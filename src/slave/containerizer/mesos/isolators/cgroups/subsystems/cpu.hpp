@@ -35,14 +35,14 @@ namespace slave {
 /**
  * Represent cgroups cpu subsystem.
  */
-class CpuSubsystem : public Subsystem
+class CpuSubsystemProcess : public SubsystemProcess
 {
 public:
-  static Try<process::Owned<Subsystem>> create(
+  static Try<process::Owned<SubsystemProcess>> create(
       const Flags& flags,
       const std::string& hierarchy);
 
-  ~CpuSubsystem() override = default;
+  ~CpuSubsystemProcess() override = default;
 
   std::string name() const override
   {
@@ -59,7 +59,7 @@ public:
       const std::string& cgroup) override;
 
 private:
-  CpuSubsystem(const Flags& flags, const std::string& hierarchy);
+  CpuSubsystemProcess(const Flags& flags, const std::string& hierarchy);
 };
 
 } // namespace slave {

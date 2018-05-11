@@ -130,14 +130,14 @@ private:
 /**
  * Represent cgroups net_cls subsystem.
  */
-class NetClsSubsystem : public Subsystem
+class NetClsSubsystemProcess : public SubsystemProcess
 {
 public:
-  static Try<process::Owned<Subsystem>> create(
+  static Try<process::Owned<SubsystemProcess>> create(
       const Flags& flags,
       const std::string& hierarchy);
 
-  ~NetClsSubsystem() override = default;
+  ~NetClsSubsystemProcess() override = default;
 
   std::string name() const override
   {
@@ -166,7 +166,7 @@ public:
       const std::string& cgroup) override;
 
 private:
-  NetClsSubsystem(
+  NetClsSubsystemProcess(
       const Flags& flags,
       const std::string& hierarchy,
       const IntervalSet<uint32_t>& primaries,
