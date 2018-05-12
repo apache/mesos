@@ -1020,7 +1020,9 @@ void HierarchicalAllocatorProcess::updateInverseOffer(
   Framework& framework = frameworks.at(frameworkId);
   Slave& slave = slaves.at(slaveId);
 
-  CHECK(slave.maintenance.isSome());
+  CHECK(slave.maintenance.isSome())
+    << "Agent " << slaveId
+    << " (" << slave.info.hostname() << ") should have maintenance scheduled";
 
   // NOTE: We currently implement maintenance in the allocator to be able to
   // leverage state and features such as the FrameworkSorter and OfferFilter.
