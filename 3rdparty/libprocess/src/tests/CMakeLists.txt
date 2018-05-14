@@ -96,9 +96,8 @@ target_link_libraries(test-linkee PRIVATE process-interface)
 add_dependencies(libprocess-tests test-linkee)
 
 if (WIN32)
-  add_executable(test-flags EXCLUDE_FROM_ALL test_flags.cpp)
-  target_link_libraries(test-flags PRIVATE process-interface)
-  add_dependencies(libprocess-tests test-flags)
+  add_executable(test-echo EXCLUDE_FROM_ALL test_echo.cpp)
+  add_dependencies(libprocess-tests test-echo)
 endif ()
 
 if (ENABLE_SSL)
