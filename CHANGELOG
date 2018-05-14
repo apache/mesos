@@ -21,9 +21,10 @@ This release contains the following new features:
   * [MESOS-7944] - **Experimental** Added a new `MemoryProfiler` class to
     libprocess to aid in debugging memory issues.
 
-  * [MESOS-8054] - Schedulers can now receive feedback about offer operations
-    which operate on resources managed by resource providers. In the future,
-    this feature will be extended to operations on agent default resources.
+  * [MESOS-8054] - **Experimental** Schedulers can now receive feedback about
+    offer operations which operate on resources managed by resource providers.
+    In the future, this feature will be extended to operations on agent default
+    resources.
 
   * [MESOS-8534] - **Experimental** A nested container is now allowed
     to join a separate CNI network than its parent container.
@@ -122,6 +123,7 @@ All Experimental Features:
   * [MESOS-5931] - Support auto backend in Mesos Containerizer.
   * [MESOS-6014] - Added port mapping CNI plugin.
   * [MESOS-7944] - Libprocess `MemoryProfiler`.
+  * [MESOS-8054] - Offer operation feedback.
   * [MESOS-8534] - Separate CNI networks for nested containers.
   * [MESOS-8649] - Support for Container Storage Interface version 0.2.
   * [MESOS-8801] - Linux support for jemalloc.
