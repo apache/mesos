@@ -1997,9 +1997,7 @@ TEST_F(SlaveTest, GetStateTaskGroupPending)
 
 // This test checks that when a slave is in RECOVERING state it responds
 // to HTTP requests for "/state" endpoint with ServiceUnavailable.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(
-    SlaveTest,
-    StateEndpointUnavailableDuringRecovery)
+TEST_F(SlaveTest, StateEndpointUnavailableDuringRecovery)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -6150,8 +6148,7 @@ TEST_F(SlaveTest, KillAllInitialTasksTerminatesExecutor)
 
 // This test verifies that the executor is shutdown during re-registration if
 // all of its initial tasks could not be delivered.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest,
-    AgentFailoverTerminatesExecutorWithNoTask)
+TEST_F(SlaveTest, AgentFailoverTerminatesExecutorWithNoTask)
 {
   // Start a master.
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -6410,8 +6407,7 @@ TEST_F(SlaveTest, KillAllInitialTasksTerminatesHTTPExecutor)
 //
 // TODO(mzhu): This test could be simplified if we had a test scheduler that
 // provides some basic task launching functionality (see MESOS-8511).
-TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest,
-    AgentFailoverTerminatesHTTPExecutorWithNoTask)
+TEST_F(SlaveTest, AgentFailoverTerminatesHTTPExecutorWithNoTask)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -10652,7 +10648,7 @@ TEST_F(SlaveTest, ResourceProviderSubscribe)
 // This test checks that before a workload (executor or task) is
 // launched, all resources from resoruce providers nended to run the
 // current set of workloads are properly published.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ResourceProviderPublishAll)
+TEST_F(SlaveTest, ResourceProviderPublishAll)
 {
   // Start an agent and a master.
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -10755,7 +10751,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(SlaveTest, ResourceProviderPublishAll)
         {LAUNCH({createTask(
             offers->at(0).slave_id(),
             Resources(offers->at(0).resources()).reserved(framework.roles(0)),
-            createCommandInfo("sleep 1000"))})},
+            createCommandInfo(SLEEP_COMMAND(1000)))})},
         filters);
 
     AWAIT_READY(publish);
