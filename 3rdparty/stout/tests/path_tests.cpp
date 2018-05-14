@@ -31,65 +31,123 @@ using std::vector;
 
 
 // Test many corner cases of Path::basename.
-TEST_TEMP_DISABLED_ON_WINDOWS(PathTest, Basename)
+TEST(PathTest, Basename)
 {
   // Empty path check.
   EXPECT_EQ(".", Path("").basename());
 
   // Check common path patterns.
+#ifdef __WINDOWS__
+  EXPECT_EQ("\\", Path("\\").basename());
+#else
   EXPECT_EQ("/", Path("/").basename());
+#endif // __WINDOWS__
   EXPECT_EQ(".", Path(".").basename());
   EXPECT_EQ("..", Path("..").basename());
 
   EXPECT_EQ("a", Path("a").basename());
+#ifdef __WINDOWS__
+  EXPECT_EQ("b", Path("a\\b").basename());
+  EXPECT_EQ("c", Path("a\\b\\c").basename());
+#else
   EXPECT_EQ("b", Path("a/b").basename());
   EXPECT_EQ("c", Path("a/b/c").basename());
+#endif // __WINDOWS__
 
   // Check leading slashes get cleaned up properly.
+#ifdef __WINDOWS__
+  EXPECT_EQ("a", Path("\\a").basename());
+  EXPECT_EQ("a", Path("\\\\a").basename());
+  EXPECT_EQ("a", Path("\\a\\").basename());
+  EXPECT_EQ("c", Path("\\a\\b\\c").basename());
+  EXPECT_EQ("b", Path("\\a\\b").basename());
+  EXPECT_EQ("b", Path("\\\\a\\\\b").basename());
+#else
   EXPECT_EQ("a", Path("/a").basename());
   EXPECT_EQ("a", Path("//a").basename());
   EXPECT_EQ("a", Path("/a/").basename());
   EXPECT_EQ("c", Path("/a/b/c").basename());
   EXPECT_EQ("b", Path("/a/b").basename());
   EXPECT_EQ("b", Path("//a//b").basename());
+#endif // __WINDOWS__
 
   // Check trailing slashes get cleaned up properly.
+#ifdef __WINDOWS__
+  EXPECT_EQ("a", Path("a\\").basename());
+  EXPECT_EQ("c", Path("\\a\\b\\c\\\\").basename());
+  EXPECT_EQ("c", Path("\\a\\b\\c\\\\\\").basename());
+  EXPECT_EQ("\\", Path("\\\\").basename());
+  EXPECT_EQ("\\", Path("\\\\\\").basename());
+#else
   EXPECT_EQ("a", Path("a/").basename());
   EXPECT_EQ("c", Path("/a/b/c//").basename());
   EXPECT_EQ("c", Path("/a/b/c///").basename());
   EXPECT_EQ("/", Path("//").basename());
   EXPECT_EQ("/", Path("///").basename());
+#endif // __WINDOWS__
 }
 
 
 // Test many corner cases of Path::dirname.
-TEST_TEMP_DISABLED_ON_WINDOWS(PathTest, Dirname)
+TEST(PathTest, Dirname)
 {
   // Empty path check.
   EXPECT_EQ(".", Path("").dirname());
 
   // Check common path patterns.
+#ifdef __WINDOWS__
+  EXPECT_EQ("\\", Path("\\").dirname());
+#else
   EXPECT_EQ("/", Path("/").dirname());
+#endif // __WINDOWS__
   EXPECT_EQ(".", Path(".").dirname());
   EXPECT_EQ(".", Path("..").dirname());
 
   EXPECT_EQ(".", Path("a").dirname());
+#ifdef __WINDOWS__
+  EXPECT_EQ("a", Path("a\\b").dirname());
+  EXPECT_EQ("a\\b", Path("a\\b\\c\\").dirname());
+#else
   EXPECT_EQ("a", Path("a/b").dirname());
   EXPECT_EQ("a/b", Path("a/b/c/").dirname());
+#endif // __WINDOWS__
 
   // Check leading slashes get cleaned up properly.
+#ifdef __WINDOWS__
+  EXPECT_EQ("\\", Path("\\a").dirname());
+  EXPECT_EQ("\\", Path("\\\\a").dirname());
+  EXPECT_EQ("\\", Path("\\a\\").dirname());
+  EXPECT_EQ("\\a", Path("\\a\\b").dirname());
+  EXPECT_EQ("\\\\a", Path("\\\\a\\\\b").dirname());
+  EXPECT_EQ("\\a\\b", Path("\\a\\b\\c").dirname());
+#else
   EXPECT_EQ("/", Path("/a").dirname());
   EXPECT_EQ("/", Path("//a").dirname());
   EXPECT_EQ("/", Path("/a/").dirname());
   EXPECT_EQ("/a", Path("/a/b").dirname());
   EXPECT_EQ("//a", Path("//a//b").dirname());
   EXPECT_EQ("/a/b", Path("/a/b/c").dirname());
+#endif // __WINDOWS__
 
   // Check intermittent slashes get handled just like ::dirname does.
+#ifdef __WINDOWS__
+  EXPECT_EQ("\\a\\\\b", Path("\\a\\\\b\\\\c\\\\").dirname());
+  EXPECT_EQ("\\\\a\\b", Path("\\\\a\\b\\\\c").dirname());
+#else
   EXPECT_EQ("/a//b", Path("/a//b//c//").dirname());
   EXPECT_EQ("//a/b", Path("//a/b//c").dirname());
+#endif // __WINDOWS__
 
   // Check trailing slashes get cleaned up properly.
+#ifdef __WINDOWS__
+  EXPECT_EQ(".", Path("a\\").dirname());
+  EXPECT_EQ("a\\b", Path("a\\b\\c").dirname());
+  EXPECT_EQ("\\a\\b", Path("\\a\\b\\c\\").dirname());
+  EXPECT_EQ("\\a\\b", Path("\\a\\b\\c\\\\").dirname());
+  EXPECT_EQ("\\a\\b", Path("\\a\\b\\c\\\\\\").dirname());
+  EXPECT_EQ("\\", Path("\\\\").dirname());
+  EXPECT_EQ("\\", Path("\\\\\\").dirname());
+#else
   EXPECT_EQ(".", Path("a/").dirname());
   EXPECT_EQ("a/b", Path("a/b/c").dirname());
   EXPECT_EQ("/a/b", Path("/a/b/c/").dirname());
@@ -97,56 +155,120 @@ TEST_TEMP_DISABLED_ON_WINDOWS(PathTest, Dirname)
   EXPECT_EQ("/a/b", Path("/a/b/c///").dirname());
   EXPECT_EQ("/", Path("//").dirname());
   EXPECT_EQ("/", Path("///").dirname());
+#endif // __WINDOWS__
 }
 
 
-TEST_TEMP_DISABLED_ON_WINDOWS(PathTest, Extension)
+TEST(PathTest, Extension)
 {
   EXPECT_NONE(Path(".").extension());
   EXPECT_NONE(Path("..").extension());
 
   EXPECT_NONE(Path("a").extension());
+#ifdef __WINDOWS__
+  EXPECT_NONE(Path("\\a").extension());
+  EXPECT_NONE(Path("\\").extension());
+#else
   EXPECT_NONE(Path("/a").extension());
   EXPECT_NONE(Path("/").extension());
+#endif // __WINDOWS__
 
+#ifdef __WINDOWS__
+  EXPECT_NONE(Path("\\a.b\\c").extension());
+#else
   EXPECT_NONE(Path("/a.b/c").extension());
+#endif // __WINDOWS__
 
   EXPECT_SOME_EQ(".txt", Path("a.txt").extension());
+#ifdef __WINDOWS__
+  EXPECT_SOME_EQ(".txt", Path("\\a\\b.txt").extension());
+  EXPECT_SOME_EQ(".txt", Path("\\a.b\\c.txt").extension());
+#else
   EXPECT_SOME_EQ(".txt", Path("/a/b.txt").extension());
   EXPECT_SOME_EQ(".txt", Path("/a.b/c.txt").extension());
+#endif // __WINDOWS__
 
   EXPECT_SOME_EQ(".gz", Path("a.tar.gz").extension());
-  EXPECT_SOME_EQ(".gz", Path("/a.tar.gz").extension());
-
   EXPECT_SOME_EQ(".bashrc", Path(".bashrc").extension());
+#ifdef __WINDOWS__
+  EXPECT_SOME_EQ(".gz", Path("\\a.tar.gz").extension());
+  EXPECT_SOME_EQ(".bashrc", Path("\\.bashrc").extension());
+#else
+  EXPECT_SOME_EQ(".gz", Path("/a.tar.gz").extension());
   EXPECT_SOME_EQ(".bashrc", Path("/.bashrc").extension());
+#endif // __WINDOWS__
 }
 
 
-TEST_TEMP_DISABLED_ON_WINDOWS(PathTest, Join)
+TEST(PathTest, Join)
 {
+  EXPECT_EQ("a%b", path::join("a", "b", '%'));
+
+#ifndef __WINDOWS__
+  EXPECT_EQ("/", path::join("", ""));
+  EXPECT_EQ("/", path::join("", "", ""));
+  EXPECT_EQ("/a", path::join("", "a"));
+  EXPECT_EQ("a/", path::join("a", ""));
+  EXPECT_EQ("a/b", path::join("a", "b"));
+#else
+  EXPECT_EQ("\\", path::join("", ""));
+  EXPECT_EQ("\\", path::join("", "", ""));
+  EXPECT_EQ("\\a", path::join("", "a"));
+  EXPECT_EQ("a\\", path::join("a", ""));
+  EXPECT_EQ("a\\b", path::join("a", "b"));
+#endif // __WINDOWS__
+
+#ifdef __WINDOWS__
+  EXPECT_EQ("a\\b\\c", path::join("a", "b", "c"));
+  EXPECT_EQ("\\a\\b\\c", path::join("\\a", "b", "c"));
+#else
   EXPECT_EQ("a/b/c", path::join("a", "b", "c"));
   EXPECT_EQ("/a/b/c", path::join("/a", "b", "c"));
+#endif // __WINDOWS__
 
   EXPECT_EQ("", path::join(vector<string>()));
+#ifdef __WINDOWS__
+  EXPECT_EQ("a\\b\\c", path::join(vector<string>({"a", "b", "c"})));
+#else
   EXPECT_EQ("a/b/c", path::join(vector<string>({"a", "b", "c"})));
+#endif // __WINDOWS__
 
   // TODO(cmaloney): This should join to ""
+#ifdef __WINDOWS__
+  EXPECT_EQ("\\", path::join(vector<string>({"", "", ""})));
+#else
   EXPECT_EQ("/", path::join(vector<string>({"", "", ""})));
+#endif // __WINDOWS__
 
   // Interesting corner cases around being the first, middle, last.
+#ifdef __WINDOWS__
+  EXPECT_EQ("\\asdf", path::join("\\", "asdf"));
+  EXPECT_EQ("\\", path::join("", "\\", ""));
+  EXPECT_EQ("ab\\", path::join("ab\\", "", "\\"));
+  EXPECT_EQ("\\ab", path::join("\\", "\\", "ab"));
+  EXPECT_EQ("ab\\", path::join("ab", "\\", "\\"));
+  EXPECT_EQ("\\ab", path::join("\\", "", "\\ab"));
+#else
   EXPECT_EQ("/asdf", path::join("/", "asdf"));
   EXPECT_EQ("/", path::join("", "/", ""));
   EXPECT_EQ("ab/", path::join("ab/", "", "/"));
   EXPECT_EQ("/ab", path::join("/", "/", "ab"));
   EXPECT_EQ("ab/", path::join("ab", "/", "/"));
   EXPECT_EQ("/ab", path::join("/", "", "/ab"));
+#endif // __WINDOWS__
 
   // Check trailing and leading slashes get cleaned up.
+#ifdef __WINDOWS__
+  EXPECT_EQ("a\\b\\c\\", path::join("a\\", "b\\", "c\\"));
+  EXPECT_EQ("\\a\\b\\c", path::join("\\a", "\\b", "\\c"));
+  EXPECT_EQ("\\a\\b\\c\\", path::join("\\a\\", "\\b\\", "\\c\\"));
+  EXPECT_EQ("a\\b\\c\\", path::join("a\\", "\\b\\", "\\c\\"));
+#else
   EXPECT_EQ("a/b/c/", path::join("a/", "b/", "c/"));
   EXPECT_EQ("/a/b/c", path::join("/a", "/b", "/c"));
   EXPECT_EQ("/a/b/c/", path::join("/a/", "/b/", "/c/"));
   EXPECT_EQ("a/b/c/", path::join("a/", "/b/", "/c/"));
+#endif // __WINDOWS__
 }
 
 
