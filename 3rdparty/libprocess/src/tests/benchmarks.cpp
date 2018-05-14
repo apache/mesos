@@ -495,6 +495,8 @@ TEST(ProcessTest, Process_BENCHMARK_ThroughputPerformance)
 }
 
 
+// TODO(andschwa): Turn this test back on when MESOS-8915 is solved.
+#ifndef __WINDOWS__
 class DispatchProcess : public Process<DispatchProcess>
 {
 public:
@@ -579,6 +581,7 @@ TEST(ProcessTest, Process_BENCHMARK_DispatchDefer)
   DispatchProcess::run<DispatchProcess::Movable>("Movable", repeats);
   DispatchProcess::run<DispatchProcess::Copyable>("Copyable", repeats);
 }
+#endif // __WINDOWS__
 
 
 class ProtobufInstallHandlerBenchmarkProcess
