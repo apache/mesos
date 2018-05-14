@@ -2163,8 +2163,14 @@ double HierarchicalAllocatorProcess::_quota_allocated(
     const string& role,
     const string& resource)
 {
+  if (!roleSorter->contains(role)) {
+    // This can occur when execution of this callback races with removal of the
+    // metric for a role which does not have any associated frameworks.
+    return 0.;
+  }
+
   Option<Value::Scalar> used =
-    quotaRoleSorter->allocationScalarQuantities(role)
+    roleSorter->allocationScalarQuantities(role)
       .get<Value::Scalar>(resource);
 
   return used.isSome() ? used->value() : 0;
