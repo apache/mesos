@@ -51,8 +51,7 @@ using std::string;
 using std::vector;
 
 
-class SubprocessTest : public TemporaryDirectoryTest
-{};
+class SubprocessTest: public TemporaryDirectoryTest {};
 
 
 void run_subprocess(const lambda::function<Try<Subprocess>()>& createSubprocess)
@@ -107,22 +106,24 @@ TEST_F(SubprocessTest, PipeOutputToFileDescriptor)
   shared_ptr<int_fd> safe_err_fd(&errorfile_fd.get(), close_fd);
 
   // Pipe simple string to output file.
-  run_subprocess([outfile_fd]() -> Try<Subprocess> {
-    return subprocess(
-        "echo hello",
-        Subprocess::FD(STDIN_FILENO),
-        Subprocess::FD(outfile_fd.get()),
-        Subprocess::FD(STDERR_FILENO));
-  });
+  run_subprocess(
+    [outfile_fd]() -> Try<Subprocess> {
+      return subprocess(
+          "echo hello",
+          Subprocess::FD(STDIN_FILENO),
+          Subprocess::FD(outfile_fd.get()),
+          Subprocess::FD(STDERR_FILENO));
+    });
 
   // Pipe simple string to error file.
-  run_subprocess([errorfile_fd]() -> Try<Subprocess> {
-    return subprocess(
-        "echo goodbye 1>&2",
-        Subprocess::FD(STDIN_FILENO),
-        Subprocess::FD(STDOUT_FILENO),
-        Subprocess::FD(errorfile_fd.get()));
-  });
+  run_subprocess(
+    [errorfile_fd]() -> Try<Subprocess> {
+      return subprocess(
+          "echo goodbye 1>&2",
+          Subprocess::FD(STDIN_FILENO),
+          Subprocess::FD(STDOUT_FILENO),
+          Subprocess::FD(errorfile_fd.get()));
+    });
 
   // Finally, read output and error files, and make sure messages are inside.
   const Result<string> output = os::read(outfile);
@@ -152,22 +153,24 @@ TEST_F(SubprocessTest, PipeOutputToPath)
   const string errorfile = path::join(testdir.get(), errorfile_name);
 
   // Pipe simple string to output file.
-  run_subprocess([outfile]() -> Try<Subprocess> {
-    return subprocess(
-        "echo hello",
-        Subprocess::FD(STDIN_FILENO),
-        Subprocess::PATH(outfile),
-        Subprocess::FD(STDERR_FILENO));
-  });
+  run_subprocess(
+      [outfile]() -> Try<Subprocess> {
+        return subprocess(
+            "echo hello",
+            Subprocess::FD(STDIN_FILENO),
+            Subprocess::PATH(outfile),
+            Subprocess::FD(STDERR_FILENO));
+      });
 
   // Pipe simple string to error file.
-  run_subprocess([errorfile]() -> Try<Subprocess> {
-    return subprocess(
-        "echo goodbye 1>&2",
-        Subprocess::FD(STDIN_FILENO),
-        Subprocess::FD(STDOUT_FILENO),
-        Subprocess::PATH(errorfile));
-  });
+  run_subprocess(
+      [errorfile]() -> Try<Subprocess> {
+        return subprocess(
+            "echo goodbye 1>&2",
+            Subprocess::FD(STDIN_FILENO),
+            Subprocess::FD(STDOUT_FILENO),
+            Subprocess::PATH(errorfile));
+      });
 
   // Finally, read output and error files, and make sure messages are inside.
   const Result<string> output = os::read(outfile);
@@ -194,24 +197,28 @@ TEST_F(SubprocessTest, EnvironmentEcho)
   const string outfile = path::join(testdir.get(), outfile_name);
 
   // Pipe simple string to output file.
-  run_subprocess([outfile]() -> Try<Subprocess> {
-    const map<string, string> environment = {{"key1", "value1"},
-                                             {"key2", "value2"}};
+  run_subprocess(
+      [outfile]() -> Try<Subprocess> {
+        const map<string, string> environment =
+          {
+            { "key1", "value1" },
+            { "key2", "value2" }
+          };
 
-    const string shell_command =
+        const string shell_command =
 #ifdef __WINDOWS__
-      "echo %key2%";
+          "echo %key2%";
 #else
-      "echo $key2";
+          "echo $key2";
 #endif // __WINDOWS__
 
-    return subprocess(
-        shell_command,
-        Subprocess::FD(STDIN_FILENO),
-        Subprocess::PATH(outfile),
-        Subprocess::FD(STDERR_FILENO),
-        environment);
-  });
+        return subprocess(
+            shell_command,
+            Subprocess::FD(STDIN_FILENO),
+            Subprocess::PATH(outfile),
+            Subprocess::FD(STDERR_FILENO),
+            environment);
+      });
 
   // Finally, read output file, and make sure message is inside.
   const Result<string> output = os::read(outfile);
@@ -776,36 +783,39 @@ TEST_F(SubprocessTest, Flags)
   string out = path::join(os::getcwd(), "stdout");
 
 #ifdef __WINDOWS__
-  // echo,on windows,simply reproduces the entire command line string.
-  // When a regular windows app gets command line args, text processing is
-  // applied by CommandLineToArgv to convert the command line string into an
-  // array of strings(argv). As a result, running the following command :
-  // cmd.exe /c echo
-  // "--s3=\"geek\""
-  // Results in the following output :
-  // "--s3=\"geek\""
-  // However, feeding the same command line args to test-flags.exe which simply
-  // prints out each element of argv separated by a space : cmd.exe /c
-  // test-flags "--s3=\"geek\""
-  // Results in the following output (which is what this test expects it to be)
-  // : test-flags --s3="geek" as CommandLineToArgv has processed the command
-  // line as per rules described in
-  // https://msdn.microsoft.com/en-us/library/windows/desktop/bb776391(v=vs.85).aspx
-  // Therefore, instead of using echo on Windows, we use test-flags.exe(which
-  // does the same as echo but receives it args with standard text processing
-  // applied).
+  // The Windows version of `echo` is a built-in of the command
+  // prompt, and it simply reproduces the entire command line string.
+  // However, the flags class (and thus this test) is expecting the
+  // semantics of a native binary interpreting the command line
+  // arguments via the Windows API `CommandLineToArgv`. When a regular
+  // Windows application (in contrast to `echo`) gets command line
+  // arguments, the text is processed automatically by
+  // `CommandLineToArgv`, which converts the command line string into
+  // an array. For example, this is the output of `echo`:
+  //
+  //    > cmd.exe /c echo "--s3=\"geek\""
+  //    "--s3=\"geek\""
+  //
+  // With `test-echo.exe`, a small native binary that just prints its
+  // arguments, the output is:
+  //
+  //     > test-echo.exe "--s3=\"geek\""
+  //     --s3="geek"
+  //
+  // This is the behavior expected by the test as the POSIX version of
+  // `echo` is a native binary.
   char exe_path[_MAX_PATH + 1];
   DWORD dw = GetModuleFileNameA(NULL, exe_path, _MAX_PATH);
   EXPECT_EQ(GetLastError(), 0);
   string test_exe_path = path::join(
       string(exe_path).substr(0, string(exe_path).find_last_of('\\')),
-      "test-flags.exe");
+      "test-echo.exe");
 #endif
 
   Try<Subprocess> s = subprocess(
 #ifdef __WINDOWS__
-      os::Shell::name,
-      {os::Shell::arg0, os::Shell::arg1, test_exe_path},
+	  test_exe_path,
+	  { test_exe_path },
 #else
       "/bin/echo",
       vector<string>(1, "echo"),
@@ -837,7 +847,7 @@ TEST_F(SubprocessTest, Flags)
   vector<string> split = strings::split(read.get(), " ");
   int argc = split.size() + 1;
   char** argv = new char*[argc];
-  argv[0] = (char*)"command";
+  argv[0] = (char*) "command";
   for (int i = 1; i < argc; i++) {
     argv[i] = ::strdup(split[i - 1].c_str());
   }
@@ -851,7 +861,6 @@ TEST_F(SubprocessTest, Flags)
   EXPECT_EQ(flags.i, flags2.i);
   EXPECT_EQ(flags.s, flags2.s);
   EXPECT_EQ(flags.s2, flags2.s2);
-
   EXPECT_EQ(flags.s3, flags2.s3);
   EXPECT_EQ(flags.d, flags2.d);
   EXPECT_EQ(flags.y, flags2.y);
