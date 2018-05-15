@@ -35,6 +35,7 @@ GRPC = 3rdparty/grpc-$(GRPC_VERSION)
 GTEST = $(GOOGLETEST)/googletest
 JEMALLOC = 3rdparty/jemalloc-$(JEMALLOC_VERSION)
 LEVELDB = 3rdparty/leveldb-$(LEVELDB_VERSION)
+LIBARCHIVE = 3rdparty/libarchive-$(LIBARCHIVE_VERSION)
 LIBPROCESS = 3rdparty/libprocess
 NVML = 3rdparty/nvml-$(NVML_VERSION)
 PICOJSON = 3rdparty/picojson-$(PICOJSON_VERSION)
@@ -211,12 +212,21 @@ LIB_LEVELDB = -lleveldb
 LDADD += -lleveldb
 endif
 
-if WITH_BUNDLED_LIBPROCESS
+if WITH_BUNDLED_LIBARCHIVE
+MESOS_CPPFLAGS += -I../$(LIBARCHIVE)/libarchive/
+LIB_LIBARCHIVE = ../$(LIBARCHIVE)/.libs/libarchive.la
+LDADD += ../$(LIBARCHIVE)/.libs/libarchive.la
+else
+LIB_LIBARCHIVE = -larchive
+LDADD += -larchive
+endif
+
+#if WITH_BUNDLED_LIBPROCESS
 MESOS_CPPFLAGS += -I$(top_srcdir)/$(LIBPROCESS)/include
 LIB_PROCESS = ../$(LIBPROCESS)/libprocess.la
-else
-LIB_PROCESS = -lprocess
-endif
+#else
+#LIB_PROCESS = -lprocess
+#endif
 
 if WITH_BUNDLED_NVML
 MESOS_CPPFLAGS += -I../$(NVML)
@@ -1663,6 +1673,7 @@ libmesos_la_LIBADD =							\
   $(LIB_GLOG)								\
   $(LIB_GRPC)								\
   $(LIB_LEVELDB)							\
+  $(LIB_LIBARCHIVE)							\
   $(LIB_PROCESS)							\
   $(LIB_PROTOBUF)							\
   $(LIB_ZOOKEEPER)							\

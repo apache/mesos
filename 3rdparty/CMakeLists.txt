@@ -24,6 +24,7 @@ endif ()
 
 # TODO(andschwa): Move each URL to the dependency itself.
 set(BOOST_URL           ${FETCH_URL}/boost-${BOOST_VERSION}.tar.gz)
+set(BZIP2_URL           ${FETCH_URL}/bzip2-${BZIP2_VERSION}.tar.gz)
 set(CONCURRENTQUEUE_URL ${FETCH_URL}/concurrentqueue-${CONCURRENTQUEUE_VERSION}.tar.gz)
 set(CSI_URL             ${FETCH_URL}/csi-${CSI_VERSION}.tar.gz)
 set(ELFIO_URL           ${FETCH_URL}/elfio-${ELFIO_VERSION}.tar.gz)
@@ -35,8 +36,10 @@ set(JEMALLOC_URL        ${FETCH_URL}/jemalloc-${JEMALLOC_VERSION}.tar.gz)
 set(PICOJSON_URL        ${FETCH_URL}/picojson-${PICOJSON_VERSION}.tar.gz)
 set(PROTOBUF_URL        ${FETCH_URL}/protobuf-${PROTOBUF_VERSION}.tar.gz)
 set(LEVELDB_URL         ${FETCH_URL}/leveldb-${LEVELDB_VERSION}.tar.gz)
+set(LIBARCHIVE_URL      ${FETCH_URL}/libarchive-${LIBARCHIVE_VERSION}.tar.gz)
 set(LIBEV_URL           ${FETCH_URL}/libev-${LIBEV_VERSION}.tar.gz)
 set(NVML_URL            ${FETCH_URL}/nvml-${NVML_VERSION}.tar.gz)
+set(XZ_URL              ${FETCH_URL}/xz-${XZ_VERSION}.tar.gz)
 set(ZOOKEEPER_URL       ${FETCH_URL}/zookeeper-${ZOOKEEPER_VERSION}.tar.gz)
 
 # NOTE: libevent doesn't come rebundled, so this URL is always the same. But,
@@ -752,6 +755,84 @@ else ()
 endif ()
 
 
+# bzip2: A Massively Spiffy Yet Delicately Unobtrusive Compression Library.
+# https://bzip.org
+##########################################################################
+if (WIN32)
+  EXTERNAL(bzip2 ${BZIP2_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
+  add_library(bzip2 STATIC IMPORTED)
+  add_dependencies(bzip2 ${BZIP2_TARGET})
+
+  set_target_properties(
+    bzip2 PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES "${BZIP2_ROOT};${BZIP2_ROOT}-build")
+
+  set_target_properties(
+    bzip2 PROPERTIES
+    IMPORTED_LOCATION_DEBUG ${BZIP2_ROOT}-build/Debug/bzip2${BZIP2_SHARED}${LIBRARY_SUFFIX}
+    IMPORTED_LOCATION_RELEASE ${BZIP2_ROOT}-build/Release/bzip2${BZIP2_SHARED}${LIBRARY_SUFFIX}
+    IMPORTED_IMPLIB_DEBUG ${BZIP2_ROOT}-build/Debug/bzip2${CMAKE_IMPORT_LIBRARY_SUFFIX}
+    IMPORTED_IMPLIB_RELEASE ${BZIP2_ROOT}-build/Release/bzip2${CMAKE_IMPORT_LIBRARY_SUFFIX})
+
+  PATCH_CMD(BZIP2_PATCH_CMD bzip2-${BZIP2_VERSION}.patch)
+
+  MAKE_INCLUDE_DIR(bzip2)
+  GET_BYPRODUCTS(bzip2)
+
+  set(BZIP2_CMAKE_ARGS
+    ${CMAKE_FORWARD_ARGS}
+    -DBZIP2_INSTALL_DIR=${BZIP2_ROOT}-lib)
+
+  ExternalProject_Add(
+    ${BZIP2_TARGET}
+    PREFIX            ${BZIP2_CMAKE_ROOT}
+    BUILD_BYPRODUCTS  ${BZIP2_BYPRODUCTS}
+    PATCH_COMMAND     ${BZIP2_PATCH_CMD}
+    CMAKE_ARGS        ${BZIP2_CMAKE_ARGS}
+    INSTALL_DIR       ${BZIP2_ROOT}-lib
+    URL               ${BZIP2_URL}
+    URL_HASH          ${BZIP2_HASH})
+endif ()
+
+# xz: A Massively Spiffy Yet Delicately Unobtrusive Compression Library.
+# https://tukaani.org/xz/
+##########################################################################
+if (WIN32)
+  EXTERNAL(xz ${XZ_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
+  add_library(xz STATIC IMPORTED)
+  add_dependencies(xz ${XZ_TARGET})
+
+  set_target_properties(
+    xz PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES "${XZ_ROOT};${XZ_ROOT}-build")
+
+  set_target_properties(
+    xz PROPERTIES
+    IMPORTED_LOCATION_DEBUG ${XZ_ROOT}-build/Debug/lzma${XZ_SHARED}${LIBRARY_SUFFIX}
+    IMPORTED_LOCATION_RELEASE ${XZ_ROOT}-build/Release/lzma${XZ_SHARED}${LIBRARY_SUFFIX}
+    IMPORTED_IMPLIB_DEBUG ${XZ_ROOT}-build/Debug/lzma${CMAKE_IMPORT_LIBRARY_SUFFIX}
+    IMPORTED_IMPLIB_RELEASE ${XZ_ROOT}-build/Release/lzma${CMAKE_IMPORT_LIBRARY_SUFFIX})
+
+  PATCH_CMD(XZ_PATCH_CMD xz-${XZ_VERSION}.patch)
+
+  MAKE_INCLUDE_DIR(xz)
+  GET_BYPRODUCTS(xz)
+
+  set(XZ_CMAKE_ARGS
+    ${CMAKE_FORWARD_ARGS}
+    -DXZ_INSTALL_DIR=${XZ_ROOT}-lib)
+
+  ExternalProject_Add(
+    ${XZ_TARGET}
+    PREFIX            ${XZ_CMAKE_ROOT}
+    BUILD_BYPRODUCTS  ${XZ_BYPRODUCTS}
+    PATCH_COMMAND     ${XZ_PATCH_CMD}
+    CMAKE_ARGS        ${XZ_CMAKE_ARGS}
+    INSTALL_DIR       ${XZ_ROOT}-lib
+    URL               ${XZ_URL}
+    URL_HASH          ${XZ_HASH})
+endif ()
+
 # zlib: A Massively Spiffy Yet Delicately Unobtrusive Compression Library.
 # https://zlib.net
 ##########################################################################
@@ -824,6 +905,67 @@ set_target_properties(
   zlib PROPERTIES
   INTERFACE_COMPILE_DEFINITIONS HAVE_LIBZ)
 
+# libarchive: Multi-format archive and compression library.
+# https://github.com/libarchive/libarchive
+#####################################
+if (WIN32 OR REBUNDLED)
+EXTERNAL(libarchive ${LIBARCHIVE_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
+
+add_library(libarchive STATIC IMPORTED GLOBAL)
+add_dependencies(libarchive ${LIBARCHIVE_TARGET})
+
+set(LIBARCHIVE_CMAKE_ARGS
+  ${CMAKE_FORWARD_ARGS}
+  -DENABLE_ACL=OFF
+  -DENABLE_TAR=ON
+  -DENABLE_TEST=OFF
+  -DENABLE_NETTLE=OFF
+  -DENABLE_OPENSSL=OFF
+  -DENABLE_LIBXML2=OFF
+  -DENABLE_EXPAT=OFF
+  -DENABLE_PCREPOSIX=OFF
+  -DENABLE_CPIO=OFF
+  -DCMAKE_PREFIX_PATH=${ZLIB_ROOT}-lib@@${BZIP2_ROOT}-lib@@${XZ_ROOT}-lib
+  -DCMAKE_INSTALL_PREFIX=${LIBARCHIVE_ROOT}-build)
+
+PATCH_CMD(LIBARCHIVE_PATCH_CMD libarchive-${LIBARCHIVE_VERSION}.patch)
+#
+# Disable tests Windows (can't handle UNICODE compile options)
+if (WIN32)
+  list(APPEND LIBARCHIVE_CMAKE_ARGS
+    -DENABLE_TEST=OFF)
+  SET_target_properties(
+    libarchive PROPERTIES
+    IMPORTED_LOCATION ${LIBARCHIVE_ROOT}-build/lib/archive_static${LIBRARY_SUFFIX}
+    INTERFACE_INCLUDE_DIRECTORIES ${LIBARCHIVE_ROOT}-build/include)
+  set(LIBARCHIVE_DEPENDS bzip2 xz zlib)
+else ()
+  list(APPEND LIBARCHIVE_CMAKE_ARGS
+    -DENABLE_TEST=ON)
+  SET_target_properties(
+    libarchive PROPERTIES
+    IMPORTED_LOCATION ${LIBARCHIVE_ROOT}-build/lib/libarchive${CMAKE_STATIC_LIBRARY_SUFFIX}
+    INTERFACE_INCLUDE_DIRECTORIES ${LIBARCHIVE_ROOT}-build/include)
+  set(LIBARCHIVE_DEPENDS "")
+endif ()
+
+MAKE_INCLUDE_DIR(libarchive)
+GET_BYPRODUCTS(libarchive)
+
+ExternalProject_Add(
+  ${LIBARCHIVE_TARGET}
+  DEPENDS           ${LIBARCHIVE_DEPENDS}
+  PREFIX            ${LIBARCHIVE_CMAKE_ROOT}
+  BUILD_BYPRODUCTS  ${LIBARCHIVE_BYPRODUCTS}
+  PATCH_COMMAND     ${LIBARCHIVE_PATCH_CMD}
+  LIST_SEPARATOR    @@
+  CMAKE_ARGS        ${LIBARCHIVE_CMAKE_ARGS}
+  URL               ${LIBARCHIVE_URL}
+  URL_HASH          ${LIBARCHIVE_HASH})
+else ()
+  find_package(LibArchive REQUIRED)
+  find_library(libarchive libarchive ${LIBARCHIVE_LIBRARIES})
+endif ()
 
 # Google Test: Google's C++ test framework (GoogleTest and GoogleMock).
 # https://github.com/google/googletest
@@ -1253,7 +1395,6 @@ if (NOT WIN32)
     URL               ${LEVELDB_URL}
     URL_HASH          ${LEVELDB_HASH})
 endif ()
-
 
 # In-tree dependencies.
 #######################

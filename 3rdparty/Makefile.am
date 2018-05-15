@@ -61,6 +61,7 @@ GTEST = $(GOOGLETEST)/googletest
 HTTP_PARSER = http-parser-$(HTTP_PARSER_VERSION)
 JEMALLOC = jemalloc-$(JEMALLOC_VERSION)
 LEVELDB = leveldb-$(LEVELDB_VERSION)
+LIBARCHIVE = libarchive-$(LIBARCHIVE_VERSION)
 LIBEV = libev-$(LIBEV_VERSION)
 NVML = nvml-$(NVML_VERSION)
 PIP = pip-$(PIP_VERSION)
@@ -82,6 +83,7 @@ EXTRA_DIST =			\
   $(HTTP_PARSER).tar.gz		\
   $(JEMALLOC).tar.gz		\
   $(LEVELDB).tar.gz		\
+  $(LIBARCHIVE).tar.gz          \
   $(LIBEV).tar.gz		\
   $(NVML).tar.gz		\
   $(PIP).tar.gz			\
@@ -121,6 +123,7 @@ CLEAN_EXTRACTED =		\
   $(HTTP_PARSER)		\
   $(JEMALLOC)			\
   $(LEVELDB)			\
+  $(LIBARCHIVE)                 \
   $(LIBEV)			\
   $(NVML)			\
   $(PIP)			\
@@ -267,6 +270,22 @@ $(JEMALLOC)-build-stamp: $(JEMALLOC)-stamp
 	touch $@
 
 ALL_LOCAL += $(LIB_JEMALLOC)
+endif
+
+if WITH_BUNDLED_LIBARCHIVE
+LIB_LIBARCHIVE = $(LIBARCHIVE)/.libs/libarchive.la
+
+$(LIB_LIBARCHIVE): $(LIBARCHIVE)-build-stamp
+
+$(LIBARCHIVE)-build-stamp: $(LIBARCHIVE)-stamp
+	cd $(LIBARCHIVE) &&					\
+	  CPPFLAGS=""		\
+	  LDFLAGS=""		\
+          ./configure
+	cd $(LIBARCHIVE) &&  $(MAKE) $(AM_MAKEFLAGS)
+	touch $@
+
+ALL_LOCAL += $(LIB_LIBARCHIVE)
 endif
 
 if WITH_BUNDLED_LIBEV

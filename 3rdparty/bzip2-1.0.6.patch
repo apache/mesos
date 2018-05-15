@@ -1,0 +1,20 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+new file mode 100644
+index 0000000..339ce93
+--- /dev/null
++++ b/CMakeLists.txt
+@@ -0,0 +1,14 @@
++project ( bzip2 C )
++cmake_minimum_required(VERSION 3.8)
++
++add_definitions ( -D_FILE_OFFSET_BITS=64 )
++
++set ( BZIP2_SRCS blocksort.c huffman.c crctable.c randtable.c compress.c decompress.c bzlib.c )
++
++add_library ( bzip2 STATIC ${BZIP2_SRCS} libbz2.def )
++
++install(TARGETS bzip2
++	DESTINATION ${BZIP2_INSTALL_DIR})
++
++install(FILES bzlib.h
++    DESTINATION ${BZIP2_INSTALL_DIR})
