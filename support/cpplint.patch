@@ -1,5 +1,5 @@
 diff --git a/support/cpplint.py b/support/cpplint.py
-index 53dbe81..7a020a4 100644
+index 6d44d3165..5089d50a9 100644
 --- a/support/cpplint.py
 +++ b/support/cpplint.py
 @@ -28,6 +28,12 @@
@@ -10,7 +10,7 @@ index 53dbe81..7a020a4 100644
 +# Modified by Avinash S (avinash@mesosphere.io) to check for at least
 +# a __single__ space in comments is required for hpp and cpp files.
 +# Modified by Tomek J (janiszt@gmail.com) to check for NULL usage.
-+
++# Modified by Armand G (agrillet@mesosphere.io) to skip file when linted.
 +
  """Does google-lint on c++ files.
  
@@ -23,7 +23,7 @@ index 53dbe81..7a020a4 100644
  
  import codecs
  import copy
-@@ -210,6 +217,7 @@ _ERROR_CATEGORIES = [
+@@ -216,6 +223,7 @@ _ERROR_CATEGORIES = [
      'build/include_order',
      'build/include_what_you_use',
      'build/namespaces',
@@ -31,7 +31,7 @@ index 53dbe81..7a020a4 100644
      'build/printf_format',
      'build/storage_class',
      'legal/copyright',
-@@ -552,7 +560,7 @@ _line_length = 80
+@@ -558,7 +566,7 @@ _line_length = 80
  
  # The allowed extensions for file names
  # This is set by --extensions flag.
@@ -40,7 +40,7 @@ index 53dbe81..7a020a4 100644
  
  # Treat all headers starting with 'h' equally: .h, .hpp, .hxx etc.
  # This is set by --headers flag.
-@@ -2364,14 +2372,14 @@ class _NamespaceInfo(_BlockInfo):
+@@ -2370,14 +2378,14 @@ class _NamespaceInfo(_BlockInfo):
      if self.name:
        # Named namespace
        if not Match((r'^\s*};*\s*(//|/\*).*\bnamespace\s+' +
@@ -58,7 +58,7 @@ index 53dbe81..7a020a4 100644
          # If "// namespace anonymous" or "// anonymous namespace (more text)",
          # mention "// anonymous namespace" as an acceptable form
          if Match(r'^\s*}.*\b(namespace anonymous|anonymous namespace)\b', line):
-@@ -2380,7 +2388,7 @@ class _NamespaceInfo(_BlockInfo):
+@@ -2386,7 +2394,7 @@ class _NamespaceInfo(_BlockInfo):
                  ' or "// anonymous namespace"')
          else:
            error(filename, linenum, 'readability/namespace', 5,
@@ -67,7 +67,7 @@ index 53dbe81..7a020a4 100644
  
  
  class _PreprocessorInfo(object):
-@@ -2682,11 +2690,9 @@ class NestingState(object):
+@@ -2688,11 +2696,9 @@ class NestingState(object):
        if access_match:
          classinfo.access = access_match.group(2)
  
@@ -81,7 +81,7 @@ index 53dbe81..7a020a4 100644
            if classinfo.is_struct:
              parent = 'struct ' + classinfo.name
            else:
-@@ -2695,7 +2701,7 @@ class NestingState(object):
+@@ -2701,7 +2707,7 @@ class NestingState(object):
            if access_match.group(3):
              slots = access_match.group(3)
            error(filename, linenum, 'whitespace/indent', 3,
@@ -90,7 +90,7 @@ index 53dbe81..7a020a4 100644
                      access_match.group(2), slots, parent))
  
      # Consume braces or semicolons from what's left of the line
-@@ -3123,13 +3129,10 @@ def CheckComment(line, filename, linenum, next_line_start, error):
+@@ -3129,13 +3135,10 @@ def CheckComment(line, filename, linenum, next_line_start, error):
      # Check if the // may be in quotes.  If so, ignore it
      if re.sub(r'\\.', '', line[0:commentpos]).count('"') % 2 == 0:
        # Allow one space for new scopes, two spaces otherwise:
@@ -107,7 +107,7 @@ index 53dbe81..7a020a4 100644
  
        # Checks for common mistakes in TODO comments.
        comment = line[commentpos:]
-@@ -3377,7 +3380,7 @@ def CheckOperatorSpacing(filename, clean_lines, linenum, error):
+@@ -3383,7 +3386,7 @@ def CheckOperatorSpacing(filename, clean_lines, linenum, error):
    # those tend to be macros that deal with operators.
    match = Search(r'(operator|[^\s(<])(?:L|UL|LL|ULL|l|ul|ll|ull)?<<([^\s,=<])', line)
    if (match and not (match.group(1).isdigit() and match.group(2).isdigit()) and
@@ -116,7 +116,7 @@ index 53dbe81..7a020a4 100644
      error(filename, linenum, 'whitespace/operators', 3,
            'Missing spaces around <<')
  
-@@ -4394,6 +4397,10 @@ def CheckStyle(filename, clean_lines, linenum, file_extension, nesting_state,
+@@ -4410,6 +4413,10 @@ def CheckStyle(filename, clean_lines, linenum, file_extension, nesting_state,
      error(filename, linenum, 'whitespace/newline', 0,
            'More than one command on the same line')
  
