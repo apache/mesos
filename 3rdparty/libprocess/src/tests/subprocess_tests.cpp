@@ -804,12 +804,7 @@ TEST_F(SubprocessTest, Flags)
   //
   // This is the behavior expected by the test as the POSIX version of
   // `echo` is a native binary.
-  char exe_path[_MAX_PATH + 1];
-  DWORD dw = GetModuleFileNameA(NULL, exe_path, _MAX_PATH);
-  EXPECT_EQ(GetLastError(), 0);
-  string test_exe_path = path::join(
-      string(exe_path).substr(0, string(exe_path).find_last_of('\\')),
-      "test-echo.exe");
+  string test_exe_path = path::join(BUILD_DIR, "\\test-echo.exe");
 #endif
 
   Try<Subprocess> s = subprocess(
