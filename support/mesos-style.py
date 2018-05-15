@@ -361,7 +361,9 @@ class PyLinter(LinterBase):
                     r'glog\-0\.3\.3|' \
                     r'boost\-1\.53\.0|' \
                     r'libev\-4\.15|' \
-                    r'java/jni|\.virtualenv' \
+                    r'java/jni|' \
+                    r'\.virtualenv|' \
+                    r'\.tox' \
                     ')'
 
     source_files = r'\.(py)$'
