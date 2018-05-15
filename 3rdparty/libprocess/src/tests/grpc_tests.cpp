@@ -47,7 +47,7 @@ using process::Future;
 using process::Promise;
 
 using process::grpc::Channel;
-using process::grpc::RpcResult;
+using process::grpc::StatusError;
 
 using testing::_;
 using testing::DoAll;
@@ -123,11 +123,11 @@ TEST_F(GRPCClientTest, Success)
 
   client::Runtime runtime;
 
-  Future<RpcResult<Pong>> pong =
+  Future<Try<Pong, StatusError>> pong =
     runtime.call(channel.get(), GRPC_RPC(PingPong, Send), Ping());
 
   AWAIT_ASSERT_READY(pong);
-  EXPECT_TRUE(pong->status.ok());
+  EXPECT_SOME(pong.get());
 
   runtime.terminate();
   AWAIT_ASSERT_READY(runtime.wait());
@@ -170,13 +170,13 @@ TEST_F(GRPCClientTest, ConcurrentRPCs)
 
   client::Runtime runtime;
 
-  Future<RpcResult<Pong>> pong1 =
+  Future<Try<Pong, StatusError>> pong1 =
     runtime.call(channel.get(), GRPC_RPC(PingPong, Send), Ping());
 
-  Future<RpcResult<Pong>> pong2 =
+  Future<Try<Pong, StatusError>> pong2 =
     runtime.call(channel.get(), GRPC_RPC(PingPong, Send), Ping());
 
-  Future<RpcResult<Pong>> pong3 =
+  Future<Try<Pong, StatusError>> pong3 =
     runtime.call(channel.get(), GRPC_RPC(PingPong, Send), Ping());
 
   AWAIT_READY(processed1->future());
@@ -186,13 +186,13 @@ TEST_F(GRPCClientTest, ConcurrentRPCs)
   pinged->set(Nothing());
 
   AWAIT_ASSERT_READY(pong1);
-  EXPECT_TRUE(pong1->status.ok());
+  EXPECT_SOME(pong1.get());
 
   AWAIT_ASSERT_READY(pong2);
-  EXPECT_TRUE(pong2->status.ok());
+  EXPECT_SOME(pong2.get());
 
   AWAIT_ASSERT_READY(pong3);
-  EXPECT_TRUE(pong3->status.ok());
+  EXPECT_SOME(pong3.get());
 
   runtime.terminate();
   AWAIT_ASSERT_READY(runtime.wait());
@@ -201,9 +201,9 @@ TEST_F(GRPCClientTest, ConcurrentRPCs)
 }
 
 
-// This test verifies that a gRPC future fails when the server responds
-// with a status other than OK for the given call.
-TEST_F(GRPCClientTest, Failed)
+// This test verifies that a gRPC future is set with an error when the server
+// responds with a status other than OK for the given call.
+TEST_F(GRPCClientTest, StatusError)
 {
   PingPongServer server;
 
@@ -215,11 +215,12 @@ TEST_F(GRPCClientTest, Failed)
 
   client::Runtime runtime;
 
-  Future<RpcResult<Pong>> pong =
+  Future<Try<Pong, StatusError>> pong =
     runtime.call(channel.get(), GRPC_RPC(PingPong, Send), Ping());
 
   AWAIT_ASSERT_READY(pong);
-  EXPECT_FALSE(pong->status.ok());
+  EXPECT_ERROR(pong.get());
+  EXPECT_EQ(::grpc::CANCELLED, pong->error().status.error_code());
 
   runtime.terminate();
   AWAIT_ASSERT_READY(runtime.wait());
@@ -240,7 +241,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(GRPCClientTest, DiscardedBeforeServerStarted)
   Channel channel(server_address());
   client::Runtime runtime;
 
-  Future<RpcResult<Pong>> pong =
+  Future<Try<Pong, StatusError>> pong =
     runtime.call(channel, GRPC_RPC(PingPong, Send), Ping());
 
   pong.discard();
@@ -278,7 +279,7 @@ TEST_F(GRPCClientTest, DiscardedWhenServerProcessing)
 
   client::Runtime runtime;
 
-  Future<RpcResult<Pong>> pong =
+  Future<Try<Pong, StatusError>> pong =
     runtime.call(channel.get(), GRPC_RPC(PingPong, Send), Ping());
 
   AWAIT_READY(processed->future());
@@ -295,7 +296,7 @@ TEST_F(GRPCClientTest, DiscardedWhenServerProcessing)
 }
 
 
-// This test verifies that a gRPC future fails properly when the runtime
+// This test verifies that a gRPC future is set with an error when the runtime
 // is shut down before the server responds.
 TEST_F(GRPCClientTest, ClientShutdown)
 {
@@ -317,7 +318,7 @@ TEST_F(GRPCClientTest, ClientShutdown)
 
   client::Runtime runtime;
 
-  Future<RpcResult<Pong>> pong =
+  Future<Try<Pong, StatusError>> pong =
     runtime.call(channel.get(), GRPC_RPC(PingPong, Send), Ping());
 
   AWAIT_READY(processed->future());
@@ -327,32 +328,39 @@ TEST_F(GRPCClientTest, ClientShutdown)
 
   shutdown->set(Nothing());
 
+  // TODO(chhsiao): The gRPC library returns a failure after the default
+  // timeout (5 seconds) is passed, no matter when the `CompletionQueue`
+  // is shut down. The timeout should be lowered once we support it.
   AWAIT_ASSERT_READY(pong);
-  EXPECT_FALSE(pong->status.ok());
+  EXPECT_ERROR(pong.get());
+  EXPECT_EQ(::grpc::DEADLINE_EXCEEDED, pong->error().status.error_code());
 
   ASSERT_SOME(server.shutdown());
 }
 
 
-// This test verifies that a gRPC future fails when it is unable to
-// connect to the server.
+// This test verifies that a gRPC future is set with an error when it is unable
+// to connect to the server.
 TEST_F(GRPCClientTest, ServerUnreachable)
 {
   Channel channel("nosuchhost");
   client::Runtime runtime;
 
-  Future<RpcResult<Pong>> pong =
+  Future<Try<Pong, StatusError>> pong =
     runtime.call(channel, GRPC_RPC(PingPong, Send), Ping());
 
   runtime.terminate();
   AWAIT_ASSERT_READY(runtime.wait());
 
+  // TODO(chhsiao): The gRPC library returns a failure after the default timeout
+  // (5 seconds) is passed. The timeout should be lowered once we support it.
   AWAIT_ASSERT_READY(pong);
-  EXPECT_FALSE(pong->status.ok());
+  EXPECT_ERROR(pong.get());
+  EXPECT_EQ(::grpc::DEADLINE_EXCEEDED, pong->error().status.error_code());
 }
 
 
-// This test verifies that a gRPC future fails properly when the server
+// This test verifies that a gRPC future is set with an error when the server
 // hangs when processing the given call.
 TEST_F(GRPCClientTest, ServerTimeout)
 {
@@ -372,14 +380,14 @@ TEST_F(GRPCClientTest, ServerTimeout)
 
   client::Runtime runtime;
 
-  Future<RpcResult<Pong>> pong =
+  Future<Try<Pong, StatusError>> pong =
     runtime.call(channel.get(), GRPC_RPC(PingPong, Send), Ping());
 
-  // TODO(chhsiao): The gRPC library returns a failure after the default
-  // timeout (5 seconds) is passed, no matter when the `CompletionQueue`
-  // is shut down. The timeout should be lowered once we support it.
+  // TODO(chhsiao): The gRPC library returns a failure after the default timeout
+  // (5 seconds) is passed. The timeout should be lowered once we support it.
   AWAIT_ASSERT_READY(pong);
-  EXPECT_FALSE(pong->status.ok());
+  EXPECT_ERROR(pong.get());
+  EXPECT_EQ(::grpc::DEADLINE_EXCEEDED, pong->error().status.error_code());
 
   done->set(Nothing());
 

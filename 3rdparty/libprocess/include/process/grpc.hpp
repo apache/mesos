@@ -18,6 +18,7 @@
 #include <memory>
 #include <thread>
 #include <type_traits>
+#include <utility>
 
 #include <google/protobuf/message.h>
 
@@ -75,19 +76,21 @@ private:
 
 
 /**
- * The response of a RPC call. It includes the gRPC `Status`
- * (https://grpc.io/grpc/cpp/classgrpc_1_1_status.html), and
- * the actual protobuf response body.
+ * Represents errors caused by non-OK gRPC statuses. See:
+ * https://grpc.io/grpc/cpp/classgrpc_1_1_status.html
  */
-template <typename T>
-struct RpcResult
+class StatusError : public Error
 {
-  RpcResult(const ::grpc::Status& _status, const T& _response)
-    : status(_status), response(_response) {}
+public:
+  StatusError(::grpc::Status _status)
+    : Error(_status.error_message()), status(std::move(_status))
+  {
+    CHECK(!status.ok());
+  }
 
-  ::grpc::Status status;
-  T response;
+  const ::grpc::Status status;
 };
+
 
 namespace client {
 
@@ -112,14 +115,20 @@ public:
   /**
    * Sends an asynchronous gRPC call.
    *
+   * This function returns a `Future` of a `Try` such that the response protobuf
+   * is returned only if the gRPC call returns an OK status to ensure type
+   * safety (see https://github.com/grpc/grpc/issues/12824). Note that the
+   * future never fails; it will return a `StatusError` if a non-OK status is
+   * returned for the call, so the caller can handle the error programmatically.
+   *
    * @param channel A connection to a gRPC server.
    * @param rpc The asynchronous gRPC call to make. This can be obtained
    *     by the `GRPC_RPC(Service, RPC)` macro.
    * @param request The request protobuf for the gRPC call.
-   * @return a `Future` waiting for a response protobuf.
+   * @return a `Future` of `Try` waiting for a response protobuf or an error.
    */
   template <typename Stub, typename Request, typename Response>
-  Future<RpcResult<Response>> call(
+  Future<Try<Response, StatusError>> call(
       const Channel& channel,
       std::unique_ptr<::grpc::ClientAsyncResponseReader<Response>>(Stub::*rpc)(
           ::grpc::ClientContext*,
@@ -152,8 +161,8 @@ public:
       // an asynchronous gRPC call through the `CompletionQueue`
       // managed by `data`. The `Promise` will be set by the callback
       // upon server response.
-      std::shared_ptr<Promise<RpcResult<Response>>> promise(
-          new Promise<RpcResult<Response>>);
+      std::shared_ptr<Promise<Try<Response, StatusError>>> promise(
+          new Promise<Try<Response, StatusError>>);
 
       promise->future().onDiscard([=] { context->TryCancel(); });
 
@@ -175,10 +184,11 @@ public:
                 CHECK(promise->future().isPending());
                 if (promise->future().hasDiscard()) {
                   promise->discard();
-                  return;
+                } else {
+                  promise->set(status->ok()
+                    ? std::move(*response)
+                    : Try<Response, StatusError>::error(std::move(*status)));
                 }
-
-                promise->set(RpcResult<Response>(*status, *response));
               }));
 
       return promise->future();
