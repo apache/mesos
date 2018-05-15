@@ -615,7 +615,10 @@ TEST_F(ROOT_XFS_QuotaTest, DiskUsageExceedsQuotaWithKill)
   // the task used more than the 1MB in its resources, we are happy.
   EXPECT_EQ(1u, limit.size());
   ASSERT_SOME(limit.disk());
-  EXPECT_GT(limit.disk().get(), Megabytes(1));
+
+  // Currently the disk() function performs a static cast to uint64 so
+  // fractional Megabytes are truncated.
+  EXPECT_GE(limit.disk().get(), Megabytes(1));
 
   driver.stop();
   driver.join();
