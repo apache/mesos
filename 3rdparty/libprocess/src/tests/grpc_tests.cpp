@@ -124,7 +124,7 @@ TEST_F(GRPCClientTest, Success)
   client::Runtime runtime;
 
   Future<Try<Pong, StatusError>> pong =
-    runtime.call(channel.get(), GRPC_RPC(PingPong, Send), Ping());
+    runtime.call(channel.get(), GRPC_CLIENT_METHOD(PingPong, Send), Ping());
 
   AWAIT_ASSERT_READY(pong);
   EXPECT_SOME(pong.get());
@@ -171,13 +171,13 @@ TEST_F(GRPCClientTest, ConcurrentRPCs)
   client::Runtime runtime;
 
   Future<Try<Pong, StatusError>> pong1 =
-    runtime.call(channel.get(), GRPC_RPC(PingPong, Send), Ping());
+    runtime.call(channel.get(), GRPC_CLIENT_METHOD(PingPong, Send), Ping());
 
   Future<Try<Pong, StatusError>> pong2 =
-    runtime.call(channel.get(), GRPC_RPC(PingPong, Send), Ping());
+    runtime.call(channel.get(), GRPC_CLIENT_METHOD(PingPong, Send), Ping());
 
   Future<Try<Pong, StatusError>> pong3 =
-    runtime.call(channel.get(), GRPC_RPC(PingPong, Send), Ping());
+    runtime.call(channel.get(), GRPC_CLIENT_METHOD(PingPong, Send), Ping());
 
   AWAIT_READY(processed1->future());
   AWAIT_READY(processed2->future());
@@ -216,7 +216,7 @@ TEST_F(GRPCClientTest, StatusError)
   client::Runtime runtime;
 
   Future<Try<Pong, StatusError>> pong =
-    runtime.call(channel.get(), GRPC_RPC(PingPong, Send), Ping());
+    runtime.call(channel.get(), GRPC_CLIENT_METHOD(PingPong, Send), Ping());
 
   AWAIT_ASSERT_READY(pong);
   EXPECT_ERROR(pong.get());
@@ -242,7 +242,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(GRPCClientTest, DiscardedBeforeServerStarted)
   client::Runtime runtime;
 
   Future<Try<Pong, StatusError>> pong =
-    runtime.call(channel, GRPC_RPC(PingPong, Send), Ping());
+    runtime.call(channel, GRPC_CLIENT_METHOD(PingPong, Send), Ping());
 
   pong.discard();
 
@@ -280,7 +280,7 @@ TEST_F(GRPCClientTest, DiscardedWhenServerProcessing)
   client::Runtime runtime;
 
   Future<Try<Pong, StatusError>> pong =
-    runtime.call(channel.get(), GRPC_RPC(PingPong, Send), Ping());
+    runtime.call(channel.get(), GRPC_CLIENT_METHOD(PingPong, Send), Ping());
 
   AWAIT_READY(processed->future());
 
@@ -319,7 +319,7 @@ TEST_F(GRPCClientTest, ClientShutdown)
   client::Runtime runtime;
 
   Future<Try<Pong, StatusError>> pong =
-    runtime.call(channel.get(), GRPC_RPC(PingPong, Send), Ping());
+    runtime.call(channel.get(), GRPC_CLIENT_METHOD(PingPong, Send), Ping());
 
   AWAIT_READY(processed->future());
 
@@ -347,7 +347,7 @@ TEST_F(GRPCClientTest, ServerUnreachable)
   client::Runtime runtime;
 
   Future<Try<Pong, StatusError>> pong =
-    runtime.call(channel, GRPC_RPC(PingPong, Send), Ping());
+    runtime.call(channel, GRPC_CLIENT_METHOD(PingPong, Send), Ping());
 
   runtime.terminate();
   AWAIT_ASSERT_READY(runtime.wait());
@@ -381,7 +381,7 @@ TEST_F(GRPCClientTest, ServerTimeout)
   client::Runtime runtime;
 
   Future<Try<Pong, StatusError>> pong =
-    runtime.call(channel.get(), GRPC_RPC(PingPong, Send), Ping());
+    runtime.call(channel.get(), GRPC_CLIENT_METHOD(PingPong, Send), Ping());
 
   // TODO(chhsiao): The gRPC library returns a failure after the default timeout
   // (5 seconds) is passed. The timeout should be lowered once we support it.

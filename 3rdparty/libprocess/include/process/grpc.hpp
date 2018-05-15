@@ -41,8 +41,8 @@
 // interface to create an asynchrous gRPC call and return a `Future`.
 
 
-#define GRPC_RPC(service, rpc) \
-  (&service::Stub::Async##rpc)
+#define GRPC_CLIENT_METHOD(service, rpc) \
+  (&service::Stub::PrepareAsync##rpc)
 
 namespace process {
 namespace grpc {
@@ -94,6 +94,28 @@ public:
 
 namespace client {
 
+// Internal helper utilities.
+namespace internal {
+
+template <typename T>
+struct MethodTraits; // Undefined.
+
+
+template <typename Stub, typename Request, typename Response>
+struct MethodTraits<
+    std::unique_ptr<::grpc::ClientAsyncResponseReader<Response>>(Stub::*)(
+        ::grpc::ClientContext*,
+        const Request&,
+        ::grpc::CompletionQueue*)>
+{
+  typedef Stub stub_type;
+  typedef Request request_type;
+  typedef Response response_type;
+};
+
+} // namespace internal {
+
+
 /**
  * A copyable interface to manage an internal gRPC runtime instance for
  * asynchronous gRPC calls. A gRPC runtime instance includes a gRPC
@@ -123,17 +145,19 @@ public:
    *
    * @param channel A connection to a gRPC server.
    * @param rpc The asynchronous gRPC call to make. This can be obtained
-   *     by the `GRPC_RPC(Service, RPC)` macro.
+   *     by the `GRPC_CLIENT_METHOD(service, rpc)` macro.
    * @param request The request protobuf for the gRPC call.
    * @return a `Future` of `Try` waiting for a response protobuf or an error.
    */
-  template <typename Stub, typename Request, typename Response>
+  template <
+      typename Method,
+      typename Request =
+        typename internal::MethodTraits<Method>::request_type,
+      typename Response =
+        typename internal::MethodTraits<Method>::response_type>
   Future<Try<Response, StatusError>> call(
       const Channel& channel,
-      std::unique_ptr<::grpc::ClientAsyncResponseReader<Response>>(Stub::*rpc)(
-          ::grpc::ClientContext*,
-          const Request&,
-          ::grpc::CompletionQueue*),
+      Method&& method,
       const Request& request)
   {
     static_assert(
@@ -170,8 +194,10 @@ public:
       std::shared_ptr<::grpc::Status> status(new ::grpc::Status());
 
       std::shared_ptr<::grpc::ClientAsyncResponseReader<Response>> reader(
-          (Stub(channel.channel).*rpc)(context.get(), request, &data->queue));
+          (typename internal::MethodTraits<Method>::stub_type(
+              channel.channel).*method)(context.get(), request, &data->queue));
 
+      reader->StartCall();
       reader->Finish(
           response.get(),
           status.get(),
