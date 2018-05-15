@@ -53,6 +53,7 @@ GLOG = $(BUNDLED_DIR)/glog-$(GLOG_VERSION)
 GOOGLETEST = $(BUNDLED_DIR)/googletest-release-$(GOOGLETEST_VERSION)
 GMOCK = $(GOOGLETEST)/googlemock
 GTEST = $(GOOGLETEST)/googletest
+LIBARCHIVE = $(BUNDLED_DIR)/libarchive-$(LIBARCHIVE_VERSION)
 PROTOBUF = $(BUNDLED_DIR)/protobuf-$(PROTOBUF_VERSION)
 PICOJSON = $(BUNDLED_DIR)/picojson-$(PICOJSON_VERSION)
 
@@ -97,6 +98,13 @@ PICOJSON_INCLUDE_FLAGS =	\
   -DPICOJSON_USE_INT64		\
   -D__STDC_FORMAT_MACROS
 
+if WITH_BUNDLED_LIBARCHIVE
+LIBARCHIVE_INCLUDE_FLAGS = -I$(LIBARCHIVE)/libarchive
+LIB_LIBARCHIVE = $(LIBARCHIVE)/.libs/libarchive.la
+else
+LIB_LIBARCHIVE = -larchive
+endif
+
 if WITH_BUNDLED_PICOJSON
 PICOJSON_INCLUDE_FLAGS += -I$(PICOJSON)
 BUNDLED_DEPS += $(PICOJSON)-stamp
@@ -124,6 +132,7 @@ check_PROGRAMS = stout-tests
 
 stout_tests_SOURCES =			\
   tests/adaptor_tests.cpp		\
+  tests/archiver_tests.cpp		\
   tests/base64_tests.cpp		\
   tests/bits_tests.cpp			\
   tests/boundedhashmap_tests.cpp	\
@@ -189,6 +198,7 @@ stout_tests_CPPFLAGS =			\
   $(GLOG_INCLUDE_FLAGS)			\
   $(GMOCK_INCLUDE_FLAGS)		\
   $(GTEST_INCLUDE_FLAGS)		\
+  $(LIBARCHIVE_INCLUDE_FLAGS)		\
   $(PICOJSON_INCLUDE_FLAGS)		\
   $(PROTOBUF_INCLUDE_FLAGS)		\
   $(AM_CPPFLAGS)
@@ -199,6 +209,7 @@ stout_tests_CPPFLAGS =			\
 stout_tests_LDADD =			\
   $(LIB_GMOCK)				\
   $(LIB_GLOG)				\
+  $(LIB_LIBARCHIVE)			\
   $(LIB_PROTOBUF)			\
   -lsvn_subr-1				\
   -lsvn_delta-1				\
