@@ -782,10 +782,35 @@ TEST_F(SubprocessTest, Flags)
 
   string out = path::join(os::getcwd(), "stdout");
 
+#ifdef __WINDOWS__
+  // The Windows version of `echo` is a built-in of the command
+  // prompt, and it simply reproduces the entire command line string.
+  // However, the flags class (and thus this test) is expecting the
+  // semantics of a native binary interpreting the command line
+  // arguments via the Windows API `CommandLineToArgv`. When a regular
+  // Windows application (in contrast to `echo`) gets command line
+  // arguments, the text is processed automatically by
+  // `CommandLineToArgv`, which converts the command line string into
+  // an array. For example, this is the output of `echo`:
+  //
+  //    > cmd.exe /c echo "--s3=\"geek\""
+  //    "--s3=\"geek\""
+  //
+  // With `test-echo.exe`, a small native binary that just prints its
+  // arguments, the output is:
+  //
+  //     > test-echo.exe "--s3=\"geek\""
+  //     --s3="geek"
+  //
+  // This is the behavior expected by the test as the POSIX version of
+  // `echo` is a native binary.
+  string test_echo_path = path::join(BUILD_DIR, "test-echo.exe");
+#endif
+
   Try<Subprocess> s = subprocess(
 #ifdef __WINDOWS__
-      os::Shell::name,
-      {os::Shell::arg0, os::Shell::arg1, "echo"},
+      test_echo_path,
+      {test_echo_path},
 #else
       "/bin/echo",
       vector<string>(1, "echo"),
@@ -831,18 +856,10 @@ TEST_F(SubprocessTest, Flags)
   EXPECT_EQ(flags.i, flags2.i);
   EXPECT_EQ(flags.s, flags2.s);
   EXPECT_EQ(flags.s2, flags2.s2);
-  // TODO(andschwa): Fix the `flags.load()` or `stringify_args` logic.
-  // Currently, this gets escaped to `"\"--s3=\\\"geek\\\"\""` because
-  // it has double quotes in it. See MESOS-8857.
-#ifndef __WINDOWS__
   EXPECT_EQ(flags.s3, flags2.s3);
-#endif // __WINDOWS__
   EXPECT_EQ(flags.d, flags2.d);
   EXPECT_EQ(flags.y, flags2.y);
-  // TODO(andschwa): Same problem as above.
-#ifndef __WINDOWS__
   EXPECT_EQ(flags.j, flags2.j);
-#endif // __WINDOWS__
 
   for (int i = 1; i < argc; i++) {
     ::free(argv[i]);

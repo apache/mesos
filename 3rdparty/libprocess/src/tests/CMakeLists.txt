@@ -87,13 +87,24 @@ target_link_libraries(libprocess-tests PRIVATE process-interface)
 # NOTE: This is for the generated gRPC headers.
 target_include_directories(libprocess-tests PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
-target_compile_definitions(
-  libprocess-tests PRIVATE
-  BUILD_DIR="${CMAKE_CURRENT_BINARY_DIR}")
+if (CMAKE_GENERATOR MATCHES "Visual Studio")
+  target_compile_definitions(
+    libprocess-tests PRIVATE
+    BUILD_DIR="${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>")
+else ()
+  target_compile_definitions(
+    libprocess-tests PRIVATE
+    BUILD_DIR="${CMAKE_CURRENT_BINARY_DIR}")
+endif ()
 
 add_executable(test-linkee EXCLUDE_FROM_ALL test_linkee.cpp)
 target_link_libraries(test-linkee PRIVATE process-interface)
 add_dependencies(libprocess-tests test-linkee)
+
+if (WIN32)
+  add_executable(test-echo EXCLUDE_FROM_ALL test_echo.cpp)
+  add_dependencies(libprocess-tests test-echo)
+endif ()
 
 if (ENABLE_SSL)
   add_executable(ssl-client EXCLUDE_FROM_ALL ssl_client.cpp)
