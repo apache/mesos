@@ -34,11 +34,11 @@
 #include <stout/try.hpp>
 
 
-// This file provides libprocess "support" for using gRPC. In
-// particular, it defines two wrapper classes: `Channel` (representing a
-// connection to a gRPC server) and `client::Runtime`, which integrates
-// an event loop waiting for gRPC responses, and provides the `call`
-// interface to create an asynchrous gRPC call and return a `Future`.
+// This file provides libprocess "support" for using gRPC. In particular, it
+// defines two wrapper classes: `client::Connection` which represents a
+// connection to a gRPC server, and `client::Runtime` which integrates an event
+// loop waiting for gRPC responses and provides the `call` interface to create
+// an asynchronous gRPC call and return a `Future`.
 
 
 #define GRPC_CLIENT_METHOD(service, rpc) \
@@ -46,34 +46,6 @@
 
 namespace process {
 namespace grpc {
-
-// Forward declarations.
-namespace client { class Runtime; }
-
-
-/**
- * A copyable interface to manage a connection to a gRPC server.
- * All `Channel` copies share the same connection. Note that the
- * connection is established lazily by the gRPC runtime library: the
- * actual connection is delayed till an RPC call is made.
- */
-class Channel
-{
-public:
-  Channel(const std::string& uri,
-          const std::shared_ptr<::grpc::ChannelCredentials>& credentials =
-            ::grpc::InsecureChannelCredentials())
-    : channel(::grpc::CreateChannel(uri, credentials)) {}
-
-  explicit Channel(std::shared_ptr<::grpc::Channel> _channel)
-    : channel(std::move(_channel)) {}
-
-private:
-  std::shared_ptr<::grpc::Channel> channel;
-
-  friend class client::Runtime;
-};
-
 
 /**
  * Represents errors caused by non-OK gRPC statuses. See:
@@ -117,6 +89,28 @@ struct MethodTraits<
 
 
 /**
+ * A copyable interface to manage a connection to a gRPC server. All
+ * `Connection` copies share the same gRPC channel which is thread safe. Note
+ * that the actual connection is established lazily by the gRPC library at the
+ * time an RPC is made to the channel.
+ */
+class Connection
+{
+public:
+  Connection(
+      const std::string& uri,
+      const std::shared_ptr<::grpc::ChannelCredentials>& credentials =
+        ::grpc::InsecureChannelCredentials())
+    : channel(::grpc::CreateChannel(uri, credentials)) {}
+
+  explicit Connection(std::shared_ptr<::grpc::Channel> _channel)
+    : channel(std::move(_channel)) {}
+
+  const std::shared_ptr<::grpc::Channel> channel;
+};
+
+
+/**
  * A copyable interface to manage an internal gRPC runtime instance for
  * asynchronous gRPC calls. A gRPC runtime instance includes a gRPC
  * `CompletionQueue` to manage outstanding requests, a looper thread to
@@ -143,7 +137,7 @@ public:
    * future never fails; it will return a `StatusError` if a non-OK status is
    * returned for the call, so the caller can handle the error programmatically.
    *
-   * @param channel A connection to a gRPC server.
+   * @param connection A connection to a gRPC server.
    * @param rpc The asynchronous gRPC call to make. This can be obtained
    *     by the `GRPC_CLIENT_METHOD(service, rpc)` macro.
    * @param request The request protobuf for the gRPC call.
@@ -156,7 +150,7 @@ public:
       typename Response =
         typename internal::MethodTraits<Method>::response_type>
   Future<Try<Response, StatusError>> call(
-      const Channel& channel,
+      const Connection& connection,
       Method&& method,
       const Request& request)
   {
@@ -193,9 +187,9 @@ public:
       std::shared_ptr<Response> response(new Response());
       std::shared_ptr<::grpc::Status> status(new ::grpc::Status());
 
-      std::shared_ptr<::grpc::ClientAsyncResponseReader<Response>> reader(
-          (typename internal::MethodTraits<Method>::stub_type(
-              channel.channel).*method)(context.get(), request, &data->queue));
+      std::shared_ptr<::grpc::ClientAsyncResponseReader<Response>> reader =
+        (typename internal::MethodTraits<Method>::stub_type(
+            connection.channel).*method)(context.get(), request, &data->queue);
 
       reader->StartCall();
       reader->Finish(

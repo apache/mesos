@@ -46,7 +46,6 @@ using ::grpc::Status;
 using process::Future;
 using process::Promise;
 
-using process::grpc::Channel;
 using process::grpc::StatusError;
 
 using testing::_;
@@ -67,7 +66,7 @@ public:
 
   MOCK_METHOD3(Send, Status(ServerContext*, const Ping* ping, Pong* pong));
 
-  Try<Channel> startup(const Option<string>& address = None())
+  Try<client::Connection> startup(const Option<string>& address = None())
   {
     ServerBuilder builder;
 
@@ -83,8 +82,8 @@ public:
     }
 
     return address.isSome()
-      ? Channel(address.get())
-      : Channel(server->InProcessChannel(ChannelArguments()));
+      ? client::Connection(address.get())
+      : client::Connection(server->InProcessChannel(ChannelArguments()));
   }
 
   Try<Nothing> shutdown()
@@ -104,7 +103,7 @@ class GRPCClientTest : public TemporaryDirectoryTest
 {
 protected:
   // TODO(chhsiao): Consider removing this once we have a way to get a
-  // channel before the server starts on Windows. See the
+  // connection before the server starts on Windows. See the
   // `DiscardedBeforeServerStarted` test below.
   string server_address() const
   {
@@ -118,13 +117,13 @@ protected:
 TEST_F(GRPCClientTest, Success)
 {
   PingPongServer server;
-  Try<Channel> channel = server.startup();
-  ASSERT_SOME(channel);
+  Try<client::Connection> connection = server.startup();
+  ASSERT_SOME(connection);
 
   client::Runtime runtime;
 
   Future<Try<Pong, StatusError>> pong =
-    runtime.call(channel.get(), GRPC_CLIENT_METHOD(PingPong, Send), Ping());
+    runtime.call(connection.get(), GRPC_CLIENT_METHOD(PingPong, Send), Ping());
 
   AWAIT_ASSERT_READY(pong);
   EXPECT_SOME(pong.get());
@@ -140,8 +139,8 @@ TEST_F(GRPCClientTest, Success)
 TEST_F(GRPCClientTest, ConcurrentRPCs)
 {
   PingPongServer server;
-  Try<Channel> channel = server.startup();
-  ASSERT_SOME(channel);
+  Try<client::Connection> connection = server.startup();
+  ASSERT_SOME(connection);
 
   shared_ptr<Promise<Nothing>> processed1(new Promise<Nothing>());
   shared_ptr<Promise<Nothing>> processed2(new Promise<Nothing>());
@@ -171,13 +170,13 @@ TEST_F(GRPCClientTest, ConcurrentRPCs)
   client::Runtime runtime;
 
   Future<Try<Pong, StatusError>> pong1 =
-    runtime.call(channel.get(), GRPC_CLIENT_METHOD(PingPong, Send), Ping());
+    runtime.call(connection.get(), GRPC_CLIENT_METHOD(PingPong, Send), Ping());
 
   Future<Try<Pong, StatusError>> pong2 =
-    runtime.call(channel.get(), GRPC_CLIENT_METHOD(PingPong, Send), Ping());
+    runtime.call(connection.get(), GRPC_CLIENT_METHOD(PingPong, Send), Ping());
 
   Future<Try<Pong, StatusError>> pong3 =
-    runtime.call(channel.get(), GRPC_CLIENT_METHOD(PingPong, Send), Ping());
+    runtime.call(connection.get(), GRPC_CLIENT_METHOD(PingPong, Send), Ping());
 
   AWAIT_READY(processed1->future());
   AWAIT_READY(processed2->future());
@@ -210,13 +209,13 @@ TEST_F(GRPCClientTest, StatusError)
   EXPECT_CALL(server, Send(_, _, _))
     .WillOnce(Return(Status::CANCELLED));
 
-  Try<Channel> channel = server.startup();
-  ASSERT_SOME(channel);
+  Try<client::Connection> connection = server.startup();
+  ASSERT_SOME(connection);
 
   client::Runtime runtime;
 
   Future<Try<Pong, StatusError>> pong =
-    runtime.call(channel.get(), GRPC_CLIENT_METHOD(PingPong, Send), Ping());
+    runtime.call(connection.get(), GRPC_CLIENT_METHOD(PingPong, Send), Ping());
 
   AWAIT_ASSERT_READY(pong);
   EXPECT_ERROR(pong.get());
@@ -238,11 +237,11 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(GRPCClientTest, DiscardedBeforeServerStarted)
   EXPECT_CALL(server, Send(_, _, _))
     .Times(0);
 
-  Channel channel(server_address());
+  client::Connection connection(server_address());
   client::Runtime runtime;
 
   Future<Try<Pong, StatusError>> pong =
-    runtime.call(channel, GRPC_CLIENT_METHOD(PingPong, Send), Ping());
+    runtime.call(connection, GRPC_CLIENT_METHOD(PingPong, Send), Ping());
 
   pong.discard();
 
@@ -274,13 +273,13 @@ TEST_F(GRPCClientTest, DiscardedWhenServerProcessing)
         }),
         Return(Status::OK)));
 
-  Try<Channel> channel = server.startup();
-  ASSERT_SOME(channel);
+  Try<client::Connection> connection = server.startup();
+  ASSERT_SOME(connection);
 
   client::Runtime runtime;
 
   Future<Try<Pong, StatusError>> pong =
-    runtime.call(channel.get(), GRPC_CLIENT_METHOD(PingPong, Send), Ping());
+    runtime.call(connection.get(), GRPC_CLIENT_METHOD(PingPong, Send), Ping());
 
   AWAIT_READY(processed->future());
 
@@ -313,13 +312,13 @@ TEST_F(GRPCClientTest, ClientShutdown)
         }),
         Return(Status::OK)));
 
-  Try<Channel> channel = server.startup();
-  ASSERT_SOME(channel);
+  Try<client::Connection> connection = server.startup();
+  ASSERT_SOME(connection);
 
   client::Runtime runtime;
 
   Future<Try<Pong, StatusError>> pong =
-    runtime.call(channel.get(), GRPC_CLIENT_METHOD(PingPong, Send), Ping());
+    runtime.call(connection.get(), GRPC_CLIENT_METHOD(PingPong, Send), Ping());
 
   AWAIT_READY(processed->future());
 
@@ -343,11 +342,11 @@ TEST_F(GRPCClientTest, ClientShutdown)
 // to connect to the server.
 TEST_F(GRPCClientTest, ServerUnreachable)
 {
-  Channel channel("nosuchhost");
+  client::Connection connection("nosuchhost");
   client::Runtime runtime;
 
   Future<Try<Pong, StatusError>> pong =
-    runtime.call(channel, GRPC_CLIENT_METHOD(PingPong, Send), Ping());
+    runtime.call(connection, GRPC_CLIENT_METHOD(PingPong, Send), Ping());
 
   runtime.terminate();
   AWAIT_ASSERT_READY(runtime.wait());
@@ -375,13 +374,13 @@ TEST_F(GRPCClientTest, ServerTimeout)
         }),
         Return(Status::OK)));
 
-  Try<Channel> channel = server.startup();
-  ASSERT_SOME(channel);
+  Try<client::Connection> connection = server.startup();
+  ASSERT_SOME(connection);
 
   client::Runtime runtime;
 
   Future<Try<Pong, StatusError>> pong =
-    runtime.call(channel.get(), GRPC_CLIENT_METHOD(PingPong, Send), Ping());
+    runtime.call(connection.get(), GRPC_CLIENT_METHOD(PingPong, Send), Ping());
 
   // TODO(chhsiao): The gRPC library returns a failure after the default timeout
   // (5 seconds) is passed. The timeout should be lowered once we support it.
