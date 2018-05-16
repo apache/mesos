@@ -10,85 +10,122 @@
 // See the License for the specific language governing permissions and
 // limitations under the License
 
-#include <process/dispatch.hpp>
 #include <process/grpc.hpp>
+
+#include <process/dispatch.hpp>
 #include <process/id.hpp>
+#include <process/process.hpp>
 
 namespace process {
 namespace grpc {
-
 namespace client {
 
 void Runtime::terminate()
 {
-  data->terminate();
+  dispatch(data->pid, &RuntimeProcess::terminate);
 }
 
 
 Future<Nothing> Runtime::wait()
 {
-  return data->terminated.future();
+  return data->terminated;
 }
 
 
-Runtime::Data::Data()
-  : process(ID::generate("__grpc_client__"))
-{
-  spawn(process);
+Runtime::RuntimeProcess::RuntimeProcess()
+  : ProcessBase(ID::generate("__grpc_client__")), terminating(false) {}
 
+
+Runtime::RuntimeProcess::~RuntimeProcess()
+{
+  CHECK(!looper);
+}
+
+
+void Runtime::RuntimeProcess::send(SendCallback callback)
+{
+  std::move(callback)(terminating, &queue);
+}
+
+
+void Runtime::RuntimeProcess::receive(ReceiveCallback callback)
+{
+  std::move(callback)();
+}
+
+
+void Runtime::RuntimeProcess::terminate()
+{
+  if (!terminating) {
+    terminating = true;
+    queue.Shutdown();
+  }
+}
+
+
+Future<Nothing> Runtime::RuntimeProcess::wait()
+{
+  return terminated.future();
+}
+
+
+void Runtime::RuntimeProcess::initialize()
+{
   // The looper thread can only be created here since it need to happen
   // after `queue` is initialized.
-  looper.reset(new std::thread(&Runtime::Data::loop, this));
+  CHECK(!looper);
+  looper.reset(new std::thread(&RuntimeProcess::loop, this));
 }
 
 
-Runtime::Data::~Data()
+void Runtime::RuntimeProcess::finalize()
 {
-  terminate();
-  process::wait(process);
+  CHECK(terminating) << "Runtime has not yet been terminated";
+
+  // NOTE: This is a blocking call. However, the thread is guaranteed
+  // to be exiting, therefore the amount of blocking time should be
+  // short (just like other syscalls we invoke).
+  looper->join();
+  looper.reset();
+  terminated.set(Nothing());
 }
 
 
-void Runtime::Data::loop()
+void Runtime::RuntimeProcess::loop()
 {
   void* tag;
   bool ok;
 
   while (queue.Next(&tag, &ok)) {
-    // The returned callback object is managed by the `callback` shared
-    // pointer, so if we get a regular event from the `CompletionQueue`,
-    // then the object would be captured by the following lambda
-    // dispatched to `process`; otherwise it would be reclaimed here.
-    std::shared_ptr<lambda::function<void()>> callback(
-        reinterpret_cast<lambda::function<void()>*>(tag));
-    if (ok) {
-      dispatch(process, [=] { (*callback)(); });
-    }
+    // Currently only unary RPCs are supported, so `ok` should always be true.
+    // See: https://grpc.io/grpc/cpp/classgrpc_1_1_completion_queue.html#a86d9810ced694e50f7987ac90b9f8c1a // NOLINT
+    CHECK(ok);
+
+    // Obtain the tag as a `ReceiveCallback` and dispatch it to the runtime
+    // process. The tag is then reclaimed here.
+    ReceiveCallback* callback = reinterpret_cast<ReceiveCallback*>(tag);
+    dispatch(self(), &RuntimeProcess::receive, std::move(*callback));
+    delete callback;
   }
 
-  dispatch(process, [this] {
-    // NOTE: This is a blocking call. However, the thread is guaranteed
-    // to be exiting, therefore the amount of blocking time should be
-    // short (just like other syscalls we invoke).
-    looper->join();
-    // Terminate `process` after all events are drained.
-    process::terminate(process, false);
-    terminated.set(Nothing());
-  });
+  // Terminate self after all events are drained.
+  process::terminate(self(), false);
 }
 
 
-void Runtime::Data::terminate()
+Runtime::Data::Data()
 {
-  synchronized (lock) {
-    if (!terminating) {
-      terminating = true;
-      queue.Shutdown();
-    }
-  }
+  RuntimeProcess* process = new RuntimeProcess();
+  terminated = process->wait();
+  pid = spawn(process, true);
+}
+
+
+Runtime::Data::~Data()
+{
+  dispatch(pid, &RuntimeProcess::terminate);
 }
 
 } // namespace client {
-
 } // namespace grpc {
 } // namespace process {

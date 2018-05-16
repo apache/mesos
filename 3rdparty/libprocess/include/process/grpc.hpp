@@ -13,9 +13,9 @@
 #ifndef __PROCESS_GRPC_HPP__
 #define __PROCESS_GRPC_HPP__
 
-#include <atomic>
 #include <chrono>
 #include <memory>
+#include <string>
 #include <thread>
 #include <type_traits>
 #include <utility>
@@ -24,13 +24,15 @@
 
 #include <grpcpp/grpcpp.h>
 
+#include <process/check.hpp>
+#include <process/dispatch.hpp>
 #include <process/future.hpp>
-#include <process/owned.hpp>
+#include <process/pid.hpp>
 #include <process/process.hpp>
 
-#include <stout/duration.hpp>
+#include <stout/error.hpp>
 #include <stout/lambda.hpp>
-#include <stout/synchronized.hpp>
+#include <stout/nothing.hpp>
 #include <stout/try.hpp>
 
 
@@ -111,17 +113,16 @@ public:
 
 
 /**
- * A copyable interface to manage an internal gRPC runtime instance for
- * asynchronous gRPC calls. A gRPC runtime instance includes a gRPC
- * `CompletionQueue` to manage outstanding requests, a looper thread to
- * wait for any incoming responses from the `CompletionQueue`, and a
- * process to handle the responses. All `Runtime` copies share the same
- * gRPC runtime instance. Usually we only need a single gRPC runtime
- * instance to handle all gRPC calls, but multiple instances can be
- * instantiated for more parallelism or isolation.
- * NOTE: The destruction of the internal gRPC runtime instance is a
- * blocking operation: it waits for the managed process to terminate.
- * The user should ensure that this only happens at shutdown.
+ * A copyable interface to manage an internal runtime process for asynchronous
+ * gRPC calls. A runtime process keeps a gRPC `CompletionQueue` to manage
+ * outstanding requests, a looper thread to wait for any incoming responses from
+ * the `CompletionQueue`, and handles the requests and responses. All `Runtime`
+ * copies share the same runtime process. Usually we only need a single runtime
+ * process to handle all gRPC calls, but multiple runtime processes can be
+ * instantiated for better parallelism and isolation.
+ *
+ * NOTE: The caller must call `terminate` to drain the `CompletionQueue` before
+ * finalizing libprocess to gracefully terminate the gRPC runtime.
  */
 class Runtime
 {
@@ -138,7 +139,7 @@ public:
    * returned for the call, so the caller can handle the error programmatically.
    *
    * @param connection A connection to a gRPC server.
-   * @param rpc The asynchronous gRPC call to make. This can be obtained
+   * @param method The asynchronous gRPC call to make. This should be obtained
    *     by the `GRPC_CLIENT_METHOD(service, rpc)` macro.
    * @param request The request protobuf for the gRPC call.
    * @return a `Future` of `Try` waiting for a response protobuf or an error.
@@ -148,60 +149,72 @@ public:
       typename Request =
         typename internal::MethodTraits<Method>::request_type,
       typename Response =
-        typename internal::MethodTraits<Method>::response_type>
+        typename internal::MethodTraits<Method>::response_type,
+      typename std::enable_if<
+          std::is_convertible<
+              typename std::decay<Request>::type*,
+              google::protobuf::Message*>::value,
+          int>::type = 0>
   Future<Try<Response, StatusError>> call(
       const Connection& connection,
       Method&& method,
-      const Request& request)
+      Request&& request)
   {
-    static_assert(
-        std::is_convertible<Request*, google::protobuf::Message*>::value,
-        "Request must be a protobuf message");
+    // Create a `Promise` that will be set upon receiving a response.
+    // TODO(chhsiao): The `Promise` in the `shared_ptr` is not shared, but only
+    // to be captured by the lambda below. Use a `unique_ptr` once we get C++14.
+    std::shared_ptr<Promise<Try<Response, StatusError>>> promise(
+        new Promise<Try<Response, StatusError>>);
+    Future<Try<Response, StatusError>> future = promise->future();
 
-    synchronized (data->lock) {
-      if (data->terminating) {
-        return Failure("Runtime has been terminated.");
-      }
+    // Send the request in the internal runtime process.
+    // TODO(chhsiao): We use `std::bind` here to forward `request` to avoid an
+    // extra copy. We should capture it by forwarding once we get C++14.
+    dispatch(data->pid, &RuntimeProcess::send, std::bind(
+        [connection, method, promise](
+            const Request& request,
+            bool terminating,
+            ::grpc::CompletionQueue* queue) {
+          if (terminating) {
+            promise->fail("Runtime has been terminated");
+            return;
+          }
 
-      std::shared_ptr<::grpc::ClientContext> context(
-          new ::grpc::ClientContext());
+          // TODO(chhsiao): The `shared_ptr`s here aren't shared, but only to be
+          // captured by the lambda below. Use `unique_ptr`s once we get C++14.
+          std::shared_ptr<::grpc::ClientContext> context(
+              new ::grpc::ClientContext());
 
-      // TODO(chhsiao): Allow the caller to specify a timeout.
-      context->set_deadline(
-          std::chrono::system_clock::now() + std::chrono::seconds(5));
+          // TODO(chhsiao): Allow the caller to specify a timeout.
+          context->set_deadline(
+              std::chrono::system_clock::now() + std::chrono::seconds(5));
 
-      // Enable the gRPC wait-for-ready semantics by default. See:
-      // https://github.com/grpc/grpc/blob/master/doc/wait-for-ready.md
-      // TODO(chhsiao): Allow the caller to set the option.
-      context->set_wait_for_ready(true);
+          // Enable the gRPC wait-for-ready semantics by default. See:
+          // https://github.com/grpc/grpc/blob/master/doc/wait-for-ready.md
+          // TODO(chhsiao): Allow the caller to set the option.
+          context->set_wait_for_ready(true);
 
-      // Create a `Promise` and a callback lambda as a tag and invokes
-      // an asynchronous gRPC call through the `CompletionQueue`
-      // managed by `data`. The `Promise` will be set by the callback
-      // upon server response.
-      std::shared_ptr<Promise<Try<Response, StatusError>>> promise(
-          new Promise<Try<Response, StatusError>>);
+          promise->future().onDiscard([=] { context->TryCancel(); });
 
-      promise->future().onDiscard([=] { context->TryCancel(); });
+          std::shared_ptr<Response> response(new Response());
+          std::shared_ptr<::grpc::Status> status(new ::grpc::Status());
 
-      std::shared_ptr<Response> response(new Response());
-      std::shared_ptr<::grpc::Status> status(new ::grpc::Status());
+          std::shared_ptr<::grpc::ClientAsyncResponseReader<Response>> reader =
+            (typename internal::MethodTraits<Method>::stub_type(
+                connection.channel).*method)(context.get(), request, queue);
 
-      std::shared_ptr<::grpc::ClientAsyncResponseReader<Response>> reader =
-        (typename internal::MethodTraits<Method>::stub_type(
-            connection.channel).*method)(context.get(), request, &data->queue);
+          reader->StartCall();
 
-      reader->StartCall();
-      reader->Finish(
-          response.get(),
-          status.get(),
-          new lambda::function<void()>(
-              // NOTE: `context` and `reader` need to be held on in
-              // order to get updates for the ongoing RPC, and thus
-              // are captured here. The lambda itself will later be
-              // retrieved and managed in `Data::loop()`.
+          // Create a `ReceiveCallback` as a tag in the `CompletionQueue` for
+          // the current asynchronous gRPC call. The callback will set up the
+          // above `Promise` upon receiving a response.
+          // NOTE: `context` and `reader` need to be held on in order to get
+          // updates for the ongoing RPC, and thus are captured here. The
+          // callback itself will later be retrieved and managed in the
+          // looper thread.
+          void* tag = new ReceiveCallback(
               [context, reader, response, status, promise]() {
-                CHECK(promise->future().isPending());
+                CHECK_PENDING(promise->future());
                 if (promise->future().hasDiscard()) {
                   promise->discard();
                 } else {
@@ -209,42 +222,68 @@ public:
                     ? std::move(*response)
                     : Try<Response, StatusError>::error(std::move(*status)));
                 }
-              }));
+              });
 
-      return promise->future();
-    }
+          reader->Finish(response.get(), status.get(), tag);
+        },
+        std::forward<Request>(request),
+        lambda::_1,
+        lambda::_2));
+
+    return future;
   }
 
   /**
-   * Asks the internal gRPC runtime instance to shut down the
-   * `CompletionQueue`, which would stop its looper thread, drain and
-   * fail all pending gRPC calls in the `CompletionQueue`, then
-   * asynchronously join the looper thread.
+   * Asks the internal runtime process to shut down the `CompletionQueue`, which
+   * would asynchronously drain and fail all pending gRPC calls in the
+   * `CompletionQueue`, then join the looper thread.
    */
   void terminate();
 
   /**
    * @return A `Future` waiting for all pending gRPC calls in the
-   *     `CompletionQueue` of the internal gRPC runtime instance to be
-   *     drained and the looper thread to be joined.
+   *     `CompletionQueue` of the internal runtime process to be drained and the
+   *     looper thread to be joined.
    */
   Future<Nothing> wait();
 
 private:
-  struct Data
+  // Type of the callback functions that can get invoked when sending a request
+  // or receiving a response.
+  typedef lambda::CallableOnce<
+      void(bool, ::grpc::CompletionQueue*)> SendCallback;
+  typedef lambda::CallableOnce<void()> ReceiveCallback;
+
+  class RuntimeProcess : public Process<RuntimeProcess>
   {
-    Data();
-    ~Data();
+  public:
+    RuntimeProcess();
+    virtual ~RuntimeProcess();
+
+    void send(SendCallback callback);
+    void receive(ReceiveCallback callback);
+    void terminate();
+    Future<Nothing> wait();
+
+  private:
+    void initialize() override;
+    void finalize() override;
 
     void loop();
-    void terminate();
 
-    std::unique_ptr<std::thread> looper;
     ::grpc::CompletionQueue queue;
-    ProcessBase process;
-    std::atomic_flag lock = ATOMIC_FLAG_INIT;
-    bool terminating = false;
+    std::unique_ptr<std::thread> looper;
+    bool terminating;
     Promise<Nothing> terminated;
+  };
+
+  struct Data
+  {
+     Data();
+     ~Data();
+
+     PID<RuntimeProcess> pid;
+     Future<Nothing> terminated;
   };
 
   std::shared_ptr<Data> data;
