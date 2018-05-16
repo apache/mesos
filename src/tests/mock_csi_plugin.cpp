@@ -30,7 +30,7 @@ using mesos::csi::v0::Controller;
 using mesos::csi::v0::Identity;
 using mesos::csi::v0::Node;
 
-using process::grpc::Channel;
+using process::grpc::client::Connection;
 
 using testing::_;
 using testing::Return;
@@ -49,7 +49,7 @@ MockCSIPlugin::MockCSIPlugin()
 }
 
 
-Try<Channel> MockCSIPlugin::startup(const Option<string>& address)
+Try<Connection> MockCSIPlugin::startup(const Option<string>& address)
 {
   ServerBuilder builder;
 
@@ -67,8 +67,8 @@ Try<Channel> MockCSIPlugin::startup(const Option<string>& address)
   }
 
   return address.isSome()
-    ? Channel(address.get())
-    : Channel(server->InProcessChannel(ChannelArguments()));
+    ? Connection(address.get())
+    : Connection(server->InProcessChannel(ChannelArguments()));
 }
 
 

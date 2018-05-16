@@ -72,7 +72,7 @@ public:
 
   CSI_METHOD_FOREACH(DECLARE_MOCK_CSI_METHOD)
 
-  Try<process::grpc::Channel> startup(
+  Try<process::grpc::client::Connection> startup(
       const Option<std::string>& address = None());
   Try<Nothing> shutdown();
 

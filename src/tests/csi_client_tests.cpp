@@ -32,8 +32,7 @@ using mesos::csi::v0::Client;
 
 using process::Future;
 
-using process::grpc::Channel;
-
+using process::grpc::client::Connection;
 using process::grpc::client::Runtime;
 
 using testing::TestParamInfo;
@@ -57,13 +56,13 @@ struct RPCParam
   template <typename Request, typename Response>
   RPCParam(const string& _name, Future<Response>(Client::*rpc)(const Request&))
     : name(_name),
-      call([=](const Channel& channel, const Runtime runtime) {
-        return (Client(channel, runtime).*rpc)(Request())
+      call([=](const Connection& connection, const Runtime runtime) {
+        return (Client(connection, runtime).*rpc)(Request())
           .then([] { return Nothing(); });
       }) {}
 
   string name;
-  lambda::function<Future<Nothing>(const Channel&, const Runtime&)> call;
+  lambda::function<Future<Nothing>(const Connection&, const Runtime&)> call;
 };
 
 
@@ -76,10 +75,10 @@ protected:
   {
     TemporaryDirectoryTest::SetUp();
 
-    Try<Channel> _channel = plugin.startup();
-    ASSERT_SOME(_channel);
+    Try<Connection> _connection = plugin.startup();
+    ASSERT_SOME(_connection);
 
-    channel = _channel.get();
+    connection = _connection.get();
   }
 
   virtual void TearDown() override
@@ -91,7 +90,7 @@ protected:
   }
 
   MockCSIPlugin plugin;
-  Option<process::grpc::Channel> channel;
+  Option<process::grpc::client::Connection> connection;
   process::grpc::client::Runtime runtime;
 };
 
@@ -139,7 +138,7 @@ INSTANTIATE_TEST_CASE_P(
 // This test verifies that the all methods of CSI clients work.
 TEST_P(CSIClientTest, Call)
 {
-  Future<Nothing> call = GetParam().call(channel.get(), runtime);
+  Future<Nothing> call = GetParam().call(connection.get(), runtime);
   AWAIT_EXPECT_READY(call);
 }
 

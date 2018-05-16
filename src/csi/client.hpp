@@ -30,9 +30,9 @@ namespace v0 {
 class Client
 {
 public:
-  Client(const process::grpc::Channel& _channel,
+  Client(const process::grpc::client::Connection& _connection,
          const process::grpc::client::Runtime& _runtime)
-    : channel(_channel), runtime(_runtime) {}
+    : connection(_connection), runtime(_runtime) {}
 
   // RPCs for the Identity service.
   process::Future<GetPluginInfoResponse>
@@ -90,7 +90,7 @@ public:
     NodeGetCapabilities(const NodeGetCapabilitiesRequest& request);
 
 private:
-  process::grpc::Channel channel;
+  process::grpc::client::Connection connection;
   process::grpc::client::Runtime runtime;
 };
 
