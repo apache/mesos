@@ -38,8 +38,16 @@
 
 #include "slave/container_loggers/sandbox.hpp"
 
-using namespace process;
+using process::Future;
+using process::Process;
+using process::ProcessBase;
 
+using process::dispatch;
+using process::spawn;
+using process::terminate;
+using process::wait;
+
+using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLogger;
 using mesos::slave::ContainerIO;
 
@@ -54,15 +62,15 @@ public:
   SandboxContainerLoggerProcess()
     : ProcessBase(process::ID::generate("sandbox-logger")) {}
 
-  process::Future<ContainerIO> prepare(
-      const ExecutorInfo& executorInfo,
-      const std::string& sandboxDirectory,
-      const Option<std::string>& user)
+  Future<ContainerIO> prepare(const ContainerConfig& containerConfig)
   {
     ContainerIO io;
 
-    io.out = ContainerIO::IO::PATH(path::join(sandboxDirectory, "stdout"));
-    io.err = ContainerIO::IO::PATH(path::join(sandboxDirectory, "stderr"));
+    io.out = ContainerIO::IO::PATH(
+        path::join(containerConfig.directory(), "stdout"));
+
+    io.err = ContainerIO::IO::PATH(
+        path::join(containerConfig.directory(), "stderr"));
 
     return io;
   }
@@ -90,16 +98,12 @@ Try<Nothing> SandboxContainerLogger::initialize()
 
 
 Future<ContainerIO> SandboxContainerLogger::prepare(
-    const ExecutorInfo& executorInfo,
-    const std::string& sandboxDirectory,
-    const Option<std::string>& user)
+    const ContainerConfig& containerConfig)
 {
   return dispatch(
       process.get(),
       &SandboxContainerLoggerProcess::prepare,
-      executorInfo,
-      sandboxDirectory,
-      user);
+      containerConfig);
 }
 
 } // namespace slave {

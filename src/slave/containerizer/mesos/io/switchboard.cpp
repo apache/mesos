@@ -287,12 +287,7 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::prepare(
   // launched, the nested containers launched later might not have
   // access to the root parent container's ExecutorInfo (i.e.,
   // 'containerConfig.executor_info()' will be empty).
-  return logger->prepare(
-      containerConfig.executor_info(),
-      containerConfig.directory(),
-      containerConfig.has_user()
-        ? Option<string>(containerConfig.user())
-        : None())
+  return logger->prepare(containerConfig)
     .then(defer(
         PID<IOSwitchboard>(this),
         &IOSwitchboard::_prepare,

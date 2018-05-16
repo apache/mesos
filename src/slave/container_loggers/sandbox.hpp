@@ -44,25 +44,24 @@ class SandboxContainerLoggerProcess;
 
 // The default container logger.
 //
-// Executors and tasks launched through this container logger will have their
-// stdout and stderr piped to the files "stdout" and "stderr", respectively, in
-// the sandbox.  These logs are accessible via the agent's `/files` endpoint.
+// Containers launched through this container logger will have their
+// stdout and stderr piped to the files "stdout" and "stderr",
+// respectively, in the sandbox. These logs are accessible via the
+// agent's `/files` endpoint.
 class SandboxContainerLogger : public mesos::slave::ContainerLogger
 {
 public:
   SandboxContainerLogger();
   virtual ~SandboxContainerLogger();
 
-  // This is a noop.  The sandbox container logger has nothing to initialize.
-  virtual Try<Nothing> initialize();
+  // This is a noop. The sandbox container logger has nothing to initialize.
+  virtual Try<Nothing> initialize() override;
 
-  // Tells the subprocess to redirect the executor/task's stdout and stderr
-  // to separate "stdout" and "stderr" files in the sandbox.
+  // Tells the subprocess to redirect the container's stdout and
+  // stderr to separate "stdout" and "stderr" files in the sandbox.
   // The `path`, `argv`, and `environment` are not changed.
   virtual process::Future<mesos::slave::ContainerIO> prepare(
-      const ExecutorInfo& executorInfo,
-      const std::string& sandboxDirectory,
-      const Option<std::string>& user);
+      const mesos::slave::ContainerConfig& containerConfig) override;
 
 protected:
   process::Owned<SandboxContainerLoggerProcess> process;

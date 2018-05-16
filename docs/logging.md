@@ -135,10 +135,9 @@ setting the `--container_logger` Agent flag to
     </td>
     <td>
       Prefix for environment variables meant to modify the behavior of
-      the logrotate logger for the specific executor being launched.
+      the logrotate logger for the specific container being launched.
       The logger will look for four prefixed environment variables in the
-      <code>ExecutorInfo</code>'s <code>CommandInfo</code>'s
-      <code>Environment</code>:
+      container's <code>CommandInfo</code>'s <code>Environment</code>:
       <ul>
         <li><code>MAX_STDOUT_SIZE</code></li>
         <li><code>LOGROTATE_STDOUT_OPTIONS</code></li>
