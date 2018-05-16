@@ -804,7 +804,7 @@ TEST_F(SubprocessTest, Flags)
   //
   // This is the behavior expected by the test as the POSIX version of
   // `echo` is a native binary.
-  string test_exe_path = path::join(BUILD_DIR, "\\test-echo.exe");
+  string test_exe_path = path::join(BUILD_DIR, "test-echo.exe");
 #endif
 
   Try<Subprocess> s = subprocess(
