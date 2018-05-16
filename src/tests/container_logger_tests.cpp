@@ -105,32 +105,6 @@ const char LOGROTATE_CONTAINER_LOGGER_NAME[] =
 #endif // __WINDOWS__
 
 
-// Definition of a mock ContainerLogger to be used in tests with gmock.
-class MockContainerLogger : public ContainerLogger
-{
-public:
-  MockContainerLogger()
-  {
-    // Set up default behaviors.
-    EXPECT_CALL(*this, initialize())
-      .WillRepeatedly(Return(Nothing()));
-
-    // All output is redirected to STDOUT_FILENO and STDERR_FILENO.
-    EXPECT_CALL(*this, prepare(_, _, _))
-      .WillRepeatedly(Return(mesos::slave::ContainerIO()));
-  }
-
-  virtual ~MockContainerLogger() {}
-
-  MOCK_METHOD0(initialize, Try<Nothing>(void));
-
-  MOCK_METHOD3(
-      prepare,
-      Future<mesos::slave::ContainerIO>(
-          const ExecutorInfo&, const string&, const Option<string>&));
-};
-
-
 class ContainerLoggerTest : public MesosTest {};
 
 
