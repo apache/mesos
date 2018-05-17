@@ -42,6 +42,7 @@
 #include <stout/preprocessor.hpp>
 #include <stout/result.hpp>
 #include <stout/result_of.hpp>
+#include <stout/stringify.hpp>
 #include <stout/synchronized.hpp>
 #include <stout/try.hpp>
 
@@ -107,9 +108,11 @@ public:
   /*implicit*/ Future(const Future<T>& that) = default;
   /*implicit*/ Future(Future<T>&& that) = default;
 
-  /*implicit*/ Future(const Try<T>& t);
+  template <typename E>
+  /*implicit*/ Future(const Try<T, E>& t);
 
-  /*implicit*/ Future(const Try<Future<T>>& t);
+  template <typename E>
+  /*implicit*/ Future(const Try<Future<T>, E>& t);
 
   ~Future() = default;
 
@@ -1116,23 +1119,27 @@ Future<T>::Future(const ErrnoFailure& failure)
 
 
 template <typename T>
-Future<T>::Future(const Try<T>& t)
+template <typename E>
+Future<T>::Future(const Try<T, E>& t)
   : data(new Data())
 {
   if (t.isSome()){
     set(t.get());
   } else {
-    fail(t.error());
+    // TODO(chhsiao): Consider preserving the error type. See MESOS-8925.
+    fail(stringify(t.error()));
   }
 }
 
 
 template <typename T>
-Future<T>::Future(const Try<Future<T>>& t)
+template <typename E>
+Future<T>::Future(const Try<Future<T>, E>& t)
   : data(t.isSome() ? t->data : std::shared_ptr<Data>(new Data()))
 {
   if (!t.isSome()) {
-    fail(t.error());
+    // TODO(chhsiao): Consider preserving the error type. See MESOS-8925.
+    fail(stringify(t.error()));
   }
 }
 
