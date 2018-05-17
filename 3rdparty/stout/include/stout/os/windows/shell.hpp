@@ -31,6 +31,7 @@
 #include <stout/windows.hpp>
 
 #include <stout/os/int_fd.hpp>
+#include <stout/os/pipe.hpp>
 
 #include <stout/internal/windows/inherit.hpp>
 
@@ -353,8 +354,128 @@ constexpr const char* arg1 = "/c";
 
 } // namespace Shell {
 
+// Runs a shell command (with `cmd.exe`) with optional arguments.
+//
+// This assumes that a successful execution will result in the exit
+// code for the command to be `0`; in this case, the contents of the
+// `Try` will be the contents of `stdout`.
+//
+// If the exit code is non-zero, we will return an appropriate error
+// message; but *not* `stderr`.
+//
+// If the caller needs to examine the contents of `stderr` it should
+// be redirected to `stdout` (using, e.g., `2>&1 || exit /b 0` in the
+// command string). The `|| exit /b 0` is required to obtain a success
+// exit code in case of errors, and still obtain `stderr`, as piped to
+// `stdout`.
 template <typename... T>
-Try<std::string> shell(const std::string& fmt, const T&... t) = delete;
+Try<std::string> shell(const std::string& fmt, const T&... t)
+{
+  using std::array;
+  using std::string;
+  using std::vector;
+
+  const Try<string> command = strings::internal::format(fmt, t...);
+  if (command.isError()) {
+    return Error(command.error());
+  }
+
+  // This function is intended to pass the arguments to the default
+  // shell, so we first add the arguments `cmd.exe cmd.exe /c`,
+  // followed by the command and arguments given.
+  vector<string> args = {os::Shell::name, os::Shell::arg0, os::Shell::arg1};
+
+  { // Minimize the lifetime of the system allocated buffer.
+    //
+    // NOTE: This API returns a pointer to an array of `wchar_t*`,
+    // similar to `argv`. Each pointer to a null-terminated Unicode
+    // string represents an individual argument found on the command
+    // line. We use this because we cannot just split on whitespace.
+    int argc;
+    const std::unique_ptr<wchar_t*, decltype(&::LocalFree)> argv(
+      ::CommandLineToArgvW(wide_stringify(command.get()).data(), &argc),
+      &::LocalFree);
+    if (argv == nullptr) {
+      return WindowsError();
+    }
+
+    for (int i = 0; i < argc; ++i) {
+      args.push_back(stringify(std::wstring(argv.get()[i])));
+    }
+  }
+
+  // This function is intended to return only the `stdout` of the
+  // command; but since we have to redirect all of `stdin`, `stdout`,
+  // `stderr` if we want to redirect any one of them, we redirect
+  // `stdin` and `stderr` to `NUL`, and `stdout` to a pipe.
+  Try<int_fd> stdin_ = os::open(os::DEV_NULL, O_RDONLY);
+  if (stdin_.isError()) {
+    return Error(stdin_.error());
+  }
+
+  Try<array<int_fd, 2>> stdout_ = os::pipe();
+  if (stdout_.isError()) {
+    return Error(stdout_.error());
+  }
+
+  Try<int_fd> stderr_ = os::open(os::DEV_NULL, O_WRONLY);
+  if (stderr_.isError()) {
+    return Error(stderr_.error());
+  }
+
+  // Ensure the file descriptors are closed when we leave this scope.
+  struct Closer
+  {
+    vector<int_fd> fds;
+    ~Closer()
+    {
+      foreach (int_fd& fd, fds) {
+        os::close(fd);
+      }
+    }
+  } closer = {{stdin_.get(), stdout_.get()[0], stderr_.get()}};
+
+  array<int_fd, 3> pipes = {stdin_.get(), stdout_.get()[1], stderr_.get()};
+
+  using namespace ::internal::windows;
+
+  Try<ProcessData> process_data =
+    create_process(args.front(), args, None(), false, pipes);
+
+  if (process_data.isError()) {
+    return Error(process_data.error());
+  }
+
+  // Close the child end of the stdout pipe and then read until EOF.
+  os::close(stdout_.get()[1]);
+  string out;
+  Result<string> part = None();
+  do {
+    part = os::read(stdout_.get()[0], 1024);
+    if (part.isSome()) {
+      out += part.get();
+    }
+  } while (part.isSome());
+
+  // Wait for the process synchronously.
+  ::WaitForSingleObject(process_data->process_handle.get_handle(), INFINITE);
+
+  DWORD status;
+  if (!::GetExitCodeProcess(
+        process_data->process_handle.get_handle(), &status)) {
+    return Error("Failed to `GetExitCodeProcess`: " + command.get());
+  }
+
+  if (status == 0) {
+    return out;
+  }
+
+  return Error(
+    "Failed to execute '" + command.get() +
+    "'; the command was either "
+    "not found or exited with a non-zero exit status: " +
+    stringify(status));
+}
 
 
 template<typename... T>
@@ -369,8 +490,10 @@ inline Option<int> spawn(
     const std::vector<std::string>& arguments,
     const Option<std::map<std::string, std::string>>& environment = None())
 {
-  Try<::internal::windows::ProcessData> process_data =
-    ::internal::windows::create_process(command, arguments, environment);
+  using namespace ::internal::windows;
+
+  Try<ProcessData> process_data =
+    create_process(command, arguments, environment);
 
   if (process_data.isError()) {
     LOG(WARNING) << process_data.error();
@@ -378,13 +501,11 @@ inline Option<int> spawn(
   }
 
   // Wait for the process synchronously.
-  ::WaitForSingleObject(
-      process_data->process_handle.get_handle(), INFINITE);
+  ::WaitForSingleObject(process_data->process_handle.get_handle(), INFINITE);
 
   DWORD status;
   if (!::GetExitCodeProcess(
-           process_data->process_handle.get_handle(),
-           &status)) {
+        process_data->process_handle.get_handle(), &status)) {
     LOG(WARNING) << "Failed to `GetExitCodeProcess`: " << command;
     return None();
   }

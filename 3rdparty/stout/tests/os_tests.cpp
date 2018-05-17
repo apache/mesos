@@ -51,6 +51,7 @@
 #include <stout/os/kill.hpp>
 #include <stout/os/killtree.hpp>
 #include <stout/os/realpath.hpp>
+#include <stout/os/shell.hpp>
 #include <stout/os/stat.hpp>
 #include <stout/os/which.hpp>
 #include <stout/os/write.hpp>
@@ -967,34 +968,76 @@ TEST_F(OsTest, Libraries)
 #endif // __WINDOWS__
 
 
-// NOTE: `os::shell()` is explicitly disallowed on Windows.
-#ifndef __WINDOWS__
 TEST_F(OsTest, Shell)
 {
   Try<string> result = os::shell("echo %s", "hello world");
+#ifdef __WINDOWS__
+  EXPECT_SOME_EQ("hello world\r\n", result);
+#else
   EXPECT_SOME_EQ("hello world\n", result);
+#endif // __WINDOWS__
 
   result = os::shell("foobar");
   EXPECT_ERROR(result);
 
+#ifdef __WINDOWS__
+  // NOTE: This relies on the strange semantics of Windows' echo,
+  // where quotes are not removed. We are testing that a quoted
+  // argument with a space in it remains quoted by `os::shell`.
+  result = os::shell("echo \"foo bar\"");
+  EXPECT_SOME_EQ("\"foo bar\"\r\n", result);
+
+  // Because the arguments do not have whitespace in them,
+  // `CommandLineToArgv` removes the surrounding quotes before passing
+  // them to `echo`.
+  result = os::shell("echo \"foo\" \"bar\"");
+  EXPECT_SOME_EQ("foo bar\r\n", result);
+#endif // __WINDOWS__
+
   // The `|| true`` necessary so that os::shell() sees a success
   // exit code and returns stdout (which we have piped stderr to).
+#ifdef __WINDOWS__
+  result = os::shell("dir foobar889076 2>&1 || exit /b 0");
+  ASSERT_SOME(result);
+  EXPECT_TRUE(strings::contains(result.get(), "File Not Found"));
+#else
   result = os::shell("LC_ALL=C ls /tmp/foobar889076 2>&1 || true");
   ASSERT_SOME(result);
   EXPECT_TRUE(strings::contains(result.get(), "No such file or directory"));
+#endif // __WINDOWS__
+
+  // Testing a command that wrote a substantial amount of data.
+  const string output(2 * os::pagesize(), 'c');
+  const string outfile = path::join(sandbox.get(), "out.txt");
+  ASSERT_SOME(os::write(outfile, output));
+#ifdef __WINDOWS__
+  result = os::shell("type %s", outfile.c_str());
+#else
+  result = os::shell("cat %s", outfile.c_str());
+#endif // __WINDOWS__
+  EXPECT_SOME_EQ(output, result);
 
   // Testing a more ambitious command that mutates the filesystem.
-  const string path = "/tmp/os_tests.txt";
+  const string path = path::join(sandbox.get(), "os_tests.txt");
+#ifdef __WINDOWS__
+  result = os::shell("copy /y nul %s", path.c_str());
+  ASSERT_SOME(result);
+  EXPECT_EQ("1 file(s) copied.", strings::trim(result.get()));
+#else
   result = os::shell("touch %s", path.c_str());
   EXPECT_SOME_EQ("", result);
+#endif // __WINDOWS__
   EXPECT_TRUE(os::exists(path));
 
   // Let's clean up, and ensure this worked too.
+#ifdef __WINDOWS__
+  result = os::shell("del %s", path.c_str());
+#else
   result = os::shell("rm %s", path.c_str());
-  EXPECT_SOME_EQ("", result);
-  EXPECT_FALSE(os::exists("/tmp/os_tests.txt"));
-}
 #endif // __WINDOWS__
+  EXPECT_SOME_EQ("", result);
+  EXPECT_FALSE(os::exists(path));
+}
 
 
 // NOTE: Disabled on Windows because `mknod` does not exist.
