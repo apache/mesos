@@ -320,7 +320,6 @@ int main(int argc, char** argv)
   }
 
   if (flags.ip_discovery_command.isSome()) {
-#ifndef __WINDOWS__
     Try<string> ipAddress = os::shell(flags.ip_discovery_command.get());
 
     if (ipAddress.isError()) {
@@ -328,28 +327,17 @@ int main(int argc, char** argv)
     }
 
     os::setenv("LIBPROCESS_IP", strings::trim(ipAddress.get()));
-#else
-    // TODO(andschwa): Support this when `os::shell` is enabled.
-    EXIT(EXIT_FAILURE)
-      << "The `--ip_discovery_command` is not yet supported on Windows";
-#endif // __WINDOWS__
   } else if (flags.ip.isSome()) {
     os::setenv("LIBPROCESS_IP", flags.ip.get());
   }
 
   if (flags.ip6_discovery_command.isSome()) {
-#ifndef __WINDOWS__
     Try<string> ip6Address = os::shell(flags.ip6_discovery_command.get());
     if (ip6Address.isError()) {
       EXIT(EXIT_FAILURE) << ip6Address.error();
     }
 
     os::setenv("LIBPROCESS_IP6", strings::trim(ip6Address.get()));
-#else
-    // TODO(andschwa): Support this when `os::shell` is enabled.
-    EXIT(EXIT_FAILURE)
-      << "The `--ip6_discovery_command` is not yet supported on Windows";
-#endif // __WINDOWS__
   } else if (flags.ip6.isSome()) {
     os::setenv("LIBPROCESS_IP6", flags.ip6.get());
   }

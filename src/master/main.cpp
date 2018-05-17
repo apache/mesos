@@ -200,7 +200,6 @@ int main(int argc, char** argv)
   }
 
   if (flags.ip_discovery_command.isSome()) {
-#ifndef __WINDOWS__
     Try<string> ipAddress = os::shell(flags.ip_discovery_command.get());
 
     if (ipAddress.isError()) {
@@ -208,11 +207,6 @@ int main(int argc, char** argv)
     }
 
     os::setenv("LIBPROCESS_IP", strings::trim(ipAddress.get()));
-#else
-    // TODO(andschwa): Support this when `os::shell` is enabled.
-    EXIT(EXIT_FAILURE)
-      << "The `--ip.discovery_command` is not yet supported on Windows";
-#endif // __WINDOWS__
   } else if (flags.ip.isSome()) {
     os::setenv("LIBPROCESS_IP", flags.ip.get());
   }
