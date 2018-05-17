@@ -75,7 +75,9 @@ public:
   // Spawns two subprocesses that read from their stdin and write to
   // "stdout" and "stderr" files in the sandbox.  The subprocesses will rotate
   // the files according to the configured maximum size and number of files.
-  Future<ContainerIO> prepare(const ContainerConfig& containerConfig)
+  Future<ContainerIO> prepare(
+      const ContainerID& containerId,
+      const ContainerConfig& containerConfig)
   {
     // Prepare the environment for the container logger subprocess.
     // We inherit agent environment variables except for those
@@ -290,11 +292,13 @@ Try<Nothing> LogrotateContainerLogger::initialize()
 
 
 Future<ContainerIO> LogrotateContainerLogger::prepare(
+    const ContainerID& containerId,
     const ContainerConfig& containerConfig)
 {
   return dispatch(
       process.get(),
       &LogrotateContainerLoggerProcess::prepare,
+      containerId,
       containerConfig);
 }
 

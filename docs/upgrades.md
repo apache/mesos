@@ -432,7 +432,7 @@ We categorize the changes as follows:
 
 <a name="1-7-x-container-logger"></a>
 
-* `ContainerLogger` module interface has been changed. The `prepare()` method now takes `ContainerConfig` instead.
+* `ContainerLogger` module interface has been changed. The `prepare()` method now takes `ContainerID` and `ContainerConfig` instead.
 
 ## Upgrading from 1.5.x to 1.6.x ##
 

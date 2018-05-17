@@ -62,7 +62,9 @@ public:
   SandboxContainerLoggerProcess()
     : ProcessBase(process::ID::generate("sandbox-logger")) {}
 
-  Future<ContainerIO> prepare(const ContainerConfig& containerConfig)
+  Future<ContainerIO> prepare(
+      const ContainerID& containerId,
+      const ContainerConfig& containerConfig)
   {
     ContainerIO io;
 
@@ -98,11 +100,13 @@ Try<Nothing> SandboxContainerLogger::initialize()
 
 
 Future<ContainerIO> SandboxContainerLogger::prepare(
+    const ContainerID& containerId,
     const ContainerConfig& containerConfig)
 {
   return dispatch(
       process.get(),
       &SandboxContainerLoggerProcess::prepare,
+      containerId,
       containerConfig);
 }
 

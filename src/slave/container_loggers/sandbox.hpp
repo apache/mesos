@@ -61,6 +61,7 @@ public:
   // stderr to separate "stdout" and "stderr" files in the sandbox.
   // The `path`, `argv`, and `environment` are not changed.
   virtual process::Future<mesos::slave::ContainerIO> prepare(
+      const ContainerID& containerId,
       const mesos::slave::ContainerConfig& containerConfig) override;
 
 protected:

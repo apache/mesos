@@ -4,7 +4,7 @@ This release contains the following new features:
 
 Additional API Changes:
   * Container logger module interface has been changed. The `prepare()` method
-    now takes `ContainerConfig` instead.
+    now takes `ContainerID` and `ContainerConfig` instead.
 
 
 Release Notes - Mesos - Version 1.6.1 (WIP)

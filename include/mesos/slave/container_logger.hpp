@@ -89,6 +89,7 @@ public:
    * be capable of recovering managed containers during the agent recovery
    * process. See `ContainerLogger::recover`.
    *
+   * @param containerId The ID of the container.
    * @param containerConfig The configurations of the container, including the
    *     ExecutorInfo (if applied), as well as the absolute path to the sandbox
    *     directory of the container. The sandbox path is provided in case
@@ -97,6 +98,7 @@ public:
    *     the sandbox are exposed via the `/files` endpoint.
    */
   virtual process::Future<ContainerIO> prepare(
+      const ContainerID& containerId,
       const ContainerConfig& containerConfig) = 0;
 };
 
