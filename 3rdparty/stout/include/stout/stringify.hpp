@@ -29,6 +29,7 @@
 #endif // __WINDOWS__
 
 #include "abort.hpp"
+#include "error.hpp"
 #include "hashmap.hpp"
 #include "set.hpp"
 
@@ -188,6 +189,16 @@ std::string stringify(const hashmap<K, V>& map)
   }
   out << " }";
   return out.str();
+}
+
+
+// TODO(chhsiao): This overload returns a non-const rvalue for consistency.
+// Consider the following overloads instead for better performance:
+//   const std::string& stringify(const Error&);
+//   std::string stringify(Error&&);
+inline std::string stringify(const Error& error)
+{
+  return error.message;
 }
 
 #endif // __STOUT_STRINGIFY_HPP__
