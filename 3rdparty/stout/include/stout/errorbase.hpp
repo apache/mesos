@@ -15,6 +15,7 @@
 
 #include <errno.h>
 
+#include <ostream>
 #include <string>
 
 #include <stout/os/strerror.hpp>
@@ -61,5 +62,11 @@ public:
 
   const int code;
 };
+
+
+inline std::ostream& operator<<(std::ostream& stream, const Error& error)
+{
+  return stream << error.message;
+}
 
 #endif // __STOUT_ERROR_BASE_HPP__

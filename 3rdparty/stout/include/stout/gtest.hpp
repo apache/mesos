@@ -44,10 +44,10 @@ template <typename T>
 }
 
 
-template <typename T>
+template <typename T, typename E>
 ::testing::AssertionResult AssertSome(
     const char* expr,
-    const Try<T>& actual)
+    const Try<T, E>& actual)
 {
   if (actual.isError()) {
     return ::testing::AssertionFailure()
