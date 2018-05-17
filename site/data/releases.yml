@@ -3,8 +3,8 @@
 #   `versions` below.
 # * When publishing a new blog post, we need to append an item to `news` below.
 latest_stable:
-  version: 1.5.0
-  jira_version: 12341286
+  version: 1.6.0
+  jira_version: 12342239
 news:
 ## * If the news is used to announce a release version, the item structure is
 ##   - title: (required)
@@ -15,6 +15,10 @@ news:
 ##   - title: (required)
 ##     date: (required)
 ##     blog: (required)
+  - title: Mesos 1.6.0 is released!
+    date: May 11, 2018
+    blog: mesos-1-6-0-released
+    target_version: 1.6.0
   - title: Mesos 1.5.0 is released!
     date: February 8, 2018
     blog: mesos-1-5-0-released
