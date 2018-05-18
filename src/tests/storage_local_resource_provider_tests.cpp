@@ -2790,8 +2790,8 @@ TEST_F(
 
 
 // This test verifies that storage local resource provider properly
-// reports metrics related to CSI plugin terminations.
-TEST_F(StorageLocalResourceProviderTest, ROOT_PluginTerminationMetrics)
+// reports the metric related to CSI plugin container terminations.
+TEST_F(StorageLocalResourceProviderTest, ROOT_ContainerTerminationMetric)
 {
   setupResourceProviderConfig(Gigabytes(4));
 
@@ -2829,13 +2829,9 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PluginTerminationMetrics)
   JSON::Object snapshot = Metrics();
 
   ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_controller_plugin_terminations")));
+      "csi_plugin/container_terminations")));
   EXPECT_EQ(0, snapshot.values.at(metricName(
-      "csi_controller_plugin_terminations")));
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_node_plugin_terminations")));
-  EXPECT_EQ(0, snapshot.values.at(metricName(
-      "csi_node_plugin_terminations")));
+      "csi_plugin/container_terminations")));
 
   // Get the ID of the CSI plugin container.
   Future<hashset<ContainerID>> pluginContainers = containerizer->containers();
@@ -2863,13 +2859,9 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PluginTerminationMetrics)
   snapshot = Metrics();
 
   ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_controller_plugin_terminations")));
+      "csi_plugin/container_terminations")));
   EXPECT_EQ(1, snapshot.values.at(metricName(
-      "csi_controller_plugin_terminations")));
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_node_plugin_terminations")));
-  EXPECT_EQ(1, snapshot.values.at(metricName(
-      "csi_node_plugin_terminations")));
+      "csi_plugin/container_terminations")));
 }
 
 

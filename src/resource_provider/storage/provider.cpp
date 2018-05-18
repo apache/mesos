@@ -497,8 +497,7 @@ private:
     ~Metrics();
 
     // CSI plugin metrics.
-    Counter csi_controller_plugin_terminations;
-    Counter csi_node_plugin_terminations;
+    Counter csi_plugin_container_terminations;
 
     // Operation state metrics.
     hashmap<Offer::Operation::Type, PushGauge> operations_pending;
@@ -1898,13 +1897,7 @@ Future<csi::v0::Client> StorageLocalResourceProviderProcess::getService(
           }));
       })),
       std::function<Future<Nothing>()>(defer(self(), [=]() -> Future<Nothing> {
-        if (containerId == controllerContainerId.get()) {
-          metrics.csi_controller_plugin_terminations++;
-        }
-
-        if (containerId == nodeContainerId.get()) {
-          metrics.csi_node_plugin_terminations++;
-        }
+        ++metrics.csi_plugin_container_terminations;
 
         services.at(containerId)->discard();
         services.at(containerId).reset(new Promise<csi::v0::Client>());
@@ -3435,13 +3428,10 @@ void StorageLocalResourceProviderProcess::sendOperationStatusUpdate(
 
 
 StorageLocalResourceProviderProcess::Metrics::Metrics(const string& prefix)
-  : csi_controller_plugin_terminations(
-        prefix + "csi_controller_plugin_terminations"),
-    csi_node_plugin_terminations(
-        prefix + "csi_node_plugin_terminations")
+  : csi_plugin_container_terminations(
+        prefix + "csi_plugin/container_terminations")
 {
-  process::metrics::add(csi_controller_plugin_terminations);
-  process::metrics::add(csi_node_plugin_terminations);
+  process::metrics::add(csi_plugin_container_terminations);
 
   vector<Offer::Operation::Type> operationTypes;
 
@@ -3507,8 +3497,7 @@ StorageLocalResourceProviderProcess::Metrics::Metrics(const string& prefix)
 
 StorageLocalResourceProviderProcess::Metrics::~Metrics()
 {
-  process::metrics::remove(csi_controller_plugin_terminations);
-  process::metrics::remove(csi_node_plugin_terminations);
+  process::metrics::remove(csi_plugin_container_terminations);
 
   foreachvalue (const PushGauge& gauge, operations_pending) {
     process::metrics::remove(gauge);
