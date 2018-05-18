@@ -20,6 +20,7 @@
 #include <cctype>
 #include <memory>
 #include <numeric>
+#include <utility>
 
 #include <glog/logging.h>
 
@@ -379,7 +380,7 @@ private:
   template <csi::v0::RPC rpc>
   Future<typename csi::v0::RPCTraits<rpc>::response_type> call(
       csi::v0::Client client,
-      const typename csi::v0::RPCTraits<rpc>::request_type& request);
+      typename csi::v0::RPCTraits<rpc>::request_type&& request);
 
   Future<csi::v0::Client> connect(const string& endpoint);
   Future<csi::v0::Client> getService(const ContainerID& containerId);
@@ -1766,11 +1767,11 @@ template <csi::v0::RPC rpc>
 Future<typename csi::v0::RPCTraits<rpc>::response_type>
 StorageLocalResourceProviderProcess::call(
     csi::v0::Client client,
-    const typename csi::v0::RPCTraits<rpc>::request_type& request)
+    typename csi::v0::RPCTraits<rpc>::request_type&& request)
 {
   ++metrics.csi_plugin_rpcs_pending.at(rpc);
 
-  return client.call<rpc>(request)
+  return client.call<rpc>(std::move(request))
     .onAny(defer(self(), [=](
         const Future<typename csi::v0::RPCTraits<rpc>::response_type>& future) {
       --metrics.csi_plugin_rpcs_pending.at(rpc);

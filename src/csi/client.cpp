@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <utility>
+
 #include "csi/client.hpp"
 
 using process::Failure;
@@ -28,10 +30,13 @@ namespace v0 {
 template <>
 Future<GetPluginInfoResponse>
 Client::call<GET_PLUGIN_INFO>(
-    const GetPluginInfoRequest& request)
+    GetPluginInfoRequest request)
 {
   return runtime
-    .call(connection, GRPC_CLIENT_METHOD(Identity, GetPluginInfo), request)
+    .call(
+        connection,
+        GRPC_CLIENT_METHOD(Identity, GetPluginInfo),
+        std::move(request))
     .then([](const Try<GetPluginInfoResponse, StatusError>& result)
         -> Future<GetPluginInfoResponse> {
       return result;
@@ -42,13 +47,13 @@ Client::call<GET_PLUGIN_INFO>(
 template <>
 Future<GetPluginCapabilitiesResponse>
 Client::call<GET_PLUGIN_CAPABILITIES>(
-    const GetPluginCapabilitiesRequest& request)
+    GetPluginCapabilitiesRequest request)
 {
   return runtime
     .call(
         connection,
         GRPC_CLIENT_METHOD(Identity, GetPluginCapabilities),
-        request)
+        std::move(request))
     .then([](const Try<GetPluginCapabilitiesResponse, StatusError>& result)
         -> Future<GetPluginCapabilitiesResponse> {
       return result;
@@ -59,10 +64,13 @@ Client::call<GET_PLUGIN_CAPABILITIES>(
 template <>
 Future<ProbeResponse>
 Client::call<PROBE>(
-    const ProbeRequest& request)
+    ProbeRequest request)
 {
   return runtime
-    .call(connection, GRPC_CLIENT_METHOD(Identity, Probe), request)
+    .call(
+        connection,
+        GRPC_CLIENT_METHOD(Identity, Probe),
+        std::move(request))
     .then([](const Try<ProbeResponse, StatusError>& result)
         -> Future<ProbeResponse> {
       return result;
@@ -73,10 +81,13 @@ Client::call<PROBE>(
 template <>
 Future<CreateVolumeResponse>
 Client::call<CREATE_VOLUME>(
-    const CreateVolumeRequest& request)
+    CreateVolumeRequest request)
 {
   return runtime
-    .call(connection, GRPC_CLIENT_METHOD(Controller, CreateVolume), request)
+    .call(
+        connection,
+        GRPC_CLIENT_METHOD(Controller, CreateVolume),
+        std::move(request))
     .then([](const Try<CreateVolumeResponse, StatusError>& result)
         -> Future<CreateVolumeResponse> {
       return result;
@@ -87,10 +98,13 @@ Client::call<CREATE_VOLUME>(
 template <>
 Future<DeleteVolumeResponse>
 Client::call<DELETE_VOLUME>(
-    const DeleteVolumeRequest& request)
+    DeleteVolumeRequest request)
 {
   return runtime
-    .call(connection, GRPC_CLIENT_METHOD(Controller, DeleteVolume), request)
+    .call(
+        connection,
+        GRPC_CLIENT_METHOD(Controller, DeleteVolume),
+        std::move(request))
     .then([](const Try<DeleteVolumeResponse, StatusError>& result)
         -> Future<DeleteVolumeResponse> {
       return result;
@@ -101,13 +115,13 @@ Client::call<DELETE_VOLUME>(
 template <>
 Future<ControllerPublishVolumeResponse>
 Client::call<CONTROLLER_PUBLISH_VOLUME>(
-    const ControllerPublishVolumeRequest& request)
+    ControllerPublishVolumeRequest request)
 {
   return runtime
     .call(
         connection,
         GRPC_CLIENT_METHOD(Controller, ControllerPublishVolume),
-        request)
+        std::move(request))
     .then([](const Try<ControllerPublishVolumeResponse, StatusError>& result)
         -> Future<ControllerPublishVolumeResponse> {
       return result;
@@ -118,13 +132,13 @@ Client::call<CONTROLLER_PUBLISH_VOLUME>(
 template <>
 Future<ControllerUnpublishVolumeResponse>
 Client::call<CONTROLLER_UNPUBLISH_VOLUME>(
-    const ControllerUnpublishVolumeRequest& request)
+    ControllerUnpublishVolumeRequest request)
 {
   return runtime
     .call(
         connection,
         GRPC_CLIENT_METHOD(Controller, ControllerUnpublishVolume),
-        request)
+        std::move(request))
     .then([](const Try<ControllerUnpublishVolumeResponse, StatusError>& result)
         -> Future<ControllerUnpublishVolumeResponse> {
       return result;
@@ -135,13 +149,13 @@ Client::call<CONTROLLER_UNPUBLISH_VOLUME>(
 template <>
 Future<ValidateVolumeCapabilitiesResponse>
 Client::call<VALIDATE_VOLUME_CAPABILITIES>(
-    const ValidateVolumeCapabilitiesRequest& request)
+    ValidateVolumeCapabilitiesRequest request)
 {
   return runtime
     .call(
         connection,
         GRPC_CLIENT_METHOD(Controller, ValidateVolumeCapabilities),
-        request)
+        std::move(request))
     .then([](const Try<ValidateVolumeCapabilitiesResponse, StatusError>& result)
         -> Future<ValidateVolumeCapabilitiesResponse> {
       return result;
@@ -152,10 +166,13 @@ Client::call<VALIDATE_VOLUME_CAPABILITIES>(
 template <>
 Future<ListVolumesResponse>
 Client::call<LIST_VOLUMES>(
-    const ListVolumesRequest& request)
+    ListVolumesRequest request)
 {
   return runtime
-    .call(connection, GRPC_CLIENT_METHOD(Controller, ListVolumes), request)
+    .call(
+        connection,
+        GRPC_CLIENT_METHOD(Controller, ListVolumes),
+        std::move(request))
     .then([](const Try<ListVolumesResponse, StatusError>& result)
         -> Future<ListVolumesResponse> {
       return result;
@@ -166,10 +183,13 @@ Client::call<LIST_VOLUMES>(
 template <>
 Future<GetCapacityResponse>
 Client::call<GET_CAPACITY>(
-    const GetCapacityRequest& request)
+    GetCapacityRequest request)
 {
   return runtime
-    .call(connection, GRPC_CLIENT_METHOD(Controller, GetCapacity), request)
+    .call(
+        connection,
+        GRPC_CLIENT_METHOD(Controller, GetCapacity),
+        std::move(request))
     .then([](const Try<GetCapacityResponse, StatusError>& result)
         -> Future<GetCapacityResponse> {
       return result;
@@ -180,13 +200,13 @@ Client::call<GET_CAPACITY>(
 template <>
 Future<ControllerGetCapabilitiesResponse>
 Client::call<CONTROLLER_GET_CAPABILITIES>(
-    const ControllerGetCapabilitiesRequest& request)
+    ControllerGetCapabilitiesRequest request)
 {
   return runtime
     .call(
         connection,
         GRPC_CLIENT_METHOD(Controller, ControllerGetCapabilities),
-        request)
+        std::move(request))
     .then([](const Try<ControllerGetCapabilitiesResponse, StatusError>& result)
         -> Future<ControllerGetCapabilitiesResponse> {
       return result;
@@ -197,10 +217,13 @@ Client::call<CONTROLLER_GET_CAPABILITIES>(
 template <>
 Future<NodeStageVolumeResponse>
 Client::call<NODE_STAGE_VOLUME>(
-    const NodeStageVolumeRequest& request)
+    NodeStageVolumeRequest request)
 {
   return runtime
-    .call(connection, GRPC_CLIENT_METHOD(Node, NodeStageVolume), request)
+    .call(
+        connection,
+        GRPC_CLIENT_METHOD(Node, NodeStageVolume),
+        std::move(request))
     .then([](const Try<NodeStageVolumeResponse, StatusError>& result)
         -> Future<NodeStageVolumeResponse> {
       return result;
@@ -211,10 +234,13 @@ Client::call<NODE_STAGE_VOLUME>(
 template <>
 Future<NodeUnstageVolumeResponse>
 Client::call<NODE_UNSTAGE_VOLUME>(
-    const NodeUnstageVolumeRequest& request)
+    NodeUnstageVolumeRequest request)
 {
   return runtime
-    .call(connection, GRPC_CLIENT_METHOD(Node, NodeUnstageVolume), request)
+    .call(
+        connection,
+        GRPC_CLIENT_METHOD(Node, NodeUnstageVolume),
+        std::move(request))
     .then([](const Try<NodeUnstageVolumeResponse, StatusError>& result)
         -> Future<NodeUnstageVolumeResponse> {
       return result;
@@ -225,10 +251,13 @@ Client::call<NODE_UNSTAGE_VOLUME>(
 template <>
 Future<NodePublishVolumeResponse>
 Client::call<NODE_PUBLISH_VOLUME>(
-    const NodePublishVolumeRequest& request)
+    NodePublishVolumeRequest request)
 {
   return runtime
-    .call(connection, GRPC_CLIENT_METHOD(Node, NodePublishVolume), request)
+    .call(
+        connection,
+        GRPC_CLIENT_METHOD(Node, NodePublishVolume),
+        std::move(request))
     .then([](const Try<NodePublishVolumeResponse, StatusError>& result)
         -> Future<NodePublishVolumeResponse> {
       return result;
@@ -239,10 +268,13 @@ Client::call<NODE_PUBLISH_VOLUME>(
 template <>
 Future<NodeUnpublishVolumeResponse>
 Client::call<NODE_UNPUBLISH_VOLUME>(
-    const NodeUnpublishVolumeRequest& request)
+    NodeUnpublishVolumeRequest request)
 {
   return runtime
-    .call(connection, GRPC_CLIENT_METHOD(Node, NodeUnpublishVolume), request)
+    .call(
+        connection,
+        GRPC_CLIENT_METHOD(Node, NodeUnpublishVolume),
+        std::move(request))
     .then([](const Try<NodeUnpublishVolumeResponse, StatusError>& result)
         -> Future<NodeUnpublishVolumeResponse> {
       return result;
@@ -253,10 +285,13 @@ Client::call<NODE_UNPUBLISH_VOLUME>(
 template <>
 Future<NodeGetIdResponse>
 Client::call<NODE_GET_ID>(
-    const NodeGetIdRequest& request)
+    NodeGetIdRequest request)
 {
   return runtime
-    .call(connection, GRPC_CLIENT_METHOD(Node, NodeGetId), request)
+    .call(
+        connection,
+        GRPC_CLIENT_METHOD(Node, NodeGetId),
+        std::move(request))
     .then([](const Try<NodeGetIdResponse, StatusError>& result)
         -> Future<NodeGetIdResponse> {
       return result;
@@ -267,10 +302,13 @@ Client::call<NODE_GET_ID>(
 template <>
 Future<NodeGetCapabilitiesResponse>
 Client::call<NODE_GET_CAPABILITIES>(
-    const NodeGetCapabilitiesRequest& request)
+    NodeGetCapabilitiesRequest request)
 {
   return runtime
-    .call(connection, GRPC_CLIENT_METHOD(Node, NodeGetCapabilities), request)
+    .call(
+        connection,
+        GRPC_CLIENT_METHOD(Node, NodeGetCapabilities),
+        std::move(request))
     .then([](const Try<NodeGetCapabilitiesResponse, StatusError>& result)
         -> Future<NodeGetCapabilitiesResponse> {
       return result;
