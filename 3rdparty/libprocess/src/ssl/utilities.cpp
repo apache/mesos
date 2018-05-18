@@ -12,14 +12,16 @@
 
 #include <process/ssl/utilities.hpp>
 
+#include <memory>
+#include <string>
+#include <vector>
+
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 #include <openssl/rsa.h>
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
-
-#include <string>
 
 #include <stout/check.hpp>
 #include <stout/net.hpp>
@@ -31,6 +33,10 @@
 namespace process {
 namespace network {
 namespace openssl {
+
+using std::shared_ptr;
+using std::string;
+using std::vector;
 
 Try<EVP_PKEY*> generate_private_rsa_key(int bits, unsigned long _exponent)
 {
@@ -92,7 +98,7 @@ Try<X509*> generate_x509(
     const Option<X509*>& parent_certificate,
     int serial,
     int days,
-    Option<std::string> hostname,
+    Option<string> hostname,
     const Option<net::IP>& ip)
 {
   Option<X509_NAME*> issuer_name = None();
@@ -147,7 +153,7 @@ Try<X509*> generate_x509(
 
   // Figure out our hostname if one was not provided.
   if (hostname.isNone()) {
-    const Try<std::string> _hostname = net::hostname();
+    const Try<string> _hostname = net::hostname();
     if (_hostname.isError()) {
       X509_free(x509);
       return Error("Failed to determine hostname");
@@ -344,9 +350,9 @@ Try<Nothing> write_certificate_file(X509* x509, const Path& path)
 }
 
 
-Try<std::string> generate_hmac_sha256(
-  const std::string& message,
-  const std::string& key)
+Try<string> generate_hmac_sha256(
+  const string& message,
+  const string& key)
 {
   unsigned int md_len = 0;
 
@@ -363,10 +369,101 @@ Try<std::string> generate_hmac_sha256(
     const char* reason = ERR_reason_error_string(ERR_get_error());
 
     return Error(
-        "HMAC failed" + (reason == nullptr ? "" : ": " + std::string(reason)));
+        "HMAC failed" + (reason == nullptr ? "" : ": " + string(reason)));
   }
 
-  return std::string(reinterpret_cast<char*>(rc), md_len);
+  return string(reinterpret_cast<char*>(rc), md_len);
+}
+
+
+template<typename Reader>
+Try<shared_ptr<RSA>> pem_to_rsa(const string& pem, Reader reader)
+{
+  BIO *bio = BIO_new_mem_buf(pem.c_str(), -1);
+  if (bio == nullptr) {
+    return Error("Failed to create RSA key bio");
+  }
+  RSA *rsa = reader(bio, nullptr, nullptr, nullptr);
+  BIO_free(bio);
+  if (rsa == nullptr) {
+    return Error("Failed to create RSA from key bio");
+  }
+  return shared_ptr<RSA>(rsa, RSA_free);
+}
+
+
+Try<shared_ptr<RSA>> pem_to_rsa_private_key(const string& pem)
+{
+  return pem_to_rsa(pem, PEM_read_bio_RSAPrivateKey);
+}
+
+
+Try<shared_ptr<RSA>> pem_to_rsa_public_key(const string& pem)
+{
+  return pem_to_rsa(pem, PEM_read_bio_RSA_PUBKEY);
+}
+
+
+Try<string> sign_rsa_sha256(
+    const string& message,
+    shared_ptr<RSA> private_key)
+{
+  vector<unsigned char> signatureData;
+  signatureData.reserve(RSA_size(private_key.get()));
+  unsigned int signatureLength;
+  unsigned char hash[SHA256_DIGEST_LENGTH];
+
+  SHA256(
+    reinterpret_cast<const unsigned char*>(message.c_str()),
+    message.size(),
+    hash);
+
+  int success = RSA_sign(
+    NID_sha256,
+    hash,
+    SHA256_DIGEST_LENGTH,
+    signatureData.data(),
+    &signatureLength,
+    private_key.get());
+
+  if (success == 0) {
+    const char* reason = ERR_reason_error_string(ERR_get_error());
+    return Error("Failed to sign the message" +
+      (reason == nullptr ? "" : ": " + string(reason)));
+  }
+
+  return string(
+    reinterpret_cast<char*>(signatureData.data()),
+    signatureLength);
+}
+
+
+Try<Nothing> verify_rsa_sha256(
+    const string& message,
+    const string& signature,
+    shared_ptr<RSA> public_key)
+{
+  unsigned char hash[SHA256_DIGEST_LENGTH];
+
+  SHA256(
+    reinterpret_cast<const unsigned char*>(message.c_str()),
+    message.size(),
+    hash);
+
+  int success = RSA_verify(
+    NID_sha256,
+    hash,
+    SHA256_DIGEST_LENGTH,
+    reinterpret_cast<const unsigned char*>(signature.data()),
+    signature.size(),
+    public_key.get());
+
+  if (success == 0) {
+    const char* reason = ERR_reason_error_string(ERR_get_error());
+    return Error("Failed to verify message signature" +
+      (reason == nullptr ? "" : ": " + string(reason)));
+  }
+  return Nothing();
 }
 
 } // namespace openssl {

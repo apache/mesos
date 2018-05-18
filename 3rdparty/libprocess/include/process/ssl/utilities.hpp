@@ -130,6 +130,60 @@ Try<std::string> generate_hmac_sha256(
     const std::string& message,
     const std::string& key);
 
+
+/**
+ * Helper function converting a PEM representation of a private key
+ * into a RSA private key usable by openssl.
+ *
+ * @param pem The PEM representation of the private key.
+ *
+ * @return A shared pointer to an openssl-compatible private key if
+ *     successful otherwise an Error.
+ */
+Try<std::shared_ptr<RSA>> pem_to_rsa_private_key(const std::string& pem);
+
+
+/**
+ * Helper function converting a PEM representation of a public key
+ * into a RSA private key usable by openssl.
+ *
+ * @param pem The PEM representation of the public key.
+ *
+ * @return A shared pointer to an openssl-compatible private key if
+ *     successful otherwise an Error.
+ */
+Try<std::shared_ptr<RSA>> pem_to_rsa_public_key(const std::string& pem);
+
+
+/**
+ * Create a signature of a message with a private key and the RSA SHA256
+ * algorithm.
+ *
+ * @param message The message to sign.
+ * @param private_key The private key used to sign the message.
+ *
+ * @return The signature of message if successful otherwise an Error.
+ */
+Try<std::string> sign_rsa_sha256(
+    const std::string& message,
+    std::shared_ptr<RSA> private_key);
+
+
+/**
+ * Verify the signature of a message with a public key and the RSA SHA256
+ * algorithm.
+ *
+ * @param message The message to verify signature of.
+ * @param signature The signature to verify.
+ * @param public_key The public key used to verify the signature.
+ *
+ * @return Nothing if the signature is valid otherwise an Error.
+ */
+Try<Nothing> verify_rsa_sha256(
+    const std::string& message,
+    const std::string& signature,
+    std::shared_ptr<RSA> public_key);
+
 } // namespace openssl {
 } // namespace network {
 } // namespace process {

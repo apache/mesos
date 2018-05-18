@@ -16,6 +16,8 @@
 #include <ostream>
 #include <string>
 
+#include <openssl/rsa.h>
+
 #include <stout/json.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
@@ -45,7 +47,7 @@ public:
  * A JSON Web Token (JWT) implementation.
  * @see <a href="https://tools.ietf.org/html/rfc7519">RFC 7519</a>
  *
- * This implementation supports the 'none' and 'HS256' algorithms.
+ * This implementation supports the 'none', 'RS256' and 'HS256' algorithms.
  * Header parameters other than 'alg' and 'typ' aren't parsed. To comply
  * with RFC 7515, headers with 'crit' parameter are invalid.
  * Currently, only the 'exp' standard claim is validated. Applications
@@ -58,7 +60,8 @@ public:
   enum class Alg
   {
     None,
-    HS256
+    HS256,
+    RS256
   };
 
   struct Header
@@ -90,6 +93,19 @@ public:
       const std::string& secret);
 
   /**
+   * Parse a JWT and validate its RS256 signature.
+   *
+   * @param token The JWT to parse.
+   * @param publicKey The public key to validate the signature with.
+   *
+   * @return The validated JWT representation if successful otherwise an
+   *     Error.
+   */
+  static Try<JWT, JWTError> parse(
+      const std::string& token,
+      std::shared_ptr<RSA> publicKey);
+
+  /**
    * Create an unsecured JWT.
    *
    * @param payload The payload of the JWT.
@@ -105,7 +121,7 @@ public:
    * When creating a payload keep in mind that of the standard claims
    * currently only 'exp' is validated during parsing.
    *
-   * @param payload The payload of the JWT
+   * @param payload The payload of the JWT.
    * @param secret The secret to sign the JWT with.
    *
    * @return The signed JWT representation if successful otherwise an
@@ -114,6 +130,22 @@ public:
   static Try<JWT, JWTError> create(
       const JSON::Object& payload,
       const std::string& secret);
+
+  /**
+   * Create a JWT with a RS256 signature.
+   *
+   * When creating a payload keep in mind that of the standard claims
+   * currently only 'exp' is validated during parsing.
+   *
+   * @param payload The payload of the JWT.
+   * @param privateKey The private key to sign the JWT with.
+   *
+   * @return The signed JWT representation if successful otherwise an
+   *     Error.
+   */
+  static Try<JWT, JWTError> create(
+      const JSON::Object& payload,
+      std::shared_ptr<RSA> privateKey);
 
   const Header header;
   const JSON::Object payload;
