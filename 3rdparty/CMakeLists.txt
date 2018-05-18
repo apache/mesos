@@ -739,8 +739,11 @@ if (WIN32)
   # This copies the file `curl.exe` from the `3rdparty` build folder to
   # `build/src`, next to the other produced executables. This is necessary for
   # code that shells out to cURL on Windows.
-  add_custom_command(TARGET ${CURL_TARGET} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:curl> ${CMAKE_BINARY_DIR}/src/curl.exe)
+  #
+  # TODO(andschwa): Change this to an `INSTALL` step.
+  ExternalProject_Add_Step(${CURL_TARGET} copy
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:curl> ${CMAKE_BINARY_DIR}/src/curl.exe
+    DEPENDEES build)
 else ()
   find_package(CURL REQUIRED)
   add_library(libcurl SHARED IMPORTED)
