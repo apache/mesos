@@ -2507,8 +2507,7 @@ TEST_F(MasterTest, SlavesEndpointTwoSlaves)
   AWAIT_READY(slave1RegisteredMessage);
 
   Future<SlaveRegisteredMessage> slave2RegisteredMessage =
-    FUTURE_PROTOBUF(
-        SlaveRegisteredMessage(), master.get()->pid, Not(slave1.get()->pid));
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, Not(slave1.get()->pid));
 
   Try<Owned<cluster::Slave>> slave2 = StartSlave(detector.get());
   ASSERT_SOME(slave2);
@@ -2562,10 +2561,7 @@ TEST_F(MasterTest, SlavesEndpointQuerySlave)
   AWAIT_READY(slave1RegisteredMessage);
 
   Future<SlaveRegisteredMessage> slave2RegisteredMessage =
-    FUTURE_PROTOBUF(
-        SlaveRegisteredMessage(),
-        master.get()->pid,
-        Not(slave1.get()->pid));
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, Not(slave1.get()->pid));
 
   Try<Owned<cluster::Slave>> slave2 = StartSlave(detector.get());
   ASSERT_SOME(slave2);
@@ -6128,7 +6124,7 @@ TEST_F(MasterTest, DuplicatedSlaveIdWhenSlaveReregister)
   ASSERT_SOME(master);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage2 =
-      FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, Not(slave1.get()->pid));
 
   // Start a new slave and make sure it registers before the old slave.
   slave::Flags slaveFlags2 = CreateSlaveFlags();
@@ -8539,14 +8535,10 @@ TEST_F(MasterTest, RegistryGcByCount)
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(process::http::OK().status, response);
   }
 
-  // Wait for outstanding messages to be dropped, for example if
-  // the `SlaveRegisteredMessage` was re-sent after a timeout.
-  Clock::pause();
-  Clock::settle();
-  Clock::resume();
-
+  // Ensure we catch a brand new `SlaveRegisteredMessage` message
+  // and not the one eventually resent for the first agent.
   Future<SlaveRegisteredMessage> slaveRegisteredMessage2 =
-    FUTURE_PROTOBUF(SlaveRegisteredMessage(), master.get()->pid, _);
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, Not(slave.get()->pid));
 
   slave::Flags slaveFlags2 = CreateSlaveFlags();
 

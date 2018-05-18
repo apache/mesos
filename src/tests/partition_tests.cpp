@@ -73,6 +73,7 @@ using testing::AllOf;
 using testing::AtMost;
 using testing::DoAll;
 using testing::Eq;
+using testing::Not;
 using testing::Return;
 using testing::SaveArg;
 
@@ -2971,6 +2972,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByCount)
 
   AWAIT_READY(slaveLost1);
 
+  // Set the expectation before resetting `slave1`.
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage2 =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, Not(slave1.get()->pid));
+
   // Shutdown the first slave. This is necessary because we only drop
   // PONG messages; after advancing the clock below, the slave would
   // try to reregister and would succeed. Hence, stop the slave first.
@@ -2978,9 +2983,6 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByCount)
   slave1->reset();
 
   // Start another slave.
-  Future<SlaveRegisteredMessage> slaveRegisteredMessage2 =
-    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
-
   slave::Flags agentFlags2 = CreateSlaveFlags();
   Owned<MasterDetector> slaveDetector2 = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave2 =
@@ -3323,6 +3325,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByAge)
 
   AWAIT_READY(slaveLost1);
 
+  // Set the expectation before resetting `slave1`.
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage2 =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, Not(slave1.get()->pid));
+
   // Shutdown the first slave. This is necessary because we only drop
   // PONG messages; after advancing the clock below, the slave would
   // try to reregister and would succeed. Hence, stop the slave first.
@@ -3341,9 +3347,6 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByAge)
     agentFlags2.registration_backoff_factor);
 
   // Start another slave.
-  Future<SlaveRegisteredMessage> slaveRegisteredMessage2 =
-    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
-
   Owned<MasterDetector> slaveDetector2 = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave2 = StartSlave(slaveDetector2.get(),
                                                  agentFlags2);
@@ -3582,7 +3585,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcRace)
   DROP_MESSAGES(_, slave1.get()->pid, _);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage2 =
-    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, Not(slave1.get()->pid));
 
   StandaloneMasterDetector detector2(master.get()->pid);
   slave::Flags agentFlags2 = CreateSlaveFlags();
@@ -3622,7 +3625,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcRace)
                  master.get()->pid);
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage3 =
-    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, AllOf(
+        Not(slave1.get()->pid),
+        Not(slave2.get()->pid)));
 
   Owned<MasterDetector> detector3 = master.get()->createDetector();
 

@@ -59,6 +59,7 @@ using process::Owned;
 
 using testing::AtMost;
 using testing::DoAll;
+using testing::Not;
 using testing::Sequence;
 
 namespace mesos {
@@ -1145,7 +1146,8 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_AgentRegisteredWithNewId)
   ASSERT_SOME(os::rm(slave::paths::getLatestSlavePath(metaDir)));
 
   // A new registration would trigger another `SlaveRegisteredMessage`.
-  slaveRegisteredMessage = FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+  slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, Not(slave.get()->pid));
 
   // After the agent fails over, any volume created before becomes a
   // pre-existing volume, which has an ID but no profile.
