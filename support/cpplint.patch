@@ -5,7 +5,7 @@ index 6d44d3165..5089d50a9 100644
 @@ -28,6 +28,12 @@
  # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- 
+
 +# Modified by Adam B (adam@mesosphere.io) to handle hpp files.
 +# Modified by Avinash S (avinash@mesosphere.io) to check for at least
 +# a __single__ space in comments is required for hpp and cpp files.
@@ -13,14 +13,14 @@ index 6d44d3165..5089d50a9 100644
 +# Modified by Armand G (agrillet@mesosphere.io) to skip file when linted.
 +
  """Does google-lint on c++ files.
- 
+
  The goal of this script is to identify places in the code that *may*
 @@ -40,6 +46,7 @@ In particular, we can get very confused by /* and // inside strings!
  We do a small hack, which is to ignore //'s with "'s after them on the
  same line, but it is far from perfect (in either direction).
  """
 +# pylint: skip-file
- 
+
  import codecs
  import copy
 @@ -216,6 +223,7 @@ _ERROR_CATEGORIES = [
@@ -32,12 +32,12 @@ index 6d44d3165..5089d50a9 100644
      'build/storage_class',
      'legal/copyright',
 @@ -558,7 +566,7 @@ _line_length = 80
- 
+
  # The allowed extensions for file names
  # This is set by --extensions flag.
 -_valid_extensions = set(['cc', 'h', 'cpp', 'cu', 'cuh'])
 +_valid_extensions = set(['cc', 'h', 'cpp', 'cu', 'cuh', 'hpp'])
- 
+
  # Treat all headers starting with 'h' equally: .h, .hpp, .hxx etc.
  # This is set by --headers flag.
 @@ -2370,14 +2378,14 @@ class _NamespaceInfo(_BlockInfo):
@@ -64,13 +64,13 @@ index 6d44d3165..5089d50a9 100644
            error(filename, linenum, 'readability/namespace', 5,
 -                'Anonymous namespace should be terminated with "// namespace"')
 +                'Anonymous namespace should be terminated with "// namespace {"')
- 
- 
+
+
  class _PreprocessorInfo(object):
 @@ -2688,11 +2696,9 @@ class NestingState(object):
        if access_match:
          classinfo.access = access_match.group(2)
- 
+
 -        # Check that access keywords are indented +1 space.  Skip this
 -        # check if the keywords are not preceded by whitespaces.
 +        # Check that access keywords are not indented.
@@ -88,7 +88,7 @@ index 6d44d3165..5089d50a9 100644
 -                '%s%s: should be indented +1 space inside %s' % (
 +                '%s%s: should not be indented inside %s' % (
                      access_match.group(2), slots, parent))
- 
+
      # Consume braces or semicolons from what's left of the line
 @@ -3129,13 +3135,10 @@ def CheckComment(line, filename, linenum, next_line_start, error):
      # Check if the // may be in quotes.  If so, ignore it
@@ -104,7 +104,7 @@ index 6d44d3165..5089d50a9 100644
          error(filename, linenum, 'whitespace/comments', 2,
 -              'At least two spaces is best between code and comments')
 +              'At least a single space is required between code and comments')
- 
+
        # Checks for common mistakes in TODO comments.
        comment = line[commentpos:]
 @@ -3383,7 +3386,7 @@ def CheckOperatorSpacing(filename, clean_lines, linenum, error):
@@ -115,11 +115,11 @@ index 6d44d3165..5089d50a9 100644
 +      not (match.group(1) == 'operator')):
      error(filename, linenum, 'whitespace/operators', 3,
            'Missing spaces around <<')
- 
+
 @@ -4410,6 +4413,10 @@ def CheckStyle(filename, clean_lines, linenum, file_extension, nesting_state,
      error(filename, linenum, 'whitespace/newline', 0,
            'More than one command on the same line')
- 
+
 +  if re.search(r'\bNULL\b', cleansed_line):
 +    error(filename, linenum, 'build/nullptr', 1,
 +          'NULL found; better to use nullptr')
@@ -127,3 +127,74 @@ index 6d44d3165..5089d50a9 100644
    # Some more style checks
    CheckBraces(filename, clean_lines, linenum, error)
    CheckTrailingSemicolon(filename, clean_lines, linenum, error)
+
+diff --git a/support/cpplint.py b/support/cpplint.py
+index 42a3dda20..c5a45f760 100644
+--- a/support/cpplint.py
++++ b/support/cpplint.py
+@@ -64,6 +64,24 @@ try:
+   xrange          # Python 2
+ except NameError:
+   xrange = range  # Python 3
++  unicode = str
++  def iteritems(d):
++    return d.items()
++  def itervalues(d):
++    return d.values()
++else:
++  # Python 2
++  def iteritems(d):
++    return d.iteritems()
++  def itervalues(d):
++    return d.itervalues()
++  # Change stderr to write with replacement characters so we don't die
++  # if we try to print something containing non-ASCII characters.
++  sys.stderr = codecs.StreamReaderWriter(sys.stderr,
++                                         codecs.getreader('utf8'),
++                                         codecs.getwriter('utf8'),
++                                         'replace')
++
+
+
+ _USAGE = """
+@@ -960,7 +978,7 @@ class _CppLintState(object):
+
+   def PrintErrorCounts(self):
+     """Print a summary of errors by category, and the total."""
+-    for category, count in self.errors_by_category.iteritems():
++    for category, count in iteritems(self.errors_by_category):
+       sys.stderr.write('Category \'%s\' errors found: %d\n' %
+                        (category, count))
+     sys.stdout.write('Total errors found: %d\n' % self.error_count)
+@@ -4629,7 +4647,7 @@ def _GetTextInside(text, start_pattern):
+
+   # Give opening punctuations to get the matching close-punctuations.
+   matching_punctuation = {'(': ')', '{': '}', '[': ']'}
+-  closing_punctuation = set(matching_punctuation.itervalues())
++  closing_punctuation = set(itervalues(matching_punctuation))
+
+   # Find the position to start extracting text.
+   match = re.search(start_pattern, text, re.M)
+@@ -5577,7 +5595,7 @@ def CheckForIncludeWhatYouUse(filename, clean_lines, include_state, error,
+
+   # include_dict is modified during iteration, so we iterate over a copy of
+   # the keys.
+-  header_keys = include_dict.keys()
++  header_keys = list(include_dict)
+   for header in header_keys:
+     (same_module, common_path) = FilesBelongToSameModule(abs_filename, header)
+     fullpath = common_path + header
+@@ -6230,13 +6248,6 @@ def ParseArguments(args):
+ def main():
+   filenames = ParseArguments(sys.argv[1:])
+
+-  # Change stderr to write with replacement characters so we don't die
+-  # if we try to print something containing non-ASCII characters.
+-  sys.stderr = codecs.StreamReaderWriter(sys.stderr,
+-                                         codecs.getreader('utf8'),
+-                                         codecs.getwriter('utf8'),
+-                                         'replace')
+-
+   _cpplint_state.ResetErrorCounts()
+   for filename in filenames:
+     ProcessFile(filename, _cpplint_state.verbose_level)
