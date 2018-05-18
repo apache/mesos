@@ -17,14 +17,11 @@ if ! [ -x "$(command -v docker)" ]; then
   exit 1
 fi
 
-if [ -d "${SOURCE_DIR}/centos7" ]; then
-  echo "Please cleanup 'centos7' under your Mesos source directory"
-  exit 1
-fi
-
 function cleanup {
   rm -rf "${SOURCE_DIR}/centos7"
 }
+
+cleanup
 
 trap cleanup EXIT
 
