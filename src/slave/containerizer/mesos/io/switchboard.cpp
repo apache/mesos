@@ -307,19 +307,25 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
     const ContainerConfig& containerConfig,
     const ContainerIO& loggerIO)
 {
+  bool requiresServer = IOSwitchboard::requiresServer(containerConfig);
+
   // On windows, we do not yet support running an io switchboard
   // server, so we must error out if it is required.
 #ifdef __WINDOWS__
-  if (IOSwitchboard::requiresServer(containerConfig)) {
+  if (requiresServer) {
       return Failure(
           "IO Switchboard server is not supported on windows");
   }
 #endif
 
+  LOG(INFO) << "Container logger module finished preparing container "
+            << containerId << "; IOSwitchboard server is "
+            << (requiresServer ? "" : "not") << " required";
+
   bool hasTTY = containerConfig.has_container_info() &&
                 containerConfig.container_info().has_tty_info();
 
-  if (!IOSwitchboard::requiresServer(containerConfig)) {
+  if (!requiresServer) {
     CHECK(!containerIOs.contains(containerId));
     containerIOs[containerId] = loggerIO;
 
