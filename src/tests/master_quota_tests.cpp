@@ -468,6 +468,13 @@ TEST_F(MasterQuotaTest, RemoveSingleQuota)
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
+    const string metricKey =
+      "allocator/mesos/quota/roles/" + ROLE1 + "/resources/cpus/guarantee";
+
+    JSON::Object metrics = Metrics();
+
+    EXPECT_EQ(1, metrics.values[metricKey]);
+
     // Remove the previously requested quota.
     Future<Nothing> receivedRemoveRequest;
     EXPECT_CALL(allocator, removeQuota(Eq(ROLE1)))
@@ -480,6 +487,10 @@ TEST_F(MasterQuotaTest, RemoveSingleQuota)
 
     // Ensure that the quota remove request has reached the allocator.
     AWAIT_READY(receivedRemoveRequest);
+
+    metrics = Metrics();
+
+    ASSERT_NONE(metrics.at<JSON::Number>(metricKey));
   }
 }
 
