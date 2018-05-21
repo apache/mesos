@@ -210,7 +210,7 @@ AM_CONDITIONAL([OPTIMIZE], [test x"$enable_optimize" = "xyes"])
 
 debug_flags="-g1"
 if test "x$enable_debug" = "xyes"; then
-  debug_flags="-g"
+  debug_flags="-g -fno-omit-frame-pointer"
 elif test "x$enable_optimize" = "xyes"; then
   debug_flags=""
 fi
