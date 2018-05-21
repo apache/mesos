@@ -99,3 +99,27 @@ TEST(ErrorTest, Errno)
   EXPECT_THAT(
     SocketError(notsock, "socket error").message, StartsWith("socket error"));
 }
+
+
+#ifdef __WINDOWS__
+TEST(ErrorTest, Windows)
+{
+  // NOTE: This is an edge case where the implementation explicitly
+  // avoids calling `FormatMessage` when default constructed, and so
+  // the message is an empty string, NOT "The operation completed
+  // successfully."
+  EXPECT_EQ(WindowsError(ERROR_SUCCESS).message, "");
+
+  EXPECT_THAT(
+    WindowsError(ERROR_FILE_NOT_FOUND).message,
+    StartsWith("The system cannot find the file specified."));
+
+  EXPECT_THAT(
+    WindowsError(ERROR_INVALID_HANDLE).message,
+    StartsWith("The handle is invalid."));
+
+  EXPECT_THAT(
+    WindowsError(ERROR_INVALID_PARAMETER).message,
+    StartsWith("The parameter is incorrect."));
+}
+#endif // __WINDOWS__
