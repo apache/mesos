@@ -320,6 +320,12 @@ if (NOT WIN32)
       "The compiler ${CMAKE_CXX_COMPILER} cannot apply stack protectors.")
   endif ()
 
+  # Do not omit frame pointers in debug builds to ease debugging and profiling.
+  if ((CMAKE_BUILD_TYPE MATCHES Debug) OR
+      (CMAKE_BUILD_TYPE MATCHES RelWithDebInfo))
+    add_compile_options(-fno-omit-frame-pointer)
+  endif ()
+
   # Directory structure for some build artifacts.
   # This is defined for use in tests.
   set(EXEC_INSTALL_PREFIX  ${CMAKE_INSTALL_PREFIX})
