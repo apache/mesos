@@ -290,7 +290,10 @@ Future<Option<ContainerLaunchInfo>> VolumeSecretIsolatorProcess::prepare(
   }
 
   return collect(futures)
-    .then([launchInfo]() -> Future<Option<ContainerLaunchInfo>> {
+    .then([launchInfo, containerId](
+        const list<Nothing>& results) -> Future<Option<ContainerLaunchInfo>> {
+      LOG(INFO) << results.size() << " secrets have been resolved for "
+                << "container " << containerId;
       return launchInfo;
     });
 }
