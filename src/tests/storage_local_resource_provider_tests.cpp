@@ -3476,6 +3476,15 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ReconcileDroppedOperation)
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
+  // We use the following filter to filter offers that do not have
+  // wanted resources for 365 days (the maximum).
+  Filters declineFilters;
+  declineFilters.set_refuse_seconds(Days(365).secs());
+
+  // Decline offers that do not contain wanted resources.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillRepeatedly(DeclineOffers(declineFilters));
+
   // We are only interested in pre-existing volumes, which have IDs but no
   // profile. We use pre-existing volumes to make it easy to send multiple
   // operations on multiple resources.
@@ -3486,21 +3495,12 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ReconcileDroppedOperation)
       !r.disk().source().has_profile();
   };
 
-  // We use the filter explicitly here so that the resources will not
-  // be filtered for 5 seconds (the default).
-  Filters filters;
-  filters.set_refuse_seconds(0);
-
-  // Decline offers that contain only the agent's default resources.
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillRepeatedly(DeclineOffers(filters));
-
   Future<vector<Offer>> offersBeforeOperations;
 
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
       isPreExistingVolume)))
     .WillOnce(FutureArg<1>(&offersBeforeOperations))
-    .WillRepeatedly(DeclineOffers(filters)); // Decline further matching offers.
+    .WillRepeatedly(DeclineOffers(declineFilters)); // Decline further offers.
 
   driver.start();
 
@@ -3528,12 +3528,17 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ReconcileDroppedOperation)
   Future<UpdateOperationStatusMessage> operationFinishedStatus =
     FUTURE_PROTOBUF(UpdateOperationStatusMessage(), _, _);
 
+  // We use the following filter so that the resources will not be
+  // filtered for 5 seconds (the default).
+  Filters acceptFilters;
+  acceptFilters.set_refuse_seconds(0);
+
   // Attempt the creation of two volumes.
   driver.acceptOffers(
       {offersBeforeOperations->at(0).id()},
       {CREATE_VOLUME(sources.at(0), Resource::DiskInfo::Source::MOUNT),
        CREATE_VOLUME(sources.at(1), Resource::DiskInfo::Source::MOUNT)},
-      filters);
+      acceptFilters);
 
   // Ensure that the operations are processed.
   Clock::settle();
