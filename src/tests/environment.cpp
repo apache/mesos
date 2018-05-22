@@ -361,15 +361,16 @@ private:
   Future<Nothing> launchContainer(
       const Owned<Docker>& docker,
       const string& containerName,
-      const string& networkName)
+      const string& networkName,
+      const string& imageName)
   {
     Docker::RunOptions opts;
     opts.privileged = false;
     opts.name = containerName;
     opts.network = networkName;
     opts.additionalOptions = {"-d", "--rm"};
-    opts.image = mesos::internal::checks::DOCKER_HEALTH_CHECK_IMAGE;
-    opts.arguments = {"pwsh", "-Command", "Start-Sleep", "-Seconds", "60"};
+    opts.image = imageName;
+    opts.arguments = {"ping", "-n", "60", "127.0.0.1"};
 
     // Launches the container in detached mode, which means that docker
     // run should return as soon as the container successfully launched.
@@ -392,16 +393,22 @@ private:
 
   Option<Error> runNetNamespaceCheck(const Owned<Docker>& docker)
   {
+    const string image =
+      string(mesos::internal::checks::DOCKER_HEALTH_CHECK_IMAGE);
+
     // Use `os::system` here because `docker->inspect()` only works on
     // containers even though `docker inspect` cli command works on images.
-    const Option<int> res = os::system(
-        docker->getPath() + " -H " + docker->getSocket() + " inspect " +
-        string(mesos::internal::checks::DOCKER_HEALTH_CHECK_IMAGE) + " > NUL");
+    const Option<int> res = os::system(strings::join(
+        " ",
+        docker->getPath(),
+        "-H",
+        docker->getSocket(),
+        "inspect",
+        image,
+        "> NUL"));
 
     if (res != 0) {
-      return Error(
-          "Cannot find " +
-          string(mesos::internal::checks::DOCKER_HEALTH_CHECK_IMAGE));
+      return Error("Cannot find " + image);
     }
 
     // Launch two containers. One with regular network settings and the
@@ -411,10 +418,12 @@ private:
     const string container2 = id::UUID::random().toString();
 
     Future<Nothing> containers =
-      launchContainer(docker, container1, "nat").then(process::defer([=]() {
-        return launchContainer(docker, container2, "container:" + container1)
-          .then(lambda::bind(&Docker::rm, docker, container2, true))
-          .onAny(lambda::bind(&Docker::rm, docker, container1, true));
+      launchContainer(docker, container1, "nat", image)
+        .then(process::defer([=]() {
+          return launchContainer(
+              docker, container2, "container:" + container1, image)
+            .then(lambda::bind(&Docker::rm, docker, container2, true))
+            .onAny(lambda::bind(&Docker::rm, docker, container1, true));
       }));
 
     // A minute should be enough for both containers to lauch and delete.

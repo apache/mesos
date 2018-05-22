@@ -988,16 +988,12 @@ void CheckerProcess::processCommandCheckResult(
   processCheckResult(stopwatch, result);
 }
 
-
-Future<int> CheckerProcess::httpCheck(
-    const check::Http& http,
-    const Option<runtime::Plain>& plain)
+static vector<string> httpCheckCommand(
+    const string& command,
+    const string& url)
 {
-  const string url = http.scheme + "://" + http.domain + ":" +
-                     stringify(http.port) + http.path;
-
-  const vector<string> argv = {
-    HTTP_CHECK_COMMAND,
+  return {
+    command,
     "-s",                 // Don't show progress meter or error messages.
     "-S",                 // Makes curl show an error message if it fails.
     "-L",                 // Follows HTTP 3xx redirects.
@@ -1007,8 +1003,16 @@ Future<int> CheckerProcess::httpCheck(
     "-g",                 // Switches off the "URL globbing parser".
     url
   };
+}
 
-  return _httpCheck(argv, plain);
+Future<int> CheckerProcess::httpCheck(
+    const check::Http& http,
+    const Option<runtime::Plain>& plain)
+{
+  const string url =
+    http.scheme + "://" + http.domain + ":" + stringify(http.port) + http.path;
+
+  return _httpCheck(httpCheckCommand(HTTP_CHECK_COMMAND, url), plain);
 }
 
 
@@ -1167,9 +1171,7 @@ static vector<string> dockerNetworkRunCommand(
     "run",
     "--rm",
     "--network=container:" + docker.containerName,
-    image,
-    "pwsh",
-    "-Command"
+    image
   };
 }
 
@@ -1187,20 +1189,8 @@ Future<int> CheckerProcess::dockerHttpCheck(
   const string url = http.scheme + "://" + http.domain + ":" +
                      stringify(http.port) + http.path;
 
-  vector<string> httpCheckCommandParameters = {
-    "Invoke-WebRequest",
-    "-Uri", url,
-    "-UseBasicParsing",                     // Needed for nanoserver.
-    "-SkipCertificateCheck",                // Similar to `curl -k`.
-    "|",
-    "Out-File",                             // Write status to file.
-    "-InputObject", "{$_.StatusCode}",      // Just return status code.
-    "-Path", "$HOME\\status",
-    "-Encoding", "ASCII",                   // Avoid UTF-16 encoding.
-    "-NoNewline",
-    ";",
-    "Get-Content", "-Raw", "$HOME\\status"  // Output status code.
-  };
+  const vector<string> httpCheckCommandParameters =
+    httpCheckCommand(HTTP_CHECK_COMMAND, url);
 
   argv.insert(
       argv.end(),
@@ -1212,17 +1202,28 @@ Future<int> CheckerProcess::dockerHttpCheck(
 #endif // __WINDOWS__
 
 
+static vector<string> tcpCommand(
+  const string& command,
+  const string& domain,
+  uint16_t port)
+{
+  return {
+    command,
+    "--ip=" + domain,
+    "--port=" + stringify(port)
+  };
+}
+
+
 Future<bool> CheckerProcess::tcpCheck(
     const check::Tcp& tcp,
     const Option<runtime::Plain>& plain)
 {
   const string command = path::join(tcp.launcherDir, TCP_CHECK_COMMAND);
 
-  const vector<string> argv = {
-    command,
-    "--ip=" + tcp.domain,
-    "--port=" + stringify(tcp.port)
-  };
+  const vector<string> argv =
+    tcpCommand(command, tcp.domain, static_cast<uint16_t>(tcp.port));
+
   return _tcpCheck(argv, plain);
 }
 
@@ -1363,14 +1364,8 @@ Future<bool> CheckerProcess::dockerTcpCheck(
   vector<string> argv =
     dockerNetworkRunCommand(docker, DOCKER_HEALTH_CHECK_IMAGE);
 
-  // Test-NetConnection doesn't exist on PowerShell Core, so we
-  // call the C# TcpClient library instead. Command looks like:
-  // (New-Object System.Net.Sockets.TcpClient(IP, PORT)).Close()
-  vector<string> tcpCheckCommandParameters = {
-    "(New-Object",
-    "System.Net.Sockets.TcpClient(\"" + tcp.domain + "\",",
-    stringify(tcp.port) + ")).Close()"
-  };
+  const vector<string> tcpCheckCommandParameters =
+    tcpCommand(TCP_CHECK_COMMAND, tcp.domain, static_cast<uint16_t>(tcp.port));
 
   argv.insert(
       argv.end(),

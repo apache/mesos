@@ -42,9 +42,7 @@ namespace internal {
 namespace checks {
 
 #ifdef __WINDOWS__
-// TODO(akagup): Change this to a newer nanoserver image once they come with
-// curl by default. See MESOS-8499.
-constexpr char DOCKER_HEALTH_CHECK_IMAGE[] = "microsoft/powershell:nanoserver";
+constexpr char DOCKER_HEALTH_CHECK_IMAGE[] = "mesos/windows-health-check";
 #endif // __WINDOWS__
 
 class CheckerProcess : public ProtobufProcess<CheckerProcess>
