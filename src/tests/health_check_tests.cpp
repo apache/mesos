@@ -2396,7 +2396,7 @@ TEST_F(DockerContainerizerHealthCheckTest, ROOT_DOCKER_DockerHealthyTask)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  TaskInfo task = createTask(offers.get()[0], DOCKER_SLEEP_CMD(120));
+  TaskInfo task = createTask(offers.get()[0], SLEEP_COMMAND(120));
 
   // TODO(tnachen): Use local image to test if possible.
   ContainerInfo containerInfo;
@@ -2526,7 +2526,7 @@ TEST_F(DockerContainerizerHealthCheckTest, ROOT_DOCKER_DockerHealthStatusChange)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  TaskInfo task = createTask(offers.get()[0], DOCKER_SLEEP_CMD(120));
+  TaskInfo task = createTask(offers.get()[0], SLEEP_COMMAND(120));
 
   // TODO(tnachen): Use local image to test if possible.
   ContainerInfo containerInfo;
@@ -2550,15 +2550,14 @@ TEST_F(DockerContainerizerHealthCheckTest, ROOT_DOCKER_DockerHealthStatusChange)
   //
   // Case 1:
   //   - Remove the temporary file.
+  //
+  // NOTE: On Windows, we delete a temporary directory instead since `del`
+  // doesn't return an error if it tries to delete a nonexistent file, but
+  // `rmdir` does.
 #ifdef __WINDOWS__
   const string healthCheckCmd =
-    "pwsh -Command "
-    "Remove-Item -ErrorAction SilentlyContinue \"" + tmpPath + "\"; "
-    "if (-Not $?) { "
-      "New-Item -ItemType Directory -Force \"" + os::getcwd() + "\"; "
-      "Set-Content -Path \"" + tmpPath + "\" -Value foo; "
-      "exit 1 "
-    "}";
+    "rmdir /s /q " + os::getcwd() + " || "
+    "(mkdir " + os::getcwd() + " && echo foo > " + tmpPath + " && exit 1)";
 #else
   const string healthCheckCmd =
     "rm " + tmpPath + " || "
@@ -2709,7 +2708,7 @@ TEST_F(
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  TaskInfo task = createTask(offers.get()[0], DOCKER_SLEEP_CMD(120));
+  TaskInfo task = createTask(offers.get()[0], SLEEP_COMMAND(120));
 
   // TODO(akagup): Use local image to test if possible.
   ContainerInfo containerInfo;

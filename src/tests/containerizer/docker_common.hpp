@@ -43,18 +43,12 @@ namespace internal {
 namespace tests {
 
 #ifdef __WINDOWS__
-// The following image is the microsoft/powershell:nanoserver image with
+// The following image is the microsoft/nanoserver image with
 // ContainerAdministrator as the default user. There are some permission bugs
 // with accessing volume mounts in process (but not Hyper-V) isolation as
 // the regular ContainerUser user, but accesing them as ContainerAdministrator
-// works fine. Note that this image runs the 1709 version, so the host needs
-// to be 1709 if running on Windows Server. Running on a 1709 host is
-// recommended anyway since it fixes bugs that made these tests run slowly.
-static constexpr char DOCKER_TEST_IMAGE[] = "akagup/pwsh-nano-admin";
-
-// The powershell image uses Powershell Core, which calls the executable as
-// `pwsh` instead of `powershell`. So the regular sleep macro doesn't work.
-#define DOCKER_SLEEP_CMD(x) "pwsh -Command Start-Sleep -Seconds " #x
+// works fine.
+static constexpr char DOCKER_TEST_IMAGE[] = "akagup/nano-admin";
 
 // We use a custom HTTP(S) server here, because the official `microsoft/iis`
 // HTTP server image is ~20x larger than this one, so pulling it takes too
@@ -66,8 +60,6 @@ static constexpr char DOCKER_HTTPS_IMAGE[] = "akagup/https-server";
 static constexpr char DOCKER_HTTPS_COMMAND[] = "http.exe";
 #else
 static constexpr char DOCKER_TEST_IMAGE[] = "alpine";
-
-#define DOCKER_SLEEP_CMD(x) SLEEP_COMMAND(x)
 
 // The HTTP server is netcat running on alpine.
 static constexpr char DOCKER_HTTP_IMAGE[] = "alpine";

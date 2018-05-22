@@ -165,7 +165,7 @@ TEST_F(DockerTest, ROOT_DOCKER_interface)
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
   CommandInfo commandInfo;
-  commandInfo.set_value(DOCKER_SLEEP_CMD(120));
+  commandInfo.set_value(SLEEP_COMMAND(120));
 
   Try<Docker::RunOptions> runOptions = Docker::RunOptions::create(
       containerInfo,
@@ -326,7 +326,7 @@ TEST_F(DockerTest, ROOT_DOCKER_kill)
   containerInfo.mutable_docker()->CopyFrom(dockerInfo);
 
   CommandInfo commandInfo;
-  commandInfo.set_value(DOCKER_SLEEP_CMD(120));
+  commandInfo.set_value(SLEEP_COMMAND(120));
 
   Try<Docker::RunOptions> runOptions = Docker::RunOptions::create(
       containerInfo,
