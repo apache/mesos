@@ -379,7 +379,9 @@ Try<string> generate_hmac_sha256(
 template<typename Reader>
 Try<shared_ptr<RSA>> pem_to_rsa(const string& pem, Reader reader)
 {
-  BIO *bio = BIO_new_mem_buf(pem.c_str(), -1);
+  // We cast away constness from `pem`'s data since in older SSL versions
+  // `BIO_new_mem_buf` took a non-const `char*` which was semantically `const`.
+  BIO *bio = BIO_new_mem_buf(const_cast<char*>(pem.c_str()), -1);
   if (bio == nullptr) {
     return Error("Failed to create RSA key bio");
   }
