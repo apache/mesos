@@ -4709,9 +4709,9 @@ TEST_F(SlaveTest, RemoveExecutorUponFailedTaskGroupLaunch)
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  MockGarbageCollector mockGarbageCollector;
-
   slave::Flags slaveFlags = CreateSlaveFlags();
+
+  MockGarbageCollector mockGarbageCollector(slaveFlags.work_dir);
 
   // Start a mock slave.
   Try<Owned<cluster::Slave>> slave =
@@ -4867,8 +4867,8 @@ TEST_F(SlaveTest, LaunchTasksReorderUnscheduleGC)
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
-  MockGarbageCollector mockGarbageCollector;
   slave::Flags slaveFlags = CreateSlaveFlags();
+  MockGarbageCollector mockGarbageCollector(slaveFlags.work_dir);
 
   // Start a mock slave.
   Try<Owned<cluster::Slave>> slave =

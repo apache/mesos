@@ -45,9 +45,10 @@ class GarbageCollectorProcess :
     public process::Process<GarbageCollectorProcess>
 {
 public:
-  GarbageCollectorProcess()
+  explicit GarbageCollectorProcess(const std::string& _workDir)
     : ProcessBase(process::ID::generate("agent-garbage-collector")),
-      metrics(this) {}
+      metrics(this),
+      workDir(_workDir) {}
 
   virtual ~GarbageCollectorProcess();
 
@@ -96,6 +97,8 @@ private:
     process::metrics::Counter path_removals_failed;
     process::metrics::PullGauge path_removals_pending;
   } metrics;
+
+  const std::string workDir;
 
   // Store all the timeouts and corresponding paths to delete.
   // NOTE: We are using Multimap here instead of Multihashmap, because

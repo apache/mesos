@@ -3353,7 +3353,7 @@ public:
 class MockGarbageCollector : public slave::GarbageCollector
 {
 public:
-  MockGarbageCollector();
+  explicit MockGarbageCollector(const std::string& workDir);
   virtual ~MockGarbageCollector();
 
   // The default action is to always return `true`.

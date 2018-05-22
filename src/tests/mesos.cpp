@@ -691,7 +691,8 @@ MockAuthorizer::MockAuthorizer()
 MockAuthorizer::~MockAuthorizer() {}
 
 
-MockGarbageCollector::MockGarbageCollector()
+MockGarbageCollector::MockGarbageCollector(const string& workDir)
+    : slave::GarbageCollector(workDir)
 {
   EXPECT_CALL(*this, unschedule(_)).WillRepeatedly(Return(true));
 }
