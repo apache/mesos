@@ -49,24 +49,6 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-class MockGarbageCollector : public slave::GarbageCollector
-{
-public:
-  MockGarbageCollector();
-  virtual ~MockGarbageCollector();
-
-  MOCK_METHOD2(
-      schedule,
-      process::Future<Nothing>(const Duration& d, const std::string& path));
-  MOCK_METHOD1(
-      unschedule,
-      process::Future<bool>(const std::string& path));
-  MOCK_METHOD1(
-      prune,
-      void(const Duration& d));
-};
-
-
 class MockResourceEstimator : public mesos::slave::ResourceEstimator
 {
 public:
@@ -213,7 +195,7 @@ public:
 
 private:
   Files files;
-  MockGarbageCollector gc;
+  slave::GarbageCollector* gc;
   MockResourceEstimator resourceEstimator;
   MockQoSController qosController;
   slave::StatusUpdateManager* statusUpdateManager;

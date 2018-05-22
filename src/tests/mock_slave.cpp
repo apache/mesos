@@ -49,25 +49,6 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-MockGarbageCollector::MockGarbageCollector()
-{
-  // NOTE: We use 'EXPECT_CALL' and 'WillRepeatedly' here instead of
-  // 'ON_CALL' and 'WillByDefault'. See 'TestContainerizer::SetUp()'
-  // for more details.
-  EXPECT_CALL(*this, schedule(_, _))
-    .WillRepeatedly(Return(Nothing()));
-
-  EXPECT_CALL(*this, unschedule(_))
-    .WillRepeatedly(Return(true));
-
-  EXPECT_CALL(*this, prune(_))
-    .WillRepeatedly(Return());
-}
-
-
-MockGarbageCollector::~MockGarbageCollector() {}
-
-
 MockResourceEstimator::MockResourceEstimator()
 {
   ON_CALL(*this, initialize(_))
@@ -116,7 +97,7 @@ MockSlave::MockSlave(
         detector,
         containerizer,
         &files,
-        &gc,
+        gc = new slave::GarbageCollector(flags.work_dir),
         statusUpdateManager = new slave::StatusUpdateManager(flags),
         &resourceEstimator,
         _qosController.isSome() ? _qosController.get() : &qosController,
@@ -150,6 +131,7 @@ MockSlave::MockSlave(
 
 MockSlave::~MockSlave()
 {
+  delete gc;
   delete statusUpdateManager;
 }
 

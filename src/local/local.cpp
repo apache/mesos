@@ -407,7 +407,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
         << slaveFlags.runtime_dir << "': " << mkdir.error();
     }
 
-    garbageCollectors->push_back(new GarbageCollector());
+    garbageCollectors->push_back(new GarbageCollector(slaveFlags.work_dir));
     statusUpdateManagers->push_back(new StatusUpdateManager(slaveFlags));
     fetchers->push_back(new Fetcher(slaveFlags));
 

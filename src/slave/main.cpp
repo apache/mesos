@@ -535,7 +535,7 @@ int main(int argc, char** argv)
   }
 
   Files* files = new Files(READONLY_HTTP_AUTHENTICATION_REALM, authorizer_);
-  GarbageCollector* gc = new GarbageCollector();
+  GarbageCollector* gc = new GarbageCollector(flags.work_dir);
   StatusUpdateManager* statusUpdateManager = new StatusUpdateManager(flags);
 
   Try<ResourceEstimator*> resourceEstimator =
