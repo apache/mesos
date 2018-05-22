@@ -486,7 +486,7 @@ Try<process::Owned<Slave>> Slave::create(
 
   // If the garbage collector is not provided, create a default one.
   if (gc.isNone()) {
-    slave->gc.reset(new slave::GarbageCollector());
+    slave->gc.reset(new slave::GarbageCollector(flags.work_dir));
   }
 
   // If the resource estimator is not provided, create a default one.

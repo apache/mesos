@@ -427,7 +427,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
         << slaveFlags.runtime_dir << "': " << mkdir.error();
     }
 
-    garbageCollectors->push_back(new GarbageCollector());
+    garbageCollectors->push_back(new GarbageCollector(slaveFlags.work_dir));
     taskStatusUpdateManagers->push_back(
         new TaskStatusUpdateManager(slaveFlags));
     fetchers->push_back(new Fetcher(slaveFlags));
