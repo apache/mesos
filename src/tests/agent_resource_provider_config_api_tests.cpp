@@ -325,7 +325,7 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Add)
 
   // Decline offers that contain only the agent's default resources.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(DeclineOffers(declineFilters));
+    .WillRepeatedly(DeclineOffers(declineFilters));
 
   Future<vector<Offer>> offers;
 
@@ -539,7 +539,7 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Update)
 
   // Decline offers that contain only the agent's default resources.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(DeclineOffers(declineFilters));
+    .WillRepeatedly(DeclineOffers(declineFilters));
 
   Future<vector<Offer>> oldOffers;
 
@@ -754,7 +754,7 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Remove)
 
   // Decline offers that contain only the agent's default resources.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(DeclineOffers(declineFilters));
+    .WillRepeatedly(DeclineOffers(declineFilters));
 
   Future<vector<Offer>> oldOffers;
 
