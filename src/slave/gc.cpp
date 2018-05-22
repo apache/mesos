@@ -25,12 +25,17 @@
 
 #include <process/metrics/metrics.hpp>
 
+#include <stout/adaptor.hpp>
 #include <stout/foreach.hpp>
 #include <stout/lambda.hpp>
 
 #include <stout/os/rmdir.hpp>
 
 #include "logging/logging.hpp"
+
+#ifdef __linux__
+#include "linux/fs.hpp"
+#endif
 
 #include "slave/gc_process.hpp"
 
@@ -193,11 +198,68 @@ void GarbageCollectorProcess::remove(const Timeout& removalTime)
 
     Counter _succeeded = metrics.path_removals_succeeded;
     Counter _failed = metrics.path_removals_failed;
+    const string _workDir = workDir;
 
-    auto rmdirs = [_succeeded, _failed, infos]() {
+    auto rmdirs =
+      [_succeeded, _failed, _workDir, infos]() mutable -> Future<Nothing> {
       // Make mutable copies of the counters to work around MESOS-7907.
       Counter succeeded = _succeeded;
       Counter failed = _failed;
+
+#ifdef __linux__
+      // Clear any possible persistent volume mount points in `infos`. See
+      // MESOS-8830.
+      Try<fs::MountInfoTable> mountTable = fs::MountInfoTable::read();
+      if (mountTable.isError()) {
+        LOG(ERROR) << "Skipping any path deletion because of failure on read "
+                      "MountInfoTable for agent process: "
+                   << mountTable.error();
+
+        foreach (const Owned<PathInfo>& info, infos) {
+          info->promise.fail(mountTable.error());
+          ++failed;
+        }
+
+        return Failure(mountTable.error());
+      }
+
+      foreach (const fs::MountInfoTable::Entry& entry,
+               adaptor::reverse(mountTable->entries)) {
+        // Ignore mounts whose targets are not under `workDir`.
+        if (!strings::startsWith(
+                path::join(entry.target, ""),
+                path::join(_workDir, ""))) {
+                continue;
+        }
+
+        for (auto it = infos.begin(); it != infos.end(); ) {
+          const Owned<PathInfo>& info = *it;
+          // TODO(zhitao): Validate that both `info->path` and `workDir` are
+          // real paths.
+          if (strings::startsWith(
+                path::join(entry.target, ""), path::join(info->path, ""))) {
+            LOG(WARNING)
+                << "Unmounting dangling mount point '" << entry.target
+                << "' of persistent volume '" << entry.root
+                << "' inside garbage collected path '" << info->path << "'";
+
+            Try<Nothing> unmount = fs::unmount(entry.target);
+            if (unmount.isError()) {
+              LOG(WARNING) << "Skipping deletion of '"
+                           << info->path << "' because unmount failed on '"
+                           << entry.target << "': " << unmount.error();
+
+              info->promise.fail(unmount.error());
+              ++failed;
+              it = infos.erase(it);
+              continue;
+            }
+          }
+
+          it++;
+        }
+      }
+#endif // __linux__
 
       foreach (const Owned<PathInfo>& info, infos) {
         // Run the removal operation with 'continueOnError = true'.
@@ -241,11 +303,9 @@ void GarbageCollectorProcess::remove(const Timeout& removalTime)
 }
 
 
-void  GarbageCollectorProcess::_remove(const Future<Nothing>& result,
-                                       const list<Owned<PathInfo>> infos)
+void GarbageCollectorProcess::_remove(const Future<Nothing>& result,
+                                      const list<Owned<PathInfo>> infos)
 {
-  CHECK_READY(result);
-
   // Remove path records from `paths` and `timeouts` data structures.
   foreach (const Owned<PathInfo>& info, infos) {
     CHECK(paths.remove(timeouts[info->path], info));
@@ -268,9 +328,9 @@ void GarbageCollectorProcess::prune(const Duration& d)
 }
 
 
-GarbageCollector::GarbageCollector()
+GarbageCollector::GarbageCollector(const string& workDir)
 {
-  process = new GarbageCollectorProcess();
+  process = new GarbageCollectorProcess(workDir);
   spawn(process);
 }
 

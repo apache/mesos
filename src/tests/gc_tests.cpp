@@ -95,7 +95,7 @@ class GarbageCollectorTest : public TemporaryDirectoryTest {};
 
 TEST_F(GarbageCollectorTest, Schedule)
 {
-  GarbageCollector gc;
+  GarbageCollector gc("work_dir");
 
   // Make some temporary files to gc.
   const string& file1 = "file1";
@@ -179,7 +179,7 @@ TEST_F(GarbageCollectorTest, Schedule)
 
 TEST_F(GarbageCollectorTest, Unschedule)
 {
-  GarbageCollector gc;
+  GarbageCollector gc("work_dir");
 
   // Attempt to unschedule a file that is not scheduled.
   AWAIT_ASSERT_FALSE(gc.unschedule("bogus"));
@@ -228,7 +228,7 @@ TEST_F(GarbageCollectorTest, Unschedule)
 
 TEST_F(GarbageCollectorTest, Prune)
 {
-  GarbageCollector gc;
+  GarbageCollector gc("work_dir");
 
   // Make some temporary files to prune.
   const string& file1 = "file1";

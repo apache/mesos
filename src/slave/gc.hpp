@@ -42,7 +42,7 @@ class GarbageCollectorProcess;
 class GarbageCollector
 {
 public:
-  GarbageCollector();
+  explicit GarbageCollector(const std::string& workDir);
   virtual ~GarbageCollector();
 
   // Schedules the specified path for removal after the specified
