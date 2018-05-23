@@ -10,6 +10,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License
 
+#include <algorithm>
 #include <list>
 #include <map>
 #include <set>
@@ -23,12 +24,14 @@
 #include <stout/uuid.hpp>
 
 #include <stout/os/access.hpp>
+#include <stout/os/dup.hpp>
 #include <stout/os/find.hpp>
 #include <stout/os/getcwd.hpp>
 #include <stout/os/int_fd.hpp>
 #include <stout/os/ls.hpp>
 #include <stout/os/lseek.hpp>
 #include <stout/os/mkdir.hpp>
+#include <stout/os/pipe.hpp>
 #include <stout/os/read.hpp>
 #include <stout/os/realpath.hpp>
 #include <stout/os/rename.hpp>
@@ -651,3 +654,151 @@ TEST_F(FsTest, Xattr)
   ASSERT_ERROR(os::getxattr(file, "user.mesos.test"));
 }
 #endif // __linux__ || __APPLE__
+
+#ifdef __WINDOWS__
+// Check if the overlapped field is set properly on Windows.
+TEST_F(FsTest, Overlapped)
+{
+  const string testfile =
+    path::join(sandbox.get(), id::UUID::random().toString());
+
+  // Case 1: `os::open` should return non-overlapped handles.
+  const Try<int_fd> fd1 = os::open(testfile, O_CREAT | O_TRUNC | O_RDWR);
+  ASSERT_SOME(fd1);
+  ASSERT_FALSE(fd1->is_overlapped());
+
+  const Try<int_fd> fd2 = os::dup(fd1.get());
+  ASSERT_SOME(fd2);
+  ASSERT_FALSE(fd2->is_overlapped());
+
+  EXPECT_SOME(os::close(fd1.get()));
+  EXPECT_SOME(os::close(fd2.get()));
+
+  // Case 2: `net::socket` should return overlapped handles.
+  const Try<int_fd> socket1 = net::socket(AF_INET, SOCK_STREAM, 0);
+  ASSERT_SOME(socket1);
+  ASSERT_TRUE(socket1->is_overlapped());
+
+  const Try<int_fd> socket2 = os::dup(socket1.get());
+  ASSERT_SOME(socket2);
+  ASSERT_TRUE(socket2->is_overlapped());
+
+  EXPECT_SOME(os::close(socket1.get()));
+  EXPECT_SOME(os::close(socket2.get()));
+
+  // Case 3: `os::pipe` should return overlapped values depending on the
+  // parameters given.
+  const Try<std::array<int_fd, 2>> pipes = os::pipe(true, false);
+  ASSERT_SOME(pipes);
+
+  const int_fd pipe1 = pipes.get()[0];
+  const int_fd pipe2 = pipes.get()[1];
+  ASSERT_TRUE(pipe1.is_overlapped());
+  ASSERT_FALSE(pipe2.is_overlapped());
+
+  Try<int_fd> pipe3 = os::dup(pipe1);
+  ASSERT_SOME(pipe3);
+  ASSERT_TRUE(pipe3->is_overlapped());
+
+  Try<int_fd> pipe4 = os::dup(pipe2);
+  ASSERT_SOME(pipe4);
+  ASSERT_FALSE(pipe4->is_overlapped());
+
+  EXPECT_SOME(os::close(pipe1));
+  EXPECT_SOME(os::close(pipe2));
+  EXPECT_SOME(os::close(pipe3.get()));
+  EXPECT_SOME(os::close(pipe4.get()));
+}
+
+
+TEST_F(FsTest, ReadWriteAsync)
+{
+  const Try<std::array<int_fd, 2>> pipes = os::pipe(true, true);
+  ASSERT_SOME(pipes);
+
+  OVERLAPPED read_overlapped = {};
+  OVERLAPPED write_overlapped = {};
+  std::vector<char> write_buffer(64, 'A');
+  std::vector<char> read_buffer(write_buffer.size());
+
+  // Do an async read. This should return that the IO is pending.
+  const Result<size_t> result_read = os::read_async(
+      pipes.get()[0],
+      read_buffer.data(),
+      read_buffer.size(),
+      &read_overlapped);
+
+  ASSERT_NONE(result_read);
+
+  // Do an async write. This will return immediately.
+  const Result<size_t> result_write = os::write_async(
+      pipes.get()[1],
+      write_buffer.data(),
+      write_buffer.size(),
+      &write_overlapped);
+
+  ASSERT_SOME(result_write);
+
+  // Wait for read to finish.
+  DWORD bytes;
+  ASSERT_EQ(
+      TRUE,
+      ::GetOverlappedResult(pipes.get()[0], &read_overlapped, &bytes, TRUE));
+
+  ASSERT_GT(bytes, static_cast<DWORD>(0));
+  ASSERT_EQ(result_write.get(), bytes);
+  ASSERT_EQ(
+      string(write_buffer.data(), result_write.get()),
+      string(read_buffer.data(), bytes));
+
+  EXPECT_SOME(os::close(pipes.get()[0]));
+  EXPECT_SOME(os::close(pipes.get()[1]));
+}
+
+
+TEST_F(FsTest, ReadWriteAsyncLargeBuffer)
+{
+  const Try<std::array<int_fd, 2>> pipes = os::pipe(true, true);
+  ASSERT_SOME(pipes);
+
+  OVERLAPPED read_overlapped = {};
+  OVERLAPPED write_overlapped = {};
+  std::vector<char> write_buffer(1024 * 1024, 'A');
+  std::vector<char> read_buffer(write_buffer.size());
+
+  // This should return IO pending because it's larger than the internal pipe
+  // buffer.
+  const Result<size_t>  result_write = os::write_async(
+      pipes.get()[1],
+      write_buffer.data(),
+      write_buffer.size(),
+      &write_overlapped);
+
+  ASSERT_NONE(result_write);
+
+  // This should return immediately.
+  const Result<size_t> result_read = os::read_async(
+      pipes.get()[0],
+      read_buffer.data(),
+      read_buffer.size(),
+      &read_overlapped);
+
+  ASSERT_SOME(result_read);
+
+  // Wait for write to finish.
+  DWORD bytes;
+  ASSERT_EQ(
+      TRUE,
+      ::GetOverlappedResult(pipes.get()[1], &write_overlapped, &bytes, TRUE));
+
+  ASSERT_GT(bytes, static_cast<DWORD>(0));
+  ASSERT_EQ(result_read.get(), bytes);
+  ASSERT_EQ(
+      string(write_buffer.data(), result_read.get()),
+      string(read_buffer.data(), bytes));
+
+  EXPECT_SOME(os::close(pipes.get()[0]));
+  EXPECT_SOME(os::close(pipes.get()[1]));
+}
+
+#endif // __WINDOWS__
