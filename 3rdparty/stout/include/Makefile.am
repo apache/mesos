@@ -45,6 +45,7 @@ nobase_include_HEADERS =			\
   stout/internal/windows/attributes.hpp		\
   stout/internal/windows/grp.hpp		\
   stout/internal/windows/longpath.hpp		\
+  stout/internal/windows/overlapped.hpp		\
   stout/internal/windows/pwd.hpp		\
   stout/internal/windows/reparsepoint.hpp	\
   stout/internal/windows/symlink.hpp		\
