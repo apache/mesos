@@ -14,12 +14,43 @@
 #define __STOUT_OS_WINDOWS_SENDFILE_HPP__
 
 #include <stout/error.hpp>
+#include <stout/result.hpp>
 #include <stout/try.hpp>
 #include <stout/windows.hpp> // For `winioctl.h`.
+
+#include <stout/internal/windows/overlapped.hpp>
 
 #include <stout/os/int_fd.hpp>
 
 namespace os {
+
+inline Result<size_t> sendfile_async(
+    const int_fd& s, const int_fd& fd, size_t length, OVERLAPPED* overlapped)
+{
+  // `::TransmitFile` can only send `INT_MAX - 1` bytes.
+  CHECK_LE(length, INT_MAX - 1);
+
+  const BOOL result = ::TransmitFile(
+      s,                          // Sending socket.
+      fd,                         // File to be sent.
+      static_cast<DWORD>(length), // Number of bytes to be sent from the file.
+      0,                          // Bytes per send. 0 chooses system default.
+      overlapped,                 // Overlapped object with file offset.
+      nullptr,                    // Data before and after file send.
+      0);                         // Flags.
+
+  const WindowsError error;
+  if (result == FALSE &&
+      (error.code == WSA_IO_PENDING || error.code == ERROR_IO_PENDING)) {
+    return None();
+  }
+
+  if (result == FALSE) {
+    return error;
+  }
+
+  return length;
+}
 
 // Returns the amount of bytes written from the input file
 // descriptor to the output socket.
@@ -27,27 +58,38 @@ namespace os {
 inline Try<ssize_t, SocketError> sendfile(
     const int_fd& s, const int_fd& fd, off_t offset, size_t length)
 {
+  if (offset < 0) {
+    return SocketError(WSAEINVAL);
+  }
+
   // NOTE: We convert the `offset` here to avoid potential data loss
   // in the type casting and bitshifting below.
-  uint64_t offset_ = offset;
+  const uint64_t offset_ = offset;
 
-  OVERLAPPED from = {
-    0,
-    0,
-    {static_cast<DWORD>(offset_), static_cast<DWORD>(offset_ >> 32)},
-    nullptr};
+  const Try<OVERLAPPED> from_ =
+    ::internal::windows::init_overlapped_for_sync_io();
 
-  CHECK_LE(length, MAXDWORD);
-  if (::TransmitFile(s, fd, static_cast<DWORD>(length), 0, &from, nullptr, 0) ==
-        FALSE &&
-      (::WSAGetLastError() == WSA_IO_PENDING ||
-       ::WSAGetLastError() == ERROR_IO_PENDING)) {
-    DWORD sent = 0;
-    DWORD flags = 0;
+  if (from_.isError()) {
+    return SocketError(from_.error());
+  }
 
-    if (::WSAGetOverlappedResult(s, &from, &sent, TRUE, &flags) == TRUE) {
-      return sent;
-    }
+  OVERLAPPED from = from_.get();
+  from.Offset = static_cast<DWORD>(offset_);
+  from.OffsetHigh = static_cast<DWORD>(offset_ >> 32);
+
+  const Result<size_t> result = sendfile_async(s, fd, length, &from);
+  if (result.isError()) {
+    return SocketError(result.error());
+  }
+
+  if (result.isSome()) {
+    return result.get();
+  }
+
+  DWORD sent = 0;
+  DWORD flags = 0;
+  if (::WSAGetOverlappedResult(s, &from, &sent, TRUE, &flags) == TRUE) {
+    return sent;
   }
 
   return SocketError();
