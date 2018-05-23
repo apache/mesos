@@ -59,6 +59,7 @@
 
 #include "csi/client.hpp"
 #include "csi/paths.hpp"
+#include "csi/rpc.hpp"
 #include "csi/state.hpp"
 #include "csi/utils.hpp"
 
@@ -375,6 +376,11 @@ private:
   void reconcileOperations(
       const Event::ReconcileOperations& reconcile);
 
+  template <csi::v0::RPC rpc>
+  Future<typename csi::v0::RPCTraits<rpc>::response_type> call(
+      csi::v0::Client client,
+      const typename csi::v0::RPCTraits<rpc>::request_type& request);
+
   Future<csi::v0::Client> connect(const string& endpoint);
   Future<csi::v0::Client> getService(const ContainerID& containerId);
   Future<Nothing> killService(const ContainerID& containerId);
@@ -498,6 +504,10 @@ private:
 
     // CSI plugin metrics.
     Counter csi_plugin_container_terminations;
+    hashmap<csi::v0::RPC, PushGauge> csi_plugin_rpcs_pending;
+    hashmap<csi::v0::RPC, Counter> csi_plugin_rpcs_successes;
+    hashmap<csi::v0::RPC, Counter> csi_plugin_rpcs_errors;
+    hashmap<csi::v0::RPC, Counter> csi_plugin_rpcs_cancelled;
 
     // Operation state metrics.
     hashmap<Offer::Operation::Type, PushGauge> operations_pending;
@@ -1752,6 +1762,29 @@ void StorageLocalResourceProviderProcess::reconcileOperations(
 }
 
 
+template <csi::v0::RPC rpc>
+Future<typename csi::v0::RPCTraits<rpc>::response_type>
+StorageLocalResourceProviderProcess::call(
+    csi::v0::Client client,
+    const typename csi::v0::RPCTraits<rpc>::request_type& request)
+{
+  ++metrics.csi_plugin_rpcs_pending.at(rpc);
+
+  return client.call<rpc>(request)
+    .onAny(defer(self(), [=](
+        const Future<typename csi::v0::RPCTraits<rpc>::response_type>& future) {
+      --metrics.csi_plugin_rpcs_pending.at(rpc);
+      if (future.isReady()) {
+        ++metrics.csi_plugin_rpcs_successes.at(rpc);
+      } else if (future.isFailed()) {
+        ++metrics.csi_plugin_rpcs_errors.at(rpc);
+      } else {
+        ++metrics.csi_plugin_rpcs_cancelled.at(rpc);
+      }
+    }));
+}
+
+
 // Returns a future of a CSI client that waits for the endpoint socket
 // to appear if necessary, then connects to the socket and check its
 // readiness.
@@ -1786,7 +1819,7 @@ Future<csi::v0::Client> StorageLocalResourceProviderProcess::connect(
 
   return future
     .then(defer(self(), [=](csi::v0::Client client) {
-      return client.Probe(csi::v0::ProbeRequest())
+      return call<csi::v0::PROBE>(client, csi::v0::ProbeRequest())
         .then(defer(self(), [=](const csi::v0::ProbeResponse& response) {
           return client;
         }));
@@ -2011,7 +2044,8 @@ Future<Nothing> StorageLocalResourceProviderProcess::prepareIdentityService()
   return getService(nodeContainerId.get())
     .then(defer(self(), [=](csi::v0::Client client) {
       // Get the plugin info.
-      return client.GetPluginInfo(csi::v0::GetPluginInfoRequest())
+      return call<csi::v0::GET_PLUGIN_INFO>(
+          client, csi::v0::GetPluginInfoRequest())
         .then(defer(self(), [=](
             const csi::v0::GetPluginInfoResponse& response) {
           pluginInfo = response;
@@ -2024,8 +2058,8 @@ Future<Nothing> StorageLocalResourceProviderProcess::prepareIdentityService()
     }))
     .then(defer(self(), [=](csi::v0::Client client) {
       // Get the plugin capabilities.
-      return client.GetPluginCapabilities(
-          csi::v0::GetPluginCapabilitiesRequest())
+      return call<csi::v0::GET_PLUGIN_CAPABILITIES>(
+          client, csi::v0::GetPluginCapabilitiesRequest())
         .then(defer(self(), [=](
             const csi::v0::GetPluginCapabilitiesResponse& response) {
           pluginCapabilities = response.capabilities();
@@ -2053,7 +2087,8 @@ Future<Nothing> StorageLocalResourceProviderProcess::prepareControllerService()
   return getService(controllerContainerId.get())
     .then(defer(self(), [=](csi::v0::Client client) {
       // Get the controller plugin info and check for consistency.
-      return client.GetPluginInfo(csi::v0::GetPluginInfoRequest())
+      return call<csi::v0::GET_PLUGIN_INFO>(
+          client, csi::v0::GetPluginInfoRequest())
         .then(defer(self(), [=](
             const csi::v0::GetPluginInfoResponse& response) {
           LOG(INFO) << "Controller plugin loaded: " << stringify(response);
@@ -2071,8 +2106,8 @@ Future<Nothing> StorageLocalResourceProviderProcess::prepareControllerService()
     }))
     .then(defer(self(), [=](csi::v0::Client client) {
       // Get the controller capabilities.
-      return client.ControllerGetCapabilities(
-          csi::v0::ControllerGetCapabilitiesRequest())
+      return call<csi::v0::CONTROLLER_GET_CAPABILITIES>(
+          client, csi::v0::ControllerGetCapabilitiesRequest())
         .then(defer(self(), [=](
             const csi::v0::ControllerGetCapabilitiesResponse& response) {
           controllerCapabilities = response.capabilities();
@@ -2092,7 +2127,8 @@ Future<Nothing> StorageLocalResourceProviderProcess::prepareNodeService()
   return getService(nodeContainerId.get())
     .then(defer(self(), [=](csi::v0::Client client) {
       // Get the node capabilities.
-      return client.NodeGetCapabilities(csi::v0::NodeGetCapabilitiesRequest())
+      return call<csi::v0::NODE_GET_CAPABILITIES>(
+          client, csi::v0::NodeGetCapabilitiesRequest())
         .then(defer(self(), [=](
             const csi::v0::NodeGetCapabilitiesResponse& response)
             -> Future<csi::v0::Client> {
@@ -2107,7 +2143,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::prepareNodeService()
           }
 
           // Get the node ID.
-          return client.NodeGetId(csi::v0::NodeGetIdRequest())
+          return call<csi::v0::NODE_GET_ID>(client, csi::v0::NodeGetIdRequest())
             .then(defer(self(), [=](
                 const csi::v0::NodeGetIdResponse& response) {
               nodeId = response.node_id();
@@ -2161,7 +2197,8 @@ Future<Nothing> StorageLocalResourceProviderProcess::controllerPublish(
       request.set_readonly(false);
       *request.mutable_volume_attributes() = volume.state.volume_attributes();
 
-      return client.ControllerPublishVolume(request)
+      return call<csi::v0::CONTROLLER_PUBLISH_VOLUME>(
+          client, std::move(request))
         .then(defer(self(), [this, volumeId](
             const csi::v0::ControllerPublishVolumeResponse& response) {
           VolumeData& volume = volumes.at(volumeId);
@@ -2217,7 +2254,8 @@ Future<Nothing> StorageLocalResourceProviderProcess::controllerUnpublish(
       request.set_volume_id(volumeId);
       request.set_node_id(nodeId.get());
 
-      return client.ControllerUnpublishVolume(request)
+      return call<csi::v0::CONTROLLER_UNPUBLISH_VOLUME>(
+          client, std::move(request))
         .then(defer(self(), [this, volumeId] {
           VolumeData& volume = volumes.at(volumeId);
 
@@ -2286,7 +2324,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::nodeStage(
         ->CopyFrom(volume.state.volume_capability());
       *request.mutable_volume_attributes() = volume.state.volume_attributes();
 
-      return client.NodeStageVolume(request)
+      return call<csi::v0::NODE_STAGE_VOLUME>(client, std::move(request))
         .then(defer(self(), [this, volumeId] {
           VolumeData& volume = volumes.at(volumeId);
 
@@ -2349,7 +2387,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::nodeUnstage(
       request.set_volume_id(volumeId);
       request.set_staging_target_path(stagingPath);
 
-      return client.NodeUnstageVolume(request)
+      return call<csi::v0::NODE_UNSTAGE_VOLUME>(client, std::move(request))
         .then(defer(self(), [this, volumeId] {
           VolumeData& volume = volumes.at(volumeId);
 
@@ -2420,7 +2458,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::nodePublish(
         request.set_staging_target_path(stagingPath);
       }
 
-      return client.NodePublishVolume(request)
+      return call<csi::v0::NODE_PUBLISH_VOLUME>(client, std::move(request))
         .then(defer(self(), [this, volumeId] {
           VolumeData& volume = volumes.at(volumeId);
 
@@ -2470,7 +2508,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::nodeUnpublish(
       request.set_volume_id(volumeId);
       request.set_target_path(targetPath);
 
-      return client.NodeUnpublishVolume(request)
+      return call<csi::v0::NODE_UNPUBLISH_VOLUME>(client, std::move(request))
         .then(defer(self(), [this, volumeId, targetPath]() -> Future<Nothing> {
           VolumeData& volume = volumes.at(volumeId);
 
@@ -2515,7 +2553,7 @@ Future<string> StorageLocalResourceProviderProcess::createVolume(
       request.add_volume_capabilities()->CopyFrom(profileInfo.capability);
       *request.mutable_parameters() = profileInfo.parameters;
 
-      return client.CreateVolume(request)
+      return call<csi::v0::CREATE_VOLUME>(client, std::move(request))
         .then(defer(self(), [=](const csi::v0::CreateVolumeResponse& response) {
           const csi::v0::Volume& volume = response.volume();
 
@@ -2609,11 +2647,11 @@ Future<Nothing> StorageLocalResourceProviderProcess::deleteVolume(
       if (!preExisting) {
         deleted = deleted
           .then(defer(self(), &Self::getService, controllerContainerId.get()))
-          .then(defer(self(), [volumeId](csi::v0::Client client) {
+          .then(defer(self(), [this, volumeId](csi::v0::Client client) {
             csi::v0::DeleteVolumeRequest request;
             request.set_volume_id(volumeId);
 
-            return client.DeleteVolume(request)
+            return call<csi::v0::DELETE_VOLUME>(client, std::move(request))
               .then([] { return Nothing(); });
           }));
       }
@@ -2681,7 +2719,8 @@ Future<string> StorageLocalResourceProviderProcess::validateCapability(
       request.add_volume_capabilities()->CopyFrom(capability);
       *request.mutable_volume_attributes() = volumeAttributes;
 
-      return client.ValidateVolumeCapabilities(request)
+      return call<csi::v0::VALIDATE_VOLUME_CAPABILITIES>(
+          client, std::move(request))
         .then(defer(self(), [=](
             const csi::v0::ValidateVolumeCapabilitiesResponse& response)
             -> Future<string> {
@@ -2722,7 +2761,7 @@ Future<Resources> StorageLocalResourceProviderProcess::listVolumes()
     .then(defer(self(), [=](csi::v0::Client client) {
       // TODO(chhsiao): Set the max entries and use a loop to do
       // multiple `ListVolumes` calls.
-      return client.ListVolumes(csi::v0::ListVolumesRequest())
+      return call<csi::v0::LIST_VOLUMES>(client, csi::v0::ListVolumesRequest())
         .then(defer(self(), [=](const csi::v0::ListVolumesResponse& response) {
           Resources resources;
 
@@ -2785,7 +2824,8 @@ Future<Resources> StorageLocalResourceProviderProcess::getCapacities()
         request.add_volume_capabilities()->CopyFrom(profileInfo.capability);
         *request.mutable_parameters() = profileInfo.parameters;
 
-        futures.push_back(client.GetCapacity(request)
+        futures.push_back(call<csi::v0::GET_CAPACITY>(
+            client, std::move(request))
           .then(defer(self(), [=](
               const csi::v0::GetCapacityResponse& response) -> Resources {
             if (response.available_capacity() == 0) {
@@ -3433,6 +3473,66 @@ StorageLocalResourceProviderProcess::Metrics::Metrics(const string& prefix)
 {
   process::metrics::add(csi_plugin_container_terminations);
 
+  vector<csi::v0::RPC> rpcs;
+
+  // NOTE: We use a switch statement here as a compile-time sanity check so we
+  // won't forget to add metrics for new RPCs in the future.
+  csi::v0::RPC firstRpc = csi::v0::GET_PLUGIN_INFO;
+  switch (firstRpc) {
+    case csi::v0::GET_PLUGIN_INFO:
+      rpcs.push_back(csi::v0::GET_PLUGIN_INFO);
+    case csi::v0::GET_PLUGIN_CAPABILITIES:
+      rpcs.push_back(csi::v0::GET_PLUGIN_CAPABILITIES);
+    case csi::v0::PROBE:
+      rpcs.push_back(csi::v0::PROBE);
+    case csi::v0::CREATE_VOLUME:
+      rpcs.push_back(csi::v0::CREATE_VOLUME);
+    case csi::v0::DELETE_VOLUME:
+      rpcs.push_back(csi::v0::DELETE_VOLUME);
+    case csi::v0::CONTROLLER_PUBLISH_VOLUME:
+      rpcs.push_back(csi::v0::CONTROLLER_PUBLISH_VOLUME);
+    case csi::v0::CONTROLLER_UNPUBLISH_VOLUME:
+      rpcs.push_back(csi::v0::CONTROLLER_UNPUBLISH_VOLUME);
+    case csi::v0::VALIDATE_VOLUME_CAPABILITIES:
+      rpcs.push_back(csi::v0::VALIDATE_VOLUME_CAPABILITIES);
+    case csi::v0::LIST_VOLUMES:
+      rpcs.push_back(csi::v0::LIST_VOLUMES);
+    case csi::v0::GET_CAPACITY:
+      rpcs.push_back(csi::v0::GET_CAPACITY);
+    case csi::v0::CONTROLLER_GET_CAPABILITIES:
+      rpcs.push_back(csi::v0::CONTROLLER_GET_CAPABILITIES);
+    case csi::v0::NODE_STAGE_VOLUME:
+      rpcs.push_back(csi::v0::NODE_STAGE_VOLUME);
+    case csi::v0::NODE_UNSTAGE_VOLUME:
+      rpcs.push_back(csi::v0::NODE_UNSTAGE_VOLUME);
+    case csi::v0::NODE_PUBLISH_VOLUME:
+      rpcs.push_back(csi::v0::NODE_PUBLISH_VOLUME);
+    case csi::v0::NODE_UNPUBLISH_VOLUME:
+      rpcs.push_back(csi::v0::NODE_UNPUBLISH_VOLUME);
+    case csi::v0::NODE_GET_ID:
+      rpcs.push_back(csi::v0::NODE_GET_ID);
+    case csi::v0::NODE_GET_CAPABILITIES:
+      rpcs.push_back(csi::v0::NODE_GET_CAPABILITIES);
+  }
+
+  foreach (const csi::v0::RPC& rpc, rpcs) {
+    const string name = stringify(rpc);
+
+    csi_plugin_rpcs_pending.put(
+        rpc, PushGauge(prefix + "csi_plugin/rpcs/" + name + "/pending"));
+    csi_plugin_rpcs_successes.put(
+        rpc, Counter(prefix + "csi_plugin/rpcs/" + name + "/successes"));
+    csi_plugin_rpcs_errors.put(
+        rpc, Counter(prefix + "csi_plugin/rpcs/" + name + "/errors"));
+    csi_plugin_rpcs_cancelled.put(
+        rpc, Counter(prefix + "csi_plugin/rpcs/" + name + "/cancelled"));
+
+    process::metrics::add(csi_plugin_rpcs_pending.at(rpc));
+    process::metrics::add(csi_plugin_rpcs_successes.at(rpc));
+    process::metrics::add(csi_plugin_rpcs_errors.at(rpc));
+    process::metrics::add(csi_plugin_rpcs_cancelled.at(rpc));
+  }
+
   vector<Offer::Operation::Type> operationTypes;
 
   // NOTE: We use a switch statement here as a compile-time sanity check so we
@@ -3498,6 +3598,22 @@ StorageLocalResourceProviderProcess::Metrics::Metrics(const string& prefix)
 StorageLocalResourceProviderProcess::Metrics::~Metrics()
 {
   process::metrics::remove(csi_plugin_container_terminations);
+
+  foreachvalue (const PushGauge& gauge, csi_plugin_rpcs_pending) {
+    process::metrics::remove(gauge);
+  }
+
+  foreachvalue (const Counter& counter, csi_plugin_rpcs_successes) {
+    process::metrics::remove(counter);
+  }
+
+  foreachvalue (const Counter& counter, csi_plugin_rpcs_errors) {
+    process::metrics::remove(counter);
+  }
+
+  foreachvalue (const Counter& counter, csi_plugin_rpcs_cancelled) {
+    process::metrics::remove(counter);
+  }
 
   foreachvalue (const PushGauge& gauge, operations_pending) {
     process::metrics::remove(gauge);

@@ -25,7 +25,9 @@ namespace mesos {
 namespace csi {
 namespace v0 {
 
-Future<GetPluginInfoResponse> Client::GetPluginInfo(
+template <>
+Future<GetPluginInfoResponse>
+Client::call<GET_PLUGIN_INFO>(
     const GetPluginInfoRequest& request)
 {
   return runtime
@@ -37,7 +39,9 @@ Future<GetPluginInfoResponse> Client::GetPluginInfo(
 }
 
 
-Future<GetPluginCapabilitiesResponse> Client::GetPluginCapabilities(
+template <>
+Future<GetPluginCapabilitiesResponse>
+Client::call<GET_PLUGIN_CAPABILITIES>(
     const GetPluginCapabilitiesRequest& request)
 {
   return runtime
@@ -52,7 +56,9 @@ Future<GetPluginCapabilitiesResponse> Client::GetPluginCapabilities(
 }
 
 
-Future<ProbeResponse> Client::Probe(
+template <>
+Future<ProbeResponse>
+Client::call<PROBE>(
     const ProbeRequest& request)
 {
   return runtime
@@ -64,7 +70,9 @@ Future<ProbeResponse> Client::Probe(
 }
 
 
-Future<CreateVolumeResponse> Client::CreateVolume(
+template <>
+Future<CreateVolumeResponse>
+Client::call<CREATE_VOLUME>(
     const CreateVolumeRequest& request)
 {
   return runtime
@@ -76,7 +84,9 @@ Future<CreateVolumeResponse> Client::CreateVolume(
 }
 
 
-Future<DeleteVolumeResponse> Client::DeleteVolume(
+template <>
+Future<DeleteVolumeResponse>
+Client::call<DELETE_VOLUME>(
     const DeleteVolumeRequest& request)
 {
   return runtime
@@ -88,7 +98,9 @@ Future<DeleteVolumeResponse> Client::DeleteVolume(
 }
 
 
-Future<ControllerPublishVolumeResponse> Client::ControllerPublishVolume(
+template <>
+Future<ControllerPublishVolumeResponse>
+Client::call<CONTROLLER_PUBLISH_VOLUME>(
     const ControllerPublishVolumeRequest& request)
 {
   return runtime
@@ -103,7 +115,9 @@ Future<ControllerPublishVolumeResponse> Client::ControllerPublishVolume(
 }
 
 
-Future<ControllerUnpublishVolumeResponse> Client::ControllerUnpublishVolume(
+template <>
+Future<ControllerUnpublishVolumeResponse>
+Client::call<CONTROLLER_UNPUBLISH_VOLUME>(
     const ControllerUnpublishVolumeRequest& request)
 {
   return runtime
@@ -118,7 +132,9 @@ Future<ControllerUnpublishVolumeResponse> Client::ControllerUnpublishVolume(
 }
 
 
-Future<ValidateVolumeCapabilitiesResponse> Client::ValidateVolumeCapabilities(
+template <>
+Future<ValidateVolumeCapabilitiesResponse>
+Client::call<VALIDATE_VOLUME_CAPABILITIES>(
     const ValidateVolumeCapabilitiesRequest& request)
 {
   return runtime
@@ -133,7 +149,9 @@ Future<ValidateVolumeCapabilitiesResponse> Client::ValidateVolumeCapabilities(
 }
 
 
-Future<ListVolumesResponse> Client::ListVolumes(
+template <>
+Future<ListVolumesResponse>
+Client::call<LIST_VOLUMES>(
     const ListVolumesRequest& request)
 {
   return runtime
@@ -145,7 +163,9 @@ Future<ListVolumesResponse> Client::ListVolumes(
 }
 
 
-Future<GetCapacityResponse> Client::GetCapacity(
+template <>
+Future<GetCapacityResponse>
+Client::call<GET_CAPACITY>(
     const GetCapacityRequest& request)
 {
   return runtime
@@ -157,7 +177,9 @@ Future<GetCapacityResponse> Client::GetCapacity(
 }
 
 
-Future<ControllerGetCapabilitiesResponse> Client::ControllerGetCapabilities(
+template <>
+Future<ControllerGetCapabilitiesResponse>
+Client::call<CONTROLLER_GET_CAPABILITIES>(
     const ControllerGetCapabilitiesRequest& request)
 {
   return runtime
@@ -172,7 +194,9 @@ Future<ControllerGetCapabilitiesResponse> Client::ControllerGetCapabilities(
 }
 
 
-Future<NodeStageVolumeResponse> Client::NodeStageVolume(
+template <>
+Future<NodeStageVolumeResponse>
+Client::call<NODE_STAGE_VOLUME>(
     const NodeStageVolumeRequest& request)
 {
   return runtime
@@ -184,7 +208,9 @@ Future<NodeStageVolumeResponse> Client::NodeStageVolume(
 }
 
 
-Future<NodeUnstageVolumeResponse> Client::NodeUnstageVolume(
+template <>
+Future<NodeUnstageVolumeResponse>
+Client::call<NODE_UNSTAGE_VOLUME>(
     const NodeUnstageVolumeRequest& request)
 {
   return runtime
@@ -196,7 +222,9 @@ Future<NodeUnstageVolumeResponse> Client::NodeUnstageVolume(
 }
 
 
-Future<NodePublishVolumeResponse> Client::NodePublishVolume(
+template <>
+Future<NodePublishVolumeResponse>
+Client::call<NODE_PUBLISH_VOLUME>(
     const NodePublishVolumeRequest& request)
 {
   return runtime
@@ -208,7 +236,9 @@ Future<NodePublishVolumeResponse> Client::NodePublishVolume(
 }
 
 
-Future<NodeUnpublishVolumeResponse> Client::NodeUnpublishVolume(
+template <>
+Future<NodeUnpublishVolumeResponse>
+Client::call<NODE_UNPUBLISH_VOLUME>(
     const NodeUnpublishVolumeRequest& request)
 {
   return runtime
@@ -220,7 +250,9 @@ Future<NodeUnpublishVolumeResponse> Client::NodeUnpublishVolume(
 }
 
 
-Future<NodeGetIdResponse> Client::NodeGetId(
+template <>
+Future<NodeGetIdResponse>
+Client::call<NODE_GET_ID>(
     const NodeGetIdRequest& request)
 {
   return runtime
@@ -232,7 +264,9 @@ Future<NodeGetIdResponse> Client::NodeGetId(
 }
 
 
-Future<NodeGetCapabilitiesResponse> Client::NodeGetCapabilities(
+template <>
+Future<NodeGetCapabilitiesResponse>
+Client::call<NODE_GET_CAPABILITIES>(
     const NodeGetCapabilitiesRequest& request)
 {
   return runtime

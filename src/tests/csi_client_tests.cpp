@@ -14,21 +14,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <functional>
+#include <ostream>
+
 #include <process/gtest.hpp>
 
-#include <stout/lambda.hpp>
-#include <stout/path.hpp>
+#include <stout/nothing.hpp>
 #include <stout/strings.hpp>
+#include <stout/unreachable.hpp>
 
 #include <stout/tests/utils.hpp>
 
 #include "csi/client.hpp"
+#include "csi/rpc.hpp"
 
 #include "tests/mock_csi_plugin.hpp"
 
+using std::ostream;
 using std::string;
-
-using mesos::csi::v0::Client;
 
 using process::Future;
 
@@ -47,22 +50,27 @@ struct RPCParam
 {
   struct Printer
   {
-    const string& operator()(const TestParamInfo<RPCParam>& info) const
+    string operator()(const TestParamInfo<RPCParam>& info) const
     {
-      return info.param.name;
+      return strings::replace(stringify(info.param.value), ".", "_");
     }
   };
 
-  template <typename Request, typename Response>
-  RPCParam(const string& _name, Future<Response>(Client::*rpc)(const Request&))
-    : name(_name),
-      call([=](const Connection& connection, const Runtime runtime) {
-        return (Client(connection, runtime).*rpc)(Request())
+  template <csi::v0::RPC rpc>
+  static RPCParam create()
+  {
+    return RPCParam{
+      rpc,
+      [](csi::v0::Client client) {
+        return client
+          .call<rpc>(typename csi::v0::RPCTraits<rpc>::request_type())
           .then([] { return Nothing(); });
-      }) {}
+      }
+    };
+  }
 
-  string name;
-  lambda::function<Future<Nothing>(const Connection&, const Runtime&)> call;
+  const csi::v0::RPC value;
+  const std::function<Future<Nothing>(csi::v0::Client)> call;
 };
 
 
@@ -95,51 +103,49 @@ protected:
 };
 
 
-#define RPC_PARAM(method) \
-  RPCParam(strings::replace(#method, "::", "_"), &method)
-
-
 INSTANTIATE_TEST_CASE_P(
     Identity,
     CSIClientTest,
     Values(
-        RPC_PARAM(Client::GetPluginInfo),
-        RPC_PARAM(Client::GetPluginCapabilities),
-        RPC_PARAM(Client::Probe)),
+        RPCParam::create<csi::v0::GET_PLUGIN_INFO>(),
+        RPCParam::create<csi::v0::GET_PLUGIN_CAPABILITIES>(),
+        RPCParam::create<csi::v0::PROBE>()),
     RPCParam::Printer());
+
 
 INSTANTIATE_TEST_CASE_P(
     Controller,
     CSIClientTest,
     Values(
-        RPC_PARAM(Client::CreateVolume),
-        RPC_PARAM(Client::DeleteVolume),
-        RPC_PARAM(Client::ControllerPublishVolume),
-        RPC_PARAM(Client::ControllerUnpublishVolume),
-        RPC_PARAM(Client::ValidateVolumeCapabilities),
-        RPC_PARAM(Client::ListVolumes),
-        RPC_PARAM(Client::GetCapacity),
-        RPC_PARAM(Client::ControllerGetCapabilities)),
+        RPCParam::create<csi::v0::CREATE_VOLUME>(),
+        RPCParam::create<csi::v0::DELETE_VOLUME>(),
+        RPCParam::create<csi::v0::CONTROLLER_PUBLISH_VOLUME>(),
+        RPCParam::create<csi::v0::CONTROLLER_UNPUBLISH_VOLUME>(),
+        RPCParam::create<csi::v0::VALIDATE_VOLUME_CAPABILITIES>(),
+        RPCParam::create<csi::v0::LIST_VOLUMES>(),
+        RPCParam::create<csi::v0::GET_CAPACITY>(),
+        RPCParam::create<csi::v0::CONTROLLER_GET_CAPABILITIES>()),
     RPCParam::Printer());
+
 
 INSTANTIATE_TEST_CASE_P(
     Node,
     CSIClientTest,
     Values(
-        RPC_PARAM(Client::NodeStageVolume),
-        RPC_PARAM(Client::NodeUnstageVolume),
-        RPC_PARAM(Client::NodePublishVolume),
-        RPC_PARAM(Client::NodeUnpublishVolume),
-        RPC_PARAM(Client::NodeGetId),
-        RPC_PARAM(Client::NodeGetCapabilities)),
+        RPCParam::create<csi::v0::NODE_STAGE_VOLUME>(),
+        RPCParam::create<csi::v0::NODE_UNSTAGE_VOLUME>(),
+        RPCParam::create<csi::v0::NODE_PUBLISH_VOLUME>(),
+        RPCParam::create<csi::v0::NODE_UNPUBLISH_VOLUME>(),
+        RPCParam::create<csi::v0::NODE_GET_ID>(),
+        RPCParam::create<csi::v0::NODE_GET_CAPABILITIES>()),
     RPCParam::Printer());
 
 
 // This test verifies that the all methods of CSI clients work.
 TEST_P(CSIClientTest, Call)
 {
-  Future<Nothing> call = GetParam().call(connection.get(), runtime);
-  AWAIT_EXPECT_READY(call);
+  AWAIT_EXPECT_READY(
+      GetParam().call(csi::v0::Client(connection.get(), runtime)));
 }
 
 } // namespace tests {
