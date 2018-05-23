@@ -68,15 +68,23 @@ public:
   static_assert(
       std::is_same<HANDLE, void*>::value,
       "Expected `HANDLE` to be of type `void*`.");
-  explicit WindowsFD(HANDLE handle) : type_(Type::HANDLE), handle_(handle) {}
+  explicit WindowsFD(HANDLE handle, bool overlapped = false)
+    : type_(Type::HANDLE), handle_(handle), overlapped_(overlapped)
+  {}
 
   // The `SOCKET` here is expected to be Windows sockets, such as that
   // used by the Windows Sockets 2 library. The only expected error
   // value is `INVALID_SOCKET`.
+  //
+  // Note that sockets should almost always be overlapped. We do provide
+  // a way in stout to create non-overlapped sockets, so for completeness, we
+  // have an overlapped parameter in the constructor.
   static_assert(
       std::is_same<SOCKET, unsigned __int64>::value,
       "Expected `SOCKET` to be of type `unsigned __int64`.");
-  explicit WindowsFD(SOCKET socket) : type_(Type::SOCKET), socket_(socket) {}
+  explicit WindowsFD(SOCKET socket, bool overlapped = true)
+    : type_(Type::SOCKET), socket_(socket), overlapped_(overlapped)
+  {}
 
   // On Windows, libevent's `evutil_socket_t` is set to `intptr_t`.
   explicit WindowsFD(intptr_t socket) : WindowsFD(static_cast<SOCKET>(socket))
@@ -161,6 +169,8 @@ public:
 
   Type type() const { return type_; }
 
+  bool is_overlapped() const { return overlapped_; }
+
 private:
   Type type_;
 
@@ -169,6 +179,8 @@ private:
     HANDLE handle_;
     SOCKET socket_;
   };
+
+  bool overlapped_;
 
   // NOTE: This function is provided only for checking validity, thus
   // it is private. It provides a view of a `WindowsFD` as an `int`.

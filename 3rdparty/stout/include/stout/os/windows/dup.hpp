@@ -40,7 +40,7 @@ inline Try<int_fd> dup(const int_fd& fd)
         return WindowsError();
       }
 
-      return duplicate;
+      return int_fd(duplicate, fd.is_overlapped());
     }
     case WindowsFD::Type::SOCKET: {
       WSAPROTOCOL_INFOW info;
