@@ -33,8 +33,18 @@ if [ -n "$ADDED_OR_MODIFIED" ]; then
     # many implementations do not support the `-r` flag, (which instructs
     # `xargs` to not run the script if the arguments are empty), so we also
     # cannot use that.
-    ./support/mesos-style.py $ADDED_OR_MODIFIED || exit 1
+    # TODO(ArmandGrillet): Remove the if to really switch to Python 3.
+    if [ "$MESOS_SUPPORT_PYTHON" = "3" ]; then
+        ./support/python3/mesos-style.py $ADDED_OR_MODIFIED || exit 1
+    else
+       ./support/mesos-style.py $ADDED_OR_MODIFIED || exit 1
+    fi
 fi
 
 # Check that the commits are properly split between mesos, libprocess and stout.
-git diff --cached --name-only --diff-filter=AMD | xargs ./support/mesos-split.py || exit 1
+# TODO(ArmandGrillet): Remove the if to really switch to Python 3.
+if [ "$MESOS_SUPPORT_PYTHON" = "3" ]; then
+    git diff --cached --name-only --diff-filter=AMD | xargs ./support/python3/mesos-split.py || exit 1
+else
+    git diff --cached --name-only --diff-filter=AMD | xargs ./support/mesos-split.py || exit 1
+fi
