@@ -219,7 +219,8 @@ TEST_F(VolumeSandboxPathIsolatorTest, SharedParentTypeVolume)
 // simulate the scenario that the framework user is non-root while
 // the agent process is root, to make sure that non-root user can
 // still have the permission to write to the volume as expected.
-TEST_F(VolumeSandboxPathIsolatorTest, ROOT_SelfTypeOwnership)
+TEST_F(VolumeSandboxPathIsolatorTest,
+       ROOT_UNPRIVILEGED_USER_SelfTypeOwnership)
 {
   string registry = path::join(sandbox.get(), "registry");
   AWAIT_READY(DockerArchive::create(registry, "test_image"));
@@ -255,11 +256,14 @@ TEST_F(VolumeSandboxPathIsolatorTest, ROOT_SelfTypeOwnership)
 
   // Simulate the executor sandbox ownership as the user
   // from FrameworkInfo.
-  ASSERT_SOME(os::chown("nobody", directory));
+  Option<string> user = os::getenv("SUDO_USER");
+  ASSERT_SOME(user);
+
+  ASSERT_SOME(os::chown(user.get(), directory));
 
   Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
-      createContainerConfig(None(), executor, directory, "nobody"),
+      createContainerConfig(None(), executor, directory, user.get()),
       map<string, string>(),
       None());
 
@@ -281,7 +285,8 @@ TEST_F(VolumeSandboxPathIsolatorTest, ROOT_SelfTypeOwnership)
 // simulate the scenario that the framework user is non-root while
 // the agent process is root, to make sure that non-root user can
 // still have the permission to write to the volume as expected.
-TEST_F(VolumeSandboxPathIsolatorTest, ROOT_ParentTypeOwnership)
+TEST_F(VolumeSandboxPathIsolatorTest,
+       ROOT_UNPRIVILEGED_USER_ParentTypeOwnership)
 {
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "volume/sandbox_path";
@@ -312,11 +317,14 @@ TEST_F(VolumeSandboxPathIsolatorTest, ROOT_ParentTypeOwnership)
 
   // Simulate the executor sandbox ownership as the user
   // from FrameworkInfo.
-  ASSERT_SOME(os::chown("nobody", directory.get()));
+  Option<string> user = os::getenv("SUDO_USER");
+  ASSERT_SOME(user);
+
+  ASSERT_SOME(os::chown(user.get(), directory.get()));
 
   Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
-      createContainerConfig(None(), executor, directory.get(), "nobody"),
+      createContainerConfig(None(), executor, directory.get(), user.get()),
       map<string, string>(),
       None());
 
@@ -346,7 +354,7 @@ TEST_F(VolumeSandboxPathIsolatorTest, ROOT_ParentTypeOwnership)
           createCommandInfo("echo 'hello' > parent/file"),
           containerInfo,
           None(),
-          "nobody"),
+          user.get()),
       map<string, string>(),
       None());
 

@@ -222,10 +222,12 @@ TEST_F(FetcherTest, LogFailureToStderr)
 #ifndef __WINDOWS__
 // Tests that non-root users are unable to fetch root-protected files on the
 // local filesystem.
-TEST_F(FetcherTest, ROOT_RootProtectedFileURI)
+TEST_F(FetcherTest, ROOT_UNPRIVILEGED_USER_RootProtectedFileURI)
 {
-  const string user = "nobody";
-  ASSERT_SOME(os::getuid(user));
+  Option<string> user = os::getenv("SUDO_USER");
+  ASSERT_SOME(user);
+
+  ASSERT_SOME(os::getuid(user.get()));
 
   string fromDir = path::join(os::getcwd(), "from");
   ASSERT_SOME(os::mkdir(fromDir));
@@ -240,7 +242,7 @@ TEST_F(FetcherTest, ROOT_RootProtectedFileURI)
   containerId.set_value(id::UUID::random().toString());
 
   CommandInfo commandInfo;
-  commandInfo.set_user(user);
+  commandInfo.set_user(user.get());
 
   CommandInfo::URI* uri = commandInfo.add_uris();
   uri->set_value(uri::from_path(testFile));

@@ -1031,52 +1031,25 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 #ifndef __WINDOWS__
 // This test runs a command _with_ the command user field set. The
 // command will verify the assumption that the command is run as the
-// specified user. We use (and assume the presence) of the
-// unprivileged 'nobody' user which should be available on both Linux
-// and Mac OS X.
-//
-// TODO(alexr): Enable after MESOS-2199 is resolved.
-TEST_F(SlaveTest, DISABLED_ROOT_RunTaskWithCommandInfoWithUser)
+// specified user.
+TEST_F(SlaveTest, ROOT_UNPRIVILEGED_USER_RunTaskWithCommandInfoWithUser)
 {
-  // TODO(nnielsen): Introduce STOUT abstraction for user verification
-  // instead of flat getpwnam call.
-  const string testUser = "nobody";
-  if (::getpwnam(testUser.c_str()) == nullptr) {
-    LOG(WARNING) << "Cannot run ROOT_RunTaskWithCommandInfoWithUser test:"
-                 << " user '" << testUser << "' is not present";
-    return;
-  }
-
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  // Need flags for 'executor_registration_timeout'.
-  slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "posix/cpu,posix/mem";
-
-  Fetcher fetcher(flags);
-
-  Try<MesosContainerizer*> _containerizer =
-    MesosContainerizer::create(flags, false, &fetcher);
-
-  ASSERT_SOME(_containerizer);
-  Owned<MesosContainerizer> containerizer(_containerizer.get());
-
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  Try<Owned<cluster::Slave>> slave =
-    StartSlave(detector.get(), containerizer.get());
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(&driver, _, _));
-
-  Future<TaskStatus> statusRunning;
-  Future<TaskStatus> statusFinished;
-  const string helper = getTestHelperPath("test-helper");
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1088,90 +1061,36 @@ TEST_F(SlaveTest, DISABLED_ROOT_RunTaskWithCommandInfoWithUser)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  // HACK: Launch a prepare task as root to prepare the binaries.
-  // This task creates the lt-mesos-executor binary in the build dir.
-  // Because the real task is run as a test user (nobody), it does not
-  // have permission to create files in the build directory.
-  TaskInfo prepareTask;
-  prepareTask.set_name("prepare task");
-  prepareTask.mutable_task_id()->set_value("1");
-  prepareTask.mutable_slave_id()->CopyFrom(offers.get()[0].slave_id());
-  prepareTask.mutable_resources()->CopyFrom(
-      offers.get()[0].resources());
+  Option<string> user = os::getenv("SUDO_USER");
+  ASSERT_SOME(user);
 
-  Result<string> user = os::user();
-  ASSERT_SOME(user) << "Failed to get current user name"
-                    << (user.isError() ? ": " + user.error() : "");
-  // Current user should be root.
-  EXPECT_EQ("root", user.get());
+  Result<uid_t> uid = os::getuid(user.get());
+  ASSERT_SOME(uid);
 
-  // This prepare command executor will run as the current user
-  // running the tests (root). After this command executor finishes,
-  // we know that the lt-mesos-executor binary file exists.
-  CommandInfo prepareCommand;
-  prepareCommand.set_shell(false);
-  prepareCommand.set_value(helper);
-  prepareCommand.add_arguments(helper);
-  prepareCommand.add_arguments(ActiveUserTestHelper::NAME);
-  prepareCommand.add_arguments("--user=" + user.get());
-  prepareTask.mutable_command()->CopyFrom(prepareCommand);
+  TaskInfo task = createTask(
+      offers->at(0),
+      "test `id -u` == " + stringify(uid.get()));
 
+  task.mutable_command()->set_user(user.get());
+
+  Future<TaskStatus> statusStarting;
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFinished;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
     .WillOnce(FutureArg<1>(&statusRunning))
     .WillOnce(FutureArg<1>(&statusFinished));
 
-  driver.launchTasks(offers.get()[0].id(), {prepareTask});
+  driver.launchTasks(offers->at(0).id(), {task});
 
-  // Scheduler should first receive TASK_RUNNING followed by the
-  // TASK_FINISHED from the executor.
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
+
   AWAIT_READY(statusRunning);
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
-  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusRunning->source());
 
   AWAIT_READY(statusFinished);
   EXPECT_EQ(TASK_FINISHED, statusFinished->state());
-  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusFinished->source());
-
-  // Start to launch a task with different user.
-  EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureArg<1>(&offers))
-    .WillRepeatedly(Return()); // Ignore subsequent offers.
-
-  AWAIT_READY(offers);
-  ASSERT_FALSE(offers->empty());
-
-  // Launch a task with the command executor.
-  TaskInfo task;
-  task.set_name("");
-  task.mutable_task_id()->set_value("2");
-  task.mutable_slave_id()->CopyFrom(offers.get()[0].slave_id());
-  task.mutable_resources()->CopyFrom(offers.get()[0].resources());
-
-  CommandInfo command;
-  command.set_user(testUser);
-  command.set_shell(false);
-  command.set_value(helper);
-  command.add_arguments(helper);
-  command.add_arguments(ActiveUserTestHelper::NAME);
-  command.add_arguments("--user=" + testUser);
-
-  task.mutable_command()->CopyFrom(command);
-
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&statusRunning))
-    .WillOnce(FutureArg<1>(&statusFinished));
-
-  driver.launchTasks(offers.get()[0].id(), {task});
-
-  // Scheduler should first receive TASK_RUNNING followed by the
-  // TASK_FINISHED from the executor.
-  AWAIT_READY(statusRunning);
-  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
-  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusRunning->source());
-
-  AWAIT_READY(statusFinished);
-  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
-  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, statusFinished->source());
 
   driver.stop();
   driver.join();

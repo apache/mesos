@@ -657,7 +657,8 @@ TEST_F(MesosContainerizerExecuteTest, IoRedirection)
 
 // This test verified that the stdout and stderr files in the task's sandbox
 // are owned by the task user.
-TEST_F(MesosContainerizerExecuteTest, ROOT_SandboxFileOwnership)
+TEST_F(MesosContainerizerExecuteTest,
+       ROOT_UNPRIVILEGED_USER_SandboxFileOwnership)
 {
   slave::Flags flags;
   flags.launcher_dir = getLauncherDir();
@@ -673,10 +674,11 @@ TEST_F(MesosContainerizerExecuteTest, ROOT_SandboxFileOwnership)
   ContainerID containerId;
   containerId.set_value(id::UUID::random().toString());
 
-  const string user = "nobody";
+  Option<string> user = os::getenv("SUDO_USER");
+  ASSERT_SOME(user);
 
   ExecutorInfo executor = createExecutorInfo("executor", "exit 0");
-  executor.mutable_command()->set_user(user);
+  executor.mutable_command()->set_user(user.get());
 
   Future<Containerizer::LaunchResult> launch = containerizer->launch(
       containerId,
@@ -687,7 +689,7 @@ TEST_F(MesosContainerizerExecuteTest, ROOT_SandboxFileOwnership)
   // Wait for the launch to complete.
   AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
-  Result<uid_t> uid = os::getuid(user);
+  Result<uid_t> uid = os::getuid(user.get());
   ASSERT_SOME(uid);
 
   // Verify that stdout is owned by the task user.

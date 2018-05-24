@@ -954,10 +954,11 @@ TEST_F(ProvisionerDockerTest, ROOT_INTERNET_CURL_ImageDigest)
 
 
 // This test verifies that if a container image is specified, the
-// command runs as the specified user 'nobody' and the sandbox of
+// command runs as the specified user "$SUDO_USER" and the sandbox of
 // the command task is writeable by the specified user. It also
 // verifies that stdout/stderr are owned by the specified user.
-TEST_F(ProvisionerDockerTest, ROOT_INTERNET_CURL_CommandTaskUser)
+TEST_F(ProvisionerDockerTest,
+       ROOT_INTERNET_CURL_UNPRIVILEGED_USER_CommandTaskUser)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -988,11 +989,14 @@ TEST_F(ProvisionerDockerTest, ROOT_INTERNET_CURL_CommandTaskUser)
 
   const Offer& offer = offers.get()[0];
 
-  Result<uid_t> uid = os::getuid("nobody");
+  Option<string> user = os::getenv("SUDO_USER");
+  ASSERT_SOME(user);
+
+  Result<uid_t> uid = os::getuid(user.get());
   ASSERT_SOME(uid);
 
   CommandInfo command;
-  command.set_user("nobody");
+  command.set_user(user.get());
   command.set_value(strings::format(
       "#!/bin/sh\n"
       "touch $MESOS_SANDBOX/file\n"

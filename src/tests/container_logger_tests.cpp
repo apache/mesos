@@ -599,7 +599,8 @@ INSTANTIATE_TEST_CASE_P(
 //    launch subprocesses with the same user as the executor.
 // 2. When `--switch_user` is false on the agent, the logger module should
 //    inherit the user of the agent.
-TEST_P(UserContainerLoggerTest, ROOT_LOGROTATE_RotateWithSwitchUserTrueOrFalse)
+TEST_P(UserContainerLoggerTest,
+       ROOT_LOGROTATE_UNPRIVILEGED_USER_RotateWithSwitchUserTrueOrFalse)
 {
   // Create a master, agent, and framework.
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -671,8 +672,11 @@ TEST_P(UserContainerLoggerTest, ROOT_LOGROTATE_RotateWithSwitchUserTrueOrFalse)
       "i=0; while [ $i -lt 3072 ]; "
       "do printf '%-1024d\\n' $i; i=$((i+1)); done");
 
+  Option<string> user = os::getenv("SUDO_USER");
+  ASSERT_SOME(user);
+
   // Start the task as a non-root user.
-  task.mutable_command()->set_user("nobody");
+  task.mutable_command()->set_user(user.get());
 
   Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
@@ -744,10 +748,10 @@ TEST_P(UserContainerLoggerTest, ROOT_LOGROTATE_RotateWithSwitchUserTrueOrFalse)
   ASSERT_GE(::stat(stdoutPath.c_str(), &stdoutStat), 0);
 
   // Depending on the `--switch_user`, the expected user is either
-  // "nobody" or "root".
+  // "$SUDO_USER" or "root".
   Result<string> stdoutUser = os::user(stdoutStat.st_uid);
   if (GetParam()) {
-    ASSERT_SOME_EQ("nobody", stdoutUser);
+    ASSERT_SOME_EQ(user.get(), stdoutUser);
   } else {
     ASSERT_SOME_EQ("root", stdoutUser);
   }

@@ -4196,7 +4196,8 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_CGROUPS_CFS_CgroupsEnableCFS)
 // Run a task as non root while inheriting this ownership from the
 // framework supplied default user. Tests if the sandbox "stdout"
 // is correctly owned and writeable by the tasks user.
-TEST_F(DockerContainerizerTest, ROOT_DOCKER_Non_Root_Sandbox)
+TEST_F(DockerContainerizerTest,
+       ROOT_DOCKER_UNPRIVILEGED_USER_NonRootSandbox)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -4231,9 +4232,12 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_Non_Root_Sandbox)
   AWAIT_READY(slaveRegisteredMessage);
   SlaveID slaveId = slaveRegisteredMessage->slave_id();
 
+  Option<string> user = os::getenv("SUDO_USER");
+  ASSERT_SOME(user);
+
   FrameworkInfo framework;
   framework.set_name("default");
-  framework.set_user("nobody");
+  framework.set_user(user.get());
   framework.set_principal(DEFAULT_CREDENTIAL.principal());
   framework.add_capabilities()->set_type(
       FrameworkInfo::Capability::RESERVATION_REFINEMENT);

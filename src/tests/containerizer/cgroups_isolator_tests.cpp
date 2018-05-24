@@ -95,7 +95,8 @@ class CgroupsIsolatorTest
 // task with an unprivileged user. Then verifies that the unprivileged
 // user has write permission under the corresponding cgroups which are
 // prepared for the container to run the task.
-TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_NET_CLS_UserCgroup)
+TEST_F(CgroupsIsolatorTest,
+       ROOT_CGROUPS_PERF_NET_CLS_UNPRIVILEGED_USER_UserCgroup)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -158,13 +159,16 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_NET_CLS_UserCgroup)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
+  Option<string> user = os::getenv("SUDO_USER");
+  ASSERT_SOME(user);
+
   // Launch a task with the command executor.
   CommandInfo command;
   command.set_shell(false);
   command.set_value("/bin/sleep");
   command.add_arguments("sleep");
   command.add_arguments("120");
-  command.set_user("nobody");
+  command.set_user(user.get());
 
   TaskInfo task = createTask(
       offers.get()[0].slave_id(),
@@ -218,7 +222,8 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_NET_CLS_UserCgroup)
     // Verify that the user cannot manipulate the container's cgroup
     // control files as their owner is root.
     EXPECT_SOME_NE(0, os::system(strings::format(
-        "su - nobody -s /bin/sh -c 'echo $$ > %s'",
+        "su - %s -s /bin/sh -c 'echo $$ > %s'",
+        user.get(),
         path::join(hierarchy.get(), cgroup, "cgroup.procs")).get()));
 
     // Verify that the user can create a cgroup under the container's
@@ -226,13 +231,15 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PERF_NET_CLS_UserCgroup)
     string userCgroup = path::join(cgroup, "user");
 
     EXPECT_SOME_EQ(0, os::system(strings::format(
-        "su - nobody -s /bin/sh -c 'mkdir %s'",
+        "su - %s -s /bin/sh -c 'mkdir %s'",
+        user.get(),
         path::join(hierarchy.get(), userCgroup)).get()));
 
     // Verify that the user can manipulate control files in the
     // created cgroup as it's owned by the user.
     EXPECT_SOME_EQ(0, os::system(strings::format(
-        "su - nobody -s /bin/sh -c 'echo $$ > %s'",
+        "su - %s -s /bin/sh -c 'echo $$ > %s'",
+        user.get(),
         path::join(hierarchy.get(), userCgroup, "cgroup.procs")).get()));
 
     // Clear up the folder.

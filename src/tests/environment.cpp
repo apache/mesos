@@ -860,6 +860,43 @@ public:
 };
 
 
+class UnprivilegedUserFilter : public TestFilter
+{
+public:
+  UnprivilegedUserFilter()
+  {
+#ifdef __WINDOWS__
+    unprivilegedUserFound = false;
+#else
+    Option<string> user = os::getenv("SUDO_USER");
+    if (user.isNone() || user.get() == "root") {
+      unprivilegedUserFound = false;
+    } else {
+      unprivilegedUserFound = true;
+    }
+
+    if (!unprivilegedUserFound) {
+      std::cerr
+        << "-------------------------------------------------------------\n"
+        << "No usable unprivileged user found from the 'SUDO_USER'\n"
+        << "environment variable. So tests that rely on an unprivileged\n"
+        << "user will not run\n"
+        << "-------------------------------------------------------------"
+        << std::endl;
+    }
+#endif
+  }
+
+  bool disable(const ::testing::TestInfo* test) const
+  {
+    return matches(test, "UNPRIVILEGED_USER_") && !unprivilegedUserFound;
+  }
+
+private:
+  bool unprivilegedUserFound;
+};
+
+
 class UnzipFilter : public TestFilter
 {
 public:
@@ -905,6 +942,7 @@ Environment::Environment(const Flags& _flags)
             std::make_shared<PerfCPUCyclesFilter>(),
             std::make_shared<PerfFilter>(),
             std::make_shared<RootFilter>(),
+            std::make_shared<UnprivilegedUserFilter>(),
             std::make_shared<UnzipFilter>(),
             std::make_shared<XfsFilter>()}),
     flags(_flags)
