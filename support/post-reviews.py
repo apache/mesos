@@ -44,6 +44,7 @@ import imp
 import os
 import platform
 import re
+import subprocess
 import sys
 import urlparse
 
@@ -89,6 +90,11 @@ def execute(command, ignore_errors=False):
 def main():
     """Main function, post commits added to this branch as review requests."""
     # TODO(benh): Make sure this is a git repository, apologize if not.
+
+    # TODO(ArmandGrillet): Remove this when we'll have switched to Python 3.
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    script_path = os.path.join(dir_path, 'check-python3.py')
+    subprocess.call('python ' + script_path, shell=True, cwd=dir_path)
 
     # Choose 'rbt' if available, otherwise choose 'post-review'.
     post_review = None

@@ -443,6 +443,11 @@ def main():
     """
     options = parse_options()
 
+    # TODO(ArmandGrillet): Remove this when we'll have switched to Python 3.
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    script_path = os.path.join(dir_path, 'check-python3.py')
+    subprocess.call('python ' + script_path, shell=True, cwd=dir_path)
+
     if options['review_id']:
         reviewboard(options)
     else:

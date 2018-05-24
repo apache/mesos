@@ -298,6 +298,11 @@ def needs_verification(review_request):
 
 def main():
     """Main function to verify the submitted reviews."""
+    # TODO(ArmandGrillet): Remove this when we'll have switched to Python 3.
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    script_path = os.path.join(dir_path, 'check-python3.py')
+    subprocess.call('python ' + script_path, shell=True, cwd=dir_path)
+
     review_requests_url = \
         "%s/api/review-requests/%s" % (REVIEWBOARD_URL, QUERY_PARAMS)
 

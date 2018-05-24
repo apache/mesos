@@ -187,6 +187,11 @@ def main():
                         required=True)
     args = parser.parse_args()
 
+    # TODO(ArmandGrillet): Remove this when we'll have switched to Python 3.
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    script_path = os.path.join(dir_path, 'check-python3.py')
+    subprocess.call('python ' + script_path, shell=True, cwd=dir_path)
+
     # Get the version strings from the built executables.
     prev_version = version(args.prev)
     next_version = version(args.next)

@@ -378,6 +378,11 @@ def main():
     # A dictionary of the command line options passed in.
     options = parse_options()
 
+    # TODO(ArmandGrillet): Remove this when we'll have switched to Python 3.
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    script_path = os.path.join(dir_path, 'check-python3.py')
+    subprocess.call('python ' + script_path, shell=True, cwd=dir_path)
+
     # A pointer to the current subprocess for the master or agent.
     # This is useful for tracking the master or agent subprocesses so
     # that we can kill them if the script exits prematurely.

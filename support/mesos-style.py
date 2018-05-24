@@ -509,6 +509,11 @@ if __name__ == '__main__':
     if should_build_virtualenv(sys.argv[1:]):
         build_virtualenv()
 
+    # TODO(ArmandGrillet): Remove this when we'll have switched to Python 3.
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    script_path = os.path.join(dir_path, 'check-python3.py')
+    subprocess.call('python ' + script_path, shell=True, cwd=dir_path)
+
     # TODO(ArmandGrillet): We should only instantiate the linters
     # required to lint the files to analyze. See MESOS-8351.
     CPP_LINTER = CppLinter()

@@ -35,9 +35,11 @@ Example Usage:
 import argparse
 import os
 import re
+import subprocess
+from subprocess import check_output
+
 import sys
 
-from subprocess import check_output
 
 REVIEWBOARD_URL = 'https://reviews.apache.org'
 
@@ -105,6 +107,11 @@ def parse_options():
 def main():
     """Main function to push the commits in this branch as review requests."""
     options = parse_options()
+
+    # TODO(ArmandGrillet): Remove this when we'll have switched to Python 3.
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    script_path = os.path.join(dir_path, 'check-python3.py')
+    subprocess.call('python ' + script_path, shell=True, cwd=dir_path)
 
     current_branch_ref = check_output(['git', 'symbolic-ref', 'HEAD']).strip()
     current_branch = current_branch_ref.replace('refs/heads/', '', 1)
