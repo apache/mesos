@@ -30,6 +30,15 @@ def print_error():
     print("The support scripts will be upgraded to Python 3 by July 1st.")
     print("Make sure to install Python 3.6 on your machine before.")
 
+def print_warning():
+    """Prints a warning requesting to use the Python 3 scripts."""
+    print("Congratulations! You have Python 3 installed correctly.")
+    print("Please start using the scripts in `support/python3`.")
+    # NOTE: This is only either unset, or set to 3.
+    if "MESOS_SUPPORT_PYTHON" not in os.environ:
+        print("Please also set the environment variable `MESOS_SUPPORT_PYTHON` to `3`")
+        print("so that the Git hooks use the Python 3 scripts.")
+
 if sys.version_info[0] < 3:
     # On Windows, system-wide installations of Python 3.6 gives a tools called
     # py and that we can use to know if Python 3 is installed.
@@ -51,6 +60,11 @@ if sys.version_info[0] < 3:
         for x in range(0, 6):
             if "3.%d." % (x) in VERSION:
                 print_error()
+                sys.exit()
+        # This script only gets invoked by the Python 2 scripts, so we
+        # can assume we need to warn the user to start using the
+        # Python 3 scripts.
+        print_warning()
 elif sys.version_info[1] < 6:
     # python is by default Python 3 but it's < 3.6.
     print_error()
