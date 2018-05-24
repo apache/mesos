@@ -123,7 +123,7 @@ public:
       const std::list<Future<T>>& _futures,
       Promise<std::list<T>>* _promise)
     : ProcessBase(ID::generate("__collect__")),
-      futures(_futures),
+      futures(_futures.begin(), _futures.end()),
       promise(_promise),
       ready(0) {}
 
@@ -176,7 +176,7 @@ private:
     }
   }
 
-  const std::list<Future<T>> futures;
+  const std::vector<Future<T>> futures;
   Promise<std::list<T>>* promise;
   size_t ready;
 };
@@ -190,7 +190,7 @@ public:
       const std::list<Future<T>>& _futures,
       Promise<std::list<Future<T>>>* _promise)
     : ProcessBase(ID::generate("__await__")),
-      futures(_futures),
+      futures(_futures.begin(), _futures.end()),
       promise(_promise),
       ready(0) {}
 
@@ -227,12 +227,13 @@ private:
 
     ready += 1;
     if (ready == futures.size()) {
-      promise->set(futures);
+      promise->set(
+        std::list<Future<T>>(futures.begin(), futures.end()));
       terminate(this);
     }
   }
 
-  const std::list<Future<T>> futures;
+  const std::vector<Future<T>> futures;
   Promise<std::list<Future<T>>>* promise;
   size_t ready;
 };
