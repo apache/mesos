@@ -23,7 +23,7 @@ layout: documentation
 * [Maintenance](maintenance.md) for performing maintenance on a Mesos cluster.
 * [Upgrades](upgrades.md) for upgrading a Mesos cluster.
 * [Logging](logging.md)
-* [Monitoring](monitoring.md)
+* [Monitoring / Metrics](monitoring.md)
 * [Operational Guide](operational-guide.md)
 * [Fetcher Cache Configuration](fetcher.md)
 * [Fault Domains](fault-domains.md)
