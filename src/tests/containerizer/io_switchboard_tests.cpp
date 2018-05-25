@@ -754,16 +754,13 @@ TEST_F(IOSwitchboardTest, ContainerAttach)
   Future<http::Connection> connection = containerizer->attach(containerId);
   AWAIT_READY(connection);
 
-  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
-
-  Future<Option<ContainerTermination>> destroy =
+  Future<Option<ContainerTermination>> termination =
     containerizer->destroy(containerId);
-  AWAIT_READY(destroy);
 
-  AWAIT_READY(wait);
-  ASSERT_SOME(wait.get());
-  ASSERT_TRUE(wait.get()->has_status());
-  EXPECT_WTERMSIG_EQ(SIGKILL, wait.get()->status());
+  AWAIT_READY(termination);
+  ASSERT_SOME(termination.get());
+  ASSERT_TRUE(termination.get()->has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, termination.get()->status());
 }
 
 
@@ -906,15 +903,14 @@ TEST_F(IOSwitchboardTest, KillSwitchboardContainerDestroyed)
   ASSERT_EQ(TaskStatus::REASON_IO_SWITCHBOARD_EXITED,
             wait.get()->reason());
 
-  wait = containerizer->wait(containerId);
+  Future<Option<ContainerTermination>> termination =
+    containerizer->destroy(containerId);
 
-  containerizer->destroy(containerId);
+  AWAIT_READY(termination);
+  ASSERT_SOME(termination.get());
 
-  AWAIT_READY(wait);
-  ASSERT_SOME(wait.get());
-
-  ASSERT_TRUE(wait.get()->has_status());
-  EXPECT_WTERMSIG_EQ(SIGKILL, wait.get()->status());
+  ASSERT_TRUE(termination.get()->has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, termination.get()->status());
 }
 
 

@@ -2290,13 +2290,11 @@ TYPED_TEST(SlaveRecoveryTest, RemoveNonCheckpointingFramework)
   AWAIT_READY(containers);
 
   foreach (const ContainerID& containerId, containers.get()) {
-    Future<Option<ContainerTermination>> wait =
-      containerizer->wait(containerId);
+    Future<Option<ContainerTermination>> termination =
+      containerizer->destroy(containerId);
 
-    containerizer->destroy(containerId);
-
-    AWAIT_READY(wait);
-    EXPECT_SOME(wait.get());
+    AWAIT_READY(termination);
+    EXPECT_SOME(termination.get());
   }
 }
 
@@ -3494,13 +3492,11 @@ TYPED_TEST(SlaveRecoveryTest, RegisterDisconnectedSlave)
   AWAIT_READY(containers);
 
   foreach (const ContainerID& containerId, containers.get()) {
-    Future<Option<ContainerTermination>> wait =
-      containerizer->wait(containerId);
+    Future<Option<ContainerTermination>> termination =
+      containerizer->destroy(containerId);
 
-    containerizer->destroy(containerId);
-
-    AWAIT_READY(wait);
-    EXPECT_SOME(wait.get());
+    AWAIT_READY(termination);
+    EXPECT_SOME(termination.get());
   }
 }
 
@@ -5150,13 +5146,12 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, ResourceStatistics)
   EXPECT_TRUE(usage->has_cpus_limit());
   EXPECT_TRUE(usage->has_mem_limit_bytes());
 
-  Future<Option<ContainerTermination>> wait =
-    containerizer->wait(containerId);
+  // Destroy the container.
+  Future<Option<ContainerTermination>> termination =
+    containerizer->destroy(containerId);
 
-  containerizer->destroy(containerId);
-
-  AWAIT_READY(wait);
-  EXPECT_SOME(wait.get());
+  AWAIT_READY(termination);
+  EXPECT_SOME(termination.get());
 
   driver.stop();
   driver.join();
@@ -5265,12 +5260,9 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceForward)
   AWAIT_READY(offers2);
   EXPECT_FALSE(offers2->empty());
 
-  // Set up to wait on the container's termination.
-  Future<Option<ContainerTermination>> termination =
-    containerizer->wait(containerId);
-
   // Destroy the container.
-  containerizer->destroy(containerId);
+  Future<Option<ContainerTermination>> termination =
+    containerizer->destroy(containerId);
 
   AWAIT_READY(termination);
   EXPECT_SOME(termination.get());
@@ -5381,12 +5373,9 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, CGROUPS_ROOT_PidNamespaceBackward)
   AWAIT_READY(offers2);
   EXPECT_FALSE(offers2->empty());
 
-  // Set up to wait on the container's termination.
-  Future<Option<ContainerTermination>> termination =
-    containerizer->wait(containerId);
-
   // Destroy the container.
-  containerizer->destroy(containerId);
+  Future<Option<ContainerTermination>> termination =
+    containerizer->destroy(containerId);
 
   AWAIT_READY(termination);
   EXPECT_SOME(termination.get());

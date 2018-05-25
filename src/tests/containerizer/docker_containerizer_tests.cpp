@@ -1862,9 +1862,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_RecoverPersistentVolumes)
   AWAIT_READY(_recover);
 
   Future<Option<ContainerTermination>> termination =
-    dockerContainerizer->wait(containerId.get());
-
-  dockerContainerizer->destroy(containerId.get());
+    dockerContainerizer->destroy(containerId.get());
 
   AWAIT_READY(termination);
   EXPECT_SOME(termination.get());

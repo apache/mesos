@@ -234,14 +234,13 @@ TEST_F(MesosContainerizerTest, Destroy)
 
   AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
-  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
+  Future<Option<ContainerTermination>> termination =
+    containerizer->destroy(containerId);
 
-  containerizer->destroy(containerId);
-
-  AWAIT_READY(wait);
-  ASSERT_SOME(wait.get());
-  ASSERT_TRUE(wait.get()->has_status());
-  EXPECT_WTERMSIG_EQ(SIGKILL, wait.get()->status());
+  AWAIT_READY(termination);
+  ASSERT_SOME(termination.get());
+  ASSERT_TRUE(termination.get()->has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, termination.get()->status());
 }
 
 
@@ -291,14 +290,13 @@ TEST_F(MesosContainerizerTest, StatusWithContainerID)
 
   EXPECT_EQ(containerId, status->container_id());
 
-  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
+  Future<Option<ContainerTermination>> termination =
+    containerizer->destroy(containerId);
 
-  containerizer->destroy(containerId);
-
-  AWAIT_READY(wait);
-  ASSERT_SOME(wait.get());
-  ASSERT_TRUE(wait.get()->has_status());
-  EXPECT_WTERMSIG_EQ(SIGKILL, wait.get()->status());
+  AWAIT_READY(termination);
+  ASSERT_SOME(termination.get());
+  ASSERT_TRUE(termination.get()->has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, termination.get()->status());
 }
 
 
@@ -399,9 +397,6 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptSucceeds)
 
   // Check the preparation script actually ran.
   EXPECT_TRUE(os::exists(file));
-
-  // Destroy the container.
-  containerizer->destroy(containerId);
 }
 
 
@@ -446,9 +441,6 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ScriptFails)
 
   // Check the preparation script actually ran.
   EXPECT_TRUE(os::exists(file));
-
-  // Destroy the container.
-  containerizer->destroy(containerId);
 }
 
 
@@ -505,9 +497,6 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, MultipleScripts)
 
   // Check the failing preparation script has actually ran.
   EXPECT_TRUE(os::exists(file2));
-
-  // Destroy the container.
-  containerizer->destroy(containerId);
 }
 
 
@@ -581,9 +570,6 @@ TEST_F(MesosContainerizerIsolatorPreparationTest, ExecutorEnvironmentVariable)
 
   // Check the preparation script actually ran.
   EXPECT_TRUE(os::exists(file));
-
-  // Destroy the container.
-  containerizer->destroy(containerId);
 
   // Reset LIBPROCESS_IP if necessary.
   if (libprocessIP.isSome()) {
@@ -986,16 +972,13 @@ TEST_F(MesosContainerizerProvisionerTest, ProvisionFailed)
 
   AWAIT_FAILED(launch);
 
-  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
+  Future<Option<ContainerTermination>> termination =
+    containerizer->destroy(containerId);
 
-  containerizer->destroy(containerId);
+  AWAIT_READY(termination);
+  ASSERT_SOME(termination.get());
 
-  AWAIT_READY(wait);
-  ASSERT_SOME(wait.get());
-
-  ContainerTermination termination = wait->get();
-
-  EXPECT_FALSE(termination.has_status());
+  EXPECT_FALSE(termination->get().has_status());
 }
 
 
@@ -1241,12 +1224,11 @@ TEST_F(MesosContainerizerDestroyTest, LauncherDestroyFailure)
 
   AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
-  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
-
-  containerizer->destroy(containerId);
+  Future<Option<ContainerTermination>> termination =
+    containerizer->destroy(containerId);
 
   // The container destroy should fail.
-  AWAIT_FAILED(wait);
+  AWAIT_FAILED(termination);
 
   // We settle the clock here to ensure that the processing of
   // 'MesosContainerizerProcess::__destroy()' is complete and the

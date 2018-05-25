@@ -471,12 +471,10 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_MultipleContainers)
 
   // Wait on the containers.
   Future<Option<ContainerTermination>> wait1 =
-    containerizer->wait(containerId1);
+    containerizer->destroy(containerId1);
 
   Future<Option<ContainerTermination>> wait2 =
     containerizer->wait(containerId2);
-
-  containerizer->destroy(containerId1);
 
   AWAIT_READY(wait1);
   ASSERT_SOME(wait1.get());

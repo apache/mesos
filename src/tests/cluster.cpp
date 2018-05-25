@@ -673,18 +673,16 @@ Slave::~Slave()
     }
 
     foreach (const ContainerID& containerId, containers.get()) {
-      process::Future<Option<ContainerTermination>> wait =
-        containerizer->wait(containerId);
-
-      process::Future<Option<ContainerTermination>> destroy =
+      process::Future<Option<ContainerTermination>> termination =
         containerizer->destroy(containerId);
 
-      AWAIT(destroy);
-      AWAIT(wait);
+      AWAIT(termination);
 
-      if (!wait.isReady()) {
+      if (!termination.isReady()) {
         LOG(ERROR) << "Failed to destroy container " << containerId << ": "
-                   << (wait.isFailed() ? wait.failure() : "discarded");
+                   << (termination.isFailed() ?
+                       termination.failure() :
+                       "discarded");
       }
     }
 
