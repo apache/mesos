@@ -990,19 +990,10 @@ Future<Future<T>> select(const std::set<Future<T>>& futures)
 }
 
 
-template <typename T>
-void discard(const std::set<Future<T>>& futures)
+template <typename Futures>
+void discard(const Futures& futures)
 {
-  foreach (Future<T> future, futures) { // Need a non-const copy to discard.
-    future.discard();
-  }
-}
-
-
-template <typename T>
-void discard(const std::list<Future<T>>& futures)
-{
-  foreach (Future<T> future, futures) { // Need a non-const copy to discard.
+  foreach (auto future, futures) { // Need a non-const copy to discard.
     future.discard();
   }
 }
