@@ -455,6 +455,15 @@ static Try<Nothing> enterChroot(const string& rootfs)
   }
 
 #ifdef __linux__
+  Try<Nothing> prepare = fs::chroot::prepare(rootfs);
+  if (prepare.isError()) {
+    return Error(
+        "Failed to prepare chroot '" + rootfs + "': " +
+        prepare.error());
+  }
+
+  // TODO(jpeach): apply container mounts here.
+
   Try<Nothing> chroot = fs::chroot::enter(rootfs);
 #else
   // For any other platform we'll just use POSIX chroot.

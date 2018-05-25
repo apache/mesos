@@ -908,7 +908,7 @@ Try<Nothing> createStandardDevices(const string& root)
 
 
 // TODO(idownes): Add unit test.
-Try<Nothing> enter(const string& root)
+Try<Nothing> prepare(const string& root)
 {
   // Recursively mark current mounts as slaves to prevent propagation.
   Try<Nothing> mount =
@@ -937,6 +937,13 @@ Try<Nothing> enter(const string& root)
     return Error("Failed to create devices: " + create.error());
   }
 
+  return Nothing();
+}
+
+
+// TODO(idownes): Add unit test.
+Try<Nothing> enter(const string& root)
+{
   // Prepare /tmp in the new root. Note that we cannot assume that the
   // new root is writable (i.e., it could be a read only filesystem).
   // Therefore, we always mount a tmpfs on /tmp in the new root so
@@ -953,7 +960,7 @@ Try<Nothing> enter(const string& root)
   }
 
   // TODO(jieyu): Consider limiting the size of the tmpfs.
-  mount = fs::mount(
+  Try<Nothing> mount = fs::mount(
       "tmpfs",
       path::join(root, "tmp"),
       "tmpfs",

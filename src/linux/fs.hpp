@@ -385,8 +385,13 @@ namespace chroot {
 
 // Enter a 'chroot' environment. The caller should be in a new mount
 // namespace. Basic configuration of special filesystems and device
-// nodes is performed. Any mounts to the current root will be
-// unmounted.
+// nodes is performed.
+Try<Nothing> prepare(const std::string& root);
+
+
+//  Enter a 'chroot' environment. The caller should be in a new mount
+//  unmounted. The root path must have already been provisioned by
+//  calling `prepare`()`.
 Try<Nothing> enter(const std::string& root);
 
 } // namespace chroot {
