@@ -40,6 +40,8 @@
 #include "linux/cgroups.hpp"
 #include "linux/ns.hpp"
 
+#include "slave/containerizer/composing.hpp"
+
 #include "slave/containerizer/mesos/launch.hpp"
 #include "slave/containerizer/mesos/linux_launcher.hpp"
 #include "slave/containerizer/mesos/paths.hpp"
@@ -2663,6 +2665,102 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_WaitAfterDestroy)
 
   AWAIT_READY(nestedWait);
   ASSERT_NONE(nestedWait.get());
+}
+
+
+// This test verifies that a container termination status for a terminated
+// nested container is available via `wait()` and `destroy()` methods for
+// both mesos and composing containerizers.
+TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_TerminatedNestedStatus)
+{
+  slave::Flags flags = CreateSlaveFlags();
+  flags.launcher = "linux";
+  flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
+
+  Fetcher fetcher(flags);
+
+  Try<MesosContainerizer*> create = MesosContainerizer::create(
+      flags,
+      true,
+      &fetcher);
+
+  ASSERT_SOME(create);
+
+  MesosContainerizer* mesosContainerizer(create.get());
+
+  Try<slave::ComposingContainerizer*> composing =
+    slave::ComposingContainerizer::create({mesosContainerizer});
+
+  ASSERT_SOME(composing);
+
+  Owned<Containerizer> containerizer(composing.get());
+
+  SlaveID slaveId = SlaveID();
+
+  // Launch a top-level container.
+  ContainerID containerId;
+  containerId.set_value(id::UUID::random().toString());
+
+  Try<string> directory = environment->mkdtemp();
+  ASSERT_SOME(directory);
+
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
+    containerId,
+    createContainerConfig(
+        None(),
+        createExecutorInfo("executor", "sleep 1000", "cpus:1"),
+        directory.get()),
+    map<string, string>(),
+    None());
+
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
+
+  // Launch a nested container.
+  ContainerID nestedContainerId;
+  nestedContainerId.mutable_parent()->CopyFrom(containerId);
+  nestedContainerId.set_value(id::UUID::random().toString());
+
+  launch = containerizer->launch(
+      nestedContainerId,
+      createContainerConfig(createCommandInfo("exit 42")),
+      map<string, string>(),
+      None());
+
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
+
+  // Verify that both `wait` and `destroy` methods of composing containerizer
+  // return the same container termination for a terminated nested container.
+  Future<Option<ContainerTermination>> nestedWait =
+    containerizer->wait(nestedContainerId);
+
+  AWAIT_READY(nestedWait);
+  ASSERT_SOME(nestedWait.get());
+  ASSERT_TRUE(nestedWait.get()->has_status());
+  EXPECT_WEXITSTATUS_EQ(42, nestedWait.get()->status());
+
+  Future<Option<ContainerTermination>> nestedTermination =
+    containerizer->destroy(nestedContainerId);
+
+  AWAIT_READY(nestedTermination);
+  ASSERT_SOME(nestedTermination.get());
+  ASSERT_TRUE(nestedTermination.get()->has_status());
+  EXPECT_WEXITSTATUS_EQ(42, nestedTermination.get()->status());
+
+  // Verify that both `wait` and `destroy` methods of mesos containerizer
+  // return the same container termination for a terminated nested container.
+  nestedWait = mesosContainerizer->wait(nestedContainerId);
+
+  AWAIT_READY(nestedWait);
+  ASSERT_SOME(nestedWait.get());
+  ASSERT_TRUE(nestedWait.get()->has_status());
+  EXPECT_WEXITSTATUS_EQ(42, nestedWait.get()->status());
+
+  nestedTermination = mesosContainerizer->destroy(nestedContainerId);
+
+  AWAIT_READY(nestedTermination);
+  ASSERT_SOME(nestedTermination.get());
+  ASSERT_TRUE(nestedTermination.get()->has_status());
+  EXPECT_WEXITSTATUS_EQ(42, nestedTermination.get()->status());
 }
 
 
