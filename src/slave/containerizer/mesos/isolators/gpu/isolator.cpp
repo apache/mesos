@@ -27,7 +27,6 @@ extern "C" {
 }
 
 #include <algorithm>
-#include <list>
 #include <map>
 #include <set>
 #include <string>
@@ -76,7 +75,6 @@ using process::Failure;
 using process::Future;
 using process::PID;
 
-using std::list;
 using std::map;
 using std::set;
 using std::string;
@@ -237,10 +235,10 @@ bool NvidiaGpuIsolatorProcess::supportsStandalone()
 
 
 Future<Nothing> NvidiaGpuIsolatorProcess::recover(
-    const list<ContainerState>& states,
+    const vector<ContainerState>& states,
     const hashset<ContainerID>& orphans)
 {
-  list<Future<Nothing>> futures;
+  vector<Future<Nothing>> futures;
 
   foreach (const ContainerState& state, states) {
     const ContainerID& containerId = state.container_id();

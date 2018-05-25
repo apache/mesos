@@ -132,7 +132,6 @@ using process::Subprocess;
 
 using process::http::Connection;
 
-using std::list;
 using std::map;
 using std::pair;
 using std::set;
@@ -718,7 +717,7 @@ Future<Nothing> MesosContainerizerProcess::recover(
   LOG(INFO) << "Recovering Mesos containers";
 
   // Gather the container states that we will attempt to recover.
-  list<ContainerState> recoverable;
+  vector<ContainerState> recoverable;
   if (state.isSome()) {
     // Gather the latest run of checkpointed executors.
     foreachvalue (const FrameworkState& framework, state->frameworks) {
@@ -1007,7 +1006,7 @@ Future<Nothing> MesosContainerizerProcess::recover(
 
 
 Future<Nothing> MesosContainerizerProcess::_recover(
-    const list<ContainerState>& recoverable,
+    const vector<ContainerState>& recoverable,
     const hashset<ContainerID>& orphans)
 {
   // Recover isolators first then recover the provisioner, because of
@@ -1018,17 +1017,17 @@ Future<Nothing> MesosContainerizerProcess::_recover(
 }
 
 
-Future<list<Nothing>> MesosContainerizerProcess::recoverIsolators(
-    const list<ContainerState>& recoverable,
+Future<vector<Nothing>> MesosContainerizerProcess::recoverIsolators(
+    const vector<ContainerState>& recoverable,
     const hashset<ContainerID>& orphans)
 {
   LOG(INFO) << "Recovering isolators";
 
-  list<Future<Nothing>> futures;
+  vector<Future<Nothing>> futures;
 
   // Then recover the isolators.
   foreach (const Owned<Isolator>& isolator, isolators) {
-    list<ContainerState> _recoverable;
+    vector<ContainerState> _recoverable;
     hashset<ContainerID> _orphans;
 
     foreach (const ContainerState& state, recoverable) {
@@ -1058,7 +1057,7 @@ Future<list<Nothing>> MesosContainerizerProcess::recoverIsolators(
 
 
 Future<Nothing> MesosContainerizerProcess::recoverProvisioner(
-    const list<ContainerState>& recoverable,
+    const vector<ContainerState>& recoverable,
     const hashset<ContainerID>& orphans)
 {
   LOG(INFO) << "Recovering provisioner";
@@ -1076,7 +1075,7 @@ Future<Nothing> MesosContainerizerProcess::recoverProvisioner(
 
 
 Future<Nothing> MesosContainerizerProcess::__recover(
-    const list<ContainerState>& recovered,
+    const vector<ContainerState>& recovered,
     const hashset<ContainerID>& orphans)
 {
   // Recover containers' launch information.
@@ -1422,8 +1421,8 @@ Future<Nothing> MesosContainerizerProcess::prepare(
   // We prepare the isolators sequentially according to their ordering
   // to permit basic dependency specification, e.g., preparing a
   // filesystem isolator before other isolators.
-  Future<list<Option<ContainerLaunchInfo>>> f =
-    list<Option<ContainerLaunchInfo>>();
+  Future<vector<Option<ContainerLaunchInfo>>> f =
+    vector<Option<ContainerLaunchInfo>>();
 
   foreach (const Owned<Isolator>& isolator, isolators) {
     if (!isSupportedByIsolator(
@@ -1434,7 +1433,7 @@ Future<Nothing> MesosContainerizerProcess::prepare(
     }
 
     // Chain together preparing each isolator.
-    f = f.then([=](list<Option<ContainerLaunchInfo>> launchInfos) {
+    f = f.then([=](vector<Option<ContainerLaunchInfo>> launchInfos) {
       return isolator->prepare(containerId, containerConfig)
         .then([=](const Option<ContainerLaunchInfo>& launchInfo) mutable {
           launchInfos.push_back(launchInfo);
@@ -2084,7 +2083,7 @@ Future<Nothing> MesosContainerizerProcess::isolate(
   // NOTE: This is done is parallel and is not sequenced like prepare
   // or destroy because we assume there are no dependencies in
   // isolation.
-  list<Future<Nothing>> futures;
+  vector<Future<Nothing>> futures;
   foreach (const Owned<Isolator>& isolator, isolators) {
     if (!isSupportedByIsolator(
             containerId,
@@ -2097,7 +2096,7 @@ Future<Nothing> MesosContainerizerProcess::isolate(
   }
 
   // Wait for all isolators to complete.
-  Future<list<Nothing>> future = collect(futures);
+  Future<vector<Nothing>> future = collect(futures);
 
   container->isolation = future;
 
@@ -2219,7 +2218,7 @@ Future<Nothing> MesosContainerizerProcess::update(
   container->resources = resources;
 
   // Update each isolator.
-  list<Future<Nothing>> futures;
+  vector<Future<Nothing>> futures;
   foreach (const Owned<Isolator>& isolator, isolators) {
     if (!isSupportedByIsolator(
             containerId,
@@ -2243,7 +2242,7 @@ Future<Nothing> MesosContainerizerProcess::update(
 Future<ResourceStatistics> _usage(
     const ContainerID& containerId,
     const Option<Resources>& resources,
-    const list<Future<ResourceStatistics>>& statistics)
+    const vector<Future<ResourceStatistics>>& statistics)
 {
   ResourceStatistics result;
 
@@ -2285,7 +2284,7 @@ Future<ResourceStatistics> MesosContainerizerProcess::usage(
     return Failure("Unknown container " + stringify(containerId));
   }
 
-  list<Future<ResourceStatistics>> futures;
+  vector<Future<ResourceStatistics>> futures;
   foreach (const Owned<Isolator>& isolator, isolators) {
     if (!isSupportedByIsolator(
             containerId,
@@ -2316,7 +2315,7 @@ Future<ContainerStatus> MesosContainerizerProcess::status(
     return Failure("Unknown container: " + stringify(containerId));
   }
 
-  list<Future<ContainerStatus>> futures;
+  vector<Future<ContainerStatus>> futures;
   foreach (const Owned<Isolator>& isolator, isolators) {
     if (!isSupportedByIsolator(
             containerId,
@@ -2339,7 +2338,7 @@ Future<ContainerStatus> MesosContainerizerProcess::status(
   return containers_.at(containerId)->sequence.add<ContainerStatus>(
       [=]() -> Future<ContainerStatus> {
         return await(futures)
-          .then([containerId](const list<Future<ContainerStatus>>& statuses) {
+          .then([containerId](const vector<Future<ContainerStatus>>& statuses) {
             ContainerStatus result;
             result.mutable_container_id()->CopyFrom(containerId);
 
@@ -2413,13 +2412,13 @@ Future<Option<ContainerTermination>> MesosContainerizerProcess::destroy(
 
   transition(containerId, DESTROYING);
 
-  list<Future<Option<ContainerTermination>>> destroys;
+  vector<Future<Option<ContainerTermination>>> destroys;
   foreach (const ContainerID& child, container->children) {
     destroys.push_back(destroy(child, termination));
   }
 
   await(destroys).then(defer(
-    self(), [=](const list<Future<Option<ContainerTermination>>>& futures) {
+    self(), [=](const vector<Future<Option<ContainerTermination>>>& futures) {
       _destroy(containerId, termination, previousState, futures);
       return Nothing();
     }));
@@ -2438,7 +2437,7 @@ void MesosContainerizerProcess::_destroy(
     const ContainerID& containerId,
     const Option<ContainerTermination>& termination,
     const State& previousState,
-    const list<Future<Option<ContainerTermination>>>& destroys)
+    const vector<Future<Option<ContainerTermination>>>& destroys)
 {
   CHECK(containers_.contains(containerId));
 
@@ -2476,7 +2475,7 @@ void MesosContainerizerProcess::_destroy(
           &Self::_____destroy,
           containerId,
           termination,
-          list<Future<Nothing>>()));
+          vector<Future<Nothing>>()));
 
     return;
   }
@@ -2595,7 +2594,7 @@ void MesosContainerizerProcess::____destroy(
 void MesosContainerizerProcess::_____destroy(
     const ContainerID& containerId,
     const Option<ContainerTermination>& termination,
-    const Future<list<Future<Nothing>>>& cleanups)
+    const Future<vector<Future<Nothing>>>& cleanups)
 {
   // This should not occur because we only use the Future<list> to
   // facilitate chaining.
@@ -2971,10 +2970,10 @@ MesosContainerizerProcess::Metrics::~Metrics()
 }
 
 
-Future<list<Future<Nothing>>> MesosContainerizerProcess::cleanupIsolators(
+Future<vector<Future<Nothing>>> MesosContainerizerProcess::cleanupIsolators(
     const ContainerID& containerId)
 {
-  Future<list<Future<Nothing>>> f = list<Future<Nothing>>();
+  Future<vector<Future<Nothing>>> f = vector<Future<Nothing>>();
 
   // NOTE: We clean up each isolator in the reverse order they were
   // prepared (see comment in prepare()).
@@ -2990,7 +2989,7 @@ Future<list<Future<Nothing>>> MesosContainerizerProcess::cleanupIsolators(
     // complete and continuing if one fails.
     // TODO(jieyu): Technically, we cannot bind 'isolator' here
     // because the ownership will be transferred after the bind.
-    f = f.then([=](list<Future<Nothing>> cleanups) {
+    f = f.then([=](vector<Future<Nothing>> cleanups) {
       // Accumulate but do not propagate any failure.
       Future<Nothing> cleanup = isolator->cleanup(containerId);
       cleanups.push_back(cleanup);
@@ -2998,8 +2997,8 @@ Future<list<Future<Nothing>>> MesosContainerizerProcess::cleanupIsolators(
       // Wait for the cleanup to complete/fail before returning the
       // list. We use await here to asynchronously wait for the
       // isolator to complete then return cleanups.
-      return await(list<Future<Nothing>>({cleanup}))
-        .then([cleanups]() -> Future<list<Future<Nothing>>> {
+      return await(vector<Future<Nothing>>({cleanup}))
+        .then([cleanups]() -> Future<vector<Future<Nothing>>> {
           return cleanups;
         });
     });

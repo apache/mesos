@@ -18,6 +18,7 @@
 
 #include <string>
 #include <utility>
+#include <vector>
 
 #include <glog/logging.h>
 
@@ -53,8 +54,8 @@
 
 namespace http = process::http;
 
-using std::list;
 using std::string;
+using std::vector;
 
 using mesos::internal::resource_provider::validation::call::validate;
 
@@ -613,7 +614,7 @@ Future<Nothing> ResourceProviderManagerProcess::publishResources(
     providedResources[resourceProviderId] += resource;
   }
 
-  list<Future<Nothing>> futures;
+  vector<Future<Nothing>> futures;
 
   foreachpair (const ResourceProviderID& resourceProviderId,
                const Resources& resources,

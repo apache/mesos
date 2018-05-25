@@ -163,7 +163,7 @@ bool IOSwitchboard::supportsStandalone()
 
 
 Future<Nothing> IOSwitchboard::recover(
-    const list<ContainerState>& states,
+    const vector<ContainerState>& states,
     const hashset<ContainerID>& orphans)
 {
 #ifdef __WINDOWS__
@@ -815,7 +815,7 @@ Future<Nothing> IOSwitchboard::cleanup(
 
   // NOTE: We use 'await' here so that we can handle the FAILED and
   // DISCARDED cases as well.
-  return await(list<Future<Option<int>>>{status}).then(
+  return await(vector<Future<Option<int>>>{status}).then(
       defer(self(), [this, containerId]() -> Future<Nothing> {
         // We need to call `_extractContainerIO` here in case the
         // `IOSwitchboard` still holds a reference to the container's

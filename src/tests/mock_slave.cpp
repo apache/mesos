@@ -14,8 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <list>
-
 #include <gmock/gmock.h>
 
 #include <mesos/authentication/secret_generator.hpp>
@@ -158,8 +156,8 @@ void MockSlave::unmocked____run(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
     const ContainerID& containerId,
-    const list<TaskInfo>& tasks,
-    const list<TaskGroupInfo>& taskGroups)
+    const vector<TaskInfo>& tasks,
+    const vector<TaskGroupInfo>& taskGroups)
 {
   slave::Slave::___run(
       future,

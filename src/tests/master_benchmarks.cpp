@@ -14,7 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <list>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -51,7 +50,6 @@ using process::UPID;
 
 using std::cout;
 using std::endl;
-using std::list;
 using std::make_tuple;
 using std::string;
 using std::tie;
@@ -297,7 +295,7 @@ TEST_P(MasterFailover_BENCHMARK_Test, AgentReregistrationDelay)
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
-  list<TestSlave> slaves;
+  vector<TestSlave> slaves;
 
   for (size_t i = 0; i < agentCount; i++) {
     SlaveID slaveId;
@@ -317,7 +315,7 @@ TEST_P(MasterFailover_BENCHMARK_Test, AgentReregistrationDelay)
   Clock::settle();
   Clock::resume();
 
-  list<Future<Nothing>> reregistered;
+  vector<Future<Nothing>> reregistered;
 
   // Measure the time for all agents to receive `SlaveReregisteredMessage`.
   Stopwatch watch;
@@ -404,7 +402,7 @@ TEST_P(MasterStateQuery_BENCHMARK_Test, GetState)
        << completedFrameworksPerAgent * tasksPerCompletedFramework * agentCount
        << " completed tasks" << endl;
 
-  list<Future<Nothing>> reregistered;
+  vector<Future<Nothing>> reregistered;
 
   foreach (const Owned<TestSlave>& slave, slaves) {
     reregistered.push_back(slave->reregister());

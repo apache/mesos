@@ -16,8 +16,8 @@
 
 #include "slave/containerizer/mesos/isolators/volume/secret.hpp"
 
-#include <list>
 #include <string>
+#include <vector>
 
 #include <mesos/secret/resolver.hpp>
 
@@ -40,8 +40,8 @@
 
 #include "common/validation.hpp"
 
-using std::list;
 using std::string;
+using std::vector;
 
 using process::Failure;
 using process::Future;
@@ -145,7 +145,7 @@ Future<Option<ContainerLaunchInfo>> VolumeSecretIsolatorProcess::prepare(
   command->add_arguments("ramfs");
   command->add_arguments(sandboxSecretRootDir);
 
-  list<Future<Nothing>> futures;
+  vector<Future<Nothing>> futures;
   foreach (const Volume& volume, containerInfo.volumes()) {
     if (!volume.has_source() ||
         !volume.source().has_type() ||
@@ -292,7 +292,7 @@ Future<Option<ContainerLaunchInfo>> VolumeSecretIsolatorProcess::prepare(
 
   return collect(futures)
     .then([launchInfo, containerId](
-        const list<Nothing>& results) -> Future<Option<ContainerLaunchInfo>> {
+        const vector<Nothing>& results) -> Future<Option<ContainerLaunchInfo>> {
       LOG(INFO) << results.size() << " secrets have been resolved for "
                 << "container " << containerId;
       return launchInfo;

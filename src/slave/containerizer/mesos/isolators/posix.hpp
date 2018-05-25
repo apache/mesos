@@ -42,7 +42,7 @@ class PosixIsolatorProcess : public MesosIsolatorProcess
 {
 public:
   virtual process::Future<Nothing> recover(
-      const std::list<mesos::slave::ContainerState>& state,
+      const std::vector<mesos::slave::ContainerState>& state,
       const hashset<ContainerID>& orphans)
   {
     foreach (const mesos::slave::ContainerState& run, state) {

@@ -38,7 +38,6 @@
 
 using namespace process;
 
-using std::list;
 using std::map;
 using std::string;
 using std::vector;
@@ -56,7 +55,7 @@ Try<Launcher*> SubprocessLauncher::create(const Flags& flags)
 
 
 Future<hashset<ContainerID>> SubprocessLauncher::recover(
-    const list<ContainerState>& states)
+    const vector<ContainerState>& states)
 {
   foreach (const ContainerState& state, states) {
     const ContainerID& containerId = state.container_id();

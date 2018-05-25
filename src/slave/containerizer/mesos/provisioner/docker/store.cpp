@@ -399,7 +399,7 @@ Future<vector<string>> StoreProcess::moveLayers(
     const vector<string>& layerIds,
     const string& backend)
 {
-  list<Future<Nothing>> futures;
+  vector<Future<Nothing>> futures;
   foreach (const string& layerId, layerIds) {
     futures.push_back(moveLayer(staging, layerId, backend));
   }

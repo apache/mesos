@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <list>
+#include <vector>
 
 #include <glog/logging.h>
 
@@ -381,13 +381,14 @@ Future<vector<string>> StoreProcess::fetchDependencies(
   }
 
   // Do a depth first search.
-  list<Future<vector<string>>> futures;
+  vector<Future<vector<string>>> futures;
+  futures.reserve(dependencies.size());
   foreach (const Image::Appc& appc, dependencies) {
     futures.emplace_back(fetchImage(appc, cached));
   }
 
   return collect(futures)
-    .then(defer(self(), [=](const list<vector<string>>& imageIdsList) {
+    .then(defer(self(), [=](const vector<vector<string>>& imageIdsList) {
       vector<string> result;
       foreach (const vector<string>& imageIds, imageIdsList) {
         result.insert(result.end(), imageIds.begin(), imageIds.end());

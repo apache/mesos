@@ -39,7 +39,6 @@ using namespace process;
 
 namespace spec = docker::spec;
 
-using std::list;
 using std::string;
 using std::vector;
 
@@ -288,7 +287,7 @@ Future<Nothing> LocalPullerProcess::extractLayers(
     const vector<string>& layerIds,
     const string& backend)
 {
-  list<Future<Nothing>> futures;
+  vector<Future<Nothing>> futures;
   foreach (const string& layerId, layerIds) {
     // Check if the layer is already in the store. If yes, skip the
     // unnecessary extracting.

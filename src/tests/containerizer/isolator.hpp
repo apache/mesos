@@ -86,7 +86,7 @@ public:
   MOCK_METHOD2(
       recover,
       process::Future<Nothing>(
-          const std::list<mesos::slave::ContainerState>&,
+          const std::vector<mesos::slave::ContainerState>&,
           const hashset<ContainerID>&));
 
   MOCK_METHOD2(

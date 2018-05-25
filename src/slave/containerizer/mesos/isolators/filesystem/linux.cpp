@@ -16,9 +16,9 @@
 
 #include <sys/mount.h>
 
-#include <list>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include <glog/logging.h>
 
@@ -51,7 +51,6 @@
 
 using namespace process;
 
-using std::list;
 using std::ostringstream;
 using std::string;
 using std::vector;
@@ -233,7 +232,7 @@ bool LinuxFilesystemIsolatorProcess::supportsStandalone()
 
 
 Future<Nothing> LinuxFilesystemIsolatorProcess::recover(
-    const list<ContainerState>& states,
+    const vector<ContainerState>& states,
     const hashset<ContainerID>& orphans)
 {
   foreach (const ContainerState& state, states) {
@@ -255,7 +254,7 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::recover(
     return Failure("Failed to get mount table: " + table.error());
   }
 
-  list<Future<Nothing>> cleanups;
+  vector<Future<Nothing>> cleanups;
 
   foreach (const fs::MountInfoTable::Entry& entry, table->entries) {
     // Check for mounts inside an executor's run path. These are

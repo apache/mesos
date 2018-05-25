@@ -13,6 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <deque>
 #include <iostream>
 #include <list>
 #include <queue>
@@ -76,6 +77,7 @@ using process::http::URL;
 
 using std::cerr;
 using std::cout;
+using std::deque;
 using std::endl;
 using std::list;
 using std::queue;
@@ -425,8 +427,8 @@ protected:
 
     LOG(INFO) << "Setting 'MESOS_CONTAINER_IP' to: " << containerIP.value();
 
-    list<ContainerID> containerIds;
-    list<Future<Response>> responses;
+    vector<ContainerID> containerIds;
+    vector<Future<Response>> responses;
 
     foreach (const TaskInfo& task, taskGroup.tasks()) {
       ContainerID containerId;
@@ -525,9 +527,9 @@ protected:
 
   void __launchGroup(
       const TaskGroupInfo& taskGroup,
-      const list<ContainerID>& containerIds,
+      const vector<ContainerID>& containerIds,
       const Connection& connection,
-      const Future<list<Response>>& responses)
+      const Future<vector<Response>>& responses)
   {
     if (shuttingDown) {
       LOG(WARNING) << "Ignoring the launch group operation as the "
@@ -651,7 +653,7 @@ protected:
     }
 
     auto taskIds = [&taskGroup]() {
-      list<TaskID> taskIds_;
+      vector<TaskID> taskIds_;
       foreach (const TaskInfo& task, taskGroup.tasks()) {
         taskIds_.push_back(task.task_id());
       }
@@ -676,7 +678,7 @@ protected:
     }
   }
 
-  void wait(const list<TaskID>& taskIds)
+  void wait(const vector<TaskID>& taskIds)
   {
     CHECK_EQ(SUBSCRIBED, state);
     CHECK(!containers.empty());
@@ -684,7 +686,7 @@ protected:
 
     LOG(INFO) << "Waiting on child containers of tasks " << stringify(taskIds);
 
-    list<Future<Connection>> connections;
+    vector<Future<Connection>> connections;
     for (size_t i = 0; i < taskIds.size(); i++) {
       connections.push_back(process::http::connect(agent));
     }
@@ -695,8 +697,8 @@ protected:
   }
 
   void _wait(
-      const Future<list<Connection>>& _connections,
-      const list<TaskID>& taskIds,
+      const Future<vector<Connection>>& _connections,
+      const vector<TaskID>& taskIds,
       const id::UUID& _connectionId)
   {
     // It is possible that the agent process failed in the interim.
@@ -718,7 +720,7 @@ protected:
     CHECK_EQ(SUBSCRIBED, state);
     CHECK_SOME(connectionId);
 
-    list<Connection> connections = _connections.get();
+    deque<Connection> connections(_connections->begin(), _connections->end());
 
     CHECK_EQ(taskIds.size(), connections.size());
     foreach (const TaskID& taskId, taskIds) {
@@ -962,7 +964,7 @@ protected:
         (taskState == TASK_FAILED || taskState == TASK_KILLED)) {
       // Needed for logging.
       auto taskIds = [container]() {
-        list<TaskID> taskIds_;
+        vector<TaskID> taskIds_;
         foreach (const TaskInfo& task, container->taskGroup.tasks()) {
           taskIds_.push_back(task.task_id());
         }
@@ -1037,7 +1039,7 @@ protected:
 
     CHECK_EQ(SUBSCRIBED, state);
 
-    list<Future<Nothing>> killResponses;
+    vector<Future<Nothing>> killResponses;
     foreachvalue (const Owned<Container>& container, containers) {
       // It is possible that we received a `killTask()` request
       // from the scheduler before and are waiting on the `waited()`
@@ -1054,7 +1056,7 @@ protected:
     collect(killResponses)
       .onAny(defer(
           self(),
-          [this](const Future<list<Nothing>>& future) {
+          [this](const Future<vector<Nothing>>& future) {
         if (future.isReady()) {
           return;
         }

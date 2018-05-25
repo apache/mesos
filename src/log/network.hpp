@@ -20,9 +20,10 @@
 // TODO(benh): Eventually move and associate this code with the
 // libprocess protobuf code rather than keep it here.
 
-#include <list>
+#include <deque>
 #include <set>
 #include <string>
+#include <vector>
 
 #include <mesos/zookeeper/group.hpp>
 
@@ -130,7 +131,7 @@ private:
 
   // Invoked when group members data has been collected.
   void collected(
-      const process::Future<std::list<Option<std::string>>>& datas);
+      const process::Future<std::vector<Option<std::string>>>& datas);
 
   zookeeper::Group group;
   process::Future<std::set<zookeeper::Group::Membership>> memberships;
@@ -320,7 +321,7 @@ private:
   }
 
   std::set<process::UPID> pids;
-  std::list<Watch*> watches;
+  std::deque<Watch*> watches;
 };
 
 
@@ -436,7 +437,7 @@ inline void ZooKeeperNetwork::watched(
   LOG(INFO) << "ZooKeeper group memberships changed";
 
   // Get data for each membership in order to convert them to PIDs.
-  std::list<process::Future<Option<std::string>>> futures;
+  std::vector<process::Future<Option<std::string>>> futures;
 
   foreach (const zookeeper::Group::Membership& membership, memberships.get()) {
     futures.push_back(group.data(membership));
@@ -444,7 +445,7 @@ inline void ZooKeeperNetwork::watched(
 
   process::collect(futures)
     .after(Seconds(5),
-           [](process::Future<std::list<Option<std::string>>> datas) {
+           [](process::Future<std::vector<Option<std::string>>> datas) {
              // Handling time outs when collecting membership
              // data. For now, a timeout is treated as a failure.
              datas.discard();
@@ -455,7 +456,7 @@ inline void ZooKeeperNetwork::watched(
 
 
 inline void ZooKeeperNetwork::collected(
-    const process::Future<std::list<Option<std::string>>>& datas)
+    const process::Future<std::vector<Option<std::string>>>& datas)
 {
   if (datas.isFailed()) {
     LOG(WARNING) << "Failed to get data for ZooKeeper group members: "

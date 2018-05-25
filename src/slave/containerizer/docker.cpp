@@ -908,7 +908,7 @@ Future<Nothing> DockerContainerizerProcess::recover(
 
 Future<Nothing> DockerContainerizerProcess::_recover(
     const Option<SlaveState>& state,
-    const list<Docker::Container>& _containers)
+    const vector<Docker::Container>& _containers)
 {
   LOG(INFO) << "Got the list of Docker containers";
 
@@ -1101,10 +1101,10 @@ Future<Nothing> DockerContainerizerProcess::_recover(
 
 
 Future<Nothing> DockerContainerizerProcess::__recover(
-    const list<Docker::Container>& _containers)
+    const vector<Docker::Container>& _containers)
 {
-  list<ContainerID> containerIds;
-  list<Future<Nothing>> futures;
+  vector<ContainerID> containerIds;
+  vector<Future<Nothing>> futures;
   foreach (const Docker::Container& container, _containers) {
     VLOG(1) << "Checking if Docker container named '"
             << container.name << "' was started by Mesos";

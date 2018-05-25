@@ -17,7 +17,6 @@
 #ifndef __VOLUME_IMAGE_ISOLATOR_HPP__
 #define __VOLUME_IMAGE_ISOLATOR_HPP__
 
-#include <list>
 #include <string>
 #include <vector>
 
@@ -59,7 +58,7 @@ private:
   process::Future<Option<mesos::slave::ContainerLaunchInfo>> _prepare(
       const ContainerID& containerId,
       const std::vector<std::string>& targets,
-      const std::list<process::Future<ProvisionInfo>>& futures);
+      const std::vector<process::Future<ProvisionInfo>>& futures);
 
   const Flags flags;
   const process::Shared<Provisioner> provisioner;

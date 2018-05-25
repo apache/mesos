@@ -5921,8 +5921,8 @@ TEST_F(SlaveTest, KillAllInitialTasksTerminatesExecutor)
   FrameworkID frameworkId;
   ExecutorID executorId;
   ContainerID containerId;
-  list<TaskInfo> tasks;
-  list<TaskGroupInfo> taskGroups;
+  vector<TaskInfo> tasks;
+  vector<TaskGroupInfo> taskGroups;
 
   // Kill the task after executor registration but before
   // task launch in `___run()`.
@@ -6139,8 +6139,8 @@ TEST_F(SlaveTest, KillAllInitialTasksTerminatesHTTPExecutor)
   FrameworkID _frameworkId;
   ExecutorID _executorId;
   ContainerID _containerId;
-  list<TaskInfo> _tasks;
-  list<TaskGroupInfo> _taskGroups;
+  vector<TaskInfo> _tasks;
+  vector<TaskGroupInfo> _taskGroups;
 
   // Kill the task after executor subscription but before
   // task launch in `___run()`.

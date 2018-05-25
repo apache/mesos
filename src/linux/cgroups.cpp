@@ -35,7 +35,6 @@ extern "C" {
 #include <glog/logging.h>
 
 #include <fstream>
-#include <list>
 #include <map>
 #include <set>
 #include <sstream>
@@ -78,7 +77,6 @@ using std::dec;
 using std::getline;
 using std::ifstream;
 using std::istringstream;
-using std::list;
 using std::map;
 using std::ofstream;
 using std::ostream;
@@ -1555,13 +1553,13 @@ private:
     return cgroups::freezer::thaw(hierarchy, cgroup);
   }
 
-  Future<list<Option<int>>> reap()
+  Future<vector<Option<int>>> reap()
   {
     // Wait until we've reaped all processes.
     return collect(statuses);
   }
 
-  void finished(const Future<list<Option<int>>>& future)
+  void finished(const Future<vector<Option<int>>>& future)
   {
     if (future.isDiscarded()) {
       promise.fail("Unexpected discard of future");
@@ -1601,8 +1599,8 @@ private:
   const string hierarchy;
   const string cgroup;
   Promise<Nothing> promise;
-  list<Future<Option<int>>> statuses; // List of statuses for processes.
-  Future<list<Option<int>>> chain; // Used to discard all operations.
+  vector<Future<Option<int>>> statuses; // List of statuses for processes.
+  Future<vector<Option<int>>> chain; // Used to discard all operations.
 };
 
 
@@ -1648,7 +1646,7 @@ protected:
   }
 
 private:
-  void killed(const Future<list<Nothing>>& kill)
+  void killed(const Future<vector<Nothing>>& kill)
   {
     if (kill.isReady()) {
       remove();
@@ -1688,7 +1686,7 @@ private:
   Promise<Nothing> promise;
 
   // The killer processes used to atomically kill tasks in each cgroup.
-  list<Future<Nothing>> killers;
+  vector<Future<Nothing>> killers;
 };
 
 } // namespace internal {

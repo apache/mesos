@@ -462,7 +462,7 @@ Future<Nothing> FetcherProcess::_fetch(
 {
   // Get out all of the futures we need to wait for so we can wait on
   // them together via 'await'.
-  list<Future<shared_ptr<Cache::Entry>>> futures;
+  vector<Future<shared_ptr<Cache::Entry>>> futures;
 
   foreachvalue (const Option<Future<shared_ptr<Cache::Entry>>>& entry,
                 entries) {

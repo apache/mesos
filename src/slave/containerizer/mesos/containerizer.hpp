@@ -17,7 +17,6 @@
 #ifndef __MESOS_CONTAINERIZER_HPP__
 #define __MESOS_CONTAINERIZER_HPP__
 
-#include <list>
 #include <vector>
 
 #include <mesos/secret/resolver.hpp>
@@ -208,19 +207,19 @@ private:
   friend std::ostream& operator<<(std::ostream& stream, const State& state);
 
   process::Future<Nothing> _recover(
-      const std::list<mesos::slave::ContainerState>& recoverable,
+      const std::vector<mesos::slave::ContainerState>& recoverable,
       const hashset<ContainerID>& orphans);
 
-  process::Future<std::list<Nothing>> recoverIsolators(
-      const std::list<mesos::slave::ContainerState>& recoverable,
+  process::Future<std::vector<Nothing>> recoverIsolators(
+      const std::vector<mesos::slave::ContainerState>& recoverable,
       const hashset<ContainerID>& orphans);
 
   process::Future<Nothing> recoverProvisioner(
-      const std::list<mesos::slave::ContainerState>& recoverable,
+      const std::vector<mesos::slave::ContainerState>& recoverable,
       const hashset<ContainerID>& orphans);
 
   process::Future<Nothing> __recover(
-      const std::list<mesos::slave::ContainerState>& recovered,
+      const std::vector<mesos::slave::ContainerState>& recovered,
       const hashset<ContainerID>& orphans);
 
   process::Future<Nothing> prepare(
@@ -245,7 +244,7 @@ private:
       const ContainerID& containerId,
       const Option<mesos::slave::ContainerTermination>& termination,
       const State& previousState,
-      const std::list<
+      const std::vector<
         process::Future<Option<mesos::slave::ContainerTermination>>>& destroys);
 
   // Continues '_destroy()' once isolators has completed.
@@ -270,7 +269,7 @@ private:
   void _____destroy(
       const ContainerID& containerId,
       const Option<mesos::slave::ContainerTermination>& termination,
-      const process::Future<std::list<process::Future<Nothing>>>& cleanups);
+      const process::Future<std::vector<process::Future<Nothing>>>& cleanups);
 
   // Continues '_____destroy()' once provisioner have completed destroy.
   void ______destroy(
@@ -295,7 +294,7 @@ private:
 
   // TODO(jieyu): Consider introducing an Isolators struct and moving
   // all isolator related operations to that struct.
-  process::Future<std::list<process::Future<Nothing>>> cleanupIsolators(
+  process::Future<std::vector<process::Future<Nothing>>> cleanupIsolators(
       const ContainerID& containerId);
 
   const Flags flags;
@@ -344,13 +343,13 @@ private:
     // We keep track of the future that is waiting for all the
     // 'isolator->prepare' to finish so that destroy will only start
     // calling cleanup after all isolators have finished preparing.
-    process::Future<std::list<Option<mesos::slave::ContainerLaunchInfo>>>
+    process::Future<std::vector<Option<mesos::slave::ContainerLaunchInfo>>>
       launchInfos;
 
     // We keep track of the future that is waiting for all the
     // 'isolator->isolate' futures so that destroy will only start
     // calling cleanup after all isolators have finished isolating.
-    process::Future<std::list<Nothing>> isolation;
+    process::Future<std::vector<Nothing>> isolation;
 
     // We keep track of the resources for each container so we can set
     // the ResourceStatistics limits in usage().

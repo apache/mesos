@@ -77,7 +77,6 @@ using process::Owned;
 using process::PID;
 using process::Shared;
 
-using std::list;
 using std::string;
 using std::vector;
 
@@ -735,7 +734,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(termination);
   EXPECT_SOME(termination.get());
 
-  Future<list<Docker::Container>> containers =
+  Future<vector<Docker::Container>> containers =
     docker->ps(true, slave::DOCKER_NAME_PREFIX);
 
   AWAIT_READY(containers);
@@ -956,7 +955,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   AWAIT_READY(termination);
   EXPECT_SOME(termination.get());
 
-  Future<list<Docker::Container>> containers =
+  Future<vector<Docker::Container>> containers =
     docker->ps(true, slave::DOCKER_NAME_PREFIX);
 
   AWAIT_READY(containers);
@@ -1069,7 +1068,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HookTest, ROOT_DOCKER_VerifySlavePostFetchHook)
   driver.stop();
   driver.join();
 
-  Future<list<Docker::Container>> containers =
+  Future<vector<Docker::Container>> containers =
     docker->ps(true, slave::DOCKER_NAME_PREFIX);
 
   AWAIT_READY(containers);

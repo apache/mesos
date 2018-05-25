@@ -705,7 +705,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverServices()
         containerPaths.error());
   }
 
-  list<Future<Nothing>> futures;
+  vector<Future<Nothing>> futures;
 
   foreach (const string& path, containerPaths.get()) {
     Try<csi::paths::ContainerPath> containerPath =
@@ -810,7 +810,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverVolumes()
         info.storage().plugin().name() + ": " + volumePaths.error());
   }
 
-  list<Future<Nothing>> futures;
+  vector<Future<Nothing>> futures;
 
   foreach (const string& path, volumePaths.get()) {
     Try<csi::paths::VolumePath> volumePath =
@@ -1063,8 +1063,8 @@ StorageLocalResourceProviderProcess::reconcileResourceProviderState()
 {
   return reconcileOperationStatuses()
     .then(defer(self(), [=] {
-      return collect(list<Future<Resources>>{listVolumes(), getCapacities()})
-        .then(defer(self(), [=](const list<Resources>& discovered) {
+      return collect(vector<Future<Resources>>{listVolumes(), getCapacities()})
+        .then(defer(self(), [=](const vector<Resources>& discovered) {
           ResourceConversion conversion = reconcileResources(
               totalResources,
               accumulate(discovered.begin(), discovered.end(), Resources()));
@@ -1205,7 +1205,7 @@ StorageLocalResourceProviderProcess::reconcileOperationStatuses()
       // We replay all pending operations here, so that if a volume is
       // created or deleted before the last failover, the result will be
       // reflected in the total resources before reconciliation.
-      list<Future<Nothing>> futures;
+      vector<Future<Nothing>> futures;
 
       foreachpair (const id::UUID& uuid,
                    const Operation& operation,
@@ -1285,7 +1285,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::updateProfiles()
   LOG(INFO)
     << "Updating metadata for profiles: " << stringify(knownProfiles);
 
-  list<Future<Nothing>> futures;
+  vector<Future<Nothing>> futures;
   foreach (const string& profile, knownProfiles) {
     // Since profiles are immutable after creation and cannot be
     // deleted, we do not need to update any profile that is already in
@@ -1512,12 +1512,12 @@ void StorageLocalResourceProviderProcess::publishResources(
     }
   }
 
-  Future<list<Nothing>> allPublished;
+  Future<vector<Nothing>> allPublished;
 
   if (error.isSome()) {
     allPublished = Failure(error.get());
   } else {
-    list<Future<Nothing>> futures;
+    vector<Future<Nothing>> futures;
 
     foreach (const string& volumeId, volumeIds) {
       // We check the state of the volume along with the CSI calls
@@ -1607,7 +1607,7 @@ void StorageLocalResourceProviderProcess::publishResources(
   }
 
   allPublished
-    .onAny(defer(self(), [=](const Future<list<Nothing>>& future) {
+    .onAny(defer(self(), [=](const Future<vector<Nothing>>& future) {
       // TODO(chhsiao): Currently there is no way to reply to the
       // resource provider manager with a failure message, so we log the
       // failure here.
@@ -2746,7 +2746,7 @@ Future<Resources> StorageLocalResourceProviderProcess::getCapacities()
 
   return getService(controllerContainerId.get())
     .then(defer(self(), [=](csi::v0::Client client) {
-      list<Future<Resources>> futures;
+      vector<Future<Resources>> futures;
 
       foreach (const string& profile, knownProfiles) {
         CHECK(profileInfos.contains(profile));
@@ -2775,7 +2775,7 @@ Future<Resources> StorageLocalResourceProviderProcess::getCapacities()
       }
 
       return collect(futures)
-        .then([](const list<Resources>& resources) {
+        .then([](const vector<Resources>& resources) {
           return accumulate(resources.begin(), resources.end(), Resources());
         });
     }));

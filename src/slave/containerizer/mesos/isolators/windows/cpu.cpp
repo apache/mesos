@@ -15,7 +15,7 @@
 // limitations under the License.
 
 #include <algorithm>
-#include <list>
+#include <vector>
 
 #include <process/future.hpp>
 #include <process/id.hpp>
@@ -44,8 +44,8 @@ using process::Failure;
 using process::Future;
 using process::Owned;
 
-using std::list;
 using std::max;
+using std::vector;
 
 namespace mesos {
 namespace internal {
@@ -62,7 +62,7 @@ bool WindowsCpuIsolatorProcess::supportsStandalone() { return true; }
 // When recovering, this ensures that our ContainerID -> PID mapping is
 // recreated.
 Future<Nothing> WindowsCpuIsolatorProcess::recover(
-    const list<ContainerState>& state, const hashset<ContainerID>& orphans)
+    const vector<ContainerState>& state, const hashset<ContainerID>& orphans)
 {
   foreach (const ContainerState& run, state) {
     // This should (almost) never occur: see comment in

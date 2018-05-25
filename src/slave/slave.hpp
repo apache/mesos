@@ -205,8 +205,8 @@ public:
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
       const ContainerID& containerId,
-      const std::list<TaskInfo>& tasks,
-      const std::list<TaskGroupInfo>& taskGroups);
+      const std::vector<TaskInfo>& tasks,
+      const std::vector<TaskGroupInfo>& taskGroups);
 
   // TODO(mzhu): Combine this with `runTaskGroup()' and replace all
   // `runTaskGroup()' mock with `run()` mock.
@@ -1029,7 +1029,7 @@ public:
   // Not yet launched task groups. This is needed for correctly sending
   // TASK_KILLED status updates for all tasks in the group if any of the
   // tasks were killed before the executor could register with the agent.
-  std::list<TaskGroupInfo> queuedTaskGroups;
+  std::vector<TaskGroupInfo> queuedTaskGroups;
 
   // Running.
   LinkedHashMap<TaskID, Task*> launchedTasks;
@@ -1164,7 +1164,7 @@ public:
   // Pending task groups. This is needed for correctly sending
   // TASK_KILLED status updates for all tasks in the group if
   // any of the tasks are killed while pending.
-  std::list<TaskGroupInfo> pendingTaskGroups;
+  std::vector<TaskGroupInfo> pendingTaskGroups;
 
   // Current running executors.
   hashmap<ExecutorID, Executor*> executors;

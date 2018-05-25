@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <list>
+#include <vector>
 
 #include <mesos/docker/spec.hpp>
 
@@ -38,7 +38,6 @@
 using namespace process;
 
 using std::string;
-using std::list;
 using std::vector;
 
 namespace mesos {
@@ -116,7 +115,7 @@ Future<Nothing> CopyBackendProcess::provision(
     return Failure("Failed to create rootfs directory: " + mkdir.error());
   }
 
-  list<Future<Nothing>> futures{Nothing()};
+  vector<Future<Nothing>> futures{Nothing()};
 
   foreach (const string layer, layers) {
     futures.push_back(

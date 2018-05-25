@@ -17,11 +17,11 @@
 #ifndef __DOCKER_HPP__
 #define __DOCKER_HPP__
 
-#include <list>
 #include <map>
 #include <mutex>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include <process/future.hpp>
 #include <process/owned.hpp>
@@ -298,7 +298,7 @@ public:
       const Option<Duration>& retryInterval = None()) const;
 
   // Performs 'docker ps (-a)'.
-  virtual process::Future<std::list<Container>> ps(
+  virtual process::Future<std::vector<Container>> ps(
       bool all = false,
       const Option<std::string>& prefix = None()) const;
 
@@ -368,26 +368,26 @@ private:
       std::shared_ptr<std::pair<lambda::function<void()>, std::mutex>>
         callback);
 
-  static process::Future<std::list<Container>> _ps(
+  static process::Future<std::vector<Container>> _ps(
       const Docker& docker,
       const std::string& cmd,
       const process::Subprocess& s,
       const Option<std::string>& prefix,
       process::Future<std::string> output);
 
-  static process::Future<std::list<Container>> __ps(
+  static process::Future<std::vector<Container>> __ps(
       const Docker& docker,
       const Option<std::string>& prefix,
       const std::string& output);
 
   static void inspectBatches(
-      process::Owned<std::list<Docker::Container>> containers,
+      process::Owned<std::vector<Docker::Container>> containers,
       process::Owned<std::vector<std::string>> lines,
-      process::Owned<process::Promise<std::list<Docker::Container>>> promise,
+      process::Owned<process::Promise<std::vector<Docker::Container>>> promise,
       const Docker& docker,
       const Option<std::string>& prefix);
 
-  static std::list<process::Future<Docker::Container>> createInspectBatch(
+  static std::vector<process::Future<Docker::Container>> createInspectBatch(
       process::Owned<std::vector<std::string>> lines,
       const Docker& docker,
       const Option<std::string>& prefix);

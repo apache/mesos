@@ -38,7 +38,6 @@
 namespace http = process::http;
 namespace spec = docker::spec;
 
-using std::list;
 using std::string;
 using std::vector;
 
@@ -359,7 +358,7 @@ Future<vector<string>> RegistryPullerProcess::___pull(
   // sure ids are unique.
   hashset<string> uniqueIds;
   vector<string> layerIds;
-  list<Future<Nothing>> futures;
+  vector<Future<Nothing>> futures;
 
   // The order of `fslayers` should be [child, parent, ...].
   //
@@ -465,7 +464,7 @@ Future<hashset<string>> RegistryPullerProcess::fetchBlobs(
   }
 
   // Now, actually fetch the blobs.
-  list<Future<Nothing>> futures;
+  vector<Future<Nothing>> futures;
 
   foreach (const string& blobSum, blobSums) {
     URI blobUri;

@@ -17,9 +17,9 @@
 #ifndef __NVIDIA_GPU_ISOLATOR_HPP__
 #define __NVIDIA_GPU_ISOLATOR_HPP__
 
-#include <list>
 #include <map>
 #include <set>
+#include <vector>
 
 #include <process/future.hpp>
 
@@ -88,7 +88,7 @@ public:
   virtual bool supportsStandalone();
 
   virtual process::Future<Nothing> recover(
-      const std::list<mesos::slave::ContainerState>& states,
+      const std::vector<mesos::slave::ContainerState>& states,
       const hashset<ContainerID>& orphans);
 
   virtual process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(

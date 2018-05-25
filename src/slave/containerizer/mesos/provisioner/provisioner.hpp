@@ -17,7 +17,7 @@
 #ifndef __PROVISIONER_HPP__
 #define __PROVISIONER_HPP__
 
-#include <list>
+#include <vector>
 
 #include <mesos/resources.hpp>
 
@@ -151,7 +151,7 @@ private:
 
   process::Future<bool> _destroy(
       const ContainerID& containerId,
-      const std::list<process::Future<bool>>& destroys);
+      const std::vector<process::Future<bool>>& destroys);
 
   process::Future<bool> __destroy(const ContainerID& containerId);
 

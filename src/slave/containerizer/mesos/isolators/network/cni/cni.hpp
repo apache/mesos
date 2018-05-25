@@ -54,7 +54,7 @@ public:
   virtual bool supportsNesting();
 
   virtual process::Future<Nothing> recover(
-      const std::list<mesos::slave::ContainerState>& states,
+      const std::vector<mesos::slave::ContainerState>& states,
       const hashset<ContainerID>& orphans);
 
   virtual process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(
@@ -143,7 +143,7 @@ private:
   process::Future<Nothing> _isolate(
       const ContainerID& containerId,
       pid_t pid,
-      const std::list<process::Future<Nothing>>& attaches);
+      const std::vector<process::Future<Nothing>>& attaches);
 
   process::Future<Nothing> __isolate(
       const NetworkCniIsolatorSetup& setup);
@@ -181,7 +181,7 @@ private:
 
   process::Future<Nothing> _cleanup(
       const ContainerID& containerId,
-      const std::list<process::Future<Nothing>>& detaches);
+      const std::vector<process::Future<Nothing>>& detaches);
 
   // Searches the `networkConfigs` hashmap for a CNI network. If the
   // hashmap doesn't contain the network, will try to load all the CNI

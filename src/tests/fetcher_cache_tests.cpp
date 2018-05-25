@@ -413,10 +413,10 @@ static Future<Nothing> awaitFinished(FetcherCacheTest::Task task)
 // Create a future that indicates that all tasks are finished.
 // TODO(bernd-mesos): Make this abstractions as generic and generally
 // available for all testing as possible.
-static Future<list<Nothing>> awaitFinished(
+static Future<vector<Nothing>> awaitFinished(
     vector<FetcherCacheTest::Task> tasks)
 {
-  list<Future<Nothing>> futures;
+  vector<Future<Nothing>> futures;
 
   foreach (FetcherCacheTest::Task task, tasks) {
     futures.push_back(awaitFinished(task));

@@ -325,7 +325,7 @@ Try<pid_t> clone(
   hashmap<int, int> fds = {};
 
   // Helper for closing a list of file descriptors.
-  auto close = [](const std::list<int>& fds) {
+  auto close = [](const std::vector<int>& fds) {
     foreach (int fd, fds) {
       ::close(fd); // Need to call the async-signal safe version.
     }

@@ -16,7 +16,7 @@
 
 #include "slave/containerizer/mesos/isolators/environment_secret.hpp"
 
-#include <list>
+#include <vector>
 
 #include <mesos/secret/resolver.hpp>
 
@@ -29,7 +29,7 @@
 
 #include "common/validation.hpp"
 
-using std::list;
+using std::vector;
 
 using process::collect;
 using process::Failure;
@@ -92,7 +92,7 @@ Future<Option<ContainerLaunchInfo>> EnvironmentSecretIsolatorProcess::prepare(
 
   Environment environment;
 
-  list<Future<Environment::Variable>> futures;
+  vector<Future<Environment::Variable>> futures;
   foreach (const Environment::Variable& variable,
            containerConfig.command_info().environment().variables()) {
     if (variable.type() != Environment::Variable::SECRET) {
@@ -127,7 +127,7 @@ Future<Option<ContainerLaunchInfo>> EnvironmentSecretIsolatorProcess::prepare(
   }
 
   return collect(futures)
-    .then([](const list<Environment::Variable>& variables)
+    .then([](const vector<Environment::Variable>& variables)
         -> Future<Option<ContainerLaunchInfo>> {
       ContainerLaunchInfo launchInfo;
       Environment* environment = launchInfo.mutable_environment();

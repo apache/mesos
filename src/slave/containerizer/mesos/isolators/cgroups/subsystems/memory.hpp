@@ -17,8 +17,8 @@
 #ifndef __CGROUPS_ISOLATOR_SUBSYSTEMS_MEMORY_HPP__
 #define __CGROUPS_ISOLATOR_SUBSYSTEMS_MEMORY_HPP__
 
-#include <list>
 #include <string>
+#include <vector>
 
 #include <process/future.hpp>
 #include <process/owned.hpp>
@@ -98,8 +98,8 @@ private:
   process::Future<ResourceStatistics> _usage(
       const ContainerID& containerId,
       ResourceStatistics result,
-      const std::list<cgroups::memory::pressure::Level>& levels,
-      const std::list<process::Future<uint64_t>>& values);
+      const std::vector<cgroups::memory::pressure::Level>& levels,
+      const std::vector<process::Future<uint64_t>>& values);
 
   // Start listening on OOM events. This function will create an
   // eventfd and start polling on it.

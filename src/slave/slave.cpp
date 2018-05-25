@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <deque>
 #include <iomanip>
 #include <list>
 #include <map>
@@ -137,6 +138,7 @@ using mesos::slave::QoSController;
 using mesos::slave::QoSCorrection;
 using mesos::slave::ResourceEstimator;
 
+using std::deque;
 using std::find;
 using std::list;
 using std::map;
@@ -2059,7 +2061,7 @@ void Slave::run(
     return;
   }
 
-  list<Future<bool>> unschedules;
+  vector<Future<bool>> unschedules;
 
   // If we are about to create a new framework, unschedule the work
   // and meta directories from getting gc'ed.
@@ -2165,7 +2167,7 @@ void Slave::run(
   }
 
   auto onUnscheduleGCFailure =
-    [=](const Future<list<bool>>& unschedules) -> Future<list<bool>> {
+    [=](const Future<vector<bool>>& unschedules) -> Future<vector<bool>> {
       LOG(ERROR) << "Failed to unschedule directories scheduled for gc: "
                  << unschedules.failure();
 
@@ -2399,7 +2401,7 @@ Future<Nothing> Slave::_run(
   // Authorize the task or tasks (as in a task group) to ensure that the
   // task user is allowed to launch tasks on the agent. If authorization
   // fails, the task (or all tasks in a task group) are not launched.
-  list<Future<bool>> authorizations;
+  vector<Future<bool>> authorizations;
 
   LOG(INFO) << "Authorizing " << taskOrTaskGroup(task, taskGroup)
             << " for framework " << frameworkId;
@@ -2445,7 +2447,7 @@ Future<Nothing> Slave::_run(
 
   return collect(authorizations)
     .repair(defer(self(),
-      [=](const Future<list<bool>>& future) -> Future<list<bool>> {
+      [=](const Future<vector<bool>>& future) -> Future<vector<bool>> {
         Framework* _framework = getFramework(frameworkId);
         if (_framework == nullptr) {
           const string error =
@@ -2468,7 +2470,7 @@ Future<Nothing> Slave::_run(
       }
     ))
     .then(defer(self(),
-      [=](const Future<list<bool>>& future) -> Future<Nothing> {
+      [=](const Future<vector<bool>>& future) -> Future<Nothing> {
         Framework* _framework = getFramework(frameworkId);
         if (_framework == nullptr) {
           const string error =
@@ -2481,7 +2483,7 @@ Future<Nothing> Slave::_run(
           return Failure(error);
         }
 
-        list<bool> authorizations = future.get();
+        deque<bool> authorizations(future->begin(), future->end());
 
         foreach (const TaskInfo& _task, tasks) {
           bool authorized = authorizations.front();
@@ -3077,10 +3079,12 @@ void Slave::__run(
                      frameworkId,
                      executorId,
                      executor->containerId,
-                     task.isSome() ? list<TaskInfo>({task.get()})
-                                   : list<TaskInfo>(),
-                     taskGroup.isSome() ? list<TaskGroupInfo>({taskGroup.get()})
-                                        : list<TaskGroupInfo>()));
+                     task.isSome()
+                       ? vector<TaskInfo>({task.get()})
+                       : vector<TaskInfo>(),
+                     taskGroup.isSome()
+                       ? vector<TaskGroupInfo>({taskGroup.get()})
+                       : vector<TaskGroupInfo>()));
 
       break;
     }
@@ -3102,8 +3106,8 @@ void Slave::___run(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
     const ContainerID& containerId,
-    const list<TaskInfo>& tasks,
-    const list<TaskGroupInfo>& taskGroups)
+    const vector<TaskInfo>& tasks,
+    const vector<TaskGroupInfo>& taskGroups)
 {
   if (!future.isReady()) {
     LOG(ERROR) << "Failed to update resources for container " << containerId
@@ -3676,7 +3680,7 @@ void Slave::killTask(
     Option<TaskGroupInfo> taskGroup =
       framework->getTaskGroupForPendingTask(taskId);
 
-    list<StatusUpdate> updates;
+    vector<StatusUpdate> updates;
     if (taskGroup.isSome()) {
       foreach (const TaskInfo& task, taskGroup->tasks()) {
         updates.push_back(protobuf::createStatusUpdate(
@@ -3755,7 +3759,7 @@ void Slave::killTask(
       // send a TASK_KILLED update for all tasks in the group.
       Option<TaskGroupInfo> taskGroup = executor->getQueuedTaskGroup(taskId);
 
-      list<StatusUpdate> updates;
+      vector<StatusUpdate> updates;
       if (taskGroup.isSome()) {
         foreach (const TaskInfo& task, taskGroup->tasks()) {
           updates.push_back(protobuf::createStatusUpdate(
@@ -3817,7 +3821,7 @@ void Slave::killTask(
         // send a TASK_KILLED update for all the other tasks.
         Option<TaskGroupInfo> taskGroup = executor->getQueuedTaskGroup(taskId);
 
-        list<StatusUpdate> updates;
+        vector<StatusUpdate> updates;
         if (taskGroup.isSome()) {
           foreach (const TaskInfo& task, taskGroup->tasks()) {
             updates.push_back(protobuf::createStatusUpdate(
@@ -8356,7 +8360,7 @@ Future<ResourceUsage> Slave::usage()
   // constructors. Revisit once we remove the copy constructor for
   // Owned (or C++14 lambda generalized capture is supported).
   Owned<ResourceUsage> usage(new ResourceUsage());
-  list<Future<ResourceStatistics>> futures;
+  vector<Future<ResourceStatistics>> futures;
 
   foreachvalue (const Framework* framework, frameworks) {
     foreachvalue (const Executor* executor, framework->executors) {
@@ -8390,7 +8394,7 @@ Future<ResourceUsage> Slave::usage()
   usage->mutable_total()->CopyFrom(totalResources);
 
   return await(futures).then(
-      [usage](const list<Future<ResourceStatistics>>& futures) {
+      [usage](const vector<Future<ResourceStatistics>>& futures) {
         // NOTE: We add ResourceUsage::Executor to 'usage' the same
         // order as we push future to 'futures'. So the variables
         // 'future' and 'executor' below should be in sync.

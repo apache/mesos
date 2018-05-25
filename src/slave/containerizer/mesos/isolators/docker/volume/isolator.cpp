@@ -155,7 +155,7 @@ Try<Isolator*> DockerVolumeIsolatorProcess::_create(
 
 
 Future<Nothing> DockerVolumeIsolatorProcess::recover(
-    const list<ContainerState>& states,
+    const vector<ContainerState>& states,
     const hashset<ContainerID>& orphans)
 {
   if (!os::exists(rootDir)) {
@@ -490,7 +490,8 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::prepare(
   infos.put(containerId, Owned<Info>(new Info(volumes)));
 
   // Invoke driver client to create the mount.
-  list<Future<string>> futures;
+  vector<Future<string>> futures;
+  futures.reserve(mounts.size());
   foreach (const Mount& mount, mounts) {
     futures.push_back(this->mount(
         mount.volume.driver(),
@@ -514,7 +515,7 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::prepare(
 Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::_prepare(
     const ContainerID& containerId,
     const vector<string>& targets,
-    const list<Future<string>>& futures)
+    const vector<Future<string>>& futures)
 {
   ContainerLaunchInfo launchInfo;
   launchInfo.add_clone_namespaces(CLONE_NEWNS);
@@ -585,7 +586,7 @@ Future<Nothing> DockerVolumeIsolatorProcess::cleanup(
     }
   }
 
-  list<Future<Nothing>> futures;
+  vector<Future<Nothing>> futures;
 
   foreach (const DockerVolume& volume, infos[containerId]->volumes) {
     if (references.contains(volume) && references[volume] > 1) {
@@ -615,7 +616,7 @@ Future<Nothing> DockerVolumeIsolatorProcess::cleanup(
 
 Future<Nothing> DockerVolumeIsolatorProcess::_cleanup(
     const ContainerID& containerId,
-    const list<Future<Nothing>>& futures)
+    const vector<Future<Nothing>>& futures)
 {
   CHECK(infos.contains(containerId));
 

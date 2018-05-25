@@ -888,12 +888,12 @@ Future<Owned<ObjectApprovers>> ObjectApprovers::create(
         new ObjectApprovers(std::move(approvers), principal));
   }
 
-  return process::collect(lambda::map<std::list>(
+  return process::collect(lambda::map<vector>(
       [&](authorization::Action action) -> Future<Owned<ObjectApprover>> {
         return authorizer.get()->getObjectApprover(subject, action);
       },
       _actions))
-    .then([=](const std::list<Owned<ObjectApprover>>& _approvers) {
+    .then([=](const vector<Owned<ObjectApprover>>& _approvers) {
       return Owned<ObjectApprovers>(
           new ObjectApprovers(lambda::zip(_actions, _approvers), principal));
     });

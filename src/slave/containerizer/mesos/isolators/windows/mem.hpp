@@ -17,7 +17,7 @@
 #ifndef __WINDOWS_MEM_ISOLATOR_HPP__
 #define __WINDOWS_MEM_ISOLATOR_HPP__
 
-#include <list>
+#include <vector>
 
 #include <process/future.hpp>
 #include <process/id.hpp>
@@ -46,7 +46,7 @@ public:
   bool supportsStandalone() override;
 
   process::Future<Nothing> recover(
-      const std::list<mesos::slave::ContainerState>& state,
+      const std::vector<mesos::slave::ContainerState>& state,
       const hashset<ContainerID>& orphans) override;
 
   process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(

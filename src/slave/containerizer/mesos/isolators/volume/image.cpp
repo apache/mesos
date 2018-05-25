@@ -114,7 +114,7 @@ Future<Option<ContainerLaunchInfo>> VolumeImageIsolatorProcess::prepare(
   }
 
   vector<string> targets;
-  list<Future<ProvisionInfo>> futures;
+  vector<Future<ProvisionInfo>> futures;
 
   for (int i = 0; i < containerConfig.container_info().volumes_size(); i++) {
     const Volume& volume = containerConfig.container_info().volumes(i);
@@ -204,7 +204,7 @@ Future<Option<ContainerLaunchInfo>> VolumeImageIsolatorProcess::prepare(
 Future<Option<ContainerLaunchInfo>> VolumeImageIsolatorProcess::_prepare(
     const ContainerID& containerId,
     const vector<string>& targets,
-    const list<Future<ProvisionInfo>>& futures)
+    const vector<Future<ProvisionInfo>>& futures)
 {
   ContainerLaunchInfo launchInfo;
 

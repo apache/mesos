@@ -14,7 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <list>
 #include <map>
 #include <memory>
 #include <sstream>
@@ -2110,9 +2109,9 @@ Future<JSON::Array> Http::__containers(
 {
   return slave->containerizer->containers()
     .then(defer(slave->self(), [=](const hashset<ContainerID> containerIds) {
-      Owned<list<JSON::Object>> metadata(new list<JSON::Object>());
-      list<Future<ContainerStatus>> statusFutures;
-      list<Future<ResourceStatistics>> statsFutures;
+      Owned<vector<JSON::Object>> metadata(new vector<JSON::Object>());
+      vector<Future<ContainerStatus>> statusFutures;
+      vector<Future<ResourceStatistics>> statsFutures;
 
       hashset<ContainerID> executorContainerIds;
       hashset<ContainerID> authorizedExecutorContainerIds;
@@ -2210,13 +2209,13 @@ Future<JSON::Array> Http::__containers(
 
       return await(await(statusFutures), await(statsFutures)).then(
           [metadata](const tuple<
-              Future<list<Future<ContainerStatus>>>,
-              Future<list<Future<ResourceStatistics>>>>& t)
+              Future<vector<Future<ContainerStatus>>>,
+              Future<vector<Future<ResourceStatistics>>>>& t)
               -> Future<JSON::Array> {
-            const list<Future<ContainerStatus>>& status =
+            const vector<Future<ContainerStatus>>& status =
               std::get<0>(t).get();
 
-            const list<Future<ResourceStatistics>>& stats =
+            const vector<Future<ResourceStatistics>>& stats =
               std::get<1>(t).get();
 
             CHECK_EQ(status.size(), stats.size());

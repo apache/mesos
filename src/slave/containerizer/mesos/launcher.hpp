@@ -19,9 +19,9 @@
 
 #include <sys/types.h>
 
-#include <list>
 #include <map>
 #include <string>
+#include <vector>
 
 #include <mesos/mesos.hpp>
 
@@ -52,7 +52,7 @@ public:
   // Return the set of containers that are known to the launcher but
   // not known to the slave (a.k.a. orphans).
   virtual process::Future<hashset<ContainerID>> recover(
-      const std::list<mesos::slave::ContainerState>& states) = 0;
+      const std::vector<mesos::slave::ContainerState>& states) = 0;
 
   // Fork a new process in the containerized context. The child will
   // exec the binary at the given path with the given argv, flags and
@@ -96,7 +96,7 @@ public:
   virtual ~SubprocessLauncher() {}
 
   virtual process::Future<hashset<ContainerID>> recover(
-      const std::list<mesos::slave::ContainerState>& states);
+      const std::vector<mesos::slave::ContainerState>& states);
 
   virtual Try<pid_t> fork(
       const ContainerID& containerId,

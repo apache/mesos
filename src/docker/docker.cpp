@@ -56,7 +56,6 @@ using namespace mesos::internal::slave;
 
 using namespace process;
 
-using std::list;
 using std::map;
 using std::mutex;
 using std::pair;
@@ -1440,7 +1439,7 @@ void Docker::___inspect(
 }
 
 
-Future<list<Docker::Container>> Docker::ps(
+Future<vector<Docker::Container>> Docker::ps(
     bool all,
     const Option<string>& prefix) const
 {
@@ -1468,7 +1467,7 @@ Future<list<Docker::Container>> Docker::ps(
 }
 
 
-Future<list<Docker::Container>> Docker::_ps(
+Future<vector<Docker::Container>> Docker::_ps(
     const Docker& docker,
     const string& cmd,
     const Subprocess& s,
@@ -1485,7 +1484,7 @@ Future<list<Docker::Container>> Docker::_ps(
     CHECK_SOME(s.err());
     return io::read(s.err().get())
       .then(lambda::bind(
-                failure<list<Docker::Container>>,
+                failure<vector<Docker::Container>>,
                 cmd,
                 status.get(),
                 lambda::_1));
@@ -1496,7 +1495,7 @@ Future<list<Docker::Container>> Docker::_ps(
 }
 
 
-Future<list<Docker::Container>> Docker::__ps(
+Future<vector<Docker::Container>> Docker::__ps(
     const Docker& docker,
     const Option<string>& prefix,
     const string& output)
@@ -1508,10 +1507,10 @@ Future<list<Docker::Container>> Docker::__ps(
   CHECK(!lines->empty());
   lines->erase(lines->begin());
 
-  Owned<list<Docker::Container>> containers(new list<Docker::Container>());
+  Owned<vector<Docker::Container>> containers(new vector<Docker::Container>());
 
-  Owned<Promise<list<Docker::Container>>> promise(
-    new Promise<list<Docker::Container>>());
+  Owned<Promise<vector<Docker::Container>>> promise(
+    new Promise<vector<Docker::Container>>());
 
   // Limit number of parallel calls to docker inspect at once to prevent
   // reaching system's open file descriptor limit.
@@ -1524,16 +1523,16 @@ Future<list<Docker::Container>> Docker::__ps(
 // TODO(chenlily): Generalize functionality into a concurrency limiter
 // within libprocess.
 void Docker::inspectBatches(
-    Owned<list<Docker::Container>> containers,
+    Owned<vector<Docker::Container>> containers,
     Owned<vector<string>> lines,
-    Owned<Promise<list<Docker::Container>>> promise,
+    Owned<Promise<vector<Docker::Container>>> promise,
     const Docker& docker,
     const Option<string>& prefix)
 {
-  list<Future<Docker::Container>> batch =
+  vector<Future<Docker::Container>> batch =
     createInspectBatch(lines, docker, prefix);
 
-  collect(batch).onAny([=](const Future<list<Docker::Container>>& c) {
+  collect(batch).onAny([=](const Future<vector<Docker::Container>>& c) {
     if (c.isReady()) {
       foreach (const Docker::Container& container, c.get()) {
         containers->push_back(container);
@@ -1556,12 +1555,12 @@ void Docker::inspectBatches(
 }
 
 
-list<Future<Docker::Container>> Docker::createInspectBatch(
+vector<Future<Docker::Container>> Docker::createInspectBatch(
     Owned<vector<string>> lines,
     const Docker& docker,
     const Option<string>& prefix)
 {
-  list<Future<Docker::Container>> batch;
+  vector<Future<Docker::Container>> batch;
 
   while (!lines->empty() && batch.size() < DOCKER_PS_MAX_INSPECT_CALLS) {
     string line = lines->back();

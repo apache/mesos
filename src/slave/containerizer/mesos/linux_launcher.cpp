@@ -42,7 +42,6 @@
 
 using namespace process;
 
-using std::list;
 using std::map;
 using std::set;
 using std::string;
@@ -68,7 +67,7 @@ public:
       const Option<string>& systemdHierarchy);
 
   virtual process::Future<hashset<ContainerID>> recover(
-      const list<mesos::slave::ContainerState>& states);
+      const vector<mesos::slave::ContainerState>& states);
 
   virtual Try<pid_t> fork(
       const ContainerID& containerId,
@@ -240,7 +239,7 @@ LinuxLauncher::~LinuxLauncher()
 
 
 Future<hashset<ContainerID>> LinuxLauncher::recover(
-    const list<mesos::slave::ContainerState>& states)
+    const vector<mesos::slave::ContainerState>& states)
 {
   return dispatch(process.get(), &LinuxLauncherProcess::recover, states);
 }
@@ -298,7 +297,7 @@ LinuxLauncherProcess::LinuxLauncherProcess(
 
 
 Future<hashset<ContainerID>> LinuxLauncherProcess::recover(
-    const list<ContainerState>& states)
+    const vector<ContainerState>& states)
 {
   LOG(INFO) << "Recovering Linux launcher";
 

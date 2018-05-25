@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <list>
 #include <string>
+#include <vector>
 
 #include <process/id.hpp>
 
@@ -31,8 +31,8 @@
 
 using namespace process;
 
-using std::list;
 using std::string;
+using std::vector;
 
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
@@ -63,7 +63,7 @@ Try<Isolator*> PosixFilesystemIsolatorProcess::create(const Flags& flags)
 
 
 Future<Nothing> PosixFilesystemIsolatorProcess::recover(
-    const list<ContainerState>& states,
+    const vector<ContainerState>& states,
     const hashset<ContainerID>& orphans)
 {
   foreach (const ContainerState& state, states) {

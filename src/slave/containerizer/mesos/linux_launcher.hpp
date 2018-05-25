@@ -46,7 +46,7 @@ public:
   virtual ~LinuxLauncher();
 
   virtual process::Future<hashset<ContainerID>> recover(
-      const std::list<mesos::slave::ContainerState>& states);
+      const std::vector<mesos::slave::ContainerState>& states);
 
   virtual Try<pid_t> fork(
       const ContainerID& containerId,

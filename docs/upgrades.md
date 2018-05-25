@@ -65,6 +65,7 @@ We categorize the changes as follows:
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Module API-->
     <ul style="padding-left:10px;">
       <li>C <a href="#1-7-x-container-logger">ContainerLogger module interface changes</a></li>
+      <li>C <a href="#1-7-x-isolator-recover">Isolator::recover module interface change</a></li>
     </ul>
   </td>
 
@@ -440,6 +441,10 @@ We categorize the changes as follows:
 <a name="1-7-x-container-logger"></a>
 
 * `ContainerLogger` module interface has been changed. The `prepare()` method now takes `ContainerID` and `ContainerConfig` instead.
+
+<a name="1-7-x-isolator-recover"></a>
+
+* `Isolator::recover()` has been updated to take an `std::vector` instead of `std::list` of container states.
 
 ## Upgrading from 1.5.x to 1.6.x ##
 

@@ -14,7 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <list>
 #include <vector>
 
 #include <process/collect.hpp>
@@ -37,7 +36,6 @@
 
 using namespace process;
 
-using std::list;
 using std::map;
 using std::string;
 using std::vector;
@@ -287,7 +285,7 @@ Future<Nothing> ComposingContainerizerProcess::recover(
     const Option<state::SlaveState>& state)
 {
   // Recover each containerizer in parallel.
-  list<Future<Nothing>> futures;
+  vector<Future<Nothing>> futures;
   foreach (Containerizer* containerizer, containerizers_) {
     futures.push_back(containerizer->recover(state));
   }
@@ -300,7 +298,7 @@ Future<Nothing> ComposingContainerizerProcess::recover(
 Future<Nothing> ComposingContainerizerProcess::_recover()
 {
   // Now collect all the running containers in order to multiplex.
-  list<Future<Nothing>> futures;
+  vector<Future<Nothing>> futures;
   foreach (Containerizer* containerizer, containerizers_) {
     Future<Nothing> future = containerizer->containers()
       .then(defer(self(), &Self::__recover, containerizer, lambda::_1));
@@ -673,7 +671,7 @@ Future<Nothing> ComposingContainerizerProcess::remove(
 Future<Nothing> ComposingContainerizerProcess::pruneImages(
     const vector<Image>& excludedImages)
 {
-  list<Future<Nothing>> futures;
+  vector<Future<Nothing>> futures;
 
   foreach (Containerizer* containerizer, containerizers_) {
     futures.push_back(containerizer->pruneImages(excludedImages));

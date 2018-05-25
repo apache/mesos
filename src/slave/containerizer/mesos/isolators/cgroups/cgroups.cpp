@@ -46,7 +46,6 @@ using process::Future;
 using process::Owned;
 using process::PID;
 
-using std::list;
 using std::string;
 using std::vector;
 
@@ -158,11 +157,11 @@ bool CgroupsIsolatorProcess::supportsStandalone()
 
 
 Future<Nothing> CgroupsIsolatorProcess::recover(
-    const list<ContainerState>& states,
+    const vector<ContainerState>& states,
     const hashset<ContainerID>& orphans)
 {
   // Recover active containers first.
-  list<Future<Nothing>> recovers;
+  vector<Future<Nothing>> recovers;
   foreach (const ContainerState& state, states) {
     // If we are a nested container, we do not need to recover
     // anything since only top-level containers will have cgroups
@@ -185,7 +184,7 @@ Future<Nothing> CgroupsIsolatorProcess::recover(
 
 Future<Nothing> CgroupsIsolatorProcess::_recover(
     const hashset<ContainerID>& orphans,
-    const list<Future<Nothing>>& futures)
+    const vector<Future<Nothing>>& futures)
 {
   vector<string> errors;
   foreach (const Future<Nothing>& future, futures) {
@@ -241,7 +240,7 @@ Future<Nothing> CgroupsIsolatorProcess::_recover(
     }
   }
 
-  list<Future<Nothing>> recovers;
+  vector<Future<Nothing>> recovers;
 
   foreach (const ContainerID& containerId, knownOrphans) {
     recovers.push_back(___recover(containerId));
@@ -262,7 +261,7 @@ Future<Nothing> CgroupsIsolatorProcess::_recover(
 
 Future<Nothing> CgroupsIsolatorProcess::__recover(
     const hashset<ContainerID>& unknownOrphans,
-    const list<Future<Nothing>>& futures)
+    const vector<Future<Nothing>>& futures)
 {
   vector<string> errors;
   foreach (const Future<Nothing>& future, futures) {
@@ -295,7 +294,7 @@ Future<Nothing> CgroupsIsolatorProcess::___recover(
 {
   const string cgroup = path::join(flags.cgroups_root, containerId.value());
 
-  list<Future<Nothing>> recovers;
+  vector<Future<Nothing>> recovers;
   hashset<string> recoveredSubsystems;
 
   // TODO(haosdent): Use foreachkey once MESOS-5037 is resolved.
@@ -340,7 +339,7 @@ Future<Nothing> CgroupsIsolatorProcess::___recover(
 Future<Nothing> CgroupsIsolatorProcess::____recover(
     const ContainerID& containerId,
     const hashset<string>& recoveredSubsystems,
-    const list<Future<Nothing>>& futures)
+    const vector<Future<Nothing>>& futures)
 {
   vector<string> errors;
   foreach (const Future<Nothing>& future, futures) {
@@ -390,7 +389,7 @@ Future<Option<ContainerLaunchInfo>> CgroupsIsolatorProcess::prepare(
       containerId,
       path::join(flags.cgroups_root, containerId.value())));
 
-  list<Future<Nothing>> prepares;
+  vector<Future<Nothing>> prepares;
 
   // TODO(haosdent): Use foreachkey once MESOS-5037 is resolved.
   foreach (const string& hierarchy, subsystems.keys()) {
@@ -489,7 +488,7 @@ Future<Option<ContainerLaunchInfo>> CgroupsIsolatorProcess::prepare(
 Future<Option<ContainerLaunchInfo>> CgroupsIsolatorProcess::_prepare(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig,
-    const list<Future<Nothing>>& futures)
+    const vector<Future<Nothing>>& futures)
 {
   vector<string> errors;
   foreach (const Future<Nothing>& future, futures) {
@@ -558,7 +557,7 @@ Future<Nothing> CgroupsIsolatorProcess::isolate(
     return Nothing();
   }
 
-  list<Future<Nothing>> isolates;
+  vector<Future<Nothing>> isolates;
   foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
     isolates.push_back(subsystem->isolate(
         containerId,
@@ -575,7 +574,7 @@ Future<Nothing> CgroupsIsolatorProcess::isolate(
 
 
 Future<Nothing> CgroupsIsolatorProcess::_isolate(
-    const list<Future<Nothing>>& futures)
+    const vector<Future<Nothing>>& futures)
 {
   vector<string> errors;
   foreach (const Future<Nothing>& future, futures) {
@@ -651,7 +650,7 @@ Future<Nothing> CgroupsIsolatorProcess::update(
     return Failure("Unknown container");
   }
 
-  list<Future<Nothing>> updates;
+  vector<Future<Nothing>> updates;
   foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
     if (infos[containerId]->subsystems.contains(subsystem->name())) {
       updates.push_back(subsystem->update(
@@ -670,7 +669,7 @@ Future<Nothing> CgroupsIsolatorProcess::update(
 
 
 Future<Nothing> CgroupsIsolatorProcess::_update(
-    const list<Future<Nothing>>& futures)
+    const vector<Future<Nothing>>& futures)
 {
   vector<string> errors;
   foreach (const Future<Nothing>& future, futures) {
@@ -702,7 +701,7 @@ Future<ResourceStatistics> CgroupsIsolatorProcess::usage(
     return Failure("Unknown container");
   }
 
-  list<Future<ResourceStatistics>> usages;
+  vector<Future<ResourceStatistics>> usages;
   foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
     if (infos[containerId]->subsystems.contains(subsystem->name())) {
       usages.push_back(subsystem->usage(
@@ -712,7 +711,7 @@ Future<ResourceStatistics> CgroupsIsolatorProcess::usage(
   }
 
   return await(usages)
-    .then([containerId](const list<Future<ResourceStatistics>>& _usages) {
+    .then([containerId](const vector<Future<ResourceStatistics>>& _usages) {
       ResourceStatistics result;
 
       foreach (const Future<ResourceStatistics>& statistics, _usages) {
@@ -745,7 +744,7 @@ Future<ContainerStatus> CgroupsIsolatorProcess::status(
     return Failure("Unknown container");
   }
 
-  list<Future<ContainerStatus>> statuses;
+  vector<Future<ContainerStatus>> statuses;
   foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
     if (infos[containerId]->subsystems.contains(subsystem->name())) {
       statuses.push_back(subsystem->status(
@@ -755,7 +754,7 @@ Future<ContainerStatus> CgroupsIsolatorProcess::status(
   }
 
   return await(statuses)
-    .then([containerId](const list<Future<ContainerStatus>>& _statuses) {
+    .then([containerId](const vector<Future<ContainerStatus>>& _statuses) {
       ContainerStatus result;
 
       foreach (const Future<ContainerStatus>& status, _statuses) {
@@ -788,7 +787,7 @@ Future<Nothing> CgroupsIsolatorProcess::cleanup(
     return Nothing();
   }
 
-  list<Future<Nothing>> cleanups;
+  vector<Future<Nothing>> cleanups;
   foreachvalue (const Owned<Subsystem>& subsystem, subsystems) {
     if (infos[containerId]->subsystems.contains(subsystem->name())) {
       cleanups.push_back(subsystem->cleanup(
@@ -808,7 +807,7 @@ Future<Nothing> CgroupsIsolatorProcess::cleanup(
 
 Future<Nothing> CgroupsIsolatorProcess::_cleanup(
     const ContainerID& containerId,
-    const list<Future<Nothing>>& futures)
+    const vector<Future<Nothing>>& futures)
 {
   CHECK(infos.contains(containerId));
 
@@ -827,7 +826,7 @@ Future<Nothing> CgroupsIsolatorProcess::_cleanup(
         strings::join(";", errors));
   }
 
-  list<Future<Nothing>> destroys;
+  vector<Future<Nothing>> destroys;
 
   // TODO(haosdent): Use foreachkey once MESOS-5037 is resolved.
   foreach (const string& hierarchy, subsystems.keys()) {
@@ -854,7 +853,7 @@ Future<Nothing> CgroupsIsolatorProcess::_cleanup(
 
 Future<Nothing> CgroupsIsolatorProcess::__cleanup(
     const ContainerID& containerId,
-    const list<Future<Nothing>>& futures)
+    const vector<Future<Nothing>>& futures)
 {
   CHECK(infos.contains(containerId));
 

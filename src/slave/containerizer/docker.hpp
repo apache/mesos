@@ -17,7 +17,6 @@
 #ifndef __DOCKER_CONTAINERIZER_HPP__
 #define __DOCKER_CONTAINERIZER_HPP__
 
-#include <list>
 #include <map>
 #include <set>
 #include <string>
@@ -186,10 +185,10 @@ private:
 
   process::Future<Nothing> _recover(
       const Option<state::SlaveState>& state,
-      const std::list<Docker::Container>& containers);
+      const std::vector<Docker::Container>& containers);
 
   process::Future<Nothing> __recover(
-      const std::list<Docker::Container>& containers);
+      const std::vector<Docker::Container>& containers);
 
   // Starts the executor in a Docker container.
   process::Future<Docker::Container> launchExecutorContainer(

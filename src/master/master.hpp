@@ -1060,7 +1060,8 @@ private:
       const SlaveID& slaveId,
       const Resources& offeredResources,
       scheduler::Call::Accept&& accept,
-      const process::Future<std::list<process::Future<bool>>>& authorizations);
+      const process::Future<
+          std::vector<process::Future<bool>>>& authorizations);
 
   void acceptInverseOffers(
       Framework* framework,
@@ -1312,7 +1313,7 @@ private:
 
     process::Future<std::vector<WeightInfo>> _filterWeights(
         const std::vector<WeightInfo>& weightInfos,
-        const std::list<bool>& roleAuthorizations) const;
+        const std::vector<bool>& roleAuthorizations) const;
 
     process::Future<std::vector<WeightInfo>> _getWeights(
         const Option<process::http::authentication::Principal>&

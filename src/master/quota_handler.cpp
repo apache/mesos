@@ -17,7 +17,6 @@
 #include "master/master.hpp"
 
 #include <memory>
-#include <list>
 #include <vector>
 
 #include <mesos/resources.hpp>
@@ -62,7 +61,6 @@ using process::Owned;
 
 using process::http::authentication::Principal;
 
-using std::list;
 using std::string;
 using std::unique_ptr;
 using std::vector;
@@ -384,7 +382,8 @@ Future<QuotaStatus> Master::QuotaHandler::_status(
   // Create a list of authorization actions for each role we may return.
   //
   // TODO(alexr): Use an authorization filter here once they are available.
-  list<Future<bool>> authorizedRoles;
+  vector<Future<bool>> authorizedRoles;
+  authorizedRoles.reserve(quotaInfos.size());
   foreach (const QuotaInfo& info, quotaInfos) {
     authorizedRoles.push_back(authorizeGetQuota(principal, info));
   }
@@ -392,7 +391,7 @@ Future<QuotaStatus> Master::QuotaHandler::_status(
   return process::collect(authorizedRoles)
     .then(defer(
         master->self(),
-        [=](const list<bool>& authorizedRolesCollected)
+        [=](const vector<bool>& authorizedRolesCollected)
             -> Future<QuotaStatus> {
       CHECK(quotaInfos.size() == authorizedRolesCollected.size());
 

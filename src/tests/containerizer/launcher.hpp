@@ -17,7 +17,6 @@
 #ifndef __TEST_LAUNCHER_HPP__
 #define __TEST_LAUNCHER_HPP__
 
-#include <list>
 #include <map>
 #include <string>
 #include <vector>
@@ -54,7 +53,7 @@ public:
   MOCK_METHOD1(
       recover,
       process::Future<hashset<ContainerID>>(
-          const std::list<mesos::slave::ContainerState>& states));
+          const std::vector<mesos::slave::ContainerState>& states));
 
   MOCK_METHOD10(
       fork,

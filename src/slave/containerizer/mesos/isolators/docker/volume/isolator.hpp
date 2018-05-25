@@ -17,7 +17,6 @@
 #ifndef __DOCKER_VOLUME_ISOLATOR_HPP__
 #define __DOCKER_VOLUME_ISOLATOR_HPP__
 
-#include <list>
 #include <string>
 #include <vector>
 
@@ -56,7 +55,7 @@ public:
   virtual bool supportsStandalone();
 
   virtual process::Future<Nothing> recover(
-      const std::list<mesos::slave::ContainerState>& states,
+      const std::vector<mesos::slave::ContainerState>& states,
       const hashset<ContainerID>& orphans);
 
   virtual process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(
@@ -83,11 +82,11 @@ private:
   process::Future<Option<mesos::slave::ContainerLaunchInfo>> _prepare(
       const ContainerID& containerId,
       const std::vector<std::string>& targets,
-      const std::list<process::Future<std::string>>& futures);
+      const std::vector<process::Future<std::string>>& futures);
 
   process::Future<Nothing> _cleanup(
       const ContainerID& containerId,
-      const std::list<process::Future<Nothing>>& futures);
+      const std::vector<process::Future<Nothing>>& futures);
 
   Try<Nothing> _recover(const ContainerID& containerId);
 

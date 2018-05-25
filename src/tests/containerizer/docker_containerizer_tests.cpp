@@ -181,7 +181,7 @@ public:
 
     ASSERT_SOME(docker);
 
-    Future<list<Docker::Container>> containers =
+    Future<vector<Docker::Container>> containers =
       docker.get()->ps(true, slave::DOCKER_NAME_PREFIX);
 
     AWAIT_READY(containers);

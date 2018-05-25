@@ -43,7 +43,6 @@ using process::Future;
 using process::Owned;
 using process::PID;
 
-using std::list;
 using std::ostringstream;
 using std::string;
 using std::vector;
@@ -379,8 +378,8 @@ Future<ResourceStatistics> MemorySubsystemProcess::usage(
   }
 
   // Get pressure counter readings.
-  list<Level> levels;
-  list<Future<uint64_t>> values;
+  vector<Level> levels;
+  vector<Future<uint64_t>> values;
   foreachpair (Level level,
                const Owned<Counter>& counter,
                info->pressureCounters) {
@@ -401,8 +400,8 @@ Future<ResourceStatistics> MemorySubsystemProcess::usage(
 Future<ResourceStatistics> MemorySubsystemProcess::_usage(
     const ContainerID& containerId,
     ResourceStatistics result,
-    const list<Level>& levels,
-    const list<Future<uint64_t>>& values)
+    const vector<Level>& levels,
+    const vector<Future<uint64_t>>& values)
 {
   if (!infos.contains(containerId)) {
     return Failure(
@@ -410,7 +409,7 @@ Future<ResourceStatistics> MemorySubsystemProcess::_usage(
         ": Unknown container");
   }
 
-  list<Level>::const_iterator iterator = levels.begin();
+  vector<Level>::const_iterator iterator = levels.begin();
   foreach (const Future<uint64_t>& value, values) {
     if (value.isReady()) {
       switch (*iterator) {

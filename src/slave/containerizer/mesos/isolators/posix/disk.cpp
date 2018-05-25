@@ -53,7 +53,6 @@
 namespace io = process::io;
 
 using std::deque;
-using std::list;
 using std::string;
 using std::vector;
 
@@ -120,7 +119,7 @@ bool PosixDiskIsolatorProcess::supportsStandalone()
 
 
 Future<Nothing> PosixDiskIsolatorProcess::recover(
-    const list<ContainerState>& states,
+    const vector<ContainerState>& states,
     const hashset<ContainerID>& orphans)
 {
   foreach (const ContainerState& state, states) {

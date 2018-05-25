@@ -1939,7 +1939,7 @@ protected:
 
     ASSERT_SOME(docker);
 
-    Future<std::list<Docker::Container>> containers =
+    Future<std::vector<Docker::Container>> containers =
       docker.get()->ps(true, slave::DOCKER_NAME_PREFIX);
 
     AWAIT_READY(containers);
@@ -2459,7 +2459,7 @@ TEST_F(DockerContainerizerHealthCheckTest, ROOT_DOCKER_DockerHealthyTask)
   agent.get()->terminate();
   agent->reset();
 
-  Future<std::list<Docker::Container>> containers =
+  Future<std::vector<Docker::Container>> containers =
     docker->ps(true, slave::DOCKER_NAME_PREFIX);
 
   AWAIT_READY(containers);
@@ -2641,7 +2641,7 @@ TEST_F(DockerContainerizerHealthCheckTest, ROOT_DOCKER_DockerHealthStatusChange)
   agent.get()->terminate();
   agent->reset();
 
-  Future<std::list<Docker::Container>> containers =
+  Future<std::vector<Docker::Container>> containers =
     docker->ps(true, slave::DOCKER_NAME_PREFIX);
 
   AWAIT_READY(containers);
@@ -2773,7 +2773,7 @@ TEST_F(
   agent.get()->terminate();
   agent->reset();
 
-  Future<std::list<Docker::Container>> containers =
+  Future<std::vector<Docker::Container>> containers =
     docker->ps(true, slave::DOCKER_NAME_PREFIX);
 
   AWAIT_READY(containers);

@@ -54,7 +54,7 @@ public:
   virtual bool supportsStandalone();
 
   virtual process::Future<Nothing> recover(
-      const std::list<mesos::slave::ContainerState>& states,
+      const std::vector<mesos::slave::ContainerState>& states,
       const hashset<ContainerID>& orphans);
 
   virtual process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(
@@ -107,11 +107,11 @@ private:
 
   process::Future<Nothing> _recover(
       const hashset<ContainerID>& orphans,
-      const std::list<process::Future<Nothing>>& futures);
+      const std::vector<process::Future<Nothing>>& futures);
 
   process::Future<Nothing> __recover(
       const hashset<ContainerID>& unknownOrphans,
-      const std::list<process::Future<Nothing>>& futures);
+      const std::vector<process::Future<Nothing>>& futures);
 
   process::Future<Nothing> ___recover(
     const ContainerID& containerId);
@@ -119,30 +119,30 @@ private:
   process::Future<Nothing> ____recover(
     const ContainerID& containerId,
     const hashset<std::string>& recoveredSubsystems,
-    const std::list<process::Future<Nothing>>& futures);
+    const std::vector<process::Future<Nothing>>& futures);
 
   process::Future<Option<mesos::slave::ContainerLaunchInfo>> _prepare(
       const ContainerID& containerId,
       const mesos::slave::ContainerConfig& containerConfig,
-      const std::list<process::Future<Nothing>>& futures);
+      const std::vector<process::Future<Nothing>>& futures);
 
   process::Future<Nothing> _isolate(
-      const std::list<process::Future<Nothing>>& futures);
+      const std::vector<process::Future<Nothing>>& futures);
 
   void _watch(
       const ContainerID& containerId,
       const process::Future<mesos::slave::ContainerLimitation>& future);
 
   process::Future<Nothing> _update(
-      const std::list<process::Future<Nothing>>& futures);
+      const std::vector<process::Future<Nothing>>& futures);
 
   process::Future<Nothing> _cleanup(
       const ContainerID& containerId,
-      const std::list<process::Future<Nothing>>& futures);
+      const std::vector<process::Future<Nothing>>& futures);
 
   process::Future<Nothing> __cleanup(
       const ContainerID& containerId,
-      const std::list<process::Future<Nothing>>& futures);
+      const std::vector<process::Future<Nothing>>& futures);
 
   const Flags flags;
 

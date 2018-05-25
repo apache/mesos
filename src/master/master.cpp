@@ -3570,7 +3570,7 @@ Future<bool> Master::authorizeReserveResources(
   // reservations for all roles included in `reserve.resources`.
   // Add an element to `request.roles` for each unique role in the resources.
   hashset<string> roles;
-  list<Future<bool>> authorizations;
+  vector<Future<bool>> authorizations;
   foreach (const Resource& resource, resources) {
     // NOTE: Since authorization happens __before__ validation and resource
     // format conversion, we must look for roles that may appear in both
@@ -3613,7 +3613,7 @@ Future<bool> Master::authorizeReserveResources(
   }
 
   return await(authorizations)
-      .then([](const list<Future<bool>>& authorizations)
+      .then([](const vector<Future<bool>>& authorizations)
             -> Future<bool> {
         // Compute a disjunction.
         foreach (const Future<bool>& authorization, authorizations) {
@@ -3642,7 +3642,7 @@ Future<bool> Master::authorizeUnreserveResources(
     request.mutable_subject()->CopyFrom(subject.get());
   }
 
-  list<Future<bool>> authorizations;
+  vector<Future<bool>> authorizations;
   foreach (const Resource& resource, unreserve.resources()) {
     // NOTE: Since authorization happens __before__ validation and resource
     // format conversion, we must look for the principal that may appear in
@@ -3676,7 +3676,7 @@ Future<bool> Master::authorizeUnreserveResources(
   }
 
   return await(authorizations)
-      .then([](const list<Future<bool>>& authorizations)
+      .then([](const vector<Future<bool>>& authorizations)
             -> Future<bool> {
         // Compute a disjunction.
         foreach (const Future<bool>& authorization, authorizations) {
@@ -3709,7 +3709,7 @@ Future<bool> Master::authorizeCreateVolume(
   // volumes for all roles included in `create.volumes`.
   // Add an element to `request.roles` for each unique role in the volumes.
   hashset<string> roles;
-  list<Future<bool>> authorizations;
+  vector<Future<bool>> authorizations;
   foreach (const Resource& volume, create.volumes()) {
     string role;
     if (volume.reservations_size() > 0) {
@@ -3743,7 +3743,7 @@ Future<bool> Master::authorizeCreateVolume(
   }
 
   return await(authorizations)
-      .then([](const list<Future<bool>>& authorizations)
+      .then([](const vector<Future<bool>>& authorizations)
             -> Future<bool> {
         // Compute a disjunction.
         foreach (const Future<bool>& authorization, authorizations) {
@@ -3772,7 +3772,7 @@ Future<bool> Master::authorizeDestroyVolume(
     request.mutable_subject()->CopyFrom(subject.get());
   }
 
-  list<Future<bool>> authorizations;
+  vector<Future<bool>> authorizations;
   foreach (const Resource& volume, destroy.volumes()) {
     // NOTE: Since validation of this operation may be performed after
     // authorization, we must check here that this resource is a persistent
@@ -3795,7 +3795,7 @@ Future<bool> Master::authorizeDestroyVolume(
   }
 
   return await(authorizations)
-      .then([](const list<Future<bool>>& authorizations)
+      .then([](const vector<Future<bool>>& authorizations)
             -> Future<bool> {
         // Compute a disjunction.
         foreach (const Future<bool>& authorization, authorizations) {
@@ -3853,7 +3853,7 @@ Future<bool> Master::authorizeSlave(
     return true;
   }
 
-  list<Future<bool>> authorizations;
+  vector<Future<bool>> authorizations;
 
   // First authorize whether the agent can register.
   LOG(INFO) << "Authorizing agent providing resources "
@@ -3888,7 +3888,7 @@ Future<bool> Master::authorizeSlave(
   }
 
   return collect(authorizations)
-    .then([](const list<bool>& results)
+    .then([](const vector<bool>& results)
           -> Future<bool> {
       return std::find(results.begin(), results.end(), false) == results.end();
     });
@@ -4362,7 +4362,7 @@ void Master::accept(
   LOG(INFO) << "Processing ACCEPT call for offers: " << accept.offer_ids()
             << " on agent " << *slave << " for framework " << *framework;
 
-  list<Future<bool>> futures;
+  vector<Future<bool>> futures;
   foreach (const Offer::Operation& operation, accept.operations()) {
     switch (operation.type()) {
       case Offer::Operation::LAUNCH:
@@ -4530,7 +4530,7 @@ void Master::_accept(
     const SlaveID& slaveId,
     const Resources& offeredResources,
     scheduler::Call::Accept&& accept,
-    const Future<list<Future<bool>>>& _authorizations)
+    const Future<vector<Future<bool>>>& _authorizations)
 {
   Framework* framework = getFramework(frameworkId);
 
@@ -4657,7 +4657,8 @@ void Master::_accept(
   // The order of `authorizations` must match the order of the operations in
   // `accept.operations()`, as they are iterated through simultaneously.
   CHECK_READY(_authorizations);
-  list<Future<bool>> authorizations = _authorizations.get();
+  std::deque<Future<bool>> authorizations(
+      _authorizations->begin(), _authorizations->end());
 
   foreach (const Offer::Operation& operation, accept.operations()) {
     switch (operation.type()) {

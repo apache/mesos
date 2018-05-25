@@ -378,7 +378,7 @@ bool NetworkCniIsolatorProcess::supportsNesting()
 
 
 Future<Nothing> NetworkCniIsolatorProcess::recover(
-    const list<ContainerState>& states,
+    const vector<ContainerState>& states,
     const hashset<ContainerID>& orphans)
 {
   // If the `network/cni` isolator is providing network isolation to a
@@ -935,7 +935,7 @@ Future<Nothing> NetworkCniIsolatorProcess::isolate(
             << "' for container " << containerId;
 
   // Invoke CNI plugin to attach container to CNI networks.
-  list<Future<Nothing>> futures;
+  vector<Future<Nothing>> futures;
   foreachkey (const string& networkName,
               infos[containerId]->containerNetworks) {
     futures.push_back(attach(containerId, networkName, target));
@@ -957,7 +957,7 @@ Future<Nothing> NetworkCniIsolatorProcess::isolate(
 Future<Nothing> NetworkCniIsolatorProcess::_isolate(
     const ContainerID& containerId,
     pid_t pid,
-    const list<Future<Nothing>>& attaches)
+    const vector<Future<Nothing>>& attaches)
 {
   vector<string> messages;
   foreach (const Future<Nothing>& attach, attaches) {
@@ -1496,7 +1496,7 @@ Future<Nothing> NetworkCniIsolatorProcess::cleanup(
   }
 
   // Invoke CNI plugin to detach container from CNI networks.
-  list<Future<Nothing>> futures;
+  vector<Future<Nothing>> futures;
   foreachkey (const string& networkName,
               infos[containerId]->containerNetworks) {
     futures.push_back(detach(containerId, networkName));
@@ -1513,7 +1513,7 @@ Future<Nothing> NetworkCniIsolatorProcess::cleanup(
 
 Future<Nothing> NetworkCniIsolatorProcess::_cleanup(
     const ContainerID& containerId,
-    const list<Future<Nothing>>& detaches)
+    const vector<Future<Nothing>>& detaches)
 {
   CHECK(infos.contains(containerId));
 
