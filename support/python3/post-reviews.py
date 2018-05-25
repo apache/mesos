@@ -362,7 +362,8 @@ def main():
 
         output = execute(command).strip()
 
-        sys.stdout.buffer.write(output)
+        # Output is a string, we convert it to a byte string before writing it.
+        sys.stdout.buffer.write(output.encode())
 
         # If we already have a request_id, continue on to the next commit in the
         # chain. We update 'previous' from the shas[] array because we have
