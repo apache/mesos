@@ -63,8 +63,7 @@ class ComposingContainerizerTest : public MesosTest {};
 // underlying containerizer's destroy (because it's not sure
 // if the containerizer can handle the type of container being
 // launched). If the launch is not supported by the 1st containerizer,
-// the composing containerizer should stop the launch loop and
-// set the value of destroy future to true.
+// the composing containerizer should stop the launch.
 TEST_F(ComposingContainerizerTest, DestroyDuringUnsupportedLaunchLoop)
 {
   vector<Containerizer*> containerizers;
@@ -80,7 +79,6 @@ TEST_F(ComposingContainerizerTest, DestroyDuringUnsupportedLaunchLoop)
   containerId.set_value("container");
   TaskInfo taskInfo;
   ExecutorInfo executorInfo;
-  SlaveID slaveId;
   map<string, string> environment;
 
   Promise<Containerizer::LaunchResult> launchPromise;
@@ -100,8 +98,6 @@ TEST_F(ComposingContainerizerTest, DestroyDuringUnsupportedLaunchLoop)
       environment,
       None());
 
-  Resources resources = Resources::parse("cpus:1;mem:256").get();
-
   EXPECT_TRUE(launched.isPending());
 
   Future<Option<ContainerTermination>> destroyed =
@@ -118,13 +114,13 @@ TEST_F(ComposingContainerizerTest, DestroyDuringUnsupportedLaunchLoop)
   launchPromise.set(Containerizer::LaunchResult::NOT_SUPPORTED);
   destroyPromise.set(Option<ContainerTermination>::none());
 
-  // `launched` should be a failure and `destroyed` should be true
-  // because the launch was stopped from being tried on the 2nd
-  // containerizer because of the destroy.
+  // `launched` should be a failure and `destroyed` should be `None`
+  // because there was no container in `RUNNING` or `LAUNCHING` state
+  // at the moment `destroy()` was called.
   AWAIT_FAILED(launched);
 
   AWAIT_READY(destroyed);
-  EXPECT_SOME(destroyed.get());
+  EXPECT_NONE(destroyed.get());
 }
 
 
@@ -132,8 +128,9 @@ TEST_F(ComposingContainerizerTest, DestroyDuringUnsupportedLaunchLoop)
 // launch loop. The composing containerizer still calls the
 // underlying containerizer's destroy (because it's not sure
 // if the containerizer can handle the type of container being
-// launched). If the launch is successful the destroy future
-// value depends on the containerizer's destroy.
+// launched). If the launch is successful, the composing
+// containerizer's destroy future value depends on the underlying
+// containerizer's destroy.
 TEST_F(ComposingContainerizerTest, DestroyDuringSupportedLaunchLoop)
 {
   vector<Containerizer*> containerizers;
@@ -149,7 +146,6 @@ TEST_F(ComposingContainerizerTest, DestroyDuringSupportedLaunchLoop)
   containerId.set_value("container");
   TaskInfo taskInfo;
   ExecutorInfo executorInfo;
-  SlaveID slaveId;
   map<string, string> environment;
 
   Promise<Containerizer::LaunchResult> launchPromise;
@@ -168,8 +164,6 @@ TEST_F(ComposingContainerizerTest, DestroyDuringSupportedLaunchLoop)
       createContainerConfig(taskInfo, executorInfo, "dir", "user"),
       environment,
       None());
-
-  Resources resources = Resources::parse("cpus:1;mem:256").get();
 
   EXPECT_TRUE(launched.isPending());
 
@@ -185,14 +179,14 @@ TEST_F(ComposingContainerizerTest, DestroyDuringSupportedLaunchLoop)
   AWAIT_READY(destroy);
 
   launchPromise.set(Containerizer::LaunchResult::SUCCESS);
-  destroyPromise.set(Option<ContainerTermination>::none());
+  destroyPromise.set(Option<ContainerTermination>(ContainerTermination()));
 
-  // `launched` should return true and `destroyed` should return false
-  // because the launch succeeded and `destroyPromise` was set to false.
+  // `launched` should return `SUCCESS` and `destroyed` should return `Some`,
+  // because both operations succeeded.
   AWAIT_EXPECT_EQ(Containerizer::LaunchResult::SUCCESS, launched);
 
   AWAIT_READY(destroyed);
-  EXPECT_NONE(destroyed.get());
+  EXPECT_SOME(destroyed.get());
 }
 
 
@@ -200,8 +194,9 @@ TEST_F(ComposingContainerizerTest, DestroyDuringSupportedLaunchLoop)
 // launch loop. The composing containerizer still calls the
 // underlying containerizer's destroy (because it's not sure
 // if the containerizer can handle the type of container being
-// launched). If the launch is not supported by any containerizers
-// both the launch and destroy futures should be false.
+// launched). If the launch is not supported by any containerizers,
+// then the launch future should be `NOT_SUPPORTED` and the destroy
+// future should be `None`.
 TEST_F(ComposingContainerizerTest, DestroyAfterLaunchLoop)
 {
   vector<Containerizer*> containerizers;
@@ -214,7 +209,6 @@ TEST_F(ComposingContainerizerTest, DestroyAfterLaunchLoop)
   containerId.set_value("container");
   TaskInfo taskInfo;
   ExecutorInfo executorInfo;
-  SlaveID slaveId;
   map<string, string> environment;
 
   Promise<Containerizer::LaunchResult> launchPromise;
@@ -234,8 +228,6 @@ TEST_F(ComposingContainerizerTest, DestroyAfterLaunchLoop)
       environment,
       None());
 
-  Resources resources = Resources::parse("cpus:1;mem:256").get();
-
   EXPECT_TRUE(launched.isPending());
 
   Future<Option<ContainerTermination>> destroyed =
@@ -247,7 +239,7 @@ TEST_F(ComposingContainerizerTest, DestroyAfterLaunchLoop)
   launchPromise.set(Containerizer::LaunchResult::NOT_SUPPORTED);
   destroyPromise.set(Option<ContainerTermination>::none());
 
-  // `launch` should return false and `destroyed` should return false
+  // `launch` should return false and `destroyed` should return `None`
   // because none of the containerizers support the launch.
   AWAIT_EXPECT_EQ(Containerizer::LaunchResult::NOT_SUPPORTED, launched);
 
