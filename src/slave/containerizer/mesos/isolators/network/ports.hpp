@@ -85,6 +85,7 @@ private:
   NetworkPortsIsolatorProcess(
       bool _cniIsolatorEnabled,
       const Duration& _watchInterval,
+      const bool& _enforcePortsEnabled,
       const std::string& _cgroupsRoot,
       const std::string& _freezerHierarchy,
       const Option<IntervalSet<uint16_t>>& agentPorts);
@@ -92,11 +93,13 @@ private:
   struct Info
   {
     Option<IntervalSet<uint16_t>> allocatedPorts;
+    Option<IntervalSet<uint16_t>> activePorts;
     process::Promise<mesos::slave::ContainerLimitation> limitation;
   };
 
   const bool cniIsolatorEnabled;
   const Duration watchInterval;
+  const bool enforceContainerPorts;
   const std::string cgroupsRoot;
   const std::string freezerHierarchy;
   const Option<IntervalSet<uint16_t>> agentPorts;

@@ -250,6 +250,7 @@ TEST_F(NetworkPortsIsolatorTest, ROOT_CommandExecutorPorts)
   flags.isolation = "network/ports";
   flags.launcher = "linux";
   flags.check_agent_port_range_only = false;
+  flags.enforce_container_ports = true;
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -343,6 +344,7 @@ TEST_F(NetworkPortsIsolatorTest, ROOT_NC_AllocatedPorts)
   // Watch only the agent ports resources range because we want this
   // test to trigger on the nc command, not on the command executor.
   flags.check_agent_port_range_only = true;
+  flags.enforce_container_ports = true;
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -496,6 +498,7 @@ TEST_F(NetworkPortsIsolatorTest, ROOT_NC_NoPortsResource)
   // Watch only the agent ports resources range because we want this
   // test to trigger on the nc command, not on the command executor.
   flags.check_agent_port_range_only = true;
+  flags.enforce_container_ports = true;
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -615,6 +618,7 @@ TEST_F(NetworkPortsIsolatorTest, ROOT_NC_DefaultPortsResource)
   // Watch only the agent ports resources range because we want this
   // test to trigger on the nc command, not on the command executor.
   flags.check_agent_port_range_only = true;
+  flags.enforce_container_ports = true;
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -726,6 +730,7 @@ TEST_F(NetworkPortsIsolatorTest, ROOT_NC_UnallocatedPorts)
   // Watch only the agent ports resources range because we want this
   // test to trigger on the nc command, not on the command executor.
   flags.check_agent_port_range_only = true;
+  flags.enforce_container_ports = true;
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -818,6 +823,122 @@ TEST_F(NetworkPortsIsolatorTest, ROOT_NC_UnallocatedPorts)
   EXPECT_EQ(TASK_FAILED, failedStatus->state());
   EXPECT_EQ(TaskStatus::SOURCE_SLAVE, failedStatus->source());
   expectPortsLimitation(failedStatus.get(), usedPort);
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test verifies that a task that listens on a port for which
+// it has no resources is detected and will not be killed by
+// a container limitation if enforce_container_ports is false.
+TEST_F(NetworkPortsIsolatorTest, ROOT_NC_NoPortEnforcement)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "network/ports";
+  flags.launcher = "linux";
+
+  // Watch only the agent ports resources range because we want this
+  // test to trigger on the nc command, not on the command executor.
+  flags.check_agent_port_range_only = true;
+  flags.enforce_container_ports = false;
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
+
+  const Offer& offer = offers.get()[0];
+
+  // Make sure we have a `ports` resource.
+  Resources resources(offer.resources());
+  ASSERT_SOME(resources.ports());
+  ASSERT_LE(1, resources.ports()->range().size());
+
+  uint16_t taskPort = selectRandomPort(resources);
+  uint16_t usedPort = selectOtherPort(resources, taskPort);
+
+  resources = Resources::parse(
+      "cpus:1;mem:32;"
+      "ports:[" + stringify(taskPort) + "," + stringify(taskPort) + "]").get();
+
+  // Launch a task that uses a port that it hasn't been allocated.  Use
+  // "nc -k" so nc keeps running after accepting the healthcheck connection.
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      resources,
+      "nc -k -l " + stringify(usedPort));
+
+  addTcpHealthCheck(task, usedPort);
+
+  Future<TaskStatus> startingStatus;
+  Future<TaskStatus> runningStatus;
+  Future<TaskStatus> healthStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&startingStatus))
+    .WillOnce(FutureArg<1>(&runningStatus))
+    .WillOnce(FutureArg<1>(&healthStatus));
+
+  driver.launchTasks(offer.id(), {task});
+
+  awaitStatusUpdateAcked(startingStatus);
+  EXPECT_EQ(task.task_id(), startingStatus->task_id());
+  EXPECT_EQ(TASK_STARTING, startingStatus->state());
+
+  awaitStatusUpdateAcked(runningStatus);
+  EXPECT_EQ(task.task_id(), runningStatus->task_id());
+  EXPECT_EQ(TASK_RUNNING, runningStatus->state());
+
+  awaitStatusUpdateAcked(healthStatus);
+  ASSERT_EQ(task.task_id(), healthStatus->task_id());
+  expectHealthyStatus(healthStatus.get());
+
+  Future<Nothing> check =
+    FUTURE_DISPATCH(_, &NetworkPortsIsolatorProcess::check);
+
+  Clock::pause();
+  Clock::advance(flags.container_ports_watch_interval);
+
+  AWAIT_READY(check);
+
+  Clock::settle();
+  Clock::resume();
+
+  // Since container ports are not being enforced, we expect that the task
+  // should still be running after the check and that we should be able to
+  // explicitly kill it.
+  Future<TaskStatus> killedStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&killedStatus));
+
+  driver.killTask(task.task_id());
+
+  AWAIT_READY(killedStatus);
+  EXPECT_EQ(task.task_id(), killedStatus->task_id());
+  EXPECT_EQ(TASK_KILLED, killedStatus->state());
 
   driver.stop();
   driver.join();
@@ -920,6 +1041,7 @@ TEST_F(NetworkPortsIsolatorTest, ROOT_NC_RecoverBadTask)
   // and terminate it.
   flags.isolation = "network/ports";
   flags.check_agent_port_range_only = true;
+  flags.enforce_container_ports = true;
 
   slave = StartSlave(detector.get(), flags);
   ASSERT_SOME(slave);
@@ -1044,6 +1166,7 @@ TEST_F(NetworkPortsIsolatorTest, ROOT_NC_RecoverGoodTask)
   // listening and will let it continue running.
   flags.isolation = "network/ports";
   flags.check_agent_port_range_only = true;
+  flags.enforce_container_ports = true;
 
   Future<SlaveReregisteredMessage> slaveReregisteredMessage =
     FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
@@ -1100,6 +1223,7 @@ TEST_F(NetworkPortsIsolatorTest, ROOT_NC_TaskGroup)
   flags.isolation = "network/ports";
   flags.launcher = "linux";
   flags.check_agent_port_range_only = true;
+  flags.enforce_container_ports = true;
 
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
@@ -1359,6 +1483,7 @@ TEST_F(NetworkPortsIsolatorTest, ROOT_NC_RecoverNestedBadTask)
   // and terminate it.
   flags.isolation = "network/ports";
   flags.check_agent_port_range_only = true;
+  flags.enforce_container_ports = true;
 
   slave = cluster::Slave::create(detector.get(), flags, slaveId);
   ASSERT_SOME(slave);
@@ -1536,6 +1661,7 @@ TEST_F(NetworkPortsIsolatorTest, ROOT_NC_RecoverNestedGoodTask)
   // listening and will let it continue running.
   flags.isolation = "network/ports";
   flags.check_agent_port_range_only = true;
+  flags.enforce_container_ports = true;
 
   slave = cluster::Slave::create(detector.get(), flags, slaveId);
   ASSERT_SOME(slave);

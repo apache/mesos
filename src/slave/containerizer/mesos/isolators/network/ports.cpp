@@ -343,6 +343,7 @@ Try<Isolator*> NetworkPortsIsolatorProcess::create(const Flags& flags)
       new NetworkPortsIsolatorProcess(
           strings::contains(flags.isolation, "network/cni"),
           flags.container_ports_watch_interval,
+          flags.enforce_container_ports,
           flags.cgroups_root,
           freezerHierarchy.get(),
           agentPorts)));
@@ -352,12 +353,14 @@ Try<Isolator*> NetworkPortsIsolatorProcess::create(const Flags& flags)
 NetworkPortsIsolatorProcess::NetworkPortsIsolatorProcess(
     bool _cniIsolatorEnabled,
     const Duration& _watchInterval,
+    const bool& _enforceContainerPorts,
     const string& _cgroupsRoot,
     const string& _freezerHierarchy,
     const Option<IntervalSet<uint16_t>>& _agentPorts)
   : ProcessBase(process::ID::generate("network-ports-isolator")),
     cniIsolatorEnabled(_cniIsolatorEnabled),
     watchInterval(_watchInterval),
+    enforceContainerPorts(_enforceContainerPorts),
     cgroupsRoot(_cgroupsRoot),
     freezerHierarchy(_freezerHierarchy),
     agentPorts(_agentPorts)
@@ -574,6 +577,16 @@ Future<Nothing> NetworkPortsIsolatorProcess::check(
       const IntervalSet<uint16_t> unallocatedPorts =
           ports - info->allocatedPorts.get();
 
+      // Only log unallocated ports once to prevent excessive logging
+      // for the same unallocated ports while port enforcement is disabled.
+      if (info->activePorts.isSome() && info->activePorts == ports) {
+        continue;
+      }
+
+      // Cache the last listeners port sample so that we will
+      // only log new ports resource violations.
+      info->activePorts = ports;
+
       Resource resource;
       resource.set_name("ports");
       resource.set_type(Value::RANGES);
@@ -587,11 +600,13 @@ Future<Nothing> NetworkPortsIsolatorProcess::check(
 
       LOG(INFO) << message;
 
-      info->limitation.set(
-          protobuf::slave::createContainerLimitation(
-              Resources(resource),
-              message,
-              TaskStatus::REASON_CONTAINER_LIMITATION));
+      if (enforceContainerPorts) {
+        info->limitation.set(
+        protobuf::slave::createContainerLimitation(
+            Resources(resource),
+            message,
+            TaskStatus::REASON_CONTAINER_LIMITATION));
+      }
     }
   }
 

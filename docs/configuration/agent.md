@@ -662,6 +662,15 @@ is used by the <code>disk/du</code> and <code>disk/xfs</code> isolators. (defaul
 </tr>
 <tr>
   <td>
+    --[no-]enforce_container_ports
+  </td>
+  <td>
+Whether to enable network port enforcement for containers. This flag
+is used by the <code>network/ports</code> isolator. (default: false)
+  </td>
+</tr>
+<tr>
+  <td>
     --executor_environment_variables=VALUE
   </td>
   <td>

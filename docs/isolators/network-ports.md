@@ -41,6 +41,12 @@ to use the Linux launcher (i.e. the agent has the `--launcher=linux`
 flag), because it uses Linux cgroups to track the processes belonging
 to a Mesos task.
 
+The `--enforce_container_ports` flag, specifies whether the network
+ports isolator should terminate tasks that listen on ports they have
+not been assigned. If enforcement is disabled, the isolator will log
+violations but will not terminate tasks. By default, network port
+enforcement is disabled.
+
 The `--container_ports_watch_interval` flag specifies the interval
 between task port reconciliations.
 

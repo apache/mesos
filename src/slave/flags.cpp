@@ -1117,6 +1117,11 @@ mesos::internal::slave::Flags::Flags()
       "published by the agent's resources. Otherwise tasks are restricted\n"
       "to only listen on ports for which they have been assigned resources.",
       false);
+  add(&Flags::enforce_container_ports,
+      "enforce_container_ports",
+      "Whether to enable port enforcement for containers. This flag\n"
+      "is used by `network/ports` isolator.",
+      false);
 #endif // ENABLE_NETWORK_PORTS_ISOLATOR
 
   add(&Flags::network_cni_plugins_dir,
