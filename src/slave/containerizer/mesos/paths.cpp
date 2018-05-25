@@ -78,6 +78,16 @@ string getRuntimePath(
 }
 
 
+string getContainerDevicesPath(
+    const string& runtimeDir,
+    const ContainerID& containerId)
+{
+  return path::join(
+      getRuntimePath(runtimeDir, containerId),
+      CONTAINER_DEVICES_DIRECTORY);
+}
+
+
 Result<pid_t> getContainerPid(
     const string& runtimeDir,
     const ContainerID& containerId)
