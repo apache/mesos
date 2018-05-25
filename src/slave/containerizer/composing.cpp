@@ -605,7 +605,10 @@ Future<Option<ContainerTermination>> ComposingContainerizerProcess::destroy(
     // Move this logging into the callers.
     LOG(WARNING) << "Attempted to destroy unknown container " << containerId;
 
-    return None();
+    // A nested container might have already been terminated, therefore
+    // `containers_` might not contain it, but its exit status might have
+    // been checkpointed.
+    return wait(containerId);
   }
 
   Container* container = containers_.at(containerId);
