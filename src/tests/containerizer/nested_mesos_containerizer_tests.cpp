@@ -2761,6 +2761,15 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_TerminatedNestedStatus)
   ASSERT_SOME(nestedTermination.get());
   ASSERT_TRUE(nestedTermination.get()->has_status());
   EXPECT_WEXITSTATUS_EQ(42, nestedTermination.get()->status());
+
+  // Destroy the top-level container.
+  Future<Option<ContainerTermination>> termination =
+    containerizer->destroy(containerId);
+
+  AWAIT_READY(termination);
+  ASSERT_SOME(termination.get());
+  ASSERT_TRUE(termination.get()->has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, termination.get()->status());
 }
 
 
