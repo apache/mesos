@@ -2579,6 +2579,93 @@ TEST_F(NestedMesosContainerizerTest,
   ASSERT_FALSE(containers->contains(containerId));
 }
 
+
+// This test verifies that termination status of a nested container is
+// available until its parent is terminated.
+TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_WaitAfterDestroy)
+{
+  slave::Flags flags = CreateSlaveFlags();
+  flags.launcher = "linux";
+  flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
+
+  Fetcher fetcher(flags);
+
+  Try<MesosContainerizer*> create = MesosContainerizer::create(
+      flags,
+      true,
+      &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<MesosContainerizer> containerizer(create.get());
+
+  SlaveID slaveId = SlaveID();
+
+  // Launch a top-level container.
+  ContainerID containerId;
+  containerId.set_value(id::UUID::random().toString());
+
+  Try<string> directory = environment->mkdtemp();
+  ASSERT_SOME(directory);
+
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
+    containerId,
+    createContainerConfig(
+        None(),
+        createExecutorInfo("executor", "sleep 1000", "cpus:1"),
+        directory.get()),
+    map<string, string>(),
+    None());
+
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
+
+  // Launch a nested container.
+  ContainerID nestedContainerId;
+  nestedContainerId.mutable_parent()->CopyFrom(containerId);
+  nestedContainerId.set_value(id::UUID::random().toString());
+
+  launch = containerizer->launch(
+      nestedContainerId,
+      createContainerConfig(createCommandInfo("exit 42")),
+      map<string, string>(),
+      None());
+
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
+
+  // Wait once for a nested container completion, then wait again
+  // to make sure that its termination status is still available.
+  Future<Option<ContainerTermination>> nestedWait =
+    containerizer->wait(nestedContainerId);
+
+  AWAIT_READY(nestedWait);
+  ASSERT_SOME(nestedWait.get());
+  ASSERT_TRUE(nestedWait.get()->has_status());
+  EXPECT_WEXITSTATUS_EQ(42, nestedWait.get()->status());
+
+  nestedWait = containerizer->wait(nestedContainerId);
+
+  AWAIT_READY(nestedWait);
+  ASSERT_SOME(nestedWait.get());
+  ASSERT_TRUE(nestedWait.get()->has_status());
+  EXPECT_WEXITSTATUS_EQ(42, nestedWait.get()->status());
+
+  // Destroy the top-level container.
+  Future<Option<ContainerTermination>> termination =
+    containerizer->destroy(containerId);
+
+  AWAIT_READY(termination);
+  ASSERT_SOME(termination.get());
+  ASSERT_TRUE(termination.get()->has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, termination.get()->status());
+
+  // Wait on nested container again.
+  nestedWait = containerizer->wait(nestedContainerId);
+
+  AWAIT_READY(nestedWait);
+  ASSERT_NONE(nestedWait.get());
+}
+
+
 // This test verifies that agent environment variables are not leaked
 // to the nested container, and the environment variables specified in
 // the command for the nested container will be honored.
