@@ -1335,6 +1335,7 @@ MESOS_LINUX_FILES =									\
   slave/containerizer/mesos/isolators/gpu/nvml.cpp					\
   slave/containerizer/mesos/isolators/gpu/volume.cpp					\
   slave/containerizer/mesos/isolators/linux/capabilities.cpp				\
+  slave/containerizer/mesos/isolators/linux/devices.cpp					\
   slave/containerizer/mesos/isolators/namespaces/ipc.cpp				\
   slave/containerizer/mesos/isolators/namespaces/pid.cpp				\
   slave/containerizer/mesos/isolators/network/cni/cni.cpp				\
@@ -1383,6 +1384,7 @@ MESOS_LINUX_FILES +=									\
   slave/containerizer/mesos/isolators/gpu/nvml.hpp					\
   slave/containerizer/mesos/isolators/gpu/volume.hpp					\
   slave/containerizer/mesos/isolators/linux/capabilities.hpp				\
+  slave/containerizer/mesos/isolators/linux/devices.hpp					\
   slave/containerizer/mesos/isolators/namespaces/ipc.hpp				\
   slave/containerizer/mesos/isolators/namespaces/pid.hpp				\
   slave/containerizer/mesos/isolators/network/cni/cni.hpp				\

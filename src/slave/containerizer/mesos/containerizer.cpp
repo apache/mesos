@@ -98,6 +98,7 @@
 #include "slave/containerizer/mesos/isolators/filesystem/shared.hpp"
 #include "slave/containerizer/mesos/isolators/gpu/nvidia.hpp"
 #include "slave/containerizer/mesos/isolators/linux/capabilities.hpp"
+#include "slave/containerizer/mesos/isolators/linux/devices.hpp"
 #include "slave/containerizer/mesos/isolators/namespaces/ipc.hpp"
 #include "slave/containerizer/mesos/isolators/namespaces/pid.hpp"
 #include "slave/containerizer/mesos/isolators/network/cni/cni.hpp"
@@ -396,6 +397,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     {"appc/runtime", &AppcRuntimeIsolatorProcess::create},
     {"docker/runtime", &DockerRuntimeIsolatorProcess::create},
 
+    {"linux/devices", &LinuxDevicesIsolatorProcess::create},
     {"linux/capabilities", &LinuxCapabilitiesIsolatorProcess::create},
 
     {"namespaces/ipc", &NamespacesIPCIsolatorProcess::create},
