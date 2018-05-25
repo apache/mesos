@@ -10,7 +10,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License
 
-#include <list>
 #include <string>
 #include <vector>
 
@@ -19,7 +18,6 @@
 #include <stout/gtest.hpp>
 #include <stout/linkedhashmap.hpp>
 
-using std::list;
 using std::string;
 using std::vector;
 
@@ -72,7 +70,7 @@ TEST(LinkedHashmapTest, Keys)
 {
   LinkedHashMap<string, int> map;
 
-  list<string> keys = {"foo", "bar", "food", "rad", "cat"};
+  vector<string> keys = {"foo", "bar", "food", "rad", "cat"};
 
   // Insert keys into the map.
   foreach (const string& key, keys) {
@@ -111,8 +109,8 @@ TEST(LinkedHashMapTest, Foreach)
 
   map["foo"] = 4; // Re-insert a key.
 
-  list<string> keyList = map.keys();
-  list<int> valueList = map.values();
+  vector<string> keyList = map.keys();
+  vector<int> valueList = map.values();
 
   vector<string> keys{keyList.begin(), keyList.end()};
   vector<int> values{valueList.begin(), valueList.end()};
@@ -179,7 +177,7 @@ TEST(LinkedHashMapTest, ForeachMutate)
     }
   }
 
-  list<string> values = {"foo", "qux", "caz"};
+  vector<string> values = {"foo", "qux", "caz"};
   EXPECT_EQ(values, map.values());
 }
 

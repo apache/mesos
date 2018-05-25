@@ -15,10 +15,10 @@
 
 #include <functional>
 #include <iosfwd>
-#include <list>
 #include <map>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include "foreach.hpp"
 #include "hashset.hpp"
@@ -139,12 +139,15 @@ public:
   }
 
   // Returns the list of values in this map.
-  std::list<Value> values() const
+  std::vector<Value> values() const
   {
-    std::list<Value> result;
+    std::vector<Value> result;
+    result.reserve(std::unordered_map<Key, Value, Hash, Equal>::size());
+
     foreachvalue (const Value& value, *this) {
       result.push_back(value);
     }
+
     return result;
   }
 };

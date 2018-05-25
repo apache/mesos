@@ -111,9 +111,10 @@ public:
   }
 
   // Returns the keys in the map in insertion order.
-  std::list<Key> keys() const
+  std::vector<Key> keys() const
   {
-    std::list<Key> result;
+    std::vector<Key> result;
+    result.reserve(entries_.size());
 
     foreach (const entry& entry, entries_) {
       result.push_back(entry.first);
@@ -123,9 +124,10 @@ public:
   }
 
   // Returns the values in the map in insertion order.
-  std::list<Value> values() const
+  std::vector<Value> values() const
   {
-    std::list<Value> result;
+    std::vector<Value> result;
+    result.reserve(entries_.size());
 
     foreach (const entry& entry, entries_) {
       result.push_back(entry.second);
