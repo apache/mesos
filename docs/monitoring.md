@@ -1146,9 +1146,9 @@ and resource allocations in the allocator.
 </tr>
 <tr>
   <td>
-  <code>allocator/mesos/roles/&lt;role&gt;/shares/dominant</code>
+  <code>allocator/mesos/roles/<i>&lt;role&gt;</i>/shares/dominant</code>
   </td>
-  <td>Dominant resource share for the role, exposed as a percentage (0.0-1.0)</td>
+  <td>Dominant <i>resource</i> share for the <i>role</i>, exposed as a percentage (0.0-1.0)</td>
   <td>Gauge</td>
 </tr>
 <tr>
@@ -1160,24 +1160,24 @@ and resource allocations in the allocator.
 </tr>
 <tr>
   <td>
-  <code>allocator/mesos/offer_filters/roles/&lt;role&gt;/active</code>
+  <code>allocator/mesos/offer_filters/roles/<i>&lt;role&gt;</i>/active</code>
   </td>
-  <td>Number of active offer filters for all frameworks within the role</td>
+  <td>Number of active offer filters for all frameworks within the <i>role</i></td>
   <td>Gauge</td>
 </tr>
 <tr>
   <td>
-  <code>allocator/mesos/quota/roles/&lt;role&gt;/resources/&lt;resource&gt;/offered_or_allocated</code>
+  <code>allocator/mesos/quota/roles/<i>&lt;role&gt;</i>/resources/<i>&lt;resource&gt;</i>/offered_or_allocated</code>
   </td>
-  <td>Amount of resources considered offered or allocated towards
-      a role's quota guarantee</td>
+  <td>Amount of <i>resource</i>s considered offered or allocated towards
+      a <i>role</i>'s quota guarantee</td>
   <td>Gauge</td>
 </tr>
 <tr>
   <td>
-  <code>allocator/mesos/quota/roles/&lt;role&gt;/resources/&lt;resource&gt;/guarantee</code>
+  <code>allocator/mesos/quota/roles/<i>&lt;role&gt;</i>/resources/<i>&lt;resource&gt;</i>/guarantee</code>
   </td>
-  <td>Amount of resources guaranteed for a role via quota</td>
+  <td>Amount of <i>resource</i>s guaranteed for a <i>role</i> via quota</td>
   <td>Gauge</td>
 </tr>
 <tr>
