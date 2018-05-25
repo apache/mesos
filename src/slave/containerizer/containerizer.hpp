@@ -128,18 +128,18 @@ public:
 
   // Wait on the 'ContainerTermination'. If the executor terminates,
   // the containerizer should also destroy the containerized context.
-  // Returns None if the container cannot be found.
   // The future may be failed if an error occurs during termination of
   // the executor or destruction of the container.
+  //
+  // Returns `None` if the container cannot be found.
+  // NOTE: For terminated nested containers, whose parent container is
+  // still running, the checkpointed `ContainerTermination` must be returned.
   virtual process::Future<Option<mesos::slave::ContainerTermination>> wait(
       const ContainerID& containerId) = 0;
 
-  // Destroy a running container, killing all processes and releasing
-  // all resources. Returns None when the container cannot be found,
-  // or a failure if something went wrong.
-  //
-  // NOTE: You cannot wait() on containers that have been destroyed,
-  // so you should always call wait() before destroy().
+  // Destroy a starting or running container, killing all processes and
+  // releasing all resources. Returns the same result as `wait()` method,
+  // therefore calling `wait()` right before `destroy()` is not required.
   virtual process::Future<Option<mesos::slave::ContainerTermination>> destroy(
       const ContainerID& containerId) = 0;
 
