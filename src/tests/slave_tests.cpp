@@ -1069,7 +1069,7 @@ TEST_F(SlaveTest, ROOT_UNPRIVILEGED_USER_RunTaskWithCommandInfoWithUser)
 
   TaskInfo task = createTask(
       offers->at(0),
-      "test `id -u` == " + stringify(uid.get()));
+      "test `id -u` -eq " + stringify(uid.get()));
 
   task.mutable_command()->set_user(user.get());
 
