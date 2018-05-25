@@ -522,12 +522,13 @@ Future<Nothing> NetworkPortsIsolatorProcess::update(
   Option<Value::Ranges> ports = resources.ports();
   if (ports.isSome()) {
     const Owned<Info>& info = infos.at(containerId);
-    info->ports = rangesToIntervalSet<uint16_t>(ports.get()).get();
+    info->allocatedPorts = rangesToIntervalSet<uint16_t>(ports.get()).get();
   } else {
-    info->ports = IntervalSet<uint16_t>();
+    info->allocatedPorts = IntervalSet<uint16_t>();
   }
 
-  LOG(INFO) << "Updated ports to " << intervalSetToRanges(info->ports.get())
+  LOG(INFO) << "Updated ports to "
+            << intervalSetToRanges(info->allocatedPorts.get())
             << " for container " << containerId;
 
   return Nothing();
@@ -568,8 +569,10 @@ Future<Nothing> NetworkPortsIsolatorProcess::check(
     // for this container.
     const Owned<Info>& info = infos.at(rootContainerId);
 
-    if (info->ports.isSome() && !info->ports->contains(ports)) {
-      const IntervalSet<uint16_t> unallocatedPorts = ports - info->ports.get();
+    if (info->allocatedPorts.isSome() &&
+        !info->allocatedPorts->contains(ports)) {
+      const IntervalSet<uint16_t> unallocatedPorts =
+          ports - info->allocatedPorts.get();
 
       Resource resource;
       resource.set_name("ports");

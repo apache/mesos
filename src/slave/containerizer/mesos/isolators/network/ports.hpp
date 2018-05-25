@@ -91,7 +91,7 @@ private:
 
   struct Info
   {
-    Option<IntervalSet<uint16_t>> ports;
+    Option<IntervalSet<uint16_t>> allocatedPorts;
     process::Promise<mesos::slave::ContainerLimitation> limitation;
   };
 
