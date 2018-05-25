@@ -157,7 +157,7 @@ layout: community_section
               API
             </td>
             <td>
-              Greg Mann
+              <a href="mailto:grag@apache.org">Greg Mann</a>
             </td>
             <td>
               #http-api
