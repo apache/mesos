@@ -2553,11 +2553,13 @@ TEST_F(DockerContainerizerHealthCheckTest, ROOT_DOCKER_DockerHealthStatusChange)
   //
   // NOTE: On Windows, we delete a temporary directory instead since `del`
   // doesn't return an error if it tries to delete a nonexistent file, but
-  // `rmdir` does.
+  // `rmdir` does. Also, we hard code a path starting with `C:\` instead
+  // of using `tmpPath` since the path might not be possible to make inside
+  // the container (for example, if the `tmpPath` is in the `D:\` drive).
 #ifdef __WINDOWS__
+  const string dockerPath = path::join("C:", id::UUID::random().toString());
   const string healthCheckCmd =
-    "rmdir /s /q " + os::getcwd() + " || "
-    "(mkdir " + os::getcwd() + " && echo foo > " + tmpPath + " && exit 1)";
+    "rmdir /s /q " + dockerPath + " || (mkdir " + dockerPath + " && exit 1)";
 #else
   const string healthCheckCmd =
     "rm " + tmpPath + " || "
