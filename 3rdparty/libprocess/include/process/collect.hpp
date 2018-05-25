@@ -14,8 +14,8 @@
 #define __PROCESS_COLLECT_HPP__
 
 #include <functional>
-#include <list>
 #include <tuple>
+#include <vector>
 
 #include <process/check.hpp>
 #include <process/defer.hpp>
@@ -36,7 +36,7 @@ namespace process {
 // the result will be a failure. Likewise, if any future fails then
 // the result future will be a failure.
 template <typename T>
-Future<std::list<T>> collect(const std::list<Future<T>>& futures);
+Future<std::vector<T>> collect(const std::vector<Future<T>>& futures);
 
 
 // Waits on each future specified and returns the wrapping future
@@ -48,7 +48,7 @@ Future<std::tuple<Ts...>> collect(const Future<Ts>&... futures);
 // Waits on each future in the specified set and returns the list of
 // non-pending futures.
 template <typename T>
-Future<std::list<Future<T>>> await(const std::list<Future<T>>& futures);
+Future<std::vector<Future<T>>> await(const std::vector<Future<T>>& futures);
 
 
 // Waits on each future specified and returns the wrapping future
@@ -106,7 +106,7 @@ Future<std::tuple<Future<Ts>...>> await(const Future<Ts>&... futures);
 template <typename T>
 Future<Future<T>> await(const Future<T>& future)
 {
-  return await(std::list<Future<T>>{future})
+  return await(std::vector<Future<T>>{future})
     .then([=]() {
       return Future<Future<T>>(future);
     });
@@ -120,10 +120,10 @@ class CollectProcess : public Process<CollectProcess<T>>
 {
 public:
   CollectProcess(
-      const std::list<Future<T>>& _futures,
-      Promise<std::list<T>>* _promise)
+      const std::vector<Future<T>>& _futures,
+      Promise<std::vector<T>>* _promise)
     : ProcessBase(ID::generate("__collect__")),
-      futures(_futures.begin(), _futures.end()),
+      futures(_futures),
       promise(_promise),
       ready(0) {}
 
@@ -179,18 +179,21 @@ private:
       CHECK_READY(future);
       ready += 1;
       if (ready == futures.size()) {
-        std::list<T> values;
+        std::vector<T> values;
+        values.reserve(futures.size());
+
         foreach (const Future<T>& future, futures) {
           values.push_back(future.get());
         }
-        promise->set(values);
+
+        promise->set(std::move(values));
         terminate(this);
       }
     }
   }
 
   const std::vector<Future<T>> futures;
-  Promise<std::list<T>>* promise;
+  Promise<std::vector<T>>* promise;
   size_t ready;
 };
 
@@ -200,10 +203,10 @@ class AwaitProcess : public Process<AwaitProcess<T>>
 {
 public:
   AwaitProcess(
-      const std::list<Future<T>>& _futures,
-      Promise<std::list<Future<T>>>* _promise)
+      const std::vector<Future<T>>& _futures,
+      Promise<std::vector<Future<T>>>* _promise)
     : ProcessBase(ID::generate("__await__")),
-      futures(_futures.begin(), _futures.end()),
+      futures(_futures),
       promise(_promise),
       ready(0) {}
 
@@ -252,14 +255,14 @@ private:
 
     ready += 1;
     if (ready == futures.size()) {
-      promise->set(
-        std::list<Future<T>>(futures.begin(), futures.end()));
+      // It is safe to move futures at this point.
+      promise->set(std::move(futures));
       terminate(this);
     }
   }
 
-  const std::vector<Future<T>> futures;
-  Promise<std::list<Future<T>>>* promise;
+  std::vector<Future<T>> futures;
+  Promise<std::vector<Future<T>>>* promise;
   size_t ready;
 };
 
@@ -268,15 +271,15 @@ private:
 
 
 template <typename T>
-inline Future<std::list<T>> collect(
-    const std::list<Future<T>>& futures)
+inline Future<std::vector<T>> collect(
+    const std::vector<Future<T>>& futures)
 {
   if (futures.empty()) {
-    return std::list<T>();
+    return std::vector<T>();
   }
 
-  Promise<std::list<T>>* promise = new Promise<std::list<T>>();
-  Future<std::list<T>> future = promise->future();
+  Promise<std::vector<T>>* promise = new Promise<std::vector<T>>();
+  Future<std::vector<T>> future = promise->future();
   spawn(new internal::CollectProcess<T>(futures, promise), true);
   return future;
 }
@@ -285,7 +288,7 @@ inline Future<std::list<T>> collect(
 template <typename... Ts>
 Future<std::tuple<Ts...>> collect(const Future<Ts>&... futures)
 {
-  std::list<Future<Nothing>> wrappers = {
+  std::vector<Future<Nothing>> wrappers = {
     futures.then([]() { return Nothing(); })...
   };
 
@@ -303,16 +306,16 @@ Future<std::tuple<Ts...>> collect(const Future<Ts>&... futures)
 
 
 template <typename T>
-inline Future<std::list<Future<T>>> await(
-    const std::list<Future<T>>& futures)
+inline Future<std::vector<Future<T>>> await(
+    const std::vector<Future<T>>& futures)
 {
   if (futures.empty()) {
     return futures;
   }
 
-  Promise<std::list<Future<T>>>* promise =
-    new Promise<std::list<Future<T>>>();
-  Future<std::list<Future<T>>> future = promise->future();
+  Promise<std::vector<Future<T>>>* promise =
+    new Promise<std::vector<Future<T>>>();
+  Future<std::vector<Future<T>>> future = promise->future();
   spawn(new internal::AwaitProcess<T>(futures, promise), true);
   return future;
 }
@@ -321,7 +324,7 @@ inline Future<std::list<Future<T>>> await(
 template <typename... Ts>
 Future<std::tuple<Future<Ts>...>> await(const Future<Ts>&... futures)
 {
-  std::list<Future<Nothing>> wrappers = {
+  std::vector<Future<Nothing>> wrappers = {
     futures.then([]() { return Nothing(); })...
   };
 

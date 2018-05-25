@@ -12,11 +12,11 @@
 
 #include <glog/logging.h>
 
-#include <list>
 #include <map>
 #include <string>
 #include <vector>
 
+#include <process/after.hpp>
 #include <process/collect.hpp>
 #include <process/dispatch.hpp>
 #include <process/help.hpp>
@@ -33,7 +33,6 @@
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 
-using std::list;
 using std::map;
 using std::string;
 using std::vector;
@@ -149,21 +148,22 @@ Future<map<string, double>> MetricsProcess::snapshot(
   hashmap<string, Future<double>> futures;
   hashmap<string, Option<Statistics<double>>> statistics;
 
-  foreachkey (const string& metric, metrics) {
-    CHECK_NOTNULL(metrics[metric].get());
-    futures[metric] = metrics[metric]->value();
+  foreachkey (const string& name, metrics) {
+    const Owned<Metric>& metric = metrics.at(name);
+    futures[name] = metric->value();
     // TODO(dhamon): It would be nice to compute these asynchronously.
-    statistics[metric] = metrics[metric]->statistics();
+    statistics[name] = metric->statistics();
   }
 
-  if (timeout.isSome()) {
-    return await(futures.values())
-      .after(timeout.get(), lambda::bind(_snapshotTimeout, futures.values()))
-      .then(lambda::bind(__snapshot, timeout, futures, statistics));
-  } else {
-    return await(futures.values())
-      .then(lambda::bind(__snapshot, timeout, futures, statistics));
-  }
+  // Return the response once it finishes or we time out.
+  return select<Nothing>({
+      after(timeout.getOrElse(Duration::max())),
+      await(futures.values()).then([]{ return Nothing(); }) })
+    .then(defer(self(),
+                &Self::__snapshot,
+                timeout,
+                std::move(futures),
+                std::move(statistics)));
 }
 
 
@@ -201,19 +201,10 @@ Future<http::Response> MetricsProcess::_snapshot(
 }
 
 
-list<Future<double>> MetricsProcess::_snapshotTimeout(
-    const list<Future<double>>& futures)
-{
-  // Stop waiting for all futures to transition and return a 'ready'
-  // list to proceed handling the request.
-  return futures;
-}
-
-
 Future<map<string, double>> MetricsProcess::__snapshot(
     const Option<Duration>& timeout,
-    const hashmap<string, Future<double>>& metrics,
-    const hashmap<string, Option<Statistics<double>>>& statistics)
+    hashmap<string, Future<double>>&& metrics,
+    hashmap<string, Option<Statistics<double>>>&& statistics)
 {
   map<string, double> snapshot;
 
@@ -243,7 +234,10 @@ Future<map<string, double>> MetricsProcess::__snapshot(
     }
   }
 
-  return snapshot;
+  // NOTE: Newer compilers (clang-3.9 and gcc-5.1) can perform
+  // this move automatically when optimization is on. Once these
+  // are the minimum versions, remove this `std::move`.
+  return std::move(snapshot);
 }
 
 }  // namespace internal {

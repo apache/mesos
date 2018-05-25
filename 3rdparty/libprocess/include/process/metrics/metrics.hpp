@@ -15,6 +15,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
@@ -66,13 +67,12 @@ private:
       const http::Request& request,
       const Option<http::authentication::Principal>&);
 
-  static std::list<Future<double>> _snapshotTimeout(
-      const std::list<Future<double>>& futures);
-
-  static Future<std::map<std::string, double>> __snapshot(
+  // TODO(bmahler): Make this static once we can move
+  // capture with C++14.
+  Future<std::map<std::string, double>> __snapshot(
       const Option<Duration>& timeout,
-      const hashmap<std::string, Future<double>>& metrics,
-      const hashmap<std::string, Option<Statistics<double>>>& statistics);
+      hashmap<std::string, Future<double>>&& metrics,
+      hashmap<std::string, Option<Statistics<double>>>&& statistics);
 
   // The Owned<Metric> is an explicit copy of the Metric passed to 'add'.
   hashmap<std::string, Owned<Metric>> metrics;

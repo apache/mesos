@@ -2080,7 +2080,7 @@ public:
           // After the grace period expires discard all the clients
           // and then keep waiting.
           .after(options.grace_period,
-                 defer(self(), [=](Future<list<Future<Nothing>>> f) {
+                 defer(self(), [=](Future<vector<Future<Nothing>>> f) {
                    f.discard();
                    return await(lambda::map(
                        [](Client&& client) {

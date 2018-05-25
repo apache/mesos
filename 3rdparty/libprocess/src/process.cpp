@@ -2424,7 +2424,7 @@ void ProcessManager::finalize()
       }
 
       // Grab the `UPID` for the next process we'll terminate.
-      pid = processes.values().front()->self();
+      pid = processes.begin()->second->self();
     }
 
     // Terminate this process but do not inject the message,
@@ -3396,7 +3396,7 @@ Future<Response> ProcessManager::__processes__(const Request&)
               });
         },
         process_manager->processes.values()))
-      .then([](const std::list<JSON::Object>& objects) -> Response {
+      .then([](const std::vector<JSON::Object>& objects) -> Response {
         JSON::Array array;
         foreach (const JSON::Object& object, objects) {
           array.values.push_back(object);
