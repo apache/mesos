@@ -17,6 +17,11 @@
 #ifndef __LINUX_DEVICES_ISOLATOR_HPP__
 #define __LINUX_DEVICES_ISOLATOR_HPP__
 
+#include <sys/types.h>
+
+#include <string>
+
+#include <stout/hashmap.hpp>
 #include <stout/try.hpp>
 
 #include "slave/flags.hpp"
@@ -32,15 +37,25 @@ class LinuxDevicesIsolatorProcess : public MesosIsolatorProcess
 public:
   static Try<mesos::slave::Isolator*> create(const Flags& flags);
 
-  virtual bool supportsNesting();
-  virtual bool supportsStandalone();
+  virtual bool supportsNesting() override;
+  virtual bool supportsStandalone() override;
 
   virtual process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(
       const ContainerID& containerId,
-      const mesos::slave::ContainerConfig& containerConfig);
+      const mesos::slave::ContainerConfig& containerConfig) override;
 
 private:
-  LinuxDevicesIsolatorProcess(const Flags& _flags);
+  struct Device {
+    dev_t dev;
+    mode_t mode;
+  };
+
+  const std::string runtimeDirectory;
+  const hashmap<std::string, Device> whitelistedDevices;
+
+  LinuxDevicesIsolatorProcess(
+      const std::string& runtimeDirectory,
+      const hashmap<std::string, Device>& whitelistedDevices);
 };
 
 } // namespace slave {
