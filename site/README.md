@@ -4,26 +4,21 @@ to simplify our generation and development workflows.
 
 ## Generating the site
 
-Before we generate the website, please make sure to generate the help endpoint
-documentation. The endpoint generation script expects Mesos master and agent
-binaries to be available; so please run `make` if necessary.
+1. Compile Mesos following the [build instructions](http://mesos.apache.org/documentation/latest/building/).
 
+2. Run this script to generate the endpoint help pages.
 ```
-make -jN
 ../support/generate-endpoint-help.py
 ```
 
-To generate the website:
+3. Run this script to generate the website.
 
 ```
-./site/mesos-websiste-dev.sh
+./site/mesos-website-dev.sh
 ```
 
 This will start a container, generate the website from your local Mesos git
-repository, and make it available:
- - On Linux, the site will be available at http://localhost:4567.
- - On OS X, run `docker-machine ls` to find the IP address of your
-   boot-to-docker VM; the site will be available at that IP, port 4567.
+repository, and make it available. To view the site, go to: http://localhost:4567.
 
 If you are running the container on a remote machine and need to tunnel it to
 localhost, you can run the following command to make the site available locally:
