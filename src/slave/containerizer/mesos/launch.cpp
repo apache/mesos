@@ -73,7 +73,6 @@
 #include "slave/containerizer/mesos/paths.hpp"
 
 using std::cerr;
-using std::cout;
 using std::endl;
 using std::set;
 using std::string;
@@ -301,7 +300,7 @@ static Try<Nothing> prepareMounts(const ContainerLaunchInfo& launchInfo)
       return Error("Failed to mark '/' as rslave: " + mnt.error());
     }
 
-    cout << "Marked '/' as rslave" << endl;
+    cerr << "Marked '/' as rslave" << endl;
   } else {
     hashset<string> sharedMountTargets;
     foreach (const ContainerMountInfo& mount, launchInfo.mounts()) {
@@ -435,7 +434,7 @@ static Try<Nothing> prepareMounts(const ContainerLaunchInfo& launchInfo)
           "': " + mnt.error());
     }
 
-    cout << "Prepared mount '" << JSON::protobuf(mount) << "'" << endl;
+    cerr << "Prepared mount '" << JSON::protobuf(mount) << "'" << endl;
   }
 #endif // __linux__
 
@@ -706,7 +705,7 @@ int MesosContainerizerLaunch::execute()
   // processing the container mounts so that container mounts can be made on
   // top of the rootfs template.
   if (launchInfo.has_rootfs()) {
-    cout << "Preparing rootfs at " << launchInfo.rootfs() << endl;
+    cerr << "Preparing rootfs at " << launchInfo.rootfs() << endl;
 
     Try<Nothing> prepare = prepareChroot(launchInfo.rootfs());
 
@@ -730,7 +729,7 @@ int MesosContainerizerLaunch::execute()
       exitWithStatus(EXIT_FAILURE);
     }
 
-    cout << "Executing pre-exec command '"
+    cerr << "Executing pre-exec command '"
          << JSON::protobuf(command) << "'" << endl;
 
     Option<int> status;
@@ -866,7 +865,7 @@ int MesosContainerizerLaunch::execute()
 
   // Change root to a new root, if provided.
   if (launchInfo.has_rootfs()) {
-    cout << "Changing root to " << launchInfo.rootfs() << endl;
+    cerr << "Changing root to " << launchInfo.rootfs() << endl;
 
     Try<Nothing> enter = enterChroot(launchInfo.rootfs());
 
@@ -1054,7 +1053,7 @@ int MesosContainerizerLaunch::execute()
       // TODO(tillt): Once we have a solution for MESOS-7292, allow
       // logging of values.
       if (environment.contains(name) && environment[name] != value) {
-        cout << "Overwriting environment variable '" << name << "'" << endl;
+        cerr << "Overwriting environment variable '" << name << "'" << endl;
       }
 
       environment[name] = value;
