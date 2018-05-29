@@ -48,6 +48,7 @@ Mesos supports the following built-in isolators.
 - filesystem/windows
 - [gpu/nvidia](gpu-support.md)
 - [linux/capabilities](isolators/linux-capabilities.md)
+- [linux/devices](isolators/linux-devices.md)
 - [namespaces/ipc](isolators/namespaces-ipc.md)
 - [namespaces/pid](isolators/namespaces-pid.md)
 - [network/cni](cni.md)

@@ -48,6 +48,7 @@ We categorize the changes as follows:
 
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Mesos Core-->
     <ul style="padding-left:10px;">
+      <li>A <a href="#1-7-x-linux-devices-isolator">Linux devices isolator</a></li>
     </ul>
   </td>
 
@@ -429,6 +430,12 @@ We categorize the changes as follows:
 </table>
 
 ## Upgrading from 1.6.x to 1.7.x ##
+
+<a name="1-7-x-linux-devices-isolator"></a>
+
+* A new [`linux/devices`](isolators/linux-devices.md) isolator has been
+  added. This isolator automatically populates containers with devices
+  that have been whitelisted with the `--allowed_devices` agent flag.
 
 <a name="1-7-x-container-logger"></a>
 
