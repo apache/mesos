@@ -1,0 +1,4 @@
+The xz archive is modified to contain only the minimal files required
+to build on Windows.  The original archive contains several files with
+licenses that are incompatible with with the Apache License,
+and therefore, cannot be bundled into the project.
