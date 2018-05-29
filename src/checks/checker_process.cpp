@@ -616,6 +616,8 @@ Future<int> CheckerProcess::nestedCommandCheck(
     agent::Call call;
     call.set_type(agent::Call::REMOVE_NESTED_CONTAINER);
 
+    mesos::ContainerID previousId = previousCheckContainerId.get();
+
     agent::Call::RemoveNestedContainer* removeContainer =
       call.mutable_remove_nested_container();
 
@@ -635,27 +637,25 @@ Future<int> CheckerProcess::nestedCommandCheck(
 
     http::request(request, false)
       .onFailed(defer(self(),
-                      [this, promise](const string& failure) {
+                      [this, promise, previousId](const string& failure) {
         LOG(WARNING) << "Connection to remove the nested container '"
-                     << previousCheckContainerId.get() << "' used for the "
-                     << name << " for task '" << taskId << "' failed: "
-                     << failure;
+                     << previousId << "' used for the " << name << " for"
+                     << " task '" << taskId << "' failed: " << failure;
 
         // Something went wrong while sending the request, we treat this
         // as a transient failure and discard the promise.
         promise->discard();
       }))
       .onReady(defer(self(),
-                     [this, promise, cmd, nested]
+                     [this, promise, cmd, nested, previousId]
                      (const http::Response& response) {
         if (response.code != http::Status::OK) {
           // The agent was unable to remove the check container, we
           // treat this as a transient failure and discard the promise.
           LOG(WARNING) << "Received '" << response.status << "' ("
                        << response.body << ") while removing the nested"
-                       << " container '" << previousCheckContainerId.get()
-                       << "' used for the " << name << " for task '"
-                       << taskId << "'";
+                       << " container '" << previousId << "' used for"
+                       << " the " << name << " for task '" << taskId << "'";
 
           promise->discard();
         }
