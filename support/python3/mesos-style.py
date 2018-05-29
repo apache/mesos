@@ -285,8 +285,8 @@ class CppLinter(LinterBase):
         # Lines are stored and filtered, only showing found errors instead
         # of e.g., 'Done processing XXX.' which tends to be dominant output.
         for line in process.stderr:
-            if re.match('^(Done processing |Total errors found: )',
-                        line.decode(sys.stdout.encoding)):
+            line = line.decode(sys.stdout.encoding)
+            if re.match('^(Done processing |Total errors found: )', line):
                 continue
             sys.stderr.write(line)
 
