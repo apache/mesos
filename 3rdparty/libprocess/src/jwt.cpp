@@ -154,6 +154,24 @@ Try<JSON::Object> parse_payload(const string& component)
   return payload;
 }
 
+
+// Implements equality between strings which run in constant time by either
+// comparing the sizes, and thus ignoring their content, or checking the whole
+// content of them, thus avoiding timing attacks when comparing hashes.
+bool constantTimeEquals(const string& left, const string& right)
+{
+  if (left.size() != right.size()) {
+    return false;
+  }
+
+  unsigned valid = 0;
+  for (size_t i = 0; i < left.size(); ++i) {
+    valid |= left[i] ^ right[i];
+  }
+
+  return valid == 0;
+}
+
 } // namespace {
 
 
@@ -245,9 +263,7 @@ Try<JWT, JWTError> JWT::parse(const string& token, const string& secret)
         JWTError::Type::UNKNOWN);
   }
 
-  const bool valid = hmac.get() == signature.get();
-
-  if (!valid) {
+  if (!constantTimeEquals(hmac.get(), signature.get())) {
     return JWTError(
         "Token signature does not match",
         JWTError::Type::INVALID_TOKEN);
