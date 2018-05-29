@@ -62,10 +62,6 @@ Try<Isolator*> LinuxDevicesIsolatorProcess::create(const Flags& flags)
   if (flags.allowed_devices.isSome()) {
     foreach (const DeviceAccess& deviceAccess,
              flags.allowed_devices->allowed_devices()) {
-      // TODO(jpeach) The `cgroups/devices` isolator silently ignores devices
-      // that are whitelisted with no path. We should do the same if we want
-      // to be consistent, but silently ignoring configuration is not the
-      // right policy, so perhaps we should fix `cgroups/devices` instead.
       if (!deviceAccess.device().has_path()) {
         return Error("Whitelisted device has no device path provided");
       }

@@ -87,9 +87,7 @@ Try<Owned<SubsystemProcess>> DevicesSubsystemProcess::create(
     foreach (const DeviceAccess& device_access,
              flags.allowed_devices->allowed_devices()) {
       if (!device_access.device().has_path()) {
-        VLOG(1) << "Skipping a whitelisted device since no device "
-                << "path is provided";
-        continue;
+        return Error("Whitelisted device has no device path provided");
       }
 
       string path = device_access.device().path();
