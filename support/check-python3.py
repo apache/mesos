@@ -20,24 +20,28 @@ Checks if Python 3.6 is available on the machine.
 """
 # pylint: disable=superfluous-parens
 
+from __future__ import print_function
+
 import os
 import subprocess
 import sys
 
+def _print(message):
+  print(message, file=sys.stderr)
 
 def print_error():
     """Prints a warning requesting to install Python 3.6."""
-    print("The support scripts will be upgraded to Python 3 by July 1st.")
-    print("Make sure to install Python 3.6 on your machine before.")
+    _print("The support scripts will be upgraded to Python 3 by July 1st.")
+    _print("Make sure to install Python 3.6 on your machine before.")
 
 def print_warning():
     """Prints a warning requesting to use the Python 3 scripts."""
-    print("Congratulations! You have Python 3 installed correctly.")
-    print("Please start using the scripts in `support/python3`.")
+    _print("Congratulations! You have Python 3 installed correctly.")
+    _print("Please start using the scripts in `support/python3`.")
     # NOTE: This is only either unset, or set to 3.
     if "MESOS_SUPPORT_PYTHON" not in os.environ:
-        print("Please also set the environment variable `MESOS_SUPPORT_PYTHON` to `3`")
-        print("so that the Git hooks use the Python 3 scripts.")
+        _print("Please also set the environment variable `MESOS_SUPPORT_PYTHON` to `3`")
+        _print("so that the Git hooks use the Python 3 scripts.")
 
 if sys.version_info[0] < 3:
     # On Windows, system-wide installations of Python 3.6 gives a tools called
