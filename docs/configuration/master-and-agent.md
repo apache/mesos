@@ -18,7 +18,8 @@ layout: documentation
       </th>
     </tr>
   </thead>
-<tr>
+
+<tr id="advertise_ip">
   <td>
     --advertise_ip=VALUE
   </td>
@@ -28,7 +29,8 @@ The master/agent does not bind to this IP address.
 However, this IP address may be used to access this master/agent.
   </td>
 </tr>
-<tr>
+
+<tr id="advertise_port">
   <td>
     --advertise_port=VALUE
   </td>
@@ -39,7 +41,8 @@ However, this port (along with <code>advertise_ip</code>) may be used to
 access Mesos master/agent.
   </td>
 </tr>
-<tr>
+
+<tr id="authenticate_http_readonly">
   <td>
     --[no-]authenticate_http_readonly
   </td>
@@ -49,7 +52,8 @@ supporting authentication are allowed. If <code>false</code>, unauthenticated
 requests to such HTTP endpoints are also allowed.
   </td>
 </tr>
-<tr>
+
+<tr id="authenticate_http_readwrite">
   <td>
     --[no-]authenticate_http_readwrite
   </td>
@@ -59,7 +63,8 @@ supporting authentication are allowed. If <code>false</code>, unauthenticated
 requests to such HTTP endpoints are also allowed.
   </td>
 </tr>
-<tr>
+
+<tr id="firewall_rules">
   <td>
     --firewall_rules=VALUE
   </td>
@@ -82,7 +87,8 @@ Example:
 }</code></pre>
   </td>
 </tr>
-<tr>
+
+<tr id="domain">
   <td>
     --domain=VALUE
   </td>
@@ -115,7 +121,8 @@ Example:
 }</code></pre>
   </td>
 </tr>
-<tr>
+
+<tr id="help">
   <td>
     --[no-]help
   </td>
@@ -123,7 +130,8 @@ Example:
 Show the help message and exit. (default: false)
   </td>
 </tr>
-<tr>
+
+<tr id="hooks">
   <td>
     --hooks=VALUE
   </td>
@@ -131,7 +139,8 @@ Show the help message and exit. (default: false)
 A comma-separated list of hook modules to be installed inside master/agent.
   </td>
 </tr>
-<tr>
+
+<tr id="hostname">
   <td>
     --hostname=VALUE
   </td>
@@ -144,7 +153,8 @@ that, using <code>--no-hostname_lookup</code>, in which case the IP itself
 is used.
   </td>
 </tr>
-<tr>
+
+<tr id="hostname_lookup">
   <td>
     --[no-]hostname_lookup
   </td>
@@ -155,7 +165,8 @@ True by default; if set to <code>false</code> it will cause Mesos
 to use the IP address, unless the hostname is explicitly set. (default: true)
   </td>
 </tr>
-<tr>
+
+<tr id="http_authenticators">
   <td>
     --http_authenticators=VALUE
   </td>
@@ -166,7 +177,8 @@ alternate HTTP authenticator module using <code>--modules</code>.
 (default: basic, or basic and JWT if executor authentication is enabled)
   </td>
 </tr>
-<tr>
+
+<tr id="ip">
   <td>
     --ip=VALUE
   </td>
@@ -175,7 +187,8 @@ IP address to listen on. This cannot be used in conjunction
 with <code>--ip_discovery_command</code>.
   </td>
 </tr>
-<tr>
+
+<tr id="ip_discovery_command">
   <td>
     --ip_discovery_command=VALUE
   </td>
@@ -185,7 +198,8 @@ the IP address which the master/agent will try to bind to.
 Cannot be used in conjunction with <code>--ip</code>.
   </td>
 </tr>
-<tr>
+
+<tr id="modules">
   <td>
     --modules=VALUE
   </td>
@@ -232,7 +246,8 @@ Example:
 <p/> Cannot be used in conjunction with --modules_dir.
   </td>
 </tr>
-<tr>
+
+<tr id="modules_dir">
   <td>
     --modules_dir=VALUE
   </td>
@@ -242,7 +257,8 @@ alphabetical order. (See <code>--modules</code> for more information on module
 manifest files). Cannot be used in conjunction with <code>--modules</code>.
   </td>
 </tr>
-<tr>
+
+<tr id="port">
   <td>
     --port=VALUE
   </td>
@@ -250,7 +266,8 @@ manifest files). Cannot be used in conjunction with <code>--modules</code>.
 Port to listen on. (master default: 5050; agent default: 5051)
   </td>
 </tr>
-<tr>
+
+<tr id="version">
   <td>
     --[no-]version
   </td>
@@ -258,7 +275,8 @@ Port to listen on. (master default: 5050; agent default: 5051)
 Show version and exit. (default: false)
   </td>
 </tr>
-<tr>
+
+<tr id="zk_session_timeout">
   <td>
     --zk_session_timeout=VALUE
   </td>
@@ -266,6 +284,7 @@ Show version and exit. (default: false)
 ZooKeeper session timeout. (default: 10secs)
   </td>
 </tr>
+
 </table>
 
 ## Logging Options
@@ -284,7 +303,8 @@ For more about logging, see the [logging documentation](../logging.md).
       </th>
     </tr>
   </thead>
-<tr>
+
+<tr id="quiet">
   <td>
     --[no-]quiet
   </td>
@@ -292,7 +312,8 @@ For more about logging, see the [logging documentation](../logging.md).
 Disable logging to stderr. (default: false)
   </td>
 </tr>
-<tr>
+
+<tr id="log_dir">
   <td>
     --log_dir=VALUE
   </td>
@@ -304,7 +325,8 @@ If specified, the log file will appear in the Mesos WebUI.
 only written to stderr!
   </td>
 </tr>
-<tr>
+
+<tr id="logbufsecs">
   <td>
     --logbufsecs=VALUE
   </td>
@@ -313,7 +335,8 @@ Maximum number of seconds that logs may be buffered for.
 By default, logs are flushed immediately. (default: 0)
   </td>
 </tr>
-<tr>
+
+<tr id="logging_level">
   <td>
     --logging_level=VALUE
   </td>
@@ -324,7 +347,8 @@ If <code>--quiet</code> is specified, this will only affect the logs
 written to <code>--log_dir</code>, if specified. (default: INFO)
   </td>
 </tr>
-<tr>
+
+<tr id="initialize_driver_logging">
   <td>
     --[no-]initialize_driver_logging
   </td>
@@ -338,7 +362,8 @@ This option has no effect when using the HTTP scheduler/executor APIs.
 (default: true)
   </td>
 </tr>
-<tr>
+
+<tr id="external_log_file">
   <td>
     --external_log_file=VALUE
   </td>
@@ -355,4 +380,5 @@ However, logs will still be written to the <code>--log_dir</code> if
 that option is specified.
   </td>
 </tr>
+
 </table>
