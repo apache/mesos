@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-add_subdirectory(src)
-add_subdirectory(src/tests)
-add_subdirectory(examples)
+# Compile the example to make sure it remains valid.
+add_executable(example EXCLUDE_FROM_ALL example.cpp)
+target_link_libraries(example process)
+add_dependencies(libprocess-tests example)

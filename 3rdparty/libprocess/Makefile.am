@@ -384,6 +384,12 @@ test_linkee_SOURCES = src/tests/test_linkee.cpp
 test_linkee_CPPFLAGS = $(libprocess_tests_CPPFLAGS)
 test_linkee_LDADD = $(libprocess_tests_LDADD)
 
+# Compile the example to make sure it remains valid.
+check_PROGRAMS += example
+example_SOURCES = examples/example.cpp
+example_CPPFLAGS = $(libprocess_tests_CPPFLAGS)
+example_LDADD = $(libprocess_tests_LDADD)
+
 if !ENABLE_STATIC_LIBPROCESS
 # If libprocess is not static, we need to directly link against libglog, etc.
 # When libprocess is configured by Mesos, it is forced to generate a static
