@@ -11,6 +11,15 @@ layout: community_section
 <div class="row-fluid">
   <div class="col-md-6">
     <h2>Get Involved</h2>
+        <h3 name="mailinglists">Mailing Lists</h3>
+          <p><b>Users</b>: <a href="mailto:user-subscribe@mesos.apache.org?subject=Subscribe&body=Subscribe">Subscribe</a> | <a href="mailto:user-unsubscribe@mesos.apache.org?subject=Unsubscribe&body=Unsubscribe">Unsubscribe</a> | <a href="https://lists.apache.org/list.html?user@mesos.apache.org">Archives</a><br />
+          <b>Developers</b>: <a href="mailto:dev-subscribe@mesos.apache.org?subject=Subscribe&body=Subscribe">Subscribe</a> | <a href="mailto:dev-unsubscribe@mesos.apache.org?subject=Unsubscribe&body=Unsubscribe">Unsubscribe</a> | <a href="https://lists.apache.org/list.html?dev@mesos.apache.org">Archives</a><br />
+          <b>JIRA Updates</b>: <a href="mailto:issues-subscribe@mesos.apache.org?subject=Subscribe&body=Subscribe">Subscribe</a> | <a href="mailto:issues-unsubscribe@mesos.apache.org?subject=Unsubscribe&body=Unsubscribe">Unsubscribe</a> | <a href="https://lists.apache.org/list.html?issues@mesos.apache.org">Archives</a><br />
+          <b>Reviews</b>: <a href="mailto:reviews-subscribe@mesos.apache.org?subject=Subscribe&body=Subscribe">Subscribe</a> | <a href="mailto:reviews-unsubscribe@mesos.apache.org?subject=Unsubscribe&body=Unsubscribe">Unsubscribe</a> | <a href="https://lists.apache.org/list.html?reviews@mesos.apache.org">Archives</a><br />
+          <b>Jenkins Builds</b>: <a href="mailto:builds-subscribe@mesos.apache.org?subject=Subscribe&body=Subscribe">Subscribe</a> | <a href="mailto:builds-unsubscribe@mesos.apache.org?subject=Unsubscribe&body=Unsubscribe">Unsubscribe</a> | <a href="https://lists.apache.org/list.html?builds@mesos.apache.org">Archives</a><br />
+          <b>Commits</b>: <a href="mailto:commits-subscribe@mesos.apache.org?subject=Subscribe&body=Subscribe">Subscribe</a> | <a href="mailto:commits-unsubscribe@mesos.apache.org?subject=Unsubscribe&body=Unsubscribe">Unsubscribe</a> | <a href="https://lists.apache.org/list.html?commits@mesos.apache.org">Archives</a><br />
+          <b>Modules</b>: <a href="mailto:modules-subscribe@mesos.apache.org?subject=Subscribe&body=Subscribe">Subscribe</a> | <a href="mailto:modules-unsubscribe@mesos.apache.org?subject=Unsubscribe&body=Unsubscribe">Unsubscribe</a> | <a href="http://www.mail-archive.com/modules@mesos.apache.org/">Archives</a><br /></p>
+
     <h3 name="meetup">Local User Groups</h3>
     <p><a href="user-groups/">Mesos User Groups</a> organize local Mesos events in different cities. Join one in your city, or learn how to start your own.</p>
 
@@ -23,25 +32,9 @@ layout: community_section
     <p>Is this your first time contributing? See our <a href="/documentation/latest/beginner-contribution">beginner contribution guide</a>. Thanks! We love patches. :)</p>
     <p>Looking to go deeper? Find out how to make larger contributions in the <a href="/documentation/latest/advanced-contribution">advanced contribution guidelines</a>.</p>
 
-    <h3 name="workinggroups">Working Groups</h3>
-
-    <p>
-    As the community has scaled, we work on larger and more involved features and components in separate interest or <i>working</i> groups.
-    We keep track of these working groups <a href="http://mesos.apache.org/documentation/latest/working-groups/">here</a>.
-    In this list, you will be able to get in touch with the stakeholders, contributors and committers interested in certain features for Mesos, join in on the design meetings and see videos of past meetings.
-    </p>
-
   </div>
   <div class="col-md-6">
     <h2>Get In Touch</h2>
-    <h3 name="mailinglists">Mailing Lists</h3>
-    <p><b>Users</b>: <a href="mailto:user-subscribe@mesos.apache.org?subject=Subscribe&body=Subscribe">Subscribe</a> | <a href="mailto:user-unsubscribe@mesos.apache.org?subject=Unsubscribe&body=Unsubscribe">Unsubscribe</a> | <a href="https://lists.apache.org/list.html?user@mesos.apache.org">Archives</a><br />
-    <b>Developers</b>: <a href="mailto:dev-subscribe@mesos.apache.org?subject=Subscribe&body=Subscribe">Subscribe</a> | <a href="mailto:dev-unsubscribe@mesos.apache.org?subject=Unsubscribe&body=Unsubscribe">Unsubscribe</a> | <a href="https://lists.apache.org/list.html?dev@mesos.apache.org">Archives</a><br />
-    <b>JIRA Updates</b>: <a href="mailto:issues-subscribe@mesos.apache.org?subject=Subscribe&body=Subscribe">Subscribe</a> | <a href="mailto:issues-unsubscribe@mesos.apache.org?subject=Unsubscribe&body=Unsubscribe">Unsubscribe</a> | <a href="https://lists.apache.org/list.html?issues@mesos.apache.org">Archives</a><br />
-    <b>Reviews</b>: <a href="mailto:reviews-subscribe@mesos.apache.org?subject=Subscribe&body=Subscribe">Subscribe</a> | <a href="mailto:reviews-unsubscribe@mesos.apache.org?subject=Unsubscribe&body=Unsubscribe">Unsubscribe</a> | <a href="https://lists.apache.org/list.html?reviews@mesos.apache.org">Archives</a><br />
-    <b>Jenkins Builds</b>: <a href="mailto:builds-subscribe@mesos.apache.org?subject=Subscribe&body=Subscribe">Subscribe</a> | <a href="mailto:builds-unsubscribe@mesos.apache.org?subject=Unsubscribe&body=Unsubscribe">Unsubscribe</a> | <a href="https://lists.apache.org/list.html?builds@mesos.apache.org">Archives</a><br />
-    <b>Commits</b>: <a href="mailto:commits-subscribe@mesos.apache.org?subject=Subscribe&body=Subscribe">Subscribe</a> | <a href="mailto:commits-unsubscribe@mesos.apache.org?subject=Unsubscribe&body=Unsubscribe">Unsubscribe</a> | <a href="https://lists.apache.org/list.html?commits@mesos.apache.org">Archives</a><br />
-    <b>Modules</b>: <a href="mailto:modules-subscribe@mesos.apache.org?subject=Subscribe&body=Subscribe">Subscribe</a> | <a href="mailto:modules-unsubscribe@mesos.apache.org?subject=Unsubscribe&body=Unsubscribe">Unsubscribe</a> | <a href="http://www.mail-archive.com/modules@mesos.apache.org/">Archives</a><br /></p>
 
     <h3 name="slack">Slack</h3>
     <p>Developers and users chat at <a href="https://mesos.slack.com">mesos.slack.com</a>.</p>
@@ -63,6 +56,121 @@ layout: community_section
 
   </div>
   <div class="col-md-12">
+
+    <h3 name="workinggroups">Working Groups</h3>
+        <p>
+          As the community has scaled, we work on larger and more involved features and components in separate interest or working groups.
+          By joining working groups, you will be able to get in touch with the stakeholders, contributors and committers interested in certain features for Mesos.
+        </p>
+
+        <p>
+          A working group is a group of people who are interested in actively participating in specific area of the project. Below are some of the expectations from a working group:
+        <ul>
+          <li>
+            Should have at least one lead who is responsible for organizing and driving the work group meetings.
+          </li>
+          <li>
+            Should have regular (online) meetings that are open to public, recorded and archived.
+          </li>
+          <li>
+            Should maintain meeting notes that are shared with the dev@mesos.apache.org list regularly.
+          </li>
+          <li>
+            Should have a corresponding slack channel (also publicly archived) where synchronous discussions take place.
+          </li>
+        </ul>
+      <h4 name="wgyoutube">You Tube Channel</h4>
+        <p>
+          Past meetings should be posted to the <a href="https://www.youtube.com/channel/UC0wxLxgX8ilUn0m31lCpzAw">YouTube Channel</a>.
+        </p>
+      <h4 name="wgmailinglist">Working Group Mailing List</h4>
+        <p>
+          Please use the <code>dev@mesos.apache.org</code> list for discussions. We don’t use separate mailing lists for each working group. In order to distinguish emails for a specific working group, please tag the email subject with the working group name like the following:
+          <p>
+            <pre><code>
+            [XXX WG] YOUR SUBJECT HERE
+            </code></pre>
+          </p>
+        </p>
+      <h4 name="activewg">Active Working Groups</h4>
+        <p>
+        <table style="width:100%">
+          <tr>
+            <th>
+              Name
+            </th>
+            <th>
+              Leads
+            </th>
+            <th>
+              Slack Channel
+            </th>
+            <th>
+              Meetings
+            </th>
+          <tr/>
+          <tr>
+            <td>
+              Containerization
+            </td>
+            <td>
+              <a href="mailto:yujie.jay@gmail.com">Jie Yu</a>
+            </td>
+            <td>
+              #containerizer
+            </td>
+            <td>
+
+              <a href="https://docs.google.com/document/d/1z55a7tLZFoRWVuUxz1FZwgxkHeugtc2nHR89skFXSpU/edit?usp=sharing">Every other Thursday at 9:00 AM PST</a>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Performance
+            </td>
+            <td>
+              <a href="mailto:bmahler@apache.org">Benjamin Mahler</a>
+            </td>
+            <td>
+              #performance
+            </td>
+            <td>
+              <a href="https://docs.google.com/document/d/12hWGuzbqyNWc2l1ysbPcXwc0pzHEy4bodagrlNGCuQU/edit?usp=sharing">Monthly on the third Wednesday at 10:00 AM PST</a>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              Community
+            </td>
+            <td>
+              <a href="vinodkone@apache.org">Vinod Kone</a>
+            </td>
+            <td>
+              #community
+            </td>
+            <td>
+              <a href="https://docs.google.com/document/d/1vgi434dYkkZHs49EK4F4eMmM-3JG4f3qg-N5En-4ubg/edit?usp=sharing">Every other Monday at 10:30 AM PST</a>
+            </td>
+          </tr>
+          <tr>
+            <td>
+              API
+            </td>
+            <td>
+              <a href="mailto:grag@apache.org">Greg Mann</a>
+            </td>
+            <td>
+              #http-api
+            </td>
+            <td>
+              <a href="https://docs.google.com/document/d/1JrF7pA6gcBZ6iyeP5YgDG62ifn0cZIBWw1f_Ler6fLM/edit?usp=sharing">Every other Tuesday at 11:00 AM PST</a>
+            </td>
+          </tr>
+        </table>
+
+
+        </p>
+
     <h3 name="calendar">Events Calendar</h3>
     <iframe src="https://calendar.google.com/calendar/embed?src=2hecvndc0mnaqlir34cqnfvtak%40group.calendar.google.com" style="border: 0" width="100%" height="600" frameborder="0" scrolling="no"></iframe>
   </div>

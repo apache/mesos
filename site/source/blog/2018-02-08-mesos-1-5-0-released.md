@@ -111,7 +111,7 @@ Rolling upgrades from a Mesos 1.4.0 cluster to Mesos 1.5.0 are straightforward. 
 
 # Community
 
-Inspired by the work that went into this release? Want to get involved? Have feedback? We'd love to hear from you! Join a [working group](http://mesos.apache.org/documentation/latest/working-groups/) or start a conversation in the [community](http://mesos.apache.org/community/)!
+Inspired by the work that went into this release? Want to get involved? Have feedback? We'd love to hear from you! Join a [working group](http://mesos.apache.org/community/#working-groups) or start a conversation in the [community](http://mesos.apache.org/community/)!
 
 # Thank you!
 
