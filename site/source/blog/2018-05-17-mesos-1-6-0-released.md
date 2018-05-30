@@ -45,7 +45,7 @@ When building Mesos with gRPC support, note that gRPC version 1.10 or later is n
 
 # Community
 
-Inspired by the work that went into this release? Want to get involved? Have feedback? We'd love to hear from you! Join a [working group](http://mesos.apache.org/documentation/latest/working-groups/) or start a conversation in the [community](http://mesos.apache.org/community/)!
+Inspired by the work that went into this release? Want to get involved? Have feedback? We'd love to hear from you! Join a [working group](http://mesos.apache.org/community/#working-groups) or start a conversation in the [community](http://mesos.apache.org/community/)!
 
 # Thank you!
 
