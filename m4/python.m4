@@ -3,17 +3,12 @@
 ## From Andrew Dalke
 ## Updated by James Henstridge
 ## ------------------------
-# Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004, 2005
-# Free Software Foundation, Inc.
+# Copyright (C) 1999-2018 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
 
-# Modified by Benjamin Mahler (benjamin.mahler@gmail.com).
-# I've modified this file to check for python2.6, of which automake <= 1.10
-# is oblivious. As such, we can kill this file entirely if or when we decide
-# to require automake >= 1.11.
 
 # AM_PATH_PYTHON([MINIMUM-VERSION], [ACTION-IF-FOUND], [ACTION-IF-NOT-FOUND])
 # ---------------------------------------------------------------------------
@@ -39,13 +34,16 @@
 # numbers and dots only.
 AC_DEFUN([AM_PATH_PYTHON],
  [
-  dnl Find a Python interpreter.  Python versions prior to 1.5 are not
-  dnl supported because the default installation locations changed from
-  dnl $prefix/lib/site-python in 1.4 to $prefix/lib/python1.5/site-packages
-  dnl in 1.5.
+  dnl Find a Python interpreter.  Python versions prior to 2.0 are not
+  dnl supported. (2.0 was released on October 16, 2000).
   m4_define_default([_AM_PYTHON_INTERPRETER_LIST],
-                    [python python2 python2.6 python2.5 python2.4 python2.3 dnl
-python2.2 python2.1 python2.0 python1.6 python1.5])
+[python python2 python3 dnl
+ python3.9 python3.8 python3.7 python3.6 python3.5 python3.4 python3.3 dnl
+ python3.2 python3.1 python3.0 dnl
+ python2.7 python2.6 python2.5 python2.4 python2.3 python2.2 python2.1 dnl
+ python2.0])
+
+  AC_ARG_VAR([PYTHON], [the Python interpreter])
 
   m4_if([$1],[],[
     dnl No version check is needed.
@@ -58,10 +56,11 @@ python2.2 python2.1 python2.0 python1.6 python1.5])
     dnl A version check is needed.
     if test -n "$PYTHON"; then
       # If the user set $PYTHON, use it and don't search something else.
-      AC_MSG_CHECKING([whether $PYTHON version >= $1])
+      AC_MSG_CHECKING([whether $PYTHON version is >= $1])
       AM_PYTHON_CHECK_VERSION([$PYTHON], [$1],
-			      [AC_MSG_RESULT(yes)],
-			      [AC_MSG_ERROR(too old)])
+			      [AC_MSG_RESULT([yes])],
+			      [AC_MSG_RESULT([no])
+			       AC_MSG_ERROR([Python interpreter is too old])])
       am_display_PYTHON=$PYTHON
     else
       # Otherwise, try each interpreter until we find one that satisfies
@@ -92,7 +91,7 @@ python2.2 python2.1 python2.0 python1.6 python1.5])
   dnl library.
 
   AC_CACHE_CHECK([for $am_display_PYTHON version], [am_cv_python_version],
-    [am_cv_python_version=`$PYTHON -c "import sys; print sys.version[[:3]]"`])
+    [am_cv_python_version=`$PYTHON -c "import sys; sys.stdout.write(sys.version[[:3]])"`])
   AC_SUBST([PYTHON_VERSION], [$am_cv_python_version])
 
   dnl Use the values of $prefix and $exec_prefix for the corresponding
@@ -107,9 +106,28 @@ python2.2 python2.1 python2.0 python1.6 python1.5])
   dnl to know which OS platform Python thinks this is.
 
   AC_CACHE_CHECK([for $am_display_PYTHON platform], [am_cv_python_platform],
-    [am_cv_python_platform=`$PYTHON -c "import sys; print sys.platform"`])
+    [am_cv_python_platform=`$PYTHON -c "import sys; sys.stdout.write(sys.platform)"`])
   AC_SUBST([PYTHON_PLATFORM], [$am_cv_python_platform])
 
+  # Just factor out some code duplication.
+  am_python_setup_sysconfig="\
+import sys
+# Prefer sysconfig over distutils.sysconfig, for better compatibility
+# with python 3.x.  See automake bug#10227.
+try:
+    import sysconfig
+except ImportError:
+    can_use_sysconfig = 0
+else:
+    can_use_sysconfig = 1
+# Can't use sysconfig in CPython 2.7, since it's broken in virtualenvs:
+# <https://github.com/pypa/virtualenv/issues/118>
+try:
+    from platform import python_implementation
+    if python_implementation() == 'CPython' and sys.version[[:3]] == '2.7':
+        can_use_sysconfig = 0
+except ImportError:
+    pass"
 
   dnl Set up 4 directories:
 
@@ -117,13 +135,38 @@ python2.2 python2.1 python2.0 python1.6 python1.5])
   dnl   site-packages directory, not the python standard library
   dnl   directory like in previous automake betas.  This behavior
   dnl   is more consistent with lispdir.m4 for example.
-  dnl Query distutils for this directory.  distutils does not exist in
-  dnl Python 1.5, so we fall back to the hardcoded directory if it
-  dnl doesn't work.
+  dnl Query distutils for this directory.
   AC_CACHE_CHECK([for $am_display_PYTHON script directory],
     [am_cv_python_pythondir],
-    [am_cv_python_pythondir=`$PYTHON -c "from distutils import sysconfig; print sysconfig.get_python_lib(0,0,prefix='$PYTHON_PREFIX')" 2>/dev/null ||
-     echo "$PYTHON_PREFIX/lib/python$PYTHON_VERSION/site-packages"`])
+    [if test "x$prefix" = xNONE
+     then
+       am_py_prefix=$ac_default_prefix
+     else
+       am_py_prefix=$prefix
+     fi
+     am_cv_python_pythondir=`$PYTHON -c "
+$am_python_setup_sysconfig
+if can_use_sysconfig:
+    sitedir = sysconfig.get_path('purelib', vars={'base':'$am_py_prefix'})
+else:
+    from distutils import sysconfig
+    sitedir = sysconfig.get_python_lib(0, 0, prefix='$am_py_prefix')
+sys.stdout.write(sitedir)"`
+     case $am_cv_python_pythondir in
+     $am_py_prefix*)
+       am__strip_prefix=`echo "$am_py_prefix" | sed 's|.|.|g'`
+       am_cv_python_pythondir=`echo "$am_cv_python_pythondir" | sed "s,^$am__strip_prefix,$PYTHON_PREFIX,"`
+       ;;
+     *)
+       case $am_py_prefix in
+         /usr|/System*) ;;
+         *)
+	  am_cv_python_pythondir=$PYTHON_PREFIX/lib/python$PYTHON_VERSION/site-packages
+	  ;;
+       esac
+       ;;
+     esac
+    ])
   AC_SUBST([pythondir], [$am_cv_python_pythondir])
 
   dnl pkgpythondir -- $PACKAGE directory under pythondir.  Was
@@ -134,13 +177,38 @@ python2.2 python2.1 python2.0 python1.6 python1.5])
 
   dnl pyexecdir -- directory for installing python extension modules
   dnl   (shared libraries)
-  dnl Query distutils for this directory.  distutils does not exist in
-  dnl Python 1.5, so we fall back to the hardcoded directory if it
-  dnl doesn't work.
+  dnl Query distutils for this directory.
   AC_CACHE_CHECK([for $am_display_PYTHON extension module directory],
     [am_cv_python_pyexecdir],
-    [am_cv_python_pyexecdir=`$PYTHON -c "from distutils import sysconfig; print sysconfig.get_python_lib(1,0,prefix='$PYTHON_EXEC_PREFIX')" 2>/dev/null ||
-     echo "${PYTHON_EXEC_PREFIX}/lib/python${PYTHON_VERSION}/site-packages"`])
+    [if test "x$exec_prefix" = xNONE
+     then
+       am_py_exec_prefix=$am_py_prefix
+     else
+       am_py_exec_prefix=$exec_prefix
+     fi
+     am_cv_python_pyexecdir=`$PYTHON -c "
+$am_python_setup_sysconfig
+if can_use_sysconfig:
+    sitedir = sysconfig.get_path('platlib', vars={'platbase':'$am_py_prefix'})
+else:
+    from distutils import sysconfig
+    sitedir = sysconfig.get_python_lib(1, 0, prefix='$am_py_prefix')
+sys.stdout.write(sitedir)"`
+     case $am_cv_python_pyexecdir in
+     $am_py_exec_prefix*)
+       am__strip_prefix=`echo "$am_py_exec_prefix" | sed 's|.|.|g'`
+       am_cv_python_pyexecdir=`echo "$am_cv_python_pyexecdir" | sed "s,^$am__strip_prefix,$PYTHON_EXEC_PREFIX,"`
+       ;;
+     *)
+       case $am_py_exec_prefix in
+         /usr|/System*) ;;
+         *)
+	   am_cv_python_pyexecdir=$PYTHON_EXEC_PREFIX/lib/python$PYTHON_VERSION/site-packages
+	   ;;
+       esac
+       ;;
+     esac
+    ])
   AC_SUBST([pyexecdir], [$am_cv_python_pyexecdir])
 
   dnl pkgpyexecdir -- $(pyexecdir)/$(PACKAGE)
@@ -160,14 +228,15 @@ python2.2 python2.1 python2.0 python1.6 python1.5])
 # Run ACTION-IF-FALSE otherwise.
 # This test uses sys.hexversion instead of the string equivalent (first
 # word of sys.version), in order to cope with versions such as 2.2c1.
-# hexversion has been introduced in Python 1.5.2; it's probably not
-# worth to support older versions (1.5.1 was released on October 31, 1998).
+# This supports Python 2.0 or higher. (2.0 was released on October 16, 2000).
 AC_DEFUN([AM_PYTHON_CHECK_VERSION],
- [prog="import sys, string
+ [prog="import sys
 # split strings by '.' and convert to numeric.  Append some zeros
 # because we need at least 4 digits for the hex conversion.
-minver = map(int, string.split('$2', '.')) + [[0, 0, 0]]
+# map returns an iterator in Python 3.0 and a list in 2.x
+minver = list(map(int, '$2'.split('.'))) + [[0, 0, 0]]
 minverhex = 0
-for i in xrange(0, 4): minverhex = (minverhex << 8) + minver[[i]]
+# xrange is not present in Python 3.0 and range returns an iterator
+for i in list(range(0, 4)): minverhex = (minverhex << 8) + minver[[i]]
 sys.exit(sys.hexversion < minverhex)"
   AS_IF([AM_RUN_LOG([$1 -c "$prog"])], [$3], [$4])])
