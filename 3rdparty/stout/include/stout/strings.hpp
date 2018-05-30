@@ -14,6 +14,7 @@
 #define __STOUT_STRINGS_HPP__
 
 #include <algorithm>
+#include <cstring>
 #include <map>
 #include <sstream>
 #include <string>
@@ -384,6 +385,14 @@ inline bool startsWith(const std::string& s, const std::string& prefix)
 }
 
 
+inline bool startsWith(const std::string& s, const char* prefix)
+{
+  size_t len = ::strnlen(prefix, s.size() + 1);
+  return s.size() >= len &&
+         std::equal(s.begin(), s.begin() + len, prefix);
+}
+
+
 inline bool startsWith(const std::string& s, char c)
 {
   return !s.empty() && s.front() == c;
@@ -394,6 +403,14 @@ inline bool endsWith(const std::string& s, const std::string& suffix)
 {
   return s.size() >= suffix.size() &&
          std::equal(suffix.rbegin(), suffix.rend(), s.rbegin());
+}
+
+
+inline bool endsWidth(const std::string& s, const char* suffix)
+{
+  size_t len = ::strnlen(suffix, s.size() + 1);
+  return s.size() >= len &&
+         std::equal(s.end() - len, s.end(), suffix);
 }
 
 

@@ -485,6 +485,20 @@ TEST(StringsTest, StartsWith)
   EXPECT_TRUE(strings::startsWith("hello world", "hello"));
   EXPECT_FALSE(strings::startsWith("hello world", "no"));
   EXPECT_FALSE(strings::startsWith("hello world", "ello"));
+
+  EXPECT_TRUE(strings::startsWith("hello world", std::string("hello")));
+  EXPECT_FALSE(strings::startsWith("hello world", std::string("ello")));
+}
+
+
+TEST(StringsTest, EndsWith)
+{
+  EXPECT_TRUE(strings::endsWith("hello world", "world"));
+  EXPECT_FALSE(strings::endsWith("hello world", "no"));
+  EXPECT_FALSE(strings::endsWith("hello world", "ello"));
+
+  EXPECT_TRUE(strings::endsWith("hello world", std::string("world")));
+  EXPECT_FALSE(strings::endsWith("hello world", std::string("worl")));
 }
 
 
