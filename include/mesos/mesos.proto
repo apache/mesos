@@ -827,6 +827,18 @@ message ExecutorInfo {
  * in the same zone, in different zones in the same region, or in
  * different regions. Note that all masters in a given Mesos cluster
  * must be in the same region.
+ *
+ * Complex deployments may have additional levels of hierarchy: for example,
+ * multiple racks might be grouped together into "halls" and multiple DCs in
+ * the same geographical vicinity might be grouped together. As a convention,
+ * the recommended way to represent additional levels of hierarchy is via dot-
+ * separated labels in the existing zone and region fields. For example, the
+ * fact that racks "abc" and "def" are in the same hall might be represented
+ * using the zone names "rack-abc.hall-1" and "rack-def.hall-1", for example.
+ * Software that is not aware of this additional structure will compare the
+ * zone names for equality- hence, the two zones will be treated as different
+ * (unrelated) zones. Software that is "hall-aware" can inspect the zone names
+ * and make use of the additional hierarchy.
  */
 message DomainInfo {
   message FaultDomain {
