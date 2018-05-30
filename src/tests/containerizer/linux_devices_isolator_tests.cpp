@@ -55,12 +55,6 @@ namespace tests {
 
 struct DevicesTestParam
 {
-  DevicesTestParam(
-      const string& _containerCheck,
-      const string& _allowedDevices)
-    : containerCheck(_containerCheck),
-      allowedDevices(_allowedDevices) {}
-
   const string containerCheck;
   const string allowedDevices;
 };
@@ -84,7 +78,8 @@ public:
 };
 
 
-TEST_P(LinuxDevicesIsolatorTest, ROOT_PopulateWhitelistedDevices)
+TEST_P(LinuxDevicesIsolatorTest,
+       ROOT_UNPRIVILEGED_USER_PopulateWhitelistedDevices)
 {
   // Verify that all the necessary devices are present on the host.
   // All reasonable Linux configuration should have these devices.
@@ -145,86 +140,90 @@ TEST_P(LinuxDevicesIsolatorTest, ROOT_PopulateWhitelistedDevices)
 }
 
 
+static const std::vector<DevicesTestParam> devicesTestValues {
+  // Test that /dev/loop-control is a character device and that
+  // /dev/kmsg doesn't exist. The latter test ensures that we
+  // won't succeed by accidentally running on the host.
+  DevicesTestParam{
+    "test -c /dev/loop-control && test ! -e /dev/kmsg",
+    R"~({
+      "allowed_devices": [
+        {
+          "device": {
+            "path": "/dev/loop-control"
+          },
+          "access": {}
+        }
+      ]
+    })~"},
+  // Test that a device in a subdirectory is populated.
+  DevicesTestParam{
+    "test -r /dev/cpu/0/cpuid",
+    R"~({
+      "allowed_devices": [
+        {
+          "device": {
+            "path": "/dev/cpu/0/cpuid"
+          },
+          "access": {
+            "read": true
+          }
+        }
+      ]
+    })~"},
+  // Test that read-only devices are populated in read-only mode.
+  DevicesTestParam{
+    "test -r /dev/loop-control && test ! -w /dev/loop-control",
+    R"~({
+      "allowed_devices": [
+        {
+          "device": {
+            "path": "/dev/loop-control"
+          },
+          "access": {
+            "read": true
+          }
+        }
+      ]
+    })~"},
+  // Test that write-only devices are populated in write-only mode.
+  DevicesTestParam{
+    "test -w /dev/loop-control && test ! -r /dev/loop-control",
+    R"~({
+      "allowed_devices": [
+        {
+          "device": {
+            "path": "/dev/loop-control"
+          },
+          "access": {
+            "write": true
+          }
+        }
+      ]
+    })~"},
+  // Test that read-write devices are populated in read-write mode.
+  DevicesTestParam{
+    "test -w /dev/loop-control && test -r /dev/loop-control",
+    R"~({
+      "allowed_devices": [
+        {
+          "device": {
+            "path": "/dev/loop-control"
+          },
+          "access": {
+            "read": true,
+            "write": true
+          }
+        }
+      ]
+    })~"}
+};
+
+
 INSTANTIATE_TEST_CASE_P(
   DevicesTestParam,
   LinuxDevicesIsolatorTest,
-  ::testing::Values(
-    // Test that /dev/loop-control is a character device and that
-    // /dev/kmsg doesn't exist. The latter test ensures that we
-    // won't succeed by accidentally running on the host.
-    DevicesTestParam(
-      "test -c /dev/loop-control && test ! -e /dev/kmsg",
-      R"~({
-        "allowed_devices": [
-          {
-            "device": {
-              "path": "/dev/loop-control"
-            },
-            "access": {}
-          }
-        ]
-      })~"),
-    // Test that a device in a subdirectory is populated.
-    DevicesTestParam(
-      "test -r /dev/cpu/0/cpuid",
-      R"~({
-        "allowed_devices": [
-          {
-            "device": {
-              "path": "/dev/cpu/0/cpuid"
-            },
-            "access": {
-              "read": true
-            }
-          }
-        ]
-      })~"),
-    // Test that read-only devices are populated in read-only mode.
-    DevicesTestParam(
-      "test -r /dev/loop-control && test ! -w /dev/loop-control",
-      R"~({
-        "allowed_devices": [
-          {
-            "device": {
-              "path": "/dev/loop-control"
-            },
-            "access": {
-              "read": true
-            }
-          }
-        ]
-      })~"),
-    // Test that write-only devices are populated in write-only mode.
-    DevicesTestParam(
-      "test -w /dev/loop-control && test ! -r /dev/loop-control",
-      R"~({
-        "allowed_devices": [
-          {
-            "device": {
-              "path": "/dev/loop-control"
-            },
-            "access": {
-              "write": true
-            }
-          }
-        ]
-      })~"),
-    // Test that read-write devices are populated in read-write mode.
-    DevicesTestParam(
-      "test -w /dev/loop-control && test -r /dev/loop-control",
-      R"~({
-        "allowed_devices": [
-          {
-            "device": {
-              "path": "/dev/loop-control"
-            },
-            "access": {
-              "read": true,
-              "write": true
-            }
-          }
-        ]
-      })~")));
+  ::testing::ValuesIn(devicesTestValues));
 
 } // namespace tests {
 } // namespace internal {
