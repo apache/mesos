@@ -85,6 +85,7 @@ TEST_P(LinuxDevicesIsolatorTest,
   // All reasonable Linux configuration should have these devices.
   ASSERT_TRUE(os::exists("/dev/kmsg"));
   ASSERT_TRUE(os::exists("/dev/loop-control"));
+  ASSERT_TRUE(os::exists("/dev/net/tun"));
 
   slave::Flags flags = CreateSlaveFlags();
 
@@ -158,12 +159,12 @@ static const std::vector<DevicesTestParam> devicesTestValues {
     })~"},
   // Test that a device in a subdirectory is populated.
   DevicesTestParam{
-    "test -r /dev/cpu/0/cpuid",
+    "test -r /dev/net/tun",
     R"~({
       "allowed_devices": [
         {
           "device": {
-            "path": "/dev/cpu/0/cpuid"
+            "path": "/dev/net/tun"
           },
           "access": {
             "read": true
