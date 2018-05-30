@@ -408,6 +408,11 @@ AC_ARG_WITH([libevent],
                            [specify where to locate the libevent library]),
             [], [])
 
+AC_ARG_WITH([libarchive],
+            AS_HELP_STRING([--with-libarchive=@<:@=DIR@:>@],
+                           [specify where to locate the libarchive library]),
+            [without_bundled_libarchive=yes], [])
+
 AC_ARG_WITH([libprocess],
             AS_HELP_STRING([--with-libprocess=@<:@=DIR@:>@],
                            [specify where to locate the libprocess library]),
@@ -1451,6 +1456,42 @@ libevent_pthreads version 2+ headers are required for libprocess to build.
 fi
 
 AM_CONDITIONAL([ENABLE_LIBEVENT], [test x"$enable_libevent" = "xyes"])
+
+
+# Check if user has asked us to use a preinstalled libarchive, or if
+# they asked us to ignore all bundled libraries while compiling and
+# linking.
+if test -n "`echo $with_libarchive`"; then
+  CPPFLAGS="$CPPFLAGS -I${with_libarchive}/include"
+  LDFLAGS="$LDFLAGS -L${with_libarchive}/lib"
+fi
+
+if test "x$without_bundled_libarchive" = "xyes" || \
+   test "x$enable_bundled" != "xyes"; then
+  # Check if headers and library were located.
+  AC_CHECK_HEADERS([archive.h], [found_libarchive=yes])
+
+  if test "x$found_libarchive" = "xyes"; then
+    with_bundled_libarchive=no
+  else
+    AC_MSG_ERROR([cannot find libarchive
+-------------------------------------------------------------------
+You have requested the use of a non-bundled libarchive but no suitable
+libarchive could be found.
+
+You may want specify the location of libarchive by providing a prefix
+path via --with-libarchive=DIR, or check that the path you provided is
+correct if you're already doing this.
+-------------------------------------------------------------------
+])
+  fi
+
+else
+  with_bundled_libarchive=yes
+fi
+
+AM_CONDITIONAL([WITH_BUNDLED_LIBARCHIVE], [test "x$with_bundled_libarchive" = "xyes"])
+
 
 
 # Check if user has asked us to use a preinstalled libprocess, or if

@@ -1,0 +1,30 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+new file mode 100644
+index 0000000..412f741
+--- /dev/null
++++ b/CMakeLists.txt
+@@ -0,0 +1,24 @@
++project(bzip2 C)
++cmake_minimum_required(VERSION 3.8)
++
++add_definitions(-D_FILE_OFFSET_BITS=64)
++
++# bzip2.c and bzip2recover.c are not built because we are only
++# interested in building the library (not executables).
++set(BZIP2_SRCS
++  blocksort.c
++  huffman.c
++  crctable.c
++  randtable.c
++  compress.c
++  decompress.c
++  bzlib.c
++  libbz2.def)
++
++add_library(bzip2 STATIC ${BZIP2_SRCS})
++
++install(TARGETS bzip2
++  DESTINATION ${BZIP2_INSTALL_DIR})
++
++install(FILES bzlib.h
++  DESTINATION ${BZIP2_INSTALL_DIR})

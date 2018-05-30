@@ -1,0 +1,58 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 73bf07b3..2a58a3a7 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -166,7 +166,7 @@ IF (MSVC)
+   #                       result of an assignment.
+   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4706")
+   # /WX option is the same as gcc's -Werror option.
+-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /WX")
++  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /w44267 /w44244")
+   # /Oi option enables built-in functions.
+   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /Oi")
+   #################################################################
+@@ -180,6 +180,7 @@ include(CTest)
+ OPTION(ENABLE_NETTLE "Enable use of Nettle" ON)
+ OPTION(ENABLE_OPENSSL "Enable use of OpenSSL" ON)
+ OPTION(ENABLE_LZO "Enable the use of the system LZO library if found" OFF)
++OPTION(ENABLE_LZ4 "Enable the use of the system LZ4 library if found" OFF)
+ OPTION(ENABLE_LZMA "Enable the use of the system LZMA library if found" ON)
+
+ OPTION(ENABLE_ZLIB "Enable the use of the system ZLIB library if found" ON)
+@@ -509,15 +510,19 @@ MARK_AS_ADVANCED(CLEAR LZO2_LIBRARY)
+ #
+ # Find LZ4
+ #
+-IF (LZ4_INCLUDE_DIR)
+-  # Already in cache, be silent
+-  SET(LZ4_FIND_QUIETLY TRUE)
+-ENDIF (LZ4_INCLUDE_DIR)
++IF (ENABLE_LZ4)
++  IF (LZ4_INCLUDE_DIR)
++    # Already in cache, be silent
++    SET(LZ4_FIND_QUIETLY TRUE)
++  ENDIF (LZ4_INCLUDE_DIR)
+
+-FIND_PATH(LZ4_INCLUDE_DIR lz4.h)
+-FIND_LIBRARY(LZ4_LIBRARY NAMES lz4 liblz4)
+-INCLUDE(FindPackageHandleStandardArgs)
+-FIND_PACKAGE_HANDLE_STANDARD_ARGS(LZ4 DEFAULT_MSG LZ4_LIBRARY LZ4_INCLUDE_DIR)
++  FIND_PATH(LZ4_INCLUDE_DIR lz4.h)
++  FIND_LIBRARY(LZ4_LIBRARY NAMES lz4 liblz4)
++  INCLUDE(FindPackageHandleStandardArgs)
++  FIND_PACKAGE_HANDLE_STANDARD_ARGS(LZ4 DEFAULT_MSG LZ4_LIBRARY LZ4_INCLUDE_DIR)
++ELSE (ENABLE_LZ4)
++  SET(LZ4_FOUND FALSE)
++ENDIF (ENABLE_LZ4)
+ IF(LZ4_FOUND)
+   SET(HAVE_LIBLZ4 1)
+   SET(HAVE_LZ4_H 1)
+@@ -904,7 +909,7 @@ MACRO(CHECK_ICONV LIB TRY_ICONV_CONST)
+     ENDIF (CMAKE_C_COMPILER_ID MATCHES "^XL$")
+     IF (MSVC)
+       # NOTE: /WX option is the same as gcc's -Werror option.
+-      SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} /WX")
++      SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} /w44267 /w44244")
+     ENDIF (MSVC)
+     #
+     CHECK_C_SOURCE_COMPILES(
