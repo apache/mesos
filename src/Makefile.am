@@ -1548,7 +1548,9 @@ libcsi_la_SOURCES +=							\
 if ENABLE_GRPC
 libcsi_la_SOURCES +=							\
   csi/client.cpp							\
-  csi/client.hpp
+  csi/client.hpp							\
+  csi/rpc.cpp								\
+  csi/rpc.hpp
 endif
 
 nodist_libcsi_la_SOURCES = $(CXX_CSI_PROTOS)

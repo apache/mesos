@@ -242,7 +242,8 @@ set(CSI_SRC
 
 if (ENABLE_GRPC)
   list(APPEND CSI_SRC
-    csi/client.cpp)
+    csi/client.cpp
+    csi/rpc.cpp)
 endif ()
 
 set(DOCKER_SRC
