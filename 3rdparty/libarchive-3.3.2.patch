@@ -1,0 +1,48 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 73bf07b..8f565c6 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -3,6 +3,7 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12 FATAL_ERROR)
+ #
+ PROJECT(libarchive C)
+ #
++
+ SET(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/build/cmake")
+ if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+   set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${libarchive_BINARY_DIR}/bin)
+@@ -165,8 +166,6 @@ IF (MSVC)
+   # Enable level 4 C4706: The test value in a conditional expression was the
+   #                       result of an assignment.
+   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /we4706")
+-  # /WX option is the same as gcc's -Werror option.
+-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /WX")
+   # /Oi option enables built-in functions.
+   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} /Oi")
+   #################################################################
+@@ -181,7 +180,6 @@ OPTION(ENABLE_NETTLE "Enable use of Nettle" ON)
+ OPTION(ENABLE_OPENSSL "Enable use of OpenSSL" ON)
+ OPTION(ENABLE_LZO "Enable the use of the system LZO library if found" OFF)
+ OPTION(ENABLE_LZMA "Enable the use of the system LZMA library if found" ON)
+-
+ OPTION(ENABLE_ZLIB "Enable the use of the system ZLIB library if found" ON)
+ OPTION(ENABLE_BZip2 "Enable the use of the system BZip2 library if found" ON)
+ OPTION(ENABLE_LIBXML2 "Enable the use of the system libxml2 library if found" ON)
+@@ -190,7 +188,6 @@ OPTION(ENABLE_PCREPOSIX "Enable the use of the system PCREPOSIX library if found
+ OPTION(ENABLE_LibGCC "Enable the use of the system LibGCC library if found" ON)
+ # CNG is used for encrypt/decrypt Zip archives on Windows.
+ OPTION(ENABLE_CNG "Enable the use of CNG(Crypto Next Generation)" ON)
+-
+ OPTION(ENABLE_TAR "Enable tar building" ON)
+ OPTION(ENABLE_TAR_SHARED "Enable dynamic build of tar" FALSE)
+ OPTION(ENABLE_CPIO "Enable cpio building" ON)
+@@ -902,10 +899,6 @@ MACRO(CHECK_ICONV LIB TRY_ICONV_CONST)
+     IF (CMAKE_C_COMPILER_ID MATCHES "^XL$")
+       SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -qhalt=w -qflag=w:w")
+     ENDIF (CMAKE_C_COMPILER_ID MATCHES "^XL$")
+-    IF (MSVC)
+-      # NOTE: /WX option is the same as gcc's -Werror option.
+-      SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} /WX")
+-    ENDIF (MSVC)
+     #
+     CHECK_C_SOURCE_COMPILES(
+       "#include <stdlib.h>

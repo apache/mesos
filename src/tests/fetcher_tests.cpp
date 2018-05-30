@@ -1000,33 +1000,17 @@ TEST_F(FetcherTest, UNZIP_ExtractInvalidFile)
       os::getcwd(),
       None());
 
-#ifdef __WINDOWS__
-  // On Windows, PowerShell doesn't consider a CRC error to be an error,
-  // so it succeeds, whereas the zip utility errors.
-  //
-  // TODO(coffler): When we move to programmatically dealing with various
-  // data files (tar, gzip, zip, etc), we should be able to resolve this.
-  // See MESOS-7740 for further details.
-  AWAIT_READY(fetch);
-#else
   AWAIT_FAILED(fetch);
-#endif // __WINDOWS__
+
+  // libarchive is different than zip:
+  //
+  // Zip, upon CRC error, will still extract the file (and return an error).
+  // libarchive, on CRC error, will abort (and not create the file).
 
   string extractedFile = path::join(os::getcwd(), "world");
-  ASSERT_TRUE(os::exists(extractedFile));
+  ASSERT_FALSE(os::exists(extractedFile));
 
-  ASSERT_SOME_EQ("hello hello\n", os::read(extractedFile));
-
-#ifdef __WINDOWS__
-  // TODO(coffler): Eliminate with programmatic decoding of container files.
-  // See MESOS-7740 for further details.
-  //
-  // On Windows, PowerShell doesn't consider a CRC error to be an error.
-  // Adjust metrics appropriately to not expect an error back.
-  verifyMetrics(1, 0);
-#else
   verifyMetrics(0, 1);
-#endif // __WINDOWS__
 }
 
 
