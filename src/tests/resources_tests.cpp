@@ -1925,16 +1925,18 @@ TEST(ResourcesTest, PrecisionRounding)
 }
 
 
-TEST(ResourcesTest, PrecisionVerySmallValue)
+TEST(ResourcesTest, VerySmallValue)
 {
-  Resources r1 = Resources::parse("cpus:2;mem:1024").get();
-  Resources r2 = Resources::parse("cpus:0.00001;mem:1").get();
+  Try<Resources> resources = Resources::parse("cpus:0.00001");
+  EXPECT_ERROR(resources);
+}
 
-  Resources r3 = r1 - (r1 - r2);
-  EXPECT_TRUE(r3.contains(r2));
 
-  Resources r4 = Resources::parse("cpus:0;mem:1").get();
-  EXPECT_EQ(r2, r4);
+TEST(ResourcesTest, AbsentResources)
+{
+  Try<Resources> resources = Resources::parse("gpus:0");
+  ASSERT_SOME(resources);
+  EXPECT_EQ(0, resources->size());
 }
 
 
