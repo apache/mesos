@@ -863,8 +863,11 @@ Option<Error> Resources::validate(const Resource& resource)
       return Error("Invalid scalar resource");
     }
 
-    if (resource.scalar().value() < 0) {
-      return Error("Invalid scalar resource: value < 0");
+    // We do not allow negative scalar resource values or
+    // non-zero values which would be represented as zero.
+    if (resource.scalar().value() != 0 &&
+        resource.scalar() <= Value::Scalar()) {
+      return Error("Invalid scalar resource: value <= 0");
     }
   } else if (resource.type() == Value::RANGES) {
     if (resource.has_scalar() ||
