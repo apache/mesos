@@ -7697,10 +7697,13 @@ TEST_F(MasterTest, TaskWithTinyResources)
 
   Offer offer = offers.get()[0];
 
-  TaskInfo task = createTask(
-      offer.slave_id(),
-      Resources::parse("cpus:0.00001;mem:1").get(),
-      SLEEP_COMMAND(1000));
+  // We manually construct the CPU resources since the parser constructing
+  // `Resources` instead of `Resource` already performs validation and would
+  // reject the input.
+  Resources resources = Resources::parse("mem:1").get();
+  resources += Resources::parse("cpus", "0.00001", "*").get();
+
+  TaskInfo task = createTask(offer.slave_id(), resources, SLEEP_COMMAND(1000));
 
   Future<TaskStatus> startingStatus;
   Future<TaskStatus> runningStatus;
