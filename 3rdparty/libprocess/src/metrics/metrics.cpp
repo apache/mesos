@@ -158,10 +158,12 @@ Future<map<string, double>> MetricsProcess::snapshot(
   Future<Nothing> timedout =
     after(timeout.getOrElse(Duration::max()));
 
+  vector<Future<double>> values = futures.values();
+
   // Return the response once it finishes or we time out.
   return select<Nothing>({
       timedout,
-      await(futures.values()).then([]{ return Nothing(); }) })
+      await(std::move(values)).then([]{ return Nothing(); }) })
     .onAny([=]() mutable { timedout.discard(); }) // Don't accumulate timers.
     .then(defer(self(),
                 &Self::__snapshot,
