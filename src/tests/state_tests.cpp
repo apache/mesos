@@ -183,7 +183,7 @@ void FetchAndStoreAndStoreFailAndFetch(State* state)
 
   future2 = state->store(variable2);
   AWAIT_READY(future2);
-  EXPECT_TRUE(future2->isNone());
+  EXPECT_NONE(future2.get());
 
   future1 = state->fetch<Slaves>("slaves");
   AWAIT_READY(future1);

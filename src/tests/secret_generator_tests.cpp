@@ -65,9 +65,7 @@ TEST(JWTSecretGeneratorTest, Generate)
 
   const Try<JWT, JWTError> jwt = JWT::parse(token->value().data(), secret);
 
-  // TODO(nfnt): Change this to `EXPECT_SOME(jwt)`
-  // once MESOS-7220 is resolved.
-  EXPECT_TRUE(jwt.isSome());
+  EXPECT_SOME(jwt);
 
   Result<JSON::String> sub = jwt->payload.at<JSON::String>("sub");
 

@@ -792,8 +792,8 @@ TEST(ResourcesTest, Resources)
   EXPECT_SOME(r.cpus());
   EXPECT_DOUBLE_EQ(45.55, r.cpus().get());
   EXPECT_SOME_EQ(Megabytes(512), r.disk());
-  EXPECT_TRUE(r.mem().isNone());
-  EXPECT_TRUE(r.ports().isNone());
+  EXPECT_NONE(r.mem());
+  EXPECT_NONE(r.ports());
 }
 
 

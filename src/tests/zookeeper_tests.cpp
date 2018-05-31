@@ -189,7 +189,7 @@ TEST_F(ZooKeeperTest, LeaderDetector)
   AWAIT_READY(cancellation);
   EXPECT_TRUE(cancellation.get());
   AWAIT_READY(leader);
-  ASSERT_TRUE(leader->isNone());
+  ASSERT_NONE(leader.get());
 }
 
 

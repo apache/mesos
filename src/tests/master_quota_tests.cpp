@@ -529,7 +529,7 @@ TEST_F(MasterQuotaTest, Status)
 
     // Convert JSON response to `QuotaStatus` protobuf.
     const Try<QuotaStatus> status = ::protobuf::parse<QuotaStatus>(parse.get());
-    ASSERT_FALSE(status.isError());
+    ASSERT_SOME(status);
 
     EXPECT_TRUE(status->infos().empty());
   }
@@ -566,7 +566,7 @@ TEST_F(MasterQuotaTest, Status)
 
     // Convert JSON response to `QuotaStatus` protobuf.
     Try<QuotaStatus> status = ::protobuf::parse<QuotaStatus>(parse.get());
-    ASSERT_FALSE(status.isError());
+    ASSERT_SOME(status);
 
     upgradeResources(&status.get());
 
@@ -1332,7 +1332,7 @@ TEST_F(MasterQuotaTest, AuthorizeGetUpdateQuotaRequests)
 
     // Convert JSON response to `QuotaStatus` protobuf.
     const Try<QuotaStatus> status = ::protobuf::parse<QuotaStatus>(parse.get());
-    ASSERT_FALSE(status.isError());
+    ASSERT_SOME(status);
 
     EXPECT_TRUE(status->infos().empty());
   }
@@ -1359,7 +1359,7 @@ TEST_F(MasterQuotaTest, AuthorizeGetUpdateQuotaRequests)
 
     // Convert JSON response to `QuotaStatus` protobuf.
     const Try<QuotaStatus> status = ::protobuf::parse<QuotaStatus>(parse.get());
-    ASSERT_FALSE(status.isError());
+    ASSERT_SOME(status);
 
     EXPECT_EQ(1, status->infos().size());
     EXPECT_EQ(ROLE1, status->infos(0).role());
@@ -1466,7 +1466,7 @@ TEST_F(MasterQuotaTest, AuthorizeGetUpdateQuotaRequestsWithoutPrincipal)
 
     // Convert JSON response to `QuotaStatus` protobuf.
     const Try<QuotaStatus> status = ::protobuf::parse<QuotaStatus>(parse.get());
-    ASSERT_FALSE(status.isError());
+    ASSERT_SOME(status);
 
     EXPECT_EQ(1, status->infos().size());
     EXPECT_EQ(ROLE1, status->infos(0).role());
@@ -1547,7 +1547,7 @@ TEST_F(MasterQuotaTest, DISABLED_ChildRole)
 
     // Convert JSON response to `QuotaStatus` protobuf.
     const Try<QuotaStatus> status = ::protobuf::parse<QuotaStatus>(parse.get());
-    ASSERT_FALSE(status.isError());
+    ASSERT_SOME(status);
     ASSERT_EQ(2, status->infos().size());
 
     // Don't assume that the quota for child and parent are returned
