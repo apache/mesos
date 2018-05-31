@@ -153,8 +153,7 @@ TEST_F(OsSendfileTest, Sendfile)
 
   Try<ssize_t, SocketError> length =
     os::sendfile(s[0], fd.get(), 0, LOREM_IPSUM.size());
-  ASSERT_TRUE(length.isSome());
-  ASSERT_EQ(static_cast<ssize_t>(LOREM_IPSUM.size()), length.get());
+  ASSERT_SOME_EQ(static_cast<ssize_t>(LOREM_IPSUM.size()), length);
 
   char* buffer = new char[LOREM_IPSUM.size()];
   ASSERT_EQ(static_cast<ssize_t>(LOREM_IPSUM.size()),

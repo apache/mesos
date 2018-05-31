@@ -12,10 +12,9 @@
 
 #include <string>
 
-#include <gtest/gtest.h>
-
 #include <gmock/gmock.h>
 
+#include <stout/gtest.hpp>
 #include <stout/none.hpp>
 #include <stout/option.hpp>
 #include <stout/result.hpp>
@@ -57,15 +56,20 @@ TEST(NoneTest, Test)
 {
   Option<string> o = none1();
   EXPECT_TRUE(o.isNone());
+  EXPECT_NONE(o);
+
   o = none2();
-  EXPECT_TRUE(o.isNone());
+  EXPECT_NONE(o);
+
   o = none3(none1());
-  EXPECT_TRUE(o.isNone());
+  EXPECT_NONE(o);
 
   Result<string> r = none1();
-  EXPECT_TRUE(r.isNone());
+  EXPECT_NONE(r);
+
   r = none4();
-  EXPECT_TRUE(r.isNone());
+  EXPECT_NONE(r);
+
   r = none5(none1());
-  EXPECT_TRUE(r.isNone());
+  EXPECT_NONE(r);
 }
