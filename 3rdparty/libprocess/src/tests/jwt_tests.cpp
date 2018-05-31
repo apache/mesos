@@ -398,9 +398,7 @@ TEST(JWTTest, Parse)
 
       const Try<JWT, JWTError> jwt = JWT::parse(token, secret);
 
-      // TODO(nfnt): Change this to `EXPECT_SOME(jwt)`
-      // once MESOS-7220 is resolved.
-      EXPECT_TRUE(jwt.isSome());
+      EXPECT_SOME(jwt);
     }
 
     // RS256.
@@ -411,9 +409,7 @@ TEST(JWTTest, Parse)
 
       const Try<JWT, JWTError> jwt = JWT::parse(token, publicKey);
 
-      // TODO(nfnt): Change this to `EXPECT_SOME(jwt)`
-      // once MESOS-7220 is resolved.
-      EXPECT_TRUE(jwt.isSome());
+      EXPECT_SOME(jwt);
     }
   }
 
@@ -425,7 +421,7 @@ TEST(JWTTest, Parse)
 
     const Try<JWT, JWTError> jwt = JWT::parse(token, wrongPublicKey);
 
-    EXPECT_TRUE(jwt.isError());
+    EXPECT_ERROR(jwt);
   }
 
   // Valid unsecure token.
@@ -438,9 +434,7 @@ TEST(JWTTest, Parse)
 
     const Try<JWT, JWTError> jwt = JWT::parse(token);
 
-    // TODO(nfnt): Change this to `EXPECT_SOME(jwt)`
-    // once MESOS-7220 is resolved.
-    EXPECT_TRUE(jwt.isSome());
+    EXPECT_SOME(jwt);
   }
 
   // Valid HS256 token.
@@ -451,9 +445,7 @@ TEST(JWTTest, Parse)
 
     const Try<JWT, JWTError> jwt = JWT::parse(token, secret);
 
-    // TODO(nfnt): Change this to `EXPECT_SOME(jwt)`
-    // once MESOS-7220 is resolved.
-    EXPECT_TRUE(jwt.isSome());
+    EXPECT_SOME(jwt);
   }
 
   // Valid RS256 token.
@@ -464,7 +456,7 @@ TEST(JWTTest, Parse)
 
     const Try<JWT, JWTError> jwt = JWT::parse(token, publicKey);
 
-    EXPECT_TRUE(jwt.isSome());
+    EXPECT_SOME(jwt);
   }
 }
 
@@ -505,9 +497,7 @@ TEST(JWTTest, Create)
   {
     const Try<JWT, JWTError> jwt = JWT::create(payload, secret);
 
-    // TODO(nfnt): Change this to `EXPECT_SOME(jwt)`
-    // once MESOS-7220 is resolved.
-    EXPECT_TRUE(jwt.isSome());
+    EXPECT_SOME(jwt);
 
     EXPECT_EQ(JWT::Alg::HS256, jwt->header.alg);
     EXPECT_SOME_EQ("JWT", jwt->header.typ);
@@ -521,9 +511,7 @@ TEST(JWTTest, Create)
   {
     const Try<JWT, JWTError> jwt = JWT::create(payload, privateKey);
 
-    // TODO(nfnt): Change this to `EXPECT_SOME(jwt)`
-    // once MESOS-7220 is resolved.
-    EXPECT_TRUE(jwt.isSome());
+    ASSERT_SOME(jwt);
 
     EXPECT_EQ(JWT::Alg::RS256, jwt->header.alg);
     EXPECT_SOME_EQ("JWT", jwt->header.typ);
@@ -537,9 +525,7 @@ TEST(JWTTest, Create)
   {
     const Try<JWT, JWTError> jwt = JWT::create(payload);
 
-    // TODO(nfnt): Change this to `EXPECT_SOME(jwt)`
-    // once MESOS-7220 is resolved.
-    EXPECT_TRUE(jwt.isSome());
+    EXPECT_SOME(jwt);
 
     EXPECT_EQ(JWT::Alg::None, jwt->header.alg);
     EXPECT_SOME_EQ("JWT", jwt->header.typ);
@@ -561,9 +547,7 @@ TEST(JWTTest, Stringify)
 
     const Try<JWT, JWTError> jwt = JWT::create(payload, "secret");
 
-    // TODO(nfnt): Change this to `EXPECT_SOME(jwt)`
-    // once MESOS-7220 is resolved.
-    EXPECT_TRUE(jwt.isSome());
+    ASSERT_SOME(jwt);
 
     const string token = stringify(jwt.get());
 
@@ -585,9 +569,7 @@ TEST(JWTTest, Stringify)
 
     const Try<JWT, JWTError> jwt = JWT::create(payload, privateKey);
 
-    // TODO(nfnt): Change this to `EXPECT_SOME(jwt)`
-    // once MESOS-7220 is resolved.
-    EXPECT_TRUE(jwt.isSome());
+    ASSERT_SOME(jwt);
 
     const string token = stringify(jwt.get());
 

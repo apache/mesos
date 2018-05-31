@@ -52,7 +52,7 @@ TEST(StateMachineTest, Transition)
 
   Try<Nothing> error = state.transition<State::INITIAL, State::STARTING>();
 
-  EXPECT_TRUE(error.isError());
+  EXPECT_ERROR(error);
 
   Try<Try<int>> t = state.transition<State::STARTING, State::RUNNING>(
       []() -> Try<int> {
@@ -64,7 +64,7 @@ TEST(StateMachineTest, Transition)
 
   error = state.transition<State::STARTING, State::RUNNING>();
 
-  EXPECT_TRUE(error.isError());
+  EXPECT_ERROR(error);
 
   t = state.transition<State::RUNNING, State::STOPPING>(
       []() -> Try<int> {
@@ -72,12 +72,12 @@ TEST(StateMachineTest, Transition)
       });
 
   ASSERT_SOME(t);
-  ASSERT_TRUE(t->isError());
+  ASSERT_ERROR(t.get());
   EXPECT_EQ("Error", t->error());
 
   error = state.transition<State::RUNNING, State::STOPPING>();
 
-  EXPECT_TRUE(error.isError());
+  EXPECT_ERROR(error);
 
   Promise<int> promise;
 
@@ -95,7 +95,7 @@ TEST(StateMachineTest, Transition)
 
   error = state.transition<State::STOPPING, State::STOPPED>();
 
-  EXPECT_TRUE(error.isError());
+  EXPECT_ERROR(error);
 
   f = state.transition<State::STOPPED, State::TERMINAL>(
       [&]() -> Future<int> {

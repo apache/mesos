@@ -2083,9 +2083,7 @@ TEST_F(HttpAuthenticationTest, JWT)
 
     Try<JWT, JWTError> jwt = JWT::create(payload, "a different secret");
 
-    // TODO(nfnt): Change this to `EXPECT_SOME(jwt)`
-    // once MESOS-7220 is resolved.
-    EXPECT_TRUE(jwt.isSome());
+    EXPECT_SOME(jwt);
 
     http::Headers headers;
     headers["Authorization"] = "Bearer " + stringify(jwt.get());
@@ -2111,9 +2109,7 @@ TEST_F(HttpAuthenticationTest, JWT)
 
     Try<JWT, JWTError> jwt = JWT::create(payload, "secret");
 
-    // TODO(nfnt): Change this to `EXPECT_SOME(jwt)`
-    // once MESOS-7220 is resolved.
-    EXPECT_TRUE(jwt.isSome());
+    EXPECT_SOME(jwt);
 
     http::Headers headers;
     headers["Authorization"] = "Bearer " + stringify(jwt.get());
