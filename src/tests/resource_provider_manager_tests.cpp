@@ -23,6 +23,7 @@
 #include <mesos/resources.hpp>
 
 #include <mesos/state/in_memory.hpp>
+#include <mesos/state/leveldb.hpp>
 #include <mesos/state/state.hpp>
 
 #include <mesos/v1/mesos.hpp>
@@ -818,81 +819,152 @@ class ResourceProviderRegistrarTest : public tests::MesosTest {};
 
 
 // Test that the generic resource provider registrar works as expected.
-TEST_F(ResourceProviderRegistrarTest, GenericRegistrar)
+//
+// TODO(bbannier): Enable this test on Windows once MESOS-5932 is resolved.
+#ifndef __WINDOWS__
+TEST_F_TEMP_DISABLED_ON_WINDOWS(ResourceProviderRegistrarTest, GenericRegistrar)
 {
   ResourceProviderID resourceProviderId;
   resourceProviderId.set_value("foo");
 
-  Owned<mesos::state::Storage> storage(new mesos::state::InMemoryStorage());
-  Try<Owned<Registrar>> registrar = Registrar::create(std::move(storage));
+  // Perform operations on the resource provider. We use
+  // persistent storage so we can recover the state below.
+  {
+    Owned<mesos::state::Storage> storage(
+        new mesos::state::LevelDBStorage(sandbox.get()));
+    Try<Owned<Registrar>> registrar = Registrar::create(std::move(storage));
 
-  ASSERT_SOME(registrar);
-  ASSERT_NE(nullptr, registrar->get());
+    ASSERT_SOME_NE(Owned<Registrar>(nullptr), registrar);
 
-  AWAIT_READY(registrar.get()->recover());
+    Future<mesos::resource_provider::registry::Registry> recover =
+      registrar.get()->recover();
+    AWAIT_READY(recover);
+    EXPECT_TRUE(recover->removed_resource_providers().empty());
 
-  Future<bool> admitResourceProvider1 =
-    registrar.get()->apply(Owned<Registrar::Operation>(
-        new AdmitResourceProvider(resourceProviderId)));
-  AWAIT_READY(admitResourceProvider1);
-  EXPECT_TRUE(admitResourceProvider1.get());
+    Future<bool> admitResourceProvider1 =
+      registrar.get()->apply(Owned<Registrar::Operation>(
+            new AdmitResourceProvider(resourceProviderId)));
+    AWAIT_READY(admitResourceProvider1);
+    EXPECT_TRUE(admitResourceProvider1.get());
 
-  Future<bool> removeResourceProvider =
-    registrar.get()->apply(Owned<Registrar::Operation>(
-        new RemoveResourceProvider(resourceProviderId)));
-  AWAIT_READY(removeResourceProvider);
-  EXPECT_TRUE(removeResourceProvider.get());
+    Future<bool> removeResourceProvider =
+      registrar.get()->apply(Owned<Registrar::Operation>(
+            new RemoveResourceProvider(resourceProviderId)));
+    AWAIT_READY(removeResourceProvider);
+    EXPECT_TRUE(removeResourceProvider.get());
 
-  // A removed resource provider cannot be admitted again.
-  Future<bool> admitResourceProvider2 =
-    registrar.get()->apply(Owned<Registrar::Operation>(
-        new AdmitResourceProvider(resourceProviderId)));
-  AWAIT_READY(admitResourceProvider2);
-  EXPECT_FALSE(admitResourceProvider2.get());
+    // A removed resource provider cannot be admitted again.
+    Future<bool> admitResourceProvider2 =
+      registrar.get()->apply(Owned<Registrar::Operation>(
+            new AdmitResourceProvider(resourceProviderId)));
+    AWAIT_READY(admitResourceProvider2);
+    EXPECT_FALSE(admitResourceProvider2.get());
+  }
+
+  // Recover and validate the previous registry state.
+  {
+    Owned<mesos::state::Storage> storage(
+        new mesos::state::LevelDBStorage(sandbox.get()));
+    Try<Owned<Registrar>> registrar = Registrar::create(std::move(storage));
+
+    ASSERT_SOME_NE(Owned<Registrar>(nullptr), registrar);
+
+    Future<mesos::resource_provider::registry::Registry> recover =
+      registrar.get()->recover();
+    AWAIT_READY(recover);
+
+    EXPECT_TRUE(recover->resource_providers().empty());
+    ASSERT_EQ(1, recover->removed_resource_providers_size());
+
+    const mesos::resource_provider::registry::ResourceProvider&
+      resourceProvider = recover->removed_resource_providers(0);
+
+    ASSERT_TRUE(resourceProvider.has_id());
+    EXPECT_EQ(resourceProviderId, resourceProvider.id());
+  }
 }
+#endif // __WINDOWS__
 
 
 // Test that the master resource provider registrar works as expected.
-TEST_F(ResourceProviderRegistrarTest, MasterRegistrar)
+//
+// TODO(bbannier): Enable this test on Windows once MESOS-5932 is resolved.
+#ifndef __WINDOWS__
+TEST_F_TEMP_DISABLED_ON_WINDOWS(ResourceProviderRegistrarTest, MasterRegistrar)
 {
   ResourceProviderID resourceProviderId;
   resourceProviderId.set_value("foo");
 
-  InMemoryStorage storage;
-  State state(&storage);
-  master::Registrar masterRegistrar(CreateMasterFlags(), &state);
+  // Perform operations on the resource provider. We use
+  // persistent storage so we can recover the state below.
+  {
+    mesos::state::LevelDBStorage storage(sandbox.get());
+    State state(&storage);
+    master::Registrar masterRegistrar(CreateMasterFlags(), &state);
 
-  const MasterInfo masterInfo = protobuf::createMasterInfo({});
+    const MasterInfo masterInfo = protobuf::createMasterInfo({});
 
-  Future<Registry> registry = masterRegistrar.recover(masterInfo);
-  AWAIT_READY(registry);
+    Future<Registry> registry = masterRegistrar.recover(masterInfo);
+    AWAIT_READY(registry);
 
-  Try<Owned<Registrar>> registrar = Registrar::create(
-      &masterRegistrar,
-      registry->resource_provider_registry());
+    Try<Owned<Registrar>> registrar = Registrar::create(
+        &masterRegistrar,
+        registry->resource_provider_registry());
 
-  ASSERT_SOME(registrar);
-  ASSERT_NE(nullptr, registrar->get());
+    ASSERT_SOME_NE(Owned<Registrar>(nullptr), registrar);
 
-  Future<bool> admitResourceProvider1 =
-    registrar.get()->apply(Owned<Registrar::Operation>(
-        new AdmitResourceProvider(resourceProviderId)));
-  AWAIT_READY(admitResourceProvider1);
-  EXPECT_TRUE(admitResourceProvider1.get());
+    Future<bool> admitResourceProvider1 =
+      registrar.get()->apply(Owned<Registrar::Operation>(
+            new AdmitResourceProvider(resourceProviderId)));
+    AWAIT_READY(admitResourceProvider1);
+    EXPECT_TRUE(admitResourceProvider1.get());
 
-  Future<bool> removeResourceProvider =
-    registrar.get()->apply(Owned<Registrar::Operation>(
-        new RemoveResourceProvider(resourceProviderId)));
-  AWAIT_READY(removeResourceProvider);
-  EXPECT_TRUE(removeResourceProvider.get());
+    Future<bool> removeResourceProvider =
+      registrar.get()->apply(Owned<Registrar::Operation>(
+            new RemoveResourceProvider(resourceProviderId)));
+    AWAIT_READY(removeResourceProvider);
+    EXPECT_TRUE(removeResourceProvider.get());
 
-  // A removed resource provider cannot be admitted again.
-  Future<bool> admitResourceProvider2 =
-    registrar.get()->apply(Owned<Registrar::Operation>(
-        new AdmitResourceProvider(resourceProviderId)));
-  AWAIT_READY(admitResourceProvider2);
-  EXPECT_FALSE(admitResourceProvider2.get());
+    // A removed resource provider cannot be admitted again.
+    Future<bool> admitResourceProvider2 =
+      registrar.get()->apply(Owned<Registrar::Operation>(
+            new AdmitResourceProvider(resourceProviderId)));
+    AWAIT_READY(admitResourceProvider2);
+    EXPECT_FALSE(admitResourceProvider2.get());
+  }
+
+  // Recover and validate the previous registry state.
+  {
+    mesos::state::LevelDBStorage storage(sandbox.get());
+    State state(&storage);
+    master::Registrar masterRegistrar(CreateMasterFlags(), &state);
+
+    const MasterInfo masterInfo = protobuf::createMasterInfo({});
+
+    Future<Registry> registry = masterRegistrar.recover(masterInfo);
+    AWAIT_READY(registry);
+
+    Try<Owned<Registrar>> registrar = Registrar::create(
+        &masterRegistrar,
+        registry->resource_provider_registry());
+
+    ASSERT_SOME_NE(Owned<Registrar>(nullptr), registrar);
+
+    Future<mesos::resource_provider::registry::Registry> recover =
+      registrar.get()->recover();
+    AWAIT_READY(recover);
+
+    EXPECT_TRUE(recover->resource_providers().empty());
+    ASSERT_EQ(1, recover->removed_resource_providers_size());
+
+    const mesos::resource_provider::registry::ResourceProvider&
+      resourceProvider = recover->removed_resource_providers(0);
+
+    ASSERT_TRUE(resourceProvider.has_id());
+    EXPECT_EQ(resourceProviderId, resourceProvider.id());
+  }
 }
+#endif // __WINDOWS__
 
 
 // Test that resource provider resources are offered to frameworks,
