@@ -1936,7 +1936,8 @@ TEST(ResourcesTest, AbsentResources)
 {
   Try<Resources> resources = Resources::parse("gpus:0");
   ASSERT_SOME(resources);
-  EXPECT_EQ(0, resources->size());
+
+  EXPECT_EQ(0u, resources->size());
 }
 
 
