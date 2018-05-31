@@ -54,6 +54,7 @@ We categorize the changes as follows:
 
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Flags-->
     <ul style="padding-left:10px;">
+      <li>A <a href="#1-7-x-enforce-container-ports">enforce_container_ports</a></li>
     </ul>
   </td>
 
@@ -437,6 +438,12 @@ We categorize the changes as follows:
 * A new [`linux/devices`](isolators/linux-devices.md) isolator has been
   added. This isolator automatically populates containers with devices
   that have been whitelisted with the `--allowed_devices` agent flag.
+
+<a name="1-7-x-enforce-container-ports"></a>
+
+* A new [`--enforce_container_ports`](configuration/agent.md#enforce_container_ports)
+  has been added to toggle whether the [`network/ports`](isolators/network-ports.md)
+  isolator should enforce TCP ports usage limits.
 
 <a name="1-7-x-container-logger"></a>
 
