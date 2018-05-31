@@ -34,7 +34,13 @@ public:
   // from now.
   static Timeout in(const Duration& duration)
   {
-    return Timeout(Clock::now() + duration);
+    // We need now() + duration < Duration::max() to avoid overflow.
+    // Therefore, we check for now() < duration::max() - duration.
+    if (Clock::now().duration() < Duration::max() - duration) {
+      return Timeout(Clock::now() + duration);
+    }
+
+    return Timeout(Time::max());
   }
 
   Timeout& operator=(const Timeout& that)
