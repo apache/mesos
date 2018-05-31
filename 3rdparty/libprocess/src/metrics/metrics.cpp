@@ -155,10 +155,14 @@ Future<map<string, double>> MetricsProcess::snapshot(
     statistics[name] = metric->statistics();
   }
 
+  Future<Nothing> timedout =
+    after(timeout.getOrElse(Duration::max()));
+
   // Return the response once it finishes or we time out.
   return select<Nothing>({
-      after(timeout.getOrElse(Duration::max())),
+      timedout,
       await(futures.values()).then([]{ return Nothing(); }) })
+    .onAny([=]() mutable { timedout.discard(); }) // Don't accumulate timers.
     .then(defer(self(),
                 &Self::__snapshot,
                 timeout,
