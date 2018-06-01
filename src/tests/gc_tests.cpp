@@ -873,25 +873,29 @@ TEST_F(GarbageCollectorIntegrationTest, Unschedule)
 
 
 #ifdef __linux__
-// In Mesos it's possible for tasks and isolators to lay down files
-// that are not deletable by GC. This test runs a task that creates a busy
-// mount point which is not directly deletable by GC. We verify that
-// GC deletes all files that it's able to delete in the face of such errors.
-TEST_F(GarbageCollectorIntegrationTest, ROOT_BusyMountPoint)
+// This test creates a persistent volume and runs a task which mounts the volume
+// inside the sandbox, to simulate a dangling mount which agent failed to
+// clean up (see MESOS-8830). We verify that GC process will unmount the
+// dangling mount point successfully and report success in metrics.
+TEST_F(GarbageCollectorIntegrationTest, ROOT_DanglingMount)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = CreateSlaveFlags();
+  flags.resources = strings::format("disk(%s):1024", DEFAULT_TEST_ROLE).get();
+
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
 
   ASSERT_SOME(slave);
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
       &sched,
-      DEFAULT_FRAMEWORK_INFO,
+      frameworkInfo,
       master.get()->pid,
       DEFAULT_CREDENTIAL);
 
@@ -910,21 +914,33 @@ TEST_F(GarbageCollectorIntegrationTest, ROOT_BusyMountPoint)
   AWAIT_READY(offers);
   EXPECT_FALSE(offers->empty());
 
-  const Offer& offer = offers.get()[0];
-  const SlaveID& slaveId = offer.slave_id();
+  const Offer& offer = offers->at(0);
 
-  // The busy mount point goes before the regular file in GC's
-  // directory traversal due to their names. This makes sure that
-  // an error occurs before all deletable files are GCed.
-  string mountPoint = "test1";
-  string regularFile = "test2.txt";
+  string persistenceId = "persistence-id";
+  string containerPath = "path";
+
+  Resource volume = createPersistentVolume(
+      Megabytes(1024),
+      DEFAULT_TEST_ROLE,
+      persistenceId,
+      containerPath,
+      None(),
+      None(),
+      frameworkInfo.principal());
+
+  string mountPoint = "dangling";
+
+  string hostPath = slave::paths::getPersistentVolumePath(
+      flags.work_dir, DEFAULT_TEST_ROLE, persistenceId);
+
+  string fileInVolume = "foo.txt";
 
   TaskInfo task = createTask(
-      slaveId,
-      Resources::parse("cpus:1;mem:128;disk:1").get(),
-      "touch "+ regularFile + "; "
+      offer.slave_id(),
+      Resources(volume),
+      "touch "+ path::join(containerPath, fileInVolume) + "; "
       "mkdir " + mountPoint + "; "
-      "mount --bind " + mountPoint + " " + mountPoint,
+      "mount --bind " + hostPath + " " + mountPoint,
       None(),
       "test-task123",
       "test-task123");
@@ -938,7 +954,15 @@ TEST_F(GarbageCollectorIntegrationTest, ROOT_BusyMountPoint)
   Future<Nothing> schedule = FUTURE_DISPATCH(
       _, &GarbageCollectorProcess::schedule);
 
-  driver.launchTasks(offer.id(), {task});
+  Future<Nothing> ack1 =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
+  Future<Nothing> ack2 =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
+  driver.acceptOffers(
+      {offer.id()},
+      {CREATE(volume), LAUNCH({task})});
 
   AWAIT_READY(status1);
   EXPECT_EQ(task.task_id(), status1->task_id());
@@ -948,23 +972,21 @@ TEST_F(GarbageCollectorIntegrationTest, ROOT_BusyMountPoint)
   executorId.set_value("test-task123");
   Result<string> _sandbox = os::realpath(slave::paths::getExecutorLatestRunPath(
       flags.work_dir,
-      slaveId,
+      offer.slave_id(),
       frameworkId.get(),
       executorId));
   ASSERT_SOME(_sandbox);
   string sandbox = _sandbox.get();
   EXPECT_TRUE(os::exists(sandbox));
 
-  // Wait for the task to create these paths.
+  // Wait for the task to create the dangling mount point.
   Timeout timeout = Timeout::in(Seconds(15));
   while (!os::exists(path::join(sandbox, mountPoint)) ||
-         !os::exists(path::join(sandbox, regularFile)) ||
          !timeout.expired()) {
     os::sleep(Milliseconds(10));
   }
 
   ASSERT_TRUE(os::exists(path::join(sandbox, mountPoint)));
-  ASSERT_TRUE(os::exists(path::join(sandbox, regularFile)));
 
   AWAIT_READY(status2);
   ASSERT_EQ(task.task_id(), status2->task_id());
@@ -972,13 +994,17 @@ TEST_F(GarbageCollectorIntegrationTest, ROOT_BusyMountPoint)
 
   AWAIT_READY(schedule);
 
+  ASSERT_TRUE(os::exists(path::join(sandbox, mountPoint)));
+  ASSERT_TRUE(os::exists(path::join(hostPath, fileInVolume)));
+
+  AWAIT_READY(schedule);
+
   Clock::pause();
   Clock::advance(flags.gc_delay);
   Clock::settle();
 
-  EXPECT_TRUE(os::exists(sandbox));
-  EXPECT_TRUE(os::exists(path::join(sandbox, mountPoint)));
-  EXPECT_FALSE(os::exists(path::join(sandbox, regularFile)));
+  ASSERT_FALSE(os::exists(path::join(sandbox, mountPoint)));
+  ASSERT_TRUE(os::exists(path::join(hostPath, fileInVolume)));
 
   Clock::resume();
   driver.stop();
