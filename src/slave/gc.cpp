@@ -271,11 +271,17 @@ void GarbageCollectorProcess::remove(const Timeout& removalTime)
         Try<Nothing> rmdir = os::rmdir(info->path, true, true, true);
 
         if (rmdir.isError()) {
-          LOG(WARNING) << "Failed to delete '" << info->path << "': "
-                       << rmdir.error();
-          info->promise.fail(rmdir.error());
+          // TODO(zhitao): Change return value type of `rmdir` to
+          // `Try<Nothing, ErrnoError>` and check error type instead.
+          if (rmdir.error() == ErrnoError(ENOENT).message) {
+            LOG(INFO) << "Skipped '" << info->path << "' which does not exist";
+          } else {
+            LOG(WARNING) << "Failed to delete '" << info->path << "': "
+                         << rmdir.error();
+            info->promise.fail(rmdir.error());
 
-          ++failed;
+            ++failed;
+          }
         } else {
           LOG(INFO) << "Deleted '" << info->path << "'";
           info->promise.set(rmdir.get());
