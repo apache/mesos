@@ -353,6 +353,7 @@ set(MASTER_SRC
   master/allocator/mesos/metrics.cpp
   master/allocator/sorter/drf/metrics.cpp
   master/allocator/sorter/drf/sorter.cpp
+  master/allocator/sorter/random/sorter.cpp
   master/contender/contender.cpp
   master/contender/standalone.cpp
   master/contender/zookeeper.cpp
