@@ -1168,6 +1168,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   master/allocator/sorter/sorter.hpp					\
   master/allocator/sorter/drf/metrics.hpp				\
   master/allocator/sorter/drf/sorter.hpp				\
+  master/allocator/sorter/random/utils.hpp				\
   master/contender/standalone.hpp					\
   master/contender/zookeeper.hpp					\
   master/detector/standalone.hpp					\
