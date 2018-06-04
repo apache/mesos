@@ -9456,8 +9456,20 @@ void Master::inverseOffer(
     // before the slave was deactivated in the allocator.
     if (!slave->active) {
       LOG(INFO)
-        << "Master ignoring inverse offers because agent " << *slave
-        << " is " << (slave->connected ? "deactivated" : "disconnected");
+        << "Master ignoring inverse offers to framework " << *framework
+        << " because agent " << *slave << " is "
+        << (slave->connected ? "deactivated" : "disconnected");
+
+      continue;
+    }
+
+    // This could happen if the allocator dispatched `Master::inverseOffer`
+    // before the unavailability was removed in the master.
+    if (!machines.contains(slave->machineId) ||
+        !machines.at(slave->machineId).info.has_unavailability()) {
+      LOG(INFO)
+        << "Master dropping inverse offers to framework " << *framework
+        << " because agent " << *slave << " had its unavailability revoked.";
 
       continue;
     }
