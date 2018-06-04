@@ -60,7 +60,7 @@ public:
   Option<std::string> agent_removal_rate_limit;
   std::string webui_dir;
   Option<Path> whitelist;
-  std::string user_sorter;
+  std::string role_sorter;
   std::string framework_sorter;
   Duration allocation_interval;
   Option<std::string> cluster;
