@@ -26,12 +26,14 @@
 
 #include "master/allocator/sorter/drf/sorter.hpp"
 
+#include "master/allocator/sorter/random/sorter.hpp"
 #include "master/allocator/sorter/random/utils.hpp"
 
 #include "tests/mesos.hpp"
 #include "tests/resources_utils.hpp"
 
 using mesos::internal::master::allocator::DRFSorter;
+using mesos::internal::master::allocator::RandomSorter;
 
 using std::cout;
 using std::endl;
@@ -92,7 +94,15 @@ TEST(WeightedShuffleTest, ProbabilityDistribution)
 }
 
 
-TEST(SorterTest, DRFSorter)
+template <typename T>
+class CommonSorterTest : public ::testing::Test {};
+
+// Some tests are testing logic common to any sorter implementation.
+typedef ::testing::Types<DRFSorter, RandomSorter> SorterTypes;
+TYPED_TEST_CASE(CommonSorterTest, SorterTypes);
+
+
+TEST(DRFSorterTest, DRF)
 {
   DRFSorter sorter;
 
@@ -185,7 +195,7 @@ TEST(SorterTest, DRFSorter)
 }
 
 
-TEST(SorterTest, WDRFSorter)
+TEST(DRFSorterTest, WDRF)
 {
   DRFSorter sorter;
 
@@ -245,7 +255,7 @@ TEST(SorterTest, WDRFSorter)
 }
 
 
-TEST(SorterTest, WDRFSorterUpdateWeight)
+TEST(DRFSorterTest, UpdateWeight)
 {
   DRFSorter sorter;
 
@@ -277,7 +287,7 @@ TEST(SorterTest, WDRFSorterUpdateWeight)
 
 // Check that the sorter uses the total number of allocations made to
 // a client as a tiebreaker when the two clients have the same share.
-TEST(SorterTest, CountAllocations)
+TEST(DRFSorterTest, AllocationCountTieBreak)
 {
   DRFSorter sorter;
 
@@ -360,7 +370,7 @@ TEST(SorterTest, CountAllocations)
 // sequence of operations happens as in the `DRFSorter` test, but all
 // client names are nested into disjoint branches of the tree. In this
 // case, the hierarchy should not change allocation behavior.
-TEST(SorterTest, ShallowHierarchy)
+TEST(DRFSorterTest, ShallowHierarchy)
 {
   DRFSorter sorter;
 
@@ -455,7 +465,7 @@ TEST(SorterTest, ShallowHierarchy)
 // Analogous to `ShallowHierarchy` except the client names are nested
 // more deeply and different client names are at different depths in
 // the tree.
-TEST(SorterTest, DeepHierarchy)
+TEST(DRFSorterTest, DeepHierarchy)
 {
   DRFSorter sorter;
 
@@ -551,7 +561,7 @@ TEST(SorterTest, DeepHierarchy)
 }
 
 
-TEST(SorterTest, HierarchicalAllocation)
+TEST(DRFSorterTest, HierarchicalAllocation)
 {
   DRFSorter sorter;
 
@@ -658,7 +668,7 @@ TEST(SorterTest, HierarchicalAllocation)
 
 // This test checks that the sorted list of clients returned by the
 // sorter iterates over the client tree in the correct order.
-TEST(SorterTest, HierarchicalIterationOrder)
+TEST(DRFSorterTest, HierarchicalIterationOrder)
 {
   DRFSorter sorter;
 
@@ -706,7 +716,7 @@ TEST(SorterTest, HierarchicalIterationOrder)
 
 // This test checks what happens when a new sorter client is added as
 // a child of what was previously a leaf node.
-TEST(SorterTest, AddChildToLeaf)
+TEST(DRFSorterTest, AddChildToLeaf)
 {
   DRFSorter sorter;
 
@@ -777,7 +787,7 @@ TEST(SorterTest, AddChildToLeaf)
 
 // This test checks what happens when a new sorter client is added as
 // a child of what was previously an internal node.
-TEST(SorterTest, AddChildToInternal)
+TEST(DRFSorterTest, AddChildToInternal)
 {
   DRFSorter sorter;
 
@@ -820,7 +830,7 @@ TEST(SorterTest, AddChildToInternal)
 
 // This test checks what happens when a new sorter client is added as
 // a child of what was previously an inactive leaf node.
-TEST(SorterTest, AddChildToInactiveLeaf)
+TEST(DRFSorterTest, AddChildToInactiveLeaf)
 {
   DRFSorter sorter;
 
@@ -855,7 +865,7 @@ TEST(SorterTest, AddChildToInactiveLeaf)
 // This test checks what happens when a sorter client is removed,
 // which allows a leaf node to be collapsed into its parent node. This
 // is basically the inverse situation to `AddChildToLeaf`.
-TEST(SorterTest, RemoveLeafCollapseParent)
+TEST(DRFSorterTest, RemoveLeafCollapseParent)
 {
   DRFSorter sorter;
 
@@ -890,7 +900,7 @@ TEST(SorterTest, RemoveLeafCollapseParent)
 // This test checks what happens when a sorter client is removed and a
 // leaf node can be collapsed into its parent node, we correctly
 // propagate the `inactive` flag from leaf -> parent.
-TEST(SorterTest, RemoveLeafCollapseParentInactive)
+TEST(DRFSorterTest, RemoveLeafCollapseParentInactive)
 {
   DRFSorter sorter;
 
@@ -926,7 +936,7 @@ TEST(SorterTest, RemoveLeafCollapseParentInactive)
 
 // This test checks that setting a weight on an internal node works
 // correctly.
-TEST(SorterTest, ChangeWeightOnSubtree)
+TEST(DRFSorterTest, ChangeWeightOnSubtree)
 {
   DRFSorter sorter;
 
@@ -979,7 +989,7 @@ TEST(SorterTest, ChangeWeightOnSubtree)
 // Some resources are split across multiple resource objects (e.g.
 // persistent volumes). This test ensures that the shares for these
 // are accounted correctly.
-TEST(SorterTest, SplitResourceShares)
+TEST(DRFSorterTest, SplitResourceShares)
 {
   DRFSorter sorter;
 
@@ -1014,9 +1024,9 @@ TEST(SorterTest, SplitResourceShares)
 }
 
 
-TEST(SorterTest, UpdateAllocation)
+TYPED_TEST(CommonSorterTest, UpdateAllocation)
 {
-  DRFSorter sorter;
+  TypeParam sorter;
 
   SlaveID slaveId;
   slaveId.set_value("agentId");
@@ -1051,9 +1061,9 @@ TEST(SorterTest, UpdateAllocation)
 }
 
 
-TEST(SorterTest, UpdateAllocationNestedClient)
+TYPED_TEST(CommonSorterTest, UpdateAllocationNestedClient)
 {
-  DRFSorter sorter;
+  TypeParam sorter;
 
   SlaveID slaveId;
   slaveId.set_value("agentId");
@@ -1090,9 +1100,9 @@ TEST(SorterTest, UpdateAllocationNestedClient)
 
 // This test checks that the sorter correctly reports allocation
 // information about inactive clients.
-TEST(SorterTest, AllocationForInactiveClient)
+TYPED_TEST(CommonSorterTest, AllocationForInactiveClient)
 {
-  DRFSorter sorter;
+  TypeParam sorter;
 
   SlaveID slaveId;
   slaveId.set_value("agentId");
@@ -1130,9 +1140,9 @@ TEST(SorterTest, AllocationForInactiveClient)
 // we need to keep track of the SlaveIDs of the resources. This
 // tests that no resources vanish in the process of aggregation
 // by inspecting the result of 'allocation'.
-TEST(SorterTest, MultipleSlaves)
+TYPED_TEST(CommonSorterTest, MultipleSlaves)
 {
-  DRFSorter sorter;
+  TypeParam sorter;
 
   SlaveID slaveA;
   slaveA.set_value("agentA");
@@ -1163,9 +1173,9 @@ TEST(SorterTest, MultipleSlaves)
 // keep track of the SlaveIDs of the resources. This tests that no
 // resources vanish in the process of aggregation by performing update
 // allocations from unreserved to reserved resources.
-TEST(SorterTest, MultipleSlavesUpdateAllocation)
+TYPED_TEST(CommonSorterTest, MultipleSlavesUpdateAllocation)
 {
-  DRFSorter sorter;
+  TypeParam sorter;
 
   SlaveID slaveA;
   slaveA.set_value("agentA");
@@ -1206,7 +1216,7 @@ TEST(SorterTest, MultipleSlavesUpdateAllocation)
 
 // This test verifies that when the total pool of resources is updated
 // the sorting order of clients reflects the new total.
-TEST(SorterTest, UpdateTotal)
+TEST(DRFSorterTest, UpdateTotal)
 {
   DRFSorter sorter;
 
@@ -1243,7 +1253,7 @@ TEST(SorterTest, UpdateTotal)
 
 // Similar to the above 'UpdateTotal' test, but tests the scenario
 // when there are multiple slaves.
-TEST(SorterTest, MultipleSlavesUpdateTotal)
+TEST(DRFSorterTest, MultipleSlavesUpdateTotal)
 {
   DRFSorter sorter;
 
@@ -1284,7 +1294,7 @@ TEST(SorterTest, MultipleSlavesUpdateTotal)
 
 // This test verifies that revocable resources are properly accounted
 // for in the DRF sorter.
-TEST(SorterTest, RevocableResources)
+TEST(DRFSorterTest, RevocableResources)
 {
   DRFSorter sorter;
 
@@ -1325,7 +1335,7 @@ TEST(SorterTest, RevocableResources)
 
 // This test verifies that shared resources are properly accounted for in
 // the DRF sorter.
-TEST(SorterTest, SharedResources)
+TEST(DRFSorterTest, SharedResources)
 {
   DRFSorter sorter;
 
@@ -1419,7 +1429,7 @@ TEST(SorterTest, SharedResources)
 // This test verifies that shared resources can make clients
 // indistinguishable with its high likelihood of becoming the
 // dominant resource.
-TEST(SorterTest, SameDominantSharedResourcesAcrossClients)
+TEST(DRFSorterTest, SameDominantSharedResourcesAcrossClients)
 {
   DRFSorter sorter;
 
@@ -1468,7 +1478,7 @@ TEST(SorterTest, SameDominantSharedResourcesAcrossClients)
 
 // This test verifies that allocating the same shared resource to the
 // same client does not alter its fair share.
-TEST(SorterTest, SameSharedResourcesSameClient)
+TEST(DRFSorterTest, SameSharedResourcesSameClient)
 {
   DRFSorter sorter;
 
@@ -1513,7 +1523,7 @@ TEST(SorterTest, SameSharedResourcesSameClient)
 
 // This test verifies that shared resources are unallocated when all
 // the copies are unallocated.
-TEST(SorterTest, SharedResourcesUnallocated)
+TEST(DRFSorterTest, SharedResourcesUnallocated)
 {
   DRFSorter sorter;
 
@@ -1566,9 +1576,9 @@ TEST(SorterTest, SharedResourcesUnallocated)
 
 // This test verifies that shared resources are removed from the sorter
 // only when all instances of the the same shared resource are removed.
-TEST(SorterTest, RemoveSharedResources)
+TYPED_TEST(CommonSorterTest, RemoveSharedResources)
 {
-  DRFSorter sorter;
+  TypeParam sorter;
 
   SlaveID slaveId;
   slaveId.set_value("agentId");
@@ -1601,172 +1611,146 @@ TEST(SorterTest, RemoveSharedResources)
 }
 
 
-class Sorter_BENCHMARK_Test
-  : public ::testing::Test,
-    public ::testing::WithParamInterface<std::tuple<size_t, size_t>> {};
-
-
-// The sorter benchmark tests are parameterized by
-// the number of clients and agents.
-INSTANTIATE_TEST_CASE_P(
-    AgentAndClientCount,
-    Sorter_BENCHMARK_Test,
-    ::testing::Combine(
-      ::testing::Values(1000U, 5000U, 10000U, 20000U, 30000U, 50000U),
-      ::testing::Values(1U, 50U, 100U, 200U, 500U, 1000U))
-    );
-
-
 // This benchmark simulates sorting a number of clients that have
 // different amount of allocations.
-TEST_P(Sorter_BENCHMARK_Test, FullSort)
+//
+// NOTE: There is not a way to write a test that is *both* type and
+// value parameterized, so the benchmark is typed and iterates over
+// the values specific to what it benchmarks.
+TYPED_TEST(CommonSorterTest, BENCHMARK_FullSort)
 {
-  size_t agentCount = std::get<0>(GetParam());
-  size_t clientCount = std::get<1>(GetParam());
+  size_t agentCounts[] = {1000U, 5000U, 10000U, 20000U, 30000U, 50000U};
+  size_t clientCounts[] = {1U, 50U, 100U, 200U, 500U, 1000U};
 
-  cout << "Using " << agentCount << " agents and "
-       << clientCount << " clients" << endl;
+  foreach (size_t agentCount, agentCounts) {
+    foreach (size_t clientCount, clientCounts) {
+      cout << "Using " << agentCount << " agents and "
+           << clientCount << " clients" << endl;
 
-  vector<SlaveID> agents;
-  agents.reserve(agentCount);
+      vector<SlaveID> agents;
+      agents.reserve(agentCount);
 
-  vector<string> clients;
-  clients.reserve(clientCount);
+      vector<string> clients;
+      clients.reserve(clientCount);
 
-  DRFSorter sorter;
-  Stopwatch watch;
+      TypeParam sorter;
+      Stopwatch watch;
 
-  watch.start();
-  {
-    for (size_t i = 0; i < clientCount; i++) {
-      const string clientId = stringify(i);
+      watch.start();
+      {
+        for (size_t i = 0; i < clientCount; i++) {
+          const string clientId = stringify(i);
 
-      clients.push_back(clientId);
+          clients.push_back(clientId);
 
-      sorter.add(clientId);
+          sorter.add(clientId);
+        }
+      }
+      watch.stop();
+
+      cout << "Added " << clientCount << " clients in "
+           << watch.elapsed() << endl;
+
+      Resources agentResources = Resources::parse(
+          "cpus:24;mem:4096;disk:4096;ports:[31000-32000]").get();
+
+      watch.start();
+      {
+        for (size_t i = 0; i < agentCount; i++) {
+          SlaveID slaveId;
+          slaveId.set_value("agent" + stringify(i));
+
+          agents.push_back(slaveId);
+
+          sorter.add(slaveId, agentResources);
+        }
+      }
+      watch.stop();
+
+      cout << "Added " << agentCount << " agents in "
+           << watch.elapsed() << endl;
+
+      Resources allocated = Resources::parse(
+          "cpus:16;mem:2014;disk:1024").get();
+
+      // TODO(gyliu513): Parameterize the number of range for the fragment.
+      Try<::mesos::Value::Ranges> ranges =
+        fragment(createRange(31000, 32000), 100);
+      ASSERT_SOME(ranges);
+      ASSERT_EQ(100, ranges->range_size());
+
+      allocated += createPorts(ranges.get());
+
+      watch.start();
+      {
+        // Allocate resources on all agents, round-robin through the clients.
+        size_t clientIndex = 0;
+        foreach (const SlaveID& slaveId, agents) {
+          const string& client = clients[clientIndex++ % clients.size()];
+          sorter.allocated(client, slaveId, allocated);
+        }
+      }
+      watch.stop();
+
+      cout << "Added allocations for " << agentCount << " agents in "
+           << watch.elapsed() << endl;
+
+      watch.start();
+      {
+        sorter.sort();
+      }
+      watch.stop();
+
+      cout << "Full sort of " << clientCount << " clients took "
+           << watch.elapsed() << endl;
+
+      watch.start();
+      {
+        sorter.sort();
+      }
+      watch.stop();
+
+      cout << "No-op sort of " << clientCount << " clients took "
+           << watch.elapsed() << endl;
+
+      watch.start();
+      {
+        // Unallocate resources on all agents, round-robin through the clients.
+        size_t clientIndex = 0;
+        foreach (const SlaveID& slaveId, agents) {
+          const string& client = clients[clientIndex++ % clients.size()];
+          sorter.unallocated(client, slaveId, allocated);
+        }
+      }
+      watch.stop();
+
+      cout << "Removed allocations for " << agentCount << " agents in "
+           << watch.elapsed() << endl;
+
+      watch.start();
+      {
+        foreach (const SlaveID& slaveId, agents) {
+          sorter.remove(slaveId, agentResources);
+        }
+      }
+      watch.stop();
+
+      cout << "Removed " << agentCount << " agents in "
+           << watch.elapsed() << endl;
+
+      watch.start();
+      {
+        foreach (const string& clientId, clients) {
+          sorter.remove(clientId);
+        }
+      }
+      watch.stop();
+
+      cout << "Removed " << clientCount << " clients in "
+           << watch.elapsed() << endl;
     }
   }
-  watch.stop();
-
-  cout << "Added " << clientCount << " clients in "
-       << watch.elapsed() << endl;
-
-  Resources agentResources = Resources::parse(
-      "cpus:24;mem:4096;disk:4096;ports:[31000-32000]").get();
-
-  watch.start();
-  {
-    for (size_t i = 0; i < agentCount; i++) {
-      SlaveID slaveId;
-      slaveId.set_value("agent" + stringify(i));
-
-      agents.push_back(slaveId);
-
-      sorter.add(slaveId, agentResources);
-    }
-  }
-  watch.stop();
-
-  cout << "Added " << agentCount << " agents in "
-       << watch.elapsed() << endl;
-
-  Resources allocated = Resources::parse(
-      "cpus:16;mem:2014;disk:1024").get();
-
-  // TODO(gyliu513): Parameterize the number of range for the fragment.
-  Try<::mesos::Value::Ranges> ranges = fragment(createRange(31000, 32000), 100);
-  ASSERT_SOME(ranges);
-  ASSERT_EQ(100, ranges->range_size());
-
-  allocated += createPorts(ranges.get());
-
-  watch.start();
-  {
-    // Allocate resources on all agents, round-robin through the clients.
-    size_t clientIndex = 0;
-    foreach (const SlaveID& slaveId, agents) {
-      const string& client = clients[clientIndex++ % clients.size()];
-      sorter.allocated(client, slaveId, allocated);
-    }
-  }
-  watch.stop();
-
-  cout << "Added allocations for " << agentCount << " agents in "
-         << watch.elapsed() << endl;
-
-  watch.start();
-  {
-    sorter.sort();
-  }
-  watch.stop();
-
-  cout << "Full sort of " << clientCount << " clients took "
-       << watch.elapsed() << endl;
-
-  watch.start();
-  {
-    sorter.sort();
-  }
-  watch.stop();
-
-  cout << "No-op sort of " << clientCount << " clients took "
-       << watch.elapsed() << endl;
-
-  watch.start();
-  {
-    // Unallocate resources on all agents, round-robin through the clients.
-    size_t clientIndex = 0;
-    foreach (const SlaveID& slaveId, agents) {
-      const string& client = clients[clientIndex++ % clients.size()];
-      sorter.unallocated(client, slaveId, allocated);
-    }
-  }
-  watch.stop();
-
-  cout << "Removed allocations for " << agentCount << " agents in "
-         << watch.elapsed() << endl;
-
-  watch.start();
-  {
-    foreach (const SlaveID& slaveId, agents) {
-      sorter.remove(slaveId, agentResources);
-    }
-  }
-  watch.stop();
-
-  cout << "Removed " << agentCount << " agents in "
-       << watch.elapsed() << endl;
-
-  watch.start();
-  {
-    foreach (const string& clientId, clients) {
-      sorter.remove(clientId);
-    }
-  }
-  watch.stop();
-
-  cout << "Removed " << clientCount << " clients in "
-       << watch.elapsed() << endl;
 }
-
-
-class HierarchicalSorter_BENCHMARK_Test
-  : public ::testing::Test,
-    public ::testing::WithParamInterface<
-        std::tuple<size_t, std::tuple<size_t, size_t>>> {};
-
-
-INSTANTIATE_TEST_CASE_P(
-    AgentAndClientCount,
-    HierarchicalSorter_BENCHMARK_Test,
-    ::testing::Combine(
-      ::testing::Values(1000U, 5000U, 10000U, 20000U, 30000U, 50000U),
-      ::testing::Values(
-          // ~1000 clients with different heights and branching factors.
-          std::tuple<size_t, size_t>{3U, 32U},   // 1056 clients.
-          std::tuple<size_t, size_t>{7U, 3U},    // 1092 clients.
-          std::tuple<size_t, size_t>{10U, 2U}))  // 1022 clients.
-    );
 
 
 // This benchmark simulates sorting a hierarchy of clients that have
@@ -1774,158 +1758,178 @@ INSTANTIATE_TEST_CASE_P(
 // determined by two parameters: height (depth of the hierarchy
 // including the root node) and branching factor (number of children
 // of each internal node).
-TEST_P(HierarchicalSorter_BENCHMARK_Test, FullSort)
+//
+// NOTE: There is not a way to write a test that is *both* type and
+// value parameterized, so the benchmark is typed and iterates over
+// the values specific to what it benchmarks.
+TYPED_TEST(CommonSorterTest, BENCHMARK_HierarchyFullSort)
 {
-  const size_t agentCount = std::get<0>(GetParam());
-  const std::tuple<size_t, size_t> tuple = std::get<1>(GetParam());
-  const size_t treeHeight = std::get<0>(tuple);
-  const size_t branchingFactor = std::get<1>(tuple);
+  typedef std::pair<size_t, size_t> HeightAndBranchingFactor;
 
-  vector<SlaveID> agents;
-  agents.reserve(agentCount);
+  const size_t agentCounts[] = {1000U, 5000U, 10000U, 20000U, 30000U, 50000U};
 
-  // Compute total number of clients in a tree of given depth and
-  // breadth, including root node.
-  std::function<size_t (size_t)> totalClients =
-    [&totalClients, branchingFactor](size_t depth) -> size_t {
-      if (depth == 0 || depth == 1) {
-        return depth;
-      }
+  // ~1000 clients with different heights and branching factors.
+  const HeightAndBranchingFactor heightAndBranchingFactors[] = {
+      {3U, 32U}, // Short and wide: 1056 clients.
+      {7U, 3U},  // Medium height and width: 1092 clients.
+      {10U, 2U}, // Tall and thin: 1022 clients.
+  };
 
-      return 1 + branchingFactor * totalClients(depth - 1);
-    };
+  foreach (size_t agentCount, agentCounts) {
+    foreach (HeightAndBranchingFactor pair, heightAndBranchingFactors) {
+      const size_t treeHeight = std::get<0>(pair);
+      const size_t branchingFactor = std::get<1>(pair);
 
-  const size_t clientCount = totalClients(treeHeight) - 1;
+      vector<SlaveID> agents;
+      agents.reserve(agentCount);
 
-  vector<string> clients;
-  clients.reserve(clientCount);
-
-  DRFSorter sorter;
-  Stopwatch watch;
-
-  watch.start();
-  {
-    // Build a tree of given depth and branching factor in depth-first fashion.
-    std::function<void (string, size_t)> buildTree =
-      [&buildTree, &sorter, &clients, branchingFactor](
-          string path, size_t depth) {
-        if (depth == 0) {
-          return;
+      // Compute total number of clients in a tree of given depth and
+      // breadth, including root node.
+      std::function<size_t (size_t)> totalClients =
+          [&totalClients, branchingFactor](size_t depth) -> size_t {
+        if (depth == 0 || depth == 1) {
+          return depth;
         }
 
-        for (size_t i = 0; i < branchingFactor; i++) {
-          buildTree(path + stringify(i) + "/", depth - 1);
-        }
-
-        const string client = strings::remove(path, "/", strings::SUFFIX);
-        if (!client.empty()) {
-          sorter.add(client);
-          clients.push_back(client);
-        }
+        return 1 + branchingFactor * totalClients(depth - 1);
       };
 
-    buildTree("", treeHeight);
-  }
-  watch.stop();
+      const size_t clientCount = totalClients(treeHeight) - 1;
 
-  cout << "Added " << clientCount << " clients in "
-       << watch.elapsed() << endl;
+      vector<string> clients;
+      clients.reserve(clientCount);
 
-  Resources agentResources = Resources::parse(
-      "cpus:24;mem:4096;disk:4096;ports:[31000-32000]").get();
+      TypeParam sorter;
+      Stopwatch watch;
 
-  watch.start();
-  {
-    for (size_t i = 0; i < agentCount; i++) {
-      SlaveID slaveId;
-      slaveId.set_value("agent" + stringify(i));
+      watch.start();
+      {
+        // Build a tree of given depth and branching factor
+        // in depth-first fashion.
+        std::function<void (string, size_t)> buildTree =
+            [&buildTree, &sorter, &clients, branchingFactor](
+                string path, size_t depth) {
+          if (depth == 0) {
+            return;
+          }
 
-      agents.push_back(slaveId);
+          for (size_t i = 0; i < branchingFactor; i++) {
+            buildTree(path + stringify(i) + "/", depth - 1);
+          }
 
-      sorter.add(slaveId, agentResources);
+          const string client = strings::remove(path, "/", strings::SUFFIX);
+          if (!client.empty()) {
+            sorter.add(client);
+            clients.push_back(client);
+          }
+        };
+
+        buildTree("", treeHeight);
+      }
+      watch.stop();
+
+      cout << "Added " << clientCount << " clients in "
+           << watch.elapsed() << endl;
+
+      Resources agentResources = Resources::parse(
+          "cpus:24;mem:4096;disk:4096;ports:[31000-32000]").get();
+
+      watch.start();
+      {
+        for (size_t i = 0; i < agentCount; i++) {
+          SlaveID slaveId;
+          slaveId.set_value("agent" + stringify(i));
+
+          agents.push_back(slaveId);
+
+          sorter.add(slaveId, agentResources);
+        }
+      }
+      watch.stop();
+
+      cout << "Added " << agentCount << " agents in "
+           << watch.elapsed() << endl;
+
+      Resources allocated =
+        Resources::parse("cpus:16;mem:2014;disk:1024").get();
+
+      // TODO(gyliu513): Parameterize the number of range for the fragment.
+      Try<::mesos::Value::Ranges> ranges =
+        fragment(createRange(31000, 32000), 100);
+      ASSERT_SOME(ranges);
+      ASSERT_EQ(100, ranges->range_size());
+
+      allocated += createPorts(ranges.get());
+
+      watch.start();
+      {
+        // Allocate resources on all agents, round-robin through the clients.
+        size_t clientIndex = 0;
+        foreach (const SlaveID& slaveId, agents) {
+          const string& client = clients[clientIndex++ % clients.size()];
+          sorter.allocated(client, slaveId, allocated);
+        }
+      }
+      watch.stop();
+
+      cout << "Added allocations for " << agentCount << " agents in "
+           << watch.elapsed() << endl;
+
+      watch.start();
+      {
+        sorter.sort();
+      }
+      watch.stop();
+
+      cout << "Full sort of " << clientCount << " clients took "
+           << watch.elapsed() << endl;
+
+      watch.start();
+      {
+        sorter.sort();
+      }
+      watch.stop();
+
+      cout << "No-op sort of " << clientCount << " clients took "
+           << watch.elapsed() << endl;
+
+      watch.start();
+      {
+        // Unallocate resources on all agents, round-robin through the clients.
+        size_t clientIndex = 0;
+        foreach (const SlaveID& slaveId, agents) {
+          const string& client = clients[clientIndex++ % clients.size()];
+          sorter.unallocated(client, slaveId, allocated);
+        }
+      }
+      watch.stop();
+
+      cout << "Removed allocations for " << agentCount << " agents in "
+           << watch.elapsed() << endl;
+
+      watch.start();
+      {
+        foreach (const SlaveID& slaveId, agents) {
+          sorter.remove(slaveId, agentResources);
+        }
+      }
+      watch.stop();
+
+      cout << "Removed " << agentCount << " agents in "
+           << watch.elapsed() << endl;
+
+      watch.start();
+      {
+        foreach (const string& clientId, clients) {
+          sorter.remove(clientId);
+        }
+      }
+      watch.stop();
+
+      cout << "Removed " << clientCount << " clients in "
+           << watch.elapsed() << endl;
     }
   }
-  watch.stop();
-
-  cout << "Added " << agentCount << " agents in "
-       << watch.elapsed() << endl;
-
-  Resources allocated = Resources::parse("cpus:16;mem:2014;disk:1024").get();
-
-  // TODO(gyliu513): Parameterize the number of range for the fragment.
-  Try<::mesos::Value::Ranges> ranges = fragment(createRange(31000, 32000), 100);
-  ASSERT_SOME(ranges);
-  ASSERT_EQ(100, ranges->range_size());
-
-  allocated += createPorts(ranges.get());
-
-  watch.start();
-  {
-    // Allocate resources on all agents, round-robin through the clients.
-    size_t clientIndex = 0;
-    foreach (const SlaveID& slaveId, agents) {
-      const string& client = clients[clientIndex++ % clients.size()];
-      sorter.allocated(client, slaveId, allocated);
-    }
-  }
-  watch.stop();
-
-  cout << "Added allocations for " << agentCount << " agents in "
-         << watch.elapsed() << endl;
-
-  watch.start();
-  {
-    sorter.sort();
-  }
-  watch.stop();
-
-  cout << "Full sort of " << clientCount << " clients took "
-       << watch.elapsed() << endl;
-
-  watch.start();
-  {
-    sorter.sort();
-  }
-  watch.stop();
-
-  cout << "No-op sort of " << clientCount << " clients took "
-       << watch.elapsed() << endl;
-
-  watch.start();
-  {
-    // Unallocate resources on all agents, round-robin through the clients.
-    size_t clientIndex = 0;
-    foreach (const SlaveID& slaveId, agents) {
-      const string& client = clients[clientIndex++ % clients.size()];
-      sorter.unallocated(client, slaveId, allocated);
-    }
-  }
-  watch.stop();
-
-  cout << "Removed allocations for " << agentCount << " agents in "
-         << watch.elapsed() << endl;
-
-  watch.start();
-  {
-    foreach (const SlaveID& slaveId, agents) {
-      sorter.remove(slaveId, agentResources);
-    }
-  }
-  watch.stop();
-
-  cout << "Removed " << agentCount << " agents in "
-       << watch.elapsed() << endl;
-
-  watch.start();
-  {
-    foreach (const string& clientId, clients) {
-      sorter.remove(clientId);
-    }
-  }
-  watch.stop();
-
-  cout << "Removed " << clientCount << " clients in "
-       << watch.elapsed() << endl;
 }
 
 } // namespace tests {
