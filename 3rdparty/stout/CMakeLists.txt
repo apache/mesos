@@ -29,6 +29,7 @@ target_link_libraries(
   picojson
   protobuf
   Threads::Threads
+  libarchive
   zlib
   $<$<PLATFORM_ID:Linux>:rt dl svn>
   $<$<PLATFORM_ID:Darwin>:svn>

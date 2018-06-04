@@ -17,6 +17,7 @@
 # STOUT TESTS.
 ##############
 set(STOUT_ROOT_TESTS_SRC
+  archiver_tests.cpp
   base64_tests.cpp
   bits_tests.cpp
   bytes_tests.cpp
