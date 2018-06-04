@@ -60,9 +60,15 @@ public:
    * allocator instance from a module using the given name. If `Try`
    * does not report an error, the wrapped `Allocator*` is not null.
    *
+   * TODO(bmahler): Figure out how to pass parameters without
+   * burning in the built-in module arguments.
+   *
    * @param name Name of the allocator.
    */
-  static Try<Allocator*> create(const std::string& name);
+  static Try<Allocator*> create(
+      const std::string& name,
+      const std::string& roleSorter,
+      const std::string& frameworkSorter);
 
   Allocator() {}
 

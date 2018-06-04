@@ -335,17 +335,19 @@ int main(int argc, char** argv)
   }
 
   // Create an instance of allocator.
-  const string allocatorName = flags.allocator;
-  Try<Allocator*> allocator = Allocator::create(allocatorName);
+  Try<Allocator*> allocator = Allocator::create(
+      flags.allocator,
+      flags.role_sorter,
+      flags.framework_sorter);
 
   if (allocator.isError()) {
     EXIT(EXIT_FAILURE)
-      << "Failed to create '" << allocatorName
-      << "' allocator: " << allocator.error();
+      << "Failed to create allocator '" << flags.allocator << "'"
+      << ": " << allocator.error();
   }
 
   CHECK_NOTNULL(allocator.get());
-  LOG(INFO) << "Using '" << allocatorName << "' allocator";
+  LOG(INFO) << "Using '" << flags.allocator << "' allocator";
 
   Storage* storage = nullptr;
 #ifndef __WINDOWS__
