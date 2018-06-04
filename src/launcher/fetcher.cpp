@@ -20,6 +20,7 @@
 #include <process/owned.hpp>
 #include <process/subprocess.hpp>
 
+#include <stout/archiver.hpp>
 #include <stout/json.hpp>
 #include <stout/net.hpp>
 #include <stout/option.hpp>
@@ -80,9 +81,18 @@ static Try<bool> extract(
       strings::endsWith(sourcePath, ".tbz2") ||
       strings::endsWith(sourcePath, ".tar.bz2") ||
       strings::endsWith(sourcePath, ".txz") ||
-      strings::endsWith(sourcePath, ".tar.xz")) {
-    command = {"tar", "-C", destinationDirectory, "-xf", sourcePath};
+      strings::endsWith(sourcePath, ".tar.xz") ||
+      strings::endsWith(sourcePath, ".zip")) {
+    Try<Nothing> result = archiver::extract(sourcePath, destinationDirectory);
+    if (result.isError()) {
+      return Error(
+          "Failed to extract archive '" + sourcePath +
+          "' to '" + destinationDirectory + "': " + result.error());
+    }
+    return true;
   } else if (strings::endsWith(sourcePath, ".gz")) {
+    // Unfortunately, libarchive can't extract bare files, so leave this to
+    // the 'gunzip' program, if it exists.
     string pathWithoutExtension = sourcePath.substr(0, sourcePath.length() - 3);
     string filename = Path(pathWithoutExtension).basename();
     string destinationPath = path::join(destinationDirectory, filename);
@@ -90,20 +100,6 @@ static Try<bool> extract(
     command = {"gunzip", "-d", "-c"};
     in = Subprocess::PATH(sourcePath);
     out = Subprocess::PATH(destinationPath);
-  } else if (strings::endsWith(sourcePath, ".zip")) {
-#ifdef __WINDOWS__
-    command = {"powershell",
-               "-NoProfile",
-               "-Command",
-               "Expand-Archive",
-               "-Force",
-               "-Path",
-               sourcePath,
-               "-DestinationPath",
-               destinationDirectory};
-#else
-    command = {"unzip", "-o", "-d", destinationDirectory, sourcePath};
-#endif // __WINDOWS__
   } else {
     return false;
   }
