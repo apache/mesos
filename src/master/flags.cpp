@@ -176,15 +176,17 @@ mesos::internal::master::Flags::Flags()
       "machines are accepted. Path can be of the form\n"
       "`file:///path/to/file` or `/path/to/file`.\n");
 
-  add(&Flags::user_sorter,
-      "user_sorter",
-      "Policy to use for allocating resources between users. May be one of:\n"
-      "  dominant_resource_fairness (drf)",
+  add(&Flags::role_sorter,
+      "role_sorter",
+      flags::DeprecatedName("user_sorter"),
+      "Policy to use for allocating resources between roles when\n"
+      "allocating up to quota guarantees as well as when allocating\n"
+      "up to quota limits. May be one of: [drf, random]",
       "drf");
 
   add(&Flags::framework_sorter,
       "framework_sorter",
-      "Policy to use for allocating resources between a given user's\n"
+      "Policy to use for allocating resources between a given role's\n"
       "frameworks. Options are the same as for `--user_sorter`.",
       "drf");
 
