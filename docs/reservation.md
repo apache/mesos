@@ -327,8 +327,8 @@ It can then be refined to be __reserved__ for `"engineering/backend"`.
 
 Note that the refined reservation role must match the offer's allocation role.
 
-Suppose we receive a resource offer with 12 CPUs and 6144 MB of RAM unreserved,
-allocated to role `"engineering/backend"`, reserved to `"engineering"`.
+Suppose we receive a resource offer with 12 CPUs and 6144 MB of RAM reserved to
+`"engineering"`, allocated to role `"engineering/backend"`.
 
         {
           "allocation_info": { "role": "engineering/backend" },
