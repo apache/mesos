@@ -1038,15 +1038,15 @@ Future<Nothing> DockerContainerizerProcess::_recover(
         pid_t pid = run->forkedPid.get();
 
         // Create a TCP socket.
-        int_fd socket = ::socket(AF_INET, SOCK_STREAM, 0);
-        if (socket < 0) {
+        Try<int_fd> socket = net::socket(AF_INET, SOCK_STREAM, 0);
+        if (socket.isError()) {
           return Failure(
               "Failed to create socket for connecting to executor '" +
-              stringify(executor.id) + "': " + os::strerror(errno));
+              stringify(executor.id) + "': " + socket.error());
         }
 
         Try<Nothing, SocketError> connect = process::network::connect(
-            socket,
+            socket.get(),
             run->libprocessPid->address);
 
         if (connect.isSome()) {
@@ -1060,8 +1060,8 @@ Future<Nothing> DockerContainerizerProcess::_recover(
         }
 
         // Shutdown and close the socket.
-        shutdown(socket, SHUT_RDWR);
-        close(socket);
+        ::shutdown(socket.get(), SHUT_RDWR);
+        os::close(socket.get());
 
         container->status.future()
           ->onAny(defer(self(), &Self::reaped, containerId));
