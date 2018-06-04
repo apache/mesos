@@ -27,18 +27,36 @@
 using std::string;
 
 using mesos::internal::master::allocator::HierarchicalDRFAllocator;
+using mesos::internal::master::allocator::HierarchicalRandomAllocator;
 
 namespace mesos {
 namespace allocator {
 
-Try<Allocator*> Allocator::create(const string& name)
+Try<Allocator*> Allocator::create(
+    const string& name,
+    const string& roleSorter,
+    const string& frameworkSorter)
 {
   // Create an instance of the default allocator. If other than the
   // default allocator is requested, search for it in loaded modules.
+  //
   // NOTE: We do not need an extra not-null check, because both
   // ModuleManager and built-in allocator factory do that already.
-  if (name == mesos::internal::master::DEFAULT_ALLOCATOR) {
-    return HierarchicalDRFAllocator::create();
+  //
+  // We also look for "HierarchicalDRF" since that was the
+  // previous value for `DEFAULT_ALLOCATOR`.
+  if (name == "HierarchicalDRF" ||
+      name == mesos::internal::master::DEFAULT_ALLOCATOR) {
+    if (roleSorter == "drf" && frameworkSorter == "drf") {
+      return HierarchicalDRFAllocator::create();
+    }
+
+    if (roleSorter == "random" && frameworkSorter == "random") {
+      return HierarchicalRandomAllocator::create();
+    }
+
+    return Error("Unsupported combination of 'role_sorter'"
+                 " and 'framework_sorter': must be equal (for now)");
   }
 
   return modules::ModuleManager::create<Allocator>(name);
