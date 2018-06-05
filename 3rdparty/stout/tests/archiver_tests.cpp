@@ -20,6 +20,7 @@
 #include <stout/base64.hpp>
 #include <stout/gtest.hpp>
 #include <stout/os.hpp>
+#include <stout/uuid.hpp>
 
 #include <stout/os/write.hpp>
 
@@ -479,14 +480,17 @@ TEST_F(ArchiverTest, ExtractZipFileWithLongDestinationDir)
       "AAAAXAAAAAAA").get()));
 
   // Make a destination directory to extract the archive to.
-  const size_t max_path_length = 248;
-  string destDir = path::join(dir, string(max_path_length + 1, 'b'));
+  const size_t max_path_length = 260;
+  while (dir.length() <= max_path_length) {
+    dir = path::join(dir, id::UUID::random().toString());
+  }
 
-  ASSERT_SOME(os::mkdir(destDir));
+  EXPECT_TRUE(dir.length() > max_path_length);
+  ASSERT_SOME(os::mkdir(dir));
 
-  EXPECT_SOME(archiver::extract(sourcePath.get(), destDir));
+  EXPECT_SOME(archiver::extract(sourcePath.get(), dir));
 
-  string extractedFile = path::join(destDir, "hello");
+  string extractedFile = path::join(dir, "hello");
   ASSERT_TRUE(os::exists(extractedFile));
 
   ASSERT_SOME_EQ("Howdy there, partner! (.zip)\n", os::read(extractedFile));
