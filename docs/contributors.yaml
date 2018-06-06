@@ -522,6 +522,15 @@
   jira_user: klueska
   reviewboard_user: klueska
 
+- name: Kjetil Joergensen
+  affiliations:
+    - {organization: Medallia Inc.}
+  emails:
+    - kjetijor@gmail.com
+    - kjetil@medallia.com
+  jira_user: kjetijor
+  reviewboard_user: kjetijor
+
 - name: Klaus Ma
   affiliations:
     - {organization: IBM}
