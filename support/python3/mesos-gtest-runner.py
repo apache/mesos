@@ -89,7 +89,7 @@ def run_test(opts):
             universal_newlines=True)
         print(Bcolors.colorize('.', Bcolors.OKGREEN), end='')
         sys.stdout.flush()
-        return True, output
+        return True, output.decode(sys.stdout.encoding)
     except subprocess.CalledProcessError as error:
         print(Bcolors.colorize('.', Bcolors.FAIL), end='')
         sys.stdout.flush()

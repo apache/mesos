@@ -94,7 +94,9 @@ class Subprocess(object):
 
 # A pointer to the top level directory of the mesos project.
 GIT_TOP_DIR = subprocess.check_output(
-    ['git', 'rev-parse', '--show-cdup']).strip()
+    ['git',
+     'rev-parse',
+     '--show-cdup']).decode(sys.stdout.encoding).strip()
 
 with open(os.path.join(GIT_TOP_DIR, 'CHANGELOG'), 'r') as f:
     if 'mesos' not in f.readline().lower():

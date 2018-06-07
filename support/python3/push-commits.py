@@ -41,17 +41,19 @@ from subprocess import check_output
 
 REVIEWBOARD_URL = 'https://reviews.apache.org'
 
+def _check_output(args):
+  return check_output(args).decode(sys.stdout.encoding)
 
 def get_reviews(revision_range):
     """Return the list of reviews found in the commits in the revision range."""
     reviews = [] # List of (review id, commit log) tuples
 
-    rev_list = check_output(['git',
+    rev_list = _check_output(['git',
                              'rev-list',
                              '--reverse',
                              revision_range]).strip().split('\n')
     for rev in rev_list:
-        commit_log = check_output(['git',
+        commit_log = _check_output(['git',
                                    '--no-pager',
                                    'show',
                                    '--no-color',
@@ -79,7 +81,7 @@ def close_reviews(reviews, options):
     for review_id, commit_log in reviews:
         print('Closing review', review_id)
         if not options['dry_run']:
-            check_output(['rbt',
+            _check_output(['rbt',
                           'close',
                           '--description',
                           commit_log,
@@ -107,19 +109,19 @@ def main():
     """Main function to push the commits in this branch as review requests."""
     options = parse_options()
 
-    current_branch_ref = check_output(['git', 'symbolic-ref', 'HEAD']).strip()
+    current_branch_ref = _check_output(['git', 'symbolic-ref', 'HEAD']).strip()
     current_branch = current_branch_ref.replace('refs/heads/', '', 1)
 
     if current_branch != 'master':
         print('Please run this script from master branch')
         sys.exit(1)
 
-    remote_tracking_branch = check_output(['git',
+    remote_tracking_branch = _check_output(['git',
                                            'rev-parse',
                                            '--abbrev-ref',
                                            'master@{upstream}']).strip()
 
-    merge_base = check_output([
+    merge_base = _check_output([
         'git',
         'merge-base',
         remote_tracking_branch,
@@ -132,7 +134,7 @@ def main():
     reviews = get_reviews(merge_base + ".." + current_branch_ref)
 
     # Push the current branch to remote master.
-    remote = check_output(['git',
+    remote = _check_output(['git',
                            'config',
                            '--get',
                            'branch.master.remote']).strip()
@@ -140,13 +142,13 @@ def main():
     print('Pushing commits to', remote)
 
     if options['dry_run']:
-        check_output(['git',
+        _check_output(['git',
                       'push',
                       '--dry-run',
                       remote,
                       'master:master'])
     else:
-        check_output(['git',
+        _check_output(['git',
                       'push',
                       remote,
                       'master:master'])
