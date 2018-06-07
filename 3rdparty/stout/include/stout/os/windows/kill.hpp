@@ -37,7 +37,7 @@ inline int kill_process(pid_t pid)
 
   SharedHandle safe_process_handle(process_handle, ::CloseHandle);
 
-  if (::TerminateProcess(safe_process_handle.get_handle(), 1) != 0) {
+  if (::TerminateProcess(safe_process_handle.get_handle(), 1) == 0) {
     LOG(ERROR) << "os::kill_process(): Failed call to TerminateProcess";
 
     return KILL_FAIL;
