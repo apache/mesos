@@ -172,7 +172,10 @@ inline void unsetenv(const std::string& key)
 }
 
 
-// NOTE: This exists for compatibility with the POSIX API.
+// NOTE: This exists for compatibility with the POSIX API. On Windows,
+// either function is suitable for clearing a secret from the
+// environment, as the pointers returned by `GetEnvironmentVariable`
+// and `GetEnvironmentStrings` are to blocks allocated on invocation.
 inline void eraseenv(const std::string& key)
 {
   unsetenv(key);

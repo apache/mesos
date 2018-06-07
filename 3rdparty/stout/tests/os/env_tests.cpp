@@ -13,6 +13,7 @@
 #include <gtest/gtest.h>
 
 #include <stout/os.hpp>
+#include <stout/os/environment.hpp>
 
 #include <stout/tests/utils.hpp>
 
@@ -64,27 +65,36 @@ TEST(EnvTest, SimpleEnvTest)
 }
 
 
-#ifndef __WINDOWS__
 TEST(EnvTest, EraseEnv)
 {
   os::setenv("key", "value");
 
   std::map<string, string> pre = os::environment();
 
+#ifdef __WINDOWS__
+  Option<string> value = os::getenv("key");
+  EXPECT_SOME_EQ("value", value);
+#else
   // We use ::getenv rather than `os::getenv` so that we can
   // keep the pointer across the `os::eraseenv` and verify that
   // `os::eraseenv` clears existing values rather than just
   // making them unavailable.
-  char * value = ::getenv("key");
+  char* value = ::getenv("key");
   EXPECT_STREQ("value", value);
+#endif // __WINDOWS__
 
   os::eraseenv("key");
+
+#ifndef __WINDOWS__
+  // On POSIX, we check that the pointer itself was cleared. This does
+  // not apply to Windows.
   EXPECT_STREQ("", value);
+#endif // __WINDOWS__
+
   EXPECT_NONE(os::getenv("key"));
 
   // Verify that erasing "key" removed the environment variable without
-  // damaging any other ernvironment variables.
+  // damaging any other environment variables.
   pre.erase("key");
   EXPECT_EQ(pre, os::environment());
 }
-#endif // __WINDOWS__

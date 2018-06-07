@@ -166,18 +166,24 @@ inline void setenv(const std::string& key,
 // environment variables.
 inline void unsetenv(const std::string& key)
 {
+  // NOTE: This function explicitly does not clear from
+  // `/proc/$pid/environ` because that is defined to be the initial
+  // environment that was set when the process was started, so don't
+  // use this to delete secrets! Instead, see `os::eraseenv`.
   ::unsetenv(key.c_str());
 }
 
 
 // Erases the value associated with the specified key from the set of
-// environment variables.
+// environment variables. By erase, we even clear it from
+// `/proc/$pid/environ` so that sensitive information conveyed via
+// environment variables (such as secrets) can be cleaned up.
 inline void eraseenv(const std::string& key)
 {
-  char * value = ::getenv(key.c_str());
+  char* value = ::getenv(key.c_str());
 
-  // Erase the old value so that on Linux it can't be inspected through
-  // /proc/$pid/environ.
+  // Erase the old value so that on Linux it can't be inspected
+  // through `/proc/$pid/environ`, useful for secrets.
   if (value) {
     ::memset(value, '\0', ::strlen(value));
   }
