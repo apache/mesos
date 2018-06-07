@@ -1706,7 +1706,7 @@ Future<Docker::Image> Docker::__pull(
       path,
       argv,
       Subprocess::PATH(os::DEV_NULL),
-      Subprocess::PIPE(),
+      Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       nullptr,
       environment);
