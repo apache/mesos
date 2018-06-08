@@ -93,18 +93,21 @@ public:
   // This constructor is provided in so that the canonical integer
   // file descriptors representing `stdin` (0), `stdout` (1), and
   // `stderr` (2), and the invalid value of -1 can be used.
-  //
-  // TODO(andschwa): Consider constraining to the range [-1, 2].
   WindowsFD(int crt) : WindowsFD(INVALID_HANDLE_VALUE)
   {
-    if (crt == 0) {
+    if (crt == -1) {
+      // No-op, already `INVALID_HANDLE_VALUE`.
+    } else if (crt == 0) {
       handle_ = ::GetStdHandle(STD_INPUT_HANDLE);
     } else if (crt == 1) {
       handle_ = ::GetStdHandle(STD_OUTPUT_HANDLE);
     } else if (crt == 2) {
       handle_ = ::GetStdHandle(STD_ERROR_HANDLE);
+    } else {
+      // This would be better enforced at compile-time, but not
+      // currently possible, so this is a sanity check.
+      LOG(FATAL) << "Unexpected construction of `WindowsFD`";
     }
-    // All others default to `INVALID_HANDLE_VALUE`.
   }
 
   // Default construct with invalid handle semantics.
