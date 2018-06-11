@@ -37,7 +37,7 @@ public:
 
   Future<Resources> oversubscribable()
   {
-    return Resources();
+    return Future<Resources>();
   }
 };
 
