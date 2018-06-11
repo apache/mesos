@@ -843,3 +843,11 @@
     - xingzhou@cn.ibm.com
   jira_user: dongdong
   reviewboard_user: dongdong
+
+- name: xiao wei
+  affiliations:
+    - {organization: ChinaUnicom}
+  emails:
+    - xiaow10@chinaunicom.cn
+  jira_user: xiaowei-cuc
+  reviewboard_user: xiaowei-cuc
