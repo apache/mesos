@@ -22,6 +22,8 @@
 #include <stout/try.hpp>
 #include <stout/unreachable.hpp>
 
+#include <stout/os/int_fd.hpp>
+
 
 namespace os {
 
