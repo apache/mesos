@@ -27,13 +27,8 @@
 namespace process {
 
 // Default statistic configuration variables.
-// TODO(bmahler): It appears there may be a bug with gcc-4.1.2 in
-// which these duration constants were not being initialized when
-// having static linkage. This issue did not manifest in newer gcc's.
-// Specifically, 4.2.1 was ok. So we've moved these to have external
-// linkage but perhaps in the future we can revert this.
-extern const Duration TIME_SERIES_WINDOW;
-extern const size_t TIME_SERIES_CAPACITY;
+constexpr Duration TIME_SERIES_WINDOW = Weeks(2);
+constexpr size_t TIME_SERIES_CAPACITY = 1000;
 
 
 // Provides an in-memory time series of statistics over some window.

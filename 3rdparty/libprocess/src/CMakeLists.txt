@@ -60,8 +60,7 @@ set(PROCESS_SRC
   socket.cpp
   socket_manager.hpp
   subprocess.cpp
-  time.cpp
-  timeseries.cpp)
+  time.cpp)
 
 if (WIN32)
   list(APPEND PROCESS_SRC
