@@ -32,9 +32,7 @@
 #include <stout/exit.hpp>
 #include <stout/flags.hpp>
 
-#ifndef __WINDOWS__
 #include <stout/os/signals.hpp>
-#endif // __WINDOWS__
 
 #include <stout/tests/environment.hpp>
 
