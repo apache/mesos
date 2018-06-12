@@ -32,9 +32,7 @@
 #include <stout/try.hpp>
 #include <stout/unreachable.hpp>
 
-#ifndef __WINDOWS__
 #include <stout/os/signals.hpp>
-#endif // __WINDOWS__
 
 #include "logging/logging.hpp"
 
