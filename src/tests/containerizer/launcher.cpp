@@ -30,7 +30,7 @@ ACTION_P(InvokeRecover, launcher)
 ACTION_P(InvokeFork, launcher)
 {
   return launcher->real->fork(
-      arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9);
+      arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
 }
 
 
@@ -51,9 +51,9 @@ TestLauncher::TestLauncher(const process::Owned<slave::Launcher>& _real)
   EXPECT_CALL(*this, recover(_))
     .WillRepeatedly(DoDefault());
 
-  ON_CALL(*this, fork(_, _, _, _, _, _, _, _, _, _))
+  ON_CALL(*this, fork(_, _, _, _, _, _, _, _, _))
     .WillByDefault(InvokeFork(this));
-  EXPECT_CALL(*this, fork(_, _, _, _, _, _, _, _, _, _))
+  EXPECT_CALL(*this, fork(_, _, _, _, _, _, _, _, _))
     .WillRepeatedly(DoDefault());
 
   ON_CALL(*this, destroy(_))
