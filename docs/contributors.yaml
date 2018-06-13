@@ -576,6 +576,14 @@
   jira_user: chenlily
   reviewboard_user: chenlily
 
+- name: LongFei Niu
+  affiliations:
+    - {organization: China Unicom}
+  emails:
+    - niulf5@chinaunicom.cn
+  jira_user: smush618
+  reviewboard_user: smush618
+
 - name: M Lawindi
   affiliations:
     - {organization: Microsoft}
