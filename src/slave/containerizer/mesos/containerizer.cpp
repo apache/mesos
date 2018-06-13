@@ -1893,6 +1893,8 @@ Future<Containerizer::LaunchResult> MesosContainerizerProcess::_launch(
   launchFlags.pipe_read = pipes[0];
   launchFlags.pipe_write = pipes[1];
 
+  const vector<int_fd> whitelistFds{pipes[0], pipes[1]};
+
 #ifndef __WINDOWS__
   // Set the `runtime_directory` launcher flag so that the launch
   // helper knows where to checkpoint the status of the container
@@ -1978,15 +1980,14 @@ Future<Containerizer::LaunchResult> MesosContainerizerProcess::_launch(
       containerId,
       argv[0],
       argv,
-      containerIO->in,
-      containerIO->out,
-      containerIO->err,
+      containerIO.get(),
       nullptr,
       launchEnvironment,
       // 'enterNamespaces' will be ignored by SubprocessLauncher.
       _enterNamespaces,
       // 'cloneNamespaces' will be ignored by SubprocessLauncher.
-      _cloneNamespaces);
+      _cloneNamespaces,
+      whitelistFds);
 
   if (forked.isError()) {
     return Failure("Failed to fork: " + forked.error());
