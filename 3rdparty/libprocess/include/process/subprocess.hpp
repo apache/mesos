@@ -125,7 +125,8 @@ public:
         const Option<lambda::function<
             pid_t(const lambda::function<int()>&)>>& clone,
         const std::vector<Subprocess::ParentHook>& parent_hooks,
-        const std::vector<Subprocess::ChildHook>& child_hooks);
+        const std::vector<Subprocess::ChildHook>& child_hooks,
+        const std::vector<int_fd>& whitelist_fds);
 
     IO(const lambda::function<Try<InputFileDescriptors>()>& _input,
        const lambda::function<Try<OutputFileDescriptors>()>& _output)
@@ -305,7 +306,8 @@ private:
       const Option<lambda::function<
           pid_t(const lambda::function<int()>&)>>& clone,
       const std::vector<Subprocess::ParentHook>& parent_hooks,
-      const std::vector<Subprocess::ChildHook>& child_hooks);
+      const std::vector<Subprocess::ChildHook>& child_hooks,
+      const std::vector<int_fd>& whitelist_fds);
 
   struct Data
   {
@@ -377,7 +379,8 @@ Try<Subprocess> subprocess(
     const Option<lambda::function<
         pid_t(const lambda::function<int()>&)>>& clone = None(),
     const std::vector<Subprocess::ParentHook>& parent_hooks = {},
-    const std::vector<Subprocess::ChildHook>& child_hooks = {});
+    const std::vector<Subprocess::ChildHook>& child_hooks = {},
+    const std::vector<int_fd>& whitelist_fds = {});
 
 
 /**
@@ -413,7 +416,8 @@ inline Try<Subprocess> subprocess(
     const Option<lambda::function<
         pid_t(const lambda::function<int()>&)>>& clone = None(),
     const std::vector<Subprocess::ParentHook>& parent_hooks = {},
-    const std::vector<Subprocess::ChildHook>& child_hooks = {})
+    const std::vector<Subprocess::ChildHook>& child_hooks = {},
+    const std::vector<int_fd>& whitelist_fds = {})
 {
   std::vector<std::string> argv = {os::Shell::arg0, os::Shell::arg1, command};
 
@@ -427,7 +431,8 @@ inline Try<Subprocess> subprocess(
       environment,
       clone,
       parent_hooks,
-      child_hooks);
+      child_hooks,
+      whitelist_fds);
 }
 
 } // namespace process {

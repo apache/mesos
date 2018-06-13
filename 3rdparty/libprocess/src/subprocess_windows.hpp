@@ -51,7 +51,8 @@ inline Try<::internal::windows::ProcessData> createChildProcess(
     const std::vector<Subprocess::ParentHook>& parent_hooks,
     const InputFileDescriptors stdinfds,
     const OutputFileDescriptors stdoutfds,
-    const OutputFileDescriptors stderrfds)
+    const OutputFileDescriptors stderrfds,
+    const std::vector<int_fd>& whitelist_fds = {})
 {
   Try<::internal::windows::ProcessData> process_data =
     ::internal::windows::create_process(
