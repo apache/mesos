@@ -51,7 +51,8 @@ inline Try<::internal::windows::ProcessData> createChildProcess(
     const std::vector<Subprocess::ParentHook>& parent_hooks,
     const InputFileDescriptors& stdinfds,
     const OutputFileDescriptors& stdoutfds,
-    const OutputFileDescriptors& stderrfds)
+    const OutputFileDescriptors& stderrfds,
+    const std::vector<int_fd>& whitelist_fds = {})
 {
   const std::array<int_fd, 3> fds{
     stdinfds.read, stdoutfds.write, stderrfds.write};
@@ -62,7 +63,8 @@ inline Try<::internal::windows::ProcessData> createChildProcess(
         argv,
         environment,
         true, // Create suspended.
-        fds);
+        fds,
+        whitelist_fds);
 
   // Close the child-ends of the file descriptors that are created
   // by this function.
