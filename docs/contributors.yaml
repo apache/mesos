@@ -804,6 +804,14 @@
   jira_user: yanyanhu
   reviewboard_user: yanyanhu
 
+- name: Yihua He
+  affiliations:
+    - {organization: ASIAINFO}
+  emails:
+    - yhua.he@163.com
+  jira_user: yhua
+  reviewboard_user: yhua
+
 - name: Yongqiao Wang
   affiliations:
     - {organization: Huawei, start_date: 2016-09-15}
