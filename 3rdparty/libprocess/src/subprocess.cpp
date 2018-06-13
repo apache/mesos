@@ -324,7 +324,8 @@ Try<Subprocess> subprocess(
     const Option<lambda::function<
         pid_t(const lambda::function<int()>&)>>& _clone,
     const vector<Subprocess::ParentHook>& parent_hooks,
-    const vector<Subprocess::ChildHook>& child_hooks)
+    const vector<Subprocess::ChildHook>& child_hooks,
+    const vector<int_fd>& whitelist_fds)
 {
   // TODO(hausdorff): We should error out on Windows here if we are passing
   // parameters that aren't used.
@@ -423,7 +424,8 @@ Try<Subprocess> subprocess(
           parent_hooks,
           stdinfds,
           stdoutfds,
-          stderrfds);
+          stderrfds,
+          whitelist_fds);
 
     if (process_data.isError()) {
       process::internal::close(stdinfds, stdoutfds, stderrfds);
