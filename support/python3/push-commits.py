@@ -36,6 +36,7 @@ import argparse
 import os
 import re
 import sys
+import urllib.parse
 
 from subprocess import check_output
 
@@ -62,8 +63,9 @@ def get_reviews(revision_range):
 
         pos = commit_log.find('Review: ')
         if pos != -1:
-            pattern = re.compile('Review: ({url})$'.format(
-                url=os.path.join(REVIEWBOARD_URL, 'r', '[0-9]+')))
+            regex = 'Review: ({url})$'.format(
+                url=urllib.parse.urljoin(REVIEWBOARD_URL, 'r/[0-9]+'))
+            pattern = re.compile(regex)
             match = pattern.search(commit_log.strip().strip('/'))
             if match is None:
                 print("\nInvalid ReviewBoard URL: '{}'".format(
