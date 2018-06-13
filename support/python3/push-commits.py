@@ -34,6 +34,7 @@ Example Usage:
 
 import argparse
 import os
+import platform
 import re
 import sys
 import urllib.parse
@@ -83,7 +84,11 @@ def close_reviews(reviews, options):
     for review_id, commit_log in reviews:
         print('Closing review', review_id)
         if not options['dry_run']:
-            _check_output(['rbt',
+            rbt_command = 'rbt'
+            # Windows command name must have `cmd` extension.
+            if platform.system() == 'Windows':
+                rbt_command = 'rbt.cmd'
+            _check_output([rbt_command,
                           'close',
                           '--description',
                           commit_log,
