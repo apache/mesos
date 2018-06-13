@@ -191,6 +191,14 @@
   jira_user: bernd-mesos
   reviewboard_user: bernd-mesos
 
+- name: Bin Zheng
+  affilitations:
+    - {organization: China Unicom}
+  emails:
+    - zhengbin@chinaunicom.cn
+  jira_user: netrahat
+  reviewboard_user: netrahat
+
 - name: Bruce Merry
   affiliations:
     - {organization: SKA South Africa}
