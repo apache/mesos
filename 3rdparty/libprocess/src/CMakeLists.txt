@@ -27,38 +27,24 @@ endif ()
 set(PROCESS_SRC
   authenticator.cpp
   authenticator_manager.cpp
-  authenticator_manager.hpp
   clock.cpp
-  config.hpp
-  decoder.hpp
-  encoder.hpp
-  event_loop.hpp
-  event_queue.hpp
   firewall.cpp
-  gate.hpp
   gtest_constants.cpp
   help.cpp
   http.cpp
   http_proxy.cpp
-  http_proxy.hpp
   io.cpp
   latch.cpp
   logging.cpp
   memory_profiler.cpp
-  memory_profiler.hpp
   metrics/metrics.cpp
   mime.cpp
   pid.cpp
   poll_socket.cpp
-  poll_socket.hpp
   process.cpp
-  process_reference.hpp
   profiler.cpp
   reap.cpp
-  run_queue.hpp
-  semaphore.hpp
   socket.cpp
-  socket_manager.hpp
   subprocess.cpp
   time.cpp)
 
@@ -77,12 +63,10 @@ endif ()
 
 if (ENABLE_LIBEVENT)
   list(APPEND PROCESS_SRC
-    libevent.hpp
     libevent.cpp
     libevent_poll.cpp)
 else ()
   list(APPEND PROCESS_SRC
-    libev.hpp
     libev.cpp
     libev_poll.cpp)
 endif ()
