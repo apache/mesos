@@ -934,6 +934,7 @@ if (WIN32 OR REBUNDLED)
 
   set(LIBARCHIVE_CMAKE_ARGS
     ${CMAKE_FORWARD_ARGS}
+    ${CMAKE_C_FORWARD_ARGS}
     -DENABLE_ACL=OFF
     -DENABLE_CNG=OFF
     -DENABLE_CPIO=OFF
@@ -959,10 +960,19 @@ if (WIN32 OR REBUNDLED)
     set_target_properties(
       libarchive PROPERTIES
       INTERFACE_COMPILE_DEFINITIONS LIBARCHIVE_STATIC
+      # NOTE: The install step avoids the need for separate DEBUG and
+      # RELEASE paths.
       IMPORTED_LOCATION ${LIBARCHIVE_ROOT}-build/lib/archive_static${LIBRARY_SUFFIX}
       INTERFACE_INCLUDE_DIRECTORIES ${LIBARCHIVE_ROOT}-build/include
       INTERFACE_LINK_LIBRARIES "bzip2;xz;zlib")
     set(LIBARCHIVE_DEPENDS bzip2 xz zlib)
+
+    # Make libarchive link against the same zlib the rest of the build
+    # links to. This is necessary because the zlib project
+    # unconditionally builds both shared and static libraries, and we
+    # need to be consistent about which is linked.
+    list(APPEND LIBARCHIVE_CMAKE_ARGS
+      -DZLIB_LIBRARY=$<TARGET_FILE:zlib>)
   else ()
     list(APPEND LIBARCHIVE_CMAKE_ARGS
       -DENABLE_BZip2=OFF
