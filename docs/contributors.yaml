@@ -216,6 +216,14 @@
   jira_user: drcrallen
   reviewboard_user: drcrallen
 
+- name: Chen Runcong
+  affiliations:
+    - {organization: Asiainfo}
+  emails:
+    - chenruncong@163.com
+  jira_user: chenrc
+  reviewboard_user: chenrc
+
 - name: Chun-Hung Hsiao
   affiliations:
     - {organization: Mesosphere}
