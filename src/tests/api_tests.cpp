@@ -6897,6 +6897,27 @@ TEST_F(AgentAPITest, HeaderValidation)
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::UnsupportedMediaType().status,
                                     response);
   }
+
+  // Setting 'Accept: application/recordio' header for a non-streaming request.
+  {
+    v1::agent::Call call;
+    call.set_type(v1::agent::Call::GET_CONTAINERS);
+
+    ContentType contentType = ContentType::JSON;
+
+    http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers["Accept"] = "application/recordio";
+
+    Future<http::Response> response = http::post(
+        slave.get()->pid,
+        "api/v1",
+        headers,
+        serialize(contentType, call),
+        stringify(contentType));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::NotAcceptable().status,
+                                    response);
+  }
 }
 
 

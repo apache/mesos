@@ -466,6 +466,8 @@ Future<Response> Http::api(
 
   Option<ContentType> messageAcceptType;
   if (streamingMediaType(acceptType)) {
+    // Note that `acceptsMediaType()` returns true if the given headers
+    // field does not exist, i.e. by default we return JSON here.
     if (request.acceptsMediaType(MESSAGE_ACCEPT, APPLICATION_JSON)) {
       messageAcceptType = ContentType::JSON;
     } else if (request.acceptsMediaType(MESSAGE_ACCEPT, APPLICATION_PROTOBUF)) {
@@ -541,13 +543,20 @@ Future<Response> Http::_api(
   if (streamingMediaType(mediaTypes.content) &&
       call.type() != mesos::agent::Call::ATTACH_CONTAINER_INPUT) {
     return UnsupportedMediaType(
-        "Streaming 'Content-Type' " + stringify(mediaTypes.content) + " is not "
-        "supported for " + stringify(call.type()) + " call");
+        "Streaming 'Content-Type' " + stringify(mediaTypes.content) + " is "
+        "not supported for " + stringify(call.type()) + " call");
   } else if (!streamingMediaType(mediaTypes.content) &&
              call.type() == mesos::agent::Call::ATTACH_CONTAINER_INPUT) {
     return UnsupportedMediaType(
         string("Expecting 'Content-Type' to be ") + APPLICATION_RECORDIO +
         " for " + stringify(call.type()) + " call");
+  }
+
+  if (streamingMediaType(mediaTypes.accept) &&
+      call.type() != mesos::agent::Call::ATTACH_CONTAINER_OUTPUT &&
+      call.type() != mesos::agent::Call::LAUNCH_NESTED_CONTAINER_SESSION) {
+    return NotAcceptable("Streaming response is not supported for " +
+        stringify(call.type()) + " call");
   }
 
   // Each handler must log separately to add context
@@ -2480,7 +2489,7 @@ Future<Response> Http::_launchContainer(
     const Option<Resources>& resources,
     const Option<ContainerInfo>& containerInfo,
     const Option<ContainerClass>& containerClass,
-    ContentType acceptType,
+    ContentType,
     const Owned<ObjectApprovers>& approvers) const
 {
   Option<string> user;
