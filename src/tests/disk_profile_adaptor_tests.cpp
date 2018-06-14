@@ -45,11 +45,13 @@
 
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
+#include "tests/disk_profile_server.hpp"
 #include "tests/utils.hpp"
 
 using namespace process;
 
 using std::map;
+using std::shared_ptr;
 using std::string;
 using std::tuple;
 using std::vector;
@@ -488,39 +490,6 @@ TEST_F(UriDiskProfileAdaptorTest, FetchFromFile)
 }
 
 
-// Basic helper for UriDiskProfileAdaptor modules configured to fetch
-// from HTTP URIs.
-class MockProfileServer : public Process<MockProfileServer>
-{
-public:
-  MOCK_METHOD1(profiles, Future<http::Response>(const http::Request&));
-
-protected:
-  virtual void initialize()
-  {
-    route("/profiles", None(), &MockProfileServer::profiles);
-  }
-};
-
-
-class ServerWrapper
-{
-public:
-  ServerWrapper() : process(new MockProfileServer())
-  {
-    spawn(process.get());
-  }
-
-  ~ServerWrapper()
-  {
-    terminate(process.get());
-    wait(process.get());
-  }
-
-  Owned<MockProfileServer> process;
-};
-
-
 // This creates a UriDiskProfileAdaptor module configured to read from
 // an HTTP URI. The HTTP server will return a different profile mapping
 // between each of the calls. We expect the module to ignore the third
@@ -603,16 +572,15 @@ TEST_F(UriDiskProfileAdaptorTest, FetchFromHTTP)
   resourceProviderInfo.set_type("resource_provider_type");
   resourceProviderInfo.set_name("resource_provider_name");
 
-  ServerWrapper server;
-
-  // Wait for the server to finish initializing so that the routes are ready.
-  AWAIT_READY(dispatch(server.process->self(), []() { return Nothing(); }));
+  Future<shared_ptr<TestDiskProfileServer>> server =
+    TestDiskProfileServer::create();
+  AWAIT_READY(server);
 
   // We need to intercept this call since the module is expected to
   // ignore the result of the third call.
   Future<Nothing> thirdCall;
 
-  EXPECT_CALL(*server.process, profiles(_))
+  EXPECT_CALL(*server.get()->process, profiles(_))
     .WillOnce(Return(http::OK(contents1)))
     .WillOnce(Return(http::OK(contents2)))
     .WillOnce(DoAll(FutureSatisfy(&thirdCall), Return(http::OK(contents3))))
@@ -626,11 +594,7 @@ TEST_F(UriDiskProfileAdaptorTest, FetchFromHTTP)
 
   Parameter* uriFlag = params.add_parameter();
   uriFlag->set_key("uri");
-  uriFlag->set_value(stringify(process::http::URL(
-      "http",
-      process::address().ip,
-      process::address().port,
-      server.process->self().id + "/profiles")));
+  uriFlag->set_value(stringify(server.get()->process->url()));
 
   Try<DiskProfileAdaptor*> _module =
     modules::ModuleManager::create<DiskProfileAdaptor>(

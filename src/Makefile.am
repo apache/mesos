@@ -2508,6 +2508,7 @@ mesos_tests_SOURCES =						\
   tests/credentials_tests.cpp					\
   tests/default_executor_tests.cpp				\
   tests/disk_profile_adaptor_tests.cpp				\
+  tests/disk_profile_server.hpp					\
   tests/disk_quota_tests.cpp					\
   tests/dynamic_weights_tests.cpp				\
   tests/environment.cpp						\
