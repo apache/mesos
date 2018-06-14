@@ -96,7 +96,6 @@ set(abs_top_builddir "${CMAKE_BINARY_DIR}")
 if (NOT WIN32)
   # Create build bin/ directory. We will place configured scripts here.
   file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
-  file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/bin/tmp")
 
   # Define the variables required to configure these scripts.
   set(VERSION "${PACKAGE_VERSION}")
@@ -110,22 +109,9 @@ if (NOT WIN32)
     string(REGEX MATCH "(.*).in$" MATCH ${BIN_FILE})
     get_filename_component(OUTPUT_BIN_FILE "${CMAKE_MATCH_1}" NAME)
 
-    # Configure. Because CMake does not support configuring and setting
-    # permissions, we do this in a two-step process: we first configure the
-    # file, placing the configured file in a temporary directory, and then we
-    # "copy" the configured file to the build `bin` directory, setting the
-    # permissions as we go.
-    #
-    # NOTE: We use the `@ONLY` argument here to avoid trying to substitute
-    # the value of `${@}`, which we frequently use in the scripts.
     configure_file(
       ${BIN_FILE}
-      "${CMAKE_BINARY_DIR}/bin/tmp/${OUTPUT_BIN_FILE}"
+      "${CMAKE_BINARY_DIR}/bin/${OUTPUT_BIN_FILE}"
       @ONLY)
-
-    file(COPY "${CMAKE_BINARY_DIR}/bin/tmp/${OUTPUT_BIN_FILE}"
-      DESTINATION "${CMAKE_BINARY_DIR}/bin"
-      FILE_PERMISSIONS WORLD_EXECUTE OWNER_READ OWNER_WRITE)
   endforeach ()
-  file(REMOVE_RECURSE "${CMAKE_BINARY_DIR}/bin/tmp")
 endif ()
