@@ -35,8 +35,9 @@
 #include <stout/stopwatch.hpp>
 
 #include <stout/os/constants.hpp>
-#include <stout/os/stat.hpp>
 #include <stout/os/exists.hpp>
+#include <stout/os/int_fd.hpp>
+#include <stout/os/stat.hpp>
 
 #include "linux/fs.hpp"
 #include "linux/ns.hpp"
@@ -346,13 +347,12 @@ protected:
         containerId,
         path::join(flags.launcher_dir, MESOS_CONTAINERIZER),
         argv,
-        Subprocess::FD(STDIN_FILENO),
-        Subprocess::FD(STDOUT_FILENO),
-        Subprocess::FD(STDERR_FILENO),
+        mesos::slave::ContainerIO(),
         &launchFlags,
         None(),
         None(),
-        CLONE_NEWNET | CLONE_NEWNS);
+        CLONE_NEWNET | CLONE_NEWNS,
+        vector<int_fd>());
 
     return pid;
   }
