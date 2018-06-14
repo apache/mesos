@@ -311,7 +311,7 @@ disk resources with the same reservation and disk information:
 
 We can grow the persistent volume by sending an `Offer::Operation` message.
 `Offer::Operation::GrowVolume` has a `volume` field which specifies the
-persistent volume to grow, and an `addition` field which specifies he
+persistent volume to grow, and an `addition` field which specifies the
 additional disk space resource.
 
     {
@@ -492,6 +492,7 @@ disk resources with the same reservation information:
 Some restrictions about resizing a volume (applicable to both
 [Offer::Operation::GrowVolume](#offer-operation-grow-volume) and
 [Offer::Operation::ShrinkVolume](#offer-operation-shrink-volume)):
+
 * Only persistent volumes created on an agent's local disk space with `ROOT` or
   `PATH` type can be resized;
 * A persistent volume cannot be actively used by a task when being resized;
