@@ -116,9 +116,8 @@ void unsetCallbacks();
 
 } // namespace authorization {
 
-// Status code reason strings, from the HTTP1.1 RFC:
-// http://www.w3.org/Protocols/rfc2616/rfc2616-sec6.html
-extern hashmap<uint16_t, std::string>* statuses;
+// Checks if the given status code is defined by RFC 2616.
+bool isValidStatus(uint16_t code);
 
 // Represents a Uniform Resource Locator:
 //   scheme://domain|ip:port/path?query#fragment

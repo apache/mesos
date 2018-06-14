@@ -86,8 +86,15 @@ using process::network::internal::SocketImpl;
 namespace process {
 namespace http {
 
+struct StatusDescription {
+  uint16_t code;
+  const char* description;
+};
 
-hashmap<uint16_t, string>* statuses = new hashmap<uint16_t, string> {
+
+// Status code reason strings, from the HTTP1.1 RFC:
+// http://www.w3.org/Protocols/rfc2616/rfc2616-sec6.html
+StatusDescription statuses[] = {
   {100, "100 Continue"},
   {101, "101 Switching Protocols"},
   {200, "200 OK"},
@@ -173,10 +180,36 @@ const uint16_t Status::GATEWAY_TIMEOUT = 504;
 const uint16_t Status::HTTP_VERSION_NOT_SUPPORTED = 505;
 
 
+// Since the status codes are stored in increasing order, we could also
+// use std::lower_bound to do the lookup with logarithmic complexity.
+// However, according to some cursory research, on most CPUs this will
+// be slower until the array size is around 100 elemnts.
+//
+// [1]: https://schani.wordpress.com/2010/04/30/linear-vs-binary-search/
+// [2]: https://stackoverflow.com/questions/1275665/at-which-n-does-binary-search-become-faster-than-linear-search-on-a-modern-cpu
+
 string Status::string(uint16_t code)
 {
-  return http::statuses->get(code)
-    .getOrElse(stringify(code));
+  auto value = std::find_if(
+      std::begin(statuses),
+      std::end(statuses),
+      [code](const StatusDescription& sd) { return sd.code == code; });
+
+  if (value != std::end(statuses)) {
+    return value->description;
+  }
+
+  // Fallback for unknown status codes.
+  return stringify(code);
+}
+
+
+bool isValidStatus(uint16_t code)
+{
+  return std::end(statuses) != std::find_if(
+      std::begin(statuses),
+      std::end(statuses),
+      [code](const StatusDescription& sd) { return sd.code == code; });
 }
 
 

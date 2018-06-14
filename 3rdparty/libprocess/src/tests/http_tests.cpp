@@ -231,6 +231,12 @@ INSTANTIATE_TEST_CASE_P(
 
 // TODO(vinod): Use AWAIT_EXPECT_RESPONSE_STATUS_EQ in the tests.
 
+TEST_P(HTTPTest, Statuses)
+{
+  EXPECT_TRUE(process::http::isValidStatus(200));
+  EXPECT_TRUE(process::http::isValidStatus(404));
+  EXPECT_FALSE(process::http::isValidStatus(1337));
+}
 
 TEST_P(HTTPTest, Endpoints)
 {

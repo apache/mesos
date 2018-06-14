@@ -445,7 +445,7 @@ private:
 
     CHECK_NOTNULL(decoder->response);
 
-    if (http::statuses->contains(decoder->parser.status_code)) {
+    if (http::isValidStatus(decoder->parser.status_code)) {
       decoder->response->code = decoder->parser.status_code;
 
       decoder->response->status =
@@ -685,7 +685,7 @@ private:
     decoder->field.clear();
     decoder->value.clear();
 
-    if (http::statuses->contains(decoder->parser.status_code)) {
+    if (http::isValidStatus(decoder->parser.status_code)) {
       decoder->response->code = decoder->parser.status_code;
 
       decoder->response->status =
