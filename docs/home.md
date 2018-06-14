@@ -71,6 +71,7 @@ layout: documentation
 * [HTTP Endpoints](endpoints/) for available HTTP endpoints.
 * [API Client Libraries](api-client-libraries.md) lists client libraries for the HTTP APIs.
 * [API Versioning](versioning.md) describes HTTP API and release versioning.
+* [RecordIO](recordio.md) describes the RecordIO format used by the streaming endpoints of the HTTP API.
 * Writing Frameworks
   * [Framework Development Guide](app-framework-development-guide.md) describes how to build applications on top of Mesos.
   * [Guide for Designing Highly Available Mesos Frameworks](high-availability-framework-guide.md)

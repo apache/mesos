@@ -48,46 +48,7 @@ The following calls are currently accepted by the master. The canonical source o
 <a id="recordio-response-format"></a>
 ### RecordIO response format
 
-The response returned from the `SUBSCRIBE` call (see [below](#subscribe)) is encoded in RecordIO format, which essentially prepends to a single record (either JSON or serialized Protobuf) its length in bytes, followed by a newline and then the data:
-
-The [BNF grammar](http://www.w3.org/Protocols/rfc2616/rfc2616-sec2.html#sec2.1) for a RecordIO-encoded streaming response is:
-
-```
-    records         = *record
-
-    record          = record-size LF record-data
-
-    record-size     = 1*DIGIT
-    record-data     = record-size(OCTET)
-```
-
-`record-size` should be interpreted as an unsigned 64-bit integer (`uint64`).
-
-For example, a stream may look like:
-
-```
-128\n
-{"type": "SUBSCRIBED","subscribed": {"framework_id": {"value":"12220-3440-12532-2345"},"heartbeat_interval_seconds":15.0}20\n
-{"type":"HEARTBEAT"}675\n
-...
-```
-
-In pseudo-code, this could be parsed with something like the following:
-
-```
-  while (true) {
-    do {
-      lengthBytes = readline()
-    } while (lengthBytes.length < 1)
-
-    messageLength = parseInt(lengthBytes);
-    messageBytes = read(messageLength);
-    process(messageBytes);
-  }
-```
-
-Network intermediaries (e.g., proxies) are free to change the chunk boundaries; this should not have any effect on the recipient application (scheduler). We wanted a way to delimit/encode two events for JSON/Protobuf responses consistently and RecordIO format allowed us to do that.
-
+The response returned from the `SUBSCRIBE` call (see [below](#subscribe)) is encoded in RecordIO format, which essentially prepends to a single record (either JSON or serialized Protobuf) its length in bytes, followed by a newline and then the data. See [RecordIO Format](recordio.md) for details.
 
 <a id="subscribe"></a>
 ### SUBSCRIBE
