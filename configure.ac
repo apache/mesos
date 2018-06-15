@@ -2253,7 +2253,8 @@ LIBS="$saved_LIBS"
 # LDFLAGS, ...) beyond this line.
 
 # Perform necessary configuration for building with Python.
-if test "x$enable_python" = "xyes"; then
+if test "x$enable_python" = "xyes" || \
+   test "x$enable_new_cli" = "xyes"; then
   # If the user specified PYTHON_VERSION then assume that is the
   # Python that they want and construct PYTHON using the canonical
   # name (failing if PYTHON is also set since we can't easily check
@@ -2272,7 +2273,9 @@ if test "x$enable_python" = "xyes"; then
     fi
     PYTHON=python$PYTHON_VERSION
   fi
+fi
 
+if test "x$enable_python" = "xyes"; then
   # Check if PYTHON is at least 2.6 or try and find one that is if
   # PYTHON is not set (necessary to run our examples).
   AM_PATH_PYTHON([2.6],,
