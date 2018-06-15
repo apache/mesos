@@ -84,9 +84,6 @@ public:
     resourceProviderConfigDir =
       path::join(sandbox.get(), "resource_provider_configs");
     ASSERT_SOME(os::mkdir(resourceProviderConfigDir));
-
-    uriDiskProfileMappingPath =
-      path::join(sandbox.get(), "disk_profiles.json");
   }
 
   virtual void TearDown()
@@ -142,7 +139,9 @@ public:
     return flags;
   }
 
-  void loadUriDiskProfileAdaptorModule()
+  void loadUriDiskProfileAdaptorModule(
+      const string& uri,
+      const Option<Duration> pollInterval = None())
   {
     const string libraryPath = getModulePath("uri_disk_profile_adaptor");
 
@@ -153,12 +152,15 @@ public:
     Modules::Library::Module* module = library->add_modules();
     module->set_name(URI_DISK_PROFILE_ADAPTOR_NAME);
 
-    Parameter* uri = module->add_parameters();
-    uri->set_key("uri");
-    uri->set_value(uriDiskProfileMappingPath);
-    Parameter* pollInterval = module->add_parameters();
-    pollInterval->set_key("poll_interval");
-    pollInterval->set_value("1secs");
+    Parameter* _uri = module->add_parameters();
+    _uri->set_key("uri");
+    _uri->set_value(uri);
+
+    if (pollInterval.isSome()) {
+      Parameter* _pollInterval = module->add_parameters();
+      _pollInterval->set_key("poll_interval");
+      _pollInterval->set_value(stringify(pollInterval.get()));
+    }
 
     ASSERT_SOME(modules::ModuleManager::load(modules));
   }
@@ -229,14 +231,15 @@ public:
         resourceProviderConfig.get()));
   }
 
-  void setupDiskProfileMapping()
+  // Create a JSON string representing a disk profile mapping containing the
+  // given profile.
+  static string createDiskProfileMapping(const string& profile)
   {
-    Try<Nothing> write = os::write(
-        uriDiskProfileMappingPath,
+    Try<string> diskProfileMapping = strings::format(
         R"~(
         {
           "profile_matrix": {
-            "volume-default": {
+            "%s": {
               "csi_plugin_type_selector": {
                 "plugin_type": "org.apache.mesos.csi.test"
               },
@@ -246,23 +249,17 @@ public:
                   "mode": "SINGLE_NODE_WRITER"
                 }
               }
-            },
-            "block-default": {
-              "csi_plugin_type_selector": {
-                "plugin_type": "org.apache.mesos.csi.test"
-              },
-              "volume_capabilities": {
-                "block": {},
-                "access_mode": {
-                  "mode": "SINGLE_NODE_WRITER"
-                }
-              }
             }
           }
         }
-        )~");
+        )~",
+        profile);
 
-    ASSERT_SOME(write);
+    // This extra closure is necessary in order to use `ASSERT_*`, as
+    // these macros require a void return type.
+    [&] { ASSERT_SOME(diskProfileMapping); }();
+
+    return diskProfileMapping.get();
   }
 
   string metricName(const string& basename)
@@ -275,7 +272,6 @@ protected:
   Modules modules;
   vector<string> slaveWorkDirs;
   string resourceProviderConfigDir;
-  string uriDiskProfileMappingPath;
 };
 
 
@@ -423,10 +419,11 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ZeroSizedDisk)
 // handle disks less than 1MB correctly.
 TEST_F(StorageLocalResourceProviderTest, ROOT_SmallDisk)
 {
-  loadUriDiskProfileAdaptorModule();
+  const string profilesPath = path::join(sandbox.get(), "profiles.json");
+  ASSERT_SOME(os::write(profilesPath, createDiskProfileMapping("test")));
+  loadUriDiskProfileAdaptorModule(profilesPath);
 
   setupResourceProviderConfig(Kilobytes(512), "volume0:512KB");
-  setupDiskProfileMapping();
 
   master::Flags masterFlags = CreateMasterFlags();
 
@@ -534,7 +531,8 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NewProfile)
 {
   Clock::pause();
 
-  loadUriDiskProfileAdaptorModule();
+  const string profilesPath = path::join(sandbox.get(), "profiles.json");
+  loadUriDiskProfileAdaptorModule(profilesPath, Seconds(1));
 
   setupResourceProviderConfig(Gigabytes(4));
 
@@ -583,11 +581,9 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NewProfile)
     FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   // Add new profiles.
-  setupDiskProfileMapping();
+  ASSERT_SOME(os::write(profilesPath, createDiskProfileMapping("test")));
 
-  // A new storage pool for profile "volume-default" should be reported
-  // by the resource provider. Still expect no storage pool for
-  // "block-default" since it is not supported by the test CSI plugin.
+  // A new storage pool with profile "test" should show up.
   AWAIT_READY(updateSlave3);
   ASSERT_TRUE(updateSlave3->has_resource_providers());
   ASSERT_EQ(1, updateSlave3->resource_providers().providers_size());
@@ -596,31 +592,20 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NewProfile)
       updateSlave3->resource_providers().providers(0).total_resources_size());
 
   // A storage pool is a RAW disk that has a profile but no ID.
-  auto isStoragePool = [](const Resource& r) {
+  auto isStoragePool = [](const Resource& r, const string& profile) {
     return r.has_disk() &&
       r.disk().has_source() &&
       r.disk().source().type() == Resource::DiskInfo::Source::RAW &&
       !r.disk().source().has_id() &&
-      r.disk().source().has_profile();
+      r.disk().source().has_profile() &&
+      r.disk().source().profile() == profile;
   };
 
-  Option<Resource> volumeStoragePool;
-  Option<Resource> blockStoragePool;
-  foreach (const Resource& resource,
-           updateSlave3->resource_providers().providers(0).total_resources()) {
-    if (!isStoragePool(resource)) {
-      continue;
-    }
+  Resources storagePools =
+    Resources(updateSlave3->resource_providers().providers(0).total_resources())
+    .filter(std::bind(isStoragePool, lambda::_1, "test"));
 
-    if (resource.disk().source().profile() == "volume-default") {
-      volumeStoragePool = resource;
-    } else if (resource.disk().source().profile() == "block-default") {
-      blockStoragePool = resource;
-    }
-  }
-
-  EXPECT_SOME(volumeStoragePool);
-  EXPECT_NONE(blockStoragePool);
+  EXPECT_FALSE(storagePools.empty());
 }
 
 
@@ -628,10 +613,11 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NewProfile)
 // create then destroy a new volume from a storage pool.
 TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolume)
 {
-  loadUriDiskProfileAdaptorModule();
+  const string profilesPath = path::join(sandbox.get(), "profiles.json");
+  ASSERT_SOME(os::write(profilesPath, createDiskProfileMapping("test")));
+  loadUriDiskProfileAdaptorModule(profilesPath);
 
   setupResourceProviderConfig(Gigabytes(4));
-  setupDiskProfileMapping();
 
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
@@ -686,15 +672,14 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolume)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(DeclineOffers(declineFilters));
 
-  // We are only interested in any storage pool or created volume which
-  // has a "volume-default" profile.
+  // We are only interested in any storage pool or volume with a "test" profile.
   auto hasSourceType = [](
       const Resource& r,
       const Resource::DiskInfo::Source::Type& type) {
     return r.has_disk() &&
       r.disk().has_source() &&
       r.disk().source().has_profile() &&
-      r.disk().source().profile() == "volume-default" &&
+      r.disk().source().profile() == "test" &&
       r.disk().source().type() == type;
   };
 
@@ -804,10 +789,11 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolume)
 // destroy a volume created from a storage pool after recovery.
 TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolumeRecovery)
 {
-  loadUriDiskProfileAdaptorModule();
+  const string profilesPath = path::join(sandbox.get(), "profiles.json");
+  ASSERT_SOME(os::write(profilesPath, createDiskProfileMapping("test")));
+  loadUriDiskProfileAdaptorModule(profilesPath);
 
   setupResourceProviderConfig(Gigabytes(4));
-  setupDiskProfileMapping();
 
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
@@ -865,15 +851,14 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolumeRecovery)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(DeclineOffers(declineFilters));
 
-  // We are only interested in any storage pool or created volume which
-  // has a "volume-default" profile.
+  // We are only interested in any storage pool or volume with a "test" profile.
   auto hasSourceType = [](
       const Resource& r,
       const Resource::DiskInfo::Source::Type& type) {
     return r.has_disk() &&
       r.disk().has_source() &&
       r.disk().source().has_profile() &&
-      r.disk().source().profile() == "volume-default" &&
+      r.disk().source().profile() == "test" &&
       r.disk().source().type() == type;
   };
 
@@ -1000,10 +985,11 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolumeRecovery)
 // created volume becomes a pre-existing volume.
 TEST_F(StorageLocalResourceProviderTest, ROOT_AgentRegisteredWithNewId)
 {
-  loadUriDiskProfileAdaptorModule();
+  const string profilesPath = path::join(sandbox.get(), "profiles.json");
+  ASSERT_SOME(os::write(profilesPath, createDiskProfileMapping("test")));
+  loadUriDiskProfileAdaptorModule(profilesPath);
 
   setupResourceProviderConfig(Gigabytes(4));
-  setupDiskProfileMapping();
 
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
@@ -1059,15 +1045,15 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_AgentRegisteredWithNewId)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(DeclineOffers(declineFilters));
 
-  // Before the agent fails over, we are interested in any storage pool
-  // or created volume which has a "volume-default" profile.
+  // Before the agent fails over, we are interested in any storage pool or
+  // volume with a "test" profile.
   auto hasSourceType = [](
       const Resource& r,
       const Resource::DiskInfo::Source::Type& type) {
     return r.has_disk() &&
       r.disk().has_source() &&
       r.disk().source().has_profile() &&
-      r.disk().source().profile() == "volume-default" &&
+      r.disk().source().profile() == "test" &&
       r.disk().source().type() == type;
   };
 
@@ -1200,10 +1186,11 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_AgentRegisteredWithNewId)
 // volume after the task finishes.
 TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResources)
 {
-  loadUriDiskProfileAdaptorModule();
+  const string profilesPath = path::join(sandbox.get(), "profiles.json");
+  ASSERT_SOME(os::write(profilesPath, createDiskProfileMapping("test")));
+  loadUriDiskProfileAdaptorModule(profilesPath);
 
   setupResourceProviderConfig(Gigabytes(4));
-  setupDiskProfileMapping();
 
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
@@ -1261,15 +1248,14 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResources)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(DeclineOffers(declineFilters));
 
-  // We are only interested in any storage pool or created volume which
-  // has a "volume-default" profile.
+  // We are only interested in any storage pool or volume with a "test" profile.
   auto hasSourceType = [](
       const Resource& r,
       const Resource::DiskInfo::Source::Type& type) {
     return r.has_disk() &&
       r.disk().has_source() &&
       r.disk().source().has_profile() &&
-      r.disk().source().profile() == "volume-default" &&
+      r.disk().source().profile() == "test" &&
       r.disk().source().type() == type;
   };
 
@@ -1413,10 +1399,11 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResources)
 // destroy a published volume after recovery.
 TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesRecovery)
 {
-  loadUriDiskProfileAdaptorModule();
+  const string profilesPath = path::join(sandbox.get(), "profiles.json");
+  ASSERT_SOME(os::write(profilesPath, createDiskProfileMapping("test")));
+  loadUriDiskProfileAdaptorModule(profilesPath);
 
   setupResourceProviderConfig(Gigabytes(4));
-  setupDiskProfileMapping();
 
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
@@ -1479,15 +1466,14 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesRecovery)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(DeclineOffers(declineFilters));
 
-  // We are only interested in any storage pool or created volume which
-  // has a "volume-default" profile.
+  // We are only interested in any storage pool or volume with a "test" profile.
   auto hasSourceType = [](
       const Resource& r,
       const Resource::DiskInfo::Source::Type& type) {
     return r.has_disk() &&
       r.disk().has_source() &&
       r.disk().source().has_profile() &&
-      r.disk().source().profile() == "volume-default" &&
+      r.disk().source().profile() == "test" &&
       r.disk().source().type() == type;
   };
 
@@ -1683,10 +1669,11 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesRecovery)
 // destroy a published volume after agent reboot.
 TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesReboot)
 {
-  loadUriDiskProfileAdaptorModule();
+  const string profilesPath = path::join(sandbox.get(), "profiles.json");
+  ASSERT_SOME(os::write(profilesPath, createDiskProfileMapping("test")));
+  loadUriDiskProfileAdaptorModule(profilesPath);
 
   setupResourceProviderConfig(Gigabytes(4));
-  setupDiskProfileMapping();
 
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
@@ -1749,15 +1736,14 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesReboot)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(DeclineOffers(declineFilters));
 
-  // We are only interested in any storage pool or created volume which
-  // has a "volume-default" profile.
+  // We are only interested in any storage pool or volume with a "test" profile.
   auto hasSourceType = [](
       const Resource& r,
       const Resource::DiskInfo::Source::Type& type) {
     return r.has_disk() &&
       r.disk().has_source() &&
       r.disk().source().has_profile() &&
-      r.disk().source().profile() == "volume-default" &&
+      r.disk().source().profile() == "test" &&
       r.disk().source().type() == type;
   };
 
@@ -1994,10 +1980,11 @@ TEST_F(
     StorageLocalResourceProviderTest,
     ROOT_PublishUnpublishResourcesPluginKilled)
 {
-  loadUriDiskProfileAdaptorModule();
+  const string profilesPath = path::join(sandbox.get(), "profiles.json");
+  ASSERT_SOME(os::write(profilesPath, createDiskProfileMapping("test")));
+  loadUriDiskProfileAdaptorModule(profilesPath);
 
   setupResourceProviderConfig(Gigabytes(4));
-  setupDiskProfileMapping();
 
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
@@ -2064,15 +2051,14 @@ TEST_F(
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(DeclineOffers(declineFilters));
 
-  // We are only interested in any storage pool or created volume which
-  // has a "volume-default" profile.
+  // We are only interested in any storage pool or volume with a "test" profile.
   auto hasSourceType = [](
       const Resource& r,
       const Resource::DiskInfo::Source::Type& type) {
     return r.has_disk() &&
       r.disk().has_source() &&
       r.disk().source().has_profile() &&
-      r.disk().source().profile() == "volume-default" &&
+      r.disk().source().profile() == "test" &&
       r.disk().source().type() == type;
   };
 
@@ -2475,10 +2461,11 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_RetryOperationStatusUpdate)
 {
   Clock::pause();
 
-  loadUriDiskProfileAdaptorModule();
+  const string profilesPath = path::join(sandbox.get(), "profiles.json");
+  ASSERT_SOME(os::write(profilesPath, createDiskProfileMapping("test")));
+  loadUriDiskProfileAdaptorModule(profilesPath);
 
   setupResourceProviderConfig(Gigabytes(4));
-  setupDiskProfileMapping();
 
   master::Flags masterFlags = CreateMasterFlags();
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
@@ -2632,10 +2619,11 @@ TEST_F(
 {
   Clock::pause();
 
-  loadUriDiskProfileAdaptorModule();
+  const string profilesPath = path::join(sandbox.get(), "profiles.json");
+  ASSERT_SOME(os::write(profilesPath, createDiskProfileMapping("test")));
+  loadUriDiskProfileAdaptorModule(profilesPath);
 
   setupResourceProviderConfig(Gigabytes(4));
-  setupDiskProfileMapping();
 
   master::Flags masterFlags = CreateMasterFlags();
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
@@ -2885,10 +2873,11 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ContainerTerminationMetric)
 // metric against a mock CSI plugin.
 TEST_F(StorageLocalResourceProviderTest, ROOT_OperationStateMetrics)
 {
-  loadUriDiskProfileAdaptorModule();
+  const string profilesPath = path::join(sandbox.get(), "profiles.json");
+  ASSERT_SOME(os::write(profilesPath, createDiskProfileMapping("test")));
+  loadUriDiskProfileAdaptorModule(profilesPath);
 
   setupResourceProviderConfig(Gigabytes(4));
-  setupDiskProfileMapping();
 
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
@@ -2944,15 +2933,14 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_OperationStateMetrics)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(DeclineOffers(declineFilters));
 
-  // We are only interested in any storage pool or created volume which
-  // has a "volume-default" profile.
+  // We are only interested in any storage pool or volume with a "test" profile.
   auto hasSourceType = [](
       const Resource& r,
       const Resource::DiskInfo::Source::Type& type) {
     return r.has_disk() &&
       r.disk().has_source() &&
       r.disk().source().has_profile() &&
-      r.disk().source().profile() == "volume-default" &&
+      r.disk().source().profile() == "test" &&
       r.disk().source().type() == type;
   };
 
@@ -3136,10 +3124,11 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_OperationStateMetrics)
 // we could test these metrics against a mock CSI plugin.
 TEST_F(StorageLocalResourceProviderTest, ROOT_CsiPluginRpcMetrics)
 {
-  loadUriDiskProfileAdaptorModule();
+  const string profilesPath = path::join(sandbox.get(), "profiles.json");
+  ASSERT_SOME(os::write(profilesPath, createDiskProfileMapping("test")));
+  loadUriDiskProfileAdaptorModule(profilesPath);
 
   setupResourceProviderConfig(Gigabytes(4));
-  setupDiskProfileMapping();
 
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
@@ -3195,15 +3184,14 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CsiPluginRpcMetrics)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(DeclineOffers(declineFilters));
 
-  // We are only interested in any storage pool or created volume which
-  // has a "volume-default" profile.
+  // We are only interested in any storage pool or volume with a "test" profile.
   auto hasSourceType = [](
       const Resource& r,
       const Resource::DiskInfo::Source::Type& type) {
     return r.has_disk() &&
       r.disk().has_source() &&
       r.disk().source().has_profile() &&
-      r.disk().source().profile() == "volume-default" &&
+      r.disk().source().profile() == "test" &&
       r.disk().source().type() == type;
   };
 
@@ -3252,7 +3240,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CsiPluginRpcMetrics)
       "csi_plugin/rpcs/csi.v0.Controller.ListVolumes/successes")));
   ASSERT_NE(0u, snapshot.values.count(metricName(
       "csi_plugin/rpcs/csi.v0.Controller.GetCapacity/successes")));
-  EXPECT_EQ(2, snapshot.values.at(metricName(
+  EXPECT_EQ(1, snapshot.values.at(metricName(
       "csi_plugin/rpcs/csi.v0.Controller.GetCapacity/successes")));
   ASSERT_NE(0u, snapshot.values.count(metricName(
       "csi_plugin/rpcs/csi.v0.Controller.CreateVolume/successes")));
@@ -3330,7 +3318,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CsiPluginRpcMetrics)
       "csi_plugin/rpcs/csi.v0.Controller.ListVolumes/successes")));
   ASSERT_NE(0u, snapshot.values.count(metricName(
       "csi_plugin/rpcs/csi.v0.Controller.GetCapacity/successes")));
-  EXPECT_EQ(2, snapshot.values.at(metricName(
+  EXPECT_EQ(1, snapshot.values.at(metricName(
       "csi_plugin/rpcs/csi.v0.Controller.GetCapacity/successes")));
   ASSERT_NE(0u, snapshot.values.count(metricName(
       "csi_plugin/rpcs/csi.v0.Controller.CreateVolume/successes")));
@@ -3400,7 +3388,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CsiPluginRpcMetrics)
       "csi_plugin/rpcs/csi.v0.Controller.ListVolumes/successes")));
   ASSERT_NE(0u, snapshot.values.count(metricName(
       "csi_plugin/rpcs/csi.v0.Controller.GetCapacity/successes")));
-  EXPECT_EQ(2, snapshot.values.at(metricName(
+  EXPECT_EQ(1, snapshot.values.at(metricName(
       "csi_plugin/rpcs/csi.v0.Controller.GetCapacity/successes")));
   ASSERT_NE(0u, snapshot.values.count(metricName(
       "csi_plugin/rpcs/csi.v0.Controller.CreateVolume/successes")));
@@ -3636,10 +3624,11 @@ TEST_F(
 {
   Clock::pause();
 
-  loadUriDiskProfileAdaptorModule();
+  const string profilesPath = path::join(sandbox.get(), "profiles.json");
+  ASSERT_SOME(os::write(profilesPath, createDiskProfileMapping("test")));
+  loadUriDiskProfileAdaptorModule(profilesPath);
 
   setupResourceProviderConfig(Gigabytes(4));
-  setupDiskProfileMapping();
 
   master::Flags masterFlags = CreateMasterFlags();
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
@@ -3821,10 +3810,11 @@ TEST_F(
 {
   Clock::pause();
 
-  loadUriDiskProfileAdaptorModule();
+  const string profilesPath = path::join(sandbox.get(), "profiles.json");
+  ASSERT_SOME(os::write(profilesPath, createDiskProfileMapping("test")));
+  loadUriDiskProfileAdaptorModule(profilesPath);
 
   setupResourceProviderConfig(Gigabytes(4));
-  setupDiskProfileMapping();
 
   master::Flags masterFlags = CreateMasterFlags();
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
