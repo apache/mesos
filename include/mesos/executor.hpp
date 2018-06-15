@@ -17,6 +17,7 @@
 #ifndef __MESOS_EXECUTOR_HPP__
 #define __MESOS_EXECUTOR_HPP__
 
+#include <map>
 #include <mutex>
 #include <string>
 
@@ -213,7 +214,19 @@ class MesosExecutorDriver : public ExecutorDriver
 public:
   // Creates a new driver that uses the specified Executor. Note, the
   // executor pointer must outlive the driver.
+  //
+  // Note that the other constructor overload that accepts `environment`
+  // argument is preferable to this one in a multithreaded environment,
+  // because the implementation of this one accesses global environment
+  // which is unsafe due to a potential concurrent modification of the
+  // environment by another thread.
   explicit MesosExecutorDriver(Executor* executor);
+
+  // Creates a new driver that uses the specified `Executor` and environment
+  // variables. Note, the executor pointer must outlive the driver.
+  explicit MesosExecutorDriver(
+      Executor* executor,
+      const std::map<std::string, std::string>& environment);
 
   // This destructor will block indefinitely if
   // MesosExecutorDriver::start was invoked successfully (possibly via
@@ -246,6 +259,8 @@ private:
 
   // Current status of the driver.
   Status status;
+
+  std::map<std::string, std::string> environment;
 };
 
 } // namespace mesos {
