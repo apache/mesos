@@ -16,6 +16,7 @@
 
 #include <process/clock.hpp>
 #include <process/future.hpp>
+#include <process/http.hpp>
 #include <process/gtest.hpp>
 #include <process/gmock.hpp>
 
@@ -41,10 +42,14 @@
 
 #include "slave/containerizer/mesos/containerizer.hpp"
 
+#include "tests/disk_profile_server.hpp"
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
 
+namespace http = process::http;
+
 using std::list;
+using std::shared_ptr;
 using std::string;
 using std::vector;
 
@@ -56,9 +61,11 @@ using mesos::master::detector::StandaloneMasterDetector;
 using process::Clock;
 using process::Future;
 using process::Owned;
+using process::Promise;
 using process::post;
 
 using testing::AtMost;
+using testing::DoAll;
 using testing::Not;
 using testing::Sequence;
 
@@ -524,19 +531,31 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_SmallDisk)
 }
 
 
-// This test verifies that a framework can receive offers having new
-// storage pools from the storage local resource provider after a new
-// profile appears.
-TEST_F(StorageLocalResourceProviderTest, ROOT_NewProfile)
+// This test verifies that a framework can receive offers having new storage
+// pools from the storage local resource provider after a profile appears.
+TEST_F(StorageLocalResourceProviderTest, ROOT_ProfileAppeared)
 {
   Clock::pause();
 
-  const string profilesPath = path::join(sandbox.get(), "profiles.json");
-  loadUriDiskProfileAdaptorModule(profilesPath, Seconds(1));
+  Future<shared_ptr<TestDiskProfileServer>> server =
+    TestDiskProfileServer::create();
+  AWAIT_READY(server);
+
+  Promise<http::Response> updatedProfileMapping;
+  EXPECT_CALL(*server.get()->process, profiles(_))
+    .WillOnce(Return(http::OK("{}")))
+    .WillOnce(Return(updatedProfileMapping.future()));
+
+  const Duration pollInterval = Seconds(10);
+  loadUriDiskProfileAdaptorModule(
+      stringify(server.get()->process->url()),
+      pollInterval);
 
   setupResourceProviderConfig(Gigabytes(4));
 
-  Try<Owned<cluster::Master>> master = StartMaster();
+  master::Flags masterFlags = CreateMasterFlags();
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
@@ -566,30 +585,65 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NewProfile)
 
   AWAIT_READY(updateSlave1);
 
+  // NOTE: We need to resume the clock so that the resource provider can
+  // periodically check if the CSI endpoint socket has been created by
+  // the plugin container, which runs in another Linux process.
   Clock::resume();
 
-  // No resource should be reported by the resource provider before
-  // adding any profile.
   AWAIT_READY(updateSlave2);
   ASSERT_TRUE(updateSlave2->has_resource_providers());
-  ASSERT_EQ(1, updateSlave2->resource_providers().providers_size());
-  EXPECT_EQ(
-      0,
-      updateSlave2->resource_providers().providers(0).total_resources_size());
 
-  Future<UpdateSlaveMessage> updateSlave3 =
-    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+  Clock::pause();
 
-  // Add new profiles.
-  ASSERT_SOME(os::write(profilesPath, createDiskProfileMapping("test")));
+  // Register a framework to receive offers.
+  FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
+  framework.set_roles(0, "storage");
 
-  // A new storage pool with profile "test" should show up.
-  AWAIT_READY(updateSlave3);
-  ASSERT_TRUE(updateSlave3->has_resource_providers());
-  ASSERT_EQ(1, updateSlave3->resource_providers().providers_size());
-  EXPECT_EQ(
-      1,
-      updateSlave3->resource_providers().providers(0).total_resources_size());
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  // We use the following filter to filter offers that do not have
+  // wanted resources for 365 days (the maximum).
+  Filters declineFilters;
+  declineFilters.set_refuse_seconds(Days(365).secs());
+
+  Future<vector<Offer>> offersBeforeProfileFound;
+  Future<vector<Offer>> offersAfterProfileFound;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(DoAll(
+        FutureArg<1>(&offersBeforeProfileFound),
+        DeclineOffers(declineFilters)))
+    .WillOnce(FutureArg<1>(&offersAfterProfileFound));
+
+  driver.start();
+
+  AWAIT_READY(offersBeforeProfileFound);
+  ASSERT_FALSE(offersBeforeProfileFound->empty());
+
+  // The offer should not have any resource from the resource provider before
+  // the profile appears.
+  Resources resourceProviderResources =
+    Resources(offersBeforeProfileFound->at(0).resources())
+    .filter(&Resources::hasResourceProvider);
+
+  EXPECT_TRUE(resourceProviderResources.empty());
+
+  // Trigger another poll for profiles. The framework will not receive an offer
+  // because there is no change in resources yet.
+  Clock::advance(pollInterval);
+  Clock::settle();
+
+  // Update the disk profile mapping.
+  updatedProfileMapping.set(http::OK(createDiskProfileMapping("test")));
+
+  // Advance the clock to make sure another allocation is triggered.
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offersAfterProfileFound);
+  ASSERT_FALSE(offersAfterProfileFound->empty());
 
   // A storage pool is a RAW disk that has a profile but no ID.
   auto isStoragePool = [](const Resource& r, const string& profile) {
@@ -601,8 +655,9 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NewProfile)
       r.disk().source().profile() == profile;
   };
 
+  // A new storage pool with profile "test" should show up now.
   Resources storagePools =
-    Resources(updateSlave3->resource_providers().providers(0).total_resources())
+    Resources(offersAfterProfileFound->at(0).resources())
     .filter(std::bind(isStoragePool, lambda::_1, "test"));
 
   EXPECT_FALSE(storagePools.empty());
