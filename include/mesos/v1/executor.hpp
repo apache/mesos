@@ -19,6 +19,7 @@
 
 #include <functional>
 #include <queue>
+#include <map>
 #include <string>
 
 #include <mesos/http.hpp>
@@ -54,10 +55,21 @@ public:
 class Mesos : public MesosBase
 {
 public:
+  // The other constructor overload that accepts `environment`
+  // argument is preferable to this one in a multithreaded environment,
+  // because the implementation of this one accesses global environment
+  // which is unsafe due to a potential concurrent modification of the
+  // environment by another thread.
   Mesos(ContentType contentType,
         const std::function<void(void)>& connected,
         const std::function<void(void)>& disconnected,
         const std::function<void(const std::queue<Event>&)>& received);
+
+  Mesos(ContentType contentType,
+        const std::function<void(void)>& connected,
+        const std::function<void(void)>& disconnected,
+        const std::function<void(const std::queue<Event>&)>& received,
+        const std::map<std::string, std::string>& environment);
 
   // Delete copy constructor.
   Mesos(const Mesos& other) = delete;

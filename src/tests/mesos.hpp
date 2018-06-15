@@ -2836,7 +2836,8 @@ class TestMesos : public Mesos
 public:
   TestMesos(
       ContentType contentType,
-      const std::shared_ptr<MockHTTPExecutor<Mesos, Event>>& executor)
+      const std::shared_ptr<MockHTTPExecutor<Mesos, Event>>& executor,
+      const std::map<std::string, std::string>& environment)
     : Mesos(
           contentType,
           lambda::bind(&MockHTTPExecutor<Mesos, Event>::connected,
@@ -2848,7 +2849,8 @@ public:
           lambda::bind(&MockHTTPExecutor<Mesos, Event>::events,
                        executor,
                        this,
-                       lambda::_1)) {}
+                       lambda::_1),
+          environment) {}
 };
 
 } // namespace executor {
