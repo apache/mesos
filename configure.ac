@@ -2271,7 +2271,18 @@ if test "x$enable_python" = "xyes" || \
     if test -n "$PYTHON"; then
       AC_MSG_ERROR([only specify one of PYTHON or PYTHON_VERSION])
     fi
-    PYTHON=python$PYTHON_VERSION
+    AC_SUBST([PYTHON], [python$PYTHON_VERSION])
+  elif test -n "$PYTHON"; then
+    # PYTHON has been set by user, we set PYTHON_VERSION.
+    AC_CHECK_PROG([PYTHON_CHECK], [$PYTHON], [yes])
+    AS_IF([test "x$PYTHON_CHECK" = "xyes"], [
+      PYTHON_VERSION=`$PYTHON -c "import sys; sys.stdout.write(sys.version[[:3]])"`
+    ], [
+      AC_MSG_ERROR([Cannot find Python executable '$PYTHON' in path.])
+    ])
+  else
+    # PYTHON nor PYTHON_VERSION have been set, we do it.
+    AM_PATH_PYTHON()
   fi
 fi
 
