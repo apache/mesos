@@ -11,6 +11,11 @@ to format code correctly.
 
 # General
 
+## How to Navigate the Source
+
+For a complete IDE-like experience, see the documentation on using
+[cquery](cquery.md).
+
 ## When to Introduce Abstractions
 
 Don't introduce an abstraction just for code de-duplication. Always think about
