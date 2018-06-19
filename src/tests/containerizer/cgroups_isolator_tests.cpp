@@ -39,12 +39,17 @@
 
 using mesos::internal::master::Master;
 
+using mesos::internal::slave::CGROUP_SUBSYSTEM_BLKIO_NAME;
 using mesos::internal::slave::CGROUP_SUBSYSTEM_CPU_NAME;
 using mesos::internal::slave::CGROUP_SUBSYSTEM_CPUACCT_NAME;
+using mesos::internal::slave::CGROUP_SUBSYSTEM_CPUSET_NAME;
 using mesos::internal::slave::CGROUP_SUBSYSTEM_DEVICES_NAME;
+using mesos::internal::slave::CGROUP_SUBSYSTEM_HUGETLB_NAME;
 using mesos::internal::slave::CGROUP_SUBSYSTEM_MEMORY_NAME;
 using mesos::internal::slave::CGROUP_SUBSYSTEM_NET_CLS_NAME;
+using mesos::internal::slave::CGROUP_SUBSYSTEM_NET_PRIO_NAME;
 using mesos::internal::slave::CGROUP_SUBSYSTEM_PERF_EVENT_NAME;
+using mesos::internal::slave::CGROUP_SUBSYSTEM_PIDS_NAME;
 using mesos::internal::slave::CPU_SHARES_PER_CPU_REVOCABLE;
 using mesos::internal::slave::DEFAULT_EXECUTOR_CPUS;
 
@@ -847,7 +852,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_NET_CLS_Isolate)
   AWAIT_READY(statusRunning);
   ASSERT_EQ(TASK_RUNNING, statusRunning->state());
 
-  // Task is ready.  Make sure there is exactly 1 container in the hashset.
+  // Task is ready. Make sure there is exactly 1 container in the hashset.
   Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
   ASSERT_EQ(1u, containers->size());
@@ -1785,6 +1790,114 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_BlkioUsage)
   EXPECT_EQ(CgroupInfo::Blkio::TOTAL, totalIOServiceBytes.op());
   EXPECT_TRUE(totalIOServiceBytes.has_value());
   EXPECT_LE(10240u, totalIOServiceBytes.value());
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test verifies all the local enabled cgroups subsystems
+// can be automatically loaded by the cgroup isolator.
+TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_AutoLoadSubsystems)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "cgroups/all";
+
+  Fetcher fetcher(flags);
+
+  Try<MesosContainerizer*> _containerizer =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(_containerizer);
+
+  Owned<MesosContainerizer> containerizer(_containerizer.get());
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      detector.get(),
+      containerizer.get());
+
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+
+  Future<TaskStatus> statusStarting;
+  Future<TaskStatus> statusRunning;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
+    .WillOnce(FutureArg<1>(&statusRunning));
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  // Capture the update to verify that the task has been launched.
+  AWAIT_READY(statusStarting);
+  ASSERT_EQ(TASK_STARTING, statusStarting->state());
+
+  AWAIT_READY(statusRunning);
+  ASSERT_EQ(TASK_RUNNING, statusRunning->state());
+
+  // Task is ready. Make sure there is exactly 1 container in the hashset.
+  Future<hashset<ContainerID>> containers = containerizer->containers();
+  AWAIT_READY(containers);
+  ASSERT_EQ(1u, containers->size());
+
+  const ContainerID& containerId = *(containers->begin());
+
+  Try<set<string>> enabledSubsystems = cgroups::subsystems();
+  ASSERT_SOME(enabledSubsystems);
+
+  set<string> supportedSubsystems = {
+    CGROUP_SUBSYSTEM_BLKIO_NAME,
+    CGROUP_SUBSYSTEM_CPU_NAME,
+    CGROUP_SUBSYSTEM_CPUACCT_NAME,
+    CGROUP_SUBSYSTEM_CPUSET_NAME,
+    CGROUP_SUBSYSTEM_DEVICES_NAME,
+    CGROUP_SUBSYSTEM_HUGETLB_NAME,
+    CGROUP_SUBSYSTEM_MEMORY_NAME,
+    CGROUP_SUBSYSTEM_NET_CLS_NAME,
+    CGROUP_SUBSYSTEM_NET_PRIO_NAME,
+    CGROUP_SUBSYSTEM_PERF_EVENT_NAME,
+    CGROUP_SUBSYSTEM_PIDS_NAME,
+  };
+
+  // Check cgroups for all the local enabled subsystems
+  // have been created for the container.
+  foreach (const string& subsystem, enabledSubsystems.get()) {
+    if (supportedSubsystems.count(subsystem) == 0) {
+      continue;
+    }
+
+    Result<string> hierarchy = cgroups::hierarchy(subsystem);
+    ASSERT_SOME(hierarchy);
+
+    string cgroup = path::join(flags.cgroups_root, containerId.value());
+
+    ASSERT_TRUE(os::exists(path::join(hierarchy.get(), cgroup)));
+  }
 
   driver.stop();
   driver.join();
