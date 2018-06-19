@@ -122,14 +122,17 @@ mesos::internal::slave::Flags::Flags()
 
   add(&Flags::isolation,
       "isolation",
-      "Isolation mechanisms to use, e.g., `posix/cpu,posix/mem` (or \n"
+      "Isolation mechanisms to use, e.g., `posix/cpu,posix/mem` (or\n"
       "`windows/cpu,windows/mem` if you are on Windows), or\n"
       "`cgroups/cpu,cgroups/mem`, or `network/port_mapping`\n"
       "(configure with flag: `--with-network-isolator` to enable),\n"
       "or `gpu/nvidia` for nvidia specific gpu isolation,\n"
       "or load an alternate isolator module using the `--modules`\n"
-      "flag. Note that this flag is only relevant for the Mesos\n"
-      "Containerizer.",
+      "flag. if `cgroups/all` is specified, any other cgroups related\n"
+      "isolation options (e.g., `cgroups/cpu`) will be ignored, and all\n"
+      "the local enabled cgroups subsystems on the agent host will be\n"
+      "automatically loaded by the cgroups isolator. Note that this flag\n"
+      "is only relevant for the Mesos Containerizer.",
 #ifndef __WINDOWS__
       "posix/cpu,posix/mem"
 #else

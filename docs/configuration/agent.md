@@ -1032,9 +1032,12 @@ Isolation mechanisms to use, e.g., <code>posix/cpu,posix/mem</code> (or
 <code>cgroups/cpu,cgroups/mem</code>, or <code>network/port_mapping</code>
 (configure with flag: <code>--with-network-isolator</code> to enable),
 or <code>gpu/nvidia</code> for nvidia specific gpu isolation, or load an alternate
-isolator module using the <code>--modules</code> flag. Note that this flag is only
-relevant for the Mesos Containerizer. (default: windows/cpu,windows/mem on Windows;
-posix/cpu,posix/mem on other platforms)
+isolator module using the <code>--modules</code> flag. If <code>cgroups/all</code>
+is specified, any other cgroups related isolation options (e.g.,
+<code>cgroups/cpu</code>) will be ignored, and all the local enabled cgroups
+subsystems on the agent host will be automatically loaded by the cgroups isolator.
+Note that this flag is only relevant for the Mesos Containerizer. (default:
+windows/cpu,windows/mem on Windows; posix/cpu,posix/mem on other platforms)
   </td>
 </tr>
 
