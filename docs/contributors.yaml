@@ -207,6 +207,14 @@
   jira_user: bmerry
   reviewboard_user: bmerry
 
+- name: Cai ShuHua
+  affiliations:
+    - {organization: asiainfo}
+  emails:
+    - caishuhua916@163.com
+  jira_user: caishuhua916
+  reviewboard_user: caishuhua916
+
 - name: Charles Allen
   affiliations:
     - {organization: Metamarkets}
