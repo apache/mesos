@@ -101,6 +101,8 @@ PICOJSON_INCLUDE_FLAGS =	\
 if WITH_BUNDLED_LIBARCHIVE
 LIBARCHIVE_INCLUDE_FLAGS = -I$(LIBARCHIVE)/libarchive
 LIB_LIBARCHIVE = $(LIBARCHIVE)/.libs/libarchive.la
+$(LIB_LIBARCHIVE): $(LIBARCHIVE)-build-stamp
+BUNDLED_DEPS += $(LIBARCHIVE)-build-stamp
 else
 LIB_LIBARCHIVE = -larchive
 endif
@@ -242,7 +244,7 @@ CLEANFILES =				\
 check-local: tests
 	$(TEST_DRIVER) ./stout-tests
 
-tests: $(BUNDLED_DEPS)
+tests: $(BUNDLED_DEPS) $(BUILT_SOURCES)
 	$(MAKE) $(AM_MAKEFLAGS) stout-tests
 
 PHONY_TARGETS += tests
