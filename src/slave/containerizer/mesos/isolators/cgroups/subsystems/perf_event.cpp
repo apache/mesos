@@ -44,6 +44,13 @@ Try<Owned<SubsystemProcess>> PerfEventSubsystemProcess::create(
     const Flags& flags,
     const string& hierarchy)
 {
+  // If the agent flag `--perf_events` is not specified, we will not do sampling
+  // at all, so this subsystem is just like a no-op in this case.
+  if (flags.perf_events.isNone()) {
+    return Owned<SubsystemProcess>(
+        new PerfEventSubsystemProcess(flags, hierarchy, set<string>{}));
+  }
+
   if (!perf::supported()) {
     return Error("Perf is not supported");
   }
@@ -52,10 +59,6 @@ Try<Owned<SubsystemProcess>> PerfEventSubsystemProcess::create(
     return Error(
         "Sampling perf for duration (" + stringify(flags.perf_duration) + ") > "
         "interval (" + stringify(flags.perf_interval) + ") is not supported.");
-  }
-
-  if (!flags.perf_events.isSome()) {
-    return Error("No perf events specified");
   }
 
   set<string> events;
@@ -90,7 +93,9 @@ PerfEventSubsystemProcess::PerfEventSubsystemProcess(
 void PerfEventSubsystemProcess::initialize()
 {
   // Start sampling.
-  sample();
+  if (!events.empty()) {
+    sample();
+  }
 }
 
 
