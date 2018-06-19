@@ -2,6 +2,12 @@ Release Notes - Mesos - Version 1.7.0 (WIP)
 -------------------------------------------
 This release contains the following new features:
 
+  * [MESOS-7691] - Added a new option `cgroups/all` to the agent flag
+    `--isolation`. This allows cgroups isolator to automatically load
+    all the local enabled cgroups subsystems. If this option is specified
+    in the agent flag `--isolation` along with other cgroups related
+    options (e.g., `cgroups/cpu`), those options will be just ignored.
+
   * [MESOS-8792] - Added a new `linux/devices` isolator that automatically
     populates containers with devices that have been whitelisted with the
     `--allowed_devices` agent flag.

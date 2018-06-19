@@ -49,6 +49,7 @@ We categorize the changes as follows:
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Mesos Core-->
     <ul style="padding-left:10px;">
       <li>A <a href="#1-7-x-linux-devices-isolator">Linux devices isolator</a></li>
+      <li>A <a href="#1-7-x-auto-load-subsystems">Automatically load local enabled cgroups subsystems</a></li>
     </ul>
   </td>
 
@@ -444,6 +445,10 @@ We categorize the changes as follows:
 * A new [`--enforce_container_ports`](configuration/agent.md#enforce_container_ports)
   has been added to toggle whether the [`network/ports`](isolators/network-ports.md)
   isolator should enforce TCP ports usage limits.
+
+<a name="1-7-x-auto-load-subsystems"></a>
+
+* A new option `cgroups/all` has been added to the agent flag `--isolation`. This allows cgroups isolator to automatically load all the local enabled cgroups subsystems. If this option is specified in the agent flag `--isolation` along with other cgroups related options (e.g., `cgroups/cpu`), those options will be just ignored.
 
 <a name="1-7-x-container-logger"></a>
 
