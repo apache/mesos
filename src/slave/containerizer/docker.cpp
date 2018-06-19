@@ -1380,6 +1380,11 @@ Future<Docker::Container> DockerContainerizerProcess::launchExecutorContainer(
     return Failure("Container is already destroyed");
   }
 
+  if (containers_[containerId]->state == Container::DESTROYING) {
+    return Failure(
+      "Container is being destroyed during launching excutor container");
+  }
+
   Container* container = containers_.at(containerId);
   container->state = Container::RUNNING;
 
@@ -1468,6 +1473,11 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
 {
   if (!containers_.contains(containerId)) {
     return Failure("Container is already destroyed");
+  }
+
+  if (containers_[containerId]->state == Container::DESTROYING) {
+    return Failure(
+      "Container is being destroyed during launching executor process");
   }
 
   Container* container = containers_.at(containerId);
