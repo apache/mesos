@@ -361,6 +361,7 @@ Status TestCSIPlugin::CreateVolume(
           "Failed to create volume '" + volumeInfo.id + "': " + mkdir.error());
     }
 
+    CHECK_GE(availableCapacity, volumeInfo.size);
     availableCapacity -= volumeInfo.size;
     volumes.put(volumeInfo.id, volumeInfo);
   }
@@ -406,7 +407,7 @@ Status TestCSIPlugin::DeleteVolume(
         rmdir.error());
   }
 
-  availableCapacity -= volumeInfo.size;
+  availableCapacity += volumeInfo.size;
   volumes.erase(volumeInfo.id);
 
   return Status::OK;
