@@ -1027,13 +1027,14 @@ containers running on the host network.
     --isolation=VALUE
   </td>
   <td>
-Isolation mechanisms to use, e.g., <code>posix/cpu,posix/mem</code>, or
+Isolation mechanisms to use, e.g., <code>posix/cpu,posix/mem</code> (or
+<code>windows/cpu,windows/mem</code> if you are on Windows), or
 <code>cgroups/cpu,cgroups/mem</code>, or <code>network/port_mapping</code>
 (configure with flag: <code>--with-network-isolator</code> to enable),
 or <code>gpu/nvidia</code> for nvidia specific gpu isolation, or load an alternate
-isolator module using the <code>--modules</code> flag. Note that this
-flag is only relevant for the Mesos Containerizer.
-(default: posix/cpu,posix/mem)
+isolator module using the <code>--modules</code> flag. Note that this flag is only
+relevant for the Mesos Containerizer. (default: windows/cpu,windows/mem on Windows;
+posix/cpu,posix/mem on other platforms)
   </td>
 </tr>
 

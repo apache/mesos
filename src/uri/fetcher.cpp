@@ -108,6 +108,9 @@ Future<Nothing> Fetcher::fetch(
     const string& directory,
     const Option<string>& data) const
 {
+  foreachkey (const string& key, pluginsByScheme) {
+    std::cout << "!!!: " << key << std::endl;
+  }
   if (!pluginsByScheme.contains(uri.scheme())) {
     return Failure("Scheme '" + uri.scheme() + "' is not supported");
   }
