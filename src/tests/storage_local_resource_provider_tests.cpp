@@ -1035,6 +1035,263 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolumeRecovery)
 }
 
 
+// This test verifies that a framework cannot create a volume during and after
+// the profile disappears, and destroying a volume with a stale profile will
+// recover the freed disk with another appeared profile.
+TEST_F(StorageLocalResourceProviderTest, ROOT_ProfileDisappeared)
+{
+  Clock::pause();
+
+  Future<shared_ptr<TestDiskProfileServer>> server =
+    TestDiskProfileServer::create();
+  AWAIT_READY(server);
+
+  Promise<http::Response> updatedProfileMapping;
+  EXPECT_CALL(*server.get()->process, profiles(_))
+    .WillOnce(Return(http::OK(createDiskProfileMapping("test1"))))
+    .WillOnce(Return(updatedProfileMapping.future()));
+
+  const Duration pollInterval = Seconds(10);
+  loadUriDiskProfileAdaptorModule(
+      stringify(server.get()->process->url()),
+      pollInterval);
+
+  setupResourceProviderConfig(Gigabytes(4));
+
+  master::Flags masterFlags = CreateMasterFlags();
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.isolation = "filesystem/linux";
+  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
+  slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
+
+  // Since the local resource provider daemon is started after the agent
+  // is registered, it is guaranteed that the slave will send two
+  // `UpdateSlaveMessage`s, where the latter one contains resources from
+  // the storage local resource provider.
+  //
+  // NOTE: The order of the two `FUTURE_PROTOBUF`s is reversed because
+  // Google Mock will search the expectations in reverse order.
+  Future<UpdateSlaveMessage> updateSlave2 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+  Future<UpdateSlaveMessage> updateSlave1 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Advance the clock to trigger agent registration and prevent retry.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(updateSlave1);
+
+  // NOTE: We need to resume the clock so that the resource provider can
+  // periodically check if the CSI endpoint socket has been created by
+  // the plugin container, which runs in another Linux process.
+  Clock::resume();
+
+  AWAIT_READY(updateSlave2);
+  ASSERT_TRUE(updateSlave2->has_resource_providers());
+
+  Clock::pause();
+
+  // Register a framework to receive offers.
+  FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
+  framework.set_roles(0, "storage");
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  // The framework is expected to see the following offers in sequence:
+  //   1. A 4GB RAW disk with profile 'test1' before the 1st `CREATE_VOLUME`.
+  //   2. A 2GB MOUNT disk and a 2GB RAW disk, both with profile 'test1', after
+  //      the 1st `CREATE_VOLUME` finishes.
+  //   3. A 2GB MOUNT disk with profile 'test1' and a 2GB RAW disk with profile
+  //      'test2', after the profile mapping is updated and the 2nd
+  //      `CREATE_VOLUME` fails due to a mismatched resource version.
+  //   4. A 4GB RAW disk with profile 'test2', after the `DESTROY_VOLUME`.
+  Future<vector<Offer>> rawDiskOffers;
+  Future<vector<Offer>> volumeCreatedOffers;
+  Future<vector<Offer>> profileDisappearedOffers;
+  Future<vector<Offer>> volumeDestroyedOffers;
+
+  // We use the following filter to filter offers that do not have
+  // wanted resources for 365 days (the maximum).
+  Filters declineFilters;
+  declineFilters.set_refuse_seconds(Days(365).secs());
+
+  // Decline offers that contain only the agent's default resources.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillRepeatedly(DeclineOffers(declineFilters));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
+      &Resources::hasResourceProvider)))
+    .WillOnce(FutureArg<1>(&rawDiskOffers))
+    .WillOnce(FutureArg<1>(&volumeCreatedOffers))
+    .WillOnce(FutureArg<1>(&profileDisappearedOffers))
+    .WillOnce(FutureArg<1>(&volumeDestroyedOffers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  // NOTE: If the framework has not declined an unwanted offer yet when the
+  // resource provider reports its RAW resources, the new allocation triggered
+  // by this update won't generate an allocatable offer due to no CPU and memory
+  // resources. So we first settle the clock to ensure that the unwanted offer
+  // has been declined, then advance the clock to trigger another allocation.
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(rawDiskOffers);
+  ASSERT_FALSE(rawDiskOffers->empty());
+
+  auto hasSourceTypeAndProfile = [](
+      const Resource& r,
+      const Resource::DiskInfo::Source::Type& type,
+      const string& profile) {
+    return r.has_disk() &&
+      r.disk().has_source() &&
+      r.disk().source().type() == type &&
+      r.disk().source().has_profile() &&
+      r.disk().source().profile() == profile;
+  };
+
+  // We use the following filter so that the resources will not be
+  // filtered for 5 seconds (the default).
+  Filters acceptFilters;
+  acceptFilters.set_refuse_seconds(0);
+
+  // Create a volume with profile 'test1'.
+  {
+    Resources raw =
+      Resources(rawDiskOffers->at(0).resources()).filter(std::bind(
+          hasSourceTypeAndProfile,
+          lambda::_1,
+          Resource::DiskInfo::Source::RAW,
+          "test1"));
+
+    ASSERT_SOME_EQ(Gigabytes(4), raw.disk());
+
+    // Just use 2GB of the storage pool.
+    Resource source = *raw.begin();
+    source.mutable_scalar()->set_value(
+        (double) Gigabytes(2).bytes() / Bytes::MEGABYTES);
+
+    Future<UpdateOperationStatusMessage> createVolumeStatus =
+      FUTURE_PROTOBUF(UpdateOperationStatusMessage(), _, _);
+
+    driver.acceptOffers(
+        {rawDiskOffers->at(0).id()},
+        {CREATE_VOLUME(source, Resource::DiskInfo::Source::MOUNT)},
+        acceptFilters);
+
+    AWAIT_READY(createVolumeStatus);
+    EXPECT_EQ(OPERATION_FINISHED, createVolumeStatus->status().state());
+  }
+
+  // Advance the clock to trigger another allocation.
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(volumeCreatedOffers);
+  ASSERT_FALSE(volumeCreatedOffers->empty());
+
+  // We drop the agent update (which is triggered by the changes in the known
+  // set of profiles) to simulate the situation where the update races with
+  // an offer operation.
+  Future<UpdateSlaveMessage> updateSlave3 =
+    DROP_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  // Trigger another poll for profiles. Profile 'test1' will disappear and
+  // profile 'test2' will appear.
+  //
+  // NOTE: We advance the clock before updating the disk profile mapping so
+  // there will only be one poll.
+  Clock::advance(pollInterval);
+
+  // Update the disk profile mapping.
+  updatedProfileMapping.set(http::OK(createDiskProfileMapping("test2")));
+
+  AWAIT_READY(updateSlave3);
+
+  // Try to create another volume with profile 'test1', which will be dropped
+  // due to a mismatched resource version.
+  {
+    Resources raw =
+      Resources(volumeCreatedOffers->at(0).resources()).filter(std::bind(
+          hasSourceTypeAndProfile,
+          lambda::_1,
+          Resource::DiskInfo::Source::RAW,
+          "test1"));
+
+    ASSERT_SOME_EQ(Gigabytes(2), raw.disk());
+
+    Future<UpdateOperationStatusMessage> createVolumeStatus =
+      FUTURE_PROTOBUF(UpdateOperationStatusMessage(), _, _);
+
+    driver.acceptOffers(
+        {volumeCreatedOffers->at(0).id()},
+        {CREATE_VOLUME(*raw.begin(), Resource::DiskInfo::Source::MOUNT)},
+        acceptFilters);
+
+    AWAIT_READY(createVolumeStatus);
+    EXPECT_EQ(OPERATION_DROPPED, createVolumeStatus->status().state());
+  }
+
+  // Forward the dropped agent update to trigger another allocation.
+  post(slave.get()->pid, master.get()->pid, updateSlave3.get());
+
+  AWAIT_READY(profileDisappearedOffers);
+  ASSERT_FALSE(profileDisappearedOffers->empty());
+
+  // Destroy the volume with profile 'test1', which will trigger an agent update
+  // to recover the freed disk with profile 'test2' and thus another allocation.
+  {
+    Resources volumes =
+      Resources(profileDisappearedOffers->at(0).resources()).filter(std::bind(
+          hasSourceTypeAndProfile,
+          lambda::_1,
+          Resource::DiskInfo::Source::MOUNT,
+          "test1"));
+
+    ASSERT_SOME_EQ(Gigabytes(2), volumes.disk());
+
+    Future<UpdateOperationStatusMessage> destroyVolumeStatus =
+      FUTURE_PROTOBUF(UpdateOperationStatusMessage(), _, _);
+
+    driver.acceptOffers(
+        {profileDisappearedOffers->at(0).id()},
+        {DESTROY_VOLUME(*volumes.begin())},
+        acceptFilters);
+
+    AWAIT_READY(destroyVolumeStatus);
+    EXPECT_EQ(OPERATION_FINISHED, destroyVolumeStatus->status().state());
+  }
+
+  AWAIT_READY(volumeDestroyedOffers);
+  ASSERT_FALSE(volumeDestroyedOffers->empty());
+
+  // Check that the freed disk has been recovered with profile 'test2'.
+  {
+    Resources storagePool =
+      Resources(volumeDestroyedOffers->at(0).resources()).filter(std::bind(
+          hasSourceTypeAndProfile,
+          lambda::_1,
+          Resource::DiskInfo::Source::RAW,
+          "test2"));
+
+    EXPECT_SOME_EQ(Gigabytes(4), storagePool.disk());
+  }
+}
+
+
 // This test verifies that if an agent is registered with a new ID,
 // the ID of the resource provider would be changed as well, and any
 // created volume becomes a pre-existing volume.
