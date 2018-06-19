@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <set>
 #include <vector>
 
 #include <process/collect.hpp>
@@ -46,6 +47,7 @@ using process::Future;
 using process::Owned;
 using process::PID;
 
+using std::set;
 using std::string;
 using std::vector;
 
@@ -89,52 +91,94 @@ Try<Isolator*> CgroupsIsolatorProcess::create(const Flags& flags)
     {"pids", CGROUP_SUBSYSTEM_PIDS_NAME},
   };
 
-  foreach (string isolator, strings::tokenize(flags.isolation, ",")) {
-    if (!strings::startsWith(isolator, "cgroups/")) {
-      // Skip when the isolator is not related to cgroups.
-      continue;
-    }
+  // All the subsystems currently supported by Mesos.
+  set<string> supportedSubsystems;
+  foreachvalue (const string& subsystemName, isolatorMap) {
+    supportedSubsystems.insert(subsystemName);
+  }
 
-    isolator = strings::remove(isolator, "cgroups/", strings::Mode::PREFIX);
+  // The subsystems to be loaded.
+  set<string> subsystemSet;
 
-    if (!isolatorMap.contains(isolator)) {
+  if (strings::contains(flags.isolation, "cgroups/all")) {
+    Try<set<string>> enabledSubsystems = cgroups::subsystems();
+    if (enabledSubsystems.isError()) {
       return Error(
-          "Unknown or unsupported isolator 'cgroups/" + isolator + "'");
+          "Failed to get the enabled subsystems: " + enabledSubsystems.error());
     }
 
-    // A cgroups isolator name may map to multiple subsystems. We need to
-    // convert the isolator name to its associated subsystems.
-    foreach (const string& subsystemName, isolatorMap.get(isolator)) {
-      if (hierarchies.contains(subsystemName)) {
-        // Skip when the subsystem exists.
+    foreach (const string& subsystemName, enabledSubsystems.get()) {
+      if (supportedSubsystems.count(subsystemName) == 0) {
+        // Skip when the subsystem is not supported by Mesos yet.
+        LOG(WARNING) << "Cannot automatically load the subsystem '"
+                     << subsystemName << "' because it is not "
+                     << "supported by Mesos cgroups isolator yet";
         continue;
       }
 
-      // Prepare hierarchy if it does not exist.
-      Try<string> hierarchy = cgroups::prepare(
-          flags.cgroups_hierarchy,
-          subsystemName,
-          flags.cgroups_root);
-
-      if (hierarchy.isError()) {
-        return Error(
-            "Failed to prepare hierarchy for the subsystem '" + subsystemName +
-            "': " + hierarchy.error());
-      }
-
-      // Create and load the subsystem.
-      Try<Owned<Subsystem>> subsystem =
-        Subsystem::create(flags, subsystemName, hierarchy.get());
-
-      if (subsystem.isError()) {
-        return Error(
-            "Failed to create subsystem '" + subsystemName + "': " +
-            subsystem.error());
-      }
-
-      subsystems.put(hierarchy.get(), subsystem.get());
-      hierarchies.put(subsystemName, hierarchy.get());
+      subsystemSet.insert(subsystemName);
     }
+
+    if (subsystemSet.empty()) {
+      return Error("No subsystems are enabled by the kernel");
+    }
+
+    LOG(INFO) << "Automatically loading subsystems: "
+              << stringify(subsystemSet);
+  } else {
+    foreach (string isolator, strings::tokenize(flags.isolation, ",")) {
+      if (!strings::startsWith(isolator, "cgroups/")) {
+        // Skip when the isolator is not related to cgroups.
+        continue;
+      }
+
+      isolator = strings::remove(isolator, "cgroups/", strings::Mode::PREFIX);
+
+      if (!isolatorMap.contains(isolator)) {
+        return Error(
+            "Unknown or unsupported isolator 'cgroups/" + isolator + "'");
+      }
+
+      // A cgroups isolator name may map to multiple subsystems. We need to
+      // convert the isolator name to its associated subsystems.
+      foreach (const string& subsystemName, isolatorMap.get(isolator)) {
+        subsystemSet.insert(subsystemName);
+      }
+    }
+  }
+
+  CHECK(!subsystemSet.empty());
+
+  foreach (const string& subsystemName, subsystemSet) {
+    if (hierarchies.contains(subsystemName)) {
+      // Skip when the subsystem exists.
+      continue;
+    }
+
+    // Prepare hierarchy if it does not exist.
+    Try<string> hierarchy = cgroups::prepare(
+        flags.cgroups_hierarchy,
+        subsystemName,
+        flags.cgroups_root);
+
+    if (hierarchy.isError()) {
+      return Error(
+          "Failed to prepare hierarchy for the subsystem '" + subsystemName +
+          "': " + hierarchy.error());
+    }
+
+    // Create and load the subsystem.
+    Try<Owned<Subsystem>> subsystem =
+      Subsystem::create(flags, subsystemName, hierarchy.get());
+
+    if (subsystem.isError()) {
+      return Error(
+          "Failed to create subsystem '" + subsystemName + "': " +
+          subsystem.error());
+    }
+
+    subsystems.put(hierarchy.get(), subsystem.get());
+    hierarchies.put(subsystemName, hierarchy.get());
   }
 
   Owned<MesosIsolatorProcess> process(

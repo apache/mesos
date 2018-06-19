@@ -382,6 +382,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 #endif // __WINDOWS__
 
 #ifdef __linux__
+    {"cgroups/all", &CgroupsIsolatorProcess::create},
     {"cgroups/blkio", &CgroupsIsolatorProcess::create},
     {"cgroups/cpu", &CgroupsIsolatorProcess::create},
     {"cgroups/cpuset", &CgroupsIsolatorProcess::create},
