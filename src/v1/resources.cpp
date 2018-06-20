@@ -1652,6 +1652,7 @@ Resources Resources::createStrippedScalarQuantity() const
 
       scalar.clear_disk();
       scalar.clear_shared();
+      scalar.clear_revocable();
       stripped.add(scalar);
     }
   }
