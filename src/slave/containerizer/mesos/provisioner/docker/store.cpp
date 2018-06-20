@@ -33,7 +33,9 @@
 #include <process/dispatch.hpp>
 #include <process/executor.hpp>
 #include <process/id.hpp>
-#include <process/metrics/counter.hpp>
+
+#include <process/metrics/metrics.hpp>
+#include <process/metrics/timer.hpp>
 
 #include "slave/containerizer/mesos/provisioner/constants.hpp"
 #include "slave/containerizer/mesos/provisioner/utils.hpp"
@@ -95,6 +97,23 @@ public:
       const hashset<string>& activeLayerPaths);
 
 private:
+  struct Metrics
+  {
+    Metrics() :
+        image_pull(
+          "containerizer/mesos/provisioner/docker_store/image_pull", Hours(1))
+    {
+      process::metrics::add(image_pull);
+    }
+
+    ~Metrics()
+    {
+      process::metrics::remove(image_pull);
+    }
+
+    process::metrics::Timer<Milliseconds> image_pull;
+  };
+
   Future<Image> _get(
       const spec::ImageReference& reference,
       const Option<Secret>& config,
@@ -127,6 +146,8 @@ private:
 
   // For executing path removals in a separated actor.
   process::Executor executor;
+
+  Metrics metrics;
 };
 
 
@@ -325,7 +346,7 @@ Future<Image> StoreProcess::_get(
 
     Owned<Promise<Image>> promise(new Promise<Image>());
 
-    Future<Image> future = puller->pull(
+    Future<Image> future = metrics.image_pull.time(puller->pull(
         reference,
         staging.get(),
         backend,
@@ -346,7 +367,7 @@ Future<Image> StoreProcess::_get(
           LOG(WARNING) << "Failed to remove staging directory: "
                        << rmdir.error();
         }
-      }));
+      })));
 
     promise->associate(future);
     pulling[name] = promise;
