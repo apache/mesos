@@ -803,6 +803,14 @@
   jira_user: wrouesnel
   reviewboard_user: wrouesnel
 
+- name: Xiang Chaosheng
+  affiliations:
+    - {organization: ChinaUnicom}
+  emails:
+    - xiangcs@chinaunicom.cn
+  jira_user: zhanrox
+  reviewboard_user: zhanrox
+
 - name: Xiao Deshi
   affiliations:
     - {organization: Dataman}
