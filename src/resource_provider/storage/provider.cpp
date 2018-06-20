@@ -1434,11 +1434,18 @@ void StorageLocalResourceProviderProcess::watchProfiles()
 Future<Nothing> StorageLocalResourceProviderProcess::updateProfiles(
     const hashset<string>& profiles)
 {
+  // Remove disappeared profiles.
+  foreach (const string& profile, profileInfos.keys()) {
+    if (!profiles.contains(profile)) {
+      profileInfos.erase(profile);
+    }
+  }
+
+  // Translate and add newly appeared profiles.
   vector<Future<Nothing>> futures;
   foreach (const string& profile, profiles) {
     // Since profiles are immutable after creation, we do not need to
     // translate any profile that is already in the mapping.
-    // TODO(chhsiao): Handle profile deactivation.
     if (profileInfos.contains(profile)) {
       continue;
     }
@@ -3087,12 +3094,15 @@ StorageLocalResourceProviderProcess::applyCreateVolumeOrBlock(
     case Resource::DiskInfo::Source::PATH:
     case Resource::DiskInfo::Source::MOUNT: {
       if (resource.disk().source().has_profile()) {
-        CHECK(profileInfos.contains(resource.disk().source().profile()));
+        // The profile exists since any operation with a stale profile must have
+        // been dropped for a mismatched resource version or a reconciliation.
+        CHECK(profileInfos.contains(resource.disk().source().profile()))
+          << "Profile '" << resource.disk().source().profile() << "' not found";
 
-        // TODO(chhsiao): Reject if the source has an inactive profile.
+        const DiskProfileAdaptor::ProfileInfo& profileInfo =
+          profileInfos.at(resource.disk().source().profile());
 
-        if (!profileInfos.at(resource.disk().source().profile())
-               .capability.has_mount()) {
+        if (!profileInfo.capability.has_mount()) {
           return Failure(
               "Profile '" + resource.disk().source().profile() +
               "' cannot be used for CREATE_VOLUME operation");
@@ -3104,7 +3114,7 @@ StorageLocalResourceProviderProcess::applyCreateVolumeOrBlock(
         created = createVolume(
             operationUuid.toString(),
             Bytes(resource.scalar().value() * Bytes::MEGABYTES),
-            profileInfos.at(resource.disk().source().profile()));
+            profileInfo);
       } else {
         const string& volumeId = resource.disk().source().id();
 
@@ -3130,12 +3140,15 @@ StorageLocalResourceProviderProcess::applyCreateVolumeOrBlock(
     }
     case Resource::DiskInfo::Source::BLOCK: {
       if (resource.disk().source().has_profile()) {
-        CHECK(profileInfos.contains(resource.disk().source().profile()));
+        // The profile exists since any operation with a stale profile must have
+        // been dropped for a mismatched resource version or a reconciliation.
+        CHECK(profileInfos.contains(resource.disk().source().profile()))
+          << "Profile '" << resource.disk().source().profile() << "' not found";
 
-        // TODO(chhsiao): Reject if the source has an inactive profile.
+        const DiskProfileAdaptor::ProfileInfo& profileInfo =
+          profileInfos.at(resource.disk().source().profile());
 
-        if (!profileInfos.at(resource.disk().source().profile())
-               .capability.has_block()) {
+        if (!profileInfo.capability.has_block()) {
           return Failure(
               "Profile '" + resource.disk().source().profile() +
               "' cannot be used for CREATE_BLOCK operation");
@@ -3147,7 +3160,7 @@ StorageLocalResourceProviderProcess::applyCreateVolumeOrBlock(
         created = createVolume(
             operationUuid.toString(),
             Bytes(resource.scalar().value() * Bytes::MEGABYTES),
-            profileInfos.at(resource.disk().source().profile()));
+            profileInfo);
       } else {
         const string& volumeId = resource.disk().source().id();
 
