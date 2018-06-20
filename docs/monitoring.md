@@ -1765,6 +1765,157 @@ the master it is registered with.
 </tr>
 </table>
 
+#### Containerizers
+
+The following metrics provide information about both Mesos and Docker
+containerizers.
+
+<table class="table table-striped">
+<thead>
+<tr><th>Metric</th><th>Description</th><th>Type</th>
+</thead>
+<tr>
+  <td>
+  <code>containerizer/docker/image_pull_ms</code>
+  </td>
+  <td>Docker containerizer image pull latency in ms </td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>containerizer/docker/image_pull_ms/count</code>
+  </td>
+  <td>Number of Docker containerizer image pulls</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>containerizer/docker/image_pull_ms/max</code>
+  </td>
+  <td>Maximum Docker containerizer image pull latency in ms</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>containerizer/docker/image_pull_ms/min</code>
+  </td>
+  <td>Minimum Docker containerizer image pull latency in ms</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>containerizer/docker/image_pull_ms/p50</code>
+  </td>
+  <td>Median Docker containerizer image pull latency in ms</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>containerizer/docker/image_pull_ms/p90</code>
+  </td>
+  <td>90th percentile Docker containerizer image pull latency in ms</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>containerizer/docker/image_pull_ms/p95</code>
+  </td>
+  <td>95th percentile Docker containerizer image pull latency in ms</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>containerizer/docker/image_pull_ms/p99</code>
+  </td>
+  <td>99th percentile Docker containerizer image pull latency in ms</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>containerizer/docker/image_pull_ms/p999</code>
+  </td>
+  <td>99.9th percentile Docker containerizer image pull latency in ms</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>containerizer/docker/image_pull_ms/p9999</code>
+  </td>
+  <td>99.99th percentile Docker containerizer image pull latency in ms</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>containerizer/mesos/provisioner/docker_store/image_pull_ms</code>
+  </td>
+  <td>Mesos containerizer docker image pull latency in ms </td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>containerizer/mesos/provisioner/docker_store/image_pull_ms/count</code>
+  </td>
+  <td>Number of Mesos containerizer docker image pulls</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>containerizer/mesos/provisioner/docker_store/image_pull_ms/max</code>
+  </td>
+  <td>Maximum Mesos containerizer docker image pull latency in ms</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>containerizer/mesos/provisioner/docker_store/image_pull_ms/min</code>
+  </td>
+  <td>Minimum Mesos containerizer docker image pull latency in ms</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>containerizer/mesos/provisioner/docker_store/image_pull_ms/p50</code>
+  </td>
+  <td>Median Mesos containerizer docker image pull latency in ms</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>containerizer/mesos/provisioner/docker_store/image_pull_ms/p90</code>
+  </td>
+  <td>90th percentile Mesos containerizer docker image pull latency in ms</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>containerizer/mesos/provisioner/docker_store/image_pull_ms/p95</code>
+  </td>
+  <td>95th percentile Mesos containerizer docker image pull latency in ms</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>containerizer/mesos/provisioner/docker_store/image_pull_ms/p99</code>
+  </td>
+  <td>99th percentile Mesos containerizer docker image pull latency in ms</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>containerizer/mesos/provisioner/docker_store/image_pull_ms/p999</code>
+  </td>
+  <td>99.9th percentile Mesos containerizer docker image pull latency in ms</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>containerizer/mesos/provisioner/docker_store/image_pull_ms/p9999</code>
+  </td>
+  <td>99.99th percentile Mesos containerizer docker image pull latency in ms</td>
+  <td>Gauge</td>
+</tr>
+</table>
+
 #### Resource Providers
 
 The following metrics provide information about ongoing and completed
