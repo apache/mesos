@@ -17,7 +17,6 @@
 #ifndef __RESOURCE_PROVIDER_URI_DISK_PROFILE_ADAPTOR_HPP__
 #define __RESOURCE_PROVIDER_URI_DISK_PROFILE_ADAPTOR_HPP__
 
-#include <map>
 #include <string>
 #include <tuple>
 
@@ -34,6 +33,7 @@
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
 #include <stout/flags.hpp>
+#include <stout/hashmap.hpp>
 #include <stout/option.hpp>
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
@@ -234,14 +234,20 @@ private:
 
   UriDiskProfileAdaptor::Flags flags;
 
-  // The last fetched profile mapping.
-  // This module assumes that profiles can only be added and never
-  // removed. Once added, a profile's volume capability and parameters
-  // cannot be changed either.
+  struct ProfileRecord
+  {
+    resource_provider::DiskProfileMapping::CSIManifest manifest;
+
+    // True if the profile is seen in the last fetched profile mapping.
+    bool active;
+  };
+
+  // The mapping of all profiles seen so far.
+  // Profiles can only be added and never removed from this mapping. Once added,
+  // a profile's volume capability and parameters cannot be changed.
   //
   // TODO(josephw): Consider persisting this mapping across agent restarts.
-  std::map<std::string, resource_provider::DiskProfileMapping::CSIManifest>
-    profileMatrix;
+  hashmap<std::string, ProfileRecord> profileMatrix;
 
   // Will be satisfied whenever `profileMatrix` is changed.
   process::Owned<process::Promise<Nothing>> watchPromise;
