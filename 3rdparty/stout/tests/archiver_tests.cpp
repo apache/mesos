@@ -37,6 +37,7 @@ TEST_F(ArchiverTest, ExtractEmptyInputFile)
   EXPECT_ERROR(archiver::extract("", ""));
 }
 
+
 // File that does not exist should return some error.
 TEST_F(ArchiverTest, ExtractInputFileNotFound)
 {
@@ -48,6 +49,7 @@ TEST_F(ArchiverTest, ExtractInputFileNotFound)
 
   EXPECT_ERROR(archiver::extract(path, ""));
 }
+
 
 TEST_F(ArchiverTest, ExtractTarGzFile)
 {
@@ -378,6 +380,46 @@ TEST_F(ArchiverTest, ExtractGzFileFails)
       "H4sICNjxsloAA2hlbGxvAPNIzcnJVyjPL8pJUdBIr9LkAgAwtvTdEQAAAA==").get()));
 
   EXPECT_ERROR(archiver::extract(path.get(), ""));
+}
+
+
+// TODO(josephw): Libarchive currently does not support creating symlinks
+// on Windows (hardlinks are fine).
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    ArchiverTest, SYMLINK_ExtractTarGzFileWithLinks)
+{
+  // Construct a tarball containing a hardlink and symlink.
+  string dir = path::join(sandbox.get(), "somedir");
+  ASSERT_SOME(os::mkdir(dir));
+
+  Try<string> path = os::mktemp(path::join(dir, "XXXXXX"));
+  ASSERT_SOME(path);
+
+  // This file was generated with the following commands:
+  //   echo "I'm a link target" > target
+  //   ln target hardlink
+  //   ln -s target symlink
+  //   tar -czf foo.tar.gz target hardlink symlink
+  //   cat foo.tar.gz | base64
+  ASSERT_SOME(os::write(path.get(), base64::decode(
+      "H4sIADbiKlsAA+3UTQ6CMBCG4a49xezctqWlZ/AYJIL4gxqoMd5efhITF4obM"
+      "Mb32UxIJmXIxzRm9SaPalJa69Q56WpIfV+1HZ4H1opJEmN9ql1wok1ig1eipx"
+      "1rcGliVrej7E5Nfi6vl1d9bVtRvDln+BJ51B+xWlaSyWF73Evsf4XFtyfCnMq"
+      "sXnfpT/mO0f1v9+V5/33bqcTEGS6nP9//5lZNHX+fu/ef5e9tl78L2iix5A8A"
+      "AAAAAAAAAAAAADDqDhr0y40AKAAA").get()));
+
+  EXPECT_SOME(archiver::extract(path.get(), dir));
+
+  string extractedFile1 = path::join(dir, "target");
+  string extractedFile2 = path::join(dir, "hardlink");
+  string extractedFile3 = path::join(dir, "symlink");
+  ASSERT_TRUE(os::exists(extractedFile1));
+  ASSERT_TRUE(os::exists(extractedFile2));
+  ASSERT_TRUE(os::exists(extractedFile3));
+
+  ASSERT_SOME_EQ("I'm a link target\n", os::read(extractedFile1));
+  ASSERT_SOME_EQ("I'm a link target\n", os::read(extractedFile2));
+  ASSERT_SOME_EQ("I'm a link target\n", os::read(extractedFile3));
 }
 
 
