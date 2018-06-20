@@ -7712,41 +7712,49 @@ void Slave::handleResourceProviderMessage(
         // operation.
         //
         // NOTE: We do not mutate operations statuses here; this would
-        // be the responsibility of a operation status update handler.
-        hashset<UUID> disappearedOperations;
-        foreach (const UUID& knownUuid, knownUuids) {
-          if (!receivedUuids.contains(knownUuid)) {
-            disappearedOperations.insert(knownUuid);
-          }
-        }
-
-        foreach (const UUID& uuid, disappearedOperations) {
+        // be the responsibility of an operation status update handler.
+        hashset<UUID> disappearedUuids = knownUuids - receivedUuids;
+        foreach (const UUID& uuid, disappearedUuids) {
           // TODO(bbannier): Instead of simply dropping an operation
           // with `removeOperation` here we should instead send a
           // `Reconcile` message with a failed state to the resource
           // provider so its status update manager can reliably
           // deliver the operation status to the framework.
-          CHECK(resourceProvider->operations.contains(uuid));
           removeOperation(resourceProvider->operations.at(uuid));
         }
 
         // Handle operations known to the resource provider but not
         // the agent. This can happen if the agent failed over and the
         // resource provider reregistered.
-        hashset<UUID> reappearedOperations;
-        foreach (const UUID& receivedUuid, receivedUuids) {
-          if (!knownUuids.contains(receivedUuid)) {
-            reappearedOperations.insert(receivedUuid);
-          }
-        }
-
-        foreach (const UUID& uuid, reappearedOperations) {
+        hashset<UUID> reappearedUuids = receivedUuids - knownUuids;
+        foreach (const UUID& uuid, reappearedUuids) {
           // Start tracking this operation.
           //
           // NOTE: We do not need to update total resources here as its
           // state was sync explicitly with the received total above.
-          CHECK(updateState.operations.contains(uuid));
           addOperation(new Operation(updateState.operations.at(uuid)));
+        }
+
+        // Handle operations known to both the agent and the resource provider.
+        //
+        // If an operation became terminal, its result is already reflected in
+        // the total resources reported by the resource provider, and thus it
+        // should not be applied again in an operation status update handler
+        // when its terminal status update arrives. So we set the terminal
+        // `latest_status` here to prevent resource convervions elsewhere.
+        //
+        // NOTE: We only update the `latest_status` of a known operation if it
+        // is not terminal yet here; its `statuses` would be updated by an
+        // operation status update handler.
+        hashset<UUID> matchedUuids = knownUuids - disappearedUuids;
+        foreach (const UUID& uuid, matchedUuids) {
+          const Operation& operation = updateState.operations.at(uuid);
+          if (operation.has_latest_status() &&
+              protobuf::isTerminalState(operation.latest_status().state())) {
+            updateOperationLatestStatus(
+                getOperation(uuid),
+                operation.latest_status());
+          }
         }
 
         // Update resource version of this resource provider.
@@ -7954,19 +7962,13 @@ void Slave::updateOperation(
       !protobuf::isTerminalState(operation->latest_status().state()) &&
       protobuf::isTerminalState(latestStatus->state());
 
-    // If the operation has already transitioned to a terminal state,
-    // do not update its state.
-    if (!protobuf::isTerminalState(operation->latest_status().state())) {
-      operation->mutable_latest_status()->CopyFrom(latestStatus.get());
-    }
+    updateOperationLatestStatus(operation, latestStatus.get());
   } else {
     terminated =
       !protobuf::isTerminalState(operation->latest_status().state()) &&
       protobuf::isTerminalState(status.state());
 
-    if (!protobuf::isTerminalState(operation->latest_status().state())) {
-      operation->mutable_latest_status()->CopyFrom(status);
-    }
+    updateOperationLatestStatus(operation, status);
   }
 
   // Adding the update's status to the stored operation below is the one place
@@ -8032,6 +8034,18 @@ void Slave::updateOperation(
       LOG(FATAL) << "Unexpected operation state "
                  << operation->latest_status().state();
     }
+  }
+}
+
+
+void Slave::updateOperationLatestStatus(
+    Operation* operation,
+    const OperationStatus& status)
+{
+  CHECK_NOTNULL(operation);
+
+  if (!protobuf::isTerminalState(operation->latest_status().state())) {
+    operation->mutable_latest_status()->CopyFrom(status);
   }
 }
 

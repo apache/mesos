@@ -652,6 +652,11 @@ private:
       Operation* operation,
       const UpdateOperationStatusMessage& update);
 
+  // Update the `latest_status` of the operation if it is not terminal.
+  void updateOperationLatestStatus(
+      Operation* operation,
+      const OperationStatus& status);
+
   void removeOperation(Operation* operation);
 
   Operation* getOperation(const UUID& uuid) const;

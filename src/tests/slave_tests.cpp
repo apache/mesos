@@ -10936,8 +10936,9 @@ TEST_F(SlaveTest, ResourceProviderReconciliation)
 
   AWAIT_READY(updateSlaveMessage);
 
-  // The reserve operation will still be reported as pending since no offer
-  // operation status update has been received from the resource provider.
+  // The reserve operation will be reported as failed, but the `statuses` field
+  // will remain empty since no operation status update has been received from
+  // the resource provider.
   ASSERT_TRUE(updateSlaveMessage->has_resource_providers());
   ASSERT_EQ(1, updateSlaveMessage->resource_providers().providers_size());
   auto provider = updateSlaveMessage->resource_providers().providers(0);
@@ -10948,7 +10949,8 @@ TEST_F(SlaveTest, ResourceProviderReconciliation)
 
   EXPECT_EQ(Offer::Operation::RESERVE, reserve.info().type());
   ASSERT_TRUE(reserve.has_latest_status());
-  EXPECT_EQ(OPERATION_PENDING, reserve.latest_status().state());
+  EXPECT_EQ(OPERATION_FAILED, reserve.latest_status().state());
+  EXPECT_EQ(0, reserve.statuses_size());
 
   // The resources are returned to the available pool and the framework will get
   // offered the same resources as in the previous offer cycle.
