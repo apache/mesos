@@ -26,6 +26,10 @@
 #include <process/owned.hpp>
 #include <process/shared.hpp>
 
+#include <process/metrics/metrics.hpp>
+#include <process/metrics/timer.hpp>
+
+#include <stout/duration.hpp>
 #include <stout/flags.hpp>
 #include <stout/hashset.hpp>
 
@@ -170,6 +174,21 @@ public:
   virtual process::Future<hashset<ContainerID>> containers();
 
 private:
+  struct Metrics
+  {
+    Metrics() : image_pull("containerizer/docker/image_pull", Hours(1))
+    {
+      process::metrics::add(image_pull);
+    }
+
+    ~Metrics()
+    {
+      process::metrics::remove(image_pull);
+    }
+
+    process::metrics::Timer<Milliseconds> image_pull;
+  };
+
   // Continuations and helpers.
   process::Future<Nothing> _fetch(
       const ContainerID& containerId,
@@ -292,6 +311,8 @@ private:
   process::Shared<Docker> docker;
 
   Option<NvidiaComponents> nvidia;
+
+  Metrics metrics;
 
   struct Container
   {

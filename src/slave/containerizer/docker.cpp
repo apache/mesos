@@ -445,10 +445,10 @@ Future<Nothing> DockerContainerizerProcess::pull(
 
   string image = container->image();
 
-  Future<Docker::Image> future = docker->pull(
-    container->containerWorkDir,
-    image,
-    container->forcePullImage());
+  Future<Docker::Image> future = metrics.image_pull.time(docker->pull(
+      container->containerWorkDir,
+      image,
+      container->forcePullImage()));
 
   containers_.at(containerId)->pull = future;
 
