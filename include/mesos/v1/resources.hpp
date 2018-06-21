@@ -467,11 +467,9 @@ public:
   Resources toUnreserved() const;
 
   // Returns a Resources object that contains all the scalar resources
-  // in this object, but with their AllocationInfo, ReservationInfo,
-  // DiskInfo, and SharedInfo omitted. The `role` and RevocableInfo,
-  // if any, are preserved. Because we clear ReservationInfo but
-  // preserve `role`, this means that stripping a dynamically reserved
-  // resource makes it effectively statically reserved.
+  // but with all the meta-data fields, such as AllocationInfo,
+  // ReservationInfo and etc. cleared. Only scalar resources' name,
+  // type (SCALAR) and value are preserved.
   //
   // This is intended for code that would like to aggregate together
   // Resource values without regard for metadata like whether the

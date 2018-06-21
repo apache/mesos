@@ -1572,11 +1572,7 @@ void HierarchicalAllocatorProcess::__allocate()
   // NOTE: Revocable resources are excluded in `quotaRoleSorter`.
   auto getQuotaRoleAllocatedScalarQuantities = [this](const string& role) {
     CHECK(quotas.contains(role));
-
-    // NOTE: `allocationScalarQuantities` omits dynamic reservation,
-    // persistent volume info, and allocation info. We additionally
-    // remove the static reservations here via `toUnreserved()`.
-    return quotaRoleSorter->allocationScalarQuantities(role).toUnreserved();
+    return quotaRoleSorter->allocationScalarQuantities(role);
   };
 
   // Returns the result of shrinking the provided resources down to the
@@ -1664,10 +1660,8 @@ void HierarchicalAllocatorProcess::__allocate()
       quotaRoleSorter->allocation(role);
 
     foreachvalue (const Resources& resources, allocations) {
-      // We need to remove the static reservation metadata here via
-      // `toUnreserved()`.
       rolesConsumedQuotaScalarQuantites[role] -=
-        resources.reserved().createStrippedScalarQuantity().toUnreserved();
+        resources.reserved().createStrippedScalarQuantity();
     }
   }
 
@@ -1702,20 +1696,11 @@ void HierarchicalAllocatorProcess::__allocate()
   //                        allocated resources -
   //                        unallocated reservations -
   //                        unallocated revocable resources
-
-  // NOTE: `totalScalarQuantities` omits dynamic reservation,
-  // persistent volume info, and allocation info. We additionally
-  // remove the static reservations here via `toUnreserved()`.
-  Resources availableHeadroom =
-    roleSorter->totalScalarQuantities().toUnreserved();
+  Resources availableHeadroom = roleSorter->totalScalarQuantities();
 
   // Subtract allocated resources from the total.
   foreachkey (const string& role, roles) {
-    // NOTE: `totalScalarQuantities` omits dynamic reservation,
-    // persistent volume info, and allocation info. We additionally
-    // remove the static reservations here via `toUnreserved()`.
-    availableHeadroom -=
-      roleSorter->allocationScalarQuantities(role).toUnreserved();
+    availableHeadroom -= roleSorter->allocationScalarQuantities(role);
   }
 
   // Calculate total allocated reservations. Note that we need to ensure
@@ -1733,11 +1718,8 @@ void HierarchicalAllocatorProcess::__allocate()
     }
 
     foreachvalue (const Resources& resources, allocations) {
-      // NOTE: `totalScalarQuantities` omits dynamic reservation,
-      // persistent volume info, and allocation info. We additionally
-      // remove the static reservations here via `toUnreserved()`.
       totalAllocatedReservationScalarQuantities +=
-        resources.reserved().createStrippedScalarQuantity().toUnreserved();
+        resources.reserved().createStrippedScalarQuantity();
     }
   }
 
@@ -1748,11 +1730,8 @@ void HierarchicalAllocatorProcess::__allocate()
 
   // Subtract revocable resources.
   foreachvalue (const Slave& slave, slaves) {
-    // NOTE: `totalScalarQuantities` omits dynamic reservation,
-    // persistent volume info, and allocation info. We additionally
-    // remove the static reservations here via `toUnreserved()`.
-    availableHeadroom -= slave.getAvailable().revocable()
-      .createStrippedScalarQuantity().toUnreserved();
+    availableHeadroom -=
+      slave.getAvailable().revocable().createStrippedScalarQuantity();
   }
 
   // Due to the two stages in the allocation algorithm and the nature of
@@ -2637,9 +2616,8 @@ void HierarchicalAllocatorProcess::trackReservations(
 {
   foreachpair (const string& role,
                const Resources& resources, reservations) {
-    // We remove the static reservation metadata here via `toUnreserved()`.
     const Resources scalarQuantitesToTrack =
-        resources.createStrippedScalarQuantity().toUnreserved();
+      resources.createStrippedScalarQuantity();
 
     reservationScalarQuantities[role] += scalarQuantitesToTrack;
   }
@@ -2655,9 +2633,8 @@ void HierarchicalAllocatorProcess::untrackReservations(
     Resources& currentReservationQuantity =
         reservationScalarQuantities.at(role);
 
-    // We remove the static reservation metadata here via `toUnreserved()`.
     const Resources scalarQuantitesToUntrack =
-        resources.createStrippedScalarQuantity().toUnreserved();
+      resources.createStrippedScalarQuantity();
     CHECK(currentReservationQuantity.contains(scalarQuantitesToUntrack));
     currentReservationQuantity -= scalarQuantitesToUntrack;
 
