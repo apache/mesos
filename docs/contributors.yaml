@@ -257,6 +257,14 @@
   jira_user: dpravat
   reviewboard_user: dpravat
 
+- name: DaoTan Cui
+   affiliations:
+    - {organization: Asiainfo}
+   emails:
+    - cuidt@outlook.com
+   jira_user: cuidt
+   reviewboard_user: dtcui
+
 - name: Dario Rexin
   affiliations:
     - {organization: Apple}
