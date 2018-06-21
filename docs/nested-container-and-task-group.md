@@ -14,11 +14,11 @@ some resources (e.g., network namespace, volumes) but not others
 (e.g., container image, resource limits). Here are the use cases for
 pod:
 
-* Run a side-car container (e.g., logger, backup) next the main
+* Run a side-car container (e.g., logger, backup) next to the main
   application controller.
 * Run an adapter container (e.g., metrics endpoint, queue consumer)
   next to the main container.
-* Run transient tasks inside a pod for a operations which are
+* Run transient tasks inside a pod for operations which are
   short-lived and whose exit does not imply that a pod should
   exit (e.g., a task which backs up data in a persistent volume).
 * Provide performance isolation between latency-critical application
