@@ -265,7 +265,9 @@ Future<Nothing> MetadataManagerProcess::recover()
   if (images.isNone()) {
     // This could happen if the slave died after opening the file for
     // writing but before persisted on disk.
-    return Failure("Unexpected empty images file '" + storedImagesPath + "'");
+    LOG(WARNING) << "The images file '" << storedImagesPath << "' is empty";
+
+    return Nothing();
   }
 
   foreach (const Image& image, images.get().images()) {
