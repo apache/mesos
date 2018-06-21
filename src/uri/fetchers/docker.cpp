@@ -870,6 +870,11 @@ Future<http::Headers> DockerFetcherPluginProcess::getAuthHeader(
       });
   }
 
+  if (authScheme == "BASIC"){
+    return Failure(
+        "Unexpected BASIC Authorization response status: " + response.status);
+  }
+
   return Failure("Unsupported auth-scheme: " + authScheme);
 }
 
