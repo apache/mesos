@@ -176,11 +176,20 @@ protected:
         };
     }
 
+    vector<Resources> minAllocatableResources;
+    minAllocatableResources.push_back(
+        CHECK_NOTERROR(Resources::parse("cpus:" + stringify(MIN_CPUS))));
+    minAllocatableResources.push_back(CHECK_NOTERROR(Resources::parse(
+        "mem:" + stringify((double)MIN_MEM.bytes() / Bytes::MEGABYTES))));
+
     allocator->initialize(
         flags.allocation_interval,
         offerCallback.get(),
         inverseOfferCallback.get(),
-        flags.fair_sharing_excluded_resource_names);
+        flags.fair_sharing_excluded_resource_names,
+        true,
+        None(),
+        minAllocatableResources);
   }
 
   SlaveInfo createSlaveInfo(const Resources& resources)

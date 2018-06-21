@@ -155,7 +155,8 @@ void HierarchicalAllocatorProcess::initialize(
       _inverseOfferCallback,
     const Option<set<string>>& _fairnessExcludeResourceNames,
     bool _filterGpuResources,
-    const Option<DomainInfo>& _domain)
+    const Option<DomainInfo>& _domain,
+    const Option<std::vector<Resources>>& _minAllocatableResources)
 {
   allocationInterval = _allocationInterval;
   offerCallback = _offerCallback;
@@ -163,6 +164,7 @@ void HierarchicalAllocatorProcess::initialize(
   fairnessExcludeResourceNames = _fairnessExcludeResourceNames;
   filterGpuResources = _filterGpuResources;
   domain = _domain;
+  minAllocatableResources = _minAllocatableResources;
   initialized = true;
   paused = false;
 
@@ -2470,14 +2472,23 @@ bool HierarchicalAllocatorProcess::isFiltered(
 }
 
 
-bool HierarchicalAllocatorProcess::allocatable(
-    const Resources& resources)
+bool HierarchicalAllocatorProcess::allocatable(const Resources& resources)
 {
-  Option<double> cpus = resources.cpus();
-  Option<Bytes> mem = resources.mem();
+  if (minAllocatableResources.isNone() ||
+      CHECK_NOTNONE(minAllocatableResources).empty()) {
+    return true;
+  }
 
-  return (cpus.isSome() && cpus.get() >= MIN_CPUS) ||
-         (mem.isSome() && mem.get() >= MIN_MEM);
+  // We remove the static reservation metadata here via `toUnreserved()`.
+  Resources quantity = resources.createStrippedScalarQuantity().toUnreserved();
+  foreach (
+      const Resources& minResources, CHECK_NOTNONE(minAllocatableResources)) {
+    if (quantity.contains(minResources)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 
