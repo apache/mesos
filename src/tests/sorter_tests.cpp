@@ -1594,7 +1594,7 @@ TYPED_TEST(CommonSorterTest, RemoveSharedResources)
   sorter.add(slaveId, sharedDisk);
   Resources quantity2 = sorter.totalScalarQuantities();
 
-  EXPECT_EQ(Resources::parse("disk(role1):100").get(), quantity2 - quantity1);
+  EXPECT_EQ(Resources::parse("disk:100").get(), quantity2 - quantity1);
 
   sorter.add(slaveId, sharedDisk);
   Resources quantity3 = sorter.totalScalarQuantities();
