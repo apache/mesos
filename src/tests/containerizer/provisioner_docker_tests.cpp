@@ -240,6 +240,27 @@ TEST_F(ProvisionerDockerLocalStoreTest, MetadataManagerInitialization)
   verifyLocalDockerImage(flags, imageInfo->layers);
 }
 
+// This is a regression test for MESOS-8871.
+// This test the ability of the metadata manger to ignore the empty images
+// file when it recover images.
+TEST_F(ProvisionerDockerLocalStoreTest,
+       MetadataManagerRecoveryWithEmptyImagesFile)
+{
+  slave::Flags flags;
+  flags.docker_registry = path::join(os::getcwd(), "images");
+  flags.docker_store_dir = path::join(os::getcwd(), "store");
+  flags.image_provisioner_backend = COPY_BACKEND;
+  const string emptyImages = paths::getStoredImagesPath(flags.docker_store_dir);
+
+  ASSERT_SOME(os::mkdir(flags.docker_store_dir));
+  ASSERT_SOME(os::touch(emptyImages));
+
+  Try<Owned<slave::Store>> store = slave::docker::Store::create(flags);
+  ASSERT_SOME(store);
+
+  Future<Nothing> recover = store.get()->recover();
+  AWAIT_READY(recover);
+}
 
 // This test verifies that the layer that is missing from the store
 // will be pulled.
