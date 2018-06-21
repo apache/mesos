@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "slave/constants.hpp"
 #include "slave/validation.hpp"
 
 #include <string>
@@ -52,6 +53,12 @@ Option<Error> validateContainerId(const ContainerID& containerId)
 
   // Check ContainerID specific rules.
   //
+  // Valid the container id length
+  if (id.length() > MAX_CONTAINER_ID_LENGTH) {
+    return Error("'ContainerID.value' '" + id + "' exceeds the maximum"
+                 " length (" + stringify(MAX_CONTAINER_ID_LENGTH) + ")");
+  }
+
   // Periods are disallowed because our string representation of
   // ContainerID uses periods: <uuid>.<child>.<grandchild>.
   // For example: <uuid>.redis.backup

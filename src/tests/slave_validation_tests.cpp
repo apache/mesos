@@ -93,6 +93,17 @@ TEST(AgentValidationTest, ContainerID)
   error = validation::container::validateContainerId(containerId);
   EXPECT_SOME(error);
 
+  // Valid with invalid container ID (length more than 242).
+  containerId.set_value(
+    "length243-223456789-323456789-423456789-523456789-623456789-"
+    "723456789-823456789-923456789-023456789-123456789-223456789-"
+    "323456789-423456789-523456789-623456789-723456789-823456789-"
+    "923456789-023456789-123456789-223456789-323456789-423456789-"
+    "123");
+  containerId.mutable_parent()->set_value("redis");
+  error = validation::container::validateContainerId(containerId);
+  EXPECT_SOME(error);
+
   // Valid with valid parent.
   containerId.set_value("backup");
   containerId.mutable_parent()->set_value("redis");
