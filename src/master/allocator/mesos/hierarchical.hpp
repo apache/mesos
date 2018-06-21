@@ -104,7 +104,9 @@ public:
       const Option<std::set<std::string>>&
         fairnessExcludeResourceNames = None(),
       bool filterGpuResources = true,
-      const Option<DomainInfo>& domain = None());
+      const Option<DomainInfo>& domain = None(),
+      const Option<std::vector<Resources>>&
+        minAllocatableResources = None());
 
   void recover(
       const int _expectedAgentCount,
@@ -280,7 +282,7 @@ protected:
       const FrameworkID& frameworkID,
       const SlaveID& slaveID) const;
 
-  static bool allocatable(const Resources& resources);
+  bool allocatable(const Resources& resources);
 
   bool initialized;
   bool paused;
@@ -466,6 +468,9 @@ protected:
 
   // The master's domain, if any.
   Option<DomainInfo> domain;
+
+  // The minimum allocatable resources, if any.
+  Option<std::vector<Resources>> minAllocatableResources;
 
   // There are two stages of allocation:
   //
