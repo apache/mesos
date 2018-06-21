@@ -428,6 +428,10 @@ Future<Nothing> NetworkCniIsolatorProcess::recover(
       }
     }
 
+    if (infos.contains(containerId)) {
+      continue;
+    }
+
     // Known orphan containers will be cleaned up by containerizer
     // using the normal cleanup path. See MESOS-2367 for details.
     if (orphans.contains(containerId)) {
