@@ -2637,19 +2637,14 @@ TEST(ResourcesOperationTest, StrippedResourcesVolume)
   Resources stripped = volume.createStrippedScalarQuantity();
 
   EXPECT_TRUE(stripped.persistentVolumes().empty());
+  EXPECT_TRUE(stripped.reserved().empty());
   EXPECT_EQ(Megabytes(200), stripped.disk().get());
-
-  // `createStrippedScalarQuantity` doesn't remove the `role` from a
-  // reserved resource.
-  EXPECT_FALSE(stripped.reserved("role").empty());
 
   Resource strippedVolume = *(stripped.begin());
 
   ASSERT_EQ(Value::SCALAR, strippedVolume.type());
-  EXPECT_FLOAT_EQ(200, strippedVolume.scalar().value());
-  EXPECT_EQ("role", Resources::reservationRole(strippedVolume));
+  EXPECT_DOUBLE_EQ(200, strippedVolume.scalar().value());
   EXPECT_EQ("disk", strippedVolume.name());
-  EXPECT_EQ(1, strippedVolume.reservations_size());
   EXPECT_FALSE(strippedVolume.has_disk());
   EXPECT_FALSE(Resources::isPersistentVolume(strippedVolume));
 }
@@ -2678,13 +2673,11 @@ TEST(ResourcesOperationTest, StrippedResourcesReserved)
 
   Resources stripped = dynamicallyReserved.createStrippedScalarQuantity();
 
-  EXPECT_FALSE(stripped.reserved("role").empty());
+  EXPECT_TRUE(stripped.reserved("role").empty());
 
   foreach (const Resource& resource, stripped) {
-    EXPECT_EQ("role", Resources::reservationRole(resource));
-    EXPECT_FALSE(resource.reservations().empty());
     EXPECT_FALSE(Resources::isDynamicallyReserved(resource));
-    EXPECT_FALSE(Resources::isUnreserved(resource));
+    EXPECT_TRUE(Resources::isUnreserved(resource));
   }
 }
 

@@ -1646,24 +1646,12 @@ Resources Resources::createStrippedScalarQuantity() const
 
   foreach (const Resource& resource, resources) {
     if (resource.type() == Value::SCALAR) {
-      Resource scalar = resource;
-      scalar.clear_provider_id();
-      scalar.clear_allocation_info();
+      Resource scalar;
 
-      // We collapse the stack of reservations here to a single `STATIC`
-      // reservation in order to maintain existing behavior of ignoring
-      // the reservation type, and keeping the reservation role.
-      if (Resources::isReserved(scalar)) {
-        Resource::ReservationInfo collapsedReservation;
-        collapsedReservation.set_type(Resource::ReservationInfo::STATIC);
-        collapsedReservation.set_role(Resources::reservationRole(scalar));
-        scalar.clear_reservations();
-        scalar.add_reservations()->CopyFrom(collapsedReservation);
-      }
+      scalar.set_name(resource.name());
+      scalar.set_type(resource.type());
+      scalar.mutable_scalar()->CopyFrom(resource.scalar());
 
-      scalar.clear_disk();
-      scalar.clear_shared();
-      scalar.clear_revocable();
       stripped.add(scalar);
     }
   }
