@@ -101,7 +101,9 @@ public:
       const Option<std::set<std::string>>&
         fairnessExcludeResourceNames = None(),
       bool filterGpuResources = true,
-      const Option<DomainInfo>& domain = None()) = 0;
+      const Option<DomainInfo>& domain = None(),
+      const Option<std::vector<Resources>>&
+        minAllocatableResources = None()) = 0;
 
   /**
    * Informs the allocator of the recovered state from the master.
