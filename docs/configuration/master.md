@@ -191,6 +191,24 @@ load an alternate allocator module using <code>--modules</code>.
 (default: HierarchicalDRF)
   </td>
 </tr>
+
+<tr>
+  <td>
+    --min_allocatable_resources=VALUE
+  </td>
+  <td>
+One or more sets of resources that define the minimum allocatable
+resources for the allocator. The allocator will only offer resources
+that contain at least one of the specified sets. The resources in each
+set should be delimited by semicolons, and the sets should be delimited
+by the pipe character.
+(Example: <code>disk:1|cpu:1;mem:32</code>
+configures the allocator to only offer resources if they contain a disk
+resource of at least 1 megabyte, or if they contain both 1 cpu and
+32 megabytes of memory.) (default: cpus:0.01|mem:32).
+  </td>
+</tr>
+
 <tr>
   <td>
     --[no-]authenticate_agents,
