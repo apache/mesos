@@ -9,6 +9,9 @@ Mesos User Groups (MUGs) are responsible for organizing local meetups, hackathon
 
 ## Local Groups
 
+### Belgium
+* [Belgian Mesos User Group](https://www.meetup.com/Belgian-Mesos-User-Group/)
+
 ### China
 * [Shanghai](http://www.weibo.com/u/3068800961)
 * [Shenzhen](http://www.meetup.com/Shenzhen-Mesos-User-Group/)
@@ -30,6 +33,7 @@ Mesos User Groups (MUGs) are responsible for organizing local meetups, hackathon
 * [Tokyo](https://mesos.connpass.com/)
 
 ### Netherlands
+* [Dutch Mesos User Group](https://www.meetup.com/Dutch-Mesos-User-Group/)
 * [Amsterdam](http://www.meetup.com/Mesos-Amsterdam/)
 
 ### Poland
