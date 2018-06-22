@@ -423,7 +423,7 @@ Future<Nothing> NetworkCniIsolatorProcess::recover(
       Try<Nothing> recover = _recover(containerId);
       if (recover.isError()) {
         return Failure(
-            "Failed to recover CNI network information for orphaned the "
+            "Failed to recover CNI network information for the orphaned "
             "container " + stringify(containerId) + ": " + recover.error());
       }
     }
