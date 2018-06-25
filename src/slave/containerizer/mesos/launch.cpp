@@ -708,12 +708,6 @@ int MesosContainerizerLaunch::execute()
   // If we need a new mount namespace, we have to do it before
   // we make the mounts needed to prepare the rootfs template.
   if (flags.unshare_namespace_mnt) {
-    if (!launchInfo.mounts().empty()) {
-      cerr << "Mounts are not supported if "
-           << "'unshare_namespace_mnt' is set" << endl;
-      exitWithStatus(EXIT_FAILURE);
-    }
-
     if (unshare(CLONE_NEWNS) != 0) {
       cerr << "Failed to unshare mount namespace: "
            << os::strerror(errno) << endl;
