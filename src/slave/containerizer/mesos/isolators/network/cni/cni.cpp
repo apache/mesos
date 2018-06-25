@@ -426,17 +426,15 @@ Future<Nothing> NetworkCniIsolatorProcess::recover(
             "Failed to recover CNI network information for orphaned the "
             "container " + stringify(containerId) + ": " + recover.error());
       }
+
+      // Known orphan containers will be cleaned up by containerizer
+      // using the normal cleanup path. See MESOS-2367 for details.
+      if (!orphans.contains(containerId)) {
+        LOG(INFO) << "Removing unknown orphaned container " << containerId;
+
+        cleanup(containerId);
+      }
     }
-
-    // Known orphan containers will be cleaned up by containerizer
-    // using the normal cleanup path. See MESOS-2367 for details.
-    if (orphans.contains(containerId)) {
-      continue;
-    }
-
-    LOG(INFO) << "Removing unknown orphaned container " << containerId;
-
-    cleanup(containerId);
   }
 
   return Nothing();
