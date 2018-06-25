@@ -85,11 +85,11 @@ You can also add a callback to be invoked when (or if) a transition occurs (or h
 
 The following table is meant to capture these transitions:
 
-| Transition | `Promise::*()` | `Future::is*()` | `Future::on*()` |
-| ------ | -------------- | --------------- | --------------- |
-| `READY` | `Promise::set(T)` | `Future::isReady()` | `Future::onReady(F&&)` |
-| `FAILED` | `Promise::fail(const std::string&)` | `Future::isFailed()` | `Future::onFailed(F&&)` |
-| `DISCARDED` | `Promise::discard()` | `Future::isDiscarded()` | `Future::onDiscarded(F&&)` |
+| Transition  | `Promise::*()`                      | `Future::is*()`         | `Future::on*()`            |
+| ----------- | ----------------------------------- | ----------------------- | -------------------------- |
+| `READY`     | `Promise::set(T)`                   | `Future::isReady()`     | `Future::onReady(F&&)`     |
+| `FAILED`    | `Promise::fail(const std::string&)` | `Future::isFailed()`    | `Future::onFailed(F&&)`    |
+| `DISCARDED` | `Promise::discard()`                | `Future::isDiscarded()` | `Future::onDiscarded(F&&)` |
 
 > <br> Code Style: prefer [composition](#futures-and-promises-composition) using `Future::then()` and `Future::recover()` over `Future::onReady()`, `Future::onFailed()`, `Future::onDiscarded()`, and `Future::onAny()`. A good rule of thumb is if you find yourself creating your own instance of a `Promise` to compose an asynchronous operation you should use [composition](#futures-and-promises-composition) instead! <br><br>
 
