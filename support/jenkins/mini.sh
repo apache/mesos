@@ -8,10 +8,22 @@ SUPPORT_DIR="${CURRENT_DIR}/.."
 : ${USERNAME:?"Environment variable 'USERNAME' must be set to the username of the 'Mesos DockerBot' Docker hub account."}
 : ${PASSWORD:?"Environment variable 'PASSWORD' must be set to the password of the 'Mesos DockerBot' Docker hub account."}
 
+MESOS_SHA=${MESOS_SHA:-`git rev-parse HEAD`}
+MESOS_VERSION=`git describe --exact-match $MESOS_SHA 2>/dev/null || echo $MESOS_SHA`
+
+echo "MESOS_SHA=$MESOS_SHA"
+echo "MESOS_VERSION=$MESOS_VERSION"
+
 DOCKER_IMAGE_MINI=${DOCKER_IMAGE_MINI:-"mesos/mesos-mini"}
 DOCKER_IMAGE_PACKAGING=${DOCKER_IMAGE_PACKAGING:-"mesos/mesos-centos-packaging"}
 DOCKER_IMAGE_DISTRO=${DOCKER_IMAGE_DISTRO:-"mesos/mesos-centos"}
-DOCKER_IMAGE_TAG=`date +%F`
+
+if [[ "$MESOS_VERSION" != "$MESOS_SHA" ]]; then
+  # HEAD is also a tag.
+  DOCKER_IMAGE_TAG="$MESOS_VERSION"
+else
+  DOCKER_IMAGE_TAG=`date +%F`
+fi
 
 function cleanup {
   docker rmi $(docker images -q ${DOCKER_IMAGE_PACKAGING}:${DOCKER_IMAGE_TAG}) || true
