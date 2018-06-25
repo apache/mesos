@@ -27,11 +27,11 @@
     <name>Apache Mesos</name>
     <homepage rdf:resource="http://mesos.apache.org" />
     <asfext:pmc rdf:resource="http://mesos.apache.org" />
-    <shortdesc>Apache Mesos is a cluster manager that provides efficient resource isolation 
+    <shortdesc>Apache Mesos is a cluster manager that provides efficient resource isolation
 and sharing across distributed applications, or frameworks.</shortdesc>
-    <description>Apache Mesos is a cluster manager that provides efficient resource isolation 
-and sharing across distributed applications, or frameworks. It can run Hadoop, 
-MPI, Hypertable, Spark, and other frameworks on a dynamically shared pool of 
+    <description>Apache Mesos is a cluster manager that provides efficient resource isolation
+and sharing across distributed applications, or frameworks. It can run Hadoop,
+MPI, Hypertable, Spark, and other frameworks on a dynamically shared pool of
 nodes.
 </description>
     <bug-database rdf:resource="https://issues.apache.org/jira/browse/MESOS" />
