@@ -781,6 +781,13 @@ Try<Nothing> mountSpecialFilesystems(const string& root)
     },
     {
       "tmpfs",
+      "/sys/fs/cgroup",
+      "tmpfs",
+      "mode=755",
+      MS_NOSUID | MS_NOEXEC | MS_NODEV
+    },
+    {
+      "tmpfs",
       "/dev",
       "tmpfs",
       "mode=755",

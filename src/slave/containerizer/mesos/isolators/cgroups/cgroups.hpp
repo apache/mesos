@@ -114,17 +114,21 @@ private:
       const std::vector<process::Future<Nothing>>& futures);
 
   process::Future<Nothing> ___recover(
-    const ContainerID& containerId);
+      const ContainerID& containerId);
 
   process::Future<Nothing> ____recover(
-    const ContainerID& containerId,
-    const hashset<std::string>& recoveredSubsystems,
-    const std::vector<process::Future<Nothing>>& futures);
+      const ContainerID& containerId,
+      const hashset<std::string>& recoveredSubsystems,
+      const std::vector<process::Future<Nothing>>& futures);
 
   process::Future<Option<mesos::slave::ContainerLaunchInfo>> _prepare(
       const ContainerID& containerId,
       const mesos::slave::ContainerConfig& containerConfig,
       const std::vector<process::Future<Nothing>>& futures);
+
+  process::Future<Option<mesos::slave::ContainerLaunchInfo>> __prepare(
+      const ContainerID& containerId,
+      const mesos::slave::ContainerConfig& containerConfig);
 
   process::Future<Nothing> _isolate(
       const std::vector<process::Future<Nothing>>& futures);

@@ -32,6 +32,8 @@
 #include "common/protobuf_utils.hpp"
 
 #include "linux/cgroups.hpp"
+#include "linux/fs.hpp"
+#include "linux/ns.hpp"
 
 #include "slave/containerizer/mesos/isolators/cgroups/cgroups.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/constants.hpp"
@@ -39,6 +41,7 @@
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::ContainerLimitation;
+using mesos::slave::ContainerMountInfo;
 using mesos::slave::ContainerState;
 using mesos::slave::Isolator;
 
@@ -416,11 +419,11 @@ Future<Option<ContainerLaunchInfo>> CgroupsIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig)
 {
-  // If we are a nested container, we do not need to prepare
-  // anything since only top-level containers should have cgroups
-  // created for them.
+  // Only prepare cgroups for top-level containers. Nested container
+  // will inherit cgroups from its root container, so here we just
+  // need to do the container-specific cgroups mounts.
   if (containerId.has_parent()) {
-    return None();
+    return __prepare(containerId, containerConfig);
   }
 
   if (infos.contains(containerId)) {
@@ -550,7 +553,93 @@ Future<Option<ContainerLaunchInfo>> CgroupsIsolatorProcess::_prepare(
   }
 
   return update(containerId, containerConfig.resources())
-    .then([]() { return Option<ContainerLaunchInfo>::none(); });
+    .then(defer(
+        PID<CgroupsIsolatorProcess>(this),
+        &CgroupsIsolatorProcess::__prepare,
+        containerId,
+        containerConfig));
+}
+
+
+Future<Option<ContainerLaunchInfo>> CgroupsIsolatorProcess::__prepare(
+    const ContainerID& containerId,
+    const ContainerConfig& containerConfig)
+{
+  // We will do container-specific cgroups mounts
+  // only for the container with rootfs.
+  if (!containerConfig.has_rootfs()) {
+    return None();
+  }
+
+  const ContainerID rootContainerId = protobuf::getRootContainerId(containerId);
+
+  CHECK(infos.contains(rootContainerId));
+
+  ContainerLaunchInfo launchInfo;
+  launchInfo.add_clone_namespaces(CLONE_NEWNS);
+
+  // For the comounted subsystems (e.g., cpu & cpuacct, net_cls & net_prio),
+  // we need to create a symbolic link for each of them to the mount point.
+  // E.g.: ln -s /sys/fs/cgroup/cpu,cpuacct /sys/fs/cgroup/cpu
+  //       ln -s /sys/fs/cgroup/cpu,cpuacct /sys/fs/cgroup/cpuacct
+  foreach (const string& hierarchy, subsystems.keys()) {
+    if (subsystems.get(hierarchy).size() > 1) {
+      foreach (const Owned<Subsystem>& subsystem, subsystems.get(hierarchy)) {
+        CommandInfo* command = launchInfo.add_pre_exec_commands();
+        command->set_shell(false);
+        command->set_value("ln");
+        command->add_arguments("ln");
+        command->add_arguments("-s");
+        command->add_arguments(
+            path::join("/sys/fs/cgroup", Path(hierarchy).basename()));
+
+        command->add_arguments(path::join(
+            containerConfig.rootfs(),
+            "/sys/fs/cgroup",
+            subsystem->name()));
+      }
+    }
+  }
+
+  // For the subsystem loaded by this isolator, do the container-specific
+  // cgroups mount, e.g.:
+  //   mount --bind /sys/fs/cgroup/memory/mesos/<containerId> /sys/fs/cgroup/memory // NOLINT(whitespace/line_length)
+  foreach (const string& hierarchy, subsystems.keys()) {
+    ContainerMountInfo* mount = launchInfo.add_mounts();
+    mount->set_source(path::join(hierarchy, infos[rootContainerId]->cgroup));
+
+    mount->set_target(path::join(
+        containerConfig.rootfs(),
+        "/sys/fs/cgroup",
+        Path(hierarchy).basename()));
+
+    mount->set_flags(MS_BIND | MS_REC);
+  }
+
+  // TODO(qianzhang): This is a hack to pass the container-specific cgroups
+  // mounts and the symbolic links to the command executor to do for the
+  // command task. The reasons that we do it in this way are:
+  //   1. We need to ensure the container-specific cgroups mounts are done
+  //      only in the command task's mount namespace but not in the command
+  //      executor's mount namespace.
+  //   2. Even it's acceptable to do the container-specific cgroups mounts
+  //      in the command executor's mount namespace and the command task
+  //      inherit them from there (i.e., here we just return `launchInfo`
+  //      rather than passing it via `--task_launch_info`), the container
+  //      specific cgroups mounts will be hidden by the `sysfs` mounts done in
+  //      `mountSpecialFilesystems()` when the command executor launches the
+  //      command task.
+  if (containerConfig.has_task_info()) {
+    ContainerLaunchInfo _launchInfo;
+
+    _launchInfo.mutable_command()->add_arguments(
+        "--task_launch_info=" +
+        stringify(JSON::protobuf(launchInfo)));
+
+    return _launchInfo;
+  }
+
+  return launchInfo;
 }
 
 
