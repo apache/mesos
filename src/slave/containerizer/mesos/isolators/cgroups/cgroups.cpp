@@ -60,11 +60,9 @@ namespace slave {
 
 CgroupsIsolatorProcess::CgroupsIsolatorProcess(
     const Flags& _flags,
-    const hashmap<string, string>& _hierarchies,
     const multihashmap<string, Owned<Subsystem>>& _subsystems)
   : ProcessBase(process::ID::generate("cgroups-isolator")),
     flags(_flags),
-    hierarchies(_hierarchies),
     subsystems(_subsystems) {}
 
 
@@ -73,9 +71,6 @@ CgroupsIsolatorProcess::~CgroupsIsolatorProcess() {}
 
 Try<Isolator*> CgroupsIsolatorProcess::create(const Flags& flags)
 {
-  // Subsystem name -> hierarchy path.
-  hashmap<string, string> hierarchies;
-
   // Hierarchy path -> subsystem object.
   multihashmap<string, Owned<Subsystem>> subsystems;
 
@@ -153,11 +148,6 @@ Try<Isolator*> CgroupsIsolatorProcess::create(const Flags& flags)
   CHECK(!subsystemSet.empty());
 
   foreach (const string& subsystemName, subsystemSet) {
-    if (hierarchies.contains(subsystemName)) {
-      // Skip when the subsystem exists.
-      continue;
-    }
-
     // Prepare hierarchy if it does not exist.
     Try<string> hierarchy = cgroups::prepare(
         flags.cgroups_hierarchy,
@@ -181,11 +171,10 @@ Try<Isolator*> CgroupsIsolatorProcess::create(const Flags& flags)
     }
 
     subsystems.put(hierarchy.get(), subsystem.get());
-    hierarchies.put(subsystemName, hierarchy.get());
   }
 
   Owned<MesosIsolatorProcess> process(
-      new CgroupsIsolatorProcess(flags, hierarchies, subsystems));
+      new CgroupsIsolatorProcess(flags, subsystems));
 
   return new MesosIsolator(process);
 }

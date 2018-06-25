@@ -101,7 +101,6 @@ private:
 
   CgroupsIsolatorProcess(
       const Flags& _flags,
-      const hashmap<std::string, std::string>& _hierarchies,
       const multihashmap<std::string, process::Owned<Subsystem>>&
         _subsystems);
 
@@ -149,9 +148,6 @@ private:
       const std::vector<process::Future<Nothing>>& futures);
 
   const Flags flags;
-
-  // Map from subsystem name to hierarchy path.
-  hashmap<std::string, std::string> hierarchies;
 
   // We map hierarchy path and `Subsystem` in subsystems. Same hierarchy may
   // map to multiple Subsystems. For example, our cgroups hierarchies may
