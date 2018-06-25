@@ -1903,6 +1903,112 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_AutoLoadSubsystems)
   driver.join();
 }
 
+
+// This test verifies container-specific cgroup is correctly mounted inside the
+// nested container.
+TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_NestedContainerSpecificCgroupsMount)
+{
+  // Disable AuthN on the agent.
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "filesystem/linux,docker/runtime,cgroups/mem";
+  flags.image_providers = "docker";
+  flags.authenticate_http_readwrite = false;
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(v1::scheduler::SendSubscribe(v1::DEFAULT_FRAMEWORK_INFO));
+
+  Future<Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid, ContentType::PROTOBUF, scheduler);
+
+  AWAIT_READY(subscribed);
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  v1::ExecutorInfo executorInfo = v1::createExecutorInfo(
+      "test_default_executor",
+      None(),
+      "cpus:0.1;mem:32;disk:32",
+      v1::ExecutorInfo::DEFAULT);
+
+  // Update `executorInfo` with the subscribed `frameworkId`.
+  executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+
+  const v1::Offer& offer = offers->offers(0);
+
+  // Create a task to check if its memory (including both executor and task's
+  // memory) is correctly set in its specific cgroup, e.g.:
+  //  `/sys/fs/cgroup/memory/memory.soft_limit_in_bytes`
+  v1::TaskInfo taskInfo = v1::createTask(
+      offer.agent_id(),
+      v1::Resources::parse("cpus:0.1;mem:32;disk:32").get(),
+      "test `cat /sys/fs/cgroup/memory/memory.soft_limit_in_bytes` = 67108864");
+
+  mesos::v1::Image image;
+  image.set_type(mesos::v1::Image::DOCKER);
+  image.mutable_docker()->set_name("alpine");
+
+  mesos::v1::ContainerInfo* container = taskInfo.mutable_container();
+  container->set_type(mesos::v1::ContainerInfo::MESOS);
+  container->mutable_mesos()->mutable_image()->CopyFrom(image);
+
+  Future<v1::scheduler::Event::Update> startingUpdate;
+  Future<v1::scheduler::Event::Update> runningUpdate;
+  Future<v1::scheduler::Event::Update> finishedUpdate;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(DoAll(
+        FutureArg<1>(&startingUpdate),
+        v1::scheduler::SendAcknowledge(frameworkId, offer.agent_id())))
+    .WillOnce(DoAll(
+        FutureArg<1>(&runningUpdate),
+        v1::scheduler::SendAcknowledge(frameworkId, offer.agent_id())))
+    .WillOnce(DoAll(
+        FutureArg<1>(&finishedUpdate),
+        v1::scheduler::SendAcknowledge(frameworkId, offer.agent_id())));
+
+  mesos.send(
+      v1::createCallAccept(
+          frameworkId,
+          offer,
+          {v1::LAUNCH_GROUP(
+              executorInfo, v1::createTaskGroupInfo({taskInfo}))}));
+
+  AWAIT_READY(startingUpdate);
+  ASSERT_EQ(v1::TASK_STARTING, startingUpdate->status().state());
+  ASSERT_EQ(taskInfo.task_id(), startingUpdate->status().task_id());
+
+  AWAIT_READY(runningUpdate);
+  ASSERT_EQ(v1::TASK_RUNNING, runningUpdate->status().state());
+  ASSERT_EQ(taskInfo.task_id(), runningUpdate->status().task_id());
+
+  AWAIT_READY(finishedUpdate);
+  ASSERT_EQ(v1::TASK_FINISHED, finishedUpdate->status().state());
+  ASSERT_EQ(taskInfo.task_id(), finishedUpdate->status().task_id());
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
