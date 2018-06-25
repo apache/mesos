@@ -31,6 +31,7 @@ set(PROCESS_TESTS_SRC
   mutex_tests.cpp
   owned_tests.cpp
   process_tests.cpp
+  profiler_tests.cpp
   queue_tests.cpp
   rwlock_tests.cpp
   sequence_tests.cpp
