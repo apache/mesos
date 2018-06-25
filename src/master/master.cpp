@@ -7923,18 +7923,19 @@ void Master::_authenticate(
     const UPID& pid,
     const Future<Option<string>>& future)
 {
-  if (!future.isReady() || future.get().isNone()) {
-    const string& error = future.isReady()
-        ? "Refused authentication"
-        : (future.isFailed() ? future.failure() : "future discarded");
-
-    LOG(WARNING) << "Failed to authenticate " << pid
-                 << ": " << error;
-  } else {
-    LOG(INFO) << "Successfully authenticated principal '" << future.get().get()
+  if (future.isReady() && future->isSome()) {
+    LOG(INFO) << "Successfully authenticated principal '" << future->get()
               << "' at " << pid;
 
-    authenticated.put(pid, future.get().get());
+    authenticated.put(pid, future->get());
+  } else if (future.isReady() && future->isNone()) {
+    LOG(INFO) << "Authentication of " << pid << " was unsuccessful:"
+              << " Invalid credentials";
+  } else if (future.isFailed()) {
+    LOG(WARNING) << "An error ocurred while attempting to authenticate " << pid
+                 << ": " << future.failure();
+  } else {
+    LOG(INFO) << "Authentication of " << pid << " was discarded";
   }
 
   CHECK(authenticating.contains(pid));
