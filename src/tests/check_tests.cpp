@@ -1889,47 +1889,22 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
     .WillOnce(FutureArg<1>(&updateCheckResult))
     .WillRepeatedly(Return()); // Ignore subsequent updates.
 
-  // Default executor delegates launching both the task and its check to the
-  // agent. To avoid a race, we explicitly synchronize.
-  Try<std::array<int_fd, 2>> pipes_ = os::pipe();
-  ASSERT_SOME(pipes_);
-
-  const std::array<int_fd, 2>& pipes = pipes_.get();
-
   const string filename = "nested_inherits_work_dir";
 
-  // NOTE: We use a non-shell command here to use 'bash -c' to execute
-  // the 'echo', which deals with the file descriptor, because of a bug
-  // in ubuntu dash. Multi-digit file descriptor is not supported in
-  // ubuntu dash, which executes the shell command.
-  v1::CommandInfo command;
-  command.set_shell(false);
-  command.set_value("/bin/bash");
-  command.add_arguments("bash");
-  command.add_arguments("-c");
-  command.add_arguments(
-      "touch " + filename + ";echo running >&" +
-      stringify(pipes[1]) + ";sleep 1000");
-
-  v1::TaskInfo taskInfo = v1::createTask(agentId, resources, command);
+  v1::TaskInfo taskInfo = v1::createTask(
+      agentId,
+      resources,
+      v1::createCommandInfo(
+          strings::format("touch %s; sleep 1000", filename).get()));
 
   v1::CheckInfo* checkInfo = taskInfo.mutable_check();
   checkInfo->set_type(v1::CheckInfo::COMMAND);
   checkInfo->set_delay_seconds(0);
   checkInfo->set_interval_seconds(0);
 
-  // NOTE: We use a non-shell command here to use 'bash -c' to execute
-  // the 'read', which deals with the file descriptor, because of a bug
-  // in ubuntu dash. Multi-digit file descriptor is not supported in
-  // ubuntu dash, which executes the shell command.
-  v1::CommandInfo* checkCommand =
-    checkInfo->mutable_command()->mutable_command();
-  checkCommand->set_shell(false);
-  checkCommand->set_value("/bin/bash");
-  checkCommand->add_arguments("bash");
-  checkCommand->add_arguments("-c");
-  checkCommand->add_arguments(
-      "read INPUT <&" + stringify(pipes[0]) + ";ls " + filename);
+  // Wait in a busy loop until the file has been created.
+  checkInfo->mutable_command()->mutable_command()->CopyFrom(
+      v1::createCommandInfo("while [ -f " + filename + "]; do :; done"));
 
   v1::TaskGroupInfo taskGroup;
   taskGroup.add_tasks()->CopyFrom(taskInfo);
