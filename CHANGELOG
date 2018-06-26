@@ -35,6 +35,7 @@ Release Notes - Mesos - Version 1.6.1 (WIP)
   * [MESOS-8952] - process::await/collect n^2 performance issue.
   * [MESOS-8963] - Executor crash trying to print container ID.
   * [MESOS-8980] - mesos-slave can deadlock with docker pull.
+  * [MESOS-9025] - The container which joins CNI network and has checkpoint enabled will be mistakenly destroyed by agent.
 
 
 Release Notes - Mesos - Version 1.6.0
