@@ -72,7 +72,6 @@ endif ()
 
 if (ENABLE_GRPC)
   list(APPEND MESOS_TESTS_UTILS_SRC
-    csi_client_tests.cpp
     mock_csi_plugin.cpp)
 endif ()
 
@@ -217,6 +216,11 @@ if (NOT WIN32)
     containerizer/volume_sandbox_path_isolator_tests.cpp)
 endif ()
 
+if (ENABLE_GRPC)
+  list(APPEND MESOS_TESTS_SRC
+    csi_client_tests.cpp)
+endif ()
+
 if (LINUX)
   list(APPEND MESOS_TESTS_SRC
     ldcache_tests.cpp
@@ -242,6 +246,7 @@ if (LINUX)
     containerizer/volume_image_isolator_tests.cpp
     containerizer/volume_secret_isolator_tests.cpp)
 
+  # NOTE: These use the `filesystem/linux` isolator.
   if (ENABLE_GRPC)
     list(APPEND MESOS_TESTS_SRC
       agent_resource_provider_config_api_tests.cpp
