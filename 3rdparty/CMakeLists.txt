@@ -414,14 +414,12 @@ add_library(picojson INTERFACE)
 add_dependencies(picojson ${PICOJSON_TARGET})
 target_include_directories(picojson INTERFACE ${PICOJSON_ROOT})
 
-# Enable the INT64 support for PicoJSON.
 # NOTE: PicoJson requires __STDC_FORMAT_MACROS to be defined before importing
 # 'inttypes.h'.  Since other libraries may also import this header, it must
 # be globally defined so that PicoJSON has access to the macros, regardless
 # of the order of inclusion.
 target_compile_definitions(
   picojson INTERFACE
-  PICOJSON_USE_INT64
   __STDC_FORMAT_MACROS)
 
 ExternalProject_Add(

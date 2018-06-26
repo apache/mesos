@@ -11,5 +11,5 @@ prefix=@prefix@
 exec_prefix=@exec_prefix@
 includedir=@includedir@
 libdir=@libdir@
-Cflags: -I${includedir} -DPICOJSON_USE_INT64 -D__STDC_FORMAT_MACROS @MODULE_CFLAGS@
+Cflags: -I${includedir} -D__STDC_FORMAT_MACROS @MODULE_CFLAGS@
 Libs: -L${libdir} -lmesos @MODULE_LDFLAGS@
