@@ -2504,6 +2504,16 @@ TEST_P(MasterAPITest, SubscribersReceiveHealthUpdates)
   ASSERT_TRUE(taskHealthUpdateObserved)
       << "Health update for task '" << task.task_id()
       << "' has not been received";
+
+  // Kill task before test tear-down to avoid race between scheduler
+  // tear-down and scheduler getting/acknowledging status update.
+  Future<Nothing> killed;
+  EXPECT_CALL(*scheduler, update(_, TaskStatusUpdateStateEq(v1::TASK_KILLED)))
+    .WillOnce(FutureSatisfy(&killed));
+
+  mesos.send(v1::createCallKill(frameworkId, evolve(task.task_id()), agentId));
+
+  AWAIT_READY(killed);
 }
 
 
