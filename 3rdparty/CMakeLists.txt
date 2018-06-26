@@ -640,7 +640,7 @@ if (WIN32)
     URL               ${LIBAPR_URL}
     URL_HASH          ${LIBAPR_HASH})
 else ()
-  find_package(Apr REQUIRED)
+  find_package(APR REQUIRED)
   add_library(apr SHARED IMPORTED)
 
   set_target_properties(
@@ -656,7 +656,7 @@ endif ()
 if (NOT WIN32)
   # NOTE: This does not use `FindSubversion` because it finds the `svn`
   # executable, but we're looking for the library.
-  find_package(Svn REQUIRED)
+  find_package(SVN REQUIRED)
   add_library(svn INTERFACE)
   target_include_directories(svn INTERFACE ${SVN_INCLUDE_DIR})
 
