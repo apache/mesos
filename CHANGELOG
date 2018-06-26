@@ -21,12 +21,20 @@ Additional API Changes:
   * `Isolator::recover` interface has been changed to take an `std::vector`
     instead of `std::list`.
 
-Release Notes - Mesos - Version 1.6.1 (WIP)
+
+Release Notes - Mesos - Version 1.6.2 (WIP)
+-------------------------------------------
+* This is a bug fix release.
+
+
+Release Notes - Mesos - Version 1.6.1
 -------------------------------------------
 * This is a bug fix release.
 
 ** Bug
+  * [MESOS-8106] - Docker fetcher plugin unsupported scheme failure message is not accurate.
   * [MESOS-8786] - CgroupIsolatorProcess accesses subsystem processes directly.
+  * [MESOS-8871] - Agent may fail to recover if the agent dies before image store cache checkpointed.
   * [MESOS-8904] - Master crash when removing quota.
   * [MESOS-8906] - `UriDiskProfileAdaptor` fails to update profile selectors.
   * [MESOS-8942] - Master streaming API does not send (health) check updates for tasks.
@@ -37,6 +45,9 @@ Release Notes - Mesos - Version 1.6.1 (WIP)
   * [MESOS-8980] - mesos-slave can deadlock with docker pull.
   * [MESOS-9002] - GCC 8.1 build failure in os::Fork::Tree.
   * [MESOS-9025] - The container which joins CNI network and has checkpoint enabled will be mistakenly destroyed by agent.
+
+** Improvement
+  * [MESOS-8934] - Update python.m4 to support Python 3.
 
 
 Release Notes - Mesos - Version 1.6.0
