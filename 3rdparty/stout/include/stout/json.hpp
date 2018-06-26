@@ -19,6 +19,10 @@
 // libraries may import <inttypes.h> before we import <picojson.h>.
 // Hence, we undefine the flag here to prevent the redefinition error.
 #undef __STDC_FORMAT_MACROS
+// We also need to define `PICOJSON_USE_INT64`, since we're
+// unconditionally using the `picojson::value::get<uint64_t>()` and
+// `picojson::value::is<uint64_t>()` functions below.
+#define PICOJSON_USE_INT64
 #include <picojson.h>
 #define __STDC_FORMAT_MACROS
 
