@@ -84,6 +84,28 @@ option(
   "Use libevent instead of libev as the core event loop implementation."
   FALSE)
 
+if (ENABLE_LIBEVENT)
+  # TODO(tillt): Consider adding Ubuntu 17 to this check. See MESOS-7076.
+  if (NOT APPLE)
+    set(DEFAULT_UNBUNDLED_LIBEVENT FALSE)
+  else ()
+    set(DEFAULT_UNBUNDLED_LIBEVENT TRUE)
+  endif ()
+
+  option(
+    UNBUNDLED_LIBEVENT
+    "Build libprocess with an installed libevent version instead of the bundled."
+    ${DEFAULT_UNBUNDLED_LIBEVENT})
+
+  if (UNBUNDLED_LIBEVENT)
+    set(
+      LIBEVENT_ROOT_DIR
+      ""
+      CACHE STRING
+      "Specify the path to libevent, e.g. \"C:\\libevent-Win64\".")
+  endif()
+endif()
+
 option(
   ENABLE_SSL
   "Build libprocess with SSL support."

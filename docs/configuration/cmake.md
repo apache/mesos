@@ -108,6 +108,24 @@ See more information in the [CMake documentation](../cmake.md).
   </tr>
   <tr>
     <td>
+      -DUNBUNDLED_LIBEVENT=(TRUE|FALSE)
+    </td>
+    <td>
+      Build libprocess with an installed libevent version instead of the bundled.
+      [default=TRUE for macOS, FALSE otherwise]
+    </td>
+  </tr>
+  <tr>
+    <td>
+      -DLIBEVENT_ROOT_DIR=[path]
+    </td>
+    <td>
+      Specify the path to libevent, e.g. "C:\libevent-Win64".
+      [default=unspecified]
+    </td>
+  </tr>
+  <tr>
+    <td>
       -DENABLE_SSL=(TRUE|FALSE)
     </td>
     <td>
