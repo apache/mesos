@@ -26,6 +26,7 @@
 namespace process {
 namespace io {
 
+#ifndef ENABLE_LIBWINIO
 /**
  * A possible event while polling.
  *
@@ -37,6 +38,7 @@ const short READ = 0x01;
  * @copydoc process::io::READ
  */
 const short WRITE = 0x02;
+#endif // ENABLE_LIBWINIO
 
 /**
  * Buffered read chunk size.
@@ -69,6 +71,8 @@ Try<Nothing> prepare_async(int_fd fd);
  */
 Try<bool> is_async(int_fd fd);
 
+
+#ifndef ENABLE_LIBWINIO
 /**
  * Returns the events (a subset of the events specified) that can be
  * performed on the specified file descriptor without blocking.
@@ -78,6 +82,7 @@ Try<bool> is_async(int_fd fd);
  */
 // TODO(benh): Add a version which takes multiple file descriptors.
 Future<short> poll(int_fd fd, short events);
+#endif // ENABLE_LIBWINIO
 
 
 /**

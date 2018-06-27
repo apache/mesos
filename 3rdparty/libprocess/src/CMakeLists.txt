@@ -40,8 +40,6 @@ set(PROCESS_SRC
   metrics/metrics.cpp
   mime.cpp
   pid.cpp
-  posix/io.cpp
-  posix/poll_socket.cpp
   process.cpp
   profiler.cpp
   reap.cpp
@@ -52,8 +50,7 @@ set(PROCESS_SRC
 
 if (WIN32)
   list(APPEND PROCESS_SRC
-    windows/subprocess.cpp
-    windows/libwinio.cpp) # TEMPORARY
+    windows/subprocess.cpp)
 else ()
   list(APPEND PROCESS_SRC
     posix/subprocess.cpp)
@@ -68,10 +65,24 @@ if (ENABLE_LIBEVENT)
   list(APPEND PROCESS_SRC
     posix/libevent/libevent.cpp
     posix/libevent/libevent_poll.cpp)
+elseif (ENABLE_LIBWINIO)
+  list(APPEND PROCESS_SRC
+    windows/event_loop.cpp
+    windows/libwinio.cpp)
 else ()
   list(APPEND PROCESS_SRC
     posix/libev/libev.cpp
     posix/libev/libev_poll.cpp)
+endif ()
+
+if (ENABLE_LIBWINIO)
+  list(APPEND PROCESS_SRC
+    windows/io.cpp
+    windows/poll_socket.cpp)
+else ()
+  list(APPEND PROCESS_SRC
+    posix/io.cpp
+    posix/poll_socket.cpp)
 endif ()
 
 if (ENABLE_SSL)
@@ -100,10 +111,11 @@ target_link_libraries(
 target_link_libraries(
   process PRIVATE
   concurrentqueue
-  $<IF:$<BOOL:${ENABLE_LIBEVENT}>,libevent,libev>)
+  $<IF:$<BOOL:${ENABLE_LIBEVENT}>,libevent,$<$<NOT:$<PLATFORM_ID:Windows>>:libev>>)
 
 target_compile_definitions(
   process PRIVATE
+  $<$<BOOL:${ENABLE_LIBWINIO}>:ENABLE_LIBWINIO>
   $<$<BOOL:${ENABLE_LOCK_FREE_RUN_QUEUE}>:LOCK_FREE_RUN_QUEUE>
   $<$<BOOL:${ENABLE_LOCK_FREE_EVENT_QUEUE}>:LOCK_FREE_EVENT_QUEUE>
   $<$<BOOL:${ENABLE_LAST_IN_FIRST_OUT_FIXED_SIZE_SEMAPHORE}>:LAST_IN_FIRST_OUT_FIXED_SIZE_SEMAPHORE>)
