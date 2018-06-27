@@ -624,8 +624,8 @@ either be a Docker registry server url (i.e: <code>https://registry.docker.io</c
 or a source that Docker image archives (result of <code>docker save</code>) are
 stored. The Docker archive source could be specified either as a local
 path (i.e: <code>/tmp/docker/images</code>), or as an HDFS URI
-(i.e: <code>hdfs://localhost:8020/archives/</code>) that this option won't change
-the default registry server for Docker containerizer.
+(i.e: <code>hdfs://localhost:8020/archives/</code>). Note that this option won't
+change the default registry server for Docker containerizer.
 (default: https://registry-1.docker.io)
   </td>
 </tr>
