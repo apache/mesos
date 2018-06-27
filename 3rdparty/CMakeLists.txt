@@ -571,7 +571,7 @@ if (ENABLE_LIBEVENT)
       target_link_libraries(libevent INTERFACE ${LIBEVENT_LIB})
     endforeach ()
   endif ()
-else ()
+elseif (NOT ENABLE_LIBWINIO)
   # libev: Full-featured high-performance event loop.
   # https://github.com/enki/libev
   ###################################################
