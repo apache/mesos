@@ -153,7 +153,15 @@ public:
 
   operator HANDLE() const
   {
-    CHECK_EQ(Type::HANDLE, type());
+    // A `SOCKET` can be treated as a regular file `HANDLE` [1]. There are
+    // many Win32 functions that work on a `SOCKET` but have the `HANDLE`
+    // type as a function parameter like `CreateIoCompletionPort`, so we need
+    // to be able to cast a `SOCKET` based `int_fd` to a `HANDLE`.
+    //
+    // [1]: https://msdn.microsoft.com/en-us/library/windows/desktop/ms740522(v=vs.85).aspx // NOLINT(whitespace/line_length)
+    if (type() == Type::SOCKET) {
+      return reinterpret_cast<HANDLE>(socket_);
+    }
     return handle_;
   }
 
