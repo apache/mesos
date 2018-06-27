@@ -17,12 +17,14 @@
 #include <io.h> // For `_open_osfhandle`.
 
 #include <array>
+#include <atomic>
 #include <memory>
 #include <ostream>
 #include <type_traits>
 
 #include <stout/check.hpp>
 #include <stout/nothing.hpp>
+#include <stout/synchronized.hpp>
 #include <stout/try.hpp>
 #include <stout/unreachable.hpp>
 #include <stout/windows.hpp> // For `WinSock2.h`.
@@ -69,7 +71,10 @@ public:
       std::is_same<HANDLE, void*>::value,
       "Expected `HANDLE` to be of type `void*`.");
   explicit WindowsFD(HANDLE handle, bool overlapped = false)
-    : type_(Type::HANDLE), handle_(handle), overlapped_(overlapped)
+    : type_(Type::HANDLE),
+      handle_(handle),
+      overlapped_(overlapped),
+      iocp_(std::make_shared<IOCPData>())
   {}
 
   // The `SOCKET` here is expected to be Windows sockets, such as that
@@ -83,7 +88,10 @@ public:
       std::is_same<SOCKET, unsigned __int64>::value,
       "Expected `SOCKET` to be of type `unsigned __int64`.");
   explicit WindowsFD(SOCKET socket, bool overlapped = true)
-    : type_(Type::SOCKET), socket_(socket), overlapped_(overlapped)
+    : type_(Type::SOCKET),
+      socket_(socket),
+      overlapped_(overlapped),
+      iocp_(std::make_shared<IOCPData>())
   {}
 
   // On Windows, libevent's `evutil_socket_t` is set to `intptr_t`.
@@ -182,6 +190,49 @@ public:
 
   bool is_overlapped() const { return overlapped_; }
 
+  // Assigns this `WindowsFD` to an IOCP. Returns `nullptr` is this is
+  // the first time that `this` was assigned to an IOCP. If `this` was
+  // already assigned, then this function no-ops and returns the
+  // assigned IOCP `HANDLE`. We have this function because
+  // `CreateIoCompletionPort` returns an error if a `HANDLE` gets
+  // assigned to an IOCP `HANDLE` twice, but provides no way to check
+  // for that error.
+  //
+  // NOTE: The `key` parameter is `CompletionKey` in
+  // `CreateIoCompletionPort`. As stated by the MSDN docs, this key is
+  // the "per-handle user-defined completion key that is included in
+  // every I/O completion packet for the specified file handle" [1],
+  // and thus, it's only used for bookkeeping by the user and not used
+  // for functional control in `CreateIoCompletionPort`.
+  //
+  // [1]: https://msdn.microsoft.com/en-us/library/windows/desktop/aa363862(v=vs.85).aspx // NOLINT(whitespace/line_length)
+  Try<HANDLE> assign_iocp(HANDLE target, ULONG_PTR key) const
+  {
+    synchronized (iocp_->lock) {
+      const HANDLE prev_handle = iocp_->handle;
+      if (prev_handle == nullptr) {
+        const HANDLE fd_handle =
+          type() == Type::SOCKET ? reinterpret_cast<HANDLE>(socket_) : handle_;
+
+        // Confusing name, but `::CreateIoCompletionPort` can also
+        // assign a `HANDLE` to an IO completion port.
+        if (::CreateIoCompletionPort(fd_handle, target, key, 0) == nullptr) {
+          return WindowsError();
+        }
+
+        iocp_->handle = target;
+      }
+      return prev_handle;
+    }
+  }
+
+  HANDLE get_iocp() const
+  {
+    synchronized (iocp_->lock) {
+      return iocp_->handle;
+    }
+  }
+
 private:
   Type type_;
 
@@ -192,6 +243,18 @@ private:
   };
 
   bool overlapped_;
+
+  // There can be many `int_fd` copies of the same `HANDLE` and many `HANDLE`
+  // can reference the same kernel `FILE_OBJECT`. Since the IOCP affects the
+  // underlying `FILE_OBJECT`, we keep a pointer to the IOCP handle so we can
+  // update it for all int_fds that refer to the same `FILE_OBJECT`.
+  struct IOCPData
+  {
+    std::atomic_flag lock = ATOMIC_FLAG_INIT;
+    HANDLE handle = nullptr;
+  };
+
+  std::shared_ptr<IOCPData> iocp_;
 
   // NOTE: This function is provided only for checking validity, thus
   // it is private. It provides a view of a `WindowsFD` as an `int`.
@@ -224,6 +287,11 @@ private:
   friend bool operator==(const WindowsFD& left, int right);
   friend bool operator!=(int left, const WindowsFD& right);
   friend bool operator!=(const WindowsFD& left, int right);
+
+  // `os::dup` needs to modify a `WindowsFD`'s private state, because
+  // when we want to `os::dup` a `WindowsFD`, we need to copy the IOCP
+  // handle and the overlapped state, but NOT the handle value itself.
+  friend Try<WindowsFD> dup(const WindowsFD& fd);
 };
 
 
