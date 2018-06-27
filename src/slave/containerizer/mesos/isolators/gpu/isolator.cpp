@@ -102,19 +102,44 @@ Try<Isolator*> NvidiaGpuIsolatorProcess::create(
     const Flags& flags,
     const NvidiaComponents& components)
 {
-  // Make sure both the 'cgroups/devices' isolator and the
-  // 'filesystem/linux' isolators are present and precede the GPU
-  // isolator.
+  // Make sure both the 'cgroups/devices' (or 'cgroups/all') isolator and the
+  // 'filesystem/linux' isolators are present and precede the GPU isolator.
   vector<string> tokens = strings::tokenize(flags.isolation, ",");
 
   auto gpuIsolator =
     std::find(tokens.begin(), tokens.end(), "gpu/nvidia");
+
   auto devicesIsolator =
     std::find(tokens.begin(), tokens.end(), "cgroups/devices");
+
+  auto cgroupsAllIsolator =
+    std::find(tokens.begin(), tokens.end(), "cgroups/all");
+
   auto filesystemIsolator =
     std::find(tokens.begin(), tokens.end(), "filesystem/linux");
 
   CHECK(gpuIsolator != tokens.end());
+
+  if (cgroupsAllIsolator != tokens.end()) {
+    // The reason that we need to check if `devices` cgroups subsystem is
+    // enabled is, when `cgroups/all` is specified in the `--isolation` agent
+    // flag, cgroups isolator will only load the enabled subsystems. So if
+    // `cgroups/all` is specified but `devices` is not enabled, cgroups isolator
+    // will not load `devices` subsystem in which case we should error out.
+    Try<bool> result = cgroups::enabled("devices");
+    if (result.isError()) {
+      return Error(
+          "Failed to check if the `devices` cgroups subsystem"
+          " is enabled by kernel: " + result.error());
+    } else if (!result.get()) {
+      return Error(
+          "The `devices` cgroups subsystem is not enabled by the kernel");
+    }
+
+    if (devicesIsolator > cgroupsAllIsolator) {
+      devicesIsolator = cgroupsAllIsolator;
+    }
+  }
 
   if (devicesIsolator == tokens.end()) {
     return Error("The 'cgroups/devices' isolator must be enabled in"
@@ -127,7 +152,7 @@ Try<Isolator*> NvidiaGpuIsolatorProcess::create(
   }
 
   if (devicesIsolator > gpuIsolator) {
-    return Error("'cgroups/devices' must precede 'gpu/nvidia'"
+    return Error("'cgroups/devices' or 'cgroups/all' must precede 'gpu/nvidia'"
                  " in the --isolation flag");
   }
 
