@@ -711,10 +711,10 @@ Future<Try<tuple<size_t, string>, FilesError>> FilesProcess::_read(
     return FilesError(FilesError::Type::UNKNOWN, error);
   }
 
-  Try<Nothing> nonblock = os::nonblock(fd.get());
-  if (nonblock.isError()) {
+  Try<Nothing> async = io::prepare_async(fd.get());
+  if (async.isError()) {
     string error =
-        "Failed to set file descriptor nonblocking: " + nonblock.error();
+        "Failed to make file descriptor asynchronous: " + async.error();
     LOG(WARNING) << error;
     os::close(fd.get());
     return FilesError(FilesError::Type::UNKNOWN, error);
