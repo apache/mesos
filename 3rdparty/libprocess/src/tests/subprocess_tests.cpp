@@ -465,10 +465,10 @@ TEST_F(SubprocessTest, PipeRedirect)
       S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
   ASSERT_SOME(fd);
-  ASSERT_SOME(os::nonblock(fd.get()));
+  ASSERT_SOME(io::prepare_async(fd.get()));
 
   ASSERT_SOME(s->out());
-  ASSERT_SOME(os::nonblock(s->out().get()));
+  ASSERT_SOME(io::prepare_async(s->out().get()));
   AWAIT_READY(io::redirect(s->out().get(), fd.get()));
 
   // Close our copy of the fd.

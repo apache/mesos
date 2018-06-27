@@ -15,6 +15,7 @@
 
 #include <boost/shared_array.hpp>
 
+#include <process/io.hpp>
 #include <process/loop.hpp>
 #include <process/network.hpp>
 #include <process/owned.hpp>
@@ -79,10 +80,10 @@ Try<std::shared_ptr<SocketImpl>> SocketImpl::create(
     return Error("Failed to create socket: " + s.error());
   }
 
-  Try<Nothing> nonblock = os::nonblock(s.get());
-  if (nonblock.isError()) {
+  Try<Nothing> async = io::prepare_async(s.get());
+  if (async.isError()) {
     os::close(s.get());
-    return Error("Failed to create socket, nonblock: " + nonblock.error());
+    return Error("Failed to create socket, prepare_async: " + async.error());
   }
 
   Try<Nothing> cloexec = os::cloexec(s.get());

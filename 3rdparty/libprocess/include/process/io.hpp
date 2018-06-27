@@ -46,6 +46,30 @@ const short WRITE = 0x02;
 const size_t BUFFERED_READ_SIZE = 16*4096;
 
 /**
+ * Prepares a file descriptor to be ready for asynchronous IO. On POSIX
+ * systems, this sets the file descriptor to non-blocking. On Windows, this
+ * will assign the file descriptor to an IO completion port.
+ *
+ * NOTE: Because the IO completion port is only known at the libprocess level,
+ * we need this function instead of simply using stout's `os::nonblock` and
+ * `os::isNonblock` functions like we could do for POSIX systems.
+ *
+ * @return On success, returns Nothing. On error, returns an Error.
+ */
+Try<Nothing> prepare_async(int_fd fd);
+
+
+/**
+ * Checks if `io::prepare_async` has been called on the file descriptor.
+ *
+ * @return Returns if the file descriptor is asynchronous. An asynchronous
+ *     file descriptor is defined to be non-blocking on POSIX systems and
+ *     overlapped and associated with an IO completion port on Windows.
+ *     An error will be returned if the file descriptor is invalid.
+ */
+Try<bool> is_async(int_fd fd);
+
+/**
  * Returns the events (a subset of the events specified) that can be
  * performed on the specified file descriptor without blocking.
  *
@@ -58,7 +82,8 @@ Future<short> poll(int_fd fd, short events);
 
 /**
  * Performs a single non-blocking read by polling on the specified
- * file descriptor until any data can be be read.
+ * file descriptor until any data can be be read. `io::prepare_async`
+ * needs to be called beforehand.
  *
  * The future will become ready when some data is read (may be less than
  * the specified size).
@@ -85,7 +110,8 @@ Future<std::string> read(int_fd fd);
 
 /**
  * Performs a single non-blocking write by polling on the specified
- * file descriptor until data can be be written.
+ * file descriptor until data can be be written. `io::prepare_async`
+ * needs to be called beforehand.
  *
  * The future will become ready when some data is written (may be less than
  * the specified size of the data).
