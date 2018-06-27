@@ -380,7 +380,9 @@ TEST_F(SubprocessTest, PipeLargeOutput)
   ::SetLastError(0);
 #endif // __WINDOWS__
 
-  AWAIT_EXPECT_EQ(output, io::read(s->out().get()));
+  // Read 1 more than the input size, so we can trigger the EOF error
+  // on Windows.
+  EXPECT_SOME_EQ(output, os::read(s->out().get(), 1 + output.size()));
 
 #ifdef __WINDOWS__
   // NOTE: On Windows, this is the end-of-file condition when reading
