@@ -47,9 +47,9 @@
 #include <stout/os/signals.hpp>
 
 #ifdef __WINDOWS__
-#include "subprocess_windows.hpp"
+#include "windows/subprocess.hpp"
 #else
-#include "subprocess_posix.hpp"
+#include "posix/subprocess.hpp"
 #endif // __WINDOWS__
 
 using std::map;

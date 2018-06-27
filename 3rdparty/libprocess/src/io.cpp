@@ -30,120 +30,23 @@
 #include <stout/os/strerror.hpp>
 #include <stout/os/write.hpp>
 
+#include "io_internal.hpp"
+
 using std::string;
 using std::vector;
 
 namespace process {
 namespace io {
-namespace internal {
-
-Future<size_t> read(int_fd fd, void* data, size_t size)
-{
-  // TODO(benh): Let the system calls do what ever they're supposed to
-  // rather than return 0 here?
-  if (size == 0) {
-    return 0;
-  }
-
-  return loop(
-      None(),
-      [=]() -> Future<Option<size_t>> {
-        // Because the file descriptor is non-blocking, we call
-        // read()/recv() immediately. If no data is available than
-        // we'll call `poll` and block. We also observed that for some
-        // combination of libev and Linux kernel versions, the poll
-        // would block for non-deterministically long periods of
-        // time. This may be fixed in a newer version of libev (we use
-        // 3.8 at the time of writing this comment).
-        ssize_t length = os::read(fd, data, size);
-        if (length < 0) {
-#ifdef __WINDOWS__
-          WindowsSocketError error;
-#else
-          ErrnoError error;
-#endif // __WINDOWS__
-
-          if (!net::is_restartable_error(error.code) &&
-              !net::is_retryable_error(error.code)) {
-            return Failure(error.message);
-          }
-
-          return None();
-        }
-
-        return length;
-      },
-      [=](const Option<size_t>& length) -> Future<ControlFlow<size_t>> {
-        // Restart/retry if we don't yet have a result.
-        if (length.isNone()) {
-          return io::poll(fd, io::READ)
-            .then([](short event) -> ControlFlow<size_t> {
-              CHECK_EQ(io::READ, event);
-              return Continue();
-            });
-        }
-        return Break(length.get());
-      });
-}
-
-
-Future<size_t> write(int_fd fd, const void* data, size_t size)
-{
-  // TODO(benh): Let the system calls do what ever they're supposed to
-  // rather than return 0 here?
-  if (size == 0) {
-    return 0;
-  }
-
-  return loop(
-      None(),
-      [=]() -> Future<Option<size_t>> {
-        ssize_t length = os::write(fd, data, size);
-
-        if (length < 0) {
-#ifdef __WINDOWS__
-          WindowsSocketError error;
-#else
-          ErrnoError error;
-#endif // __WINDOWS__
-
-          if (!net::is_restartable_error(error.code) &&
-              !net::is_retryable_error(error.code)) {
-            return Failure(error.message);
-          }
-
-          return None();
-        }
-
-        return length;
-      },
-      [=](const Option<size_t>& length) -> Future<ControlFlow<size_t>> {
-        // Restart/retry if we don't yet have a result.
-        if (length.isNone()) {
-          return io::poll(fd, io::WRITE)
-            .then([](short event) -> ControlFlow<size_t> {
-              CHECK_EQ(io::WRITE, event);
-              return Continue();
-            });
-        }
-        return Break(length.get());
-      });
-}
-
-} // namespace internal {
-
 
 Try<Nothing> prepare_async(int_fd fd)
 {
-  // TODO(akagup): Add windows iocp.
-  return os::nonblock(fd);
+  return internal::prepare_async(fd);
 }
 
 
 Try<bool> is_async(int_fd fd)
 {
-  // TODO(akagup): Add windows iocp.
-  return os::isNonblock(fd);
+  return internal::is_async(fd);
 }
 
 

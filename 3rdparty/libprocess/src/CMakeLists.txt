@@ -40,7 +40,8 @@ set(PROCESS_SRC
   metrics/metrics.cpp
   mime.cpp
   pid.cpp
-  poll_socket.cpp
+  posix/io.cpp
+  posix/poll_socket.cpp
   process.cpp
   profiler.cpp
   reap.cpp
@@ -48,12 +49,13 @@ set(PROCESS_SRC
   subprocess.cpp
   time.cpp)
 
+
 if (WIN32)
   list(APPEND PROCESS_SRC
-    subprocess_windows.cpp)
+    windows/subprocess.cpp)
 else ()
   list(APPEND PROCESS_SRC
-    subprocess_posix.cpp)
+    posix/subprocess.cpp)
 endif ()
 
 if (ENABLE_GRPC)
@@ -63,12 +65,12 @@ endif ()
 
 if (ENABLE_LIBEVENT)
   list(APPEND PROCESS_SRC
-    libevent.cpp
-    libevent_poll.cpp)
+    posix/libevent/libevent.cpp
+    posix/libevent/libevent_poll.cpp)
 else ()
   list(APPEND PROCESS_SRC
-    libev.cpp
-    libev_poll.cpp)
+    posix/libev/libev.cpp
+    posix/libev/libev_poll.cpp)
 endif ()
 
 if (ENABLE_SSL)
@@ -80,7 +82,7 @@ if (ENABLE_SSL)
 
   if (ENABLE_LIBEVENT)
     list(APPEND PROCESS_SRC
-      libevent_ssl_socket.cpp)
+      posix/libevent/libevent_ssl_socket.cpp)
   endif ()
 endif ()
 

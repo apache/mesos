@@ -27,7 +27,7 @@
 #include <stout/unreachable.hpp>
 
 #ifdef USE_SSL_SOCKET
-#include "libevent_ssl_socket.hpp"
+#include "posix/libevent/libevent_ssl_socket.hpp"
 #endif
 #include "poll_socket.hpp"
 

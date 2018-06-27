@@ -31,7 +31,7 @@ endif
 
 ACLOCAL_AMFLAGS = -I m4
 
-AUTOMAKE_OPTIONS = foreign
+AUTOMAKE_OPTIONS = foreign subdir-objects
 LIBPROCESS_BUILD_DIR=@abs_builddir@
 
 if STANDALONE_LIBPROCESS
@@ -204,6 +204,7 @@ libprocess_la_SOURCES =		\
   src/http_proxy.cpp		\
   src/http_proxy.hpp		\
   src/io.cpp			\
+  src/io_internal.hpp		\
   src/latch.cpp			\
   src/logging.cpp		\
   src/memory_profiler.cpp	\
@@ -211,7 +212,10 @@ libprocess_la_SOURCES =		\
   src/metrics/metrics.cpp	\
   src/mime.cpp			\
   src/pid.cpp			\
-  src/poll_socket.cpp		\
+  src/posix/io.cpp		\
+  src/posix/poll_socket.cpp	\
+  src/posix/subprocess.cpp	\
+  src/posix/subprocess.hpp	\
   src/poll_socket.hpp		\
   src/process.cpp		\
   src/process_reference.hpp	\
@@ -222,18 +226,16 @@ libprocess_la_SOURCES =		\
   src/socket.cpp		\
   src/socket_manager.hpp	\
   src/subprocess.cpp		\
-  src/subprocess_posix.cpp	\
-  src/subprocess_posix.hpp	\
   src/time.cpp
 
 if ENABLE_SSL
-libprocess_la_SOURCES +=	\
-  src/jwt.cpp			\
-  src/jwt_authenticator.cpp	\
-  src/libevent_ssl_socket.cpp	\
-  src/libevent_ssl_socket.hpp	\
-  src/openssl.cpp		\
-  src/openssl.hpp		\
+libprocess_la_SOURCES +=			\
+  src/jwt.cpp					\
+  src/jwt_authenticator.cpp			\
+  src/posix/libevent/libevent_ssl_socket.cpp	\
+  src/posix/libevent/libevent_ssl_socket.hpp	\
+  src/openssl.cpp				\
+  src/openssl.hpp				\
   src/ssl/utilities.cpp
 endif
 
@@ -241,6 +243,7 @@ endif
 libprocess_la_CPPFLAGS =			\
   -DBUILD_DIR=\"$(LIBPROCESS_BUILD_DIR)\"	\
   -I$(srcdir)/include				\
+  -I$(srcdir)/src				\
   $(BOOST_INCLUDE_FLAGS)			\
   $(CONCURRENTQUEUE_INCLUDE_FLAGS)		\
   $(ELFIO_INCLUDE_FLAGS)			\
@@ -260,15 +263,15 @@ libprocess_la_SOURCES +=	\
 endif
 
 if ENABLE_LIBEVENT
-libprocess_la_SOURCES +=	\
-  src/libevent.hpp		\
-  src/libevent.cpp		\
-  src/libevent_poll.cpp
+libprocess_la_SOURCES +=			\
+  src/posix/libevent/libevent.hpp		\
+  src/posix/libevent/libevent.cpp		\
+  src/posix/libevent/libevent_poll.cpp
 else
-libprocess_la_SOURCES +=	\
-  src/libev.hpp			\
-  src/libev.cpp			\
-  src/libev_poll.cpp
+libprocess_la_SOURCES +=			\
+  src/posix/libev/libev.hpp			\
+  src/posix/libev/libev.cpp			\
+  src/posix/libev/libev_poll.cpp
 endif
 
 if ENABLE_STATIC_LIBPROCESS
