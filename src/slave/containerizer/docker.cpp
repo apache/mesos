@@ -33,6 +33,10 @@
 #include <process/reap.hpp>
 #include <process/subprocess.hpp>
 
+#ifdef __WINDOWS__
+#include <process/windows/jobobject.hpp>
+#endif // __WINDOWS__
+
 #include <stout/adaptor.hpp>
 #include <stout/fs.hpp>
 #include <stout/hashmap.hpp>
@@ -45,6 +49,10 @@
 
 #include <stout/os/killtree.hpp>
 #include <stout/os/which.hpp>
+
+#ifdef __WINDOWS__
+#include <stout/os/windows/jobobject.hpp>
+#endif // __WINDOWS__
 
 #include "common/status_utils.hpp"
 
@@ -1588,6 +1596,13 @@ Future<pid_t> DockerContainerizerProcess::launchExecutorProcess(
       parentHooks.emplace_back(Subprocess::ParentHook(
           &systemd::mesos::extendLifetime));
     }
+#elif __WINDOWS__
+    parentHooks.emplace_back(Subprocess::ParentHook::CREATE_JOB());
+    // Setting the "kill on close" job object limit ties the lifetime of the
+    // docker processes to that of the executor. This ensures that if the
+    // executor exits, the docker processes aren't leaked.
+    parentHooks.emplace_back(Subprocess::ParentHook(
+        [](pid_t pid) { return os::set_job_kill_on_close_limit(pid); }));
 #endif // __linux__
 
     // Prepare the flags to pass to the mesos docker executor process.

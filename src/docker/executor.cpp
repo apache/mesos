@@ -39,8 +39,15 @@
 #include <stout/os.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/try.hpp>
+#ifdef __WINDOWS__
+#include <stout/windows.hpp>
+#endif // __WINDOWS__
 
 #include <stout/os/killtree.hpp>
+
+#ifdef __WINDOWS__
+#include <stout/os/windows/jobobject.hpp>
+#endif // __WINDOWS__
 
 #include "checks/checks_runtime.hpp"
 #include "checks/health_checker.hpp"
@@ -967,6 +974,31 @@ private:
 int main(int argc, char** argv)
 {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
+
+#ifdef __WINDOWS__
+  // We need a handle to the job object which this container is associated with.
+  // Without this handle, the job object would be destroyed by the OS when the
+  // agent exits (or crashes), making recovery impossible. By holding a handle,
+  // we tie the lifetime of the job object to the container itself. In this way,
+  // a recovering agent can reattach to the container by opening a new handle to
+  // the job object.
+  const pid_t pid = ::GetCurrentProcessId();
+  const Try<std::wstring> name = os::name_job(pid);
+  if (name.isError()) {
+    cerr << "Failed to create job object name from pid: " << name.error()
+         << endl;
+    return EXIT_FAILURE;
+  }
+
+  // NOTE: This handle will not be destructed, even though it is a
+  // `SharedHandle`, because it will (purposefully) never go out of scope.
+  Try<SharedHandle> handle = os::open_job(JOB_OBJECT_QUERY, false, name.get());
+  if (handle.isError()) {
+    cerr << "Failed to open job object '" << stringify(name.get())
+         << "' for the current container: " << handle.error() << endl;
+    return EXIT_FAILURE;
+  }
+#endif // __WINDOWS__
 
   mesos::internal::docker::Flags flags;
 

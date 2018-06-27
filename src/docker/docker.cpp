@@ -34,9 +34,17 @@
 #include <stout/os/read.hpp>
 #include <stout/os/write.hpp>
 
+#ifdef __WINDOWS__
+#include <stout/os/windows/jobobject.hpp>
+#endif // __WINDOWS__
+
 #include <process/check.hpp>
 #include <process/collect.hpp>
 #include <process/io.hpp>
+
+#ifdef __WINDOWS__
+#include <process/windows/jobobject.hpp>
+#endif // __WINDOWS__
 
 #include "common/status_utils.hpp"
 
@@ -159,6 +167,19 @@ void commandDiscarded(const Subprocess& s, const string& cmd)
 }
 
 
+vector<Subprocess::ParentHook> createParentHooks()
+{
+  return {
+#ifdef __WINDOWS__
+  // To correctly discard the docker cli process tree in `commandDiscarded`,
+  // we need to wrap the process in a job object.
+  Subprocess::ParentHook::CREATE_JOB(),
+  Subprocess::ParentHook(&os::set_job_kill_on_close_limit),
+#endif // __WINDOWS__
+  };
+}
+
+
 Future<Version> Docker::version() const
 {
   string cmd = path + " -H " + socket + " --version";
@@ -167,7 +188,10 @@ Future<Version> Docker::version() const
       cmd,
       Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
-      Subprocess::PIPE());
+      Subprocess::PIPE(),
+      None(),
+      None(),
+      createParentHooks());
 
   if (s.isError()) {
     return Failure("Failed to create subprocess '" + cmd + "': " + s.error());
@@ -1143,7 +1167,10 @@ Future<Option<int>> Docker::run(
       Subprocess::PATH(os::DEV_NULL),
       _stdout,
       _stderr,
-      nullptr);
+      nullptr,
+      None(),
+      None(),
+      createParentHooks());
 
   if (s.isError()) {
     return Failure("Failed to create subprocess '" + path + "': " + s.error());
@@ -1186,7 +1213,10 @@ Future<Nothing> Docker::stop(
       cmd,
       Subprocess::PATH(os::DEV_NULL),
       Subprocess::PATH(os::DEV_NULL),
-      Subprocess::PIPE());
+      Subprocess::PIPE(),
+      None(),
+      None(),
+      createParentHooks());
 
   if (s.isError()) {
     return Failure("Failed to create subprocess '" + cmd + "': " + s.error());
@@ -1241,7 +1271,10 @@ Future<Nothing> Docker::kill(
       cmd,
       Subprocess::PATH(os::DEV_NULL),
       Subprocess::PATH(os::DEV_NULL),
-      Subprocess::PIPE());
+      Subprocess::PIPE(),
+      None(),
+      None(),
+      createParentHooks());
 
   if (s.isError()) {
     return Failure("Failed to create subprocess '" + cmd + "': " + s.error());
@@ -1266,7 +1299,10 @@ Future<Nothing> Docker::rm(
       cmd,
       Subprocess::PATH(os::DEV_NULL),
       Subprocess::PATH(os::DEV_NULL),
-      Subprocess::PIPE());
+      Subprocess::PIPE(),
+      None(),
+      None(),
+      createParentHooks());
 
   if (s.isError()) {
     return Failure("Failed to create subprocess '" + cmd + "': " + s.error());
@@ -1314,7 +1350,10 @@ void Docker::_inspect(
       cmd,
       Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
-      Subprocess::PIPE());
+      Subprocess::PIPE(),
+      None(),
+      None(),
+      createParentHooks());
 
   if (s.isError()) {
     promise->fail("Failed to create subprocess '" + cmd + "': " + s.error());
@@ -1451,7 +1490,10 @@ Future<vector<Docker::Container>> Docker::ps(
       cmd,
       Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
-      Subprocess::PIPE());
+      Subprocess::PIPE(),
+      None(),
+      None(),
+      createParentHooks());
 
   if (s.isError()) {
     return Failure("Failed to create subprocess '" + cmd + "': " + s.error());
@@ -1622,7 +1664,10 @@ Future<Docker::Image> Docker::pull(
       Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE(),
-      nullptr);
+      nullptr,
+      None(),
+      None(),
+      createParentHooks());
 
   if (s.isError()) {
     return Failure("Failed to create subprocess '" + cmd + "': " + s.error());
@@ -1769,7 +1814,9 @@ Future<Docker::Image> Docker::__pull(
       Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       nullptr,
-      environment);
+      environment,
+      None(),
+      createParentHooks());
 
   if (s_.isError()) {
     return Failure("Failed to execute '" + cmd + "': " + s_.error());
