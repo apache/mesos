@@ -80,6 +80,36 @@ inline Try<std::string> nodename()
   return stringify(std::wstring(buffer.data()));
 }
 
+
+// Converts a `FILETIME` from an absoute Windows time, which is the number of
+// 100-nanosecond intervals since 1601-01-01 00:00:00 +0000, to an UNIX
+// absolute time, which is number of seconds from 1970-01-01 00:00:00 +0000.
+inline double windows_to_unix_epoch(const FILETIME& filetime)
+{
+  ULARGE_INTEGER time;
+
+  // `FILETIME` isn't 8 byte aligned so they suggest not do cast to int64*.
+  time.HighPart = filetime.dwHighDateTime;
+  time.LowPart = filetime.dwLowDateTime;
+
+  // Constant taken from here:
+  // https://msdn.microsoft.com/en-us/library/windows/desktop/ms724228(v=vs.85).aspx. // NOLINT(whitespace/line_length)
+  // It is the number of 100ns periods between the Windows and UNIX epochs.
+  constexpr uint64_t epoch_offset = 116444736000000000ULL;
+
+  // Now the `QuadPart` field is the 64-bit representation due to the
+  // layout of the `ULARGE_INTEGER` struct.
+  static_assert(
+      std::is_same<decltype(time.QuadPart), uint64_t>::value,
+      "Expected `ULARGE_INTEGER.QuadPart` to be of type `uint64_t`");
+
+  CHECK_GE(time.QuadPart, epoch_offset)
+    << "windows_to_unix_epoch: Given time was before UNIX epoch: "
+    << time.QuadPart;
+
+  return static_cast<double>(time.QuadPart - epoch_offset) / 10000000;
+}
+
 } // namespace internal {
 
 

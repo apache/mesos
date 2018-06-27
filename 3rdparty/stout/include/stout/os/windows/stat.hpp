@@ -23,6 +23,8 @@
 
 #include <stout/os/int_fd.hpp>
 
+#include <stout/windows/os.hpp>
+
 #include <stout/internal/windows/attributes.hpp>
 #include <stout/internal/windows/longpath.hpp>
 #include <stout/internal/windows/reparsepoint.hpp>
@@ -166,27 +168,8 @@ inline Try<long> mtime(
     return WindowsError();
   }
 
-  // Convert to 64-bit integer using Windows magic.
-  ULARGE_INTEGER largetime;
-  largetime.LowPart = filetime.dwLowDateTime;
-  largetime.HighPart = filetime.dwHighDateTime;
-  // Now the `QuadPart` field is the 64-bit representation due to the
-  // layout of the `ULARGE_INTEGER` struct.
-  static_assert(
-      sizeof(largetime.QuadPart) == sizeof(__int64),
-      "Expected `QuadPart` to be of type `__int64`");
-  const __int64 windowstime = largetime.QuadPart;
-  // A file time is a 64-bit value that represents the number of
-  // 100-nanosecond intervals that have elapsed since 1601-01-01
-  // 00:00:00 +0000. However, users of this function expect UNIX time,
-  // which is seconds elapsed since the Epoch, 1970-01-01 00:00:00
-  // +0000.
-  //
-  // So first we convert 100-nanosecond intervals into seconds by
-  // doing `(x * 100) / (1,000^3)`, or `x / 10,000,000`, and then
-  // substracting the number of seconds between 1601-01-01 and
-  // 1970-01-01, or `11,644,473,600`.
-  const __int64 unixtime = (windowstime / 10000000) - 11644473600;
+  const uint64_t unixtime = os::internal::windows_to_unix_epoch(filetime);
+
   // We choose to make this conversion explicit because we expect the
   // truncation to not cause information loss.
   return static_cast<long>(unixtime);
