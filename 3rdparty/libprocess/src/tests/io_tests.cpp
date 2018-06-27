@@ -21,6 +21,10 @@
 #include <stout/gtest.hpp>
 #include <stout/os.hpp>
 
+#include <stout/os/pipe.hpp>
+#include <stout/os/read.hpp>
+#include <stout/os/write.hpp>
+
 #include <stout/tests/utils.hpp>
 
 #include "encoder.hpp"
@@ -29,10 +33,15 @@ namespace io = process::io;
 
 using process::Future;
 
+using std::array;
 using std::string;
 
 class IOTest: public TemporaryDirectoryTest {};
 
+// Polling is the POSIX way to do async IO and Windows does not provide a
+// generic and scalable way to poll on arbitary `HANDLEs`, so this test is
+// removed on Windows.
+#ifndef __WINDOWS__
 TEST_F(IOTest, Poll)
 {
   int pipes[2];
@@ -53,15 +62,18 @@ TEST_F(IOTest, Poll)
   ASSERT_SOME(os::close(pipes[0]));
   ASSERT_SOME(os::close(pipes[1]));
 }
+#endif // __WINDOWS__
 
 
 TEST_F(IOTest, Read)
 {
-  int pipes[2];
   char data[3];
 
   // Create a blocking pipe.
-  ASSERT_NE(-1, ::pipe(pipes));
+  Try<array<int_fd, 2>> pipes_ = os::pipe();
+  ASSERT_SOME(pipes_);
+
+  array<int_fd, 2> pipes = pipes_.get();
 
   // Test on a blocking file descriptor.
   AWAIT_EXPECT_FAILED(io::read(pipes[0], data, 3));
@@ -73,9 +85,12 @@ TEST_F(IOTest, Read)
   AWAIT_EXPECT_FAILED(io::read(pipes[0], data, 3));
 
   // Create a nonblocking pipe.
-  ASSERT_NE(-1, ::pipe(pipes));
-  ASSERT_SOME(os::nonblock(pipes[0]));
-  ASSERT_SOME(os::nonblock(pipes[1]));
+  pipes_ = os::pipe();
+  ASSERT_SOME(pipes_);
+  pipes = pipes_.get();
+
+  ASSERT_SOME(io::prepare_async(pipes[0]));
+  ASSERT_SOME(io::prepare_async(pipes[1]));
 
   // Test reading nothing.
   AWAIT_EXPECT_EQ(0u, io::read(pipes[0], data, 0));
@@ -90,7 +105,7 @@ TEST_F(IOTest, Read)
   future = io::read(pipes[0], data, 3);
   ASSERT_FALSE(future.isReady());
 
-  ASSERT_EQ(2, write(pipes[1], "hi", 2));
+  ASSERT_EQ(2, os::write(pipes[1], "hi", 2));
 
   AWAIT_ASSERT_EQ(2u, future);
   EXPECT_EQ('h', data[0]);
@@ -102,9 +117,10 @@ TEST_F(IOTest, Read)
 
   future.discard();
 
-  ASSERT_EQ(3, write(pipes[1], "omg", 3));
+  future = io::read(pipes[0], data, 3);
+  ASSERT_EQ(3, os::write(pipes[1], "omg", 3));
 
-  AWAIT_ASSERT_EQ(3u, io::read(pipes[0], data, 3)) << string(data, 2);
+  AWAIT_ASSERT_EQ(3u, future) << string(data, 2);
   EXPECT_EQ('o', data[0]);
   EXPECT_EQ('m', data[1]);
   EXPECT_EQ('g', data[2]);
@@ -146,17 +162,20 @@ TEST_F(IOTest, BufferedRead)
   ASSERT_SOME(os::close(fd.get()));
 
   // Now read from pipes.
-  int pipes[2];
+  Try<array<int_fd, 2>> pipes_ = os::pipe();
+  ASSERT_SOME(pipes_);
 
   // Test on a closed pipe.
-  ASSERT_NE(-1, ::pipe(pipes));
+  array<int_fd, 2> pipes = pipes_.get();
   ASSERT_SOME(os::close(pipes[0]));
   ASSERT_SOME(os::close(pipes[1]));
 
   AWAIT_EXPECT_FAILED(io::read(pipes[0]));
 
   // Test a successful read from the pipe.
-  ASSERT_NE(-1, ::pipe(pipes));
+  pipes_ = os::pipe();
+  ASSERT_SOME(pipes_);
+  pipes = pipes_.get();
 
   // At first, the future will not be ready until we write to and
   // close the pipe.
@@ -176,10 +195,10 @@ TEST_F(IOTest, BufferedRead)
 
 TEST_F(IOTest, Write)
 {
-  int pipes[2];
-
   // Create a blocking pipe.
-  ASSERT_NE(-1, ::pipe(pipes));
+  Try<array<int_fd, 2>> pipes_ = os::pipe();
+  ASSERT_SOME(pipes_);
+  array<int_fd, 2> pipes = pipes_.get();
 
   // Test on a blocking file descriptor.
   AWAIT_EXPECT_FAILED(io::write(pipes[1], (void*) "hi", 2));
@@ -191,15 +210,18 @@ TEST_F(IOTest, Write)
   AWAIT_EXPECT_FAILED(io::write(pipes[1], (void*) "hi", 2));
 
   // Create a nonblocking pipe.
-  ASSERT_NE(-1, ::pipe(pipes));
-  ASSERT_SOME(os::nonblock(pipes[0]));
-  ASSERT_SOME(os::nonblock(pipes[1]));
+  pipes_ = os::pipe();
+  ASSERT_SOME(pipes_);
+  pipes = pipes_.get();
+
+  ASSERT_SOME(io::prepare_async(pipes[0]));
+  ASSERT_SOME(io::prepare_async(pipes[1]));
 
   // Test writing nothing.
   AWAIT_EXPECT_EQ(0u, io::write(pipes[1], (void*) "hi", 0));
 
   // Test successful write.
-  AWAIT_EXPECT_EQ(2u, io::write(pipes[1], (void*) "hi", 2));
+  Future<size_t> future = io::write(pipes[1], (void*) "hi", 2);
 
   char data[2];
   AWAIT_EXPECT_EQ(2u, io::read(pipes[0], data, 2));
@@ -213,21 +235,50 @@ TEST_F(IOTest, Write)
 }
 
 
+#ifdef __WINDOWS__
+TEST_F(IOTest, BlockingWrite)
+#else
 // TODO(alexr): Enable after MESOS-973 is resolved.
 TEST_F(IOTest, DISABLED_BlockingWrite)
+#endif // __WINDOWS__
 {
-  int pipes[2];
+  Try<array<int_fd, 2>> pipes_ = os::pipe();
+  ASSERT_SOME(pipes_);
 
-  // Create a nonblocking pipe.
-  ASSERT_NE(-1, ::pipe(pipes));
-  ASSERT_SOME(os::nonblock(pipes[0]));
-  ASSERT_SOME(os::nonblock(pipes[1]));
+  array<int_fd, 2> pipes = pipes_.get();
+
+  // Get the pipe buffer size. On Windows, we can query this directly. On
+  // other platforms, we do non-blocking writes until we get `EAGAIN` or
+  // `EWOULDBLOCK`.
+#ifdef __WINDOWS__
+  DWORD outBufferSize;
+  const BOOL success = ::GetNamedPipeInfo(
+      pipes[0],       // Pipe `HANDLE`.
+      nullptr,        // Flags.
+      &outBufferSize, // Outbound (write) buffer size.
+      nullptr,        // Inbound (read) buffer size.
+      nullptr);       // Max instances of the named pipe.
+
+  ASSERT_TRUE(success);
+
+  size_t size = static_cast<size_t>(outBufferSize);
+  if (size < 4096) {
+    // On Windows, the buffer size can be very small and even 0, which will
+    // break this test, so we report that the buffer size is bigger if it's
+    // too small. This doesn't change the test semantics; all it does is
+    // make the test write a longer string.
+    size = 4096;
+  }
+#else
+  // Make pipes non-blocking.
+  ASSERT_SOME(io::prepare_async(pipes[0]));
+  ASSERT_SOME(io::prepare_async(pipes[1]));
 
   // Determine the pipe buffer size by writing until we block.
   size_t size = 0;
-  ssize_t length = 0;
-  while ((length = ::write(pipes[1], "data", 4)) >= 0) {
-    size += length;
+  ssize_t written = 0;
+  while ((written = ::write(pipes[1], "data", 4)) >= 0) {
+    size += written;
   }
 
   ASSERT_TRUE(errno == EAGAIN || errno == EWOULDBLOCK);
@@ -236,9 +287,13 @@ TEST_F(IOTest, DISABLED_BlockingWrite)
   ASSERT_SOME(os::close(pipes[1]));
 
   // Recreate a nonblocking pipe.
-  ASSERT_NE(-1, ::pipe(pipes));
-  ASSERT_SOME(os::nonblock(pipes[0]));
-  ASSERT_SOME(os::nonblock(pipes[1]));
+  pipes_ = os::pipe();
+  ASSERT_SOME(pipes_);
+  pipes = pipes_.get();
+#endif // __WINDOWS__
+
+  ASSERT_SOME(io::prepare_async(pipes[0]));
+  ASSERT_SOME(io::prepare_async(pipes[1]));
 
   // Create 8 pipe buffers worth of data. Try and write all the data
   // at once. Check that the future is pending after doing the
@@ -273,7 +328,7 @@ TEST_F(IOTest, DISABLED_BlockingWrite)
   // Now read all the data we wrote the first time and expect the
   // first future to succeed since the second future should have been
   // completely discarded.
-  length = 128; // To account for io::read above.
+  ssize_t length = 128; // To account for io::read above.
   while (length < static_cast<ssize_t>(data.size())) {
     Future<size_t> read = io::read(pipes[0], temp, 128);
     AWAIT_READY(read);
@@ -304,14 +359,15 @@ TEST_F(IOTest, Redirect)
 
   ASSERT_SOME(fd);
 
-  ASSERT_SOME(os::nonblock(fd.get()));
+  ASSERT_SOME(io::prepare_async(fd.get()));
 
   // Use a nonblocking pipe for doing the redirection.
-  int pipes[2];
+  Try<array<int_fd, 2>> pipes_ = os::pipe();
+  ASSERT_SOME(pipes_);
 
-  ASSERT_NE(-1, ::pipe(pipes));
-  ASSERT_SOME(os::nonblock(pipes[0]));
-  ASSERT_SOME(os::nonblock(pipes[1]));
+  array<int_fd, 2> pipes = pipes_.get();
+  ASSERT_SOME(io::prepare_async(pipes[0]));
+  ASSERT_SOME(io::prepare_async(pipes[1]));
 
   // Set up a redirect hook to also accumlate the data that we splice.
   string accumulated;

@@ -48,6 +48,9 @@ if (NOT WIN32)
   list(APPEND PROCESS_TESTS_SRC
     io_tests.cpp
     reap_tests.cpp)
+elseif (ENABLE_LIBWINIO)
+  list(APPEND PROCESS_TESTS_SRC
+    io_tests.cpp)
 endif ()
 
 if (ENABLE_GRPC)
