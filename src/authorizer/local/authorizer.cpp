@@ -424,6 +424,10 @@ public:
         case authorization::UPDATE_WEIGHT:
         case authorization::VIEW_ROLE:
         case authorization::REGISTER_FRAMEWORK:
+        case authorization::CREATE_BLOCK_DISK:
+        case authorization::DESTROY_BLOCK_DISK:
+        case authorization::CREATE_MOUNT_DISK:
+        case authorization::DESTROY_MOUNT_DISK:
           return Error("Authorization for action " + stringify(action_) +
                        " requires a specialized approver object.");
         case authorization::UNKNOWN:
@@ -596,7 +600,11 @@ public:
       switch (action_) {
         case authorization::CREATE_VOLUME:
         case authorization::RESIZE_VOLUME:
-        case authorization::RESERVE_RESOURCES: {
+        case authorization::RESERVE_RESOURCES:
+        case authorization::CREATE_BLOCK_DISK:
+        case authorization::DESTROY_BLOCK_DISK:
+        case authorization::CREATE_MOUNT_DISK:
+        case authorization::DESTROY_MOUNT_DISK: {
           entityObject.set_type(ACL::Entity::SOME);
           if (object->resource) {
             if (object->resource->reservations_size() > 0) {
@@ -912,6 +920,26 @@ public:
             createHierarchicalRoleACLs(acls.update_quotas());
         break;
       }
+      case authorization::CREATE_BLOCK_DISK: {
+        hierarchicalRoleACLs =
+          createHierarchicalRoleACLs(acls.create_block_disks());
+        break;
+      }
+      case authorization::DESTROY_BLOCK_DISK: {
+        hierarchicalRoleACLs =
+          createHierarchicalRoleACLs(acls.destroy_block_disks());
+        break;
+      }
+      case authorization::CREATE_MOUNT_DISK: {
+        hierarchicalRoleACLs =
+          createHierarchicalRoleACLs(acls.create_mount_disks());
+        break;
+      }
+      case authorization::DESTROY_MOUNT_DISK: {
+        hierarchicalRoleACLs =
+          createHierarchicalRoleACLs(acls.destroy_mount_disks());
+        break;
+      }
       case authorization::ACCESS_MESOS_LOG:
       case authorization::ACCESS_SANDBOX:
       case authorization::ATTACH_CONTAINER_INPUT:
@@ -1126,7 +1154,11 @@ public:
       case authorization::VIEW_ROLE:
       case authorization::GET_QUOTA:
       case authorization::REGISTER_FRAMEWORK:
-      case authorization::UPDATE_QUOTA: {
+      case authorization::UPDATE_QUOTA:
+      case authorization::CREATE_BLOCK_DISK:
+      case authorization::DESTROY_BLOCK_DISK:
+      case authorization::CREATE_MOUNT_DISK:
+      case authorization::DESTROY_MOUNT_DISK: {
         return getHierarchicalRoleApprover(subject, action);
       }
       case authorization::ACCESS_MESOS_LOG:
@@ -1536,6 +1568,10 @@ private:
       case authorization::UPDATE_QUOTA:
       case authorization::LAUNCH_NESTED_CONTAINER_SESSION:
       case authorization::LAUNCH_NESTED_CONTAINER:
+      case authorization::CREATE_BLOCK_DISK:
+      case authorization::DESTROY_BLOCK_DISK:
+      case authorization::CREATE_MOUNT_DISK:
+      case authorization::DESTROY_MOUNT_DISK:
         return Error("Extracting ACLs for " + stringify(action) + " requires "
                      "a specialized function");
       case authorization::UNKNOWN:
@@ -1653,8 +1689,7 @@ Option<Error> LocalAuthorizer::validate(const ACLs& acls)
   foreach (const ACL::GetMaintenanceStatus& acl,
            acls.get_maintenance_statuses()) {
     if (acl.machines().type() == ACL::Entity::SOME) {
-      return Error(
-          "ACL.GetMaintenanceStatus type must be either NONE or ANY");
+      return Error("ACL.GetMaintenanceStatus type must be either NONE or ANY");
     }
   }
 

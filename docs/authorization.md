@@ -217,6 +217,30 @@ entries, each representing an authorizable action:
   </td>
 </tr>
 <tr>
+  <td><code>create_block_disks</code></td>
+  <td>Framework principal.</td>
+  <td>Resource role of the block disk.</td>
+  <td>Creating a block disk.</td>
+</tr>
+<tr>
+  <td><code>destroy_block_disks</code></td>
+  <td>Framework principal.</td>
+  <td>Resource role of the block disk.</td>
+  <td>Destroying a block disk.</td>
+</tr>
+<tr>
+  <td><code>create_mount_disks</code></td>
+  <td>Framework principal.</td>
+  <td>Resource role of the mount disk.</td>
+  <td>Creating a mount disk.</td>
+</tr>
+<tr>
+  <td><code>destroy_mount_disks</code></td>
+  <td>Framework principal.</td>
+  <td>Resource role of the mount disk.</td>
+  <td>Destroying a mount disk.</td>
+</tr>
+<tr>
   <td><code>get_quotas</code></td>
   <td>Operator username.</td>
   <td>Resource role whose quota status will be queried.</td>

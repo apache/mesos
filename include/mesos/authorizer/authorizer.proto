@@ -257,6 +257,18 @@ enum Action {
 
   // `RESIZE_VOLUME` will have an object with `Resource` set.
   RESIZE_VOLUME = 42;
+
+  // `CREATE_BLOCK_DISK` will have an object with `Resource` set.
+  CREATE_BLOCK_DISK = 43;
+
+  // `DESTROY_BLOCK_DISK` will have an object with `Resource` set.
+  DESTROY_BLOCK_DISK = 44;
+
+  // `CREATE_MOUNT_DISK` will have an object with `Resource` set.
+  CREATE_MOUNT_DISK = 45;
+
+  // `DESTROY_MOUNT_DISK` will have an object with `Resource` set.
+  DESTROY_MOUNT_DISK = 46;
 }
 
 

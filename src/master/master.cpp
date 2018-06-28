@@ -3882,6 +3882,110 @@ Future<bool> Master::authorizeResizeVolume(
 }
 
 
+Future<bool> Master::authorizeCreateVolume(
+    const Resource& source,
+    const Option<Principal>& principal)
+{
+  if (authorizer.isNone()) {
+    return true; // Authorization is disabled.
+  }
+
+  authorization::Request request;
+  request.set_action(authorization::CREATE_MOUNT_DISK);
+
+  Option<authorization::Subject> subject = createSubject(principal);
+  if (subject.isSome()) {
+    request.mutable_subject()->CopyFrom(subject.get());
+  }
+
+  request.mutable_object()->mutable_resource()->CopyFrom(source);
+
+  LOG(INFO) << "Authorizing principal '"
+            << (principal.isSome() ? stringify(principal.get()) : "ANY")
+            << "' to create a volume from '" << source << "'";
+
+  return authorizer.get()->authorized(request);
+}
+
+
+Future<bool> Master::authorizeDestroyVolume(
+    const Resource& volume,
+    const Option<Principal>& principal)
+{
+  if (authorizer.isNone()) {
+    return true; // Authorization is disabled.
+  }
+
+  authorization::Request request;
+  request.set_action(authorization::DESTROY_MOUNT_DISK);
+
+  Option<authorization::Subject> subject = createSubject(principal);
+  if (subject.isSome()) {
+    request.mutable_subject()->CopyFrom(subject.get());
+  }
+
+  request.mutable_object()->mutable_resource()->CopyFrom(volume);
+
+  LOG(INFO) << "Authorizing principal '"
+            << (principal.isSome() ? stringify(principal.get()) : "ANY")
+            << "' to destroy volume '" << volume << "'";
+
+  return authorizer.get()->authorized(request);
+}
+
+
+Future<bool> Master::authorizeCreateBlock(
+    const Resource& source,
+    const Option<Principal>& principal)
+{
+  if (authorizer.isNone()) {
+    return true; // Authorization is disabled.
+  }
+
+  authorization::Request request;
+  request.set_action(authorization::CREATE_BLOCK_DISK);
+
+  Option<authorization::Subject> subject = createSubject(principal);
+  if (subject.isSome()) {
+    request.mutable_subject()->CopyFrom(subject.get());
+  }
+
+  request.mutable_object()->mutable_resource()->CopyFrom(source);
+
+  LOG(INFO) << "Authorizing principal '"
+            << (principal.isSome() ? stringify(principal.get()) : "ANY")
+            << "' to create a block from '" << source << "'";
+
+  return authorizer.get()->authorized(request);
+}
+
+
+Future<bool> Master::authorizeDestroyBlock(
+    const Resource& block,
+    const Option<Principal>& principal)
+{
+  if (authorizer.isNone()) {
+    return true; // Authorization is disabled.
+  }
+
+  authorization::Request request;
+  request.set_action(authorization::DESTROY_BLOCK_DISK);
+
+  Option<authorization::Subject> subject = createSubject(principal);
+  if (subject.isSome()) {
+    request.mutable_subject()->CopyFrom(subject.get());
+  }
+
+  request.mutable_object()->mutable_resource()->CopyFrom(block);
+
+  LOG(INFO) << "Authorizing principal '"
+            << (principal.isSome() ? stringify(principal.get()) : "ANY")
+            << "' to destroy block '" << block << "'";
+
+  return authorizer.get()->authorized(request);
+}
+
+
 Future<bool> Master::authorizeSlave(
     const SlaveInfo& slaveInfo,
     const Option<Principal>& principal)
@@ -4523,22 +4627,50 @@ void Master::accept(
       }
 
       case Offer::Operation::CREATE_VOLUME: {
-        // TODO(nfnt): Implement authorization for 'CREATE_VOLUME'.
+        Option<Principal> principal = framework->info.has_principal()
+          ? Principal(framework->info.principal())
+          : Option<Principal>::none();
+
+        futures.push_back(
+            authorizeCreateVolume(
+                operation.create_volume().source(), principal));
+
         break;
       }
 
       case Offer::Operation::DESTROY_VOLUME: {
-        // TODO(nfnt): Implement authorization for 'DESTROY_VOLUME'.
+        Option<Principal> principal = framework->info.has_principal()
+          ? Principal(framework->info.principal())
+          : Option<Principal>::none();
+
+        futures.push_back(
+            authorizeDestroyVolume(
+                operation.destroy_volume().volume(), principal));
+
         break;
       }
 
       case Offer::Operation::CREATE_BLOCK: {
-        // TODO(nfnt): Implement authorization for 'CREATE_BLOCK'.
+        Option<Principal> principal = framework->info.has_principal()
+          ? Principal(framework->info.principal())
+          : Option<Principal>::none();
+
+        futures.push_back(
+            authorizeCreateBlock(
+                operation.create_block().source(), principal));
+
         break;
       }
 
       case Offer::Operation::DESTROY_BLOCK: {
-        // TODO(nfnt): Implement authorization for 'DESTROY_BLOCK'.
+        Option<Principal> principal = framework->info.has_principal()
+          ? Principal(framework->info.principal())
+          : Option<Principal>::none();
+
+        futures.push_back(
+            authorizeDestroyBlock(
+                operation.destroy_block().block(), principal));
+
         break;
       }
 

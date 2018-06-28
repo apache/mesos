@@ -520,6 +520,42 @@ message ACL {
     // SOME image reference.
     required Entity images = 2;
   }
+
+  // Which principals are authorized to create block disks.
+  message CreateBlockDisk {
+    // Subjects: Framework principal.
+    required Entity principals = 1;
+
+    // Objects: The list of roles for which block disks can be created.
+    required Entity roles = 2;
+  }
+
+  // Which principals are authorized to destroy block disks.
+  message DestroyBlockDisk {
+    // Subjects: Framework principal.
+    required Entity principals = 1;
+
+    // Objects: The list of roles for which block disks can be destroyed.
+    required Entity roles = 2;
+  }
+
+  // Which principals are authorized to create mount disks.
+  message CreateMountDisk {
+    // Subjects: Framework principal.
+    required Entity principals = 1;
+
+    // Objects: The list of roles for which mount disks can be created.
+    required Entity roles = 2;
+  }
+
+  // Which principals are authorized to destroy mount disks.
+  message DestroyMountDisk {
+    // Subjects: Framework principal.
+    required Entity principals = 1;
+
+    // Objects: The list of roles for which volume disks can be destroyed.
+    required Entity roles = 2;
+  }
 }
 
 
@@ -599,4 +635,8 @@ message ACLs {
   repeated ACL.ModifyResourceProviderConfig modify_resource_provider_configs = 45;
   repeated ACL.PruneImages prune_images = 47;
   repeated ACL.ResizeVolume resize_volumes = 48;
+  repeated ACL.CreateBlockDisk create_block_disks = 49;
+  repeated ACL.DestroyBlockDisk destroy_block_disks = 50;
+  repeated ACL.CreateMountDisk create_mount_disks = 51;
+  repeated ACL.DestroyMountDisk destroy_mount_disks = 52;
 }

@@ -5844,6 +5844,1046 @@ TYPED_TEST(AuthorizationTest, PruneImages)
   }
 }
 
+
+// This tests the authorization to create block disks.
+TYPED_TEST(AuthorizationTest, CreateBlockDisk)
+{
+  ACLs acls;
+
+  {
+    // Principal "foo" can create block disks for any role.
+    mesos::ACL::CreateBlockDisk* acl = acls.add_create_block_disks();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  {
+    // Principal "bar" can only create block disks for the "panda" role.
+    mesos::ACL::CreateBlockDisk* acl = acls.add_create_block_disks();
+    acl->mutable_principals()->add_values("bar");
+    acl->mutable_roles()->add_values("panda");
+  }
+
+  {
+    // Principal "baz" cannot create block disks.
+    mesos::ACL::CreateBlockDisk* acl = acls.add_create_block_disks();
+    acl->mutable_principals()->add_values("baz");
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  {
+    // Principal "elizabeth-ii" can create block disks for the "king" role
+    // and its nested ones.
+    mesos::ACL::CreateBlockDisk* acl = acls.add_create_block_disks();
+    acl->mutable_principals()->add_values("elizabeth-ii");
+    acl->mutable_roles()->add_values("king/%");
+    acl->mutable_roles()->add_values("king");
+  }
+
+  {
+    // Principal "charles" can create block disks for any role below the
+    // "king/" role. Not in "king" itself.
+    mesos::ACL::CreateBlockDisk* acl = acls.add_create_block_disks();
+    acl->mutable_principals()->add_values("charles");
+    acl->mutable_roles()->add_values("king/%");
+  }
+
+  {
+    // Principal "j-welby" can create block disks only for the "king"
+    // role but not in any nested one.
+    mesos::ACL::CreateBlockDisk* acl = acls.add_create_block_disks();
+    acl->mutable_principals()->add_values("j-welby");
+    acl->mutable_roles()->add_values("king");
+  }
+
+  {
+    // No other principals can create block disks.
+    mesos::ACL::CreateBlockDisk* acl = acls.add_create_block_disks();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  {
+    // No other principals can create block disks.
+    mesos::ACL::CreateBlockDisk* acl = acls.add_create_block_disks();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  // Create an `Authorizer` with the ACLs.
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  // Principal "foo" can create block disks for any role, so this
+  // request will pass.
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_BLOCK_DISK);
+    request.mutable_subject()->set_value("foo");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("awesome_role");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  // Principal "bar" can create block disks for the "panda" role,
+  // so this request will pass.
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_BLOCK_DISK);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("panda");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  // Principal "bar" cannot create block disks for the "giraffe" role,
+  // so this request will fail.
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_BLOCK_DISK);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("giraffe");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+
+  // Principal "baz" cannot create block disks for any role,
+  // so this request will fail.
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_BLOCK_DISK);
+    request.mutable_subject()->set_value("baz");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("panda");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+
+  // Principal "zelda" is not mentioned in the ACLs of the Authorizer, so it
+  // will be caught by the final ACL, which provides a default case that denies
+  // access for all other principals. This request will fail.
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_BLOCK_DISK);
+    request.mutable_subject()->set_value("zelda");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("panda");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+
+  // `elizabeth-ii` has full permissions for the `king` role as well as all
+  // its nested roles. She should be able to create block disks in the next
+  // three blocks.
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_BLOCK_DISK);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_BLOCK_DISK);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king/prince");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_BLOCK_DISK);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king/prince/duke");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  // `charles` doesn't have permissions for the `king` role, so the first
+  // test should fail. However he has permissions for `king`'s nested roles
+  // so the next two tests should succeed.
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_BLOCK_DISK);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_BLOCK_DISK);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king/prince");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_BLOCK_DISK);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king/prince/duke");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  // `j-welby` only has permissions for the role `king` itself, but not
+  // for its nested roles, therefore only the first of the following three
+  // tests should succeed.
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_BLOCK_DISK);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_BLOCK_DISK);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king/prince");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_BLOCK_DISK);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king/prince/duke");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+}
+
+
+// This tests the authorization to destroy block disks.
+TYPED_TEST(AuthorizationTest, DestroyBlockDisk)
+{
+  ACLs acls;
+
+  {
+    // Principal "foo" can destroy block disks for any role.
+    mesos::ACL::DestroyBlockDisk* acl = acls.add_destroy_block_disks();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  {
+    // Principal "bar" can only destroy block disks for the "panda" role.
+    mesos::ACL::DestroyBlockDisk* acl = acls.add_destroy_block_disks();
+    acl->mutable_principals()->add_values("bar");
+    acl->mutable_roles()->add_values("panda");
+  }
+
+  {
+    // Principal "baz" cannot destroy block disks.
+    mesos::ACL::DestroyBlockDisk* acl = acls.add_destroy_block_disks();
+    acl->mutable_principals()->add_values("baz");
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  {
+    // Principal "elizabeth-ii" can destroy block disks for the "king" role
+    // and its nested ones.
+    mesos::ACL::DestroyBlockDisk* acl = acls.add_destroy_block_disks();
+    acl->mutable_principals()->add_values("elizabeth-ii");
+    acl->mutable_roles()->add_values("king/%");
+    acl->mutable_roles()->add_values("king");
+  }
+
+  {
+    // Principal "charles" can destroy block disks for any role below the
+    // "king/" role. Not in "king" itself.
+    mesos::ACL::DestroyBlockDisk* acl = acls.add_destroy_block_disks();
+    acl->mutable_principals()->add_values("charles");
+    acl->mutable_roles()->add_values("king/%");
+  }
+
+  {
+    // Principal "j-welby" can destroy block disks only for the "king"
+    // role but not in any nested one.
+    mesos::ACL::DestroyBlockDisk* acl = acls.add_destroy_block_disks();
+    acl->mutable_principals()->add_values("j-welby");
+    acl->mutable_roles()->add_values("king");
+  }
+
+  {
+    // No other principals can destroy block disks.
+    mesos::ACL::DestroyBlockDisk* acl = acls.add_destroy_block_disks();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  {
+    // No other principals can destroy block disks.
+    mesos::ACL::DestroyBlockDisk* acl = acls.add_destroy_block_disks();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  // Create an `Authorizer` with the ACLs.
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  // Principal "foo" can destroy block disks for any role, so this
+  // request will pass.
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_BLOCK_DISK);
+    request.mutable_subject()->set_value("foo");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("awesome_role");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  // Principal "bar" can destroy block disks for the "panda" role,
+  // so this request will pass.
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_BLOCK_DISK);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("panda");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  // Principal "bar" cannot destroy block disks for the "giraffe" role,
+  // so this request will fail.
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_BLOCK_DISK);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("giraffe");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+
+  // Principal "baz" cannot destroy block disks for any role,
+  // so this request will fail.
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_BLOCK_DISK);
+    request.mutable_subject()->set_value("baz");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("panda");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+
+  // Principal "zelda" is not mentioned in the ACLs of the Authorizer, so it
+  // will be caught by the final ACL, which provides a default case that denies
+  // access for all other principals. This request will fail.
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_BLOCK_DISK);
+    request.mutable_subject()->set_value("zelda");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("panda");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+
+  // `elizabeth-ii` has full permissions for the `king` role as well as all
+  // its nested roles. She should be able to destroy block disks in the next
+  // three blocks.
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_BLOCK_DISK);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_BLOCK_DISK);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king/prince");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_BLOCK_DISK);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king/prince/duke");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  // `charles` doesn't have permissions for the `king` role, so the first
+  // test should fail. However he has permissions for `king`'s nested roles
+  // so the next two tests should succeed.
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_BLOCK_DISK);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_BLOCK_DISK);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king/prince");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_BLOCK_DISK);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king/prince/duke");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  // `j-welby` only has permissions for the role `king` itself, but not
+  // for its nested roles, therefore only the first of the following three
+  // tests should succeed.
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_BLOCK_DISK);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_BLOCK_DISK);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king/prince");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_BLOCK_DISK);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king/prince/duke");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+}
+
+
+// This tests the authorization to create mount disks.
+TYPED_TEST(AuthorizationTest, CreateMountDisk)
+{
+  ACLs acls;
+
+  {
+    // Principal "foo" can create mount disks for any role.
+    mesos::ACL::CreateMountDisk* acl = acls.add_create_mount_disks();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  {
+    // Principal "bar" can only create mount disks for the "panda" role.
+    mesos::ACL::CreateMountDisk* acl = acls.add_create_mount_disks();
+    acl->mutable_principals()->add_values("bar");
+    acl->mutable_roles()->add_values("panda");
+  }
+
+  {
+    // Principal "baz" cannot create mount disks.
+    mesos::ACL::CreateMountDisk* acl = acls.add_create_mount_disks();
+    acl->mutable_principals()->add_values("baz");
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  {
+    // Principal "elizabeth-ii" can create mount disks for the "king" role
+    // and its nested ones.
+    mesos::ACL::CreateMountDisk* acl = acls.add_create_mount_disks();
+    acl->mutable_principals()->add_values("elizabeth-ii");
+    acl->mutable_roles()->add_values("king/%");
+    acl->mutable_roles()->add_values("king");
+  }
+
+  {
+    // Principal "charles" can create mount disks for any role below the
+    // "king/" role. Not in "king" itself.
+    mesos::ACL::CreateMountDisk* acl = acls.add_create_mount_disks();
+    acl->mutable_principals()->add_values("charles");
+    acl->mutable_roles()->add_values("king/%");
+  }
+
+  {
+    // Principal "j-welby" can create mount disks only for the "king" role
+    // but not in any nested one.
+    mesos::ACL::CreateMountDisk* acl = acls.add_create_mount_disks();
+    acl->mutable_principals()->add_values("j-welby");
+    acl->mutable_roles()->add_values("king");
+  }
+
+  {
+    // No other principals can create mount disks.
+    mesos::ACL::CreateMountDisk* acl = acls.add_create_mount_disks();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  {
+    // No other principals can create mount disks.
+    mesos::ACL::CreateMountDisk* acl = acls.add_create_mount_disks();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  // Create an `Authorizer` with the ACLs.
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  // Principal "foo" can create mount disks for any role,
+  // so this request will pass.
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_MOUNT_DISK);
+    request.mutable_subject()->set_value("foo");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("awesome_role");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  // Principal "bar" can create mount disks for the "panda" role,
+  // so this request will pass.
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_MOUNT_DISK);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("panda");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  // Principal "bar" cannot create mount disks for the "giraffe" role,
+  // so this request will fail.
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_MOUNT_DISK);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("giraffe");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+
+  // Principal "baz" cannot create mount disks for any role,
+  // so this request will fail.
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_MOUNT_DISK);
+    request.mutable_subject()->set_value("baz");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("panda");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+
+  // Principal "zelda" is not mentioned in the ACLs of the Authorizer, so it
+  // will be caught by the final ACL, which provides a default case that denies
+  // access for all other principals. This request will fail.
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_MOUNT_DISK);
+    request.mutable_subject()->set_value("zelda");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("panda");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+
+  // `elizabeth-ii` has full permissions for the `king` role as well as all
+  // its nested roles. She should be able to create mount disks in the next
+  // three blocks.
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_MOUNT_DISK);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_MOUNT_DISK);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king/prince");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_MOUNT_DISK);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king/prince/duke");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  // `charles` doesn't have permissions for the `king` role, so the first
+  // test should fail. However he has permissions for `king`'s nested roles
+  // so the next two tests should succeed.
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_MOUNT_DISK);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_MOUNT_DISK);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king/prince");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_MOUNT_DISK);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king/prince/duke");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  // `j-welby` only has permissions for the role `king` itself, but not
+  // for its nested roles, therefore only the first of the following three
+  // tests should succeed.
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_MOUNT_DISK);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_MOUNT_DISK);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king/prince");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::CREATE_MOUNT_DISK);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king/prince/duke");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+}
+
+
+// This tests the authorization to destroy mount disks.
+TYPED_TEST(AuthorizationTest, DestroyMountDisk)
+{
+  ACLs acls;
+
+  {
+    // Principal "foo" can destroy mount disks for any role.
+    mesos::ACL::DestroyMountDisk* acl = acls.add_destroy_mount_disks();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  {
+    // Principal "bar" can only destroy mount disks for the "panda" role.
+    mesos::ACL::DestroyMountDisk* acl = acls.add_destroy_mount_disks();
+    acl->mutable_principals()->add_values("bar");
+    acl->mutable_roles()->add_values("panda");
+  }
+
+  {
+    // Principal "baz" cannot destroy mount disks.
+    mesos::ACL::DestroyMountDisk* acl = acls.add_destroy_mount_disks();
+    acl->mutable_principals()->add_values("baz");
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  {
+    // Principal "elizabeth-ii" can destroy mount disks for the "king" role
+    // and its nested ones.
+    mesos::ACL::DestroyMountDisk* acl = acls.add_destroy_mount_disks();
+    acl->mutable_principals()->add_values("elizabeth-ii");
+    acl->mutable_roles()->add_values("king/%");
+    acl->mutable_roles()->add_values("king");
+  }
+
+  {
+    // Principal "charles" can destroy mount disks for any role below the
+    // "king/" role. Not in "king" itself.
+    mesos::ACL::DestroyMountDisk* acl = acls.add_destroy_mount_disks();
+    acl->mutable_principals()->add_values("charles");
+    acl->mutable_roles()->add_values("king/%");
+  }
+
+  {
+    // Principal "j-welby" can destroy mount disks only for the "king"
+    // role but not in any nested one.
+    mesos::ACL::DestroyMountDisk* acl = acls.add_destroy_mount_disks();
+    acl->mutable_principals()->add_values("j-welby");
+    acl->mutable_roles()->add_values("king");
+  }
+
+  {
+    // No other principals can destroy mount disks.
+    mesos::ACL::DestroyMountDisk* acl = acls.add_destroy_mount_disks();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  {
+    // No other principals can destroy mount disks.
+    mesos::ACL::DestroyMountDisk* acl = acls.add_destroy_mount_disks();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  // Create an `Authorizer` with the ACLs.
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  // Principal "foo" can destroy mount disks for any role, so this
+  // request will pass.
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_MOUNT_DISK);
+    request.mutable_subject()->set_value("foo");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("awesome_role");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  // Principal "bar" can destroy mount disks for the "panda" role,
+  // so this request will pass.
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_MOUNT_DISK);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("panda");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  // Principal "bar" cannot destroy mount disks for the "giraffe" role,
+  // so this request will fail.
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_MOUNT_DISK);
+    request.mutable_subject()->set_value("bar");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("giraffe");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+
+  // Principal "baz" cannot destroy mount disks for any role,
+  // so this request will fail.
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_MOUNT_DISK);
+    request.mutable_subject()->set_value("baz");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("panda");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+
+  // Principal "zelda" is not mentioned in the ACLs of the Authorizer, so it
+  // will be caught by the final ACL, which provides a default case that denies
+  // access for all other principals. This request will fail.
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_MOUNT_DISK);
+    request.mutable_subject()->set_value("zelda");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("panda");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+
+  // `elizabeth-ii` has full permissions for the `king` role as well as all
+  // its nested roles. She should be able to destroy mount disks in the next
+  // three blocks.
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_MOUNT_DISK);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_MOUNT_DISK);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king/prince");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_MOUNT_DISK);
+    request.mutable_subject()->set_value("elizabeth-ii");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king/prince/duke");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  // `charles` doesn't have permissions for the `king` role, so the first
+  // test should fail. However he has permissions for `king`'s nested roles
+  // so the next two tests should succeed.
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_MOUNT_DISK);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_MOUNT_DISK);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king/prince");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_MOUNT_DISK);
+    request.mutable_subject()->set_value("charles");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king/prince/duke");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  // `j-welby` only has permissions for the role `king` itself, but not
+  // for its nested roles, therefore only the first of the following three
+  // tests should succeed.
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_MOUNT_DISK);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king");
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_MOUNT_DISK);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king/prince");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::DESTROY_MOUNT_DISK);
+    request.mutable_subject()->set_value("j-welby");
+    request.mutable_object()
+      ->mutable_resource()
+      ->mutable_reservations()
+      ->Add()
+      ->set_role("king/prince/duke");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
