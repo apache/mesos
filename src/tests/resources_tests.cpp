@@ -2683,6 +2683,19 @@ TEST(ResourcesOperationTest, StrippedResourcesNonScalar)
 }
 
 
+TEST(ResourceOperationTest, StrippedResourcesRevocable)
+{
+  Resource plain = Resources::parse("cpus", "1", "*").get();
+
+  Resource revocable = plain;
+  revocable.mutable_revocable();
+
+  Resources stripped = Resources(revocable).createStrippedScalarQuantity();
+
+  EXPECT_EQ(Resources(plain), stripped);
+}
+
+
 TEST(ResourcesOperationTest, CreatePersistentVolumeFromMount)
 {
   Resource::DiskInfo::Source source = createDiskSourceMount("mnt");
