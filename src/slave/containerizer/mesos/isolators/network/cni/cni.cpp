@@ -403,6 +403,9 @@ Future<Nothing> NetworkCniIsolatorProcess::recover(
         rootDir.get() + "': " + entries.error());
   }
 
+  vector<ContainerID> unknownOrphans;
+  vector<Future<Nothing>> cleanups;
+
   foreach (const string& entry, entries.get()) {
     ContainerID containerId =
       protobuf::parseContainerId(Path(entry).basename());
@@ -432,12 +435,29 @@ Future<Nothing> NetworkCniIsolatorProcess::recover(
       if (!orphans.contains(containerId)) {
         LOG(INFO) << "Removing unknown orphaned container " << containerId;
 
-        cleanup(containerId);
+        unknownOrphans.push_back(containerId);
+        cleanups.push_back(cleanup(containerId));
       }
     }
   }
 
-  return Nothing();
+  return await(cleanups)
+    .then([unknownOrphans](const vector<Future<Nothing>>& cleanups) {
+      CHECK_EQ(cleanups.size(), unknownOrphans.size());
+
+      int i = 0;
+      foreach (const Future<Nothing>& cleanup, cleanups) {
+        if (!cleanup.isReady()) {
+          LOG(ERROR) << "Failed to cleanup unknown orphaned container "
+                     << unknownOrphans.at(i) << ": "
+                     << (cleanup.isFailed() ? cleanup.failure() : "discarded");
+        }
+
+        i++;
+      }
+
+      return Nothing();
+    });
 }
 
 
