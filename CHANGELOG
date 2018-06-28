@@ -15,6 +15,12 @@ This release contains the following new features:
   * [MESOS-8340] Added a new `--enforce_container_ports` option to toggle
     ports resource enforcement by the `network/ports` isolator.
 
+  * [MESOS-8668] - Added support to libprocess for the Windows Thread Pool
+    API, replacing libevent with the native Windows event and thread pool
+    library. This can be enabled with `-DENABLE_LIBWINIO=ON` during CMake
+    configuration. By utilizing I/O Completion Ports, this enables
+    non-blocking asynchronous I/O on Windows for sockets, pipes, and files.
+
 Additional API Changes:
   * Container logger module interface has been changed. The `prepare()` method
     now takes `ContainerID` and `ContainerConfig` instead.
