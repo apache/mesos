@@ -1915,12 +1915,10 @@ message Offer {
       UNRESERVE = 3;
       CREATE = 4;
       DESTROY = 5;
-      CREATE_VOLUME = 7;  // EXPERIMENTAL.
-      DESTROY_VOLUME = 8; // EXPERIMENTAL.
-      CREATE_BLOCK = 9;   // EXPERIMENTAL.
-      DESTROY_BLOCK = 10; // EXPERIMENTAL.
       GROW_VOLUME = 11;   // EXPERIMENTAL.
       SHRINK_VOLUME = 12; // EXPERIMENTAL.
+      CREATE_DISK = 13;   // EXPERIMENTAL.
+      DESTROY_DISK = 14;  // EXPERIMENTAL.
     }
 
     // TODO(vinod): Deprecate this in favor of `LaunchGroup` below.
@@ -1975,30 +1973,25 @@ message Offer {
       required Value.Scalar subtract = 2;
     }
 
+    // Create a `MOUNT` or `BLOCK` disk resource from a `RAW` disk resource.
     // NOTE: For the time being, this API is subject to change and the related
     // feature is experimental.
-    message CreateVolume {
+    message CreateDisk {
       required Resource source = 1;
+
+      // NOTE: Only `MOUNT` or `BLOCK` is allowed in the `target_type` field.
       required Resource.DiskInfo.Source.Type target_type = 2;
     }
 
+    // Destroy a `MOUNT` or `BLOCK` disk resource. This will result in a `RAW`
+    // disk resource.
     // NOTE: For the time being, this API is subject to change and the related
     // feature is experimental.
-    message DestroyVolume {
-      required Resource volume = 1;
-    }
-
-    // NOTE: For the time being, this API is subject to change and the related
-    // feature is experimental.
-    message CreateBlock {
+    message DestroyDisk {
+      // NOTE: Only a `MOUNT` or `BLOCK` disk is allowed in the `source` field.
       required Resource source = 1;
     }
 
-    // NOTE: For the time being, this API is subject to change and the related
-    // feature is experimental.
-    message DestroyBlock {
-      required Resource block = 1;
-    }
 
     optional Type type = 1;
 
@@ -2015,10 +2008,8 @@ message Offer {
     optional Destroy destroy = 6;
     optional GrowVolume grow_volume = 13; // EXPERIMENTAL.
     optional ShrinkVolume shrink_volume = 14; // EXPERIMENTAL.
-    optional CreateVolume create_volume = 8;
-    optional DestroyVolume destroy_volume = 9;
-    optional CreateBlock create_block = 10;
-    optional DestroyBlock destroy_block = 11;
+    optional CreateDisk create_disk = 15; // EXPERIMENTAL.
+    optional DestroyDisk destroy_disk = 16; // EXPERIMENTAL.
   }
 }
 
