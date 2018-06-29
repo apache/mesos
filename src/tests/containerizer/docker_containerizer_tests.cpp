@@ -100,10 +100,8 @@ namespace tests {
 
 #ifdef __WINDOWS__
 static constexpr char DOCKER_INKY_IMAGE[] = "akagup/inky";
-static constexpr char DOCKER_LIST_COMMAND[] = "dir";
 #else
 static constexpr char DOCKER_INKY_IMAGE[] = "mesosphere/inky";
-static constexpr char DOCKER_LIST_COMMAND[] = "ls";
 #endif // __WINDOWS__
 
 
