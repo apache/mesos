@@ -116,18 +116,13 @@ inline Try<Nothing> extract(
     // If a destination path is specified, update the entry to reflect it.
     // We assume the destination directory already exists.
     if (!destination.empty()) {
-      // NOTE: These will be nullptr if the entry is not a hardlink/symlink.
+      // NOTE: This will be nullptr if the entry is not a hardlink.
       const char* hardlink_target = archive_entry_hardlink_utf8(entry);
-      const char* symlink_target = archive_entry_symlink_utf8(entry);
 
       if (hardlink_target != nullptr) {
         archive_entry_update_hardlink_utf8(
             entry,
             path::join(destination, hardlink_target).c_str());
-      } else if (symlink_target != nullptr) {
-        archive_entry_update_symlink_utf8(
-            entry,
-            path::join(destination, symlink_target).c_str());
       }
 
       archive_entry_update_pathname_utf8(
