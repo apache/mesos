@@ -89,8 +89,15 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest, UnauthenticatedSlave)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  Future<ShutdownMessage> shutdownMessage =
-    FUTURE_PROTOBUF(ShutdownMessage(), _, _);
+  // Previously, agents were shut down when registration failed due to
+  // authorization. We verify that this no longer occurs.
+  EXPECT_NO_FUTURE_PROTOBUFS(ShutdownMessage(), _, _);
+
+  // We verify that the agent isn't allowed to register.
+  EXPECT_NO_FUTURE_PROTOBUFS(SlaveRegisteredMessage(), _, _);
+
+  Future<RegisterSlaveMessage> registerSlaveMessage1 =
+    FUTURE_PROTOBUF(RegisterSlaveMessage(), _, _);
 
   // Start the slave without credentials.
   slave::Flags flags = CreateSlaveFlags();
@@ -100,9 +107,23 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest, UnauthenticatedSlave)
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
   ASSERT_SOME(slave);
 
-  // Slave should get error message from the master.
-  AWAIT_READY(shutdownMessage);
-  ASSERT_NE("", shutdownMessage->message());
+  AWAIT_READY(registerSlaveMessage1);
+
+  Future<RegisterSlaveMessage> registerSlaveMessage2 =
+    FUTURE_PROTOBUF(RegisterSlaveMessage(), _, _);
+
+  // Advance the clock to trigger another registration attempt.
+  Clock::pause();
+  Clock::advance(slave::REGISTER_RETRY_INTERVAL_MAX);
+  Clock::settle();
+  Clock::resume();
+
+  AWAIT_READY(registerSlaveMessage2);
+
+  // Settle to make sure neither `SlaveRegisteredMessage` nor
+  // `ShutdownMessage` are sent.
+  Clock::pause();
+  Clock::settle();
 }
 
 
