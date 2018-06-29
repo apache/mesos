@@ -31,9 +31,9 @@ Mesos 1.0.0 introduced experimental support for Windows.
 5. Make sure there are no spaces in your build directory.
    For example, `C:/Program Files (x86)/mesos` is an invalid build directory.
 
-6. If developing Mesos, install [Python 2](https://www.python.org/downloads/)
-   (not Python 3), in order to use our support scripts (e.g. to post and apply
-   patches, or lint source code).
+6. If developing Mesos, install [Python 3](https://www.python.org/downloads/)
+   (not Python 2), in order to use our `support/python3` scripts (e.g.
+   to post and apply patches, or lint source code).
 
 ### Build Instructions
 
@@ -46,7 +46,7 @@ Following are the instructions for Windows 10.
     # Configure using CMake for an out-of-tree build.
     mkdir build
     cd build
-    cmake .. -G "Visual Studio 15 2017 Win64" -T "host=x64" -DENABLE_LIBEVENT=1
+    cmake .. -G "Visual Studio 15 2017 Win64" -T "host=x64" -DENABLE_LIBWINIO=ON
 
     # Build Mesos.
     # To build just the Mesos agent, add `--target mesos-agent`.
@@ -100,7 +100,7 @@ ensure `ninja.exe` is in your `PATH`.
   environment.
 * In that command prompt, type `powershell` to use a better shell.
 * Similar to above, configure CMake with
-  `cmake .. -G Ninja -DENABLE_LIBEVENT=1`.
+  `cmake .. -G Ninja -DENABLE_LIBWINIO=ON`.
 * Now you can use `ninja` to build the various targets.
 * You may want to use `ninja -v` to make it verbose, as it's otherwise
   very quiet.
@@ -170,6 +170,11 @@ As of this writing, OpenSSL 1.1.x is not yet supported, but 1.0.2M has been
 tested.
 
 Use `-DENABLE_SSL=ON` when running CMake to build with OpenSSL.
+
+> Warning: This currently requires the use of `-DENABLE_LIBEVENT=ON`
+> instead of `-DENABLE_LIBWINIO=ON`; however, the use of libevent on
+> Windows is not recommended, as it is buggy and will be unsupported
+> in the future.
 
 Note that it will link to OpenSSL dynamically, so if the built executables are
 deployed elsewhere, that machine also needs OpenSSL installed.
