@@ -1257,7 +1257,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/containerizer/mesos/provisioner/appc/paths.hpp			\
   slave/containerizer/mesos/provisioner/appc/store.hpp			\
   slave/containerizer/mesos/provisioner/backends/copy.hpp		\
-  slave/containerizer/mesos/provisioner/docker/image_tar_puller.hpp		\
+  slave/containerizer/mesos/provisioner/docker/image_tar_puller.hpp	\
   slave/containerizer/mesos/provisioner/docker/message.hpp		\
   slave/containerizer/mesos/provisioner/docker/metadata_manager.hpp	\
   slave/containerizer/mesos/provisioner/docker/paths.hpp		\
@@ -1268,36 +1268,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/resource_estimators/noop.hpp					\
   status_update_manager/status_update_manager_process.hpp		\
   status_update_manager/operation.hpp					\
-  tests/active_user_test_helper.hpp					\
-  tests/allocator.hpp							\
-  tests/cluster.hpp							\
-  tests/containerizer.hpp						\
-  tests/environment.hpp							\
-  tests/flags.hpp							\
-  tests/http_server_test_helper.hpp					\
-  tests/kill_policy_test_helper.hpp					\
-  tests/limiter.hpp							\
-  tests/mesos.hpp							\
-  tests/mock_docker.hpp							\
-  tests/mock_fetcher.hpp						\
-  tests/mock_slave.hpp							\
-  tests/mock_registrar.hpp						\
-  tests/module.hpp							\
-  tests/resources_utils.hpp						\
-  tests/script.hpp							\
-  tests/utils.hpp							\
-  tests/zookeeper.hpp							\
-  tests/zookeeper_test_server.hpp					\
-  tests/containerizer/capabilities_test_helper.hpp			\
-  tests/containerizer/docker_archive.hpp				\
-  tests/containerizer/docker_common.hpp					\
-  tests/containerizer/isolator.hpp					\
-  tests/containerizer/launcher.hpp					\
-  tests/containerizer/memory_test_helper.hpp				\
-  tests/containerizer/mock_containerizer.hpp				\
-  tests/containerizer/rootfs.hpp					\
-  tests/containerizer/setns_test_helper.hpp				\
-  tests/containerizer/store.hpp						\
   uri/fetcher.hpp							\
   uri/utils.hpp								\
   uri/fetchers/copy.hpp							\
@@ -2514,7 +2484,9 @@ endif
 mesos_tests_SOURCES =						\
   slave/qos_controllers/load.cpp				\
   tests/active_user_test_helper.cpp				\
+  tests/active_user_test_helper.hpp				\
   tests/agent_container_api_tests.cpp				\
+  tests/allocator.hpp						\
   tests/anonymous_tests.cpp					\
   tests/api_tests.cpp						\
   tests/attributes_tests.cpp					\
@@ -2522,11 +2494,13 @@ mesos_tests_SOURCES =						\
   tests/authorization_tests.cpp					\
   tests/check_tests.cpp						\
   tests/cluster.cpp						\
+  tests/cluster.hpp						\
   tests/command_executor_tests.cpp				\
   tests/common_validation_tests.cpp				\
+  tests/container_daemon_tests.cpp				\
   tests/container_logger_tests.cpp				\
   tests/containerizer.cpp					\
-  tests/container_daemon_tests.cpp				\
+  tests/containerizer.hpp					\
   tests/cram_md5_authentication_tests.cpp			\
   tests/credentials_tests.cpp					\
   tests/default_executor_tests.cpp				\
@@ -2534,6 +2508,7 @@ mesos_tests_SOURCES =						\
   tests/disk_quota_tests.cpp					\
   tests/dynamic_weights_tests.cpp				\
   tests/environment.cpp						\
+  tests/environment.hpp						\
   tests/examples_tests.cpp					\
   tests/exception_tests.cpp					\
   tests/executor_http_api_tests.cpp				\
@@ -2542,6 +2517,7 @@ mesos_tests_SOURCES =						\
   tests/fetcher_tests.cpp					\
   tests/files_tests.cpp						\
   tests/flags.cpp						\
+  tests/flags.hpp						\
   tests/gc_tests.cpp						\
   tests/hdfs_tests.cpp						\
   tests/health_check_tests.cpp					\
@@ -2550,7 +2526,10 @@ mesos_tests_SOURCES =						\
   tests/http_authentication_tests.cpp				\
   tests/http_fault_tolerance_tests.cpp				\
   tests/http_server_test_helper.cpp				\
+  tests/http_server_test_helper.hpp				\
   tests/kill_policy_test_helper.cpp				\
+  tests/kill_policy_test_helper.hpp				\
+  tests/limiter.hpp						\
   tests/log_tests.cpp						\
   tests/logging_tests.cpp					\
   tests/main.cpp						\
@@ -2564,12 +2543,18 @@ mesos_tests_SOURCES =						\
   tests/master_tests.cpp					\
   tests/master_validation_tests.cpp				\
   tests/mesos.cpp						\
+  tests/mesos.hpp						\
   tests/metrics_tests.cpp					\
   tests/mock_docker.cpp						\
+  tests/mock_docker.hpp						\
   tests/mock_fetcher.cpp					\
-  tests/mock_slave.cpp						\
+  tests/mock_fetcher.hpp					\
   tests/mock_registrar.cpp					\
+  tests/mock_registrar.hpp					\
+  tests/mock_slave.cpp						\
+  tests/mock_slave.hpp						\
   tests/module.cpp						\
+  tests/module.hpp						\
   tests/module_tests.cpp					\
   tests/operation_reconciliation_tests.cpp			\
   tests/operation_status_update_manager_tests.cpp		\
@@ -2590,52 +2575,67 @@ mesos_tests_SOURCES =						\
   tests/resource_provider_validation_tests.cpp			\
   tests/resources_tests.cpp					\
   tests/resources_utils.cpp					\
+  tests/resources_utils.hpp					\
   tests/role_tests.cpp						\
   tests/scheduler_driver_tests.cpp				\
   tests/scheduler_event_call_tests.cpp				\
   tests/scheduler_http_api_tests.cpp				\
   tests/scheduler_tests.cpp					\
   tests/script.cpp						\
+  tests/script.hpp						\
   tests/slave_authorization_tests.cpp				\
   tests/slave_compatibility_tests.cpp				\
   tests/slave_recovery_tests.cpp				\
-  tests/slave_validation_tests.cpp				\
   tests/slave_tests.cpp						\
+  tests/slave_validation_tests.cpp				\
   tests/sorter_tests.cpp					\
   tests/state_tests.cpp						\
   tests/task_status_update_manager_tests.cpp			\
   tests/teardown_tests.cpp					\
   tests/upgrade_tests.cpp					\
-  tests/uri_tests.cpp						\
   tests/uri_fetcher_tests.cpp					\
+  tests/uri_tests.cpp						\
   tests/utils.cpp						\
+  tests/utils.hpp						\
   tests/values_tests.cpp					\
+  tests/zookeeper.hpp						\
+  tests/zookeeper_test_server.hpp				\
   tests/zookeeper_url_tests.cpp					\
   tests/common/command_utils_tests.cpp				\
   tests/common/http_tests.cpp					\
   tests/common/recordio_tests.cpp				\
   tests/common/type_utils_tests.cpp				\
   tests/containerizer/appc_spec_tests.cpp			\
+  tests/containerizer/capabilities_test_helper.hpp		\
   tests/containerizer/composing_containerizer_tests.cpp		\
   tests/containerizer/containerizer_tests.cpp			\
   tests/containerizer/cpu_isolator_tests.cpp			\
+  tests/containerizer/docker_archive.hpp			\
+  tests/containerizer/docker_common.hpp				\
   tests/containerizer/docker_containerizer_tests.cpp		\
   tests/containerizer/docker_spec_tests.cpp			\
   tests/containerizer/docker_tests.cpp				\
   tests/containerizer/environment_secret_isolator_tests.cpp	\
   tests/containerizer/io_switchboard_tests.cpp			\
+  tests/containerizer/isolator.hpp				\
   tests/containerizer/isolator_tests.cpp			\
   tests/containerizer/launcher.cpp				\
+  tests/containerizer/launcher.hpp				\
   tests/containerizer/memory_isolator_tests.cpp			\
   tests/containerizer/memory_test_helper.cpp			\
-  tests/containerizer/mesos_containerizer_tests.cpp		\
+  tests/containerizer/memory_test_helper.hpp			\
   tests/containerizer/mesos_containerizer_paths_tests.cpp	\
+  tests/containerizer/mesos_containerizer_tests.cpp		\
+  tests/containerizer/mock_containerizer.hpp			\
   tests/containerizer/oci_spec_tests.cpp			\
   tests/containerizer/posix_rlimits_isolator_tests.cpp		\
   tests/containerizer/provisioner_appc_tests.cpp		\
   tests/containerizer/provisioner_backend_tests.cpp		\
   tests/containerizer/provisioner_docker_tests.cpp		\
   tests/containerizer/provisioner_paths_tests.cpp		\
+  tests/containerizer/rootfs.hpp				\
+  tests/containerizer/setns_test_helper.hpp			\
+  tests/containerizer/store.hpp					\
   tests/containerizer/volume_sandbox_path_isolator_tests.cpp
 
 if ENABLE_GRPC
