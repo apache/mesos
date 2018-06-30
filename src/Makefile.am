@@ -1285,96 +1285,94 @@ libmesos_no_3rdparty_la_SOURCES +=					\
 
 MESOS_LINUX_FILES =									\
   linux/capabilities.cpp								\
-  linux/cgroups.cpp									\
-  linux/fs.cpp										\
-  linux/ldcache.cpp									\
-  linux/ldd.cpp										\
-  linux/ns.cpp										\
-  linux/perf.cpp									\
-  linux/systemd.cpp									\
-  slave/containerizer/mesos/linux_launcher.cpp						\
-  slave/containerizer/mesos/isolators/appc/runtime.cpp					\
-  slave/containerizer/mesos/isolators/cgroups/cgroups.cpp				\
-  slave/containerizer/mesos/isolators/cgroups/subsystem.cpp				\
-  slave/containerizer/mesos/isolators/cgroups/subsystems/blkio.cpp			\
-  slave/containerizer/mesos/isolators/cgroups/subsystems/cpu.cpp			\
-  slave/containerizer/mesos/isolators/cgroups/subsystems/cpuacct.cpp			\
-  slave/containerizer/mesos/isolators/cgroups/subsystems/cpuset.cpp			\
-  slave/containerizer/mesos/isolators/cgroups/subsystems/devices.cpp			\
-  slave/containerizer/mesos/isolators/cgroups/subsystems/hugetlb.cpp			\
-  slave/containerizer/mesos/isolators/cgroups/subsystems/memory.cpp			\
-  slave/containerizer/mesos/isolators/cgroups/subsystems/net_cls.cpp			\
-  slave/containerizer/mesos/isolators/cgroups/subsystems/net_prio.cpp			\
-  slave/containerizer/mesos/isolators/cgroups/subsystems/perf_event.cpp			\
-  slave/containerizer/mesos/isolators/cgroups/subsystems/pids.cpp			\
-  slave/containerizer/mesos/isolators/docker/runtime.cpp				\
-  slave/containerizer/mesos/isolators/docker/volume/isolator.cpp			\
-  slave/containerizer/mesos/isolators/filesystem/linux.cpp				\
-  slave/containerizer/mesos/isolators/filesystem/shared.cpp				\
-  slave/containerizer/mesos/isolators/gpu/allocator.cpp					\
-  slave/containerizer/mesos/isolators/gpu/isolator.cpp					\
-  slave/containerizer/mesos/isolators/gpu/nvml.cpp					\
-  slave/containerizer/mesos/isolators/gpu/volume.cpp					\
-  slave/containerizer/mesos/isolators/linux/capabilities.cpp				\
-  slave/containerizer/mesos/isolators/linux/devices.cpp					\
-  slave/containerizer/mesos/isolators/namespaces/ipc.cpp				\
-  slave/containerizer/mesos/isolators/namespaces/pid.cpp				\
-  slave/containerizer/mesos/isolators/network/cni/cni.cpp				\
-  slave/containerizer/mesos/isolators/network/cni/plugins/port_mapper/port_mapper.cpp	\
-  slave/containerizer/mesos/isolators/volume/host_path.cpp				\
-  slave/containerizer/mesos/isolators/volume/image.cpp					\
-  slave/containerizer/mesos/isolators/volume/secret.cpp					\
-  slave/containerizer/mesos/provisioner/backends/aufs.cpp				\
-  slave/containerizer/mesos/provisioner/backends/bind.cpp				\
-  slave/containerizer/mesos/provisioner/backends/overlay.cpp
-
-MESOS_LINUX_FILES +=									\
   linux/capabilities.hpp								\
+  linux/cgroups.cpp									\
   linux/cgroups.hpp									\
+  linux/fs.cpp										\
   linux/fs.hpp										\
+  linux/ldcache.cpp									\
   linux/ldcache.hpp									\
+  linux/ldd.cpp										\
   linux/ldd.hpp										\
+  linux/ns.cpp										\
   linux/ns.hpp										\
+  linux/perf.cpp									\
   linux/perf.hpp									\
   linux/sched.hpp									\
+  linux/systemd.cpp									\
   linux/systemd.hpp									\
+  slave/containerizer/mesos/linux_launcher.cpp						\
   slave/containerizer/mesos/linux_launcher.hpp						\
+  slave/containerizer/mesos/isolators/appc/runtime.cpp					\
   slave/containerizer/mesos/isolators/appc/runtime.hpp					\
+  slave/containerizer/mesos/isolators/cgroups/cgroups.cpp				\
   slave/containerizer/mesos/isolators/cgroups/cgroups.hpp				\
   slave/containerizer/mesos/isolators/cgroups/constants.hpp				\
+  slave/containerizer/mesos/isolators/cgroups/subsystem.cpp				\
   slave/containerizer/mesos/isolators/cgroups/subsystem.hpp				\
+  slave/containerizer/mesos/isolators/cgroups/subsystems/blkio.cpp			\
   slave/containerizer/mesos/isolators/cgroups/subsystems/blkio.hpp			\
+  slave/containerizer/mesos/isolators/cgroups/subsystems/cpu.cpp			\
   slave/containerizer/mesos/isolators/cgroups/subsystems/cpu.hpp			\
+  slave/containerizer/mesos/isolators/cgroups/subsystems/cpuacct.cpp			\
   slave/containerizer/mesos/isolators/cgroups/subsystems/cpuacct.hpp			\
+  slave/containerizer/mesos/isolators/cgroups/subsystems/cpuset.cpp			\
   slave/containerizer/mesos/isolators/cgroups/subsystems/cpuset.hpp			\
+  slave/containerizer/mesos/isolators/cgroups/subsystems/devices.cpp			\
   slave/containerizer/mesos/isolators/cgroups/subsystems/devices.hpp			\
+  slave/containerizer/mesos/isolators/cgroups/subsystems/hugetlb.cpp			\
   slave/containerizer/mesos/isolators/cgroups/subsystems/hugetlb.hpp			\
+  slave/containerizer/mesos/isolators/cgroups/subsystems/memory.cpp			\
   slave/containerizer/mesos/isolators/cgroups/subsystems/memory.hpp			\
+  slave/containerizer/mesos/isolators/cgroups/subsystems/net_cls.cpp			\
   slave/containerizer/mesos/isolators/cgroups/subsystems/net_cls.hpp			\
+  slave/containerizer/mesos/isolators/cgroups/subsystems/net_prio.cpp			\
   slave/containerizer/mesos/isolators/cgroups/subsystems/net_prio.hpp			\
+  slave/containerizer/mesos/isolators/cgroups/subsystems/perf_event.cpp			\
   slave/containerizer/mesos/isolators/cgroups/subsystems/perf_event.hpp			\
+  slave/containerizer/mesos/isolators/cgroups/subsystems/pids.cpp			\
   slave/containerizer/mesos/isolators/cgroups/subsystems/pids.hpp			\
+  slave/containerizer/mesos/isolators/docker/runtime.cpp				\
   slave/containerizer/mesos/isolators/docker/runtime.hpp				\
+  slave/containerizer/mesos/isolators/docker/volume/isolator.cpp			\
   slave/containerizer/mesos/isolators/docker/volume/isolator.hpp			\
+  slave/containerizer/mesos/isolators/filesystem/linux.cpp				\
   slave/containerizer/mesos/isolators/filesystem/linux.hpp				\
+  slave/containerizer/mesos/isolators/filesystem/shared.cpp				\
   slave/containerizer/mesos/isolators/filesystem/shared.hpp				\
+  slave/containerizer/mesos/isolators/gpu/allocator.cpp					\
   slave/containerizer/mesos/isolators/gpu/allocator.hpp					\
   slave/containerizer/mesos/isolators/gpu/components.hpp				\
+  slave/containerizer/mesos/isolators/gpu/isolator.cpp					\
   slave/containerizer/mesos/isolators/gpu/isolator.hpp					\
   slave/containerizer/mesos/isolators/gpu/nvidia.hpp					\
+  slave/containerizer/mesos/isolators/gpu/nvml.cpp					\
   slave/containerizer/mesos/isolators/gpu/nvml.hpp					\
+  slave/containerizer/mesos/isolators/gpu/volume.cpp					\
   slave/containerizer/mesos/isolators/gpu/volume.hpp					\
+  slave/containerizer/mesos/isolators/linux/capabilities.cpp				\
   slave/containerizer/mesos/isolators/linux/capabilities.hpp				\
+  slave/containerizer/mesos/isolators/linux/devices.cpp					\
   slave/containerizer/mesos/isolators/linux/devices.hpp					\
+  slave/containerizer/mesos/isolators/namespaces/ipc.cpp				\
   slave/containerizer/mesos/isolators/namespaces/ipc.hpp				\
+  slave/containerizer/mesos/isolators/namespaces/pid.cpp				\
   slave/containerizer/mesos/isolators/namespaces/pid.hpp				\
+  slave/containerizer/mesos/isolators/network/cni/cni.cpp				\
   slave/containerizer/mesos/isolators/network/cni/cni.hpp				\
+  slave/containerizer/mesos/isolators/network/cni/plugins/port_mapper/port_mapper.cpp	\
   slave/containerizer/mesos/isolators/network/cni/plugins/port_mapper/port_mapper.hpp	\
+  slave/containerizer/mesos/isolators/volume/host_path.cpp				\
   slave/containerizer/mesos/isolators/volume/host_path.hpp				\
+  slave/containerizer/mesos/isolators/volume/image.cpp					\
   slave/containerizer/mesos/isolators/volume/image.hpp					\
+  slave/containerizer/mesos/isolators/volume/secret.cpp					\
   slave/containerizer/mesos/isolators/volume/secret.hpp					\
+  slave/containerizer/mesos/provisioner/backends/aufs.cpp				\
   slave/containerizer/mesos/provisioner/backends/aufs.hpp				\
+  slave/containerizer/mesos/provisioner/backends/bind.cpp				\
   slave/containerizer/mesos/provisioner/backends/bind.hpp				\
+  slave/containerizer/mesos/provisioner/backends/overlay.cpp				\
   slave/containerizer/mesos/provisioner/backends/overlay.hpp
 
 if ENABLE_XFS_DISK_ISOLATOR
