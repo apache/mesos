@@ -125,7 +125,7 @@ public:
   //   std::vector<std::string> modules = ModuleManager::find<Hook>();
   //
   // Will return all of the module names for modules that implement
-  // the Isolator interface.
+  // the `Hook` interface.
   template <typename T>
   static std::vector<std::string> find()
   {
@@ -143,7 +143,7 @@ public:
   }
 
   // Exposed just for testing so that we can unload a given
-  // module  and remove it from the list of ModuleBases.
+  // module and remove it from the list of `ModuleBase`.
   static Try<Nothing> unload(const std::string& moduleName);
 
 private:
@@ -167,9 +167,9 @@ private:
 
   static hashmap<std::string, std::string> kindToVersion;
 
-  // Mapping from "module name" to the actual ModuleBase. If two
+  // Mapping from module name to the actual `ModuleBase`. If two
   // modules from different libraries have the same name then the last
-  // one specified in the protobuf Modules will be picked.
+  // one specified in the protobuf `Modules` will be picked.
   static hashmap<std::string, ModuleBase*> moduleBases;
 
   // Module-specific command-line parameters.
