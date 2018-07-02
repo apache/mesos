@@ -2459,8 +2459,7 @@ bool HierarchicalAllocatorProcess::allocatable(const Resources& resources)
     return true;
   }
 
-  // We remove the static reservation metadata here via `toUnreserved()`.
-  Resources quantity = resources.createStrippedScalarQuantity().toUnreserved();
+  Resources quantity = resources.createStrippedScalarQuantity();
   foreach (
       const Resources& minResources, CHECK_NOTNONE(minAllocatableResources)) {
     if (quantity.contains(minResources)) {
