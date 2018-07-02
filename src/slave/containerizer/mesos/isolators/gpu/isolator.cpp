@@ -102,8 +102,8 @@ Try<Isolator*> NvidiaGpuIsolatorProcess::create(
     const Flags& flags,
     const NvidiaComponents& components)
 {
-  // Make sure both the 'cgroups/devices' (or 'cgroups/all') isolator and the
-  // 'filesystem/linux' isolators are present and precede the GPU isolator.
+  // Make sure both the 'cgroups/devices' (or 'cgroups/all')
+  // and the 'filesystem/linux' isolators are present.
   vector<string> tokens = strings::tokenize(flags.isolation, ",");
 
   auto gpuIsolator =
@@ -135,30 +135,15 @@ Try<Isolator*> NvidiaGpuIsolatorProcess::create(
       return Error(
           "The `devices` cgroups subsystem is not enabled by the kernel");
     }
-
-    if (devicesIsolator > cgroupsAllIsolator) {
-      devicesIsolator = cgroupsAllIsolator;
-    }
-  }
-
-  if (devicesIsolator == tokens.end()) {
-    return Error("The 'cgroups/devices' isolator must be enabled in"
-                 " order to use the 'gpu/nvidia' isolator");
+  } else if (devicesIsolator == tokens.end()) {
+    return Error(
+        "The 'cgroups/devices' or 'cgroups/all' isolator must be"
+        " enabled in order to use the 'gpu/nvidia' isolator");
   }
 
   if (filesystemIsolator == tokens.end()) {
     return Error("The 'filesystem/linux' isolator must be enabled in"
                  " order to use the 'gpu/nvidia' isolator");
-  }
-
-  if (devicesIsolator > gpuIsolator) {
-    return Error("'cgroups/devices' or 'cgroups/all' must precede 'gpu/nvidia'"
-                 " in the --isolation flag");
-  }
-
-  if (filesystemIsolator > gpuIsolator) {
-    return Error("'filesystem/linux' must precede 'gpu/nvidia'"
-                 " in the --isolation flag");
   }
 
   // Retrieve the cgroups devices hierarchy.
