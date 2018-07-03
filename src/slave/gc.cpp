@@ -212,6 +212,8 @@ void GarbageCollectorProcess::remove(const Timeout& removalTime)
               info->promise.fail(unmount.error());
               it = infos.erase(it);
               continue;
+            } else {
+              break;
             }
           }
 
