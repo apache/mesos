@@ -253,6 +253,8 @@ void GarbageCollectorProcess::remove(const Timeout& removalTime)
               ++failed;
               it = infos.erase(it);
               continue;
+            } else {
+              break;
             }
           }
 
