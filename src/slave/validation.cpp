@@ -627,7 +627,7 @@ Option<Error> validate(const mesos::executor::Call& call)
 
       if (status.has_check_status()) {
         Option<Error> validate =
-          checks::validation::checkStatusInfo(status.check_status());
+          common::validation::validateCheckStatusInfo(status.check_status());
 
         if (validate.isSome()) {
           return validate.get();

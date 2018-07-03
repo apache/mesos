@@ -1228,7 +1228,7 @@ Option<Error> validateMaxCompletionTime(const TaskInfo& task)
 Option<Error> validateCheck(const TaskInfo& task)
 {
   if (task.has_check()) {
-    Option<Error> error = checks::validation::checkInfo(task.check());
+    Option<Error> error = common::validation::validateCheckInfo(task.check());
     if (error.isSome()) {
       return Error("Task uses invalid check: " + error->message);
     }

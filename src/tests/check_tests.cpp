@@ -34,12 +34,17 @@
 
 #include "checks/checker.hpp"
 
+#include "common/validation.hpp"
+
 #include "slave/containerizer/fetcher.hpp"
 
 #include "tests/flags.hpp"
 #include "tests/http_server_test_helper.hpp"
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
+
+using mesos::internal::common::validation::validateCheckInfo;
+using mesos::internal::common::validation::validateCheckStatusInfo;
 
 using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::MesosContainerizer;
@@ -2865,12 +2870,12 @@ TEST_F(CheckTest, CheckInfoValidation)
   {
     CheckInfo checkInfo;
 
-    Option<Error> validate = validation::checkInfo(checkInfo);
+    Option<Error> validate = validateCheckInfo(checkInfo);
     EXPECT_SOME(validate);
     EXPECT_EQ("CheckInfo must specify 'type'", validate->message);
 
     checkInfo.set_type(CheckInfo::UNKNOWN);
-    validate = validation::checkInfo(checkInfo);
+    validate = validateCheckInfo(checkInfo);
     EXPECT_SOME(validate);
     EXPECT_EQ("'UNKNOWN' is not a valid check type", validate->message);
   }
@@ -2880,21 +2885,21 @@ TEST_F(CheckTest, CheckInfoValidation)
     CheckInfo checkInfo;
 
     checkInfo.set_type(CheckInfo::COMMAND);
-    Option<Error> validate = validation::checkInfo(checkInfo);
+    Option<Error> validate = validateCheckInfo(checkInfo);
     EXPECT_SOME(validate);
     EXPECT_EQ(
         "Expecting 'command' to be set for COMMAND check",
         validate->message);
 
     checkInfo.set_type(CheckInfo::HTTP);
-    validate = validation::checkInfo(checkInfo);
+    validate = validateCheckInfo(checkInfo);
     EXPECT_SOME(validate);
     EXPECT_EQ(
         "Expecting 'http' to be set for HTTP check",
         validate->message);
 
     checkInfo.set_type(CheckInfo::TCP);
-    validate = validation::checkInfo(checkInfo);
+    validate = validateCheckInfo(checkInfo);
     EXPECT_SOME(validate);
     EXPECT_EQ(
         "Expecting 'tcp' to be set for TCP check",
@@ -2907,12 +2912,12 @@ TEST_F(CheckTest, CheckInfoValidation)
 
     checkInfo.set_type(CheckInfo::COMMAND);
     checkInfo.mutable_command()->CopyFrom(CheckInfo::Command());
-    Option<Error> validate = validation::checkInfo(checkInfo);
+    Option<Error> validate = validateCheckInfo(checkInfo);
     EXPECT_SOME(validate);
     EXPECT_EQ("Command check must contain 'shell command'", validate->message);
 
     checkInfo.mutable_command()->mutable_command()->CopyFrom(CommandInfo());
-    validate = validation::checkInfo(checkInfo);
+    validate = validateCheckInfo(checkInfo);
     EXPECT_SOME(validate);
     EXPECT_EQ("Command check must contain 'shell command'", validate->message);
   }
@@ -2926,7 +2931,7 @@ TEST_F(CheckTest, CheckInfoValidation)
     checkInfo.mutable_command()->mutable_command()->CopyFrom(
         createCommandInfo("exit 0"));
 
-    Option<Error> validate = validation::checkInfo(checkInfo);
+    Option<Error> validate = validateCheckInfo(checkInfo);
     EXPECT_NONE(validate);
 
     Environment::Variable* variable =
@@ -2934,7 +2939,7 @@ TEST_F(CheckTest, CheckInfoValidation)
           ->mutable_variables()->Add();
     variable->set_name("ENV_VAR_KEY");
 
-    validate = validation::checkInfo(checkInfo);
+    validate = validateCheckInfo(checkInfo);
     EXPECT_SOME(validate);
   }
 
@@ -2945,11 +2950,11 @@ TEST_F(CheckTest, CheckInfoValidation)
     checkInfo.set_type(CheckInfo::HTTP);
     checkInfo.mutable_http()->set_port(8080);
 
-    Option<Error> validate = validation::checkInfo(checkInfo);
+    Option<Error> validate = validateCheckInfo(checkInfo);
     EXPECT_NONE(validate);
 
     checkInfo.mutable_http()->set_path("healthz");
-    validate = validation::checkInfo(checkInfo);
+    validate = validateCheckInfo(checkInfo);
     EXPECT_SOME(validate);
     EXPECT_EQ(
         "The path 'healthz' of HTTP check must start with '/'",
@@ -2964,7 +2969,7 @@ TEST_F(CheckTest, CheckInfoValidation)
     checkInfo.mutable_http()->set_port(8080);
 
     checkInfo.set_delay_seconds(-1.0);
-    Option<Error> validate = validation::checkInfo(checkInfo);
+    Option<Error> validate = validateCheckInfo(checkInfo);
     EXPECT_SOME(validate);
     EXPECT_EQ(
         "Expecting 'delay_seconds' to be non-negative",
@@ -2972,7 +2977,7 @@ TEST_F(CheckTest, CheckInfoValidation)
 
     checkInfo.set_delay_seconds(0.0);
     checkInfo.set_interval_seconds(-1.0);
-    validate = validation::checkInfo(checkInfo);
+    validate = validateCheckInfo(checkInfo);
     EXPECT_SOME(validate);
     EXPECT_EQ(
         "Expecting 'interval_seconds' to be non-negative",
@@ -2980,14 +2985,14 @@ TEST_F(CheckTest, CheckInfoValidation)
 
     checkInfo.set_interval_seconds(0.0);
     checkInfo.set_timeout_seconds(-1.0);
-    validate = validation::checkInfo(checkInfo);
+    validate = validateCheckInfo(checkInfo);
     EXPECT_SOME(validate);
     EXPECT_EQ(
         "Expecting 'timeout_seconds' to be non-negative",
         validate->message);
 
     checkInfo.set_timeout_seconds(0.0);
-    validate = validation::checkInfo(checkInfo);
+    validate = validateCheckInfo(checkInfo);
     EXPECT_NONE(validate);
   }
 }
@@ -3002,12 +3007,12 @@ TEST_F(CheckTest, CheckStatusInfoValidation)
   {
     CheckStatusInfo checkStatusInfo;
 
-    Option<Error> validate = validation::checkStatusInfo(checkStatusInfo);
+    Option<Error> validate = validateCheckStatusInfo(checkStatusInfo);
     EXPECT_SOME(validate);
     EXPECT_EQ("CheckStatusInfo must specify 'type'", validate->message);
 
     checkStatusInfo.set_type(CheckInfo::UNKNOWN);
-    validate = validation::checkStatusInfo(checkStatusInfo);
+    validate = validateCheckStatusInfo(checkStatusInfo);
     EXPECT_SOME(validate);
     EXPECT_EQ(
         "'UNKNOWN' is not a valid check's status type",
@@ -3019,21 +3024,21 @@ TEST_F(CheckTest, CheckStatusInfoValidation)
     CheckStatusInfo checkStatusInfo;
 
     checkStatusInfo.set_type(CheckInfo::COMMAND);
-    Option<Error> validate = validation::checkStatusInfo(checkStatusInfo);
+    Option<Error> validate = validateCheckStatusInfo(checkStatusInfo);
     EXPECT_SOME(validate);
     EXPECT_EQ(
         "Expecting 'command' to be set for COMMAND check's status",
         validate->message);
 
     checkStatusInfo.set_type(CheckInfo::HTTP);
-    validate = validation::checkStatusInfo(checkStatusInfo);
+    validate = validateCheckStatusInfo(checkStatusInfo);
     EXPECT_SOME(validate);
     EXPECT_EQ(
         "Expecting 'http' to be set for HTTP check's status",
         validate->message);
 
     checkStatusInfo.set_type(CheckInfo::TCP);
-    validate = validation::checkStatusInfo(checkStatusInfo);
+    validate = validateCheckStatusInfo(checkStatusInfo);
     EXPECT_SOME(validate);
     EXPECT_EQ(
         "Expecting 'tcp' to be set for TCP check's status",

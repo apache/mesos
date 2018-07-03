@@ -98,16 +98,6 @@ private:
   process::Owned<CheckerProcess> process;
 };
 
-namespace validation {
-
-// TODO(alexr): A better place for these functions would be something like
-// "mesos_validation.cpp", since they validate API protobufs which are not
-// solely related to this library.
-Option<Error> checkInfo(const CheckInfo& checkInfo);
-Option<Error> checkStatusInfo(const CheckStatusInfo& checkStatusInfo);
-
-} // namespace validation {
-
 } // namespace checks {
 } // namespace internal {
 } // namespace mesos {

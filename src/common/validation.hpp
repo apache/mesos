@@ -56,6 +56,10 @@ Option<Error> validateGpus(
 
 Option<Error> validateHealthCheck(const HealthCheck& healthCheck);
 
+Option<Error> validateCheckInfo(const CheckInfo& checkInfo);
+
+Option<Error> validateCheckStatusInfo(const CheckStatusInfo& checkStatusInfo);
+
 } // namespace validation {
 } // namespace common {
 } // namespace internal {
