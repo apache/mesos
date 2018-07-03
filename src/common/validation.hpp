@@ -54,6 +54,8 @@ Option<Error> validateContainerInfo(const ContainerInfo& containerInfo);
 Option<Error> validateGpus(
     const google::protobuf::RepeatedPtrField<Resource>& resources);
 
+Option<Error> validateHealthCheck(const HealthCheck& healthCheck);
+
 } // namespace validation {
 } // namespace common {
 } // namespace internal {

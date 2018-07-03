@@ -182,7 +182,7 @@ Try<Owned<HealthChecker>> HealthChecker::create(
     Variant<runtime::Plain, runtime::Docker, runtime::Nested> runtime)
 {
   // Validate the 'HealthCheck' protobuf.
-  Option<Error> error = validation::healthCheck(healthCheck);
+  Option<Error> error = common::validation::validateHealthCheck(healthCheck);
   if (error.isSome()) {
     return error.get();
   }
@@ -336,101 +336,6 @@ void HealthChecker::success()
 
   consecutiveFailures = 0;
 }
-
-
-namespace validation {
-
-Option<Error> healthCheck(const HealthCheck& healthCheck)
-{
-  if (!healthCheck.has_type()) {
-    return Error("HealthCheck must specify 'type'");
-  }
-
-  switch (healthCheck.type()) {
-    case HealthCheck::COMMAND: {
-      if (!healthCheck.has_command()) {
-        return Error("Expecting 'command' to be set for COMMAND health check");
-      }
-
-      const CommandInfo& command = healthCheck.command();
-
-      if (!command.has_value()) {
-        string commandType =
-          (command.shell() ? "'shell command'" : "'executable path'");
-
-        return Error("Command health check must contain " + commandType);
-      }
-
-      Option<Error> error =
-        common::validation::validateCommandInfo(command);
-      if (error.isSome()) {
-        return Error(
-            "Health check's `CommandInfo` is invalid: " + error->message);
-      }
-
-      // TODO(alexr): Make sure irrelevant fields, e.g., `uris` are not set.
-
-      break;
-    }
-    case HealthCheck::HTTP: {
-      if (!healthCheck.has_http()) {
-        return Error("Expecting 'http' to be set for HTTP health check");
-      }
-
-      const HealthCheck::HTTPCheckInfo& http = healthCheck.http();
-
-      if (http.has_scheme() &&
-          http.scheme() != "http" &&
-          http.scheme() != "https") {
-        return Error(
-            "Unsupported HTTP health check scheme: '" + http.scheme() + "'");
-      }
-
-      if (http.has_path() && !strings::startsWith(http.path(), '/')) {
-        return Error(
-            "The path '" + http.path() +
-            "' of HTTP health check must start with '/'");
-      }
-
-      break;
-    }
-    case HealthCheck::TCP: {
-      if (!healthCheck.has_tcp()) {
-        return Error("Expecting 'tcp' to be set for TCP health check");
-      }
-
-      break;
-    }
-    case HealthCheck::UNKNOWN: {
-      return Error(
-          "'" + HealthCheck::Type_Name(healthCheck.type()) + "'"
-          " is not a valid health check type");
-    }
-  }
-
-  if (healthCheck.has_delay_seconds() && healthCheck.delay_seconds() < 0.0) {
-    return Error("Expecting 'delay_seconds' to be non-negative");
-  }
-
-  if (healthCheck.has_grace_period_seconds() &&
-      healthCheck.grace_period_seconds() < 0.0) {
-    return Error("Expecting 'grace_period_seconds' to be non-negative");
-  }
-
-  if (healthCheck.has_interval_seconds() &&
-      healthCheck.interval_seconds() < 0.0) {
-    return Error("Expecting 'interval_seconds' to be non-negative");
-  }
-
-  if (healthCheck.has_timeout_seconds() &&
-      healthCheck.timeout_seconds() < 0.0) {
-    return Error("Expecting 'timeout_seconds' to be non-negative");
-  }
-
-  return None();
-}
-
-} // namespace validation {
 
 } // namespace checks {
 } // namespace internal {

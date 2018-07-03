@@ -24,6 +24,8 @@
 
 #include "checks/health_checker.hpp"
 
+#include "common/validation.hpp"
+
 #include "docker/docker.hpp"
 
 #include "slave/slave.hpp"
@@ -46,6 +48,8 @@
 #endif // __linux__
 
 namespace http = process::http;
+
+using mesos::internal::common::validation::validateHealthCheck;
 
 using mesos::internal::master::Master;
 
@@ -199,11 +203,11 @@ TEST_F(HealthCheckTest, HealthCheckProtobufValidation)
   {
     HealthCheck healthCheckProto;
 
-    Option<Error> validate = validation::healthCheck(healthCheckProto);
+    Option<Error> validate = validateHealthCheck(healthCheckProto);
     EXPECT_SOME(validate);
 
     healthCheckProto.set_type(HealthCheck::UNKNOWN);
-    validate = validation::healthCheck(healthCheckProto);
+    validate = validateHealthCheck(healthCheckProto);
     EXPECT_SOME(validate);
   }
 
@@ -212,15 +216,15 @@ TEST_F(HealthCheckTest, HealthCheckProtobufValidation)
     HealthCheck healthCheckProto;
 
     healthCheckProto.set_type(HealthCheck::COMMAND);
-    Option<Error> validate = validation::healthCheck(healthCheckProto);
+    Option<Error> validate = validateHealthCheck(healthCheckProto);
     EXPECT_SOME(validate);
 
     healthCheckProto.set_type(HealthCheck::HTTP);
-    validate = validation::healthCheck(healthCheckProto);
+    validate = validateHealthCheck(healthCheckProto);
     EXPECT_SOME(validate);
 
     healthCheckProto.set_type(HealthCheck::TCP);
-    validate = validation::healthCheck(healthCheckProto);
+    validate = validateHealthCheck(healthCheckProto);
     EXPECT_SOME(validate);
   }
 
@@ -232,21 +236,21 @@ TEST_F(HealthCheckTest, HealthCheckProtobufValidation)
     healthCheckProto.mutable_http()->set_port(8080);
 
     healthCheckProto.set_delay_seconds(-1.0);
-    Option<Error> validate = validation::healthCheck(healthCheckProto);
+    Option<Error> validate = validateHealthCheck(healthCheckProto);
     EXPECT_SOME(validate);
 
     healthCheckProto.set_delay_seconds(0.0);
     healthCheckProto.set_interval_seconds(-1.0);
-    validate = validation::healthCheck(healthCheckProto);
+    validate = validateHealthCheck(healthCheckProto);
     EXPECT_SOME(validate);
 
     healthCheckProto.set_interval_seconds(0.0);
     healthCheckProto.set_timeout_seconds(-1.0);
-    validate = validation::healthCheck(healthCheckProto);
+    validate = validateHealthCheck(healthCheckProto);
     EXPECT_SOME(validate);
 
     healthCheckProto.set_timeout_seconds(0.0);
-    validate = validation::healthCheck(healthCheckProto);
+    validate = validateHealthCheck(healthCheckProto);
     EXPECT_NONE(validate);
   }
 
@@ -256,7 +260,7 @@ TEST_F(HealthCheckTest, HealthCheckProtobufValidation)
 
     healthCheckProto.set_type(HealthCheck::COMMAND);
     healthCheckProto.mutable_command()->CopyFrom(CommandInfo());
-    Option<Error> validate = validation::healthCheck(healthCheckProto);
+    Option<Error> validate = validateHealthCheck(healthCheckProto);
     EXPECT_SOME(validate);
   }
 
@@ -267,7 +271,7 @@ TEST_F(HealthCheckTest, HealthCheckProtobufValidation)
     healthCheckProto.set_type(HealthCheck::COMMAND);
     healthCheckProto.mutable_command()->CopyFrom(createCommandInfo("exit 0"));
 
-    Option<Error> validate = validation::healthCheck(healthCheckProto);
+    Option<Error> validate = validateHealthCheck(healthCheckProto);
     EXPECT_NONE(validate);
 
     Environment::Variable* variable =
@@ -275,7 +279,7 @@ TEST_F(HealthCheckTest, HealthCheckProtobufValidation)
           ->mutable_variables()->Add();
     variable->set_name("ENV_VAR_KEY");
 
-    validate = validation::healthCheck(healthCheckProto);
+    validate = validateHealthCheck(healthCheckProto);
     EXPECT_SOME(validate);
   }
 
@@ -286,16 +290,16 @@ TEST_F(HealthCheckTest, HealthCheckProtobufValidation)
     healthCheckProto.set_type(HealthCheck::HTTP);
     healthCheckProto.mutable_http()->set_port(8080);
 
-    Option<Error> validate = validation::healthCheck(healthCheckProto);
+    Option<Error> validate = validateHealthCheck(healthCheckProto);
     EXPECT_NONE(validate);
 
     healthCheckProto.mutable_http()->set_scheme("ftp");
-    validate = validation::healthCheck(healthCheckProto);
+    validate = validateHealthCheck(healthCheckProto);
     EXPECT_SOME(validate);
 
     healthCheckProto.mutable_http()->set_scheme("https");
     healthCheckProto.mutable_http()->set_path("healthz");
-    validate = validation::healthCheck(healthCheckProto);
+    validate = validateHealthCheck(healthCheckProto);
     EXPECT_SOME(validate);
   }
 }

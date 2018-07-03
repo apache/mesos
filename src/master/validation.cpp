@@ -1241,7 +1241,8 @@ Option<Error> validateCheck(const TaskInfo& task)
 Option<Error> validateHealthCheck(const TaskInfo& task)
 {
   if (task.has_health_check()) {
-    Option<Error> error = checks::validation::healthCheck(task.health_check());
+    Option<Error> error =
+      common::validation::validateHealthCheck(task.health_check());
     if (error.isSome()) {
       return Error("Task uses invalid health check: " + error->message);
     }
