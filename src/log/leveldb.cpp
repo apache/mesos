@@ -30,6 +30,8 @@
 #include <stout/strings.hpp>
 #include <stout/unreachable.hpp>
 
+#include <stout/os/getenv.hpp>
+
 #include "log/leveldb.hpp"
 
 using std::string;
@@ -156,7 +158,13 @@ static string encode(uint64_t position, bool adjust = true)
 LevelDBStorage::LevelDBStorage()
   : db(nullptr), first(None())
 {
-  // Nothing to see here.
+  // We provide an escape hatch in case some users experience issues
+  // with auto-compaction. This is currently only available as an environment
+  // variable since it's easier than exposing a flag up through the JNI layer.
+  Option<string> disableAutoCompact = os::getenv("MESOS_LOG_AUTO_COMPACT_DISABLED");
+  if (disableAutoCompact.getOrElse("0") == "1") {
+    autoCompact = false;
+  }
 }
 
 
@@ -444,19 +452,26 @@ Try<Nothing> LevelDBStorage::persist(const Action& action)
 
     // If we added any positions, attempt to delete them!
     if (index > 0) {
-      // We do this write asynchronously (e.g., using default options).
-      leveldb::Status status = db->Write(leveldb::WriteOptions(), &batch);
-
+      leveldb::Status status = db->Write(options, &batch);
       if (!status.ok()) {
         LOG(WARNING) << "Ignoring leveldb batch delete failure: "
                      << status.ToString();
       } else {
-        // Save the new first position!
-        CHECK_LT(first.get(), truncateTo.get());
-        first = truncateTo.get();
-
         VLOG(1) << "Deleting ~" << index
                 << " keys from leveldb took " << stopwatch.elapsed();
+
+        CHECK_LT(first.get(), truncateTo.get());
+
+        // LevelDB compaction algorithm doesn't seem to work well with
+        // out usage pattern because background compaction is not
+        // triggered. As a workaround we manually invoke compaction of
+        // the key range that we just removed. See MESOS-184 and
+        // https://github.com/google/leveldb/issues/603 for details.
+        if (autoCompact) {
+          compactRange(first.get(), truncateTo.get() - 1);
+        }
+
+        first = truncateTo.get();
       }
     }
   }
@@ -495,6 +510,22 @@ Try<Action> LevelDBStorage::read(uint64_t position)
   VLOG(1) << "Reading position from leveldb took " << stopwatch.elapsed();
 
   return record.action();
+}
+
+
+void LevelDBStorage::compactRange(uint64_t first, uint64_t last)
+{
+  Stopwatch stopwatch;
+  stopwatch.start();
+
+  const string firstData = encode(first);
+  const string lastData = encode(last);
+  const leveldb::Slice firstSlice(firstData);
+  const leveldb::Slice lastSlice(lastData);
+  db->CompactRange(&firstSlice, &lastSlice);
+
+  VLOG(1) << "Compacting range " << first << "-" << last << " took "
+          << stopwatch.elapsed();
 }
 
 } // namespace log {

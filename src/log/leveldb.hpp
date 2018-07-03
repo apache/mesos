@@ -42,10 +42,14 @@ public:
   Try<Action> read(uint64_t position) override;
 
 private:
+  void compactRange(uint64_t first, uint64_t last);
+
   leveldb::DB* db;
 
   // First position still in leveldb, used during truncation.
   Option<uint64_t> first;
+
+  bool autoCompact = true;
 };
 
 } // namespace log {
