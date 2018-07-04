@@ -27,6 +27,7 @@ layout: documentation
 * [Operational Guide](operational-guide.md)
 * [Fetcher Cache Configuration](fetcher.md)
 * [Fault Domains](fault-domains.md)
+* [Performance Profiling](performance-profiling.md) for debugging performance issues in Mesos.
 * [Memory Profiling](memory-profiling.md) for debugging potential memory leaks in Mesos.
 
 ## Resource Management
