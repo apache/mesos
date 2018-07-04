@@ -761,7 +761,7 @@ AC_ARG_VAR([MAVEN_HOME], [looks for mvn at MAVEN_HOME/bin/mvn])
 
 AC_ARG_VAR([PROTOBUF_JAR], [full path to protobuf jar on prefixed builds])
 
-AC_ARG_VAR([PYTHON], [which Python interpreter to use])
+AC_ARG_VAR([PYTHON], [which Python 2 interpreter to use])
 
 AC_ARG_VAR([TEST_DRIVER], [executable and arguments of a test driver])
 
@@ -2314,49 +2314,57 @@ LIBS="$saved_LIBS"
 # Perform necessary configuration for building with Python.
 if test "x$enable_python" = "xyes" || \
    test "x$enable_new_cli" = "xyes"; then
-  # If the user specified PYTHON_VERSION then assume that is the
-  # Python that they want and construct PYTHON using the canonical
-  # name (failing if PYTHON is also set since we can't easily check
-  # that PYTHON and PYTHON_VERSION are compatible). This bit of
-  # tomfoolery is mostly to match the semantics of AC_PYTHON_DEVEL
-  # (used below). If we don't do this then it's possible that a user
-  # will specify PYTHON_VERSION which will get ignored (and likely
-  # replaced) via AM_PATH_PYTHON.
+  # Ensure PYTHON and PYTHON_VERSION are both set appropriately. We need
+  # to ensure this either when these variables are passed in the
+  # environment or when set via AM_PATH_PYTHON. If we don't do this,
+  # it's possible that a user will specify PYTHON_VERSION which will get
+  # ignored (and likely replaced) via AM_PATH_PYTHON.
   # TODO(benh): Consolidate AM_PATH_PYTHON and AC_PYTHON_DEVEL into a
   # single macro that both iterates through potential 'python' options
   # looking for an acceptable version (i.e., AM_PATH_PYTHON) and
   # checks for Python.h (i.e., AC_PYTHON_DEVEL).
+  if test -n "$PYTHON" && test -n "$PYTHON_VERSION"; then
+    AC_MSG_ERROR([only specify one of PYTHON or PYTHON_VERSION])
+  fi
+
+  if test -n "$PYTHON"; then
+    PYTHON_VERSION=`$PYTHON -c "import sys; sys.stdout.write(sys.version[[:3]])"`
+  fi
+
   if test -n "$PYTHON_VERSION"; then
-    if test -n "$PYTHON"; then
-      AC_MSG_ERROR([only specify one of PYTHON or PYTHON_VERSION])
-    fi
     AC_SUBST([PYTHON], [python$PYTHON_VERSION])
-  elif test -n "$PYTHON"; then
-    # PYTHON has been set by user, we set PYTHON_VERSION.
-    AC_CHECK_PROG([PYTHON_CHECK], [$PYTHON], [yes])
-    AS_IF([test "x$PYTHON_CHECK" = "xyes"], [
-      PYTHON_VERSION=`$PYTHON -c "import sys; sys.stdout.write(sys.version[[:3]])"`
-    ], [
-      AC_MSG_ERROR([Cannot find Python executable '$PYTHON' in path.])
-    ])
-  else
-    # PYTHON nor PYTHON_VERSION have been set, we do it.
+  fi
+
+  if test -z "$PYTHON" && test -z "$PYTHON_VERSION"; then
     AM_PATH_PYTHON()
   fi
-fi
 
-if test "x$enable_python" = "xyes"; then
   # Check if PYTHON is at least 2.6 or try and find one that is if
   # PYTHON is not set (necessary to run our examples).
-  AM_PATH_PYTHON([2.6],,
-                 [AC_MSG_ERROR([mesos requires Python >= 2.6
+  AM_PYTHON_CHECK_VERSION([$PYTHON], [2.6], [],
+                 [AC_MSG_ERROR([Mesos requires Python >= 2.6
 -------------------------------------------------------------------
-If you already have Python 2.6 installed (and it's on the path),
-you might want to check if you have the PYTHON environment variable
-set to an older version of Python.
+The detected Python version is $PYTHON_VERSION.
+
+If you already have Python 2.6+ installed (and it's the default python
+on the path), you might want to check if you have the PYTHON environment
+variable set to an older version of Python.
 -------------------------------------------------------------------
   ])])
 
+  AM_PYTHON_CHECK_VERSION([$PYTHON], [3.0],
+                 [AC_MSG_ERROR([Mesos requires Python < 3.0
+-------------------------------------------------------------------
+The detected Python version is $PYTHON_VERSION.
+
+If you already have Python 2.6+ installed (and it's the default python
+on the path), you might want to check if you have the PYTHON environment
+variable set to a version of Python greater than 3.0.
+-------------------------------------------------------------------
+  ])], [])
+fi
+
+if test "x$enable_python" = "xyes"; then
   # Next we ensure we have the Python development libraries.
   AX_PYTHON_DEVEL([>= '2.6'])
 
@@ -2630,20 +2638,12 @@ correct if you're already doing this.
   has_python=yes
 fi
 
+AC_MSG_CHECKING([whether to enable new CLI])
+AS_IF([test "x$enable_new_cli" = "xyes"],
+      [AC_MSG_RESULT([yes])],
+      [AC_MSG_RESULT([no])])
+
 AS_IF([test "x$enable_new_cli" = "xyes"], [
-  AM_PATH_PYTHON([2.6])
-
-  AX_COMPARE_VERSION([$PYTHON_VERSION], [gt], [2.7],
-    AC_MSG_ERROR([Python version too new
--------------------------------------------------------------------
-The new CLI requires Python version 2.6 or 2.7 in order to build.
-Your Python version is $PYTHON_VERSION.
-
-You may wish to set the PYTHON environment variable to an
-appropriate value to assure the right Python executable is found.
--------------------------------------------------------------------
-  ]))
-
   AC_CHECK_PROG([VIRTUALENV_CHECK], [virtualenv], [yes])
   AS_IF([test "x$VIRTUALENV_CHECK" = "xyes"],, [
      AC_MSG_ERROR([Cannot find virtualenv
@@ -2655,11 +2655,6 @@ You may wish to install it via 'pip install virtualenv'.
 -------------------------------------------------------------------
   ])])
 ])
-
-AC_MSG_CHECKING([whether to enable new CLI])
-AS_IF([test "x$enable_new_cli" = "xyes"],
-      [AC_MSG_RESULT([yes])],
-      [AC_MSG_RESULT([no])])
 
 AM_CONDITIONAL([ENABLE_NEW_CLI], [test "x$enable_new_cli" = "xyes"])
 
