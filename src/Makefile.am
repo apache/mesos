@@ -1768,11 +1768,12 @@ MESOS_CLI_HIDDEN_IMPORTS =					\
 mesos: $(shell find $(MESOS_CLI_SRCDIR) | grep -v .virtualenv)
 	@echo "Building the CLI ..."
 	VIRTUALENV_DIRECTORY=$(builddir)/.virtualenv	\
+	PYTHON=$(PYTHON)				\
 	$(MESOS_CLI_SRCDIR)/bootstrap &&		\
 	echo "VERSION = \"$(PACKAGE_VERSION)\""		\
 		> $(MESOS_CLI_BUILDDIR)/version.py &&	\
 	source $(builddir)/.virtualenv/bin/activate &&	\
-	python -m PyInstaller -p $(MESOS_CLI_SRCDIR)/lib\
+	pyinstaller -p $(MESOS_CLI_SRCDIR)/lib		\
 		$(MESOS_CLI_HIDDEN_IMPORTS)		\
 		--specpath $(MESOS_CLI_BUILDDIR)	\
 		--workpath $(MESOS_CLI_BUILDDIR)/work	\

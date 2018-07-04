@@ -2365,7 +2365,7 @@ variable set to a version of Python greater than 3.0.
 fi
 
 if test "x$enable_python" = "xyes"; then
-  # Next we ensure we have the Python development libraries.
+  # Next we ensure we have the Python development libraries for Python 2.
   AX_PYTHON_DEVEL([>= '2.6'])
 
   # Ensure that we can build a native Python egg linking against a
@@ -2474,7 +2474,7 @@ There are two possible workarounds for this issue:
   $PYTHON -c "import mesos; mesos._mesos" &> /dev/null
 
   if test $? = 0; then
-    pymodulelocation=`python -c \
+    pymodulelocation=`$PYTHON -c \
       "import mesos; import os; print os.path.dirname(mesos.__path__[[0]])" \
       2> /dev/null`
   fi
