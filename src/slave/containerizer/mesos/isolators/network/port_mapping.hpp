@@ -149,32 +149,32 @@ class PortMappingIsolatorProcess : public MesosIsolatorProcess
 public:
   static Try<mesos::slave::Isolator*> create(const Flags& flags);
 
-  virtual ~PortMappingIsolatorProcess() {}
+  ~PortMappingIsolatorProcess() override {}
 
-  virtual process::Future<Nothing> recover(
+  process::Future<Nothing> recover(
       const std::vector<mesos::slave::ContainerState>& states,
-      const hashset<ContainerID>& orphans);
+      const hashset<ContainerID>& orphans) override;
 
-  virtual process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(
+  process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(
       const ContainerID& containerId,
-      const mesos::slave::ContainerConfig& containerConfig);
+      const mesos::slave::ContainerConfig& containerConfig) override;
 
-  virtual process::Future<Nothing> isolate(
+  process::Future<Nothing> isolate(
       const ContainerID& containerId,
-      pid_t pid);
+      pid_t pid) override;
 
-  virtual process::Future<mesos::slave::ContainerLimitation> watch(
-      const ContainerID& containerId);
+  process::Future<mesos::slave::ContainerLimitation> watch(
+      const ContainerID& containerId) override;
 
-  virtual process::Future<Nothing> update(
+  process::Future<Nothing> update(
       const ContainerID& containerId,
-      const Resources& resources);
+      const Resources& resources) override;
 
-  virtual process::Future<ResourceStatistics> usage(
-      const ContainerID& containerId);
+  process::Future<ResourceStatistics> usage(
+      const ContainerID& containerId) override;
 
-  virtual process::Future<Nothing> cleanup(
-      const ContainerID& containerId);
+  process::Future<Nothing> cleanup(
+      const ContainerID& containerId) override;
 
 private:
   struct Info
@@ -368,8 +368,8 @@ public:
   Flags flags;
 
 protected:
-  virtual int execute();
-  virtual flags::FlagsBase* getFlags() { return &flags; }
+  int execute() override;
+  flags::FlagsBase* getFlags() override { return &flags; }
 };
 
 
@@ -397,8 +397,8 @@ public:
   Flags flags;
 
 protected:
-  virtual int execute();
-  virtual flags::FlagsBase* getFlags() { return &flags; }
+  int execute() override;
+  flags::FlagsBase* getFlags() override { return &flags; }
 };
 
 } // namespace slave {
