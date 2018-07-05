@@ -35,6 +35,7 @@
 
 using std::list;
 using std::string;
+using std::vector;
 
 using process::Failure;
 using process::Future;
@@ -198,7 +199,7 @@ XfsDiskIsolatorProcess::~XfsDiskIsolatorProcess() {}
 
 
 Future<Nothing> XfsDiskIsolatorProcess::recover(
-    const list<ContainerState>& states,
+    const vector<ContainerState>& states,
     const hashset<ContainerID>& orphans)
 {
   // We don't need to explicitly deal with orphans since we are primarily

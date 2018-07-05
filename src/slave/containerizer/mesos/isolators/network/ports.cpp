@@ -397,7 +397,7 @@ static bool hasNamedNetwork(const ContainerInfo& container_info)
 // so we must not start isolating it until we receive the resources
 // update.
 Future<Nothing> NetworkPortsIsolatorProcess::recover(
-    const list<ContainerState>& states,
+    const vector<ContainerState>& states,
     const hashset<ContainerID>& orphans)
 {
   // First, recover all the root level containers.
