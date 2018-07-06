@@ -20,7 +20,7 @@ Mesos project and its community, by acting according to the
 [Apache Way](http://theapacheway.com), and by generally following the path
 [from contributor to committer](https://community.apache.org/contributors/)
 for Apache projects. Specifically for the Mesos project, you can make use of the
-[Apache Mesos Committer Candidate Checklist](committer-candidate-checklist.md)
+[Apache Mesos Committer Candidate Guidelines](committer-candidate-guidelines.md)
 for suggestions of what kind of contributions and demonstrated behaviors can be
 instrumental, and to keep track of your progress.
 

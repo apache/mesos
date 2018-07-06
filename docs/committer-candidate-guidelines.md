@@ -1,9 +1,9 @@
 ---
-title: Apache Mesos - Committer Candidate Checklist
+title: Apache Mesos - Committer Candidate Guidelines
 layout: documentation
 ---
 
-# Apache Mesos Committer Candidate Checklist
+# Apache Mesos Committer Candidate Guidelines
 
 This document contains categories of contributions and behaviors relevant to becoming an Apache Mesos  committer. As a committer candidate you can use a copy of this list to collect and aggregate data on what you have achieved so far. Neither is this an exhaustive list nor do all categories need to be addressed, since there can be reasonably diverse committer profiles. But some categories are always crucial to have covered, e.g., writing high quality source code and performing meaningful code reviews. Eventually, your nominator can hand in your filled-out variant of this list to the PMC to facilitate their reviewing your case.
 

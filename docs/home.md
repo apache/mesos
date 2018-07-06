@@ -115,7 +115,7 @@ layout: documentation
 * [Committers and Maintainers](committers.md) a listing of project committers and component maintainers; useful when seeking feedback.
   * [Committing](committing.md) guidelines for committing changes.
   * [Release Guide](release-guide.md)
-  * [Committer Candidate Checklist](committer-candidate-checklist.md) for becoming a committer.
+  * [Committer Candidate Guidelines](committer-candidate-guidelines.md) for becoming a committer.
 * [Effective Code Reviewing](effective-code-reviewing.md) guidelines, tips, and learnings for how to do effective code reviews.
 * [Reopening a Review](reopening-reviews.md) for our policy around reviving reviews on ReviewBoard.
 
