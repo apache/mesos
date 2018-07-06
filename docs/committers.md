@@ -50,21 +50,21 @@ We'd like to thank the following committers to the Apache Mesos project who have
     <tr>
       <td>-8</td>
       <td>Adam B</td>
-      <td>Mesosphere</td>
+      <td></td>
       <td>adam-mesos</td>
       <td>me@apache.org</td>
     </tr>
     <tr>
       <td>-8</td>
       <td>Tim Chen</td>
-      <td>Mesosphere</td>
+      <td></td>
       <td>tnachen</td>
       <td>tnachen@apache.org</td>
     </tr>
     <tr>
       <td>-8</td>
       <td>Neil Conway</td>
-      <td>Mesosphere</td>
+      <td></td>
       <td>neilc</td>
       <td>neilc@apache.org</td>
     </tr>
@@ -183,14 +183,14 @@ We'd like to thank the following committers to the Apache Mesos project who have
     <tr>
       <td>+1</td>
       <td>Bernd Mathiske</td>
-      <td>Mesosphere</td>
+      <td></td>
       <td>bernd</td>
       <td>bernd@apache.org</td>
     </tr>
     <tr>
       <td>-8</td>
       <td>Brenden Matthews</td>
-      <td>Mesosphere</td>
+      <td></td>
       <td>brenden_</td>
       <td>brenden@apache.org</td>
     </tr>
@@ -204,7 +204,7 @@ We'd like to thank the following committers to the Apache Mesos project who have
     <tr>
       <td>-8</td>
       <td>Anand Mazumdar</td>
-      <td>Mesosphere</td>
+      <td></td>
       <td>anandm</td>
       <td>anand@apache.org</td>
     </tr>
@@ -225,7 +225,7 @@ We'd like to thank the following committers to the Apache Mesos project who have
     <tr>
       <td>-5</td>
       <td>Michael Park</td>
-      <td>Mesosphere</td>
+      <td></td>
       <td>mpark</td>
       <td>mpark@apache.org</td>
     </tr>
@@ -253,7 +253,7 @@ We'd like to thank the following committers to the Apache Mesos project who have
     <tr>
       <td>-8</td>
       <td>Joris Van Remoortere</td>
-      <td>Mesosphere</td>
+      <td></td>
       <td>joris</td>
       <td>joris@apache.org</td>
     </tr>
