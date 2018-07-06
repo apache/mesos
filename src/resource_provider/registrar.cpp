@@ -100,8 +100,9 @@ Try<Owned<Registrar>> Registrar::create(
 }
 
 
-AdmitResourceProvider::AdmitResourceProvider(const ResourceProviderID& _id)
-  : id(_id) {}
+AdmitResourceProvider::AdmitResourceProvider(
+    const ResourceProvider& _resourceProvider)
+  : resourceProvider(_resourceProvider) {}
 
 
 Try<bool> AdmitResourceProvider::perform(Registry* registry)
@@ -110,7 +111,7 @@ Try<bool> AdmitResourceProvider::perform(Registry* registry)
           registry->resource_providers().begin(),
           registry->resource_providers().end(),
           [this](const ResourceProvider& resourceProvider) {
-            return resourceProvider.id() == this->id;
+            return resourceProvider.id() == this->resourceProvider.id();
           }) != registry->resource_providers().end()) {
     return Error("Resource provider already admitted");
   }
@@ -119,13 +120,10 @@ Try<bool> AdmitResourceProvider::perform(Registry* registry)
           registry->removed_resource_providers().begin(),
           registry->removed_resource_providers().end(),
           [this](const ResourceProvider& resourceProvider) {
-            return resourceProvider.id() == this->id;
+            return resourceProvider.id() == this->resourceProvider.id();
           }) != registry->removed_resource_providers().end()) {
     return Error("Resource provider was removed");
   }
-
-  ResourceProvider resourceProvider;
-  resourceProvider.mutable_id()->CopyFrom(id);
 
   registry->add_resource_providers()->CopyFrom(resourceProvider);
 

@@ -29,6 +29,8 @@ option java_outer_classname = "Protos";
 
 message ResourceProvider {
   required ResourceProviderID id = 1;
+  optional string type = 2;
+  optional string name = 3;
 }
 
 

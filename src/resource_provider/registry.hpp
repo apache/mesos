@@ -18,7 +18,54 @@
 #ifndef __RESOURCE_PROVIDER_REGISTRY_HPP__
 #define __RESOURCE_PROVIDER_REGISTRY_HPP__
 
+#include <mesos/type_utils.hpp>
+
 // ONLY USEFUL AFTER RUNNING PROTOC.
 #include "resource_provider/registry.pb.h"
+
+namespace mesos {
+namespace resource_provider {
+namespace registry {
+
+inline bool operator==(
+    const ResourceProvider& left,
+    const ResourceProvider& right)
+{
+  // To support additions to the persisted types we consider two resource
+  // providers to be equal if all their set fields are equal.
+  if (left.id() != right.id()) {
+    return false;
+  }
+
+  if (left.has_name() && right.has_name() && left.name() != right.name()) {
+    return false;
+  }
+
+  if (left.has_type() && right.has_type() && left.type() != right.type()) {
+    return false;
+  }
+
+  return true;
+}
+
+
+inline bool operator!=(
+    const ResourceProvider& left,
+    const ResourceProvider& right)
+{
+  return !(left == right);
+}
+
+
+inline std::ostream& operator<<(
+    std::ostream& stream,
+    const ResourceProvider& resourceProvider)
+{
+  return stream << resourceProvider.DebugString();
+}
+
+} // namespace registry {
+} // namespace resource_provider {
+} // namespace mesos {
 
 #endif // __RESOURCE_PROVIDER_REGISTRY_HPP__

@@ -824,8 +824,10 @@ class ResourceProviderRegistrarTest : public tests::MesosTest {};
 #ifndef __WINDOWS__
 TEST_F_TEMP_DISABLED_ON_WINDOWS(ResourceProviderRegistrarTest, GenericRegistrar)
 {
-  ResourceProviderID resourceProviderId;
-  resourceProviderId.set_value("foo");
+  mesos::resource_provider::registry::ResourceProvider resourceProvider;
+  resourceProvider.mutable_id()->set_value("foo");
+  resourceProvider.set_name("bar");
+  resourceProvider.set_type("org.apache.mesos.rp.test");
 
   // Perform operations on the resource provider. We use
   // persistent storage so we can recover the state below.
@@ -841,24 +843,35 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(ResourceProviderRegistrarTest, GenericRegistrar)
     AWAIT_READY(recover);
     EXPECT_TRUE(recover->removed_resource_providers().empty());
 
-    Future<bool> admitResourceProvider1 =
+    Future<bool> admitResourceProvider =
       registrar.get()->apply(Owned<Registrar::Operation>(
-            new AdmitResourceProvider(resourceProviderId)));
-    AWAIT_READY(admitResourceProvider1);
-    EXPECT_TRUE(admitResourceProvider1.get());
+          new AdmitResourceProvider(resourceProvider)));
+    AWAIT_READY(admitResourceProvider);
+    EXPECT_TRUE(admitResourceProvider.get());
+
+    // A resource provider cannot resubscribe with changed type or name.
+    mesos::resource_provider::registry::ResourceProvider resourceProvider_ =
+      resourceProvider;
+    resourceProvider_.set_type("org.apache.mesos.rp.test2");
+
+    admitResourceProvider =
+      registrar.get()->apply(Owned<Registrar::Operation>(
+          new AdmitResourceProvider(resourceProvider_)));
+    AWAIT_READY(admitResourceProvider);
+    EXPECT_FALSE(admitResourceProvider.get());
 
     Future<bool> removeResourceProvider =
       registrar.get()->apply(Owned<Registrar::Operation>(
-            new RemoveResourceProvider(resourceProviderId)));
+          new RemoveResourceProvider(resourceProvider.id())));
     AWAIT_READY(removeResourceProvider);
     EXPECT_TRUE(removeResourceProvider.get());
 
     // A removed resource provider cannot be admitted again.
-    Future<bool> admitResourceProvider2 =
+    admitResourceProvider =
       registrar.get()->apply(Owned<Registrar::Operation>(
-            new AdmitResourceProvider(resourceProviderId)));
-    AWAIT_READY(admitResourceProvider2);
-    EXPECT_FALSE(admitResourceProvider2.get());
+          new AdmitResourceProvider(resourceProvider)));
+    AWAIT_READY(admitResourceProvider);
+    EXPECT_FALSE(admitResourceProvider.get());
   }
 
   // Recover and validate the previous registry state.
@@ -877,10 +890,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(ResourceProviderRegistrarTest, GenericRegistrar)
     ASSERT_EQ(1, recover->removed_resource_providers_size());
 
     const mesos::resource_provider::registry::ResourceProvider&
-      resourceProvider = recover->removed_resource_providers(0);
+      resourceProvider_ = recover->removed_resource_providers(0);
 
-    ASSERT_TRUE(resourceProvider.has_id());
-    EXPECT_EQ(resourceProviderId, resourceProvider.id());
+    EXPECT_EQ(resourceProvider, resourceProvider_);
   }
 }
 #endif // __WINDOWS__
@@ -892,8 +904,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(ResourceProviderRegistrarTest, GenericRegistrar)
 #ifndef __WINDOWS__
 TEST_F_TEMP_DISABLED_ON_WINDOWS(ResourceProviderRegistrarTest, MasterRegistrar)
 {
-  ResourceProviderID resourceProviderId;
-  resourceProviderId.set_value("foo");
+  mesos::resource_provider::registry::ResourceProvider resourceProvider;
+  resourceProvider.mutable_id()->set_value("foo");
+  resourceProvider.set_name("bar");
+  resourceProvider.set_type("org.apache.mesos.rp.test");
 
   // Perform operations on the resource provider. We use
   // persistent storage so we can recover the state below.
@@ -913,24 +927,35 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(ResourceProviderRegistrarTest, MasterRegistrar)
 
     ASSERT_SOME_NE(Owned<Registrar>(nullptr), registrar);
 
-    Future<bool> admitResourceProvider1 =
+    Future<bool> admitResourceProvider =
       registrar.get()->apply(Owned<Registrar::Operation>(
-            new AdmitResourceProvider(resourceProviderId)));
-    AWAIT_READY(admitResourceProvider1);
-    EXPECT_TRUE(admitResourceProvider1.get());
+            new AdmitResourceProvider(resourceProvider)));
+    AWAIT_READY(admitResourceProvider);
+    EXPECT_TRUE(admitResourceProvider.get());
+
+    // A resource provider cannot resubscribe with changed type or name.
+    mesos::resource_provider::registry::ResourceProvider resourceProvider_ =
+      resourceProvider;
+    resourceProvider_.set_type("org.apache.mesos.rp.test2");
+
+    admitResourceProvider =
+      registrar.get()->apply(Owned<Registrar::Operation>(
+          new AdmitResourceProvider(resourceProvider_)));
+    AWAIT_READY(admitResourceProvider);
+    EXPECT_FALSE(admitResourceProvider.get());
 
     Future<bool> removeResourceProvider =
       registrar.get()->apply(Owned<Registrar::Operation>(
-            new RemoveResourceProvider(resourceProviderId)));
+            new RemoveResourceProvider(resourceProvider.id())));
     AWAIT_READY(removeResourceProvider);
     EXPECT_TRUE(removeResourceProvider.get());
 
     // A removed resource provider cannot be admitted again.
-    Future<bool> admitResourceProvider2 =
+    admitResourceProvider =
       registrar.get()->apply(Owned<Registrar::Operation>(
-            new AdmitResourceProvider(resourceProviderId)));
-    AWAIT_READY(admitResourceProvider2);
-    EXPECT_FALSE(admitResourceProvider2.get());
+            new AdmitResourceProvider(resourceProvider)));
+    AWAIT_READY(admitResourceProvider);
+    EXPECT_FALSE(admitResourceProvider.get());
   }
 
   // Recover and validate the previous registry state.
@@ -958,10 +983,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(ResourceProviderRegistrarTest, MasterRegistrar)
     ASSERT_EQ(1, recover->removed_resource_providers_size());
 
     const mesos::resource_provider::registry::ResourceProvider&
-      resourceProvider = recover->removed_resource_providers(0);
+      resourceProvider_ = recover->removed_resource_providers(0);
 
-    ASSERT_TRUE(resourceProvider.has_id());
-    EXPECT_EQ(resourceProviderId, resourceProvider.id());
+    EXPECT_EQ(resourceProvider, resourceProvider_);
   }
 }
 #endif // __WINDOWS__

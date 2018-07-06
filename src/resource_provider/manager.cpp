@@ -96,6 +96,20 @@ using process::metrics::PullGauge;
 namespace mesos {
 namespace internal {
 
+mesos::resource_provider::registry::ResourceProvider
+createRegistryResourceProvider(const ResourceProviderInfo& resourceProviderInfo)
+{
+  mesos::resource_provider::registry::ResourceProvider resourceProvider;
+
+  CHECK(resourceProviderInfo.has_id());
+  resourceProvider.mutable_id()->CopyFrom(resourceProviderInfo.id());
+
+  resourceProvider.set_name(resourceProviderInfo.name());
+  resourceProvider.set_type(resourceProviderInfo.type());
+
+  return resourceProvider;
+}
+
 // Represents the streaming HTTP connection to a resource provider.
 struct HttpConnection
 {
@@ -673,7 +687,8 @@ void ResourceProviderManagerProcess::subscribe(
     // triggering a `AdmitResourceProvider` operation on the registrar.
     admitResourceProvider =
       registrar->apply(Owned<mesos::resource_provider::Registrar::Operation>(
-          new AdmitResourceProvider(resourceProvider->info.id())));
+          new AdmitResourceProvider(
+              createRegistryResourceProvider(resourceProvider->info))));
   } else {
     // TODO(chhsiao): The resource provider is resubscribing after being
     // restarted or an agent failover. The 'ResourceProviderInfo' might
@@ -689,6 +704,23 @@ void ResourceProviderManagerProcess::subscribe(
         << resourceProviderId
         << " since it is unknown";
 
+      return;
+    }
+
+    // Check whether the resource provider has change
+    // information which should be static.
+    mesos::resource_provider::registry::ResourceProvider resourceProvider_ =
+      createRegistryResourceProvider(resourceProvider->info);
+
+    const mesos::resource_provider::registry::ResourceProvider&
+      storedResourceProvider = resourceProviders.known.at(resourceProviderId);
+
+    if (resourceProvider_ != storedResourceProvider) {
+      LOG(INFO)
+        << "Dropping resubscription attempt of resource provider "
+        << resourceProvider_
+        << " since it does not match the previous information "
+        << storedResourceProvider;
       return;
     }
 
@@ -757,19 +789,19 @@ void ResourceProviderManagerProcess::_subscribe(
       messages.put(std::move(message));
     }));
 
-  // TODO(jieyu): Start heartbeat for the resource provider.
-  resourceProviders.subscribed.put(
-      resourceProviderId,
-      std::move(resourceProvider));
-
   if (!resourceProviders.known.contains(resourceProviderId)) {
-    mesos::resource_provider::registry::ResourceProvider resourceProvider_;
-    resourceProvider_.mutable_id()->CopyFrom(resourceProviderId);
+    mesos::resource_provider::registry::ResourceProvider resourceProvider_ =
+      createRegistryResourceProvider(resourceProvider->info);
 
     resourceProviders.known.put(
         resourceProviderId,
         std::move(resourceProvider_));
   }
+
+  // TODO(jieyu): Start heartbeat for the resource provider.
+  resourceProviders.subscribed.put(
+      resourceProviderId,
+      std::move(resourceProvider));
 }
 
 
