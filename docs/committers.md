@@ -5,15 +5,31 @@ layout: documentation
 
 # Committers
 
-An Apache Mesos committer is a contributor who has been given write access to the Apache Mesos code repository and related Apache infrastructure. In the Mesos project, each committer is also a voting member of the PMC.
+An Apache Mesos committer is a contributor who has been given write access to
+the Apache Mesos code repository and related Apache infrastructure. In the Mesos
+project, each committer is also a voting member of the PMC.
 
 ## Becoming a committer
 
-Every new committer has to be proposed by a current committer and then voted in by the members of the Mesos PMC. For details about this process and for candidate requirements see the general [Apache guidelines for assessing new candidates for committership](https://community.apache.org/newcommitter.html). Candidates prepare for their nomination as committer by contributing to the Mesos project and its community, by acting according to the [Apache Way](http://theapacheway.com), and by generally following the path [from contributor to committer](https://community.apache.org/contributors/) for Apache projects. Specifically for the Mesos project, you can make use of the [Apache Mesos Committer Candidate Checklist](committer-candidate-checklist.md) for suggestions of what kind of contributions and demonstrated behaviors can be instrumental, and to keep track of your progress.
+Every new committer has to be proposed by a current committer and then voted in
+by the members of the Mesos PMC. For details about this process and for
+candidate requirements see the general
+[Apache guidelines for assessing new candidates for committership](https://community.apache.org/newcommitter.html).
+Candidates prepare for their nomination as committer by contributing to the
+Mesos project and its community, by acting according to the
+[Apache Way](http://theapacheway.com), and by generally following the path
+[from contributor to committer](https://community.apache.org/contributors/)
+for Apache projects. Specifically for the Mesos project, you can make use of the
+[Apache Mesos Committer Candidate Checklist](committer-candidate-checklist.md)
+for suggestions of what kind of contributions and demonstrated behaviors can be
+instrumental, and to keep track of your progress.
 
 ## Current Committers
 
-We'd like to thank the following committers to the Apache Mesos project who have helped get the project to where it is today. This list might be stale, the canonical list is located on [Apache's website](http://people.apache.org/committers-by-project.html#mesos).
+We'd like to thank the following committers to the Apache Mesos project who have
+helped get the project to where it is today. This list might be stale, the
+canonical list is located on
+[Apache's website](http://people.apache.org/committers-by-project.html#mesos).
 
 <table class="table table-hover table-condensed">
   <thead>
@@ -330,17 +346,19 @@ We'd like to thank the following committers to the Apache Mesos project who have
   </tbody>
 </table>
 
-If you're interested in becoming a committer yourself, the best way to do so is by participating in developer discussions and contributing patches to the project.
+If you're interested in becoming a committer yourself, the best way to do so is
+by participating in developer discussions and contributing patches to the
+project.
 
 
 # Maintainers
 
-**Maintainers are committers that have spent a significant amount of time and effort
-in the maintenance of a component in the project.** Since maintainers have generally
-lived through the experience of maintaining a part of the project, they tend to have
-additional context, a sense of direction, a long-term outlook, and an increased
-incentive to ensure that development is done in a sustainable manner. Maintainers are
-responsible for the following:
+**Maintainers are committers that have spent a significant amount of time and
+effort in the maintenance of a component in the project.** Since maintainers
+have generally lived through the experience of maintaining a part of the
+project, they tend to have additional context, a sense of direction, a long-term
+outlook, and an increased incentive to ensure that development is done in a
+sustainable manner. Maintainers are responsible for the following:
 
 * Providing timely feedback on bug reports and review requests.
 * Ensuring the code is straightforward, easy to read / understand.
@@ -352,12 +370,13 @@ responsible for the following:
 * Ensuring that any hacks, known limitations, or future considerations are
   accompanied with TODOs as appropriate.
 
-We're here to build great software together! Maintainers are a means to ensure that
-we can continue to build great software while scaling the amount of contributors and
-committers in the project. The responsibilities listed above are expected from all
-committers in the project in the work that they do, no matter which component they
-touch. Maintainers additionally carry the above responsibilities for all changes
-going into a particular component, no matter who is doing the work.
+We're here to build great software together! Maintainers are a means to ensure
+that we can continue to build great software while scaling the amount of
+contributors and committers in the project. The responsibilities listed above
+are expected from all committers in the project in the work that they do, no
+matter which component they touch. Maintainers additionally carry the above
+responsibilities for all changes going into a particular component, no matter
+who is doing the work.
 
 **All committers of the Mesos project are expected to use good judgement when
 committing patches as to whether the maintainers should be consulted.**
@@ -376,9 +395,10 @@ Examples of changes that do not generally require maintainer consultation:
 * Trivial bug fixes.
 * Trivial cleanups, e.g. cleaning up headers.
 
-We aim to have more than one maintainer for each component, in order to ensure that
-contributors can obtain timely feedback. To avoid information silos, we encourage
-committers to learn about areas of the code that they are unfamiliar with.
+We aim to have more than one maintainer for each component, in order to ensure
+that contributors can obtain timely feedback. To avoid information silos, we
+encourage committers to learn about areas of the code that they are unfamiliar
+with.
 
 ## Current Maintainers
 
