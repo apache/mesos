@@ -8,6 +8,9 @@ This release contains the following new features:
     in the agent flag `--isolation` along with other cgroups related
     options (e.g., `cgroups/cpu`), those options will be just ignored.
 
+  * [MESOS-8327] - Added container-specific cgroups mounts under
+    `/sys/fs/cgroup` to containers with image launched by Mesos containerizer.
+
   * [MESOS-8792] - Added a new `linux/devices` isolator that automatically
     populates containers with devices that have been whitelisted with the
     `--allowed_devices` agent flag.

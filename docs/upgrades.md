@@ -50,6 +50,7 @@ We categorize the changes as follows:
     <ul style="padding-left:10px;">
       <li>A <a href="#1-7-x-linux-devices-isolator">Linux devices isolator</a></li>
       <li>A <a href="#1-7-x-auto-load-subsystems">Automatically load local enabled cgroups subsystems</a></li>
+      <li>A <a href="#1-7-x-container-specific-cgroups-mounts">Container-specific cgroups mounts</a></li>
     </ul>
   </td>
 
@@ -449,6 +450,10 @@ We categorize the changes as follows:
 <a name="1-7-x-auto-load-subsystems"></a>
 
 * A new option `cgroups/all` has been added to the agent flag `--isolation`. This allows cgroups isolator to automatically load all the local enabled cgroups subsystems. If this option is specified in the agent flag `--isolation` along with other cgroups related options (e.g., `cgroups/cpu`), those options will be just ignored.
+
+<a name="1-7-x-container-specific-cgroups-mounts"></a>
+
+* Added container-specific cgroups mounts under `/sys/fs/cgroup` to containers with image launched by Mesos containerizer.
 
 <a name="1-7-x-container-logger"></a>
 
