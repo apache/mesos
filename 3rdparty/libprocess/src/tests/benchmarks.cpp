@@ -22,6 +22,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include <process/collect.hpp>
@@ -39,6 +40,8 @@
 #include <stout/stopwatch.hpp>
 
 #include "benchmarks.pb.h"
+
+#include "mpsc_linked_queue.hpp"
 
 namespace http = process::http;
 
@@ -567,7 +570,6 @@ private:
   long count = 0;
 };
 
-
 TEST(ProcessTest, Process_BENCHMARK_DispatchDefer)
 {
   constexpr long repeats = 100000;
@@ -682,4 +684,64 @@ TEST(ProcessTest, Process_BENCHMARK_ProtobufInstallHandler)
   foreach (int num_submessages, submessages) {
     process.run(num_submessages);
   }
+}
+
+
+TEST(ProcessTest, Process_BENCHMARK_MpscLinkedQueue)
+{
+  // NOTE: we set the total number of producers to be 1 less than the
+  // hardware concurrency so the consumer doesn't have to fight for
+  // processing time with the producers.
+  const unsigned int producerCount = std::thread::hardware_concurrency() - 1;
+  const int messageCount = 10000000;
+  const int totalCount = messageCount * producerCount;
+  std::string* s = new std::string("");
+  process::MpscLinkedQueue<std::string> q;
+
+  Stopwatch consumerWatch;
+
+  auto consumer = std::thread([totalCount, &q, &consumerWatch]() {
+    consumerWatch.start();
+    for (int i = totalCount; i > 0;) {
+      if (q.dequeue() != nullptr) {
+        i--;
+      }
+    }
+    consumerWatch.stop();
+  });
+
+  std::vector<std::thread> producers;
+
+  Stopwatch producerWatch;
+  producerWatch.start();
+
+  for (unsigned int t = 0; t < producerCount; t++) {
+    producers.push_back(std::thread([messageCount, s, &q]() {
+      for (int i = 0; i < messageCount; i++) {
+        q.enqueue(s);
+      }
+    }));
+  }
+
+  for (std::thread& producer : producers) {
+    producer.join();
+  }
+
+  producerWatch.stop();
+
+  consumer.join();
+
+  Duration producerElapsed = producerWatch.elapsed();
+  Duration consumerElapsed = consumerWatch.elapsed();
+
+  double consumerThroughput = (double) totalCount / consumerElapsed.secs();
+  double producerThroughput = (double) totalCount / producerElapsed.secs();
+  double throughput = consumerThroughput + producerThroughput;
+
+  cout << "Estimated producer throughput (" << producerCount << " threads): "
+       << std::fixed << producerThroughput << " op/s" << endl;
+  cout << "Estimated consumer throughput: "
+       << std::fixed << consumerThroughput << " op/s" << endl;
+  cout << "Estimated total throughput: "
+       << std::fixed << throughput << " op/s" << endl;
 }

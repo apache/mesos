@@ -28,6 +28,7 @@ set(PROCESS_TESTS_SRC
   limiter_tests.cpp
   loop_tests.cpp
   metrics_tests.cpp
+  mpsc_linked_queue_tests.cpp
   mutex_tests.cpp
   owned_tests.cpp
   process_tests.cpp

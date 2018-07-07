@@ -307,6 +307,7 @@ libprocess_tests_SOURCES =					\
   src/tests/loop_tests.cpp					\
   src/tests/main.cpp						\
   src/tests/metrics_tests.cpp					\
+  src/tests/mpsc_linked_queue_tests.cpp				\
   src/tests/mutex_tests.cpp					\
   src/tests/owned_tests.cpp					\
   src/tests/process_tests.cpp					\
