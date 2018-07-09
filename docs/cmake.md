@@ -285,7 +285,8 @@ all dependencies are bundled with Mesos, this extra repository will no longer be
 necessary. Until then, the CMake variable `3RDPARTY_DEPENDENCIES` points by
 default to this URL, but it can also point to the on-disk location of a local
 clone of the repo. With this option you can avoid pulling from GitHub for every
-clean build.
+clean build. Note that this must be an absolute path with forward slashes, e.g.
+`-D3RDPARTY_DEPENDENCIES=C:/3rdparty`, otherwise it will fail on Windows.
 
 ## `EXTERNAL`
 
