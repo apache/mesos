@@ -827,6 +827,14 @@
   jira_user: xds2000
   reviewboard_user: xds2000
 
+- name: Xiao Wei
+  affiliations:
+    - {organization: ChinaUnicom}
+  emails:
+    - xiaow10@chinaunicom.cn
+  jira_user: xiaowei-cuc
+  reviewboard_user: xiaowei-cuc
+
 - name: Xudong Ni
   affiliations:
     - {organization: Apple}
