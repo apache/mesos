@@ -26,46 +26,54 @@ if [ "${OLD_VIRTUAL_ENV}" != "" ]; then
   exit 1
 fi
 
-# Verify that python and virtualenv are installed.
+# Verify that python is installed.
 if [ "${PYTHON}" = "" ]; then
-  echo "You must have python installed in order to continue..."
+  echo "You must have python installed in order to continue."
   exit 1
-fi
-
-if [ "${VIRTUALENV}" = "" ]; then
-  # Search for a locally installed virtualenv.
-  # See https://docs.python.org/2/library/site.html#site.USER_SITE for details.
-  VIRTUALENV=$(${PYTHON} -c "import site; print site.USER_SITE")/virtualenv.py
-
-  if [ ! -f "${VIRTUALENV}" ]; then
-    echo "You must have virtualenv installed in order to continue..."
-    exit 1
-  fi
 fi
 
 PYTHON_MAJOR=$(${PYTHON} -c 'import sys; print(sys.version_info[0])')
 PYTHON_MINOR=$(${PYTHON} -c 'import sys; print(sys.version_info[1])')
 
-if [ "$MESOS_SUPPORT_PYTHON" = "3" ]; then
-  if [ "${PYTHON_MAJOR}" != "3" ] || [ "${PYTHON_MINOR}" -lt "6" ]; then
-    echo "You must be running python 3.6 in order to continue."
-    echo "Consider running as 'PYTHON=python3 <previous-command>' or similar."
+if [ "${PYTHON_MAJOR}" = "3" ]; then
+  if [ "${PYTHON_MINOR}" -lt "6" ]; then
+    echo "You must be running python 3.6 or newer in order to continue."
+    echo "Consider running as 'PYTHON=python3 ${0}' or similar."
     exit 1
+  else
+    # Set up a virtual environment for the linters.
+    ${PYTHON} -m venv --clear --prompt="${VIRTUALENV_NAME}" ${VIRTUALENV_DIRECTORY}
+  fi
+elif [ "${PYTHON_MAJOR}" = "2" ]; then
+  if [ "${PYTHON_MINOR}" -lt "6" ]; then
+    echo "You must be running python 2.6 or 2.7 in order to continue."
+    echo "Consider running as 'PYTHON=python2 ${0} or similar."
+    exit 1
+  else
+    if [ "${VIRTUALENV}" = "" ]; then
+      # Search for a locally installed virtualenv.
+      # See https://docs.python.org/2/library/site.html#site.USER_SITE for details.
+      VIRTUALENV=$(${PYTHON} -c "import site; print site.USER_SITE")/virtualenv.py
+    fi
+
+    if [ ! -f "${VIRTUALENV}" ]; then
+      echo "You must have virtualenv installed in order to continue..."
+      exit 1
+    fi
+
+    # Set up a virtual environment for the linters.
+    ${PYTHON} ${VIRTUALENV} --python=${PYTHON} \
+                      --clear \
+                      --no-site-packages \
+                      --prompt="(${VIRTUALENV_NAME}) " \
+                      ${VIRTUALENV_DIRECTORY}
   fi
 else
-  if [ "${PYTHON_MAJOR}" != "2" ] || [ "${PYTHON_MINOR}" -lt "6" ]; then
-    echo "You must be running python 2.6 or 2.7 in order to continue."
-    echo "Consider running as 'PYTHON=python2 ./bootstrap' or similar."
-    exit 1
-  fi
+  echo "You must be running either python 2.6, 2.7,"
+  echo "or python 3.6 or newer in order to continue."
+  echo "Consider running as 'PYTHON=python3 ${0}' or similar."
+  exit 1
 fi
-
-# Set up a virtual environment for the linters.
-${PYTHON} ${VIRTUALENV} --python=${PYTHON} \
-                        --clear \
-                        --no-site-packages \
-                        --prompt="(${VIRTUALENV_NAME}) " \
-                        ${VIRTUALENV_DIRECTORY} || true
 
 source ${VIRTUALENV_DIRECTORY}/bin/activate
 pip install --upgrade pip
