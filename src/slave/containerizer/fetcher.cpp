@@ -585,7 +585,7 @@ Future<Nothing> FetcherProcess::__fetch(
       return future; // Always propagate the failure!
     })
     // Call to `operator` here forces the conversion on MSVC. This is implicit
-    // on clang an gcc.
+    // on clang and gcc.
     .operator std::function<process::Future<Nothing>(
         const process::Future<Nothing> &)>())
     .then(defer(self(), [=]() {
