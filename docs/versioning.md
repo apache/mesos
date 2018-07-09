@@ -1,5 +1,5 @@
 ---
-title: Apache Mesos - Release and Support policy
+title: Apache Mesos - Release and Support Policy
 layout: documentation
 ---
 

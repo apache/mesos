@@ -7,6 +7,7 @@ layout: documentation
 * [Mesos Architecture](architecture.md) providing an overview of Mesos concepts.
 * [Video and Slides of Mesos Presentations](presentations.md)
 * [Academic Papers and Project History](https://www.usenix.org/conference/nsdi11/mesos-platform-fine-grained-resource-sharing-data-center)
+* [Mesos Release and Support Policy](versioning.md)
 
 ## Build / Installation
 * [Building](building.md) for basic instructions on compiling and installing Mesos.
@@ -71,7 +72,7 @@ layout: documentation
 ## APIs
 * [HTTP Endpoints](endpoints/) for available HTTP endpoints.
 * [API Client Libraries](api-client-libraries.md) lists client libraries for the HTTP APIs.
-* [API Versioning](versioning.md) describes HTTP API and release versioning.
+* [API Versioning](versioning.md#api-versioning) describes HTTP API and release versioning.
 * [RecordIO](recordio.md) describes the RecordIO format used by the streaming endpoints of the HTTP API.
 * Writing Frameworks
   * [Framework Development Guide](app-framework-development-guide.md) describes how to build applications on top of Mesos.
