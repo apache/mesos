@@ -34,6 +34,9 @@
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
 
+#include <process/metrics/counter.hpp>
+#include <process/metrics/metrics.hpp>
+
 #include <stout/duration.hpp>
 #include <stout/gtest.hpp>
 #include <stout/hashset.hpp>
@@ -44,6 +47,7 @@
 #include "mpsc_linked_queue.hpp"
 
 namespace http = process::http;
+namespace metrics = process::metrics;
 
 using process::CountDownLatch;
 using process::Future;
@@ -59,6 +63,8 @@ using std::endl;
 using std::ostringstream;
 using std::string;
 using std::vector;
+
+using testing::WithParamInterface;
 
 int main(int argc, char** argv)
 {
@@ -753,4 +759,69 @@ TEST(ProcessTest, Process_BENCHMARK_MpscLinkedQueue)
        << std::fixed << consumerThroughput << " op/s" << endl;
   cout << "Estimated total throughput: "
        << std::fixed << throughput << " op/s" << endl;
+}
+
+
+class Metrics_BENCHMARK_Test : public ::testing::Test,
+                               public WithParamInterface<size_t>{};
+
+
+// Parameterized by the number of metrics.
+INSTANTIATE_TEST_CASE_P(
+    MetricsCount,
+    Metrics_BENCHMARK_Test,
+    ::testing::Values(1u, 100u, 1000u, 10000u, 100000u));
+
+
+// Tests the performance of metrics fetching when there
+// are a large number of metrics.
+TEST_P(Metrics_BENCHMARK_Test, Scalability)
+{
+  size_t metrics_count = GetParam();
+
+  vector<metrics::Counter> counters;
+  counters.reserve(metrics_count);
+
+  for (size_t i = 0; i < metrics_count; ++i) {
+    counters.push_back(
+        metrics::Counter("metrics/keys/can/be/somewhat/long/"
+                         "so/we/use/a/fairly/long/key/here/"
+                         "to/test/a/more/pathological/case/" +
+                         stringify(i)));
+  }
+
+  Stopwatch watch;
+  watch.start();
+  for (size_t i = 0; i < metrics_count; ++i) {
+    metrics::add(counters[i]).get();
+  }
+  watch.stop();
+
+  std::cout << "Added " << metrics_count << " counters in "
+            << watch.elapsed() << std::endl;
+
+  watch.start();
+  metrics::snapshot(None()).get();
+  watch.stop();
+
+  std::cout << "Snapshot of " << metrics_count << " counters in "
+              << watch.elapsed() << std::endl;
+
+  UPID upid("metrics", process::address());
+
+  watch.start();
+  http::get(upid, "snapshot").get();
+  watch.stop();
+
+  std::cout << "HTTP /snapshot of " << metrics_count << " counters in "
+              << watch.elapsed() << std::endl;
+
+  watch.start();
+  for (size_t i = 0; i < metrics_count; ++i) {
+    metrics::remove(counters[i]).get();
+  }
+  watch.stop();
+
+  std::cout << "Removed " << metrics_count << " counters in "
+            << watch.elapsed() << std::endl;
 }
