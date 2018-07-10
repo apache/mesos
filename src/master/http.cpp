@@ -2158,7 +2158,7 @@ Future<Response> Master::Http::getMetrics(
   }
 
   return process::metrics::snapshot(timeout)
-      .then([contentType](const hashmap<string, double>& metrics) -> Response {
+      .then([contentType](const map<string, double>& metrics) -> Response {
         mesos::master::Response response;
         response.set_type(mesos::master::Response::GET_METRICS);
         mesos::master::Response::GetMetrics* _getMetrics =

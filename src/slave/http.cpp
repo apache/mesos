@@ -1046,7 +1046,7 @@ Future<Response> Http::getMetrics(
   }
 
   return process::metrics::snapshot(timeout)
-      .then([acceptType](const hashmap<string, double>& metrics) -> Response {
+      .then([acceptType](const map<string, double>& metrics) -> Response {
           mesos::agent::Response response;
         response.set_type(mesos::agent::Response::GET_METRICS);
         mesos::agent::Response::GetMetrics* _getMetrics =
