@@ -789,11 +789,15 @@ resourceproviderdir = $(pkgincludedir)/resource_provider
 
 resourceprovider_HEADERS =							\
   $(top_srcdir)/include/mesos/resource_provider/resource_provider.hpp		\
-  $(top_srcdir)/include/mesos/resource_provider/resource_provider.proto		\
-  $(top_srcdir)/include/mesos/resource_provider/storage/disk_profile_adaptor.hpp
+  $(top_srcdir)/include/mesos/resource_provider/resource_provider.proto
 
 nodist_resourceprovider_HEADERS =					\
   ../include/mesos/resource_provider/resource_provider.pb.h
+
+resourceprovider_storagedir = $(pkgincludedir)/resource_provider/storage
+
+resourceprovider_storage_HEADERS =						\
+  $(top_srcdir)/include/mesos/resource_provider/storage/disk_profile_adaptor.hpp
 
 schedulerdir = $(pkgincludedir)/scheduler
 
