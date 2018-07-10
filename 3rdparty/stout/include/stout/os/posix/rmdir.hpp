@@ -21,7 +21,6 @@
 
 #include <stout/error.hpp>
 #include <stout/nothing.hpp>
-#include <stout/path.hpp>
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
@@ -81,9 +80,8 @@ inline Try<Nothing> rmdir(
 
           if (::rmdir(node->fts_path) < 0 && errno != ENOENT) {
             if (continueOnError) {
-              LOG(ERROR) << "Failed to delete directory "
-                         << path::join(directory, node->fts_path)
-                         << ": " << os::strerror(errno);
+              LOG(ERROR) << "Failed to delete directory '" << node->fts_path
+                         << "': " << os::strerror(errno);
               ++errorCount;
             } else {
               Error error = ErrnoError();
@@ -102,9 +100,8 @@ inline Try<Nothing> rmdir(
         case FTS_SLNONE:
           if (::unlink(node->fts_path) < 0 && errno != ENOENT) {
             if (continueOnError) {
-              LOG(ERROR) << "Failed to delete path "
-                         << path::join(directory, node->fts_path)
-                         << ": " << os::strerror(errno);
+              LOG(ERROR) << "Failed to delete path '" << node->fts_path
+                         << "': " << os::strerror(errno);
               ++errorCount;
             } else {
               Error error = ErrnoError();
