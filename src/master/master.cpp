@@ -6123,9 +6123,6 @@ void Master::registerSlave(
     // without authentication.
     LOG(WARNING) << "Refusing registration of agent at " << from
                  << " because it is not authenticated";
-    ShutdownMessage message;
-    message.set_message("Agent is not authenticated");
-    send(from, message);
     return;
   }
 
@@ -6199,10 +6196,6 @@ void Master::_registerSlave(
     LOG(WARNING) << "Refusing registration of agent at " << pid
                  << " (" << slaveInfo.hostname() << ")"
                  << ": " << authorizationError.get();
-
-    ShutdownMessage message;
-    message.set_message(authorizationError.get());
-    send(pid, message);
 
     slaves.registering.erase(pid);
     return;
@@ -6447,9 +6440,6 @@ void Master::reregisterSlave(
     // re-register without authentication.
     LOG(WARNING) << "Refusing re-registration of agent at " << from
                  << " because it is not authenticated";
-    ShutdownMessage message;
-    message.set_message("Agent is not authenticated");
-    send(from, message);
     return;
   }
 
@@ -6551,10 +6541,6 @@ void Master::_reregisterSlave(
     LOG(WARNING) << "Refusing re-registration of agent " << slaveInfo.id()
                  << " at " << pid << " (" << slaveInfo.hostname() << ")"
                  << ": " << authorizationError.get();
-
-    ShutdownMessage message;
-    message.set_message(authorizationError.get());
-    send(pid, message);
 
     slaves.reregistering.erase(slaveInfo.id());
     return;
