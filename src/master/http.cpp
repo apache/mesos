@@ -3807,29 +3807,62 @@ Future<Response> Master::Http::getOperations(
 {
   CHECK_EQ(mesos::master::Call::GET_OPERATIONS, call.type());
 
-  // TODO(nfnt): Authorize this call (MESOS-8473).
+  return ObjectApprovers::create(master->authorizer, principal, {VIEW_ROLE})
+    .then(defer(
+        master->self(),
+        [=](const Owned<ObjectApprovers>& approvers) -> Response {
+          // We consider a principal to be authorized to view an operation if it
+          // is authorized to view the resources the operation is performed on.
+          auto approved = [&approvers](const Operation& operation) {
+            Try<Resources> consumedResources =
+              protobuf::getConsumedResources(operation.info());
 
-  mesos::master::Response response;
-  response.set_type(mesos::master::Response::GET_OPERATIONS);
+            if (consumedResources.isError()) {
+              LOG(WARNING)
+                << "Could not approve operation " << operation.uuid()
+                << " since its consumed resources could not be determined:"
+                << consumedResources.error();
 
-  mesos::master::Response::GetOperations* operations =
-    response.mutable_get_operations();
+              return false;
+            }
 
-  foreachvalue (const Slave* slave, master->slaves.registered) {
-    foreachvalue (Operation* operation, slave->operations) {
-      operations->add_operations()->CopyFrom(*operation);
-    }
+            foreach (const Resource& resource, consumedResources.get()) {
+              if (!approvers->approved<VIEW_ROLE>(resource)) {
+                return false;
+              }
+            }
 
-    foreachvalue (
-        const Slave::ResourceProvider resourceProvider,
-        slave->resourceProviders) {
-      foreachvalue (Operation* operation, resourceProvider.operations) {
-        operations->add_operations()->CopyFrom(*operation);
-      }
-    }
-  }
+            return true;
+          };
 
-  return OK(serialize(contentType, evolve(response)), stringify(contentType));
+          mesos::master::Response response;
+          response.set_type(mesos::master::Response::GET_OPERATIONS);
+
+          mesos::master::Response::GetOperations* operations =
+            response.mutable_get_operations();
+
+          foreachvalue (const Slave* slave, master->slaves.registered) {
+            foreachvalue (Operation* operation, slave->operations) {
+              if (approved(*operation)) {
+                operations->add_operations()->CopyFrom(*operation);
+              }
+            }
+
+            foreachvalue (
+                const Slave::ResourceProvider resourceProvider,
+                slave->resourceProviders) {
+              foreachvalue (Operation* operation, resourceProvider.operations) {
+                if (approved(*operation)) {
+                  operations->add_operations()->CopyFrom(*operation);
+                }
+              }
+            }
+          }
+
+          return OK(
+              serialize(contentType, evolve(response)),
+              stringify(contentType));
+        }));
 }
 
 

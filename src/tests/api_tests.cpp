@@ -131,9 +131,10 @@ public:
   Future<v1::master::Response> post(
       const process::PID<master::Master>& pid,
       const v1::master::Call& call,
-      const ContentType& contentType)
+      const ContentType& contentType,
+      const Credential& credential = DEFAULT_CREDENTIAL)
   {
-    http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    http::Headers headers = createBasicAuthHeaders(credential);
     headers["Accept"] = stringify(contentType);
 
     return http::post(
@@ -1012,6 +1013,13 @@ TEST_P(MasterAPITest, GetOperations)
 
   master::Flags masterFlags = CreateMasterFlags();
 
+  {
+    // Default principal 2 is not allowed to view any role.
+    mesos::ACL::ViewRole* acl = masterFlags.acls->add_view_roles();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
+  }
+
   Try<Owned<cluster::Master>> master = this->StartMaster(masterFlags);
   ASSERT_SOME(master);
 
@@ -1131,6 +1139,15 @@ TEST_P(MasterAPITest, GetOperations)
   EXPECT_EQ(
       operation->operation_uuid(),
       v1Response->get_operations().operations(0).uuid());
+
+  // Default principal 2 should not be able to see any operations.
+  v1Response =
+    post(master.get()->pid, v1Call, contentType, DEFAULT_CREDENTIAL_2);
+
+  AWAIT_READY(v1Response);
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::master::Response::GET_OPERATIONS, v1Response->type());
+  EXPECT_TRUE(v1Response->get_operations().operations().empty());
 
   driver.stop();
   driver.join();
@@ -4700,9 +4717,10 @@ public:
   Future<v1::agent::Response> post(
       const process::PID<slave::Slave>& pid,
       const v1::agent::Call& call,
-      const ContentType& contentType)
+      const ContentType& contentType,
+      const Credential& credential = DEFAULT_CREDENTIAL)
   {
-    http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    http::Headers headers = createBasicAuthHeaders(credential);
     headers["Accept"] = stringify(contentType);
 
     return http::post(
@@ -7024,7 +7042,7 @@ TEST_P(AgentAPITest, GetResourceProviders)
   // resource provider resources.
   AWAIT_READY(updateSlaveMessage);
 
-  v1Response = post(slave.get()->pid, v1Call, contentType);
+  v1Response = post(slave.get()->pid, v1Call, contentType, DEFAULT_CREDENTIAL);
 
   AWAIT_READY(v1Response);
   ASSERT_TRUE(v1Response->IsInitialized());
@@ -7067,6 +7085,14 @@ TEST_P(AgentAPITest, GetOperations)
     FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.authenticate_http_readwrite = true;
+
+  {
+    // Default principal 2 is not allowed to view any role.
+    mesos::ACL::ViewRole* acl = slaveFlags.acls->add_view_roles();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
+    acl->mutable_roles()->set_type(mesos::ACL::Entity::NONE);
+  }
 
   Try<Owned<cluster::Slave>> agent = StartSlave(detector.get(), slaveFlags);
   ASSERT_SOME(agent);
@@ -7176,6 +7202,15 @@ TEST_P(AgentAPITest, GetOperations)
   EXPECT_EQ(
       operation->operation_uuid(),
       v1Response->get_operations().operations(0).uuid());
+
+  // Default principal 2 should not be able to see any operations.
+  v1Response =
+    post(agent.get()->pid, v1Call, contentType, DEFAULT_CREDENTIAL_2);
+
+  AWAIT_READY(v1Response);
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::agent::Response::GET_OPERATIONS, v1Response->type());
+  EXPECT_TRUE(v1Response->get_operations().operations().empty());
 
   driver.stop();
   driver.join();

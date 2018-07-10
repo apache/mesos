@@ -1590,19 +1590,49 @@ Future<Response> Http::getOperations(
 
   LOG(INFO) << "Processing GET_OPERATIONS call";
 
-  // TODO(nfnt): Authorize this call (MESOS-8473).
+  return ObjectApprovers::create(slave->authorizer, principal, {VIEW_ROLE})
+    .then(defer(
+        slave->self(),
+        [=](const Owned<ObjectApprovers>& approvers) -> Response {
+          // We consider a principal to be authorized to view an operation if it
+          // is authorized to view the resources the operation is performed on.
+          auto approved = [&approvers](const Operation& operation) {
+            Try<Resources> consumedResources =
+              protobuf::getConsumedResources(operation.info());
 
-  agent::Response response;
-  response.set_type(mesos::agent::Response::GET_OPERATIONS);
+            if (consumedResources.isError()) {
+              LOG(WARNING)
+                << "Could not approve operation " << operation.uuid()
+                << " since its consumed resources could not be determined: "
+                << consumedResources.error();
 
-  agent::Response::GetOperations* operations =
-    response.mutable_get_operations();
+              return false;
+            }
 
-  foreachvalue (Operation* operation, slave->operations) {
-    operations->add_operations()->CopyFrom(*operation);
-  }
+            foreach (const Resource& resource, consumedResources.get()) {
+              if (!approvers->approved<VIEW_ROLE>(resource)) {
+                return false;
+              }
+            }
 
-  return OK(serialize(acceptType, evolve(response)), stringify(acceptType));
+            return true;
+          };
+
+          agent::Response response;
+          response.set_type(mesos::agent::Response::GET_OPERATIONS);
+
+          agent::Response::GetOperations* operations =
+            response.mutable_get_operations();
+
+          foreachvalue (Operation* operation, slave->operations) {
+            if (approved(*operation)) {
+              operations->add_operations()->CopyFrom(*operation);
+            }
+          }
+
+          return OK(
+              serialize(acceptType, evolve(response)), stringify(acceptType));
+        }));
 }
 
 
