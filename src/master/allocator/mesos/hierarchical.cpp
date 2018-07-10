@@ -884,6 +884,7 @@ void HierarchicalAllocatorProcess::updateAllocation(
   // We strip `AllocationInfo` from conversions in order to apply them
   // successfully, since agent's total is stored as unallocated resources.
   vector<ResourceConversion> strippedConversions;
+  Resources removedResources;
   foreach (const ResourceConversion& conversion, conversions) {
     // TODO(jieyu): Ideally, we should make sure agent's total
     // resources are consistent with agent's allocation in terms of
@@ -896,6 +897,12 @@ void HierarchicalAllocatorProcess::updateAllocation(
     // an empty `consumed` field.
     if (conversion.consumed.empty()) {
       continue;
+    }
+
+    // NOTE: For now, a resource conversion must either not change the resource
+    // quantities, or completely remove the consumed resources. See MESOS-8825.
+    if (conversion.converted.empty()) {
+      removedResources += conversion.consumed;
     }
 
     Resources consumed = conversion.consumed;
@@ -916,14 +923,20 @@ void HierarchicalAllocatorProcess::updateAllocation(
   frameworkSorter->remove(slaveId, offeredResources);
   frameworkSorter->add(slaveId, updatedOfferedResources);
 
-  // Check that the unreserved quantities for framework allocations
-  // have not changed by the above resource conversions.
   const Resources updatedFrameworkAllocation =
     frameworkSorter->allocation(frameworkId.value(), slaveId);
 
+  // Check that the changed quantities af the framework's allocation is exactly
+  // the same as the resources removed by the resource conversions.
+  //
+  // TODO(chhsiao): Revisit this constraint if we want to support other type of
+  // resource conversions. See MESOS-9015.
+  const Resources removedAllocationQuantities =
+    frameworkAllocation.createStrippedScalarQuantity() -
+    updatedFrameworkAllocation.createStrippedScalarQuantity();
   CHECK_EQ(
-      frameworkAllocation.toUnreserved().createStrippedScalarQuantity(),
-      updatedFrameworkAllocation.toUnreserved().createStrippedScalarQuantity());
+      removedAllocationQuantities,
+      removedResources.createStrippedScalarQuantity());
 
   LOG(INFO) << "Updated allocation of framework " << frameworkId
             << " on agent " << slaveId

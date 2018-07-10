@@ -2229,6 +2229,77 @@ TEST_F(HierarchicalAllocatorTest, UpdateAllocation)
 }
 
 
+// This test ensures that frameworks can apply resource conversions that remove
+// resources from their allocations and the agent's total resources.
+TEST_F(HierarchicalAllocatorTest, UpdateAllocationRemoveResources)
+{
+  Clock::pause();
+
+  initialize();
+
+  SlaveInfo slave = createSlaveInfo("cpus:100;mem:100;disk:100");
+  allocator->addSlave(
+      slave.id(),
+      slave,
+      AGENT_CAPABILITIES(),
+      None(),
+      slave.resources(),
+      {});
+
+  // Initially, all the resources are allocated.
+  FrameworkInfo framework = createFrameworkInfo({"role1"});
+  allocator->addFramework(framework.id(), framework, {}, true, {});
+
+  Allocation expected = Allocation(
+      framework.id(),
+      {{"role1", {{slave.id(), slave.resources()}}}});
+
+  Future<Allocation> allocation = allocations.get();
+  AWAIT_EXPECT_EQ(expected, allocation);
+
+  // Construct a resource conversion that removes all disks from the framework's
+  // allocation and the total resources.
+  Resource removed = Resources::parse("disk", "100", "*").get();
+  removed.mutable_allocation_info()->set_role("role1");
+  vector<ResourceConversion> conversions{
+    ResourceConversion(removed, Resources())
+  };
+
+  // Ensure that the resource conversion can be applied.
+  Try<Resources> updated =
+    allocation->resources.at("role1").at(slave.id()).apply(conversions);
+
+  ASSERT_SOME(updated);
+  EXPECT_NONE(updated->disk());
+
+  // Update the allocation in the allocator.
+  allocator->updateAllocation(
+      framework.id(),
+      slave.id(),
+      allocation->resources.at("role1").at(slave.id()),
+      conversions);
+
+  // Now recover the resources, and expect that the next allocation contains the
+  // updated resources.
+  allocator->recoverResources(
+      framework.id(),
+      slave.id(),
+      updated.get(),
+      None());
+
+  Clock::advance(flags.allocation_interval);
+
+  // The allocation should be the agent's resources with the resource conversion
+  // applied.
+  expected = Allocation(
+      framework.id(),
+      {{"role1", {{slave.id(), updated.get()}}}});
+
+  allocation = allocations.get();
+  AWAIT_EXPECT_EQ(expected, allocation);
+}
+
+
 // This test verifies that `updateAllocation()` supports creating and
 // destroying shared persistent volumes.
 TEST_F(HierarchicalAllocatorTest, UpdateAllocationSharedPersistentVolume)
