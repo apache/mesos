@@ -1292,6 +1292,45 @@ TEST(DRFSorterTest, MultipleSlavesUpdateTotal)
 }
 
 
+// This test verifies that when a portion of resources are removed from the
+// total pool of resources as well as the allocation, the sorting order of
+// clients reflects the new shares.
+TEST(DRFSorterTest, RemoveResources)
+{
+  DRFSorter sorter;
+
+  SlaveID slaveId;
+  slaveId.set_value("agentId");
+
+  sorter.add("a");
+  sorter.add("b");
+  sorter.activate("a");
+  sorter.activate("b");
+
+  Resources slaveTotal = Resources::parse("cpus", "10", "*").get();
+  sorter.add(slaveId, slaveTotal);
+
+  // Dominant share of "a" is 0.6 (cpus).
+  Resources allocatedForA = Resources::parse("cpus", "6", "*").get();
+  sorter.allocated("a", slaveId, allocatedForA);
+
+  // Dominant share of "b" is 0.4 (cpus).
+  sorter.allocated("b", slaveId, Resources::parse("cpus", "4", "*").get());
+
+  EXPECT_EQ(vector<string>({"b", "a"}), sorter.sort());
+
+  // Remove cpus from the total resources as well as the allocation of "a".
+  Resources removed = Resources::parse("cpus", "5", "*").get();
+  sorter.remove(slaveId, slaveTotal);
+  sorter.add(slaveId, slaveTotal - removed);
+  sorter.update("a", slaveId, allocatedForA, allocatedForA - removed);
+
+  // Now the dominant share of "a" is 0.2 (cpus) and that of "b" is 0.8 (cpus),
+  // which should change the sort order.
+  EXPECT_EQ(vector<string>({"a", "b"}), sorter.sort());
+}
+
+
 // This test verifies that revocable resources are properly accounted
 // for in the DRF sorter.
 TEST(DRFSorterTest, RevocableResources)

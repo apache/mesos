@@ -25,8 +25,11 @@ This release contains the following new features:
     non-blocking asynchronous I/O on Windows for sockets, pipes, and files.
 
 Additional API Changes:
+  * [MESOS-9015] Allow resources to be removed when updating the sorter.
+
   * Container logger module interface has been changed. The `prepare()` method
     now takes `ContainerID` and `ContainerConfig` instead.
+
   * `Isolator::recover` interface has been changed to take an `std::vector`
     instead of `std::list`.
 
