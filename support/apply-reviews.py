@@ -111,7 +111,8 @@ def review_chain(review_id):
     status = json_obj.get('review_request').get('status')
     if status == "submitted":
         sys.stderr.write('Warning: Review {review} has already'
-                         ' been applied\n'.format(review=review_id))
+                         ' been submitted and did not get applied'
+                         ' to you current work-tree\n'.format(review=review_id))
         return []
 
     # Verify that the review has exactly one parent.
