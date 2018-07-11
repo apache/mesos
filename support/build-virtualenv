@@ -98,5 +98,5 @@ deactivate
 source ${VIRTUALENV_DIRECTORY}/bin/activate
 
 # Install the JavaScript linter in the virtual environment.
-npm install -g eslint@4.6.1
+npm install -g eslint@5.1.0
 deactivate
