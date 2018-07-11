@@ -495,8 +495,11 @@ def build_virtualenv():
     """
     print('Rebuilding virtualenv...')
 
+    python3_env = os.environ.copy()
+    python3_env["PYTHON"] = sys.executable
     process = subprocess.Popen(
         [os.path.join('support', 'build-virtualenv')],
+        env=python3_env,
         stdout=subprocess.PIPE)
 
     output = ''
@@ -510,6 +513,9 @@ def build_virtualenv():
         sys.exit(1)
 
 if __name__ == '__main__':
+    if should_build_virtualenv(sys.argv[1:]):
+        build_virtualenv()
+
     # TODO(ArmandGrillet): We should only instantiate the linters
     # required to lint the files to analyze. See MESOS-8351.
     CPP_LINTER = CppLinter()
