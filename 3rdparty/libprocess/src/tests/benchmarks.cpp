@@ -71,6 +71,18 @@ int main(int argc, char** argv)
   // Initialize Google Mock/Test.
   testing::InitGoogleMock(&argc, argv);
 
+  // NOTE: Windows does not support signal semantics required for these
+  // handlers to be useful.
+#ifndef __WINDOWS__
+  // Install GLOG's signal handler.
+  google::InstallFailureSignalHandler();
+
+  // We reset the GLOG's signal handler for SIGTERM because
+  // 'SubprocessTest.Status' sends SIGTERM to a subprocess which
+  // results in a stack trace otherwise.
+  os::signals::reset(SIGTERM);
+#endif // __WINDOWS__
+
   // Add the libprocess test event listeners.
   ::testing::TestEventListeners& listeners =
     ::testing::UnitTest::GetInstance()->listeners();
