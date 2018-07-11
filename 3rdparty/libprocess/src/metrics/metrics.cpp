@@ -120,22 +120,23 @@ string MetricsProcess::help()
 
 Future<Nothing> MetricsProcess::add(Owned<Metric> metric)
 {
-  if (metrics.count(metric->name()) > 0) {
+  bool inserted = metrics.emplace(metric->name(), metric).second;
+
+  if (!inserted) {
     return Failure("Metric '" + metric->name() + "' was already added");
   }
 
-  metrics[metric->name()] = metric;
   return Nothing();
 }
 
 
 Future<Nothing> MetricsProcess::remove(const string& name)
 {
-  if (metrics.count(name) == 0) {
+  size_t erased = metrics.erase(name);
+
+  if (erased == 0) {
     return Failure("Metric '" + name + "' not found");
   }
-
-  metrics.erase(name);
 
   return Nothing();
 }
