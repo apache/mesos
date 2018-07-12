@@ -3044,11 +3044,7 @@ StorageLocalResourceProviderProcess::applyCreateDisk(
     const id::UUID& operationUuid,
     const Resource::DiskInfo::Source::Type& type)
 {
-  if (resource.disk().source().type() != Resource::DiskInfo::Source::RAW) {
-    return Failure(
-        "Cannot create volume or block from source of " +
-        stringify(resource.disk().source().type()) + " type");
-  }
+  CHECK_EQ(Resource::DiskInfo::Source::RAW, resource.disk().source().type());
 
   // NOTE: Currently we only support two type of RAW disk resources:
   //   1. RAW disk from `GetCapacity` with a profile but no volume ID.
@@ -3219,21 +3215,8 @@ Future<vector<ResourceConversion>>
 StorageLocalResourceProviderProcess::applyDestroyDisk(
     const Resource& resource)
 {
-  switch (resource.disk().source().type()) {
-    case Resource::DiskInfo::Source::MOUNT:
-    case Resource::DiskInfo::Source::BLOCK: {
-      break;
-    }
-    case Resource::DiskInfo::Source::UNKNOWN:
-    case Resource::DiskInfo::Source::PATH:
-    case Resource::DiskInfo::Source::RAW: {
-      return Failure(
-          "Cannot destroy volume or block of " +
-          stringify(resource.disk().source().type()) + " type");
-      break;
-    }
-  }
-
+  CHECK(resource.disk().source().type() == Resource::DiskInfo::Source::MOUNT ||
+        resource.disk().source().type() == Resource::DiskInfo::Source::BLOCK);
   CHECK(resource.disk().source().has_id());
   CHECK(volumes.contains(resource.disk().source().id()));
 
