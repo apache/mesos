@@ -39,6 +39,52 @@ Your scheduler should create a SchedulerDriver
 How to build Mesos frameworks that are highly available in the face of failures is
 discussed in a [separate document](high-availability-framework-guide.md).
 
+### Multi-Scheduler Scalability
+
+When implementing a scheduler, it's important to adhere to the following guidelines
+in order to ensure that the scheduler can run in a scalable manner alongside other
+schedulers in the same Mesos cluster:
+
+1. **Use `Suppress`**: The scheduler must stay in a suppressed state whenever it has
+   no additional tasks to launch or offer operations to perform. This ensures
+   that Mesos can more efficiently offer resources to those frameworks that do
+   have work to perform.
+2. **Do not hold onto offers**: If an offer cannot be used, decline it immediately.
+   Otherwise the resources cannot be offered to other schedulers and the scheduler
+   itself will receive fewer additional offers.
+3. **`Decline` resources using a large timeout**: when declining an offer, use a
+   large `Filters.refuse_seconds` timeout (e.g. 1 hour). This ensures that Mesos
+   will have time to try offering the resources to other scheduler before trying
+   the same scheduler again. However, if the scheduler is unable to eventually
+   enter a `SUPPRESS`ed state, and it has new workloads to run after having declined,
+   it should consider `REVIVE`ing if it is not receiving sufficient resources for
+   some time.
+4. **Do not `REVIVE` frequently**: `REVIVE`ing clears all filters, and therefore
+   if `REVIVE` occurs frequently it is similar to always declining with a very
+   short timeout (violation of guideline (3)).
+
+Operationally, the following can be done to ensure that schedulers get the resources
+they need when co-existing with other schedulers:
+
+1. **Do not share a role between schedulers**: Roles are the level at which controls
+   are available (e.g. quota, weight, reservation) that affect resource allocation.
+   Within a role, there are no controls to alter the behavior should one scheduler
+   not receive enough resources.
+2. **Set quota if roles need a guarantee**: If a role (either an entire scheduler or
+   a "job"/"service"/etc within a multi-tenant scheduler) needs a certain amount of
+   resources guaranteed to it, setting a quota ensures that Mesos will try its best
+   to allocate to satisfy the guarantee.
+3. **Consider enabling the random sorter**: Depending on the use case, DRF can prove
+   problematic in that it will try to allocate to frameworks with a low share of the
+   cluster and penalize frameworks with a high share of the cluster. This can lead
+   to offer starvation for higher share frameworks. To allocate using a weighted
+   random uniform distribution instead of fair sharing, set `--role-sorter=random`
+   and `--framework_sorter=random`.
+
+See the [Offer Starvation Design Document](https://docs.google.com/document/d/1uvTmBo_21Ul9U_mijgWyh7hE0E_yZXrFr43JIB9OCl8)
+in [MESOS-3202](https://issues.apache.org/jira/browse/MESOS-3202) for more
+information about the pitfalls and future plans for running multiple schedulers.
+
 ## Working with Executors
 
 ### Using the Mesos Command Executor
