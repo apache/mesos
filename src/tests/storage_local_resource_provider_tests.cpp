@@ -666,7 +666,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ProfileAppeared)
 
 // This test verifies that the storage local resource provider can
 // create then destroy a new volume from a storage pool.
-TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolume)
+TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyDisk)
 {
   const string profilesPath = path::join(sandbox.get(), "profiles.json");
   ASSERT_SOME(os::write(profilesPath, createDiskProfileMapping("test")));
@@ -707,9 +707,9 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolume)
   EXPECT_CALL(sched, registered(&driver, _, _));
 
   // The framework is expected to see the following offers in sequence:
-  //   1. One containing a RAW disk resource before `CREATE_VOLUME`.
-  //   2. One containing a MOUNT disk resource after `CREATE_VOLUME`.
-  //   3. One containing a RAW disk resource after `DESTROY_VOLUME`.
+  //   1. One containing a RAW disk resource before `CREATE_DISK`.
+  //   2. One containing a MOUNT disk resource after `CREATE_DISK`.
+  //   3. One containing a RAW disk resource after `DESTROY_DISK`.
   //
   // We set up the expectations for these offers as the test progresses.
   Future<vector<Offer>> rawDiskOffers;
@@ -772,7 +772,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolume)
 
   driver.acceptOffers(
       {rawDiskOffers->at(0).id()},
-      {CREATE_VOLUME(source.get(), Resource::DiskInfo::Source::MOUNT)},
+      {CREATE_DISK(source.get(), Resource::DiskInfo::Source::MOUNT)},
       acceptFilters);
 
   AWAIT_READY(volumeCreatedOffers);
@@ -815,7 +815,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolume)
 
   driver.acceptOffers(
       {volumeCreatedOffers->at(0).id()},
-      {DESTROY_VOLUME(volume.get())},
+      {DESTROY_DISK(volume.get())},
       acceptFilters);
 
   AWAIT_READY(volumeDestroyedOffers);
@@ -842,7 +842,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolume)
 
 // This test verifies that the storage local resource provider can
 // destroy a volume created from a storage pool after recovery.
-TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolumeRecovery)
+TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyDiskRecovery)
 {
   const string profilesPath = path::join(sandbox.get(), "profiles.json");
   ASSERT_SOME(os::write(profilesPath, createDiskProfileMapping("test")));
@@ -883,11 +883,11 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolumeRecovery)
   EXPECT_CALL(sched, registered(&driver, _, _));
 
   // The framework is expected to see the following offers in sequence:
-  //   1. One containing a RAW disk resource before `CREATE_VOLUME`.
-  //   2. One containing a MOUNT disk resource after `CREATE_VOLUME`.
+  //   1. One containing a RAW disk resource before `CREATE_DISK`.
+  //   2. One containing a MOUNT disk resource after `CREATE_DISK`.
   //   3. One containing a MOUNT disk resource after the agent recovers
   //      from a failover.
-  //   4. One containing a RAW disk resource after `DESTROY_VOLUME`.
+  //   4. One containing a RAW disk resource after `DESTROY_DISK`.
   //
   // We set up the expectations for these offers as the test progresses.
   Future<vector<Offer>> rawDiskOffers;
@@ -951,7 +951,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolumeRecovery)
 
   driver.acceptOffers(
       {rawDiskOffers->at(0).id()},
-      {CREATE_VOLUME(source.get(), Resource::DiskInfo::Source::MOUNT)},
+      {CREATE_DISK(source.get(), Resource::DiskInfo::Source::MOUNT)},
       acceptFilters);
 
   AWAIT_READY(volumeCreatedOffers);
@@ -1010,7 +1010,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyVolumeRecovery)
 
   driver.acceptOffers(
       {slaveRecoveredOffers->at(0).id()},
-      {DESTROY_VOLUME(volume.get())},
+      {DESTROY_DISK(volume.get())},
       acceptFilters);
 
   AWAIT_READY(volumeDestroyedOffers);
@@ -1111,13 +1111,13 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ProfileDisappeared)
   EXPECT_CALL(sched, registered(&driver, _, _));
 
   // The framework is expected to see the following offers in sequence:
-  //   1. A 4GB RAW disk with profile 'test1' before the 1st `CREATE_VOLUME`.
+  //   1. A 4GB RAW disk with profile 'test1' before the 1st `CREATE_DISK`.
   //   2. A 2GB MOUNT disk and a 2GB RAW disk, both with profile 'test1', after
-  //      the 1st `CREATE_VOLUME` finishes.
+  //      the 1st `CREATE_DISK` finishes.
   //   3. A 2GB MOUNT disk with profile 'test1' and a 2GB RAW disk with profile
   //      'test2', after the profile mapping is updated and the 2nd
-  //      `CREATE_VOLUME` fails due to a mismatched resource version.
-  //   4. A 4GB RAW disk with profile 'test2', after the `DESTROY_VOLUME`.
+  //      `CREATE_DISK` fails due to a mismatched resource version.
+  //   4. A 4GB RAW disk with profile 'test2', after the `DESTROY_DISK`.
   Future<vector<Offer>> rawDiskOffers;
   Future<vector<Offer>> volumeCreatedOffers;
   Future<vector<Offer>> profileDisappearedOffers;
@@ -1190,7 +1190,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ProfileDisappeared)
 
     driver.acceptOffers(
         {rawDiskOffers->at(0).id()},
-        {CREATE_VOLUME(source, Resource::DiskInfo::Source::MOUNT)},
+        {CREATE_DISK(source, Resource::DiskInfo::Source::MOUNT)},
         acceptFilters);
 
     AWAIT_READY(createVolumeStatus);
@@ -1238,7 +1238,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ProfileDisappeared)
 
     driver.acceptOffers(
         {volumeCreatedOffers->at(0).id()},
-        {CREATE_VOLUME(*raw.begin(), Resource::DiskInfo::Source::MOUNT)},
+        {CREATE_DISK(*raw.begin(), Resource::DiskInfo::Source::MOUNT)},
         acceptFilters);
 
     AWAIT_READY(createVolumeStatus);
@@ -1268,7 +1268,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ProfileDisappeared)
 
     driver.acceptOffers(
         {profileDisappearedOffers->at(0).id()},
-        {DESTROY_VOLUME(*volumes.begin())},
+        {DESTROY_DISK(*volumes.begin())},
         acceptFilters);
 
     AWAIT_READY(destroyVolumeStatus);
@@ -1336,8 +1336,8 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_AgentRegisteredWithNewId)
   EXPECT_CALL(sched, registered(&driver, _, _));
 
   // The framework is expected to see the following offers in sequence:
-  //   1. One containing a RAW disk resource before `CREATE_VOLUME`.
-  //   2. One containing a MOUNT disk resource after `CREATE_VOLUME`.
+  //   1. One containing a RAW disk resource before `CREATE_DISK`.
+  //   2. One containing a MOUNT disk resource after `CREATE_DISK`.
   //   3. One containing a RAW pre-existing volume after the agent
   //      is registered with a new ID.
   //
@@ -1403,7 +1403,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_AgentRegisteredWithNewId)
 
   driver.acceptOffers(
       {rawDiskOffers->at(0).id()},
-      {CREATE_VOLUME(source.get(), Resource::DiskInfo::Source::MOUNT)},
+      {CREATE_DISK(source.get(), Resource::DiskInfo::Source::MOUNT)},
       acceptFilters);
 
   AWAIT_READY(volumeCreatedOffers);
@@ -1537,11 +1537,11 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResources)
   EXPECT_CALL(sched, registered(&driver, _, _));
 
   // The framework is expected to see the following offers in sequence:
-  //   1. One containing a RAW disk resource before `CREATE_VOLUME`.
-  //   2. One containing a MOUNT disk resource after `CREATE_VOLUME`.
+  //   1. One containing a RAW disk resource before `CREATE_DISK`.
+  //   2. One containing a MOUNT disk resource after `CREATE_DISK`.
   //   3. One containing a persistent volume after `CREATE` and `LAUNCH`.
   //   4. One containing the original RAW disk resource after `DESTROY`
-  //      and `DESTROY_VOLUME`.
+  //      and `DESTROY_DISK`.
   //
   // We set up the expectations for these offers as the test progresses.
   Future<vector<Offer>> rawDiskOffers;
@@ -1605,7 +1605,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResources)
 
   driver.acceptOffers(
       {rawDiskOffers->at(0).id()},
-      {CREATE_VOLUME(source.get(), Resource::DiskInfo::Source::MOUNT)},
+      {CREATE_DISK(source.get(), Resource::DiskInfo::Source::MOUNT)},
       acceptFilters);
 
   AWAIT_READY(volumeCreatedOffers);
@@ -1696,7 +1696,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResources)
   driver.acceptOffers(
       {taskFinishedOffers->at(0).id()},
       {DESTROY(persistentVolume),
-       DESTROY_VOLUME(volume.get())},
+       DESTROY_DISK(volume.get())},
       acceptFilters);
 
   AWAIT_READY(volumeDestroyedOffers);
@@ -1750,14 +1750,14 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesRecovery)
   EXPECT_CALL(sched, registered(&driver, _, _));
 
   // The framework is expected to see the following offers in sequence:
-  //   1. One containing a RAW disk resource before `CREATE_VOLUME`.
-  //   2. One containing a MOUNT disk resource after `CREATE_VOLUME`.
+  //   1. One containing a RAW disk resource before `CREATE_DISK`.
+  //   2. One containing a MOUNT disk resource after `CREATE_DISK`.
   //   3. One containing a persistent volume after `CREATE` and `LAUNCH`.
   //   4. One containing the same persistent volume after the agent
   //      recovers from a failover.
   //   5. One containing the same persistent volume after another `LAUNCH`.
   //   6. One containing the original RAW disk resource after `DESTROY`
-  //      and `DESTROY_VOLUME`.
+  //      and `DESTROY_DISK`.
   //
   // We set up the expectations for these offers as the test progresses.
   Future<vector<Offer>> rawDiskOffers;
@@ -1823,7 +1823,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesRecovery)
 
   driver.acceptOffers(
       {rawDiskOffers->at(0).id()},
-      {CREATE_VOLUME(source.get(), Resource::DiskInfo::Source::MOUNT)},
+      {CREATE_DISK(source.get(), Resource::DiskInfo::Source::MOUNT)},
       acceptFilters);
 
   AWAIT_READY(volumeCreatedOffers);
@@ -1966,7 +1966,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesRecovery)
   driver.acceptOffers(
       {task2FinishedOffers->at(0).id()},
       {DESTROY(persistentVolume),
-       DESTROY_VOLUME(volume.get())},
+       DESTROY_DISK(volume.get())},
       acceptFilters);
 
   AWAIT_READY(volumeDestroyedOffers);
@@ -2020,14 +2020,14 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesReboot)
   EXPECT_CALL(sched, registered(&driver, _, _));
 
   // The framework is expected to see the following offers in sequence:
-  //   1. One containing a RAW disk resource before `CREATE_VOLUME`.
-  //   2. One containing a MOUNT disk resource after `CREATE_VOLUME`.
+  //   1. One containing a RAW disk resource before `CREATE_DISK`.
+  //   2. One containing a MOUNT disk resource after `CREATE_DISK`.
   //   3. One containing a persistent volume after `CREATE` and `LAUNCH`.
   //   4. One containing the same persistent volume after the agent
   //      recovers from a failover.
   //   5. One containing the same persistent volume after another `LAUNCH`.
   //   6. One containing the original RAW disk resource after `DESTROY`
-  //      and `DESTROY_VOLUME`.
+  //      and `DESTROY_DISK`.
   //
   // We set up the expectations for these offers as the test progresses.
   Future<vector<Offer>> rawDiskOffers;
@@ -2093,7 +2093,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesReboot)
 
   driver.acceptOffers(
       {rawDiskOffers->at(0).id()},
-      {CREATE_VOLUME(source.get(), Resource::DiskInfo::Source::MOUNT)},
+      {CREATE_DISK(source.get(), Resource::DiskInfo::Source::MOUNT)},
       acceptFilters);
 
   AWAIT_READY(volumeCreatedOffers);
@@ -2274,7 +2274,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesReboot)
   driver.acceptOffers(
       {task2FinishedOffers->at(0).id()},
       {DESTROY(persistentVolume),
-       DESTROY_VOLUME(volume.get())},
+       DESTROY_DISK(volume.get())},
       acceptFilters);
 
   AWAIT_READY(volumeDestroyedOffers);
@@ -2340,11 +2340,11 @@ TEST_F(
   EXPECT_CALL(sched, registered(&driver, _, _));
 
   // The framework is expected to see the following offers in sequence:
-  //   1. One containing a RAW disk resource before `CREATE_VOLUME`.
-  //   2. One containing a MOUNT disk resource after `CREATE_VOLUME`.
+  //   1. One containing a RAW disk resource before `CREATE_DISK`.
+  //   2. One containing a MOUNT disk resource after `CREATE_DISK`.
   //   3. One containing the same MOUNT disk resource after `CREATE`,
   //      `LAUNCH` and `DESTROY`.
-  //   4. One containing the same RAW disk resource after `DESTROY_VOLUME`.
+  //   4. One containing the same RAW disk resource after `DESTROY_DISK`.
   //
   // We set up the expectations for these offers as the test progresses.
   Future<vector<Offer>> rawDiskOffers;
@@ -2428,7 +2428,7 @@ TEST_F(
 
   driver.acceptOffers(
       {rawDiskOffers->at(0).id()},
-      {CREATE_VOLUME(source.get(), Resource::DiskInfo::Source::MOUNT)},
+      {CREATE_DISK(source.get(), Resource::DiskInfo::Source::MOUNT)},
       acceptFilters);
 
   AWAIT_READY(volumeCreatedOffers);
@@ -2543,7 +2543,7 @@ TEST_F(
   driver.acceptOffers(
       {taskFinishedOffers->at(0).id()},
       {DESTROY(persistentVolume),
-       DESTROY_VOLUME(volume.get())},
+       DESTROY_DISK(volume.get())},
       acceptFilters);
 
   AWAIT_READY(volumeDestroyedOffers);
@@ -2614,12 +2614,10 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ConvertPreExistingVolume)
   EXPECT_CALL(sched, registered(&driver, _, _));
 
   // The framework is expected to see the following offers in sequence:
-  //   1. One containing two RAW pre-existing volumes before
-  //      `CREATE_VOLUME` and `CREATE_BLOCK`.
+  //   1. One containing two RAW pre-existing volumes before `CREATE_DISK`s.
   //   2. One containing a MOUNT and a BLOCK disk resources after
-  //      `CREATE_VOLUME` and `CREATE_BLOCK`.
-  //   3. One containing two RAW pre-existing volumes after
-  //      `DESTROY_VOLUME` and `DESTROY_BLOCK`.
+  //      `CREATE_DISK`s.
+  //   3. One containing two RAW pre-existing volumes after `DESTROY_DISK`s.
   //
   // We set up the expectations for these offers as the test progresses.
   Future<vector<Offer>> rawDisksOffers;
@@ -2669,8 +2667,8 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ConvertPreExistingVolume)
 
   driver.acceptOffers(
       {rawDisksOffers->at(0).id()},
-      {CREATE_VOLUME(sources.at(0), Resource::DiskInfo::Source::MOUNT),
-       CREATE_BLOCK(sources.at(1))});
+      {CREATE_DISK(sources.at(0), Resource::DiskInfo::Source::MOUNT),
+       CREATE_DISK(sources.at(1), Resource::DiskInfo::Source::BLOCK)});
 
   AWAIT_READY(createVolumeStatusUpdate);
   AWAIT_READY(createBlockStatusUpdate);
@@ -2717,8 +2715,8 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ConvertPreExistingVolume)
 
   driver.acceptOffers(
       {disksConvertedOffers->at(0).id()},
-      {DESTROY_VOLUME(volume.get()),
-       DESTROY_BLOCK(block.get())});
+      {DESTROY_DISK(volume.get()),
+       DESTROY_DISK(block.get())});
 
   AWAIT_READY(destroyVolumeStatusUpdate);
   AWAIT_READY(destroyBlockStatusUpdate);
@@ -2883,7 +2881,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_RetryOperationStatusUpdate)
   // Create a volume.
   driver.acceptOffers(
       {offer.id()},
-      {CREATE_VOLUME(source.get(), Resource::DiskInfo::Source::MOUNT)},
+      {CREATE_DISK(source.get(), Resource::DiskInfo::Source::MOUNT)},
       {});
 
   AWAIT_READY(droppedUpdateOperationStatusMessage);
@@ -3041,7 +3039,7 @@ TEST_F(
   // Create a volume.
   driver.acceptOffers(
       {offer.id()},
-      {CREATE_VOLUME(source.get(), Resource::DiskInfo::Source::MOUNT)},
+      {CREATE_DISK(source.get(), Resource::DiskInfo::Source::MOUNT)},
       {});
 
   AWAIT_READY(droppedUpdateOperationStatusMessage);
@@ -3224,10 +3222,10 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_OperationStateMetrics)
   EXPECT_CALL(sched, registered(&driver, _, _));
 
   // The framework is expected to see the following offers in sequence:
-  //   1. One containing a RAW disk resource before `CREATE_VOLUME`.
-  //   2. One containing a MOUNT disk resource after `CREATE_VOLUME`.
+  //   1. One containing a RAW disk resource before `CREATE_DISK`.
+  //   2. One containing a MOUNT disk resource after `CREATE_DISK`.
   //   3. One containing the same MOUNT disk resource after a failed
-  //      `DESTROY_VOLUME`.
+  //      `DESTROY_DISK`.
   //
   // We set up the expectations for these offers as the test progresses.
   Future<vector<Offer>> rawDiskOffers;
@@ -3280,17 +3278,17 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_OperationStateMetrics)
   JSON::Object snapshot = Metrics();
 
   ASSERT_NE(0u, snapshot.values.count(metricName(
-      "operations/create_volume/finished")));
+      "operations/create_disk/finished")));
   EXPECT_EQ(0, snapshot.values.at(metricName(
-      "operations/create_volume/finished")));
+      "operations/create_disk/finished")));
   ASSERT_NE(0u, snapshot.values.count(metricName(
-      "operations/destroy_volume/failed")));
+      "operations/destroy_disk/failed")));
   EXPECT_EQ(0, snapshot.values.at(metricName(
-      "operations/destroy_volume/failed")));
+      "operations/destroy_disk/failed")));
   ASSERT_NE(0u, snapshot.values.count(metricName(
-      "operations/destroy_volume/dropped")));
+      "operations/destroy_disk/dropped")));
   EXPECT_EQ(0, snapshot.values.at(metricName(
-      "operations/destroy_volume/dropped")));
+      "operations/destroy_disk/dropped")));
 
   // Create a volume.
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
@@ -3305,7 +3303,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_OperationStateMetrics)
 
   driver.acceptOffers(
       {rawDiskOffers->at(0).id()},
-      {CREATE_VOLUME(source.get(), Resource::DiskInfo::Source::MOUNT)},
+      {CREATE_DISK(source.get(), Resource::DiskInfo::Source::MOUNT)},
       acceptFilters);
 
   AWAIT_READY(volumeCreatedOffers);
@@ -3330,19 +3328,19 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_OperationStateMetrics)
   snapshot = Metrics();
 
   ASSERT_NE(0u, snapshot.values.count(metricName(
-      "operations/create_volume/finished")));
+      "operations/create_disk/finished")));
   EXPECT_EQ(1, snapshot.values.at(metricName(
-      "operations/create_volume/finished")));
+      "operations/create_disk/finished")));
   ASSERT_NE(0u, snapshot.values.count(metricName(
-      "operations/destroy_volume/failed")));
+      "operations/destroy_disk/failed")));
   EXPECT_EQ(0, snapshot.values.at(metricName(
-      "operations/destroy_volume/failed")));
+      "operations/destroy_disk/failed")));
   ASSERT_NE(0u, snapshot.values.count(metricName(
-      "operations/destroy_volume/dropped")));
+      "operations/destroy_disk/dropped")));
   EXPECT_EQ(0, snapshot.values.at(metricName(
-      "operations/destroy_volume/dropped")));
+      "operations/destroy_disk/dropped")));
 
-  // Remove the volume out of band to fail `DESTROY_VOLUME`.
+  // Remove the volume out of band to fail `DESTROY_DISK`.
   Option<string> volumePath;
 
   foreach (const Label& label, volume->disk().source().metadata().labels()) {
@@ -3363,7 +3361,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_OperationStateMetrics)
 
   driver.acceptOffers(
       {volumeCreatedOffers->at(0).id()},
-      {DESTROY_VOLUME(volume.get())},
+      {DESTROY_DISK(volume.get())},
       acceptFilters);
 
   AWAIT_READY(operationFailedOffers);
@@ -3372,17 +3370,17 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_OperationStateMetrics)
   snapshot = Metrics();
 
   ASSERT_NE(0u, snapshot.values.count(metricName(
-      "operations/create_volume/finished")));
+      "operations/create_disk/finished")));
   EXPECT_EQ(1, snapshot.values.at(metricName(
-      "operations/create_volume/finished")));
+      "operations/create_disk/finished")));
   ASSERT_NE(0u, snapshot.values.count(metricName(
-      "operations/destroy_volume/failed")));
+      "operations/destroy_disk/failed")));
   EXPECT_EQ(1, snapshot.values.at(metricName(
-      "operations/destroy_volume/failed")));
+      "operations/destroy_disk/failed")));
   ASSERT_NE(0u, snapshot.values.count(metricName(
-      "operations/destroy_volume/dropped")));
+      "operations/destroy_disk/dropped")));
   EXPECT_EQ(0, snapshot.values.at(metricName(
-      "operations/destroy_volume/dropped")));
+      "operations/destroy_disk/dropped")));
 
   // Destroy the volume again, which will be dropped this time.
   Future<ApplyOperationMessage> applyOperationMessage =
@@ -3390,14 +3388,14 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_OperationStateMetrics)
 
   driver.acceptOffers(
       {operationFailedOffers->at(0).id()},
-      {DESTROY_VOLUME(volume.get())},
+      {DESTROY_DISK(volume.get())},
       acceptFilters);
 
   AWAIT_READY(applyOperationMessage);
   ASSERT_TRUE(applyOperationMessage
     ->resource_version_uuid().has_resource_provider_id());
 
-  // Modify the resource version UUID to drop `DESTROY_VOLUME`.
+  // Modify the resource version UUID to drop `DESTROY_DISK`.
   Future<UpdateOperationStatusMessage> operationDroppedStatus =
     FUTURE_PROTOBUF(UpdateOperationStatusMessage(), _, _);
 
@@ -3414,17 +3412,17 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_OperationStateMetrics)
   snapshot = Metrics();
 
   ASSERT_NE(0u, snapshot.values.count(metricName(
-      "operations/create_volume/finished")));
+      "operations/create_disk/finished")));
   EXPECT_EQ(1, snapshot.values.at(metricName(
-      "operations/create_volume/finished")));
+      "operations/create_disk/finished")));
   ASSERT_NE(0u, snapshot.values.count(metricName(
-      "operations/destroy_volume/failed")));
+      "operations/destroy_disk/failed")));
   EXPECT_EQ(1, snapshot.values.at(metricName(
-      "operations/destroy_volume/failed")));
+      "operations/destroy_disk/failed")));
   ASSERT_NE(0u, snapshot.values.count(metricName(
-      "operations/destroy_volume/dropped")));
+      "operations/destroy_disk/dropped")));
   EXPECT_EQ(1, snapshot.values.at(metricName(
-      "operations/destroy_volume/dropped")));
+      "operations/destroy_disk/dropped")));
 }
 
 
@@ -3475,10 +3473,10 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CsiPluginRpcMetrics)
   EXPECT_CALL(sched, registered(&driver, _, _));
 
   // The framework is expected to see the following offers in sequence:
-  //   1. One containing a RAW disk resource before `CREATE_VOLUME`.
-  //   2. One containing a MOUNT disk resource after `CREATE_VOLUME`.
+  //   1. One containing a RAW disk resource before `CREATE_DISK`.
+  //   2. One containing a MOUNT disk resource after `CREATE_DISK`.
   //   3. One containing the same MOUNT disk resource after a failed
-  //      `DESTROY_VOLUME`.
+  //      `DESTROY_DISK`.
   //
   // We set up the expectations for these offers as the test progresses.
   Future<vector<Offer>> rawDiskOffers;
@@ -3584,7 +3582,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CsiPluginRpcMetrics)
 
   driver.acceptOffers(
       {rawDiskOffers->at(0).id()},
-      {CREATE_VOLUME(source.get(), Resource::DiskInfo::Source::MOUNT)},
+      {CREATE_DISK(source.get(), Resource::DiskInfo::Source::MOUNT)},
       acceptFilters);
 
   AWAIT_READY(volumeCreatedOffers);
@@ -3649,7 +3647,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CsiPluginRpcMetrics)
   EXPECT_EQ(1, snapshot.values.at(metricName(
       "csi_plugin/rpcs/csi.v0.Node.NodeGetId/successes")));
 
-  // Remove the volume out of band to fail `DESTROY_VOLUME`.
+  // Remove the volume out of band to fail `DESTROY_DISK`.
   Option<string> volumePath;
 
   foreach (const Label& label, volume->disk().source().metadata().labels()) {
@@ -3670,7 +3668,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CsiPluginRpcMetrics)
 
   driver.acceptOffers(
       {volumeCreatedOffers->at(0).id()},
-      {DESTROY_VOLUME(volume.get())},
+      {DESTROY_DISK(volume.get())},
       acceptFilters);
 
   AWAIT_READY(operationFailedOffers);
@@ -3848,8 +3846,8 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ReconcileDroppedOperation)
   // Attempt the creation of two volumes.
   driver.acceptOffers(
       {offersBeforeOperations->at(0).id()},
-      {CREATE_VOLUME(sources.at(0), Resource::DiskInfo::Source::MOUNT),
-       CREATE_VOLUME(sources.at(1), Resource::DiskInfo::Source::MOUNT)},
+      {CREATE_DISK(sources.at(0), Resource::DiskInfo::Source::MOUNT),
+       CREATE_DISK(sources.at(1), Resource::DiskInfo::Source::MOUNT)},
       acceptFilters);
 
   // Ensure that the operations are processed.
@@ -4068,7 +4066,7 @@ TEST_F(
   mesos.send(v1::createCallAccept(
       frameworkId,
       offer,
-      {v1::CREATE_VOLUME(
+      {v1::CREATE_DISK(
           source.get(), v1::Resource::DiskInfo::Source::MOUNT, operationId)}));
 
   AWAIT_READY(update);
@@ -4253,7 +4251,7 @@ TEST_F(
   mesos.send(v1::createCallAccept(
       frameworkId,
       offer,
-      {v1::CREATE_VOLUME(
+      {v1::CREATE_DISK(
           source.get(),
           v1::Resource::DiskInfo::Source::MOUNT,
           operationId.value())}));

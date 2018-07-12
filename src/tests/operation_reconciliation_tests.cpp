@@ -791,7 +791,7 @@ TEST_P(OperationReconciliationTest, AgentPendingOperationAfterMasterFailover)
   mesos.send(createCallAccept(
       frameworkId,
       offer,
-      {CREATE_VOLUME(
+      {CREATE_DISK(
           source.get(),
           Resource::DiskInfo::Source::MOUNT,
           operationId.value())}));

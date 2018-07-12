@@ -1399,15 +1399,15 @@ inline typename TOffer::Operation LAUNCH_GROUP(
 
 
 template <typename TResource, typename TTargetType, typename TOffer>
-inline typename TOffer::Operation CREATE_VOLUME(
+inline typename TOffer::Operation CREATE_DISK(
     const TResource& source,
     const TTargetType& type,
-    const Option<std::string> operationId = None())
+    const Option<std::string>& operationId = None())
 {
   typename TOffer::Operation operation;
-  operation.set_type(TOffer::Operation::CREATE_VOLUME);
-  operation.mutable_create_volume()->mutable_source()->CopyFrom(source);
-  operation.mutable_create_volume()->set_target_type(type);
+  operation.set_type(TOffer::Operation::CREATE_DISK);
+  operation.mutable_create_disk()->mutable_source()->CopyFrom(source);
+  operation.mutable_create_disk()->set_target_type(type);
 
   if (operationId.isSome()) {
     operation.mutable_id()->set_value(operationId.get());
@@ -1418,31 +1418,12 @@ inline typename TOffer::Operation CREATE_VOLUME(
 
 
 template <typename TResource, typename TOffer>
-inline typename TOffer::Operation DESTROY_VOLUME(const TResource& volume)
+inline typename TOffer::Operation DESTROY_DISK(const TResource& source)
 {
   typename TOffer::Operation operation;
-  operation.set_type(TOffer::Operation::DESTROY_VOLUME);
-  operation.mutable_destroy_volume()->mutable_volume()->CopyFrom(volume);
-  return operation;
-}
+  operation.set_type(TOffer::Operation::DESTROY_DISK);
+  operation.mutable_destroy_disk()->mutable_source()->CopyFrom(source);
 
-
-template <typename TResource, typename TOffer>
-inline typename TOffer::Operation CREATE_BLOCK(const TResource& source)
-{
-  typename TOffer::Operation operation;
-  operation.set_type(TOffer::Operation::CREATE_BLOCK);
-  operation.mutable_create_block()->mutable_source()->CopyFrom(source);
-  return operation;
-}
-
-
-template <typename TResource, typename TOffer>
-inline typename TOffer::Operation DESTROY_BLOCK(const TResource& block)
-{
-  typename TOffer::Operation operation;
-  operation.set_type(TOffer::Operation::DESTROY_BLOCK);
-  operation.mutable_destroy_block()->mutable_block()->CopyFrom(block);
   return operation;
 }
 
@@ -1804,32 +1785,18 @@ inline Offer::Operation LAUNCH_GROUP(Args&&... args)
 
 
 template <typename... Args>
-inline Offer::Operation CREATE_VOLUME(Args&&... args)
+inline Offer::Operation CREATE_DISK(Args&&... args)
 {
-  return common::CREATE_VOLUME<Resource,
-                               Resource::DiskInfo::Source::Type,
-                               Offer>(std::forward<Args>(args)...);
+  return common::CREATE_DISK<Resource,
+                             Resource::DiskInfo::Source::Type,
+                             Offer>(std::forward<Args>(args)...);
 }
 
 
 template <typename... Args>
-inline Offer::Operation DESTROY_VOLUME(Args&&... args)
+inline Offer::Operation DESTROY_DISK(Args&&... args)
 {
-  return common::DESTROY_VOLUME<Resource, Offer>(std::forward<Args>(args)...);
-}
-
-
-template <typename... Args>
-inline Offer::Operation CREATE_BLOCK(Args&&... args)
-{
-  return common::CREATE_BLOCK<Resource, Offer>(std::forward<Args>(args)...);
-}
-
-
-template <typename... Args>
-inline Offer::Operation DESTROY_BLOCK(Args&&... args)
-{
-  return common::DESTROY_BLOCK<Resource, Offer>(std::forward<Args>(args)...);
+  return common::DESTROY_DISK<Resource, Offer>(std::forward<Args>(args)...);
 }
 
 
@@ -2121,35 +2088,19 @@ inline mesos::v1::Offer::Operation LAUNCH_GROUP(Args&&... args)
 
 
 template <typename... Args>
-inline mesos::v1::Offer::Operation CREATE_VOLUME(Args&&... args)
+inline mesos::v1::Offer::Operation CREATE_DISK(Args&&... args)
 {
-  return common::CREATE_VOLUME<mesos::v1::Resource,
-                               mesos::v1::Resource::DiskInfo::Source::Type,
-                               mesos::v1::Offer>(
+  return common::CREATE_DISK<mesos::v1::Resource,
+                             mesos::v1::Resource::DiskInfo::Source::Type,
+                             mesos::v1::Offer>(
       std::forward<Args>(args)...);
 }
 
 
 template <typename... Args>
-inline mesos::v1::Offer::Operation DESTROY_VOLUME(Args&&... args)
+inline mesos::v1::Offer::Operation DESTROY_DISK(Args&&... args)
 {
-  return common::DESTROY_VOLUME<mesos::v1::Resource, mesos::v1::Offer>(
-      std::forward<Args>(args)...);
-}
-
-
-template <typename... Args>
-inline mesos::v1::Offer::Operation CREATE_BLOCK(Args&&... args)
-{
-  return common::CREATE_BLOCK<mesos::v1::Resource, mesos::v1::Offer>(
-      std::forward<Args>(args)...);
-}
-
-
-template <typename... Args>
-inline mesos::v1::Offer::Operation DESTROY_BLOCK(Args&&... args)
-{
-  return common::DESTROY_BLOCK<mesos::v1::Resource, mesos::v1::Offer>(
+  return common::DESTROY_DISK<mesos::v1::Resource, mesos::v1::Offer>(
       std::forward<Args>(args)...);
 }
 
@@ -3213,39 +3164,19 @@ public:
         break;
       case Operation::SHRINK_VOLUME:
         break;
-      case Operation::CREATE_VOLUME:
+      case Operation::CREATE_DISK:
         update->mutable_status()->add_converted_resources()->CopyFrom(
-            operation.info().create_volume().source());
+            operation.info().create_disk().source());
         update->mutable_status()
           ->mutable_converted_resources()
           ->Mutable(0)
           ->mutable_disk()
           ->mutable_source()
-          ->set_type(operation.info().create_volume().target_type());
+          ->set_type(operation.info().create_disk().target_type());
         break;
-      case Operation::DESTROY_VOLUME:
+      case Operation::DESTROY_DISK:
         update->mutable_status()->add_converted_resources()->CopyFrom(
-            operation.info().destroy_volume().volume());
-        update->mutable_status()
-          ->mutable_converted_resources()
-          ->Mutable(0)
-          ->mutable_disk()
-          ->mutable_source()
-          ->set_type(Source::RAW);
-        break;
-      case Operation::CREATE_BLOCK:
-        update->mutable_status()->add_converted_resources()->CopyFrom(
-            operation.info().create_block().source());
-        update->mutable_status()
-          ->mutable_converted_resources()
-          ->Mutable(0)
-          ->mutable_disk()
-          ->mutable_source()
-          ->set_type(Source::BLOCK);
-        break;
-      case Operation::DESTROY_BLOCK:
-        update->mutable_status()->add_converted_resources()->CopyFrom(
-            operation.info().destroy_block().block());
+            operation.info().destroy_disk().source());
         update->mutable_status()
           ->mutable_converted_resources()
           ->Mutable(0)

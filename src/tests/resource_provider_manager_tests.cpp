@@ -1104,7 +1104,8 @@ TEST_P(ResourceProviderManagerHttpApiTest, ConvertResources)
       v1::createCallAccept(
           frameworkId,
           offer1,
-          {v1::RESERVE(reserved), v1::CREATE_BLOCK(reserved)}));
+          {v1::RESERVE(reserved),
+           v1::CREATE_DISK(reserved, v1::Resource::DiskInfo::Source::MOUNT)}));
 
   // The converted resource should be offered to the framework.
   AWAIT_READY(offers2);
@@ -1112,17 +1113,17 @@ TEST_P(ResourceProviderManagerHttpApiTest, ConvertResources)
 
   const v1::Offer& offer2 = offers2->offers(0);
 
-  Option<v1::Resource> block;
+  Option<v1::Resource> mountDisk;
   foreach (const v1::Resource& resource, offer2.resources()) {
     if (resource.has_provider_id()) {
-      block = resource;
+      mountDisk = resource;
     }
   }
 
-  ASSERT_SOME(block);
+  ASSERT_SOME(mountDisk);
   EXPECT_EQ(
-      v1::Resource::DiskInfo::Source::BLOCK, block->disk().source().type());
-  EXPECT_FALSE(block->reservations().empty());
+      v1::Resource::DiskInfo::Source::MOUNT, mountDisk->disk().source().type());
+  EXPECT_FALSE(mountDisk->reservations().empty());
 }
 
 

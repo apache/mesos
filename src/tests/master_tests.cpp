@@ -8834,7 +8834,7 @@ TEST_F(MasterTest, OperationUpdateDuringFailover)
 
   driver.acceptOffers(
       {offer.id()},
-      {CREATE_VOLUME(rawDisk.get(), Resource::DiskInfo::Source::MOUNT)});
+      {CREATE_DISK(rawDisk.get(), Resource::DiskInfo::Source::MOUNT)});
 
   AWAIT_READY(operation);
 
