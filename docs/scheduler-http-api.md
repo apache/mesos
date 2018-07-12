@@ -229,7 +229,9 @@ HTTP/1.1 202 Accepted
 ```
 
 ### REVIVE
-Sent by the scheduler to remove any/all filters that it has previously set via `ACCEPT` or `DECLINE` calls.
+Sent by the scheduler in two different cases. The first one is to remove any/all filters for a given set of its roles that it has previously set via `ACCEPT` or `DECLINE`. As a special case, if roles are not specified all filters will be removed for any role that framework is subscribed to.
+
+The second case is related to the `SUPPRESS` call where the scheduler stops receiving offers from Mesos master. In order to start receiving offers again to be able to schedule new workloads, the scheduler must send a `REVIVE` call. Specifying a set of roles for the `REVIVE` call will lead to receiving offers from Mesos master for the specific roles. However, if no role is specified, scheduler will start receiving offers for every subscribed role of the framework.
 
 ```
 REVIVE Request (JSON):
