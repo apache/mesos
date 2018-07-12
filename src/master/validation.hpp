@@ -312,10 +312,10 @@ Option<Error> validate(
     const protobuf::slave::Capabilities& agentCapabilities);
 
 
-Option<Error> validate(const Offer::Operation::CreateVolume& createVolume);
-Option<Error> validate(const Offer::Operation::DestroyVolume& destroyVolume);
-Option<Error> validate(const Offer::Operation::CreateBlock& createBlock);
-Option<Error> validate(const Offer::Operation::DestroyBlock& destroyBlock);
+Option<Error> validate(const Offer::Operation::CreateDisk& createDisk);
+
+
+Option<Error> validate(const Offer::Operation::DestroyDisk& destroyDisk);
 
 } // namespace operation {
 

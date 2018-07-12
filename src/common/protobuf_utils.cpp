@@ -727,33 +727,17 @@ void injectAllocationInfo(
       break;
     }
 
-    case Offer::Operation::CREATE_VOLUME: {
+    case Offer::Operation::CREATE_DISK: {
       inject(
-          *operation->mutable_create_volume()->mutable_source(),
+          *operation->mutable_create_disk()->mutable_source(),
           allocationInfo);
 
       break;
     }
 
-    case Offer::Operation::DESTROY_VOLUME: {
+    case Offer::Operation::DESTROY_DISK: {
       inject(
-          *operation->mutable_destroy_volume()->mutable_volume(),
-          allocationInfo);
-
-      break;
-    }
-
-    case Offer::Operation::CREATE_BLOCK: {
-      inject(
-          *operation->mutable_create_block()->mutable_source(),
-          allocationInfo);
-
-      break;
-    }
-
-    case Offer::Operation::DESTROY_BLOCK: {
-      inject(
-          *operation->mutable_destroy_block()->mutable_block(),
+          *operation->mutable_destroy_disk()->mutable_source(),
           allocationInfo);
 
       break;
@@ -855,26 +839,14 @@ void stripAllocationInfo(Offer::Operation* operation)
       break;
     }
 
-    case Offer::Operation::CREATE_VOLUME: {
-      strip(*operation->mutable_create_volume()->mutable_source());
+    case Offer::Operation::CREATE_DISK: {
+      strip(*operation->mutable_create_disk()->mutable_source());
 
       break;
     }
 
-    case Offer::Operation::DESTROY_VOLUME: {
-      strip(*operation->mutable_destroy_volume()->mutable_volume());
-
-      break;
-    }
-
-    case Offer::Operation::CREATE_BLOCK: {
-      strip(*operation->mutable_create_block()->mutable_source());
-
-      break;
-    }
-
-    case Offer::Operation::DESTROY_BLOCK: {
-      strip(*operation->mutable_destroy_block()->mutable_block());
+    case Offer::Operation::DESTROY_DISK: {
+      strip(*operation->mutable_destroy_disk()->mutable_source());
 
       break;
     }
@@ -890,10 +862,8 @@ bool isSpeculativeOperation(const Offer::Operation& operation)
   switch (operation.type()) {
     case Offer::Operation::LAUNCH:
     case Offer::Operation::LAUNCH_GROUP:
-    case Offer::Operation::CREATE_VOLUME:
-    case Offer::Operation::DESTROY_VOLUME:
-    case Offer::Operation::CREATE_BLOCK:
-    case Offer::Operation::DESTROY_BLOCK:
+    case Offer::Operation::CREATE_DISK:
+    case Offer::Operation::DESTROY_DISK:
       return false;
     case Offer::Operation::RESERVE:
     case Offer::Operation::UNRESERVE:
@@ -1032,14 +1002,10 @@ ContainerID parseContainerId(const string& value)
 Try<Resources> getConsumedResources(const Offer::Operation& operation)
 {
   switch (operation.type()) {
-    case Offer::Operation::CREATE_VOLUME:
-      return operation.create_volume().source();
-    case Offer::Operation::DESTROY_VOLUME:
-      return operation.destroy_volume().volume();
-    case Offer::Operation::CREATE_BLOCK:
-      return operation.create_block().source();
-    case Offer::Operation::DESTROY_BLOCK:
-      return operation.destroy_block().block();
+    case Offer::Operation::CREATE_DISK:
+      return operation.create_disk().source();
+    case Offer::Operation::DESTROY_DISK:
+      return operation.destroy_disk().source();
     case Offer::Operation::RESERVE:
     case Offer::Operation::UNRESERVE:
     case Offer::Operation::CREATE:

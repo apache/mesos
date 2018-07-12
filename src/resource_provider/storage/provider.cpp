@@ -425,11 +425,11 @@ private:
       const Option<Offer::Operation>& info,
       const string& message);
 
-  Future<vector<ResourceConversion>> applyCreateVolumeOrBlock(
+  Future<vector<ResourceConversion>> applyCreateDisk(
       const Resource& resource,
       const id::UUID& operationUuid,
       const Resource::DiskInfo::Source::Type& type);
-  Future<vector<ResourceConversion>> applyDestroyVolumeOrBlock(
+  Future<vector<ResourceConversion>> applyDestroyDisk(
       const Resource& resource);
 
   Try<Nothing> updateOperationStatus(
@@ -1319,10 +1319,8 @@ bool StorageLocalResourceProviderProcess::allowsReconciliation(
     case Offer::Operation::DESTROY: {
       return true;
     }
-    case Offer::Operation::CREATE_VOLUME:
-    case Offer::Operation::DESTROY_VOLUME:
-    case Offer::Operation::CREATE_BLOCK:
-    case Offer::Operation::DESTROY_BLOCK: {
+    case Offer::Operation::CREATE_DISK:
+    case Offer::Operation::DESTROY_DISK: {
       return false;
     }
     case Offer::Operation::GROW_VOLUME:
@@ -2756,8 +2754,8 @@ Future<Nothing> StorageLocalResourceProviderProcess::deleteVolume(
 
 
 // Validates if a volume has the specified capability. This is called when
-// applying `CREATE_VOLUME` or `CREATE_BLOCK` on a pre-existing volume, so we
-// make it returns a volume ID, similar to `createVolume`.
+// applying `CREATE_DISK` on a pre-existing volume, so we make it return a
+// volume ID, similar to `createVolume`.
 // NOTE: This can only be called after `prepareIdentityService` and only for
 // newly discovered volumes.
 Future<string> StorageLocalResourceProviderProcess::validateCapability(
@@ -2934,39 +2932,21 @@ Future<Nothing> StorageLocalResourceProviderProcess::_applyOperation(
           operationUuid,
           getResourceConversions(operation.info()));
     }
-    case Offer::Operation::CREATE_VOLUME: {
-      CHECK(operation.info().has_create_volume());
+    case Offer::Operation::CREATE_DISK: {
+      CHECK(operation.info().has_create_disk());
 
-      conversions = applyCreateVolumeOrBlock(
-          operation.info().create_volume().source(),
+      conversions = applyCreateDisk(
+          operation.info().create_disk().source(),
           operationUuid,
-          operation.info().create_volume().target_type());
+          operation.info().create_disk().target_type());
 
       break;
     }
-    case Offer::Operation::DESTROY_VOLUME: {
-      CHECK(operation.info().has_destroy_volume());
+    case Offer::Operation::DESTROY_DISK: {
+      CHECK(operation.info().has_destroy_disk());
 
-      conversions = applyDestroyVolumeOrBlock(
-          operation.info().destroy_volume().volume());
-
-      break;
-    }
-    case Offer::Operation::CREATE_BLOCK: {
-      CHECK(operation.info().has_create_block());
-
-      conversions = applyCreateVolumeOrBlock(
-          operation.info().create_block().source(),
-          operationUuid,
-          Resource::DiskInfo::Source::BLOCK);
-
-      break;
-    }
-    case Offer::Operation::DESTROY_BLOCK: {
-      CHECK(operation.info().has_destroy_block());
-
-      conversions = applyDestroyVolumeOrBlock(
-          operation.info().destroy_block().block());
+      conversions = applyDestroyDisk(
+          operation.info().destroy_disk().source());
 
       break;
     }
@@ -3059,7 +3039,7 @@ void StorageLocalResourceProviderProcess::dropOperation(
 
 
 Future<vector<ResourceConversion>>
-StorageLocalResourceProviderProcess::applyCreateVolumeOrBlock(
+StorageLocalResourceProviderProcess::applyCreateDisk(
     const Resource& resource,
     const id::UUID& operationUuid,
     const Resource::DiskInfo::Source::Type& type)
@@ -3091,7 +3071,6 @@ StorageLocalResourceProviderProcess::applyCreateVolumeOrBlock(
   Future<string> created;
 
   switch (type) {
-    case Resource::DiskInfo::Source::PATH:
     case Resource::DiskInfo::Source::MOUNT: {
       if (resource.disk().source().has_profile()) {
         // The profile exists since any operation with a stale profile must have
@@ -3105,7 +3084,7 @@ StorageLocalResourceProviderProcess::applyCreateVolumeOrBlock(
         if (!profileInfo.capability.has_mount()) {
           return Failure(
               "Profile '" + resource.disk().source().profile() +
-              "' cannot be used for CREATE_VOLUME operation");
+              "' cannot be used to create a MOUNT disk");
         }
 
         // TODO(chhsiao): Call `CreateVolume` sequentially with other
@@ -3121,8 +3100,8 @@ StorageLocalResourceProviderProcess::applyCreateVolumeOrBlock(
         if (volumes.contains(volumeId)) {
           if (!volumes.at(volumeId).state.volume_capability().has_mount()) {
             return Failure(
-                "Volume '" + volumeId + "' cannot be converted to a " +
-                stringify(type) + " disk resource");
+                "Volume '" + volumeId +
+                "' cannot be converted to a MOUNT disk");
           }
 
           created = volumeId;
@@ -3151,7 +3130,7 @@ StorageLocalResourceProviderProcess::applyCreateVolumeOrBlock(
         if (!profileInfo.capability.has_block()) {
           return Failure(
               "Profile '" + resource.disk().source().profile() +
-              "' cannot be used for CREATE_BLOCK operation");
+              "' cannot be used to create a BLOCK disk");
         }
 
         // TODO(chhsiao): Call `CreateVolume` sequentially with other
@@ -3167,8 +3146,8 @@ StorageLocalResourceProviderProcess::applyCreateVolumeOrBlock(
         if (volumes.contains(volumeId)) {
           if (!volumes.at(volumeId).state.volume_capability().has_block()) {
             return Failure(
-                "Volume '" + volumeId + "' cannot be converted to a " +
-                stringify(type) + " disk resource");
+                "Volume '" + volumeId +
+                "' cannot be converted to a BLOCK disk");
           }
 
           created = volumeId;
@@ -3185,6 +3164,7 @@ StorageLocalResourceProviderProcess::applyCreateVolumeOrBlock(
       break;
     }
     case Resource::DiskInfo::Source::UNKNOWN:
+    case Resource::DiskInfo::Source::PATH:
     case Resource::DiskInfo::Source::RAW: {
       UNREACHABLE();
     }
@@ -3210,13 +3190,6 @@ StorageLocalResourceProviderProcess::applyCreateVolumeOrBlock(
           info.storage().plugin().name());
 
       switch (type) {
-        case Resource::DiskInfo::Source::PATH: {
-          // Set the root path relative to agent work dir.
-          converted.mutable_disk()->mutable_source()->mutable_path()
-            ->set_root(mountRootDir);
-
-          break;
-        }
         case Resource::DiskInfo::Source::MOUNT: {
           // Set the root path relative to agent work dir.
           converted.mutable_disk()->mutable_source()->mutable_mount()
@@ -3228,6 +3201,7 @@ StorageLocalResourceProviderProcess::applyCreateVolumeOrBlock(
           break;
         }
         case Resource::DiskInfo::Source::UNKNOWN:
+        case Resource::DiskInfo::Source::PATH:
         case Resource::DiskInfo::Source::RAW: {
           UNREACHABLE();
         }
@@ -3242,16 +3216,16 @@ StorageLocalResourceProviderProcess::applyCreateVolumeOrBlock(
 
 
 Future<vector<ResourceConversion>>
-StorageLocalResourceProviderProcess::applyDestroyVolumeOrBlock(
+StorageLocalResourceProviderProcess::applyDestroyDisk(
     const Resource& resource)
 {
   switch (resource.disk().source().type()) {
-    case Resource::DiskInfo::Source::PATH:
     case Resource::DiskInfo::Source::MOUNT:
     case Resource::DiskInfo::Source::BLOCK: {
       break;
     }
     case Resource::DiskInfo::Source::UNKNOWN:
+    case Resource::DiskInfo::Source::PATH:
     case Resource::DiskInfo::Source::RAW: {
       return Failure(
           "Cannot destroy volume or block of " +
@@ -3274,7 +3248,6 @@ StorageLocalResourceProviderProcess::applyDestroyVolumeOrBlock(
       Resource converted = resource;
       converted.mutable_disk()->mutable_source()->set_type(
           Resource::DiskInfo::Source::RAW);
-      converted.mutable_disk()->mutable_source()->clear_path();
       converted.mutable_disk()->mutable_source()->clear_mount();
 
       // We only clear the the volume ID and metadata if the destroyed volume is
@@ -3637,14 +3610,10 @@ StorageLocalResourceProviderProcess::Metrics::Metrics(const string& prefix)
       operationTypes.push_back(Offer::Operation::CREATE);
     case Offer::Operation::DESTROY:
       operationTypes.push_back(Offer::Operation::DESTROY);
-    case Offer::Operation::CREATE_VOLUME:
-      operationTypes.push_back(Offer::Operation::CREATE_VOLUME);
-    case Offer::Operation::DESTROY_VOLUME:
-      operationTypes.push_back(Offer::Operation::DESTROY_VOLUME);
-    case Offer::Operation::CREATE_BLOCK:
-      operationTypes.push_back(Offer::Operation::CREATE_BLOCK);
-    case Offer::Operation::DESTROY_BLOCK:
-      operationTypes.push_back(Offer::Operation::DESTROY_BLOCK);
+    case Offer::Operation::CREATE_DISK:
+      operationTypes.push_back(Offer::Operation::CREATE_DISK);
+    case Offer::Operation::DESTROY_DISK:
+      operationTypes.push_back(Offer::Operation::DESTROY_DISK);
       break;
     case Offer::Operation::GROW_VOLUME:
     case Offer::Operation::SHRINK_VOLUME:

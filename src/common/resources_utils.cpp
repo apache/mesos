@@ -114,10 +114,8 @@ Try<vector<TResourceConversion>> getResourceConversions(
 
     case TOperation::LAUNCH:
     case TOperation::LAUNCH_GROUP:
-    case TOperation::CREATE_VOLUME:
-    case TOperation::DESTROY_VOLUME:
-    case TOperation::CREATE_BLOCK:
-    case TOperation::DESTROY_BLOCK:
+    case TOperation::CREATE_DISK:
+    case TOperation::DESTROY_DISK:
       return Error("Operation not supported");
 
     case TOperation::RESERVE: {
@@ -316,17 +314,11 @@ Result<ResourceProviderID> getResourceProviderId(
     case Offer::Operation::SHRINK_VOLUME:
       resource = operation.shrink_volume().volume();
       break;
-    case Offer::Operation::CREATE_VOLUME:
-      resource = operation.create_volume().source();
+    case Offer::Operation::CREATE_DISK:
+      resource = operation.create_disk().source();
       break;
-    case Offer::Operation::DESTROY_VOLUME:
-      resource = operation.destroy_volume().volume();
-      break;
-    case Offer::Operation::CREATE_BLOCK:
-      resource = operation.create_block().source();
-      break;
-    case Offer::Operation::DESTROY_BLOCK:
-      resource = operation.destroy_block().block();
+    case Offer::Operation::DESTROY_DISK:
+      resource = operation.destroy_disk().source();
       break;
     case Offer::Operation::UNKNOWN:
       return Error("Unknown offer operation");
@@ -802,18 +794,18 @@ Option<Error> validateAndUpgradeResources(Offer::Operation* operation)
 
       break;
     }
-    case Offer::Operation::CREATE_VOLUME: {
+    case Offer::Operation::CREATE_DISK: {
       // TODO(mpark): Once we perform a sanity check validation for
       // offer operations as specified in MESOS-7760, this should no
       // longer have to be handled in this function.
-      if (!operation->has_create_volume()) {
+      if (!operation->has_create_disk()) {
         return Error(
-            "A CREATE_VOLUME offer operation must have"
-            " the Offer.Operation.create_volume field set.");
+            "A CREATE_DISK offer operation must have"
+            " the Offer.Operation.create_disk field set.");
       }
 
       Option<Error> error =
-        Resources::validate(operation->create_volume().source());
+        Resources::validate(operation->create_disk().source());
 
       if (error.isSome()) {
         return error;
@@ -821,56 +813,18 @@ Option<Error> validateAndUpgradeResources(Offer::Operation* operation)
 
       break;
     }
-    case Offer::Operation::DESTROY_VOLUME: {
+    case Offer::Operation::DESTROY_DISK: {
       // TODO(mpark): Once we perform a sanity check validation for
       // offer operations as specified in MESOS-7760, this should no
       // longer have to be handled in this function.
-      if (!operation->has_destroy_volume()) {
+      if (!operation->has_destroy_disk()) {
         return Error(
-            "A DESTROY_VOLUME offer operation must have"
-            " the Offer.Operation.destroy_volume field set.");
+            "A DESTROY_DISK offer operation must have"
+            " the Offer.Operation.destroy_disk field set.");
       }
 
       Option<Error> error =
-        Resources::validate(operation->destroy_volume().volume());
-
-      if (error.isSome()) {
-        return error;
-      }
-
-      break;
-    }
-    case Offer::Operation::CREATE_BLOCK: {
-      // TODO(mpark): Once we perform a sanity check validation for
-      // offer operations as specified in MESOS-7760, this should no
-      // longer have to be handled in this function.
-      if (!operation->has_create_block()) {
-        return Error(
-            "A CREATE_BLOCK offer operation must have"
-            " the Offer.Operation.create_block field set.");
-      }
-
-      Option<Error> error =
-        Resources::validate(operation->create_block().source());
-
-      if (error.isSome()) {
-        return error;
-      }
-
-      break;
-    }
-    case Offer::Operation::DESTROY_BLOCK: {
-      // TODO(mpark): Once we perform a sanity check validation for
-      // offer operations as specified in MESOS-7760, this should no
-      // longer have to be handled in this function.
-      if (!operation->has_destroy_block()) {
-        return Error(
-            "A DESTROY_BLOCK offer operation must have"
-            " the Offer.Operation.destroy_block field set.");
-      }
-
-      Option<Error> error =
-        Resources::validate(operation->destroy_block().block());
+        Resources::validate(operation->destroy_disk().source());
 
       if (error.isSome()) {
         return error;

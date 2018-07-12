@@ -2498,9 +2498,9 @@ Option<Error> validate(
 }
 
 
-Option<Error> validate(const Offer::Operation::CreateVolume& createVolume)
+Option<Error> validate(const Offer::Operation::CreateDisk& createDisk)
 {
-  const Resource& source = createVolume.source();
+  const Resource& source = createDisk.source();
 
   Option<Error> error = resource::validate(Resources(source));
   if (error.isSome()) {
@@ -2515,40 +2515,18 @@ Option<Error> validate(const Offer::Operation::CreateVolume& createVolume)
     return Error("'source' is not a RAW disk resource");
   }
 
-  if (createVolume.target_type() != Resource::DiskInfo::Source::MOUNT &&
-      createVolume.target_type() != Resource::DiskInfo::Source::PATH) {
-    return Error("'target_type' is neither MOUNT or PATH");
+  if (createDisk.target_type() != Resource::DiskInfo::Source::MOUNT &&
+      createDisk.target_type() != Resource::DiskInfo::Source::BLOCK) {
+    return Error("'target_type' is neither MOUNT or BLOCK");
   }
 
   return None();
 }
 
 
-Option<Error> validate(const Offer::Operation::DestroyVolume& destroyVolume)
+Option<Error> validate(const Offer::Operation::DestroyDisk& destroyDisk)
 {
-  const Resource& volume = destroyVolume.volume();
-
-  Option<Error> error = resource::validate(Resources(volume));
-  if (error.isSome()) {
-    return Error("Invalid resource: " + error->message);
-  }
-
-  if (!Resources::hasResourceProvider(volume)) {
-    return Error("'volume' is not managed by a resource provider");
-  }
-
-  if (!Resources::isDisk(volume, Resource::DiskInfo::Source::MOUNT) &&
-      !Resources::isDisk(volume, Resource::DiskInfo::Source::PATH)) {
-    return Error("'volume' is neither a MOUTN or PATH disk resource");
-  }
-
-  return None();
-}
-
-
-Option<Error> validate(const Offer::Operation::CreateBlock& createBlock)
-{
-  const Resource& source = createBlock.source();
+  const Resource& source = destroyDisk.source();
 
   Option<Error> error = resource::validate(Resources(source));
   if (error.isSome()) {
@@ -2559,29 +2537,9 @@ Option<Error> validate(const Offer::Operation::CreateBlock& createBlock)
     return Error("'source' is not managed by a resource provider");
   }
 
-  if (!Resources::isDisk(source, Resource::DiskInfo::Source::RAW)) {
-    return Error("'source' is not a RAW disk resource");
-  }
-
-  return None();
-}
-
-
-Option<Error> validate(const Offer::Operation::DestroyBlock& destroyBlock)
-{
-  const Resource& block = destroyBlock.block();
-
-  Option<Error> error = resource::validate(Resources(block));
-  if (error.isSome()) {
-    return Error("Invalid resource: " + error->message);
-  }
-
-  if (!Resources::hasResourceProvider(block)) {
-    return Error("'block' is not managed by a resource provider");
-  }
-
-  if (!Resources::isDisk(block, Resource::DiskInfo::Source::BLOCK)) {
-    return Error("'block' is not a BLOCK disk resource");
+  if (!Resources::isDisk(source, Resource::DiskInfo::Source::MOUNT) &&
+      !Resources::isDisk(source, Resource::DiskInfo::Source::BLOCK)) {
+    return Error("'source' is neither a MOUNT or BLOCK disk resource");
   }
 
   return None();

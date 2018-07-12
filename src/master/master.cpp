@@ -3882,105 +3882,99 @@ Future<bool> Master::authorizeResizeVolume(
 }
 
 
-Future<bool> Master::authorizeCreateVolume(
-    const Resource& source,
+Future<bool> Master::authorizeCreateDisk(
+    const Offer::Operation::CreateDisk& createDisk,
     const Option<Principal>& principal)
 {
   if (authorizer.isNone()) {
     return true; // Authorization is disabled.
   }
 
+  Option<authorization::Action> action;
+
+  switch (createDisk.target_type()) {
+    case Resource::DiskInfo::Source::MOUNT: {
+      action = authorization::CREATE_MOUNT_DISK;
+      break;
+    }
+    case Resource::DiskInfo::Source::BLOCK: {
+      action = authorization::CREATE_BLOCK_DISK;
+      break;
+    }
+    case Resource::DiskInfo::Source::UNKNOWN:
+    case Resource::DiskInfo::Source::PATH:
+    case Resource::DiskInfo::Source::RAW: {
+      return Failure(
+          "Failed to authorize principal '" +
+          (principal.isSome() ? stringify(principal.get()) : "ANY") +
+          "' to create a " + stringify(createDisk.target_type()) +
+          " disk from '" + stringify(createDisk.source()) +
+          "': Unsupported disk type");
+    }
+  }
+
   authorization::Request request;
-  request.set_action(authorization::CREATE_MOUNT_DISK);
+  request.set_action(CHECK_NOTNONE(action));
 
   Option<authorization::Subject> subject = createSubject(principal);
   if (subject.isSome()) {
     request.mutable_subject()->CopyFrom(subject.get());
   }
 
-  request.mutable_object()->mutable_resource()->CopyFrom(source);
+  request.mutable_object()->mutable_resource()->CopyFrom(createDisk.source());
 
   LOG(INFO) << "Authorizing principal '"
             << (principal.isSome() ? stringify(principal.get()) : "ANY")
-            << "' to create a volume from '" << source << "'";
+            << "' to create a " << createDisk.target_type() << " disk from '"
+            << createDisk.source() << "'";
 
   return authorizer.get()->authorized(request);
 }
 
 
-Future<bool> Master::authorizeDestroyVolume(
-    const Resource& volume,
+Future<bool> Master::authorizeDestroyDisk(
+    const Offer::Operation::DestroyDisk& destroyDisk,
     const Option<Principal>& principal)
 {
   if (authorizer.isNone()) {
     return true; // Authorization is disabled.
   }
 
+  Option<authorization::Action> action;
+
+  switch (destroyDisk.source().disk().source().type()) {
+    case Resource::DiskInfo::Source::MOUNT: {
+      action = authorization::DESTROY_MOUNT_DISK;
+      break;
+    }
+    case Resource::DiskInfo::Source::BLOCK: {
+      action = authorization::DESTROY_BLOCK_DISK;
+      break;
+    }
+    case Resource::DiskInfo::Source::UNKNOWN:
+    case Resource::DiskInfo::Source::PATH:
+    case Resource::DiskInfo::Source::RAW: {
+      return Failure(
+          "Failed to authorize principal '" +
+          (principal.isSome() ? stringify(principal.get()) : "ANY") +
+          "' to destroy disk '" + stringify(destroyDisk.source()) +
+          "': Unsupported disk type");
+    }
+  }
+
   authorization::Request request;
-  request.set_action(authorization::DESTROY_MOUNT_DISK);
+  request.set_action(CHECK_NOTNONE(action));
 
   Option<authorization::Subject> subject = createSubject(principal);
   if (subject.isSome()) {
     request.mutable_subject()->CopyFrom(subject.get());
   }
 
-  request.mutable_object()->mutable_resource()->CopyFrom(volume);
+  request.mutable_object()->mutable_resource()->CopyFrom(destroyDisk.source());
 
   LOG(INFO) << "Authorizing principal '"
             << (principal.isSome() ? stringify(principal.get()) : "ANY")
-            << "' to destroy volume '" << volume << "'";
-
-  return authorizer.get()->authorized(request);
-}
-
-
-Future<bool> Master::authorizeCreateBlock(
-    const Resource& source,
-    const Option<Principal>& principal)
-{
-  if (authorizer.isNone()) {
-    return true; // Authorization is disabled.
-  }
-
-  authorization::Request request;
-  request.set_action(authorization::CREATE_BLOCK_DISK);
-
-  Option<authorization::Subject> subject = createSubject(principal);
-  if (subject.isSome()) {
-    request.mutable_subject()->CopyFrom(subject.get());
-  }
-
-  request.mutable_object()->mutable_resource()->CopyFrom(source);
-
-  LOG(INFO) << "Authorizing principal '"
-            << (principal.isSome() ? stringify(principal.get()) : "ANY")
-            << "' to create a block from '" << source << "'";
-
-  return authorizer.get()->authorized(request);
-}
-
-
-Future<bool> Master::authorizeDestroyBlock(
-    const Resource& block,
-    const Option<Principal>& principal)
-{
-  if (authorizer.isNone()) {
-    return true; // Authorization is disabled.
-  }
-
-  authorization::Request request;
-  request.set_action(authorization::DESTROY_BLOCK_DISK);
-
-  Option<authorization::Subject> subject = createSubject(principal);
-  if (subject.isSome()) {
-    request.mutable_subject()->CopyFrom(subject.get());
-  }
-
-  request.mutable_object()->mutable_resource()->CopyFrom(block);
-
-  LOG(INFO) << "Authorizing principal '"
-            << (principal.isSome() ? stringify(principal.get()) : "ANY")
-            << "' to destroy block '" << block << "'";
+            << "' to destroy disk '" << destroyDisk.source() << "'";
 
   return authorizer.get()->authorized(request);
 }
@@ -4293,10 +4287,8 @@ void Master::accept(
           case Offer::Operation::DESTROY:
           case Offer::Operation::GROW_VOLUME:
           case Offer::Operation::SHRINK_VOLUME:
-          case Offer::Operation::CREATE_VOLUME:
-          case Offer::Operation::DESTROY_VOLUME:
-          case Offer::Operation::CREATE_BLOCK:
-          case Offer::Operation::DESTROY_BLOCK: {
+          case Offer::Operation::CREATE_DISK:
+          case Offer::Operation::DESTROY_DISK: {
             drop(framework,
                  operation,
                  "Operation attempted with invalid resources: " +
@@ -4356,10 +4348,8 @@ void Master::accept(
           case Offer::Operation::DESTROY:
           case Offer::Operation::GROW_VOLUME:
           case Offer::Operation::SHRINK_VOLUME:
-          case Offer::Operation::CREATE_VOLUME:
-          case Offer::Operation::DESTROY_VOLUME:
-          case Offer::Operation::CREATE_BLOCK:
-          case Offer::Operation::DESTROY_BLOCK: {
+          case Offer::Operation::CREATE_DISK:
+          case Offer::Operation::DESTROY_DISK: {
             if (framework->http.isNone()) {
               const string message =
                 "The 'id' field was set in an offer operation, but operation"
@@ -4431,10 +4421,8 @@ void Master::accept(
       case Offer::Operation::DESTROY:
       case Offer::Operation::GROW_VOLUME:
       case Offer::Operation::SHRINK_VOLUME:
-      case Offer::Operation::CREATE_VOLUME:
-      case Offer::Operation::DESTROY_VOLUME:
-      case Offer::Operation::CREATE_BLOCK:
-      case Offer::Operation::DESTROY_BLOCK: {
+      case Offer::Operation::CREATE_DISK:
+      case Offer::Operation::DESTROY_DISK: {
         // No-op.
         break;
       }
@@ -4626,50 +4614,26 @@ void Master::accept(
         break;
       }
 
-      case Offer::Operation::CREATE_VOLUME: {
+      case Offer::Operation::CREATE_DISK: {
         Option<Principal> principal = framework->info.has_principal()
           ? Principal(framework->info.principal())
           : Option<Principal>::none();
 
         futures.push_back(
-            authorizeCreateVolume(
-                operation.create_volume().source(), principal));
+            authorizeCreateDisk(
+                operation.create_disk(), principal));
 
         break;
       }
 
-      case Offer::Operation::DESTROY_VOLUME: {
+      case Offer::Operation::DESTROY_DISK: {
         Option<Principal> principal = framework->info.has_principal()
           ? Principal(framework->info.principal())
           : Option<Principal>::none();
 
         futures.push_back(
-            authorizeDestroyVolume(
-                operation.destroy_volume().volume(), principal));
-
-        break;
-      }
-
-      case Offer::Operation::CREATE_BLOCK: {
-        Option<Principal> principal = framework->info.has_principal()
-          ? Principal(framework->info.principal())
-          : Option<Principal>::none();
-
-        futures.push_back(
-            authorizeCreateBlock(
-                operation.create_block().source(), principal));
-
-        break;
-      }
-
-      case Offer::Operation::DESTROY_BLOCK: {
-        Option<Principal> principal = framework->info.has_principal()
-          ? Principal(framework->info.principal())
-          : Option<Principal>::none();
-
-        futures.push_back(
-            authorizeDestroyBlock(
-                operation.destroy_block().block(), principal));
+            authorizeDestroyDisk(
+                operation.destroy_disk(), principal));
 
         break;
       }
@@ -5727,7 +5691,7 @@ void Master::_accept(
         break;
       }
 
-      case Offer::Operation::CREATE_VOLUME: {
+      case Offer::Operation::CREATE_DISK: {
         if (!slave->capabilities.resourceProvider) {
           drop(framework,
                operation,
@@ -5737,19 +5701,19 @@ void Master::_accept(
         }
 
         Option<Error> error = validation::operation::validate(
-            operation.create_volume());
+            operation.create_disk());
 
         if (error.isSome()) {
           drop(framework, operation, error->message);
           continue;
         }
 
-        const Resource& consumed = operation.create_volume().source();
+        const Resource& consumed = operation.create_disk().source();
 
         if (!_offeredResources.contains(consumed)) {
           drop(framework,
                operation,
-               "Invalid CREATE_VOLUME Operation: " +
+               "Invalid CREATE_DISK Operation: " +
                  stringify(_offeredResources) + " does not contain " +
                  stringify(consumed));
           continue;
@@ -5757,8 +5721,8 @@ void Master::_accept(
 
         _offeredResources -= consumed;
 
-        LOG(INFO) << "Processing CREATE_VOLUME operation with source "
-                  << operation.create_volume().source() << " from framework "
+        LOG(INFO) << "Processing CREATE_DISK operation with source "
+                  << operation.create_disk().source() << " from framework "
                   << *framework << " to agent " << *slave;
 
         _apply(slave, framework, operation);
@@ -5766,7 +5730,7 @@ void Master::_accept(
         break;
       }
 
-      case Offer::Operation::DESTROY_VOLUME: {
+      case Offer::Operation::DESTROY_DISK: {
         if (!slave->capabilities.resourceProvider) {
           drop(framework,
                operation,
@@ -5776,19 +5740,19 @@ void Master::_accept(
         }
 
         Option<Error> error = validation::operation::validate(
-            operation.destroy_volume());
+            operation.destroy_disk());
 
         if (error.isSome()) {
           drop(framework, operation, error->message);
           continue;
         }
 
-        const Resource& consumed = operation.destroy_volume().volume();
+        const Resource& consumed = operation.destroy_disk().source();
 
         if (!_offeredResources.contains(consumed)) {
           drop(framework,
                operation,
-               "Invalid DESTROY_VOLUME Operation: " +
+               "Invalid DESTROY_DISK Operation: " +
                  stringify(_offeredResources) + " does not contain " +
                  stringify(consumed));
           continue;
@@ -5796,86 +5760,8 @@ void Master::_accept(
 
         _offeredResources -= consumed;
 
-        LOG(INFO) << "Processing DESTROY_VOLUME operation for volume "
-                  << operation.destroy_volume().volume() << " from framework "
-                  << *framework << " to agent " << *slave;
-
-        _apply(slave, framework, operation);
-
-        break;
-      }
-
-      case Offer::Operation::CREATE_BLOCK: {
-        if (!slave->capabilities.resourceProvider) {
-          drop(framework,
-               operation,
-               "Not supported on agent " + stringify(*slave) +
-               " because it does not have RESOURCE_PROVIDER capability");
-          continue;
-        }
-
-        Option<Error> error = validation::operation::validate(
-            operation.create_block());
-
-        if (error.isSome()) {
-          drop(framework, operation, error->message);
-          continue;
-        }
-
-        const Resource& consumed = operation.create_block().source();
-
-        if (!_offeredResources.contains(consumed)) {
-          drop(framework,
-               operation,
-               "Invalid CREATE_BLOCK Operation: " +
-                 stringify(_offeredResources) + " does not contain " +
-                 stringify(consumed));
-          continue;
-        }
-
-        _offeredResources -= consumed;
-
-        LOG(INFO) << "Processing CREATE_BLOCK operation with source "
-                  << operation.create_block().source() << " from framework "
-                  << *framework << " to agent " << *slave;
-
-        _apply(slave, framework, operation);
-
-        break;
-      }
-
-      case Offer::Operation::DESTROY_BLOCK: {
-        if (!slave->capabilities.resourceProvider) {
-          drop(framework,
-               operation,
-               "Not supported on agent " + stringify(*slave) +
-               " because it does not have RESOURCE_PROVIDER capability");
-          continue;
-        }
-
-        Option<Error> error = validation::operation::validate(
-            operation.destroy_block());
-
-        if (error.isSome()) {
-          drop(framework, operation, error->message);
-          continue;
-        }
-
-        const Resource& consumed = operation.destroy_block().block();
-
-        if (!_offeredResources.contains(consumed)) {
-          drop(framework,
-               operation,
-               "Invalid DESTROY_BLOCK Operation: " +
-                 stringify(_offeredResources) + " does not contain " +
-                 stringify(consumed));
-          continue;
-        }
-
-        _offeredResources -= consumed;
-
-        LOG(INFO) << "Processing DESTROY_BLOCK operation for block "
-                  << operation.destroy_block().block() << " from framework "
+        LOG(INFO) << "Processing DESTROY_DISK operation for volume "
+                  << operation.destroy_disk().source() << " from framework "
                   << *framework << " to agent " << *slave;
 
         _apply(slave, framework, operation);
