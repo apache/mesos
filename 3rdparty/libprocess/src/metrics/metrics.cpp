@@ -28,6 +28,7 @@
 #include <stout/duration.hpp>
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
+#include <stout/hashmap.hpp>
 #include <stout/numify.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
@@ -120,7 +121,7 @@ string MetricsProcess::help()
 
 Future<Nothing> MetricsProcess::add(Owned<Metric> metric)
 {
-  if (metrics.count(metric->name()) > 0) {
+  if (metrics.contains(metric->name())) {
     return Failure("Metric '" + metric->name() + "' was already added");
   }
 
@@ -131,7 +132,7 @@ Future<Nothing> MetricsProcess::add(Owned<Metric> metric)
 
 Future<Nothing> MetricsProcess::remove(const string& name)
 {
-  if (metrics.count(name) == 0) {
+  if (!metrics.contains(name)) {
     return Failure("Metric '" + name + "' not found");
   }
 
@@ -144,35 +145,29 @@ Future<Nothing> MetricsProcess::remove(const string& name)
 Future<map<string, double>> MetricsProcess::snapshot(
     const Option<Duration>& timeout)
 {
-  // To avoid creating a new vector when calling `await()` below, we use three
-  // ordered vectors, where the Nth key in `keys` is associated with the Nth
-  // items in each of `futures` and `statistics`.
-  vector<string> keys;
-  vector<Future<double>> futures;
-  vector<Option<Statistics<double>>> statistics;
+  hashmap<string, Future<double>> futures;
+  hashmap<string, Option<Statistics<double>>> statistics;
 
-  keys.reserve(metrics.size());
-  futures.reserve(metrics.size());
-  statistics.reserve(metrics.size());
-
-  for (auto iter = metrics.begin(); iter != metrics.end(); ++iter) {
-    keys.emplace_back(iter->first);
-    futures.emplace_back(iter->second->value());
-    statistics.emplace_back(iter->second->statistics());
+  foreachkey (const string& name, metrics) {
+    const Owned<Metric>& metric = metrics.at(name);
+    futures[name] = metric->value();
+    // TODO(dhamon): It would be nice to compute these asynchronously.
+    statistics[name] = metric->statistics();
   }
 
   Future<Nothing> timedout =
     after(timeout.getOrElse(Duration::max()));
 
+  vector<Future<double>> values = futures.values();
+
   // Return the response once it finishes or we time out.
   return select<Nothing>({
       timedout,
-      await(futures).then([]{ return Nothing(); }) })
+      await(std::move(values)).then([]{ return Nothing(); }) })
     .onAny([=]() mutable { timedout.discard(); }) // Don't accumulate timers.
     .then(defer(self(),
                 &Self::__snapshot,
                 timeout,
-                std::move(keys),
                 std::move(futures),
                 std::move(statistics)));
 }
@@ -214,40 +209,34 @@ Future<http::Response> MetricsProcess::_snapshot(
 
 Future<map<string, double>> MetricsProcess::__snapshot(
     const Option<Duration>& timeout,
-    vector<string>&& keys,
-    vector<Future<double>>&& metrics,
-    vector<Option<Statistics<double>>>&& statistics)
+    hashmap<string, Future<double>>&& metrics,
+    hashmap<string, Option<Statistics<double>>>&& statistics)
 {
   map<string, double> snapshot;
 
-  for (size_t i = 0; i < metrics.size(); ++i) {
+  foreachpair (const string& key, const Future<double>& value, metrics) {
     // TODO(dhamon): Maybe add the failure message for this metric to the
     // response if value.isFailed().
-    const string& key = keys[i];
-    const Future<double>& value = metrics[i];
-
     if (value.isPending()) {
       CHECK_SOME(timeout);
       VLOG(1) << "Exceeded timeout of " << timeout.get()
               << " when attempting to get metric '" << key << "'";
     } else if (value.isReady()) {
-      snapshot.emplace_hint(snapshot.end(), key, value.get());
+      snapshot[key] = value.get();
     }
 
-    if (statistics[i].isSome()) {
-      Statistics<double>& statistics_ = statistics[i].get();
-      snapshot.emplace_hint(
-          snapshot.end(),
-          key + "/count",
-          static_cast<double>(statistics_.count));
-      snapshot.emplace_hint(snapshot.end(), key + "/max", statistics_.max);
-      snapshot.emplace_hint(snapshot.end(), key + "/min", statistics_.min);
-      snapshot.emplace_hint(snapshot.end(), key + "/p50", statistics_.p50);
-      snapshot.emplace_hint(snapshot.end(), key + "/p90", statistics_.p90);
-      snapshot.emplace_hint(snapshot.end(), key + "/p95", statistics_.p95);
-      snapshot.emplace_hint(snapshot.end(), key + "/p99", statistics_.p99);
-      snapshot.emplace_hint(snapshot.end(), key + "/p999", statistics_.p999);
-      snapshot.emplace_hint(snapshot.end(), key + "/p9999", statistics_.p9999);
+    Option<Statistics<double>> statistics_ = statistics.get(key).get();
+
+    if (statistics_.isSome()) {
+      snapshot[key + "/count"] = static_cast<double>(statistics_->count);
+      snapshot[key + "/min"] = statistics_->min;
+      snapshot[key + "/max"] = statistics_->max;
+      snapshot[key + "/p50"] = statistics_->p50;
+      snapshot[key + "/p90"] = statistics_->p90;
+      snapshot[key + "/p95"] = statistics_->p95;
+      snapshot[key + "/p99"] = statistics_->p99;
+      snapshot[key + "/p999"] = statistics_->p999;
+      snapshot[key + "/p9999"] = statistics_->p9999;
     }
   }
 

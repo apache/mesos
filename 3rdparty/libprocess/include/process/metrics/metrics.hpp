@@ -25,6 +25,7 @@
 
 #include <process/metrics/metric.hpp>
 
+#include <stout/hashmap.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 
@@ -70,12 +71,11 @@ private:
   // capture with C++14.
   Future<std::map<std::string, double>> __snapshot(
       const Option<Duration>& timeout,
-      std::vector<std::string>&& keys,
-      std::vector<Future<double>>&& metrics,
-      std::vector<Option<Statistics<double>>>&& statistics);
+      hashmap<std::string, Future<double>>&& metrics,
+      hashmap<std::string, Option<Statistics<double>>>&& statistics);
 
   // The Owned<Metric> is an explicit copy of the Metric passed to 'add'.
-  std::map<std::string, Owned<Metric>> metrics;
+  hashmap<std::string, Owned<Metric>> metrics;
 
   // Used to rate limit the snapshot endpoint.
   Option<Owned<RateLimiter>> limiter;
