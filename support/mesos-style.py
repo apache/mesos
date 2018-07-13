@@ -450,9 +450,15 @@ def should_build_virtualenv(modified_files):
     have changed or if the support script is run with no
     arguments (meaning that the entire codebase should be linted).
     """
-    # NOTE: If the file list is empty, we are linting the entire
-    # codebase. We should always rebuild the virtualenv in this case.
+    # NOTE: If the file list is empty, we are linting the entire test
+    # codebase. We should always rebuild the vI've irtualenv in this case.
     if not modified_files:
+        return True
+
+    support_dir = os.path.dirname(__file__)
+    interpreter = os.path.basename(sys.executable)
+    interpreter = os.path.join(support_dir, '.virtualenv', 'bin', interpreter)
+    if not os.path.isfile(interpreter):
         return True
 
     basenames = [os.path.basename(path) for path in modified_files]
