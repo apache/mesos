@@ -344,9 +344,6 @@ class JsLinter(LinterBase):
 
         return num_errors
 
-    def main(self, modified_files):
-        return super(JsLinter, self).main(modified_files)
-
 
 class PyLinter(LinterBase):
     """The linter for Python files, uses pylint."""
@@ -444,9 +441,6 @@ class PyLinter(LinterBase):
                 source_dir, source_paths)
 
         return num_errors
-
-    def main(self, modified_files):
-        return super(PyLinter, self).main(modified_files)
 
 
 def should_build_virtualenv(modified_files):

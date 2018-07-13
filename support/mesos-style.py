@@ -188,7 +188,7 @@ class LinterBase(object):
 
         # If file paths are specified, check all file paths that are
         # candidates; else check all candidates.
-        file_paths = modified_files if len(modified_files) > 0 else candidates
+        file_paths = modified_files if modified_files else candidates
 
         # Compute the set intersect of the input file paths and candidates.
         # This represents the reduced set of candidates to run lint on.
@@ -198,7 +198,10 @@ class LinterBase(object):
             candidates_set)
 
         if filtered_candidates_set:
-            plural = '' if len(filtered_candidates_set) == 1 else 's'
+            if len(filtered_candidates_set) == 1:
+                plural = ''
+            else:
+                plural = 's'
             print 'Checking {num_files} {linter} file{plural}'.format(
                 num_files=len(filtered_candidates_set),
                 linter=self.linter_type,
@@ -340,9 +343,6 @@ class JsLinter(LinterBase):
 
         return num_errors
 
-    def main(self, modified_files):
-        return super(JsLinter, self).main(modified_files)
-
 
 class PyLinter(LinterBase):
     """The linter for Python files, uses pylint."""
@@ -406,7 +406,7 @@ class PyLinter(LinterBase):
         filtered_source_files = self.filter_source_files(
             source_dir, source_files)
 
-        if len(filtered_source_files) == 0:
+        if not filtered_source_files:
             return 0
 
         if source_dir in self.source_dirs_to_lint_with_tox:
@@ -441,9 +441,6 @@ class PyLinter(LinterBase):
                 source_dir, source_paths)
 
         return num_errors
-
-    def main(self, modified_files):
-        return super(PyLinter, self).main(modified_files)
 
 
 def should_build_virtualenv(modified_files):
