@@ -1065,10 +1065,15 @@ set_target_properties(
 set(GOOGLETEST_CMAKE_FORWARD_ARGS ${CMAKE_CXX_FORWARD_ARGS})
 
 if (WIN32)
+  set(GOOGLETEST_COMPILE_DEFINITIONS
+    # Silence deprecation warning in the interface of Google Test.
+    _SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING
+    # Build in C++11 mode.
+    GTEST_LANG_CXX11=1)
+
   set_target_properties(
     gtest PROPERTIES
-    # Silence deprecation warning in the interface of Google Test.
-    INTERFACE_COMPILE_DEFINITIONS _SILENCE_TR1_NAMESPACE_DEPRECATION_WARNING)
+    INTERFACE_COMPILE_DEFINITIONS "${GOOGLETEST_COMPILE_DEFINITIONS}")
 
   if (CMAKE_GENERATOR MATCHES "Visual Studio")
     set_target_properties(
@@ -1105,6 +1110,8 @@ else ()
     IMPORTED_LOCATION ${GOOGLETEST_ROOT}-build/googlemock/gtest/libgtest${CMAKE_STATIC_LIBRARY_SUFFIX})
 endif ()
 
+PATCH_CMD(GOOGLETEST_PATCH_CMD googletest-release-${GOOGLETEST_VERSION}.patch)
+
 MAKE_INCLUDE_DIR(gmock)
 MAKE_INCLUDE_DIR(gtest)
 GET_BYPRODUCTS(gmock)
@@ -1121,6 +1128,7 @@ ExternalProject_Add(
   ${GOOGLETEST_TARGET}
   PREFIX            ${GOOGLETEST_CMAKE_ROOT}
   BUILD_BYPRODUCTS  ${GMOCK_BYPRODUCTS};${GTEST_BYPRODUCTS}
+  PATCH_COMMAND     ${GOOGLETEST_PATCH_CMD}
   CMAKE_ARGS        ${GOOGLETEST_CMAKE_FORWARD_ARGS}
   INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${GOOGLETEST_URL}

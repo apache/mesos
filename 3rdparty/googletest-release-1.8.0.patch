@@ -1,0 +1,46 @@
+From f66ab00704cd47e4e63ef6d425ca14b9192aaebb Mon Sep 17 00:00:00 2001
+From: Gennadiy Civil <misterg@google.com>
+Date: Mon, 4 Jun 2018 10:45:56 -0400
+Subject: [PATCH] Upstream, cl/199129756
+
+Add printer for std::nullptr_t, addressing https://github.com/google/googletest/issues/1616
+---
+ googletest/include/gtest/gtest-printers.h | 4 ++++
+ googletest/test/gtest-printers_test.cc    | 6 ++++++
+ 2 files changed, 10 insertions(+)
+
+diff --git a/googletest/include/gtest/gtest-printers.h b/googletest/include/gtest/gtest-printers.h
+index e53963b42..373946b96 100644
+--- a/googletest/include/gtest/gtest-printers.h
++++ b/googletest/include/gtest/gtest-printers.h
+@@ -636,6 +636,10 @@ inline void PrintTo(absl::string_view sp, ::std::ostream* os) {
+ }
+ #endif  // GTEST_HAS_ABSL
+ 
++#if GTEST_LANG_CXX11
++inline void PrintTo(std::nullptr_t, ::std::ostream* os) { *os << "(nullptr)"; }
++#endif  // GTEST_LANG_CXX11
++
+ #if GTEST_HAS_TR1_TUPLE || GTEST_HAS_STD_TUPLE_
+ // Helper function for printing a tuple.  T must be instantiated with
+ // a tuple type.
+diff --git a/googletest/test/gtest-printers_test.cc b/googletest/test/gtest-printers_test.cc
+index a373851d2..49b3bd462 100644
+--- a/googletest/test/gtest-printers_test.cc
++++ b/googletest/test/gtest-printers_test.cc
+@@ -1115,6 +1115,12 @@ TEST(PrintStdTupleTest, NestedTuple) {
+ 
+ #endif  // GTEST_LANG_CXX11
+ 
++#if GTEST_LANG_CXX11
++TEST(PrintNullptrT, Basic) {
++  EXPECT_EQ("(nullptr)", Print(nullptr));
++}
++#endif  // GTEST_LANG_CXX11
++
+ // Tests printing user-defined unprintable types.
+ 
+ // Unprintable types in the global namespace.
+-- 
+2.17.1
+
