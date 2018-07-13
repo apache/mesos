@@ -134,6 +134,13 @@ canonical list is located on
       <td>haosdent@apache.org</td>
     </tr>
     <tr>
+      <td>-8</td>
+      <td>Gastón Kleiman</td>
+      <td>Mesosphere</td>
+      <td></td>
+      <td>gaston@apache.org</td>
+    </tr>
+    <tr>
       <td>+8</td>
       <td>Kevin Klues</td>
       <td>Mesosphere</td>
