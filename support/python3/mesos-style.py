@@ -378,7 +378,12 @@ class PyLinter(LinterBase):
         Runs tox with given configfile and args. Optionally set tox env
         and/or recreate the tox-managed virtualenv.
         """
-        cmd = ['tox']
+        # TODO(ArmandGrillet): Remove one of the calls to
+        # `os.path.dirname` below once the python 3 support scripts
+        # are moved from `support/python3/` to `support/`.
+        support_dir = os.path.dirname(os.path.dirname(__file__))
+
+        cmd = [os.path.join(support_dir, '.virtualenv', 'bin', 'tox')]
         cmd += ['-qq']
         cmd += ['-c', configfile]
         if tox_env is not None:
@@ -388,6 +393,9 @@ class PyLinter(LinterBase):
         cmd += ['--']
         cmd += args
 
+        # We do not use `run_command_in_virtualenv()` here, as we
+        # directly call `tox` from inside the virtual environment bin
+        # directory without activating the virtualenv.
         return subprocess.Popen(cmd, stdout=subprocess.PIPE)
 
     def filter_source_files(self, source_dir, source_files):
