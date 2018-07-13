@@ -2005,23 +2005,13 @@ _operation_ placeholder in the above metrics.
   <td><code>org.apache.mesos.rp.local.storage</code></td>
 </tr>
 <tr>
-  <td><code><a href="csi.md#-create_volume-operation">CREATE_VOLUME</a></code></td>
-  <td><code>create_volume</code></td>
+  <td><code><a href="csi.md#-create_disk-operation">CREATE_DISK</a></code></td>
+  <td><code>create_disk</code></td>
   <td><code>org.apache.mesos.rp.local.storage</code></td>
 </tr>
 <tr>
-  <td><code><a href="csi.md#-destroy_volume-operation">DESTROY_VOLUME</a></code></td>
-  <td><code>destroy_volume</code></td>
-  <td><code>org.apache.mesos.rp.local.storage</code></td>
-</tr>
-<tr>
-  <td><code><a href="csi.md#-create_block-operation">CREATE_BLOCK</a></code></td>
-  <td><code>create_block</code></td>
-  <td><code>org.apache.mesos.rp.local.storage</code></td>
-</tr>
-<tr>
-  <td><code><a href="csi.md#-destroy_block-operation">DESTROY_BLOCK</a></code></td>
-  <td><code>destroy_block</code></td>
+  <td><code><a href="csi.md#-destroy_disk-operation">DESTROY_DISK</a></code></td>
+  <td><code>destroy_disk</code></td>
   <td><code>org.apache.mesos.rp.local.storage</code></td>
 </tr>
 </table>
@@ -2029,7 +2019,7 @@ _operation_ placeholder in the above metrics.
 For example, cluster operators can monitor the number of successful
 `CREATE_VOLUME` operations that are applied to the resource provider with type
 `org.apache.mesos.rp.local.storage` and name `lvm` through the
-`resource_providers/org.apache.mesos.rp.local.storage.lvm/operations/create_volume/finished`
+`resource_providers/org.apache.mesos.rp.local.storage.lvm/operations/create_disk/finished`
 metric.
 
 #### CSI Plugins

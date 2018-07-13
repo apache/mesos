@@ -8,7 +8,7 @@ layout: documentation
 This document describes the [Container Storage Interface](https://github.com/container-storage-interface/spec)
 (CSI) support in Mesos.
 
-Currently, only CSI spec version 0.2 is supported in Mesos 1.6 due to
+Currently, only CSI spec version 0.2 is supported in Mesos 1.6+ due to
 incompatible changes between CSI version 0.1 and version 0.2. CSI version 0.1 is
 supported in Mesos 1.5.
 
@@ -180,8 +180,7 @@ a [pre-existing disk](#pre-existing-disks).  Pre-existing disks are those
 [CSI Volumes](https://github.com/container-storage-interface/spec/blob/v0.1.0/spec.md#terminology)
 that are detected by the corresponding CSI plugin using the
 [`ListVolumes` interface](https://github.com/container-storage-interface/spec/blob/v0.1.0/spec.md#listvolumes),
-but have not gone through the dynamic provisioning process (i.e., via
-`CREATE_VOLUME` or `CREATE_BLOCK`).
+but have not gone through the dynamic provisioning process (i.e., via `CREATE_DISK`).
 
 For example, operators might pre-create some LVM logical volumes before
 launching Mesos. Those pre-created LVM logical volumes will be reported by the
@@ -193,9 +192,9 @@ in the near future. See more details in the [profiles](#profiles) section.
 
 ### New Offer Operations for Disk Resources
 
-To allow dynamic provisioning of disk resources, 4 new offer operations have
+To allow dynamic provisioning of disk resources, two new offer operations have
 been added to the [scheduler API](scheduler-http-api.md#accept):
-`CREATE_VOLUME`, `DESTROY_VOLUME`, `CREATE_BLOCK` and `DESTROY_BLOCK`.
+`CREATE_DISK` and `DESTROY_DISK`.
 
 To learn how to use the offer operations, please refer to the
 [`ACCEPT`](scheduler-http-api.md#accept) Call in the v1 scheduler API, or
@@ -213,71 +212,72 @@ message Offer {
       UNRESERVE = 3;
       CREATE = 4;
       DESTROY = 5;
-      CREATE_VOLUME = 7;   // New in 1.5.
-      DESTROY_VOLUME = 8;  // New in 1.5.
-      CREATE_BLOCK = 9;    // New in 1.5.
-      DESTROY_BLOCK = 10;  // New in 1.5.
+      GROW_VOLUME = 11;
+      SHRINK_VOLUME = 12;
+      CREATE_DISK = 13;   // New in 1.7.
+      DESTROY_DISK = 14;  // New in 1.7.
     }
     optional Type type = 1;
   }
 }
 ```
 
-#### `CREATE_VOLUME` operation
+#### `CREATE_DISK` operation
 
-The offer operation `CREATE_VOLUME` takes a `RAW` disk resource
-(`create_volume.source`), and converts it into either a `PATH` or a `MOUNT` disk
-resource (`create_volume.target_type`). The source `RAW` disk resource can
+The offer operation `CREATE_DISK` takes a `RAW` disk resource
+(`create_disk.source`), and create a `MOUNT` or a `BLOCK` disk resource
+(`create_disk.target_type`) from the source. The source `RAW` disk resource can
 either be a storage pool (i.e., a `RAW` disk resource without an ID) or a
 pre-existing disk (i.e., a `RAW` disk resource with an ID). The quantity of the
-converted resource (either `PATH` or `MOUNT` disk resource) will be the same as
+converted resource (either `MOUNT` or `BLOCK` disk resource) will be the same as
 the source `RAW` resource.
 
 ```protobuf
 message Offer {
   message Operation {
-    message CreateVolume {
+    message CreateDisk {
       required Resource source = 1;
       required Resource.DiskInfo.Source.Type target_type = 2;
     }
-    optional CreateVolume create_volume = 8;
+    optional CreateDisk create_disk = 15;
   }
 }
 ```
 
-The converted disk resource will have the disk [`id` and `metadata`](#disk-id-and-metadata)
+The created disk resource will have the disk [`id` and `metadata`](#disk-id-and-metadata)
 set accordingly to uniquely identify the volume reported by the CSI plugin.
 
-Note that `CREATE_VOLUME` is different than [`CREATE`](persistent-volume.md).
+Note that `CREATE_DISK` is different than [`CREATE`](persistent-volume.md).
 `CREATE` creates a [persistent volume](persistent-volume.md) which indicates
 that the data stored in the volume will be persisted until the framework
 explicitly destroys it. It must operate on a non-`RAW` disk resource (i.e.,
 `PATH`, `MOUNT` or `BLOCK`).
 
-#### `DESTROY_VOLUME` operation
+#### `DESTROY_DISK` operation
 
-The offer operation `DESTROY_VOLUME` takes a volume, either a `PATH` or a
-`MOUNT` disk resource, to destroy, and converts it into a `RAW` disk resource.
-The quantity of the converted resource (`RAW` disk resource) will be the same as
-the specified `volume`.
+The offer operation `DESTROY_DISK` destroys a `MOUNT` or a `BLOCK` disk resource
+(`destroy_disk.source`), which will result in a `RAW` disk resource. The
+quantity of the `RAW` disk resource will be the same as the specified `source`,
+unless it has an invalid profile (described later), in which case the
+`DESTROY_DISK` operation will completely remove the disk resource.
 
 ```protobuf
 message Offer {
   message Operation {
-    message DestroyVolume {
-      required Resource volume = 1;
+    message DestroyDisk {
+      required Resource source = 1;
     }
-    optional DestroyVolume destroy_volume = 9;
+    optional DestroyDisk destroy_disk = 16;
   }
 }
 ```
 
-This operation is intended to be a reverse operation of `CREATE_VOLUME`. In
+This operation is intended to be a reverse operation of `CREATE_DISK`. In
 other words, if the volume is created from a storage pool (i.e., a `RAW` disk
-resource without an ID), the result of the corresponding `DESTROY_VOLUME` should
+resource without an ID), the result of the corresponding `DESTROY_DISK` should
 be a storage pool. And if the volume is created from a [pre-existing disk](#pre-existing-disks)
 (i.e., a `RAW` disk resource with an ID), the result of the corresponding
-`DESTROY_VOLUME` should be a pre-existing disk.
+`DESTROY_DISK` should be a pre-existing disk.
 
 Currently, Mesos infers the result based on the presence of an assigned
 [profile](#profiles) in the disk resource. In other words, if the volume to be
@@ -286,38 +286,6 @@ pool (i.e., `RAW` disk resource without an ID). Otherwise, the converted `RAW`
 disk resource will be a pre-existing disk (i.e., `RAW` disk resource with an
 ID). This leverages the fact that currently, each storage pool must have a
 profile, and pre-existing disks do not have profiles.
-
-#### `CREATE_BLOCK` operation
-
-The offer operation `CREATE_BLOCK` is similar to `CREATE_VOLUME`, except that
-the converted disk resource will be in `BLOCK` type.
-
-```protobuf
-message Offer {
-  message Operation {
-    message CreateBlock {
-      required Resource source = 1;
-    }
-    optional CreateBlock create_block = 10;
-  }
-}
-```
-
-#### `DESTROY_BLOCK` operation
-
-The offer operation `DESTROY_BLOCK` is similar to `DESTROY_VOLUME`, except that
-the source disk resource will be in `BLOCK` type.
-
-```protobuf
-message Offer {
-  message Operation {
-    message DestroyBlock {
-      required Resource block = 1;
-    }
-    optional DestroyBlock destroy_block = 11;
-  }
-}
-```
 
 #### Getting Operation Results
 
@@ -394,7 +362,7 @@ the corresponding [CSI volume capability](https://github.com/container-storage-i
 (i.e., the `capability` field) and [CSI volume creation parameters](https://github.com/container-storage-interface/spec/blob/v0.1.0/spec.md#createvolume)
 (i.e., the `parameters` field) for that profile. These two fields will be used to
 call the CSI `CreateVolume` interface during dynamic provisioning (i.e.,
-`CREATE_VOLUME` and `CREATE_BLOCK`), or CSI `ControllerPublishVolume` and
+`CREATE_DISK`), or CSI `ControllerPublishVolume` and
 `NodePublishVolume` when publishing (i.e., when a task using the disk resources
 is being launched on a Mesos agent).
 
@@ -757,7 +725,7 @@ still running, and will no longer launch the SLRP during startup. The master and
 the agent will think the SLRP has disconnected, similar to agent disconnection.
 If there exists a task that is using the disk resources provided by the SLRP,
 its execution will not be affected. However, offer operations (e.g.,
-`CREATE_VOLUME`) for the SLRP will not be successful. In fact, if a SLRP is
+`CREATE_DISK`) for the SLRP will not be successful. In fact, if a SLRP is
 disconnected, the master will rescind the offers related to that SLRP,
 effectively disallowing frameworks to perform operations on the disconnected
 SLRP.
