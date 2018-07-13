@@ -32,6 +32,12 @@ if [ "${PYTHON}" = "" ]; then
   exit 1
 fi
 
+# Old versions of virtualenv do not remove the bin directory in the
+# virtual environment even when using `--clear`. We thus remove the
+# entire directory in case the virtual environment already exists.
+# See https://github.com/pypa/virtualenv/issues/2 for more info.
+rm -rf ${VIRTUALENV_DIRECTORY}
+
 PYTHON_MAJOR=$(${PYTHON} -c 'import sys; print(sys.version_info[0])')
 PYTHON_MINOR=$(${PYTHON} -c 'import sys; print(sys.version_info[1])')
 
@@ -42,7 +48,7 @@ if [ "${PYTHON_MAJOR}" = "3" ]; then
     exit 1
   else
     # Set up a virtual environment for the linters.
-    ${PYTHON} -m venv --clear --prompt="${VIRTUALENV_NAME}" ${VIRTUALENV_DIRECTORY}
+    ${PYTHON} -m venv --prompt="${VIRTUALENV_NAME}" ${VIRTUALENV_DIRECTORY}
   fi
 elif [ "${PYTHON_MAJOR}" = "2" ]; then
   if [ "${PYTHON_MINOR}" -lt "6" ]; then
@@ -63,7 +69,6 @@ elif [ "${PYTHON_MAJOR}" = "2" ]; then
 
     # Set up a virtual environment for the linters.
     ${PYTHON} ${VIRTUALENV} --python=${PYTHON} \
-                      --clear \
                       --no-site-packages \
                       --prompt="(${VIRTUALENV_NAME}) " \
                       ${VIRTUALENV_DIRECTORY}
