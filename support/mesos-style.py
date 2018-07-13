@@ -420,7 +420,7 @@ class PyLinter(LinterBase):
                 tox_env='py27-lint')
         else:
             process = self.run_command_in_virtualenv(
-                'pylint --rcfile={rcfile} {files}'.format(
+                'pylint --score=n --rcfile={rcfile} {files}'.format(
                     rcfile=self.pylint_config,
                     files=' '.join(filtered_source_files)))
 
