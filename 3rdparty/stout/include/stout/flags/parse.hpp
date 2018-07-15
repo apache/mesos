@@ -218,6 +218,53 @@ inline Try<int_fd> parse(const std::string& value)
 }
 #endif // __WINDOWS__
 
+
+// TODO(klueska): Generalize this parser to take any comma separated
+// list and convert it to its appropriate type (i.e., not just for
+// unsigned ints). Issues could arise when the generic type is a
+// string that contains commas though, so generalizing this is not as
+// straightforward as it looks at first glance.
+template <>
+inline Try<std::vector<unsigned int>> parse(const std::string& value)
+{
+  std::vector<unsigned int> result;
+
+  foreach (const std::string& token, strings::tokenize(value, ",")) {
+    Try<unsigned int> number = numify<unsigned int>(token);
+
+    if (number.isError()) {
+      return Error("Failed to numify '" + token + "': " + number.error());
+    }
+
+    result.push_back(number.get());
+  }
+
+  return result;
+}
+
+
+// NOTE: Strings in the set cannot contain commas, since that
+// is the delimiter and we provide no way to escape it.
+//
+// TODO(klueska): Generalize this parser to take any comma separated
+// list and convert it to its appropriate type (i.e., not just for
+// strings).
+template <>
+inline Try<std::set<std::string>> parse(const std::string& value)
+{
+  std::set<std::string> result;
+
+  foreach (const std::string& token, strings::tokenize(value, ",")) {
+    if (result.count(token) > 0) {
+      return Error("Duplicate token '" + token + "'");
+    }
+
+    result.insert(token);
+  }
+
+  return result;
+}
+
 } // namespace flags {
 
 #endif // __STOUT_FLAGS_PARSE_HPP__
