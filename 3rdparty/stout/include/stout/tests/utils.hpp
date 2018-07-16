@@ -30,17 +30,35 @@
 #include <stout/os/sysctl.hpp>
 #endif
 
-class TemporaryDirectoryTest : public ::testing::Test
+template <typename T>
+class MixinTemporaryDirectoryTest : public T
 {
 protected:
   void SetUp() override
+  {
+    T::SetUp();
+
+    ASSERT_SOME(SetUpMixin());
+  }
+
+  void TearDown() override
+  {
+    ASSERT_SOME(TearDownMixin());
+
+    T::TearDown();
+  }
+
+  Try<Nothing> SetUpMixin()
   {
     // Save the current working directory.
     cwd = os::getcwd();
 
     // Create a temporary directory for the test.
     Try<std::string> directory = os::mkdtemp();
-    ASSERT_SOME(directory) << "Failed to mkdtemp";
+
+    if (directory.isError()) {
+      return Error("Failed to mkdtemp: " + directory.error());
+    }
 
     // We get the `realpath` of the temporary directory because some
     // platforms, like macOS, symlink `/tmp` to `/private/var`, but
@@ -48,25 +66,46 @@ protected:
     // This is problematic because a lot of tests compare the
     // `realpath` of a temporary file.
     Result<std::string> realpath = os::realpath(directory.get());
-    ASSERT_SOME(realpath) << "Failed to get realpath of '" << directory.get()
-                          << "': "
-                          << (realpath.isError() ? realpath.error()
-                                                 : "No such directory");
+
+    if (realpath.isError()) {
+      return Error("Failed to get realpath of '" + directory.get() + "'"
+                   ": " + realpath.error());
+    } else if (realpath.isNone()) {
+      return Error("Failed to get realpath of '" + directory.get() + "'"
+                   ": No such directory");
+    }
+
     sandbox = realpath.get();
 
     // Run the test out of the temporary directory we created.
-    ASSERT_SOME(os::chdir(sandbox.get()))
-      << "Failed to chdir into '" << sandbox.get() << "'";
+    Try<Nothing> chdir = os::chdir(sandbox.get());
+
+    if (chdir.isError()) {
+      return Error("Failed to chdir into '" + sandbox.get() + "'"
+                   ": " + chdir.error());
+    }
+
+    return Nothing();
   }
 
-  void TearDown() override
+  Try<Nothing> TearDownMixin()
   {
     // Return to previous working directory and cleanup the sandbox.
-    ASSERT_SOME(os::chdir(cwd));
+    Try<Nothing> chdir = os::chdir(cwd);
+
+    if (chdir.isError()) {
+      return Error("Failed to chdir into '" + cwd + "': " + chdir.error());
+    }
 
     if (sandbox.isSome()) {
-      ASSERT_SOME(os::rmdir(sandbox.get()));
+      Try<Nothing> rmdir = os::rmdir(sandbox.get());
+      if (rmdir.isError()) {
+        return Error("Failed to rmdir '" + sandbox.get() + "'"
+                     ": " + rmdir.error());
+      }
     }
+
+    return Nothing();
   }
 
   // A temporary directory for test purposes.
@@ -76,6 +115,10 @@ protected:
 private:
   std::string cwd;
 };
+
+
+class TemporaryDirectoryTest
+  : public MixinTemporaryDirectoryTest<::testing::Test> {};
 
 
 #ifdef __FreeBSD__
