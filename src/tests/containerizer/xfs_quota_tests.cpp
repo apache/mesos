@@ -53,6 +53,7 @@ using namespace mesos::internal::xfs;
 
 using namespace process;
 
+using std::list;
 using std::string;
 using std::vector;
 
@@ -221,6 +222,19 @@ public:
     os::close(fd.get());
 
     return string("/dev/loop") + stringify(devno);
+  }
+
+  Try<list<string>> getSandboxes()
+  {
+    return os::glob(path::join(
+      slave::paths::getSandboxRootDir(mountPoint.get()),
+      "*",
+      "frameworks",
+      "*",
+      "executors",
+      "*",
+      "runs",
+      "*"));
   }
 
   Option<string> mountOptions;
@@ -943,16 +957,7 @@ TEST_F(ROOT_XFS_QuotaTest, NoCheckpointRecovery)
   // We should have no executors left because we didn't checkpoint.
   ASSERT_TRUE(usage2->executors().empty());
 
-  Try<std::list<string>> sandboxes = os::glob(path::join(
-      slave::paths::getSandboxRootDir(mountPoint.get()),
-      "*",
-      "frameworks",
-      "*",
-      "executors",
-      "*",
-      "runs",
-      "*"));
-
+  Try<std::list<string>> sandboxes = getSandboxes();
   ASSERT_SOME(sandboxes);
 
   // One sandbox and one symlink.
@@ -1055,16 +1060,7 @@ TEST_F(ROOT_XFS_QuotaTest, CheckpointRecovery)
   // We should have still have 1 executor using resources.
   ASSERT_EQ(1, usage1->executors().size());
 
-  Try<std::list<string>> sandboxes = os::glob(path::join(
-      slave::paths::getSandboxRootDir(mountPoint.get()),
-      "*",
-      "frameworks",
-      "*",
-      "executors",
-      "*",
-      "runs",
-      "*"));
-
+  Try<std::list<string>> sandboxes = getSandboxes();
   ASSERT_SOME(sandboxes);
 
   // One sandbox and one symlink.
