@@ -288,7 +288,6 @@ public:
         taskActive = false;
         if (status.reason() == TaskStatus::REASON_CONTAINER_LIMITATION_MEMORY) {
           ++metrics.tasks_oomed;
-          break;
         }
 
         // NOTE: Fetching the executor (e.g. `--executor_uri`) may fail
@@ -296,8 +295,8 @@ public:
         // enough that it makes sense to track this failure metric separately.
         if (status.reason() == TaskStatus::REASON_CONTAINER_LAUNCH_FAILED) {
           ++metrics.launch_failures;
-          break;
         }
+        break;
       case TASK_KILLED:
       case TASK_LOST:
       case TASK_ERROR:
@@ -305,9 +304,22 @@ public:
 
         if (status.reason() != TaskStatus::REASON_INVALID_OFFERS) {
           ++metrics.abnormal_terminations;
-          break;
         }
-      default:
+        break;
+      case TASK_RUNNING:
+        ++metrics.tasks_running;
+        break;
+      // We ignore uninteresting transient task status updates.
+      case TASK_KILLING:
+      case TASK_STAGING:
+      case TASK_STARTING:
+        break;
+      // We ignore task status updates related to reconciliation.
+      case TASK_DROPPED:
+      case TASK_GONE:
+      case TASK_GONE_BY_OPERATOR:
+      case TASK_UNKNOWN:
+      case TASK_UNREACHABLE:
         break;
     }
   }
@@ -343,6 +355,7 @@ private:
             defer(_scheduler, &BalloonSchedulerProcess::_registered)),
         tasks_finished(string(FRAMEWORK_METRICS_PREFIX) + "/tasks_finished"),
         tasks_oomed(string(FRAMEWORK_METRICS_PREFIX) + "/tasks_oomed"),
+        tasks_running(string(FRAMEWORK_METRICS_PREFIX) + "/tasks_running"),
         launch_failures(string(FRAMEWORK_METRICS_PREFIX) + "/launch_failures"),
         abnormal_terminations(
             string(FRAMEWORK_METRICS_PREFIX) + "/abnormal_terminations")
@@ -351,6 +364,7 @@ private:
       process::metrics::add(registered);
       process::metrics::add(tasks_finished);
       process::metrics::add(tasks_oomed);
+      process::metrics::add(tasks_running);
       process::metrics::add(launch_failures);
       process::metrics::add(abnormal_terminations);
     }
@@ -370,6 +384,7 @@ private:
 
     process::metrics::Counter tasks_finished;
     process::metrics::Counter tasks_oomed;
+    process::metrics::Counter tasks_running;
     process::metrics::Counter launch_failures;
     process::metrics::Counter abnormal_terminations;
   } metrics;
