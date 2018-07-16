@@ -716,7 +716,16 @@ TEST(ProcessTest, Process_BENCHMARK_MpscLinkedQueue)
   producerWatch.start();
 
   for (unsigned int t = 0; t < producerCount; t++) {
-    producers.push_back(std::thread([messageCount, s, &q]() {
+    // We want to capture `messageCount`, `s`, and `&q` here. Since
+    // `messageCount` is a constant integer variable initialized with a
+    // compile-time expression in a "reaching scope", it can get captured
+    // without being mentioned in the capture list, see. e.g.,
+    // https://stackoverflow.com/a/43468519/176922.
+    //
+    // We capture implicitly instead of explicitly since this part of the
+    // standard is not supported by msvc, while clang supports it and emits a
+    // warning for unneeded captures.
+    producers.push_back(std::thread([&]() {
       for (int i = 0; i < messageCount; i++) {
         q.enqueue(s);
       }
