@@ -18,9 +18,9 @@
 Set of classes and helper functions for building unit tests for the Mesos CLI.
 """
 
+import io
 import os
 import shutil
-import StringIO
 import subprocess
 import sys
 import tempfile
@@ -49,7 +49,7 @@ class CLITestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        print "\n{class_name}".format(class_name=cls.__name__)
+        print("\n{class_name}".format(class_name=cls.__name__))
 
     @staticmethod
     def default_mesos_build_dir():
@@ -109,7 +109,7 @@ class Executable(object):
 
         try:
             flags = ["--{key}={value}".format(key=key, value=value)
-                     for key, value in self.flags.iteritems()]
+                     for key, value in dict(self.flags).items()]
 
             if self.shell:
                 cmd = ["/bin/sh", self.executable] + flags
@@ -431,7 +431,7 @@ def capture_output(command, argv, extra_args=None):
         extra_args = {}
 
     stdout = sys.stdout
-    sys.stdout = StringIO.StringIO()
+    sys.stdout = io.StringIO()
 
     try:
         command(argv, **extra_args)

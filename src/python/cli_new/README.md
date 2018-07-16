@@ -2,19 +2,14 @@
 
 ## Prerequisites
 
-Make sure you have the following prerequisites
-installed on your system before you begin.
-
-```
-python 2.6 or 2.7
-virtualenv
-```
+Make sure you have python 3.6 or newer installed
+on your system before you begin.
 
 ## Getting Started
 
-Once you you have the prerequisites installed, simply
-run the `bootstrap` script from this directory to set
-up a python virtual environment and start running the tool.
+Once you you have the prerequisites installed, simply run the
+`bootstrap` script from this directory to set up a virtual
+environment using python 3 and start running the tool.
 
 ```
 $ ./bootstrap

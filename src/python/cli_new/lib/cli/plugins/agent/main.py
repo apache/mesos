@@ -65,8 +65,8 @@ class Agent(PluginBase):
                                " endpoint at '{addr}': {error}"
                                .format(addr=master, error=exception))
 
-        if len(agents) == 0:
-            print "The cluster does not have any agents."
+        if not agents:
+            print("The cluster does not have any agents.")
             return
 
         try:
@@ -79,4 +79,4 @@ class Agent(PluginBase):
             raise CLIException("Unable to build table of agents: {error}"
                                .format(error=exception))
 
-        print str(table)
+        print(str(table))

@@ -46,7 +46,6 @@ Hopefully we can remove this brutal hack at some point in the future
 once docopt supports the "program" argument natively.
 """
 
-from __future__ import absolute_import
 import os
 import sys
 
@@ -74,7 +73,7 @@ def docopt(usage, **keywords):
 
     except DocoptExit:
         sys.stdout = stdout
-        print >> sys.stderr, usage.strip()
+        print(usage.strip(), file=sys.stderr)
         sys.exit(1)
 
     except SystemExit:
@@ -82,9 +81,9 @@ def docopt(usage, **keywords):
 
         if "argv" in keywords and any(h in ("-h", "--help")
                                       for h in keywords["argv"]):
-            print usage.strip()
+            print(usage.strip())
         elif "version" in keywords and any(v in ("--version")
                                            for v in keywords["argv"]):
-            print keywords["version"].strip()
+            print(keywords["version"].strip())
 
         sys.exit()

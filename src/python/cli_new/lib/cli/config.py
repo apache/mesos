@@ -91,7 +91,7 @@ class Config(object):
                                        " an 'addresses' list")
 
                 if ("path" not in zk_field or
-                        not isinstance(zk_field["path"], unicode)):
+                        not isinstance(zk_field["path"], str)):
                     raise CLIException("The 'zookeeper' field must contain"
                                        " a 'path' field")
 

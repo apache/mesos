@@ -417,7 +417,7 @@ class PyLinter(LinterBase):
             process = self.run_tox(
                 configfile=os.path.join(source_dir, 'tox.ini'),
                 args=['--rcfile='+self.pylint_config] + filtered_source_files,
-                tox_env='py27-lint')
+                tox_env='py3-lint')
         else:
             process = self.run_command_in_virtualenv(
                 'pylint --score=n --rcfile={rcfile} {files}'.format(

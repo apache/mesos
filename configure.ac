@@ -763,6 +763,8 @@ AC_ARG_VAR([PROTOBUF_JAR], [full path to protobuf jar on prefixed builds])
 
 AC_ARG_VAR([PYTHON], [which Python 2 interpreter to use])
 
+AC_ARG_VAR([PYTHON_3], [which Python 3 interpreter to use])
+
 AC_ARG_VAR([TEST_DRIVER], [executable and arguments of a test driver])
 
 # Check for pthreads (uses m4/ax_pthread.m4).
@@ -2338,7 +2340,9 @@ if test "x$enable_python" = "xyes" || \
   if test -z "$PYTHON" && test -z "$PYTHON_VERSION"; then
     AM_PATH_PYTHON()
   fi
+fi
 
+if test "x$enable_python" = "xyes"; then
   # Check if PYTHON is at least 2.6 or try and find one that is if
   # PYTHON is not set (necessary to run our examples).
   AM_PYTHON_CHECK_VERSION([$PYTHON], [2.6], [],
@@ -2362,6 +2366,37 @@ on the path), you might want to check if you have the PYTHON environment
 variable set to a version of Python greater than 3.0.
 -------------------------------------------------------------------
   ])], [])
+
+  if test "x$enable_new_cli" = "xyes" && test -z "$PYTHON_3"; then
+    AC_MSG_ERROR([Missing PYTHON_3 environment variable
+-------------------------------------------------------------------
+The detected Python version is $PYTHON_VERSION. Python 3 not detected.
+
+When building both the Python bindings and the CLI, the detected Python
+version is used to build the bindings and PYTHON_3 must be set
+explicitely in order to build the CLI.
+-------------------------------------------------------------------
+    ])
+  fi
+fi
+
+if test "x$enable_new_cli" = "xyes"; then
+  if test -z "$PYTHON_3"; then
+    AC_SUBST([PYTHON_3], [$PYTHON])
+  fi
+
+  PYTHON_3_VERSION=`$PYTHON_3 -c 'import sys; print(sys.version[[0:3]])'`
+
+  AM_PYTHON_CHECK_VERSION([$PYTHON_3], [3.6], [],
+                 [AC_MSG_ERROR([The Mesos CLI requires Python >= 3.6
+-------------------------------------------------------------------
+The detected Python 3 version is $PYTHON_3_VERSION.
+
+The new CLI requires Python version 3.6 or newer in order to build.
+You may wish to set the PYTHON_3 environment variable to make sure
+that the right Python executable is found.
+-------------------------------------------------------------------
+  ])])
 fi
 
 if test "x$enable_python" = "xyes"; then
@@ -2642,19 +2677,6 @@ AC_MSG_CHECKING([whether to enable new CLI])
 AS_IF([test "x$enable_new_cli" = "xyes"],
       [AC_MSG_RESULT([yes])],
       [AC_MSG_RESULT([no])])
-
-AS_IF([test "x$enable_new_cli" = "xyes"], [
-  AC_CHECK_PROG([VIRTUALENV_CHECK], [virtualenv], [yes])
-  AS_IF([test "x$VIRTUALENV_CHECK" = "xyes"],, [
-     AC_MSG_ERROR([Cannot find virtualenv
--------------------------------------------------------------------
-The new CLI requires 'virtualenv' be installed as part of your
-Python $PYTHON_VERSION installation.
-
-You may wish to install it via 'pip install virtualenv'.
--------------------------------------------------------------------
-  ])])
-])
 
 AM_CONDITIONAL([ENABLE_NEW_CLI], [test "x$enable_new_cli" = "xyes"])
 

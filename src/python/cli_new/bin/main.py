@@ -62,7 +62,7 @@ def autocomplete(cmds, plugins, config, argv):
     current_word = argv[0]
     argv = argv[1:]
 
-    if len(argv) > 0 and argv[0] == "help":
+    if argv and argv[0] == "help":
         argv = argv[1:]
 
     comp_words = list(cmds.keys()) + ["help"]
@@ -93,7 +93,7 @@ def main(argv):
     cmds = {
         cli.util.get_module(plugins, plugin).PLUGIN_NAME:
         cli.util.get_module(plugins, plugin).SHORT_HELP
-        for plugin in plugins.keys()
+        for plugin in list(plugins.keys())
     }
 
     # Parse all incoming arguments using docopt.
@@ -122,13 +122,13 @@ def main(argv):
         except Exception:
             pass
 
-        print option
-        print " ".join(comp_words)
+        print(option)
+        print(" ".join(comp_words))
 
     # Use the meta-command "help" to print help information for the
     # supplied command and its subcommands.
     elif cmd == "help":
-        if len(argv) > 0 and argv[0] in cmds:
+        if argv and argv[0] in cmds:
             plugin = cli.util.get_module(plugins, argv[0])
             plugin_class = getattr(plugin, plugin.PLUGIN_CLASS)
             plugin_class(settings, config).main(argv[1:] + ["--help"])
@@ -136,7 +136,7 @@ def main(argv):
             main(["--help"])
 
     # Run the command through its plugin.
-    elif cmd in cmds.keys():
+    elif cmd in list(cmds.keys()):
         plugin = cli.util.get_module(plugins, cmd)
         plugin_class = getattr(plugin, plugin.PLUGIN_CLASS)
         plugin_class(settings, config).main(argv)

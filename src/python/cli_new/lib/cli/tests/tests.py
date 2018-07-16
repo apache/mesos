@@ -58,7 +58,7 @@ class TestInfrastructure(CLITestCase):
 
         # pylint: disable=missing-docstring
         def command(args):
-            print template.format(args=args)
+            print(template.format(args=args))
 
         output = capture_output(command, arguments)
 

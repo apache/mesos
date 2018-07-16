@@ -19,7 +19,9 @@ A collection of http related functions used by the CLI and its Plugins.
 """
 
 import json
-import urllib2
+import urllib.request
+import urllib.error
+import urllib.parse
 import time
 
 from cli.exceptions import CLIException
@@ -32,7 +34,7 @@ def read_endpoint(addr, endpoint):
     try:
         url = "http://{addr}/{endpoint}".format(addr=addr, endpoint=endpoint)
 
-        http_response = urllib2.urlopen(url).read().decode("utf-8")
+        http_response = urllib.request.urlopen(url).read().decode("utf-8")
     except Exception as exception:
         raise CLIException("{error}".format(error=str(exception)))
 
@@ -70,8 +72,7 @@ def get_json(addr, endpoint, condition=None, timeout=5):
                 return data
 
         if time.time() - start_time > timeout:
-            raise CLIException("Failed to get data within {seconds} seconds:"
-                               " {error}"
-                               .format(seconds=str(timeout), error=exception))
+            raise CLIException("Failed to get data within {seconds} seconds"
+                               .format(seconds=str(timeout)))
 
         time.sleep(0.1)
