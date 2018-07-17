@@ -30,6 +30,7 @@
 #include <process/pid.hpp>
 #include <process/process.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/error.hpp>
 #include <stout/lambda.hpp>
 #include <stout/nothing.hpp>
@@ -113,6 +114,23 @@ public:
 
 
 /**
+ * Defines the gRPC options for each call.
+ */
+struct CallOptions
+{
+  // Enable the gRPC wait-for-ready semantics by default so the call will be
+  // retried if the connection is not ready. See:
+  // https://github.com/grpc/grpc/blob/master/doc/wait-for-ready.md
+  bool wait_for_ready = true;
+
+  // The timeout of the call. A `DEADLINE_EXCEEDED` status will be returned if
+  // there is no response in the specified amount of time. This is required to
+  // avoid the call from being pending forever.
+  Duration timeout = Seconds(60);
+};
+
+
+/**
  * A copyable interface to manage an internal runtime process for asynchronous
  * gRPC calls. A runtime process keeps a gRPC `CompletionQueue` to manage
  * outstanding requests, a looper thread to wait for any incoming responses from
@@ -142,6 +160,7 @@ public:
    * @param method The asynchronous gRPC call to make. This should be obtained
    *     by the `GRPC_CLIENT_METHOD(service, rpc)` macro.
    * @param request The request protobuf for the gRPC call.
+   * @param options The gRPC options for the call.
    * @return a `Future` of `Try` waiting for a response protobuf or an error.
    */
   template <
@@ -158,7 +177,8 @@ public:
   Future<Try<Response, StatusError>> call(
       const Connection& connection,
       Method&& method,
-      Request&& request)
+      Request&& request,
+      const CallOptions& options)
   {
     // Create a `Promise` that will be set upon receiving a response.
     // TODO(chhsiao): The `Promise` in the `shared_ptr` is not shared, but only
@@ -171,7 +191,7 @@ public:
     // TODO(chhsiao): We use `std::bind` here to forward `request` to avoid an
     // extra copy. We should capture it by forwarding once we get C++14.
     dispatch(data->pid, &RuntimeProcess::send, std::bind(
-        [connection, method, promise](
+        [connection, method, options, promise](
             const Request& request,
             bool terminating,
             ::grpc::CompletionQueue* queue) {
@@ -185,14 +205,11 @@ public:
           std::shared_ptr<::grpc::ClientContext> context(
               new ::grpc::ClientContext());
 
-          // TODO(chhsiao): Allow the caller to specify a timeout.
-          context->set_deadline(
-              std::chrono::system_clock::now() + std::chrono::seconds(5));
+          context->set_wait_for_ready(options.wait_for_ready);
 
-          // Enable the gRPC wait-for-ready semantics by default. See:
-          // https://github.com/grpc/grpc/blob/master/doc/wait-for-ready.md
-          // TODO(chhsiao): Allow the caller to set the option.
-          context->set_wait_for_ready(true);
+          context->set_deadline(
+              std::chrono::system_clock::now() +
+              std::chrono::nanoseconds(options.timeout.ns()));
 
           promise->future().onDiscard([=] { context->TryCancel(); });
 
