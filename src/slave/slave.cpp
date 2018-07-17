@@ -6271,8 +6271,6 @@ void Slave::executorLaunched(
 }
 
 
-// Called by the isolator when an executor process terminates, and by
-// `Slave::launchExecutor` when executor secret generation fails.
 void Slave::executorTerminated(
     const FrameworkID& frameworkId,
     const ExecutorID& executorId,
