@@ -3603,9 +3603,9 @@ void ProcessBase::consume(HttpEvent&& event)
   // but if no handler is found and the path is nested, we shorten it and look
   // again. For example: if the request is for '/a/b/c' and no handler is found,
   // we will then check for '/a/b', and finally for '/a'.
-  while (Path(name).dirname() != name) {
+  while (Path(name, '/').dirname() != name) {
     if (handlers.http.count(name) == 0) {
-      name = Path(name).dirname();
+      name = Path(name, '/').dirname();
       continue;
     }
 
@@ -3658,7 +3658,7 @@ void ProcessBase::consume(HttpEvent&& event)
     }
 
     // Try and determine the Content-Type from an extension.
-    Option<string> extension = Path(response.path).extension();
+    Option<string> extension = Path(response.path, '/').extension();
 
     if (extension.isSome() && assets[name].types.count(extension.get()) > 0) {
       response.headers["Content-Type"] = assets[name].types[extension.get()];

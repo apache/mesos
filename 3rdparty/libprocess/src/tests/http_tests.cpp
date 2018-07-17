@@ -325,10 +325,7 @@ TEST_P(HTTPTest, Endpoints)
 }
 
 
-// TODO(hausdorff): Routing logic is broken on Windows. Fix and enable test. In
-// this case, the '/help/(14)/body' route is missing, but the /help/(14) route
-// exists. See MESOS-5904.
-TEST_P_TEMP_DISABLED_ON_WINDOWS(HTTPTest, EndpointsHelp)
+TEST_P(HTTPTest, EndpointsHelp)
 {
   Http http;
   PID<HttpProcess> pid = http.process->self();
@@ -397,10 +394,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(HTTPTest, EndpointsHelp)
 }
 
 
-// TODO(hausdorff): Routing logic is broken on Windows. Fix and enable test. In
-// this case, the '/help/(14)/body' route is missing, but the /help/(14) route
-// exists. See MESOS-5904.
-TEST_P_TEMP_DISABLED_ON_WINDOWS(HTTPTest, EndpointsHelpRemoval)
+TEST_P(HTTPTest, EndpointsHelpRemoval)
 {
   // Start up a new HttpProcess;
   Owned<Http> http(new Http());
@@ -732,10 +726,7 @@ TEST_P(HTTPTest, Get)
 }
 
 
-// TODO(hausdorff): Routing logic is broken on Windows. Fix and enable test. In
-// this case, the route '/a/b/c' exists and returns 200 ok, but '/a/b' does
-// not. See MESOS-5904.
-TEST_P_TEMP_DISABLED_ON_WINDOWS(HTTPTest, NestedGet)
+TEST_P(HTTPTest, NestedGet)
 {
   Http http;
 
