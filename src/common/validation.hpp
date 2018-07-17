@@ -25,6 +25,13 @@
 #include <stout/option.hpp>
 
 namespace mesos {
+
+namespace executor {
+
+class Call;
+
+} // namespace executor {
+
 namespace internal {
 namespace common {
 namespace validation {
@@ -59,6 +66,8 @@ Option<Error> validateHealthCheck(const HealthCheck& healthCheck);
 Option<Error> validateCheckInfo(const CheckInfo& checkInfo);
 
 Option<Error> validateCheckStatusInfo(const CheckStatusInfo& checkStatusInfo);
+
+Option<Error> validateExecutorCall(const mesos::executor::Call& call);
 
 } // namespace validation {
 } // namespace common {

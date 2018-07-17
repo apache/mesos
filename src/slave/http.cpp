@@ -61,6 +61,7 @@
 #include "common/http.hpp"
 #include "common/recordio.hpp"
 #include "common/resources_utils.hpp"
+#include "common/validation.hpp"
 
 #include "internal/devolve.hpp"
 
@@ -767,7 +768,7 @@ Future<Response> Http::executor(
 
   const executor::Call call = devolve(v1Call);
 
-  Option<Error> error = validation::executor::call::validate(call);
+  Option<Error> error = common::validation::validateExecutorCall(call);
 
   if (error.isSome()) {
     return BadRequest("Failed to validate Executor::Call: " + error->message);

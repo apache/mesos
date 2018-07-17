@@ -45,13 +45,12 @@
 
 #include "common/http.hpp"
 #include "common/recordio.hpp"
+#include "common/validation.hpp"
 
 #include "internal/devolve.hpp"
 
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
-
-#include "slave/validation.hpp"
 
 #include "version/version.hpp"
 
@@ -63,8 +62,6 @@ using std::queue;
 using std::string;
 
 using mesos::internal::recordio::Reader;
-
-using mesos::internal::slave::validation::executor::call::validate;
 
 using process::async;
 using process::Clock;
@@ -302,7 +299,8 @@ public:
 
   void send(const Call& call)
   {
-    Option<Error> error = validate(devolve(call));
+    Option<Error> error =
+      common::validation::validateExecutorCall(devolve(call));
     if (error.isSome()) {
       drop(call, error->message);
       return;
