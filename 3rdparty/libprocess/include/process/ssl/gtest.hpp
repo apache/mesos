@@ -275,7 +275,7 @@ class SSLTest : public SSLTemporaryDirectoryTest,
 protected:
   SSLTest() : data("Hello World!") {}
 
-  virtual void SetUp()
+  void SetUp() override
   {
     SSLTemporaryDirectoryTest::SetUp();
     generate_keys_and_certs();
