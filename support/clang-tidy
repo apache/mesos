@@ -26,6 +26,8 @@ mesos-*,\
 \
 misc-use-after-move,\
 \
+modernize-use-override,\
+\
 readability-redundant-string-cstr\
 "
 FormatStyle: file

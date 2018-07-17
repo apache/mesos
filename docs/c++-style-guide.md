@@ -647,3 +647,16 @@ Const expression constructors allow object initialization at compile time provid
   C++11 does not provide `constexpr string` or `constexpr` containers in the STL and hence `constexpr` cannot be used for any class using stout's Error() class.
 
 * `enum class`.
+
+* `override`.
+
+When overriding a virtual member function, the `override` keyword should always be used.  The [Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html#Inheritance) supplies the rationale for this:
+
+<blockquote>
+A function or destructor marked override or final that is not an
+override of a base class virtual function will not compile, and
+this helps catch common errors. The specifiers serve as documentation;
+if no specifier is present, the reader has to check all ancestors
+of the class in question to determine if the function or destructor
+is virtual or not.
+</blockquote>
