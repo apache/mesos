@@ -53,7 +53,7 @@ public:
   explicit UpdateWeights(const std::vector<WeightInfo>& _weightInfos);
 
 protected:
-  Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs);
+  Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs) override;
 
 private:
   const std::vector<WeightInfo> weightInfos;

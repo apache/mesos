@@ -34,7 +34,7 @@ public:
   explicit AdmitSlave(const SlaveInfo& _info);
 
 protected:
-  virtual Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs);
+  Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs) override;
 
 private:
   SlaveInfo info;
@@ -48,7 +48,7 @@ public:
   explicit UpdateSlave(const SlaveInfo& _info);
 
 protected:
-  virtual Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs);
+  Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs) override;
 
 private:
   SlaveInfo info;
@@ -65,7 +65,7 @@ public:
       const TimeInfo& _unreachableTime);
 
 protected:
-  virtual Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs);
+  Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs) override;
 
 private:
   const SlaveInfo info;
@@ -85,7 +85,7 @@ public:
   explicit MarkSlaveReachable(const SlaveInfo& _info);
 
 protected:
-  virtual Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs);
+  Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs) override;
 
 private:
   SlaveInfo info;
@@ -100,7 +100,8 @@ public:
       const hashset<SlaveID>& _toRemoveGone);
 
 protected:
-  virtual Try<bool> perform(Registry* registry, hashset<SlaveID>* /*slaveIDs*/);
+  Try<bool> perform(Registry* registry, hashset<SlaveID>* /*slaveIDs*/)
+    override;
 
 private:
   const hashset<SlaveID> toRemoveUnreachable;
@@ -114,7 +115,7 @@ public:
   explicit RemoveSlave(const SlaveInfo& _info);
 
 protected:
-  virtual Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs);
+  Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs) override;
 
 private:
   const SlaveInfo info;
@@ -129,7 +130,7 @@ public:
   MarkSlaveGone(const SlaveID& _id, const TimeInfo& _goneTime);
 
 protected:
-  virtual Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs);
+  Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs) override;
 
 private:
   const SlaveID id;

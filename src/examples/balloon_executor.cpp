@@ -159,28 +159,28 @@ public:
   BalloonExecutor()
     : launched(false) {}
 
-  virtual ~BalloonExecutor() {}
+  ~BalloonExecutor() override {}
 
-  virtual void registered(ExecutorDriver* driver,
+  void registered(ExecutorDriver* driver,
                           const ExecutorInfo& executorInfo,
                           const FrameworkInfo& frameworkInfo,
-                          const SlaveInfo& slaveInfo)
+                          const SlaveInfo& slaveInfo) override
   {
     LOG(INFO) << "Registered";
   }
 
-  virtual void reregistered(ExecutorDriver* driver,
-                            const SlaveInfo& slaveInfo)
+  void reregistered(ExecutorDriver* driver,
+                            const SlaveInfo& slaveInfo) override
   {
     LOG(INFO) << "Reregistered";
   }
 
-  virtual void disconnected(ExecutorDriver* driver)
+  void disconnected(ExecutorDriver* driver) override
   {
     LOG(INFO) << "Disconnected";
   }
 
-  virtual void launchTask(ExecutorDriver* driver, const TaskInfo& task)
+  void launchTask(ExecutorDriver* driver, const TaskInfo& task) override
   {
     if (launched) {
       TaskStatus status;
@@ -207,22 +207,23 @@ public:
     launched = true;
   }
 
-  virtual void killTask(ExecutorDriver* driver, const TaskID& taskId)
+  void killTask(ExecutorDriver* driver, const TaskID& taskId) override
   {
     LOG(INFO) << "Kill task " << taskId.value();
   }
 
-  virtual void frameworkMessage(ExecutorDriver* driver, const std::string& data)
+  void frameworkMessage(
+      ExecutorDriver* driver, const std::string& data) override
   {
     LOG(INFO) << "Framework message: " << data;
   }
 
-  virtual void shutdown(ExecutorDriver* driver)
+  void shutdown(ExecutorDriver* driver) override
   {
     LOG(INFO) << "Shutdown";
   }
 
-  virtual void error(ExecutorDriver* driver, const std::string& message)
+  void error(ExecutorDriver* driver, const std::string& message) override
   {
     LOG(INFO) << "Error message: " << message;
   }

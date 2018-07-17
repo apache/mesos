@@ -321,9 +321,9 @@ public:
   static void TearDownTestCase();
 
 protected:
-  virtual slave::Flags CreateSlaveFlags();
-  virtual void SetUp();
-  virtual void TearDown();
+  slave::Flags CreateSlaveFlags() override;
+  void SetUp() override;
+  void TearDown() override;
 
 private:
   // Base hierarchy for separately mounted cgroup controllers, e.g., if the
@@ -371,13 +371,13 @@ public:
     server = nullptr;
   }
 
-  virtual void SetUp()
+  void SetUp() override
   {
     MesosTest::SetUp();
     server->startNetwork();
   }
 
-  virtual void TearDown()
+  void TearDown() override
   {
     server->shutdownNetwork();
     MesosTest::TearDown();
@@ -386,7 +386,7 @@ public:
 protected:
   MesosZooKeeperTest() : MesosTest(url) {}
 
-  virtual master::Flags CreateMasterFlags()
+  master::Flags CreateMasterFlags() override
   {
     master::Flags flags = MesosTest::CreateMasterFlags();
 
@@ -2277,7 +2277,7 @@ class MockScheduler : public Scheduler
 {
 public:
   MockScheduler();
-  virtual ~MockScheduler();
+  ~MockScheduler() override;
 
   MOCK_METHOD3(registered, void(SchedulerDriver*,
                                 const FrameworkID&,
@@ -2398,7 +2398,7 @@ class MockExecutor : public Executor
 {
 public:
   MockExecutor(const ExecutorID& _id);
-  virtual ~MockExecutor();
+  ~MockExecutor() override;
 
   MOCK_METHOD4(registered, void(ExecutorDriver*,
                                 const ExecutorInfo&,
@@ -2578,7 +2578,7 @@ public:
           v1::DEFAULT_CREDENTIAL,
           detector) {}
 
-  virtual ~TestMesos()
+  ~TestMesos() override
   {
     // Since the destructor for `TestMesos` is invoked first, the library can
     // make more callbacks to the `scheduler` object before the `Mesos` (base
@@ -3270,7 +3270,7 @@ class MockAuthorizer : public Authorizer
 {
 public:
   MockAuthorizer();
-  virtual ~MockAuthorizer();
+  ~MockAuthorizer() override;
 
   MOCK_METHOD1(
       authorized, process::Future<bool>(const authorization::Request& request));
@@ -3287,7 +3287,7 @@ class MockGarbageCollector : public slave::GarbageCollector
 {
 public:
   explicit MockGarbageCollector(const std::string& workDir);
-  virtual ~MockGarbageCollector();
+  ~MockGarbageCollector() override;
 
   // The default action is to always return `true`.
   MOCK_METHOD1(unschedule, process::Future<bool>(const std::string& path));
@@ -3298,7 +3298,7 @@ class MockSecretGenerator : public SecretGenerator
 {
 public:
   MockSecretGenerator() = default;
-  virtual ~MockSecretGenerator() = default;
+  ~MockSecretGenerator() override = default;
 
   MOCK_METHOD1(generate, process::Future<Secret>(
       const process::http::authentication::Principal& principal));

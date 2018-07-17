@@ -84,7 +84,7 @@ protected:
             authenticator.get())));
   }
 
-  virtual void TearDown()
+  void TearDown() override
   {
     foreach (const string& realm, realms) {
       // We need to wait in order to ensure that the operation completes before

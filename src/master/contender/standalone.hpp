@@ -38,15 +38,15 @@ public:
     : initialized(false),
       promise(nullptr) {}
 
-  virtual ~StandaloneMasterContender();
+  ~StandaloneMasterContender() override;
 
   // MasterContender implementation.
-  virtual void initialize(const MasterInfo& masterInfo);
+  void initialize(const MasterInfo& masterInfo) override;
 
   // In this basic implementation the outer Future directly returns
   // and inner Future stays pending because there is only one
   // contender in the contest.
-  virtual process::Future<process::Future<Nothing>> contend();
+  process::Future<process::Future<Nothing>> contend() override;
 
 private:
   bool initialized;

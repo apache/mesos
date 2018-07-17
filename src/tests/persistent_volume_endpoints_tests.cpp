@@ -76,7 +76,7 @@ class PersistentVolumeEndpointsTest : public MesosTest
 public:
   // Set up the master flags such that it allows registration of the framework
   // created with 'createFrameworkInfo'.
-  virtual master::Flags CreateMasterFlags()
+  master::Flags CreateMasterFlags() override
   {
     // Turn off periodic allocations to avoid the race between
     // `HierarchicalAllocator::updateAvailable()` and periodic allocations.

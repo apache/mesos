@@ -39,8 +39,8 @@ class LeaderDetectorProcess : public Process<LeaderDetectorProcess>
 {
 public:
   explicit LeaderDetectorProcess(Group* group);
-  virtual ~LeaderDetectorProcess();
-  virtual void initialize();
+  ~LeaderDetectorProcess() override;
+  void initialize() override;
 
   // LeaderDetector implementation.
   Future<Option<Group::Membership>> detect(

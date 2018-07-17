@@ -64,14 +64,14 @@ public:
       pid(_pid),
       connection(nullptr) {}
 
-  virtual ~CRAMMD5AuthenticatorSessionProcess()
+  ~CRAMMD5AuthenticatorSessionProcess() override
   {
     if (connection != nullptr) {
       sasl_dispose(&connection);
     }
   }
 
-  virtual void finalize()
+  void finalize() override
   {
     discarded(); // Fail the promise.
   }
@@ -167,7 +167,7 @@ public:
     return promise.future();
   }
 
-  virtual void initialize()
+  void initialize() override
   {
     link(pid); // Don't bother waiting for a lost authenticatee.
 
@@ -182,7 +182,7 @@ public:
         &AuthenticationStepMessage::data);
   }
 
-  virtual void exited(const UPID& _pid)
+  void exited(const UPID& _pid) override
   {
     if (pid == _pid) {
       status = ERROR;
@@ -407,7 +407,7 @@ public:
   CRAMMD5AuthenticatorProcess() :
     ProcessBase(ID::generate("crammd5-authenticator")) {}
 
-  virtual ~CRAMMD5AuthenticatorProcess() {}
+  ~CRAMMD5AuthenticatorProcess() override {}
 
   Future<Option<string>> authenticate(const UPID& pid)
   {

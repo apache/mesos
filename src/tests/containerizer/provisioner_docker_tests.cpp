@@ -122,7 +122,7 @@ public:
   }
 
 protected:
-  virtual void SetUp()
+  void SetUp() override
   {
     TemporaryDirectoryTest::SetUp();
 
@@ -304,7 +304,7 @@ public:
       .WillRepeatedly(Invoke(this, &MockPuller::unmocked_pull));
   }
 
-  virtual ~MockPuller() {}
+  ~MockPuller() override {}
 
   MOCK_METHOD4(
       pull,

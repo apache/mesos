@@ -93,7 +93,7 @@ public:
     }
   }
 
-  virtual ~Perf() {}
+  ~Perf() override {}
 
   Future<string> output()
   {
@@ -101,7 +101,7 @@ public:
   }
 
 protected:
-  virtual void initialize()
+  void initialize() override
   {
     // Stop when no one cares.
     promise.future().onDiscard(lambda::bind(
@@ -110,7 +110,7 @@ protected:
     execute();
   }
 
-  virtual void finalize()
+  void finalize() override
   {
     // Kill the perf process (if it's still running) by sending
     // SIGTERM to the signal handler which will then SIGKILL the

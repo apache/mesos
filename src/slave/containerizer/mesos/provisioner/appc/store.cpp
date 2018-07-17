@@ -70,7 +70,7 @@ public:
       Owned<Cache> cache,
       Owned<Fetcher> fetcher);
 
-  ~StoreProcess() {}
+  ~StoreProcess() override {}
 
   Future<Nothing> recover();
 

@@ -85,7 +85,7 @@ public:
   // Delete assignment operator.
   Mesos& operator=(const Mesos& other) = delete;
 
-  virtual ~Mesos();
+  ~Mesos() override;
 
   // Attempts to send a call to the master.
   //
@@ -97,7 +97,7 @@ public:
   // events without ever being sent to the master. This includes when
   // calls are sent but no master is currently detected (i.e., we're
   // disconnected).
-  virtual void send(const Call& call) override;
+  void send(const Call& call) override;
 
   // Attempts to send a call to the master, returning the response.
   //
@@ -131,7 +131,7 @@ public:
   //
   // Note: This method cannot be used to send `SUBSCRIBE` calls, use `send()`
   // instead.
-  virtual process::Future<APIResult> call(const Call& callMessage) override;
+  process::Future<APIResult> call(const Call& callMessage) override;
 
   // Force a reconnection with the master.
   //
@@ -144,7 +144,7 @@ public:
   // This call would be ignored if the scheduler is already disconnected with
   // the master (e.g., no new master has been elected). Otherwise, the scheduler
   // would get a 'disconnected' callback followed by a 'connected' callback.
-  virtual void reconnect() override;
+  void reconnect() override;
 
 protected:
   // NOTE: This constructor is used for testing.

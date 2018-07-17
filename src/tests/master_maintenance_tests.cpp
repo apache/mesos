@@ -112,7 +112,7 @@ JSON::Array createMachineList(std::initializer_list<MachineID> _ids)
 class MasterMaintenanceTest : public MesosTest
 {
 public:
-  virtual void SetUp()
+  void SetUp() override
   {
     MesosTest::SetUp();
 
@@ -130,7 +130,7 @@ public:
     unavailability = createUnavailability(Clock::now());
   }
 
-  virtual slave::Flags CreateSlaveFlags()
+  slave::Flags CreateSlaveFlags() override
   {
     slave::Flags slaveFlags = MesosTest::CreateSlaveFlags();
     slaveFlags.hostname = maintenanceHostname;

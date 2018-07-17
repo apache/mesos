@@ -117,7 +117,7 @@ class MasterAPITest
     public WithParamInterface<ContentType>
 {
 public:
-  virtual master::Flags CreateMasterFlags()
+  master::Flags CreateMasterFlags() override
   {
     // Turn off periodic allocations to avoid the race between
     // `HierarchicalAllocator::updateAvailable()` and periodic allocations.
@@ -4703,7 +4703,7 @@ class AgentAPITest
     public WithParamInterface<ContentType>
 {
 public:
-  virtual master::Flags CreateMasterFlags()
+  master::Flags CreateMasterFlags() override
   {
     // Turn off periodic allocations to avoid the race between
     // `HierarchicalAllocator::updateAvailable()` and periodic allocations.

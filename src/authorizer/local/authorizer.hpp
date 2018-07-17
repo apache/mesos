@@ -60,14 +60,14 @@ public:
   // parse, an error is returned.
   static Try<Authorizer*> create(const Parameters& parameters);
 
-  virtual ~LocalAuthorizer();
+  ~LocalAuthorizer() override;
 
-  virtual process::Future<bool> authorized(
-      const authorization::Request& request);
+  process::Future<bool> authorized(
+      const authorization::Request& request) override;
 
-  virtual process::Future<process::Owned<ObjectApprover>> getObjectApprover(
+  process::Future<process::Owned<ObjectApprover>> getObjectApprover(
       const Option<authorization::Subject>& subject,
-      const authorization::Action& action);
+      const authorization::Action& action) override;
 
 private:
   LocalAuthorizer(const ACLs& acls);

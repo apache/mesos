@@ -210,7 +210,7 @@ public:
     }
   }
 
-  virtual ~MesosProcess()
+  ~MesosProcess() override
   {
     disconnect();
 
@@ -325,7 +325,7 @@ public:
   }
 
 protected:
-  virtual void initialize()
+  void initialize() override
   {
     // Initialize modules.
     if (flags.modules.isSome() && flags.modulesDir.isSome()) {

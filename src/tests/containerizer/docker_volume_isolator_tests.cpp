@@ -78,7 +78,7 @@ class MockDockerVolumeDriverClient : public DriverClient
 public:
   MockDockerVolumeDriverClient() {}
 
-  virtual ~MockDockerVolumeDriverClient() {}
+  ~MockDockerVolumeDriverClient() override {}
 
   MOCK_METHOD3(
       mount,
@@ -98,7 +98,7 @@ public:
 class DockerVolumeIsolatorTest : public MesosTest
 {
 protected:
-  virtual void TearDown()
+  void TearDown() override
   {
     // Try to remove any mounts under sandbox.
     if (::geteuid() == 0) {

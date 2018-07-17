@@ -204,7 +204,7 @@ public:
   }
 
 protected:
-  virtual void initialize()
+  void initialize() override
   {
     // We initialize the library here to ensure that callbacks are only invoked
     // after the process has spawned.

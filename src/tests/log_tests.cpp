@@ -1520,7 +1520,7 @@ public:
   explicit MockReplica(const string& path) :
     Replica(path) {}
 
-  virtual ~MockReplica() {}
+  ~MockReplica() override {}
 
   MOCK_METHOD1(update, Future<bool>(const Metadata::Status& status));
 
@@ -2451,7 +2451,7 @@ TEST_F(LogTest, ReaderCatchup)
 class LogZooKeeperTest : public ZooKeeperTest
 {
 protected:
-  virtual void SetUp()
+  void SetUp() override
   {
     ZooKeeperTest::SetUp();
 
@@ -2472,7 +2472,7 @@ protected:
       << "Failed to chdir into '" << sandbox.get() << "'";
   }
 
-  virtual void TearDown()
+  void TearDown() override
   {
     // Return to previous working directory and cleanup the sandbox.
     ASSERT_SOME(os::chdir(cwd));

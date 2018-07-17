@@ -75,7 +75,7 @@ constexpr char URI_DISK_PROFILE_ADAPTOR_NAME[] =
 class UriDiskProfileAdaptorTest : public MesosTest
 {
 public:
-  virtual void SetUp()
+  void SetUp() override
   {
     MesosTest::SetUp();
 
@@ -91,7 +91,7 @@ public:
     ASSERT_SOME(modules::ModuleManager::load(modules));
   }
 
-  virtual void TearDown()
+  void TearDown() override
   {
     foreach (const Modules::Library& library, modules.libraries()) {
       foreach (const Modules::Library::Module& module, library.modules()) {

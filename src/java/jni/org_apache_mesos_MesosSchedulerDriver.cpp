@@ -46,27 +46,27 @@ public:
     env->GetJavaVM(&jvm);
   }
 
-  virtual ~JNIScheduler() {}
+  ~JNIScheduler() override {}
 
-  virtual void registered(SchedulerDriver* driver,
+  void registered(SchedulerDriver* driver,
                           const FrameworkID& frameworkId,
-                          const MasterInfo& masterInfo);
-  virtual void reregistered(SchedulerDriver*, const MasterInfo& masterInfo);
-  virtual void disconnected(SchedulerDriver* driver);
-  virtual void resourceOffers(SchedulerDriver* driver,
-                              const vector<Offer>& offers);
-  virtual void offerRescinded(SchedulerDriver* driver, const OfferID& offerId);
-  virtual void statusUpdate(SchedulerDriver* driver, const TaskStatus& status);
-  virtual void frameworkMessage(SchedulerDriver* driver,
+                          const MasterInfo& masterInfo) override;
+  void reregistered(SchedulerDriver*, const MasterInfo& masterInfo) override;
+  void disconnected(SchedulerDriver* driver) override;
+  void resourceOffers(SchedulerDriver* driver,
+                              const vector<Offer>& offers) override;
+  void offerRescinded(SchedulerDriver* driver, const OfferID& offerId) override;
+  void statusUpdate(SchedulerDriver* driver, const TaskStatus& status) override;
+  void frameworkMessage(SchedulerDriver* driver,
                                 const ExecutorID& executorId,
                                 const SlaveID& slaveId,
-                                const string& data);
-  virtual void slaveLost(SchedulerDriver* driver, const SlaveID& slaveId);
-  virtual void executorLost(SchedulerDriver* driver,
+                                const string& data) override;
+  void slaveLost(SchedulerDriver* driver, const SlaveID& slaveId) override;
+  void executorLost(SchedulerDriver* driver,
                             const ExecutorID& executorId,
                             const SlaveID& slaveId,
-                            int status);
-  virtual void error(SchedulerDriver* driver, const string& message);
+                            int status) override;
+  void error(SchedulerDriver* driver, const string& message) override;
 
   JavaVM* jvm;
   JNIEnv* env;

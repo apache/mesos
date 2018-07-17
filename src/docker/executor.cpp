@@ -119,7 +119,7 @@ public:
       stop(Nothing()),
       inspect(Nothing()) {}
 
-  virtual ~DockerExecutorProcess() {}
+  ~DockerExecutorProcess() override {}
 
   void registered(
       ExecutorDriver* _driver,
@@ -898,17 +898,17 @@ public:
     spawn(process.get());
   }
 
-  virtual ~DockerExecutor()
+  ~DockerExecutor() override
   {
     terminate(process.get());
     wait(process.get());
   }
 
-  virtual void registered(
+  void registered(
       ExecutorDriver* driver,
       const ExecutorInfo& executorInfo,
       const FrameworkInfo& frameworkInfo,
-      const SlaveInfo& slaveInfo)
+      const SlaveInfo& slaveInfo) override
   {
     dispatch(process.get(),
              &DockerExecutorProcess::registered,
@@ -918,9 +918,9 @@ public:
              slaveInfo);
   }
 
-  virtual void reregistered(
+  void reregistered(
       ExecutorDriver* driver,
-      const SlaveInfo& slaveInfo)
+      const SlaveInfo& slaveInfo) override
   {
     dispatch(process.get(),
              &DockerExecutorProcess::reregistered,
@@ -928,22 +928,22 @@ public:
              slaveInfo);
   }
 
-  virtual void disconnected(ExecutorDriver* driver)
+  void disconnected(ExecutorDriver* driver) override
   {
     dispatch(process.get(), &DockerExecutorProcess::disconnected, driver);
   }
 
-  virtual void launchTask(ExecutorDriver* driver, const TaskInfo& task)
+  void launchTask(ExecutorDriver* driver, const TaskInfo& task) override
   {
     dispatch(process.get(), &DockerExecutorProcess::launchTask, driver, task);
   }
 
-  virtual void killTask(ExecutorDriver* driver, const TaskID& taskId)
+  void killTask(ExecutorDriver* driver, const TaskID& taskId) override
   {
     dispatch(process.get(), &DockerExecutorProcess::killTask, driver, taskId);
   }
 
-  virtual void frameworkMessage(ExecutorDriver* driver, const string& data)
+  void frameworkMessage(ExecutorDriver* driver, const string& data) override
   {
     dispatch(process.get(),
              &DockerExecutorProcess::frameworkMessage,
@@ -951,12 +951,12 @@ public:
              data);
   }
 
-  virtual void shutdown(ExecutorDriver* driver)
+  void shutdown(ExecutorDriver* driver) override
   {
     dispatch(process.get(), &DockerExecutorProcess::shutdown, driver);
   }
 
-  virtual void error(ExecutorDriver* driver, const string& data)
+  void error(ExecutorDriver* driver, const string& data) override
   {
     dispatch(process.get(), &DockerExecutorProcess::error, driver, data);
   }

@@ -525,7 +525,7 @@ public:
   MOCK_METHOD1(test, Future<http::Response>(const http::Request&));
 
 protected:
-  virtual void initialize()
+  void initialize() override
   {
     route("/test", None(), &HttpProcess::test);
   }

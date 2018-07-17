@@ -77,13 +77,13 @@ public:
   // Delete assignment operator.
   Mesos& operator=(const Mesos& other) = delete;
 
-  virtual ~Mesos();
+  ~Mesos() override;
 
   // Attempts to send a call to the agent.
   //
   // Some local validation of calls is performed which may result in dropped
   // events without ever being sent to the agent.
-  virtual void send(const Call& call) override;
+  void send(const Call& call) override;
 
 private:
   process::Owned<MesosProcess> process;

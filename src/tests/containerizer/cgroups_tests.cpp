@@ -128,7 +128,7 @@ public:
     : subsystems(_subsystems) {}
 
 protected:
-  virtual void SetUp()
+  void SetUp() override
   {
     CgroupsTest::SetUp();
 
@@ -180,7 +180,7 @@ protected:
     }
   }
 
-  virtual void TearDown()
+  void TearDown() override
   {
     // Remove all *our* cgroups.
     foreach (const string& subsystem, strings::tokenize(subsystems, ",")) {
@@ -1055,7 +1055,7 @@ public:
       cgroup(TEST_CGROUPS_ROOT) {}
 
 protected:
-  virtual void SetUp()
+  void SetUp() override
   {
     CgroupsAnyHierarchyTest::SetUp();
 

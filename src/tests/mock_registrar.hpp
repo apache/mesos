@@ -43,7 +43,7 @@ public:
                 mesos::state::State* state,
                 const Option<std::string>& authenticationRealm = None());
 
-  virtual ~MockRegistrar();
+  ~MockRegistrar() override;
 
   MOCK_METHOD1(
       apply,

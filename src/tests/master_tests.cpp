@@ -1357,7 +1357,7 @@ protected:
     : path("whitelist.txt")
   {}
 
-  virtual ~WhitelistTest()
+  ~WhitelistTest() override
   {
     os::rm(path);
   }
@@ -9019,7 +9019,7 @@ class MasterTestPrePostReservationRefinement
   : public MasterTest,
     public WithParamInterface<bool> {
 public:
-  virtual master::Flags CreateMasterFlags()
+  master::Flags CreateMasterFlags() override
   {
     // Turn off periodic allocations to avoid the race between
     // `HierarchicalAllocator::updateAvailable()` and periodic allocations.

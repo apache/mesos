@@ -161,7 +161,7 @@ public:
       launcherDirectory(_launcherDirectory),
       authorizationHeader(_authorizationHeader) {}
 
-  virtual ~DefaultExecutor() = default;
+  ~DefaultExecutor() override = default;
 
   void connected()
   {
@@ -303,7 +303,7 @@ public:
   }
 
 protected:
-  virtual void initialize()
+  void initialize() override
   {
     mesos.reset(new Mesos(
         contentType,

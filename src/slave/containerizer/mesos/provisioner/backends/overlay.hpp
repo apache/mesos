@@ -45,18 +45,18 @@ class OverlayBackendProcess;
 class OverlayBackend : public Backend
 {
 public:
-  virtual ~OverlayBackend();
+  ~OverlayBackend() override;
 
   static Try<process::Owned<Backend>> create(const Flags&);
 
-  virtual process::Future<Nothing> provision(
+  process::Future<Nothing> provision(
       const std::vector<std::string>& layers,
       const std::string& rootfs,
-      const std::string& backendDir);
+      const std::string& backendDir) override;
 
-  virtual process::Future<bool> destroy(
+  process::Future<bool> destroy(
       const std::string& rootfs,
-      const std::string& backendDir);
+      const std::string& backendDir) override;
 
 private:
   explicit OverlayBackend(process::Owned<OverlayBackendProcess> process);

@@ -186,7 +186,7 @@ private:
 class SubsystemProcess : public process::Process<SubsystemProcess>
 {
 public:
-  virtual ~SubsystemProcess() {}
+  ~SubsystemProcess() override {}
 
   virtual std::string name() const = 0;
 

@@ -69,7 +69,7 @@ public:
   void pause();
   void resume();
 
-  virtual ~CheckerProcess() {}
+  ~CheckerProcess() override {}
 
 protected:
   void initialize() override;

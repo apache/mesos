@@ -48,8 +48,8 @@ public:
     bool help;
   };
 
-  virtual std::string name() const { return "replica"; }
-  virtual Try<Nothing> execute(int argc = 0, char** argv = nullptr);
+  std::string name() const override { return "replica"; }
+  Try<Nothing> execute(int argc = 0, char** argv = nullptr) override;
 
   // Users can change the default configuration by setting this flags.
   Flags flags;

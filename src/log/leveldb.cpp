@@ -41,9 +41,9 @@ namespace log {
 class Varint64Comparator : public leveldb::Comparator
 {
 public:
-  virtual int Compare(
+  int Compare(
       const leveldb::Slice& a,
-      const leveldb::Slice& b) const
+      const leveldb::Slice& b) const override
   {
     // TODO(benh): Use varint comparator.
     LOG(FATAL) << "Unimplemented";
@@ -55,7 +55,7 @@ public:
     UNREACHABLE();
   }
 
-  virtual const char* Name() const
+  const char* Name() const override
   {
     // Note that this name MUST NOT CHANGE across uses of this
     // comparator with the same DB (the semantics of doing so are
@@ -63,14 +63,14 @@ public:
     return "varint64";
   }
 
-  virtual void FindShortestSeparator(
+  void FindShortestSeparator(
       string* start,
-      const leveldb::Slice& limit) const
+      const leveldb::Slice& limit) const override
   {
     // Intentional no-op.
   }
 
-  virtual void FindShortSuccessor(string* key) const
+  void FindShortSuccessor(string* key) const override
   {
     // Intentional no-op.
   }

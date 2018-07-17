@@ -68,7 +68,7 @@ public:
         lambda::_4);
   }
 
-  virtual void initialize()
+  void initialize() override
   {
     // There are two different timeouts here:
     //
@@ -134,7 +134,7 @@ public:
     }
   }
 
-  virtual void finalize()
+  void finalize() override
   {
     int ret = zookeeper_close(zh);
     if (ret != ZOK) {

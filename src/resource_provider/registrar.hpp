@@ -48,7 +48,7 @@ public:
   class Operation : public process::Promise<bool>
   {
   public:
-    virtual ~Operation() = default;
+    ~Operation() override = default;
 
     // Attempts to invoke the operation on the registry object.
     //

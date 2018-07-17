@@ -192,12 +192,12 @@ class LogrotateContainerLogger : public mesos::slave::ContainerLogger
 public:
   LogrotateContainerLogger(const Flags& _flags);
 
-  virtual ~LogrotateContainerLogger();
+  ~LogrotateContainerLogger() override;
 
   // This is a noop. The logrotate container logger has nothing to initialize.
-  virtual Try<Nothing> initialize() override;
+  Try<Nothing> initialize() override;
 
-  virtual process::Future<mesos::slave::ContainerIO> prepare(
+  process::Future<mesos::slave::ContainerIO> prepare(
       const ContainerID& containerId,
       const mesos::slave::ContainerConfig& containerConfig) override;
 

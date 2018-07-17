@@ -46,7 +46,7 @@ public:
     : ProcessBase(ID::generate("standalone-master-detector")),
       leader(_leader) {}
 
-  ~StandaloneMasterDetectorProcess()
+  ~StandaloneMasterDetectorProcess() override
   {
     discardPromises(&promises);
   }

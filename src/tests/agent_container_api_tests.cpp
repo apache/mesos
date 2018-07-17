@@ -434,7 +434,7 @@ public:
   }
 
 protected:
-  virtual void TearDown()
+  void TearDown() override
   {
     if (normal.isSome()) {
       normal->driver->stop();

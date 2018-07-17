@@ -87,7 +87,7 @@ protected:
 
   // During the per-test tear-down, we unload the module to allow
   // later loads to succeed.
-  ~ModuleTest()
+  ~ModuleTest() override
   {
     // The TestModule instance is created by calling new. Let's
     // delete it to avoid memory leaks.

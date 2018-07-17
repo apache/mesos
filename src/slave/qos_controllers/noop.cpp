@@ -35,7 +35,7 @@ namespace slave {
 class NoopQoSControllerProcess : public Process<NoopQoSControllerProcess>
 {
 public:
-  virtual ~NoopQoSControllerProcess() {}
+  ~NoopQoSControllerProcess() override {}
 
   NoopQoSControllerProcess()
     : ProcessBase(process::ID::generate("qos-noop-controller")) {}

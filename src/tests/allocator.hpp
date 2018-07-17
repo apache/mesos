@@ -366,7 +366,7 @@ public:
       .WillRepeatedly(DoDefault());
   }
 
-  virtual ~TestAllocator() {}
+  ~TestAllocator() override {}
 
   MOCK_METHOD7(initialize, void(
       const Duration&,

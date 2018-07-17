@@ -92,7 +92,7 @@ public:
       tasksFinished(0),
       totalTasks(5) {}
 
-  ~HTTPScheduler() {}
+  ~HTTPScheduler() override {}
 
   void connected()
   {
@@ -206,7 +206,7 @@ public:
   }
 
 protected:
-  virtual void initialize()
+  void initialize() override
   {
     // We initialize the library here to ensure that callbacks are only invoked
     // after the process has spawned.
@@ -351,7 +351,7 @@ private:
     process::delay(Seconds(1), self(), &Self::doReliableRegistration);
   }
 
-  void finalize()
+  void finalize() override
   {
     Call call;
     CHECK(framework.has_id());

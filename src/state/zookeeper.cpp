@@ -71,9 +71,9 @@ public:
       const Duration& timeout,
       const string& znode,
       const Option<Authentication>& auth);
-  virtual ~ZooKeeperStorageProcess();
+  ~ZooKeeperStorageProcess() override;
 
-  virtual void initialize();
+  void initialize() override;
 
   // Storage implementation.
   Future<Option<Entry>> get(const string& name);

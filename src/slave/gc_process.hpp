@@ -50,7 +50,7 @@ public:
       metrics(this),
       workDir(_workDir) {}
 
-  virtual ~GarbageCollectorProcess();
+  ~GarbageCollectorProcess() override;
 
   process::Future<Nothing> schedule(
       const Duration& d,

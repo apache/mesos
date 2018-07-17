@@ -232,16 +232,16 @@ public:
   // MesosExecutorDriver::start was invoked successfully (possibly via
   // MesosExecutorDriver::run) and MesosExecutorDriver::stop has not
   // been invoked.
-  virtual ~MesosExecutorDriver();
+  ~MesosExecutorDriver() override;
 
   // See ExecutorDriver for descriptions of these.
-  virtual Status start();
-  virtual Status stop();
-  virtual Status abort();
-  virtual Status join();
-  virtual Status run();
-  virtual Status sendStatusUpdate(const TaskStatus& status);
-  virtual Status sendFrameworkMessage(const std::string& data);
+  Status start() override;
+  Status stop() override;
+  Status abort() override;
+  Status join() override;
+  Status run() override;
+  Status sendStatusUpdate(const TaskStatus& status) override;
+  Status sendFrameworkMessage(const std::string& data) override;
 
 private:
   friend class internal::ExecutorProcess;

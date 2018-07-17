@@ -42,7 +42,7 @@ class FetcherProcess : public process::Process<FetcherProcess>
 {
 public:
   explicit FetcherProcess(const Flags& _flags);
-  virtual ~FetcherProcess();
+  ~FetcherProcess() override;
 
   process::Future<Nothing> fetch(
       const ContainerID& containerId,

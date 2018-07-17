@@ -86,7 +86,7 @@ class LogStorageProcess : public Process<LogStorageProcess>
 public:
   LogStorageProcess(Log* log, size_t diffsBetweenSnapshots);
 
-  virtual ~LogStorageProcess();
+  ~LogStorageProcess() override;
 
   // Storage implementation.
   Future<Option<Entry>> get(const string& name);
@@ -95,7 +95,7 @@ public:
   Future<std::set<string>> names();
 
 protected:
-  virtual void finalize();
+  void finalize() override;
 
 private:
   Future<Nothing> start();

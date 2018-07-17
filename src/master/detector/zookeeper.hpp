@@ -52,14 +52,14 @@ public:
 
   // Used for testing purposes.
   explicit ZooKeeperMasterDetector(process::Owned<zookeeper::Group> group);
-  virtual ~ZooKeeperMasterDetector();
+  ~ZooKeeperMasterDetector() override;
 
   // MasterDetector implementation.
   // The detector transparently tries to recover from retryable
   // errors until the group session expires, in which case the Future
   // returns None.
-  virtual process::Future<Option<MasterInfo>> detect(
-      const Option<MasterInfo>& previous = None());
+  process::Future<Option<MasterInfo>> detect(
+      const Option<MasterInfo>& previous = None()) override;
 
 private:
   ZooKeeperMasterDetectorProcess* process;

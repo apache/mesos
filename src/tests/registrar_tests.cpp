@@ -148,7 +148,7 @@ public:
       replica2(nullptr) {}
 
 protected:
-  virtual void SetUp()
+  void SetUp() override
   {
     TemporaryDirectoryTest::SetUp();
 
@@ -190,7 +190,7 @@ protected:
     slave.CopyFrom(info);
   }
 
-  virtual void TearDown()
+  void TearDown() override
   {
     delete state;
     delete storage;

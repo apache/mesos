@@ -69,7 +69,7 @@ class VolumeSecretIsolatorTest :
 
 {
 protected:
-  virtual void SetUp()
+  void SetUp() override
   {
     const char* prefix = std::tr1::get<0>(GetParam());
     const char* path = std::tr1::get<1>(GetParam());

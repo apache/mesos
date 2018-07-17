@@ -87,13 +87,13 @@ public:
     };
 
     TestWatcher() = default;
-    virtual ~TestWatcher() = default;
+    ~TestWatcher() override = default;
 
-    virtual void process(
+    void process(
         int type,
         int state,
         int64_t sessionId,
-        const std::string& path);
+        const std::string& path) override;
 
     // Blocks until the session event of the given state fires.
     void awaitSessionEvent(int state);
@@ -117,9 +117,9 @@ public:
 
 protected:
   ZooKeeperTest() : server(new ZooKeeperTestServer()) {}
-  virtual ~ZooKeeperTest() { delete server; }
+  ~ZooKeeperTest() override { delete server; }
 
-  virtual void SetUp();
+  void SetUp() override;
 
   // A very long session timeout that simulates no timeout for test cases.
   static const Duration NO_TIMEOUT;

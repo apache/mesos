@@ -343,30 +343,30 @@ public:
     process::spawn(process);
   }
 
-  virtual ~DiskFullScheduler()
+  ~DiskFullScheduler() override
   {
     process::terminate(process);
     process::wait(process);
   }
 
-  virtual void registered(
+  void registered(
       SchedulerDriver*,
       const FrameworkID& frameworkId,
-      const MasterInfo&)
+      const MasterInfo&) override
   {
     LOG(INFO) << "Registered with framework ID: " << frameworkId;
 
     process::dispatch(&process, &DiskFullSchedulerProcess::registered);
   }
 
-  virtual void reregistered(SchedulerDriver*, const MasterInfo&)
+  void reregistered(SchedulerDriver*, const MasterInfo&) override
   {
     LOG(INFO) << "Reregistered";
 
     process::dispatch(&process, &DiskFullSchedulerProcess::registered);
   }
 
-  virtual void disconnected(SchedulerDriver*)
+  void disconnected(SchedulerDriver*) override
   {
     LOG(INFO) << "Disconnected";
 
@@ -375,9 +375,9 @@ public:
         &DiskFullSchedulerProcess::disconnected);
   }
 
-  virtual void resourceOffers(
+  void resourceOffers(
       SchedulerDriver* driver,
-      const std::vector<Offer>& offers)
+      const std::vector<Offer>& offers) override
   {
     LOG(INFO) << "Resource offers received";
 
@@ -388,12 +388,12 @@ public:
          offers);
   }
 
-  virtual void offerRescinded(SchedulerDriver*, const OfferID&)
+  void offerRescinded(SchedulerDriver*, const OfferID&) override
   {
     LOG(INFO) << "Offer rescinded";
   }
 
-  virtual void statusUpdate(SchedulerDriver* driver, const TaskStatus& status)
+  void statusUpdate(SchedulerDriver* driver, const TaskStatus& status) override
   {
     LOG(INFO) << "Task " << status.task_id() << " in state "
               << TaskState_Name(status.state())
@@ -408,30 +408,30 @@ public:
         status);
   }
 
-  virtual void frameworkMessage(
+  void frameworkMessage(
       SchedulerDriver*,
       const ExecutorID&,
       const SlaveID&,
-      const string& data)
+      const string& data) override
   {
     LOG(INFO) << "Framework message: " << data;
   }
 
-  virtual void slaveLost(SchedulerDriver*, const SlaveID& slaveId)
+  void slaveLost(SchedulerDriver*, const SlaveID& slaveId) override
   {
     LOG(INFO) << "Agent lost: " << slaveId;
   }
 
-  virtual void executorLost(
+  void executorLost(
       SchedulerDriver*,
       const ExecutorID& executorId,
       const SlaveID& slaveId,
-      int)
+      int) override
   {
     LOG(INFO) << "Executor '" << executorId << "' lost on agent: " << slaveId;
   }
 
-  virtual void error(SchedulerDriver*, const string& message)
+  void error(SchedulerDriver*, const string& message) override
   {
     LOG(INFO) << "Error message: " << message;
   }

@@ -42,12 +42,12 @@ public:
 
   CRAMMD5Authenticatee();
 
-  virtual ~CRAMMD5Authenticatee();
+  ~CRAMMD5Authenticatee() override;
 
   process::Future<bool> authenticate(
       const process::UPID& pid,
       const process::UPID& client,
-      const Credential& credential);
+      const Credential& credential) override;
 
 private:
   CRAMMD5AuthenticateeProcess* process;

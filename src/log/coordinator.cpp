@@ -56,7 +56,7 @@ public:
       proposal(0),
       index(0) {}
 
-  virtual ~CoordinatorProcess() {}
+  ~CoordinatorProcess() override {}
 
   // See comments in 'coordinator.hpp'.
   Future<Option<uint64_t>> elect();
@@ -65,7 +65,7 @@ public:
   Future<Option<uint64_t>> truncate(uint64_t to);
 
 protected:
-  virtual void finalize()
+  void finalize() override
   {
     electing.discard();
     writing.discard();

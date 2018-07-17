@@ -42,12 +42,12 @@ public:
 
   CRAMMD5Authenticator();
 
-  virtual ~CRAMMD5Authenticator();
+  ~CRAMMD5Authenticator() override;
 
-  virtual Try<Nothing> initialize(const Option<Credentials>& credentials);
+  Try<Nothing> initialize(const Option<Credentials>& credentials) override;
 
-  virtual process::Future<Option<std::string>> authenticate(
-      const process::UPID& pid);
+  process::Future<Option<std::string>> authenticate(
+      const process::UPID& pid) override;
 
 private:
   CRAMMD5AuthenticatorProcess* process;

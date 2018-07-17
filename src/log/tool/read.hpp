@@ -47,8 +47,8 @@ public:
     bool help;
   };
 
-  virtual std::string name() const { return "read"; }
-  virtual Try<Nothing> execute(int argc = 0, char** argv = nullptr);
+  std::string name() const override { return "read"; }
+  Try<Nothing> execute(int argc = 0, char** argv = nullptr) override;
 
   // Users can change the default configuration by setting this flags.
   Flags flags;

@@ -389,7 +389,7 @@ public:
       delay(_delay) {}
 
 protected:
-  virtual void initialize() override
+  void initialize() override
   {
     if (delay.isSome()) {
       process::delay(
@@ -436,7 +436,7 @@ public:
            slaveRemovalLimiter,
          const Flags& flags = Flags());
 
-  virtual ~Master();
+  ~Master() override;
 
   // Message handlers.
   void submitScheduler(

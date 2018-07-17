@@ -35,11 +35,11 @@ class SharedFilesystemIsolatorProcess : public MesosIsolatorProcess
 public:
   static Try<mesos::slave::Isolator*> create(const Flags& flags);
 
-  virtual ~SharedFilesystemIsolatorProcess();
+  ~SharedFilesystemIsolatorProcess() override;
 
-  virtual process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(
+  process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(
       const ContainerID& containerId,
-      const mesos::slave::ContainerConfig& containerConfig);
+      const mesos::slave::ContainerConfig& containerConfig) override;
 
 private:
   SharedFilesystemIsolatorProcess(const Flags& flags);

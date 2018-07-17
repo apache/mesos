@@ -116,7 +116,7 @@ protected:
     EXPECT_SOME(HookManager::initialize(HOOK_MODULE_NAME));
   }
 
-  ~HookTest()
+  ~HookTest() override
   {
     // Unload the hooks so a subsequent install may succeed.
     EXPECT_SOME(HookManager::unload(HOOK_MODULE_NAME));

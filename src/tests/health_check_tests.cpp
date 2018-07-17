@@ -1911,7 +1911,7 @@ class DockerContainerizerHealthCheckTest
     public ::testing::WithParamInterface<NetworkInfo::Protocol>
 {
 protected:
-  virtual void SetUp()
+  void SetUp() override
   {
     Future<std::tuple<Nothing, Nothing, Nothing>> pulls = process::collect(
         pullDockerImage(DOCKER_TEST_IMAGE),
@@ -1934,7 +1934,7 @@ protected:
     createDockerIPv6UserNetwork();
   }
 
-  virtual void TearDown()
+  void TearDown() override
   {
     Try<Owned<Docker>> docker = Docker::create(
         tests::flags.docker,

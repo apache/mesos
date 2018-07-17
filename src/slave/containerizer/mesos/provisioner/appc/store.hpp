@@ -37,18 +37,18 @@ public:
       const Flags& flags,
       SecretResolver* secretResolver = nullptr);
 
-  ~Store();
+  ~Store() override;
 
-  virtual process::Future<Nothing> recover();
+  process::Future<Nothing> recover() override;
 
   // TODO(xujyan): Fetching remotely is not implemented for now and
   // until then the future fails directly if the image is not in the
   // local cache.
   // TODO(xujyan): The store currently doesn't support images that
   // have dependencies and we should add it later.
-  virtual process::Future<ImageInfo> get(
+  process::Future<ImageInfo> get(
       const Image& image,
-      const std::string& backend);
+      const std::string& backend) override;
 
 private:
   Store(process::Owned<StoreProcess> process);

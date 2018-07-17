@@ -48,7 +48,7 @@ public:
   // Same as above but takes UPID as the parameter.
   explicit StandaloneMasterDetector(const process::UPID& leader);
 
-  virtual ~StandaloneMasterDetector();
+  ~StandaloneMasterDetector() override;
 
   // Appoint the leading master so it can be *detected*.
   void appoint(const Option<MasterInfo>& leader);
@@ -56,8 +56,8 @@ public:
   // Same as above but takes 'UPID' as the parameter.
   void appoint(const process::UPID& leader);
 
-  virtual process::Future<Option<MasterInfo>> detect(
-      const Option<MasterInfo>& previous = None());
+  process::Future<Option<MasterInfo>> detect(
+      const Option<MasterInfo>& previous = None()) override;
 
 private:
   StandaloneMasterDetectorProcess* process;

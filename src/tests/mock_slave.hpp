@@ -54,7 +54,7 @@ class MockResourceEstimator : public mesos::slave::ResourceEstimator
 {
 public:
   MockResourceEstimator();
-  virtual ~MockResourceEstimator();
+  ~MockResourceEstimator() override;
 
   MOCK_METHOD1(
       initialize,
@@ -72,7 +72,7 @@ class MockQoSController : public mesos::slave::QoSController
 {
 public:
   MockQoSController();
-  virtual ~MockQoSController();
+  ~MockQoSController() override;
 
   MOCK_METHOD1(
       initialize,

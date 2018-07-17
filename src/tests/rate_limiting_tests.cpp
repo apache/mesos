@@ -63,7 +63,7 @@ namespace tests {
 class RateLimitingTest : public MesosTest
 {
 public:
-  virtual master::Flags CreateMasterFlags()
+  master::Flags CreateMasterFlags() override
   {
     master::Flags flags = MesosTest::CreateMasterFlags();
 

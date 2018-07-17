@@ -84,7 +84,7 @@ class StorageLocalResourceProviderTest
   : public ContainerizerTest<slave::MesosContainerizer>
 {
 public:
-  virtual void SetUp()
+  void SetUp() override
   {
     ContainerizerTest<slave::MesosContainerizer>::SetUp();
 
@@ -93,7 +93,7 @@ public:
     ASSERT_SOME(os::mkdir(resourceProviderConfigDir));
   }
 
-  virtual void TearDown()
+  void TearDown() override
   {
     // Unload modules.
     foreach (const Modules::Library& library, modules.libraries()) {
@@ -133,7 +133,7 @@ public:
     ContainerizerTest<slave::MesosContainerizer>::TearDown();
   }
 
-  virtual slave::Flags CreateSlaveFlags()
+  slave::Flags CreateSlaveFlags() override
   {
     slave::Flags flags =
       ContainerizerTest<slave::MesosContainerizer>::CreateSlaveFlags();

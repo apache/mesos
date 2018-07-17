@@ -65,8 +65,8 @@ public:
   process::Future<process::Shared<Replica>> recover();
 
 protected:
-  virtual void initialize();
-  virtual void finalize();
+  void initialize() override;
+  void finalize() override;
 
 private:
   friend class LogReaderProcess;
@@ -131,8 +131,8 @@ public:
   process::Future<mesos::log::Log::Position> catchup();
 
 protected:
-  virtual void initialize();
-  virtual void finalize();
+  void initialize() override;
+  void finalize() override;
 
 private:
   // Returns a position from a raw value.
@@ -179,8 +179,8 @@ public:
       const mesos::log::Log::Position& to);
 
 protected:
-  virtual void initialize();
-  virtual void finalize();
+  void initialize() override;
+  void finalize() override;
 
 private:
   // Helper for converting an optional position returned from the

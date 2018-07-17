@@ -31,25 +31,25 @@ using std::string;
 class TestExecutor : public Executor
 {
 public:
-  virtual ~TestExecutor() {}
+  ~TestExecutor() override {}
 
-  virtual void registered(ExecutorDriver* driver,
+  void registered(ExecutorDriver* driver,
                           const ExecutorInfo& executorInfo,
                           const FrameworkInfo& frameworkInfo,
-                          const SlaveInfo& slaveInfo)
+                          const SlaveInfo& slaveInfo) override
   {
     cout << "Registered executor on " << slaveInfo.hostname() << endl;
   }
 
-  virtual void reregistered(ExecutorDriver* driver,
-                            const SlaveInfo& slaveInfo)
+  void reregistered(ExecutorDriver* driver,
+                            const SlaveInfo& slaveInfo) override
   {
     cout << "Re-registered executor on " << slaveInfo.hostname() << endl;
   }
 
-  virtual void disconnected(ExecutorDriver* driver) {}
+  void disconnected(ExecutorDriver* driver) override {}
 
-  virtual void launchTask(ExecutorDriver* driver, const TaskInfo& task)
+  void launchTask(ExecutorDriver* driver, const TaskInfo& task) override
   {
     cout << "Starting task " << task.task_id().value() << endl;
 
@@ -69,10 +69,10 @@ public:
     driver->sendStatusUpdate(status);
   }
 
-  virtual void killTask(ExecutorDriver* driver, const TaskID& taskId) {}
-  virtual void frameworkMessage(ExecutorDriver* driver, const string& data) {}
-  virtual void shutdown(ExecutorDriver* driver) {}
-  virtual void error(ExecutorDriver* driver, const string& message) {}
+  void killTask(ExecutorDriver* driver, const TaskID& taskId) override {}
+  void frameworkMessage(ExecutorDriver* driver, const string& data) override {}
+  void shutdown(ExecutorDriver* driver) override {}
+  void error(ExecutorDriver* driver, const string& message) override {}
 };
 
 

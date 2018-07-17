@@ -161,87 +161,87 @@ public:
     }
   }
 
-  virtual Status GetPluginInfo(
+  Status GetPluginInfo(
       ServerContext* context,
       const csi::v0::GetPluginInfoRequest* request,
       csi::v0::GetPluginInfoResponse* response) override;
 
-  virtual Status GetPluginCapabilities(
+  Status GetPluginCapabilities(
       ServerContext* context,
       const csi::v0::GetPluginCapabilitiesRequest* request,
       csi::v0::GetPluginCapabilitiesResponse* response) override;
 
-  virtual Status Probe(
+  Status Probe(
       ServerContext* context,
       const csi::v0::ProbeRequest* request,
       csi::v0::ProbeResponse* response) override;
 
-  virtual Status CreateVolume(
+  Status CreateVolume(
       ServerContext* context,
       const csi::v0::CreateVolumeRequest* request,
       csi::v0::CreateVolumeResponse* response) override;
 
-  virtual Status DeleteVolume(
+  Status DeleteVolume(
       ServerContext* context,
       const csi::v0::DeleteVolumeRequest* request,
       csi::v0::DeleteVolumeResponse* response) override;
 
-  virtual Status ControllerPublishVolume(
+  Status ControllerPublishVolume(
       ServerContext* context,
       const csi::v0::ControllerPublishVolumeRequest* request,
       csi::v0::ControllerPublishVolumeResponse* response) override;
 
-  virtual Status ControllerUnpublishVolume(
+  Status ControllerUnpublishVolume(
       ServerContext* context,
       const csi::v0::ControllerUnpublishVolumeRequest* request,
       csi::v0::ControllerUnpublishVolumeResponse* response) override;
 
-  virtual Status ValidateVolumeCapabilities(
+  Status ValidateVolumeCapabilities(
       ServerContext* context,
       const csi::v0::ValidateVolumeCapabilitiesRequest* request,
       csi::v0::ValidateVolumeCapabilitiesResponse* response) override;
 
-  virtual Status ListVolumes(
+  Status ListVolumes(
       ServerContext* context,
       const csi::v0::ListVolumesRequest* request,
       csi::v0::ListVolumesResponse* response) override;
 
-  virtual Status GetCapacity(
+  Status GetCapacity(
       ServerContext* context,
       const csi::v0::GetCapacityRequest* request,
       csi::v0::GetCapacityResponse* response) override;
 
-  virtual Status ControllerGetCapabilities(
+  Status ControllerGetCapabilities(
       ServerContext* context,
       const csi::v0::ControllerGetCapabilitiesRequest* request,
       csi::v0::ControllerGetCapabilitiesResponse* response) override;
 
-  virtual Status NodeStageVolume(
+  Status NodeStageVolume(
       ServerContext* context,
       const csi::v0::NodeStageVolumeRequest* request,
       csi::v0::NodeStageVolumeResponse* response) override;
 
-  virtual Status NodeUnstageVolume(
+  Status NodeUnstageVolume(
       ServerContext* context,
       const csi::v0::NodeUnstageVolumeRequest* request,
       csi::v0::NodeUnstageVolumeResponse* response) override;
 
-  virtual Status NodePublishVolume(
+  Status NodePublishVolume(
       ServerContext* context,
       const csi::v0::NodePublishVolumeRequest* request,
       csi::v0::NodePublishVolumeResponse* response) override;
 
-  virtual Status NodeUnpublishVolume(
+  Status NodeUnpublishVolume(
       ServerContext* context,
       const csi::v0::NodeUnpublishVolumeRequest* request,
       csi::v0::NodeUnpublishVolumeResponse* response) override;
 
-  virtual Status NodeGetId(
+  Status NodeGetId(
       ServerContext* context,
       const csi::v0::NodeGetIdRequest* request,
       csi::v0::NodeGetIdResponse* response) override;
 
-  virtual Status NodeGetCapabilities(
+  Status NodeGetCapabilities(
       ServerContext* context,
       const csi::v0::NodeGetCapabilitiesRequest* request,
       csi::v0::NodeGetCapabilitiesResponse* response) override;

@@ -34,12 +34,12 @@ class LevelDBStorage : public Storage
 {
 public:
   LevelDBStorage();
-  virtual ~LevelDBStorage();
+  ~LevelDBStorage() override;
 
-  virtual Try<State> restore(const std::string& path);
-  virtual Try<Nothing> persist(const Metadata& metadata);
-  virtual Try<Nothing> persist(const Action& action);
-  virtual Try<Action> read(uint64_t position);
+  Try<State> restore(const std::string& path) override;
+  Try<Nothing> persist(const Metadata& metadata) override;
+  Try<Nothing> persist(const Action& action) override;
+  Try<Action> read(uint64_t position) override;
 
 private:
   leveldb::DB* db;

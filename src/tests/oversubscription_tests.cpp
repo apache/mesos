@@ -89,12 +89,12 @@ const char FIXED_RESOURCE_ESTIMATOR_NAME[] =
 class OversubscriptionTest : public MesosTest
 {
 protected:
-  virtual void SetUp()
+  void SetUp() override
   {
     MesosTest::SetUp();
   }
 
-  virtual void TearDown()
+  void TearDown() override
   {
     // Unload modules.
     foreach (const Modules::Library& library, modules.libraries()) {

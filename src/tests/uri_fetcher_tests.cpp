@@ -75,14 +75,14 @@ public:
 class CurlFetcherPluginTest : public TemporaryDirectoryTest
 {
 protected:
-  virtual void SetUp()
+  void SetUp() override
   {
     TemporaryDirectoryTest::SetUp();
 
     spawn(server);
   }
 
-  virtual void TearDown()
+  void TearDown() override
   {
     terminate(server);
     wait(server);
@@ -153,7 +153,7 @@ TEST_F(CurlFetcherPluginTest, CURL_InvokeFetchByName)
 class HadoopFetcherPluginTest : public TemporaryDirectoryTest
 {
 public:
-  virtual void SetUp()
+  void SetUp() override
   {
     TemporaryDirectoryTest::SetUp();
 

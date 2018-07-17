@@ -256,7 +256,7 @@ public:
   }
 
 protected:
-  virtual void finalize()
+  void finalize() override
   {
     foreach (Watch* watch, watches) {
       watch->promise.fail("Network is being terminated");

@@ -184,13 +184,13 @@ public:
 
   UriDiskProfileAdaptor(const Flags& _flags);
 
-  virtual ~UriDiskProfileAdaptor();
+  ~UriDiskProfileAdaptor() override;
 
-  virtual process::Future<DiskProfileAdaptor::ProfileInfo> translate(
+  process::Future<DiskProfileAdaptor::ProfileInfo> translate(
       const std::string& profile,
       const ResourceProviderInfo& resourceProviderInfo) override;
 
-  virtual process::Future<hashset<std::string>> watch(
+  process::Future<hashset<std::string>> watch(
       const hashset<std::string>& knownProfiles,
       const ResourceProviderInfo& resourceProviderInfo) override;
 
@@ -206,7 +206,7 @@ class UriDiskProfileAdaptorProcess :
 public:
   UriDiskProfileAdaptorProcess(const UriDiskProfileAdaptor::Flags& _flags);
 
-  virtual void initialize() override;
+  void initialize() override;
 
   process::Future<DiskProfileAdaptor::ProfileInfo> translate(
       const std::string& profile,

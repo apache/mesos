@@ -232,13 +232,13 @@ public:
     LOG(INFO) << "Version: " << MESOS_VERSION;
   }
 
-  virtual ~SchedulerProcess()
+  ~SchedulerProcess() override
   {
     delete authenticatee;
   }
 
 protected:
-  virtual void initialize()
+  void initialize() override
   {
     install<Event>(&SchedulerProcess::receive);
 

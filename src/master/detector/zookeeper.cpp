@@ -61,9 +61,9 @@ public:
       const Duration& sessionTimeout);
 
   explicit ZooKeeperMasterDetectorProcess(Owned<Group> group);
-  ~ZooKeeperMasterDetectorProcess();
+  ~ZooKeeperMasterDetectorProcess() override;
 
-  virtual void initialize();
+  void initialize() override;
   Future<Option<MasterInfo>> detect(const Option<MasterInfo>& previous);
 
 private:

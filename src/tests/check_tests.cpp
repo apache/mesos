@@ -1335,7 +1335,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(CommandExecutorCheckTest, TCPCheckDelivered)
 class DefaultExecutorCheckTest : public CheckTest
 {
 protected:
-  slave::Flags CreateSlaveFlags()
+  slave::Flags CreateSlaveFlags() override
   {
     slave::Flags flags = CheckTest::CreateSlaveFlags();
 

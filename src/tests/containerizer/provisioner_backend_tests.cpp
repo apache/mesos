@@ -57,7 +57,7 @@ namespace tests {
 class MountBackendTest : public TemporaryDirectoryTest
 {
 protected:
-  virtual void TearDown()
+  void TearDown() override
   {
     Try<fs::MountInfoTable> mountTable = fs::MountInfoTable::read();
     ASSERT_SOME(mountTable);

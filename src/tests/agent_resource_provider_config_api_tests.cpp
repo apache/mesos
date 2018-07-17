@@ -69,7 +69,7 @@ class AgentResourceProviderConfigApiTest
     public WithParamInterface<ContentType>
 {
 public:
-  virtual void SetUp()
+  void SetUp() override
   {
     ContainerizerTest<slave::MesosContainerizer>::SetUp();
 
@@ -160,7 +160,7 @@ public:
     return info.get();
   }
 
-  virtual void TearDown()
+  void TearDown() override
   {
     foreach (const string& slaveWorkDir, slaveWorkDirs) {
       // Clean up CSI endpoint directories if there is any.
@@ -191,7 +191,7 @@ public:
     ContainerizerTest<slave::MesosContainerizer>::TearDown();
   }
 
-  virtual slave::Flags CreateSlaveFlags()
+  slave::Flags CreateSlaveFlags() override
   {
     slave::Flags flags =
       ContainerizerTest<slave::MesosContainerizer>::CreateSlaveFlags();

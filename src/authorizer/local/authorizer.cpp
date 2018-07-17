@@ -182,7 +182,7 @@ public:
       action_(action),
       permissive_(permissive) {}
 
-  virtual Try<bool> approved(
+  Try<bool> approved(
       const Option<ObjectApprover::Object>& object) const noexcept override
   {
     // Construct subject.
@@ -480,7 +480,7 @@ public:
   // under an executor running under a given OS user and, if a command
   // is available, the principal is also allowed to run the command as
   // the given OS user.
-  virtual Try<bool> approved(
+  Try<bool> approved(
       const Option<ObjectApprover::Object>& object) const noexcept override
   {
     if (object.isNone() || object->command_info == nullptr) {
@@ -524,7 +524,7 @@ public:
   // Executors are permitted to perform an action when the root ContainerID in
   // the object is equal to the ContainerID that was extracted from the
   // subject's claims.
-  virtual Try<bool> approved(
+  Try<bool> approved(
       const Option<ObjectApprover::Object>& object) const noexcept override
   {
     return object.isSome() &&
@@ -546,7 +546,7 @@ public:
   // Resource providers are permitted to perform an action when the
   // ContainerID in the object is prefixed by the namespace extracted
   // from the subject's claims.
-  virtual Try<bool> approved(
+  Try<bool> approved(
       const Option<ObjectApprover::Object>& object) const noexcept override
   {
     return object.isSome() &&
@@ -563,7 +563,7 @@ private:
 class RejectingObjectApprover : public ObjectApprover
 {
 public:
-  virtual Try<bool> approved(
+  Try<bool> approved(
       const Option<ObjectApprover::Object>& object) const noexcept override
   {
     return false;
@@ -589,7 +589,7 @@ public:
     }
   }
 
-  virtual Try<bool> approved(const Option<ObjectApprover::Object>& object) const
+  Try<bool> approved(const Option<ObjectApprover::Object>& object) const
       noexcept override
   {
     ACL::Entity entityObject;

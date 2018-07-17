@@ -190,7 +190,7 @@ public:
     return false;
   }
 
-  virtual void SetUp()
+  void SetUp() override
   {
     Future<std::tuple<Nothing, Nothing>> pulls = process::collect(
         pullDockerImage(DOCKER_TEST_IMAGE),
@@ -209,7 +209,7 @@ public:
     AWAIT_READY_FOR(pulls, Minutes(10));
   }
 
-  virtual void TearDown()
+  void TearDown() override
   {
     Try<Owned<Docker>> docker = Docker::create(
         tests::flags.docker,
@@ -4638,7 +4638,7 @@ TEST_F(DockerContainerizerTest, ROOT_DOCKER_DefaultDNS)
 class DockerContainerizerIPv6Test : public DockerContainerizerTest
 {
 protected:
-  virtual void SetUp()
+  void SetUp() override
   {
     os::setenv("LIBPROCESS_IP6", "::1234");
     process::reinitialize(
@@ -4649,7 +4649,7 @@ protected:
     DockerContainerizerTest::SetUp();
   }
 
-  virtual void TearDown()
+  void TearDown() override
   {
     DockerContainerizerTest::TearDown();
 
@@ -4837,13 +4837,13 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 class DockerContainerizerIPv6UserNetworkTest : public DockerContainerizerTest
 {
 protected:
-  virtual void SetUp()
+  void SetUp() override
   {
     createDockerIPv6UserNetwork();
     DockerContainerizerTest::SetUp();
   }
 
-  virtual void TearDown()
+  void TearDown() override
   {
     DockerContainerizerTest::TearDown();
     removeDockerIPv6UserNetwork();
@@ -5042,7 +5042,7 @@ public:
   string commandsEnv;
   string delayEnv;
 
-  virtual slave::Flags CreateSlaveFlags()
+  slave::Flags CreateSlaveFlags() override
   {
     slave::Flags flags = MesosTest::CreateSlaveFlags();
 
@@ -5097,7 +5097,7 @@ public:
     writeEnv();
   }
 
-  virtual void SetUp()
+  void SetUp() override
   {
     DockerContainerizerTest::SetUp();
 

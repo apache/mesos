@@ -177,9 +177,9 @@ public:
   GroupProcess(const URL& url,
                const Duration& sessionTimeout);
 
-  virtual ~GroupProcess();
+  ~GroupProcess() override;
 
-  virtual void initialize();
+  void initialize() override;
 
   static const Duration RETRY_INTERVAL;
 

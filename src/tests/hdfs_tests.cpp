@@ -40,7 +40,7 @@ namespace tests {
 class HdfsTest : public TemporaryDirectoryTest
 {
 public:
-  virtual void SetUp()
+  void SetUp() override
   {
     TemporaryDirectoryTest::SetUp();
 

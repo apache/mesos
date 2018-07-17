@@ -44,9 +44,9 @@ class DefaultSecretResolver : public SecretResolver
 public:
   DefaultSecretResolver() {}
 
-  ~DefaultSecretResolver() {}
+  ~DefaultSecretResolver() override {}
 
-  virtual process::Future<Secret::Value> resolve(const Secret& secret) const
+  process::Future<Secret::Value> resolve(const Secret& secret) const override
   {
     if (secret.has_reference()) {
       return Failure("Default secret resolver cannot resolve references");

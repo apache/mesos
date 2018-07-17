@@ -46,7 +46,7 @@ class RegistryOperation : public process::Promise<bool>
 {
 public:
   RegistryOperation() : success(false) {}
-  virtual ~RegistryOperation() {}
+  ~RegistryOperation() override {}
 
   // Attempts to invoke the operation on the registry object.
   // Aided by accumulator(s):

@@ -44,7 +44,7 @@ class MockFetcherProcess : public slave::FetcherProcess
 {
 public:
   MockFetcherProcess(const slave::Flags& flags);
-  virtual ~MockFetcherProcess();
+  ~MockFetcherProcess() override;
 
   MOCK_METHOD5(_fetch, process::Future<Nothing>(
       const hashmap<

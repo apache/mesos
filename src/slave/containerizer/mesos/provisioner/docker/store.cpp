@@ -84,7 +84,7 @@ public:
   {
   }
 
-  ~StoreProcess() {}
+  ~StoreProcess() override {}
 
   Future<Nothing> recover();
 

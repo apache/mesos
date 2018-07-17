@@ -96,9 +96,9 @@ public:
   OfferEqMatcher(int _cpus, int _mem)
     : cpus(_cpus), mem(_mem) {}
 
-  virtual bool MatchAndExplain(
+  bool MatchAndExplain(
       const vector<Offer>& offers,
-      ::testing::MatchResultListener* listener) const
+      ::testing::MatchResultListener* listener) const override
   {
     double totalCpus = 0;
     double totalMem = 0;
@@ -122,12 +122,12 @@ public:
     return matches;
   }
 
-  virtual void DescribeTo(::std::ostream* os) const
+  void DescribeTo(::std::ostream* os) const override
   {
     *os << "contains " << cpus << " cpus and " << mem << " mem";
   }
 
-  virtual void DescribeNegationTo(::std::ostream* os) const
+  void DescribeNegationTo(::std::ostream* os) const override
   {
     *os << "does not contain " << cpus << " cpus and " << mem << " mem";
   }

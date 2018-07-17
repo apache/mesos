@@ -1185,7 +1185,7 @@ public:
       args(_args),
       data(0) {}
 
-  virtual ~Listener() {}
+  ~Listener() override {}
 
   // Waits for the next event to occur, at which point the future
   // becomes ready. Returns a failure if error occurs. If any previous
@@ -1217,7 +1217,7 @@ public:
   }
 
 protected:
-  virtual void initialize()
+  void initialize() override
   {
     // Register an eventfd "notifier" for the given control.
     Try<int> fd = registerNotifier(hierarchy, cgroup, control, args);
@@ -1229,7 +1229,7 @@ protected:
     }
   }
 
-  virtual void finalize()
+  void finalize() override
   {
     // Discard the nonblocking read.
     reading.discard();
@@ -1374,7 +1374,7 @@ public:
       cgroup(_cgroup),
       start(Clock::now()) {}
 
-  virtual ~Freezer() {}
+  ~Freezer() override {}
 
   void freeze()
   {
@@ -1438,7 +1438,7 @@ public:
   Future<Nothing> future() { return promise.future(); }
 
 protected:
-  virtual void initialize()
+  void initialize() override
   {
     Option<Error> error = verify(hierarchy, cgroup, "freezer.state");
     if (error.isSome()) {
@@ -1452,7 +1452,7 @@ protected:
           static_cast<void(*)(const UPID&, bool)>(terminate), self(), true));
   }
 
-  virtual void finalize()
+  void finalize() override
   {
     promise.discard();
   }
@@ -1474,7 +1474,7 @@ public:
       hierarchy(_hierarchy),
       cgroup(_cgroup) {}
 
-  virtual ~TasksKiller() {}
+  ~TasksKiller() override {}
 
   // Return a future indicating the state of the killer.
   // Failure occurs if any process in the cgroup is unable to be
@@ -1482,7 +1482,7 @@ public:
   Future<Nothing> future() { return promise.future(); }
 
 protected:
-  virtual void initialize()
+  void initialize() override
   {
     // Stop when no one cares.
     promise.future().onDiscard(lambda::bind(
@@ -1491,7 +1491,7 @@ protected:
     killTasks();
   }
 
-  virtual void finalize()
+  void finalize() override
   {
     chain.discard();
 
@@ -1626,14 +1626,14 @@ public:
       hierarchy(_hierarchy),
       cgroups(_cgroups) {}
 
-  virtual ~Destroyer() {}
+  ~Destroyer() override {}
 
   // Return a future indicating the state of the destroyer.
   // Failure occurs if any cgroup fails to be destroyed.
   Future<Nothing> future() { return promise.future(); }
 
 protected:
-  virtual void initialize()
+  void initialize() override
   {
     // Stop when no one cares.
     promise.future().onDiscard(lambda::bind(
@@ -1652,7 +1652,7 @@ protected:
       .onAny(defer(self(), &Destroyer::killed, lambda::_1));
   }
 
-  virtual void finalize()
+  void finalize() override
   {
     discard(killers);
     promise.discard();
@@ -2694,7 +2694,7 @@ public:
           "memory.pressure_level",
           stringify(level))) {}
 
-  virtual ~CounterProcess() {}
+  ~CounterProcess() override {}
 
   Future<uint64_t> value()
   {
@@ -2706,13 +2706,13 @@ public:
   }
 
 protected:
-  virtual void initialize()
+  void initialize() override
   {
     spawn(CHECK_NOTNULL(process.get()));
     listen();
   }
 
-  virtual void finalize()
+  void finalize() override
   {
     terminate(process.get());
     wait(process.get());

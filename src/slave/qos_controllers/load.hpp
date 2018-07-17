@@ -55,12 +55,13 @@ public:
       loadThreshold15Min(_loadThreshold15Min),
       loadAverage(_loadAverage) {}
 
-  virtual ~LoadQoSController();
+  ~LoadQoSController() override;
 
-  virtual Try<Nothing> initialize(
-    const lambda::function<process::Future<ResourceUsage>()>& usage);
+  Try<Nothing> initialize(
+    const lambda::function<process::Future<ResourceUsage>()>& usage) override;
 
-  virtual process::Future<std::list<mesos::slave::QoSCorrection>> corrections();
+  process::Future<std::list<mesos::slave::QoSCorrection>> corrections()
+    override;
 
 private:
   const Option<double> loadThreshold5Min;

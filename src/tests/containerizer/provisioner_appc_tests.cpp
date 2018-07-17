@@ -680,7 +680,7 @@ class AppcImageFetcherTest : public AppcStoreTest
 {
 protected:
   // Custom implementation that overrides the host and port of the image name.
-  JSON::Value getManifest() const
+  JSON::Value getManifest() const override
   {
     string imageName = strings::format(
         "%s:%d/TestAppcImageServer/image",
@@ -749,7 +749,7 @@ protected:
     spawn(server);
   }
 
-  virtual void TearDown()
+  void TearDown() override
   {
     terminate(server);
     wait(server);

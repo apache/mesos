@@ -64,7 +64,7 @@ public:
       archivesUri(_archivesUri),
       fetcher(_fetcher) {}
 
-  ~ImageTarPullerProcess() {}
+  ~ImageTarPullerProcess() override {}
 
   Future<vector<string>> pull(
       const spec::ImageReference& reference,

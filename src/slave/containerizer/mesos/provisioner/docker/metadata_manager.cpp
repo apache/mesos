@@ -55,7 +55,7 @@ class MetadataManagerProcess : public process::Process<MetadataManagerProcess>
 public:
   MetadataManagerProcess(const Flags& _flags) : flags(_flags) {}
 
-  ~MetadataManagerProcess() {}
+  ~MetadataManagerProcess() override {}
 
   Future<Nothing> recover();
 

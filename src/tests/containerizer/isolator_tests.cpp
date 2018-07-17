@@ -61,7 +61,7 @@ namespace tests {
 class NamespacesIsolatorTest : public MesosTest
 {
 public:
-  virtual void SetUp()
+  void SetUp() override
   {
     MesosTest::SetUp();
 

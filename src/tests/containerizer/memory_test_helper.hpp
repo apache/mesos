@@ -37,7 +37,7 @@ public:
   static const char NAME[];
 
   MemoryTestHelper() : Subcommand(NAME) {}
-  virtual ~MemoryTestHelper();
+  ~MemoryTestHelper() override;
 
   // Spawns a subprocess.
   // TODO(chzhcn): Consider returning a future instead of blocking.
@@ -65,7 +65,7 @@ public:
 protected:
   // The main function of the subprocess. It runs in a loop and
   // executes commands passed from stdin.
-  virtual int execute();
+  int execute() override;
 
 private:
   Try<Nothing> requestAndWait(const std::string& request);

@@ -80,62 +80,62 @@ public:
       const string& master,
       const Option<Credential>& credential);
 
-  virtual ~V0ToV1Adapter();
+  ~V0ToV1Adapter() override;
 
   // v0 Scheduler interface overrides.
-  virtual void registered(
+  void registered(
       SchedulerDriver* driver,
       const FrameworkID& frameworkId,
       const MasterInfo& masterInfo) override;
 
-  virtual void reregistered(
+  void reregistered(
       SchedulerDriver* driver,
       const MasterInfo& masterInfo) override;
 
-  virtual void disconnected(SchedulerDriver* driver) override;
+  void disconnected(SchedulerDriver* driver) override;
 
-  virtual void resourceOffers(
+  void resourceOffers(
       SchedulerDriver* driver,
       const vector<Offer>& offers) override;
 
-  virtual void offerRescinded(
+  void offerRescinded(
       SchedulerDriver* driver,
       const OfferID& offerId) override;
 
-  virtual void statusUpdate(
+  void statusUpdate(
       SchedulerDriver* driver,
       const TaskStatus& status) override;
 
-  virtual void frameworkMessage(
+  void frameworkMessage(
       SchedulerDriver* driver,
       const ExecutorID& executorId,
       const SlaveID& slaveId,
       const string& data) override;
 
-  virtual void slaveLost(
+  void slaveLost(
       SchedulerDriver* driver,
       const SlaveID& slaveId) override;
 
-  virtual void executorLost(
+  void executorLost(
       SchedulerDriver* driver,
       const ExecutorID& executorId,
       const SlaveID& slaveId,
       int status) override;
 
-  virtual void error(
+  void error(
       SchedulerDriver* driver,
       const string& message) override;
 
   // v1 MesosBase interface overrides.
-  virtual void send(const v1::scheduler::Call& call) override;
+  void send(const v1::scheduler::Call& call) override;
 
-  virtual void reconnect() override
+  void reconnect() override
   {
     // The driver does not support explicit reconnection with the master.
     UNREACHABLE();
   }
 
-  virtual process::Future<v1::scheduler::APIResult> call(
+  process::Future<v1::scheduler::APIResult> call(
       const v1::scheduler::Call& callMessage) override
   {
     // The driver does not support sending a `v1::scheduler::Call` that returns
@@ -157,7 +157,7 @@ class V0ToV1AdapterProcess : public process::Process<V0ToV1AdapterProcess>
 public:
   V0ToV1AdapterProcess(JNIEnv* env, jweak jmesos);
 
-  virtual ~V0ToV1AdapterProcess() = default;
+  ~V0ToV1AdapterProcess() override = default;
 
   void registered(const FrameworkID& frameworkId, const MasterInfo& masterInfo);
 

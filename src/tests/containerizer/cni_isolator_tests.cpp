@@ -106,7 +106,7 @@ TEST(CniSpecTest, GenerateResolverConfig)
 class CniIsolatorTest : public MesosTest
 {
 public:
-  virtual void SetUp()
+  void SetUp() override
   {
     MesosTest::SetUp();
 
@@ -1460,7 +1460,7 @@ class DefaultExecutorCniTest
     public WithParamInterface<NetworkParam>
 {
 protected:
-  slave::Flags CreateSlaveFlags()
+  slave::Flags CreateSlaveFlags() override
   {
     slave::Flags flags = CniIsolatorTest::CreateSlaveFlags();
 
@@ -1627,7 +1627,7 @@ class NestedContainerCniTest
     public WithParamInterface<bool>
 {
 protected:
-  slave::Flags CreateSlaveFlags()
+  slave::Flags CreateSlaveFlags() override
   {
     slave::Flags flags = CniIsolatorTest::CreateSlaveFlags();
 
@@ -1786,7 +1786,7 @@ TEST_P(NestedContainerCniTest, ROOT_INTERNET_CURL_VerifyContainerHostname)
 class CniIsolatorPortMapperTest : public CniIsolatorTest
 {
 public:
-  virtual void SetUp()
+  void SetUp() override
   {
     CniIsolatorTest::SetUp();
 
@@ -1817,7 +1817,7 @@ public:
     ASSERT_SOME(write);
   }
 
-  virtual void TearDown()
+  void TearDown() override
   {
     // This is a best effort cleanup of the
     // `MESOS_TEST_PORT_MAPPER_CHAIN`. We shouldn't fail and bail on

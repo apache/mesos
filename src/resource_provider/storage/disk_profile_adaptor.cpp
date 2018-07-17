@@ -46,16 +46,16 @@ class DefaultDiskProfileAdaptor : public DiskProfileAdaptor
 public:
   DefaultDiskProfileAdaptor() {}
 
-  ~DefaultDiskProfileAdaptor() {}
+  ~DefaultDiskProfileAdaptor() override {}
 
-  virtual Future<DiskProfileAdaptor::ProfileInfo> translate(
+  Future<DiskProfileAdaptor::ProfileInfo> translate(
       const string& profile,
       const ResourceProviderInfo& resourceProviderInfo) override
   {
     return Failure("By default, disk profiles are not supported");
   }
 
-  virtual Future<hashset<string>> watch(
+  Future<hashset<string>> watch(
       const hashset<string>& knownProfiles,
       const ResourceProviderInfo& resourceProviderInfo) override
   {

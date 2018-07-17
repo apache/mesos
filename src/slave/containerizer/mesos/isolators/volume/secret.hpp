@@ -43,13 +43,13 @@ public:
       const Flags& flags,
       SecretResolver* secretResolver);
 
-  virtual ~VolumeSecretIsolatorProcess() {}
+  ~VolumeSecretIsolatorProcess() override {}
 
-  virtual bool supportsNesting();
+  bool supportsNesting() override;
 
-  virtual process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(
+  process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(
       const ContainerID& containerId,
-      const mesos::slave::ContainerConfig& containerConfig);
+      const mesos::slave::ContainerConfig& containerConfig) override;
 
 private:
   VolumeSecretIsolatorProcess(

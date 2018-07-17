@@ -30,14 +30,14 @@ class NamespacesIPCIsolatorProcess : public MesosIsolatorProcess
 public:
   static Try<mesos::slave::Isolator*> create(const Flags& flags);
 
-  virtual ~NamespacesIPCIsolatorProcess() {}
+  ~NamespacesIPCIsolatorProcess() override {}
 
-  virtual bool supportsNesting();
-  virtual bool supportsStandalone();
+  bool supportsNesting() override;
+  bool supportsStandalone() override;
 
-  virtual process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(
+  process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(
       const ContainerID& containerId,
-      const mesos::slave::ContainerConfig& containerConfig);
+      const mesos::slave::ContainerConfig& containerConfig) override;
 
 private:
   NamespacesIPCIsolatorProcess();

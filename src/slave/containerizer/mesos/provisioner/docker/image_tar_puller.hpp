@@ -48,13 +48,13 @@ public:
       const Flags& flags,
       const process::Shared<uri::Fetcher>& fetcher);
 
-  ~ImageTarPuller();
+  ~ImageTarPuller() override;
 
   process::Future<std::vector<std::string>> pull(
       const ::docker::spec::ImageReference& reference,
       const std::string& directory,
       const std::string& backend,
-      const Option<Secret>& config = None());
+      const Option<Secret>& config = None()) override;
 
 private:
   explicit ImageTarPuller(process::Owned<ImageTarPullerProcess> _process);

@@ -88,7 +88,7 @@ public:
       gracePeriod(_gracePeriod) {}
 
 protected:
-  virtual void initialize()
+  void initialize() override
   {
     VLOG(1) << "Scheduling shutdown of the executor in " << gracePeriod;
 
@@ -204,10 +204,10 @@ public:
         &ExecutorProcess::shutdown);
   }
 
-  virtual ~ExecutorProcess() {}
+  ~ExecutorProcess() override {}
 
 protected:
-  virtual void initialize()
+  void initialize() override
   {
     VLOG(1) << "Executor started at: " << self() << " with pid " << getpid();
 
@@ -502,7 +502,7 @@ protected:
     }
   }
 
-  virtual void exited(const UPID& pid)
+  void exited(const UPID& pid) override
   {
     if (aborted.load()) {
       VLOG(1) << "Ignoring exited event because the driver is aborted!";

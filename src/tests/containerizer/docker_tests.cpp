@@ -72,7 +72,7 @@ static constexpr char TEST_DIR_NAME[] = "test_dir";
 
 class DockerTest : public MesosTest
 {
-  virtual void SetUp()
+  void SetUp() override
   {
     Future<Nothing> pull = pullDockerImage(DOCKER_TEST_IMAGE);
 
@@ -84,7 +84,7 @@ class DockerTest : public MesosTest
     AWAIT_READY_FOR(pull, Minutes(10));
   }
 
-  virtual void TearDown()
+  void TearDown() override
   {
     Try<Owned<Docker>> docker = Docker::create(
         tests::flags.docker,

@@ -49,61 +49,62 @@ public:
       const process::UPID& allocator,
       const std::string& metricsPrefix);
 
-  virtual ~DRFSorter();
+  ~DRFSorter() override;
 
-  virtual void initialize(
-      const Option<std::set<std::string>>& fairnessExcludeResourceNames);
+  void initialize(
+      const Option<std::set<std::string>>& fairnessExcludeResourceNames)
+    override;
 
-  virtual void add(const std::string& clientPath);
+  void add(const std::string& clientPath) override;
 
-  virtual void remove(const std::string& clientPath);
+  void remove(const std::string& clientPath) override;
 
-  virtual void activate(const std::string& clientPath);
+  void activate(const std::string& clientPath) override;
 
-  virtual void deactivate(const std::string& clientPath);
+  void deactivate(const std::string& clientPath) override;
 
-  virtual void updateWeight(const std::string& path, double weight);
+  void updateWeight(const std::string& path, double weight) override;
 
-  virtual void allocated(
+  void allocated(
       const std::string& clientPath,
       const SlaveID& slaveId,
-      const Resources& resources);
+      const Resources& resources) override;
 
-  virtual void update(
+  void update(
       const std::string& clientPath,
       const SlaveID& slaveId,
       const Resources& oldAllocation,
-      const Resources& newAllocation);
+      const Resources& newAllocation) override;
 
-  virtual void unallocated(
+  void unallocated(
       const std::string& clientPath,
       const SlaveID& slaveId,
-      const Resources& resources);
+      const Resources& resources) override;
 
-  virtual const hashmap<SlaveID, Resources>& allocation(
-      const std::string& clientPath) const;
+  const hashmap<SlaveID, Resources>& allocation(
+      const std::string& clientPath) const override;
 
-  virtual const Resources& allocationScalarQuantities(
-      const std::string& clientPath) const;
+  const Resources& allocationScalarQuantities(
+      const std::string& clientPath) const override;
 
-  virtual hashmap<std::string, Resources> allocation(
-      const SlaveID& slaveId) const;
+  hashmap<std::string, Resources> allocation(
+      const SlaveID& slaveId) const override;
 
-  virtual Resources allocation(
+  Resources allocation(
       const std::string& clientPath,
-      const SlaveID& slaveId) const;
+      const SlaveID& slaveId) const override;
 
-  virtual const Resources& totalScalarQuantities() const;
+  const Resources& totalScalarQuantities() const override;
 
-  virtual void add(const SlaveID& slaveId, const Resources& resources);
+  void add(const SlaveID& slaveId, const Resources& resources) override;
 
-  virtual void remove(const SlaveID& slaveId, const Resources& resources);
+  void remove(const SlaveID& slaveId, const Resources& resources) override;
 
-  virtual std::vector<std::string> sort();
+  std::vector<std::string> sort() override;
 
-  virtual bool contains(const std::string& clientPath) const;
+  bool contains(const std::string& clientPath) const override;
 
-  virtual size_t count() const;
+  size_t count() const override;
 
 private:
   // A node in the sorter's tree.

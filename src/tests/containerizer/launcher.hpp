@@ -48,7 +48,7 @@ class TestLauncher : public slave::Launcher
 public:
   TestLauncher(const process::Owned<slave::Launcher>& _real);
 
-  ~TestLauncher();
+  ~TestLauncher() override;
 
   MOCK_METHOD1(
       recover,

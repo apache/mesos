@@ -36,16 +36,16 @@ public:
 
   static Try<process::Owned<Fetcher::Plugin>> create(const Flags& flags);
 
-  virtual ~CopyFetcherPlugin() {}
+  ~CopyFetcherPlugin() override {}
 
-  virtual std::set<std::string> schemes() const;
+  std::set<std::string> schemes() const override;
 
-  virtual std::string name() const;
+  std::string name() const override;
 
-  virtual process::Future<Nothing> fetch(
+  process::Future<Nothing> fetch(
       const URI& uri,
       const std::string& directory,
-      const Option<std::string>& data = None()) const;
+      const Option<std::string>& data = None()) const override;
 
 private:
   CopyFetcherPlugin() {}

@@ -41,7 +41,7 @@ public:
   // TODO(tillt): Currently this destructor will only ever get called
   // during the test runs. Fix this behavior by introducing anonymous
   // module instance reference management.
-  virtual ~TestAnonymous()
+  ~TestAnonymous() override
   {
     VLOG(1) << "Anonymous module destructor";
   }

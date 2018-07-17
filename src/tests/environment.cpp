@@ -100,7 +100,7 @@ Environment* environment;
 class BenchmarkFilter : public TestFilter
 {
 public:
-  bool disable(const ::testing::TestInfo* test) const
+  bool disable(const ::testing::TestInfo* test) const override
   {
     return matches(test, "BENCHMARK_") && !flags.benchmark;
   }
@@ -148,7 +148,7 @@ public:
 #endif // __linux__
   }
 
-  bool disable(const ::testing::TestInfo* test) const
+  bool disable(const ::testing::TestInfo* test) const override
   {
     return matches(test, "CFS_") && cfsError.isSome();
   }
@@ -191,7 +191,7 @@ public:
 #endif // __linux__
   }
 
-  bool disable(const ::testing::TestInfo* test) const
+  bool disable(const ::testing::TestInfo* test) const override
   {
     if (matches(test, "CGROUPS_") || matches(test, "Cgroups")) {
 #ifdef __linux__
@@ -244,7 +244,7 @@ public:
     }
   }
 
-  bool disable(const ::testing::TestInfo* test) const
+  bool disable(const ::testing::TestInfo* test) const override
   {
     return matches(test, "CURL_") && curlError;
   }
@@ -269,7 +269,7 @@ public:
     }
   }
 
-  bool disable(const ::testing::TestInfo* test) const
+  bool disable(const ::testing::TestInfo* test) const override
   {
     return matches(test, "NVIDIA_GPU_") && nvidiaGpuError;
   }
@@ -341,7 +341,7 @@ public:
     }
   }
 
-  bool disable(const ::testing::TestInfo* test) const
+  bool disable(const ::testing::TestInfo* test) const override
   {
     if (dockerError.isSome()) {
       return matches(test, "DOCKER_");
@@ -508,7 +508,7 @@ public:
 #endif
   }
 
-  bool disable(const ::testing::TestInfo* test) const
+  bool disable(const ::testing::TestInfo* test) const override
   {
     return dtypeError.isSome() && matches(test, "DTYPE_");
   }
@@ -534,7 +534,7 @@ public:
     }
   }
 
-  bool disable(const ::testing::TestInfo* test) const
+  bool disable(const ::testing::TestInfo* test) const override
   {
     return matches(test, "INTERNET_") && error;
   }
@@ -560,7 +560,7 @@ public:
     }
   }
 
-  bool disable(const ::testing::TestInfo* test) const
+  bool disable(const ::testing::TestInfo* test) const override
   {
     return matches(test, "LOGROTATE_") && logrotateError;
   }
@@ -585,7 +585,7 @@ public:
     }
   }
 
-  bool disable(const ::testing::TestInfo* test) const
+  bool disable(const ::testing::TestInfo* test) const override
   {
     return matches(test, "NC_") && netcatError;
   }
@@ -641,7 +641,7 @@ public:
 #endif
   }
 
-  bool disable(const ::testing::TestInfo* test) const
+  bool disable(const ::testing::TestInfo* test) const override
   {
     return matches(test, "NET_CLS_") && netClsError;
   }
@@ -670,7 +670,7 @@ public:
 #endif
   }
 
-  bool disable(const ::testing::TestInfo* test) const
+  bool disable(const ::testing::TestInfo* test) const override
   {
     if (matches(test, "PortMappingIsolatorTest") ||
         matches(test, "PortMappingMesosTest")) {
@@ -724,7 +724,7 @@ class AufsFilter : public SupportedFilesystemTestFilter
 public:
   AufsFilter() : SupportedFilesystemTestFilter("aufs") {}
 
-  bool disable(const ::testing::TestInfo* test) const
+  bool disable(const ::testing::TestInfo* test) const override
   {
     return fsSupportError.isSome() && matches(test, "AUFS_");
   }
@@ -736,7 +736,7 @@ class OverlayFSFilter : public SupportedFilesystemTestFilter
 public:
   OverlayFSFilter() : SupportedFilesystemTestFilter("overlayfs") {}
 
-  bool disable(const ::testing::TestInfo* test) const
+  bool disable(const ::testing::TestInfo* test) const override
   {
     return fsSupportError.isSome() && matches(test, "OVERLAYFS_");
   }
@@ -748,7 +748,7 @@ class XfsFilter : public SupportedFilesystemTestFilter
 public:
   XfsFilter() : SupportedFilesystemTestFilter("xfs") {}
 
-  bool disable(const ::testing::TestInfo* test) const
+  bool disable(const ::testing::TestInfo* test) const override
   {
     return fsSupportError.isSome() && matches(test, "XFS_");
   }
@@ -791,7 +791,7 @@ public:
     }
   }
 
-  bool disable(const ::testing::TestInfo* test) const
+  bool disable(const ::testing::TestInfo* test) const override
   {
     // Disable all tests that try to sample 'cpu-cycles' events using 'perf'.
     return (matches(test, "ROOT_CGROUPS_PERF_PerfTest") ||
@@ -824,7 +824,7 @@ public:
 #endif // __linux__
   }
 
-  bool disable(const ::testing::TestInfo* test) const
+  bool disable(const ::testing::TestInfo* test) const override
   {
     return matches(test, "PERF_") && perfError;
   }
@@ -837,7 +837,7 @@ private:
 class RootFilter : public TestFilter
 {
 public:
-  bool disable(const ::testing::TestInfo* test) const
+  bool disable(const ::testing::TestInfo* test) const override
   {
 #ifdef __WINDOWS__
     // On Windows, tests are expected to be run as Administrator.
@@ -887,7 +887,7 @@ public:
 #endif
   }
 
-  bool disable(const ::testing::TestInfo* test) const
+  bool disable(const ::testing::TestInfo* test) const override
   {
     return matches(test, "UNPRIVILEGED_USER_") && !unprivilegedUserFound;
   }
@@ -912,7 +912,7 @@ public:
     }
   }
 
-  bool disable(const ::testing::TestInfo* test) const
+  bool disable(const ::testing::TestInfo* test) const override
   {
     return matches(test, "UNZIP_") && unzipError;
   }

@@ -51,17 +51,17 @@ public:
       const Flags& flags,
       const process::Owned<Puller>& puller);
 
-  virtual ~Store();
+  ~Store() override;
 
-  virtual process::Future<Nothing> recover();
+  process::Future<Nothing> recover() override;
 
-  virtual process::Future<ImageInfo> get(
+  process::Future<ImageInfo> get(
       const mesos::Image& image,
-      const std::string& backend);
+      const std::string& backend) override;
 
-  virtual process::Future<Nothing> prune(
+  process::Future<Nothing> prune(
       const std::vector<mesos::Image>& excludeImages,
-      const hashset<std::string>& activeLayerPaths);
+      const hashset<std::string>& activeLayerPaths) override;
 
 private:
   explicit Store(process::Owned<StoreProcess> process);

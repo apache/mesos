@@ -43,12 +43,12 @@ public:
       const std::string& cgroupsRoot,
       const ContainerID& containerId);
 
-  virtual ~LinuxLauncher();
+  ~LinuxLauncher() override;
 
-  virtual process::Future<hashset<ContainerID>> recover(
-      const std::vector<mesos::slave::ContainerState>& states);
+  process::Future<hashset<ContainerID>> recover(
+      const std::vector<mesos::slave::ContainerState>& states) override;
 
-  virtual Try<pid_t> fork(
+  Try<pid_t> fork(
       const ContainerID& containerId,
       const std::string& path,
       const std::vector<std::string>& argv,
@@ -57,12 +57,12 @@ public:
       const Option<std::map<std::string, std::string>>& environment,
       const Option<int>& enterNamespaces,
       const Option<int>& cloneNamespaces,
-      const std::vector<int_fd>& whitelistFds);
+      const std::vector<int_fd>& whitelistFds) override;
 
-  virtual process::Future<Nothing> destroy(const ContainerID& containerId);
+  process::Future<Nothing> destroy(const ContainerID& containerId) override;
 
-  virtual process::Future<ContainerStatus> status(
-      const ContainerID& containerId);
+  process::Future<ContainerStatus> status(
+      const ContainerID& containerId) override;
 
 private:
   LinuxLauncher(

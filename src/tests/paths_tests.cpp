@@ -41,7 +41,7 @@ using strings::format;
 class PathsTest : public ::testing::Test
 {
 public:
-  virtual void SetUp()
+  void SetUp() override
   {
     slaveId.set_value("agent1");
     frameworkId.set_value("framework1");
@@ -62,7 +62,7 @@ public:
     imageType = Image::APPC;
   }
 
-  virtual void TearDown()
+  void TearDown() override
   {
      os::rmdir(rootDir);
      os::rmdir(diskSourceDir);

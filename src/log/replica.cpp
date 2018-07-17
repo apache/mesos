@@ -65,7 +65,7 @@ public:
   // directory for storing the underlying log.
   explicit ReplicaProcess(const string& path);
 
-  virtual ~ReplicaProcess();
+  ~ReplicaProcess() override;
 
   // Returns the action associated with this position. A none result
   // means that no action is known for this position. An error result

@@ -81,7 +81,7 @@ class RefusedOfferFilter : public OfferFilter
 public:
   RefusedOfferFilter(const Resources& _resources) : resources(_resources) {}
 
-  virtual bool filter(const Resources& _resources) const
+  bool filter(const Resources& _resources) const override
   {
     // TODO(jieyu): Consider separating the superset check for regular
     // and revocable resources. For example, frameworks might want
@@ -122,7 +122,7 @@ public:
   RefusedInverseOfferFilter(const Timeout& _timeout)
     : timeout(_timeout) {}
 
-  virtual bool filter() const
+  bool filter() const override
   {
     // See comment above why we currently don't do more fine-grained filtering.
     return timeout.remaining() > Seconds(0);

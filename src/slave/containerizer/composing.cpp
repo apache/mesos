@@ -58,7 +58,7 @@ public:
     : ProcessBase(process::ID::generate("composing-containerizer")),
       containerizers_(containerizers) {}
 
-  virtual ~ComposingContainerizerProcess();
+  ~ComposingContainerizerProcess() override;
 
   Future<Nothing> recover(
       const Option<state::SlaveState>& state);

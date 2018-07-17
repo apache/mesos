@@ -121,7 +121,7 @@ public:
       const Option<Principal>& principal);
 
 protected:
-  virtual void initialize();
+  void initialize() override;
 
 private:
   // Resolves the virtual path to an actual path.

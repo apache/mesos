@@ -57,7 +57,7 @@ public:
       const Option<Duration>& _duration)
     : driver(_driver), qps(_qps), duration(_duration), messages(0) {}
 
-  virtual void initialize()
+  void initialize() override
   {
     dispatch(self(), &Self::generate);
   }
@@ -137,14 +137,14 @@ public:
   LoadGeneratorScheduler(double _qps, const Option<Duration>& _duration)
     : generator(nullptr), qps(_qps), duration(_duration) {}
 
-  virtual ~LoadGeneratorScheduler()
+  ~LoadGeneratorScheduler() override
   {
     delete generator;
   }
 
-  virtual void registered(SchedulerDriver* driver,
+  void registered(SchedulerDriver* driver,
                           const FrameworkID&,
-                          const MasterInfo& masterInfo)
+                          const MasterInfo& masterInfo) override
   {
     LOG(INFO) << "Registered with " << masterInfo.pid();
 
@@ -155,9 +155,9 @@ public:
     }
   }
 
-  virtual void reregistered(
+  void reregistered(
       SchedulerDriver* driver,
-      const MasterInfo& masterInfo)
+      const MasterInfo& masterInfo) override
   {
     LOG(INFO) << "Reregistered with " << masterInfo.pid();
 
@@ -167,7 +167,7 @@ public:
     }
   }
 
-  virtual void disconnected(SchedulerDriver* driver)
+  void disconnected(SchedulerDriver* driver) override
   {
     LOG(INFO) << "Disconnected!";
 
@@ -177,9 +177,9 @@ public:
     LOG(INFO) << "Stopped LoadGenerator";
   }
 
-  virtual void resourceOffers(
+  void resourceOffers(
       SchedulerDriver* driver,
-      const vector<Offer>& offers)
+      const vector<Offer>& offers) override
   {
     LOG(INFO) << "Received " << offers.size()
               << " resource offers. Declining them";
@@ -195,25 +195,25 @@ public:
     }
   }
 
-  virtual void offerRescinded(SchedulerDriver*, const OfferID&) {}
+  void offerRescinded(SchedulerDriver*, const OfferID&) override {}
 
-  virtual void statusUpdate(SchedulerDriver*, const TaskStatus&) {}
+  void statusUpdate(SchedulerDriver*, const TaskStatus&) override {}
 
-  virtual void frameworkMessage(
+  void frameworkMessage(
       SchedulerDriver*,
       const ExecutorID&,
       const SlaveID&,
-      const string&) {}
+      const string&) override {}
 
-  virtual void slaveLost(SchedulerDriver*, const SlaveID&) {}
+  void slaveLost(SchedulerDriver*, const SlaveID&) override {}
 
-  virtual void executorLost(
+  void executorLost(
       SchedulerDriver*,
       const ExecutorID&,
       const SlaveID&,
-      int) {}
+      int) override {}
 
-  virtual void error(SchedulerDriver*, const string& error)
+  void error(SchedulerDriver*, const string& error) override
   {
     // Terminating process with EXIT here because we cannot interrupt
     // LoadGenerator's long-running loop.

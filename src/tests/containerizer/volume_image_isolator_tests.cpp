@@ -53,7 +53,7 @@ class VolumeImageIsolatorTest :
   public ::testing::WithParamInterface<bool>
 {
 protected:
-  virtual void SetUp()
+  void SetUp() override
   {
     nesting = GetParam();
 

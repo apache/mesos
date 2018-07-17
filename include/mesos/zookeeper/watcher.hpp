@@ -40,11 +40,11 @@ public:
   explicit ProcessWatcher(const process::PID<T>& _pid)
     : pid(_pid), reconnect(false) {}
 
-  virtual void process(
+  void process(
       int type,
       int state,
       int64_t sessionId,
-      const std::string& path)
+      const std::string& path) override
   {
     if (type == ZOO_SESSION_EVENT) {
       if (state == ZOO_CONNECTED_STATE) {

@@ -50,11 +50,11 @@ public:
 
   explicit ZooKeeperMasterContender(process::Owned<zookeeper::Group> group);
 
-  virtual ~ZooKeeperMasterContender();
+  ~ZooKeeperMasterContender() override;
 
   // MasterContender implementation.
-  virtual void initialize(const MasterInfo& masterInfo);
-  virtual process::Future<process::Future<Nothing>> contend();
+  void initialize(const MasterInfo& masterInfo) override;
+  process::Future<process::Future<Nothing>> contend() override;
 
 private:
   ZooKeeperMasterContenderProcess* process;

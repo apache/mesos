@@ -56,9 +56,9 @@ class LevelDBStorageProcess : public Process<LevelDBStorageProcess>
 {
 public:
   explicit LevelDBStorageProcess(const string& path);
-  virtual ~LevelDBStorageProcess();
+  ~LevelDBStorageProcess() override;
 
-  virtual void initialize();
+  void initialize() override;
 
   // Storage implementation.
   Future<Option<Entry>> get(const string& name);

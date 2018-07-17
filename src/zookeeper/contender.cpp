@@ -51,14 +51,14 @@ public:
       const string& data,
       const Option<string>& label);
 
-  virtual ~LeaderContenderProcess();
+  ~LeaderContenderProcess() override;
 
   // LeaderContender implementation.
   Future<Future<Nothing>> contend();
   Future<bool> withdraw();
 
 protected:
-  virtual void finalize();
+  void finalize() override;
 
 private:
   // Invoked when we have joined the group (or failed to do so).

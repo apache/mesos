@@ -37,12 +37,12 @@ class NoopResourceEstimatorProcess;
 class NoopResourceEstimator : public mesos::slave::ResourceEstimator
 {
 public:
-  virtual ~NoopResourceEstimator();
+  ~NoopResourceEstimator() override;
 
-  virtual Try<Nothing> initialize(
-      const lambda::function<process::Future<ResourceUsage>()>& usage);
+  Try<Nothing> initialize(
+      const lambda::function<process::Future<ResourceUsage>()>& usage) override;
 
-  virtual process::Future<Resources> oversubscribable();
+  process::Future<Resources> oversubscribable() override;
 
 protected:
   process::Owned<NoopResourceEstimatorProcess> process;

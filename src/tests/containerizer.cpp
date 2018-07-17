@@ -71,7 +71,7 @@ public:
     }
   }
 
-  virtual ~TestContainerizerProcess()
+  ~TestContainerizerProcess() override
   {
     foreachvalue (const Owned<ExecutorData>& data, executors) {
       if (data->driver.get() != nullptr) {

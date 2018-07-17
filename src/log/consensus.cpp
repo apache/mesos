@@ -82,12 +82,12 @@ public:
       responsesReceived(0),
       ignoresReceived(0) {}
 
-  virtual ~ExplicitPromiseProcess() {}
+  ~ExplicitPromiseProcess() override {}
 
   Future<PromiseResponse> future() { return promise.future(); }
 
 protected:
-  virtual void initialize()
+  void initialize() override
   {
     // Stop when no one cares.
     promise.future().onDiscard(lambda::bind(
@@ -100,7 +100,7 @@ protected:
       .onAny(defer(self(), &Self::watched, lambda::_1));
   }
 
-  virtual void finalize()
+  void finalize() override
   {
     // This process will be terminated when we get responses from a
     // quorum of replicas. In that case, we no longer care about
@@ -286,12 +286,12 @@ public:
       responsesReceived(0),
       ignoresReceived(0) {}
 
-  virtual ~ImplicitPromiseProcess() {}
+  ~ImplicitPromiseProcess() override {}
 
   Future<PromiseResponse> future() { return promise.future(); }
 
 protected:
-  virtual void initialize()
+  void initialize() override
   {
     // Stop when no one cares.
     promise.future().onDiscard(lambda::bind(
@@ -304,7 +304,7 @@ protected:
       .onAny(defer(self(), &Self::watched, lambda::_1));
   }
 
-  virtual void finalize()
+  void finalize() override
   {
     // This process will be terminated when we get responses from a
     // quorum of replicas. In that case, we no longer care about
@@ -451,12 +451,12 @@ public:
       responsesReceived(0),
       ignoresReceived(0) {}
 
-  virtual ~WriteProcess() {}
+  ~WriteProcess() override {}
 
   Future<WriteResponse> future() { return promise.future(); }
 
 protected:
-  virtual void initialize()
+  void initialize() override
   {
     // Stop when no one cares.
     promise.future().onDiscard(lambda::bind(
@@ -469,7 +469,7 @@ protected:
       .onAny(defer(self(), &Self::watched, lambda::_1));
   }
 
-  virtual void finalize()
+  void finalize() override
   {
     // This process will be terminated when we get responses from a
     // quorum of replicas. In that case, we no longer care about
@@ -620,12 +620,12 @@ public:
       position(_position),
       proposal(_proposal) {}
 
-  virtual ~FillProcess() {}
+  ~FillProcess() override {}
 
   Future<Action> future() { return promise.future(); }
 
 protected:
-  virtual void initialize()
+  void initialize() override
   {
     // Stop when no one cares.
     promise.future().onDiscard(lambda::bind(
@@ -634,7 +634,7 @@ protected:
     runPromisePhase();
   }
 
-  virtual void finalize()
+  void finalize() override
   {
     // Discard the futures we're waiting for.
     promising.discard();

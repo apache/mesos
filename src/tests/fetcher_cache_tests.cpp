@@ -135,8 +135,8 @@ public:
 protected:
   void setupArchiveAsset();
 
-  virtual void SetUp();
-  virtual void TearDown();
+  void SetUp() override;
+  void TearDown() override;
 
   // Sets up the slave and starts it. Calling this late in the test
   // instead of having it included in SetUp() gives us the opportunity
@@ -943,7 +943,7 @@ public:
       CHECK(!_archivePath.empty());
     }
 
-    virtual void initialize()
+    void initialize() override
     {
       provide(COMMAND_NAME, commandPath);
       provide(ARCHIVE_NAME, archivePath);
@@ -971,7 +971,7 @@ public:
       }
     }
 
-    virtual void consume(HttpEvent&& event)
+    void consume(HttpEvent&& event) override
     {
       if (latch.get() != nullptr) {
         latch->await();
@@ -1007,7 +1007,7 @@ public:
     Owned<Latch> latch;
   };
 
-  virtual void SetUp()
+  void SetUp() override
   {
     FetcherCacheTest::SetUp();
 
@@ -1015,7 +1015,7 @@ public:
     spawn(httpServer);
   }
 
-  virtual void TearDown()
+  void TearDown() override
   {
     terminate(httpServer);
     wait(httpServer);

@@ -51,7 +51,7 @@ public:
       const Duration& sessionTimeout);
 
   explicit ZooKeeperMasterContenderProcess(Owned<zookeeper::Group> group);
-  virtual ~ZooKeeperMasterContenderProcess();
+  ~ZooKeeperMasterContenderProcess() override;
 
   // Explicitly use 'initialize' since we're overloading below.
   using process::ProcessBase::initialize;

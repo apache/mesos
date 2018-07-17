@@ -31,7 +31,7 @@ public:
   SetnsTestHelper() : Subcommand(NAME) {}
 
 protected:
-  virtual int execute();
+  int execute() override;
 };
 
 } // namespace tests {

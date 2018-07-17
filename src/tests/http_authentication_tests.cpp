@@ -271,7 +271,7 @@ public:
 
   MOCK_METHOD1(authenticate, Future<AuthenticationResult>(const Request&));
 
-  virtual string scheme() const { return mockScheme; }
+  string scheme() const override { return mockScheme; }
 
 private:
   const string mockScheme;

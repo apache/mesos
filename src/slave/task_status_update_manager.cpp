@@ -70,7 +70,7 @@ class TaskStatusUpdateManagerProcess
 {
 public:
   TaskStatusUpdateManagerProcess(const Flags& flags);
-  virtual ~TaskStatusUpdateManagerProcess();
+  ~TaskStatusUpdateManagerProcess() override;
 
   // Explicitly use 'initialize' since we're overloading below.
   using process::ProcessBase::initialize;

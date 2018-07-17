@@ -156,7 +156,7 @@ public:
       reader(_reader),
       done(false) {}
 
-  virtual ~ReaderProcess() {}
+  ~ReaderProcess() override {}
 
   process::Future<Result<T>> read()
   {
@@ -181,12 +181,12 @@ public:
   }
 
 protected:
-  virtual void initialize() override
+  void initialize() override
   {
     consume();
   }
 
-  virtual void finalize() override
+  void finalize() override
   {
     // Fail any remaining waiters.
     fail("Reader is terminating");

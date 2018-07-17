@@ -128,7 +128,7 @@ public:
         mesos::SecretGenerator* secretGenerator,
         const Option<Authorizer*>& authorizer);
 
-  virtual ~Slave();
+  ~Slave() override;
 
   void shutdown(const process::UPID& from, const std::string& message);
 
@@ -421,9 +421,9 @@ public:
   // their address which we do in tests (for things like
   // FUTURE_DISPATCH).
 // protected:
-  virtual void initialize();
-  virtual void finalize();
-  virtual void exited(const process::UPID& pid);
+  void initialize() override;
+  void finalize() override;
+  void exited(const process::UPID& pid) override;
 
   process::Future<Secret> generateSecret(
       const FrameworkID& frameworkId,

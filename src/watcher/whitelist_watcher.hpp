@@ -58,7 +58,7 @@ public:
       const Option<hashset<std::string>>& initialWhitelist = None());
 
 protected:
-  virtual void initialize();
+  void initialize() override;
   void watch();
 
 private:

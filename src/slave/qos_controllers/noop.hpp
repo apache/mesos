@@ -37,12 +37,13 @@ class NoopQoSControllerProcess;
 class NoopQoSController : public mesos::slave::QoSController
 {
 public:
-  virtual ~NoopQoSController();
+  ~NoopQoSController() override;
 
-  virtual Try<Nothing> initialize(
-      const lambda::function<process::Future<ResourceUsage>()>& usage);
+  Try<Nothing> initialize(
+      const lambda::function<process::Future<ResourceUsage>()>& usage) override;
 
-  virtual process::Future<std::list<mesos::slave::QoSCorrection>> corrections();
+  process::Future<std::list<mesos::slave::QoSCorrection>> corrections()
+    override;
 
 protected:
   process::Owned<NoopQoSControllerProcess> process;

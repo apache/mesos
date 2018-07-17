@@ -79,7 +79,7 @@ class CSIClientTest
     public WithParamInterface<RPCParam>
 {
 protected:
-  virtual void SetUp() override
+  void SetUp() override
   {
     TemporaryDirectoryTest::SetUp();
 
@@ -89,7 +89,7 @@ protected:
     connection = _connection.get();
   }
 
-  virtual void TearDown() override
+  void TearDown() override
   {
     runtime.terminate();
     AWAIT_ASSERT_READY(runtime.wait());

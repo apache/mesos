@@ -43,39 +43,39 @@ public:
       const std::function<void(void)>& disconnected,
       const std::function<void(const std::queue<Event>&)>& received);
 
-  virtual ~V0ToV1Adapter();
+  ~V0ToV1Adapter() override;
 
-  virtual void registered(
+  void registered(
       ExecutorDriver* driver,
       const mesos::ExecutorInfo& executorInfo,
       const mesos::FrameworkInfo& frameworkInfo,
       const mesos::SlaveInfo& slaveInfo) override;
 
-  virtual void reregistered(
+  void reregistered(
       ExecutorDriver* driver,
       const mesos::SlaveInfo& slaveInfo) override;
 
-  virtual void launchTask(
+  void launchTask(
       ExecutorDriver* driver,
       const mesos::TaskInfo& task) override;
 
-  virtual void disconnected(ExecutorDriver* driver) override;
+  void disconnected(ExecutorDriver* driver) override;
 
-  virtual void killTask(
+  void killTask(
       ExecutorDriver* driver,
       const mesos::TaskID& taskId) override;
 
-  virtual void frameworkMessage(
+  void frameworkMessage(
       ExecutorDriver* driver,
       const std::string& data) override;
 
-  virtual void shutdown(ExecutorDriver* driver) override;
+  void shutdown(ExecutorDriver* driver) override;
 
-  virtual void error(
+  void error(
       ExecutorDriver* driver,
       const std::string& message) override;
 
-  virtual void send(const Call& call) override;
+  void send(const Call& call) override;
 
 private:
   process::Owned<V0ToV1AdapterProcess> process;

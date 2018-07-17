@@ -52,15 +52,15 @@ class SandboxContainerLogger : public mesos::slave::ContainerLogger
 {
 public:
   SandboxContainerLogger();
-  virtual ~SandboxContainerLogger();
+  ~SandboxContainerLogger() override;
 
   // This is a noop. The sandbox container logger has nothing to initialize.
-  virtual Try<Nothing> initialize() override;
+  Try<Nothing> initialize() override;
 
   // Tells the subprocess to redirect the container's stdout and
   // stderr to separate "stdout" and "stderr" files in the sandbox.
   // The `path`, `argv`, and `environment` are not changed.
-  virtual process::Future<mesos::slave::ContainerIO> prepare(
+  process::Future<mesos::slave::ContainerIO> prepare(
       const ContainerID& containerId,
       const mesos::slave::ContainerConfig& containerConfig) override;
 

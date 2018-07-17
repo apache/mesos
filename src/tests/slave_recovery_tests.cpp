@@ -160,7 +160,7 @@ template <typename T>
 class SlaveRecoveryTest : public ContainerizerTest<T>
 {
 public:
-  virtual slave::Flags CreateSlaveFlags()
+  slave::Flags CreateSlaveFlags() override
   {
     return ContainerizerTest<T>::CreateSlaveFlags();
   }

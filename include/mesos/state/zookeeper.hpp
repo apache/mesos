@@ -46,16 +46,16 @@ public:
       const Duration& timeout,
       const std::string& znode,
       const Option<zookeeper::Authentication>& auth = None());
-  virtual ~ZooKeeperStorage();
+  ~ZooKeeperStorage() override;
 
   // Storage implementation.
-  virtual process::Future<Option<internal::state::Entry>> get(
-      const std::string& name);
-  virtual process::Future<bool> set(
+  process::Future<Option<internal::state::Entry>> get(
+      const std::string& name) override;
+  process::Future<bool> set(
       const internal::state::Entry& entry,
-      const id::UUID& uuid);
-  virtual process::Future<bool> expunge(const internal::state::Entry& entry);
-  virtual process::Future<std::set<std::string>> names();
+      const id::UUID& uuid) override;
+  process::Future<bool> expunge(const internal::state::Entry& entry) override;
+  process::Future<std::set<std::string>> names() override;
 
 private:
   ZooKeeperStorageProcess* process;

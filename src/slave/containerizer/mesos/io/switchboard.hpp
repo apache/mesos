@@ -57,24 +57,24 @@ public:
       const Flags& flags,
       bool local);
 
-  virtual ~IOSwitchboard();
+  ~IOSwitchboard() override;
 
-  virtual bool supportsNesting();
-  virtual bool supportsStandalone();
+  bool supportsNesting() override;
+  bool supportsStandalone() override;
 
-  virtual process::Future<Nothing> recover(
+  process::Future<Nothing> recover(
     const std::vector<mesos::slave::ContainerState>& states,
-    const hashset<ContainerID>& orphans);
+    const hashset<ContainerID>& orphans) override;
 
-  virtual process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(
+  process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(
       const ContainerID& containerId,
-      const mesos::slave::ContainerConfig& containerConfig);
+      const mesos::slave::ContainerConfig& containerConfig) override;
 
-  virtual process::Future<mesos::slave::ContainerLimitation> watch(
-    const ContainerID& containerId);
+  process::Future<mesos::slave::ContainerLimitation> watch(
+    const ContainerID& containerId) override;
 
-  virtual process::Future<Nothing> cleanup(
-      const ContainerID& containerId);
+  process::Future<Nothing> cleanup(
+      const ContainerID& containerId) override;
 
   // Connect to the `IOSwitchboard` associated with `containerId`.
   process::Future<process::http::Connection> connect(

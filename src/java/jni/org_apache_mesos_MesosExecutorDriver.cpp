@@ -38,19 +38,19 @@ public:
     env->GetJavaVM(&jvm);
   }
 
-  virtual ~JNIExecutor() {}
+  ~JNIExecutor() override {}
 
-  virtual void registered(ExecutorDriver* driver,
+  void registered(ExecutorDriver* driver,
                           const ExecutorInfo& executorInfo,
                           const FrameworkInfo& frameworkInfo,
-                          const SlaveInfo& slaveInfo);
-  virtual void reregistered(ExecutorDriver* driver, const SlaveInfo& slaveInfo);
-  virtual void disconnected(ExecutorDriver* driver);
-  virtual void launchTask(ExecutorDriver* driver, const TaskInfo& task);
-  virtual void killTask(ExecutorDriver* driver, const TaskID& taskId);
-  virtual void frameworkMessage(ExecutorDriver* driver, const string& data);
-  virtual void shutdown(ExecutorDriver* driver);
-  virtual void error(ExecutorDriver* driver, const string& message);
+                          const SlaveInfo& slaveInfo) override;
+  void reregistered(ExecutorDriver* driver, const SlaveInfo& slaveInfo) override;
+  void disconnected(ExecutorDriver* driver) override;
+  void launchTask(ExecutorDriver* driver, const TaskInfo& task) override;
+  void killTask(ExecutorDriver* driver, const TaskID& taskId) override;
+  void frameworkMessage(ExecutorDriver* driver, const string& data) override;
+  void shutdown(ExecutorDriver* driver) override;
+  void error(ExecutorDriver* driver, const string& message) override;
 
   JavaVM* jvm;
   JNIEnv* env;

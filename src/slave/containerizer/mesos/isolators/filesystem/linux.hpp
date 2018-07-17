@@ -44,25 +44,25 @@ class LinuxFilesystemIsolatorProcess : public MesosIsolatorProcess
 public:
   static Try<mesos::slave::Isolator*> create(const Flags& flags);
 
-  virtual ~LinuxFilesystemIsolatorProcess();
+  ~LinuxFilesystemIsolatorProcess() override;
 
-  virtual bool supportsNesting();
-  virtual bool supportsStandalone();
+  bool supportsNesting() override;
+  bool supportsStandalone() override;
 
-  virtual process::Future<Nothing> recover(
+  process::Future<Nothing> recover(
       const std::vector<mesos::slave::ContainerState>& states,
-      const hashset<ContainerID>& orphans);
+      const hashset<ContainerID>& orphans) override;
 
-  virtual process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(
+  process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(
       const ContainerID& containerId,
-      const mesos::slave::ContainerConfig& containerConfig);
+      const mesos::slave::ContainerConfig& containerConfig) override;
 
-  virtual process::Future<Nothing> update(
+  process::Future<Nothing> update(
       const ContainerID& containerId,
-      const Resources& resources);
+      const Resources& resources) override;
 
-  virtual process::Future<Nothing> cleanup(
-      const ContainerID& containerId);
+  process::Future<Nothing> cleanup(
+      const ContainerID& containerId) override;
 
 private:
   LinuxFilesystemIsolatorProcess(const Flags& flags);

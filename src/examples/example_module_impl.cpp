@@ -31,7 +31,7 @@
 class TestModuleImpl : public TestModule
 {
 public:
-  Try<Nothing> initialize(const mesos::Parameters& parameters)
+  Try<Nothing> initialize(const mesos::Parameters& parameters) override
   {
     foreach (const mesos::Parameter& parameter, parameters.parameter()) {
       if (parameter.has_key() && parameter.has_value()) {
@@ -53,17 +53,17 @@ public:
     return Nothing();
   }
 
-  virtual int foo(char a, long b)
+  int foo(char a, long b) override
   {
     return a + b;
   }
 
-  virtual int bar(float a, double b)
+  int bar(float a, double b) override
   {
     return a * b;
   }
 
-  virtual int baz(int a, int b)
+  int baz(int a, int b) override
   {
     if (flags["operation"] == "sum") {
       return a + b;
@@ -71,7 +71,7 @@ public:
     return -1;
   }
 
-  virtual mesos::Parameters parameters() const
+  mesos::Parameters parameters() const override
   {
     mesos::Parameters parameters;
 

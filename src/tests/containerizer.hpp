@@ -76,9 +76,9 @@ public:
 
   TestContainerizer();
 
-  virtual ~TestContainerizer();
+  ~TestContainerizer() override;
 
-  virtual process::Future<hashset<ContainerID>> containers();
+  process::Future<hashset<ContainerID>> containers() override;
 
   MOCK_METHOD1(
       recover,

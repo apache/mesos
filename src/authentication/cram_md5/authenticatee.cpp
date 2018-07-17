@@ -75,7 +75,7 @@ public:
     secret->len = static_cast<unsigned long>(length);
   }
 
-  virtual ~CRAMMD5AuthenticateeProcess()
+  ~CRAMMD5AuthenticateeProcess() override
   {
     if (connection != nullptr) {
       sasl_dispose(&connection);
@@ -83,7 +83,7 @@ public:
     free(secret);
   }
 
-  virtual void finalize()
+  void finalize() override
   {
     discarded(); // Fail the promise.
   }
@@ -177,7 +177,7 @@ public:
   }
 
 protected:
-  virtual void initialize()
+  void initialize() override
   {
     // Anticipate mechanisms and steps from the server.
     install<AuthenticationMechanismsMessage>(

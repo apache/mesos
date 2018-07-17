@@ -60,7 +60,7 @@ public:
   VersionProcess();
 
 protected:
-  virtual void initialize();
+  void initialize() override;
 
 private:
   static process::Future<process::http::Response> version(

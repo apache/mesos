@@ -163,7 +163,7 @@ public:
       executorId(_executorId),
       lastTaskStatus(None()) {}
 
-  virtual ~CommandExecutor() = default;
+  ~CommandExecutor() override = default;
 
   void connected()
   {
@@ -264,7 +264,7 @@ public:
   }
 
 protected:
-  virtual void initialize()
+  void initialize() override
   {
     Option<string> value = os::getenv("MESOS_HTTP_COMMAND_EXECUTOR");
 
