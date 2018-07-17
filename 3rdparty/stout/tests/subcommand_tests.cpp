@@ -87,8 +87,8 @@ public:
   Flags flags;
 
 protected:
-  virtual int execute() { return 0; }
-  virtual flags::FlagsBase* getFlags() { return &flags; }
+  int execute() override { return 0; }
+  flags::FlagsBase* getFlags() override { return &flags; }
 };
 
 

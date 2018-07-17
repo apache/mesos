@@ -66,7 +66,7 @@ public:
     }
   }
 
-  bool disable(const ::testing::TestInfo* test) const
+  bool disable(const ::testing::TestInfo* test) const override
   {
     return matches(test, "SYMLINK_") && !can_create_symlinks;
   }

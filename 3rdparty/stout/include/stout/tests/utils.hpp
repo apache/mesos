@@ -33,7 +33,7 @@
 class TemporaryDirectoryTest : public ::testing::Test
 {
 protected:
-  virtual void SetUp()
+  void SetUp() override
   {
     // Save the current working directory.
     cwd = os::getcwd();
@@ -59,7 +59,7 @@ protected:
       << "Failed to chdir into '" << sandbox.get() << "'";
   }
 
-  virtual void TearDown()
+  void TearDown() override
   {
     // Return to previous working directory and cleanup the sandbox.
     ASSERT_SOME(os::chdir(cwd));

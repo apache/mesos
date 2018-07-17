@@ -392,7 +392,7 @@ TEST_F(RmdirTest, RemoveDirectoryButPreserveRoot)
 class RmdirContinueOnErrorTest : public RmdirTest
 {
 public:
-  virtual void TearDown()
+  void TearDown() override
   {
     if (mountPoint.isSome()) {
       if (os::system("umount -f -l " + mountPoint.get()) != 0) {

@@ -45,7 +45,7 @@ public:
         "culpa qui officia deserunt mollit anim id est laborum.") {}
 
 protected:
-  virtual void SetUp()
+  void SetUp() override
   {
     TemporaryDirectoryTest::SetUp();
 

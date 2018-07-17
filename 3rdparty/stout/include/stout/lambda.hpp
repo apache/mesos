@@ -458,7 +458,7 @@ private:
     CallableFn(const F& f) : f(f) {}
     CallableFn(F&& f) : f(std::move(f)) {}
 
-    virtual R operator()(Args&&... args) &&
+    R operator()(Args&&... args) && override
     {
       return internal::Invoke<R>{}(std::move(f), std::forward<Args>(args)...);
     }
