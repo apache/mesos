@@ -27,16 +27,16 @@ public:
 
   PollSocketImpl(int_fd s) : SocketImpl(s) {}
 
-  virtual ~PollSocketImpl() {}
+  ~PollSocketImpl() override {}
 
   // Implementation of the SocketImpl interface.
-  virtual Try<Nothing> listen(int backlog);
-  virtual Future<std::shared_ptr<SocketImpl>> accept();
-  virtual Future<Nothing> connect(const Address& address);
-  virtual Future<size_t> recv(char* data, size_t size);
-  virtual Future<size_t> send(const char* data, size_t size);
-  virtual Future<size_t> sendfile(int_fd fd, off_t offset, size_t size);
-  virtual Kind kind() const { return SocketImpl::Kind::POLL; }
+  Try<Nothing> listen(int backlog) override;
+  Future<std::shared_ptr<SocketImpl>> accept() override;
+  Future<Nothing> connect(const Address& address) override;
+  Future<size_t> recv(char* data, size_t size) override;
+  Future<size_t> send(const char* data, size_t size) override;
+  Future<size_t> sendfile(int_fd fd, off_t offset, size_t size) override;
+  Kind kind() const override { return SocketImpl::Kind::POLL; }
 };
 
 } // namespace internal {

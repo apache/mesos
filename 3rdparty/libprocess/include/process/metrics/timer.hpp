@@ -42,7 +42,7 @@ public:
     : Metric(name + "_" + T::units(), window),
       data(new Data()) {}
 
-  Future<double> value() const
+  Future<double> value() const override
   {
     Future<double> value;
 

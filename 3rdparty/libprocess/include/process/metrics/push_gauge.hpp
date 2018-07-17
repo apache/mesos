@@ -51,9 +51,9 @@ public:
   explicit PushGauge(const std::string& name)
     : Metric(name, None()), data(new Data()) {}
 
-  virtual ~PushGauge() {}
+  ~PushGauge() override {}
 
-  virtual Future<double> value() const
+  Future<double> value() const override
   {
     return static_cast<double>(data->value.load());
   }

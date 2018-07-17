@@ -31,7 +31,7 @@ class MyProcess : public Process<MyProcess>
 {
 public:
   MyProcess(): ProcessBase("my-process") {}
-  virtual ~MyProcess() {}
+  ~MyProcess() override {}
 
   Future<int> func1()
   {
@@ -66,7 +66,7 @@ public:
   }
 
 protected:
-  virtual void initialize()
+  void initialize() override
   {
     // route("/vars", None(), &MyProcess::vars);
     route("/vars", None(), [=](const Request& request) {

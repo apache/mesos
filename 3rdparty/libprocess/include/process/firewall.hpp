@@ -72,11 +72,11 @@ class DisabledEndpointsFirewallRule : public FirewallRule
 public:
   explicit DisabledEndpointsFirewallRule(const hashset<std::string>& _paths);
 
-  virtual ~DisabledEndpointsFirewallRule() {}
+  ~DisabledEndpointsFirewallRule() override {}
 
-  virtual Option<http::Response> apply(
+  Option<http::Response> apply(
       const network::inet::Socket&,
-      const http::Request& request)
+      const http::Request& request) override
   {
     if (paths.contains(request.url.path)) {
       return http::Forbidden("Endpoint '" + request.url.path + "' is disabled");

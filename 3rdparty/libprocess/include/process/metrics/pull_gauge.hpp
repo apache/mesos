@@ -56,9 +56,9 @@ public:
   PullGauge(const std::string& name, const std::function<Future<double>()>& f)
     : Metric(name, None()), data(new Data(f)) {}
 
-  virtual ~PullGauge() {}
+  ~PullGauge() override {}
 
-  virtual Future<double> value() const { return data->f(); }
+  Future<double> value() const override { return data->f(); }
 
 private:
   struct Data

@@ -74,7 +74,7 @@ class ProcessBase : public EventConsumer
 public:
   explicit ProcessBase(const std::string& id = "");
 
-  virtual ~ProcessBase();
+  ~ProcessBase() override;
 
   const UPID& self() const { return pid; }
 
@@ -500,7 +500,7 @@ private:
 template <typename T>
 class Process : public virtual ProcessBase {
 public:
-  virtual ~Process() {}
+  ~Process() override {}
 
   /**
    * Returns the `PID` of the process.

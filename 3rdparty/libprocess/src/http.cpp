@@ -1214,7 +1214,7 @@ public:
   }
 
 protected:
-  virtual void initialize()
+  void initialize() override
   {
     // Start the read loop on the socket. We read independently
     // of the requests being sent in order to detect socket
@@ -1222,7 +1222,7 @@ protected:
     read();
   }
 
-  virtual void finalize()
+  void finalize() override
   {
     disconnect("Connection object was destructed");
   }
@@ -2138,7 +2138,7 @@ public:
   }
 
 protected:
-  virtual void finalize()
+  void finalize() override
   {
     // If we started the accept loop then discard it and any clients
     // we are already serving.

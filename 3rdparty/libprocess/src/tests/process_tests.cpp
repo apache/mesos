@@ -701,7 +701,7 @@ class ExitedProcess : public Process<ExitedProcess>
 public:
   explicit ExitedProcess(const UPID& _pid) : pid(_pid) {}
 
-  virtual void initialize()
+  void initialize() override
   {
     link(pid);
   }
@@ -763,7 +763,7 @@ public:
   // This is a workaround for mocking methods taking
   // rvalue reference parameters.
   // See https://github.com/google/googletest/issues/395
-  void consume(MessageEvent&& event) { consume_(event.message); }
+  void consume(MessageEvent&& event) override { consume_(event.message); }
   MOCK_METHOD1(consume_, void(const Message&));
 };
 
@@ -771,7 +771,7 @@ public:
 class ProcessRemoteLinkTest : public ::testing::Test
 {
 protected:
-  virtual void SetUp()
+  void SetUp() override
   {
     // Spawn a process to coordinate with the subprocess (test-linkee).
     // The `test-linkee` will send us a message when it has finished
@@ -820,7 +820,7 @@ protected:
     }
   }
 
-  virtual void TearDown()
+  void TearDown() override
   {
     if (linkee.isSome()) {
       os::killtree(linkee->pid(), SIGKILL);
@@ -1156,7 +1156,7 @@ class SettleProcess : public Process<SettleProcess>
 public:
   SettleProcess() : calledDispatch(false) {}
 
-  virtual void initialize()
+  void initialize() override
   {
     os::sleep(Milliseconds(10));
     delay(Seconds(0), self(), &SettleProcess::afterDelay);
@@ -1586,7 +1586,7 @@ public:
   explicit FileServer(const string& _path)
     : path(_path) {}
 
-  virtual void initialize()
+  void initialize() override
   {
     provide("", path);
   }
@@ -1785,7 +1785,7 @@ public:
   PercentEncodedIDProcess()
     : ProcessBase("id(42)") {}
 
-  virtual void initialize()
+  void initialize() override
   {
     install("handler1", &Self::handler1);
     route("/handler2", None(), &Self::handler2);
@@ -1856,7 +1856,7 @@ public:
   explicit HTTPEndpointProcess(const string& id)
     : ProcessBase(id) {}
 
-  virtual void initialize()
+  void initialize() override
   {
     route(
         "/handler1",

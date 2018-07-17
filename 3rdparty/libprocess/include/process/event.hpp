@@ -71,7 +71,7 @@ struct Event
     struct IsVisitor : EventVisitor
     {
       explicit IsVisitor(bool* _result) : result(_result) {}
-      virtual void visit(const T&) { *result = true; }
+      void visit(const T&) override { *result = true; }
       bool* result;
     } visitor(&result);
     visit(&visitor);
@@ -85,7 +85,7 @@ struct Event
     struct AsVisitor : EventVisitor
     {
       explicit AsVisitor(const T** _result) : result(_result) {}
-      virtual void visit(const T& t) { *result = &t; }
+      void visit(const T& t) override { *result = &t; }
       const T** result;
     } visitor(&result);
     visit(&visitor);
@@ -152,7 +152,7 @@ struct HttpEvent : Event
   HttpEvent& operator=(HttpEvent&&) = default;
   HttpEvent& operator=(const HttpEvent&) = delete;
 
-  virtual ~HttpEvent()
+  ~HttpEvent() override
   {
     if (response) {
       // Fail the response in case it wasn't set.
@@ -268,7 +268,7 @@ inline Event::operator JSON::Object() const
   {
     explicit Visitor(JSON::Object* _object) : object(_object) {}
 
-    virtual void visit(const MessageEvent& event)
+    void visit(const MessageEvent& event) override
     {
       object->values["type"] = "MESSAGE";
 
@@ -280,7 +280,7 @@ inline Event::operator JSON::Object() const
       object->values["body"] = message.body;
     }
 
-    virtual void visit(const HttpEvent& event)
+    void visit(const HttpEvent& event) override
     {
       object->values["type"] = "HTTP";
 
@@ -290,17 +290,17 @@ inline Event::operator JSON::Object() const
       object->values["url"] = stringify(request.url);
     }
 
-    virtual void visit(const DispatchEvent& event)
+    void visit(const DispatchEvent& event) override
     {
       object->values["type"] = "DISPATCH";
     }
 
-    virtual void visit(const ExitedEvent& event)
+    void visit(const ExitedEvent& event) override
     {
       object->values["type"] = "EXITED";
     }
 
-    virtual void visit(const TerminateEvent& event)
+    void visit(const TerminateEvent& event) override
     {
       object->values["type"] = "TERMINATE";
     }

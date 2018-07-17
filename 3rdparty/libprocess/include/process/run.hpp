@@ -35,7 +35,7 @@ public:
       thunk(_thunk),
       promise(_promise) {}
 
-  virtual ~ThunkProcess() {}
+  ~ThunkProcess() override {}
 
 protected:
   void serve(Event&& event) override

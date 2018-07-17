@@ -384,7 +384,7 @@ using namespace process::http;
 class HttpProcess : public Process<HttpProcess>
 {
 protected:
-  virtual void initialize()
+  void initialize() override
   {
     route("/testing", None(), [](const Request& request) {
       return testing(request.query);

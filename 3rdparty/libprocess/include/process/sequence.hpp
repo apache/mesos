@@ -140,7 +140,7 @@ public:
   }
 
 protected:
-  virtual void finalize()
+  void finalize() override
   {
     last.discard();
 

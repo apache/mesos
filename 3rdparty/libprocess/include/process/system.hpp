@@ -54,10 +54,10 @@ public:
           self().id + "/mem_free_bytes",
           defer(self(), &System::_mem_free_bytes)) {}
 
-  virtual ~System() {}
+  ~System() override {}
 
 protected:
-  virtual void initialize()
+  void initialize() override
   {
     // TODO(dhamon): Check return values.
     metrics::add(load_1min);
@@ -70,7 +70,7 @@ protected:
     route("/stats.json", statsHelp(), &System::stats);
   }
 
-  virtual void finalize()
+  void finalize() override
   {
     metrics::remove(load_1min);
     metrics::remove(load_5min);

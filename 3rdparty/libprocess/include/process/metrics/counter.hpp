@@ -36,9 +36,9 @@ public:
     push(static_cast<double>(data->value.load()));
   }
 
-  virtual ~Counter() {}
+  ~Counter() override {}
 
-  virtual Future<double> value() const
+  Future<double> value() const override
   {
     return static_cast<double>(data->value.load());
   }

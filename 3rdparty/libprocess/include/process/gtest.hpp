@@ -48,7 +48,7 @@ public:
     return listener;
   }
 
-  virtual void OnTestEnd(const ::testing::TestInfo&)
+  void OnTestEnd(const ::testing::TestInfo&) override
   {
     if (process::Clock::paused()) {
       process::Clock::resume();

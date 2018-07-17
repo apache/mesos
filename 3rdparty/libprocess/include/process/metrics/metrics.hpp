@@ -45,7 +45,7 @@ public:
       const Option<Duration>& timeout);
 
 protected:
-  virtual void initialize();
+  void initialize() override;
 
 private:
   static std::string help();

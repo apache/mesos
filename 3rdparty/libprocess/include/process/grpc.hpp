@@ -275,7 +275,7 @@ private:
   {
   public:
     RuntimeProcess();
-    virtual ~RuntimeProcess();
+    ~RuntimeProcess() override;
 
     void send(SendCallback callback);
     void receive(ReceiveCallback callback);

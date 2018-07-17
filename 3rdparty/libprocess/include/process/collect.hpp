@@ -127,13 +127,13 @@ public:
       promise(_promise),
       ready(0) {}
 
-  virtual ~CollectProcess()
+  ~CollectProcess() override
   {
     delete promise;
   }
 
 protected:
-  virtual void initialize()
+  void initialize() override
   {
     // Stop this nonsense if nobody cares.
     promise->future().onDiscard(defer(this, &CollectProcess::discarded));
@@ -210,12 +210,12 @@ public:
       promise(_promise),
       ready(0) {}
 
-  virtual ~AwaitProcess()
+  ~AwaitProcess() override
   {
     delete promise;
   }
 
-  virtual void initialize()
+  void initialize() override
   {
     // Stop this nonsense if nobody cares.
     promise->future().onDiscard(defer(this, &AwaitProcess::discarded));

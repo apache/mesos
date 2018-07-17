@@ -65,9 +65,9 @@ public:
   DataEncoder(const std::string& _data)
     : data(_data), index(0) {}
 
-  virtual ~DataEncoder() {}
+  ~DataEncoder() override {}
 
-  virtual Kind kind() const
+  Kind kind() const override
   {
     return Encoder::DATA;
   }
@@ -80,14 +80,14 @@ public:
     return data.data() + temp;
   }
 
-  virtual void backup(size_t length)
+  void backup(size_t length) override
   {
     if (index >= length) {
       index -= length;
     }
   }
 
-  virtual size_t remaining() const
+  size_t remaining() const override
   {
     return data.size() - index;
   }
@@ -243,12 +243,12 @@ public:
     CHECK_LE(_size, static_cast<size_t>(std::numeric_limits<off_t>::max()));
   }
 
-  virtual ~FileEncoder()
+  ~FileEncoder() override
   {
     CHECK_SOME(os::close(fd)) << "Failed to close file descriptor";
   }
 
-  virtual Kind kind() const
+  Kind kind() const override
   {
     return Encoder::FILE;
   }
@@ -262,14 +262,14 @@ public:
     return fd;
   }
 
-  virtual void backup(size_t length)
+  void backup(size_t length) override
   {
     if (index >= static_cast<off_t>(length)) {
       index -= static_cast<off_t>(length);
     }
   }
 
-  virtual size_t remaining() const
+  size_t remaining() const override
   {
     return static_cast<size_t>(size - index);
   }

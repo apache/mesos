@@ -33,22 +33,22 @@ public:
       explicit FilterVisitor(Filter* _filter, bool* _result)
         : filter(_filter), result(_result) {}
 
-      virtual void visit(const MessageEvent& event)
+      void visit(const MessageEvent& event) override
       {
         *result = filter->filter(event);
       }
 
-      virtual void visit(const DispatchEvent& event)
+      void visit(const DispatchEvent& event) override
       {
         *result = filter->filter(event);
       }
 
-      virtual void visit(const HttpEvent& event)
+      void visit(const HttpEvent& event) override
       {
         *result = filter->filter(event);
       }
 
-      virtual void visit(const ExitedEvent& event)
+      void visit(const ExitedEvent& event) override
       {
         *result = filter->filter(event);
       }

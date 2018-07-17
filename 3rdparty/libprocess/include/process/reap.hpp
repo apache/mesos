@@ -38,7 +38,7 @@ public:
   Future<Option<int>> reap(pid_t pid);
 
 protected:
-  virtual void initialize();
+  void initialize() override;
 
   void wait();
 

@@ -135,7 +135,7 @@ public:
   friend void json(JSON::ObjectWriter* writer, const Help& help);
 
 protected:
-  virtual void initialize();
+  void initialize() override;
 
 private:
   // Handles the following:

@@ -39,10 +39,10 @@ class MemoryProfiler : public Process<MemoryProfiler>
 {
 public:
   MemoryProfiler(const Option<std::string>& authenticationRealm);
-  virtual ~MemoryProfiler() {}
+  ~MemoryProfiler() override {}
 
 protected:
-  virtual void initialize();
+  void initialize() override;
 
 private:
   static const std::string START_HELP();

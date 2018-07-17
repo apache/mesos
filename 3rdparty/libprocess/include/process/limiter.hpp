@@ -77,7 +77,7 @@ public:
     CHECK_GT(permitsPerSecond, 0);
   }
 
-  virtual void finalize()
+  void finalize() override
   {
     foreach (Promise<Nothing>* promise, promises) {
       promise->discard();

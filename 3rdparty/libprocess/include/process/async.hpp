@@ -71,7 +71,7 @@ private:
   friend class AsyncExecutor;
 
   AsyncExecutorProcess() : ProcessBase(ID::generate("__async_executor__")) {}
-  virtual ~AsyncExecutorProcess() {}
+  ~AsyncExecutorProcess() override {}
 
   // Not copyable, not assignable.
   AsyncExecutorProcess(const AsyncExecutorProcess&);

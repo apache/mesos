@@ -100,7 +100,7 @@ template <typename T>
 class ProtobufProcess : public process::Process<T>
 {
 public:
-  virtual ~ProtobufProcess() {}
+  ~ProtobufProcess() override {}
 
 protected:
   void consume(process::MessageEvent&& event) override
@@ -413,7 +413,7 @@ public:
       install<Res>(&ReqResProcess<Req, Res>::response);
   }
 
-  virtual ~ReqResProcess()
+  ~ReqResProcess() override
   {
     // Discard the promise.
     promise.discard();

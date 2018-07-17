@@ -193,8 +193,9 @@ private:
       *future = promise.future();
     }
 
-    virtual typename ::testing::ActionInterface<F>::Result Perform(
+    typename ::testing::ActionInterface<F>::Result Perform(
         const typename ::testing::ActionInterface<F>::ArgumentTuple& args)
+        override
     {
       const typename ::testing::ActionInterface<F>::Result result =
         action.Perform(args);
@@ -258,10 +259,10 @@ class TestsFilter : public Filter
 public:
   TestsFilter() = default;
 
-  virtual bool filter(const MessageEvent& event) { return handle(event); }
-  virtual bool filter(const DispatchEvent& event) { return handle(event); }
-  virtual bool filter(const HttpEvent& event) { return handle(event); }
-  virtual bool filter(const ExitedEvent& event) { return handle(event); }
+  bool filter(const MessageEvent& event) override { return handle(event); }
+  bool filter(const DispatchEvent& event) override { return handle(event); }
+  bool filter(const HttpEvent& event) override { return handle(event); }
+  bool filter(const ExitedEvent& event) override { return handle(event); }
 
   template <typename T>
   bool handle(const T& t)
@@ -316,12 +317,12 @@ public:
     return filter;
   }
 
-  virtual void OnTestProgramStart(const ::testing::UnitTest&)
+  void OnTestProgramStart(const ::testing::UnitTest&) override
   {
     started = true;
   }
 
-  virtual void OnTestEnd(const ::testing::TestInfo&)
+  void OnTestEnd(const ::testing::TestInfo&) override
   {
     if (filter != nullptr) {
       // Remove the filter in libprocess _before_ deleting.

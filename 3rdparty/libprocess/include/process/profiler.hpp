@@ -28,10 +28,10 @@ public:
     : ProcessBase("profiler"),
       authenticationRealm(_authenticationRealm) {}
 
-  virtual ~Profiler() {}
+  ~Profiler() override {}
 
 protected:
-  virtual void initialize()
+  void initialize() override
   {
     route("/start",
           authenticationRealm,

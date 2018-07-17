@@ -37,12 +37,12 @@ public:
     CHECK(sizeof(FLAGS_v) == sizeof(int32_t));
   }
 
-  virtual ~Logging() {}
+  ~Logging() override {}
 
   Future<Nothing> set_level(int level, const Duration& duration);
 
 protected:
-  virtual void initialize()
+  void initialize() override
   {
     route("/toggle", authenticationRealm, TOGGLE_HELP(), &This::toggle);
   }

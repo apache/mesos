@@ -38,7 +38,7 @@ class HttpProxy : public Process<HttpProxy>
 public:
   explicit HttpProxy(const network::inet::Socket& _socket);
 
-  virtual ~HttpProxy() {}
+  ~HttpProxy() override {}
 
   // Enqueues the response to be sent once all previously enqueued
   // responses have been processed (e.g., waited for and sent).
