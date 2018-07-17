@@ -919,12 +919,25 @@ Try<string> read(
     const string& cgroup,
     const string& control)
 {
-  Option<Error> error = verify(hierarchy, cgroup, control);
-  if (error.isSome()) {
-    return error.get();
+  Try<string> read = internal::read(hierarchy, cgroup, control);
+
+  // It turns out that `verify()` is expensive, so rather than
+  // verifying *prior* to the read, as is currently done for other
+  // cgroup helpers, we only verify if the read fails. This ensures
+  // we still provide a good error message. See: MESOS-8418.
+  //
+  // TODO(bmahler): Longer term, verification should be done
+  // explicitly by the caller, or its performance should be
+  // improved, or verification could be done consistently
+  // post-failure, as done here.
+  if (read.isError()) {
+    Option<Error> error = verify(hierarchy, cgroup, control);
+    if (error.isSome()) {
+      return error.get();
+    }
   }
 
-  return internal::read(hierarchy, cgroup, control);
+  return read;
 }
 
 
