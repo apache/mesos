@@ -783,9 +783,29 @@ protected:
     EXPECT_CALL(coordinator, consume_(_))
       .WillOnce(FutureArg<0>(&message));
 
+    // TODO(andschwa): Clean this up so that `BUILD_DIR` has the correct
+    // separator at compilation time.
+#ifdef __WINDOWS__
+    const std::string buildDir = strings::replace(BUILD_DIR, "/", "\\");
+#else
+    const std::string buildDir = BUILD_DIR;
+#endif // __WINDOWS__
+
+#ifdef __WINDOWS__
+    constexpr char LINKEENAME[] = "test-linkee.exe";
+#else
+    constexpr char LINKEENAME[] = "test-linkee";
+#endif // __WINDOWS__
+
+    const std::string linkeePath = path::join(buildDir, LINKEENAME);
+    ASSERT_TRUE(os::exists(linkeePath));
+
+    // NOTE: Because of the differences between Windows and POSIX
+    // shells when interpreting quotes, we use the second form of
+    // `subprocess` to call `test-linkee` directly with a set of
+    // arguments, rather than through the shell.
     Try<Subprocess> s = process::subprocess(
-        path::join(BUILD_DIR, "test-linkee") +
-          " '" + stringify(coordinator.self()) + "'");
+        linkeePath, {linkeePath, stringify(coordinator.self())});
     ASSERT_SOME(s);
     linkee = s.get();
 
