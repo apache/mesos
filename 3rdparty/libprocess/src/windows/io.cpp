@@ -79,6 +79,11 @@ Future<size_t> write(int_fd fd, const void* data, size_t size)
 Try<Nothing> prepare_async(int_fd fd)
 {
   if (fd.is_overlapped()) {
+    // TODO(andschwa): Remove this check, see MESOS-9097.
+    if (!libwinio_loop) {
+      return Error("Windows IOCP event loop is not initialized");
+    }
+
     return libwinio_loop->registerHandle(fd);
   }
 

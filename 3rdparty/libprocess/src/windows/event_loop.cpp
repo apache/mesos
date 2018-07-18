@@ -48,6 +48,11 @@ void EventLoop::initialize()
 void EventLoop::delay(
     const Duration& duration, const std::function<void()>& function)
 {
+  if (!libwinio_loop) {
+    // TODO(andschwa): Remove this check, see MESOS-9097.
+    LOG(FATAL) << "Windows IOCP event loop is not initialized";
+  }
+
   libwinio_loop->launchTimer(duration, function);
 }
 
@@ -60,9 +65,25 @@ double EventLoop::time()
 }
 
 
-void EventLoop::run() { libwinio_loop->run(); }
+void EventLoop::run()
+{
+  if (!libwinio_loop) {
+    // TODO(andschwa): Remove this check, see MESOS-9097.
+    LOG(FATAL) << "Windows IOCP event loop is not initialized";
+  }
+
+  libwinio_loop->run();
+}
 
 
-void EventLoop::stop() { libwinio_loop->stop(); }
+void EventLoop::stop()
+{
+  if (!libwinio_loop) {
+    // TODO(andschwa): Remove this check, see MESOS-9097.
+    LOG(FATAL) << "Windows IOCP event loop is not initialized";
+  }
+
+  libwinio_loop->stop();
+}
 
 } // namespace process {

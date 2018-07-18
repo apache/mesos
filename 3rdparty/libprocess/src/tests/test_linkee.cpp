@@ -99,6 +99,10 @@ int main(int argc, char** argv)
     EXIT(EXIT_FAILURE) << "Usage: test-linkee <UPID>";
   }
 
+  // NOTE: On Windows, this initialization must take place before creating a
+  // `Socket`, otherwise the IOCP handle will be uninitialized. See MESOS-9097.
+  process::initialize();
+
   // Create a server socket.
   Try<Socket> create = Socket::create();
   if (create.isError()) {
