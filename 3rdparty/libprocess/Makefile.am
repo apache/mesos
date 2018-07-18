@@ -211,6 +211,7 @@ libprocess_la_SOURCES =		\
   src/memory_profiler.hpp	\
   src/metrics/metrics.cpp	\
   src/mime.cpp			\
+  src/mpsc_linked_queue.hpp	\
   src/pid.cpp			\
   src/posix/io.cpp		\
   src/posix/poll_socket.cpp	\
