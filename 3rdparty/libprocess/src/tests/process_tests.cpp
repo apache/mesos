@@ -843,7 +843,7 @@ protected:
   void TearDown() override
   {
     if (linkee.isSome()) {
-      os::killtree(linkee->pid(), SIGKILL);
+      os::kill(linkee->pid(), SIGKILL);
       reap_linkee();
       linkee = None();
     }
@@ -857,9 +857,7 @@ public:
 
 // Verifies that linking to a remote process will correctly detect
 // the associated `ExitedEvent`.
-// TODO(hausdorff): Test fails on Windows. Fix and enable. Linkee never sends a
-// message because "no such program exists". See MESOS-5941.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(ProcessRemoteLinkTest, RemoteLink)
+TEST_F(ProcessRemoteLinkTest, RemoteLink)
 {
   // Link to the remote subprocess.
   ExitedProcess process(pid);
@@ -871,7 +869,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(ProcessRemoteLinkTest, RemoteLink)
 
   spawn(process);
 
-  os::killtree(linkee->pid(), SIGKILL);
+  os::kill(linkee->pid(), SIGKILL);
   reap_linkee();
   linkee = None();
 
@@ -912,9 +910,7 @@ private:
 // Verifies that calling `link` with "relink" semantics will have the
 // same behavior as `link` with "normal" semantics, when there is no
 // existing persistent connection.
-// TODO(hausdorff): Test fails on Windows. Fix and enable. Linkee never sends a
-// message because "no such program exists". See MESOS-5941.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(ProcessRemoteLinkTest, RemoteRelink)
+TEST_F(ProcessRemoteLinkTest, RemoteRelink)
 {
   RemoteLinkTestProcess process(pid);
 
@@ -926,7 +922,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(ProcessRemoteLinkTest, RemoteRelink)
   spawn(process);
   process.relink();
 
-  os::killtree(linkee->pid(), SIGKILL);
+  os::kill(linkee->pid(), SIGKILL);
   reap_linkee();
   linkee = None();
 
@@ -939,9 +935,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(ProcessRemoteLinkTest, RemoteRelink)
 
 // Verifies that linking and relinking a process will retain monitoring
 // on the linkee.
-// TODO(hausdorff): Test fails on Windows. Fix and enable. Linkee never sends a
-// message because "no such program exists". See MESOS-5941.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(ProcessRemoteLinkTest, RemoteLinkRelink)
+TEST_F(ProcessRemoteLinkTest, RemoteLinkRelink)
 {
   RemoteLinkTestProcess process(pid);
 
@@ -954,7 +948,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(ProcessRemoteLinkTest, RemoteLinkRelink)
   process.linkup();
   process.relink();
 
-  os::killtree(linkee->pid(), SIGKILL);
+  os::kill(linkee->pid(), SIGKILL);
   reap_linkee();
   linkee = None();
 
@@ -967,9 +961,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(ProcessRemoteLinkTest, RemoteLinkRelink)
 
 // Verifies that relinking a remote process will not affect the
 // monitoring of the process by other linkers.
-// TODO(hausdorff): Test fails on Windows. Fix and enable. Linkee never sends a
-// message because "no such program exists". See MESOS-5941.
-TEST_F_TEMP_DISABLED_ON_WINDOWS(ProcessRemoteLinkTest, RemoteDoubleLinkRelink)
+TEST_F(ProcessRemoteLinkTest, RemoteDoubleLinkRelink)
 {
   ExitedProcess linker(pid);
   RemoteLinkTestProcess relinker(pid);
@@ -988,7 +980,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(ProcessRemoteLinkTest, RemoteDoubleLinkRelink)
   relinker.linkup();
   relinker.relink();
 
-  os::killtree(linkee->pid(), SIGKILL);
+  os::kill(linkee->pid(), SIGKILL);
   reap_linkee();
   linkee = None();
 
