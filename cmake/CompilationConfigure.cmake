@@ -332,6 +332,9 @@ elseif (CMAKE_CXX_COMPILER_ID MATCHES MSVC)
     /w44267)
 endif ()
 
+if (CMAKE_CXX_COMPILER_ID MATCHES Clang)
+  add_compile_options(-Wno-inconsistent-missing-override)
+endif ()
 
 # POSIX CONFIGURATION.
 ######################

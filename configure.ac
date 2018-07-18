@@ -648,6 +648,8 @@ AS_CASE($ax_cv_cxx_compiler_vendor,
       AC_MSG_NOTICE([Disabling warnings about unused local typedefs])
       CXXFLAGS="${CXXFLAGS} -Wno-unused-local-typedef"
     fi
+
+    CXXFLAGS="${CXXFLAGS} -Wno-inconsistent-missing-override"
   ], [gnu], [
     # Check for GCC version >= 4.8.
     AX_COMPARE_VERSION([$ax_cv_cxx_compiler_version], [ge], [4.8],
