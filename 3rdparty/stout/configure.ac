@@ -148,6 +148,13 @@ AC_ARG_WITH([picojson],
                            location prefixed by the given path]),
             [without_bundled_picojson=yes], [])
 
+AC_ARG_WITH([rapidjson],
+            AS_HELP_STRING([--with-rapidjson@<:@=DIR@:>@],
+                           [excludes building and using the bundled rapidjson
+                           package in lieu of an installed version at a
+                           location prefixed by the given path]),
+            [without_bundled_rapidjson=yes], [])
+
 AC_ARG_WITH([protobuf],
             AS_HELP_STRING([--with-protobuf@<:@=DIR@:>@],
                            [excludes building and using the bundled protobuf
@@ -474,6 +481,39 @@ else
 fi
 
 AM_CONDITIONAL([WITH_BUNDLED_PICOJSON], [test "x$with_bundled_picojson" = "xyes"])
+
+
+if test -n "`echo $with_rapidjson`"; then
+  CPPFLAGS="$CPPFLAGS -I${with_rapidjson}/include"
+fi
+
+# Check if user has asked us to use a preinstalled rapidjson, or if
+# they asked us to ignore all bundled libraries while compiling and
+# linking.
+if test "x$without_bundled_rapidjson" = "xyes" || \
+   test "x$enable_bundled" != "xyes"; then
+  # Check if headers and library were located.
+  AC_CHECK_HEADERS([rapidjson/rapidjson.h], [found_rapidjson=yes])
+
+  if test "x$found_rapidjson" = "xyes"; then
+    with_bundled_rapidjson=no
+  else
+    AC_MSG_ERROR([cannot find rapidjson
+-------------------------------------------------------------------
+You have requested the use of a non-bundled rapidjson but no suitable
+rapidjson could be found.
+
+You may want specify the location of rapidjson by providing a prefix
+path via --with-rapidjson=DIR, or check that the path you provided is
+correct if you're already doing this.
+-------------------------------------------------------------------
+])
+  fi
+else
+  with_bundled_rapidjson=yes
+fi
+
+AM_CONDITIONAL([WITH_BUNDLED_RAPIDJSON], [test "x$with_bundled_rapidjson" = "xyes"])
 
 
 if test -n "`echo $with_protobuf`"; then

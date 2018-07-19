@@ -29,6 +29,7 @@ target_link_libraries(
   libcurl
   picojson
   protobuf
+  rapidjson
   Threads::Threads
   zlib
   $<$<PLATFORM_ID:Linux>:rt dl svn>

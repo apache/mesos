@@ -36,6 +36,7 @@ GMOCK = $(GOOGLETEST)/googlemock
 GTEST = $(GOOGLETEST)/googletest
 PICOJSON = picojson-$(PICOJSON_VERSION)
 PROTOBUF = protobuf-$(PROTOBUF_VERSION)
+RAPIDJSON = rapidjson-$(RAPIDJSON_VERSION)
 
 EXTRA_DIST =		\
   $(BOOST).tar.gz	\
@@ -43,6 +44,7 @@ EXTRA_DIST =		\
   $(GOOGLETEST).tar.gz	\
   $(PICOJSON).tar.gz	\
   $(PROTOBUF).tar.gz
+  $(RAPIDJSON).tar.gz
 
 # We need to patch glog in order to deal with a compilation issue when
 # compiling with clang (and C++11); see MESOS-860, MESOS-966.
@@ -59,6 +61,7 @@ CLEAN_EXTRACTED =	\
   $(GLOG)		\
   $(GMOCK)		\
   $(PICOJSON)		\
+  $(RAPIDJSON)		\
   $(PROTOBUF)
 
 # This is where the magic happens: we use stamp files as dependencies
@@ -110,6 +113,10 @@ $(PROTOBUF)-build-stamp: $(PROTOBUF)-stamp
 	touch $@
 ALL_LOCAL += $(PROTOBUF)/src/libprotobuf.la
 ALL_LOCAL += $(PROTOBUF)/src/protoc
+endif
+
+if WITH_BUNDLED_RAPIDJSON
+ALL_LOCAL += $(RAPIDJSON)-stamp
 endif
 
 # Convenience library for gmock/gtest.

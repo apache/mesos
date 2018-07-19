@@ -56,6 +56,7 @@ GTEST = $(GOOGLETEST)/googletest
 LIBARCHIVE = $(BUNDLED_DIR)/libarchive-$(LIBARCHIVE_VERSION)
 PICOJSON = $(BUNDLED_DIR)/picojson-$(PICOJSON_VERSION)
 PROTOBUF = $(BUNDLED_DIR)/protobuf-$(PROTOBUF_VERSION)
+RAPIDJSON = $(BUNDLED_DIR)/rapidjson-$(RAPIDJSON_VERSION)
 
 # Dependencies for all-local.
 BUNDLED_DEPS = # Initialize BUNDLED_DEPS so we can add to it.
@@ -107,6 +108,11 @@ endif
 if WITH_BUNDLED_PICOJSON
 PICOJSON_INCLUDE_FLAGS += -I$(PICOJSON)
 BUNDLED_DEPS += $(PICOJSON)-stamp
+endif
+
+if WITH_BUNDLED_RAPIDJSON
+RAPIDJSON_INCLUDE_FLAGS = -I$(RAPIDJSON)/include
+BUNDLED_DEPS += $(RAPIDJSON)-stamp
 endif
 
 if WITH_BUNDLED_PROTOBUF
@@ -200,6 +206,7 @@ stout_tests_CPPFLAGS =			\
   $(LIBARCHIVE_INCLUDE_FLAGS)		\
   $(PICOJSON_INCLUDE_FLAGS)		\
   $(PROTOBUF_INCLUDE_FLAGS)		\
+  $(RAPIDJSON_INCLUDE_FLAGS)		\
   $(AM_CPPFLAGS)
 
 # The order of LDADD flags would matter if the same symbol is provided by
