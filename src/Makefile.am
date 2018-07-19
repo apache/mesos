@@ -41,6 +41,7 @@ NVML = 3rdparty/nvml-$(NVML_VERSION)
 PICOJSON = 3rdparty/picojson-$(PICOJSON_VERSION)
 PIP = 3rdparty/pip-$(PIP_VERSION)
 PROTOBUF = 3rdparty/protobuf-$(PROTOBUF_VERSION)
+RAPIDJSON = 3rdparty/rapidjson-$(RAPIDJSON_VERSION)
 SETUPTOOLS = 3rdparty/setuptools-$(SETUPTOOLS_VERSION)
 STOUT = 3rdparty/stout
 WHEEL = 3rdparty/wheel-$(WHEEL_VERSION)
@@ -242,6 +243,10 @@ else
 LIB_PROTOBUF = -lprotobuf
 LDADD += -lprotobuf
 PROTOC = @PROTOCOMPILER@
+endif
+
+if WITH_BUNDLED_RAPIDJSON
+MESOS_CPPFLAGS += -I../$(RAPIDJSON)/include
 endif
 
 if WITH_BUNDLED_STOUT

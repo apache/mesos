@@ -67,6 +67,7 @@ NVML = nvml-$(NVML_VERSION)
 PIP = pip-$(PIP_VERSION)
 PICOJSON = picojson-$(PICOJSON_VERSION)
 PROTOBUF = protobuf-$(PROTOBUF_VERSION)
+RAPIDJSON = rapidjson-$(RAPIDJSON_VERSION)
 SETUPTOOLS = setuptools-$(SETUPTOOLS_VERSION)
 WHEEL = wheel-$(WHEEL_VERSION)
 ZOOKEEPER = zookeeper-$(ZOOKEEPER_VERSION)
@@ -89,6 +90,7 @@ EXTRA_DIST =			\
   $(PIP).tar.gz			\
   $(PROTOBUF).tar.gz		\
   $(PICOJSON).tar.gz		\
+  $(RAPIDJSON).tar.gz		\
   $(SETUPTOOLS).tar.gz		\
   $(WHEEL).tar.gz		\
   $(ZOOKEEPER).tar.gz
@@ -129,6 +131,7 @@ CLEAN_EXTRACTED =		\
   $(PIP)			\
   $(PICOJSON)			\
   $(PROTOBUF)			\
+  $(RAPIDJSON)			\
   $(SETUPTOOLS)			\
   $(WHEEL)			\
   $(ZOOKEEPER)
@@ -318,6 +321,53 @@ $(PICOJSON)/picojson.h: $(PICOJSON)-stamp
 ALL_LOCAL += $(PICOJSON)-stamp
 endif
 
+if WITH_BUNDLED_RAPIDJSON
+# Stout depends on rapidjson. Install rapidjson into $PREFIX/include
+# but don't add it to the source tarball.
+rapidjsondir = $(includedir)/rapidjson
+
+nodist_rapidjson_HEADERS =				\
+  $(RAPIDJSON)/include/rapidjson/error/en.h		\
+  $(RAPIDJSON)/include/rapidjson/error/error.h		\
+  $(RAPIDJSON)/include/rapidjson/internal/biginteger.h	\
+  $(RAPIDJSON)/include/rapidjson/internal/diyfp.h	\
+  $(RAPIDJSON)/include/rapidjson/internal/dtoa.h	\
+  $(RAPIDJSON)/include/rapidjson/internal/ieee754.h	\
+  $(RAPIDJSON)/include/rapidjson/internal/itoa.h	\
+  $(RAPIDJSON)/include/rapidjson/internal/meta.h	\
+  $(RAPIDJSON)/include/rapidjson/internal/pow10.h	\
+  $(RAPIDJSON)/include/rapidjson/internal/regex.h	\
+  $(RAPIDJSON)/include/rapidjson/internal/stack.h	\
+  $(RAPIDJSON)/include/rapidjson/internal/strfunc.h	\
+  $(RAPIDJSON)/include/rapidjson/internal/strtod.h	\
+  $(RAPIDJSON)/include/rapidjson/internal/swap.h	\
+  $(RAPIDJSON)/include/rapidjson/msinttypes/inttypes.h	\
+  $(RAPIDJSON)/include/rapidjson/msinttypes/stdint.h	\
+  $(RAPIDJSON)/include/rapidjson/allocators.h		\
+  $(RAPIDJSON)/include/rapidjson/cursorstreamwrapper.h	\
+  $(RAPIDJSON)/include/rapidjson/document.h		\
+  $(RAPIDJSON)/include/rapidjson/encodedstream.h	\
+  $(RAPIDJSON)/include/rapidjson/encodings.h		\
+  $(RAPIDJSON)/include/rapidjson/filereadstream.h	\
+  $(RAPIDJSON)/include/rapidjson/filewritestream.h	\
+  $(RAPIDJSON)/include/rapidjson/fwd.h			\
+  $(RAPIDJSON)/include/rapidjson/istreamwrapper.h	\
+  $(RAPIDJSON)/include/rapidjson/memorybuffer.h		\
+  $(RAPIDJSON)/include/rapidjson/memorystream.h		\
+  $(RAPIDJSON)/include/rapidjson/ostreamwrapper.h	\
+  $(RAPIDJSON)/include/rapidjson/pointer.h		\
+  $(RAPIDJSON)/include/rapidjson/prettywriter.h		\
+  $(RAPIDJSON)/include/rapidjson/rapidjson.h		\
+  $(RAPIDJSON)/include/rapidjson/reader.h		\
+  $(RAPIDJSON)/include/rapidjson/schema.h		\
+  $(RAPIDJSON)/include/rapidjson/stream.h		\
+  $(RAPIDJSON)/include/rapidjson/stringbuffer.h		\
+  $(RAPIDJSON)/include/rapidjson/writer.h
+
+$(nodist_rapidjson_HEADERS): $(RAPIDJSON)-stamp
+
+ALL_LOCAL += $(RAPIDJSON)-stamp
+endif
 
 if WITH_BUNDLED_PROTOBUF
 $(PROTOBUF)/src/protoc $(PROTOBUF)/src/libprotobuf.la: $(PROTOBUF)-build-stamp
@@ -500,6 +550,13 @@ endif
 if WITH_BUNDLED_PROTOBUF
 	cd $(PROTOBUF) && \
 	  $(MAKE) $(AM_MAKEFLAGS) DESTDIR=$(INSTALLDIR) install
+endif
+if WITH_BUNDLED_RAPIDJSON
+# TODO(bmahler): Rapidjson has a cmake build, can we just cmake install
+# instead of copying?
+	@test -d $(INSTALLDIR)/include/rapidjson || \
+	  rm -rf $(INSTALLDIR)/include/rapidjson
+	cp -fpR $(RAPIDJSON)/include/rapidjson $(INSTALLDIR)/include/
 endif
 if WITH_BUNDLED_ZOOKEEPER
 	cd $(ZOOKEEPER)/src/c && \

@@ -39,6 +39,7 @@ set(LEVELDB_URL         ${FETCH_URL}/leveldb-${LEVELDB_VERSION}.tar.gz)
 set(LIBARCHIVE_URL      ${FETCH_URL}/libarchive-${LIBARCHIVE_VERSION}.tar.gz)
 set(LIBEV_URL           ${FETCH_URL}/libev-${LIBEV_VERSION}.tar.gz)
 set(NVML_URL            ${FETCH_URL}/nvml-${NVML_VERSION}.tar.gz)
+set(RAPIDJSON_URL       ${FETCH_URL}/rapidjson-${RAPIDJSON_VERSION}.tar.gz)
 set(XZ_URL              ${FETCH_URL}/xz-${XZ_VERSION}-modified.tar.gz)
 set(ZOOKEEPER_URL       ${FETCH_URL}/zookeeper-${ZOOKEEPER_VERSION}.tar.gz)
 
@@ -430,6 +431,27 @@ ExternalProject_Add(
   INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${PICOJSON_URL}
   URL_HASH          ${PICOJSON_HASH})
+
+
+# RapidJSON: JSON parser / serializer.
+# https://github.com/Tencent/rapidjson
+#####################################
+EXTERNAL(rapidjson ${RAPIDJSON_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
+add_library(rapidjson INTERFACE)
+add_dependencies(rapidjson ${RAPIDJSON_TARGET})
+
+target_include_directories(
+    rapidjson INTERFACE
+    ${RAPIDJSON_ROOT}/rapidjson-${RAPIDJSON_VERSION}/include)
+
+ExternalProject_Add(
+  ${RAPIDJSON_TARGET}
+  PREFIX            ${RAPIDJSON_CMAKE_ROOT}
+  CONFIGURE_COMMAND ${CMAKE_NOOP}
+  BUILD_COMMAND     ${CMAKE_NOOP}
+  INSTALL_COMMAND   ${CMAKE_NOOP}
+  URL               ${RAPIDJSON_URL}
+  URL_HASH          ${RAPIDJSON_HASH})
 
 
 # NVML: NVIDIA Management Library.
