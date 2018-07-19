@@ -998,6 +998,12 @@ TEST_F(ProcessRemoteLinkTest, RemoteDoubleLinkRelink)
 // Verifies that remote links will trigger an `ExitedEvent` if the link
 // fails during socket creation. The test instigates a socket creation
 // failure by hogging all available file descriptors.
+//
+// TODO(andschwa): Enable this test. The current logic will not work on Windows
+// as " The Microsoft Winsock provider limits the maximum number of sockets
+// supported only by available memory on the local computer." See MESOS-9093.
+//
+// https://docs.microsoft.com/en-us/windows/desktop/WinSock/maximum-number-of-sockets-supported-2 // NOLINT(whitespace/line_length)
 TEST_F_TEMP_DISABLED_ON_WINDOWS(ProcessRemoteLinkTest, RemoteLinkLeak)
 {
   RemoteLinkTestProcess relinker(pid);
