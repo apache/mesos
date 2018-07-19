@@ -118,9 +118,19 @@ TEST(JsonifyTest, JSONNumberValue)
 TEST(JsonifyTest, String)
 {
   EXPECT_EQ("\"hello world!\"", string(jsonify("hello world!")));
+
+  // We don't use the optional \uXXXX escaping for UTF-8,
+  // unless required (" U+0022, \ U+005C, and the control
+  // characters U+0000 to U+001F).
   EXPECT_EQ(
-      "\"\\\"\\\\\\/\\b\\f\\n\\r\\t\\u0000\\u0019 !#[]\\u007f\xFF\"",
-      string(jsonify(string("\"\\/\b\f\n\r\t\x00\x19 !#[]\x7F\xFF", 17))));
+      "\"Hello! \\u0001\\u001F\\\"\\\\ \xF0\x9F\x98\x80\"",
+      string(jsonify("Hello! \x01\x1F\x22\x5C \xF0\x9F\x98\x80")));
+
+  // There currently is no validation either when constructing
+  // invalid UTF-8 string, or during serialization. Here, we
+  // use a 4 byte sequence but only provide the first byte.
+  // For now, this just gets passed through.
+  EXPECT_EQ("\"\xF0\"", string(jsonify("\xF0")));
 }
 
 
@@ -128,10 +138,20 @@ TEST(JsonifyTest, String)
 TEST(JsonifyTest, JSONString)
 {
   EXPECT_EQ("\"hello world!\"", string(jsonify(JSON::String("hello world!"))));
+
+  // We don't use the optional \uXXXX escaping for UTF-8,
+  // unless required (" U+0022, \ U+005C, and the control
+  // characters U+0000 to U+001F).
   EXPECT_EQ(
-      "\"\\\"\\\\\\/\\b\\f\\n\\r\\t\\u0000\\u0019 !#[]\\u007f\xFF\"",
+      "\"Hello! \\u0001\\u001F\\\"\\\\ \xF0\x9F\x98\x80\"",
       string(jsonify(
-          JSON::String(string("\"\\/\b\f\n\r\t\x00\x19 !#[]\x7F\xFF", 17)))));
+          JSON::String("Hello! \x01\x1F\x22\x5C \xF0\x9F\x98\x80"))));
+
+  // There currently is no validation either when constructing
+  // invalid UTF-8 string, or during serialization. Here, we
+  // use a 4 byte sequence but only provide the first byte.
+  // For now, this just gets passed through.
+  EXPECT_EQ("\"\xF0\"", string(jsonify(JSON::String("\xF0"))));
 }
 
 
@@ -140,10 +160,19 @@ TEST(JsonifyTest, JSONString)
 TEST(JsonifyTest, JSONStringValue)
 {
   EXPECT_EQ("\"hello world!\"", string(jsonify(JSON::Value("hello world!"))));
+
+  // We don't use the optional \uXXXX escaping for UTF-8,
+  // unless required (" U+0022, \ U+005C, and the control
+  // characters U+0000 to U+001F).
   EXPECT_EQ(
-      "\"\\\"\\\\\\/\\b\\f\\n\\r\\t\\u0000\\u0019 !#[]\\u007f\xFF\"",
-      string(jsonify(
-          JSON::Value(string("\"\\/\b\f\n\r\t\x00\x19 !#[]\x7F\xFF", 17)))));
+      "\"Hello! \\u0001\\u001F\\\"\\\\ \xF0\x9F\x98\x80\"",
+      string(jsonify(JSON::Value("Hello! \x01\x1F\x22\x5C \xF0\x9F\x98\x80"))));
+
+  // There currently is no validation either when constructing
+  // invalid UTF-8 string, or during serialization. Here, we
+  // use a 4 byte sequence but only provide the first byte.
+  // For now, this just gets passed through.
+  EXPECT_EQ("\"\xF0\"", string(jsonify(JSON::Value("\xF0"))));
 }
 
 
