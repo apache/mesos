@@ -43,12 +43,11 @@ TEST(TimeTest, Arithmetic)
 }
 
 
-// Windows OS timers aren't high enough resolution to support this.
-TEST_TEMP_DISABLED_ON_WINDOWS(TimeTest, Now)
+TEST(TimeTest, Now)
 {
   Time t1 = Clock::now();
-  os::sleep(Microseconds(10));
-  ASSERT_LT(Microseconds(10), Clock::now() - t1);
+  os::sleep(Microseconds(1000));
+  ASSERT_LT(Microseconds(1000), Clock::now() - t1);
 }
 
 
