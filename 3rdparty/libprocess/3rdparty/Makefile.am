@@ -47,6 +47,7 @@ HTTP_PARSER = http-parser-$(HTTP_PARSER_VERSION)
 LIBEV = libev-$(LIBEV_VERSION)
 PROTOBUF = protobuf-$(PROTOBUF_VERSION)
 PICOJSON = picojson-$(PICOJSON_VERSION)
+RAPIDJSON = rapidjson-$(RAPIDJSON_VERSION)
 
 EXTRA_DIST =			\
   $(BOOST).tar.gz		\
@@ -58,7 +59,8 @@ EXTRA_DIST =			\
   $(HTTP_PARSER).tar.gz		\
   $(LIBEV).tar.gz		\
   $(PROTOBUF).tar.gz		\
-  $(PICOJSON).tar.gz
+  $(PICOJSON).tar.gz		\
+  $(RAPIDJSON).tar.gz
 
 # We need to patch glog in order to deal with a compilation issue when
 # compiling with clang (and C++11); see MESOS-860, MESOS-966.
@@ -88,7 +90,8 @@ CLEAN_EXTRACTED =		\
   $(HTTP_PARSER)		\
   $(LIBEV)			\
   $(PICOJSON)			\
-  $(PROTOBUF)
+  $(PROTOBUF)			\
+  $(RAPIDJSON)
 
 # This is where the magic happens: we use stamp files as dependencies
 # which cause the packages to get extracted as necessary. We also
@@ -173,6 +176,9 @@ if WITH_BUNDLED_PICOJSON
 ALL_LOCAL += $(PICOJSON)-stamp
 endif
 
+if WITH_BUNDLED_RAPIDJSON
+ALL_LOCAL += $(RAPIDJSON)-stamp
+endif
 
 if WITH_BUNDLED_PROTOBUF
 $(PROTOBUF)/src/protoc $(PROTOBUF)/src/libprotobuf.la: $(PROTOBUF)-build-stamp
