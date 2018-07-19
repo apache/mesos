@@ -44,6 +44,7 @@
 
 #include <mesos/scheduler/scheduler.hpp>
 
+#include <process/future.hpp>
 #include <process/limiter.hpp>
 #include <process/http.hpp>
 #include <process/owned.hpp>
@@ -1461,10 +1462,12 @@ private:
             principal) const;
 
     // /master/state
+    //
+    // NOTE: Requests to this endpoint are batched.
     process::Future<process::http::Response> state(
         const process::http::Request& request,
         const Option<process::http::authentication::Principal>&
-            principal) const;
+            principal);
 
     // /master/state-summary
     process::Future<process::http::Response> stateSummary(
@@ -1551,6 +1554,17 @@ private:
     process::Future<Try<JSON::Object, FlagsError>> _flags(
         const Option<process::http::authentication::Principal>&
             principal) const;
+
+    // A continuation for `state()`. Schedules request processing in a batch
+    // of other '/state' requests.
+    process::Future<process::http::Response> deferStateRequest(
+        const process::http::Request& request,
+        const process::Owned<ObjectApprovers>& approvers);
+
+    // A helper that responds to batched, i.e., accumulated, '/state'
+    // requests in parallel, i.e., a continuation for `deferStateRequest()`.
+    // See also `BatchedStateRequest`.
+    void processStateRequestsBatch();
 
     process::Future<std::vector<const Task*>> _tasks(
         const size_t limit,
@@ -1830,6 +1844,17 @@ private:
     // NOTE: The weights specific pieces of the Operator API are factored
     // out into this separate class.
     WeightsHandler weightsHandler;
+
+    // TODO(alexr): Consider adding a `type` or `handler` field to expand
+    // batching to other heavy read-only requests, e.g., '/state-summary'.
+    struct BatchedStateRequest
+    {
+      process::http::Request request;
+      process::Owned<ObjectApprovers> approvers;
+      process::Promise<process::http::Response> promise;
+    };
+
+    std::vector<BatchedStateRequest> batchedStateRequests;
   };
 
   Master(const Master&);              // No copying.
