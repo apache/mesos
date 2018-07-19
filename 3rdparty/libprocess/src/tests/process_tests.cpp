@@ -1468,9 +1468,7 @@ TEST(ProcessTest, Http1)
 
 // Like 'http1' but uses the 'Libprocess-From' header. We can
 // also use http::post here since we expect a 202 response.
-//
-// TODO(neilc): This test currently does not work on Windows (MESOS-7527).
-TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Http2)
+TEST(ProcessTest, Http2)
 {
   RemoteProcess process;
   spawn(process);
@@ -1613,10 +1611,7 @@ public:
 };
 
 
-// TODO(hausdorff): Enable test when `os::rmdir` is semantically equivalent to
-// the POSIX version. In this case, it behaves poorly when we try to use it to
-// delete a file instead of a directory. See MESOS-5942.
-TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, Provide)
+TEST(ProcessTest, Provide)
 {
   const Try<string> mkdtemp = os::mkdtemp();
   ASSERT_SOME(mkdtemp);
@@ -1655,8 +1650,6 @@ static int baz(string s) { return 42; }
 static Future<int> bam(string s) { return 42; }
 
 
-// MSVC can't compile the call to std::invoke.
-#ifndef __WINDOWS__
 TEST(ProcessTest, Defers)
 {
   {
@@ -1794,7 +1787,6 @@ TEST(ProcessTest, Defers)
   Future<int> future13 = Future<string>().then(
       defer(functor));
 }
-#endif // __WINDOWS__
 
 
 class PercentEncodedIDProcess : public Process<PercentEncodedIDProcess>
@@ -1898,18 +1890,15 @@ public:
 
 // Sets firewall rules which disable endpoints on a process and then
 // attempts to connect to those endpoints.
-// TODO(hausdorff): Routing logic is broken on Windows. Fix and enable test. In
-// this case, we fail to set up the firewall routes. See MESOS-5904.
-TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, FirewallDisablePaths)
+TEST(ProcessTest, FirewallDisablePaths)
 {
   const string id = "testprocess";
 
   hashset<string> endpoints = {
-    path::join("", id, "handler1"),
-    path::join("", id, "handler2/nested"),
+    strings::join("/", "", id, "handler1"),
+    strings::join("/", "", id, "handler2", "nested"),
     // Patterns are not supported, so this should do nothing.
-    path::join("", id, "handler3/*")
-  };
+    strings::join("/", "", id, "handler3", "*")};
 
   process::firewall::install(
       {Owned<FirewallRule>(new DisabledEndpointsFirewallRule(endpoints))});
@@ -1985,16 +1974,12 @@ TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, FirewallDisablePaths)
 
 // Test that firewall rules can be changed by changing the vector.
 // An empty vector should allow all paths.
-// TODO(hausdorff): Routing logic is broken on Windows. Fix and enable test. In
-// this case, we fail to set up the firewall routes. See MESOS-5904.
-TEST_TEMP_DISABLED_ON_WINDOWS(ProcessTest, FirewallUninstall)
+TEST(ProcessTest, FirewallUninstall)
 {
   const string id = "testprocess";
 
-  hashset<string> endpoints = {
-    path::join("", id, "handler1"),
-    path::join("", id, "handler2")
-  };
+  hashset<string> endpoints = {strings::join("/", "", id, "handler1"),
+                               strings::join("/", "", id, "handler2")};
 
   process::firewall::install(
       {Owned<FirewallRule>(new DisabledEndpointsFirewallRule(endpoints))});
