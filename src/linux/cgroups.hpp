@@ -787,6 +787,20 @@ Try<Bytes> max_usage_in_bytes(
     const std::string& cgroup);
 
 
+// Returns the memory usage from memory.kmem.usage_in_bytes. Returns
+// none if memory.kmem.usage_in_bytes is not supported.
+Result<Bytes> kmem_usage_in_bytes(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+
+// Returns the memory usage from memory.kmem.tcp.usage_in_bytes. Returns
+// none if memory.kmem.tcp.usage_in_bytes is not supported.
+Result<Bytes> kmem_tcp_usage_in_bytes(
+    const std::string& hierarchy,
+    const std::string& cgroup);
+
+
 // Out-of-memory (OOM) controls.
 namespace oom {
 

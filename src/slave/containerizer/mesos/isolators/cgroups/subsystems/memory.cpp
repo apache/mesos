@@ -324,6 +324,22 @@ Future<ResourceStatistics> MemorySubsystemProcess::usage(
 
   result.set_mem_total_bytes(usage->bytes());
 
+  Result<Bytes> kmem_usage = cgroups::memory::kmem_usage_in_bytes(hierarchy, cgroup);
+
+  if (kmem_usage.isError()) {
+    return Failure("Failed to parse 'memory.kmem.usage_in_bytes': " + kmem_usage.error());
+  } else if (kmem_usage.isSome()) {
+    result.set_mem_kmem_usage_bytes(kmem_usage.get().bytes());
+  }
+
+  Result<Bytes> kmem_tcp_usage = cgroups::memory::kmem_tcp_usage_in_bytes(hierarchy, cgroup);
+
+  if (kmem_tcp_usage.isError()) {
+    return Failure("Failed to parse 'memory.kmem.tcp.usage_in_bytes': " + kmem_tcp_usage.error());
+  } else if (kmem_usage.isSome()) {
+    result.set_mem_kmem_tcp_usage_bytes(kmem_tcp_usage.get().bytes());
+  }
+
   if (flags.cgroups_limit_swap) {
     Try<Bytes> usage = cgroups::memory::memsw_usage_in_bytes(hierarchy, cgroup);
 

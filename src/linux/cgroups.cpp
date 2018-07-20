@@ -2574,6 +2574,58 @@ Try<Bytes> max_usage_in_bytes(const string& hierarchy, const string& cgroup)
 }
 
 
+Result<Bytes> kmem_usage_in_bytes(const string& hierarchy, const string& cgroup)
+{
+  Try<bool> exists = cgroups::exists(
+      hierarchy, cgroup, "memory.kmem.usage_in_bytes");
+
+  if (exists.isError()) {
+    return Error(
+        "Could not check for existence of 'memory.kmem.usage_in_bytes': " +
+        exists.error());
+  }
+
+  if (!exists.get()) {
+    return None();
+  }
+
+  Try<string> read = cgroups::read(
+      hierarchy, cgroup, "memory.kmem.usage_in_bytes");
+
+  if (read.isError()) {
+    return Error(read.error());
+  }
+
+  return Bytes::parse(strings::trim(read.get()) + "B");
+}
+
+
+Result<Bytes> kmem_tcp_usage_in_bytes(const string& hierarchy, const string& cgroup)
+{
+  Try<bool> exists = cgroups::exists(
+      hierarchy, cgroup, "memory.kmem.tcp.usage_in_bytes");
+
+  if (exists.isError()) {
+    return Error(
+      "Could not check for existence of 'memory.kmem.tcp.usage_in_bytes': " +
+      exists.error());
+  }
+
+  if (!exists.get()) {
+    return None();
+  }
+
+  Try<string> read = cgroups::read(
+      hierarchy, cgroup, "memory.kmem.tcp.usage_in_bytes");
+
+  if (read.isError()) {
+    return Error(read.error());
+  }
+
+  return Bytes::parse(strings::trim(read.get()) + "B");
+}
+
+
 namespace oom {
 
 Future<Nothing> listen(const string& hierarchy, const string& cgroup)

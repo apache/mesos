@@ -1423,6 +1423,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_MemoryForward)
   AWAIT_READY(usage);
 
   EXPECT_FALSE(usage->has_mem_total_bytes());
+  EXPECT_FALSE(usage->has_mem_kmem_usage_bytes());
 
   // Start a new container which will start reporting memory statistics.
   TaskInfo task2 = createTask(offers2.get()[0], "sleep 1000");
@@ -1459,6 +1460,16 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_MemoryForward)
   AWAIT_READY(usage);
 
   EXPECT_TRUE(usage->has_mem_total_bytes());
+
+  Result<string> hierarchy = cgroups::hierarchy("memory");
+  ASSERT_SOME(hierarchy);
+
+  Try<bool> exists = cgroups::exists(hierarchy.get(), "memory.kmem.usage_in_bytes");
+  ASSERT_SOME(exists);
+
+  if (exists.get()) {
+    EXPECT_TRUE(usage->has_mem_kmem_usage_bytes());
+  }
 
   driver.stop();
   driver.join();
