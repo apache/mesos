@@ -173,7 +173,7 @@ class HTTPTest : public SSLTemporaryDirectoryTest,
 // These are only needed if libprocess is compiled with SSL support.
 #ifdef USE_SSL_SOCKET
 protected:
-  virtual void SetUp()
+  void SetUp() override
   {
     // We must run the parent's `SetUp` first so that we `chdir` into the test
     // directory before SSL helpers like `key_path()` are called.
