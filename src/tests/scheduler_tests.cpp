@@ -2263,7 +2263,7 @@ class SchedulerSSLTest
 // These test setup/teardown methods are only needed when compiled with SSL.
 #ifdef USE_SSL_SOCKET
 protected:
-  virtual void SetUp()
+  void SetUp() override
   {
     MesosTest::SetUp();
 
