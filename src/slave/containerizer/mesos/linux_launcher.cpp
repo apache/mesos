@@ -37,6 +37,7 @@
 
 #include "mesos/resources.hpp"
 
+#include "slave/containerizer/mesos/constants.hpp"
 #include "slave/containerizer/mesos/linux_launcher.hpp"
 #include "slave/containerizer/mesos/paths.hpp"
 
@@ -52,9 +53,6 @@ using mesos::slave::ContainerState;
 namespace mesos {
 namespace internal {
 namespace slave {
-
-static const char CGROUP_SEPARATOR[] = "mesos";
-
 
 // Launcher for Linux systems with cgroups. Uses a freezer cgroup to
 // track pids.

@@ -27,6 +27,8 @@ constexpr char MESOS_CONTAINERIZER[] = "mesos-containerizer";
 constexpr char MESOS_CONTAINERIZER[] = "mesos-containerizer.exe";
 #endif // __WINDOWS__
 
+constexpr char CGROUP_SEPARATOR[] = "mesos";
+
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {

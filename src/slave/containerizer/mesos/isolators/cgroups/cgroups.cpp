@@ -34,6 +34,10 @@
 #include "linux/cgroups.hpp"
 #include "linux/fs.hpp"
 #include "linux/ns.hpp"
+#include "linux/systemd.hpp"
+
+#include "slave/containerizer/mesos/constants.hpp"
+#include "slave/containerizer/mesos/paths.hpp"
 
 #include "slave/containerizer/mesos/isolators/cgroups/cgroups.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/constants.hpp"
@@ -603,6 +607,52 @@ Future<Option<ContainerLaunchInfo>> CgroupsIsolatorProcess::__prepare(
         Path(hierarchy).basename()));
 
     mount->set_flags(MS_BIND | MS_REC);
+  }
+
+  // Linux launcher will create freezer and systemd cgroups for the container,
+  // so here we need to do the container-specific cgroups mounts for them too,
+  // see MESOS-9070 for details.
+  if (flags.launcher == "linux") {
+    Result<string> hierarchy = cgroups::hierarchy("freezer");
+    if (hierarchy.isError()) {
+      return Failure(
+          "Failed to retrieve the 'freezer' subsystem hierarchy: " +
+          hierarchy.error());
+    }
+
+    ContainerMountInfo* mount = launchInfo.add_mounts();
+    mount->set_source(path::join(
+        hierarchy.get(),
+        flags.cgroups_root,
+        containerizer::paths::buildPath(
+            containerId,
+            CGROUP_SEPARATOR,
+            containerizer::paths::JOIN)));
+
+    mount->set_target(path::join(
+        containerConfig.rootfs(),
+        "/sys/fs/cgroup",
+        "freezer"));
+
+    mount->set_flags(MS_BIND | MS_REC);
+
+    if (systemd::enabled()) {
+      mount = launchInfo.add_mounts();
+      mount->set_source(path::join(
+          systemd::hierarchy(),
+          flags.cgroups_root,
+          containerizer::paths::buildPath(
+              containerId,
+              CGROUP_SEPARATOR,
+              containerizer::paths::JOIN)));
+
+      mount->set_target(path::join(
+          containerConfig.rootfs(),
+          "/sys/fs/cgroup",
+          "systemd"));
+
+      mount->set_flags(MS_BIND | MS_REC);
+    }
   }
 
   // TODO(qianzhang): This is a hack to pass the container-specific cgroups
