@@ -1904,8 +1904,8 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_AutoLoadSubsystems)
 }
 
 
-// This test verifies container-specific cgroup is correctly mounted inside the
-// nested container.
+// This test verifies the container-specific cgroups are correctly mounted
+// inside the nested container.
 TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_NestedContainerSpecificCgroupsMount)
 {
   // Disable AuthN on the agent.
@@ -1962,10 +1962,14 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_NestedContainerSpecificCgroupsMount)
   // Create a task to check if its memory (including both executor and task's
   // memory) is correctly set in its specific cgroup, e.g.:
   //  `/sys/fs/cgroup/memory/memory.soft_limit_in_bytes`
+  //
+  // And we also verify the freezer cgroup is correctly mounted for this task
+  // by checking if the current shell PID is included in the freezer cgroup.
   v1::TaskInfo taskInfo = v1::createTask(
       offer.agent_id(),
       v1::Resources::parse("cpus:0.1;mem:32;disk:32").get(),
-      "test `cat /sys/fs/cgroup/memory/memory.soft_limit_in_bytes` = 67108864");
+      "test `cat /sys/fs/cgroup/memory/memory.soft_limit_in_bytes` = 67108864 "
+      "&& grep $$ /sys/fs/cgroup/freezer/cgroup.procs");
 
   mesos::v1::Image image;
   image.set_type(mesos::v1::Image::DOCKER);
@@ -2010,8 +2014,8 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_NestedContainerSpecificCgroupsMount)
 }
 
 
-// This test verifies container-specific cgroup is correctly mounted for the
-// command task.
+// This test verifies the container-specific cgroups are correctly mounted for
+// the command task.
 TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CommandTaskSpecificCgroupsMount)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -2045,10 +2049,14 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CommandTaskSpecificCgroupsMount)
   // Create a task to check if its memory (including both executor and task's
   // memory) is correctly set in its specific cgroup, e.g.:
   //  `/sys/fs/cgroup/memory/memory.soft_limit_in_bytes`
+  //
+  // And we also verify the freezer cgroup is correctly mounted for this task
+  // by checking if the current shell PID is included in the freezer cgroup.
   TaskInfo task = createTask(
       offers->front().slave_id(),
       Resources::parse("cpus:0.1;mem:32;disk:32").get(),
-      "test `cat /sys/fs/cgroup/memory/memory.soft_limit_in_bytes` = 67108864");
+      "test `cat /sys/fs/cgroup/memory/memory.soft_limit_in_bytes` = 67108864 "
+      "&& grep $$ /sys/fs/cgroup/freezer/cgroup.procs");
 
   Image image;
   image.set_type(Image::DOCKER);
