@@ -159,7 +159,7 @@ static void json(JSON::ObjectWriter* writer, const TaskInfo& task)
   writer->field("id", task.task_id().value());
   writer->field("name", task.name());
   writer->field("slave_id", task.slave_id().value());
-  writer->field("resources", Resources(task.resources()));
+  writer->field("resources", task.resources());
 
   // Tasks are not allowed to mix resources allocated to
   // different roles, see MESOS-6636.

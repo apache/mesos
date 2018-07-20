@@ -591,7 +591,7 @@ void json(JSON::ObjectWriter* writer, const ExecutorInfo& executorInfo)
   writer->field("name", executorInfo.name());
   writer->field("framework_id", executorInfo.framework_id().value());
   writer->field("command", executorInfo.command());
-  writer->field("resources", Resources(executorInfo.resources()));
+  writer->field("resources", executorInfo.resources());
 
   // Resources may be empty for command executors.
   if (!executorInfo.resources().empty()) {
@@ -653,14 +653,20 @@ static void json(JSON::ObjectWriter* writer, const NetworkInfo& info)
 }
 
 
-void json(JSON::ObjectWriter* writer, const Resources& resources)
+template <typename ResourceIterable>
+void json(
+    JSON::ObjectWriter* writer,
+    ResourceIterable begin,
+    ResourceIterable end)
 {
   hashmap<string, double> scalars =
     {{"cpus", 0}, {"gpus", 0}, {"mem", 0}, {"disk", 0}};
   hashmap<string, Value::Ranges> ranges;
   hashmap<string, Value::Set> sets;
 
-  foreach (const Resource& resource, resources) {
+  for (auto it = begin; it != end; ++it) {
+    const Resource& resource = *it;
+
     string name =
       resource.name() + (Resources::isRevocable(resource) ? "_revocable" : "");
     switch (resource.type()) {
@@ -673,14 +679,28 @@ void json(JSON::ObjectWriter* writer, const Resources& resources)
       case Value::SET:
         sets[name] += resource.set();
         break;
-      default:
-        LOG(FATAL) << "Unexpected Value type: " << resource.type();
+      case Value::TEXT:
+        break;
     }
   }
 
   json(writer, scalars);
   json(writer, ranges);
   json(writer, sets);
+}
+
+
+void json(JSON::ObjectWriter* writer, const Resources& resources)
+{
+  json(writer, resources.begin(), resources.end());
+}
+
+
+void json(
+    JSON::ObjectWriter* writer,
+    const google::protobuf::RepeatedPtrField<Resource>& resources)
+{
+  json(writer, resources.begin(), resources.end());
 }
 
 
@@ -692,7 +712,7 @@ void json(JSON::ObjectWriter* writer, const Task& task)
   writer->field("executor_id", task.executor_id().value());
   writer->field("slave_id", task.slave_id().value());
   writer->field("state", TaskState_Name(task.state()));
-  writer->field("resources", Resources(task.resources()));
+  writer->field("resources", task.resources());
 
   // Tasks are not allowed to mix resources allocated to
   // different roles, see MESOS-6636.

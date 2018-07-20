@@ -171,7 +171,7 @@ static void json(JSON::ObjectWriter* writer, const Offer& offer)
   writer->field("framework_id", offer.framework_id().value());
   writer->field("allocation_info", JSON::Protobuf(offer.allocation_info()));
   writer->field("slave_id", offer.slave_id().value());
-  writer->field("resources", Resources(offer.resources()));
+  writer->field("resources", offer.resources());
 }
 
 
@@ -301,7 +301,7 @@ struct FullFrameworkWriter {
 
           writer->field("slave_id", taskInfo.slave_id().value());
           writer->field("state", TaskState_Name(TASK_STAGING));
-          writer->field("resources", Resources(taskInfo.resources()));
+          writer->field("resources", taskInfo.resources());
 
           // Tasks are not allowed to mix resources allocated to
           // different roles, see MESOS-6636.
