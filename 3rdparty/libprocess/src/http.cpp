@@ -690,23 +690,22 @@ OK::OK(const JSON::Value& value, const Option<string>& jsonp)
 {
   type = BODY;
 
-  std::ostringstream out;
-
   if (jsonp.isSome()) {
-    out << jsonp.get() << "(";
-  }
-
-  out << value;
-
-  if (jsonp.isSome()) {
-    out << ");";
     headers["Content-Type"] = "text/javascript";
+
+    string stringified = stringify(value);
+
+    body.reserve(jsonp->size() + 1 + stringified.size() + 1);
+    body += jsonp.get();
+    body += "(";
+    body += stringified;
+    body += ")";
   } else {
     headers["Content-Type"] = "application/json";
+    body = stringify(value);
   }
 
-  headers["Content-Length"] = stringify(out.str().size());
-  body = out.str();
+  headers["Content-Length"] = stringify(body.size());
 }
 
 
@@ -715,22 +714,21 @@ OK::OK(JSON::Proxy&& value, const Option<string>& jsonp)
 {
   type = BODY;
 
-  std::ostringstream out;
-
   if (jsonp.isSome()) {
-    out << jsonp.get() << "(";
-  }
-
-  out << std::move(value);
-
-  if (jsonp.isSome()) {
-    out << ");";
     headers["Content-Type"] = "text/javascript";
+
+    string stringified = std::move(value);
+
+    body.reserve(jsonp->size() + 1 + stringified.size() + 1);
+    body += jsonp.get();
+    body += "(";
+    body += stringified;
+    body += ")";
   } else {
     headers["Content-Type"] = "application/json";
+    body = std::move(value);
   }
 
-  body = out.str();
   headers["Content-Length"] = stringify(body.size());
 }
 
