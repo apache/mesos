@@ -145,7 +145,7 @@ static void json(
     JSON::StringWriter* writer,
     const FrameworkInfo::Capability& capability)
 {
-  writer->append(FrameworkInfo::Capability::Type_Name(capability.type()));
+  writer->set(FrameworkInfo::Capability::Type_Name(capability.type()));
 }
 
 
@@ -153,7 +153,7 @@ static void json(
     JSON::StringWriter* writer,
     const SlaveInfo::Capability& capability)
 {
-  writer->append(SlaveInfo::Capability::Type_Name(capability.type()));
+  writer->set(SlaveInfo::Capability::Type_Name(capability.type()));
 }
 
 
@@ -161,7 +161,7 @@ static void json(
     JSON::StringWriter* writer,
     const MasterInfo::Capability& capability)
 {
-  writer->append(MasterInfo::Capability::Type_Name(capability.type()));
+  writer->set(MasterInfo::Capability::Type_Name(capability.type()));
 }
 
 

@@ -778,19 +778,19 @@ static void json(JSON::NumberWriter* writer, const Value::Scalar& scalar)
 
 static void json(JSON::StringWriter* writer, const Value::Ranges& ranges)
 {
-  writer->append(stringify(ranges));
+  writer->set(stringify(ranges));
 }
 
 
 static void json(JSON::StringWriter* writer, const Value::Set& set)
 {
-  writer->append(stringify(set));
+  writer->set(stringify(set));
 }
 
 
 static void json(JSON::StringWriter* writer, const Value::Text& text)
 {
-  writer->append(text.value());
+  writer->set(text.value());
 }
 
 namespace authorization {

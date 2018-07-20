@@ -180,7 +180,7 @@ static void json(
     JSON::StringWriter* writer,
     const SlaveInfo::Capability& capability)
 {
-  writer->append(SlaveInfo::Capability::Type_Name(capability.type()));
+  writer->set(SlaveInfo::Capability::Type_Name(capability.type()));
 }
 
 namespace internal {
