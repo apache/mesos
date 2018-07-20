@@ -186,6 +186,9 @@ class LinterBase(object):
             for candidate in self.find_candidates(source_dir):
                 candidates.append(candidate)
 
+        # Normalize paths of any files give.
+        modified_files = map(os.path.normpath, modified_files)
+
         # If file paths are specified, check all file paths that are
         # candidates; else check all candidates.
         file_paths = modified_files if modified_files else candidates
