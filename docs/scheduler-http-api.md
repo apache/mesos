@@ -229,7 +229,12 @@ HTTP/1.1 202 Accepted
 ```
 
 ### REVIVE
-Sent by the scheduler to remove any/all filters that it has previously set via `ACCEPT` or `DECLINE` calls.
+Sent by the scheduler to perform two actions:
+
+1. Place the scheduler's role(s) in a non-`SUPPRESS`ed state in order to once again receive offers. No-op if the role is not suppressed.
+2. Clears all filters for its role(s) that were previously set via `ACCEPT` and `DECLINE`.
+
+If no role is specified, the operation will apply to all of the scheduler's subscribed roles.
 
 ```
 REVIVE Request (JSON):
