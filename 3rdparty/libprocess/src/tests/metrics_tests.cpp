@@ -344,20 +344,20 @@ TEST_F(MetricsTest, SnapshotAlphabetical)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
   // Ensure the response is ordered alphabetically.
-  EXPECT_LT(response->body.find("test\\/e"),
-            response->body.find("test\\/f"));
+  EXPECT_LT(response->body.find("test/e"),
+            response->body.find("test/f"));
 
-  EXPECT_LT(response->body.find("test\\/d"),
-            response->body.find("test\\/e"));
+  EXPECT_LT(response->body.find("test/d"),
+            response->body.find("test/e"));
 
-  EXPECT_LT(response->body.find("test\\/c"),
-            response->body.find("test\\/d"));
+  EXPECT_LT(response->body.find("test/c"),
+            response->body.find("test/d"));
 
-  EXPECT_LT(response->body.find("test\\/b"),
-            response->body.find("test\\/c"));
+  EXPECT_LT(response->body.find("test/b"),
+            response->body.find("test/c"));
 
-  EXPECT_LT(response->body.find("test\\/a"),
-            response->body.find("test\\/b"));
+  EXPECT_LT(response->body.find("test/a"),
+            response->body.find("test/b"));
 
   foreach (const Counter& counter, counters) {
     AWAIT_READY(metrics::remove(counter));
