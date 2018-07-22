@@ -2395,7 +2395,7 @@ void DockerContainerizerProcess::_destroy(
   // for a task).
   LOG(INFO) << "Running docker stop on container " << containerId;
 
-  if (killed) {
+  if (!killed) {
     // TODO(alexr): After the deprecation cycle (started in 1.0), update
     // this to omit the timeout. Graceful shutdown of the container is not
     // a containerizer responsibility; it is the responsibility of the agent
