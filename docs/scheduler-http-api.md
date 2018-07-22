@@ -497,7 +497,7 @@ Mesos-Stream-Id: 130ae4e3-6b13-4ef4-baa9-9f2e85c3e9af
 {
   "framework_id" : {"value" : "12220-3440-12532-2345"},
   "type"         : "SUPPRESS",
-  "suppress"     : {"roles": <one-of-the-subscribed-roles>}
+  "suppress"     : {"roles": <an-array-of-strings>}
 }
 
 SUPPRESS Response:
