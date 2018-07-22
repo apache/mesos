@@ -482,7 +482,7 @@ HTTP/1.1 202 Accepted
 ### SUPPRESS
 Sent by the scheduler when it doesn't need offers for a given set of its roles. When Mesos master receives this request, it will stop sending offers for the given set of roles to the framework. As a special case, if roles are not specified, all subscribed roles of this framework are suppressed.
 
-Note that master continues to send offers to other subscribed roles of this framework that are not suppressed. Also, status updates about tasks, executors and agents are not affected by this call and tasks will continue running for `FrameworkInfo.failover_timeout`.
+Note that master continues to send offers to other subscribed roles of this framework that are not suppressed. Also, status updates about tasks, executors and agents are not affected by this call. 
 
 If the scheduler wishes to receive offers for the suppressed roles again (e.g., it needs to schedule new workloads), it can send `REVIVE` call.
 
@@ -497,7 +497,7 @@ Mesos-Stream-Id: 130ae4e3-6b13-4ef4-baa9-9f2e85c3e9af
 {
   "framework_id" : {"value" : "12220-3440-12532-2345"},
   "type"         : "SUPPRESS",
-  "suppress"     : {"role": <one-of-the-subscribed-roles>}
+  "suppress"     : {"roles": <one-of-the-subscribed-roles>}
 }
 
 SUPPRESS Response:
