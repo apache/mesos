@@ -382,11 +382,11 @@ protected:
       available = total - allocated_;
     }
 
-    Resources getTotal() const { return total; }
+    const Resources& getTotal() const { return total; }
 
-    Resources getAllocated() const { return allocated; }
+    const Resources& getAllocated() const { return allocated; }
 
-    Resources getAvailable() const { return available; }
+    const Resources& getAvailable() const { return available; }
 
     void updateTotal(const Resources& newTotal) {
       total = newTotal;
