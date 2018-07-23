@@ -2953,6 +2953,10 @@ Content-Type: application/json
         "value": "0.1"
       },
       {
+        "name": "gc_non_executor_container_sandboxes",
+        "value": "false"
+      },
+      {
         "name": "help",
         "value": "false"
       },
@@ -3587,6 +3591,13 @@ Content-Type: application/json
 This call launches a nested container. Any authorized entity,
 including the executor itself, its tasks, or the operator can use this
 API to launch a nested container.
+
+**NOTE**: Successful invocation of this API will result in some metadata
+tracked by the agent and the creation of a container sandbox under the
+parent container. The REMOVE_NESTED_CONTAINER should be used to remove
+the metadata and sandbox. If the `--gc_non_executor_container_sandboxes`
+agent flag is enabled, the agent will garbage collect the sandboxes of
+any containers launched via this API.
 
 ```
 LAUNCH_NESTED_CONTAINER HTTP Request (JSON):

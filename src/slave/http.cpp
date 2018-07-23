@@ -1199,6 +1199,7 @@ string Http::STATE_HELP() {
         "         \"containerizers\" : \"mesos\",",
         "         \"docker_socket\" : \"/var/run/docker.sock\",",
         "         \"gc_delay\" : \"1weeks\",",
+        "         \"gc_non_executor_container_sandboxes\" : \"false\",",
         "         \"docker_remove_delay\" : \"6hrs\",",
         "         \"port\" : \"5051\",",
         "         \"systemd_runtime_directory\" : \"/run/systemd/system\",",

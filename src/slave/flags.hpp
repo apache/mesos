@@ -91,6 +91,7 @@ public:
 #endif // USE_SSL_SOCKET
   Duration gc_delay;
   double gc_disk_headroom;
+  bool gc_non_executor_container_sandboxes;
   Duration disk_watch_interval;
 
   Option<std::string> container_logger;

@@ -157,6 +157,9 @@ Sandbox files are scheduled for garbage collection when:
 * An executor is removed or terminated.
 * A framework is removed.
 * An executor is recovered unsuccessfully during agent recovery.
+* If the `--gc_non_executor_container_sandboxes` agent flag is enabled,
+  nested container sandboxes will also be garbage collected when the
+  container exits.
 
 **NOTE:** During agent recovery, all of the executor's runs, except for the
 latest run, are scheduled for garbage collection as well.
