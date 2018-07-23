@@ -58,7 +58,6 @@ using process::Owned;
 using process::PID;
 using process::Timeout;
 
-using mesos::internal::protobuf::framework::Capabilities;
 
 namespace mesos {
 namespace internal {
@@ -1800,18 +1799,7 @@ void HierarchicalAllocatorProcess::__allocate()
 
         Slave& slave = slaves.at(slaveId);
 
-        // Only offer resources from slaves that have GPUs to
-        // frameworks that are capable of receiving GPUs.
-        // See MESOS-5634.
-        if (filterGpuResources &&
-            !framework.capabilities.gpuResources &&
-            slave.getTotal().gpus().getOrElse(0) > 0) {
-          continue;
-        }
-
-        // If this framework is not region-aware, don't offer it
-        // resources on agents in remote regions.
-        if (!framework.capabilities.regionAware && isRemoteSlave(slave)) {
+        if (!isCapableOfReceivingAgent(framework.capabilities, slave)) {
           continue;
         }
 
@@ -2044,18 +2032,7 @@ void HierarchicalAllocatorProcess::__allocate()
         const Framework& framework = frameworks.at(frameworkId);
         Slave& slave = slaves.at(slaveId);
 
-        // Only offer resources from slaves that have GPUs to
-        // frameworks that are capable of receiving GPUs.
-        // See MESOS-5634.
-        if (filterGpuResources &&
-            !framework.capabilities.gpuResources &&
-            slave.getTotal().gpus().getOrElse(0) > 0) {
-          continue;
-        }
-
-        // If this framework is not region-aware, don't offer it
-        // resources on agents in remote regions.
-        if (!framework.capabilities.regionAware && isRemoteSlave(slave)) {
+        if (!isCapableOfReceivingAgent(framework.capabilities, slave)) {
           continue;
         }
 
@@ -2731,6 +2708,28 @@ bool HierarchicalAllocatorProcess::isRemoteSlave(const Slave& slave) const
 }
 
 
+bool HierarchicalAllocatorProcess::isCapableOfReceivingAgent(
+    const protobuf::framework::Capabilities& frameworkCapabilities,
+    const Slave& slave) const
+{
+  // Only offer resources from slaves that have GPUs to
+  // frameworks that are capable of receiving GPUs.
+  // See MESOS-5634.
+  if (filterGpuResources && !frameworkCapabilities.gpuResources &&
+      slave.getTotal().gpus().getOrElse(0) > 0) {
+    return false;
+  }
+
+  // If this framework is not region-aware, don't offer it
+  // resources on agents in remote regions.
+  if (!frameworkCapabilities.regionAware && isRemoteSlave(slave)) {
+    return false;
+  }
+
+  return true;
+}
+
+
 void HierarchicalAllocatorProcess::trackAllocatedResources(
     const SlaveID& slaveId,
     const FrameworkID& frameworkId,
@@ -2802,6 +2801,7 @@ void HierarchicalAllocatorProcess::untrackAllocatedResources(
     }
   }
 }
+
 
 } // namespace internal {
 } // namespace allocator {

@@ -313,6 +313,8 @@ protected:
   friend Metrics;
   Metrics metrics;
 
+  // TODO(mzhu): Pull out the nested Framework struct for clearer
+  // logic division with the allocator.
   struct Framework
   {
     Framework(
@@ -355,6 +357,8 @@ protected:
 
   hashmap<FrameworkID, Framework> frameworks;
 
+  // TODO(mzhu): Pull out the nested Slave class for clearer
+  // logic division with the allocator.
   class Slave
   {
   public:
@@ -641,6 +645,15 @@ private:
   // different region than the master. This can only be the case if
   // the agent and the master are both configured with a fault domain.
   bool isRemoteSlave(const Slave& slave) const;
+
+  // Helper function that checks if a framework is capable of
+  // receiving resources on the agent based on the framework capability.
+  //
+  // TODO(mzhu): Make this a `Framework` member function once we pull
+  // `struct Framework` out from being nested.
+  bool isCapableOfReceivingAgent(
+      const protobuf::framework::Capabilities& frameworkCapabilities,
+      const Slave& slave) const;
 
   // Helper to track allocated resources on an agent.
   void trackAllocatedResources(
