@@ -479,6 +479,15 @@ mesos::internal::slave::Flags::Flags()
       "be a value between 0.0 and 1.0",
       GC_DISK_HEADROOM);
 
+  add(&Flags::gc_non_executor_container_sandboxes,
+      "gc_non_executor_container_sandboxes",
+      "Determines whether nested container sandboxes created via the\n"
+      "LAUNCH_CONTAINER and LAUNCH_NESTED_CONTAINER APIs will be\n"
+      "automatically garbage collected by the agent upon termination.\n"
+      "The REMOVE_(NESTED_)CONTAINER API is unaffected by this flag\n"
+      "and can still be used.",
+      false);
+
   add(&Flags::disk_watch_interval,
       "disk_watch_interval",
       "Periodic time interval (e.g., 10secs, 2mins, etc)\n"

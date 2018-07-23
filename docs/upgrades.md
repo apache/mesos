@@ -60,6 +60,7 @@ We categorize the changes as follows:
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Flags-->
     <ul style="padding-left:10px;">
       <li>A <a href="#1-7-x-enforce-container-ports">enforce_container_ports</a></li>
+      <li>A <a href="#1-7-x-gc-non-executor-container-sandboxes">gc_non_executor_container_sandboxes</a></li>
     </ul>
   </td>
 
@@ -470,6 +471,14 @@ We categorize the changes as follows:
 <a name="1-7-x-enforce-container-ports"></a>
 
 * A new [`--enforce_container_ports`](configuration/agent.md#enforce_container_ports) flag has been added to toggle whether the [`network/ports`](isolators/network-ports.md) isolator should enforce TCP ports usage limits.
+
+<a name="1-7-x-gc-non-executor-container-sandboxes"></a>
+
+* A new [`--gc_non_executor_container_sandboxes`](configuration/agent.md#gc_non_executor_container_sandboxes)
+  agent flag has been added to garbage collect the sandboxes of nested
+  containers, which includes the tasks groups launched by the default executor.
+  We recommend enabling the flag if you have frameworks that launch multiple
+  task groups on the same default executor instance.
 
 <a name="1-7-x-container-logger"></a>
 

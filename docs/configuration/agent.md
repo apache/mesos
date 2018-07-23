@@ -918,6 +918,19 @@ be a value between 0.0 and 1.0 (default: 0.1)
   </td>
 </tr>
 
+<tr id="gc_non_executor_container_sandboxes">
+  <td>
+    --[no-]gc_non_executor_container_sandboxes
+  </td>
+  <td>
+Determines whether nested container sandboxes created via the
+<code>LAUNCH_CONTAINER</code> and <code>LAUNCH_NESTED_CONTAINER</code> APIs will be
+automatically garbage collected by the agent upon termination.
+The <code>REMOVE_(NESTED_)CONTAINER</code> API is unaffected by this flag
+and can still be used. (default: false).
+  </td>
+</tr>
+
 <tr id="hadoop_home">
   <td>
     --hadoop_home=VALUE

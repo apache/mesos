@@ -36,6 +36,11 @@ This release contains the following highlights:
       along with other cgroups related options
       (e.g., `cgroups/cpu`), those options will be just ignored.
 
+    * [MESOS-7947] - Added a new `--gc_non_executor_container_sandboxes`
+      option which tells the agent to garbage collect sandboxes created
+      via the LAUNCH_NESTED_CONTAINER API. The same flag will apply to
+      standalone container sandboxes in future.
+
     * [MESOS-8327] - Added container-specific cgroups mounts under
       `/sys/fs/cgroup` to containers with image launched by Mesos
       containerizer.
