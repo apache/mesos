@@ -33,6 +33,7 @@
 
 #include <mesos/scheduler/scheduler.hpp>
 
+#include <process/collect.hpp>
 #include <process/dispatch.hpp>
 #include <process/gmock.hpp>
 #include <process/gtest.hpp>
@@ -1864,8 +1865,13 @@ TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
   Future<RegisterExecutorMessage> registerExecutor =
     FUTURE_PROTOBUF(RegisterExecutorMessage(), _, _);
 
-  Future<Nothing> schedule = FUTURE_DISPATCH(
-      _, &GarbageCollectorProcess::schedule);
+  // We use 'gc.schedule' as a proxy for the cleanup of the executor.
+  // The first event will correspond with the finished task, whereas
+  // the second is associated with the exited executor.
+  vector<Future<Nothing>> schedules = {
+    FUTURE_DISPATCH(_, &GarbageCollectorProcess::schedule),
+    FUTURE_DISPATCH(_, &GarbageCollectorProcess::schedule)
+  };
 
   driver.launchTasks(offers1.get()[0].id(), {task});
 
@@ -1873,8 +1879,7 @@ TYPED_TEST(SlaveRecoveryTest, RecoverCompletedExecutor)
   AWAIT_READY(registerExecutor);
   ExecutorID executorId = registerExecutor->executor_id();
 
-  // We use 'gc.schedule' as a proxy for the cleanup of the executor.
-  AWAIT_READY(schedule);
+  AWAIT_READY(collect(schedules));
 
   slave.get()->terminate();
 
