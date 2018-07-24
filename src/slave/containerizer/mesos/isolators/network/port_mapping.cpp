@@ -3357,6 +3357,20 @@ Try<Nothing> PortMappingIsolatorProcess::_cleanup(
   // this function returns.
   Owned<Info> info(CHECK_NOTNULL(_info));
 
+  // Free the ephemeral ports used by the container. Filters
+  // associated with those ports will be removed below if they were
+  // set up.
+  if (info->ephemeralPorts != Interval<uint16_t>()) {
+    ephemeralPortsAllocator->deallocate(info->ephemeralPorts);
+
+    LOG(INFO) << "Freed ephemeral ports " << info->ephemeralPorts
+              << " used by container"
+              << (containerId.isSome()
+                  ? " " + stringify(containerId.get()) : "")
+              << (info->pid.isSome()
+                  ? " with pid " + stringify(info->pid.get()) : "");
+  }
+
   if (!info->pid.isSome()) {
     LOG(WARNING) << "The container has not been isolated";
     return Nothing();
@@ -3391,14 +3405,6 @@ Try<Nothing> PortMappingIsolatorProcess::_cleanup(
           stringify(pid) + ": " + removing.error());
     }
   }
-
-  // Free the ephemeral ports used by this container.
-  if (info->ephemeralPorts != Interval<uint16_t>()) {
-    ephemeralPortsAllocator->deallocate(info->ephemeralPorts);
-  }
-
-  LOG(INFO) << "Freed ephemeral ports " << info->ephemeralPorts
-            << " for container with pid " << pid;
 
   if (info->flowId.isSome()) {
     freeFlowIds.insert(info->flowId.get());
