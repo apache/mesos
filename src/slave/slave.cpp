@@ -9664,6 +9664,19 @@ void Executor::completeTask(const TaskID& taskId)
     slave->detachTaskVolumeDirectories(info, containerId, {*firstTask});
   }
 
+  // Mark the task metadata (TaskInfo and status updates) for garbage
+  // collection. This is important for keeping the metadata of long-lived,
+  // multi-task executors within reasonable levels.
+  if (checkpoint) {
+    slave->garbageCollect(paths::getTaskPath(
+        slave->metaDir,
+        slave->info.id(),
+        frameworkId,
+        id,
+        containerId,
+        taskId));
+  }
+
   Task* task = terminatedTasks[taskId];
   completedTasks.push_back(shared_ptr<Task>(task));
   terminatedTasks.erase(taskId);
