@@ -96,7 +96,7 @@ layout: documentation
 * [3rd Party Tools](tools.md) for developers and operators.
 * [Development Roadmap](roadmap.md)
 * [Design Docs](design-docs.md) list of design documents for various Mesos features.
-* [Working groups](working-groups.md) a listing of groups working on different components.
+* [Working groups](/community/#workinggroups) a listing of groups working on different components.
 
 ### Contributing
 * [Reporting an Issue, Improvement, or Feature](reporting-an-issue.md) for getting started with JIRA.

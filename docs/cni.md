@@ -23,7 +23,7 @@ default.
   - [Adding/Deleting/Modifying CNI networks](#adding-modifying-deleting)
   - [Attaching containers to CNI networks](#attaching-containers-to-cni-networks)
   - [Accessing container network namespace](#accessing-container-network-namespace)
-  - [Passing network labels and port-mapping information to CNI plugins](#mesos-meta-data-to-cni-plugins)
+  - [Passing network labels and port-mapping information to CNI plugins](#passing-network-labels-and-port-mapping-information-to-cni-plugins)
 - [Networking Recipes](#networking-recipes)
   - [A bridge network](#a-bridge-network)
   - [A port-mapper plugin for CNI networks](#a-port-mapper-plugin)
@@ -467,7 +467,7 @@ port-mapping information itself is learned by looking at the
 `NetworkInfo` set in the `args` field of the CNI configuration passed
 by Mesos to the port-mapper plugin. Please refer to the "[Passing
 network labels and port-mapping information to CNI
-plugins](#mesos-meta-data-to-cni-plugins)" section for more details.
+plugins](#passing-network-labels-and-port-mapping-information-to-cni-plugins)" section for more details.
 
 #### <a name="a-calico-network">A Calico network</a>
 

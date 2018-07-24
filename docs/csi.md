@@ -199,8 +199,8 @@ been added to the [scheduler API](scheduler-http-api.md#accept):
 
 To learn how to use the offer operations, please refer to the
 [`ACCEPT`](scheduler-http-api.md#accept) Call in the v1 scheduler API, or
-[`acceptOffers`](app-framework-development-guide.md#scheduler-driver-api) method
-in the v0 scheduler API for more details.
+[`acceptOffers`](app-framework-development-guide.md#api) method in the v0
+scheduler API for more details.
 
 ```protobuf
 message Offer {
@@ -366,7 +366,7 @@ than low-level storage vendor specific parameters.
 ### Disk Profile Adaptor Module
 
 In order to let cluster operators customize the mapping between profiles and
-storage system-specific parameters, Mesos provides a [module](#modules.md)
+storage system-specific parameters, Mesos provides a [module](modules.md)
 interface called `DiskProfileAdaptor`.
 
 ```cpp
@@ -834,5 +834,5 @@ provided by the Mesos agent. See more details about standalone container in the
   different agent node. The external disk resources support is coming soon.
 * The CSI plugin container cannot be a Docker container yet. Storage vendors
   currently should package the CSI plugins in binary format and use the
-  [fetcher](#fetcher.md) to fetch the binary executable.
+  [fetcher](fetcher.md) to fetch the binary executable.
 * `BLOCK` type disk resources are not supported yet.

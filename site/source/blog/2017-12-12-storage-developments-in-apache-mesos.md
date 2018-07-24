@@ -32,7 +32,7 @@ The other thing I’m excited about is that we have a solution that allows a ven
 
 **Greg**: How can community members get involved going forward?
 <br>
-**Jie**: Well, there are multiple avenues. For storage vendors, you can write a CSI plugin and test it with Mesos. For Mesos users, please try out this feature! And if you want to contribute to the coding, you can reach out on the [mailing list](dev@apache.mesos.org). Hopefully we can organize a storage working group in the near future once the feature lands.
+**Jie**: Well, there are multiple avenues. For storage vendors, you can write a CSI plugin and test it with Mesos. For Mesos users, please try out this feature! And if you want to contribute to the coding, you can reach out on the [mailing list](mailto:dev@apache.mesos.org). Hopefully we can organize a storage working group in the near future once the feature lands.
 
 **Greg**: What’s next after Mesos 1.6?
 <br>

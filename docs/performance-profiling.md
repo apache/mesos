@@ -17,6 +17,6 @@ $ sudo perf script --header | c++filt > mesos-master.stacks
 $ gzip mesos-master.stacks
 ```
 
-If you'd like to solicit help in analyzing the performance data, upload the `mesos-master.stacks.gz` to a publicly accessible location and file with `dev@mesos.apache.org` for analysis, or send the file over [slack](mesos.slack.com) to the #performance channel.
+If you'd like to solicit help in analyzing the performance data, upload the `mesos-master.stacks.gz` to a publicly accessible location and file with `dev@mesos.apache.org` for analysis, or send the file over [slack](http://mesos.slack.com) to the #performance channel.
 
 Alternatively, to do the analysis yourself, place mesos-master.stacks into the `examples` folder of a flamescope git checkout.

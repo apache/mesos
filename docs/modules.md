@@ -137,8 +137,8 @@ Here are the various module kinds currently available.
 | [`HttpAuthenticatee`](#authentication)              | Provides the client side of an HTTP authentication.                     |
 | [`HttpAuthenticator`](#authentication)              | Provides the server side of an HTTP authentication.                     |
 | [`Isolator`](#isolator)                             | Enables experimenting with specialized isolation and monitoring.        |
-| [`MasterContender`](#master_contender_and_detector) | Contender modules allow implementing custom leader election mechanisms. |
-| [`MasterDetector`](#master_contender_and_detector)  | Detector modules allow implementing custom master detection mechanisms. |
+| [`MasterContender`](#master-contender-and-detector) | Contender modules allow implementing custom leader election mechanisms. |
+| [`MasterDetector`](#master-contender-and-detector)  | Detector modules allow implementing custom master detection mechanisms. |
 | `QoSController`                                     | QoS modules allow providing task performance guarantees.                |
 | `ResourceEstimator`                                 | Estimator modules allow predicting the resources total used.            |
 | `SecretResolver`                                    | Secret resolver modules allow interfacing with secure data providers.   |

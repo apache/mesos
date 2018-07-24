@@ -143,7 +143,7 @@ layout: community_section
               Community
             </td>
             <td>
-              <a href="vinodkone@apache.org">Vinod Kone</a>
+              <a href="mailto:vinodkone@apache.org">Vinod Kone</a>
             </td>
             <td>
               #community
