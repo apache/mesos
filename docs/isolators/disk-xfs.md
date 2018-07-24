@@ -39,6 +39,17 @@ to display the `fsxattr.projid` field. For example:
 
     $ xfs_io -r -c stat /mnt/mesos/
 
+Project IDs are not reclaimed until the sandboxes they were assigned to
+are garbage collected. The XFS Disk isolator periodically checks if
+sandboxes of terminated containers still exist and deallocates project
+IDs of the ones that were removed. Such checks are performed at
+intervals specified by the
+[`--disk_watch_interval`](configuration/agent.md#disk_watch_interval)
+flag. Current number of available project IDs and total number of
+project IDs used by the isolator can be tracked using
+`containerizer/mesos/disk/project_ids_free` and
+`containerizer/mesos/disk/project_ids_total` metrics.
+
 ## Killing containers
 
 The XFS Disk isolator flag `--xfs_kill_containers` will create container

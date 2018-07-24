@@ -1846,6 +1846,20 @@ containerizers.
 </tr>
 <tr>
   <td>
+  <code>containerizer/mesos/disk/project_ids_free</code>
+  </td>
+  <td>Number of free project IDs available to the XFS Disk isolator</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>containerizer/mesos/disk/project_ids_total</code>
+  </td>
+  <td>Number of project IDs configured for the XFS Disk isolator</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
   <code>containerizer/mesos/provisioner/docker_store/image_pull_ms</code>
   </td>
   <td>Mesos containerizer docker image pull latency in ms </td>
