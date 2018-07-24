@@ -56,12 +56,19 @@ for cm in $(find $SOURCE_DIRS -name CMakeLists.txt); do
   for file in $(grep -o '\(\S\)*\w\+\.cpp' "$cm"); do
     # We ignore weird filename-like patterns which do
     # not correspond to a path.
-    realpath "$base/$file" || true
+    realpath "$base/$file" 2> /dev/null || true
   done
 done | sort > "$CMAKE_FILES"
 
 
-if ! diff -a "$FILES" "$CMAKE_FILES" > /dev/null; then
-  printf "%s\\n" "The following files do not appear in any CMakeLists.txt:"
-  comm -23 "$FILES" "$CMAKE_FILES"
+MISSING_FILES=$(comm -23 "$FILES" "$CMAKE_FILES")
+
+if [ -n "$MISSING_FILES" ]; then
+  (>&2 \
+    printf "%s\\n\\n%s\\n" \
+      "The following files do not appear in any CMakeLists.txt:" \
+      "$MISSING_FILES" \
+  )
+
+  exit 1
 fi
