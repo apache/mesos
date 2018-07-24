@@ -168,10 +168,17 @@ public:
   }
 
 private:
-  std::atomic<Node<T>*> head;
-
   // TODO(drexin): Programatically get the cache line size.
-  alignas(128) Node<T>* tail;
+  //
+  // We align head to 64 bytes (x86 cache line size) to guarantee
+  // it to be put on a new cache line. This is to prevent false
+  // sharing with other objects that could otherwise end up on
+  // the same cache line as this queue. We also align tail to
+  // avoid false sharing with head and add padding after tail
+  // to avoid false sharing with other objects.
+  alignas(64) std::atomic<Node<T>*> head;
+  alignas(64) Node<T>* tail;
+  char pad[64 - sizeof(tail)];
 };
 
 } // namespace process {
