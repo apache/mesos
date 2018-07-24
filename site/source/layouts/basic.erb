@@ -70,12 +70,12 @@
 
           <li><a href="http://mesos.apache.org">Apache Mesos</a></li>
           <% if current_page.data.breadcrumb %>
-          <li><a href="/<%= current_page.data.breadcrumb.delete(' ').downcase %>/"><%= current_page.data.breadcrumb %></a></li>
+          <li><a href="/<%= current_page.data.breadcrumb.chomp.gsub(/\s+/, '-').downcase %>/"><%= current_page.data.breadcrumb %></a></li>
           <% elsif content_for?(:page_title) %>
           <% if yield_content(:page_title) == "Documentation" %>
           <li><a href="/documentation/latest/"><%= yield_content :page_title %></a></li>
           <% else %>
-          <li><a href="/<%= yield_content(:page_title).downcase %>/"><%= yield_content :page_title %></a></li>
+          <li><a href="/<%= yield_content(:page_title).downcase.chomp %>/"><%= yield_content(:page_title).chop %></a></li>
           <% end %>
           <% end %>
         </ul><!-- /.breadcrumb -->
