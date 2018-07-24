@@ -465,6 +465,7 @@ int main(int argc, char** argv)
 #endif // __linux__
 
   Fetcher* fetcher = new Fetcher(flags);
+  GarbageCollector* gc = new GarbageCollector(flags.work_dir);
 
   // Initialize SecretResolver.
   Try<SecretResolver*> secretResolver =
@@ -476,7 +477,7 @@ int main(int argc, char** argv)
   }
 
   Try<Containerizer*> containerizer =
-    Containerizer::create(flags, false, fetcher, secretResolver.get());
+    Containerizer::create(flags, false, fetcher, gc, secretResolver.get());
 
   if (containerizer.isError()) {
     EXIT(EXIT_FAILURE)
@@ -530,7 +531,6 @@ int main(int argc, char** argv)
   }
 
   Files* files = new Files(READONLY_HTTP_AUTHENTICATION_REALM, authorizer_);
-  GarbageCollector* gc = new GarbageCollector(flags.work_dir);
   TaskStatusUpdateManager* taskStatusUpdateManager =
     new TaskStatusUpdateManager(flags);
 
@@ -605,8 +605,6 @@ int main(int argc, char** argv)
 
   delete taskStatusUpdateManager;
 
-  delete gc;
-
   delete files;
 
   if (authorizer_.isSome()) {
@@ -616,6 +614,8 @@ int main(int argc, char** argv)
   delete detector;
 
   delete containerizer.get();
+
+  delete gc;
 
   delete fetcher;
 

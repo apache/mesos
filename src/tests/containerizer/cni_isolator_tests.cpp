@@ -649,6 +649,7 @@ TEST_F(CniIsolatorTest, ROOT_DestroyWhilePreparing)
       flags,
       true,
       &fetcher,
+      nullptr,
       launcher,
       provisioner->share(),
       {Owned<Isolator>(cniIsolator.get()),

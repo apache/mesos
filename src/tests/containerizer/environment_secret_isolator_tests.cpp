@@ -59,7 +59,8 @@ TEST_F(EnvironmentSecretIsolatorTest, ResolveSecret)
   EXPECT_SOME(secretResolver);
 
   Try<MesosContainerizer*> containerizer =
-    MesosContainerizer::create(flags, false, &fetcher, secretResolver.get());
+    MesosContainerizer::create(
+        flags, false, &fetcher, nullptr, secretResolver.get());
   EXPECT_SOME(containerizer);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
@@ -144,7 +145,8 @@ TEST_F(EnvironmentSecretIsolatorTest, ResolveSecretDefaultExecutor)
   EXPECT_SOME(secretResolver);
 
   Try<MesosContainerizer*> containerizer =
-    MesosContainerizer::create(flags, true, &fetcher, secretResolver.get());
+    MesosContainerizer::create(
+        flags, true, &fetcher, nullptr, secretResolver.get());
   EXPECT_SOME(containerizer);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
