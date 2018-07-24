@@ -51,7 +51,7 @@ orchestrate containers on a wide variety of external storage technologies.
 
 ## <a name="how-does-it-work"></a>How does it work?
 
-![Docker Volume Isolator Architecture](../images/docker-volume-isolator.png)
+![Docker Volume Isolator Architecture](images/docker-volume-isolator.png)
 
 The `docker/volume` isolator interacts with Docker volume plugins using
 [dvdcli](https://github.com/emccode/dvdcli), an open-source command line tool
