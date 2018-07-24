@@ -21,6 +21,8 @@
 
 #include <process/owned.hpp>
 
+#include <process/metrics/push_gauge.hpp>
+
 #include <stout/bytes.hpp>
 #include <stout/duration.hpp>
 #include <stout/hashmap.hpp>
@@ -76,7 +78,8 @@ private:
       Duration watchInterval,
       xfs::QuotaPolicy quotaPolicy,
       const std::string& workDir,
-      const IntervalSet<prid_t>& projectIds);
+      const IntervalSet<prid_t>& projectIds,
+      Duration projectWatchInterval);
 
   // Responsible for validating a container hasn't broken the soft limit.
   void check();
@@ -86,6 +89,10 @@ private:
 
   // Return this project ID to the unallocated pool.
   void returnProjectId(prid_t projectId);
+
+  // Check which project IDs are currently in use and deallocate the ones
+  // that are not.
+  void reclaimProjectIds();
 
   struct Info
   {
@@ -99,11 +106,23 @@ private:
   };
 
   const Duration watchInterval;
+  const Duration projectWatchInterval;
   xfs::QuotaPolicy quotaPolicy;
   const std::string workDir;
   const IntervalSet<prid_t> totalProjectIds;
   IntervalSet<prid_t> freeProjectIds;
   hashmap<ContainerID, process::Owned<Info>> infos;
+  hashmap<prid_t, std::string> scheduledProjects;
+
+  // Metrics used by the XFS disk isolator.
+  struct Metrics
+  {
+    Metrics();
+    ~Metrics();
+
+    process::metrics::PushGauge project_ids_total;
+    process::metrics::PushGauge project_ids_free;
+  } metrics;
 };
 
 } // namespace slave {

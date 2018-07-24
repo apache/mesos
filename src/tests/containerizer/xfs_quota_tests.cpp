@@ -32,11 +32,14 @@
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 
+#include "common/values.hpp"
+
 #include "linux/fs.hpp"
 
 #include "master/master.hpp"
 
 #include "slave/flags.hpp"
+#include "slave/gc_process.hpp"
 #include "slave/paths.hpp"
 #include "slave/slave.hpp"
 
@@ -63,10 +66,13 @@ using testing::Return;
 using mesos::internal::master::Master;
 
 using mesos::internal::slave::Fetcher;
+using mesos::internal::slave::GarbageCollectorProcess;
 using mesos::internal::slave::MesosContainerizer;
 using mesos::internal::slave::MesosContainerizerProcess;
 using mesos::internal::slave::Slave;
 using mesos::internal::slave::XfsDiskIsolatorProcess;
+
+using mesos::internal::values::rangesToIntervalSet;
 
 using mesos::master::detector::MasterDetector;
 
@@ -963,14 +969,18 @@ TEST_F(ROOT_XFS_QuotaTest, NoCheckpointRecovery)
   // One sandbox and one symlink.
   ASSERT_EQ(2u, sandboxes->size());
 
-  // Scan the remaining sandboxes and make sure that no projects are assigned.
+  // Scan the remaining sandboxes and check that project ID is still assigned
+  // but quota is unset.
   foreach (const string& sandbox, sandboxes.get()) {
     // Skip the "latest" symlink.
     if (os::stat::islink(sandbox)) {
       continue;
     }
 
-    EXPECT_NONE(xfs::getProjectId(sandbox));
+    Result<prid_t> projectId = xfs::getProjectId(sandbox);
+    ASSERT_SOME(projectId);
+
+    EXPECT_NONE(xfs::getProjectQuota(sandbox, projectId.get()));
   }
 
   driver.stop();
@@ -1182,6 +1192,188 @@ TEST_F(ROOT_XFS_QuotaTest, RecoverOldContainers)
     ASSERT_TRUE(executor.has_statistics());
     ASSERT_FALSE(executor.statistics().has_disk_limit_bytes());
   }
+
+  driver.stop();
+  driver.join();
+}
+
+
+// Verify that XFS project IDs are reclaimed when sandbox directories they were
+// set on are garbage collected.
+TEST_F(ROOT_XFS_QuotaTest, ProjectIdReclaiming)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.gc_delay = Seconds(10);
+  flags.disk_watch_interval = Seconds(10);
+
+  Try<Resource> projects =
+    Resources::parse("projects", flags.xfs_project_range, "*");
+  ASSERT_SOME(projects);
+  ASSERT_EQ(Value::RANGES, projects->type());
+  Try<IntervalSet<prid_t>> totalProjectIds =
+    rangesToIntervalSet<prid_t>(projects->ranges());
+  ASSERT_SOME(totalProjectIds);
+
+  Fetcher fetcher(flags);
+
+  Try<MesosContainerizer*> _containerizer = MesosContainerizer::create(
+      flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<MesosContainerizer> containerizer(_containerizer.get());
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      detector.get(), containerizer.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer>> offers1;
+  Future<vector<Offer>> offers2;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  JSON::Object metrics = Metrics();
+  EXPECT_EQ(totalProjectIds->size(),
+            metrics.values["containerizer/mesos/disk/project_ids_total"]);
+  EXPECT_EQ(totalProjectIds->size(),
+            metrics.values["containerizer/mesos/disk/project_ids_free"]);
+
+  AWAIT_READY(offers1);
+  ASSERT_FALSE(offers1->empty());
+  Offer offer = offers1->at(0);
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:128;disk:2").get(),
+      "dd if=/dev/zero of=file bs=1048576 count=1 && sleep 1000");
+
+  Future<TaskStatus> startingStatus;
+  Future<TaskStatus> runningStatus;
+  Future<TaskStatus> exitStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&startingStatus))
+    .WillOnce(FutureArg<1>(&runningStatus))
+    .WillOnce(FutureArg<1>(&exitStatus))
+    .WillRepeatedly(Return());
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(startingStatus);
+  EXPECT_EQ(task.task_id(), startingStatus->task_id());
+  EXPECT_EQ(TASK_STARTING, startingStatus->state());
+
+  AWAIT_READY(runningStatus);
+  EXPECT_EQ(task.task_id(), runningStatus->task_id());
+  EXPECT_EQ(TASK_RUNNING, runningStatus->state());
+
+  metrics = Metrics();
+  EXPECT_EQ(totalProjectIds->size(),
+            metrics.values["containerizer/mesos/disk/project_ids_total"]);
+  EXPECT_EQ(totalProjectIds->size() - 1,
+            metrics.values["containerizer/mesos/disk/project_ids_free"]);
+
+  Future<Nothing> schedule =
+    FUTURE_DISPATCH(_, &GarbageCollectorProcess::schedule);
+
+  driver.killTask(task.task_id());
+  AWAIT_READY(exitStatus);
+  EXPECT_EQ(TASK_KILLED, exitStatus->state());
+
+  AWAIT_READY(schedule);
+
+  Try<list<string>> sandboxes = getSandboxes();
+  ASSERT_SOME(sandboxes);
+  ASSERT_EQ(2u, sandboxes->size());
+
+  // Scan the remaining sandboxes and check that project ID is still assigned
+  // but quota is unset.
+  Option<prid_t> usedProjectId;
+  foreach (const string& sandbox, sandboxes.get()) {
+    if (!os::stat::islink(sandbox)) {
+      Result<prid_t> projectId = xfs::getProjectId(sandbox);
+      ASSERT_SOME(projectId);
+      usedProjectId = projectId.get();
+
+      EXPECT_NONE(xfs::getProjectQuota(sandbox, projectId.get()));
+    }
+  }
+  ASSERT_SOME(usedProjectId);
+
+  // Advance the clock to trigger sandbox GC and project ID usage check.
+  Clock::pause();
+  Clock::advance(flags.gc_delay);
+  Clock::settle();
+  Clock::advance(flags.disk_watch_interval);
+  Clock::settle();
+  Clock::resume();
+
+  // Check that the sandbox was GCed.
+  sandboxes = getSandboxes();
+  ASSERT_SOME(sandboxes);
+  ASSERT_TRUE(sandboxes->empty());
+
+  AWAIT_READY(offers2);
+  ASSERT_FALSE(offers2->empty());
+  offer = offers2->at(0);
+
+  metrics = Metrics();
+  EXPECT_EQ(totalProjectIds->size(),
+            metrics.values["containerizer/mesos/disk/project_ids_total"]);
+  EXPECT_EQ(totalProjectIds->size(),
+            metrics.values["containerizer/mesos/disk/project_ids_free"]);
+
+  task = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:128;disk:2").get(),
+      "dd if=/dev/zero of=file bs=1048576 count=1 && sleep 1000");
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&startingStatus))
+    .WillOnce(FutureArg<1>(&runningStatus))
+    .WillOnce(FutureArg<1>(&exitStatus))
+    .WillRepeatedly(Return());
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(startingStatus);
+  EXPECT_EQ(task.task_id(), startingStatus->task_id());
+  EXPECT_EQ(TASK_STARTING, startingStatus->state());
+
+  AWAIT_READY(runningStatus);
+  EXPECT_EQ(task.task_id(), runningStatus->task_id());
+  EXPECT_EQ(TASK_RUNNING, runningStatus->state());
+
+  // Scan the sandboxes and check that the project ID was reused.
+  sandboxes = getSandboxes();
+  ASSERT_SOME(sandboxes);
+  EXPECT_EQ(2u, sandboxes->size());
+  foreach (const string& sandbox, sandboxes.get()) {
+    // Skip the "latest" symlink.
+    if (!os::stat::islink(sandbox)) {
+      EXPECT_SOME_EQ(usedProjectId.get(), xfs::getProjectId(sandbox));
+    }
+  }
+
+  metrics = Metrics();
+  EXPECT_EQ(totalProjectIds->size() - 1,
+            metrics.values["containerizer/mesos/disk/project_ids_free"]);
+
+  driver.killTask(task.task_id());
+  AWAIT_READY(exitStatus);
+  EXPECT_EQ(TASK_KILLED, exitStatus->state());
 
   driver.stop();
   driver.join();
