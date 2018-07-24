@@ -596,6 +596,7 @@ We categorize the changes as follows:
 
 * Support for deprecated ACL `shutdown_frameworks` has been removed from the local authorizer. Before upgrading the Mesos binaries, replace all instances of the ACL `shutdown_frameworks` with the newer ACL `teardown_frameworks`. After updating the ACLs, the binaries can be safely replaced.
 
+<a name="1-3-x-multi-role-support"></a>
 <a name="1-3-x-framework-info-role"></a>
 
 * Support for multi-role frameworks deprecates the `FrameworkInfo.role` field in favor of `FrameworkInfo.roles` and the `MULTI_ROLE` capability. Frameworks using the new field can continue to use a single role.
