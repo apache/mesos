@@ -421,6 +421,11 @@ Try<process::Owned<Slave>> Slave::create(
   slave->flags = flags;
   slave->detector = detector;
 
+  // If the garbage collector is not provided, create a default one.
+  if (gc.isNone()) {
+    slave->gc.reset(new slave::GarbageCollector(flags.work_dir));
+  }
+
   // If the containerizer is not provided, create a default one.
   if (containerizer.isSome()) {
     slave->containerizer = containerizer.get();
@@ -429,7 +434,8 @@ Try<process::Owned<Slave>> Slave::create(
     slave->fetcher.reset(new slave::Fetcher(flags));
 
     Try<slave::Containerizer*> _containerizer =
-      slave::Containerizer::create(flags, true, slave->fetcher.get());
+      slave::Containerizer::create(
+          flags, true, slave->fetcher.get(), gc.getOrElse(slave->gc.get()));
 
     if (_containerizer.isError()) {
       return Error("Failed to create containerizer: " + _containerizer.error());
@@ -501,11 +507,6 @@ Try<process::Owned<Slave>> Slave::create(
   } else {
     // An authorizer was provided, so set authorization callbacks in libprocess.
     slave->setAuthorizationCallbacks(providedAuthorizer.get());
-  }
-
-  // If the garbage collector is not provided, create a default one.
-  if (gc.isNone()) {
-    slave->gc.reset(new slave::GarbageCollector(flags.work_dir));
   }
 
   // If the resource estimator is not provided, create a default one.

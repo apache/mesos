@@ -177,6 +177,7 @@ TEST_P(VolumeSecretIsolatorTest, ROOT_SecretInVolumeWithRootFilesystem)
       flags,
       true,
       &fetcher,
+      nullptr,
       secretResolver.get());
 
   ASSERT_SOME(create);

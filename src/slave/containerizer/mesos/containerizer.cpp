@@ -56,6 +56,7 @@
 
 #include "module/manager.hpp"
 
+#include "slave/gc.hpp"
 #include "slave/paths.hpp"
 #include "slave/slave.hpp"
 
@@ -162,6 +163,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     const Flags& flags,
     bool local,
     Fetcher* fetcher,
+    GarbageCollector* gc,
     SecretResolver* secretResolver,
     const Option<NvidiaComponents>& nvidia)
 {
@@ -541,6 +543,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
       flags,
       local,
       fetcher,
+      gc,
       Owned<Launcher>(launcher.get()),
       provisioner,
       isolators);
@@ -551,6 +554,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     const Flags& flags,
     bool local,
     Fetcher* fetcher,
+    GarbageCollector* gc,
     const Owned<Launcher>& launcher,
     const Shared<Provisioner>& provisioner,
     const vector<Owned<Isolator>>& isolators)
@@ -575,6 +579,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
       new MesosContainerizerProcess(
           flags,
           fetcher,
+          gc,
           ioSwitchboard.get(),
           launcher,
           provisioner,

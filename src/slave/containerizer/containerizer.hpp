@@ -36,6 +36,8 @@
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 
+#include "slave/gc.hpp"
+
 #include "slave/containerizer/fetcher.hpp"
 
 namespace mesos {
@@ -69,6 +71,7 @@ public:
       const Flags& flags,
       bool local,
       Fetcher* fetcher,
+      GarbageCollector* gc,
       SecretResolver* secretResolver = nullptr);
 
   // Determine slave resources from flags, probing the system or

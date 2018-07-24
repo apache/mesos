@@ -508,6 +508,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
         slaveFlags,
         true,
         fetchers->back(),
+        garbageCollectors->back(),
         secretResolver.get());
 
     if (containerizer.isError()) {
