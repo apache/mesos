@@ -1803,21 +1803,14 @@ void HierarchicalAllocatorProcess::__allocate()
           continue;
         }
 
-        // Calculate the currently available resources on the slave, which
-        // is the difference in non-shared resources between total and
-        // allocated, plus all shared resources on the agent (if applicable).
-        Resources available = slave.getAvailable().nonShared();
+        // Get the currently available resources on the agent and strip
+        // resources that are incompatible with the framework capabilities.
+        Resources available =
+          stripIncapableResources(slave.getAvailable(), framework.capabilities);
 
-        // Since shared resources are offerable even when they are in use, we
-        // make one copy of the shared resources available regardless of the
-        // past allocations. Offer a shared resource only if it has not been
-        // offered in this offer cycle to a framework.
-        if (framework.capabilities.sharedResources) {
-          available += slave.getTotal().shared();
-          if (offeredSharedResources.contains(slaveId)) {
-            available -= offeredSharedResources[slaveId];
-          }
-        }
+        // Offer a shared resource only if it has not been offered in this
+        // offer cycle to a framework.
+        available -= offeredSharedResources.get(slaveId).getOrElse(Resources());
 
         // In this first stage, we allocate the role's reservations as well as
         // any unreserved resources while ensuring the role stays within its
@@ -1947,21 +1940,6 @@ void HierarchicalAllocatorProcess::__allocate()
           break;
         }
 
-        // When reservation refinements are present, old frameworks without the
-        // RESERVATION_REFINEMENT capability won't be able to understand the
-        // new format. While it's possible to translate the refined reservations
-        // into the old format by "hiding" the intermediate reservations in the
-        // "stack", this leads to ambiguity when processing RESERVE / UNRESERVE
-        // operations. This is due to the loss of information when we drop the
-        // intermediate reservations. Therefore, for now we simply filter out
-        // resources with refined reservations if the framework does not have
-        // the capability.
-        if (!framework.capabilities.reservationRefinement) {
-          toAllocate = toAllocate.filter([](const Resource& resource) {
-            return !Resources::hasRefinedReservations(resource);
-          });
-        }
-
         // If the framework filters these resources, ignore.
         if (isFiltered(frameworkId, role, slaveId, toAllocate)) {
           continue;
@@ -2036,21 +2014,14 @@ void HierarchicalAllocatorProcess::__allocate()
           continue;
         }
 
-        // Calculate the currently available resources on the slave, which
-        // is the difference in non-shared resources between total and
-        // allocated, plus all shared resources on the agent (if applicable).
-        Resources available = slave.getAvailable().nonShared();
+        // Get the currently available resources on the agent and strip
+        // resources that are incompatible with the framework capabilities.
+        Resources available =
+          stripIncapableResources(slave.getAvailable(), framework.capabilities);
 
-        // Since shared resources are offerable even when they are in use, we
-        // make one copy of the shared resources available regardless of the
-        // past allocations. Offer a shared resource only if it has not been
-        // offered in this offer cycle to a framework.
-        if (framework.capabilities.sharedResources) {
-          available += slave.getTotal().shared();
-          if (offeredSharedResources.contains(slaveId)) {
-            available -= offeredSharedResources[slaveId];
-          }
-        }
+        // Offer a shared resource only if it has not been offered in this offer
+        // cycle to a framework.
+        available -= offeredSharedResources.get(slaveId).getOrElse(Resources());
 
         // The resources we offer are the unreserved resources as well as the
         // reserved resources for this particular role and all its ancestors
@@ -2074,26 +2045,6 @@ void HierarchicalAllocatorProcess::__allocate()
         // have allocatable revocable resources.
         if (!allocatable(toAllocate)) {
           break;
-        }
-
-        // Remove revocable resources if the framework has not opted for them.
-        if (!framework.capabilities.revocableResources) {
-          toAllocate = toAllocate.nonRevocable();
-        }
-
-        // When reservation refinements are present, old frameworks without the
-        // RESERVATION_REFINEMENT capability won't be able to understand the
-        // new format. While it's possible to translate the refined reservations
-        // into the old format by "hiding" the intermediate reservations in the
-        // "stack", this leads to ambiguity when processing RESERVE / UNRESERVE
-        // operations. This is due to the loss of information when we drop the
-        // intermediate reservations. Therefore, for now we simply filter out
-        // resources with refined reservations if the framework does not have
-        // the capability.
-        if (!framework.capabilities.reservationRefinement) {
-          toAllocate = toAllocate.filter([](const Resource& resource) {
-            return !Resources::hasRefinedReservations(resource);
-          });
         }
 
         // If allocating these resources would reduce the headroom
@@ -2727,6 +2678,40 @@ bool HierarchicalAllocatorProcess::isCapableOfReceivingAgent(
   }
 
   return true;
+}
+
+
+Resources HierarchicalAllocatorProcess::stripIncapableResources(
+    const Resources& resources,
+    const protobuf::framework::Capabilities& frameworkCapabilities) const
+{
+  return resources.filter([&](const Resource& resource) {
+    if (!frameworkCapabilities.sharedResources &&
+        Resources::isShared(resource)) {
+      return false;
+    }
+
+    if (!frameworkCapabilities.revocableResources &&
+        Resources::isRevocable(resource)) {
+      return false;
+    }
+
+    // When reservation refinements are present, old frameworks without the
+    // RESERVATION_REFINEMENT capability won't be able to understand the
+    // new format. While it's possible to translate the refined reservations
+    // into the old format by "hiding" the intermediate reservations in the
+    // "stack", this leads to ambiguity when processing RESERVE / UNRESERVE
+    // operations. This is due to the loss of information when we drop the
+    // intermediate reservations. Therefore, for now we simply filter out
+    // resources with refined reservations if the framework does not have
+    // the capability.
+    if (!frameworkCapabilities.reservationRefinement &&
+        Resources::hasRefinedReservations(resource)) {
+      return false;
+    }
+
+    return true;
+  });
 }
 
 

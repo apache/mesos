@@ -674,6 +674,15 @@ private:
       const protobuf::framework::Capabilities& frameworkCapabilities,
       const Slave& slave) const;
 
+  // Helper function that removes any resources that the framework is not
+  // capable of receiving based on the given framework capability.
+  //
+  // TODO(mzhu): Make this a `Framework` member function once we pull
+  // `struct Framework` out from being nested.
+  Resources stripIncapableResources(
+      const Resources& resources,
+      const protobuf::framework::Capabilities& frameworkCapabilities) const;
+
   // Helper to track allocated resources on an agent.
   void trackAllocatedResources(
       const SlaveID& slaveId,
