@@ -372,14 +372,10 @@ protected:
         capabilities(_capabilities),
         activated(_activated),
         total(_total),
-        allocated(_allocated)
+        allocated(_allocated),
+        shared(_total.shared())
     {
-      // In order to subtract from the total,
-      // we strip the allocation information.
-      Resources allocated_ = allocated;
-      allocated_.unallocate();
-
-      available = total - allocated_;
+      updateAvailable();
     }
 
     const Resources& getTotal() const { return total; }
@@ -390,6 +386,7 @@ protected:
 
     void updateTotal(const Resources& newTotal) {
       total = newTotal;
+      shared = total.shared();
 
       updateAvailable();
     }
@@ -461,7 +458,21 @@ protected:
       Resources allocated_ = allocated;
       allocated_.unallocate();
 
-      available = total - allocated_;
+      // Calling `nonShared()` currently copies the underlying resources
+      // and is therefore rather expensive. We avoid it in the common
+      // case that there are no shared resources.
+      //
+      // TODO(mzhu): Ideally there would be a single logical path here.
+      // One solution is to have `Resources` be copy-on-write such that
+      // `nonShared()` performs no copying and instead points to a
+      // subset of the original `Resource` objects.
+      if (shared.empty()) {
+        available = total - allocated_;
+      } else {
+        // Since shared resources are offerable even when they are in use, we
+        // always include them as part of available resources.
+        available = (total.nonShared() - allocated_.nonShared()) + shared;
+      }
     }
 
     // Total amount of regular *and* oversubscribed resources.
@@ -480,14 +491,22 @@ protected:
     // hasn't reregistered. See MESOS-2919 for details.
     Resources allocated;
 
-    // We track the total and allocated resources on the slave, the
-    // available resources are computed as follows:
+    // We track the total and allocated resources on the slave to
+    // avoid calculating it in place every time.
     //
-    //   available = total - allocated
+    // Note that `available` always contains all the shared resources on the
+    // agent regardless whether they have ever been allocated or not.
+    // NOTE, however, we currently only offer a shared resource only if it has
+    // not been offered in an allocation cycle to a framework. We do this mainly
+    // to preserve the normal offer behavior. This may change in the future
+    // depending on use cases.
     //
     // Note that it's possible for the slave to be over-allocated!
     // In this case, allocated > total.
     Resources available;
+
+    // We keep a copy of the shared resources to avoid unnecessary copying.
+    Resources shared;
   };
 
   hashmap<SlaveID, Slave> slaves;
