@@ -207,9 +207,16 @@ public:
 
           context->set_wait_for_ready(options.wait_for_ready);
 
-          context->set_deadline(
-              std::chrono::system_clock::now() +
-              std::chrono::nanoseconds(options.timeout.ns()));
+          // We need to ensure that we're using a
+          // `std::chrono::system_clock::time_point` because `grpc::TimePoint`
+          // provides a specialization only for this type and we cannot
+          // guarantee that the operation below will always result in this type.
+          auto time_point =
+            std::chrono::time_point_cast<std::chrono::system_clock::duration>(
+                std::chrono::system_clock::now() +
+                std::chrono::nanoseconds(options.timeout.ns()));
+
+          context->set_deadline(time_point);
 
           promise->future().onDiscard([=] { context->TryCancel(); });
 
