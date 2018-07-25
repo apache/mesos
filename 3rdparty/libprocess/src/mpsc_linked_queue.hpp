@@ -178,7 +178,7 @@ private:
   // to avoid false sharing with other objects.
   alignas(64) std::atomic<Node<T>*> head;
   alignas(64) Node<T>* tail;
-  char pad[64 - sizeof(tail)];
+  char pad[64 - sizeof(Node<T>*)];
 };
 
 } // namespace process {
