@@ -50,12 +50,12 @@ include ../versions.am
 BOOST = $(BUNDLED_DIR)/boost-$(BOOST_VERSION)
 ELFIO = $(BUNDLED_DIR)/elfio-$(ELFIO_VERSION)
 GLOG = $(BUNDLED_DIR)/glog-$(GLOG_VERSION)
-GOOGLETEST = $(BUNDLED_DIR)/googletest-release-$(GOOGLETEST_VERSION)
 GMOCK = $(GOOGLETEST)/googlemock
+GOOGLETEST = $(BUNDLED_DIR)/googletest-release-$(GOOGLETEST_VERSION)
 GTEST = $(GOOGLETEST)/googletest
 LIBARCHIVE = $(BUNDLED_DIR)/libarchive-$(LIBARCHIVE_VERSION)
-PROTOBUF = $(BUNDLED_DIR)/protobuf-$(PROTOBUF_VERSION)
 PICOJSON = $(BUNDLED_DIR)/picojson-$(PICOJSON_VERSION)
+PROTOBUF = $(BUNDLED_DIR)/protobuf-$(PROTOBUF_VERSION)
 
 # Dependencies for all-local.
 BUNDLED_DEPS = # Initialize BUNDLED_DEPS so we can add to it.

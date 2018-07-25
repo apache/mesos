@@ -34,15 +34,15 @@ GLOG = glog-$(GLOG_VERSION)
 GOOGLETEST = googletest-release-$(GOOGLETEST_VERSION)
 GMOCK = $(GOOGLETEST)/googlemock
 GTEST = $(GOOGLETEST)/googletest
-PROTOBUF = protobuf-$(PROTOBUF_VERSION)
 PICOJSON = picojson-$(PICOJSON_VERSION)
+PROTOBUF = protobuf-$(PROTOBUF_VERSION)
 
 EXTRA_DIST =		\
   $(BOOST).tar.gz	\
   $(GLOG).tar.gz	\
   $(GOOGLETEST).tar.gz	\
-  $(PROTOBUF).tar.gz	\
-  $(PICOJSON).tar.gz
+  $(PICOJSON).tar.gz	\
+  $(PROTOBUF).tar.gz
 
 # We need to patch glog in order to deal with a compilation issue when
 # compiling with clang (and C++11); see MESOS-860, MESOS-966.
