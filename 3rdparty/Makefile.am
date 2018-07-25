@@ -344,7 +344,6 @@ nodist_rapidjson_HEADERS =				\
   $(RAPIDJSON)/include/rapidjson/msinttypes/inttypes.h	\
   $(RAPIDJSON)/include/rapidjson/msinttypes/stdint.h	\
   $(RAPIDJSON)/include/rapidjson/allocators.h		\
-  $(RAPIDJSON)/include/rapidjson/cursorstreamwrapper.h	\
   $(RAPIDJSON)/include/rapidjson/document.h		\
   $(RAPIDJSON)/include/rapidjson/encodedstream.h	\
   $(RAPIDJSON)/include/rapidjson/encodings.h		\
