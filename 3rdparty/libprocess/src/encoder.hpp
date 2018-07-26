@@ -34,9 +34,6 @@ namespace process {
 
 const uint32_t GZIP_MINIMUM_BODY_LENGTH = 1024;
 
-// Forward declarations.
-class Encoder;
-
 
 class Encoder
 {
@@ -64,6 +61,9 @@ class DataEncoder : public Encoder
 public:
   DataEncoder(const std::string& _data)
     : data(_data), index(0) {}
+
+  DataEncoder(std::string&& _data)
+    : data(std::move(_data)), index(0) {}
 
   ~DataEncoder() override {}
 
