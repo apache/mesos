@@ -442,7 +442,7 @@ add_dependencies(rapidjson ${RAPIDJSON_TARGET})
 
 target_include_directories(
     rapidjson INTERFACE
-    ${RAPIDJSON_ROOT}/rapidjson-${RAPIDJSON_VERSION}/include)
+    ${RAPIDJSON_ROOT}/include)
 
 ExternalProject_Add(
   ${RAPIDJSON_TARGET}
