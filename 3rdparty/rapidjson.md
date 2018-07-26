@@ -22,11 +22,12 @@ $ curl --location https://github.com/Tencent/rapidjson/archive/v1.1.0.tar.gz -o 
 
 # Extract, strip everything but the license and include
 # folder, and re-bundle.
-$ tar -zxvf rapidjson-1.1.0.tar.gz
-$ mkdir -p stripped-rapidjson/rapidjson-1.1.0
-$ mv rapidjson-1.1.0/license.txt stripped-rapidjson/rapidjson-1.1.0
-$ mv rapidjson-1.1.0/include stripped-rapidjson/rapidjson-1.1.0
-$ tar -zcvf rapidjson-1.1.0.tar.gz stripped-rapidjson/rapidjson-1.1.0
+$ mkdir tmp
+$ tar -zxvf rapidjson-1.1.0.tar.gz --directory=tmp
+$ mkdir rapidjson-1.1.0
+$ mv tmp/rapidjson-1.1.0/license.txt rapidjson-1.1.0
+$ mv tmp/rapidjson-1.1.0/include rapidjson-1.1.0
+$ tar -zcvf rapidjson-1.1.0.tar.gz rapidjson-1.1.0
 
 # Place it into 3rdparty.
 # Update 3rdparty/versions.am with the new version.
