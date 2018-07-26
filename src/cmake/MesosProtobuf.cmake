@@ -127,7 +127,7 @@ function(PROTOC_GENERATE)
     list(APPEND PROTOC_OPTIONS -I${INTERNAL_PROTO_PATH})
   endif ()
 
-  if (PROTOC_GRPC AND ENABLE_GRPC)
+  if (PROTOC_GRPC)
     list(APPEND PROTOC_OPTIONS
       --grpc_out=${CPP_OUT}
       --plugin=protoc-gen-grpc=$<TARGET_FILE:grpc_cpp_plugin>)
@@ -142,7 +142,7 @@ function(PROTOC_GENERATE)
   set(CC ${CPP_OUT}/${PROTOC_TARGET}.pb.cc)
   set(H ${CPP_OUT}/${PROTOC_TARGET}.pb.h)
 
-  if (PROTOC_GRPC AND ENABLE_GRPC)
+  if (PROTOC_GRPC)
     set(GRPC_CC ${CPP_OUT}/${PROTOC_TARGET}.grpc.pb.cc)
     set(GRPC_H ${CPP_OUT}/${PROTOC_TARGET}.grpc.pb.h)
   endif ()
@@ -211,7 +211,7 @@ function(PROTOC_GENERATE)
   endif ()
 
   # Make sure that the gRPC plugin is built.
-  if (PROTOC_GRPC AND ENABLE_GRPC)
+  if (PROTOC_GRPC)
     list(APPEND PROTOC_DEPENDS grpc_cpp_plugin)
   endif ()
 

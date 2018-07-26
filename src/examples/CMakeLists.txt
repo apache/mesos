@@ -53,7 +53,7 @@ if (NOT WIN32)
   add_executable(test-csi-user-framework       test_csi_user_framework.cpp)
 
   # TODO(chhsiao): The test CSI plugin is Linux only for now.
-  if (ENABLE_GRPC AND LINUX)
+  if (LINUX)
     add_executable(test-csi-plugin test_csi_plugin.cpp)
   endif ()
 
@@ -91,7 +91,7 @@ if (NOT WIN32)
   target_link_libraries(test-csi-user-framework       PRIVATE mesos)
 
   # TODO(chhsiao): The test CSI plugin is Linux only for now.
-  if (ENABLE_GRPC AND LINUX)
+  if (LINUX)
     # NOTE: We explicitly add `grpc` here since the test CSI plugin uses the
     # server-side gRPC library, which might not be linked in mesos.
     target_link_libraries(test-csi-plugin PRIVATE mesos grpc)

@@ -75,11 +75,6 @@ option(
   TRUE)
 
 option(
-  ENABLE_GRPC
-  "Build libprocess with gRPC support."
-  FALSE)
-
-option(
   ENABLE_LIBEVENT
   "Use libevent instead of libev as the core event loop implementation."
   FALSE)
@@ -555,11 +550,6 @@ add_definitions(
   -DLIBDIR="${LIB_INSTALL_DIR}"
   -DVERSION="${PACKAGE_VERSION}"
   -DPKGDATADIR="${DATA_INSTALL_PREFIX}")
-
-if (ENABLE_GRPC)
-  # TODO(chhsiao): Make this non-global.
-  add_definitions(-DENABLE_GRPC=1)
-endif ()
 
 if (ENABLE_SSL)
   # TODO(andschwa): Make this non-global.

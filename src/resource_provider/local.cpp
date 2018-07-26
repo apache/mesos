@@ -42,7 +42,7 @@ Try<Owned<LocalResourceProvider>> LocalResourceProvider::create(
 {
   // TODO(jieyu): Document the built-in local resource providers.
   const hashmap<string, lambda::function<decltype(create)>> creators = {
-#if defined(ENABLE_GRPC) && defined(__linux__)
+#if defined(__linux__)
     {"org.apache.mesos.rp.local.storage", &StorageLocalResourceProvider::create}
 #endif
   };
@@ -63,7 +63,7 @@ Try<Principal> LocalResourceProvider::principal(
   // providers.
   const hashmap<string, lambda::function<decltype(principal)>>
     principalGenerators = {
-#if defined(ENABLE_GRPC) && defined(__linux__)
+#if defined(__linux__)
       {"org.apache.mesos.rp.local.storage",
         &StorageLocalResourceProvider::principal}
 #endif

@@ -170,7 +170,6 @@ LIB_GLOG = -lglog
 LDADD += -lglog
 endif
 
-if ENABLE_GRPC
 if !ENABLE_SSL
 GRPC_VARIANT = _unsecure
 endif
@@ -184,7 +183,6 @@ GRPC_CPP_PLUGIN = ../$(GRPC)/bins/opt/grpc_cpp_plugin
 else
 LIB_GRPC = -lgrpc++$(GRPC_VARIANT) -lgrpc$(GRPC_VARIANT) -lgpr
 GRPC_CPP_PLUGIN = @GRPC_CXX_PLUGIN@
-endif
 endif
 
 if WITH_BUNDLED_JEMALLOC
@@ -405,16 +403,12 @@ CXX_PROTOS +=								\
   resource_provider/storage/disk_profile.pb.h
 
 CXX_CSI_PROTOS =							\
+  ../include/csi/csi.grpc.pb.cc						\
+  ../include/csi/csi.grpc.pb.h						\
   ../include/csi/csi.pb.cc						\
   ../include/csi/csi.pb.h						\
   csi/state.pb.cc							\
   csi/state.pb.h
-
-if ENABLE_GRPC
-CXX_CSI_PROTOS +=							\
-  ../include/csi/csi.grpc.pb.cc						\
-  ../include/csi/csi.grpc.pb.h
-endif
 
 CXX_LOG_PROTOS =							\
   messages/log.pb.cc							\
@@ -1471,13 +1465,9 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   resource_provider/storage/disk_profile_adaptor.cpp			\
   resource_provider/storage/disk_profile.proto				\
   resource_provider/storage/disk_profile_utils.cpp			\
-  resource_provider/storage/disk_profile_utils.hpp
-
-if ENABLE_GRPC
-libmesos_no_3rdparty_la_SOURCES +=					\
+  resource_provider/storage/disk_profile_utils.hpp			\
   resource_provider/storage/provider.cpp				\
   resource_provider/storage/provider.hpp
-endif
 
 libmesos_no_3rdparty_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 
@@ -1525,22 +1515,18 @@ libmesos_no_3rdparty_la_LIBADD += libbuild.la
 # Convenience library for build the CSI client.
 noinst_LTLIBRARIES += libcsi.la
 libcsi_la_SOURCES =							\
+  csi/client.cpp							\
   csi/paths.cpp								\
+  csi/rpc.cpp								\
   csi/utils.cpp
 libcsi_la_SOURCES +=							\
   ../include/csi/spec.hpp						\
+  csi/client.hpp							\
   csi/paths.hpp								\
+  csi/rpc.hpp								\
   csi/state.hpp								\
   csi/state.proto							\
   csi/utils.hpp
-
-if ENABLE_GRPC
-libcsi_la_SOURCES +=							\
-  csi/client.cpp							\
-  csi/client.hpp							\
-  csi/rpc.cpp								\
-  csi/rpc.hpp
-endif
 
 nodist_libcsi_la_SOURCES = $(CXX_CSI_PROTOS)
 libcsi_la_CPPFLAGS = $(MESOS_CPPFLAGS)
@@ -2325,13 +2311,11 @@ disk_full_framework_SOURCES = examples/disk_full_framework.cpp
 disk_full_framework_CPPFLAGS = $(MESOS_CPPFLAGS)
 disk_full_framework_LDADD = libmesos.la $(LDADD)
 
-if ENABLE_GRPC
 if OS_LINUX
 check_PROGRAMS += test-csi-plugin
 test_csi_plugin_SOURCES = examples/test_csi_plugin.cpp
 test_csi_plugin_CPPFLAGS = $(MESOS_CPPFLAGS)
 test_csi_plugin_LDADD = libmesos.la $(LIB_PROTOBUF) $(LIB_GRPC) $(LDADD)
-endif
 endif
 
 check_PROGRAMS += test-helper
@@ -2512,6 +2496,7 @@ mesos_tests_SOURCES =						\
   tests/containerizer.hpp					\
   tests/cram_md5_authentication_tests.cpp			\
   tests/credentials_tests.cpp					\
+  tests/csi_client_tests.cpp					\
   tests/default_executor_tests.cpp				\
   tests/disk_profile_adaptor_tests.cpp				\
   tests/disk_profile_server.hpp					\
@@ -2555,6 +2540,8 @@ mesos_tests_SOURCES =						\
   tests/mesos.cpp						\
   tests/mesos.hpp						\
   tests/metrics_tests.cpp					\
+  tests/mock_csi_plugin.cpp					\
+  tests/mock_csi_plugin.hpp					\
   tests/mock_docker.cpp						\
   tests/mock_docker.hpp						\
   tests/mock_fetcher.cpp					\
@@ -2647,13 +2634,6 @@ mesos_tests_SOURCES =						\
   tests/containerizer/setns_test_helper.hpp			\
   tests/containerizer/volume_sandbox_path_isolator_tests.cpp
 
-if ENABLE_GRPC
-mesos_tests_SOURCES +=						\
-  tests/csi_client_tests.cpp					\
-  tests/mock_csi_plugin.cpp					\
-  tests/mock_csi_plugin.hpp
-endif
-
 if ENABLE_XFS_DISK_ISOLATOR
 mesos_tests_SOURCES +=						\
   tests/containerizer/xfs_quota_tests.cpp
@@ -2686,8 +2666,10 @@ mesos_tests_DEPENDENCIES =					\
 
 if OS_LINUX
 mesos_tests_SOURCES +=						\
+  tests/agent_resource_provider_config_api_tests.cpp		\
   tests/ldcache_tests.cpp					\
   tests/ldd_tests.cpp						\
+  tests/storage_local_resource_provider_tests.cpp		\
   tests/containerizer/linux_capabilities_isolator_tests.cpp	\
   tests/containerizer/capabilities_tests.cpp			\
   tests/containerizer/capabilities_test_helper.cpp		\
@@ -2710,12 +2692,6 @@ mesos_tests_SOURCES +=						\
   tests/containerizer/volume_host_path_isolator_tests.cpp	\
   tests/containerizer/volume_image_isolator_tests.cpp		\
   tests/containerizer/volume_secret_isolator_tests.cpp
-
-if ENABLE_GRPC
-mesos_tests_SOURCES +=						\
-  tests/agent_resource_provider_config_api_tests.cpp		\
-  tests/storage_local_resource_provider_tests.cpp
-endif
 endif
 
 if ENABLE_LINUX_ROUTING

@@ -109,7 +109,7 @@ add_library(
 
 target_link_libraries(mesos-protobufs PUBLIC
   protobuf
-  $<$<BOOL:${ENABLE_GRPC}>:grpc>)
+  grpc)
 
 target_include_directories(
   mesos-protobufs
@@ -237,14 +237,10 @@ set(COMMON_SRC
   common/values.cpp)
 
 set(CSI_SRC
+  csi/client.cpp
   csi/paths.cpp
+  csi/rpc.cpp
   csi/utils.cpp)
-
-if (ENABLE_GRPC)
-  list(APPEND CSI_SRC
-    csi/client.cpp
-    csi/rpc.cpp)
-endif ()
 
 set(DOCKER_SRC
   docker/docker.cpp
@@ -422,7 +418,7 @@ set(RESOURCE_PROVIDER_SRC
 
 # NOTE: The storage local resource provider uses Unix domain sockets to talk to
 # CSI plugins, thus it is currently not supported on Windows.
-if (ENABLE_GRPC AND NOT WIN32)
+if (NOT WIN32)
   list(APPEND RESOURCE_PROVIDER_SRC
     resource_provider/storage/provider.cpp)
 endif ()

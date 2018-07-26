@@ -413,7 +413,6 @@ PROTOBUF_LINKER_FLAGS = @PROTOBUF_LINKERFLAGS@
 PROTOC = @PROTOCOMPILER@
 endif
 
-if ENABLE_GRPC
 if !ENABLE_SSL
 GRPC_VARIANT = _unsecure
 endif
@@ -457,7 +456,6 @@ ALL_LOCAL += $(LIB_GRPC)
 else
 $(GRPC)-build-stamp:
 	touch $@
-endif
 endif
 
 # NOTE: We extract `csi.proto` even if gRPC is disabled because it is

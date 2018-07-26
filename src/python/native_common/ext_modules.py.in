@@ -125,29 +125,27 @@ def _create_module(module_name):
         EXTRA_OBJECTS.append(libprofiler)
 
 
-    # We need to check for the presense of libgrpc++.a, libgrpc.a and libgpr.a
-    # only if gRPC is enabled.
-    if '@ENABLE_GRPC_FALSE@' == '#':
-        grpc = os.path.join('3rdparty', 'grpc-1.10.0')
-        grpc_variant = '_unsecure' if '@ENABLE_SSL_TRUE@' == '#' else ''
-        libgrpcpp = os.path.join(abs_top_builddir, grpc, 'libs', 'opt', 'libgrpc++%s.a' % grpc_variant)
-        libgrpc = os.path.join(abs_top_builddir, grpc, 'libs', 'opt', 'libgrpc%s.a' % grpc_variant)
-        libgpr = os.path.join(abs_top_builddir, grpc, 'libs', 'opt', 'libgpr.a')
+    # We link different grpc library variants based on whether SSL is enabled.
+    grpc = os.path.join('3rdparty', 'grpc-1.10.0')
+    grpc_variant = '_unsecure' if '@ENABLE_SSL_TRUE@' == '#' else ''
+    libgrpcpp = os.path.join(abs_top_builddir, grpc, 'libs', 'opt', 'libgrpc++%s.a' % grpc_variant)
+    libgrpc = os.path.join(abs_top_builddir, grpc, 'libs', 'opt', 'libgrpc%s.a' % grpc_variant)
+    libgpr = os.path.join(abs_top_builddir, grpc, 'libs', 'opt', 'libgpr.a')
 
-        if os.path.exists(libgrpcpp):
-            EXTRA_OBJECTS.append(libgrpcpp)
-        else:
-            EXTRA_OBJECTS.append('-lgrpc++%s' % grpc_variant)
+    if os.path.exists(libgrpcpp):
+        EXTRA_OBJECTS.append(libgrpcpp)
+    else:
+        EXTRA_OBJECTS.append('-lgrpc++%s' % grpc_variant)
 
-        if os.path.exists(libgrpc):
-            EXTRA_OBJECTS.append(libgrpc)
-        else:
-            EXTRA_OBJECTS.append('-lgrpc%s' % grpc_variant)
+    if os.path.exists(libgrpc):
+        EXTRA_OBJECTS.append(libgrpc)
+    else:
+        EXTRA_OBJECTS.append('-lgrpc%s' % grpc_variant)
 
-        if os.path.exists(libgpr):
-            EXTRA_OBJECTS.append(libgpr)
-        else:
-            EXTRA_OBJECTS.append('-lgpr')
+    if os.path.exists(libgpr):
+        EXTRA_OBJECTS.append(libgpr)
+    else:
+        EXTRA_OBJECTS.append('-lgpr')
 
 
     # OSX uses a different linker (llvm-ld) and doesn't support --as-needed
