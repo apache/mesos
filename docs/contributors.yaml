@@ -744,6 +744,15 @@
   jira_user: sachinparyani
   reviewboard_user: sachinparyani
 
+- name: Sergey Urbanovich
+  affiliations:
+    - {organization: Mesosphere}
+  emails:
+    - sergey.urbanovich@gmail.com
+    - surbanovich@mesosphere.io
+  jira_user: urbanserj
+  reviewboard_user: urbanserj
+
 - name: Shubham Kumar
   emails:
     - shukumar@umail.iu.edu
