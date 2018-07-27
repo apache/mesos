@@ -257,6 +257,21 @@ if (LINUX)
     list(APPEND MESOS_TESTS_SRC
       containerizer/xfs_quota_tests.cpp)
   endif()
+
+  if (ENABLE_LINUX_ROUTING)
+    list(APPEND MESOS_TESTS_SRC
+      containerizer/routing_tests.cpp)
+  endif ()
+
+  if (ENABLE_NETWORK_PORTS_ISOLATOR)
+    list(APPEND MESOS_TESTS_SRC
+      containerizer/ports_isolator_tests.cpp)
+  endif()
+
+  if (ENABLE_PORT_MAPPING_ISOLATOR)
+    list(APPEND MESOS_TESTS_SRC
+      containerizer/port_mapping_tests.cpp)
+  endif()
 endif ()
 
 

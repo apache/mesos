@@ -30,3 +30,8 @@ if (NOT WIN32)
 
   target_link_libraries(mesos-cni-port-mapper PRIVATE mesos)
 endif ()
+
+if (ENABLE_PORT_MAPPING_ISOLATOR)
+  add_executable(mesos-network-helper isolators/network/helper.cpp)
+  target_link_libraries(mesos-network-helper PRIVATE mesos)
+endif ()

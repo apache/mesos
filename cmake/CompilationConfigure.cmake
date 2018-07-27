@@ -422,6 +422,32 @@ if (LINUX)
     message(FATAL_ERROR
       "The XFS disk isolator is not yet supported, see MESOS-9117.")
   endif ()
+
+  option(ENABLE_PORT_MAPPING_ISOLATOR
+    "Whether to enable the port mapping isolator."
+    FALSE)
+
+  if (ENABLE_PORT_MAPPING_ISOLATOR)
+    # TODO(andschwa): Check for `libnl-3`.
+    message(FATAL_ERROR
+      "The port mapping isolator is not yet supported, see MESOS-8993.")
+  endif ()
+
+  option(ENABLE_NETWORK_PORTS_ISOLATOR
+    "Whether to enable the network ports isolator."
+    FALSE)
+
+  if (ENABLE_NETWORK_PORTS_ISOLATOR)
+    # TODO(andschwa): Check for `libnl-3`.
+    message(FATAL_ERROR
+      "The network ports isolator is not yet supported, see MESOS-8993.")
+  endif ()
+
+  # Enabled when either the port mapping isolator or network ports
+  # isolator is enabled.
+  if (ENABLE_PORT_MAPPING_ISOLATOR OR ENABLE_NETWORK_PORTS_ISOLATOR)
+    set(ENABLE_LINUX_ROUTING TRUE)
+  endif ()
 endif ()
 
 # FREEBSD CONFIGURATION.

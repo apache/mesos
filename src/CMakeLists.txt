@@ -320,6 +320,32 @@ if (ENABLE_XFS_DISK_ISOLATOR)
     slave/containerizer/mesos/isolators/xfs/utils.cpp)
 endif ()
 
+if (ENABLE_LINUX_ROUTING)
+  list(APPEND LINUX_SRC
+    linux/routing/handle.cpp
+    linux/routing/route.cpp
+    linux/routing/utils.cpp
+    linux/routing/diagnosis/diagnosis.cpp
+    linux/routing/filter/basic.cpp
+    linux/routing/filter/icmp.cpp
+    linux/routing/filter/ip.cpp
+    linux/routing/link/link.cpp
+    linux/routing/link/veth.cpp
+    linux/routing/queueing/fq_codel.cpp
+    linux/routing/queueing/htb.cpp
+    linux/routing/queueing/ingress.cpp)
+endif ()
+
+if (ENABLE_NETWORK_PORTS_ISOLATOR)
+  list(APPEND LINUX_SRC
+    slave/containerizer/mesos/isolators/network/ports.cpp)
+endif ()
+
+if (ENABLE_PORT_MAPPING_ISOLATOR)
+  list(APPEND LINUX_SRC
+    slave/containerizer/mesos/isolators/network/port_mapping.cpp)
+endif()
+
 set(LOCAL_SRC
   local/local.cpp)
 
@@ -497,6 +523,9 @@ if (NOT WIN32)
 endif ()
 
 # Include source for linux build.
+#
+# TODO(andschwa): Make this conditional happen sooner, instead of
+# here, and remove unnecessary variables.
 if (LINUX)
   list(APPEND MESOS_SRC ${LINUX_SRC})
 endif ()
@@ -533,7 +562,9 @@ set_target_properties(
 target_compile_definitions(
   mesos PUBLIC
   USE_CMAKE_BUILD_CONFIG
-  $<$<BOOL:${ENABLE_XFS_DISK_ISOLATOR}>:ENABLE_XFS_DISK_ISOLATOR>)
+  $<$<BOOL:${ENABLE_XFS_DISK_ISOLATOR}>:ENABLE_XFS_DISK_ISOLATOR>
+  $<$<BOOL:${ENABLE_PORT_MAPPING_ISOLATOR}>:ENABLE_PORT_MAPPING_ISOLATOR>
+  $<$<BOOL:${ENABLE_NETWORK_PORTS_ISOLATOR}>:ENABLE_NETWORK_PORTS_ISOLATOR>)
 
 target_include_directories(
   mesos PUBLIC
