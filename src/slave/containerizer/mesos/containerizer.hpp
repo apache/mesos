@@ -282,6 +282,10 @@ private:
       const Option<mesos::slave::ContainerTermination>& termination,
       const process::Future<bool>& destroy);
 
+  // Schedules a path for garbage collection based on its modification time.
+  // Equivalent to the `Slave::garbageCollect` method.
+  process::Future<Nothing> garbageCollect(const std::string& path);
+
   // Call back for when an isolator limits a container and impacts the
   // processes. This will trigger container destruction.
   void limited(

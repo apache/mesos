@@ -31,6 +31,7 @@
 #include <process/owned.hpp>
 #include <process/reap.hpp>
 #include <process/subprocess.hpp>
+#include <process/time.hpp>
 
 #include <process/metrics/metrics.hpp>
 
@@ -130,6 +131,7 @@ using process::Future;
 using process::Owned;
 using process::Shared;
 using process::Subprocess;
+using process::Time;
 
 using process::http::Connection;
 
@@ -870,35 +872,6 @@ Future<Nothing> MesosContainerizerProcess::recover(
       continue;
     }
 
-    // Nested containers may have already been destroyed, but we leave
-    // their runtime directories around for the lifetime of their
-    // top-level container. If they have already been destroyed, we
-    // checkpoint their termination state, so the existence of this
-    // checkpointed information means we can safely ignore them here.
-    const string terminationPath = path::join(
-        containerizer::paths::getRuntimePath(flags.runtime_dir, containerId),
-        containerizer::paths::TERMINATION_FILE);
-
-    if (os::exists(terminationPath)) {
-      continue;
-    }
-
-    // Attempt to read the pid from the container runtime directory.
-    Result<pid_t> pid =
-      containerizer::paths::getContainerPid(flags.runtime_dir, containerId);
-
-    if (pid.isError()) {
-      return Failure("Failed to get container pid: " + pid.error());
-    }
-
-    // Attempt to read the launch config of the container.
-    Result<ContainerConfig> config =
-      containerizer::paths::getContainerConfig(flags.runtime_dir, containerId);
-
-    if (config.isError()) {
-      return Failure("Failed to get container config: " + config.error());
-    }
-
     // Determine the sandbox if this is a nested or standalone container.
     const bool isStandaloneContainer =
       containerizer::paths::isStandaloneContainer(
@@ -918,6 +891,54 @@ Future<Nothing> MesosContainerizerProcess::recover(
       }
     } else if (isStandaloneContainer) {
       directory = slave::paths::getContainerPath(flags.work_dir, containerId);
+    }
+
+    // Nested containers may have already been destroyed, but we leave
+    // their runtime directories around for the lifetime of their
+    // top-level container. If they have already been destroyed, we
+    // checkpoint their termination state, so the existence of this
+    // checkpointed information means we can safely ignore them here.
+    const string terminationPath = path::join(
+        containerizer::paths::getRuntimePath(flags.runtime_dir, containerId),
+        containerizer::paths::TERMINATION_FILE);
+
+    if (os::exists(terminationPath)) {
+      CHECK(containerId.has_parent());
+
+      // Schedule the sandbox of the terminated nested container for garbage
+      // collection. Containers that exited while the agent was offline
+      // (i.e. before the termination file was checkpointed) will be GC'd
+      // after recovery.
+      if (flags.gc_non_executor_container_sandboxes &&
+          directory.isSome() &&
+          os::exists(directory.get())) {
+        // TODO(josephw): Should we also GC the runtime directory?
+        // This has the downside of potentially wiping out the exit status
+        // of the container when disk space is low.
+        garbageCollect(directory.get());
+      }
+
+      continue;
+    }
+
+    // TODO(josephw): Schedule GC for standalone containers.
+    // We currently delete the runtime directory of standalone containers
+    // upon exit, which means there is no record of the sandbox directory to GC.
+
+    // Attempt to read the pid from the container runtime directory.
+    Result<pid_t> pid =
+      containerizer::paths::getContainerPid(flags.runtime_dir, containerId);
+
+    if (pid.isError()) {
+      return Failure("Failed to get container pid: " + pid.error());
+    }
+
+    // Attempt to read the launch config of the container.
+    Result<ContainerConfig> config =
+      containerizer::paths::getContainerConfig(flags.runtime_dir, containerId);
+
+    if (config.isError()) {
+      return Failure("Failed to get container config: " + config.error());
     }
 
     Owned<Container> container(new Container());
@@ -2694,7 +2715,7 @@ void MesosContainerizerProcess::______destroy(
   // its runtime directory. There are two cases to consider:
   //
   // (1) We are a nested container:
-  //     In this case we should defer deletion of the runtime directory
+  //     * In this case we should defer deletion of the runtime directory
   //     until the top-level container is destroyed. Instead, we
   //     checkpoint a file with the termination state indicating that
   //     the container has already been destroyed. This allows
@@ -2702,6 +2723,8 @@ void MesosContainerizerProcess::______destroy(
   //     termination state until the top-level container is destroyed.
   //     It also prevents subsequent `destroy()` calls from attempting
   //     to cleanup the container a second time.
+  //     * We also schedule the nested container's sandbox directory for
+  //     garbage collection, if this behavior is enabled.
   //
   // (2) We are a top-level container:
   //     We should simply remove the runtime directory. Since we build
@@ -2730,6 +2753,19 @@ void MesosContainerizerProcess::______destroy(
       LOG(ERROR) << "Failed to checkpoint nested container's termination state"
                  << " to '" << terminationPath << "': " << checkpointed.error();
     }
+
+    // Schedule the sandbox of the nested container for garbage collection.
+    if (flags.gc_non_executor_container_sandboxes) {
+      const ContainerID rootContainerId =
+        protobuf::getRootContainerId(containerId);
+
+      CHECK(containers_.contains(rootContainerId));
+
+      const string sandboxPath = containerizer::paths::getSandboxPath(
+        containers_[rootContainerId]->directory.get(), containerId);
+
+      garbageCollect(sandboxPath);
+    }
   } else if (os::exists(runtimePath)) {
     Try<Nothing> rmdir = os::rmdir(runtimePath);
     if (rmdir.isError()) {
@@ -2748,6 +2784,33 @@ void MesosContainerizerProcess::______destroy(
   }
 
   containers_.erase(containerId);
+}
+
+
+Future<Nothing> MesosContainerizerProcess::garbageCollect(const string& path)
+{
+  // Some tests do not pass the GC actor into the containerizer for
+  // convenience of test construction. Those tests should not exercise
+  // this code path.
+  CHECK_NOTNULL(gc);
+
+  Try<long> mtime = os::stat::mtime(path);
+  if (mtime.isError()) {
+    LOG(ERROR) << "Failed to find the mtime of '" << path
+               << "': " << mtime.error();
+    return Failure(mtime.error());
+  }
+
+  // It is unsafe for testing to use unix time directly, we must use
+  // Time::create to convert into a Time object that reflects the
+  // possibly advanced state of the libprocess Clock.
+  Try<Time> time = Time::create(mtime.get());
+  CHECK_SOME(time);
+
+  // GC based on the modification time.
+  Duration delay = flags.gc_delay - (Clock::now() - time.get());
+
+  return gc->schedule(delay, path);
 }
 
 
@@ -2818,6 +2881,13 @@ Future<Nothing> MesosContainerizerProcess::remove(
       containers_[rootContainerId]->directory.get(), containerId);
 
   if (os::exists(sandboxPath)) {
+    // Unschedule the nested container sandbox from garbage collection
+    // to prevent potential double-deletion in future.
+    if (flags.gc_non_executor_container_sandboxes) {
+      CHECK_NOTNULL(gc);
+      gc->unschedule(sandboxPath);
+    }
+
     Try<Nothing> rmdir = os::rmdir(sandboxPath);
     if (rmdir.isError()) {
       return Failure(
