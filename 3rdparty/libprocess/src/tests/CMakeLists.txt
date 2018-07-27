@@ -24,6 +24,7 @@ set(PROCESS_TESTS_SRC
   decoder_tests.cpp
   encoder_tests.cpp
   future_tests.cpp
+  grpc_tests.cpp
   http_tests.cpp
   limiter_tests.cpp
   loop_tests.cpp
@@ -45,6 +46,25 @@ set(PROCESS_TESTS_SRC
   time_tests.cpp
   timeseries_tests.cpp)
 
+set(GRPC_TESTS_PROTOS
+  grpc_tests.grpc.pb.cc
+  grpc_tests.grpc.pb.h
+  grpc_tests.pb.cc
+  grpc_tests.pb.h)
+
+list(APPEND PROCESS_TESTS_SRC
+  ${GRPC_TESTS_PROTOS})
+
+add_custom_command(
+  OUTPUT ${GRPC_TESTS_PROTOS}
+  COMMAND protoc
+    -I${CMAKE_CURRENT_SOURCE_DIR}
+    --cpp_out=${CMAKE_CURRENT_BINARY_DIR}
+    --grpc_out=${CMAKE_CURRENT_BINARY_DIR}
+    --plugin=protoc-gen-grpc=$<TARGET_FILE:grpc_cpp_plugin>
+    ${CMAKE_CURRENT_SOURCE_DIR}/grpc_tests.proto
+  DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/grpc_tests.proto)
+
 if (NOT WIN32)
   list(APPEND PROCESS_TESTS_SRC
     io_tests.cpp
@@ -52,28 +72,6 @@ if (NOT WIN32)
 elseif (ENABLE_LIBWINIO)
   list(APPEND PROCESS_TESTS_SRC
     io_tests.cpp)
-endif ()
-
-if (ENABLE_GRPC)
-  set(GRPC_TESTS_PROTOS
-    grpc_tests.grpc.pb.cc
-    grpc_tests.grpc.pb.h
-    grpc_tests.pb.cc
-    grpc_tests.pb.h)
-
-  list(APPEND PROCESS_TESTS_SRC
-    grpc_tests.cpp
-    ${GRPC_TESTS_PROTOS})
-
-  add_custom_command(
-    OUTPUT ${GRPC_TESTS_PROTOS}
-    COMMAND protoc
-      -I${CMAKE_CURRENT_SOURCE_DIR}
-      --cpp_out=${CMAKE_CURRENT_BINARY_DIR}
-      --grpc_out=${CMAKE_CURRENT_BINARY_DIR}
-      --plugin=protoc-gen-grpc=$<TARGET_FILE:grpc_cpp_plugin>
-      ${CMAKE_CURRENT_SOURCE_DIR}/grpc_tests.proto
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/grpc_tests.proto)
 endif ()
 
 if (ENABLE_SSL)

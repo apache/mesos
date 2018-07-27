@@ -29,6 +29,7 @@ set(PROCESS_SRC
   authenticator_manager.cpp
   clock.cpp
   firewall.cpp
+  grpc.cpp
   gtest_constants.cpp
   help.cpp
   http.cpp
@@ -54,11 +55,6 @@ if (WIN32)
 else ()
   list(APPEND PROCESS_SRC
     posix/subprocess.cpp)
-endif ()
-
-if (ENABLE_GRPC)
-  list(APPEND PROCESS_SRC
-    grpc.cpp)
 endif ()
 
 if (ENABLE_LIBEVENT)
@@ -104,7 +100,7 @@ target_link_libraries(
   process PUBLIC
   stout
   http_parser
-  $<$<BOOL:${ENABLE_GRPC}>:grpc>
+  grpc
   $<$<BOOL:${ENABLE_SSL}>:OpenSSL::SSL>
   $<$<BOOL:${ENABLE_SSL}>:OpenSSL::Crypto>)
 
