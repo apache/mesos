@@ -1007,7 +1007,7 @@ Future<Nothing> CgroupsIsolatorProcess::_cleanup(
         destroys.push_back(cgroups::destroy(
             hierarchy,
             infos[containerId]->cgroup,
-            cgroups::DESTROY_TIMEOUT));
+            flags.cgroups_destroy_timeout));
 
         break;
       }

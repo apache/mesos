@@ -99,6 +99,7 @@ public:
   bool strict;
   Duration register_retry_interval_min;
 #ifdef __linux__
+  Duration cgroups_destroy_timeout;
   std::string cgroups_hierarchy;
   std::string cgroups_root;
   bool cgroups_enable_cfs;

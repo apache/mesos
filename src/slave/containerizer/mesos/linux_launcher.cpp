@@ -637,7 +637,7 @@ Future<Nothing> LinuxLauncherProcess::destroy(const ContainerID& containerId)
   return cgroups::destroy(
       freezerHierarchy,
       cgroup,
-      cgroups::DESTROY_TIMEOUT)
+      flags.cgroups_destroy_timeout)
     .then(defer(
         self(),
         &LinuxLauncherProcess::_destroy,
@@ -669,7 +669,7 @@ Future<Nothing> LinuxLauncherProcess::_destroy(const ContainerID& containerId)
   return cgroups::destroy(
       systemdHierarchy.get(),
       cgroup,
-      cgroups::DESTROY_TIMEOUT);
+      flags.cgroups_destroy_timeout);
 }
 
 

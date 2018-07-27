@@ -38,12 +38,6 @@
 
 namespace cgroups {
 
-// Suggested timeout for use with the convenience version of
-// cgroups::destroy(); it is not a default timeout and must be
-// explicitly specified.
-const Duration DESTROY_TIMEOUT = Seconds(60);
-
-
 // Freezing a cgroup may get stuck (see MESOS-1689 for details). To
 // workaround, we may want to thaw the cgroup and retry freezing it.
 // This is the suggested retry interval.

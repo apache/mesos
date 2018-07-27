@@ -533,6 +533,13 @@ mesos::internal::slave::Flags::Flags()
       DEFAULT_MAX_COMPLETED_EXECUTORS_PER_FRAMEWORK);
 
 #ifdef __linux__
+  add(&Flags::cgroups_destroy_timeout,
+      "cgroups_destroy_timeout",
+      "Amount of time allowed to destroy a cgroup hierarchy. If the cgroup\n"
+      "hierarchy is not destroyed within the timeout, the corresponding\n"
+      "container destroy is considered failed.",
+      Seconds(60));
+
   add(&Flags::cgroups_hierarchy,
       "cgroups_hierarchy",
       "The path to the cgroups hierarchy root\n", "/sys/fs/cgroup");
