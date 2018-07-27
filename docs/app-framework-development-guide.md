@@ -30,10 +30,6 @@ communication between your scheduler and the Mesos master) and then call `Schedu
 [Java](http://mesos.apache.org/api/latest/java/org/apache/mesos/SchedulerDriver.html),
 [Python](https://github.com/apache/mesos/blob/1.6.0/src/python/interface/src/mesos/interface/__init__.py#L140-L278)).
 
-Your scheduler should create a SchedulerDriver
-(which will mediate communication between your scheduler and the Mesos master) and then call
-`SchedulerDriver.run()`:
-
 ### High Availability
 
 How to build Mesos frameworks that are highly available in the face of failures is
