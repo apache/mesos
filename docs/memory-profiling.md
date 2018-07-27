@@ -34,7 +34,10 @@ course also possible to use a _suitable_ custom version of jemalloc with the
 `--with-jemalloc=</path-to-jemalloc>` flag.
 
 **NOTE:** Suitable here means that jemalloc should have been built with the
-`--enable-stats` and `--enable-prof` flags.
+`--enable-stats` and `--enable-prof` flags, and that the string
+`prof:true;prof_active:false` is part of the malloc configuration. The latter
+condition can be satisfied either at configuration or at run-time, see the
+section on `MALLOC_CONF` below.
 
 The third way is to use the `LD_PRELOAD` mechanism to preload a `libjemalloc.so`
 shared library that is present on the system at runtime. The `MemoryProfiler`
