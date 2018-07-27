@@ -412,6 +412,16 @@ if (LINUX)
     ENABLE_JEMALLOC_ALLOCATOR
     "Use jemalloc as memory allocator for the master and agent binaries."
     FALSE)
+
+  option(ENABLE_XFS_DISK_ISOLATOR
+    "Whether to enable the XFS disk isolator."
+    FALSE)
+
+  if (ENABLE_XFS_DISK_ISOLATOR)
+    # TODO(andschwa): Check for required headers and libraries.
+    message(FATAL_ERROR
+      "The XFS disk isolator is not yet supported, see MESOS-9117.")
+  endif ()
 endif ()
 
 # FREEBSD CONFIGURATION.

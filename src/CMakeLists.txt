@@ -314,6 +314,12 @@ set(LINUX_SRC
   slave/containerizer/mesos/provisioner/backends/bind.cpp
   slave/containerizer/mesos/provisioner/backends/overlay.cpp)
 
+if (ENABLE_XFS_DISK_ISOLATOR)
+  list(APPEND LINUX_SRC
+    slave/containerizer/mesos/isolators/xfs/disk.cpp
+    slave/containerizer/mesos/isolators/xfs/utils.cpp)
+endif ()
+
 set(LOCAL_SRC
   local/local.cpp)
 
@@ -524,7 +530,10 @@ set_target_properties(
   VERSION ${MESOS_PACKAGE_VERSION}
   SOVERSION ${MESOS_PACKAGE_SOVERSION})
 
-target_compile_definitions(mesos PUBLIC USE_CMAKE_BUILD_CONFIG)
+target_compile_definitions(
+  mesos PUBLIC
+  USE_CMAKE_BUILD_CONFIG
+  $<$<BOOL:${ENABLE_XFS_DISK_ISOLATOR}>:ENABLE_XFS_DISK_ISOLATOR>)
 
 target_include_directories(
   mesos PUBLIC

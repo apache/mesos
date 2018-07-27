@@ -252,6 +252,11 @@ if (LINUX)
       agent_resource_provider_config_api_tests.cpp
       storage_local_resource_provider_tests.cpp)
   endif ()
+
+  if (ENABLE_XFS_DISK_ISOLATOR)
+    list(APPEND MESOS_TESTS_SRC
+      containerizer/xfs_quota_tests.cpp)
+  endif()
 endif ()
 
 
