@@ -324,25 +324,16 @@ endif
 if WITH_BUNDLED_RAPIDJSON
 # Stout depends on rapidjson. Install rapidjson into $PREFIX/include
 # but don't add it to the source tarball.
+#
+# We need to use a variable per sub-directory in order to preserve
+# the subdirectory structure:
+#   https://www.gnu.org/software/automake/manual/html_node/Alternative.html
 rapidjsondir = $(includedir)/rapidjson
+rapidjsonerrordir = $(includedir)/rapidjson/error
+rapidjsoninternaldir = $(includedir)/rapidjson/internal
+rapidjsonmsinttypesdir = $(includedir)/rapidjson/msinttypes
 
 nodist_rapidjson_HEADERS =				\
-  $(RAPIDJSON)/include/rapidjson/error/en.h		\
-  $(RAPIDJSON)/include/rapidjson/error/error.h		\
-  $(RAPIDJSON)/include/rapidjson/internal/biginteger.h	\
-  $(RAPIDJSON)/include/rapidjson/internal/diyfp.h	\
-  $(RAPIDJSON)/include/rapidjson/internal/dtoa.h	\
-  $(RAPIDJSON)/include/rapidjson/internal/ieee754.h	\
-  $(RAPIDJSON)/include/rapidjson/internal/itoa.h	\
-  $(RAPIDJSON)/include/rapidjson/internal/meta.h	\
-  $(RAPIDJSON)/include/rapidjson/internal/pow10.h	\
-  $(RAPIDJSON)/include/rapidjson/internal/regex.h	\
-  $(RAPIDJSON)/include/rapidjson/internal/stack.h	\
-  $(RAPIDJSON)/include/rapidjson/internal/strfunc.h	\
-  $(RAPIDJSON)/include/rapidjson/internal/strtod.h	\
-  $(RAPIDJSON)/include/rapidjson/internal/swap.h	\
-  $(RAPIDJSON)/include/rapidjson/msinttypes/inttypes.h	\
-  $(RAPIDJSON)/include/rapidjson/msinttypes/stdint.h	\
   $(RAPIDJSON)/include/rapidjson/allocators.h		\
   $(RAPIDJSON)/include/rapidjson/document.h		\
   $(RAPIDJSON)/include/rapidjson/encodedstream.h	\
@@ -363,7 +354,32 @@ nodist_rapidjson_HEADERS =				\
   $(RAPIDJSON)/include/rapidjson/stringbuffer.h		\
   $(RAPIDJSON)/include/rapidjson/writer.h
 
+nodist_rapidjsonerror_HEADERS =				\
+  $(RAPIDJSON)/include/rapidjson/error/en.h		\
+  $(RAPIDJSON)/include/rapidjson/error/error.h
+
+nodist_rapidjsoninternal_HEADERS =			\
+  $(RAPIDJSON)/include/rapidjson/internal/biginteger.h	\
+  $(RAPIDJSON)/include/rapidjson/internal/diyfp.h	\
+  $(RAPIDJSON)/include/rapidjson/internal/dtoa.h	\
+  $(RAPIDJSON)/include/rapidjson/internal/ieee754.h	\
+  $(RAPIDJSON)/include/rapidjson/internal/itoa.h	\
+  $(RAPIDJSON)/include/rapidjson/internal/meta.h	\
+  $(RAPIDJSON)/include/rapidjson/internal/pow10.h	\
+  $(RAPIDJSON)/include/rapidjson/internal/regex.h	\
+  $(RAPIDJSON)/include/rapidjson/internal/stack.h	\
+  $(RAPIDJSON)/include/rapidjson/internal/strfunc.h	\
+  $(RAPIDJSON)/include/rapidjson/internal/strtod.h	\
+  $(RAPIDJSON)/include/rapidjson/internal/swap.h
+
+nodist_rapidjsonmsinttypes_HEADERS =			\
+  $(RAPIDJSON)/include/rapidjson/msinttypes/inttypes.h	\
+  $(RAPIDJSON)/include/rapidjson/msinttypes/stdint.h
+
 $(nodist_rapidjson_HEADERS): $(RAPIDJSON)-stamp
+$(nodist_rapidjsonerror_HEADERS): $(RAPIDJSON)-stamp
+$(nodist_rapidjsoninternal_HEADERS): $(RAPIDJSON)-stamp
+$(nodist_rapidjsonmsinttypes_HEADERS): $(RAPIDJSON)-stamp
 
 ALL_LOCAL += $(RAPIDJSON)-stamp
 endif
