@@ -265,6 +265,17 @@ inside a container. (default: false)
   </td>
 </tr>
 
+<tr id="cgroups_destroy_timeout">
+  <td>
+    --cgroups_destroy_timeout=VALUE
+  </td>
+  <td>
+Amount of time allowed to destroy a cgroup hierarchy. If the cgroup
+hierarchy is not destroyed within the timeout, the corresponding
+container destroy is considered failed. (default: 1mins)
+  </td>
+</tr>
+
 <tr id="cgroups_enable_cfs">
   <td>
     --[no]-cgroups_enable_cfs
