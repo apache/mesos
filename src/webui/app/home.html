@@ -46,10 +46,10 @@
       </dl>
 
       <p ng-if="log_file_attached">
-        <b>Master Log:</b>
+        <b>Leading Master Log:</b>
         <span class="btn-group">
           <!-- Links can look like buttons using Bootstrap classes. -->
-          <a class="btn btn-xs btn-default" href="//{{$location.host()}}:{{$location.port()}}/files/download?path=/master/log">
+          <a class="btn btn-xs btn-default" href="{{leader_url_prefix}}/files/download?path=/master/log">
             Download
           </a>
           <button class="btn btn-xs btn-default" ng-click="streamLogs($event)">

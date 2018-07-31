@@ -63,6 +63,16 @@
     return url;
   }
 
+  function leadingMasterURLPrefix(leader_info) {
+    if (leader_info) {
+      return '//' + leader_info.hostname + ':' + leader_info.port;
+    }
+
+    // If we do not have `leader_info` available (e.g. the first
+    // time we are retrieving state), fallback to the current master.
+    return '';
+  }
+
   // Invokes the pailer, building the endpoint URL with the specified urlPrefix
   // and path.
   function pailer(urlPrefix, path, window_title) {
@@ -440,18 +450,6 @@
       if (!matched) $scope.navbarActiveTab = null;
     });
 
-    var leadingMasterURL = function(path) {
-      // Use current location as address in case we could not find the
-      // leading master.
-      var address = location.hostname + ':' + location.port;
-      if ($scope.state && $scope.state.leader_info) {
-          address = $scope.state.leader_info.hostname + ':' +
-                    $scope.state.leader_info.port;
-      }
-
-      return '//' + address + path;
-    }
-
     var popupErrorModal = function() {
       if ($scope.delay >= 128000) {
         $scope.delay = 2000;
@@ -511,7 +509,13 @@
       // the leading master automatically. This would cause a CORS error if we
       // use XMLHttpRequest here. To avoid the CORS error, we use JSONP as a
       // workaround. Please refer to MESOS-5911 for further details.
-      $http.jsonp(leadingMasterURL('/master/state?jsonp=JSON_CALLBACK'))
+      //
+      // Note that `$scope.state` will not be defined during the first
+      // request.
+      var leader_info = $scope.state ? $scope.state.leader_info : null;
+
+      $http.jsonp(leadingMasterURLPrefix(leader_info) +
+                  '/master/state?jsonp=JSON_CALLBACK')
         .success(function(response) {
           if (updateState($scope, $timeout, response)) {
             $scope.delay = updateInterval(_.size($scope.agents));
@@ -526,7 +530,10 @@
     };
 
     var pollMetrics = function() {
-      $http.jsonp(leadingMasterURL('/metrics/snapshot?jsonp=JSON_CALLBACK'))
+      var leader_info = $scope.state ? $scope.state.leader_info : null;
+
+      $http.jsonp(leadingMasterURLPrefix(leader_info) +
+                  '/metrics/snapshot?jsonp=JSON_CALLBACK')
         .success(function(response) {
           if (updateMetrics($scope, $timeout, response)) {
             $scope.delay = updateInterval(_.size($scope.agents));
@@ -548,29 +555,25 @@
     pollMetrics();
   }]);
 
-  mesosApp.controller('HomeCtrl', function($scope, $http) {
+  mesosApp.controller('HomeCtrl', function($scope) {
     var hostname = $scope.$location.host() + ':' + $scope.$location.port();
 
     var update = function() {
       $scope.streamLogs = function(_$event) {
         pailer(
-            '//' + hostname,
+            leadingMasterURLPrefix($scope.state.leader_info),
             '/master/log',
             'Mesos Master (' + hostname + ')');
       };
 
-      // We must query the '/flags' endpoint of *this* master since
-      // `$scope.state` contains the leader master state.
-      $http.jsonp('//' + hostname + '/flags?jsonp=JSON_CALLBACK')
-        .success(function (response) {
-          // The master attaches a "/master/log" file when either
-          // of these flags are set.
-          $scope.log_file_attached = response.flags.external_log_file || response.flags.log_dir;
-        })
-        .error(function(reason) {
-          $scope.alert_message = 'Failed to get master flags: ' + reason;
-          $('#alert').show();
-        });
+      // Note that we always show the leader's log, which is why
+      // we examine the leader's flags to determine whether the
+      // log file is attached.
+      $scope.log_file_attached =
+        $scope.state.flags.external_log_file || $scope.state.flags.log_dir;
+
+      $scope.leader_url_prefix =
+        leadingMasterURLPrefix($scope.state.leader_info);
     };
 
     if ($scope.state) {
@@ -585,9 +588,8 @@
 
   mesosApp.controller('RolesCtrl', function($scope, $http) {
     var update = function() {
-      // TODO(haosdent): Send requests to the leading master directly
-      // once `leadingMasterURL` is public.
-      $http.jsonp('master/roles?jsonp=JSON_CALLBACK')
+      $http.jsonp(leadingMasterURLPrefix($scope.state.leader_info) +
+                  '/master/roles?jsonp=JSON_CALLBACK')
       .success(function(response) {
         $scope.roles = response;
       })
@@ -610,9 +612,8 @@
 
   mesosApp.controller('MaintenanceCtrl', function($scope, $http) {
     var update = function() {
-      // TODO(haosdent): Send requests to the leading master directly
-      // once `leadingMasterURL` is public.
-      $http.jsonp('master/maintenance/schedule?jsonp=JSON_CALLBACK')
+      $http.jsonp(leadingMasterURLPrefix($scope.state.leader_info) +
+                  '/master/maintenance/schedule?jsonp=JSON_CALLBACK')
       .success(function(response) {
         $scope.maintenance = response;
       })
