@@ -1699,6 +1699,147 @@ TEST_P(HierarchicalAllocatorTestWithReservations,
   EXPECT_TRUE(allocations.get().isPending());
 }
 
+// This test ensures that reserving already allocated resources would not
+// affect quota allocation.
+TEST_F(HierarchicalAllocatorTest, QuotaAccountingReserveAllocatedResources)
+{
+  Clock::pause();
+  initialize();
+
+  const string QUOTA_ROLE{"quota-role"};
+
+  // Create `framework` and set quota for its role.
+
+  const Quota quota = createQuota(QUOTA_ROLE, "cpus:10;mem:1024");
+  allocator->setQuota(QUOTA_ROLE, quota);
+
+  FrameworkInfo framework = createFrameworkInfo({QUOTA_ROLE});
+  allocator->addFramework(framework.id(), framework, {}, true, {});
+
+  Resources agentResources = CHECK_NOTERROR(Resources::parse("cpus:5;mem:512"));
+
+  // Add `agent1`. This will trigger an event-driven allocation.
+  SlaveInfo agent1 = createSlaveInfo(agentResources);
+  allocator->addSlave(
+      agent1.id(), agent1, AGENT_CAPABILITIES(), None(), agentResources, {});
+
+  // All of agent1's resources will be offered to `framework`
+  // as part of its quota.
+  Allocation expected =
+    Allocation(framework.id(), {{QUOTA_ROLE, {{agent1.id(), agentResources}}}});
+
+  Future<Allocation> allocation = allocations.get();
+  AWAIT_EXPECT_EQ(expected, allocation);
+
+  // `framework` unsatisfied quota: cpus:5;mem:512
+
+  // Let `framework` reserve its allocated resources on agent1.
+  Resources reserveResources = agentResources;
+  reserveResources.allocate(QUOTA_ROLE);
+  reserveResources = reserveResources.pushReservation(
+      createDynamicReservationInfo(QUOTA_ROLE, "principal"));
+
+  Offer::Operation reserve = RESERVE(reserveResources);
+
+  // Update the allocation in the allocator with a `RESERVE` operation.
+  allocator->updateAllocation(
+      framework.id(),
+      agent1.id(),
+      allocation->resources.at(QUOTA_ROLE).at(agent1.id()),
+      CHECK_NOTERROR(getResourceConversions(reserve)));
+
+  // Reserving allocated resources does not change unsatisfied quota.
+  // `framework` unsatisfied quota: cpus:5;mem:512
+
+  // Add `agent2` with twice the resources as that of `agent1`.
+  // This will trigger an event-driven allocation.
+  SlaveInfo agent2 = createSlaveInfo(agentResources + agentResources);
+  allocator->addSlave(
+      agent2.id(), agent2, AGENT_CAPABILITIES(), None(), agentResources, {});
+
+  // `agent2` will be chopped and half of its resources will be allocated to
+  // `framework` to meet its unsatisfied quota.
+  expected =
+    Allocation(framework.id(), {{QUOTA_ROLE, {{agent2.id(), agentResources}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocations.get());
+}
+
+
+// This test ensures that unreserving allocated resources would not affect
+// quota allocation.
+TEST_F(HierarchicalAllocatorTest, QuotaAccountingUnreserveAllocatedResources)
+{
+  Clock::pause();
+  initialize();
+
+  // Create `framework` and set quota for its role.
+
+  const Quota quota = createQuota("quota-role", "cpus:1;mem:1024");
+  allocator->setQuota("quota-role", quota);
+
+  FrameworkInfo framework = createFrameworkInfo({"quota-role"});
+  allocator->addFramework(framework.id(), framework, {}, true, {});
+
+  Resources reservedResources =
+    CHECK_NOTERROR(Resources::parse("cpus(quota-role):1;mem(quota-role):1024"));
+
+  // Add `agent1` with reserved resources for "quota-role" that matches exactly
+  // its quota. This will trigger an event-driven allocation.
+  SlaveInfo agent1 = createSlaveInfo(reservedResources);
+  allocator->addSlave(
+      agent1.id(),
+      agent1,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent1.resources(),
+      {});
+
+  // All of agent1's resources will be offered to `framework` to satisfy
+  // all of its quota.
+  Allocation expected = Allocation(
+      framework.id(), {{"quota-role", {{agent1.id(), agent1.resources()}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocations.get());
+
+  // Add `agent2` with unreserved resources. This will trigger an event-driven
+  // allocation.
+  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:1024");
+  allocator->addSlave(
+      agent2.id(),
+      agent2,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent2.resources(),
+      {});
+
+  Clock::settle();
+
+  // No allocation should be made because `framework` is under "quota-role"
+  // and its quota is already satisfied by `agent1`.
+  Future<Allocation> allocation = allocations.get();
+  EXPECT_TRUE(allocation.isPending());
+
+  // Unreserve the allocated resources on `agent1`.
+  reservedResources.allocate("quota-role");
+  Offer::Operation unreserve = UNRESERVE(reservedResources);
+
+  allocator->updateAllocation(
+      framework.id(),
+      agent1.id(),
+      reservedResources,
+      CHECK_NOTERROR(getResourceConversions(unreserve)));
+
+  // Trigger the next allocation cycle.
+  Clock::advance(flags.allocation_interval);
+  Clock::settle();
+
+  // Still no allocation should be made because un-reserving allocated resources
+  // does not affect allocated resource quantities. "quota-role"'s quota is
+  // still satisfied by allocated resources on `agent1`.
+  EXPECT_TRUE(allocation.isPending());
+}
+
 
 // Checks that resources on a slave that are statically reserved to
 // a role are only offered to frameworks in that role.
