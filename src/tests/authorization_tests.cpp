@@ -4712,6 +4712,60 @@ TYPED_TEST(AuthorizationTest, ViewFlags)
 }
 
 
+TYPED_TEST(AuthorizationTest, ViewResourceProvider)
+{
+  // Setup ACLs.
+  ACLs acls;
+
+  {
+    // "foo" principal can view resource provider information.
+    mesos::ACL::ViewResourceProvider* acl = acls.add_view_resource_providers();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_resource_providers()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  {
+    // Nobody else can view resource provider information.
+    mesos::ACL::ViewResourceProvider* acl = acls.add_view_resource_providers();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_resource_providers()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  // Create an `Authorizer` with the ACLs.
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::VIEW_RESOURCE_PROVIDER);
+    request.mutable_subject()->set_value("foo");
+
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::VIEW_RESOURCE_PROVIDER);
+    request.mutable_subject()->set_value("bar");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+
+  // Test that no authorizer is created with invalid ACLs.
+  {
+    ACLs invalid;
+
+    mesos::ACL::ViewResourceProvider* acl =
+      invalid.add_view_resource_providers();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_resource_providers()->add_values("yoda");
+
+    Try<Authorizer*> create = TypeParam::create(parameterize(invalid));
+    EXPECT_ERROR(create);
+  }
+}
+
+
 TYPED_TEST(AuthorizationTest, SetLogLevel)
 {
   // Setup ACLs.

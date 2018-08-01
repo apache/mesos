@@ -556,6 +556,16 @@ message ACL {
     // Objects: The list of roles for which volume disks can be destroyed.
     required Entity roles = 2;
   }
+
+  // Which principals are authorized to access resource provider information.
+  message ViewResourceProvider {
+    // Subjects: HTTP Username.
+    required Entity principals = 1;
+
+    // Objects: Given implicitly. Use Entity type ANY or NONE to allow or deny
+    // access.
+    required Entity resource_providers = 2;
+  }
 }
 
 
@@ -639,4 +649,5 @@ message ACLs {
   repeated ACL.DestroyBlockDisk destroy_block_disks = 50;
   repeated ACL.CreateMountDisk create_mount_disks = 51;
   repeated ACL.DestroyMountDisk destroy_mount_disks = 52;
+  repeated ACL.ViewResourceProvider view_resource_providers = 53;
 }

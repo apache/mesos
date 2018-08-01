@@ -269,6 +269,10 @@ enum Action {
 
   // `DESTROY_MOUNT_DISK` will have an object with `Resource` set.
   DESTROY_MOUNT_DISK = 46;
+
+  // This action will not fill in any object fields. A principal is either
+  // allowed to view resource provider information or is unauthorized.
+  VIEW_RESOURCE_PROVIDER = 47;
 }
 
 

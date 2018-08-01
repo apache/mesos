@@ -413,6 +413,7 @@ public:
         case authorization::UPDATE_MAINTENANCE_SCHEDULE:
         case authorization::MODIFY_RESOURCE_PROVIDER_CONFIG:
         case authorization::PRUNE_IMAGES:
+        case authorization::VIEW_RESOURCE_PROVIDER:
           aclObject.set_type(ACL::Entity::ANY);
 
           break;
@@ -731,6 +732,7 @@ public:
         case authorization::WAIT_NESTED_CONTAINER:
         case authorization::WAIT_STANDALONE_CONTAINER:
         case authorization::MODIFY_RESOURCE_PROVIDER_CONFIG:
+        case authorization::VIEW_RESOURCE_PROVIDER:
         case authorization::UNKNOWN:
           UNREACHABLE();
       }
@@ -975,6 +977,7 @@ public:
       case authorization::WAIT_NESTED_CONTAINER:
       case authorization::WAIT_STANDALONE_CONTAINER:
       case authorization::MODIFY_RESOURCE_PROVIDER_CONFIG:
+      case authorization::VIEW_RESOURCE_PROVIDER:
         UNREACHABLE();
     }
 
@@ -1193,6 +1196,7 @@ public:
       case authorization::WAIT_NESTED_CONTAINER:
       case authorization::WAIT_STANDALONE_CONTAINER:
       case authorization::MODIFY_RESOURCE_PROVIDER_CONFIG:
+      case authorization::VIEW_RESOURCE_PROVIDER:
       case authorization::UNKNOWN: {
         Result<vector<GenericACL>> genericACLs =
           createGenericACLs(action, acls);
@@ -1558,6 +1562,18 @@ private:
         }
 
         return acls_;
+      case authorization::VIEW_RESOURCE_PROVIDER:
+        foreach (
+            const ACL::ViewResourceProvider& acl,
+            acls.view_resource_providers()) {
+          GenericACL acl_;
+          acl_.subjects = acl.principals();
+          acl_.objects = acl.resource_providers();
+
+          acls_.push_back(acl_);
+        }
+
+        return acls_;
       case authorization::REGISTER_FRAMEWORK:
       case authorization::CREATE_VOLUME:
       case authorization::RESIZE_VOLUME:
@@ -1744,6 +1760,13 @@ Option<Error> LocalAuthorizer::validate(const ACLs& acls)
   foreach (const ACL::PruneImages& acl, acls.prune_images()) {
     if (acl.images().type() == ACL::Entity::SOME) {
       return Error("ACL.PruneImages type must be either NONE or ANY");
+    }
+  }
+
+  foreach (const ACL::ViewResourceProvider& acl,
+           acls.view_resource_providers()) {
+    if (acl.resource_providers().type() == ACL::Entity::SOME) {
+      return Error("ACL.ViewResourceProvider type must be either NONE or ANY");
     }
   }
 
