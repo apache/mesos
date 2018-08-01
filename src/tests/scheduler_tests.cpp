@@ -1515,6 +1515,8 @@ TEST_P(SchedulerTest, Revive)
 
 TEST_P(SchedulerTest, Suppress)
 {
+  const string ROLE = "foo";
+
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
@@ -1548,12 +1550,17 @@ TEST_P(SchedulerTest, Suppress)
   EXPECT_CALL(*scheduler, offers(_, _))
     .WillOnce(FutureArg<1>(&offers1));
 
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+
+  frameworkInfo.clear_roles();
+  frameworkInfo.add_roles(ROLE);
+
   {
     Call call;
     call.set_type(Call::SUBSCRIBE);
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
-    subscribe->mutable_framework_info()->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
+    subscribe->mutable_framework_info()->CopyFrom(frameworkInfo);
 
     mesos.send(call);
   }
@@ -1561,6 +1568,8 @@ TEST_P(SchedulerTest, Suppress)
   AWAIT_READY(subscribed);
 
   v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  frameworkInfo.mutable_id()->CopyFrom(frameworkId);
 
   AWAIT_READY(offers1);
   ASSERT_FALSE(offers1->offers().empty());
@@ -1587,6 +1596,20 @@ TEST_P(SchedulerTest, Suppress)
     mesos.send(call);
   }
 
+  // Wait for the master to process the DECLINE call.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
+  JSON::Object metrics1 = Metrics();
+
+  const string prefix =
+    master::getFrameworkMetricPrefix(devolve(frameworkInfo));
+
+  EXPECT_EQ(1, metrics1.values[prefix + "subscribed"]);
+  EXPECT_EQ(1, metrics1.values[prefix + "offers/declined"]);
+  EXPECT_EQ(0, metrics1.values[prefix + "roles/" + ROLE + "/suppressed"]);
+
   Future<Nothing> suppressOffers =
     FUTURE_DISPATCH(_, &MesosAllocatorProcess::suppressOffers);
 
@@ -1603,6 +1626,10 @@ TEST_P(SchedulerTest, Suppress)
   // Wait for allocator to finish executing 'suppressOffers()'.
   Clock::pause();
   Clock::settle();
+
+  JSON::Object metrics2 = Metrics();
+
+  EXPECT_EQ(1, metrics2.values[prefix + "roles/" + ROLE + "/suppressed"]);
 
   // No offers should be sent within 100 mins because the framework
   // suppressed offers.
