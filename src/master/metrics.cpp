@@ -22,6 +22,7 @@
 
 #include <process/metrics/counter.hpp>
 #include <process/metrics/pull_gauge.hpp>
+#include <process/metrics/push_gauge.hpp>
 #include <process/metrics/metrics.hpp>
 
 #include <stout/foreach.hpp>
@@ -31,6 +32,7 @@
 
 using process::metrics::Counter;
 using process::metrics::PullGauge;
+using process::metrics::PushGauge;
 
 using std::string;
 
@@ -619,6 +621,30 @@ FrameworkMetrics::FrameworkMetrics(const FrameworkInfo& _frameworkInfo)
     event_types.put(type, counter);
     process::metrics::add(counter);
   }
+
+  // Add metrics for both active and terminal task states.
+  for (int index = 0; index < TaskState_descriptor()->value_count(); index++) {
+    const google::protobuf::EnumValueDescriptor* descriptor =
+      TaskState_descriptor()->value(index);
+
+    const TaskState state = static_cast<TaskState>(descriptor->number());
+
+    if (protobuf::isTerminalState(state)) {
+      Counter counter = Counter(
+          getFrameworkMetricPrefix(frameworkInfo) + "tasks/terminal/" +
+          strings::lower(descriptor->name()));
+
+      terminal_task_states.put(state, counter);
+      process::metrics::add(counter);
+    } else {
+      PushGauge gauge = PushGauge(
+          getFrameworkMetricPrefix(frameworkInfo) + "tasks/active/" +
+          strings::lower(TaskState_Name(state)));
+
+      active_task_states.put(state, gauge);
+      process::metrics::add(gauge);
+    }
+  }
 }
 
 
@@ -640,6 +666,14 @@ FrameworkMetrics::~FrameworkMetrics()
   process::metrics::remove(offers_accepted);
   process::metrics::remove(offers_declined);
   process::metrics::remove(offers_rescinded);
+
+  foreachvalue (const Counter& counter, terminal_task_states) {
+    process::metrics::remove(counter);
+  }
+
+  foreachvalue (const PushGauge& gauge, active_task_states) {
+    process::metrics::remove(gauge);
+  }
 }
 
 
@@ -649,6 +683,26 @@ void FrameworkMetrics::incrementCall(const scheduler::Call::Type& callType)
 
   call_types.get(callType).get()++;
   calls++;
+}
+
+
+void FrameworkMetrics::incrementTaskState(const TaskState& state)
+{
+  if (protobuf::isTerminalState(state)) {
+    CHECK(terminal_task_states.contains(state));
+    terminal_task_states.get(state).get()++;
+  } else {
+    CHECK(active_task_states.contains(state));
+    active_task_states.get(state).get() += 1;
+  }
+}
+
+
+void FrameworkMetrics::decrementActiveTaskState(const TaskState& state)
+{
+  CHECK(active_task_states.contains(state));
+
+  active_task_states.get(state).get() -= 1;
 }
 
 

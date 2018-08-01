@@ -2376,6 +2376,8 @@ struct Framework
       }
     }
 
+    metrics.incrementTaskState(task->state());
+
     if (!master->subscribers.subscribed.empty()) {
       master->subscribers.send(
           protobuf::master::event::createTaskAdded(*task),

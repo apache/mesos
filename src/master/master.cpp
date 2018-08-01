@@ -10874,6 +10874,8 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
     latestState = update.latest_state();
   }
 
+  const TaskState updateState = latestState.getOrElse(status.state());
+
   // Determine whether the task transitioned to terminal or
   // unreachable prior to changing the task state.
   auto isTerminalOrUnreachableState = [](const TaskState& state) {
@@ -10882,11 +10884,13 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
 
   bool transitionedToTerminalOrUnreachable =
     !isTerminalOrUnreachableState(task->state()) &&
-    isTerminalOrUnreachableState(latestState.getOrElse(status.state()));
+    isTerminalOrUnreachableState(updateState);
 
   // Indicates whether we should send a notification to subscribers,
   // set if the task transitioned to a new state.
   bool sendSubscribersUpdate = false;
+
+  Framework* framework = getFramework(task->framework_id());
 
   // If the task has already transitioned to a terminal state,
   // do not update its state. Note that we are being defensive
@@ -10900,7 +10904,15 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
       sendSubscribersUpdate = true;
     }
 
-    task->set_state(latestState.getOrElse(status.state()));
+    if (task->state() != updateState && framework != nullptr) {
+      // When we observe a transition away from a non-terminal state,
+      // decrement the relevant metric.
+      framework->metrics.decrementActiveTaskState(task->state());
+
+      framework->metrics.incrementTaskState(updateState);
+    }
+
+    task->set_state(updateState);
   }
 
   // If this is a (health) check status update, always forward it to
@@ -10930,7 +10942,6 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
     // transitioned to `TASK_KILLED` by `removeFramework()`, thus
     // `sendSubscribersUpdate` shouldn't have been set to true.
     // TODO(chhsiao): This may be changed after MESOS-6608 is resolved.
-    Framework* framework = getFramework(task->framework_id());
     CHECK_NOTNULL(framework);
 
     subscribers.send(
@@ -10960,7 +10971,6 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
 
     slave->recoverResources(task);
 
-    Framework* framework = getFramework(task->framework_id());
     if (framework != nullptr) {
       framework->recoverResources(task);
     }
