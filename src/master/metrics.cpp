@@ -555,7 +555,9 @@ FrameworkMetrics::FrameworkMetrics(const FrameworkInfo& _frameworkInfo)
     subscribed(
         getFrameworkMetricPrefix(frameworkInfo) + "subscribed"),
     calls(
-        getFrameworkMetricPrefix(frameworkInfo) + "calls")
+        getFrameworkMetricPrefix(frameworkInfo) + "calls"),
+    events(
+        getFrameworkMetricPrefix(frameworkInfo) + "events")
 {
   process::metrics::add(subscribed);
 
@@ -581,6 +583,29 @@ FrameworkMetrics::FrameworkMetrics(const FrameworkInfo& _frameworkInfo)
     call_types.put(type, counter);
     process::metrics::add(counter);
   }
+
+  // Add metrics for scheduler events.
+  process::metrics::add(events);
+  for (int index = 0;
+       index < scheduler::Event::Type_descriptor()->value_count();
+       index++) {
+    const google::protobuf::EnumValueDescriptor* descriptor =
+      scheduler::Event::Type_descriptor()->value(index);
+
+    const scheduler::Event::Type type =
+      static_cast<scheduler::Event::Type>(descriptor->number());
+
+    if (type == scheduler::Event::UNKNOWN) {
+      continue;
+    }
+
+    Counter counter = Counter(
+        getFrameworkMetricPrefix(frameworkInfo) + "events/" +
+        strings::lower(descriptor->name()));
+
+    event_types.put(type, counter);
+    process::metrics::add(counter);
+  }
 }
 
 
@@ -590,6 +615,11 @@ FrameworkMetrics::~FrameworkMetrics()
 
   process::metrics::remove(calls);
   foreachvalue (const Counter& counter, call_types) {
+    process::metrics::remove(counter);
+  }
+
+  process::metrics::remove(events);
+  foreachvalue (const Counter& counter, event_types) {
     process::metrics::remove(counter);
   }
 }
@@ -609,6 +639,15 @@ string getFrameworkMetricPrefix(const FrameworkInfo& frameworkInfo)
   // Percent-encode the framework name to avoid characters like '/' and ' '.
   return "master/frameworks/" + process::http::encode(frameworkInfo.name()) +
     "/" + stringify(frameworkInfo.id()) + "/";
+}
+
+
+void FrameworkMetrics::incrementEvent(const scheduler::Event& event)
+{
+  CHECK(event_types.contains(event.type()));
+
+  event_types.get(event.type()).get()++;
+  events++;
 }
 
 } // namespace master {

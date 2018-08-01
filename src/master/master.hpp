@@ -380,13 +380,16 @@ public:
               const Message& _heartbeatMessage,
               const HttpConnection& _http,
               const Duration& _interval,
-              const Option<Duration>& _delay = None())
+              const Option<Duration>& _delay = None(),
+              const Option<lambda::function<void(const Message&)>>&
+                _callback = None())
     : process::ProcessBase(process::ID::generate("heartbeater")),
       logMessage(_logMessage),
       heartbeatMessage(_heartbeatMessage),
       http(_http),
       interval(_interval),
-      delay(_delay) {}
+      delay(_delay),
+      callback(_callback) {}
 
 protected:
   void initialize() override
@@ -408,6 +411,10 @@ private:
     if (http.closed().isPending()) {
       VLOG(2) << "Sending heartbeat to " << logMessage;
 
+      if (callback.isSome()) {
+        callback.get()(heartbeatMessage);
+      }
+
       Message message(heartbeatMessage);
       http.send<Message, Event>(message);
     }
@@ -420,6 +427,7 @@ private:
   HttpConnection http;
   const Duration interval;
   const Option<Duration> delay;
+  const Option<lambda::function<void(const Message&)>> callback;
 };
 
 
@@ -2420,6 +2428,10 @@ struct Framework
                    << " framework " << *this;
     }
 
+    // TODO(gilbert): add a helper to transform `SchedulerDriver` API messages
+    // directly to v0 events.
+    metrics.incrementEvent(devolve(evolve(message)));
+
     if (http.isSome()) {
       if (!http->send(message)) {
         LOG(WARNING) << "Unable to send event to framework " << *this << ":"
@@ -2905,7 +2917,11 @@ struct Framework
           "framework " + stringify(info.id()),
           event,
           http.get(),
-          DEFAULT_HEARTBEAT_INTERVAL);
+          DEFAULT_HEARTBEAT_INTERVAL,
+          None(),
+          [this](const scheduler::Event& event) {
+            this->metrics.incrementEvent(event);
+          });
 
     process::spawn(heartbeater->get());
   }
