@@ -3013,6 +3013,9 @@ struct Framework
   Option<process::Owned<Heartbeater<scheduler::Event, v1::scheduler::Event>>>
     heartbeater;
 
+  // This is used for per-framwork metrics.
+  FrameworkMetrics metrics;
+
 private:
   Framework(Master* const _master,
             const Flags& masterFlags,
@@ -3027,8 +3030,11 @@ private:
       registeredTime(time),
       reregisteredTime(time),
       completedTasks(masterFlags.max_completed_tasks_per_framework),
-      unreachableTasks(masterFlags.max_unreachable_tasks_per_framework)
+      unreachableTasks(masterFlags.max_unreachable_tasks_per_framework),
+      metrics(_info)
   {
+    CHECK(_info.has_id());
+
     foreach (const std::string& role, roles) {
       // NOTE: It's possible that we're already being tracked under the role
       // because a framework can unsubscribe from a role while it still has

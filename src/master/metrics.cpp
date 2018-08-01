@@ -16,6 +16,8 @@
 
 #include <string>
 
+#include <process/http.hpp>
+
 #include <process/metrics/counter.hpp>
 #include <process/metrics/pull_gauge.hpp>
 #include <process/metrics/metrics.hpp>
@@ -545,6 +547,20 @@ void Metrics::incrementTasksStates(
   counter++;
 }
 
+
+FrameworkMetrics::FrameworkMetrics(const FrameworkInfo& _frameworkInfo)
+  : frameworkInfo(_frameworkInfo) {}
+
+
+FrameworkMetrics::~FrameworkMetrics() {}
+
+
+string getFrameworkMetricPrefix(const FrameworkInfo& frameworkInfo)
+{
+  // Percent-encode the framework name to avoid characters like '/' and ' '.
+  return "master/frameworks/" + process::http::encode(frameworkInfo.name()) +
+    "/" + stringify(frameworkInfo.id()) + "/";
+}
 
 } // namespace master {
 } // namespace internal {
