@@ -557,9 +557,22 @@ FrameworkMetrics::FrameworkMetrics(const FrameworkInfo& _frameworkInfo)
     calls(
         getFrameworkMetricPrefix(frameworkInfo) + "calls"),
     events(
-        getFrameworkMetricPrefix(frameworkInfo) + "events")
+        getFrameworkMetricPrefix(frameworkInfo) + "events"),
+    offers_sent(
+        getFrameworkMetricPrefix(frameworkInfo) + "offers/sent"),
+    offers_accepted(
+        getFrameworkMetricPrefix(frameworkInfo) + "offers/accepted"),
+    offers_declined(
+        getFrameworkMetricPrefix(frameworkInfo) + "offers/declined"),
+    offers_rescinded(
+        getFrameworkMetricPrefix(frameworkInfo) + "offers/rescinded")
 {
   process::metrics::add(subscribed);
+
+  process::metrics::add(offers_sent);
+  process::metrics::add(offers_accepted);
+  process::metrics::add(offers_declined);
+  process::metrics::add(offers_rescinded);
 
   // Add metrics for scheduler calls.
   process::metrics::add(calls);
@@ -622,6 +635,11 @@ FrameworkMetrics::~FrameworkMetrics()
   foreachvalue (const Counter& counter, event_types) {
     process::metrics::remove(counter);
   }
+
+  process::metrics::remove(offers_sent);
+  process::metrics::remove(offers_accepted);
+  process::metrics::remove(offers_declined);
+  process::metrics::remove(offers_rescinded);
 }
 
 

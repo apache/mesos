@@ -4133,6 +4133,8 @@ void Master::accept(
     // Validate the offers.
     error = validation::offer::validate(accept.offer_ids(), this, framework);
 
+    size_t offersAccepted = 0;
+
     // Compute offered resources and remove the offers. If the
     // validation failed, return resources to the allocator.
     foreach (const OfferID& offerId, accept.offer_ids()) {
@@ -4150,6 +4152,8 @@ void Master::accept(
           slaveId = offer->slave_id();
           allocationInfo = offer->allocation_info();
           offeredResources += offer->resources();
+
+          offersAccepted++;
         }
 
         removeOffer(offer);
@@ -4161,6 +4165,8 @@ void Master::accept(
       LOG(WARNING) << "Ignoring accept of offer " << offerId
                    << " since it is no longer valid";
     }
+
+    framework->metrics.offers_accepted += offersAccepted;
   }
 
   // If invalid, send TASK_DROPPED for the launch attempts. If the
@@ -5881,6 +5887,8 @@ void Master::decline(
 
   ++metrics->messages_decline_offers;
 
+  size_t offersDeclined = 0;
+
   //  Return resources to the allocator.
   foreach (const OfferID& offerId, decline.offer_ids()) {
     Offer* offer = getOffer(offerId);
@@ -5892,6 +5900,8 @@ void Master::decline(
           decline.filters());
 
       removeOffer(offer);
+
+      offersDeclined++;
       continue;
     }
 
@@ -5900,6 +5910,8 @@ void Master::decline(
     LOG(WARNING) << "Ignoring decline of offer " << offerId
                  << " since it is no longer valid";
   }
+
+  framework->metrics.offers_declined += offersDeclined;
 }
 
 
@@ -9480,6 +9492,7 @@ void Master::offer(
 
   LOG(INFO) << "Sending offers " << offerIds << " to framework " << *framework;
 
+  framework->metrics.offers_sent += message.offers().size();
   framework->send(message);
 }
 
@@ -11440,6 +11453,7 @@ void Master::removeOffer(Offer* offer, bool rescind)
   if (rescind) {
     RescindResourceOfferMessage message;
     message.mutable_offer_id()->MergeFrom(offer->id());
+    framework->metrics.offers_rescinded++;
     framework->send(message);
   }
 
