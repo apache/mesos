@@ -149,7 +149,7 @@ public:
   typename list::const_iterator end() const { return entries_.cend(); }
 
 private:
-  const size_t capacity_;
+  size_t capacity_;
   list entries_; // Key-value pairs ordered by insertion order.
   map keys_; // Map from key to "pointer" to key's location in list.
 };
