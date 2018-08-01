@@ -466,6 +466,115 @@ registered or that it is misbehaving.
 </tr>
 </table>
 
+The following metrics are added for each framework which registers with the
+master, in order to provide detailed information about the behavior of the
+framework. The framework name is percent-encoded before creating these metrics;
+the actual name can be recovered by percent-decoding.
+
+<table class="table table-striped">
+<thead>
+<tr><th>Metric</th><th>Description</th><th>Type</th>
+</thead>
+<tr>
+  <td>
+  <code>master/frameworks/&lt;ENCODED_FRAMEWORK_NAME&gt;/&lt;FRAMEWORK_ID&gt;/subscribed</code>
+  </td>
+  <td>Whether or not this framework is currently subscribed</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>master/frameworks/&lt;ENCODED_FRAMEWORK_NAME&gt;/&lt;FRAMEWORK_ID&gt;/calls</code>
+  </td>
+  <td>Total number of calls sent by this framework</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
+  <code>master/frameworks/&lt;ENCODED_FRAMEWORK_NAME&gt;/&lt;FRAMEWORK_ID&gt;/calls/&lt;CALL_TYPE&gt;</code>
+  </td>
+  <td>Number of each type of call sent by this framework</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
+  <code>master/frameworks/&lt;ENCODED_FRAMEWORK_NAME&gt;/&lt;FRAMEWORK_ID&gt;/events</code>
+  </td>
+  <td>Total number of events sent to this framework</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
+  <code>master/frameworks/&lt;ENCODED_FRAMEWORK_NAME&gt;/&lt;FRAMEWORK_ID&gt;/events/&lt;EVENT_TYPE&gt;</code>
+  </td>
+  <td>Number of each type of event sent to this framework</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
+  <code>master/frameworks/&lt;ENCODED_FRAMEWORK_NAME&gt;/&lt;FRAMEWORK_ID&gt;/operations</code>
+  </td>
+  <td>Total number of offer operations performed by this framework</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
+  <code>master/frameworks/&lt;ENCODED_FRAMEWORK_NAME&gt;/&lt;FRAMEWORK_ID&gt;/operations/&lt;OPERATION_TYPE&gt;</code>
+  </td>
+  <td>Number of each type of offer operation performed by this framework</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
+  <code>master/frameworks/&lt;ENCODED_FRAMEWORK_NAME&gt;/&lt;FRAMEWORK_ID&gt;/tasks/active/&lt;TASK_STATE&gt;</code>
+  </td>
+  <td>Number of this framework's tasks currently in each active task state</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>master/frameworks/&lt;ENCODED_FRAMEWORK_NAME&gt;/&lt;FRAMEWORK_ID&gt;/tasks/terminal/&lt;TASK_STATE&gt;</code>
+  </td>
+  <td>Number of this framework's tasks which have transitioned into each terminal task state</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
+  <code>master/frameworks/&lt;ENCODED_FRAMEWORK_NAME&gt;/&lt;FRAMEWORK_ID&gt;/offers/sent</code>
+  </td>
+  <td>Number of offers sent to this framework</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
+  <code>master/frameworks/&lt;ENCODED_FRAMEWORK_NAME&gt;/&lt;FRAMEWORK_ID&gt;/offers/accepted</code>
+  </td>
+  <td>Number of offers accepted by this framework</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
+  <code>master/frameworks/&lt;ENCODED_FRAMEWORK_NAME&gt;/&lt;FRAMEWORK_ID&gt;/offers/declined</code>
+  </td>
+  <td>Number of offers explicitly declined by this framework</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
+  <code>master/frameworks/&lt;ENCODED_FRAMEWORK_NAME&gt;/&lt;FRAMEWORK_ID&gt;/offers/rescinded</code>
+  </td>
+  <td>Number of offers sent to this framework which were subsequently rescinded</td>
+  <td>Counter</td>
+</tr>
+<tr>
+  <td>
+  <code>master/frameworks/&lt;ENCODED_FRAMEWORK_NAME&gt;/&lt;FRAMEWORK_ID&gt;/roles/&lt;ROLE_NAME&gt;/suppressed</code>
+  </td>
+  <td>For each of the framework's subscribed roles, whether or not offers for that role are currently suppressed</td>
+  <td>Gauge</td>
+</tr>
+</table>
+
 #### Tasks
 
 The following metrics provide information about active and terminated tasks. A
