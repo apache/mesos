@@ -308,7 +308,7 @@ TEST_F(DiskQuotaTest, VolumeUsageExceedsQuota)
       None(),
       frameworkInfo.principal());
 
-  // We intentionally request a sandbox that is much bugger (16MB) than
+  // We intentionally request a sandbox that is much bigger (16MB) than
   // the file the task writes (2MB) to the persistent volume (1MB). This
   // makes sure that the quota is indeed enforced on the persistent volume.
   Resources taskResources =
