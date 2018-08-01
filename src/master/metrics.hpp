@@ -231,6 +231,8 @@ struct FrameworkMetrics
   void incrementTaskState(const TaskState& state);
   void decrementActiveTaskState(const TaskState& state);
 
+  void incrementOperation(const Offer::Operation& operation);
+
   const FrameworkInfo frameworkInfo;
 
   process::metrics::PushGauge subscribed;
@@ -249,6 +251,9 @@ struct FrameworkMetrics
   hashmap<TaskState, process::metrics::Counter> terminal_task_states;
 
   hashmap<TaskState, process::metrics::PushGauge> active_task_states;
+
+  process::metrics::Counter operations;
+  hashmap<Offer::Operation::Type, process::metrics::Counter> operation_types;
 };
 
 

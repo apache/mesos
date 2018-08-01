@@ -567,7 +567,9 @@ FrameworkMetrics::FrameworkMetrics(const FrameworkInfo& _frameworkInfo)
     offers_declined(
         getFrameworkMetricPrefix(frameworkInfo) + "offers/declined"),
     offers_rescinded(
-        getFrameworkMetricPrefix(frameworkInfo) + "offers/rescinded")
+        getFrameworkMetricPrefix(frameworkInfo) + "offers/rescinded"),
+    operations(
+        getFrameworkMetricPrefix(frameworkInfo) + "operations")
 {
   process::metrics::add(subscribed);
 
@@ -645,6 +647,29 @@ FrameworkMetrics::FrameworkMetrics(const FrameworkInfo& _frameworkInfo)
       process::metrics::add(gauge);
     }
   }
+
+  // Add metrics for offer operations.
+  process::metrics::add(operations);
+  for (int index = 0;
+       index < Offer::Operation::Type_descriptor()->value_count();
+       index++) {
+    const google::protobuf::EnumValueDescriptor* descriptor =
+      Offer::Operation::Type_descriptor()->value(index);
+
+    const Offer::Operation::Type type =
+      static_cast<Offer::Operation::Type>(descriptor->number());
+
+    if (type == Offer::Operation::UNKNOWN) {
+      continue;
+    }
+
+    Counter counter =
+      Counter(getFrameworkMetricPrefix(frameworkInfo) +
+      "operations/" + strings::lower(descriptor->name()));
+
+    operation_types.put(type, counter);
+    process::metrics::add(counter);
+  }
 }
 
 
@@ -673,6 +698,11 @@ FrameworkMetrics::~FrameworkMetrics()
 
   foreachvalue (const PushGauge& gauge, active_task_states) {
     process::metrics::remove(gauge);
+  }
+
+  process::metrics::remove(operations);
+  foreachvalue (const Counter& counter, operation_types) {
+    process::metrics::remove(counter);
   }
 }
 
@@ -703,6 +733,15 @@ void FrameworkMetrics::decrementActiveTaskState(const TaskState& state)
   CHECK(active_task_states.contains(state));
 
   active_task_states.get(state).get() -= 1;
+}
+
+
+void FrameworkMetrics::incrementOperation(const Offer::Operation& operation)
+{
+  CHECK(operation_types.contains(operation.type()));
+
+  operation_types.get(operation.type()).get()++;
+  operations++;
 }
 
 
