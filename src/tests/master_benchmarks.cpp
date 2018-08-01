@@ -482,6 +482,144 @@ TEST_P(MasterStateQuery_BENCHMARK_Test, GetState)
 }
 
 
+class MasterMetricsQuery_BENCHMARK_Test
+  : public MesosTest,
+    public WithParamInterface<tuple<
+      size_t, size_t, size_t, size_t, size_t>> {};
+
+
+INSTANTIATE_TEST_CASE_P(
+    AgentFrameworkTaskCountContentType,
+    MasterMetricsQuery_BENCHMARK_Test,
+    ::testing::Values(
+        make_tuple(1, 90, 2, 10, 2),
+        make_tuple(1, 900, 2, 100, 2),
+        make_tuple(1, 9000, 2, 1000, 2),
+        make_tuple(1, 18000, 2, 2000, 2)));
+
+
+// This test measures the performance of the `master::call::GetMetrics` v1 API
+// and the unversioned '/metrics/snapshot' endpoint. Frameworks are added to the
+// test agents in order to test the performance when large numbers of
+// per-framework metrics are present.
+TEST_P(MasterMetricsQuery_BENCHMARK_Test, GetMetrics)
+{
+  size_t agentCount;
+  size_t activeFrameworkCount;
+  size_t tasksPerActiveFramework;
+  size_t completedFrameworkCount;
+  size_t tasksPerCompletedFramework;
+
+  tie(agentCount,
+    activeFrameworkCount,
+    tasksPerActiveFramework,
+    completedFrameworkCount,
+    tasksPerCompletedFramework) = GetParam();
+
+  // Disable authentication to avoid the overhead, since we don't care about
+  // it in this test.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.authenticate_agents = false;
+  masterFlags.authenticate_http_readwrite = false;
+  masterFlags.authenticate_http_readonly = false;
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  vector<Owned<TestSlave>> slaves;
+
+  for (size_t i = 0; i < agentCount; i++) {
+    SlaveID slaveId;
+    slaveId.set_value("agent" + stringify(i));
+
+    slaves.push_back(Owned<TestSlave>(new TestSlave(
+        master.get()->pid,
+        slaveId,
+        activeFrameworkCount,
+        tasksPerActiveFramework,
+        completedFrameworkCount,
+        tasksPerCompletedFramework)));
+  }
+
+  cout << "Test setup: "
+       << agentCount << " agents with a total of "
+       << activeFrameworkCount + completedFrameworkCount
+       << " frameworks" << endl;
+
+  vector<Future<Nothing>> reregistered;
+
+  foreach (const Owned<TestSlave>& slave, slaves) {
+    reregistered.push_back(slave->reregister());
+  }
+
+  // Wait for all agents to finish reregistration.
+  await(reregistered).await();
+
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
+  UPID upid("metrics", process::address());
+
+  Stopwatch watch;
+
+  // We first measure v0 "metrics/snapshot" response time.
+  watch.start();
+  Future<http::Response> v0Response = http::get(upid, "snapshot");
+  v0Response.await();
+  watch.stop();
+
+  ASSERT_EQ(v0Response->status, http::OK().status);
+
+  cout << "unversioned /metrics/snapshot' response took "
+       << watch.elapsed() << endl;
+
+  // Helper function to post a request to '/api/v1' master endpoint
+  // and return the response.
+  auto post = [](
+      const process::PID<master::Master>& pid,
+      const v1::master::Call& call,
+      const ContentType& contentType)
+  {
+    const http::Headers headers{{"Accept", stringify(contentType)}};
+
+    return http::post(
+        pid,
+        "api/v1",
+        headers,
+        serialize(contentType, call),
+        stringify(contentType));
+  };
+
+  // We measure both JSON and protobuf formats.
+  const ContentType contentTypes[] =
+    { ContentType::PROTOBUF, ContentType::JSON };
+
+  for (ContentType contentType : contentTypes){
+    v1::master::Call v1Call;
+    v1Call.set_type(v1::master::Call::GET_METRICS);
+    v1Call.mutable_get_metrics();
+
+    // Measure the response time.
+    watch.start();
+    Future<http::Response> response =
+      post(master.get()->pid, v1Call, contentType);
+    response.await();
+    watch.stop();
+
+    ASSERT_EQ(response->status, http::OK().status);
+
+    Future<v1::master::Response> v1Response =
+      deserialize<v1::master::Response>(contentType, response->body);
+
+    ASSERT_TRUE(v1Response->IsInitialized());
+    EXPECT_EQ(v1::master::Response::GET_METRICS, v1Response->type());
+
+    cout << "v1 'master::call::GetMetrics' "
+         << contentType << " response took " << watch.elapsed() << endl;
+  }
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
