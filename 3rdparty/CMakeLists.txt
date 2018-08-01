@@ -1252,10 +1252,10 @@ if (ENABLE_GRPC)
   endif ()
 
   set(GRPC_BUILD_CMD
-    ${CMAKE_COMMAND} --build . --target gpr &&
-    ${CMAKE_COMMAND} --build . --target grpc${GRPC_VARIANT} &&
-    ${CMAKE_COMMAND} --build . --target grpc++${GRPC_VARIANT} &&
-    ${CMAKE_COMMAND} --build . --target grpc_cpp_plugin)
+    ${CMAKE_COMMAND} --build . --config $<CONFIG> --target gpr &&
+    ${CMAKE_COMMAND} --build . --config $<CONFIG> --target grpc${GRPC_VARIANT} &&
+    ${CMAKE_COMMAND} --build . --config $<CONFIG> --target grpc++${GRPC_VARIANT} &&
+    ${CMAKE_COMMAND} --build . --config $<CONFIG> --target grpc_cpp_plugin)
 
   set_target_properties(
     grpc PROPERTIES
