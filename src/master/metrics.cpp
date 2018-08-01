@@ -549,10 +549,18 @@ void Metrics::incrementTasksStates(
 
 
 FrameworkMetrics::FrameworkMetrics(const FrameworkInfo& _frameworkInfo)
-  : frameworkInfo(_frameworkInfo) {}
+  : frameworkInfo(_frameworkInfo),
+    subscribed(
+        getFrameworkMetricPrefix(frameworkInfo) + "subscribed")
+{
+  process::metrics::add(subscribed);
+}
 
 
-FrameworkMetrics::~FrameworkMetrics() {}
+FrameworkMetrics::~FrameworkMetrics()
+{
+  process::metrics::remove(subscribed);
+}
 
 
 string getFrameworkMetricPrefix(const FrameworkInfo& frameworkInfo)

@@ -22,6 +22,7 @@
 
 #include <process/metrics/counter.hpp>
 #include <process/metrics/pull_gauge.hpp>
+#include <process/metrics/push_gauge.hpp>
 #include <process/metrics/metrics.hpp>
 
 #include <stout/hashmap.hpp>
@@ -222,6 +223,8 @@ struct FrameworkMetrics
   ~FrameworkMetrics();
 
   const FrameworkInfo frameworkInfo;
+
+  process::metrics::PushGauge subscribed;
 };
 
 
