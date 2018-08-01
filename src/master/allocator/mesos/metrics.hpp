@@ -24,6 +24,7 @@
 
 #include <process/metrics/counter.hpp>
 #include <process/metrics/pull_gauge.hpp>
+#include <process/metrics/push_gauge.hpp>
 #include <process/metrics/timer.hpp>
 
 #include <process/pid.hpp>
@@ -97,7 +98,18 @@ struct FrameworkMetrics
 
   ~FrameworkMetrics();
 
+  void reviveRole(const std::string& role);
+  void suppressRole(const std::string& role);
+
+  // Since frameworks can update their list of roles,
+  // these methods add/remove per-role metrics.
+  void addSubscribedRole(const std::string& role);
+  void removeSubscribedRole(const std::string& role);
+
   const FrameworkInfo frameworkInfo;
+
+  // Suppresion state metric (boolean 0 or 1) for each role.
+  hashmap<std::string, process::metrics::PushGauge> suppressed;
 };
 
 } // namespace internal {

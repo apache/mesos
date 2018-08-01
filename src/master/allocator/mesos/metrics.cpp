@@ -21,15 +21,21 @@
 #include <mesos/quota/quota.hpp>
 
 #include <process/metrics/pull_gauge.hpp>
+#include <process/metrics/push_gauge.hpp>
 #include <process/metrics/metrics.hpp>
 
 #include <stout/hashmap.hpp>
+
+#include "common/protobuf_utils.hpp"
+
+#include "master/metrics.hpp"
 
 #include "master/allocator/mesos/hierarchical.hpp"
 
 using std::string;
 
 using process::metrics::PullGauge;
+using process::metrics::PushGauge;
 
 namespace mesos {
 namespace internal {
@@ -209,10 +215,66 @@ void Metrics::removeRole(const string& role)
 
 
 FrameworkMetrics::FrameworkMetrics(const FrameworkInfo& _frameworkInfo)
-  : frameworkInfo(_frameworkInfo) {}
+  : frameworkInfo(_frameworkInfo)
+{
+  // TODO(greggomann): Calling `getRoles` below copies the roles from the
+  // framework info, which could become expensive if the number of roles grows
+  // large. Consider optimizing this.
+  foreach (
+      const string& role,
+      protobuf::framework::getRoles(frameworkInfo)) {
+    addSubscribedRole(role);
+  }
+}
 
 
-FrameworkMetrics::~FrameworkMetrics() {}
+FrameworkMetrics::~FrameworkMetrics()
+{
+  foreach (const string& role, suppressed.keys()) {
+    removeSubscribedRole(role);
+  }
+
+  CHECK(suppressed.empty());
+}
+
+
+void FrameworkMetrics::reviveRole(const string& role)
+{
+  auto iter = suppressed.find(role);
+  CHECK(iter != suppressed.end());
+  iter->second = 0;
+}
+
+
+void FrameworkMetrics::suppressRole(const string& role)
+{
+  auto iter = suppressed.find(role);
+  CHECK(iter != suppressed.end());
+  iter->second = 1;
+}
+
+
+void FrameworkMetrics::addSubscribedRole(const string& role)
+{
+  auto result = suppressed.emplace(
+      role,
+      PushGauge(
+          getFrameworkMetricPrefix(frameworkInfo) + "roles/" +
+          role + "/suppressed"));
+
+  CHECK(result.second);
+  process::metrics::add(result.first->second);
+}
+
+
+void FrameworkMetrics::removeSubscribedRole(const string& role)
+{
+  auto iter = suppressed.find(role);
+
+  CHECK(iter != suppressed.end());
+  process::metrics::remove(iter->second);
+  suppressed.erase(iter);
+}
 
 } // namespace internal {
 } // namespace allocator {
