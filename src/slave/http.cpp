@@ -85,6 +85,7 @@ using mesos::authorization::VIEW_FLAGS;
 using mesos::authorization::VIEW_FRAMEWORK;
 using mesos::authorization::VIEW_TASK;
 using mesos::authorization::VIEW_EXECUTOR;
+using mesos::authorization::VIEW_RESOURCE_PROVIDER;
 using mesos::authorization::VIEW_ROLE;
 using mesos::authorization::SET_LOG_LEVEL;
 using mesos::authorization::ATTACH_CONTAINER_INPUT;
@@ -1813,27 +1814,36 @@ Future<Response> Http::getResourceProviders(
 
   LOG(INFO) << "Processing GET_RESOURCE_PROVIDERS call";
 
-  // TODO(nfnt): Authorize this call (MESOS-8314).
+  return ObjectApprovers::create(
+      slave->authorizer, principal, {VIEW_RESOURCE_PROVIDER})
+    .then(defer(
+        slave->self(),
+        [this, acceptType](
+            const Owned<ObjectApprovers>& approvers) -> Response {
+          agent::Response response;
+          response.set_type(mesos::agent::Response::GET_RESOURCE_PROVIDERS);
 
-  agent::Response response;
-  response.set_type(mesos::agent::Response::GET_RESOURCE_PROVIDERS);
+          agent::Response::GetResourceProviders* resourceProviders =
+            response.mutable_get_resource_providers();
 
-  agent::Response::GetResourceProviders* resourceProviders =
-    response.mutable_get_resource_providers();
+          foreachvalue (
+              ResourceProvider* resourceProvider, slave->resourceProviders) {
+            if (!approvers->approved<VIEW_RESOURCE_PROVIDER>()) {
+              continue;
+            }
+            agent::Response::GetResourceProviders::ResourceProvider* provider =
+              resourceProviders->add_resource_providers();
 
-  foreachvalue (ResourceProvider* resourceProvider,
-                slave->resourceProviders) {
-    agent::Response::GetResourceProviders::ResourceProvider* provider =
-      resourceProviders->add_resource_providers();
+            provider->mutable_resource_provider_info()->CopyFrom(
+                resourceProvider->info);
 
-    provider->mutable_resource_provider_info()
-      ->CopyFrom(resourceProvider->info);
+            provider->mutable_total_resources()->CopyFrom(
+                resourceProvider->totalResources);
+          }
 
-    provider->mutable_total_resources()->CopyFrom(
-        resourceProvider->totalResources);
-  }
-
-  return OK(serialize(acceptType, evolve(response)), stringify(acceptType));
+          return OK(
+              serialize(acceptType, evolve(response)), stringify(acceptType));
+        }));
 }
 
 

@@ -7000,6 +7000,15 @@ TEST_P(AgentAPITest, GetResourceProviders)
     FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.authenticate_http_readwrite = true;
+
+  {
+    // `DEFAULT_CREDENTIAL_2` is not allowed to view any resource providers.
+    mesos::ACL::ViewResourceProvider* acl =
+      slaveFlags.acls->add_view_resource_providers();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
+    acl->mutable_resource_providers()->set_type(mesos::ACL::Entity::NONE);
+  }
 
   Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
   ASSERT_SOME(slave);
@@ -7047,7 +7056,6 @@ TEST_P(AgentAPITest, GetResourceProviders)
   AWAIT_READY(v1Response);
   ASSERT_TRUE(v1Response->IsInitialized());
   ASSERT_EQ(v1::agent::Response::GET_RESOURCE_PROVIDERS, v1Response->type());
-
   EXPECT_EQ(1, v1Response->get_resource_providers().resource_providers_size());
 
   const mesos::v1::ResourceProviderInfo& responseInfo =
@@ -7067,6 +7075,15 @@ TEST_P(AgentAPITest, GetResourceProviders)
       .total_resources();
 
   EXPECT_EQ(v1::Resources(resource), responseResources);
+
+  // `DEFAULT_CREDENTIAL_2` is not allow to view any resource provider
+  // information.
+  v1Response =
+    post(slave.get()->pid, v1Call, contentType, DEFAULT_CREDENTIAL_2);
+  AWAIT_READY(v1Response);
+  ASSERT_TRUE(v1Response->IsInitialized());
+  ASSERT_EQ(v1::agent::Response::GET_RESOURCE_PROVIDERS, v1Response->type());
+  EXPECT_EQ(0, v1Response->get_resource_providers().resource_providers_size());
 }
 
 
