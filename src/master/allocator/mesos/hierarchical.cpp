@@ -139,7 +139,8 @@ HierarchicalAllocatorProcess::Framework::Framework(
   : roles(protobuf::framework::getRoles(frameworkInfo)),
     suppressedRoles(_suppressedRoles),
     capabilities(frameworkInfo.capabilities()),
-    active(_active) {}
+    active(_active),
+    metrics(new FrameworkMetrics(frameworkInfo)) {}
 
 
 void HierarchicalAllocatorProcess::initialize(

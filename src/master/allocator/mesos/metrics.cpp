@@ -207,6 +207,13 @@ void Metrics::removeRole(const string& role)
   process::metrics::remove(gauge.get());
 }
 
+
+FrameworkMetrics::FrameworkMetrics(const FrameworkInfo& _frameworkInfo)
+  : frameworkInfo(_frameworkInfo) {}
+
+
+FrameworkMetrics::~FrameworkMetrics() {}
+
 } // namespace internal {
 } // namespace allocator {
 } // namespace master {

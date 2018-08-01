@@ -90,6 +90,16 @@ struct Metrics
   hashmap<std::string, process::metrics::PullGauge> offer_filters_active;
 };
 
+
+struct FrameworkMetrics
+{
+  explicit FrameworkMetrics(const FrameworkInfo& _frameworkInfo);
+
+  ~FrameworkMetrics();
+
+  const FrameworkInfo frameworkInfo;
+};
+
 } // namespace internal {
 } // namespace allocator {
 } // namespace master {
