@@ -20,6 +20,8 @@
 #include <string>
 #include <vector>
 
+#include <mesos/scheduler/scheduler.hpp>
+
 #include <process/metrics/counter.hpp>
 #include <process/metrics/pull_gauge.hpp>
 #include <process/metrics/push_gauge.hpp>
@@ -222,9 +224,14 @@ struct FrameworkMetrics
 
   ~FrameworkMetrics();
 
+  void incrementCall(const scheduler::Call::Type& callType);
+
   const FrameworkInfo frameworkInfo;
 
   process::metrics::PushGauge subscribed;
+
+  process::metrics::Counter calls;
+  hashmap<scheduler::Call::Type, process::metrics::Counter> call_types;
 };
 
 

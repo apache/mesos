@@ -16,6 +16,8 @@
 
 #include <string>
 
+#include <mesos/scheduler/scheduler.hpp>
+
 #include <process/http.hpp>
 
 #include <process/metrics/counter.hpp>
@@ -551,15 +553,54 @@ void Metrics::incrementTasksStates(
 FrameworkMetrics::FrameworkMetrics(const FrameworkInfo& _frameworkInfo)
   : frameworkInfo(_frameworkInfo),
     subscribed(
-        getFrameworkMetricPrefix(frameworkInfo) + "subscribed")
+        getFrameworkMetricPrefix(frameworkInfo) + "subscribed"),
+    calls(
+        getFrameworkMetricPrefix(frameworkInfo) + "calls")
 {
   process::metrics::add(subscribed);
+
+  // Add metrics for scheduler calls.
+  process::metrics::add(calls);
+  for (int index = 0;
+       index < scheduler::Call::Type_descriptor()->value_count();
+       index++) {
+    const google::protobuf::EnumValueDescriptor* descriptor =
+      scheduler::Call::Type_descriptor()->value(index);
+
+    const scheduler::Call::Type type =
+      static_cast<scheduler::Call::Type>(descriptor->number());
+
+    if (type == scheduler::Call::UNKNOWN) {
+      continue;
+    }
+
+    Counter counter = Counter(
+        getFrameworkMetricPrefix(frameworkInfo) + "calls/" +
+        strings::lower(descriptor->name()));
+
+    call_types.put(type, counter);
+    process::metrics::add(counter);
+  }
 }
 
 
 FrameworkMetrics::~FrameworkMetrics()
 {
   process::metrics::remove(subscribed);
+
+  process::metrics::remove(calls);
+  foreachvalue (const Counter& counter, call_types) {
+    process::metrics::remove(counter);
+  }
+}
+
+
+void FrameworkMetrics::incrementCall(const scheduler::Call::Type& callType)
+{
+  CHECK(call_types.contains(callType));
+
+  call_types.get(callType).get()++;
+  calls++;
 }
 
 
