@@ -103,7 +103,8 @@ public:
       bool filterGpuResources = true,
       const Option<DomainInfo>& domain = None(),
       const Option<std::vector<Resources>>&
-        minAllocatableResources = None()) = 0;
+        minAllocatableResources = None(),
+      const size_t maxCompletedFrameworks = 0) = 0;
 
   /**
    * Informs the allocator of the recovered state from the master.

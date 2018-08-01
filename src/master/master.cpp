@@ -819,7 +819,8 @@ void Master::initialize()
       flags.fair_sharing_excluded_resource_names,
       flags.filter_gpu_resources,
       flags.domain,
-      CHECK_NOTERROR(minAllocatableResources));
+      CHECK_NOTERROR(minAllocatableResources),
+      flags.max_completed_frameworks);
 
   // Parse the whitelist. Passing Allocator::updateWhitelist()
   // callback is safe because we shut down the whitelistWatcher in
