@@ -22,10 +22,8 @@
 #include <stout/windows.hpp>
 
 #include <stout/os/stat.hpp>
-#include <stout/windows/os.hpp>
 
 #include <stout/internal/windows/longpath.hpp>
-
 
 namespace internal {
 namespace windows {

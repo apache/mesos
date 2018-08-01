@@ -20,12 +20,10 @@
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/nothing.hpp>
+#include <stout/os.hpp>
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
 #include <stout/windows.hpp> // For `iphlpapi.h`.
-
-#include <stout/windows/os.hpp>
-
 
 namespace net {
 

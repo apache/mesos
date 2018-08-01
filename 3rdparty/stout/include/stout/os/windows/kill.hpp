@@ -15,9 +15,8 @@
 
 #include <glog/logging.h>
 
+#include <stout/os.hpp>
 #include <stout/windows.hpp>
-#include <stout/windows/os.hpp>
-
 
 namespace os {
 
