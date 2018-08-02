@@ -371,6 +371,7 @@ set(LOGGING_SRC
 set(MASTER_SRC
   master/constants.cpp
   master/flags.cpp
+  master/framework.cpp
   master/http.cpp
   master/maintenance.cpp
   master/master.cpp

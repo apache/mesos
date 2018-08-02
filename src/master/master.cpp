@@ -408,63 +408,6 @@ struct BoundedRateLimiter
 };
 
 
-bool Framework::isTrackedUnderRole(const string& role) const
-{
-  CHECK(master->isWhitelistedRole(role))
-    << "Unknown role '" << role << "'" << " of framework " << *this;
-
-  return master->roles.contains(role) &&
-         master->roles.at(role)->frameworks.contains(id());
-}
-
-
-void Framework::trackUnderRole(const string& role)
-{
-  CHECK(master->isWhitelistedRole(role))
-    << "Unknown role '" << role << "'" << " of framework " << *this;
-
-  CHECK(!isTrackedUnderRole(role));
-
-  if (!master->roles.contains(role)) {
-    master->roles[role] = new Role(role);
-  }
-  master->roles.at(role)->addFramework(this);
-}
-
-
-void Framework::untrackUnderRole(const string& role)
-{
-  CHECK(master->isWhitelistedRole(role))
-    << "Unknown role '" << role << "'" << " of framework " << *this;
-
-  CHECK(isTrackedUnderRole(role));
-
-  // NOTE: Ideally we would also `CHECK` that we're not currently subscribed
-  // to the role. We don't do this currently because this function is used in
-  // `Master::removeFramework` where we're still subscribed to `roles`.
-
-  auto allocatedToRole = [&role](const Resource& resource) {
-    return resource.allocation_info().role() == role;
-  };
-
-  CHECK(totalUsedResources.filter(allocatedToRole).empty());
-  CHECK(totalOfferedResources.filter(allocatedToRole).empty());
-
-  master->roles.at(role)->removeFramework(this);
-  if (master->roles.at(role)->frameworks.empty()) {
-    delete master->roles.at(role);
-    master->roles.erase(role);
-  }
-}
-
-
-void Framework::setFrameworkState(const Framework::State& _state)
-{
-  state = _state;
-  metrics.subscribed = state == Framework::State::ACTIVE ? 1 : 0;
-}
-
-
 void Master::initialize()
 {
   LOG(INFO) << "Master " << info_.id() << " (" << info_.hostname() << ")"
