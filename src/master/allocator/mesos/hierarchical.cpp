@@ -1409,9 +1409,10 @@ void HierarchicalAllocatorProcess::setQuota(
 
   // Copy allocation information for the quota'ed role.
   if (roleSorter->contains(role)) {
-    hashmap<SlaveID, Resources> roleAllocation = roleSorter->allocation(role);
     foreachpair (
-        const SlaveID& slaveId, const Resources& resources, roleAllocation) {
+        const SlaveID& slaveId,
+        const Resources& resources,
+        roleSorter->allocation(role)) {
       // See comment at `quotaRoleSorter` declaration regarding non-revocable.
       quotaRoleSorter->allocated(role, slaveId, resources.nonRevocable());
     }
@@ -1697,10 +1698,8 @@ void HierarchicalAllocatorProcess::__allocate()
       getQuotaRoleAllocatedScalarQuantities(role);
 
     // Lastly subtract allocated reservations on each agent.
-    const hashmap<SlaveID, Resources> allocations =
-      quotaRoleSorter->allocation(role);
-
-    foreachvalue (const Resources& resources, allocations) {
+    foreachvalue (
+        const Resources& resources, quotaRoleSorter->allocation(role)) {
       rolesConsumedQuotaScalarQuantites[role] -=
         resources.reserved().createStrippedScalarQuantity();
     }
@@ -1749,16 +1748,16 @@ void HierarchicalAllocatorProcess::__allocate()
   // we cannot simply loop over the reservations' roles.
   Resources totalAllocatedReservationScalarQuantities;
   foreachkey (const string& role, roles) {
-    hashmap<SlaveID, Resources> allocations;
+    const hashmap<SlaveID, Resources>* allocations;
     if (quotaRoleSorter->contains(role)) {
-      allocations = quotaRoleSorter->allocation(role);
+      allocations = &quotaRoleSorter->allocation(role);
     } else if (roleSorter->contains(role)) {
-      allocations = roleSorter->allocation(role);
+      allocations = &roleSorter->allocation(role);
     } else {
       continue; // This role has no allocation.
     }
 
-    foreachvalue (const Resources& resources, allocations) {
+    foreachvalue (const Resources& resources, *CHECK_NOTNULL(allocations)) {
       totalAllocatedReservationScalarQuantities +=
         resources.reserved().createStrippedScalarQuantity();
     }
