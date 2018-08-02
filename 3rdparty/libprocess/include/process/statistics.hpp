@@ -86,7 +86,9 @@ struct Statistics
   T max;
 
   // TODO(dhamon): Consider making the percentiles we store dynamic.
+  T p25;
   T p50;
+  T p75;
   T p90;
   T p95;
   T p99;
@@ -111,7 +113,9 @@ private:
     statistics.min = values.front();
     statistics.max = values.back();
 
+    statistics.p25 = percentile(values, 0.25);
     statistics.p50 = percentile(values, 0.5);
+    statistics.p75 = percentile(values, 0.75);
     statistics.p90 = percentile(values, 0.90);
     statistics.p95 = percentile(values, 0.95);
     statistics.p99 = percentile(values, 0.99);

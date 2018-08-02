@@ -66,7 +66,9 @@ TEST(StatisticsTest, StatisticsFromTimeSeries)
   EXPECT_DOUBLE_EQ(-5.0, statistics->min);
   EXPECT_DOUBLE_EQ(5.0, statistics->max);
 
+  EXPECT_DOUBLE_EQ(-2.5, statistics->p25);
   EXPECT_DOUBLE_EQ(0.0, statistics->p50);
+  EXPECT_DOUBLE_EQ(2.5, statistics->p75);
   EXPECT_DOUBLE_EQ(4.0, statistics->p90);
   EXPECT_DOUBLE_EQ(4.5, statistics->p95);
   EXPECT_DOUBLE_EQ(4.9, statistics->p99);
@@ -91,6 +93,8 @@ TEST(StatisticsTest, StatisticsFromDurationList)
   EXPECT_EQ(Seconds(0), statistics->min);
   EXPECT_EQ(Seconds(100), statistics->max);
 
+  EXPECT_EQ(Seconds(25), statistics->p25);
   EXPECT_EQ(Seconds(50), statistics->p50);
+  EXPECT_EQ(Seconds(75), statistics->p75);
   EXPECT_EQ(Seconds(90), statistics->p90);
 }
