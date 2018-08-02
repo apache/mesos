@@ -360,16 +360,38 @@ Try<Nothing> PortMapper::addPortMapping(
 
 Try<Nothing> PortMapper::delPortMapping()
 {
+  // The iptables command searches for the DNAT rules with tag
+  // "container_id: <CNI_CONTAINERID>", and if it exists goes ahead
+  // and deletes it.
+  //
+  // NOTE: We use a temp file here, instead of letting `sed` directly
+  // executing the iptables commands because otherwise, it is possible
+  // that the port mapping cleanup command will cause iptables to
+  // deadlock if there are a lot of entires in the iptables, because
+  // the `sed` won't process the next line while executing `iptables
+  // -w -t nat -D ...`. But the executing of `iptables -w -t nat -D
+  // ...` might get stuck if the first command `iptables -w -t nat -S
+  // <TAG>` didn't finish (because the xtables lock is not released).
+  // The first command might not finish if it has a lot of output,
+  // filling the pipe that `sed` hasn't had a chance to process yet.
+  // See details in MESOS-9127.
   string script = strings::format(
       R"~(
       #!/bin/sh
-      exec 1>&2
       set -x
+      set -e
 
-      # The iptables command searches for the DNAT rules with tag
-      # "container_id: <CNI_CONTAINERID>", and if it exists goes ahead
-      # and deletes it.
-      iptables -w -t nat -S %s | sed "/%s/ s/-A/iptables -w -t nat -D/e")~",
+      FILE=$(mktemp)
+
+      cleanup() {
+        rm -f "$FILE"
+      }
+
+      trap cleanup EXIT
+
+      iptables -w -t nat -S %s | sed -n "/%s/ s/-A/iptables -w -t nat -D/p" > $FILE
+      sh $FILE
+      )~",
       chain,
       getIptablesRuleTag()).get();
 
