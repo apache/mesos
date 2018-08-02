@@ -16,6 +16,8 @@
 #include <glog/logging.h>
 
 #include <algorithm>
+#include <iterator>
+#include <type_traits>
 #include <vector>
 
 #include <process/timeseries.hpp>
@@ -25,28 +27,79 @@
 
 namespace process {
 
-// Represents statistics for a TimeSeries of data.
+// Represents statistics for a `TimeSeries` of data or a standard container.
 template <typename T>
 struct Statistics
 {
-  // Returns Statistics for the given TimeSeries, or None() if the
-  // TimeSeries is empty.
+  // Returns `Statistics` for the given `TimeSeries`, or `None` if the
+  // `TimeSeries` has less then 2 datapoints.
+  //
   // TODO(dhamon): Consider adding a histogram abstraction for better
   // performance.
+  //
+  // Remove this specification once we can construct directly from
+  // `TimeSeries<T>::Value`, e.g., by using an iterator adaptor, see
+  // https://www.boost.org/doc/libs/1_51_0/libs/range/doc/html/range/reference/adaptors/reference/map_values.html // NOLINT(whitespace/line_length)
   static Option<Statistics<T>> from(const TimeSeries<T>& timeseries)
   {
     std::vector<typename TimeSeries<T>::Value> values_ = timeseries.get();
-
-    // We need at least 2 values to compute aggregates.
-    if (values_.size() < 2) {
-      return None();
-    }
 
     std::vector<T> values;
     values.reserve(values_.size());
 
     foreach (const typename TimeSeries<T>::Value& value, values_) {
       values.push_back(value.data);
+    }
+
+    return from(std::move(values));
+  }
+
+  // Returns `Statistics` for the given container, or `None` if the container
+  // has less then 2 datapoints. The container is represented as a pair of
+  // [first, last) iterators.
+  //
+  // TODO(alexr): Consider relaxing the collection type requirement to
+  // `std::is_convertible<std::iterator_traits<It>::value_type, T>`.
+  template <
+      typename It,
+      typename = typename std::enable_if<
+          std::is_same<
+              typename std::iterator_traits<It>::value_type,
+              T>::value &&
+          std::is_convertible<
+              typename std::iterator_traits<It>::iterator_category,
+              std::forward_iterator_tag>::value>::type>
+  static Option<Statistics<T>> from(It first, It last)
+  {
+    // Copy values into a vector.
+    std::vector<T> values;
+    values.reserve(std::distance(first, last));
+
+    std::copy(first, last, std::back_inserter(values));
+
+    return from(std::move(values));
+  }
+
+  size_t count;
+
+  T min;
+  T max;
+
+  // TODO(dhamon): Consider making the percentiles we store dynamic.
+  T p50;
+  T p90;
+  T p95;
+  T p99;
+  T p999;
+  T p9999;
+
+private:
+  // Calculates `Statistics` from the provided vector; note pass by reference.
+  static Option<Statistics<T>> from(std::vector<T>&& values)
+  {
+    // We need at least 2 values to compute aggregates.
+    if (values.size() < 2) {
+      return None();
     }
 
     std::sort(values.begin(), values.end());
@@ -68,22 +121,9 @@ struct Statistics
     return statistics;
   }
 
-  size_t count;
-
-  T min;
-  T max;
-
-  // TODO(dhamon): Consider making the percentiles we store dynamic.
-  T p50;
-  T p90;
-  T p95;
-  T p99;
-  T p999;
-  T p9999;
-
-private:
   // Returns the requested percentile from the sorted values.
   // Note that we need at least two values to compute percentiles!
+  //
   // TODO(dhamon): Use a 'Percentage' abstraction.
   static T percentile(const std::vector<T>& values, double percentile)
   {
@@ -105,7 +145,7 @@ private:
     CHECK_GE(index, 0u);
     CHECK_LT(index, values.size() - 1);
 
-    return values[index] + delta * (values[index + 1] - values[index]);
+    return values[index] + (values[index + 1] - values[index]) * delta;
   }
 };
 

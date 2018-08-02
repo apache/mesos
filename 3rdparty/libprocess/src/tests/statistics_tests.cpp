@@ -12,6 +12,8 @@
 
 #include <gtest/gtest.h>
 
+#include <list>
+
 #include <process/clock.hpp>
 #include <process/statistics.hpp>
 
@@ -22,6 +24,8 @@ using process::Clock;
 using process::Statistics;
 using process::Time;
 using process::TimeSeries;
+
+using std::list;
 
 TEST(StatisticsTest, Empty)
 {
@@ -41,7 +45,7 @@ TEST(StatisticsTest, Single)
 }
 
 
-TEST(StatisticsTest, Statistics)
+TEST(StatisticsTest, StatisticsFromTimeSeries)
 {
   // Create a distribution of 10 values from -5 to 4.
   TimeSeries<double> timeseries;
@@ -68,4 +72,25 @@ TEST(StatisticsTest, Statistics)
   EXPECT_DOUBLE_EQ(4.9, statistics->p99);
   EXPECT_DOUBLE_EQ(4.99, statistics->p999);
   EXPECT_DOUBLE_EQ(4.999, statistics->p9999);
+}
+
+
+TEST(StatisticsTest, StatisticsFromDurationList)
+{
+  list<Duration> values{
+    Seconds(0), Seconds(10), Seconds(20), Seconds(30), Seconds(40), Seconds(50),
+    Seconds(60), Seconds(70), Seconds(80), Seconds(90), Seconds(100)};
+
+  Option<Statistics<Duration>> statistics = Statistics<Duration>::from(
+      values.cbegin(), values.cend());
+
+  EXPECT_SOME(statistics);
+
+  EXPECT_EQ(11u, statistics->count);
+
+  EXPECT_EQ(Seconds(0), statistics->min);
+  EXPECT_EQ(Seconds(100), statistics->max);
+
+  EXPECT_EQ(Seconds(50), statistics->p50);
+  EXPECT_EQ(Seconds(90), statistics->p90);
 }
