@@ -54,6 +54,38 @@ Framework::Framework(
 {}
 
 
+Framework::Framework(
+    Master* const _master,
+    const Flags& masterFlags,
+    const FrameworkInfo& _info,
+    State state,
+    const process::Time& time)
+  : master(_master),
+    info(_info),
+    roles(protobuf::framework::getRoles(_info)),
+    capabilities(_info.capabilities()),
+    state(state),
+    registeredTime(time),
+    reregisteredTime(time),
+    completedTasks(masterFlags.max_completed_tasks_per_framework),
+    unreachableTasks(masterFlags.max_unreachable_tasks_per_framework),
+    metrics(_info)
+{
+  CHECK(_info.has_id());
+
+  setFrameworkState(state);
+
+  foreach (const std::string& role, roles) {
+    // NOTE: It's possible that we're already being tracked under the role
+    // because a framework can unsubscribe from a role while it still has
+    // resources allocated to the role.
+    if (!isTrackedUnderRole(role)) {
+      trackUnderRole(role);
+    }
+  }
+}
+
+
 Framework::~Framework()
 {
   if (http.isSome()) {
@@ -463,12 +495,6 @@ void Framework::removeOperation(Operation* operation)
 }
 
 
-const FrameworkID Framework::id() const
-{
-  return info.id();
-}
-
-
 void Framework::update(const FrameworkInfo& newInfo)
 {
   // We only merge 'info' from the same framework 'id'.
@@ -659,56 +685,6 @@ void Framework::heartbeat()
         });
 
   process::spawn(heartbeater->get());
-}
-
-
-bool Framework::active() const
-{
-  return state == ACTIVE;
-}
-
-
-bool Framework::connected() const
-{
-  return state == ACTIVE || state == INACTIVE;
-}
-
-
-bool Framework::recovered() const
-{
-  return state == RECOVERED;
-}
-
-
-Framework::Framework(
-    Master* const _master,
-    const Flags& masterFlags,
-    const FrameworkInfo& _info,
-    State state,
-    const process::Time& time)
-  : master(_master),
-    info(_info),
-    roles(protobuf::framework::getRoles(_info)),
-    capabilities(_info.capabilities()),
-    state(state),
-    registeredTime(time),
-    reregisteredTime(time),
-    completedTasks(masterFlags.max_completed_tasks_per_framework),
-    unreachableTasks(masterFlags.max_unreachable_tasks_per_framework),
-    metrics(_info)
-{
-  CHECK(_info.has_id());
-
-  setFrameworkState(state);
-
-  foreach (const std::string& role, roles) {
-    // NOTE: It's possible that we're already being tracked under the role
-    // because a framework can unsubscribe from a role while it still has
-    // resources allocated to the role.
-    if (!isTrackedUnderRole(role)) {
-      trackUnderRole(role);
-    }
-  }
 }
 
 

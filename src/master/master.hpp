@@ -2316,27 +2316,7 @@ struct Framework
 
   // Sends a message to the connected framework.
   template <typename Message>
-  void send(const Message& message)
-  {
-    if (!connected()) {
-      LOG(WARNING) << "Master attempted to send message to disconnected"
-                   << " framework " << *this;
-    }
-
-    // TODO(gilbert): add a helper to transform `SchedulerDriver` API messages
-    // directly to v0 events.
-    metrics.incrementEvent(devolve(evolve(message)));
-
-    if (http.isSome()) {
-      if (!http->send(message)) {
-        LOG(WARNING) << "Unable to send event to framework " << *this << ":"
-                     << " connection closed";
-      }
-    } else {
-      CHECK_SOME(pid);
-      master->send(pid.get(), message);
-    }
-  }
+  void send(const Message& message);
 
   void addCompletedTask(Task&& task);
 
@@ -2511,6 +2491,57 @@ private:
   Framework(const Framework&);              // No copying.
   Framework& operator=(const Framework&); // No assigning.
 };
+
+
+// Sends a message to the connected framework.
+template <typename Message>
+void Framework::send(const Message& message)
+{
+  if (!connected()) {
+    LOG(WARNING) << "Master attempted to send message to disconnected"
+                 << " framework " << *this;
+  }
+
+  // TODO(gilbert): add a helper to transform `SchedulerDriver` API messages
+  // directly to v0 events.
+  metrics.incrementEvent(devolve(evolve(message)));
+
+  if (http.isSome()) {
+    if (!http->send(message)) {
+      LOG(WARNING) << "Unable to send event to framework " << *this << ":"
+                   << " connection closed";
+    }
+  } else {
+    CHECK_SOME(pid);
+    master->send(pid.get(), message);
+  }
+}
+
+
+// TODO(bevers): Check if there is anything preventing us from
+// returning a const reference here.
+inline const FrameworkID Framework::id() const
+{
+  return info.id();
+}
+
+
+inline bool Framework::active() const
+{
+  return state == ACTIVE;
+}
+
+
+inline bool Framework::connected() const
+{
+  return state == ACTIVE || state == INACTIVE;
+}
+
+
+inline bool Framework::recovered() const
+{
+  return state == RECOVERED;
+}
 
 
 inline std::ostream& operator<<(
