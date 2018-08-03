@@ -333,7 +333,7 @@ Try<Nothing> PortMapper::addPortMapping(
 
       # Within the `chain` go ahead and install the DNAT rule, if it
       # does not exist.
-      (iptables -w -t nat -C %s || iptables -t nat -A %s))~",
+      (iptables -w -t nat -C %s || iptables -w -t nat -A %s))~",
       chain,
       chain,
       chain,
