@@ -310,7 +310,7 @@ Try<Nothing> PortMapper::addPortMapping(
       # Check if the `chain` exists in the iptable. If it does not
       # exist go ahead and install the chain in the iptables NAT
       # table.
-      iptables -w -t nat --list %s
+      iptables -w -n -t nat --list %s
       if [ $? -ne 0 ]; then
         # NOTE: When we create the chain, there is a possibility of a
         # race due to which a container launch can fail. This can
