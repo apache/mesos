@@ -100,6 +100,22 @@ private:
       }
     }
 
+    /*implicit*/ Resource_(Resource&& _resource)
+      : resource(std::move(_resource)),
+        sharedCount(None())
+    {
+      // Setting the counter to 1 to denote "one copy" of the shared resource.
+      if (resource.has_shared()) {
+        sharedCount = 1;
+      }
+    }
+
+    Resource_(const Resource_& resource_) = default;
+    Resource_(Resource_&& resource_) = default;
+
+    Resource_& operator=(const Resource_&) = default;
+    Resource_& operator=(Resource_&&) = default;
+
     // By implicitly converting to Resource we are able to keep Resource_
     // logic internal and expose only the protobuf object.
     operator const Resource&() const { return resource; }
