@@ -14,11 +14,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <algorithm>
+
 #include <gmock/gmock.h>
 
 #include <gtest/gtest.h>
 
 #include <process/clock.hpp>
+#include <process/collect.hpp>
+
+#include "common/values.hpp"
 
 #include "slave/gc_process.hpp"
 
@@ -48,6 +53,8 @@ using mesos::v1::scheduler::Event;
 using process::Clock;
 using process::Future;
 using process::Owned;
+
+using process::collect;
 
 using slave::Slave;
 
@@ -141,14 +148,16 @@ public:
     Try<Nothing> result = setupMockPlugin(
         strings::format(R"~(
         #!/bin/sh
-        echo "{"
-        echo "  \"ip4\": {"
-        echo "    \"ip\": \"%s/%d\""
-        echo "  },"
-        echo "  \"dns\": {"
-        echo "    \"nameservers\": [ \"%s\" ]"
-        echo "  }"
-        echo "}"
+        if [ x$CNI_COMMAND = xADD ]; then
+          echo "{"
+          echo "  \"ip4\": {"
+          echo "    \"ip\": \"%s/%d\""
+          echo "  },"
+          echo "  \"dns\": {"
+          echo "    \"nameservers\": [ \"%s\" ]"
+          echo "  }"
+          echo "}"
+        fi
         )~",
         hostNetwork->address(),
         hostNetwork->prefix(),
@@ -1790,6 +1799,8 @@ public:
   {
     CniIsolatorTest::SetUp();
 
+    cleanup();
+
     Try<string> mockConfig = os::read(
         path::join(cniConfigDir, MESOS_MOCK_CNI_CONFIG));
 
@@ -1819,6 +1830,13 @@ public:
 
   void TearDown() override
   {
+    cleanup();
+
+    CniIsolatorTest::TearDown();
+  }
+
+  void cleanup()
+  {
     // This is a best effort cleanup of the
     // `MESOS_TEST_PORT_MAPPER_CHAIN`. We shouldn't fail and bail on
     // rest of the `TearDown` if we are not able to clean up the
@@ -1831,7 +1849,7 @@ public:
         iptables -w -t nat --list %s
 
         if [ $? -eq 0 ]; then
-          iptables -w -t nat -D OUTPUT ! -d 127.0.0.0/8 -m addrtype --dst-type LOCAL -j  %s
+          iptables -w -t nat -D OUTPUT ! -d 127.0.0.0/8 -m addrtype --dst-type LOCAL -j %s
           iptables -w -t nat -D PREROUTING -m addrtype --dst-type LOCAL -j %s
           iptables -w -t nat -F %s
           iptables -w -t nat -X %s
@@ -1849,14 +1867,14 @@ public:
                  << stringify(MESOS_TEST_PORT_MAPPER_CHAIN)
                  << ": " << result.error();
     }
-
-    CniIsolatorTest::TearDown();
   }
 };
 
 
-TEST_F(CniIsolatorPortMapperTest, ROOT_INTERNET_CURL_PortMapper)
+TEST_F(CniIsolatorPortMapperTest, ROOT_NC_PortMapper)
 {
+  constexpr size_t NUM_CONTAINERS = 3;
+
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
@@ -1869,10 +1887,6 @@ TEST_F(CniIsolatorPortMapperTest, ROOT_INTERNET_CURL_PortMapper)
   // isolator can find the port-mapper CNI plugin.
   flags.network_cni_plugins_dir = cniPluginDir + ":" + getLauncherDir();
   flags.network_cni_config_dir = cniConfigDir;
-
-  // Need to increase the registration timeout to give time for
-  // downloading and provisioning the "nginx:alpine" image.
-  flags.executor_registration_timeout = Minutes(5);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -1903,101 +1917,122 @@ TEST_F(CniIsolatorPortMapperTest, ROOT_INTERNET_CURL_PortMapper)
 
   Resources resources(offers.get()[0].resources());
 
-  // Make sure we have a `ports` resource.
+  // Make sure we have sufficient `ports` resource.
   ASSERT_SOME(resources.ports());
-  ASSERT_LE(1, resources.ports()->range().size());
 
-  // Select a random port from the offer.
-  std::srand(std::time(0));
-  Value::Range ports = resources.ports()->range(0);
-  uint16_t hostPort =
-    ports.begin() + std::rand() % (ports.end() - ports.begin() + 1);
+  Try<vector<uint16_t>> _ports =
+    values::rangesToVector<uint16_t>(resources.ports().get());
 
-  CommandInfo command;
-  command.set_shell(false);
+  ASSERT_SOME(_ports);
 
-  TaskInfo task = createTask(
-      offer.slave_id(),
-      Resources::parse(
-        "cpus:1;mem:128;"
-        "ports:[" + stringify(hostPort) + "," + stringify(hostPort) + "]")
-        .get(),
-      command);
+  // Require "2 * NUM_CONTAINERS" here as we need container ports as
+  // well. This is because the containers are actually running on the
+  // host network namespace.
+  ASSERT_LE(NUM_CONTAINERS * 2, _ports->size());
 
-  ContainerInfo container = createContainerInfo("nginx:alpine");
+  vector<uint16_t> ports = _ports.get();
 
-  // Make sure the container joins the test CNI port-mapper network.
-  NetworkInfo* networkInfo = container.add_network_infos();
-  networkInfo->set_name(MESOS_CNI_PORT_MAPPER_NETWORK);
+  // Randomize the ports from the offer.
+  std::random_shuffle(ports.begin(), ports.end());
 
-  NetworkInfo::PortMapping* portMapping = networkInfo->add_port_mappings();
-  portMapping->set_container_port(80);
-  portMapping->set_host_port(hostPort);
+  vector<TaskInfo> tasks;
+  vector<uint16_t> hostPorts(NUM_CONTAINERS);
+  vector<uint16_t> containerPorts(NUM_CONTAINERS);
 
-  // Set the container for the task.
-  task.mutable_container()->CopyFrom(container);
+  for (size_t i = 0; i < NUM_CONTAINERS; i++) {
+    hostPorts[i] = ports[i];
+    containerPorts[i] = ports[ports.size() - 1 - i];
 
-  Future<TaskStatus> statusStarting;
-  Future<TaskStatus> statusRunning;
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&statusStarting))
-    .WillOnce(FutureArg<1>(&statusRunning));
+    CommandInfo command;
+    command.set_value("nc -l -p " + stringify(containerPorts[i]));
 
-  driver.launchTasks(offer.id(), {task});
+    TaskInfo task = createTask(
+        offer.slave_id(),
+        Resources::parse(
+            "cpus:0.1;mem:32;ports:[" +
+            stringify(hostPorts[i]) + "," +
+            stringify(hostPorts[i]) + "]")
+          .get(),
+        command);
 
-  AWAIT_READY_FOR(statusStarting, Seconds(60));
-  EXPECT_EQ(task.task_id(), statusStarting->task_id());
-  EXPECT_EQ(TASK_STARTING, statusStarting->state());
+    ContainerInfo container = createContainerInfo();
 
-  AWAIT_READY_FOR(statusRunning, Seconds(300));
-  EXPECT_EQ(task.task_id(), statusRunning->task_id());
-  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
-  ASSERT_TRUE(statusRunning->has_container_status());
+    // Make sure the container joins the test CNI port-mapper network.
+    NetworkInfo* networkInfo = container.add_network_infos();
+    networkInfo->set_name(MESOS_CNI_PORT_MAPPER_NETWORK);
 
-  ContainerID containerId = statusRunning->container_status().container_id();
-  ASSERT_EQ(1, statusRunning->container_status().network_infos().size());
+    NetworkInfo::PortMapping* portMapping = networkInfo->add_port_mappings();
+    portMapping->set_container_port(containerPorts[i]);
+    portMapping->set_host_port(hostPorts[i]);
 
-  // Try connecting to the nginx server on port 80 through a
-  // non-loopback IP address on `hostPort`.
-  Try<net::IP::Network> hostNetwork = getNonLoopbackIP();
-  ASSERT_SOME(hostNetwork);
+    // Set the container for the task.
+    task.mutable_container()->CopyFrom(container);
 
-  // `TASK_RUNNING` does not guarantee that the service is running.
-  // Hence, we need to re-try the service multiple times.
-  Duration waited = Duration::zero();
-  do {
-    Try<string> connect = os::shell(
-        "curl -I http://" + stringify(hostNetwork->address()) +
-        ":" + stringify(hostPort));
+    tasks.push_back(task);
+  }
 
-    if (connect.isSome()) {
-      LOG(INFO) << "Connection to nginx successful: " << connect.get();
-      break;
-    }
+  EXPECT_CALL(sched, statusUpdate(&driver, TaskStatusStateEq(TASK_STARTING)))
+    .WillRepeatedly(Return());
 
-    os::sleep(Milliseconds(100));
-    waited += Milliseconds(100);
-  } while (waited < Seconds(10));
+  vector<Future<TaskStatus>> statusesRunning(NUM_CONTAINERS);
+  for (size_t i = 0; i < NUM_CONTAINERS; i++) {
+    EXPECT_CALL(sched, statusUpdate(&driver, TaskStatusStateEq(TASK_RUNNING)))
+      .WillOnce(FutureArg<1>(&statusesRunning[i]))
+      .RetiresOnSaturation();
+  }
 
-  EXPECT_LE(waited, Seconds(5));
+  driver.launchTasks(offer.id(), tasks);
 
-  // Kill the task.
-  Future<TaskStatus> statusKilled;
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&statusKilled));
+  for (size_t i = 0; i < NUM_CONTAINERS; i++) {
+    AWAIT_READY(statusesRunning[i]);
+    ASSERT_TRUE(statusesRunning[i]->has_container_status());
+    ASSERT_EQ(1, statusesRunning[i]->container_status().network_infos().size());
+  }
+
+  vector<Future<TaskStatus>> statusesFinished(NUM_CONTAINERS);
+  for (size_t i = 0; i < NUM_CONTAINERS; i++) {
+    EXPECT_CALL(sched, statusUpdate(&driver, TaskStatusStateEq(TASK_FINISHED)))
+      .WillOnce(FutureArg<1>(&statusesFinished[i]))
+      .RetiresOnSaturation();
+  }
 
   // Wait for the executor to exit. We are using 'gc.schedule' as a
   // proxy event to monitor the exit of the executor.
-  Future<Nothing> gcSchedule = FUTURE_DISPATCH(
-      _, &slave::GarbageCollectorProcess::schedule);
+  vector<Future<Nothing>> gcSchedules(NUM_CONTAINERS);
+  for (size_t i = 0; i < NUM_CONTAINERS; i++) {
+    gcSchedules[i] = FUTURE_DISPATCH(
+        _, &slave::GarbageCollectorProcess::schedule);
+  }
 
-  driver.killTask(task.task_id());
+  // Try connecting to each nc server on the given container port
+  // through a non-loopback IP address on the corresponding host port.
+  // The nc server will exit after processing the connection.
+  Try<net::IP::Network> hostNetwork = getNonLoopbackIP();
+  ASSERT_SOME(hostNetwork);
 
-  AWAIT_READY(statusKilled);
+  for (size_t i = 0; i < NUM_CONTAINERS; i++) {
+    // `TASK_RUNNING` does not guarantee that the service is running.
+    // Hence, we need to re-try the service multiple times.
+    Duration waited = Duration::zero();
+    do {
+      Try<string> connect = os::shell(
+          "echo foo | nc " + stringify(hostNetwork->address()) +
+          " " + stringify(hostPorts[i]));
 
-  EXPECT_EQ(TASK_KILLED, statusKilled->state());
+      if (connect.isSome()) {
+        LOG(INFO) << "Connection to nc server successful: " << connect.get();
+        break;
+      }
 
-  AWAIT_READY(gcSchedule);
+      os::sleep(Milliseconds(100));
+      waited += Milliseconds(100);
+    } while (waited < Seconds(10));
+
+    EXPECT_LE(waited, Seconds(5));
+  }
+
+  AWAIT_READY(collect(statusesFinished));
+  AWAIT_READY(collect(gcSchedules));
 
   // Make sure the iptables chain `MESOS-TEST-PORT-MAPPER-CHAIN`
   // doesn't have any iptable rules once the task is killed. The only

@@ -19,6 +19,7 @@
 
 #include <limits>
 #include <type_traits>
+#include <vector>
 
 #include <mesos/mesos.hpp>
 
@@ -51,6 +52,30 @@ Try<IntervalSet<T>> rangesToIntervalSet(const Value::Ranges& ranges)
   }
 
   return set;
+}
+
+
+template <typename T>
+Try<std::vector<T>> rangesToVector(const Value::Ranges& ranges)
+{
+  std::vector<T> result;
+
+  static_assert(
+      std::is_integral<T>::value,
+      "vector<T> must use an integral type");
+
+  foreach (const Value::Range& range, ranges.range()) {
+    if (range.begin() < std::numeric_limits<T>::min() ||
+        range.end() > std::numeric_limits<T>::max()) {
+      return Error("Range is out of bounds");
+    }
+
+    for (T value = range.begin(); value <= range.end(); value++) {
+      result.push_back(value);
+    }
+  }
+
+  return result;
 }
 
 
