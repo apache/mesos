@@ -39,7 +39,7 @@ The latest Mesos release, 1.3.0, is now available for [download](/downloads). Th
     roles are expected to come and go over time (e.g. new employees join, new
     teams are formed, employees leave, teams are disbanded, etc).
 
-More than 140 other bug fixes and improvements made it into this release. For full release notes with all features and bug fixes, please refer to the [CHANGELOG](https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=1.3.0).
+More than 140 other bug fixes and improvements made it into this release. For full release notes with all features and bug fixes, please refer to the [CHANGELOG](https://gitbox.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=1.3.0).
 
 ### Upgrades
 

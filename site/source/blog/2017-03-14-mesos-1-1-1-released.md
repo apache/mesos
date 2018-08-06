@@ -33,7 +33,7 @@ specifically, this release includes the following major fixes and improvements:
 * [MESOS-7133](https://issues.apache.org/jira/browse/MESOS-7133) - mesos-fetcher fails with openssl-related output.
 
 Full release notes are available in the release
-[CHANGELOG](https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=1.1.1)
+[CHANGELOG](https://gitbox.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=1.1.1)
 
 ### Upgrades
 

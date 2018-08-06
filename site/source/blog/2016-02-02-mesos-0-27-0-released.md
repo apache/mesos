@@ -21,7 +21,7 @@ This release includes the following features and improvements:
 * [[MESOS-2353]](https://issues.apache.org/jira/browse/MESOS-2353): Performance improvement of the state endpoint for large clusters.
 
 Furthermore, 167+ bugfixes and improvements made it into this release.
-For full release notes with all features and bug fixes, please refer to the [CHANGELOG](https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.27.0).
+For full release notes with all features and bug fixes, please refer to the [CHANGELOG](https://gitbox.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.27.0).
 
 ### Upgrades
 

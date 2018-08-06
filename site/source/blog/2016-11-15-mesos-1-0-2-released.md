@@ -80,7 +80,7 @@ The latest Mesos release, 1.0.2, is now available for [download](http://mesos.ap
 [MESOS-6299](https://issues.apache.org/jira/browse/MESOS-6299) - Master doesn't remove task from pending when it is invalid.
 
 
-Full release notes are available in the release [CHANGELOG](https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=1.0.2)
+Full release notes are available in the release [CHANGELOG](https://gitbox.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=1.0.2)
 
 ### Upgrades
 

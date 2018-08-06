@@ -17,7 +17,7 @@ This release includes fixes and improvements for: reconnection logic for Zookeep
 * [MESOS-4582](https://issues.apache.org/jira/browse/MESOS-4582) - state.json serving duplicate "active" fields.
 * [MESOS-3007](https://issues.apache.org/jira/browse/MESOS-3007) - Support systemd with Mesos.
 
-Full release notes are available in the release [CHANGELOG](https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.27.1).
+Full release notes are available in the release [CHANGELOG](https://gitbox.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.27.1).
 
 ### Upgrades
 

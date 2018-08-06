@@ -25,7 +25,7 @@ The latest Mesos 1.2.x release, 1.2.2, is now available for [download](http://me
 * [MESOS-7830](https://issues.apache.org/jira/browse/MESOS-7830) - Sandbox_path volume does not have ownership set correctly.
 * [MESOS-7540](https://issues.apache.org/jira/browse/MESOS-7540) - Add an agent flag for executor re-registration timeout.
 
-Full release notes are available in the release [CHANGELOG](https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=1.2.2)
+Full release notes are available in the release [CHANGELOG](https://gitbox.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=1.2.2)
 
 ### Upgrades
 

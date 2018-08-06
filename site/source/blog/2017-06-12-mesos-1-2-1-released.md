@@ -44,7 +44,7 @@ The latest Mesos 1.2.x release, 1.2.1, is now available for [download](http://me
 * [MESOS-7478](https://issues.apache.org/jira/browse/MESOS-7478) - Pre-1.2.x master does not work with 1.2.x agent.
 * [MESOS-7484](https://issues.apache.org/jira/browse/MESOS-7484) - VersionTest.ParseInvalid aborts on Windows.
 
-Full release notes are available in the release [CHANGELOG](https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=1.2.1)
+Full release notes are available in the release [CHANGELOG](https://gitbox.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=1.2.1)
 
 ### Upgrades
 

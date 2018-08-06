@@ -161,7 +161,7 @@ This release includes the following features and improvements:
  * [MESOS-6077] - Added a default (task group) executor.
 
 Furthermore, several bugfixes and improvements made it into this release.
-For full release notes with all features and bug fixes, please refer to the [CHANGELOG](https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=1.1.0).
+For full release notes with all features and bug fixes, please refer to the [CHANGELOG](https://gitbox.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=1.1.0).
 
 ### Upgrades
 

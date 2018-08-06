@@ -20,7 +20,7 @@ improvements for the following:
 * [MESOS-5449] - Memory leak in SchedulerProcess.declineOffer.
 
 Full release notes are available in the release
-[CHANGELOG](https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.27.3).
+[CHANGELOG](https://gitbox.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.27.3).
 
 ### Upgrades
 

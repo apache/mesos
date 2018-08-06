@@ -47,7 +47,7 @@ The latest Mesos release, 1.0.1, is now available for [download](http://mesos.ap
 
 [MESOS-5970]( https://issues.apache.org/jira/browse/MESOS-5970) - Remove HTTP_PARSER_VERSION_MAJOR < 2 code in decoder.
 
-Full release notes are available in the release [CHANGELOG](https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=1.0.1)
+Full release notes are available in the release [CHANGELOG](https://gitbox.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=1.0.1)
 
 ### Upgrades
 

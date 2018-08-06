@@ -23,7 +23,7 @@ As part of this release, we have also outlined the versioning scheme for Mesos H
 
 ### Changelog
 Hundreds of other bug fixes/improvements are included in Mesos 0.24.0.
-See the [CHANGELOG](https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.24.0) for a full list of resolved JIRA issues.
+See the [CHANGELOG](https://gitbox.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.24.0) for a full list of resolved JIRA issues.
 
 ### Upgrades
 

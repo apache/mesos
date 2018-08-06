@@ -26,7 +26,7 @@ The latest Mesos release, 1.0.4, is now available for [download](http://mesos.ap
 [MESOS-7422](https://issues.apache.org/jira/browse/MESOS-7422) - Docker containerizer should not leak possibly sensitive data to agent log.
 
 
-Full release notes are available in the release [CHANGELOG](https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=1.0.4)
+Full release notes are available in the release [CHANGELOG](https://gitbox.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=1.0.4)
 
 ### Upgrades
 
