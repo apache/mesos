@@ -19,6 +19,7 @@
 """Runs checks for mesos style."""
 
 import os
+import platform
 import re
 import string
 import subprocess
@@ -149,11 +150,15 @@ class LinterBase(object):
         given command and return its output.
         """
         virtualenv = os.path.join('support', '.virtualenv')
-        command = '. {virtualenv_path}/bin/activate; {cmd}'.format(
-            virtualenv_path=virtualenv, cmd=command)
-        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
 
-        return process
+        if platform.system() == 'Windows':
+            command = '{virtualenv_path}\Scripts\activate.bat & {cmd}'.format(
+                virtualenv_path=virtualenv, cmd=command)
+        else:
+            command = '. {virtualenv_path}/bin/activate; {cmd}'.format(
+                virtualenv_path=virtualenv, cmd=command)
+
+        return subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
 
     def run_lint(self, source_paths):
         """
@@ -385,8 +390,9 @@ class PyLinter(LinterBase):
         # `os.path.dirname` below once the python 3 support scripts
         # are moved from `support/python3/` to `support/`.
         support_dir = os.path.dirname(os.path.dirname(__file__))
+        bin_dir = 'Script' if platform.system() == 'Windows' else 'bin'
 
-        cmd = [os.path.join(support_dir, '.virtualenv', 'bin', 'tox')]
+        cmd = [os.path.join(support_dir, '.virtualenv', bin_dir, 'tox')]
         cmd += ['-qq']
         cmd += ['-c', configfile]
         if tox_env is not None:
@@ -469,8 +475,10 @@ def should_build_virtualenv(modified_files):
     # TODO(ArmandGrillet): Remove one os.path.dirname once python 3
     # support scripts are moved from support/python3/ to support/.
     support_dir = os.path.dirname(os.path.dirname(__file__))
+    bin_dir = 'Script' if platform.system() == 'Windows' else 'bin'
+
     interpreter = os.path.basename(sys.executable)
-    interpreter = os.path.join(support_dir, '.virtualenv', 'bin', interpreter)
+    interpreter = os.path.join(support_dir, '.virtualenv', bin_dir, interpreter)
     if not os.path.isfile(interpreter):
         return True
 
@@ -510,8 +518,17 @@ def build_virtualenv():
 
     python3_env = os.environ.copy()
     python3_env["PYTHON"] = sys.executable
+
+    build_virtualenv = [os.path.join('support', 'build-virtualenv')]
+
+    if platform.system() == 'Windows':
+        # TODO(andschwa): Port more of the `build-virtualenv` Bash script.
+        python_dir = os.path.dirname(sys.executable)
+        virtualenv = os.path.join(python_dir, 'Scripts', 'virtualenv.exe')
+        build_virtualenv = [virtualenv, '--no-site-packages', 'support/.virtualenv']
+
     process = subprocess.Popen(
-        [os.path.join('support', 'build-virtualenv')],
+        build_virtualenv,
         env=python3_env,
         stdout=subprocess.PIPE)
 
@@ -524,6 +541,36 @@ def build_virtualenv():
     if process.returncode != 0:
         sys.stderr.write(output)
         sys.exit(1)
+
+    # TODO(andschwa): Move this into a script like above.
+    if platform.system() == 'Windows':
+        def run_command_in_virtualenv(command):
+            """
+            Stolen from `PyLinter`, runs command in virtualenv.
+            """
+            virtualenv = os.path.join('support', '.virtualenv', 'Scripts', 'activate.bat')
+            command = '{virtualenv_path} & {cmd}'.format(
+                virtualenv_path=virtualenv, cmd=command)
+
+            return subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
+
+        process = run_command_in_virtualenv('python.exe -m pip install --upgrade pip')
+        for line in process.stdout:
+            output += line.decode(sys.stdout.encoding)
+        process.wait()
+
+        if process.returncode != 0:
+            sys.stderr.write(output)
+            sys.exit(1)
+
+        process = run_command_in_virtualenv('python.exe -m pip install -r support/pip-requirements.txt')
+        for line in process.stdout:
+            output += line.decode(sys.stdout.encoding)
+        process.wait()
+
+        if process.returncode != 0:
+            sys.stderr.write(output)
+            sys.exit(1)
 
 if __name__ == '__main__':
     if should_build_virtualenv(sys.argv[1:]):
