@@ -2025,7 +2025,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_RecoverLauncherOrphans)
       buildPath(containerId, "mesos", JOIN));
 
   ASSERT_SOME(cgroups::create(freezerHierarchy.get(), cgroup, true));
-  ASSERT_SOME_TRUE(cgroups::exists(freezerHierarchy.get(), cgroup));
+  ASSERT_TRUE(cgroups::exists(freezerHierarchy.get(), cgroup));
 
   SlaveState state;
   state.id = SlaveID();
@@ -2038,7 +2038,7 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_RecoverLauncherOrphans)
   // NOTE: `wait()` can return `Some` or `None` due to a race condition between
   // `recover()` and `______destroy()` for an orphan container.
   AWAIT_READY(containerizer->wait(containerId));
-  ASSERT_SOME_FALSE(cgroups::exists(freezerHierarchy.get(), cgroup));
+  ASSERT_FALSE(cgroups::exists(freezerHierarchy.get(), cgroup));
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
@@ -2203,7 +2203,7 @@ TEST_F(NestedMesosContainerizerTest,
       buildPath(containerId, "mesos", JOIN));
 
   ASSERT_SOME(cgroups::create(freezerHierarchy.get(), cgroupParent, true));
-  ASSERT_SOME_TRUE(cgroups::exists(freezerHierarchy.get(), cgroupParent));
+  ASSERT_TRUE(cgroups::exists(freezerHierarchy.get(), cgroupParent));
 
   ContainerID nestedContainerId;
   nestedContainerId.mutable_parent()->CopyFrom(containerId);
@@ -2214,7 +2214,7 @@ TEST_F(NestedMesosContainerizerTest,
       buildPath(nestedContainerId, "mesos", JOIN));
 
   ASSERT_SOME(cgroups::create(freezerHierarchy.get(), cgroupNested, true));
-  ASSERT_SOME_TRUE(cgroups::exists(freezerHierarchy.get(), cgroupNested));
+  ASSERT_TRUE(cgroups::exists(freezerHierarchy.get(), cgroupNested));
 
   SlaveState state;
   state.id = SlaveID();
@@ -2227,14 +2227,14 @@ TEST_F(NestedMesosContainerizerTest,
   // NOTE: `wait()` can return `Some` or `None` due to a race condition between
   // `recover()` and `______destroy()` for an orphan container.
   AWAIT_READY(containerizer->wait(nestedContainerId));
-  ASSERT_SOME_FALSE(cgroups::exists(freezerHierarchy.get(), cgroupNested));
+  ASSERT_FALSE(cgroups::exists(freezerHierarchy.get(), cgroupNested));
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
   ASSERT_FALSE(containers->contains(nestedContainerId));
 
   AWAIT_READY(containerizer->wait(containerId));
-  ASSERT_SOME_FALSE(cgroups::exists(freezerHierarchy.get(), cgroupParent));
+  ASSERT_FALSE(cgroups::exists(freezerHierarchy.get(), cgroupParent));
 
   containers = containerizer->containers();
   AWAIT_READY(containers);
@@ -2574,7 +2574,7 @@ TEST_F(NestedMesosContainerizerTest,
       buildPath(containerId, "mesos", JOIN));
 
   ASSERT_SOME(cgroups::create(freezerHierarchy.get(), cgroupParent, true));
-  ASSERT_SOME_TRUE(cgroups::exists(freezerHierarchy.get(), cgroupParent));
+  ASSERT_TRUE(cgroups::exists(freezerHierarchy.get(), cgroupParent));
 
   ContainerID nestedContainerId1;
   nestedContainerId1.mutable_parent()->CopyFrom(containerId);
@@ -2585,7 +2585,7 @@ TEST_F(NestedMesosContainerizerTest,
       buildPath(nestedContainerId1, "mesos", JOIN));
 
   ASSERT_SOME(cgroups::create(freezerHierarchy.get(), cgroupNested1, true));
-  ASSERT_SOME_TRUE(cgroups::exists(freezerHierarchy.get(), cgroupNested1));
+  ASSERT_TRUE(cgroups::exists(freezerHierarchy.get(), cgroupNested1));
 
   ContainerID nestedContainerId2;
   nestedContainerId2.mutable_parent()->CopyFrom(containerId);
@@ -2596,7 +2596,7 @@ TEST_F(NestedMesosContainerizerTest,
       buildPath(nestedContainerId2, "mesos", JOIN));
 
   ASSERT_SOME(cgroups::create(freezerHierarchy.get(), cgroupNested2, true));
-  ASSERT_SOME_TRUE(cgroups::exists(freezerHierarchy.get(), cgroupNested2));
+  ASSERT_TRUE(cgroups::exists(freezerHierarchy.get(), cgroupNested2));
 
   SlaveState state;
   state.id = SlaveID();
@@ -2609,13 +2609,13 @@ TEST_F(NestedMesosContainerizerTest,
   // NOTE: `wait()` can return `Some` or `None` due to a race condition between
   // `recover()` and `______destroy()` for an orphan container.
   AWAIT_READY(containerizer->wait(nestedContainerId1));
-  ASSERT_SOME_FALSE(cgroups::exists(freezerHierarchy.get(), cgroupNested1));
+  ASSERT_FALSE(cgroups::exists(freezerHierarchy.get(), cgroupNested1));
 
   AWAIT_READY(containerizer->wait(nestedContainerId2));
-  ASSERT_SOME_FALSE(cgroups::exists(freezerHierarchy.get(), cgroupNested2));
+  ASSERT_FALSE(cgroups::exists(freezerHierarchy.get(), cgroupNested2));
 
   AWAIT_READY(containerizer->wait(containerId));
-  ASSERT_SOME_FALSE(cgroups::exists(freezerHierarchy.get(), cgroupParent));
+  ASSERT_FALSE(cgroups::exists(freezerHierarchy.get(), cgroupParent));
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);

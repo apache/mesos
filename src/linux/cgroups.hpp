@@ -75,6 +75,16 @@ Try<std::string> prepare(
     const std::string& cgroup);
 
 
+// Returns error if any of the following is true:
+// (a) hierarchy is not mounted,
+// (b) cgroup does not exist
+// (c) control file does not exist.
+Try<Nothing> verify(
+    const std::string& hierarchy,
+    const std::string& cgroup = "",
+    const std::string& control = "");
+
+
 // Check whether cgroups module is enabled on the current machine.
 // @return  True if cgroups module is enabled.
 //          False if cgroups module is not available.
@@ -150,10 +160,11 @@ Try<Nothing> mount(
     int retry = 0);
 
 
-// Unmount a hierarchy and remove the directory associated with
-// it. This function will return error if the given hierarchy is not
-// valid. Also, it will return error if the given hierarchy has
-// any cgroups.
+// Unmount the cgroups virtual file system from the given hierarchy
+// root. The caller must make sure to remove all cgroups in the
+// hierarchy before unmount. This function assumes the given hierarchy
+// is currently mounted with a cgroups virtual file system. It will
+// return error if the given hierarchy has any cgroups.
 // @param   hierarchy   Path to the hierarchy root.
 // @return  Some if the operation succeeds.
 //          Error if the operation fails.
@@ -173,8 +184,12 @@ Try<bool> mounted(
     const std::string& subsystems = "");
 
 
-// Create a cgroup under a given hierarchy. This function will return error if
-// the given hierarchy is not valid.
+// Create a cgroup in a given hierarchy. To create a cgroup, one just
+// needs to create a directory in the cgroups virtual file system. The
+// given cgroup is a relative path to the given hierarchy. This
+// function assumes the given hierarchy is valid and is currently
+// mounted with a cgroup virtual file system. The function also
+// assumes the given cgroup is valid.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
 // @param   recursive   Will create nested cgroups
@@ -186,11 +201,15 @@ Try<Nothing> create(
     bool recursive = false);
 
 
-// Remove a cgroup under a given hierarchy. This function will return error if
-// the given hierarchy or the given cgroup is not valid. The cgroup will NOT be
-// removed recursively. In other words, if the cgroup has sub-cgroups inside,
-// the function will return error. Also, if any process is attached to the
-// given cgroup, the removal operation will also fail.
+// Remove a cgroup in a given hierarchy. To remove a cgroup, one needs
+// to remove the corresponding directory in the cgroups virtual file
+// system. A cgroup cannot be removed if it has processes or
+// sub-cgroups inside. This function does nothing but tries to remove
+// the corresponding directory of the given cgroup. It will return
+// error if the remove operation fails because it has either processes
+// or sub-cgroups inside. The cgroup will NOT be removed recursively.
+// This function assumes that the given hierarchy and cgroup are
+// valid.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
 Try<Nothing> remove(const std::string& hierarchy, const std::string& cgroup);
@@ -201,14 +220,14 @@ Try<Nothing> remove(const std::string& hierarchy, const std::string& cgroup);
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
 // @return  True if the cgroup exists.
 //          False if the cgroup does not exist.
-//          Error if the operation fails (i.e., hierarchy is not mounted).
-Try<bool> exists(const std::string& hierarchy, const std::string& cgroup);
+bool exists(const std::string& hierarchy, const std::string& cgroup);
 
 
-// Return all the cgroups under the given cgroup of a given hierarchy. By
-// default, it returns all the cgroups under the given hierarchy. This function
-// will return error if the given hierarchy is not mounted or the cgroup does
-// not exist. We use a post-order walk here to ease the removal of cgroups.
+// Return all the cgroups under the given cgroup of a given hierarchy.
+// By default, it returns all the cgroups under the given hierarchy.
+// This function assumes that the given hierarchy and cgroup are
+// valid. We use a post-order walk here to ease the removal of
+// cgroups.
 // @param   hierarchy   Path to the hierarchy root.
 // @return  A vector of cgroup names.
 Try<std::vector<std::string>> get(
@@ -216,7 +235,8 @@ Try<std::vector<std::string>> get(
     const std::string& cgroup = "/");
 
 
-// Send the specified signal to all process in a cgroup.
+// Send the specified signal to all process in a cgroup. This function
+// assumes that the given hierarchy and cgroup are valid.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
 // @param   signal      The signal to send to all tasks within the cgroup.
@@ -228,11 +248,11 @@ Try<Nothing> kill(
     int signal);
 
 
-// Read a control file. Control files are used to monitor and control cgroups.
-// This function will verify all the parameters. If the given hierarchy is not
-// properly mounted with appropriate subsystems, or the given cgroup is not
-// valid, or the given control file is not valid, the function will return
-// error.
+// Read a control file. Control files are the gateway to monitor and
+// control cgroups. This function assumes the cgroups virtual file
+// systems are properly mounted on the given hierarchy, and the given
+// cgroup has been already created properly. The given control file
+// name should also be valid.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
 // @param   control     Name of the control file.
@@ -243,7 +263,10 @@ Try<std::string> read(
     const std::string& control);
 
 
-// Write a control file. Parameter checking is similar to read.
+// Write a control file. This function assumes the cgroups virtual
+// file systems are properly mounted on the given hierarchy, and the
+// given cgroup has been already created properly. The given control
+// file name should also be valid.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
 // @param   control     Name of the control file.
@@ -257,23 +280,24 @@ Try<Nothing> write(
     const std::string& value);
 
 
-// Check whether a control file is valid under a given cgroup and a given
-// hierarchy. This function will return error if the given hierarchy is not
-// properly mounted with appropriate subsystems, or the given cgroup does not
-// exist, or the control file does not exist.
+// Check whether a control file is valid under a given cgroup and a
+// given hierarchy. This function will return error if the given
+// hierarchy is not properly mounted with appropriate subsystems, or
+// the given cgroup does not exist, or the control file does not
+// exist.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
 // @param   control     Name of the control file.
-// @return  Some if the check succeeds.
-//          Error if the check fails.
-Try<bool> exists(
+// @return  True if the check succeeds.
+//          False if the check fails.
+bool exists(
     const std::string& hierarchy,
     const std::string& cgroup,
     const std::string& control);
 
 
-// Return the set of process IDs in a given cgroup under a given hierarchy. It
-// will return error if the given hierarchy or the given cgroup is not valid.
+// Return the set of process IDs in a given cgroup under a given
+// hierarchy. It assumes the given hierarchy and cgroup are valid.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
 // @return  The set of process ids.
@@ -282,8 +306,8 @@ Try<std::set<pid_t>> processes(
     const std::string& cgroup);
 
 
-// Return the set of thread IDs in a given cgroup under a given hierarchy. It
-// will return error if the given hierarchy or the given cgroup is not valid.
+// Return the set of thread IDs in a given cgroup under a given
+// hierarchy. It assumes the given hierarchy and cgroup are valid.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
 // @return  The set of thread ids.
@@ -292,10 +316,10 @@ Try<std::set<pid_t>> threads(
     const std::string& cgroup);
 
 
-// Assign a given process specified by its pid to a given cgroup. All threads
-// in the pid's threadgroup will also be moved to the cgroup. This function
-// will return error if the given hierarchy or the given cgroup is not valid.
-// Also, it will return error if the pid has no process associated with it.
+// Assign a given process specified by its pid to a given cgroup. All
+// threads in the pid's threadgroup will also be moved to the cgroup.
+// This function assumes the given hierarchy and cgroup are valid.  It
+// will return error if the pid has no process associated with it.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
 // @param   pid         The pid of the given process.
@@ -307,10 +331,10 @@ Try<Nothing> assign(
     pid_t pid);
 
 
-// Isolate a given process specified by its 'pid' to a given cgroup
-// by both creating the cgroup (recursively) if it doesn't exist and
-// then assigning the process to that cgroup.
-//
+// Isolate a given process specified by its 'pid' to a given cgroup by
+// both creating the cgroup (recursively) if it doesn't exist and then
+// assigning the process to that cgroup. It assumes the hierarchy is
+// valid.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
 // @param   pid         The pid of the given process.
@@ -324,10 +348,9 @@ Try<Nothing> isolate(
 
 namespace event {
 
-// Listen on an event notifier and return a future which will become ready when
-// the certain event happens. This function will return a future failure if some
-// expected happens (e.g. the given hierarchy does not have the proper
-// subsystems attached).
+// Listen on an event notifier and return a future which will become
+// ready when the certain event happens. This function assumes the
+// given hierarchy, cgroup and control file are valid.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
 // @param   control     Name of the control file.
@@ -347,9 +370,8 @@ process::Future<uint64_t> listen(
 // destroy any sub-cgroups. If the freezer subsystem is attached to
 // the hierarchy, we attempt to kill all tasks in a given cgroup,
 // before removing it. Otherwise, we just attempt to remove the
-// cgroup. This function will return an error if the given hierarchy
-// or the given cgroup does not exist or if we failed to destroy any
-// of the cgroups.
+// cgroup. This function assumes the given hierarchy and cgroup are
+// valid. It returns error if we failed to destroy any of the cgroups.
 // NOTE: If cgroup is "/" (default), all cgroups under the
 // hierarchy are destroyed.
 // TODO(vinod): Add support for killing tasks when freezer subsystem
@@ -381,7 +403,8 @@ process::Future<Nothing> destroy(
 process::Future<bool> cleanup(const std::string& hierarchy);
 
 
-// Returns the stat information from the given file.
+// Returns the stat information from the given file. This function
+// assumes the given hierarchy and cgroup are valid.
 // @param   hierarchy   Path to the hierarchy root.
 // @param   cgroup      Path to the cgroup relative to the hierarchy root.
 // @param   file        The stat file to read from. (Ex: "memory.stat").
@@ -482,7 +505,8 @@ Try<std::vector<Value>> sectors_recursive(
 
 
 // Returns the total number of bios/requests merged into requests
-// belonging to the given cgroup from blkio.io_merged.
+// belonging to the given cgroup from blkio.io_merged. This function
+// assumes the given hierarchy and cgroup are valid.
 Try<std::vector<Value>> io_merged(
     const std::string& hierarchy,
     const std::string& cgroup);
@@ -490,14 +514,16 @@ Try<std::vector<Value>> io_merged(
 
 // Returns the total number of bios/requests merged into requests
 // belonging to the given cgroup and all its descendants from
-// blkio.io_merged_recursive.
+// blkio.io_merged_recursive. This function assumes the given
+// hierarchy and cgroup are valid.
 Try<std::vector<Value>> io_merged_recursive(
     const std::string& hierarchy,
     const std::string& cgroup);
 
 
 // Returns the total number of requests queued up in the given
-// cgroup from blkio.io_queued.
+// cgroup from blkio.io_queued. This function assumes the given
+// hierarchy and cgroup are valid.
 Try<std::vector<Value>> io_queued(
     const std::string& hierarchy,
     const std::string& cgroup);
@@ -505,21 +531,24 @@ Try<std::vector<Value>> io_queued(
 
 // Returns the total number of requests queued up in the given
 // cgroup and all its descendants from blkio.io_queued_recursive.
+// This function assumes the given hierarchy and cgroup are valid.
 Try<std::vector<Value>> io_queued_recursive(
     const std::string& hierarchy,
     const std::string& cgroup);
 
 
-// Returns the number of bytes transferred to/from the disk by
-// the given cgroup from blkio.io_service_bytes.
+// Returns the number of bytes transferred to/from the disk by the
+// given cgroup from blkio.io_service_bytes. This function assumes the
+// given hierarchy and cgroup are valid.
 Try<std::vector<Value>> io_service_bytes(
     const std::string& hierarchy,
     const std::string& cgroup);
 
 
-// Returns the number of bytes transferred to/from the disk by
-// the given cgroup and all its descendants from
-// blkio.io_service_bytes_recursive.
+// Returns the number of bytes transferred to/from the disk by the
+// given cgroup and all its descendants from
+// blkio.io_service_bytes_recursive. This function assumes the given
+// hierarchy and cgroup are valid.
 Try<std::vector<Value>> io_service_bytes_recursive(
     const std::string& hierarchy,
     const std::string& cgroup);
@@ -527,7 +556,8 @@ Try<std::vector<Value>> io_service_bytes_recursive(
 
 // Returns the total amount of time between request dispatch and
 // completion by the IOs done by the given cgroup from
-// blkio.io_service_time.
+// blkio.io_service_time. This function assumes the given hierarchy
+// and cgroup are valid.
 Try<std::vector<Value>> io_service_time(
     const std::string& hierarchy,
     const std::string& cgroup);
@@ -535,14 +565,16 @@ Try<std::vector<Value>> io_service_time(
 
 // Returns the total amount of time between request dispatch and
 // completion by the IOs done by the given cgroup and all its
-// descendants from blkio.io_service_time_recursive.
+// descendants from blkio.io_service_time_recursive. This function
+// assumes the given hierarchy and cgroup are valid.
 Try<std::vector<Value>> io_service_time_recursive(
     const std::string& hierarchy,
     const std::string& cgroup);
 
 
 // Returns the number of IOs (bio) issued to the disk by the given
-// cgroup from blkio.io_serviced.
+// cgroup from blkio.io_serviced. This function assumes the given
+// hierarchy and cgroup are valid.
 Try<std::vector<Value>> io_serviced(
     const std::string& hierarchy,
     const std::string& cgroup);
@@ -550,22 +582,24 @@ Try<std::vector<Value>> io_serviced(
 
 // Returns the number of IOs (bio) issued to the disk by the given
 // cgroup and all its descendants from blkio.io_serviced_recursive.
+// This function assumes the given hierarchy and cgroup are valid.
 Try<std::vector<Value>> io_serviced_recursive(
     const std::string& hierarchy,
     const std::string& cgroup);
 
 
-// Returns the total amount of time the IOs for the given cgroup
-// spent waiting in the schedule queues for service from
-// blkio.io_wait_time.
+// Returns the total amount of time the IOs for the given cgroup spent
+// waiting in the schedule queues for service from blkio.io_wait_time.
+// This function assumes the given hierarchy and cgroup are valid.
 Try<std::vector<Value>> io_wait_time(
     const std::string& hierarchy,
     const std::string& cgroup);
 
 
-// Returns the total amount of time the IOs for the given cgroup
-// and all its descendants spent waiting in the scheduler queues
-// for service from blkio.io_wait_time_recursive.
+// Returns the total amount of time the IOs for the given cgroup and
+// all its descendants spent waiting in the scheduler queues for
+// service from blkio.io_wait_time_recursive. This function assumes
+// the given hierarchy and cgroup are valid.
 Try<std::vector<Value>> io_wait_time_recursive(
     const std::string& hierarchy,
     const std::string& cgroup);
@@ -575,15 +609,17 @@ Try<std::vector<Value>> io_wait_time_recursive(
 
 namespace throttle {
 
-// Returns the numbers of bytes transferred to/from the disk for
-// the given cgroup from blkio.throttle.io_service_bytes.
+// Returns the numbers of bytes transferred to/from the disk for the
+// given cgroup from blkio.throttle.io_service_bytes. This function
+// assumes the given hierarchy and cgroup are valid.
 Try<std::vector<Value>> io_service_bytes(
     const std::string& hierarchy,
     const std::string& cgroup);
 
 
-// Returns the numbers of IOs (bio) issued to the disk for the
-// given cgroup from blkio.throttle.io_serviced.
+// Returns the numbers of IOs (bio) issued to the disk for the given
+// cgroup from blkio.throttle.io_serviced. This function assumes the
+// given hierarchy and cgroup are valid.
 Try<std::vector<Value>> io_serviced(
     const std::string& hierarchy,
     const std::string& cgroup);
@@ -636,38 +672,43 @@ inline std::ostream& operator<<(std::ostream& stream, const Value& value)
 namespace cpu {
 
 // Returns the cgroup that the specified pid is a member of within the
-// hierarchy that the 'cpu' subsytem is mounted or None if the
+// hierarchy that the 'cpu' subsystem is mounted or None if the
 // subsystem is not mounted or the pid is not a member of a cgroup.
 Result<std::string> cgroup(pid_t pid);
 
 
-// Sets the cpu shares using cpu.shares.
+// Sets the cpu shares using cpu.shares. This function assumes the
+// given hierarchy and cgroup are valid.
 Try<Nothing> shares(
     const std::string& hierarchy,
     const std::string& cgroup,
     uint64_t shares);
 
 
-// Returns the cpu shares from cpu.shares.
+// Returns the cpu shares from cpu.shares. This function assumes the
+// given hierarchy and cgroup are valid.
 Try<uint64_t> shares(
     const std::string& hierarchy,
     const std::string& cgroup);
 
 
-// Sets the cfs period using cpu.cfs_period_us.
+// Sets the cfs period using cpu.cfs_period_us. This function assumes
+// the given hierarchy and cgroup are valid.
 Try<Nothing> cfs_period_us(
     const std::string& hierarchy,
     const std::string& cgroup,
     const Duration& duration);
 
 
-// Returns the cfs quota from cpu.cfs_quota_us.
+// Returns the cfs quota from cpu.cfs_quota_us. This function assumes
+// the given hierarchy and cgroup are valid.
 Try<Duration> cfs_quota_us(
     const std::string& hierarchy,
     const std::string& cgroup);
 
 
-// Sets the cfs quota using cpu.cfs_quota_us.
+// Sets the cfs quota using cpu.cfs_quota_us. This function assumes
+// the given hierarchy and cgroup are valid.
 Try<Nothing> cfs_quota_us(
     const std::string& hierarchy,
     const std::string& cgroup,
@@ -698,7 +739,8 @@ struct Stats
 };
 
 
-// Returns 'Stats' for a given hierarchy and cgroup.
+// Returns 'Stats' for a given hierarchy and cgroup. This function
+// assumes the given hierarchy and cgroup are valid.
 //
 // @param   hierarchy   hierarchy for the 'cpuacct' subsystem.
 // @param   cgroup      cgroup for a given process.
@@ -720,13 +762,15 @@ namespace memory {
 Result<std::string> cgroup(pid_t pid);
 
 
-// Returns the memory limit from memory.limit_in_bytes.
+// Returns the memory limit from memory.limit_in_bytes. This function
+// assumes the given hierarchy and cgroup are valid.
 Try<Bytes> limit_in_bytes(
     const std::string& hierarchy,
     const std::string& cgroup);
 
 
-// Sets the memory limit using memory.limit_in_bytes.
+// Sets the memory limit using memory.limit_in_bytes. This function
+// assumes the given hierarchy and cgroup are valid.
 Try<Nothing> limit_in_bytes(
     const std::string& hierarchy,
     const std::string& cgroup,
@@ -735,7 +779,8 @@ Try<Nothing> limit_in_bytes(
 
 // Returns the memory limit from memory.memsw.limit_in_bytes. Returns
 // none if memory.memsw.limit_in_bytes is not supported (e.g., when
-// swap is turned off).
+// swap is turned off). This function assumes the given hierarchy and
+// cgroup are valid.
 Result<Bytes> memsw_limit_in_bytes(
     const std::string& hierarchy,
     const std::string& cgroup);
@@ -743,39 +788,45 @@ Result<Bytes> memsw_limit_in_bytes(
 
 // Sets the memory limit using memory.memsw.limit_in_bytes. Returns
 // false if memory.memsw.limit_in_bytes is not supported (e.g., when
-// swap is turned off).
+// swap is turned off). This function assumes the given hierarchy and
+// cgroup are valid.
 Try<bool> memsw_limit_in_bytes(
     const std::string& hierarchy,
     const std::string& cgroup,
     const Bytes& limit);
 
 
-// Returns the soft memory limit from memory.soft_limit_in_bytes.
+// Returns the soft memory limit from memory.soft_limit_in_bytes. This
+// function assumes the given hierarchy and cgroup are valid.
 Try<Bytes> soft_limit_in_bytes(
     const std::string& hierarchy,
     const std::string& cgroup);
 
 
-// Sets the soft memory limit using memory.soft_limit_in_bytes.
+// Sets the soft memory limit using memory.soft_limit_in_bytes. This
+// function assumes the given hierarchy and cgroup are valid.
 Try<Nothing> soft_limit_in_bytes(
     const std::string& hierarchy,
     const std::string& cgroup,
     const Bytes& limit);
 
 
-// Returns the memory usage from memory.usage_in_bytes.
+// Returns the memory usage from memory.usage_in_bytes. This function
+// assumes the given hierarchy and cgroup are valid.
 Try<Bytes> usage_in_bytes(
     const std::string& hierarchy,
     const std::string& cgroup);
 
 
 // Returns the memory + swap usage from memory.memsw.usage_in_bytes.
+// This function assumes the given hierarchy and cgroup are valid.
 Try<Bytes> memsw_usage_in_bytes(
     const std::string& hierarchy,
     const std::string& cgroup);
 
 
-// Returns the max memory usage from memory.max_usage_in_bytes.
+// Returns the max memory usage from memory.max_usage_in_bytes. This
+// function assumes the given hierarchy and cgroup are valid.
 Try<Bytes> max_usage_in_bytes(
     const std::string& hierarchy,
     const std::string& cgroup);
@@ -784,7 +835,8 @@ Try<Bytes> max_usage_in_bytes(
 // Out-of-memory (OOM) controls.
 namespace oom {
 
-// Listen for an OOM event for the cgroup.
+// Listen for an OOM event for the cgroup. This function assumes the
+// given hierarchy and cgroup are valid.
 process::Future<Nothing> listen(
     const std::string& hierarchy,
     const std::string& cgroup);
@@ -793,18 +845,21 @@ process::Future<Nothing> listen(
 namespace killer {
 
 // Return whether the kernel OOM killer is enabled for the cgroup.
+// This function assumes the given hierarchy and cgroup are valid.
 Try<bool> enabled(
     const std::string& hierarchy,
     const std::string& cgroup);
 
 // Enable the kernel OOM killer for the cgroup. The control file will
-// only be written to if necessary.
+// only be written to if necessary. This function assumes the given
+// hierarchy and cgroup are valid.
 Try<Nothing> enable(
     const std::string& hierarchy,
     const std::string& cgroup);
 
 // Disable the kernel OOM killer. The control file will only be
-// written to if necessary.
+// written to if necessary. This function assumes the given hierarchy
+// and cgroup are valid.
 Try<Nothing> disable(
     const std::string& hierarchy,
     const std::string& cgroup);
@@ -840,7 +895,8 @@ class Counter
 {
 public:
   // Create a memory pressure counter for the given cgroup on the
-  // specified level.
+  // specified level. This function assumes the given hierarchy and
+  // cgroup are valid.
   static Try<process::Owned<Counter>> create(
       const std::string& hierarchy,
       const std::string& cgroup,
@@ -930,18 +986,21 @@ bool operator==(
     const Entry& right);
 
 
-// Returns the entries within devices.list.
+// Returns the entries within devices.list. This function assumes the
+// given hierarchy and cgroup are valid.
 Try<std::vector<Entry>> list(
     const std::string& hierarchy,
     const std::string& cgroup);
 
-// Writes the provided `entry` into devices.allow.
+// Writes the provided `entry` into devices.allow. This function
+// assumes the given hierarchy and cgroup are valid.
 Try<Nothing> allow(
     const std::string& hierarchy,
     const std::string& cgroup,
     const Entry& entry);
 
-// Writes the provided `entry` into devices.deny.
+// Writes the provided `entry` into devices.deny. This function
+// assumes the given hierarchy and cgroup are valid.
 Try<Nothing> deny(
     const std::string& hierarchy,
     const std::string& cgroup,
@@ -957,18 +1016,20 @@ Try<Nothing> deny(
 // 3. FROZEN   : All processes are frozen.
 namespace freezer {
 
-// Freeze all processes in the given cgroup. The cgroup must be in a freezer
-// hierarchy. This function will return a future which will become ready when
-// all processes have been frozen (cgroup is in the FROZEN state).
+// Freeze all processes in the given cgroup. This function will return
+// a future which will become ready when all processes have been
+// frozen (cgroup is in the FROZEN state).  This function assumes the
+// given hierarchy and cgroup are valid.
 process::Future<Nothing> freeze(
     const std::string& hierarchy,
     const std::string& cgroup);
 
 
-// Thaw all processes in the given cgroup. The cgroup must be in a freezer
-// hierarchy. This is a revert operation of freezer::freeze. This function will
-// return a future which will become ready when all processes have been thawed
-// (cgroup is in the THAWED state).
+// Thaw all processes in the given cgroup. This is a revert operation
+// of freezer::freeze. This function will return a future which will
+// become ready when all processes have been thawed (cgroup is in the
+// THAWED state). This function assumes the given hierarchy and cgroup
+// are valid.
 process::Future<Nothing> thaw(
     const std::string& hierarchy,
     const std::string& cgroup);
@@ -979,13 +1040,15 @@ process::Future<Nothing> thaw(
 // Net_cls subsystem.
 namespace net_cls {
 
-// Read the uint32_t handle set in `net_cls.classid`.
+// Read the uint32_t handle set in `net_cls.classid`. This function
+// assumes the given hierarchy and cgroup are valid.
 Try<uint32_t> classid(
     const std::string& hierarchy,
     const std::string& cgroup);
 
 
-// Write the uint32_t handle to the `net_cls.classid`.
+// Write the uint32_t handle to the `net_cls.classid`. This function
+// assumes the given hierarchy and cgroup are valid.
 Try<Nothing> classid(
     const std::string& hierarchy,
     const std::string& cgroup,

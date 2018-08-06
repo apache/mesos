@@ -38,16 +38,7 @@ Try<Owned<SubsystemProcess>> CpuSubsystemProcess::create(
     const string& hierarchy)
 {
   if (flags.cgroups_enable_cfs) {
-    Try<bool> exists = cgroups::exists(
-        hierarchy,
-        flags.cgroups_root,
-        "cpu.cfs_quota_us");
-
-    if (exists.isError()) {
-      return Error(
-          "Failed to check the existence of 'cpu.cfs_quota_us': " +
-          exists.error());
-    } else if (!exists.get()) {
+    if (!cgroups::exists(hierarchy, flags.cgroups_root, "cpu.cfs_quota_us")) {
       return Error(
           "Failed to find 'cpu.cfs_quota_us'. Your kernel might be "
           "too old to use the CFS quota feature");

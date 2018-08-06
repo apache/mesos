@@ -178,13 +178,13 @@ Try<Nothing> initialize(const Flags& flags)
 
   // Now the `MESOS_EXECUTORS_SLICE` is ready for us to assign any pids. We can
   // verify that our cgroups assignments will work by testing the hierarchy.
-  Try<bool> exists = cgroups::exists(
+  Try<Nothing> cgroupsVerify = cgroups::verify(
       systemd::hierarchy(),
       mesos::MESOS_EXECUTORS_SLICE);
 
-  if (exists.isError() || !exists.get()) {
+  if (cgroupsVerify.isError()) {
     return Error("Failed to locate systemd cgroups hierarchy: " +
-                  (exists.isError() ? exists.error() : "does not exist"));
+                 cgroupsVerify.error());
   }
 
   initialized->done();

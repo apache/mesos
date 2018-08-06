@@ -339,16 +339,7 @@ Future<Nothing> CgroupsIsolatorProcess::___recover(
 
   // TODO(haosdent): Use foreachkey once MESOS-5037 is resolved.
   foreach (const string& hierarchy, subsystems.keys()) {
-    Try<bool> exists = cgroups::exists(hierarchy, cgroup);
-    if (exists.isError()) {
-      return Failure(
-          "Failed to check the existence of the cgroup "
-          "'" + cgroup + "' in hierarchy '" + hierarchy + "' "
-          "for container " + stringify(containerId) +
-          ": " + exists.error());
-    }
-
-    if (!exists.get()) {
+    if (!cgroups::exists(hierarchy, cgroup)) {
       // This may occur if the executor has exited and the isolator
       // has destroyed the cgroup but the agent dies before noticing
       // this. This will be detected when the containerizer tries to
@@ -438,15 +429,7 @@ Future<Option<ContainerLaunchInfo>> CgroupsIsolatorProcess::prepare(
     VLOG(1) << "Creating cgroup at '" << path << "' "
             << "for container " << containerId;
 
-    Try<bool> exists = cgroups::exists(
-        hierarchy,
-        infos[containerId]->cgroup);
-
-    if (exists.isError()) {
-      return Failure(
-          "Failed to check the existence of cgroup at "
-          "'" + path + "': " + exists.error());
-    } else if (exists.get()) {
+    if (cgroups::exists(hierarchy, infos[containerId]->cgroup)) {
       return Failure("The cgroup at '" + path + "' already exists");
     }
 
