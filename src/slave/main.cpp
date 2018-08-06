@@ -151,16 +151,7 @@ static Try<Nothing> assignCgroups(const slave::Flags& flags)
     // Create a cgroup for the slave.
     string cgroup = path::join(flags.cgroups_root, "slave");
 
-    Try<bool> exists = cgroups::exists(hierarchy.get(), cgroup);
-    if (exists.isError()) {
-      return Error(
-          "Failed to find cgroup " + cgroup +
-          " for subsystem " + subsystem +
-          " under hierarchy " + hierarchy.get() +
-          " for agent: " + exists.error());
-    }
-
-    if (!exists.get()) {
+    if (!cgroups::exists(hierarchy.get(), cgroup)) {
       Try<Nothing> create = cgroups::create(hierarchy.get(), cgroup);
       if (create.isError()) {
         return Error(

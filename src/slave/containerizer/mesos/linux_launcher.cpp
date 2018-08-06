@@ -161,18 +161,7 @@ Try<Launcher*> LinuxLauncher::create(const Flags& flags)
     systemdHierarchy = systemd::hierarchy();
 
     // Create the root cgroup if does not exist.
-    Try<bool> exists = cgroups::exists(
-        systemdHierarchy.get(),
-        flags.cgroups_root);
-
-    if (exists.isError()) {
-      return Error(
-          "Failed to check the existence of cgroup root '" +
-          flags.cgroups_root + "' under systemd hierarchy '" +
-          systemdHierarchy.get() + "': " + exists.error());
-    }
-
-    if (!exists.get()) {
+    if (!cgroups::exists(systemdHierarchy.get(), flags.cgroups_root)) {
       Try<Nothing> create = cgroups::create(
           systemdHierarchy.get(),
           flags.cgroups_root);
@@ -623,12 +612,7 @@ Future<Nothing> LinuxLauncherProcess::destroy(const ContainerID& containerId)
   // is considered partially destroyed if we have recovered it from
   // ContainerState but we don't have a freezer cgroup for it. If this
   // is a partially destroyed container than there is nothing to do.
-  Try<bool> exists = cgroups::exists(freezerHierarchy, cgroup);
-  if (exists.isError()) {
-    return Failure("Failed to determine if cgroup exists: " + exists.error());
-  }
-
-  if (!exists.get()) {
+  if (!cgroups::exists(freezerHierarchy, cgroup)) {
     LOG(WARNING) << "Couldn't find freezer cgroup for container "
                  << container->id << " so assuming partially destroyed";
 
@@ -663,12 +647,7 @@ Future<Nothing> LinuxLauncherProcess::_destroy(const ContainerID& containerId)
   const string cgroup =
     LinuxLauncher::cgroup(flags.cgroups_root, containerId);
 
-  Try<bool> exists = cgroups::exists(systemdHierarchy.get(), cgroup);
-  if (exists.isError()) {
-    return Failure("Failed to determine if cgroup exists: " + exists.error());
-  }
-
-  if (!exists.get()) {
+  if (!cgroups::exists(systemdHierarchy.get(), cgroup)) {
     return Nothing();
   }
 

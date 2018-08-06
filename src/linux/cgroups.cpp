@@ -226,19 +226,6 @@ static Try<Nothing> mount(const string& hierarchy, const string& subsystems)
 }
 
 
-// Unmount the cgroups virtual file system from the given hierarchy root. Make
-// sure to remove all cgroups in the hierarchy before unmount. This function
-// assumes the given hierarchy is currently mounted with a cgroups virtual file
-// system.
-// @param   hierarchy   Path to the hierarchy root.
-// @return  Some if the operation succeeds.
-//          Error if the operation fails.
-static Try<Nothing> unmount(const string& hierarchy)
-{
-  return fs::unmount(hierarchy);
-}
-
-
 // Copies the value of 'cpuset.cpus' and 'cpuset.mems' from a parent
 // cgroup to a child cgroup so the child cgroup can actually run tasks
 // (otherwise it gets the error 'Device or resource busy').
@@ -274,109 +261,6 @@ static Try<Nothing> cloneCpusetCpusMems(
   }
 
   return Nothing();
-}
-
-
-// Create a cgroup in a given hierarchy. To create a cgroup, one just
-// need to create a directory in the cgroups virtual file system. The
-// given cgroup is a relative path to the given hierarchy. This
-// function assumes the given hierarchy is valid and is currently
-// mounted with a cgroup virtual file system. The function also
-// assumes the given cgroup is valid.
-// @param   hierarchy   Path to the hierarchy root.
-// @param   cgroup      Path to the cgroup relative to the hierarchy root.
-// @param   recursive   Create nest cgroup structure
-// @return  Some if the operation succeeds.
-//          Error if the operation fails.
-static Try<Nothing> create(
-    const string& hierarchy,
-    const string& cgroup,
-    bool recursive)
-{
-  string path = path::join(hierarchy, cgroup);
-  Try<Nothing> mkdir = os::mkdir(path, recursive);
-  if (mkdir.isError()) {
-    return Error(
-        "Failed to create directory '" + path + "': " + mkdir.error());
-  }
-
-  // Now clone 'cpuset.cpus' and 'cpuset.mems' if the 'cpuset'
-  // subsystem is attached to the hierarchy.
-  Try<set<string>> attached = cgroups::subsystems(hierarchy);
-  if (attached.isError()) {
-    return Error(
-        "Failed to determine if hierarchy '" + hierarchy +
-        "' has the 'cpuset' subsystem attached: " + attached.error());
-  } else if (attached->count("cpuset") > 0) {
-    string parent = Path(path::join("/", cgroup)).dirname();
-    return cloneCpusetCpusMems(hierarchy, parent, cgroup);
-  }
-
-  return Nothing();
-}
-
-
-// Remove a cgroup in a given hierarchy. To remove a cgroup, one needs
-// to remove the corresponding directory in the cgroups virtual file
-// system. A cgroup cannot be removed if it has processes or
-// sub-cgroups inside. This function does nothing but tries to remove
-// the corresponding directory of the given cgroup. It will return
-// error if the remove operation fails because it has either processes
-// or sub-cgroups inside.
-// @param   hierarchy   Path to the hierarchy root.
-// @param   cgroup      Path to the cgroup relative to the hierarchy root.
-// @return  Some if the operation succeeds.
-//          Error if the operation fails.
-static Try<Nothing> remove(const string& hierarchy, const string& cgroup)
-{
-  string path = path::join(hierarchy, cgroup);
-
-  // Do NOT recursively remove cgroups.
-  Try<Nothing> rmdir = os::rmdir(path, false);
-
-  if (rmdir.isError()) {
-    return Error(
-        "Failed to remove cgroup '" + path + "': " + rmdir.error());
-  }
-
-  return rmdir;
-}
-
-
-// Read a control file. Control files are the gateway to monitor and
-// control cgroups. This function assumes the cgroups virtual file
-// systems are properly mounted on the given hierarchy, and the given
-// cgroup has been already created properly. The given control file
-// name should also be valid.
-// @param   hierarchy   Path to the hierarchy root.
-// @param   cgroup      Path to the cgroup relative to the hierarchy root.
-// @param   control     Name of the control file.
-// @return  The value read from the control file.
-static Try<string> read(
-    const string& hierarchy,
-    const string& cgroup,
-    const string& control)
-{
-  string path = path::join(hierarchy, cgroup, control);
-  return os::read(path);
-}
-
-
-// Write a control file.
-// @param   hierarchy   Path to the hierarchy root.
-// @param   cgroup      Path to the cgroup relative to the hierarchy root.
-// @param   control     Name of the control file.
-// @param   value       Value to be written.
-// @return  Some if the operation succeeds.
-//          Error if the operation fails.
-static Try<Nothing> write(
-    const string& hierarchy,
-    const string& cgroup,
-    const string& control,
-    const string& value)
-{
-  string path = path::join(hierarchy, cgroup, control);
-  return os::write(path, value);
 }
 
 } // namespace internal {
@@ -437,15 +321,7 @@ Try<string> prepare(
   CHECK_SOME(hierarchy);
 
   // Create the cgroup if it doesn't exist.
-  Try<bool> exists = cgroups::exists(hierarchy.get(), cgroup);
-  if (exists.isError()) {
-    return Error(
-        "Failed to check existence of root cgroup " +
-        path::join(hierarchy.get(), cgroup) +
-        ": " + exists.error());
-  }
-
-  if (!exists.get()) {
+  if (!cgroups::exists(hierarchy.get(), cgroup)) {
     // No cgroup exists, create it.
     Try<Nothing> create = cgroups::create(hierarchy.get(), cgroup, true);
     if (create.isError()) {
@@ -460,12 +336,10 @@ Try<string> prepare(
 }
 
 
-// Returns some error string if either (a) hierarchy is not mounted,
-// (b) cgroup does not exist, or (c) control file does not exist.
-static Option<Error> verify(
+Try<Nothing> verify(
     const string& hierarchy,
-    const string& cgroup = "",
-    const string& control = "")
+    const string& cgroup,
+    const string& control)
 {
   Try<bool> mounted = cgroups::mounted(hierarchy);
   if (mounted.isError()) {
@@ -489,7 +363,7 @@ static Option<Error> verify(
     }
   }
 
-  return None();
+  return Nothing();
 }
 
 
@@ -708,12 +582,7 @@ Try<Nothing> mount(const string& hierarchy, const string& subsystems, int retry)
 
 Try<Nothing> unmount(const string& hierarchy)
 {
-  Option<Error> error = verify(hierarchy);
-  if (error.isSome()) {
-    return error.get();
-  }
-
-  Try<Nothing> unmount = internal::unmount(hierarchy);
+  Try<Nothing> unmount = fs::unmount(hierarchy);
   if (unmount.isError()) {
     return unmount;
   }
@@ -777,53 +646,52 @@ Try<Nothing> create(
     const string& cgroup,
     bool recursive)
 {
-  Option<Error> error = verify(hierarchy);
-  if (error.isSome()) {
-    return error.get();
+  string path = path::join(hierarchy, cgroup);
+  Try<Nothing> mkdir = os::mkdir(path, recursive);
+  if (mkdir.isError()) {
+    return Error(
+        "Failed to create directory '" + path + "': " + mkdir.error());
   }
 
-  return internal::create(hierarchy, cgroup, recursive);
+  // Now clone 'cpuset.cpus' and 'cpuset.mems' if the 'cpuset'
+  // subsystem is attached to the hierarchy.
+  Try<set<string>> attached = cgroups::subsystems(hierarchy);
+  if (attached.isError()) {
+    return Error(
+        "Failed to determine if hierarchy '" + hierarchy +
+        "' has the 'cpuset' subsystem attached: " + attached.error());
+  } else if (attached->count("cpuset") > 0) {
+    string parent = Path(path::join("/", cgroup)).dirname();
+    return internal::cloneCpusetCpusMems(hierarchy, parent, cgroup);
+  }
+
+  return Nothing();
 }
 
 
 Try<Nothing> remove(const string& hierarchy, const string& cgroup)
 {
-  Option<Error> error = verify(hierarchy, cgroup);
-  if (error.isSome()) {
-    return error.get();
+  string path = path::join(hierarchy, cgroup);
+
+  // Do NOT recursively remove cgroups.
+  Try<Nothing> rmdir = os::rmdir(path, false);
+  if (rmdir.isError()) {
+    return Error(
+        "Failed to remove cgroup '" + path + "': " + rmdir.error());
   }
 
-  Try<vector<string>> cgroups = cgroups::get(hierarchy, cgroup);
-  if (cgroups.isError()) {
-    return Error("Failed to get nested cgroups: " + cgroups.error());
-  }
-
-  if (!cgroups->empty()) {
-    return Error("Nested cgroups exist");
-  }
-
-  return internal::remove(hierarchy, cgroup);
+  return rmdir;
 }
 
 
-Try<bool> exists(const string& hierarchy, const string& cgroup)
+bool exists(const string& hierarchy, const string& cgroup)
 {
-  Option<Error> error = verify(hierarchy);
-  if (error.isSome()) {
-    return error.get();
-  }
-
   return os::exists(path::join(hierarchy, cgroup));
 }
 
 
 Try<vector<string>> get(const string& hierarchy, const string& cgroup)
 {
-  Option<Error> error = verify(hierarchy, cgroup);
-  if (error.isSome()) {
-    return error.get();
-  }
-
   Result<string> hierarchyAbsPath = os::realpath(hierarchy);
   if (!hierarchyAbsPath.isSome()) {
     return Error(
@@ -885,11 +753,6 @@ Try<Nothing> kill(
     const string& cgroup,
     int signal)
 {
-  Option<Error> error = verify(hierarchy, cgroup);
-  if (error.isSome()) {
-    return error.get();
-  }
-
   Try<set<pid_t>> pids = processes(hierarchy, cgroup);
   if (pids.isError()) {
     return Error("Failed to get processes of cgroup: " + pids.error());
@@ -917,25 +780,8 @@ Try<string> read(
     const string& cgroup,
     const string& control)
 {
-  Try<string> read = internal::read(hierarchy, cgroup, control);
-
-  // It turns out that `verify()` is expensive, so rather than
-  // verifying *prior* to the read, as is currently done for other
-  // cgroup helpers, we only verify if the read fails. This ensures
-  // we still provide a good error message. See: MESOS-8418.
-  //
-  // TODO(bmahler): Longer term, verification should be done
-  // explicitly by the caller, or its performance should be
-  // improved, or verification could be done consistently
-  // post-failure, as done here.
-  if (read.isError()) {
-    Option<Error> error = verify(hierarchy, cgroup, control);
-    if (error.isSome()) {
-      return error.get();
-    }
-  }
-
-  return read;
+  string path = path::join(hierarchy, cgroup, control);
+  return os::read(path);
 }
 
 
@@ -945,25 +791,16 @@ Try<Nothing> write(
     const string& control,
     const string& value)
 {
-  Option<Error> error = verify(hierarchy, cgroup, control);
-  if (error.isSome()) {
-    return error.get();
-  }
-
-  return internal::write(hierarchy, cgroup, control, value);
+  string path = path::join(hierarchy, cgroup, control);
+  return os::write(path, value);
 }
 
 
-Try<bool> exists(
+bool exists(
     const string& hierarchy,
     const string& cgroup,
     const string& control)
 {
-  Option<Error> error = verify(hierarchy, cgroup);
-  if (error.isSome()) {
-    return error.get();
-  }
-
   return os::exists(path::join(hierarchy, cgroup, control));
 }
 
@@ -1038,12 +875,7 @@ Try<Nothing> isolate(
     pid_t pid)
 {
   // Create cgroup if necessary.
-  Try<bool> exists = cgroups::exists(hierarchy, cgroup);
-  if (exists.isError()) {
-    return Error("Failed to check existence of cgroup: " + exists.error());
-  }
-
-  if (!exists.get()) {
+  if (!cgroups::exists(hierarchy, cgroup)) {
     Try<Nothing> create = cgroups::create(hierarchy, cgroup, true);
     if (create.isError()) {
       return Error("Failed to create cgroup: " + create.error());
@@ -1143,8 +975,13 @@ static Try<int> registerNotifier(
   if (args.isSome()) {
     out << " " << args.get();
   }
-  Try<Nothing> write = internal::write(
-      hierarchy, cgroup, "cgroup.event_control", out.str());
+
+  Try<Nothing> write = cgroups::write(
+      hierarchy,
+      cgroup,
+      "cgroup.event_control",
+      out.str());
+
   if (write.isError()) {
     os::close(efd);
     os::close(cfd.get());
@@ -1297,11 +1134,6 @@ Future<uint64_t> listen(
     const string& control,
     const Option<string>& args)
 {
-  Option<Error> error = verify(hierarchy, cgroup, control);
-  if (error.isSome()) {
-    return Failure(error.get());
-  }
-
   Listener* listener = new Listener(hierarchy, cgroup, control, args);
 
   spawn(listener, true);
@@ -1440,13 +1272,6 @@ public:
 protected:
   void initialize() override
   {
-    Option<Error> error = verify(hierarchy, cgroup, "freezer.state");
-    if (error.isSome()) {
-      promise.fail("Invalid freezer cgroup: " + error->message);
-      terminate(self());
-      return;
-    }
-
     // Stop attempting to freeze/thaw if nobody cares.
     promise.future().onDiscard(lambda::bind(
           static_cast<void(*)(const UPID&, bool)>(terminate), self(), true));
@@ -1676,7 +1501,7 @@ private:
   void remove()
   {
     foreach (const string& cgroup, cgroups) {
-      Try<Nothing> remove = internal::remove(hierarchy, cgroup);
+      Try<Nothing> remove = cgroups::remove(hierarchy, cgroup);
       if (remove.isError()) {
         // If the `cgroup` still exists in the hierarchy, treat this as
         // an error; otherwise, treat this as a success since the `cgroup`
@@ -1724,8 +1549,7 @@ Future<Nothing> destroy(const string& hierarchy, const string& cgroup)
   }
 
   // If the freezer subsystem is available, destroy the cgroups.
-  Option<Error> error = verify(hierarchy, cgroup, "freezer.state");
-  if (error.isNone()) {
+  if (cgroups::exists(hierarchy, cgroup, "freezer.state")) {
     internal::Destroyer* destroyer =
       new internal::Destroyer(hierarchy, candidates);
     Future<Nothing> future = destroyer->future();
@@ -2447,16 +2271,7 @@ Result<Bytes> memsw_limit_in_bytes(
     const string& hierarchy,
     const string& cgroup)
 {
-  Try<bool> exists = cgroups::exists(
-      hierarchy, cgroup, "memory.memsw.limit_in_bytes");
-
-  if (exists.isError()) {
-    return Error(
-        "Could not check for existence of 'memory.memsw.limit_in_bytes': " +
-        exists.error());
-  }
-
-  if (!exists.get()) {
+  if (!cgroups::exists(hierarchy, cgroup, "memory.memsw.limit_in_bytes")) {
     return None();
   }
 
@@ -2482,16 +2297,7 @@ Try<bool> memsw_limit_in_bytes(
     const string& cgroup,
     const Bytes& limit)
 {
-  Try<bool> exists = cgroups::exists(
-      hierarchy, cgroup, "memory.memsw.limit_in_bytes");
-
-  if (exists.isError()) {
-    return Error(
-        "Could not check for existence of 'memory.memsw.limit_in_bytes': " +
-        exists.error());
-  }
-
-  if (!exists.get()) {
+  if (!cgroups::exists(hierarchy, cgroup, "memory.memsw.limit_in_bytes")) {
     return false;
   }
 
@@ -2587,15 +2393,11 @@ namespace killer {
 
 Try<bool> enabled(const string& hierarchy, const string& cgroup)
 {
-  Try<bool> exists = cgroups::exists(hierarchy, cgroup, "memory.oom_control");
-
-  if (exists.isError() || !exists.get()) {
-    return Error("Could not find 'memory.oom_control' control file: " +
-                 (exists.isError() ? exists.error() : "does not exist"));
+  if (!cgroups::exists(hierarchy, cgroup, "memory.oom_control")) {
+    return Error("Could not find 'memory.oom_control' control file");
   }
 
   Try<string> read = cgroups::read(hierarchy, cgroup, "memory.oom_control");
-
   if (read.isError()) {
     return Error("Could not read 'memory.oom_control' control file: " +
                  read.error());
@@ -2750,11 +2552,6 @@ Try<Owned<Counter>> Counter::create(
     const string& cgroup,
     Level level)
 {
-  Option<Error> error = verify(hierarchy, cgroup);
-  if (error.isSome()) {
-    return Error(error.get());
-  }
-
   return Owned<Counter>(new Counter(hierarchy, cgroup, level));
 }
 
