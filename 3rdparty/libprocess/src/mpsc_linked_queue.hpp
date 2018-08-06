@@ -75,7 +75,7 @@ public:
 
     // Exchange is guaranteed to only give the old value to one
     // producer, so this is safe and wait-free.
-    auto oldhead = head.exchange(newNode, std::memory_order_release);
+    auto oldhead = head.exchange(newNode, std::memory_order_acq_rel);
 
     // At this point if this thread context switches out we may block
     // the consumer from doing a dequeue (see below). Eventually we'll
@@ -91,9 +91,7 @@ public:
 
     // Check and see if there is an actual element linked from `tail`
     // since we use `tail` as a "stub" rather than the actual element.
-    auto nextTail = currentTail->next.exchange(
-        nullptr,
-        std::memory_order_relaxed);
+    auto nextTail = currentTail->next.load(std::memory_order_acquire);
 
     // There are three possible cases here:
     //
@@ -115,13 +113,15 @@ public:
       // connect it to the tail, yet, so we spin-wait. At this point
       // we are not wait-free anymore.
       do {
-        nextTail = currentTail->next.exchange(
-            nullptr,
-            std::memory_order_relaxed);
+        nextTail = currentTail->next.load(std::memory_order_acquire);
       } while (nextTail == nullptr);
     }
 
     CHECK_NOTNULL(nextTail);
+
+    // Set next pointer of current tail to null to disconnect it
+    // from the queue.
+    currentTail->next.store(nullptr, std::memory_order_release);
 
     auto element = nextTail->element;
     nextTail->element = nullptr;
