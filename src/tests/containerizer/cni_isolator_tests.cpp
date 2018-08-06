@@ -14,11 +14,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <algorithm>
+
 #include <gmock/gmock.h>
 
 #include <gtest/gtest.h>
 
 #include <process/clock.hpp>
+
+#include "common/values.hpp"
 
 #include "slave/gc_process.hpp"
 
@@ -1790,6 +1794,8 @@ public:
   {
     CniIsolatorTest::SetUp();
 
+    cleanup();
+
     Try<string> mockConfig = os::read(
         path::join(cniConfigDir, MESOS_MOCK_CNI_CONFIG));
 
@@ -1819,6 +1825,13 @@ public:
 
   void TearDown() override
   {
+    cleanup();
+
+    CniIsolatorTest::TearDown();
+  }
+
+  void cleanup()
+  {
     // This is a best effort cleanup of the
     // `MESOS_TEST_PORT_MAPPER_CHAIN`. We shouldn't fail and bail on
     // rest of the `TearDown` if we are not able to clean up the
@@ -1831,7 +1844,7 @@ public:
         iptables -w -t nat --list %s
 
         if [ $? -eq 0 ]; then
-          iptables -w -t nat -D OUTPUT ! -d 127.0.0.0/8 -m addrtype --dst-type LOCAL -j  %s
+          iptables -w -t nat -D OUTPUT ! -d 127.0.0.0/8 -m addrtype --dst-type LOCAL -j %s
           iptables -w -t nat -D PREROUTING -m addrtype --dst-type LOCAL -j %s
           iptables -w -t nat -F %s
           iptables -w -t nat -X %s
@@ -1849,14 +1862,14 @@ public:
                  << stringify(MESOS_TEST_PORT_MAPPER_CHAIN)
                  << ": " << result.error();
     }
-
-    CniIsolatorTest::TearDown();
   }
 };
 
 
-TEST_F(CniIsolatorPortMapperTest, ROOT_INTERNET_CURL_PortMapper)
+TEST_F(CniIsolatorPortMapperTest, ROOT_NC_PortMapper)
 {
+  constexpr int NUM_CONTAINERS = 3;
+
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
@@ -1903,101 +1916,133 @@ TEST_F(CniIsolatorPortMapperTest, ROOT_INTERNET_CURL_PortMapper)
 
   Resources resources(offers.get()[0].resources());
 
-  // Make sure we have a `ports` resource.
+  // Make sure we have sufficient `ports` resource.
   ASSERT_SOME(resources.ports());
-  ASSERT_LE(1, resources.ports()->range().size());
 
-  // Select a random port from the offer.
-  std::srand(std::time(0));
-  Value::Range ports = resources.ports()->range(0);
-  uint16_t hostPort =
-    ports.begin() + std::rand() % (ports.end() - ports.begin() + 1);
+  Try<vector<uint16_t>> _ports =
+    values::rangesToVector<uint16_t>(resources.ports().get());
 
-  CommandInfo command;
-  command.set_shell(false);
+  ASSERT_SOME(_ports);
 
-  TaskInfo task = createTask(
-      offer.slave_id(),
-      Resources::parse(
-        "cpus:1;mem:128;"
-        "ports:[" + stringify(hostPort) + "," + stringify(hostPort) + "]")
-        .get(),
-      command);
+  // Require "2 * NUM_CONTAINERS" here as we need container ports as
+  // well. This is because the containers are actually running on the
+  // host network namespace.
+  ASSERT_LE(NUM_CONTAINERS * 2, _ports->size());
 
-  ContainerInfo container = createContainerInfo("nginx:alpine");
+  vector<uint16_t> ports = _ports.get();
 
-  // Make sure the container joins the test CNI port-mapper network.
-  NetworkInfo* networkInfo = container.add_network_infos();
-  networkInfo->set_name(MESOS_CNI_PORT_MAPPER_NETWORK);
+  // Randomize the ports from the offer.
+  std::random_shuffle(ports.begin(), ports.end());
 
-  NetworkInfo::PortMapping* portMapping = networkInfo->add_port_mappings();
-  portMapping->set_container_port(80);
-  portMapping->set_host_port(hostPort);
+  vector<TaskInfo> tasks;
+  uint16_t hostPort[NUM_CONTAINERS];
+  uint16_t containerPort[NUM_CONTAINERS];
 
-  // Set the container for the task.
-  task.mutable_container()->CopyFrom(container);
+  for (int i = 0; i < NUM_CONTAINERS; i++) {
+    hostPort[i] = ports[i];
+    containerPort[i] = ports[ports.size() - 1 - i];
 
-  Future<TaskStatus> statusStarting;
-  Future<TaskStatus> statusRunning;
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&statusStarting))
-    .WillOnce(FutureArg<1>(&statusRunning));
+    CommandInfo command;
+    command.set_value("nc -l -p " + stringify(containerPort[i]));
 
-  driver.launchTasks(offer.id(), {task});
+    TaskInfo task = createTask(
+        offer.slave_id(),
+        Resources::parse(
+            "cpus:0.1;mem:32;ports:[" +
+            stringify(hostPort[i]) + "," +
+            stringify(hostPort[i]) + "]")
+          .get(),
+        command);
 
-  AWAIT_READY_FOR(statusStarting, Seconds(60));
-  EXPECT_EQ(task.task_id(), statusStarting->task_id());
-  EXPECT_EQ(TASK_STARTING, statusStarting->state());
+    ContainerInfo container = createContainerInfo();
 
-  AWAIT_READY_FOR(statusRunning, Seconds(300));
-  EXPECT_EQ(task.task_id(), statusRunning->task_id());
-  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
-  ASSERT_TRUE(statusRunning->has_container_status());
+    // Make sure the container joins the test CNI port-mapper network.
+    NetworkInfo* networkInfo = container.add_network_infos();
+    networkInfo->set_name(MESOS_CNI_PORT_MAPPER_NETWORK);
 
-  ContainerID containerId = statusRunning->container_status().container_id();
-  ASSERT_EQ(1, statusRunning->container_status().network_infos().size());
+    NetworkInfo::PortMapping* portMapping = networkInfo->add_port_mappings();
+    portMapping->set_container_port(containerPort[i]);
+    portMapping->set_host_port(hostPort[i]);
+
+    // Set the container for the task.
+    task.mutable_container()->CopyFrom(container);
+
+    tasks.push_back(task);
+  }
+
+  Future<TaskStatus> statusRunning[NUM_CONTAINERS];
+
+  EXPECT_CALL(sched, statusUpdate(&driver, TaskStatusStateEq(TASK_STARTING)))
+    .WillRepeatedly(Return());
+
+  for (int i = 0; i < NUM_CONTAINERS; i++) {
+    EXPECT_CALL(sched, statusUpdate(&driver, TaskStatusStateEq(TASK_RUNNING)))
+      .WillOnce(FutureArg<1>(&statusRunning[i]))
+      .RetiresOnSaturation();
+  }
+
+  driver.launchTasks(offer.id(), tasks);
+
+  ContainerID containerId[NUM_CONTAINERS];
+
+  for (int i = 0; i < NUM_CONTAINERS; i++) {
+    AWAIT_READY_FOR(statusRunning[i], Seconds(300));
+    ASSERT_TRUE(statusRunning[i]->has_container_status());
+
+    containerId[i] = statusRunning[i]->container_status().container_id();
+    ASSERT_EQ(1, statusRunning[i]->container_status().network_infos().size());
+  }
+
+  Future<TaskStatus> statusFinished[NUM_CONTAINERS];
+
+  for (int i = 0; i < NUM_CONTAINERS; i++) {
+    EXPECT_CALL(sched, statusUpdate(&driver, _))
+      .WillOnce(FutureArg<1>(&statusFinished[i]))
+      .RetiresOnSaturation();
+    }
+
+  // Wait for the executor to exit. We are using 'gc.schedule' as a
+  // proxy event to monitor the exit of the executor.
+  Future<Nothing> gcSchedule[NUM_CONTAINERS];
+  for (int i = 0; i < NUM_CONTAINERS; i++) {
+    gcSchedule[i] = FUTURE_DISPATCH(
+        _, &slave::GarbageCollectorProcess::schedule);
+  }
 
   // Try connecting to the nginx server on port 80 through a
   // non-loopback IP address on `hostPort`.
   Try<net::IP::Network> hostNetwork = getNonLoopbackIP();
   ASSERT_SOME(hostNetwork);
 
-  // `TASK_RUNNING` does not guarantee that the service is running.
-  // Hence, we need to re-try the service multiple times.
-  Duration waited = Duration::zero();
-  do {
-    Try<string> connect = os::shell(
-        "curl -I http://" + stringify(hostNetwork->address()) +
-        ":" + stringify(hostPort));
+  for (int i = 0; i < NUM_CONTAINERS; i++) {
+    // `TASK_RUNNING` does not guarantee that the service is running.
+    // Hence, we need to re-try the service multiple times.
+    Duration waited = Duration::zero();
+    do {
+      Try<string> connect = os::shell(
+          "echo foo | nc " + stringify(hostNetwork->address()) +
+          " " + stringify(hostPort[i]));
 
-    if (connect.isSome()) {
-      LOG(INFO) << "Connection to nginx successful: " << connect.get();
-      break;
-    }
+      if (connect.isSome()) {
+        LOG(INFO) << "Connection to nginx successful: " << connect.get();
+        break;
+      }
 
-    os::sleep(Milliseconds(100));
-    waited += Milliseconds(100);
-  } while (waited < Seconds(10));
+      os::sleep(Milliseconds(100));
+      waited += Milliseconds(100);
+    } while (waited < Seconds(10));
 
-  EXPECT_LE(waited, Seconds(5));
+    EXPECT_LE(waited, Seconds(5));
+  }
 
-  // Kill the task.
-  Future<TaskStatus> statusKilled;
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&statusKilled));
+  for (int i = 0; i < NUM_CONTAINERS; i++) {
+    AWAIT_READY(statusFinished[i]);
+    EXPECT_EQ(TASK_FINISHED, statusFinished[i]->state());
+  }
 
-  // Wait for the executor to exit. We are using 'gc.schedule' as a
-  // proxy event to monitor the exit of the executor.
-  Future<Nothing> gcSchedule = FUTURE_DISPATCH(
-      _, &slave::GarbageCollectorProcess::schedule);
-
-  driver.killTask(task.task_id());
-
-  AWAIT_READY(statusKilled);
-
-  EXPECT_EQ(TASK_KILLED, statusKilled->state());
-
-  AWAIT_READY(gcSchedule);
+  for (int i = 0; i < NUM_CONTAINERS; i++) {
+    AWAIT_READY(gcSchedule[i]);
+  }
 
   // Make sure the iptables chain `MESOS-TEST-PORT-MAPPER-CHAIN`
   // doesn't have any iptable rules once the task is killed. The only
