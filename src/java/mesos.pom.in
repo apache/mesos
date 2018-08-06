@@ -9,8 +9,8 @@
   <description>The Apache Mesos Java API jar.</description>
   <url>http://mesos.apache.org</url>
   <scm>
-    <connection>scm:git:https://git-wip-us.apache.org/repos/asf/mesos.git</connection>
-    <url>https://git-wip-us.apache.org/repos/asf/mesos.git</url>
+    <connection>scm:git:https://gitbox.apache.org/repos/asf/mesos.git</connection>
+    <url>https://gitbox.apache.org/repos/asf/mesos.git</url>
   </scm>
   <!-- We inherit from the apache parent pom to use its repositories
        but since we don't use Maven as the primary build system for

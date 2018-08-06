@@ -29,7 +29,7 @@ The latest Mesos 1.3.x release, 1.3.1, is now available for [download](http://me
 * [MESOS-7796](https://issues.apache.org/jira/browse/MESOS-7796) - `LIBPROCESS_IP` isn't passed on to the fetcher.
 * [MESOS-7830](https://issues.apache.org/jira/browse/MESOS-7830) - Sandbox_path volume does not have ownership set correctly.
 
-Full release notes are available in the release [CHANGELOG](https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=1.3.1)
+Full release notes are available in the release [CHANGELOG](https://gitbox.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=1.3.1)
 
 ### Upgrades
 

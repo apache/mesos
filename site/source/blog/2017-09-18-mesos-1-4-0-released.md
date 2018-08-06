@@ -53,7 +53,7 @@ The latest Mesos release, 1.4.0, is now available for [download](/downloads). Th
   Support for frameworks and operators specifying Linux bounding capabilities in
   order to limit the maximum privileges that a task may acquire.
 
-More than 200 other bug fixes and improvements made it into this release. For full release notes with all features and bug fixes, please refer to the [CHANGELOG](https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=1.4.0).
+More than 200 other bug fixes and improvements made it into this release. For full release notes with all features and bug fixes, please refer to the [CHANGELOG](https://gitbox.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=1.4.0).
 
 ### Upgrades
 

@@ -33,7 +33,7 @@ The latest (and final) Mesos 1.2.x release, 1.2.3, is now available for [downloa
 * [MESOS-8080](https://issues.apache.org/jira/browse/MESOS-8080) - The default executor does not propagate missing task exit status correctly.
 * [MESOS-8135](https://issues.apache.org/jira/browse/MESOS-8135) - Masters can lose track of tasks' executor IDs.
 
-Full release notes are available in the release [CHANGELOG](https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=1.2.3)
+Full release notes are available in the release [CHANGELOG](https://gitbox.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=1.2.3)
 
 ### Upgrades
 

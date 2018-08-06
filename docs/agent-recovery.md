@@ -61,7 +61,7 @@ behavior of a Mesos agent:
     - If reconfiguration_policy=additive, the agent will allow the new
       configuration to contain additional attributes, increased resourced or an
       additional fault domain. For a more detailed description, see
-      [this](https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob;f=src/slave/compatibility.hpp;h=78b421a01abe5d2178c93832577577a7ba282b38;hb=HEAD#l37).
+      [this](https://gitbox.apache.org/repos/asf?p=mesos.git;a=blob;f=src/slave/compatibility.hpp;h=78b421a01abe5d2178c93832577577a7ba282b38;hb=HEAD#l37).
 
 * `recover`: Whether to recover status updates and reconnect with old
   executors [Default: reconnect]

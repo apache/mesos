@@ -28,7 +28,7 @@ The latest Mesos release, 0.28.3, is now available for [download](http://mesos.a
 * [MESOS-6527](https://issues.apache.org/jira/browse/MESOS-6527) - Memory leak in the libprocess request decoder.
 * [MESOS-6621](https://issues.apache.org/jira/browse/MESOS-6621) - SSL downgrade path will CHECK-fail when using both temporary and persistent sockets.
 
-Full release notes are available in the release [CHANGELOG](https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.28.3)
+Full release notes are available in the release [CHANGELOG](https://gitbox.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.28.3)
 
 ### Upgrades
 

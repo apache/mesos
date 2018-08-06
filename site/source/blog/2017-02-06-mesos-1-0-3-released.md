@@ -21,7 +21,7 @@ The latest Mesos release, 1.0.3, is now available for [download](http://mesos.ap
 
 [MESOS-6917](https://issues.apache.org/jira/browse/MESOS-6917) - Segfault when the executor sets an invalid UUID when sending a status update.
 
-Full release notes are available in the release [CHANGELOG](https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=1.0.3)
+Full release notes are available in the release [CHANGELOG](https://gitbox.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=1.0.3)
 
 ### Upgrades
 

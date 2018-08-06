@@ -34,7 +34,7 @@ Mesos 1.0.0 introduced experimental support for Windows.
 Following are the instructions for Windows 10.
 
     # Clone (or extract) Mesos.
-    git clone https://git-wip-us.apache.org/repos/asf/mesos.git
+    git clone https://gitbox.apache.org/repos/asf/mesos.git
     cd mesos
 
     # Configure using CMake for an out-of-tree build.

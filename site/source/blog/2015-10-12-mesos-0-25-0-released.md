@@ -17,7 +17,7 @@ This release includes the following features and improvements:
  * [[MESOS-2044]](https://issues.apache.org/jira/browse/MESOS-2044) - Extended Module APIs to enable IP per container assignment, isolation and resolution. Please refer to [the container networking documentation](http://mesos.apache.org/documentation/latest/networking-for-mesos-managed-containers/) for more information.
 
 Furthermore, 100+ bugs and improvements have made it into this release.
-For full release notes with all features and bug fixes, please refer to the [CHANGELOG](https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.25.0).
+For full release notes with all features and bug fixes, please refer to the [CHANGELOG](https://gitbox.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.25.0).
 
 ### Upgrades
 

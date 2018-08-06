@@ -21,7 +21,7 @@ The latest Mesos release, 0.28.2, is now available for [download](http://mesos.a
 * [MESOS-5380](https://issues.apache.org/jira/browse/MESOS-5380) - Killing a queued task can cause the corresponding command executor to never terminate.
 * [MESOS-5307](https://issues.apache.org/jira/browse/MESOS-5307) - Sandbox mounts should not be in the host mount namespace.
 
-Full release notes are available in the release [CHANGELOG](https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.28.2)
+Full release notes are available in the release [CHANGELOG](https://gitbox.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.28.2)
 
 ### Upgrades
 

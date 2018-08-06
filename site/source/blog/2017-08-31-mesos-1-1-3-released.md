@@ -32,7 +32,7 @@ specifically, this release includes the following major fixes and improvements:
 * [MESOS-7865](https://issues.apache.org/jira/browse/MESOS-7865) - Agent may process a kill task and still launch the task.
 
 Full release notes are available in the release
-[CHANGELOG](https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=1.1.3)
+[CHANGELOG](https://gitbox.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=1.1.3)
 
 ### Upgrades
 

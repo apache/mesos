@@ -67,7 +67,7 @@ generated, either symlink or copy it to the root of the Mesos
 repository.
 
 ```sh
-git clone https://git-wip-us.apache.org/repos/asf/mesos.git
+git clone https://gitbox.apache.org/repos/asf/mesos.git
 cd mesos && mkdir build && cd build
 cmake .. -GNinja -DCMAKE_EXPORT_COMPILE_COMMANDS=YES
 ninja

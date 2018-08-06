@@ -18,7 +18,7 @@ This release includes fixes and improvements for the following:
 * [MESOS-4754](https://issues.apache.org/jira/browse/MESOS-4754) - The "executors" field is exposed under a backwards incompatible schema.
 * [MESOS-4687](https://issues.apache.org/jira/browse/MESOS-4687) - Implement reliable floating point for scalar resources.
 
-Full release notes are available in the release [CHANGELOG](https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.27.2).
+Full release notes are available in the release [CHANGELOG](https://gitbox.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.27.2).
 
 ### Upgrades
 

@@ -11,7 +11,7 @@ tags: Release
 
 The latest Mesos release, 0.26.0, is now available for [download](http://mesos.apache.org/downloads).
 103+ bugfixes and improvements made it into this release.
-For full release notes with all features and bug fixes, please refer to the [CHANGELOG](https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.26.0).
+For full release notes with all features and bug fixes, please refer to the [CHANGELOG](https://gitbox.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=0.26.0).
 
 ### Upgrades
 

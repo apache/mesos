@@ -24,7 +24,7 @@ The latest Mesos 1.5.x release, 1.5.1, is now available for [download](http://me
 * [MESOS-8135](https://issues.apache.org/jira/browse/MESOS-8135) - Masters can lose track of tasks' executor IDs.
 * [MESOS-8169](https://issues.apache.org/jira/browse/MESOS-8169) - Incorrect master validation forces executor IDs to be globally unique.
 
-Full release notes are available in the release [CHANGELOG](https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=1.5.1)
+Full release notes are available in the release [CHANGELOG](https://gitbox.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=1.5.1)
 
 ### Upgrades
 

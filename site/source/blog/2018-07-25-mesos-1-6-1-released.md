@@ -25,7 +25,7 @@ Apache Mesos 1.6.1 is now available for [download](http://mesos.apache.org/downl
 * [MESOS-9024](https://issues.apache.org/jira/browse/MESOS-9024) - Mesos master segfaults with stack overflow under load.
 * [MESOS-9025](https://issues.apache.org/jira/browse/MESOS-9025) - The container which joins CNI network and has checkpoint enabled will be mistakenly destroyed by agent.
 
-Full release notes are available in the release [CHANGELOG](https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=1.6.1).
+Full release notes are available in the release [CHANGELOG](https://gitbox.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=1.6.1).
 
 ### Upgrades
 
