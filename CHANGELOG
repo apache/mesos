@@ -1014,6 +1014,7 @@ Release Notes - Mesos - Version 1.4.2 (WIP)
   * [MESOS-8576] - Improve discard handling of 'Docker::inspect()'.
   * [MESOS-8604] - Quota headroom tracking may be incorrect in the presence of hierarchical reservation.
   * [MESOS-8605] - Terminal task status update will not send if 'docker inspect' is hung.
+  * [MESOS-8626] - The 'allocatable' check in the allocator is problematic with multi-role frameworks.
   * [MESOS-8651] - Potential memory leaks in the `volume/sandbox_path` isolator.
   * [MESOS-8786] - CgroupIsolatorProcess accesses subsystem processes directly.
   * [MESOS-8830] - Agent gc on old slave sandboxes could empty persistent volume data
