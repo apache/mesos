@@ -797,6 +797,47 @@ TEST(ResourcesTest, Resources)
 }
 
 
+TEST(ResourcesTest, MoveConstruction)
+{
+  const Resources r = CHECK_NOTERROR(Resources::parse(
+      "cpus:45.55;mem:1024;ports:[10000-20000, 30000-50000];disk:512"));
+
+  // Move constructor for `Resources`.
+  Resources r1 = r;
+  Resources rr1{std::move(r)};
+  EXPECT_EQ(r, rr1);
+
+  // Move constructor for `vector<Resource>`.
+  vector<Resource> r2;
+  foreach (const Resource& resource, r) {
+    r2.push_back(resource);
+  }
+  Resources rr2{std::move(r2)};
+  EXPECT_EQ(r, rr2);
+
+  // Move constructor for `google::protobuf::RepeatedPtrField<Resource>`.
+  google::protobuf::RepeatedPtrField<Resource> r3;
+  foreach (const Resource& resource, r) {
+    *r3.Add() = resource;
+  }
+  Resources rr3{std::move(r3)};
+  EXPECT_EQ(r, rr3);
+
+  // Move assignment for `Resources`.
+  Resources r4 = r;
+  Resources rr4;
+  rr4 = std::move(r4);
+  EXPECT_EQ(r, rr4);
+
+  // Move constructor for `Resource`.
+  const Resource resource = CHECK_NOTERROR(Resources::parse("cpu", "1.0", "*"));
+
+  Resource r5 = resource;
+  Resources rr5{std::move(r5)};
+  EXPECT_EQ(Resources(resource), rr5);
+}
+
+
 TEST(ResourcesTest, Printing)
 {
   Resources r = Resources::parse(
@@ -1078,9 +1119,10 @@ TEST(ResourcesTest, ScalarAddition)
   r1 += cpus1;
   r1 += mem1;
 
+  // Test +=(Resource&&).
   Resources r2;
-  r2 += cpus2;
-  r2 += mem2;
+  r2 += Resource(cpus2);
+  r2 += Resource(mem2);
 
   Resources sum = r1 + r2;
 
@@ -1088,6 +1130,15 @@ TEST(ResourcesTest, ScalarAddition)
   EXPECT_EQ(2u, sum.size());
   EXPECT_EQ(3, sum.get<Value::Scalar>("cpus")->value());
   EXPECT_EQ(15, sum.get<Value::Scalar>("mem")->value());
+
+  // Verify operator+ with rvalue references.
+  Resources sum1 = Resources(r1) + r2;
+  Resources sum2 = r1 + Resources(r2);
+  Resources sum3 = Resources(r1) + Resources(r2);
+
+  EXPECT_EQ(sum, sum1);
+  EXPECT_EQ(sum, sum2);
+  EXPECT_EQ(sum, sum3);
 
   Resources r = r1;
   r += r2;
@@ -1107,7 +1158,7 @@ TEST(ResourcesTest, ScalarAddition2)
 
   Resources r1;
   r1 += cpus1;
-  r1 += cpus2;
+  r1 += Resource(cpus2); // Test +=(Resource&&).
 
   Resources r2;
   r2 += cpus3;
@@ -1118,6 +1169,15 @@ TEST(ResourcesTest, ScalarAddition2)
   EXPECT_EQ(2u, sum.size());
   EXPECT_EQ(9, sum.cpus().get());
   EXPECT_EQ(sum, Resources::parse("cpus(role1):6;cpus(role2):3").get());
+
+  // Verify operator+ with rvalue references.
+  Resources sum1 = Resources(r1) + r2;
+  Resources sum2 = r1 + Resources(r2);
+  Resources sum3 = Resources(r1) + Resources(r2);
+
+  EXPECT_EQ(sum, sum1);
+  EXPECT_EQ(sum, sum2);
+  EXPECT_EQ(sum, sum3);
 }
 
 
@@ -1248,7 +1308,7 @@ TEST(ResourcesTest, RangesAddition)
 
   Resources r;
   r += ports1;
-  r += ports2;
+  r += Resource(ports2); // Test operator+=(Resource&&).
 
   EXPECT_FALSE(r.empty());
 
@@ -1265,7 +1325,7 @@ TEST(ResourcesTest, RangesAddition2)
 
   Resources r;
   r += ports1;
-  r += ports2;
+  r += Resource(ports2); // Test operator+=(Resource&&).
 
   EXPECT_FALSE(r.empty());
 
@@ -1284,7 +1344,7 @@ TEST(ResourcesTest, RangesAddition3)
 
   Resources r1;
   r1 += ports1;
-  r1 += ports2;
+  r1 += Resource(ports2); // Test operator+=(Resource&&).
 
   EXPECT_FALSE(r1.empty());
 
@@ -1294,7 +1354,7 @@ TEST(ResourcesTest, RangesAddition3)
 
   Resources r2;
   r2 += ports3;
-  r2 += ports4;
+  r2 += Resource(ports4); // Test operator+=(Resource&&).
 
   EXPECT_FALSE(r2.empty());
 
@@ -1322,7 +1382,7 @@ TEST(ResourcesTest, RangesAddition4)
 
   Resources r;
   r += ports1;
-  r += ports2;
+  r += Resource(ports2); // Test operator+=(Resource&&).
 
   EXPECT_FALSE(r.empty());
 
@@ -1498,7 +1558,7 @@ TEST(ResourcesTest, SetAddition)
 
   Resources r;
   r += disks1;
-  r += disks2;
+  r += Resource(disks2); // Test operator+=(Resource&&).
 
   EXPECT_FALSE(r.empty());
 
@@ -1612,7 +1672,7 @@ TEST(ResourceProviderIDTest, Addition)
 
   Resources r1;
   r1 += cpus;
-  r1 += disk2;
+  r1 += Resource(disk2); // Test operator+=(Resource&&).
 
   EXPECT_FALSE(r1.empty());
   EXPECT_EQ(2u, r1.size());
@@ -1624,7 +1684,7 @@ TEST(ResourceProviderIDTest, Addition)
 
   Resources r2;
   r2 += disk2;
-  r2 += disk2;
+  r2 += Resource(disk2); // Test operator+=(Resource&&).
 
   EXPECT_FALSE(r2.empty());
   EXPECT_EQ(1u, r2.size());
@@ -1635,7 +1695,7 @@ TEST(ResourceProviderIDTest, Addition)
 
   Resources r3;
   r3 += disk1;
-  r3 += disk2;
+  r3 += Resources(disk2); // Test operator+=(Resource&&).
 
   EXPECT_FALSE(r3.empty());
   EXPECT_EQ(2u, r3.size());
@@ -2052,6 +2112,11 @@ TEST(ReservedResourcesTest, AdditionStaticallyReserved)
     createReservedResource("cpus", "12", createStaticReservationInfo("role"));
 
   EXPECT_EQ(expected, left + right);
+
+  // Test operator+ with rvalue references.
+  EXPECT_EQ(expected, Resources(left) + right);
+  EXPECT_EQ(expected, left + Resources(right));
+  EXPECT_EQ(expected, Resources(left) + Resources(right));
 }
 
 
@@ -2065,6 +2130,11 @@ TEST(ReservedResourcesTest, AdditionDynamicallyReservedWithoutLabels)
   Resources expected = createReservedResource("cpus", "12", reservation);
 
   EXPECT_EQ(expected, left + right);
+
+  // Test operator+ with rvalue references.
+  EXPECT_EQ(expected, left + Resources(right));
+  EXPECT_EQ(expected, Resources(left) + right);
+  EXPECT_EQ(expected, Resources(left) + Resources(right));
 }
 
 
@@ -2081,6 +2151,11 @@ TEST(ReservedResourcesTest, AdditionDynamicallyReservedWithSameLabels)
   Resources expected = createReservedResource("cpus", "12", reservation);
 
   EXPECT_EQ(expected, left + right);
+
+  // Test operator+ with rvalue references.
+  EXPECT_EQ(expected, left + Resources(right));
+  EXPECT_EQ(expected, Resources(left) + right);
+  EXPECT_EQ(expected, Resources(left) + Resources(right));
 }
 
 
@@ -2104,6 +2179,15 @@ TEST(ReservedResourcesTest, AdditionDynamicallyReservedWithDistinctLabels)
   EXPECT_EQ(2u, sum.size());
   EXPECT_FALSE(sum == r1 + r1);
   EXPECT_FALSE(sum == r2 + r2);
+
+  // Test operator+ with rvalue references.
+  Resources sum1 = Resources(r1) + r2;
+  Resources sum2 = r1 + Resources(r2);
+  Resources sum3 = Resources(r1) + Resources(r2);
+
+  EXPECT_EQ(sum, sum1);
+  EXPECT_EQ(sum, sum2);
+  EXPECT_EQ(sum, sum3);
 }
 
 
@@ -2402,6 +2486,15 @@ TEST(DiskResourcesTest, Addition)
   EXPECT_TRUE(sum.contains(r5));
   EXPECT_FALSE(sum.contains(r3));
   EXPECT_FALSE(sum.contains(r6));
+
+  // Test operator+ with rvalue references.
+  Resources sum1 = Resources(r4) + r5;
+  Resources sum2 = r4 + Resources(r5);
+  Resources sum3 = Resources(r4) + Resources(r5);
+
+  EXPECT_EQ(sum, sum1);
+  EXPECT_EQ(sum, sum2);
+  EXPECT_EQ(sum, sum3);
 }
 
 
@@ -2435,7 +2528,17 @@ TEST(DiskResourcesTest, DiskSourceAddition)
   EXPECT_FALSE(r8.contains(r5));
   EXPECT_TRUE(r8.contains(r8));
 
-  EXPECT_NE(r4, r1 + r5);
+  Resources sum = r1 + r5;
+  EXPECT_NE(r4, sum);
+
+  // Test operator+ with rvalue references.
+  Resources sum1 = Resources(r1) + r5;
+  Resources sum2 = r1 + Resources(r5);
+  Resources sum3 = Resources(r1) + Resources(r5);
+
+  EXPECT_EQ(sum, sum1);
+  EXPECT_EQ(sum, sum2);
+  EXPECT_EQ(sum, sum3);
 }
 
 
@@ -2869,6 +2972,15 @@ TEST(RevocableResourceTest, Addition)
   EXPECT_TRUE(sum.contains(r5));
   EXPECT_FALSE(sum.contains(r3));
   EXPECT_FALSE(sum.contains(r6));
+
+  // Test operator+ with rvalue references.
+  Resources sum1 = Resources(r4) + r5;
+  Resources sum2 = r4 + Resources(r5);
+  Resources sum3 = Resources(r4) + Resources(r5);
+
+  EXPECT_EQ(sum, sum1);
+  EXPECT_EQ(sum, sum2);
+  EXPECT_EQ(sum, sum3);
 }
 
 
@@ -3339,6 +3451,15 @@ TEST(SharedResourcesTest, ScalarAdditionShared)
   EXPECT_EQ(50, sum.get<Value::Scalar>("disk")->value());
   EXPECT_EQ(2u, sum.count(disk));
 
+  // Test operator+ with rvalue references.
+  Resources sum1 = Resources(r1) + r2;
+  Resources sum2 = r1 + Resources(r2);
+  Resources sum3 = Resources(r1) + Resources(r2);
+
+  EXPECT_EQ(sum, sum1);
+  EXPECT_EQ(sum, sum2);
+  EXPECT_EQ(sum, sum3);
+
   // Verify operator+= on Resources is the same as operator+.
   Resources r = r1;
   r += r2;
@@ -3535,7 +3656,7 @@ TEST(AllocatedResourcesTest, Addition)
   cpus2.allocate("role2");
 
   EXPECT_EQ(2u, (cpus1 + cpus2).size());
-  EXPECT_SOME_EQ(2.0, (cpus1 + cpus2).cpus());
+  EXPECT_SOME_EQ(2.0, (cpus1 + Resources(cpus2)).cpus());
 }
 
 
