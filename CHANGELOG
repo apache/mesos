@@ -1035,6 +1035,7 @@ Release Notes - Mesos - Version 1.4.2 (WIP)
   * [MESOS-8986] - `slave.available()` in the allocator is expensive and drags down allocation performance.
   * [MESOS-8987] - Master asks agent to shutdown upon auth errors.
   * [MESOS-9049] - Agent GC could unmount a dangling persistent volume multiple times.
+  * [MESOS-9088] - `createStrippedScalarQuantity()` should clear all metadata fields.
   * [MESOS-9125] - Port mapper CNI plugin might fail with "Resource temporarily unavailable"
   * [MESOS-9127] - Port mapper CNI plugin might deadlock iptables on the agent.
 
