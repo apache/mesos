@@ -2019,7 +2019,7 @@ Resources Resources::operator+(Resource_&& that) const
 }
 
 
-Resources Resources::operator+(const Resource& that) const
+Resources Resources::operator+(const Resource& that) const &
 {
   Resources result = *this;
   result += that;
@@ -2027,7 +2027,15 @@ Resources Resources::operator+(const Resource& that) const
 }
 
 
-Resources Resources::operator+(Resource&& that) const
+Resources Resources::operator+(const Resource& that) &&
+{
+  Resources result = std::move(*this);
+  result += that;
+  return result;
+}
+
+
+Resources Resources::operator+(Resource&& that) const &
 {
   Resources result = *this;
   result += std::move(that);
@@ -2035,7 +2043,15 @@ Resources Resources::operator+(Resource&& that) const
 }
 
 
-Resources Resources::operator+(const Resources& that) const
+Resources Resources::operator+(Resource&& that) &&
+{
+  Resources result = std::move(*this);
+  result += std::move(that);
+  return result;
+}
+
+
+Resources Resources::operator+(const Resources& that) const &
 {
   Resources result = *this;
   result += that;
@@ -2043,10 +2059,26 @@ Resources Resources::operator+(const Resources& that) const
 }
 
 
-Resources Resources::operator+(Resources&& that) const
+Resources Resources::operator+(const Resources& that) &&
+{
+  Resources result = std::move(*this);
+  result += that;
+  return result;
+}
+
+
+Resources Resources::operator+(Resources&& that) const &
 {
   Resources result = std::move(that);
   result += *this;
+  return result;
+}
+
+
+Resources Resources::operator+(Resources&& that) &&
+{
+  Resources result = std::move(*this);
+  result += std::move(that);
   return result;
 }
 

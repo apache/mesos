@@ -612,17 +612,20 @@ public:
   // doing subtraction), the semantics is as though the second operand
   // was actually just an empty resource (as though you didn't do the
   // operation at all).
-  //
-  // TODO(mzhu): Add overloading for addition operations where lhs is (also)
-  // an rvalue reference.
-  Resources operator+(const Resource& that) const;
-  Resources operator+(Resource&& that) const;
+  Resources operator+(const Resource& that) const &;
+  Resources operator+(const Resource& that) &&;
+
+  Resources operator+(Resource&& that) const &;
+  Resources operator+(Resource&& that) &&;
 
   Resources& operator+=(const Resource& that);
   Resources& operator+=(Resource&& that);
 
-  Resources operator+(const Resources& that) const;
-  Resources operator+(Resources&& that) const;
+  Resources operator+(const Resources& that) const &;
+  Resources operator+(const Resources& that) &&;
+
+  Resources operator+(Resources&& that) const &;
+  Resources operator+(Resources&& that) &&;
 
   Resources& operator+=(const Resources& that);
   Resources& operator+=(Resources&& that);
