@@ -2010,22 +2010,6 @@ bool Resources::operator!=(const Resources& that) const
 }
 
 
-Resources Resources::operator+(const Resource_& that) const
-{
-  Resources result = *this;
-  result += that;
-  return result;
-}
-
-
-Resources Resources::operator+(Resource_&& that) const
-{
-  Resources result = *this;
-  result += std::move(that);
-  return result;
-}
-
-
 Resources Resources::operator+(const Resource& that) const &
 {
   Resources result = *this;
@@ -2187,14 +2171,6 @@ Resources& Resources::operator+=(Resources&& that)
   }
 
   return *this;
-}
-
-
-Resources Resources::operator-(const Resource_& that) const
-{
-  Resources result = *this;
-  result -= that;
-  return result;
 }
 
 

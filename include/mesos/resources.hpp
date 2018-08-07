@@ -668,13 +668,9 @@ private:
   void add(Resource_&& r);
   void subtract(const Resource_& r);
 
-  Resources operator+(const Resource_& that) const;
   Resources& operator+=(const Resource_& that);
-
-  Resources operator+(Resource_&& that) const;
   Resources& operator+=(Resource_&& that);
 
-  Resources operator-(const Resource_& that) const;
   Resources& operator-=(const Resource_& that);
 
   std::vector<Resource_> resources;
