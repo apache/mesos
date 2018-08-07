@@ -875,7 +875,7 @@ TEST(ProcessTest, Process_BENCHMARK_MpscLinkedQueueNonContendedRead)
 
   std::vector<std::thread> producers;
   for (unsigned int t = 0; t < producerCount; t++) {
-    producers.push_back(std::thread([s, &q]() {
+    producers.push_back(std::thread([&]() {
       for (int i = 0; i < messageCount; i++) {
         q.enqueue(s);
       }
