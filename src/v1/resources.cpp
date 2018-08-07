@@ -1437,6 +1437,13 @@ Resources::Resources(const Resource& resource)
 }
 
 
+Resources::Resources(Resource&& resource)
+{
+  // NOTE: Invalid and zero Resource object will be ignored.
+  *this += std::move(resource);
+}
+
+
 Resources::Resources(const vector<Resource>& _resources)
 {
   foreach (const Resource& resource, _resources) {
@@ -1446,11 +1453,31 @@ Resources::Resources(const vector<Resource>& _resources)
 }
 
 
+Resources::Resources(vector<Resource>&& _resources)
+{
+  resources.reserve(_resources.size());
+  foreach (Resource& resource, _resources) {
+    // NOTE: Invalid and zero Resource objects will be ignored.
+    *this += std::move(resource);
+  }
+}
+
+
 Resources::Resources(const RepeatedPtrField<Resource>& _resources)
 {
   foreach (const Resource& resource, _resources) {
     // NOTE: Invalid and zero Resource objects will be ignored.
     *this += resource;
+  }
+}
+
+
+Resources::Resources(RepeatedPtrField<Resource>&& _resources)
+{
+  resources.reserve(_resources.size());
+  foreach (Resource& resource, _resources) {
+    // NOTE: Invalid and zero Resource objects will be ignored.
+    *this += std::move(resource);
   }
 }
 
@@ -1991,6 +2018,14 @@ Resources Resources::operator+(const Resource_& that) const
 }
 
 
+Resources Resources::operator+(Resource_&& that) const
+{
+  Resources result = *this;
+  result += std::move(that);
+  return result;
+}
+
+
 Resources Resources::operator+(const Resource& that) const
 {
   Resources result = *this;
@@ -1999,10 +2034,26 @@ Resources Resources::operator+(const Resource& that) const
 }
 
 
+Resources Resources::operator+(Resource&& that) const
+{
+  Resources result = *this;
+  result += std::move(that);
+  return result;
+}
+
+
 Resources Resources::operator+(const Resources& that) const
 {
   Resources result = *this;
   result += that;
+  return result;
+}
+
+
+Resources Resources::operator+(Resources&& that) const
+{
+  Resources result = std::move(that);
+  result += *this;
   return result;
 }
 
@@ -2029,10 +2080,42 @@ void Resources::add(const Resource_& that)
 }
 
 
+void Resources::add(Resource_&& that)
+{
+  if (that.isEmpty()) {
+    return;
+  }
+
+  bool found = false;
+  foreach (Resource_& resource_, resources) {
+    if (internal::addable(resource_.resource, that)) {
+      resource_ += that;
+      found = true;
+      break;
+    }
+  }
+
+  // Cannot be combined with any existing Resource object.
+  if (!found) {
+    resources.push_back(std::move(that));
+  }
+}
+
+
 Resources& Resources::operator+=(const Resource_& that)
 {
   if (that.validate().isNone()) {
     add(that);
+  }
+
+  return *this;
+}
+
+
+Resources& Resources::operator+=(Resource_&& that)
+{
+  if (that.validate().isNone()) {
+    add(std::move(that));
   }
 
   return *this;
@@ -2047,10 +2130,28 @@ Resources& Resources::operator+=(const Resource& that)
 }
 
 
+Resources& Resources::operator+=(Resource&& that)
+{
+  *this += Resource_(std::move(that));
+
+  return *this;
+}
+
+
 Resources& Resources::operator+=(const Resources& that)
 {
   foreach (const Resource_& resource_, that) {
     add(resource_);
+  }
+
+  return *this;
+}
+
+
+Resources& Resources::operator+=(Resources&& that)
+{
+  foreach (Resource_& resource_, that.resources) {
+    add(std::move(resource_));
   }
 
   return *this;
