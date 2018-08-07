@@ -8499,9 +8499,6 @@ Future<bool> Slave::authorizeSandboxAccess(
     return true;
   }
 
-  // Set authorization subject.
-  Option<authorization::Subject> subject = createSubject(principal);
-
   return ObjectApprovers::create(
       authorizer,
       principal,
