@@ -20,8 +20,8 @@ MAINTAINER The Apache Mesos Developers <dev@mesos.apache.org>
 WORKDIR /tmp/build
 
 # Build Mesos-flavored `clang-tidy`.
-RUN apt-get update
-RUN apt-get install -qy --no-install-recommends \
+RUN apt-get update && \
+  apt-get install -qy --no-install-recommends \
   build-essential \
   ca-certificates \
   curl \
@@ -54,7 +54,8 @@ ENV PATH /opt/bin:$PATH
 
 # Install Mesos dependencies
 # TODO(mpark): Remove `libssl-dev` from this list once `MESOS-6942` is resolved.
-RUN apt-get install -qy \
+RUN apt-get update && \
+  apt-get install -qy \
   autoconf \
   libacl1-dev \
   libapr1-dev \
@@ -68,7 +69,8 @@ RUN apt-get install -qy \
   apt-get clean
 
 # Install `jq` and `parallel` for `clang-tidy` invocation.
-RUN apt-get install -qy \
+RUN apt-get update && \
+  apt-get install -qy \
   jq \
   parallel && \
   apt-get clean
