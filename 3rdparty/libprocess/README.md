@@ -6,6 +6,7 @@ libprocess provides general primitives and abstractions for asynchronous program
 
 ## Table of Contents
 
+* [Presentations](#presentations)
 * [Overview](#overview)
 * [Futures and Promises](#futures-and-promises)
 * [HTTP](#http)
@@ -15,6 +16,13 @@ libprocess provides general primitives and abstractions for asynchronous program
 * [Optimized Run Queue and Event Queue](#optimized-run-queue-event-queue)
 
 ---
+
+## <a name="presentations"></a> Presentations
+
+The following talks are recommended to get an overview of libprocess:
+
+* [libprocess, a concurrent and asynchronous programming library (San Francisco C++ Meetup)](https://www.youtube.com/watch?v=KjqaZYP0T2U)
+
 
 ## <a name="overview"></a> Overview
 
