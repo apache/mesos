@@ -1871,7 +1871,7 @@ public:
 };
 
 
-TEST_F(CniIsolatorPortMapperTest, ROOT_NC_PortMapper)
+TEST_F(CniIsolatorPortMapperTest, DISABLED_ROOT_NC_PortMapper)
 {
   constexpr size_t NUM_CONTAINERS = 3;
 
