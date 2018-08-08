@@ -4,7 +4,7 @@ This directory contains bundled packages within the Mesos repository.
 
 ## Bundled Packages
 
-  - boost
+  - [boost](boost.md)
   - [concurrentqueue](concurrentqueue.md)
   - csi
   - elfio
