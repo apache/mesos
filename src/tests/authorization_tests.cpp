@@ -4855,7 +4855,6 @@ TYPED_TEST(AuthorizationTest, ValidateEndpoints)
     mesos::ACL::GetEndpoint* acl = acls.add_get_endpoints();
     acl->mutable_principals()->add_values("foo");
     acl->mutable_paths()->add_values("/monitor/statistics");
-    acl->mutable_paths()->add_values("/monitor/statistics.json");
     acl->mutable_paths()->add_values("/containers");
 
     // Create an `Authorizer` with the ACLs.

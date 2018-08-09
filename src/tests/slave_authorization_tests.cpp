@@ -1258,7 +1258,6 @@ INSTANTIATE_TEST_CASE_P(
     SlaveEndpointTest,
     ::testing::Values(
         "monitor/statistics",
-        "monitor/statistics.json",
         "containers"));
 
 

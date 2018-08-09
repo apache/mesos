@@ -99,11 +99,9 @@ namespace internal {
 hashset<string> AUTHORIZABLE_ENDPOINTS{
     "/containers",
     "/files/debug",
-    "/files/debug.json",
     "/logging/toggle",
     "/metrics/snapshot",
-    "/monitor/statistics",
-    "/monitor/statistics.json"};
+    "/monitor/statistics"};
 
 
 string serialize(

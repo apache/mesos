@@ -71,7 +71,6 @@ public:
       const Option<process::http::authentication::Principal>&) const;
 
   // /slave/monitor/statistics
-  // /slave/monitor/statistics.json
   process::Future<process::http::Response> statistics(
       const process::http::Request& request,
       const Option<process::http::authentication::Principal>& principal) const;
