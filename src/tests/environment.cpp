@@ -544,6 +544,57 @@ private:
 };
 
 
+class IPTablesFilter : public TestFilter
+{
+public:
+  IPTablesFilter()
+  {
+#ifdef __linux__
+    // Check iptables -w option
+    //
+    if (os::which("iptables").isNone()) {
+      std::cerr
+        << "-------------------------------------------------------------\n"
+        << "No 'iptables' command found so no tests depending\n"
+        << "on 'iptables' will be run\n"
+        << "-------------------------------------------------------------"
+        << std::endl;
+
+      iptablesError = Error("iptables command not found");
+      return;
+    }
+
+    if (::geteuid() != 0) {
+      iptablesError = Error("iptables command requires root");
+      return;
+    }
+
+    Try<string> iptables = os::shell("iptables -w -n -L OUTPUT");
+    if (iptables.isError()) {
+      std::cerr
+        << "-------------------------------------------------------------\n"
+        << "'iptables' command does not support '-w' option\n"
+        << "-------------------------------------------------------------"
+        << std::endl;
+
+      iptablesError = Error("iptables command does not support -w option");
+      return;
+    }
+#else
+    iptablesError = Error("Unsupported platform");
+#endif
+  }
+
+  bool disable(const ::testing::TestInfo* test) const override
+  {
+    return iptablesError.isSome() && matches(test, "IPTABLES_");
+  }
+
+private:
+  Option<Error> iptablesError;
+};
+
+
 class LogrotateFilter : public TestFilter
 {
 public:
@@ -933,6 +984,7 @@ Environment::Environment(const Flags& _flags)
             std::make_shared<DockerFilter>(),
             std::make_shared<DtypeFilter>(),
             std::make_shared<InternetFilter>(),
+            std::make_shared<IPTablesFilter>(),
             std::make_shared<LogrotateFilter>(),
             std::make_shared<NetcatFilter>(),
             std::make_shared<NetClsCgroupsFilter>(),

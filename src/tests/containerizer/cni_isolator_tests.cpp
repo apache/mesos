@@ -1871,7 +1871,7 @@ public:
 };
 
 
-TEST_F(CniIsolatorPortMapperTest, DISABLED_ROOT_NC_PortMapper)
+TEST_F(CniIsolatorPortMapperTest, ROOT_IPTABLES_NC_PortMapper)
 {
   constexpr size_t NUM_CONTAINERS = 3;
 
@@ -1998,10 +1998,9 @@ TEST_F(CniIsolatorPortMapperTest, DISABLED_ROOT_NC_PortMapper)
 
   // Wait for the executor to exit. We are using 'gc.schedule' as a
   // proxy event to monitor the exit of the executor.
-  vector<Future<Nothing>> gcSchedules(NUM_CONTAINERS);
+  vector<Future<Nothing>> executorTerminations(NUM_CONTAINERS);
   for (size_t i = 0; i < NUM_CONTAINERS; i++) {
-    gcSchedules[i] = FUTURE_DISPATCH(
-        _, &slave::GarbageCollectorProcess::schedule);
+    executorTerminations[i] = FUTURE_DISPATCH(_, &Slave::executorTerminated);
   }
 
   // Try connecting to each nc server on the given container port
@@ -2016,7 +2015,7 @@ TEST_F(CniIsolatorPortMapperTest, DISABLED_ROOT_NC_PortMapper)
     Duration waited = Duration::zero();
     do {
       Try<string> connect = os::shell(
-          "echo foo | nc " + stringify(hostNetwork->address()) +
+          "echo foo | nc -w 1 " + stringify(hostNetwork->address()) +
           " " + stringify(hostPorts[i]));
 
       if (connect.isSome()) {
@@ -2032,7 +2031,7 @@ TEST_F(CniIsolatorPortMapperTest, DISABLED_ROOT_NC_PortMapper)
   }
 
   AWAIT_READY(collect(statusesFinished));
-  AWAIT_READY(collect(gcSchedules));
+  AWAIT_READY(collect(executorTerminations));
 
   // Make sure the iptables chain `MESOS-TEST-PORT-MAPPER-CHAIN`
   // doesn't have any iptable rules once the task is killed. The only
