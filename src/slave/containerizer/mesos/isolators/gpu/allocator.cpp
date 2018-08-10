@@ -255,7 +255,7 @@ public:
   Future<set<Gpu>> allocate(size_t count)
   {
     if (available.size() < count) {
-      return Failure("Requested " + stringify(count) + " but only"
+      return Failure("Requested " + stringify(count) + " gpus but only"
                      " " + stringify(available.size()) + " available");
     }
 
