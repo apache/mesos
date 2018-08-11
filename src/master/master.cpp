@@ -7849,7 +7849,7 @@ void Master::authenticate(const UPID& from, const UPID& pid)
   //       about this discrepancy via ping messages so that it can
   //       re-register.
 
-  authenticated.erase(pid);
+  bool erased = authenticated.erase(pid) > 0;
 
   if (authenticator.isNone()) {
     // The default authenticator is CRAM-MD5 rather than none.
@@ -7872,22 +7872,20 @@ void Master::authenticate(const UPID& from, const UPID& pid)
     return;
   }
 
+  // If a new authentication is occurring for a client that already
+  // has an authentication in progress, we discard the old one
+  // (since the client is no longer interested in it) and
+  // immediately proceed with the new authentication.
   if (authenticating.contains(pid)) {
-    LOG(INFO) << "Queuing up authentication request from " << pid
-              << " because authentication is still in progress";
+    authenticating.at(pid).discard();
+    authenticating.erase(pid);
 
-    // Try to cancel the in progress authentication by discarding the
-    // future.
-    authenticating[pid].discard();
-
-    // Retry after the current authenticator session finishes.
-    authenticating[pid]
-      .onAny(defer(self(), &Self::authenticate, from, pid));
-
-    return;
+    LOG(INFO) << "Re-authenticating " << pid << ";"
+              << " discarding outstanding authentication";
+  } else {
+    LOG(INFO) << "Authenticating " << pid
+              << (erased ? "; clearing previous authentication" : "");
   }
-
-  LOG(INFO) << "Authenticating " << pid;
 
   // Start authentication.
   const Future<Option<string>> future = authenticator.get()->authenticate(from);
@@ -7895,7 +7893,7 @@ void Master::authenticate(const UPID& from, const UPID& pid)
   // Save our state.
   authenticating[pid] = future;
 
-  future.onAny(defer(self(), &Self::_authenticate, pid, lambda::_1));
+  future.onAny(defer(self(), &Self::_authenticate, pid, future));
 
   // Don't wait for authentication to complete forever.
   delay(flags.authentication_v0_timeout,
@@ -7909,6 +7907,13 @@ void Master::_authenticate(
     const UPID& pid,
     const Future<Option<string>>& future)
 {
+  // Ignore stale authentication results (if the authentication
+  // future has been overwritten).
+  if (authenticating.get(pid) != future) {
+    LOG(INFO) << "Ignoring stale authentication result of " << pid;
+    return;
+  }
+
   if (future.isReady() && future->isSome()) {
     LOG(INFO) << "Successfully authenticated principal '" << future->get()
               << "' at " << pid;
@@ -7924,7 +7929,6 @@ void Master::_authenticate(
     LOG(INFO) << "Authentication of " << pid << " was discarded";
   }
 
-  CHECK(authenticating.contains(pid));
   authenticating.erase(pid);
 }
 
