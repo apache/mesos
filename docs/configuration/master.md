@@ -265,6 +265,15 @@ load an alternate authenticator module using <code>--modules</code>. (default: c
   </td>
 </tr>
 
+<tr id="authentication_v0_timeout">
+  <td>
+    --authentication_v0_timeout=VALUE
+  </td>
+  <td>
+The timeout within which an authentication is expected to complete against a v0 framework or agent. This does not apply to the v0 or v1 HTTP APIs. (default: <code>15secs</code>)
+  </td>
+</tr>
+
 <tr id="authorizers">
   <td>
     --authorizers=VALUE
