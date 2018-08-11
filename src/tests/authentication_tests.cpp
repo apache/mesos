@@ -30,6 +30,8 @@
 
 #include "master/detector/standalone.hpp"
 
+#include "sched/constants.hpp"
+
 #include "tests/mesos.hpp"
 #include "tests/utils.hpp"
 
@@ -390,6 +392,72 @@ TEST_F(AuthenticationTest, RetrySlaveAuthentication)
   // Slave should be able to get registered.
   AWAIT_READY(slaveRegisteredMessage);
   ASSERT_NE("", slaveRegisteredMessage->slave_id().value());
+}
+
+
+// This test ensures that when the master sees a new authentication
+// request for a particular agent or scheduler (we just test the
+// scheduler case here since the master does not distinguish),
+// the master will discard the old one and proceed with the new one.
+//
+// TODO(bmahler): Use a mock authenticator for this test instead
+// of using the default one and dropping the exited message.
+TEST_F(AuthenticationTest, MasterRetriedAuthenticationHandling)
+{
+  Clock::pause();
+
+  // Set the master authentication timeout to a very large value
+  // so that we can exercise the case of a new authentication
+  // request arriving before the previous one times out.
+  master::Flags flags = CreateMasterFlags();
+  flags.authentication_v0_timeout = Days(30);
+
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  // Drop the first step message from the authenticator.
+  Future<Message> authenticationStepMessage =
+    DROP_MESSAGE(Eq(AuthenticationStepMessage().GetTypeName()), _, _);
+
+  driver.start();
+
+  AWAIT_READY(authenticationStepMessage);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  // Now the master will have a pending authentication and we have
+  // the scheduler driver retry. Since the master's authentication
+  // timeout is larger than the scheduler's, the scheduler will
+  // retry and the master should discard the stale one and let
+  // the new one proceed. First, we drop the exited event that
+  // the master's authenticator will listen for to ensure the
+  // authentication remains outstanding from the master's
+  // perspective.
+  const UPID& authenticatee = authenticationStepMessage->to;
+  const UPID& authenticator = authenticationStepMessage->from;
+
+  Future<Nothing> exited = DROP_EXITED(authenticatee, authenticator);
+
+  Clock::advance(
+      mesos::internal::scheduler::DEFAULT_AUTHENTICATION_TIMEOUT);
+  Clock::settle();
+  Clock::advance(
+      mesos::internal::scheduler::DEFAULT_AUTHENTICATION_BACKOFF_FACTOR * 2);
+
+  // Make sure the exited was dropped.
+  AWAIT_READY(exited);
+
+  // Scheduler should be able to get registered.
+  AWAIT_READY(registered);
+
+  driver.stop();
+  driver.join();
 }
 
 

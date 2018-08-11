@@ -1044,7 +1044,7 @@ private:
 
   void drop(
       const process::UPID& from,
-      const scheduler::Call& call,
+      const mesos::scheduler::Call& call,
       const std::string& message);
 
   void drop(
@@ -1054,27 +1054,27 @@ private:
 
   void drop(
       Framework* framework,
-      const scheduler::Call& call,
+      const mesos::scheduler::Call& call,
       const std::string& message);
 
   void drop(
       Framework* framework,
-      const scheduler::Call::Suppress& suppress,
+      const mesos::scheduler::Call::Suppress& suppress,
       const std::string& message);
 
   void drop(
       Framework* framework,
-      const scheduler::Call::Revive& revive,
+      const mesos::scheduler::Call::Revive& revive,
       const std::string& message);
 
   // Call handlers.
   void receive(
       const process::UPID& from,
-      scheduler::Call&& call);
+      mesos::scheduler::Call&& call);
 
   void subscribe(
       HttpConnection http,
-      const scheduler::Call::Subscribe& subscribe);
+      const mesos::scheduler::Call::Subscribe& subscribe);
 
   void _subscribe(
       HttpConnection http,
@@ -1085,7 +1085,7 @@ private:
 
   void subscribe(
       const process::UPID& from,
-      const scheduler::Call::Subscribe& subscribe);
+      const mesos::scheduler::Call::Subscribe& subscribe);
 
   void _subscribe(
       const process::UPID& from,
@@ -1103,67 +1103,67 @@ private:
 
   void accept(
       Framework* framework,
-      scheduler::Call::Accept&& accept);
+      mesos::scheduler::Call::Accept&& accept);
 
   void _accept(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
       const Resources& offeredResources,
-      scheduler::Call::Accept&& accept,
+      mesos::scheduler::Call::Accept&& accept,
       const process::Future<
           std::vector<process::Future<bool>>>& authorizations);
 
   void acceptInverseOffers(
       Framework* framework,
-      const scheduler::Call::AcceptInverseOffers& accept);
+      const mesos::scheduler::Call::AcceptInverseOffers& accept);
 
   void decline(
       Framework* framework,
-      scheduler::Call::Decline&& decline);
+      mesos::scheduler::Call::Decline&& decline);
 
   void declineInverseOffers(
       Framework* framework,
-      const scheduler::Call::DeclineInverseOffers& decline);
+      const mesos::scheduler::Call::DeclineInverseOffers& decline);
 
   void revive(
       Framework* framework,
-      const scheduler::Call::Revive& revive);
+      const mesos::scheduler::Call::Revive& revive);
 
   void kill(
       Framework* framework,
-      const scheduler::Call::Kill& kill);
+      const mesos::scheduler::Call::Kill& kill);
 
   void shutdown(
       Framework* framework,
-      const scheduler::Call::Shutdown& shutdown);
+      const mesos::scheduler::Call::Shutdown& shutdown);
 
   void acknowledge(
       Framework* framework,
-      scheduler::Call::Acknowledge&& acknowledge);
+      mesos::scheduler::Call::Acknowledge&& acknowledge);
 
   void acknowledgeOperationStatus(
       Framework* framework,
-      scheduler::Call::AcknowledgeOperationStatus&& acknowledge);
+      mesos::scheduler::Call::AcknowledgeOperationStatus&& acknowledge);
 
   void reconcile(
       Framework* framework,
-      scheduler::Call::Reconcile&& reconcile);
+      mesos::scheduler::Call::Reconcile&& reconcile);
 
-  scheduler::Response::ReconcileOperations reconcileOperations(
+  mesos::scheduler::Response::ReconcileOperations reconcileOperations(
       Framework* framework,
-      const scheduler::Call::ReconcileOperations& reconcile);
+      const mesos::scheduler::Call::ReconcileOperations& reconcile);
 
   void message(
       Framework* framework,
-      scheduler::Call::Message&& message);
+      mesos::scheduler::Call::Message&& message);
 
   void request(
       Framework* framework,
-      const scheduler::Call::Request& request);
+      const mesos::scheduler::Call::Request& request);
 
   void suppress(
       Framework* framework,
-      const scheduler::Call::Suppress& suppress);
+      const mesos::scheduler::Call::Suppress& suppress);
 
   bool elected() const
   {
@@ -1832,7 +1832,7 @@ private:
 
     process::Future<process::http::Response> reconcileOperations(
         Framework* framework,
-        const scheduler::Call::ReconcileOperations& call,
+        const mesos::scheduler::Call::ReconcileOperations& call,
         ContentType contentType) const;
 
     Master* master;
@@ -2500,8 +2500,8 @@ struct Framework
   hashmap<SlaveID, Resources> offeredResources;
 
   // This is only set for HTTP frameworks.
-  Option<process::Owned<Heartbeater<scheduler::Event, v1::scheduler::Event>>>
-    heartbeater;
+  Option<process::Owned<
+      Heartbeater<mesos::scheduler::Event, v1::scheduler::Event>>> heartbeater;
 
   // This is used for per-framwork metrics.
   FrameworkMetrics metrics;

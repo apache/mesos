@@ -209,7 +209,7 @@ struct Metrics
   std::vector<process::metrics::PullGauge> resources_revocable_used;
   std::vector<process::metrics::PullGauge> resources_revocable_percent;
 
-  void incrementInvalidSchedulerCalls(const scheduler::Call& call);
+  void incrementInvalidSchedulerCalls(const mesos::scheduler::Call& call);
 
   void incrementTasksStates(
       const TaskState& state,
@@ -224,9 +224,9 @@ struct FrameworkMetrics
 
   ~FrameworkMetrics();
 
-  void incrementCall(const scheduler::Call::Type& callType);
+  void incrementCall(const mesos::scheduler::Call::Type& callType);
 
-  void incrementEvent(const scheduler::Event& event);
+  void incrementEvent(const mesos::scheduler::Event& event);
 
   void incrementTaskState(const TaskState& state);
   void decrementActiveTaskState(const TaskState& state);
@@ -238,10 +238,10 @@ struct FrameworkMetrics
   process::metrics::PushGauge subscribed;
 
   process::metrics::Counter calls;
-  hashmap<scheduler::Call::Type, process::metrics::Counter> call_types;
+  hashmap<mesos::scheduler::Call::Type, process::metrics::Counter> call_types;
 
   process::metrics::Counter events;
-  hashmap<scheduler::Event::Type, process::metrics::Counter> event_types;
+  hashmap<mesos::scheduler::Event::Type, process::metrics::Counter> event_types;
 
   process::metrics::Counter offers_sent;
   process::metrics::Counter offers_accepted;

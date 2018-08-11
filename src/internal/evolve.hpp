@@ -114,9 +114,9 @@ google::protobuf::RepeatedPtrField<T1> evolve(
 }
 
 
-v1::scheduler::Call evolve(const scheduler::Call& call);
-v1::scheduler::Event evolve(const scheduler::Event& event);
-v1::scheduler::Response evolve(const scheduler::Response& response);
+v1::scheduler::Call evolve(const mesos::scheduler::Call& call);
+v1::scheduler::Event evolve(const mesos::scheduler::Event& event);
+v1::scheduler::Response evolve(const mesos::scheduler::Response& response);
 
 
 // Helper functions that evolve old style internal messages to a
