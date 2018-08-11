@@ -64,6 +64,10 @@ Mesos master and agent processes. For more information, refer to the
   allowed to register. If `false` (the default), unauthenticated agents are also
   allowed to register.
 
+* `--authentication_v0_timeout` - The timeout within which an authentication is
+  expected to complete against a v0 framework or agent. This does not apply to
+  the v0 or v1 HTTP APIs.(default: `15secs`)
+
 * `--authenticators` - Specifies which authenticator module to use.  The default
   is `crammd5`, but additional modules can be added using the `--modules`
   option.

@@ -7898,7 +7898,7 @@ void Master::authenticate(const UPID& from, const UPID& pid)
   future.onAny(defer(self(), &Self::_authenticate, pid, lambda::_1));
 
   // Don't wait for authentication to complete forever.
-  delay(Seconds(5),
+  delay(flags.authentication_v0_timeout,
         self(),
         &Self::authenticationTimeout,
         future);
