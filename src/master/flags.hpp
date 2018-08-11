@@ -68,6 +68,7 @@ public:
   Option<std::string> weights;
   bool authenticate_frameworks;
   bool authenticate_agents;
+  Duration authentication_v0_timeout;
   bool authenticate_http_readonly;
   bool authenticate_http_readwrite;
   bool authenticate_http_frameworks;

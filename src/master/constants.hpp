@@ -47,6 +47,14 @@ constexpr double MIN_CPUS = 0.01;
 // Minimum amount of memory per offer.
 constexpr Bytes MIN_MEM = Megabytes(32);
 
+// Default timeout for v0 framework and agent authentication
+// before the master cancels an in-progress authentication.
+//
+// TODO(bmahler): Ideally, we remove this v0-style authentication
+// in favor of just using HTTP authentication at the libprocess
+// layer.
+constexpr Duration DEFAULT_AUTHENTICATION_V0_TIMEOUT = Seconds(15);
+
 // Default interval the master uses to send heartbeats to an HTTP
 // scheduler.
 constexpr Duration DEFAULT_HEARTBEAT_INTERVAL = Seconds(15);

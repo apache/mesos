@@ -251,6 +251,16 @@ and/or agents. Use the default <code>crammd5</code>, or
 load an alternate authenticator module using <code>--modules</code>. (default: crammd5)
   </td>
 </tr>
+
+<tr>
+  <td>
+    --authentication_v0_timeout=VALUE
+  </td>
+  <td>
+The timeout within which an authentication is expected to complete against a v0 framework or agent. This does not apply to the v0 or v1 HTTP APIs. (default: <code>15secs</code>)
+  </td>
+</tr>
+
 <tr>
   <td>
     --authorizers=VALUE
