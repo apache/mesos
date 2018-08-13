@@ -26,11 +26,16 @@
 
 #include <sys/syscall.h>
 
+#include <queue>
 #include <set>
 #include <string>
+#include <thread>
+
+#include <process/future.hpp>
 
 #include <stout/lambda.hpp>
 #include <stout/nothing.hpp>
+#include <stout/option.hpp>
 #include <stout/result.hpp>
 #include <stout/try.hpp>
 
@@ -177,6 +182,144 @@ Try<pid_t> clone(
 // Returns the namespace flags in the string form of bitwise-ORing the
 // flags, e.g., CLONE_NEWNS | CLONE_NEWNET.
 std::string stringify(int flags);
+
+
+// The NamespaceRunner runs any function in a specified namespace.
+// To do that it manages a separate thread which would be re-associated
+// with that namespace.
+class NamespaceRunner
+{
+public:
+  NamespaceRunner()
+  {
+    // Start the looper thread.
+    thread.reset(new std::thread(&NamespaceRunner::loop, this));
+  }
+
+  ~NamespaceRunner()
+  {
+    // Shutdown the queue.
+    queue.shutdown();
+    // Wait for the thread to complete.
+    thread->join();
+    thread.reset();
+  }
+
+  // Run any function in a specified namespace.
+  template <typename T>
+  process::Future<T> run(
+      const std::string& path,
+      const std::string& ns,
+      const lambda::function<Try<T>()>& func)
+  {
+    std::shared_ptr<process::Promise<T>> promise(
+        new process::Promise<T>);
+    process::Future<T> future = promise->future();
+
+    // Put a function to the queue, the function will be called
+    // in the thread. The thread will be re-associated with the
+    // specified namespace.
+    queue.put([=]{
+      Try<Nothing> setns = ::ns::setns(path, ns, false);
+      if (setns.isError()) {
+        promise->fail(setns.error());
+      } else {
+        promise->set(func());
+      }
+    });
+
+    return future;
+  }
+
+private:
+  typedef lambda::function<void()> Func;
+
+  // The thread loop.
+  void loop()
+  {
+    for (;;) {
+      // Get a function from the queue.
+      Option<Func> func = queue.get();
+
+      // Stop the thread if the queue is shutdowned.
+      if (func.isNone()) {
+        break;
+      }
+
+      // Call the function, it re-associates the thread with the
+      // specified namespace and calls the initial user function.
+      func.get()();
+    }
+  }
+
+  // It's not safe to use process::Queue when not all of its callers are
+  // managed by libprocess. Calling Future::await() in looper thread
+  // might cause the looper thread to be donated to a libprocess Process.
+  // If that Process is very busy (e.g., master or agent Process), it's
+  // possible that the looper thread will never re-gain control.
+  //
+  // ProcessingQueue uses mutex and condition variable to solve this
+  // problem. ProcessingQueue::get() can block the thread. The main
+  // use cases for the class are thread workers and thread pools.
+  template <typename T>
+  class ProcessingQueue
+  {
+  public:
+    ProcessingQueue() : finished(false) {}
+
+    ~ProcessingQueue() = default;
+
+    // Add an element to the queue and notify one client.
+    void put(T&& t)
+    {
+      synchronized (mutex) {
+        queue.push(std::forward<T>(t));
+        cond.notify_one();
+      }
+    }
+
+    // NOTE: This function blocks the thread. It returns the oldest
+    // element from the queue and returns None() if the queue is
+    // shutdowned.
+    Option<T> get()
+    {
+      synchronized (mutex) {
+        // Wait for either a new queue element or queue shutdown.
+        while (queue.empty() && !finished) {
+          synchronized_wait(&cond, &mutex);
+        }
+
+        if (finished) {
+          // The queue is shutdowned.
+          return None();
+        }
+
+        // Return the oldest element from the queue.
+        T t = std::move(queue.front());
+        queue.pop();
+        return Some(std::move(t));
+      }
+    }
+
+    // Shutdown the queue and notify all clients.
+    void shutdown() {
+      synchronized (mutex) {
+        finished = true;
+        std::queue<T>().swap(queue);
+        cond.notify_all();
+      }
+    }
+
+  private:
+    std::mutex mutex;
+    std::condition_variable cond;
+    std::queue<T> queue;
+    bool finished;
+  };
+
+  ProcessingQueue<Func> queue;
+  std::unique_ptr<std::thread> thread;
+};
 
 } // namespace ns {
 
