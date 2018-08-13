@@ -114,17 +114,28 @@ public:
         "authentication_backoff_factor",
         "The scheduler will time out its authentication with the master based\n"
         "on exponential backoff. The timeout will be randomly chosen within\n"
-        "`[authentication_timeout, authentication_timeout + factor*2^n]`\n"
-        "where `n` is the number of failed attempts. The maximum timeout\n"
-        "internal is capped at " + stringify(AUTHENTICATION_TIMEOUT_MAX) + ".\n"
-        "To tune these parameters, set the `--authentication_timeout` and\n"
-        "`--authentication_backoff_factor` flags.\n",
+        "the range `[min, min + factor*2^n]` where `n` is the number of\n"
+        "failed attempts. To tune these parameters, set the\n"
+        "`--authentication_timeout_[min|max|factor]` flags.\n",
         DEFAULT_AUTHENTICATION_BACKOFF_FACTOR);
 
-    add(&Flags::authentication_timeout,
-        "authentication_timeout",
-        "Timeout after which authentication will be retried.",
-        DEFAULT_AUTHENTICATION_TIMEOUT);
+    add(&Flags::authentication_timeout_min,
+        "authentication_timeout_min",
+        flags::DeprecatedName("authentication_timeout"),
+        "The minimum amount of time the scheduler waits before retrying\n"
+        "authenticating with the master. See `authentication_backoff_factor`\n"
+        "for more details. NOTE: since authentication retry cancels the\n"
+        "previous authentication request, one should consider what is the\n"
+        "normal authentication delay when setting this flag to prevent\n"
+        "premature retry",
+        DEFAULT_AUTHENTICATION_TIMEOUT_MIN);
+
+    add(&Flags::authentication_timeout_max,
+      "authentication_timeout_max",
+      "The maximum amount of time the scheduler waits before retrying\n"
+      "authenticating with the master. See `authentication_backoff_factor`\n"
+      "for more details",
+      DEFAULT_AUTHENTICATION_TIMEOUT_MAX);
   }
 
   Duration authentication_backoff_factor;
@@ -132,7 +143,8 @@ public:
   Option<Modules> modules;
   Option<std::string> modulesDir;
   std::string authenticatee;
-  Duration authentication_timeout;
+  Duration authentication_timeout_min;
+  Duration authentication_timeout_max;
 };
 
 } // namespace scheduler {
