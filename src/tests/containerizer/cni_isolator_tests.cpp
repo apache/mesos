@@ -22,6 +22,7 @@
 
 #include <process/clock.hpp>
 #include <process/collect.hpp>
+#include <process/owned.hpp>
 
 #include "common/values.hpp"
 
@@ -29,10 +30,16 @@
 
 #include "slave/containerizer/fetcher.hpp"
 #include "slave/containerizer/mesos/containerizer.hpp"
+#include "slave/containerizer/mesos/linux_launcher.hpp"
+#include "slave/containerizer/mesos/isolators/network/cni/cni.hpp"
 #include "slave/containerizer/mesos/isolators/network/cni/paths.hpp"
 #include "slave/containerizer/mesos/isolators/network/cni/spec.hpp"
+#include "slave/containerizer/mesos/provisioner/provisioner.hpp"
 
+#include "tests/environment.hpp"
 #include "tests/mesos.hpp"
+
+#include "tests/containerizer/isolator.hpp"
 
 namespace master = mesos::internal::master;
 namespace paths = mesos::internal::slave::cni::paths;
@@ -41,23 +48,36 @@ namespace spec = mesos::internal::slave::cni::spec;
 
 using master::Master;
 
+using mesos::internal::slave::Containerizer;
 using mesos::internal::slave::Fetcher;
+using mesos::internal::slave::Launcher;
+using mesos::internal::slave::LinuxLauncher;
 using mesos::internal::slave::MesosContainerizer;
+using mesos::internal::slave::NetworkCniIsolatorProcess;
+using mesos::internal::slave::Provisioner;
+
+using mesos::internal::slave::state::SlaveState;
 
 using mesos::internal::tests::common::createNetworkInfo;
 
 using mesos::master::detector::MasterDetector;
+
+using mesos::slave::ContainerLaunchInfo;
+using mesos::slave::ContainerTermination;
+using mesos::slave::Isolator;
 
 using mesos::v1::scheduler::Event;
 
 using process::Clock;
 using process::Future;
 using process::Owned;
+using process::Promise;
 
 using process::collect;
 
 using slave::Slave;
 
+using std::map;
 using std::ostream;
 using std::set;
 using std::string;
@@ -506,6 +526,102 @@ TEST_F(CniIsolatorTest, ROOT_FailedPlugin)
 
   driver.stop();
   driver.join();
+}
+
+
+// This test verfies that the CNI cleanup will be done properly if the
+// container is destroyed while in preparing state. This is used to
+// catch the regression described in MESOS-9142.
+TEST_F(CniIsolatorTest, ROOT_DestroyWhilePreparing)
+{
+  slave::Flags flags = CreateSlaveFlags();
+  flags.launcher = "linux";
+  flags.isolation = "network/cni";
+  flags.network_cni_plugins_dir = cniPluginDir;
+  flags.network_cni_config_dir = cniConfigDir;
+
+  Try<Launcher*> _launcher = LinuxLauncher::create(flags);
+  ASSERT_SOME(_launcher);
+
+  Owned<Launcher> launcher(_launcher.get());
+
+  Try<Isolator*> cniIsolator = NetworkCniIsolatorProcess::create(flags);
+  ASSERT_SOME(cniIsolator);
+
+  MockIsolator* mockIsolator = new MockIsolator();
+
+  Future<Nothing> prepare;
+  Promise<Option<ContainerLaunchInfo>> promise;
+
+  EXPECT_CALL(*mockIsolator, recover(_, _))
+    .WillOnce(Return(Nothing()));
+
+  // Simulate a long prepare from the isolator.
+  EXPECT_CALL(*mockIsolator, prepare(_, _))
+    .WillOnce(DoAll(FutureSatisfy(&prepare),
+                    Return(promise.future())));
+
+  Fetcher fetcher(flags);
+
+  Try<Owned<Provisioner>> provisioner = Provisioner::create(flags);
+  ASSERT_SOME(provisioner);
+
+  Try<MesosContainerizer*> create = MesosContainerizer::create(
+      flags,
+      true,
+      &fetcher,
+      launcher,
+      provisioner->share(),
+      {Owned<Isolator>(cniIsolator.get()),
+       Owned<Isolator>(mockIsolator)});
+
+  ASSERT_SOME(create);
+
+  Owned<MesosContainerizer> containerizer(create.get());
+
+  SlaveState state;
+  state.id = SlaveID();
+
+  AWAIT_READY(containerizer->recover(state));
+
+  ContainerID containerId;
+  containerId.set_value(id::UUID::random().toString());
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::MESOS);
+  containerInfo.add_network_infos()->set_name("__MESOS_TEST__");
+
+  ExecutorInfo executorInfo = createExecutorInfo(
+      "executor",
+      "sleep 1000",
+      "cpus:0.1;mem:32");
+
+  executorInfo.mutable_container()->CopyFrom(containerInfo);
+
+  Try<string> directory = environment->mkdtemp();
+  ASSERT_SOME(directory);
+
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
+      containerId,
+      createContainerConfig(
+          None(),
+          executorInfo,
+          directory.get()),
+      map<string, string>(),
+      None());
+
+  AWAIT_READY(prepare);
+
+  ASSERT_TRUE(launch.isPending());
+
+  Future<Option<ContainerTermination>> termination =
+    containerizer->destroy(containerId);
+
+  promise.set(Option<ContainerLaunchInfo>(ContainerLaunchInfo()));
+
+  AWAIT_READY(termination);
+  ASSERT_SOME(termination.get());
+  EXPECT_FALSE(termination.get()->has_status());
 }
 
 
