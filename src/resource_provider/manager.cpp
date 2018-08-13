@@ -798,10 +798,18 @@ void ResourceProviderManagerProcess::_subscribe(
         std::move(resourceProvider_));
   }
 
+  ResourceProviderMessage::Subscribe subscribe{resourceProvider->info};
+
+  ResourceProviderMessage message;
+  message.type = ResourceProviderMessage::Type::SUBSCRIBE;
+  message.subscribe = std::move(subscribe);
+
   // TODO(jieyu): Start heartbeat for the resource provider.
   resourceProviders.subscribed.put(
       resourceProviderId,
       std::move(resourceProvider));
+
+  messages.put(std::move(message));
 }
 
 

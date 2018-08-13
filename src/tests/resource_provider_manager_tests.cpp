@@ -267,24 +267,11 @@ TEST_P(ResourceProviderManagerHttpApiTest, UpdateState)
     CHECK_SOME(uuid);
     streamId = uuid.get();
 
-    Option<http::Pipe::Reader> reader = response->reader;
-    ASSERT_SOME(reader);
-
-    recordio::Reader<Event> responseDecoder(
-        ::recordio::Decoder<Event>(
-            lambda::bind(deserialize<Event>, contentType, lambda::_1)),
-        reader.get());
-
-    Future<Result<Event>> event = responseDecoder.read();
-    AWAIT_READY(event);
-    ASSERT_SOME(event.get());
-
-    // Check event type is subscribed and the resource provider id is set.
-    ASSERT_EQ(Event::SUBSCRIBED, event->get().type());
-
-    resourceProviderId = event->get().subscribed().provider_id();
-
-    EXPECT_FALSE(resourceProviderId->value().empty());
+    Future<ResourceProviderMessage> message = manager.messages().get();
+    AWAIT_READY(message);
+    ASSERT_EQ(ResourceProviderMessage::Type::SUBSCRIBE, message->type);
+    ASSERT_TRUE(message->subscribe->info.has_id());
+    resourceProviderId = evolve(message->subscribe->info.id());
   }
 
   // Then, update the total resources to the manager.
@@ -375,24 +362,11 @@ TEST_P(ResourceProviderManagerHttpApiTest, UpdateOperationStatus)
     CHECK_SOME(uuid);
     streamId = uuid.get();
 
-    Option<http::Pipe::Reader> reader = response->reader;
-    ASSERT_SOME(reader);
-
-    recordio::Reader<Event> responseDecoder(
-        ::recordio::Decoder<Event>(
-            lambda::bind(deserialize<Event>, contentType, lambda::_1)),
-        reader.get());
-
-    Future<Result<Event>> event = responseDecoder.read();
-    AWAIT_READY(event);
-    ASSERT_SOME(event.get());
-
-    // Check event type is subscribed and the resource provider id is set.
-    ASSERT_EQ(Event::SUBSCRIBED, event->get().type());
-
-    resourceProviderId = event->get().subscribed().provider_id();
-
-    EXPECT_FALSE(resourceProviderId->value().empty());
+    Future<ResourceProviderMessage> message = manager.messages().get();
+    AWAIT_READY(message);
+    ASSERT_EQ(ResourceProviderMessage::Type::SUBSCRIBE, message->type);
+    ASSERT_TRUE(message->subscribe->info.has_id());
+    resourceProviderId = evolve(message->subscribe->info.id());
   }
 
   // Then, send an operation status update to the manager.

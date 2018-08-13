@@ -40,6 +40,7 @@ struct ResourceProviderMessage
 {
   enum class Type
   {
+    SUBSCRIBE,
     UPDATE_STATE,
     UPDATE_OPERATION_STATUS,
     DISCONNECT
@@ -47,6 +48,8 @@ struct ResourceProviderMessage
 
   friend std::ostream& operator<<(std::ostream& stream, const Type& type) {
     switch (type) {
+      case Type::SUBSCRIBE:
+        return stream << "SUBSCRIBE";
       case Type::UPDATE_STATE:
         return stream << "UPDATE_STATE";
       case Type::UPDATE_OPERATION_STATUS:
@@ -57,6 +60,11 @@ struct ResourceProviderMessage
 
     UNREACHABLE();
   }
+
+  struct Subscribe
+  {
+    ResourceProviderInfo info;
+  };
 
   struct UpdateState
   {
@@ -78,6 +86,7 @@ struct ResourceProviderMessage
 
   Type type;
 
+  Option<Subscribe> subscribe;
   Option<UpdateState> updateState;
   Option<UpdateOperationStatus> updateOperationStatus;
   Option<Disconnect> disconnect;
@@ -91,6 +100,14 @@ inline std::ostream& operator<<(
   stream << stringify(resourceProviderMessage.type) << ": ";
 
   switch (resourceProviderMessage.type) {
+    case ResourceProviderMessage::Type::SUBSCRIBE: {
+      const Option<ResourceProviderMessage::Subscribe>& subscribe =
+        resourceProviderMessage.subscribe;
+
+      CHECK_SOME(subscribe);
+
+      return stream << subscribe->info;
+    }
     case ResourceProviderMessage::Type::UPDATE_STATE: {
       const Option<ResourceProviderMessage::UpdateState>&
         updateState = resourceProviderMessage.updateState;

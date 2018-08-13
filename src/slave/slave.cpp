@@ -7643,6 +7643,27 @@ void Slave::handleResourceProviderMessage(
   LOG(INFO) << "Handling resource provider message '" << message.get() << "'";
 
   switch(message->type) {
+    case ResourceProviderMessage::Type::SUBSCRIBE: {
+      CHECK_SOME(message->subscribe);
+
+      const ResourceProviderMessage::Subscribe& subscribe =
+        message->subscribe.get();
+
+      CHECK(subscribe.info.has_id());
+
+      ResourceProvider* resourceProvider =
+        getResourceProvider(subscribe.info.id());
+
+      if (resourceProvider == nullptr) {
+        resourceProvider = new ResourceProvider(subscribe.info, {}, None());
+
+        addResourceProvider(resourceProvider);
+      } else {
+        // Always update the resource provider info.
+        resourceProvider->info = subscribe.info;
+      }
+      break;
+    }
     case ResourceProviderMessage::Type::UPDATE_STATE: {
       CHECK_SOME(message->updateState);
 
