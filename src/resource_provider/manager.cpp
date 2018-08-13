@@ -63,6 +63,7 @@ using mesos::resource_provider::AdmitResourceProvider;
 using mesos::resource_provider::Call;
 using mesos::resource_provider::Event;
 using mesos::resource_provider::Registrar;
+using mesos::resource_provider::RemoveResourceProvider;
 
 using mesos::resource_provider::registry::Registry;
 
@@ -190,6 +191,9 @@ public:
       const AcknowledgeOperationStatusMessage& message);
 
   void reconcileOperations(const ReconcileOperationsMessage& message);
+
+  Future<Nothing> removeResourceProvider(
+      const ResourceProviderID& resourceProviderId);
 
   Future<Nothing> publishResources(const Resources& resources);
 
@@ -601,6 +605,44 @@ void ResourceProviderManagerProcess::reconcileOperations(
 }
 
 
+Future<Nothing> ResourceProviderManagerProcess::removeResourceProvider(
+    const ResourceProviderID& resourceProviderId)
+{
+  LOG(INFO) << "Removing resource provider " << resourceProviderId;
+
+  Future<bool> removeResourceProvider = registrar
+    ->apply(Owned<mesos::resource_provider::Registrar::Operation>(
+        new RemoveResourceProvider(resourceProviderId)));
+
+  removeResourceProvider.onAny(
+      [resourceProviderId](const Future<bool>& removeResourceProvider) {
+        if (!removeResourceProvider.isReady()) {
+          LOG(ERROR) << "Not removing resource provider " << resourceProviderId
+                     << " as registry update did not succeed: "
+                     << removeResourceProvider;
+        }
+      });
+
+  return removeResourceProvider
+    .then(defer(
+        self(),
+        [this, resourceProviderId](const Future<bool>& removeResourceProvider) {
+          resourceProviders.known.erase(resourceProviderId);
+          resourceProviders.subscribed.erase(resourceProviderId);
+
+          ResourceProviderMessage::Remove remove{resourceProviderId};
+
+          ResourceProviderMessage message;
+          message.type = ResourceProviderMessage::Type::REMOVE;
+          message.remove = std::move(remove);
+
+          messages.put(std::move(message));
+
+          return Nothing();
+        }));
+}
+
+
 Future<Nothing> ResourceProviderManagerProcess::publishResources(
     const Resources& resources)
 {
@@ -987,6 +1029,15 @@ void ResourceProviderManager::reconcileOperations(
       message);
 }
 
+
+Future<Nothing> ResourceProviderManager::removeResourceProvider(
+    const ResourceProviderID& resourceProviderId) const
+{
+  return dispatch(
+      process.get(),
+      &ResourceProviderManagerProcess::removeResourceProvider,
+      resourceProviderId);
+}
 
 Future<Nothing> ResourceProviderManager::publishResources(
     const Resources& resources)

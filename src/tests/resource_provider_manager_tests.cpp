@@ -39,6 +39,7 @@
 #include <stout/error.hpp>
 #include <stout/gtest.hpp>
 #include <stout/lambda.hpp>
+#include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/recordio.hpp>
@@ -51,6 +52,8 @@
 #include "common/recordio.hpp"
 
 #include "internal/devolve.hpp"
+
+#include "master/detector/standalone.hpp"
 
 #include "resource_provider/manager.hpp"
 #include "resource_provider/registrar.hpp"
@@ -65,6 +68,7 @@ namespace http = process::http;
 using mesos::internal::slave::Slave;
 
 using mesos::master::detector::MasterDetector;
+using mesos::master::detector::StandaloneMasterDetector;
 
 using mesos::state::InMemoryStorage;
 using mesos::state::State;
@@ -1476,6 +1480,103 @@ TEST_F(ResourceProviderManagerHttpApiTest, Metrics)
   const JSON::Object snapshot = Metrics();
 
   EXPECT_EQ(1, snapshot.values.at("resource_provider_manager/subscribed"));
+}
+
+
+TEST_F(ResourceProviderManagerHttpApiTest, RemoveResourceProvider)
+{
+  const ContentType contentType = ContentType::PROTOBUF;
+
+  ResourceProviderManager manager(
+      Registrar::create(Owned<Storage>(new InMemoryStorage)).get());
+
+  Future<ResourceProviderMessage> message = manager.messages().get();
+
+  Option<ResourceProviderID> resourceProviderId;
+
+  // Subscribe a resource provider.
+  {
+    Call call;
+    call.set_type(Call::SUBSCRIBE);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+
+    mesos::v1::ResourceProviderInfo* info =
+      subscribe->mutable_resource_provider_info();
+
+    info->set_type("org.apache.mesos.rp.test");
+    info->set_name("test");
+
+    http::Request request;
+    request.method = "POST";
+    request.headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    request.headers["Accept"] = stringify(contentType);
+    request.headers["Content-Type"] = stringify(contentType);
+    request.body = serialize(contentType, call);
+
+    Future<http::Response> response = manager.api(request, None());
+    AWAIT_READY(response);
+
+    AWAIT_READY(message);
+    ASSERT_EQ(ResourceProviderMessage::Type::SUBSCRIBE, message->type);
+    ASSERT_SOME(message->subscribe);
+    ASSERT_TRUE(message->subscribe->info.has_id());
+    resourceProviderId = message->subscribe->info.id();
+  }
+
+  // Remove the resource provider. We expect to receive a notification.
+  message = manager.messages().get();
+
+  Future<Nothing> removeResourceProvider =
+    manager.removeResourceProvider(resourceProviderId.get());
+
+  AWAIT_READY(removeResourceProvider);
+
+  AWAIT_READY(message);
+  ASSERT_EQ(ResourceProviderMessage::Type::REMOVE, message->type);
+  ASSERT_SOME(message->remove);
+  EXPECT_EQ(resourceProviderId.get(), message->remove->resourceProviderId);
+
+  // Attempting to resubscribe this resource provider fails.
+  {
+    Call call;
+    call.set_type(Call::SUBSCRIBE);
+
+    Call::Subscribe* subscribe = call.mutable_subscribe();
+
+    mesos::v1::ResourceProviderInfo* info =
+      subscribe->mutable_resource_provider_info();
+
+    info->set_type("org.apache.mesos.rp.test");
+    info->set_name("test");
+    info->mutable_id()->CopyFrom(evolve(resourceProviderId.get()));
+
+    http::Request request;
+    request.method = "POST";
+    request.headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    request.headers["Accept"] = stringify(contentType);
+    request.headers["Content-Type"] = stringify(contentType);
+    request.body = serialize(contentType, call);
+
+    Future<http::Response> response = manager.api(request, None());
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    ASSERT_EQ(http::Response::PIPE, response->type);
+
+    Option<http::Pipe::Reader> reader = response->reader;
+    ASSERT_SOME(reader);
+
+    recordio::Reader<Event> responseDecoder(
+        ::recordio::Decoder<Event>(
+            lambda::bind(deserialize<Event>, contentType, lambda::_1)),
+        reader.get());
+
+    // We expect the manager to drop the subscribe call since
+    // the resource provider is not known at this point.
+    Future<Result<Event>> event = responseDecoder.read();
+    AWAIT_READY(event);
+    EXPECT_NONE(event.get());
+  }
 }
 
 } // namespace tests {

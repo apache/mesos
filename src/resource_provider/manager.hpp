@@ -17,6 +17,8 @@
 #ifndef __RESOURCE_PROVIDER_MANAGER_HPP__
 #define __RESOURCE_PROVIDER_MANAGER_HPP__
 
+#include <stout/nothing.hpp>
+
 #include <process/authenticator.hpp>
 #include <process/future.hpp>
 #include <process/http.hpp>
@@ -65,6 +67,10 @@ public:
   // relevant resource providers.
   void reconcileOperations(
       const ReconcileOperationsMessage& message) const;
+
+  // Permanently remove a resource provider.
+  process::Future<Nothing> removeResourceProvider(
+      const ResourceProviderID& resourceProviderId) const;
 
   // Ensure that the resources are ready for use.
   process::Future<Nothing> publishResources(const Resources& resources);

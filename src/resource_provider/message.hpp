@@ -43,7 +43,8 @@ struct ResourceProviderMessage
     SUBSCRIBE,
     UPDATE_STATE,
     UPDATE_OPERATION_STATUS,
-    DISCONNECT
+    DISCONNECT,
+    REMOVE
   };
 
   friend std::ostream& operator<<(std::ostream& stream, const Type& type) {
@@ -56,6 +57,8 @@ struct ResourceProviderMessage
         return stream << "UPDATE_OPERATION_STATUS";
       case Type::DISCONNECT:
         return stream << "DISCONNECT";
+      case Type::REMOVE:
+        return stream << "REMOVE";
     }
 
     UNREACHABLE();
@@ -84,12 +87,18 @@ struct ResourceProviderMessage
     ResourceProviderID resourceProviderId;
   };
 
+  struct Remove
+  {
+    ResourceProviderID resourceProviderId;
+  };
+
   Type type;
 
   Option<Subscribe> subscribe;
   Option<UpdateState> updateState;
   Option<UpdateOperationStatus> updateOperationStatus;
   Option<Disconnect> disconnect;
+  Option<Remove> remove;
 };
 
 
@@ -146,6 +155,17 @@ inline std::ostream& operator<<(
       return stream
           << "resource provider "
           << disconnect->resourceProviderId;
+    }
+
+    case ResourceProviderMessage::Type::REMOVE: {
+      const Option<ResourceProviderMessage::Remove>& remove =
+        resourceProviderMessage.remove;
+
+      CHECK_SOME(remove);
+
+      return stream
+          << "resource provider "
+          << remove->resourceProviderId;
     }
   }
 

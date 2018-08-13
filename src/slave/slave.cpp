@@ -7919,6 +7919,17 @@ void Slave::handleResourceProviderMessage(
       }
       break;
     }
+    case ResourceProviderMessage::Type::REMOVE: {
+      CHECK_SOME(message->remove);
+
+      const ResourceProviderID& resourceProviderId =
+        message->remove->resourceProviderId;
+
+      resourceProviders.erase(resourceProviderId);
+
+      LOG(INFO) << "Removed resource provider '" << resourceProviderId << "'";
+      break;
+    }
   }
 
   // Wait for the next message.
