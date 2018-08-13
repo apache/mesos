@@ -2970,7 +2970,7 @@ void ProcessManager::resume(ProcessBase* process)
       if (filter.load() != nullptr) {
         synchronized (filter_mutex) {
           Filter* f = filter.load();
-          if (f != nullptr && f->filter(event)) {
+          if (f != nullptr && f->filter(process->self(), event)) {
             delete event;
             continue; // Try and execute the next event.
           }
@@ -4024,7 +4024,7 @@ void dispatch(
 {
   process::initialize();
 
-  DispatchEvent* event = new DispatchEvent(pid, std::move(f), functionType);
+  DispatchEvent* event = new DispatchEvent(std::move(f), functionType);
   process_manager->deliver(pid, event, __process__);
 }
 

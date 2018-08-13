@@ -20,42 +20,60 @@ namespace process {
 class Filter {
 public:
   virtual ~Filter() {}
-  virtual bool filter(const MessageEvent&) { return false; }
-  virtual bool filter(const DispatchEvent&) { return false; }
-  virtual bool filter(const HttpEvent&) { return false; }
-  virtual bool filter(const ExitedEvent&) { return false; }
+  virtual bool filter(const UPID& process, const MessageEvent&)
+  {
+    return false;
+  }
+  virtual bool filter(const UPID& process, const DispatchEvent&)
+  {
+    return false;
+  }
+  virtual bool filter(const UPID& process, const HttpEvent&)
+  {
+    return false;
+  }
+  virtual bool filter(const UPID& process, const ExitedEvent&)
+  {
+    return false;
+  }
 
-  virtual bool filter(Event* event)
+  virtual bool filter(const UPID& process, Event* event)
   {
     bool result = false;
     struct FilterVisitor : EventVisitor
     {
-      explicit FilterVisitor(Filter* _filter, bool* _result)
-        : filter(_filter), result(_result) {}
+      explicit FilterVisitor(
+          Filter* _filter,
+          const UPID& _process,
+          bool* _result)
+        : filter(_filter),
+          process(_process),
+          result(_result) {}
 
       void visit(const MessageEvent& event) override
       {
-        *result = filter->filter(event);
+        *result = filter->filter(process, event);
       }
 
       void visit(const DispatchEvent& event) override
       {
-        *result = filter->filter(event);
+        *result = filter->filter(process, event);
       }
 
       void visit(const HttpEvent& event) override
       {
-        *result = filter->filter(event);
+        *result = filter->filter(process, event);
       }
 
       void visit(const ExitedEvent& event) override
       {
-        *result = filter->filter(event);
+        *result = filter->filter(process, event);
       }
 
       Filter* filter;
+      const UPID& process;
       bool* result;
-    } visitor(this, &result);
+    } visitor(this, process, &result);
 
     event->visit(&visitor);
 

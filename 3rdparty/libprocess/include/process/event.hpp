@@ -178,11 +178,9 @@ struct HttpEvent : Event
 struct DispatchEvent : Event
 {
   DispatchEvent(
-      const UPID& _pid,
       std::unique_ptr<lambda::CallableOnce<void(ProcessBase*)>> _f,
       const Option<const std::type_info*>& _functionType)
-    : pid(_pid),
-      f(std::move(_f)),
+    : f(std::move(_f)),
       functionType(_functionType)
   {}
 
@@ -200,9 +198,6 @@ struct DispatchEvent : Event
   {
     consumer->consume(std::move(*this));
   }
-
-  // PID receiving the dispatch.
-  UPID pid;
 
   // Function to get invoked as a result of this dispatch event.
   std::unique_ptr<lambda::CallableOnce<void(ProcessBase*)>> f;
