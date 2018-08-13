@@ -31,6 +31,7 @@
 #define DROP_MESSAGE(name, from, to)            \
   process::FutureMessage(name, from, to, true)
 
+
 // The mechanism of how we match method dispatches is done by
 // comparing std::type_info of the member function pointers. Because
 // of this, the method function pointer passed to either
@@ -59,6 +60,14 @@
 
 #define EXPECT_NO_FUTURE_DISPATCHES(pid, method)        \
   process::ExpectNoFutureDispatches(pid, method)
+
+
+#define FUTURE_EXITED(from, to)                 \
+  process::FutureExited(from, to)
+
+#define DROP_EXITED(from, to)                   \
+  process::FutureExited(from, to, true)
+
 
 ACTION_TEMPLATE(PromiseArg,
                 HAS_1_TEMPLATE_PARAMS(int, k),
@@ -395,6 +404,13 @@ MATCHER_P(DispatchMatcher, method, "")
 }
 
 
+MATCHER_P(ExitedMatcher, from, "")
+{
+  const ExitedEvent& event = ::std::get<1>(arg);
+  return testing::Matcher<process::UPID>(from).Matches(event.pid);
+}
+
+
 MATCHER_P3(HttpMatcher, message, path, deserializer, "")
 {
   const HttpEvent& event = ::std::get<1>(arg);
@@ -689,6 +705,23 @@ void ExpectNoFutureDispatches(PID pid, Method method)
       .With(DispatchMatcher(method))
       .Times(0);
   }
+}
+
+
+template <typename From, typename To>
+Future<Nothing> FutureExited(From from, To to, bool drop = false)
+{
+  TestsFilter* filter = FilterTestEventListener::instance()->install();
+  Future<Nothing> future;
+  synchronized (filter->mutex) {
+    EXPECT_CALL(filter->mock, filter(to, testing::A<const ExitedEvent&>()))
+      .With(ExitedMatcher(from))
+      .WillOnce(testing::DoAll(FutureSatisfy(&future),
+                              testing::Return(drop)))
+      .RetiresOnSaturation(); // Don't impose any subsequent expectations.
+  }
+
+  return future;
 }
 
 } // namespace process {
