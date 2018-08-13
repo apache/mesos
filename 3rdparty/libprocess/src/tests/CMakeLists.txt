@@ -26,6 +26,7 @@ set(PROCESS_TESTS_SRC
   future_tests.cpp
   grpc_tests.cpp
   http_tests.cpp
+  io_tests.cpp
   limiter_tests.cpp
   loop_tests.cpp
   metrics_tests.cpp
@@ -46,6 +47,12 @@ set(PROCESS_TESTS_SRC
   time_tests.cpp
   timeseries_tests.cpp)
 
+if (NOT WIN32)
+  # TODO(andschwa): See MESOS-5818.
+  list(APPEND PROCESS_TESTS_SRC
+    reap_tests.cpp)
+endif ()
+
 set(GRPC_TESTS_PROTOS
   grpc_tests.grpc.pb.cc
   grpc_tests.grpc.pb.h
@@ -64,15 +71,6 @@ add_custom_command(
     --plugin=protoc-gen-grpc=$<TARGET_FILE:grpc_cpp_plugin>
     ${CMAKE_CURRENT_SOURCE_DIR}/grpc_tests.proto
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/grpc_tests.proto)
-
-if (NOT WIN32)
-  list(APPEND PROCESS_TESTS_SRC
-    io_tests.cpp
-    reap_tests.cpp)
-elseif (ENABLE_LIBWINIO)
-  list(APPEND PROCESS_TESTS_SRC
-    io_tests.cpp)
-endif ()
 
 if (ENABLE_SSL)
   list(APPEND PROCESS_TESTS_SRC

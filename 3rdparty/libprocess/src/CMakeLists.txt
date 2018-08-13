@@ -61,7 +61,7 @@ if (ENABLE_LIBEVENT)
   list(APPEND PROCESS_SRC
     posix/libevent/libevent.cpp
     posix/libevent/libevent_poll.cpp)
-elseif (ENABLE_LIBWINIO)
+elseif (WIN32)
   list(APPEND PROCESS_SRC
     windows/event_loop.cpp
     windows/libwinio.cpp)
@@ -71,7 +71,7 @@ else ()
     posix/libev/libev_poll.cpp)
 endif ()
 
-if (ENABLE_LIBWINIO)
+if (WIN32 AND NOT ENABLE_LIBEVENT)
   list(APPEND PROCESS_SRC
     windows/io.cpp
     windows/poll_socket.cpp)
@@ -111,14 +111,11 @@ target_link_libraries(
 
 target_compile_definitions(
   process PRIVATE
-  $<$<BOOL:${ENABLE_LIBWINIO}>:ENABLE_LIBWINIO>
+  $<$<AND:$<PLATFORM_ID:Windows>,$<NOT:$<BOOL:${ENABLE_LIBEVENT}>>>:ENABLE_LIBWINIO>
   $<$<BOOL:${ENABLE_LOCK_FREE_RUN_QUEUE}>:LOCK_FREE_RUN_QUEUE>
   $<$<BOOL:${ENABLE_LOCK_FREE_EVENT_QUEUE}>:LOCK_FREE_EVENT_QUEUE>
-  $<$<BOOL:${ENABLE_LAST_IN_FIRST_OUT_FIXED_SIZE_SEMAPHORE}>:LAST_IN_FIRST_OUT_FIXED_SIZE_SEMAPHORE>)
-
-if (LINUX)
-  target_compile_definitions(process PRIVATE LIBPROCESS_ALLOW_JEMALLOC)
-endif ()
+  $<$<BOOL:${ENABLE_LAST_IN_FIRST_OUT_FIXED_SIZE_SEMAPHORE}>:LAST_IN_FIRST_OUT_FIXED_SIZE_SEMAPHORE>
+  $<$<PLATFORM_ID:LINUX>:LIBPROCESS_ALLOW_JEMALLOC>)
 
 target_include_directories(process PUBLIC ../include)
 target_include_directories(process PRIVATE .)
