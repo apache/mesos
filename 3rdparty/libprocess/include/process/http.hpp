@@ -27,6 +27,7 @@
 #include <boost/functional/hash.hpp>
 
 #include <process/address.hpp>
+#include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
@@ -519,7 +520,7 @@ public:
 struct Request
 {
   Request()
-    : keepAlive(false), type(BODY) {}
+    : keepAlive(false), type(BODY), received(Clock::now()) {}
 
   std::string method;
 
@@ -563,6 +564,8 @@ struct Request
 
   std::string body;
   Option<Pipe::Reader> reader;
+
+  Time received;
 
   /**
    * Returns whether the encoding is considered acceptable in the
