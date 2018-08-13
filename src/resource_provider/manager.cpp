@@ -627,6 +627,28 @@ Future<Nothing> ResourceProviderManagerProcess::removeResourceProvider(
     .then(defer(
         self(),
         [this, resourceProviderId](const Future<bool>& removeResourceProvider) {
+          // TODO(bbannier): We should also on a best effort basis send a
+          // `TEARDOWN` event when a removed resource provider attempts to
+          // resubscribe. This can happen e.g., if the event gets lost on its
+          // way to the resource provider, or if the resource provider is not
+          // connected.
+          if (resourceProviders.subscribed.contains(resourceProviderId)) {
+            const Owned<ResourceProvider>& resourceProvider =
+              resourceProviders.subscribed.at(resourceProviderId);
+            Event event;
+            event.set_type(Event::TEARDOWN);
+
+            if (!resourceProvider->http.send(event)) {
+              LOG(WARNING)
+                << "Failed to send TEARDOWN event to resource provider "
+                << resourceProviderId << ": connection closed";
+            }
+          } else {
+            LOG(WARNING)
+              << "Failed to send TEARDOWN event to resource provider "
+              << resourceProviderId << ": resource provider not subscribed";
+          }
+
           resourceProviders.known.erase(resourceProviderId);
           resourceProviders.subscribed.erase(resourceProviderId);
 

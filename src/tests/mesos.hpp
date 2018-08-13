@@ -2977,6 +2977,22 @@ public:
               Operation,
               Source>::publishDefault));
     EXPECT_CALL(*this, publishResources(_)).WillRepeatedly(DoDefault());
+
+    ON_CALL(*this, teardown())
+      .WillByDefault(Invoke(
+          this,
+          &MockResourceProvider<
+              Event,
+              Call,
+              Driver,
+              ResourceProviderInfo,
+              Resource,
+              Resources,
+              ResourceProviderID,
+              OperationState,
+              Operation,
+              Source>::teardownDefault));
+    EXPECT_CALL(*this, teardown()).WillRepeatedly(DoDefault());
   }
 
   MOCK_METHOD0_T(connected, void());
@@ -2992,6 +3008,7 @@ public:
   MOCK_METHOD1_T(
       reconcileOperations,
       void(const typename Event::ReconcileOperations&));
+  MOCK_METHOD0_T(teardown, void());
 
   void events(std::queue<Event> events)
   {
@@ -3014,6 +3031,9 @@ public:
           break;
         case Event::RECONCILE_OPERATIONS:
           reconcileOperations(event.reconcile_operations());
+          break;
+        case Event::TEARDOWN:
+          teardown();
           break;
         case Event::UNKNOWN:
           LOG(FATAL) << "Received unexpected UNKNOWN event";
@@ -3213,6 +3233,8 @@ public:
 
     driver->send(call);
   }
+
+  void teardownDefault() {}
 
   ResourceProviderInfo info;
 

@@ -582,6 +582,10 @@ void StorageLocalResourceProviderProcess::received(const Event& event)
       reconcileOperations(event.reconcile_operations());
       break;
     }
+    case Event::TEARDOWN: {
+      // TODO(bbannier): Clean up state after teardown.
+      break;
+    }
     case Event::UNKNOWN: {
       LOG(WARNING) << "Received an UNKNOWN event and ignored";
       break;

@@ -39,6 +39,7 @@ message Event {
     PUBLISH_RESOURCES = 3;            // See 'PublishResources' below.
     ACKNOWLEDGE_OPERATION_STATUS = 4; // See 'AcknowledgeOperationStatus' below.
     RECONCILE_OPERATIONS = 5;         // See 'ReconcileOperations' below.
+    TEARDOWN = 6;                     // Sent on resource provider teardown.
   }
 
   // First event received by the resource provider when it subscribes
