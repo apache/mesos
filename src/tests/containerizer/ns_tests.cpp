@@ -266,6 +266,30 @@ TEST(NsTest, ROOT_clone)
   EXPECT_NONE(status.get());
 }
 
+
+// Test the ns::NamespaceRunner().
+TEST(NsTest, ROOT_NamespaceRunner)
+{
+  process::Future<int> r;
+
+  // Initialize the Runner.
+  ns::NamespaceRunner runner;
+
+  // Run a dummy function in a networking namespace.
+  lambda::function<Try<int>()> f = []() -> Try<int> {
+    return 42;
+  };
+
+  r = runner.run("/proc/self/ns/net", "net", f);
+  AWAIT_READY(r);
+  EXPECT_EQ(r.get(), 42);
+
+  // Run the function with an invalid namespace type.
+  r = runner.run("/proc/self/ns/net", "mnt", f);
+  AWAIT_FAILED(r);
+  EXPECT_EQ(r.failure(), "Invalid argument");
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
