@@ -696,6 +696,8 @@ TEST(ProcessTest, Donate)
 }
 
 
+// TODO(bmahler): Use an RAII-wrapper here to prevent crashes
+// during test assertion failures.
 class ExitedProcess : public Process<ExitedProcess>
 {
 public:
@@ -754,6 +756,56 @@ TEST(ProcessTest, InjectExited)
 
   terminate(process);
   wait(process);
+}
+
+
+// TODO(bmahler): Move all message interception / dropping tests
+// (of the gmock.hpp functionality) into a separate file.
+TEST(ProcessTest, FutureExited)
+{
+  UPID linkee = spawn(new ProcessBase(), true);
+  ExitedProcess linker(linkee);
+
+  Future<Nothing> exited = FUTURE_EXITED(linkee, linker.self());
+
+  Future<UPID> exitedPid;
+  EXPECT_CALL(linker, exited(linkee))
+    .WillOnce(FutureArg<0>(&exitedPid));
+
+  spawn(linker);
+
+  terminate(linkee);
+
+  AWAIT_READY(exited);
+  AWAIT_ASSERT_EQ(linkee, exitedPid);
+
+  terminate(linker);
+  wait(linker);
+}
+
+
+// TODO(bmahler): Move all message interception / dropping tests
+// (of the gmock.hpp functionality) into a separate file.
+TEST(ProcessTest, DropExited)
+{
+  UPID linkee = spawn(new ProcessBase(), true);
+  ExitedProcess linker(linkee);
+
+  Future<Nothing> exited = DROP_EXITED(linkee, linker.self());
+
+  Future<UPID> exitedPid;
+  EXPECT_CALL(linker, exited(linkee))
+    .WillRepeatedly(FutureArg<0>(&exitedPid));
+
+  spawn(linker);
+
+  terminate(linkee);
+
+  AWAIT_READY(exited);
+  EXPECT_TRUE(exitedPid.isPending());
+
+  terminate(linker);
+  wait(linker);
 }
 
 
