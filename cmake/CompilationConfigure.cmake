@@ -102,11 +102,6 @@ if (ENABLE_LIBEVENT)
 endif()
 
 option(
-  ENABLE_LIBWINIO
-  "Use Windows IOCP instead of libev as the core event loop implementation."
-  FALSE)
-
-option(
   ENABLE_SSL
   "Build libprocess with SSL support."
   FALSE)
@@ -223,21 +218,15 @@ if (WIN32 AND REBUNDLED)
     "the Internet, even though the `REBUNDLED` flag was set.")
 endif ()
 
-if (WIN32 AND (NOT ENABLE_LIBEVENT AND NOT ENABLE_LIBWINIO))
+if (WIN32 AND ENABLE_LIBEVENT)
   message(
-    FATAL_ERROR
-    "Windows builds of Mesos currently do not support libev, the default event "
-    "loop used by Mesos.  To opt into using libevent, pass "
-    "`-DENABLE_LIBEVENT=1` as an argument when you run CMake."
-    "To opt into using the native Windows IOCP implementation instead, "
-    "pass `-DENABLE_LIBWINIO=1` as an argument.")
-endif ()
-
-if (ENABLE_LIBWINIO AND (NOT WIN32))
-  message(
-    FATAL_ERROR
-    "Libwinio, which is the Windows IOCP event loop, only works on Windows. "
-    "Please use libev or libevent instead on non-Windows platforms.")
+    WARNING
+    "The Windows imlementation of libevent is BUGGY. Use it at your own risk. "
+    "It does NOT support async I/O. You WILL have problems. Tests WILL fail. "
+    "This is NOT supported, and WILL eventually be removed. "
+    "When not explicitly enabled, the build will default to the native Windows "
+    "IOCP implementation, `libwinio`, built on the Windows Thread Pool API. "
+    "See MESOS-8668 for context.")
 endif ()
 
 if (ENABLE_SSL AND (NOT ENABLE_LIBEVENT))

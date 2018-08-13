@@ -40,7 +40,7 @@ Following are the instructions for Windows 10.
     # Configure using CMake for an out-of-tree build.
     mkdir build
     cd build
-    cmake .. -G "Visual Studio 15 2017 Win64" -T "host=x64" -DENABLE_LIBWINIO=ON
+    cmake .. -G "Visual Studio 15 2017 Win64" -T "host=x64"
 
     # Build Mesos.
     # To build just the Mesos agent, add `--target mesos-agent`.
@@ -49,7 +49,7 @@ Following are the instructions for Windows 10.
     # The Windows agent exposes new isolators that must be used as with
     # the `--isolation` flag. To get started point the agent to a working
     # master, using eiher an IP address or zookeeper information.
-    src\mesos-agent.exe --master=<master> --work_dir=<work folder> --launcher_dir=<repository>\build\src
+    .\src\mesos-agent.exe --master=<master> --work_dir=<work folder> --launcher_dir=<repository>\build\src
 
 ## Running Mesos
 
@@ -93,8 +93,7 @@ ensure `ninja.exe` is in your `PATH`.
 * Open an "x64 Native Tools Command Prompt for VS 2017" to set your
   environment.
 * In that command prompt, type `powershell` to use a better shell.
-* Similar to above, configure CMake with
-  `cmake .. -G Ninja -DENABLE_LIBWINIO=ON`.
+* Similar to above, configure CMake with `cmake .. -G Ninja`.
 * Now you can use `ninja` to build the various targets.
 * You may want to use `ninja -v` to make it verbose, as it's otherwise
   very quiet.
@@ -163,11 +162,11 @@ of OpenSSL for Windows. A commonly chosen distribution is
 As of this writing, OpenSSL 1.1.x is not yet supported, but 1.0.2M has been
 tested.
 
-Use `-DENABLE_SSL=ON` when running CMake to build with OpenSSL.
+Use `-DENABLE_SSL=ON -DENABLE_LIBEVENT=ON` to build with OpenSSL.
 
-> Warning: This currently requires the use of `-DENABLE_LIBEVENT=ON`
-> instead of `-DENABLE_LIBWINIO=ON`; however, the use of libevent on
-> Windows is not recommended, as it is buggy and will be unsupported
+> Warning: This currently requires the use of libevent instead of the
+> native Windows Thread Pool API. However, the use of libevent on
+> Windows is NOT recommended, as it is buggy and will be unsupported
 > in the future.
 
 Note that it will link to OpenSSL dynamically, so if the built executables are

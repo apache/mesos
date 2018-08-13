@@ -593,7 +593,7 @@ if (ENABLE_LIBEVENT)
       target_link_libraries(libevent INTERFACE ${LIBEVENT_LIB})
     endforeach ()
   endif ()
-elseif (NOT ENABLE_LIBWINIO)
+elseif (NOT WIN32) # Windows defaults to `libwinio`, a native implementation.
   # libev: Full-featured high-performance event loop.
   # https://github.com/enki/libev
   ###################################################

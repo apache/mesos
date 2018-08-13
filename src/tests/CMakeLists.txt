@@ -153,13 +153,9 @@ list(APPEND MESOS_TESTS_SRC
 list(APPEND MESOS_TESTS_SRC
   containerizer/containerizer_tests.cpp
   containerizer/cpu_isolator_tests.cpp
+  containerizer/docker_containerizer_tests.cpp
   containerizer/docker_tests.cpp
   containerizer/memory_isolator_tests.cpp)
-
-if (NOT WIN32 OR ENABLE_LIBWINIO)
-  list(APPEND MESOS_TESTS_SRC
-    containerizer/docker_containerizer_tests.cpp)
-endif ()
 
 if (NOT WIN32)
   list(APPEND MESOS_TESTS_SRC
