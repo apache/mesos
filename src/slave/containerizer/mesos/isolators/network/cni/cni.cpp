@@ -44,6 +44,8 @@
 #include "linux/fs.hpp"
 #include "linux/ns.hpp"
 
+#include "slave/state.hpp"
+
 namespace io = process::io;
 namespace paths = mesos::internal::slave::cni::paths;
 namespace spec = mesos::internal::slave::cni::spec;
@@ -1283,13 +1285,14 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
       containerId,
       networkName);
 
-  Try<Nothing> write =
-    os::write(networkConfigPath, stringify(networkConfigJSON.get()));
+  Try<Nothing> checkpoint = slave::state::checkpoint(
+      networkConfigPath,
+      stringify(networkConfigJSON.get()));
 
-  if (write.isError()) {
+  if (checkpoint.isError()) {
     return Failure(
         "Failed to checkpoint the CNI network configuration '" +
-        stringify(networkConfigJSON.get()) + "': " + write.error());
+        stringify(networkConfigJSON.get()) + "': " + checkpoint.error());
   }
 
   VLOG(1) << "Invoking CNI plugin '" << plugin.get()
@@ -1404,11 +1407,13 @@ Future<Nothing> NetworkCniIsolatorProcess::_attach(
       networkName,
       containerNetwork.ifName);
 
-  Try<Nothing> write = os::write(networkInfoPath, output.get());
-  if (write.isError()) {
+  Try<Nothing> checkpoint =
+    slave::state::checkpoint(networkInfoPath, output.get());
+
+  if (checkpoint.isError()) {
     return Failure(
         "Failed to checkpoint the output of CNI plugin '" +
-        output.get() + "': " + write.error());
+        output.get() + "': " + checkpoint.error());
   }
 
   containerNetwork.cniNetworkInfo = parse.get();
