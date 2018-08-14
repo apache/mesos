@@ -309,11 +309,17 @@ Future<Option<ContainerLaunchInfo>> VolumeHostPathIsolatorProcess::prepare(
     // result, no need for the bind mount because the 'hostPath' is
     // already accessible in the container.
     if (hostPath.get() != mountPoint) {
-      // TODO(jieyu): Consider the mode in the volume.
       ContainerMountInfo* mount = launchInfo.add_mounts();
       mount->set_source(hostPath.get());
       mount->set_target(mountPoint);
       mount->set_flags(MS_BIND | MS_REC);
+
+      // If the mount needs to be read-only, do a remount.
+      if (volume.mode() == Volume::RO) {
+        mount = launchInfo.add_mounts();
+        mount->set_target(mountPoint);
+        mount->set_flags(MS_BIND | MS_RDONLY | MS_REMOUNT);
+      }
     }
   }
 
