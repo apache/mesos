@@ -112,6 +112,7 @@ All Resolved Issues:
   * [MESOS-9125] - "Port mapper CNI plugin might fail with ""Resource temporarily unavailable"""
   * [MESOS-9127] - Port mapper CNI plugin might deadlock iptables on the agent.
   * [MESOS-9137] - GRPC build fails to pass compiler flags
+  * [MESOS-9142] - CNI detach might fail due to missing network config file.
   * [MESOS-9149] - Failed to build gRPC on Linux without OpenSSL.
 
 ** Documentation
