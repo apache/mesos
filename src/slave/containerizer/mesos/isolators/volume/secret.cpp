@@ -276,6 +276,19 @@ Future<Option<ContainerLaunchInfo>> VolumeSecretIsolatorProcess::prepare(
     command->add_arguments(sandboxSecretPath);
     command->add_arguments(targetContainerPath);
 
+    // If the mount needs to be read-only, do a remount.
+    if (volume.mode() == Volume::RO) {
+      command = launchInfo.add_pre_exec_commands();
+      command->set_shell(false);
+      command->set_value("mount");
+      command->add_arguments("mount");
+      command->add_arguments("-n");
+      command->add_arguments("-o");
+      command->add_arguments("bind,ro,remount");
+      command->add_arguments(sandboxSecretPath);
+      command->add_arguments(targetContainerPath);
+    }
+
     Future<Nothing> future = secretResolver->resolve(secret)
       .then([hostSecretPath](const Secret::Value& value) -> Future<Nothing> {
         Try<Nothing> writeSecret = os::write(hostSecretPath, value.data());
