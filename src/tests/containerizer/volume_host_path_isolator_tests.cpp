@@ -116,6 +116,62 @@ TEST_F(VolumeHostPathIsolatorTest, ROOT_VolumeFromHost)
 }
 
 
+// This test verifies that a container launched with a
+// rootfs cannot write to a read-only HOST_PATH volume.
+TEST_F(VolumeHostPathIsolatorTest, ROOT_ReadOnlyVolumeFromHost)
+{
+  string registry = path::join(sandbox.get(), "registry");
+  AWAIT_READY(DockerArchive::create(registry, "test_image"));
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "filesystem/linux,docker/runtime";
+  flags.docker_registry = registry;
+  flags.docker_store_dir = path::join(sandbox.get(), "store");
+  flags.image_providers = "docker";
+
+  Fetcher fetcher(flags);
+
+  Try<MesosContainerizer*> create =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<Containerizer> containerizer(create.get());
+
+  ContainerID containerId;
+  containerId.set_value(id::UUID::random().toString());
+
+  ExecutorInfo executor = createExecutorInfo(
+      "test_executor",
+      "echo abc > /tmp/dir/file");
+
+  executor.mutable_container()->CopyFrom(createContainerInfo(
+      "test_image",
+      {createVolumeHostPath("/tmp", sandbox.get(), Volume::RO)}));
+
+  string dir = path::join(sandbox.get(), "dir");
+  ASSERT_SOME(os::mkdir(dir));
+
+  string directory = path::join(flags.work_dir, "sandbox");
+  ASSERT_SOME(os::mkdir(directory));
+
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
+      containerId,
+      createContainerConfig(None(), executor, directory),
+      map<string, string>(),
+      None());
+
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
+
+  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait->get().has_status());
+  EXPECT_WEXITSTATUS_NE(0, wait->get().status());
+}
+
+
 // This test verifies that a file volume with an absolute host
 // path as well as an absolute container path is properly mounted
 // in the container's mount namespace.
