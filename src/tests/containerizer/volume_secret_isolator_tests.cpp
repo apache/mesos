@@ -65,7 +65,11 @@ enum CONTAINER_LAUNCH_STATUS {
 class VolumeSecretIsolatorTest :
   public MesosTest,
   public ::testing::WithParamInterface<std::tr1::tuple<
-      const char*, const char*, enum FS_TYPE, enum CONTAINER_LAUNCH_STATUS>>
+      const char*,
+      const char*,
+      enum FS_TYPE,
+      enum CONTAINER_LAUNCH_STATUS,
+      Volume::Mode>>
 
 {
 protected:
@@ -78,7 +82,7 @@ protected:
     fsType = std::tr1::get<2>(GetParam());
     expectedContainerLaunchStatus = std::tr1::get<3>(GetParam());
 
-    volume.set_mode(Volume::RW);
+    volume.set_mode(std::tr1::get<4>(GetParam()));
     volume.set_container_path(secretContainerPath);
 
     Volume::Source* source = volume.mutable_source();
@@ -114,7 +118,8 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::Combine(::testing::Values(""),
                        ::testing::ValuesIn(paths),
                        ::testing::Values(WITHOUT_ROOTFS),
-                       ::testing::Values(CONTAINER_LAUNCH_SUCCESS)));
+                       ::testing::Values(CONTAINER_LAUNCH_SUCCESS),
+                       ::testing::Values(Volume::RW, Volume::RO)));
 
 
 INSTANTIATE_TEST_CASE_P(
@@ -123,7 +128,8 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::Combine(::testing::Values("/"),
                        ::testing::ValuesIn(paths),
                        ::testing::Values(WITHOUT_ROOTFS),
-                       ::testing::Values(CONTAINER_LAUNCH_FAILURE)));
+                       ::testing::Values(CONTAINER_LAUNCH_FAILURE),
+                       ::testing::Values(Volume::RW, Volume::RO)));
 
 
 INSTANTIATE_TEST_CASE_P(
@@ -132,7 +138,8 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::Combine(::testing::Values(""),
                        ::testing::Values("/bin/touch"),
                        ::testing::Values(WITHOUT_ROOTFS),
-                       ::testing::Values(CONTAINER_LAUNCH_SUCCESS)));
+                       ::testing::Values(CONTAINER_LAUNCH_SUCCESS),
+                       ::testing::Values(Volume::RW, Volume::RO)));
 
 
 INSTANTIATE_TEST_CASE_P(
@@ -141,7 +148,8 @@ INSTANTIATE_TEST_CASE_P(
     ::testing::Combine(::testing::Values("", "/"),
                        ::testing::ValuesIn(paths),
                        ::testing::Values(WITH_ROOTFS),
-                       ::testing::Values(CONTAINER_LAUNCH_SUCCESS)));
+                       ::testing::Values(CONTAINER_LAUNCH_SUCCESS),
+                       ::testing::Values(Volume::RW, Volume::RO)));
 
 
 TEST_P(VolumeSecretIsolatorTest, ROOT_SecretInVolumeWithRootFilesystem)
@@ -224,8 +232,10 @@ TEST_P(VolumeSecretIsolatorTest, ROOT_SecretInVolumeWithRootFilesystem)
   nestedContainerId.set_value(id::UUID::random().toString());
 
   CommandInfo nestedCommand = createCommandInfo(
-      "secret=$(cat " + secretContainerPath + "); "
-      "test \"$secret\" = \"" + string(SECRET_VALUE) + "\"");
+      volume.mode() == Volume::RW
+        ? "secret=$(cat " + secretContainerPath + "); "
+          "test \"$secret\" = \"" + string(SECRET_VALUE) + "\""
+        : "echo abc > " + secretContainerPath);
 
   launch = containerizer->launch(
       nestedContainerId,
@@ -242,7 +252,12 @@ TEST_P(VolumeSecretIsolatorTest, ROOT_SecretInVolumeWithRootFilesystem)
   AWAIT_READY(wait);
   ASSERT_SOME(wait.get());
   ASSERT_TRUE(wait.get()->has_status());
-  EXPECT_WEXITSTATUS_EQ(0, wait.get()->status());
+
+  if (volume.mode() == Volume::RW) {
+    EXPECT_WEXITSTATUS_EQ(0, wait.get()->status());
+  } else {
+    EXPECT_WEXITSTATUS_NE(0, wait.get()->status());
+  }
 
   // Now wait for parent container.
   Future<Option<ContainerTermination>> termination =
