@@ -322,8 +322,9 @@ TEST_F(ZooKeeperMasterContenderDetectorTest, ContenderPendingElection)
     // ZooKeeperMasterContender directly returns.
     EXPECT_CALL(
         filter->mock,
-        filter(testing::A<const process::DispatchEvent&>()))
-      .With(DispatchMatcher(_, &GroupProcess::join))
+        filter(testing::A<const UPID&>(),
+               testing::A<const process::DispatchEvent&>()))
+      .With(DispatchMatcher(&GroupProcess::join))
       .Times(0);
   }
 
