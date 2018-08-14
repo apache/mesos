@@ -113,7 +113,11 @@ Future<Option<ContainerLaunchInfo>> VolumeImageIsolatorProcess::prepare(
     return Failure("Can only prepare image volumes for a MESOS container");
   }
 
+  // TODO(qianzhang): Here we use vector to ensure the order of mount target,
+  // mount source and volume mode which is kind of hacky, we could consider
+  // to introduce a dedicated struct for it in future.
   vector<string> targets;
+  vector<Volume::Mode> volumeModes;
   vector<Future<ProvisionInfo>> futures;
 
   for (int i = 0; i < containerConfig.container_info().volumes_size(); i++) {
@@ -188,6 +192,7 @@ Future<Option<ContainerLaunchInfo>> VolumeImageIsolatorProcess::prepare(
     }
 
     targets.push_back(target);
+    volumeModes.push_back(volume.mode());
     futures.push_back(provisioner->provision(containerId, volume.image()));
   }
 
@@ -197,6 +202,7 @@ Future<Option<ContainerLaunchInfo>> VolumeImageIsolatorProcess::prepare(
         &VolumeImageIsolatorProcess::_prepare,
         containerId,
         targets,
+        volumeModes,
         lambda::_1));
 }
 
@@ -204,6 +210,7 @@ Future<Option<ContainerLaunchInfo>> VolumeImageIsolatorProcess::prepare(
 Future<Option<ContainerLaunchInfo>> VolumeImageIsolatorProcess::_prepare(
     const ContainerID& containerId,
     const vector<string>& targets,
+    const vector<Volume::Mode>& volumeModes,
     const vector<Future<ProvisionInfo>>& futures)
 {
   ContainerLaunchInfo launchInfo;
@@ -225,10 +232,12 @@ Future<Option<ContainerLaunchInfo>> VolumeImageIsolatorProcess::_prepare(
   }
 
   CHECK_EQ(sources.size(), targets.size());
+  CHECK_EQ(sources.size(), volumeModes.size());
 
   for (size_t i = 0; i < sources.size(); i++) {
     const string& source = sources[i];
     const string& target = targets[i];
+    const Volume::Mode volumeMode = volumeModes[i];
 
     LOG(INFO) << "Mounting image volume rootfs '" << source
               << "' to '" << target << "' for container " << containerId;
@@ -242,6 +251,13 @@ Future<Option<ContainerLaunchInfo>> VolumeImageIsolatorProcess::_prepare(
     mount->set_source(source);
     mount->set_target(target);
     mount->set_flags(MS_BIND | MS_REC);
+
+    // If the mount needs to be read-only, do a remount.
+    if (volumeMode == Volume::RO) {
+      mount = launchInfo.add_mounts();
+      mount->set_target(target);
+      mount->set_flags(MS_BIND | MS_RDONLY | MS_REMOUNT);
+    }
   }
 
   return launchInfo;
