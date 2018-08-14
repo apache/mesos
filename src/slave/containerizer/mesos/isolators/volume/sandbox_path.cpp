@@ -379,11 +379,25 @@ Future<Option<ContainerLaunchInfo>> VolumeSandboxPathIsolatorProcess::prepare(
       mount->set_source(source);
       mount->set_target(target);
       mount->set_flags(MS_BIND | MS_REC);
+
+      // If the mount needs to be read-only, do a remount.
+      if (volume.mode() == Volume::RO) {
+        mount = launchInfo.add_mounts();
+        mount->set_target(target);
+        mount->set_flags(MS_BIND | MS_RDONLY | MS_REMOUNT);
+      }
 #endif // __linux__
     } else {
       LOG(INFO) << "Linking SANDBOX_PATH volume from "
                 << "'" << source << "' to '" << target << "' "
                 << "for container " << containerId;
+
+      // NOTE: We cannot enforce read-only access given the symlink without
+      // changing the source so we just log a warning here.
+      if (volume.mode() == Volume::RO) {
+        LOG(WARNING) << "Allowing read-write access to read-only volume '"
+                     << source << "' of container " << containerId;
+      }
 
       Try<Nothing> symlink = ::fs::symlink(source, target);
       if (symlink.isError()) {
