@@ -326,7 +326,7 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::prepare(
 
   // The hashset is used to check if there are duplicated docker
   // volume for the same container.
-  hashset<DockerVolume> volumes;
+  hashset<DockerVolume> volumeSet;
 
   // Represents mounts that will be sent to the driver client.
   struct Mount
@@ -335,10 +335,16 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::prepare(
     hashmap<string, string> options;
   };
 
+
+  // TODO(qianzhang): Here we use vector to ensure the order of mount target,
+  // mount source and volume mode which is kind of hacky, we could consider
+  // to introduce a dedicated struct for it in future.
   vector<Mount> mounts;
 
   // The mount points in the container.
   vector<string> targets;
+
+  vector<Volume::Mode> volumeModes;
 
   foreach (const Volume& _volume, containerConfig.container_info().volumes()) {
     if (!_volume.has_source()) {
@@ -366,7 +372,7 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::prepare(
     volume.set_driver(driver);
     volume.set_name(name);
 
-    if (volumes.contains(volume)) {
+    if (volumeSet.contains(volume)) {
       return Failure(
           "Found duplicate docker volume with driver '" +
           driver + "' and name '" + name + "'");
@@ -443,15 +449,16 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::prepare(
     mount.volume = volume;
     mount.options = options;
 
-    volumes.insert(volume);
+    volumeSet.insert(volume);
     mounts.push_back(mount);
     targets.push_back(target);
+    volumeModes.push_back(_volume.mode());
   }
 
   // It is possible that there is no external volume specified for
   // this container. We avoid checkpointing empty state and creating
   // an empty `Info`.
-  if (volumes.empty()) {
+  if (volumeSet.empty()) {
     return None();
   }
 
@@ -468,7 +475,7 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::prepare(
 
   // Create DockerVolumes protobuf message to checkpoint.
   DockerVolumes state;
-  foreach (const DockerVolume& volume, volumes) {
+  foreach (const DockerVolume& volume, volumeSet) {
     state.add_volumes()->CopyFrom(volume);
   }
 
@@ -487,7 +494,7 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::prepare(
 
   VLOG(1) << "Successfully created checkpoint at '" << volumesPath << "'";
 
-  infos.put(containerId, Owned<Info>(new Info(volumes)));
+  infos.put(containerId, Owned<Info>(new Info(volumeSet)));
 
   // Invoke driver client to create the mount.
   vector<Future<string>> futures;
@@ -508,6 +515,7 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::prepare(
         &DockerVolumeIsolatorProcess::_prepare,
         containerId,
         targets,
+        volumeModes,
         lambda::_1));
 }
 
@@ -515,6 +523,7 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::prepare(
 Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::_prepare(
     const ContainerID& containerId,
     const vector<string>& targets,
+    const vector<Volume::Mode>& volumeModes,
     const vector<Future<string>>& futures)
 {
   ContainerLaunchInfo launchInfo;
@@ -536,10 +545,12 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::_prepare(
   }
 
   CHECK_EQ(sources.size(), targets.size());
+  CHECK_EQ(sources.size(), volumeModes.size());
 
   for (size_t i = 0; i < sources.size(); i++) {
     const string& source = sources[i];
     const string& target = targets[i];
+    const Volume::Mode volumeMode = volumeModes[i];
 
     LOG(INFO) << "Mounting docker volume mount point '" << source
               << "' to '" << target << "' for container " << containerId;
@@ -548,6 +559,13 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::_prepare(
     mount->set_source(source);
     mount->set_target(target);
     mount->set_flags(MS_BIND | MS_REC);
+
+    // If the mount needs to be read-only, do a remount.
+    if (volumeMode == Volume::RO) {
+      mount = launchInfo.add_mounts();
+      mount->set_target(target);
+      mount->set_flags(MS_BIND | MS_RDONLY | MS_REMOUNT);
+    }
   }
 
   return launchInfo;

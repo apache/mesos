@@ -82,6 +82,7 @@ private:
   process::Future<Option<mesos::slave::ContainerLaunchInfo>> _prepare(
       const ContainerID& containerId,
       const std::vector<std::string>& targets,
+      const std::vector<Volume::Mode>& volumeModes,
       const std::vector<process::Future<std::string>>& futures);
 
   process::Future<Nothing> _cleanup(
