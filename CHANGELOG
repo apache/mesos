@@ -116,6 +116,7 @@ All Resolved Issues:
   * [MESOS-9127] - Port mapper CNI plugin might deadlock iptables on the agent.
   * [MESOS-9137] - GRPC build fails to pass compiler flags
   * [MESOS-9142] - CNI detach might fail due to missing network config file.
+  * [MESOS-9144] - Master authentication handling leads to request amplification.
   * [MESOS-9145] - Master has a fragile burned-in 5s authentication timeout.
   * [MESOS-9149] - Failed to build gRPC on Linux without OpenSSL.
 
