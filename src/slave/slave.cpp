@@ -990,15 +990,15 @@ void Slave::detected(const Future<Option<MasterInfo>>& _master)
       // Authenticate with the master.
       // TODO(vinod): Consider adding an "AUTHENTICATED" state to the
       // slave instead of "authenticate" variable.
-      Duration maxTimeout = AUTHENTICATION_TIMEOUT_MIN +
+      Duration maxTimeout = flags.authentication_timeout_min +
                             flags.authentication_backoff_factor * 2;
 
       delay(
           duration,
           self(),
           &Slave::authenticate,
-          AUTHENTICATION_TIMEOUT_MIN,
-          std::min(maxTimeout, AUTHENTICATION_TIMEOUT_MAX));
+          flags.authentication_timeout_min,
+          std::min(maxTimeout, flags.authentication_timeout_max));
     } else {
       // Proceed with registration without authentication.
       LOG(INFO) << "No credentials provided."
@@ -1131,7 +1131,7 @@ void Slave::_authenticate(
 
     authenticate(
         currentMinTimeout,
-        std::min(maxTimeout, AUTHENTICATION_TIMEOUT_MAX));
+        std::min(maxTimeout, flags.authentication_timeout_max));
     return;
   }
 

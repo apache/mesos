@@ -76,6 +76,8 @@ public:
   std::string frameworks_home;  // TODO(benh): Make an Option.
   Duration registration_backoff_factor;
   Duration authentication_backoff_factor;
+  Duration authentication_timeout_min;
+  Duration authentication_timeout_max;
   Option<JSON::Object> executor_environment_variables;
   Duration executor_registration_timeout;
   Duration executor_reregistration_timeout;
