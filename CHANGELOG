@@ -163,6 +163,7 @@ All Resolved Issues:
   * [MESOS-3442] - Port path_tests to Windows
   * [MESOS-3444] - Port sendfile_tests
   * [MESOS-4509] - Remove deprecated .json endpoints.
+  * [MESOS-5647] - Expose network statistics for containers on CNI network in the `network/cni` isolator.
   * [MESOS-5814] - Port libprocess http_tests.cpp
   * [MESOS-5817] - Port libprocess process_tests.cpp
   * [MESOS-5941] - RemoteLink tests fail on Windows
