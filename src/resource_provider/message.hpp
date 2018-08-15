@@ -71,7 +71,7 @@ struct ResourceProviderMessage
 
   struct UpdateState
   {
-    ResourceProviderInfo info;
+    ResourceProviderID resourceProviderId;
     UUID resourceVersion;
     Resources totalResources;
     hashmap<UUID, Operation> operations;
@@ -124,7 +124,7 @@ inline std::ostream& operator<<(
       CHECK_SOME(updateState);
 
       return stream
-          << updateState->info.id() << " "
+          << updateState->resourceProviderId << " "
           << updateState->totalResources;
     }
 

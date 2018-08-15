@@ -315,10 +315,9 @@ TEST_P(ResourceProviderManagerHttpApiTest, UpdateState)
     AWAIT_READY(message);
 
     EXPECT_EQ(ResourceProviderMessage::Type::UPDATE_STATE, message->type);
-    ASSERT_TRUE(message->updateState->info.has_id());
     EXPECT_EQ(
         devolve(resourceProviderId.get()),
-        message->updateState->info.id());
+        message->updateState->resourceProviderId);
     EXPECT_EQ(devolve(resources), message->updateState->totalResources);
   }
 }

@@ -7670,104 +7670,83 @@ void Slave::handleResourceProviderMessage(
       const ResourceProviderMessage::UpdateState& updateState =
         message->updateState.get();
 
-      CHECK(updateState.info.has_id());
-      const ResourceProviderID& resourceProviderId = updateState.info.id();
-
       ResourceProvider* resourceProvider =
-        getResourceProvider(resourceProviderId);
+        getResourceProvider(updateState.resourceProviderId);
 
-      if (resourceProvider == nullptr) {
-        resourceProvider = new ResourceProvider(
-            updateState.info,
-            updateState.totalResources,
-            updateState.resourceVersion);
+      CHECK(resourceProvider);
 
-        addResourceProvider(resourceProvider);
-
-        foreachvalue (const Operation& operation,
-                      updateState.operations) {
-          addOperation(new Operation(operation));
-        }
-
+      if (resourceProvider->totalResources != updateState.totalResources) {
         // Update the 'total' in the Slave.
+        CHECK(totalResources.contains(resourceProvider->totalResources));
+        totalResources -= resourceProvider->totalResources;
         totalResources += updateState.totalResources;
-      } else {
-        // Always update the resource provider info.
-        resourceProvider->info = updateState.info;
 
-        if (resourceProvider->totalResources != updateState.totalResources) {
-          // Update the 'total' in the Slave.
-          CHECK(totalResources.contains(resourceProvider->totalResources));
-          totalResources -= resourceProvider->totalResources;
-          totalResources += updateState.totalResources;
-
-          // Update the 'total' in the resource provider.
-          resourceProvider->totalResources = updateState.totalResources;
-        }
-
-        // Update operation state.
-        //
-        // We only update operations which are not contained in both
-        // the known and just received sets. All other operations will
-        // be updated via relayed operation status updates.
-        const hashset<UUID> knownUuids = resourceProvider->operations.keys();
-        const hashset<UUID> receivedUuids = updateState.operations.keys();
-
-        // Handle operations known to the agent but not reported by
-        // the resource provider. These could be operations where the
-        // agent has started tracking an operation, but the resource
-        // provider failed over before it could bookkeep the
-        // operation.
-        //
-        // NOTE: We do not mutate operations statuses here; this would
-        // be the responsibility of an operation status update handler.
-        hashset<UUID> disappearedUuids = knownUuids - receivedUuids;
-        foreach (const UUID& uuid, disappearedUuids) {
-          // TODO(bbannier): Instead of simply dropping an operation
-          // with `removeOperation` here we should instead send a
-          // `Reconcile` message with a failed state to the resource
-          // provider so its status update manager can reliably
-          // deliver the operation status to the framework.
-          removeOperation(resourceProvider->operations.at(uuid));
-        }
-
-        // Handle operations known to the resource provider but not
-        // the agent. This can happen if the agent failed over and the
-        // resource provider reregistered.
-        hashset<UUID> reappearedUuids = receivedUuids - knownUuids;
-        foreach (const UUID& uuid, reappearedUuids) {
-          // Start tracking this operation.
-          //
-          // NOTE: We do not need to update total resources here as its
-          // state was sync explicitly with the received total above.
-          addOperation(new Operation(updateState.operations.at(uuid)));
-        }
-
-        // Handle operations known to both the agent and the resource provider.
-        //
-        // If an operation became terminal, its result is already reflected in
-        // the total resources reported by the resource provider, and thus it
-        // should not be applied again in an operation status update handler
-        // when its terminal status update arrives. So we set the terminal
-        // `latest_status` here to prevent resource convervions elsewhere.
-        //
-        // NOTE: We only update the `latest_status` of a known operation if it
-        // is not terminal yet here; its `statuses` would be updated by an
-        // operation status update handler.
-        hashset<UUID> matchedUuids = knownUuids - disappearedUuids;
-        foreach (const UUID& uuid, matchedUuids) {
-          const Operation& operation = updateState.operations.at(uuid);
-          if (operation.has_latest_status() &&
-              protobuf::isTerminalState(operation.latest_status().state())) {
-            updateOperationLatestStatus(
-                getOperation(uuid),
-                operation.latest_status());
-          }
-        }
-
-        // Update resource version of this resource provider.
-        resourceProvider->resourceVersion = updateState.resourceVersion;
+        // Update the 'total' in the resource provider.
+        resourceProvider->totalResources = updateState.totalResources;
       }
+
+      // Update operation state.
+      //
+      // We only update operations which are not contained in both
+      // the known and just received sets. All other operations will
+      // be updated via relayed operation status updates.
+      const hashset<UUID> knownUuids = resourceProvider->operations.keys();
+      const hashset<UUID> receivedUuids = updateState.operations.keys();
+
+      // Handle operations known to the agent but not reported by
+      // the resource provider. These could be operations where the
+      // agent has started tracking an operation, but the resource
+      // provider failed over before it could bookkeep the
+      // operation.
+      //
+      // NOTE: We do not mutate operations statuses here; this would
+      // be the responsibility of an operation status update handler.
+      hashset<UUID> disappearedUuids = knownUuids - receivedUuids;
+      foreach (const UUID& uuid, disappearedUuids) {
+        // TODO(bbannier): Instead of simply dropping an operation
+        // with `removeOperation` here we should instead send a
+        // `Reconcile` message with a failed state to the resource
+        // provider so its status update manager can reliably
+        // deliver the operation status to the framework.
+        removeOperation(resourceProvider->operations.at(uuid));
+      }
+
+      // Handle operations known to the resource provider but not
+      // the agent. This can happen if the agent failed over and the
+      // resource provider reregistered.
+      hashset<UUID> reappearedUuids = receivedUuids - knownUuids;
+      foreach (const UUID& uuid, reappearedUuids) {
+        // Start tracking this operation.
+        //
+        // NOTE: We do not need to update total resources here as its
+        // state was sync explicitly with the received total above.
+        addOperation(new Operation(updateState.operations.at(uuid)));
+      }
+
+      // Handle operations known to both the agent and the resource provider.
+      //
+      // If an operation became terminal, its result is already reflected in
+      // the total resources reported by the resource provider, and thus it
+      // should not be applied again in an operation status update handler
+      // when its terminal status update arrives. So we set the terminal
+      // `latest_status` here to prevent resource convervions elsewhere.
+      //
+      // NOTE: We only update the `latest_status` of a known operation if it
+      // is not terminal yet here; its `statuses` would be updated by an
+      // operation status update handler.
+      hashset<UUID> matchedUuids = knownUuids - disappearedUuids;
+      foreach (const UUID& uuid, matchedUuids) {
+        const Operation& operation = updateState.operations.at(uuid);
+        if (operation.has_latest_status() &&
+            protobuf::isTerminalState(operation.latest_status().state())) {
+          updateOperationLatestStatus(
+              getOperation(uuid),
+              operation.latest_status());
+        }
+      }
+
+      // Update resource version of this resource provider.
+      resourceProvider->resourceVersion = updateState.resourceVersion;
 
       // Send the updated resources to the master if the agent is running. Note
       // that since we have already updated our copy of the latest resource

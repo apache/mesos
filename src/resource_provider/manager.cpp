@@ -898,7 +898,7 @@ void ResourceProviderManagerProcess::updateState(
     << resourceProvider->info.id();
 
   ResourceProviderMessage::UpdateState updateState{
-      resourceProvider->info,
+      resourceProvider->info.id(),
       update.resource_version_uuid(),
       update.resources(),
       std::move(operations)};
