@@ -1745,3 +1745,28 @@ index dc3ab43e3..000000000
 -	<Globals>
 -	</Globals>
 -</VisualStudioProject>
+From 4343ef1db40ebe2a744326000eff725deb55f97f Mon Sep 17 00:00:00 2001
+From: Kapil Arya <kapil@mesosphere.io>
+Date: Thu, 16 Aug 2018 15:53:53 -0400
+Subject: [PATCH] Backported a format error fix.
+
+This patch backports https://github.com/apache/zookeeper/pull/559.
+---
+ src/c/src/zookeeper.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/c/src/zookeeper.c b/src/c/src/zookeeper.c
+index 1ba90afa..a4c28e36 100644
+--- a/src/c/src/zookeeper.c
++++ b/src/c/src/zookeeper.c
+@@ -3440,7 +3440,7 @@ int zoo_add_auth(zhandle_t *zh,const char* scheme,const char* cert,
+ static const char* format_endpoint_info(const struct sockaddr_storage* ep)
+ {
+     static char buf[128];
+-    char addrstr[128];
++    char addrstr[INET6_ADDRSTRLEN];
+     void *inaddr;
+ #ifdef WIN32
+     char * addrstring;
+--
+2.18.0
