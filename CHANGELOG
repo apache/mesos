@@ -24,6 +24,9 @@ This release contains the following new features:
     configuration. By utilizing I/O Completion Ports, this enables
     non-blocking asynchronous I/O on Windows for sockets, pipes, and files.
 
+  * [MESOS-5647] - Expose network statistics for containers on CNI
+    network in the `network/cni` isolator.
+
 Additional API Changes:
   * [MESOS-9015] Allow resources to be removed when updating the sorter.
 
