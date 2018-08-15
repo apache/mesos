@@ -187,6 +187,7 @@ All Resolved Issues:
   * [MESOS-8737] - Update composing containerizer tests.
   * [MESOS-8774] - Authenticate and authorize calls to the resource provider manager's API
   * [MESOS-8794] - Support docker image tarball hdfs based fetching.
+  * [MESOS-8814] - Mount the volume based on `Volume.mode`.
   * [MESOS-8825] - Remove storage pools associated with missing profiles.
   * [MESOS-8837] - Add test of resource provider manager recovery
   * [MESOS-8843] - Per Framework CALL metrics
