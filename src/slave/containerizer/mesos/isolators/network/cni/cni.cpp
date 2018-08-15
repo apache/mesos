@@ -46,6 +46,14 @@
 
 #include "slave/state.hpp"
 
+// NOTE: The namespace wrapper prevents symbol collisions.
+// <linux/if_link.h> exports `struct net` that conflicts with
+// `namespace net` from stout library. This section must be
+// the last `#include` in the file.
+namespace netlink {
+#include <linux/if_link.h>
+} // namespace netlink {
+
 namespace io = process::io;
 namespace paths = mesos::internal::slave::cni::paths;
 namespace spec = mesos::internal::slave::cni::spec;
@@ -1485,6 +1493,89 @@ Future<ContainerStatus> NetworkCniIsolatorProcess::status(
   }
 
   return status;
+}
+
+
+Future<ResourceStatistics> NetworkCniIsolatorProcess::usage(
+    const ContainerID& containerId)
+{
+  // Don't expose networking metrics if this feature is disabled.
+  if (!flags.network_cni_metrics) {
+    return ResourceStatistics();
+  }
+
+  // NOTE: We don't keep an Info struct if the container is on the
+  // host network and has no image, or if during recovery, we found
+  // that the cleanup for this container is not required anymore
+  // (e.g., cleanup is done already, but the slave crashed and didn't
+  // realize that it's done).
+  if (!infos.contains(containerId)) {
+    return ResourceStatistics();
+  }
+
+  const string netns = paths::getNamespacePath(rootDir.get(), containerId);
+
+  // We collect networking statistics only for known interfaces.
+  hashmap<string, ContainerNetwork> containerNetworks =
+    infos[containerId]->containerNetworks;
+
+  hashset<string> ifNames;
+  foreachvalue (const ContainerNetwork& containerNetwork,
+                containerNetworks) {
+    ifNames.insert(containerNetwork.ifName);
+  }
+
+  // Call usageFunc with a custom network namespace in the separate thread.
+  lambda::function<Try<ResourceStatistics>()> usageFunc =
+    lambda::bind(&NetworkCniIsolatorProcess::_usage, ifNames);
+  return namespaceRunner.run(netns, "net", usageFunc);
+}
+
+
+Try<ResourceStatistics> NetworkCniIsolatorProcess::_usage(
+    const hashset<string> ifNames)
+{
+  ResourceStatistics result;
+
+  // TODO(urbanserj): To provide more stats insead of getifaddrs(3) we can add
+  // Netlink Protocol Library (libnl) as an optional external dependency.
+  struct ifaddrs* ifaddr = nullptr;
+  if (getifaddrs(&ifaddr) == -1) {
+    return ErrnoError();
+  }
+
+  for (struct ifaddrs* ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next) {
+    // Skip unknown network interfaces.
+    if (ifa->ifa_name == nullptr || !ifNames.contains(ifa->ifa_name)) {
+      continue;
+    }
+    // Only interfaces with `AF_PACKET` family have link statistics.
+    if (ifa->ifa_addr->sa_family != AF_PACKET) {
+      continue;
+    }
+
+    struct netlink::rtnl_link_stats *stats =
+      (struct netlink::rtnl_link_stats *)ifa->ifa_data;
+
+    // TODO(urbanserj): Add support for multiple networking interfaces to
+    // ResourceStatistics and collect statistics per `ifa_name`.
+
+    // RX: Receive statistics.
+    result.set_net_rx_packets(result.net_rx_packets() + stats->rx_packets);
+    result.set_net_rx_bytes(result.net_rx_bytes() + stats->rx_bytes);
+    result.set_net_rx_errors(result.net_rx_errors() + stats->rx_errors);
+    result.set_net_rx_dropped(result.net_rx_dropped() + stats->rx_dropped);
+
+    // TX: Transmit statistics.
+    result.set_net_tx_packets(result.net_tx_packets() + stats->tx_packets);
+    result.set_net_tx_bytes(result.net_tx_bytes() + stats->tx_bytes);
+    result.set_net_tx_errors(result.net_tx_errors() + stats->tx_errors);
+    result.set_net_tx_dropped(result.net_tx_dropped() + stats->tx_dropped);
+  }
+
+  freeifaddrs(ifaddr);
+
+  return result;
 }
 
 

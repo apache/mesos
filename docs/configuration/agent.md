@@ -1125,6 +1125,16 @@ a network configuration file in JSON format in the specified directory.
   </td>
 </tr>
 
+<tr id="network_cni_metrics">
+  <td>
+    --[no-]network_cni_metrics
+  </td>
+  <td>
+This setting controls whether the networking metrics of the CNI isolator should
+be exposed.
+  </td>
+</tr>
+
 <tr id="oversubscribed_resources_interval">
   <td>
     --oversubscribed_resources_interval=VALUE

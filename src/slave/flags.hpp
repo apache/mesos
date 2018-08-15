@@ -158,6 +158,7 @@ public:
 
   Option<std::string> network_cni_plugins_dir;
   Option<std::string> network_cni_config_dir;
+  bool network_cni_metrics;
   Duration container_disk_watch_interval;
   bool enforce_container_disk_quota;
   Option<Modules> modules;
