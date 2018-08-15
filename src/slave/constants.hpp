@@ -63,10 +63,17 @@ constexpr Duration DEFAULT_REGISTRATION_BACKOFF_FACTOR = Seconds(1);
 // recovery and when it times out slave re-registration.
 constexpr Duration REGISTER_RETRY_INTERVAL_MAX = Minutes(1);
 
-// The maximum interval the slave waits before retrying authentication.
-constexpr Duration AUTHENTICATION_RETRY_INTERVAL_MAX = Minutes(1);
+// The minimum timeout used when authenticating against the master.
+//
+// TODO(mzhu): Make this configurable.
+constexpr Duration AUTHENTICATION_TIMEOUT_MIN = Seconds(5);
 
-// Default backoff interval used by the slave to wait after failed
+// The maximum timeout used when authenticating against the master.
+//
+// TODO(mzhu): Make this configurable.
+constexpr Duration AUTHENTICATION_TIMEOUT_MAX = Minutes(1);
+
+// Default backoff interval factor used by the slave to wait after failed
 // authentication.
 constexpr Duration DEFAULT_AUTHENTICATION_BACKOFF_FACTOR = Seconds(1);
 

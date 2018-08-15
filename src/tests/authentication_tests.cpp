@@ -411,7 +411,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(AuthenticationTest, RetrySlaveAuthentication)
 
   // Advance the clock for the slave to retry.
   Clock::pause();
-  Clock::advance(Seconds(5));
+  Clock::advance(slave::AUTHENTICATION_TIMEOUT_MAX);
   Clock::settle();
   Clock::resume();
 
