@@ -492,7 +492,7 @@ public:
   // not receive a ping.
   void pingTimeout(process::Future<Option<MasterInfo>> future);
 
-  void authenticate();
+  void authenticate(Duration minTimeout, Duration maxTimeout);
 
   // Helper routines to lookup a framework/executor.
   Framework* getFramework(const FrameworkID& frameworkId) const;
@@ -595,8 +595,7 @@ private:
   Slave(const Slave&) = delete;
   Slave& operator=(const Slave&) = delete;
 
-  void _authenticate();
-  void authenticationTimeout(process::Future<bool> future);
+  void _authenticate(Duration currentMinTimeout, Duration currentMaxTimeout);
 
   // Process creation of persistent volumes (for CREATE) and/or deletion
   // of persistent volumes (for DESTROY) as a part of handling
@@ -799,9 +798,6 @@ private:
 
   // Indicates if a new authentication attempt should be enforced.
   bool reauthenticate;
-
-  // Indicates the number of failed authentication attempts.
-  uint64_t failedAuthentications;
 
   // Maximum age of executor directories. Will be recomputed
   // periodically every flags.disk_watch_interval.
