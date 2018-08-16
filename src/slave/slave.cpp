@@ -224,7 +224,6 @@ Slave::Slave(const string& id,
     authenticating(None()),
     authenticated(false),
     reauthenticate(false),
-    failedAuthentications(0),
     executorDirectoryMaxAllowedAge(age(0)),
     resourceEstimator(_resourceEstimator),
     qosController(_qosController),
@@ -1305,6 +1304,8 @@ void Slave::detected(const Future<Option<MasterInfo>>& _master)
 
     // Wait for a random amount of time before authentication or
     // registration.
+    //
+    // TODO(mzhu): Specialize this for authetication.
     Duration duration =
       flags.registration_backoff_factor * ((double) os::random() / RAND_MAX);
 
@@ -1312,7 +1313,15 @@ void Slave::detected(const Future<Option<MasterInfo>>& _master)
       // Authenticate with the master.
       // TODO(vinod): Consider adding an "AUTHENTICATED" state to the
       // slave instead of "authenticate" variable.
-      delay(duration, self(), &Slave::authenticate);
+      Duration maxTimeout = AUTHENTICATION_TIMEOUT_MIN +
+                            flags.authentication_backoff_factor * 2;
+
+      delay(
+          duration,
+          self(),
+          &Slave::authenticate,
+          AUTHENTICATION_TIMEOUT_MIN,
+          std::min(maxTimeout, AUTHENTICATION_TIMEOUT_MAX));
     } else {
       // Proceed with registration without authentication.
       LOG(INFO) << "No credentials provided."
@@ -1332,7 +1341,7 @@ void Slave::detected(const Future<Option<MasterInfo>>& _master)
 }
 
 
-void Slave::authenticate()
+void Slave::authenticate(Duration minTimeout, Duration maxTimeout)
 {
   authenticated = false;
 
@@ -1380,15 +1389,27 @@ void Slave::authenticate()
 
   CHECK_SOME(credential);
 
+  // We pick a random duration between `minTimeout` and `maxTimeout`.
+  Duration timeout =
+    minTimeout + (maxTimeout - minTimeout) * ((double)os::random() / RAND_MAX);
+
   authenticating =
     authenticatee->authenticate(master.get(), self(), credential.get())
-      .onAny(defer(self(), &Self::_authenticate));
+      .onAny(defer(self(), &Self::_authenticate, minTimeout, maxTimeout))
+      .after(timeout, [](Future<bool> future) {
+        // NOTE: Discarded future results in a retry in '_authenticate()'.
+        // This is a no-op if the future is already ready.
+        if (future.discard()) {
+          LOG(WARNING) << "Authentication timed out";
+        }
 
-  delay(Seconds(5), self(), &Self::authenticationTimeout, authenticating.get());
+        return future;
+      });
 }
 
 
-void Slave::_authenticate()
+void Slave::_authenticate(
+    Duration currentMinTimeout, Duration currentMaxTimeout)
 {
   delete CHECK_NOTNULL(authenticatee);
   authenticatee = nullptr;
@@ -1417,24 +1438,20 @@ void Slave::_authenticate()
     authenticating = None();
     reauthenticate = false;
 
-    ++failedAuthentications;
+    // Grow the timeout range using exponential backoff:
+    //
+    //   [min, min + factor * 2^0]
+    //   [min, min + factor * 2^1]
+    //   ...
+    //   [min, min + factor * 2^N]
+    //   ...
+    //   [min, max] // Stop at max.
+    Duration maxTimeout =
+      currentMinTimeout + (currentMaxTimeout - currentMinTimeout) * 2;
 
-    // Backoff.
-    // The backoff is a random duration in the interval [0, b * 2^N)
-    // where `b = authentication_backoff_factor` and `N` the number
-    // of failed authentication attempts. It is capped by
-    // `REGISTER_RETRY_INTERVAL_MAX`.
-    Duration backoff =
-      flags.authentication_backoff_factor * std::pow(2, failedAuthentications);
-    backoff = std::min(backoff, AUTHENTICATION_RETRY_INTERVAL_MAX);
-
-    // Determine the delay for next attempt by picking a random
-    // duration between 0 and 'maxBackoff'.
-    // TODO(vinod): Use random numbers from <random> header.
-    backoff *= double(os::random()) / RAND_MAX;
-
-    // TODO(vinod): Add a limit on number of retries.
-    delay(backoff, self(), &Self::authenticate); // Retry.
+    authenticate(
+        currentMinTimeout,
+        std::min(maxTimeout, AUTHENTICATION_TIMEOUT_MAX));
     return;
   }
 
@@ -1450,22 +1467,8 @@ void Slave::_authenticate()
   authenticated = true;
   authenticating = None();
 
-  failedAuthentications = 0;
-
   // Proceed with registration.
   doReliableRegistration(flags.registration_backoff_factor * 2);
-}
-
-
-void Slave::authenticationTimeout(Future<bool> future)
-{
-  // NOTE: Discarded future results in a retry in '_authenticate()'.
-  // Also note that a 'discard' here is safe even if another
-  // authenticator is in progress because this copy of the future
-  // corresponds to the original authenticator that started the timer.
-  if (future.discard()) { // This is a no-op if the future is already ready.
-    LOG(WARNING) << "Authentication timed out";
-  }
 }
 
 

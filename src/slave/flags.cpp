@@ -349,13 +349,12 @@ mesos::internal::slave::Flags::Flags()
 
   add(&Flags::authentication_backoff_factor,
       "authentication_backoff_factor",
-      "After a failed authentication the agent picks a random amount of time\n"
-      "between `[0, b]`, where `b = authentication_backoff_factor`, to\n"
-      "authenticate with a new master. Subsequent retries are exponentially\n"
-      "backed off based on this interval (e.g., 1st retry uses a random\n"
-      "value between `[0, b * 2^1]`, 2nd retry between `[0, b * 2^2]`, 3rd\n"
-      "retry between `[0, b * 2^3]`, etc up to a maximum of " +
-          stringify(AUTHENTICATION_RETRY_INTERVAL_MAX),
+      "The agent will time out its authentication with the master based on\n"
+      "exponential backoff. The timeout will be randomly chosen within the\n"
+      "range `[min, min + factor*2^n]` where `min` is " +
+      stringify(AUTHENTICATION_TIMEOUT_MIN) + ", `n` is the number of failed\n"
+      "attempts. The max timeout interval is capped at " +
+      stringify(AUTHENTICATION_TIMEOUT_MAX),
       DEFAULT_AUTHENTICATION_BACKOFF_FACTOR);
 
   add(&Flags::executor_environment_variables,
