@@ -51,6 +51,7 @@ We categorize the changes as follows:
       <li>A <a href="#1-7-x-linux-devices-isolator">Linux devices isolator</a></li>
       <li>A <a href="#1-7-x-auto-load-subsystems">Automatically load local enabled cgroups subsystems</a></li>
       <li>A <a href="#1-7-x-container-specific-cgroups-mounts">Container-specific cgroups mounts</a></li>
+      <li>A <a href="#1-7-x-volume-mode-support">Volume mode support</a></li>
     </ul>
   </td>
 
@@ -467,6 +468,10 @@ We categorize the changes as follows:
 <a name="1-7-x-sorter-update"></a>
 
 * The semantics of `Sorter::update` has been changed so that resources can be removed from a client's allocation without removing the full agent in which they reside. Callers are expected to update the total resources of the agent as well by, e.g., removing the agent and adding it back with the new total resources.
+
+<a name="1-7-x-volume-mode-support"></a>
+
+* Previously the HOST_PATH/SANDBOX_PATH/IMAGE/SECRET/DOCKER_VOLUME volumes were always mounted for container in read-write mode, i.e., the `Volume.mode` field was not honored. Now we will mount these volumes based on the `Volume.mode` field so framework can choose to mount the volume for the container in either read-write mode or read-only mode.
 
 ## Upgrading from 1.5.x to 1.6.x ##
 
