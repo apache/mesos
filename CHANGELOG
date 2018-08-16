@@ -119,6 +119,7 @@ All Resolved Issues:
   * [MESOS-9144] - Master authentication handling leads to request amplification.
   * [MESOS-9145] - Master has a fragile burned-in 5s authentication timeout.
   * [MESOS-9146] - Agent has a fragile burn-in 5s authentication timeout.
+  * [MESOS-9147] - Agent and scheduler driver authentication retry backoff time could overflow.
   * [MESOS-9149] - Failed to build gRPC on Linux without OpenSSL.
 
 ** Documentation
