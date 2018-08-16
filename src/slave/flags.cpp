@@ -351,11 +351,27 @@ mesos::internal::slave::Flags::Flags()
       "authentication_backoff_factor",
       "The agent will time out its authentication with the master based on\n"
       "exponential backoff. The timeout will be randomly chosen within the\n"
-      "range `[min, min + factor*2^n]` where `min` is " +
-      stringify(AUTHENTICATION_TIMEOUT_MIN) + ", `n` is the number of failed\n"
-      "attempts. The max timeout interval is capped at " +
-      stringify(AUTHENTICATION_TIMEOUT_MAX),
+      "range `[min, min + factor*2^n]` where `n` is the number of failed\n"
+      "attempts. To tune these parameters, set the\n"
+      "`--authentication_timeout_[min|max|factor]` flags.\n",
       DEFAULT_AUTHENTICATION_BACKOFF_FACTOR);
+
+  add(&Flags::authentication_timeout_min,
+      "authentication_timeout_min",
+      "The minimum amount of time the agent waits before retrying\n"
+      "authenticating with the master. See `authentication_backoff_factor`\n"
+      "for more details. NOTE that since authentication retry cancels the\n"
+      "previous authentication request, one should consider what is the\n"
+      "normal authentication delay when setting this flag to prevent\n"
+      "premature retry.",
+      DEFAULT_AUTHENTICATION_TIMEOUT_MIN);
+
+  add(&Flags::authentication_timeout_max,
+      "authentication_timeout_max",
+      "The maximum amount of time the agent waits before retrying\n"
+      "authenticating with the master. See `authentication_backoff_factor`\n"
+      "for more details.",
+      DEFAULT_AUTHENTICATION_TIMEOUT_MAX);
 
   add(&Flags::executor_environment_variables,
       "executor_environment_variables",

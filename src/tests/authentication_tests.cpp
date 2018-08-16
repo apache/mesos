@@ -383,7 +383,7 @@ TEST_F(AuthenticationTest, RetrySlaveAuthentication)
 
   // Advance the clock for the slave to retry.
   Clock::pause();
-  Clock::advance(slave::AUTHENTICATION_TIMEOUT_MAX);
+  Clock::advance(slave::DEFAULT_AUTHENTICATION_TIMEOUT_MAX);
   Clock::settle();
   Clock::resume();
 
