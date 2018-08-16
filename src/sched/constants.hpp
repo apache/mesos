@@ -38,9 +38,11 @@ constexpr Duration DEFAULT_REGISTRATION_BACKOFF_FACTOR = Seconds(2);
 // registration.
 constexpr Duration REGISTRATION_RETRY_INTERVAL_MAX = Minutes(1);
 
-// The maximum interval the scheduler driver waits before retrying
-// authentication.
-constexpr Duration AUTHENTICATION_RETRY_INTERVAL_MAX = Minutes(1);
+// The maximum timeout used when the scheduler driver is authenticating with
+// the master.
+//
+// TODO(mzhu): Make this configurable.
+constexpr Duration AUTHENTICATION_TIMEOUT_MAX = Minutes(1);
 
 // Default backoff interval used by the scheduler to wait after failed
 // authentication.

@@ -345,7 +345,12 @@ protected:
         // Authenticate with the master.
         // TODO(adam-mesos): Consider adding an initial delay like we do for
         // slave registration, to combat thundering herds on master failover.
-        authenticate();
+        authenticate(
+            flags.authentication_timeout,
+            std::min(
+                flags.authentication_timeout +
+                  flags.authentication_backoff_factor * 2,
+                scheduler::AUTHENTICATION_TIMEOUT_MAX));
       } else {
         // Proceed with registration without authentication.
         LOG(INFO) << "No credentials provided."
@@ -368,7 +373,7 @@ protected:
       .onAny(defer(self(), &SchedulerProcess::detected, lambda::_1));
   }
 
-  void authenticate()
+  void authenticate(Duration minTimeout, Duration maxTimeout)
   {
     if (!running.load()) {
       VLOG(1) << "Ignoring authenticate because the driver is not running!";
@@ -414,6 +419,10 @@ protected:
       authenticatee = module.get();
     }
 
+    // We pick a random duration between `minTimeout` and `maxTimeout`.
+    Duration timeout = minTimeout + (maxTimeout - minTimeout) *
+                                      ((double)os::random() / RAND_MAX);
+
     // NOTE: We do not pass 'Owned<Authenticatee>' here because doing
     // so could make 'AuthenticateeProcess' responsible for deleting
     // 'Authenticatee' causing a deadlock because the destructor of
@@ -429,15 +438,19 @@ protected:
     // TODO(vinod): Consider using 'Shared' to 'Owned' upgrade.
     authenticating =
       authenticatee->authenticate(master->pid(), self(), credential.get())
-        .onAny(defer(self(), &Self::_authenticate));
+        .onAny(defer(self(), &Self::_authenticate, minTimeout, maxTimeout))
+        .after(timeout, [](Future<bool> future) {
+          // NOTE: Discarded future results in a retry in '_authenticate()'.
+          // This is a no-op if the future is already ready.
+          if (future.discard()) {
+            LOG(WARNING) << "Authentication timed out";
+          }
 
-    delay(flags.authentication_timeout,
-          self(),
-          &Self::authenticationTimeout,
-          authenticating.get());
+          return future;
+        });
   }
 
-  void _authenticate()
+  void _authenticate(Duration currentMinTimeout, Duration currentMaxTimeout)
   {
     if (!running.load()) {
       VLOG(1) << "Ignoring _authenticate because the driver is not running!";
@@ -471,24 +484,23 @@ protected:
       authenticating = None();
       reauthenticate = false;
 
-      ++failedAuthentications;
-
-      // Backoff.
-      // The backoff is a random duration in the interval [0, b * 2^N)
-      // where `b = authentication_backoff_factor` and `N` the number
-      // of failed authentication attempts. It is capped by
-      // `REGISTER_RETRY_INTERVAL_MAX`.
-      Duration backoff = flags.authentication_backoff_factor *
-                         std::pow(2, failedAuthentications);
-      backoff = std::min(backoff, scheduler::AUTHENTICATION_RETRY_INTERVAL_MAX);
-
-      // Determine the delay for next attempt by picking a random
-      // duration between 0 and 'maxBackoff'.
-      // TODO(vinod): Use random numbers from <random> header.
-      backoff *= double(os::random()) / RAND_MAX;
-
       // TODO(vinod): Add a limit on number of retries.
-      delay(backoff, self(), &Self::authenticate);
+
+      // Grow the timeout range using exponential backoff:
+      //
+      //   [min, min + factor * 2^0]
+      //   [min, min + factor * 2^1]
+      //   ...
+      //   [min, min + factor * 2^N]
+      //   ...
+      //   [min, max] // Stop at max.
+      Duration maxTimeout =
+        currentMinTimeout + (currentMaxTimeout - currentMinTimeout) * 2;
+
+      authenticate(
+          currentMinTimeout,
+          std::min(maxTimeout, scheduler::AUTHENTICATION_TIMEOUT_MAX));
+
       return;
     }
 
@@ -506,23 +518,6 @@ protected:
     failedAuthentications = 0;
 
     doReliableRegistration(flags.registration_backoff_factor);
-  }
-
-  void authenticationTimeout(Future<bool> future)
-  {
-    if (!running.load()) {
-      VLOG(1) << "Ignoring authentication timeout because "
-              << "the driver is not running!";
-      return;
-    }
-
-    // NOTE: Discarded future results in a retry in '_authenticate()'.
-    // Also note that a 'discard' here is safe even if another
-    // authenticator is in progress because this copy of the future
-    // corresponds to the original authenticator that started the timer.
-    if (future.discard()) { // This is a no-op if the future is already ready.
-      LOG(WARNING) << "Authentication timed out";
-    }
   }
 
   void drop(const Event& event, const string& message)

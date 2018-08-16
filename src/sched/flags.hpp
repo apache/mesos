@@ -36,15 +36,6 @@ class Flags : public virtual logging::Flags
 public:
   Flags()
   {
-    add(&Flags::authentication_backoff_factor,
-        "authentication_backoff_factor",
-        "Scheduler driver authentication retries are exponentially backed\n"
-        "off based on 'b', the authentication backoff factor (e.g., 1st retry\n"
-        "uses a random value between `[0, b * 2^1]`, 2nd retry between\n"
-        "`[0, b * 2^2]`, 3rd retry between `[0, b * 2^3]`, etc up to a\n"
-        "maximum of " + stringify(AUTHENTICATION_RETRY_INTERVAL_MAX),
-        DEFAULT_AUTHENTICATION_BACKOFF_FACTOR);
-
     add(&Flags::registration_backoff_factor,
         "registration_backoff_factor",
         "Scheduler driver (re-)registration retries are exponentially backed\n"
@@ -118,6 +109,17 @@ public:
         "master. Use the default '" + std::string(DEFAULT_AUTHENTICATEE) + "'\n"
         "or load an alternate authenticatee module using MESOS_MODULES.",
         DEFAULT_AUTHENTICATEE);
+
+    add(&Flags::authentication_backoff_factor,
+        "authentication_backoff_factor",
+        "The scheduler will time out its authentication with the master based\n"
+        "on exponential backoff. The timeout will be randomly chosen within\n"
+        "`[authentication_timeout, authentication_timeout + factor*2^n]`\n"
+        "where `n` is the number of failed attempts. The maximum timeout\n"
+        "internal is capped at " + stringify(AUTHENTICATION_TIMEOUT_MAX) + ".\n"
+        "To tune these parameters, set the `--authentication_timeout` and\n"
+        "`--authentication_backoff_factor` flags.\n",
+        DEFAULT_AUTHENTICATION_BACKOFF_FACTOR);
 
     add(&Flags::authentication_timeout,
         "authentication_timeout",
