@@ -121,6 +121,7 @@ All Resolved Issues:
   * [MESOS-9146] - Agent has a fragile burn-in 5s authentication timeout.
   * [MESOS-9147] - Agent and scheduler driver authentication retry backoff time could overflow.
   * [MESOS-9149] - Failed to build gRPC on Linux without OpenSSL.
+  * [MESOS-9160] - Failed to compile gRPC when the build path contains symlinks.
 
 ** Documentation
   * [MESOS-8740] - Update description of a Containerizer interface.
