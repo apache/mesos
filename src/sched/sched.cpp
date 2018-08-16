@@ -346,11 +346,11 @@ protected:
         // TODO(adam-mesos): Consider adding an initial delay like we do for
         // slave registration, to combat thundering herds on master failover.
         authenticate(
-            flags.authentication_timeout,
+            flags.authentication_timeout_min,
             std::min(
-                flags.authentication_timeout +
+                flags.authentication_timeout_min +
                   flags.authentication_backoff_factor * 2,
-                scheduler::AUTHENTICATION_TIMEOUT_MAX));
+                flags.authentication_timeout_max));
       } else {
         // Proceed with registration without authentication.
         LOG(INFO) << "No credentials provided."
@@ -499,7 +499,7 @@ protected:
 
       authenticate(
           currentMinTimeout,
-          std::min(maxTimeout, scheduler::AUTHENTICATION_TIMEOUT_MAX));
+          std::min(maxTimeout, flags.authentication_timeout_max));
 
       return;
     }

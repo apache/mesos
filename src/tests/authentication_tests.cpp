@@ -445,7 +445,7 @@ TEST_F(AuthenticationTest, MasterRetriedAuthenticationHandling)
   Future<Nothing> exited = DROP_EXITED(authenticatee, authenticator);
 
   Clock::advance(
-      mesos::internal::scheduler::DEFAULT_AUTHENTICATION_TIMEOUT);
+      mesos::internal::scheduler::DEFAULT_AUTHENTICATION_TIMEOUT_MIN);
   Clock::settle();
   Clock::advance(
       mesos::internal::scheduler::DEFAULT_AUTHENTICATION_BACKOFF_FACTOR * 2);
