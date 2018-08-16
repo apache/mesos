@@ -442,7 +442,7 @@ $(GRPC)-build-stamp: $(GRPC)-stamp			\
 	  CFLAGS="$(CFLAGS)"				\
 	  CXXFLAGS="$(CXXFLAGS)"			\
 	  $(MAKE) $(AM_MAKEFLAGS)			\
-	    $(LIB_GRPC:%=$(abs_builddir)/%)		\
+	    $(LIB_GRPC:%=$(realpath $(abs_builddir))/%)	\
 	    CC="$(CC)"					\
 	    CXX="$(CXX)"				\
 	    LD="$(CC)"					\
