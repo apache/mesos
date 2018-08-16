@@ -115,6 +115,25 @@ Mesos master and agent processes. For more information, refer to the
   format) of accepted credentials.  This may be optional depending on the
   authenticator being used.
 
+### Scheduler Driver
+
+* `--authenticatee` - Analog to the master's `--authenticators` option to
+  specify what module to use.  Defaults to `crammd5`.
+
+* `--authentication_backoff_factor` - The scheduler will time out its
+  authentication with the master based on exponential backoff. The timeout will
+  be randomly chosen within the range `[min, min + factor*2^n]` where `n` is
+  the number of failed attempts. To tune these parameters, set the
+  `--authentication_timeout_[min|max|factor]` flags. (default: 1secs)
+
+* `--authentication_timeout_min` - The minimum amount of time the scheduler
+  waits before retrying authenticating with the master. See
+  `--authentication_backoff_factor` for more details. (default: 5secs)
+
+* `--authentication_timeout_max` - The maximum amount of time the scheduler
+  waits before retrying authenticating with the master. See
+  `--authentication_backoff_factor` for more details. (default: 1mins)
+
 ### Multiple HTTP Authenticators
 
 Multiple HTTP authenticators may be loaded into the Mesos master and agent. In
