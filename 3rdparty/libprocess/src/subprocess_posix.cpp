@@ -28,10 +28,12 @@
 #include <stout/foreach.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
+#include <stout/os/pipe.hpp>
 #include <stout/os/strerror.hpp>
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 
+using std::array;
 using std::map;
 using std::string;
 using std::vector;
@@ -46,25 +48,25 @@ Subprocess::IO Subprocess::PIPE()
 {
   return Subprocess::IO(
       []() -> Try<InputFileDescriptors> {
-        int pipefd[2];
-        if (::pipe(pipefd) == -1) {
-          return ErrnoError("Failed to create pipe");
+        Try<array<int, 2>> pipefd = os::pipe();
+        if (pipefd.isError()) {
+          return Error(pipefd.error());
         }
 
         InputFileDescriptors fds;
-        fds.read = pipefd[0];
-        fds.write = pipefd[1];
+        fds.read = pipefd->at(0);
+        fds.write = pipefd->at(1);
         return fds;
       },
       []() -> Try<OutputFileDescriptors> {
-        int pipefd[2];
-        if (::pipe(pipefd) == -1) {
-          return ErrnoError("Failed to create pipe");
+        Try<array<int, 2>> pipefd = os::pipe();
+        if (pipefd.isError()) {
+          return Error(pipefd.error());
         }
 
         OutputFileDescriptors fds;
-        fds.read = pipefd[0];
-        fds.write = pipefd[1];
+        fds.read = pipefd->at(0);
+        fds.write = pipefd->at(1);
         return fds;
       });
 }
