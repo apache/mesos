@@ -38,21 +38,20 @@ constexpr Duration DEFAULT_REGISTRATION_BACKOFF_FACTOR = Seconds(2);
 // registration.
 constexpr Duration REGISTRATION_RETRY_INTERVAL_MAX = Minutes(1);
 
-// The maximum timeout used when the scheduler driver is authenticating with
-// the master.
-//
-// TODO(mzhu): Make this configurable.
-constexpr Duration AUTHENTICATION_TIMEOUT_MAX = Minutes(1);
-
-// Default backoff interval used by the scheduler to wait after failed
-// authentication.
-constexpr Duration DEFAULT_AUTHENTICATION_BACKOFF_FACTOR = Seconds(1);
-
 // Name of the default, CRAM-MD5 authenticatee.
 constexpr char DEFAULT_AUTHENTICATEE[] = "crammd5";
 
-// Default value for `--authentication_timeout`.
-constexpr Duration DEFAULT_AUTHENTICATION_TIMEOUT = Seconds(5);
+// Default value for `--authentication_backoff_factor`. The backoff timeout
+// factor used by the scheduler when authenticating with the master.
+constexpr Duration DEFAULT_AUTHENTICATION_BACKOFF_FACTOR = Seconds(1);
+
+// Default value for `--authentication_timeout_min`. The minimum amount of
+// time the scheduler waits before retrying authenticating with the master.
+constexpr Duration DEFAULT_AUTHENTICATION_TIMEOUT_MIN = Seconds(5);
+
+// Default value for `--authentication_timeout_max`. The maximum amount of
+// time the scheduler waits before retrying authenticating with the master.
+constexpr Duration DEFAULT_AUTHENTICATION_TIMEOUT_MAX = Minutes(1);
 
 } // namespace scheduler {
 } // namespace internal {
