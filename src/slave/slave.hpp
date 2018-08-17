@@ -1182,7 +1182,7 @@ struct ResourceProvider
   ResourceProvider(
       const ResourceProviderInfo& _info,
       const Resources& _totalResources,
-      const UUID& _resourceVersion)
+      const Option<UUID>& _resourceVersion)
     : info(_info),
       totalResources(_totalResources),
       resourceVersion(_resourceVersion) {}
@@ -1204,7 +1204,7 @@ struct ResourceProvider
   // different resource version UUID than that it maintains, because
   // this means the operation is operating on resources that might
   // have already been invalidated.
-  UUID resourceVersion;
+  Option<UUID> resourceVersion;
 
   // Pending operations or terminal operations that have
   // unacknowledged status updates.

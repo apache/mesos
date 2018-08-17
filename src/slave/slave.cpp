@@ -7579,6 +7579,13 @@ UpdateSlaveMessage Slave::generateResourceProviderUpdate() const
   }
 
   foreachvalue (ResourceProvider* resourceProvider, resourceProviders) {
+    // If the resource provider has not updated its state we do not
+    // need to and cannot include its information in an
+    // `UpdateSlaveMessage` since it requires a resource version.
+    if (resourceProvider->resourceVersion.isNone()) {
+      continue;
+    }
+
     UpdateSlaveMessage::ResourceProvider* provider =
       message.mutable_resource_providers()->add_providers();
 
@@ -7587,7 +7594,7 @@ UpdateSlaveMessage Slave::generateResourceProviderUpdate() const
     provider->mutable_total_resources()->CopyFrom(
         resourceProvider->totalResources);
     provider->mutable_resource_version_uuid()->CopyFrom(
-        resourceProvider->resourceVersion);
+        resourceProvider->resourceVersion.get());
 
     provider->mutable_operations();
 
