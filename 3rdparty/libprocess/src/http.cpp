@@ -988,7 +988,7 @@ Pipe::Reader encode(const Request& request)
     vector<string> query;
 
     foreachpair (const string& key, const string& value, request.url.query) {
-      query.push_back(key + "=" + value);
+      query.push_back(http::encode(key) + "=" + http::encode(value));
     }
 
     out << "?" << strings::join("&", query);
