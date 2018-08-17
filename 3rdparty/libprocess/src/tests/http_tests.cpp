@@ -94,6 +94,7 @@ using testing::DoAll;
 using testing::EndsWith;
 using testing::Invoke;
 using testing::Return;
+using testing::StartsWith;
 using testing::WithParamInterface;
 
 namespace process {
@@ -105,6 +106,16 @@ void reinitialize(
     const Option<string>& readonlyAuthenticationRealm,
     const Option<string>& readwriteAuthenticationRealm);
 
+namespace http {
+namespace internal {
+
+// TODO(bmahler): The client's encoding logic is currently not exposed
+// in headers, so we declare it here to test it. This should be
+// exposed in headers as a library.
+Pipe::Reader encode(const Request& request);
+
+} // namespace internal {
+} // namespace http {
 } // namespace process {
 
 class HttpProcess : public Process<HttpProcess>
@@ -624,6 +635,29 @@ TEST_P(HTTPTest, EncodeAdditionalChars)
 
   EXPECT_EQ("foo%2Ebar", encoded);
   EXPECT_SOME_EQ(unencoded, http::decode(encoded));
+}
+
+
+TEST_P(HTTPTest, QueryEncoding)
+{
+  // This query tests a literal ASCII encoding. The special characters
+  // `:`, `\`, and `%` should each be encoded over the wire, and when
+  // decoded should literally be `C:\foo\bar%3Abaz`.
+  hashmap<string, string> query = {{"path", "C:\\foo\\bar%3Abaz"}};
+  http::URL url = http::URL("http", "mesos.apache.org", 80, "/", query);
+  EXPECT_EQ(
+      stringify(url),
+      "http://mesos.apache.org:80/?path=C%3A%5Cfoo%5Cbar%253Abaz");
+
+  http::Request request;
+  request.method = "GET";
+  request.url = url;
+
+  // This should remain fully encoded.
+  http::Pipe::Reader reader = http::internal::encode(request);
+  Future<string> read = reader.readAll();
+  AWAIT_READY(read);
+  EXPECT_THAT(read.get(), StartsWith("GET /?path=C%3A%5Cfoo%5Cbar%253Abaz"));
 }
 
 
