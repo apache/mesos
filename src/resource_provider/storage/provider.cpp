@@ -3471,8 +3471,8 @@ void StorageLocalResourceProviderProcess::sendResourceProviderStateUpdate()
   };
 
   driver->send(evolve(call))
-    .onFailed(std::bind(die, info.id(), lambda::_1))
-    .onDiscarded(std::bind(die, info.id(), "future discarded"));
+    .onFailed(defer(self(), std::bind(die, info.id(), lambda::_1)))
+    .onDiscarded(defer(self(), std::bind(die, info.id(), "future discarded")));
 }
 
 
