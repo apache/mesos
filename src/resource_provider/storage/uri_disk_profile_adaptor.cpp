@@ -200,14 +200,16 @@ void UriDiskProfileAdaptorProcess::poll()
 }
 
 
-void UriDiskProfileAdaptorProcess::_poll(const Future<http::Response>& future)
+void UriDiskProfileAdaptorProcess::_poll(const Future<http::Response>& response)
 {
-  if (future.isReady()) {
-    // NOTE: We don't check the HTTP status code because we don't know
-    // what potential codes are considered successful.
-    __poll(future->body);
-  } else if (future.isFailed()) {
-    __poll(Error(future.failure()));
+  if (response.isReady()) {
+    if (response->code == http::Status::OK) {
+      __poll(response->body);
+    } else {
+      __poll(Error("Unexpected HTTP response '" + response->status + "'"));
+    }
+  } else if (response.isFailed()) {
+    __poll(Error(response.failure()));
   } else {
     __poll(Error("Future discarded or abandoned"));
   }
