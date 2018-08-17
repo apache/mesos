@@ -123,6 +123,7 @@ All Resolved Issues:
   * [MESOS-9149] - Failed to build gRPC on Linux without OpenSSL.
   * [MESOS-9156] - StorageLocalResourceProviderProcess can deadlock
   * [MESOS-9160] - Failed to compile gRPC when the build path contains symlinks.
+  * [MESOS-9163] - `UriDiskProfileAdaptor` should not update profiles when a poll returns a non-OK HTTP status.
 
 ** Documentation
   * [MESOS-8740] - Update description of a Containerizer interface.
