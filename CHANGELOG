@@ -64,6 +64,7 @@ All Resolved Issues:
   * [MESOS-7397] - apply-reviews.py silently fails when using chain mode.
   * [MESOS-7658] - apply-reviews.py fails with Unicode characters
   * [MESOS-7966] - check for maintenance on agent causes fatal error
+  * [MESOS-8128] - Make os::pipe file descriptors O_CLOEXEC.
   * [MESOS-8134] - SlaveTest.ContainersEndpoint is flaky due to getenv crash.
   * [MESOS-8499] - Change docker health check image to the new nanoserver one
   * [MESOS-8567] - Test UriDiskProfileTest.FetchFromHTTP is flaky.
