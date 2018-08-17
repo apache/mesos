@@ -1981,6 +1981,9 @@ Future<Containerizer::LaunchResult> MesosContainerizerProcess::_launch(
       whitelistFds);
 
   if (forked.isError()) {
+    os::close(pipes[0]);
+    os::close(pipes[1]);
+
     return Failure("Failed to fork: " + forked.error());
   }
 
@@ -1999,6 +2002,9 @@ Future<Containerizer::LaunchResult> MesosContainerizerProcess::_launch(
     if (checkpointed.isError()) {
       LOG(ERROR) << "Failed to checkpoint container's forked pid to '"
                  << pidCheckpointPath.get() << "': " << checkpointed.error();
+
+      os::close(pipes[0]);
+      os::close(pipes[1]);
 
       return Failure("Could not checkpoint container's pid");
     }
@@ -2023,6 +2029,9 @@ Future<Containerizer::LaunchResult> MesosContainerizerProcess::_launch(
   checkpointed = slave::state::checkpoint(pidPath, stringify(pid));
 
   if (checkpointed.isError()) {
+    os::close(pipes[0]);
+    os::close(pipes[1]);
+
     return Failure("Failed to checkpoint the container pid to"
                    " '" + pidPath + "': " + checkpointed.error());
   }
