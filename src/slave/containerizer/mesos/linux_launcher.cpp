@@ -535,6 +535,15 @@ Try<pid_t> LinuxLauncherProcess::fork(
     }));
   }
 
+  vector<Subprocess::ChildHook> childHooks;
+
+  childHooks.push_back(Subprocess::ChildHook::SETSID());
+
+  // TODO(jpeach) libprocess should take care of this, see MESOS-9164.
+  foreach (int_fd fd, whitelistFds) {
+    childHooks.push_back(Subprocess::ChildHook::UNSET_CLOEXEC(fd));
+  }
+
   Try<Subprocess> child = subprocess(
       path,
       argv,
@@ -561,7 +570,7 @@ Try<pid_t> LinuxLauncherProcess::fork(
         }
       },
       parentHooks,
-      {Subprocess::ChildHook::SETSID()});
+      childHooks);
 
   if (child.isError()) {
     return Error("Failed to clone child process: " + child.error());
