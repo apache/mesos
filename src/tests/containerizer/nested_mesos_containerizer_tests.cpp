@@ -1194,7 +1194,11 @@ TEST_F(NestedMesosContainerizerTest,
   EXPECT_WEXITSTATUS_EQ(0, wait.get()->status());
 
   Future<Option<ContainerTermination>> termination =
-    containerizer->destroy(containerId);
+    containerizer->wait(containerId);
+
+  Future<bool> destroy = containerizer->destroy(containerId);
+  AWAIT_READY(destroy);
+  ASSERT_TRUE(destroy.get());
 
   AWAIT_READY(termination);
   ASSERT_SOME(termination.get());
