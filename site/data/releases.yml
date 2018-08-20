@@ -15,6 +15,9 @@ news:
 ##   - title: (required)
 ##     date: (required)
 ##     blog: (required)
+  - title: Mesos 1.4.2 is released!
+    date: August 20, 2018
+    blog: mesos-1-4-2-released
   - title: Mesos 1.6.1 is released!
     date: July 25, 2018
     blog: mesos-1-6-1-released
@@ -181,6 +184,8 @@ versions:
     jira_version: 12341260
   - version: 1.2.3
     jira_version: 12341267
+  - version: 1.4.2
+    jira_version: 12342192
   - version: 1.4.1
     jira_version: 12341353
   - version: 1.4.0
