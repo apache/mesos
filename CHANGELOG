@@ -162,6 +162,7 @@ All Resolved Issues:
   * [MESOS-9015] - Allow resources to be removed when updating the sorter.
   * [MESOS-9055] - Make gRPC call deadline configurable.
   * [MESOS-9067] - Improve performance of json parsing by avoiding conversion cost.
+  * [MESOS-9081] - cgroups::verify is expensive and is done implicitly during cgroups operations.
   * [MESOS-9086] - Optimize range subtraction operation.
   * [MESOS-9092] - Adopt rapidjson for improved json serialization performance.
   * [MESOS-9104] - Refactor capability related logic in the allocator.
