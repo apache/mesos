@@ -9214,7 +9214,8 @@ TEST_F(MasterTest, TaskStateMetrics)
 
   Future<Event::Offers> offers2;
   EXPECT_CALL(*scheduler, offers(_, _))
-    .WillOnce(FutureArg<1>(&offers2));
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   Clock::advance(masterFlags.allocation_interval);
 
