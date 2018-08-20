@@ -119,6 +119,7 @@ All Resolved Issues:
   * [MESOS-9094] - On macOS libprocess_tests fail to link when compiling with gRPC
   * [MESOS-9114] - cmake build is broken on macos
   * [MESOS-9115] - Stout depends on missing rapidjson headers.
+  * [MESOS-9116] - Launch nested container session fails due to incorrect detection of `mnt` namespace of command executor's task.
   * [MESOS-9125] - "Port mapper CNI plugin might fail with ""Resource temporarily unavailable"""
   * [MESOS-9127] - Port mapper CNI plugin might deadlock iptables on the agent.
   * [MESOS-9137] - GRPC build fails to pass compiler flags
