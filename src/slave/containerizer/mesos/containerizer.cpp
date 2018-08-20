@@ -1917,20 +1917,31 @@ Future<Containerizer::LaunchResult> MesosContainerizerProcess::_launch(
       return Failure("Unknown parent container");
     }
 
-    if (containers_.at(containerId.parent())->pid.isNone()) {
+    const Owned<Container>& parentContainer =
+      containers_.at(containerId.parent());
+
+    if (parentContainer->pid.isNone()) {
       return Failure("Unknown parent container pid");
     }
 
-    pid_t parentPid = containers_.at(containerId.parent())->pid.get();
+    const pid_t parentPid = parentContainer->pid.get();
 
-    Try<pid_t> mountNamespaceTarget = getMountNamespaceTarget(parentPid);
-    if (mountNamespaceTarget.isError()) {
-      return Failure(
-          "Cannot get target mount namespace from process " +
-          stringify(parentPid) + ": " + mountNamespaceTarget.error());
+    // For the command executor case, we need to find a PID of its task,
+    // which will be used to enter the task's mount namespace.
+    if (parentContainer->config.isSome() &&
+        parentContainer->config->has_task_info()) {
+      Try<pid_t> mountNamespaceTarget = getMountNamespaceTarget(parentPid);
+      if (mountNamespaceTarget.isError()) {
+        return Failure(
+            "Cannot get target mount namespace from process " +
+            stringify(parentPid) + ": " + mountNamespaceTarget.error());
+      }
+
+      launchFlags.namespace_mnt_target = mountNamespaceTarget.get();
+    } else {
+      launchFlags.namespace_mnt_target = parentPid;
     }
 
-    launchFlags.namespace_mnt_target = mountNamespaceTarget.get();
     _enterNamespaces = _enterNamespaces.get() & ~CLONE_NEWNS;
   }
 #endif // __linux__
