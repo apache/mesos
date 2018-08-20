@@ -202,10 +202,7 @@ public:
   bool approved(const Args&... args)
   {
     if (!approvers.contains(action)) {
-      LOG(WARNING) << "Attempted to authorize "
-                   << (principal.isSome()
-                       ? "'" + stringify(principal.get()) + "'"
-                       : "")
+      LOG(WARNING) << "Attempted to authorize " << principal
                    << " for unexpected action " << stringify(action);
       return false;
     }
@@ -215,10 +212,7 @@ public:
 
     if (approved.isError()) {
       // TODO(joerg84): Expose these errors back to the caller.
-      LOG(WARNING) << "Failed to authorize principal "
-                   << (principal.isSome()
-                       ? "'" + stringify(principal.get()) + "' "
-                       : "")
+      LOG(WARNING) << "Failed to authorize principal " << principal
                    << "for action " << stringify(action) << ": "
                    << approved.error();
       return false;
@@ -233,10 +227,14 @@ private:
           authorization::Action,
           process::Owned<ObjectApprover>>&& _approvers,
       const Option<process::http::authentication::Principal>& _principal)
-    : approvers(std::move(_approvers)), principal(_principal) {}
+    : approvers(std::move(_approvers)),
+      principal(_principal.isSome()
+          ? "'" + stringify(_principal.get()) + "'"
+          : "")
+    {}
 
   hashmap<authorization::Action, process::Owned<ObjectApprover>> approvers;
-  Option<process::http::authentication::Principal> principal;
+  const std::string principal; // Only used for logging.
 };
 
 
