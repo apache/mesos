@@ -27,6 +27,12 @@ This release contains the following new features:
   * [MESOS-5647] - Expose network statistics for containers on CNI
     network in the `network/cni` isolator.
 
+  * [MESOS-8842] - **Experimental** Added per-framework metrics to the master.
+    These new metrics provide detailed information about the behavior of each
+    framework and can help with scalability testing, debugging, and fine grained
+    monitoring.
+    Please refer to docs/monitoring.md for more details.
+
 Additional API Changes:
   * [MESOS-9015] Allow resources to be removed when updating the sorter.
 
