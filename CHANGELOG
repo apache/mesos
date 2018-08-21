@@ -24,36 +24,58 @@ This release contains the following highlights:
       provides a significant improvement to container launch /
       destroy throughput (MESOS-9081).
 
-  * [MESOS-7691] - Added a new option `cgroups/all` to the agent flag
-    `--isolation`. This allows cgroups isolator to automatically load
-    all the local enabled cgroups subsystems. If this option is specified
-    in the agent flag `--isolation` along with other cgroups related
-    options (e.g., `cgroups/cpu`), those options will be just ignored.
+  * Containerization:
 
-  * [MESOS-8327] - Added container-specific cgroups mounts under
-    `/sys/fs/cgroup` to containers with image launched by Mesos containerizer.
+    * [MESOS-7691] - Added a new option `cgroups/all` to the agent
+      flag `--isolation`. This allows cgroups isolator to
+      automatically load all the local enabled cgroups subsystems.
+      If this option is specified in the agent flag `--isolation`
+      along with other cgroups related options
+      (e.g., `cgroups/cpu`), those options will be just ignored.
 
-  * [MESOS-8792] - Added a new `linux/devices` isolator that automatically
-    populates containers with devices that have been whitelisted with the
-    `--allowed_devices` agent flag.
+    * [MESOS-8327] - Added container-specific cgroups mounts under
+      `/sys/fs/cgroup` to containers with image launched by Mesos
+      containerizer.
 
-  * [MESOS-8340] Added a new `--enforce_container_ports` option to toggle
-    ports resource enforcement by the `network/ports` isolator.
+    * [MESOS-5647] - Expose network statistics for containers on
+      CNI network in the `network/cni` isolator.
 
-  * [MESOS-8668] - Added support to libprocess for the Windows Thread Pool
-    API, replacing libevent with the native Windows event and thread pool
-    library. This can be enabled with `-DENABLE_LIBWINIO=ON` during CMake
-    configuration. By utilizing I/O Completion Ports, this enables
-    non-blocking asynchronous I/O on Windows for sockets, pipes, and files.
+    * [MESOS-8792] - Added a new `linux/devices` isolator that
+      automatically populates containers with devices that have
+      been whitelisted with the `--allowed_devices` agent flag.
 
-  * [MESOS-5647] - Expose network statistics for containers on CNI
-    network in the `network/cni` isolator.
+    * [MESOS-8340] Added a new `--enforce_container_ports`
+      option to toggle ports resource enforcement by the
+      `network/ports` isolator.
 
-  * [MESOS-8842] - **Experimental** Added per-framework metrics to the master.
-    These new metrics provide detailed information about the behavior of each
-    framework and can help with scalability testing, debugging, and fine grained
-    monitoring.
-    Please refer to docs/monitoring.md for more details.
+    * [MESOS-6451] - Add timer and percentile metrics for docker
+      pull latency distribution.
+
+  * Windows:
+
+    * [MESOS-8668] - Added support to libprocess for the Windows
+      Thread Pool API, replacing libevent with the native Windows
+      event and thread pool library. This can be enabled with
+      `-DENABLE_LIBWINIO=ON` during CMake configuration. By
+      utilizing I/O Completion Ports, this enables non-blocking
+      asynchronous I/O on Windows for sockets, pipes, and files.
+
+  * Multi-Framework Workloads:
+
+    * [MESOS-8842] - **Experimental** Added per-framework metrics
+      to the master. These new metrics provide detailed information
+      about the behavior of each framework and can help with
+      scalability testing, debugging, and fine grained monitoring.
+      Please refer to docs/monitoring.md for more details.
+
+    * [MESOS-8238] Documentation was added in the framework
+      development guide to provide recommendations on how schedulers
+      can behave co-operatively in a multi-framework setting, as
+      well as how to operationally configure Mesos in such a setting.
+
+    * [MESOS-8936] A new weighted random sorter was added as an
+      alternative to the existing DRF sorter, this allows users
+      that don't need DRF behavior to opt-out.
 
 Additional API Changes:
   * [MESOS-9015] Allow resources to be removed when updating the sorter.
