@@ -10826,10 +10826,6 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
   // TODO(bmahler): Check that we're not transitioning from
   // TASK_UNREACHABLE to another state.
   if (!protobuf::isTerminalState(task->state())) {
-    if (status.state() != task->state()) {
-      sendSubscribersUpdate = true;
-    }
-
     if (task->state() != updateState && framework != nullptr) {
       // When we observe a transition away from a non-terminal state,
       // decrement the relevant metric.
@@ -10852,6 +10848,9 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
   if (task->statuses_size() > 0 &&
       task->statuses(task->statuses_size() - 1).state() == status.state()) {
     task->mutable_statuses()->RemoveLast();
+  } else {
+    // Send a `TASK_UPDATED` event for every new task state.
+    sendSubscribersUpdate = true;
   }
   task->add_statuses()->CopyFrom(status);
 

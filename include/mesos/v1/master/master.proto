@@ -598,7 +598,10 @@ message Event {
     // status update acknowledged by the scheduler.
     required TaskStatus status = 2;
 
-    // This is the latest state of the task according to the agent.
+    // This is the latest state of the task according to the agent,
+    // which can be more recent than `status` above but intermediate
+    // state changes may be skipped if they happen faster than the
+    // scheduler can acknowledge them.
     required TaskState state = 3;
   }
 
