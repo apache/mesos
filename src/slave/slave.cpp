@@ -792,6 +792,17 @@ void Slave::initialize()
 
         return resourceProviderManager->api(request, principal);
       });
+
+  // TODO(ijimenez): Remove this endpoint at the end of the
+  // deprecation cycle on 0.26.
+  route("/state.json",
+        READONLY_HTTP_AUTHENTICATION_REALM,
+        Http::STATE_HELP(),
+        [this](const http::Request& request,
+               const Option<Principal>& principal) {
+          logRequest(request);
+          return http.state(request, principal);
+        });
   route("/state",
         READONLY_HTTP_AUTHENTICATION_REALM,
         Http::STATE_HELP(),
@@ -814,6 +825,16 @@ void Slave::initialize()
           return http.health(request);
         });
   route("/monitor/statistics",
+        READONLY_HTTP_AUTHENTICATION_REALM,
+        Http::STATISTICS_HELP(),
+        [this](const http::Request& request,
+               const Option<Principal>& principal) {
+          logRequest(request);
+          return http.statistics(request, principal);
+        });
+  // TODO(ijimenez): Remove this endpoint at the end of the
+  // deprecation cycle on 0.26.
+  route("/monitor/statistics.json",
         READONLY_HTTP_AUTHENTICATION_REALM,
         Http::STATISTICS_HELP(),
         [this](const http::Request& request,

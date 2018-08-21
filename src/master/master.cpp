@@ -937,6 +937,16 @@ void Master::initialize()
           logRequest(request);
           return http.reserve(request, principal);
         });
+  // TODO(ijimenez): Remove this endpoint at the end of the
+  // deprecation cycle on 0.26.
+  route("/roles.json",
+        READONLY_HTTP_AUTHENTICATION_REALM,
+        Http::ROLES_HELP(),
+        [this](const process::http::Request& request,
+               const Option<Principal>& principal) {
+          logRequest(request);
+          return http.roles(request, principal);
+        });
   route("/roles",
         READONLY_HTTP_AUTHENTICATION_REALM,
         Http::ROLES_HELP(),
@@ -961,6 +971,16 @@ void Master::initialize()
           logRequest(request);
           return http.slaves(request, principal);
         });
+  // TODO(ijimenez): Remove this endpoint at the end of the
+  // deprecation cycle on 0.26.
+  route("/state.json",
+        READONLY_HTTP_AUTHENTICATION_REALM,
+        Http::STATE_HELP(),
+        [this](const process::http::Request& request,
+               const Option<Principal>& principal) {
+          logRequest(request);
+          return http.state(request, principal);
+        });
   route("/state",
         READONLY_HTTP_AUTHENTICATION_REALM,
         Http::STATE_HELP(),
@@ -976,6 +996,16 @@ void Master::initialize()
                const Option<Principal>& principal) {
           logRequest(request);
           return http.stateSummary(request, principal);
+        });
+  // TODO(ijimenez): Remove this endpoint at the end of the
+  // deprecation cycle.
+  route("/tasks.json",
+        READONLY_HTTP_AUTHENTICATION_REALM,
+        Http::TASKS_HELP(),
+        [this](const process::http::Request& request,
+               const Option<Principal>& principal) {
+          logRequest(request);
+          return http.tasks(request, principal);
         });
   route("/tasks",
         READONLY_HTTP_AUTHENTICATION_REALM,
