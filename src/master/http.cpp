@@ -2871,153 +2871,152 @@ Future<Response> Master::Http::deferStateRequest(
 }
 
 
+process::http::Response Master::ReadOnlyHandler::state(
+    const process::http::Request& request,
+    const process::Owned<ObjectApprovers>& approvers) const
+{
+  const Master* master = this->master;
+  auto calculateState = [master, &approvers](JSON::ObjectWriter* writer) {
+    writer->field("version", MESOS_VERSION);
+
+    if (build::GIT_SHA.isSome()) {
+      writer->field("git_sha", build::GIT_SHA.get());
+    }
+
+    if (build::GIT_BRANCH.isSome()) {
+      writer->field("git_branch", build::GIT_BRANCH.get());
+    }
+
+    if (build::GIT_TAG.isSome()) {
+      writer->field("git_tag", build::GIT_TAG.get());
+    }
+
+    writer->field("build_date", build::DATE);
+    writer->field("build_time", build::TIME);
+    writer->field("build_user", build::USER);
+    writer->field("start_time", master->startTime.secs());
+
+    if (master->electedTime.isSome()) {
+      writer->field("elected_time", master->electedTime->secs());
+    }
+
+    writer->field("id", master->info().id());
+    writer->field("pid", string(master->self()));
+    writer->field("hostname", master->info().hostname());
+    writer->field("capabilities", master->info().capabilities());
+    writer->field("activated_slaves", master->_const_slaves_active());
+    writer->field("deactivated_slaves", master->_const_slaves_inactive());
+    writer->field("unreachable_slaves", master->_const_slaves_unreachable());
+
+    if (master->info().has_domain()) {
+      writer->field("domain", master->info().domain());
+    }
+
+    // TODO(haosdent): Deprecated this in favor of `leader_info` below.
+    if (master->leader.isSome()) {
+      writer->field("leader", master->leader->pid());
+    }
+
+    if (master->leader.isSome()) {
+      writer->field("leader_info", [master](JSON::ObjectWriter* writer) {
+        json(writer, master->leader.get());
+      });
+    }
+
+    if (approvers->approved<VIEW_FLAGS>()) {
+      if (master->flags.cluster.isSome()) {
+        writer->field("cluster", master->flags.cluster.get());
+      }
+
+      if (master->flags.log_dir.isSome()) {
+        writer->field("log_dir", master->flags.log_dir.get());
+      }
+
+      if (master->flags.external_log_file.isSome()) {
+        writer->field("external_log_file",
+                      master->flags.external_log_file.get());
+      }
+
+      writer->field("flags", [master](JSON::ObjectWriter* writer) {
+          foreachvalue (const flags::Flag& flag, master->flags) {
+            Option<string> value = flag.stringify(master->flags);
+            if (value.isSome()) {
+              writer->field(flag.effective_name().value, value.get());
+            }
+          }
+        });
+    }
+
+    // Model all of the registered slaves.
+    writer->field(
+        "slaves",
+        [master, &approvers](JSON::ArrayWriter* writer) {
+          foreachvalue (Slave* slave, master->slaves.registered) {
+            writer->element(SlaveWriter(*slave, approvers));
+          }
+        });
+
+    // Model all of the recovered slaves.
+    writer->field(
+        "recovered_slaves",
+        [master](JSON::ArrayWriter* writer) {
+          foreachvalue (
+              const SlaveInfo& slaveInfo, master->slaves.recovered) {
+            writer->element([&slaveInfo](JSON::ObjectWriter* writer) {
+              json(writer, slaveInfo);
+            });
+          }
+        });
+
+    // Model all of the frameworks.
+    writer->field(
+        "frameworks",
+        [master, &approvers](JSON::ArrayWriter* writer) {
+          foreachvalue (
+              Framework* framework, master->frameworks.registered) {
+            // Skip unauthorized frameworks.
+            if (!approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
+              continue;
+            }
+
+            writer->element(FullFrameworkWriter(approvers, framework));
+          }
+        });
+
+    // Model all of the completed frameworks.
+    writer->field(
+        "completed_frameworks",
+        [master, &approvers](JSON::ArrayWriter* writer) {
+          foreachvalue (
+              const Owned<Framework>& framework,
+              master->frameworks.completed) {
+            // Skip unauthorized frameworks.
+            if (!approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
+              continue;
+            }
+
+            writer->element(
+                FullFrameworkWriter(approvers, framework.get()));
+          }
+        });
+
+    // Orphan tasks are no longer possible. We emit an empty array
+    // for the sake of backward compatibility.
+    writer->field("orphan_tasks", [](JSON::ArrayWriter*) {});
+
+    // Unregistered frameworks are no longer possible. We emit an
+    // empty array for the sake of backward compatibility.
+    writer->field("unregistered_frameworks", [](JSON::ArrayWriter*) {});
+  };
+
+  return OK(jsonify(calculateState), request.url.query.get("jsonp"));
+}
+
+
 void Master::Http::processStateRequestsBatch()
 {
   CHECK(!batchedStateRequests.empty())
     << "Bug in state batching logic: No requests to process";
-
-  // This lambda is consumed before the enclosed function returns,
-  // hence capturing `this` is fine here.
-  auto produceResponse = [this](
-      const Request& request,
-      const Owned<ObjectApprovers>& approvers) -> Response {
-    // This lambda is consumed before the outer lambda returns,
-    // hence capturing a reference is fine here.
-    auto calculateState = [this, &approvers](JSON::ObjectWriter* writer) {
-      writer->field("version", MESOS_VERSION);
-
-      if (build::GIT_SHA.isSome()) {
-        writer->field("git_sha", build::GIT_SHA.get());
-      }
-
-      if (build::GIT_BRANCH.isSome()) {
-        writer->field("git_branch", build::GIT_BRANCH.get());
-      }
-
-      if (build::GIT_TAG.isSome()) {
-        writer->field("git_tag", build::GIT_TAG.get());
-      }
-
-      writer->field("build_date", build::DATE);
-      writer->field("build_time", build::TIME);
-      writer->field("build_user", build::USER);
-      writer->field("start_time", master->startTime.secs());
-
-      if (master->electedTime.isSome()) {
-        writer->field("elected_time", master->electedTime->secs());
-      }
-
-      writer->field("id", master->info().id());
-      writer->field("pid", string(master->self()));
-      writer->field("hostname", master->info().hostname());
-      writer->field("capabilities", master->info().capabilities());
-      writer->field("activated_slaves", master->_slaves_active());
-      writer->field("deactivated_slaves", master->_slaves_inactive());
-      writer->field("unreachable_slaves", master->_slaves_unreachable());
-
-      if (master->info().has_domain()) {
-        writer->field("domain", master->info().domain());
-      }
-
-      // TODO(haosdent): Deprecated this in favor of `leader_info` below.
-      if (master->leader.isSome()) {
-        writer->field("leader", master->leader->pid());
-      }
-
-      if (master->leader.isSome()) {
-        writer->field("leader_info", [this](JSON::ObjectWriter* writer) {
-          json(writer, master->leader.get());
-        });
-      }
-
-      if (approvers->approved<VIEW_FLAGS>()) {
-        if (master->flags.cluster.isSome()) {
-          writer->field("cluster", master->flags.cluster.get());
-        }
-
-        if (master->flags.log_dir.isSome()) {
-          writer->field("log_dir", master->flags.log_dir.get());
-        }
-
-        if (master->flags.external_log_file.isSome()) {
-          writer->field("external_log_file",
-                        master->flags.external_log_file.get());
-        }
-
-        writer->field("flags", [this](JSON::ObjectWriter* writer) {
-            foreachvalue (const flags::Flag& flag, master->flags) {
-              Option<string> value = flag.stringify(master->flags);
-              if (value.isSome()) {
-                writer->field(flag.effective_name().value, value.get());
-              }
-            }
-          });
-      }
-
-      // Model all of the registered slaves.
-      writer->field(
-          "slaves",
-          [this, &approvers](JSON::ArrayWriter* writer) {
-            foreachvalue (Slave* slave, master->slaves.registered) {
-              writer->element(SlaveWriter(*slave, approvers));
-            }
-          });
-
-      // Model all of the recovered slaves.
-      writer->field(
-          "recovered_slaves",
-          [this](JSON::ArrayWriter* writer) {
-            foreachvalue (
-                const SlaveInfo& slaveInfo, master->slaves.recovered) {
-              writer->element([&slaveInfo](JSON::ObjectWriter* writer) {
-                json(writer, slaveInfo);
-              });
-            }
-          });
-
-      // Model all of the frameworks.
-      writer->field(
-          "frameworks",
-          [this, &approvers](JSON::ArrayWriter* writer) {
-            foreachvalue (
-                Framework* framework, master->frameworks.registered) {
-              // Skip unauthorized frameworks.
-              if (!approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
-                continue;
-              }
-
-              writer->element(FullFrameworkWriter(approvers, framework));
-            }
-          });
-
-      // Model all of the completed frameworks.
-      writer->field(
-          "completed_frameworks",
-          [this, &approvers](JSON::ArrayWriter* writer) {
-            foreachvalue (
-                const Owned<Framework>& framework,
-                master->frameworks.completed) {
-              // Skip unauthorized frameworks.
-              if (!approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
-                continue;
-              }
-
-              writer->element(
-                  FullFrameworkWriter(approvers, framework.get()));
-            }
-          });
-
-      // Orphan tasks are no longer possible. We emit an empty array
-      // for the sake of backward compatibility.
-      writer->field("orphan_tasks", [](JSON::ArrayWriter*) {});
-
-      // Unregistered frameworks are no longer possible. We emit an
-      // empty array for the sake of backward compatibility.
-      writer->field("unregistered_frameworks", [](JSON::ArrayWriter*) {});
-    };
-
-    return OK(jsonify(calculateState), request.url.query.get("jsonp"));
-  };
 
   // Produce the responses in parallel.
   //
@@ -3028,7 +3027,12 @@ void Master::Http::processStateRequestsBatch()
   // `process::async` once it supports moving.
   foreach (BatchedStateRequest& request, batchedStateRequests) {
     request.promise.associate(process::async(
-        produceResponse, request.request, request.approvers));
+        [this](const process::http::Request& request,
+               const process::Owned<ObjectApprovers>& approvers) {
+           return readonlyHandler.state(request, approvers);
+        },
+        request.request,
+        request.approvers));
   }
 
   // Block the master actor until all workers have generated state responses.

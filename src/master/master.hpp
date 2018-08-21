@@ -1384,12 +1384,35 @@ private:
     Master* master;
   };
 
+  // Inner class used to namespace HTTP handlers that do not change the
+  // underlying master object.
+  //
+  // NOTE: Most member functions of this class are not routed directly but
+  // dispatched from their corresponding handlers in the outer `Http` class.
+  // This is because deciding whether an incoming request is read-only often
+  // requires some inspection, e.g. distinguishing between "GET" and "POST"
+  // requests to the same endpoint.
+  class ReadOnlyHandler
+  {
+  public:
+    explicit ReadOnlyHandler(const Master* _master) : master(_master) {}
+
+    // /state
+    process::http::Response state(
+        const process::http::Request& request,
+        const process::Owned<ObjectApprovers>& approvers) const;
+
+  private:
+    const Master* master;
+  };
+
   // Inner class used to namespace HTTP route handlers (see
   // master/http.cpp for implementations).
   class Http
   {
   public:
     explicit Http(Master* _master) : master(_master),
+                                     readonlyHandler(_master),
                                      quotaHandler(_master),
                                      weightsHandler(_master) {}
 
@@ -1836,6 +1859,8 @@ private:
         ContentType contentType) const;
 
     Master* master;
+
+    ReadOnlyHandler readonlyHandler;
 
     // NOTE: The quota specific pieces of the Operator API are factored
     // out into this separate class.
