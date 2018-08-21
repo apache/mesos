@@ -1016,11 +1016,13 @@ Containerizer for now.
 See the ImageGcConfig message in `flags.proto` for the expected
 format.
 <p/>
-Example:
+In the following example, image garbage collection is configured to
+sample disk usage every hour, and will attempt to maintain at least
+10% of free space on the container image filesystem:
 <pre><code>{
   "image_disk_headroom": 0.1,
   "image_disk_watch_interval": {
-    "nanoseconds": 3600
+    "nanoseconds": 3600000000000
   },
   "excluded_images": []
 }</code></pre>
