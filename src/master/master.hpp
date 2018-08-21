@@ -2227,6 +2227,14 @@ private:
   double _slaves_inactive();
   double _slaves_unreachable();
 
+  // TODO(bevers): Remove these and make the above functions
+  // const instead after MESOS-4995 is resolved.
+  double _const_slaves_connected() const;
+  double _const_slaves_disconnected() const;
+  double _const_slaves_active() const;
+  double _const_slaves_inactive() const;
+  double _const_slaves_unreachable() const;
+
   double _frameworks_connected();
   double _frameworks_disconnected();
   double _frameworks_active();
