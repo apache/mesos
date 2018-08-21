@@ -1578,17 +1578,6 @@ private:
         const Option<process::http::authentication::Principal>&
             principal) const;
 
-    // A continuation for `state()`. Schedules request processing in a batch
-    // of other '/state' requests.
-    process::Future<process::http::Response> deferStateRequest(
-        const process::http::Request& request,
-        const process::Owned<ObjectApprovers>& approvers) const;
-
-    // A helper that responds to batched, i.e., accumulated, '/state'
-    // requests in parallel, i.e., a continuation for `deferStateRequest()`.
-    // See also `BatchedStateRequest`.
-    void processStateRequestsBatch() const;
-
     process::Future<std::vector<const Task*>> _tasks(
         const size_t limit,
         const size_t offset,
@@ -1870,16 +1859,32 @@ private:
     // out into this separate class.
     WeightsHandler weightsHandler;
 
-    // TODO(alexr): Consider adding a `type` or `handler` field to expand
-    // batching to other heavy read-only requests, e.g., '/state-summary'.
-    struct BatchedStateRequest
+    // Since the Master actor is one of the most loaded in a typical Mesos
+    // installation, we take some extra care to keep the backlog small.
+    // In particular, all read-only requests are batched and executed in
+    // parallel, instead of going through the master queue separately.
+
+    typedef process::http::Response
+      (Master::ReadOnlyHandler::*ReadOnlyRequestHandler)(
+          const process::http::Request&,
+          const process::Owned<ObjectApprovers>&) const;
+
+    process::Future<process::http::Response> deferBatchedRequest(
+        ReadOnlyRequestHandler handler,
+        const process::http::Request& request,
+        const process::Owned<ObjectApprovers>& approvers) const;
+
+    void processRequestsBatch() const;
+
+    struct BatchedRequest
     {
+      ReadOnlyRequestHandler handler;
       process::http::Request request;
       process::Owned<ObjectApprovers> approvers;
       process::Promise<process::http::Response> promise;
     };
 
-    mutable std::vector<BatchedStateRequest> batchedStateRequests;
+    mutable std::vector<BatchedRequest> batchedRequests;
   };
 
   Master(const Master&);              // No copying.
