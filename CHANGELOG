@@ -103,6 +103,7 @@ All Resolved Issues:
   * [MESOS-8980] - mesos-slave can deadlock with docker pull
   * [MESOS-8985] - Posting to the operator api with 'accept recordio' header can crash the agent
   * [MESOS-8987] - Master asks agent to shutdown upon auth errors.
+  * [MESOS-9000] - Operator API event stream can miss task status updates.
   * [MESOS-9007] - XFS disk isolator doesn't clean up project ID from symlinks
   * [MESOS-9008] - Fetcher fails to extract some archives containing hardlinks
   * [MESOS-9010] - `UPDATE_STATE` can race with `UPDATE_OPERATION_STATUS` for a resource provider.
