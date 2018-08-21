@@ -1513,6 +1513,16 @@ Future<ResourceStatistics> NetworkCniIsolatorProcess::usage(
     return ResourceStatistics();
   }
 
+  // Skip the container if there's no container network, e.g.
+  // container joins host network.
+  if (infos[containerId]->containerNetworks.empty()) {
+    return ResourceStatistics();
+  }
+
+  // If the `network/cni` isolator is providing network isolation to
+  // the container its `rootDir` should always be set.
+  CHECK_SOME(rootDir);
+
   const string netns = paths::getNamespacePath(rootDir.get(), containerId);
 
   // We collect networking statistics only for known interfaces.
