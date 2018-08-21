@@ -226,7 +226,10 @@ example, the operator can put a `busybox:latest.tar` (the result of
 `/tmp/mesos/images/docker` and launch the agent by specifying
 `--docker_registry=/tmp/mesos/images/docker`. Then the framework can
 launch a Docker container by specifying `busybox:latest` as the name
-of the Docker image.
+of the Docker image. This flag can also point to an HDFS URI
+(*experimental* in Mesos 1.7) (e.g., `hdfs://localhost:8020/archives/`)
+to fetch images from HDFS if the `hadoop` command is available on the
+agent.
 
 If the `--switch_user` flag is set on the agent and the framework
 specifies a user (either `CommandInfo.user` or `FrameworkInfo.user`),

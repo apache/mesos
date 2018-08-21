@@ -202,11 +202,11 @@ mesos::internal::slave::Flags::Flags()
   add(&Flags::docker_registry,
       "docker_registry",
       "The default url for Mesos containerizer to pull Docker images. It\n"
-      "could either be a Docker registry server url (i.e: `https://registry.docker.io`),\n" // NOLINT(whitespace/line_length)
+      "could either be a Docker registry server url (e.g., `https://registry.docker.io`),\n" // NOLINT(whitespace/line_length)
       "or a source that Docker image archives (result of `docker save`) are\n"
       "stored. The Docker archive source could be specified either as a local\n"
-      "path (i.e: `/tmp/docker/images`), or as an HDFS URI\n"
-      "(i.e: `hdfs://localhost:8020/archives/`). Note that this option won't\n"
+      "path (e.g., `/tmp/docker/images`), or as an HDFS URI (*experimental*)\n"
+      "(e.g., `hdfs://localhost:8020/archives/`). Note that this option won't\n"
       "change the default registry server for Docker containerizer.",
       "https://registry-1.docker.io");
 
