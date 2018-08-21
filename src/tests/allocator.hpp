@@ -208,6 +208,18 @@ ACTION_P(InvokeUpdateWeights, allocator)
 }
 
 
+ACTION_P(InvokePause, allocator)
+{
+  allocator->real->pause();
+}
+
+
+ACTION_P(InvokeResume, allocator)
+{
+  allocator->real->resume();
+}
+
+
 template <typename T = master::allocator::HierarchicalDRFAllocator>
 mesos::allocator::Allocator* createAllocator()
 {
@@ -364,6 +376,16 @@ public:
       .WillByDefault(InvokeUpdateWeights(this));
     EXPECT_CALL(*this, updateWeights(_))
       .WillRepeatedly(DoDefault());
+
+    ON_CALL(*this, pause())
+      .WillByDefault(InvokePause(this));
+    EXPECT_CALL(*this, pause())
+      .WillRepeatedly(DoDefault());
+
+    ON_CALL(*this, resume())
+      .WillByDefault(InvokeResume(this));
+    EXPECT_CALL(*this, resume())
+      .WillRepeatedly(DoDefault());
   }
 
   ~TestAllocator() override {}
@@ -491,6 +513,10 @@ public:
 
   MOCK_METHOD1(updateWeights, void(
       const std::vector<WeightInfo>&));
+
+  MOCK_METHOD0(pause, void());
+
+  MOCK_METHOD0(resume, void());
 
   process::Owned<mesos::allocator::Allocator> real;
 };

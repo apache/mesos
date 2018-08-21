@@ -229,14 +229,14 @@ public:
   void updateWeights(
       const std::vector<WeightInfo>& weightInfos) override;
 
+  void pause() override;
+
+  void resume() override;
+
 protected:
   // Useful typedefs for dispatch/delay/defer to self()/this.
   typedef HierarchicalAllocatorProcess Self;
   typedef HierarchicalAllocatorProcess This;
-
-  // Idempotent helpers for pausing and resuming allocation.
-  void pause();
-  void resume();
 
   // Allocate any allocatable resources from all known agents.
   process::Future<Nothing> allocate();

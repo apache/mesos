@@ -439,6 +439,16 @@ public:
    */
   virtual void updateWeights(
       const std::vector<WeightInfo>& weightInfos) = 0;
+
+  /**
+   * Idempotent helper to pause allocations.
+   */
+  virtual void pause() = 0;
+
+  /**
+   * Idempotent helper to resume allocations.
+   */
+  virtual void resume() = 0;
 };
 
 } // namespace allocator {

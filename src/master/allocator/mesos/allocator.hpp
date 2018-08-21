@@ -174,6 +174,10 @@ public:
   void updateWeights(
       const std::vector<WeightInfo>& weightInfos) override;
 
+  void pause() override;
+
+  void resume() override;
+
 private:
   MesosAllocator();
   MesosAllocator(const MesosAllocator&); // Not copyable.
@@ -323,6 +327,10 @@ public:
 
   virtual void updateWeights(
       const std::vector<WeightInfo>& weightInfos) = 0;
+
+  virtual void pause() = 0;
+
+  virtual void resume() = 0;
 };
 
 
@@ -724,6 +732,21 @@ inline void MesosAllocator<AllocatorProcess>::updateWeights(
       &MesosAllocatorProcess::updateWeights,
       weightInfos);
 }
+
+
+template <typename AllocatorProcess>
+inline void MesosAllocator<AllocatorProcess>::pause()
+{
+  process::dispatch(process, &MesosAllocatorProcess::pause);
+}
+
+
+template <typename AllocatorProcess>
+inline void MesosAllocator<AllocatorProcess>::resume()
+{
+  process::dispatch(process, &MesosAllocatorProcess::resume);
+}
+
 
 } // namespace allocator {
 } // namespace master {
