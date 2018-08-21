@@ -70,7 +70,6 @@ We categorize the changes as follows:
     <ul style="padding-left:10px;">
       <li>C <a href="#1-7-x-container-logger">ContainerLogger module interface changes</a></li>
       <li>C <a href="#1-7-x-isolator-recover">Isolator::recover module interface change</a></li>
-      <li>C <a href="#1-7-x-sorter-update">Changed semantics of Sorter::update</a></li>
     </ul>
   </td>
 
@@ -464,10 +463,6 @@ We categorize the changes as follows:
 <a name="1-7-x-isolator-recover"></a>
 
 * `Isolator::recover()` has been updated to take an `std::vector` instead of `std::list` of container states.
-
-<a name="1-7-x-sorter-update"></a>
-
-* The semantics of `Sorter::update` has been changed so that resources can be removed from a client's allocation without removing the full agent in which they reside. Callers are expected to update the total resources of the agent as well by, e.g., removing the agent and adding it back with the new total resources.
 
 <a name="1-7-x-volume-mode-support"></a>
 
