@@ -27,6 +27,11 @@ This release contains the following new features:
   * [MESOS-5647] - Expose network statistics for containers on CNI
     network in the `network/cni` isolator.
 
+  * [MESOS-9122] - Batch v0 '/state' requests on Master: '/state' requests
+    are not scheduled directly after authorization, but are accumulated and
+    then scheduled for later parallel processing. This improves the Master's
+    performance under high-load conditions.
+
   * [MESOS-8842] - **Experimental** Added per-framework metrics to the master.
     These new metrics provide detailed information about the behavior of each
     framework and can help with scalability testing, debugging, and fine grained
