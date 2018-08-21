@@ -2816,7 +2816,7 @@ string Master::Http::STATE_HELP()
 
 Future<Response> Master::Http::state(
     const Request& request,
-    const Option<Principal>& principal)
+    const Option<Principal>& principal) const
 {
   // TODO(greggomann): Remove this check once the `Principal` type is used in
   // `ReservationInfo`, `DiskInfo`, and within the master's `principals` map.
@@ -2850,7 +2850,7 @@ Future<Response> Master::Http::state(
 
 Future<Response> Master::Http::deferStateRequest(
     const Request& request,
-    const Owned<ObjectApprovers>& approvers)
+    const Owned<ObjectApprovers>& approvers) const
 {
   bool scheduleBatch = batchedStateRequests.empty();
 
@@ -3013,7 +3013,7 @@ process::http::Response Master::ReadOnlyHandler::state(
 }
 
 
-void Master::Http::processStateRequestsBatch()
+void Master::Http::processStateRequestsBatch() const
 {
   CHECK(!batchedStateRequests.empty())
     << "Bug in state batching logic: No requests to process";

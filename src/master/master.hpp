@@ -1490,7 +1490,7 @@ private:
     process::Future<process::http::Response> state(
         const process::http::Request& request,
         const Option<process::http::authentication::Principal>&
-            principal);
+            principal) const;
 
     // /master/state-summary
     process::Future<process::http::Response> stateSummary(
@@ -1582,12 +1582,12 @@ private:
     // of other '/state' requests.
     process::Future<process::http::Response> deferStateRequest(
         const process::http::Request& request,
-        const process::Owned<ObjectApprovers>& approvers);
+        const process::Owned<ObjectApprovers>& approvers) const;
 
     // A helper that responds to batched, i.e., accumulated, '/state'
     // requests in parallel, i.e., a continuation for `deferStateRequest()`.
     // See also `BatchedStateRequest`.
-    void processStateRequestsBatch();
+    void processStateRequestsBatch() const;
 
     process::Future<std::vector<const Task*>> _tasks(
         const size_t limit,
@@ -1879,7 +1879,7 @@ private:
       process::Promise<process::http::Response> promise;
     };
 
-    std::vector<BatchedStateRequest> batchedStateRequests;
+    mutable std::vector<BatchedStateRequest> batchedStateRequests;
   };
 
   Master(const Master&);              // No copying.
