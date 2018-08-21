@@ -52,6 +52,7 @@ We categorize the changes as follows:
       <li>A <a href="#1-7-x-auto-load-subsystems">Automatically load local enabled cgroups subsystems</a></li>
       <li>A <a href="#1-7-x-container-specific-cgroups-mounts">Container-specific cgroups mounts</a></li>
       <li>A <a href="#1-7-x-volume-mode-support">Volume mode support</a></li>
+      <li>C <a href="#1-7-x-create-disk">`CREATE_DISK` and `DESTROY_DISK` operations</a></li>
     </ul>
   </td>
 
@@ -69,12 +70,13 @@ We categorize the changes as follows:
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Module API-->
     <ul style="padding-left:10px;">
       <li>C <a href="#1-7-x-container-logger">ContainerLogger module interface changes</a></li>
-      <li>C <a href="#1-7-x-isolator-recover">Isolator::recover module interface change</a></li>
+      <li>C <a href="#1-7-x-isolator-recover">Isolator::recover module interface changes</a></li>
     </ul>
   </td>
 
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Endpoints-->
     <ul style="padding-left:10px;">
+      <li>C <a href="#1-7-x-json-serialization">JSON serialization changes</a></li>
     </ul>
   </td>
 </tr>
@@ -467,6 +469,16 @@ We categorize the changes as follows:
 <a name="1-7-x-volume-mode-support"></a>
 
 * Previously the HOST_PATH/SANDBOX_PATH/IMAGE/SECRET/DOCKER_VOLUME volumes were always mounted for container in read-write mode, i.e., the `Volume.mode` field was not honored. Now we will mount these volumes based on the `Volume.mode` field so framework can choose to mount the volume for the container in either read-write mode or read-only mode.
+
+<a name="1-7-x-create-disk"></a>
+
+* To simplify the API for CSI-backed disk resources, the following operations are introduced to replace the experimental `CREATE_VOLUME`, `CREATE_BLOCK`, `DESTROY_VOLUME` and `DESTROY_BLOCK` operations:
+  * `CREATE_DISK` to create a `MOUNT` or `BLOCK` disk resource from a `RAW` disk resource.
+  * `DESTROY_DISK` to reclaim a `MOUNT` or `BLOCK` disk resource back to a `RAW` disk resource.
+
+<a name="1-7-x-json-serialization"></a>
+
+* As a result of adapting rapidjson for performance improvement, all JSON endpoints now conform to the ECMA-404 spec for JSON. This means that if a client has a JSON de-serializer that does not conform to ECMA-404, they may break. As an example, Mesos would previously serialize '/' as '\/', but the spec does not require the escaping and rapidjson does not escape '/'.
 
 ## Upgrading from 1.5.x to 1.6.x ##
 
