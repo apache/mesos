@@ -139,6 +139,7 @@ All Resolved Issues:
   * [MESOS-9156] - StorageLocalResourceProviderProcess can deadlock
   * [MESOS-9160] - Failed to compile gRPC when the build path contains symlinks.
   * [MESOS-9163] - `UriDiskProfileAdaptor` should not update profiles when a poll returns a non-OK HTTP status.
+  * [MESOS-9170] - Zookeeper doesn't compile with newer gcc due to format error.
 
 ** Documentation
   * [MESOS-8740] - Update description of a Containerizer interface.
