@@ -162,8 +162,6 @@ public:
     outfds.read = pipefd->at(0);
     outfds.write = pipefd->at(1);
 
-    const std::vector<int_fd> whitelistOutFds{pipefd->at(0), pipefd->at(1)};
-
     // Spawn a process to handle stdout.
     mesos::internal::logger::rotate::Flags outFlags;
     outFlags.max_size = overriddenFlags.max_stdout_size;
@@ -183,12 +181,6 @@ public:
     }
 #endif // __linux__
 
-    // TODO(gilbert): libprocess should take care of this, see MESOS-9164.
-    std::vector<Subprocess::ChildHook> childHooks;
-    foreach (int_fd fd, whitelistOutFds) {
-      childHooks.push_back(Subprocess::ChildHook::UNSET_CLOEXEC(fd));
-    }
-
     Try<Subprocess> outProcess = subprocess(
         path::join(flags.launcher_dir, mesos::internal::logger::rotate::NAME),
         {mesos::internal::logger::rotate::NAME},
@@ -198,9 +190,7 @@ public:
         &outFlags,
         environment,
         None(),
-        parentHooks,
-        childHooks,
-        whitelistOutFds);
+        parentHooks);
 
     if (outProcess.isError()) {
       os::close(outfds.write.get());
@@ -220,8 +210,6 @@ public:
     errfds.read = pipefd->at(0);
     errfds.write = pipefd->at(1);
 
-    const std::vector<int_fd> whitelistErrFds{pipefd->at(0), pipefd->at(1)};
-
     // Spawn a process to handle stderr.
     mesos::internal::logger::rotate::Flags errFlags;
     errFlags.max_size = overriddenFlags.max_stderr_size;
@@ -229,12 +217,6 @@ public:
     errFlags.log_filename = path::join(sandboxDirectory, "stderr");
     errFlags.logrotate_path = flags.logrotate_path;
     errFlags.user = user;
-
-    // TODO(gilbert): libprocess should take care of this, see MESOS-9164.
-    childHooks.clear();
-    foreach (int_fd fd, whitelistErrFds) {
-      childHooks.push_back(Subprocess::ChildHook::UNSET_CLOEXEC(fd));
-    }
 
     Try<Subprocess> errProcess = subprocess(
         path::join(flags.launcher_dir, mesos::internal::logger::rotate::NAME),
@@ -245,9 +227,7 @@ public:
         &errFlags,
         environment,
         None(),
-        parentHooks,
-        childHooks,
-        whitelistErrFds);
+        parentHooks);
 
     if (errProcess.isError()) {
       os::close(outfds.write.get());
