@@ -2,6 +2,28 @@ Release Notes - Mesos - Version 1.7.0
 -------------------------------------------
 This release contains the following highlights:
 
+  * Performance Improvements:
+
+    * **Master `/state` endpoint:** Adopted RapidJSON and reduced
+      copying for a ~130% throughput improvement due to a ~55%
+      decrease in latency (MESOS-9092). Also, added parallel
+      processing of `/state` requests to reduce master backlogging
+      / interference under high request load (MESOS-9122).
+
+    * **Allocator:** Improved allocator cycle time significantly
+      (MESOS-9087). This, together with the reduced master
+      backlogging from `/state` improvements, reduces the
+      end-to-end offer cycling time between Mesos and schedulers.
+
+    * **Agent `/containers` endpoint:** Fixed a performance issue
+      that caused high latency / cpu consumption when there are
+      many containers on the agent (MESOS-8418).
+
+    * **Agent container launching performance improvements**:
+      The expensive `cgroups::verify()` calls were removed which
+      provides a significant improvement to container launch /
+      destroy throughput (MESOS-9081).
+
   * [MESOS-7691] - Added a new option `cgroups/all` to the agent flag
     `--isolation`. This allows cgroups isolator to automatically load
     all the local enabled cgroups subsystems. If this option is specified
@@ -26,11 +48,6 @@ This release contains the following highlights:
 
   * [MESOS-5647] - Expose network statistics for containers on CNI
     network in the `network/cni` isolator.
-
-  * [MESOS-9122] - Batch v0 '/state' requests on Master: '/state' requests
-    are not scheduled directly after authorization, but are accumulated and
-    then scheduled for later parallel processing. This improves the Master's
-    performance under high-load conditions.
 
   * [MESOS-8842] - **Experimental** Added per-framework metrics to the master.
     These new metrics provide detailed information about the behavior of each
