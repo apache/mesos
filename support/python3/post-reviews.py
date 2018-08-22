@@ -360,7 +360,7 @@ def main():
                 ['--revision-range=' + revision_range] + \
                 sys.argv[1:]
 
-        output = execute(command).strip()
+        output = execute(command)
 
         # Output is a string, we convert it to a byte string before writing it.
         sys.stdout.buffer.write(output.encode())
