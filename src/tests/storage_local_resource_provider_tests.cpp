@@ -368,7 +368,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NoResource)
 
 // This test verifies that any zero-sized volume reported by a CSI
 // plugin will be ignored by the storage local resource provider.
-TEST_F(StorageLocalResourceProviderTest, ROOT_ZeroSizedDisk)
+TEST_F(StorageLocalResourceProviderTest, DISABLED_ROOT_ZeroSizedDisk)
 {
   Clock::pause();
 
@@ -424,7 +424,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ZeroSizedDisk)
 
 // This test verifies that the storage local resource provider can
 // handle disks less than 1MB correctly.
-TEST_F(StorageLocalResourceProviderTest, ROOT_SmallDisk)
+TEST_F(StorageLocalResourceProviderTest, DISABLED_ROOT_SmallDisk)
 {
   const string profilesPath = path::join(sandbox.get(), "profiles.json");
   ASSERT_SOME(os::write(profilesPath, createDiskProfileMapping("test")));
@@ -842,7 +842,8 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyDisk)
 
 // This test verifies that the storage local resource provider can
 // destroy a volume created from a storage pool after recovery.
-TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyDiskRecovery)
+TEST_F(
+    StorageLocalResourceProviderTest, DISABLED_ROOT_CreateDestroyDiskRecovery)
 {
   const string profilesPath = path::join(sandbox.get(), "profiles.json");
   ASSERT_SOME(os::write(profilesPath, createDiskProfileMapping("test")));
