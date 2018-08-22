@@ -284,7 +284,7 @@ protected:
 
 // This test verifies that a storage local resource provider can report
 // no resource and recover from this state.
-TEST_F(StorageLocalResourceProviderTest, ROOT_NoResource)
+TEST_F(StorageLocalResourceProviderTest, NoResource)
 {
   Clock::pause();
 
@@ -296,8 +296,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NoResource)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.isolation = "filesystem/linux";
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   // Since the local resource provider daemon is started after the agent
@@ -368,7 +366,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_NoResource)
 
 // This test verifies that any zero-sized volume reported by a CSI
 // plugin will be ignored by the storage local resource provider.
-TEST_F(StorageLocalResourceProviderTest, DISABLED_ROOT_ZeroSizedDisk)
+TEST_F(StorageLocalResourceProviderTest, DISABLED_ZeroSizedDisk)
 {
   Clock::pause();
 
@@ -381,8 +379,6 @@ TEST_F(StorageLocalResourceProviderTest, DISABLED_ROOT_ZeroSizedDisk)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.isolation = "filesystem/linux";
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   // Since the local resource provider daemon is started after the agent
@@ -424,7 +420,7 @@ TEST_F(StorageLocalResourceProviderTest, DISABLED_ROOT_ZeroSizedDisk)
 
 // This test verifies that the storage local resource provider can
 // handle disks less than 1MB correctly.
-TEST_F(StorageLocalResourceProviderTest, DISABLED_ROOT_SmallDisk)
+TEST_F(StorageLocalResourceProviderTest, DISABLED_SmallDisk)
 {
   const string profilesPath = path::join(sandbox.get(), "profiles.json");
   ASSERT_SOME(os::write(profilesPath, createDiskProfileMapping("test")));
@@ -446,8 +442,6 @@ TEST_F(StorageLocalResourceProviderTest, DISABLED_ROOT_SmallDisk)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.isolation = "filesystem/linux";
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
@@ -533,7 +527,7 @@ TEST_F(StorageLocalResourceProviderTest, DISABLED_ROOT_SmallDisk)
 
 // This test verifies that a framework can receive offers having new storage
 // pools from the storage local resource provider after a profile appears.
-TEST_F(StorageLocalResourceProviderTest, ROOT_ProfileAppeared)
+TEST_F(StorageLocalResourceProviderTest, ProfileAppeared)
 {
   Clock::pause();
 
@@ -561,8 +555,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ProfileAppeared)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.isolation = "filesystem/linux";
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
@@ -666,7 +658,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ProfileAppeared)
 
 // This test verifies that the storage local resource provider can
 // create then destroy a new volume from a storage pool.
-TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyDisk)
+TEST_F(StorageLocalResourceProviderTest, CreateDestroyDisk)
 {
   const string profilesPath = path::join(sandbox.get(), "profiles.json");
   ASSERT_SOME(os::write(profilesPath, createDiskProfileMapping("test")));
@@ -683,8 +675,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyDisk)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.isolation = "filesystem/linux";
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
@@ -842,8 +832,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CreateDestroyDisk)
 
 // This test verifies that the storage local resource provider can
 // destroy a volume created from a storage pool after recovery.
-TEST_F(
-    StorageLocalResourceProviderTest, DISABLED_ROOT_CreateDestroyDiskRecovery)
+TEST_F(StorageLocalResourceProviderTest, DISABLED_CreateDestroyDiskRecovery)
 {
   const string profilesPath = path::join(sandbox.get(), "profiles.json");
   ASSERT_SOME(os::write(profilesPath, createDiskProfileMapping("test")));
@@ -860,8 +849,6 @@ TEST_F(
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.isolation = "filesystem/linux";
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
@@ -1039,7 +1026,7 @@ TEST_F(
 // This test verifies that a framework cannot create a volume during and after
 // the profile disappears, and destroying a volume with a stale profile will
 // recover the freed disk with another appeared profile.
-TEST_F(StorageLocalResourceProviderTest, ROOT_ProfileDisappeared)
+TEST_F(StorageLocalResourceProviderTest, ProfileDisappeared)
 {
   Clock::pause();
 
@@ -1067,7 +1054,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ProfileDisappeared)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.isolation = "filesystem/linux";
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
@@ -1296,7 +1282,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ProfileDisappeared)
 // This test verifies that if an agent is registered with a new ID,
 // the ID of the resource provider would be changed as well, and any
 // created volume becomes a pre-existing volume.
-TEST_F(StorageLocalResourceProviderTest, ROOT_AgentRegisteredWithNewId)
+TEST_F(StorageLocalResourceProviderTest, AgentRegisteredWithNewId)
 {
   const string profilesPath = path::join(sandbox.get(), "profiles.json");
   ASSERT_SOME(os::write(profilesPath, createDiskProfileMapping("test")));
@@ -1313,8 +1299,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_AgentRegisteredWithNewId)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.isolation = "filesystem/linux";
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
@@ -2557,7 +2541,7 @@ TEST_F(
 
 // This test verifies that the storage local resource provider can
 // convert pre-existing CSI volumes into mount or block volumes.
-TEST_F(StorageLocalResourceProviderTest, ROOT_ConvertPreExistingVolume)
+TEST_F(StorageLocalResourceProviderTest, ConvertPreExistingVolume)
 {
   Clock::pause();
 
@@ -2571,8 +2555,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ConvertPreExistingVolume)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.isolation = "filesystem/linux";
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   // Since the local resource provider daemon is started after the agent
@@ -2768,7 +2750,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ConvertPreExistingVolume)
 //      master, so that it isn't acknowledged by the master.
 //   3. Advances the clock and verifies that the agent resends the operation
 //      status update.
-TEST_F(StorageLocalResourceProviderTest, ROOT_RetryOperationStatusUpdate)
+TEST_F(StorageLocalResourceProviderTest, RetryOperationStatusUpdate)
 {
   Clock::pause();
 
@@ -2785,8 +2767,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_RetryOperationStatusUpdate)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "filesystem/linux";
-
   flags.resource_provider_config_dir = resourceProviderConfigDir;
   flags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
@@ -2926,7 +2906,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_RetryOperationStatusUpdate)
 //   4. Verifies that the agent resends the operation status update.
 TEST_F(
     StorageLocalResourceProviderTest,
-    ROOT_RetryOperationStatusUpdateAfterRecovery)
+    RetryOperationStatusUpdateAfterRecovery)
 {
   Clock::pause();
 
@@ -2943,8 +2923,6 @@ TEST_F(
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "filesystem/linux";
-
   flags.resource_provider_config_dir = resourceProviderConfigDir;
   flags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
@@ -3103,7 +3081,7 @@ TEST_F(
 // This test verifies that storage local resource provider properly
 // reports the metric related to CSI plugin container terminations.
 TEST_F(
-    StorageLocalResourceProviderTest, DISABLED_ROOT_ContainerTerminationMetric)
+    StorageLocalResourceProviderTest, DISABLED_ContainerTerminationMetric)
 {
   setupResourceProviderConfig(Gigabytes(4));
 
@@ -3113,8 +3091,6 @@ TEST_F(
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.isolation = "filesystem/linux";
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   slave::Fetcher fetcher(slaveFlags);
@@ -3183,7 +3159,7 @@ TEST_F(
 // operations since we have no control over the completion of an operation. Once
 // we support out-of-band CSI plugins through domain sockets, we could test this
 // metric against a mock CSI plugin.
-TEST_F(StorageLocalResourceProviderTest, ROOT_OperationStateMetrics)
+TEST_F(StorageLocalResourceProviderTest, OperationStateMetrics)
 {
   const string profilesPath = path::join(sandbox.get(), "profiles.json");
   ASSERT_SOME(os::write(profilesPath, createDiskProfileMapping("test")));
@@ -3200,8 +3176,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_OperationStateMetrics)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.isolation = "filesystem/linux";
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
@@ -3434,7 +3408,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_OperationStateMetrics)
 // `cancelled` metrics for RPCs since we have no control over the completion of
 // an operation. Once we support out-of-band CSI plugins through domain sockets,
 // we could test these metrics against a mock CSI plugin.
-TEST_F(StorageLocalResourceProviderTest, ROOT_CsiPluginRpcMetrics)
+TEST_F(StorageLocalResourceProviderTest, CsiPluginRpcMetrics)
 {
   const string profilesPath = path::join(sandbox.get(), "profiles.json");
   ASSERT_SOME(os::write(profilesPath, createDiskProfileMapping("test")));
@@ -3451,8 +3425,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CsiPluginRpcMetrics)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.isolation = "filesystem/linux";
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
@@ -3726,7 +3698,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_CsiPluginRpcMetrics)
 // provider should send OPERATION_DROPPED. Operations on agent default
 // resources are also tested here; for such operations, the agent generates the
 // dropped status.
-TEST_F(StorageLocalResourceProviderTest, ROOT_ReconcileDroppedOperation)
+TEST_F(StorageLocalResourceProviderTest, ReconcileDroppedOperation)
 {
   Clock::pause();
 
@@ -3739,8 +3711,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ReconcileDroppedOperation)
   StandaloneMasterDetector detector(master.get()->pid);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.isolation = "filesystem/linux";
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -3932,7 +3902,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_ReconcileDroppedOperation)
 // updates are resent to the scheduler until acknowledged.
 TEST_F(
     StorageLocalResourceProviderTest,
-    ROOT_RetryOperationStatusUpdateToScheduler)
+    RetryOperationStatusUpdateToScheduler)
 {
   Clock::pause();
 
@@ -3949,8 +3919,6 @@ TEST_F(
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "filesystem/linux";
-
   flags.resource_provider_config_dir = resourceProviderConfigDir;
   flags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
@@ -4118,7 +4086,7 @@ TEST_F(
 // acknowledged by the framework.
 TEST_F(
     StorageLocalResourceProviderTest,
-    ROOT_ReconcileUnacknowledgedTerminalOperation)
+    ReconcileUnacknowledgedTerminalOperation)
 {
   Clock::pause();
 
@@ -4135,8 +4103,6 @@ TEST_F(
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "filesystem/linux";
-
   flags.resource_provider_config_dir = resourceProviderConfigDir;
   flags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
