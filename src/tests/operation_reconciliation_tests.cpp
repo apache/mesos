@@ -826,9 +826,15 @@ TEST_P(OperationReconciliationTest, AgentPendingOperationAfterMasterFailover)
   // Advance the clock, so that the agent re-registers.
   Clock::advance(slaveFlags.registration_backoff_factor);
 
+  // Resume the clock to avoid deadlocks related to agent registration.
+  // See MESOS-8828.
+  Clock::resume();
+
   // Wait for the framework and agent to re-register.
   AWAIT_READY(slaveReregistered);
   AWAIT_READY(frameworkResubscribed);
+
+  Clock::pause();
 
   // Test explicit reconciliation
   {
