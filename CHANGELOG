@@ -182,6 +182,7 @@ All Resolved Issues:
   * [MESOS-8871] - Agent may fail to recover if the agent dies before image store cache checkpointed.
   * [MESOS-8873] - StorageLocalResourceProviderTest.ROOT_ZeroSizedDisk is flaky.
   * [MESOS-8875] - `leveldb::PosixEnv::DeleteFile()` can segfault.
+  * [MESOS-8884] - Flaky `DockerContainerizerTest.ROOT_DOCKER_MaxCompletionTime`.
   * [MESOS-8892] - MasterSlaveReconciliationTest.ReconcileDroppedOperation is flaky
   * [MESOS-8897] - ROOT_XFS_QuotaTest.DiskUsageExceedsQuotaWithKill is flaky
   * [MESOS-8906] - `UriDiskProfileAdaptor` fails to update profile selectors.
