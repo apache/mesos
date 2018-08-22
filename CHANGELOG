@@ -26,6 +26,9 @@ This release contains the following highlights:
 
   * Containerization:
 
+    * [MESOS-8794] - **Experimental** Supported docker image tarball
+      fetching from HDFS through the `--docker_registry` agent flag.
+
     * [MESOS-7691] - Added a new option `cgroups/all` to the agent
       flag `--isolation`. This allows cgroups isolator to
       automatically load all the local enabled cgroups subsystems.
@@ -78,7 +81,9 @@ This release contains the following highlights:
       that don't need DRF behavior to opt-out.
 
 Additional API Changes:
-  * [MESOS-9015] Allow resources to be removed when updating the sorter.
+  * [MESOS-9066] - Introduced `CREATE_DISK` and `DESTROY_DISK` offer
+    operations to replace `CREATE_VOLUME`, `CREATE_BLOCK`,
+    `DESTROY_VOLUME` and `DESTROY_BLOCK`.
 
   * Container logger module interface has been changed. The `prepare()` method
     now takes `ContainerID` and `ContainerConfig` instead.
@@ -92,7 +97,55 @@ Additional API Changes:
     Mesos would previously serialize '/' as '\/', but the spec does not
     require the escaping and rapidjson does not escape '/'.
 
+Changes to Dependencies:
+  * [MESOS-8395] - Made gRPC a requirement for Mesos builds. The `--enable-grpc`
+    Autotools option and the `-DENABLE_GRPC=ON` CMake option is now removed.
+
+  * [MESOS-8064] - Mesos now requires libarchive to programmatically decode
+    .zip, .tar, .gzip, and other common file compression schemes. Version 3.3.2
+    is bundled in Mesos.
+
+  * [MESOS-9092] - Adopt rapidjson for improved json serialization performance.
+    Version 1.1.0 is bundled in Mesos.
+
 Unresolved Critical Issues:
+  * [MESOS-1718] - Command executor can overcommit the agent.
+  * [MESOS-2554] - Slave flaps when using --slave_subsystems that are not used for isolation.
+  * [MESOS-2774] - SIGSEGV received during process::MessageEncoder::encode()
+  * [MESOS-2842] - Update FrameworkInfo.principal on framework re-registration
+  * [MESOS-3747] - HTTP Scheduler API no longer allows FrameworkInfo.user to be empty string
+  * [MESOS-5396] - After failover, master does not remove agents with same UPID.
+  * [MESOS-5989] - Libevent SSL Socket downgrade code accesses uninitialized memory / assumes single peek is sufficient.
+  * [MESOS-5995] - Protobuf JSON deserialisation does not accept numbers formated as strings
+  * [MESOS-6632] - ContainerLogger might leak FD if container launch fails.
+  * [MESOS-7076] - libprocess tests fail when using libevent 2.1.8
+  * [MESOS-7386] - Executor not cleaning up existing running docker containers if external logrotate/logger processes die/killed
+  * [MESOS-7566] - Master crash due to failed check in DRFSorter::remove
+  * [MESOS-7622] - Agent can crash if a HTTP executor tries to retry subscription in running state.
+  * [MESOS-7721] - Master's agent removal rate limit also applies to agent unreachability.
+  * [MESOS-7748] - Slow subscribers of streaming APIs can lead to Mesos OOMing.
+  * [MESOS-7911] - Non-checkpointing framework's tasks should not be marked LOST when agent disconnects.
+  * [MESOS-7991] - fatal, check failed !framework->recovered()
+  * [MESOS-8038] - Launching GPU task sporadically fails.
+  * [MESOS-8137] - Mesos agent can hang during startup.
+  * [MESOS-8256] - Libprocess can silently deadlock due to worker thread exhaustion.
+  * [MESOS-8257] - Unified Containerizer "leaks" a target container mount path to the host FS when the target resolves to an absolute path
+  * [MESOS-8522] - `prepareMounts` in Mesos containerizer is flaky.
+  * [MESOS-8623] - Crashed framework brings down the whole Mesos cluster
+  * [MESOS-8679] - If the first KILL stuck in the default executor, all other KILLs will be ignored.
+  * [MESOS-8703] - Mesos master can`t reconnect to zookeeper
+  * [MESOS-8731] - mesos master APIs become latent
+  * [MESOS-8769] - Agent crashes when CNI config not defined
+  * [MESOS-8803] - Libprocess deadlocks in a test.
+  * [MESOS-8840] - `cpu.cfs_quota_us` may be accidentally set for command task using docker during agent recovery.
+  * [MESOS-8927] - Default executor cannot kill tasks if `LAUNCH_NESTED_CONTAINER` is stuck.
+  * [MESOS-9006] - The agent's GET_AGENT leaks resource information when using authorization
+  * [MESOS-9022] - Race condition in task updates could cause missing event in streaming
+  * [MESOS-9053] - Network ports isolator can falsely trigger while destroying containers.
+  * [MESOS-9109] - Windows agent uses reserved character :(colon) for file name and crashes when attempting to remove link
+  * [MESOS-9131] - Health checks launching nested containers while a container is being destroyed lead to unkillable tasks
+  * [MESOS-9157] - cannot pull docker image from dockerhub
+  * [MESOS-9169] - docker image fetching fails
 
 All Resolved Issues:
 
@@ -103,7 +156,7 @@ All Resolved Issues:
   * [MESOS-3790] - ZooKeeper connection should retry on EAI_NONAME
   * [MESOS-5371] - Implement `fcntl.hpp`
   * [MESOS-5904] - Process routes implementation seems to drop routes on Windows.
-  * [MESOS-6092] - "Docker containerizer launch command may access a ""Container"" struct after it has been destroyed"
+  * [MESOS-6092] - Docker containerizer launch command may access a "Container" struct after it has been destroyed
   * [MESOS-6622] - NvidiaGpuTest.ROOT_INTERNET_CURL_CGROUPS_NVIDIA_GPU_NvidiaDockerImage is flaky
   * [MESOS-6823] - bool/UserContainerLoggerTest.ROOT_LOGROTATE_RotateWithSwitchUserTrueOrFalse/0 is flaky
   * [MESOS-6985] - os::getenv() can segfault
@@ -135,7 +188,7 @@ All Resolved Issues:
   * [MESOS-8913] - Resource provider manager registry leaks file descriptors into executors.
   * [MESOS-8917] - Agent leaking file descriptors into forked processes
   * [MESOS-8932] - Quota guarantee metric does not handle removal correctly.
-  * [MESOS-8935] - "Quota limit ""chopping"" can lead to cpu-only and memory-only offers."
+  * [MESOS-8935] - Quota limit "chopping" can lead to cpu-only and memory-only offers.
   * [MESOS-8945] - Master check failure due to CHECK_SOME(providerId).
   * [MESOS-8952] - process::await/collect n^2 performance issue
   * [MESOS-8954] - python3/post-reviews.py errors due to TypeError.
@@ -165,7 +218,7 @@ All Resolved Issues:
   * [MESOS-9114] - cmake build is broken on macos
   * [MESOS-9115] - Stout depends on missing rapidjson headers.
   * [MESOS-9116] - Launch nested container session fails due to incorrect detection of `mnt` namespace of command executor's task.
-  * [MESOS-9125] - "Port mapper CNI plugin might fail with ""Resource temporarily unavailable"""
+  * [MESOS-9125] - Port mapper CNI plugin might fail with "Resource temporarily unavailable"
   * [MESOS-9127] - Port mapper CNI plugin might deadlock iptables on the agent.
   * [MESOS-9137] - GRPC build fails to pass compiler flags
   * [MESOS-9142] - CNI detach might fail due to missing network config file.
@@ -174,16 +227,12 @@ All Resolved Issues:
   * [MESOS-9146] - Agent has a fragile burn-in 5s authentication timeout.
   * [MESOS-9147] - Agent and scheduler driver authentication retry backoff time could overflow.
   * [MESOS-9149] - Failed to build gRPC on Linux without OpenSSL.
-  * [MESOS-9151] - Container stuck at ISOLATING due to FD leak.
+  * [MESOS-9151] - Container stuck at ISOLATING due to FD leak
   * [MESOS-9156] - StorageLocalResourceProviderProcess can deadlock
   * [MESOS-9160] - Failed to compile gRPC when the build path contains symlinks.
   * [MESOS-9163] - `UriDiskProfileAdaptor` should not update profiles when a poll returns a non-OK HTTP status.
-  * [MESOS-9170] - Zookeeper doesn't compile with newer gcc due to format error.
-  * [MESOS-9171] - Mesos agent crashes in CNI isolator when usage is queried.
-
-** Documentation
-  * [MESOS-8740] - Update description of a Containerizer interface.
-  * [MESOS-9020] - Seccomp design doc
+  * [MESOS-9170] - Zookeeper doesn't compile with newer gcc due to format error
+  * [MESOS-9171] - Mesos agent crashes in CNI isolator when usage is queried
 
 ** Epic
   * [MESOS-8564] - Port libprocess-tests suites to Windows
@@ -196,14 +245,14 @@ All Resolved Issues:
 ** Improvement
   * [MESOS-6451] - Add timer and percentile for docker pull latency distribution.
   * [MESOS-7691] - Support local enabled cgroups subsystems automatically.
-  * [MESOS-8064] - "Add capability so mesos can programmatically decode .zip
+  * [MESOS-8064] - Add capability so mesos can programmatically decode .zip, .tar, .gzip, and other common file compression schemes
   * [MESOS-8106] - Docker fetcher plugin unsupported scheme failure message is not accurate.
   * [MESOS-8340] - Add a no-enforce option to the `network/ports` isolator.
   * [MESOS-8418] - mesos-agent high cpu usage because of numerous /proc/mounts reads
   * [MESOS-8680] - Rename variable names in slave.hpp to be more explicit.
   * [MESOS-8788] - Add alg RS256 support for JWT generator and validator in libprocess
   * [MESOS-8792] - Automatically create whitelisted devices.
-  * [MESOS-8798] - "Build the ""unsecure"" gRPC libraries to remove SSL dependency."
+  * [MESOS-8798] - Build the "unsecure" gRPC libraries to remove SSL dependency.
   * [MESOS-8829] - Get rid of extra `containerizer->wait()` calls in tests.
   * [MESOS-8908] - Add -fno-omit-frame-pointer to improve debugging and profiling.
   * [MESOS-8911] - Add framework metrics benchmark test.
@@ -238,7 +287,7 @@ All Resolved Issues:
   * [MESOS-8314] - Add authorization to display of resource provider information in API calls and endpoints
   * [MESOS-8327] - Add container-specific CGroup FS mounts under /sys/fs/cgroup/* to Mesos containers
   * [MESOS-8383] - Add metrics for operations in Storage Local Resource Provider (SLRP).
-  * [MESOS-8395] - Enable GRPC compilation by default.
+  * [MESOS-8395] - Made gRPC a requirement for Mesos builds.
   * [MESOS-8473] - Authorize `GET_OPERATIONS` calls.
   * [MESOS-8670] - Implement `process::io::read/write` using Thread Pool API
   * [MESOS-8671] - Add EventLoop implementation using Thread Pool API
@@ -282,6 +331,10 @@ All Resolved Issues:
   * [MESOS-9068] - Add a metrics benchmark in libprocess.
   * [MESOS-9070] - Support systemd and freezer cgroup subsystems bind mount for container with rootfs.
   * [MESOS-9148] - Make cgroups destroy timeout configurable for Mesos containerizer
+
+** Documentation
+  * [MESOS-8740] - Update description of a Containerizer interface.
+  * [MESOS-9020] - Seccomp design doc
 
 
 Release Notes - Mesos - Version 1.6.2 (WIP)
