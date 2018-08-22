@@ -385,7 +385,7 @@ def main():
     # This is useful for tracking the master or agent subprocesses so
     # that we can kill them if the script exits prematurely.
     subproc = Subprocess()
-    atexit.register(subproc.cleanup())
+    atexit.register(subproc.cleanup)
     subproc.current = start_master(options)
     master_help = get_help(HOST_IP, MASTER_PORT)
     subproc.current.kill()
