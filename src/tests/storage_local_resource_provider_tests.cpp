@@ -3102,7 +3102,8 @@ TEST_F(
 
 // This test verifies that storage local resource provider properly
 // reports the metric related to CSI plugin container terminations.
-TEST_F(StorageLocalResourceProviderTest, ROOT_ContainerTerminationMetric)
+TEST_F(
+    StorageLocalResourceProviderTest, DISABLED_ROOT_ContainerTerminationMetric)
 {
   setupResourceProviderConfig(Gigabytes(4));
 
