@@ -580,7 +580,19 @@ void CheckerProcess::___nestedCommandCheck(
                  << launchResponse.body << ") while launching " << name
                  << " for task '" << taskId << "'";
 
-    promise->discard();
+    // We'll try to remove the container created for the check at the
+    // beginning of the next check. In order to prevent a failure, the
+    // promise should only be completed once we're sure that the
+    // container has terminated.
+    waitNestedContainer(checkContainerId)
+      .onAny([promise](const Future<Option<int>>&) {
+        // We assume that once `WaitNestedContainer` returns,
+        // irrespective of whether the response contains a failure, the
+        // container will be in a terminal state, and that it will be
+        // possible to remove it.
+        promise->discard();
+    });
+
     return;
   }
 
@@ -642,7 +654,10 @@ void CheckerProcess::nestedCommandCheckFailure(
     //
     // This will allow us to recover from a blip. The executor will
     // pause the checker when it detects that the agent is not
-    // available.
+    // available. Here we do not need to wait the check container since
+    // the agent may have been unavailable, and when the agent is back,
+    // it will destroy the check container as orphan container, and we
+    // will eventually remove it in `nestedCommandCheck()`.
     LOG(WARNING) << "Connection to the agent to launch " << name
                  << " for task '" << taskId << "' failed: " << failure;
 
