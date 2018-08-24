@@ -24,11 +24,6 @@
 #include <string>
 #include <vector>
 
-// See comments in `master.hpp` or MESOS-9177.
-#define BOOST_CB_DISABLE_DEBUG 1
-#define BOOST_CB_ENABLE_DEBUG 0
-#include <boost/circular_buffer.hpp>
-
 #include <mesos/attributes.hpp>
 #include <mesos/resources.hpp>
 #include <mesos/type_utils.hpp>
@@ -60,6 +55,7 @@
 
 #include <stout/boundedhashmap.hpp>
 #include <stout/bytes.hpp>
+#include <stout/circular_buffer.hpp>
 #include <stout/linkedhashmap.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
@@ -1043,9 +1039,9 @@ public:
 
   // Terminated and updates acked.
   // NOTE: We use a shared pointer for Task because clang doesn't like
-  // Boost's implementation of circular_buffer with Task (Boost
-  // attempts to do some memset's which are unsafe).
-  boost::circular_buffer<std::shared_ptr<Task>> completedTasks;
+  // stout's implementation of circular_buffer with Task (the Boost code
+  // used internally by stout attempts to do some memset's which are unsafe).
+  circular_buffer<std::shared_ptr<Task>> completedTasks;
 
   // When the slave initiates a destroy of the container, we expect a
   // termination to occur. The 'pendingTermation' indicates why the
@@ -1173,7 +1169,7 @@ public:
   // Current running executors.
   hashmap<ExecutorID, Executor*> executors;
 
-  boost::circular_buffer<process::Owned<Executor>> completedExecutors;
+  circular_buffer<process::Owned<Executor>> completedExecutors;
 
 private:
   Framework(const Framework&) = delete;

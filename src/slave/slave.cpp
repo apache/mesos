@@ -9516,7 +9516,7 @@ Executor::Executor(
       "Max completed tasks per executor should be greater than zero");
 
   completedTasks =
-    boost::circular_buffer<shared_ptr<Task>>(MAX_COMPLETED_TASKS_PER_EXECUTOR);
+    circular_buffer<shared_ptr<Task>>(MAX_COMPLETED_TASKS_PER_EXECUTOR);
 
   // TODO(jieyu): The way we determine if an executor is generated for
   // a command task (either command or docker executor) is really

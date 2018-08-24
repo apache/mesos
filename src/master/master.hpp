@@ -25,14 +25,6 @@
 #include <string>
 #include <vector>
 
-// Using `boost::circular_buffer::debug_iterator` can lead to segfaults
-// because they are not thread-safe (see MESOS-9177), so we must ensure
-// they're disabled. Both versions of this macro are needed to account
-// for differences between older and newer Boost versions.
-#define BOOST_CB_DISABLE_DEBUG 1
-#define BOOST_CB_ENABLE_DEBUG 0
-#include <boost/circular_buffer.hpp>
-
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
 #include <mesos/type_utils.hpp>
@@ -62,6 +54,7 @@
 
 #include <stout/boundedhashmap.hpp>
 #include <stout/cache.hpp>
+#include <stout/circular_buffer.hpp>
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
@@ -2483,9 +2476,9 @@ struct Framework
   // Tasks launched by this framework that have reached a terminal
   // state and have had all their updates acknowledged. We only keep a
   // fixed-size cache to avoid consuming too much memory. We use
-  // boost::circular_buffer rather than BoundedHashMap because there
+  // circular_buffer rather than BoundedHashMap because there
   // can be multiple completed tasks with the same task ID.
-  boost::circular_buffer<process::Owned<Task>> completedTasks;
+  circular_buffer<process::Owned<Task>> completedTasks;
 
   // When an agent is marked unreachable, tasks running on it are stored
   // here. We only keep a fixed-size cache to avoid consuming too much memory.
