@@ -24,6 +24,9 @@
 #include <string>
 #include <vector>
 
+// See comments in `master.hpp` or MESOS-9177.
+#define BOOST_CB_DISABLE_DEBUG 1
+#define BOOST_CB_ENABLE_DEBUG 0
 #include <boost/circular_buffer.hpp>
 
 #include <mesos/attributes.hpp>
