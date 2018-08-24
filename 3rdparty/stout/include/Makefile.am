@@ -25,6 +25,7 @@ nobase_include_HEADERS =			\
   stout/cpp17.hpp				\
   stout/cache.hpp				\
   stout/check.hpp				\
+  stout/circular_buffer.hpp			\
   stout/duration.hpp				\
   stout/dynamiclibrary.hpp			\
   stout/elf.hpp					\
