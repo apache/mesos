@@ -25,6 +25,12 @@
 #include <string>
 #include <vector>
 
+// Using `boost::circular_buffer::debug_iterator` can lead to segfaults
+// because they are not thread-safe (see MESOS-9177), so we must ensure
+// they're disabled. Both versions of this macro are needed to account
+// for differences between older and newer Boost versions.
+#define BOOST_CB_DISABLE_DEBUG 1
+#define BOOST_CB_ENABLE_DEBUG 0
 #include <boost/circular_buffer.hpp>
 
 #include <mesos/mesos.hpp>
