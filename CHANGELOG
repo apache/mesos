@@ -234,6 +234,7 @@ All Resolved Issues:
   * [MESOS-9163] - `UriDiskProfileAdaptor` should not update profiles when a poll returns a non-OK HTTP status.
   * [MESOS-9170] - Zookeeper doesn't compile with newer gcc due to format error
   * [MESOS-9171] - Mesos agent crashes in CNI isolator when usage is queried
+  * [MESOS-9177] - Mesos master segfaults when responding to /state requests.
 
 ** Epic
   * [MESOS-8564] - Port libprocess-tests suites to Windows
