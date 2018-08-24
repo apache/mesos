@@ -88,7 +88,7 @@ private:
       const bool& _enforcePortsEnabled,
       const std::string& _cgroupsRoot,
       const std::string& _freezerHierarchy,
-      const Option<IntervalSet<uint16_t>>& agentPorts);
+      const Option<IntervalSet<uint16_t>>& isolatedPorts);
 
   struct Info
   {
@@ -102,7 +102,7 @@ private:
   const bool enforceContainerPorts;
   const std::string cgroupsRoot;
   const std::string freezerHierarchy;
-  const Option<IntervalSet<uint16_t>> agentPorts;
+  const Option<IntervalSet<uint16_t>> isolatedPorts;
 
   hashmap<ContainerID, process::Owned<Info>> infos;
 };

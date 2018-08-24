@@ -406,11 +406,12 @@ Name of the root cgroup. (default: mesos)
     --[no-]check_agent_port_range_only
   </td>
   <td>
-When this is true, the `network/ports` isolator allows tasks to
+When this is true, the <code>network/ports</code> isolator allows tasks to
 listen on additional ports provided they fall outside the range
 published by the agent's resources. Otherwise tasks are restricted
 to only listen on ports for which they have been assigned resources.
-(default: false)
+(default: false); This flag can't be used in conjunction with
+<code>--container_ports_isolated_range</code>.
   </td>
 </tr>
 
@@ -436,11 +437,23 @@ in the sandbox directory.
   </td>
 </tr>
 
+<tr id="container_ports_isolated_range">
+  <td>
+    --container_ports_isolated_range=VALUE
+  </td>
+  <td>
+When this flag is set, <code>network/ports</code> isolator will only enforce
+the port isolation for the given range of ports range. This flag can't
+be used in conjunction with <code>--check_agent_port_range_only</code>.
+Example: <code>[0-35000]</code>
+  </td>
+</tr>
+
 <tr id="container_ports_watch_interval">
   <td>
     --container_ports_watch_interval=VALUE
   </td>
-Interval at which the `network/ports` isolator should check for
+Interval at which the <code>network/ports</code> isolator should check for
 containers listening on ports they don't have resources for.
 (default: 30secs)
   <td>

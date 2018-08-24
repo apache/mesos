@@ -216,7 +216,8 @@ TEST(NetworkPortsIsolatorUtilityTest, QueryProcessSockets)
 
 
 // This test verifies that the `network/ports` isolator throws
-// an error unless the `linux` launcher is being used.
+// an error unless the `linux` launcher is being used, and also
+// verifies the input format of the isolated ports range.
 TEST_F(NetworkPortsIsolatorTest, ROOT_IsolatorFlags)
 {
   StandaloneMasterDetector detector;
@@ -231,6 +232,27 @@ TEST_F(NetworkPortsIsolatorTest, ROOT_IsolatorFlags)
   ASSERT_ERROR(slave);
 
   flags.launcher = "linux";
+  slave = StartSlave(&detector, flags);
+  ASSERT_SOME(slave);
+
+  flags.enforce_container_ports = true;
+
+  // Ports are 16 bit.
+  flags.container_ports_isolated_range = "[100-65536]";
+  slave = StartSlave(&detector, flags);
+  EXPECT_ERROR(slave);
+
+  // Ports must be a range.
+  flags.container_ports_isolated_range = "foo";
+  slave = StartSlave(&detector, flags);
+  EXPECT_ERROR(slave);
+
+  // Ports must be a range.
+  flags.container_ports_isolated_range = "100";
+  slave = StartSlave(&detector, flags);
+  EXPECT_ERROR(slave);
+
+  flags.container_ports_isolated_range = "[31000-32000]";
   slave = StartSlave(&detector, flags);
   ASSERT_SOME(slave);
 }
@@ -930,6 +952,131 @@ TEST_F(NetworkPortsIsolatorTest, ROOT_NC_NoPortEnforcement)
   // Since container ports are not being enforced, we expect that the task
   // should still be running after the check and that we should be able to
   // explicitly kill it.
+  Future<TaskStatus> killedStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&killedStatus));
+
+  driver.killTask(task.task_id());
+
+  AWAIT_READY(killedStatus);
+  EXPECT_EQ(task.task_id(), killedStatus->task_id());
+  EXPECT_EQ(TASK_KILLED, killedStatus->state());
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test verifies that a task that listens on a port which is not
+// in the isolated ports range will not be killed by a container
+// limitation while enforce_container_ports is true.
+TEST_F(NetworkPortsIsolatorTest, ROOT_NC_PortEnforcementIsolatedPort)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "network/ports";
+  flags.launcher = "linux";
+
+  // Watch only the isolated ports range because we want this test to
+  // show that invalid port usage out of the isolated range is allowed
+  flags.enforce_container_ports = true;
+  flags.container_ports_isolated_range = "[45000-45002]";
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
+
+  const Offer& offer = offers.get()[0];
+
+  // Make sure we have a `ports` resource.
+  Resources resources(offer.resources());
+  ASSERT_SOME(resources.ports());
+  ASSERT_LE(1, resources.ports()->range().size());
+
+  uint16_t taskPort = selectRandomPort(resources);
+  uint16_t usedPort;
+
+  // We need to use a port that is inside the offered resources but outside
+  // the isolated range and not the same as the one we are accepting from
+  // the offer.
+  do {
+    usedPort = selectOtherPort(resources, taskPort);
+  } while (usedPort >= 45000 && usedPort <= 45002);
+
+  CHECK_NE(taskPort, usedPort);
+
+  resources = Resources::parse(
+      "cpus:1;mem:32;"
+      "ports:[" + stringify(taskPort) + "," + stringify(taskPort) + "]").get();
+
+  // Launch a task that uses a port that it hasn't been allocated.  Use
+  // "nc -k" so nc keeps running after accepting the healthcheck connection.
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      resources,
+      "nc -k -l " + stringify(usedPort));
+
+  addTcpHealthCheck(task, usedPort);
+
+  Future<TaskStatus> startingStatus;
+  Future<TaskStatus> runningStatus;
+  Future<TaskStatus> healthStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&startingStatus))
+    .WillOnce(FutureArg<1>(&runningStatus))
+    .WillOnce(FutureArg<1>(&healthStatus));
+
+  driver.launchTasks(offer.id(), {task});
+
+  awaitStatusUpdateAcked(startingStatus);
+  EXPECT_EQ(task.task_id(), startingStatus->task_id());
+  EXPECT_EQ(TASK_STARTING, startingStatus->state());
+
+  awaitStatusUpdateAcked(runningStatus);
+  EXPECT_EQ(task.task_id(), runningStatus->task_id());
+  EXPECT_EQ(TASK_RUNNING, runningStatus->state());
+
+  awaitStatusUpdateAcked(healthStatus);
+  ASSERT_EQ(task.task_id(), healthStatus->task_id());
+  expectHealthyStatus(healthStatus.get());
+
+  Future<Nothing> check =
+    FUTURE_DISPATCH(_, &NetworkPortsIsolatorProcess::check);
+
+  Clock::pause();
+  Clock::advance(flags.container_ports_watch_interval);
+
+  AWAIT_READY(check);
+
+  Clock::settle();
+  Clock::resume();
+
+  // Since the container listening port is not in the isolated port range,
+  // we expect that the task should still be running after the check
+  // and that we should be able to explicitly kill it.
   Future<TaskStatus> killedStatus;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&killedStatus));

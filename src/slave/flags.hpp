@@ -156,6 +156,7 @@ public:
   Duration container_ports_watch_interval;
   bool check_agent_port_range_only;
   bool enforce_container_ports;
+  Option<std::string> container_ports_isolated_range;
 #endif // ENABLE_NETWORK_PORTS_ISOLATOR
 
   Option<std::string> network_cni_plugins_dir;

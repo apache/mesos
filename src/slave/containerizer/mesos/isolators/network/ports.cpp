@@ -74,7 +74,7 @@ static hashmap<ContainerID, IntervalSet<uint16_t>>
 collectContainerListeners(
     const string& cgroupsRoot,
     const string& freezerHierarchy,
-    const Option<IntervalSet<uint16_t>>& agentPorts,
+    const Option<IntervalSet<uint16_t>>& isolatedPorts,
     const hashset<ContainerID>& containerIds)
 {
   hashmap<ContainerID, IntervalSet<uint16_t>> listeners;
@@ -147,9 +147,9 @@ collectContainerListeners(
           }
         }
 
-        // If we are filtering by agent ports, then we only collect this
-        // listen socket if it falls within the agent port range.
-        if (agentPorts.isNone() || agentPorts->contains(address.port)) {
+        // Only collect this listen socket if it falls within the
+        // isolated range.
+        if (isolatedPorts.isNone() || isolatedPorts->contains(address.port)) {
           listeners[containerId].add(address.port);
         }
       }
@@ -280,6 +280,13 @@ Try<Isolator*> NetworkPortsIsolatorProcess::create(const Flags& flags)
     return Error("The 'network/ports' isolator requires the 'linux' launcher");
   }
 
+  if (flags.check_agent_port_range_only &&
+      flags.container_ports_isolated_range.isSome()) {
+    return Error(
+        "Only one of `--check_agent_port_range_only` or "
+        "'--container_ports_isolated_range` should be specified");
+  }
+
   Try<string> freezerHierarchy = cgroups::prepare(
       flags.cgroups_hierarchy,
       "freezer",
@@ -291,8 +298,8 @@ Try<Isolator*> NetworkPortsIsolatorProcess::create(const Flags& flags)
         freezerHierarchy.error());
   }
 
-
-  Option<IntervalSet<uint16_t>> agentPorts = None();
+  // Set None as the default of isolated ports range.
+  Option<IntervalSet<uint16_t>> isolatedPorts = None();
 
   // If we are only watching the ports in the agent resources, figure
   // out what the agent ports will be by checking the resources flag
@@ -318,7 +325,7 @@ Try<Isolator*> NetworkPortsIsolatorProcess::create(const Flags& flags)
               stringify(DEFAULT_PORTS),
               flags.default_role).get());
 
-      agentPorts =
+      isolatedPorts =
         rangesToIntervalSet<uint16_t>(resources->ports().get()).get();
     } else if (resources->ports().isSome()) {
       // Use the given non-empty ports resource.
@@ -332,11 +339,47 @@ Try<Isolator*> NetworkPortsIsolatorProcess::create(const Flags& flags)
             "': " + ports.error());
       }
 
-      agentPorts = ports.get();
+      isolatedPorts = ports.get();
     } else {
       // An empty ports resource was specified.
-      agentPorts = IntervalSet<uint16_t>{};
+      isolatedPorts = IntervalSet<uint16_t>{};
     }
+  }
+
+  // Use the given isolated ports range if specified.
+  if (flags.container_ports_isolated_range.isSome()) {
+    Try<Resource> portRange =
+      Resources::parse(
+          "ports",
+          flags.container_ports_isolated_range.get(),
+          "*");
+
+    if (portRange.isError()) {
+      return Error(
+          "Failed to parse isolated ports range '" +
+          flags.container_ports_isolated_range.get() + "'");
+    }
+
+    if (portRange->type() != Value::RANGES) {
+      return Error(
+          "Invalid port range resource type " +
+          mesos::Value_Type_Name(portRange->type()) +
+          ", expecting " +
+          mesos::Value_Type_Name(Value::RANGES));
+    }
+
+    Try<IntervalSet<uint16_t>> ports =
+      rangesToIntervalSet<uint16_t>(portRange->ranges());
+
+    if (ports.isError()) {
+      return Error(ports.error());
+    }
+
+    isolatedPorts = ports.get();
+  }
+
+  if (isolatedPorts.isSome()) {
+    LOG(INFO) << "Isolating port range " << stringify(isolatedPorts.get());
   }
 
   return new MesosIsolator(process::Owned<MesosIsolatorProcess>(
@@ -346,7 +389,7 @@ Try<Isolator*> NetworkPortsIsolatorProcess::create(const Flags& flags)
           flags.enforce_container_ports,
           flags.cgroups_root,
           freezerHierarchy.get(),
-          agentPorts)));
+          isolatedPorts)));
 }
 
 
@@ -356,14 +399,14 @@ NetworkPortsIsolatorProcess::NetworkPortsIsolatorProcess(
     const bool& _enforceContainerPorts,
     const string& _cgroupsRoot,
     const string& _freezerHierarchy,
-    const Option<IntervalSet<uint16_t>>& _agentPorts)
+    const Option<IntervalSet<uint16_t>>& _isolatedPorts)
   : ProcessBase(process::ID::generate("network-ports-isolator")),
     cniIsolatorEnabled(_cniIsolatorEnabled),
     watchInterval(_watchInterval),
     enforceContainerPorts(_enforceContainerPorts),
     cgroupsRoot(_cgroupsRoot),
     freezerHierarchy(_freezerHierarchy),
-    agentPorts(_agentPorts)
+    isolatedPorts(_isolatedPorts)
 {
 }
 
@@ -631,7 +674,7 @@ void NetworkPortsIsolatorProcess::initialize()
             &collectContainerListeners,
             cgroupsRoot,
             freezerHierarchy,
-            agentPorts,
+            isolatedPorts,
             infos.keys())
           .then(defer(self, &NetworkPortsIsolatorProcess::check, lambda::_1))
           .then([]() -> ControlFlow<Nothing> { return Continue(); });
