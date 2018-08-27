@@ -215,7 +215,23 @@ public:
                       "--volumes=%s",
                       "--work_dir=%s"
                     ]
-                  }
+                  },
+                  "resources": [
+                    {
+                      "name": "cpus",
+                      "type": "SCALAR",
+                      "scalar": {
+                        "value": 0.1
+                      }
+                    },
+                    {
+                      "name": "mem",
+                      "type": "SCALAR",
+                      "scalar": {
+                        "value": 1024
+                      }
+                    }
+                  ]
                 }
               ]
             }
