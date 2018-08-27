@@ -382,7 +382,6 @@ TEST_F(RmdirTest, RemoveDirectoryButPreserveRoot)
 }
 
 
-#ifdef __linux__
 // This test fixture verifies that `rmdir` behaves correctly
 // with option `continueOnError` and makes sure the undeletable
 // files from tests are cleaned up during teardown.
@@ -456,4 +455,3 @@ TEST_F(RmdirContinueOnErrorTest, RemoveWithContinueOnError)
   EXPECT_TRUE(os::exists(mountPoint_));
   EXPECT_FALSE(os::exists(regularFile));
 }
-#endif // __linux__
