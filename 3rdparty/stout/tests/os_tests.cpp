@@ -64,8 +64,8 @@
 
 #ifndef __WINDOWS__
 using os::Exec;
-#endif // __WINDOWS__
 using os::Fork;
+#endif // __WINDOWS__
 using os::Process;
 using os::ProcessTree;
 
@@ -429,16 +429,22 @@ TEST_F(OsTest, Children)
   // We have to reap the child for running the tests in repetition.
   ASSERT_EQ(child, waitpid(child, nullptr, 0));
 }
+#endif // __WINDOWS__
 
 
+#ifndef __WINDOWS__
 void dosetsid()
 {
   if (::setsid() == -1) {
     ABORT(string("Failed to setsid: ") + os::strerror(errno));
   }
 }
+#endif // __WINDOWS__
 
 
+#ifndef __WINDOWS__
+// NOTE: This test is disabled for Windows since there is
+// no implementation of `fork` and `exec` on Windows.
 TEST_F(OsTest, Killtree)
 {
   Try<ProcessTree> tree =
@@ -560,8 +566,12 @@ TEST_F(OsTest, Killtree)
   // We have to reap the child for running the tests in repetition.
   ASSERT_EQ(child, waitpid(child, nullptr, 0));
 }
+#endif // __WINDOWS__
 
 
+#ifndef __WINDOWS__
+// NOTE: This test is disabled for Windows since there is
+// no implementation of `fork` and `exec` on Windows.
 TEST_F(OsTest, KilltreeNoRoot)
 {
   Try<ProcessTree> tree =
@@ -677,12 +687,17 @@ TEST_F(OsTest, KilltreeNoRoot)
   EXPECT_NONE(os::process(grandchild));
   EXPECT_NONE(os::process(greatGrandchild));
 }
+#endif // __WINDOWS__
 
 
 TEST_F(OsTest, ProcessExists)
 {
   // Check we exist.
   EXPECT_TRUE(os::exists(::getpid()));
+
+  // NOTE: Some of this test is disabled for Windows since there is no
+  // implementation of `fork` and `exec` on Windows.
+#if !defined(__WINDOWS__)
 
   // In a FreeBSD jail, pid 1 may not exist.
 #if !defined(__FreeBSD__)
@@ -735,9 +750,13 @@ TEST_F(OsTest, ProcessExists)
   EXPECT_WTERMSIG_EQ(SIGKILL, status);
 
   EXPECT_FALSE(os::exists(pid));
+#endif // __WINDOWS__
 }
 
 
+#ifndef __WINDOWS__
+// NOTE: Enable this test when there is an implementation of
+// `os::getuid` and `os::chown` for Windows.
 TEST_F(OsTest, User)
 {
   Try<string> user_ = os::shell("id -un");
@@ -801,8 +820,13 @@ TEST_F(OsTest, User)
   EXPECT_SOME(os::setgroups(gids.get(), uid.get()));
   EXPECT_SOME(os::setuid(uid.get()));
 }
+#endif // __WINDOWS__
 
 
+#ifndef __WINDOWS__
+// NOTE: Enable this test if there are ever implementations of
+// `os::getuid`, `os::getgid`, `os::chmod` and `os::chown` for
+// Windows.
 TEST_F(OsTest, SYMLINK_Chown)
 {
   Result<uid_t> uid = os::getuid();
@@ -871,8 +895,12 @@ TEST_F(OsTest, SYMLINK_Chown)
       os::stat::uid("chown/one/file",
                     FollowSymlink::DO_NOT_FOLLOW_SYMLINK));
 }
+#endif // __WINDOWS__
 
 
+#ifndef __WINDOWS__
+// NOTE: Enable this test when there is an implementation of
+// `os::getuid`, `os::getgid`, `os::chmod` and `os::chown` for Windows.
 TEST_F(OsTest, ChownNoAccess)
 {
   Result<uid_t> uid = os::getuid();
@@ -924,11 +952,11 @@ TEST_F(OsTest, TrivialUser)
 }
 
 
+#ifndef __WINDOWS__
 // Test setting/resetting/appending to LD_LIBRARY_PATH environment
 // variable (DYLD_LIBRARY_PATH on OS X).
 //
 // NOTE: This will never be enabled on Windows as there is no equivalent.
-#ifndef __WINDOWS__
 TEST_F(OsTest, Libraries)
 {
   const string path1 = "/tmp/path1";
@@ -1040,8 +1068,8 @@ TEST_F(OsTest, Shell)
 }
 
 
-// NOTE: Disabled on Windows because `mknod` does not exist.
 #ifndef __WINDOWS__
+// NOTE: Disabled on Windows because `mknod` does not exist.
 TEST_F(OsTest, Mknod)
 {
 #ifdef __FreeBSD__

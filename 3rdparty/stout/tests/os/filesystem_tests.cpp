@@ -620,6 +620,8 @@ TEST_F(FsTest, Close)
 
 
 #if defined(__linux__) || defined(__APPLE__)
+// NOTE: This test is otherwise disabled since it uses `os::setxattr`
+// and `os::getxattr` which are not available elsewhere.
 TEST_F(FsTest, Xattr)
 {
   const string file = path::join(os::getcwd(), id::UUID::random().toString());

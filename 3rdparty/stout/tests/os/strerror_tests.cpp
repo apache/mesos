@@ -42,11 +42,14 @@ TEST(StrerrorTest, InvalidErrno)
 }
 
 
+#ifndef __WINDOWS__
 // The Linux documentation[1] on `herrno` indicates there are only 4 possible
 // values that `h_errno` can have.
 //
 // [1] http://linux.die.net/man/3/hstrerror
-#ifndef __WINDOWS__
+//
+// NOTE: This test is permanently disabled on Windows since it tests
+// against POSIX values of POSIX function `::hstrerror`.
 TEST(StrerrorTest, ValidHerrno)
 {
   EXPECT_EQ(::hstrerror(ENODEV), os::hstrerror(ENODEV));
