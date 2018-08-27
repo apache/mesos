@@ -64,9 +64,13 @@
 #include <stout/os/sysctl.hpp>
 #endif
 
+#if defined(__WINDOWS__)
+#include <stout/os/shell.hpp>
+#endif
+
 #include <stout/tests/utils.hpp>
 
-#ifndef __WINDOWS__
+#if !defined(__WINDOWS__)
 using os::Exec;
 using os::Fork;
 #endif // __WINDOWS__
@@ -80,6 +84,27 @@ using std::set;
 using std::string;
 using std::vector;
 
+#if defined(__WINDOWS__)
+// NOTE: These are used to partially implement tests which otherwise
+// relied on `os::Exec` and `os::Fork`.
+using ::internal::windows::ProcessData;
+
+ProcessData windows_fork()
+{
+  // This will unfortunately generate some output.
+  Try<ProcessData> process_data = ::internal::windows::create_process(
+      "", {"ping.exe", "127.0.0.1", "-n", "10"}, None());
+  CHECK_SOME(process_data);
+  return process_data.get();
+}
+
+void windows_kill(const ProcessData& p)
+{
+  CHECK_EQ(TRUE, ::TerminateProcess(p.process_handle.get_handle(), 0));
+  CHECK_EQ(
+      WAIT_OBJECT_0, ::WaitForSingleObject(p.process_handle.get_handle(), 500));
+}
+#endif
 
 class OsTest : public TemporaryDirectoryTest {};
 
@@ -409,8 +434,6 @@ TEST_F(OsTest, Sysctl)
 #endif // __APPLE__ || __FreeBSD__
 
 
-// TODO(hausdorff): Enable when we implement `Fork` and `Exec`. See MESOS-3638.
-#ifndef __WINDOWS__
 TEST_F(OsTest, Children)
 {
   Try<set<pid_t>> children = os::children(getpid());
@@ -418,6 +441,7 @@ TEST_F(OsTest, Children)
   ASSERT_SOME(children);
   EXPECT_TRUE(children->empty());
 
+#ifndef __WINDOWS__
   Try<ProcessTree> tree =
     Fork(None(),                   // Child.
          Fork(Exec(SLEEP_COMMAND(10))),   // Grandchild.
@@ -428,19 +452,33 @@ TEST_F(OsTest, Children)
 
   pid_t child = tree->process.pid;
   pid_t grandchild = tree->children.front().process.pid;
+#else
+  // NOTE: On Windows, while debugging, children will include, e.g.,
+  // `conhost.exe`, so we have to count those too.
+  const size_t existing_children = children.get().size();
+  ProcessData process_data = windows_fork();
+  pid_t child = process_data.pid;
+#endif // __WINDOWS__
 
   // Ensure the non-recursive children does not include the
   // grandchild.
   children = os::children(getpid(), false);
 
   ASSERT_SOME(children);
+
+#ifndef __WINDOWS__
   EXPECT_EQ(1u, children->size());
+#else
+  EXPECT_EQ(existing_children + 1u, children->size());
+#endif // __WINDOWS__
+
   EXPECT_EQ(1u, children->count(child));
 
   children = os::children(getpid());
 
   ASSERT_SOME(children);
 
+#ifndef __WINDOWS__
   // Depending on whether or not the shell has fork/exec'ed in each
   // above 'Exec', we could have 2 or 4 children. That is, some shells
   // might simply for exec the command above (i.e., 'sleep 10') while
@@ -458,9 +496,15 @@ TEST_F(OsTest, Children)
 
   // We have to reap the child for running the tests in repetition.
   ASSERT_EQ(child, waitpid(child, nullptr, 0));
-}
-#endif // __WINDOWS__
+#else
+  // Cleanup by killing the descendant processes.
+  windows_kill(process_data);
 
+  children = os::children(getpid(), false);
+  ASSERT_SOME(children);
+  EXPECT_EQ(existing_children, children->size());
+#endif
+}
 
 #ifndef __WINDOWS__
 void dosetsid()
@@ -472,11 +516,11 @@ void dosetsid()
 #endif // __WINDOWS__
 
 
-#ifndef __WINDOWS__
-// NOTE: This test is disabled for Windows since there is
-// no implementation of `fork` and `exec` on Windows.
 TEST_F(OsTest, Killtree)
 {
+  // NOTE: This test is written differently for Windows since there is
+  // no implementation of `fork` and `exec` on Windows.
+#ifndef __WINDOWS__
   Try<ProcessTree> tree =
     Fork(&dosetsid,                        // Child.
          Fork(None(),                      // Grandchild.
@@ -595,8 +639,32 @@ TEST_F(OsTest, Killtree)
 
   // We have to reap the child for running the tests in repetition.
   ASSERT_EQ(child, waitpid(child, nullptr, 0));
-}
+#else
+  Try<set<pid_t>> children = os::children(getpid());
+  ASSERT_SOME(children);
+
+  const size_t existing_children = children->size();
+  ProcessData process_data = windows_fork();
+  pid_t child = process_data.pid;
+
+  Try<std::wstring> name = os::name_job(child);
+  ASSERT_SOME(name);
+  Try<SharedHandle> handle = os::create_job(name.get());
+  ASSERT_SOME(handle);
+  ASSERT_SOME(os::assign_job(handle.get(), child));
+
+  children = os::children(getpid());
+  ASSERT_SOME(children);
+  ASSERT_EQ(existing_children + 1u, children->size());
+
+  Try<list<ProcessTree>> trees = os::killtree(child, SIGKILL, true, true);
+  ASSERT_SOME(trees);
+
+  children = os::children(getpid());
+  ASSERT_SOME(children);
+  ASSERT_EQ(existing_children, children->size());
 #endif // __WINDOWS__
+}
 
 
 #ifndef __WINDOWS__
@@ -780,6 +848,19 @@ TEST_F(OsTest, ProcessExists)
   EXPECT_WTERMSIG_EQ(SIGKILL, status);
 
   EXPECT_FALSE(os::exists(pid));
+#else
+  pid_t child;
+  // Scope the `ProcessData` so the handles are destructed (and thus
+  // closed) before the last test.
+  {
+    ProcessData process_data = windows_fork();
+    child = process_data.pid;
+    EXPECT_TRUE(os::exists(child));
+    windows_kill(process_data);
+  }
+
+  os::sleep(Milliseconds(500));
+  EXPECT_FALSE(os::exists(child));
 #endif // __WINDOWS__
 }
 
