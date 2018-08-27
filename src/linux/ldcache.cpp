@@ -114,7 +114,6 @@ struct HeaderNew
                           // and align to 8 byte boundary.
 };
 
-
 struct EntryNew
 {
   int32_t flags;        // Flags bits determine arch and library type.
@@ -123,7 +122,6 @@ struct EntryNew
   uint32_t osVersion;   // Required OS version.
   uint64_t hwcap;       // Hwcap entry.
 };
-
 
 // Returns a 'boundary' aligned pointer by rounding up to
 // the nearest multiple of 'boundary'.

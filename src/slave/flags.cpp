@@ -202,6 +202,15 @@ mesos::internal::slave::Flags::Flags()
       "Directory the appc provisioner will store images in.\n",
       path::join(os::temp(), "mesos", "store", "appc"));
 
+  #if defined(__s390x__)
+  add(&Flags::docker_registry,
+      "docker_registry",
+      "The default url for pulling Docker images. It could either be a Docker\n"
+      "registry server url (i.e: `https://registry.docker.io`), or a local\n"
+      "path (i.e: `/tmp/docker/images`) in which Docker image archives\n"
+      "(result of `docker save`) are stored.",
+      "/opt/docker/images");
+  #else
   add(&Flags::docker_registry,
       "docker_registry",
       "The default url for Mesos containerizer to pull Docker images. It\n"
@@ -212,6 +221,7 @@ mesos::internal::slave::Flags::Flags()
       "(e.g., `hdfs://localhost:8020/archives/`). Note that this option won't\n"
       "change the default registry server for Docker containerizer.",
       "https://registry-1.docker.io");
+  #endif
 
   add(&Flags::docker_store_dir,
       "docker_store_dir",
