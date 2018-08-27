@@ -46,6 +46,10 @@
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
 
+#if defined(__WINDOWS__)
+#include <stout/windows.hpp>
+#endif
+
 #include <stout/os/environment.hpp>
 #include <stout/os/int_fd.hpp>
 #include <stout/os/kill.hpp>
@@ -80,29 +84,55 @@ using std::vector;
 class OsTest : public TemporaryDirectoryTest {};
 
 
-#ifndef __WINDOWS__
 TEST_F(OsTest, Environment)
 {
   // Make sure the environment has some entries with '=' in the value.
   os::setenv("SOME_SPECIAL_FLAG", "--flag=foobar");
 
-  char** environ = os::raw::environment();
+#ifndef __WINDOWS__
+  char** raw_environ = os::raw::environment();
+#else
+  std::vector<string> raw_environ;
+  const std::unique_ptr<wchar_t[], decltype(&::FreeEnvironmentStringsW)> env(
+      ::GetEnvironmentStringsW(), &::FreeEnvironmentStringsW);
+
+  for (size_t i = 0; env[i] != L'\0' && env[i + 1] != L'\0';
+       /* incremented below */) {
+    std::wstring entry(&env[i]);
+
+    // Increment past the current environment string and null terminator.
+    i = i + entry.size() + 1;
+
+    size_t position = entry.find_first_of(L'=');
+    if (position == std::string::npos) {
+      continue; // Skip malformed environment entries.
+    }
+
+    raw_environ.push_back(stringify(entry.substr(0)));
+  }
+#endif // __WINDOWS__
 
   hashmap<string, string> environment = os::environment();
 
-  for (size_t index = 0; environ[index] != nullptr; index++) {
-    string entry(environ[index]);
-    size_t position = entry.find_first_of('=');
+#ifndef __WINDOWS__
+  for (size_t index = 0; raw_environ[index] != nullptr; index++) {
+#else
+  for (size_t index = 0; index < raw_environ.size(); index++) {
+#endif // __WINDOWS__
+    string entry(raw_environ[index]);
+    // In practice, sometimes the key starts with `=` even though it
+    // is not supposed to. If we don't skip it, we get an empty key.
+    size_t position = entry.find_first_of('=', 1);
     if (position == string::npos) {
       continue; // Skip malformed environment entries.
     }
+
     const string key = entry.substr(0, position);
     const string value = entry.substr(position + 1);
     EXPECT_TRUE(environment.contains(key));
     EXPECT_EQ(value, environment[key]);
   }
 }
-#endif // __WINDOWS__
 
 
 TEST_F(OsTest, TrivialEnvironment)

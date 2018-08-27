@@ -41,7 +41,9 @@ inline std::map<std::string, std::string> environment()
     // Increment past the current environment string and null terminator.
     i = i + entry.size() + 1;
 
-    size_t position = entry.find_first_of(L'=');
+    // In practice, sometimes the key starts with `=` even though it
+    // is not supposed to. If we don't skip it, we get an empty key.
+    size_t position = entry.find_first_of(L'=', 1);
     if (position == std::string::npos) {
       continue; // Skip malformed environment entries.
     }
