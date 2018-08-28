@@ -453,10 +453,10 @@ Example: <code>[0-35000]</code>
   <td>
     --container_ports_watch_interval=VALUE
   </td>
+  <td>
 Interval at which the <code>network/ports</code> isolator should check for
 containers listening on ports they don't have resources for.
 (default: 30secs)
-  <td>
   </td>
 </tr>
 
