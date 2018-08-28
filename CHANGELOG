@@ -1,3 +1,11 @@
+Release Notes - Mesos - Version 1.7.1 (WIP)
+-------------------------------------------
+* This is a bug fix release.
+
+** Bug
+  * [MESOS-9185] - An attempt to remove or destroy container in composing containerizer leads to segfault.
+
+
 Release Notes - Mesos - Version 1.7.0
 -------------------------------------------
 This release contains the following highlights:
