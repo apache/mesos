@@ -368,7 +368,8 @@ class PyLinter(LinterBase):
                     r'java/jni|' \
                     r'\.virtualenv|' \
                     r'\.tox|' \
-                    r'python3' \
+                    r'python3|' \
+                    r'cli_new' \
                     ')'
 
     source_files = r'\.(py)$'
