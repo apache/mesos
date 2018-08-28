@@ -29,6 +29,7 @@ PROTOC_TO_INCLUDE_DIR(CONTAINERIZER         mesos/slave/containerizer)
 PROTOC_TO_INCLUDE_DIR(DOCKER_SPEC           mesos/docker/spec)
 PROTOC_TO_INCLUDE_DIR(DOCKER_V1             mesos/docker/v1)
 PROTOC_TO_INCLUDE_DIR(DOCKER_V2             mesos/docker/v2)
+PROTOC_TO_INCLUDE_DIR(DOCKER_V2_2           mesos/docker/v2_2)
 PROTOC_TO_INCLUDE_DIR(EXECUTOR              mesos/executor/executor)
 PROTOC_TO_INCLUDE_DIR(FETCHER               mesos/fetcher/fetcher)
 PROTOC_TO_INCLUDE_DIR(HOOK                  mesos/module/hook)
@@ -73,6 +74,7 @@ set(PUBLIC_PROTOBUF_SRC
   ${DOCKER_SPEC_PROTO_CC}
   ${DOCKER_V1_PROTO_CC}
   ${DOCKER_V2_PROTO_CC}
+  ${DOCKER_V2_2_PROTO_CC}
   ${EXECUTOR_PROTO_CC}
   ${FETCHER_PROTO_CC}
   ${HOOK_PROTO_CC}
