@@ -445,6 +445,11 @@ Future<Containerizer::LaunchResult> ComposingContainerizerProcess::launch(
   if (containerId.has_parent()) {
     ContainerID rootContainerId = protobuf::getRootContainerId(containerId);
     if (!containers_.contains(rootContainerId)) {
+      // We do cleanup here, otherwise we cannot remove or destroy the nested
+      // container due to its undefined `containerizer` field.
+      containers_.erase(containerId);
+      delete container;
+
       return Failure(
           "Root container " + stringify(rootContainerId) + " not found");
     }
