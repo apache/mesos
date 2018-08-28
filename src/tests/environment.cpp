@@ -973,6 +973,79 @@ private:
 };
 
 
+// This is a test filter for the veth CNI plugin.
+class VEthFilter : public TestFilter
+{
+public:
+  VEthFilter()
+  {
+#ifdef __linux__
+    vector<string> messages;
+
+    // Checking if it runs as root.
+    Result<string> user = os::user();
+    CHECK_SOME(user);
+
+    if (user.get() != "root") {
+      messages.emplace_back("non-root user");
+    }
+
+    // This command returns `ip utility, iproute2-YYMMDD` where
+    // `YYMMDD` is a release (snapshot) date of iproute2.
+    Try<string> ipVersion = os::shell("ip -Version");
+
+    // Checking if iproute2 exists.
+    if (ipVersion.isError()) {
+      messages.emplace_back("iproute2 not found");
+    } else {
+      // Checking if it supports `ip link set ... netns ...`.
+      const string version = strings::trim(ipVersion.get());
+      if (version.size() < 6) {
+        messages.emplace_back("unexpected version");
+      } else {
+        Try<int> snapshot = numify<int>(version.substr(version.size() - 6));
+        if (snapshot.isError()) {
+          messages.emplace_back("iproute2 version is not an integer");
+        } else if (snapshot.get() < 100224) {
+          // Support for `netns` was added to iproute2 in v2.6.33.
+          messages.emplace_back("iproute2 doesn't support network namespaces");
+        }
+      }
+    }
+
+    // Checking if libprocess is bound on loopback address, in that
+    // case network namespace with veth network won't be able to
+    // connect to parent process on host network namespace.
+    // TODO(urbanserj): Improve the network connectivity check.
+    process::network::inet::Address address = process::address();
+    if (address.ip.isLoopback()) {
+      messages.emplace_back("libprocess is bound on loopback address");
+    }
+
+    disabled = !messages.empty();
+    if (disabled) {
+      std::cerr
+        << "-------------------------------------------------------------\n"
+        << "We can't run any VETH tests:\n"
+        << strings::join("\n", messages) << "\n"
+        << "-------------------------------------------------------------"
+        << std::endl;
+    }
+#else
+    disabled = true;
+#endif // __linux__
+  }
+
+  bool disable(const ::testing::TestInfo* test) const override
+  {
+    return matches(test, "VETH_") && disabled;
+  }
+
+private:
+  bool disabled;
+};
+
+
 Environment::Environment(const Flags& _flags)
   : stout::internal::tests::Environment(
         std::vector<std::shared_ptr<TestFilter>>{
@@ -996,6 +1069,7 @@ Environment::Environment(const Flags& _flags)
             std::make_shared<RootFilter>(),
             std::make_shared<UnprivilegedUserFilter>(),
             std::make_shared<UnzipFilter>(),
+            std::make_shared<VEthFilter>(),
             std::make_shared<XfsFilter>()}),
     flags(_flags)
 {

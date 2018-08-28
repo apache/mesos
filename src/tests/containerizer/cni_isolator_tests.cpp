@@ -196,31 +196,110 @@ public:
           "type": "mockPlugin"
         })~");
 
+    // This is a veth CNI plugin that is written in bash. It creates a
+    // veth virtual network pair, one end of the pair will be moved to
+    // container network namespace.
+    //
+    // The veth CNI plugin uses 203.0.113.0/24 subnet, it is reserved
+    // for documentation and examples [rfc5737]. The plugin can
+    // allocate up to 128 veth pairs.
+    string vethPlugin =
+        R"~(
+          #!/bin/sh
+          set -e
+          IP_ADDR="203.0.113.%s"
+
+          NETNS="mesos-test-veth-${PPID}"
+          mkdir -p /var/run/netns
+          cleanup() {
+            rm -f /var/run/netns/$NETNS
+          }
+          trap cleanup EXIT
+          ln -sf $CNI_NETNS /var/run/netns/$NETNS
+
+          case $CNI_COMMAND in
+          "ADD"*)
+            for idx in `seq 0 127`; do
+              VETH0="vmesos${idx}"
+              VETH1="vmesos${idx}ns"
+              ip link add name $VETH0 type veth peer name $VETH1 2> /dev/null || continue
+              VETH0_IP=$(printf $IP_ADDR $(($idx * 2)))
+              VETH1_IP=$(printf $IP_ADDR $(($idx * 2 + 1)))
+              ip addr add "${VETH0_IP}/31" dev $VETH0
+              ip link set $VETH0 up
+              ip link set $VETH1 netns $NETNS
+              ip netns exec $NETNS ip addr add "${VETH1_IP}/31" dev $VETH1
+              ip netns exec $NETNS ip link set $VETH1 name $CNI_IFNAME up
+              ip netns exec $NETNS ip route add default via $VETH0_IP dev $CNI_IFNAME
+              break
+            done
+            echo '{'
+            echo '  "cniVersion": "0.2.3",'
+            if [ -z "$VETH1_IP" ]; then
+              echo '  "code": 100,'
+              echo '  "msg": "Bad IP address"'
+              echo '}'
+              exit 100
+            else
+              echo '  "ip4": {'
+              echo '    "ip": "'$VETH1_IP'/31"'
+              echo '  }'
+              echo '}'
+            fi
+            ;;
+          "DEL"*)
+            # $VETH0 on host network namespace will be removed automatically.
+            # If the plugin can't destroy the veth pair, it will be destroyed
+            # with the container network namespace.
+            ip netns exec $NETNS ip link del $CNI_IFNAME || true
+            ;;
+          esac
+        )~";
+
+    ASSERT_SOME(setupPlugin(vethPlugin, "vethPlugin"));
+
+    // Generate the mock CNI config for veth CNI plugin.
+    ASSERT_SOME(os::mkdir(cniConfigDir));
+
+    result = os::write(
+        path::join(cniConfigDir, "vethConfig"),
+        R"~(
+        {
+          "name": "veth",
+          "type": "vethPlugin"
+        })~");
+
     ASSERT_SOME(result);
   }
 
   // Generate the mock CNI plugin based on the given script.
   Try<Nothing> setupMockPlugin(const string& pluginScript)
   {
+    return setupPlugin(pluginScript, "mockPlugin");
+  }
+
+  // Generate the CNI plugin based on the given script.
+  Try<Nothing> setupPlugin(const string& pluginScript, const string& pluginName)
+  {
     Try<Nothing> mkdir = os::mkdir(cniPluginDir);
     if (mkdir.isError()) {
       return Error("Failed to mkdir '" + cniPluginDir + "': " + mkdir.error());
     }
 
-    string mockPlugin = path::join(cniPluginDir, "mockPlugin");
+    string pluginPath = path::join(cniPluginDir, pluginName);
 
-    Try<Nothing> write = os::write(mockPlugin, pluginScript);
+    Try<Nothing> write = os::write(pluginPath, pluginScript);
     if (write.isError()) {
-      return Error("Failed to write '" + mockPlugin + "': " + write.error());
+      return Error("Failed to write '" + pluginPath + "': " + write.error());
     }
 
     // Make sure the plugin has execution permission.
     Try<Nothing> chmod = os::chmod(
-        mockPlugin,
+        pluginPath,
         S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
 
     if (chmod.isError()) {
-      return Error("Failed to chmod '" + mockPlugin + "': " + chmod.error());
+      return Error("Failed to chmod '" + pluginPath + "': " + chmod.error());
     }
 
     return Nothing();
@@ -2341,6 +2420,117 @@ TEST_P(DefaultContainerDNSCniTest, ROOT_VerifyDefaultDNS)
   AWAIT_READY(statusFinished);
   EXPECT_EQ(task.task_id(), statusFinished->task_id());
   EXPECT_EQ(TASK_FINISHED, statusFinished->state());
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test verifies the ResourceStatistics.
+TEST_F(CniIsolatorTest, VETH_VerifyResourceStatistics)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "network/cni";
+
+  flags.network_cni_plugins_dir = cniPluginDir;
+  flags.network_cni_config_dir = cniConfigDir;
+
+  Fetcher fetcher(flags);
+
+  Try<MesosContainerizer*> _containerizer =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(_containerizer);
+  Owned<MesosContainerizer> containerizer(_containerizer.get());
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), containerizer.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
+
+  const Offer& offer = offers.get()[0];
+
+  CommandInfo command;
+  command.set_value("sleep 1000");
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:128").get(),
+      command);
+
+  ContainerInfo* container = task.mutable_container();
+  container->set_type(ContainerInfo::MESOS);
+
+  // Make sure the container joins the mock CNI network.
+  container->add_network_infos()->set_name("veth");
+
+  Future<TaskStatus> statusStarting;
+  Future<TaskStatus> statusRunning;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
+    .WillOnce(FutureArg<1>(&statusRunning));
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(task.task_id(), statusStarting->task_id());
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(task.task_id(), statusRunning->task_id());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  Future<hashset<ContainerID>> containers = containerizer->containers();
+  AWAIT_READY(containers);
+  ASSERT_EQ(1u, containers->size());
+
+  ContainerID containerId = *(containers->begin());
+
+  // Verify networking metrics.
+  Future<ResourceStatistics> usage = containerizer.get()->usage(containerId);
+  AWAIT_READY(usage);
+
+  // RX: Receive statistics.
+  ASSERT_TRUE(usage->has_net_rx_packets());
+  ASSERT_TRUE(usage->has_net_rx_bytes());
+  ASSERT_TRUE(usage->has_net_rx_errors());
+  ASSERT_TRUE(usage->has_net_rx_dropped());
+
+  // TX: Transmit statistics.
+  ASSERT_TRUE(usage->has_net_tx_packets());
+  ASSERT_TRUE(usage->has_net_tx_bytes());
+  ASSERT_TRUE(usage->has_net_tx_errors());
+  ASSERT_TRUE(usage->has_net_tx_dropped());
+
+  // Kill the task.
+  Future<TaskStatus> statusKilled;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusKilled));
+
+  driver.killTask(task.task_id());
+
+  AWAIT_READY(statusKilled);
+  EXPECT_EQ(TASK_KILLED, statusKilled->state());
 
   driver.stop();
   driver.join();
