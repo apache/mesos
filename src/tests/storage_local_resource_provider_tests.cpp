@@ -848,11 +848,17 @@ TEST_F(StorageLocalResourceProviderTest, CreateDestroyDisk)
 
 // This test verifies that the storage local resource provider can
 // destroy a volume created from a storage pool after recovery.
-TEST_F(StorageLocalResourceProviderTest, DISABLED_CreateDestroyDiskRecovery)
+TEST_F(StorageLocalResourceProviderTest, CreateDestroyDiskRecovery)
 {
-  const string profilesPath = path::join(sandbox.get(), "profiles.json");
-  ASSERT_SOME(os::write(profilesPath, createDiskProfileMapping("test")));
-  loadUriDiskProfileAdaptorModule(profilesPath);
+  Future<shared_ptr<TestDiskProfileServer>> server =
+    TestDiskProfileServer::create();
+  AWAIT_READY(server);
+
+  Promise<http::Response> recoveredProfileMapping;
+  EXPECT_CALL(*server.get()->process, profiles(_))
+    .WillOnce(Return(http::OK(createDiskProfileMapping("test"))))
+    .WillOnce(Return(recoveredProfileMapping.future()));
+  loadUriDiskProfileAdaptorModule(stringify(server.get()->process->url()));
 
   setupResourceProviderConfig(Gigabytes(4));
 
@@ -1012,10 +1018,20 @@ TEST_F(StorageLocalResourceProviderTest, DISABLED_CreateDestroyDiskRecovery)
     .InSequence(offers)
     .WillOnce(FutureArg<1>(&volumeDestroyedOffers));
 
+  Future<UpdateOperationStatusMessage> destroyDiskStatus =
+    FUTURE_PROTOBUF(UpdateOperationStatusMessage(), _, _);
+
   driver.acceptOffers(
       {slaveRecoveredOffers->at(0).id()},
       {DESTROY_DISK(volume.get())},
       acceptFilters);
+
+  AWAIT_READY(destroyDiskStatus);
+  EXPECT_EQ(OPERATION_FINISHED, destroyDiskStatus->status().state());
+
+  // NOTE: We update the disk profile mapping after the `DESTROY_DISK` operation
+  // is applied, otherwise it could be dropped due to reconciling storage pools.
+  recoveredProfileMapping.set(http::OK(createDiskProfileMapping("test")));
 
   AWAIT_READY(volumeDestroyedOffers);
   ASSERT_FALSE(volumeDestroyedOffers->empty());
