@@ -1416,6 +1416,11 @@ private:
         const process::http::Request& request,
         const process::Owned<ObjectApprovers>& approvers) const;
 
+    // /frameworks
+    process::http::Response frameworks(
+        const process::http::Request& request,
+        const process::Owned<ObjectApprovers>& approvers) const;
+
   private:
     const Master* master;
   };

@@ -1682,57 +1682,66 @@ Future<Response> Master::Http::frameworks(
       {VIEW_FRAMEWORK, VIEW_TASK, VIEW_EXECUTOR})
     .then(defer(
         master->self(),
-        [this, request](const Owned<ObjectApprovers>& approvers) -> Response {
-          IDAcceptor<FrameworkID> selectFrameworkId(
-              request.url.query.get("framework_id"));
-          // This lambda is consumed before the outer lambda
-          // returns, hence capture by reference is fine here.
-          auto frameworks = [this, &approvers, &selectFrameworkId](
-              JSON::ObjectWriter* writer) {
-            // Model all of the frameworks.
-            writer->field(
-                "frameworks",
-                [this, &approvers, &selectFrameworkId](
-                    JSON::ArrayWriter* writer) {
-                  foreachvalue (
-                      Framework* framework, master->frameworks.registered) {
-                    // Skip unauthorized frameworks or frameworks
-                    // without a matching ID.
-                    if (!selectFrameworkId.accept(framework->id()) ||
-                        !approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
-                      continue;
-                    }
-
-                    writer->element(FullFrameworkWriter(approvers, framework));
-                  }
-                });
-
-            // Model all of the completed frameworks.
-            writer->field(
-                "completed_frameworks",
-                [this, &approvers, &selectFrameworkId](
-                    JSON::ArrayWriter* writer) {
-                  foreachvalue (const Owned<Framework>& framework,
-                                master->frameworks.completed) {
-                    // Skip unauthorized frameworks or frameworks
-                    // without a matching ID.
-                    if (!selectFrameworkId.accept(framework->id()) ||
-                        !approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
-                      continue;
-                    }
-
-                    writer->element(
-                        FullFrameworkWriter(approvers, framework.get()));
-                  }
-                });
-
-            // Unregistered frameworks are no longer possible. We emit an
-            // empty array for the sake of backward compatibility.
-            writer->field("unregistered_frameworks", [](JSON::ArrayWriter*) {});
-          };
-
-          return OK(jsonify(frameworks), request.url.query.get("jsonp"));
+        [this, request](const Owned<ObjectApprovers>& approvers) {
+          return deferBatchedRequest(
+            &Master::ReadOnlyHandler::frameworks, request, approvers);
         }));
+}
+
+
+process::http::Response Master::ReadOnlyHandler::frameworks(
+    const process::http::Request& request,
+    const process::Owned<ObjectApprovers>& approvers) const
+{
+  IDAcceptor<FrameworkID> selectFrameworkId(
+      request.url.query.get("framework_id"));
+  // This lambda is consumed before the outer lambda
+  // returns, hence capture by reference is fine here.
+  auto frameworks = [this, &approvers, &selectFrameworkId](
+      JSON::ObjectWriter* writer) {
+    // Model all of the frameworks.
+    writer->field(
+        "frameworks",
+        [this, &approvers, &selectFrameworkId](
+            JSON::ArrayWriter* writer) {
+          foreachvalue (
+              Framework* framework, master->frameworks.registered) {
+            // Skip unauthorized frameworks or frameworks
+            // without a matching ID.
+            if (!selectFrameworkId.accept(framework->id()) ||
+                !approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
+              continue;
+            }
+
+            writer->element(FullFrameworkWriter(approvers, framework));
+          }
+        });
+
+    // Model all of the completed frameworks.
+    writer->field(
+        "completed_frameworks",
+        [this, &approvers, &selectFrameworkId](
+            JSON::ArrayWriter* writer) {
+          foreachvalue (const Owned<Framework>& framework,
+                        master->frameworks.completed) {
+            // Skip unauthorized frameworks or frameworks
+            // without a matching ID.
+            if (!selectFrameworkId.accept(framework->id()) ||
+                !approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
+              continue;
+            }
+
+            writer->element(
+                FullFrameworkWriter(approvers, framework.get()));
+          }
+        });
+
+    // Unregistered frameworks are no longer possible. We emit an
+    // empty array for the sake of backward compatibility.
+    writer->field("unregistered_frameworks", [](JSON::ArrayWriter*) {});
+  };
+
+  return OK(jsonify(frameworks), request.url.query.get("jsonp"));
 }
 
 
