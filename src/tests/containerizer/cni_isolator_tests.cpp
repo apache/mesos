@@ -2507,7 +2507,7 @@ TEST_F(CniIsolatorTest, VETH_VerifyResourceStatistics)
   ContainerID containerId = *(containers->begin());
 
   // Verify networking metrics.
-  Future<ResourceStatistics> usage = containerizer.get()->usage(containerId);
+  Future<ResourceStatistics> usage = containerizer->usage(containerId);
   AWAIT_READY(usage);
 
   // RX: Receive statistics.
