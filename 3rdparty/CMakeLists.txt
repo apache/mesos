@@ -740,7 +740,7 @@ if (WIN32)
 
     set_target_properties(
       curl PROPERTIES
-      IMPORTED_LOCATION_DEBUG ${CURL_ROOT}-build/src/Debug/curl-d.exe
+      IMPORTED_LOCATION_DEBUG ${CURL_ROOT}-build/src/Debug/curl.exe
       IMPORTED_LOCATION_RELEASE ${CURL_ROOT}-build/src/Release/curl.exe)
   else ()
     # This is for single-configuration generators such as Ninja.
@@ -755,7 +755,7 @@ if (WIN32)
 
     set_target_properties(
       curl PROPERTIES
-      IMPORTED_LOCATION ${CURL_ROOT}-build/src/curl${CURL_SUFFIX}.exe)
+      IMPORTED_LOCATION ${CURL_ROOT}-build/src/curl.exe)
   endif ()
 
   MAKE_INCLUDE_DIR(libcurl)
