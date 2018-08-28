@@ -586,6 +586,14 @@
   jira_user: lawrencew
   reviewboard_user: lawrencew
 
+- name: Liangyu Zhao
+  affiliations:
+    - {organization: Microsoft}
+  emails:
+    - liangyuzhaorain@hotmail.com
+  jira_user: liazha@microsoft.com
+  reviewboard_user: liazha
+
 - name: Lijun Tang
   emails:
     - hercule2400@gmail.com
