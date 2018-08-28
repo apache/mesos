@@ -1406,6 +1406,11 @@ private:
         const process::http::Request& request,
         const process::Owned<ObjectApprovers>& approvers) const;
 
+    // /tasks
+    process::http::Response tasks(
+        const process::http::Request& request,
+        const process::Owned<ObjectApprovers>& approvers) const;
+
   private:
     const Master* master;
   };

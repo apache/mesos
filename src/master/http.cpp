@@ -4041,6 +4041,114 @@ string Master::Http::TASKS_HELP()
         "See the authorization documentation for details."));
 }
 
+process::http::Response Master::ReadOnlyHandler::tasks(
+  const process::http::Request& request,
+  const process::Owned<ObjectApprovers>& approvers) const
+{
+  // Get list options (limit and offset).
+  Result<int> result = numify<int>(request.url.query.get("limit"));
+  size_t limit = result.isSome() ? result.get() : TASK_LIMIT;
+
+  result = numify<int>(request.url.query.get("offset"));
+  size_t offset = result.isSome() ? result.get() : 0;
+
+  Option<string> order = request.url.query.get("order");
+  string _order = order.isSome() && (order.get() == "asc") ? "asc" : "des";
+
+  Option<string> frameworkId = request.url.query.get("framework_id");
+  Option<string> taskId = request.url.query.get("task_id");
+
+  IDAcceptor<FrameworkID> selectFrameworkId(frameworkId);
+  IDAcceptor<TaskID> selectTaskId(taskId);
+
+  // Construct framework list with both active and completed frameworks.
+  vector<const Framework*> frameworks;
+  foreachvalue (Framework* framework, master->frameworks.registered) {
+    // Skip unauthorized frameworks or frameworks without matching
+    // framework ID.
+    if (!selectFrameworkId.accept(framework->id()) ||
+        !approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
+      continue;
+    }
+
+    frameworks.push_back(framework);
+  }
+
+  foreachvalue (const Owned<Framework>& framework,
+                master->frameworks.completed) {
+    // Skip unauthorized frameworks or frameworks without matching
+    // framework ID.
+    if (!selectFrameworkId.accept(framework->id()) ||
+        !approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
+     continue;
+    }
+
+    frameworks.push_back(framework.get());
+  }
+
+  // Construct task list with both running,
+  // completed and unreachable tasks.
+  vector<const Task*> tasks;
+  foreach (const Framework* framework, frameworks) {
+    foreachvalue (Task* task, framework->tasks) {
+      CHECK_NOTNULL(task);
+      // Skip unauthorized tasks or tasks without matching task ID.
+      if (!selectTaskId.accept(task->task_id()) ||
+          !approvers->approved<VIEW_TASK>(*task, framework->info)) {
+        continue;
+      }
+
+      tasks.push_back(task);
+    }
+
+    foreachvalue (
+        const Owned<Task>& task,
+        framework->unreachableTasks) {
+      // Skip unauthorized tasks or tasks without matching task ID.
+      if (!selectTaskId.accept(task->task_id()) ||
+          !approvers->approved<VIEW_TASK>(*task, framework->info)) {
+        continue;
+      }
+
+      tasks.push_back(task.get());
+    }
+
+    foreach (const Owned<Task>& task, framework->completedTasks) {
+      // Skip unauthorized tasks or tasks without matching task ID.
+      if (!selectTaskId.accept(task->task_id()) ||
+          !approvers->approved<VIEW_TASK>(*task, framework->info)) {
+        continue;
+      }
+
+      tasks.push_back(task.get());
+    }
+  }
+
+  // Sort tasks by task status timestamp. Default order is descending.
+  // The earliest timestamp is chosen for comparison when
+  // multiple are present.
+  if (_order == "asc") {
+    sort(tasks.begin(), tasks.end(), TaskComparator::ascending);
+  } else {
+    sort(tasks.begin(), tasks.end(), TaskComparator::descending);
+  }
+
+  auto tasksWriter =
+    [&tasks, limit, offset](JSON::ObjectWriter* writer) {
+      writer->field(
+          "tasks",
+          [&tasks, limit, offset](JSON::ArrayWriter* writer) {
+            // Collect 'limit' number of tasks starting from 'offset'.
+            size_t end = std::min(offset + limit, tasks.size());
+            for (size_t i = offset; i < end; i++) {
+              writer->element(*tasks[i]);
+            }
+          });
+  };
+
+  return OK(jsonify(tasksWriter), request.url.query.get("jsonp"));
+}
+
 
 Future<Response> Master::Http::tasks(
     const Request& request,
@@ -4060,116 +4168,16 @@ Future<Response> Master::Http::tasks(
     return redirect(request);
   }
 
-  // Get list options (limit and offset).
-  Result<int> result = numify<int>(request.url.query.get("limit"));
-  size_t limit = result.isSome() ? result.get() : TASK_LIMIT;
-
-  result = numify<int>(request.url.query.get("offset"));
-  size_t offset = result.isSome() ? result.get() : 0;
-
-  Option<string> order = request.url.query.get("order");
-  string _order = order.isSome() && (order.get() == "asc") ? "asc" : "des";
-
-  Option<string> frameworkId = request.url.query.get("framework_id");
-  Option<string> taskId = request.url.query.get("task_id");
-
   return ObjectApprovers::create(
       master->authorizer,
       principal,
       {VIEW_FRAMEWORK, VIEW_TASK})
     .then(defer(
         master->self(),
-        [=](const Owned<ObjectApprovers>& approvers) -> Response {
-          IDAcceptor<FrameworkID> selectFrameworkId(frameworkId);
-          IDAcceptor<TaskID> selectTaskId(taskId);
-
-          // Construct framework list with both active and completed frameworks.
-          vector<const Framework*> frameworks;
-          foreachvalue (Framework* framework, master->frameworks.registered) {
-            // Skip unauthorized frameworks or frameworks without matching
-            // framework ID.
-            if (!selectFrameworkId.accept(framework->id()) ||
-                !approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
-              continue;
-            }
-
-            frameworks.push_back(framework);
-          }
-
-          foreachvalue (const Owned<Framework>& framework,
-                        master->frameworks.completed) {
-            // Skip unauthorized frameworks or frameworks without matching
-            // framework ID.
-            if (!selectFrameworkId.accept(framework->id()) ||
-                !approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
-             continue;
-            }
-
-            frameworks.push_back(framework.get());
-          }
-
-          // Construct task list with both running,
-          // completed and unreachable tasks.
-          vector<const Task*> tasks;
-          foreach (const Framework* framework, frameworks) {
-            foreachvalue (Task* task, framework->tasks) {
-              CHECK_NOTNULL(task);
-              // Skip unauthorized tasks or tasks without matching task ID.
-              if (!selectTaskId.accept(task->task_id()) ||
-                  !approvers->approved<VIEW_TASK>(*task, framework->info)) {
-                continue;
-              }
-
-              tasks.push_back(task);
-            }
-
-            foreachvalue (
-                const Owned<Task>& task,
-                framework->unreachableTasks) {
-              // Skip unauthorized tasks or tasks without matching task ID.
-              if (!selectTaskId.accept(task->task_id()) ||
-                  !approvers->approved<VIEW_TASK>(*task, framework->info)) {
-                continue;
-              }
-
-              tasks.push_back(task.get());
-            }
-
-            foreach (const Owned<Task>& task, framework->completedTasks) {
-              // Skip unauthorized tasks or tasks without matching task ID.
-              if (!selectTaskId.accept(task->task_id()) ||
-                  !approvers->approved<VIEW_TASK>(*task, framework->info)) {
-                continue;
-              }
-
-              tasks.push_back(task.get());
-            }
-          }
-
-          // Sort tasks by task status timestamp. Default order is descending.
-          // The earliest timestamp is chosen for comparison when
-          // multiple are present.
-          if (_order == "asc") {
-            sort(tasks.begin(), tasks.end(), TaskComparator::ascending);
-          } else {
-            sort(tasks.begin(), tasks.end(), TaskComparator::descending);
-          }
-
-          auto tasksWriter =
-            [&tasks, limit, offset](JSON::ObjectWriter* writer) {
-              writer->field(
-                  "tasks",
-                  [&tasks, limit, offset](JSON::ArrayWriter* writer) {
-                    // Collect 'limit' number of tasks starting from 'offset'.
-                    size_t end = std::min(offset + limit, tasks.size());
-                    for (size_t i = offset; i < end; i++) {
-                      writer->element(*tasks[i]);
-                    }
-                  });
-          };
-
-          return OK(jsonify(tasksWriter), request.url.query.get("jsonp"));
-  }));
+        [this, request](const Owned<ObjectApprovers>& approvers) {
+          return deferBatchedRequest(
+              &Master::ReadOnlyHandler::tasks, request, approvers);
+        }));
 }
 
 
