@@ -1401,6 +1401,11 @@ private:
         const process::http::Request& request,
         const process::Owned<ObjectApprovers>& approvers) const;
 
+    // /state-summary
+    process::http::Response stateSummary(
+        const process::http::Request& request,
+        const process::Owned<ObjectApprovers>& approvers) const;
+
   private:
     const Master* master;
   };
@@ -1492,6 +1497,8 @@ private:
             principal) const;
 
     // /master/state-summary
+    //
+    // NOTE: Requests to this endpoint are batched.
     process::Future<process::http::Response> stateSummary(
         const process::http::Request& request,
         const Option<process::http::authentication::Principal>&

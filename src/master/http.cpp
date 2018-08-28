@@ -3334,147 +3334,157 @@ Future<Response> Master::Http::stateSummary(
       {VIEW_ROLE, VIEW_FRAMEWORK})
     .then(defer(
         master->self(),
-        [this, request](const Owned<ObjectApprovers>& approvers) -> Response {
-          auto stateSummary = [this, &approvers](JSON::ObjectWriter* writer) {
-            writer->field("hostname", master->info().hostname());
+        [this, request](const Owned<ObjectApprovers>& approvers) {
+          return deferBatchedRequest(
+              &Master::ReadOnlyHandler::stateSummary, request, approvers);
+        }));
+}
 
-            if (master->flags.cluster.isSome()) {
-              writer->field("cluster", master->flags.cluster.get());
+
+process::http::Response Master::ReadOnlyHandler::stateSummary(
+    const process::http::Request& request,
+    const process::Owned<ObjectApprovers>& approvers) const
+{
+  const Master* master = this->master;
+  auto stateSummary = [master, &approvers](JSON::ObjectWriter* writer) {
+    writer->field("hostname", master->info().hostname());
+
+    if (master->flags.cluster.isSome()) {
+      writer->field("cluster", master->flags.cluster.get());
+    }
+
+    // We use the tasks in the 'Frameworks' struct to compute summaries
+    // for this endpoint. This is done 1) for consistency between the
+    // 'slaves' and 'frameworks' subsections below 2) because we want to
+    // provide summary information for frameworks that are currently
+    // registered 3) the frameworks keep a circular buffer of completed
+    // tasks that we can use to keep a limited view on the history of
+    // recent completed / failed tasks.
+
+    // Generate mappings from 'slave' to 'framework' and reverse.
+    SlaveFrameworkMapping slaveFrameworkMapping(
+        master->frameworks.registered);
+
+    // Generate 'TaskState' summaries for all framework and slave ids.
+    TaskStateSummaries taskStateSummaries(
+        master->frameworks.registered);
+
+    // Model all of the slaves.
+    writer->field(
+        "slaves",
+        [master,
+         &slaveFrameworkMapping,
+         &taskStateSummaries,
+         &approvers](JSON::ArrayWriter* writer) {
+          foreachvalue (Slave* slave, master->slaves.registered) {
+            writer->element(
+                [&slave,
+                 &slaveFrameworkMapping,
+                 &taskStateSummaries,
+                 &approvers](JSON::ObjectWriter* writer) {
+                  SlaveWriter slaveWriter(*slave, approvers);
+                  slaveWriter(writer);
+
+                  // Add the 'TaskState' summary for this slave.
+                  const TaskStateSummary& summary =
+                      taskStateSummaries.slave(slave->id);
+
+                  // Certain per-agent status totals will always be zero
+                  // (e.g., TASK_ERROR, TASK_UNREACHABLE). We report
+                  // them here anyway, for completeness.
+                  //
+                  // TODO(neilc): Update for TASK_GONE and
+                  // TASK_GONE_BY_OPERATOR.
+                  writer->field("TASK_STAGING", summary.staging);
+                  writer->field("TASK_STARTING", summary.starting);
+                  writer->field("TASK_RUNNING", summary.running);
+                  writer->field("TASK_KILLING", summary.killing);
+                  writer->field("TASK_FINISHED", summary.finished);
+                  writer->field("TASK_KILLED", summary.killed);
+                  writer->field("TASK_FAILED", summary.failed);
+                  writer->field("TASK_LOST", summary.lost);
+                  writer->field("TASK_ERROR", summary.error);
+                  writer->field(
+                      "TASK_UNREACHABLE",
+                      summary.unreachable);
+
+                  // Add the ids of all the frameworks running on this
+                  // slave.
+                  const hashset<FrameworkID>& frameworks =
+                      slaveFrameworkMapping.frameworks(slave->id);
+
+                  writer->field(
+                      "framework_ids",
+                      [&frameworks](JSON::ArrayWriter* writer) {
+                        foreach (
+                            const FrameworkID& frameworkId,
+                            frameworks) {
+                          writer->element(frameworkId.value());
+                        }
+                      });
+                });
+          }
+        });
+
+    // Model all of the frameworks.
+    writer->field(
+        "frameworks",
+        [master,
+         &slaveFrameworkMapping,
+         &taskStateSummaries,
+         &approvers](JSON::ArrayWriter* writer) {
+          foreachpair (const FrameworkID& frameworkId,
+                       Framework* framework,
+                       master->frameworks.registered) {
+            // Skip unauthorized frameworks.
+            if (!approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
+              continue;
             }
 
-            // We use the tasks in the 'Frameworks' struct to compute summaries
-            // for this endpoint. This is done 1) for consistency between the
-            // 'slaves' and 'frameworks' subsections below 2) because we want to
-            // provide summary information for frameworks that are currently
-            // registered 3) the frameworks keep a circular buffer of completed
-            // tasks that we can use to keep a limited view on the history of
-            // recent completed / failed tasks.
-
-            // Generate mappings from 'slave' to 'framework' and reverse.
-            SlaveFrameworkMapping slaveFrameworkMapping(
-                master->frameworks.registered);
-
-            // Generate 'TaskState' summaries for all framework and slave ids.
-            TaskStateSummaries taskStateSummaries(
-                master->frameworks.registered);
-
-            // Model all of the slaves.
-            writer->field(
-                "slaves",
-                [this,
+            writer->element(
+                [&frameworkId,
+                 &framework,
                  &slaveFrameworkMapping,
-                 &taskStateSummaries,
-                 &approvers](JSON::ArrayWriter* writer) {
-                  foreachvalue (Slave* slave, master->slaves.registered) {
-                    writer->element(
-                        [&slave,
-                         &slaveFrameworkMapping,
-                         &taskStateSummaries,
-                         &approvers](JSON::ObjectWriter* writer) {
-                          SlaveWriter slaveWriter(*slave, approvers);
-                          slaveWriter(writer);
+                 &taskStateSummaries](JSON::ObjectWriter* writer) {
+                  json(writer, Summary<Framework>(*framework));
 
-                          // Add the 'TaskState' summary for this slave.
-                          const TaskStateSummary& summary =
-                              taskStateSummaries.slave(slave->id);
+                  // Add the 'TaskState' summary for this framework.
+                  const TaskStateSummary& summary =
+                      taskStateSummaries.framework(frameworkId);
 
-                          // Certain per-agent status totals will always be zero
-                          // (e.g., TASK_ERROR, TASK_UNREACHABLE). We report
-                          // them here anyway, for completeness.
-                          //
-                          // TODO(neilc): Update for TASK_GONE and
-                          // TASK_GONE_BY_OPERATOR.
-                          writer->field("TASK_STAGING", summary.staging);
-                          writer->field("TASK_STARTING", summary.starting);
-                          writer->field("TASK_RUNNING", summary.running);
-                          writer->field("TASK_KILLING", summary.killing);
-                          writer->field("TASK_FINISHED", summary.finished);
-                          writer->field("TASK_KILLED", summary.killed);
-                          writer->field("TASK_FAILED", summary.failed);
-                          writer->field("TASK_LOST", summary.lost);
-                          writer->field("TASK_ERROR", summary.error);
-                          writer->field(
-                              "TASK_UNREACHABLE",
-                              summary.unreachable);
+                  // TODO(neilc): Update for TASK_GONE and
+                  // TASK_GONE_BY_OPERATOR.
+                  writer->field("TASK_STAGING", summary.staging);
+                  writer->field("TASK_STARTING", summary.starting);
+                  writer->field("TASK_RUNNING", summary.running);
+                  writer->field("TASK_KILLING", summary.killing);
+                  writer->field("TASK_FINISHED", summary.finished);
+                  writer->field("TASK_KILLED", summary.killed);
+                  writer->field("TASK_FAILED", summary.failed);
+                  writer->field("TASK_LOST", summary.lost);
+                  writer->field("TASK_ERROR", summary.error);
+                  writer->field(
+                      "TASK_UNREACHABLE",
+                      summary.unreachable);
 
-                          // Add the ids of all the frameworks running on this
-                          // slave.
-                          const hashset<FrameworkID>& frameworks =
-                              slaveFrameworkMapping.frameworks(slave->id);
+                  // Add the ids of all the slaves running
+                  // this framework.
+                  const hashset<SlaveID>& slaves =
+                      slaveFrameworkMapping.slaves(frameworkId);
 
-                          writer->field(
-                              "framework_ids",
-                              [&frameworks](JSON::ArrayWriter* writer) {
-                                foreach (
-                                    const FrameworkID& frameworkId,
-                                    frameworks) {
-                                  writer->element(frameworkId.value());
-                                }
-                              });
-                        });
-                  }
+                  writer->field(
+                      "slave_ids",
+                      [&slaves](JSON::ArrayWriter* writer) {
+                        foreach (const SlaveID& slaveId, slaves) {
+                          writer->element(slaveId.value());
+                        }
+                      });
                 });
+          }
+        });
+    };
 
-            // Model all of the frameworks.
-            writer->field(
-                "frameworks",
-                [this,
-                 &slaveFrameworkMapping,
-                 &taskStateSummaries,
-                 &approvers](JSON::ArrayWriter* writer) {
-                  foreachpair (const FrameworkID& frameworkId,
-                               Framework* framework,
-                               master->frameworks.registered) {
-                    // Skip unauthorized frameworks.
-                    if (!approvers->approved<VIEW_FRAMEWORK>(framework->info)) {
-                      continue;
-                    }
-
-                    writer->element(
-                        [&frameworkId,
-                         &framework,
-                         &slaveFrameworkMapping,
-                         &taskStateSummaries](JSON::ObjectWriter* writer) {
-                          json(writer, Summary<Framework>(*framework));
-
-                          // Add the 'TaskState' summary for this framework.
-                          const TaskStateSummary& summary =
-                              taskStateSummaries.framework(frameworkId);
-
-                          // TODO(neilc): Update for TASK_GONE and
-                          // TASK_GONE_BY_OPERATOR.
-                          writer->field("TASK_STAGING", summary.staging);
-                          writer->field("TASK_STARTING", summary.starting);
-                          writer->field("TASK_RUNNING", summary.running);
-                          writer->field("TASK_KILLING", summary.killing);
-                          writer->field("TASK_FINISHED", summary.finished);
-                          writer->field("TASK_KILLED", summary.killed);
-                          writer->field("TASK_FAILED", summary.failed);
-                          writer->field("TASK_LOST", summary.lost);
-                          writer->field("TASK_ERROR", summary.error);
-                          writer->field(
-                              "TASK_UNREACHABLE",
-                              summary.unreachable);
-
-                          // Add the ids of all the slaves running
-                          // this framework.
-                          const hashset<SlaveID>& slaves =
-                              slaveFrameworkMapping.slaves(frameworkId);
-
-                          writer->field(
-                              "slave_ids",
-                              [&slaves](JSON::ArrayWriter* writer) {
-                                foreach (const SlaveID& slaveId, slaves) {
-                                  writer->element(slaveId.value());
-                                }
-                              });
-                        });
-                  }
-                });
-          };
-
-          return OK(jsonify(stateSummary), request.url.query.get("jsonp"));
-        }));
+  return OK(jsonify(stateSummary), request.url.query.get("jsonp"));
 }
 
 
