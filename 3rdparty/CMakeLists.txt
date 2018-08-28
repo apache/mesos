@@ -606,7 +606,7 @@ if (WIN32)
 
   set_target_properties(
     curl PROPERTIES
-    IMPORTED_LOCATION_DEBUG ${CURL_ROOT}-build/src/Debug/curl-d.exe
+    IMPORTED_LOCATION_DEBUG ${CURL_ROOT}-build/src/Debug/curl.exe
     IMPORTED_LOCATION_RELEASE ${CURL_ROOT}-build/src/Release/curl.exe)
 
   MAKE_INCLUDE_DIR(libcurl)
