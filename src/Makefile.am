@@ -287,6 +287,7 @@ CONTAINERIZER_PROTO = $(top_srcdir)/include/mesos/slave/containerizer.proto
 DOCKER_SPEC_PROTO = $(top_srcdir)/include/mesos/docker/spec.proto
 DOCKER_V1_PROTO = $(top_srcdir)/include/mesos/docker/v1.proto
 DOCKER_V2_PROTO = $(top_srcdir)/include/mesos/docker/v2.proto
+DOCKER_V2_2_PROTO = $(top_srcdir)/include/mesos/docker/v2_2.proto
 EXECUTOR_PROTO = $(top_srcdir)/include/mesos/executor/executor.proto
 FETCHER_PROTO = $(top_srcdir)/include/mesos/fetcher/fetcher.proto
 HOOK_PROTO = $(top_srcdir)/include/mesos/module/hook.proto
@@ -333,6 +334,8 @@ CXX_PROTOS =								\
   ../include/mesos/docker/v1.pb.h					\
   ../include/mesos/docker/v2.pb.cc					\
   ../include/mesos/docker/v2.pb.h					\
+  ../include/mesos/docker/v2_2.pb.cc					\
+  ../include/mesos/docker/v2_2.pb.h					\
   ../include/mesos/executor/executor.pb.cc				\
   ../include/mesos/executor/executor.pb.h				\
   ../include/mesos/fetcher/fetcher.pb.cc				\
@@ -688,12 +691,15 @@ docker_HEADERS =							\
   $(top_srcdir)/include/mesos/docker/v1.hpp				\
   $(top_srcdir)/include/mesos/docker/v1.proto				\
   $(top_srcdir)/include/mesos/docker/v2.hpp				\
-  $(top_srcdir)/include/mesos/docker/v2.proto
+  $(top_srcdir)/include/mesos/docker/v2.proto       \
+  $(top_srcdir)/include/mesos/docker/v2_2.hpp				\
+  $(top_srcdir)/include/mesos/docker/v2_2.proto
 
 nodist_docker_HEADERS =							\
   ../include/mesos/docker/spec.pb.h					\
   ../include/mesos/docker/v1.pb.h					\
-  ../include/mesos/docker/v2.pb.h
+  ../include/mesos/docker/v2.pb.h         \
+  ../include/mesos/docker/v2_2.pb.h
 
 executordir = $(pkgincludedir)/executor
 
@@ -1608,6 +1614,7 @@ libmesos_la_SOURCES =							\
   $(DOCKER_SPEC_PROTO)							\
   $(DOCKER_V1_PROTO)							\
   $(DOCKER_V2_PROTO)							\
+  $(DOCKER_V2_2_PROTO)							\
   $(FETCHER_PROTO)							\
   $(HOOK_PROTO)								\
   $(MAINTENANCE_PROTO)							\

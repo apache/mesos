@@ -603,6 +603,127 @@ TEST_F(DockerSpecTest, ValidateV2ImageManifestSignaturesNonEmpty)
   EXPECT_ERROR(manifest);
 }
 
+
+TEST_F(DockerSpecTest, ParseV2_2ImageManifest)
+{
+  Try<JSON::Object> json = JSON::parse<JSON::Object>(
+      R"~(
+      {
+        "schemaVersion": 2,
+        "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+        "config": {
+            "mediaType": "application/vnd.docker.container.image.v1+json",
+            "size": 7023,
+            "digest": "sha256:b5b2b2c507a0944348e0303114d8d93aaaa081732b86451d9bce1f432a537bc7"
+        },
+        "layers": [
+            {
+                "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+                "size": 32654,
+                "digest": "sha256:e692418e4cbaf90ca69d05a66403747baa33ee08806650b51fab815ad7fc331f"
+            },
+            {
+                "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+                "size": 16724,
+                "digest": "sha256:3c3a4604a545cdc127456d94e421cd355bca5b528f4a9c1905b15da2eb4a4c6b"
+            },
+            {
+                "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+                "size": 73109,
+                "digest": "sha256:ec4b8955958665577945c89419d1af06b5f7636b4ac3da7f12184802ad867736"
+            }
+        ]
+      })~");
+
+  ASSERT_SOME(json);
+
+  Try<spec::v2_2::ImageManifest> manifest = spec::v2_2::parse(json.get());
+  ASSERT_SOME(manifest);
+
+  EXPECT_EQ(2u, manifest->schemaversion());
+  EXPECT_EQ(
+      "application/vnd.docker.distribution.manifest.v2+json",
+      manifest->mediatype());
+
+  EXPECT_EQ(
+      "application/vnd.docker.container.image.v1+json",
+      manifest->config().mediatype());
+  EXPECT_EQ(7023u, manifest->config().size());
+  EXPECT_EQ(
+      "sha256:b5b2b2c507a0944348e0303114d8d93aaaa081732b86451d9bce1f432a537bc7",
+      manifest->config().digest());
+
+  EXPECT_EQ(3, manifest->layers_size());
+
+  EXPECT_EQ(
+      "application/vnd.docker.image.rootfs.diff.tar.gzip",
+      manifest->layers(0).mediatype());
+  EXPECT_EQ(32654u, manifest->layers(0).size());
+  EXPECT_EQ(
+      "sha256:e692418e4cbaf90ca69d05a66403747baa33ee08806650b51fab815ad7fc331f",
+      manifest->layers(0).digest());
+
+  EXPECT_EQ(
+      "application/vnd.docker.image.rootfs.diff.tar.gzip",
+      manifest->layers(1).mediatype());
+  EXPECT_EQ(16724u, manifest->layers(1).size());
+  EXPECT_EQ(
+      "sha256:3c3a4604a545cdc127456d94e421cd355bca5b528f4a9c1905b15da2eb4a4c6b",
+      manifest->layers(1).digest());
+
+  EXPECT_EQ(
+      "application/vnd.docker.image.rootfs.diff.tar.gzip",
+      manifest->layers(2).mediatype());
+  EXPECT_EQ(73109u, manifest->layers(2).size());
+  EXPECT_EQ(
+      "sha256:ec4b8955958665577945c89419d1af06b5f7636b4ac3da7f12184802ad867736",
+      manifest->layers(2).digest());
+}
+
+
+TEST_F(DockerSpecTest, ParseInvalidV2_2ImageManifest)
+{
+  // This is an invalid manifest. The size of the repeated fields
+  // 'layers' must be >= 1. The 'signatures' and
+  // 'schemaVersion' fields are not set.
+  Try<JSON::Object> json = JSON::parse<JSON::Object>(
+      R"~(
+      {
+        "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+        "config": {
+            "mediaType": "application/vnd.docker.container.image.v1+json",
+            "size": 7023,
+            "digest": "sha256:b5b2b2c507a0944348e0303114d8d93aaaa081732b86451d9bce1f432a537bc7"
+        }
+      })~");
+
+  ASSERT_SOME(json);
+
+  Try<spec::v2_2::ImageManifest> manifest = spec::v2_2::parse(json.get());
+  EXPECT_ERROR(manifest);
+}
+
+
+TEST_F(DockerSpecTest, ValidateV2_2ImageManifestLayersNonEmpty)
+{
+  Try<JSON::Object> json = JSON::parse<JSON::Object>(
+      R"~(
+      {
+        "schemaVersion": 2,
+        "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+        "config": {
+            "mediaType": "application/vnd.docker.container.image.v1+json",
+            "size": 7023,
+            "digest": "sha256:b5b2b2c507a0944348e0303114d8d93aaaa081732b86451d9bce1f432a537bc7"
+        }
+      })~");
+
+  ASSERT_SOME(json);
+
+  Try<spec::v2_2::ImageManifest> manifest = spec::v2_2::parse(json.get());
+  EXPECT_ERROR(manifest);
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
