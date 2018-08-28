@@ -16,15 +16,15 @@
 
 #include "master/master.hpp"
 
-#include <vector>
 #include <string>
+#include <vector>
 
 #include <mesos/mesos.hpp>
 
 #include <mesos/authorizer/authorizer.hpp>
 
-#include <process/owned.hpp>
 #include <process/http.hpp>
+#include <process/owned.hpp>
 
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
@@ -35,7 +35,6 @@
 
 #include "common/build.hpp"
 #include "common/http.hpp"
-
 
 using process::Owned;
 
@@ -637,14 +636,16 @@ process::http::Response Master::ReadOnlyHandler::frameworks(
 {
   IDAcceptor<FrameworkID> selectFrameworkId(
       request.url.query.get("framework_id"));
+
   // This lambda is consumed before the outer lambda
   // returns, hence capture by reference is fine here.
-  auto frameworks = [this, &approvers, &selectFrameworkId](
+  const Master* master = this->master;
+  auto frameworks = [master, &approvers, &selectFrameworkId](
       JSON::ObjectWriter* writer) {
     // Model all of the frameworks.
     writer->field(
         "frameworks",
-        [this, &approvers, &selectFrameworkId](
+        [master, &approvers, &selectFrameworkId](
             JSON::ArrayWriter* writer) {
           foreachvalue (
               Framework* framework, master->frameworks.registered) {
@@ -662,7 +663,7 @@ process::http::Response Master::ReadOnlyHandler::frameworks(
     // Model all of the completed frameworks.
     writer->field(
         "completed_frameworks",
-        [this, &approvers, &selectFrameworkId](
+        [master, &approvers, &selectFrameworkId](
             JSON::ArrayWriter* writer) {
           foreachvalue (const Owned<Framework>& framework,
                         master->frameworks.completed) {
@@ -691,13 +692,11 @@ process::http::Response Master::ReadOnlyHandler::slaves(
     const process::http::Request& request,
     const process::Owned<ObjectApprovers>& approvers) const
 {
-  Option<string> slaveId = request.url.query.get("slave_id");
-  Option<string> jsonp = request.url.query.get("jsonp");
-  IDAcceptor<SlaveID> selectSlaveId(slaveId);
+  IDAcceptor<SlaveID> selectSlaveId(request.url.query.get("slave_id"));
 
   return process::http::OK(
       jsonify(SlavesWriter(master->slaves, approvers, selectSlaveId)),
-      jsonp);
+      request.url.query.get("jsonp"));
 }
 
 

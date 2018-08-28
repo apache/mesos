@@ -1396,6 +1396,16 @@ private:
   public:
     explicit ReadOnlyHandler(const Master* _master) : master(_master) {}
 
+    // /frameworks
+    process::http::Response frameworks(
+        const process::http::Request& request,
+        const process::Owned<ObjectApprovers>& approvers) const;
+
+    // /slaves
+    process::http::Response slaves(
+        const process::http::Request& request,
+        const process::Owned<ObjectApprovers>& approvers) const;
+
     // /state
     process::http::Response state(
         const process::http::Request& request,
@@ -1408,16 +1418,6 @@ private:
 
     // /tasks
     process::http::Response tasks(
-        const process::http::Request& request,
-        const process::Owned<ObjectApprovers>& approvers) const;
-
-    // /slaves
-    process::http::Response slaves(
-        const process::http::Request& request,
-        const process::Owned<ObjectApprovers>& approvers) const;
-
-    // /frameworks
-    process::http::Response frameworks(
         const process::http::Request& request,
         const process::Owned<ObjectApprovers>& approvers) const;
 
@@ -1466,6 +1466,8 @@ private:
             principal) const;
 
     // /master/frameworks
+    //
+    // NOTE: Requests to this endpoint are batched.
     process::Future<process::http::Response> frameworks(
         const process::http::Request& request,
         const Option<process::http::authentication::Principal>&
@@ -1498,6 +1500,8 @@ private:
             principal) const;
 
     // /master/slaves
+    //
+    // NOTE: Requests to this endpoint are batched.
     process::Future<process::http::Response> slaves(
         const process::http::Request& request,
         const Option<process::http::authentication::Principal>&
@@ -1520,6 +1524,8 @@ private:
             principal) const;
 
     // /master/tasks
+    //
+    // NOTE: Requests to this endpoint are batched.
     process::Future<process::http::Response> tasks(
         const process::http::Request& request,
         const Option<process::http::authentication::Principal>&

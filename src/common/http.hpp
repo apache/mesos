@@ -162,6 +162,7 @@ void json(JSON::ArrayWriter* writer, const Labels& labels);
 void json(JSON::ObjectWriter* writer, const MasterInfo& info);
 void json(
     JSON::StringWriter* writer, const MasterInfo::Capability& capability);
+void json(JSON::ObjectWriter* writer, const Offer& offer);
 void json(JSON::ObjectWriter* writer, const Resources& resources);
 void json(
     JSON::ObjectWriter* writer,
@@ -171,7 +172,6 @@ void json(
     JSON::StringWriter* writer, const SlaveInfo::Capability& capability);
 void json(JSON::ObjectWriter* writer, const Task& task);
 void json(JSON::ObjectWriter* writer, const TaskStatus& status);
-void json(JSON::ObjectWriter* writer, const Offer& offer);
 
 namespace authorization {
 
