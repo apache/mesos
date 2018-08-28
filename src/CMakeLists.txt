@@ -374,6 +374,7 @@ set(MASTER_SRC
   master/metrics.cpp
   master/quota.cpp
   master/quota_handler.cpp
+  master/readonly_handler.cpp
   master/registrar.cpp
   master/registry_operations.cpp
   master/weights.cpp

@@ -177,13 +177,6 @@ static void json(JSON::ObjectWriter* writer, const TaskInfo& task)
   }
 }
 
-static void json(
-    JSON::StringWriter* writer,
-    const SlaveInfo::Capability& capability)
-{
-  writer->set(SlaveInfo::Capability::Type_Name(capability.type()));
-}
-
 namespace internal {
 namespace slave {
 

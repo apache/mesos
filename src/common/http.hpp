@@ -154,15 +154,24 @@ void json(JSON::ObjectWriter* writer, const Task& task);
 
 void json(JSON::ObjectWriter* writer, const Attributes& attributes);
 void json(JSON::ObjectWriter* writer, const CommandInfo& command);
+void json(JSON::ObjectWriter* writer, const DomainInfo& domainInfo);
 void json(JSON::ObjectWriter* writer, const ExecutorInfo& executorInfo);
+void json(
+    JSON::StringWriter* writer, const FrameworkInfo::Capability& capability);
 void json(JSON::ArrayWriter* writer, const Labels& labels);
+void json(JSON::ObjectWriter* writer, const MasterInfo& info);
+void json(
+    JSON::StringWriter* writer, const MasterInfo::Capability& capability);
 void json(JSON::ObjectWriter* writer, const Resources& resources);
 void json(
     JSON::ObjectWriter* writer,
     const google::protobuf::RepeatedPtrField<Resource>& resources);
+void json(JSON::ObjectWriter* writer, const SlaveInfo& slaveInfo);
+void json(
+    JSON::StringWriter* writer, const SlaveInfo::Capability& capability);
 void json(JSON::ObjectWriter* writer, const Task& task);
 void json(JSON::ObjectWriter* writer, const TaskStatus& status);
-void json(JSON::ObjectWriter* writer, const DomainInfo& domainInfo);
+void json(JSON::ObjectWriter* writer, const Offer& offer);
 
 namespace authorization {
 
