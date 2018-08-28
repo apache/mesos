@@ -1383,7 +1383,7 @@ Future<Response> Master::Http::getExecutors(
 
 
 mesos::master::Response::GetExecutors Master::Http::_getExecutors(
-      const Owned<ObjectApprovers>& approvers) const
+    const Owned<ObjectApprovers>& approvers) const
 {
   // Construct framework list with both active and completed frameworks.
   vector<const Framework*> frameworks;
@@ -1531,19 +1531,19 @@ Future<Response> Master::Http::flags(
   Option<string> jsonp = request.url.query.get("jsonp");
 
   return _flags(principal)
-      .then([jsonp](const Try<JSON::Object, FlagsError>& flags)
-            -> Future<Response> {
-        if (flags.isError()) {
-          switch (flags.error().type) {
-            case FlagsError::Type::UNAUTHORIZED:
-              return Forbidden();
-          }
-
-          return InternalServerError(flags.error().message);
+    .then([jsonp](const Try<JSON::Object, FlagsError>& flags)
+          -> Future<Response> {
+      if (flags.isError()) {
+        switch (flags.error().type) {
+          case FlagsError::Type::UNAUTHORIZED:
+            return Forbidden();
         }
 
-        return OK(flags.get(), jsonp);
-      });
+        return InternalServerError(flags.error().message);
+      }
+
+      return OK(flags.get(), jsonp);
+    });
 }
 
 
@@ -1563,15 +1563,15 @@ Future<Try<JSON::Object, Master::Http::FlagsError>> Master::Http::_flags(
   }
 
   return master->authorizer.get()->authorized(authRequest)
-      .then(defer(
-          master->self(),
-          [this](bool authorized) -> Future<Try<JSON::Object, FlagsError>> {
-        if (authorized) {
-          return __flags();
-        } else {
-          return FlagsError(FlagsError::Type::UNAUTHORIZED);
-        }
-      }));
+    .then(defer(
+        master->self(),
+        [this](bool authorized) -> Future<Try<JSON::Object, FlagsError>> {
+      if (authorized) {
+        return __flags();
+      } else {
+        return FlagsError(FlagsError::Type::UNAUTHORIZED);
+      }
+    }));
 }
 
 
@@ -1602,22 +1602,22 @@ Future<Response> Master::Http::getFlags(
   CHECK_EQ(mesos::master::Call::GET_FLAGS, call.type());
 
   return _flags(principal)
-      .then([contentType](const Try<JSON::Object, FlagsError>& flags)
-            -> Future<Response> {
-        if (flags.isError()) {
-          switch (flags.error().type) {
-            case FlagsError::Type::UNAUTHORIZED:
-              return Forbidden();
-          }
-
-          return InternalServerError(flags.error().message);
+    .then([contentType](const Try<JSON::Object, FlagsError>& flags)
+          -> Future<Response> {
+      if (flags.isError()) {
+        switch (flags.error().type) {
+          case FlagsError::Type::UNAUTHORIZED:
+            return Forbidden();
         }
 
-        return OK(
-            serialize(contentType,
-                      evolve<v1::master::Response::GET_FLAGS>(flags.get())),
-            stringify(contentType));
-      });
+        return InternalServerError(flags.error().message);
+      }
+
+      return OK(
+          serialize(contentType,
+                    evolve<v1::master::Response::GET_FLAGS>(flags.get())),
+          stringify(contentType));
+    });
 }
 
 
@@ -1682,21 +1682,21 @@ Future<Response> Master::Http::getMetrics(
   }
 
   return process::metrics::snapshot(timeout)
-      .then([contentType](const map<string, double>& metrics) -> Response {
-        mesos::master::Response response;
-        response.set_type(mesos::master::Response::GET_METRICS);
-        mesos::master::Response::GetMetrics* _getMetrics =
-          response.mutable_get_metrics();
+    .then([contentType](const map<string, double>& metrics) -> Response {
+      mesos::master::Response response;
+      response.set_type(mesos::master::Response::GET_METRICS);
+      mesos::master::Response::GetMetrics* _getMetrics =
+        response.mutable_get_metrics();
 
-        foreachpair (const string& key, double value, metrics) {
-          Metric* metric = _getMetrics->add_metrics();
-          metric->set_name(key);
-          metric->set_value(value);
-        }
+      foreachpair (const string& key, double value, metrics) {
+        Metric* metric = _getMetrics->add_metrics();
+        metric->set_name(key);
+        metric->set_value(value);
+      }
 
-        return OK(serialize(contentType, evolve(response)),
-                  stringify(contentType));
-      });
+      return OK(serialize(contentType, evolve(response)),
+                stringify(contentType));
+    });
 }
 
 
