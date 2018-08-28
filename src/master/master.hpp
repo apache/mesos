@@ -1411,6 +1411,11 @@ private:
         const process::http::Request& request,
         const process::Owned<ObjectApprovers>& approvers) const;
 
+    // /slaves
+    process::http::Response slaves(
+        const process::http::Request& request,
+        const process::Owned<ObjectApprovers>& approvers) const;
+
   private:
     const Master* master;
   };

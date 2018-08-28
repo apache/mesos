@@ -2517,6 +2517,20 @@ string Master::Http::SLAVES_HELP()
 }
 
 
+process::http::Response Master::ReadOnlyHandler::slaves(
+    const process::http::Request& request,
+    const process::Owned<ObjectApprovers>& approvers) const
+{
+  Option<string> slaveId = request.url.query.get("slave_id");
+  Option<string> jsonp = request.url.query.get("jsonp");
+  IDAcceptor<SlaveID> selectSlaveId(slaveId);
+
+  return process::http::OK(
+      jsonify(SlavesWriter(master->slaves, approvers, selectSlaveId)),
+      jsonp);
+}
+
+
 Future<Response> Master::Http::slaves(
     const Request& request,
     const Option<Principal>& principal) const
@@ -2526,19 +2540,12 @@ Future<Response> Master::Http::slaves(
     return redirect(request);
   }
 
-  Option<string> slaveId = request.url.query.get("slave_id");
-  Option<string> jsonp = request.url.query.get("jsonp");
-
   return ObjectApprovers::create(master->authorizer, principal, {VIEW_ROLE})
     .then(defer(
         master->self(),
-        [this, slaveId, jsonp](const Owned<ObjectApprovers>& approvers)
-            -> Response {
-          IDAcceptor<SlaveID> selectSlaveId(slaveId);
-
-          return OK(
-              jsonify(SlavesWriter(master->slaves, approvers, selectSlaveId)),
-              jsonp);
+        [this, request](const Owned<ObjectApprovers>& approvers) {
+          return deferBatchedRequest(
+              &Master::ReadOnlyHandler::slaves, request, approvers);
         }));
 }
 
