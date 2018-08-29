@@ -18,7 +18,7 @@
 Exceptions Classes
 """
 
-from __future__ import absolute_import
+
 
 
 class MesosException(Exception):

@@ -16,7 +16,7 @@
 
 # pylint: disable=missing-docstring,protected-access,too-many-locals,too-many-arguments
 
-from __future__ import absolute_import
+
 
 from collections import namedtuple
 

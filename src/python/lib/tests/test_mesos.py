@@ -18,7 +18,7 @@
 Tests for the mesos package
 """
 
-from __future__ import absolute_import
+
 
 import mesos
 

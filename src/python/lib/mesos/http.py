@@ -20,9 +20,9 @@
 Classes and functions for interacting with the Mesos HTTP RESTful API
 """
 
-from __future__ import absolute_import
 
-from urlparse import urlparse
+
+from urllib.parse import urlparse
 from copy import deepcopy
 
 import requests
@@ -84,7 +84,7 @@ class Resource(object):
     default timeout for connections, default headers to be included in each
     request, and auth.
     """
-    SUCCESS_CODES = frozenset(xrange(200, 300))
+    SUCCESS_CODES = frozenset(range(200, 300))
     ERROR_CODE_MAP = {c.STATUS_CODE: c for c in (
         MesosBadRequestException,
         MesosAuthenticationException,
