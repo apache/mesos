@@ -726,6 +726,11 @@ Future<Nothing> DockerFetcherPluginProcess::__fetch(
   // https://docs.docker.com/registry/spec/manifest-v2-2/
   //
   // If fetch is failed, program continues without schema 2 manifest.
+  //
+  // Schema 2 manifest may have foreign URLs to fetch blobs from servers
+  // other than Docker Hub. Some file layers, for example, Windows OS
+  // layers are only stored on Microsoft servers, so only with schema 2
+  // manifest, such layers can be successfully fetched.
   http::Headers s2ManifestHeaders = {
     {"Accept", "application/vnd.docker.distribution.manifest.v2+json"}
   };
