@@ -160,11 +160,7 @@ set(AGENT_SRC
   slave/containerizer/mesos/provisioner/docker/store.cpp
   slave/resource_estimators/noop.cpp)
 
-if (WIN32)
-  list(APPEND AGENT_SRC
-    slave/containerizer/mesos/isolators/windows/cpu.cpp
-    slave/containerizer/mesos/isolators/windows/mem.cpp)
-else ()
+if (NOT WIN32)
   list(APPEND AGENT_SRC
     slave/containerizer/mesos/utils.cpp
     slave/containerizer/mesos/isolators/environment_secret.cpp
@@ -376,11 +372,11 @@ set(URI_SRC
   uri/fetcher.cpp
   uri/utils.cpp
   uri/fetchers/copy.cpp
-  uri/fetchers/curl.cpp)
+  uri/fetchers/curl.cpp
+  uri/fetchers/docker.cpp)
 
 if (NOT WIN32)
   list(APPEND URI_SRC
-    uri/fetchers/docker.cpp
     uri/fetchers/hadoop.cpp)
 endif ()
 
@@ -400,6 +396,9 @@ set(WATCHER_SRC
   watcher/whitelist_watcher.cpp)
 
 set(WIN32_SRC
+  slave/containerizer/mesos/isolators/docker/runtime.cpp
+  slave/containerizer/mesos/isolators/windows/cpu.cpp
+  slave/containerizer/mesos/isolators/windows/mem.cpp
   slave/containerizer/mesos/isolators/environment_secret.cpp
   slave/containerizer/mesos/isolators/filesystem/posix.cpp
   slave/containerizer/mesos/isolators/filesystem/windows.cpp)

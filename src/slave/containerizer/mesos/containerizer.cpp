@@ -81,6 +81,7 @@
 #include "slave/containerizer/mesos/provisioner/provisioner.hpp"
 
 #ifdef __WINDOWS__
+#include "slave/containerizer/mesos/isolators/docker/runtime.hpp"
 #include "slave/containerizer/mesos/isolators/windows/cpu.hpp"
 #include "slave/containerizer/mesos/isolators/windows/mem.hpp"
 #include "slave/containerizer/mesos/isolators/filesystem/windows.hpp"
@@ -394,6 +395,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     {"disk/xfs", &XfsDiskIsolatorProcess::create},
 #endif // ENABLE_XFS_DISK_ISOLATOR
 #else
+    {"docker/runtime", &DockerRuntimeIsolatorProcess::create},
     {"windows/cpu", &WindowsCpuIsolatorProcess::create},
     {"windows/mem", &WindowsMemIsolatorProcess::create},
 #endif // __WINDOWS__
