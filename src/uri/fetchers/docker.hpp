@@ -47,6 +47,10 @@ public:
 
   static Try<process::Owned<Fetcher::Plugin>> create(const Flags& flags);
 
+  static std::string getBlobPath(
+      const std::string& directory,
+      const std::string& blobSum);
+
   virtual ~DockerFetcherPlugin();
 
   virtual std::set<std::string> schemes() const;
