@@ -414,7 +414,8 @@ Try<Subprocess> subprocess(
         child_hooks,
         stdinfds,
         stdoutfds,
-        stderrfds);
+        stderrfds,
+        whitelist_fds);
 
     if (pid.isError()) {
       return Error(pid.error());
