@@ -632,9 +632,13 @@ AS_CASE($ax_cv_cxx_compiler_vendor,
     # the same behavior. See: https://reviews.apache.org/r/32749/
     # NOTE(chhsiao): Clang 3.6.0 from the link below seems to compile Boost
     # 1.53.0/1.65.0 just fine: http://releases.llvm.org/download.html#3.6.0
-    AX_APPEND_COMPILE_FLAGS([-Wno-unused-local-typedef], [CXXFLAGS], [-Werror])
-
-    CXXFLAGS="${CXXFLAGS} -Wno-inconsistent-missing-override"
+    #
+    # Clang 3.6+ emits `-Winconsistent-missing-override` warnings for most uses
+    # of the Google Mock `MOCK_METHOD` family of macros so we suppress them
+    # here. See: https://github.com/google/googletest/issues/533
+    AX_APPEND_COMPILE_FLAGS([-Wno-unused-local-typedef \
+                             -Wno-inconsistent-missing-override],
+                            [CXXFLAGS], [-Werror])
   ], [gnu], [
     # Check for GCC version >= 4.8.
     AX_COMPARE_VERSION([$ax_cv_cxx_compiler_version], [ge], [4.8],
