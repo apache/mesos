@@ -400,6 +400,20 @@ Future<Response> Master::Http::subscribe(
           Pipe pipe;
           OK ok;
 
+          // Since the response is infinite, set the 'Connection: close'
+          // header to help indicate to intermediaries (e.g. load
+          // balancers, proxies) that the connection SHOULD NOT be
+          // re-used. Some intermediaries leave the connection to the
+          // server open when a client disconnects in order to re-use
+          // the connection as an optimization. In these cases, the
+          // subscribers do not get removed when the end client
+          // disconnects!
+          //
+          // TODO(bmahler): Libprocess currently doesn't close the
+          // the connection based on a handler setting this header,
+          // but it doesn't matter here since the response is infinite.
+          ok.headers["Connection"] = "close";
+
           ok.headers["Content-Type"] = stringify(contentType);
           ok.type = Response::PIPE;
           ok.reader = pipe.reader();
@@ -581,6 +595,21 @@ Future<Response> Master::Http::scheduler(
 
     Pipe pipe;
     OK ok;
+
+    // Since the response is infinite, set the 'Connection: close'
+    // header to help indicate to intermediaries (e.g. load
+    // balancers, proxies) that the connection SHOULD NOT be
+    // re-used. Some intermediaries leave the connection to the
+    // server open when a client disconnects in order to re-use
+    // the connection as an optimization. In these cases, the
+    // scheduler would not get removed when it disconnects from
+    // the intermediary!
+    //
+    // TODO(bmahler): Libprocess currently doesn't close the
+    // the connection based on a handler setting this header,
+    // but it doesn't matter here since the response is infinite.
+    ok.headers["Connection"] = "close";
+
     ok.headers["Content-Type"] = stringify(acceptType);
 
     ok.type = Response::PIPE;
