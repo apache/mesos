@@ -481,7 +481,7 @@ We categorize the changes as follows:
 
 <a name="1-7-x-json-serialization"></a>
 
-* As a result of adapting rapidjson for performance improvement, all JSON endpoints now conform to the ECMA-404 spec for JSON. This means that if a client has a JSON de-serializer that does not conform to ECMA-404, they may break. As an example, Mesos would previously serialize '/' as '\/', but the spec does not require the escaping and rapidjson does not escape '/'.
+* As a result of adapting rapidjson for performance improvement, all JSON endpoints serialize differently while still conforming to the ECMA-404 spec for JSON. This means that if a client has a JSON de-serializer that conforms to ECMA-404 they will see no change. Otherwise, they may break. As an example, Mesos would previously serialize '/' as '\/', but the spec does not require the escaping and rapidjson does not escape '/'.
 
 ## Upgrading from 1.5.x to 1.6.x ##
 
