@@ -52,11 +52,8 @@ Try<Owned<Fetcher>> create(const Option<Flags>& _flags)
        [flags]() { return CopyFetcherPlugin::create(flags); }},
     {HadoopFetcherPlugin::NAME,
        [flags]() { return HadoopFetcherPlugin::create(flags); }},
-#ifndef __WINDOWS__
-    // TODO(coffler): Enable Docker plugin. See MESOS-8570.
     {DockerFetcherPlugin::NAME,
        [flags]() { return DockerFetcherPlugin::create(flags); }},
-#endif // __WINDOWS__
   };
 
   vector<Owned<Fetcher::Plugin>> plugins;

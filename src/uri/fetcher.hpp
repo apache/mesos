@@ -40,13 +40,8 @@ namespace fetcher {
 class Flags :
   public virtual CopyFetcherPlugin::Flags,
   public virtual CurlFetcherPlugin::Flags,
-#ifdef __WINDOWS__
-  public virtual HadoopFetcherPlugin::Flags {};
-#else
-  // TODO(coffler): Add support for Docker plugins. See MESOS-8570.
   public virtual HadoopFetcherPlugin::Flags,
   public virtual DockerFetcherPlugin::Flags {};
-#endif // __WINDOWS__
 
 
 /**
