@@ -508,10 +508,10 @@ Future<int> CheckerProcess::nestedCommandCheck()
                        << " the " << name << " for task '" << taskId << "'";
 
           promise->discard();
+        } else {
+          previousCheckContainerId = None();
+          _nestedCommandCheck(promise);
         }
-
-        previousCheckContainerId = None();
-        _nestedCommandCheck(promise);
       }));
   } else {
     _nestedCommandCheck(promise);
