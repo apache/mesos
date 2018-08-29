@@ -40,10 +40,14 @@ add_dependencies(
   mesos-usage)
 
 if (WIN32)
-  # NOTE: The agent depends on `curl` on non-Windows platforms too, but not as
-  # part of the build. This is necessary because we use CMake to deploy
-  # `curl.exe` on Windows for use in the HTTP health checks.
-  add_dependencies(mesos-agent curl)
+  # NOTE: The agent depends on `curl` on non-Windows platforms too,
+  # but not as part of the build. This is necessary because we use
+  # CMake to deploy `curl.exe` on Windows for use in the HTTP health
+  # checks. Similarly we depend on `wclayer` to be deployed.
+  add_dependencies(
+    mesos-agent
+    curl
+    wclayer)
 else ()
   add_dependencies(
     mesos-agent

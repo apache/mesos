@@ -51,10 +51,11 @@ if (WIN32)
   # NOTE: These dependencies are only rebundled on Windows because they
   # are available as installable packages on Linux; so they live
   # exclusively in the 3rdparty repo.
-  set(CURL_URL   ${3RDPARTY_DEPENDENCIES}/curl-${CURL_VERSION}.tar.gz)
-  set(LIBAPR_URL ${3RDPARTY_DEPENDENCIES}/libapr-${LIBAPR_VERSION}.tar.gz)
-  set(ZLIB_URL   ${3RDPARTY_DEPENDENCIES}/zlib-${ZLIB_VERSION}.tar.gz)
-  set(SASL2_URL  ${3RDPARTY_DEPENDENCIES}/cyrus-sasl-${SASL2_VERSION}.tar.gz)
+  set(CURL_URL    ${3RDPARTY_DEPENDENCIES}/curl-${CURL_VERSION}.tar.gz)
+  set(LIBAPR_URL  ${3RDPARTY_DEPENDENCIES}/libapr-${LIBAPR_VERSION}.tar.gz)
+  set(ZLIB_URL    ${3RDPARTY_DEPENDENCIES}/zlib-${ZLIB_VERSION}.tar.gz)
+  set(SASL2_URL   ${3RDPARTY_DEPENDENCIES}/cyrus-sasl-${SASL2_VERSION}.tar.gz)
+  set(WCLAYER_URL ${3RDPARTY_DEPENDENCIES}/wclayer.exe)
 
   # NOTE: The Windows version of Glog is patched and only available in the
   # 3rdparty repo, not the local repo.
@@ -790,6 +791,37 @@ else ()
     INTERFACE_INCLUDE_DIRECTORIES ${CURL_INCLUDE_DIRS})
 endif ()
 
+
+# wclayer: Command line tool for manipulating Windows Container
+# storage layers.
+# https://github.com/Microsoft/hcsshim/blob/master/cmd/wclayer/wclayer.go
+#########################################################################
+if (WIN32)
+  EXTERNAL(wclayer WIP ${CMAKE_CURRENT_BINARY_DIR})
+
+  add_executable(wclayer IMPORTED GLOBAL)
+  add_dependencies(wclayer ${WCLAYER_TARGET})
+
+  # TODO(liazha): Change this to wherever you need it placed.
+  set(WCLAYER_PATH ${CMAKE_BINARY_DIR}/src/wclayer.exe)
+  set_target_properties(
+    wclayer PROPERTIES
+    IMPORTED_LOCATION ${WCLAYER_PATH})
+
+  set(WCLAYER_INSTALL_CMD ${CMAKE_COMMAND} -E copy ${WCLAYER_CMAKE_ROOT}/src/wclayer.exe ${WCLAYER_PATH})
+
+  GET_BYPRODUCTS(wclayer)
+
+  ExternalProject_Add(
+    ${WCLAYER_TARGET}
+    PREFIX              ${WCLAYER_CMAKE_ROOT}
+    BUILD_BYPRODUCTS    ${WCLAYER_BYPRODUCTS}
+    CONFIGURE_COMMAND   ${CMAKE_NOOP}
+    BUILD_COMMAND       ${CMAKE_NOOP}
+    INSTALL_COMMAND     ${WCLAYER_INSTALL_CMD}
+    DOWNLOAD_NO_EXTRACT FALSE
+    URL                 ${WCLAYER_URL})
+endif ()
 
 # bzip2: A high-quality data compressor.
 # http://www.bzip.org
