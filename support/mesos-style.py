@@ -352,12 +352,7 @@ class PyLinter(LinterBase):
     """The linter for Python files, uses pylint."""
     linter_type = 'Python'
 
-    cli_dir = os.path.join('src', 'python', 'cli_new')
-    lib_dir = os.path.join('src', 'python', 'lib')
-    support_dir = 'support'
-    source_dirs_to_lint_with_venv = [support_dir]
-    source_dirs_to_lint_with_tox = [cli_dir, lib_dir]
-    source_dirs = source_dirs_to_lint_with_tox + source_dirs_to_lint_with_venv
+    source_dirs = ['support']
 
     exclude_files = '(' \
                     r'protobuf\-2\.4\.1|' \
@@ -368,8 +363,7 @@ class PyLinter(LinterBase):
                     r'java/jni|' \
                     r'\.virtualenv|' \
                     r'\.tox|' \
-                    r'python3|' \
-                    r'cli_new' \
+                    r'python3' \
                     ')'
 
     source_files = r'\.(py)$'
@@ -377,28 +371,6 @@ class PyLinter(LinterBase):
     comment_prefix = '#'
 
     pylint_config = os.path.abspath(os.path.join('support', 'pylint.config'))
-
-    def run_tox(self, configfile, args, tox_env=None, recreate=False):
-        """
-        Runs tox with given configfile and args. Optionally set tox env
-        and/or recreate the tox-managed virtualenv.
-        """
-        support_dir = os.path.dirname(__file__)
-
-        cmd = [os.path.join(support_dir, '.virtualenv', 'bin', 'tox')]
-        cmd += ['-qq']
-        cmd += ['-c', configfile]
-        if tox_env is not None:
-            cmd += ['-e', tox_env]
-        if recreate:
-            cmd += ['--recreate']
-        cmd += ['--']
-        cmd += args
-
-        # We do not use `run_command_in_virtualenv()` here, as we
-        # directly call `tox` from inside the virtual environment bin
-        # directory without activating the virtualenv.
-        return subprocess.Popen(cmd, stdout=subprocess.PIPE)
 
     def filter_source_files(self, source_dir, source_files):
         """
@@ -418,16 +390,10 @@ class PyLinter(LinterBase):
         if not filtered_source_files:
             return 0
 
-        if source_dir in self.source_dirs_to_lint_with_tox:
-            process = self.run_tox(
-                configfile=os.path.join(source_dir, 'tox.ini'),
-                args=['--rcfile='+self.pylint_config] + filtered_source_files,
-                tox_env='py3-lint')
-        else:
-            process = self.run_command_in_virtualenv(
-                'pylint --score=n --rcfile={rcfile} {files}'.format(
-                    rcfile=self.pylint_config,
-                    files=' '.join(filtered_source_files)))
+        process = self.run_command_in_virtualenv(
+            'pylint --score=n --rcfile={rcfile} {files}'.format(
+                rcfile=self.pylint_config,
+                files=' '.join(filtered_source_files)))
 
         num_errors = 0
         for line in process.stdout:
