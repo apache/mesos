@@ -438,12 +438,12 @@ set(URI_SRC
   uri/utils.cpp
   uri/fetchers/copy.cpp
   uri/fetchers/curl.cpp
+  uri/fetchers/docker.cpp
   )
 
 if (NOT WIN32)
   set(URI_SRC
     ${URI_SRC}
-    uri/fetchers/docker.cpp
     uri/fetchers/hadoop.cpp
     )
 endif ()
@@ -469,6 +469,7 @@ set(WATCHER_SRC
 
 set(WIN32_SRC
   ${WIN32_SRC}
+  slave/containerizer/mesos/isolators/docker/runtime.cpp
   slave/containerizer/mesos/isolators/environment_secret.cpp
   slave/containerizer/mesos/isolators/filesystem/posix.cpp
   slave/containerizer/mesos/isolators/filesystem/windows.cpp
