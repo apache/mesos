@@ -15,6 +15,7 @@
 
 #ifdef __linux__
 #include <sys/prctl.h>
+#include <sys/syscall.h>
 #endif // __linux__
 #include <sys/types.h>
 
@@ -53,6 +54,102 @@ static void close(
     const Subprocess::IO::InputFileDescriptors& stdinfds,
     const Subprocess::IO::OutputFileDescriptors& stdoutfds,
     const Subprocess::IO::OutputFileDescriptors& stderrfds);
+
+
+// Convert a null-terminated string to an integer. This function
+// is async signal safe since it does not make any libc calls.
+static int convertStringToInt(const char *name)
+{
+  int num = 0;
+  while (*name >= '0' && *name <= '9') {
+    num = num * 10 + (*name - '0');
+    ++name;
+  }
+
+  if (*name) {
+    // Non digit found, not a number.
+    return -1;
+  }
+
+  return num;
+}
+
+
+// Close any file descriptors that are not stdio file descriptors and not
+// explicitly whitelisted to avoid leaking them into the forked process.
+// And unset the `close-on-exec` flag for the whitelist file descriptors
+// so that they can be inherited by the forked process.
+static void handleWhitelistFds(const std::vector<int_fd>& whitelist_fds)
+{
+  // We need to make a syscall (e.g., `SYS_getdents64` on Linux) to get each
+  // entry from `/dev/fd` since syscall function is async signal safe, but we
+  // cannot do that for macOS since Apple has decided to deprecate all syscall
+  // functions with OS 10.12 (see MESOS-8457).
+#if defined(__linux__) && defined(SYS_getdents64)
+  int fdDir = ::open("/dev/fd", O_RDONLY);
+  if (fdDir == -1) {
+    ABORT("Failed to open /dev/fd: " + os::strerror(errno));
+  }
+
+  struct linux_dirent64 {
+     ino64_t        d_ino;
+     off64_t        d_off;
+     unsigned short d_reclen;
+     unsigned char  d_type;
+     char           d_name[];
+  };
+
+  char buffer[1024];
+  int bytes;
+
+  while (true) {
+    bytes = ::syscall(SYS_getdents64, fdDir, buffer, sizeof(buffer));
+    if (bytes == -1) {
+      ABORT("Failed to call SYS_getdents64 on /dev/fd: " + os::strerror(errno));
+    }
+
+    if (bytes == 0) {
+      break;
+    }
+
+    struct linux_dirent64 *entry;
+    for (int offset = 0; offset < bytes; offset += entry->d_reclen) {
+      entry = reinterpret_cast<struct linux_dirent64 *>(buffer + offset);
+      int_fd fd = convertStringToInt(entry->d_name);
+      if (fd >= 0 &&
+          fd != fdDir &&
+          fd != STDIN_FILENO &&
+          fd != STDOUT_FILENO &&
+          fd != STDERR_FILENO) {
+        bool found = false;
+        foreach (int_fd whitelist_fd, whitelist_fds) {
+          if (whitelist_fd == fd) {
+            found = true;
+            break;
+          }
+        }
+
+        if (!found) {
+          ::close(fd);
+        }
+      }
+    }
+  }
+
+  ::close(fdDir);
+#endif
+
+  foreach (int_fd fd, whitelist_fds) {
+    int flags = ::fcntl(fd, F_GETFD);
+    if (flags == -1) {
+      ABORT("Failed to get file descriptor flags: " + os::strerror(errno));
+    }
+
+    if (::fcntl(fd, F_SETFD, flags & ~FD_CLOEXEC) == -1) {
+      ABORT("Failed to unset cloexec: " + os::strerror(errno));
+    }
+  }
+}
 
 
 inline pid_t defaultClone(const lambda::function<int()>& func)
@@ -110,6 +207,7 @@ inline int childMain(
     const InputFileDescriptors& stdinfds,
     const OutputFileDescriptors& stdoutfds,
     const OutputFileDescriptors& stderrfds,
+    const std::vector<int_fd>& whitelist_fds,
     bool blocking,
     int pipes[2],
     const std::vector<Subprocess::ChildHook>& child_hooks)
@@ -190,6 +288,8 @@ inline int childMain(
     }
   }
 
+  handleWhitelistFds(whitelist_fds);
+
   os::execvpe(path.c_str(), argv, envp);
 
   SAFE_EXIT(
@@ -207,7 +307,8 @@ inline Try<pid_t> cloneChild(
     const std::vector<Subprocess::ChildHook>& child_hooks,
     const InputFileDescriptors stdinfds,
     const OutputFileDescriptors stdoutfds,
-    const OutputFileDescriptors stderrfds)
+    const OutputFileDescriptors stderrfds,
+    const std::vector<int_fd>& whitelist_fds)
 {
   // The real arguments that will be passed to 'os::execvpe'. We need
   // to construct them here before doing the clone as it might not be
@@ -268,6 +369,7 @@ inline Try<pid_t> cloneChild(
       stdinfds,
       stdoutfds,
       stderrfds,
+      whitelist_fds,
       blocking,
       pipes.data(),
       child_hooks));
