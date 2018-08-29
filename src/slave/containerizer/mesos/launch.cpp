@@ -74,7 +74,6 @@
 
 using std::cerr;
 using std::endl;
-using std::list;
 using std::set;
 using std::string;
 using std::vector;
@@ -516,40 +515,6 @@ static Try<Nothing> enterChroot(const string& rootfs)
 #endif // __WINDOWS__
 }
 
-
-// On Windows all new processes create by Mesos go through the
-// `create_process` wrapper which with the completion of MESOS-8926
-// will prevent inadvertent leaks making this code unnecessary there.
-//
-// TODO(bbannier): Consider moving this to stout as e.g., `os::lsof`.
-#ifndef __WINDOWS__
-static Try<hashset<int_fd>> getOpenFileDescriptors()
-{
-  Try<list<string>> fds =
-#if defined(__linux__)
-    os::ls("/proc/self/fd");
-#elif defined(__APPLE__)
-    os::ls("/dev/fd");
-#endif
-
-  if (fds.isError()) {
-    return Error(fds.error());
-  }
-
-  hashset<int_fd> result;
-  foreach (const string& fd, fds.get()) {
-    Try<int_fd> fd_ = numify<int_fd>(fd);
-
-    if (fd_.isError()) {
-      return Error("Could not interpret file descriptor: " + fd_.error());
-    }
-
-    result.insert(fd_.get());
-  }
-
-  return result;
-}
-#endif // __WINDOWS__
 
 int MesosContainerizerLaunch::execute()
 {
@@ -1097,16 +1062,12 @@ int MesosContainerizerLaunch::execute()
 
 #ifndef __WINDOWS__
   // Construct a set of file descriptors to close before `exec`'ing.
-  Try<hashset<int_fd>> fds = getOpenFileDescriptors();
+  //
+  // On Windows all new processes create by Mesos go through the
+  // `create_process` wrapper which with the completion of MESOS-8926
+  // will prevent inadvertent leaks making this code unnecessary there.
+  Try<vector<int_fd>> fds = os::lsof();
   CHECK_SOME(fds);
-
-  std::set<int_fd> whitelistedFds = {
-    STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO};
-
-  // Exclude required file descriptors from closing.
-  foreach (int_fd fd, whitelistedFds) {
-    fds->erase(fd);
-  }
 
   // If we have `containerStatusFd` set, then we need to fork-exec the
   // command we are launching and checkpoint its status on exit. We
@@ -1181,9 +1142,11 @@ int MesosContainerizerLaunch::execute()
 
     // Avoid leaking not required file descriptors into the forked process.
     foreach (int_fd fd, fds.get()) {
-      // We use the unwrapped `::close` as opposed to `os::close`
-      // since the former is guaranteed to be async signal safe.
-      ::close(fd);
+      if (fd != STDIN_FILENO && fd != STDOUT_FILENO && fd != STDERR_FILENO) {
+        // We use the unwrapped `::close` as opposed to `os::close`
+        // since the former is guaranteed to be async signal safe.
+        ::close(fd);
+      }
     }
   }
 #endif // __WINDOWS__
