@@ -1354,7 +1354,8 @@ TEST_F(HealthCheckTest, HealthyTaskViaTCP)
 // Tests a healthy task via HTTP with a container image using mesos
 // containerizer. To emulate a task responsive to HTTP health checks,
 // starts Netcat in the docker "alpine" image.
-TEST_F(HealthCheckTest, ROOT_INTERNET_CURL_HealthyTaskViaHTTPWithContainerImage)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    HealthCheckTest, ROOT_INTERNET_CURL_HealthyTaskViaHTTPWithContainerImage)
 {
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
@@ -1447,8 +1448,8 @@ TEST_F(HealthCheckTest, ROOT_INTERNET_CURL_HealthyTaskViaHTTPWithContainerImage)
 // Tests a healthy task via HTTPS with a container image using mesos
 // containerizer. To emulate a task responsive to HTTPS health checks,
 // starts an HTTPS server in the docker "haosdent/https-server" image.
-TEST_F(HealthCheckTest,
-       ROOT_INTERNET_CURL_HealthyTaskViaHTTPSWithContainerImage)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    HealthCheckTest, ROOT_INTERNET_CURL_HealthyTaskViaHTTPSWithContainerImage)
 {
   master::Flags masterFlags = CreateMasterFlags();
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
@@ -1547,7 +1548,8 @@ TEST_F(HealthCheckTest,
 // NOTE: This test is almost identical to
 // ROOT_INTERNET_CURL_HealthyTaskViaHTTPWithContainerImage
 // with the difference being TCP health check.
-TEST_F(HealthCheckTest, ROOT_INTERNET_CURL_HealthyTaskViaTCPWithContainerImage)
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    HealthCheckTest, ROOT_INTERNET_CURL_HealthyTaskViaTCPWithContainerImage)
 {
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.allocation_interval = Milliseconds(50);
