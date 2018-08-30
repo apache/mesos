@@ -73,7 +73,9 @@ public:
     std::shared_ptr<TestDiskProfileServer>  server(new TestDiskProfileServer());
 
     // Wait for the process to finish initializing so that the routes are ready.
-    return process::dispatch(server->process->self(), [=] { return server; });
+    return process::dispatch(
+        server->process->self(),
+        [=]() -> std::shared_ptr<TestDiskProfileServer> { return server; });
   }
 
   ~TestDiskProfileServer()
