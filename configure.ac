@@ -627,29 +627,12 @@ AS_IF([test "x${enable_gc_unused}" = "xyes"], [
 
 AS_CASE($ax_cv_cxx_compiler_vendor,
   [clang], [
-    # Check if -Wno-unused-local-typedef is needed by checking a sample
-    # compilation which contains a local unused typedef.
-    # This is needed because Boost 1.65.0 fails to compile with upstream
-    # Clang 3.6 without -Wno-unused-local-typedef. Apple LLVM based on
-    # Clang 3.6 doesn't have the same behavior.
-    AC_LANG_PUSH([C++])
-    AC_COMPILE_IFELSE(
-    [AC_LANG_SOURCE([[
-      #pragma clang diagnostic error "-Wunused-local-typedef"
-
-      int foo()
-      {
-        typedef int return_type;
-        return 5;
-      }
-    ]])],
-    [warn_local_typedefs=no], [warn_local_typedefs=yes])
-    AC_LANG_POP([C++])
-
-    if test "x$warn_local_typedefs" = "xyes"; then
-      AC_MSG_NOTICE([Disabling warnings about unused local typedefs])
-      CXXFLAGS="${CXXFLAGS} -Wno-unused-local-typedef"
-    fi
+    # Upstream Clang 3.6 emits `-Wunused-local-typedef` warnings when compiling
+    # Boost so we suppress them here. Apple LLVM based on Clang 3.6 doesn't have
+    # the same behavior. See: https://reviews.apache.org/r/32749/
+    # NOTE(chhsiao): Clang 3.6.0 from the link below seems to compile Boost
+    # 1.53.0/1.65.0 just fine: http://releases.llvm.org/download.html#3.6.0
+    AX_APPEND_COMPILE_FLAGS([-Wno-unused-local-typedef], [CXXFLAGS], [-Werror])
 
     CXXFLAGS="${CXXFLAGS} -Wno-inconsistent-missing-override"
   ], [gnu], [
@@ -662,9 +645,8 @@ AS_CASE($ax_cv_cxx_compiler_vendor,
     fi
 
     AC_MSG_NOTICE([Setting up CXXFLAGS for g++ version >= 4.8])
-    # Boost 1.65.0 fails to compile with GCC 7.2 without
-    # -Wno-unused-local-typedefs, and automake does not recognize the
-    # flag.
+    # Boost fails to compile with GCC 4.8+ without `-Wno-unused-local-typedefs`,
+    # and automake does not recognize the flag.
     # TODO(brenden): Remove this when Boost has a resolution.
     CFLAGS="${CFLAGS} -Wno-unused-local-typedefs"
     CXXFLAGS="${CXXFLAGS} -Wno-unused-local-typedefs"
