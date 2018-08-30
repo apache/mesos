@@ -34,6 +34,7 @@ GLOG = glog-$(GLOG_VERSION)
 GOOGLETEST = googletest-release-$(GOOGLETEST_VERSION)
 GMOCK = $(GOOGLETEST)/googlemock
 GTEST = $(GOOGLETEST)/googletest
+LIBARCHIVE = libarchive-$(LIBARCHIVE_VERSION)
 PICOJSON = picojson-$(PICOJSON_VERSION)
 PROTOBUF = protobuf-$(PROTOBUF_VERSION)
 RAPIDJSON = rapidjson-$(RAPIDJSON_VERSION)
@@ -42,8 +43,9 @@ EXTRA_DIST =		\
   $(BOOST).tar.gz	\
   $(GLOG).tar.gz	\
   $(GOOGLETEST).tar.gz	\
+  $(LIBARCHIVE).tar.gz	\
   $(PICOJSON).tar.gz	\
-  $(PROTOBUF).tar.gz
+  $(PROTOBUF).tar.gz	\
   $(RAPIDJSON).tar.gz
 
 # We need to patch glog in order to deal with a compilation issue when
@@ -60,6 +62,7 @@ CLEAN_EXTRACTED =	\
   $(BOOST)		\
   $(GLOG)		\
   $(GMOCK)		\
+  $(LIBARCHIVE)		\
   $(PICOJSON)		\
   $(RAPIDJSON)		\
   $(PROTOBUF)
@@ -133,6 +136,30 @@ libgmock_la_CPPFLAGS =			\
 $(GMOCK)-build-stamp: libgmock.la
 	touch $@
 ALL_LOCAL += $(GMOCK)-build-stamp
+endif
+
+if WITH_BUNDLED_LIBARCHIVE
+LIB_LIBARCHIVE = $(LIBARCHIVE)/.libs/libarchive.la
+
+$(LIB_LIBARCHIVE): $(LIBARCHIVE)-build-stamp
+
+$(LIBARCHIVE)-build-stamp: $(LIBARCHIVE)-stamp
+	cd $(LIBARCHIVE) &&			\
+	  ./configure $(CONFIGURE_ARGS)		\
+	      --without-bz2lib			\
+	      --without-cng			\
+	      --without-expat			\
+	      --without-iconv			\
+	      --without-libiconv-prefix		\
+	      --without-lz4			\
+	      --without-lzma			\
+	      --without-nettle			\
+	      --without-openssl			\
+	      --without-xml2
+	cd $(LIBARCHIVE) && $(MAKE) $(AM_MAKEFLAGS)
+	touch $@
+
+ALL_LOCAL += $(LIB_LIBARCHIVE)
 endif
 
 if LINKGTEST
