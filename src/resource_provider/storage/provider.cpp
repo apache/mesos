@@ -1886,7 +1886,8 @@ Future<csi::v0::Client> StorageLocalResourceProviderProcess::connect(
   return future
     .then(defer(self(), [=](csi::v0::Client client) {
       return call<csi::v0::PROBE>(client, csi::v0::ProbeRequest())
-        .then(defer(self(), [=](const csi::v0::ProbeResponse& response) {
+        .then(defer(self(), [=](
+            const csi::v0::ProbeResponse& response) -> csi::v0::Client {
           return client;
         }));
     }));
@@ -1980,7 +1981,7 @@ Future<csi::v0::Client> StorageLocalResourceProviderProcess::getService(
       commandInfo,
       config->resources(),
       containerInfo,
-      std::function<Future<Nothing>()>(defer(self(), [=]() {
+      std::function<Future<Nothing>()>(defer(self(), [=]() -> Future<Nothing> {
         CHECK(services.at(containerId)->future().isPending());
 
         return connect(endpointPath)
@@ -2620,7 +2621,8 @@ Future<string> StorageLocalResourceProviderProcess::createVolume(
       *request.mutable_parameters() = profileInfo.parameters;
 
       return call<csi::v0::CREATE_VOLUME>(client, std::move(request))
-        .then(defer(self(), [=](const csi::v0::CreateVolumeResponse& response) {
+        .then(defer(self(), [=](
+            const csi::v0::CreateVolumeResponse& response) -> string {
           const csi::v0::Volume& volume = response.volume();
 
           if (volumes.contains(volume.id())) {
