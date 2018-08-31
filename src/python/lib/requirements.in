@@ -1,3 +1,3 @@
-requests>=2.17,<3
-tenacity>=4.1,<5
-ujson>=1.35,<2
+requests==2.19.1
+tenacity==4.12.0
+ujson==1.35
