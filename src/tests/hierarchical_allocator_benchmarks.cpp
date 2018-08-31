@@ -309,6 +309,174 @@ private:
   hashmap<FrameworkID, shared_ptr<FrameworkProfile>> frameworkProfiles;
 };
 
+
+// This benchmark launches frameworks with different profiles (number of tasks,
+// task sizes and etc.) and prints out statistics such as total tasks launched,
+// cluster utilization and allocation latency. The test has a timeout of 30
+// seconds.
+TEST_F(HierarchicalAllocations_BENCHMARK_TestBase, Allocations)
+{
+  // Pause the clock because we want to manually drive the allocations.
+  Clock::pause();
+
+  BenchmarkConfig config;
+
+  // Add agent profiles.
+  config.agentProfiles.push_back(AgentProfile(
+      "agent",
+      80,
+      CHECK_NOTERROR(Resources::parse("cpus:64;mem:488000")),
+      {}));
+
+  // Add framework profiles.
+
+  // A profile to simulate frameworks that launch thousands of smaller apps.
+  // It is similar in behavior to some meta-frameworks such as Marathon. This
+  // also limits max tasks per offer to 100 to spread the load more uniformly
+  // over allocation cycles.
+  for (size_t i = 0; i < 4; i++) {
+    config.frameworkProfiles.push_back(FrameworkProfile(
+        "Marathon-" + stringify(i + 1),
+        {"roleA-" + stringify(i + 1)},
+        1,
+        4000,
+        CHECK_NOTERROR(Resources::parse("cpus:0.07;mem:400;")),
+        100));
+  }
+
+  // A profile to simulate workloads where a large number of frameworks launch a
+  // handful of tasks. E.g., a large number of Jenkins masters which are trying
+  // to launch some build jobs. We enforce a task-per-offer limit of 1.
+  config.frameworkProfiles.push_back(FrameworkProfile(
+      "Jenkins",
+      {"roleB"},
+      500,
+      5,
+      CHECK_NOTERROR(Resources::parse("cpus:0.1;mem:4000;")),
+      1));
+
+  // A profile to simulate workloads where frameworks launch larger jobs that
+  // are similar in spirit to Spark dispatcher/driver model. We enforce a
+  // task-per-offer limit of 5.
+  for (size_t i = 0; i < 50; i++) {
+    config.frameworkProfiles.push_back(FrameworkProfile(
+        "SparkDispatcher-" + stringify(i + 1),
+        {"roleC-" + stringify(i + 1)},
+        1,
+        20,
+        CHECK_NOTERROR(Resources::parse("cpus:1;mem:1000;")),
+        5));
+  }
+
+  initializeCluster(config);
+
+  cout << "Start allocation\n";
+
+  // Now perform allocations. We continue until either we timeout or we have
+  // launched all of the expected tasks.
+  const Duration TEST_TIMEOUT = Seconds(30);
+
+  // Total tasks launched per framework. Used to enforce task caps.
+  hashmap<FrameworkID, size_t> frameworkTasksLaunched;
+
+  Stopwatch totalTime;
+  totalTime.start();
+
+  size_t allocationCount = 0;
+  size_t totalTasksLaunched = 0;
+  Resources clusterAllocation;
+
+  while (totalTasksLaunched < totalTasksToLaunch &&
+         totalTime.elapsed() < TEST_TIMEOUT) {
+    Stopwatch watch;
+    watch.start();
+
+    // Advance the clock and trigger a batch allocation cycle.
+    Clock::advance(config.allocationInterval);
+    Clock::settle();
+
+    watch.stop();
+
+    allocationCount++;
+
+    Future<OfferedResources> offer_ = offers.get();
+    size_t offerCount = 0;
+
+    while (offer_.isReady()) {
+      const OfferedResources& offer = offer_.get();
+      const FrameworkID& frameworkId = offer.frameworkId;
+      const FrameworkProfile& frameworkProfile =
+        getFrameworkProfile(frameworkId);
+
+      offerCount++;
+
+      Resources remainingResources = offer.resources;
+
+      // We strip allocation information of `remainingResources` so that we
+      // can compare/subtract with `frameworkProfile.taskResources`.
+      remainingResources.unallocate();
+
+      size_t tasksLaunched = 0;
+
+      while (remainingResources.contains(frameworkProfile.taskResources) &&
+             frameworkTasksLaunched[frameworkId] <
+               frameworkProfile.maxTasksPerInstance &&
+             tasksLaunched < frameworkProfile.maxTasksPerOffer) {
+        remainingResources -= frameworkProfile.taskResources;
+        frameworkTasksLaunched[frameworkId]++;
+        totalTasksLaunched++;
+        tasksLaunched++;
+        clusterAllocation += frameworkProfile.taskResources;
+      }
+
+      // We restore the allocation information to recover the resources.
+      remainingResources.allocate(offer.role);
+
+      allocator->recoverResources(
+          frameworkId,
+          offer.slaveId,
+          remainingResources,
+          None());
+
+      offer_ = offers.get();
+    }
+
+    cout << "Launched " << totalTasksLaunched << " tasks out of "
+         << totalTasksToLaunch << " total tasks in "
+         << allocationCount << " rounds. Current allocation round generated "
+         << offerCount << " offers and took " << watch.elapsed() << endl;
+  }
+
+  if (totalTasksLaunched < totalTasksToLaunch) {
+    cout << "Failed to launch all tasks: Timed out after "
+         << TEST_TIMEOUT << endl;
+  }
+
+  // Compute and print statistics around cluster capacity, cluster allocation,
+  // and allocation target.
+
+  Resources clusterCapacity;
+  for (const AgentProfile& profile : config.agentProfiles) {
+    for (size_t i = 0; i < profile.instances; i++) {
+        clusterCapacity += profile.resources;
+    }
+  }
+
+  Resources targetAllocation;
+  for (const FrameworkProfile& profile : config.frameworkProfiles) {
+    for (size_t i = 0; i < profile.instances; i++) {
+      for (size_t j = 0; j < profile.maxTasksPerInstance; j++) {
+        targetAllocation += profile.taskResources;
+      }
+    }
+  }
+
+  cout << "Resource statistics:\n";
+  cout << "Cluster capacity: " << clusterCapacity << endl;
+  cout << "Cluster allocation: " << clusterAllocation << endl;
+  cout << "Target allocation: " << targetAllocation << endl;
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
