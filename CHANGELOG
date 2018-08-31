@@ -1,11 +1,3 @@
-Release Notes - Mesos - Version 1.7.1 (WIP)
--------------------------------------------
-* This is a bug fix release.
-
-** Bug
-  * [MESOS-9185] - An attempt to remove or destroy container in composing containerizer leads to segfault.
-
-
 Release Notes - Mesos - Version 1.7.0
 -------------------------------------------
 This release contains the following highlights:
@@ -243,6 +235,7 @@ All Resolved Issues:
   * [MESOS-9170] - Zookeeper doesn't compile with newer gcc due to format error
   * [MESOS-9171] - Mesos agent crashes in CNI isolator when usage is queried
   * [MESOS-9177] - Mesos master segfaults when responding to /state requests.
+  * [MESOS-9185] - An attempt to remove or destroy container in composing containerizer leads to segfault.
   * [MESOS-9193] - Mesos build fail with Clang 3.5.
 
 ** Epic
