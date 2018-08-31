@@ -243,6 +243,7 @@ All Resolved Issues:
   * [MESOS-9170] - Zookeeper doesn't compile with newer gcc due to format error
   * [MESOS-9171] - Mesos agent crashes in CNI isolator when usage is queried
   * [MESOS-9177] - Mesos master segfaults when responding to /state requests.
+  * [MESOS-9193] - Mesos build fail with Clang 3.5.
 
 ** Epic
   * [MESOS-8564] - Port libprocess-tests suites to Windows
