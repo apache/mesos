@@ -326,9 +326,15 @@ Future<bool> CopyBackendProcess::destroy(const string& rootfs)
     .then([](const Option<int>& status) -> Future<bool> {
       if (status.isNone()) {
         return Failure("Failed to reap subprocess to destroy rootfs");
-      } else if (status.get() != 0) {
-        return Failure("Failed to destroy rootfs, exit status: " +
-                       WSTRINGIFY(status.get()));
+      }
+
+      if (status.get() != 0) {
+        // It's possible that `rm -rf` will fail if some other
+        // programs are accessing the files.  No need to return a hard
+        // failure here because the directory will be removed later
+        // and re-attempted on agent recovery.
+        LOG(ERROR) << "Failed to destroy rootfs, exit status: "
+                   << WSTRINGIFY(status.get());
       }
 
       return true;
