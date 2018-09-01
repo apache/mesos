@@ -964,10 +964,19 @@ int main(int argc, char** argv)
 
       if (error.isSome()) {
         cerr << "Failed to parse item '" << token << "' in 'volumes' flag: "
-             << error->message;
+             << error->message << endl;
         return EXIT_FAILURE;
       }
     }
+  }
+
+  // Terminate the plugin if the endpoint socket file already exists to simulate
+  // an `EADDRINUSE` bind error.
+  const string endpointPath = strings::remove("unix://", flags.endpoint);
+  if (os::exists(endpointPath)) {
+    cerr << "Failed to create endpoint '" << endpointPath << "': already exists"
+         << endl;
+    return EXIT_FAILURE;
   }
 
   unique_ptr<TestCSIPlugin> plugin(new TestCSIPlugin(
