@@ -66,11 +66,16 @@ using process::Promise;
 using master::Master;
 
 using mesos::internal::slave::AUFS_BACKEND;
+using mesos::internal::slave::Containerizer;
 using mesos::internal::slave::COPY_BACKEND;
+using mesos::internal::slave::Fetcher;
+using mesos::internal::slave::MesosContainerizer;
 using mesos::internal::slave::OVERLAY_BACKEND;
 using mesos::internal::slave::Provisioner;
 
 using mesos::master::detector::MasterDetector;
+
+using mesos::slave::ContainerTermination;
 
 using slave::ImageInfo;
 using slave::Slave;
@@ -1022,6 +1027,129 @@ TEST_P(ProvisionerDockerBackendTest, ROOT_INTERNET_CURL_DTYPE_Overwrite)
   // The non-empty file should not be overwritten by the empty file
   // '/xyz' in the 3rd layer of the testing image during provisioning.
   EXPECT_SOME(os::shell("test -s " + hostFile));
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test verifies that the container rootfs can be unmounted correctly
+// during cleanup. This is a regression test for container cleanpu EBUSY
+// issue. Please see MESOS-9196 for details.
+TEST_P(ProvisionerDockerBackendTest, ROOT_INTERNET_CURL_DTYPE_RootfsCleanup)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "docker/runtime,filesystem/linux";
+  flags.image_providers = "docker";
+  flags.image_provisioner_backend = GetParam();
+
+  Fetcher fetcher(flags);
+
+  Try<MesosContainerizer*> create =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<Containerizer> containerizer(create.get());
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      detector.get(),
+      containerizer.get(),
+      flags);
+
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
+
+  const Offer& offer = offers.get()[0];
+
+  CommandInfo command = createCommandInfo("sleep 1000");
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:128").get(),
+      command);
+
+  Image image = createDockerImage("alpine");
+
+  ContainerInfo* container = task.mutable_container();
+  container->set_type(ContainerInfo::MESOS);
+  container->mutable_mesos()->mutable_image()->CopyFrom(image);
+
+  Future<TaskStatus> statusStarting;
+  Future<TaskStatus> statusRunning;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillRepeatedly(Return());
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY_FOR(statusStarting, Seconds(60));
+  EXPECT_EQ(task.task_id(), statusStarting->task_id());
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(task.task_id(), statusRunning->task_id());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  Future<hashset<ContainerID>> containerIds = containerizer->containers();
+  AWAIT_READY(containerIds);
+  ASSERT_EQ(1u, containerIds->size());
+
+  const ContainerID& containerId = *containerIds->begin();
+  Try<hashmap<string, hashset<string>>> rootfses =
+    slave::provisioner::paths::listContainerRootfses(
+        slave::paths::getProvisionerDir(flags.work_dir),
+        containerId);
+
+  ASSERT_SOME(rootfses);
+  ASSERT_EQ(1u, rootfses->size());
+  ASSERT_EQ(1u, rootfses->values().begin()->size());
+
+  const string rootfsDir = slave::provisioner::paths::getContainerRootfsDir(
+      slave::paths::getProvisionerDir(flags.work_dir),
+      containerId,
+      *rootfses->keys().begin(),
+      *rootfses->values().begin()->begin());
+
+  // This keeps a reference to the persistent volume mount.
+  Try<int_fd> fd = os::open(
+      path::join(rootfsDir, "etc/hostname"),
+      O_WRONLY | O_TRUNC | O_CLOEXEC,
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+
+  ASSERT_SOME(fd);
+
+  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
+
+  containerizer->destroy(containerId);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait->get().has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, wait.get()->status());
+
+  // Verifies that mount point has been removed.
+  EXPECT_FALSE(os::exists(path::join(rootfsDir, "etc/hostname")));
+
+  os::close(fd.get());
 
   driver.stop();
   driver.join();
