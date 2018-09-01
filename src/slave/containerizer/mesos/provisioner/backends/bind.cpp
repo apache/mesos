@@ -195,8 +195,11 @@ Future<bool> BindBackendProcess::destroy(const string& rootfs)
     // to check `strings::startsWith(entry.target, rootfs)` here to
     // unmount all nested mounts.
     if (entry.target == rootfs) {
-      // NOTE: This would fail if the rootfs is still in use.
-      Try<Nothing> unmount = fs::unmount(entry.target);
+      // NOTE: Use MNT_DETACH here so that if there are still
+      // processes holding files or directories in the rootfs, the
+      // unmount will still be successful. The kernel will cleanup the
+      // mount when the number of references reach zero.
+      Try<Nothing> unmount = fs::unmount(entry.target, MNT_DETACH);
       if (unmount.isError()) {
         return Failure(
             "Failed to destroy bind-mounted rootfs '" + rootfs + "': " +
