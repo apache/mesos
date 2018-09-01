@@ -237,6 +237,7 @@ All Resolved Issues:
   * [MESOS-9177] - Mesos master segfaults when responding to /state requests.
   * [MESOS-9185] - An attempt to remove or destroy container in composing containerizer leads to segfault.
   * [MESOS-9193] - Mesos build fail with Clang 3.5.
+  * [MESOS-9196] - Removing rootfs mounts may fail with EBUSY.
 
 ** Epic
   * [MESOS-8564] - Port libprocess-tests suites to Windows
