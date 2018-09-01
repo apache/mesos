@@ -302,7 +302,9 @@ Future<bool> OverlayBackendProcess::destroy(
       if (realpath.isSome()) {
         Try<Nothing> rmdir = os::rmdir(realpath.get());
         if (rmdir.isError()) {
-          return Failure("");
+          return Failure(
+              "Failed to remove temporary directory for symlinks at "
+              "'" + realpath.get() + "': " + rmdir.error());
         }
 
         VLOG(1) << "Removed temporary directory '" << realpath.get()
