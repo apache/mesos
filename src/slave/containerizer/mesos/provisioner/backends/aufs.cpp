@@ -251,8 +251,11 @@ Future<bool> AufsBackendProcess::destroy(
 
   foreach (const fs::MountInfoTable::Entry& entry, mountTable->entries) {
     if (entry.target == rootfs) {
-      // NOTE: This would fail if the rootfs is still in use.
-      Try<Nothing> unmount = fs::unmount(entry.target);
+      // NOTE: Use MNT_DETACH here so that if there are still
+      // processes holding files or directories in the rootfs, the
+      // unmount will still be successful. The kernel will cleanup the
+      // mount when the number of references reach zero.
+      Try<Nothing> unmount = fs::unmount(entry.target, MNT_DETACH);
       if (unmount.isError()) {
         return Failure(
             "Failed to destroy aufs-mounted rootfs '" + rootfs + "': " +
@@ -261,9 +264,16 @@ Future<bool> AufsBackendProcess::destroy(
 
       Try<Nothing> rmdir = os::rmdir(rootfs);
       if (rmdir.isError()) {
-        return Failure(
-            "Failed to remove rootfs mount point '" + rootfs + "': " +
-            rmdir.error());
+        // NOTE: Due to the use of MNT_DETACH above, it's possible
+        // that `rmdir` will fail with EBUSY if some other mounts in
+        // other mount namespaces are still on this mount point on
+        // some old kernel (https://lwn.net/Articles/570338/). No need
+        // to return a hard failure here because the directory will be
+        // removed later and re-attempted on agent recovery.
+        //
+        // TODO(jieyu): Consider only ignore EBUSY error.
+        LOG(ERROR) << "Failed to remove rootfs mount point "
+                   << "'" << rootfs << "': " << rmdir.error();
       }
 
       // Clean up tempDir used for image layer links.
