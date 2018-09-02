@@ -261,7 +261,14 @@ inline Try<Nothing> setgroups(
   // kernel cache, while the rest would still be performed
   // correctly by the kernel (asking Directory Service to resolve
   // the groups membership).
+
+  // We need to disable the deprecation warning as Apple has decided
+  // to deprecate all syscall functions with OS 10.12 (see MESOS-8457).
+  // We are using GCC pragmas also for covering clang.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
   if (::syscall(SYS_initgroups, ngroups, _gids, uid.get()) == -1) {
+#pragma GCC diagnostic pop
     return ErrnoError();
   }
 #else
