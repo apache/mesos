@@ -188,6 +188,7 @@ All Resolved Issues:
   * [MESOS-8906] - `UriDiskProfileAdaptor` fails to update profile selectors.
   * [MESOS-8913] - Resource provider manager registry leaks file descriptors into executors.
   * [MESOS-8917] - Agent leaking file descriptors into forked processes
+  * [MESOS-8921] - Autotools don't work with newer OpenJDK versions
   * [MESOS-8932] - Quota guarantee metric does not handle removal correctly.
   * [MESOS-8935] - Quota limit "chopping" can lead to cpu-only and memory-only offers.
   * [MESOS-8945] - Master check failure due to CHECK_SOME(providerId).
