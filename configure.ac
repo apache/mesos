@@ -1423,6 +1423,8 @@ has been correctly installed.
 fi
 
 AM_CONDITIONAL([HAS_JAVA], [test "x$has_java" = "xyes"])
+AC_PATH_PROG([JAVAH], [javah], [$JAVAH], [$JAVA_HOME/bin])
+AM_CONDITIONAL([HAS_JAVAH], [test -n "x$JAVAH" != "x"])
 
 
 # Check if LevelDB prefix path was supplied and if so, add it to

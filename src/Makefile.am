@@ -2009,12 +2009,22 @@ nodist_libjava_la_SOURCES =						\
 BUILT_SOURCES += $(nodist_libjava_la_SOURCES)
 
 # The automatic variable '$(*F)' captures the matching stem (whatever matches
-# the '%') of the target (e.g., 'org_apache_mesos_Log'). We then substitute
-# '_' with '.' to get the class name (e.g., org.apache.mesos.Log).
+# the '%') of the target (e.g., 'org_apache_mesos_Log').
+# * For 'javah' recipe, we then substitute '_' with '.' to get the class name
+#   (e.g., org.apache.mesos.Log).
+# * For 'javac -h' recipe, we substitute '_' with '/' to compute the source path
+#   of the java file. Unlike 'javah', 'javac -h' requires java sources to
+#   generate headers.
 java/jni/%.h: $(MESOS_JAR)
+if HAS_JAVAH
 	$(JAVA_HOME)/bin/javah -d java/jni                              \
 	  -classpath $(MESOS_JAR):@PROTOBUF_JAR@                        \
 	   $(subst _,.,$(*F))
+else
+	$(JAVA_HOME)/bin/javac -h java/jni				\
+	  -classpath $(MESOS_JAR):@PROTOBUF_JAR@                        \
+	   $(srcdir)/java/src/$(subst _,/,$(*F)).java
+endif
 
 $(EXAMPLES_JAR): $(EXAMPLES_SOURCE)
 	@echo "Building examples.jar ..."
