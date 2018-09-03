@@ -1089,7 +1089,8 @@ public:
           (action == authorization::LAUNCH_STANDALONE_CONTAINER ||
            action == authorization::WAIT_STANDALONE_CONTAINER ||
            action == authorization::KILL_STANDALONE_CONTAINER ||
-           action == authorization::REMOVE_STANDALONE_CONTAINER));
+           action == authorization::REMOVE_STANDALONE_CONTAINER ||
+           action == authorization::VIEW_STANDALONE_CONTAINER));
 
     Option<string> subjectPrefix;
     foreach (const Label& claim, subject->claims().labels()) {
@@ -1136,7 +1137,8 @@ public:
       if (action == authorization::LAUNCH_STANDALONE_CONTAINER ||
           action == authorization::WAIT_STANDALONE_CONTAINER ||
           action == authorization::KILL_STANDALONE_CONTAINER ||
-          action == authorization::REMOVE_STANDALONE_CONTAINER) {
+          action == authorization::REMOVE_STANDALONE_CONTAINER ||
+          action == authorization::VIEW_STANDALONE_CONTAINER) {
         return getImplicitResourceProviderObjectApprover(subject, action);
       }
     }
