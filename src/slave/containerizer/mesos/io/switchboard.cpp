@@ -597,10 +597,8 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
       environment,
       None(),
       parentHooks,
-      {Subprocess::ChildHook::SETSID(),
-       Subprocess::ChildHook::UNSET_CLOEXEC(stdinToFd),
-       Subprocess::ChildHook::UNSET_CLOEXEC(stdoutFromFd),
-       Subprocess::ChildHook::UNSET_CLOEXEC(stderrFromFd)});
+      {Subprocess::ChildHook::SETSID()},
+      {stdinToFd, stdoutFromFd, stderrFromFd});
 
   if (child.isError()) {
     close(openedFds);
