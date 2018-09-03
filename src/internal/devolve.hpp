@@ -82,6 +82,7 @@ executor::Call devolve(const v1::executor::Call& call);
 executor::Event devolve(const v1::executor::Event& event);
 
 mesos::agent::Call devolve(const v1::agent::Call& call);
+mesos::agent::Response devolve(const v1::agent::Response& response);
 
 mesos::master::Call devolve(const v1::master::Call& call);
 
