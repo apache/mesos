@@ -236,6 +236,12 @@ mesos::agent::Call devolve(const v1::agent::Call& call)
 }
 
 
+mesos::agent::Response devolve(const v1::agent::Response& response)
+{
+  return devolve<mesos::agent::Response>(response);
+}
+
+
 mesos::master::Call devolve(const v1::master::Call& call)
 {
   return devolve<mesos::master::Call>(call);
