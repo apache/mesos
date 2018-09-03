@@ -2008,55 +2008,13 @@ nodist_libjava_la_SOURCES =						\
 
 BUILT_SOURCES += $(nodist_libjava_la_SOURCES)
 
-java/jni/org_apache_mesos_MesosSchedulerDriver.h: $(MESOS_JAR)
-	$(JAVA_HOME)/bin/javah -d java/jni				\
-	-classpath $(MESOS_JAR):@PROTOBUF_JAR@				\
-	  org.apache.mesos.MesosSchedulerDriver
-
-java/jni/org_apache_mesos_MesosExecutorDriver.h: $(MESOS_JAR)
-	$(JAVA_HOME)/bin/javah -d java/jni				\
-	-classpath $(MESOS_JAR):@PROTOBUF_JAR@				\
-          org.apache.mesos.MesosExecutorDriver
-
-java/jni/org_apache_mesos_Log.h: $(MESOS_JAR)
-	$(JAVA_HOME)/bin/javah -d java/jni				\
-	-classpath $(MESOS_JAR):@PROTOBUF_JAR@				\
-	  org.apache.mesos.Log
-
-java/jni/org_apache_mesos_state_AbstractState.h: $(MESOS_JAR)
-	$(JAVA_HOME)/bin/javah -d java/jni				\
-	-classpath $(MESOS_JAR):@PROTOBUF_JAR@				\
-	  org.apache.mesos.state.AbstractState
-
-java/jni/org_apache_mesos_state_LevelDBState.h: $(MESOS_JAR)
-	$(JAVA_HOME)/bin/javah -d java/jni				\
-	-classpath $(MESOS_JAR):@PROTOBUF_JAR@				\
-	  org.apache.mesos.state.LevelDBState
-
-java/jni/org_apache_mesos_state_LogState.h: $(MESOS_JAR)
-	$(JAVA_HOME)/bin/javah -d java/jni				\
-	-classpath $(MESOS_JAR):@PROTOBUF_JAR@				\
-	  org.apache.mesos.state.LogState
-
-java/jni/org_apache_mesos_state_Variable.h: $(MESOS_JAR)
-	$(JAVA_HOME)/bin/javah -d java/jni				\
-	-classpath $(MESOS_JAR):@PROTOBUF_JAR@				\
-	  org.apache.mesos.state.Variable
-
-java/jni/org_apache_mesos_state_ZooKeeperState.h: $(MESOS_JAR)
-	$(JAVA_HOME)/bin/javah -d java/jni				\
-	-classpath $(MESOS_JAR):@PROTOBUF_JAR@				\
-	  org.apache.mesos.state.ZooKeeperState
-
-java/jni/org_apache_mesos_v1_scheduler_V1Mesos.h: $(MESOS_JAR)
-	$(JAVA_HOME)/bin/javah -d java/jni				\
-	-classpath $(MESOS_JAR):@PROTOBUF_JAR@				\
-	  org.apache.mesos.v1.scheduler.V1Mesos
-
-java/jni/org_apache_mesos_v1_scheduler_V0Mesos.h: $(MESOS_JAR)
-	$(JAVA_HOME)/bin/javah -d java/jni				\
-	-classpath $(MESOS_JAR):@PROTOBUF_JAR@				\
-	  org.apache.mesos.v1.scheduler.V0Mesos
+# The automatic variable '$(*F)' captures the matching stem (whatever matches
+# the '%') of the target (e.g., 'org_apache_mesos_Log'). We then substitute
+# '_' with '.' to get the class name (e.g., org.apache.mesos.Log).
+java/jni/%.h: $(MESOS_JAR)
+	$(JAVA_HOME)/bin/javah -d java/jni                              \
+	  -classpath $(MESOS_JAR):@PROTOBUF_JAR@                        \
+	   $(subst _,.,$(*F))
 
 $(EXAMPLES_JAR): $(EXAMPLES_SOURCE)
 	@echo "Building examples.jar ..."
