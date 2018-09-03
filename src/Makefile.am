@@ -1778,7 +1778,8 @@ if HAS_JAVA
 
 $(MESOS_JAR): $(MESOS_JAR_SOURCE) $(MESOS_JAR_GENERATED) java/mesos.pom
 	@echo "Building mesos-$(PACKAGE_VERSION).jar ..."
-	@cd $(abs_top_builddir)/src/java && $(MVN) -B -f mesos.pom clean package
+	@cd $(abs_top_builddir)/src/java &&  \
+	  env JAVA_HOME=$(JAVA_HOME) $(MVN) -B -q -f mesos.pom clean package
 
 # Convenience library for JNI bindings.
 # TODO(Charles Reiss): We really should be building the Java library
@@ -1917,6 +1918,7 @@ CLEANFILES += $(EXAMPLES_JAR)
 
 maven-install: $(MESOS_JAR) java/mesos.pom
 	$(MVN) -B -f java/mesos.pom install
+	env JAVA_HOME=$(JAVA_HOME) $(MVN) -B -q -f java/mesos.pom install
 
 PHONY_TARGETS += maven-install
 endif # HAS_JAVA
