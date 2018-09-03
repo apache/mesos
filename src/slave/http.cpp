@@ -2239,7 +2239,7 @@ Future<JSON::Array> Http::__containers(
         }
 
         if (isRootContainerStandalone &&
-            !approvers->approved<VIEW_STANDALONE_CONTAINER>()) {
+            !approvers->approved<VIEW_STANDALONE_CONTAINER>(rootContainerId)) {
           continue;
         }
 
