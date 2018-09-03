@@ -123,11 +123,6 @@ Try<pid_t> SubprocessLauncher::fork(
 
 #ifndef __WINDOWS__
   childHooks.push_back(Subprocess::ChildHook::SETSID());
-
-  // TODO(jpeach) libprocess should take care of this, see MESOS-9164.
-  foreach (int_fd fd, whitelistFds) {
-    childHooks.push_back(Subprocess::ChildHook::UNSET_CLOEXEC(fd));
-  }
 #endif // __WINDOWS__
 
   Try<Subprocess> child = subprocess(
