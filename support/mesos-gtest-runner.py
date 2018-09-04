@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -27,11 +27,8 @@ program invocations ("shards"). This script provides a convenient
 wrapper around that functionality and stream-lined output.
 """
 
-
-from __future__ import print_function
-
+import argparse
 import multiprocessing
-import optparse
 import os
 import shlex
 import signal
@@ -39,10 +36,7 @@ import subprocess
 import sys
 
 
-DEFAULT_NUM_JOBS = int(multiprocessing.cpu_count() * 1.5)
-
-
-class Bcolors(object):
+class Bcolors:
     """
     A collection of tty output modifiers.
 
@@ -98,35 +92,8 @@ def run_test(opts):
         sys.stdout.flush()
         return False, error.output
 
-
 def parse_arguments():
     """Return the executable to work on, and a list of options."""
-    parser = optparse.OptionParser(
-        usage='Usage: %prog [options] <test> [-- <test_options>]')
-
-    parser.add_option(
-        '-j', '--jobs', type='int',
-        default=DEFAULT_NUM_JOBS,
-        help='number of parallel jobs to spawn. DEFAULT: {default_}'
-        .format(default_=DEFAULT_NUM_JOBS))
-
-    parser.add_option(
-        '-s', '--sequential', type='string',
-        default='',
-        help='gtest filter for tests to run sequentially')
-
-    parser.add_option(
-        '-v', '--verbosity', type='int',
-        default=1,
-        help='output verbosity:'
-        ' 0 only shows summarized information,'
-        ' 1 also shows full logs of failed shards, and anything'
-        ' >1 shows all output. DEFAULT: 1')
-
-    parser.epilog = (
-        'The environment variable MESOS_GTEST_RUNNER_FLAGS '
-        'can be used to set a default set of flags. Flags passed on the '
-        'command line always have precedence over these defaults.')
 
     # If the environment variable `MESOS_GTEST_RUNNER_FLAGS` is set we
     # use it to set a default set of flags to pass. Flags passed on
@@ -135,43 +102,80 @@ def parse_arguments():
     # We manually construct `args` here and make use of the fact that
     # in `optparser`'s implementation flags passed later on the
     # command line overrule identical flags passed earlier.
-    args = []
+
+    env_var = ''
     if 'MESOS_GTEST_RUNNER_FLAGS' in os.environ:
-        args.extend(shlex.split(os.environ['MESOS_GTEST_RUNNER_FLAGS']))
-    args.extend(sys.argv[1:])
+        env_var = os.environ['MESOS_GTEST_RUNNER_FLAGS']
 
-    (options, executable) = parser.parse_args(args)
+    env_parser = argparse.ArgumentParser()
+    env_parser.add_argument('-j', '--jobs', type=int,
+                            default=int(multiprocessing.cpu_count() * 1.5))
+    env_parser.add_argument('-s', '--sequential', type=str, default='')
+    env_parser.add_argument('-v', '--verbosity', type=int, default=1)
 
-    if not executable:
+    env_args = env_parser.parse_args(shlex.split(env_var))
+
+    # We have set the default values using the environment variable if
+    # possible, we can now parse the arguments.
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '-j', '--jobs', type=int,
+        default=env_args.jobs,
+        help='number of parallel jobs to spawn. DEFAULT: {default_}'
+        .format(default_=env_args.jobs))
+
+    parser.add_argument(
+        '-s', '--sequential', type=str,
+        default=env_args.sequential,
+        help='gtest filter for tests to run sequentially')
+
+    parser.add_argument(
+        '-v', '--verbosity', type=int,
+        default=env_args.verbosity,
+        help='output verbosity:'
+        ' 0 only shows summarized information,'
+        ' 1 also shows full logs of failed shards, and anything'
+        ' >1 shows all output. DEFAULT: 1')
+    parser.add_argument("executable", help="the executable to work on")
+
+    parser.epilog = (
+        'The environment variable MESOS_GTEST_RUNNER_FLAGS '
+        'can be used to set a default set of flags. Flags passed on the '
+        'command line always have precedence over these defaults.')
+
+    args = parser.parse_args()
+
+
+    if not args.executable:
         parser.print_usage()
         sys.exit(1)
 
-    if not os.path.isfile(executable[0]):
+    if not os.path.isfile(args.executable):
         print(
             Bcolors.colorize(
                 "ERROR: File '{file}' does not exists"
-                .format(file=executable[0]), Bcolors.FAIL),
+                .format(file=args.executable), Bcolors.FAIL),
             file=sys.stderr)
         sys.exit(1)
 
-    if not os.access(executable[0], os.X_OK):
+    if not os.access(args.executable, os.X_OK):
         print(
             Bcolors.colorize(
                 "ERROR: File '{file}' is not executable"
-                .format(file=executable[0]), Bcolors.FAIL),
+                .format(file=args.executable), Bcolors.FAIL),
             file=sys.stderr)
         sys.exit(1)
 
-    if options.sequential and options.sequential.count(':-'):
+    if args.sequential and args.sequential.count(':-'):
         print(
             Bcolors.colorize(
                 "ERROR: Cannot use negative filters in "
                 "'sequential' parameter: '{filter}'"
-                .format(filter=options.sequential), Bcolors.FAIL),
+                .format(filter=args.sequential), Bcolors.FAIL),
             file=sys.stderr)
         sys.exit(1)
 
-    if options.sequential and os.environ.get('GTEST_FILTER') and \
+    if args.sequential and os.environ.get('GTEST_FILTER') and \
             os.environ['GTEST_FILTER'].count(':-'):
         print(
             Bcolors.colorize(
@@ -184,24 +188,21 @@ def parse_arguments():
 
     # Since empty strings are falsy, directly compare against `None`
     # to preserve an empty string passed via `GTEST_FILTER`.
-    if os.environ.get('GTEST_FILTER') != None:
-        options.parallel = '{env_filter}:-{sequential_filter}'\
+    if os.environ.get('GTEST_FILTER') is not None:
+        args.parallel = '{env_filter}:-{sequential_filter}'\
                          .format(env_filter=os.environ['GTEST_FILTER'],
-                                 sequential_filter=options.sequential)
+                                 sequential_filter=args.sequential)
     else:
-        options.parallel = '*:-{sequential_filter}'\
-                         .format(sequential_filter=options.sequential)
+        args.parallel = '*:-{sequential_filter}'\
+                         .format(sequential_filter=args.sequential)
 
-    return executable, options
+    executable = args.executable
+    delattr(args, 'executable')
+    return executable, args
 
 
 if __name__ == '__main__':
     EXECUTABLE, OPTIONS = parse_arguments()
-
-    # TODO(ArmandGrillet): Remove this when we'll have switched to Python 3.
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    script_path = os.path.join(dir_path, 'check-python3.py')
-    subprocess.call('python ' + script_path, shell=True, cwd=dir_path)
 
     def options_gen(executable, filter_, jobs):
         """Generator for options for a certain shard.
@@ -209,14 +210,12 @@ if __name__ == '__main__':
         Here we set up GoogleTest specific flags, and generate
         distinct shard indices.
         """
-        opts = range(jobs)
+        opts = list(range(jobs))
 
         # If we run in a terminal, enable colored test output. We
         # still allow users to disable this themselves via extra args.
         if sys.stdout.isatty():
-            args = executable[1:]
-            executable = '{exe} --gtest_color=yes {args}'\
-                         .format(exe=executable[0], args=args if args else '')
+            executable = '{exe} --gtest_color=yes'.format(exe=executable)
 
         if filter_:
             executable = '{exe} --gtest_filter={filter}'\
@@ -231,25 +230,17 @@ if __name__ == '__main__':
         POOL = multiprocessing.Pool(processes=OPTIONS.jobs)
 
         # Run parallel tests.
-        #
-        # Multiprocessing's `map` cannot properly handle `KeyboardInterrupt` in
-        # some python versions. Use `map_async` with an explicit timeout
-        # instead. See http://stackoverflow.com/a/1408476.
         RESULTS.extend(
-            POOL.map_async(
+            POOL.map(
                 run_test,
-                options_gen(
-                    EXECUTABLE, OPTIONS.parallel, OPTIONS.jobs)).get(
-                        timeout=sys.maxint))
+                options_gen(EXECUTABLE, OPTIONS.parallel, OPTIONS.jobs)))
 
         # Now run sequential tests.
         if OPTIONS.sequential:
             RESULTS.extend(
-                POOL.map_async(
+                POOL.map(
                     run_test,
-                    options_gen(
-                        EXECUTABLE, OPTIONS.sequential, 1)).get(
-                            timeout=sys.maxint))
+                    options_gen(EXECUTABLE, OPTIONS.sequential, 1)))
 
         # Count the number of failed shards and print results from
         # failed shards.

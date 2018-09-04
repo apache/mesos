@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -29,7 +29,7 @@ DEFAULT_PRINCIPAL = 'foo'
 DEFAULT_SECRET = 'bar'
 
 
-class Process(object):
+class Process():
     """
     Helper class to keep track of process lifecycles.
 
@@ -41,7 +41,7 @@ class Process(object):
         """Initialize the Process."""
         outfile = tempfile.mktemp()
         fout = open(outfile, 'w')
-        print 'Run %s, output: %s' % (args, outfile)
+        print('Run %s, output: %s' % (args, outfile))
 
         # TODO(nnielsen): Enable glog verbose logging.
         self.process = subprocess.Popen(args,
@@ -62,7 +62,7 @@ class Process(object):
             seconds -= poll_time
             time.sleep(poll_time)
             poll = self.process.poll()
-            if poll != None:
+            if poll is not None:
                 return poll
         return True
 
@@ -141,32 +141,32 @@ def version(path):
 
 def create_master(master_version, build_path, work_dir, credfile):
     """Create a master using a specific version."""
-    print '##### Starting %s master #####' % master_version
+    print('##### Starting %s master #####' % master_version)
     master = Master(build_path, work_dir, credfile)
     if not master.sleep(0.5):
-        print '%s master exited prematurely' % master_version
+        print('%s master exited prematurely' % master_version)
         sys.exit(1)
     return master
 
 
 def create_agent(agent_version, build_path, work_dir, credfile):
     """Create an agent using a specific version."""
-    print '##### Starting %s agent #####' % agent_version
+    print('##### Starting %s agent #####' % agent_version)
     agent = Agent(build_path, work_dir, credfile)
     if not agent.sleep(0.5):
-        print '%s agent exited prematurely' % agent_version
+        print('%s agent exited prematurely' % agent_version)
         sys.exit(1)
     return agent
 
 
 def test_framework(framework_version, build_path):
     """Run a version of the test framework on a specified version of Mesos."""
-    print '##### Starting %s framework #####' % framework_version
-    print 'Waiting for %s framework to complete (10 sec max)...' % (
-        framework_version)
+    print('##### Starting %s framework #####' % framework_version)
+    print('Waiting for %s framework to complete (10 sec max)...' % (
+        framework_version))
     framework = Framework(build_path)
     if framework.sleep(10) != 0:
-        print '%s framework failed' % framework_version
+        print('%s framework failed' % framework_version)
         sys.exit(1)
 
 
@@ -187,17 +187,12 @@ def main():
                         required=True)
     args = parser.parse_args()
 
-    # TODO(ArmandGrillet): Remove this when we'll have switched to Python 3.
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    script_path = os.path.join(dir_path, 'check-python3.py')
-    subprocess.call('python ' + script_path, shell=True, cwd=dir_path)
-
     # Get the version strings from the built executables.
     prev_version = version(args.prev)
-    next_version = version(args.next)
+    next_version = version(args.__next__)
 
     if not prev_version or not next_version:
-        print 'Could not get mesos version numbers'
+        print('Could not get mesos version numbers')
         sys.exit(1)
 
     # Write credentials to temporary file.
@@ -211,9 +206,9 @@ def main():
     # Create a work directory for the agent.
     agent_work_dir = tempfile.mkdtemp()
 
-    print 'Running upgrade test from %s to %s' % (prev_version, next_version)
+    print('Running upgrade test from %s to %s' % (prev_version, next_version))
 
-    print """\
+    print("""\
 +--------------+----------------+----------------+---------------+
 | Test case    |   Framework    |     Master     |     Agent     |
 +--------------+----------------+----------------+---------------+
@@ -227,7 +222,7 @@ NOTE: live denotes that master process keeps running from previous case.
     """ % (prev_version, prev_version, prev_version,
            prev_version, next_version, prev_version,
            prev_version, next_version, next_version,
-           next_version, next_version, next_version)
+           next_version, next_version, next_version))
 
     # Test case 1.
     master = create_master(prev_version, args.prev, master_work_dir, credfile)
@@ -239,17 +234,18 @@ NOTE: live denotes that master process keeps running from previous case.
     # not detect master failover.
     agent.process.kill()
     master.process.kill()
-    master = create_master(next_version, args.next, master_work_dir, credfile)
+    master = create_master(next_version, args.__next__, master_work_dir,
+                           credfile)
     agent = create_agent(prev_version, args.prev, agent_work_dir, credfile)
     test_framework(prev_version, args.prev)
 
     # Test case 3.
     agent.process.kill()
-    agent = create_agent(next_version, args.next, agent_work_dir, credfile)
+    agent = create_agent(next_version, args.__next__, agent_work_dir, credfile)
     test_framework(prev_version, args.prev)
 
     # Test case 4.
-    test_framework(next_version, args.next)
+    test_framework(next_version, args.__next__)
 
     # Tests passed.
     sys.exit(0)

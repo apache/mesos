@@ -26,7 +26,7 @@ Mesos 1.0.0 introduced experimental support for Windows.
    For example, `C:/Program Files (x86)/mesos` is an invalid build directory.
 
 6. If developing Mesos, install [Python 3](https://www.python.org/downloads/)
-   (not Python 2), in order to use our `support/python3` scripts (e.g.
+   (not Python 2), in order to use our `support` scripts (e.g.
    to post and apply patches, or lint source code).
 
 ### Build Instructions

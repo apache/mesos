@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -40,13 +40,13 @@ $ ./support/post-reviews.py
 
 import argparse
 import atexit
-import imp
+import importlib.machinery
+import importlib.util
 import os
 import platform
 import re
-import subprocess
 import sys
-import urlparse
+import urllib.parse
 
 from distutils.version import LooseVersion
 
@@ -68,19 +68,20 @@ def execute(command, ignore_errors=False):
         return None
 
     data, _ = process.communicate()
+    data = data.decode(sys.stdout.encoding)
     status = process.wait()
     if status != 0 and not ignore_errors:
         cmdline = ' '.join(command) if isinstance(command, list) else command
         need_login = 'Please log in to the Review Board' \
                      ' server at reviews.apache.org.'
         if need_login in data:
-            print need_login, '\n'
-            print "You can either:"
-            print "  (1) Run 'rbt login', or"
-            print "  (2) Set the default USERNAME/PASSWORD in '.reviewboardrc'"
+            print(need_login, '\n')
+            print("You can either:")
+            print("  (1) Run 'rbt login', or")
+            print("  (2) Set the default USERNAME/PASSWORD in '.reviewboardrc'")
         else:
-            print 'Failed to execute: \'' + cmdline + '\':'
-            print data
+            print('Failed to execute: \'' + cmdline + '\':')
+            print(data)
         sys.exit(1)
     elif status != 0:
         return None
@@ -90,11 +91,6 @@ def execute(command, ignore_errors=False):
 def main():
     """Main function, post commits added to this branch as review requests."""
     # TODO(benh): Make sure this is a git repository, apologize if not.
-
-    # TODO(ArmandGrillet): Remove this when we'll have switched to Python 3.
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    script_path = os.path.join(dir_path, 'check-python3.py')
-    subprocess.call('python ' + script_path, shell=True, cwd=dir_path)
 
     # Choose 'rbt' if available, otherwise choose 'post-review'.
     post_review = None
@@ -111,23 +107,21 @@ def main():
     elif execute(['post-review', '--version'], ignore_errors=True):
         post_review = ['post-review']
     else:
-        print 'Please install RBTools before proceeding'
+        print('Please install RBTools before proceeding')
         sys.exit(1)
 
     # Warn if people have unstaged changes.
     diff_stat = execute(['git', 'diff', '--shortstat']).strip()
 
     if diff_stat:
-        print >> sys.stderr, \
-            'WARNING: Worktree contains unstaged changes, continuing anyway.'
+        print('WARNING: Worktree contains unstaged changes, continuing anyway.', file=sys.stderr)
 
     # Warn if people have uncommitted changes.
     diff_stat = execute(['git', 'diff', '--shortstat', '--staged']).strip()
 
     if diff_stat:
-        print >> sys.stderr, \
-            'WARNING: Worktree contains staged but uncommitted changes, ' \
-            'continuing anyway.'
+        print('WARNING: Worktree contains staged but uncommitted changes, ' \
+            'continuing anyway.', file=sys.stderr)
 
     # Grab a reference to the repo's git directory. Usually this is simply
     # .git in the repo's top level directory. However, when submodules are
@@ -171,7 +165,11 @@ def main():
     if os.path.exists(reviewboardrc_filepath):
         # Prevent generation of '.reviewboardrcc'.
         sys.dont_write_bytecode = True
-        reviewboardrc = imp.load_source('reviewboardrc', reviewboardrc_filepath)
+        loader = importlib.machinery.SourceFileLoader(
+            'reviewboardrc', reviewboardrc_filepath)
+        spec = importlib.util.spec_from_loader(loader.name, loader)
+        reviewboardrc = importlib.util.module_from_spec(spec)
+        loader.exec_module(reviewboardrc)
 
     if args.server:
         reviewboard_url = args.server
@@ -192,8 +190,8 @@ def main():
 
     # Do not work on the tracking branch.
     if branch == tracking_branch:
-        print "We're expecting you to be working on another branch" \
-              " from {}!".format(tracking_branch)
+        print("We're expecting you to be working on another branch" \
+              " from {}!".format(tracking_branch))
         sys.exit(1)
 
     temporary_branch = '_post-reviews_' + branch
@@ -209,12 +207,11 @@ def main():
     if execute([
             'git', 'merge-base', '--is-ancestor', tracking_branch, branch_ref],
             ignore_errors=True) is None:
-        print >> sys.stderr, \
-            "WARNING: Tracking branch '%s' is no direct ancestor of HEAD." \
-            " Did you forget to rebase?" % tracking_branch
+        print("WARNING: Tracking branch '%s' is no direct ancestor of HEAD." \
+            " Did you forget to rebase?" % tracking_branch, file=sys.stderr)
 
         try:
-            raw_input("Press enter to continue or 'Ctrl-C' to abort.\n")
+            input("Press enter to continue or 'Ctrl-C' to abort.\n")
         except KeyboardInterrupt:
             sys.exit(0)
 
@@ -229,8 +226,8 @@ def main():
         '(yellow)%d%Creset %s %Cgreen(%cr)%Creset',
         merge_base + '..HEAD'])
 
-    print 'Running \'%s\' across all of ...' % " ".join(post_review)
-    print output
+    print('Running \'%s\' across all of ...' % " ".join(post_review))
+    sys.stdout.buffer.write(output)
 
     log = execute(['git',
                    '--no-pager',
@@ -241,7 +238,7 @@ def main():
                    merge_base + '..HEAD']).strip()
 
     if len(log) <= 0:
-        print "No new changes compared with master branch!"
+        print("No new changes compared with master branch!")
         sys.exit(1)
 
     shas = []
@@ -266,11 +263,11 @@ def main():
         pos = message.find('Review:')
         if pos != -1:
             regex = 'Review: ({url})$'.format(
-                url=urlparse.urljoin(reviewboard_url, 'r/[0-9]+'))
+                url=urllib.parse.urljoin(reviewboard_url, 'r/[0-9]+'))
             pattern = re.compile(regex)
             match = pattern.search(message[pos:].strip().strip('/'))
             if match is None:
-                print "\nInvalid ReviewBoard URL: '{}'".format(message[pos:])
+                print("\nInvalid ReviewBoard URL: '{}'".format(message[pos:]))
                 sys.exit(1)
 
             url = match.group(1)
@@ -284,8 +281,8 @@ def main():
                 'log',
                 '--pretty=format:%Cred%H%Creset -%C(yellow)%d%Creset %s',
                 previous + '..' + sha])
-            print '\nCreating diff of:'
-            print output
+            print('\nCreating diff of:')
+            sys.stdout.buffer.write(output)
         else:
             output = check_output([
                 'git',
@@ -294,8 +291,8 @@ def main():
                 '--pretty=format:%Cred%H%Creset -%C'
                 '(yellow)%d%Creset %s %Cgreen(%cr)%Creset',
                 previous + '..' + sha])
-            print '\nUpdating diff of:'
-            print output
+            print('\nUpdating diff of:')
+            sys.stdout.buffer.write(output)
 
         # Show the "parent" commit(s).
         output = check_output([
@@ -307,11 +304,11 @@ def main():
             tracking_branch + '..' + previous])
 
         if output:
-            print '\n... with parent diff created from:'
-            print output
+            print('\n... with parent diff created from:')
+            sys.stdout.buffer.write(output)
 
         try:
-            raw_input('\nPress enter to continue or \'Ctrl-C\' to skip.\n')
+            input('\nPress enter to continue or \'Ctrl-C\' to skip.\n')
         except KeyboardInterrupt:
             i = i + 1
             previous = sha
@@ -368,9 +365,10 @@ def main():
                 ['--revision-range=' + revision_range] + \
                 sys.argv[1:]
 
-        output = execute(command).strip()
+        output = execute(command)
 
-        print output
+        # Output is a string, we convert it to a byte string before writing it.
+        sys.stdout.buffer.write(output.encode())
 
         # If we already have a request_id, continue on to the next commit in the
         # chain. We update 'previous' from the shas[] array because we have

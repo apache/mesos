@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -19,13 +19,16 @@
 """Runs checks for mesos style."""
 
 import os
+import platform
 import re
 import string
 import subprocess
 import sys
 
+from pathlib import PurePath
 
-class LinterBase(object):
+
+class LinterBase():
     """
     This is an abstract class that provides the base functionality for
     linting files in the mesos project. Its 'main()' function
@@ -104,13 +107,14 @@ class LinterBase(object):
             with open(path) as source_file:
                 # We read the three first lines of the file as the
                 # first line could be a shebang and the second line empty.
-                head = "".join([next(source_file) for _ in xrange(3)])
+                head = "".join([next(source_file) for _ in range(3)])
 
                 # TODO(bbannier) We allow `Copyright` for
                 # currently deviating files. This should be
                 # removed one we have a uniform license format.
                 regex = r'^{comment_prefix} [Licensed|Copyright]'.format(
                     comment_prefix=self.comment_prefix)
+                # pylint: disable=no-member
                 regex = re.compile(regex, re.MULTILINE)
 
                 if not regex.search(head):
@@ -148,12 +152,17 @@ class LinterBase(object):
         given command and return its output.
         """
         virtualenv = os.path.join('support', '.virtualenv')
-        command = '. {virtualenv_path}/bin/activate; {cmd}'.format(
-            virtualenv_path=virtualenv, cmd=command)
-        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
 
-        return process
+        if platform.system() == 'Windows':
+            command = r'{virtualenv_path}\Scripts\activate.bat & {cmd}'.format(
+                virtualenv_path=virtualenv, cmd=command)
+        else:
+            command = '. {virtualenv_path}/bin/activate; {cmd}'.format(
+                virtualenv_path=virtualenv, cmd=command)
 
+        return subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
+
+    # pylint: disable=unused-argument
     def run_lint(self, source_paths):
         """
         A custom function to provide linting for 'linter_type'.
@@ -163,7 +172,7 @@ class LinterBase(object):
         It should print any errors as it encounters them to provide
         feedback to the caller.
         """
-        pass
+        return 0
 
     def main(self, modified_files):
         """
@@ -176,8 +185,8 @@ class LinterBase(object):
         # the style checker from other (possibly nested) paths.
         for source_dir in self.source_dirs:
             if not os.path.exists(source_dir):
-                print "Could not find '{dir}'".format(dir=source_dir)
-                print 'Please run from the root of the mesos source directory'
+                print("Could not find '{dir}'".format(dir=source_dir))
+                print('Please run from the root of the mesos source directory')
                 exit(1)
 
         # Add all source file candidates to candidates list.
@@ -186,8 +195,8 @@ class LinterBase(object):
             for candidate in self.find_candidates(source_dir):
                 candidates.append(candidate)
 
-        # Normalize paths of any files give.
-        modified_files = map(os.path.normpath, modified_files)
+        # Normalize paths of any files given.
+        modified_files = [os.fspath(PurePath(f)) for f in modified_files]
 
         # If file paths are specified, check all file paths that are
         # candidates; else check all candidates.
@@ -201,14 +210,11 @@ class LinterBase(object):
             candidates_set)
 
         if filtered_candidates_set:
-            if len(filtered_candidates_set) == 1:
-                plural = ''
-            else:
-                plural = 's'
-            print 'Checking {num_files} {linter} file{plural}'.format(
+            plural = '' if len(filtered_candidates_set) == 1 else 's'
+            print('Checking {num_files} {linter} file{plural}'.format(
                 num_files=len(filtered_candidates_set),
                 linter=self.linter_type,
-                plural=plural)
+                plural=plural))
 
             license_errors = self.check_license_header(filtered_candidates_set)
             encoding_errors = self.check_encoding(list(filtered_candidates_set))
@@ -219,9 +225,9 @@ class LinterBase(object):
                 num_errors=total_errors))
 
             return total_errors
-        else:
-            print "No {linter} files to lint".format(linter=self.linter_type)
-            return 0
+
+        print("No {linter} files to lint".format(linter=self.linter_type))
+        return 0
 
 
 class CppLinter(LinterBase):
@@ -261,21 +267,20 @@ class CppLinter(LinterBase):
             'build/deprecated',
             'build/endif_comment',
             'build/nullptr',
-            'readability/inheritance',
-            'readability/namespace',
             'readability/todo',
+            'readability/namespace',
             'runtime/vlog',
             'whitespace/blank_line',
             'whitespace/comma',
-            'whitespace/comments',
-            'whitespace/ending_newline',
             'whitespace/end_of_line',
+            'whitespace/ending_newline',
             'whitespace/forcolon',
             'whitespace/indent',
             'whitespace/line_length',
             'whitespace/operators',
             'whitespace/semicolon',
             'whitespace/tab',
+            'whitespace/comments',
             'whitespace/todo']
 
         rules_filter = '--filter=-,+' + ',+'.join(active_rules)
@@ -283,13 +288,15 @@ class CppLinter(LinterBase):
         # We do not use a version of cpplint available through pip as
         # we use a custom version (see cpplint.path) to lint C++ files.
         process = subprocess.Popen(
-            ['python', 'support/cpplint.py', rules_filter] + source_paths,
+            [sys.executable, 'support/cpplint.py',
+             rules_filter] + source_paths,
             stderr=subprocess.PIPE,
             close_fds=True)
 
         # Lines are stored and filtered, only showing found errors instead
         # of e.g., 'Done processing XXX.' which tends to be dominant output.
         for line in process.stderr:
+            line = line.decode(sys.stdout.encoding)
             if re.match('^(Done processing |Total errors found: )', line):
                 continue
             sys.stderr.write(line)
@@ -340,6 +347,7 @@ class JsLinter(LinterBase):
         )
 
         for line in process.stdout:
+            line = line.decode(sys.stdout.encoding)
             if "Error -" in line or "Warning -" in line:
                 sys.stderr.write(line)
                 if "Error -" in line:
@@ -352,7 +360,12 @@ class PyLinter(LinterBase):
     """The linter for Python files, uses pylint."""
     linter_type = 'Python'
 
-    source_dirs = ['support']
+    cli_dir = os.path.join('src', 'python', 'cli_new')
+    lib_dir = os.path.join('src', 'python', 'lib')
+    support_dir = os.path.join('support')
+    source_dirs_to_lint_with_venv = [support_dir]
+    source_dirs_to_lint_with_tox = [cli_dir, lib_dir]
+    source_dirs = source_dirs_to_lint_with_tox + source_dirs_to_lint_with_venv
 
     exclude_files = '(' \
                     r'protobuf\-2\.4\.1|' \
@@ -362,8 +375,7 @@ class PyLinter(LinterBase):
                     r'libev\-4\.15|' \
                     r'java/jni|' \
                     r'\.virtualenv|' \
-                    r'\.tox|' \
-                    r'python3' \
+                    r'\.tox' \
                     ')'
 
     source_files = r'\.(py)$'
@@ -371,6 +383,29 @@ class PyLinter(LinterBase):
     comment_prefix = '#'
 
     pylint_config = os.path.abspath(os.path.join('support', 'pylint.config'))
+
+    def run_tox(self, configfile, args, tox_env=None, recreate=False):
+        """
+        Runs tox with given configfile and args. Optionally set tox env
+        and/or recreate the tox-managed virtualenv.
+        """
+        support_dir = os.path.dirname(__file__)
+        bin_dir = 'Script' if platform.system() == 'Windows' else 'bin'
+
+        cmd = [os.path.join(support_dir, '.virtualenv', bin_dir, 'tox')]
+        cmd += ['-qq']
+        cmd += ['-c', configfile]
+        if tox_env is not None:
+            cmd += ['-e', tox_env]
+        if recreate:
+            cmd += ['--recreate']
+        cmd += ['--']
+        cmd += args
+
+        # We do not use `run_command_in_virtualenv()` here, as we
+        # directly call `tox` from inside the virtual environment bin
+        # directory without activating the virtualenv.
+        return subprocess.Popen(cmd, stdout=subprocess.PIPE)
 
     def filter_source_files(self, source_dir, source_files):
         """
@@ -390,14 +425,21 @@ class PyLinter(LinterBase):
         if not filtered_source_files:
             return 0
 
-        process = self.run_command_in_virtualenv(
-            'pylint --score=n --rcfile={rcfile} {files}'.format(
-                rcfile=self.pylint_config,
-                files=' '.join(filtered_source_files)))
+        if source_dir in self.source_dirs_to_lint_with_tox:
+            process = self.run_tox(
+                configfile=os.path.join(source_dir, 'tox.ini'),
+                args=['--rcfile='+self.pylint_config] + filtered_source_files,
+                tox_env='py3-lint')
+        else:
+            process = self.run_command_in_virtualenv(
+                'pylint --score=n --rcfile={rcfile} {files}'.format(
+                    rcfile=self.pylint_config,
+                    files=' '.join(filtered_source_files)))
 
         num_errors = 0
         for line in process.stdout:
-            if re.match(r'^[RCWEF]: *[\d]+', line):
+            line = line.decode(sys.stdout.encoding)
+            if re.search(r'[RCWEF][0-9]{4}:', line):
                 num_errors += 1
             sys.stderr.write(line)
 
@@ -426,24 +468,26 @@ def should_build_virtualenv(modified_files):
     arguments (meaning that the entire codebase should be linted).
     """
     # NOTE: If the file list is empty, we are linting the entire test
-    # codebase. We should always rebuild the vI've irtualenv in this case.
+    # codebase. We should always rebuild the virtualenv in this case.
     if not modified_files:
         return True
 
     support_dir = os.path.dirname(__file__)
+    bin_dir = 'Script' if platform.system() == 'Windows' else 'bin'
+
     interpreter = os.path.basename(sys.executable)
-    interpreter = os.path.join(support_dir, '.virtualenv', 'bin', interpreter)
+    interpreter = os.path.join(support_dir, '.virtualenv', bin_dir, interpreter)
     if not os.path.isfile(interpreter):
         return True
 
     basenames = [os.path.basename(path) for path in modified_files]
 
     if 'pip-requirements.txt' in basenames:
-        print 'The "pip-requirements.txt" file has changed.'
+        print('The "pip-requirements.txt" file has changed.')
         return True
 
     if 'build-virtualenv' in basenames:
-        print 'The "build-virtualenv" file has changed.'
+        print('The "build-virtualenv" file has changed.')
         return True
 
     # The JS and Python linters require a virtual environment.
@@ -457,7 +501,7 @@ def should_build_virtualenv(modified_files):
 
         for basename in basenames:
             if js_and_python_files_regex.search(basename) is not None:
-                print 'Virtualenv not detected and required... building'
+                print('Virtualenv not detected and required... building')
                 return True
 
     return False
@@ -468,15 +512,29 @@ def build_virtualenv():
     Rebuild the virtualenv by running a bootstrap script.
     This will exit the program if there is a failure.
     """
-    print 'Rebuilding virtualenv...'
+    print('Rebuilding virtualenv...')
+
+    python3_env = os.environ.copy()
+    python3_env["PYTHON"] = sys.executable
+
+    build_virtualenv_file = [os.path.join('support', 'build-virtualenv')]
+
+    if platform.system() == 'Windows':
+        # TODO(andschwa): Port more of the `build-virtualenv` Bash script.
+        python_dir = os.path.dirname(sys.executable)
+        virtualenv = os.path.join(python_dir, 'Scripts', 'virtualenv.exe')
+        build_virtualenv_file = [virtualenv,
+                                 '--no-site-packages',
+                                 'support/.virtualenv']
 
     process = subprocess.Popen(
-        [os.path.join('support', 'build-virtualenv')],
+        build_virtualenv_file,
+        env=python3_env,
         stdout=subprocess.PIPE)
 
     output = ''
     for line in process.stdout:
-        output += line
+        output += line.decode(sys.stdout.encoding)
 
     process.wait()
 
@@ -484,14 +542,44 @@ def build_virtualenv():
         sys.stderr.write(output)
         sys.exit(1)
 
+    # TODO(andschwa): Move this into a script like above.
+    if platform.system() == 'Windows':
+        def run_command_in_virtualenv(command):
+            """
+            Stolen from `PyLinter`, runs command in virtualenv.
+            """
+            virtualenv = os.path.join('support',
+                                      '.virtualenv',
+                                      'Scripts',
+                                      'activate.bat')
+            command = '{virtualenv_path} & {cmd}'.format(
+                virtualenv_path=virtualenv, cmd=command)
+
+            return subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
+
+        pip_install_pip = 'python.exe -m pip install --upgrade pip'
+        process = run_command_in_virtualenv(pip_install_pip)
+        for line in process.stdout:
+            output += line.decode(sys.stdout.encoding)
+        process.wait()
+
+        if process.returncode != 0:
+            sys.stderr.write(output)
+            sys.exit(1)
+
+        pip_reqs = 'python.exe -m pip install -r support/pip-requirements.txt'
+        process = run_command_in_virtualenv(pip_reqs)
+        for line in process.stdout:
+            output += line.decode(sys.stdout.encoding)
+        process.wait()
+
+        if process.returncode != 0:
+            sys.stderr.write(output)
+            sys.exit(1)
+
 if __name__ == '__main__':
     if should_build_virtualenv(sys.argv[1:]):
         build_virtualenv()
-
-    # TODO(ArmandGrillet): Remove this when we'll have switched to Python 3.
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    script_path = os.path.join(dir_path, 'check-python3.py')
-    subprocess.call('python ' + script_path, shell=True, cwd=dir_path)
 
     # TODO(ArmandGrillet): We should only instantiate the linters
     # required to lint the files to analyze. See MESOS-8351.

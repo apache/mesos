@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -31,7 +31,9 @@ import shutil
 import subprocess
 import sys
 import time
-import urllib2
+import urllib.request
+import urllib.error
+import urllib.parse
 
 
 # The host ip and master and agent ports.
@@ -79,7 +81,7 @@ RECEIVE_TIMEOUT = 10
 RETRY_INTERVAL = 0.10
 
 
-class Subprocess(object):
+class Subprocess():
     """The process running using this script."""
     def __init__(self):
         self.current = None
@@ -92,12 +94,14 @@ class Subprocess(object):
 
 # A pointer to the top level directory of the mesos project.
 GIT_TOP_DIR = subprocess.check_output(
-    ['git', 'rev-parse', '--show-cdup']).strip()
+    ['git',
+     'rev-parse',
+     '--show-cdup']).decode(sys.stdout.encoding).strip()
 
 with open(os.path.join(GIT_TOP_DIR, 'CHANGELOG'), 'r') as f:
     if 'mesos' not in f.readline().lower():
-        print >> sys.stderr, ('You must run this command from within'
-                              ' the Mesos source repository!')
+        print(('You must run this command from within'
+               ' the Mesos source repository!'), file=sys.stderr)
         sys.exit(1)
 
 
@@ -139,14 +143,14 @@ def get_url_until_success(url):
     time_spent = 0
     while time_spent < RECEIVE_TIMEOUT:
         try:
-            helps = urllib2.urlopen(url)
+            helps = urllib.request.urlopen(url)
             break
         except Exception:
             time.sleep(RETRY_INTERVAL)
             time_spent += RETRY_INTERVAL
 
     if time_spent >= RECEIVE_TIMEOUT:
-        print >> sys.stderr, 'Timeout attempting to hit url: %s' % (url)
+        print('Timeout attempting to hit url: %s' % (url), file=sys.stderr)
         sys.exit(1)
 
     return helps.read()
@@ -180,7 +184,7 @@ def get_endpoint_path(p_id, name):
     """
     # Tokenize the endpoint by '/' (filtering
     # out any empty strings between '/'s)
-    path_parts = filter(None, name.split('/'))
+    path_parts = [_f for _f in name.split('/') if _f]
 
     # Conditionally prepend the 'id' to the list of path parts.
     # Following the notion of a 'delegate' in Mesos, we want our
@@ -219,7 +223,7 @@ def get_relative_md_path(p_id, name):
 
 def write_markdown(path, output, title):
     """Writes 'output' to the file at 'path'."""
-    print 'generating: %s' % (path)
+    print('generating: %s' % (path))
 
     dirname = os.path.dirname(path)
     if not os.path.exists(dirname):
@@ -376,11 +380,6 @@ def main():
     """
     # A dictionary of the command line options passed in.
     options = parse_options()
-
-    # TODO(ArmandGrillet): Remove this when we'll have switched to Python 3.
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    script_path = os.path.join(dir_path, 'check-python3.py')
-    subprocess.call('python ' + script_path, shell=True, cwd=dir_path)
 
     # A pointer to the current subprocess for the master or agent.
     # This is useful for tracking the master or agent subprocesses so

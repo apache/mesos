@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -34,39 +34,43 @@ Example Usage:
 
 import argparse
 import os
+import platform
 import re
-import subprocess
-from subprocess import check_output
-
 import sys
+import urllib.parse
 
+from subprocess import check_output
 
 REVIEWBOARD_URL = 'https://reviews.apache.org'
 
+def _check_output(args):
+    return check_output(args).decode(sys.stdout.encoding)
 
 def get_reviews(revision_range):
     """Return the list of reviews found in the commits in the revision range."""
     reviews = [] # List of (review id, commit log) tuples
 
-    rev_list = check_output(['git',
-                             'rev-list',
-                             '--reverse',
-                             revision_range]).strip().split('\n')
+    rev_list = _check_output(['git',
+                              'rev-list',
+                              '--reverse',
+                              revision_range]).strip().split('\n')
     for rev in rev_list:
-        commit_log = check_output(['git',
-                                   '--no-pager',
-                                   'show',
-                                   '--no-color',
-                                   '--no-patch',
-                                   rev]).strip()
+        commit_log = _check_output(['git',
+                                    '--no-pager',
+                                    'show',
+                                    '--no-color',
+                                    '--no-patch',
+                                    rev]).strip()
 
         pos = commit_log.find('Review: ')
         if pos != -1:
-            pattern = re.compile('Review: ({url})$'.format(
-                url=os.path.join(REVIEWBOARD_URL, 'r', '[0-9]+')))
+            regex = 'Review: ({url})$'.format(
+                url=urllib.parse.urljoin(REVIEWBOARD_URL, 'r/[0-9]+'))
+            pattern = re.compile(regex)
             match = pattern.search(commit_log.strip().strip('/'))
             if match is None:
-                print "\nInvalid ReviewBoard URL: '{}'".format(commit_log[pos:])
+                print("\nInvalid ReviewBoard URL: '{}'".format(
+                    commit_log[pos:]))
                 sys.exit(1)
 
             url = match.group(1)
@@ -78,13 +82,17 @@ def get_reviews(revision_range):
 def close_reviews(reviews, options):
     """Mark the given reviews as submitted on ReviewBoard."""
     for review_id, commit_log in reviews:
-        print 'Closing review', review_id
+        print('Closing review', review_id)
         if not options['dry_run']:
-            check_output(['rbt',
-                          'close',
-                          '--description',
-                          commit_log,
-                          review_id])
+            rbt_command = 'rbt'
+            # Windows command name must have `cmd` extension.
+            if platform.system() == 'Windows':
+                rbt_command = 'rbt.cmd'
+            _check_output([rbt_command,
+                           'close',
+                           '--description',
+                           commit_log,
+                           review_id])
 
 
 def parse_options():
@@ -108,54 +116,49 @@ def main():
     """Main function to push the commits in this branch as review requests."""
     options = parse_options()
 
-    # TODO(ArmandGrillet): Remove this when we'll have switched to Python 3.
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    script_path = os.path.join(dir_path, 'check-python3.py')
-    subprocess.call('python ' + script_path, shell=True, cwd=dir_path)
-
-    current_branch_ref = check_output(['git', 'symbolic-ref', 'HEAD']).strip()
+    current_branch_ref = _check_output(['git', 'symbolic-ref', 'HEAD']).strip()
     current_branch = current_branch_ref.replace('refs/heads/', '', 1)
 
     if current_branch != 'master':
-        print 'Please run this script from master branch'
+        print('Please run this script from master branch')
         sys.exit(1)
 
-    remote_tracking_branch = check_output(['git',
-                                           'rev-parse',
-                                           '--abbrev-ref',
-                                           'master@{upstream}']).strip()
+    remote_tracking_branch = _check_output(['git',
+                                            'rev-parse',
+                                            '--abbrev-ref',
+                                            'master@{upstream}']).strip()
 
-    merge_base = check_output([
+    merge_base = _check_output([
         'git',
         'merge-base',
         remote_tracking_branch,
         'master']).strip()
 
     if merge_base == current_branch_ref:
-        print 'No new commits found to push'
+        print('No new commits found to push')
         sys.exit(1)
 
     reviews = get_reviews(merge_base + ".." + current_branch_ref)
 
     # Push the current branch to remote master.
-    remote = check_output(['git',
-                           'config',
-                           '--get',
-                           'branch.master.remote']).strip()
+    remote = _check_output(['git',
+                            'config',
+                            '--get',
+                            'branch.master.remote']).strip()
 
-    print 'Pushing commits to', remote
+    print('Pushing commits to', remote)
 
     if options['dry_run']:
-        check_output(['git',
-                      'push',
-                      '--dry-run',
-                      remote,
-                      'master:master'])
+        _check_output(['git',
+                       'push',
+                       '--dry-run',
+                       remote,
+                       'master:master'])
     else:
-        check_output(['git',
-                      'push',
-                      remote,
-                      'master:master'])
+        _check_output(['git',
+                       'push',
+                       remote,
+                       'master:master'])
 
     # Now mark the reviews as submitted.
     close_reviews(reviews, options)
