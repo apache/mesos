@@ -9395,16 +9395,16 @@ void Master::offer(
             offer_.mutable_resources(), PRE_RESERVATION_REFINEMENT);
       }
 
-      // Add the offer *AND* the corresponding slave's PID.
-      message.add_offers()->MergeFrom(offer_);
-      message.add_pids(slave->pid);
-
-      offerIds.push_back(offer_.id());
-
       VLOG(2) << "Sending offer " << offer_.id()
               << " containing resources " << offered
               << " on agent " << *slave
               << " to framework " << *framework;
+
+      offerIds.push_back(offer_.id());
+
+      // Add the offer *AND* the corresponding slave's PID.
+      *message.add_offers() = std::move(offer_);
+      message.add_pids(slave->pid);
     }
   }
 
