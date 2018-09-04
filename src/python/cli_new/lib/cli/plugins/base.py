@@ -66,11 +66,11 @@ Description:
 """
 
 
-class PluginBase(object):
+class PluginBase():
     """
     Base class from which all CLI plugins should inherit.
     """
-    # pylint: disable=R0903
+    # pylint: disable=too-few-public-methods
     COMMANDS = {}
 
     def __setup__(self, command, argv):
@@ -80,7 +80,7 @@ class PluginBase(object):
         return sys.modules[self.__module__]
 
     def __init__(self, settings, config):
-        # pylint: disable=C0103
+        # pylint: disable=invalid-name
         self.PLUGIN_NAME = PLUGIN_NAME
         self.PLUGIN_CLASS = PLUGIN_CLASS
         self.VERSION = VERSION
@@ -103,7 +103,8 @@ class PluginBase(object):
         self.config = config
 
     def __autocomplete__(self, command, current_word, argv):
-        # pylint: disable=W0612,W0613,R0201
+        # pylint: disable=unused-variable,unused-argument,
+        # attribute-defined-outside-init
         return ("default", [])
 
     def __autocomplete_base__(self, current_word, argv):
@@ -112,11 +113,10 @@ class PluginBase(object):
         # <command>
         comp_words = list(self.COMMANDS.keys())
         comp_words = cli.util.completions(comp_words, current_word, argv)
-        if comp_words != None:
+        if comp_words is not None:
             return (option, comp_words)
 
         # <args>...
-        # pylint: disable=R0204
         comp_words = self.__autocomplete__(argv[0], current_word, argv[1:])
 
         # In general, we expect a tuple to be returned from __autocomplete__,

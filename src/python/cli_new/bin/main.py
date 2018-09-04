@@ -67,7 +67,7 @@ def autocomplete(cmds, plugins, config, argv):
 
     comp_words = list(cmds.keys()) + ["help"]
     comp_words = cli.util.completions(comp_words, current_word, argv)
-    if comp_words != None:
+    if comp_words is not None:
         return (option, comp_words)
 
     plugin = cli.util.get_module(plugins, argv[0])

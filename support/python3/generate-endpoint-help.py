@@ -81,7 +81,7 @@ RECEIVE_TIMEOUT = 10
 RETRY_INTERVAL = 0.10
 
 
-class Subprocess(object):
+class Subprocess():
     """The process running using this script."""
     def __init__(self):
         self.current = None

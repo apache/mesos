@@ -18,7 +18,7 @@
 The agent plugin.
 """
 
-import cli.http as http
+from cli import http
 
 from cli.exceptions import CLIException
 from cli.plugins import PluginBase

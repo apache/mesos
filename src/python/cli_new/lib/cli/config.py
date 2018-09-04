@@ -28,7 +28,7 @@ from cli.constants import DEFAULT_MASTER_PORT
 from cli.exceptions import CLIException
 
 
-class Config(object):
+class Config():
     """
     The Config class loads the configuration file on initialization and has
     one method for each element that can be specified in the config file.

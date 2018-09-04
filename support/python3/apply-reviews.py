@@ -85,7 +85,7 @@ def patch_url(options):
         return '{base}/{review}/diff/raw/'.format(
             base=REVIEWBOARD_REVIEW_URL,
             review=options['review_id'])
-    elif options['github']:
+    if options['github']:
         return '{base}/{patch}.patch'.format(
             base=GITHUB_PATCH_URL,
             patch=options['github'])
@@ -132,10 +132,9 @@ def review_chain(review_id):
         review = (review_id, json_obj.get('review_request').get('summary'))
         if review not in review_list:
             return review_list + [review]
-        else:
-            sys.stderr.write('Found a circular dependency in the chain starting'
-                             ' at {review}\n'.format(review=review_id))
-            sys.exit(1)
+        sys.stderr.write('Found a circular dependency in the chain starting'
+                         ' at {review}\n'.format(review=review_id))
+        sys.exit(1)
 
 
 def shell(command, dry_run):
@@ -303,7 +302,7 @@ def patch_data(options):
     """
     if options['review_id']:
         return reviewboard_data(options)
-    elif options['github']:
+    if options['github']:
         return github_data(options)
     return None
 

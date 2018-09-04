@@ -101,6 +101,7 @@ def extract_review_id(url):
     review_id = re.search(REVIEWBOARD_API_URL + r'/(\d+)/', url)
     if review_id:
         return review_id.group(1)
+    return None
 
 
 def review_chain(review_id):
@@ -121,7 +122,7 @@ def review_chain(review_id):
         sys.stderr.write('Error: Review {review} has more than'
                          ' one parent'.format(review=review_id))
         sys.exit(1)
-    elif len(parent) == 0:
+    elif not parent:
         return [(review_id, json_obj.get('review_request').get('summary'))]
     else:
         # The review has exactly one parent.
@@ -303,8 +304,7 @@ def patch_data(options):
         return reviewboard_data(options)
     elif options['github']:
         return github_data(options)
-    else:
-        return None
+    return None
 
 
 def get_author(patch):

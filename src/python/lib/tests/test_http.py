@@ -264,14 +264,12 @@ def test_resource_request_json(
     def json_side_effect(_):
         if json_exception is None:
             return {'some': 'return_value'}
-        else:
-            raise json_exception
+        raise json_exception
 
     def request_side_effect(*_, **__):
         if request_exception is None:
             return mock.Mock(status_code=resp_status)
-        else:
-            raise request_exception
+        raise request_exception
 
     mock_mesos_http_request.side_effect = request_side_effect
     mock_ujson_loads.side_effect = json_side_effect

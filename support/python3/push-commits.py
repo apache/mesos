@@ -44,23 +44,23 @@ from subprocess import check_output
 REVIEWBOARD_URL = 'https://reviews.apache.org'
 
 def _check_output(args):
-  return check_output(args).decode(sys.stdout.encoding)
+    return check_output(args).decode(sys.stdout.encoding)
 
 def get_reviews(revision_range):
     """Return the list of reviews found in the commits in the revision range."""
     reviews = [] # List of (review id, commit log) tuples
 
     rev_list = _check_output(['git',
-                             'rev-list',
-                             '--reverse',
-                             revision_range]).strip().split('\n')
+                              'rev-list',
+                              '--reverse',
+                              revision_range]).strip().split('\n')
     for rev in rev_list:
         commit_log = _check_output(['git',
-                                   '--no-pager',
-                                   'show',
-                                   '--no-color',
-                                   '--no-patch',
-                                   rev]).strip()
+                                    '--no-pager',
+                                    'show',
+                                    '--no-color',
+                                    '--no-patch',
+                                    rev]).strip()
 
         pos = commit_log.find('Review: ')
         if pos != -1:
@@ -89,10 +89,10 @@ def close_reviews(reviews, options):
             if platform.system() == 'Windows':
                 rbt_command = 'rbt.cmd'
             _check_output([rbt_command,
-                          'close',
-                          '--description',
-                          commit_log,
-                          review_id])
+                           'close',
+                           '--description',
+                           commit_log,
+                           review_id])
 
 
 def parse_options():
@@ -124,9 +124,9 @@ def main():
         sys.exit(1)
 
     remote_tracking_branch = _check_output(['git',
-                                           'rev-parse',
-                                           '--abbrev-ref',
-                                           'master@{upstream}']).strip()
+                                            'rev-parse',
+                                            '--abbrev-ref',
+                                            'master@{upstream}']).strip()
 
     merge_base = _check_output([
         'git',
@@ -142,23 +142,23 @@ def main():
 
     # Push the current branch to remote master.
     remote = _check_output(['git',
-                           'config',
-                           '--get',
-                           'branch.master.remote']).strip()
+                            'config',
+                            '--get',
+                            'branch.master.remote']).strip()
 
     print('Pushing commits to', remote)
 
     if options['dry_run']:
         _check_output(['git',
-                      'push',
-                      '--dry-run',
-                      remote,
-                      'master:master'])
+                       'push',
+                       '--dry-run',
+                       remote,
+                       'master:master'])
     else:
         _check_output(['git',
-                      'push',
-                      remote,
-                      'master:master'])
+                       'push',
+                       remote,
+                       'master:master'])
 
     # Now mark the reviews as submitted.
     close_reviews(reviews, options)

@@ -49,7 +49,7 @@ once docopt supports the "program" argument natively.
 import os
 import sys
 
-# pylint: disable=F0401
+# pylint: disable=import-error
 from docopt import docopt as real_docopt, DocoptExit
 
 

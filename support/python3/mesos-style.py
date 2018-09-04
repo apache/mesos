@@ -25,8 +25,10 @@ import string
 import subprocess
 import sys
 
+from pathlib import PurePath
 
-class LinterBase(object):
+
+class LinterBase():
     """
     This is an abstract class that provides the base functionality for
     linting files in the mesos project. Its 'main()' function
@@ -152,7 +154,7 @@ class LinterBase(object):
         virtualenv = os.path.join('support', '.virtualenv')
 
         if platform.system() == 'Windows':
-            command = '{virtualenv_path}\Scripts\activate.bat & {cmd}'.format(
+            command = r'{virtualenv_path}\Scripts\activate.bat & {cmd}'.format(
                 virtualenv_path=virtualenv, cmd=command)
         else:
             command = '. {virtualenv_path}/bin/activate; {cmd}'.format(
@@ -160,6 +162,7 @@ class LinterBase(object):
 
         return subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
 
+    # pylint: disable=unused-argument
     def run_lint(self, source_paths):
         """
         A custom function to provide linting for 'linter_type'.
@@ -169,7 +172,7 @@ class LinterBase(object):
         It should print any errors as it encounters them to provide
         feedback to the caller.
         """
-        pass
+        return 0
 
     def main(self, modified_files):
         """
@@ -192,8 +195,8 @@ class LinterBase(object):
             for candidate in self.find_candidates(source_dir):
                 candidates.append(candidate)
 
-        # Normalize paths of any files give.
-        modified_files = map(os.path.normpath, modified_files)
+        # Normalize paths of any files given.
+        modified_files = [os.fspath(PurePath(f)) for f in modified_files]
 
         # If file paths are specified, check all file paths that are
         # candidates; else check all candidates.
@@ -439,7 +442,7 @@ class PyLinter(LinterBase):
         num_errors = 0
         for line in process.stdout:
             line = line.decode(sys.stdout.encoding)
-            if re.match(r'^[RCWEF]: *[\d]+', line):
+            if re.search(r'[RCWEF][0-9]{4}:', line):
                 num_errors += 1
             sys.stderr.write(line)
 
@@ -519,16 +522,18 @@ def build_virtualenv():
     python3_env = os.environ.copy()
     python3_env["PYTHON"] = sys.executable
 
-    build_virtualenv = [os.path.join('support', 'build-virtualenv')]
+    build_virtualenv_file = [os.path.join('support', 'build-virtualenv')]
 
     if platform.system() == 'Windows':
         # TODO(andschwa): Port more of the `build-virtualenv` Bash script.
         python_dir = os.path.dirname(sys.executable)
         virtualenv = os.path.join(python_dir, 'Scripts', 'virtualenv.exe')
-        build_virtualenv = [virtualenv, '--no-site-packages', 'support/.virtualenv']
+        build_virtualenv_file = [virtualenv,
+                                 '--no-site-packages',
+                                 'support/.virtualenv']
 
     process = subprocess.Popen(
-        build_virtualenv,
+        build_virtualenv_file,
         env=python3_env,
         stdout=subprocess.PIPE)
 
@@ -548,13 +553,17 @@ def build_virtualenv():
             """
             Stolen from `PyLinter`, runs command in virtualenv.
             """
-            virtualenv = os.path.join('support', '.virtualenv', 'Scripts', 'activate.bat')
+            virtualenv = os.path.join('support',
+                                      '.virtualenv',
+                                      'Scripts',
+                                      'activate.bat')
             command = '{virtualenv_path} & {cmd}'.format(
                 virtualenv_path=virtualenv, cmd=command)
 
             return subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
 
-        process = run_command_in_virtualenv('python.exe -m pip install --upgrade pip')
+        pip_install_pip = 'python.exe -m pip install --upgrade pip'
+        process = run_command_in_virtualenv(pip_install_pip)
         for line in process.stdout:
             output += line.decode(sys.stdout.encoding)
         process.wait()
@@ -563,7 +572,8 @@ def build_virtualenv():
             sys.stderr.write(output)
             sys.exit(1)
 
-        process = run_command_in_virtualenv('python.exe -m pip install -r support/pip-requirements.txt')
+        pip_reqs = 'python.exe -m pip install -r support/pip-requirements.txt'
+        process = run_command_in_virtualenv(pip_reqs)
         for line in process.stdout:
             output += line.decode(sys.stdout.encoding)
         process.wait()

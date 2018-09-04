@@ -18,9 +18,8 @@
 Task plugin tests.
 """
 
-import cli.http as http
-
 from cli import config
+from cli import http
 
 from cli.plugins.task.main import Task as TaskPlugin
 

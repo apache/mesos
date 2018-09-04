@@ -214,8 +214,7 @@ def get_relative_md_path(p_id, name):
 
     if new_name:
         return os.path.join(new_id, new_name + '.md')
-    else:
-        return os.path.join(new_id + '.md')
+    return os.path.join(new_id + '.md')
 
 
 def write_markdown(path, output, title):

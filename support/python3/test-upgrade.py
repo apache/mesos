@@ -29,7 +29,7 @@ DEFAULT_PRINCIPAL = 'foo'
 DEFAULT_SECRET = 'bar'
 
 
-class Process(object):
+class Process():
     """
     Helper class to keep track of process lifecycles.
 
@@ -62,7 +62,7 @@ class Process(object):
             seconds -= poll_time
             time.sleep(poll_time)
             poll = self.process.poll()
-            if poll != None:
+            if poll is not None:
                 return poll
         return True
 

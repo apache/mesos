@@ -18,9 +18,8 @@
 Agent plugin tests.
 """
 
-import cli.http as http
-
 from cli import config
+from cli import http
 
 from cli.plugins.agent.main import Agent as AgentPlugin
 

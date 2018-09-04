@@ -18,5 +18,5 @@
 Plugins Module
 """
 
-# pylint: disable=W0401
+# pylint: disable=wildcard-import
 from .base import *

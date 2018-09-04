@@ -28,7 +28,7 @@ import unittest
 
 import parse
 
-import cli.http as http
+from cli import http
 
 from cli.tests.constants import TEST_AGENT_IP
 from cli.tests.constants import TEST_AGENT_PORT
@@ -68,17 +68,16 @@ class CLITestCase(unittest.TestCase):
 
         if os.path.isdir(build_dir):
             return build_dir
-        else:
-            raise CLIException("The Mesos build directory"
-                               " does not exist: {path}"
-                               .format(path=build_dir))
+        raise CLIException("The Mesos build directory"
+                           " does not exist: {path}"
+                           .format(path=build_dir))
 
 # This value is set to the correct path when running tests/main.py. We
 # set it here to make sure that CLITestCase has a MESOS_BUILD_DIR member.
 CLITestCase.MESOS_BUILD_DIR = ""
 
 
-class Executable(object):
+class Executable():
     """
     This class defines the base class for launching an executable for
     the CLI unit tests. It will be subclassed by (at least) a

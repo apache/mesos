@@ -76,7 +76,7 @@ def simple_urljoin(base, other):
     return '/'.join([base.rstrip('/'), other.lstrip('/')])
 
 
-class Resource(object):
+class Resource():
     """
     Encapsulate the context for an HTTP resource.
 

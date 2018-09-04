@@ -35,7 +35,7 @@ class ReviewError(Exception):
     pass
 
 
-class ReviewBoardHandler(object):
+class ReviewBoardHandler():
     """Handler class for ReviewBoard API operations."""
 
     def __init__(self, user=None, password=None):

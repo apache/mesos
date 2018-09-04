@@ -258,7 +258,7 @@ def needs_verification(review_request):
     diffs_url = review_request["links"]["diffs"]["href"]
     diffs = api(diffs_url)
 
-    if len(diffs["diffs"]) == 0:  # No diffs attached!
+    if not diffs["diffs"]:  # No diffs attached!
         print "Skipping review %s as it has no diffs" % review_request["id"]
         return False
 

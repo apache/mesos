@@ -28,7 +28,7 @@ import textwrap
 
 from kazoo.client import KazooClient
 
-import cli.http as http
+from cli import http
 
 from cli.exceptions import CLIException
 
@@ -279,7 +279,7 @@ def zookeeper_resolve_leader(addresses, path):
     return address
 
 
-class Table(object):
+class Table():
     """
     Defines a custom table structure for printing to the terminal.
     """
