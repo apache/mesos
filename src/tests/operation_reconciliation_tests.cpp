@@ -813,6 +813,8 @@ TEST_P(OperationReconciliationTest, AgentPendingOperationAfterMasterFailover)
   Future<SlaveReregisteredMessage> slaveReregistered = FUTURE_PROTOBUF(
       SlaveReregisteredMessage(), master.get()->pid, slave.get()->pid);
 
+  updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
   EXPECT_CALL(*scheduler, connected(_))
     .WillOnce(scheduler::SendSubscribe(frameworkInfo, frameworkId));
 
@@ -832,6 +834,7 @@ TEST_P(OperationReconciliationTest, AgentPendingOperationAfterMasterFailover)
 
   // Wait for the framework and agent to re-register.
   AWAIT_READY(slaveReregistered);
+  AWAIT_READY(updateSlaveMessage);
   AWAIT_READY(frameworkResubscribed);
 
   Clock::pause();
