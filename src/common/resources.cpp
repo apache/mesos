@@ -727,14 +727,14 @@ Try<Resources> Resources::parse(
   Resources result;
 
   // Validate the Resource objects.
-  foreach (Resource resource, resources.get()) {
+  foreach (Resource& resource, CHECK_NOTERROR(resources)) {
     // If invalid, propgate error instead of skipping the resource.
     Option<Error> error = Resources::validate(resource);
     if (error.isSome()) {
       return error.get();
     }
 
-    result.add(resource);
+    result.add(std::move(resource));
   }
 
   // TODO(jmlvanre): Move this up into `Containerizer::resources`.

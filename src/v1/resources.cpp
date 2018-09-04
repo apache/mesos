@@ -721,7 +721,7 @@ Try<Resources> Resources::parse(
 
   // Validate the Resource objects and convert them
   // to the "post-reservation-refinement" format.
-  foreach (Resource resource, resources.get()) {
+  foreach (Resource& resource, CHECK_NOTERROR(resources)) {
     // If invalid, propgate error instead of skipping the resource.
     Option<Error> error = Resources::validate(resource);
     if (error.isSome()) {
@@ -761,7 +761,7 @@ Try<Resources> Resources::parse(
     }
 
     // Add the validated and converted resource to the result.
-    result.add(resource);
+    result.add(std::move(resource));
   }
 
   // TODO(jmlvanre): Move this up into `Containerizer::resources`.
