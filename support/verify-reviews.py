@@ -63,6 +63,9 @@ def parse_parameters():
     parser.add_argument("-r", "--reviews", type=int, required=False,
                         default=-1, help="The number of reviews to fetch,"
                                          " that will need verification")
+    parser.add_argument("--skip-verify", action='store_true', required=False,
+                        help="Skip the verification and just write the review"
+                             " ids that need verification")
     default_hours_behind = 8
     datetime_before = (datetime.datetime.now() -
                        datetime.timedelta(hours=default_hours_behind))
@@ -288,7 +291,8 @@ def main():
                 continue
             review_ids.append(str(review_request["id"]))
             num_reviews += 1
-            verify_review(review_request, handler)
+            if not parameters.skip_verify:
+                verify_review(review_request, handler)
 
     verification_needed_write(review_ids, parameters)
 
