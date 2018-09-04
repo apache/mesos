@@ -169,6 +169,7 @@ All Resolved Issues:
   * [MESOS-7966] - check for maintenance on agent causes fatal error
   * [MESOS-8128] - Make os::pipe file descriptors O_CLOEXEC.
   * [MESOS-8134] - SlaveTest.ContainersEndpoint is flaky due to getenv crash.
+  * [MESOS-8429] - Clean up endpoint socket if the container daemon is destroyed while waiting.
   * [MESOS-8499] - Change docker health check image to the new nanoserver one
   * [MESOS-8567] - Test UriDiskProfileTest.FetchFromHTTP is flaky.
   * [MESOS-8613] - Test `MasterAllocatorTest/*.TaskFinished` is flaky.
