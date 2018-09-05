@@ -172,6 +172,7 @@ All Resolved Issues:
   * [MESOS-8429] - Clean up endpoint socket if the container daemon is destroyed while waiting.
   * [MESOS-8499] - Change docker health check image to the new nanoserver one
   * [MESOS-8567] - Test UriDiskProfileTest.FetchFromHTTP is flaky.
+  * [MESOS-8568] - Command checks should always call `WAIT_NESTED_CONTAINER` before `REMOVE_NESTED_CONTAINER`
   * [MESOS-8613] - Test `MasterAllocatorTest/*.TaskFinished` is flaky.
   * [MESOS-8626] - The 'allocatable' check in the allocator is problematic with multi-role frameworks
   * [MESOS-8686] - Mesos build failed with /permissive- + MSVC on windows
