@@ -11476,9 +11476,7 @@ bool Master::isCompletedFramework(const FrameworkID& frameworkId)
 // TODO(bmahler): Consider killing this.
 Framework* Master::getFramework(const FrameworkID& frameworkId) const
 {
-  return frameworks.registered.contains(frameworkId)
-           ? frameworks.registered.at(frameworkId)
-           : nullptr;
+  return frameworks.registered.get(frameworkId).getOrElse(nullptr);
 }
 
 
