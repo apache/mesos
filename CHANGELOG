@@ -33,6 +33,9 @@ Release Notes - Mesos - Version 1.5.2 (WIP)
   * [MESOS-9170] - Zookeeper doesn't compile with newer gcc due to format error.
   * [MESOS-9196] - Removing rootfs mounts may fail with EBUSY.
 
+** Improvement
+  * [MESOS-9189] - Include 'Connection: close' header in master streaming API responses.
+
 
 Release Notes - Mesos - Version 1.5.1
 -------------------------------------------
