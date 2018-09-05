@@ -802,5 +802,24 @@ TEST_F(FsTest, ReadWriteAsyncLargeBuffer)
   EXPECT_SOME(os::close(pipes.get()[0]));
   EXPECT_SOME(os::close(pipes.get()[1]));
 }
+#endif // __WINDOWS__
 
+#ifndef __WINDOWS__
+TEST_F(FsTest, Used)
+{
+    Try<Bytes> used = fs::used(".");
+    ASSERT_SOME(used);
+
+    struct statvfs b;
+    ASSERT_EQ(0, ::statvfs(".", &b));
+
+    // Check that the block counts match.
+    EXPECT_EQ(used.get() / b.f_bsize, b.f_blocks - b.f_bfree);
+
+#ifdef __linux__
+    // On Linux, devtmpfs always reports a used size of 0.
+    used = fs::used("/dev");
+    EXPECT_SOME_EQ(Bytes(0), used);
+#endif
+}
 #endif // __WINDOWS__

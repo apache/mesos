@@ -35,7 +35,18 @@ inline Try<Bytes> size(const std::string& path = "/")
   if (::statvfs(path.c_str(), &buf) < 0) {
     return ErrnoError();
   }
-  return Bytes(buf.f_blocks * buf.f_frsize);
+  return Bytes(buf.f_frsize) * buf.f_blocks;
+}
+
+
+// Returns the amount of disk space used in bytes.
+inline Try<Bytes> used(const std::string& path = "/")
+{
+  struct statvfs buf;
+  if (::statvfs(path.c_str(), &buf) < 0) {
+    return ErrnoError();
+  }
+  return Bytes(buf.f_frsize) * (buf.f_blocks - buf.f_bfree);
 }
 
 
