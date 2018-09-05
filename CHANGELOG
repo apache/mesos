@@ -258,6 +258,7 @@ All Resolved Issues:
 ** Improvement
   * [MESOS-6451] - Add timer and percentile for docker pull latency distribution.
   * [MESOS-7691] - Support local enabled cgroups subsystems automatically.
+  * [MESOS-7947] - Add GC capability to nested containers
   * [MESOS-8064] - Add capability so mesos can programmatically decode .zip, .tar, .gzip, and other common file compression schemes
   * [MESOS-8106] - Docker fetcher plugin unsupported scheme failure message is not accurate.
   * [MESOS-8340] - Add a no-enforce option to the `network/ports` isolator.
