@@ -615,6 +615,13 @@ string getResourcesTargetPath(
 }
 
 
+Try<list<string>> getPersistentVolumePaths(
+    const std::string& workDir)
+{
+  return fs::list(path::join(workDir, "volumes", "roles", "*", "*"));
+}
+
+
 string getPersistentVolumePath(
     const string& workDir,
     const string& role,

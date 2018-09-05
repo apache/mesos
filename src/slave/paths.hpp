@@ -381,6 +381,10 @@ std::string getResourcesTargetPath(
     const std::string& rootDir);
 
 
+Try<std::list<std::string>> getPersistentVolumePaths(
+    const std::string& workDir);
+
+
 std::string getPersistentVolumePath(
     const std::string& workDir,
     const std::string& role,
