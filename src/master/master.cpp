@@ -9415,11 +9415,14 @@ void Master::offer(
       // offers so that frameworks do not see this resource. This is a
       // short term workaround. Revisit this once we resolve MESOS-1654.
       Offer offer_ = *offer;
-      offer_.clear_resources();
 
-      foreach (const Resource& resource, offered) {
-        if (resource.name() != "ephemeral_ports") {
-          offer_.add_resources()->CopyFrom(resource);
+      for (int i = 0; i < offer_.resources_size();) {
+        if (offer_.resources(i).name() == "ephemeral_ports") {
+          offer_.mutable_resources()->SwapElements(
+              i, offer_.resources_size() - 1);
+          offer_.mutable_resources()->RemoveLast();
+        } else {
+          ++i;
         }
       }
 
