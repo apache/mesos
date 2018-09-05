@@ -9245,13 +9245,20 @@ void Master::offer(
     return;
   }
 
+  size_t offersEstimate = 0u;
+  foreachvalue (const auto& agents, resources) {
+    offersEstimate += agents.size();
+  }
 
   // Each offer we create is tied to a single agent
   // and a single allocation role.
   ResourceOffersMessage message;
+  message.mutable_offers()->Reserve(offersEstimate);
+  message.mutable_pids()->Reserve(offersEstimate);
 
   // We keep track of the offer IDs so that we can log them.
   vector<OfferID> offerIds;
+  offerIds.reserve(offersEstimate);
 
   foreachkey (const string& role, resources) {
     foreachpair (const SlaveID& slaveId,
