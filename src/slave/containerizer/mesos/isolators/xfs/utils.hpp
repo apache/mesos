@@ -98,6 +98,12 @@ bool isPathXfs(const std::string& path);
 Try<bool> isQuotaEnabled(const std::string& path);
 
 
+// Return the path of the block device backing the given path. If the path
+// is a filesystem path, then the corresponding block device is resolved. If
+// the path is already a block device path, then the same path is returned.
+Try<std::string> getDeviceForPath(const std::string& path);
+
+
 Result<QuotaInfo> getProjectQuota(
     const std::string& path,
     prid_t projectId);

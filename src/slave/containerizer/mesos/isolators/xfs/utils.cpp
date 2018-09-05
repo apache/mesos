@@ -107,14 +107,16 @@ static Try<struct fsxattr> getAttributes(int fd)
 }
 
 
-// Return the path of the device backing the filesystem containing
-// the given path.
-static Try<string> getDeviceForPath(const string& path)
+Try<string> getDeviceForPath(const string& path)
 {
   struct stat statbuf;
 
   if (::lstat(path.c_str(), &statbuf) == -1) {
     return ErrnoError("Unable to access '" + path + "'");
+  }
+
+  if (S_ISBLK(statbuf.st_mode)) {
+    return path;
   }
 
   char* name = blkid_devno_to_devname(statbuf.st_dev);

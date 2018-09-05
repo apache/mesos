@@ -289,14 +289,18 @@ TEST_F(ROOT_XFS_QuotaTest, QuotaGetSet)
   ASSERT_SOME(os::mkdir(root));
 
   EXPECT_SOME(setProjectQuota(root, projectId, limit));
-
-  Result<QuotaInfo> info = getProjectQuota(root, projectId);
-  ASSERT_SOME(info);
-
-  EXPECT_EQ(limit, info->hardLimit);
-  EXPECT_EQ(Bytes(0), info->used);
+  EXPECT_SOME_EQ(
+      makeQuotaInfo(limit, 0 /* used */),
+      getProjectQuota(root, projectId));
 
   EXPECT_SOME(clearProjectQuota(root, projectId));
+
+  // After we clear the quota, the quota record is removed and we will get
+  // ENOENT trying to read it back.
+  EXPECT_ERROR(getProjectQuota(root, projectId));
+
+  EXPECT_SOME_EQ(loopDevice, getDeviceForPath(root));
+  EXPECT_SOME_EQ(loopDevice, getDeviceForPath(loopDevice.get()));
 }
 
 
@@ -328,6 +332,19 @@ TEST_F(ROOT_XFS_QuotaTest, QuotaLimit)
   EXPECT_ERROR(mkfile(path::join(root, "file2"), Megabytes(2)));
 
   EXPECT_SOME(clearProjectQuota(root, projectId));
+
+  // Since this project ID still consumes space, there should still
+  // be a quota record. However, the limits should be cleared.
+  Result<QuotaInfo> info = getProjectQuota(root, projectId);
+  ASSERT_SOME(info);
+
+  EXPECT_EQ(Bytes(0), info->softLimit);
+  EXPECT_EQ(Bytes(0), info->hardLimit);
+
+  // We use LE here because we know that the 10MB write succeeded but
+  // the 2MB write did not. We could end up using 10MB if the second
+  // write atomically failed, or 11MB if it partially succeeded.
+  EXPECT_LE(used, info->used);
 }
 
 
