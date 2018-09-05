@@ -9228,8 +9228,9 @@ void Master::offer(
     const FrameworkID& frameworkId,
     const hashmap<string, hashmap<SlaveID, Resources>>& resources)
 {
-  if (!frameworks.registered.contains(frameworkId) ||
-      !frameworks.registered[frameworkId]->active()) {
+  Framework* framework = getFramework(frameworkId);
+
+  if (framework == nullptr || !framework->active()) {
     LOG(WARNING) << "Master returning resources offered to framework "
                  << frameworkId << " because the framework"
                  << " has terminated or is inactive";
@@ -9244,7 +9245,6 @@ void Master::offer(
     return;
   }
 
-  Framework* framework = CHECK_NOTNULL(frameworks.registered.at(frameworkId));
 
   // Each offer we create is tied to a single agent
   // and a single allocation role.
