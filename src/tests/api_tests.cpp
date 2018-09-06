@@ -6524,11 +6524,9 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 // command executor. Each nested container prints a short message to the stdout
 // and then terminates. This test verifies that the output of each nested
 // container session contains the written message.
-//
-// TODO(abudnik): The test is flaky due to MESOS-8545 and hence disabled.
 TEST_P_TEMP_DISABLED_ON_WINDOWS(
     AgentAPITest,
-    DISABLED_ROOT_CGROUPS_LaunchNestedContainerSessionsInParallel)
+    ROOT_CGROUPS_LaunchNestedContainerSessionsInParallel)
 {
   const int numContainers = 10;
 
@@ -6598,56 +6596,35 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   for (int i = 0; i < numContainers; i++) {
     containerId.set_value(id::UUID::random().toString());
 
-    {
-      v1::agent::Call call;
-      call.set_type(v1::agent::Call::LAUNCH_NESTED_CONTAINER_SESSION);
+    v1::agent::Call call;
+    call.set_type(v1::agent::Call::LAUNCH_NESTED_CONTAINER_SESSION);
 
-      call.mutable_launch_nested_container_session()->mutable_container_id()
-        ->CopyFrom(containerId);
+    call.mutable_launch_nested_container_session()->mutable_container_id()
+      ->CopyFrom(containerId);
 
-      call.mutable_launch_nested_container_session()->mutable_command()
-        ->CopyFrom(v1::createCommandInfo("echo echo"));
+    call.mutable_launch_nested_container_session()->mutable_command()
+      ->CopyFrom(v1::createCommandInfo("echo echo"));
 
-      http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
-      headers["Accept"] = stringify(ContentType::RECORDIO);
-      headers[MESSAGE_ACCEPT] = stringify(messageContentType);
+    http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers["Accept"] = stringify(ContentType::RECORDIO);
+    headers[MESSAGE_ACCEPT] = stringify(messageContentType);
 
-      auto response = http::streaming::post(
-          slave.get()->pid,
-          "api/v1",
-          headers,
-          serialize(messageContentType, call),
-          stringify(messageContentType));
+    auto response = http::streaming::post(
+        slave.get()->pid,
+        "api/v1",
+        headers,
+        serialize(messageContentType, call),
+        stringify(messageContentType));
 
-      AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
-    }
+    ASSERT_SOME(response->reader);
 
-    {
-      v1::agent::Call call;
-      call.set_type(v1::agent::Call::ATTACH_CONTAINER_OUTPUT);
-
-      call.mutable_attach_container_output()->mutable_container_id()
-        ->CopyFrom(containerId);
-
-      http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
-      headers["Accept"] = stringify(messageContentType);
-
-      auto response = http::streaming::post(
-          slave.get()->pid,
-          "api/v1",
-          headers,
-          serialize(messageContentType, call),
-          stringify(messageContentType));
-
-      AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
-      ASSERT_SOME(response->reader);
-
-      outputs.emplace_back(response->reader.get());
-    }
+    Option<http::Pipe::Reader> output = response->reader.get();
+    ASSERT_SOME(output);
+    outputs.emplace_back(std::move(output));
   }
 
   foreach (Option<http::Pipe::Reader>& output, outputs) {
-    // Read the output from the ATTACH_CONTAINER_OUTPUT.
+    // Read the output from the LAUNCH_NESTED_CONTAINER_SESSION.
     ASSERT_SOME(output);
 
     Future<tuple<string, string>> received =
