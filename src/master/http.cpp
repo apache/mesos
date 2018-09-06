@@ -2565,49 +2565,6 @@ Future<Response> Master::Http::stateSummary(
 }
 
 
-// Returns a JSON object modeled after a role.
-JSON::Object model(
-    const string& name,
-    Option<double> weight,
-    Option<Quota> quota,
-    Option<Role*> _role)
-{
-  JSON::Object object;
-  object.values["name"] = name;
-
-  if (weight.isSome()) {
-    object.values["weight"] = weight.get();
-  } else {
-    object.values["weight"] = 1.0; // Default weight.
-  }
-
-  if (quota.isSome()) {
-    object.values["quota"] = model(quota->info);
-  }
-
-  if (_role.isNone()) {
-    object.values["resources"] = model(Resources());
-    object.values["frameworks"] = JSON::Array();
-  } else {
-    Role* role = _role.get();
-
-    object.values["resources"] = model(role->allocatedResources());
-
-    {
-      JSON::Array array;
-
-      foreachkey (const FrameworkID& frameworkId, role->frameworks) {
-        array.values.push_back(frameworkId.value());
-      }
-
-      object.values["frameworks"] = std::move(array);
-    }
-  }
-
-  return object;
-}
-
-
 string Master::Http::ROLES_HELP()
 {
   return HELP(
@@ -2631,49 +2588,6 @@ string Master::Http::ROLES_HELP()
 }
 
 
-vector<string> Master::Http::_filterRoles(
-    const Owned<ObjectApprovers>& approvers) const
-{
-  JSON::Object object;
-
-  // Compute the role names to return results for. When an explicit
-  // role whitelist has been configured, we use that list of names.
-  // When using implicit roles, the right behavior is a bit more
-  // subtle. There are no constraints on possible role names, so we
-  // instead list all the "interesting" roles: all roles with one or
-  // more registered frameworks, and all roles with a non-default
-  // weight or quota.
-  //
-  // NOTE: we use a `std::set` to store the role names to ensure a
-  // deterministic output order.
-  set<string> roleList;
-  if (master->roleWhitelist.isSome()) {
-    const hashset<string>& whitelist = master->roleWhitelist.get();
-    roleList.insert(whitelist.begin(), whitelist.end());
-  } else {
-    hashset<string> roles = master->roles.keys();
-    roleList.insert(roles.begin(), roles.end());
-
-    hashset<string> weights = master->weights.keys();
-    roleList.insert(weights.begin(), weights.end());
-
-    hashset<string> quotas = master->quotas.keys();
-    roleList.insert(quotas.begin(), quotas.end());
-  }
-
-  vector<string> filteredRoleList;
-  filteredRoleList.reserve(roleList.size());
-
-  foreach (const string& role, roleList) {
-    if (approvers->approved<VIEW_ROLE>(role)) {
-      filteredRoleList.push_back(role);
-    }
-  }
-
-  return filteredRoleList;
-}
-
-
 Future<Response> Master::Http::roles(
     const Request& request,
     const Option<Principal>& principal) const
@@ -2694,38 +2608,12 @@ Future<Response> Master::Http::roles(
 
   return ObjectApprovers::create(master->authorizer, principal, {VIEW_ROLE})
     .then(defer(master->self(),
-        [this, request](const Owned<ObjectApprovers>& approvers)
-          -> Response {
-      JSON::Object object;
-      const vector<string> filteredRoles = _filterRoles(approvers);
-
-      {
-        JSON::Array array;
-
-        foreach (const string& name, filteredRoles) {
-          Option<double> weight = None();
-          if (master->weights.contains(name)) {
-            weight = master->weights[name];
-          }
-
-          Option<Quota> quota = None();
-          if (master->quotas.contains(name)) {
-            quota = master->quotas.at(name);
-          }
-
-          Option<Role*> role = None();
-          if (master->roles.contains(name)) {
-            role = master->roles.at(name);
-          }
-
-          array.values.push_back(model(name, weight, quota, role));
-        }
-
-        object.values["roles"] = std::move(array);
-      }
-
-      return OK(object, request.url.query.get("jsonp"));
-    }));
+        [this, request](const Owned<ObjectApprovers>& approvers) {
+            return deferBatchedRequest(
+                &Master::ReadOnlyHandler::roles,
+                request,
+                approvers);
+          }));
 }
 
 
@@ -2791,7 +2679,7 @@ Future<Response> Master::Http::getRoles(
     .then(defer(master->self(),
         [this, contentType](const Owned<ObjectApprovers>& approvers)
           -> Response {
-      const vector<string> filteredRoles = _filterRoles(approvers);
+      const vector<string> filteredRoles = master->filterRoles(approvers);
 
       mesos::master::Response response;
       response.set_type(mesos::master::Response::GET_ROLES);

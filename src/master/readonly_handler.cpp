@@ -53,6 +53,9 @@ namespace mesos {
 namespace internal {
 namespace master {
 
+// Pull in model overrides from common.
+using mesos::internal::model;
+
 // The summary representation of `T` to support the `/state-summary` endpoint.
 // e.g., `Summary<Slave>`.
 template <typename T>
@@ -74,6 +77,9 @@ struct Full : Representation<T>
 // Filtered representation of Full<Framework>.
 // Executors and Tasks are filtered based on whether the
 // user is authorized to view them.
+//
+// TODO(bevers): Consider moving writers and other json-related
+// code into a separate file.
 struct FullFrameworkWriter {
   FullFrameworkWriter(
       const process::Owned<ObjectApprovers>& approvers,
@@ -685,6 +691,85 @@ process::http::Response Master::ReadOnlyHandler::frameworks(
   };
 
   return OK(jsonify(frameworks), request.url.query.get("jsonp"));
+}
+
+
+// Returns a JSON object modeled after a role.
+JSON::Object model(
+    const string& name,
+    Option<double> weight,
+    Option<Quota> quota,
+    Option<Role*> _role)
+{
+  JSON::Object object;
+  object.values["name"] = name;
+
+  if (weight.isSome()) {
+    object.values["weight"] = weight.get();
+  } else {
+    object.values["weight"] = 1.0; // Default weight.
+  }
+
+  if (quota.isSome()) {
+    object.values["quota"] = model(quota->info);
+  }
+
+  if (_role.isNone()) {
+    object.values["resources"] = model(Resources());
+    object.values["frameworks"] = JSON::Array();
+  } else {
+    Role* role = _role.get();
+
+    object.values["resources"] = model(role->allocatedResources());
+
+    {
+      JSON::Array array;
+
+      foreachkey (const FrameworkID& frameworkId, role->frameworks) {
+        array.values.push_back(frameworkId.value());
+      }
+
+      object.values["frameworks"] = std::move(array);
+    }
+  }
+
+  return object;
+}
+
+
+process::http::Response Master::ReadOnlyHandler::roles(
+    const process::http::Request& request,
+    const process::Owned<ObjectApprovers>& approvers) const
+{
+  JSON::Object object;
+  const vector<string> filteredRoles = master->filterRoles(approvers);
+
+  {
+    JSON::Array array;
+
+    foreach (const string& name, filteredRoles) {
+      Option<double> weight = None();
+      if (master->weights.contains(name)) {
+        weight = master->weights.at(name);
+      }
+
+      Option<Quota> quota = None();
+      if (master->quotas.contains(name)) {
+        quota = master->quotas.at(name);
+      }
+
+      Option<Role*> role = None();
+      if (master->roles.contains(name)) {
+        role = master->roles.at(name);
+      }
+
+      array.values.push_back(model(name, weight, quota, role));
+    }
+
+    object.values["roles"] = std::move(array);
+  }
+
+  return OK(object, request.url.query.get("jsonp"));
 }
 
 

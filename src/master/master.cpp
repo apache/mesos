@@ -3403,6 +3403,49 @@ void Master::suppress(
 }
 
 
+vector<string> Master::filterRoles(
+    const Owned<ObjectApprovers>& approvers) const
+{
+  JSON::Object object;
+
+  // Compute the role names to return results for. When an explicit
+  // role whitelist has been configured, we use that list of names.
+  // When using implicit roles, the right behavior is a bit more
+  // subtle. There are no constraints on possible role names, so we
+  // instead list all the "interesting" roles: all roles with one or
+  // more registered frameworks, and all roles with a non-default
+  // weight or quota.
+  //
+  // NOTE: we use a `std::set` to store the role names to ensure a
+  // deterministic output order.
+  set<string> roleList;
+  if (roleWhitelist.isSome()) {
+    const hashset<string>& whitelist = roleWhitelist.get();
+    roleList.insert(whitelist.begin(), whitelist.end());
+  } else {
+    hashset<string> roles = this->roles.keys();
+    roleList.insert(roles.begin(), roles.end());
+
+    hashset<string> weights = this->weights.keys();
+    roleList.insert(weights.begin(), weights.end());
+
+    hashset<string> quotas = this->quotas.keys();
+    roleList.insert(quotas.begin(), quotas.end());
+  }
+
+  vector<string> filteredRoleList;
+  filteredRoleList.reserve(roleList.size());
+
+  foreach (const string& role, roleList) {
+    if (approvers->approved<VIEW_ROLE>(role)) {
+      filteredRoleList.push_back(role);
+    }
+  }
+
+  return filteredRoleList;
+}
+
+
 bool Master::isWhitelistedRole(const string& name) const
 {
   if (roleWhitelist.isNone()) {

@@ -1181,6 +1181,9 @@ private:
   process::Future<bool> authorizeLogAccess(
       const Option<process::http::authentication::Principal>& principal);
 
+  std::vector<std::string> filterRoles(
+      const process::Owned<ObjectApprovers>& approvers) const;
+
   /**
    * Returns whether the given role is on the whitelist.
    *
@@ -1401,6 +1404,11 @@ private:
         const process::http::Request& request,
         const process::Owned<ObjectApprovers>& approvers) const;
 
+    // /roles
+    process::http::Response roles(
+        const process::http::Request& request,
+        const process::Owned<ObjectApprovers>& approvers) const;
+
     // /slaves
     process::http::Response slaves(
         const process::http::Request& request,
@@ -1488,6 +1496,8 @@ private:
             principal) const;
 
     // /master/roles
+    //
+    // NOTE: Requests to this endpoint are batched.
     process::Future<process::http::Response> roles(
         const process::http::Request& request,
         const Option<process::http::authentication::Principal>&
@@ -1694,9 +1704,6 @@ private:
         const SlaveID& slaveId,
         Resources required,
         const Offer::Operation& operation) const;
-
-    std::vector<std::string> _filterRoles(
-        const process::Owned<ObjectApprovers>& approvers) const;
 
     // Master API handlers.
 
