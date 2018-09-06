@@ -228,6 +228,20 @@ struct FrameworkMetrics
 
   void incrementEvent(const scheduler::Event& event);
 
+  // Overloads to convert unversioned messages into events.
+  void incrementEvent(const FrameworkErrorMessage& message);
+  void incrementEvent(const ExitedExecutorMessage& message);
+  void incrementEvent(const LostSlaveMessage& message);
+  void incrementEvent(const InverseOffersMessage& message);
+  void incrementEvent(const ExecutorToFrameworkMessage& message);
+  void incrementEvent(const ResourceOffersMessage& message);
+  void incrementEvent(const RescindResourceOfferMessage& message);
+  void incrementEvent(const RescindInverseOfferMessage& message);
+  void incrementEvent(const FrameworkRegisteredMessage& message);
+  void incrementEvent(const FrameworkReregisteredMessage& message);
+  void incrementEvent(const StatusUpdateMessage& message);
+  void incrementEvent(const UpdateOperationStatusMessage& message);
+
   void incrementTaskState(const TaskState& state);
   void decrementActiveTaskState(const TaskState& state);
 
