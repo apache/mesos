@@ -1695,9 +1695,8 @@ private:
         Resources required,
         const Offer::Operation& operation) const;
 
-    process::Future<std::vector<std::string>> _roles(
-        const Option<process::http::authentication::Principal>&
-            principal) const;
+    std::vector<std::string> _filterRoles(
+        const process::Owned<ObjectApprovers>& approvers) const;
 
     // Master API handlers.
 

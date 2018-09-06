@@ -2631,51 +2631,46 @@ string Master::Http::ROLES_HELP()
 }
 
 
-Future<vector<string>> Master::Http::_roles(
-    const Option<Principal>& principal) const
+vector<string> Master::Http::_filterRoles(
+    const Owned<ObjectApprovers>& approvers) const
 {
-  return ObjectApprovers::create(master->authorizer, principal, {VIEW_ROLE})
-    .then(defer(master->self(),
-        [this](const Owned<ObjectApprovers>& approvers)
-          -> vector<string> {
-      JSON::Object object;
+  JSON::Object object;
 
-      // Compute the role names to return results for. When an explicit
-      // role whitelist has been configured, we use that list of names.
-      // When using implicit roles, the right behavior is a bit more
-      // subtle. There are no constraints on possible role names, so we
-      // instead list all the "interesting" roles: all roles with one or
-      // more registered frameworks, and all roles with a non-default
-      // weight or quota.
-      //
-      // NOTE: we use a `std::set` to store the role names to ensure a
-      // deterministic output order.
-      set<string> roleList;
-      if (master->roleWhitelist.isSome()) {
-        const hashset<string>& whitelist = master->roleWhitelist.get();
-        roleList.insert(whitelist.begin(), whitelist.end());
-      } else {
-        hashset<string> roles = master->roles.keys();
-        roleList.insert(roles.begin(), roles.end());
+  // Compute the role names to return results for. When an explicit
+  // role whitelist has been configured, we use that list of names.
+  // When using implicit roles, the right behavior is a bit more
+  // subtle. There are no constraints on possible role names, so we
+  // instead list all the "interesting" roles: all roles with one or
+  // more registered frameworks, and all roles with a non-default
+  // weight or quota.
+  //
+  // NOTE: we use a `std::set` to store the role names to ensure a
+  // deterministic output order.
+  set<string> roleList;
+  if (master->roleWhitelist.isSome()) {
+    const hashset<string>& whitelist = master->roleWhitelist.get();
+    roleList.insert(whitelist.begin(), whitelist.end());
+  } else {
+    hashset<string> roles = master->roles.keys();
+    roleList.insert(roles.begin(), roles.end());
 
-        hashset<string> weights = master->weights.keys();
-        roleList.insert(weights.begin(), weights.end());
+    hashset<string> weights = master->weights.keys();
+    roleList.insert(weights.begin(), weights.end());
 
-        hashset<string> quotas = master->quotas.keys();
-        roleList.insert(quotas.begin(), quotas.end());
-      }
+    hashset<string> quotas = master->quotas.keys();
+    roleList.insert(quotas.begin(), quotas.end());
+  }
 
-      vector<string> filteredRoleList;
-      filteredRoleList.reserve(roleList.size());
+  vector<string> filteredRoleList;
+  filteredRoleList.reserve(roleList.size());
 
-      foreach (const string& role, roleList) {
-        if (approvers->approved<VIEW_ROLE>(role)) {
-          filteredRoleList.push_back(role);
-        }
-      }
+  foreach (const string& role, roleList) {
+    if (approvers->approved<VIEW_ROLE>(role)) {
+      filteredRoleList.push_back(role);
+    }
+  }
 
-      return filteredRoleList;
-    }));
+  return filteredRoleList;
 }
 
 
@@ -2697,11 +2692,12 @@ Future<Response> Master::Http::roles(
     return redirect(request);
   }
 
-  return _roles(principal)
+  return ObjectApprovers::create(master->authorizer, principal, {VIEW_ROLE})
     .then(defer(master->self(),
-        [this, request](const vector<string>& filteredRoles)
+        [this, request](const Owned<ObjectApprovers>& approvers)
           -> Response {
       JSON::Object object;
+      const vector<string> filteredRoles = _filterRoles(approvers);
 
       {
         JSON::Array array;
@@ -2791,11 +2787,12 @@ Future<Response> Master::Http::getRoles(
     ContentType contentType) const
 {
   CHECK_EQ(mesos::master::Call::GET_ROLES, call.type());
-
-  return _roles(principal)
+  return ObjectApprovers::create(master->authorizer, principal, {VIEW_ROLE})
     .then(defer(master->self(),
-        [this, contentType](const vector<string>& filteredRoles)
+        [this, contentType](const Owned<ObjectApprovers>& approvers)
           -> Response {
+      const vector<string> filteredRoles = _filterRoles(approvers);
+
       mesos::master::Response response;
       response.set_type(mesos::master::Response::GET_ROLES);
 
