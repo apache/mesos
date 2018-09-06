@@ -134,6 +134,18 @@ using std::string;
 using std::vector;
 
 
+#ifdef ENABLE_JEMALLOC_ALLOCATOR
+// Reduce the number of arenas jemalloc uses. On multi-core systems
+// jemalloc creates multiple allocation arenas to reduce lock
+// contention between threads using a single arena. The default high
+// number of arenas (nproc*4) causes high RSS for the agent use case.
+// The new number was selected pretty much arbitrarily. It helped
+// reduce the agent's RSS (better than 8, same as 2) and existing
+// benchmarks didn't reveal any performance hits caused by it.
+const char* malloc_conf = "narenas:4";
+#endif
+
+
 #ifdef __linux__
 // Move the slave into its own cgroup for each of the specified
 // subsystems.
