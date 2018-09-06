@@ -2598,9 +2598,7 @@ void Framework::send(const Message& message)
                  << " framework " << *this;
   }
 
-  // TODO(gilbert): add a helper to transform `SchedulerDriver` API messages
-  // directly to v0 events.
-  metrics.incrementEvent(devolve(evolve(message)));
+  metrics.incrementEvent(message);
 
   if (http.isSome()) {
     if (!http->send(message)) {

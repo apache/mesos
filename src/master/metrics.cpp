@@ -755,10 +755,104 @@ string getFrameworkMetricPrefix(const FrameworkInfo& frameworkInfo)
 
 void FrameworkMetrics::incrementEvent(const scheduler::Event& event)
 {
-  CHECK(event_types.contains(event.type()));
+  ++CHECK_NOTNONE(event_types.get(event.type()));
+  ++events;
+}
 
-  event_types.get(event.type()).get()++;
-  events++;
+
+void FrameworkMetrics::incrementEvent(
+    const FrameworkErrorMessage& message)
+{
+  ++CHECK_NOTNONE(event_types.get(scheduler::Event::ERROR));
+  ++events;
+}
+
+
+void FrameworkMetrics::incrementEvent(
+    const ExitedExecutorMessage& message)
+{
+  ++CHECK_NOTNONE(event_types.get(scheduler::Event::FAILURE));
+  ++events;
+}
+
+
+void FrameworkMetrics::incrementEvent(
+    const LostSlaveMessage& message)
+{
+  ++CHECK_NOTNONE(event_types.get(scheduler::Event::FAILURE));
+  ++events;
+}
+
+
+void FrameworkMetrics::incrementEvent(
+    const InverseOffersMessage& message)
+{
+  ++CHECK_NOTNONE(event_types.get(scheduler::Event::INVERSE_OFFERS));
+  ++events;
+}
+
+
+void FrameworkMetrics::incrementEvent(
+    const ExecutorToFrameworkMessage& message)
+{
+  ++CHECK_NOTNONE(event_types.get(scheduler::Event::MESSAGE));
+  ++events;
+}
+
+
+void FrameworkMetrics::incrementEvent(
+    const ResourceOffersMessage& message)
+{
+  ++CHECK_NOTNONE(event_types.get(scheduler::Event::OFFERS));
+  ++events;
+}
+
+
+void FrameworkMetrics::incrementEvent(
+    const RescindResourceOfferMessage& message)
+{
+  ++CHECK_NOTNONE(event_types.get(scheduler::Event::RESCIND));
+  ++events;
+}
+
+
+void FrameworkMetrics::incrementEvent(
+    const RescindInverseOfferMessage& message)
+{
+  ++CHECK_NOTNONE(event_types.get(scheduler::Event::RESCIND_INVERSE_OFFER));
+  ++events;
+}
+
+
+void FrameworkMetrics::incrementEvent(
+    const FrameworkRegisteredMessage& message)
+{
+  ++CHECK_NOTNONE(event_types.get(scheduler::Event::SUBSCRIBED));
+  ++events;
+}
+
+
+void FrameworkMetrics::incrementEvent(
+    const FrameworkReregisteredMessage& message)
+{
+  ++CHECK_NOTNONE(event_types.get(scheduler::Event::SUBSCRIBED));
+  ++events;
+}
+
+
+void FrameworkMetrics::incrementEvent(
+    const StatusUpdateMessage& message)
+{
+  ++CHECK_NOTNONE(event_types.get(scheduler::Event::UPDATE));
+  ++events;
+}
+
+
+void FrameworkMetrics::incrementEvent(
+    const UpdateOperationStatusMessage& message)
+{
+  ++CHECK_NOTNONE(event_types.get(scheduler::Event::UPDATE_OPERATION_STATUS));
+  ++events;
 }
 
 } // namespace master {
