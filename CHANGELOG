@@ -282,6 +282,7 @@ All Resolved Issues:
   * [MESOS-9122] - Batch '/state' requests in the Master actor.
   * [MESOS-9129] - Port mapper CNI plugin should use '-n' option with 'iptables --list'
   * [MESOS-9189] - Include 'Connection: close' header in master streaming API responses.
+  * [MESOS-9213] - Avoid double copying of master->framework messages when incrementing metrics.
 
 ** Task
   * [MESOS-2633] - Move implementations of Framework struct functions out of master.hpp.
