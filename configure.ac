@@ -301,7 +301,7 @@ AC_ARG_ENABLE([lock_free_run_queue],
 AC_ARG_ENABLE([new_cli],
               AS_HELP_STRING([--enable-new-cli],
                              [enable building the new CLI instead of the old one]),
-              [], [enable_new_cli=no]]))
+              [], [enable_new_cli=no])
 
 AC_ARG_ENABLE([libtool-wrappers],
               AS_HELP_STRING([--disable-libtool-wrappers],
