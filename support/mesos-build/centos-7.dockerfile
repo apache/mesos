@@ -48,6 +48,26 @@ RUN yum groupinstall -y 'Development Tools' && \
     yum clean all && \
     rm -rf /var/cache/yum
 
+# Install Python 3.6 and pip.
+# We need two separate `yum install` in order for
+# the python packages to be installed correctly.
+RUN yum install -y \
+      https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm && \
+    yum install -y \
+      python36 \
+      python36-devel && \
+    yum clean all && \
+    rm -rf /var/cache/yum
+
+# Use update-alternatives to set python3.6 as python3.
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.6 1
+
+# Install pip for Python 3.6.
+RUN curl https://bootstrap.pypa.io/get-pip.py | python3
+
+# Install virtualenv to /usr/bin/virtualenv with pip.
+RUN pip3 install --no-cache-dir virtualenv
+
 # Install newer CMake.
 RUN curl -sSL https://cmake.org/files/v3.8/cmake-3.8.2-Linux-x86_64.sh \
          -o /tmp/install-cmake.sh && \
