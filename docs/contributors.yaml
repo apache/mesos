@@ -728,6 +728,15 @@
   jira_user: quinn.leng.666@gmail.com
   reviewboard_user: quinn.leng
 
+- name: Robin Goegge
+  affiliations:
+    - {organization: Mesosphere}
+  emails:
+    - r.goegge@outlook.com
+    - rgoegge@mesosphere.io
+  jira_user: rgo3
+  reviewboard_user: rgo3
+
 - name: Ronald Petty
   affiliations:
     - {organization: RX-M}
