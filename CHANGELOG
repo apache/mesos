@@ -761,6 +761,7 @@ Release Notes - Mesos - Version 1.5.2 (WIP)
   * [MESOS-8418] - mesos-agent high cpu usage because of numerous /proc/mounts reads.
   * [MESOS-8568] - Command checks should always call `WAIT_NESTED_CONTAINER` before `REMOVE_NESTED_CONTAINER`
   * [MESOS-8830] - Agent gc on old slave sandboxes could empty persistent volume data
+  * [MESOS-8871] - Agent may fail to recover if the agent dies before image store cache checkpointed.
   * [MESOS-8904] - Master crash when removing quota.
   * [MESOS-8906] - `UriDiskProfileAdaptor` fails to update profile selectors.
   * [MESOS-8917] - Agent leaking file descriptors into forked processes
