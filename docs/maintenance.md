@@ -264,7 +264,7 @@ failed and the operator intends to remove it from the cluster; starting
 maintenance on the machine prevents the machine from being accidentally rebooted
 and rejoining the Mesos cluster.
 
-The operator must explicitly transition a machine from Draining to Deactived
+The operator must explicitly transition a machine from Draining to Down
 mode. That is, Mesos will keep a machine in Draining mode even if the
 unavailability window arrives or passes.  This means that the operation of the
 machine is not disrupted in any way and offers (with unavailability information)
