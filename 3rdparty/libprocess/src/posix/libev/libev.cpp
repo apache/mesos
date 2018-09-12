@@ -11,6 +11,7 @@
 // limitations under the License
 
 #include <ev.h>
+#include <signal.h>
 
 #include <mutex>
 #include <queue>
@@ -81,7 +82,17 @@ void handle_shutdown(struct ev_loop* loop, ev_async* _, int revents)
 
 void EventLoop::initialize()
 {
+  // libev, when built with child process watcher support (the
+  // EV_CHILD_ENABLE feature flag), will install a SIGCHLD handler
+  // and wait on all processes. We need to save and restore the
+  // current signal handler in order to disable this behavior.
+  struct sigaction chldHandler;
+
+  PCHECK(::sigaction(SIGCHLD, nullptr, &chldHandler) == 0);
+
   loop = ev_default_loop(EVFLAG_AUTO);
+
+  PCHECK(::sigaction(SIGCHLD, &chldHandler, nullptr) == 0);
 
   ev_async_init(&async_watcher, handle_async);
   ev_async_init(&shutdown_watcher, handle_shutdown);
