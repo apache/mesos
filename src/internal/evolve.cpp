@@ -296,8 +296,8 @@ v1::scheduler::Event evolve(const ExitedExecutorMessage& message)
   event.set_type(v1::scheduler::Event::FAILURE);
 
   v1::scheduler::Event::Failure* failure = event.mutable_failure();
-  failure->mutable_agent_id()->CopyFrom(evolve(message.slave_id()));
-  failure->mutable_executor_id()->CopyFrom(evolve(message.executor_id()));
+  *failure->mutable_agent_id() = evolve(message.slave_id());
+  *failure->mutable_executor_id() = evolve(message.executor_id());
   failure->set_status(message.status());
 
   return event;
@@ -310,8 +310,8 @@ v1::scheduler::Event evolve(const ExecutorToFrameworkMessage& message)
   event.set_type(v1::scheduler::Event::MESSAGE);
 
   v1::scheduler::Event::Message* message_ = event.mutable_message();
-  message_->mutable_agent_id()->CopyFrom(evolve(message.slave_id()));
-  message_->mutable_executor_id()->CopyFrom(evolve(message.executor_id()));
+  *message_->mutable_agent_id() = evolve(message.slave_id());
+  *message_->mutable_executor_id() = evolve(message.executor_id());
   message_->set_data(message.data());
 
   return event;
@@ -336,14 +336,14 @@ v1::scheduler::Event evolve(const FrameworkRegisteredMessage& message)
   event.set_type(v1::scheduler::Event::SUBSCRIBED);
 
   v1::scheduler::Event::Subscribed* subscribed = event.mutable_subscribed();
-  subscribed->mutable_framework_id()->CopyFrom(evolve(message.framework_id()));
+  *subscribed->mutable_framework_id() = evolve(message.framework_id());
 
   // TODO(anand): The master should pass the heartbeat interval as an argument
   // to `evolve()`.
   subscribed->set_heartbeat_interval_seconds(
       master::DEFAULT_HEARTBEAT_INTERVAL.secs());
 
-  subscribed->mutable_master_info()->CopyFrom(evolve(message.master_info()));
+  *subscribed->mutable_master_info() = evolve(message.master_info());
 
   return event;
 }
@@ -355,14 +355,14 @@ v1::scheduler::Event evolve(const FrameworkReregisteredMessage& message)
   event.set_type(v1::scheduler::Event::SUBSCRIBED);
 
   v1::scheduler::Event::Subscribed* subscribed = event.mutable_subscribed();
-  subscribed->mutable_framework_id()->CopyFrom(evolve(message.framework_id()));
+  *subscribed->mutable_framework_id() = evolve(message.framework_id());
 
   // TODO(anand): The master should pass the heartbeat interval as an argument
   // to `evolve()`.
   subscribed->set_heartbeat_interval_seconds(
       master::DEFAULT_HEARTBEAT_INTERVAL.secs());
 
-  subscribed->mutable_master_info()->CopyFrom(evolve(message.master_info()));
+  *subscribed->mutable_master_info() = evolve(message.master_info());
 
   return event;
 }
@@ -376,8 +376,8 @@ v1::scheduler::Event evolve(const InverseOffersMessage& message)
   v1::scheduler::Event::InverseOffers* inverse_offers =
     event.mutable_inverse_offers();
 
-  inverse_offers->mutable_inverse_offers()->CopyFrom(evolve<v1::InverseOffer>(
-      message.inverse_offers()));
+  *inverse_offers->mutable_inverse_offers() =
+    evolve<v1::InverseOffer>(message.inverse_offers());
 
   return event;
 }
@@ -389,7 +389,7 @@ v1::scheduler::Event evolve(const LostSlaveMessage& message)
   event.set_type(v1::scheduler::Event::FAILURE);
 
   v1::scheduler::Event::Failure* failure = event.mutable_failure();
-  failure->mutable_agent_id()->CopyFrom(evolve(message.slave_id()));
+  *failure->mutable_agent_id() = evolve(message.slave_id());
 
   return event;
 }
@@ -401,7 +401,7 @@ v1::scheduler::Event evolve(const ResourceOffersMessage& message)
   event.set_type(v1::scheduler::Event::OFFERS);
 
   v1::scheduler::Event::Offers* offers = event.mutable_offers();
-  offers->mutable_offers()->CopyFrom(evolve<v1::Offer>(message.offers()));
+  *offers->mutable_offers() = evolve<v1::Offer>(message.offers());
 
   return event;
 }
@@ -415,8 +415,8 @@ v1::scheduler::Event evolve(const RescindInverseOfferMessage& message)
   v1::scheduler::Event::RescindInverseOffer* rescindInverseOffer =
     event.mutable_rescind_inverse_offer();
 
-  rescindInverseOffer->mutable_inverse_offer_id()->CopyFrom(evolve(
-      message.inverse_offer_id()));
+  *rescindInverseOffer->mutable_inverse_offer_id() =
+      evolve(message.inverse_offer_id());
 
   return event;
 }
@@ -429,7 +429,7 @@ v1::scheduler::Event evolve(const RescindResourceOfferMessage& message)
 
   v1::scheduler::Event::Rescind* rescind = event.mutable_rescind();
 
-  rescind->mutable_offer_id()->CopyFrom(evolve(message.offer_id()));
+  *rescind->mutable_offer_id() = evolve(message.offer_id());
 
   return event;
 }
@@ -442,16 +442,16 @@ v1::scheduler::Event evolve(const StatusUpdateMessage& message)
 
   v1::scheduler::Event::Update* update = event.mutable_update();
 
-  update->mutable_status()->CopyFrom(evolve(message.update().status()));
+  *update->mutable_status() = evolve(message.update().status());
 
   if (message.update().has_slave_id()) {
-    update->mutable_status()->mutable_agent_id()->CopyFrom(
-        evolve(message.update().slave_id()));
+    *update->mutable_status()->mutable_agent_id() =
+      evolve(message.update().slave_id());
   }
 
   if (message.update().has_executor_id()) {
-    update->mutable_status()->mutable_executor_id()->CopyFrom(
-        evolve(message.update().executor_id()));
+    *update->mutable_status()->mutable_executor_id() =
+      evolve(message.update().executor_id());
   }
 
   update->mutable_status()->set_timestamp(message.update().timestamp());
@@ -480,8 +480,8 @@ v1::scheduler::Event evolve(const UpdateOperationStatusMessage& message)
 {
   v1::scheduler::Event event;
   event.set_type(v1::scheduler::Event::UPDATE_OPERATION_STATUS);
-  event.mutable_update_operation_status()->mutable_status()->CopyFrom(
-      evolve(message.status()));
+  *event.mutable_update_operation_status()->mutable_status() =
+    evolve(message.status());
 
   return event;
 }
@@ -512,14 +512,9 @@ v1::executor::Event evolve(const ExecutorRegisteredMessage& message)
 
   v1::executor::Event::Subscribed* subscribed = event.mutable_subscribed();
 
-  subscribed->mutable_executor_info()->
-    CopyFrom(evolve(message.executor_info()));
-
-  subscribed->mutable_framework_info()->
-    CopyFrom(evolve(message.framework_info()));
-
-  subscribed->mutable_agent_info()->
-    CopyFrom(evolve(message.slave_info()));
+  *subscribed->mutable_executor_info() = evolve(message.executor_info());
+  *subscribed->mutable_framework_info() = evolve(message.framework_info());
+  *subscribed->mutable_agent_info() = evolve(message.slave_info());
 
   return event;
 }
@@ -545,10 +540,10 @@ v1::executor::Event evolve(const KillTaskMessage& message)
 
   v1::executor::Event::Kill* kill = event.mutable_kill();
 
-  kill->mutable_task_id()->CopyFrom(evolve(message.task_id()));
+  *kill->mutable_task_id() = evolve(message.task_id());
 
   if (message.has_kill_policy()) {
-    kill->mutable_kill_policy()->CopyFrom(evolve(message.kill_policy()));
+    *kill->mutable_kill_policy() = evolve(message.kill_policy());
   }
 
   return event;
@@ -562,7 +557,7 @@ v1::executor::Event evolve(const RunTaskMessage& message)
 
   v1::executor::Event::Launch* launch = event.mutable_launch();
 
-  launch->mutable_task()->CopyFrom(evolve(message.task()));
+  *launch->mutable_task() = evolve(message.task());
 
   return event;
 }
@@ -586,7 +581,7 @@ v1::executor::Event evolve(
   v1::executor::Event::Acknowledged* acknowledged =
     event.mutable_acknowledged();
 
-  acknowledged->mutable_task_id()->CopyFrom(evolve(message.task_id()));
+  *acknowledged->mutable_task_id() = evolve(message.task_id());
   acknowledged->set_uuid(message.uuid());
 
   return event;
@@ -663,11 +658,8 @@ v1::master::Response evolve<v1::master::Response::GET_VERSION>(
   v1::master::Response response;
   response.set_type(v1::master::Response::GET_VERSION);
 
-  Try<v1::VersionInfo> version = ::protobuf::parse<v1::VersionInfo>(object);
-  CHECK_SOME(version);
-
-  response.mutable_get_version()->mutable_version_info()->CopyFrom(
-      version.get());
+  *response.mutable_get_version()->mutable_version_info() =
+    CHECK_NOTERROR(::protobuf::parse<v1::VersionInfo>(object));
 
   return response;
 }
@@ -681,11 +673,8 @@ v1::agent::Response evolve<v1::agent::Response::GET_VERSION>(
   v1::agent::Response response;
   response.set_type(v1::agent::Response::GET_VERSION);
 
-  Try<v1::VersionInfo> version = ::protobuf::parse<v1::VersionInfo>(object);
-  CHECK_SOME(version);
-
-  response.mutable_get_version()->mutable_version_info()->CopyFrom(
-      version.get());
+  *response.mutable_get_version()->mutable_version_info() =
+    CHECK_NOTERROR(::protobuf::parse<v1::VersionInfo>(object));
 
   return response;
 }
@@ -735,22 +724,16 @@ v1::agent::Response evolve<v1::agent::Response::GET_CONTAINERS>(
 
     Result<JSON::Object> container_status = object.find<JSON::Object>("status");
     if (container_status.isSome()) {
-      Try<v1::ContainerStatus> status =
-        ::protobuf::parse<v1::ContainerStatus>(container_status.get());
-
-      CHECK_SOME(status);
-      container->mutable_container_status()->CopyFrom(status.get());
+      *container->mutable_container_status() = CHECK_NOTERROR(
+          ::protobuf::parse<v1::ContainerStatus>(container_status.get()));
     }
 
     Result<JSON::Object> resource_statistics =
       object.find<JSON::Object>("statistics");
 
     if (resource_statistics.isSome()) {
-      Try<v1::ResourceStatistics> statistics =
-        ::protobuf::parse<v1::ResourceStatistics>(resource_statistics.get());
-
-      CHECK_SOME(statistics);
-      container->mutable_resource_statistics()->CopyFrom(statistics.get());
+      *container->mutable_resource_statistics() = CHECK_NOTERROR(
+          ::protobuf::parse<v1::ResourceStatistics>(resource_statistics.get()));
     }
   }
 
