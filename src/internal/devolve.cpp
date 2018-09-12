@@ -216,8 +216,8 @@ scheduler::Call devolve(const v1::scheduler::Call& call)
   if (call.type() == v1::scheduler::Call::ACKNOWLEDGE_OPERATION_STATUS &&
       call.has_acknowledge_operation_status() &&
       call.acknowledge_operation_status().has_agent_id()) {
-    _call.mutable_acknowledge_operation_status()->mutable_slave_id()
-      ->CopyFrom(devolve(call.acknowledge_operation_status().agent_id()));
+    *_call.mutable_acknowledge_operation_status()->mutable_slave_id() =
+      devolve(call.acknowledge_operation_status().agent_id());
   }
 
   return _call;
