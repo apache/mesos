@@ -3190,6 +3190,8 @@ Future<Response> Master::Http::_updateMaintenanceSchedule(
     return BadRequest(isValid.error());
   }
 
+  // TODO(alexr): Consider pulling this higher above before we even start
+  // parsing request body.
   return ObjectApprovers::create(
       master->authorizer,
       principal,
@@ -3237,11 +3239,12 @@ Future<Response> Master::Http::___updateMaintenanceSchedule(
   CHECK(applied);
 
   // Update the master's local state with the new schedule.
-  // NOTE: We only add or remove differences between the current schedule
-  // and the new schedule.  This is because the `MachineInfo` struct
-  // holds more information than a maintenance schedule.
-  // For example, the `mode` field is not part of a maintenance schedule.
-
+  //
+  // NOTE: We only add or remove differences between the current schedule and
+  // the new schedule.  This is because the `MachineInfo` struct holds more
+  // information than a maintenance schedule. For example, the `mode` field is
+  // not part of a maintenance schedule.
+  //
   // TODO(josephw): allow more than one schedule.
 
   // Put the machines in the updated schedule into a set.
