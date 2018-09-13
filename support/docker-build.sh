@@ -46,6 +46,15 @@ case $OS in
     append_dockerfile "RUN yum install -y clang git maven"
     append_dockerfile "RUN yum install -y java-1.8.0-openjdk-devel python-devel python-six zlib-devel libcurl-devel openssl-devel cyrus-sasl-devel cyrus-sasl-md5 apr-devel subversion-devel apr-utils-devel libevent-devel libev-devel"
 
+    # Install Python 3.6.
+    append_dockerfile "RUN yum install -y python36 python36-devel"
+    # Use update-alternatives to set python3.6 as python3.
+    append_dockerfile "RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.6 1"
+    # Install pip for Python 3.6.
+    append_dockerfile "RUN curl https://bootstrap.pypa.io/get-pip.py | python3"
+    # Install virtualenv to /usr/bin/virtualenv with pip.
+    append_dockerfile "RUN pip3 install --no-cache-dir virtualenv"
+
     # Add an unprivileged user.
     append_dockerfile "RUN adduser mesos"
    ;;
@@ -63,7 +72,7 @@ case $OS in
     # IBM Power only supports Ubuntu 14.04 and gcc compiler.
     [ "$(uname -m)" = "x86_64" ] && CLANG_PKG=clang-3.5 || CLANG_PKG=
     append_dockerfile "RUN apt-get update"
-    append_dockerfile "RUN apt-get install -y build-essential $CLANG_PKG git maven autoconf libtool"
+    append_dockerfile "RUN apt-get install -y build-essential $CLANG_PKG git maven autoconf libtool software-properties-common"
     append_dockerfile "RUN apt-get install -y python-dev python-six libcurl4-nss-dev libsasl2-dev libapr1-dev libsvn-dev libevent-dev libev-dev"
     append_dockerfile "RUN apt-get install -y wget curl sed"
 
@@ -73,6 +82,13 @@ case $OS in
         append_dockerfile "RUN apt-get install -y openjdk-8-jdk zlib1g-dev"
         # Install ping required by OsTest.Which
         append_dockerfile "RUN apt-get install -y iputils-ping"
+
+        # Install Python 3.6.
+        append_dockerfile "RUN add-apt-repository -y ppa:deadsnakes/ppa && apt-get update && apt-get install -qy python3.6 python3.6-dev python3.6-venv"
+        # Use update-alternatives to set python3.6 as python3.
+        append_dockerfile "RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.6 1"
+        # Install pip for Python 3.6.
+        append_dockerfile "RUN curl https://bootstrap.pypa.io/get-pip.py | python3"
        ;;
       *)
         append_dockerfile "RUN apt-get install -y openjdk-7-jdk"
