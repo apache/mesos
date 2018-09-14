@@ -34,4 +34,4 @@ export ENVIRONMENT='GLOG_v=1 MESOS_VERBOSE=1'
 # the review chain.
 "${MESOS_DIR}"/support/jenkins/buildbot.sh
 
-"${MESOS_DIR}"/support/verify-reviews.py ${USERNAME} ${PASSWORD} 1
+"${MESOS_DIR}"/support/verify-reviews.py -u ${USERNAME} -p ${PASSWORD} -r 1
