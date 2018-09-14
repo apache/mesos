@@ -39,7 +39,20 @@ RUN apt-get update && \
       python-dev \
       python-six \
       sed \
-      zlib1g-dev && \
+      zlib1g-dev \
+      software-properties-common \
+      python-software-properties && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists
+
+# Install Python 3.6.
+RUN add-apt-repository -y ppa:deadsnakes/ppa && \
+    apt-get update && \
+    apt-get install -qy \
+      python3.6 \
+      python3.6-dev \
+      python3.6-venv && \
+    add-apt-repository --remove -y ppa:deadsnakes/ppa && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists
 
