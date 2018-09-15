@@ -102,7 +102,7 @@ v1::resource_provider::Event evolve(const resource_provider::Event& event);
 // Helper for repeated field evolving to 'T1' from 'T2'.
 template <typename T1, typename T2>
 google::protobuf::RepeatedPtrField<T1> evolve(
-    google::protobuf::RepeatedPtrField<T2> t2s)
+    const google::protobuf::RepeatedPtrField<T2>& t2s)
 {
   google::protobuf::RepeatedPtrField<T1> t1s;
 
