@@ -77,15 +77,9 @@ def parse_parameters():
                              " format. Example: '%s'" % json.dumps(
                                  default_query),
                         default=json.dumps(default_query))
-
-    subparsers = parser.add_subparsers(title="The script plug-in type")
-
-    file_parser = subparsers.add_parser(
-        "file", description="File plug-in just writes to a file all"
-                            " the review ids that need verification")
-    file_parser.add_argument("-o", "--out-file", type=str, required=True,
-                             help="The out file with the reviews IDs that"
-                                  " need verification")
+    parser.add_argument("-o", "--out-file", type=str, required=False,
+                        help="The out file with the reviews IDs that"
+                             " need verification")
 
     return parser.parse_args()
 
@@ -244,14 +238,11 @@ def verification_needed_write(review_ids, parameters):
     """Write the IDs of the review requests that need verification."""
     num_reviews = len(review_ids)
     print("%s review requests need verification" % num_reviews)
-    # out_file parameter is mandatory to be passed
-    try:
-        # Using file plug-in
+    if parameters.out_file is not None:
         with open(parameters.out_file, 'w') as f:
             f.write('\n'.join(review_ids))
-    except Exception:
-        print("Failed opening file '%s' for writing" % parameters.out_file)
-        raise
+    else:
+        print('\n'.join(review_ids))
 
 
 def main():
