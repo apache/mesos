@@ -551,6 +551,10 @@ vector<string> DRFSorter::sort()
   // inactive leaves sorted after active leaves and internal nodes.
   vector<string> result;
 
+  // TODO(bmahler): This over-reserves where there are inactive
+  // clients, only reserve the number of active clients.
+  result.reserve(clients.size());
+
   std::function<void (const Node*)> listClients =
       [&listClients, &result](const Node* node) {
     foreach (const Node* child, node->children) {

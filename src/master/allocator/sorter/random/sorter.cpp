@@ -497,6 +497,9 @@ vector<string> RandomSorter::sort()
   // The children of each node are already shuffled, with
   // inactive leaves stored after active leaves and internal nodes.
   vector<string> result;
+
+  // TODO(bmahler): This over-reserves where there are inactive
+  // clients, only reserve the number of active clients.
   result.reserve(clients.size());
 
   std::function<void (const Node*)> listClients =
