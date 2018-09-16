@@ -615,19 +615,17 @@ double DRFSorter::calculateShare(const Node* node) const
     }
   }
 
-  return share / findWeight(node);
+  return share / getWeight(node);
 }
 
 
-double DRFSorter::findWeight(const Node* node) const
+double DRFSorter::getWeight(const Node* node) const
 {
-  Option<double> weight = weights.get(node->path);
-
-  if (weight.isNone()) {
-    return 1.0;
-  }
-
-  return weight.get();
+  // TODO(bmahler): It's expensive to have to hash the complete
+  // role path and re-lookup the weight each time we calculate
+  // the share, consider storing the weight directly in the
+  // node struct.
+  return weights.get(node->path).getOrElse(1.0);
 }
 
 
