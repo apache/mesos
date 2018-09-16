@@ -477,7 +477,7 @@ vector<string> RandomSorter::sort()
     vector<double> weights(inactiveBegin - node->children.begin());
 
     for (int i = 0; i < inactiveBegin - node->children.begin(); ++i) {
-      weights[i] = findWeight(node->children[i]);
+      weights[i] = getWeight(node->children[i]);
     }
 
     weightedShuffle(node->children.begin(), inactiveBegin, weights, generator);
@@ -537,15 +537,13 @@ size_t RandomSorter::count() const
 }
 
 
-double RandomSorter::findWeight(const Node* node) const
+double RandomSorter::getWeight(const Node* node) const
 {
-  Option<double> weight = weights.get(node->path);
-
-  if (weight.isNone()) {
-    return 1.0;
-  }
-
-  return weight.get();
+  // TODO(bmahler): It's expensive to have to hash the complete
+  // role path and re-lookup the weight each time we calculate
+  // the share, consider storing the weight directly in the
+  // node struct.
+  return weights.get(node->path).getOrElse(1.0);
 }
 
 

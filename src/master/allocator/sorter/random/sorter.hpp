@@ -117,7 +117,7 @@ private:
   // Returns the weight associated with the node. If no weight has
   // been configured for the node's path, the default weight (1.0) is
   // returned.
-  double findWeight(const Node* node) const;
+  double getWeight(const Node* node) const;
 
   // Returns the client associated with the given path. Returns
   // nullptr if the path is not found or if the path identifies an
