@@ -19,6 +19,7 @@
 
 #include <functional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <mesos/resources.hpp>
@@ -147,6 +148,89 @@ public:
   // either active or inactive.
   virtual size_t count() const = 0;
 };
+
+// Efficient type for scalar resource quantities that avoids
+// the overhead of using `Resources`.
+//
+// TODO(bmahler): This was originally added to replace a
+// `hashmap<string, Scalar>` and hence the interface was
+// tailored to the particular usage of the map. In order
+// to move this up as a replacement of all quantities
+// (e.g. `Resources::createStrippedScalarQuantity()`),
+// this will need more functionality to do so (e.g.
+// arithmetic operators, containment check, etc).
+class ScalarResourceQuantities
+{
+public:
+  ScalarResourceQuantities()
+  {
+    // Pre-reserve space for first-class scalars.
+    quantities.reserve(4u);  // [cpus, disk, gpus, mem]
+  }
+
+  // Returns true if there is a non-zero amount of
+  // the specified resource.
+  bool contains(const std::string& name) const
+  {
+    // Don't bother binary searching since we don't expect
+    // a large number of quantities.
+    foreach (auto& quantity, quantities) {
+      if (quantity.first == name) {
+        return quantity.second.value() > 0.0;
+      }
+    }
+
+    return false;
+  }
+
+  const Value::Scalar& at(const std::string& name) const
+  {
+    // Don't bother binary searching since we don't expect
+    // a large number of quantities.
+    foreach (auto& quantity, quantities) {
+      if (quantity.first == name) {
+        return quantity.second;
+      }
+    }
+
+    // TODO(bmahler): Print out the vector, need to add
+    // a `stringify(const pair<T1, T2>& p)` overload.
+    LOG(FATAL) << "Failed to find '" << name << "'";
+  }
+
+  Value::Scalar& operator[](const std::string& name)
+  {
+    // Find the location to insert while maintaining
+    // alphabetical ordering. Don't bother binary searching
+    // since we don't expect a large number of quantities.
+    auto it = quantities.begin();
+    for (; it != quantities.end(); ++it) {
+      if (it->first == name) {
+        return it->second;
+      }
+
+      if (it->first > name) {
+        break;
+      }
+    }
+
+    it = quantities.insert(it, std::make_pair(name, Value::Scalar()));
+
+    return it->second;
+  }
+
+  typedef std::vector<std::pair<std::string, Value::Scalar>>::const_iterator
+    const_iterator;
+
+  const_iterator begin() const { return quantities.begin(); }
+  const_iterator   end() const { return quantities.end(); }
+
+private:
+  // List of scalar resources sorted by resource name.
+  // Arithmetic operations benefit from this sorting.
+  std::vector<std::pair<std::string, Value::Scalar>> quantities;
+};
+
 
 } // namespace allocator {
 } // namespace master {
