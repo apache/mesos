@@ -243,6 +243,12 @@ struct DRFSorter::Node
 
   double share;
 
+  // Cached weight of the node, access this through `getWeight()`.
+  // The value is cached by `getWeight()` and updated by
+  // `updateWeight()`. Marked mutable since the caching writes
+  // to this are logically const.
+  mutable Option<double> weight;
+
   Kind kind;
 
   Node* parent;

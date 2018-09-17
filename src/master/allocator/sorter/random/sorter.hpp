@@ -235,6 +235,12 @@ struct RandomSorter::Node
   // label for virtual leaf nodes.
   std::string path;
 
+  // Cached weight of the node, access this through `getWeight()`.
+  // The value is cached by `getWeight()` and updated by
+  // `updateWeight()`. Marked mutable since the caching writes
+  // to this are logically const.
+  mutable Option<double> weight;
+
   Kind kind;
 
   Node* parent;
