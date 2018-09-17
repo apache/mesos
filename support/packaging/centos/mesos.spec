@@ -161,10 +161,11 @@ install -m 0644 src/java/target/mesos-*.jar %{buildroot}%{_datadir}/java/
 ######################
 %files devel
 %doc LICENSE NOTICE
+%{_includedir}/elfio/
 %{_includedir}/mesos/
 %{_includedir}/stout/
 %{_includedir}/process/
-%{_includedir}/elfio/
+%{_includedir}/rapidjson/
 %{_includedir}/picojson.h
 %{_libdir}/pkgconfig/%{name}.pc
 %{_libdir}/*.la
