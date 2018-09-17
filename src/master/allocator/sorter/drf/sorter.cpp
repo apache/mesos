@@ -312,6 +312,24 @@ void DRFSorter::updateWeight(const string& path, double weight)
 
   // TODO(neilc): Avoid dirtying the tree in some circumstances.
   dirty = true;
+
+  // Update the weight of the corresponding internal node,
+  // if it exists (this client may not exist despite there
+  // being a weight).
+  Node* node = find(path);
+
+  if (node == nullptr) {
+    return;
+  }
+
+  // If there is a virtual leaf, we need to move up one level.
+  if (node->name == ".") {
+    node = CHECK_NOTNULL(node->parent);
+  }
+
+  CHECK_EQ(path, node->path);
+
+  node->weight = weight;
 }
 
 
@@ -625,11 +643,11 @@ double DRFSorter::calculateShare(const Node* node) const
 
 double DRFSorter::getWeight(const Node* node) const
 {
-  // TODO(bmahler): It's expensive to have to hash the complete
-  // role path and re-lookup the weight each time we calculate
-  // the share, consider storing the weight directly in the
-  // node struct.
-  return weights.get(node->path).getOrElse(1.0);
+  if (node->weight.isNone()) {
+    node->weight = weights.get(node->path).getOrElse(1.0);
+  }
+
+  return CHECK_NOTNONE(node->weight);
 }
 
 
