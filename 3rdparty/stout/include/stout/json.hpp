@@ -889,13 +889,18 @@ inline std::ostream& operator<<(std::ostream& stream, const Null& null)
 
 namespace internal {
 
+// "Depth" is counted downwards to stay closer to the analogous
+// implementation in PicoJSON.
+constexpr size_t STOUT_JSON_MAX_DEPTH = 200;
+
 // Our implementation of picojson's parsing context that allows
 // us to parse directly into our JSON::Value.
 //
 // https://github.com/kazuho/picojson/blob/v1.3.0/picojson.h#L820-L870
 class ParseContext {
 public:
-  ParseContext(Value* _value) : value(_value) {}
+  ParseContext(Value* _value, size_t _depth = STOUT_JSON_MAX_DEPTH)
+    : value(_value), depth(_depth) {}
 
   ParseContext(const ParseContext&) = delete;
   ParseContext &operator=(const ParseContext&) = delete;
@@ -920,19 +925,33 @@ public:
     return picojson::_parse_string(value->as<String>().value, in);
   }
 
-  bool parse_array_start() { *value = Array(); return true; }
+  bool parse_array_start() {
+    if (depth <= 0) {
+      return false;
+    }
+    --depth;
+    *value = Array();
+    return true;
+  }
 
   template <typename Iter>
   bool parse_array_item(picojson::input<Iter>& in, size_t) {
     Array& array = value->as<Array>();
     array.values.push_back(Value());
-    ParseContext context(&array.values.back());
+    ParseContext context(&array.values.back(), depth);
     return picojson::_parse(context, in);
   }
 
-  bool parse_array_stop(size_t) { return true; }
+  bool parse_array_stop(size_t) {
+    ++depth;
+    return true;
+  }
 
   bool parse_object_start() {
+    if (depth <= 0) {
+      return false;
+    }
+    --depth;
     *value = Object();
     return true;
   }
@@ -940,11 +959,17 @@ public:
   template <typename Iter>
   bool parse_object_item(picojson::input<Iter>& in, const std::string& key) {
     Object& object = value->as<Object>();
-    ParseContext context(&object.values[key]);
+    ParseContext context(&object.values[key], depth);
     return picojson::_parse(context, in);
   }
 
+  bool parse_object_stop() {
+    ++depth;
+    return true;
+  }
+
   Value* value;
+  size_t depth;
 };
 
 } // namespace internal {

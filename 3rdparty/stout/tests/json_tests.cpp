@@ -795,3 +795,24 @@ TEST(JsonTest, ContainsObject)
       "}");
   EXPECT_FALSE(nested.contains(nestedTest.get()));
 }
+
+
+TEST(JsonTest, NestingDepth)
+{
+  const size_t depth = 500000;
+
+  string deeplyNested;
+
+  for (size_t i = 0; i < depth; ++i) {
+    deeplyNested += "[";
+  }
+
+  deeplyNested += "42";
+
+  for (size_t i = 0; i < depth; ++i) {
+    deeplyNested += "]";
+  }
+
+  Try<JSON::Value> parsed = JSON::parse(deeplyNested);
+  ASSERT_ERROR(parsed); // Maximum depth exceeded.
+}
