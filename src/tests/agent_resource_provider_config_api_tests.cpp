@@ -20,7 +20,7 @@
 #include <process/gtest.hpp>
 #include <process/gmock.hpp>
 
-#include <stout/fs.hpp>
+#include <stout/os.hpp>
 #include <stout/json.hpp>
 #include <stout/protobuf.hpp>
 #include <stout/stringify.hpp>
@@ -32,6 +32,8 @@
 #include "csi/paths.hpp"
 
 #include "internal/evolve.hpp"
+
+#include "resource_provider/local.hpp"
 
 #include "slave/slave.hpp"
 
@@ -235,6 +237,30 @@ public:
     return info.get();
   }
 
+  list<string> getResourceProviderConfigPaths()
+  {
+    list<string> result;
+
+    // This extra closure is necessary in order to use `ASSERT_*`, as
+    // these macros require a void return type.
+    [&] {
+      Try<list<string>> configFiles = os::ls(resourceProviderConfigDir.get());
+      ASSERT_SOME(configFiles);
+
+      foreach (const string& configFile, configFiles.get()) {
+        const string configPath =
+          path::join(resourceProviderConfigDir.get(), configFile);
+
+        // We only keep regular files to filter out the staging directory.
+        if (os::stat::isfile(configPath)) {
+          result.push_back(configPath);
+        }
+      }
+    }();
+
+    return result;
+  }
+
   Future<http::Response> addResourceProviderConfig(
       const PID<Slave>& pid,
       const ContentType& contentType,
@@ -366,12 +392,10 @@ TEST_P(AgentResourceProviderConfigApiTest, Add)
       addResourceProviderConfig(slave.get()->pid, contentType, info));
 
   // Check that a new config file is created.
-  Try<list<string>> configPaths =
-    fs::list(path::join(resourceProviderConfigDir.get(), "*"));
-  ASSERT_SOME(configPaths);
-  EXPECT_EQ(1u, configPaths->size());
+  list<string> configPaths = getResourceProviderConfigPaths();
+  EXPECT_EQ(1u, configPaths.size());
 
-  Try<string> read = os::read(configPaths->back());
+  Try<string> read = os::read(configPaths.back());
   ASSERT_SOME(read);
 
   Try<JSON::Object> json = JSON::parse<JSON::Object>(read.get());
@@ -451,7 +475,7 @@ TEST_P(AgentResourceProviderConfigApiTest, IdempotentAdd)
 
 
 // This test checks that adding a resource provider config that already
-// exists is not allowed.
+// exists is rejected.
 TEST_P(AgentResourceProviderConfigApiTest, AddConflict)
 {
   const ContentType contentType = GetParam();
@@ -483,11 +507,9 @@ TEST_P(AgentResourceProviderConfigApiTest, AddConflict)
 
   // Check that no new config is created, and the existing one is not
   // overwritten.
-  Try<list<string>> configPaths =
-    fs::list(path::join(resourceProviderConfigDir.get(), "*"));
-  ASSERT_SOME(configPaths);
-  EXPECT_EQ(1u, configPaths->size());
-  EXPECT_EQ(configPath, configPaths->back());
+  list<string> configPaths = getResourceProviderConfigPaths();
+  EXPECT_EQ(1u, configPaths.size());
+  EXPECT_EQ(configPath, configPaths.back());
 
   Try<string> read = os::read(configPath);
   ASSERT_SOME(read);
@@ -499,6 +521,46 @@ TEST_P(AgentResourceProviderConfigApiTest, AddConflict)
     ::protobuf::parse<ResourceProviderInfo>(json.get());
   ASSERT_SOME(_info);
   EXPECT_EQ(_info.get(), oldInfo);
+}
+
+
+// This test checks that adding an invalid resource provider config is rejected.
+TEST_P(AgentResourceProviderConfigApiTest, AddInvalid)
+{
+  const ContentType contentType = GetParam();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.allocation_interval = Milliseconds(50);
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Generate an invalid config by clearing the `storage` field, which is
+  // required by the storage local resource provider.
+  ResourceProviderInfo info = createResourceProviderInfo("volume1:4GB");
+  info.clear_storage();
+  ASSERT_SOME(LocalResourceProvider::validate(info));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      http::BadRequest().status,
+      updateResourceProviderConfig(slave.get()->pid, contentType, info));
+
+  // Check that no new config is created.
+  list<string> configPaths = getResourceProviderConfigPaths();
+  EXPECT_TRUE(configPaths.empty());
 }
 
 
@@ -577,11 +639,9 @@ TEST_P(AgentResourceProviderConfigApiTest, Update)
       updateResourceProviderConfig(slave.get()->pid, contentType, info));
 
   // Check that no new config is created, and the existing one is overwritten.
-  Try<list<string>> configPaths =
-    fs::list(path::join(resourceProviderConfigDir.get(), "*"));
-  ASSERT_SOME(configPaths);
-  EXPECT_EQ(1u, configPaths->size());
-  EXPECT_EQ(configPath, configPaths->back());
+  list<string> configPaths = getResourceProviderConfigPaths();
+  EXPECT_EQ(1u, configPaths.size());
+  EXPECT_EQ(configPath, configPaths.back());
 
   Try<string> read = os::read(configPath);
   ASSERT_SOME(read);
@@ -669,8 +729,8 @@ TEST_P(AgentResourceProviderConfigApiTest, IdempotentUpdate)
 }
 
 
-// This test checks that updating a nonexistent resource provider config
-// is not allowed.
+// This test checks that updating a nonexistent resource provider config is
+// rejected.
 TEST_P(AgentResourceProviderConfigApiTest, UpdateNotFound)
 {
   const ContentType contentType = GetParam();
@@ -695,10 +755,99 @@ TEST_P(AgentResourceProviderConfigApiTest, UpdateNotFound)
       updateResourceProviderConfig(slave.get()->pid, contentType, info));
 
   // Check that no new config is created.
-  Try<list<string>> configPaths =
-    fs::list(path::join(resourceProviderConfigDir.get(), "*"));
-  ASSERT_SOME(configPaths);
-  EXPECT_TRUE(configPaths->empty());
+  list<string> configPaths = getResourceProviderConfigPaths();
+  EXPECT_TRUE(configPaths.empty());
+}
+
+
+// This test checks that updating with an invalid resource provider config is
+// rejected.
+TEST_P(AgentResourceProviderConfigApiTest, UpdateInvalid)
+{
+  const ContentType contentType = GetParam();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.allocation_interval = Milliseconds(50);
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
+
+  // Generate a pre-existing config.
+  const string configPath =
+    path::join(resourceProviderConfigDir.get(), "test.json");
+  ResourceProviderInfo oldInfo = createResourceProviderInfo("volume1:4GB");
+  ASSERT_SOME(os::write(configPath, stringify(JSON::protobuf(oldInfo))));
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Register a framework to wait for an offer having the provider resource.
+  FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
+  framework.set_roles(0, "storage");
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  // We use the following filter to filter offers that do not have
+  // wanted resources for 365 days (the maximum).
+  Filters declineFilters;
+  declineFilters.set_refuse_seconds(Days(365).secs());
+
+  // Decline offers that contain only the agent's default resources.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillRepeatedly(DeclineOffers(declineFilters));
+
+  Future<vector<Offer>> oldOffers;
+
+  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
+      std::bind(&Resources::hasResourceProvider, lambda::_1))))
+    .WillOnce(FutureArg<1>(&oldOffers));
+
+  driver.start();
+
+  // Wait for an offer having the old provider resource.
+  AWAIT_READY(oldOffers);
+  ASSERT_FALSE(oldOffers->empty());
+
+  // Generate an invalid config by clearing the `storage` field, which is
+  // required by the storage local resource provider.
+  ResourceProviderInfo newInfo = oldInfo;
+  newInfo.clear_storage();
+  ASSERT_SOME(LocalResourceProvider::validate(newInfo));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(
+      http::BadRequest().status,
+      updateResourceProviderConfig(slave.get()->pid, contentType, newInfo));
+
+  // Check that no new config is created, and the existing one is not
+  // overwritten.
+  list<string> configPaths = getResourceProviderConfigPaths();
+  EXPECT_EQ(1u, configPaths.size());
+  EXPECT_EQ(configPath, configPaths.back());
+
+  Try<string> read = os::read(configPath);
+  ASSERT_SOME(read);
+
+  Try<JSON::Object> json = JSON::parse<JSON::Object>(read.get());
+  ASSERT_SOME(json);
+
+  Try<ResourceProviderInfo> _info =
+    ::protobuf::parse<ResourceProviderInfo>(json.get());
+  ASSERT_SOME(_info);
+  EXPECT_EQ(_info.get(), oldInfo);
 }
 
 
