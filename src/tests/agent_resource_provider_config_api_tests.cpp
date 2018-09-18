@@ -129,7 +129,23 @@ public:
                         "--volumes=%s",
                         "--work_dir=%s"
                       ]
-                    }
+                    },
+                    "resources": [
+                      {
+                        "name": "cpus",
+                        "type": "SCALAR",
+                        "scalar": {
+                          "value": 0.1
+                        }
+                      },
+                      {
+                        "name": "mem",
+                        "type": "SCALAR",
+                        "scalar": {
+                          "value": 1024
+                        }
+                      }
+                    ]
                   }
                 ]
               }
@@ -282,7 +298,7 @@ INSTANTIATE_TEST_CASE_P(
 
 
 // This test adds a new resource provider config on the fly.
-TEST_P(AgentResourceProviderConfigApiTest, ROOT_Add)
+TEST_P(AgentResourceProviderConfigApiTest, Add)
 {
   const ContentType contentType = GetParam();
 
@@ -295,8 +311,6 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Add)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.isolation = "filesystem/linux";
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -366,7 +380,7 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Add)
 
 // This test checks that adding a resource provider config that is identical to
 // an existing one is allowed due to idempotency.
-TEST_P(AgentResourceProviderConfigApiTest, ROOT_IdempotentAdd)
+TEST_P(AgentResourceProviderConfigApiTest, IdempotentAdd)
 {
   const ContentType contentType = GetParam();
 
@@ -378,8 +392,6 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_IdempotentAdd)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.isolation = "filesystem/linux";
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   // Generate a pre-existing config.
@@ -431,7 +443,7 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_IdempotentAdd)
 
 // This test checks that adding a resource provider config that already
 // exists is not allowed.
-TEST_P(AgentResourceProviderConfigApiTest, ROOT_AddConflict)
+TEST_P(AgentResourceProviderConfigApiTest, AddConflict)
 {
   const ContentType contentType = GetParam();
 
@@ -444,15 +456,12 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_AddConflict)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.isolation = "filesystem/linux";
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   // Generate a pre-existing config.
   const string configPath = path::join(resourceProviderConfigDir, "test.json");
-  ASSERT_SOME(os::write(
-      configPath,
-      stringify(JSON::protobuf(createResourceProviderInfo("volume1:4GB")))));
+  ResourceProviderInfo oldInfo = createResourceProviderInfo("volume1:4GB");
+  ASSERT_SOME(os::write(configPath, stringify(JSON::protobuf(oldInfo))));
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
@@ -462,11 +471,11 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_AddConflict)
 
   AWAIT_READY(slaveRegisteredMessage);
 
-  ResourceProviderInfo info = createResourceProviderInfo("volume1:2GB");
+  ResourceProviderInfo newInfo = createResourceProviderInfo("volume1:2GB");
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       http::Conflict().status,
-      addResourceProviderConfig(slave.get()->pid, contentType, info));
+      addResourceProviderConfig(slave.get()->pid, contentType, newInfo));
 
   // Check that no new config is created, and the existing one is not
   // overwritten.
@@ -485,12 +494,12 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_AddConflict)
   Try<ResourceProviderInfo> _info =
     ::protobuf::parse<ResourceProviderInfo>(json.get());
   ASSERT_SOME(_info);
-  EXPECT_NE(_info.get(), info);
+  EXPECT_EQ(_info.get(), oldInfo);
 }
 
 
 // This test updates an existing resource provider config on the fly.
-TEST_P(AgentResourceProviderConfigApiTest, ROOT_Update)
+TEST_P(AgentResourceProviderConfigApiTest, Update)
 {
   const ContentType contentType = GetParam();
 
@@ -503,8 +512,6 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Update)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.isolation = "filesystem/linux";
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   // Generate a pre-existing config.
@@ -602,7 +609,7 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Update)
 
 // This test checks that updating an existing resource provider config with an
 // identical one will not relaunch the resource provider due to idempotency.
-TEST_P(AgentResourceProviderConfigApiTest, ROOT_IdempotentUpdate)
+TEST_P(AgentResourceProviderConfigApiTest, IdempotentUpdate)
 {
   const ContentType contentType = GetParam();
 
@@ -614,8 +621,6 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_IdempotentUpdate)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.isolation = "filesystem/linux";
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   // Generate a pre-existing config.
@@ -680,7 +685,6 @@ TEST_P(AgentResourceProviderConfigApiTest, UpdateNotFound)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -706,7 +710,7 @@ TEST_P(AgentResourceProviderConfigApiTest, UpdateNotFound)
 
 
 // This test removes an existing resource provider config on the fly.
-TEST_P(AgentResourceProviderConfigApiTest, ROOT_Remove)
+TEST_P(AgentResourceProviderConfigApiTest, Remove)
 {
   const ContentType contentType = GetParam();
 
@@ -719,8 +723,6 @@ TEST_P(AgentResourceProviderConfigApiTest, ROOT_Remove)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.isolation = "filesystem/linux";
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   // Generate a pre-existing config.
@@ -801,7 +803,6 @@ TEST_P(AgentResourceProviderConfigApiTest, IdempotentRemove)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-
   slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
