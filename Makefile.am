@@ -50,6 +50,11 @@ EXTRA_DIST += bootstrap LICENSE NOTICE README.md	\
 # libraries and only those libraries.
 AM_DISTCHECK_CONFIGURE_FLAGS = --disable-python-dependency-install
 
+# In some distributions, rpmbuild(8) will implicitly disable dependency
+# tracking. Make sure we disable it in during distcheck to ensure we do not
+# accidentally depend on the side-effects of automake dependency tracking.
+AM_DISTCHECK_CONFIGURE_FLAGS += --disable-dependency-tracking
+
 
 # MPI framework.
 EXTRA_DIST += mpi/README mpi/mpiexec-mesos.in mpi/mpiexec-mesos.py
