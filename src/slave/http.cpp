@@ -3194,7 +3194,7 @@ Future<Response> Http::_attachContainerInput(
       std::move(decoder), encoder, writer);
 
   return slave->containerizer->attach(containerId)
-    .then([=](Connection connection) mutable {
+    .then(defer(slave->self(), [=](Connection connection) mutable {
       Request request;
       request.method = "POST";
       request.type = Request::PIPE;
@@ -3240,7 +3240,7 @@ Future<Response> Http::_attachContainerInput(
               // responses due to a lack of graceful shutdown in libprocess.
               acknowledgeContainerInputResponse(containerId);
             }));
-    });
+    }));
 }
 
 
