@@ -1004,6 +1004,9 @@ private:
   // switchboard.
   Option<Error> validate(const agent::Call::AttachContainerInput& call);
 
+  // Handle acknowledgment for `ATTACH_CONTAINER_INPUT` call.
+  Future<http::Response> acknowledgeContainerInputResponse();
+
   // Handle `ATTACH_CONTAINER_INPUT` calls.
   Future<http::Response> attachContainerInput(
       const Owned<recordio::Reader<agent::Call>>& reader);
@@ -1029,6 +1032,10 @@ private:
   bool waitForConnection;
   Option<Duration> heartbeatInterval;
   bool inputConnected;
+  // Each time the agent receives a response for `ATTACH_CONTAINER_INPUT`
+  // request it sends an acknowledgment. This counter is used to delay
+  // IOSwitchboard termination until all acknowledgments are received.
+  size_t numPendingAcknowledgments;
   Future<unix::Socket> accept;
   Promise<Nothing> promise;
   Promise<Nothing> startRedirect;
@@ -1164,7 +1171,8 @@ IOSwitchboardServerProcess::IOSwitchboardServerProcess(
     socket(_socket),
     waitForConnection(_waitForConnection),
     heartbeatInterval(_heartbeatInterval),
-    inputConnected(false) {}
+    inputConnected(false),
+    numPendingAcknowledgments(0) {}
 
 
 Future<Nothing> IOSwitchboardServerProcess::run()
@@ -1221,12 +1229,12 @@ Future<Nothing> IOSwitchboardServerProcess::run()
       // containers with this behavior and we will exit out of the
       // switchboard process early.
       //
-      // If our IO redirects are finished and there is an input connected,
-      // then we set `redirectFinished` promise which triggers a callback for
+      // If our IO redirects are finished and there are pending
+      // acknowledgments for `ATTACH_CONTAINER_INPUT` requests, then
+      // we set `redirectFinished` promise which triggers a callback for
       // `attachContainerInput()`. This callback returns a final `HTTP 200`
       // response to the client, even if the client has not yet sent the EOF
-      // message. So we postpone our termination until we send a final
-      // response to the client.
+      // message.
       //
       // NOTE: We always call `terminate()` with `false` to ensure
       // that our event queue is drained before actually terminating.
@@ -1257,7 +1265,7 @@ Future<Nothing> IOSwitchboardServerProcess::run()
 
       collect(stdoutRedirect, stderrRedirect)
         .then(defer(self(), [this]() {
-          if (inputConnected) {
+          if (numPendingAcknowledgments > 0) {
             redirectFinished.set(http::OK());
           } else {
             terminate(self(), false);
@@ -1366,6 +1374,10 @@ Future<http::Response> IOSwitchboardServerProcess::handler(
     const http::Request& request)
 {
   CHECK_EQ("POST", request.method);
+
+  if (request.url.path == "/acknowledge_container_input_response") {
+    return acknowledgeContainerInputResponse();
+  }
 
   Option<string> contentType_ = request.headers.get("Content-Type");
   CHECK_SOME(contentType_);
@@ -1593,9 +1605,30 @@ Option<Error> IOSwitchboardServerProcess::validate(
 }
 
 
+Future<http::Response>
+IOSwitchboardServerProcess::acknowledgeContainerInputResponse()
+{
+  // Check if this is an acknowledgment sent by the agent. This acknowledgment
+  // means that response for `ATTACH_CONTAINER_INPUT` call has been received by
+  // the agent.
+  CHECK_GT(numPendingAcknowledgments, 0u);
+  if (--numPendingAcknowledgments == 0) {
+    // If IO redirects are finished or writing to `stdin` failed we want to
+    // terminate ourselves (after flushing any outstanding messages from our
+    // message queue).
+    if (!redirectFinished.future().isPending() || failure.isSome()) {
+      terminate(self(), false);
+    }
+  }
+  return http::OK();
+}
+
+
 Future<http::Response> IOSwitchboardServerProcess::attachContainerInput(
     const Owned<recordio::Reader<agent::Call>>& reader)
 {
+  ++numPendingAcknowledgments;
+
   // Only allow a single input connection at a time.
   if (inputConnected) {
     return http::Conflict("Multiple input connections are not allowed");
@@ -1727,13 +1760,6 @@ Future<http::Response> IOSwitchboardServerProcess::attachContainerInput(
       defer(self(), [=](const http::Response& response) -> http::Response {
         // Reset `inputConnected` to allow future input connections.
         inputConnected = false;
-
-        // If IO redirects are finished or writing to `stdin` failed we want
-        // to terminate ourselves (after flushing any outstanding messages
-        // from our message queue).
-        if (!redirectFinished.future().isPending() || failure.isSome()) {
-          terminate(self(), false);
-        }
 
         return response;
       }));
