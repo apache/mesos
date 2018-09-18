@@ -3096,8 +3096,7 @@ Future<Response> Http::_attachContainerInput(
       std::move(decoder), encoder, writer);
 
   return slave->containerizer->attach(containerId)
-    .then([mediaTypes, reader, writer, transform](
-        Connection connection) mutable {
+    .then([=](Connection connection) mutable {
       Request request;
       request.method = "POST";
       request.type = Request::PIPE;
@@ -3131,6 +3130,31 @@ Future<Response> Http::_attachContainerInput(
       // until the disconnection occurs.
       connection.disconnected()
         .onAny([connection]() {});
+
+      return connection.send(request)
+        .onAny(defer(
+            slave->self(),
+            [=](const Future<Response>&) {
+              // After we have received a response for `ATTACH_CONTAINER_INPUT`
+              // call, we need to send an acknowledgment to the IOSwitchboard,
+              // so that the IOSwitchboard process can terminate itself. This is
+              // a workaround for the problem with dropping outstanding HTTP
+              // responses due to a lack of graceful shutdown in libprocess.
+              acknowledgeContainerInputResponse(containerId);
+            }));
+    });
+}
+
+
+Future<Response> Http::acknowledgeContainerInputResponse(
+    const ContainerID& containerId) const {
+  return slave->containerizer->attach(containerId)
+    .then([](Connection connection) {
+      Request request;
+      request.method = "POST";
+      request.type = Request::BODY;
+      request.url.domain = "";
+      request.url.path = "/acknowledge_container_input_response";
 
       return connection.send(request);
     });

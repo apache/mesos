@@ -326,6 +326,9 @@ private:
       process::Owned<recordio::Reader<agent::Call>>&& decoder,
       const RequestMediaTypes& mediaTypes) const;
 
+  process::Future<process::http::Response> acknowledgeContainerInputResponse(
+      const ContainerID& containerId) const;
+
   process::Future<process::http::Response> attachContainerOutput(
       const mesos::agent::Call& call,
       const RequestMediaTypes& mediaTypes,
