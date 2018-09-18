@@ -2092,21 +2092,11 @@ Future<Response> Http::getContainers(
               call.get_containers().show_nested(),
               call.get_containers().show_standalone());
         }))
-    .then([acceptType](const Future<JSON::Array>& result) -> Response {
-      if (!result.isReady()) {
-        LOG(WARNING) << "Could not collect container status and statistics: "
-                     << (result.isFailed()
-                          ? result.failure()
-                          : "Discarded");
-        return result.isFailed()
-          ? InternalServerError(result.failure())
-          : InternalServerError();
-      }
-
+    .then([acceptType](const JSON::Array& result) -> Response {
       return OK(
           serialize(
               acceptType,
-              evolve<v1::agent::Response::GET_CONTAINERS>(result.get())),
+              evolve<v1::agent::Response::GET_CONTAINERS>(result)),
           stringify(acceptType));
     });
 }
@@ -2133,20 +2123,8 @@ Future<Response> Http::_containers(
               false,
               false);
         }))
-    .then([request](const Future<JSON::Array>& result) -> Response {
-      if (!result.isReady()) {
-        LOG(WARNING) << "Could not collect container status and statistics: "
-                     << (result.isFailed()
-                         ? result.failure()
-                         : "Discarded");
-
-        return result.isFailed()
-            ? InternalServerError(result.failure())
-            : InternalServerError();
-      }
-
-      return process::http::OK(
-          result.get(), request.url.query.get("jsonp"));
+    .then([request](const JSON::Array& result) -> Response {
+      return process::http::OK(result, request.url.query.get("jsonp"));
     });
 }
 
@@ -2349,23 +2327,7 @@ Future<Response> Http::pruneImages(
           }
 
           return slave->containerizer->pruneImages(excludedImages)
-            .then([](const Future<Nothing>& result) -> Response {
-                if (!result.isReady()) {
-                  // TODO(zhitao): Because `containerizer::pruneImages` returns
-                  // a `Nothing` now, we cannot distinguish between actual
-                  // failure or the case that operator should drain the agent.
-                  // Consider returning more information.
-                  LOG(WARNING)
-                      << "Failed to prune images: "
-                      << (result.isFailed() ? result.failure() : "discarded");
-
-                  return result.isFailed()
-                      ? InternalServerError(result.failure())
-                      : InternalServerError();
-                }
-
-                return OK();
-              });
+            .then([]() -> Response { return OK(); });
         }));
 }
 
@@ -3063,15 +3025,7 @@ Future<Response> Http::_removeContainer(
   Future<Nothing> remove = slave->containerizer->remove(containerId);
 
   return remove
-    .then([=](const Future<Nothing>& result) -> Response {
-      if (result.isFailed()) {
-        LOG(ERROR) << "Failed to remove container " << containerId
-                   << ": " << result.failure();
-        return InternalServerError(result.failure());
-      }
-
-      return OK();
-    });
+    .then([=]() -> Response { return OK(); });
 }
 
 
@@ -3266,15 +3220,7 @@ Future<Response> Http::addResourceProviderConfig(
               }
 
               return OK();
-            })
-            .repair([info](const Future<Response>& future) {
-                LOG(ERROR)
-                    << "Failed to add resource provider config with type '"
-                    << info.type() << "' and name '" << info.name() << "': "
-                    << future.failure();
-
-                return InternalServerError(future.failure());
-              });
+            });
         }));
 }
 
@@ -3311,15 +3257,7 @@ Future<Response> Http::updateResourceProviderConfig(
               }
 
               return OK();
-            })
-            .repair([info](const Future<Response>& future) {
-                LOG(ERROR)
-                    << "Failed to update resource provider config with type '"
-                    << info.type() << "' and name '" << info.name() << "': "
-                    << future.failure();
-
-                return InternalServerError(future.failure());
-              });
+            });
         }));
 }
 
@@ -3350,18 +3288,7 @@ Future<Response> Http::removeResourceProviderConfig(
               << type << "' and name '" << name << "'";
 
           return slave->localResourceProviderDaemon->remove(type, name)
-            .then([]() -> Response {
-              // Config removal is always successful due to idempotency.
-              return OK();
-            })
-            .repair([type, name](const Future<Response>& future) {
-              LOG(ERROR)
-                  << "Failed to remove resource provider config with type '"
-                  << type << "' and name '" << name << "': "
-                  << future.failure();
-
-              return InternalServerError(future.failure());
-            });
+            .then([]() -> Response { return OK(); });
       }));
 }
 
