@@ -361,12 +361,14 @@ Release Notes - Mesos - Version 1.6.2 (WIP)
 
 ** Bug
   * [MESOS-8418] - mesos-agent high cpu usage because of numerous /proc/mounts reads.
+  * [MESOS-8545] - AgentAPIStreamingTest.AttachInputToNestedContainerSession is flaky.
   * [MESOS-8568] - Command checks should always call `WAIT_NESTED_CONTAINER` before `REMOVE_NESTED_CONTAINER`
   * [MESOS-8917] - Agent leaking file descriptors into forked processes
   * [MESOS-8921] - Autotools don't work with newer OpenJDK versions
   * [MESOS-9116] - Launch nested container session fails due to incorrect detection of `mnt` namespace of command executor's task.
   * [MESOS-9125] - Port mapper CNI plugin might fail with "Resource temporarily unavailable"
   * [MESOS-9127] - Port mapper CNI plugin might deadlock iptables on the agent.
+  * [MESOS-9131] - Health checks launching nested containers while a container is being destroyed lead to unkillable tasks.
   * [MESOS-9142] - CNI detach might fail due to missing network config file.
   * [MESOS-9144] - Master authentication handling leads to request amplification.
   * [MESOS-9145] - Master has a fragile burned-in 5s authentication timeout.
