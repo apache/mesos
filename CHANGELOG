@@ -3,6 +3,7 @@ Release Notes - Mesos - Version 1.4.3 (WIP)
 * This is a bug fix release.
 
 ** Bug
+  * [MESOS-8128] - Make os::pipe file descriptors O_CLOEXEC.
   * [MESOS-8568] - Command checks should always call `WAIT_NESTED_CONTAINER` before `REMOVE_NESTED_CONTAINER`
   * [MESOS-8620] - Containers stuck in FETCHING possibly due to unresponsive server.
   * [MESOS-8917] - Agent leaking file descriptors into forked processes.
