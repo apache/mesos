@@ -1615,9 +1615,14 @@ IOSwitchboardServerProcess::acknowledgeContainerInputResponse()
   if (--numPendingAcknowledgments == 0) {
     // If IO redirects are finished or writing to `stdin` failed we want to
     // terminate ourselves (after flushing any outstanding messages from our
-    // message queue).
+    // message queue). Since IOSwitchboard might receive an acknowledgment for
+    // the `ATTACH_CONTAINER_INPUT` request before reading a final message from
+    // the corresponding connection, we need to delay our termination to give
+    // IOSwitchboard a chance to read the final message. Otherwise, the agent
+    // might get `HTTP 500` "broken pipe" while attempting to write the final
+    // message.
     if (!redirectFinished.future().isPending() || failure.isSome()) {
-      terminate(self(), false);
+      after(Seconds(1)).onAny([=]() { terminate(self(), false); });
     }
   }
   return http::OK();
