@@ -1622,7 +1622,9 @@ IOSwitchboardServerProcess::acknowledgeContainerInputResponse()
     // might get `HTTP 500` "broken pipe" while attempting to write the final
     // message.
     if (!redirectFinished.future().isPending() || failure.isSome()) {
-      after(Seconds(1)).onAny([=]() { terminate(self(), false); });
+      after(Seconds(1)).onAny(defer(self(), [=](const Future<Nothing>&) {
+        terminate(self(), false);
+      }));
     }
   }
   return http::OK();
