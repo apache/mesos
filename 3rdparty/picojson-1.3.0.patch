@@ -1,0 +1,206 @@
+From af08e41dd05b3ba279bed1f9794ca0fa101e3272 Mon Sep 17 00:00:00 2001
+From: Benno Evers <bevers@mesosphere.com>
+Date: Fri, 14 Sep 2018 15:33:56 +0200
+Subject: [PATCH] Backport depth check to v1.3.0
+
+This is a backport of a similar, unpublished upstream commit
+originally authored by kazuho. Minor modifications had to be made
+to account for changed formatting and to fix up some counter
+modifications that were moved to the wrong lines; as well as
+two additional test cases.
+
+---
+ picojson.h | 56 +++++++++++++++++++++++++++++++++++++++++++-----------
+ test.cc    | 42 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 87 insertions(+), 11 deletions(-)
+
+diff --git a/picojson.h b/picojson.h
+index 48bb64e..23485a6 100644
+--- a/picojson.h
++++ b/picojson.h
+@@ -101,7 +101,7 @@ namespace picojson {
+   };
+
+   enum {
+-    INDENT_WIDTH = 2
++    INDENT_WIDTH = 2, DEFAULT_MAX_DEPTHS = 100
+   };
+
+   struct null {};
+@@ -705,7 +705,7 @@ namespace picojson {
+       return false;
+     }
+     if (in.expect('}')) {
+-      return true;
++      return ctx.parse_object_stop();
+     }
+     do {
+       std::string key;
+@@ -718,7 +718,7 @@ namespace picojson {
+ 	return false;
+       }
+     } while (in.expect(','));
+-    return in.expect('}');
++    return in.expect('}') && ctx.parse_object_stop();
+   }
+
+   template <typename Iter> inline std::string _parse_number(input<Iter>& in) {
+@@ -820,8 +820,9 @@ namespace picojson {
+   class default_parse_context {
+   protected:
+     value* out_;
++    size_t depths_;
+   public:
+-    default_parse_context(value* out) : out_(out) {}
++    default_parse_context(value* out, size_t depths = DEFAULT_MAX_DEPTHS) : out_(out), depths_(depths) {}
+     bool set_null() {
+       *out_ = value();
+       return true;
+@@ -845,37 +846,53 @@ namespace picojson {
+       return _parse_string(out_->get<std::string>(), in);
+     }
+     bool parse_array_start() {
++      if (depths_ == 0)
++        return false;
++      --depths_;
+       *out_ = value(array_type, false);
+       return true;
+     }
+     template <typename Iter> bool parse_array_item(input<Iter>& in, size_t) {
+       array& a = out_->get<array>();
+       a.push_back(value());
+-      default_parse_context ctx(&a.back());
++      default_parse_context ctx(&a.back(), depths_);
+       return _parse(ctx, in);
+     }
+-    bool parse_array_stop(size_t) { return true; }
++    bool parse_array_stop(size_t) {
++      ++depths_;
++      return true;
++    }
+     bool parse_object_start() {
++      if (depths_ == 0)
++        return false;
++      --depths_;
+       *out_ = value(object_type, false);
+       return true;
+     }
+     template <typename Iter> bool parse_object_item(input<Iter>& in, const std::string& key) {
+       object& o = out_->get<object>();
+-      default_parse_context ctx(&o[key]);
++      default_parse_context ctx(&o[key], depths_);
+       return _parse(ctx, in);
+     }
++    bool parse_object_stop() {
++      ++depths_;
++      return true;
++    }
+   private:
+     default_parse_context(const default_parse_context&);
+     default_parse_context& operator=(const default_parse_context&);
+   };
+
+   class null_parse_context {
++  protected:
++    size_t depths_;
++
+   public:
+     struct dummy_str {
+       void push_back(int) {}
+     };
+   public:
+-    null_parse_context() {}
++    null_parse_context(size_t depths = DEFAULT_MAX_DEPTHS) : depths_(depths) {}
+     bool set_null() { return true; }
+     bool set_bool(bool) { return true; }
+ #ifdef PICOJSON_USE_INT64
+@@ -886,15 +903,32 @@ namespace picojson {
+       dummy_str s;
+       return _parse_string(s, in);
+     }
+-    bool parse_array_start() { return true; }
++    bool parse_array_start() {
++      if (depths_ == 0)
++        return false;
++      --depths_;
++      return true;
++    }
+     template <typename Iter> bool parse_array_item(input<Iter>& in, size_t) {
+       return _parse(*this, in);
+     }
+-    bool parse_array_stop(size_t) { return true; }
+-    bool parse_object_start() { return true; }
++    bool parse_array_stop(size_t) {
++      ++depths_;
++      return true;
++    }
++    bool parse_object_start() {
++      if (depths_ == 0)
++        return false;
++      --depths_;
++      return true;
++    }
+     template <typename Iter> bool parse_object_item(input<Iter>& in, const std::string&) {
+       return _parse(*this, in);
+     }
++    bool parse_object_stop() {
++      ++depths_;
++      return true;
++    }
+   private:
+     null_parse_context(const null_parse_context&);
+     null_parse_context& operator=(const null_parse_context&);
+diff --git a/test.cc b/test.cc
+index ed9656d..b04ed59 100644
+--- a/test.cc
++++ b/test.cc
+@@ -308,5 +308,47 @@ int main(void)
+     is(v.get<picojson::array>()[1].get<std::string>(), "abc", "simple API value #1");
+   }
+
++  {
++    std::string s = "[{\"a\":123}]", err;
++    picojson::value v;
++    picojson::default_parse_context ctx(&v, 2);
++    std::string::const_iterator end = picojson::_parse(ctx, s.begin(), s.end(), &err);
++    _ok(err.empty(), "should succeed");
++    _ok(end == s.end(), "should have consumed all input");
++    _ok(v.get(0).get("a").get<double>() == 123, "should return correct value");
++  }
++
++  {
++    std::string s = "[{\"a\":123}]", err;
++    picojson::value v;
++    picojson::default_parse_context ctx(&v, 1);
++    std::string::const_iterator end = picojson::_parse(ctx, s.begin(), s.end(), &err);
++    _ok(!err.empty(), "should fail");
++    _ok(v.is<picojson::array>(), "should get an array");
++    _ok(v.get(0).is<picojson::null>(), "that contains null");
++  }
++
++  {
++    std::string s = "{\"a\": {\"b\": {\"c\": 123}}}", err;
++    picojson::value v;
++    picojson::default_parse_context ctx(&v, 1);
++    std::string::const_iterator end = picojson::_parse(ctx, s.begin(), s.end(), &err);
++    _ok(!err.empty(), "should fail due to nesting depth");
++  }
++
++  {
++    std::string s = "[{\"a\":123}]", err;
++    picojson::null_parse_context ctx(1);
++    std::string::const_iterator end = picojson::_parse(ctx, s.begin(), s.end(), &err);
++    _ok(!err.empty(), "should fail");
++  }
++
++  {
++    std::string s = "[{\"a\":123, \"b\":45, \"c\":67}, {\"b\": [456]}]", err;
++    picojson::null_parse_context ctx(2);
++    std::string::const_iterator end = picojson::_parse(ctx, s.begin(), s.end(), &err);
++    _ok(!err.empty(), "should fail due to nesting depth");
++  }
++
+   return done_testing();
+ }
+--
+2.17.1
