@@ -17,13 +17,6 @@
 #ifndef __RESOURCE_PROVIDER_STORAGE_PROVIDER_HPP__
 #define __RESOURCE_PROVIDER_STORAGE_PROVIDER_HPP__
 
-#include <process/http.hpp>
-#include <process/owned.hpp>
-
-#include <stout/try.hpp>
-
-#include <mesos/mesos.hpp>
-
 #include "resource_provider/local.hpp"
 
 namespace mesos {
@@ -46,6 +39,8 @@ public:
 
   static Try<process::http::authentication::Principal> principal(
       const mesos::ResourceProviderInfo& info);
+
+  static Option<Error> validate(const mesos::ResourceProviderInfo& info);
 
   ~StorageLocalResourceProvider() override;
 

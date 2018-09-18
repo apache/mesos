@@ -23,6 +23,8 @@
 #include <process/http.hpp>
 #include <process/owned.hpp>
 
+#include <stout/error.hpp>
+#include <stout/option.hpp>
 #include <stout/try.hpp>
 
 namespace mesos {
@@ -41,6 +43,8 @@ public:
 
   static Try<process::http::authentication::Principal> principal(
       const ResourceProviderInfo& info);
+
+  static Option<Error> validate(const ResourceProviderInfo& info);
 
   virtual ~LocalResourceProvider() = default;
 };

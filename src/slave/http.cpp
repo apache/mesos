@@ -68,6 +68,8 @@
 #include "mesos/mesos.hpp"
 #include "mesos/resources.hpp"
 
+#include "resource_provider/local.hpp"
+
 #include "slave/http.hpp"
 #include "slave/slave.hpp"
 #include "slave/validation.hpp"
@@ -3213,6 +3215,14 @@ Future<Response> Http::addResourceProviderConfig(
               << "Processing ADD_RESOURCE_PROVIDER_CONFIG call with type '"
               << info.type() << "' and name '" << info.name() << "'";
 
+          Option<Error> error = LocalResourceProvider::validate(info);
+          if (error.isSome()) {
+            return BadRequest(
+                "Failed to validate resource provider config with type '" +
+                info.type() + "' and name '" + info.name() + "': " +
+                error->message);
+          }
+
           return slave->localResourceProviderDaemon->add(info)
             .then([](bool added) -> Response {
               if (!added) {
@@ -3249,6 +3259,14 @@ Future<Response> Http::updateResourceProviderConfig(
           LOG(INFO)
               << "Processing UPDATE_RESOURCE_PROVIDER_CONFIG call with type '"
               << info.type() << "' and name '" << info.name() << "'";
+
+          Option<Error> error = LocalResourceProvider::validate(info);
+          if (error.isSome()) {
+            return BadRequest(
+                "Failed to validate resource provider config with type '" +
+                info.type() + "' and name '" + info.name() + "': " +
+                error->message);
+          }
 
           return slave->localResourceProviderDaemon->update(info)
             .then([](bool updated) -> Response {
