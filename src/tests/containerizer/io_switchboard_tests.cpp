@@ -121,6 +121,19 @@ protected:
     return connection.send(request, true);
   }
 
+  // Helper that sends an acknowledgment for the `ATTACH_CONTAINER_INPUT`
+  // request.
+  Future<http::Response> acknowledgeContainerInputResponse(
+      http::Connection connection) const {
+    http::Request request;
+    request.method = "POST";
+    request.type = http::Request::BODY;
+    request.url.domain = "";
+    request.url.path = "/acknowledge_container_input_response";
+
+    return connection.send(request);
+  }
+
   // Reads `ProcessIO::Data` records from the pipe `reader` until EOF is reached
   // and returns the merged stdout and stderr.
   // NOTE: It ignores any `ProcessIO::Control` records.
@@ -578,6 +591,8 @@ TEST_F(IOSwitchboardServerTest, AttachInput)
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
 
+  acknowledgeContainerInputResponse(connection);
+
   AWAIT_READY(connection.disconnect());
   AWAIT_READY(connection.disconnected());
 
@@ -688,6 +703,8 @@ TEST_F(IOSwitchboardServerTest, ReceiveHeartbeat)
   // All we need to verify is that the server didn't blow up as a
   // result of receiving the heartbeats.
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+
+  acknowledgeContainerInputResponse(connection);
 
   AWAIT_READY(connection.disconnect());
   AWAIT_READY(connection.disconnected());
