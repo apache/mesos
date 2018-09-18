@@ -466,7 +466,7 @@ Future<Nothing> LocalResourceProviderDaemonProcess::_launch(
         "' and name '" + name + "': " + provider.error());
   }
 
-  data.provider = provider.get();
+  data.provider = std::move(provider.get());
 
   return Nothing();
 }

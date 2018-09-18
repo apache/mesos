@@ -3755,6 +3755,28 @@ Try<Owned<LocalResourceProvider>> StorageLocalResourceProvider::create(
     const Option<string>& authToken,
     bool strict)
 {
+  Option<Error> error = validate(info);
+  if (error.isSome()) {
+    return error.get();
+  }
+
+  return Owned<LocalResourceProvider>(new StorageLocalResourceProvider(
+      url, workDir, info, slaveId, authToken, strict));
+}
+
+
+Try<Principal> StorageLocalResourceProvider::principal(
+    const ResourceProviderInfo& info)
+{
+  return Principal(
+      Option<string>::none(),
+      {{"cid_prefix", getContainerIdPrefix(info)}});
+}
+
+
+Option<Error> StorageLocalResourceProvider::validate(
+    const ResourceProviderInfo& info)
+{
   if (info.has_id()) {
     return Error("'ResourceProviderInfo.id' must not be set");
   }
@@ -3805,17 +3827,7 @@ Try<Owned<LocalResourceProvider>> StorageLocalResourceProvider::create(
         stringify(CSIPluginContainerInfo::NODE_SERVICE) + " not found");
   }
 
-  return Owned<LocalResourceProvider>(new StorageLocalResourceProvider(
-      url, workDir, info, slaveId, authToken, strict));
-}
-
-
-Try<Principal> StorageLocalResourceProvider::principal(
-    const ResourceProviderInfo& info)
-{
-  return Principal(
-      Option<string>::none(),
-      {{"cid_prefix", getContainerIdPrefix(info)}});
+  return None();
 }
 
 

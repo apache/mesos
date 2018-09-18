@@ -14,8 +14,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <type_traits>
+
 #include <stout/hashmap.hpp>
-#include <stout/lambda.hpp>
 
 #include "resource_provider/local.hpp"
 
@@ -32,6 +33,25 @@ using process::http::authentication::Principal;
 namespace mesos {
 namespace internal {
 
+struct ProviderAdaptor
+{
+  decltype(LocalResourceProvider::create)* const create;
+  decltype(LocalResourceProvider::principal)* const principal;
+  decltype(LocalResourceProvider::validate)* const validate;
+};
+
+
+// TODO(jieyu): Document the built-in local resource providers.
+static const hashmap<string, ProviderAdaptor> adaptors = {
+#ifdef __linux__
+  {"org.apache.mesos.rp.local.storage",
+   {&StorageLocalResourceProvider::create,
+    &StorageLocalResourceProvider::principal,
+    &StorageLocalResourceProvider::validate}},
+#endif
+};
+
+
 Try<Owned<LocalResourceProvider>> LocalResourceProvider::create(
     const http::URL& url,
     const string& workDir,
@@ -40,40 +60,33 @@ Try<Owned<LocalResourceProvider>> LocalResourceProvider::create(
     const Option<string>& authToken,
     bool strict)
 {
-  // TODO(jieyu): Document the built-in local resource providers.
-  const hashmap<string, lambda::function<decltype(create)>> creators = {
-#if defined(__linux__)
-    {"org.apache.mesos.rp.local.storage", &StorageLocalResourceProvider::create}
-#endif
-  };
-
-  if (creators.contains(info.type())) {
-    return creators.at(info.type())(
-        url, workDir, info, slaveId, authToken, strict);
+  if (!adaptors.contains(info.type())) {
+    return Error("Unknown local resource provider type '" + info.type() + "'");
   }
 
-  return Error("Unknown local resource provider type '" + info.type() + "'");
+  return adaptors.at(info.type()).create(
+      url, workDir, info, slaveId, authToken, strict);
 }
 
 
 Try<Principal> LocalResourceProvider::principal(
     const ResourceProviderInfo& info)
 {
-  // TODO(chhsiao): Document the principals for built-in local resource
-  // providers.
-  const hashmap<string, lambda::function<decltype(principal)>>
-    principalGenerators = {
-#if defined(__linux__)
-      {"org.apache.mesos.rp.local.storage",
-        &StorageLocalResourceProvider::principal}
-#endif
-    };
-
-  if (principalGenerators.contains(info.type())) {
-    return principalGenerators.at(info.type())(info);
+  if (!adaptors.contains(info.type())) {
+    return Error("Unknown local resource provider type '" + info.type() + "'");
   }
 
-  return Error("Unknown local resource provider type '" + info.type() + "'");
+  return adaptors.at(info.type()).principal(info);
+}
+
+
+Option<Error> LocalResourceProvider::validate(const ResourceProviderInfo& info)
+{
+  if (!adaptors.contains(info.type())) {
+    return Error("Unknown local resource provider type '" + info.type() + "'");
+  }
+
+  return adaptors.at(info.type()).validate(info);
 }
 
 } // namespace internal {
