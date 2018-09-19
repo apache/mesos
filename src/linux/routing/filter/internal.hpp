@@ -66,6 +66,13 @@ inline void cleanup(struct rtnl_cls* cls)
   rtnl_cls_put(cls);
 }
 
+
+template <>
+inline void cleanup(struct rtnl_act* act)
+{
+  rtnl_act_put(act);
+}
+
 namespace filter {
 namespace internal {
 
@@ -103,39 +110,33 @@ inline Try<Nothing> attach(
     return Error("Link '" + redirect.link + "' is not found");
   }
 
-  // TODO(jieyu): Note that currently, we don't use Netlink for 'act'
-  // because libnl has a refcount issue for rtnl_act. Clean this up
-  // once the bug is fixed in libnl.
-  struct rtnl_act* act = rtnl_act_alloc();
-  if (act == nullptr) {
+  Netlink<struct rtnl_act> act(rtnl_act_alloc());
+  if (act.get() == nullptr) {
     return Error("Failed to allocate a libnl action (rtnl_act)");
   }
 
   // Set the kind of the action to 'mirred'. The kind 'mirred' stands
   // for mirror or redirect actions.
-  int error = rtnl_tc_set_kind(TC_CAST(act), "mirred");
+  int error = rtnl_tc_set_kind(TC_CAST(act.get()), "mirred");
   if (error != 0) {
-    rtnl_act_put(act);
     return Error(
         "Failed to set the kind of the action: " +
         std::string(nl_geterror(error)));
   }
 
-  rtnl_mirred_set_ifindex(act, rtnl_link_get_ifindex(link->get()));
-  rtnl_mirred_set_action(act, TCA_EGRESS_REDIR);
-  rtnl_mirred_set_policy(act, TC_ACT_STOLEN);
+  rtnl_mirred_set_ifindex(act.get(), rtnl_link_get_ifindex(link->get()));
+  rtnl_mirred_set_action(act.get(), TCA_EGRESS_REDIR);
+  rtnl_mirred_set_policy(act.get(), TC_ACT_STOLEN);
 
   const std::string kind = rtnl_tc_get_kind(TC_CAST(cls.get()));
   if (kind == "basic") {
-    error = rtnl_basic_add_action(cls.get(), act);
+    error = rtnl_basic_add_action(cls.get(), act.get());
     if (error != 0) {
-      rtnl_act_put(act);
       return Error(std::string(nl_geterror(error)));
     }
   } else if (kind == "u32") {
-    error = rtnl_u32_add_action(cls.get(), act);
+    error = rtnl_u32_add_action(cls.get(), act.get());
     if (error != 0) {
-      rtnl_act_put(act);
       return Error(std::string(nl_geterror(error)));
     }
 
@@ -148,7 +149,6 @@ inline Try<Nothing> attach(
           std::string(nl_geterror(error)));
     }
   } else {
-    rtnl_act_put(act);
     return Error("Unsupported classifier kind: " + kind);
   }
 
@@ -171,40 +171,33 @@ inline Try<Nothing> attach(
       return Error("Link '" + _link + "' is not found");
     }
 
-    // TODO(jieyu): Note that currently, we don't use Netlink for
-    // 'act' because libnl has a refcount issue for rtnl_act. Clean
-    // this up once libnl fixes the bug.
-    struct rtnl_act* act = rtnl_act_alloc();
-    if (act == nullptr) {
+    Netlink<struct rtnl_act> act(rtnl_act_alloc());
+    if (act.get() == nullptr) {
       return Error("Failed to allocate a libnl action (rtnl_act)");
     }
 
-    int error = rtnl_tc_set_kind(TC_CAST(act), "mirred");
+    int error = rtnl_tc_set_kind(TC_CAST(act.get()), "mirred");
     if (error != 0) {
-      rtnl_act_put(act);
       return Error(
           "Failed to set the kind of the action: " +
           std::string(nl_geterror(error)));
     }
 
-    rtnl_mirred_set_ifindex(act, rtnl_link_get_ifindex(link->get()));
-    rtnl_mirred_set_action(act, TCA_EGRESS_MIRROR);
-    rtnl_mirred_set_policy(act, TC_ACT_PIPE);
+    rtnl_mirred_set_ifindex(act.get(), rtnl_link_get_ifindex(link->get()));
+    rtnl_mirred_set_action(act.get(), TCA_EGRESS_MIRROR);
+    rtnl_mirred_set_policy(act.get(), TC_ACT_PIPE);
 
     if (kind == "basic") {
-      error = rtnl_basic_add_action(cls.get(), act);
+      error = rtnl_basic_add_action(cls.get(), act.get());
       if (error != 0) {
-        rtnl_act_put(act);
         return Error(std::string(nl_geterror(error)));
       }
     } else if (kind == "u32") {
-      error = rtnl_u32_add_action(cls.get(), act);
+      error = rtnl_u32_add_action(cls.get(), act.get());
       if (error != 0) {
-        rtnl_act_put(act);
         return Error(std::string(nl_geterror(error)));
       }
     } else {
-      rtnl_act_put(act);
       return Error("Unsupported classifier kind: " + kind);
     }
   }
