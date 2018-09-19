@@ -37,6 +37,10 @@
 
 #include "slave/slave.hpp"
 
+#include "slave/containerizer/fetcher.hpp"
+
+#include "slave/containerizer/mesos/containerizer.hpp"
+
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
 
@@ -867,10 +871,21 @@ TEST_P(AgentResourceProviderConfigApiTest, Remove)
   ResourceProviderInfo info = createResourceProviderInfo("volume1:4GB");
   ASSERT_SOME(os::write(configPath, stringify(JSON::protobuf(info))));
 
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  slave::Fetcher fetcher(slaveFlags);
+
+  Try<slave::MesosContainerizer*> _containerizer =
+    slave::MesosContainerizer::create(slaveFlags, false, &fetcher);
+  ASSERT_SOME(_containerizer);
+
+  Owned<slave::MesosContainerizer> containerizer(_containerizer.get());
+
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), containerizer.get(), slaveFlags);
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -907,6 +922,15 @@ TEST_P(AgentResourceProviderConfigApiTest, Remove)
   AWAIT_READY(oldOffers);
   ASSERT_FALSE(oldOffers->empty());
 
+  Future<hashset<ContainerID>> pluginContainers = containerizer->containers();
+
+  // Check that there is one plugin container running.
+  AWAIT_READY(pluginContainers);
+  ASSERT_EQ(1u, pluginContainers->size());
+
+  Future<Option<mesos::slave::ContainerTermination>> pluginTermination =
+    containerizer->wait(*pluginContainers->begin());
+
   Future<OfferID> rescinded;
 
   EXPECT_CALL(sched, offerRescinded(&driver, oldOffers->at(0).id()))
@@ -922,6 +946,9 @@ TEST_P(AgentResourceProviderConfigApiTest, Remove)
 
   // Wait for the old offer to be rescinded.
   AWAIT_READY(rescinded);
+
+  // Check that the plugin container has been destroyed.
+  AWAIT_READY(pluginTermination);
 }
 
 
