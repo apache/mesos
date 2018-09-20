@@ -191,6 +191,14 @@ public:
       const process::UPID& from,
       const KillTaskMessage& killTaskMessage);
 
+  MOCK_METHOD2(authenticate, void(
+      Duration minTimeout,
+      Duration maxTimeout));
+
+  void unmocked_authenticate(
+      Duration minTimeout,
+      Duration maxTimeout);
+
   MOCK_METHOD1(removeFramework, void(
       slave::Framework* framework));
 

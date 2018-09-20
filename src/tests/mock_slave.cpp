@@ -134,6 +134,8 @@ MockSlave::MockSlave(
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_runTaskGroup));
   EXPECT_CALL(*this, killTask(_, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_killTask));
+  EXPECT_CALL(*this, authenticate(_, _))
+    .WillRepeatedly(Invoke(this, &MockSlave::unmocked_authenticate));
   EXPECT_CALL(*this, removeFramework(_))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_removeFramework));
   EXPECT_CALL(*this, __recover(_))
@@ -248,6 +250,14 @@ void MockSlave::unmocked_killTask(
     const KillTaskMessage& killTaskMessage)
 {
   slave::Slave::killTask(from, killTaskMessage);
+}
+
+
+void MockSlave::unmocked_authenticate(
+    Duration minTimeout,
+    Duration maxTimeout)
+{
+  slave::Slave::authenticate(minTimeout, maxTimeout);
 }
 
 

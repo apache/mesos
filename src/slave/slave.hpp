@@ -491,7 +491,8 @@ public:
   // not receive a ping.
   void pingTimeout(process::Future<Option<MasterInfo>> future);
 
-  void authenticate(Duration minTimeout, Duration maxTimeout);
+  // Made virtual for testing purpose.
+  virtual void authenticate(Duration minTimeout, Duration maxTimeout);
 
   // Helper routines to lookup a framework/executor.
   Framework* getFramework(const FrameworkID& frameworkId) const;

@@ -44,6 +44,7 @@ using mesos::master::detector::StandaloneMasterDetector;
 using testing::_;
 using testing::Eq;
 using testing::Return;
+using testing::SaveArg;
 
 namespace mesos {
 namespace internal {
@@ -424,6 +425,114 @@ TEST_F(AuthenticationTest, RetrySlaveAuthentication)
   // Slave should be able to get registered.
   AWAIT_READY(slaveRegisteredMessage);
   ASSERT_NE("", slaveRegisteredMessage->slave_id().value());
+}
+
+// Verify that the agent backs off properly when retrying authentication
+// according to the configured parameters.
+TEST_F(AuthenticationTest, SlaveAuthenticationRetryBackoff)
+{
+  Clock::pause();
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.authentication_timeout_min = Seconds(5);
+  slaveFlags.authentication_timeout_max = Minutes(1);
+  slaveFlags.authentication_backoff_factor = Seconds(1);
+
+  // Expected retry timeout range:
+  //
+  //   [min, min + factor * 2^1]
+  //   [min, min + factor * 2^2]
+  //   ...
+  //   [min, min + factor * 2^N]
+  //   ...
+  //   [min, max] // Stop at max.
+  Duration expected[7][2] = {
+    {Seconds(5), Seconds(7)},
+    {Seconds(5), Seconds(9)},
+    {Seconds(5), Seconds(13)},
+    {Seconds(5), Seconds(21)},
+    {Seconds(5), Seconds(37)},
+    {Seconds(5), Minutes(1)},
+    {Seconds(5), Minutes(1)}
+  };
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), slaveFlags, true);
+  ASSERT_SOME(slave);
+
+  // Drop the first authentication attempt.
+  Future<Nothing> authenticate;
+  Duration minTimeout, maxTimeout;
+  EXPECT_CALL(*slave.get()->mock(), authenticate(_, _))
+    .WillOnce(DoAll(
+        SaveArg<0>(&minTimeout),
+        SaveArg<1>(&maxTimeout),
+        FutureSatisfy(&authenticate)))
+    .RetiresOnSaturation();
+
+  slave.get()->start();
+
+  // Trigger the first authentication request.
+  Clock::advance(slaveFlags.authentication_backoff_factor);
+  AWAIT_READY(authenticate);
+
+  for (int i = 0; i < 7; i++) {
+    EXPECT_EQ(minTimeout, expected[i][0]);
+    EXPECT_EQ(maxTimeout, expected[i][1]);
+
+    // Drop the authenticate message from the slave to incur retry.
+    Future<AuthenticateMessage> authenticateMessage =
+      DROP_PROTOBUF(AuthenticateMessage(), _, _);
+
+    // Drop the retry call and manually issue the retry call (instead
+    // of invoking the unmocked call directly in the expectation. We do this
+    // so that, even though clock is advanced for `authentication_timeout_max`
+    // in each iteration, we can still guarantee:
+    //
+    // (1) Retry only happens once in each iteration;
+    //
+    // (2) At the end of each iteration, the authentication timeout timer is
+    // not started. The timer will start only when we manually issue the
+    // retry call in the next iteration.
+    EXPECT_CALL(*slave.get()->mock(), authenticate(_, _))
+      .WillOnce(DoAll(
+          SaveArg<0>(&minTimeout),
+          SaveArg<1>(&maxTimeout),
+          FutureSatisfy(&authenticate)))
+      .RetiresOnSaturation();
+
+    slave.get()->mock()->unmocked_authenticate(minTimeout, maxTimeout);
+
+    // Slave should not retry until `slaveFlags.authentication_timeout_min`.
+    Clock::advance(slaveFlags.authentication_timeout_min - Milliseconds(1));
+    Clock::settle();
+    EXPECT_TRUE(authenticate.isPending());
+
+    // Slave will retry at least once in
+    // `slaveFlags.authentication_timeout_max`.
+    Clock::advance(
+        slaveFlags.authentication_timeout_max -
+        slaveFlags.authentication_timeout_min + Milliseconds(1));
+    Clock::settle();
+
+    AWAIT_READY(authenticateMessage);
+    AWAIT_READY(authenticate);
+  }
+
+  Future<AuthenticationCompletedMessage> authenticationCompletedMessage =
+    FUTURE_PROTOBUF(AuthenticationCompletedMessage(), _, _);
+
+  slave.get()->mock()->unmocked_authenticate(minTimeout, maxTimeout);
+
+  Clock::advance(slaveFlags.authentication_timeout_max);
+
+  // Slave should be able to get authenticated.
+  AWAIT_READY(authenticationCompletedMessage);
 }
 
 
