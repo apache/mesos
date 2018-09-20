@@ -96,8 +96,8 @@ public:
                               const vector<Offer>& offers) override
   {
     foreach (const Offer& offer, offers) {
-      LOG(INFO) << "Received offer " << offer.id() << " with "
-                << offer.resources();
+      LOG(INFO) << "Received offer " << offer.id() << " from agent "
+                << offer.slave_id() << " with " << offer.resources();
 
       // If the framework got this offer for the first time, the state is
       // `State::INIT`; framework will reserve it (sending RESERVE operation
@@ -150,7 +150,9 @@ public:
           Resources resources = offer.resources();
           Resources reserved = resources.reserved(role);
 
-          CHECK(reserved.contains(taskResources));
+          CHECK(reserved.contains(taskResources))
+            << "Reserved " << reserved << " does not contain taskResources "
+            << taskResources << " states " << stringify(states);
 
           // If all tasks were launched, unreserve those resources.
           if (tasksLaunched == totalTasks) {
