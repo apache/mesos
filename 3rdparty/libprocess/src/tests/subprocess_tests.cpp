@@ -77,13 +77,10 @@ void run_subprocess(const lambda::function<Try<Subprocess>()>& createSubprocess)
 // a file descriptor for a file, rather than a socket).
 TEST_F(SubprocessTest, PipeOutputToFileDescriptor)
 {
-  Try<string> testdir = os::mkdtemp();
-  ASSERT_SOME(testdir);
-
   // Create temporary files to pipe `stdin` to, and open it. We will pipe
   // output into this file.
   const string outfile_name = "out.txt";
-  const string outfile = path::join(testdir.get(), outfile_name);
+  const string outfile = path::join(sandbox.get(), outfile_name);
   ASSERT_SOME(os::touch(outfile));
 
   Try<int_fd> outfile_fd = os::open(outfile, O_RDWR);
@@ -92,7 +89,7 @@ TEST_F(SubprocessTest, PipeOutputToFileDescriptor)
   // Create temporary files to pipe `stderr` to, and open it. We will pipe
   // error into this file.
   const string errorfile_name = "error.txt";
-  const string errorfile = path::join(testdir.get(), errorfile_name);
+  const string errorfile = path::join(sandbox.get(), errorfile_name);
   ASSERT_SOME(os::touch(errorfile));
 
   Try<int_fd> errorfile_fd = os::open(errorfile, O_RDWR);
@@ -142,15 +139,12 @@ TEST_F(SubprocessTest, PipeOutputToFileDescriptor)
 
 TEST_F(SubprocessTest, PipeOutputToPath)
 {
-  Try<string> testdir = os::mkdtemp();
-  ASSERT_SOME(testdir);
-
   // Name the files to pipe output and error to.
   const string outfile_name = "out.txt";
-  const string outfile = path::join(testdir.get(), outfile_name);
+  const string outfile = path::join(sandbox.get(), outfile_name);
 
   const string errorfile_name = "error.txt";
-  const string errorfile = path::join(testdir.get(), errorfile_name);
+  const string errorfile = path::join(sandbox.get(), errorfile_name);
 
   // Pipe simple string to output file.
   run_subprocess(
@@ -189,12 +183,9 @@ TEST_F(SubprocessTest, PipeOutputToPath)
 
 TEST_F(SubprocessTest, EnvironmentEcho)
 {
-  Try<string> testdir = os::mkdtemp();
-  ASSERT_SOME(testdir);
-
   // Name the file to pipe output to.
   const string outfile_name = "out.txt";
-  const string outfile = path::join(testdir.get(), outfile_name);
+  const string outfile = path::join(sandbox.get(), outfile_name);
 
   // Pipe simple string to output file.
   run_subprocess(

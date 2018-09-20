@@ -349,11 +349,10 @@ TEST_F(IOTest, Redirect)
   AWAIT_EXPECT_FAILED(io::redirect(0, -1));
 
   // Create a temporary file for redirecting into.
-  Try<string> path = os::mktemp();
-  ASSERT_SOME(path);
+  string path = path::join(sandbox.get(), "output");
 
   Try<int_fd> fd = os::open(
-      path.get(),
+      path,
       O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC,
       S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
@@ -413,7 +412,7 @@ TEST_F(IOTest, Redirect)
   AWAIT_READY(redirect);
 
   // Now make sure all the data is in the file!
-  Try<string> read = os::read(path.get());
+  Try<string> read = os::read(path);
   ASSERT_SOME(read);
   EXPECT_EQ(data, read.get());
 
