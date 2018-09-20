@@ -23,6 +23,8 @@
 #include <string>
 #include <vector>
 
+#include <boost/iterator/indirect_iterator.hpp>
+
 #include <google/protobuf/repeated_field.h>
 
 #include <mesos/mesos.hpp>
@@ -585,20 +587,29 @@ public:
   // which holds the ephemeral ports allocation logic.
   Option<Value::Ranges> ephemeral_ports() const;
 
-  // NOTE: Non-`const` `iterator`, `begin()` and `end()` are __intentionally__
-  // defined with `const` semantics in order to prevent mutable access to the
-  // `Resource` objects within `resources`.
-  typedef std::vector<Resource_>::const_iterator iterator;
-  typedef std::vector<Resource_>::const_iterator const_iterator;
+  // We use `boost::indirect_iterator` to expose `Resource` (implicitly
+  // converted from `Resource_`) iteration, while actually storing
+  // `shared_ptr<Resource_>`.
+  //
+  // NOTE: Non-const `begin()` and `end()` intentionally return const
+  // iterators to prevent mutable access to the `Resource` objects.
+
+  typedef boost::indirect_iterator<
+      std::vector<std::shared_ptr<Resource_>>::const_iterator>
+    const_iterator;
 
   const_iterator begin()
   {
-    return static_cast<const std::vector<Resource_>&>(resources).begin();
+    return static_cast<const std::vector<std::shared_ptr<Resource_>>&>(
+               resources)
+      .begin();
   }
 
   const_iterator end()
   {
-    return static_cast<const std::vector<Resource_>&>(resources).end();
+    return static_cast<const std::vector<std::shared_ptr<Resource_>>&>(
+               resources)
+      .end();
   }
 
   const_iterator begin() const { return resources.begin(); }
@@ -666,6 +677,10 @@ private:
   // objects, so here the API can also accept a `Resource` object.
   void add(const Resource_& r);
   void add(Resource_&& r);
+
+  // TODO(mzhu): Add move support.
+  void add(const std::shared_ptr<Resource_>& that);
+
   void subtract(const Resource_& r);
 
   Resources& operator+=(const Resource_& that);
@@ -673,7 +688,28 @@ private:
 
   Resources& operator-=(const Resource_& that);
 
-  std::vector<Resource_> resources;
+  // Resources are stored using copy-on-write:
+  //
+  //   (1) Copies are done by copying the `shared_ptr`. This
+  //       makes read-only filtering (e.g. `unreserved()`)
+  //       inexpensive as we do not have to perform copies
+  //       of the resource objects.
+  //
+  //   (2) When a write occurs:
+  //      (a) If there's a single reference to the resource
+  //          object, we mutate directly.
+  //      (b) If there's more than a single reference to the
+  //          resource object, we copy first, then mutate the copy.
+  //
+  // TODO(mzhu): When mutating the resource objects, we need to manually
+  // conduct the copy-on-write check as described in (2). This is
+  // brittle. Explore more robust designs such as introducing a customized
+  // copy-on-write abstraction that hides direct setters and only allow
+  // mutations in a controlled fashion.
+  //
+  // TODO(mzhu): Consider using `boost::intrusive_ptr` for
+  // possibly better performance.
+  std::vector<std::shared_ptr<Resource_>> resources;
 };
 
 
