@@ -92,7 +92,8 @@ public:
 
     resourceProviderConfigDir =
       path::join(sandbox.get(), "resource_provider_configs");
-    ASSERT_SOME(os::mkdir(resourceProviderConfigDir));
+
+    ASSERT_SOME(os::mkdir(resourceProviderConfigDir.get()));
   }
 
   void TearDown() override
@@ -135,10 +136,25 @@ public:
     ContainerizerTest<slave::MesosContainerizer>::TearDown();
   }
 
+  master::Flags CreateMasterFlags() override
+  {
+    master::Flags flags =
+      ContainerizerTest<slave::MesosContainerizer>::CreateMasterFlags();
+
+    // Use a small allocation interval to speed up the test. We do this instead
+    // of manipulating the clock because the storage local resource provider
+    // relies on a running clock to wait for the CSI plugin to be ready.
+    flags.allocation_interval = Milliseconds(50);
+
+    return flags;
+  }
+
   slave::Flags CreateSlaveFlags() override
   {
     slave::Flags flags =
       ContainerizerTest<slave::MesosContainerizer>::CreateSlaveFlags();
+
+    flags.resource_provider_config_dir = resourceProviderConfigDir;
 
     // Store the agent work directory for cleaning up CSI endpoint
     // directories during teardown.
@@ -252,7 +268,7 @@ public:
     ASSERT_SOME(resourceProviderConfig);
 
     ASSERT_SOME(os::write(
-        path::join(resourceProviderConfigDir, "test.json"),
+        path::join(resourceProviderConfigDir.get(), "test.json"),
         resourceProviderConfig.get()));
   }
 
@@ -293,10 +309,10 @@ public:
       stringify(TEST_SLRP_NAME) + "/" + basename;
   }
 
-protected:
+private:
   Modules modules;
   vector<string> slaveWorkDirs;
-  string resourceProviderConfigDir;
+  Option<string> resourceProviderConfigDir;
 };
 
 
@@ -314,7 +330,6 @@ TEST_F(StorageLocalResourceProviderTest, NoResource)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   // Since the local resource provider daemon is started after the agent
   // is registered, it is guaranteed that the slave will send two
@@ -390,14 +405,12 @@ TEST_F(StorageLocalResourceProviderTest, DISABLED_ZeroSizedDisk)
 
   setupResourceProviderConfig(Bytes(0), "volume0:0B");
 
-  master::Flags masterFlags = CreateMasterFlags();
-  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   // Since the local resource provider daemon is started after the agent
   // is registered, it is guaranteed that the slave will send two
@@ -446,21 +459,12 @@ TEST_F(StorageLocalResourceProviderTest, DISABLED_SmallDisk)
 
   setupResourceProviderConfig(Kilobytes(512), "volume0:512KB");
 
-  master::Flags masterFlags = CreateMasterFlags();
-
-  // Use a small allocation interval to speed up the test. We do this
-  // instead of manipulating the clock to keep the test concise and
-  // avoid waiting for `UpdateSlaveMessage`s and pausing/resuming the
-  // clock multiple times.
-  masterFlags.allocation_interval = Milliseconds(50);
-
-  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -566,14 +570,12 @@ TEST_F(StorageLocalResourceProviderTest, ProfileAppeared)
   setupResourceProviderConfig(Gigabytes(4));
 
   master::Flags masterFlags = CreateMasterFlags();
-
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
   // Since the local resource provider daemon is started after the agent
@@ -684,16 +686,12 @@ TEST_F(StorageLocalResourceProviderTest, CreateDestroyDisk)
 
   setupResourceProviderConfig(Gigabytes(4));
 
-  master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.allocation_interval = Milliseconds(50);
-
-  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -864,16 +862,12 @@ TEST_F(StorageLocalResourceProviderTest, CreateDestroyDiskRecovery)
 
   setupResourceProviderConfig(Gigabytes(4));
 
-  master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.allocation_interval = Milliseconds(50);
-
-  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -1081,14 +1075,12 @@ TEST_F(StorageLocalResourceProviderTest, ProfileDisappeared)
   setupResourceProviderConfig(Gigabytes(4));
 
   master::Flags masterFlags = CreateMasterFlags();
-
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
   // Since the local resource provider daemon is started after the agent
@@ -1319,16 +1311,12 @@ TEST_F(StorageLocalResourceProviderTest, AgentFailoverPluginKilled)
 {
   setupResourceProviderConfig(Bytes(0), "volume0:4GB");
 
-  master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.allocation_interval = Milliseconds(50);
-
-  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   slave::Fetcher fetcher(slaveFlags);
 
@@ -1434,16 +1422,12 @@ TEST_F(StorageLocalResourceProviderTest, AgentRegisteredWithNewId)
 
   setupResourceProviderConfig(Gigabytes(4));
 
-  master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.allocation_interval = Milliseconds(50);
-
-  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -1633,10 +1617,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResources)
 
   setupResourceProviderConfig(Gigabytes(4));
 
-  master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.allocation_interval = Milliseconds(50);
-
-  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
@@ -1644,7 +1625,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResources)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.isolation = "filesystem/linux";
 
-  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -1846,10 +1826,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesRecovery)
 
   setupResourceProviderConfig(Gigabytes(4));
 
-  master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.allocation_interval = Milliseconds(50);
-
-  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
@@ -1857,7 +1834,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesRecovery)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.isolation = "filesystem/linux";
 
-  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -2116,10 +2092,7 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesReboot)
 
   setupResourceProviderConfig(Gigabytes(4));
 
-  master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.allocation_interval = Milliseconds(50);
-
-  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
@@ -2127,7 +2100,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesReboot)
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.isolation = "filesystem/linux";
 
-  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -2427,10 +2399,7 @@ TEST_F(
 
   setupResourceProviderConfig(Gigabytes(4));
 
-  master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.allocation_interval = Milliseconds(50);
-
-  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
@@ -2438,7 +2407,6 @@ TEST_F(
   slave::Flags slaveFlags = CreateSlaveFlags();
   slaveFlags.isolation = "filesystem/linux";
 
-  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
   slave::Fetcher fetcher(slaveFlags);
@@ -2692,14 +2660,12 @@ TEST_F(StorageLocalResourceProviderTest, ConvertPreExistingVolume)
   setupResourceProviderConfig(Bytes(0), "volume1:2GB;volume2:2GB");
 
   master::Flags masterFlags = CreateMasterFlags();
-
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   // Since the local resource provider daemon is started after the agent
   // is registered, it is guaranteed that the slave will send two
@@ -2911,7 +2877,6 @@ TEST_F(StorageLocalResourceProviderTest, RetryOperationStatusUpdate)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.resource_provider_config_dir = resourceProviderConfigDir;
   flags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
   // Since the local resource provider daemon is started after the agent
@@ -3067,7 +3032,6 @@ TEST_F(
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.resource_provider_config_dir = resourceProviderConfigDir;
   flags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
   // Since the local resource provider daemon is started after the agent
@@ -3235,7 +3199,6 @@ TEST_F(
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   slave::Fetcher fetcher(slaveFlags);
 
@@ -3311,16 +3274,12 @@ TEST_F(StorageLocalResourceProviderTest, OperationStateMetrics)
 
   setupResourceProviderConfig(Gigabytes(4));
 
-  master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.allocation_interval = Milliseconds(50);
-
-  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -3560,16 +3519,12 @@ TEST_F(StorageLocalResourceProviderTest, CsiPluginRpcMetrics)
 
   setupResourceProviderConfig(Gigabytes(4));
 
-  master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.allocation_interval = Milliseconds(50);
-
-  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -3855,7 +3810,6 @@ TEST_F(StorageLocalResourceProviderTest, ReconcileDroppedOperation)
   StandaloneMasterDetector detector(master.get()->pid);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
@@ -4063,7 +4017,6 @@ TEST_F(
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.resource_provider_config_dir = resourceProviderConfigDir;
   flags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
   // Since the local resource provider daemon is started after the agent
@@ -4247,7 +4200,6 @@ TEST_F(
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.resource_provider_config_dir = resourceProviderConfigDir;
   flags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
   // Since the local resource provider daemon is started after the agent
