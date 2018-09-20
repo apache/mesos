@@ -76,7 +76,66 @@ public:
     resourceProviderConfigDir =
       path::join(sandbox.get(), "resource_provider_configs");
 
-    ASSERT_SOME(os::mkdir(resourceProviderConfigDir));
+    ASSERT_SOME(os::mkdir(resourceProviderConfigDir.get()));
+  }
+
+  void TearDown() override
+  {
+    foreach (const string& slaveWorkDir, slaveWorkDirs) {
+      // Clean up CSI endpoint directories if there is any.
+      const string csiRootDir = slave::paths::getCsiRootDir(slaveWorkDir);
+
+      Try<list<string>> csiContainerPaths =
+        csi::paths::getContainerPaths(csiRootDir, "*", "*");
+      ASSERT_SOME(csiContainerPaths);
+
+      foreach (const string& path, csiContainerPaths.get()) {
+        Try<csi::paths::ContainerPath> containerPath =
+          csi::paths::parseContainerPath(csiRootDir, path);
+        ASSERT_SOME(containerPath);
+
+        Result<string> endpointDir =
+          os::realpath(csi::paths::getEndpointDirSymlinkPath(
+              csiRootDir,
+              containerPath->type,
+              containerPath->name,
+              containerPath->containerId));
+
+        if (endpointDir.isSome()) {
+          ASSERT_SOME(os::rmdir(endpointDir.get()));
+        }
+      }
+    }
+
+    ContainerizerTest<slave::MesosContainerizer>::TearDown();
+  }
+
+  master::Flags CreateMasterFlags() override
+  {
+    master::Flags flags =
+      ContainerizerTest<slave::MesosContainerizer>::CreateMasterFlags();
+
+    // Use a small allocation interval to speed up the test. We do this instead
+    // of manipulating the clock because the storage local resource provider
+    // relies on a running clock to wait for the CSI plugin to be ready.
+    flags.allocation_interval = Milliseconds(50);
+
+    return flags;
+  }
+
+  slave::Flags CreateSlaveFlags() override
+  {
+    slave::Flags flags =
+      ContainerizerTest<slave::MesosContainerizer>::CreateSlaveFlags();
+
+    flags.resource_provider_config_dir = resourceProviderConfigDir;
+
+    // Store the agent work directory for cleaning up CSI endpoint
+    // directories during teardown.
+    // NOTE: DO NOT change the work directory afterward.
+    slaveWorkDirs.push_back(flags.work_dir);
+
+    return flags;
   }
 
   ResourceProviderInfo createResourceProviderInfo(const string& volumes)
@@ -85,7 +144,7 @@ public:
 
     // This extra closure is necessary in order to use `ASSERT_*`, as
     // these macros require a void return type.
-    [&]() {
+    [&] {
       // Randomize the plugin name so we get a clean work directory for
       // each created config.
       const string testCsiPluginName =
@@ -176,50 +235,6 @@ public:
     return info.get();
   }
 
-  void TearDown() override
-  {
-    foreach (const string& slaveWorkDir, slaveWorkDirs) {
-      // Clean up CSI endpoint directories if there is any.
-      const string csiRootDir = slave::paths::getCsiRootDir(slaveWorkDir);
-
-      Try<list<string>> csiContainerPaths =
-        csi::paths::getContainerPaths(csiRootDir, "*", "*");
-      ASSERT_SOME(csiContainerPaths);
-
-      foreach (const string& path, csiContainerPaths.get()) {
-        Try<csi::paths::ContainerPath> containerPath =
-          csi::paths::parseContainerPath(csiRootDir, path);
-        ASSERT_SOME(containerPath);
-
-        Result<string> endpointDir =
-          os::realpath(csi::paths::getEndpointDirSymlinkPath(
-              csiRootDir,
-              containerPath->type,
-              containerPath->name,
-              containerPath->containerId));
-
-        if (endpointDir.isSome()) {
-          ASSERT_SOME(os::rmdir(endpointDir.get()));
-        }
-      }
-    }
-
-    ContainerizerTest<slave::MesosContainerizer>::TearDown();
-  }
-
-  slave::Flags CreateSlaveFlags() override
-  {
-    slave::Flags flags =
-      ContainerizerTest<slave::MesosContainerizer>::CreateSlaveFlags();
-
-    // Store the agent work directory for cleaning up CSI endpoint
-    // directories during teardown.
-    // NOTE: DO NOT change the work directory afterward.
-    slaveWorkDirs.push_back(flags.work_dir);
-
-    return flags;
-  }
-
   Future<http::Response> addResourceProviderConfig(
       const PID<Slave>& pid,
       const ContentType& contentType,
@@ -286,7 +301,7 @@ public:
 
 protected:
   vector<string> slaveWorkDirs;
-  string resourceProviderConfigDir;
+  Option<string> resourceProviderConfigDir;
 };
 
 
@@ -302,21 +317,15 @@ TEST_P(AgentResourceProviderConfigApiTest, Add)
 {
   const ContentType contentType = GetParam();
 
-  master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.allocation_interval = Milliseconds(50);
-
-  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
-
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -358,7 +367,7 @@ TEST_P(AgentResourceProviderConfigApiTest, Add)
 
   // Check that a new config file is created.
   Try<list<string>> configPaths =
-    fs::list(path::join(resourceProviderConfigDir, "*"));
+    fs::list(path::join(resourceProviderConfigDir.get(), "*"));
   ASSERT_SOME(configPaths);
   EXPECT_EQ(1u, configPaths->size());
 
@@ -391,13 +400,13 @@ TEST_P(AgentResourceProviderConfigApiTest, IdempotentAdd)
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
-
   // Generate a pre-existing config.
-  const string configPath = path::join(resourceProviderConfigDir, "test.json");
   ResourceProviderInfo info = createResourceProviderInfo("volume1:4GB");
-  ASSERT_SOME(os::write(configPath, stringify(JSON::protobuf(info))));
+  ASSERT_SOME(os::write(
+      path::join(resourceProviderConfigDir.get(), "test.json"),
+      stringify(JSON::protobuf(info))));
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
 
   // Since the local resource provider daemon is started after the agent is
   // registered, it is guaranteed that the slave will send two
@@ -447,26 +456,21 @@ TEST_P(AgentResourceProviderConfigApiTest, AddConflict)
 {
   const ContentType contentType = GetParam();
 
-  master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.allocation_interval = Milliseconds(50);
-
-  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
-
   // Generate a pre-existing config.
-  const string configPath = path::join(resourceProviderConfigDir, "test.json");
+  const string configPath =
+    path::join(resourceProviderConfigDir.get(), "test.json");
   ResourceProviderInfo oldInfo = createResourceProviderInfo("volume1:4GB");
   ASSERT_SOME(os::write(configPath, stringify(JSON::protobuf(oldInfo))));
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -480,7 +484,7 @@ TEST_P(AgentResourceProviderConfigApiTest, AddConflict)
   // Check that no new config is created, and the existing one is not
   // overwritten.
   Try<list<string>> configPaths =
-    fs::list(path::join(resourceProviderConfigDir, "*"));
+    fs::list(path::join(resourceProviderConfigDir.get(), "*"));
   ASSERT_SOME(configPaths);
   EXPECT_EQ(1u, configPaths->size());
   EXPECT_EQ(configPath, configPaths->back());
@@ -503,19 +507,14 @@ TEST_P(AgentResourceProviderConfigApiTest, Update)
 {
   const ContentType contentType = GetParam();
 
-  master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.allocation_interval = Milliseconds(50);
-
-  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
-
   // Generate a pre-existing config.
-  const string configPath = path::join(resourceProviderConfigDir, "test.json");
+  const string configPath =
+    path::join(resourceProviderConfigDir.get(), "test.json");
   ASSERT_SOME(os::write(
       configPath,
       stringify(JSON::protobuf(createResourceProviderInfo("volume1:4GB")))));
@@ -523,7 +522,7 @@ TEST_P(AgentResourceProviderConfigApiTest, Update)
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -579,7 +578,7 @@ TEST_P(AgentResourceProviderConfigApiTest, Update)
 
   // Check that no new config is created, and the existing one is overwritten.
   Try<list<string>> configPaths =
-    fs::list(path::join(resourceProviderConfigDir, "*"));
+    fs::list(path::join(resourceProviderConfigDir.get(), "*"));
   ASSERT_SOME(configPaths);
   EXPECT_EQ(1u, configPaths->size());
   EXPECT_EQ(configPath, configPaths->back());
@@ -620,13 +619,13 @@ TEST_P(AgentResourceProviderConfigApiTest, IdempotentUpdate)
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
-
   // Generate a pre-existing config.
-  const string configPath = path::join(resourceProviderConfigDir, "test.json");
   ResourceProviderInfo info = createResourceProviderInfo("volume1:4GB");
-  ASSERT_SOME(os::write(configPath, stringify(JSON::protobuf(info))));
+  ASSERT_SOME(os::write(
+      path::join(resourceProviderConfigDir.get(), "test.json"),
+      stringify(JSON::protobuf(info))));
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
 
   // Since the local resource provider daemon is started after the agent is
   // registered, it is guaranteed that the slave will send two
@@ -676,21 +675,15 @@ TEST_P(AgentResourceProviderConfigApiTest, UpdateNotFound)
 {
   const ContentType contentType = GetParam();
 
-  master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.allocation_interval = Milliseconds(50);
-
-  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
-
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -703,7 +696,7 @@ TEST_P(AgentResourceProviderConfigApiTest, UpdateNotFound)
 
   // Check that no new config is created.
   Try<list<string>> configPaths =
-    fs::list(path::join(resourceProviderConfigDir, "*"));
+    fs::list(path::join(resourceProviderConfigDir.get(), "*"));
   ASSERT_SOME(configPaths);
   EXPECT_TRUE(configPaths->empty());
 }
@@ -714,26 +707,21 @@ TEST_P(AgentResourceProviderConfigApiTest, Remove)
 {
   const ContentType contentType = GetParam();
 
-  master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.allocation_interval = Milliseconds(50);
-
-  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
-
   // Generate a pre-existing config.
-  const string configPath = path::join(resourceProviderConfigDir, "test.json");
+  const string configPath =
+      path::join(resourceProviderConfigDir.get(), "test.json");
   ResourceProviderInfo info = createResourceProviderInfo("volume1:4GB");
   ASSERT_SOME(os::write(configPath, stringify(JSON::protobuf(info))));
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
@@ -794,21 +782,15 @@ TEST_P(AgentResourceProviderConfigApiTest, IdempotentRemove)
 {
   const ContentType contentType = GetParam();
 
-  master::Flags masterFlags = CreateMasterFlags();
-  masterFlags.allocation_interval = Milliseconds(50);
-
-  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
-  slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.resource_provider_config_dir = resourceProviderConfigDir;
-
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
 
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
   ASSERT_SOME(slave);
 
   AWAIT_READY(slaveRegisteredMessage);
