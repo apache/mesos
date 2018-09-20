@@ -41,10 +41,14 @@ public:
       const Option<std::string>& authToken,
       bool strict);
 
-  static Try<process::http::authentication::Principal> principal(
-      const ResourceProviderInfo& info);
-
   static Option<Error> validate(const ResourceProviderInfo& info);
+
+  // Returns a principal that contains a 'cid_prefix' claim based on the type
+  // and name of the resource provider. The resource provider can only launch
+  // standalone containers whose ID is prefixed by the value of 'cid_prefix'.
+  // TODO(chhsiao): We should move this to a utility function.
+  static process::http::authentication::Principal principal(
+      const ResourceProviderInfo& info);
 
   virtual ~LocalResourceProvider() = default;
 };

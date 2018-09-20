@@ -480,16 +480,7 @@ Future<Option<string>> LocalResourceProviderDaemonProcess::generateAuthToken(
     return None();
   }
 
-  Try<Principal> principal = LocalResourceProvider::principal(info);
-
-  if (principal.isError()) {
-    return Failure(
-        "Failed to generate resource provider principal with type '" +
-        info.type() + "' and name '" + info.name() + "': " +
-        principal.error());
-  }
-
-  return secretGenerator->generate(principal.get())
+  return secretGenerator->generate(LocalResourceProvider::principal(info))
     .then(defer(self(), [](const Secret& secret) -> Future<Option<string>> {
       Option<Error> error = common::validation::validateSecret(secret);
 

@@ -166,36 +166,21 @@ static bool isValidType(const string& s)
 static const Duration CSI_ENDPOINT_CREATION_TIMEOUT = Minutes(1);
 
 
-// Returns a prefix for naming standalone containers to run CSI plugins
-// for the resource provider. The prefix is of the following format:
-//     <rp_type>-<rp_name>--
-// where <rp_type> and <rp_name> are the type and name of the resource
-// provider, with dots replaced by dashes. We use a double-dash at the
-// end to explicitly mark the end of the prefix.
-static inline string getContainerIdPrefix(const ResourceProviderInfo& info)
-{
-  return strings::join(
-      "-",
-      strings::replace(info.type(), ".", "-"),
-      info.name(),
-      "-");
-}
-
-
-// Returns the container ID of the standalone container to run a CSI
-// plugin component. The container ID is of the following format:
-//     <rp_type>-<rp_name>--<csi_type>-<csi_name>--<list_of_services>
-// where <rp_type> and <rp_name> are the type and name of the resource
-// provider, and <csi_type> and <csi_name> are the type and name of the
-// CSI plugin, with dots replaced by dashes. <list_of_services> lists
-// the CSI services provided by the component, concatenated with dashes.
+// Returns the container ID of the standalone container to run a CSI plugin
+// component. The container ID is of the following format:
+//     <cid_prefix><csi_type>-<csi_name>--<list_of_services>
+// where <cid_prefix> comes from the principal of the resource provider,
+// <csi_type> and <csi_name> are the type and name of the CSI plugin, with dots
+// replaced by dashes. <list_of_services> lists the CSI services provided by the
+// component, concatenated with dashes.
 static inline ContainerID getContainerId(
     const ResourceProviderInfo& info,
     const CSIPluginContainerInfo& container)
 {
-  string value = getContainerIdPrefix(info);
+  const Principal principal = LocalResourceProvider::principal(info);
+  CHECK(principal.claims.contains("cid_prefix"));
 
-  value += strings::join(
+  string value = principal.claims.at("cid_prefix") + strings::join(
       "-",
       strings::replace(info.storage().plugin().type(), ".", "-"),
       info.storage().plugin().name(),
@@ -2097,12 +2082,15 @@ StorageLocalResourceProviderProcess::getContainers()
         return Failure("Failed to get containers: " + v1Response.error());
       }
 
-      const string prefix = getContainerIdPrefix(info);
+      const Principal principal = LocalResourceProvider::principal(info);
+      CHECK(principal.claims.contains("cid_prefix"));
+
+      const string& cidPrefix = principal.claims.at("cid_prefix");
 
       agent::Response response = devolve(v1Response.get());
       foreach (const agent::Response::GetContainers::Container& container,
                response.get_containers().containers()) {
-        if (strings::startsWith(container.container_id().value(), prefix)) {
+        if (strings::startsWith(container.container_id().value(), cidPrefix)) {
           result.put(
               container.container_id(),
               container.has_container_status()
@@ -3758,15 +3746,6 @@ Try<Owned<LocalResourceProvider>> StorageLocalResourceProvider::create(
 
   return Owned<LocalResourceProvider>(new StorageLocalResourceProvider(
       url, workDir, info, slaveId, authToken, strict));
-}
-
-
-Try<Principal> StorageLocalResourceProvider::principal(
-    const ResourceProviderInfo& info)
-{
-  return Principal(
-      Option<string>::none(),
-      {{"cid_prefix", getContainerIdPrefix(info)}});
 }
 
 

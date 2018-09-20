@@ -36,7 +36,6 @@ namespace internal {
 struct ProviderAdaptor
 {
   decltype(LocalResourceProvider::create)* const create;
-  decltype(LocalResourceProvider::principal)* const principal;
   decltype(LocalResourceProvider::validate)* const validate;
 };
 
@@ -46,7 +45,6 @@ static const hashmap<string, ProviderAdaptor> adaptors = {
 #ifdef __linux__
   {"org.apache.mesos.rp.local.storage",
    {&StorageLocalResourceProvider::create,
-    &StorageLocalResourceProvider::principal,
     &StorageLocalResourceProvider::validate}},
 #endif
 };
@@ -69,17 +67,6 @@ Try<Owned<LocalResourceProvider>> LocalResourceProvider::create(
 }
 
 
-Try<Principal> LocalResourceProvider::principal(
-    const ResourceProviderInfo& info)
-{
-  if (!adaptors.contains(info.type())) {
-    return Error("Unknown local resource provider type '" + info.type() + "'");
-  }
-
-  return adaptors.at(info.type()).principal(info);
-}
-
-
 Option<Error> LocalResourceProvider::validate(const ResourceProviderInfo& info)
 {
   if (!adaptors.contains(info.type())) {
@@ -87,6 +74,25 @@ Option<Error> LocalResourceProvider::validate(const ResourceProviderInfo& info)
   }
 
   return adaptors.at(info.type()).validate(info);
+}
+
+
+Principal LocalResourceProvider::principal(const ResourceProviderInfo& info)
+{
+  // The 'cid_prefix' for the resource provider is of the following format:
+  //     <rp_type>-<rp_name>--
+  // where <rp_type> and <rp_name> are the type and name of the resource
+  // provider, with dots replaced by dashes. We use a double-dash at the end to
+  // explicitly mark the end of the prefix.
+  const string cidPrefix = strings::join(
+      "-",
+      strings::replace(info.type(), ".", "-"),
+      info.name(),
+      "-");
+
+  return Principal(
+      Option<string>::none(),
+      {{"cid_prefix", cidPrefix}});
 }
 
 } // namespace internal {
