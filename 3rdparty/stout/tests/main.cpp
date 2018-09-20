@@ -25,6 +25,7 @@
 #include <stout/fs.hpp>
 
 #include <stout/os/mkdtemp.hpp>
+#include <stout/os/rmdir.hpp>
 #include <stout/os/socket.hpp> // For `wsa_*` on Windows.
 #include <stout/os/touch.hpp>
 
@@ -44,13 +45,10 @@ using std::vector;
 class SymlinkFilter : public TestFilter
 {
 public:
-  SymlinkFilter()
+  SymlinkFilter() : temp_path(CHECK_NOTERROR(os::mkdtemp()))
   {
-    const Try<string> temp_path = os::mkdtemp();
-    CHECK_SOME(temp_path);
-
-    const string file = path::join(temp_path.get(), "file");
-    const string link = path::join(temp_path.get(), "link");
+    const string file = path::join(temp_path, "file");
+    const string link = path::join(temp_path, "link");
 
     CHECK_SOME(os::touch(file));
 
@@ -66,6 +64,11 @@ public:
     }
   }
 
+  ~SymlinkFilter() override
+  {
+    os::rmdir(temp_path);
+  }
+
   bool disable(const ::testing::TestInfo* test) const override
   {
     return matches(test, "SYMLINK_") && !can_create_symlinks;
@@ -73,6 +76,7 @@ public:
 
 private:
   bool can_create_symlinks;
+  string temp_path;
 };
 
 
