@@ -1292,7 +1292,7 @@ void Slave::detected(const Future<Option<MasterInfo>>& _master)
     // Wait for a random amount of time before authentication or
     // registration.
     //
-    // TODO(mzhu): Specialize this for authetication.
+    // TODO(mzhu): Specialize this for authentication.
     Duration duration =
       flags.registration_backoff_factor * ((double) os::random() / RAND_MAX);
 
