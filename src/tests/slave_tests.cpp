@@ -4584,9 +4584,8 @@ TEST_F(SlaveTest, RemoveExecutorUponFailedLaunch)
   EXPECT_CALL(exec, registered(_, _, _, _))
     .Times(0);
 
-  Future<TaskStatus> killTaskStatus;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&killTaskStatus));
+    .Times(AtMost(1));
 
   Future<ExitedExecutorMessage> exitedExecutorMessage =
     FUTURE_PROTOBUF(ExitedExecutorMessage(), _, _);
