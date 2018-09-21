@@ -16,6 +16,7 @@
 
 #include "master/allocator/sorter/drf/sorter.hpp"
 
+#include <iterator>
 #include <set>
 #include <string>
 #include <vector>
@@ -340,16 +341,51 @@ void DRFSorter::allocated(
 {
   Node* current = CHECK_NOTNULL(find(clientPath));
 
+  // Walk up the tree adjusting allocations. If the tree is
+  // sorted, we keep it sorted (see below).
+  //
   // NOTE: We don't currently update the `allocation` for the root
   // node. This is debatable, but the current implementation doesn't
   // require looking at the allocation of the root node.
   while (current != root) {
     current->allocation.add(slaveId, resources);
+
+    // Note that inactive leaves are not sorted, and are always
+    // stored in `children` after the active leaves and internal
+    // nodes. See the comment on `Node::children`.
+    if (!dirty && current->kind != Node::INACTIVE_LEAF) {
+      current->share = calculateShare(current);
+
+      vector<Node*>& children = current->parent->children;
+
+      // Locate the node position in the parent's children
+      // and shift it into its sorted position.
+      //
+      // TODO(bmahler): Consider storing the node's position
+      // in the parent's children to avoid scanning.
+      auto position = std::find(children.begin(), children.end(), current);
+      CHECK(position != children.end());
+
+      // Shift left until done (if needed).
+      while (position != children.begin() &&
+             DRFSorter::Node::compareDRF(current, *std::prev(position))) {
+        std::swap(*position, *std::prev(position));
+        --position;
+      }
+
+      // Or, shift right until done (if needed). Note that when
+      // shifting right, we need to stop once we reach the
+      // inactive leaves (see `Node::children`).
+      while (std::next(position) != children.end() &&
+             (*std::next(position))->kind != Node::INACTIVE_LEAF &&
+             DRFSorter::Node::compareDRF(*std::next(position), current)) {
+        std::swap(*position, *std::next(position));
+        ++position;
+      }
+    }
+
     current = CHECK_NOTNULL(current->parent);
   }
-
-  // TODO(neilc): Avoid dirtying the tree in some circumstances.
-  dirty = true;
 }
 
 
@@ -393,7 +429,10 @@ void DRFSorter::unallocated(
     current = CHECK_NOTNULL(current->parent);
   }
 
-  // TODO(neilc): Avoid dirtying the tree in some circumstances.
+  // TODO(bmahler): Similar to `allocated()`, avoid dirtying the
+  // tree here in favor of adjusting the node positions. This
+  // hasn't been critical to do since we don't allocate upon
+  // resource recovery in the allocator.
   dirty = true;
 }
 
