@@ -169,8 +169,8 @@ TEST_F(OsSendfileTest, Sendfile)
 
   Try<ssize_t, SocketError> result =
     os::sendfile(s[0], fd.get(), 0, LOREM_IPSUM.size());
-  int _errno = result.error().code;
   ASSERT_ERROR(result);
+  int _errno = result.error().code;
 
 #ifdef __linux__
   ASSERT_EQ(EPIPE, _errno) << result.error().message;
