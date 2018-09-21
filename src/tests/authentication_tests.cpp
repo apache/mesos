@@ -506,7 +506,9 @@ TEST_F(AuthenticationTest, SlaveAuthenticationRetryBackoff)
           FutureSatisfy(&authenticate)))
       .RetiresOnSaturation();
 
-    slave.get()->mock()->unmocked_authenticate(minTimeout, maxTimeout);
+    process::dispatch(slave.get()->pid, [=] {
+      slave.get()->mock()->unmocked_authenticate(minTimeout, maxTimeout);
+    });
 
     // Slave should not retry until `slaveFlags.authentication_timeout_min`.
     Clock::advance(slaveFlags.authentication_timeout_min - Milliseconds(1));
@@ -527,7 +529,9 @@ TEST_F(AuthenticationTest, SlaveAuthenticationRetryBackoff)
   Future<AuthenticationCompletedMessage> authenticationCompletedMessage =
     FUTURE_PROTOBUF(AuthenticationCompletedMessage(), _, _);
 
-  slave.get()->mock()->unmocked_authenticate(minTimeout, maxTimeout);
+  process::dispatch(slave.get()->pid, [=] {
+    slave.get()->mock()->unmocked_authenticate(minTimeout, maxTimeout);
+  });
 
   Clock::advance(slaveFlags.authentication_timeout_max);
 
