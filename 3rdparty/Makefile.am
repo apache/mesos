@@ -105,10 +105,6 @@ EXTRA_DIST +=		\
 EXTRA_DIST +=		\
   $(LEVELDB).patch
 
-# We patch libev to keep it from reaping child processes.
-EXTRA_DIST +=		\
-  $(LIBEV).patch
-
 # We need to patch ZooKeeper in order to get 3.4.8 to compile on PPC LE.
 EXTRA_DIST +=		\
   $(ZOOKEEPER).patch
