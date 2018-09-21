@@ -553,6 +553,10 @@ void HierarchicalAllocatorProcess::addSlave(
 
   roleSorter->add(slaveId, total);
 
+  foreachvalue (const Owned<Sorter>& sorter, frameworkSorters) {
+    sorter->add(slaveId, total);
+  }
+
   // See comment at `quotaRoleSorter` declaration regarding non-revocable.
   quotaRoleSorter->add(slaveId, total.nonRevocable());
 
@@ -619,6 +623,10 @@ void HierarchicalAllocatorProcess::removeSlave(
   // than what we currently track in the allocator.
 
   roleSorter->remove(slaveId, slaves.at(slaveId).getTotal());
+
+  foreachvalue (const Owned<Sorter>& sorter, frameworkSorters) {
+    sorter->remove(slaveId, slaves.at(slaveId).getTotal());
+  }
 
   // See comment at `quotaRoleSorter` declaration regarding non-revocable.
   quotaRoleSorter->remove(
@@ -944,10 +952,6 @@ void HierarchicalAllocatorProcess::updateAllocation(
   CHECK_SOME(updatedTotal);
 
   updateSlaveTotal(slaveId, updatedTotal.get());
-
-  // Update the total resources in the framework sorter.
-  frameworkSorter->remove(slaveId, offeredResources);
-  frameworkSorter->add(slaveId, updatedOfferedResources);
 
   const Resources updatedFrameworkAllocation =
     frameworkSorter->allocation(frameworkId.value(), slaveId);
@@ -2532,6 +2536,11 @@ void HierarchicalAllocatorProcess::trackFrameworkUnderRole(
     CHECK(!frameworkSorters.contains(role));
     frameworkSorters.insert({role, Owned<Sorter>(frameworkSorterFactory())});
     frameworkSorters.at(role)->initialize(fairnessExcludeResourceNames);
+
+    foreachvalue (const Slave& slave, slaves) {
+      frameworkSorters.at(role)->add(slave.info.id(), slave.getTotal());
+    }
+
     metrics.addRole(role);
   }
 
@@ -2637,13 +2646,14 @@ bool HierarchicalAllocatorProcess::updateSlaveTotal(
     trackReservations(newReservations);
   }
 
-  // Currently `roleSorter` and `quotaRoleSorter`, being the root-level
-  // sorters, maintain all of `slaves[slaveId].total` (or the `nonRevocable()`
-  // portion in the case of `quotaRoleSorter`) in their own totals (which
-  // don't get updated in the allocation runs or during recovery of allocated
-  // resources). So, we update them using the resources in `slave.total`.
+  // Update the totals in the sorters.
   roleSorter->remove(slaveId, oldTotal);
   roleSorter->add(slaveId, total);
+
+  foreachvalue (const Owned<Sorter>& sorter, frameworkSorters) {
+    sorter->remove(slaveId, oldTotal);
+    sorter->add(slaveId, total);
+  }
 
   // See comment at `quotaRoleSorter` declaration regarding non-revocable.
   quotaRoleSorter->remove(slaveId, oldTotal.nonRevocable());
@@ -2768,7 +2778,6 @@ void HierarchicalAllocatorProcess::trackAllocatedResources(
     CHECK(frameworkSorters.at(role)->contains(frameworkId.value()));
 
     roleSorter->allocated(role, slaveId, allocation);
-    frameworkSorters.at(role)->add(slaveId, allocation);
     frameworkSorters.at(role)->allocated(
         frameworkId.value(), slaveId, allocation);
 
@@ -2804,7 +2813,6 @@ void HierarchicalAllocatorProcess::untrackAllocatedResources(
 
     frameworkSorters.at(role)->unallocated(
         frameworkId.value(), slaveId, allocation);
-    frameworkSorters.at(role)->remove(slaveId, allocation);
 
     roleSorter->unallocated(role, slaveId, allocation);
 
