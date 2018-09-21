@@ -952,7 +952,7 @@ void HierarchicalAllocatorProcess::updateAllocation(
   const Resources updatedFrameworkAllocation =
     frameworkSorter->allocation(frameworkId.value(), slaveId);
 
-  // Check that the changed quantities af the framework's allocation is exactly
+  // Check that the changed quantities of the framework's allocation is exactly
   // the same as the resources removed by the resource conversions.
   //
   // TODO(chhsiao): Revisit this constraint if we want to support other type of
@@ -2010,7 +2010,7 @@ void HierarchicalAllocatorProcess::__allocate()
 
   // Similar to the first stage, we will allocate resources while ensuring
   // that the required unreserved non-revocable headroom is still available
-  // for unsastified quota guarantees. Otherwise, we will not be able to
+  // for unsatisfied quota guarantees. Otherwise, we will not be able to
   // satisfy quota guarantees later. Reservations to non-quota roles and
   // revocable resources will always be included in the offers since these
   // are not part of the headroom (and therefore can't be used to satisfy
