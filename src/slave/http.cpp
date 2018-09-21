@@ -3238,7 +3238,12 @@ Future<Response> Http::_attachContainerInput(
               // so that the IOSwitchboard process can terminate itself. This is
               // a workaround for the problem with dropping outstanding HTTP
               // responses due to a lack of graceful shutdown in libprocess.
-              acknowledgeContainerInputResponse(containerId);
+              acknowledgeContainerInputResponse(containerId)
+                .onFailed([containerId](const string& failure) {
+                  LOG(ERROR) << "Failed to send an acknowledgment to the"
+                             << " IOSwitchboard for container '"
+                             << containerId << "': " << failure;
+              });
             }));
     }));
 }
@@ -3253,6 +3258,13 @@ Future<Response> Http::acknowledgeContainerInputResponse(
       request.type = Request::BODY;
       request.url.domain = "";
       request.url.path = "/acknowledge_container_input_response";
+
+      // This is a non Keep-Alive request which means the connection
+      // will be closed when the response is received. Since the
+      // 'Connection' is reference-counted, we must maintain a copy
+      // until the disconnection occurs.
+      connection.disconnected()
+        .onAny([connection]() {});
 
       return connection.send(request);
     });
