@@ -1620,16 +1620,9 @@ IOSwitchboardServerProcess::acknowledgeContainerInputResponse()
   if (--numPendingAcknowledgments == 0) {
     // If IO redirects are finished or writing to `stdin` failed we want to
     // terminate ourselves (after flushing any outstanding messages from our
-    // message queue). Since IOSwitchboard might receive an acknowledgment for
-    // the `ATTACH_CONTAINER_INPUT` request before reading a final message from
-    // the corresponding connection, we need to delay our termination to give
-    // IOSwitchboard a chance to read the final message. Otherwise, the agent
-    // might get `HTTP 500` "broken pipe" while attempting to write the final
-    // message.
+    // message queue).
     if (!redirectFinished.future().isPending() || failure.isSome()) {
-      after(Seconds(1)).onAny(defer(self(), [=](const Future<Nothing>&) {
-        terminate(self(), false);
-      }));
+      terminate(self(), false);
     }
   }
   return http::OK();
@@ -1751,20 +1744,29 @@ Future<http::Response> IOSwitchboardServerProcess::attachContainerInput(
   // the read loop finishes or IO redirects finish. Once this promise is set,
   // we return a final response to the client.
   //
-  // TODO(abudnik): Ideally, we would have used `process::select()` to capture a
-  // transition into a terminal state for any of `{readLoop, redirectFinished}`.
-  // However, `select()` currently does not capture a future that has failed.
-  // Another alternative would be to allow `promise::associate()` to accept
-  // multiple source futures.
+  // We use `defer(self(), ...)` to use this process as a synchronization point
+  // when changing state of the promise.
   Owned<Promise<http::Response>> promise(new Promise<http::Response>());
 
-  auto setPromise = [promise](const Future<http::Response>& response) {
-    promise->set(response);
-  };
+  readLoop.onAny(
+      defer(self(), [promise](const Future<http::Response>& response) {
+        promise->set(response);
+      }));
 
-  readLoop.onAny(defer(self(), setPromise));
-
-  redirectFinished.future().onAny(defer(self(), setPromise));
+  // Since IOSwitchboard might receive an acknowledgment for the
+  // `ATTACH_CONTAINER_INPUT` request before reading a final message from
+  // the corresponding connection, we need to give IOSwitchboard a chance to
+  // read the final message. Otherwise, the agent might get `HTTP 500`
+  // "broken pipe" while attempting to write the final message.
+  redirectFinished.future().onAny(
+      defer(self(), [=](const Future<http::Response>& response) {
+        // TODO(abudnik): Ideally, we would have used `process::delay()` to
+        // delay a dispatch of the lambda to this process.
+        after(Seconds(1))
+          .onAny(defer(self(), [promise, response](const Future<Nothing>&) {
+            promise->set(response);
+          }));
+      }));
 
   // We explicitly specify the return type to avoid a type deduction
   // issue in some versions of clang. See MESOS-2943.
