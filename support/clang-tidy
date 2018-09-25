@@ -7,6 +7,9 @@ clang-analyzer-*,\
 -clang-analyzer-core.CallAndMessage,\
 -clang-analyzer-core.NonNullParamChecker,\
 -clang-analyzer-core.NullDereference,\
+-clang-analyzer-core.UndefinedBinaryOperatorResult,\
+-clang-analyzer-core.uninitialized.Assign,\
+-clang-analyzer-core.uninitialized.UndefReturn,\
 -clang-analyzer-cplusplus.NewDelete,\
 -clang-analyzer-cplusplus.NewDeleteLeaks,\
 -clang-analyzer-optin.cplusplus.VirtualCall,\
