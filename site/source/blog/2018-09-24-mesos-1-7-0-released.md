@@ -19,7 +19,7 @@ In Mesos 1.7, we put a lot of emphasis on performance. Thanks to the communityâ€
 
 ![Mesos 1.7 performance improvements](/assets/img/blog/mesos-1-7-0-performance.png)
 
-* The master `/state` endpoint is now more than twice as fast as before, and its processing is parallelized to provide higher throughput. As a result, Mesos UI and all tooling that consumes the `/state` endpoint are more responsive.
+* The master `/state` endpoint is now about twice as fast as before, and its processing is parallelized to provide higher throughput. As a result, Mesos UI and all tooling that consumes the `/state` endpoint are more responsive.
 * [Mesos containerizer](http://mesos.apache.org/documentation/latest/mesos-containerizer/) has been a high-performance alternative to the Docker runtime, and now itâ€™s even faster: launch and destroy throughput has increased by 2x in this release.
 * The agent `/containers` endpoint no longer leads to high CPU consumption and thus is much more responsive. It now scales well to hundreds of containers running on the agent.
 * We made several optimizations to the resource allocator so the allocation cycle is now 20% faster on a 1,000-node cluster, and more significant improvements in this area are in progress for the 1.8 release.
