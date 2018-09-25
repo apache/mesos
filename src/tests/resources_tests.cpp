@@ -804,7 +804,7 @@ TEST(ResourcesTest, MoveConstruction)
 
   // Move constructor for `Resources`.
   Resources r1 = r;
-  Resources rr1{std::move(r)};
+  Resources rr1{std::move(r1)};
   EXPECT_EQ(r, rr1);
 
   // Move constructor for `vector<Resource>`.
