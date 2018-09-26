@@ -1320,6 +1320,7 @@ Future<Docker::Container> Docker::inspect(
   argv.push_back("-H");
   argv.push_back(socket);
   argv.push_back("inspect");
+  argv.push_back("--type=container");
   argv.push_back(containerName);
 
   _inspect(argv, promise, retryInterval, callback);
