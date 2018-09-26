@@ -63,6 +63,7 @@ JEMALLOC = jemalloc-$(JEMALLOC_VERSION)
 LEVELDB = leveldb-$(LEVELDB_VERSION)
 LIBARCHIVE = libarchive-$(LIBARCHIVE_VERSION)
 LIBEV = libev-$(LIBEV_VERSION)
+LIBEVENT = libevent-$(LIBEVENT_VERSION)
 NVML = nvml-$(NVML_VERSION)
 PIP = pip-$(PIP_VERSION)
 PICOJSON = picojson-$(PICOJSON_VERSION)
@@ -86,6 +87,7 @@ EXTRA_DIST =			\
   $(LEVELDB).tar.gz		\
   $(LIBARCHIVE).tar.gz		\
   $(LIBEV).tar.gz		\
+  $(LIBEVENT).tar.gz		\
   $(NVML).tar.gz		\
   $(PIP).tar.gz			\
   $(PROTOBUF).tar.gz		\
@@ -109,6 +111,10 @@ EXTRA_DIST +=		\
 EXTRA_DIST +=		\
   $(ZOOKEEPER).patch
 
+# We need to patch libevent 2.0.22 for added compatibilty towards openssl 1.1.x.
+EXTRA_DIST +=		\
+  $(LIBEVENT).patch
+
 CLEAN_EXTRACTED =		\
   $(BOOST)			\
   $(CONCURRENTQUEUE)		\
@@ -123,6 +129,7 @@ CLEAN_EXTRACTED =		\
   $(LEVELDB)			\
   $(LIBARCHIVE)			\
   $(LIBEV)			\
+  $(LIBEVENT)			\
   $(NVML)			\
   $(PIP)			\
   $(PICOJSON)			\
@@ -302,6 +309,21 @@ $(LIBEV)-build-stamp: $(LIBEV)-stamp
            $(MAKE) $(AM_MAKEFLAGS)
 	touch $@
 ALL_LOCAL += $(LIBEV)-build-stamp
+endif
+
+if WITH_BUNDLED_LIBEVENT
+$(LIBEVENT)/libevent.la: $(LIBEVENT)-build-stamp
+$(LIBEVENT)-build-stamp: $(LIBEVENT)-stamp
+	cd $(LIBEVENT) &&			\
+	CPPFLAGS=$(SSL_INCLUDE_FLAGS)		\
+	LDFLAGS=$(SSL_LINKER_FLAGS)		\
+	./configure $(CONFIGURE_ARGS)		\
+		--disable-dependency-tracking	\
+		--disable-debug-mode		\
+		--disable-samples &&		\
+	$(MAKE) $(AM_MAKEFLAGS)
+	touch $@
+ALL_LOCAL += $(LIBEVENT)-build-stamp
 endif
 
 if WITH_BUNDLED_NVML

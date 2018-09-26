@@ -1,0 +1,298 @@
+diff -up libevent-2.0.22-stable/bufferevent_openssl.c.openssl11 libevent-2.0.22-stable/bufferevent_openssl.c
+--- libevent-2.0.22-stable/bufferevent_openssl.c.openssl11	2014-02-09 19:34:43.000000000 +0100
++++ libevent-2.0.22-stable/bufferevent_openssl.c	2017-03-27 16:00:34.442978756 +0200
+@@ -60,6 +60,7 @@
+ #include <openssl/bio.h>
+ #include <openssl/ssl.h>
+ #include <openssl/err.h>
++#include "openssl-compat.h"
+ 
+ /*
+  * Define an OpenSSL bio that targets a bufferevent.
+@@ -103,10 +104,8 @@ print_err(int val)
+ static int
+ bio_bufferevent_new(BIO *b)
+ {
+-	b->init = 0;
+-	b->num = -1;
+-	b->ptr = NULL; /* We'll be putting the bufferevent in this field.*/
+-	b->flags = 0;
++	BIO_set_init(b, 0);
++	BIO_set_data(b, NULL); /* We'll be putting the bufferevent in this field.*/
+ 	return 1;
+ }
+ 
+@@ -116,12 +115,10 @@ bio_bufferevent_free(BIO *b)
+ {
+ 	if (!b)
+ 		return 0;
+-	if (b->shutdown) {
+-		if (b->init && b->ptr)
+-			bufferevent_free(b->ptr);
+-		b->init = 0;
+-		b->flags = 0;
+-		b->ptr = NULL;
++	if (BIO_get_shutdown(b)) {
++		if (BIO_get_init(b) && BIO_get_data(b))
++			bufferevent_free(BIO_get_data(b));
++		BIO_free(b);
+ 	}
+ 	return 1;
+ }
+@@ -137,10 +134,10 @@ bio_bufferevent_read(BIO *b, char *out,
+ 
+ 	if (!out)
+ 		return 0;
+-	if (!b->ptr)
++	if (!BIO_get_data(b))
+ 		return -1;
+ 
+-	input = bufferevent_get_input(b->ptr);
++	input = bufferevent_get_input(BIO_get_data(b));
+ 	if (evbuffer_get_length(input) == 0) {
+ 		/* If there's no data to read, say so. */
+ 		BIO_set_retry_read(b);
+@@ -156,13 +153,13 @@ bio_bufferevent_read(BIO *b, char *out,
+ static int
+ bio_bufferevent_write(BIO *b, const char *in, int inlen)
+ {
+-	struct bufferevent *bufev = b->ptr;
++	struct bufferevent *bufev = BIO_get_data(b);
+ 	struct evbuffer *output;
+ 	size_t outlen;
+ 
+ 	BIO_clear_retry_flags(b);
+ 
+-	if (!b->ptr)
++	if (!BIO_get_data(b))
+ 		return -1;
+ 
+ 	output = bufferevent_get_output(bufev);
+@@ -188,15 +185,15 @@ bio_bufferevent_write(BIO *b, const char
+ static long
+ bio_bufferevent_ctrl(BIO *b, int cmd, long num, void *ptr)
+ {
+-	struct bufferevent *bufev = b->ptr;
++	struct bufferevent *bufev = BIO_get_data(b);
+ 	long ret = 1;
+ 
+ 	switch (cmd) {
+ 	case BIO_CTRL_GET_CLOSE:
+-		ret = b->shutdown;
++		ret = BIO_get_shutdown(b);
+ 		break;
+ 	case BIO_CTRL_SET_CLOSE:
+-		b->shutdown = (int)num;
++		BIO_set_shutdown(b, (int)num);
+ 		break;
+ 	case BIO_CTRL_PENDING:
+ 		ret = evbuffer_get_length(bufferevent_get_input(bufev)) != 0;
+@@ -225,23 +222,24 @@ bio_bufferevent_puts(BIO *b, const char
+ }
+ 
+ /* Method table for the bufferevent BIO */
+-static BIO_METHOD methods_bufferevent = {
+-	BIO_TYPE_LIBEVENT, "bufferevent",
+-	bio_bufferevent_write,
+-	bio_bufferevent_read,
+-	bio_bufferevent_puts,
+-	NULL /* bio_bufferevent_gets */,
+-	bio_bufferevent_ctrl,
+-	bio_bufferevent_new,
+-	bio_bufferevent_free,
+-	NULL /* callback_ctrl */,
+-};
++static BIO_METHOD *methods_bufferevent;
+ 
+ /* Return the method table for the bufferevents BIO */
+ static BIO_METHOD *
+ BIO_s_bufferevent(void)
+ {
+-	return &methods_bufferevent;
++	if (methods_bufferevent == NULL) {
++		methods_bufferevent = BIO_meth_new(BIO_TYPE_LIBEVENT, "bufferevent");
++		if (methods_bufferevent == NULL)
++			return NULL;
++		BIO_meth_set_write(methods_bufferevent, bio_bufferevent_write);
++		BIO_meth_set_read(methods_bufferevent, bio_bufferevent_read);
++		BIO_meth_set_puts(methods_bufferevent, bio_bufferevent_puts);
++		BIO_meth_set_ctrl(methods_bufferevent, bio_bufferevent_ctrl);
++		BIO_meth_set_create(methods_bufferevent, bio_bufferevent_new);
++		BIO_meth_set_destroy(methods_bufferevent, bio_bufferevent_free);
++	}
++	return methods_bufferevent;
+ }
+ 
+ /* Create a new BIO to wrap communication around a bufferevent.  If close_flag
+@@ -254,9 +252,9 @@ BIO_new_bufferevent(struct bufferevent *
+ 		return NULL;
+ 	if (!(result = BIO_new(BIO_s_bufferevent())))
+ 		return NULL;
+-	result->init = 1;
+-	result->ptr = bufferevent;
+-	result->shutdown = close_flag ? 1 : 0;
++	BIO_set_init(result, 1);
++	BIO_set_data(result, bufferevent);
++	BIO_set_shutdown(result, close_flag ? 1 : 0);
+ 	return result;
+ }
+ 
+@@ -498,7 +496,7 @@ conn_closed(struct bufferevent_openssl *
+ 		break;
+ 	case SSL_ERROR_SYSCALL:
+ 		/* IO error; possibly a dirty shutdown. */
+-		if (ret == 0 && ERR_peek_error() == 0)
++		if ((ret == 0 || ret == -1) && ERR_peek_error() == 0)
+ 			dirty_shutdown = 1;
+ 		break;
+ 	case SSL_ERROR_SSL:
+diff -up libevent-2.0.22-stable/openssl-compat.h.openssl11 libevent-2.0.22-stable/openssl-compat.h
+--- libevent-2.0.22-stable/openssl-compat.h.openssl11	2017-03-27 16:00:34.442978756 +0200
++++ libevent-2.0.22-stable/openssl-compat.h	2017-03-27 16:00:34.442978756 +0200
+@@ -0,0 +1,35 @@
++#ifndef OPENSSL_COMPAT_H
++#define OPENSSL_COMPAT_H
++
++#if OPENSSL_VERSION_NUMBER < 0x10100000L
++
++static inline BIO_METHOD *BIO_meth_new(int type, const char *name)
++{
++	BIO_METHOD *biom = calloc(1, sizeof(BIO_METHOD));
++
++	if (biom != NULL) {
++		biom->type = type;
++		biom->name = name;
++	}
++	return biom;
++}
++
++#define BIO_meth_set_write(b, f) (b)->bwrite = (f)
++#define BIO_meth_set_read(b, f) (b)->bread = (f)
++#define BIO_meth_set_puts(b, f) (b)->bputs = (f)
++#define BIO_meth_set_ctrl(b, f) (b)->ctrl = (f)
++#define BIO_meth_set_create(b, f) (b)->create = (f)
++#define BIO_meth_set_destroy(b, f) (b)->destroy = (f)
++
++#define BIO_set_init(b, val) (b)->init = (val)
++#define BIO_set_data(b, val) (b)->ptr = (val)
++#define BIO_set_shutdown(b, val) (b)->shutdown = (val)
++#define BIO_get_init(b) (b)->init
++#define BIO_get_data(b) (b)->ptr
++#define BIO_get_shutdown(b) (b)->shutdown
++
++#define TLS_method SSLv23_method
++
++#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
++
++#endif /* OPENSSL_COMPAT_H */
+diff -up libevent-2.0.22-stable/sample/le-proxy.c.openssl11 libevent-2.0.22-stable/sample/le-proxy.c
+--- libevent-2.0.22-stable/sample/le-proxy.c.openssl11	2012-02-10 23:17:14.000000000 +0100
++++ libevent-2.0.22-stable/sample/le-proxy.c	2017-03-27 16:00:34.442978756 +0200
+@@ -28,6 +28,7 @@
+ #include <openssl/ssl.h>
+ #include <openssl/err.h>
+ #include <openssl/rand.h>
++#include "openssl-compat.h"
+ 
+ static struct event_base *base;
+ static struct sockaddr_storage listen_on_addr;
+@@ -253,16 +254,18 @@ main(int argc, char **argv)
+ 
+ 	if (use_ssl) {
+ 		int r;
++#if OPENSSL_VERSION_NUMBER < 0x10100000L
+ 		SSL_library_init();
+ 		ERR_load_crypto_strings();
+ 		SSL_load_error_strings();
+ 		OpenSSL_add_all_algorithms();
++#endif
+ 		r = RAND_poll();
+ 		if (r == 0) {
+ 			fprintf(stderr, "RAND_poll() failed.\n");
+ 			return 1;
+ 		}
+-		ssl_ctx = SSL_CTX_new(SSLv23_method());
++		ssl_ctx = SSL_CTX_new(TLS_method());
+ 	}
+ 
+ 	listener = evconnlistener_new_bind(base, accept_cb, NULL,
+diff -up libevent-2.0.22-stable/test/regress_ssl.c.openssl11 libevent-2.0.22-stable/test/regress_ssl.c
+--- libevent-2.0.22-stable/test/regress_ssl.c.openssl11	2013-02-05 21:00:51.000000000 +0100
++++ libevent-2.0.22-stable/test/regress_ssl.c	2017-03-27 16:44:26.814402266 +0200
+@@ -49,22 +49,40 @@
+ #include <openssl/bio.h>
+ #include <openssl/err.h>
+ #include <openssl/pem.h>
++#include "openssl-compat.h"
+ 
+ #include <string.h>
+ 
+-/* A short pre-generated key, to save the cost of doing an RSA key generation
+- * step during the unit tests.  It's only 512 bits long, and it is published
+- * in this file, so you would have to be very foolish to consider using it in
+- * your own code. */
++/* A pre-generated key, to save the cost of doing an RSA key generation step
++ * during the unit tests. It is published in this file, so you would have to
++ * be very foolish to consider using it in your own code. */
+ static const char KEY[] =
+     "-----BEGIN RSA PRIVATE KEY-----\n"
+-    "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\n"
+     "-----END RSA PRIVATE KEY-----\n";
+ 
+ static EVP_PKEY *
+@@ -137,7 +155,7 @@ get_ssl_ctx(void)
+ {
+ 	if (the_ssl_ctx)
+ 		return the_ssl_ctx;
+-	the_ssl_ctx = SSL_CTX_new(SSLv23_method());
++	the_ssl_ctx = SSL_CTX_new(TLS_method());
+ 	if (!the_ssl_ctx)
+ 		return NULL;
+ 	if (disable_tls_11_and_12) {
+@@ -154,6 +172,7 @@ get_ssl_ctx(void)
+ static void
+ init_ssl(void)
+ {
++#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined(LIBRESSL_VERSION_NUMBER)
+ 	SSL_library_init();
+ 	ERR_load_crypto_strings();
+ 	SSL_load_error_strings();
+@@ -161,6 +180,7 @@ init_ssl(void)
+ 	if (SSLeay() != OPENSSL_VERSION_NUMBER) {
+ 		TT_DECLARE("WARN", ("Version mismatch for openssl: compiled with %lx but running with %lx", (unsigned long)OPENSSL_VERSION_NUMBER, (unsigned long)SSLeay()));
+ 	}
++#endif
+ }
+ 
+ /* ====================
