@@ -651,3 +651,23 @@ TEST_F(FsTest, Xattr)
   ASSERT_ERROR(os::getxattr(file, "user.mesos.test"));
 }
 #endif // __linux__ || __APPLE__
+
+
+#ifndef __WINDOWS__
+// This test verifies that the file descriptors returned by `os::lsof()`
+// are all open file descriptors and contains stdin, stdout and stderr.
+TEST_F(FsTest, Lsof)
+{
+  Try<std::vector<int_fd>> fds = os::lsof();
+  ASSERT_SOME(fds);
+
+  // Verify each `fd` is an open file descriptor.
+  foreach (int_fd fd, fds.get()) {
+    EXPECT_NE(-1, ::fcntl(fd, F_GETFD));
+  }
+
+  EXPECT_NE(std::find(fds->begin(), fds->end(), 0), fds->end());
+  EXPECT_NE(std::find(fds->begin(), fds->end(), 1), fds->end());
+  EXPECT_NE(std::find(fds->begin(), fds->end(), 2), fds->end());
+}
+#endif // __WINDOWS__
