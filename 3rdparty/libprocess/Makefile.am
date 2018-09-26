@@ -62,6 +62,7 @@ GRPC = $(BUNDLED_DIR)/grpc-$(GRPC_VERSION)
 GTEST = $(GOOGLETEST)/googletest
 HTTP_PARSER = $(BUNDLED_DIR)/http-parser-$(HTTP_PARSER_VERSION)
 LIBEV = $(BUNDLED_DIR)/libev-$(LIBEV_VERSION)
+LIBEVENT = $(BUNDLED_DIR)/libevent-$(LIBEVENT_VERSION)
 PICOJSON = $(BUNDLED_DIR)/picojson-$(PICOJSON_VERSION)
 PROTOBUF = $(BUNDLED_DIR)/protobuf-$(PROTOBUF_VERSION)
 RAPIDJSON = $(BUNDLED_DIR)/rapidjson-$(RAPIDJSON_VERSION)
@@ -153,6 +154,19 @@ $(LIBEV): $(LIBEV)-build-stamp
 BUNDLED_DEPS += $(LIBEV)-build-stamp
 else
 LIB_EV = -lev
+endif
+else
+if WITH_BUNDLED_LIBEVENT
+LIB_EVENT_INCLUDE_FLAGS = -I$(LIBEVENT)
+LIB_EVENT = $(LIBEVENT)/libevent_core.la $(LIBEVENT)/libevent_pthreads.la \
+            $(LIBEVENT)/libevent_extra.la $(LIBEVENT)/libevent.la
+if ENABLE_SSL
+LIB_EVENT += $(LIBEVENT)/libevent_openssl.la
+endif
+$(LIBEVENT): $(LIBEVENT)-build-stamp
+BUNDLED_DEPS += $(LIBEVENT)-build-stamp
+else
+LIB_EVENT = -levent
 endif
 endif
 
@@ -258,6 +272,7 @@ libprocess_la_CPPFLAGS =			\
   $(GRPC_INCLUDE_FLAGS)				\
   $(HTTP_PARSER_INCLUDE_FLAGS)			\
   $(LIB_EV_INCLUDE_FLAGS)			\
+  $(LIB_EVENT_INCLUDE_FLAGS)			\
   $(PICOJSON_INCLUDE_FLAGS)			\
   $(PROTOBUF_INCLUDE_FLAGS)			\
   $(RAPIDJSON_INCLUDE_FLAGS)			\
@@ -291,7 +306,8 @@ libprocess_la_LIBADD =		\
   $(LIB_GLOG)			\
   $(LIB_GPERFTOOLS)		\
   $(LIB_HTTP_PARSER)		\
-  $(LIB_EV)
+  $(LIB_EV)			\
+  $(LIB_EVENT)
 
 # Tests.
 check_PROGRAMS = libprocess-tests benchmarks
@@ -399,12 +415,14 @@ if !ENABLE_STATIC_LIBPROCESS
 benchmarks_LDADD +=			\
   $(LIB_GLOG)				\
   $(LIB_HTTP_PARSER)			\
-  $(LIB_EV)
+  $(LIB_EV)				\
+  $(LIB_EVENT)
 
 libprocess_tests_LDADD +=		\
   $(LIB_GLOG)				\
   $(LIB_HTTP_PARSER)			\
-  $(LIB_EV)
+  $(LIB_EV)				\
+  $(LIB_EVENT)
 endif
 
 BUILT_SOURCES =				\

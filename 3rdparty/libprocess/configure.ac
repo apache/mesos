@@ -212,7 +212,7 @@ AC_ARG_WITH([libev],
 AC_ARG_WITH([libevent],
             AS_HELP_STRING([--with-libevent=@<:@=DIR@:>@],
                            [specify where to locate the libevent library]),
-            [], [])
+            [without_bundled_libevent=yes], [])
 
 AC_ARG_WITH([picojson],
             AS_HELP_STRING([--with-picojson@<:@=DIR@:>@],
@@ -798,38 +798,28 @@ if test -n "`echo $with_libevent`"; then
 fi
 
 if test "x$enable_libevent" = "xyes"; then
-  AC_CHECK_HEADERS([event2/event.h],
-                   [AC_CHECK_LIB([event],
-                                 [event_base_new],
-                                 [],
-                                 [AC_MSG_ERROR([cannot find libevent
+  # Check if user has asked us to use a preinstalled libevent, or if they
+  # asked us to ignore all bundled libraries while compiling and
+  # linking.
+  if test "x$without_bundled_libevent" = "xyes" || \
+     test "x$enable_bundled" != "xyes"; then
+     MESOS_HAVE_LIBEVENT([2.0.22], [], [
+       AC_MSG_ERROR([libevent version is incompatible
 -------------------------------------------------------------------
-libevent version 2+ is required for libprocess to build.
--------------------------------------------------------------------
-                                 ])])],
-                   [AC_MSG_ERROR([cannot find libevent headers
--------------------------------------------------------------------
-libevent version 2+ headers are required for libprocess to build.
--------------------------------------------------------------------
-  ])])
+libevent version 2.0.22 is the most recent we currently support.
 
-  AC_CHECK_HEADERS([event2/thread.h],
-                   [AC_CHECK_LIB([event_pthreads],
-                                 [evthread_use_pthreads],
-                                 [],
-                                 [AC_MSG_ERROR([cannot find libevent_pthreads
--------------------------------------------------------------------
-libevent_pthreads version 2+ is required for libprocess to build.
--------------------------------------------------------------------
-                                 ])])],
-                   [AC_MSG_ERROR([cannot find libevent_pthreads headers
--------------------------------------------------------------------
-libevent_pthreads version 2+ headers are required for libprocess to build.
--------------------------------------------------------------------
-  ])])
+You may want to install an older version of libevent on your system
+and point this build system to it via --with-libevent=DIR.
+-------------------------------------------------------------------])])
+  else
+    with_bundled_libevent=yes
+  fi
 fi
 
-AM_CONDITIONAL([ENABLE_LIBEVENT], [test x"$enable_libevent" = "xyes"])
+AM_CONDITIONAL([ENABLE_LIBEVENT],
+               [test x"$enable_libevent" = "xyes"])
+AM_CONDITIONAL([WITH_BUNDLED_LIBEVENT],
+               [test "x$with_bundled_libevent" = "xyes"])
 
 
 if test -n "`echo $with_picojson`"; then
@@ -1015,27 +1005,30 @@ libcrypto is required for an SSL-enabled build.
   LIBS="-lssl -lcrypto $LIBS"
 
   if test "x$enable_libevent" = "xyes"; then
-    AC_CHECK_HEADERS([event2/bufferevent_ssl.h],
-                     [AC_CHECK_LIB([event_openssl],
-                                   [bufferevent_openssl_get_ssl],
-                                   [],
-                                   [AC_MSG_ERROR([cannot find libevent_openssl
+    if test "x$with_bundled_libevent" != "xyes"; then
+      AC_CHECK_HEADERS([event2/bufferevent_ssl.h],
+                       [AC_CHECK_LIB([event_openssl],
+                                     [bufferevent_openssl_get_ssl],
+                                     [],
+                                     [AC_MSG_ERROR([cannot find libevent_openssl
 -------------------------------------------------------------------
 libevent_openssl version 2+ is required for an SSL-enabled build.
 -------------------------------------------------------------------
-                                   ])])],
-                     [AC_MSG_ERROR([cannot find libevent_openssl headers
+                                     ])])],
+                       [AC_MSG_ERROR([cannot find libevent_openssl headers
 -------------------------------------------------------------------
 libevent_openssl version 2+ headers are required for an SSL-enabled build.
 -------------------------------------------------------------------
-    ])])
+      ])])
+    fi
   else
     AC_MSG_ERROR([SSL is currently only supported with libevent])
   fi
   AC_DEFINE([USE_SSL_SOCKET], [1])
 fi
 
-AM_CONDITIONAL([ENABLE_SSL], [test x"$enable_ssl" = "xyes"])
+AM_CONDITIONAL([ENABLE_SSL],
+               [test x"$enable_ssl" = "xyes"])
 
 AC_SUBST([SSL_CPPFLAGS])
 AC_SUBST([SSL_LINKERFLAGS])
