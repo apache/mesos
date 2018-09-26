@@ -1322,7 +1322,9 @@ Future<Docker::Container> Docker::inspect(
   // discarded, and a mutex to control access to the callback.
   auto callback = std::make_shared<pair<lambda::function<void()>, mutex>>();
 
-  const string cmd = path + " -H " + socket + " inspect " + containerName;
+  const string cmd =
+    path + " -H " + socket + " inspect --type=container " + containerName;
+
   _inspect(cmd, promise, retryInterval, callback);
 
   return promise->future()
