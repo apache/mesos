@@ -657,6 +657,7 @@ TEST_F(FsTest, Xattr)
 }
 #endif // __linux__ || __APPLE__
 
+
 #ifdef __WINDOWS__
 // Check if the overlapped field is set properly on Windows.
 TEST_F(FsTest, Overlapped)
@@ -804,6 +805,7 @@ TEST_F(FsTest, ReadWriteAsyncLargeBuffer)
 }
 #endif // __WINDOWS__
 
+
 #ifndef __WINDOWS__
 TEST_F(FsTest, Used)
 {
@@ -818,5 +820,23 @@ TEST_F(FsTest, Used)
 
   EXPECT_GT(used.get(), 0u);
   EXPECT_LT(used.get(), size.get());
+}
+
+
+// This test verifies that the file descriptors returned by `os::lsof()`
+// are all open file descriptors and contains stdin, stdout and stderr.
+TEST_F(FsTest, Lsof)
+{
+  Try<std::vector<int_fd>> fds = os::lsof();
+  ASSERT_SOME(fds);
+
+  // Verify each `fd` is an open file descriptor.
+  foreach (int_fd fd, fds.get()) {
+    EXPECT_NE(-1, ::fcntl(fd, F_GETFD));
+  }
+
+  EXPECT_NE(std::find(fds->begin(), fds->end(), 0), fds->end());
+  EXPECT_NE(std::find(fds->begin(), fds->end(), 1), fds->end());
+  EXPECT_NE(std::find(fds->begin(), fds->end(), 2), fds->end());
 }
 #endif // __WINDOWS__
