@@ -6524,9 +6524,11 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 // command executor. Each nested container prints a short message to the stdout
 // and then terminates. This test verifies that the output of each nested
 // container session contains the written message.
+//
+// TODO(abudnik): Enable this test once MESOS-9257 is resolved.
 TEST_P_TEMP_DISABLED_ON_WINDOWS(
     AgentAPITest,
-    ROOT_CGROUPS_LaunchNestedContainerSessionsInParallel)
+    DISABLED_ROOT_CGROUPS_LaunchNestedContainerSessionsInParallel)
 {
   const int numContainers = 10;
 
