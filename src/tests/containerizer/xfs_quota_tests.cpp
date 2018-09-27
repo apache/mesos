@@ -21,6 +21,8 @@
 
 #include <gmock/gmock.h>
 
+#include <google/protobuf/util/message_differencer.h>
+
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
 
@@ -96,6 +98,8 @@ public:
       const Option<std::string>& _mkfsOptions = None())
     : mountOptions(_mountOptions), mkfsOptions(_mkfsOptions) {}
 
+  static constexpr int DISK_SIZE_MB = 40;
+
   virtual void SetUp()
   {
     MesosTest::SetUp();
@@ -107,7 +111,7 @@ public:
     string mntPath = path::join(base.get(), "mnt");
 
     ASSERT_SOME(os::mkdir(mntPath));
-    ASSERT_SOME(mkfile(devPath, Megabytes(40)));
+    ASSERT_SOME(mkfile(devPath, Megabytes(DISK_SIZE_MB)));
 
     // Get an unused loop device.
     Try<string> loop = mkloop();
@@ -248,6 +252,9 @@ public:
   Option<string> loopDevice; // The loop device we attached.
   Option<string> mountPoint; // XFS filesystem mountpoint.
 };
+
+
+constexpr int ROOT_XFS_TestBase::DISK_SIZE_MB;
 
 
 // ROOT_XFS_QuotaTest is our standard fixture that sets up a
@@ -492,6 +499,326 @@ TEST_F(ROOT_XFS_QuotaTest, DiskUsageExceedsQuota)
   // should be that dd got an IO error.
   EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, failedStatus->source());
   EXPECT_EQ("Command exited with status 1", failedStatus->message());
+
+  driver.stop();
+  driver.join();
+}
+
+
+// Verify that a task may not exceed quota on a persistent volume. We run
+// a task that writes to a persistent volume and verify that it fails with
+// an I/O error. After destroying the volume, make sure that the project
+// ID metrics are updated consistently.
+TEST_F(ROOT_XFS_QuotaTest, VolumeUsageExceedsQuota)
+{
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.gc_delay = Seconds(10);
+  flags.disk_watch_interval = Seconds(10);
+  flags.resources = strings::format(
+      "disk(%s):%d", DEFAULT_TEST_ROLE, DISK_SIZE_MB).get();
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(DeclineOffers()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  // Create a task that requests a 1 MB persistent volume but attempts
+  // to use 2MB.
+  Resources volume = createPersistentVolume(
+      Megabytes(1),
+      DEFAULT_TEST_ROLE,
+      "id1",
+      "volume_path",
+      None(),
+      None(),
+      frameworkInfo.principal());
+
+  // We intentionally request a sandbox that is much bigger (16MB) than
+  // the file the task writes (2MB) to the persistent volume (1MB). This
+  // makes sure that the quota is indeed enforced on the persistent volume.
+  Resources taskResources = Resources::parse(strings::format(
+        "cpus:1;mem:32;disk(%s):16", DEFAULT_TEST_ROLE).get()).get() + volume;
+
+  TaskInfo task = createTask(
+      offers->at(0).slave_id(),
+      taskResources,
+      "dd if=/dev/zero of=volume_path/file bs=1048576 count=2 && sleep 1000");
+
+  Future<TaskStatus> startingStatus;
+  Future<TaskStatus> runningStatus;
+  Future<TaskStatus> failedStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&startingStatus))
+    .WillOnce(FutureArg<1>(&runningStatus))
+    .WillOnce(FutureArg<1>(&failedStatus));
+
+  Future<Nothing> terminateExecutor =
+    FUTURE_DISPATCH(_, &Slave::executorTerminated);
+
+  Future<Nothing> gc =
+    FUTURE_DISPATCH(_, &GarbageCollectorProcess::prune);
+
+  // Create the volume and launch the task.
+  driver.acceptOffers(
+      {offers->at(0).id()}, {CREATE(volume), LAUNCH({task})});
+
+  AWAIT_READY(startingStatus);
+  EXPECT_EQ(task.task_id(), startingStatus->task_id());
+  EXPECT_EQ(TASK_STARTING, startingStatus->state());
+
+  AWAIT_READY(runningStatus);
+  EXPECT_EQ(task.task_id(), runningStatus->task_id());
+  EXPECT_EQ(TASK_RUNNING, runningStatus->state());
+
+  AWAIT_READY(failedStatus);
+  EXPECT_EQ(task.task_id(), failedStatus->task_id());
+  EXPECT_EQ(TASK_FAILED, failedStatus->state());
+
+  // Unlike the 'disk/du' isolator, the reason for task failure
+  // should be that dd got an IO error.
+  EXPECT_EQ(TaskStatus::SOURCE_EXECUTOR, failedStatus->source());
+  EXPECT_EQ("Command exited with status 1", failedStatus->message());
+
+  AWAIT_READY(terminateExecutor);
+
+  // Wait for new offers for the DESTROY.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  Future<ApplyOperationMessage> apply =
+    FUTURE_PROTOBUF(ApplyOperationMessage(), _, slave.get()->pid);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  // Destroy the volume.
+  driver.acceptOffers(
+      {offers->at(0).id()}, {DESTROY(volume)});
+
+  AWAIT_READY(apply);
+
+  // Advance the clock to trigger sandbox GC.
+  Clock::pause();
+  Clock::advance(flags.gc_delay);
+  Clock::settle();
+  Clock::resume();
+
+  AWAIT_READY(gc);
+
+  // Advance the clock to trigger the project ID usage check.
+  Clock::pause();
+  Clock::advance(flags.disk_watch_interval);
+  Clock::settle();
+  Clock::resume();
+
+  // We should have reclaimed the project IDs for both the sandbox and the
+  // persistent volume.
+  JSON::Object metrics = Metrics();
+  EXPECT_EQ(
+      metrics.at<JSON::Number>("containerizer/mesos/disk/project_ids_total")
+        ->as<int>(),
+      metrics.at<JSON::Number>("containerizer/mesos/disk/project_ids_free")
+        ->as<int>());
+
+  driver.stop();
+  driver.join();
+}
+
+
+// Verify that a task may not exceed quota on a persistent volume. We run a
+// task that writes to a persistent volume and verify that the containerizer
+// kills it when it exceeds the quota. After destroying the volume, make
+// sure that the project ID metrics are updated consistently.
+TEST_F(ROOT_XFS_QuotaTest, VolumeUsageExceedsQuotaWithKill)
+{
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.gc_delay = Seconds(10);
+  flags.disk_watch_interval = Seconds(10);
+  flags.resources = strings::format(
+      "disk(%s):%d", DEFAULT_TEST_ROLE, DISK_SIZE_MB).get();
+
+  // Enable killing containers on disk quota violations.
+  flags.xfs_kill_containers = true;
+
+  // Tune the watch interval down so that the isolator will detect
+  // the quota violation as soon as possible.
+  flags.container_disk_watch_interval = Milliseconds(1);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(DeclineOffers()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  // We create 2 persistent volumes, but only write to one so that we can
+  // test that the container limitation reports the correct volume in the
+  // task resource limitation.
+  Resources volume1 = createPersistentVolume(
+      Megabytes(1),
+      DEFAULT_TEST_ROLE,
+      "id1",
+      "volume_path_1",
+      None(),
+      None(),
+      frameworkInfo.principal());
+
+  Resources volume2 = createPersistentVolume(
+      Megabytes(1),
+      DEFAULT_TEST_ROLE,
+      "id2",
+      "volume_path_2",
+      None(),
+      None(),
+      frameworkInfo.principal());
+
+  // We intentionally request a sandbox that is much bigger (16MB) than
+  // the file the task writes (2MB) to the persistent volume (1MB). This
+  // makes sure that the quota is indeed enforced on the persistent volume.
+  Resources taskResources = Resources::parse(strings::format(
+        "cpus:1;mem:32;disk(%s):16", DEFAULT_TEST_ROLE).get()).get();
+
+  TaskInfo task = createTask(
+      offers->at(0).slave_id(),
+      taskResources + volume1 + volume2,
+      "dd if=/dev/zero of=volume_path_1/file bs=1048576 count=2 && "
+      "sleep 100000");
+
+  Future<TaskStatus> startingStatus;
+  Future<TaskStatus> runningStatus;
+  Future<TaskStatus> killedStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&startingStatus))
+    .WillOnce(FutureArg<1>(&runningStatus))
+    .WillOnce(FutureArg<1>(&killedStatus));
+
+  Future<Nothing> terminateExecutor =
+    FUTURE_DISPATCH(_, &Slave::executorTerminated);
+
+  Future<Nothing> gc =
+    FUTURE_DISPATCH(_, &GarbageCollectorProcess::prune);
+
+  // Create the volume and launch the task.
+  driver.acceptOffers(
+      {offers->at(0).id()},
+      {CREATE(volume1), CREATE(volume2), LAUNCH({task})});
+
+  AWAIT_READY(startingStatus);
+  EXPECT_EQ(task.task_id(), startingStatus->task_id());
+  EXPECT_EQ(TASK_STARTING, startingStatus->state());
+
+  AWAIT_READY(runningStatus);
+  EXPECT_EQ(task.task_id(), runningStatus->task_id());
+  EXPECT_EQ(TASK_RUNNING, runningStatus->state());
+
+  AWAIT_READY(killedStatus);
+  EXPECT_EQ(task.task_id(), killedStatus->task_id());
+  EXPECT_EQ(TASK_FAILED, killedStatus->state());
+
+  EXPECT_EQ(TaskStatus::SOURCE_SLAVE, killedStatus->source());
+  EXPECT_EQ(
+      TaskStatus::REASON_CONTAINER_LIMITATION_DISK, killedStatus->reason());
+
+  // Verify that the `TASK_KILLED` status includes the correct persistent
+  // volume disk resource in its limitation.
+  ASSERT_TRUE(killedStatus->has_limitation())
+    << JSON::protobuf(killedStatus.get());
+
+  ASSERT_EQ(1, killedStatus->limitation().resources().size())
+    << JSON::protobuf(killedStatus.get());
+
+  ASSERT_TRUE(killedStatus->limitation().resources().Get(0).has_disk())
+    << JSON::protobuf(killedStatus.get());
+
+  EXPECT_TRUE(google::protobuf::util::MessageDifferencer::Equals(
+      killedStatus->limitation().resources().Get(0).disk(),
+      Resource(*volume1.begin()).disk()))
+    << "Limitation contained disk "
+    << killedStatus->limitation().resources().Get(0).disk().DebugString()
+    << ", wanted disk " << Resource(*volume1.begin()).disk().DebugString();
+
+  AWAIT_READY(terminateExecutor);
+
+  // Wait for new offers for the DESTROY.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  Future<ApplyOperationMessage> apply =
+    FUTURE_PROTOBUF(ApplyOperationMessage(), _, slave.get()->pid);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  // Destroy the volumes.
+  driver.acceptOffers(
+      {offers->at(0).id()}, {DESTROY(volume1), DESTROY(volume2)});
+
+  AWAIT_READY(apply);
+
+  // Advance the clock to trigger sandbox GC.
+  Clock::pause();
+  Clock::advance(flags.gc_delay);
+  Clock::settle();
+  Clock::resume();
+
+  AWAIT_READY(gc);
+
+  // Advance the clock to trigger the project ID usage check.
+  Clock::pause();
+  Clock::advance(flags.disk_watch_interval);
+  Clock::settle();
+  Clock::resume();
+
+  // We should have reclaimed the project IDs for both the sandbox and the
+  // persistent volumes.
+  JSON::Object metrics = Metrics();
+  EXPECT_EQ(
+      metrics.at<JSON::Number>("containerizer/mesos/disk/project_ids_total")
+        ->as<int>(),
+      metrics.at<JSON::Number>("containerizer/mesos/disk/project_ids_free")
+        ->as<int>());
 
   driver.stop();
   driver.join();
