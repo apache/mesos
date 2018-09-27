@@ -1783,27 +1783,32 @@ Try<JSON::Object> NetworkCniIsolatorProcess::getNetworkConfigJSON(
   }
 
   // Cache-miss.
-  Try<hashmap<string, string>> _networkConfigs = loadNetworkConfigs(
-      flags.network_cni_config_dir.get(),
-      flags.network_cni_plugins_dir.get());
+  if (rootDir.isSome()) {
+    CHECK_SOME(flags.network_cni_config_dir);
+    CHECK_SOME(flags.network_cni_plugins_dir);
 
-  if (_networkConfigs.isError()) {
-      return Error(
-          "Encountered error while loading CNI config during "
-          "a cache-miss for CNI network '" + network + "': " +
-          _networkConfigs.error());
-  }
+    Try<hashmap<string, string>> _networkConfigs = loadNetworkConfigs(
+        flags.network_cni_config_dir.get(),
+        flags.network_cni_plugins_dir.get());
 
-  networkConfigs = _networkConfigs.get();
+    if (_networkConfigs.isError()) {
+        return Error(
+            "Encountered error while loading CNI config during "
+            "a cache-miss for CNI network '" + network + "': " +
+            _networkConfigs.error());
+    }
 
-  // Do another search.
-  if (networkConfigs.contains(network)) {
-    // This is a best-effort retrieval of the CNI network config. So
-    // if it fails in this attempt just return the `Error` instead of
-    // trying to erase the network from cache. Deletion of the
-    // network, in case of an error, will happen on its own in the
-    // next attempt.
-    return getNetworkConfigJSON(network, networkConfigs[network]);
+    networkConfigs = _networkConfigs.get();
+
+    // Do another search.
+    if (networkConfigs.contains(network)) {
+      // This is a best-effort retrieval of the CNI network config. So
+      // if it fails in this attempt just return the `Error` instead of
+      // trying to erase the network from cache. Deletion of the
+      // network, in case of an error, will happen on its own in the
+      // next attempt.
+      return getNetworkConfigJSON(network, networkConfigs[network]);
+    }
   }
 
   return Error("Unknown CNI network '" + network + "'");
