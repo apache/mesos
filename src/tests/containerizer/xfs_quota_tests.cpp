@@ -74,6 +74,8 @@ using mesos::internal::slave::MesosContainerizerProcess;
 using mesos::internal::slave::Slave;
 using mesos::internal::slave::XfsDiskIsolatorProcess;
 
+using mesos::internal::slave::paths::getPersistentVolumePath;
+
 using mesos::internal::values::rangesToIntervalSet;
 
 using mesos::master::detector::MasterDetector;
@@ -993,10 +995,15 @@ TEST_F(ROOT_XFS_QuotaTest, DiskUsageExceedsQuotaWithKill)
 // disk isolator.
 TEST_F(ROOT_XFS_QuotaTest, ResourceStatistics)
 {
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
+
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = CreateSlaveFlags();
+  flags.resources = strings::format(
+      "disk(%s):%d", DEFAULT_TEST_ROLE, DISK_SIZE_MB).get();
 
   Fetcher fetcher(flags);
   Owned<MasterDetector> detector = master.get()->createDetector();
@@ -1014,7 +1021,7 @@ TEST_F(ROOT_XFS_QuotaTest, ResourceStatistics)
   MockScheduler sched;
 
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
   EXPECT_CALL(sched, registered(_, _, _));
 
@@ -1028,23 +1035,42 @@ TEST_F(ROOT_XFS_QuotaTest, ResourceStatistics)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  Offer offer = offers.get()[0];
+  Resources volume = createPersistentVolume(
+        Megabytes(3),
+        DEFAULT_TEST_ROLE,
+        "id1",
+        "path1",
+        None(),
+        None(),
+        frameworkInfo.principal());
 
-  // Create a task that uses 4 of 3MB disk but doesn't fail. We will verify
-  // that the allocated disk is filled.
+  Resources taskResources =
+    Resources::parse("cpus:1;mem:128").get() +
+    createDiskResource("3", DEFAULT_TEST_ROLE, None(), None()) +
+    volume;
+
   TaskInfo task = createTask(
-      offer.slave_id(),
-      Resources::parse("cpus:1;mem:128;disk:3").get(),
-      "dd if=/dev/zero of=file bs=1048576 count=4 || sleep 1000");
+      offers->at(0).slave_id(),
+      taskResources,
+      "touch path1/working && "
+      "touch path1/started && "
+      "dd if=/dev/zero of=file bs=1048576 count=1 && "
+      "dd if=/dev/zero of=path1/file bs=1048576 count=1 && "
+      "rm path1/working && "
+      "sleep 1000");
 
   Future<TaskStatus> startingStatus;
   Future<TaskStatus> runningStatus;
+  Future<TaskStatus> killStatus;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&startingStatus))
     .WillOnce(FutureArg<1>(&runningStatus))
+    .WillOnce(FutureArg<1>(&killStatus))
     .WillRepeatedly(Return()); // Ignore subsequent updates.
 
-  driver.launchTasks(offers.get()[0].id(), {task});
+  driver.acceptOffers(
+      {offers->at(0).id()},
+      {CREATE(volume), LAUNCH({task})});
 
   AWAIT_READY(startingStatus);
   EXPECT_EQ(task.task_id(), startingStatus->task_id());
@@ -1059,32 +1085,55 @@ TEST_F(ROOT_XFS_QuotaTest, ResourceStatistics)
   ASSERT_EQ(1u, containers->size());
 
   ContainerID containerId = *(containers->begin());
-  Timeout timeout = Timeout::in(Seconds(5));
+  Timeout timeout = Timeout::in(Seconds(60));
 
   while (true) {
     Future<ResourceStatistics> usage = containerizer.get()->usage(containerId);
     AWAIT_READY(usage);
 
-    ASSERT_TRUE(usage->has_disk_limit_bytes());
-    EXPECT_EQ(Megabytes(3), Bytes(usage->disk_limit_bytes()));
+    ASSERT_FALSE(timeout.expired());
 
-    if (usage->has_disk_used_bytes()) {
-      // Usage must always be <= the limit.
-      EXPECT_LE(usage->disk_used_bytes(), usage->disk_limit_bytes());
+    const string volumePath =
+      getPersistentVolumePath(flags.work_dir, DEFAULT_TEST_ROLE, "id1");
 
-      // Usage might not be equal to the limit, but it must hit
-      // and not exceed the limit.
-      if (usage->disk_used_bytes() >= usage->disk_limit_bytes()) {
-        EXPECT_EQ(
-            usage->disk_used_bytes(), usage->disk_limit_bytes());
-        EXPECT_EQ(Megabytes(3), Bytes(usage->disk_used_bytes()));
-        break;
-      }
+    if (!os::exists(path::join(volumePath, "started"))) {
+      os::sleep(Milliseconds(100));
+      continue;
     }
 
-    ASSERT_FALSE(timeout.expired());
-    os::sleep(Milliseconds(100));
+    if (os::exists(path::join(volumePath, "working"))) {
+      os::sleep(Milliseconds(100));
+      continue;
+    }
+
+    ASSERT_TRUE(usage->has_disk_limit_bytes());
+    ASSERT_TRUE(usage->has_disk_used_bytes());
+
+    EXPECT_EQ(Megabytes(3), Bytes(usage->disk_limit_bytes()));
+    EXPECT_EQ(Megabytes(1), Bytes(usage->disk_used_bytes()));
+
+    EXPECT_EQ(1, usage->disk_statistics().size());
+
+    foreach (const DiskStatistics& statistics, usage->disk_statistics()) {
+      ASSERT_TRUE(statistics.has_limit_bytes());
+      ASSERT_TRUE(statistics.has_used_bytes());
+
+      EXPECT_EQ(Megabytes(3), Bytes(statistics.limit_bytes()));
+      EXPECT_EQ(Megabytes(1), Bytes(statistics.used_bytes()));
+
+      EXPECT_EQ("id1", statistics.persistence().id());
+      EXPECT_EQ(
+          frameworkInfo.principal(), statistics.persistence().principal());
+    }
+
+    break;
   }
+
+  driver.killTask(task.task_id());
+
+  AWAIT_READY(killStatus);
+  EXPECT_EQ(task.task_id(), killStatus->task_id());
+  EXPECT_EQ(TASK_KILLED, killStatus->state());
 
   driver.stop();
   driver.join();
@@ -1096,11 +1145,16 @@ TEST_F(ROOT_XFS_QuotaTest, ResourceStatistics)
 // that the quota was exceeded.
 TEST_F(ROOT_XFS_QuotaTest, ResourceStatisticsNoEnforce)
 {
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
+
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
   slave::Flags flags = CreateSlaveFlags();
   flags.enforce_container_disk_quota = false;
+  flags.resources = strings::format(
+      "disk(%s):%d", DEFAULT_TEST_ROLE, DISK_SIZE_MB).get();
 
   Fetcher fetcher(flags);
   Owned<MasterDetector> detector = master.get()->createDetector();
@@ -1118,7 +1172,8 @@ TEST_F(ROOT_XFS_QuotaTest, ResourceStatisticsNoEnforce)
   MockScheduler sched;
 
   MesosSchedulerDriver driver(
-      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
   EXPECT_CALL(sched, registered(_, _, _));
 
   Future<vector<Offer>> offers;
@@ -1131,23 +1186,42 @@ TEST_F(ROOT_XFS_QuotaTest, ResourceStatisticsNoEnforce)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  Offer offer = offers.get()[0];
+  Resources volume = createPersistentVolume(
+        Megabytes(1),
+        DEFAULT_TEST_ROLE,
+        "id1",
+        "path1",
+        None(),
+        None(),
+        frameworkInfo.principal());
 
-  // Create a task that uses 4MB of 3MB disk and fails if it can't
-  // write the full amount.
+  Resources taskResources =
+    Resources::parse("cpus:1;mem:128").get() +
+    createDiskResource("1", DEFAULT_TEST_ROLE, None(), None()) +
+    volume;
+
   TaskInfo task = createTask(
-      offer.slave_id(),
-      Resources::parse("cpus:1;mem:128;disk:3").get(),
-      "dd if=/dev/zero of=file bs=1048576 count=4 && sleep 1000");
+      offers->at(0).slave_id(),
+      taskResources,
+      "touch path1/working && "
+      "touch path1/started && "
+      "dd if=/dev/zero of=file bs=1048576 count=2 && "
+      "dd if=/dev/zero of=path1/file bs=1048576 count=2 && "
+      "rm path1/working && "
+      "sleep 1000");
 
   Future<TaskStatus> startingStatus;
   Future<TaskStatus> runningStatus;
+  Future<TaskStatus> killStatus;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&startingStatus))
     .WillOnce(FutureArg<1>(&runningStatus))
+    .WillOnce(FutureArg<1>(&killStatus))
     .WillRepeatedly(Return()); // Ignore subsequent updates.
 
-  driver.launchTasks(offers.get()[0].id(), {task});
+  driver.acceptOffers(
+      {offers->at(0).id()},
+      {CREATE(volume), LAUNCH({task})});
 
   AWAIT_READY(startingStatus);
   EXPECT_EQ(task.task_id(), startingStatus->task_id());
@@ -1162,34 +1236,59 @@ TEST_F(ROOT_XFS_QuotaTest, ResourceStatisticsNoEnforce)
   ASSERT_EQ(1u, containers->size());
 
   ContainerID containerId = *(containers->begin());
-  Duration diskTimeout = Seconds(5);
+  Duration diskTimeout = Seconds(60);
   Timeout timeout = Timeout::in(diskTimeout);
 
   while (true) {
     Future<ResourceStatistics> usage = containerizer.get()->usage(containerId);
     AWAIT_READY(usage);
 
-    ASSERT_TRUE(usage->has_disk_limit_bytes());
-    EXPECT_EQ(Megabytes(3), Bytes(usage->disk_limit_bytes()));
-
-    if (usage->has_disk_used_bytes()) {
-      if (usage->disk_used_bytes() >= Megabytes(4).bytes()) {
-        break;
-      }
-    }
-
-    // The stopping condition for this test is that the isolator is
-    // able to report that we wrote the full amount of data without
-    // being constrained by the task disk limit.
-    EXPECT_LE(usage->disk_used_bytes(), Megabytes(4).bytes());
-
     ASSERT_FALSE(timeout.expired())
       << "Used " << Bytes(usage->disk_used_bytes())
-      << " of expected " << Megabytes(4)
+      << " of expected " << Megabytes(2)
       << " within the " << diskTimeout << " timeout";
 
-    os::sleep(Milliseconds(100));
+    const string volumePath =
+      getPersistentVolumePath(flags.work_dir, DEFAULT_TEST_ROLE, "id1");
+
+    if (!os::exists(path::join(volumePath, "started"))) {
+      os::sleep(Milliseconds(100));
+      continue;
+    }
+
+    if (os::exists(path::join(volumePath, "working"))) {
+      os::sleep(Milliseconds(100));
+      continue;
+    }
+
+    ASSERT_TRUE(usage->has_disk_limit_bytes());
+    ASSERT_TRUE(usage->has_disk_used_bytes());
+
+    EXPECT_EQ(Megabytes(1), Bytes(usage->disk_limit_bytes()));
+    EXPECT_EQ(Megabytes(2), Bytes(usage->disk_used_bytes()));
+
+    EXPECT_EQ(1, usage->disk_statistics().size());
+
+    foreach (const DiskStatistics& statistics, usage->disk_statistics()) {
+      ASSERT_TRUE(statistics.has_limit_bytes());
+      ASSERT_TRUE(statistics.has_used_bytes());
+
+      EXPECT_EQ(Megabytes(1), Bytes(statistics.limit_bytes()));
+      EXPECT_EQ(Megabytes(2), Bytes(statistics.used_bytes()));
+
+      EXPECT_EQ("id1", statistics.persistence().id());
+      EXPECT_EQ(
+          frameworkInfo.principal(), statistics.persistence().principal());
+    }
+
+    break;
   }
+
+  driver.killTask(task.task_id());
+
+  AWAIT_READY(killStatus);
+  EXPECT_EQ(task.task_id(), killStatus->task_id());
+  EXPECT_EQ(TASK_KILLED, killStatus->state());
 
   driver.stop();
   driver.join();
