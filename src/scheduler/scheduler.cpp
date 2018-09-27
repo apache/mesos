@@ -1038,7 +1038,12 @@ void Mesos::reconnect()
 void Mesos::stop()
 {
   if (process != nullptr) {
-    terminate(process);
+    // We pass 'false' here to add the termination event at the end of the
+    // `MesosProcess` queue. This is to ensure all pending dispatches are
+    // processed. However multistage events, e.g., `Call`, might still be
+    // dropped, because a continuation (stage) of such event can be dispatched
+    // after the termination event, see MESOS-9274.
+    terminate(process, false);
     wait(process);
 
     delete process;
