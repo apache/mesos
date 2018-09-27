@@ -285,7 +285,24 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_v1_scheduler_V1Mesos_send
     return;
   }
 
-  mesos->mesos->send(call);
+  // Destruction of the library is not always under our control. For example,
+  // the JVM can call JNI `finalize()` if the Java scheduler nullifies its
+  // reference to the V1Mesos library immediately after sending `TEARDOWN`,
+  // see MESOS-9274.
+  //
+  // We want to make sure that the `TEARDOWN` message is sent before the
+  // scheduler and the Mesos library are destructed (garbage collected).
+  // However we don't want to block forever if the message is dropped.
+  //
+  // TODO(alexr): Consider adding general support for `call()`.
+  if (call.type() == Call::TEARDOWN) {
+    const Duration timeout = Minutes(10);
+    bool timedout = !mesos->mesos->call(call).await(timeout);
+    LOG_IF(ERROR, timedout)
+      << "Received no response to call " << call.type() << " for " << timeout;
+  } else {
+    mesos->mesos->send(call);
+  }
 }
 
 
