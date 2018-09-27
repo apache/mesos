@@ -18,6 +18,7 @@
 #define __XFS_DISK_ISOLATOR_HPP__
 
 #include <string>
+#include <utility>
 
 #include <process/owned.hpp>
 
@@ -74,6 +75,24 @@ protected:
   void initialize() override;
 
 private:
+  struct Info
+  {
+    struct PathInfo
+    {
+      Bytes quota;
+      const prid_t projectId;
+      const Option<Resource::DiskInfo> disk;
+    };
+
+    Info(const std::string& directory, prid_t projectId)
+    {
+      paths.put(directory, PathInfo{Bytes(0), projectId, None()});
+    }
+
+    hashmap<std::string, PathInfo> paths;
+    process::Promise<mesos::slave::ContainerLimitation> limitation;
+  };
+
   XfsDiskIsolatorProcess(
       Duration watchInterval,
       xfs::QuotaPolicy quotaPolicy,
@@ -94,17 +113,6 @@ private:
   // that are not.
   void reclaimProjectIds();
 
-  struct Info
-  {
-    explicit Info(const std::string& _directory, prid_t _projectId)
-      : directory(_directory), quota(0),  projectId(_projectId) {}
-
-    const std::string directory;
-    Bytes quota;
-    const prid_t projectId;
-    process::Promise<mesos::slave::ContainerLimitation> limitation;
-  };
-
   const Duration watchInterval;
   const Duration projectWatchInterval;
   xfs::QuotaPolicy quotaPolicy;
@@ -112,7 +120,10 @@ private:
   const IntervalSet<prid_t> totalProjectIds;
   IntervalSet<prid_t> freeProjectIds;
   hashmap<ContainerID, process::Owned<Info>> infos;
-  hashmap<prid_t, std::string> scheduledProjects;
+
+  // Track the device and filesystem path of unused project IDs we want
+  // to reclaim.
+  hashmap<prid_t, std::pair<std::string, std::string>> scheduledProjects;
 
   // Metrics used by the XFS disk isolator.
   struct Metrics

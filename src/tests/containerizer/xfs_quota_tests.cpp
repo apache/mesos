@@ -986,8 +986,8 @@ TEST_F(ROOT_XFS_QuotaTest, NoCheckpointRecovery)
   // One sandbox and one symlink.
   ASSERT_EQ(2u, sandboxes->size());
 
-  // Scan the remaining sandboxes and check that project ID is still assigned
-  // but quota is unset.
+  // Scan the remaining sandboxes and check that project ID is still
+  // assigned and that the  quota is set.
   foreach (const string& sandbox, sandboxes.get()) {
     // Skip the "latest" symlink.
     if (os::stat::islink(sandbox)) {
@@ -997,7 +997,7 @@ TEST_F(ROOT_XFS_QuotaTest, NoCheckpointRecovery)
     Result<prid_t> projectId = xfs::getProjectId(sandbox);
     ASSERT_SOME(projectId);
 
-    EXPECT_NONE(xfs::getProjectQuota(sandbox, projectId.get()));
+    EXPECT_SOME(xfs::getProjectQuota(sandbox, projectId.get()));
   }
 
   driver.stop();
@@ -1315,18 +1315,21 @@ TEST_F(ROOT_XFS_QuotaTest, ProjectIdReclaiming)
   ASSERT_SOME(sandboxes);
   ASSERT_EQ(2u, sandboxes->size());
 
-  // Scan the remaining sandboxes and check that project ID is still assigned
-  // but quota is unset.
+  // Scan the remaining sandboxes and check that project ID is still
+  // assigned and the quota is set.
   Option<prid_t> usedProjectId;
+
   foreach (const string& sandbox, sandboxes.get()) {
     if (!os::stat::islink(sandbox)) {
       Result<prid_t> projectId = xfs::getProjectId(sandbox);
       ASSERT_SOME(projectId);
+
       usedProjectId = projectId.get();
 
-      EXPECT_NONE(xfs::getProjectQuota(sandbox, projectId.get()));
+      EXPECT_SOME(xfs::getProjectQuota(sandbox, projectId.get()));
     }
   }
+
   ASSERT_SOME(usedProjectId);
 
   // Advance the clock to trigger sandbox GC and project ID usage check.
@@ -1341,6 +1344,13 @@ TEST_F(ROOT_XFS_QuotaTest, ProjectIdReclaiming)
   sandboxes = getSandboxes();
   ASSERT_SOME(sandboxes);
   ASSERT_TRUE(sandboxes->empty());
+
+  // After the sandbox is removed, we should have reclaimed the project ID,
+  // removed all files for the project ID and cleared the quota record.
+  // This means that we ought to receive ENOENT when looking up the quota
+  // record.
+  EXPECT_ERROR(
+      xfs::getProjectQuota(mountPoint.get(), usedProjectId.get()));
 
   AWAIT_READY(offers2);
   ASSERT_FALSE(offers2->empty());
@@ -1429,6 +1439,46 @@ TEST_F(ROOT_XFS_QuotaTest, IsolatorFlags)
   // Project IDs must be a range.
   flags = CreateSlaveFlags();
   flags.xfs_project_range = "100";
+  ASSERT_ERROR(StartSlave(detector.get(), flags));
+
+  // PATH disks that are not on XFS volumes should be rejected.
+  flags = CreateSlaveFlags();
+  flags.resources = R"(
+  [
+    {
+      "name": "cpus",
+      "type": "SCALAR",
+      "scalar": {
+        "value": 2
+      }
+    },
+    {
+      "name": "mem",
+      "type": "SCALAR",
+      "scalar": {
+        "value": 1024
+      }
+    },
+    {
+      "name": "disk",
+      "type": "SCALAR",
+      "scalar": {
+        "value": 1024
+      }
+    },
+    {
+      "name": "disk",
+      "type": "SCALAR",
+      "scalar": { "value": 1024 },
+      "disk": {
+        "source": {
+          "type": "PATH",
+          "path": { "root": "/sys" }
+        }
+      }
+    }
+  ]
+  )";
   ASSERT_ERROR(StartSlave(detector.get(), flags));
 }
 
