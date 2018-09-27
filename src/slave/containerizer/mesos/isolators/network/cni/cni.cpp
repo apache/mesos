@@ -281,8 +281,7 @@ Try<Isolator*> NetworkCniIsolatorProcess::create(const Flags& flags)
           networkConfigs.get(),
           cniDNSMap,
           defaultCniDNS,
-          rootDir.get(),
-          flags.network_cni_plugins_dir.get())));
+          rootDir.get())));
 }
 
 
@@ -832,12 +831,11 @@ Future<Nothing> NetworkCniIsolatorProcess::isolate(
   // level or nested) wants to join non-host networks.
 
   // If the `network/cni` isolator is providing network isolation to a
-  // container its `rootDir` and `pluginDir` should always be set.
-  // These properties of the isolator will not be set only if the
-  // operator does not specify the '--network_cni_plugins_dir' and
-  // '--network_cni_config_dir' flags at agent startup.
+  // container its `rootDir` should always be set.  It will not be set
+  // only if the operator does not specify the
+  // '--network_cni_plugins_dir' and '--network_cni_config_dir' flags
+  // at agent startup.
   CHECK_SOME(rootDir);
-  CHECK_SOME(pluginDir);
 
   // NOTE: DEBUG container should not have Info struct. Thus if the
   // control reaches here, the container is not a DEBUG container.
@@ -1188,10 +1186,12 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
   }
 
   // Prepare environment variables for CNI plugin.
+  CHECK_SOME(flags.network_cni_plugins_dir);
+
   map<string, string> environment;
   environment["CNI_COMMAND"] = "ADD";
   environment["CNI_CONTAINERID"] = stringify(containerId);
-  environment["CNI_PATH"] = pluginDir.get();
+  environment["CNI_PATH"] = flags.network_cni_plugins_dir.get();
   environment["CNI_IFNAME"] = containerNetwork.ifName;
   environment["CNI_NETNS"] = netNsHandle;
 
@@ -1236,8 +1236,8 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
 
   // Invoke the CNI plugin.
   //
-  // NOTE: We want to execute only the plugin found in the `pluginDir`
-  // path specified by the operator.
+  // NOTE: We want to execute only the plugin found in the
+  // `flags.network_cni_plugins_dir` path specified by the operator.
   Result<JSON::String> _plugin = networkConfigJSON->at<JSON::String>("type");
   if (!_plugin.isSome()) {
     return Failure(
@@ -1249,7 +1249,7 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
 
   Option<string> plugin = os::which(
       _plugin->value,
-      pluginDir.get());
+      flags.network_cni_plugins_dir.get());
 
   if (plugin.isNone()) {
     return Failure(
@@ -1578,10 +1578,12 @@ Future<Nothing> NetworkCniIsolatorProcess::detach(
     infos[containerId]->containerNetworks[networkName];
 
   // Prepare environment variables for CNI plugin.
+  CHECK_SOME(flags.network_cni_plugins_dir);
+
   map<string, string> environment;
   environment["CNI_COMMAND"] = "DEL";
   environment["CNI_CONTAINERID"] = stringify(containerId);
-  environment["CNI_PATH"] = pluginDir.get();
+  environment["CNI_PATH"] = flags.network_cni_plugins_dir.get();
   environment["CNI_IFNAME"] = containerNetwork.ifName;
   environment["CNI_NETNS"] =
       paths::getNamespacePath(rootDir.get(), containerId);
@@ -1639,11 +1641,11 @@ Future<Nothing> NetworkCniIsolatorProcess::detach(
 
   // Invoke the CNI plugin.
   //
-  // NOTE: We want to execute only the plugin found in the `pluginDir`
-  // path specified by the operator.
+  // NOTE: We want to execute only the plugin found in the
+  // `flags.network_cni_plugins_dir` path specified by the operator.
   Option<string> plugin = os::which(
       _plugin->value,
-      pluginDir.get());
+      flags.network_cni_plugins_dir.get());
 
   if (plugin.isNone()) {
     return Failure(

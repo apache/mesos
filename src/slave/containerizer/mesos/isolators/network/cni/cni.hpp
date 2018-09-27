@@ -130,15 +130,13 @@ private:
       const hashmap<std::string, std::string>& _networkConfigs,
       const hashmap<std::string, ContainerDNSInfo::MesosInfo>& _cniDNSMap,
       const Option<ContainerDNSInfo::MesosInfo>& _defaultCniDNS = None(),
-      const Option<std::string>& _rootDir = None(),
-      const Option<std::string>& _pluginDir = None())
+      const Option<std::string>& _rootDir = None())
     : ProcessBase(process::ID::generate("mesos-network-cni-isolator")),
       flags(_flags),
       networkConfigs(_networkConfigs),
       cniDNSMap(_cniDNSMap),
       defaultCniDNS(_defaultCniDNS),
-      rootDir(_rootDir),
-      pluginDir(_pluginDir) {}
+      rootDir(_rootDir) {}
 
   process::Future<Nothing> _isolate(
       const ContainerID& containerId,
@@ -212,9 +210,6 @@ private:
 
   // CNI network information root directory.
   const Option<std::string> rootDir;
-
-  // CNI plugins directory.
-  const Option<std::string> pluginDir;
 
   // Information of CNI networks that each container joins.
   hashmap<ContainerID, process::Owned<Info>> infos;
