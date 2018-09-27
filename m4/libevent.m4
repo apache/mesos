@@ -89,7 +89,7 @@ libevent_pthreads version 2+ is required for libprocess to build.
 
   AC_MSG_RESULT([$libevent_version])
 
-  AS_IF([test "x${libevent_version}" = "x"], [], [
+  AS_IF([test "x${libevent_version}" = "x"], [:], [
     AX_COMPARE_VERSION([$libevent_version],
                        [le], [$1],
                        [is_libevent_usable=yes])
@@ -97,7 +97,9 @@ libevent_pthreads version 2+ is required for libprocess to build.
 
   AS_IF([test "x$is_libevent_usable" = "xyes"], [
     $2
+    :
   ], [
     $3
+    :
   ])
 ])
