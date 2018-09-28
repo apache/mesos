@@ -903,7 +903,8 @@ TEST_F(GarbageCollectorIntegrationTest, LongLivedDefaultExecutor)
 // when a task finishes, but the executor is still running. This version of
 // the test restarts the agent to ensure recovered tasks are also scheduled
 // for GC.
-TEST_F(GarbageCollectorIntegrationTest, LongLivedDefaultExecutorRestart)
+TEST_F(
+    GarbageCollectorIntegrationTest, DISABLED_LongLivedDefaultExecutorRestart)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
