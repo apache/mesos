@@ -2068,8 +2068,8 @@ Try<ResourceStatistics> DockerContainerizerProcess::cgroupsStatistics(
 #ifndef __linux__
   return Error("Does not support cgroups on non-linux platform");
 #else
-  const Result<string> cpuacctHierarchy = cgroups::hierarchy("cpuacct");
-  const Result<string> memHierarchy = cgroups::hierarchy("memory");
+  static const Result<string> cpuacctHierarchy = cgroups::hierarchy("cpuacct");
+  static const Result<string> memHierarchy = cgroups::hierarchy("memory");
 
   // NOTE: Normally, a Docker container should be in its own cgroup.
   // However, a zombie process (exited but not reaped) will be
@@ -2144,7 +2144,7 @@ Try<ResourceStatistics> DockerContainerizerProcess::cgroupsStatistics(
 
   // Add the cpu.stat information only if CFS is enabled.
   if (flags.cgroups_enable_cfs) {
-    const Result<string> cpuHierarchy = cgroups::hierarchy("cpu");
+    static const Result<string> cpuHierarchy = cgroups::hierarchy("cpu");
 
     if (cpuHierarchy.isError()) {
       return Error(
