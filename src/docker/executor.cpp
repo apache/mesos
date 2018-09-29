@@ -791,20 +791,6 @@ private:
 
     HealthCheck healthCheck = task.health_check();
 
-    // To make sure the health check runs in the same mount namespace
-    // with the container, we wrap the original command in `docker exec`.
-    if (healthCheck.has_command()) {
-      // `docker exec` requires docker version greater than 1.3.0.
-      Try<Nothing> validateVersion =
-        docker->validateVersion(Version(1, 3, 0));
-
-      if (validateVersion.isError()) {
-        LOG(ERROR) << "Unable to launch health check process: "
-                   << validateVersion.error();
-        return;
-      }
-    }
-
     vector<string> namespaces;
     if (healthCheck.type() == HealthCheck::HTTP ||
         healthCheck.type() == HealthCheck::TCP) {
