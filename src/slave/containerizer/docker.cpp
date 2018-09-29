@@ -184,15 +184,6 @@ Try<DockerContainerizer*> DockerContainerizer::create(
 
   Shared<Docker> docker = create->share();
 
-  if (flags.docker_mesos_image.isSome()) {
-    Try<Nothing> validateResult = docker->validateVersion(Version(1, 5, 0));
-    if (validateResult.isError()) {
-      string message = "Docker with mesos images requires docker 1.5+";
-      message += validateResult.error();
-      return Error(message);
-    }
-  }
-
   // TODO(tnachen): We should also mark the work directory as shared
   // mount here, more details please refer to MESOS-3483.
 

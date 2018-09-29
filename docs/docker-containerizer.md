@@ -22,7 +22,7 @@ the agent with "docker" as one of the containerizers option.
 Example: `mesos-agent --containerizers=docker,mesos`
 
 Each agent that has the Docker containerizer should have Docker CLI
-client installed (version >= 1.0.0).
+client installed (version >= 1.8.0).
 
 If you enable iptables on agent, make sure the iptables allow all
 traffic from docker bridge interface through add below rule:

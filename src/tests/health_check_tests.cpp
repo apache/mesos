@@ -557,15 +557,6 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HealthCheckTest, ROOT_DOCKER_DockerHealthyTask)
   Shared<Docker> docker(new MockDocker(
       tests::flags.docker, tests::flags.docker_socket));
 
-  Try<Nothing> validateResult = docker->validateVersion(Version(1, 3, 0));
-  ASSERT_SOME(validateResult)
-    << "-------------------------------------------------------------\n"
-    << "We cannot run this test because of 'docker exec' command \n"
-    << "require docker version greater than '1.3.0'. You won't be \n"
-    << "able to use the docker exec method, but feel free to disable\n"
-    << "this test.\n"
-    << "-------------------------------------------------------------";
-
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
@@ -829,15 +820,6 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 {
   Shared<Docker> docker(new MockDocker(
       tests::flags.docker, tests::flags.docker_socket));
-
-  Try<Nothing> validateResult = docker->validateVersion(Version(1, 3, 0));
-  ASSERT_SOME(validateResult)
-    << "-------------------------------------------------------------\n"
-    << "We cannot run this test because of 'docker exec' command \n"
-    << "require docker version greater than '1.3.0'. You won't be \n"
-    << "able to use the docker exec method, but feel free to disable\n"
-    << "this test.\n"
-    << "-------------------------------------------------------------";
 
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
