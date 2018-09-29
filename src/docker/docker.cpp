@@ -142,7 +142,7 @@ Try<Owned<Docker>> Docker::create(
   }
 #endif // __linux__
 
-  Try<Nothing> validateVersion = docker->validateVersion(Version(1, 0, 0));
+  Try<Nothing> validateVersion = docker->validateVersion(Version(1, 8, 0));
   if (validateVersion.isError()) {
     return Error(validateVersion.error());
   }
