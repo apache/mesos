@@ -13,7 +13,7 @@ tags: MesosCon, Announcement
 
 MesosCon is an annual conference organized by the Apache Mesos community, bringing together users and developers to share and learn about the project and its growing ecosystem.
 
-We are excited to announce that MesosCon 2018 will be held in New York City on November 5th-7th, 2018.
+We are excited to announce that MesosCon 2018 will be held in San Francisco on November 5th-7th, 2018.
 
 Talk submissions and sponsorship opportunities are now open for the conference!
 
@@ -32,3 +32,5 @@ MesosCon is a community run conference and your support is needed. Sponsoring th
 Help us make #MesosCon 2018 a big success by spreading the word and submitting your proposal!
 
 Hope to see you at this year’s MesosCon!
+
+**Edit:** This post previously said New York City, but this was changed to San Francisco.
