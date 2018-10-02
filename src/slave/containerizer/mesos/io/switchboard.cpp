@@ -443,6 +443,13 @@ Future<Option<ContainerLaunchInfo>> IOSwitchboard::_prepare(
     containerIO.err = containerIO.in;
 
     launchInfo.set_tty_slave_path(slavePath.get());
+
+    // The command executor requires the `tty_slave_path`
+    // to also be passed as a command line argument.
+    if (containerConfig.has_task_info()) {
+      launchInfo.mutable_command()->add_arguments(
+            "--tty_slave_path=" + slavePath.get());
+    }
   } else {
     Try<std::array<int_fd, 2>> infds_ = os::pipe();
     if (infds_.isError()) {
