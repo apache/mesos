@@ -18,9 +18,8 @@
 The agent plugin.
 """
 
-from cli import http
-
 from cli.exceptions import CLIException
+from cli.mesos import get_agents
 from cli.plugins import PluginBase
 from cli.util import Table
 
@@ -58,13 +57,7 @@ class Agent(PluginBase):
             raise CLIException("Unable to get leading master address: {error}"
                                .format(error=exception))
 
-        try:
-            agents = http.get_json(master, "slaves")["slaves"]
-        except Exception as exception:
-            raise CLIException("Could not open '/slaves'"
-                               " endpoint at '{addr}': {error}"
-                               .format(addr=master, error=exception))
-
+        agents = get_agents(master)
         if not agents:
             print("The cluster does not have any agents.")
             return

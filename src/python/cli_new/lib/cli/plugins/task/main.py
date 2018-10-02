@@ -18,9 +18,8 @@
 The task plugin.
 """
 
-from cli import http
-
 from cli.exceptions import CLIException
+from cli.mesos import get_tasks
 from cli.plugins import PluginBase
 from cli.util import Table
 
@@ -57,13 +56,7 @@ class Task(PluginBase):
             raise CLIException("Unable to get leading master address: {error}"
                                .format(error=exception))
 
-        try:
-            tasks = http.get_json(master, "tasks")["tasks"]
-        except Exception as exception:
-            raise CLIException("Could not open '/tasks'"
-                               " endpoint at '{addr}': {error}"
-                               .format(addr=master, error=exception))
-
+        tasks = get_tasks(master)
         if not tasks:
             print("There are no tasks running in the cluster.")
             return
