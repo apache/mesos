@@ -125,6 +125,7 @@ public:
       const Option<Environment>& _taskEnvironment,
       const Option<CapabilityInfo>& _effectiveCapabilities,
       const Option<CapabilityInfo>& _boundingCapabilities,
+      const Option<string>& _ttySlavePath,
       const FrameworkID& _frameworkId,
       const ExecutorID& _executorId,
       const Duration& _shutdownGracePeriod)
@@ -148,6 +149,7 @@ public:
       taskEnvironment(_taskEnvironment),
       effectiveCapabilities(_effectiveCapabilities),
       boundingCapabilities(_boundingCapabilities),
+      ttySlavePath(_ttySlavePath),
       frameworkId(_frameworkId),
       executorId(_executorId),
       lastTaskStatus(None()) {}
@@ -399,7 +401,8 @@ protected:
       const Option<string>& sandboxDirectory,
       const Option<string>& workingDirectory,
       const Option<CapabilityInfo>& effectiveCapabilities,
-      const Option<CapabilityInfo>& boundingCapabilities)
+      const Option<CapabilityInfo>& boundingCapabilities,
+      const Option<string>& ttySlavePath)
   {
     // Prepare the flags to pass to the launch process.
     slave::MesosContainerizerLaunch::Flags launchFlags;
@@ -487,6 +490,11 @@ protected:
     parentHooks.emplace_back(Subprocess::ParentHook::CREATE_JOB());
 #endif // __WINDOWS__
 
+    vector<process::Subprocess::ChildHook> childHooks;
+    if (ttySlavePath.isNone()) {
+      childHooks.emplace_back(Subprocess::ChildHook::SETSID());
+    }
+
     Try<Subprocess> s = subprocess(
         path::join(launcherDir, MESOS_CONTAINERIZER),
         argv,
@@ -497,7 +505,7 @@ protected:
         None(),
         None(),
         parentHooks,
-        {Subprocess::ChildHook::SETSID()});
+        childHooks);
 
     if (s.isError()) {
       ABORT("Failed to launch '" + commandString + "': " + s.error());
@@ -646,7 +654,8 @@ protected:
         sandboxDirectory,
         workingDirectory,
         effectiveCapabilities,
-        boundingCapabilities);
+        boundingCapabilities,
+        ttySlavePath);
 
     LOG(INFO) << "Forked command at " << pid;
 
@@ -1140,6 +1149,7 @@ private:
   Option<Environment> taskEnvironment;
   Option<CapabilityInfo> effectiveCapabilities;
   Option<CapabilityInfo> boundingCapabilities;
+  Option<string> ttySlavePath;
   const FrameworkID frameworkId;
   const ExecutorID executorId;
   Owned<MesosBase> mesos;
@@ -1199,6 +1209,10 @@ public:
         "bounding_capabilities",
         "The bounding set of capabilities the command can use.");
 
+    add(&Flags::tty_slave_path,
+        "tty_slave_path",
+        "A path to the slave end of the attached TTY if there is one.");
+
     add(&Flags::launcher_dir,
         "launcher_dir",
         "Directory path of Mesos binaries.",
@@ -1216,6 +1230,7 @@ public:
   Option<Environment> task_environment;
   Option<mesos::CapabilityInfo> effective_capabilities;
   Option<mesos::CapabilityInfo> bounding_capabilities;
+  Option<string> tty_slave_path;
   string launcher_dir;
 };
 
@@ -1293,6 +1308,7 @@ int main(int argc, char** argv)
           flags.task_environment,
           flags.effective_capabilities,
           flags.bounding_capabilities,
+          flags.tty_slave_path,
           frameworkId,
           executorId,
           shutdownGracePeriod));
