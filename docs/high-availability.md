@@ -54,6 +54,10 @@ When a network partition disconnects an agent from the leader:
 
 * Deactivated agents may not reregister with the leader and are told to shut down upon any post-deactivation communication.
 
+## Monitoring
+For monitoring the current number of masters in the cluster communicating with each other to form a quorum, see the monitoring guide's [Replicated Log](monitoring.md#replicated-log) on `registrar/log/ensemble_size`.
+For creating alerts covering failures in leader election, have a look at the monitoring guide's [Basic Alerts](monitoring.md#basic-alerts) on `master/elected`.
+
 ## Implementation Details
 Mesos implements two levels of ZooKeeper leader election abstractions, one in `src/zookeeper` and the other in `src/master` (look for `contender|detector.hpp|cpp`).
 
