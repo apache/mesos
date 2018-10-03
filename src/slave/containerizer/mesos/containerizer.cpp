@@ -2696,6 +2696,10 @@ Future<bool> MesosContainerizerProcess::kill(
 
   const Owned<Container>& container = containers_.at(containerId);
 
+  LOG_BASED_ON_CLASS(container->containerClass())
+    << "Sending " << strsignal(signal) << " to container "
+    << containerId << " in " << container->state << " state";
+
   // This can happen when we try to signal the container before it
   // is launched. We destroy the container forcefully in this case.
   //
