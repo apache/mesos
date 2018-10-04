@@ -1490,14 +1490,7 @@ if test "x$enable_libevent" = "xyes"; then
   # linking.
   if test "x$without_bundled_libevent" = "xyes" || \
      test "x$enable_bundled" != "xyes"; then
-     MESOS_HAVE_LIBEVENT([2.0.22], [], [
-       AC_MSG_ERROR([libevent version is incompatible
--------------------------------------------------------------------
-libevent version 2.0.22 is the most recent we currently support.
-
-You may want to install an older version of libevent on your system
-and point this build system to it via --with-libevent=DIR.
--------------------------------------------------------------------])])
+     MESOS_HAVE_LIBEVENT()
   else
     with_bundled_libevent=yes
   fi
