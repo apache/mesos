@@ -33,10 +33,10 @@ libevent version 2+ headers are required for libprocess to build.
 -------------------------------------------------------------------
   ])])
 
-  AC_CHECK_LIB([event], [event_base_new], [], [
+  AC_CHECK_LIB([event_core], [event_base_new], [], [
     AC_MSG_ERROR([cannot find libevent
 -------------------------------------------------------------------
-libevent version 2+ is required for libprocess to build.
+libevent_core version 2+ is required for libprocess to build.
 -------------------------------------------------------------------
   ])])
 

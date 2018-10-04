@@ -118,18 +118,16 @@ def _create_module(module_name):
         libevent_dir = os.path.join('3rdparty', 'libevent-2.0.22-stable')
         libevent_dir = os.path.join(abs_top_builddir, libevent_dir, '.libs')
 
-        libevent = os.path.join(libevent_dir, 'libevent.a')
+        libevent_core = os.path.join(libevent_dir, 'libevent_core.a')
 
         # Check if a bundled version of libevent was built.
-        if os.path.exists(libevent):
-            EXTRA_OBJECTS.append(libevent)
-            EXTRA_OBJECTS.append(os.path.join(libevent_dir, 'libevent_extra.a'))
+        if os.path.exists(libevent_core):
+            EXTRA_OBJECTS.append(libevent_core)
             EXTRA_OBJECTS.append(os.path.join(libevent_dir, 'libevent_pthreads.a'))
             if '@ENABLE_SSL_TRUE@' == '':
                 EXTRA_OBJECTS.append(os.path.join(libevent_dir, 'libevent_openssl.a'))
         else:
-            EXTRA_OBJECTS.append('-levent')
-            EXTRA_OBJECTS.append('-levent_extra')
+            EXTRA_OBJECTS.append('-levent_core')
             EXTRA_OBJECTS.append('-levent_pthreads')
             if '@ENABLE_SSL_TRUE@' == '':
                 EXTRA_OBJECTS.append(-levent_openssl)

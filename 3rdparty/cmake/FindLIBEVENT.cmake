@@ -42,7 +42,7 @@ else()
   set(POSSIBLE_LIBEVENT_LIB_DIRS ${LIBEVENT_ROOT_DIR}/lib)
 endif()
 
-set(LIBEVENT_LIBRARY_NAMES event event_pthreads)
+set(LIBEVENT_LIBRARY_NAMES event_core event_pthreads)
 
 if (ENABLE_SSL)
   list(APPEND LIBEVENT_LIBRARY_NAMES event_openssl)
