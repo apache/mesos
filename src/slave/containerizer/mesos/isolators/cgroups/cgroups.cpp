@@ -340,10 +340,13 @@ Future<Nothing> CgroupsIsolatorProcess::___recover(
   // TODO(haosdent): Use foreachkey once MESOS-5037 is resolved.
   foreach (const string& hierarchy, subsystems.keys()) {
     if (!cgroups::exists(hierarchy, cgroup)) {
-      // This may occur if the executor has exited and the isolator
-      // has destroyed the cgroup but the agent dies before noticing
-      // this. This will be detected when the containerizer tries to
-      // monitor the executor's pid.
+      // This may occur in two cases:
+      // 1. If the executor has exited and the isolator has destroyed
+      //    the cgroup but the agent dies before noticing this. This
+      //    will be detected when the containerizer tries to monitor
+      //    the executor's pid.
+      // 2. After the agent recovery/upgrade, new cgroup subsystems
+      //    are added to the agent cgroup isolation configuration.
       LOG(WARNING) << "Couldn't find the cgroup '" << cgroup << "' "
                    << "in hierarchy '" << hierarchy << "' "
                    << "for container " << containerId;
@@ -677,18 +680,33 @@ Future<Nothing> CgroupsIsolatorProcess::isolate(
     return Failure("Failed to isolate the container: Unknown root container");
   }
 
+  const string& cgroup = infos[rootContainerId]->cgroup;
+
   // TODO(haosdent): Use foreachkey once MESOS-5037 is resolved.
   foreach (const string& hierarchy, subsystems.keys()) {
+    // If new cgroup subsystems are added after the agent
+    // upgrade, the newly added cgroup subsystems do not
+    // exist on old container's cgroup hierarchy. So skip
+    // assigning the pid to this cgroup subsystem.
+    if (containerId.has_parent() && !cgroups::exists(hierarchy, cgroup)) {
+      LOG(INFO) << "Skipping assigning pid " << stringify(pid)
+                << " to cgroup at '" << path::join(hierarchy, cgroup)
+                << "' for container " << containerId
+                << " because its parent container " << containerId.parent()
+                << " does not have this cgroup hierarchy";
+      continue;
+    }
+
     Try<Nothing> assign = cgroups::assign(
         hierarchy,
-        infos[rootContainerId]->cgroup,
+        cgroup,
         pid);
 
     if (assign.isError()) {
       string message =
-        "Failed to assign pid " + stringify(pid) + " to cgroup at "
-        "'" + path::join(hierarchy, infos[rootContainerId]->cgroup) + "'"
-        ": " + assign.error();
+        "Failed to assign container " + stringify(containerId) +
+        " pid " + stringify(pid) + " to cgroup at '" +
+        path::join(hierarchy, cgroup) + "': " + assign.error();
 
       LOG(ERROR) << message;
 
