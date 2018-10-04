@@ -155,7 +155,7 @@ void commandDiscarded(const Subprocess& s, const string& cmd)
 {
   if (s.status().isPending()) {
     VLOG(1) << "'" << cmd << "' is being discarded";
-    os::killtree(s.pid(), SIGKILL);
+    os::kill(s.pid(), SIGKILL);
   }
 }
 
@@ -1178,13 +1178,22 @@ Future<Nothing> Docker::stop(
                    stringify(timeoutSecs));
   }
 
-  string cmd = path + " -H " + socket + " stop -t " + stringify(timeoutSecs) +
-               " " + containerName;
+  vector<string> argv;
+  argv.push_back(path);
+  argv.push_back("-H");
+  argv.push_back(socket);
+  argv.push_back("stop");
+  argv.push_back("-t");
+  argv.push_back(stringify(timeoutSecs));
+  argv.push_back(containerName);
+
+  const string cmd = strings::join(" ", argv);
 
   VLOG(1) << "Running " << cmd;
 
   Try<Subprocess> s = subprocess(
-      cmd,
+      path,
+      argv,
       Subprocess::PATH(os::DEV_NULL),
       Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE());
@@ -1232,14 +1241,21 @@ Future<Nothing> Docker::kill(
     const string& containerName,
     int signal) const
 {
-  const string cmd =
-    path + " -H " + socket +
-    " kill --signal=" + stringify(signal) + " " + containerName;
+  vector<string> argv;
+  argv.push_back(path);
+  argv.push_back("-H");
+  argv.push_back(socket);
+  argv.push_back("kill");
+  argv.push_back("--signal=" + stringify(signal));
+  argv.push_back(containerName);
+
+  const string cmd = strings::join(" ", argv);
 
   VLOG(1) << "Running " << cmd;
 
   Try<Subprocess> s = subprocess(
-      cmd,
+      path,
+      argv,
       Subprocess::PATH(os::DEV_NULL),
       Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE());
@@ -1257,14 +1273,26 @@ Future<Nothing> Docker::rm(
     bool force) const
 {
   // The `-v` flag removes Docker volumes that may be present.
-  const string cmd =
-    path + " -H " + socket +
-    (force ? " rm -f -v " : " rm -v ") + containerName;
+  vector<string> argv;
+  argv.push_back(path);
+  argv.push_back("-H");
+  argv.push_back(socket);
+  argv.push_back("rm");
+
+  if (force) {
+    argv.push_back("-f");
+  }
+
+  argv.push_back("-v");
+  argv.push_back(containerName);
+
+  const string cmd = strings::join(" ", argv);
 
   VLOG(1) << "Running " << cmd;
 
   Try<Subprocess> s = subprocess(
-      cmd,
+      path,
+      argv,
       Subprocess::PATH(os::DEV_NULL),
       Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE());
@@ -1287,8 +1315,14 @@ Future<Docker::Container> Docker::inspect(
   // discarded, and a mutex to control access to the callback.
   auto callback = std::make_shared<pair<lambda::function<void()>, mutex>>();
 
-  const string cmd = path + " -H " + socket + " inspect " + containerName;
-  _inspect(cmd, promise, retryInterval, callback);
+  vector<string> argv;
+  argv.push_back(path);
+  argv.push_back("-H");
+  argv.push_back(socket);
+  argv.push_back("inspect");
+  argv.push_back(containerName);
+
+  _inspect(argv, promise, retryInterval, callback);
 
   return promise->future()
     .onDiscard([callback]() {
@@ -1300,7 +1334,7 @@ Future<Docker::Container> Docker::inspect(
 
 
 void Docker::_inspect(
-    const string& cmd,
+    const vector<string>& argv,
     const Owned<Promise<Docker::Container>>& promise,
     const Option<Duration>& retryInterval,
     shared_ptr<pair<lambda::function<void()>, mutex>> callback)
@@ -1309,10 +1343,13 @@ void Docker::_inspect(
     return;
   }
 
+  const string cmd = strings::join(" ", argv);
+
   VLOG(1) << "Running " << cmd;
 
   Try<Subprocess> s = subprocess(
-      cmd,
+      argv[0],
+      argv,
       Subprocess::PATH(os::DEV_NULL),
       Subprocess::PIPE(),
       Subprocess::PIPE());
@@ -1346,13 +1383,13 @@ void Docker::_inspect(
 
   s->status()
     .onAny([=]() {
-      __inspect(cmd, promise, retryInterval, output, s.get(), callback);
+      __inspect(argv, promise, retryInterval, output, s.get(), callback);
     });
 }
 
 
 void Docker::__inspect(
-    const string& cmd,
+    const vector<string>& argv,
     const Owned<Promise<Docker::Container>>& promise,
     const Option<Duration>& retryInterval,
     Future<string> output,
@@ -1368,6 +1405,8 @@ void Docker::__inspect(
 
   Option<int> status = s.status().get();
 
+  const string cmd = strings::join(" ", argv);
+
   if (!status.isSome()) {
     promise->fail("No status found from '" + cmd + "'");
   } else if (status.get() != 0) {
@@ -1377,7 +1416,7 @@ void Docker::__inspect(
       VLOG(1) << "Retrying inspect with non-zero status code. cmd: '"
               << cmd << "', interval: " << stringify(retryInterval.get());
       Clock::timer(retryInterval.get(),
-                   [=]() { _inspect(cmd, promise, retryInterval, callback); });
+                   [=]() { _inspect(argv, promise, retryInterval, callback); });
       return;
     }
 
@@ -1399,13 +1438,13 @@ void Docker::__inspect(
   CHECK_SOME(s.out());
   output
     .onAny([=](const Future<string>& output) {
-      ___inspect(cmd, promise, retryInterval, output, callback);
+      ___inspect(argv, promise, retryInterval, output, callback);
     });
 }
 
 
 void Docker::___inspect(
-    const string& cmd,
+    const vector<string>& argv,
     const Owned<Promise<Docker::Container>>& promise,
     const Option<Duration>& retryInterval,
     const Future<string>& output,
@@ -1428,11 +1467,13 @@ void Docker::___inspect(
     return;
   }
 
+  const string cmd = strings::join(" ", argv);
+
   if (retryInterval.isSome() && !container->started) {
     VLOG(1) << "Retrying inspect since container not yet started. cmd: '"
             << cmd << "', interval: " << stringify(retryInterval.get());
     Clock::timer(retryInterval.get(),
-                 [=]() { _inspect(cmd, promise, retryInterval, callback); } );
+                 [=]() { _inspect(argv, promise, retryInterval, callback); });
     return;
   }
 
@@ -1444,7 +1485,17 @@ Future<list<Docker::Container>> Docker::ps(
     bool all,
     const Option<string>& prefix) const
 {
-  string cmd = path + " -H " + socket + (all ? " ps -a" : " ps");
+  vector<string> argv;
+  argv.push_back(path);
+  argv.push_back("-H");
+  argv.push_back(socket);
+  argv.push_back("ps");
+
+  if (all) {
+    argv.push_back("-a");
+  }
+
+  const string cmd = strings::join(" ", argv);
 
   VLOG(1) << "Running " << cmd;
 

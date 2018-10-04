@@ -345,14 +345,14 @@ private:
       bool remove);
 
   static void _inspect(
-      const std::string& cmd,
+      const std::vector<std::string>& argv,
       const process::Owned<process::Promise<Container>>& promise,
       const Option<Duration>& retryInterval,
       std::shared_ptr<std::pair<lambda::function<void()>, std::mutex>>
         callback);
 
   static void __inspect(
-      const std::string& cmd,
+      const std::vector<std::string>& argv,
       const process::Owned<process::Promise<Container>>& promise,
       const Option<Duration>& retryInterval,
       process::Future<std::string> output,
@@ -361,7 +361,7 @@ private:
         callback);
 
   static void ___inspect(
-      const std::string& cmd,
+      const std::vector<std::string>& argv,
       const process::Owned<process::Promise<Container>>& promise,
       const Option<Duration>& retryInterval,
       const process::Future<std::string>& output,
