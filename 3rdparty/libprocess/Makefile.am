@@ -158,8 +158,7 @@ endif
 else
 if WITH_BUNDLED_LIBEVENT
 LIB_EVENT_INCLUDE_FLAGS = -I$(LIBEVENT)
-LIB_EVENT = $(LIBEVENT)/libevent_core.la $(LIBEVENT)/libevent_pthreads.la \
-            $(LIBEVENT)/libevent_extra.la $(LIBEVENT)/libevent.la
+LIB_EVENT = $(LIBEVENT)/libevent_core.la $(LIBEVENT)/libevent_pthreads.la
 if ENABLE_SSL
 LIB_EVENT += $(LIBEVENT)/libevent_openssl.la
 endif
