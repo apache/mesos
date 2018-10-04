@@ -595,6 +595,10 @@ Future<Nothing> LibeventSSLSocketImpl::connect(const Address& address)
               &LibeventSSLSocketImpl::event_callback,
               CHECK_NOTNULL(self->event_loop_handle));
 
+          // Explicitly enable read and write bufferevents as needed
+          // for libevent >= 2.1.6. See MESOS-9265.
+          bufferevent_enable(self->bev, EV_READ | EV_WRITE);
+
           if (bufferevent_socket_connect(
                   self->bev,
                   reinterpret_cast<sockaddr*>(&addr),
@@ -1206,6 +1210,10 @@ void LibeventSSLSocketImpl::accept_SSL_callback(AcceptRequest* request)
               &LibeventSSLSocketImpl::send_callback,
               &LibeventSSLSocketImpl::event_callback,
               CHECK_NOTNULL(impl->event_loop_handle));
+
+          // Explicitly enable read and write bufferevents as needed
+          // for libevent >= 2.1.6. See MESOS-9265.
+          bufferevent_enable(bev, EV_READ | EV_WRITE);
 
           request->promise.set(std::dynamic_pointer_cast<SocketImpl>(impl));
         } else if (events & BEV_EVENT_ERROR) {
