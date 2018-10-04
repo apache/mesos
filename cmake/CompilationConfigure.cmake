@@ -80,17 +80,10 @@ option(
   FALSE)
 
 if (ENABLE_LIBEVENT)
-  # TODO(tillt): Consider adding Ubuntu 17 to this check. See MESOS-7076.
-  if (NOT APPLE)
-    set(DEFAULT_UNBUNDLED_LIBEVENT FALSE)
-  else ()
-    set(DEFAULT_UNBUNDLED_LIBEVENT TRUE)
-  endif ()
-
   option(
     UNBUNDLED_LIBEVENT
     "Build libprocess with an installed libevent version instead of the bundled."
-    ${DEFAULT_UNBUNDLED_LIBEVENT})
+    FALSE)
 
   if (UNBUNDLED_LIBEVENT)
     set(
