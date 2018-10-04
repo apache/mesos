@@ -25,6 +25,16 @@
 #   Validates if we have a usable libevent.
 #
 
+#
+# SYNOPSIS
+#
+#   MESOS_HAVE_LIBEVENT_SSL()
+#
+# DESCRIPTION
+#
+#   Validates if we have a usable libevent_openssl.
+#
+
 AC_DEFUN([MESOS_HAVE_LIBEVENT],[
   AC_CHECK_HEADERS([event2/event.h], [], [
     AC_MSG_ERROR([cannot find libevent headers
@@ -51,6 +61,23 @@ libevent_pthreads version 2+ headers are required for libprocess to build.
     AC_MSG_ERROR([cannot find libevent_pthreads
 -------------------------------------------------------------------
 libevent_pthreads version 2+ is required for libprocess to build.
+-------------------------------------------------------------------
+  ])])
+])
+
+AC_DEFUN([MESOS_HAVE_LIBEVENT_SSL],[
+  AC_CHECK_HEADERS([event2/bufferevent_ssl.h],
+                   [AC_CHECK_LIB([event_openssl],
+                                 [bufferevent_openssl_get_ssl],
+                                 [],
+                                 [AC_MSG_ERROR([cannot find libevent_openssl
+-------------------------------------------------------------------
+libevent_openssl version 2+ is required for an SSL-enabled build.
+-------------------------------------------------------------------
+                                 ])])],
+                   [AC_MSG_ERROR([cannot find libevent_openssl headers
+-------------------------------------------------------------------
+libevent_openssl version 2+ headers are required for an SSL-enabled build.
 -------------------------------------------------------------------
   ])])
 ])

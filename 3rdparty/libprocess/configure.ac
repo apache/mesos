@@ -999,20 +999,7 @@ libcrypto is required for an SSL-enabled build.
 
   if test "x$enable_libevent" = "xyes"; then
     if test "x$with_bundled_libevent" != "xyes"; then
-      AC_CHECK_HEADERS([event2/bufferevent_ssl.h],
-                       [AC_CHECK_LIB([event_openssl],
-                                     [bufferevent_openssl_get_ssl],
-                                     [],
-                                     [AC_MSG_ERROR([cannot find libevent_openssl
--------------------------------------------------------------------
-libevent_openssl version 2+ is required for an SSL-enabled build.
--------------------------------------------------------------------
-                                     ])])],
-                       [AC_MSG_ERROR([cannot find libevent_openssl headers
--------------------------------------------------------------------
-libevent_openssl version 2+ headers are required for an SSL-enabled build.
--------------------------------------------------------------------
-      ])])
+      MESOS_HAVE_LIBEVENT_SSL()
     fi
   else
     AC_MSG_ERROR([SSL is currently only supported with libevent])
