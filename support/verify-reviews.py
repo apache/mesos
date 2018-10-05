@@ -195,10 +195,12 @@ def verify_review(review_request, handler):
         # If we are here because the docker build command failed, read the
         # output from `build_output` file. For all other command failures read
         # the output from `e.output`.
+        #
+        # Decode the RHS so that `output` is always a string.
         if os.path.exists(build_output):
-            output = open(build_output).read()
+            output = open(build_output).read().decode(sys.stdout.encoding)
         else:
-            output = err.output
+            output = err.output.decode(sys.stdout.encoding)
 
         if platform.system() == 'Windows':
             # We didn't output anything during the build (because `tee`
@@ -208,7 +210,7 @@ def verify_review(review_request, handler):
             # fixed in pylint 1.7.
             # TODO(ArmandGrillet): Remove this once pylint updated to >= 1.7.
             # pylint: disable=no-member
-            sys.stdout.buffer.write(output)
+            sys.stdout.buffer.write(output.encode())
 
         # Truncate the output when posting the review as it can be very large.
         if len(output) > REVIEW_SIZE:
