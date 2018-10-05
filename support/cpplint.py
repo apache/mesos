@@ -32,7 +32,8 @@
 # Modified by Avinash S (avinash@mesosphere.io) to check for at least
 # a __single__ space in comments is required for hpp and cpp files.
 # Modified by Tomek J (janiszt@gmail.com) to check for NULL usage.
-# Modified by Armand G (agrillet@mesosphere.io) to skip file when linted.
+# Modified by Armand G (agrillet@mesosphere.io) to skip file when linted
+# and to not print anything if there is no error.
 
 """Does google-lint on c++ files.
 
@@ -981,7 +982,8 @@ class _CppLintState(object):
     for category, count in iteritems(self.errors_by_category):
       sys.stderr.write('Category \'%s\' errors found: %d\n' %
                        (category, count))
-    sys.stdout.write('Total errors found: %d\n' % self.error_count)
+    if self.error_count > 0:
+      sys.stdout.write('Total errors found: %d\n' % self.error_count)
 
 _cpplint_state = _CppLintState()
 
