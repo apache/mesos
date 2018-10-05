@@ -180,231 +180,231 @@ All Experimental Features:
 All Resolved Issues:
 
 ** Bug
-    * [MESOS-1720] - Slave should send exited executor message when the executor is never launched.
-    * [MESOS-3915] - Upgrade vendored Boost
-    * [MESOS-4420] - Support read host physical link speed from virtio driver
-    * [MESOS-5333] - GET /master/maintenance/schedule/ produces 404.
-    * [MESOS-5820] - Port master to Windows
-    * [MESOS-5882] - `os::cloexec` does not exist on Windows
-    * [MESOS-5940] - `setPaths` doesn’t work on Windows
-    * [MESOS-6555] - Namespace 'mnt' is not supported
-    * [MESOS-6713] - Port `slave_recovery_tests.cpp`
-    * [MESOS-6715] - Port `uri_fetcher_tests.cpp`
-    * [MESOS-6822] - CNI reports confusing error message for failed interface setup.
-    * [MESOS-6973] - Fix BOOST random generator initialization on Windows
-    * [MESOS-7028] - NetSocketTest.EOFBeforeRecv is flaky.
-    * [MESOS-7342] - Port Docker tests
-    * [MESOS-7604] - SlaveTest.ExecutorReregistrationTimeoutFlag aborts on Windows
-    * [MESOS-7699] - "stdlib.h: No such file or directory" when building with GCC 6 (Debian stable freshly released)
-    * [MESOS-7742] - Race conditions in IOSwitchboard: listening on unix socket and premature closing of the connection.
-    * [MESOS-7803] - fs::list drops path components on Windows
-    * [MESOS-7944] - Implement jemalloc memory profiling support for Mesos
-    * [MESOS-7979] - reviewboard's GUESS_FIELDS setting leads to redundant information in commit messages
-    * [MESOS-8125] - Agent should properly handle recovering an executor when its pid is reused
-    * [MESOS-8140] - Executors should clear their auth tokens
-    * [MESOS-8232] - SlaveTest.RegisteredAgentReregisterAfterFailover is flaky.
-    * [MESOS-8258] - Mesos.DockerContainerizerTest.ROOT_DOCKER_SlaveRecoveryTaskContainer is flaky.
-    * [MESOS-8305] - DefaultExecutorTest.ROOT_MultiTaskgroupSharePidNamespace is flaky.
-    * [MESOS-8308] - CommandExecutorCheckTest.CommandCheckTimeout is flaky on Windows
-    * [MESOS-8334] - PartitionedSlaveReregistrationMasterFailover is flaky.
-    * [MESOS-8336] - MasterTest.RegistryUpdateAfterReconfiguration is flaky
-    * [MESOS-8348] - Enable function sections in the build.
-    * [MESOS-8350] - Resource provider-capable agents not correctly synchronizing checkpointed agent resources on reregistration
-    * [MESOS-8404] - Improve image puller error messages.
-    * [MESOS-8411] - Killing a queued task can lead to the command executor never terminating.
-    * [MESOS-8413] - Zookeeper configuration passwords are shown in clear text
-    * [MESOS-8416] - CHECK failure if trying to recover nested containers but the framework checkpointing is not enabled.
-    * [MESOS-8440] - `network/ports` isolator kills legitimate tasks on recovery.
-    * [MESOS-8444] - GC failure causes agent miss to detach virtual paths for the executor's sandbox
-    * [MESOS-8446] - Agent miss to detach `virtualLatestPath` for the executor's sandbox during recovery
-    * [MESOS-8447] - Incomplete output of apply-reviews.py --dry-run
-    * [MESOS-8453] - ExecutorAuthorizationTest.RunTaskGroup segfaults.
-    * [MESOS-8463] - Test MasterAllocatorTest/1.SingleFramework is flaky
-    * [MESOS-8468] - `LAUNCH_GROUP` failure tears down the default executor.
-    * [MESOS-8474] - Test StorageLocalResourceProviderTest.ROOT_ConvertPreExistingVolume is flaky
-    * [MESOS-8477] - Make clean fails without Python artifacts.
-    * [MESOS-8480] - Mesos returns high resource usage when killing a Docker task.
-    * [MESOS-8482] - Signed/Unsigned comparisons in tests
-    * [MESOS-8483] - ExampleTests PythonFramework fails with sigabort.
-    * [MESOS-8484] - stout test NumifyTest.HexNumberTest fails.
-    * [MESOS-8485] - MasterTest.RegistryGcByCount is flaky
-    * [MESOS-8489] - LinuxCapabilitiesIsolatorFlagsTest.ROOT_IsolatorFlags is flaky
-    * [MESOS-8490] - UpdateSlaveMessageWithPendingOffers is flaky.
-    * [MESOS-8497] - Docker parameter `name` does not work with Docker Containerizer.
-    * [MESOS-8508] - Missing map header when compiling against unbundled protobuf
-    * [MESOS-8510] - URI disk profile adaptor does not consider plugin type for a profile.
-    * [MESOS-8512] - Fetcher doesn't log it's stdout/stderr properly to the log file
-    * [MESOS-8513] - Noisy "transport endpoint is not connected" logs on closing sockets.
-    * [MESOS-8519] - Fix recovery of job object isolated tasks
-    * [MESOS-8530] - Default executor tasks can get stuck in KILLING state
-    * [MESOS-8536] - Pending offer operations on resource provider resources not properly accounted for in allocator
-    * [MESOS-8545] - AgentAPIStreamingTest.AttachInputToNestedContainerSession is flaky.
-    * [MESOS-8546] - PythonFramework test fails with cache write failure.
-    * [MESOS-8548] - Test StorageLocalResourceProviderTest.ROOT_Metrics is flaky
-    * [MESOS-8550] - Bug in `Master::detected()` leads to coredump in `MasterZooKeeperTest.MasterInfoAddress`.
-    * [MESOS-8552] - CGROUPS_ROOT_PidNamespaceForward and CGROUPS_ROOT_PidNamespaceBackward tests fail
-    * [MESOS-8563] - Windows executors cannot re-register
-    * [MESOS-8565] - Persistent volumes are not visible in Mesos UI when launching a pod using default executor.
-    * [MESOS-8577] - Destroy nested container if `LAUNCH_NESTED_CONTAINER_SESSION` fails
-    * [MESOS-8578] - UpgradeTest.UpgradeAgentIntoHierarchicalRoleForNonHierarchicalRole is flaky.
-    * [MESOS-8585] - Agent crashes when starting a task with an unknown user.
-    * [MESOS-8586] - apply-reviews.py silently does nothing when a review was submitted already.
-    * [MESOS-8594] - Mesos master stack overflow in libprocess socket send loop.
-    * [MESOS-8598] - Allow empty resource provider selector in `UriDiskProfileAdaptor`.
-    * [MESOS-8601] - Master crashes during slave reregistration after failover.
-    * [MESOS-8604] - Quota headroom tracking may be incorrect in the presence of hierarchical reservation.
-    * [MESOS-8605] - Terminal task status update will not send if 'docker inspect' is hung
-    * [MESOS-8610] - NsTest.SupportedNamespaces fails on CentOS7
-    * [MESOS-8611] - SlaveTest.RemoveExecutorUponFailedLaunch is flaky.
-    * [MESOS-8617] - Tests using default executor occasionally fail.
-    * [MESOS-8618] - ReconciliationTest.ReconcileStatusUpdateTaskState is flaky.
-    * [MESOS-8619] - Docker on Windows uses USERPROFILE instead of HOME for credentials
-    * [MESOS-8620] - Containers stuck in FETCHING possibly due to unresponsive server.
-    * [MESOS-8624] - Valid tasks may be explicitly dropped by agent due to race conditions
-    * [MESOS-8631] - Agent should be able to start a task with every CPU on a Windows machine
-    * [MESOS-8641] - Event stream could send heartbeat before subscribed
-    * [MESOS-8642] - ballon-executor is hard to run as unprivileged user
-    * [MESOS-8643] - `os::system` and `os::spawn` returns -1 on valid windows commands
-    * [MESOS-8644] - W* macros wrong on Windows.
-    * [MESOS-8646] - Agent should be able to resolve file names on open files.
-    * [MESOS-8647] - Enable resource provider agent capability by default
-    * [MESOS-8651] - Potential memory leaks in the `volume/sandbox_path` isolator
-    * [MESOS-8654] - The `/proc/sys` mount point in Mesos containers should also include `nosuid,noexec,nodev` mount options.
-    * [MESOS-8659] - Fix warning `cl : Command line warning D9025 : overriding '/MTd' with '/MDd'`
-    * [MESOS-8664] - Perf sampler doesn't handle extra fields and nameless counters
-    * [MESOS-8691] - Forward CXX_FLAGS to C++ projects and C_FLAGS to C projects in CMake
-    * [MESOS-8711] - SlaveTest.ChangeDomain is disabled.
-    * [MESOS-8719] - Mesos configured with `--enable-grpc` doesn't compile on non-Linux builds
-    * [MESOS-8724] - G++ Warning about libc system macros `major` and `minor` prevents Mesos build
-    * [MESOS-8733] - OversubscriptionTest.ForwardUpdateSlaveMessage is flaky
-    * [MESOS-8741] - `Add` to sequence will not run if it races with sequence destruction
-    * [MESOS-8742] - Agent resource provider config API calls should be idempotent.
-    * [MESOS-8749] - CSI proto is always included in the build when using CMake
-    * [MESOS-8761] - Default linker fails to link tests on FreeBSD
-    * [MESOS-8781] - Mesos master shouldn't silently drop operations
-    * [MESOS-8784] - OPERATION_DROPPED operation status updates should include the operation/framework IDs
-    * [MESOS-8787] - RP-related API should be experimental.
-    * [MESOS-8804] - Fix Ninja Release builds on Windows
-    * [MESOS-8818] - VolumeSandboxPathIsolatorTest.SharedParentTypeVolume fails on macOS
-    * [MESOS-8834] - Indirect recursion between `send` and `_send` in libprocess may cause stack overflow.
-    * [MESOS-8865] - Suspicious enum value comparisons in scheduler Java bindings
-    * [MESOS-8866] - CMake builds are missing byproduct declaration for jemalloc.
-    * [MESOS-8868] - Some 'FsTest' test cases fail on macOS
-    * [MESOS-8870] - Master does not correctly reconcile dropped operations after agent failover
-    * [MESOS-8874] - ResourceProviderManagerHttpApiTest.ResubscribeResourceProvider is flaky.
-    * [MESOS-8876] - Normal exit of Docker container using rexray volume results in TASK_FAILED.
-    * [MESOS-8881] - Enable epoll backend in libevent integration.
-    * [MESOS-8885] - Disable libevent debug mode.
+  * [MESOS-1720] - Slave should send exited executor message when the executor is never launched.
+  * [MESOS-3915] - Upgrade vendored Boost
+  * [MESOS-4420] - Support read host physical link speed from virtio driver
+  * [MESOS-5333] - GET /master/maintenance/schedule/ produces 404.
+  * [MESOS-5820] - Port master to Windows
+  * [MESOS-5882] - `os::cloexec` does not exist on Windows
+  * [MESOS-5940] - `setPaths` doesn’t work on Windows
+  * [MESOS-6555] - Namespace 'mnt' is not supported
+  * [MESOS-6713] - Port `slave_recovery_tests.cpp`
+  * [MESOS-6715] - Port `uri_fetcher_tests.cpp`
+  * [MESOS-6822] - CNI reports confusing error message for failed interface setup.
+  * [MESOS-6973] - Fix BOOST random generator initialization on Windows
+  * [MESOS-7028] - NetSocketTest.EOFBeforeRecv is flaky.
+  * [MESOS-7342] - Port Docker tests
+  * [MESOS-7604] - SlaveTest.ExecutorReregistrationTimeoutFlag aborts on Windows
+  * [MESOS-7699] - "stdlib.h: No such file or directory" when building with GCC 6 (Debian stable freshly released)
+  * [MESOS-7742] - Race conditions in IOSwitchboard: listening on unix socket and premature closing of the connection.
+  * [MESOS-7803] - fs::list drops path components on Windows
+  * [MESOS-7944] - Implement jemalloc memory profiling support for Mesos
+  * [MESOS-7979] - reviewboard's GUESS_FIELDS setting leads to redundant information in commit messages
+  * [MESOS-8125] - Agent should properly handle recovering an executor when its pid is reused
+  * [MESOS-8140] - Executors should clear their auth tokens
+  * [MESOS-8232] - SlaveTest.RegisteredAgentReregisterAfterFailover is flaky.
+  * [MESOS-8258] - Mesos.DockerContainerizerTest.ROOT_DOCKER_SlaveRecoveryTaskContainer is flaky.
+  * [MESOS-8305] - DefaultExecutorTest.ROOT_MultiTaskgroupSharePidNamespace is flaky.
+  * [MESOS-8308] - CommandExecutorCheckTest.CommandCheckTimeout is flaky on Windows
+  * [MESOS-8334] - PartitionedSlaveReregistrationMasterFailover is flaky.
+  * [MESOS-8336] - MasterTest.RegistryUpdateAfterReconfiguration is flaky
+  * [MESOS-8348] - Enable function sections in the build.
+  * [MESOS-8350] - Resource provider-capable agents not correctly synchronizing checkpointed agent resources on reregistration
+  * [MESOS-8404] - Improve image puller error messages.
+  * [MESOS-8411] - Killing a queued task can lead to the command executor never terminating.
+  * [MESOS-8413] - Zookeeper configuration passwords are shown in clear text
+  * [MESOS-8416] - CHECK failure if trying to recover nested containers but the framework checkpointing is not enabled.
+  * [MESOS-8440] - `network/ports` isolator kills legitimate tasks on recovery.
+  * [MESOS-8444] - GC failure causes agent miss to detach virtual paths for the executor's sandbox
+  * [MESOS-8446] - Agent miss to detach `virtualLatestPath` for the executor's sandbox during recovery
+  * [MESOS-8447] - Incomplete output of apply-reviews.py --dry-run
+  * [MESOS-8453] - ExecutorAuthorizationTest.RunTaskGroup segfaults.
+  * [MESOS-8463] - Test MasterAllocatorTest/1.SingleFramework is flaky
+  * [MESOS-8468] - `LAUNCH_GROUP` failure tears down the default executor.
+  * [MESOS-8474] - Test StorageLocalResourceProviderTest.ROOT_ConvertPreExistingVolume is flaky
+  * [MESOS-8477] - Make clean fails without Python artifacts.
+  * [MESOS-8480] - Mesos returns high resource usage when killing a Docker task.
+  * [MESOS-8482] - Signed/Unsigned comparisons in tests
+  * [MESOS-8483] - ExampleTests PythonFramework fails with sigabort.
+  * [MESOS-8484] - stout test NumifyTest.HexNumberTest fails.
+  * [MESOS-8485] - MasterTest.RegistryGcByCount is flaky
+  * [MESOS-8489] - LinuxCapabilitiesIsolatorFlagsTest.ROOT_IsolatorFlags is flaky
+  * [MESOS-8490] - UpdateSlaveMessageWithPendingOffers is flaky.
+  * [MESOS-8497] - Docker parameter `name` does not work with Docker Containerizer.
+  * [MESOS-8508] - Missing map header when compiling against unbundled protobuf
+  * [MESOS-8510] - URI disk profile adaptor does not consider plugin type for a profile.
+  * [MESOS-8512] - Fetcher doesn't log it's stdout/stderr properly to the log file
+  * [MESOS-8513] - Noisy "transport endpoint is not connected" logs on closing sockets.
+  * [MESOS-8519] - Fix recovery of job object isolated tasks
+  * [MESOS-8530] - Default executor tasks can get stuck in KILLING state
+  * [MESOS-8536] - Pending offer operations on resource provider resources not properly accounted for in allocator
+  * [MESOS-8545] - AgentAPIStreamingTest.AttachInputToNestedContainerSession is flaky.
+  * [MESOS-8546] - PythonFramework test fails with cache write failure.
+  * [MESOS-8548] - Test StorageLocalResourceProviderTest.ROOT_Metrics is flaky
+  * [MESOS-8550] - Bug in `Master::detected()` leads to coredump in `MasterZooKeeperTest.MasterInfoAddress`.
+  * [MESOS-8552] - CGROUPS_ROOT_PidNamespaceForward and CGROUPS_ROOT_PidNamespaceBackward tests fail
+  * [MESOS-8563] - Windows executors cannot re-register
+  * [MESOS-8565] - Persistent volumes are not visible in Mesos UI when launching a pod using default executor.
+  * [MESOS-8577] - Destroy nested container if `LAUNCH_NESTED_CONTAINER_SESSION` fails
+  * [MESOS-8578] - UpgradeTest.UpgradeAgentIntoHierarchicalRoleForNonHierarchicalRole is flaky.
+  * [MESOS-8585] - Agent crashes when starting a task with an unknown user.
+  * [MESOS-8586] - apply-reviews.py silently does nothing when a review was submitted already.
+  * [MESOS-8594] - Mesos master stack overflow in libprocess socket send loop.
+  * [MESOS-8598] - Allow empty resource provider selector in `UriDiskProfileAdaptor`.
+  * [MESOS-8601] - Master crashes during slave reregistration after failover.
+  * [MESOS-8604] - Quota headroom tracking may be incorrect in the presence of hierarchical reservation.
+  * [MESOS-8605] - Terminal task status update will not send if 'docker inspect' is hung
+  * [MESOS-8610] - NsTest.SupportedNamespaces fails on CentOS7
+  * [MESOS-8611] - SlaveTest.RemoveExecutorUponFailedLaunch is flaky.
+  * [MESOS-8617] - Tests using default executor occasionally fail.
+  * [MESOS-8618] - ReconciliationTest.ReconcileStatusUpdateTaskState is flaky.
+  * [MESOS-8619] - Docker on Windows uses USERPROFILE instead of HOME for credentials
+  * [MESOS-8620] - Containers stuck in FETCHING possibly due to unresponsive server.
+  * [MESOS-8624] - Valid tasks may be explicitly dropped by agent due to race conditions
+  * [MESOS-8631] - Agent should be able to start a task with every CPU on a Windows machine
+  * [MESOS-8641] - Event stream could send heartbeat before subscribed
+  * [MESOS-8642] - ballon-executor is hard to run as unprivileged user
+  * [MESOS-8643] - `os::system` and `os::spawn` returns -1 on valid windows commands
+  * [MESOS-8644] - W* macros wrong on Windows.
+  * [MESOS-8646] - Agent should be able to resolve file names on open files.
+  * [MESOS-8647] - Enable resource provider agent capability by default
+  * [MESOS-8651] - Potential memory leaks in the `volume/sandbox_path` isolator
+  * [MESOS-8654] - The `/proc/sys` mount point in Mesos containers should also include `nosuid,noexec,nodev` mount options.
+  * [MESOS-8659] - Fix warning `cl : Command line warning D9025 : overriding '/MTd' with '/MDd'`
+  * [MESOS-8664] - Perf sampler doesn't handle extra fields and nameless counters
+  * [MESOS-8691] - Forward CXX_FLAGS to C++ projects and C_FLAGS to C projects in CMake
+  * [MESOS-8711] - SlaveTest.ChangeDomain is disabled.
+  * [MESOS-8719] - Mesos configured with `--enable-grpc` doesn't compile on non-Linux builds
+  * [MESOS-8724] - G++ Warning about libc system macros `major` and `minor` prevents Mesos build
+  * [MESOS-8733] - OversubscriptionTest.ForwardUpdateSlaveMessage is flaky
+  * [MESOS-8741] - `Add` to sequence will not run if it races with sequence destruction
+  * [MESOS-8742] - Agent resource provider config API calls should be idempotent.
+  * [MESOS-8749] - CSI proto is always included in the build when using CMake
+  * [MESOS-8761] - Default linker fails to link tests on FreeBSD
+  * [MESOS-8781] - Mesos master shouldn't silently drop operations
+  * [MESOS-8784] - OPERATION_DROPPED operation status updates should include the operation/framework IDs
+  * [MESOS-8787] - RP-related API should be experimental.
+  * [MESOS-8804] - Fix Ninja Release builds on Windows
+  * [MESOS-8818] - VolumeSandboxPathIsolatorTest.SharedParentTypeVolume fails on macOS
+  * [MESOS-8834] - Indirect recursion between `send` and `_send` in libprocess may cause stack overflow.
+  * [MESOS-8865] - Suspicious enum value comparisons in scheduler Java bindings
+  * [MESOS-8866] - CMake builds are missing byproduct declaration for jemalloc.
+  * [MESOS-8868] - Some 'FsTest' test cases fail on macOS
+  * [MESOS-8870] - Master does not correctly reconcile dropped operations after agent failover
+  * [MESOS-8874] - ResourceProviderManagerHttpApiTest.ResubscribeResourceProvider is flaky.
+  * [MESOS-8876] - Normal exit of Docker container using rexray volume results in TASK_FAILED.
+  * [MESOS-8881] - Enable epoll backend in libevent integration.
+  * [MESOS-8885] - Disable libevent debug mode.
 
 ** Improvement
-    * [MESOS-2922] - Add move constructors / assignment to Future.
-    * [MESOS-3022] - export additional metrics from scheduler driver
-    * [MESOS-4965] - Support resizing of an existing persistent volume
-    * [MESOS-5362] - Add authentication to example frameworks
-    * [MESOS-6128] - Make "re-register" vs. "reregister" consistent in the master
-    * [MESOS-7016] - Make default AWAIT_* duration configurable
-    * [MESOS-7643] - The order of isolators provided in '--isolation' flag is not preserved and instead sorted alphabetically
-    * [MESOS-7656] - Update the JSON <=> protobuf message conversion for map support
-    * [MESOS-7881] - Building gRPC with CMake
-    * [MESOS-7990] - Support systemd named hierarchy (name=systemd) for Mesos Containerizer.
-    * [MESOS-8033] - Use more idiomatic CMake for compiler features
-    * [MESOS-8240] - Add an option to build the new CLI and run unit tests.
-    * [MESOS-8306] - Restrict which agents can statically reserve resources for which roles
-    * [MESOS-8332] - Narrow the container sandbox permissions.
-    * [MESOS-8357] - Example frameworks have an inconsistent UX.
-    * [MESOS-8361] - Example frameworks to support launching mesos-local.
-    * [MESOS-8389] - Notion of "removable" task in master code is inaccurate.
-    * [MESOS-8390] - Notion of "transitioning" agents in the master is now inaccurate.
-    * [MESOS-8402] - Resource provider manager should persist resource provider information
-    * [MESOS-8426] - Speed up SLRP tests
-    * [MESOS-8427] - Clean up residual CSI endpoints for SLRP tests.
-    * [MESOS-8434] - Cleanup Authorization logic in master and agent
-    * [MESOS-8454] - Add a download link for master and agent logs in WebUI
-    * [MESOS-8471] - Allow revocable_resources capability for mesos-execute
-    * [MESOS-8488] - Docker bug can cause unkillable tasks.
-    * [MESOS-8506] - Add test coverage for `Resources::find` on revocable resources
-    * [MESOS-8556] - Boost emits warning repeatedly
-    * [MESOS-8573] - Container stuck in PULLING when Docker daemon hangs
-    * [MESOS-8574] - Docker executor makes no progress when 'docker inspect' hangs
-    * [MESOS-8575] - Improve discard handling for 'Docker::stop' and 'Docker::pull'.
-    * [MESOS-8576] - Improve discard handling of 'Docker::inspect()'
-    * [MESOS-8591] - Add infra to test a hung Docker daemon
-    * [MESOS-8599] - Build with Ninja on Windows
-    * [MESOS-8607] - Port mesos-execute to Windows
-    * [MESOS-8609] - Create a metric to indicate how long agent takes to recover executors
-    * [MESOS-8640] - Validate `DockerInfo` exists when container's type is `DOCKER`
-    * [MESOS-8656] - Improve stout JSON -> protobuf message conversion to handle more valid JSONs
-    * [MESOS-8658] - CMake build should use same compiler warnings as Autotools
-    * [MESOS-8702] - Replace the manual parsing in Mesos code with the native protobuf map support
-    * [MESOS-8725] - Support max_duration for tasks
-    * [MESOS-8728] - Don't print full usage for invocation errors
-    * [MESOS-8772] - Add slave recovery test for default executor.
-    * [MESOS-8793] - Add more logging to agent recovery path.
-    * [MESOS-8801] - Add jemalloc as optional third-party memory allocator
-    * [MESOS-8851] - Introduce a push-based gauge.
+  * [MESOS-2922] - Add move constructors / assignment to Future.
+  * [MESOS-3022] - export additional metrics from scheduler driver
+  * [MESOS-4965] - Support resizing of an existing persistent volume
+  * [MESOS-5362] - Add authentication to example frameworks
+  * [MESOS-6128] - Make "re-register" vs. "reregister" consistent in the master
+  * [MESOS-7016] - Make default AWAIT_* duration configurable
+  * [MESOS-7643] - The order of isolators provided in '--isolation' flag is not preserved and instead sorted alphabetically
+  * [MESOS-7656] - Update the JSON <=> protobuf message conversion for map support
+  * [MESOS-7881] - Building gRPC with CMake
+  * [MESOS-7990] - Support systemd named hierarchy (name=systemd) for Mesos Containerizer.
+  * [MESOS-8033] - Use more idiomatic CMake for compiler features
+  * [MESOS-8240] - Add an option to build the new CLI and run unit tests.
+  * [MESOS-8306] - Restrict which agents can statically reserve resources for which roles
+  * [MESOS-8332] - Narrow the container sandbox permissions.
+  * [MESOS-8357] - Example frameworks have an inconsistent UX.
+  * [MESOS-8361] - Example frameworks to support launching mesos-local.
+  * [MESOS-8389] - Notion of "removable" task in master code is inaccurate.
+  * [MESOS-8390] - Notion of "transitioning" agents in the master is now inaccurate.
+  * [MESOS-8402] - Resource provider manager should persist resource provider information
+  * [MESOS-8426] - Speed up SLRP tests
+  * [MESOS-8427] - Clean up residual CSI endpoints for SLRP tests.
+  * [MESOS-8434] - Cleanup Authorization logic in master and agent
+  * [MESOS-8454] - Add a download link for master and agent logs in WebUI
+  * [MESOS-8471] - Allow revocable_resources capability for mesos-execute
+  * [MESOS-8488] - Docker bug can cause unkillable tasks.
+  * [MESOS-8506] - Add test coverage for `Resources::find` on revocable resources
+  * [MESOS-8556] - Boost emits warning repeatedly
+  * [MESOS-8573] - Container stuck in PULLING when Docker daemon hangs
+  * [MESOS-8574] - Docker executor makes no progress when 'docker inspect' hangs
+  * [MESOS-8575] - Improve discard handling for 'Docker::stop' and 'Docker::pull'.
+  * [MESOS-8576] - Improve discard handling of 'Docker::inspect()'
+  * [MESOS-8591] - Add infra to test a hung Docker daemon
+  * [MESOS-8599] - Build with Ninja on Windows
+  * [MESOS-8607] - Port mesos-execute to Windows
+  * [MESOS-8609] - Create a metric to indicate how long agent takes to recover executors
+  * [MESOS-8640] - Validate `DockerInfo` exists when container's type is `DOCKER`
+  * [MESOS-8656] - Improve stout JSON -> protobuf message conversion to handle more valid JSONs
+  * [MESOS-8658] - CMake build should use same compiler warnings as Autotools
+  * [MESOS-8702] - Replace the manual parsing in Mesos code with the native protobuf map support
+  * [MESOS-8725] - Support max_duration for tasks
+  * [MESOS-8728] - Don't print full usage for invocation errors
+  * [MESOS-8772] - Add slave recovery test for default executor.
+  * [MESOS-8793] - Add more logging to agent recovery path.
+  * [MESOS-8801] - Add jemalloc as optional third-party memory allocator
+  * [MESOS-8851] - Introduce a push-based gauge.
 
 ** Task
-    * [MESOS-3441] - Port os_tests to Windows
-    * [MESOS-3445] - Port signals_tests to Windows
-    * [MESOS-3644] - Implement stout/os/windows/signals.hpp
-    * [MESOS-4176] - Support CMake build on FreeBSD
-    * [MESOS-5726] - Benchmark the v1 Operator API
-    * [MESOS-5850] - Add a test that runs the 'mesos-local' binary
-    * [MESOS-6575] - Change `disk/xfs` isolator to terminate executor when it exceeds quota
-    * [MESOS-7558] - Add resource provider validation
-    * [MESOS-8184] - Implement master's AcknowledgeOfferOperationMessage handler.
-    * [MESOS-8189] - Master’s OperationStatusUpdate handler should forward updates to the framework when OfferOperationID is set.
-    * [MESOS-8190] - Update the master to accept OfferOperationIDs from frameworks.
-    * [MESOS-8191] - Implement ReconcileOfferOperations handler in the master
-    * [MESOS-8192] - Update the scheduler library to support request/response API calls.
-    * [MESOS-8275] - Remove use of ::_stat on Windows
-    * [MESOS-8284] - Add a ns::supported convenience API.
-    * [MESOS-8362] - Verify end-to-end operation status update retry after RP failover
-    * [MESOS-8363] - Verify that the master acknowledges operation status updates correctly
-    * [MESOS-8373] - Test reconciliation after operation is dropped en route to agent
-    * [MESOS-8382] - Master should bookkeep local resource providers.
-    * [MESOS-8388] - Show LRP resources in master and agent endpoints.
-    * [MESOS-8407] - Add SLRP unit tests for profile updates and corner cases.
-    * [MESOS-8408] - Add an SLRP test for CSI plugin restart.
-    * [MESOS-8409] - Add an SLRP test for agent registered with a new ID.
-    * [MESOS-8415] - Add an SLRP test for agent  reboot.
-    * [MESOS-8420] - Test that operation status updates are retried after being dropped en-route to the master.
-    * [MESOS-8424] - Test that operations are correctly reported following a master failover
-    * [MESOS-8442] - Source tree contains generated endpoint documentation
-    * [MESOS-8445] - Test that `UPDATE_STATE` of a resource provider doesn't have unwanted side-effects in master or agent
-    * [MESOS-8462] - Unit test for `Slave::detachFile` on removed frameworks.
-    * [MESOS-8492] - Checkpoint profiles in storage local resource provider.
-    * [MESOS-8527] - Add metrics about number of subscribed LRPs on the agent.
-    * [MESOS-8534] - Allow nested containers in TaskGroups to have separate network namespaces
-    * [MESOS-8539] - Add metrics about CSI plugin terminations.
-    * [MESOS-8551] - Port libprocess HTTPTest.QueryEncodeDecode
-    * [MESOS-8569] - Allow newline characters when decoding base64 strings in stout.
-    * [MESOS-8650] - Bump CSI bundle to v0.2.
-    * [MESOS-8653] - Make the CSI client to support CSI v0.2.
-    * [MESOS-8657] - Build CSI proto in CMake.
-    * [MESOS-8673] - Fix os::open to use HANDLEs
-    * [MESOS-8675] - Remove FD_CRT from WindowsFD
-    * [MESOS-8676] - Fix os::read and os::write to use HANDLES
-    * [MESOS-8678] - Bump gRPC bundle to 1.10.0.
-    * [MESOS-8683] - Remove _close from Windows close.hpp
-    * [MESOS-8684] - Replace _dup with DuplicateHandle on Windows
-    * [MESOS-8685] - Replace _lseek with SetFilePointer
-    * [MESOS-8692] - Replace _chsize_s with SetEndOfFile on Windows
-    * [MESOS-8697] - Make gRPC-related tests cross-platform.
-    * [MESOS-8698] - Enable storage local resource provider in CMake.
-    * [MESOS-8706] - Unify return type of `wait` and `destroy` containerizer methods
-    * [MESOS-8710] - Update tests after changing return type of `wait` method
-    * [MESOS-8717] - Support CSI v0.2 in SLRP.
-    * [MESOS-8735] - Implement recovery for resource provider manager registrar
-    * [MESOS-8747] - Support resizing persistent volume through operator API
-    * [MESOS-8748] - Create ACL for grow and shrink volume
-    * [MESOS-8750] - Check failed: !slaves.registered.contains(task->slave_id)
-    * [MESOS-8777] - Support `STAGE_UNSTAGE_VOLUME` CSI capability in SLRP
-    * [MESOS-8819] - mesos.pom file hardcodes developers
-    * [MESOS-8833] - Port libprocess subprocess_tests.cpp
+  * [MESOS-3441] - Port os_tests to Windows
+  * [MESOS-3445] - Port signals_tests to Windows
+  * [MESOS-3644] - Implement stout/os/windows/signals.hpp
+  * [MESOS-4176] - Support CMake build on FreeBSD
+  * [MESOS-5726] - Benchmark the v1 Operator API
+  * [MESOS-5850] - Add a test that runs the 'mesos-local' binary
+  * [MESOS-6575] - Change `disk/xfs` isolator to terminate executor when it exceeds quota
+  * [MESOS-7558] - Add resource provider validation
+  * [MESOS-8184] - Implement master's AcknowledgeOfferOperationMessage handler.
+  * [MESOS-8189] - Master’s OperationStatusUpdate handler should forward updates to the framework when OfferOperationID is set.
+  * [MESOS-8190] - Update the master to accept OfferOperationIDs from frameworks.
+  * [MESOS-8191] - Implement ReconcileOfferOperations handler in the master
+  * [MESOS-8192] - Update the scheduler library to support request/response API calls.
+  * [MESOS-8275] - Remove use of ::_stat on Windows
+  * [MESOS-8284] - Add a ns::supported convenience API.
+  * [MESOS-8362] - Verify end-to-end operation status update retry after RP failover
+  * [MESOS-8363] - Verify that the master acknowledges operation status updates correctly
+  * [MESOS-8373] - Test reconciliation after operation is dropped en route to agent
+  * [MESOS-8382] - Master should bookkeep local resource providers.
+  * [MESOS-8388] - Show LRP resources in master and agent endpoints.
+  * [MESOS-8407] - Add SLRP unit tests for profile updates and corner cases.
+  * [MESOS-8408] - Add an SLRP test for CSI plugin restart.
+  * [MESOS-8409] - Add an SLRP test for agent registered with a new ID.
+  * [MESOS-8415] - Add an SLRP test for agent  reboot.
+  * [MESOS-8420] - Test that operation status updates are retried after being dropped en-route to the master.
+  * [MESOS-8424] - Test that operations are correctly reported following a master failover
+  * [MESOS-8442] - Source tree contains generated endpoint documentation
+  * [MESOS-8445] - Test that `UPDATE_STATE` of a resource provider doesn't have unwanted side-effects in master or agent
+  * [MESOS-8462] - Unit test for `Slave::detachFile` on removed frameworks.
+  * [MESOS-8492] - Checkpoint profiles in storage local resource provider.
+  * [MESOS-8527] - Add metrics about number of subscribed LRPs on the agent.
+  * [MESOS-8534] - Allow nested containers in TaskGroups to have separate network namespaces
+  * [MESOS-8539] - Add metrics about CSI plugin terminations.
+  * [MESOS-8551] - Port libprocess HTTPTest.QueryEncodeDecode
+  * [MESOS-8569] - Allow newline characters when decoding base64 strings in stout.
+  * [MESOS-8650] - Bump CSI bundle to v0.2.
+  * [MESOS-8653] - Make the CSI client to support CSI v0.2.
+  * [MESOS-8657] - Build CSI proto in CMake.
+  * [MESOS-8673] - Fix os::open to use HANDLEs
+  * [MESOS-8675] - Remove FD_CRT from WindowsFD
+  * [MESOS-8676] - Fix os::read and os::write to use HANDLES
+  * [MESOS-8678] - Bump gRPC bundle to 1.10.0.
+  * [MESOS-8683] - Remove _close from Windows close.hpp
+  * [MESOS-8684] - Replace _dup with DuplicateHandle on Windows
+  * [MESOS-8685] - Replace _lseek with SetFilePointer
+  * [MESOS-8692] - Replace _chsize_s with SetEndOfFile on Windows
+  * [MESOS-8697] - Make gRPC-related tests cross-platform.
+  * [MESOS-8698] - Enable storage local resource provider in CMake.
+  * [MESOS-8706] - Unify return type of `wait` and `destroy` containerizer methods
+  * [MESOS-8710] - Update tests after changing return type of `wait` method
+  * [MESOS-8717] - Support CSI v0.2 in SLRP.
+  * [MESOS-8735] - Implement recovery for resource provider manager registrar
+  * [MESOS-8747] - Support resizing persistent volume through operator API
+  * [MESOS-8748] - Create ACL for grow and shrink volume
+  * [MESOS-8750] - Check failed: !slaves.registered.contains(task->slave_id)
+  * [MESOS-8777] - Support `STAGE_UNSTAGE_VOLUME` CSI capability in SLRP
+  * [MESOS-8819] - mesos.pom file hardcodes developers
+  * [MESOS-8833] - Port libprocess subprocess_tests.cpp
 
 ** Documentation
-    * [MESOS-8291] - Add documentation about fault domains
+  * [MESOS-8291] - Add documentation about fault domains
 
 
 Release Notes - Mesos - Version 1.5.1 (WIP)
