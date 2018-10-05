@@ -221,12 +221,12 @@ class LinterBase():
             lint_errors = self.run_lint(list(filtered_candidates_set))
             total_errors = license_errors + encoding_errors + lint_errors
 
-            sys.stderr.write('Total errors found: {num_errors}\n'.format(
-                num_errors=total_errors))
+            if total_errors > 0:
+                sys.stderr.write('Total errors found: {num_errors}\n'.format(
+                    num_errors=total_errors))
 
             return total_errors
 
-        print("No {linter} files to lint".format(linter=self.linter_type))
         return 0
 
 
