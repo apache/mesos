@@ -753,16 +753,9 @@ struct MethodNotAllowed : Response
   // According to RFC 2616, "An Allow header field MUST be present in a
   // 405 (Method Not Allowed) response".
 
-  explicit MethodNotAllowed(
-      const std::initializer_list<std::string>& allowedMethods)
-    : Response("405 Method Not Allowed.", Status::METHOD_NOT_ALLOWED)
-  {
-    headers["Allow"] = strings::join(", ", allowedMethods);
-  }
-
   MethodNotAllowed(
       const std::initializer_list<std::string>& allowedMethods,
-      const std::string& requestMethod)
+      const Option<std::string>& requestMethod = None())
     : Response(
         constructBody(allowedMethods, requestMethod),
         Status::METHOD_NOT_ALLOWED)
@@ -773,11 +766,15 @@ struct MethodNotAllowed : Response
 private:
   static std::string constructBody(
       const std::initializer_list<std::string>& allowedMethods,
-      const std::string& requestMethod)
+      const Option<std::string>& requestMethod)
   {
-    return "405 Method Not Allowed. Expecting one of { '" +
-         strings::join("', '", allowedMethods) + "' }, but received '" +
-         requestMethod + "'.";
+    return
+        "405 Method Not Allowed. Expecting one of { '" +
+        strings::join("', '", allowedMethods) + "' }" +
+        (requestMethod.isSome()
+           ? ", but received '" + requestMethod.get() + "'"
+           : "") +
+        ".";
   }
 };
 
