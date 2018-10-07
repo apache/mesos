@@ -702,7 +702,7 @@ struct TemporaryRedirect : Response
 struct BadRequest : Response
 {
   BadRequest()
-    : Response("400 Bad Request.", Status::BAD_REQUEST) {}
+    : BadRequest("400 Bad Request.") {}
 
   explicit BadRequest(const std::string& body)
     : Response(body, Status::BAD_REQUEST) {}
@@ -712,14 +712,7 @@ struct BadRequest : Response
 struct Unauthorized : Response
 {
   explicit Unauthorized(const std::vector<std::string>& challenges)
-    : Response("401 Unauthorized.", Status::UNAUTHORIZED)
-  {
-    // TODO(arojas): Many HTTP client implementations do not support
-    // multiple challenges within a single 'WWW-Authenticate' header.
-    // Once MESOS-3306 is fixed, we can use multiple entries for the
-    // same header.
-    headers["WWW-Authenticate"] = strings::join(", ", challenges);
-  }
+    : Unauthorized(challenges, "401 Unauthorized.") {}
 
   Unauthorized(
       const std::vector<std::string>& challenges,
@@ -738,7 +731,7 @@ struct Unauthorized : Response
 struct Forbidden : Response
 {
   Forbidden()
-    : Response("403 Forbidden.", Status::FORBIDDEN) {}
+    : Forbidden("403 Forbidden.") {}
 
   explicit Forbidden(const std::string& body)
     : Response(body, Status::FORBIDDEN) {}
@@ -748,7 +741,7 @@ struct Forbidden : Response
 struct NotFound : Response
 {
   NotFound()
-    : Response("404 Not Found.", Status::NOT_FOUND) {}
+    : NotFound("404 Not Found.") {}
 
   explicit NotFound(const std::string& body)
     : Response(body, Status::NOT_FOUND) {}
@@ -792,7 +785,7 @@ private:
 struct NotAcceptable : Response
 {
   NotAcceptable()
-    : Response("406 Not Acceptable.", Status::NOT_ACCEPTABLE) {}
+    : NotAcceptable("406 Not Acceptable.") {}
 
   explicit NotAcceptable(const std::string& body)
     : Response(body, Status::NOT_ACCEPTABLE) {}
@@ -802,7 +795,7 @@ struct NotAcceptable : Response
 struct Conflict : Response
 {
   Conflict()
-    : Response("409 Conflict.", Status::CONFLICT) {}
+    : Conflict("409 Conflict.") {}
 
   explicit Conflict(const std::string& body)
     : Response(body, Status::CONFLICT) {}
@@ -812,7 +805,7 @@ struct Conflict : Response
 struct PreconditionFailed : Response
 {
   PreconditionFailed()
-    : Response("412 Precondition Failed.", Status::PRECONDITION_FAILED) {}
+    : PreconditionFailed("412 Precondition Failed.") {}
 
   explicit PreconditionFailed(const std::string& body)
     : Response(body, Status::PRECONDITION_FAILED) {}
@@ -822,7 +815,7 @@ struct PreconditionFailed : Response
 struct UnsupportedMediaType : Response
 {
   UnsupportedMediaType()
-    : Response("415 Unsupported Media Type.", Status::UNSUPPORTED_MEDIA_TYPE) {}
+    : UnsupportedMediaType("415 Unsupported Media Type.") {}
 
   explicit UnsupportedMediaType(const std::string& body)
     : Response(body, Status::UNSUPPORTED_MEDIA_TYPE) {}
@@ -832,7 +825,7 @@ struct UnsupportedMediaType : Response
 struct InternalServerError : Response
 {
   InternalServerError()
-    : Response("500 Internal Server Error.", Status::INTERNAL_SERVER_ERROR) {}
+    : InternalServerError("500 Internal Server Error.") {}
 
   explicit InternalServerError(const std::string& body)
     : Response(body, Status::INTERNAL_SERVER_ERROR) {}
@@ -842,7 +835,7 @@ struct InternalServerError : Response
 struct NotImplemented : Response
 {
   NotImplemented()
-    : Response("501 Not Implemented.", Status::NOT_IMPLEMENTED) {}
+    : NotImplemented("501 Not Implemented.") {}
 
   explicit NotImplemented(const std::string& body)
     : Response(body, Status::NOT_IMPLEMENTED) {}
@@ -852,7 +845,7 @@ struct NotImplemented : Response
 struct ServiceUnavailable : Response
 {
   ServiceUnavailable()
-    : Response("503 Service Unavailable.", Status::SERVICE_UNAVAILABLE) {}
+    : ServiceUnavailable("503 Service Unavailable.") {}
 
   explicit ServiceUnavailable(const std::string& body)
     : Response(body, Status::SERVICE_UNAVAILABLE) {}
