@@ -775,8 +775,9 @@ private:
       const std::initializer_list<std::string>& allowedMethods,
       const std::string& requestMethod)
   {
-    return "Expecting one of { '" + strings::join("', '", allowedMethods) +
-           "' }, but received '" + requestMethod + "'";
+    return "405 Method Not Allowed. Expecting one of { '" +
+         strings::join("', '", allowedMethods) + "' }, but received '" +
+         requestMethod + "'.";
   }
 };
 
