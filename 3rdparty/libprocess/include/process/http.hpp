@@ -331,7 +331,8 @@ public:
       CLOSED,
     };
 
-    explicit Reader(const std::shared_ptr<Data>& _data) : data(_data) {}
+    explicit Reader(const std::shared_ptr<Data>& _data)
+      : data(_data) {}
 
     std::shared_ptr<Data> data;
   };
@@ -372,12 +373,14 @@ public:
       FAILED,
     };
 
-    explicit Writer(const std::shared_ptr<Data>& _data) : data(_data) {}
+    explicit Writer(const std::shared_ptr<Data>& _data)
+      : data(_data) {}
 
     std::shared_ptr<Data> data;
   };
 
-  Pipe() : data(new Data()) {}
+  Pipe()
+    : data(new Data()) {}
 
   Reader reader() const;
   Writer writer() const;
@@ -389,8 +392,7 @@ private:
   struct Data
   {
     Data()
-      : readEnd(Reader::OPEN),
-        writeEnd(Writer::OPEN) {}
+      : readEnd(Reader::OPEN), writeEnd(Writer::OPEN) {}
 
     // Rather than use a process to serialize access to the pipe's
     // internal data we use a 'std::atomic_flag'.
@@ -594,8 +596,7 @@ private:
 struct Response
 {
   Response()
-    : type(NONE)
-  {}
+    : type(NONE) {}
 
   Response(uint16_t _code)
     : type(NONE), code(_code)
@@ -660,12 +661,14 @@ struct Response
 
 struct OK : Response
 {
-  OK() : Response(Status::OK) {}
+  OK()
+    : Response(Status::OK) {}
 
   explicit OK(const char* body)
     : Response(std::string(body), Status::OK) {}
 
-  explicit OK(const std::string& body) : Response(body, Status::OK) {}
+  explicit OK(const std::string& body)
+    : Response(body, Status::OK) {}
 
   explicit OK(const std::string& body, const std::string& contentType)
     : Response(body, Status::OK, contentType) {}
@@ -678,7 +681,8 @@ struct OK : Response
 
 struct Accepted : Response
 {
-  Accepted() : Response(Status::ACCEPTED) {}
+  Accepted()
+    : Response(Status::ACCEPTED) {}
 
   explicit Accepted(const std::string& body)
     : Response(body, Status::ACCEPTED) {}
@@ -697,7 +701,8 @@ struct TemporaryRedirect : Response
 
 struct BadRequest : Response
 {
-  BadRequest() : Response("400 Bad Request.", Status::BAD_REQUEST) {}
+  BadRequest()
+    : Response("400 Bad Request.", Status::BAD_REQUEST) {}
 
   explicit BadRequest(const std::string& body)
     : Response(body, Status::BAD_REQUEST) {}
@@ -732,7 +737,8 @@ struct Unauthorized : Response
 
 struct Forbidden : Response
 {
-  Forbidden() : Response("403 Forbidden.", Status::FORBIDDEN) {}
+  Forbidden()
+    : Response("403 Forbidden.", Status::FORBIDDEN) {}
 
   explicit Forbidden(const std::string& body)
     : Response(body, Status::FORBIDDEN) {}
@@ -741,7 +747,8 @@ struct Forbidden : Response
 
 struct NotFound : Response
 {
-  NotFound() : Response("404 File Not Found.", Status::NOT_FOUND) {}
+  NotFound()
+    : Response("404 Not Found.", Status::NOT_FOUND) {}
 
   explicit NotFound(const std::string& body)
     : Response(body, Status::NOT_FOUND) {}
@@ -784,7 +791,8 @@ private:
 
 struct NotAcceptable : Response
 {
-  NotAcceptable() : Response("406 Not Acceptable.", Status::NOT_ACCEPTABLE) {}
+  NotAcceptable()
+    : Response("406 Not Acceptable.", Status::NOT_ACCEPTABLE) {}
 
   explicit NotAcceptable(const std::string& body)
     : Response(body, Status::NOT_ACCEPTABLE) {}
@@ -793,7 +801,8 @@ struct NotAcceptable : Response
 
 struct Conflict : Response
 {
-  Conflict() : Response("409 Conflict.", Status::CONFLICT) {}
+  Conflict()
+    : Response("409 Conflict.", Status::CONFLICT) {}
 
   explicit Conflict(const std::string& body)
     : Response(body, Status::CONFLICT) {}
@@ -803,8 +812,7 @@ struct Conflict : Response
 struct PreconditionFailed : Response
 {
   PreconditionFailed()
-    : Response("412 Precondition Failed.", Status::PRECONDITION_FAILED)
-  {}
+    : Response("412 Precondition Failed.", Status::PRECONDITION_FAILED) {}
 
   explicit PreconditionFailed(const std::string& body)
     : Response(body, Status::PRECONDITION_FAILED) {}
@@ -814,8 +822,7 @@ struct PreconditionFailed : Response
 struct UnsupportedMediaType : Response
 {
   UnsupportedMediaType()
-    : Response("415 Unsupported Media Type.", Status::UNSUPPORTED_MEDIA_TYPE)
-  {}
+    : Response("415 Unsupported Media Type.", Status::UNSUPPORTED_MEDIA_TYPE) {}
 
   explicit UnsupportedMediaType(const std::string& body)
     : Response(body, Status::UNSUPPORTED_MEDIA_TYPE) {}
@@ -825,8 +832,7 @@ struct UnsupportedMediaType : Response
 struct InternalServerError : Response
 {
   InternalServerError()
-    : Response("500 Internal Server Error.", Status::INTERNAL_SERVER_ERROR)
-  {}
+    : Response("500 Internal Server Error.", Status::INTERNAL_SERVER_ERROR) {}
 
   explicit InternalServerError(const std::string& body)
     : Response(body, Status::INTERNAL_SERVER_ERROR) {}
@@ -835,8 +841,8 @@ struct InternalServerError : Response
 
 struct NotImplemented : Response
 {
-  NotImplemented() : Response("501 Not Implemented.", Status::NOT_IMPLEMENTED)
-  {}
+  NotImplemented()
+    : Response("501 Not Implemented.", Status::NOT_IMPLEMENTED) {}
 
   explicit NotImplemented(const std::string& body)
     : Response(body, Status::NOT_IMPLEMENTED) {}
@@ -846,8 +852,7 @@ struct NotImplemented : Response
 struct ServiceUnavailable : Response
 {
   ServiceUnavailable()
-    : Response("503 Service Unavailable.", Status::SERVICE_UNAVAILABLE)
-  {}
+    : Response("503 Service Unavailable.", Status::SERVICE_UNAVAILABLE) {}
 
   explicit ServiceUnavailable(const std::string& body)
     : Response(body, Status::SERVICE_UNAVAILABLE) {}
