@@ -697,7 +697,7 @@ struct TemporaryRedirect : Response
 
 struct BadRequest : Response
 {
-  BadRequest() : Response(Status::BAD_REQUEST) {}
+  BadRequest() : Response("400 Bad Request.", Status::BAD_REQUEST) {}
 
   explicit BadRequest(const std::string& body)
     : Response(body, Status::BAD_REQUEST) {}
@@ -707,7 +707,7 @@ struct BadRequest : Response
 struct Unauthorized : Response
 {
   explicit Unauthorized(const std::vector<std::string>& challenges)
-    : Response(Status::UNAUTHORIZED)
+    : Response("401 Unauthorized.", Status::UNAUTHORIZED)
   {
     // TODO(arojas): Many HTTP client implementations do not support
     // multiple challenges within a single 'WWW-Authenticate' header.
@@ -732,7 +732,7 @@ struct Unauthorized : Response
 
 struct Forbidden : Response
 {
-  Forbidden() : Response(Status::FORBIDDEN) {}
+  Forbidden() : Response("403 Forbidden.", Status::FORBIDDEN) {}
 
   explicit Forbidden(const std::string& body)
     : Response(body, Status::FORBIDDEN) {}
@@ -741,7 +741,7 @@ struct Forbidden : Response
 
 struct NotFound : Response
 {
-  NotFound() : Response(Status::NOT_FOUND) {}
+  NotFound() : Response("404 File Not Found.", Status::NOT_FOUND) {}
 
   explicit NotFound(const std::string& body)
     : Response(body, Status::NOT_FOUND) {}
@@ -755,7 +755,7 @@ struct MethodNotAllowed : Response
 
   explicit MethodNotAllowed(
       const std::initializer_list<std::string>& allowedMethods)
-    : Response(Status::METHOD_NOT_ALLOWED)
+    : Response("405 Method Not Allowed.", Status::METHOD_NOT_ALLOWED)
   {
     headers["Allow"] = strings::join(", ", allowedMethods);
   }
@@ -783,7 +783,7 @@ private:
 
 struct NotAcceptable : Response
 {
-  NotAcceptable() : Response(Status::NOT_ACCEPTABLE) {}
+  NotAcceptable() : Response("406 Not Acceptable.", Status::NOT_ACCEPTABLE) {}
 
   explicit NotAcceptable(const std::string& body)
     : Response(body, Status::NOT_ACCEPTABLE) {}
@@ -792,7 +792,7 @@ struct NotAcceptable : Response
 
 struct Conflict : Response
 {
-  Conflict() : Response(Status::CONFLICT) {}
+  Conflict() : Response("409 Conflict.", Status::CONFLICT) {}
 
   explicit Conflict(const std::string& body)
     : Response(body, Status::CONFLICT) {}
@@ -801,7 +801,9 @@ struct Conflict : Response
 
 struct PreconditionFailed : Response
 {
-  PreconditionFailed() : Response(Status::PRECONDITION_FAILED) {}
+  PreconditionFailed()
+    : Response("412 Precondition Failed.", Status::PRECONDITION_FAILED)
+  {}
 
   explicit PreconditionFailed(const std::string& body)
     : Response(body, Status::PRECONDITION_FAILED) {}
@@ -810,7 +812,9 @@ struct PreconditionFailed : Response
 
 struct UnsupportedMediaType : Response
 {
-  UnsupportedMediaType() : Response(Status::UNSUPPORTED_MEDIA_TYPE) {}
+  UnsupportedMediaType()
+    : Response("415 Unsupported Media Type.", Status::UNSUPPORTED_MEDIA_TYPE)
+  {}
 
   explicit UnsupportedMediaType(const std::string& body)
     : Response(body, Status::UNSUPPORTED_MEDIA_TYPE) {}
@@ -819,7 +823,9 @@ struct UnsupportedMediaType : Response
 
 struct InternalServerError : Response
 {
-  InternalServerError() : Response(Status::INTERNAL_SERVER_ERROR) {}
+  InternalServerError()
+    : Response("500 Internal Server Error.", Status::INTERNAL_SERVER_ERROR)
+  {}
 
   explicit InternalServerError(const std::string& body)
     : Response(body, Status::INTERNAL_SERVER_ERROR) {}
@@ -828,7 +834,8 @@ struct InternalServerError : Response
 
 struct NotImplemented : Response
 {
-  NotImplemented() : Response(Status::NOT_IMPLEMENTED) {}
+  NotImplemented() : Response("501 Not Implemented.", Status::NOT_IMPLEMENTED)
+  {}
 
   explicit NotImplemented(const std::string& body)
     : Response(body, Status::NOT_IMPLEMENTED) {}
@@ -837,7 +844,9 @@ struct NotImplemented : Response
 
 struct ServiceUnavailable : Response
 {
-  ServiceUnavailable() : Response(Status::SERVICE_UNAVAILABLE) {}
+  ServiceUnavailable()
+    : Response("503 Service Unavailable.", Status::SERVICE_UNAVAILABLE)
+  {}
 
   explicit ServiceUnavailable(const std::string& body)
     : Response(body, Status::SERVICE_UNAVAILABLE) {}
