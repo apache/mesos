@@ -2252,21 +2252,31 @@ int NetworkCniIsolatorSetup::execute()
       return EXIT_FAILURE;
     }
 
-    const Option<int> status = os::spawn("ifconfig", {"ifconfig", "lo", "up"});
+    // TODO(urbanserj): To get rid of all external dependencies such as
+    // `iproute2` and `net-tools`, use Netlink Protocol Library (libnl).
+    Option<int> status = os::spawn(
+        "ip", {"ip", "link", "set", "dev", "lo", "up"});
 
     const string message =
       "Failed to bring up the loopback interface in the new "
       "network namespace of pid " + stringify(flags.pid.get());
 
     if (status.isNone()) {
-      cerr << message << ": " << "os::spawn failed: "
+      cerr << message << ": os::spawn 'ip link set dev lo up' failed: "
+           << os::strerror(errno) << endl;
+
+      // Fall back on `ifconfig` if `ip` command fails to start.
+      status = os::spawn("ifconfig", {"ifconfig", "lo", "up"});
+    }
+
+    if (status.isNone()) {
+      cerr << message << ": os::spawn 'ifconfig lo up' failed: "
            << os::strerror(errno) << endl;
       return EXIT_FAILURE;
     }
 
     if (!WSUCCEEDED(status.get())) {
-      cerr << message << ": 'ifconfig lo up' "
-           << WSTRINGIFY(status.get()) << endl;
+      cerr << message << ": " << WSTRINGIFY(status.get()) << endl;
       return EXIT_FAILURE;
     }
   }
