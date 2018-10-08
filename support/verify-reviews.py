@@ -94,7 +94,7 @@ def shell(command):
 def apply_review(review_id):
     """Apply a review using the script apply-reviews.py."""
     print("Applying review %s" % review_id)
-    shell("python support/apply-reviews.py -n -r %s" % review_id)
+    shell("%s support/apply-reviews.py -n -r %s" % (sys.executable, review_id))
 
 
 def apply_reviews(review_request, reviews, handler):
