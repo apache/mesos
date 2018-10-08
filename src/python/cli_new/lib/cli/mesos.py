@@ -22,6 +22,24 @@ from cli import http
 from cli.exceptions import CLIException
 
 
+def get_agent_address(agent_id, master):
+    """
+    Given a master and an agent id, return the agent address
+    by checking the /slaves endpoint of the master.
+    """
+    try:
+        agents = http.get_json(master, "slaves")["slaves"]
+    except Exception as exception:
+        raise CLIException("Could not open '/slaves'"
+                           " endpoint at '{addr}': {error}"
+                           .format(addr=master,
+                                   error=exception))
+    for agent in agents:
+        if agent["id"] == agent_id:
+            return agent["pid"].split("@")[1]
+    raise CLIException("Unable to find agent '{id}'".format(id=agent_id))
+
+
 def get_agents(master):
     """
     Get the agents in a Mesos cluster.
@@ -43,6 +61,7 @@ def get_agents(master):
             .format(key=key, endpoint=endpoint))
 
     return data[key]
+
 
 def get_tasks(master):
     """
