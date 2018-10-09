@@ -24,6 +24,8 @@ import urllib.error
 import urllib.parse
 import time
 
+import cli
+
 from cli.exceptions import CLIException
 
 
@@ -32,11 +34,17 @@ def read_endpoint(addr, endpoint):
     Read the specified endpoint and return the results.
     """
     try:
-        url = "http://{addr}/{endpoint}".format(addr=addr, endpoint=endpoint)
+        addr = cli.util.sanitize_address(addr)
+    except Exception as exception:
+        raise CLIException("Unable to sanitize address '{addr}': {error}"
+                           .format(addr=addr, error=str(exception)))
 
+    try:
+        url = "{addr}/{endpoint}".format(addr=addr, endpoint=endpoint)
         http_response = urllib.request.urlopen(url).read().decode("utf-8")
     except Exception as exception:
-        raise CLIException("{error}".format(error=str(exception)))
+        raise CLIException("Unable to open url '{url}': {error}"
+                           .format(url=url, error=str(exception)))
 
     return http_response
 

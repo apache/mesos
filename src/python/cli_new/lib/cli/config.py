@@ -74,13 +74,12 @@ class Config():
             if "address" in self.data["master"]:
                 master_address = self.data["master"]["address"]
                 try:
-                    cli.util.verify_address_format(master_address)
+                    master = cli.util.sanitize_address(master_address)
                 except Exception as exception:
                     raise CLIException("The 'master' address {address} is"
                                        " formatted incorrectly: {error}"
                                        .format(address=master_address,
                                                error=exception))
-                master = self.data["master"]["address"]
 
             if "zookeeper" in self.data["master"]:
                 zk_field = self.data["master"]["zookeeper"]
@@ -104,7 +103,7 @@ class Config():
 
                 for address in zk_field["addresses"]:
                     try:
-                        cli.util.verify_address_format(address)
+                        cli.util.sanitize_address(address)
                     except Exception as exception:
                         raise CLIException("The 'zookeeper' address {address}"
                                            " is formatted incorrectly: {error}"

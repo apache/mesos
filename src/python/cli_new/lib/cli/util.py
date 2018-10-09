@@ -20,11 +20,12 @@ A collection of helper functions used by the CLI and its Plugins.
 
 import imp
 import importlib
+import ipaddress
 import json
 import os
 import re
-import socket
 import textwrap
+import urllib.parse
 
 from kazoo.client import KazooClient
 
@@ -156,34 +157,6 @@ def format_subcommands_help(cmd):
     return (arguments, short_help, long_help, flag_string)
 
 
-def verify_address_format(address):
-    """
-    Verify that an address ip and port are correct.
-    """
-    if not isinstance(address, str):
-        raise CLIException("The address must be a string")
-
-    address_pattern = re.compile(r'[0-9]+(?:\.[0-9]+){3}:[0-9]+')
-    if not address_pattern.match(address):
-        raise CLIException("The address '{address}' does not match"
-                           " the expected format '<ip>:<port>'"
-                           .format(address=address))
-
-    colon_pos = address.rfind(':')
-    ip = address[:colon_pos]
-    port = int(address[colon_pos+1:])
-
-    try:
-        socket.inet_aton(ip)
-    except socket.error as err:
-        raise CLIException("The IP '{ip}' is not valid: {error}"
-                           .format(ip=ip, error=err))
-
-    # A correct port number is between these two values.
-    if port < 0 or port > 65535:
-        raise CLIException("The port '{port}' is not valid")
-
-
 def join_plugin_paths(settings, config):
     """
     Return all the plugin paths combined
@@ -197,6 +170,73 @@ def join_plugin_paths(settings, config):
         raise CLIException("Error: {error}.".format(error=str(exception)))
 
     return builtin_paths + config_paths
+
+
+def sanitize_address(address):
+    """
+    Sanitize an address, ensuring that it has a format recognizable by the CLI.
+    """
+    # Try and parse the address to make sure it is parseable.
+    try:
+        parsed = urllib.parse.urlparse(address)
+    except Exception as exception:
+        raise CLIException("Unable to parse address: {error}"
+                           .format(error=str(exception)))
+
+    # Since we allow addresses to be specified without an
+    # explicit scheme, some fields in the parsed address may
+    # be missing. Patch it up to force an implicit HTTP scheme.
+    if parsed.scheme == "" and parsed.netloc == "":
+        address = "http://{addr}".format(addr=address)
+    elif parsed.scheme == "" and parsed.netloc != "":
+        address = "http:{addr}".format(addr=address)
+
+    # Try and parse the address again to make sure it
+    # now has all the parts we expect and that they are valid.
+    try:
+        parsed = urllib.parse.urlparse(address)
+    except Exception as exception:
+        raise CLIException("Unable to parse address: {error}"
+                           .format(error=str(exception)))
+
+    # We only support HTTP and HTTPS schemes.
+    if parsed.scheme != "http" and parsed.scheme != "https":
+        raise CLIException("Invalid scheme '{scheme}' in address"
+                           .format(scheme=parsed.scheme))
+
+    # There must be a hostname present.
+    if parsed.hostname == "":
+        raise CLIException("Missing hostname in address")
+
+    # We do not support IPv6 in the hostname (yet).
+    try:
+        ipaddress.IPv6Address(parsed.hostname)
+        raise CLIException("IPv6 addresses are unsupported")
+    except Exception as exception:
+        pass
+
+    valid_ip_v4_address = False
+
+    # We either accept IPv4 addresses, or DNS names as the hostname. In the
+    # check below we try and parse the hostname as an IPv4 address, if this
+    # does not succeed, then we assume the hostname is formatted as a DNS name.
+    try:
+        ipaddress.IPv4Address(parsed.hostname)
+        valid_ip_v4_address = True
+    except Exception as exception:
+        pass
+
+    # If we have an IPv4 address then we require a port to be specified.
+    if valid_ip_v4_address and parsed.port is None:
+        raise CLIException("Addresses formatted as IP must contain a port")
+
+    # We allow ports for both IPv4 addresses and DNS
+    # names, but they must be in a specific range.
+    if parsed.port and (parsed.port < 0 or parsed.port > 65535):
+        raise CLIException("Port '{port}' is out of range"
+                           .format(port=parsed.port))
+
+    return address
 
 
 def zookeeper_resolve_leader(addresses, path):
