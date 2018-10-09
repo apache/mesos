@@ -571,6 +571,7 @@ All Resolved Issues:
   * [MESOS-6973] - Fix BOOST random generator initialization on Windows
   * [MESOS-7028] - NetSocketTest.EOFBeforeRecv is flaky.
   * [MESOS-7342] - Port Docker tests
+  * [MESOS-7506] - Multiple tests leave orphan containers.
   * [MESOS-7604] - SlaveTest.ExecutorReregistrationTimeoutFlag aborts on Windows
   * [MESOS-7699] - "stdlib.h: No such file or directory" when building with GCC 6 (Debian stable freshly released)
   * [MESOS-7742] - Race conditions in IOSwitchboard: listening on unix socket and premature closing of the connection.
