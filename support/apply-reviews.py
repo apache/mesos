@@ -94,9 +94,8 @@ def patch_url(options):
 
 def url_to_json(url):
     """Performs HTTP request and returns JSON-ified response."""
-    json_str = urllib.request.urlopen(url)
-    return json.loads(json_str.read())
-
+    json_str = urllib.request.urlopen(url).read().decode('utf-8')
+    return json.loads(json_str)
 
 def extract_review_id(url):
     """Extracts review ID from Review Board URL."""
