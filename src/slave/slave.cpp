@@ -4058,8 +4058,8 @@ void Slave::updateFramework(
 
   Framework* framework = getFramework(frameworkId);
   if (framework == nullptr) {
-    LOG(WARNING) << "Ignoring info update for framework " << frameworkId
-                 << " because it does not exist";
+    LOG(INFO) << "Ignoring info update for framework " << frameworkId
+              << " because it does not exist";
     return;
   }
 
