@@ -16,18 +16,53 @@
 #include <stdio.h>
 
 #include <string>
+#include <vector>
 
 #include <stout/error.hpp>
+#include <stout/foreach.hpp>
 #include <stout/nothing.hpp>
+#include <stout/path.hpp>
 #include <stout/try.hpp>
 
+#include <stout/os/fsync.hpp>
 
 namespace os {
 
-inline Try<Nothing> rename(const std::string& from, const std::string& to)
+// Rename a given path to another one. If `sync` is set to true, `fsync()` will
+// be called on both the source directory and the destination directory to
+// ensure that the result is committed to their filesystems.
+//
+// NOTE: This function can fail with `sync` set to true if either the source
+// directory or the destination directory gets removed before it returns. If
+// multiple processes or threads access to the filesystems concurrently, the
+// caller should either enforce a proper synchronization, or set `sync` to false
+// and call `fsync()` explicitly on POSIX systems to handle such failures.
+inline Try<Nothing> rename(
+    const std::string& from,
+    const std::string& to,
+    bool sync = false)
 {
   if (::rename(from.c_str(), to.c_str()) != 0) {
     return ErrnoError();
+  }
+
+  if (sync) {
+    const std::string to_dir = Path(to).dirname();
+    const std::string from_dir = Path(from).dirname();
+
+    std::vector<std::string> dirs = {to_dir};
+    if (from_dir != to_dir) {
+      dirs.emplace_back(from_dir);
+    }
+
+    foreach (const std::string& dir, dirs) {
+      Try<Nothing> fsync = os::fsync(dir);
+
+      if (fsync.isError()) {
+        return Error(
+            "Failed to fsync directory '" + dir + "': " + fsync.error());
+      }
+    }
   }
 
   return Nothing();

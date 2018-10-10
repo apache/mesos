@@ -46,6 +46,7 @@
 #include <stout/try.hpp>
 
 #include <stout/os/close.hpp>
+#include <stout/os/fsync.hpp>
 #include <stout/os/int_fd.hpp>
 #include <stout/os/lseek.hpp>
 #include <stout/os/open.hpp>
@@ -132,8 +133,10 @@ Try<Nothing> write(
 }
 
 
+// A wrapper function for the above `write()` with opening and closing the file.
+// If `sync` is set to true, an `fsync()` will be called before `close()`.
 template <typename T>
-Try<Nothing> write(const std::string& path, const T& t)
+Try<Nothing> write(const std::string& path, const T& t, bool sync = false)
 {
   Try<int_fd> fd = os::open(
       path,
@@ -146,18 +149,28 @@ Try<Nothing> write(const std::string& path, const T& t)
 
   Try<Nothing> result = write(fd.get(), t);
 
-  // NOTE: We ignore the return value of close(). This is because
-  // users calling this function are interested in the return value of
-  // write(). Also an unsuccessful close() doesn't affect the write.
+  if (sync && result.isSome()) {
+    // We call `fsync()` before closing the file instead of opening it with the
+    // `O_SYNC` flag for better performance. See:
+    // http://lkml.iu.edu/hypermail/linux/kernel/0105.3/0353.html
+    result = os::fsync(fd.get());
+  }
+
+  // We ignore the return value of `close()` because users calling this function
+  // are interested in the return value of `write()`, or `fsync()` if `sync` is
+  // set to true. Also an unsuccessful `close()` doesn't affect the write.
   os::close(fd.get());
 
   return result;
 }
 
 
+// A wrapper function to append a protobuf message with opening and closing the
+// file. If `sync` is set to true, an `fsync()` will be called before `close()`.
 inline Try<Nothing> append(
     const std::string& path,
-    const google::protobuf::Message& message)
+    const google::protobuf::Message& message,
+    bool sync = false)
 {
   Try<int_fd> fd = os::open(
       path,
@@ -169,6 +182,12 @@ inline Try<Nothing> append(
   }
 
   Try<Nothing> result = write(fd.get(), message);
+
+  if (sync && result.isSome()) {
+    // We call `fsync()` before closing the file instead of opening it with the
+    // `O_SYNC` flag for better performance.
+    result = os::fsync(fd.get());
+  }
 
   // NOTE: We ignore the return value of close(). This is because
   // users calling this function are interested in the return value of

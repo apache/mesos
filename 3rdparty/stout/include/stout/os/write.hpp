@@ -20,6 +20,7 @@
 #include <stout/try.hpp>
 
 #include <stout/os/close.hpp>
+#include <stout/os/fsync.hpp>
 #include <stout/os/int_fd.hpp>
 #include <stout/os/open.hpp>
 #include <stout/os/socket.hpp>
@@ -29,7 +30,6 @@
 #else
 #include <stout/os/posix/write.hpp>
 #endif // __WINDOWS__
-
 
 namespace os {
 
@@ -110,9 +110,12 @@ inline Try<Nothing> write(int_fd fd, const std::string& message)
 }
 
 
-// A wrapper function that wraps the above write() with
-// open and closing the file.
-inline Try<Nothing> write(const std::string& path, const std::string& message)
+// A wrapper function for the above `write()` with opening and closing the file.
+// If `sync` is set to true, an `fsync()` will be called before `close()`.
+inline Try<Nothing> write(
+    const std::string& path,
+    const std::string& message,
+    bool sync = false)
 {
   Try<int_fd> fd = os::open(
       path,
@@ -125,9 +128,16 @@ inline Try<Nothing> write(const std::string& path, const std::string& message)
 
   Try<Nothing> result = write(fd.get(), message);
 
-  // We ignore the return value of close(). This is because users
-  // calling this function are interested in the return value of
-  // write(). Also an unsuccessful close() doesn't affect the write.
+  if (sync && result.isSome()) {
+    // We call `fsync()` before closing the file instead of opening it with the
+    // `O_SYNC` flag for better performance. See:
+    // http://lkml.iu.edu/hypermail/linux/kernel/0105.3/0353.html
+    result = os::fsync(fd.get());
+  }
+
+  // We ignore the return value of `close()` because users calling this function
+  // are interested in the return value of `write()`, or `fsync()` if `sync` is
+  // set to true. Also an unsuccessful `close()` doesn't affect the write.
   os::close(fd.get());
 
   return result;
@@ -136,9 +146,12 @@ inline Try<Nothing> write(const std::string& path, const std::string& message)
 
 // NOTE: This overload is necessary to disambiguate between arguments
 // of type `HANDLE` (`typedef void*`) and `char*` on Windows.
-inline Try<Nothing> write(const char* path, const std::string& message)
+inline Try<Nothing> write(
+    const char* path,
+    const std::string& message,
+    bool sync = false)
 {
-  return write(std::string(path), message);
+  return write(std::string(path), message, sync);
 }
 
 } // namespace os {
