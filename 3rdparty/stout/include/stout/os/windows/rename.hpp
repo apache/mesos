@@ -22,10 +22,12 @@
 
 #include <stout/internal/windows/longpath.hpp>
 
-
 namespace os {
 
-inline Try<Nothing> rename(const std::string& from, const std::string& to)
+inline Try<Nothing> rename(
+    const std::string& from,
+    const std::string& to,
+    bool sync = false)
 {
   // Use `MoveFile` to perform the file move. The MSVCRT implementation of
   // `::rename` fails if the `to` file already exists[1], while some UNIX
@@ -41,7 +43,9 @@ inline Try<Nothing> rename(const std::string& from, const std::string& to)
   const BOOL result = ::MoveFileExW(
       ::internal::windows::longpath(from).data(),
       ::internal::windows::longpath(to).data(),
-      MOVEFILE_COPY_ALLOWED | MOVEFILE_REPLACE_EXISTING);
+      MOVEFILE_COPY_ALLOWED |
+        MOVEFILE_REPLACE_EXISTING |
+        (sync ? MOVEFILE_WRITE_THROUGH : 0));
 
   if (!result) {
     return WindowsError(

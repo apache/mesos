@@ -15,9 +15,14 @@
 
 #include <unistd.h>
 
+#include <string>
+
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
 
+#include <stout/os/close.hpp>
+#include <stout/os/int_fd.hpp>
+#include <stout/os/open.hpp>
 
 namespace os {
 
@@ -30,7 +35,27 @@ inline Try<Nothing> fsync(int fd)
   return Nothing();
 }
 
-} // namespace os {
 
+// A wrapper function for the above `fsync()` with opening and closing the file.
+// NOTE: This function is POSIX only and can be used to commit changes to a
+// directory (e.g., renaming files) to the filesystem.
+inline Try<Nothing> fsync(const std::string& path)
+{
+  Try<int_fd> fd = os::open(path, O_RDONLY | O_CLOEXEC);
+
+  if (fd.isError()) {
+    return Error(fd.error());
+  }
+
+  Try<Nothing> result = fsync(fd.get());
+
+  // We ignore the return value of `close()` since any I/O-related failure
+  // scenarios would already have been triggered by `open()` or `fsync()`.
+  os::close(fd.get());
+
+  return result;
+}
+
+} // namespace os {
 
 #endif // __STOUT_OS_POSIX_FSYNC_HPP__
