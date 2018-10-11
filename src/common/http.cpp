@@ -32,6 +32,7 @@
 #include <mesos/quota/quota.hpp>
 
 #include <process/authenticator.hpp>
+#include <process/clock.hpp>
 #include <process/collect.hpp>
 #include <process/dispatch.hpp>
 #include <process/future.hpp>
@@ -1184,6 +1185,20 @@ void logRequest(const process::http::Request& request)
             << (forwardedFor.isSome()
                 ? " with X-Forwarded-For='" + forwardedFor.get() + "'"
                 : "");
+}
+
+
+void logResponse(
+    const process::http::Request& request,
+    const process::http::Response& response)
+{
+  LOG(INFO) << "HTTP " << request.method << " for " << request.url
+            << (request.client.isSome()
+                ? " from " + stringify(request.client.get())
+                : "")
+            << ": '" << response.status << "'"
+            << " after " << (process::Clock::now() - request.received).ms()
+            << Milliseconds::units();
 }
 
 }  // namespace mesos {

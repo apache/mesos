@@ -345,6 +345,17 @@ Try<Nothing> initializeHttpAuthenticators(
 // desired request handler to get consistent request logging.
 void logRequest(const process::http::Request& request);
 
+
+// Log the response for the corresponding request together with the request
+// processing time. Route handlers can compose this with the desired request
+// handler to get consistent request/response logging.
+//
+// TODO(alexr): Consider taking `response` as a future to allow logging for
+// cases when response has not been generated.
+void logResponse(
+    const process::http::Request& request,
+    const process::http::Response& response);
+
 } // namespace mesos {
 
 #endif // __COMMON_HTTP_HPP__
