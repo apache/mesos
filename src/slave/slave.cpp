@@ -798,7 +798,10 @@ void Slave::initialize()
         [this](const http::Request& request,
                const Option<Principal>& principal) {
           logRequest(request);
-          return http.state(request, principal);
+          return http.state(request, principal)
+            .onReady([request](const process::http::Response& response) {
+              logResponse(request, response);
+            });
         });
   route("/flags",
         READONLY_HTTP_AUTHENTICATION_REALM,
@@ -827,7 +830,10 @@ void Slave::initialize()
         [this](const http::Request& request,
                const Option<Principal>& principal) {
           logRequest(request);
-          return http.containers(request, principal);
+          return http.containers(request, principal)
+            .onReady([request](const process::http::Response& response) {
+              logResponse(request, response);
+            });
         });
 
   const PID<Slave> slavePid = self();
