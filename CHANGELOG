@@ -400,6 +400,7 @@ Release Notes - Mesos - Version 1.6.2 (WIP)
   * [MESOS-9274] - v1 JAVA scheduler library can drop TEARDOWN upon destruction.
   * [MESOS-9279] - Docker Containerizer 'usage' call might be expensive if mount table is big.
   * [MESOS-9283] - Docker containerizer actor can get backlogged with large number of containers.
+  * [MESOS-9308] - URI disk profile adaptor could deadlock.
 
 ** Improvement
   * [MESOS-9189] - Include 'Connection: close' header in master streaming API responses.
