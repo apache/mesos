@@ -75,6 +75,8 @@ bool operator==(
     if (iterator->second != right.at(iterator->first)) {
       return false;
     }
+
+    ++iterator;
   }
 
   return true;
