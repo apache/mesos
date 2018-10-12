@@ -41,6 +41,7 @@
 namespace io = process::io;
 
 using process::Clock;
+using process::Future;
 using process::MAX_REAP_INTERVAL;
 using process::Subprocess;
 using process::subprocess;
@@ -1046,6 +1047,82 @@ TEST_F(SubprocessTest, EnvironmentOverride)
 
   AWAIT_EXPECT_WEXITSTATUS_EQ(0, s->status());
 }
+
+
+#ifdef __linux__
+// This test verifies:
+//   1. The subprocess will have the stdio file descriptors.
+//   2. The whitelisted file descriptors will be successfully
+//      inherited by the subprocess.
+//   3. The non-whitelisted file descriptors will be not be
+//      inherited by the subprocess.
+TEST_F(SubprocessTest, WhiteListFds)
+{
+  Try<int_fd> fd1 = os::open(
+      path::join(os::getcwd(), id::UUID::random().toString()),
+      O_CREAT | O_EXCL | O_RDONLY | O_CLOEXEC);
+
+  Try<int_fd> fd2 = os::open(
+      path::join(os::getcwd(), id::UUID::random().toString()),
+      O_CREAT | O_EXCL | O_RDONLY);
+
+  ASSERT_SOME(fd1);
+  ASSERT_SOME(fd2);
+
+  Try<Subprocess> s = subprocess(
+      "ls /dev/fd",
+      Subprocess::FD(STDIN_FILENO),
+      Subprocess::PIPE(),
+      Subprocess::FD(STDERR_FILENO),
+      None(),
+      None(),
+      {},
+      {},
+      {fd1.get()});
+
+  ASSERT_SOME(s);
+  ASSERT_SOME(s->out());
+
+  Future<string> output = io::read(s->out().get());
+  AWAIT_READY(output);
+
+  hashset<int_fd> fds;
+
+  vector<string> tokens = strings::tokenize(output.get(), "\n");
+  foreach (const string& fdString, tokens) {
+    Try<int_fd> fd = numify<int_fd>(fdString);
+    ASSERT_SOME(fd);
+
+    fds.insert(fd.get());
+  }
+
+  // The subprocess should always have the stdio file descriptors.
+  EXPECT_TRUE(fds.contains(STDIN_FILENO));
+  EXPECT_TRUE(fds.contains(STDOUT_FILENO));
+  EXPECT_TRUE(fds.contains(STDERR_FILENO));
+
+  // `fd1` should be inherited by the subprocess since it is whitelisted even
+  // it has `O_CLOEXEC` set initially.
+  EXPECT_TRUE(fds.contains(fd1.get()));
+
+  // `fd2` should not be inherited by the subprocess since it is not whitelisted
+  // even it has no `O_CLOEXEC` set initially.
+  EXPECT_FALSE(fds.contains(fd2.get()));
+
+  ASSERT_SOME(os::close(fd1.get()));
+  ASSERT_SOME(os::close(fd2.get()));
+
+  // Advance time until the internal reaper reaps the subprocess.
+  Clock::pause();
+  while (s->status().isPending()) {
+    Clock::advance(MAX_REAP_INTERVAL());
+    Clock::settle();
+  }
+  Clock::resume();
+
+  AWAIT_EXPECT_WEXITSTATUS_EQ(0, s->status());
+}
+#endif // __linux__
 
 
 // TODO(joerg84): Consider adding tests for setsid, working_directory,
