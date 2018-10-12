@@ -21,6 +21,7 @@
 #include <memory>
 #include <numeric>
 #include <utility>
+#include <vector>
 
 #include <glog/logging.h>
 
@@ -28,6 +29,7 @@
 #include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/delay.hpp>
+#include <process/dispatch.hpp>
 #include <process/id.hpp>
 #include <process/loop.hpp>
 #include <process/process.hpp>
@@ -88,23 +90,24 @@ using std::shared_ptr;
 using std::string;
 using std::vector;
 
+using process::after;
+using process::await;
 using process::Break;
+using process::collect;
 using process::Continue;
 using process::ControlFlow;
+using process::defer;
+using process::delay;
+using process::dispatch;
 using process::Failure;
 using process::Future;
+using process::loop;
 using process::Owned;
 using process::Process;
 using process::Promise;
 using process::Sequence;
-using process::Timeout;
-
-using process::after;
-using process::await;
-using process::collect;
-using process::defer;
-using process::loop;
 using process::spawn;
+using process::Timeout;
 
 using process::http::authentication::Principal;
 
@@ -424,6 +427,8 @@ private:
   Try<Nothing> updateOperationStatus(
       const id::UUID& operationUuid,
       const Try<vector<ResourceConversion>>& conversions);
+
+  void garbageCollectOperationPath(const id::UUID& operationUuid);
 
   void checkpointResourceProviderState();
   void checkpointVolumeState(const string& volumeId);
@@ -1154,7 +1159,16 @@ StorageLocalResourceProviderProcess::reconcileOperationStatuses()
           uuid.error());
     }
 
-    CHECK(operations.contains(uuid.get()));
+    // NOTE: This could happen if we failed to remove the operation path before.
+    if (!operations.contains(uuid.get())) {
+      LOG(WARNING)
+        << "Ignoring unknown operation (uuid: " << uuid.get()
+        << ") for resource provider " << info.id();
+
+      garbageCollectOperationPath(uuid.get());
+      continue;
+    }
+
     operationUuids.emplace_back(std::move(uuid.get()));
   }
 
@@ -1165,25 +1179,21 @@ StorageLocalResourceProviderProcess::reconcileOperationStatuses()
       using StreamState =
         typename OperationStatusUpdateManagerState::StreamState;
 
-      // Clean up the operations that are terminated.
+      // Clean up the operations that are completed.
+      vector<id::UUID> completedOperations;
       foreachpair (const id::UUID& uuid,
                    const Option<StreamState>& stream,
                    statusUpdateManagerState.streams) {
         if (stream.isSome() && stream->terminated) {
           operations.erase(uuid);
-
-          // Garbage collect the operation metadata.
-          const string path = slave::paths::getOperationPath(
-              slave::paths::getResourceProviderPath(
-                  metaDir, slaveId, info.type(), info.name(), info.id()),
-              uuid);
-
-          Try<Nothing> rmdir = os::rmdir(path);
-          if (rmdir.isError()) {
-            return Failure(
-                "Failed to remove directory '" + path + "': " + rmdir.error());
-          }
+          completedOperations.push_back(uuid);
         }
+      }
+
+      // Garbage collect the operation streams after checkpointing.
+      checkpointResourceProviderState();
+      foreach (const id::UUID& uuid, completedOperations) {
+        garbageCollectOperationPath(uuid);
       }
 
       // Send updates for all missing statuses.
@@ -1790,25 +1800,11 @@ void StorageLocalResourceProviderProcess::acknowledgeOperationStatus(
   // acknowledgement will be received. In this case, the following call
   // will fail, so we just leave an error log.
   statusUpdateManager.acknowledgement(operationUuid.get(), statusUuid.get())
-    .then(defer(self(), [=](bool continuation) -> Future<Nothing> {
+    .then(defer(self(), [=](bool continuation) {
       if (!continuation) {
         operations.erase(operationUuid.get());
-
-        // Garbage collect the operation metadata.
-        const string path = slave::paths::getOperationPath(
-            slave::paths::getResourceProviderPath(
-                metaDir, slaveId, info.type(), info.name(), info.id()),
-            operationUuid.get());
-
-        // NOTE: We check if the path exists since we do not checkpoint
-        // some status updates, such as OPERATION_DROPPED.
-        if (os::exists(path)) {
-          Try<Nothing> rmdir = os::rmdir(path);
-          if (rmdir.isError()) {
-            return Failure(
-                "Failed to remove directory '" + path + "': " + rmdir.error());
-          }
-        }
+        checkpointResourceProviderState();
+        garbageCollectOperationPath(operationUuid.get());
       }
 
       return Nothing();
@@ -3436,6 +3432,28 @@ Try<Nothing> StorageLocalResourceProviderProcess::updateOperationStatus(
 }
 
 
+void StorageLocalResourceProviderProcess::garbageCollectOperationPath(
+    const id::UUID& operationUuid)
+{
+  CHECK(!operations.contains(operationUuid));
+
+  const string path = slave::paths::getOperationPath(
+      slave::paths::getResourceProviderPath(
+          metaDir, slaveId, info.type(), info.name(), info.id()),
+      operationUuid);
+
+  // NOTE: We check if the path exists since we do not checkpoint some status
+  // updates, such as OPERATION_DROPPED.
+  if (os::exists(path)) {
+    Try<Nothing> rmdir =  os::rmdir(path);
+    if (rmdir.isError()) {
+      LOG(ERROR)
+        << "Failed to remove directory '" << path << "': " << rmdir.error();
+    }
+  }
+}
+
+
 void StorageLocalResourceProviderProcess::checkpointResourceProviderState()
 {
   ResourceProviderState state;
@@ -3476,7 +3494,9 @@ void StorageLocalResourceProviderProcess::checkpointResourceProviderState()
   const string statePath = slave::paths::getResourceProviderStatePath(
       metaDir, slaveId, info.type(), info.name(), info.id());
 
-  Try<Nothing> checkpoint = slave::state::checkpoint(statePath, state);
+  // NOTE: We ensure the checkpoint is synced to the filesystem to avoid
+  // resulting in a stale or empty checkpoint when a system crash happens.
+  Try<Nothing> checkpoint = slave::state::checkpoint(statePath, state, true);
   CHECK_SOME(checkpoint)
     << "Failed to checkpoint resource provider state to '" << statePath << "': "
     << checkpoint.error();
@@ -3492,8 +3512,10 @@ void StorageLocalResourceProviderProcess::checkpointVolumeState(
       info.storage().plugin().name(),
       volumeId);
 
+  // NOTE: We ensure the checkpoint is synced to the filesystem to avoid
+  // resulting in a stale or empty checkpoint when a system crash happens.
   Try<Nothing> checkpoint =
-    slave::state::checkpoint(statePath, volumes.at(volumeId).state);
+    slave::state::checkpoint(statePath, volumes.at(volumeId).state, true);
 
   CHECK_SOME(checkpoint)
     << "Failed to checkpoint volume state to '" << statePath << "':"

@@ -122,9 +122,10 @@ namespace internal {
 
 inline Try<Nothing> checkpoint(
     const std::string& path,
-    const std::string& message)
+    const std::string& message,
+    bool sync)
 {
-  return ::os::write(path, message);
+  return ::os::write(path, message, sync);
 }
 
 
@@ -133,7 +134,7 @@ template <
     typename std::enable_if<
         std::is_convertible<T*, google::protobuf::Message*>::value,
         int>::type = 0>
-inline Try<Nothing> checkpoint(const std::string& path, T message)
+inline Try<Nothing> checkpoint(const std::string& path, T message, bool sync)
 {
   // If the `Try` from `downgradeResources` returns an `Error`, we currently
   // continue to checkpoint the resources in a partially downgraded state.
@@ -144,13 +145,14 @@ inline Try<Nothing> checkpoint(const std::string& path, T message)
   // TODO(mpark): Do something smarter with the result once
   // something like an agent recovery capability is introduced.
   downgradeResources(&message);
-  return ::protobuf::write(path, message);
+  return ::protobuf::write(path, message, sync);
 }
 
 
 inline Try<Nothing> checkpoint(
     const std::string& path,
-    google::protobuf::RepeatedPtrField<Resource> resources)
+    google::protobuf::RepeatedPtrField<Resource> resources,
+    bool sync)
 {
   // If the `Try` from `downgradeResources` returns an `Error`, we currently
   // continue to checkpoint the resources in a partially downgraded state.
@@ -161,16 +163,17 @@ inline Try<Nothing> checkpoint(
   // TODO(mpark): Do something smarter with the result once
   // something like an agent recovery capability is introduced.
   downgradeResources(&resources);
-  return ::protobuf::write(path, resources);
+  return ::protobuf::write(path, resources, sync);
 }
 
 
 inline Try<Nothing> checkpoint(
     const std::string& path,
-    const Resources& resources)
+    const Resources& resources,
+    bool sync)
 {
   const google::protobuf::RepeatedPtrField<Resource>& messages = resources;
-  return checkpoint(path, messages);
+  return checkpoint(path, messages, sync);
 }
 
 }  // namespace internal {
@@ -187,14 +190,19 @@ inline Try<Nothing> checkpoint(
 //
 // NOTE: We provide atomic (all-or-nothing) semantics here by always
 // writing to a temporary file first then using os::rename to atomically
-// move it to the desired path.
+// move it to the desired path. If `sync` is set to true, this call succeeds
+// only if `fsync` is supported and successfully commits the changes to the
+// filesystem for the checkpoint file and each created directory.
+//
+// TODO(chhsiao): Consider enabling syncing by default after evaluating its
+// performance impact.
 template <typename T>
-Try<Nothing> checkpoint(const std::string& path, const T& t)
+Try<Nothing> checkpoint(const std::string& path, const T& t, bool sync = false)
 {
   // Create the base directory.
   std::string base = Path(path).dirname();
 
-  Try<Nothing> mkdir = os::mkdir(base);
+  Try<Nothing> mkdir = os::mkdir(base, true, sync);
   if (mkdir.isError()) {
     return Error("Failed to create directory '" + base + "': " + mkdir.error());
   }
@@ -211,7 +219,7 @@ Try<Nothing> checkpoint(const std::string& path, const T& t)
   }
 
   // Now checkpoint the instance of T to the temporary file.
-  Try<Nothing> checkpoint = internal::checkpoint(temp.get(), t);
+  Try<Nothing> checkpoint = internal::checkpoint(temp.get(), t, sync);
   if (checkpoint.isError()) {
     // Try removing the temporary file on error.
     os::rm(temp.get());
@@ -221,7 +229,7 @@ Try<Nothing> checkpoint(const std::string& path, const T& t)
   }
 
   // Rename the temporary file to the path.
-  Try<Nothing> rename = os::rename(temp.get(), path);
+  Try<Nothing> rename = os::rename(temp.get(), path, sync);
   if (rename.isError()) {
     // Try removing the temporary file on error.
     os::rm(temp.get());
