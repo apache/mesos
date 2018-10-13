@@ -100,19 +100,19 @@ struct FrameworkProfile
 
 struct AgentProfile
 {
+  // TODO(mzhu): Add option to specify `used` resources. `used` resources
+  // requires the knowledge of `frameworkId` which currently is created
+  // during the initialization which is after the agent profile creation.
   AgentProfile(const string& _name,
                size_t _instances,
-               const Resources& _resources,
-               const hashmap<FrameworkID, Resources>& _usedResources)
+               const Resources& _resources)
     : name(_name),
       instances(_instances),
-      resources(_resources),
-      usedResources(_usedResources) {}
+      resources(_resources) {}
 
   string name;
   size_t instances;
   Resources resources;
-  hashmap<FrameworkID, Resources> usedResources;
 };
 
 
@@ -233,7 +233,7 @@ protected:
             AGENT_CAPABILITIES(),
             None(),
             agent.resources(),
-            profile.usedResources);
+            {});
       }
     }
 
@@ -331,8 +331,7 @@ TEST_F(HierarchicalAllocations_BENCHMARK_TestBase, Allocations)
   config.agentProfiles.push_back(AgentProfile(
       "agent",
       80,
-      CHECK_NOTERROR(Resources::parse("cpus:64;mem:488000")),
-      {}));
+      CHECK_NOTERROR(Resources::parse("cpus:64;mem:488000"))));
 
   // Add framework profiles.
 
