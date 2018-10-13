@@ -67,7 +67,7 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-// TODO(kapil): Add support for per-framework-profile cofiguration for
+// TODO(kapil): Add support for per-framework-profile configuration for
 // offer acceptance/rejection.
 struct FrameworkProfile
 {
