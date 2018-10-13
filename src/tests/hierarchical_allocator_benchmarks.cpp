@@ -71,12 +71,16 @@ namespace tests {
 // offer acceptance/rejection.
 struct FrameworkProfile
 {
-  FrameworkProfile(const string& _name,
-                   const set<string>& _roles,
-                   size_t _instances,
-                   size_t _maxTasksPerInstance,
-                   const Resources& _taskResources,
-                   size_t _maxTasksPerOffer)
+  FrameworkProfile(
+      const string& _name,
+      const set<string>& _roles,
+      size_t _instances,
+      // For frameworks that do not care about launching tasks, we provide
+      // some default task launch settings.
+      size_t _maxTasksPerInstance = 100,
+      const Resources& _taskResources =
+        CHECK_NOTERROR(Resources::parse("cpus:1;mem:100")),
+      size_t _maxTasksPerOffer = 10)
     : name(_name),
       roles(_roles),
       instances(_instances),
