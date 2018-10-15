@@ -223,6 +223,7 @@ class Resource():
     def request(self,
                 method,
                 additional_headers=None,
+                retry=True,
                 timeout=None,
                 auth=None,
                 use_gzip_encoding=None,
@@ -236,6 +237,8 @@ class Resource():
         :type method: str
         :param additional_headers: additional headers to include in the request
         :type additional_headers: dict[str, str]
+        :param retry: boolean indicating whether to retry if the request fails
+        :type retry: boolean
         :param timeout: timeout in seconds, overrides default_timeout_secs
         :type timeout: float
         :param timeout: timeout in seconds
@@ -254,26 +257,29 @@ class Resource():
         :return: HTTP response
         :rtype: requests.Response
         """
-        if max_attempts is None:
-            max_attempts = self.default_max_attempts
+        request = self._request
 
-        # We retry only when it makes sense: either due to a network partition
-        # (e.g. connection errors) or if the request failed due to a server
-        # error such as 500s, timeouts, and so on.
-        request_with_retry = tenacity.retry(
-            stop=tenacity.stop_after_attempt(max_attempts),
-            wait=tenacity.wait_exponential(),
-            retry=tenacity.retry_if_exception_type((
-                requests.exceptions.Timeout,
-                requests.exceptions.ConnectionError,
-                MesosServiceUnavailableException,
-                MesosInternalServerErrorException,
-            )),
-            reraise=True,
-        )(self._request)
+        if retry:
+            if max_attempts is None:
+                max_attempts = self.default_max_attempts
+
+            # We retry only when it makes sense: either due to a network
+            # partition (e.g. connection errors) or if the request failed
+            # due to a server error such as 500s, timeouts, and so on.
+            request = tenacity.retry(
+                stop=tenacity.stop_after_attempt(max_attempts),
+                wait=tenacity.wait_exponential(),
+                retry=tenacity.retry_if_exception_type((
+                    requests.exceptions.Timeout,
+                    requests.exceptions.ConnectionError,
+                    MesosServiceUnavailableException,
+                    MesosInternalServerErrorException,
+                )),
+                reraise=True,
+            )(request)
 
         try:
-            return request_with_retry(
+            return request(
                 method=method,
                 additional_headers=additional_headers,
                 timeout=timeout,
