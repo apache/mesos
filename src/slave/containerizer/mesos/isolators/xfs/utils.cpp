@@ -356,6 +356,29 @@ static Try<Nothing> setProjectIdRecursively(
 
   for (FTSENT *node = ::fts_read(tree);
        node != nullptr; node = ::fts_read(tree)) {
+    // FTS handles crossing devices (because we use the FTS_XDEV flag), but
+    // doesn't know anything about bind mounts made on the same device. Linux
+    // doesn't have a direct API for detecting whether a vnode is a mount
+    // point, and we prefer to not take the performance cost of looking up
+    // each directory in /proc/mounts. We take advantage of the contract
+    // that the path lookup checks mount crossings before checking whether
+    // the rename is valid. This means that if we attempt an invalid rename
+    // operation (i.e. renaming the parent directory to its child), checking
+    // for EXDEV tells us whether a mount was crossed.
+    //
+    // See http://blog.schmorp.de/2016-03-03-detecting-a-mount-point.html
+    if (node->fts_info == FTS_D && node->fts_level > 0) {
+      CHECK_EQ(-1, ::rename(
+          path::join(node->fts_path, "..").c_str(), node->fts_path));
+
+      // If this is a mount point, don't descend any further. Once we skip,
+      // FTS will not show us any of the files in this directory.
+      if (errno == EXDEV) {
+        ::fts_set(tree, node, FTS_SKIP);
+        continue;
+      }
+    }
+
     if (node->fts_info == FTS_D || node->fts_info == FTS_F) {
       Try<Nothing> status = internal::setProjectId(
           node->fts_path, *node->fts_statp, projectId);
