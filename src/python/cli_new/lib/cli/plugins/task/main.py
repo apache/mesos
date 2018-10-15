@@ -56,7 +56,13 @@ class Task(PluginBase):
             raise CLIException("Unable to get leading master address: {error}"
                                .format(error=exception))
 
-        tasks = get_tasks(master)
+        try:
+            tasks = get_tasks(master)
+        except Exception as exception:
+            raise CLIException("Unable to get tasks from leading"
+                               " master '{master}': {error}"
+                               .format(master=master, error=exception))
+
         if not tasks:
             print("There are no tasks running in the cluster.")
             return

@@ -57,7 +57,13 @@ class Agent(PluginBase):
             raise CLIException("Unable to get leading master address: {error}"
                                .format(error=exception))
 
-        agents = get_agents(master)
+        try:
+            agents = get_agents(master)
+        except Exception as exception:
+            raise CLIException("Unable to get agents from leading"
+                               " master '{master}': {error}"
+                               .format(master=master, error=exception))
+
         if not agents:
             print("The cluster does not have any agents.")
             return
