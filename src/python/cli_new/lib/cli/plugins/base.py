@@ -40,7 +40,7 @@ Usage:
   mesos {plugin} (-h | --help)
   mesos {plugin} --version
   mesos {plugin} <command> (-h | --help)
-  mesos {plugin} <command> [<args>...] [options]
+  mesos {plugin} [options] <command> [<args>...]
 
 Options:
   -h --help  Show this screen.
@@ -56,7 +56,7 @@ SUBCOMMAND_USAGE = \
 Usage:
   mesos {plugin} {command} (-h | --help)
   mesos {plugin} {command} --version
-  mesos {plugin} {command} {arguments} [options]
+  mesos {plugin} {command} [options] {arguments}
 
 Options:
 {flags}
