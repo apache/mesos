@@ -51,8 +51,8 @@ def get_agents(master):
         data = http.get_json(master, endpoint)
     except Exception as exception:
         raise CLIException(
-            "Could not open '/{endpoint}' on master address '{addr}': {error}"
-            .format(endpoint=endpoint, addr=master, error=exception))
+            "Could not open '/{endpoint}' on master: {error}"
+            .format(endpoint=endpoint, error=exception))
 
     if not key in data:
         raise CLIException(
@@ -74,8 +74,8 @@ def get_tasks(master):
         data = http.get_json(master, endpoint)
     except Exception as exception:
         raise CLIException(
-            "Could not open '/{endpoint}' on master address '{addr}': {error}"
-            .format(endpoint=endpoint, addr=master, error=exception))
+            "Could not open '/{endpoint}' on master: {error}"
+            .format(endpoint=endpoint, error=exception))
 
     if not key in data:
         raise CLIException(
