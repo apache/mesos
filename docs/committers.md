@@ -22,7 +22,9 @@ Mesos project and its community, by acting according to the
 for Apache projects. Specifically for the Mesos project, you can make use of the
 [Apache Mesos Committer Candidate Guidelines](committer-candidate-guidelines.md)
 for suggestions of what kind of contributions and demonstrated behaviors can be
-instrumental, and to keep track of your progress.
+instrumental, and to keep track of your progress. For your reference, this is
+[the template](https://docs.google.com/document/d/1RBShT_kSqWqvG7HOzQhpNINGd17ZkJXGY7vMyxTZZXg/edit)
+committers usually use when they nominate cadidates.
 
 ## Current Committers
 

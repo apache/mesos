@@ -13,6 +13,10 @@ diverse committer profiles. But some categories are always crucial to have
 covered, e.g., writing high quality source code and performing meaningful code
 reviews.
 
+For your reference, this is
+[the template](https://docs.google.com/document/d/1RBShT_kSqWqvG7HOzQhpNINGd17ZkJXGY7vMyxTZZXg/edit)
+committers usually use when they nominate cadidates.
+
 * Understanding of the Apache philosophy ([The Apache Way](http://theapacheway.com)).
 
 * Understanding of the Mesos project's goals.
