@@ -57,6 +57,16 @@ TEST(UUIDTest, Test)
 }
 
 
+TEST(UUIDTest, Metadata)
+{
+  UUID uuid = UUID::random();
+
+  EXPECT_EQ(16u, uuid.size());
+  EXPECT_EQ(UUID::variant_rfc_4122, uuid.variant());
+  EXPECT_EQ(UUID::version_random_number_based, uuid.version());
+}
+
+
 TEST(UUIDTest, MalformedUUID)
 {
   EXPECT_SOME(UUID::fromBytes(UUID::random().toBytes()));
