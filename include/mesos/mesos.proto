@@ -1981,7 +1981,26 @@ message Offer {
       required Value.Scalar subtract = 2;
     }
 
-    // Create a `MOUNT` or `BLOCK` disk resource from a `RAW` disk resource.
+    // Create a `MOUNT` or `BLOCK` disk resource backed by a CSI volume from a
+    // `RAW` disk resource.
+    //
+    // In the typical case where the `RAW` disk resource has a profile and no
+    // source ID, a new CSI volume will be provisioned by Mesos to back the
+    // returned `MOUNT` or `BLOCK` disk resource. However, the `RAW` disk
+    // resource can instead have no profile but a source ID, indicating that
+    // it is already backed by a CSI volume in one of the following scenarios:
+    //
+    // (1) The CSI volume is preprovisioned out-of-band.
+    //
+    // (2) The CSI volume is provisioned by Mesos, but Mesos has lost the
+    //     corresponding `MOUNT` or `BLOCK` resource metadata. This could
+    //     happen if there has been a change in the agent ID or resource
+    //     provider ID where the volume belongs.
+    //
+    // In the above cases, Mesos won't provision a new CSI volume, but instead
+    // will simply return a `MOUNT` or `BLOCK` disk resource backed by the same
+    // CSI volume, with the profile specified in this call.
+    //
     // NOTE: For the time being, this API is subject to change and the related
     // feature is experimental.
     message CreateDisk {
@@ -1989,10 +2008,31 @@ message Offer {
 
       // NOTE: Only `MOUNT` or `BLOCK` is allowed in the `target_type` field.
       required Resource.DiskInfo.Source.Type target_type = 2;
+
+      // Apply the specified profile to the created disk. This field must be set
+      // if `source` does not have a profile, and must not be set if it has one.
+      //
+      // NOTE: The operation will fail If the specified profile is unknown to
+      // Mesos, i.e., not reported by the disk profile adaptor.
+      optional string target_profile = 3;
     }
 
-    // Destroy a `MOUNT` or `BLOCK` disk resource. This will result in a `RAW`
-    // disk resource.
+    // Destroy a `MOUNT` or `BLOCK` disk resource backed by a CSI volume.
+    //
+    // In the typical case where the CSI plugin of the volume supports volume
+    // deprovisioning and the profile of the disk resource is known to Mesos,
+    // the volume will be deprovisioned and a `RAW` disk resource with the same
+    // profile but no source ID will be returned. However, the following corner
+    // cases could lead to different outcomes:
+    //
+    // (1) If the CSI plugin supports volume deprovisioning but the profile of
+    //     the disk resource is no longer reported by the disk profile adaptor,
+    //     the volume will be deprovisioned but no resource will be returned.
+    //
+    // (2) If the CSI plugin does not support volume deprovisioning, the volume
+    //     won't be deprovisioned and a `RAW` disk resource with no profile but
+    //     the same source ID will be returned.
+    //
     // NOTE: For the time being, this API is subject to change and the related
     // feature is experimental.
     message DestroyDisk {
