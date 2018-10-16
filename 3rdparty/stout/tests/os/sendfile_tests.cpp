@@ -142,14 +142,16 @@ TEST_F(OsSendfileTest, Sendfile)
 
   // Construct a socket pair and use sendfile to transmit the text.
   int_fd s[2];
+
 #ifdef __WINDOWS__
   Try<std::array<int_fd, 2>> s_ = socketpair();
+#else
+  Try<std::array<int_fd, 2>> s_ = net::socketpair(AF_UNIX, SOCK_STREAM, 0);
+#endif // __WINDOWS__
+
   ASSERT_SOME(s_);
   s[0] = s_.get()[0];
   s[1] = s_.get()[1];
-#else
-  ASSERT_NE(-1, socketpair(AF_UNIX, SOCK_STREAM, 0, s)) << os::strerror(errno);
-#endif // __WINDOWS__
 
   Try<ssize_t, SocketError> length =
     os::sendfile(s[0], fd.get(), 0, LOREM_IPSUM.size());

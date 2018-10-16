@@ -13,11 +13,20 @@
 #ifndef __STOUT_OS_POSIX_SOCKET_HPP__
 #define __STOUT_OS_POSIX_SOCKET_HPP__
 
+#include <array>
+
 #include <errno.h>
 #include <unistd.h>
 
 #include <sys/socket.h>
 #include <sys/stat.h>
+
+#include <stout/error.hpp>
+#include <stout/nothing.hpp>
+#include <stout/try.hpp>
+
+#include <stout/os/int_fd.hpp>
+#include <stout/os/fcntl.hpp>
 
 namespace net {
 
@@ -82,6 +91,72 @@ inline bool is_socket(int fd)
   }
 
   return S_ISSOCK(statbuf.st_mode) != 0;
+}
+
+
+inline Try<std::array<int_fd, 2>> socketpair(int family, int type, int protocol)
+{
+  std::array<int_fd, 2> result;
+
+#if __APPLE__ || !defined(SOCK_CLOEXEC)
+  auto close = [](const std::array<int_fd, 2>& fds) {
+    int errsav = errno;
+    ::close(fds[0]);
+    ::close(fds[1]);
+    errno = errsav;
+  };
+#endif
+
+#if defined(SOCK_CLOEXEC)
+  type |= SOCK_CLOEXEC;
+#endif
+
+  if (::socketpair(family, type, 0, result.data()) != 0) {
+    return ErrnoError();
+  }
+
+#if !defined(SOCK_CLOEXEC)
+  Try<Nothing> cloexec = Nothing();
+
+  cloexec = os::cloexec(result[0]);
+  if (cloexec.isError()) {
+    close(result);
+    return Error("Failed to cloexec socket: " + cloexec.error());
+  }
+
+  cloexec = os::cloexec(result[1]);
+  if (cloexec.isError()) {
+    close(result);
+    return Error("Failed to cloexec socket: " + cloexec.error());
+  }
+#endif
+
+#ifdef __APPLE__
+  // Disable SIGPIPE to be consistent with net::socket().
+  const int enable = 1;
+
+  if (::setsockopt(
+        result[0],
+        SOL_SOCKET,
+        SO_NOSIGPIPE,
+        &enable,
+        sizeof(enable)) == -1) {
+    close(result);
+    return ErrnoError("Failed to clear sigpipe");
+  }
+
+  if (::setsockopt(
+        result[1],
+        SOL_SOCKET,
+        SO_NOSIGPIPE,
+        &enable,
+        sizeof(enable)) == -1) {
+    close(result);
+    return ErrnoError("Failed to clear sigpipe");
+  }
+#endif // __APPLE__
+
+  return result;
 }
 
 } // namespace net {
