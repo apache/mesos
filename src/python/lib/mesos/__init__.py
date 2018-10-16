@@ -20,6 +20,7 @@ Client library for the Mesos HTTP ReST API
 
 __version__ = '0.0.0.dev'
 
-__all__ = ['exceptions', 'http']
+__all__ = ['exceptions', 'http', 'recordio']
 from . import exceptions
 from . import http
+from . import recordio
