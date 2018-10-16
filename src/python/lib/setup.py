@@ -18,9 +18,10 @@
 Setup script for the mesos package
 """
 
-from setuptools import find_packages, setup
+import os
+import re
 
-from mesos import __version__
+from setuptools import find_packages, setup
 
 
 def read_requirements(filename="requirements.in"):
@@ -34,6 +35,25 @@ def read_requirements(filename="requirements.in"):
     with open(filename) as f:
         return f.readlines()
 
+def find_version(*relative_path_parts):
+    """
+    Find the version string in a file relative to the current directory.
+
+    :param relative_path_parts: list of path parts relative
+                                to the current directory where
+                                the file containing the __version__
+                                string lives
+    :type relative_path_parts: list[str]
+    :rtype: str
+    """
+    currdir = os.path.abspath(os.path.dirname(__file__))
+    version_file = os.path.join(currdir, *relative_path_parts)
+
+    with open(version_file, 'r') as f:
+        match = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]", f.read(), re.M)
+        if not match:
+            raise RuntimeError("Unable to find version string.")
+        return match.group(1)
 
 setup(
     author='Apache Mesos',
@@ -44,6 +64,6 @@ setup(
     license='apache',
     name='mesos',
     packages=find_packages(),
-    version=__version__,
+    version=find_version('mesos', '__init__.py'),
     zip_safe=False,
 )
