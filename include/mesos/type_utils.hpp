@@ -510,11 +510,11 @@ inline std::ostream& operator<<(
 namespace std {
 
 template <>
-struct hash<mesos::CommandInfo_URI>
+struct hash<mesos::CommandInfo::URI>
 {
   typedef size_t result_type;
 
-  typedef mesos::CommandInfo_URI argument_type;
+  typedef mesos::CommandInfo::URI argument_type;
 
   result_type operator()(const argument_type& uri) const
   {
@@ -529,6 +529,7 @@ struct hash<mesos::CommandInfo_URI>
     }
 
     boost::hash_combine(seed, uri.value());
+    boost::hash_combine(seed, uri.output_file());
     return seed;
   }
 };

@@ -529,6 +529,7 @@ struct hash<mesos::v1::CommandInfo::URI>
     }
 
     boost::hash_combine(seed, uri.value());
+    boost::hash_combine(seed, uri.output_file());
     return seed;
   }
 };
