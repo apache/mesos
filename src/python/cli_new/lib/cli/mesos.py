@@ -63,6 +63,35 @@ def get_agents(master):
     return data[key]
 
 
+def get_container_id(task):
+    """
+    Get the container ID of a task.
+    """
+
+    if 'statuses' not in task:
+        raise CLIException("Unable to obtain status information for task")
+
+    statuses = task['statuses']
+    if not statuses:
+        raise CLIException("No status updates available for task")
+
+    # It doesn't matter which status we use to get the `container_id`, if the
+    # `container_id` has been set for the task, all statuses will contain it.
+    if not 'container_status' in statuses[0]:
+        raise CLIException("Task status does not contain container information")
+
+    container_status = statuses[0]['container_status']
+    if 'container_id' in container_status:
+        container_id = container_status['container_id']
+        if 'value' in container_id:
+            return container_id
+
+    raise CLIException(
+        "No container found for the specified task."
+        " It might still be spinning up."
+        " Please try again.")
+
+
 def get_tasks(master):
     """
     Get the tasks in a Mesos cluster.
