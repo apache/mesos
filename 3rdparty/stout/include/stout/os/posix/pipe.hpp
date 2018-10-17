@@ -35,7 +35,7 @@ inline Try<std::array<int, 2>> pipe()
   std::array<int, 2> result;
 
   // The pipe2() function appeared in FreeBSD 10.0.
-#if defined(_FreeBSD__) && __FreeBSD_version >= 1000000
+#if defined(__FreeBSD__) && __FreeBSD_version >= 1000000
 
   if (::pipe2(result.data(), O_CLOEXEC) < 0) {
     return ErrnoError();
