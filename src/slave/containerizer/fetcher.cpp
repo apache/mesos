@@ -406,9 +406,22 @@ Future<Nothing> FetcherProcess::fetch(
   // entry.
   hashmap<CommandInfo::URI, Option<Future<shared_ptr<Cache::Entry>>>> entries;
 
+  // When we create new entries, we need to track whether we already have
+  // a entry for the corresponding URI value. This handles the case where
+  // multiple entries have the same URI value (but hash differently because
+  // they differ in other fields). If we see the same URI value multiple
+  // times, then we simply add references the initial entry.
+  hashmap<string, shared_ptr<Cache::Entry>> newEntries;
+
   foreach (const CommandInfo::URI& uri, commandInfo.uris()) {
     if (!uri.cache()) {
       entries[uri] = None();
+      continue;
+    }
+
+    if (newEntries.contains(uri.value())) {
+      newEntries[uri.value()]->reference();
+      entries[uri] = newEntries.at(uri.value());
       continue;
     }
 
@@ -429,6 +442,7 @@ Future<Nothing> FetcherProcess::fetch(
       shared_ptr<Cache::Entry> newEntry =
         cache.create(cacheDirectory, commandUser, uri);
 
+      newEntries.put(uri.value(), newEntry);
       newEntry->reference();
 
       entries[uri] =

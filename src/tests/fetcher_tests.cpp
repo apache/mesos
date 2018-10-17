@@ -129,6 +129,61 @@ TEST_F(FetcherTest, FileURI)
 }
 
 
+// Verify that the fetcher cache correctly handles duplicates
+// of the same URI in the CommandInfo.
+TEST_F(FetcherTest, DuplicateFileURI)
+{
+  string fromDir = path::join(os::getcwd(), "from");
+  ASSERT_SOME(os::mkdir(fromDir));
+  string testFile = path::join(fromDir, "test");
+  EXPECT_SOME(os::write(testFile, "data"));
+
+  slave::Flags flags;
+  flags.launcher_dir = getLauncherDir();
+
+  ContainerID containerId;
+  containerId.set_value(id::UUID::random().toString());
+
+  CommandInfo commandInfo;
+
+  commandInfo.add_uris()->set_value(uri::from_path(testFile));
+  commandInfo.add_uris()->set_value(uri::from_path(testFile));
+  commandInfo.add_uris()->set_value(uri::from_path(testFile));
+
+  // Make each URI container different, even though they all
+  // refer to the same URI.
+  commandInfo.mutable_uris(0)->set_cache(true);
+  commandInfo.mutable_uris(1)->set_cache(true);
+  commandInfo.mutable_uris(2)->set_cache(true);
+  commandInfo.mutable_uris(0)->set_output_file("one");
+  commandInfo.mutable_uris(1)->set_output_file("two");
+  commandInfo.mutable_uris(2)->set_output_file("three");
+
+  EXPECT_FALSE(os::exists("one"));
+  EXPECT_FALSE(os::exists("two"));
+  EXPECT_FALSE(os::exists("three"));
+
+  Fetcher fetcher(flags);
+
+  Future<Nothing> fetch = fetcher.fetch(
+      containerId, commandInfo, os::getcwd(), None());
+  AWAIT_READY(fetch);
+
+  EXPECT_TRUE(os::exists("one"));
+  EXPECT_TRUE(os::exists("two"));
+  EXPECT_TRUE(os::exists("three"));
+
+  // This is still only 1 task fetch.
+  verifyMetrics(1, 0);
+
+  // We should have only consumed cache space for a single URI.
+  JSON::Object metrics = Metrics();
+  EXPECT_SOME_EQ(
+    os::stat::size(testFile)->bytes(),
+    metrics.at<JSON::Number>("containerizer/fetcher/cache_size_used_bytes"));
+}
+
+
 TEST_F(FetcherTest, LogSuccessToStderr)
 {
   // Valid test file with data.
@@ -169,7 +224,7 @@ TEST_F(FetcherTest, LogSuccessToStderr)
   const Try<string> stderrContent = os::read(stderrFile);
   EXPECT_SOME(stderrContent);
   EXPECT_TRUE(strings::contains(
-      stderrContent.get(), "Fetching directly into the sandbox directory"));
+      stderrContent.get(), "directly into the sandbox directory"));
   EXPECT_TRUE(strings::contains(
       stderrContent.get(), "Successfully fetched all URIs into"));
 }

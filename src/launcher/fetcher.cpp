@@ -222,8 +222,6 @@ static Try<string> download(
   // Trim leading whitespace for 'sourceUri'.
   const string sourceUri = strings::trim(_sourceUri, strings::PREFIX);
 
-  LOG(INFO) << "Fetching URI '" << sourceUri << "'";
-
   Try<Nothing> validation = Fetcher::validateUri(sourceUri);
   if (validation.isError()) {
     return Error(validation.error());
@@ -289,7 +287,8 @@ static Try<string> fetchBypassingCache(
     const Option<string>& frameworksHome,
     const Option<Duration>& stallTimeout)
 {
-  LOG(INFO) << "Fetching directly into the sandbox directory";
+  LOG(INFO) << "Fetching '" << uri.value()
+            << "' directly into the sandbox directory";
 
   // TODO(mrbrowning): Factor out duplicated processing of "output_file" field
   // here and in fetchFromCache into a separate helper function.
@@ -347,7 +346,7 @@ static Try<string> fetchFromCache(
     const string& cacheDirectory,
     const string& sandboxDirectory)
 {
-  LOG(INFO) << "Fetching from cache";
+  LOG(INFO) << "Fetching URI '" << item.uri().value() << "' from cache";
 
   if (item.uri().has_output_file()) {
     string dirname = Path(item.uri().output_file()).dirname();
@@ -428,16 +427,19 @@ static Try<string> fetchThroughCache(
     << "Fetcher cache directory was expected to exist but was not found";
 
   if (item.action() == FetcherInfo::Item::DOWNLOAD_AND_CACHE) {
-    LOG(INFO) << "Downloading into cache";
+    const string cachePath =
+      path::join(cacheDirectory.get(), item.cache_filename());
 
-    Try<string> downloaded = download(
-        item.uri().value(),
-        path::join(cacheDirectory.get(), item.cache_filename()),
-        frameworksHome,
-        stallTimeout);
+    if (!os::exists(cachePath)) {
+      Try<string> downloaded = download(
+          item.uri().value(),
+          cachePath,
+          frameworksHome,
+          stallTimeout);
 
-    if (downloaded.isError()) {
-      return Error(downloaded.error());
+      if (downloaded.isError()) {
+        return Error(downloaded.error());
+      }
     }
   }
 
