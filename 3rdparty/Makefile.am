@@ -310,6 +310,8 @@ LIB_GRPC = $(GRPC)/libs/opt/libgrpc++.a		\
 
 $(LIB_GRPC): $(GRPC)-build-stamp
 
+# We use EXTRA_CPPFLAGS to pass `-Wno-error`, because that one needs to be
+# appended and not prepended to the constructed flags.
 $(GRPC)-build-stamp: $(GRPC)-stamp		\
                      $(PROTOBUF)-build-stamp
 	cd $(GRPC) &&				\
@@ -320,6 +322,7 @@ $(GRPC)-build-stamp: $(GRPC)-stamp		\
 	           $(SSL_LINKER_FLAGS)		\
 	           $(ZLIB_LINKER_FLAGS)"	\
 	  $(MAKE) $(AM_MAKEFLAGS)		\
+	          EXTRA_CPPFLAGS=-Wno-error	\
 	          HAS_PKG_CONFIG=false		\
 	          NO_PROTOC=false		\
 	          PROTOC=$(PROTOC)
