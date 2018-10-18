@@ -51,8 +51,10 @@ SITE_PACKAGES=$(python -c "from distutils.sysconfig import get_python_lib; print
 echo ${SITE_PACKAGES}
 echo "${CURRDIR}/lib" > ${SITE_PACKAGES}/_virtualenv_path_extensions.pth
 python -m pip install --upgrade pip
-python -m pip install -r ${CURRDIR}/pip-requirements.txt
-python -m pip install -r ${CURRDIR}/../lib/requirements.in
+cd ${CURRDIR}
+python -m pip install -r pip-requirements.txt
+python -m pip install -r ../lib/requirements.in
+cd -
 deactivate
 
 # Add custom postactivate / predeactivate scripts to add / remove
