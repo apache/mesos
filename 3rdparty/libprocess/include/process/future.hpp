@@ -707,7 +707,12 @@ public:
   explicit Promise(const T& t);
   virtual ~Promise();
 
-  Promise(Promise<T>&& that);
+  // Not copyable, not assignable.
+  Promise(const Promise& that) = delete;
+  Promise(Promise&& that) = default;
+  Promise& operator=(const Promise&) = delete;
+  Promise& operator=(Promise&&) = default;
+
 
   bool discard();
   bool set(const T& _t);
@@ -727,10 +732,6 @@ private:
 
   template <typename U>
   bool _set(U&& u);
-
-  // Not copyable, not assignable.
-  Promise(const Promise<T>&);
-  Promise<T>& operator=(const Promise<T>&);
 
   // Helper for doing the work of actually discarding a future (called
   // from Promise::discard as well as internal::discarded).
@@ -802,11 +803,6 @@ Promise<T>::~Promise()
     f.abandon();
   }
 }
-
-
-template <typename T>
-Promise<T>::Promise(Promise<T>&& that)
-  : f(std::move(that.f)) {}
 
 
 template <typename T>
