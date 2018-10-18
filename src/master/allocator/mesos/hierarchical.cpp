@@ -2705,7 +2705,7 @@ bool HierarchicalAllocatorProcess::isCapableOfReceivingAgent(
   // frameworks that are capable of receiving GPUs.
   // See MESOS-5634.
   if (filterGpuResources && !frameworkCapabilities.gpuResources &&
-      slave.getTotal().gpus().getOrElse(0) > 0) {
+      slave.hasGpu()) {
     return false;
   }
 

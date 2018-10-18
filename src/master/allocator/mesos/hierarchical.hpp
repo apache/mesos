@@ -115,7 +115,8 @@ public:
       activated(_activated),
       total(_total),
       allocated(_allocated),
-      shared(_total.shared())
+      shared(_total.shared()),
+      hasGpu_(_total.gpus().getOrElse(0) > 0)
   {
     updateAvailable();
   }
@@ -126,9 +127,12 @@ public:
 
   const Resources& getAvailable() const { return available; }
 
+  bool hasGpu() const { return hasGpu_; }
+
   void updateTotal(const Resources& newTotal) {
     total = newTotal;
     shared = total.shared();
+    hasGpu_ = total.gpus().getOrElse(0) > 0;
 
     updateAvailable();
   }
@@ -249,6 +253,9 @@ private:
 
   // We keep a copy of the shared resources to avoid unnecessary copying.
   Resources shared;
+
+  // We cache whether the agent has gpus as an optimization.
+  bool hasGpu_;
 };
 
 
