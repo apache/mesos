@@ -45,9 +45,6 @@ class RegistrarProcess;
 class RegistryOperation : public process::Promise<bool>
 {
 public:
-  RegistryOperation() : success(false) {}
-  ~RegistryOperation() override {}
-
   // Attempts to invoke the operation on the registry object.
   // Aided by accumulator(s):
   //   slaveIDs - is the set of registered slaves.
@@ -70,7 +67,7 @@ protected:
   virtual Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs) = 0;
 
 private:
-  bool success;
+  bool success = false;
 };
 
 
