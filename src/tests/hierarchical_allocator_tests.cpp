@@ -248,15 +248,6 @@ protected:
     return frameworkInfo;
   }
 
-  static Quota createQuota(const string& role, const string& resources)
-  {
-    mesos::quota::QuotaInfo quotaInfo;
-    quotaInfo.set_role(role);
-    quotaInfo.mutable_guarantee()->CopyFrom(Resources::parse(resources).get());
-
-    return Quota{quotaInfo};
-  }
-
   Resources createRevocableResources(
       const string& name,
       const string& value,
@@ -265,15 +256,6 @@ protected:
     Resource resource = Resources::parse(name, value, role).get();
     resource.mutable_revocable();
     return resource;
-  }
-
-  static WeightInfo createWeightInfo(const string& role, double weight)
-  {
-    WeightInfo weightInfo;
-    weightInfo.set_role(role);
-    weightInfo.set_weight(weight);
-
-    return weightInfo;
   }
 
 protected:

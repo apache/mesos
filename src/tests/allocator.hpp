@@ -39,6 +39,14 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
+// Allocator test helpers.
+
+Quota createQuota(const std::string& role, const std::string& resources);
+
+
+WeightInfo createWeightInfo(const std::string& role, double weight);
+
+
 // The following actions make up for the fact that DoDefault
 // cannot be used inside a DoAll, for example:
 // EXPECT_CALL(allocator, addFramework(_, _, _, _, _))

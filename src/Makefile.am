@@ -2450,6 +2450,7 @@ mesos_tests_SOURCES =						\
   tests/active_user_test_helper.cpp				\
   tests/active_user_test_helper.hpp				\
   tests/agent_container_api_tests.cpp				\
+  tests/allocator.cpp				    \
   tests/allocator.hpp						\
   tests/anonymous_tests.cpp					\
   tests/api_tests.cpp						\
