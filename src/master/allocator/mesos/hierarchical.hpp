@@ -76,6 +76,182 @@ class OfferFilter;
 class InverseOfferFilter;
 
 
+struct Framework
+{
+  Framework(
+      const FrameworkInfo& frameworkInfo,
+      const std::set<std::string>& suppressedRoles,
+      bool active);
+
+  std::set<std::string> roles;
+
+  std::set<std::string> suppressedRoles;
+
+  protobuf::framework::Capabilities capabilities;
+
+  // Active offer and inverse offer filters for the framework.
+  // Offer filters are tied to the role the filtered resources
+  // were allocated to.
+  hashmap<std::string, hashmap<SlaveID, hashset<OfferFilter*>>> offerFilters;
+  hashmap<SlaveID, hashset<InverseOfferFilter*>> inverseOfferFilters;
+
+  bool active;
+
+  process::Owned<FrameworkMetrics> metrics;
+};
+
+
+class Slave
+{
+public:
+  Slave(
+      const SlaveInfo& _info,
+      const protobuf::slave::Capabilities& _capabilities,
+      bool _activated,
+      const Resources& _total,
+      const Resources& _allocated)
+    : info(_info),
+      capabilities(_capabilities),
+      activated(_activated),
+      total(_total),
+      allocated(_allocated),
+      shared(_total.shared())
+  {
+    updateAvailable();
+  }
+
+  const Resources& getTotal() const { return total; }
+
+  const Resources& getAllocated() const { return allocated; }
+
+  const Resources& getAvailable() const { return available; }
+
+  void updateTotal(const Resources& newTotal) {
+    total = newTotal;
+    shared = total.shared();
+
+    updateAvailable();
+  }
+
+  void allocate(const Resources& toAllocate)
+  {
+    allocated += toAllocate;
+
+    updateAvailable();
+  }
+
+  void unallocate(const Resources& toUnallocate)
+  {
+    allocated -= toUnallocate;
+
+    updateAvailable();
+  }
+
+  // The `SlaveInfo` that was passed to the allocator when the slave was added
+  // or updated. Currently only two fields are used: `hostname` for host
+  // whitelisting and in log messages, and `domain` for region-aware
+  // scheduling.
+  SlaveInfo info;
+
+  protobuf::slave::Capabilities capabilities;
+
+  bool activated; // Whether to offer resources.
+
+  // Represents a scheduled unavailability due to maintenance for a specific
+  // slave, and the responses from frameworks as to whether they will be able
+  // to gracefully handle this unavailability.
+  //
+  // NOTE: We currently implement maintenance in the allocator to be able to
+  // leverage state and features such as the FrameworkSorter and OfferFilter.
+  struct Maintenance
+  {
+    Maintenance(const Unavailability& _unavailability)
+      : unavailability(_unavailability) {}
+
+    // The start time and optional duration of the event.
+    Unavailability unavailability;
+
+    // A mapping of frameworks to the inverse offer status associated with
+    // this unavailability.
+    //
+    // NOTE: We currently lose this information during a master fail over
+    // since it is not persisted or replicated. This is ok as the new master's
+    // allocator will send out new inverse offers and re-collect the
+    // information. This is similar to all the outstanding offers from an old
+    // master being invalidated, and new offers being sent out.
+    hashmap<FrameworkID, mesos::allocator::InverseOfferStatus> statuses;
+
+    // Represents the "unit of accounting" for maintenance. When a
+    // `FrameworkID` is present in the hashset it means an inverse offer has
+    // been sent out. When it is not present it means no offer is currently
+    // outstanding.
+    hashset<FrameworkID> offersOutstanding;
+  };
+
+  // When the `maintenance` is set the slave is scheduled to be unavailable at
+  // a given point in time, for an optional duration. This information is used
+  // to send out `InverseOffers`.
+  Option<Maintenance> maintenance;
+
+private:
+  void updateAvailable() {
+    // In order to subtract from the total,
+    // we strip the allocation information.
+    Resources allocated_ = allocated;
+    allocated_.unallocate();
+
+    // Calling `nonShared()` currently copies the underlying resources
+    // and is therefore rather expensive. We avoid it in the common
+    // case that there are no shared resources.
+    //
+    // TODO(mzhu): Ideally there would be a single logical path here.
+    // One solution is to have `Resources` be copy-on-write such that
+    // `nonShared()` performs no copying and instead points to a
+    // subset of the original `Resource` objects.
+    if (shared.empty()) {
+      available = total - allocated_;
+    } else {
+      // Since shared resources are offerable even when they are in use, we
+      // always include them as part of available resources.
+      available = (total.nonShared() - allocated_.nonShared()) + shared;
+    }
+  }
+
+  // Total amount of regular *and* oversubscribed resources.
+  Resources total;
+
+  // Regular *and* oversubscribed resources that are allocated.
+  //
+  // NOTE: We maintain multiple copies of each shared resource allocated
+  // to a slave, where the number of copies represents the number of times
+  // this shared resource has been allocated to (and has not been recovered
+  // from) a specific framework.
+  //
+  // NOTE: We keep track of the slave's allocated resources despite
+  // having that information in sorters. This is because the
+  // information in sorters is not accurate if some framework
+  // hasn't reregistered. See MESOS-2919 for details.
+  Resources allocated;
+
+  // We track the total and allocated resources on the slave to
+  // avoid calculating it in place every time.
+  //
+  // Note that `available` always contains all the shared resources on the
+  // agent regardless whether they have ever been allocated or not.
+  // NOTE, however, we currently only offer a shared resource only if it has
+  // not been offered in an allocation cycle to a framework. We do this mainly
+  // to preserve the normal offer behavior. This may change in the future
+  // depending on use cases.
+  //
+  // Note that it's possible for the slave to be over-allocated!
+  // In this case, allocated > total.
+  Resources available;
+
+  // We keep a copy of the shared resources to avoid unnecessary copying.
+  Resources shared;
+};
+
+
 // Implements the basic allocator algorithm - first pick a role by
 // some criteria, then pick one of their frameworks to allocate to.
 class HierarchicalAllocatorProcess : public MesosAllocatorProcess
@@ -316,32 +492,6 @@ protected:
   friend Metrics;
   Metrics metrics;
 
-  // TODO(mzhu): Pull out the nested Framework struct for clearer
-  // logic division with the allocator.
-  struct Framework
-  {
-    Framework(
-        const FrameworkInfo& frameworkInfo,
-        const std::set<std::string>& suppressedRoles,
-        bool active);
-
-    std::set<std::string> roles;
-
-    std::set<std::string> suppressedRoles;
-
-    protobuf::framework::Capabilities capabilities;
-
-    // Active offer and inverse offer filters for the framework.
-    // Offer filters are tied to the role the filtered resources
-    // were allocated to.
-    hashmap<std::string, hashmap<SlaveID, hashset<OfferFilter*>>> offerFilters;
-    hashmap<SlaveID, hashset<InverseOfferFilter*>> inverseOfferFilters;
-
-    bool active;
-
-    process::Owned<FrameworkMetrics> metrics;
-  };
-
   double _event_queue_dispatches()
   {
     return static_cast<double>(eventCount<process::DispatchEvent>());
@@ -364,158 +514,6 @@ protected:
 
   BoundedHashMap<FrameworkID, process::Owned<FrameworkMetrics>>
     completedFrameworkMetrics;
-
-  // TODO(mzhu): Pull out the nested Slave class for clearer
-  // logic division with the allocator.
-  class Slave
-  {
-  public:
-    Slave(
-        const SlaveInfo& _info,
-        const protobuf::slave::Capabilities& _capabilities,
-        bool _activated,
-        const Resources& _total,
-        const Resources& _allocated)
-      : info(_info),
-        capabilities(_capabilities),
-        activated(_activated),
-        total(_total),
-        allocated(_allocated),
-        shared(_total.shared())
-    {
-      updateAvailable();
-    }
-
-    const Resources& getTotal() const { return total; }
-
-    const Resources& getAllocated() const { return allocated; }
-
-    const Resources& getAvailable() const { return available; }
-
-    void updateTotal(const Resources& newTotal) {
-      total = newTotal;
-      shared = total.shared();
-
-      updateAvailable();
-    }
-
-    void allocate(const Resources& toAllocate)
-    {
-      allocated += toAllocate;
-
-      updateAvailable();
-    }
-
-    void unallocate(const Resources& toUnallocate)
-    {
-      allocated -= toUnallocate;
-
-      updateAvailable();
-    }
-
-    // The `SlaveInfo` that was passed to the allocator when the slave was added
-    // or updated. Currently only two fields are used: `hostname` for host
-    // whitelisting and in log messages, and `domain` for region-aware
-    // scheduling.
-    SlaveInfo info;
-
-    protobuf::slave::Capabilities capabilities;
-
-    bool activated; // Whether to offer resources.
-
-    // Represents a scheduled unavailability due to maintenance for a specific
-    // slave, and the responses from frameworks as to whether they will be able
-    // to gracefully handle this unavailability.
-    //
-    // NOTE: We currently implement maintenance in the allocator to be able to
-    // leverage state and features such as the FrameworkSorter and OfferFilter.
-    struct Maintenance
-    {
-      Maintenance(const Unavailability& _unavailability)
-        : unavailability(_unavailability) {}
-
-      // The start time and optional duration of the event.
-      Unavailability unavailability;
-
-      // A mapping of frameworks to the inverse offer status associated with
-      // this unavailability.
-      //
-      // NOTE: We currently lose this information during a master fail over
-      // since it is not persisted or replicated. This is ok as the new master's
-      // allocator will send out new inverse offers and re-collect the
-      // information. This is similar to all the outstanding offers from an old
-      // master being invalidated, and new offers being sent out.
-      hashmap<FrameworkID, mesos::allocator::InverseOfferStatus> statuses;
-
-      // Represents the "unit of accounting" for maintenance. When a
-      // `FrameworkID` is present in the hashset it means an inverse offer has
-      // been sent out. When it is not present it means no offer is currently
-      // outstanding.
-      hashset<FrameworkID> offersOutstanding;
-    };
-
-    // When the `maintenance` is set the slave is scheduled to be unavailable at
-    // a given point in time, for an optional duration. This information is used
-    // to send out `InverseOffers`.
-    Option<Maintenance> maintenance;
-
-  private:
-    void updateAvailable() {
-      // In order to subtract from the total,
-      // we strip the allocation information.
-      Resources allocated_ = allocated;
-      allocated_.unallocate();
-
-      // Calling `nonShared()` currently copies the underlying resources
-      // and is therefore rather expensive. We avoid it in the common
-      // case that there are no shared resources.
-      //
-      // TODO(mzhu): Ideally there would be a single logical path here.
-      // One solution is to have `Resources` be copy-on-write such that
-      // `nonShared()` performs no copying and instead points to a
-      // subset of the original `Resource` objects.
-      if (shared.empty()) {
-        available = total - allocated_;
-      } else {
-        // Since shared resources are offerable even when they are in use, we
-        // always include them as part of available resources.
-        available = (total.nonShared() - allocated_.nonShared()) + shared;
-      }
-    }
-
-    // Total amount of regular *and* oversubscribed resources.
-    Resources total;
-
-    // Regular *and* oversubscribed resources that are allocated.
-    //
-    // NOTE: We maintain multiple copies of each shared resource allocated
-    // to a slave, where the number of copies represents the number of times
-    // this shared resource has been allocated to (and has not been recovered
-    // from) a specific framework.
-    //
-    // NOTE: We keep track of the slave's allocated resources despite
-    // having that information in sorters. This is because the
-    // information in sorters is not accurate if some framework
-    // hasn't reregistered. See MESOS-2919 for details.
-    Resources allocated;
-
-    // We track the total and allocated resources on the slave to
-    // avoid calculating it in place every time.
-    //
-    // Note that `available` always contains all the shared resources on the
-    // agent regardless whether they have ever been allocated or not.
-    // NOTE, however, we currently only offer a shared resource only if it has
-    // not been offered in an allocation cycle to a framework. We do this mainly
-    // to preserve the normal offer behavior. This may change in the future
-    // depending on use cases.
-    //
-    // Note that it's possible for the slave to be over-allocated!
-    // In this case, allocated > total.
-    Resources available;
-
-    // We keep a copy of the shared resources to avoid unnecessary copying.
-    Resources shared;
-  };
 
   hashmap<SlaveID, Slave> slaves;
 

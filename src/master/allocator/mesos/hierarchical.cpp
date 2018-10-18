@@ -132,7 +132,7 @@ private:
 };
 
 
-HierarchicalAllocatorProcess::Framework::Framework(
+Framework::Framework(
     const FrameworkInfo& frameworkInfo,
     const set<string>& _suppressedRoles,
     bool _active)
