@@ -52,6 +52,7 @@ We categorize the changes as follows:
       <li>A <a href="#1-4-x-bounding-capabilities">Support for explicit bounding capabilities</a></li>
       <li>C <a href="#1-4-x-agent-recovery">Agent recovery post reboot</a></li>
       <li>C <a href="#1-4-x-xfs-no-enforce">XFS disk isolator support for not enforcing disk limits</a></li>
+      <li>C <a href="#1-4-x-update-minimal-docker-version">Update the minimal supported Docker version</a></li>
     </ul>
   </td>
 
@@ -350,6 +351,10 @@ We categorize the changes as follows:
 <a name="1-4-x-xfs-no-enforce"></a>
 
 * The XFS Disk Isolator now supports the `--no-enforce_container_disk_quota` option to efficiently measure disk resource usage without enforcing any usage limits.
+
+<a name="1-4-x-update-minimal-docker-version"></a>
+
+* To specify the `--type=container` option for the `docker inspect <container_name>` command, the minimal supported Docker version has been updated from 1.0.0 to 1.8.0 since Docker supported `--type=container` for the `docker inspect` command starting from 1.8.0.
 
 ## Upgrading from 1.2.x to 1.3.x ##
 
