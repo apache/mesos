@@ -39,6 +39,16 @@ class Task(PluginBase):
     """
 
     COMMANDS = {
+        "attach": {
+            "arguments": ['<task-id>'],
+            "flags": {
+                "--no-stdin": "do not attach a stdin [default: False]"
+            },
+            "short_help": "Attach the CLI to the stdio of a running task",
+            "long_help": """
+                Attach the CLI to the stdio of a running task
+                To detach type the sequence CTRL-p CTRL-q."""
+        },
         "exec": {
             "arguments": ['<task-id>', '<command>', '[<args>...]'],
             "flags": {
@@ -55,6 +65,22 @@ class Task(PluginBase):
             "long_help": "List all active tasks in a Mesos cluster"
         }
     }
+
+    def attach(self, argv):
+        """
+        Attach the stdin/stdout/stderr of the CLI to the
+        STDIN/STDOUT/STDERR of a running task.
+        """
+        try:
+            master = self.config.master()
+        except Exception as exception:
+            raise CLIException("Unable to get leading master address: {error}"
+                               .format(error=exception))
+
+        task_io = TaskIO(master, argv["<task-id>"])
+        task_io.attach(argv["--no-stdin"])
+        return 0
+
 
     def exec(self, argv):
         """
