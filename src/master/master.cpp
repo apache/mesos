@@ -5435,11 +5435,11 @@ void Master::_accept(
 
             if (HookManager::hooksAvailable()) {
               // Set labels retrieved from label-decorator hooks.
-              message.mutable_task()->mutable_labels()->CopyFrom(
+              *message.mutable_task()->mutable_labels() =
                   HookManager::masterLaunchTaskLabelDecorator(
                       task,
                       framework->info,
-                      slave->info));
+                      slave->info);
             }
 
             // If the agent does not support reservation refinement, downgrade
@@ -5653,11 +5653,11 @@ void Master::_accept(
 
           if (HookManager::hooksAvailable()) {
             // Set labels retrieved from label-decorator hooks.
-            task.mutable_labels()->CopyFrom(
+            *task.mutable_labels() =
                 HookManager::masterLaunchTaskLabelDecorator(
                     task,
                     framework->info,
-                    slave->info));
+                    slave->info);
           }
         }
 

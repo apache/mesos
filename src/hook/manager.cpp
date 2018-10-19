@@ -110,14 +110,14 @@ Labels HookManager::masterLaunchTaskLabelDecorator(
     const FrameworkInfo& frameworkInfo,
     const SlaveInfo& slaveInfo)
 {
-  synchronized (mutex) {
-    // We need a mutable copy of the task info and set the new
-    // labels after each hook invocation. Otherwise, the last hook
-    // will be the only effective hook setting the labels.
-    TaskInfo taskInfo_ = taskInfo;
+  // We need a mutable copy of the task info and set the new
+  // labels after each hook invocation. Otherwise, the last hook
+  // will be the only effective hook setting the labels.
+  TaskInfo taskInfo_ = taskInfo;
 
+  synchronized (mutex) {
     foreachpair (const string& name, Hook* hook, availableHooks) {
-      const Result<Labels> result =
+      Result<Labels> result =
         hook->masterLaunchTaskLabelDecorator(
             taskInfo_,
             frameworkInfo,
@@ -126,15 +126,15 @@ Labels HookManager::masterLaunchTaskLabelDecorator(
       // NOTE: If the hook returns None(), the task labels won't be
       // changed.
       if (result.isSome()) {
-        taskInfo_.mutable_labels()->CopyFrom(result.get());
+        *taskInfo_.mutable_labels() = std::move(result.get());
       } else if (result.isError()) {
         LOG(WARNING) << "Master label decorator hook failed for module '"
                     << name << "': " << result.error();
       }
     }
-
-    return taskInfo_.labels();
   }
+
+  return std::move(*taskInfo_.mutable_labels());
 }
 
 
