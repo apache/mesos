@@ -19,20 +19,43 @@
 #include <vector>
 
 #include <stout/error.hpp>
+#include <stout/foreach.hpp>
 #include <stout/nothing.hpp>
 #include <stout/strings.hpp>
+#include <stout/path.hpp>
 #include <stout/try.hpp>
 
 #include <stout/os/constants.hpp>
-
+#include <stout/os/fsync.hpp>
 
 namespace os {
 
-inline Try<Nothing> mkdir(const std::string& directory, bool recursive = true)
+// Make a directory.
+//
+// If `recursive` is set to true, all intermediate directories will be created
+// as required. If `sync` is set to true, `fsync()` will be called on the parent
+// of each created directory to ensure that the result is committed to its
+// filesystem.
+//
+// NOTE: This function doesn't ensure that any existing directory is committed
+// to its filesystem, and it does not perform any cleanup in case of a failure.
+inline Try<Nothing> mkdir(
+    const std::string& directory,
+    bool recursive = true,
+    bool sync = false)
 {
   if (!recursive) {
     if (::mkdir(directory.c_str(), 0755) < 0) {
       return ErrnoError();
+    }
+
+    if (sync) {
+      const std::string parent = Path(directory).dirname();
+      Try<Nothing> fsync = os::fsync(parent);
+      if (fsync.isError()) {
+        return Error(
+            "Failed to fsync directory '" + parent + "': " + fsync.error());
+      }
     }
   } else {
     std::vector<std::string> tokens =
@@ -47,8 +70,17 @@ inline Try<Nothing> mkdir(const std::string& directory, bool recursive = true)
 
     foreach (const std::string& token, tokens) {
       path += token;
-      if (::mkdir(path.c_str(), 0755) < 0 && errno != EEXIST) {
-        return ErrnoError();
+      if (::mkdir(path.c_str(), 0755) < 0) {
+        if (errno != EEXIST) {
+          return ErrnoError();
+        }
+      } else if (sync) {
+        const std::string parent = Path(path).dirname();
+        Try<Nothing> fsync = os::fsync(parent);
+        if (fsync.isError()) {
+          return Error(
+              "Failed to fsync directory '" + parent + "': " + fsync.error());
+        }
       }
 
       path += os::PATH_SEPARATOR;
