@@ -27,10 +27,13 @@
 
 #include <stout/internal/windows/longpath.hpp>
 
-
 namespace os {
 
-inline Try<Nothing> mkdir(const std::string& directory, bool recursive = true)
+// NOTE: `sync` has no effect on Windows.
+inline Try<Nothing> mkdir(
+    const std::string& directory,
+    bool recursive = true,
+    bool sync = false)
 {
   if (!recursive) {
     // NOTE: We check for existence because parts of certain directories
