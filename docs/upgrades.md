@@ -54,7 +54,6 @@ We categorize the changes as follows:
       <li>A <a href="#1-7-x-volume-mode-support">Volume mode support</a></li>
       <li>C <a href="#1-7-x-create-disk">`CREATE_DISK` and `DESTROY_DISK` operations and ACLs</a></li>
       <li>A <a href="#1-7-x-resource-provider-acls">Resource Provider ACLs</a></li>
-      <li>C <a href="#1-7-x-update-minimal-docker-version">Update the minimal supported Docker version</a></li>
     </ul>
   </td>
 
@@ -173,6 +172,7 @@ We categorize the changes as follows:
       <li>A <a href="#1-4-x-bounding-capabilities">Support for explicit bounding capabilities</a></li>
       <li>C <a href="#1-4-x-agent-recovery">Agent recovery post reboot</a></li>
       <li>C <a href="#1-4-x-xfs-no-enforce">XFS disk isolator support for not enforcing disk limits</a></li>
+      <li>C <a href="#1-4-x-update-minimal-docker-version">Update the minimal supported Docker version</a></li>
     </ul>
   </td>
 
@@ -468,10 +468,6 @@ We categorize the changes as follows:
 
 * A new `ViewResourceProvider` ACL has been introduced to control which principals are allowed to call the `GET_RESOURCE_PROVIDERS` agent API.
 
-<a name="1-7-x-update-minimal-docker-version"></a>
-
-* To specify the `--type=container` option for the `docker inspect <container_name>` command, the minimal supported Docker version has been updated from 1.0.0 to 1.8.0 since Docker supported `--type=container` for the `docker inspect` command starting from 1.8.0.
-
 <a name="1-7-x-enforce-container-ports"></a>
 
 * A new [`--enforce_container_ports`](configuration/agent.md#enforce_container_ports) flag has been added to toggle whether the [`network/ports`](isolators/network-ports.md) isolator should enforce TCP ports usage limits.
@@ -601,6 +597,10 @@ We categorize the changes as follows:
 <a name="1-4-x-mesos-library"></a>
 
 * The `Resources` class in the internal Mesos C++ library changed its behavior to only support post-`RESERVATION_REFINEMENT` format. If a framework is using this internal utility, it is likely to break if the `RESERVATION_REFINEMENT` capability is not enabled.
+
+<a name="1-4-x-update-minimal-docker-version"></a>
+
+* To specify the `--type=container` option for the `docker inspect <container_name>` command, the minimal supported Docker version has been updated from 1.0.0 to 1.8.0 since Docker supported `--type=container` for the `docker inspect` command starting from 1.8.0.
 
 ## Upgrading from 1.2.x to 1.3.x ##
 
