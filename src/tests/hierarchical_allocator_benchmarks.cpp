@@ -316,11 +316,15 @@ private:
 };
 
 
+class HierarchicalAllocations_BENCHMARK :
+  public HierarchicalAllocations_BENCHMARK_TestBase {};
+
+
 // This benchmark launches frameworks with different profiles (number of tasks,
 // task sizes and etc.) and prints out statistics such as total tasks launched,
 // cluster utilization and allocation latency. The test has a timeout of 30
 // seconds.
-TEST_F(HierarchicalAllocations_BENCHMARK_TestBase, Allocations)
+TEST_F(HierarchicalAllocations_BENCHMARK, MultiFrameworkAllocations)
 {
   // Pause the clock because we want to manually drive the allocations.
   Clock::pause();
