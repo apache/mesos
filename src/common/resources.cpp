@@ -1548,13 +1548,16 @@ Resources Resources::filter(
     const lambda::function<bool(const Resource&)>& predicate) const
 {
   Resources result;
+  result.resourcesNoMutationWithoutExclusiveOwnership.reserve(this->size());
   foreach (
       const Resource_Unsafe& resource_,
       resourcesNoMutationWithoutExclusiveOwnership) {
     if (predicate(resource_->resource)) {
-      // TODO(mzhu): `add` is O(n), explore whether we can simply
-      // do `push_back` by assuming resources are already combined.
-      result.add(resource_);
+      // We `push_back()` here instead of `add()` (which is O(n)). `add()` is
+      // not necessary because we assume all Resource objects are already
+      // combined in `Resources` and `filter()` should only take away
+      // resource objects.
+      result.resourcesNoMutationWithoutExclusiveOwnership.push_back(resource_);
     }
   }
   return result;
