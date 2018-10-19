@@ -396,6 +396,7 @@ Release Notes - Mesos - Version 1.6.2 (WIP)
   * [MESOS-9151] - Container stuck at ISOLATING due to FD leak.
   * [MESOS-9170] - Zookeeper doesn't compile with newer gcc due to format error.
   * [MESOS-9196] - Removing rootfs mounts may fail with EBUSY.
+  * [MESOS-9231] - `docker inspect` may return an unexpected result to Docker executor due to a race condition.
   * [MESOS-9267] - Mesos agent crashes when CNI network is not configured but used.
   * [MESOS-9274] - v1 JAVA scheduler library can drop TEARDOWN upon destruction.
   * [MESOS-9279] - Docker Containerizer 'usage' call might be expensive if mount table is big.
