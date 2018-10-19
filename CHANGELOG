@@ -168,6 +168,7 @@ Unresolved Critical Issues:
   * [MESOS-8927] - Default executor cannot kill tasks if `LAUNCH_NESTED_CONTAINER` is stuck.
   * [MESOS-9006] - The agent's GET_AGENT leaks resource information when using authorization
   * [MESOS-9022] - Race condition in task updates could cause missing event in streaming
+  * [MESOS-9049] - Agent GC could unmount a dangling persistent volume multiple times.
   * [MESOS-9053] - Network ports isolator can falsely trigger while destroying containers.
   * [MESOS-9109] - Windows agent uses reserved character :(colon) for file name and crashes when attempting to remove link
   * [MESOS-9131] - Health checks launching nested containers while a container is being destroyed lead to unkillable tasks
