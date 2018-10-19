@@ -704,15 +704,16 @@ class Promise
 {
 public:
   Promise();
-  explicit Promise(const T& t);
   virtual ~Promise();
+
+  explicit Promise(const T& t);
+
+  Promise(Promise&& that) = default;
+  Promise& operator=(Promise&&) = default;
 
   // Not copyable, not assignable.
   Promise(const Promise& that) = delete;
-  Promise(Promise&& that) = default;
   Promise& operator=(const Promise&) = delete;
-  Promise& operator=(Promise&&) = default;
-
 
   bool discard();
   bool set(const T& _t);
