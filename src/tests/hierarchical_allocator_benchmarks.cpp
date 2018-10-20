@@ -646,6 +646,157 @@ TEST_P(HierarchicalAllocator_BENCHMARK_WithQuotaParam, LargeAndSmallQuota)
   cout << "Made 0 allocation in " << watch.elapsed() << endl;
 }
 
+
+struct NonQuotaVsQuotaParam
+{
+  NonQuotaVsQuotaParam(
+      const size_t _roleCount,
+      const size_t _agentsPerRole,
+      const size_t _frameworksPerRole,
+      const bool _setQuota)
+    : roleCount(_roleCount),
+      agentsPerRole(_agentsPerRole),
+      frameworksPerRole(_frameworksPerRole),
+      setQuota(_setQuota) {}
+
+  const size_t roleCount;
+
+  // This determines the number of agents needed to satisfy a role's quota.
+  // And total number of agents in the cluster will be
+  // roleCount * agentsPerRole.
+  const size_t agentsPerRole;
+
+  const size_t frameworksPerRole;
+
+  const bool setQuota;
+};
+
+
+class HierarchicalAllocator_BENCHMARK_WithNonQuotaVsQuotaParam
+  : public HierarchicalAllocations_BENCHMARK_TestBase,
+    public WithParamInterface<NonQuotaVsQuotaParam> {};
+
+
+INSTANTIATE_TEST_CASE_P(
+    NonQuotaVsQuotaParam,
+    HierarchicalAllocator_BENCHMARK_WithNonQuotaVsQuotaParam,
+    ::testing::Values(
+        // 10 roles, 10*2 = 20 agents, 10*2 = 20 frameworks,
+        // without and with quota.
+        NonQuotaVsQuotaParam(10U, 2U, 2U, false),
+        NonQuotaVsQuotaParam(10U, 2U, 2U, true),
+        // 100 roles, 100*2 = 200 agents, 100*2 = 200 frameworks.
+        // without and with quota.
+        NonQuotaVsQuotaParam(100U, 2U, 2U, false),
+        NonQuotaVsQuotaParam(100U, 2U, 2U, true),
+        // 1000 roles, 1000*2 = 2000 agents, 1000*2 = 2000 frameworks.
+        // without and with quota.
+        NonQuotaVsQuotaParam(1000U, 2U, 2U, false),
+        NonQuotaVsQuotaParam(1000U, 2U, 2U, true)));
+
+
+// This benchmark evaluates the performance difference between nonquota
+// and quota settings. In both settings, the same allocations are made
+// for fair comparison. In particular, since the agent will always be
+// allocated as a whole in nonquota settings, we should also avoid
+// agent chopping in quota setting as well. Thus in this benchmark,
+// quotas are only set to be multiples of whole agent resources.
+// This is also why we have this dedicated benchmark for comparison
+// rather than extending the existing quota benchmarks (which involves
+// agent chopping).
+TEST_P(
+    HierarchicalAllocator_BENCHMARK_WithNonQuotaVsQuotaParam, NonQuotaVsQuota)
+{
+  // Pause the clock because we want to manually drive the allocations.
+  Clock::pause();
+
+  const string agentResourcesString = "cpus:2;mem:2048;disk:2048";
+
+  BenchmarkConfig config;
+
+  // Store roles for setting up quota later if needed.
+  vector<string> roles;
+
+  for (size_t i = 0; i < GetParam().roleCount; i++) {
+    string role("role" + stringify(i));
+    roles.push_back(role);
+    config.frameworkProfiles.push_back(FrameworkProfile(
+        "framework_" + stringify(i), {role}, GetParam().frameworksPerRole));
+  }
+
+  size_t agentCount = GetParam().roleCount * GetParam().agentsPerRole;
+
+  // Add agent profiles.
+  config.agentProfiles.push_back(AgentProfile(
+      "agent",
+      agentCount,
+      CHECK_NOTERROR(Resources::parse(agentResourcesString))));
+
+  initializeCluster(config);
+
+  if (GetParam().setQuota) {
+    // We ensure the same allocations are made for both nonquota and quota
+    // settings for fair comparison. Thus quota is set to consume multiple
+    // agents and each agent will be offered as a whole.
+    const string quotaResourcesString =
+      "cpus:" + stringify(2 * GetParam().agentsPerRole) +
+      ";mem:" + stringify(2048 * GetParam().agentsPerRole) +
+      ";disk:" + stringify(2048 * GetParam().agentsPerRole);
+
+    // Pause the allocator here to prevent any event-driven allocations while
+    // setting up the quota (while setting quota currently does not lead to
+    // event-driven allocations, this behavior might change in the future).
+    allocator->pause();
+
+    foreach (const string& role, roles) {
+      allocator->setQuota(role, createQuota(role, quotaResourcesString));
+    }
+
+    allocator->resume();
+
+    cout << "Quota run setup: ";
+  } else {
+    cout << "Nonquota run setup: ";
+  }
+
+  cout << agentCount << " agents, " << GetParam().roleCount << " roles, "
+       << GetParam().roleCount * GetParam().frameworksPerRole << " frameworks"
+       << endl;
+
+  Stopwatch watch;
+  watch.start();
+
+  // Advance the clock and trigger a batch allocation cycle.
+  Clock::advance(config.allocationInterval);
+  Clock::settle();
+
+  watch.stop();
+
+  size_t offerCount = 0;
+
+  while (offers.get().isReady()) {
+    offerCount++;
+  }
+
+  cout << "Made " << offerCount << " allocations in " << watch.elapsed()
+       << endl;
+
+  watch.start();
+
+  // Advance the clock and trigger a batch allocation cycle.
+  Clock::advance(config.allocationInterval);
+  Clock::settle();
+
+  watch.stop();
+
+  // No allocations should be made because all resources were allocated in the
+  // first round.
+  EXPECT_TRUE(offers.get().isPending());
+
+  cout << "Made 0 allocation in " << watch.elapsed() << endl;
+}
+
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
