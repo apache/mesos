@@ -143,7 +143,7 @@ def format_subcommands_help(cmd):
     arguments = " ".join(cmd["arguments"])
     short_help = cmd["short_help"]
     long_help = textwrap.dedent(cmd["long_help"].rstrip())
-    long_help = "  " + "\n  ".join(long_help.split('\n'))
+    long_help = "  " + "\n  ".join(long_help.lstrip().split('\n'))
     flags = cmd["flags"]
     flags["-h --help"] = "Show this screen."
     flag_string = ""
@@ -153,6 +153,7 @@ def format_subcommands_help(cmd):
         for flag in sorted(flags.keys()):
             num_spaces = len(longest_flag_name) - len(flag) + 2
             flag_string += "  %s%s%s\n" % (flag, " " * num_spaces, flags[flag])
+    flag_string = flag_string.rstrip()
 
     return (arguments, short_help, long_help, flag_string)
 
