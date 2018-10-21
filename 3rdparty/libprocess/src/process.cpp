@@ -835,9 +835,10 @@ void receive(Socket socket)
     if (f.isFailed()) {
       Try<Address> peer = socket.peer();
 
-      VLOG(1) << "Failure while receiving from peer '"
-              << (peer.isSome() ? stringify(peer.get()) : "unknown")
-              << "': " << f.failure();
+      LOG(WARNING)
+        << "Failed to recv on socket " << socket.get() << " to peer '"
+        << (peer.isSome() ? stringify(peer.get()) : "unknown")
+        << "': " << f.failure();
     }
 
     socket_manager->close(socket);
@@ -1415,13 +1416,16 @@ void ignore_recv_data(
     char* data,
     size_t size)
 {
-  if (length.isDiscarded() || length.isFailed()) {
-    socket_manager->close(socket);
-    delete[] data;
-    return;
-  }
+  if (!length.isReady() || length.get() == 0) {
+    if (length.isFailed()) {
+      Try<Address> peer = socket.peer();
 
-  if (length.get() == 0) {
+      LOG(WARNING)
+        << "Failed to recv on socket " << socket.get() << " to peer '"
+        << (peer.isSome() ? stringify(peer.get()) : "unknown")
+        << "': " << length.failure();
+    }
+
     socket_manager->close(socket);
     delete[] data;
     return;
@@ -1641,8 +1645,13 @@ void SocketManager::link(
         // socket from the mapping of linkees and linkers.
         Try<Nothing, SocketError> shutdown = existing.shutdown();
         if (shutdown.isError()) {
-          VLOG(1) << "Failed to shutdown old link: "
-                  << shutdown.error().message;
+          Try<Address> peer = existing.peer();
+
+          LOG(WARNING)
+            << "Failed to shutdown old link to " << to
+            << " using socket " << existing.get() << " to peer '"
+            << (peer.isSome() ? stringify(peer.get()) : "unknown")
+            << "': " << shutdown.error().message;
         }
 
         connect = true;
@@ -1795,6 +1804,14 @@ Future<Nothing> _send(Encoder* encoder, Socket socket)
             return Nothing();
           })
           .recover([=](const Future<Nothing>& f) {
+            if (f.isFailed()) {
+              Try<Address> peer = socket.peer();
+
+              LOG(WARNING)
+                << "Failed to send on socket " << socket.get() << " to peer '"
+                << (peer.isSome() ? stringify(peer.get()) : "unknown")
+                << "': " << f.failure();
+            }
             socket_manager->close(socket);
             delete encoder;
             return f; // Break the loop by propagating the "failure".
@@ -2094,11 +2111,12 @@ Encoder* SocketManager::next(int_fd s)
           // socket is already closed so it by itself doesn't necessarily
           // suggest anything wrong.
           if (shutdown.isError()) {
-            LOG(INFO) << "Failed to shutdown socket with fd " << socket.get()
-                      << ", address " << (socket.address().isSome()
-                                            ? stringify(socket.address().get())
-                                            : "N/A")
-                      << ": " << shutdown.error().message;
+            Try<Address> peer = socket.peer();
+
+            LOG(WARNING)
+              << "Failed to shutdown socket " << socket.get() << " to peer '"
+              << (peer.isSome() ? stringify(peer.get()) : "unknown")
+              << "': " << shutdown.error().message;
           }
         }
       }
@@ -2190,11 +2208,12 @@ void SocketManager::close(int_fd s)
 #else // __WINDOWS__
           shutdown.error().code != ENOTCONN) {
 #endif // __WINDOWS__
-        LOG(ERROR) << "Failed to shutdown socket with fd " << socket.get()
-                   << ", address " << (socket.address().isSome()
-                                         ? stringify(socket.address().get())
-                                         : "N/A")
-                   << ": " << shutdown.error().message;
+        Try<Address> peer = socket.peer();
+
+        LOG(WARNING)
+          << "Failed to shutdown socket " << socket.get() << " to peer '"
+          << (peer.isSome() ? stringify(peer.get()) : "unknown")
+          << "': " << shutdown.error().message;
       }
     }
   }
