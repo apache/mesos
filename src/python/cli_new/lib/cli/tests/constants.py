@@ -18,8 +18,14 @@
 A collection of constants useful for the CLI unit tests.
 """
 
+import os
+
+
 TEST_MASTER_IP = "127.0.0.1"
 TEST_MASTER_PORT = "9090"
 
 TEST_AGENT_IP = "127.0.0.1"
 TEST_AGENT_PORT = "9091"
+
+TEST_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
+TEST_DATA_DIRECTORY = os.path.join(TEST_DIRECTORY, "data")
