@@ -23,6 +23,7 @@
 #include <process/http.hpp>
 #include <process/id.hpp>
 #include <process/io.hpp>
+#include <process/once.hpp>
 #include <process/process.hpp>
 #include <process/subprocess.hpp>
 
@@ -94,14 +95,36 @@ static Future<http::Response> curl(
     const http::Headers& headers,
     const Option<Duration>& stallTimeout)
 {
+  static process::Once* initialized = new process::Once();
+  static bool http11 = false;
+
+  if (!initialized->once()) {
+    // Test if curl supports locking into HTTP 1.1. We do this as
+    // HTTP 1.1 is more likely than HTTP 1.0 to function accross all
+    // infrastructures. The '--http1.1' flag got added to curl with
+    // with version 7.33.0. Some supported distributions do still come
+    // with curl version 7.19.0. See MESOS-8907.
+    http11 = os::system("curl --http1.1 -V  2>&1 >/dev/null") == 0;
+    VLOG(1) << "Curl accepts --http1.1 flag: " << stringify(http11);
+    initialized->done();
+  }
+
   vector<string> argv = {
     "curl",
     "-s",       // Don't show progress meter or error messages.
     "-S",       // Make curl show an error message if it fails.
     "-L",       // Follow HTTP 3xx redirects.
     "-i",       // Include the HTTP-header in the output.
-    "--raw",    // Disable HTTP decoding of content or transfer encodings.
+    "--raw"     // Disable HTTP decoding of content or transfer encodings.
   };
+
+  // Make sure curl does not enforce HTTP 2 as our HTTP parser does
+  // currently not support that. See MESOS-8368.
+  // Older curl versions do not support the HTTP 1.1 flag, but these
+  // versions are also old enough to not default to HTTP/2.
+  if (http11) {
+    argv.push_back("--http1.1");
+  }
 
   // Add additional headers.
   foreachpair (const string& key, const string& value, headers) {
