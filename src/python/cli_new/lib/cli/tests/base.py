@@ -445,3 +445,29 @@ def capture_output(command, argv, extra_args=None):
     sys.stdout = stdout
 
     return output
+
+
+def exec_command(command, env=None, stdin=None, timeout=None):
+    """
+    Execute command.
+    """
+    process = subprocess.Popen(
+        command,
+        stdin=stdin,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env=env,
+        universal_newlines=True)
+
+    try:
+        stdout, stderr = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired as exception:
+        # The child process is not killed if the timeout expires, so in order
+        # to cleanup properly a well-behaved application should kill the child
+        # process and finish communication.
+        # https://docs.python.org/3.5/library/subprocess.html
+        process.kill()
+        stdout, stderr = process.communicate()
+        raise CLIException("Timeout expired: {error}".format(error=exception))
+
+    return (process.returncode, stdout, stderr)
