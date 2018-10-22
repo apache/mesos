@@ -18,24 +18,78 @@
 Task plugin tests.
 """
 
+import os
+
+from tenacity import retry
+from tenacity import stop_after_delay
+
 from cli import config
 from cli import http
 
 from cli.plugins.task.main import Task as TaskPlugin
 
+from cli.exceptions import CLIException
+
 from cli.tests import capture_output
+from cli.tests import exec_command
 from cli.tests import CLITestCase
 from cli.tests import Agent
 from cli.tests import Master
 from cli.tests import Task
 
+from cli.tests.constants import TEST_DATA_DIRECTORY
+
 from cli.util import Table
 
+
+LOREM_IPSUM = os.path.join(TEST_DATA_DIRECTORY, "lorem-ipsum.txt")
 
 class TestTaskPlugin(CLITestCase):
     """
     Test class for the task plugin.
     """
+    def test_exec(self):
+        """
+        Basic test for the task `exec()` sub-command.
+        """
+        # Launch a master, agent, and task.
+        master = Master()
+        master.launch()
+
+        agent = Agent()
+        agent.launch()
+
+        with open(LOREM_IPSUM) as text:
+            content = text.read()
+        command = "echo '{data}' > a.txt && sleep 1000".format(data=content)
+        task = Task({"command": command})
+        task.launch()
+
+        # We wait (max 1 second) for the task to be in a running state.
+        @retry(stop=stop_after_delay(1))
+        def updated_tasks():
+            # Open the master's `/tasks` endpoint and
+            # read the task information ourselves.
+            tasks = http.get_json(master.addr, "tasks")["tasks"]
+            if tasks[0]["state"] == "TASK_RUNNING":
+                return tasks
+            raise CLIException("Unable to find running task in master state"
+                               " '{master}'".format(master=master))
+
+        tasks = updated_tasks()
+        returncode, stdout, stderr = exec_command(
+            ["mesos", "task", "exec", tasks[0]["id"], "cat", "a.txt"])
+
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout.strip(), content.strip())
+        self.assertEqual(stderr, "")
+
+        # Kill the task, agent, and master.
+        task.kill()
+        agent.kill()
+        master.kill()
+
+
     def test_list(self):
         """
         Basic test for the task `list()` sub-command.
