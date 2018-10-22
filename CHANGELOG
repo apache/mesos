@@ -8,6 +8,7 @@ Release Notes - Mesos - Version 1.7.1 (WIP)
 
 ** Bug
   * [MESOS-8545] - AgentAPIStreamingTest.AttachInputToNestedContainerSession is flaky.
+  * [MESOS-8907] - Docker image fetcher fails with HTTP/2.
   * [MESOS-8978] - Command executor calling setsid breaks the tty support.
   * [MESOS-9131] - Health checks launching nested containers while a container is being destroyed lead to unkillable tasks.
   * [MESOS-9228] - SLRP does not clean up plugin containers after it is removed.
