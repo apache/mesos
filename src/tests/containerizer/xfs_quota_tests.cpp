@@ -144,12 +144,18 @@ public:
     AWAIT_READY(mkfs->status());
     ASSERT_SOME_EQ(0, mkfs->status().get());
 
-    ASSERT_SOME(fs::mount(
-        loopDevice.get(),
-        mntPath,
-        "xfs",
-        0, // Flags.
-        mountOptions.getOrElse("")));
+    const Try<string> mountCmd = mountOptions.isNone()
+      ? strings::format("mount -t xfs %s %s", loopDevice.get(), mntPath)
+      : strings::format("mount -t xfs -o %s %s %s",
+          mountOptions.get(), loopDevice.get(), mntPath);
+
+    Try<Subprocess> mnt = subprocess(
+        mountCmd.get(), Subprocess::PATH(os::DEV_NULL));
+
+    ASSERT_SOME(mnt);
+    AWAIT_READY(mnt->status());
+    ASSERT_SOME_EQ(0, mnt->status().get());
+
     mountPoint = mntPath;
 
     ASSERT_SOME(os::chdir(mountPoint.get()))
@@ -159,7 +165,12 @@ public:
   virtual void TearDown()
   {
     if (mountPoint.isSome()) {
-      fs::unmount(mountPoint.get(), MNT_FORCE | MNT_DETACH);
+      Try<Subprocess> umount = subprocess(
+          "umount -l -f " + mountPoint.get(), Subprocess::PATH(os::DEV_NULL));
+
+      ASSERT_SOME(umount);
+      AWAIT_READY(umount->status());
+      ASSERT_SOME_EQ(0, umount->status().get());
     }
 
     // Make sure we resume the clock so that we can wait on the
