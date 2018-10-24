@@ -414,7 +414,7 @@ private:
   void dropOperation(
       const id::UUID& operationUuid,
       const Option<FrameworkID>& frameworkId,
-      const Option<Offer::Operation>& info,
+      const Option<Offer::Operation>& operation,
       const string& message);
 
   Future<vector<ResourceConversion>> applyCreateDisk(
@@ -3064,7 +3064,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::_applyOperation(
 void StorageLocalResourceProviderProcess::dropOperation(
     const id::UUID& operationUuid,
     const Option<FrameworkID>& frameworkId,
-    const Option<Offer::Operation>& info,
+    const Option<Offer::Operation>& operation,
     const string& message)
 {
   LOG(WARNING)
@@ -3075,8 +3075,8 @@ void StorageLocalResourceProviderProcess::dropOperation(
        protobuf::createUUID(operationUuid),
        protobuf::createOperationStatus(
            OPERATION_DROPPED,
-           info.isSome() && info->has_id()
-             ? info->id() : Option<OperationID>::none(),
+           operation.isSome() && operation->has_id()
+             ? operation->id() : Option<OperationID>::none(),
            message,
            None(),
            id::UUID::random()),
@@ -3096,7 +3096,7 @@ void StorageLocalResourceProviderProcess::dropOperation(
     .onDiscarded(defer(self(), std::bind(die, "future discarded")));
 
   ++metrics.operations_dropped.at(
-      info.isSome() ? info->type() : Offer::Operation::UNKNOWN);
+      operation.isSome() ? operation->type() : Offer::Operation::UNKNOWN);
 }
 
 
