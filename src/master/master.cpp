@@ -754,16 +754,22 @@ void Master::initialize()
     }
   }
 
+  // Initialize the allocator options.
+  mesos::allocator::Options options;
+
+  options.allocationInterval = flags.allocation_interval;
+  options.fairnessExcludeResourceNames =
+    flags.fair_sharing_excluded_resource_names;
+  options.filterGpuResources = flags.filter_gpu_resources;
+  options.domain = flags.domain;
+  options.minAllocatableResources = CHECK_NOTERROR(minAllocatableResources);
+  options.maxCompletedFrameworks = flags.max_completed_frameworks;
+
   // Initialize the allocator.
   allocator->initialize(
-      flags.allocation_interval,
+      options,
       defer(self(), &Master::offer, lambda::_1, lambda::_2),
-      defer(self(), &Master::inverseOffer, lambda::_1, lambda::_2),
-      flags.fair_sharing_excluded_resource_names,
-      flags.filter_gpu_resources,
-      flags.domain,
-      CHECK_NOTERROR(minAllocatableResources),
-      flags.max_completed_frameworks);
+      defer(self(), &Master::inverseOffer, lambda::_1, lambda::_2));
 
   // Parse the whitelist. Passing Allocator::updateWhitelist()
   // callback is safe because we shut down the whitelistWatcher in

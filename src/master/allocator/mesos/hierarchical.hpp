@@ -284,7 +284,7 @@ public:
   }
 
   void initialize(
-      const Duration& allocationInterval,
+      const mesos::allocator::Options& options,
       const lambda::function<
           void(const FrameworkID&,
                const hashmap<std::string, hashmap<SlaveID, Resources>>&)>&
@@ -292,14 +292,7 @@ public:
       const lambda::function<
           void(const FrameworkID&,
                const hashmap<SlaveID, UnavailableResources>&)>&
-        inverseOfferCallback,
-      const Option<std::set<std::string>>&
-        fairnessExcludeResourceNames = None(),
-      bool filterGpuResources = true,
-      const Option<DomainInfo>& domain = None(),
-      const Option<std::vector<Resources>>&
-        minAllocatableResources = None(),
-      const size_t maxCompletedFrameworks = 0) override;
+        inverseOfferCallback) override;
 
   void recover(
       const int _expectedAgentCount,
@@ -481,10 +474,10 @@ protected:
   bool initialized;
   bool paused;
 
+  mesos::allocator::Options options;
+
   // Recovery data.
   Option<int> expectedAgentCount;
-
-  Duration allocationInterval;
 
   lambda::function<
       void(const FrameworkID&,

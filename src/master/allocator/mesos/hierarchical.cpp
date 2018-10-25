@@ -47,6 +47,7 @@ using std::string;
 using std::vector;
 
 using mesos::allocator::InverseOfferStatus;
+using mesos::allocator::Options;
 
 using process::after;
 using process::Continue;
@@ -144,7 +145,7 @@ Framework::Framework(
 
 
 void HierarchicalAllocatorProcess::initialize(
-    const Duration& _allocationInterval,
+    const Options& _options,
     const lambda::function<
         void(const FrameworkID&,
              const hashmap<string, hashmap<SlaveID, Resources>>&)>&
@@ -152,42 +153,35 @@ void HierarchicalAllocatorProcess::initialize(
     const lambda::function<
         void(const FrameworkID&,
              const hashmap<SlaveID, UnavailableResources>&)>&
-      _inverseOfferCallback,
-    const Option<set<string>>& _fairnessExcludeResourceNames,
-    bool _filterGpuResources,
-    const Option<DomainInfo>& _domain,
-    const Option<std::vector<Resources>>& _minAllocatableResources,
-    const size_t maxCompletedFrameworks)
+      _inverseOfferCallback)
 {
-  allocationInterval = _allocationInterval;
+  options = _options;
   offerCallback = _offerCallback;
   inverseOfferCallback = _inverseOfferCallback;
-  fairnessExcludeResourceNames = _fairnessExcludeResourceNames;
-  filterGpuResources = _filterGpuResources;
-  domain = _domain;
-  minAllocatableResources = _minAllocatableResources;
   initialized = true;
   paused = false;
 
   completedFrameworkMetrics =
     BoundedHashMap<FrameworkID, process::Owned<FrameworkMetrics>>(
-        maxCompletedFrameworks);
+        options.maxCompletedFrameworks);
 
   // Resources for quota'ed roles are allocated separately and prior to
   // non-quota'ed roles, hence a dedicated sorter for quota'ed roles is
   // necessary.
-  roleSorter->initialize(fairnessExcludeResourceNames);
-  quotaRoleSorter->initialize(fairnessExcludeResourceNames);
+  roleSorter->initialize(options.fairnessExcludeResourceNames);
+  quotaRoleSorter->initialize(options.fairnessExcludeResourceNames);
 
   VLOG(1) << "Initialized hierarchical allocator process";
 
   // Start a loop to run allocation periodically.
   PID<HierarchicalAllocatorProcess> _self = self();
 
+  // Set a temporary variable for the lambda capture.
+  Duration allocationInterval = options.allocationInterval;
   loop(
       None(), // Use `None` so we iterate outside the allocator process.
-      [_allocationInterval]() {
-        return after(_allocationInterval);
+      [allocationInterval]() {
+        return after(allocationInterval);
       },
       [_self](const Nothing&) {
         return dispatch(_self, &HierarchicalAllocatorProcess::allocate)
@@ -1307,7 +1301,7 @@ void HierarchicalAllocatorProcess::recoverResources(
     //
     // TODO(alexr): If we allocated upon resource recovery
     // (MESOS-3078), we would not need to increase the timeout here.
-    timeout = std::max(allocationInterval, timeout.get());
+    timeout = std::max(options.allocationInterval, timeout.get());
 
     // We need to disambiguate the function call to pick the correct
     // `expire()` overload.
@@ -2427,14 +2421,15 @@ bool HierarchicalAllocatorProcess::isFiltered(
 
 bool HierarchicalAllocatorProcess::allocatable(const Resources& resources)
 {
-  if (minAllocatableResources.isNone() ||
-      CHECK_NOTNONE(minAllocatableResources).empty()) {
+  if (options.minAllocatableResources.isNone() ||
+      CHECK_NOTNONE(options.minAllocatableResources).empty()) {
     return true;
   }
 
   Resources quantity = resources.createStrippedScalarQuantity();
   foreach (
-      const Resources& minResources, CHECK_NOTNONE(minAllocatableResources)) {
+      const Resources& minResources,
+      CHECK_NOTNONE(options.minAllocatableResources)) {
     if (quantity.contains(minResources)) {
       return true;
     }
@@ -2535,7 +2530,7 @@ void HierarchicalAllocatorProcess::trackFrameworkUnderRole(
 
     CHECK(!frameworkSorters.contains(role));
     frameworkSorters.insert({role, Owned<Sorter>(frameworkSorterFactory())});
-    frameworkSorters.at(role)->initialize(fairnessExcludeResourceNames);
+    frameworkSorters.at(role)->initialize(options.fairnessExcludeResourceNames);
 
     foreachvalue (const Slave& slave, slaves) {
       frameworkSorters.at(role)->add(slave.info.id(), slave.getTotal());
@@ -2682,14 +2677,14 @@ bool HierarchicalAllocatorProcess::isRemoteSlave(const Slave& slave) const
   // If the slave has a configured domain (and it has been allowed to
   // register with the master), the master must also have a configured
   // domain.
-  CHECK(domain.isSome());
+  CHECK(options.domain.isSome());
 
   // The master will not startup if configured with a domain but no
   // fault domain.
-  CHECK(domain->has_fault_domain());
+  CHECK(options.domain->has_fault_domain());
 
   const DomainInfo::FaultDomain::RegionInfo& masterRegion =
-    domain->fault_domain().region();
+    options.domain->fault_domain().region();
   const DomainInfo::FaultDomain::RegionInfo& slaveRegion =
     slave.info.domain().fault_domain().region();
 
@@ -2704,7 +2699,7 @@ bool HierarchicalAllocatorProcess::isCapableOfReceivingAgent(
   // Only offer resources from slaves that have GPUs to
   // frameworks that are capable of receiving GPUs.
   // See MESOS-5634.
-  if (filterGpuResources && !frameworkCapabilities.gpuResources &&
+  if (options.filterGpuResources && !frameworkCapabilities.gpuResources &&
       slave.hasGpu()) {
     return false;
   }

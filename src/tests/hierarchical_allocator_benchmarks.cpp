@@ -47,6 +47,7 @@ using mesos::internal::master::allocator::HierarchicalDRFAllocator;
 using mesos::internal::slave::AGENT_CAPABILITIES;
 
 using mesos::allocator::Allocator;
+using mesos::allocator::Options;
 
 using process::Clock;
 using process::Future;
@@ -197,14 +198,15 @@ protected:
     allocator = CHECK_NOTERROR(Allocator::create(
         config.allocator, config.roleSorter, config.frameworkSorter));
 
+
+    Options options;
+    options.allocationInterval = config.allocationInterval;
+    options.minAllocatableResources = config.minAllocatableResources;
+
     allocator->initialize(
-        config.allocationInterval,
+        options,
         CHECK_NOTNONE(offerCallback),
-        {},
-        None(),
-        true,
-        None(),
-        config.minAllocatableResources);
+        {});
 
     Stopwatch watch;
     watch.start();

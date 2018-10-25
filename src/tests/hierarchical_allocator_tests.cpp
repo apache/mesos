@@ -182,14 +182,16 @@ protected:
     minAllocatableResources.push_back(CHECK_NOTERROR(Resources::parse(
         "mem:" + stringify((double)MIN_MEM.bytes() / Bytes::MEGABYTES))));
 
+    Options options;
+    options.allocationInterval = flags.allocation_interval;
+    options.fairnessExcludeResourceNames =
+      flags.fair_sharing_excluded_resource_names;
+    options.minAllocatableResources = minAllocatableResources;
+
     allocator->initialize(
-        flags.allocation_interval,
+        options,
         offerCallback.get(),
-        inverseOfferCallback.get(),
-        flags.fair_sharing_excluded_resource_names,
-        true,
-        None(),
-        minAllocatableResources);
+        inverseOfferCallback.get());
   }
 
   SlaveInfo createSlaveInfo(const Resources& resources)

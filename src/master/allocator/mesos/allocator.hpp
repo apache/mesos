@@ -47,7 +47,7 @@ public:
   ~MesosAllocator() override;
 
   void initialize(
-      const Duration& allocationInterval,
+      const mesos::allocator::Options& options,
       const lambda::function<
           void(const FrameworkID&,
                const hashmap<std::string, hashmap<SlaveID, Resources>>&)>&
@@ -55,13 +55,7 @@ public:
       const lambda::function<
           void(const FrameworkID&,
                const hashmap<SlaveID, UnavailableResources>&)>&
-        inverseOfferCallback,
-      const Option<std::set<std::string>>&
-        fairnessExcludeResourceNames = None(),
-      bool filterGpuResources = true,
-      const Option<DomainInfo>& domain = None(),
-      const Option<std::vector<Resources>>& minAllocatableResources = None(),
-      const size_t maxCompletedFrameworks = 0) override;
+        inverseOfferCallback) override;
 
   void recover(
       const int expectedAgentCount,
@@ -200,7 +194,7 @@ public:
   using process::ProcessBase::initialize;
 
   virtual void initialize(
-      const Duration& allocationInterval,
+      const mesos::allocator::Options& options,
       const lambda::function<
           void(const FrameworkID&,
                const hashmap<std::string, hashmap<SlaveID, Resources>>&)>&
@@ -208,14 +202,7 @@ public:
       const lambda::function<
           void(const FrameworkID&,
                const hashmap<SlaveID, UnavailableResources>&)>&
-        inverseOfferCallback,
-      const Option<std::set<std::string>>&
-        fairnessExcludeResourceNames = None(),
-      bool filterGpuResources = true,
-      const Option<DomainInfo>& domain = None(),
-      const Option<std::vector<Resources>>&
-        minAllocatableResources = None(),
-      const size_t maxCompletedFrameworks = 0) = 0;
+        inverseOfferCallback) = 0;
 
   virtual void recover(
       const int expectedAgentCount,
@@ -363,7 +350,7 @@ MesosAllocator<AllocatorProcess>::~MesosAllocator()
 
 template <typename AllocatorProcess>
 inline void MesosAllocator<AllocatorProcess>::initialize(
-    const Duration& allocationInterval,
+    const mesos::allocator::Options& options,
     const lambda::function<
         void(const FrameworkID&,
              const hashmap<std::string, hashmap<SlaveID, Resources>>&)>&
@@ -371,24 +358,14 @@ inline void MesosAllocator<AllocatorProcess>::initialize(
     const lambda::function<
         void(const FrameworkID&,
               const hashmap<SlaveID, UnavailableResources>&)>&
-      inverseOfferCallback,
-    const Option<std::set<std::string>>& fairnessExcludeResourceNames,
-    bool filterGpuResources,
-    const Option<DomainInfo>& domain,
-    const Option<std::vector<Resources>>& minAllocatableResources,
-    const size_t maxCompletedFrameworks)
+      inverseOfferCallback)
 {
   process::dispatch(
       process,
       &MesosAllocatorProcess::initialize,
-      allocationInterval,
+      options,
       offerCallback,
-      inverseOfferCallback,
-      fairnessExcludeResourceNames,
-      filterGpuResources,
-      domain,
-      minAllocatableResources,
-      maxCompletedFrameworks);
+      inverseOfferCallback);
 }
 
 
