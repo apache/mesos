@@ -465,6 +465,17 @@ If not set, offers do not timeout.
   </td>
 </tr>
 
+<tr id="publish_per_framework_metrics">
+  <td>
+    --[no-]publish_per_framework_metrics
+  </td>
+  <td>
+If <code>true</code>, an extensive set of metrics for each active framework will
+be published. These metrics are useful for understanding cluster behavior,
+but can be overwhelming for very large numbers of frameworks. (default: true)
+  </td>
+</tr>
+
 <tr id="rate_limits">
   <td>
     --rate_limits=VALUE
