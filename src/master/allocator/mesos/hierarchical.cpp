@@ -136,12 +136,13 @@ private:
 Framework::Framework(
     const FrameworkInfo& frameworkInfo,
     const set<string>& _suppressedRoles,
-    bool _active)
+    bool _active,
+    bool publishPerFrameworkMetrics)
   : roles(protobuf::framework::getRoles(frameworkInfo)),
     suppressedRoles(_suppressedRoles),
     capabilities(frameworkInfo.capabilities()),
     active(_active),
-    metrics(new FrameworkMetrics(frameworkInfo)) {}
+    metrics(new FrameworkMetrics(frameworkInfo, publishPerFrameworkMetrics)) {}
 
 
 void HierarchicalAllocatorProcess::initialize(
@@ -265,7 +266,10 @@ void HierarchicalAllocatorProcess::addFramework(
   CHECK(!frameworks.contains(frameworkId));
 
   frameworks.insert(
-      {frameworkId, Framework(frameworkInfo, suppressedRoles, active)});
+      {frameworkId, Framework(frameworkInfo,
+          suppressedRoles,
+          active,
+          options.publishPerFrameworkMetrics)});
 
   const Framework& framework = frameworks.at(frameworkId);
 

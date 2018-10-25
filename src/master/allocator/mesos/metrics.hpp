@@ -94,7 +94,9 @@ struct Metrics
 
 struct FrameworkMetrics
 {
-  explicit FrameworkMetrics(const FrameworkInfo& _frameworkInfo);
+  FrameworkMetrics(
+      const FrameworkInfo& _frameworkInfo,
+      const bool _publishPerFrameworkMetrics);
 
   ~FrameworkMetrics();
 
@@ -106,7 +108,13 @@ struct FrameworkMetrics
   void addSubscribedRole(const std::string& role);
   void removeSubscribedRole(const std::string& role);
 
+  // Add or remove per-framework metrics.
+  template <typename T> void addMetric(const T& metric);
+  template <typename T> void removeMetric(const T& metric);
+
   const FrameworkInfo frameworkInfo;
+
+  const bool publishPerFrameworkMetrics;
 
   // Suppresion state metric (boolean 0 or 1) for each role.
   hashmap<std::string, process::metrics::PushGauge> suppressed;

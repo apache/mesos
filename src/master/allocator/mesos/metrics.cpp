@@ -214,8 +214,11 @@ void Metrics::removeRole(const string& role)
 }
 
 
-FrameworkMetrics::FrameworkMetrics(const FrameworkInfo& _frameworkInfo)
-  : frameworkInfo(_frameworkInfo)
+FrameworkMetrics::FrameworkMetrics(
+    const FrameworkInfo& _frameworkInfo,
+    const bool _publishPerFrameworkMetrics)
+  : frameworkInfo(_frameworkInfo),
+    publishPerFrameworkMetrics(_publishPerFrameworkMetrics)
 {
   // TODO(greggomann): Calling `getRoles` below copies the roles from the
   // framework info, which could become expensive if the number of roles grows
@@ -263,7 +266,7 @@ void FrameworkMetrics::addSubscribedRole(const string& role)
           role + "/suppressed"));
 
   CHECK(result.second);
-  process::metrics::add(result.first->second);
+  addMetric(result.first->second);
 }
 
 
@@ -272,9 +275,26 @@ void FrameworkMetrics::removeSubscribedRole(const string& role)
   auto iter = suppressed.find(role);
 
   CHECK(iter != suppressed.end());
-  process::metrics::remove(iter->second);
+  removeMetric(iter->second);
   suppressed.erase(iter);
 }
+
+
+template <typename T>
+void FrameworkMetrics::addMetric(const T& metric) {
+  if (publishPerFrameworkMetrics) {
+    process::metrics::add(metric);
+  }
+}
+
+
+template <typename T>
+void FrameworkMetrics::removeMetric(const T& metric) {
+  if (publishPerFrameworkMetrics) {
+    process::metrics::remove(metric);
+  }
+}
+
 
 } // namespace internal {
 } // namespace allocator {

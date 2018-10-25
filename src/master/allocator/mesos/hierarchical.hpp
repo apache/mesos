@@ -81,7 +81,8 @@ struct Framework
   Framework(
       const FrameworkInfo& frameworkInfo,
       const std::set<std::string>& suppressedRoles,
-      bool active);
+      bool active,
+      bool publishPerFrameworkMetrics);
 
   std::set<std::string> roles;
 
@@ -96,6 +97,8 @@ struct Framework
   hashmap<SlaveID, hashset<InverseOfferFilter*>> inverseOfferFilters;
 
   bool active;
+
+  bool publishPerFrameworkMetrics;
 
   process::Owned<FrameworkMetrics> metrics;
 };

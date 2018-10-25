@@ -2574,7 +2574,7 @@ struct Framework
   Option<process::Owned<
       Heartbeater<mesos::scheduler::Event, v1::scheduler::Event>>> heartbeater;
 
-  // This is used for per-framwork metrics.
+  // This is used for per-framework metrics.
   FrameworkMetrics metrics;
 
 private:

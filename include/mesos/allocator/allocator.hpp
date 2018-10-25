@@ -52,6 +52,7 @@ struct Options
   Option<DomainInfo> domain = None();
   Option<std::vector<Resources>> minAllocatableResources = None();
   size_t maxCompletedFrameworks = 0;
+  bool publishPerFrameworkMetrics = true;
 };
 
 

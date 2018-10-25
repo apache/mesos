@@ -764,6 +764,7 @@ void Master::initialize()
   options.domain = flags.domain;
   options.minAllocatableResources = CHECK_NOTERROR(minAllocatableResources);
   options.maxCompletedFrameworks = flags.max_completed_frameworks;
+  options.publishPerFrameworkMetrics = flags.publish_per_framework_metrics;
 
   // Initialize the allocator.
   allocator->initialize(

@@ -69,7 +69,7 @@ Framework::Framework(
     reregisteredTime(time),
     completedTasks(masterFlags.max_completed_tasks_per_framework),
     unreachableTasks(masterFlags.max_unreachable_tasks_per_framework),
-    metrics(_info)
+    metrics(_info, masterFlags.publish_per_framework_metrics)
 {
   CHECK(_info.has_id());
 

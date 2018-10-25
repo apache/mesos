@@ -220,7 +220,9 @@ struct Metrics
 
 struct FrameworkMetrics
 {
-  explicit FrameworkMetrics(const FrameworkInfo& _frameworkInfo);
+  FrameworkMetrics(
+      const FrameworkInfo& _frameworkInfo,
+      bool publishPerFrameworkMetrics);
 
   ~FrameworkMetrics();
 
@@ -247,7 +249,12 @@ struct FrameworkMetrics
 
   void incrementOperation(const Offer::Operation& operation);
 
+  template <typename T> void addMetric(const T& metric);
+  template <typename T> void removeMetric(const T& metric);
+
   const FrameworkInfo frameworkInfo;
+
+  bool publishPerFrameworkMetrics;
 
   process::metrics::PushGauge subscribed;
 

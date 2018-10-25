@@ -683,6 +683,14 @@ mesos::internal::master::Flags::Flags()
       "If true, only agents with a configured domain can register.\n",
       false);
 
+  add(&Flags::publish_per_framework_metrics,
+      "publish_per_framework_metrics",
+      "If true, an extensive set of metrics for each active framework will\n"
+      "be published. These metrics are useful for understanding cluster\n"
+      "behavior, but can be overwhelming for very large numbers of\n"
+      "frameworks.",
+      true);
+
   add(&Flags::domain,
       "domain",
       "Domain that the master belongs to. Mesos currently only supports\n"
