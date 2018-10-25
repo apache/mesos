@@ -103,7 +103,7 @@ The following table is meant to capture these transitions:
 
 We use the macros `CHECK_PENDING()`, `CHECK_READY()`, `CHECK_FAILED()`, `CHECK_DISCARDED()` throughout our examples. See [`CHECK()` Overloads](#futures-and-promises-check-overloads) for more details about these macros.
 
-### <a name="futures-and-promises-discarding-a-future"></a> Disarding a Future (aka Cancellation)
+### <a name="futures-and-promises-discarding-a-future"></a> Discarding a Future (aka Cancellation)
 
 You can "cancel" the result of some asynchronous operation by discarding a future. Unlike doing a discard on a promise, _discarding a future is a request that may or may not be be satisfiable_. You discard a future using `Future::discard()`. You can determine if a future has a discard request by using `Future::hasDiscard()` or set up a callback using `Future::onDiscard()`. Here's an example:
 
