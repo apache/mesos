@@ -9559,10 +9559,26 @@ TEST_P(MasterTestPrePostReservationRefinement, LaunchGroup)
   v1::TaskGroupInfo taskGroup;
   taskGroup.add_tasks()->CopyFrom(taskInfo);
 
+  testing::Sequence updateSequence;
   Future<v1::scheduler::Event::Update> startingUpdate;
   Future<v1::scheduler::Event::Update> runningUpdate;
-  EXPECT_CALL(*scheduler, update(_, _))
-    .WillOnce(FutureArg<1>(&startingUpdate))
+
+  EXPECT_CALL(
+      *scheduler,
+      update(_, AllOf(
+          TaskStatusUpdateTaskIdEq(taskInfo),
+          TaskStatusUpdateStateEq(v1::TASK_STARTING))))
+    .InSequence(updateSequence)
+    .WillOnce(DoAll(
+        FutureArg<1>(&startingUpdate),
+        v1::scheduler::SendAcknowledge(frameworkId, agentId)));
+
+  EXPECT_CALL(
+      *scheduler,
+      update(_, AllOf(
+            TaskStatusUpdateTaskIdEq(taskInfo),
+            TaskStatusUpdateStateEq(v1::TASK_RUNNING))))
+    .InSequence(updateSequence)
     .WillOnce(FutureArg<1>(&runningUpdate));
 
   {
@@ -9586,16 +9602,7 @@ TEST_P(MasterTestPrePostReservationRefinement, LaunchGroup)
   }
 
   AWAIT_READY(startingUpdate);
-
-  EXPECT_EQ(v1::TASK_STARTING, startingUpdate->status().state());
-  EXPECT_EQ(taskInfo.task_id(), startingUpdate->status().task_id());
-  EXPECT_TRUE(startingUpdate->status().has_timestamp());
-
   AWAIT_READY(runningUpdate);
-
-  EXPECT_EQ(v1::TASK_STARTING, runningUpdate->status().state());
-  EXPECT_EQ(taskInfo.task_id(), runningUpdate->status().task_id());
-  EXPECT_TRUE(runningUpdate->status().has_timestamp());
 
   // Ensure that the task sandbox symbolic link is created.
   EXPECT_TRUE(os::exists(path::join(
