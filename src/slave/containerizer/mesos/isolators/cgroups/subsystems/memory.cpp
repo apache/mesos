@@ -478,7 +478,7 @@ void MemorySubsystemProcess::oomListen(
   LOG(INFO) << "Started listening for OOM events for container "
             << containerId;
 
-  info->oomNotifier.onReady(
+  info->oomNotifier.onAny(
       defer(PID<MemorySubsystemProcess>(this),
             &MemorySubsystemProcess::oomWaited,
             containerId,
