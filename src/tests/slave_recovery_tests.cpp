@@ -5069,6 +5069,8 @@ class MesosContainerizerSlaveRecoveryTest
   : public SlaveRecoveryTest<MesosContainerizer> {};
 
 
+// Tests that the containerizer will properly report resource limits
+// after an agent failover.
 TEST_F(MesosContainerizerSlaveRecoveryTest, ResourceStatistics)
 {
   Try<Owned<cluster::Master>> master = this->StartMaster();
@@ -5112,19 +5114,23 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, ResourceStatistics)
 
   TaskInfo task = createTask(offers.get()[0], SLEEP_COMMAND(1000));
 
-  // Message expectations.
+  // Wait until the executor registered and task resource updated.
   Future<Message> registerExecutor =
     FUTURE_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
+  Future<Nothing> update1 =
+    FUTURE_DISPATCH(_, &MesosContainerizerProcess::update);
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
   AWAIT_READY(registerExecutor);
+  AWAIT_READY(update1);
 
   slave.get()->terminate();
 
-  // Set up so we can wait until the new slave updates the container's
-  // resources (this occurs after the executor has reregistered).
-  Future<Nothing> update =
+  // Wait until the executor re-registered and task resource updated.
+  Future<Message> reregisterExecutor =
+    FUTURE_MESSAGE(Eq(ReregisterExecutorMessage().GetTypeName()), _, _);
+  Future<Nothing> update2 =
     FUTURE_DISPATCH(_, &MesosContainerizerProcess::update);
 
   // Restart the slave (use same flags) with a new containerizer.
@@ -5135,8 +5141,8 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, ResourceStatistics)
   slave = this->StartSlave(detector.get(), containerizer.get(), flags);
   ASSERT_SOME(slave);
 
-  // Wait until the containerizer is updated.
-  AWAIT_READY(update);
+  AWAIT_READY(reregisterExecutor);
+  AWAIT_READY(update2);
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
