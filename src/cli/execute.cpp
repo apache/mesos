@@ -810,7 +810,8 @@ static Result<ContainerInfo> getContainerInfo(
 
   // Mesos containerizer supports 'appc' and 'docker' images.
   if (containerizer == "mesos") {
-    if (appcImage.isNone() &&
+    if (!tty &&
+        appcImage.isNone() &&
         dockerImage.isNone() &&
         effective_capabilities.isNone() &&
         bounding_capabilities.isNone() &&
