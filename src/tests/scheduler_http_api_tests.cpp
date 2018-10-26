@@ -501,7 +501,9 @@ TEST_P(SchedulerHttpApiTest, UpdatePidToHttpScheduler)
   Future<FrameworkErrorMessage> errorMessage =
     FUTURE_PROTOBUF(FrameworkErrorMessage(), _, _);
 
-  EXPECT_CALL(sched, error(_, _));
+  Future<Nothing> schedError;
+  EXPECT_CALL(sched, error(_, _))
+    .WillOnce(FutureSatisfy(&schedError));
 
   driver.start();
 
@@ -559,6 +561,9 @@ TEST_P(SchedulerHttpApiTest, UpdatePidToHttpScheduler)
   ASSERT_SOME(event.get());
 
   ASSERT_EQ(Event::HEARTBEAT, event->get().type());
+
+  AWAIT_READY(errorMessage);
+  AWAIT_READY(schedError);
 
   driver.stop();
   driver.join();
