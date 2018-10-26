@@ -5870,7 +5870,8 @@ void Master::decline(
   CHECK_NOTNULL(framework);
 
   LOG(INFO) << "Processing DECLINE call for offers: " << decline.offer_ids()
-            << " for framework " << *framework;
+            << " for framework " << *framework << " with "
+            << decline.filters().refuse_seconds() << " seconds filter";
 
   ++metrics->messages_decline_offers;
 
