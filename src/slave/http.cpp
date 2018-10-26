@@ -2485,8 +2485,6 @@ Future<Response> Http::_launchContainer(
     ContentType acceptType,
     const Owned<ObjectApprovers>& approvers) const
 {
-  Option<string> user;
-
   // Attempt to get the executor associated with this ContainerID.
   // We only expect to get the executor when launching a nested container
   // under a container launched via a scheduler. In other cases, we are
@@ -2504,24 +2502,14 @@ Future<Response> Http::_launchContainer(
             executor->info, framework->info, commandInfo, containerId)) {
       return Forbidden();
     }
-
-    // By default, we use the executor's user.
-    // The CommandInfo can override it, if specified.
-    user = executor->user;
   }
 
   ContainerConfig containerConfig;
   containerConfig.mutable_command_info()->CopyFrom(commandInfo);
 
 #ifndef __WINDOWS__
-  if (slave->flags.switch_user) {
-    if (commandInfo.has_user()) {
-      user = commandInfo.user();
-    }
-
-    if (user.isSome()) {
-      containerConfig.set_user(user.get());
-    }
+  if (slave->flags.switch_user && commandInfo.has_user()) {
+    containerConfig.set_user(commandInfo.user());
   }
 #endif // __WINDOWS__
 

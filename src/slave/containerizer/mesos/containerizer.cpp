@@ -1823,6 +1823,16 @@ Future<Containerizer::LaunchResult> MesosContainerizerProcess::_launch(
   }
 
   // Determine the user to launch the container as.
+  // Inherit user from the parent container for nested containers, and it can be
+  // overridden by the user in nested container's `commandInfo`, if specified.
+  if (containerId.has_parent()) {
+    if (containers_[containerId.parent()]->config.isSome() &&
+        containers_[containerId.parent()]->config->has_user()) {
+      launchInfo.set_user(
+          containers_[containerId.parent()]->config->user());
+    }
+  }
+
   if (container->config->has_user()) {
     launchInfo.set_user(container->config->user());
   }
