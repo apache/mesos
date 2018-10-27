@@ -1,7 +1,7 @@
 {
   "libraries": [
     {
-      "file": "/usr/lib64/mesos/modules/liburi_disk_profile.so",
+      "file": "/usr/lib64/mesos/modules/liburi_disk_profile_adaptor.so",
       "modules": [
         {
           "name": "org_apache_mesos_UriDiskProfileAdaptor",

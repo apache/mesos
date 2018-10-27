@@ -1,4 +1,6 @@
-FROM mesos/mesos-centos
+ARG BASE_IMAGE_NAME
+
+FROM $BASE_IMAGE_NAME
 
 RUN yum install -y java-1.8.0-openjdk iptables
 
