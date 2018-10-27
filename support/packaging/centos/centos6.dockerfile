@@ -36,3 +36,12 @@ ADD mesos.spec /mesos.spec
 
 RUN yum makecache && \
     yum-builddep -y /mesos.spec
+
+ADD user-init.sh /user-init.sh
+
+ARG USER_NAME=root
+ARG USER_ID=0
+ARG GROUP_NAME=root
+ARG GROUP_ID=0
+
+RUN /user-init.sh $USER_NAME $USER_ID $GROUP_NAME $GROUP_ID
