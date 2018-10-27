@@ -19,11 +19,7 @@ if [ "$CENTOS_VERSION" = "6" ]; then
   source scl_source enable devtoolset-3
 fi
 
-if [ -z "$MESOS_TAG" ]; then
-  gitsha=$(git rev-parse --short HEAD)
-  snapshot_version=$(date -u +'%Y%m%d')git$gitsha
-  MESOS_RELEASE=0.1.pre.$snapshot_version
-
+make_dist() {
   pushd $MESOS_DIR
   ./bootstrap
   popd
@@ -36,14 +32,30 @@ if [ -z "$MESOS_TAG" ]; then
 
   cp -f $TMP_BUILD_DIR/mesos-$MESOS_VERSION.tar.gz $HOME/rpmbuild/SOURCES/
   rm -rf $TMP_BUILD_DIR
+}
+
+if [ -z "$MESOS_TAG" ]; then
+  gitsha=$(git rev-parse --short HEAD)
+  snapshot_version=$(date -u +'%Y%m%d')git$gitsha
+  MESOS_RELEASE=0.1.pre.$snapshot_version
+
+  make_dist
 elif [ "$MESOS_VERSION" = "$MESOS_TAG" ]; then
-  curl -sSL \
-    https://dist.apache.org/repos/dist/release/mesos/${MESOS_VERSION}/mesos-${MESOS_VERSION}.tar.gz \
-    -o $HOME/rpmbuild/SOURCES/mesos-${MESOS_VERSION}.tar.gz
+  if [ ! -z ${MAKE_DIST:-""} ]; then
+    make_dist
+  else
+    curl -sSL \
+      https://dist.apache.org/repos/dist/release/mesos/${MESOS_VERSION}/mesos-${MESOS_VERSION}.tar.gz \
+      -o $HOME/rpmbuild/SOURCES/mesos-${MESOS_VERSION}.tar.gz
+  fi
 else
-  curl -sSL \
-    https://dist.apache.org/repos/dist/dev/mesos/${MESOS_TAG}/mesos-${MESOS_VERSION}.tar.gz \
-    -o $HOME/rpmbuild/SOURCES/mesos-${MESOS_VERSION}.tar.gz
+  if [ ! -z ${MAKE_DIST:-""} ]; then
+    make_dist
+  else
+    curl -sSL \
+      https://dist.apache.org/repos/dist/dev/mesos/${MESOS_TAG}/mesos-${MESOS_VERSION}.tar.gz \
+      -o $HOME/rpmbuild/SOURCES/mesos-${MESOS_VERSION}.tar.gz
+  fi
 fi
 
 rpmbuild \
