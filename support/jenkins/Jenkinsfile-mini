@@ -1,0 +1,17 @@
+#!groovy
+
+if (env.NODE_LABELS == null) {
+  env.NODE_LABELS = "(ubuntu)&&(!ubuntu-us1)&&(!ubuntu-eu2)&&(!qnode3)&&(!H23)"
+}
+
+node(env.NODE_LABELS) {
+  checkout scm
+
+  withCredentials([[
+    $class: 'UsernamePasswordMultiBinding',
+    credentialsId: 'mesos-docker-bot',
+    usernameVariable: 'USERNAME',
+    passwordVariable: 'PASSWORD']]) {
+    sh("support/jenkins/mini.sh")
+  }
+}
