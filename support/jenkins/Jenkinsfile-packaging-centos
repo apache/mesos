@@ -13,14 +13,5 @@ parallel(
 
       archiveArtifacts(artifacts: '**/*.rpm', fingerprint: true)
     }
-  },
-  centos6: {
-    node(env.NODE_LABELS) {
-      checkout scm
-
-      sh("CENTOS_DISTRO=6 support/packaging/centos/build-rpm-docker.sh")
-
-      archiveArtifacts(artifacts: '**/*.rpm', fingerprint: true)
-    }
   }
 )
