@@ -413,7 +413,8 @@ Future<Option<ContainerLaunchInfo>> CgroupsIsolatorProcess::prepare(
 
     Try<Nothing> create = cgroups::create(
         hierarchy,
-        infos[containerId]->cgroup);
+        infos[containerId]->cgroup,
+        true);
 
     if (create.isError()) {
       return Failure(

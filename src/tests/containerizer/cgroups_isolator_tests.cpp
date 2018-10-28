@@ -675,6 +675,130 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_PidsAndTids)
 }
 
 
+// This tests the creation of cgroup when cgoups_root dir is gone.
+// All tasks will fail if this happens after slave starting/recovering.
+// We should create cgroup recursively to solve this. SEE MESOS-9305.
+TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CreateRecursively)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "cgroups/mem";
+
+  Fetcher fetcher(flags);
+
+  Try<MesosContainerizer*> _containerizer =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(_containerizer);
+
+  Owned<MesosContainerizer> containerizer(_containerizer.get());
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      detector.get(),
+      containerizer.get(),
+      flags);
+
+  ASSERT_SOME(slave);
+
+  Result<string> hierarchy = cgroups::hierarchy("memory");
+  ASSERT_SOME(hierarchy);
+
+  // We should remove cgroups_root after the slave being started
+  // because slave will create cgroups_root dir during startup
+  // if it's not present.
+  ASSERT_SOME(cgroups::remove(hierarchy.get(), flags.cgroups_root));
+  ASSERT_FALSE(os::exists(flags.cgroups_root));
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(
+      &sched,
+      DEFAULT_FRAMEWORK_INFO,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  Future<Nothing> schedRegistered;
+  EXPECT_CALL(sched, registered(_, _, _))
+    .WillOnce(FutureSatisfy(&schedRegistered));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());      // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(schedRegistered);
+
+  AWAIT_READY(offers);
+  EXPECT_EQ(1u, offers->size());
+
+  // Create a task to be launched in the mesos-container. We will be
+  // explicitly killing this task to perform the cleanup test.
+  TaskInfo task = createTask(offers.get()[0], "sleep 1000");
+
+  Future<TaskStatus> statusStarting;
+  Future<TaskStatus> statusRunning;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
+    .WillOnce(FutureArg<1>(&statusRunning));
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  // Capture the update to verify that the task has been launched.
+  AWAIT_READY(statusStarting);
+  ASSERT_EQ(TASK_STARTING, statusStarting->state());
+
+  AWAIT_READY(statusRunning);
+  ASSERT_EQ(TASK_RUNNING, statusRunning->state());
+
+  // Task is ready. Make sure there is exactly 1 container in the hashset.
+  Future<hashset<ContainerID>> containers = containerizer->containers();
+  AWAIT_READY(containers);
+  ASSERT_EQ(1u, containers->size());
+
+  const ContainerID& containerID = *(containers->begin());
+
+  // Check if the memory cgroup for this container exists, by
+  // checking for the processes associated with this cgroup.
+  string cgroup = path::join(
+      flags.cgroups_root,
+      containerID.value());
+
+  Try<set<pid_t>> pids = cgroups::processes(hierarchy.get(), cgroup);
+  ASSERT_SOME(pids);
+
+  // There should be at least one TGID associated with this cgroup.
+  EXPECT_LE(1u, pids->size());
+
+  // Isolator cleanup test: Killing the task should cleanup the cgroup
+  // associated with the container.
+  Future<TaskStatus> killStatus;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&killStatus));
+
+  // Wait for the executor to exit. We are using 'gc.schedule' as a proxy event
+  // to monitor the exit of the executor.
+  Future<Nothing> gcSchedule = FUTURE_DISPATCH(
+      _, &slave::GarbageCollectorProcess::schedule);
+
+  driver.killTask(statusRunning->task_id());
+
+  AWAIT_READY(gcSchedule);
+
+  // If the cleanup is successful the memory cgroup for this container should
+  // not exist.
+  ASSERT_FALSE(os::exists(cgroup));
+
+  driver.stop();
+  driver.join();
+}
+
+
 class NetClsHandleManagerTest : public testing::Test {};
 
 
