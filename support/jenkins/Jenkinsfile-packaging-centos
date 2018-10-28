@@ -1,0 +1,26 @@
+#!groovy
+
+if (env.NODE_LABELS == null) {
+  env.NODE_LABELS = "(ubuntu)&&(!ubuntu-us1)&&(!ubuntu-eu2)&&(!qnode3)&&(!H23)"
+}
+
+parallel(
+  centos7: {
+    node(env.NODE_LABELS) {
+      checkout scm
+
+      sh("CENTOS_DISTRO=7 support/packaging/centos/build-rpm-docker.sh")
+
+      archiveArtifacts(artifacts: '**/*.rpm', fingerprint: true)
+    }
+  },
+  centos6: {
+    node(env.NODE_LABELS) {
+      checkout scm
+
+      sh("CENTOS_DISTRO=6 support/packaging/centos/build-rpm-docker.sh")
+
+      archiveArtifacts(artifacts: '**/*.rpm', fingerprint: true)
+    }
+  }
+)
