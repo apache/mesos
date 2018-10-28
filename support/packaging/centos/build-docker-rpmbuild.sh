@@ -8,7 +8,7 @@ set -o errexit -o nounset -o pipefail -o verbose
 CENTOS_DIR="$(cd "$(dirname "$0")"; pwd -P)"
 
 CENTOS_DISTRO=${CENTOS_DISTRO:-"7"}
-DOCKER_IMAGE=${DOCKER_IMAGE:-"mesos/mesos-centos-rpmbuild"}
+DOCKER_IMAGE=${DOCKER_IMAGE:-"mesos/mesos-centos${CENTOS_DISTRO}-rpmbuild"}
 DOCKER_IMAGE_TAG=${DOCKER_IMAGE_TAG:-"latest"}
 
 if ! [ -x "$(command -v docker)" ]; then
