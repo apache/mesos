@@ -9,7 +9,7 @@ node(env.NODE_LABELS) {
 
   withCredentials([[
     $class: 'UsernamePasswordMultiBinding',
-    credentialsId: 'mesos-docker-bot'
+    credentialsId: 'mesos-docker-bot',
     usernameVariable: 'USERNAME',
     passwordVariable: 'PASSWORD']]) {
     sh("support/jenkins/docker-centos.sh")
