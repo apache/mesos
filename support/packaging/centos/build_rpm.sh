@@ -16,7 +16,7 @@ cp ${PACKAGING_DIR}/common/* $HOME/rpmbuild/SOURCES
 cp ${PACKAGING_DIR}/centos/mesos.spec $HOME/rpmbuild/SPECS
 
 if [ "$CENTOS_VERSION" = "6" ]; then
-  source scl_source enable devtoolset-3
+  source scl_source enable devtoolset-7
 fi
 
 make_dist() {
