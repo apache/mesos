@@ -107,10 +107,10 @@ public:
     start_time = Clock::now();
   }
 
-  ~InverseOfferScheduler() {}
+  ~InverseOfferScheduler() override {}
 
 protected:
-  virtual void initialize()
+  virtual void initialize() override
   {
     // We initialize the library here to ensure that callbacks are only invoked
     // after the process has spawned.
@@ -442,7 +442,7 @@ private:
     }
   }
 
-  void finalize()
+  void finalize() override
   {
     if (state == SUBSCRIBED) {
       Call call;
