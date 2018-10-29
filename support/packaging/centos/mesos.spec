@@ -48,8 +48,8 @@ BuildRequires: subversion-devel < 2.0
 BuildRequires: patch
 
 %if 0%{?el6}
-BuildRequires: devtoolset-3-gcc
-BuildRequires: devtoolset-3-gcc-c++
+BuildRequires: devtoolset-7-gcc
+BuildRequires: devtoolset-7-gcc-c++
 BuildRequires: epel-rpm-macros
 BuildRequires: libevent2-devel
 %define _with_xfs no
