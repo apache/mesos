@@ -903,8 +903,7 @@ TEST_F(GarbageCollectorIntegrationTest, LongLivedDefaultExecutor)
 // when a task finishes, but the executor is still running. This version of
 // the test restarts the agent to ensure recovered tasks are also scheduled
 // for GC.
-TEST_F(
-    GarbageCollectorIntegrationTest, DISABLED_LongLivedDefaultExecutorRestart)
+TEST_F(GarbageCollectorIntegrationTest, LongLivedDefaultExecutorRestart)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -915,8 +914,14 @@ TEST_F(
   // Turn on GC of nested container sandboxes by default.
   flags.gc_non_executor_container_sandboxes = true;
 
+  // Start the slave with a static process ID. This allows the executor to
+  // reconnect with the slave upon a process restart.
+  const string id(process::ID::generate("agent"));
+
   Owned<MasterDetector> detector = master.get()->createDetector();
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), id, flags, false);
+
   ASSERT_SOME(slave);
 
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
@@ -1094,7 +1099,7 @@ TEST_F(
 
   // The agent should reregister once recovery is complete, which also means
   // that any finished tasks metadata/sandboxes should be rescheduled for GC.
-  slave = StartSlave(detector.get(), flags);
+  slave = StartSlave(detector.get(), id, flags, false);
   ASSERT_SOME(slave);
   AWAIT_READY(slaveReregisteredMessage);
 
