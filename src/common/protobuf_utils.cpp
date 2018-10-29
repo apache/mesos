@@ -341,6 +341,10 @@ Task createTask(
     t.mutable_container()->CopyFrom(task.container());
   }
 
+  if (task.has_health_check()) {
+    t.mutable_health_check()->CopyFrom(task.health_check());
+  }
+
   // Copy `user` if set.
   if (task.has_command() && task.command().has_user()) {
     t.set_user(task.command().user());

@@ -827,6 +827,10 @@ void json(JSON::ObjectWriter* writer, const Task& task)
   if (task.has_container()) {
     writer->field("container", JSON::Protobuf(task.container()));
   }
+
+  if (task.has_health_check()) {
+    writer->field("health_check", JSON::Protobuf(task.health_check()));
+  }
 }
 
 

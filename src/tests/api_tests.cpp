@@ -551,6 +551,26 @@ TEST_P(MasterAPITest, GetState)
 
   TaskInfo task = createTask(offers.get()[0], "", DEFAULT_EXECUTOR_ID);
 
+  const string checkCommandValue = "exit 0";
+
+  // Add a health check to the task.
+  {
+    CommandInfo healthCommand;
+    healthCommand.set_value(checkCommandValue);
+
+    HealthCheck healthCheck;
+
+    healthCheck.set_type(HealthCheck::COMMAND);
+    healthCheck.mutable_command()->CopyFrom(healthCommand);
+    healthCheck.set_delay_seconds(1);
+    healthCheck.set_interval_seconds(1);
+    healthCheck.set_timeout_seconds(1);
+    healthCheck.set_consecutive_failures(1);
+    healthCheck.set_grace_period_seconds(1);
+
+    task.mutable_health_check()->CopyFrom(healthCheck);
+  }
+
   Future<ExecutorDriver*> execDriver;
   EXPECT_CALL(exec, registered(_, _, _, _))
     .WillOnce(FutureArg<0>(&execDriver));
@@ -589,6 +609,28 @@ TEST_P(MasterAPITest, GetState)
     const v1::master::Response::GetState& getState = v1Response->get_state();
     ASSERT_EQ(1, getState.get_tasks().tasks_size());
     ASSERT_TRUE(getState.get_tasks().completed_tasks().empty());
+
+    // Confirm that the health check definition is included.
+    ASSERT_TRUE(getState.get_tasks().tasks(0).has_health_check());
+    ASSERT_EQ(
+        v1::HealthCheck::COMMAND,
+        getState.get_tasks().tasks(0).health_check().type());
+    ASSERT_EQ(
+        checkCommandValue,
+        getState.get_tasks().tasks(0).health_check().command().value());
+    ASSERT_EQ(1, getState.get_tasks().tasks(0).health_check().delay_seconds());
+    ASSERT_EQ(
+        1,
+        getState.get_tasks().tasks(0).health_check().interval_seconds());
+    ASSERT_EQ(
+        1,
+        getState.get_tasks().tasks(0).health_check().timeout_seconds());
+    ASSERT_EQ(
+        1u,
+        getState.get_tasks().tasks(0).health_check().consecutive_failures());
+    ASSERT_EQ(
+        1,
+        getState.get_tasks().tasks(0).health_check().grace_period_seconds());
   }
 
   acknowledgement = FUTURE_PROTOBUF(
@@ -2316,6 +2358,21 @@ TEST_P(MasterAPITest, Subscribe)
 
   TaskInfo task = createTask(devolve(offer), "", executorId);
 
+  const string checkCommandValue = "exit 0";
+
+  // Add a health check to the task.
+  {
+    CommandInfo healthCommand;
+    healthCommand.set_value(checkCommandValue);
+
+    HealthCheck healthCheck;
+
+    healthCheck.set_type(HealthCheck::COMMAND);
+    healthCheck.mutable_command()->CopyFrom(healthCommand);
+
+    task.mutable_health_check()->CopyFrom(healthCheck);
+  }
+
   Future<Nothing> update;
   EXPECT_CALL(*scheduler, update(_, _))
     .WillOnce(FutureSatisfy(&update));
@@ -2354,6 +2411,13 @@ TEST_P(MasterAPITest, Subscribe)
   ASSERT_EQ(v1::master::Event::TASK_ADDED, event->get().type());
   ASSERT_EQ(evolve(task.task_id()),
             event->get().task_added().task().task_id());
+  ASSERT_TRUE(event->get().task_added().task().has_health_check());
+  ASSERT_EQ(
+      v1::HealthCheck::COMMAND,
+      event->get().task_added().task().health_check().type());
+  ASSERT_EQ(
+      checkCommandValue,
+      event->get().task_added().task().health_check().command().value());
 
   event = decoder.read();
 

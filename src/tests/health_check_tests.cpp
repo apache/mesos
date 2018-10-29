@@ -15,10 +15,14 @@
 // limitations under the License.
 
 #include <mesos/executor.hpp>
+#include <mesos/http.hpp>
 #include <mesos/scheduler.hpp>
+
+#include <mesos/v1/master/master.hpp>
 
 #include <process/collect.hpp>
 #include <process/future.hpp>
+#include <process/http.hpp>
 #include <process/owned.hpp>
 #include <process/pid.hpp>
 
@@ -65,6 +69,7 @@ using mesos::master::detector::MasterDetector;
 using mesos::slave::ContainerLogger;
 using mesos::slave::ContainerTermination;
 
+using process::Failure;
 using process::Future;
 using process::Owned;
 using process::PID;
@@ -334,8 +339,15 @@ TEST_F(HealthCheckTest, HealthyTask)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  vector<TaskInfo> tasks =
-    populateTasks(SLEEP_COMMAND(120), "exit 0", offers.get()[0]);
+  vector<TaskInfo> tasks = populateTasks(
+      SLEEP_COMMAND(120),
+      "exit 0",
+      offers.get()[0],
+      1,
+      1,
+      None(),
+      None(),
+      1);
 
   Future<TaskStatus> statusStarting;
   Future<TaskStatus> statusRunning;
@@ -398,7 +410,8 @@ TEST_F(HealthCheckTest, HealthyTask)
   EXPECT_TRUE(implicitReconciliation->has_healthy());
   EXPECT_TRUE(implicitReconciliation->healthy());
 
-  // Verify that task health is exposed in the master's state endpoint.
+  // Verify that task's health check definition and current health status
+  // are exposed in the master's state endpoint.
   {
     Future<http::Response> response = http::get(
         master.get()->pid,
@@ -414,9 +427,38 @@ TEST_F(HealthCheckTest, HealthyTask)
     Result<JSON::Value> find = parse->find<JSON::Value>(
         "frameworks[0].tasks[0].statuses[1].healthy");
     EXPECT_SOME_TRUE(find);
+
+    find = parse->find<JSON::Value>(
+        "frameworks[0].tasks[0].health_check.type");
+    EXPECT_SOME_EQ("COMMAND", find);
+
+    find = parse->find<JSON::Value>(
+        "frameworks[0].tasks[0].health_check.command.value");
+    EXPECT_SOME_EQ("exit 0", find);
+
+    find = parse->find<JSON::Value>(
+        "frameworks[0].tasks[0].health_check.delay_seconds");
+    EXPECT_SOME_EQ(0, find);
+
+    find = parse->find<JSON::Value>(
+        "frameworks[0].tasks[0].health_check.interval_seconds");
+    EXPECT_SOME_EQ(0, find);
+
+    find = parse->find<JSON::Value>(
+        "frameworks[0].tasks[0].health_check.timeout_seconds");
+    EXPECT_SOME_EQ(1, find);
+
+    find = parse->find<JSON::Value>(
+        "frameworks[0].tasks[0].health_check.consecutive_failures");
+    EXPECT_SOME_EQ(1u, find);
+
+    find = parse->find<JSON::Value>(
+        "frameworks[0].tasks[0].health_check.grace_period_seconds");
+    EXPECT_SOME_EQ(1, find);
   }
 
-  // Verify that task health is exposed in the agent's state endpoint.
+  // Verify that the task's health definition and current health status
+  // are exposed in the agent's state endpoint.
   {
     Future<http::Response> response = http::get(
         agent.get()->pid,
@@ -432,6 +474,14 @@ TEST_F(HealthCheckTest, HealthyTask)
     Result<JSON::Value> find = parse->find<JSON::Value>(
         "frameworks[0].executors[0].tasks[0].statuses[1].healthy");
     EXPECT_SOME_TRUE(find);
+
+    find = parse->find<JSON::Value>(
+        "frameworks[0].executors[0].tasks[0].health_check.type");
+    EXPECT_SOME_EQ("COMMAND", find);
+
+    find = parse->find<JSON::Value>(
+        "frameworks[0].executors[0].tasks[0].health_check.command.value");
+    EXPECT_SOME_EQ("exit 0", find);
   }
 
   driver.stop();

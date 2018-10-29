@@ -2165,8 +2165,8 @@ message TaskGroupInfo {
  *   1) we need additional IDs, such as a specific
  *      framework, executor, or agent; or
  *   2) we do not need the additional data, such as the command run by the
- *      task or the health checks.  These additional fields may be large and
- *      unnecessary for some Mesos messages.
+ *      task. These additional fields may be large and unnecessary for some
+ *      Mesos messages.
  *
  * `Task` is generally constructed from a `TaskInfo`.  See protobuf::createTask.
  */
@@ -2196,6 +2196,10 @@ message Task {
 
   // Container information for the task.
   optional ContainerInfo container = 13;
+
+  optional HealthCheck health_check = 15;
+
+  // TODO(greggomann): Add the task's `CheckInfo`. See MESOS-8780.
 
   // Specific user under which task is running.
   optional string user = 14;
