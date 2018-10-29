@@ -352,6 +352,13 @@ canonical list is located on
       <td></td>
       <td>qianzhang@apache.org</td>
     </tr>
+    <tr>
+      <td>-8</td>
+      <td>Meng Zhu</td>
+      <td>Mesosphere</td>
+      <td></td>
+      <td>mzhu@apache.org</td>
+    </tr>
   </tbody>
 </table>
 
