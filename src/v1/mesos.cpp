@@ -79,9 +79,13 @@ bool operator==(const CommandInfo& left, const CommandInfo& right)
 
 bool operator==(const CommandInfo::URI& left, const CommandInfo::URI& right)
 {
+  // NOTE: We purposefully do not compare the value of the `cache` field
+  // because a URI downloaded from source or from the fetcher cache should
+  // be considered identical.
   return left.value() == right.value() &&
     left.executable() == right.executable() &&
-    left.extract() == right.extract();
+    left.extract() == right.extract() &&
+    left.output_file() == right.output_file();
 }
 
 
