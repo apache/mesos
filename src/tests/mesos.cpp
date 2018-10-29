@@ -178,6 +178,8 @@ slave::Flags MesosTest::CreateSlaveFlags()
 
   flags.docker_store_dir = path::join(directory.get(), "store", "docker");
 
+  flags.frameworks_home = path::join(directory.get(), "frameworks");
+
   {
     // Create a default credential file for master/agent authentication.
     const string& path = path::join(directory.get(), "credential");
