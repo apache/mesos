@@ -250,14 +250,8 @@ Future<Option<ContainerLaunchInfo>> VolumeImageIsolatorProcess::_prepare(
     ContainerMountInfo* mount = launchInfo.add_mounts();
     mount->set_source(source);
     mount->set_target(target);
-    mount->set_flags(MS_BIND | MS_REC);
-
-    // If the mount needs to be read-only, do a remount.
-    if (volumeMode == Volume::RO) {
-      mount = launchInfo.add_mounts();
-      mount->set_target(target);
-      mount->set_flags(MS_BIND | MS_RDONLY | MS_REMOUNT);
-    }
+    mount->set_flags(
+        MS_BIND | MS_REC | (volumeMode == Volume::RO ? MS_RDONLY : 0));
   }
 
   return launchInfo;

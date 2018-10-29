@@ -128,27 +128,13 @@ Future<Nothing> BindBackendProcess::provision(
       layers.front(),
       rootfs,
       None(),
-      MS_BIND,
+      MS_BIND | MS_RDONLY,
       nullptr);
 
   if (mount.isError()) {
     return Failure(
         "Failed to bind mount rootfs '" + layers.front() +
         "' to '" + rootfs + "': " + mount.error());
-  }
-
-  // And remount it read-only.
-  mount = fs::mount(
-      None(), // Ignored.
-      rootfs,
-      None(),
-      MS_BIND | MS_RDONLY | MS_REMOUNT,
-      nullptr);
-
-  if (mount.isError()) {
-    return Failure(
-        "Failed to remount rootfs '" + rootfs + "' read-only: " +
-        mount.error());
   }
 
   // Mark the mount as shared+slave.

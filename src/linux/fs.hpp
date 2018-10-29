@@ -348,6 +348,10 @@ struct MountTable {
 // @param   flags     Mount flags.
 // @param   data      Extra data interpreted by different file systems.
 // @return  Whether the mount operation succeeds.
+//
+// Note that if this is a read-only bind mount (both the MS_BIND
+// and MS_READONLY flags are set), the target will automatically
+// be remounted in read-only mode.
 Try<Nothing> mount(const Option<std::string>& source,
                    const std::string& target,
                    const Option<std::string>& type,

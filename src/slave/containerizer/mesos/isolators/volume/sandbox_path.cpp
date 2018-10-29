@@ -378,14 +378,8 @@ Future<Option<ContainerLaunchInfo>> VolumeSandboxPathIsolatorProcess::prepare(
       ContainerMountInfo* mount = launchInfo.add_mounts();
       mount->set_source(source);
       mount->set_target(target);
-      mount->set_flags(MS_BIND | MS_REC);
-
-      // If the mount needs to be read-only, do a remount.
-      if (volume.mode() == Volume::RO) {
-        mount = launchInfo.add_mounts();
-        mount->set_target(target);
-        mount->set_flags(MS_BIND | MS_RDONLY | MS_REMOUNT);
-      }
+      mount->set_flags(
+          MS_BIND | MS_REC | (volume.mode() == Volume::RO ? MS_RDONLY : 0));
 #endif // __linux__
     } else {
       LOG(INFO) << "Linking SANDBOX_PATH volume from "

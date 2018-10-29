@@ -482,25 +482,41 @@ Try<MountTable> MountTable::read(const string& path)
 }
 
 
-Try<Nothing> mount(const Option<string>& source,
+Try<Nothing> mount(const Option<string>& _source,
                    const string& target,
-                   const Option<string>& type,
+                   const Option<string>& _type,
                    unsigned long flags,
                    const void* data)
 {
+  const char * source = _source.isSome() ? _source->c_str() : nullptr;
+  const char * type = _type.isSome() ? _type->c_str() : nullptr;
+
   // The prototype of function 'mount' on Linux is as follows:
   // int mount(const char *source,
   //           const char *target,
   //           const char *filesystemtype,
   //           unsigned long mountflags,
   //           const void *data);
-  if (::mount(
-          (source.isSome() ? source->c_str() : nullptr),
-          target.c_str(),
-          (type.isSome() ? type->c_str() : nullptr),
-          flags,
-          data) < 0) {
+  if (::mount(source, target.c_str(), type, flags, data) < 0) {
     return ErrnoError();
+  }
+
+  const unsigned READ_ONLY_FLAG = MS_BIND | MS_RDONLY;
+  const unsigned READ_ONLY_MASK = MS_BIND | MS_RDONLY | MS_REC;
+
+  // Bind mounts need to be remounted for the read-only flag to take
+  // effect. If this was a read-only bind mount, automatically remount
+  // so that every caller doesn't have to deal with this. We don't do
+  // anything if this was already a remount.
+  if ((flags & (READ_ONLY_FLAG | MS_REMOUNT)) == READ_ONLY_FLAG) {
+    if (::mount(
+            nullptr,
+            target.c_str(),
+            nullptr,
+            MS_REMOUNT | (flags & READ_ONLY_MASK),
+            nullptr) < 0) {
+      return ErrnoError("Read-only remount failed");
+    }
   }
 
   return Nothing();
@@ -707,70 +723,35 @@ Try<Nothing> mountSpecialFilesystems(const string& root)
       "/proc/bus",
       None(),
       None(),
-      MS_BIND
-    },
-    {
-      None(),
-      "/proc/bus",
-      None(),
-      None(),
-      MS_BIND | MS_RDONLY | MS_REMOUNT | MS_NOSUID | MS_NOEXEC | MS_NODEV
+      MS_BIND | MS_RDONLY | MS_NOSUID | MS_NOEXEC | MS_NODEV
     },
     {
       "/proc/fs",
       "/proc/fs",
       None(),
       None(),
-      MS_BIND
-    },
-    {
-      None(),
-      "/proc/fs",
-      None(),
-      None(),
-      MS_BIND | MS_RDONLY | MS_REMOUNT | MS_NOSUID | MS_NOEXEC | MS_NODEV
+      MS_BIND | MS_RDONLY | MS_NOSUID | MS_NOEXEC | MS_NODEV
     },
     {
       "/proc/irq",
       "/proc/irq",
       None(),
       None(),
-      MS_BIND
-    },
-    {
-      None(),
-      "/proc/irq",
-      None(),
-      None(),
-      MS_BIND | MS_RDONLY | MS_REMOUNT | MS_NOSUID | MS_NOEXEC | MS_NODEV
+      MS_BIND | MS_RDONLY | MS_NOSUID | MS_NOEXEC | MS_NODEV
     },
     {
       "/proc/sys",
       "/proc/sys",
       None(),
       None(),
-      MS_BIND
-    },
-    {
-      None(),
-      "/proc/sys",
-      None(),
-      None(),
-      MS_BIND | MS_RDONLY | MS_REMOUNT | MS_NOSUID | MS_NOEXEC | MS_NODEV
+      MS_BIND | MS_RDONLY | MS_NOSUID | MS_NOEXEC | MS_NODEV
     },
     {
       "/proc/sysrq-trigger",
       "/proc/sysrq-trigger",
       None(),
       None(),
-      MS_BIND
-    },
-    {
-      None(),
-      "/proc/sysrq-trigger",
-      None(),
-      None(),
-      MS_BIND | MS_RDONLY | MS_REMOUNT | MS_NOSUID | MS_NOEXEC | MS_NODEV
+      MS_BIND | MS_RDONLY | MS_NOSUID | MS_NOEXEC | MS_NODEV
     },
     {
       "sysfs",

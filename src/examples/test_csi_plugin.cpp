@@ -777,7 +777,7 @@ Status TestCSIPlugin::NodePublishVolume(
       request->staging_target_path(),
       request->target_path(),
       None(),
-      MS_BIND,
+      MS_BIND | (request->readonly() ? MS_RDONLY : 0),
       None());
 
   if (mount.isError()) {
@@ -785,20 +785,6 @@ Status TestCSIPlugin::NodePublishVolume(
         grpc::INTERNAL,
         "Failed to mount from '" + path + "' to '" +
         request->target_path() + "': " + mount.error());
-  }
-
-  if (request->readonly()) {
-    mount = fs::mount(
-        None(),
-        request->target_path(),
-        None(),
-        MS_BIND | MS_RDONLY | MS_REMOUNT,
-        None());
-
-    return Status(
-        grpc::INTERNAL,
-        "Failed to mount '" + request->target_path() +
-        "' as read only: " + mount.error());
   }
 
   return Status::OK;

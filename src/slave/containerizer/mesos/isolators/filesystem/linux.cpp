@@ -594,23 +594,14 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::update(
               << "' for persistent volume " << resource
               << " of container " << containerId;
 
-    Try<Nothing> mount = fs::mount(source, target, None(), MS_BIND, nullptr);
+    const unsigned mountFlags =
+      MS_BIND | (resource.disk().volume().mode() == Volume::RO ? MS_RDONLY : 0);
+
+    Try<Nothing> mount = fs::mount(source, target, None(), mountFlags, nullptr);
     if (mount.isError()) {
       return Failure(
           "Failed to mount persistent volume from '" +
           source + "' to '" + target + "': " + mount.error());
-    }
-
-    // If the mount needs to be read-only, do a remount.
-    if (resource.disk().volume().mode() == Volume::RO) {
-      mount = fs::mount(
-          None(), target, None(), MS_BIND | MS_RDONLY | MS_REMOUNT, nullptr);
-
-      if (mount.isError()) {
-        return Failure(
-            "Failed to remount persistent volume as read-only from '" +
-            source + "' to '" + target + "': " + mount.error());
-      }
     }
   }
 

@@ -2089,7 +2089,8 @@ int NetworkCniIsolatorSetup::execute()
   // when we do the MS_RDONLY remount. To save the bother of reading
   // the mount table to find the flags to propagate, we just always
   // use the most restrictive flags here.
-  const int bindflags = MS_BIND | MS_NOEXEC | MS_NODEV | MS_NOSUID;
+  const unsigned bindflags = MS_BIND | MS_NOEXEC | MS_NODEV | MS_NOSUID |
+    (flags.bind_readonly ? MS_RDONLY : 0);
 
   foreachpair (const string& file, const string& source, files) {
     // Do the bind mount for network files in the host filesystem if
@@ -2144,20 +2145,6 @@ int NetworkCniIsolatorSetup::execute()
              << file << "': " << mount.error() << endl;
         return EXIT_FAILURE;
       }
-
-      if (flags.bind_readonly) {
-        mount = fs::mount(
-          source,
-          file,
-          None(),
-          MS_RDONLY | MS_REMOUNT | bindflags,
-          nullptr);
-        if (mount.isError()) {
-          cerr << "Failed to remount bind mount as readonly from '" << source
-               << "' to '" << file << "': " << mount.error() << endl;
-          return EXIT_FAILURE;
-        }
-      }
     }
 
     // Do the bind mount in the container filesystem.
@@ -2207,20 +2194,6 @@ int NetworkCniIsolatorSetup::execute()
         cerr << "Failed to bind mount from '" << source << "' to '"
              << target << "': " << mount.error() << endl;
         return EXIT_FAILURE;
-      }
-
-      if (flags.bind_readonly) {
-        mount = fs::mount(
-          source,
-          target,
-          None(),
-          MS_RDONLY | MS_REMOUNT | bindflags,
-          nullptr);
-        if (mount.isError()) {
-          cerr << "Failed to remount bind mount as readonly from '" << source
-               << "' to '" << target << "': " << mount.error() << endl;
-          return EXIT_FAILURE;
-        }
       }
     }
   }

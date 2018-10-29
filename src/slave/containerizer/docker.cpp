@@ -579,24 +579,15 @@ Try<Nothing> DockerContainerizerProcess::updatePersistentVolumes(
               << "' for persistent volume " << resource
               << " of container " << containerId;
 
+    const unsigned flags =
+      MS_BIND | (resource.disk().volume().mode() == Volume::RO ? MS_RDONLY : 0);
+
     // Bind mount the persistent volume to the container.
-    Try<Nothing> mount = fs::mount(source, target, None(), MS_BIND, nullptr);
+    Try<Nothing> mount = fs::mount(source, target, None(), flags, nullptr);
     if (mount.isError()) {
       return Error(
           "Failed to mount persistent volume from '" +
           source + "' to '" + target + "': " + mount.error());
-    }
-
-    // If the mount needs to be read-only, do a remount.
-    if (resource.disk().volume().mode() == Volume::RO) {
-      mount = fs::mount(
-          None(), target, None(), MS_BIND | MS_RDONLY | MS_REMOUNT, nullptr);
-
-      if (mount.isError()) {
-        return Error(
-            "Failed to remount persistent volume as read-only from '" +
-            source + "' to '" + target + "': " + mount.error());
-      }
     }
   }
 #else

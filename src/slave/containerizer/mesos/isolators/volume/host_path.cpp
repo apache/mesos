@@ -312,14 +312,8 @@ Future<Option<ContainerLaunchInfo>> VolumeHostPathIsolatorProcess::prepare(
       ContainerMountInfo* mount = launchInfo.add_mounts();
       mount->set_source(hostPath.get());
       mount->set_target(mountPoint);
-      mount->set_flags(MS_BIND | MS_REC);
-
-      // If the mount needs to be read-only, do a remount.
-      if (volume.mode() == Volume::RO) {
-        mount = launchInfo.add_mounts();
-        mount->set_target(mountPoint);
-        mount->set_flags(MS_BIND | MS_RDONLY | MS_REMOUNT);
-      }
+      mount->set_flags(
+          MS_BIND | MS_REC | (volume.mode() == Volume::RO ? MS_RDONLY : 0));
     }
   }
 

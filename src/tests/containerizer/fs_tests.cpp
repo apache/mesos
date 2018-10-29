@@ -241,6 +241,27 @@ TEST_F(FsTest, MountInfoTableReadSortedParentOfSelf)
 }
 
 
+TEST_F(FsTest, ROOT_ReadOnlyMount)
+{
+  string directory = os::getcwd();
+
+  string ro = path::join(directory, "ro");
+  string rw = path::join(directory, "rw");
+
+  ASSERT_SOME(os::mkdir(ro));
+  ASSERT_SOME(os::mkdir(rw));
+
+  ASSERT_SOME(fs::mount(rw, ro, None(), MS_BIND | MS_RDONLY, None()));
+
+  EXPECT_ERROR(os::touch(path::join(ro, "touched")));
+  EXPECT_SOME(os::touch(path::join(rw, "touched")));
+
+  EXPECT_SOME(fs::unmount(ro));
+
+  EXPECT_SOME(os::touch(path::join(ro, "touched")));
+}
+
+
 TEST_F(FsTest, ROOT_SharedMount)
 {
   string directory = os::getcwd();

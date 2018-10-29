@@ -406,11 +406,6 @@ Future<Option<ContainerLaunchInfo>> NvidiaGpuIsolatorProcess::_prepare(
     mount->set_source(volume.HOST_PATH());
     mount->set_target(target);
     mount->set_flags(MS_RDONLY | MS_BIND | MS_REC);
-
-    // NOTE: MS_REMOUNT is needed to make a bind mount read only.
-    mount = launchInfo.add_mounts();
-    mount->set_target(target);
-    mount->set_flags(MS_RDONLY | MS_REMOUNT | MS_BIND | MS_REC);
   }
 
   return launchInfo;
