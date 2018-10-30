@@ -774,11 +774,18 @@ Try<Nothing> mountSpecialFilesystems(const string& root)
       "mode=755",
       MS_NOSUID | MS_STRICTATIME | MS_NOEXEC
     },
+    // We mount devpts with the gid=5 option because the `tty` group is
+    // GID 5 on all standard Linux distributions. The glibc grantpt(3)
+    // API ensures that the terminal GID is that of the `tty` group, and
+    // invokes a privileged helper if necessary. Since the helper won't
+    // work in all container configurations (since it may not be possible
+    // to acquire the necessary privileges), mounting with the right `gid`
+    // option avoids any possible failure.
     {
       "devpts",
       "/dev/pts",
       "devpts",
-      "newinstance,ptmxmode=0666",
+      "newinstance,ptmxmode=0666,mode=0620,gid=5",
       MS_NOSUID | MS_NOEXEC
     },
     {
