@@ -90,6 +90,48 @@ class TestTaskPlugin(CLITestCase):
         master.kill()
 
 
+    def test_exec_interactive(self):
+        """
+        Test for the task `exec()` sub-command, using `--interactive`.
+        """
+        # Launch a master, agent, and task.
+        master = Master()
+        master.launch()
+
+        agent = Agent()
+        agent.launch()
+
+        task = Task({"command": "sleep 1000"})
+        task.launch()
+
+        # We wait (max 1 second) for the task to be in a running state.
+        @retry(stop=stop_after_delay(1))
+        def updated_tasks():
+            # Open the master's `/tasks` endpoint and
+            # read the task information ourselves.
+            tasks = http.get_json(master.addr, "tasks")["tasks"]
+            if tasks[0]["state"] == "TASK_RUNNING":
+                return tasks
+            raise CLIException("Unable to find running task in master state"
+                               " '{master}'".format(master=master))
+
+        tasks = updated_tasks()
+        with open(LOREM_IPSUM) as text:
+            returncode, stdout, stderr = exec_command(
+                ["mesos", "task", "exec", "-i", tasks[0]["id"], "cat"],
+                stdin=text)
+
+        self.assertEqual(returncode, 0)
+        with open(LOREM_IPSUM) as text:
+            self.assertEqual(stdout, text.read())
+        self.assertEqual(stderr, "")
+
+        # Kill the task, agent, and master.
+        task.kill()
+        agent.kill()
+        master.kill()
+
+
     def test_list(self):
         """
         Basic test for the task `list()` sub-command.
