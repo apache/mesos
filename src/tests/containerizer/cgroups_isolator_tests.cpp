@@ -697,12 +697,16 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CreateRecursively)
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
   Try<Owned<cluster::Slave>> slave = StartSlave(
       detector.get(),
       containerizer.get(),
       flags);
-
   ASSERT_SOME(slave);
+
+  // Wait until agent recovery is complete.
+  AWAIT_READY(__recover);
 
   Result<string> hierarchy = cgroups::hierarchy("memory");
   ASSERT_SOME(hierarchy);
