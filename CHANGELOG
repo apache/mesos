@@ -414,7 +414,6 @@ Release Notes - Mesos - Version 1.6.2 (WIP)
   * [MESOS-9334] - Container stuck at ISOLATING state due to libevent poll never returns.
 
 ** Improvement
-  * [MESOS-9189] - Include 'Connection: close' header in master streaming API responses.
   * [MESOS-9305] - Create cgoup recursively to workaround systemd deleting cgroups_root.
   * [MESOS-9340] - Log all socket errors in libprocess.
 
@@ -861,9 +860,6 @@ Release Notes - Mesos - Version 1.5.2
   * [MESOS-9279] - Docker Containerizer 'usage' call might be expensive if mount table is big.
   * [MESOS-9283] - Docker containerizer actor can get backlogged with large number of containers.
   * [MESOS-9308] - URI disk profile adaptor could deadlock.
-
-** Improvement
-  * [MESOS-9189] - Include 'Connection: close' header in master streaming API responses.
 
 
 Release Notes - Mesos - Version 1.5.1
@@ -1409,9 +1405,6 @@ Release Notes - Mesos - Version 1.4.3 (WIP)
   * [MESOS-9279] - Docker Containerizer 'usage' call might be expensive if mount table is big.
   * [MESOS-9283] - Docker containerizer actor can get backlogged with large number of containers.
   * [MESOS-9334] - Container stuck at ISOLATING state due to libevent poll never returns.
-
-** Improvement
-  * [MESOS-9189] - Include 'Connection: close' header in master streaming API responses.
 
 
 Release Notes - Mesos - Version 1.4.2
