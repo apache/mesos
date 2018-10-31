@@ -7847,7 +7847,6 @@ TEST_F(SlaveTest, RunTaskGroupFailedSecretGeneration)
 
   StandaloneMasterDetector detector(master.get()->pid);
 
-  // This pointer is passed to the agent, which will perform the cleanup.
   Owned<MockSecretGenerator> secretGenerator(new MockSecretGenerator());
 
   Try<Owned<cluster::Slave>> slave = StartSlave(

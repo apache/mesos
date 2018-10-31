@@ -535,7 +535,7 @@ Try<process::Owned<Slave>> Slave::create(
     slave->qosController.reset(_qosController.get());
   }
 
-  // If the QoS controller is not provided, create a default one.
+  // If the secret generator is not provided, create a default one.
   if (secretGenerator.isNone()) {
     SecretGenerator* _secretGenerator = nullptr;
 

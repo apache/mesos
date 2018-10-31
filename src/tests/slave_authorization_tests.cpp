@@ -801,7 +801,6 @@ TEST_F(ExecutorAuthorizationTest, FailedSubscribe)
   Owned<TestContainerizer> containerizer(
       new TestContainerizer(devolve(executorInfo.executor_id()), executor));
 
-  // This pointer is passed to the agent, which will perform the cleanup.
   Owned<MockSecretGenerator> mockSecretGenerator(new MockSecretGenerator());
 
   Try<Owned<cluster::Slave>> slave = StartSlave(
