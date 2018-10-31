@@ -2907,6 +2907,18 @@ template <
     typename Source>
 class MockResourceProvider
 {
+  using MockResourceProviderT = MockResourceProvider<
+      Event,
+      Call,
+      Driver,
+      ResourceProviderInfo,
+      Resource,
+      Resources,
+      ResourceProviderID,
+      OperationState,
+      Operation,
+      Source>;
+
 public:
   MockResourceProvider(
       const ResourceProviderInfo& _info,
@@ -2915,83 +2927,23 @@ public:
       resources(_resources)
   {
     ON_CALL(*this, connected())
-      .WillByDefault(Invoke(
-          this,
-          &MockResourceProvider<
-              Event,
-              Call,
-              Driver,
-              ResourceProviderInfo,
-              Resource,
-              Resources,
-              ResourceProviderID,
-              OperationState,
-              Operation,
-              Source>::connectedDefault));
+      .WillByDefault(Invoke(this, &MockResourceProviderT::connectedDefault));
     EXPECT_CALL(*this, connected()).WillRepeatedly(DoDefault());
 
     ON_CALL(*this, subscribed(_))
-      .WillByDefault(Invoke(
-          this,
-          &MockResourceProvider<
-              Event,
-              Call,
-              Driver,
-              ResourceProviderInfo,
-              Resource,
-              Resources,
-              ResourceProviderID,
-              OperationState,
-              Operation,
-              Source>::subscribedDefault));
+      .WillByDefault(Invoke(this, &MockResourceProviderT::subscribedDefault));
     EXPECT_CALL(*this, subscribed(_)).WillRepeatedly(DoDefault());
 
     ON_CALL(*this, applyOperation(_))
-      .WillByDefault(Invoke(
-          this,
-          &MockResourceProvider<
-              Event,
-              Call,
-              Driver,
-              ResourceProviderInfo,
-              Resource,
-              Resources,
-              ResourceProviderID,
-              OperationState,
-              Operation,
-              Source>::operationDefault));
+      .WillByDefault(Invoke(this, &MockResourceProviderT::operationDefault));
     EXPECT_CALL(*this, applyOperation(_)).WillRepeatedly(DoDefault());
 
     ON_CALL(*this, publishResources(_))
-      .WillByDefault(Invoke(
-          this,
-          &MockResourceProvider<
-              Event,
-              Call,
-              Driver,
-              ResourceProviderInfo,
-              Resource,
-              Resources,
-              ResourceProviderID,
-              OperationState,
-              Operation,
-              Source>::publishDefault));
+      .WillByDefault(Invoke(this, &MockResourceProviderT::publishDefault));
     EXPECT_CALL(*this, publishResources(_)).WillRepeatedly(DoDefault());
 
     ON_CALL(*this, teardown())
-      .WillByDefault(Invoke(
-          this,
-          &MockResourceProvider<
-              Event,
-              Call,
-              Driver,
-              ResourceProviderInfo,
-              Resource,
-              Resources,
-              ResourceProviderID,
-              OperationState,
-              Operation,
-              Source>::teardownDefault));
+      .WillByDefault(Invoke(this, &MockResourceProviderT::teardownDefault));
     EXPECT_CALL(*this, teardown()).WillRepeatedly(DoDefault());
   }
 
@@ -3074,49 +3026,12 @@ public:
 #endif // USE_SSL_SOCKET
 
     driver.reset(new Driver(
-        std::move(detector),
-        contentType,
-        lambda::bind(
-            &MockResourceProvider<
-                Event,
-                Call,
-                Driver,
-                ResourceProviderInfo,
-                Resource,
-                Resources,
-                ResourceProviderID,
-                OperationState,
-                Operation,
-                Source>::connected,
-            this),
-        lambda::bind(
-            &MockResourceProvider<
-                Event,
-                Call,
-                Driver,
-                ResourceProviderInfo,
-                Resource,
-                Resources,
-                ResourceProviderID,
-                OperationState,
-                Operation,
-                Source>::disconnected,
-            this),
-        lambda::bind(
-            &MockResourceProvider<
-                Event,
-                Call,
-                Driver,
-                ResourceProviderInfo,
-                Resource,
-                Resources,
-                ResourceProviderID,
-                OperationState,
-                Operation,
-                Source>::events,
-            this,
-            lambda::_1),
-        token));
+      std::move(detector),
+      contentType,
+      lambda::bind(&MockResourceProviderT::connected, this),
+      lambda::bind(&MockResourceProviderT::disconnected, this),
+      lambda::bind(&MockResourceProviderT::events, this, lambda::_1),
+      token));
 
     driver->start();
   }
