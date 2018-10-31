@@ -3054,7 +3054,8 @@ Future<Response> Http::_attachContainerInput(
       std::move(decoder), encoder, writer);
 
   return slave->containerizer->attach(containerId)
-    .then(defer(slave->self(), [=](Connection connection) mutable {
+    .then(defer(slave->self(), [=](
+        Connection connection) mutable -> Future<Response> {
       Request request;
       request.method = "POST";
       request.type = Request::PIPE;
