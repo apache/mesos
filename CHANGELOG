@@ -32,7 +32,6 @@ Release Notes - Mesos - Version 1.6.2 (WIP)
   * [MESOS-9334] - Container stuck at ISOLATING state due to libevent poll never returns.
 
 ** Improvement
-  * [MESOS-9189] - Include 'Connection: close' header in master streaming API responses.
   * [MESOS-9305] - Create cgoup recursively to workaround systemd deleting cgroups_root.
   * [MESOS-9340] - Log all socket errors in libprocess.
 
