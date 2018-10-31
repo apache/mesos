@@ -27,6 +27,7 @@ if (ENABLE_NEW_CLI)
     lib/cli/docopt.py
     lib/cli/exceptions.py
     lib/cli/http.py
+    lib/cli/mesos.py
     lib/cli/util.py
     lib/cli/plugins/__init__.py
     lib/cli/plugins/base.py
