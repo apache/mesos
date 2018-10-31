@@ -18,14 +18,19 @@ include(FindPackageHelper)
 
 # TODO(tillt): Consider moving "_ROOT_DIR" logic into FindPackageHelper.
 if ("${LIBEVENT_ROOT_DIR}" STREQUAL "")
+  # NOTE: If this fails, stderr is ignored, and the output variable is empty.
+  # This has no deleterious effect on our path search.
   execute_process(
     COMMAND brew --prefix libevent
     OUTPUT_VARIABLE LIBEVENT_PREFIX
     OUTPUT_STRIP_TRAILING_WHITESPACE)
 
+  set(POSSIBLE_LIBEVENT_INCLUDE_DIRS "")
+  set(POSSIBLE_LIBEVENT_LIB_DIRS "")
+
   if (NOT "${LIBEVENT_PREFIX}" STREQUAL "")
-    set(POSSIBLE_LIBEVENT_INCLUDE_DIRS ${LIBEVENT_PREFIX}/include)
-    set(POSSIBLE_LIBEVENT_LIB_DIRS ${LIBEVENT_PREFIX}/lib)
+    list(APPEND POSSIBLE_LIBEVENT_INCLUDE_DIRS ${LIBEVENT_PREFIX}/include)
+    list(APPEND POSSIBLE_LIBEVENT_LIB_DIRS ${LIBEVENT_PREFIX}/lib)
   endif()
 
   list(

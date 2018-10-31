@@ -96,13 +96,11 @@ if (ENABLE_LIBEVENT)
     "Build libprocess with an installed libevent version instead of the bundled."
     FALSE)
 
-  if (UNBUNDLED_LIBEVENT)
-    set(
-      LIBEVENT_ROOT_DIR
-      ""
-      CACHE STRING
-      "Specify the path to libevent, e.g. \"C:\\libevent-Win64\".")
-  endif()
+  set(
+    LIBEVENT_ROOT_DIR
+    ""
+    CACHE STRING
+    "Specify the path to libevent, e.g. \"C:\\libevent-Win64\".")
 endif()
 
 option(
