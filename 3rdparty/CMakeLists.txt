@@ -995,7 +995,7 @@ set_target_properties(
 # libarchive: Multi-format archive and compression library.
 # https://github.com/libarchive/libarchive
 ###########################################################
-if (WIN32 OR REBUNDLED)
+if (NOT UNBUNDLED_LIBARCHIVE)
   EXTERNAL(libarchive ${LIBARCHIVE_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
 
   add_library(libarchive STATIC IMPORTED GLOBAL)
@@ -1069,11 +1069,11 @@ if (WIN32 OR REBUNDLED)
     URL               ${LIBARCHIVE_URL}
     URL_HASH          ${LIBARCHIVE_HASH})
 else ()
-  find_package(LibArchive REQUIRED)
+  find_package(LIBARCHIVE REQUIRED)
   add_library(libarchive SHARED IMPORTED GLOBAL)
   set_target_properties(libarchive PROPERTIES
-    IMPORTED_LOCATION ${LibArchive_LIBRARIES}
-    INTERFACE_INCLUDE_DIRECTORIES ${LibArchive_INCLUDE_DIRS})
+    IMPORTED_LOCATION ${LIBARCHIVE_LIBS}
+    INTERFACE_INCLUDE_DIRECTORIES ${LIBARCHIVE_INCLUDE_DIR})
 endif ()
 
 # Google Test: Google's C++ test framework (GoogleTest and GoogleMock).

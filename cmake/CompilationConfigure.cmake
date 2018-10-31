@@ -75,6 +75,17 @@ option(
   TRUE)
 
 option(
+  UNBUNDLED_LIBARCHIVE
+  "Build with an installed libarchive version instead of the bundled."
+  FALSE)
+
+set(
+  LIBARCHIVE_ROOT_DIR
+  ""
+  CACHE STRING
+  "Specify the path to libarchive, e.g. \"C:\\libarchive-Win64\".")
+
+option(
   ENABLE_LIBEVENT
   "Use libevent instead of libev as the core event loop implementation."
   FALSE)
