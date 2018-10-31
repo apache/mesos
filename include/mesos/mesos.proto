@@ -1173,6 +1173,7 @@ message Attribute {
  * which correspond to partial shares of a CPU.
  */
 message Resource {
+  // Specified if the resource comes from a particular resource provider.
   optional ResourceProviderID provider_id = 12;
 
   required string name = 1;
