@@ -2015,7 +2015,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   driver.acceptOffers(
       {offers->front().id()}, {LAUNCH_GROUP(executor, taskGroup)});
 
-  AWAIT_READY(statusRunning);
+  AWAIT_READY(statusStarting);
   EXPECT_EQ(TASK_STARTING, statusStarting.get().state());
 
   AWAIT_READY(statusRunning);
