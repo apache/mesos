@@ -1956,6 +1956,147 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 }
 
 
+// This test verifies that the debug container launched by the command health
+// check will be run as the user of its parent container rather than the user
+// of the default executor. This is a regression test for MESOS-9332.
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    HealthCheckTest, ROOT_UNPRIVILEGED_USER_DefaultExecutorCommandHealthCheck)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+#ifndef USE_SSL_SOCKET
+  // Set permissive ACLs in the agent so that the local authorizer will be
+  // loaded and implicit executor authorization will be tested.
+  ACLs acls;
+  acls.set_permissive(true);
+
+  flags.acls = acls;
+#endif // USE_SSL_SOCKET
+
+  Fetcher fetcher(flags);
+
+  // We have to explicitly create a `Containerizer` in non-local mode,
+  // because `LaunchNestedContainerSession` (used by command health
+  // checks) tries to start a IO switchboard, which doesn't work in
+  // local mode yet.
+  Try<MesosContainerizer*> _containerizer =
+    MesosContainerizer::create(flags, false, &fetcher);
+
+  ASSERT_SOME(_containerizer);
+
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> agent =
+    StartSlave(detector.get(), containerizer.get(), flags);
+
+  ASSERT_SOME(agent);
+
+  Option<string> user = os::getenv("SUDO_USER");
+  ASSERT_SOME(user);
+
+  // Set the framework user to a non-root user so the default executor will
+  // also be run as this non-root user since the default executor always runs
+  // as the same user of the framework.
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_user(user.get());
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+    &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  Future<TaskStatus> statusStarting;
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusHealthy;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusHealthy));
+
+  // Launch a task as root user to create a file.
+  TaskInfo task = createTask(offers->front(), "touch file && sleep 120");
+  task.mutable_command()->set_user("root");
+
+  // Run the command health check without specifying user in its `CommandInfo`,
+  // and the health check will try to write to the file created by the task.
+  // Since the debug container launched by the health check will run as the same
+  // user (i.e., root user) of its parent container (i.e., the task), it will
+  // have the permission to write to the file.
+  HealthCheck healthCheck;
+  healthCheck.set_type(HealthCheck::COMMAND);
+  healthCheck.mutable_command()->set_value("echo abc > file");
+  healthCheck.set_delay_seconds(0);
+  healthCheck.set_interval_seconds(0);
+  healthCheck.set_grace_period_seconds(0);
+
+  task.mutable_health_check()->CopyFrom(healthCheck);
+
+  Resources executorResources =
+    allocatedResources(Resources::parse("cpus:0.1;mem:32;disk:32").get(), "*");
+
+  task.mutable_resources()->CopyFrom(task.resources() - executorResources);
+
+  TaskGroupInfo taskGroup;
+  taskGroup.add_tasks()->CopyFrom(task);
+
+  ExecutorInfo executor;
+  executor.mutable_executor_id()->set_value("default");
+  executor.set_type(ExecutorInfo::DEFAULT);
+  executor.mutable_framework_id()->CopyFrom(frameworkId.get());
+  executor.mutable_resources()->CopyFrom(executorResources);
+  executor.mutable_shutdown_grace_period()->set_nanoseconds(Seconds(10).ns());
+
+  driver.acceptOffers(
+      {offers->front().id()}, {LAUNCH_GROUP(executor, taskGroup)});
+
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  AWAIT_READY(statusHealthy);
+  EXPECT_EQ(TASK_RUNNING, statusHealthy->state());
+  EXPECT_EQ(
+      TaskStatus::REASON_TASK_HEALTH_CHECK_STATUS_UPDATED,
+      statusHealthy->reason());
+  EXPECT_TRUE(statusHealthy->has_healthy());
+  EXPECT_TRUE(statusHealthy->healthy());
+
+  Future<hashset<ContainerID>> containerIds = containerizer->containers();
+
+  AWAIT_READY(containerIds);
+
+  driver.stop();
+  driver.join();
+
+  // Cleanup all mesos launched containers.
+  foreach (const ContainerID& containerId, containerIds.get()) {
+    AWAIT_READY(containerizer->wait(containerId));
+  }
+}
+
+
 // Fixture for testing TCP/HTTP(S) health check support
 // for Docker containers on Docker user network.
 class DockerContainerizerHealthCheckTest
