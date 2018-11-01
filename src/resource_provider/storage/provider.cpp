@@ -665,7 +665,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::recover()
     .then(defer(self(), [=]() -> Future<Nothing> {
       LOG(INFO)
         << "Finished recovery for resource provider with type '" << info.type()
-        << "' and name '" << info.name();
+        << "' and name '" << info.name() << "'";
 
       state = DISCONNECTED;
 
