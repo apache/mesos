@@ -59,7 +59,7 @@ class TestTaskPlugin(CLITestCase):
 
         with open(LOREM_IPSUM) as text:
             content = text.read()
-        command = "echo '{data}' > a.txt && sleep 1000".format(data=content)
+        command = "printf '{data}' > a.txt && sleep 1000".format(data=content)
         task = Task({"command": command})
         task.launch()
 
@@ -72,7 +72,7 @@ class TestTaskPlugin(CLITestCase):
             ["mesos", "task", "exec", tasks[0]["id"], "cat", "a.txt"])
 
         self.assertEqual(returncode, 0)
-        self.assertEqual(stdout.strip(), content.strip())
+        self.assertEqual(stdout, content)
         self.assertEqual(stderr, "")
 
         # Kill the task, agent, and master.
