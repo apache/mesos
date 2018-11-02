@@ -20,6 +20,7 @@ Set of classes and helper functions for building unit tests for the Mesos CLI.
 
 import io
 import os
+import pty
 import shutil
 import subprocess
 import sys
@@ -471,3 +472,29 @@ def exec_command(command, env=None, stdin=None, timeout=None):
         raise CLIException("Timeout expired: {error}".format(error=exception))
 
     return (process.returncode, stdout, stderr)
+
+
+def popen_tty(cmd, shell=True):
+    """
+    Open a process with stdin connected to a pseudo-tty.
+
+    :param cmd: command to run
+    :type cmd: str
+    :returns: (Popen, master) tuple, where master is the master side
+       of the of the tty-pair.  It is the responsibility of the caller
+       to close the master fd, and to perform any cleanup (including
+       waiting for completion) of the Popen object.
+    :rtype: (Popen, int)
+    """
+    master, slave = pty.openpty()
+    # pylint: disable=subprocess-popen-preexec-fn
+    proc = subprocess.Popen(cmd,
+                            stdin=slave,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            preexec_fn=os.setsid,
+                            close_fds=True,
+                            shell=shell)
+    os.close(slave)
+
+    return (proc, master)
