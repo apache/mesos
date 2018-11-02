@@ -29,6 +29,9 @@ import unittest
 
 import parse
 
+from tenacity import retry
+from tenacity import stop_after_delay
+
 from cli import http
 
 from cli.tests.constants import TEST_AGENT_IP
@@ -498,3 +501,21 @@ def popen_tty(cmd, shell=True):
     os.close(slave)
 
     return (proc, master)
+
+
+def running_tasks(master):
+    """
+    Open the master's `/tasks` endpoint and read the task information.
+    Retry for up to 1 second before giving up.
+    """
+    @retry(stop=stop_after_delay(1))
+    def _running_tasks():
+        tasks = http.get_json(master.addr, "tasks")["tasks"]
+        if tasks[0]["state"] == "TASK_RUNNING":
+            return tasks
+        raise Exception()
+
+    try:
+        return _running_tasks()
+    except Exception:
+        return []

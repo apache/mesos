@@ -20,18 +20,16 @@ Task plugin tests.
 
 import os
 
-from tenacity import retry
-from tenacity import stop_after_delay
-
 from cli import config
 from cli import http
 
-from cli.plugins.task.main import Task as TaskPlugin
-
 from cli.exceptions import CLIException
+
+from cli.plugins.task.main import Task as TaskPlugin
 
 from cli.tests import capture_output
 from cli.tests import exec_command
+from cli.tests import running_tasks
 from cli.tests import CLITestCase
 from cli.tests import Agent
 from cli.tests import Master
@@ -65,18 +63,11 @@ class TestTaskPlugin(CLITestCase):
         task = Task({"command": command})
         task.launch()
 
-        # We wait (max 1 second) for the task to be in a running state.
-        @retry(stop=stop_after_delay(1))
-        def updated_tasks():
-            # Open the master's `/tasks` endpoint and
-            # read the task information ourselves.
-            tasks = http.get_json(master.addr, "tasks")["tasks"]
-            if tasks[0]["state"] == "TASK_RUNNING":
-                return tasks
-            raise CLIException("Unable to find running task in master state"
-                               " '{master}'".format(master=master))
+        tasks = running_tasks(master)
+        if not tasks:
+            raise CLIException("Unable to find running tasks on master"
+                               " '{master}'".format(master=master.addr))
 
-        tasks = updated_tasks()
         returncode, stdout, stderr = exec_command(
             ["mesos", "task", "exec", tasks[0]["id"], "cat", "a.txt"])
 
@@ -104,18 +95,11 @@ class TestTaskPlugin(CLITestCase):
         task = Task({"command": "sleep 1000"})
         task.launch()
 
-        # We wait (max 1 second) for the task to be in a running state.
-        @retry(stop=stop_after_delay(1))
-        def updated_tasks():
-            # Open the master's `/tasks` endpoint and
-            # read the task information ourselves.
-            tasks = http.get_json(master.addr, "tasks")["tasks"]
-            if tasks[0]["state"] == "TASK_RUNNING":
-                return tasks
-            raise CLIException("Unable to find running task in master state"
-                               " '{master}'".format(master=master))
+        tasks = running_tasks(master)
+        if not tasks:
+            raise CLIException("Unable to find running tasks on master"
+                               " '{master}'".format(master=master.addr))
 
-        tasks = updated_tasks()
         with open(LOREM_IPSUM) as text:
             returncode, stdout, stderr = exec_command(
                 ["mesos", "task", "exec", "-i", tasks[0]["id"], "cat"],
