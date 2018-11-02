@@ -78,8 +78,7 @@ class Task(PluginBase):
                                .format(error=exception))
 
         task_io = TaskIO(master, argv["<task-id>"])
-        task_io.attach(argv["--no-stdin"])
-        return 0
+        return task_io.attach(argv["--no-stdin"])
 
 
     def exec(self, argv):
@@ -93,14 +92,10 @@ class Task(PluginBase):
                                .format(error=exception))
 
         task_io = TaskIO(master, argv["<task-id>"])
-        task_io.exec(argv["<command>"],
-                     argv["<args>"],
-                     argv["--interactive"],
-                     argv["--tty"])
-
-        # TODO(ArmandGrillet): We should not return 0 here but
-        # whatever the result of `<command> [<args>...]` was.
-        return 0
+        return task_io.exec(argv["<command>"],
+                            argv["<args>"],
+                            argv["--interactive"],
+                            argv["--tty"])
 
     def list(self, argv):
         """

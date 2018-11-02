@@ -80,6 +80,38 @@ class TestTaskPlugin(CLITestCase):
         agent.kill()
         master.kill()
 
+    def test_exec_exit_status(self):
+        """
+        Basic test for the task `exec()` sub-command exit status.
+        """
+        # Launch a master, agent, and task.
+        master = Master()
+        master.launch()
+
+        agent = Agent()
+        agent.launch()
+
+        task = Task({"command": "sleep 1000"})
+        task.launch()
+
+        tasks = running_tasks(master)
+        if not tasks:
+            raise CLIException("Unable to find running tasks on master"
+                               " '{master}'".format(master=master.addr))
+
+        returncode, _, _ = exec_command(
+            ["mesos", "task", "exec", tasks[0]["id"], "true"])
+        self.assertEqual(returncode, 0)
+
+        returncode, _, _ = exec_command(
+            ["mesos", "task", "exec", tasks[0]["id"], "bash", "-c", "exit 10"])
+        self.assertEqual(returncode, 10)
+
+        # Kill the task, agent, and master.
+        task.kill()
+        agent.kill()
+        master.kill()
+
 
     def test_exec_interactive(self):
         """

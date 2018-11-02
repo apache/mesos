@@ -255,7 +255,7 @@ class TaskIO():
         # Allow an exit sequence to be used to break the CLIs attachment to
         # the remote task. Depending on the call, this may be disabled, or
         # the exit sequence to be used may be overwritten.
-        self.supports_exit_sequence = True
+        self.supports_exit_sequence = False
         self.exit_sequence = b'\x10\x11'  # Ctrl-p, Ctrl-q
         self.exit_sequence_detected = False
 
@@ -284,6 +284,18 @@ class TaskIO():
         self.output_thread_entry_point = self._attach_container_output
 
         self._run()
+
+        if not self.exit_sequence_detected:
+            # We are only able to get the 'exit_status' of tasks launched via
+            # the default executor (i.e. as pods rather than via the command
+            # executor). In the future, mesos will deprecate the command
+            # executor in favor of the default executor, so this check will
+            # be able to go away. In the meantime, we will always return '0'
+            # for tasks launched via the command executor.
+            if "parent" in self.container_id:
+                return self._wait()
+
+        return 0
 
     def exec(self, _cmd, _args=None, _interactive=False, _tty=False):
         """
@@ -324,6 +336,8 @@ class TaskIO():
 
         self._run()
 
+        return self._wait()
+
     def _run(self):
         """
         Run the helper threads in this class which enable streaming
@@ -362,6 +376,7 @@ class TaskIO():
 
         try:
             if self.interactive:
+                self.supports_exit_sequence = True
                 tty.setraw(fd, when=termios.TCSANOW)
                 # To force a redraw of the remote terminal, we first resize it
                 # to 0 before setting it to the actual size of our local
@@ -385,6 +400,37 @@ class TaskIO():
             # Known Pylint issue: https://github.com/PyCQA/pylint/issues/157
             # pylint: disable=raising-bad-type
             raise self.exception
+
+    def _wait(self):
+        """
+        Wait for the container associated with this class (through
+        'container_id') to exit and return its exit status.
+        """
+        message = {
+            'type': 'WAIT_CONTAINER',
+            'wait_container': {
+                'container_id': self.container_id}}
+        req_extra_args = {
+            'additional_headers': {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'}}
+        try:
+            resource = mesos.http.Resource(self.agent_url)
+            response = resource.request(
+                mesos.http.METHOD_POST,
+                data=json.dumps(message),
+                retry=False,
+                timeout=None,
+                **req_extra_args)
+        except MesosException as exception:
+            raise CLIException(
+                "Error waiting for command to complete: {error}"
+                .format(error=exception))
+
+        exit_status = response.json()["wait_container"]["exit_status"]
+        if os.WIFSIGNALED(exit_status):
+            return os.WTERMSIG(exit_status) + 128
+        return os.WEXITSTATUS(exit_status)
 
     def _thread_wrapper(self, func):
         """
