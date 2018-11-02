@@ -26,6 +26,8 @@
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
 
+#include <mesos/v1/mesos.hpp>
+
 #include <process/gtest.hpp>
 #include <process/pid.hpp>
 
@@ -33,6 +35,7 @@
 #include <stout/gtest.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
+#include <stout/protobuf.hpp>
 
 #include "common/values.hpp"
 
@@ -1102,6 +1105,11 @@ TEST_F(ROOT_XFS_QuotaTest, ResourceStatistics)
     AWAIT_READY(usage);
 
     ASSERT_FALSE(timeout.expired());
+
+    // Verify that we can round-trip the ResourceStatistics through a JSON
+    // conversion. The v1 operator API depends on this conversion.
+    EXPECT_SOME(::protobuf::parse<mesos::v1::ResourceStatistics>(
+        JSON::protobuf(usage.get())));
 
     const string volumePath =
       getPersistentVolumePath(flags.work_dir, DEFAULT_TEST_ROLE, "id1");

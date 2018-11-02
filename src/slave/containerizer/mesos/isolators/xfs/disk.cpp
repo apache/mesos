@@ -657,7 +657,11 @@ Future<ResourceStatistics> XfsDiskIsolatorProcess::usage(
     if (pathInfo.disk.isSome()) {
       disk = statistics.add_disk_statistics();
       disk->mutable_persistence()->CopyFrom(pathInfo.disk->persistence());
-      disk->mutable_source()->CopyFrom(pathInfo.disk->source());
+
+      // Root disk volumes don't have a source.
+      if (pathInfo.disk->has_source()) {
+        disk->mutable_source()->CopyFrom(pathInfo.disk->source());
+      }
     }
 
     // We don't require XFS on MOUNT disks, but we still want the isolator
