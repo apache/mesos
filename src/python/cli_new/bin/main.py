@@ -124,31 +124,31 @@ def main(argv):
 
         print(option)
         print(" ".join(comp_words))
+        return 0
 
     # Use the meta-command "help" to print help information for the
     # supplied command and its subcommands.
-    elif cmd == "help":
+    if cmd == "help":
         if argv and argv[0] in cmds:
             plugin = cli.util.get_module(plugins, argv[0])
             plugin_class = getattr(plugin, plugin.PLUGIN_CLASS)
-            plugin_class(settings, config).main(argv[1:] + ["--help"])
-        else:
-            main(["--help"])
+            return plugin_class(settings, config).main(argv[1:] + ["--help"])
+
+        return main(["--help"])
 
     # Run the command through its plugin.
-    elif cmd in list(cmds.keys()):
+    if cmd in list(cmds.keys()):
         plugin = cli.util.get_module(plugins, cmd)
         plugin_class = getattr(plugin, plugin.PLUGIN_CLASS)
-        plugin_class(settings, config).main(argv)
+        return plugin_class(settings, config).main(argv)
 
     # Print help information if no commands match.
-    else:
-        main(["--help"])
+    return main(["--help"])
 
 
 if __name__ == "__main__":
     try:
-        main(sys.argv[1:])
+        sys.exit(main(sys.argv[1:]))
     except CLIException as exception:
         sys.exit("Error: {error}.".format(error=str(exception)))
     except KeyboardInterrupt:

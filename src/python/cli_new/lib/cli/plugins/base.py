@@ -175,6 +175,6 @@ class PluginBase():
                 cmd = self.COMMANDS[cmd]["alias"]
 
             self.__setup__(cmd, argv)
-            getattr(self, cmd.replace("-", "_"))(arguments)
-        else:
-            self.main(["--help"])
+            return getattr(self, cmd.replace("-", "_"))(arguments)
+
+        return self.main(["--help"])
