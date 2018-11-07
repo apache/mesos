@@ -201,8 +201,37 @@ def parse_arguments():
     return executable, args
 
 
+def validate_setup(options):
+    """Validate the execution environment and the used options."""
+
+    # Check the number of processes/threads a user is allowed to execute.
+    try:
+        ulimit = int(subprocess.check_output(['ulimit', '-u']))
+
+        # As a proxy for our requirements we assume that each test executable
+        # launches a thread for every available CPU times a factor of 16 to
+        # accommodate additional processes forked in parallel.
+        requirement = options.jobs * multiprocessing.cpu_count() * 16
+
+        if ulimit < requirement:
+            print(Bcolors.colorize(
+                "Detected low process count ulimit ({} vs {}). Increase "
+                "'ulimit -u' to avoid spurious test failures."
+                .format(ulimit, requirement),
+                Bcolors.WARNING),
+                  file=sys.stderr)
+            sys.exit(1)
+    except Exception as err:
+        print(Bcolors.colorize(
+            "Could not check compatibility of ulimit settings: {}".format(err),
+            Bcolors.WARNING),
+              file=sys.stderr)
+        sys.exit()
+
+
 if __name__ == '__main__':
     EXECUTABLE, OPTIONS = parse_arguments()
+    validate_setup(OPTIONS)
 
     def options_gen(executable, filter_, jobs):
         """Generator for options for a certain shard.
