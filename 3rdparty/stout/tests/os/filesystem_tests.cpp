@@ -810,10 +810,13 @@ TEST_F(FsTest, Used)
   Try<Bytes> used = fs::used(".");
   ASSERT_SOME(used);
 
-  struct statvfs b;
-  ASSERT_EQ(0, ::statvfs(".", &b));
+  Try<Bytes> size = fs::size(".");
+  ASSERT_SOME(size);
 
-  // Check that the block counts match.
-  EXPECT_EQ(used.get() / b.f_frsize, b.f_blocks - b.f_bfree);
+  // We unfortunately can't easily verify the used value since
+  // the disk usage can change at any point.
+
+  EXPECT_GT(used.get(), 0u);
+  EXPECT_LT(used.get(), size.get());
 }
 #endif // __WINDOWS__
