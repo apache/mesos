@@ -93,14 +93,26 @@ bool frameworkHasCapability(
 
 bool isTerminalState(const TaskState& state)
 {
-  return (state == TASK_FINISHED ||
-          state == TASK_FAILED ||
-          state == TASK_KILLED ||
-          state == TASK_LOST ||
-          state == TASK_ERROR ||
-          state == TASK_DROPPED ||
-          state == TASK_GONE ||
-          state == TASK_GONE_BY_OPERATOR);
+  switch (state) {
+    case TASK_FINISHED:
+    case TASK_FAILED:
+    case TASK_KILLED:
+    case TASK_LOST:
+    case TASK_ERROR:
+    case TASK_DROPPED:
+    case TASK_GONE:
+    case TASK_GONE_BY_OPERATOR:
+      return true;
+    case TASK_KILLING:
+    case TASK_STAGING:
+    case TASK_STARTING:
+    case TASK_RUNNING:
+    case TASK_UNREACHABLE:
+    case TASK_UNKNOWN:
+      return false;
+  }
+
+  UNREACHABLE();
 }
 
 
