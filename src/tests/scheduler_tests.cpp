@@ -292,15 +292,18 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(SchedulerTest, MasterFailover)
     .WillRepeatedly(Return()); // Ignore future invocations.
 
   // Failover the master.
+  // Also wipe the leading master from the detector, so the scheduler
+  // does not try to reconnect while the master actor is not routable.
   master->reset();
+  detector->appoint(None());
+
   master = StartMaster();
   ASSERT_SOME(master);
 
   AWAIT_READY(disconnected);
 
-  // Scheduler library can fire new master detection more than once.
   EXPECT_CALL(*scheduler, connected(_))
-    .WillRepeatedly(
+    .WillOnce(
         v1::scheduler::SendSubscribe(v1::DEFAULT_FRAMEWORK_INFO, frameworkId));
 
   Future<Event::Subscribed> subscribed2;
@@ -308,6 +311,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(SchedulerTest, MasterFailover)
     .WillOnce(FutureArg<1>(&subscribed2))
     .WillRepeatedly(Return());
 
+  // Give the master leadership now that our scheduler expectations are set up.
   detector->appoint(master.get()->pid);
 
   AWAIT_READY(subscribed2);
