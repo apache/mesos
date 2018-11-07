@@ -44,7 +44,5 @@ DOCKER_IMAGE_TAG=${DOCKER_IMAGE_TAG} \
 DOCKER_IMAGE_DISTRO=${DOCKER_IMAGE_DISTRO} \
 "${SUPPORT_DIR}/mesos-mini/build.sh"
 
-DATE=$(date +%F)
-
 docker login -u "${USERNAME}" -p "${PASSWORD}"
 docker push "${DOCKER_IMAGE}:${DOCKER_IMAGE_TAG}"
