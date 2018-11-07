@@ -81,3 +81,9 @@ case ${BUILDTOOL} in
     exit 1
     ;;
 esac
+
+
+# Copy out the test report files.
+cp 3rdparty/stout/tests/report.xml /SRC/stout_report.xml
+cp 3rdparty/libprocess/src/tests/report.xml /SRC/libprocess_report.xml
+cp src/tests/report.xml /SRC/mesos_report.xml
