@@ -26,7 +26,7 @@ git clone --depth 1 file:///SRC "${SRCDIR}"
 
 cd "${SRCDIR}"
 
-export GTEST_OUTPUT=xml:report.xml
+export GTEST_OUTPUT=xml:/SRC/
 export DISTCHECK_CONFIGURE_FLAGS=${CONFIGURATION}
 export ${ENVIRONMENT}
 
@@ -81,9 +81,3 @@ case ${BUILDTOOL} in
     exit 1
     ;;
 esac
-
-
-# Copy out the test report files.
-cp 3rdparty/stout/tests/report.xml /SRC/stout_report.xml
-cp 3rdparty/libprocess/src/tests/report.xml /SRC/libprocess_report.xml
-cp src/tests/report.xml /SRC/mesos_report.xml
