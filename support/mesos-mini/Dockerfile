@@ -57,7 +57,7 @@ COPY mesos/agent_environment /etc/default/mesos-agent
 COPY mesos/modules /etc/mesos/modules
 
 # Prepare Marathon environment.
-ARG MARATHON_URL=https://downloads.mesosphere.com/marathon/releases/1.5.5/marathon-1.5.5.tgz
+ARG MARATHON_URL=https://downloads.mesosphere.com/marathon/releases/1.6.322/marathon-1.6.322-2bf46b341.tgz
 ARG MARATHON_INSTALL_DIR=/usr/local/marathon
 
 RUN mkdir -p $MARATHON_INSTALL_DIR && \
