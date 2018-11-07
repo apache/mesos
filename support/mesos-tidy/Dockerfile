@@ -27,7 +27,8 @@ RUN apt-get update && \
   curl \
   git \
   python-dev && \
-  apt-get clean
+  apt-get clean && \
+  rm -rf /var/lib/apt/lists/*
 
 # Mesos requires at least cmake-3.7.0 on Linux and cmake-3.8.0 on Windows.
 #
@@ -66,14 +67,16 @@ RUN apt-get update && \
   libsvn-dev \
   libtool \
   zlib1g-dev && \
-  apt-get clean
+  apt-get clean && \
+  rm -rf /var/lib/apt/lists/*
 
 # Install `jq` and `parallel` for `clang-tidy` invocation.
 RUN apt-get update && \
   apt-get install -qy \
   jq \
   parallel && \
-  apt-get clean
+  apt-get clean && \
+  rm -rf /var/lib/apt/lists/*
 
 # Wire up the script which performs the actual work.
 WORKDIR /BUILD
