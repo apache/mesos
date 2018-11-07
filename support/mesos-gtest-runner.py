@@ -109,7 +109,7 @@ def parse_arguments():
 
     env_parser = argparse.ArgumentParser()
     env_parser.add_argument('-j', '--jobs', type=int,
-                            default=int(multiprocessing.cpu_count() * 1.5))
+                            default=int(multiprocessing.cpu_count()))
     env_parser.add_argument('-s', '--sequential', type=str, default='')
     env_parser.add_argument('-v', '--verbosity', type=int, default=1)
 
