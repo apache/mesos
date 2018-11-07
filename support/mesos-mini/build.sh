@@ -18,9 +18,10 @@ if ! [ -x "$(command -v docker)" ]; then
 fi
 
 DOCKER_IMAGE=${DOCKER_IMAGE_DISTRO} \
+DOCKER_IMAGE_TAG=${DOCKER_IMAGE_TAG} \
 "${SUPPORT_DIR}/packaging/centos/build-docker-centos.sh"
 
 docker build \
-  --build-arg "BASE_IMAGE_NAME=${DOCKER_IMAGE_DISTRO}" \
+  --build-arg "BASE_IMAGE_NAME=${DOCKER_IMAGE_DISTRO}:${DOCKER_IMAGE_TAG}" \
   -t "${DOCKER_IMAGE}:${DOCKER_IMAGE_TAG}" \
   "${CURRENT_DIR}/"
