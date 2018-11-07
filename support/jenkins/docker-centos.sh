@@ -15,9 +15,23 @@ DOCKER_IMAGE=${DOCKER_IMAGE:-"mesos/mesos-centos"}
 
 MESOS_SHA=${MESOS_SHA:-$(git rev-parse HEAD)}
 MESOS_TAG_OR_SHA=$(git describe --exact-match "${MESOS_SHA}" 2>/dev/null || echo "${MESOS_SHA}")
-DOCKER_IMAGE_TAG="${MESOS_TAG_OR_SHA}"
+RELEASE_BRANCH=$(git branch --points-at HEAD -r | grep -E 'origin/[0-9]*\.[0-9]*\.x' | grep -E -o '[0-9]*\.[0-9]*\.x' || true)
+
+if [ -z "${RELEASE_BRANCH}" ]; then
+  RELEASE_BRANCH="master"
+fi
+
+DATE=$(date +%F)
+
+if [[ "${MESOS_TAG_OR_SHA}" != "${MESOS_SHA}" ]]; then
+  # HEAD is also a tag.
+  DOCKER_IMAGE_TAG="${MESOS_TAG_OR_SHA}"
+else
+  DOCKER_IMAGE_TAG="${RELEASE_BRANCH}-${DATE}"
+fi
 
 echo "MESOS_SHA=${MESOS_SHA}"
+echo "RELEASE_BRANCH=${RELEASE_BRANCH}"
 echo "DOCKER_IMAGE_TAG=${DOCKER_IMAGE_TAG}"
 
 function cleanup {
@@ -31,9 +45,5 @@ DOCKER_IMAGE=${DOCKER_IMAGE} \
 DOCKER_IMAGE_TAG=${DOCKER_IMAGE_TAG} \
 "${SUPPORT_DIR}/packaging/centos/build-docker-centos.sh"
 
-DATE=$(date +%F)
-
-docker tag "${DOCKER_IMAGE}:${DOCKER_IMAGE_TAG}" "${DOCKER_IMAGE}:${DATE}"
 docker login -u "${USERNAME}" -p "${PASSWORD}"
 docker push "${DOCKER_IMAGE}:${DOCKER_IMAGE_TAG}"
-docker push "${DOCKER_IMAGE}:${DATE}"
