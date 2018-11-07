@@ -209,7 +209,8 @@ def verify_review(review_request):
                              "BUILDTOOL='autotools' "
                              "COMPILER='gcc' "
                              "CONFIGURATION='--verbose "
-                             "--disable-libtool-wrappers' "
+                             "--disable-libtool-wrappers "
+                             "--disable-parallel-test-execution' "
                              "ENVIRONMENT='GLOG_v=1 MESOS_VERBOSE=1'")
 
             command = "%s; ./support/docker-build.sh" % configuration
