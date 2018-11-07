@@ -2380,6 +2380,9 @@ TEST_F(PartitionTest, TaskCompletedOnPartitionedAgent)
     execDriver->sendStatusUpdate(finishedStatus);
   }
 
+  // Ensure the agent processes the task finished update.
+  Clock::settle();
+
   // Cause the slave to reregister with the master. Because the
   // framework is not partition-aware, this results in shutting down
   // the executor on the slave. The enqueued TASK_FINISHED update
