@@ -9370,7 +9370,8 @@ void Master::offer(
                        << "executors";
 
           // Pass a default filter to avoid getting this same offer immediately
-          // from the allocator.
+          // from the allocator. Note that a default-constructed `Filters`
+          // object has its `refuse_seconds` offer filter set to 5 seconds.
           allocator->recoverResources(frameworkId, slaveId, offered, Filters());
           continue;
         }

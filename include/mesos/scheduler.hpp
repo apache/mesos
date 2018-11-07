@@ -231,13 +231,16 @@ public:
   // those that are not used by the launched tasks or their executors)
   // will be considered declined. Note that this includes resources
   // used by tasks that the framework attempted to launch but failed
-  // (with TASK_ERROR) due to a malformed task description. The
-  // specified filters are applied on all unused resources (see
-  // mesos.proto for a description of Filters). Available resources
-  // are aggregated when multiple offers are provided. Note that all
-  // offers must belong to the same slave. Invoking this function with
-  // an empty collection of tasks declines offers in their entirety
-  // (see Scheduler::declineOffer).
+  // (with TASK_ERROR) due to a malformed task description.
+  //
+  // The specified filters are applied on all unused resources (see
+  // mesos.proto for a description of Filters). Note that the default
+  // argument includes a 5-second `refuse_offers` filter.
+  //
+  // Available resources are aggregated when multiple offers are provided.
+  // Note that all offers must belong to the same slave. Invoking this
+  // function with an empty collection of tasks declines offers in their
+  // entirety (see Scheduler::declineOffer).
   virtual Status launchTasks(
       const std::vector<OfferID>& offerIds,
       const std::vector<TaskInfo>& tasks,
