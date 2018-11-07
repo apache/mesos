@@ -320,8 +320,9 @@ AC_ARG_ENABLE([optimize],
               [], [enable_optimize=no])
 
 AC_ARG_ENABLE([parallel_test_execution],
-              AS_HELP_STRING([--enable-parallel-test-execution],
-                             [execute tests in parallel where possible]))
+              AS_HELP_STRING([--disable-parallel-test-execution],
+                             [disable the parallel runner used during make check]),
+              [], [enable_parallel_test_execution=yes])
 
 AC_ARG_ENABLE([perftools],
               AS_HELP_STRING([--enable-perftools],
