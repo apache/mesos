@@ -24,8 +24,10 @@ DATE=$(date +%F)
 if [[ "${MESOS_TAG_OR_SHA}" != "${MESOS_SHA}" ]]; then
   # HEAD is also a tag.
   DOCKER_IMAGE_TAG="${MESOS_TAG_OR_SHA}"
+  DOCKER_IMAGE_LATEST_TAG=""
 else
   DOCKER_IMAGE_TAG="${RELEASE_BRANCH}-${DATE}"
+  DOCKER_IMAGE_LATEST_TAG="${RELEASE_BRANCH}"
 fi
 
 echo "MESOS_SHA=${MESOS_SHA}"
@@ -48,3 +50,8 @@ DATE=$(date +%F)
 
 docker login -u "${USERNAME}" -p "${PASSWORD}"
 docker push "${DOCKER_IMAGE}:${DOCKER_IMAGE_TAG}"
+
+if [ ! -z "${DOCKER_IMAGE_LATEST_TAG}" ]; then
+  docker tag "${DOCKER_IMAGE}:${DOCKER_IMAGE_TAG}" "${DOCKER_IMAGE}:${DOCKER_IMAGE_LATEST_TAG}"
+  docker push "${DOCKER_IMAGE}:${DOCKER_IMAGE_LATEST_TAG}"
+fi
