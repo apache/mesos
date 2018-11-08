@@ -357,7 +357,7 @@ protected:
         None(),
         None(),
         CLONE_NEWNET | CLONE_NEWNS,
-        vector<int_fd>());
+        {pipes[0], pipes[1]});
 
     return pid;
   }
