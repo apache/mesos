@@ -35,8 +35,9 @@ echo "RELEASE_BRANCH=${RELEASE_BRANCH}"
 echo "DOCKER_IMAGE_TAG=${DOCKER_IMAGE_TAG}"
 
 function cleanup {
-  docker rmi "$(docker images -q "${DOCKER_IMAGE}:${DOCKER_IMAGE_TAG}")" || true
-  docker rmi "$(docker images -q "${DOCKER_IMAGE_DISTRO}:${DOCKER_IMAGE_TAG}")" || true
+  docker rmi "${DOCKER_IMAGE}:${DOCKER_IMAGE_LATEST_TAG}" || true
+  docker rmi "${DOCKER_IMAGE}:${DOCKER_IMAGE_TAG}" || true
+  docker rmi "${DOCKER_IMAGE_DISTRO}:${DOCKER_IMAGE_TAG}" || true
 }
 
 trap cleanup EXIT
