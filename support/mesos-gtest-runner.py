@@ -206,7 +206,7 @@ def validate_setup(options):
 
     # Check the number of processes/threads a user is allowed to execute.
     try:
-        ulimit = int(subprocess.check_output(['ulimit', '-u']))
+        ulimit = int(subprocess.check_output('ulimit -u', shell=True))
 
         # As a proxy for our requirements we assume that each test executable
         # launches a thread for every available CPU times a factor of 16 to
