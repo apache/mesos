@@ -234,6 +234,8 @@ if __name__ == '__main__':
     EXECUTABLE, OPTIONS = parse_arguments()
     validate_setup(OPTIONS)
 
+    EXECUTABLE = os.path.abspath(EXECUTABLE)
+
     def options_gen(executable, filter_, jobs):
         """Generator for options for a certain shard.
 
