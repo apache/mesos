@@ -34,6 +34,7 @@ import shlex
 import signal
 import subprocess
 import sys
+import resource
 
 
 class Bcolors:
@@ -92,6 +93,7 @@ def run_test(opts):
         sys.stdout.flush()
         return False, error.output
 
+
 def parse_arguments():
     """Return the executable to work on, and a list of options."""
 
@@ -144,7 +146,6 @@ def parse_arguments():
         'command line always have precedence over these defaults.')
 
     args = parser.parse_args()
-
 
     if not args.executable:
         parser.print_usage()
@@ -206,18 +207,18 @@ def validate_setup(options):
 
     # Check the number of processes/threads a user is allowed to execute.
     try:
-        ulimit = int(subprocess.check_output('ulimit -u', shell=True))
-
         # As a proxy for our requirements we assume that each test executable
         # launches a thread for every available CPU times a factor of 16 to
         # accommodate additional processes forked in parallel.
         requirement = options.jobs * multiprocessing.cpu_count() * 16
 
-        if ulimit < requirement:
+        nproc_limit = resource.getrlimit(resource.RLIMIT_NPROC)[0]
+
+        if nproc_limit != resource.RLIM_INFINITY and nproc_limit < requirement:
             print(Bcolors.colorize(
                 "Detected low process count ulimit ({} vs {}). Increase "
                 "'ulimit -u' to avoid spurious test failures."
-                .format(ulimit, requirement),
+                .format(nproc_limit, requirement),
                 Bcolors.WARNING),
                   file=sys.stderr)
             sys.exit(1)
