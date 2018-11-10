@@ -30,11 +30,11 @@ wrapper around that functionality and stream-lined output.
 import argparse
 import multiprocessing
 import os
+import resource
 import shlex
 import signal
 import subprocess
 import sys
-import resource
 
 
 class Bcolors:
@@ -69,9 +69,9 @@ def run_test(opts):
     Perform an actual run of the test executable.
 
     Expects a list of parameters giving the number of the current
-    shard, the total number of shards, and the executable to run.
+    shard, the total number of shards, and the command line to run.
     """
-    shard, nshards, executable = opts
+    shard, nshards, args = opts
 
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
@@ -81,7 +81,7 @@ def run_test(opts):
 
     try:
         output = subprocess.check_output(
-            executable.split(),
+            args,
             stderr=subprocess.STDOUT,
             env=env,
             universal_newlines=True)
@@ -242,17 +242,18 @@ if __name__ == '__main__':
         """
         opts = list(range(jobs))
 
+        args = [os.path.abspath(executable)]
+
         # If we run in a terminal, enable colored test output. We
         # still allow users to disable this themselves via extra args.
         if sys.stdout.isatty():
-            executable = '{exe} --gtest_color=yes'.format(exe=executable)
+            args.append('--gtest_color=yes')
 
         if filter_:
-            executable = '{exe} --gtest_filter={filter}'\
-                         .format(exe=executable, filter=filter_)
+            args.append('--gtest_filter={filter}'.format(filter=filter_))
 
         for opt in opts:
-            yield opt, jobs, executable
+            yield opt, jobs, args
 
     try:
         RESULTS = []
