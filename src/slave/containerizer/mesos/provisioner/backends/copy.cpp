@@ -151,6 +151,7 @@ Future<Nothing> CopyBackendProcess::_provision(
     if (node->fts_info == FTS_DNR ||
         node->fts_info == FTS_ERR ||
         node->fts_info == FTS_NS) {
+      ::fts_close(tree);
       return Failure(
           "Failed to read '" + ftsPath + "': " + os::strerror(node->fts_errno));
     }
