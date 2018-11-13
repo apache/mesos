@@ -244,12 +244,12 @@ Future<Person> mother(const std::string& name)
 
 Each of `Future::then()`, `Future::repair()`, and `Future::recover()` takes a callback that will be invoked after certain transitions, captured by this table:
 
-| Transition | `Future::*()` |
-| ------ | -------------- |
-| `READY` | `Future::then(F&&)` |
-| `FAILED` | `Future::repair(F&&)` and `Future::recover(F&&)` |
-| `DISCARDED` | `Future::recover(F&&)` |
-| Abandoned (`PENDING` and `Future::isAbandoned()`) | `Future::recover(F&&)` |
+| Transition                                        | `Future::*()`                                    |
+| ------------------------------------------------- | ------------------------------------------------ |
+| `READY`                                           | `Future::then(F&&)`                              |
+| `FAILED`                                          | `Future::repair(F&&)` and `Future::recover(F&&)` |
+| `DISCARDED`                                       | `Future::recover(F&&)`                           |
+| Abandoned (`PENDING` and `Future::isAbandoned()`) | `Future::recover(F&&)`                           |
 
 `Future::then()` allows you to _transform_ the type of the `Future` into a new type but both `Future::repair()` and `Future::recover()` must return the same type as `Future` because they may not get executed! Here's an example using `Future::recover()` to handle a failure:
 
