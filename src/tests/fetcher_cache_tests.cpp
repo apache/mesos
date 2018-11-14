@@ -697,6 +697,45 @@ TEST_F(FetcherCacheTest, LocalCached)
 }
 
 
+// This test launches a task with enabled cache, then removes all cached files,
+// then attempts to launch another task with the same URIs as the first task.
+// We expect that the fetcher retries to download all the artifacts when cached
+// files are missing.
+TEST_F(FetcherCacheTest, LocalCachedMissing)
+{
+  startSlave();
+  driver->start();
+
+  for (size_t i = 0; i < 2; i++) {
+    CommandInfo::URI uri;
+    uri.set_value(commandPath);
+    uri.set_executable(true);
+    uri.set_cache(true);
+
+    CommandInfo commandInfo;
+    commandInfo.set_value("./" + COMMAND_NAME + " " + taskName(i));
+    commandInfo.add_uris()->CopyFrom(uri);
+
+    const Try<Task> task = launchTask(commandInfo, i);
+    ASSERT_SOME(task);
+
+    AWAIT_READY(awaitFinished(task.get()));
+
+    const string path = path::join(task->runDirectory.string(), COMMAND_NAME);
+    EXPECT_TRUE(isExecutable(path));
+    EXPECT_TRUE(os::exists(path + taskName(i)));
+
+    EXPECT_EQ(1u, fetcherProcess->cacheSize());
+    ASSERT_SOME(fetcherProcess->cacheFiles());
+    EXPECT_EQ(1u, fetcherProcess->cacheFiles()->size());
+
+    verifyCacheMetrics();
+
+    EXPECT_SOME(os::rm(fetcherProcess->cacheFiles()->front()));
+  }
+}
+
+
 TEST_F(FetcherCacheTest, CachedCustomFilename)
 {
   startSlave();
