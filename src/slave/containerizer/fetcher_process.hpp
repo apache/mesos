@@ -190,6 +190,9 @@ public:
     size_t size() const;
 
   private:
+    // Returns whether the cache file exists and not corrupted.
+    Try<Nothing> validate(const std::shared_ptr<Cache::Entry>& entry);
+
     // Maximum storable number of bytes in the cache directory.
     const Bytes space;
 

@@ -1027,6 +1027,22 @@ FetcherProcess::Cache::get(
 
   Option<shared_ptr<Entry>> entry = table.get(key);
   if (entry.isSome()) {
+    // The FetcherProcess will always remove a failed download
+    // synchronously after marking this future as failed.
+    CHECK(!entry.get()->completion().isFailed());
+
+    // Validate the cache file, if it has been downloaded.
+    if (entry.get()->completion().isReady()) {
+      Try<Nothing> validation = validate(entry.get());
+      if (validation.isError()) {
+        LOG(WARNING) << "Validation failed: '" + validation.error() +
+                        "'. Removing cache entry...";
+
+        remove(entry.get());
+        return None();
+      }
+    }
+
     // Refresh the cache entry by moving it to the back of lruSortedEntries.
     lruSortedEntries.remove(entry.get());
     lruSortedEntries.push_back(entry.get());
@@ -1062,6 +1078,7 @@ bool FetcherProcess::Cache::contains(
 //   (1) We failed to determine its prospective cache file size.
 //   (2) We failed to download it when invoking the mesos-fetcher.
 //   (3) We're evicting it to make room for another entry.
+//   (4) We failed to validate the cache file.
 //
 // In (1) and (2) the contract is that we'll have failed the entry's
 // future before we call remove, so the entry's future should no
@@ -1072,6 +1089,9 @@ bool FetcherProcess::Cache::contains(
 // currently downloading it, because it should have a non-zero
 // reference count and therefore the future must either be ready or
 // failed in which case this is just case (1) above.
+//
+// In (4) we explicitly only validate a cache file if the future is
+// ready (i.e., the file has been downloaded).
 //
 // NOTE: It is not necessarily the case that this cache entry has
 // zero references because there might be some waiters on the
@@ -1172,6 +1192,26 @@ Try<Nothing> FetcherProcess::Cache::reserve(
   }
 
   return Nothing();
+}
+
+
+Try<Nothing> FetcherProcess::Cache::validate(
+    const std::shared_ptr<Cache::Entry>& entry)
+{
+    VLOG(1) << "Validating cache entry '" << entry->key
+            << "' with filename: " << entry->filename;
+
+    if (!os::exists(entry->path().string())) {
+      return Error("Cache file does not exist: " + entry->filename);
+    }
+
+    // TODO(abudnik): Consider adding validation of the cache file by either:
+    //   1. Comparing a known file checksum with the actual checksum of the file
+    //      stored on disk.
+    //   2. Reading the whole file by chunks. Many filesystems detect data
+    //      corruptions when reading file's data. As a positive side effect,
+    //      the file's data will be loaded into the page cache.
+    return Nothing();
 }
 
 
