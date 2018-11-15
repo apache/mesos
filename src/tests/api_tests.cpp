@@ -1044,7 +1044,11 @@ TEST_P(MasterAPITest, GetOperations)
   v1::MockResourceProvider resourceProvider(
       info,
       v1::createDiskResource(
-          "200", "*", None(), None(), v1::createDiskSourceRaw()));
+          "200",
+          "*",
+          None(),
+          None(),
+          v1::createDiskSourceRaw(None(), "profile")));
 
   // Start and register resource provider.
   Owned<EndpointDetector> endpointDetector(
@@ -7739,7 +7743,11 @@ TEST_P(AgentAPITest, GetOperations)
   v1::MockResourceProvider resourceProvider(
       info,
       v1::createDiskResource(
-          "200", "*", None(), None(), v1::createDiskSourceRaw()));
+          "200",
+          "*",
+          None(),
+          None(),
+          v1::createDiskSourceRaw(None(), "profile")));
 
   // Start and register a resource provider.
   Owned<EndpointDetector> endpointDetector(

@@ -1401,13 +1401,18 @@ inline typename TOffer::Operation LAUNCH_GROUP(
 template <typename TResource, typename TTargetType, typename TOffer>
 inline typename TOffer::Operation CREATE_DISK(
     const TResource& source,
-    const TTargetType& type,
+    const TTargetType& targetType,
+    const Option<std::string>& targetProfile = None(),
     const Option<std::string>& operationId = None())
 {
   typename TOffer::Operation operation;
   operation.set_type(TOffer::Operation::CREATE_DISK);
   operation.mutable_create_disk()->mutable_source()->CopyFrom(source);
-  operation.mutable_create_disk()->set_target_type(type);
+  operation.mutable_create_disk()->set_target_type(targetType);
+
+  if (targetProfile.isSome()) {
+    operation.mutable_create_disk()->set_target_profile(targetProfile.get());
+  }
 
   if (operationId.isSome()) {
     operation.mutable_id()->set_value(operationId.get());
@@ -3173,18 +3178,23 @@ public:
         update->mutable_status()->add_converted_resources()->CopyFrom(
             operation.info().create_disk().source());
         update->mutable_status()
-          ->mutable_converted_resources()
-          ->Mutable(0)
+          ->mutable_converted_resources(0)
           ->mutable_disk()
           ->mutable_source()
           ->set_type(operation.info().create_disk().target_type());
+        if (operation.info().create_disk().has_target_profile()) {
+          update->mutable_status()
+            ->mutable_converted_resources(0)
+            ->mutable_disk()
+            ->mutable_source()
+            ->set_profile(operation.info().create_disk().target_profile());
+        }
         break;
       case Operation::DESTROY_DISK:
         update->mutable_status()->add_converted_resources()->CopyFrom(
             operation.info().destroy_disk().source());
         update->mutable_status()
-          ->mutable_converted_resources()
-          ->Mutable(0)
+          ->mutable_converted_resources(0)
           ->mutable_disk()
           ->mutable_source()
           ->set_type(Source::RAW);

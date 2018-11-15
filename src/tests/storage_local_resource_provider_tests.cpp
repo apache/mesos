@@ -4067,7 +4067,10 @@ TEST_F(
       frameworkId,
       offer,
       {v1::CREATE_DISK(
-          source.get(), v1::Resource::DiskInfo::Source::MOUNT, operationId)}));
+           source.get(),
+           v1::Resource::DiskInfo::Source::MOUNT,
+           None(),
+           operationId)}));
 
   AWAIT_READY(update);
 
@@ -4254,6 +4257,7 @@ TEST_F(
       {v1::CREATE_DISK(
           source.get(),
           v1::Resource::DiskInfo::Source::MOUNT,
+          None(),
           operationId.value())}));
 
   AWAIT_READY(update);

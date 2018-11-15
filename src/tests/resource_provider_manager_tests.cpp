@@ -1024,7 +1024,7 @@ TEST_P(ResourceProviderManagerHttpApiTest, ConvertResources)
   AWAIT_READY(updateSlaveMessage);
 
   v1::Resource disk = v1::createDiskResource(
-      "200", "*", None(), None(), v1::createDiskSourceRaw());
+      "200", "*", None(), None(), v1::createDiskSourceRaw(None(), "profile"));
 
   updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
