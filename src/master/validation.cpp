@@ -2528,6 +2528,12 @@ Option<Error> validate(const Offer::Operation::CreateDisk& createDisk)
     return Error("'target_type' is neither MOUNT or BLOCK");
   }
 
+  if (source.disk().source().has_profile() == createDisk.has_target_profile()) {
+    return createDisk.has_target_profile()
+      ? Error("'target_profile' must not be set when 'source' has a profile")
+      : Error("'target_profile' must be set when 'source' has no profile");
+  }
+
   return None();
 }
 

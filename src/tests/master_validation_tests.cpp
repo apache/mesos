@@ -2025,32 +2025,46 @@ TEST_F(ShrinkVolumeOperationValidationTest, MissingCapability)
 TEST(OperationValidationTest, CreateDisk)
 {
   Resource disk1 = createDiskResource(
-      "10", "*", None(), None(), createDiskSourceRaw());
+      "10", "*", None(), None(), createDiskSourceRaw(None(), "profile"));
 
   Resource disk2 = createDiskResource(
-      "20", "*", None(), None(), createDiskSourceMount());
+      "20", "*", None(), None(), createDiskSourceRaw());
 
   Resource disk3 = createDiskResource(
-      "30", "*", None(), None(), createDiskSourceRaw());
+      "30", "*", None(), None(), createDiskSourceMount());
+
+  Resource disk4 = createDiskResource(
+      "40", "*", None(), None(), createDiskSourceRaw(None(), "profile"));
 
   disk1.mutable_provider_id()->set_value("provider1");
   disk2.mutable_provider_id()->set_value("provider2");
+  disk3.mutable_provider_id()->set_value("provider3");
 
   Offer::Operation::CreateDisk createDisk;
   createDisk.mutable_source()->CopyFrom(disk1);
   createDisk.set_target_type(Resource::DiskInfo::Source::MOUNT);
+  createDisk.clear_target_profile();
 
   Option<Error> error = operation::validate(createDisk);
   EXPECT_NONE(error);
 
   createDisk.mutable_source()->CopyFrom(disk1);
   createDisk.set_target_type(Resource::DiskInfo::Source::BLOCK);
+  createDisk.clear_target_profile();
+
+  error = operation::validate(createDisk);
+  EXPECT_NONE(error);
+
+  createDisk.mutable_source()->CopyFrom(disk2);
+  createDisk.set_target_type(Resource::DiskInfo::Source::MOUNT);
+  createDisk.set_target_profile("profile");
 
   error = operation::validate(createDisk);
   EXPECT_NONE(error);
 
   createDisk.mutable_source()->CopyFrom(disk1);
   createDisk.set_target_type(Resource::DiskInfo::Source::PATH);
+  createDisk.clear_target_profile();
 
   error = operation::validate(createDisk);
   ASSERT_SOME(error);
@@ -2058,8 +2072,29 @@ TEST(OperationValidationTest, CreateDisk)
       error->message,
       "'target_type' is neither MOUNT or BLOCK"));
 
+  createDisk.mutable_source()->CopyFrom(disk1);
+  createDisk.set_target_type(Resource::DiskInfo::Source::MOUNT);
+  createDisk.set_target_profile("profile");
+
+  error = operation::validate(createDisk);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(strings::contains(
+      error->message,
+      "'target_profile' must not be set when 'source' has a profile"));
+
   createDisk.mutable_source()->CopyFrom(disk2);
   createDisk.set_target_type(Resource::DiskInfo::Source::MOUNT);
+  createDisk.clear_target_profile();
+
+  error = operation::validate(createDisk);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(strings::contains(
+      error->message,
+      "'target_profile' must be set when 'source' has no profile"));
+
+  createDisk.mutable_source()->CopyFrom(disk3);
+  createDisk.set_target_type(Resource::DiskInfo::Source::MOUNT);
+  createDisk.clear_target_profile();
 
   error = operation::validate(createDisk);
   ASSERT_SOME(error);
@@ -2067,8 +2102,9 @@ TEST(OperationValidationTest, CreateDisk)
       error->message,
       "'source' is not a RAW disk resource"));
 
-  createDisk.mutable_source()->CopyFrom(disk3);
+  createDisk.mutable_source()->CopyFrom(disk4);
   createDisk.set_target_type(Resource::DiskInfo::Source::MOUNT);
+  createDisk.clear_target_profile();
 
   error = operation::validate(createDisk);
   ASSERT_SOME(error);
