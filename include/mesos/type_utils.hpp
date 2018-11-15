@@ -23,6 +23,7 @@
 
 #include <boost/functional/hash.hpp>
 
+#include <google/protobuf/map.h>
 #include <google/protobuf/repeated_field.h>
 
 #include <mesos/mesos.hpp>
@@ -475,23 +476,6 @@ std::ostream& operator<<(
 template <typename T>
 inline std::ostream& operator<<(
     std::ostream& stream,
-    const google::protobuf::RepeatedPtrField<T>& messages)
-{
-  stream << "[ ";
-  for (auto it = messages.begin(); it != messages.end(); ++it) {
-    if (it != messages.begin()) {
-      stream << ", ";
-    }
-    stream << *it;
-  }
-  stream << " ]";
-  return stream;
-}
-
-
-template <typename T>
-inline std::ostream& operator<<(
-    std::ostream& stream,
     const std::vector<T>& messages)
 {
   stream << "[ ";
@@ -506,6 +490,62 @@ inline std::ostream& operator<<(
 }
 
 } // namespace mesos {
+
+
+/**
+ * Type utilities for the protobuf library that are not specific to particular
+ * protobuf classes. They are defined in the `google::protobuf` namespace for
+ * argument-dependent lookup.
+ */
+namespace google {
+namespace protobuf {
+
+template <typename Key, typename Value>
+inline bool operator==(
+    const Map<Key, Value>& left, const Map<Key, Value>& right)
+{
+  if (left.size() != right.size()) {
+    return false;
+  }
+
+  for (auto it = left.begin(); it != left.end(); ++it) {
+    auto found = right.find(it->first);
+    if (found == right.end() || found->second != it->second) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
+template <typename Key, typename Value>
+inline bool operator!=(
+    const Map<Key, Value>& left, const Map<Key, Value>& right)
+{
+  return !(left == right);
+}
+
+
+template <typename T>
+inline std::ostream& operator<<(
+    std::ostream& stream,
+    const RepeatedPtrField<T>& messages)
+{
+  stream << "[ ";
+  for (auto it = messages.begin(); it != messages.end(); ++it) {
+    if (it != messages.begin()) {
+      stream << ", ";
+    }
+    stream << *it;
+  }
+  stream << " ]";
+  return stream;
+}
+
+} // namespace protobuf {
+} // namespace google {
+
 
 namespace std {
 

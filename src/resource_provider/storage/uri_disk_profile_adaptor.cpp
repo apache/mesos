@@ -22,6 +22,8 @@
 
 #include <csi/spec.hpp>
 
+#include <mesos/type_utils.hpp>
+
 #include <mesos/module/disk_profile_adaptor.hpp>
 
 #include <process/defer.hpp>
@@ -57,30 +59,6 @@ using mesos::resource_provider::DiskProfileMapping;
 namespace mesos {
 namespace internal {
 namespace storage {
-
-bool operator==(
-    const Map<string, string>& left,
-    const Map<string, string>& right) {
-  if (left.size() != right.size()) {
-    return false;
-  }
-
-  typename Map<string, string>::const_iterator iterator = left.begin();
-  while (iterator != left.end()) {
-    if (right.count(iterator->first) != 1) {
-      return false;
-    }
-
-    if (iterator->second != right.at(iterator->first)) {
-      return false;
-    }
-
-    ++iterator;
-  }
-
-  return true;
-}
-
 
 UriDiskProfileAdaptor::UriDiskProfileAdaptor(const Flags& _flags)
   : flags(_flags),
