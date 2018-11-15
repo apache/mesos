@@ -45,6 +45,14 @@ bool operator==(
 bool operator==(const VolumeCapability& left, const VolumeCapability& right);
 
 
+inline bool operator!=(
+    const VolumeCapability& left,
+    const VolumeCapability& right)
+{
+  return !(left == right);
+}
+
+
 std::ostream& operator<<(
     std::ostream& stream,
     const ControllerServiceCapability::RPC::Type& type);
