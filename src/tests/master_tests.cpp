@@ -9286,7 +9286,7 @@ TEST_F(MasterTest, DropOperationWithIDAffectingDefaultResources)
   operationId.set_value("operation");
 
   mesos.send(v1::createCallAccept(
-      frameworkId, offer, {v1::RESERVE(reserved, operationId.value())}));
+      frameworkId, offer, {v1::RESERVE(reserved, operationId)}));
 
   // Wait for the framework to receive the OPERATION_ERROR update.
   AWAIT_READY(operationErrorUpdate);

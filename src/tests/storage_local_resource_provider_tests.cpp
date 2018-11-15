@@ -4204,7 +4204,9 @@ TEST_F(StorageLocalResourceProviderTest, RetryOperationStatusUpdateToScheduler)
     .WillOnce(FutureArg<1>(&retriedUpdate));
 
   // Create a volume.
-  const string operationId = "operation";
+  v1::OperationID operationId;
+  operationId.set_value("operation");
+
   mesos.send(v1::createCallAccept(
       frameworkId,
       offer,
@@ -4216,7 +4218,7 @@ TEST_F(StorageLocalResourceProviderTest, RetryOperationStatusUpdateToScheduler)
 
   AWAIT_READY(update);
 
-  ASSERT_EQ(operationId, update->status().operation_id().value());
+  ASSERT_EQ(operationId, update->status().operation_id());
   ASSERT_EQ(
       mesos::v1::OperationState::OPERATION_FINISHED, update->status().state());
   ASSERT_TRUE(update->status().has_uuid());
@@ -4230,7 +4232,7 @@ TEST_F(StorageLocalResourceProviderTest, RetryOperationStatusUpdateToScheduler)
   // should resend it after the status update retry interval minimum.
   AWAIT_READY(retriedUpdate);
 
-  ASSERT_EQ(operationId, retriedUpdate->status().operation_id().value());
+  ASSERT_EQ(operationId, retriedUpdate->status().operation_id());
   ASSERT_EQ(
       mesos::v1::OperationState::OPERATION_FINISHED,
       retriedUpdate->status().state());
@@ -4397,10 +4399,10 @@ TEST_F(
       frameworkId,
       offer,
       {v1::CREATE_DISK(
-          source.get(),
-          v1::Resource::DiskInfo::Source::MOUNT,
-          None(),
-          operationId.value())}));
+           source.get(),
+           v1::Resource::DiskInfo::Source::MOUNT,
+           None(),
+           operationId)}));
 
   AWAIT_READY(update);
 

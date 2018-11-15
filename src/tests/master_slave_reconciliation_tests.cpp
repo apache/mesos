@@ -577,7 +577,7 @@ TEST_F(
   operationId.set_value("operation");
 
   mesos.send(v1::createCallAccept(
-      frameworkId, offer, {v1::RESERVE(reserved, operationId.value())}));
+      frameworkId, offer, {v1::RESERVE(reserved, operationId)}));
 
   AWAIT_READY(applyOperationMessage);
 
