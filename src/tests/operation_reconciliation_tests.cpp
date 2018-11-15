@@ -678,8 +678,8 @@ TEST_P(OperationReconciliationTest, AgentPendingOperationAfterMasterFailover)
   resourceProviderInfo.set_type("org.apache.mesos.rp.test");
   resourceProviderInfo.set_name("test");
 
-  Resource disk =
-    createDiskResource("200", "*", None(), None(), createDiskSourceRaw());
+  Resource disk = createDiskResource(
+      "200", "*", None(), None(), createDiskSourceRaw(None(), "profile"));
 
   Owned<MockResourceProvider> resourceProvider(
       new MockResourceProvider(
@@ -792,9 +792,10 @@ TEST_P(OperationReconciliationTest, AgentPendingOperationAfterMasterFailover)
       frameworkId,
       offer,
       {CREATE_DISK(
-          source.get(),
-          Resource::DiskInfo::Source::MOUNT,
-          operationId.value())}));
+           source.get(),
+           Resource::DiskInfo::Source::MOUNT,
+           None(),
+           operationId.value())}));
 
   AWAIT_READY(applyOperation);
 

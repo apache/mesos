@@ -9060,11 +9060,7 @@ TEST_F(MasterTest, OperationUpdateDuringFailover)
   resourceProviderInfo.set_name("test");
 
   v1::Resources resourceProviderResources = v1::createDiskResource(
-      "200",
-      "*",
-      None(),
-      None(),
-      v1::createDiskSourceRaw());
+      "200", "*", None(), None(), v1::createDiskSourceRaw(None(), "profile"));
 
   v1::MockResourceProvider resourceProvider(
       resourceProviderInfo,

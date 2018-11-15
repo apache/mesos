@@ -3998,9 +3998,7 @@ TEST_F(StorageLocalResourceProviderTest, ReconcileDroppedOperation)
 
 // This test verifies that if an operation ID is specified, operation status
 // updates are resent to the scheduler until acknowledged.
-TEST_F(
-    StorageLocalResourceProviderTest,
-    RetryOperationStatusUpdateToScheduler)
+TEST_F(StorageLocalResourceProviderTest, RetryOperationStatusUpdateToScheduler)
 {
   Clock::pause();
 
@@ -4134,7 +4132,10 @@ TEST_F(
       frameworkId,
       offer,
       {v1::CREATE_DISK(
-          source.get(), v1::Resource::DiskInfo::Source::MOUNT, operationId)}));
+           source.get(),
+           v1::Resource::DiskInfo::Source::MOUNT,
+           None(),
+           operationId)}));
 
   AWAIT_READY(update);
 
@@ -4318,6 +4319,7 @@ TEST_F(
       {v1::CREATE_DISK(
           source.get(),
           v1::Resource::DiskInfo::Source::MOUNT,
+          None(),
           operationId.value())}));
 
   AWAIT_READY(update);
