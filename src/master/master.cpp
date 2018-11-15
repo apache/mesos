@@ -4053,6 +4053,17 @@ void Master::addExecutor(
   CHECK(slave->connected) << "Adding executor " << executorInfo.executor_id()
                           << " to disconnected agent " << *slave;
 
+  // Note that we explicitly convert from protobuf to `Resources` here
+  // and then use the result below to avoid performance penalty for multiple
+  // conversions and validations implied by conversion.
+  // Conversion is safe, as resources have already passed validation.
+  const Resources resources = executorInfo.resources();
+
+  LOG(INFO) << "Adding executor '" << executorInfo.executor_id()
+            << "' with resources " << resources
+            << " of framework " << *framework
+            << " on agent " << *slave;
+
   slave->addExecutor(framework->id(), executorInfo);
   framework->addExecutor(slave->id, executorInfo);
 }
@@ -4067,6 +4078,17 @@ void Master::addTask(
   CHECK_NOTNULL(slave);
   CHECK(slave->connected) << "Adding task " << task.task_id()
                           << " to disconnected agent " << *slave;
+
+  // Note that we explicitly convert from protobuf to `Resources` here
+  // and then use the result below to avoid performance penalty for multiple
+  // conversions and validations implied by conversion.
+  // Conversion is safe, as resources have already passed validation.
+  const Resources resources = task.resources();
+
+  LOG(INFO) << "Adding task " << task.task_id()
+            << " with resources " << resources
+            << " of framework " << *framework
+            << " on agent " << *slave;
 
   // Add the task to the framework and slave.
   Task* t = new Task(protobuf::createTask(task, TASK_STAGING, framework->id()));
@@ -11082,12 +11104,17 @@ void Master::removeExecutor(
 
   ExecutorInfo executor = slave->executors[frameworkId][executorId];
 
+  // Note that we explicitly convert from protobuf to `Resources` here
+  // and then use the result below to avoid performance penalty for multiple
+  // conversions and validations implied by conversion.
+  // Conversion is safe, as resources have already passed validation.
+  const Resources resources = executor.resources();
+
   LOG(INFO) << "Removing executor '" << executorId
-            << "' with resources " << executor.resources()
+            << "' with resources " << resources
             << " of framework " << frameworkId << " on agent " << *slave;
 
-  allocator->recoverResources(
-      frameworkId, slave->id, executor.resources(), None());
+  allocator->recoverResources(frameworkId, slave->id, resources, None());
 
   Framework* framework = getFramework(frameworkId);
   if (framework != nullptr) { // The framework might not be reregistered yet.
@@ -12227,12 +12254,6 @@ void Slave::addTask(Task* task)
   if (!protobuf::isTerminalState(task->state())) {
     usedResources[frameworkId] += resources;
   }
-
-  // Note that we use `Resources` for output as it's faster than
-  // logging raw protobuf data.
-  LOG(INFO) << "Adding task " << taskId
-            << " with resources " << resources
-            << " on agent " << *this;
 }
 
 
