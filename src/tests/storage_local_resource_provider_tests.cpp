@@ -3793,15 +3793,20 @@ TEST_F(StorageLocalResourceProviderTest, CsiPluginRpcMetrics)
 
 
 // Master reconciles operations that are missing from a reregistering slave.
-// In this case, the `ApplyOperationMessage` is dropped, so the resource
-// provider should send OPERATION_DROPPED. Operations on agent default
-// resources are also tested here; for such operations, the agent generates the
-// dropped status.
+// In this case, one of the two `ApplyOperationMessage`s is dropped, so the
+// resource provider should send only one OPERATION_DROPPED.
+//
+// TODO(greggomann): Test operations on agent default resources: for such
+// operations, the agent generates the dropped status.
 TEST_F(StorageLocalResourceProviderTest, ReconcileDroppedOperation)
 {
   Clock::pause();
 
-  setupResourceProviderConfig(Bytes(0), "volume1:2GB;volume2:2GB");
+  const string profilesPath = path::join(sandbox.get(), "profiles.json");
+  ASSERT_SOME(os::write(profilesPath, createDiskProfileMapping("test")));
+  loadUriDiskProfileAdaptorModule(profilesPath);
+
+  setupResourceProviderConfig(Gigabytes(4));
 
   master::Flags masterFlags = CreateMasterFlags();
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
@@ -3810,6 +3815,7 @@ TEST_F(StorageLocalResourceProviderTest, ReconcileDroppedOperation)
   StandaloneMasterDetector detector(master.get()->pid);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
@@ -3865,40 +3871,33 @@ TEST_F(StorageLocalResourceProviderTest, ReconcileDroppedOperation)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(DeclineOffers(declineFilters));
 
-  // We are only interested in pre-existing volumes, which have IDs but no
-  // profile. We use pre-existing volumes to make it easy to send multiple
-  // operations on multiple resources.
-  auto isPreExistingVolume = [](const Resource& r) {
+  auto isRaw = [](const Resource& r) {
     return r.has_disk() &&
       r.disk().has_source() &&
-      r.disk().source().has_id() &&
-      !r.disk().source().has_profile();
+      r.disk().source().has_profile() &&
+      r.disk().source().type() == Resource::DiskInfo::Source::RAW;
   };
 
   Future<vector<Offer>> offersBeforeOperations;
 
-  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      isPreExistingVolume)))
+  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(isRaw)))
     .WillOnce(FutureArg<1>(&offersBeforeOperations))
     .WillRepeatedly(DeclineOffers(declineFilters)); // Decline further offers.
 
   driver.start();
 
   AWAIT_READY(offersBeforeOperations);
-  ASSERT_FALSE(offersBeforeOperations->empty());
+  ASSERT_EQ(1u, offersBeforeOperations->size());
 
-  vector<Resource> sources;
+  Resources raw =
+    Resources(offersBeforeOperations->at(0).resources()).filter(isRaw);
 
-  foreach (
-      const Resource& resource,
-      offersBeforeOperations->at(0).resources()) {
-    if (isPreExistingVolume(resource) &&
-        resource.disk().source().type() == Resource::DiskInfo::Source::RAW) {
-      sources.push_back(resource);
-    }
-  }
-
-  ASSERT_EQ(2u, sources.size());
+  // Create two MOUNT disks of 2GB each.
+  ASSERT_SOME_EQ(Gigabytes(4), raw.disk());
+  Resource source1 = *raw.begin();
+  source1.mutable_scalar()->set_value(
+      static_cast<double>(Gigabytes(2).bytes()) / Bytes::MEGABYTES);
+  Resource source2 = *(raw - source1).begin();
 
   // Drop one of the operations on the way to the agent.
   Future<ApplyOperationMessage> applyOperationMessage =
@@ -3916,8 +3915,8 @@ TEST_F(StorageLocalResourceProviderTest, ReconcileDroppedOperation)
   // Attempt the creation of two volumes.
   driver.acceptOffers(
       {offersBeforeOperations->at(0).id()},
-      {CREATE_DISK(sources.at(0), Resource::DiskInfo::Source::MOUNT),
-       CREATE_DISK(sources.at(1), Resource::DiskInfo::Source::MOUNT)},
+      {CREATE_DISK(source1, Resource::DiskInfo::Source::MOUNT),
+       CREATE_DISK(source2, Resource::DiskInfo::Source::MOUNT)},
       acceptFilters);
 
   // Ensure that the operations are processed.
@@ -3964,8 +3963,15 @@ TEST_F(StorageLocalResourceProviderTest, ReconcileDroppedOperation)
 
   Future<vector<Offer>> offersAfterOperations;
 
-  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      isPreExistingVolume)))
+  auto isMountDisk = [](const Resource& r) {
+    return r.has_disk() &&
+      r.disk().has_source() &&
+      r.disk().source().has_profile() &&
+      r.disk().source().type() == Resource::DiskInfo::Source::MOUNT;
+  };
+
+  EXPECT_CALL(
+      sched, resourceOffers(&driver, OffersHaveAnyResource(isMountDisk)))
     .WillOnce(FutureArg<1>(&offersAfterOperations));
 
   // Advance the clock to trigger a batch allocation.
@@ -3974,14 +3980,8 @@ TEST_F(StorageLocalResourceProviderTest, ReconcileDroppedOperation)
   AWAIT_READY(offersAfterOperations);
   ASSERT_FALSE(offersAfterOperations->empty());
 
-  vector<Resource> converted;
-
-  foreach (const Resource& resource, offersAfterOperations->at(0).resources()) {
-    if (isPreExistingVolume(resource) &&
-        resource.disk().source().type() == Resource::DiskInfo::Source::MOUNT) {
-      converted.push_back(resource);
-    }
-  }
+  Resources converted =
+    Resources(offersAfterOperations->at(0).resources()).filter(isMountDisk);
 
   ASSERT_EQ(1u, converted.size());
 
