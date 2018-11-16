@@ -20,6 +20,9 @@ import "csi.proto";
 
 package mesos.csi.state;
 
+// NOTE: The keywords 'REQUIRED' and 'OPTIONAL' are to be interpreted as
+// described in the CSI specification:
+// https://github.com/container-storage-interface/spec/blob/master/spec.md#required-vs-optional // NOLINT
 
 // Represents the state of a provisioned volume with respect to a node.
 message VolumeState {
@@ -42,6 +45,9 @@ message VolumeState {
 
   // The capability used to publish the volume. This is a REQUIRED field.
   .csi.v0.VolumeCapability volume_capability = 2;
+
+  // The parameters used when creating the volume. This is an OPTIONAL field.
+  map<string, string> parameters = 6;
 
   // Attributes of the volume to be used on the node. This field MUST match the
   // attributes of the `Volume` returned by `CreateVolume`. This is an OPTIONAL

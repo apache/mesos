@@ -403,10 +403,10 @@ private:
       const Bytes& capacity,
       const DiskProfileAdaptor::ProfileInfo& profileInfo);
   Future<bool> deleteVolume(const string& volumeId);
-  Future<string> validateCapability(
+  Future<Nothing> validateVolume(
       const string& volumeId,
       const Option<Labels>& metadata,
-      const csi::v0::VolumeCapability& capability);
+      const DiskProfileAdaptor::ProfileInfo& profileInfo);
   Future<Resources> listVolumes();
   Future<Resources> getCapacities();
 
@@ -2677,6 +2677,7 @@ Future<string> StorageLocalResourceProviderProcess::createVolume(
             volumeState.set_state(VolumeState::CREATED);
             volumeState.mutable_volume_capability()
               ->CopyFrom(profileInfo.capability);
+            *volumeState.mutable_parameters() = profileInfo.parameters;
             *volumeState.mutable_volume_attributes() = volume.attributes();
 
             volumes.put(volume.id(), std::move(volumeState));
@@ -2792,17 +2793,33 @@ Future<bool> StorageLocalResourceProviderProcess::deleteVolume(
 }
 
 
-// Validates if a volume has the specified capability. This is called when
-// applying `CREATE_DISK` on a pre-existing volume, so we make it return a
-// volume ID, similar to `createVolume`.
-// NOTE: This can only be called after `prepareIdentityService` and only for
-// newly discovered volumes.
-Future<string> StorageLocalResourceProviderProcess::validateCapability(
+// Validates if a volume supports the capability of the specified profile.
+//
+// NOTE: This can only be called after `prepareIdentityService`.
+//
+// TODO(chhsiao): Validate the volume against the parameters of the profile once
+// we get CSI v1.
+Future<Nothing> StorageLocalResourceProviderProcess::validateVolume(
     const string& volumeId,
     const Option<Labels>& metadata,
-    const csi::v0::VolumeCapability& capability)
+    const DiskProfileAdaptor::ProfileInfo& profileInfo)
 {
-  CHECK(!volumes.contains(volumeId));
+  // If the volume has a checkpointed state, the validation succeeds only if the
+  // capability and parameters of the specified profile are the same as those in
+  // the checkpoint.
+  if (volumes.contains(volumeId)) {
+    const VolumeState& volumeState = volumes.at(volumeId).state;
+
+    if (volumeState.volume_capability() != profileInfo.capability) {
+      return Failure("Invalid volume capability for volume '" + volumeId + "'");
+    }
+
+    if (volumeState.parameters() != profileInfo.parameters) {
+      return Failure("Invalid parameters for volume '" + volumeId + "'");
+    }
+
+    return Nothing();
+  }
 
   if (!pluginCapabilities.controllerService) {
     return Failure(
@@ -2816,19 +2833,20 @@ Future<string> StorageLocalResourceProviderProcess::validateCapability(
       google::protobuf::Map<string, string> volumeAttributes;
 
       if (metadata.isSome()) {
-        volumeAttributes = convertLabelsToStringMap(metadata.get()).get();
+        volumeAttributes =
+          CHECK_NOTERROR(convertLabelsToStringMap(metadata.get()));
       }
 
       csi::v0::ValidateVolumeCapabilitiesRequest request;
       request.set_volume_id(volumeId);
-      request.add_volume_capabilities()->CopyFrom(capability);
+      request.add_volume_capabilities()->CopyFrom(profileInfo.capability);
       *request.mutable_volume_attributes() = volumeAttributes;
 
       return call<csi::v0::VALIDATE_VOLUME_CAPABILITIES>(
           client, std::move(request))
         .then(defer(self(), [=](
             const csi::v0::ValidateVolumeCapabilitiesResponse& response)
-            -> Future<string> {
+            -> Future<Nothing> {
           if (!response.supported()) {
             return Failure(
                 "Unsupported volume capability for volume '" + volumeId +
@@ -2837,13 +2855,15 @@ Future<string> StorageLocalResourceProviderProcess::validateCapability(
 
           VolumeState volumeState;
           volumeState.set_state(VolumeState::CREATED);
-          volumeState.mutable_volume_capability()->CopyFrom(capability);
+          volumeState.mutable_volume_capability()
+            ->CopyFrom(profileInfo.capability);
+          *volumeState.mutable_parameters() = profileInfo.parameters;
           *volumeState.mutable_volume_attributes() = volumeAttributes;
 
           volumes.put(volumeId, std::move(volumeState));
           checkpointVolumeState(volumeId);
 
-          return volumeId;
+          return Nothing();
         }));
     }));
 }
@@ -3099,12 +3119,13 @@ StorageLocalResourceProviderProcess::applyCreateDisk(
   // the same volume will be returned when recovering from a failover).
   //
   // For 2, the target profile will be specified, so we first check if the
-  // profile is mount or block capable. Then, there are two scenarios:
-  //   a. If the volume has a checkpointed state (because it was created
-  //      by a previous resource provider), we simply check if its checkpointed
+  // profile is mount or block capable. Then, we call `validateVolume` to handle
+  // the following two scenarios:
+  //   a. If the volume has a checkpointed state (because it is created by a
+  //      previous resource provider), we simply check if its checkpointed
   //      capability and parameters match the profile.
-  //   b. If the volume is newly discovered, `ValidateVolumeCapabilities`
-  //      is called with the capability of the profile.
+  //   b. If the volume is newly discovered, `ValidateVolumeCapabilities` is
+  //      called with the capability of the profile.
   CHECK_NE(resource.disk().source().has_profile(),
            resource.disk().source().has_id() && targetProfile.isSome());
 
@@ -3138,39 +3159,21 @@ StorageLocalResourceProviderProcess::applyCreateDisk(
     }
   }
 
-  Future<string> created;
-  if (resource.disk().source().has_id()) {
-    const string& volumeId = resource.disk().source().id();
-
-    if (volumes.contains(volumeId)) {
-      const VolumeState& volumeState = volumes.at(volumeId).state;
-
-      // TODO(chhsiao): Validate the volume against the parameters of the
-      // profile once they are checkpointed.
-      if (volumeState.volume_capability() != profileInfo.capability) {
-        return Failure(
-            "Profile '" + profile + "' cannot be applied to volume '" +
-            volumeId + "'");
-      }
-
-      created = volumeId;
-    } else {
-      created = validateCapability(
-          volumeId,
+  // TODO(chhsiao): Consider calling `createVolume` sequentially with other
+  // create or delete operations, and send an `UPDATE_STATE` for storage pools
+  // afterward. See MESOS-9254.
+  Future<string> created = resource.disk().source().has_profile()
+    ? createVolume(
+          operationUuid.toString(),
+          Bytes(resource.scalar().value() * Bytes::MEGABYTES),
+          profileInfo)
+    : validateVolume(
+          resource.disk().source().id(),
           resource.disk().source().has_metadata()
             ? resource.disk().source().metadata()
             : Option<Labels>::none(),
-          profileInfo.capability);
-    }
-  } else {
-    // TODO(chhsiao): Consider calling `CreateVolume` sequentially with other
-    // create or delete operations, and send an `UPDATE_STATE` for storage pools
-    // afterward. See MESOS-9254.
-    created = createVolume(
-        operationUuid.toString(),
-        Bytes(resource.scalar().value() * Bytes::MEGABYTES),
-        profileInfo);
-  }
+          profileInfo)
+        .then([=] { return resource.disk().source().id(); });
 
   return created
     .then(defer(self(), [=](const string& volumeId) {
