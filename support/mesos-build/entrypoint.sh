@@ -26,7 +26,18 @@ git clone --depth 1 file:///SRC "${SRCDIR}"
 
 cd "${SRCDIR}"
 
-export GTEST_OUTPUT=xml:report.xml
+# NOTE: We have googletest write test reports into container fs and manually
+# copy out to host fs because we have seen some strange behavior in CI where
+# gooletest writing directly into mounted host directory sometimes fails (with
+# no proper error message).
+function copy_out_test_reports {
+ find ${SRCDIR} -name \*-tests.xml -exec cp {} /SRC \;
+}
+
+trap copy_out_test_reports EXIT
+
+export GTEST_OUTPUT=xml:${SRCDIR}/
+
 export DISTCHECK_CONFIGURE_FLAGS=${CONFIGURATION}
 export ${ENVIRONMENT}
 
