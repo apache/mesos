@@ -1026,7 +1026,7 @@ message CSIPluginContainerInfo {
  * Describes a CSI plugin.
  */
 message CSIPluginInfo {
-  // The type of the CSI service. This uniquely identifies a CSI
+  // The type of the CSI plugin. This uniquely identifies a CSI
   // implementation. For instance:
   //     org.apache.mesos.csi.test
   //
@@ -1035,11 +1035,17 @@ message CSIPluginInfo {
   // to avoid conflicts on type names.
   required string type = 1;
 
-  // The name of the CSI service. There could be mutliple instances of a
-  // type of CSI service. The name field is used to distinguish these
-  // instances. It should be a legal Java identifier
+  // The name of the CSI plugin. There could be multiple instances of a
+  // type of CSI plugin within a Mesos cluster. The name field is used to
+  // distinguish these instances. It should be a legal Java identifier
   // (https://docs.oracle.com/javase/tutorial/java/nutsandbolts/variables.html)
   // to avoid conflicts on concatenation of type and name.
+  //
+  // The type and name together provide the means to uniquely identify a storage
+  // backend and its resources in the cluster, so the operator should ensure
+  // that the concatenation of type and name is unique in the cluster, and it
+  // remains the same if the instance is migrated to another agent (e.g., there
+  // is a change in the agent ID).
   required string name = 2;
 
   // A list of container configurations to run CSI plugin components.
@@ -1452,12 +1458,18 @@ message Resource {
       optional Path path = 2;
       optional Mount mount = 3;
 
-      // An identifier for this source. This field maps onto CSI
-      // volume IDs and is not expected to be set by frameworks.
+      // The vendor of this source. If present, this field provides the means to
+      // uniquely identify the storage backend of this source in the cluster.
+      optional string vendor = 7; // EXPERIMENTAL.
+
+      // The identifier of this source. This field maps onto CSI volume IDs and
+      // is not expected to be set by frameworks. If both `vendor` and `id` are
+      // present, these two fields together provide the means to uniquely
+      // identify this source in the cluster.
       optional string id = 4; // EXPERIMENTAL.
 
-      // Additional metadata for this source. This field maps onto CSI
-      // volume metadata and is not expected to be set by frameworks.
+      // Additional metadata for this source. This field maps onto CSI volume
+      // attributes and is not expected to be set by frameworks.
       optional Labels metadata = 5; // EXPERIMENTAL.
 
       // This field serves as an indirection to a set of storage

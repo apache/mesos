@@ -192,6 +192,14 @@ bool operator==(
     return false;
   }
 
+  if (left.has_vendor() != right.has_vendor()) {
+    return false;
+  }
+
+  if (left.has_vendor() && left.vendor() != right.vendor()) {
+    return false;
+  }
+
   if (left.has_id() != right.has_id()) {
     return false;
   }
@@ -2381,29 +2389,21 @@ Resources& Resources::operator-=(const Resources& that)
 
 ostream& operator<<(ostream& stream, const Resource::DiskInfo::Source& source)
 {
+  const Option<string> csiSource = source.has_id() || source.has_profile()
+    ? "(" + source.vendor() + "," + source.id() + "," + source.profile() + ")"
+    : Option<string>::none();
+
   switch (source.type()) {
     case Resource::DiskInfo::Source::MOUNT:
-      return stream
-        << "MOUNT"
-        << ((source.has_id() || source.has_profile())
-              ? "(" + source.id() + "," + source.profile() + ")"
-              : (source.mount().has_root() ? ":" + source.mount().root() : ""));
+      return stream << "MOUNT" << csiSource.getOrElse(
+          source.mount().has_root() ? ":" + source.mount().root() : "");
     case Resource::DiskInfo::Source::PATH:
-      return stream
-        << "PATH"
-        << ((source.has_id() || source.has_profile())
-              ? "(" + source.id() + "," + source.profile() + ")"
-              : (source.path().has_root() ? ":" + source.path().root() : ""));
+      return stream << "PATH" << csiSource.getOrElse(
+          source.path().has_root() ? ":" + source.path().root() : "");
     case Resource::DiskInfo::Source::BLOCK:
-      return stream
-        << "BLOCK"
-        << ((source.has_id() || source.has_profile())
-              ? "(" + source.id() + "," + source.profile() + ")" : "");
+      return stream << "BLOCK" << csiSource.getOrElse("");
     case Resource::DiskInfo::Source::RAW:
-      return stream
-        << "RAW"
-        << ((source.has_id() || source.has_profile())
-              ? "(" + source.id() + "," + source.profile() + ")" : "");
+      return stream << "RAW" << csiSource.getOrElse("");
     case Resource::DiskInfo::Source::UNKNOWN:
       return stream << "UNKNOWN";
   }
