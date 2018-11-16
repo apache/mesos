@@ -768,7 +768,7 @@ private:
     static const Duration T = Milliseconds(100);
 
     // Bump the proposal number.
-    CHECK(highestNackProposal >= proposal);
+    CHECK_GE(highestNackProposal, proposal);
     proposal = highestNackProposal + 1;
 
     // Randomized back-off. Generate a random delay in [T, 2T). T has
