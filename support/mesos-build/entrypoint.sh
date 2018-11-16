@@ -26,7 +26,7 @@ git clone --depth 1 file:///SRC "${SRCDIR}"
 
 cd "${SRCDIR}"
 
-export GTEST_OUTPUT=xml
+export GTEST_OUTPUT=xml:report.xml
 export DISTCHECK_CONFIGURE_FLAGS=${CONFIGURATION}
 export ${ENVIRONMENT}
 
