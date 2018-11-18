@@ -117,7 +117,7 @@ echo %{_var}/log/%{name}       > %{buildroot}%{_sysconfdir}/mesos-master/work_di
 echo %{_var}/log/%{name}       > %{buildroot}%{_sysconfdir}/mesos-slave/work_dir
 echo 1                         > %{buildroot}%{_sysconfdir}/mesos-master/quorum
 
-install -m 0644 %{SOURCE1} %{buildroot}%{_bindir}/
+install -m 0755 %{SOURCE1} %{buildroot}%{_bindir}/
 install -m 0644 %{SOURCE2} %{SOURCE3} %{SOURCE4} %{buildroot}%{_sysconfdir}/default
 
 %if 0%{?el6}
