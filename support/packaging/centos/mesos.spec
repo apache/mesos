@@ -114,7 +114,7 @@ mkdir -p -m0755 %{buildroot}/%{_var}/lib/%{name}
 
 echo zk://localhost:2181/mesos > %{buildroot}%{_sysconfdir}/mesos/zk
 echo %{_var}/lib/%{name}       > %{buildroot}%{_sysconfdir}/mesos-master/work_dir
-echo %{_var}/log/%{name}       > %{buildroot}%{_sysconfdir}/mesos-slave/work_dir
+echo %{_var}/lib/%{name}       > %{buildroot}%{_sysconfdir}/mesos-slave/work_dir
 echo 1                         > %{buildroot}%{_sysconfdir}/mesos-master/quorum
 
 install -m 0755 %{SOURCE1} %{buildroot}%{_bindir}/
