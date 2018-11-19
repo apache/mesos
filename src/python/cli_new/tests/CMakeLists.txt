@@ -22,7 +22,8 @@ if (ENABLE_NEW_CLI)
     WRITE ${CMAKE_CURRENT_BINARY_DIR}/run_cli_tests.sh
     "set -e
     source ${CMAKE_CURRENT_BINARY_DIR}/../.virtualenv/bin/activate
-    ${CMAKE_CURRENT_SOURCE_DIR}/../bin/mesos-cli-tests")
+    source ${CMAKE_CURRENT_BINARY_DIR}/../.virtualenv/bin/postactivate
+    PATH=${CMAKE_BINARY_DIR}/src:$PATH mesos-cli-tests")
 
     add_custom_target(
       cli-tests

@@ -2820,9 +2820,11 @@ uninstall-hook:
 # http://lists.gnu.org/archive/html/automake/2013-01/msg00051.html
 check-local: tests
 	$(TEST_DRIVER) ./mesos-tests
+
 if ENABLE_NEW_CLI
-	@source $(builddir)/.virtualenv/bin/activate;	\
-	 $(MESOS_CLI_SRCDIR)/bin/mesos-cli-tests
+	source $(builddir)/.virtualenv/bin/activate;		\
+	source $(builddir)/.virtualenv/bin/postactivate;	\
+	PATH=$(builddir):$$PATH mesos-cli-tests
 endif
 
 if INSTALL_TESTS
