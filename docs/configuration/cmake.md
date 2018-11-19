@@ -162,7 +162,8 @@ See more information in the [CMake documentation](../cmake.md).
       -DENABLE_NEW_CLI=(TRUE|FALSE)
     </td>
     <td>
-      Build the new CLI instead of the old one. [default=FALSE]
+      Enable the new Python CLI by building a binary using PyInstaller. This option
+      requires Python 3 which can be set using the CMake option. [default=FALSE]
     </td>
   </tr>
   <tr>

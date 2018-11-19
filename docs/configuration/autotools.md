@@ -201,6 +201,16 @@ layout: documentation
   </tr>
   <tr>
     <td>
+      --enable-new-cli
+    </td>
+    <td>
+      Whether to build the new Python CLI. This option requires Python 3
+      which can be set using the PYTHON_3 environment variable.
+      [default=no]
+    </td>
+  </tr>
+  <tr>
+    <td>
       --disable-python
     </td>
     <td>
