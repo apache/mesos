@@ -21,6 +21,8 @@
 #include <grpcpp/server_context.h>
 #include <grpcpp/security/server_credentials.h>
 
+#include <mesos/type_utils.hpp>
+
 #include <stout/bytes.hpp>
 #include <stout/flags.hpp>
 #include <stout/hashmap.hpp>
@@ -81,6 +83,12 @@ public:
         "The available disk capacity managed by the plugin, in addition\n"
         "to the pre-existing volumes specified in the --volumes flag.");
 
+    add(&Flags::create_parameters,
+        "create_parameters",
+        "The parameters required for volume creation. The parameters are\n"
+        "specified as a semicolon-delimited list of param=value pairs.\n"
+        "(Example: 'param1=value1;param2=value2')");
+
     add(&Flags::volumes,
         "volumes",
         "Creates preprovisioned volumes upon start-up. The volumes are\n"
@@ -92,6 +100,7 @@ public:
   string endpoint;
   string work_dir;
   Bytes available_capacity;
+  Option<string> create_parameters;
   Option<string> volumes;
 };
 
@@ -106,10 +115,12 @@ public:
       const string& _workDir,
       const string& _endpoint,
       const Bytes& _availableCapacity,
+      const hashmap<string, string>& _createParameters,
       const hashmap<string, Bytes>& _volumes)
     : workDir(_workDir),
       endpoint(_endpoint),
-      availableCapacity(_availableCapacity)
+      availableCapacity(_availableCapacity),
+      createParameters(_createParameters.begin(), _createParameters.end())
   {
     // Construct the default mount volume capability.
     defaultVolumeCapability.mutable_mount();
@@ -267,6 +278,7 @@ private:
 
   Bytes availableCapacity;
   csi::v0::VolumeCapability defaultVolumeCapability;
+  google::protobuf::Map<string, string> createParameters;
   hashmap<string, VolumeInfo> volumes;
 
   unique_ptr<Server> server;
@@ -336,6 +348,10 @@ Status TestCSIPlugin::CreateVolume(
     if (capability != defaultVolumeCapability) {
       return Status(grpc::INVALID_ARGUMENT, "Unsupported volume capabilities");
     }
+  }
+
+  if (request->parameters() != createParameters) {
+    return Status(grpc::INVALID_ARGUMENT, "Unsupported create parameters");
   }
 
   // The volume ID is determined by `name`, so we check whether the volume
@@ -530,6 +546,8 @@ Status TestCSIPlugin::ValidateVolumeCapabilities(
     }
   }
 
+  // TODO(chhsiao): Validate the parameters once we get CSI v1.
+
   response->set_supported(true);
 
   return Status::OK;
@@ -581,6 +599,12 @@ Status TestCSIPlugin::GetCapacity(
 
       return Status::OK;
     }
+  }
+
+  if (request->parameters() != createParameters) {
+      response->set_available_capacity(0);
+
+      return Status::OK;
   }
 
   response->set_available_capacity(availableCapacity.bytes());
@@ -927,6 +951,28 @@ int main(int argc, char** argv)
     return EXIT_FAILURE;
   }
 
+  hashmap<string, string> createParameters;
+
+  if (flags.create_parameters.isSome()) {
+    foreachpair (const string& param,
+                 const vector<string>& values,
+                 strings::pairs(flags.create_parameters.get(), ";", "=")) {
+      Option<Error> error;
+
+      if (values.size() != 1) {
+        error = "Parameter keys must be unique";
+      } else {
+        createParameters.put(param, values[0]);
+      }
+
+      if (error.isSome()) {
+        cerr << "Failed to parse the '--create_parameters' flags: "
+             << error->message << endl;
+        return EXIT_FAILURE;
+      }
+    }
+  }
+
   hashmap<string, Bytes> volumes;
 
   if (flags.volumes.isSome()) {
@@ -971,6 +1017,7 @@ int main(int argc, char** argv)
       flags.work_dir,
       flags.endpoint,
       flags.available_capacity,
+      createParameters,
       volumes));
 
   plugin->wait();
