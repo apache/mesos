@@ -167,6 +167,15 @@ See more information in the [CMake documentation](../cmake.md).
   </tr>
   <tr>
     <td>
+      -DPYTHON_3=[path]
+    </td>
+    <td>
+      Specify the path to Python 3, e.g. "python36".
+      [default=unspecified]
+    </td>
+  </tr>
+  <tr>
+    <td>
       -D3RDPARTY_DEPENDENCIES=[path_or_url]
     </td>
     <td>
