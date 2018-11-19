@@ -58,7 +58,6 @@ using grpc::ServerBuilder;
 using grpc::ServerContext;
 using grpc::Status;
 
-
 constexpr char PLUGIN_NAME[] = "org.apache.mesos.csi.test";
 constexpr char NODE_ID[] = "localhost";
 constexpr Bytes DEFAULT_VOLUME_CAPACITY = Megabytes(64);
@@ -84,7 +83,7 @@ public:
 
     add(&Flags::volumes,
         "volumes",
-        "Creates pre-existing volumes upon start-up. The volumes are\n"
+        "Creates preprovisioned volumes upon start-up. The volumes are\n"
         "specified as a semicolon-delimited list of name:capacity pairs.\n"
         "If a volume with the same name already exists, the pair will be\n"
         "ignored. (Example: 'volume1:1GB;volume2:2GB')");
@@ -112,6 +111,13 @@ public:
       endpoint(_endpoint),
       availableCapacity(_availableCapacity)
   {
+    // Construct the default mount volume capability.
+    defaultVolumeCapability.mutable_mount();
+    defaultVolumeCapability.mutable_access_mode()
+      ->set_mode(csi::v0::VolumeCapability::AccessMode::SINGLE_NODE_WRITER);
+
+    // Scan for preprovisioned volumes.
+    //
     // TODO(jieyu): Consider not using CHECKs here.
     Try<list<string>> paths = os::ls(workDir);
     CHECK_SOME(paths);
@@ -260,6 +266,7 @@ private:
   const string endpoint;
 
   Bytes availableCapacity;
+  csi::v0::VolumeCapability defaultVolumeCapability;
   hashmap<string, VolumeInfo> volumes;
 
   unique_ptr<Server> server;
@@ -499,19 +506,9 @@ Status TestCSIPlugin::ValidateVolumeCapabilities(
 
   foreach (const csi::v0::VolumeCapability& capability,
            request->volume_capabilities()) {
-    if (capability.has_mount() &&
-        (!capability.mount().fs_type().empty() ||
-         !capability.mount().mount_flags().empty())) {
+    if (capability != defaultVolumeCapability) {
       response->set_supported(false);
-      response->set_message("Only default capability is supported");
-
-      return Status::OK;
-    }
-
-    if (capability.access_mode().mode() !=
-        csi::v0::VolumeCapability::AccessMode::SINGLE_NODE_WRITER) {
-      response->set_supported(false);
-      response->set_message("Access mode is not supported");
+      response->set_message("Unsupported volume capabilities");
 
       return Status::OK;
     }
@@ -561,18 +558,9 @@ Status TestCSIPlugin::GetCapacity(
   foreach (const csi::v0::VolumeCapability& capability,
            request->volume_capabilities()) {
     // We report zero capacity for any capability other than the
-    // default-constructed `MountVolume` capability since this plugin
+    // default-constructed mount volume capability since this plugin
     // does not support any filesystem types and mount flags.
-    if (!capability.has_mount() ||
-        !capability.mount().fs_type().empty() ||
-        !capability.mount().mount_flags().empty()) {
-      response->set_available_capacity(0);
-
-      return Status::OK;
-    }
-
-    if (capability.access_mode().mode() !=
-        csi::v0::VolumeCapability::AccessMode::SINGLE_NODE_WRITER) {
+    if (capability != defaultVolumeCapability) {
       response->set_available_capacity(0);
 
       return Status::OK;
@@ -926,31 +914,29 @@ int main(int argc, char** argv)
   hashmap<string, Bytes> volumes;
 
   if (flags.volumes.isSome()) {
-    foreach (const string& token, strings::tokenize(flags.volumes.get(), ";")) {
-      vector<string> pair = strings::tokenize(token, ":");
-
+    foreachpair (const string& name,
+                 const vector<string>& capacities,
+                 strings::pairs(flags.volumes.get(), ";", ":")) {
       Option<Error> error;
 
-      if (pair.size() != 2) {
-        error = "Not a name:capacity pair";
-      } else if (pair[0].empty()) {
-        error = "Volume name cannot be empty";
-      } else if (pair[0].find_first_of(os::PATH_SEPARATOR) != string::npos) {
-        error = "Volume name cannot contain '/'";
-      } else if (volumes.contains(pair[0])) {
+      if (strings::contains(name, stringify(os::PATH_SEPARATOR))) {
+        error =
+          "Volume name cannot contain '" + stringify(os::PATH_SEPARATOR) + "'";
+      } else if (capacities.size() != 1) {
         error = "Volume name must be unique";
+      } else if (volumes.contains(name)) {
+        error = "Volume '" + name + "' already exists";
       } else {
-        Try<Bytes> capacity = Bytes::parse(pair[1]);
+        Try<Bytes> capacity = Bytes::parse(capacities[0]);
         if (capacity.isError()) {
           error = capacity.error();
         } else {
-          volumes.put(pair[0], capacity.get());
+          volumes.put(name, capacity.get());
         }
       }
 
       if (error.isSome()) {
-        cerr << "Failed to parse item '" << token << "' in 'volumes' flag: "
-             << error->message << endl;
+        cerr << "Failed to parse the '--volumes' flag: " << error.get() << endl;
         return EXIT_FAILURE;
       }
     }
