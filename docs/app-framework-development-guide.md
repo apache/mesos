@@ -70,12 +70,18 @@ they need when co-existing with other schedulers:
    a "job"/"service"/etc within a multi-tenant scheduler) needs a certain amount of
    resources guaranteed to it, setting a quota ensures that Mesos will try its best
    to allocate to satisfy the guarantee.
-3. **Consider enabling the random sorter**: Depending on the use case, DRF can prove
+3. **Set the minimum allocatable resources**: Once quota is used, the
+   `--min_allocatable_resources` flag should be set
+   (e.g. `--min_allocatable_resources=cpus:1,mem:32:disk:32`) to prevent offers
+   that are missing cpu, memory, or disk
+   (see [MESOS-8935](https://issues.apache.org/jira/browse/MESOS-8935)).
+4. **Consider enabling the random sorter**: Depending on the use case, DRF can prove
    problematic in that it will try to allocate to frameworks with a low share of the
    cluster and penalize frameworks with a high share of the cluster. This can lead
    to offer starvation for higher share frameworks. To allocate using a weighted
-   random uniform distribution instead of fair sharing, set `--role-sorter=random`
-   and `--framework_sorter=random`.
+   random uniform distribution instead of fair sharing, set `--role_sorter=random`
+   and `--framework_sorter=random` (see
+   [MESOS-8936](https://issues.apache.org/jira/browse/MESOS-8936)).
 
 See the [Offer Starvation Design Document](https://docs.google.com/document/d/1uvTmBo_21Ul9U_mijgWyh7hE0E_yZXrFr43JIB9OCl8)
 in [MESOS-3202](https://issues.apache.org/jira/browse/MESOS-3202) for more
