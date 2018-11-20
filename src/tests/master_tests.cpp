@@ -105,6 +105,7 @@ using process::PID;
 using process::Promise;
 
 using process::http::Accepted;
+using process::http::InternalServerError;
 using process::http::OK;
 using process::http::Response;
 using process::http::Unauthorized;
@@ -9752,6 +9753,127 @@ TEST_P(MasterTestPrePostReservationRefinement, CreateAndDestroyVolumesV1)
       stringify(contentType));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, v1DestroyVolumesResponse);
+}
+
+
+// This test validates that an authorization error when requesting
+// volume creation does result in an internal server error.
+// See MESOS-9317.
+TEST_F(MasterTest, CreateVolumesV1AuthorizationFailure)
+{
+  MockAuthorizer authorizer;
+  Try<Owned<cluster::Master>> master = StartMaster(&authorizer);
+  ASSERT_SOME(master);
+
+  // For capturing the `SlaveID` so we can use it in the create/destroy
+  // volumes API call.
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  // Do static reservation so we can create persistent volumes from it.
+  slaveFlags.resources = "disk(role1):1024";
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+  SlaveID slaveId = slaveRegisteredMessage->slave_id();
+
+  // Create the persistent volume.
+  v1::master::Call v1CreateVolumesCall;
+  v1CreateVolumesCall.set_type(v1::master::Call::CREATE_VOLUMES);
+  v1::master::Call_CreateVolumes* createVolumes =
+    v1CreateVolumesCall.mutable_create_volumes();
+
+  Resources volume = createPersistentVolume(
+      Megabytes(64),
+      "role1",
+      "id1",
+      "path1",
+      None(),
+      None(),
+      DEFAULT_CREDENTIAL.principal());
+
+  createVolumes->mutable_agent_id()->CopyFrom(evolve(slaveId));
+  createVolumes->mutable_volumes()->CopyFrom(v1::Resources(evolve(volume)));
+
+  ContentType contentType = ContentType::PROTOBUF;
+
+  Promise<bool> promise;
+  EXPECT_CALL(authorizer, authorized(_))
+    .WillOnce(Return(promise.future()));
+
+  Future<Response> response = process::http::post(
+      master.get()->pid,
+      "api/v1",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      serialize(contentType, v1CreateVolumesCall),
+      stringify(contentType));
+
+  promise.fail("Authorizer failure");
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(InternalServerError().status, response);
+}
+
+
+// Test for the authorization collect helper.
+TEST_F(MasterTest, CollectAuthorizations)
+{
+  {
+    Promise<bool> promise1;
+    Promise<bool> promise2;
+
+    Future<bool> result =
+      master::collectAuthorizations({promise1.future(), promise2.future()});
+
+    promise1.set(true);
+    promise2.set(false);
+
+    AWAIT_EXPECT_FALSE(result);
+  }
+
+  {
+    Promise<bool> promise1;
+    Promise<bool> promise2;
+
+    Future<bool> result =
+      master::collectAuthorizations({promise1.future(), promise2.future()});
+
+    promise1.set(true);
+    promise2.fail("Authorization failure");
+
+    AWAIT_EXPECT_FAILED(result);
+  }
+
+  {
+    Promise<bool> promise1;
+    Promise<bool> promise2;
+
+    Future<bool> result =
+      master::collectAuthorizations({promise1.future(), promise2.future()});
+
+    promise1.set(true);
+    promise2.discard();
+
+    AWAIT_EXPECT_FAILED(result);
+  }
+
+  {
+    Promise<bool> promise1;
+    Promise<bool> promise2;
+
+    Future<bool> result =
+      master::collectAuthorizations({promise1.future(), promise2.future()});
+
+    promise1.set(true);
+    promise2.set(true);
+
+    AWAIT_EXPECT_TRUE(result);
+  }
 }
 
 } // namespace tests {
