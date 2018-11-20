@@ -6997,6 +6997,60 @@ TYPED_TEST(AuthorizationTest, DestroyMountDisk)
   }
 }
 
+
+// This tests the authorization to access Mesos logs.
+TYPED_TEST(AuthorizationTest, LogAccess)
+{
+  // Setup ACLs.
+  ACLs acls;
+
+  {
+    // "foo" principal can access the logs.
+    mesos::ACL::AccessMesosLog* acl = acls.add_access_mesos_logs();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_logs()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  {
+    // Nobody else can access the logs.
+    mesos::ACL::AccessMesosLog* acl = acls.add_access_mesos_logs();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_logs()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  // Create an `Authorizer` with the ACLs.
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::ACCESS_MESOS_LOG);
+    request.mutable_subject()->set_value("foo");
+
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  {
+    authorization::Request request;
+    request.set_action(authorization::ACCESS_MESOS_LOG);
+    request.mutable_subject()->set_value("bar");
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+
+  // Test that no authorizer is created with invalid flags.
+  {
+    ACLs invalid;
+
+    mesos::ACL::AccessMesosLog* acl = invalid.add_access_mesos_logs();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_logs()->add_values("yoda");
+
+    Try<Authorizer*> create = TypeParam::create(parameterize(invalid));
+    EXPECT_ERROR(create);
+  }
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
