@@ -996,6 +996,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   checks/checker_process.cpp						\
   checks/health_checker.cpp						\
   common/attributes.cpp							\
+  common/authorization.cpp						\
   common/command_utils.cpp						\
   common/http.cpp							\
   common/protobuf_utils.cpp						\
@@ -1145,6 +1146,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   checks/checks_runtime.hpp						\
   checks/checks_types.hpp						\
   checks/health_checker.hpp						\
+  common/authorization.hpp						\
   common/build.hpp							\
   common/command_utils.hpp						\
   common/http.hpp							\

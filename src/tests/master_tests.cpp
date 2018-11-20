@@ -46,6 +46,7 @@
 #include <stout/strings.hpp>
 #include <stout/try.hpp>
 
+#include "common/authorization.hpp"
 #include "common/build.hpp"
 #include "common/protobuf_utils.hpp"
 
@@ -10160,8 +10161,8 @@ TEST_F(MasterTest, CollectAuthorizations)
     Promise<bool> promise1;
     Promise<bool> promise2;
 
-    Future<bool> result =
-      master::collectAuthorizations({promise1.future(), promise2.future()});
+    Future<bool> result = authorization::collectAuthorizations(
+        {promise1.future(), promise2.future()});
 
     promise1.set(true);
     promise2.set(false);
@@ -10173,8 +10174,8 @@ TEST_F(MasterTest, CollectAuthorizations)
     Promise<bool> promise1;
     Promise<bool> promise2;
 
-    Future<bool> result =
-      master::collectAuthorizations({promise1.future(), promise2.future()});
+    Future<bool> result = authorization::collectAuthorizations(
+        {promise1.future(), promise2.future()});
 
     promise1.set(true);
     promise2.fail("Authorization failure");
@@ -10186,8 +10187,8 @@ TEST_F(MasterTest, CollectAuthorizations)
     Promise<bool> promise1;
     Promise<bool> promise2;
 
-    Future<bool> result =
-      master::collectAuthorizations({promise1.future(), promise2.future()});
+    Future<bool> result = authorization::collectAuthorizations(
+        {promise1.future(), promise2.future()});
 
     promise1.set(true);
     promise2.discard();
@@ -10199,8 +10200,8 @@ TEST_F(MasterTest, CollectAuthorizations)
     Promise<bool> promise1;
     Promise<bool> promise2;
 
-    Future<bool> result =
-      master::collectAuthorizations({promise1.future(), promise2.future()});
+    Future<bool> result = authorization::collectAuthorizations(
+        {promise1.future(), promise2.future()});
 
     promise1.set(true);
     promise2.set(true);

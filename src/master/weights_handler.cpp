@@ -28,6 +28,8 @@
 #include <stout/strings.hpp>
 #include <stout/utils.hpp>
 
+#include "common/authorization.hpp"
+
 #include "master/weights.hpp"
 
 namespace http = process::http;
@@ -345,7 +347,7 @@ Future<bool> Master::WeightsHandler::authorizeUpdateWeights(
     return master->authorizer.get()->authorized(request);
   }
 
-  return collectAuthorizations(authorizations);
+  return authorization::collectAuthorizations(authorizations);
 }
 
 

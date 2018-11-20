@@ -75,6 +75,7 @@
 
 #include "authentication/cram_md5/authenticator.hpp"
 
+#include "common/authorization.hpp"
 #include "common/build.hpp"
 #include "common/http.hpp"
 #include "common/protobuf_utils.hpp"
@@ -3641,7 +3642,7 @@ Future<bool> Master::authorizeReserveResources(
     return authorizer.get()->authorized(request);
   }
 
-  return collectAuthorizations(authorizations);
+  return authorization::collectAuthorizations(authorizations);
 }
 
 
@@ -3694,7 +3695,7 @@ Future<bool> Master::authorizeUnreserveResources(
     return authorizer.get()->authorized(request);
   }
 
-  return collectAuthorizations(authorizations);
+  return authorization::collectAuthorizations(authorizations);
 }
 
 
@@ -3751,7 +3752,7 @@ Future<bool> Master::authorizeCreateVolume(
     return authorizer.get()->authorized(request);
   }
 
-  return collectAuthorizations(authorizations);
+  return authorization::collectAuthorizations(authorizations);
 }
 
 
@@ -3793,7 +3794,7 @@ Future<bool> Master::authorizeDestroyVolume(
     return authorizer.get()->authorized(request);
   }
 
-  return collectAuthorizations(authorizations);
+  return authorization::collectAuthorizations(authorizations);
 }
 
 
@@ -3974,7 +3975,7 @@ Future<bool> Master::authorizeSlave(
         authorizeReserveResources(slaveInfo.resources(), principal));
   }
 
-  return collectAuthorizations(authorizations);
+  return authorization::collectAuthorizations(authorizations);
 }
 
 

@@ -221,6 +221,7 @@ set(AUTHORIZER_SRC
   authorizer/local/authorizer.cpp)
 
 set(COMMON_SRC
+  common/authorization.cpp
   common/attributes.cpp
   common/build.cpp
   common/command_utils.cpp

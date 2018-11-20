@@ -19,7 +19,6 @@
 
 #include <stdint.h>
 
-#include <algorithm>
 #include <list>
 #include <memory>
 #include <set>
@@ -2351,18 +2350,6 @@ private:
       const FrameworkInfo& frameworkInfo,
       const process::UPID& from);
 };
-
-
-// Collects authorization results. Any discarded or failed future
-// results in a failure; any false future results in false.
-inline process::Future<bool> collectAuthorizations(
-    const std::vector<process::Future<bool>>& authorizations)
-{
-  return process::collect(authorizations)
-    .then([](const std::vector<bool>& results) -> process::Future<bool> {
-      return std::find(results.begin(), results.end(), false) == results.end();
-    });
-}
 
 
 inline std::ostream& operator<<(
