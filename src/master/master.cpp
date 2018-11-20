@@ -3641,17 +3641,7 @@ Future<bool> Master::authorizeReserveResources(
     return authorizer.get()->authorized(request);
   }
 
-  return await(authorizations)
-      .then([](const vector<Future<bool>>& authorizations)
-            -> Future<bool> {
-        // Compute a disjunction.
-        foreach (const Future<bool>& authorization, authorizations) {
-          if (!authorization.get()) {
-            return false;
-          }
-        }
-        return true;
-      });
+  return collectAuthorizations(authorizations);
 }
 
 
@@ -3704,17 +3694,7 @@ Future<bool> Master::authorizeUnreserveResources(
     return authorizer.get()->authorized(request);
   }
 
-  return await(authorizations)
-      .then([](const vector<Future<bool>>& authorizations)
-            -> Future<bool> {
-        // Compute a disjunction.
-        foreach (const Future<bool>& authorization, authorizations) {
-          if (!authorization.get()) {
-            return false;
-          }
-        }
-        return true;
-      });
+  return collectAuthorizations(authorizations);
 }
 
 
@@ -3771,17 +3751,7 @@ Future<bool> Master::authorizeCreateVolume(
     return authorizer.get()->authorized(request);
   }
 
-  return await(authorizations)
-      .then([](const vector<Future<bool>>& authorizations)
-            -> Future<bool> {
-        // Compute a disjunction.
-        foreach (const Future<bool>& authorization, authorizations) {
-          if (!authorization.get()) {
-            return false;
-          }
-        }
-        return true;
-      });
+  return collectAuthorizations(authorizations);
 }
 
 
@@ -3823,17 +3793,7 @@ Future<bool> Master::authorizeDestroyVolume(
     return authorizer.get()->authorized(request);
   }
 
-  return await(authorizations)
-      .then([](const vector<Future<bool>>& authorizations)
-            -> Future<bool> {
-        // Compute a disjunction.
-        foreach (const Future<bool>& authorization, authorizations) {
-          if (!authorization.get()) {
-            return false;
-          }
-        }
-        return true;
-      });
+  return collectAuthorizations(authorizations);
 }
 
 
@@ -4014,11 +3974,7 @@ Future<bool> Master::authorizeSlave(
         authorizeReserveResources(slaveInfo.resources(), principal));
   }
 
-  return collect(authorizations)
-    .then([](const vector<bool>& results)
-          -> Future<bool> {
-      return std::find(results.begin(), results.end(), false) == results.end();
-    });
+  return collectAuthorizations(authorizations);
 }
 
 

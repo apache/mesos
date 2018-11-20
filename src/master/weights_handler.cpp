@@ -345,17 +345,7 @@ Future<bool> Master::WeightsHandler::authorizeUpdateWeights(
     return master->authorizer.get()->authorized(request);
   }
 
-  return await(authorizations)
-      .then([](const vector<Future<bool>>& authorizations)
-            -> Future<bool> {
-        // Compute a disjunction.
-        foreach (const Future<bool>& authorization, authorizations) {
-          if (!authorization.get()) {
-            return false;
-          }
-        }
-        return true;
-      });
+  return collectAuthorizations(authorizations);
 }
 
 

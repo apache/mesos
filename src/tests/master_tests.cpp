@@ -10152,6 +10152,63 @@ TEST_F(MasterTest, CreateVolumesV1AuthorizationFailure)
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(InternalServerError().status, response);
 }
 
+
+// Test for the authorization collect helper.
+TEST_F(MasterTest, CollectAuthorizations)
+{
+  {
+    Promise<bool> promise1;
+    Promise<bool> promise2;
+
+    Future<bool> result =
+      master::collectAuthorizations({promise1.future(), promise2.future()});
+
+    promise1.set(true);
+    promise2.set(false);
+
+    AWAIT_EXPECT_FALSE(result);
+  }
+
+  {
+    Promise<bool> promise1;
+    Promise<bool> promise2;
+
+    Future<bool> result =
+      master::collectAuthorizations({promise1.future(), promise2.future()});
+
+    promise1.set(true);
+    promise2.fail("Authorization failure");
+
+    AWAIT_EXPECT_FAILED(result);
+  }
+
+  {
+    Promise<bool> promise1;
+    Promise<bool> promise2;
+
+    Future<bool> result =
+      master::collectAuthorizations({promise1.future(), promise2.future()});
+
+    promise1.set(true);
+    promise2.discard();
+
+    AWAIT_EXPECT_FAILED(result);
+  }
+
+  {
+    Promise<bool> promise1;
+    Promise<bool> promise2;
+
+    Future<bool> result =
+      master::collectAuthorizations({promise1.future(), promise2.future()});
+
+    promise1.set(true);
+    promise2.set(true);
+
+    AWAIT_EXPECT_TRUE(result);
+  }
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
