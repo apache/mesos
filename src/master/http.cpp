@@ -68,6 +68,7 @@
 #include <stout/utils.hpp>
 #include <stout/uuid.hpp>
 
+#include "common/authorization.hpp"
 #include "common/http.hpp"
 #include "common/protobuf_utils.hpp"
 #include "common/resources_utils.hpp"

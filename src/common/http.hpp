@@ -173,16 +173,6 @@ void json(
 void json(JSON::ObjectWriter* writer, const Task& task);
 void json(JSON::ObjectWriter* writer, const TaskStatus& status);
 
-namespace authorization {
-
-// Creates a subject for authorization purposes when given an authenticated
-// principal. This function accepts and returns an `Option` to make call sites
-// cleaner, since it is possible that `principal` will be `NONE`.
-const Option<authorization::Subject> createSubject(
-    const Option<process::http::authentication::Principal>& principal);
-
-} // namespace authorization {
-
 const process::http::authorization::AuthorizationCallbacks
   createAuthorizationCallbacks(Authorizer* authorizer);
 

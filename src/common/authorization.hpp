@@ -19,7 +19,14 @@
 
 #include <vector>
 
+#include <mesos/authentication/authenticator.hpp>
+
+#include <mesos/authorizer/authorizer.hpp>
+
 #include <process/future.hpp>
+#include <process/http.hpp>
+
+#include <stout/option.hpp>
 
 namespace mesos {
 namespace authorization {
@@ -28,6 +35,17 @@ namespace authorization {
 // results in a failure; any false future results in 'false'.
 process::Future<bool> collectAuthorizations(
     const std::vector<process::Future<bool>>& authorizations);
+
+// Creates a `Subject` for authorization purposes when given an
+// authenticated `Principal`. This function accepts and returns an
+// `Option` to make call sites cleaner, since it is possible that
+// `principal` will be `NONE`.
+const Option<Subject> createSubject(
+    const Option<process::http::authentication::Principal>& principal);
+
+process::Future<bool> authorizeLogAccess(
+    const Option<Authorizer*>& authorizer,
+    const Option<process::http::authentication::Principal>& principal);
 
 } // namespace authorization {
 } // namespace mesos {

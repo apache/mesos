@@ -37,6 +37,8 @@
 #include <stout/strings.hpp>
 #include <stout/utils.hpp>
 
+#include "common/authorization.hpp"
+
 #include "logging/logging.hpp"
 
 #include "master/quota.hpp"

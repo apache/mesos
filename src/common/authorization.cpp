@@ -17,14 +17,21 @@
 #include "common/authorization.hpp"
 
 #include <algorithm>
+#include <string>
+
+#include <mesos/mesos.hpp>
 
 #include <process/collect.hpp>
 
 #include <stout/foreach.hpp>
+#include <stout/none.hpp>
 
+using std::string;
 using std::vector;
 
 using process::Future;
+
+using process::http::authentication::Principal;
 
 namespace mesos {
 namespace authorization {
@@ -35,6 +42,48 @@ Future<bool> collectAuthorizations(const vector<Future<bool>>& authorizations)
     .then([](const vector<bool>& results) -> Future<bool> {
       return std::find(results.begin(), results.end(), false) == results.end();
     });
+}
+
+
+const Option<Subject> createSubject(const Option<Principal>& principal)
+{
+  if (principal.isSome()) {
+    Subject subject;
+
+    if (principal->value.isSome()) {
+      subject.set_value(principal->value.get());
+    }
+
+    foreachpair (const string& key, const string& value, principal->claims) {
+      Label* claim = subject.mutable_claims()->mutable_labels()->Add();
+      claim->set_key(key);
+      claim->set_value(value);
+    }
+
+    return subject;
+  }
+
+  return None();
+}
+
+
+Future<bool> authorizeLogAccess(
+    const Option<Authorizer*>& authorizer,
+    const Option<Principal>& principal)
+{
+  if (authorizer.isNone()) {
+    return true;
+  }
+
+  Request request;
+  request.set_action(ACCESS_MESOS_LOG);
+
+  Option<Subject> subject = createSubject(principal);
+  if (subject.isSome()) {
+    request.mutable_subject()->CopyFrom(subject.get());
+  }
+
+  return authorizer.get()->authorized(request);
 }
 
 } // namespace authorization {

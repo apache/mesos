@@ -1074,10 +1074,11 @@ void Master::initialize()
   provide("app", path::join(flags.webui_dir, "app"));
   provide("assets", path::join(flags.webui_dir, "assets"));
 
-  const PID<Master> masterPid = self();
+  // TODO(tillt): Use generalized lambda capture once we adopt C++14.
+  Option<Authorizer*> _authorizer = authorizer;
 
-  auto authorize = [masterPid](const Option<Principal>& principal) {
-    return dispatch(masterPid, &Master::authorizeLogAccess, principal);
+  auto authorize = [_authorizer](const Option<Principal>& principal) {
+    return authorization::authorizeLogAccess(_authorizer, principal);
   };
 
   // Expose the log file for the webui. Fall back to 'log_dir' if
@@ -1410,24 +1411,6 @@ void Master::_exited(Framework* framework)
         &Master::frameworkFailoverTimeout,
         framework->id(),
         framework->reregisteredTime);
-}
-
-
-Future<bool> Master::authorizeLogAccess(const Option<Principal>& principal)
-{
-  if (authorizer.isNone()) {
-    return true;
-  }
-
-  authorization::Request request;
-  request.set_action(authorization::ACCESS_MESOS_LOG);
-
-  Option<authorization::Subject> subject = createSubject(principal);
-  if (subject.isSome()) {
-    request.mutable_subject()->CopyFrom(subject.get());
-  }
-
-  return authorizer.get()->authorized(request);
 }
 
 

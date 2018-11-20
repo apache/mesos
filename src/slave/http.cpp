@@ -57,6 +57,7 @@
 #include <stout/strings.hpp>
 #include <stout/unreachable.hpp>
 
+#include "common/authorization.hpp"
 #include "common/build.hpp"
 #include "common/http.hpp"
 #include "common/recordio.hpp"

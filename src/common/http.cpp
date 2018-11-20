@@ -48,6 +48,7 @@
 
 #include <stout/os/permissions.hpp>
 
+#include "common/authorization.hpp"
 #include "common/http.hpp"
 
 #include "messages/messages.hpp"
@@ -875,32 +876,6 @@ static void json(JSON::StringWriter* writer, const Value::Text& text)
 {
   writer->set(text.value());
 }
-
-namespace authorization {
-
-const Option<authorization::Subject> createSubject(
-    const Option<Principal>& principal)
-{
-  if (principal.isSome()) {
-    authorization::Subject subject;
-
-    if (principal->value.isSome()) {
-      subject.set_value(principal->value.get());
-    }
-
-    foreachpair (const string& key, const string& value, principal->claims) {
-      Label* claim = subject.mutable_claims()->mutable_labels()->Add();
-      claim->set_key(key);
-      claim->set_value(value);
-    }
-
-    return subject;
-  }
-
-  return None();
-}
-
-} // namespace authorization {
 
 const AuthorizationCallbacks createAuthorizationCallbacks(
     Authorizer* authorizer)

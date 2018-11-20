@@ -608,9 +608,6 @@ private:
       const TaskInfo& task,
       const FrameworkInfo& frameworkInfo);
 
-  process::Future<bool> authorizeLogAccess(
-      const Option<process::http::authentication::Principal>& principal);
-
   process::Future<bool> authorizeSandboxAccess(
       const Option<process::http::authentication::Principal>& principal,
       const FrameworkID& frameworkId,

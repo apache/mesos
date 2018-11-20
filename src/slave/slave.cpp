@@ -82,6 +82,7 @@
 
 #include "authentication/cram_md5/authenticatee.hpp"
 
+#include "common/authorization.hpp"
 #include "common/build.hpp"
 #include "common/protobuf_utils.hpp"
 #include "common/resources_utils.hpp"
@@ -836,13 +837,11 @@ void Slave::initialize()
             });
         });
 
-  const PID<Slave> slavePid = self();
+  // TODO(tillt): Use generalized lambda capture once we adopt C++14.
+  Option<Authorizer*> _authorizer = authorizer;
 
-  auto authorize = [slavePid](const Option<Principal>& principal) {
-    return dispatch(
-        slavePid,
-        &Slave::authorizeLogAccess,
-        principal);
+  auto authorize = [_authorizer](const Option<Principal>& principal) {
+    return authorization::authorizeLogAccess(_authorizer, principal);
   };
 
   // Expose the log file for the webui. Fall back to 'log_dir' if
@@ -8473,24 +8472,6 @@ Future<bool> Slave::authorizeTask(
     << "Authorizing framework principal '"
     << (frameworkInfo.has_principal() ? frameworkInfo.principal() : "ANY")
     << "' to launch task " << task.task_id();
-
-  return authorizer.get()->authorized(request);
-}
-
-
-Future<bool> Slave::authorizeLogAccess(const Option<Principal>& principal)
-{
-  if (authorizer.isNone()) {
-    return true;
-  }
-
-  authorization::Request request;
-  request.set_action(authorization::ACCESS_MESOS_LOG);
-
-  Option<authorization::Subject> subject = createSubject(principal);
-  if (subject.isSome()) {
-    request.mutable_subject()->CopyFrom(subject.get());
-  }
 
   return authorizer.get()->authorized(request);
 }

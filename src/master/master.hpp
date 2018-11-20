@@ -1179,9 +1179,6 @@ private:
       const hashset<SlaveID>& toRemoveGone,
       const process::Future<bool>& registrarResult);
 
-  process::Future<bool> authorizeLogAccess(
-      const Option<process::http::authentication::Principal>& principal);
-
   std::vector<std::string> filterRoles(
       const process::Owned<ObjectApprovers>& approvers) const;
 
