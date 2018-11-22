@@ -120,9 +120,14 @@ class Task(PluginBase):
             return
 
         try:
-            table = Table(["Task ID", "Framework ID", "Executor ID"])
+            table = Table(["ID", "State", "Framework ID", "Executor ID"])
             for task in tasks:
+                task_state = "UNKNOWN"
+                if task["statuses"]:
+                    task_state = task["statuses"][-1]["state"]
+
                 table.add_row([task["id"],
+                               task_state,
                                task["framework_id"],
                                task["executor_id"]])
         except Exception as exception:

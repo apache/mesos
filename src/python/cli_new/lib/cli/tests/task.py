@@ -180,13 +180,15 @@ class TestTaskPlugin(CLITestCase):
         # and that they are formatted as expected,
         # with the proper task info in them.
         self.assertEqual(table.dimensions()[0], 2)
-        self.assertEqual(table.dimensions()[1], 3)
-        self.assertEqual("Task ID", table[0][0])
-        self.assertEqual("Framework ID", table[0][1])
-        self.assertEqual("Executor ID", table[0][2])
+        self.assertEqual(table.dimensions()[1], 4)
+        self.assertEqual("ID", table[0][0])
+        self.assertEqual("State", table[0][1])
+        self.assertEqual("Framework ID", table[0][2])
+        self.assertEqual("Executor ID", table[0][3])
         self.assertEqual(tasks[0]["id"], table[1][0])
-        self.assertEqual(tasks[0]["framework_id"], table[1][1])
-        self.assertEqual(tasks[0]["executor_id"], table[1][2])
+        self.assertEqual("UNKNOWN", table[1][1])
+        self.assertEqual(tasks[0]["framework_id"], table[1][2])
+        self.assertEqual(tasks[0]["executor_id"], table[1][3])
 
         # Kill the task, agent, and master.
         task.kill()
