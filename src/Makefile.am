@@ -1396,7 +1396,8 @@ MESOS_LINUX_FILES +=							\
   slave/containerizer/mesos/isolators/xfs/disk.hpp
 endif
 
-MESOS_LINUX_ROUTING_FILES =						\
+if ENABLE_LINUX_ROUTING
+MESOS_LINUX_FILES +=							\
   linux/routing/handle.cpp						\
   linux/routing/handle.hpp						\
   linux/routing/internal.hpp						\
@@ -1431,31 +1432,18 @@ MESOS_LINUX_ROUTING_FILES =						\
   linux/routing/queueing/ingress.hpp					\
   linux/routing/queueing/internal.hpp					\
   linux/routing/queueing/statistics.hpp
-
-MESOS_NETWORK_PORTS_ISOLATOR_FILES =					\
-  slave/containerizer/mesos/isolators/network/ports.cpp			\
-  slave/containerizer/mesos/isolators/network/ports.hpp
-
-MESOS_PORT_MAPPING_ISOLATOR_FILES =					\
-  slave/containerizer/mesos/isolators/network/port_mapping.hpp		\
-  slave/containerizer/mesos/isolators/network/port_mapping.cpp
-
-if ENABLE_LINUX_ROUTING
-libmesos_no_3rdparty_la_SOURCES += $(MESOS_LINUX_ROUTING_FILES)
-else
-EXTRA_DIST += $(MESOS_LINUX_ROUTING_FILES)
 endif
 
 if ENABLE_NETWORK_PORTS_ISOLATOR
-libmesos_no_3rdparty_la_SOURCES += $(MESOS_NETWORK_PORTS_ISOLATOR_FILES)
-else
-EXTRA_DIST += $(MESOS_NETWORK_PORTS_ISOLATOR_FILES)
+MESOS_LINUX_FILES +=							\
+  slave/containerizer/mesos/isolators/network/ports.cpp			\
+  slave/containerizer/mesos/isolators/network/ports.hpp
 endif
 
 if ENABLE_PORT_MAPPING_ISOLATOR
-libmesos_no_3rdparty_la_SOURCES += $(MESOS_PORT_MAPPING_ISOLATOR_FILES)
-else
-EXTRA_DIST += $(MESOS_PORT_MAPPING_ISOLATOR_FILES)
+MESOS_LINUX_FILES +=							\
+  slave/containerizer/mesos/isolators/network/port_mapping.hpp		\
+  slave/containerizer/mesos/isolators/network/port_mapping.cpp
 endif
 
 if OS_LINUX
