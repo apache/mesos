@@ -5,7 +5,6 @@ layout: documentation
 
 # The new CLI
 
-
 The new Mesos Command Line Interface provides one executable Python 3
 script to run all default commands and additional custom plugins.
 
@@ -20,7 +19,7 @@ Two of the subcommands available allow you to debug running containers:
 For now, the Mesos CLI is still under development and not built as part
 of a standard Mesos distribution.
 
-The CLI can be built using [Autotools](configuration/autotools.md) and
+However, the CLI can be built using [Autotools](configuration/autotools.md) and
 [Cmake options](configuration/cmake.md). If necessary, check the options
 described in the linked pages to set Python 3 before starting a build.
 
@@ -43,21 +42,23 @@ run the integration tests.
 
 ##  Configuring the CLI
 
-The CLI uses a configuration file to know where are the masters of the cluster
-and the plugins that can be used on top of the default ones provided.
+The CLI uses a configuration file to know where the masters of the cluster are
+as well as list any plugins that should be used in addition to the default ones
+provided.
 
-The file, which should be located at `~/.mesos/config.toml`, looks like this:
+The configuation file, located by default at `~/.mesos/config.toml`, looks
+like this:
 
 ```
-# The `plugins` is an array listing the absolute paths of the
+# The `plugins` array lists the absolute paths of the
 # plugins you want to add to the CLI.
 plugins = [
   "</absolute/path/to/plugin-1/directory>",
   "</absolute/path/to/plugin-2/directory>"
 ]
 
-# The `master` is a field that has to be composed of an
-# `address` or `zookeeper` field, but not both. For example:
+# The `master` field is either composed of an `address` field
+# or a `zookeeper` field, but not both. For example:
 [master]
   address = "10.10.0.30:5050"
   # The `zookeeper` field has an `addresses` array and a `path` field.
