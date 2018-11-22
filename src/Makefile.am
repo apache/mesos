@@ -984,319 +984,317 @@ libmesos_no_3rdparty_la_SOURCES =					\
 libmesos_no_3rdparty_la_SOURCES +=					\
   appc/spec.cpp								\
   authentication/cram_md5/authenticatee.cpp				\
+  authentication/cram_md5/authenticatee.hpp				\
   authentication/cram_md5/authenticator.cpp				\
+  authentication/cram_md5/authenticator.hpp				\
   authentication/cram_md5/auxprop.cpp					\
+  authentication/cram_md5/auxprop.hpp					\
   authentication/http/basic_authenticatee.cpp				\
+  authentication/http/basic_authenticatee.hpp				\
   authentication/http/basic_authenticator_factory.cpp			\
   authentication/http/combined_authenticator.cpp			\
   authorizer/acls.cpp							\
   authorizer/authorizer.cpp						\
   authorizer/local/authorizer.cpp					\
-  checks/checker.cpp							\
-  checks/checker_process.cpp						\
-  checks/health_checker.cpp						\
-  common/attributes.cpp							\
-  common/authorization.cpp						\
-  common/command_utils.cpp						\
-  common/http.cpp							\
-  common/protobuf_utils.cpp						\
-  common/resources.cpp							\
-  common/resources_utils.cpp						\
-  common/roles.cpp							\
-  common/type_utils.cpp							\
-  common/validation.cpp							\
-  common/values.cpp							\
-  docker/docker.cpp							\
-  docker/spec.cpp							\
-  exec/exec.cpp								\
-  executor/executor.cpp							\
-  executor/v0_v1executor.cpp						\
-  files/files.cpp							\
-  hdfs/hdfs.cpp								\
-  hook/manager.cpp							\
-  internal/devolve.cpp							\
-  internal/evolve.cpp							\
-  local/local.cpp							\
-  logging/flags.cpp							\
-  logging/logging.cpp							\
-  master/constants.cpp							\
-  master/flags.cpp							\
-  master/framework.cpp							\
-  master/http.cpp							\
-  master/maintenance.cpp						\
-  master/master.cpp							\
-  master/metrics.cpp							\
-  master/quota.cpp							\
-  master/quota_handler.cpp						\
-  master/readonly_handler.cpp						\
-  master/registrar.cpp							\
-  master/registry_operations.cpp					\
-  master/validation.cpp							\
-  master/weights.cpp							\
-  master/weights_handler.cpp						\
-  master/allocator/allocator.cpp					\
-  master/allocator/mesos/hierarchical.cpp				\
-  master/allocator/mesos/metrics.cpp					\
-  master/allocator/sorter/drf/metrics.cpp				\
-  master/allocator/sorter/drf/sorter.cpp				\
-  master/allocator/sorter/random/sorter.cpp				\
-  master/contender/contender.cpp					\
-  master/contender/standalone.cpp					\
-  master/contender/zookeeper.cpp					\
-  master/detector/detector.cpp						\
-  master/detector/standalone.cpp					\
-  master/detector/zookeeper.cpp						\
-  messages/messages.cpp							\
-  module/manager.cpp							\
-  oci/spec.cpp								\
-  posix/rlimits.cpp							\
-  resource_provider/daemon.cpp						\
-  resource_provider/detector.cpp					\
-  resource_provider/driver.cpp						\
-  resource_provider/local.cpp						\
-  resource_provider/manager.cpp						\
-  resource_provider/registrar.cpp					\
-  resource_provider/validation.cpp					\
-  sched/sched.cpp							\
-  scheduler/scheduler.cpp						\
-  secret/resolver.cpp							\
-  slave/compatibility.cpp						\
-  slave/constants.cpp							\
-  slave/container_daemon.cpp						\
-  slave/container_logger.cpp						\
-  slave/flags.cpp							\
-  slave/gc.cpp								\
-  slave/http.cpp							\
-  slave/metrics.cpp							\
-  slave/paths.cpp							\
-  slave/qos_controller.cpp						\
-  slave/qos_controllers/noop.cpp					\
-  slave/resource_estimator.cpp						\
-  slave/slave.cpp							\
-  slave/state.cpp							\
-  slave/task_status_update_manager.cpp					\
-  slave/validation.cpp							\
-  slave/container_loggers/sandbox.cpp					\
-  slave/containerizer/composing.cpp					\
-  slave/containerizer/containerizer.cpp					\
-  slave/containerizer/docker.cpp					\
-  slave/containerizer/fetcher.cpp					\
-  slave/containerizer/mesos/containerizer.cpp				\
-  slave/containerizer/mesos/isolator.cpp				\
-  slave/containerizer/mesos/launch.cpp					\
-  slave/containerizer/mesos/launcher.cpp				\
-  slave/containerizer/mesos/mount.cpp					\
-  slave/containerizer/mesos/paths.cpp					\
-  slave/containerizer/mesos/utils.cpp					\
-  slave/containerizer/mesos/io/switchboard.cpp				\
-  slave/containerizer/mesos/isolators/environment_secret.cpp		\
-  slave/containerizer/mesos/isolators/docker/volume/driver.cpp		\
-  slave/containerizer/mesos/isolators/docker/volume/paths.cpp		\
-  slave/containerizer/mesos/isolators/filesystem/posix.cpp		\
-  slave/containerizer/mesos/isolators/network/cni/paths.cpp		\
-  slave/containerizer/mesos/isolators/network/cni/spec.cpp		\
-  slave/containerizer/mesos/isolators/posix/disk.cpp			\
-  slave/containerizer/mesos/isolators/posix/rlimits.cpp			\
-  slave/containerizer/mesos/isolators/volume/sandbox_path.cpp		\
-  slave/containerizer/mesos/provisioner/backend.cpp			\
-  slave/containerizer/mesos/provisioner/paths.cpp			\
-  slave/containerizer/mesos/provisioner/provisioner.cpp			\
-  slave/containerizer/mesos/provisioner/store.cpp			\
-  slave/containerizer/mesos/provisioner/utils.cpp			\
-  slave/containerizer/mesos/provisioner/appc/cache.cpp			\
-  slave/containerizer/mesos/provisioner/appc/fetcher.cpp		\
-  slave/containerizer/mesos/provisioner/appc/paths.cpp			\
-  slave/containerizer/mesos/provisioner/appc/store.cpp			\
-  slave/containerizer/mesos/provisioner/backends/copy.cpp		\
-  slave/containerizer/mesos/provisioner/docker/image_tar_puller.cpp	\
-  slave/containerizer/mesos/provisioner/docker/metadata_manager.cpp	\
-  slave/containerizer/mesos/provisioner/docker/paths.cpp		\
-  slave/containerizer/mesos/provisioner/docker/puller.cpp		\
-  slave/containerizer/mesos/provisioner/docker/registry_puller.cpp	\
-  slave/containerizer/mesos/provisioner/docker/store.cpp		\
-  slave/resource_estimators/noop.cpp					\
-  status_update_manager/operation.cpp					\
-  uri/fetcher.cpp							\
-  uri/utils.cpp								\
-  uri/fetchers/copy.cpp							\
-  uri/fetchers/curl.cpp							\
-  uri/fetchers/docker.cpp						\
-  uri/fetchers/hadoop.cpp						\
-  usage/usage.cpp							\
-  v1/attributes.cpp							\
-  v1/mesos.cpp								\
-  v1/resources.cpp							\
-  v1/values.cpp								\
-  version/version.cpp							\
-  watcher/whitelist_watcher.cpp						\
-  zookeeper/authentication.cpp						\
-  zookeeper/contender.cpp						\
-  zookeeper/detector.cpp						\
-  zookeeper/zookeeper.cpp						\
-  zookeeper/group.cpp
-
-libmesos_no_3rdparty_la_SOURCES +=					\
-  authentication/cram_md5/authenticatee.hpp				\
-  authentication/cram_md5/authenticator.hpp				\
-  authentication/cram_md5/auxprop.hpp					\
-  authentication/http/basic_authenticatee.hpp				\
   authorizer/local/authorizer.hpp					\
+  checks/checker.cpp							\
   checks/checker.hpp							\
+  checks/checker_process.cpp						\
   checks/checker_process.hpp						\
   checks/checks_runtime.hpp						\
   checks/checks_types.hpp						\
+  checks/health_checker.cpp						\
   checks/health_checker.hpp						\
+  common/attributes.cpp							\
+  common/authorization.cpp						\
   common/authorization.hpp						\
   common/build.hpp							\
+  common/command_utils.cpp						\
   common/command_utils.hpp						\
+  common/http.cpp							\
   common/http.hpp							\
   common/parse.hpp							\
+  common/protobuf_utils.cpp						\
   common/protobuf_utils.hpp						\
   common/recordio.hpp							\
+  common/resources.cpp							\
+  common/resources_utils.cpp						\
   common/resources_utils.hpp						\
+  common/roles.cpp							\
   common/status_utils.hpp						\
+  common/type_utils.cpp							\
+  common/validation.cpp							\
   common/validation.hpp							\
+  common/values.cpp							\
   common/values.hpp							\
   credentials/credentials.hpp						\
+  docker/docker.cpp							\
   docker/docker.hpp							\
   docker/executor.hpp							\
+  docker/spec.cpp							\
   examples/flags.hpp							\
   examples/test_anonymous_module.hpp					\
   examples/test_module.hpp						\
   examples/utils.hpp							\
+  exec/exec.cpp								\
+  executor/executor.cpp							\
+  executor/v0_v1executor.cpp						\
   executor/v0_v1executor.hpp						\
+  files/files.cpp							\
   files/files.hpp							\
+  hdfs/hdfs.cpp								\
   hdfs/hdfs.hpp								\
+  hook/manager.cpp							\
   hook/manager.hpp							\
+  internal/devolve.cpp							\
   internal/devolve.hpp							\
+  internal/evolve.cpp							\
   internal/evolve.hpp							\
   local/flags.hpp							\
+  local/local.cpp							\
   local/local.hpp							\
+  logging/flags.cpp							\
   logging/flags.hpp							\
+  logging/logging.cpp							\
   logging/logging.hpp							\
-  master/constants.hpp							\
-  master/flags.hpp							\
-  master/machine.hpp							\
-  master/maintenance.hpp						\
-  master/master.hpp							\
-  master/metrics.hpp							\
-  master/quota.hpp							\
-  master/registrar.hpp							\
-  master/registry.hpp							\
-  master/registry_operations.hpp					\
-  master/validation.hpp							\
-  master/weights.hpp							\
+  master/allocator/allocator.cpp					\
   master/allocator/mesos/allocator.hpp					\
+  master/allocator/mesos/hierarchical.cpp				\
   master/allocator/mesos/hierarchical.hpp				\
+  master/allocator/mesos/metrics.cpp					\
   master/allocator/mesos/metrics.hpp					\
-  master/allocator/sorter/sorter.hpp					\
+  master/allocator/sorter/drf/metrics.cpp				\
   master/allocator/sorter/drf/metrics.hpp				\
+  master/allocator/sorter/drf/sorter.cpp				\
   master/allocator/sorter/drf/sorter.hpp				\
+  master/allocator/sorter/random/sorter.cpp				\
   master/allocator/sorter/random/sorter.hpp				\
   master/allocator/sorter/random/utils.hpp				\
+  master/allocator/sorter/sorter.hpp					\
+  master/constants.cpp							\
+  master/constants.hpp							\
+  master/contender/contender.cpp					\
+  master/contender/standalone.cpp					\
   master/contender/standalone.hpp					\
+  master/contender/zookeeper.cpp					\
   master/contender/zookeeper.hpp					\
+  master/detector/detector.cpp						\
+  master/detector/standalone.cpp					\
   master/detector/standalone.hpp					\
+  master/detector/zookeeper.cpp						\
   master/detector/zookeeper.hpp						\
+  master/flags.cpp							\
+  master/flags.hpp							\
+  master/framework.cpp							\
+  master/http.cpp							\
+  master/machine.hpp							\
+  master/maintenance.cpp						\
+  master/maintenance.hpp						\
+  master/master.cpp							\
+  master/master.hpp							\
+  master/metrics.cpp							\
+  master/metrics.hpp							\
+  master/quota.cpp							\
+  master/quota.hpp							\
+  master/quota_handler.cpp						\
+  master/readonly_handler.cpp						\
+  master/registrar.cpp							\
+  master/registrar.hpp							\
+  master/registry.hpp							\
+  master/registry_operations.cpp					\
+  master/registry_operations.hpp					\
+  master/validation.cpp							\
+  master/validation.hpp							\
+  master/weights.cpp							\
+  master/weights.hpp							\
+  master/weights_handler.cpp						\
   messages/flags.hpp							\
+  messages/messages.cpp							\
   messages/messages.hpp							\
+  module/manager.cpp							\
   module/manager.hpp							\
+  oci/spec.cpp								\
+  posix/rlimits.cpp							\
   posix/rlimits.hpp							\
+  resource_provider/daemon.cpp						\
   resource_provider/daemon.hpp						\
+  resource_provider/detector.cpp					\
   resource_provider/detector.hpp					\
+  resource_provider/driver.cpp						\
   resource_provider/http_connection.hpp					\
+  resource_provider/local.cpp						\
   resource_provider/local.hpp						\
+  resource_provider/manager.cpp						\
   resource_provider/manager.hpp						\
   resource_provider/message.hpp						\
+  resource_provider/registrar.cpp					\
   resource_provider/registrar.hpp					\
   resource_provider/registry.hpp					\
   resource_provider/state.hpp						\
+  resource_provider/validation.cpp					\
   resource_provider/validation.hpp					\
   sched/constants.hpp							\
   sched/flags.hpp							\
+  sched/sched.cpp							\
   scheduler/constants.hpp						\
   scheduler/flags.hpp							\
+  scheduler/scheduler.cpp						\
+  secret/resolver.cpp							\
+  slave/compatibility.cpp						\
   slave/compatibility.hpp						\
+  slave/constants.cpp							\
   slave/constants.hpp							\
+  slave/container_daemon.cpp						\
   slave/container_daemon.hpp						\
   slave/container_daemon_process.hpp					\
-  slave/flags.hpp							\
-  slave/gc.hpp								\
-  slave/gc_process.hpp							\
-  slave/http.hpp							\
-  slave/metrics.hpp							\
-  slave/paths.hpp							\
-  slave/posix_signalhandler.hpp						\
-  slave/slave.hpp							\
-  slave/state.hpp							\
-  slave/task_status_update_manager.hpp					\
-  slave/validation.hpp							\
-  slave/windows_ctrlhandler.hpp						\
+  slave/container_logger.cpp						\
+  slave/container_loggers/sandbox.cpp					\
   slave/container_loggers/sandbox.hpp					\
+  slave/containerizer/composing.cpp					\
   slave/containerizer/composing.hpp					\
+  slave/containerizer/containerizer.cpp					\
   slave/containerizer/containerizer.hpp					\
+  slave/containerizer/docker.cpp					\
   slave/containerizer/docker.hpp					\
+  slave/containerizer/fetcher.cpp					\
   slave/containerizer/fetcher.hpp					\
   slave/containerizer/fetcher_process.hpp				\
   slave/containerizer/mesos/constants.hpp				\
+  slave/containerizer/mesos/containerizer.cpp				\
   slave/containerizer/mesos/containerizer.hpp				\
-  slave/containerizer/mesos/isolator.hpp				\
-  slave/containerizer/mesos/launch.hpp					\
-  slave/containerizer/mesos/launcher.hpp				\
-  slave/containerizer/mesos/mount.hpp					\
-  slave/containerizer/mesos/paths.hpp					\
-  slave/containerizer/mesos/utils.hpp					\
+  slave/containerizer/mesos/io/switchboard.cpp				\
   slave/containerizer/mesos/io/switchboard.hpp				\
-  slave/containerizer/mesos/isolators/environment_secret.hpp		\
-  slave/containerizer/mesos/isolators/posix.hpp				\
-  slave/containerizer/mesos/isolators/filesystem/posix.hpp		\
-  slave/containerizer/mesos/isolators/filesystem/windows.hpp		\
-  slave/containerizer/mesos/isolators/posix/disk.hpp			\
-  slave/containerizer/mesos/isolators/posix/rlimits.hpp			\
+  slave/containerizer/mesos/isolator.cpp				\
+  slave/containerizer/mesos/isolator.hpp				\
+  slave/containerizer/mesos/isolators/docker/volume/driver.cpp		\
   slave/containerizer/mesos/isolators/docker/volume/driver.hpp		\
+  slave/containerizer/mesos/isolators/docker/volume/paths.cpp		\
   slave/containerizer/mesos/isolators/docker/volume/paths.hpp		\
   slave/containerizer/mesos/isolators/docker/volume/state.hpp		\
+  slave/containerizer/mesos/isolators/environment_secret.cpp		\
+  slave/containerizer/mesos/isolators/environment_secret.hpp		\
+  slave/containerizer/mesos/isolators/filesystem/posix.cpp		\
+  slave/containerizer/mesos/isolators/filesystem/posix.hpp		\
+  slave/containerizer/mesos/isolators/filesystem/windows.hpp		\
+  slave/containerizer/mesos/isolators/network/cni/paths.cpp		\
   slave/containerizer/mesos/isolators/network/cni/paths.hpp		\
+  slave/containerizer/mesos/isolators/network/cni/spec.cpp		\
   slave/containerizer/mesos/isolators/network/cni/spec.hpp		\
+  slave/containerizer/mesos/isolators/posix.hpp				\
+  slave/containerizer/mesos/isolators/posix/disk.cpp			\
+  slave/containerizer/mesos/isolators/posix/disk.hpp			\
+  slave/containerizer/mesos/isolators/posix/rlimits.cpp			\
+  slave/containerizer/mesos/isolators/posix/rlimits.hpp			\
+  slave/containerizer/mesos/isolators/volume/sandbox_path.cpp		\
   slave/containerizer/mesos/isolators/volume/sandbox_path.hpp		\
   slave/containerizer/mesos/isolators/windows/cpu.hpp			\
   slave/containerizer/mesos/isolators/windows/mem.hpp			\
-  slave/containerizer/mesos/provisioner/backend.hpp			\
-  slave/containerizer/mesos/provisioner/constants.hpp			\
-  slave/containerizer/mesos/provisioner/paths.hpp			\
-  slave/containerizer/mesos/provisioner/provisioner.hpp			\
-  slave/containerizer/mesos/provisioner/store.hpp			\
-  slave/containerizer/mesos/provisioner/utils.hpp			\
+  slave/containerizer/mesos/launch.cpp					\
+  slave/containerizer/mesos/launch.hpp					\
+  slave/containerizer/mesos/launcher.cpp				\
+  slave/containerizer/mesos/launcher.hpp				\
+  slave/containerizer/mesos/mount.cpp					\
+  slave/containerizer/mesos/mount.hpp					\
+  slave/containerizer/mesos/paths.cpp					\
+  slave/containerizer/mesos/paths.hpp					\
+  slave/containerizer/mesos/provisioner/appc/cache.cpp			\
   slave/containerizer/mesos/provisioner/appc/cache.hpp			\
+  slave/containerizer/mesos/provisioner/appc/fetcher.cpp		\
   slave/containerizer/mesos/provisioner/appc/fetcher.hpp		\
+  slave/containerizer/mesos/provisioner/appc/paths.cpp			\
   slave/containerizer/mesos/provisioner/appc/paths.hpp			\
+  slave/containerizer/mesos/provisioner/appc/store.cpp			\
   slave/containerizer/mesos/provisioner/appc/store.hpp			\
+  slave/containerizer/mesos/provisioner/backend.cpp			\
+  slave/containerizer/mesos/provisioner/backend.hpp			\
+  slave/containerizer/mesos/provisioner/backends/copy.cpp		\
   slave/containerizer/mesos/provisioner/backends/copy.hpp		\
+  slave/containerizer/mesos/provisioner/constants.hpp			\
+  slave/containerizer/mesos/provisioner/docker/image_tar_puller.cpp	\
   slave/containerizer/mesos/provisioner/docker/image_tar_puller.hpp	\
   slave/containerizer/mesos/provisioner/docker/message.hpp		\
+  slave/containerizer/mesos/provisioner/docker/metadata_manager.cpp	\
   slave/containerizer/mesos/provisioner/docker/metadata_manager.hpp	\
+  slave/containerizer/mesos/provisioner/docker/paths.cpp		\
   slave/containerizer/mesos/provisioner/docker/paths.hpp		\
+  slave/containerizer/mesos/provisioner/docker/puller.cpp		\
   slave/containerizer/mesos/provisioner/docker/puller.hpp		\
+  slave/containerizer/mesos/provisioner/docker/registry_puller.cpp	\
   slave/containerizer/mesos/provisioner/docker/registry_puller.hpp	\
+  slave/containerizer/mesos/provisioner/docker/store.cpp		\
   slave/containerizer/mesos/provisioner/docker/store.hpp		\
+  slave/containerizer/mesos/provisioner/paths.cpp			\
+  slave/containerizer/mesos/provisioner/paths.hpp			\
+  slave/containerizer/mesos/provisioner/provisioner.cpp			\
+  slave/containerizer/mesos/provisioner/provisioner.hpp			\
+  slave/containerizer/mesos/provisioner/store.cpp			\
+  slave/containerizer/mesos/provisioner/store.hpp			\
+  slave/containerizer/mesos/provisioner/utils.cpp			\
+  slave/containerizer/mesos/provisioner/utils.hpp			\
+  slave/containerizer/mesos/utils.cpp					\
+  slave/containerizer/mesos/utils.hpp					\
+  slave/flags.cpp							\
+  slave/flags.hpp							\
+  slave/gc.cpp								\
+  slave/gc.hpp								\
+  slave/gc_process.hpp							\
+  slave/http.cpp							\
+  slave/http.hpp							\
+  slave/metrics.cpp							\
+  slave/metrics.hpp							\
+  slave/paths.cpp							\
+  slave/paths.hpp							\
+  slave/posix_signalhandler.hpp						\
+  slave/qos_controller.cpp						\
+  slave/qos_controllers/noop.cpp					\
   slave/qos_controllers/noop.hpp					\
+  slave/resource_estimator.cpp						\
+  slave/resource_estimators/noop.cpp					\
   slave/resource_estimators/noop.hpp					\
-  status_update_manager/status_update_manager_process.hpp		\
+  slave/slave.cpp							\
+  slave/slave.hpp							\
+  slave/state.cpp							\
+  slave/state.hpp							\
+  slave/task_status_update_manager.cpp					\
+  slave/task_status_update_manager.hpp					\
+  slave/validation.cpp							\
+  slave/validation.hpp							\
+  slave/windows_ctrlhandler.hpp						\
+  status_update_manager/operation.cpp					\
   status_update_manager/operation.hpp					\
+  status_update_manager/status_update_manager_process.hpp		\
+  uri/fetcher.cpp							\
   uri/fetcher.hpp							\
-  uri/utils.hpp								\
+  uri/fetchers/copy.cpp							\
   uri/fetchers/copy.hpp							\
+  uri/fetchers/curl.cpp							\
   uri/fetchers/curl.hpp							\
+  uri/fetchers/docker.cpp						\
   uri/fetchers/docker.hpp						\
+  uri/fetchers/hadoop.cpp						\
   uri/fetchers/hadoop.hpp						\
   uri/schemes/docker.hpp						\
   uri/schemes/file.hpp							\
   uri/schemes/hdfs.hpp							\
   uri/schemes/http.hpp							\
+  uri/utils.cpp								\
+  uri/utils.hpp								\
+  usage/usage.cpp							\
   usage/usage.hpp							\
+  v1/attributes.cpp							\
+  v1/mesos.cpp								\
   v1/parse.hpp								\
+  v1/resources.cpp							\
+  v1/values.cpp								\
+  version/version.cpp							\
   version/version.hpp							\
-  watcher/whitelist_watcher.hpp
+  watcher/whitelist_watcher.cpp						\
+  watcher/whitelist_watcher.hpp						\
+  zookeeper/authentication.cpp						\
+  zookeeper/contender.cpp						\
+  zookeeper/detector.cpp						\
+  zookeeper/group.cpp							\
+  zookeeper/zookeeper.cpp
 
 MESOS_LINUX_FILES =									\
   linux/capabilities.cpp								\
@@ -1527,17 +1525,16 @@ libmesos_no_3rdparty_la_LIBADD += libbuild.la
 noinst_LTLIBRARIES += libcsi.la
 libcsi_la_SOURCES =							\
   csi/client.cpp							\
-  csi/paths.cpp								\
-  csi/rpc.cpp								\
-  csi/utils.cpp
-libcsi_la_SOURCES +=							\
-  ../include/csi/spec.hpp						\
   csi/client.hpp							\
+  csi/paths.cpp								\
   csi/paths.hpp								\
+  csi/rpc.cpp								\
   csi/rpc.hpp								\
   csi/state.hpp								\
   csi/state.proto							\
-  csi/utils.hpp
+  csi/utils.cpp								\
+  csi/utils.hpp								\
+  ../include/csi/spec.hpp
 
 nodist_libcsi_la_SOURCES = $(CXX_CSI_PROTOS)
 libcsi_la_CPPFLAGS = $(MESOS_CPPFLAGS)
@@ -1550,35 +1547,35 @@ libmesos_no_3rdparty_la_LIBADD += libcsi.la
 noinst_LTLIBRARIES += liblog.la
 liblog_la_SOURCES =							\
   log/catchup.cpp							\
-  log/consensus.cpp							\
-  log/coordinator.cpp							\
-  log/leveldb.cpp							\
-  log/log.cpp								\
-  log/metrics.cpp							\
-  log/recover.cpp							\
-  log/replica.cpp							\
-  log/tool/benchmark.cpp						\
-  log/tool/initialize.cpp						\
-  log/tool/read.cpp							\
-  log/tool/replica.cpp
-liblog_la_SOURCES +=							\
   log/catchup.hpp							\
+  log/consensus.cpp							\
   log/consensus.hpp							\
+  log/coordinator.cpp							\
   log/coordinator.hpp							\
+  log/leveldb.cpp							\
   log/leveldb.hpp							\
+  log/log.cpp								\
   log/log.hpp								\
+  log/metrics.cpp							\
   log/metrics.hpp							\
   log/network.hpp							\
+  log/recover.cpp							\
   log/recover.hpp							\
+  log/replica.cpp							\
   log/replica.hpp							\
   log/storage.hpp							\
-  log/tool.hpp								\
+  log/tool/benchmark.cpp						\
   log/tool/benchmark.hpp						\
+  log/tool.hpp								\
+  log/tool/initialize.cpp						\
   log/tool/initialize.hpp						\
+  log/tool/read.cpp							\
   log/tool/read.hpp							\
+  log/tool/replica.cpp							\
   log/tool/replica.hpp							\
   messages/log.hpp							\
   messages/log.proto
+
 nodist_liblog_la_SOURCES = $(CXX_LOG_PROTOS)
 liblog_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 
@@ -1589,13 +1586,13 @@ libmesos_no_3rdparty_la_LIBADD += liblog.la
 # include the leveldb headers.
 noinst_LTLIBRARIES += libstate.la
 libstate_la_SOURCES =							\
+  messages/state.hpp							\
+  messages/state.proto							\
   state/in_memory.cpp							\
   state/leveldb.cpp							\
   state/log.cpp								\
   state/zookeeper.cpp
-libstate_la_SOURCES +=							\
-  messages/state.hpp							\
-  messages/state.proto
+
 nodist_libstate_la_SOURCES = $(CXX_STATE_PROTOS)
 libstate_la_CPPFLAGS = $(MESOS_CPPFLAGS)
 
