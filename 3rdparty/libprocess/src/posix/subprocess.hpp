@@ -56,6 +56,7 @@ static void close(
     const Subprocess::IO::OutputFileDescriptors& stderrfds);
 
 
+#if defined(__linux__) && defined(SYS_getdents64)
 // Convert a null-terminated string to an integer. This function
 // is async signal safe since it does not make any libc calls.
 static int convertStringToInt(const char *name)
@@ -73,6 +74,7 @@ static int convertStringToInt(const char *name)
 
   return num;
 }
+#endif // __linux__ && SYS_getdents64
 
 
 // Close any file descriptors that are not stdio file descriptors and not
@@ -137,7 +139,7 @@ static void handleWhitelistFds(const std::vector<int_fd>& whitelist_fds)
   }
 
   ::close(fdDir);
-#endif
+#endif // __linux__ && SYS_getdents64
 
   foreach (int_fd fd, whitelist_fds) {
     int flags = ::fcntl(fd, F_GETFD);
