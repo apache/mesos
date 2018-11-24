@@ -34,6 +34,9 @@ Try<int> convert(RLimitInfo::RLimit::Type type);
 // Set the given resource limit for the calling process.
 Try<Nothing> set(const RLimitInfo::RLimit& limit);
 
+// Get the given resource limit for the calling process.
+Try<RLimitInfo::RLimit> get(RLimitInfo::RLimit::Type type);
+
 } // namespace rlimits {
 } // namespace internal {
 } // namespace mesos {

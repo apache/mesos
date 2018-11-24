@@ -127,10 +127,35 @@ Try<Nothing> set(const RLimitInfo::RLimit& limit)
   }
 
   if (setrlimit(resource.get(), &resourceLimit) != 0) {
-    return Error("Failed to set rlimit: " + os::strerror(errno));
+    return ErrnoError();
   }
 
   return Nothing();
+}
+
+
+Try<RLimitInfo::RLimit> get(RLimitInfo::RLimit::Type type)
+{
+  Try<int> _type = rlimits::convert(type);
+  if (_type.isError()) {
+    return Error(_type.error());
+  }
+
+  ::rlimit resourceLimit;
+  if (getrlimit(_type.get(), &resourceLimit) != 0) {
+    return ErrnoError();
+  }
+
+  RLimitInfo::RLimit limit;
+  limit.set_type(type);
+  if (resourceLimit.rlim_cur != RLIM_INFINITY) {
+    limit.set_soft(resourceLimit.rlim_cur);
+  }
+  if (resourceLimit.rlim_max != RLIM_INFINITY) {
+    limit.set_hard(resourceLimit.rlim_max);
+  }
+
+  return std::move(limit);
 }
 
 } // namespace rlimits {
