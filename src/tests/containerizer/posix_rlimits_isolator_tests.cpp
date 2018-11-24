@@ -33,7 +33,10 @@
 
 #include <stout/hashmap.hpp>
 
+#include "posix/rlimits.hpp"
+
 #include "slave/flags.hpp"
+
 #include "tests/cluster.hpp"
 #include "tests/environment.hpp"
 #include "tests/mesos.hpp"
@@ -122,8 +125,22 @@ TEST_F(PosixRLimitsIsolatorTest, InvalidLimits)
 
 // This test confirms that setting no values for the soft and hard
 // limits implies an unlimited resource.
+//
+// NOTE: This test requires user to have set a unlimited hard core
+// file size limit.
 TEST_F(PosixRLimitsIsolatorTest, UnsetLimits)
 {
+  // TODO(bbannier): Instead of asserting here dynamically disable
+  // the test if we encounter an incompatible rlimit.
+  Try<RLimitInfo::RLimit> limit = rlimits::get(RLimitInfo::RLimit::RLMT_CORE);
+  ASSERT_SOME(limit);
+  ASSERT_FALSE(limit->has_hard())
+    << "-------------------------------------------------------------\n"
+    << "We cannot run this test because it appears you have a finite hard\n"
+    << "core file size rlimit set. Feel free to disable this test or set a\n"
+    << "higher limit with 'ulimit -H -c unlimited' for your user.\n"
+    << "-------------------------------------------------------------";
+
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
