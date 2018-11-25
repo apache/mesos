@@ -104,6 +104,17 @@ if (ENABLE_LIBEVENT)
 endif()
 
 option(
+  UNBUNDLED_LEVELDB
+  "Build with an installed leveldb version instead of the bundled."
+  FALSE)
+
+set(
+  LEVELDB_ROOT_DIR
+  ""
+  CACHE STRING
+  "Specify the path to leveldb, e.g. \"C:\\leveldb-Win64\".")
+
+option(
   ENABLE_SSL
   "Build libprocess with SSL support."
   FALSE)
