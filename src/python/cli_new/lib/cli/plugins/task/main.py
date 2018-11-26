@@ -61,8 +61,8 @@ class Task(PluginBase):
         "list": {
             "arguments": [],
             "flags": {},
-            "short_help": "List all active tasks in a Mesos cluster",
-            "long_help": "List all active tasks in a Mesos cluster"
+            "short_help": "List all running tasks in a Mesos cluster",
+            "long_help": "List all running tasks in a Mesos cluster"
         }
     }
 
@@ -125,6 +125,9 @@ class Task(PluginBase):
                 task_state = "UNKNOWN"
                 if task["statuses"]:
                     task_state = task["statuses"][-1]["state"]
+
+                if task_state != "TASK_RUNNING":
+                    continue
 
                 table.add_row([task["id"],
                                task_state,

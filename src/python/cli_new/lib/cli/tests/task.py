@@ -21,7 +21,6 @@ Task plugin tests.
 import os
 
 from cli import config
-from cli import http
 
 from cli.exceptions import CLIException
 
@@ -162,9 +161,10 @@ class TestTaskPlugin(CLITestCase):
         task = Task({"command": "sleep 1000"})
         task.launch()
 
-        # Open the master's `/tasks` endpoint and read the
-        # task information ourselves.
-        tasks = http.get_json(master.addr, 'tasks')["tasks"]
+        tasks = running_tasks(master)
+        if not tasks:
+            raise CLIException("Unable to find running tasks on master"
+                               " '{master}'".format(master=master.addr))
 
         self.assertEqual(type(tasks), list)
         self.assertEqual(len(tasks), 1)
@@ -186,7 +186,7 @@ class TestTaskPlugin(CLITestCase):
         self.assertEqual("Framework ID", table[0][2])
         self.assertEqual("Executor ID", table[0][3])
         self.assertEqual(tasks[0]["id"], table[1][0])
-        self.assertEqual("UNKNOWN", table[1][1])
+        self.assertEqual(tasks[0]["statuses"][-1]["state"], table[1][1])
         self.assertEqual(tasks[0]["framework_id"], table[1][2])
         self.assertEqual(tasks[0]["executor_id"], table[1][3])
 
