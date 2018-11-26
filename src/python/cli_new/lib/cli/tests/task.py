@@ -21,6 +21,7 @@ Task plugin tests.
 import os
 
 from cli import config
+from cli import http
 
 from cli.exceptions import CLIException
 
@@ -28,7 +29,7 @@ from cli.plugins.task.main import Task as TaskPlugin
 
 from cli.tests import capture_output
 from cli.tests import exec_command
-from cli.tests import running_tasks
+from cli.tests import wait_for_task
 from cli.tests import CLITestCase
 from cli.tests import Agent
 from cli.tests import Master
@@ -62,10 +63,23 @@ class TestTaskPlugin(CLITestCase):
         task = Task({"command": command})
         task.launch()
 
-        tasks = running_tasks(master)
-        if not tasks:
-            raise CLIException("Unable to find running tasks on master"
-                               " '{master}'".format(master=master.addr))
+        try:
+            wait_for_task(master, task.name, "TASK_RUNNING")
+        except Exception as exception:
+            raise CLIException(
+                "Error waiting for task '{name}' to"
+                " reach state '{state}': {error}"
+                .format(name=task.name, state="TASK_RUNNING", error=exception))
+
+        try:
+            tasks = http.get_json(master.addr, "tasks")["tasks"]
+        except Exception as exception:
+            raise CLIException(
+                "Could not get tasks from '/{endpoint}' on master: {error}"
+                .format(endpoint="tasks", error=exception))
+
+        self.assertEqual(type(tasks), list)
+        self.assertEqual(len(tasks), 1)
 
         returncode, stdout, stderr = exec_command(
             ["mesos", "task", "exec", tasks[0]["id"], "cat", "a.txt"])
@@ -93,10 +107,23 @@ class TestTaskPlugin(CLITestCase):
         task = Task({"command": "sleep 1000"})
         task.launch()
 
-        tasks = running_tasks(master)
-        if not tasks:
-            raise CLIException("Unable to find running tasks on master"
-                               " '{master}'".format(master=master.addr))
+        try:
+            wait_for_task(master, task.name, "TASK_RUNNING")
+        except Exception as exception:
+            raise CLIException(
+                "Error waiting for task '{name}' to"
+                " reach state '{state}': {error}"
+                .format(name=task.name, state="TASK_RUNNING", error=exception))
+
+        try:
+            tasks = http.get_json(master.addr, "tasks")["tasks"]
+        except Exception as exception:
+            raise CLIException(
+                "Could not get tasks from '/{endpoint}' on master: {error}"
+                .format(endpoint="tasks", error=exception))
+
+        self.assertEqual(type(tasks), list)
+        self.assertEqual(len(tasks), 1)
 
         returncode, _, _ = exec_command(
             ["mesos", "task", "exec", tasks[0]["id"], "true"])
@@ -126,10 +153,23 @@ class TestTaskPlugin(CLITestCase):
         task = Task({"command": "sleep 1000"})
         task.launch()
 
-        tasks = running_tasks(master)
-        if not tasks:
-            raise CLIException("Unable to find running tasks on master"
-                               " '{master}'".format(master=master.addr))
+        try:
+            wait_for_task(master, task.name, "TASK_RUNNING")
+        except Exception as exception:
+            raise CLIException(
+                "Error waiting for task '{name}' to"
+                " reach state '{state}': {error}"
+                .format(name=task.name, state="TASK_RUNNING", error=exception))
+
+        try:
+            tasks = http.get_json(master.addr, "tasks")["tasks"]
+        except Exception as exception:
+            raise CLIException(
+                "Could not get tasks from '/{endpoint}' on master: {error}"
+                .format(endpoint="tasks", error=exception))
+
+        self.assertEqual(type(tasks), list)
+        self.assertEqual(len(tasks), 1)
 
         with open(LOREM_IPSUM) as text:
             returncode, stdout, stderr = exec_command(
@@ -161,10 +201,20 @@ class TestTaskPlugin(CLITestCase):
         task = Task({"command": "sleep 1000"})
         task.launch()
 
-        tasks = running_tasks(master)
-        if not tasks:
-            raise CLIException("Unable to find running tasks on master"
-                               " '{master}'".format(master=master.addr))
+        try:
+            wait_for_task(master, task.name, "TASK_RUNNING")
+        except Exception as exception:
+            raise CLIException(
+                "Error waiting for task '{name}' to"
+                " reach state '{state}': {error}"
+                .format(name=task.name, state="TASK_RUNNING", error=exception))
+
+        try:
+            tasks = http.get_json(master.addr, "tasks")["tasks"]
+        except Exception as exception:
+            raise CLIException(
+                "Could not get tasks from '/{endpoint}' on master: {error}"
+                .format(endpoint="tasks", error=exception))
 
         self.assertEqual(type(tasks), list)
         self.assertEqual(len(tasks), 1)

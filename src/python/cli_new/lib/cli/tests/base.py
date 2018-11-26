@@ -31,6 +31,7 @@ import parse
 
 from tenacity import retry
 from tenacity import stop_after_delay
+from tenacity import wait_fixed
 
 from cli import http
 
@@ -503,19 +504,19 @@ def popen_tty(cmd, shell=True):
     return (proc, master)
 
 
-def running_tasks(master):
+def wait_for_task(master, name, state, delay=1):
     """
-    Open the master's `/tasks` endpoint and read the task information.
-    Retry for up to 1 second before giving up.
+    Wait for a task with a certain name to be in a given state.
     """
-    @retry(stop=stop_after_delay(1))
-    def _running_tasks():
+    @retry(wait=wait_fixed(0.2), stop=stop_after_delay(delay))
+    def _wait_for_task():
         tasks = http.get_json(master.addr, "tasks")["tasks"]
-        if tasks[0]["state"] == "TASK_RUNNING":
-            return tasks
+        for task in tasks:
+            if task["name"] == name and task["state"] == state:
+                return task
         raise Exception()
 
     try:
-        return _running_tasks()
+        return _wait_for_task()
     except Exception:
-        return []
+        raise CLIException("Timeout waiting for task expired")
