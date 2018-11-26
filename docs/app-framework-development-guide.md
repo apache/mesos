@@ -72,7 +72,7 @@ they need when co-existing with other schedulers:
    to allocate to satisfy the guarantee.
 3. **Set the minimum allocatable resources**: Once quota is used, the
    `--min_allocatable_resources` flag should be set
-   (e.g. `--min_allocatable_resources=cpus:1,mem:32:disk:32`) to prevent offers
+   (e.g. `--min_allocatable_resources=cpus:0.1,mem:32:disk:32`) to prevent offers
    that are missing cpu, memory, or disk
    (see [MESOS-8935](https://issues.apache.org/jira/browse/MESOS-8935)).
 4. **Consider enabling the random sorter**: Depending on the use case, DRF can prove
