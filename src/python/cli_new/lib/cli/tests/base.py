@@ -333,7 +333,7 @@ class Task(Executable):
             raise CLIException("No command supplied when creating task")
 
         self.flags = flags
-        self.name = "task"
+        self.name = flags["name"]
         self.executable = os.path.join(
             CLITestCase.MESOS_BUILD_DIR,
             "src",
