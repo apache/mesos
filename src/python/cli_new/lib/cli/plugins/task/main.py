@@ -60,7 +60,9 @@ class Task(PluginBase):
         },
         "list": {
             "arguments": [],
-            "flags": {},
+            "flags": {
+                "-a --all": "list all tasks, not only running [default: False]"
+            },
             "short_help": "List all running tasks in a Mesos cluster",
             "long_help": "List all running tasks in a Mesos cluster"
         }
@@ -126,7 +128,7 @@ class Task(PluginBase):
                 if task["statuses"]:
                     task_state = task["statuses"][-1]["state"]
 
-                if task_state != "TASK_RUNNING":
+                if not argv["--all"] and task_state != "TASK_RUNNING":
                     continue
 
                 table.add_row([task["id"],

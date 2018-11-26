@@ -223,7 +223,7 @@ class TestTaskPlugin(CLITestCase):
         # and parse its output as a table.
         test_config = config.Config(None)
         plugin = TaskPlugin(None, test_config)
-        output = capture_output(plugin.list, {})
+        output = capture_output(plugin.list, {"--all": False})
         table = Table.parse(output)
 
         # Verify there are two rows in the table
@@ -242,5 +242,69 @@ class TestTaskPlugin(CLITestCase):
 
         # Kill the task, agent, and master.
         task.kill()
+        agent.kill()
+        master.kill()
+
+    def test_list_all(self):
+        """
+        Basic test for the task `list()` sub-command with flag `--all`.
+        """
+        # Launch a master, agent, and two tasks.
+        master = Master()
+        master.launch()
+
+        agent = Agent()
+        agent.launch()
+
+        task1 = Task({"command": "true"})
+        task1.launch()
+        task1_state = "TASK_FINISHED"
+
+        try:
+            wait_for_task(master, task1.name, task1_state)
+        except Exception as exception:
+            raise CLIException(
+                "Error waiting for task '{name}' to"
+                " reach state '{state}': {error}"
+                .format(name=task1.name, state=task1_state, error=exception))
+
+        task2 = Task({"command": "sleep 1000"})
+        task2.launch()
+        task2_state = "TASK_RUNNING"
+
+        try:
+            wait_for_task(master, task2.name, task2_state)
+        except Exception as exception:
+            raise CLIException(
+                "Error waiting for task '{name}' to"
+                " reach state '{state}': {error}"
+                .format(name=task2.name, state=task2_state, error=exception))
+
+        try:
+            tasks = http.get_json(master.addr, "tasks")["tasks"]
+        except Exception as exception:
+            raise CLIException(
+                "Could not get tasks from '/{endpoint}' on master: {error}"
+                .format(endpoint="tasks", error=exception))
+
+        self.assertEqual(type(tasks), list)
+        self.assertEqual(len(tasks), 2)
+
+        # Invoke the task plugin `list()` command
+        # and parse its output as a table.
+        test_config = config.Config(None)
+        plugin = TaskPlugin(None, test_config)
+        output = capture_output(plugin.list, {"--all": True})
+        table = Table.parse(output)
+
+        # Verify that there are two rows in the table, one for the running task
+        # and one for the finished task. We do verify the information in the
+        # table as this is already covered in the test `test_list`.
+        self.assertEqual(table.dimensions()[0], 3)
+        self.assertEqual(table.dimensions()[1], 4)
+
+        # Kill the task1, task2, agent, and master.
+        task1.kill()
+        task2.kill()
         agent.kill()
         master.kill()
