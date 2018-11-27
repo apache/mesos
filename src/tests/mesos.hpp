@@ -798,6 +798,18 @@ inline TContainerInfo createContainerInfo(
 }
 
 
+inline SlaveID getAgentID(const Offer& offer)
+{
+  return offer.slave_id();
+}
+
+
+inline mesos::v1::AgentID getAgentID(const mesos::v1::Offer& offer)
+{
+  return offer.agent_id();
+}
+
+
 inline void setAgentID(TaskInfo* task, const SlaveID& slaveId)
 {
   task->mutable_slave_id()->CopyFrom(slaveId);
@@ -904,7 +916,7 @@ inline TTaskInfo createTask(
       TExecutorInfo,
       TCommandInfo,
       TOffer>(
-          offer.slave_id(),
+          getAgentID(offer),
           offer.resources(),
           command,
           executorId,
