@@ -6007,6 +6007,16 @@ void Master::executorMessage(
     return;
   }
 
+  if (!framework->connected()) {
+    LOG(WARNING) << "Not forwarding executor message for executor '"
+                 << executorId << "' of framework " << frameworkId
+                 << " on agent " << *slave
+                 << " because the framework is disconnected";
+
+    metrics->invalid_executor_to_framework_messages++;
+    return;
+  }
+
   ExecutorToFrameworkMessage message;
   message.mutable_slave_id()->MergeFrom(slaveId);
   message.mutable_framework_id()->MergeFrom(frameworkId);
