@@ -85,6 +85,9 @@ static void setValue(
       case cgroups::blkio::Operation::ASYNC:
         value->set_op(CgroupInfo::Blkio::ASYNC);
         break;
+      case cgroups::blkio::Operation::DISCARD:
+        value->set_op(CgroupInfo::Blkio::DISCARD);
+        break;
     }
   }
 

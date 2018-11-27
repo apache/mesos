@@ -2011,7 +2011,8 @@ static bool isOperation(const string& s)
           s == "Read" ||
           s == "Write" ||
           s == "Sync" ||
-          s == "Async");
+          s == "Async" ||
+          s == "Discard");
 }
 
 
@@ -2027,6 +2028,8 @@ static Try<Operation> parseOperation(const string& s)
     return Operation::SYNC;
   } else if (s == "Async") {
     return Operation::ASYNC;
+  } else if (s == "Discard") {
+    return Operation::DISCARD;
   }
 
   return Error("Invalid Operation value: '" + s + "'");
