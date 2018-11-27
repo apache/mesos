@@ -3841,6 +3841,195 @@ TEST_F(MasterTest, RecoveredFramework)
 }
 
 
+// This test ensures that when a master fails over, the recovered master will
+// not crash when executors that belong to recovered (but not yet reregistered)
+// frameworks try to send executor -> framework messages. See MESOS-8623.
+//
+// NOTE: This test uses an HTTP framework which has no PID and thus any
+// executor -> framework message is forwarded by the master. Otherwise, the
+// agent would bypass the master and directly sends it to the scheduler driver.
+TEST_F(MasterTest, ExecutorMessageToRecoveredHttpFramework)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+
+  ASSERT_SOME(master);
+
+  StandaloneMasterDetector detector(master.get()->pid);
+
+  // Set up a mock executor to send messages.
+  auto executor = std::make_shared<v1::MockHTTPExecutor>();
+  TestContainerizer containerizer(DEFAULT_EXECUTOR_ID, executor);
+
+  Future<v1::executor::Mesos*> executorLibrary;
+  EXPECT_CALL(*executor, connected(_))
+    .WillOnce(FutureArg<0>(&executorLibrary));
+
+  Future<Nothing> executorSubscribed;
+  EXPECT_CALL(*executor, subscribed(_, _))
+    .WillOnce(FutureSatisfy(&executorSubscribed));
+
+  EXPECT_CALL(*executor, launch(_, _));
+
+  EXPECT_CALL(*executor, shutdown(_))
+    .Times(AtMost(1));
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(&detector, &containerizer, slaveFlags);
+
+  ASSERT_SOME(slave);
+
+  // Register an HTTP framework to launch the mock executor.
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+  Owned<v1::scheduler::TestMesos> schedulerLibrary(new v1::scheduler::TestMesos(
+      master.get()->pid, ContentType::PROTOBUF, scheduler));
+
+  Future<Nothing> schedulerConnected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(FutureSatisfy(&schedulerConnected))
+    .WillRepeatedly(Return()); // Ignore teardown reconnections, see MESOS-6033.
+
+  Future<v1::scheduler::Event::Subscribed> schedulerSubscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&schedulerSubscribed));
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  EXPECT_CALL(*scheduler, disconnected(_))
+    .Times(AtMost(1));
+
+  AWAIT_READY(schedulerConnected);
+
+  {
+    v1::scheduler::Call call;
+    call.set_type(v1::scheduler::Call::SUBSCRIBE);
+    call.mutable_subscribe()->mutable_framework_info()
+      ->CopyFrom(v1::DEFAULT_FRAMEWORK_INFO);
+
+    schedulerLibrary->send(call);
+  }
+
+  AWAIT_READY(schedulerSubscribed);
+
+  const v1::FrameworkID& frameworkId = schedulerSubscribed->framework_id();
+
+  // Advance the clock and trigger a batch allocation.
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+
+  // Launch the mock executor through a `LAUNCH` operation.
+  {
+    v1::scheduler::Call call;
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+    call.set_type(v1::scheduler::Call::ACCEPT);
+    call.mutable_accept()->add_offer_ids()->CopyFrom(offers->offers(0).id());
+
+    v1::Offer::Operation* operation = call.mutable_accept()->add_operations();
+    operation->set_type(v1::Offer::Operation::LAUNCH);
+    operation->mutable_launch()->add_task_infos()->CopyFrom(
+        v1::createTask(offers->offers(0), "hello", v1::DEFAULT_EXECUTOR_ID));
+
+    schedulerLibrary->send(call);
+  }
+
+  AWAIT_READY(executorLibrary);
+
+  {
+    v1::executor::Call call;
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+    call.mutable_executor_id()->CopyFrom(v1::DEFAULT_EXECUTOR_ID);
+    call.set_type(v1::executor::Call::SUBSCRIBE);
+    call.mutable_subscribe();
+
+    executorLibrary.get()->send(call);
+  }
+
+  AWAIT_READY(executorSubscribed);
+
+  // Shutdown the master.
+  master->reset();
+
+  // Fail over the framework and ensure that no more callback will be made to
+  // the scheduler.
+  schedulerLibrary.reset();
+  Clock::settle();
+
+  // Restart the master.
+  master = StartMaster(masterFlags);
+
+  ASSERT_SOME(master);
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), master.get()->pid, _);
+
+  detector.appoint(master.get()->pid);
+
+  // Advance the clock to trigger agent reregistration.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(slaveReregisteredMessage);
+
+  // Validate that the framework is recovered through agent reregistration.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "state",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_ASSERT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_ASSERT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> state = JSON::parse<JSON::Object>(response.get().body);
+    ASSERT_SOME(state);
+    ASSERT_EQ(1u, state->values["frameworks"].as<JSON::Array>().values.size());
+
+    const JSON::Object& framework =
+      state->values.at("frameworks").as<JSON::Array>()
+      .values.at(0).as<JSON::Object>();
+
+    EXPECT_EQ(
+        frameworkId.value(),
+        framework.values.at("id").as<JSON::String>().value);
+
+    EXPECT_FALSE(framework.values.at("active").as<JSON::Boolean>().value);
+    EXPECT_FALSE(framework.values.at("connected").as<JSON::Boolean>().value);
+    EXPECT_TRUE(framework.values.at("recovered").as<JSON::Boolean>().value);
+  }
+
+  Future<ExecutorToFrameworkMessage> executorMessage =
+    FUTURE_PROTOBUF(ExecutorToFrameworkMessage(), _, master.get()->pid);
+
+  // Send an executor -> framework message to trigger the
+  // `Master::executorMessage` handler.
+  {
+    v1::executor::Call call;
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+    call.mutable_executor_id()->CopyFrom(v1::DEFAULT_EXECUTOR_ID);
+    call.set_type(v1::executor::Call::MESSAGE);
+    call.mutable_message()->set_data("world");
+
+    executorLibrary.get()->send(call);
+  }
+
+  AWAIT_READY(executorMessage);
+
+  // Wait for the `Master::executorMessage` handler to finish.
+  Clock::settle();
+}
+
+
 // This test verifies that a framework that has not yet reregistered
 // after a master failover doesn't show up multiple times in
 // "frameworks" when querying "/state" or "/frameworks" endpoints. This
