@@ -2591,21 +2591,35 @@ private:
 template <typename Message>
 void Framework::send(const Message& message)
 {
-  if (!connected()) {
-    LOG(WARNING) << "Master attempted to send message to disconnected"
-                 << " framework " << *this;
-  }
-
   metrics.incrementEvent(message);
+
+  if (!connected()) {
+    LOG(WARNING) << "Master attempting to send message to disconnected"
+                 << " framework " << *this;
+
+    // NOTE: We proceed here without returning to support the case where a
+    // "disconnected" framework is still talking to the master and the master
+    // wants to shut it down by sending a `FrameworkErrorMessage`. This can
+    // occur in a one-way network partition where the master -> framework link
+    // is broken but the framework -> master link remains intact. Note that we
+    // have no periodic heartbeats between the master and pid-based schedulers.
+    //
+    // TODO(chhsiao): Update the `FrameworkErrorMessage` call-sites that rely on
+    // the lack of a `return` here to directly call `process::send` so that this
+    // function doesn't need to deal with the special case. Then we can check
+    // that one of `http` or `pid` is set if the framework is connected.
+  }
 
   if (http.isSome()) {
     if (!http->send(message)) {
-      LOG(WARNING) << "Unable to send event to framework " << *this << ":"
+      LOG(WARNING) << "Unable to send message to framework " << *this << ":"
                    << " connection closed";
     }
-  } else {
-    CHECK_SOME(pid);
+  } else if (pid.isSome()) {
     master->send(pid.get(), message);
+  } else {
+    LOG(WARNING) << "Unable to send message to framework " << *this << ":"
+                 << " framework is recovered but has not reregistered";
   }
 }
 
