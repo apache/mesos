@@ -3276,6 +3276,7 @@ message CgroupInfo {
       WRITE = 3;
       SYNC = 4;
       ASYNC = 5;
+      DISCARD = 6;
     }
 
     // Describes a stat value without the device descriptor part.
