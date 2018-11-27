@@ -461,6 +461,7 @@ enum class Operation {
   WRITE,
   SYNC,
   ASYNC,
+  DISCARD,
 };
 
 
@@ -646,6 +647,8 @@ inline std::ostream& operator<<(std::ostream& stream, const Operation op)
       return stream << "Sync";
     case Operation::ASYNC:
       return stream << "Async";
+    case Operation::DISCARD:
+      return stream << "Discard";
   }
 
   UNREACHABLE();
