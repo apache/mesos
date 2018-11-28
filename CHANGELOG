@@ -426,6 +426,7 @@ Release Notes - Mesos - Version 1.6.2 (WIP)
   * [MESOS-9332] - Nested container should run as the same user of its parent container by default.
   * [MESOS-9334] - Container stuck at ISOLATING state due to libevent poll never returns.
   * [MESOS-9418] - Add support for the `Discard` blkio operation type.
+  * [MESOS-9419] - Executor to framework message crashes master if framework has not re-registered.
 
 ** Improvement
   * [MESOS-9305] - Create cgoup recursively to workaround systemd deleting cgroups_root.
