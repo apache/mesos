@@ -3884,8 +3884,6 @@ TEST_F(MasterTest, ExecutorMessageToRecoveredHttpFramework)
 
   // Register an HTTP framework to launch the mock executor.
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
-  Owned<v1::scheduler::TestMesos> schedulerLibrary(new v1::scheduler::TestMesos(
-      master.get()->pid, ContentType::PROTOBUF, scheduler));
 
   Future<Nothing> schedulerConnected;
   EXPECT_CALL(*scheduler, connected(_))
@@ -3906,6 +3904,9 @@ TEST_F(MasterTest, ExecutorMessageToRecoveredHttpFramework)
 
   EXPECT_CALL(*scheduler, disconnected(_))
     .Times(AtMost(1));
+
+  Owned<v1::scheduler::TestMesos> schedulerLibrary(new v1::scheduler::TestMesos(
+      master.get()->pid, ContentType::PROTOBUF, scheduler));
 
   AWAIT_READY(schedulerConnected);
 
