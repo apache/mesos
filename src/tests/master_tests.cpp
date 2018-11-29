@@ -3992,7 +3992,7 @@ TEST_F(MasterTest, ExecutorMessageToRecoveredHttpFramework)
     AWAIT_ASSERT_RESPONSE_STATUS_EQ(OK().status, response);
     AWAIT_ASSERT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
 
-    Try<JSON::Object> state = JSON::parse<JSON::Object>(response.get().body);
+    Try<JSON::Object> state = JSON::parse<JSON::Object>(response->body);
     ASSERT_SOME(state);
     ASSERT_EQ(1u, state->values["frameworks"].as<JSON::Array>().values.size());
 
