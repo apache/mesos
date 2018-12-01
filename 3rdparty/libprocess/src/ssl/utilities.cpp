@@ -349,6 +349,7 @@ Try<std::string> generate_hmac_sha256(
   const std::string& key)
 {
   unsigned int md_len = 0;
+  unsigned char buffer[EVP_MAX_MD_SIZE] = {0};
 
   unsigned char* rc = HMAC(
       EVP_sha256(),
@@ -356,7 +357,7 @@ Try<std::string> generate_hmac_sha256(
       key.size(),
       reinterpret_cast<const unsigned char*>(message.data()),
       message.size(),
-      nullptr,
+      buffer,
       &md_len);
 
   if (rc == nullptr) {
@@ -366,7 +367,7 @@ Try<std::string> generate_hmac_sha256(
         "HMAC failed" + (reason == nullptr ? "" : ": " + std::string(reason)));
   }
 
-  return std::string(reinterpret_cast<char*>(rc), md_len);
+  return std::string(reinterpret_cast<char*>(buffer), md_len);
 }
 
 } // namespace openssl {
