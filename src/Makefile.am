@@ -1758,7 +1758,7 @@ MESOS_CLI_HIDDEN_IMPORTS =					\
 			   $(MESOS_CLI_SRCDIR)/lib/cli/plugins	\
 			     -mindepth 1 -maxdepth 1 -type d)))
 
-mesos: $(shell find $(MESOS_CLI_SRCDIR) | grep -v .virtualenv)
+mesos: $(shell git ls-files $(MESOS_CLI_SRCDIR))
 	@echo "Building the CLI ..."
 	VIRTUALENV_DIRECTORY=$(builddir)/.virtualenv	\
 	PYTHON=$(PYTHON_3)				\
