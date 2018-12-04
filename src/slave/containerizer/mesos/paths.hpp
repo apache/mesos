@@ -54,6 +54,7 @@ namespace paths {
 //           |   |   |-- <more nesting of containers>
 //           |   |-- pid
 //           |   |-- ...
+//           |-- devices
 //           |-- force_destroy_on_recovery
 //           |-- io_switchboard
 //           |   |-- pid
@@ -108,8 +109,11 @@ std::string getRuntimePath(
     const ContainerID& containerId);
 
 
-// Given a `runtimeDir`, construct a unique directory to store
-// per-container device nodes.
+// Given a `runtimeDir`, construct a unique directory to stage
+// per-container device nodes. This directory is initially created
+// and  populated by the `filesystem/linux` isolator. Any subsequent
+// isolators may add devices to this directory and bind mount them
+// into the container.
 std::string getContainerDevicesPath(
     const std::string& runtimeDir,
     const ContainerID& containerId);
