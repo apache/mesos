@@ -438,8 +438,6 @@ static Try<Nothing> prepareMounts(const ContainerLaunchInfo& launchInfo)
           "Failed to mount '" + stringify(JSON::protobuf(mount)) +
           "': " + mnt.error());
     }
-
-    cerr << "Prepared mount '" << JSON::protobuf(mount) << "'" << endl;
   }
 #endif // __linux__
 
