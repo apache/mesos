@@ -38,7 +38,6 @@ extern "C" {
 #include <stout/adaptor.hpp>
 #include <stout/check.hpp>
 #include <stout/error.hpp>
-#include <stout/fs.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
 #include <stout/numify.hpp>
@@ -630,21 +629,13 @@ Try<Nothing> pivot_root(
 
 namespace chroot {
 
-namespace internal {
-
-// Make the source device node appear at the target path. We prefer to
-// `mknod` the device node since that avoids an otherwise unnecessary
-// mount table entry. The `mknod` can fail if we are in a user namespace
-// or if the devices cgroup is restricting that device. In that case, we
-// bind mount the device to the target path.
-Try<Nothing> importDeviceNode(const string& source, const string& target)
+Try<Nothing> copyDeviceNode(
+    const std::string& source,
+    const std::string& target)
 {
-  // We are likely to be operating in a multi-threaded environment so
-  // it's not safe to change the umask. Instead, we'll explicitly set
-  // permissions after we create the device node.
   Try<mode_t> mode = os::stat::mode(source);
   if (mode.isError()) {
-    return Error("Failed to source mode: " + mode.error());
+    return Error("Failed to get source mode: " + mode.error());
   }
 
   Try<dev_t> dev = os::stat::rdev(source);
@@ -652,284 +643,21 @@ Try<Nothing> importDeviceNode(const string& source, const string& target)
     return Error("Failed to get source dev: " + dev.error());
   }
 
+  Try<Nothing> mkdir = os::mkdir(Path(target).dirname());
+  if (mkdir.isError()) {
+    return Error(
+        "Failed to create parent directory for device '" +
+        target + "': " + mkdir.error());
+  }
+
   Try<Nothing> mknod = os::mknod(target, mode.get(), dev.get());
-  if (mknod.isSome()) {
-    Try<Nothing> chmod = os::chmod(target, mode.get());
-    if (chmod.isError()) {
-      return Error("Failed to chmod device: " + chmod.error());
-    }
-
-    return Nothing();
+  if (mknod.isError()) {
+    return Error("Failed to mknod device '" + target + "': " + mknod.error());
   }
 
-  Try<Nothing> touch = os::touch(target);
-  if (touch.isError()) {
-    return Error("Failed to create device mount point: " + touch.error());
-  }
-
-  Try<Nothing> mnt = fs::mount(source, target, None(), MS_BIND, None());
-  if (mnt.isError()) {
-    return Error("Failed to bind device: " + touch.error());
-  }
-
-  return Nothing();
-}
-
-
-// Some helpful types.
-struct Mount
-{
-  Option<string> source;
-  string target;
-  Option<string> type;
-  Option<string> options;
-  unsigned long flags;
-};
-
-struct SymLink
-{
-  string original;
-  string link;
-};
-
-
-Try<Nothing> mountSpecialFilesystems(const string& root)
-{
-  // List of special filesystems useful for a chroot environment.
-  // NOTE: This list is ordered, e.g., mount /proc before bind
-  // mounting /proc/sys and then making it read-only.
-  //
-  // TODO(jasonlai): These special filesystem mount points need to be
-  // bind-mounted prior to all other mount points specified in
-  // `ContainerLaunchInfo`.
-  //
-  // One example of the known issues caused by this behavior is:
-  // https://issues.apache.org/jira/browse/MESOS-6798
-  // There will be follow-up efforts on moving the logic below to
-  // proper isolators.
-  //
-  // TODO(jasonlai): Consider adding knobs to allow write access to
-  // those system files if configured by the operator.
-  static const vector<Mount> mounts = {
-    {
-      "proc",
-      "/proc",
-      "proc",
-      None(),
-      MS_NOSUID | MS_NOEXEC | MS_NODEV
-    },
-    {
-      "/proc/bus",
-      "/proc/bus",
-      None(),
-      None(),
-      MS_BIND | MS_RDONLY | MS_NOSUID | MS_NOEXEC | MS_NODEV
-    },
-    {
-      "/proc/fs",
-      "/proc/fs",
-      None(),
-      None(),
-      MS_BIND | MS_RDONLY | MS_NOSUID | MS_NOEXEC | MS_NODEV
-    },
-    {
-      "/proc/irq",
-      "/proc/irq",
-      None(),
-      None(),
-      MS_BIND | MS_RDONLY | MS_NOSUID | MS_NOEXEC | MS_NODEV
-    },
-    {
-      "/proc/sys",
-      "/proc/sys",
-      None(),
-      None(),
-      MS_BIND | MS_RDONLY | MS_NOSUID | MS_NOEXEC | MS_NODEV
-    },
-    {
-      "/proc/sysrq-trigger",
-      "/proc/sysrq-trigger",
-      None(),
-      None(),
-      MS_BIND | MS_RDONLY | MS_NOSUID | MS_NOEXEC | MS_NODEV
-    },
-    {
-      "sysfs",
-      "/sys",
-      "sysfs",
-      None(),
-      MS_RDONLY | MS_NOSUID | MS_NOEXEC | MS_NODEV
-    },
-    {
-      "tmpfs",
-      "/sys/fs/cgroup",
-      "tmpfs",
-      "mode=755",
-      MS_NOSUID | MS_NOEXEC | MS_NODEV
-    },
-    {
-      "tmpfs",
-      "/dev",
-      "tmpfs",
-      "mode=755",
-      MS_NOSUID | MS_STRICTATIME | MS_NOEXEC
-    },
-    // We mount devpts with the gid=5 option because the `tty` group is
-    // GID 5 on all standard Linux distributions. The glibc grantpt(3)
-    // API ensures that the terminal GID is that of the `tty` group, and
-    // invokes a privileged helper if necessary. Since the helper won't
-    // work in all container configurations (since it may not be possible
-    // to acquire the necessary privileges), mounting with the right `gid`
-    // option avoids any possible failure.
-    {
-      "devpts",
-      "/dev/pts",
-      "devpts",
-      "newinstance,ptmxmode=0666,mode=0620,gid=5",
-      MS_NOSUID | MS_NOEXEC
-    },
-    {
-      "tmpfs",
-      "/dev/shm",
-      "tmpfs",
-      "mode=1777",
-      MS_NOSUID | MS_NODEV | MS_STRICTATIME
-    },
-  };
-
-  foreach (const Mount& mount, mounts) {
-    // Target is always under the new root.
-    const string target = path::join(root, mount.target);
-
-    // Try to create the mount point, if it doesn't already exist.
-    if (!os::exists(target)) {
-      Try<Nothing> mkdir = os::mkdir(target);
-
-      if (mkdir.isError()) {
-        return Error("Failed to create mount point '" + target +
-                     "': " + mkdir.error());
-      }
-    }
-
-    // If source is a path, e.g,. for a bind mount, then it needs to
-    // be prefixed by the new root.
-    Option<string> source;
-    if (mount.source.isSome() && strings::startsWith(mount.source.get(), "/")) {
-      source = path::join(root, mount.source.get());
-    } else {
-      source = mount.source;
-    }
-
-    Try<Nothing> mnt = fs::mount(
-        source,
-        target,
-        mount.type,
-        mount.flags,
-        mount.options);
-
-    if (mnt.isError()) {
-      return Error("Failed to mount '" + target + "': " + mnt.error());
-    }
-  }
-
-  return Nothing();
-}
-
-
-Try<Nothing> createStandardDevices(const string& root)
-{
-  // List of standard devices useful for a chroot environment.
-  // TODO(idownes): Make this list configurable.
-  vector<string> devices = {
-    "full",
-    "null",
-    "random",
-    "tty",
-    "urandom",
-    "zero"
-  };
-
-  // Glob all Nvidia GPU devices on the system and add them to the
-  // list of devices injected into the chroot environment.
-  //
-  // TODO(klueska): Only inject these devices if the 'gpu/nvidia'
-  // isolator is enabled.
-  Try<list<string>> nvidia = os::glob("/dev/nvidia*");
-  if (nvidia.isError()) {
-    return Error("Failed to glob /dev/nvidia* on the host filesystem:"
-                 " " + nvidia.error());
-  }
-
-  foreach (const string& device, nvidia.get()) {
-    if (os::exists(device)) {
-      devices.push_back(Path(device).basename());
-    }
-  }
-
-  // Import each device into the chroot environment. Copy both the
-  // mode and the device itself from the corresponding host device.
-  foreach (const string& device, devices) {
-    Try<Nothing> import = importDeviceNode(
-        path::join("/",  "dev", device),
-        path::join(root, "dev", device));
-
-    if (import.isError()) {
-      return Error(
-          "Failed to import device '" + device + "': " + import.error());
-    }
-  }
-
-  const vector<SymLink> symlinks = {
-    {"/proc/self/fd",   path::join(root, "dev", "fd")},
-    {"/proc/self/fd/0", path::join(root, "dev", "stdin")},
-    {"/proc/self/fd/1", path::join(root, "dev", "stdout")},
-    {"/proc/self/fd/2", path::join(root, "dev", "stderr")},
-    {"pts/ptmx",        path::join(root, "dev", "ptmx")}
-  };
-
-  foreach (const SymLink& symlink, symlinks) {
-    Try<Nothing> link = ::fs::symlink(symlink.original, symlink.link);
-    if (link.isError()) {
-      return Error("Failed to symlink '" + symlink.original +
-                   "' to '" + symlink.link + "': " + link.error());
-    }
-  }
-
-  // TODO(idownes): Set up console device.
-  return Nothing();
-}
-
-} // namespace internal {
-
-
-// TODO(idownes): Add unit test.
-Try<Nothing> prepare(const string& root)
-{
-  // Recursively mark current mounts as slaves to prevent propagation.
-  Try<Nothing> mount =
-    fs::mount(None(), "/", None(), MS_REC | MS_SLAVE, nullptr);
-
-  if (mount.isError()) {
-    return Error("Failed to make slave mounts: " + mount.error());
-  }
-
-  // Bind mount 'root' itself. This is because pivot_root requires
-  // 'root' to be not on the same filesystem as process' current root.
-  mount = fs::mount(root, root, None(), MS_REC | MS_BIND, nullptr);
-  if (mount.isError()) {
-    return Error("Failed to bind mount root itself: " + mount.error());
-  }
-
-  // Mount special filesystems.
-  mount = internal::mountSpecialFilesystems(root);
-  if (mount.isError()) {
-    return Error("Failed to mount: " + mount.error());
-  }
-
-  // Create basic device nodes.
-  Try<Nothing> create = internal::createStandardDevices(root);
-  if (create.isError()) {
-    return Error("Failed to create devices: " + create.error());
+  Try<Nothing> chmod = os::chmod(target, mode.get());
+  if (chmod.isError()) {
+    return Error("Failed to chmod device '" + target + "': " + chmod.error());
   }
 
   return Nothing();

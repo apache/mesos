@@ -114,6 +114,7 @@ private:
       const std::map<Path, cgroups::devices::Entry>& _controlDeviceEntries);
 
   virtual process::Future<Option<mesos::slave::ContainerLaunchInfo>> _prepare(
+      const ContainerID& containerId,
       const mesos::slave::ContainerConfig& containerConfig);
 
   process::Future<Nothing> _update(

@@ -339,6 +339,27 @@ mesos::slave::ContainerState createContainerState(
     pid_t pid,
     const std::string& directory);
 
+
+mesos::slave::ContainerMountInfo createContainerMount(
+    const std::string& source,
+    const std::string& target,
+    unsigned long flags);
+
+
+mesos::slave::ContainerMountInfo createContainerMount(
+    const std::string& source,
+    const std::string& target,
+    const std::string& type,
+    unsigned long flags);
+
+
+mesos::slave::ContainerMountInfo createContainerMount(
+    const std::string& source,
+    const std::string& target,
+    const std::string& type,
+    const std::string& options,
+    unsigned long flags);
+
 } // namespace slave {
 
 namespace maintenance {

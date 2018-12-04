@@ -19,6 +19,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <utility>
 
 #include <glog/logging.h>
 
@@ -30,6 +31,7 @@
 #include <stout/adaptor.hpp>
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
+#include <stout/fs.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/stringify.hpp>
@@ -38,6 +40,8 @@
 #include <stout/os/shell.hpp>
 #include <stout/os/strerror.hpp>
 #include <stout/os/realpath.hpp>
+
+#include "common/protobuf_utils.hpp"
 
 #include "linux/fs.hpp"
 #include "linux/ns.hpp"
@@ -52,20 +56,195 @@
 using namespace process;
 
 using std::ostringstream;
+using std::pair;
 using std::string;
 using std::vector;
 
+using mesos::internal::protobuf::slave::createContainerMount;
+
 using mesos::slave::ContainerClass;
 using mesos::slave::ContainerConfig;
-using mesos::slave::ContainerState;
 using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::ContainerLimitation;
 using mesos::slave::ContainerMountInfo;
+using mesos::slave::ContainerState;
 using mesos::slave::Isolator;
 
 namespace mesos {
 namespace internal {
 namespace slave {
+
+// List of special filesystems useful for a chroot environment.
+// NOTE: This list is ordered, e.g., mount /proc before bind
+// mounting /proc/sys.
+//
+// TODO(jasonlai): These special filesystem mount points need to be
+// bind-mounted prior to all other mount points specified in
+// `ContainerLaunchInfo`.
+//
+// One example of the known issues caused by this behavior is:
+// https://issues.apache.org/jira/browse/MESOS-6798
+// There will be follow-up efforts on moving the logic below to
+// proper isolators.
+//
+// TODO(jasonlai): Consider adding knobs to allow write access to
+// those system files if configured by the operator.
+static const ContainerMountInfo ROOTFS_CONTAINER_MOUNTS[] = {
+  createContainerMount(
+      "proc",
+      "/proc",
+      "proc",
+      MS_NOSUID | MS_NOEXEC | MS_NODEV),
+  createContainerMount(
+      "/proc/bus",
+      "/proc/bus",
+      MS_BIND | MS_RDONLY | MS_NOSUID | MS_NOEXEC | MS_NODEV),
+  createContainerMount(
+      "/proc/fs",
+      "/proc/fs",
+      MS_BIND | MS_RDONLY | MS_NOSUID | MS_NOEXEC | MS_NODEV),
+  createContainerMount(
+      "/proc/irq",
+      "/proc/irq",
+      MS_BIND | MS_RDONLY | MS_NOSUID | MS_NOEXEC | MS_NODEV),
+  createContainerMount(
+      "/proc/sys",
+      "/proc/sys",
+      MS_BIND | MS_RDONLY | MS_NOSUID | MS_NOEXEC | MS_NODEV),
+  createContainerMount(
+      "/proc/sysrq-trigger",
+      "/proc/sysrq-trigger",
+      MS_BIND | MS_RDONLY | MS_NOSUID | MS_NOEXEC | MS_NODEV),
+  createContainerMount(
+      "sysfs",
+      "/sys",
+      "sysfs",
+      MS_RDONLY | MS_NOSUID | MS_NOEXEC | MS_NODEV),
+  createContainerMount(
+      "tmpfs",
+      "/sys/fs/cgroup",
+      "tmpfs",
+      "mode=755",
+      MS_NOSUID | MS_NOEXEC | MS_NODEV),
+  createContainerMount(
+      "tmpfs",
+      "/dev",
+      "tmpfs",
+      "mode=755",
+      MS_NOSUID | MS_NOEXEC | MS_STRICTATIME),
+  // We mount devpts with the gid=5 option because the `tty` group is
+  // GID 5 on all standard Linux distributions. The glibc grantpt(3)
+  // API ensures that the terminal GID is that of the `tty` group, and
+  // invokes a privileged helper if necessary. Since the helper won't
+  // work in all container configurations (since it may not be possible
+  // to acquire the necessary privileges), mounting with the right `gid`
+  // option avoids any possible failure.
+  createContainerMount(
+      "devpts",
+      "/dev/pts",
+      "devpts",
+      "newinstance,ptmxmode=0666,mode=0620,gid=5",
+      MS_NOSUID | MS_NOEXEC),
+  createContainerMount(
+      "tmpfs",
+      "/dev/shm",
+      "tmpfs",
+      "mode=1777",
+      MS_NOSUID | MS_NODEV | MS_STRICTATIME),
+};
+
+
+static Try<Nothing> makeStandardDevices(
+    const string& devicesDir,
+    const string& rootDir,
+    ContainerLaunchInfo& launchInfo)
+{
+  // List of standard devices useful for a chroot environment.
+  // TODO(idownes): Make this list configurable.
+  const vector<string> devices = {
+    "full",
+    "null",
+    "random",
+    "tty",
+    "urandom",
+    "zero"
+  };
+
+  // Import each device into the chroot environment. Copy both the
+  // mode and the device itself from the corresponding host device.
+  foreach (const string& device, devices) {
+    Try<Nothing> mknod = fs::chroot::copyDeviceNode(
+        path::join("/",  "dev", device),
+        path::join(devicesDir, device));
+
+    if (mknod.isError()) {
+      return Error(
+          "Failed to import device '" + device + "': " + mknod.error());
+    }
+
+    // Bind mount from the devices directory into the rootfs.
+    *launchInfo.add_mounts() = createContainerMount(
+        path::join(devicesDir, device),
+        path::join(rootDir, "dev", device),
+        MS_BIND);
+  }
+
+  const vector<pair<string, string>> symlinks = {
+    {"/proc/self/fd",   path::join(rootDir, "dev", "fd")},
+    {"/proc/self/fd/0", path::join(rootDir, "dev", "stdin")},
+    {"/proc/self/fd/1", path::join(rootDir, "dev", "stdout")},
+    {"/proc/self/fd/2", path::join(rootDir, "dev", "stderr")},
+    {"pts/ptmx",        path::join(rootDir, "dev", "ptmx")}
+  };
+
+  foreach (const auto& symlink, symlinks) {
+    CommandInfo* ln = launchInfo.add_pre_exec_commands();
+    ln->set_shell(false);
+    ln->set_value("ln");
+    ln->add_arguments("ln");
+    ln->add_arguments("-s");
+    ln->add_arguments(symlink.first);
+    ln->add_arguments(symlink.second);
+  }
+
+  // TODO(idownes): Set up console device.
+  return Nothing();
+}
+
+
+static Try<Nothing> makeDevicesDir(
+    const string& devicesDir,
+    const Option<string>& username)
+{
+  Try<Nothing> mkdir = os::mkdir(devicesDir);
+  if (mkdir.isError()) {
+    return Error(
+        "Failed to create container devices directory: " + mkdir.error());
+  }
+
+  Try<Nothing> chmod = os::chmod(devicesDir, 0700);
+  if (chmod.isError()) {
+    return Error(
+        "Failed to set container devices directory permissions: " +
+        chmod.error());
+  }
+
+  // We need to restrict access to the devices directory so that all
+  // processes on the system don't get access to devices that we make
+  // read-write. This means that we have to chown to ensure that the
+  // container user still has access.
+  if (username.isSome()) {
+    Try<Nothing> chown = os::chown(username.get(), devicesDir);
+    if (chown.isError()) {
+      return Error(
+          "Failed to set '" + username.get() + "' "
+          "as the container devices directory owner: " + chown.error());
+    }
+  }
+
+  return Nothing();
+}
+
 
 Try<Isolator*> LinuxFilesystemIsolatorProcess::create(const Flags& flags)
 {
@@ -375,26 +554,68 @@ Future<Option<ContainerLaunchInfo>> LinuxFilesystemIsolatorProcess::prepare(
   ContainerLaunchInfo launchInfo;
   launchInfo.add_clone_namespaces(CLONE_NEWNS);
 
-  // Bind mount the sandbox if the container specifies a rootfs.
   if (containerConfig.has_rootfs()) {
-    string sandbox = path::join(
+    // Set up the container devices directory.
+    const string devicesDir = containerizer::paths::getContainerDevicesPath(
+        flags.runtime_dir, containerId);
+
+    CHECK(!os::exists(devicesDir));
+
+    Try<Nothing> mkdir = makeDevicesDir(
+        devicesDir,
+        containerConfig.has_user() ? containerConfig.user()
+                                   : Option<string>::none());
+    if (mkdir.isError()) {
+      return Failure(
+          "Failed to create container devices directory: " + mkdir.error());
+    }
+
+    // Bind mount 'root' itself. This is because pivot_root requires
+    // 'root' to be not on the same filesystem as process' current root.
+    *launchInfo.add_mounts() = createContainerMount(
+        containerConfig.rootfs(),
+        containerConfig.rootfs(),
+        MS_REC | MS_BIND);
+
+    foreach (const ContainerMountInfo& mnt, ROOTFS_CONTAINER_MOUNTS) {
+      // The target for special mounts must always be an absolute path.
+      CHECK(path::absolute(mnt.target()));
+
+      ContainerMountInfo* info = launchInfo.add_mounts();
+
+      *info = mnt;
+      info->set_target(path::join(containerConfig.rootfs(), mnt.target()));
+
+      // Absolute path mounts are always relative to the container root.
+      if (mnt.has_source() && path::absolute(mnt.source())) {
+        info->set_source(path::join(containerConfig.rootfs(), info->source()));
+      }
+    }
+
+    Try<Nothing> makedev =
+      makeStandardDevices(devicesDir, containerConfig.rootfs(), launchInfo);
+    if (makedev.isError()) {
+      return Failure(
+          "Failed to prepare standard devices: " + makedev.error());
+    }
+
+    // Bind mount the sandbox if the container specifies a rootfs.
+    const string sandbox = path::join(
         containerConfig.rootfs(),
         flags.sandbox_directory);
 
     // If the rootfs is a read-only filesystem (e.g., using the bind
     // backend), the sandbox must be already exist. Please see the
     // comments in 'provisioner/backend.hpp' for details.
-    Try<Nothing> mkdir = os::mkdir(sandbox);
+    mkdir = os::mkdir(sandbox);
     if (mkdir.isError()) {
       return Failure(
           "Failed to create sandbox mount point at '" +
           sandbox + "': " + mkdir.error());
     }
 
-    ContainerMountInfo* mount = launchInfo.add_mounts();
-    mount->set_source(containerConfig.directory());
-    mount->set_target(sandbox);
-    mount->set_flags(MS_BIND | MS_REC);
+    *launchInfo.add_mounts() = createContainerMount(
+        containerConfig.directory(), sandbox, MS_BIND | MS_REC);
   }
 
   // Currently, we only need to update resources for top level containers.

@@ -26,6 +26,8 @@
 
 #include <stout/os/posix/chown.hpp>
 
+#include "common/protobuf_utils.hpp"
+
 #include "slave/containerizer/mesos/paths.hpp"
 
 using process::Failure;
@@ -152,29 +154,11 @@ Future<Option<ContainerLaunchInfo>> LinuxDevicesIsolatorProcess::prepare(
   const string devicesDir = containerizer::paths::getContainerDevicesPath(
       runtimeDirectory, containerId);
 
-  Try<Nothing> mkdir = os::mkdir(devicesDir);
-  if (mkdir.isError()) {
-    return Failure(
-        "Failed to create container devices directory: " + mkdir.error());
-  }
-
-  Try<Nothing> chmod = os::chmod(devicesDir, 0700);
-  if (chmod.isError()) {
-    return Failure("Failed to set container devices directory permissions: " +
-                   chmod.error());
-  }
-
-  // We need to restrict access to the devices directory so that all
-  // processes on the system don't get access to devices that we make
-  // read-write. This means that we have to chown to ensure that the
-  // container user still has access.
-  if (containerConfig.has_user()) {
-    Try<Nothing> chown = os::chown(containerConfig.user(), devicesDir);
-    if (chown.isError()) {
-      return Failure(
-          "Failed to set '" + containerConfig.user() + "' "
-          "as the container devices directory owner: " + chown.error());
-    }
+  // The `filesystem/linux` isolator is responsible for creating the
+  // devices directory and ordered to run before we do. Here, we can
+  // just assert that the devices directory is still present.
+  if (!os::exists(devicesDir)) {
+    return Failure("Missing container devices directory '" + devicesDir + "'");
   }
 
   // Import the whitelisted devices to all containers.
@@ -202,10 +186,10 @@ Future<Option<ContainerLaunchInfo>> LinuxDevicesIsolatorProcess::prepare(
           "Failed to chmod device '" + devicePath + "': " + chmod.error());
     }
 
-    ContainerMountInfo* mount = launchInfo.add_mounts();
-    mount->set_source(devicePath);
-    mount->set_target(path::join(containerConfig.rootfs(), "dev", path));
-    mount->set_flags(MS_BIND);
+    *launchInfo.add_mounts() = protobuf::slave::createContainerMount(
+        devicePath,
+        path::join(containerConfig.rootfs(), "dev", path),
+        MS_BIND);
   }
 
   // TODO(jpeach) Define Task API to let schedulers specify the container

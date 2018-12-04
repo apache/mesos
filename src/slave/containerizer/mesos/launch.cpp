@@ -410,9 +410,14 @@ static Try<Nothing> prepareMounts(const ContainerLaunchInfo& launchInfo)
         }
       }
 
-      Try<Nothing> target = os::stat::isdir(mount.source())
-        ? os::mkdir(mount.target())
-        : os::touch(mount.target());
+      // The mount source could be a file, a directory, or a Linux
+      // pseudo-filesystem. In the last case, the target must be a
+      // directory, so if the source doesn't exist, we default to
+      // mounting on a directory.
+      Try<Nothing> target =
+        (!os::exists(mount.source()) || os::stat::isdir(mount.source()))
+          ? os::mkdir(mount.target())
+          : os::touch(mount.target());
 
       if (target.isError()) {
         return Error(
@@ -456,37 +461,6 @@ static Try<Nothing> installResourceLimits(const RLimitInfo& limits)
           set.error());
     }
   }
-
-  return Nothing();
-#endif // __WINDOWS__
-}
-
-
-static Try<Nothing> prepareChroot(const string& rootfs)
-{
-#ifdef __WINDOWS__
-  return Error("Changing rootfs is not supported on Windows");
-#else
-  // Verify that rootfs is an absolute path.
-  Result<string> realpath = os::realpath(rootfs);
-  if (realpath.isError()) {
-    return Error(
-        "Failed to determine if rootfs '" + rootfs +
-        "' is an absolute path: " + realpath.error());
-  } else if (realpath.isNone()) {
-    return Error("Rootfs path '" + rootfs + "' does not exist");
-  } else if (realpath.get() != rootfs) {
-    return Error("Rootfs path '" + rootfs + "' is not an absolute path");
-  }
-
-#ifdef __linux__
-  Try<Nothing> prepare = fs::chroot::prepare(rootfs);
-  if (prepare.isError()) {
-    return Error(
-        "Failed to prepare chroot '" + rootfs + "': " +
-        prepare.error());
-  }
-#endif // __linux__
 
   return Nothing();
 #endif // __WINDOWS__
@@ -695,18 +669,29 @@ int MesosContainerizerLaunch::execute()
   }
 #endif // __linux__
 
-  // Prepare root to a new root, if provided. Make sure that we do this before
-  // processing the container mounts so that container mounts can be made on
-  // top of the rootfs template.
+  // Verify that the rootfs is an absolute path.
   if (launchInfo.has_rootfs()) {
-    cerr << "Preparing rootfs at " << launchInfo.rootfs() << endl;
+    const string& rootfs = launchInfo.rootfs();
 
-    Try<Nothing> prepare = prepareChroot(launchInfo.rootfs());
+    cerr << "Preparing rootfs at '" << rootfs << "'" << endl;
 
-    if (prepare.isError()) {
-      cerr << prepare.error() << endl;
+    Result<string> realpath = os::realpath(rootfs);
+    if (realpath.isError()) {
+      cerr << "Failed to determine if rootfs '" << rootfs
+           << "' is an absolute path: " << realpath.error() << endl;
+      exitWithStatus(EXIT_FAILURE);
+    } else if (realpath.isNone()) {
+      cerr << "Rootfs path '" << rootfs << "' does not exist" << endl;
+      exitWithStatus(EXIT_FAILURE);
+    } else if (realpath.get() != rootfs) {
+      cerr << "Rootfs path '" << rootfs << "' is not an absolute path" << endl;
       exitWithStatus(EXIT_FAILURE);
     }
+
+#ifdef __WINDOWS__
+    cerr << "Changing rootfs is not supported on Windows";
+    exitWithStatus(EXIT_FAILURE);
+#endif // __WINDOWS__
   }
 
   Try<Nothing> mount = prepareMounts(launchInfo);

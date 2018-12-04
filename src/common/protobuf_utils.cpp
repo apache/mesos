@@ -67,6 +67,7 @@ using google::protobuf::RepeatedPtrField;
 using mesos::authorization::VIEW_ROLE;
 
 using mesos::slave::ContainerLimitation;
+using mesos::slave::ContainerMountInfo;
 using mesos::slave::ContainerState;
 
 using process::Owned;
@@ -1120,6 +1121,57 @@ ContainerState createContainerState(
   state.set_directory(directory);
 
   return state;
+}
+
+
+ContainerMountInfo createContainerMount(
+    const string& source,
+    const string& target,
+    unsigned long flags)
+{
+  ContainerMountInfo mnt;
+
+  mnt.set_source(source);
+  mnt.set_target(target);
+  mnt.set_flags(flags);
+
+  return mnt;
+}
+
+
+ContainerMountInfo createContainerMount(
+    const string& source,
+    const string& target,
+    const string& type,
+    unsigned long flags)
+{
+  ContainerMountInfo mnt;
+
+  mnt.set_source(source);
+  mnt.set_target(target);
+  mnt.set_type(type);
+  mnt.set_flags(flags);
+
+  return mnt;
+}
+
+
+ContainerMountInfo createContainerMount(
+    const string& source,
+    const string& target,
+    const string& type,
+    const string& options,
+    unsigned long flags)
+{
+  ContainerMountInfo mnt;
+
+  mnt.set_source(source);
+  mnt.set_target(target);
+  mnt.set_type(type);
+  mnt.set_options(options);
+  mnt.set_flags(flags);
+
+  return mnt;
 }
 
 } // namespace slave {

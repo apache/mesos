@@ -387,11 +387,10 @@ Try<Nothing> pivot_root(const std::string& newRoot, const std::string& putOld);
 
 namespace chroot {
 
-// Enter a 'chroot' environment. The caller should be in a new mount
-// namespace. Basic configuration of special filesystems and device
-// nodes is performed.
-Try<Nothing> prepare(const std::string& root);
-
+// Clone a device node to a target directory. Intermediate directory paths
+// are created in the target.
+Try<Nothing> copyDeviceNode(
+    const std::string& device, const std::string& target);
 
 //  Enter a 'chroot' environment. The caller should be in a new mount
 //  unmounted. The root path must have already been provisioned by

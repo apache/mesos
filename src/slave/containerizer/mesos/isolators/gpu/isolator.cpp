@@ -27,6 +27,7 @@ extern "C" {
 }
 
 #include <algorithm>
+#include <list>
 #include <map>
 #include <set>
 #include <string>
@@ -44,7 +45,10 @@ extern "C" {
 #include <stout/os.hpp>
 #include <stout/try.hpp>
 
+#include "common/protobuf_utils.hpp"
+
 #include "linux/cgroups.hpp"
+#include "linux/fs.hpp"
 
 #include "slave/flags.hpp"
 
@@ -57,6 +61,8 @@ extern "C" {
 #include "slave/containerizer/mesos/isolators/gpu/allocator.hpp"
 #include "slave/containerizer/mesos/isolators/gpu/isolator.hpp"
 #include "slave/containerizer/mesos/isolators/gpu/nvml.hpp"
+
+#include "slave/containerizer/mesos/paths.hpp"
 
 using cgroups::devices::Entry;
 
@@ -75,6 +81,7 @@ using process::Failure;
 using process::Future;
 using process::PID;
 
+using std::list;
 using std::map;
 using std::set;
 using std::string;
@@ -326,7 +333,7 @@ Future<Option<ContainerLaunchInfo>> NvidiaGpuIsolatorProcess::prepare(
     // mount the necessary Nvidia libraries into the container (since
     // we live in a different mount namespace than our parent). We
     // directly call `_prepare()` to do this for us.
-    return _prepare(containerConfig);
+    return _prepare(containerId, containerConfig);
   }
 
   if (infos.contains(containerId)) {
@@ -356,6 +363,7 @@ Future<Option<ContainerLaunchInfo>> NvidiaGpuIsolatorProcess::prepare(
   return update(containerId, containerConfig.resources())
     .then(defer(PID<NvidiaGpuIsolatorProcess>(this),
                 &NvidiaGpuIsolatorProcess::_prepare,
+                containerId,
                 containerConfig));
 }
 
@@ -364,6 +372,7 @@ Future<Option<ContainerLaunchInfo>> NvidiaGpuIsolatorProcess::prepare(
 // host file system, then we need to prepare a script to inject our
 // `NvidiaVolume` into the container (if required).
 Future<Option<ContainerLaunchInfo>> NvidiaGpuIsolatorProcess::_prepare(
+    const ContainerID& containerId,
     const mesos::slave::ContainerConfig& containerConfig)
 {
   if (!containerConfig.has_rootfs()) {
@@ -380,10 +389,6 @@ Future<Option<ContainerLaunchInfo>> NvidiaGpuIsolatorProcess::_prepare(
   ContainerLaunchInfo launchInfo;
 
   // Inject the Nvidia volume into the container.
-  //
-  // TODO(klueska): Inject the Nvidia devices here as well once we
-  // have a way to pass them to `fs:enter()` instead of hardcoding
-  // them in `fs::createStandardDevices()`.
   if (!containerConfig.docker().has_manifest()) {
      return Failure("The 'ContainerConfig' for docker is missing a manifest");
   }
@@ -402,10 +407,52 @@ Future<Option<ContainerLaunchInfo>> NvidiaGpuIsolatorProcess::_prepare(
           " '" + target + "': " + mkdir.error());
     }
 
-    ContainerMountInfo* mount = launchInfo.add_mounts();
-    mount->set_source(volume.HOST_PATH());
-    mount->set_target(target);
-    mount->set_flags(MS_RDONLY | MS_BIND | MS_REC);
+    *launchInfo.add_mounts() = protobuf::slave::createContainerMount(
+        volume.HOST_PATH(), target, MS_RDONLY | MS_BIND | MS_REC);
+  }
+
+  const string devicesDir = containerizer::paths::getContainerDevicesPath(
+      flags.runtime_dir, containerId);
+
+  // The `filesystem/linux` isolator is responsible for creating the
+  // devices directory and ordered to run before we do. Here, we can
+  // just assert that the devices directory is still present.
+  if (!os::exists(devicesDir)) {
+    return Failure("Missing container devices directory '" + devicesDir + "'");
+  }
+
+  // Glob all Nvidia GPU devices on the system and add them to the
+  // list of devices injected into the chroot environment.
+  Try<list<string>> nvidia = os::glob("/dev/nvidia*");
+  if (nvidia.isError()) {
+    return Failure("Failed to glob /dev/nvidia*: " + nvidia.error());
+  }
+
+  foreach (const string& device, nvidia.get()) {
+    const string devicePath = path::join(
+        devicesDir, strings::remove(device, "/dev/", strings::PREFIX), device);
+
+    Try<Nothing> mknod =
+      fs::chroot::copyDeviceNode(device, devicePath);
+    if (mknod.isError()) {
+      return Failure(
+          "Failed to copy device '" + device + "': " + mknod.error());
+    }
+
+    // Since we are adding the GPU devices to the container, make
+    // them read/write to guarantee that they are accessible inside
+    // the container.
+    Try<Nothing> chmod = os::chmod(devicePath, 0666);
+    if (chmod.isError()) {
+      return Failure(
+          "Failed to set permissions on device '" + device + "': " +
+          chmod.error());
+    }
+
+    *launchInfo.add_mounts() = protobuf::slave::createContainerMount(
+        devicePath,
+        path::join(containerConfig.rootfs(), "dev", device),
+        MS_BIND);
   }
 
   return launchInfo;
