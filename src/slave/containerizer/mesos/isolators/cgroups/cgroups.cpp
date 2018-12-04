@@ -585,15 +585,13 @@ Future<Option<ContainerLaunchInfo>> CgroupsIsolatorProcess::__prepare(
   // cgroups mount, e.g.:
   //   mount --bind /sys/fs/cgroup/memory/mesos/<containerId> /sys/fs/cgroup/memory // NOLINT(whitespace/line_length)
   foreach (const string& hierarchy, subsystems.keys()) {
-    ContainerMountInfo* mount = launchInfo.add_mounts();
-    mount->set_source(path::join(hierarchy, infos[rootContainerId]->cgroup));
-
-    mount->set_target(path::join(
-        containerConfig.rootfs(),
-        "/sys/fs/cgroup",
-        Path(hierarchy).basename()));
-
-    mount->set_flags(MS_BIND | MS_REC);
+    *launchInfo.add_mounts() = protobuf::slave::createContainerMount(
+        path::join(hierarchy, infos[rootContainerId]->cgroup),
+        path::join(
+            containerConfig.rootfs(),
+            "/sys/fs/cgroup",
+            Path(hierarchy).basename()),
+        MS_BIND | MS_REC);
   }
 
   // Linux launcher will create freezer and systemd cgroups for the container,
@@ -607,38 +605,34 @@ Future<Option<ContainerLaunchInfo>> CgroupsIsolatorProcess::__prepare(
           hierarchy.error());
     }
 
-    ContainerMountInfo* mount = launchInfo.add_mounts();
-    mount->set_source(path::join(
-        hierarchy.get(),
-        flags.cgroups_root,
-        containerizer::paths::buildPath(
-            containerId,
-            CGROUP_SEPARATOR,
-            containerizer::paths::JOIN)));
-
-    mount->set_target(path::join(
-        containerConfig.rootfs(),
-        "/sys/fs/cgroup",
-        "freezer"));
-
-    mount->set_flags(MS_BIND | MS_REC);
+    *launchInfo.add_mounts() = protobuf::slave::createContainerMount(
+        path::join(
+            hierarchy.get(),
+            flags.cgroups_root,
+            containerizer::paths::buildPath(
+                containerId,
+                CGROUP_SEPARATOR,
+                containerizer::paths::JOIN)),
+        path::join(
+            containerConfig.rootfs(),
+            "/sys/fs/cgroup",
+            "freezer"),
+        MS_BIND | MS_REC);
 
     if (systemd::enabled()) {
-      mount = launchInfo.add_mounts();
-      mount->set_source(path::join(
-          systemd::hierarchy(),
-          flags.cgroups_root,
-          containerizer::paths::buildPath(
-              containerId,
-              CGROUP_SEPARATOR,
-              containerizer::paths::JOIN)));
-
-      mount->set_target(path::join(
-          containerConfig.rootfs(),
-          "/sys/fs/cgroup",
-          "systemd"));
-
-      mount->set_flags(MS_BIND | MS_REC);
+      *launchInfo.add_mounts() = protobuf::slave::createContainerMount(
+          path::join(
+              systemd::hierarchy(),
+              flags.cgroups_root,
+              containerizer::paths::buildPath(
+                  containerId,
+                  CGROUP_SEPARATOR,
+                  containerizer::paths::JOIN)),
+          path::join(
+              containerConfig.rootfs(),
+              "/sys/fs/cgroup",
+              "systemd"),
+          MS_BIND | MS_REC);
     }
   }
 

@@ -33,6 +33,7 @@
 #include <stout/os/stat.hpp>
 #include <stout/os/touch.hpp>
 
+#include "common/protobuf_utils.hpp"
 #include "common/validation.hpp"
 
 #ifdef __linux__
@@ -375,10 +376,9 @@ Future<Option<ContainerLaunchInfo>> VolumeSandboxPathIsolatorProcess::prepare(
                 << "'" << source << "' to '" << target << "' "
                 << "for container " << containerId;
 
-      ContainerMountInfo* mount = launchInfo.add_mounts();
-      mount->set_source(source);
-      mount->set_target(target);
-      mount->set_flags(
+      *launchInfo.add_mounts() = protobuf::slave::createContainerMount(
+          source,
+          target,
           MS_BIND | MS_REC | (volume.mode() == Volume::RO ? MS_RDONLY : 0));
 #endif // __linux__
     } else {

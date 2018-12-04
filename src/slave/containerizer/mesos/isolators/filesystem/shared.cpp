@@ -24,6 +24,8 @@
 
 #include <stout/os/strerror.hpp>
 
+#include "common/protobuf_utils.hpp"
+
 #include "linux/ns.hpp"
 
 #include "slave/containerizer/mesos/isolators/filesystem/shared.hpp"
@@ -213,10 +215,8 @@ Future<Option<ContainerLaunchInfo>> SharedFilesystemIsolatorProcess::prepare(
       }
     }
 
-    ContainerMountInfo* mount = launchInfo.add_mounts();
-    mount->set_source(hostPath);
-    mount->set_target(volume.container_path());
-    mount->set_flags(MS_BIND | MS_REC);
+    *launchInfo.add_mounts() = protobuf::slave::createContainerMount(
+        hostPath, volume.container_path(), MS_BIND | MS_REC);
   }
 
   return launchInfo;

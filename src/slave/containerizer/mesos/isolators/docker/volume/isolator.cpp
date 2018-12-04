@@ -24,6 +24,8 @@
 #include <stout/os/realpath.hpp>
 #include <stout/os/which.hpp>
 
+#include "common/protobuf_utils.hpp"
+
 #include "linux/ns.hpp"
 
 #include "slave/flags.hpp"
@@ -555,10 +557,9 @@ Future<Option<ContainerLaunchInfo>> DockerVolumeIsolatorProcess::_prepare(
     LOG(INFO) << "Mounting docker volume mount point '" << source
               << "' to '" << target << "' for container " << containerId;
 
-    ContainerMountInfo* mount = launchInfo.add_mounts();
-    mount->set_source(source);
-    mount->set_target(target);
-    mount->set_flags(
+    *launchInfo.add_mounts() = protobuf::slave::createContainerMount(
+        source,
+        target,
         MS_BIND | MS_REC | (volumeMode == Volume::RO ? MS_RDONLY : 0));
   }
 

@@ -32,6 +32,7 @@
 #include <stout/os/stat.hpp>
 #include <stout/os/touch.hpp>
 
+#include "common/protobuf_utils.hpp"
 #include "common/validation.hpp"
 
 #include "linux/fs.hpp"
@@ -309,10 +310,9 @@ Future<Option<ContainerLaunchInfo>> VolumeHostPathIsolatorProcess::prepare(
     // result, no need for the bind mount because the 'hostPath' is
     // already accessible in the container.
     if (hostPath.get() != mountPoint) {
-      ContainerMountInfo* mount = launchInfo.add_mounts();
-      mount->set_source(hostPath.get());
-      mount->set_target(mountPoint);
-      mount->set_flags(
+      *launchInfo.add_mounts() = protobuf::slave::createContainerMount(
+          hostPath.get(),
+          mountPoint,
           MS_BIND | MS_REC | (volume.mode() == Volume::RO ? MS_RDONLY : 0));
     }
   }

@@ -33,6 +33,8 @@
 #include <stout/os/exists.hpp>
 #include <stout/os/mkdir.hpp>
 
+#include "common/protobuf_utils.hpp"
+
 #include "slave/containerizer/mesos/isolators/volume/image.hpp"
 
 #include "slave/containerizer/mesos/provisioner/provisioner.hpp"
@@ -247,10 +249,9 @@ Future<Option<ContainerLaunchInfo>> VolumeImageIsolatorProcess::_prepare(
           "Provisioned rootfs '" + source + "' does not exist");
     }
 
-    ContainerMountInfo* mount = launchInfo.add_mounts();
-    mount->set_source(source);
-    mount->set_target(target);
-    mount->set_flags(
+    *launchInfo.add_mounts() = protobuf::slave::createContainerMount(
+        source,
+        target,
         MS_BIND | MS_REC | (volumeMode == Volume::RO ? MS_RDONLY : 0));
   }
 

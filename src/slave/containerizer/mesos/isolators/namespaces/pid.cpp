@@ -20,6 +20,8 @@
 
 #include <stout/strings.hpp>
 
+#include "common/protobuf_utils.hpp"
+
 #include "linux/ns.hpp"
 
 #include "slave/containerizer/mesos/isolators/namespaces/pid.hpp"
@@ -138,11 +140,8 @@ Future<Option<ContainerLaunchInfo>> NamespacesPidIsolatorProcess::prepare(
   // mount namespace.
   //
   // TOOD(jieyu): Consider unmount the existing /proc.
-  ContainerMountInfo* mount = launchInfo.add_mounts();
-  mount->set_source("proc");
-  mount->set_target("/proc");
-  mount->set_type("proc");
-  mount->set_flags(MS_NOSUID | MS_NODEV | MS_NOEXEC);
+  *launchInfo.add_mounts() = protobuf::slave::createContainerMount(
+      "proc", "/proc", "proc", MS_NOSUID | MS_NODEV | MS_NOEXEC);
 
   return launchInfo;
 }
