@@ -8013,7 +8013,7 @@ void Slave::updateOperation(
     return;
   }
 
-  switch (update.latest_status().state()) {
+  switch (operation->latest_status().state()) {
     // Terminal state, and the conversion is successful.
     case OPERATION_FINISHED: {
       apply(operation);
@@ -8034,8 +8034,8 @@ void Slave::updateOperation(
     case OPERATION_GONE_BY_OPERATOR:
     case OPERATION_RECOVERING:
     case OPERATION_UNKNOWN: {
-      LOG(FATAL) << "Unexpected operation state "
-                 << operation->latest_status().state();
+      LOG(FATAL)
+        << "Unexpected operation state " << operation->latest_status().state();
     }
   }
 }
