@@ -2426,6 +2426,18 @@ message OperationStatus {
   // include a `uuid`. The status is considered delivered once
   // it is acknowledged by the scheduler.
   optional UUID uuid = 5;
+
+  // If the operation affects resources from a local resource provider,
+  // both `slave_id` and `resource_provider_id` will be set.
+  //
+  // If the operation affects resources that belong to an external
+  // resource provider, only `resource_provider_id` will be set.
+  //
+  // In certain cases, e.g., invalid operations, neither `uuid`,
+  // `slave_id` nor `resource_provider_id` will be set, and the
+  // scheduler does not need to acknowledge this status update.
+  optional SlaveID slave_id = 6;
+  optional ResourceProviderID resource_provider_id = 7;
 }
 
 

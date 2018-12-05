@@ -106,7 +106,13 @@ Offer devolve(const v1::Offer& offer)
 
 OperationStatus devolve(const v1::OperationStatus& status)
 {
-  return devolve<OperationStatus>(status);
+  OperationStatus _status = devolve<OperationStatus>(status);
+
+  if (status.has_agent_id()) {
+    *_status.mutable_slave_id() = devolve<SlaveID>(status.agent_id());
+  }
+
+  return _status;
 }
 
 
