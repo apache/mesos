@@ -43,7 +43,7 @@ AC_CONFIG_MACRO_DIR([m4])
 # Initialize automake.
 # -Wno-portability, since we require GNU Make for % patterns
 # Removal of -Werror due warnings introduced by automake 1.14.
-AM_INIT_AUTOMAKE([-Wall -Wno-portability foreign])
+AM_INIT_AUTOMAKE([-Wall -Wno-portability foreign tar-pax])
 AM_MAINTAINER_MODE([enable])
 
 # This is required for linking non-POSIX libs.
