@@ -7778,8 +7778,13 @@ void Slave::handleResourceProviderMessage(
     case ResourceProviderMessage::Type::UPDATE_OPERATION_STATUS: {
       CHECK_SOME(message->updateOperationStatus);
 
-      const UpdateOperationStatusMessage& update =
+      // The status update from the resource provider didn't provide
+      // the agent ID (because the resource provider doesn't know it),
+      // hence we inject it here.
+      UpdateOperationStatusMessage update =
         message->updateOperationStatus->update;
+
+      update.mutable_slave_id()->CopyFrom(info.id());
 
       const UUID& operationUUID = update.operation_uuid();
 
@@ -7841,14 +7846,7 @@ void Slave::handleResourceProviderMessage(
                  ? " for framework " + stringify(update.framework_id())
                  : " for an operator API call");
 
-          // The status update from the resource provider didn't
-          // provide the agent ID (because the resource provider
-          // doesn't know it), hence we inject it here.
-          UpdateOperationStatusMessage _update;
-          _update.CopyFrom(update);
-          _update.mutable_slave_id()->CopyFrom(info.id());
-
-          send(master.get(), _update);
+          send(master.get(), update);
           break;
         }
       }
