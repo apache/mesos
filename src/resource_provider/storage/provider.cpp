@@ -1572,7 +1572,12 @@ void StorageLocalResourceProviderProcess::applyOperation(
       protobuf::createOperationStatus(
           OPERATION_PENDING,
           operation.info().has_id()
-            ? operation.info().id() : Option<OperationID>::none()),
+            ? operation.info().id() : Option<OperationID>::none(),
+          None(),
+          None(),
+          None(),
+          slaveId,
+          info.id()),
       frameworkId,
       slaveId,
       protobuf::createUUID(uuid.get()));
@@ -3072,17 +3077,19 @@ void StorageLocalResourceProviderProcess::dropOperation(
 
   UpdateOperationStatusMessage update =
     protobuf::createUpdateOperationStatusMessage(
-       protobuf::createUUID(operationUuid),
-       protobuf::createOperationStatus(
-           OPERATION_DROPPED,
-           operation.isSome() && operation->has_id()
-             ? operation->id() : Option<OperationID>::none(),
-           message,
-           None(),
-           id::UUID::random()),
-       None(),
-       frameworkId,
-       slaveId);
+        protobuf::createUUID(operationUuid),
+        protobuf::createOperationStatus(
+            OPERATION_DROPPED,
+            operation.isSome() && operation->has_id()
+              ? operation->id() : Option<OperationID>::none(),
+            message,
+            None(),
+            id::UUID::random(),
+            slaveId,
+            info.id()),
+        None(),
+        frameworkId,
+        slaveId);
 
   auto die = [=](const string& message) {
     LOG(ERROR)
@@ -3318,14 +3325,15 @@ Try<Nothing> StorageLocalResourceProviderProcess::updateOperationStatus(
     error = conversions.error();
   }
 
-  operation.mutable_latest_status()->CopyFrom(
-      protobuf::createOperationStatus(
-          error.isNone() ? OPERATION_FINISHED : OPERATION_FAILED,
-          operation.info().has_id()
-            ? operation.info().id() : Option<OperationID>::none(),
-          error.isNone() ? Option<string>::none() : error->message,
-          error.isNone() ? convertedResources : Option<Resources>::none(),
-          id::UUID::random()));
+  operation.mutable_latest_status()->CopyFrom(protobuf::createOperationStatus(
+      error.isNone() ? OPERATION_FINISHED : OPERATION_FAILED,
+      operation.info().has_id()
+        ? operation.info().id() : Option<OperationID>::none(),
+      error.isNone() ? Option<string>::none() : error->message,
+      error.isNone() ? convertedResources : Option<Resources>::none(),
+      id::UUID::random(),
+      slaveId,
+      info.id()));
 
   operation.add_statuses()->CopyFrom(operation.latest_status());
 

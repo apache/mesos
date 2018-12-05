@@ -426,7 +426,9 @@ OperationStatus createOperationStatus(
     const Option<OperationID>& operationId,
     const Option<string>& message,
     const Option<Resources>& convertedResources,
-    const Option<id::UUID>& uuid)
+    const Option<id::UUID>& uuid,
+    const Option<SlaveID>& slaveId,
+    const Option<ResourceProviderID>& resourceProviderId)
 {
   OperationStatus status;
   status.set_state(state);
