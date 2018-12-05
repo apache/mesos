@@ -576,6 +576,7 @@ void ResourceProviderManagerProcess::reconcileOperations(
     if (operation.has_resource_provider_id()) {
       if (!resourceProviders.subscribed.contains(
               operation.resource_provider_id())) {
+        // TODO(bbannier): We should send `OPERATION_UNREACHABLE` here.
         LOG(WARNING) << "Dropping operation reconciliation message with"
                      << " operation_uuid " << operation.operation_uuid()
                      << " because resource provider "

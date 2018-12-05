@@ -4348,13 +4348,20 @@ void Slave::applyOperation(const ApplyOperationMessage& message)
     return;
   }
 
-  Operation* operation = new Operation(
-      protobuf::createOperation(
-          message.operation_info(),
-          protobuf::createOperationStatus(OPERATION_PENDING, operationId),
-          frameworkId,
+  Operation* operation = new Operation(protobuf::createOperation(
+      message.operation_info(),
+      protobuf::createOperationStatus(
+          OPERATION_PENDING,
+          operationId,
+          None(),
+          None(),
+          None(),
           info.id(),
-          uuid));
+          resourceProviderId.isSome()
+            ? resourceProviderId.get() : Option<ResourceProviderID>::none()),
+      frameworkId,
+      info.id(),
+      uuid));
 
   addOperation(operation);
 
@@ -4385,7 +4392,15 @@ void Slave::applyOperation(const ApplyOperationMessage& message)
   UpdateOperationStatusMessage update =
     protobuf::createUpdateOperationStatusMessage(
         uuid,
-        protobuf::createOperationStatus(OPERATION_FINISHED, operationId),
+        protobuf::createOperationStatus(
+            OPERATION_FINISHED,
+            operationId,
+            None(),
+            None(),
+            None(),
+            info.id(),
+            resourceProviderId.isSome()
+              ? resourceProviderId.get() : Option<ResourceProviderID>::none()),
         None(),
         frameworkId,
         info.id());
@@ -4426,7 +4441,13 @@ void Slave::reconcileOperations(const ReconcileOperationsMessage& message)
       UpdateOperationStatusMessage update =
         protobuf::createUpdateOperationStatusMessage(
             operation.operation_uuid(),
-            protobuf::createOperationStatus(OPERATION_DROPPED),
+            protobuf::createOperationStatus(
+                OPERATION_DROPPED,
+                None(),
+                None(),
+                None(),
+                None(),
+                info.id()),
             None(),
             None(),
             info.id());
@@ -7785,6 +7806,10 @@ void Slave::handleResourceProviderMessage(
         message->updateOperationStatus->update;
 
       update.mutable_slave_id()->CopyFrom(info.id());
+      update.mutable_status()->mutable_slave_id()->CopyFrom(info.id());
+      if (update.has_latest_status()) {
+        update.mutable_latest_status()->mutable_slave_id()->CopyFrom(info.id());
+      }
 
       const UUID& operationUUID = update.operation_uuid();
 

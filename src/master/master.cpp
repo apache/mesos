@@ -2251,6 +2251,11 @@ void Master::drop(
     scheduler::Event update;
     update.set_type(scheduler::Event::UPDATE_OPERATION_STATUS);
 
+    // NOTE: We do not attempt to set the agent or resource provider IDs for
+    // dropped operations as we cannot guarantee to always know their values.
+    //
+    // TODO(bbannier): Set agent or resource provider ID if we know
+    // for certain that the operation was valid.
     *update.mutable_update_operation_status()->mutable_status() =
       protobuf::createOperationStatus(
           OperationState::OPERATION_ERROR,
@@ -9188,6 +9193,11 @@ scheduler::Response::ReconcileOperations Master::reconcileOperations(
       slaveId = operation.slave_id();
     }
 
+    Option<ResourceProviderID> resourceProviderId = None();
+    if (operation.has_resource_provider_id()) {
+      resourceProviderId = operation.resource_provider_id();
+    }
+
     Option<Operation*> frameworkOperation =
       framework->getOperation(operation.operation_id());
 
@@ -9205,38 +9215,62 @@ scheduler::Response::ReconcileOperations Master::reconcileOperations(
       *status = protobuf::createOperationStatus(
           OperationState::OPERATION_RECOVERING,
           operation.operation_id(),
-          "Reconciliation: Agent is recovered but has not re-registered");
+          "Reconciliation: Agent is recovered but has not re-registered",
+          None(),
+          None(),
+          slaveId,
+          resourceProviderId);
     } else if (slaveId.isSome() && slaves.registered.contains(slaveId.get())) {
       // (3) Operation is unknown, slave is registered: OPERATION_UNKNOWN.
       *status = protobuf::createOperationStatus(
           OperationState::OPERATION_UNKNOWN,
           operation.operation_id(),
-          "Reconciliation: Operation is unknown");
+          "Reconciliation: Operation is unknown",
+          None(),
+          None(),
+          slaveId,
+          resourceProviderId);
     } else if (slaveId.isSome() && slaves.unreachable.contains(slaveId.get())) {
       // (4) Operation is unknown, slave is unreachable: OPERATION_UNREACHABLE.
       *status = protobuf::createOperationStatus(
           OperationState::OPERATION_UNREACHABLE,
           operation.operation_id(),
-          "Reconciliation: Agent is unreachable");
+          "Reconciliation: Agent is unreachable",
+          None(),
+          None(),
+          slaveId,
+          resourceProviderId);
     } else if (slaveId.isSome() && slaves.gone.contains(slaveId.get())) {
       // (5) Operation is unknown, slave is gone: OPERATION_GONE_BY_OPERATOR.
       *status = protobuf::createOperationStatus(
           OperationState::OPERATION_GONE_BY_OPERATOR,
           operation.operation_id(),
-          "Reconciliation: Agent marked gone by operator");
+          "Reconciliation: Agent marked gone by operator",
+          None(),
+          None(),
+          slaveId,
+          resourceProviderId);
     } else if (slaveId.isSome()) {
       // (6) Operation is unknown, slave is unknown: OPERATION_UNKNOWN.
       *status = protobuf::createOperationStatus(
           OperationState::OPERATION_UNKNOWN,
           operation.operation_id(),
-          "Reconciliation: Both operation and agent are unknown");
+          "Reconciliation: Both operation and agent are unknown",
+          None(),
+          None(),
+          slaveId,
+          resourceProviderId);
     } else {
       // (7) Operation is unknown, slave is unknown: OPERATION_UNKNOWN.
       *status = protobuf::createOperationStatus(
           OperationState::OPERATION_UNKNOWN,
           operation.operation_id(),
           "Reconciliation: Operation is unknown and no 'agent_id' was"
-          " provided");
+          " provided",
+          None(),
+          None(),
+          slaveId,
+          resourceProviderId);
     }
   }
 
@@ -11309,18 +11343,22 @@ void Master::_apply(
       ? slave->resourceVersion.get()
       : slave->resourceProviders.get(resourceProviderId.get())->resourceVersion;
 
-    Operation* operation = new Operation(
-        protobuf::createOperation(
-            operationInfo,
-            protobuf::createOperationStatus(
-              OPERATION_PENDING,
-              operationInfo.has_id()
-                ? operationInfo.id()
-                : Option<OperationID>::none()),
-            framework != nullptr
-              ? framework->id()
-              : Option<FrameworkID>::none(),
-            slave->id));
+    Operation* operation = new Operation(protobuf::createOperation(
+        operationInfo,
+        protobuf::createOperationStatus(
+            OPERATION_PENDING,
+            operationInfo.has_id()
+              ? operationInfo.id()
+              : Option<OperationID>::none(),
+            None(),
+            None(),
+            None(),
+            slave->id,
+            resourceProviderId.isSome()
+              ? Some(resourceProviderId.get())
+              : Option<ResourceProviderID>::none()),
+        framework != nullptr ? framework->id() : Option<FrameworkID>::none(),
+        slave->id));
 
     addOperation(framework, slave, operation);
 

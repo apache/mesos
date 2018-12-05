@@ -9221,6 +9221,135 @@ TEST_F(MasterTest, OperationUpdateDuringFailover)
 }
 
 
+// This test verifies that operation status updates contain the
+// agent ID and resource provider ID of originating providers.
+TEST_F(MasterTest, OperationUpdateResourceProvider)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  StandaloneMasterDetector detector(master.get()->pid);
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
+  ASSERT_SOME(slave);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(updateSlaveMessage);
+
+  // Register a resource provider with the agent.
+  mesos::v1::ResourceProviderInfo resourceProviderInfo;
+  resourceProviderInfo.set_type("org.apache.mesos.resource_provider.test");
+  resourceProviderInfo.set_name("test");
+
+  v1::Resources resourceProviderResources = v1::createDiskResource(
+      "200", "*", None(), None(), v1::createDiskSourceRaw(None(), "profile"));
+
+  v1::MockResourceProvider resourceProvider(
+      resourceProviderInfo, resourceProviderResources);
+
+  Owned<EndpointDetector> endpointDetector(
+      resource_provider::createEndpointDetector(slave.get()->pid));
+
+  updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  resourceProvider.start(endpointDetector, ContentType::PROTOBUF);
+
+  AWAIT_READY(updateSlaveMessage);
+
+  const v1::AgentID agentId = evolve(updateSlaveMessage->slave_id());
+
+  ASSERT_TRUE(resourceProvider.info.has_id());
+  const v1::ResourceProviderID resourceProviderId = resourceProvider.info.id();
+
+  // Start a framework to operate on offers.
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(v1::scheduler::SendSubscribe(v1::DEFAULT_FRAMEWORK_INFO));
+
+  v1::scheduler::TestMesos driver(
+      master.get()->pid, ContentType::PROTOBUF, scheduler);
+
+  Future<Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  Future<Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  AWAIT_READY(subscribed);
+
+  const v1::FrameworkID& frameworkId = subscribed->framework_id();
+
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+
+  Future<Event::UpdateOperationStatus> updateOperationStatus;
+  EXPECT_CALL(*scheduler, updateOperationStatus(_, _))
+    .WillOnce(FutureArg<1>(&updateOperationStatus));
+
+  ASSERT_FALSE(offers->offers().empty());
+  const v1::Offer& offer = offers->offers(0);
+
+  // Perform an operation against the resource provider resources.
+  Option<v1::Resource> resource;
+  foreach (const v1::Resource& resource_, offer.resources()) {
+    if (resource_.has_provider_id()) {
+      resource = resource_;
+      break;
+    }
+  }
+
+  ASSERT_SOME(resource);
+
+  {
+    Call call;
+    call.mutable_framework_id()->CopyFrom(frameworkId);
+    call.set_type(Call::ACCEPT);
+
+    Call::Accept* accept = call.mutable_accept();
+    accept->add_offer_ids()->CopyFrom(offer.id());
+
+    v1::Offer::Operation* operation = accept->add_operations();
+    operation->set_type(v1::Offer::Operation::CREATE_DISK);
+    operation->mutable_id()->set_value("create_disk");
+
+    v1::Offer::Operation::CreateDisk* createDisk =
+      operation->mutable_create_disk();
+    createDisk->mutable_source()->CopyFrom(resource.get());
+    createDisk->set_target_type(v1::Resource::DiskInfo::Source::MOUNT);
+
+    driver.send(call);
+  }
+
+  AWAIT_READY(updateOperationStatus);
+
+  const v1::OperationStatus& status = updateOperationStatus->status();
+  ASSERT_EQ("create_disk", status.operation_id().value());
+
+  ASSERT_TRUE(status.has_agent_id());
+  EXPECT_EQ(agentId, status.agent_id());
+
+  ASSERT_TRUE(status.has_resource_provider_id());
+  EXPECT_EQ(resourceProviderId, status.resource_provider_id());
+}
+
+
 // Tests that the master correctly drops an operation if the operation's 'id'
 // field is set and the operation affects resources not managed by a resource
 // provider.

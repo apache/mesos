@@ -165,7 +165,9 @@ OperationStatus createOperationStatus(
     const Option<OperationID>& operationId = None(),
     const Option<std::string>& message = None(),
     const Option<Resources>& convertedResources = None(),
-    const Option<id::UUID>& statusUUID = None());
+    const Option<id::UUID>& statusUUID = None(),
+    const Option<SlaveID>& slaveId = None(),
+    const Option<ResourceProviderID>& resourceProviderId = None());
 
 
 Operation createOperation(
