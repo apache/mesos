@@ -492,6 +492,23 @@ bool operator==(const OperationStatus& left, const OperationStatus& right)
     return false;
   }
 
+  if (left.has_slave_id() != right.has_slave_id()) {
+    return false;
+  }
+
+  if (left.has_slave_id() && left.slave_id() != right.slave_id()) {
+    return false;
+  }
+
+  if (left.has_resource_provider_id() != right.has_resource_provider_id()) {
+    return false;
+  }
+
+  if (left.has_resource_provider_id() &&
+      left.resource_provider_id() != right.resource_provider_id()) {
+    return false;
+  }
+
   return true;
 }
 

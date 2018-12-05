@@ -160,7 +160,13 @@ v1::OfferID evolve(const OfferID& offerId)
 
 v1::OperationStatus evolve(const OperationStatus& status)
 {
-  return evolve<v1::OperationStatus>(status);
+  v1::OperationStatus _status = evolve<v1::OperationStatus>(status);
+
+  if (status.has_slave_id()) {
+    *_status.mutable_agent_id() = evolve<v1::AgentID>(status.slave_id());
+  }
+
+  return _status;
 }
 
 
