@@ -246,32 +246,41 @@ static inline Resource createRawDiskResource(
     const ResourceProviderInfo& info,
     const Bytes& capacity,
     const Option<string>& profile,
+    const Option<string>& vendor,
     const Option<string>& id = None(),
     const Option<Labels>& metadata = None())
 {
   CHECK(info.has_id());
+  CHECK(info.has_storage());
 
   Resource resource;
   resource.set_name("disk");
   resource.set_type(Value::SCALAR);
   resource.mutable_scalar()
-    ->set_value((double) capacity.bytes() / Bytes::MEGABYTES);
+    ->set_value(static_cast<double>(capacity.bytes()) / Bytes::MEGABYTES);
+
   resource.mutable_provider_id()->CopyFrom(info.id()),
   resource.mutable_reservations()->CopyFrom(info.default_reservations());
-  resource.mutable_disk()->mutable_source()
-    ->set_type(Resource::DiskInfo::Source::RAW);
+
+  Resource::DiskInfo::Source* source =
+    resource.mutable_disk()->mutable_source();
+
+  source->set_type(Resource::DiskInfo::Source::RAW);
 
   if (profile.isSome()) {
-    resource.mutable_disk()->mutable_source()->set_profile(profile.get());
+    source->set_profile(profile.get());
+  }
+
+  if (vendor.isSome()) {
+    source->set_vendor(vendor.get());
   }
 
   if (id.isSome()) {
-    resource.mutable_disk()->mutable_source()->set_id(id.get());
+    source->set_id(id.get());
   }
 
   if (metadata.isSome()) {
-    resource.mutable_disk()->mutable_source()->mutable_metadata()
-      ->CopyFrom(metadata.get());
+    source->mutable_metadata()->CopyFrom(metadata.get());
   }
 
   return resource;
@@ -296,6 +305,9 @@ public:
       metaDir(slave::paths::getMetaRootDir(_workDir)),
       contentType(ContentType::PROTOBUF),
       info(_info),
+      vendor(
+          info.storage().plugin().type() + "." +
+          info.storage().plugin().name()),
       slaveId(_slaveId),
       authToken(_authToken),
       strict(_strict),
@@ -455,6 +467,7 @@ private:
   const string metaDir;
   const ContentType contentType;
   ResourceProviderInfo info;
+  const string vendor;
   const SlaveID slaveId;
   const Option<string> authToken;
   const bool strict;
@@ -1374,6 +1387,8 @@ ResourceConversion StorageLocalResourceProviderProcess::reconcileResources(
         Bytes(resource.scalar().value() * Bytes::MEGABYTES),
         resource.disk().source().has_profile()
           ? resource.disk().source().profile() : Option<string>::none(),
+        resource.disk().source().has_vendor()
+          ? resource.disk().source().vendor() : Option<string>::none(),
         resource.disk().source().has_id()
           ? resource.disk().source().id() : Option<string>::none(),
         resource.disk().source().has_metadata()
@@ -2913,6 +2928,7 @@ Future<Resources> StorageLocalResourceProviderProcess::listVolumes()
                 volumesToProfiles.contains(entry.volume().id())
                   ? volumesToProfiles.at(entry.volume().id())
                   : Option<string>::none(),
+                vendor,
                 entry.volume().id(),
                 entry.volume().attributes().empty()
                   ? Option<Labels>::none()
@@ -2960,7 +2976,8 @@ Future<Resources> StorageLocalResourceProviderProcess::getCapacities()
             return createRawDiskResource(
                 info,
                 Bytes(response.available_capacity()),
-                profile);
+                profile,
+                vendor);
           })));
       }
 
