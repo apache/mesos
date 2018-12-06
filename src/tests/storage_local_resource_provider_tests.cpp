@@ -81,6 +81,9 @@ constexpr char URI_DISK_PROFILE_ADAPTOR_NAME[] =
 
 constexpr char TEST_SLRP_TYPE[] = "org.apache.mesos.rp.local.storage";
 constexpr char TEST_SLRP_NAME[] = "test";
+constexpr char TEST_CSI_PLUGIN_TYPE[] = "org.apache.mesos.csi.test";
+constexpr char TEST_CSI_PLUGIN_NAME[] = "local";
+constexpr char TEST_CSI_VENDOR[] = "org.apache.mesos.csi.test.local";
 
 
 class StorageLocalResourceProviderTest
@@ -196,13 +199,10 @@ public:
       const Option<string> volumes = None(),
       const Option<string> createParameters = None())
   {
-    const string testCsiPluginName = "test_csi_plugin";
-
     const string testCsiPluginPath =
       path::join(tests::flags.build_dir, "src", "test-csi-plugin");
 
-    const string testCsiPluginWorkDir =
-      path::join(sandbox.get(), testCsiPluginName);
+    const string testCsiPluginWorkDir = path::join(sandbox.get(), "storage");
     ASSERT_SOME(os::mkdir(testCsiPluginWorkDir));
 
     Try<string> resourceProviderConfig = strings::format(
@@ -218,7 +218,7 @@ public:
           ],
           "storage": {
             "plugin": {
-              "type": "org.apache.mesos.csi.test",
+              "type": "%s",
               "name": "%s",
               "containers": [
                 {
@@ -261,7 +261,8 @@ public:
         )~",
         TEST_SLRP_TYPE,
         TEST_SLRP_NAME,
-        testCsiPluginName,
+        TEST_CSI_PLUGIN_TYPE,
+        TEST_CSI_PLUGIN_NAME,
         testCsiPluginPath,
         testCsiPluginPath,
         stringify(capacity),
@@ -516,6 +517,8 @@ TEST_F(StorageLocalResourceProviderTest, DISABLED_SmallDisk)
     return r.has_disk() &&
       r.disk().has_source() &&
       r.disk().source().type() == Resource::DiskInfo::Source::RAW &&
+      r.disk().source().has_vendor() &&
+      r.disk().source().vendor() == TEST_CSI_VENDOR &&
       !r.disk().source().has_id() &&
       r.disk().source().has_profile();
   };
@@ -523,6 +526,8 @@ TEST_F(StorageLocalResourceProviderTest, DISABLED_SmallDisk)
   auto isPreExistingVolume = [](const Resource& r) {
     return r.has_disk() &&
       r.disk().has_source() &&
+      r.disk().source().has_vendor() &&
+      r.disk().source().vendor() == TEST_CSI_VENDOR &&
       r.disk().source().has_id() &&
       !r.disk().source().has_profile();
   };
@@ -677,6 +682,8 @@ TEST_F(StorageLocalResourceProviderTest, ProfileAppeared)
     return r.has_disk() &&
       r.disk().has_source() &&
       r.disk().source().type() == Resource::DiskInfo::Source::RAW &&
+      r.disk().source().has_vendor() &&
+      r.disk().source().vendor() == TEST_CSI_VENDOR &&
       !r.disk().source().has_id() &&
       r.disk().source().has_profile() &&
       r.disk().source().profile() == profile;
@@ -812,6 +819,8 @@ TEST_F(StorageLocalResourceProviderTest, CreateDestroyDisk)
   }
 
   ASSERT_SOME(volume);
+  ASSERT_TRUE(volume->disk().source().has_vendor());
+  EXPECT_EQ(TEST_CSI_VENDOR, volume->disk().source().vendor());
   ASSERT_TRUE(volume->disk().source().has_id());
   ASSERT_TRUE(volume->disk().source().has_metadata());
   ASSERT_TRUE(volume->disk().source().has_mount());
@@ -855,6 +864,8 @@ TEST_F(StorageLocalResourceProviderTest, CreateDestroyDisk)
   }
 
   ASSERT_SOME(destroyed);
+  ASSERT_TRUE(destroyed->disk().source().has_vendor());
+  EXPECT_EQ(TEST_CSI_VENDOR, destroyed->disk().source().vendor());
   ASSERT_FALSE(destroyed->disk().source().has_id());
   ASSERT_FALSE(destroyed->disk().source().has_metadata());
   ASSERT_FALSE(destroyed->disk().source().has_mount());
@@ -992,6 +1003,8 @@ TEST_F(StorageLocalResourceProviderTest, CreateDestroyDiskRecovery)
   }
 
   ASSERT_SOME(volume);
+  ASSERT_TRUE(volume->disk().source().has_vendor());
+  EXPECT_EQ(TEST_CSI_VENDOR, volume->disk().source().vendor());
   ASSERT_TRUE(volume->disk().source().has_id());
   ASSERT_TRUE(volume->disk().source().has_metadata());
   ASSERT_TRUE(volume->disk().source().has_mount());
@@ -1062,6 +1075,8 @@ TEST_F(StorageLocalResourceProviderTest, CreateDestroyDiskRecovery)
   }
 
   ASSERT_SOME(destroyed);
+  ASSERT_TRUE(destroyed->disk().source().has_vendor());
+  EXPECT_EQ(TEST_CSI_VENDOR, destroyed->disk().source().vendor());
   ASSERT_FALSE(destroyed->disk().source().has_id());
   ASSERT_FALSE(destroyed->disk().source().has_metadata());
   ASSERT_FALSE(destroyed->disk().source().has_mount());
@@ -1504,6 +1519,8 @@ TEST_F(StorageLocalResourceProviderTest, AgentRegisteredWithNewId)
     return r.has_disk() &&
       r.disk().has_source() &&
       r.disk().source().type() == Resource::DiskInfo::Source::RAW &&
+      r.disk().source().has_vendor() &&
+      r.disk().source().vendor() == TEST_CSI_VENDOR &&
       !r.disk().source().has_id() &&
       r.disk().source().has_profile() &&
       r.disk().source().profile() == profile;
@@ -1526,6 +1543,8 @@ TEST_F(StorageLocalResourceProviderTest, AgentRegisteredWithNewId)
     return r.has_disk() &&
       r.disk().has_source() &&
       r.disk().source().type() == Resource::DiskInfo::Source::MOUNT &&
+      r.disk().source().has_vendor() &&
+      r.disk().source().vendor() == TEST_CSI_VENDOR &&
       r.disk().source().has_id() &&
       r.disk().source().has_profile() &&
       r.disk().source().profile() == profile;
@@ -1554,6 +1573,8 @@ TEST_F(StorageLocalResourceProviderTest, AgentRegisteredWithNewId)
     .begin();
 
   ASSERT_TRUE(created.has_provider_id());
+  ASSERT_TRUE(created.disk().source().has_vendor());
+  EXPECT_EQ(TEST_CSI_VENDOR, created.disk().source().vendor());
   ASSERT_TRUE(created.disk().source().has_id());
   ASSERT_TRUE(created.disk().source().has_metadata());
   ASSERT_TRUE(created.disk().source().has_mount());
@@ -1604,6 +1625,8 @@ TEST_F(StorageLocalResourceProviderTest, AgentRegisteredWithNewId)
     return r.has_disk() &&
       r.disk().has_source() &&
       r.disk().source().type() == Resource::DiskInfo::Source::RAW &&
+      r.disk().source().has_vendor() &&
+      r.disk().source().vendor() == TEST_CSI_VENDOR &&
       r.disk().source().has_id() &&
       !r.disk().source().has_profile();
   };
@@ -1813,6 +1836,8 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResources)
   }
 
   ASSERT_SOME(volume);
+  ASSERT_TRUE(volume->disk().source().has_vendor());
+  EXPECT_EQ(TEST_CSI_VENDOR, volume->disk().source().vendor());
   ASSERT_TRUE(volume->disk().source().has_id());
   ASSERT_TRUE(volume->disk().source().has_metadata());
   ASSERT_TRUE(volume->disk().source().has_mount());
@@ -2030,6 +2055,8 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesRecovery)
   }
 
   ASSERT_SOME(volume);
+  ASSERT_TRUE(volume->disk().source().has_vendor());
+  EXPECT_EQ(TEST_CSI_VENDOR, volume->disk().source().vendor());
   ASSERT_TRUE(volume->disk().source().has_id());
   ASSERT_TRUE(volume->disk().source().has_metadata());
   ASSERT_TRUE(volume->disk().source().has_mount());
@@ -2299,6 +2326,8 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResourcesReboot)
   }
 
   ASSERT_SOME(volume);
+  ASSERT_TRUE(volume->disk().source().has_vendor());
+  EXPECT_EQ(TEST_CSI_VENDOR, volume->disk().source().vendor());
   ASSERT_TRUE(volume->disk().source().has_id());
   ASSERT_TRUE(volume->disk().source().has_metadata());
   ASSERT_TRUE(volume->disk().source().has_mount());
@@ -2633,6 +2662,8 @@ TEST_F(
   }
 
   ASSERT_SOME(volume);
+  ASSERT_TRUE(volume->disk().source().has_vendor());
+  EXPECT_EQ(TEST_CSI_VENDOR, volume->disk().source().vendor());
   ASSERT_TRUE(volume->disk().source().has_id());
   ASSERT_TRUE(volume->disk().source().has_metadata());
   ASSERT_TRUE(volume->disk().source().has_mount());
@@ -2807,6 +2838,8 @@ TEST_F(StorageLocalResourceProviderTest, ImportPreprovisionedVolume)
     return r.has_disk() &&
       r.disk().has_source() &&
       r.disk().source().type() == Resource::DiskInfo::Source::RAW &&
+      r.disk().source().has_vendor() &&
+      r.disk().source().vendor() == TEST_CSI_VENDOR &&
       !r.disk().source().has_id() &&
       r.disk().source().has_profile() &&
       r.disk().source().profile() == profile;
@@ -2831,6 +2864,8 @@ TEST_F(StorageLocalResourceProviderTest, ImportPreprovisionedVolume)
     return r.has_disk() &&
       r.disk().has_source() &&
       r.disk().source().type() == Resource::DiskInfo::Source::RAW &&
+      r.disk().source().has_vendor() &&
+      r.disk().source().vendor() == TEST_CSI_VENDOR &&
       r.disk().source().has_id() &&
       !r.disk().source().has_profile();
   };
@@ -2860,6 +2895,8 @@ TEST_F(StorageLocalResourceProviderTest, ImportPreprovisionedVolume)
     return r.has_disk() &&
       r.disk().has_source() &&
       r.disk().source().type() == Resource::DiskInfo::Source::MOUNT &&
+      r.disk().source().has_vendor() &&
+      r.disk().source().vendor() == TEST_CSI_VENDOR &&
       r.disk().source().has_id() &&
       r.disk().source().has_profile() &&
       r.disk().source().profile() == profile;
@@ -3466,6 +3503,8 @@ TEST_F(StorageLocalResourceProviderTest, OperationStateMetrics)
   }
 
   ASSERT_SOME(volume);
+  ASSERT_TRUE(volume->disk().source().has_vendor());
+  EXPECT_EQ(TEST_CSI_VENDOR, volume->disk().source().vendor());
   ASSERT_TRUE(volume->disk().source().has_id());
   ASSERT_TRUE(volume->disk().source().has_metadata());
   ASSERT_TRUE(volume->disk().source().has_mount());
@@ -3742,6 +3781,8 @@ TEST_F(StorageLocalResourceProviderTest, CsiPluginRpcMetrics)
   }
 
   ASSERT_SOME(volume);
+  ASSERT_TRUE(volume->disk().source().has_vendor());
+  EXPECT_EQ(TEST_CSI_VENDOR, volume->disk().source().vendor());
   ASSERT_TRUE(volume->disk().source().has_id());
   ASSERT_TRUE(volume->disk().source().has_metadata());
   ASSERT_TRUE(volume->disk().source().has_mount());

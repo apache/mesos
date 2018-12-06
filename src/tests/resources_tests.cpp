@@ -19,6 +19,7 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <tuple>
 
 #include <gtest/gtest.h>
 
@@ -2370,10 +2371,11 @@ TEST(DiskResourcesTest, DiskSourceEquals)
 
 class DiskResourcesSourceTest
   : public ::testing::Test,
-    public ::testing::WithParamInterface<std::tr1::tuple<
+    public ::testing::WithParamInterface<std::tuple<
         Resource::DiskInfo::Source::Type,
-        bool,
-        bool>> {};
+        bool, // Whether the disk has the `vendor` field set.
+        bool, // Whether the disk has the `id` field set.
+        bool>> {}; // Whether the disk has the `profile` field set.
 
 
 INSTANTIATE_TEST_CASE_P(
@@ -2386,11 +2388,14 @@ INSTANTIATE_TEST_CASE_P(
             Resource::DiskInfo::Source::PATH,
             Resource::DiskInfo::Source::BLOCK,
             Resource::DiskInfo::Source::MOUNT),
-        // We test the case where the source has identity (i.e., has
-        // an `id` set) and where not.
+        // We test the cases where the source has a vendor (i.e., has the
+        // `vendor` field set) and where not.
         ::testing::Bool(),
-        // We test the case where the source has profile (i.e., has
-        // an `profile` set) and where not.
+        // We test the cases where the source has an identity (i.e., has the
+        // `id` field set) and where not.
+        ::testing::Bool(),
+        // We test the cases where the source has a profile (i.e., has the
+        // `profile` field set) and where not.
         ::testing::Bool()));
 
 
@@ -2398,13 +2403,18 @@ TEST_P(DiskResourcesSourceTest, SourceIdentity)
 {
   auto parameters = GetParam();
 
-  Resource::DiskInfo::Source::Type type = std::tr1::get<0>(parameters);
-  bool hasIdentity = std::tr1::get<1>(parameters);
-  bool hasProfile = std::tr1::get<2>(parameters);
+  Resource::DiskInfo::Source::Type type = std::get<0>(parameters);
+  bool hasVendor = std::get<1>(parameters);
+  bool hasIdentity = std::get<2>(parameters);
+  bool hasProfile = std::get<3>(parameters);
 
-  // Create a disk, possibly with an id to signify identiy.
+  // Create a disk, possibly with an id to signify identity.
   Resource::DiskInfo::Source source;
   source.set_type(type);
+
+  if (hasVendor) {
+    source.set_vendor("vendor");
+  }
 
   if (hasIdentity) {
     source.set_id("id");
