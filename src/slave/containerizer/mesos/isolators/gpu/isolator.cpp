@@ -451,7 +451,7 @@ Future<Option<ContainerLaunchInfo>> NvidiaGpuIsolatorProcess::_prepare(
 
     *launchInfo.add_mounts() = protobuf::slave::createContainerMount(
         devicePath,
-        path::join(containerConfig.rootfs(), "dev", device),
+        path::join(containerConfig.rootfs(), device),
         MS_BIND);
   }
 
