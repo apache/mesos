@@ -151,17 +151,18 @@ public:
     // This extra closure is necessary in order to use `ASSERT_*`, as
     // these macros require a void return type.
     [&] {
-      // Randomize the plugin name so we get a clean work directory for
-      // each created config.
+      // Randomize the plugin name so every created config uses its own CSI
+      // plugin instance. We use this to check if the config has been updated in
+      // some tests.
       const string testCsiPluginName =
-        "test_csi_plugin_" +
-        strings::remove(id::UUID::random().toString(), "-");
+        "local_" + strings::remove(id::UUID::random().toString(), "-");
 
       const string testCsiPluginPath =
         path::join(tests::flags.build_dir, "src", "test-csi-plugin");
 
       const string testCsiPluginWorkDir =
         path::join(sandbox.get(), testCsiPluginName);
+
       ASSERT_SOME(os::mkdir(testCsiPluginWorkDir));
 
       Try<string> resourceProviderConfig = strings::format(
@@ -579,11 +580,13 @@ TEST_P(AgentResourceProviderConfigApiTest, Update)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   // Generate a pre-existing config.
+  const string volumes = "volume1:4GB";
   const string configPath =
     path::join(resourceProviderConfigDir.get(), "test.json");
+
   ASSERT_SOME(os::write(
       configPath,
-      stringify(JSON::protobuf(createResourceProviderInfo("volume1:4GB")))));
+      stringify(JSON::protobuf(createResourceProviderInfo(volumes)))));
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
@@ -616,14 +619,22 @@ TEST_P(AgentResourceProviderConfigApiTest, Update)
   Future<vector<Offer>> oldOffers;
 
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(&Resources::hasResourceProvider, lambda::_1))))
+      &Resources::hasResourceProvider)))
     .WillOnce(FutureArg<1>(&oldOffers));
 
   driver.start();
 
   // Wait for an offer having the old provider resource.
   AWAIT_READY(oldOffers);
-  ASSERT_FALSE(oldOffers->empty());
+  ASSERT_EQ(1u, oldOffers->size());
+
+  Resource oldResource = *Resources(oldOffers->at(0).resources())
+    .filter(&Resources::hasResourceProvider)
+    .begin();
+
+  ASSERT_TRUE(oldResource.has_disk());
+  ASSERT_TRUE(oldResource.disk().has_source());
+  ASSERT_TRUE(oldResource.disk().source().has_vendor());
 
   Future<OfferID> rescinded;
 
@@ -636,7 +647,8 @@ TEST_P(AgentResourceProviderConfigApiTest, Update)
       std::bind(&Resources::hasResourceProvider, lambda::_1))))
     .WillOnce(FutureArg<1>(&newOffers));
 
-  ResourceProviderInfo info = createResourceProviderInfo("volume1:2GB");
+  // Create a new config that serves the same volumes with a different vendor.
+  ResourceProviderInfo info = createResourceProviderInfo(volumes);
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(
       http::OK().status,
@@ -655,6 +667,7 @@ TEST_P(AgentResourceProviderConfigApiTest, Update)
 
   Try<ResourceProviderInfo> _info =
     ::protobuf::parse<ResourceProviderInfo>(json.get());
+
   ASSERT_SOME(_info);
   EXPECT_EQ(_info.get(), info);
 
@@ -663,10 +676,22 @@ TEST_P(AgentResourceProviderConfigApiTest, Update)
 
   // Wait for an offer having the new provider resource.
   AWAIT_READY(newOffers);
+  ASSERT_EQ(1u, newOffers->size());
 
-  // The new provider resource is smaller than the old provider resource.
-  EXPECT_FALSE(Resources(newOffers->at(0).resources()).contains(
-      oldOffers->at(0).resources()));
+  Resource newResource = *Resources(newOffers->at(0).resources())
+    .filter(&Resources::hasResourceProvider)
+    .begin();
+
+  ASSERT_TRUE(newResource.has_disk());
+  ASSERT_TRUE(newResource.disk().has_source());
+  ASSERT_TRUE(newResource.disk().source().has_vendor());
+
+  // The resource from the new resource provider has the same provider ID but a
+  // different vendor as that from the old one.
+  EXPECT_EQ(oldResource.provider_id(), newResource.provider_id());
+  EXPECT_NE(
+      oldResource.disk().source().vendor(),
+      newResource.disk().source().vendor());
 }
 
 
