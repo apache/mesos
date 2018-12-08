@@ -268,18 +268,13 @@ Future<Option<ContainerLaunchInfo>> VolumeHostPathIsolatorProcess::prepare(
     if (mountPropagationBidirectional) {
       // First, find the mount entry that is the parent of the host
       // volume source. If it is not a shared mount, return a failure.
-
-      // Get realpath here because the mount table uses realpaths.
-      Result<string> realHostPath = os::realpath(hostPath.get());
-      if (!realHostPath.isSome()) {
-        return Failure(
-            "Failed to get the realpath of the host path '" +
-            hostPath.get() + "': " +
-            (realHostPath.isError() ? realHostPath.error() : "Not found"));
+      Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
+      if (table.isError()) {
+        return Failure("Failed to read mount table: " + table.error());
       }
 
       Try<fs::MountInfoTable::Entry> sourceMountEntry =
-        fs::MountInfoTable::findByTarget(realHostPath.get());
+        table->findByTarget(hostPath.get());
 
       if (sourceMountEntry.isError()) {
         return Failure(

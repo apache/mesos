@@ -281,7 +281,7 @@ struct MountInfoTable {
   // no mount table entry that matches the exact target path, return
   // the mount table entry that is the immediate parent of the given
   // target path (similar to `findmnt --target [TARGET]`).
-  static Try<Entry> findByTarget(const std::string& target);
+  Try<Entry> findByTarget(const std::string& target);
 
   std::vector<Entry> entries;
 };

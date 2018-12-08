@@ -246,6 +246,211 @@ static Try<Nothing> makeDevicesDir(
 }
 
 
+// Make sure that the specified target directory is in a shared mount
+// so that when forking a child process (with a new mount namespace),
+// the child process does not hold extra references to the mounts
+// underneath the target directory. For instance, container's
+// persistent volume mounts and provisioner mounts (e.g., when using
+// the bind/overlayfs backend) under agent's `work_dir`. This ensures
+// that cleanup operations (i.e., unmount) on the host mount namespace
+// can be propagated to child's mount namespaces. See MESOS-3483 for
+// more details.
+// TODO(jieyu): Consider moving this helper to 'src/linux/fs.hpp|cpp'.
+static Try<Nothing> ensureSharedMount(const string& _targetDir)
+{
+  // Mount table entries use realpaths. Therefore, we first get the
+  // realpath of the target directory.
+  Result<string> targetDir = os::realpath(_targetDir);
+  if (!targetDir.isSome()) {
+    return Error(
+        "Failed to get the realpath of '" + _targetDir + "': " +
+        (targetDir.isError() ? targetDir.error() : "Not found"));
+  }
+
+  Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
+  if (table.isError()) {
+    return Error("Failed to get mount table: " + table.error());
+  }
+
+  // Trying to find the mount entry that contains the target
+  // directory. We achieve that by doing a reverse traverse of the
+  // mount table to find the first entry whose target is a prefix of
+  // the target directory.
+  Try<fs::MountInfoTable::Entry> targetDirMount =
+    table->findByTarget(_targetDir);
+
+  if (targetDirMount.isError()) {
+    return Error(
+        "Failed to find the mount containing '" + _targetDir +
+        "': " + targetDirMount.error());
+  }
+
+  // If 'targetDirMount' is a shared mount in its own peer group, then
+  // we don't need to do anything. Otherwise, we need to do a self
+  // bind mount of the target directory to make sure it's a shared
+  // mount in its own peer group.
+  bool bindMountNeeded = false;
+
+  if (targetDirMount->shared().isNone()) {
+    bindMountNeeded = true;
+  } else {
+    foreach (const fs::MountInfoTable::Entry& entry, table->entries) {
+      // Skip 'targetDirMount' and any mount underneath it. Also, we
+      // skip those mounts whose targets are not the parent of the
+      // target directory because even if they are in the same peer
+      // group as the working directory mount, it won't affect it.
+      if (entry.id != targetDirMount->id &&
+          !strings::startsWith(entry.target, path::join(targetDir.get(), "")) &&
+          entry.shared() == targetDirMount->shared() &&
+          strings::startsWith(targetDir.get(), path::join(entry.target, ""))) {
+        bindMountNeeded = true;
+        break;
+      }
+    }
+  }
+
+  if (bindMountNeeded) {
+    if (targetDirMount->target != targetDir.get()) {
+      // This is the case where the target directory mount does not
+      // exist in the mount table (e.g., a new host running Mesos
+      // slave for the first time).
+      LOG(INFO) << "Bind mounting '" << targetDir.get()
+                << "' and making it a shared mount";
+
+      // NOTE: Instead of using fs::mount to perform the bind mount,
+      // we use the shell command here because the syscall 'mount'
+      // does not update the mount table (i.e., /etc/mtab). In other
+      // words, the mount will not be visible if the operator types
+      // command 'mount'. Since this mount will still be presented
+      // after all containers and the slave are stopped, it's better
+      // to make it visible. It's OK to use the blocking os::shell
+      // here because 'create' will only be invoked during
+      // initialization.
+      Try<string> mount = os::shell(
+          "mount --bind %s %s && "
+          "mount --make-private %s && "
+          "mount --make-shared %s",
+          targetDir.get(),
+          targetDir.get(),
+          targetDir.get(),
+          targetDir.get());
+
+      if (mount.isError()) {
+        return Error(
+            "Failed to bind mount '" + targetDir.get() +
+            "' and make it a shared mount: " + mount.error());
+      }
+    } else {
+      // This is the case where the target directory mount is in the
+      // mount table, but it's not a shared mount in its own peer
+      // group (possibly due to slave crash while preparing the
+      // target directory mount). It's safe to re-do the following.
+      LOG(INFO) << "Making '" << targetDir.get() << "' a shared mount";
+
+      Try<string> mount = os::shell(
+          "mount --make-private %s && "
+          "mount --make-shared %s",
+          targetDir.get(),
+          targetDir.get());
+
+      if (mount.isError()) {
+        return Error(
+            "Failed to make '" + targetDir.get() +
+            "' a shared mount: " + mount.error());
+      }
+    }
+  }
+
+  return Nothing();
+}
+
+
+// Make sure the target directory allow device files (i.e., there no
+// `nodev` on the mounted filesystem that contains the target path).
+static Try<Nothing> ensureAllowDevices(const string& _targetDir)
+{
+  // Mount table entries use realpaths. Therefore, we first get the
+  // realpath of the target directory.
+  Result<string> targetDir = os::realpath(_targetDir);
+  if (!targetDir.isSome()) {
+    return Error(
+        "Failed to get the realpath of '" + _targetDir + "': " +
+        (targetDir.isError() ? targetDir.error() : "Not found"));
+  }
+
+  Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
+  if (table.isError()) {
+    return Error("Failed to get mount table: " + table.error());
+  }
+
+  // Trying to find the mount entry that contains the target
+  // directory. We achieve that by doing a reverse traverse of the
+  // mount table to find the first entry whose target is a prefix of
+  // the target directory.
+  Try<fs::MountInfoTable::Entry> targetDirMount =
+    table->findByTarget(_targetDir);
+
+  if (targetDirMount.isError()) {
+    return Error(
+        "Failed to find the mount containing '" + _targetDir +
+        "': " + targetDirMount.error());
+  }
+
+  // No need to do anything if the mount has no `nodev`.
+  if (!strings::contains(targetDirMount->vfsOptions, "nodev")) {
+    return Nothing();
+  }
+
+  if (targetDirMount->target != targetDir.get()) {
+    // This is the case where the target directory mount does not
+    // exist in the mount table (e.g., a new host running Mesos
+    // slave for the first time).
+    LOG(INFO) << "Self bind mounting '" << targetDir.get()
+              << "' and remounting with '-o remount,dev'";
+
+    // NOTE: Instead of using fs::mount to perform the bind mount,
+    // we use the shell command here because the syscall 'mount'
+    // does not update the mount table (i.e., /etc/mtab). In other
+    // words, the mount will not be visible if the operator types
+    // command 'mount'. Since this mount will still be presented
+    // after all containers and the slave are stopped, it's better
+    // to make it visible. It's OK to use the blocking os::shell
+    // here because 'create' will only be invoked during
+    // initialization.
+    Try<string> mount = os::shell(
+        "mount --bind %s %s && "
+        "mount -o remount,dev %s",
+        targetDir.get(),
+        targetDir.get(),
+        targetDir.get());
+
+    if (mount.isError()) {
+      return Error(
+          "Failed to self bind mount '" + targetDir.get() +
+          "' and remount with '-o remount,dev': " + mount.error());
+    }
+  } else {
+    // This is the case where the target directory mount is in the
+    // mount table, but it's not remounted yet to remove 'nodev'
+    // (possibly due to slave crash while preparing the target
+    // directory mount). It's safe to re-do the following.
+    LOG(INFO) << "Remounting '" << targetDir.get() << "' with '-o remount,dev'";
+
+    Try<string> mount = os::shell(
+        "mount -o remount,dev %s",
+        targetDir.get());
+
+    if (mount.isError()) {
+      return Error(
+          "Failed to remount '" + targetDir.get() +
+          "' with '-o remount,dev': " + mount.error());
+    }
+  }
+
+  return Nothing();
+}
+
+
 Try<Isolator*> LinuxFilesystemIsolatorProcess::create(const Flags& flags)
 {
   if (geteuid() != 0) {
@@ -270,115 +475,34 @@ Try<Isolator*> LinuxFilesystemIsolatorProcess::create(const Flags& flags)
   // the bind/overlayfs backend). This ensures that cleanup operations
   // within slave's working directory can be propagated to all
   // containers. See MESOS-3483 for more details.
+  Try<Nothing> workDirSharedMount = ensureSharedMount(flags.work_dir);
+  if (workDirSharedMount.isError()) {
+    return Error(workDirSharedMount.error());
+  }
 
-  // Mount table entries use realpaths. Therefore, we first get the
-  // realpath of the slave's working directory.
-  Result<string> workDir = os::realpath(flags.work_dir);
-  if (!workDir.isSome()) {
+  // Make sure that container's runtime dir has device file access.
+  // Some Linux distributions will mount `/run` with `nodev`,
+  // restricting accessing to device files under `/run`. However,
+  // Mesos prepares device files for containers under container's
+  // runtime dir (which is typically under `/run`) and bind mount into
+  // container root filesystems. Therefore, we need to make sure those
+  // device files can be accessed by the container. We need to do a
+  // self bind mount and remount with proper options if necessary. See
+  // MESOS-9462 for more details.
+  const string containersRuntimeDir = path::join(
+      flags.runtime_dir,
+      containerizer::paths::CONTAINER_DIRECTORY);
+
+  Try<Nothing> mkdir = os::mkdir(containersRuntimeDir);
+  if (mkdir.isError()) {
     return Error(
-        "Failed to get the realpath of slave's working directory: " +
-        (workDir.isError() ? workDir.error() : "Not found"));
+        "Failed to create container's runtime dir at '" +
+        containersRuntimeDir + "': " + mkdir.error());
   }
 
-  Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
-  if (table.isError()) {
-    return Error("Failed to get mount table: " + table.error());
-  }
-
-  // Trying to find the mount entry that contains the slave's working
-  // directory. We achieve that by doing a reverse traverse of the
-  // mount table to find the first entry whose target is a prefix of
-  // slave's working directory.
-  Option<fs::MountInfoTable::Entry> workDirMount;
-  foreach (const fs::MountInfoTable::Entry& entry,
-           adaptor::reverse(table->entries)) {
-    if (strings::startsWith(workDir.get(), entry.target)) {
-      workDirMount = entry;
-      break;
-    }
-  }
-
-  // It's unlikely that we cannot find 'workDirMount' because '/' is
-  // always mounted and will be the 'workDirMount' if no other mounts
-  // found in between.
-  if (workDirMount.isNone()) {
-    return Error("Cannot find the mount containing slave's working directory");
-  }
-
-  // If 'workDirMount' is a shared mount in its own peer group, then
-  // we don't need to do anything. Otherwise, we need to do a self
-  // bind mount of slave's working directory to make sure it's a
-  // shared mount in its own peer group.
-  bool bindMountNeeded = false;
-
-  if (workDirMount->shared().isNone()) {
-    bindMountNeeded = true;
-  } else {
-    foreach (const fs::MountInfoTable::Entry& entry, table->entries) {
-      // Skip 'workDirMount' and any mount underneath it. Also, we
-      // skip those mounts whose targets are not the parent of the
-      // working directory because even if they are in the same peer
-      // group as the working directory mount, it won't affect it.
-      if (entry.id != workDirMount->id &&
-          !strings::startsWith(entry.target, workDir.get()) &&
-          entry.shared() == workDirMount->shared() &&
-          strings::startsWith(workDir.get(), entry.target)) {
-        bindMountNeeded = true;
-        break;
-      }
-    }
-  }
-
-  if (bindMountNeeded) {
-    if (workDirMount->target != workDir.get()) {
-      // This is the case where the working directory mount does not
-      // exist in the mount table (e.g., a new host running Mesos
-      // slave for the first time).
-      LOG(INFO) << "Bind mounting '" << workDir.get()
-                << "' and making it a shared mount";
-
-      // NOTE: Instead of using fs::mount to perform the bind mount,
-      // we use the shell command here because the syscall 'mount'
-      // does not update the mount table (i.e., /etc/mtab). In other
-      // words, the mount will not be visible if the operator types
-      // command 'mount'. Since this mount will still be presented
-      // after all containers and the slave are stopped, it's better
-      // to make it visible. It's OK to use the blocking os::shell
-      // here because 'create' will only be invoked during
-      // initialization.
-      Try<string> mount = os::shell(
-          "mount --bind %s %s && "
-          "mount --make-private %s && "
-          "mount --make-shared %s",
-          workDir->c_str(),
-          workDir->c_str(),
-          workDir->c_str(),
-          workDir->c_str());
-
-      if (mount.isError()) {
-        return Error(
-            "Failed to bind mount '" + workDir.get() +
-            "' and make it a shared mount: " + mount.error());
-      }
-    } else {
-      // This is the case where the working directory mount is in the
-      // mount table, but it's not a shared mount in its own peer
-      // group (possibly due to slave crash while preparing the
-      // working directory mount). It's safe to re-do the following.
-      LOG(INFO) << "Making '" << workDir.get() << "' a shared mount";
-
-      Try<string> mount = os::shell(
-          "mount --make-private %s && "
-          "mount --make-shared %s",
-          workDir->c_str(),
-          workDir->c_str());
-
-      if (mount.isError()) {
-        return Error(
-            "Failed to make '" + workDir.get() +
-            "' a shared mount: " + mount.error());
-      }
-    }
+  Try<Nothing> containersDirMount = ensureAllowDevices(containersRuntimeDir);
+  if (containersDirMount.isError()) {
+    return Error(containersDirMount.error());
   }
 
   Owned<MesosIsolatorProcess> process(

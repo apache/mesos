@@ -275,16 +275,11 @@ Try<MountInfoTable::Entry> MountInfoTable::findByTarget(
         ": " + (realTarget.isError() ? realTarget.error() : "Not found"));
   }
 
-  Try<MountInfoTable> table = read(None(), true);
-  if (table.isError()) {
-    return Error("Failed to get mount table: " + table.error());
-  }
-
   // Trying to find the mount entry that contains the 'realTarget'. We
   // achieve that by doing a reverse traverse of the mount table to
   // find the first entry whose target is a prefix of the specified
   // 'realTarget'.
-  foreach (const Entry& entry, adaptor::reverse(table->entries)) {
+  foreach (const Entry& entry, adaptor::reverse(entries)) {
     if (entry.target == realTarget.get()) {
       return entry;
     }

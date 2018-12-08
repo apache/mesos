@@ -370,16 +370,13 @@ static Try<Nothing> prepareMounts(const ContainerLaunchInfo& launchInfo)
     // should consider forcing all isolators to use
     // `ContainerMountInfo` for volume mounts.
     if (hasSharedMount) {
-      Result<string> realTargetPath = os::realpath(mount.target());
-      if (!realTargetPath.isSome()) {
-        return Error(
-            "Failed to get the realpath of the mount target '" +
-            mount.target() + "': " +
-            (realTargetPath.isError() ? realTargetPath.error() : "Not found"));
+      Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
+      if (table.isError()) {
+        return Error("Failed to read mount table: " + table.error());
       }
 
       Try<fs::MountInfoTable::Entry> entry =
-        fs::MountInfoTable::findByTarget(realTargetPath.get());
+        table->findByTarget(mount.target());
 
       if (entry.isError()) {
         return Error(
