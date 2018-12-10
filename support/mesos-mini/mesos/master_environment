@@ -1,3 +1,5 @@
+MESOS_CLUSTER=mesos-mini
 MESOS_ADVERTISE_IP=127.0.0.1
 MESOS_HOSTNAME_LOOKUP=false
+MESOS_HOSTNAME=localhost
 MESOS_WORK_DIR=/var/lib/mesos/master

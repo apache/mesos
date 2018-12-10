@@ -2,7 +2,7 @@ ARG BASE_IMAGE_NAME
 
 FROM $BASE_IMAGE_NAME
 
-RUN yum install -y java-1.8.0-openjdk iptables
+RUN yum install -y java-1.8.0-openjdk iptables iproute
 
 # Prepare systemd environment.
 ENV container docker
@@ -55,6 +55,15 @@ RUN chmod +x /usr/bin/mesos-init-wrapper && \
 COPY mesos/master_environment /etc/default/mesos-master
 COPY mesos/agent_environment /etc/default/mesos-agent
 COPY mesos/modules /etc/mesos/modules
+
+# Prepare CNI environment.
+ARG CNI_PLUGINS_URL=https://github.com/containernetworking/plugins/releases/download/v0.7.4/cni-plugins-amd64-v0.7.4.tgz
+
+RUN curl -sL $CNI_PLUGINS_URL -o /cni-plugins.tgz && \
+    tar xzvf /cni-plugins.tgz -C /usr/libexec/mesos/cni && \
+    rm -f /cni-plugins.tgz
+
+COPY mesos/ucr-default-bridge.json /etc/mesos/cni/
 
 # Prepare Marathon environment.
 ARG MARATHON_URL=https://downloads.mesosphere.com/marathon/releases/1.6.322/marathon-1.6.322-2bf46b341.tgz

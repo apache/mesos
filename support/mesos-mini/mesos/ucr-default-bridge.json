@@ -1,0 +1,22 @@
+{
+  "name": "mesos-bridge",
+  "type": "mesos-cni-port-mapper",
+  "excludeDevices": ["ucr-br0"],
+  "chain": "UCR-DEFAULT-BRIDGE",
+  "delegate": {
+    "type": "bridge",
+    "bridge": "ucr-br0",
+    "isDefaultGateway": true,
+    "forceAddress": false,
+    "ipMasq": true,
+    "hairpinMode": true,
+    "ipam": {
+      "type": "host-local",
+      "dataDir": "/var/run/mesos/cni/networks",
+      "subnet": "172.31.254.0/24",
+      "routes": [
+        { "dst": "0.0.0.0/0" }
+      ]
+    }
+  }
+}
