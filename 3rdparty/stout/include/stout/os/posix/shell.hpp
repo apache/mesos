@@ -72,7 +72,7 @@ constexpr const char* arg1 = "-c";
 template <typename... T>
 Try<std::string> shell(const std::string& fmt, const T&... t)
 {
-  const Try<std::string> command = strings::internal::format(fmt, t...);
+  const Try<std::string> command = strings::format(fmt, t...);
   if (command.isError()) {
     return Error(command.error());
   }

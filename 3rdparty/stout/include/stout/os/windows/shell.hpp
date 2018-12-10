@@ -419,7 +419,7 @@ Try<std::string> shell(const std::string& fmt, const T&... t)
   using std::string;
   using std::vector;
 
-  const Try<string> command = strings::internal::format(fmt, t...);
+  const Try<string> command = strings::format(fmt, t...);
   if (command.isError()) {
     return Error(command.error());
   }
