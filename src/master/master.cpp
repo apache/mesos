@@ -8551,15 +8551,21 @@ void Master::updateOperationStatus(UpdateOperationStatusMessage&& update)
       Result<ResourceProviderID> resourceProviderId =
         getResourceProviderId(operation->info());
 
-      // TODO(greggomann): Remove this CHECK once the agent is sending reliable
-      // updates for operations on its default resources. See MESOS-8194.
-      CHECK_SOME(resourceProviderId);
+      CHECK(!resourceProviderId.isError())
+        << "Could not determine resource provider of operation with no ID"
+        << (frameworkId.isSome()
+              ? " from framework " + stringify(frameworkId.get())
+              : " from an operator")
+        << ": " << resourceProviderId.error();
 
       AcknowledgeOperationStatusMessage acknowledgement;
       acknowledgement.mutable_status_uuid()->CopyFrom(latestStatus.uuid());
       acknowledgement.mutable_operation_uuid()->CopyFrom(operation->uuid());
-      acknowledgement.mutable_resource_provider_id()->CopyFrom(
-          resourceProviderId.get());
+
+      if (resourceProviderId.isSome()) {
+        acknowledgement.mutable_resource_provider_id()->CopyFrom(
+            resourceProviderId.get());
+      }
 
       CHECK(slave->capabilities.resourceProvider);
 

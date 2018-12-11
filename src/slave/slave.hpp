@@ -87,6 +87,8 @@
 #include "slave/paths.hpp"
 #include "slave/state.hpp"
 
+#include "status_update_manager/operation.hpp"
+
 // `REGISTERING` is used as an enum value, but it's actually defined as a
 // constant in the Windows SDK.
 #ifdef __WINDOWS__
@@ -347,6 +349,10 @@ public:
   // update to the master. Note that the latest state of the task is
   // added to the update before forwarding.
   void forward(StatusUpdate update);
+
+  // This is called by the operation status update manager to forward operation
+  // status updates to the master.
+  void sendOperationStatusUpdate(const UpdateOperationStatusMessage& update);
 
   void statusUpdateAcknowledgement(
       const process::UPID& from,
@@ -760,6 +766,8 @@ private:
   GarbageCollector* gc;
 
   TaskStatusUpdateManager* taskStatusUpdateManager;
+
+  OperationStatusUpdateManager operationStatusUpdateManager;
 
   // Master detection future.
   process::Future<Option<MasterInfo>> detection;

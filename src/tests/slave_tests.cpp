@@ -6455,6 +6455,102 @@ TEST_F(SlaveTest, ReregisterWithStatusUpdateTaskState)
 }
 
 
+// The agent's operation status update manager should retry updates for
+// operations on agent default resources. Here we drop the first such update and
+// verify that the update is sent again after the retry interval elapses.
+TEST_F(SlaveTest, UpdateOperationStatusRetry)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.clear_roles();
+  frameworkInfo.add_roles("test-role");
+
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(v1::scheduler::SendSubscribe(frameworkInfo));
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  ContentType contentType = ContentType::PROTOBUF;
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      contentType,
+      scheduler);
+
+  AWAIT_READY(subscribed);
+
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+
+  const v1::Offer& offer = offers->offers(0);
+
+  v1::Resources unreserved = offer.resources();
+  v1::Resources reserved = unreserved.pushReservation(
+      v1::createDynamicReservationInfo(
+          frameworkInfo.roles(0),
+          frameworkInfo.principal()));
+
+  v1::Offer::Operation reserve = v1::RESERVE(reserved);
+
+  Future<ApplyOperationMessage> applyOperationMessage =
+    FUTURE_PROTOBUF(ApplyOperationMessage(), _, slave.get()->pid);
+
+  // Drop the first operation status update.
+  Future<UpdateOperationStatusMessage> droppedOperation =
+    DROP_PROTOBUF(UpdateOperationStatusMessage(), _, master.get()->pid);
+
+  mesos.send(
+      v1::createCallAccept(
+          frameworkId,
+          offer,
+          {reserve}));
+
+  AWAIT_READY(applyOperationMessage);
+  UUID operationUuid = applyOperationMessage->operation_uuid();
+
+  AWAIT_READY(droppedOperation);
+  ASSERT_EQ(droppedOperation->operation_uuid(), operationUuid);
+
+  // Confirm that the agent retries the update.
+  Future<UpdateOperationStatusMessage> updateOperationStatusMessage =
+    FUTURE_PROTOBUF(UpdateOperationStatusMessage(), _, master.get()->pid);
+
+  Clock::advance(slave::STATUS_UPDATE_RETRY_INTERVAL_MIN);
+
+  AWAIT_READY(updateOperationStatusMessage);
+  ASSERT_EQ(updateOperationStatusMessage->operation_uuid(), operationUuid);
+
+  Clock::resume();
+}
+
+
 // This test verifies that the slave should properly handle the case
 // where the containerizer usage call fails when getting the usage
 // information.

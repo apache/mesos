@@ -635,10 +635,18 @@ void Slave::initialize()
   taskStatusUpdateManager->initialize(defer(self(), &Slave::forward, lambda::_1)
     .operator std::function<void(StatusUpdate)>());
 
-  // We pause the task status update manager so that it doesn't forward any
-  // updates while the slave is still recovering. It is unpaused/resumed when
-  // the slave (re-)registers with the master.
+  // We pause the status update managers so that they don't forward any updates
+  // while the agent is still recovering. They are unpaused/resumed when the
+  // agent (re-)registers with the master.
   taskStatusUpdateManager->pause();
+  operationStatusUpdateManager.pause();
+
+  operationStatusUpdateManager.initialize(
+      defer(self(), &Self::sendOperationStatusUpdate, lambda::_1),
+      std::bind(
+          &slave::paths::getOperationUpdatesPath,
+          metaDir,
+          lambda::_1));
 
   // Start disk monitoring.
   // NOTE: We send a delayed message here instead of directly calling
@@ -1237,6 +1245,7 @@ void Slave::detected(const Future<Option<MasterInfo>>& _master)
 
   // Pause the status updates.
   taskStatusUpdateManager->pause();
+  operationStatusUpdateManager.pause();
 
   if (_master.isFailed()) {
     EXIT(EXIT_FAILURE) << "Failed to detect a master: " << _master.failure();
@@ -1492,6 +1501,7 @@ void Slave::registered(
       Clock::cancel(agentRegistrationTimer);
 
       taskStatusUpdateManager->resume(); // Resume status updates.
+      operationStatusUpdateManager.resume();
 
       info.mutable_id()->CopyFrom(slaveId); // Store the slave id.
 
@@ -1590,6 +1600,7 @@ void Slave::reregistered(
       LOG(INFO) << "Re-registered with master " << master.get();
       state = RUNNING;
       taskStatusUpdateManager->resume(); // Resume status updates.
+      operationStatusUpdateManager.resume();
 
       // We start the local resource providers daemon once the agent is
       // running, so the resource providers can use the agent API.
@@ -4397,7 +4408,7 @@ void Slave::applyOperation(const ApplyOperationMessage& message)
             operationId,
             None(),
             None(),
-            None(),
+            id::UUID::random(),
             info.id(),
             resourceProviderId.isSome()
               ? resourceProviderId.get() : Option<ResourceProviderID>::none()),
@@ -4409,9 +4420,7 @@ void Slave::applyOperation(const ApplyOperationMessage& message)
 
   removeOperation(operation);
 
-  // TODO(nfnt): Use the status update manager to reliably send
-  // this message to the master.
-  send(master.get(), update);
+  operationStatusUpdateManager.update(update);
 }
 
 
@@ -5801,6 +5810,54 @@ void Slave::forward(StatusUpdate update)
   message.set_pid(self()); // The ACK will be first received by the slave.
 
   send(master.get(), message);
+}
+
+
+void Slave::sendOperationStatusUpdate(
+    const UpdateOperationStatusMessage& update)
+{
+  const UUID& operationUUID = update.operation_uuid();
+
+  Operation* operation = getOperation(operationUUID);
+
+  // TODO(greggomann): Make a note here of which cases may lead to
+  // the operation being unknown by the agent.
+  if (operation != nullptr) {
+    updateOperation(operation, update);
+  }
+
+  switch (state) {
+    case RECOVERING:
+    case DISCONNECTED:
+    case TERMINATING: {
+      LOG(WARNING)
+        << "Dropping status update of operation"
+        << (update.status().has_operation_id()
+             ? " '" + stringify(update.status().operation_id()) + "'"
+             : " with no ID")
+        << " (operation_uuid: " << operationUUID << ")"
+        << (update.has_framework_id()
+             ? " for framework " + stringify(update.framework_id())
+             : " for an operator API call")
+        << " because agent is in " << state << " state";
+      break;
+    }
+    case RUNNING: {
+      LOG(INFO)
+        << "Forwarding status update of"
+        << (operation == nullptr ? " unknown" : "") << " operation"
+        << (update.status().has_operation_id()
+             ? " '" + stringify(update.status().operation_id()) + "'"
+             : " with no ID")
+        << " (operation_uuid: " << operationUUID << ")"
+        << (update.has_framework_id()
+             ? " for framework " + stringify(update.framework_id())
+             : " for an operator API call");
+
+      send(master.get(), update);
+      break;
+    }
+  }
 }
 
 
