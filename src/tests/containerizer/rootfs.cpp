@@ -128,6 +128,7 @@ Try<process::Owned<Rootfs>> LinuxRootfs::create(const string& root)
 
   const vector<string> programs = {
     "/bin/cat",
+    "/bin/dd",
     "/bin/echo",
     "/bin/ls",
     "/bin/ping",
