@@ -69,21 +69,34 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-class LinuxFilesystemIsolatorTest : public MesosTest {};
+class LinuxFilesystemIsolatorTest : public MesosTest
+{
+protected:
+  slave::Flags CreateSlaveFlags() override
+  {
+    slave::Flags flags = MesosTest::CreateSlaveFlags();
+    flags.isolation = "filesystem/linux,docker/runtime";
+    flags.docker_registry = GetRegistryPath();
+    flags.docker_store_dir = path::join(sandbox.get(), "store");
+    flags.image_providers = "docker";
+
+    return flags;
+  }
+
+  string GetRegistryPath() const
+  {
+    return path::join(sandbox.get(), "registry");
+  }
+};
 
 
 // This test verifies that the root filesystem of the container is
 // properly changed to the one that's provisioned by the provisioner.
 TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystem)
 {
-  string registry = path::join(sandbox.get(), "registry");
-  AWAIT_READY(DockerArchive::create(registry, "test_image"));
+  AWAIT_READY(DockerArchive::create(GetRegistryPath(), "test_image"));
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "filesystem/linux,docker/runtime";
-  flags.docker_registry = registry;
-  flags.docker_store_dir = path::join(sandbox.get(), "store");
-  flags.image_providers = "docker";
 
   Fetcher fetcher(flags);
 
@@ -127,14 +140,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_ChangeRootFilesystem)
 // in the container's root filesystem.
 TEST_F(LinuxFilesystemIsolatorTest, ROOT_PseudoDevicesWithRootFilesystem)
 {
-  string registry = path::join(sandbox.get(), "registry");
-  AWAIT_READY(DockerArchive::create(registry, "test_image"));
+  AWAIT_READY(DockerArchive::create(GetRegistryPath(), "test_image"));
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "filesystem/linux,docker/runtime";
-  flags.docker_registry = registry;
-  flags.docker_store_dir = path::join(sandbox.get(), "store");
-  flags.image_providers = "docker";
 
   Fetcher fetcher(flags);
 
@@ -181,14 +189,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PseudoDevicesWithRootFilesystem)
 // that have root filesystem specified is correctly reported.
 TEST_F(LinuxFilesystemIsolatorTest, ROOT_Metrics)
 {
-  string registry = path::join(sandbox.get(), "registry");
-  AWAIT_READY(DockerArchive::create(registry, "test_image"));
+  AWAIT_READY(DockerArchive::create(GetRegistryPath(), "test_image"));
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "filesystem/linux,docker/runtime";
-  flags.docker_registry = registry;
-  flags.docker_store_dir = path::join(sandbox.get(), "store");
-  flags.image_providers = "docker";
 
   Fetcher fetcher(flags);
 
@@ -241,14 +244,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_Metrics)
 // the container's root filesystem.
 TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithRootFilesystem)
 {
-  string registry = path::join(sandbox.get(), "registry");
-  AWAIT_READY(DockerArchive::create(registry, "test_image"));
+  AWAIT_READY(DockerArchive::create(GetRegistryPath(), "test_image"));
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "filesystem/linux,docker/runtime";
-  flags.docker_registry = registry;
-  flags.docker_store_dir = path::join(sandbox.get(), "store");
-  flags.image_providers = "docker";
 
   Fetcher fetcher(flags);
 
@@ -312,14 +310,9 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithRootFilesystem)
 TEST_F(LinuxFilesystemIsolatorTest,
        ROOT_PersistentVolumeAndHostVolumeWithRootFilesystem)
 {
-  string registry = path::join(sandbox.get(), "registry");
-  AWAIT_READY(DockerArchive::create(registry, "test_image"));
+  AWAIT_READY(DockerArchive::create(GetRegistryPath(), "test_image"));
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "filesystem/linux,docker/runtime";
-  flags.docker_registry = registry;
-  flags.docker_store_dir = path::join(sandbox.get(), "store");
-  flags.image_providers = "docker";
 
   Fetcher fetcher(flags);
 
@@ -384,14 +377,7 @@ TEST_F(LinuxFilesystemIsolatorTest,
 // the container does not specify a root filesystem.
 TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithoutRootFilesystem)
 {
-  string registry = path::join(sandbox.get(), "registry");
-  AWAIT_READY(DockerArchive::create(registry, "test_image"));
-
   slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "filesystem/linux,docker/runtime";
-  flags.docker_registry = registry;
-  flags.docker_store_dir = path::join(sandbox.get(), "store");
-  flags.image_providers = "docker";
 
   Fetcher fetcher(flags);
 
@@ -449,15 +435,10 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeWithoutRootFilesystem)
 // launched simultaneously with no interference.
 TEST_F(LinuxFilesystemIsolatorTest, ROOT_MultipleContainers)
 {
-  string registry = path::join(sandbox.get(), "registry");
-  AWAIT_READY(DockerArchive::create(registry, "test_image1"));
-  AWAIT_READY(DockerArchive::create(registry, "test_image2"));
+  AWAIT_READY(DockerArchive::create(GetRegistryPath(), "test_image1"));
+  AWAIT_READY(DockerArchive::create(GetRegistryPath(), "test_image2"));
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "filesystem/linux,docker/runtime";
-  flags.docker_registry = registry;
-  flags.docker_store_dir = path::join(sandbox.get(), "store");
-  flags.image_providers = "docker";
 
   Fetcher fetcher(flags);
 
@@ -633,7 +614,6 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_WorkDirMountNeeded)
 TEST_F(LinuxFilesystemIsolatorTest, ROOT_PersistentVolumeMountPointCleanup)
 {
   slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "filesystem/linux";
 
   Fetcher fetcher(flags);
 
@@ -714,14 +694,9 @@ TEST_F(LinuxFilesystemIsolatorMesosTest,
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  string registry = path::join(sandbox.get(), "registry");
-  AWAIT_READY(DockerArchive::create(registry, "test_image"));
+  AWAIT_READY(DockerArchive::create(GetRegistryPath(), "test_image"));
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "filesystem/linux,docker/runtime";
-  flags.docker_registry = registry;
-  flags.docker_store_dir = path::join(sandbox.get(), "store");
-  flags.image_providers = "docker";
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -790,15 +765,10 @@ TEST_F(LinuxFilesystemIsolatorMesosTest,
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  string registry = path::join(sandbox.get(), "registry");
-  AWAIT_READY(DockerArchive::create(registry, "test_image"));
+  AWAIT_READY(DockerArchive::create(GetRegistryPath(), "test_image"));
 
   slave::Flags flags = CreateSlaveFlags();
   flags.resources = "cpus:2;mem:1024;disk(role1):1024";
-  flags.isolation = "filesystem/linux,docker/runtime";
-  flags.docker_registry = registry;
-  flags.docker_store_dir = path::join(sandbox.get(), "store");
-  flags.image_providers = "docker";
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -920,15 +890,10 @@ TEST_F(LinuxFilesystemIsolatorMesosTest,
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  string registry = path::join(sandbox.get(), "registry");
-  AWAIT_READY(DockerArchive::create(registry, "test_image"));
+  AWAIT_READY(DockerArchive::create(GetRegistryPath(), "test_image"));
 
   slave::Flags flags = CreateSlaveFlags();
   flags.resources = "cpus:2;mem:1024;disk(role1):1024";
-  flags.isolation = "filesystem/linux,docker/runtime";
-  flags.docker_registry = registry;
-  flags.docker_store_dir = path::join(sandbox.get(), "store");
-  flags.image_providers = "docker";
 
   Fetcher fetcher(flags);
 
@@ -1077,14 +1042,9 @@ TEST_F(LinuxFilesystemIsolatorMesosTest, ROOT_SandboxEnvironmentVariable)
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  string registry = path::join(sandbox.get(), "registry");
-  AWAIT_READY(DockerArchive::create(registry, "test_image"));
+  AWAIT_READY(DockerArchive::create(GetRegistryPath(), "test_image"));
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "filesystem/linux,docker/runtime";
-  flags.docker_registry = registry;
-  flags.docker_store_dir = path::join(sandbox.get(), "store");
-  flags.image_providers = "docker";
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
@@ -1158,15 +1118,11 @@ TEST_F(LinuxFilesystemIsolatorMesosTest,
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  string registry = path::join(sandbox.get(), "registry");
-  AWAIT_READY(DockerArchive::create(registry, "test_image"));
+  AWAIT_READY(DockerArchive::create(GetRegistryPath(), "test_image"));
 
   slave::Flags flags = CreateSlaveFlags();
   flags.resources = "cpus:2;mem:128;disk(role1):128";
   flags.isolation = "disk/du,filesystem/linux,docker/runtime";
-  flags.docker_registry = registry;
-  flags.docker_store_dir = path::join(sandbox.get(), "store");
-  flags.image_providers = "docker";
 
   // NOTE: We can't pause the clock because we need the reaper to reap
   // the 'du' subprocess.
@@ -1261,15 +1217,10 @@ TEST_F(LinuxFilesystemIsolatorMesosTest,
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
-  string registry = path::join(sandbox.get(), "registry");
-  AWAIT_READY(DockerArchive::create(registry, "test_image"));
+  AWAIT_READY(DockerArchive::create(GetRegistryPath(), "test_image"));
 
   slave::Flags flags = CreateSlaveFlags();
   flags.resources = "cpus:2;mem:128;disk(role1):128";
-  flags.isolation = "filesystem/linux,docker/runtime";
-  flags.docker_registry = registry;
-  flags.docker_store_dir = path::join(sandbox.get(), "store");
-  flags.image_providers = "docker";
 
   Owned<MasterDetector> detector = master.get()->createDetector();
 
