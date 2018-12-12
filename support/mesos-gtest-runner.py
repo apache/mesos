@@ -32,7 +32,6 @@ import multiprocessing
 import os
 import resource
 import shlex
-import signal
 import subprocess
 import sys
 
@@ -73,8 +72,6 @@ def run_test(opts):
     """
     shard, nshards, args = opts
 
-    signal.signal(signal.SIGINT, signal.SIG_IGN)
-
     env = os.environ.copy()
     env['GTEST_TOTAL_SHARDS'] = str(nshards)
     env['GTEST_SHARD_INDEX'] = str(shard)
@@ -88,6 +85,8 @@ def run_test(opts):
         print(Bcolors.colorize('.', Bcolors.OKGREEN), end='')
         sys.stdout.flush()
         return True, output
+    except KeyboardInterrupt:
+        return False
     except subprocess.CalledProcessError as error:
         print(Bcolors.colorize('.', Bcolors.FAIL), end='')
         sys.stdout.flush()
