@@ -36,6 +36,7 @@
 #include <stout/gtest.hpp>
 #include <stout/jsonify.hpp>
 #include <stout/nothing.hpp>
+#include <stout/numify.hpp>
 #include <stout/recordio.hpp>
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
@@ -3578,6 +3579,172 @@ TEST_P(MasterAPITest, Heartbeat)
     event = decoder.read();
     EXPECT_TRUE(event.isPending());
   }
+
+  Clock::resume();
+}
+
+
+// Verifies that old subscribers are disconnected when too many
+// active subscribers are attached to the master's event stream at once.
+TEST_P(MasterAPITest, MaxEventStreamSubscribers)
+{
+  Clock::pause();
+
+  ContentType contentType = GetParam();
+
+  // Lower the max number of connections for this test.
+  master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.max_operator_event_stream_subscribers = 2;
+
+  Try<Owned<cluster::Master>> master = this->StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // Define some objects we'll use for all the SUBSCRIBE calls.
+  v1::master::Call v1Call;
+  v1Call.set_type(v1::master::Call::SUBSCRIBE);
+
+  http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+  headers["Accept"] = stringify(contentType);
+
+  auto deserializer =
+    lambda::bind(deserialize<v1::master::Event>, contentType, lambda::_1);
+
+  Future<Result<v1::master::Event>> event;
+
+  // Send two connections to fill up the circular buffer.
+  Future<http::Response> response1 = http::streaming::post(
+      master.get()->pid,
+      "api/v1",
+      headers,
+      serialize(contentType, v1Call),
+      stringify(contentType));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response1);
+  ASSERT_EQ(http::Response::PIPE, response1->type);
+  ASSERT_SOME(response1->reader);
+  http::Pipe::Reader reader1 = response1->reader.get();
+
+  Reader<v1::master::Event> decoder1(
+      Decoder<v1::master::Event>(deserializer), reader1);
+
+  event = decoder1.read();
+  AWAIT_READY(event);
+  ASSERT_EQ(v1::master::Event::SUBSCRIBED, event->get().type());
+  event = decoder1.read();
+  AWAIT_READY(event);
+  ASSERT_EQ(v1::master::Event::HEARTBEAT, event->get().type());
+
+  Future<http::Response> response2 = http::streaming::post(
+      master.get()->pid,
+      "api/v1",
+      headers,
+      serialize(contentType, v1Call),
+      stringify(contentType));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response2);
+  ASSERT_EQ(http::Response::PIPE, response2->type);
+  ASSERT_SOME(response2->reader);
+  http::Pipe::Reader reader2 = response2->reader.get();
+
+  Reader<v1::master::Event> decoder2(
+      Decoder<v1::master::Event>(deserializer), reader2);
+
+  event = decoder2.read();
+  AWAIT_READY(event);
+  ASSERT_EQ(v1::master::Event::SUBSCRIBED, event->get().type());
+  event = decoder2.read();
+  AWAIT_READY(event);
+  ASSERT_EQ(v1::master::Event::HEARTBEAT, event->get().type());
+
+  // Start a third connection.
+  {
+    // This is basically `http::streaming::post` unwrapped inside the
+    // test body. We must do this in order to control the lifetime of
+    // the `http::Connection`. The HTTP helper will keep the streaming
+    // connection alive until the server closes it, but this test wants
+    // to prematurely close the connection.
+    http::URL url(
+        "http",
+        master.get()->pid.address.ip,
+        master.get()->pid.address.port,
+        strings::join("/", master.get()->pid.id, "api/v1"));
+
+    http::Request request;
+    request.method = "POST";
+    request.url = url;
+    request.keepAlive = false;
+    request.headers = headers;
+    request.body = serialize(contentType, v1Call);
+    request.headers["Content-Type"] = stringify(contentType);
+
+    Future<http::Connection> connection = http::connect(request.url);
+
+    Future<http::Response> response3 = connection
+      .then([request](http::Connection connection) {
+        return connection.send(request, true);
+      });
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response3);
+    ASSERT_EQ(http::Response::PIPE, response3->type);
+    ASSERT_SOME(response3->reader);
+    http::Pipe::Reader reader3 = response3->reader.get();
+
+    Reader<v1::master::Event> decoder3(
+        Decoder<v1::master::Event>(deserializer), reader3);
+
+    event = decoder3.read();
+    AWAIT_READY(event);
+    ASSERT_EQ(v1::master::Event::SUBSCRIBED, event->get().type());
+    event = decoder3.read();
+    AWAIT_READY(event);
+    ASSERT_EQ(v1::master::Event::HEARTBEAT, event->get().type());
+
+    // The first connection should have been kicked out by the third.
+    event = decoder1.read();
+    AWAIT_READY(event);
+    ASSERT_TRUE(event->isNone());
+
+    // The connection will go out of scope and be destructed, which brings
+    // the total active connections below the maximum.
+  }
+
+  // Verify that the second connection is still open.
+  Clock::advance(DEFAULT_HEARTBEAT_INTERVAL);
+  event = decoder2.read();
+  AWAIT_READY(event);
+  ASSERT_TRUE(event->isSome());
+  ASSERT_EQ(v1::master::Event::HEARTBEAT, event->get().type());
+
+  // Start a fourth connection. This should be under the maximum
+  // and should not cause any disconnections.
+  Future<http::Response> response4 = http::streaming::post(
+      master.get()->pid,
+      "api/v1",
+      headers,
+      serialize(contentType, v1Call),
+      stringify(contentType));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response4);
+  ASSERT_EQ(http::Response::PIPE, response4->type);
+  ASSERT_SOME(response4->reader);
+  http::Pipe::Reader reader4 = response4->reader.get();
+
+  Reader<v1::master::Event> decoder4(
+      Decoder<v1::master::Event>(deserializer), reader4);
+
+  event = decoder4.read();
+  AWAIT_READY(event);
+  ASSERT_EQ(v1::master::Event::SUBSCRIBED, event->get().type());
+  event = decoder4.read();
+  AWAIT_READY(event);
+  ASSERT_EQ(v1::master::Event::HEARTBEAT, event->get().type());
+
+  // Verify that the second connection is still open.
+  Clock::advance(DEFAULT_HEARTBEAT_INTERVAL);
+  event = decoder2.read();
+  AWAIT_READY(event);
+  ASSERT_TRUE(event->isSome());
+  ASSERT_EQ(v1::master::Event::HEARTBEAT, event->get().type());
 
   Clock::resume();
 }

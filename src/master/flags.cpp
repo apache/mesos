@@ -572,6 +572,17 @@ mesos::internal::master::Flags::Flags()
       "Currently there is no support for multiple HTTP framework\n"
       "authenticators.");
 
+  add(&Flags::max_operator_event_stream_subscribers,
+      "max_operator_event_stream_subscribers",
+      "Maximum number of simultaneous subscribers to the master's operator\n"
+      "event stream. If new connections bring the total number of subscribers\n"
+      "over this value, older connections will be closed by the master.\n"
+      "\n"
+      "This flag should generally not be changed unless the operator is\n"
+      "mitigating known problems with their network setup, such as\n"
+      "clients/proxies that do not close connections to the master.",
+      DEFAULT_MAX_OPERATOR_EVENT_STREAM_SUBSCRIBERS);
+
   add(&Flags::max_completed_frameworks,
       "max_completed_frameworks",
       "Maximum number of completed frameworks to store in memory.",

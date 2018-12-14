@@ -325,7 +325,7 @@ Master::Master(
     detector(_detector),
     authorizer(_authorizer),
     frameworks(flags),
-    subscribers(this),
+    subscribers(this, flags.max_operator_event_stream_subscribers),
     authenticator(None()),
     metrics(new Metrics(*this)),
     electedTime(None())
@@ -12129,7 +12129,9 @@ void Master::Subscribers::Subscriber::send(
 void Master::exited(const id::UUID& id)
 {
   if (!subscribers.subscribed.contains(id)) {
-    LOG(WARNING) << "Unknown subscriber " << id << " disconnected";
+    // NOTE: This is only possible when the master closes an event stream
+    // by deleting the subscriber from the `subscribed` map. There will
+    // be separate logging when that happens.
     return;
   }
 
@@ -12153,7 +12155,16 @@ void Master::subscribe(
              exited(http.streamId);
            }));
 
-  subscribers.subscribed.put(
+  if (subscribers.subscribed.size() >=
+      flags.max_operator_event_stream_subscribers) {
+    LOG(INFO)
+      << "Reached the maximum number of operator event stream subscribers ("
+      << flags.max_operator_event_stream_subscribers << ") so the oldest "
+      << "connection (" << std::get<0>(*subscribers.subscribed.begin())
+      << ") will be closed";
+  }
+
+  subscribers.subscribed.set(
       http.streamId,
       Owned<Subscribers::Subscriber>(
           new Subscribers::Subscriber{http, principal}));

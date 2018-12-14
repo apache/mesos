@@ -91,6 +91,10 @@ constexpr double RECOVERY_AGENT_REMOVAL_PERCENT_LIMIT = 1.0; // 100%.
 // Maximum number of removed slaves to store in the cache.
 constexpr size_t MAX_REMOVED_SLAVES = 100000;
 
+// Default maximum number of subscribers to the master's event stream
+// to keep active at any time.
+constexpr size_t DEFAULT_MAX_OPERATOR_EVENT_STREAM_SUBSCRIBERS = 1000;
+
 // Default maximum number of completed frameworks to store in the cache.
 constexpr size_t DEFAULT_MAX_COMPLETED_FRAMEWORKS = 50;
 

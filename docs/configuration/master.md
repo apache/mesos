@@ -444,6 +444,22 @@ Maximum number of completed tasks per framework to store in memory. (default: 10
   </td>
 </tr>
 
+<tr id="max_operator_event_stream_subscribers">
+  <td>
+    --max_operator_event_stream_subscribers=VALUE
+  </td>
+  <td>
+Maximum number of simultaneous subscribers to the master's operator event
+stream. If new connections bring the total number of subscribers over this
+value, older connections will be closed by the master.
+
+This flag should generally not be changed unless the operator is mitigating
+known problems with their network setup, such as clients/proxies that do not
+close connections to the master.
+(default: 1000)
+  </td>
+</tr>
+
 <tr id="max_unreachable_tasks_per_framework">
   <td>
     --max_unreachable_tasks_per_framework=VALUE
