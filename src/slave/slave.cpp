@@ -4631,7 +4631,7 @@ void Slave::operationStatusAcknowledgement(
 
 
 void Slave::subscribe(
-    HttpConnection http,
+    StreamingHttpConnection<v1::executor::Event> http,
     const Call::Subscribe& subscribe,
     Framework* framework,
     Executor* executor)

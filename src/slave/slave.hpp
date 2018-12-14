@@ -110,7 +110,6 @@ class TaskStatusUpdateManager;
 class Executor;
 class Framework;
 
-struct HttpConnection;
 struct ResourceProvider;
 
 
@@ -273,7 +272,7 @@ public:
   void reconcileOperations(const ReconcileOperationsMessage& message);
 
   void subscribe(
-      HttpConnection http,
+      StreamingHttpConnection<v1::executor::Event> http,
       const executor::Call::Subscribe& subscribe,
       Framework* framework,
       Executor* executor);
@@ -850,40 +849,6 @@ private:
 };
 
 
-// Represents the streaming HTTP connection to an executor.
-struct HttpConnection
-{
-  HttpConnection(const process::http::Pipe::Writer& _writer,
-                 ContentType _contentType)
-    : writer(_writer),
-      contentType(_contentType),
-      encoder(lambda::bind(serialize, contentType, lambda::_1)) {}
-
-  // Converts the message to an Event before sending.
-  template <typename Message>
-  bool send(const Message& message)
-  {
-    // We need to evolve the internal 'message' into a
-    // 'v1::executor::Event'.
-    return writer.write(encoder.encode(evolve(message)));
-  }
-
-  bool close()
-  {
-    return writer.close();
-  }
-
-  process::Future<Nothing> closed() const
-  {
-    return writer.readerClosed();
-  }
-
-  process::http::Pipe::Writer writer;
-  ContentType contentType;
-  ::recordio::Encoder<v1::executor::Event> encoder;
-};
-
-
 std::ostream& operator<<(std::ostream& stream, const Executor& executor);
 
 
@@ -1020,7 +985,7 @@ public:
   //           *       REGISTERING       None       None   Not known yet
   //           *                 *       None       Some      Libprocess
   //           *                 *       Some       None            HTTP
-  Option<HttpConnection> http;
+  Option<StreamingHttpConnection<v1::executor::Event>> http;
   Option<process::UPID> pid;
 
   // Tasks can be found in one of the following four data structures:

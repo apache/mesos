@@ -412,7 +412,8 @@ Future<Response> Master::Http::subscribe(
           ok.type = Response::PIPE;
           ok.reader = pipe.reader();
 
-          HttpConnection http{pipe.writer(), contentType, id::UUID::random()};
+          StreamingHttpConnection<v1::master::Event> http(
+              pipe.writer(), contentType);
 
           mesos::master::Event event;
           event.set_type(mesos::master::Event::SUBSCRIBED);
@@ -422,11 +423,11 @@ Future<Response> Master::Http::subscribe(
           event.mutable_subscribed()->set_heartbeat_interval_seconds(
               DEFAULT_HEARTBEAT_INTERVAL.secs());
 
-          http.send<mesos::master::Event, v1::master::Event>(event);
+          http.send(event);
 
           mesos::master::Event heartbeatEvent;
           heartbeatEvent.set_type(mesos::master::Event::HEARTBEAT);
-          http.send<mesos::master::Event, v1::master::Event>(heartbeatEvent);
+          http.send(heartbeatEvent);
 
           // Master::subscribe will start the heartbeater process, which should
           // only happen after `SUBSCRIBED` event is sent.
@@ -598,7 +599,9 @@ Future<Response> Master::Http::scheduler(
     id::UUID streamId = id::UUID::random();
     ok.headers["Mesos-Stream-Id"] = streamId.toString();
 
-    HttpConnection http {pipe.writer(), acceptType, streamId};
+    StreamingHttpConnection<v1::scheduler::Event> http(
+        pipe.writer(), acceptType, streamId);
+
     master->subscribe(http, call.subscribe());
 
     return ok;

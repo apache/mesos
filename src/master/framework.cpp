@@ -16,6 +16,7 @@
 
 #include "master/master.hpp"
 
+#include "common/heartbeater.hpp"
 #include "common/protobuf_utils.hpp"
 
 namespace mesos {
@@ -38,7 +39,7 @@ Framework::Framework(
     Master* const master,
     const Flags& masterFlags,
     const FrameworkInfo& info,
-    const HttpConnection& _http,
+    const StreamingHttpConnection<v1::scheduler::Event>& _http,
     const process::Time& time)
   : Framework(master, masterFlags, info, ACTIVE, time)
 {
@@ -624,7 +625,8 @@ void Framework::updateConnection(const process::UPID& newPid)
 }
 
 
-void Framework::updateConnection(const HttpConnection& newHttp)
+void Framework::updateConnection(
+    const StreamingHttpConnection<v1::scheduler::Event>& newHttp)
 {
   if (pid.isSome()) {
     // Wipe the PID if this is an upgrade from PID to HTTP.
@@ -653,19 +655,12 @@ void Framework::closeHttpConnection()
   }
 
   http = None();
-
-  CHECK_SOME(heartbeater);
-
-  terminate(heartbeater->get());
-  wait(heartbeater->get());
-
-  heartbeater = None();
+  heartbeater.reset();
 }
 
 
 void Framework::heartbeat()
 {
-  CHECK_NONE(heartbeater);
   CHECK_SOME(http);
 
   // TODO(vinod): Make heartbeat interval configurable and include
@@ -673,18 +668,16 @@ void Framework::heartbeat()
   scheduler::Event event;
   event.set_type(scheduler::Event::HEARTBEAT);
 
-  heartbeater =
-    new Heartbeater<scheduler::Event, v1::scheduler::Event>(
-        "framework " + stringify(info.id()),
-        event,
-        http.get(),
-        DEFAULT_HEARTBEAT_INTERVAL,
-        None(),
-        [this](const scheduler::Event& event) {
-          this->metrics.incrementEvent(event);
-        });
-
-  process::spawn(heartbeater->get());
+  heartbeater.reset(
+      new ResponseHeartbeater<scheduler::Event, v1::scheduler::Event>(
+          "framework " + stringify(info.id()),
+          event,
+          http.get(),
+          DEFAULT_HEARTBEAT_INTERVAL,
+          None(),
+          [this, event]() {
+            this->metrics.incrementEvent(event);
+          }));
 }
 
 

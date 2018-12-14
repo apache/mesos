@@ -36,7 +36,11 @@
 #include <stout/json.hpp>
 #include <stout/jsonify.hpp>
 #include <stout/protobuf.hpp>
+#include <stout/recordio.hpp>
 #include <stout/unreachable.hpp>
+#include <stout/uuid.hpp>
+
+#include "internal/evolve.hpp"
 
 // TODO(benh): Remove this once we get C++14 as an enum should have a
 // default hash.
@@ -136,6 +140,47 @@ Try<Message> deserialize(
 // Returns true if the media type can be used for
 // streaming requests/responses.
 bool streamingMediaType(ContentType contentType);
+
+
+// Represents the streaming HTTP connection to a client, such as a framework,
+// executor, or operator subscribed to the '/api/vX' endpoint.
+// The `Event` template is the evolved message being sent to the client,
+// e.g. `v1::scheduler::Event`, `v1::master::Event`, or `v1::executor::Event`.
+template <typename Event>
+struct StreamingHttpConnection
+{
+  StreamingHttpConnection(
+      const process::http::Pipe::Writer& _writer,
+      ContentType _contentType,
+      id::UUID _streamId = id::UUID::random())
+    : writer(_writer),
+      contentType(_contentType),
+      encoder(lambda::bind(serialize, contentType, lambda::_1)),
+      streamId(_streamId) {}
+
+  // Converts the message to the templated `Event`, via `evolve()`,
+  // before sending.
+  template <typename Message>
+  bool send(const Message& message)
+  {
+    return writer.write(encoder.encode(evolve(message)));
+  }
+
+  bool close()
+  {
+    return writer.close();
+  }
+
+  process::Future<Nothing> closed() const
+  {
+    return writer.readerClosed();
+  }
+
+  process::http::Pipe::Writer writer;
+  ContentType contentType;
+  ::recordio::Encoder<Event> encoder;
+  id::UUID streamId;
+};
 
 
 JSON::Object model(const Resources& resources);

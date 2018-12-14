@@ -1011,6 +1011,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   common/build.hpp							\
   common/command_utils.cpp						\
   common/command_utils.hpp						\
+  common/heartbeater.hpp						\
   common/http.cpp							\
   common/http.hpp							\
   common/parse.hpp							\

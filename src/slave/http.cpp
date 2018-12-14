@@ -831,7 +831,9 @@ Future<Response> Http::executor(
       ok.type = Response::PIPE;
       ok.reader = pipe.reader();
 
-      HttpConnection http {pipe.writer(), acceptType};
+      StreamingHttpConnection<v1::executor::Event> http(
+          pipe.writer(), acceptType);
+
       slave->subscribe(http, call.subscribe(), framework, executor);
 
       return ok;
