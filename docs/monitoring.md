@@ -979,6 +979,13 @@ event queue.
   <td>Number of messages in the event queue</td>
   <td>Gauge</td>
 </tr>
+<tr>
+  <td>
+  <code>master/operator_event_stream_subscribers</code>
+  </td>
+  <td>Number of subscribers to the operator event stream</td>
+  <td>Gauge</td>
+</tr>
 </table>
 
 #### Registrar

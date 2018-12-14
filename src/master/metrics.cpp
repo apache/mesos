@@ -80,6 +80,8 @@ Metrics::Metrics(const Master& master)
     outstanding_offers(
         "master/outstanding_offers",
         defer(master, &Master::_outstanding_offers)),
+    operator_event_stream_subscribers(
+        "master/operator_event_stream_subscribers"),
     tasks_staging(
         "master/tasks_staging",
         defer(master, &Master::_tasks_staging)),
@@ -232,6 +234,8 @@ Metrics::Metrics(const Master& master)
 
   process::metrics::add(outstanding_offers);
 
+  process::metrics::add(operator_event_stream_subscribers);
+
   process::metrics::add(tasks_staging);
   process::metrics::add(tasks_starting);
   process::metrics::add(tasks_running);
@@ -382,6 +386,8 @@ Metrics::~Metrics()
   process::metrics::remove(frameworks_inactive);
 
   process::metrics::remove(outstanding_offers);
+
+  process::metrics::remove(operator_event_stream_subscribers);
 
   process::metrics::remove(tasks_staging);
   process::metrics::remove(tasks_starting);

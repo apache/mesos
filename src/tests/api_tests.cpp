@@ -3591,6 +3591,7 @@ TEST_P(MasterAPITest, MaxEventStreamSubscribers)
   Clock::pause();
 
   ContentType contentType = GetParam();
+  const string METRIC_NAME("master/operator_event_stream_subscribers");
 
   // Lower the max number of connections for this test.
   master::Flags masterFlags = CreateMasterFlags();
@@ -3656,6 +3657,10 @@ TEST_P(MasterAPITest, MaxEventStreamSubscribers)
   AWAIT_READY(event);
   ASSERT_EQ(v1::master::Event::HEARTBEAT, event->get().type());
 
+  // Check the relevant metric for total active subscribers.
+  JSON::Object metrics = Metrics();
+  EXPECT_EQ(2, metrics.values.at(METRIC_NAME));
+
   // Start a third connection.
   {
     // This is basically `http::streaming::post` unwrapped inside the
@@ -3714,6 +3719,10 @@ TEST_P(MasterAPITest, MaxEventStreamSubscribers)
   AWAIT_READY(event);
   ASSERT_TRUE(event->isSome());
   ASSERT_EQ(v1::master::Event::HEARTBEAT, event->get().type());
+
+  // Check the metric again.
+  metrics = Metrics();
+  EXPECT_EQ(1, metrics.values.at(METRIC_NAME));
 
   // Start a fourth connection. This should be under the maximum
   // and should not cause any disconnections.

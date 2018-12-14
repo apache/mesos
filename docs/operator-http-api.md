@@ -717,6 +717,10 @@ Content-Type: application/json
         "value": 0.0
       },
       {
+        "name": "master/operator_event_stream_subscribers",
+        "value": 0.0
+      },
+      {
         "name": "master/frameworks_active",
         "value": 0.0
       },

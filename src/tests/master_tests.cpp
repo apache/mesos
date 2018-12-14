@@ -2266,6 +2266,9 @@ TEST_F(MasterTest, MetricsInMetricsEndpoint)
 
   EXPECT_EQ(1u, snapshot.values.count("master/outstanding_offers"));
 
+  EXPECT_EQ(1u, snapshot.values.count(
+      "master/operator_event_stream_subscribers"));
+
   EXPECT_EQ(1u, snapshot.values.count("master/tasks_staging"));
   EXPECT_EQ(1u, snapshot.values.count("master/tasks_starting"));
   EXPECT_EQ(1u, snapshot.values.count("master/tasks_running"));

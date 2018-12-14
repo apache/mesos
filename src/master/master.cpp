@@ -12139,6 +12139,9 @@ void Master::exited(const id::UUID& id)
             << " from the list of active subscribers";
 
   subscribers.subscribed.erase(id);
+
+  metrics->operator_event_stream_subscribers =
+    subscribers.subscribed.size();
 }
 
 
@@ -12168,6 +12171,9 @@ void Master::subscribe(
       http.streamId,
       Owned<Subscribers::Subscriber>(
           new Subscribers::Subscriber{http, principal}));
+
+  metrics->operator_event_stream_subscribers =
+    subscribers.subscribed.size();
 }
 
 

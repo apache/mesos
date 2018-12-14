@@ -60,6 +60,8 @@ struct Metrics
 
   process::metrics::PullGauge outstanding_offers;
 
+  process::metrics::PushGauge operator_event_stream_subscribers;
+
   // Task state metrics.
   process::metrics::PullGauge tasks_staging;
   process::metrics::PullGauge tasks_starting;
