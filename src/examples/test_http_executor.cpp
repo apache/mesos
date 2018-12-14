@@ -195,6 +195,10 @@ public:
           break;
         }
 
+        case Event::HEARTBEAT: {
+          break;
+        }
+
         case Event::UNKNOWN: {
           LOG(WARNING) << "Received an UNKNOWN event and ignored";
           break;

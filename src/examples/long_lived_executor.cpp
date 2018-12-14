@@ -132,6 +132,7 @@ protected:
 
         case Event::KILL:
         case Event::MESSAGE:
+        case Event::HEARTBEAT:
         case Event::SHUTDOWN: {
           break;
         }

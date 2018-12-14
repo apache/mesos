@@ -74,10 +74,22 @@ using recordio::Decoder;
 using std::string;
 using std::vector;
 
+using testing::AtMost;
+using testing::DoAll;
 using testing::Eq;
 using testing::WithParamInterface;
 
 namespace mesos {
+namespace v1 {
+namespace executor {
+
+// Forward defined constant found in `executor/executor.cpp`.
+// TODO(josephw): Remove this when this constant is moved into a header.
+extern const Duration DEFAULT_HEARTBEAT_CALL_INTERVAL;
+
+} // namespace executor {
+} // namespace v1 {
+
 namespace internal {
 namespace tests {
 
@@ -945,6 +957,302 @@ TEST_P(ExecutorHttpApiTest, Subscribe)
 
   driver.stop();
   driver.join();
+}
+
+
+// This test verifies that heartbeats are sent from the agent to the executor.
+TEST_P(ExecutorHttpApiTest, HeartbeatEvents)
+{
+  Clock::pause();
+
+  const ContentType contentType = GetParam();
+  const string contentTypeString = stringify(contentType);
+
+  Resources resources = Resources::parse("cpus:0.1;mem:32;disk:32").get();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  ExecutorID executorId = DEFAULT_EXECUTOR_ID;
+  MockExecutor exec(executorId);
+  TestContainerizer containerizer(&exec);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.registration_backoff_factor = Seconds(0);
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      detector.get(),
+      &containerizer,
+      slaveFlags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
+
+  // Drop the `RegisterExecutorMessage` so the test body can
+  // pretend to be the executor.
+  Future<Message> registerExecutorMessage =
+    DROP_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
+
+  TaskInfo taskInfo1 = createTask(
+      offers.get()[0].slave_id(), resources, "", executorId);
+  driver.launchTasks(offers.get()[0].id(), {taskInfo1});
+
+  AWAIT_READY(registerExecutorMessage);
+
+  // The test body will pretend to be the executor, which gives us
+  // straightforward access to any events that are sent to the executor.
+  Call call;
+  call.mutable_framework_id()->CopyFrom(evolve(frameworkId.get()));
+  call.mutable_executor_id()->CopyFrom(evolve(executorId));
+
+  call.set_type(Call::SUBSCRIBE);
+  call.mutable_subscribe();
+
+  process::http::Headers headers;
+  headers["Accept"] = contentTypeString;
+
+  Future<Response> response = process::http::streaming::post(
+      slave.get()->pid,
+      "api/v1/executor",
+      headers,
+      serialize(contentType, call),
+      contentTypeString);
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ("chunked", "Transfer-Encoding", response);
+  AWAIT_EXPECT_RESPONSE_HEADER_EQ(
+      contentTypeString, "Content-Type", response);
+
+  ASSERT_EQ(Response::PIPE, response->type);
+  Option<Pipe::Reader> reader = response->reader;
+  ASSERT_SOME(reader);
+
+  auto deserializer =
+    lambda::bind(deserialize<Event>, contentType, lambda::_1);
+  Reader<Event> responseDecoder(Decoder<Event>(deserializer), reader.get());
+
+  Future<Result<Event>> event = responseDecoder.read();
+  AWAIT_READY(event);
+  ASSERT_SOME(event.get());
+
+  // Check event type is subscribed and if the ExecutorID matches.
+  ASSERT_EQ(Event::SUBSCRIBED, event->get().type());
+  ASSERT_EQ(event->get().subscribed().executor_info().executor_id(),
+            call.executor_id());
+  ASSERT_TRUE(event->get().subscribed().has_container_id());
+
+  // Wait for the agent to send the first task, so we don't race against
+  // this later on. This (pretend) executor drops the task though.
+  event = responseDecoder.read();
+  AWAIT_READY(event);
+  ASSERT_SOME(event.get());
+  ASSERT_EQ(Event::LAUNCH, event->get().type());
+
+  // The next event should be the heartbeat.
+  event = responseDecoder.read();
+  ASSERT_TRUE(event.isPending());
+
+  Clock::advance(slave::DEFAULT_EXECUTOR_HEARTBEAT_INTERVAL);
+  AWAIT_READY(event);
+  ASSERT_SOME(event.get());
+  ASSERT_EQ(Event::HEARTBEAT, event->get().type());
+
+  EXPECT_CALL(exec, shutdown(_))
+    .Times(AtMost(1));
+
+  driver.stop();
+  driver.join();
+
+  Clock::resume();
+}
+
+
+// Mock agent for intercepting messages from HTTP executors.
+class BareBonesAgentProcess : public process::Process<BareBonesAgentProcess>
+{
+public:
+  BareBonesAgentProcess()
+    : process::ProcessBase(process::ID::generate("bare-bones-agent")) {}
+
+  MOCK_METHOD1(
+      executor,
+      Future<process::http::Response>(const process::http::Request&));
+
+protected:
+  void initialize() override
+  {
+    route(
+        "/api/v1/executor",
+        None(),
+        &BareBonesAgentProcess::executor);
+  }
+};
+
+
+class BareBonesAgent
+{
+public:
+  BareBonesAgent() : process(new BareBonesAgentProcess())
+  {
+    process::spawn(process.get());
+  }
+
+  ~BareBonesAgent()
+  {
+    process::terminate(process.get());
+    process::wait(process.get());
+  }
+
+  Owned<BareBonesAgentProcess> process;
+};
+
+
+// This test verifies that heartbeats are sent from the executor driver
+// to the agent.
+TEST_F(ExecutorHttpApiTest, HeartbeatCalls)
+{
+  Clock::pause();
+
+  // Launch an HTTP server that pretends to be the agent in this test.
+  BareBonesAgent agent;
+
+  // Pre-fill a response pipe with a SUBSCRIBED response.
+  process::http::Pipe pipe;
+
+  {
+    v1::executor::Event event;
+    event.set_type(v1::executor::Event::SUBSCRIBED);
+
+    v1::ExecutorInfo* executorInfo =
+      event.mutable_subscribed()->mutable_executor_info();
+    executorInfo->set_type(v1::ExecutorInfo::DEFAULT);
+    executorInfo->mutable_executor_id()->set_value("empty");
+
+    v1::FrameworkInfo* frameworkInfo =
+      event.mutable_subscribed()->mutable_framework_info();
+    frameworkInfo->mutable_id()->set_value("fake");
+    frameworkInfo->set_user("whoever");
+    frameworkInfo->set_name("anonymous");
+
+    event.mutable_subscribed()->mutable_agent_info()->set_hostname(":P");
+
+    event.mutable_subscribed()->mutable_container_id()->set_value(":P");
+
+    ::recordio::Encoder<v1::executor::Event> encoder(
+        lambda::bind(serialize, ContentType::PROTOBUF, lambda::_1));
+
+    pipe.writer().write(encoder.encode(event));
+  }
+
+  // Set the expectation for an executor to register with the fake agent.
+  process::http::Response subscribed = process::http::OK();
+  subscribed.type = process::http::Response::PIPE;
+  subscribed.reader = pipe.reader();
+
+  Future<process::http::Request> expectedSubscribe;
+  Promise<Nothing> eventSubscribed;
+
+  EXPECT_CALL(*agent.process, executor(_))
+    .WillOnce(DoAll(
+        FutureArg<0>(&expectedSubscribe),
+        Return(subscribed)));
+
+  // Start the executor driver.
+  // NOTE: We use an Owned pointer here because the lambdas passed to the
+  // executor driver's constructor reference the executor driver itself,
+  // which is not allowed on some compilers if the driver is stack allocated.
+  Owned<mesos::v1::executor::Mesos> executor;
+
+  // Since this test only cares about the calls sent to the agent,
+  // any events and callbacks fired by this driver are used purely for
+  // synchronization purposes.
+  executor.reset(new mesos::v1::executor::Mesos(
+      ContentType::PROTOBUF,
+      [&executor]() mutable {
+        v1::executor::Call v1Call;
+        v1Call.set_type(v1::executor::Call::SUBSCRIBE);
+        v1Call.mutable_executor_id()->set_value("empty");
+        v1Call.mutable_framework_id()->set_value("fake");
+        v1Call.mutable_subscribe();
+
+        executor->send(v1Call);
+      },
+      []() {},
+      [&eventSubscribed](std::queue<v1::executor::Event> queue) {
+        while(!queue.empty()) {
+          const v1::executor::Event& event = queue.front();
+          if (event.type() == v1::executor::Event::SUBSCRIBED) {
+            eventSubscribed.set(Nothing());
+          }
+          queue.pop();
+        }
+      },
+      {
+        { "MESOS_SLAVE_PID",  stringify(agent.process->self()) },
+        { "MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD",
+          stringify(slave::DEFAULT_EXECUTOR_SHUTDOWN_GRACE_PERIOD) }
+      }));
+
+  // Wait for the call to arrive at our fake agent.
+  AWAIT_READY(expectedSubscribe);
+
+  Option<string> contentType = expectedSubscribe->headers.get("Content-Type");
+  ASSERT_SOME(contentType);
+  ASSERT_EQ(APPLICATION_PROTOBUF, contentType.get());
+
+  {
+    v1::executor::Call v1Call;
+    ASSERT_TRUE(v1Call.ParseFromString(expectedSubscribe->body));
+
+    ASSERT_EQ(v1::executor::Call::SUBSCRIBE, v1Call.type());
+  }
+
+  // Wait for the executor to receive the response from our fake agent.
+  AWAIT_READY(eventSubscribed.future());
+
+  // Advance time and expect to get a heartbeat.
+  Future<process::http::Request> expectedHeartbeat;
+
+  EXPECT_CALL(*agent.process, executor(_))
+    .WillOnce(DoAll(
+        FutureArg<0>(&expectedHeartbeat),
+        Return(process::http::Accepted())));
+
+  Clock::advance(mesos::v1::executor::DEFAULT_HEARTBEAT_CALL_INTERVAL);
+  AWAIT_READY(expectedHeartbeat);
+
+  contentType = expectedHeartbeat->headers.get("Content-Type");
+  ASSERT_SOME(contentType);
+  ASSERT_EQ(APPLICATION_PROTOBUF, contentType.get());
+
+  {
+    v1::executor::Call v1Call;
+    ASSERT_TRUE(v1Call.ParseFromString(expectedHeartbeat->body));
+
+    ASSERT_EQ(v1::executor::Call::HEARTBEAT, v1Call.type());
+  }
+
+  Clock::resume();
 }
 
 } // namespace tests {
