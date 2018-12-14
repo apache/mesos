@@ -229,6 +229,12 @@ public:
         break;
       }
 
+      case Call::HEARTBEAT: {
+        // NOTE: Heartbeat calls were added to HTTP executors only.
+        // There is no equivalent method for PID-based executors.
+        break;
+      }
+
       case Call::UNKNOWN: {
         EXIT(EXIT_FAILURE) << "Received an unexpected " << call.type()
                            << " call";

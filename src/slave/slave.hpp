@@ -65,6 +65,7 @@
 #include <stout/recordio.hpp>
 #include <stout/uuid.hpp>
 
+#include "common/heartbeater.hpp"
 #include "common/http.hpp"
 #include "common/protobuf_utils.hpp"
 #include "common/recordio.hpp"
@@ -986,6 +987,9 @@ public:
   //           *                 *       None       Some      Libprocess
   //           *                 *       Some       None            HTTP
   Option<StreamingHttpConnection<v1::executor::Event>> http;
+  process::Owned<ResponseHeartbeater<executor::Event, v1::executor::Event>>
+    heartbeater;
+
   Option<process::UPID> pid;
 
   // Tasks can be found in one of the following four data structures:

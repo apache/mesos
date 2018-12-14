@@ -4692,6 +4692,18 @@ void Slave::subscribe(
       executor->http = http;
       executor->pid = None();
 
+      // Create a heartbeater for HTTP executors.
+      executor::Event heartbeatEvent;
+      heartbeatEvent.set_type(executor::Event::HEARTBEAT);
+
+      executor->heartbeater.reset(
+          new ResponseHeartbeater<executor::Event, v1::executor::Event>(
+              "executor " + stringify(executor->id),
+              heartbeatEvent,
+              http,
+              DEFAULT_EXECUTOR_HEARTBEAT_INTERVAL,
+              DEFAULT_EXECUTOR_HEARTBEAT_INTERVAL));
+
       if (framework->info.checkpoint()) {
         // Write a marker file to indicate that this executor
         // is HTTP based.

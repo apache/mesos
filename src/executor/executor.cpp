@@ -90,6 +90,11 @@ namespace mesos {
 namespace v1 {
 namespace executor {
 
+// TODO(josephw): Move this default into a header which can be loaded
+// by tests. Also, consider making this heartbeat interval configurable.
+extern const Duration DEFAULT_HEARTBEAT_CALL_INTERVAL = Minutes(30);
+
+
 class ShutdownProcess : public process::Process<ShutdownProcess>
 {
 public:
@@ -363,6 +368,7 @@ protected:
   void initialize() override
   {
     connect();
+    heartbeat();
   }
 
   void connect()
@@ -779,6 +785,20 @@ protected:
   void drop(const Call& call, const string& message)
   {
     LOG(WARNING) << "Dropping " << call.type() << ": " << message;
+  }
+
+  void heartbeat()
+  {
+    if (connections.isSome()) {
+      Call call;
+      call.set_type(Call::HEARTBEAT);
+      call.mutable_executor_id()->set_value("unused");
+      call.mutable_framework_id()->set_value("unused");
+
+      send(call);
+    }
+
+    delay(DEFAULT_HEARTBEAT_CALL_INTERVAL, self(), &Self::heartbeat);
   }
 
 private:

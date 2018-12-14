@@ -48,6 +48,9 @@ constexpr Duration MAX_EXECUTOR_REREGISTRATION_TIMEOUT = Seconds(15);
 // shut down before destroying the container.
 constexpr Duration DEFAULT_EXECUTOR_SHUTDOWN_GRACE_PERIOD = Seconds(5);
 
+// The default amount of time between heartbeats sent to HTTP executors.
+constexpr Duration DEFAULT_EXECUTOR_HEARTBEAT_INTERVAL = Minutes(30);
+
 constexpr Duration RECOVERY_TIMEOUT = Minutes(15);
 
 // TODO(gkleiman): Move this to a different file once `TaskStatusUpdateManager`

@@ -602,6 +602,10 @@ Option<Error> validateExecutorCall(const mesos::executor::Call& call)
       return None();
     }
 
+    case mesos::executor::Call::HEARTBEAT: {
+      return None();
+    }
+
     case mesos::executor::Call::UNKNOWN: {
       return None();
     }
