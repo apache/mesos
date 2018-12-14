@@ -5673,6 +5673,34 @@ void Master::_accept(
       }
 
       case Offer::Operation::CREATE_DISK: {
+        const Resource::DiskInfo::Source::Type diskType =
+          operation.create_disk().target_type();
+
+        CHECK(!authorizations.empty());
+        Future<bool> authorization = authorizations.front();
+        authorizations.pop_front();
+
+        CHECK(!authorization.isDiscarded());
+
+        if (authorization.isFailed()) {
+          // TODO(greggomann): We may want to retry this failed authorization
+          // request rather than dropping it immediately.
+          drop(framework,
+               operation,
+               "Authorization of principal '" + framework->info.principal() +
+                 "' to create a " + stringify(diskType) + " disk failed: " +
+                 authorization.failure());
+
+          continue;
+        } else if (!authorization.get()) {
+          drop(framework,
+               operation,
+               "Not authorized to create a " + stringify(diskType) +
+                 " disk as '" + framework->info.principal() + "'");
+
+          continue;
+        }
+
         if (!slave->capabilities.resourceProvider) {
           drop(framework,
                operation,
@@ -5712,6 +5740,34 @@ void Master::_accept(
       }
 
       case Offer::Operation::DESTROY_DISK: {
+        const Resource::DiskInfo::Source::Type diskType =
+          operation.destroy_disk().source().disk().source().type();
+
+        CHECK(!authorizations.empty());
+        Future<bool> authorization = authorizations.front();
+        authorizations.pop_front();
+
+        CHECK(!authorization.isDiscarded());
+
+        if (authorization.isFailed()) {
+          // TODO(greggomann): We may want to retry this failed authorization
+          // request rather than dropping it immediately.
+          drop(framework,
+               operation,
+               "Authorization of principal '" + framework->info.principal() +
+                 "' to destroy a " + stringify(diskType) + " disk failed: " +
+                 authorization.failure());
+
+          continue;
+        } else if (!authorization.get()) {
+          drop(framework,
+               operation,
+               "Not authorized to destroy a " + stringify(diskType) +
+                 " disk as '" + framework->info.principal() + "'");
+
+          continue;
+        }
+
         if (!slave->capabilities.resourceProvider) {
           drop(framework,
                operation,
