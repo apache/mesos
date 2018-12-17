@@ -84,7 +84,7 @@ Following are the instructions for Mac OS X El Capitan. When building Mesos with
     $ brew install Caskroom/cask/java
 
     # Install libraries.
-    $ brew install wget git autoconf automake libtool subversion maven
+    $ brew install wget git autoconf automake libtool subversion maven xz
 
     # Install Python dependencies.
     $ sudo easy_install pip
