@@ -70,6 +70,7 @@
 
 #include "authorizer/local/authorizer.hpp"
 
+#include "common/authorization.hpp"
 #include "common/http.hpp"
 
 #include "files/files.hpp"
@@ -395,7 +396,7 @@ MasterInfo Master::getMasterInfo()
 void Master::setAuthorizationCallbacks(Authorizer* authorizer)
 {
   process::http::authorization::setCallbacks(
-      mesos::createAuthorizationCallbacks(authorizer));
+      authorization::createAuthorizationCallbacks(authorizer));
 
   authorizationCallbacksSet = true;
 }
@@ -703,7 +704,7 @@ Slave::~Slave()
 void Slave::setAuthorizationCallbacks(Authorizer* authorizer)
 {
   process::http::authorization::setCallbacks(
-      mesos::createAuthorizationCallbacks(authorizer));
+      authorization::createAuthorizationCallbacks(authorizer));
 
   authorizationCallbacksSet = true;
 }

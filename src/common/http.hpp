@@ -81,8 +81,6 @@ constexpr char DEFAULT_BASIC_HTTP_AUTHENTICATEE[] = "basic";
 // Name of the default, JWT authenticator.
 constexpr char DEFAULT_JWT_HTTP_AUTHENTICATOR[] = "jwt";
 
-extern hashset<std::string> AUTHORIZABLE_ENDPOINTS;
-
 
 // Contains the media types corresponding to some of the "Content-*",
 // "Accept-*" and "Message-*" prefixed request headers in our internal
@@ -217,9 +215,6 @@ void json(
     JSON::StringWriter* writer, const SlaveInfo::Capability& capability);
 void json(JSON::ObjectWriter* writer, const Task& task);
 void json(JSON::ObjectWriter* writer, const TaskStatus& status);
-
-const process::http::authorization::AuthorizationCallbacks
-  createAuthorizationCallbacks(Authorizer* authorizer);
 
 
 // Implementation of the `ObjectApprover` interface authorizing all objects.

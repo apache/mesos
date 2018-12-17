@@ -17,24 +17,40 @@
 #include "common/authorization.hpp"
 
 #include <algorithm>
+#include <functional>
 #include <string>
+#include <utility>
 
 #include <mesos/mesos.hpp>
 
 #include <process/collect.hpp>
 
 #include <stout/foreach.hpp>
+#include <stout/hashmap.hpp>
 #include <stout/none.hpp>
+#include <stout/stringify.hpp>
 
 using std::string;
 using std::vector;
 
+using process::Failure;
 using process::Future;
 
+using process::http::authorization::AuthorizationCallbacks;
 using process::http::authentication::Principal;
 
 namespace mesos {
 namespace authorization {
+
+// Set of endpoint whose access is protected with the authorization
+// action `GET_ENDPOINTS_WITH_PATH`.
+hashset<string> AUTHORIZABLE_ENDPOINTS{
+    "/containers",
+    "/files/debug",
+    "/logging/toggle",
+    "/metrics/snapshot",
+    "/monitor/statistics"};
+
 
 Future<bool> collectAuthorizations(const vector<Future<bool>>& authorizations)
 {
@@ -84,6 +100,49 @@ Future<bool> authorizeLogAccess(
   }
 
   return authorizer.get()->authorized(request);
+}
+
+
+const AuthorizationCallbacks createAuthorizationCallbacks(
+    Authorizer* authorizer)
+{
+  typedef lambda::function<Future<bool>(
+      const process::http::Request& httpRequest,
+      const Option<Principal>& principal)> Callback;
+
+  AuthorizationCallbacks callbacks;
+
+  Callback getEndpoint = [authorizer](
+      const process::http::Request& httpRequest,
+      const Option<Principal>& principal) -> Future<bool> {
+        const string path = httpRequest.url.path;
+
+        if (!AUTHORIZABLE_ENDPOINTS.contains(path)) {
+          return Failure(
+              "Endpoint '" + path + "' is not an authorizable endpoint");
+        }
+
+        Request authorizationRequest;
+        authorizationRequest.set_action(GET_ENDPOINT_WITH_PATH);
+
+        Option<Subject> subject = createSubject(principal);
+        if (subject.isSome()) {
+          authorizationRequest.mutable_subject()->CopyFrom(subject.get());
+        }
+
+        authorizationRequest.mutable_object()->set_value(path);
+
+        LOG(INFO) << "Authorizing principal '"
+                  << (principal.isSome() ? stringify(principal.get()) : "ANY")
+                  << "' to GET the endpoint '" << path << "'";
+
+        return authorizer->authorized(authorizationRequest);
+      };
+
+  callbacks.insert(std::make_pair("/logging/toggle", getEndpoint));
+  callbacks.insert(std::make_pair("/metrics/snapshot", getEndpoint));
+
+  return callbacks;
 }
 
 } // namespace authorization {

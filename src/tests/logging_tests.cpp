@@ -26,6 +26,7 @@
 #include <process/pid.hpp>
 #include <process/process.hpp>
 
+#include "common/authorization.hpp"
 #include "common/http.hpp"
 
 #include "logging/logging.hpp"
@@ -183,7 +184,7 @@ TEST_F(LoggingTest, ToggleAuthorizationEnabled)
 
   // Set authorization callbacks for libprocess-level HTTP endpoints.
   process::http::authorization::setCallbacks(
-      createAuthorizationCallbacks(authorizer.get()));
+      authorization::createAuthorizationCallbacks(authorizer.get()));
 
   process::PID<> pid;
   pid.id = "logging";

@@ -56,6 +56,7 @@
 #include "authentication/executor/jwt_secret_generator.hpp"
 #endif // USE_SSL_SOCKET
 
+#include "common/authorization.hpp"
 #include "common/build.hpp"
 #include "common/http.hpp"
 
@@ -527,7 +528,7 @@ int main(int argc, char** argv)
     // future it becomes possible to dynamically set the authorizer, this would
     // break.
     process::http::authorization::setCallbacks(
-        createAuthorizationCallbacks(authorizer_.get()));
+        mesos::authorization::createAuthorizationCallbacks(authorizer_.get()));
   }
 
   Files* files = new Files(READONLY_HTTP_AUTHENTICATION_REALM, authorizer_);

@@ -38,6 +38,7 @@
 #include <stout/try.hpp>
 #include <stout/unreachable.hpp>
 
+#include "common/authorization.hpp"
 #include "common/http.hpp"
 #include "common/parse.hpp"
 #include "common/protobuf_utils.hpp"
@@ -1677,7 +1678,7 @@ Option<Error> LocalAuthorizer::validate(const ACLs& acls)
   foreach (const ACL::GetEndpoint& acl, acls.get_endpoints()) {
     if (acl.paths().type() == ACL::Entity::SOME) {
       foreach (const string& path, acl.paths().values()) {
-        if (!AUTHORIZABLE_ENDPOINTS.contains(path)) {
+        if (!authorization::AUTHORIZABLE_ENDPOINTS.contains(path)) {
           return Error("Path: '" + path + "' is not an authorizable path");
         }
       }

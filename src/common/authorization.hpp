@@ -26,10 +26,13 @@
 #include <process/future.hpp>
 #include <process/http.hpp>
 
+#include <stout/hashset.hpp>
 #include <stout/option.hpp>
 
 namespace mesos {
 namespace authorization {
+
+extern hashset<std::string> AUTHORIZABLE_ENDPOINTS;
 
 // Collects authorization results. Any discarded or failed future
 // results in a failure; any false future results in 'false'.
@@ -46,6 +49,9 @@ const Option<Subject> createSubject(
 process::Future<bool> authorizeLogAccess(
     const Option<Authorizer*>& authorizer,
     const Option<process::http::authentication::Principal>& principal);
+
+const process::http::authorization::AuthorizationCallbacks
+  createAuthorizationCallbacks(Authorizer* authorizer);
 
 } // namespace authorization {
 } // namespace mesos {

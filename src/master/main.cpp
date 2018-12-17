@@ -59,6 +59,7 @@
 #include <stout/try.hpp>
 #include <stout/version.hpp>
 
+#include "common/authorization.hpp"
 #include "common/build.hpp"
 #include "common/http.hpp"
 #include "common/protobuf_utils.hpp"
@@ -480,7 +481,7 @@ int main(int argc, char** argv)
     // future it becomes possible to dynamically set the authorizer, this would
     // break.
     process::http::authorization::setCallbacks(
-        createAuthorizationCallbacks(authorizer_.get()));
+        mesos::authorization::createAuthorizationCallbacks(authorizer_.get()));
   }
 
   Files files(READONLY_HTTP_AUTHENTICATION_REALM, authorizer_);
