@@ -72,7 +72,7 @@ Following are the instructions for stock Ubuntu 16.04. If you are using a differ
 
 Following are the instructions for Mac OS X El Capitan. When building Mesos with the Apple-provided toolchain, the Command Line Tools from XCode >= 8.0 are required; XCode 8 requires Mac OS X 10.11.5 or newer.
 
-* Install Python 3: https://www.python.org/downloads/
+    # Install Python 3: https://www.python.org/downloads/
 
     # Install Command Line Tools. The Command Line Tools from XCode >= 8.0 are required.
     $ xcode-select --install
