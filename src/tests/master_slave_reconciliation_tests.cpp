@@ -497,6 +497,13 @@ TEST_F(
         updateOperationStatus->mutable_operation_uuid()->CopyFrom(
             operationUuid);
 
+        ASSERT_TRUE(resourceProvider->info.has_id())
+          << "Asked to reconcile before subscription was finished";
+
+        updateOperationStatus->mutable_status()
+          ->mutable_resource_provider_id()
+          ->CopyFrom(resourceProvider->info.id());
+
         resourceProvider->send(call);
       }
     };
