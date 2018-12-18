@@ -3604,29 +3604,29 @@ Future<bool> Master::authorizeReserveResources(
   hashset<string> roles;
   vector<Future<bool>> authorizations;
   foreach (const Resource& resource, resources) {
-    // NOTE: Since authorization happens __before__ validation and resource
-    // format conversion, we must look for roles that may appear in both
-    // "pre" and "post" reservation-refinement formats. This may not even be
-    // valid, but we rely on validation being performed aftewards.
-    string role;
-    if (resource.reservations_size() > 0) {
-      // Check for the role in the "post-reservation-refinement" format.
-      //
-      // If there is a stack of reservations, we only perform authorization
-      // for the most refined reservation, since we only support "pushing"
-      // one reservation at a time. That is, all of the previous reservations
-      // must have already been authorized.
-      role = resource.reservations().rbegin()->role();
-    } else {
-      // Check for the role in the "pre-reservation-refinement" format.
-      role = resource.role();
-    }
+    // NOTE: We rely on the master to ensure that the resource is in the
+    // post-reservation-refinement format. If there is a stack of reservations,
+    // we perform authorization for the role of the most refined reservation,
+    // since we only support "pushing" one reservation at a time. That is, all
+    // of the previous reservations must have already been authorized.
+    //
+    // NOTE: If there is no reservation, we authorize the resource with the
+    // default role '*' for backward compatibility.
+    CHECK(!resource.has_role()) << resource;
+    CHECK(!resource.has_reservation()) << resource;
+
+    const string role = Resources::isReserved(resource)
+      ? Resources::reservationRole(resource) : "*";
 
     if (!roles.contains(role)) {
       roles.insert(role);
 
       request.mutable_object()->mutable_resource()->CopyFrom(resource);
+
+      // We also set the deprecated `object.value` field to support legacy
+      // authorizers that have not been upgraded to look at `object.resource`.
       request.mutable_object()->set_value(role);
+
       authorizations.push_back(authorizer.get()->authorized(request));
     }
   }
@@ -3666,23 +3666,29 @@ Future<bool> Master::authorizeUnreserveResources(
 
   vector<Future<bool>> authorizations;
   foreach (const Resource& resource, unreserve.resources()) {
-    // NOTE: Since authorization happens __before__ validation and resource
-    // format conversion, we must look for the principal that may appear in
-    // both "pre" and "post" reservation-refinement formats. This may not be
-    // valid, but we rely on validation being performed later.
+    // NOTE: We rely on the master to ensure that the resource is in the
+    // post-reservation-refinement format. Since the UNRESERVE operation only
+    // "pops" one reservation off the stack of reservations, we perform
+    // authorization for the principal of the most refined reservation, which
+    // will be unreserved (i.e., popped off the stack).
+    //
+    // NOTE: Since authorization happens __before__ validation, we must check
+    // here that this resource has a reservation. If not, the error will be
+    // caught during validation.
+    CHECK(!resource.has_role()) << resource;
+    CHECK(!resource.has_reservation()) << resource;
+
     Option<string> principal;
-    if (resource.reservations_size() > 0 &&
+    if (!resource.reservations().empty() &&
         resource.reservations().rbegin()->has_principal()) {
-      // Check for roles in the "post-reservation-refinement" format.
       principal = resource.reservations().rbegin()->principal();
-    } else if (
-        resource.has_reservation() && resource.reservation().has_principal()) {
-      // Check for roles in the "pre-reservation-refinement" format.
-      principal = resource.reservation().principal();
     }
 
     if (principal.isSome()) {
       request.mutable_object()->mutable_resource()->CopyFrom(resource);
+
+      // We also set the deprecated `object.value` field to support legacy
+      // authorizers that have not been upgraded to look at `object.resource`.
       request.mutable_object()->set_value(principal.get());
 
       authorizations.push_back(authorizer.get()->authorized(request));
@@ -3723,25 +3729,31 @@ Future<bool> Master::authorizeCreateVolume(
   hashset<string> roles;
   vector<Future<bool>> authorizations;
   foreach (const Resource& volume, create.volumes()) {
-    string role;
-    if (volume.reservations_size() > 0) {
-      // Check for role in the "post-reservation-refinement" format.
-      //
-      // If there is a stack of reservations, we only perform authorization
-      // for the most refined reservation, since we only support "pushing"
-      // one reservation at a time. That is, all of the previous reservations
-      // must have already been authorized.
-      role = volume.reservations().rbegin()->role();
-    } else {
-      // Check for role in the "pre-reservation-refinement" format.
-      role = volume.role();
-    }
+    // NOTE: We rely on the master to ensure that the resource is in the
+    // post-reservation-refinement format. If there is a stack of reservations,
+    // we perform authorization for the role of the most refined reservation,
+    // since we only support "pushing" one reservation at a time. That is, all
+    // of the previous reservations must have already been authorized.
+    //
+    // NOTE: Since authorization happens __before__ validation, we must check
+    // here that this resource has a reservation. If not, the error will be
+    // caught during validation, but we still authorize the resource with the
+    // default role '*' for backward compatibility.
+    CHECK(!volume.has_role()) << volume;
+    CHECK(!volume.has_reservation()) << volume;
+
+    const string role =
+      Resources::isReserved(volume) ? Resources::reservationRole(volume) : "*";
 
     if (!roles.contains(role)) {
       roles.insert(role);
 
       request.mutable_object()->mutable_resource()->CopyFrom(volume);
+
+      // We also set the deprecated `object.value` field to support legacy
+      // authorizers that have not been upgraded to look at `object.resource`.
       request.mutable_object()->set_value(role);
+
       authorizations.push_back(authorizer.get()->authorized(request));
     }
   }
@@ -3776,11 +3788,14 @@ Future<bool> Master::authorizeDestroyVolume(
 
   vector<Future<bool>> authorizations;
   foreach (const Resource& volume, destroy.volumes()) {
-    // NOTE: Since validation of this operation may be performed after
-    // authorization, we must check here that this resource is a persistent
-    // volume. If it isn't, the error will be caught during validation.
+    // NOTE: Since authorization happens __before__ validation, we must check
+    // here that this resource is a persistent volume. If not, the error will be
+    // caught during validation.
     if (volume.has_disk() && volume.disk().has_persistence()) {
       request.mutable_object()->mutable_resource()->CopyFrom(volume);
+
+      // We also set the deprecated `object.value` field to support legacy
+      // authorizers that have not been upgraded to look at `object.resource`.
       request.mutable_object()->set_value(
           volume.disk().persistence().principal());
 
@@ -3818,16 +3833,24 @@ Future<bool> Master::authorizeResizeVolume(
 
   request.mutable_object()->mutable_resource()->CopyFrom(volume);
 
-  string role;
-  if (volume.reservations_size() > 0) {
-    // Check for role in the "post-reservation-refinement" format.
-    role = volume.reservations().rbegin()->role();
-  } else {
-    // Check for role in the "pre-reservation-refinement" format.
-    role = volume.role();
-  }
+  // We also set the deprecated `object.value` field to support legacy
+  // authorizers that have not been upgraded to look at `object.resource`.
+  //
+  // NOTE: We rely on the master to ensure that the resource is in the
+  // post-reservation-refinement format. If there is a stack of reservations,
+  // we perform authorization for the role of the most refined reservation,
+  // since we only support "pushing" one reservation at a time. That is, all
+  // of the previous reservations must have already been authorized.
+  //
+  // NOTE: Since authorization happens __before__ validation, we must check here
+  // that this resource has a reservation. If not, the error will be caught
+  // during validation, but we still authorize the resource with the default
+  // role '*' for backward compatibility.
+  CHECK(!volume.has_role()) << volume;
+  CHECK(!volume.has_reservation()) << volume;
 
-  request.mutable_object()->set_value(role);
+  request.mutable_object()->set_value(
+      Resources::isReserved(volume) ? Resources::reservationRole(volume) : "*");
 
   LOG(INFO) << "Authorizing principal '"
             << (principal.isSome() ? stringify(principal.get()) : "ANY")
@@ -3878,18 +3901,23 @@ Future<bool> Master::authorizeCreateDisk(
 
   request.mutable_object()->mutable_resource()->CopyFrom(resource);
 
-  // We set `object.value` in addition to `object.resource` to support legacy
-  // authorizers making only use of this deprecated field.
+  // We also set the deprecated `object.value` field to support legacy
+  // authorizers that have not been upgraded to look at `object.resource`.
   //
   // NOTE: We rely on the master to ensure that the resource is in the
-  // post-reservation-refinement format and set the value to the most refined
-  // role, or default to '*' for consistency if there is no reservation.
+  // post-reservation-refinement format. If there is a stack of reservations,
+  // we perform authorization for the role of the most refined reservation,
+  // since we only support "pushing" one reservation at a time. That is, all
+  // of the previous reservations must have already been authorized.
+  //
+  // NOTE: If there is no reservation, we authorize the resource with the
+  // default role '*' for backward compatibility.
   CHECK(!resource.has_role()) << resource;
   CHECK(!resource.has_reservation()) << resource;
+
   request.mutable_object()->set_value(
-      resource.reservations().empty()
-        ? "*"
-        : resource.reservations().rbegin()->role());
+      Resources::isReserved(resource) ? Resources::reservationRole(resource)
+                                      : "*");
 
   LOG(INFO) << "Authorizing principal '"
             << (principal.isSome() ? stringify(principal.get()) : "ANY")
@@ -3941,18 +3969,23 @@ Future<bool> Master::authorizeDestroyDisk(
 
   request.mutable_object()->mutable_resource()->CopyFrom(resource);
 
-  // We set `object.value` in addition to `object.resource` to support legacy
-  // authorizers making only use of this deprecated field.
+  // We also set the deprecated `object.value` field to support legacy
+  // authorizers that have not been upgraded to look at `object.resource`.
   //
   // NOTE: We rely on the master to ensure that the resource is in the
-  // post-reservation-refinement format and set the value to the most refined
-  // role, or default to '*' for consistency if there is no reservation.
+  // post-reservation-refinement format. If there is a stack of reservations,
+  // we perform authorization for the role of the most refined reservation,
+  // since we only support "pushing" one reservation at a time. That is, all
+  // of the previous reservations must have already been authorized.
+  //
+  // NOTE: If there is no reservation, we authorize the resource with the
+  // default role '*' for backward compatibility.
   CHECK(!resource.has_role()) << resource;
   CHECK(!resource.has_reservation()) << resource;
+
   request.mutable_object()->set_value(
-      resource.reservations().empty()
-        ? "*"
-        : resource.reservations().rbegin()->role());
+      Resources::isReserved(resource) ? Resources::reservationRole(resource)
+                                      : "*");
 
   LOG(INFO) << "Authorizing principal '"
             << (principal.isSome() ? stringify(principal.get()) : "ANY")
