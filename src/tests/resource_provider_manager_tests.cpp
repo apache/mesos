@@ -395,6 +395,8 @@ TEST_P(ResourceProviderManagerHttpApiTest, UpdateOperationStatus)
     EXPECT_FALSE(resourceProviderId->value().empty());
   }
 
+  ASSERT_SOME(resourceProviderId);
+
   // Then, send an operation status update to the manager.
   {
     v1::FrameworkID frameworkId;
@@ -402,6 +404,7 @@ TEST_P(ResourceProviderManagerHttpApiTest, UpdateOperationStatus)
 
     mesos::v1::OperationStatus status;
     status.set_state(mesos::v1::OperationState::OPERATION_FINISHED);
+    status.mutable_resource_provider_id()->CopyFrom(resourceProviderId.get());
 
     mesos::v1::UUID operationUUID = evolve(protobuf::createUUID());;
 

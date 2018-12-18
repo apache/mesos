@@ -810,13 +810,21 @@ void ResourceProviderManagerProcess::updateOperationStatus(
     ResourceProvider* resourceProvider,
     const Call::UpdateOperationStatus& update)
 {
+  CHECK_EQ(update.status().resource_provider_id(), resourceProvider->info.id());
+
   ResourceProviderMessage::UpdateOperationStatus body;
   body.update.mutable_status()->CopyFrom(update.status());
   body.update.mutable_operation_uuid()->CopyFrom(update.operation_uuid());
+
   if (update.has_framework_id()) {
     body.update.mutable_framework_id()->CopyFrom(update.framework_id());
   }
+
   if (update.has_latest_status()) {
+    CHECK_EQ(
+        update.latest_status().resource_provider_id(),
+        resourceProvider->info.id());
+
     body.update.mutable_latest_status()->CopyFrom(update.latest_status());
   }
 
