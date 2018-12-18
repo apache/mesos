@@ -449,6 +449,14 @@ OperationStatus createOperationStatus(
     status.mutable_uuid()->CopyFrom(protobuf::createUUID(uuid.get()));
   }
 
+  if (slaveId.isSome()) {
+    status.mutable_slave_id()->CopyFrom(slaveId.get());
+  }
+
+  if (resourceProviderId.isSome()) {
+    status.mutable_resource_provider_id()->CopyFrom(resourceProviderId.get());
+  }
+
   return status;
 }
 
