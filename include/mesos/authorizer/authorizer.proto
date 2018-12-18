@@ -264,18 +264,33 @@ enum Action {
   PRUNE_IMAGES = 41;
 
   // `RESIZE_VOLUME` will have an object with `Resource` set.
+  //
+  // NOTE: For consistency, the `value` field will be set with the most refined
+  // role until all `*_WITH_ROLE` aliases are removed.
   RESIZE_VOLUME = 42;
 
   // `CREATE_BLOCK_DISK` will have an object with `Resource` set.
+  //
+  // NOTE: For consistency, the `value` field will be set with the most refined
+  // role until all `*_WITH_ROLE` aliases are removed.
   CREATE_BLOCK_DISK = 43;
 
   // `DESTROY_BLOCK_DISK` will have an object with `Resource` set.
+  //
+  // NOTE: For consistency, the `value` field will be set with the most refined
+  // role until all `*_WITH_ROLE` aliases are removed.
   DESTROY_BLOCK_DISK = 44;
 
   // `CREATE_MOUNT_DISK` will have an object with `Resource` set.
+  //
+  // NOTE: For consistency, the `value` field will be set with the most refined
+  // role until all `*_WITH_ROLE` aliases are removed.
   CREATE_MOUNT_DISK = 45;
 
   // `DESTROY_MOUNT_DISK` will have an object with `Resource` set.
+  //
+  // NOTE: For consistency, the `value` field will be set with the most refined
+  // role until all `*_WITH_ROLE` aliases are removed.
   DESTROY_MOUNT_DISK = 46;
 }
 
