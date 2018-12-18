@@ -3833,8 +3833,9 @@ Future<bool> Master::authorizeCreateDisk(
     return true; // Authorization is disabled.
   }
 
-  Option<authorization::Action> action;
+  const Resource& resource = createDisk.source();
 
+  Option<authorization::Action> action;
   switch (createDisk.target_type()) {
     case Resource::DiskInfo::Source::MOUNT: {
       action = authorization::CREATE_MOUNT_DISK;
@@ -3851,8 +3852,7 @@ Future<bool> Master::authorizeCreateDisk(
           "Failed to authorize principal '" +
           (principal.isSome() ? stringify(principal.get()) : "ANY") +
           "' to create a " + stringify(createDisk.target_type()) +
-          " disk from '" + stringify(createDisk.source()) +
-          "': Unsupported disk type");
+          " disk from '" + stringify(resource) + "': Unsupported disk type");
     }
   }
 
@@ -3864,7 +3864,20 @@ Future<bool> Master::authorizeCreateDisk(
     request.mutable_subject()->CopyFrom(subject.get());
   }
 
-  request.mutable_object()->mutable_resource()->CopyFrom(createDisk.source());
+  request.mutable_object()->mutable_resource()->CopyFrom(resource);
+
+  // We set `object.value` in addition to `object.resource` to support legacy
+  // authorizers making only use of this deprecated field.
+  //
+  // NOTE: We rely on the master to ensure that the resource is in the
+  // post-reservation-refinement format and set the value to the most refined
+  // role, or default to '*' for consistency if there is no reservation.
+  CHECK(!resource.has_role()) << resource;
+  CHECK(!resource.has_reservation()) << resource;
+  request.mutable_object()->set_value(
+      resource.reservations().empty()
+        ? "*"
+        : resource.reservations().rbegin()->role());
 
   LOG(INFO) << "Authorizing principal '"
             << (principal.isSome() ? stringify(principal.get()) : "ANY")
@@ -3883,9 +3896,10 @@ Future<bool> Master::authorizeDestroyDisk(
     return true; // Authorization is disabled.
   }
 
-  Option<authorization::Action> action;
+  const Resource& resource = destroyDisk.source();
 
-  switch (destroyDisk.source().disk().source().type()) {
+  Option<authorization::Action> action;
+  switch (resource.disk().source().type()) {
     case Resource::DiskInfo::Source::MOUNT: {
       action = authorization::DESTROY_MOUNT_DISK;
       break;
@@ -3900,7 +3914,7 @@ Future<bool> Master::authorizeDestroyDisk(
       return Failure(
           "Failed to authorize principal '" +
           (principal.isSome() ? stringify(principal.get()) : "ANY") +
-          "' to destroy disk '" + stringify(destroyDisk.source()) +
+          "' to destroy disk '" + stringify(resource) +
           "': Unsupported disk type");
     }
   }
@@ -3913,7 +3927,20 @@ Future<bool> Master::authorizeDestroyDisk(
     request.mutable_subject()->CopyFrom(subject.get());
   }
 
-  request.mutable_object()->mutable_resource()->CopyFrom(destroyDisk.source());
+  request.mutable_object()->mutable_resource()->CopyFrom(resource);
+
+  // We set `object.value` in addition to `object.resource` to support legacy
+  // authorizers making only use of this deprecated field.
+  //
+  // NOTE: We rely on the master to ensure that the resource is in the
+  // post-reservation-refinement format and set the value to the most refined
+  // role, or default to '*' for consistency if there is no reservation.
+  CHECK(!resource.has_role()) << resource;
+  CHECK(!resource.has_reservation()) << resource;
+  request.mutable_object()->set_value(
+      resource.reservations().empty()
+        ? "*"
+        : resource.reservations().rbegin()->role());
 
   LOG(INFO) << "Authorizing principal '"
             << (principal.isSome() ? stringify(principal.get()) : "ANY")
