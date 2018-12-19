@@ -31,6 +31,16 @@ namespace slave {
 namespace cni {
 namespace paths {
 
+string getCniRootDir(const Flags& flags)
+{
+  string workDir = flags.network_cni_root_dir_persist
+    ? flags.work_dir
+    : flags.runtime_dir;
+
+  return path::join(workDir, paths::CNI_DIR);
+}
+
+
 string getContainerDir(
     const string& rootDir,
     const ContainerID& containerId)

@@ -103,6 +103,13 @@ after Agent startup, the Agent needs to be restarted. The
 and hence restarting the Agent (and therefore the `network/cni`
 isolator) will not affect container orchestration.
 
+Optionally, the operator could specify the
+`--network_cni_root_dir_persist` flag. This flag would allow
+`network/cni` isolator to persist the network related information
+across reboot and allow `network/cni` isolator to carry out network
+cleanup post reboot. This is useful for the CNI networks that depend
+on the isolator to clean their network state.
+
 #### <a name="adding-modifying-deleting"></a>Adding/Deleting/Modifying CNI networks
 
 The `network/cni` isolator learns about all the CNI networks by
