@@ -74,7 +74,7 @@ public:
 };
 
 
-TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_Statistics)
+TEST_F(MemoryPressureMesosTest, ROOT_CGROUPS_Statistics)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -197,7 +197,7 @@ TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_Statistics)
 
 
 // Test that memory pressure listening is restarted after recovery.
-TEST_F(MemoryPressureMesosTest, CGROUPS_ROOT_SlaveRecovery)
+TEST_F(MemoryPressureMesosTest, ROOT_CGROUPS_SlaveRecovery)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);

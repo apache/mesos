@@ -1937,7 +1937,7 @@ public:
 // Test the scenario where the network isolator is asked to recover
 // both types of containers: containers that were previously managed
 // by network isolator, and containers that weren't.
-TEST_F(PortMappingMesosTest, CGROUPS_ROOT_RecoverMixedContainers)
+TEST_F(PortMappingMesosTest, ROOT_CGROUPS_RecoverMixedContainers)
 {
   master::Flags masterFlags = CreateMasterFlags();
 
@@ -2118,7 +2118,7 @@ TEST_F(PortMappingMesosTest, CGROUPS_ROOT_RecoverMixedContainers)
 
 // Test that all configurations (tc filters etc) is cleaned up for an
 // orphaned container using the network isolator.
-TEST_F(PortMappingMesosTest, CGROUPS_ROOT_CleanUpOrphan)
+TEST_F(PortMappingMesosTest, ROOT_CGROUPS_CleanUpOrphan)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -2348,7 +2348,7 @@ TEST_F(PortMappingMesosTest, ROOT_NetworkNamespaceHandleSymlink)
 // This test verifies that the isolator is able to recover a mix of
 // known and unknown orphans. This is used to capture the regression
 // described in MESOS-2914.
-TEST_F(PortMappingMesosTest, CGROUPS_ROOT_RecoverMixedKnownAndUnKnownOrphans)
+TEST_F(PortMappingMesosTest, ROOT_CGROUPS_RecoverMixedKnownAndUnKnownOrphans)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
