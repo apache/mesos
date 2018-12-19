@@ -1143,6 +1143,12 @@ mesos::internal::slave::Flags::Flags()
       "the operator should install a network configuration file in JSON\n"
       "format in the specified directory.");
 
+  add(&Flags::network_cni_root_dir_persist,
+      "network_cni_root_dir_persist",
+      "This setting controls whether the CNI root directory\n"
+      "persists across reboot or not.",
+      false);
+
   add(&Flags::container_disk_watch_interval,
       "container_disk_watch_interval",
       "The interval between disk quota checks for containers. This flag is\n"

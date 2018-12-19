@@ -20,6 +20,8 @@
 using std::string;
 using std::list;
 
+#include "slave/flags.hpp"
+
 namespace mesos {
 namespace internal {
 namespace slave {
@@ -28,7 +30,7 @@ namespace paths {
 
 // The root directory where we keep the information of CNI networks that each
 // container joins. The layout is as follows:
-//   /var/run/mesos/isolators/network/cni/
+//   /<work_dir|runtime_dir>/isolators/network/cni/
 //    |- <ID of Container1>/
 //    |  |-- ns -> /proc/<pid>/ns/net (bind mount)
 //    |  |-- <Name of CNI network 1>/
@@ -41,7 +43,10 @@ namespace paths {
 //    |          |-- network.info
 //    |-- <ID of ContainerID 2>/
 //    | ...
-constexpr char ROOT_DIR[] = "/var/run/mesos/isolators/network/cni";
+constexpr char CNI_DIR[] = "isolators/network/cni";
+
+
+std::string getCniRootDir(const Flags& flags);
 
 
 string getContainerDir(const string& rootDir, const string& containerId);
