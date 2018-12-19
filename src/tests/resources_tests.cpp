@@ -32,6 +32,7 @@
 
 #include <mesos/v1/resources.hpp>
 
+#include "common/resource_quantities.hpp"
 #include "common/resources_utils.hpp"
 
 #include "internal/evolve.hpp"
@@ -57,6 +58,8 @@ using google::protobuf::RepeatedPtrField;
 using mesos::internal::evolve;
 
 using mesos::internal::protobuf::createLabel;
+
+using mesos::internal::ResourceQuantities;
 
 namespace mesos {
 namespace internal {
@@ -2032,6 +2035,99 @@ TEST(ResourcesTest, isScalarQuantity)
   Resource revocable = Resources::parse("cpus", "1", "*").get();
   revocable.mutable_revocable();
   EXPECT_FALSE(Resources::isScalarQuantity(revocable));
+}
+
+
+TEST(ResourcesTest, ContainsResourceQuantities)
+{
+  auto resources = [](const string& s) {
+    return CHECK_NOTERROR(Resources::parse(s));
+  };
+
+  auto quantities = [](const string& s) {
+      return CHECK_NOTERROR(ResourceQuantities::fromString(s));
+  };
+
+  // Empty case tests.
+
+  Resources emptyResources;
+  ResourceQuantities emptyQuantities;
+
+  EXPECT_TRUE(emptyResources.contains(emptyQuantities));
+  EXPECT_FALSE(emptyResources.contains(quantities("cpus:1")));
+  EXPECT_TRUE(resources("cpus:1").contains(emptyQuantities));
+
+  // Single scalar resource tests.
+
+  EXPECT_TRUE(resources("cpus:2").contains(quantities("cpus:1")));
+
+  EXPECT_TRUE(resources("cpus:1").contains(quantities("cpus:1")));
+
+  EXPECT_FALSE(resources("cpus:0.5").contains(quantities("cpus:1")));
+
+  // Single range resource tests.
+
+  EXPECT_TRUE(resources("ports:[1-3]").contains(quantities("ports:2")));
+
+  EXPECT_TRUE(resources("ports:[1-2]").contains(quantities("ports:2")));
+
+  EXPECT_FALSE(resources("ports:[1-1]").contains(quantities("ports:2")));
+
+  // Single set resources tests.
+
+  EXPECT_TRUE(resources("features:{a,b,c}").contains(quantities("features:2")));
+
+  EXPECT_TRUE(resources("features:{a,b}").contains(quantities("features:2")));
+
+  EXPECT_FALSE(resources("features:{a}").contains(quantities("features:2")));
+
+  // Multiple resources tests.
+
+  EXPECT_TRUE(resources("cpus:3;ports:[1-3];features:{a,b,c};mem:10")
+                .contains(quantities("cpus:3;ports:3;features:3")));
+
+  EXPECT_TRUE(resources("cpus:3;ports:[1-3];features:{a,b,c}")
+                .contains(quantities("cpus:3;ports:3;features:3")));
+
+  EXPECT_FALSE(resources("cpus:1;ports:[1-3];features:{a,b,c}")
+                 .contains(quantities("cpus:3;ports:3;features:3")));
+
+  EXPECT_FALSE(resources("cpus:3;ports:[1-3]")
+                 .contains(quantities("cpus:3;ports:3;features:3")));
+
+  // Duplicate names.
+
+  EXPECT_FALSE(resources("cpus(role1):2").contains(quantities("cpus:3")));
+
+  EXPECT_TRUE(resources("cpus(role1):2;cpus:1").contains(quantities("cpus:3")));
+
+  Resource::ReservationInfo reservation =
+    createDynamicReservationInfo("role", "principal");
+  Resources resources_ = createReservedResource("ports", "[1-10]", reservation);
+
+  EXPECT_FALSE(resources_.contains(quantities("ports:12")));
+
+  resources_ +=
+    CHECK_NOTERROR(Resources::parse("ports:[20-25]")); // 15 ports in total.
+
+  EXPECT_TRUE(resources_.contains(quantities("ports:12")));
+
+  resources_ = createPersistentVolume(
+      Megabytes(64),
+      "role1",
+      "id1",
+      "path1",
+      None(),
+      None(),
+      "principal1",
+      true); // Shared.
+
+  EXPECT_FALSE(resources_.contains(quantities("disk:128")));
+
+  resources_ +=
+    CHECK_NOTERROR(Resources::parse("disk:64")); // 128M disk in total.
+
+  EXPECT_TRUE(resources_.contains(quantities("disk:128")));
 }
 
 

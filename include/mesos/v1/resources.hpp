@@ -54,6 +54,9 @@
 // but instead just written for correct semantics.
 
 namespace mesos {
+
+namespace internal { class ResourceQuantities; }
+
 namespace v1 {
 
 // Forward declaration.
@@ -442,6 +445,14 @@ public:
   // Checks if this Resources contains the given Resource.
   bool contains(const Resource& that) const;
 
+  // Checks if the quantities of this `Resources` is a superset of the
+  // given `ResourceQuantities`. If a `Resource` object is `SCALAR` type,
+  // its quantity is its scalar value. For `RANGES` and `SET` type, their
+  // quantities are the number of different instances in the range or set.
+  // For example, "range:[1-5]" has a quantity of 5 and "set:{a,b}" has a
+  // quantity of 2.
+  bool contains(
+      const mesos::internal::ResourceQuantities& quantities) const;
   // Count the Resource objects that match the specified value.
   //
   // NOTE:

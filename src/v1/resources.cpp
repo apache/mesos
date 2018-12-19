@@ -39,17 +39,21 @@
 #include <stout/strings.hpp>
 #include <stout/unreachable.hpp>
 
+#include "common/resource_quantities.hpp"
 #include "common/resources_utils.hpp"
 
 using std::make_shared;
 using std::map;
 using std::ostream;
+using std::pair;
 using std::set;
 using std::shared_ptr;
 using std::string;
 using std::vector;
 
 using google::protobuf::RepeatedPtrField;
+
+using mesos::internal::ResourceQuantities;
 
 namespace mesos {
 namespace v1 {
@@ -1521,6 +1525,46 @@ bool Resources::contains(const Resource& that) const
   // to false positives here (e.g., "cpus:-1" will return true). This
   // is because 'contains' assumes resources are valid.
   return validate(that).isNone() && _contains(Resource_(that));
+}
+
+
+// This function assumes all quantities with the same name are merged
+// in the input `quantities` which is a guaranteed property of
+// `ResourceQuantities`.
+bool Resources::contains(const ResourceQuantities& quantities) const
+{
+  foreach (auto& quantity, quantities){
+    double remaining = quantity.second.value();
+
+    foreach (const Resource& r, get(quantity.first)) {
+      switch (r.type()) {
+        case Value::SCALAR: remaining -= r.scalar().value(); break;
+        case Value::SET:    remaining -= r.set().item_size(); break;
+        case Value::RANGES:
+          foreach (const Value::Range& range, r.ranges().range()) {
+            remaining -= range.end() - range.begin() + 1;
+            if (remaining <= 0) {
+              break;
+            }
+          }
+          break;
+        case Value::TEXT:
+          LOG(FATAL) << "Unexpected TEXT type resource " << r << " in "
+                     << *this;
+          break;
+      }
+
+      if (remaining <= 0) {
+        break;
+      }
+    }
+
+    if (remaining > 0) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 
