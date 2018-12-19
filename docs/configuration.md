@@ -1938,6 +1938,15 @@ a network configuration file in JSON format in the specified directory.
 </tr>
 <tr>
   <td>
+    --[no-]network_cni_root_dir_persist
+  </td>
+  <td>
+This setting controls whether the CNI root directory persists across
+reboot or not.
+  </td>
+</tr>
+<tr>
+  <td>
     --oversubscribed_resources_interval=VALUE
   </td>
   <td>
