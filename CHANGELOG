@@ -34,6 +34,7 @@ Release Notes - Mesos - Version 1.7.1 (WIP)
   * [MESOS-9419] - Executor to framework message crashes master if framework has not re-registered.
   * [MESOS-9474] - Master does not respect authorization result for `CREATE_DISK` and `DESTROY_DISK`.
   * [MESOS-9480] - Master may skip processing authorization results for `LAUNCH_GROUP`.
+  * [MESOS-9492] - Persist CNI working directory across reboot.
 
 ** Improvement:
   * [MESOS-6765] - Make the Resources wrapper "copy-on-write" to improve performance.
