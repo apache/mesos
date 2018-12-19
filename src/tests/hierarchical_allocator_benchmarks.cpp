@@ -156,13 +156,13 @@ struct BenchmarkConfig
 };
 
 
-class HierarchicalAllocations_BENCHMARK_TestBase : public ::testing::Test
+class HierarchicalAllocations_BenchmarkBase : public ::testing::Test
 {
 protected:
-  HierarchicalAllocations_BENCHMARK_TestBase ()
+  HierarchicalAllocations_BenchmarkBase ()
     : totalTasksToLaunch(0) {}
 
-  ~HierarchicalAllocations_BENCHMARK_TestBase () override
+  ~HierarchicalAllocations_BenchmarkBase () override
   {
     delete allocator;
   }
@@ -316,15 +316,15 @@ private:
 };
 
 
-class HierarchicalAllocations_BENCHMARK :
-  public HierarchicalAllocations_BENCHMARK_TestBase {};
+class BENCHMARK_HierarchicalAllocations :
+  public HierarchicalAllocations_BenchmarkBase {};
 
 
 // This benchmark launches frameworks with different profiles (number of tasks,
 // task sizes and etc.) and prints out statistics such as total tasks launched,
 // cluster utilization and allocation latency. The test has a timeout of 30
 // seconds.
-TEST_F(HierarchicalAllocations_BENCHMARK, MultiFrameworkAllocations)
+TEST_F(BENCHMARK_HierarchicalAllocations, MultiFrameworkAllocations)
 {
   // Pause the clock because we want to manually drive the allocations.
   Clock::pause();
@@ -517,8 +517,8 @@ struct QuotaParam
 };
 
 
-class HierarchicalAllocator_BENCHMARK_WithQuotaParam
-  : public HierarchicalAllocations_BENCHMARK_TestBase,
+class BENCHMARK_HierarchicalAllocator_WithQuotaParam
+  : public HierarchicalAllocations_BenchmarkBase,
     public WithParamInterface<QuotaParam> {};
 
 
@@ -526,7 +526,7 @@ class HierarchicalAllocator_BENCHMARK_WithQuotaParam
 // roles, in the default setting below, we let each role has a single framework.
 INSTANTIATE_TEST_CASE_P(
     QuotaParam,
-    HierarchicalAllocator_BENCHMARK_WithQuotaParam,
+    BENCHMARK_HierarchicalAllocator_WithQuotaParam,
     ::testing::Values(
         QuotaParam(25U, 5U, 1U), // 30 agents in total
         QuotaParam(250U, 50U, 1U), // 300 agents in total
@@ -538,7 +538,7 @@ INSTANTIATE_TEST_CASE_P(
 // well as large quota (which need resources from two agents). We setup the
 // cluster, trigger one allocation cycle and measure the elapsed time. All
 // cluster resources will be offered in this cycle to satisfy all roles' quota.
-TEST_P(HierarchicalAllocator_BENCHMARK_WithQuotaParam, LargeAndSmallQuota)
+TEST_P(BENCHMARK_HierarchicalAllocator_WithQuotaParam, LargeAndSmallQuota)
 {
   // Pause the clock because we want to manually drive the allocations.
   Clock::pause();
@@ -672,14 +672,14 @@ struct NonQuotaVsQuotaParam
 };
 
 
-class HierarchicalAllocator_BENCHMARK_WithNonQuotaVsQuotaParam
-  : public HierarchicalAllocations_BENCHMARK_TestBase,
+class BENCHMARK_HierarchicalAllocator_WithNonQuotaVsQuotaParam
+  : public HierarchicalAllocations_BenchmarkBase,
     public WithParamInterface<NonQuotaVsQuotaParam> {};
 
 
 INSTANTIATE_TEST_CASE_P(
     NonQuotaVsQuotaParam,
-    HierarchicalAllocator_BENCHMARK_WithNonQuotaVsQuotaParam,
+    BENCHMARK_HierarchicalAllocator_WithNonQuotaVsQuotaParam,
     ::testing::Values(
         // 10 roles, 10*2 = 20 agents, 10*2 = 20 frameworks,
         // without and with quota.
@@ -705,7 +705,7 @@ INSTANTIATE_TEST_CASE_P(
 // rather than extending the existing quota benchmarks (which involves
 // agent chopping).
 TEST_P(
-    HierarchicalAllocator_BENCHMARK_WithNonQuotaVsQuotaParam, NonQuotaVsQuota)
+    BENCHMARK_HierarchicalAllocator_WithNonQuotaVsQuotaParam, NonQuotaVsQuota)
 {
   // Pause the clock because we want to manually drive the allocations.
   Clock::pause();
