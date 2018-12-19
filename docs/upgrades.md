@@ -62,6 +62,7 @@ We categorize the changes as follows:
     <ul style="padding-left:10px;">
       <li>A <a href="#1-7-x-enforce-container-ports">enforce_container_ports</a></li>
       <li>A <a href="#1-7-x-gc-non-executor-container-sandboxes">gc_non_executor_container_sandboxes</a></li>
+      <li>A <a href="#1-7-x-network-cni-root-dir-persist">network_cni_root_dir_persist</a></li>
     </ul>
   </td>
 
@@ -484,6 +485,10 @@ We categorize the changes as follows:
   containers, which includes the tasks groups launched by the default executor.
   We recommend enabling the flag if you have frameworks that launch multiple
   task groups on the same default executor instance.
+
+<a name="1-7-x-network-cni-root-dir-persist"></a>
+
+* A new [`--network_cni_root_dir_persist`](configuration/agent.md#network_cni_root_dir_persist) flag has been added to toggle whether the [`network/cni`](cni.md) isolator should persist the network information across reboots.
 
 <a name="1-7-x-container-logger"></a>
 
