@@ -53,6 +53,11 @@
 
 namespace mesos {
 
+// Forward declaration.
+class ResourceConversion;
+
+namespace internal { class ResourceQuantities; }
+
 // NOTE: Resource objects stored in the class are always valid, are in
 // the "post-reservation-refinement" format, and kept combined if possible.
 // It is the caller's responsibility to validate any Resource object or
@@ -375,6 +380,15 @@ public:
 
   // Checks if this Resources contains the given Resource.
   bool contains(const Resource& that) const;
+
+  // Checks if the quantities of this `Resources` is a superset of the
+  // given `ResourceQuantities`. If a `Resource` object is `SCALAR` type,
+  // its quantity is its scalar value. For `RANGES` and `SET` type, their
+  // quantities are the number of different instances in the range or set.
+  // For example, "range:[1-5]" has a quantity of 5 and "set:{a,b}" has a
+  // quantity of 2.
+  bool contains(
+      const mesos::internal::ResourceQuantities& quantities) const;
 
   // Count the Resource objects that match the specified value.
   //
