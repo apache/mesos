@@ -1161,6 +1161,16 @@ a network configuration file in JSON format in the specified directory.
   </td>
 </tr>
 
+<tr id="network_cni_root_dir_persist">
+  <td>
+    --[no-]network_cni_root_dir_persist
+  </td>
+  <td>
+This setting controls whether the CNI root directory persists across
+reboot or not.
+  </td>
+</tr>
+
 <tr id="network_cni_metrics">
   <td>
     --[no-]network_cni_metrics
