@@ -142,19 +142,21 @@ Try<Isolator*> NetworkCniIsolatorProcess::create(const Flags& flags)
     return Error("Unable to load CNI config: " + networkConfigs.error());
   }
 
+  const string cniRootDir = paths::getCniRootDir(flags);
+
   // Create the CNI network information root directory if it does not exist.
-  Try<Nothing> mkdir = os::mkdir(paths::ROOT_DIR);
+  Try<Nothing> mkdir = os::mkdir(cniRootDir);
   if (mkdir.isError()) {
     return Error(
         "Failed to create CNI network information root directory at '" +
-        string(paths::ROOT_DIR) + "': " + mkdir.error());
+        cniRootDir + "': " + mkdir.error());
   }
 
-  Result<string> rootDir = os::realpath(paths::ROOT_DIR);
+  Result<string> rootDir = os::realpath(cniRootDir);
   if (!rootDir.isSome()) {
     return Error(
         "Failed to determine canonical path of CNI network information root"
-        " directory '" + string(paths::ROOT_DIR) + "': " +
+        " directory '" + cniRootDir + "': " +
         (rootDir.isError() ? rootDir.error() : "No such file or directory"));
   }
 
@@ -1303,11 +1305,13 @@ Future<Nothing> NetworkCniIsolatorProcess::attach(
         stringify(networkConfigJSON.get()) + "': " + checkpoint.error());
   }
 
-  VLOG(1) << "Invoking CNI plugin '" << plugin.get()
-          << "' with network configuration '"
+  LOG(INFO) << "Invoking CNI plugin '" << plugin.get()
+            << "' to attach container " << containerId
+            << " to network '" << networkName << "'";
+
+  VLOG(1) << "Using network configuration '"
           << stringify(networkConfigJSON.get())
-          << "' to attach container " << containerId << " to network '"
-          << networkName << "'";
+          << "' for container " << containerId;
 
   Try<Subprocess> s = subprocess(
       plugin.get(),
@@ -1775,10 +1779,12 @@ Future<Nothing> NetworkCniIsolatorProcess::detach(
         " to network '" + networkName + "'");
   }
 
-  VLOG(1) << "Invoking CNI plugin '" << plugin.get()
-          << "' with network configuration '" << networkConfigPath
-          << "' to detach container " << containerId << " from network '"
-          << networkName << "'";
+  LOG(INFO) << "Invoking CNI plugin '" << plugin.get()
+            << "' to detach container " << containerId
+            << " from network '" << networkName << "'";
+
+  VLOG(1) << "Using network configuration at '" << networkConfigPath
+          << "' for container " << containerId;
 
   Try<Subprocess> s = subprocess(
       plugin.get(),

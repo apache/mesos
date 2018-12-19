@@ -1184,6 +1184,12 @@ mesos::internal::slave::Flags::Flags()
       "the operator should install a network configuration file in JSON\n"
       "format in the specified directory.");
 
+  add(&Flags::network_cni_root_dir_persist,
+      "network_cni_root_dir_persist",
+      "This setting controls whether the CNI root directory\n"
+      "persists across reboot or not.",
+      false);
+
   add(&Flags::network_cni_metrics,
       "network_cni_metrics",
       "This setting controls whether the networking metrics of the CNI\n"

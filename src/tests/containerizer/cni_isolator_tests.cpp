@@ -483,24 +483,25 @@ TEST_F(CniIsolatorTest, ROOT_VerifyCheckpointedInfo)
   ContainerID containerId = *(containers->begin());
 
   // Check if the CNI related information is checkpointed successfully.
+  const string cniRootDir = paths::getCniRootDir(flags);
   const string containerDir =
-    paths::getContainerDir(paths::ROOT_DIR, containerId);
+    paths::getContainerDir(cniRootDir, containerId);
 
   EXPECT_TRUE(os::exists(containerDir));
   EXPECT_TRUE(os::exists(paths::getNetworkDir(
-      paths::ROOT_DIR, containerId, "__MESOS_TEST__")));
+      cniRootDir, containerId, "__MESOS_TEST__")));
 
   EXPECT_TRUE(os::exists(paths::getNetworkConfigPath(
-      paths::ROOT_DIR, containerId, "__MESOS_TEST__")));
+      cniRootDir, containerId, "__MESOS_TEST__")));
 
   EXPECT_TRUE(os::exists(paths::getInterfaceDir(
-      paths::ROOT_DIR, containerId, "__MESOS_TEST__", "eth0")));
+      cniRootDir, containerId, "__MESOS_TEST__", "eth0")));
 
   EXPECT_TRUE(os::exists(paths::getNetworkInfoPath(
-      paths::ROOT_DIR, containerId, "__MESOS_TEST__", "eth0")));
+      cniRootDir, containerId, "__MESOS_TEST__", "eth0")));
 
   EXPECT_TRUE(os::exists(paths::getNamespacePath(
-      paths::ROOT_DIR, containerId)));
+      cniRootDir, containerId)));
 
   EXPECT_TRUE(os::exists(path::join(containerDir, "hostname")));
   EXPECT_TRUE(os::exists(path::join(containerDir, "hosts")));
@@ -2535,6 +2536,44 @@ TEST_F(CniIsolatorTest, VETH_VerifyResourceStatistics)
 
   driver.stop();
   driver.join();
+}
+
+
+// This test verifies CNI root directory path.
+TEST_F(CniIsolatorTest, ROOT_VerifyCniRootDir)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "network/cni";
+
+  flags.network_cni_plugins_dir = cniPluginDir;
+  flags.network_cni_config_dir = cniConfigDir;
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  string cniRootDir = paths::getCniRootDir(flags);
+
+  ASSERT_EQ(path::join(flags.runtime_dir, paths::CNI_DIR), cniRootDir);
+  EXPECT_TRUE(os::exists(cniRootDir));
+
+  slave.get()->terminate();
+
+  // Enable the flag to test whether the directory
+  // has moved to a persistent location.
+  flags.network_cni_root_dir_persist = true;
+
+  slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  cniRootDir = paths::getCniRootDir(flags);
+
+  ASSERT_EQ(path::join(flags.work_dir, paths::CNI_DIR), cniRootDir);
+  EXPECT_TRUE(os::exists(cniRootDir));
 }
 
 } // namespace tests {
