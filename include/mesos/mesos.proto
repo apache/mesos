@@ -239,11 +239,13 @@ message FrameworkInfo {
   // Name of the framework that shows up in the Mesos Web UI.
   required string name = 2;
 
-  // Note that 'id' is only available after a framework has
-  // registered, however, it is included here in order to facilitate
-  // scheduler failover (i.e., if it is set then the
-  // MesosSchedulerDriver expects the scheduler is performing
-  // failover).
+  // Used to uniquely identify the framework.
+  //
+  // This field must be unset when the framework subscribes for the
+  // first time upon which the master will assign a new ID. To
+  // resubscribe after scheduler failover the framework should set
+  // 'id' to the ID assigned by the master.  Setting 'id' to values
+  // not assigned by Mesos masters is unsupported.
   optional FrameworkID id = 3;
 
   // The amount of time (in seconds) that the master will wait for the

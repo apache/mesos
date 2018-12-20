@@ -4678,6 +4678,34 @@ TEST_F(FrameworkInfoValidationTest, ValidateRoles)
 }
 
 
+// This tests the validation of the `FrameworkID`.
+TEST_F(FrameworkInfoValidationTest, ValidateFrameworkID)
+{
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+
+  // Unset framework IDs are used in an initial subscription and are valid.
+  frameworkInfo.clear_id();
+  EXPECT_NONE(::framework::validate(frameworkInfo));
+
+  // We allow set but empty framework IDs, see MESOS-9481.
+  frameworkInfo.mutable_id()->set_value("");
+  EXPECT_NONE(::framework::validate(frameworkInfo));
+
+  // Typical IDs the master would assign are valid.
+  frameworkInfo.mutable_id()->set_value(id::UUID::random().toString());
+  frameworkInfo.mutable_id()->set_value(
+      strings::format("%s-4711", id::UUID::random().toString()).get());
+  EXPECT_NONE(::framework::validate(frameworkInfo));
+
+  // Framework IDs containing typical path separators are invalid.
+  frameworkInfo.mutable_id()->set_value("foo/bar");
+  EXPECT_SOME(::framework::validate(frameworkInfo));
+
+  frameworkInfo.mutable_id()->set_value("foo/..");
+  EXPECT_SOME(::framework::validate(frameworkInfo));
+}
+
+
 // This test ensures that ia framework cannot use the
 // `FrameworkInfo.roles` field without providing the
 // MULTI_ROLE capability.

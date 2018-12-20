@@ -103,6 +103,8 @@ namespace internal {
 // +-------+-------+---------+
 Option<Error> validateRoles(const mesos::FrameworkInfo& frameworkInfo);
 
+Option<Error> validateFrameworkId(const mesos::FrameworkInfo& frameworkInfo);
+
 } // namespace internal {
 
 // Validate a FrameworkInfo.

@@ -508,11 +508,33 @@ Option<Error> validateRoles(const FrameworkInfo& frameworkInfo)
   return None();
 }
 
+
+Option<Error> validateFrameworkId(const FrameworkInfo& frameworkInfo)
+{
+  if (!frameworkInfo.has_id() || frameworkInfo.id().value().empty()) {
+    return None();
+  }
+
+  return common::validation::validateID(frameworkInfo.id().value());
+}
+
 } // namespace internal {
 
 Option<Error> validate(const mesos::FrameworkInfo& frameworkInfo)
 {
-  return internal::validateRoles(frameworkInfo);
+  Option<Error> error = internal::validateRoles(frameworkInfo);
+
+  if (error.isSome()) {
+    return error;
+  }
+
+  error = internal::validateFrameworkId(frameworkInfo);
+
+  if (error.isSome()) {
+    return error;
+  }
+
+  return None();
 }
 
 } // namespace framework {
