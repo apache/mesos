@@ -4581,7 +4581,7 @@ TEST_F(FrameworkInfoValidationTest, ValidateRoles)
   {
     FrameworkInfo frameworkInfo;
 
-    EXPECT_NONE(::framework::internal::validateRoles(frameworkInfo));
+    EXPECT_NONE(::framework::validate(frameworkInfo));
   }
 
   // Not MULTI_ROLE, no 'role' (default to "*"), has 'roles' (error!).
@@ -4590,7 +4590,7 @@ TEST_F(FrameworkInfoValidationTest, ValidateRoles)
     frameworkInfo.add_roles("bar");
     frameworkInfo.add_roles("qux");
 
-    EXPECT_SOME(::framework::internal::validateRoles(frameworkInfo));
+    EXPECT_SOME(::framework::validate(frameworkInfo));
   }
 
   // Not MULTI_ROLE, has 'role', no 'roles'.
@@ -4598,7 +4598,7 @@ TEST_F(FrameworkInfoValidationTest, ValidateRoles)
     FrameworkInfo frameworkInfo;
     frameworkInfo.set_role("foo");
 
-    EXPECT_NONE(::framework::internal::validateRoles(frameworkInfo));
+    EXPECT_NONE(::framework::validate(frameworkInfo));
   }
 
   // Not MULTI_ROLE, has 'role', has 'roles' (error!).
@@ -4608,7 +4608,7 @@ TEST_F(FrameworkInfoValidationTest, ValidateRoles)
     frameworkInfo.add_roles("qux");
     frameworkInfo.set_role("foo");
 
-    EXPECT_SOME(::framework::internal::validateRoles(frameworkInfo));
+    EXPECT_SOME(::framework::validate(frameworkInfo));
   }
 
   // Is MULTI_ROLE, no 'role', no 'roles'.
@@ -4617,7 +4617,7 @@ TEST_F(FrameworkInfoValidationTest, ValidateRoles)
     frameworkInfo.add_capabilities()->set_type(
         FrameworkInfo::Capability::MULTI_ROLE);
 
-    EXPECT_NONE(::framework::internal::validateRoles(frameworkInfo));
+    EXPECT_NONE(::framework::validate(frameworkInfo));
   }
 
   // Is MULTI_ROLE, no 'role', has 'roles'.
@@ -4628,7 +4628,7 @@ TEST_F(FrameworkInfoValidationTest, ValidateRoles)
     frameworkInfo.add_roles("bar");
     frameworkInfo.add_roles("qux");
 
-    EXPECT_NONE(::framework::internal::validateRoles(frameworkInfo));
+    EXPECT_NONE(::framework::validate(frameworkInfo));
   }
 
   // Is MULTI_ROLE, has 'role' (error!), no 'roles'.
@@ -4638,7 +4638,7 @@ TEST_F(FrameworkInfoValidationTest, ValidateRoles)
     frameworkInfo.add_capabilities()->set_type(
         FrameworkInfo::Capability::MULTI_ROLE);
 
-    EXPECT_SOME(::framework::internal::validateRoles(frameworkInfo));
+    EXPECT_SOME(::framework::validate(frameworkInfo));
   }
 
   // Is MULTI_ROLE, has 'role' (error!), has 'roles'.
@@ -4650,7 +4650,7 @@ TEST_F(FrameworkInfoValidationTest, ValidateRoles)
     frameworkInfo.add_roles("bar");
     frameworkInfo.add_roles("qux");
 
-    EXPECT_SOME(::framework::internal::validateRoles(frameworkInfo));
+    EXPECT_SOME(::framework::validate(frameworkInfo));
   }
 
   // Duplicate items in 'roles'.
@@ -4662,7 +4662,7 @@ TEST_F(FrameworkInfoValidationTest, ValidateRoles)
     frameworkInfo.add_roles("qux");
     frameworkInfo.add_roles("bar");
 
-    EXPECT_SOME(::framework::internal::validateRoles(frameworkInfo));
+    EXPECT_SOME(::framework::validate(frameworkInfo));
   }
 
   // Check invalid character in 'roles'.
@@ -4673,7 +4673,7 @@ TEST_F(FrameworkInfoValidationTest, ValidateRoles)
     frameworkInfo.add_capabilities()->set_type(
         FrameworkInfo::Capability::MULTI_ROLE);
 
-    EXPECT_SOME(::framework::internal::validateRoles(frameworkInfo));
+    EXPECT_SOME(::framework::validate(frameworkInfo));
   }
 }
 
