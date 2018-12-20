@@ -6485,6 +6485,34 @@ TEST_F(MasterTest, RejectFrameworkWithInvalidRole)
 }
 
 
+// This test validates the undocumented but currently supported ability of
+// frameworks to register with an empty, but set ID. This case is treated
+// identical to the case where the framework registered without an ID.
+//
+// TODO(bbannier): Remove this test once MESOS-9481 is implemented.
+TEST_F(MasterTest, FrameworkSubscribeEmptyId)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
+  framework.mutable_id()->set_value("");
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+  EXPECT_FALSE(frameworkId->value().empty());
+}
+
+
 TEST_F(MasterTest, FrameworksEndpointWithoutFrameworks)
 {
   master::Flags flags = CreateMasterFlags();
