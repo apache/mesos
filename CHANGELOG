@@ -1,10 +1,20 @@
-Release Notes - Mesos - Version 1.7.1 (WIP)
+Release Notes - Mesos - Version 1.7.1
 -------------------------------------
-* This is a bug fix release. Also includes performance improvements:
+* This is a bug fix release. Also includes performance and API
+  improvements:
 
   * **Allocator**: Improved allocation cycle time substantially
     (see MESOS-9239 and MESOS-9249). These reduce the allocation
     cycle time in some benchmarks by 80%.
+
+  * **Scheduler API**: Improved the experimental `CREATE_DISK` and
+    `DESTROY_DISK` operations for CSI volume recovery (see MESOS-9275
+    and MESOS-9321). Storage local resource providers now return disk
+    resources with the `source.vendor` field set, so frameworks needs to
+    upgrade the `Resource` protobuf definitions.
+
+  * **Scheduler API**: Offer operation feedbacks now present their agent
+    IDs and resource provider IDs (see MESOS-9293).
 
 ** Bug
   * [MESOS-7474] - Mesos fetcher cache doesn't retry when missed.
@@ -13,12 +23,13 @@ Release Notes - Mesos - Version 1.7.1 (WIP)
   * [MESOS-8978] - Command executor calling setsid breaks the tty support.
   * [MESOS-9131] - Health checks launching nested containers while a container is being destroyed lead to unkillable tasks.
   * [MESOS-9152] - Close all file descriptors except whitelist_fds in posix/subprocess.
+  * [MESOS-9154] - MasterTest.TaskStateMetrics is flaky
   * [MESOS-9164] - Subprocess should unset CLOEXEC on whitelisted file descriptors.
   * [MESOS-9228] - SLRP does not clean up plugin containers after it is removed.
   * [MESOS-9231] - `docker inspect` may return an unexpected result to Docker executor due to a race condition.
+  * [MESOS-9266] - Whenever our packaging tasks trigger errors we run into permission problems.
   * [MESOS-9267] - Mesos agent crashes when CNI network is not configured but used.
   * [MESOS-9274] - v1 JAVA scheduler library can drop TEARDOWN upon destruction.
-  * [MESOS-9275] - Allow optional `profile` to be specified in `CREATE_DISK` offer operation.
   * [MESOS-9279] - Docker Containerizer 'usage' call might be expensive if mount table is big.
   * [MESOS-9281] - SLRP gets a stale checkpoint after system crash.
   * [MESOS-9283] - Docker containerizer actor can get backlogged with large number of containers.
@@ -26,13 +37,14 @@ Release Notes - Mesos - Version 1.7.1 (WIP)
   * [MESOS-9295] - Nested container launch could fail if the agent upgrade with new cgroup subsystems.
   * [MESOS-9308] - URI disk profile adaptor could deadlock.
   * [MESOS-9317] - Some master endpoints do not handle failed authorization properly.
-  * [MESOS-9325] - Optimize `Resources::filter` operation.
   * [MESOS-9332] - Nested container should run as the same user of its parent container by default.
   * [MESOS-9334] - Container stuck at ISOLATING state due to libevent poll never returns.
+  * [MESOS-9362] - Test `CgroupsIsolatorTest.ROOT_CGROUPS_CreateRecursively` is flaky.
   * [MESOS-9411] - Validation of JWT tokens using HS256 hashing algorithm is not thread safe.
   * [MESOS-9418] - Add support for the `Discard` blkio operation type.
   * [MESOS-9419] - Executor to framework message crashes master if framework has not re-registered.
   * [MESOS-9474] - Master does not respect authorization result for `CREATE_DISK` and `DESTROY_DISK`.
+  * [MESOS-9479] - SLRP does not set RP ID in produced OperationStatus.
   * [MESOS-9480] - Master may skip processing authorization results for `LAUNCH_GROUP`.
   * [MESOS-9492] - Persist CNI working directory across reboot.
 
@@ -41,8 +53,10 @@ Release Notes - Mesos - Version 1.7.1 (WIP)
   * [MESOS-9239] - Improve sorting performance in the DRF sorter.
   * [MESOS-9249] - Avoid dirtying the DRF sorter when allocating resources.
   * [MESOS-9255] - Use consistent "totals" across role / framework DRF.
+  * [MESOS-9275] - Allow optional `profile` to be specified in `CREATE_DISK` offer operation.
   * [MESOS-9305] - Create cgoup recursively to workaround systemd deleting cgroups_root.
   * [MESOS-9321] - Add an optional `vendor` field in `Resource.DiskInfo.Source`.
+  * [MESOS-9325] - Optimize `Resources::filter` operation.
   * [MESOS-9340] - Log all socket errors in libprocess.
   * [MESOS-9486] - Set up `object.value` for `CREATE_DISK` and `DESTROY_DISK` authorizations.
 
