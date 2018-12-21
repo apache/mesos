@@ -331,8 +331,8 @@ Try<Nothing> ModuleManager::loadManifest(const Modules& modules)
 
           if (result.isError()) {
             return Error(
-                "Error loading module '" + moduleName + "'; this is "
-                " potenatially due to duplicate module names; " +
+                "Error loading module '" + moduleName + "'; this is"
+                " potentially due to duplicate module names; " +
                 result.error());
           }
 
