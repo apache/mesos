@@ -1361,8 +1361,8 @@ As a key:value list:
 <p/>
 To use JSON, pass a JSON-formatted string or use
 <code>--resources=filepath</code> to specify the resources via a file containing
-a JSON-formatted string. 'filepath' can be of the form
-<code>file:///path/to/file</code> or <code>/path/to/file</code>.
+a JSON-formatted string. 'filepath' can only be of the form
+<code>file:///path/to/file</code>.
 <p/>
 Example JSON:
 <pre><code>[
