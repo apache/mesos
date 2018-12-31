@@ -41,6 +41,7 @@
 #include <stout/stringify.hpp>
 
 #include "common/protobuf_utils.hpp"
+#include "common/resource_quantities.hpp"
 
 using std::set;
 using std::string;
@@ -156,7 +157,8 @@ void HierarchicalAllocatorProcess::initialize(
     const Option<set<string>>& _fairnessExcludeResourceNames,
     bool _filterGpuResources,
     const Option<DomainInfo>& _domain,
-    const Option<std::vector<Resources>>& _minAllocatableResources,
+    const Option<std::vector<mesos::internal::ResourceQuantities>>&
+      _minAllocatableResources,
     const size_t maxCompletedFrameworks)
 {
   allocationInterval = _allocationInterval;
@@ -2432,10 +2434,10 @@ bool HierarchicalAllocatorProcess::allocatable(const Resources& resources)
     return true;
   }
 
-  Resources quantity = resources.createStrippedScalarQuantity();
   foreach (
-      const Resources& minResources, CHECK_NOTNONE(minAllocatableResources)) {
-    if (quantity.contains(minResources)) {
+      const ResourceQuantities& resourceQuantities,
+      CHECK_NOTNONE(minAllocatableResources)) {
+    if (resources.contains(resourceQuantities)) {
       return true;
     }
   }

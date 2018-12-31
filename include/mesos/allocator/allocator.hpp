@@ -38,6 +38,8 @@
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 
+#include "common/resource_quantities.hpp"
+
 namespace mesos {
 namespace allocator {
 
@@ -102,7 +104,7 @@ public:
         fairnessExcludeResourceNames = None(),
       bool filterGpuResources = true,
       const Option<DomainInfo>& domain = None(),
-      const Option<std::vector<Resources>>&
+      const Option<std::vector<mesos::internal::ResourceQuantities>>&
         minAllocatableResources = None(),
       const size_t maxCompletedFrameworks = 0) = 0;
 
