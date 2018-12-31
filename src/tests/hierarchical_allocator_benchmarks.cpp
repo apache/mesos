@@ -32,6 +32,8 @@
 #include <stout/hashmap.hpp>
 #include <stout/stopwatch.hpp>
 
+#include "common/resource_quantities.hpp"
+
 #include "master/constants.hpp"
 
 #include "master/allocator/mesos/hierarchical.hpp"
@@ -43,6 +45,8 @@ using mesos::internal::master::MIN_CPUS;
 using mesos::internal::master::MIN_MEM;
 
 using mesos::internal::master::allocator::HierarchicalDRFAllocator;
+
+using mesos::internal::ResourceQuantities;
 
 using mesos::internal::slave::AGENT_CAPABILITIES;
 
@@ -137,10 +141,11 @@ struct BenchmarkConfig
       frameworkSorter(frameworkSorter_),
       allocationInterval(allocationInterval_)
   {
+    minAllocatableResources.push_back(CHECK_NOTERROR(
+        ResourceQuantities::fromString("cpus:" + stringify(MIN_CPUS))));
     minAllocatableResources.push_back(
-        CHECK_NOTERROR(Resources::parse("cpus:" + stringify(MIN_CPUS))));
-    minAllocatableResources.push_back(CHECK_NOTERROR(Resources::parse(
-        "mem:" + stringify((double)MIN_MEM.bytes() / Bytes::MEGABYTES))));
+        CHECK_NOTERROR(ResourceQuantities::fromString(
+            "mem:" + stringify((double)MIN_MEM.bytes() / Bytes::MEGABYTES))));
   }
 
   string allocator;
@@ -149,7 +154,7 @@ struct BenchmarkConfig
 
   Duration allocationInterval;
 
-  vector<Resources> minAllocatableResources;
+  vector<ResourceQuantities> minAllocatableResources;
 
   vector<FrameworkProfile> frameworkProfiles;
   vector<AgentProfile> agentProfiles;

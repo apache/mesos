@@ -79,6 +79,7 @@
 #include "common/build.hpp"
 #include "common/http.hpp"
 #include "common/protobuf_utils.hpp"
+#include "common/resource_quantities.hpp"
 #include "common/status_utils.hpp"
 
 #include "credentials/credentials.hpp"
@@ -149,6 +150,7 @@ using mesos::master::contender::MasterContender;
 
 using mesos::master::detector::MasterDetector;
 
+using mesos::internal::ResourceQuantities;
 
 static bool isValidFailoverTimeout(const FrameworkInfo& frameworkInfo);
 
@@ -720,39 +722,31 @@ void Master::initialize()
   }
 
   // Parse min_allocatable_resources.
-  Try<vector<Resources>> minAllocatableResources =
-    [](const string& resourceString) -> Try<vector<Resources>> {
-      vector<Resources> result;
-
-      foreach (const string& token, strings::tokenize(resourceString, "|")) {
-        Try<vector<Resource>> resourceVector =
-          Resources::fromSimpleString(token);
-
-        if (resourceVector.isError()) {
-          return Error(resourceVector.error());
-        }
-
-        result.push_back(Resources(CHECK_NOTERROR(resourceVector)));
-      }
-
-      return result;
-  }(flags.min_allocatable_resources);
-
-  if (minAllocatableResources.isError()) {
-    EXIT(EXIT_FAILURE) << "Error parsing min_allocatable_resources: '"
-                       << flags.min_allocatable_resources
-                       << "': " << minAllocatableResources.error();
-  }
-
-  // Validate that configured minimum resources are "pure" scalar quantities.
+  vector<ResourceQuantities> minAllocatableResources;
   foreach (
-      const Resources& resources, CHECK_NOTERROR(minAllocatableResources)) {
-    if (!Resources::isScalarQuantity(resources)) {
-      EXIT(EXIT_FAILURE) << "Invalid min_allocatable_resources: '"
-                         << flags.min_allocatable_resources << "': "
-                         << "minimum allocatable resources should only"
-                         << "have name, type (scalar) and value set";
+      const string& token,
+      strings::tokenize(flags.min_allocatable_resources, "|")) {
+    Try<ResourceQuantities> resourceQuantities =
+      ResourceQuantities::fromString(token);
+
+    if (resourceQuantities.isError()) {
+      EXIT(EXIT_FAILURE) << "Error parsing min_allocatable_resources '"
+                         << flags.min_allocatable_resources
+                         << "': " << resourceQuantities.error();
     }
+
+    // We check the configuration against first-class resources and warn
+    // against possible mis-configuration (e.g. typo).
+    set<string> firstClassResources = {"cpus", "mem", "disk", "ports", "gpus"};
+    for (auto it = resourceQuantities->begin(); it != resourceQuantities->end();
+         ++it) {
+      if (firstClassResources.count(it->first) == 0) {
+        LOG(WARNING) << "Non-first-class resource '" << it->first
+                     << "' is configured as part of min_allocatable_resources";
+      }
+    }
+
+    minAllocatableResources.push_back(resourceQuantities.get());
   }
 
   // Initialize the allocator options.
@@ -763,7 +757,7 @@ void Master::initialize()
     flags.fair_sharing_excluded_resource_names;
   options.filterGpuResources = flags.filter_gpu_resources;
   options.domain = flags.domain;
-  options.minAllocatableResources = CHECK_NOTERROR(minAllocatableResources);
+  options.minAllocatableResources = minAllocatableResources;
   options.maxCompletedFrameworks = flags.max_completed_frameworks;
   options.publishPerFrameworkMetrics = flags.publish_per_framework_metrics;
 

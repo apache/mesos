@@ -41,6 +41,7 @@
 #include <stout/stringify.hpp>
 
 #include "common/protobuf_utils.hpp"
+#include "common/resource_quantities.hpp"
 
 using std::set;
 using std::string;
@@ -2430,11 +2431,10 @@ bool HierarchicalAllocatorProcess::allocatable(const Resources& resources)
     return true;
   }
 
-  Resources quantity = resources.createStrippedScalarQuantity();
   foreach (
-      const Resources& minResources,
+      const ResourceQuantities& resourceQuantities,
       CHECK_NOTNONE(options.minAllocatableResources)) {
-    if (quantity.contains(minResources)) {
+    if (resources.contains(resourceQuantities)) {
       return true;
     }
   }

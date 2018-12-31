@@ -1243,7 +1243,8 @@ TYPED_TEST(MasterAllocatorTest, MinAllocatableResources)
   Clock::pause();
 
   master::Flags masterFlags = this->CreateMasterFlags();
-  masterFlags.min_allocatable_resources = "cpus:1;mem:100|disk:100";
+  masterFlags.min_allocatable_resources =
+    "cpus:1;mem:100|disk:100|cpus:1;ports:10";
 
   TestAllocator<TypeParam> allocator;
 
@@ -1258,10 +1259,10 @@ TYPED_TEST(MasterAllocatorTest, MinAllocatableResources)
 
   // Add agents with non-allocatable resources.
   vector<string> nonAllocatableAgentResources = {
-    "cpus:1;mem:0;disk:0",
-    "cpus:0;mem:100;disk:0",
-    "cpus:0.5;mem:200;disk:0",
-    "cpus:0;mem:0;disk:50"};
+    "cpus:1;mem:10;disk:10;ports:[1-5]",
+    "cpus:0.5;mem:100;disk:10;ports:[6-10]",
+    "cpus:0.5;mem:200;disk:10;ports:[11-15]",
+    "cpus:0.5;mem:10;disk:50;ports:[16-20]"};
 
   foreach (const string& resourcesString, nonAllocatableAgentResources) {
     Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -1284,10 +1285,10 @@ TYPED_TEST(MasterAllocatorTest, MinAllocatableResources)
 
   // Add agents with allocatable resources.
   vector<string> allocatableAgentResources = {
-    "cpus:1;mem:100;disk:0",
-    "cpus:0;mem:0;disk:100",
-    "cpus:0.5;mem:0;disk:100",
-    "cpus:1;mem:100;disk:50",
+    "cpus:1;mem:100;disk:0;ports:[1-5]",    // contains `cpus:1;mem:100`
+    "cpus:0.5;mem:10;disk:100;ports:[1-5]", // contains `disk:100`
+    "cpus:1;mem:100;disk:50",               // contains `cpus:1;mem:100`
+    "cpus:1;mem:10;disk:10;ports:[1-10]",   // contains `cpus:1;ports:10`
   };
 
   hashset<SlaveID> allocatableAgents;
