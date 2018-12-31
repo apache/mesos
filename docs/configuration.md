@@ -592,15 +592,19 @@ load an alternate allocator module using <code>--modules</code>.
     --min_allocatable_resources=VALUE
   </td>
   <td>
-One or more sets of resources that define the minimum allocatable
-resources for the allocator. The allocator will only offer resources
-that contain at least one of the specified sets. The resources in each
-set should be delimited by semicolons, and the sets should be delimited
-by the pipe character.
-(Example: <code>disk:1|cpu:1;mem:32</code>
-configures the allocator to only offer resources if they contain a disk
-resource of at least 1 megabyte, or if they contain both 1 cpu and
-32 megabytes of memory.) (default: cpus:0.01|mem:32).
+One or more sets of resource quantities that define the minimum allocatable
+resource for the allocator. The allocator will only offer resources that
+meets the quantity requirement of at least one of the specified sets. For
+`SCALAR` type resources, its quantity is its scalar value. For `RANGES` and
+`SET` type, their quantities are the number of different instances in the
+range or set. For example, `range:[1-5]` has a quantity of 5 and `set:{a,b}`
+has a quantity of 2. The resources in each set should be delimited by
+semicolons (acting as logical AND), and each set should be delimited by the
+pipe character (acting as logical OR).
+(Example: `disk:1|cpu:1;mem:32;port:1` configures the allocator to only offer
+resources if they contain a disk resource of at least 1 megabyte, or if they
+at least contain 1 cpu, 32 megabytes of memory and 1 port.)
+(default: cpus:0.01|mem:32).
   </td>
 </tr>
 <tr>

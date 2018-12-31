@@ -40,6 +40,8 @@
 #include <stout/stopwatch.hpp>
 #include <stout/utils.hpp>
 
+#include "common/resource_quantities.hpp"
+
 #include "master/constants.hpp"
 #include "master/flags.hpp"
 
@@ -60,6 +62,8 @@ using mesos::internal::master::allocator::HierarchicalDRFAllocator;
 using mesos::internal::protobuf::createLabel;
 
 using mesos::internal::slave::AGENT_CAPABILITIES;
+
+using mesos::internal::ResourceQuantities;
 
 using mesos::allocator::Allocator;
 
@@ -176,11 +180,13 @@ protected:
         };
     }
 
-    vector<Resources> minAllocatableResources;
+    vector<ResourceQuantities> minAllocatableResources;
     minAllocatableResources.push_back(
-        Resources::parse("cpus:" + stringify(MIN_CPUS)).get());
-    minAllocatableResources.push_back(Resources::parse(
-        "mem:" + stringify((double)MIN_MEM.bytes() / Bytes::MEGABYTES)).get());
+        ResourceQuantities::fromString("cpus:" + stringify(MIN_CPUS)).get());
+    minAllocatableResources.push_back(
+        ResourceQuantities::fromString(
+            "mem:" + stringify((double)MIN_MEM.bytes() / Bytes::MEGABYTES))
+          .get());
 
     allocator->initialize(
         flags.allocation_interval,
