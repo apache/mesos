@@ -488,14 +488,20 @@ mesos::internal::master::Flags::Flags()
 
   add(&Flags::min_allocatable_resources,
       "min_allocatable_resources",
-      "One or more sets of resources that define the minimum allocatable\n"
-      "resources for the allocator. The allocator will only offer resources\n"
-      "that contain at least one of the specified sets. The resources in\n"
-      "each set should be delimited by semicolons, and the sets should be\n"
-      "delimited by the pipe character.\n"
-      "(Example: `disk:1|cpu:1;mem:32` configures the allocator to only offer\n"
-      "resources if they contain a disk resource of at least 1 megabyte, or\n"
-      "if they contain both 1 cpu and 32 megabytes of memory.)\n",
+      "One or more sets of resource quantities that define the minimum\n"
+      "allocatable resources for the allocator. The allocator will only offer\n"
+      "resources that meets the quantity requirement of at least one of the\n"
+      "specified sets. For `SCALAR` type resources, its quantity is its\n"
+      "scalar value. For `RANGES` and `SET` type, their quantities are the\n"
+      "number of different instances in the range or set. For example,\n"
+      "`range:[1-5]` has a quantity of 5 and `set:{a,b}` has a quantity of 2.\n"
+      "The resources in each set should be delimited by semicolons (acting as\n"
+      "logical AND), and each set should be delimited by the pipe character\n"
+      "(acting as logical OR).\n"
+      "(Example: `disk:1|cpu:1;mem:32;port:1` configures the allocator to\n"
+      "only offer resources if they contain a disk resource of at least\n"
+      "1 megabyte, or if they at least contain 1 cpu, 32 megabytes of memory\n"
+      "and 1 port.)\n",
       "cpus:" + stringify(MIN_CPUS) +
         "|mem:" + stringify((double)MIN_MEM.bytes() / Bytes::MEGABYTES));
 

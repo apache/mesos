@@ -379,7 +379,7 @@ public:
       const Option<std::set<std::string>>&,
       bool,
       const Option<DomainInfo>&,
-      const Option<std::vector<Resources>>&));
+      const Option<std::vector<mesos::internal::ResourceQuantities>>&));
 
   MOCK_METHOD2(recover, void(
       const int expectedAgentCount,

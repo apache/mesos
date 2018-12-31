@@ -112,7 +112,7 @@ public:
         fairnessExcludeResourceNames = None(),
       bool filterGpuResources = true,
       const Option<DomainInfo>& domain = None(),
-      const Option<std::vector<Resources>>&
+      const Option<std::vector<mesos::internal::ResourceQuantities>>&
         minAllocatableResources = None());
 
   void recover(
@@ -532,7 +532,8 @@ protected:
   Option<DomainInfo> domain;
 
   // The minimum allocatable resources, if any.
-  Option<std::vector<Resources>> minAllocatableResources;
+  Option<std::vector<mesos::internal::ResourceQuantities>>
+    minAllocatableResources;
 
   // There are two stages of allocation. During the first stage resources
   // are allocated only to frameworks under roles with quota set. During
