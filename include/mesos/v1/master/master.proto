@@ -655,7 +655,7 @@ message Event {
 
   // Forwarded by the master when an agent becomes known to it.
   // This can happen when an agent registered for the first
-  // time, or reregistered after a master failover.
+  // time, or reregistered with the master.
   message AgentAdded {
     required Response.GetAgents.Agent agent = 1;
   }
