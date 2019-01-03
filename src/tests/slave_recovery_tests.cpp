@@ -5288,23 +5288,27 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, ResourceStatistics)
 
   TaskInfo task = createTask(offers.get()[0], SLEEP_COMMAND(1000));
 
-  // Wait until the executor registered and task resource updated.
-  Future<Message> registerExecutor =
-    FUTURE_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
-  Future<Nothing> update1 =
-    FUTURE_DISPATCH(_, &MesosContainerizerProcess::update);
+  // Wait until the task is running.
+  Future<TaskStatus> statusStarting;
+  Future<TaskStatus> statusRunning;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
+    .WillOnce(FutureArg<1>(&statusRunning));
 
   driver.launchTasks(offers.get()[0].id(), {task});
 
-  AWAIT_READY(registerExecutor);
-  AWAIT_READY(update1);
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
   slave.get()->terminate();
 
   // Wait until the executor re-registered and task resource updated.
   Future<Message> reregisterExecutor =
     FUTURE_MESSAGE(Eq(ReregisterExecutorMessage().GetTypeName()), _, _);
-  Future<Nothing> update2 =
+  Future<Nothing> update =
     FUTURE_DISPATCH(_, &MesosContainerizerProcess::update);
 
   // Restart the slave (use same flags) with a new containerizer.
@@ -5316,7 +5320,7 @@ TEST_F(MesosContainerizerSlaveRecoveryTest, ResourceStatistics)
   ASSERT_SOME(slave);
 
   AWAIT_READY(reregisterExecutor);
-  AWAIT_READY(update2);
+  AWAIT_READY(update);
 
   Future<hashset<ContainerID>> containers = containerizer->containers();
   AWAIT_READY(containers);
