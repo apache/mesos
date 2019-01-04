@@ -2543,6 +2543,7 @@ mesos_tests_SOURCES =						\
   tests/resource_offers_tests.cpp				\
   tests/resource_provider_manager_tests.cpp			\
   tests/resource_provider_validation_tests.cpp			\
+  tests/resource_quantities_tests.cpp			        \
   tests/resources_tests.cpp					\
   tests/resources_utils.cpp					\
   tests/role_tests.cpp						\
