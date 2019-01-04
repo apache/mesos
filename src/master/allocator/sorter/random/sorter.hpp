@@ -31,6 +31,8 @@
 #include <stout/hashmap.hpp>
 #include <stout/option.hpp>
 
+#include "common/resource_quantities.hpp"
+
 #include "master/allocator/sorter/sorter.hpp"
 
 
