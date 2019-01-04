@@ -30,6 +30,8 @@
 #include <stout/hashmap.hpp>
 #include <stout/option.hpp>
 
+#include "common/resource_quantities.hpp"
+
 #include "master/allocator/sorter/drf/metrics.hpp"
 
 #include "master/allocator/sorter/sorter.hpp"
@@ -175,7 +177,7 @@ private:
     //
     // TODO(bmahler): Can we remove `scalarQuantities` in favor of
     // using this type whenever scalar quantities are needed?
-    ScalarResourceQuantities totals;
+    ResourceQuantities totals;
   } total_;
 
   // Metrics are optionally exposed by the sorter.
@@ -441,7 +443,7 @@ struct DRFSorter::Node
     //
     // TODO(bmahler): Can we remove `scalarQuantities` in favor of
     // using this type whenever scalar quantities are needed?
-    ScalarResourceQuantities totals;
+    ResourceQuantities totals;
   } allocation;
 
   // Compares two nodes according to DRF share.

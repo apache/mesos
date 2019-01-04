@@ -667,13 +667,15 @@ double DRFSorter::calculateShare(const Node* node) const
       continue;
     }
 
-    if (scalar.value() > 0.0 &&
-        node->allocation.totals.contains(resourceName)) {
-      const double allocation =
-        node->allocation.totals.at(resourceName).value();
-
-      share = std::max(share, allocation / scalar.value());
+    if (scalar.value() <= 0.0) {
+      continue;
     }
+
+    Value::Scalar allocation =
+      node->allocation.totals.get(resourceName)
+        .getOrElse(Value::Scalar()); // Absent means zero.
+
+    share = std::max(share, allocation.value() / scalar.value());
   }
 
   return share / getWeight(node);
