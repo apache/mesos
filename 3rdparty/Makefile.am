@@ -99,21 +99,40 @@ EXTRA_DIST =			\
 
 # We need to patch glog in order to deal with a compilation issue when
 # compiling with clang (and C++11); see MESOS-860, MESOS-966.
-EXTRA_DIST +=		\
+EXTRA_DIST +=			\
   $(GLOG).patch
+
+# We need to patch gRPC for non-SSL build; see MEOS-9149.
+EXTRA_DIST +=			\
+  $(GRPC).patch
 
 # We need to patch leveldb to prevent it from linking to snappy and
 # tcmalloc; see MESOS-1054, MESOS-1624.
-EXTRA_DIST +=		\
+EXTRA_DIST +=			\
   $(LEVELDB).patch
 
+# We need to patch libevent 2.0.22 for added compatibilty towards openssl 1.1.x.
+EXTRA_DIST +=			\
+  $(LIBEVENT).patch
+
+# We need to patch PicoJSON for limiting the nesting level of JSON objects.
+EXTRA_DIST +=			\
+  $(PICOJSON).patch
+
 # We need to patch ZooKeeper in order to get 3.4.8 to compile on PPC LE.
-EXTRA_DIST +=		\
+EXTRA_DIST +=			\
   $(ZOOKEEPER).patch
 
-# We need to patch libevent 2.0.22 for added compatibilty towards openssl 1.1.x.
-EXTRA_DIST +=		\
-  $(LIBEVENT).patch
+# We need the following patches for CMake and/or Windows builds.
+EXTRA_DIST +=			\
+  $(BOOST).patch		\
+  $(GOOGLETEST).patch		\
+  $(LIBARCHIVE).patch		\
+  $(PROTOBUF).patch		\
+  bzip2-1.0.6.patch		\
+  cyrus-sasl-2.1.27rc3.patch	\
+  glog-da816ea70.patch		\
+  xz-5.2.3.patch
 
 CLEAN_EXTRACTED =		\
   $(BOOST)			\
