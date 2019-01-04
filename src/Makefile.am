@@ -1019,6 +1019,8 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   common/protobuf_utils.hpp						\
   common/recordio.hpp							\
   common/resources.cpp							\
+  common/resource_quantities.cpp					\
+  common/resource_quantities.hpp					\
   common/resources_utils.cpp						\
   common/resources_utils.hpp						\
   common/roles.cpp							\

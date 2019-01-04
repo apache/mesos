@@ -31,6 +31,8 @@
 #include <stout/hashmap.hpp>
 #include <stout/option.hpp>
 
+#include "common/resource_quantities.hpp"
+
 #include "master/allocator/sorter/sorter.hpp"
 
 
@@ -173,7 +175,7 @@ private:
     //
     // TODO(bmahler): Can we remove `scalarQuantities` in favor of
     // using this type whenever scalar quantities are needed?
-    ScalarResourceQuantities totals;
+    ResourceQuantities totals;
   } total_;
 };
 
@@ -417,7 +419,7 @@ struct RandomSorter::Node
     //
     // TODO(bmahler): Can we remove `scalarQuantities` in favor of
     // using this type whenever scalar quantities are needed?
-    ScalarResourceQuantities totals;
+    ResourceQuantities totals;
   } allocation;
 };
 
