@@ -247,6 +247,7 @@ set(COMMON_SRC
   common/http.cpp
   common/protobuf_utils.cpp
   common/resources.cpp
+  common/resource_quantities.cpp
   common/resources_utils.cpp
   common/roles.cpp
   common/type_utils.cpp
