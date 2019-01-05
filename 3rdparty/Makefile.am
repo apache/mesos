@@ -496,7 +496,8 @@ $(GRPC)-build-stamp: $(GRPC)-stamp			\
 	    LDLIBS="$(LDLIBS)"				\
 	    HAS_PKG_CONFIG=false			\
 	    HAS_SYSTEM_CARES=false			\
-	    NO_PROTOC=false				\
+	    HAS_PROTOC=true				\
+	    HAS_VALID_PROTOC=true			\
 	    PROTOC="$(PROTOC)"
 	touch $@
 
