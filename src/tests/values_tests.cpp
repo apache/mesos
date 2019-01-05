@@ -87,6 +87,15 @@ TEST(ValuesTest, InvalidInput)
 
   // Test when giving empty string.
   EXPECT_ERROR(parse("  "));
+
+  EXPECT_ERROR(parse("nan"));
+  EXPECT_ERROR(parse("-nan"));
+
+  EXPECT_ERROR(parse("inf"));
+  EXPECT_ERROR(parse("-inf"));
+
+  EXPECT_ERROR(parse("infinity"));
+  EXPECT_ERROR(parse("-infinity"));
 }
 
 
