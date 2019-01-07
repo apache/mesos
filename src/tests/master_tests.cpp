@@ -10355,7 +10355,9 @@ TEST_F(MasterTest, CreateVolumesV1AuthorizationFailure)
   ContentType contentType = ContentType::PROTOBUF;
 
   Promise<bool> promise;
-  EXPECT_CALL(authorizer, authorized(_))
+  EXPECT_CALL(authorizer, authorized(
+      ::testing::Property(&authorization::Request::action,
+                          authorization::CREATE_VOLUME)))
     .WillOnce(Return(promise.future()));
 
   Future<Response> response = process::http::post(
