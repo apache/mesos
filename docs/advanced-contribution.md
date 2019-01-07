@@ -14,7 +14,7 @@ If you'd like to make significant contributions to Mesos, then you'll want to be
     + Apache JIRA Account
 <br/><br/>
 * Required installations
-    + RBtools
+    + RBtools (0.7.10 is known to work, 1.0.1 appears to have an issue)
 
 ## Issue Tracking, Code Review, and Mailing Lists
 
@@ -89,7 +89,7 @@ Here is the standard procedure for proposing and making changes to Mesos:
 1. You're ready to submit your patch for review!
     1. Log in or create an account at [Apache Review Board](http://reviews.apache.org).
     2. The easiest (and recommended) way to submit reviews is through `post-reviews.py` a wrapper around post-review.
-    3. First, install RBTools. [See Instructions](https://www.reviewboard.org/docs/rbtools/dev/).
+    3. First, install RBTools (0.7.10 is recommended, 1.0.1 appears to have an issue). [See Instructions](https://www.reviewboard.org/docs/rbtools/dev/).
     4. Configure post-review. The easiest method is to symlink to the sample config: `ln -s support/reviewboardrc .reviewboardrc`.
     5. Log into Review Board from the command line: run `rbt status`.
     6. From your local branch run `support/post-reviews.py`.
