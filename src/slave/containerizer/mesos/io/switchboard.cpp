@@ -814,6 +814,23 @@ Future<Nothing> IOSwitchboard::cleanup(
                   << " is being destroyed";
 
         os::kill(pid.get(), SIGTERM);
+
+        Clock::timer(Seconds(60), [pid, status, containerId]() {
+          if (status.isPending()) {
+            // If we are here, something really bad must have happened for I/O
+            // switchboard server to not exit after SIGTERM has been sent. We
+            // have seen this happen due to FD leak (see MESOS-9502). We do a
+            // SIGKILL here as a safeguard so that switchboard server forcefully
+            // exits and causes this cleanup feature to be completed, thus
+            // unblocking the container's cleanup.
+            LOG(ERROR) << "Sending SIGKILL to I/O switchboard server (pid: "
+                       << pid.get() << ") for container " << containerId
+                       << " since the I/O switchboard server did not terminate "
+                       << "60 seconds after SIGTERM was sent to it";
+
+            os::kill(pid.get(), SIGKILL);
+          }
+        });
       }
     });
   }
