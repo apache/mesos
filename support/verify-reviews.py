@@ -93,8 +93,12 @@ class ReviewError(Exception):
 
 def shell(command):
     """Run a shell command."""
-    print(command)
-    out = subprocess.check_output(command, stderr=subprocess.STDOUT, shell=True)
+    try:
+        out = subprocess.check_output(
+            command, stderr=subprocess.STDOUT, shell=True)
+    except subprocess.CalledProcessError as err:
+        print("Error running command '%s': %s" % (command, err.output))
+        exit(1)
     return out.decode(sys.stdout.encoding)
 
 
@@ -113,7 +117,8 @@ def api(url, data=None):
 
         if isinstance(data, str):
             data = str.encode(data)
-        return json.loads(urllib.request.urlopen(url, data=data).read())
+        f = urllib.request.urlopen(url, data=data)
+        return json.loads(f.read().decode("utf-8"))
     except urllib.error.HTTPError as err:
         print("Error handling URL %s: %s (%s)" % (url, err.reason, err.read()))
         exit(1)
