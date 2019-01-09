@@ -637,11 +637,11 @@ private:
 
 
 process::http::Response Master::ReadOnlyHandler::frameworks(
-    const process::http::Request& request,
+    const hashmap<std::string, std::string>& query,
     const process::Owned<ObjectApprovers>& approvers) const
 {
   IDAcceptor<FrameworkID> selectFrameworkId(
-      request.url.query.get("framework_id"));
+      query.get("framework_id"));
 
   // This lambda is consumed before the outer lambda
   // returns, hence capture by reference is fine here.
@@ -690,7 +690,7 @@ process::http::Response Master::ReadOnlyHandler::frameworks(
     writer->field("unregistered_frameworks", [](JSON::ArrayWriter*) {});
   };
 
-  return OK(jsonify(frameworks), request.url.query.get("jsonp"));
+  return OK(jsonify(frameworks), query.get("jsonp"));
 }
 
 
@@ -738,7 +738,7 @@ JSON::Object model(
 
 
 process::http::Response Master::ReadOnlyHandler::roles(
-    const process::http::Request& request,
+    const hashmap<std::string, std::string>& query,
     const process::Owned<ObjectApprovers>& approvers) const
 {
   JSON::Object object;
@@ -769,24 +769,24 @@ process::http::Response Master::ReadOnlyHandler::roles(
     object.values["roles"] = std::move(array);
   }
 
-  return OK(object, request.url.query.get("jsonp"));
+  return OK(object, query.get("jsonp"));
 }
 
 
 process::http::Response Master::ReadOnlyHandler::slaves(
-    const process::http::Request& request,
+    const hashmap<std::string, std::string>& query,
     const process::Owned<ObjectApprovers>& approvers) const
 {
-  IDAcceptor<SlaveID> selectSlaveId(request.url.query.get("slave_id"));
+  IDAcceptor<SlaveID> selectSlaveId(query.get("slave_id"));
 
   return process::http::OK(
       jsonify(SlavesWriter(master->slaves, approvers, selectSlaveId)),
-      request.url.query.get("jsonp"));
+      query.get("jsonp"));
 }
 
 
 process::http::Response Master::ReadOnlyHandler::state(
-    const process::http::Request& request,
+    const hashmap<std::string, std::string>& query,
     const process::Owned<ObjectApprovers>& approvers) const
 {
   const Master* master = this->master;
@@ -923,12 +923,12 @@ process::http::Response Master::ReadOnlyHandler::state(
     writer->field("unregistered_frameworks", [](JSON::ArrayWriter*) {});
   };
 
-  return OK(jsonify(calculateState), request.url.query.get("jsonp"));
+  return OK(jsonify(calculateState), query.get("jsonp"));
 }
 
 
 process::http::Response Master::ReadOnlyHandler::stateSummary(
-    const process::http::Request& request,
+    const hashmap<std::string, std::string>& query,
     const process::Owned<ObjectApprovers>& approvers) const
 {
   const Master* master = this->master;
@@ -1070,7 +1070,7 @@ process::http::Response Master::ReadOnlyHandler::stateSummary(
         });
     };
 
-  return OK(jsonify(stateSummary), request.url.query.get("jsonp"));
+  return OK(jsonify(stateSummary), query.get("jsonp"));
 }
 
 
@@ -1119,21 +1119,21 @@ struct TaskComparator
 
 
 process::http::Response Master::ReadOnlyHandler::tasks(
-  const process::http::Request& request,
+  const hashmap<std::string, std::string>& query,
   const process::Owned<ObjectApprovers>& approvers) const
 {
   // Get list options (limit and offset).
-  Result<int> result = numify<int>(request.url.query.get("limit"));
+  Result<int> result = numify<int>(query.get("limit"));
   size_t limit = result.isSome() ? result.get() : TASK_LIMIT;
 
-  result = numify<int>(request.url.query.get("offset"));
+  result = numify<int>(query.get("offset"));
   size_t offset = result.isSome() ? result.get() : 0;
 
-  Option<string> order = request.url.query.get("order");
+  Option<string> order = query.get("order");
   string _order = order.isSome() && (order.get() == "asc") ? "asc" : "des";
 
-  Option<string> frameworkId = request.url.query.get("framework_id");
-  Option<string> taskId = request.url.query.get("task_id");
+  Option<string> frameworkId = query.get("framework_id");
+  Option<string> taskId = query.get("task_id");
 
   IDAcceptor<FrameworkID> selectFrameworkId(frameworkId);
   IDAcceptor<TaskID> selectTaskId(taskId);
@@ -1223,7 +1223,7 @@ process::http::Response Master::ReadOnlyHandler::tasks(
           });
   };
 
-  return OK(jsonify(tasksWriter), request.url.query.get("jsonp"));
+  return OK(jsonify(tasksWriter), query.get("jsonp"));
 }
 
 } // namespace master {

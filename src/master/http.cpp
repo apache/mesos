@@ -1261,7 +1261,9 @@ Future<Response> Master::Http::frameworks(
         master->self(),
         [this, request](const Owned<ObjectApprovers>& approvers) {
           return deferBatchedRequest(
-            &Master::ReadOnlyHandler::frameworks, request, approvers);
+              &Master::ReadOnlyHandler::frameworks,
+              request.url.query,
+              approvers);
         }));
 }
 
@@ -2061,7 +2063,9 @@ Future<Response> Master::Http::slaves(
         master->self(),
         [this, request](const Owned<ObjectApprovers>& approvers) {
           return deferBatchedRequest(
-              &Master::ReadOnlyHandler::slaves, request, approvers);
+              &Master::ReadOnlyHandler::slaves,
+              request.url.query,
+              approvers);
         }));
 }
 
@@ -2368,7 +2372,7 @@ Future<Response> Master::Http::state(
         [this, request](const Owned<ObjectApprovers>& approvers) {
           return deferBatchedRequest(
               &Master::ReadOnlyHandler::state,
-              request,
+              request.url.query,
               approvers);
         }));
 }
@@ -2376,7 +2380,7 @@ Future<Response> Master::Http::state(
 
 Future<Response> Master::Http::deferBatchedRequest(
     ReadOnlyRequestHandler handler,
-    const Request& request,
+    const hashmap<std::string, std::string>& queryParameters,
     const Owned<ObjectApprovers>& approvers) const
 {
   bool scheduleBatch = batchedRequests.empty();
@@ -2385,7 +2389,7 @@ Future<Response> Master::Http::deferBatchedRequest(
   Promise<Response> promise;
   Future<Response> future = promise.future();
   batchedRequests.push_back(
-      BatchedRequest{handler, request, approvers, std::move(promise)});
+      BatchedRequest{handler, queryParameters, approvers, std::move(promise)});
 
   // Schedule processing of batched requests if not yet scheduled.
   if (scheduleBatch) {
@@ -2413,12 +2417,12 @@ void Master::Http::processRequestsBatch() const
   foreach (BatchedRequest& request, batchedRequests) {
     request.promise.associate(process::async(
         [this](ReadOnlyRequestHandler handler,
-               const process::http::Request& request,
+               const hashmap<std::string, std::string>& queryParameters,
                const process::Owned<ObjectApprovers>& approvers) {
-          return (readonlyHandler.*handler)(request, approvers);
+          return (readonlyHandler.*handler)(queryParameters, approvers);
         },
         request.handler,
-        request.request,
+        request.queryParameters,
         request.approvers));
   }
 
@@ -2542,7 +2546,9 @@ Future<Response> Master::Http::stateSummary(
         master->self(),
         [this, request](const Owned<ObjectApprovers>& approvers) {
           return deferBatchedRequest(
-              &Master::ReadOnlyHandler::stateSummary, request, approvers);
+              &Master::ReadOnlyHandler::stateSummary,
+              request.url.query,
+              approvers);
         }));
 }
 
@@ -2593,7 +2599,7 @@ Future<Response> Master::Http::roles(
         [this, request](const Owned<ObjectApprovers>& approvers) {
             return deferBatchedRequest(
                 &Master::ReadOnlyHandler::roles,
-                request,
+                request.url.query,
                 approvers);
           }));
 }
@@ -2968,7 +2974,9 @@ Future<Response> Master::Http::tasks(
         master->self(),
         [this, request](const Owned<ObjectApprovers>& approvers) {
           return deferBatchedRequest(
-              &Master::ReadOnlyHandler::tasks, request, approvers);
+              &Master::ReadOnlyHandler::tasks,
+              request.url.query,
+              approvers);
         }));
 }
 
