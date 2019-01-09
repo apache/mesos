@@ -134,15 +134,15 @@ public:
   // registrar behaves identically to the normal registrar.
   process::Owned<MockRegistrar> registrar;
 
+  // The underlying master object.
+  process::Owned<master::Master> master;
+
 private:
   Option<std::shared_ptr<process::RateLimiter>> slaveRemovalLimiter;
 
   // Indicates whether or not authorization callbacks were set when this master
   // was constructed.
   bool authorizationCallbacksSet;
-
-  // The underlying master object.
-  process::Owned<master::Master> master;
 };
 
 

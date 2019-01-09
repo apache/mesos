@@ -1287,6 +1287,7 @@ private:
     Master* master;
   };
 
+public:
   // Inner class used to namespace HTTP handlers that do not change the
   // underlying master object.
   //
@@ -1338,6 +1339,7 @@ private:
     const Master* master;
   };
 
+private:
   // Inner class used to namespace HTTP route handlers (see
   // master/http.cpp for implementations).
   class Http
