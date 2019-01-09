@@ -688,8 +688,19 @@ Slave::~Slave()
       }
     }
 
-    if (paused) {
-      process::Clock::pause();
+    // When using the composing containerizer, the assertion checking
+    // `containers->empty()` below is racy, since the containers are
+    // not yet removed from that containerizer's internal data structures
+    // when the future becomes ready. Instead, an internal function to clean
+    // up these internal data structures is dispatched when the future
+    // becomes ready.
+    // To work around this, we wait for the clock to settle here. This can
+    // be removed once MESOS-9413 is resolved.
+    process::Clock::pause();
+    process::Clock::settle();
+
+    if (!paused) {
+      process::Clock::resume();
     }
 
     containers = containerizer->containers();
