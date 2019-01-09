@@ -98,9 +98,6 @@ def shell(command):
     return out.decode(sys.stdout.encoding)
 
 
-HEAD = shell("git rev-parse HEAD")
-
-
 def api(url, data=None):
     """Call the ReviewBoard API."""
     try:
@@ -171,7 +168,9 @@ def cleanup():
     """Clean the git repository."""
     try:
         shell("git clean -fd")
-        shell("git reset --hard %s" % HEAD)
+        HEAD = shell("git rev-parse HEAD")
+        print(HEAD)
+        shell("git checkout HEAD -- %s" % HEAD)
     except subprocess.CalledProcessError as err:
         print("Failed command: %s\n\nError: %s" % (err.cmd, err.output))
 
