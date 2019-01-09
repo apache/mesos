@@ -1283,44 +1283,43 @@ Future<Containerizer::LaunchResult> MesosContainerizerProcess::launch(
 
   containers_.put(containerId, container);
 
+  Future<Nothing> _prepare;
+
   // We'll first provision the image for the container, and
   // then provision the images specified in `volumes` using
   // the 'volume/image' isolator.
   if (!containerConfig.has_container_info() ||
       !containerConfig.container_info().mesos().has_image()) {
-    return prepare(containerId, None())
-      .then(defer(self(), [this, containerId] () {
-        return ioSwitchboard->extractContainerIO(containerId);
-      }))
-      .then(defer(self(),
-                  &Self::_launch,
-                  containerId,
-                  lambda::_1,
-                  environment,
-                  pidCheckpointPath));
-  }
-
-  container->provisioning = provisioner->provision(
+    _prepare = prepare(containerId, None());
+  } else {
+    container->provisioning = provisioner->provision(
       containerId,
       containerConfig.container_info().mesos().image());
 
-  return container->provisioning
-    .then(defer(
-        self(),
-        [=](const ProvisionInfo& provisionInfo)
-            -> Future<Containerizer::LaunchResult> {
-          return prepare(containerId, provisionInfo)
-            .then(defer(self(), [this, containerId] () {
-              return ioSwitchboard->extractContainerIO(containerId);
-            }))
-            .then(defer(
-                self(),
-                &Self::_launch,
-                containerId,
-                lambda::_1,
-                environment,
-                pidCheckpointPath));
-        }));
+    _prepare = container->provisioning
+      .then(defer(self(), [=](const ProvisionInfo& provisionInfo) {
+        return prepare(containerId, provisionInfo);
+      }));
+  }
+
+  return _prepare
+    .then(defer(self(), [this, containerId] () {
+      return ioSwitchboard->extractContainerIO(containerId);
+    }))
+    .then(defer(self(), [=](const Option<ContainerIO>& containerIO) {
+      return _launch(containerId, containerIO, environment, pidCheckpointPath);
+    }))
+    .onAny(defer(self(), [this, containerId](
+        const Future<Containerizer::LaunchResult>& future) {
+      // We need to clean up the container IO in the case when IOSwitchboard
+      // process has started, but we have not taken ownership of the container
+      // IO by calling `extractContainerIO()`. This may happen if `launch`
+      // future is discarded by the caller of this method. The container IO
+      // stores FDs in the `FDWrapper` struct, which closes these FDs on its
+      // destruction. Otherwise, IOSwitchboard might get stuck trying to read
+      // leaked FDs.
+      ioSwitchboard->extractContainerIO(containerId);
+    }));
 }
 
 
