@@ -2285,6 +2285,8 @@ TEST_F(MasterTest, MetricsInMetricsEndpoint)
 
   EXPECT_EQ(1u, snapshot.values.count("master/dropped_messages"));
 
+  EXPECT_EQ(1u, snapshot.values.count("master/http_cache_hits"));
+
   // Messages from schedulers.
   EXPECT_EQ(1u, snapshot.values.count("master/messages_register_framework"));
   EXPECT_EQ(1u, snapshot.values.count("master/messages_reregister_framework"));

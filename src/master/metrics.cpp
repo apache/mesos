@@ -115,6 +115,8 @@ Metrics::Metrics(const Master& master)
         "master/tasks_gone_by_operator"),
     dropped_messages(
         "master/dropped_messages"),
+    http_cache_hits(
+        "master/http_cache_hits"),
     messages_register_framework(
         "master/messages_register_framework"),
     messages_reregister_framework(
@@ -251,6 +253,7 @@ Metrics::Metrics(const Master& master)
   process::metrics::add(tasks_gone_by_operator);
 
   process::metrics::add(dropped_messages);
+  process::metrics::add(http_cache_hits);
 
   // Messages from schedulers.
   process::metrics::add(messages_register_framework);
@@ -404,6 +407,7 @@ Metrics::~Metrics()
   process::metrics::remove(tasks_gone_by_operator);
 
   process::metrics::remove(dropped_messages);
+  process::metrics::remove(http_cache_hits);
 
   // Messages from schedulers.
   process::metrics::remove(messages_register_framework);

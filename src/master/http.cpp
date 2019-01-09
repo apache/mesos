@@ -2406,6 +2406,7 @@ Future<Response> Master::Http::deferBatchedRequest(
     // On heavily-loaded masters, this could lead to a delay of several seconds
     // before permission changes for a principal take effect.
     future = it->promise.future();
+    ++master->metrics->http_cache_hits;
   } else {
     // Add an element to the batched state requests.
     Promise<Response> promise;

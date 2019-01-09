@@ -86,6 +86,11 @@ struct Metrics
   // Message counters.
   process::metrics::Counter dropped_messages;
 
+  // HTTP cache hits.
+  // TODO(bevers): Collect these per endpoint once per-endpoint
+  // metrics get merged.
+  process::metrics::Counter http_cache_hits;
+
   // Metrics specific to frameworks of a common principal.
   // These metrics have names prefixed by "frameworks/<principal>/".
   struct Frameworks
