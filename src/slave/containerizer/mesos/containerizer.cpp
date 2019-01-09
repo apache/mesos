@@ -1156,8 +1156,7 @@ Future<bool> MesosContainerizerProcess::launch(
     .then(defer(self(), [=](const Option<ContainerIO>& containerIO) {
       return _launch(containerId, containerIO, environment, pidCheckpointPath);
     }))
-    .onAny(defer(self(), [this, containerId](
-        const Future<Containerizer::LaunchResult>& future) {
+    .onAny(defer(self(), [this, containerId](const Future<bool>& future) {
       // We need to clean up the container IO in the case when IOSwitchboard
       // process has started, but we have not taken ownership of the container
       // IO by calling `extractContainerIO()`. This may happen if `launch`
