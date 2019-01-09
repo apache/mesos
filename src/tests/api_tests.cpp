@@ -51,6 +51,8 @@
 
 #include "master/detector/standalone.hpp"
 
+#include "messages/messages.hpp"
+
 #include "slave/slave.hpp"
 
 #include "slave/containerizer/fetcher.hpp"
@@ -66,12 +68,17 @@
 
 namespace http = process::http;
 
+
 using google::protobuf::RepeatedPtrField;
 
 using mesos::master::detector::MasterDetector;
 using mesos::master::detector::StandaloneMasterDetector;
 
 using mesos::slave::ContainerTermination;
+
+using mesos::v1::scheduler::Call;
+using mesos::v1::scheduler::Event;
+using mesos::v1::scheduler::Mesos;
 
 using mesos::internal::devolve;
 using mesos::internal::evolve;
@@ -4939,6 +4946,166 @@ TEST_P(MasterAPITest, TaskUpdatesUponAgentGone)
 
   driver.stop();
   driver.join();
+}
+
+
+// This test verifies that the master correctly sends
+// `OPERATION_GONE_BY_OPERATOR` status updates for operations
+// that are pending when the agent is marked as gone.
+TEST_P(MasterAPITest, OperationUpdatesUponAgentGone)
+{
+  master::Flags masterFlags = CreateMasterFlags();
+
+  Try<Owned<cluster::Master>> master = this->StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  MockExecutor exec(DEFAULT_EXECUTOR_ID);
+  TestContainerizer containerizer(&exec);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), &containerizer, slaveFlags);
+
+  ASSERT_SOME(slave);
+  AWAIT_READY(updateSlaveMessage);
+
+  // Start and register a resource provider.
+  v1::ResourceProviderInfo resourceProviderInfo;
+  resourceProviderInfo.set_type("org.apache.mesos.rp.test");
+  resourceProviderInfo.set_name("test");
+
+  v1::Resource disk = v1::createDiskResource(
+      "200", "*", None(), None(), v1::createDiskSourceRaw());
+
+  Owned<v1::MockResourceProvider> resourceProvider(
+      new v1::MockResourceProvider(resourceProviderInfo, v1::Resources(disk)));
+
+  Owned<EndpointDetector> endpointDetector(
+      mesos::internal::tests::resource_provider::createEndpointDetector(
+          slave.get()->pid));
+
+  updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  resourceProvider->start(endpointDetector, ContentType::PROTOBUF);
+
+  // Wait until the agent's resources have been updated to include the
+  // resource provider resources.
+  AWAIT_READY(updateSlaveMessage);
+
+  // Start and register a framework.
+  FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
+  framework.add_capabilities()->set_type(
+      FrameworkInfo::Capability::PARTITION_AWARE);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
+
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(v1::scheduler::SendSubscribe(frameworkInfo));
+
+  Future<Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(subscribed);
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+
+  const v1::Offer& offer = offers->offers(0);
+
+  // Don't let the message get to the agent, so it stays pending.
+  Future<ApplyOperationMessage> applyOperationMessage =
+    DROP_PROTOBUF(ApplyOperationMessage(), _, _);
+
+  // Try to reserve those resources managed by a resource provider.
+  // (because operation feedback is only supported for that case)
+  v1::Resources resources =
+    v1::Resources(offer.resources()).filter([](const v1::Resource& resource) {
+      return resource.has_provider_id();
+    });
+
+  ASSERT_FALSE(resources.empty());
+
+  v1::Resource reserved = *(resources.begin());
+  reserved.add_reservations()->CopyFrom(
+      v1::createDynamicReservationInfo(
+          frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal()));
+
+  // Explicitly set an operation id to opt-in to operation feedback.
+  v1::OperationID operationId;
+  operationId.set_value("operation");
+
+  mesos.send(
+      v1::createCallAccept(
+          frameworkId,
+          offer,
+          {v1::RESERVE(reserved, operationId)}));
+
+  AWAIT_READY(applyOperationMessage);
+
+  // Mark the agent as gone. This should result in the agent being shutdown.
+  Future<ShutdownMessage> shutdownMessage =
+    FUTURE_PROTOBUF(ShutdownMessage(), master.get()->pid, _);
+
+  // Mark the agent as gone. This should result in the master sending
+  // a 'TASK_GONE_BY_OPERATOR' update for the running task.
+  Future<v1::scheduler::Event::UpdateOperationStatus> operationGoneUpdate;
+  EXPECT_CALL(*scheduler, updateOperationStatus(_, _))
+    .WillOnce(FutureArg<1>(&operationGoneUpdate));
+
+  ContentType contentType = GetParam();
+
+  v1::AgentID agentId = offers->offers(0).agent_id();
+
+  v1::master::Call v1Call;
+  v1Call.set_type(v1::master::Call::MARK_AGENT_GONE);
+
+  v1::master::Call::MarkAgentGone* markAgentGone =
+    v1Call.mutable_mark_agent_gone();
+
+  markAgentGone->mutable_agent_id()->CopyFrom(agentId);
+
+  Future<http::Response> response = http::post(
+      master.get()->pid,
+      "api/v1",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      serialize(contentType, v1Call),
+      stringify(contentType));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, response);
+
+  AWAIT_READY(shutdownMessage);
+
+  // Wait for the framework to receive the OPERATION_GONE_BY_OPERATOR update.
+  AWAIT_READY(operationGoneUpdate);
+
+  EXPECT_EQ(operationId, operationGoneUpdate->status().operation_id());
+  EXPECT_EQ(
+      v1::OPERATION_GONE_BY_OPERATOR,
+      operationGoneUpdate->status().state());
 }
 
 
