@@ -3197,7 +3197,7 @@ StorageLocalResourceProviderProcess::applyCreateDisk(
             ? resource.disk().source().metadata()
             : Option<Labels>::none(),
           profileInfo)
-        .then([=] { return resource.disk().source().id(); });
+        .then([=]() -> string { return resource.disk().source().id(); });
 
   return created
     .then(defer(self(), [=](const string& volumeId) {
