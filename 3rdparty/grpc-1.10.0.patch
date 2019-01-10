@@ -1,16 +1,9 @@
-diff --git a/Makefile b/Makefile
-index 8bab9c3afd..9f8261f0a4 100644
---- a/Makefile
-+++ b/Makefile
-@@ -15461,8 +15461,6 @@ $(OBJDIR)/$(CONFIG)/src/proto/grpc/testing/stats.o:  $(LIBDIR)/$(CONFIG)/libgrpc
- 
- $(OBJDIR)/$(CONFIG)/test/cpp/codegen/codegen_test_minimal.o:  $(LIBDIR)/$(CONFIG)/libgrpc++_core_stats.a $(LIBDIR)/$(CONFIG)/libgrpc.a $(LIBDIR)/$(CONFIG)/libgpr.a
- 
--$(OBJDIR)/$(CONFIG)/src/cpp/codegen/codegen_init.o:  $(LIBDIR)/$(CONFIG)/libgrpc++_core_stats.a $(LIBDIR)/$(CONFIG)/libgrpc.a $(LIBDIR)/$(CONFIG)/libgpr.a
--
- deps_codegen_test_minimal: $(CODEGEN_TEST_MINIMAL_OBJS:.o=.dep)
- 
- ifneq ($(NO_SECURE),true)
+From 90869cffbd0cd05ee663e1b81cda169dd40cdf22 Mon Sep 17 00:00:00 2001
+From: Chun-Hung Hsiao <chhsiao@mesosphere.io>
+Date: Thu, 19 Apr 2018 14:15:10 -0700
+Subject: [PATCH] Fixed undefined `_WIN32_WINNT` for Windows compilation.
+
+
 diff --git a/include/grpc/impl/codegen/port_platform.h b/include/grpc/impl/codegen/port_platform.h
 index 819d17ce2a..77b587dac3 100644
 --- a/include/grpc/impl/codegen/port_platform.h
@@ -33,3 +26,63 @@ index 819d17ce2a..77b587dac3 100644
  #ifdef GRPC_WIN32_LEAN_AND_MEAN_WAS_NOT_DEFINED
  #undef GRPC_WIN32_LEAN_AND_MEAN_WAS_NOT_DEFINED
  #undef WIN32_LEAN_AND_MEAN
+-- 
+2.17.2 (Apple Git-113)
+
+
+From 6531532de6a35ed8e00e24d3b60e88fd90d01335 Mon Sep 17 00:00:00 2001
+From: Chun-Hung Hsiao <chhsiao@mesosphere.io>
+Date: Fri, 10 Aug 2018 14:00:03 -0700
+Subject: [PATCH] Removed unnecessary dependencies of `codegen_init.o` for
+ unsecure build.
+
+`codegen_init.cc` is listed in `LIBGRPC++_UNSECURE_SRC`, which are
+compiled without SSL, but in `Makefile` lists SSL-required libraries as
+its dependencies. Since the file itself does not use any bits from those
+libraries, it is safe to remove those dependencies.
+
+diff --git a/Makefile b/Makefile
+index 8bab9c3afd..9f8261f0a4 100644
+--- a/Makefile
++++ b/Makefile
+@@ -15461,8 +15461,6 @@ $(OBJDIR)/$(CONFIG)/src/proto/grpc/testing/stats.o:  $(LIBDIR)/$(CONFIG)/libgrpc
+ 
+ $(OBJDIR)/$(CONFIG)/test/cpp/codegen/codegen_test_minimal.o:  $(LIBDIR)/$(CONFIG)/libgrpc++_core_stats.a $(LIBDIR)/$(CONFIG)/libgrpc.a $(LIBDIR)/$(CONFIG)/libgpr.a
+ 
+-$(OBJDIR)/$(CONFIG)/src/cpp/codegen/codegen_init.o:  $(LIBDIR)/$(CONFIG)/libgrpc++_core_stats.a $(LIBDIR)/$(CONFIG)/libgrpc.a $(LIBDIR)/$(CONFIG)/libgpr.a
+-
+ deps_codegen_test_minimal: $(CODEGEN_TEST_MINIMAL_OBJS:.o=.dep)
+ 
+ ifneq ($(NO_SECURE),true)
+-- 
+2.17.2 (Apple Git-113)
+
+
+From 5c13ad2a3df1108184c716379818eab6fc0ba72d Mon Sep 17 00:00:00 2001
+From: Chun-Hung Hsiao <chhsiao@mesosphere.io>
+Date: Thu, 10 Jan 2019 14:26:11 -0800
+Subject: [PATCH] CMake: Automatic fallbacking on system's OpenSSL if it only
+ has NPN.
+
+Since ALPN is not supported on some old systems that come with OpenSSL
+version 1.0.1 or older, gRPC needs to fall back to NPN when being built
+with these systems' OpenSSL.
+
+diff --git a/cmake/ssl.cmake b/cmake/ssl.cmake
+index 83f642a675..8e2253fb39 100644
+--- a/cmake/ssl.cmake
++++ b/cmake/ssl.cmake
+@@ -36,6 +36,10 @@ elseif("${gRPC_SSL_PROVIDER}" STREQUAL "package")
+   # project itself does not provide installation support in its CMakeLists.txt
+   # See https://cmake.org/cmake/help/v3.6/module/FindOpenSSL.html
+   find_package(OpenSSL REQUIRED)
++
++  if (OPENSSL_VERSION VERSION_LESS "1.0.2")
++    add_definitions(-DTSI_OPENSSL_ALPN_SUPPORT=0)
++  endif()
+   
+   if(TARGET OpenSSL::SSL)
+     set(_gRPC_SSL_LIBRARIES OpenSSL::SSL OpenSSL::Crypto)
+-- 
+2.17.2 (Apple Git-113)
+
