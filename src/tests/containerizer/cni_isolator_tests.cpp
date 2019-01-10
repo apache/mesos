@@ -130,12 +130,12 @@ TEST(CniSpecTest, GenerateResolverConfig)
 }
 
 
-class CniIsolatorTest : public MesosTest
+class CniIsolatorTest : public ContainerizerTest<MesosContainerizer>
 {
 public:
   void SetUp() override
   {
-    MesosTest::SetUp();
+    ContainerizerTest<MesosContainerizer>::SetUp();
 
     cniPluginDir = path::join(sandbox.get(), "plugins");
     cniConfigDir = path::join(sandbox.get(), "configs");
