@@ -1276,9 +1276,14 @@ Future<Response> Http::state(
   }
 
   return ObjectApprovers::create(
-      slave->authorizer,
-      principal,
-      {VIEW_FRAMEWORK, VIEW_TASK, VIEW_EXECUTOR, VIEW_FLAGS, VIEW_ROLE})
+             slave->authorizer,
+             principal,
+             {VIEW_FRAMEWORK,
+              VIEW_TASK,
+              VIEW_EXECUTOR,
+              VIEW_FLAGS,
+              VIEW_ROLE,
+              VIEW_RESOURCE_PROVIDER})
     .then(defer(
         slave->self(),
         [this, request](const Owned<ObjectApprovers>& approvers) -> Response {
@@ -1383,6 +1388,29 @@ Future<Response> Http::state(
             writer->field(
                 "unreserved_resources_allocated",
                 allocatedResources.unreserved());
+
+            writer->field(
+                "resource_providers",
+                [this, &approvers](JSON::ArrayWriter* writer) {
+                  if (!approvers->approved<VIEW_RESOURCE_PROVIDER>()) {
+                    return;
+                  }
+
+                  foreachvalue (
+                      ResourceProvider* resourceProvider,
+                      slave->resourceProviders) {
+                    agent::Response::GetResourceProviders::ResourceProvider
+                      provider;
+
+                    *provider.mutable_resource_provider_info() =
+                      resourceProvider->info;
+
+                    *provider.mutable_total_resources() =
+                      resourceProvider->totalResources;
+
+                    writer->element(JSON::Protobuf(provider));
+                  }
+                });
 
             writer->field("attributes", Attributes(slave->info.attributes()));
 
