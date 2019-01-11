@@ -95,6 +95,8 @@ protected:
     AWAIT_ASSERT_READY(runtime.wait());
 
     ASSERT_SOME(plugin.shutdown());
+
+    TemporaryDirectoryTest::TearDown();
   }
 
   MockCSIPlugin plugin;
