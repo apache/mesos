@@ -1485,10 +1485,10 @@ static Try<bool> isNetworkNamespaceHandle(const string& netNsHandle)
         "': " + netNsHandleDev.error());
   }
 
-  Try<dev_t> procDev = os::stat::dev("/proc");
+  Try<dev_t> procDev = os::stat::dev("/proc/self/ns/net");
   if (procDev.isError()) {
     return Error(
-        "Failed to get the device number of '/proc'"
+        "Failed to get the device number of '/proc/self/ns/net'"
         ": " + procDev.error());
   }
 
