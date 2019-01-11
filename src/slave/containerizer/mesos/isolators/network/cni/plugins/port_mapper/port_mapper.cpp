@@ -16,6 +16,7 @@
 
 #include <stout/os.hpp>
 #include <stout/protobuf.hpp>
+#include <stout/stringify.hpp>
 
 #include <stout/os/which.hpp>
 
@@ -70,9 +71,10 @@ Try<Owned<PortMapper>, PluginError> PortMapper::create(const string& _cniConfig)
   }
 
   Option<string> cniNetNs = os::getenv("CNI_NETNS");
-  if (cniNetNs.isNone()) {
+  if (cniNetNs.isNone() && cniCommand.get() != spec::CNI_CMD_DEL) {
     return PluginError(
-        "Unable to find environment variable 'CNI_NETNS'",
+        "Unable to find environment variable 'CNI_NETNS' for "
+        "non-'" + stringify(spec::CNI_CMD_DEL) + "' command",
         ERROR_BAD_ARGS);
   }
 
@@ -234,7 +236,7 @@ Try<Owned<PortMapper>, PluginError> PortMapper::create(const string& _cniConfig)
       new PortMapper(
           cniCommand.get(),
           cniContainerId.get(),
-          cniNetNs.get(),
+          cniNetNs,
           cniIfName.get(),
           cniArgs,
           cniPath.get(),
@@ -525,9 +527,12 @@ Result<spec::NetworkInfo> PortMapper::delegate(const string& command)
 
   environment["CNI_COMMAND"] = command;
   environment["CNI_IFNAME"] = cniIfName;
-  environment["CNI_NETNS"] = cniNetNs;
   environment["CNI_PATH"] = cniPath;
   environment["CNI_CONTAINERID"] = cniContainerId;
+
+  if (cniNetNs.isSome()) {
+    environment["CNI_NETNS"] = cniNetNs.get();
+  }
 
   if (cniArgs.isSome()) {
     environment["CNI_ARGS"] = cniArgs.get();
