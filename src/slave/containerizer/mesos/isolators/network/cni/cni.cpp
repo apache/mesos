@@ -1443,6 +1443,30 @@ Future<ContainerStatus> NetworkCniIsolatorProcess::status(
 }
 
 
+static Try<bool> isNetworkNamespaceHandle(const string& netNsHandle)
+{
+  // Determine if a path is a network namespace handle or not by
+  // checking its device number against that of '/proc'. If they are
+  // not the same, the given path shouldn't be a network namespac
+  // handle.
+  Try<dev_t> netNsHandleDev = os::stat::dev(netNsHandle);
+  if (netNsHandleDev.isError()) {
+    return Error(
+        "Failed to get the device number of '" + netNsHandle +
+        "': " + netNsHandleDev.error());
+  }
+
+  Try<dev_t> procDev = os::stat::dev("/proc");
+  if (procDev.isError()) {
+    return Error(
+        "Failed to get the device number of '/proc'"
+        ": " + procDev.error());
+  }
+
+  return netNsHandleDev.get() == procDev.get();
+}
+
+
 Future<Nothing> NetworkCniIsolatorProcess::cleanup(
     const ContainerID& containerId)
 {
@@ -1510,15 +1534,22 @@ Future<Nothing> NetworkCniIsolatorProcess::_cleanup(
     paths::getNamespacePath(rootDir.get(), containerId.value());
 
   if (os::exists(target)) {
-    Try<Nothing> unmount = fs::unmount(target);
-    if (unmount.isError()) {
-      return Failure(
-          "Failed to unmount the network namespace handle '" +
-          target + "': " + unmount.error());
+    Try<bool> isNetNsHandle = isNetworkNamespaceHandle(target);
+    if (isNetNsHandle.isError()) {
+      return Failure(isNetNsHandle.error());
     }
 
-    LOG(INFO) << "Unmounted the network namespace handle '"
-              << target << "' for container " << containerId;
+    if (isNetNsHandle.get()) {
+      Try<Nothing> unmount = fs::unmount(target);
+      if (unmount.isError()) {
+        return Failure(
+            "Failed to unmount the network namespace handle '" +
+            target + "': " + unmount.error());
+      }
+
+      LOG(INFO) << "Unmounted the network namespace handle '"
+                << target << "' for container " << containerId;
+    }
   }
 
   Try<Nothing> rmdir = os::rmdir(containerDir);
@@ -1546,25 +1577,6 @@ Future<Nothing> NetworkCniIsolatorProcess::detach(
   const ContainerNetwork& containerNetwork =
     infos[containerId]->containerNetworks[networkName];
 
-  // Prepare environment variables for CNI plugin.
-  map<string, string> environment;
-  environment["CNI_COMMAND"] = "DEL";
-  environment["CNI_CONTAINERID"] = containerId.value();
-  environment["CNI_PATH"] = pluginDir.get();
-  environment["CNI_IFNAME"] = containerNetwork.ifName;
-  environment["CNI_NETNS"] =
-      paths::getNamespacePath(rootDir.get(), containerId.value());
-
-  // Some CNI plugins need to run "iptables" to set up IP Masquerade, so we
-  // need to set the "PATH" environment variable so that the plugin can locate
-  // the "iptables" executable file.
-  Option<string> value = os::getenv("PATH");
-  if (value.isSome()) {
-    environment["PATH"] = value.get();
-  } else {
-    environment["PATH"] = os::host_default_path();
-  }
-
   // Use the checkpointed CNI network configuration to call the
   // CNI plugin to detach the container from the CNI network.
   const string networkConfigPath = paths::getNetworkConfigPath(
@@ -1588,6 +1600,41 @@ Future<Nothing> NetworkCniIsolatorProcess::detach(
         "Could not find the CNI plugin to use for network " +
         networkName + " with CNI configuration '" + networkConfigPath +
         (_plugin.isNone() ? "'" : ("': " + _plugin.error())));
+  }
+
+  // Prepare environment variables for CNI plugin.
+  map<string, string> environment;
+  environment["CNI_COMMAND"] = "DEL";
+  environment["CNI_CONTAINERID"] = containerId.value();
+  environment["CNI_PATH"] = pluginDir.get();
+  environment["CNI_IFNAME"] = containerNetwork.ifName;
+
+  // If the file is not a network namespace handle, do not set
+  // `CNI_NETNS`. This is possible after a reboot where all bind
+  // mounts of the network namespace handles are gone. According to
+  // the CNI spec, we should not set `CNI_NETNS` in such a case, but
+  // still call `DEL` command so that CNI plugins can do best effort
+  // cleanup (e.g., deallocating IP allocated for the container).
+  const string netNsHandle =
+    paths::getNamespacePath(rootDir.get(), containerId.value());
+
+  Try<bool> isNetNsHandle = isNetworkNamespaceHandle(netNsHandle);
+  if (isNetNsHandle.isError()) {
+    return Failure(isNetNsHandle.error());
+  }
+
+  if (isNetNsHandle.get()) {
+    environment["CNI_NETNS"] = netNsHandle;
+  }
+
+  // Some CNI plugins need to run "iptables" to set up IP Masquerade, so we
+  // need to set the "PATH" environment variable so that the plugin can locate
+  // the "iptables" executable file.
+  Option<string> value = os::getenv("PATH");
+  if (value.isSome()) {
+    environment["PATH"] = value.get();
+  } else {
+    environment["PATH"] = os::host_default_path();
   }
 
   // Invoke the CNI plugin.
