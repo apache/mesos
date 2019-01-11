@@ -83,6 +83,8 @@ protected:
     AWAIT_ASSERT_READY(runtime.wait());
 
     ASSERT_SOME(plugin.Shutdown());
+
+    TemporaryDirectoryTest::TearDown();
   }
 
   string GetPluginAddress()

@@ -73,6 +73,8 @@ class DockerTest : public MesosTest
     foreach (const Docker::Container& container, containers.get()) {
       AWAIT_READY_FOR(docker.get()->rm(container.id, true), Seconds(30));
     }
+
+    MesosTest::TearDown();
   }
 
 protected:
