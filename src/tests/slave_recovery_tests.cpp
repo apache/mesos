@@ -2810,6 +2810,144 @@ TYPED_TEST(SlaveRecoveryTest, Reboot)
 }
 
 
+// When the slave is down we modify the BOOT_ID_FILE and the executor's forked
+// pid file to simulate executor's pid is reused after agent host is rebooted,
+// the framework should receive `TASK_FAILED` status update after the reboot.
+// This is a regression test for MESOS-9501.
+TYPED_TEST(SlaveRecoveryTest, RebootWithExecutorPidReused)
+{
+  Try<Owned<cluster::Master>> master = this->StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = this->CreateSlaveFlags();
+
+  Fetcher fetcher(flags);
+
+  Try<TypeParam*> _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  Owned<slave::Containerizer> containerizer(_containerizer.get());
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    this->StartSlave(detector.get(), containerizer.get(), flags);
+  ASSERT_SOME(slave);
+
+  // Enable checkpointing for the framework.
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_checkpoint(true);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  TaskInfo task = createTask(offers.get()[0], SLEEP_COMMAND(1000));
+
+  // Capture the slave and framework ids.
+  SlaveID slaveId1 = offers.get()[0].slave_id();
+  FrameworkID frameworkId = offers.get()[0].framework_id();
+
+  Future<Message> registerExecutorMessage =
+    FUTURE_MESSAGE(Eq(RegisterExecutorMessage().GetTypeName()), _, _);
+
+  Future<TaskStatus> startingStatus;
+  Future<TaskStatus> runningStatus;
+  Future<TaskStatus> failedStatus;
+  EXPECT_CALL(sched, statusUpdate(_, _))
+    .WillOnce(FutureArg<1>(&startingStatus))
+    .WillOnce(FutureArg<1>(&runningStatus))
+    .WillOnce(FutureArg<1>(&failedStatus))
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  // Capture the executor ID and PID.
+  AWAIT_READY(registerExecutorMessage);
+
+  RegisterExecutorMessage registerExecutor;
+  registerExecutor.ParseFromString(registerExecutorMessage->body);
+  ExecutorID executorId = registerExecutor.executor_id();
+  UPID executorPid = registerExecutorMessage->from;
+
+  // Wait for TASK_STARTING and TASK_RUNNING updates.
+  AWAIT_READY(startingStatus);
+  EXPECT_EQ(TASK_STARTING, startingStatus->state());
+
+  AWAIT_READY(runningStatus);
+  EXPECT_EQ(TASK_RUNNING, runningStatus->state());
+
+  // Capture the container ID.
+  Future<hashset<ContainerID>> containers = containerizer->containers();
+
+  AWAIT_READY(containers);
+  ASSERT_EQ(1u, containers->size());
+
+  ContainerID containerId = *containers->begin();
+
+  slave.get()->terminate();
+
+  // Get the executor's pid so we can reap it to properly simulate a
+  // reboot.
+  string pidPath = paths::getForkedPidPath(
+      paths::getMetaRootDir(flags.work_dir),
+      slaveId1,
+      frameworkId,
+      executorId,
+      containerId);
+
+  Try<string> read = os::read(pidPath);
+  ASSERT_SOME(read);
+
+  Try<pid_t> pid = numify<pid_t>(read.get());
+  ASSERT_SOME(pid);
+
+  Future<Option<int>> executorStatus = process::reap(pid.get());
+
+  // Shut down the executor manually and wait until it's been reaped.
+  process::post(slave.get()->pid, executorPid, ShutdownExecutorMessage());
+
+  AWAIT_READY(executorStatus);
+
+  // Modify the boot ID to simulate a reboot.
+  ASSERT_SOME(os::write(
+      paths::getBootIdPath(paths::getMetaRootDir(flags.work_dir)),
+      "rebooted! ;)"));
+
+  // Modify the executor's pid to simulate the pid is reused after reboot.
+  ASSERT_SOME(os::write(pidPath, stringify(::getpid())));
+
+  Future<ReregisterSlaveMessage> reregisterSlaveMessage =
+    FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
+
+  // Restart the slave (use same flags) with a new containerizer.
+  _containerizer = TypeParam::create(flags, true, &fetcher);
+  ASSERT_SOME(_containerizer);
+  containerizer.reset(_containerizer.get());
+
+  slave = this->StartSlave(detector.get(), containerizer.get(), flags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(reregisterSlaveMessage);
+
+  AWAIT_READY(failedStatus);
+  EXPECT_EQ(TASK_FAILED, failedStatus->state());
+
+  driver.stop();
+  driver.join();
+}
+
+
 // When the agent is down we modify the BOOT_ID_FILE to simulate a
 // reboot and change the resources flag to cause a mismatch
 // between the recovered agent's agent info and the one of the new agent
