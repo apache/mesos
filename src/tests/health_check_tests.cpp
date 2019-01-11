@@ -2050,6 +2050,8 @@ class DockerContainerizerHealthCheckTest
 protected:
   virtual void SetUp()
   {
+    MesosTest::SetUp();
+
     Future<std::tuple<Nothing, Nothing, Nothing>> pulls = process::collect(
         pullDockerImage(DOCKER_TEST_IMAGE),
         pullDockerImage(DOCKER_HTTP_IMAGE),
@@ -2091,6 +2093,8 @@ protected:
     }
 
     removeDockerIPv6UserNetwork();
+
+    MesosTest::TearDown();
   }
 };
 
