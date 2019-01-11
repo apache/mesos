@@ -100,8 +100,8 @@ protected:
 private:
   PortMapper(
       const std::string& _cniCommand,       // ADD, DEL or VERSION.
-      const std::string& _cniContainerId, // Container ID.
-      const std::string& _cniNetNs,         // Path to network namespace file.
+      const std::string& _cniContainerId,   // Container ID.
+      const Option<std::string>& _cniNetNs, // Path to network namespace file.
       const std::string& _cniIfName,        // Interface name to set up.
       const Option<std::string>& _cniArgs,  // Extra arguments.
       const std::string& _cniPath,          // Paths to search for CNI plugins.
@@ -142,7 +142,7 @@ private:
 
   const std::string cniCommand;
   const std::string cniContainerId;
-  const std::string cniNetNs;
+  const Option<std::string> cniNetNs;
   const std::string cniIfName;
   const Option<std::string> cniArgs;
   const std::string cniPath;
