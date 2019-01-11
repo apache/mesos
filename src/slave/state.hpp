@@ -279,7 +279,8 @@ struct RunState
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
       const ContainerID& containerId,
-      bool strict);
+      bool strict,
+      bool rebooted);
 
   Option<ContainerID> id;
   hashmap<TaskID, TaskState> tasks;
@@ -306,7 +307,8 @@ struct ExecutorState
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
-      bool strict);
+      bool strict,
+      bool rebooted);
 
   ExecutorID id;
   Option<ExecutorInfo> info;
@@ -324,7 +326,8 @@ struct FrameworkState
       const std::string& rootDir,
       const SlaveID& slaveId,
       const FrameworkID& frameworkId,
-      bool strict);
+      bool strict,
+      bool rebooted);
 
   FrameworkID id;
   Option<FrameworkInfo> info;
@@ -359,7 +362,8 @@ struct SlaveState
   static Try<SlaveState> recover(
       const std::string& rootDir,
       const SlaveID& slaveId,
-      bool strict);
+      bool strict,
+      bool rebooted);
 
   SlaveID id;
   Option<SlaveInfo> info;
