@@ -2329,6 +2329,8 @@ class DockerContainerizerHealthCheckTest
 protected:
   virtual void SetUp()
   {
+    MesosTest::SetUp();
+
     createDockerIPv6UserNetwork();
   }
 
@@ -2352,6 +2354,8 @@ protected:
     }
 
     removeDockerIPv6UserNetwork();
+
+    MesosTest::TearDown();
   }
 };
 
