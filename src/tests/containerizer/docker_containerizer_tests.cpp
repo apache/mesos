@@ -192,6 +192,8 @@ public:
 
   void SetUp() override
   {
+    MesosTest::SetUp();
+
     Future<std::tuple<Nothing, Nothing>> pulls = process::collect(
         pullDockerImage(DOCKER_TEST_IMAGE),
         pullDockerImage(DOCKER_INKY_IMAGE));
@@ -227,6 +229,8 @@ public:
     foreach (const Docker::Container& container, containers.get()) {
       AWAIT_READY_FOR(docker.get()->rm(container.id, true), Seconds(30));
     }
+
+    MesosTest::TearDown();
   }
 };
 
