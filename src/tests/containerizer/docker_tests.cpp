@@ -74,6 +74,8 @@ class DockerTest : public MesosTest
 {
   void SetUp() override
   {
+    MesosTest::SetUp();
+
     Future<Nothing> pull = pullDockerImage(DOCKER_TEST_IMAGE);
 
     LOG_FIRST_N(WARNING, 1) << "Downloading " << string(DOCKER_TEST_IMAGE)
@@ -102,6 +104,8 @@ class DockerTest : public MesosTest
     foreach (const Docker::Container& container, containers.get()) {
       AWAIT_READY_FOR(docker.get()->rm(container.id, true), Seconds(30));
     }
+
+    MesosTest::TearDown();
   }
 
 protected:
