@@ -62,6 +62,7 @@ Release Notes - Mesos - Version 1.5.2
   * [MESOS-9308] - URI disk profile adaptor could deadlock.
   * [MESOS-9334] - Container stuck at ISOLATING state due to libevent poll never returns.
   * [MESOS-9480] - Master may skip processing authorization results for `LAUNCH_GROUP`.
+  * [MESOS-9501] - Mesos executor fails to terminate and gets stuck after agent host reboot.
   * [MESOS-9502] - IOswitchboard cleanup could get stuck due to FD leak from a race.
 
 ** Improvement:
