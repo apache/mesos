@@ -8103,187 +8103,220 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
     }
   }
 
-  foreach (
-      const UpdateSlaveMessage::ResourceProvider& resourceProvider,
-      message.resource_providers().providers()) {
-    CHECK(resourceProvider.has_info());
-    CHECK(resourceProvider.info().has_id());
-    const ResourceProviderID& providerId = resourceProvider.info().id();
+  if (message.has_resource_providers()) {
+    hashset<ResourceProviderID> receivedResourceProviders;
 
-    // Below we only add operations to our state from resource
-    // providers which are unknown, or possibly remove them for known
-    // resource providers.  This works since the master should always
-    // know more operations of known resource providers than any
-    // resource provider itself.
-    //
-    // NOTE: We do not mutate operation statuses here; that is the
-    // responsibility of the `updateOperationStatus` handler.
-    //
-    // There still exists an edge case where the master might remove a
-    // terminal operation from its state when passing an
-    // acknowledgement from a framework on to the agent, with the
-    // agent failing over before the acknowledgement can be processed.
-    // In that case the agent would track an operation unknown to the
-    // master.
-    //
-    // TODO(bbannier): We might want to consider to also learn about
-    // new (terminal) operations when observing messages from status
-    // update managers to frameworks.
-    if (!slave->resourceProviders.contains(providerId)) {
-      // If this is a not previously seen resource provider we had a master
-      // failover. Add the resources and operations to our state.
-      CHECK(
-          resourceProvider.total_resources().empty() ||
-          !slave->totalResources.contains(resourceProvider.total_resources()));
+    foreach (
+        const UpdateSlaveMessage::ResourceProvider& resourceProvider,
+        message.resource_providers().providers()) {
+      CHECK(resourceProvider.has_info());
+      CHECK(resourceProvider.info().has_id());
+      const ResourceProviderID& providerId = resourceProvider.info().id();
 
-      // We add the resource provider to the master first so
-      // that it can be found when e.g., adding operations.
-      slave->resourceProviders.put(
-          providerId,
-          {resourceProvider.info(),
-           resourceProvider.total_resources(),
-           resourceProvider.resource_version_uuid(),
-           {}});
+      receivedResourceProviders.insert(providerId);
 
-      hashmap<FrameworkID, Resources> usedByOperations;
+      // Below we only add operations to our state from resource
+      // providers which are unknown, or possibly remove them for known
+      // resource providers.  This works since the master should always
+      // know more operations of known resource providers than any
+      // resource provider itself.
+      //
+      // NOTE: We do not mutate operation statuses here; that is the
+      // responsibility of the `updateOperationStatus` handler.
+      //
+      // There still exists an edge case where the master might remove a
+      // terminal operation from its state when passing an
+      // acknowledgement from a framework on to the agent, with the
+      // agent failing over before the acknowledgement can be processed.
+      // In that case the agent would track an operation unknown to the
+      // master.
+      //
+      // TODO(bbannier): We might want to consider to also learn about
+      // new (terminal) operations when observing messages from status
+      // update managers to frameworks.
+      if (!slave->resourceProviders.contains(providerId)) {
+        // If this is a not previously seen resource provider we had a master
+        // failover. Add the resources and operations to our state.
+        CHECK(
+            resourceProvider.total_resources().empty() ||
+            !slave->totalResources.contains(
+                resourceProvider.total_resources()));
 
-      foreach (
-          const Operation& operation,
-          resourceProvider.operations().operations()) {
-        // Update to bookkeeping of operations.
-        Framework* framework = nullptr;
-        if (operation.has_framework_id()) {
-          framework = getFramework(operation.framework_id());
-        }
+        // We add the resource provider to the master first so
+        // that it can be found when e.g., adding operations.
+        slave->resourceProviders.put(
+            providerId,
+            {resourceProvider.info(),
+             resourceProvider.total_resources(),
+             resourceProvider.resource_version_uuid(),
+             {}});
 
-        addOperation(framework, slave, new Operation(operation));
+        hashmap<FrameworkID, Resources> usedByOperations;
 
-        if (!protobuf::isTerminalState(operation.latest_status().state()) &&
-            operation.has_framework_id()) {
-          // If we do not yet know the `FrameworkInfo` of the framework the
-          // operation originated from, we cannot properly track the operation
-          // at this point.
-          //
-          // TODO(bbannier): Consider introducing ways of making sure an agent
-          // always knows the `FrameworkInfo` of operations triggered on its
-          // resources, e.g., by adding an explicit `FrameworkInfo` to
-          // operations like is already done for `RunTaskMessage`, see
-          // MESOS-8582.
-          if (framework == nullptr) {
-            LOG(WARNING)
-              << "Cannot properly account for operation " << operation.uuid()
-              << " learnt in reconciliation of agent " << slaveId
-              << " since framework " << operation.framework_id()
-              << " is unknown; this can lead to assertion failures after the"
-              " operation terminates, see MESOS-8536";
-            continue;
+        foreach (
+            const Operation& operation,
+            resourceProvider.operations().operations()) {
+          // Update to bookkeeping of operations.
+          Framework* framework = nullptr;
+          if (operation.has_framework_id()) {
+            framework = getFramework(operation.framework_id());
           }
 
-          Try<Resources> consumedResources =
-            protobuf::getConsumedResources(operation.info());
+          addOperation(framework, slave, new Operation(operation));
 
-          CHECK_SOME(consumedResources)
-            << "Could not determine resources consumed by operation "
-            << operation.uuid();
+          if (!protobuf::isTerminalState(operation.latest_status().state()) &&
+              operation.has_framework_id()) {
+            // If we do not yet know the `FrameworkInfo` of the framework the
+            // operation originated from, we cannot properly track the operation
+            // at this point.
+            //
+            // TODO(bbannier): Consider introducing ways of making sure an agent
+            // always knows the `FrameworkInfo` of operations triggered on its
+            // resources, e.g., by adding an explicit `FrameworkInfo` to
+            // operations like is already done for `RunTaskMessage`, see
+            // MESOS-8582.
+            if (framework == nullptr) {
+              LOG(WARNING)
+                << "Cannot properly account for operation " << operation.uuid()
+                << " learnt in reconciliation of agent " << slaveId
+                << " since framework " << operation.framework_id()
+                << " is unknown; this can lead to assertion failures after the"
+                   " operation terminates, see MESOS-8536";
+              continue;
+            }
 
-          usedByOperations[operation.framework_id()] +=
-            consumedResources.get();
-        }
-      }
+            Try<Resources> consumedResources =
+              protobuf::getConsumedResources(operation.info());
 
-      slave->totalResources += resourceProvider.total_resources();
+            CHECK_SOME(consumedResources)
+              << "Could not determine resources consumed by operation "
+              << operation.uuid();
 
-      allocator->addResourceProvider(
-          slaveId, resourceProvider.total_resources(), usedByOperations);
-    } else {
-      // If this is a known resource provider its total capacity cannot have
-      // changed, and it would not know about any non-terminal operations not
-      // already known to the master.  However, it might not have received an
-      // operation for a couple different reasons:
-      //
-      //   - The resource provider or agent could have failed over
-      //     before the operation's `ApplyOperationMessage` could be
-      //     received.
-      //   - The operation's `ApplyOperationMessage` could have raced
-      //     with this `UpdateSlaveMessage`.
-      //
-      // In both of these cases, we need to reconcile such operations explicitly
-      // with the agent. For operations which the agent or resource provider
-      // does not recognize, an OPERATION_DROPPED status update will be
-      // generated and the master will remove the operation from its state upon
-      // receipt of that update.
-      CHECK(slave->resourceProviders.contains(providerId));
-
-      Slave::ResourceProvider& oldProvider =
-        slave->resourceProviders.at(providerId);
-
-      hashmap<UUID, const Operation*> newOperations;
-      foreach (
-          const Operation& operation,
-          resourceProvider.operations().operations()) {
-        newOperations.put(operation.uuid(), &operation);
-      }
-
-      foreachpair (
-          const UUID& uuid, Operation* oldOperation, oldProvider.operations) {
-        if (!newOperations.contains(uuid)) {
-          LOG(WARNING) << "Performing explicit reconciliation with agent for"
-                       << " known operation " << uuid
-                       << " since it was not present in original"
-                       << " reconciliation message from agent";
-
-          ReconcileOperationsMessage::Operation* reconcileOperation =
-            reconcile.add_operations();
-
-          reconcileOperation->mutable_operation_uuid()->CopyFrom(uuid);
-          reconcileOperation->mutable_resource_provider_id()->CopyFrom(
-              providerId);
-        } else {
-          // If a known operation became terminal between any previous offer
-          // operation status update and this `UpdateSlaveMessage`, the total
-          // resources we were sent already had the operation applied. We need
-          // to update the state of the operation to terminal here so that any
-          // update sent by the agent later does not cause us to apply the
-          // operation again.
-
-          const Operation* newOperation = newOperations.at(uuid);
-
-          if (!protobuf::isTerminalState(
-                  oldOperation->latest_status().state()) &&
-              protobuf::isTerminalState(
-                  newOperation->latest_status().state())) {
-            Operation* operation = CHECK_NOTNULL(slave->getOperation(uuid));
-
-            UpdateOperationStatusMessage update =
-              protobuf::createUpdateOperationStatusMessage(
-                  uuid,
-                  newOperation->latest_status(),
-                  newOperation->latest_status(),
-                  operation->framework_id(),
-                  operation->slave_id());
-
-            updateOperation(
-                operation, update, false); // Do not update resources.
+            usedByOperations[operation.framework_id()] +=
+              consumedResources.get();
           }
         }
+
+        slave->totalResources += resourceProvider.total_resources();
+
+        allocator->addResourceProvider(
+            slaveId, resourceProvider.total_resources(), usedByOperations);
+      } else {
+        // If this is a known resource provider its total capacity cannot have
+        // changed, and it would not know about any non-terminal operations not
+        // already known to the master.  However, it might not have received an
+        // operation for a couple different reasons:
+        //
+        //   - The resource provider or agent could have failed over
+        //     before the operation's `ApplyOperationMessage` could be
+        //     received.
+        //   - The operation's `ApplyOperationMessage` could have raced
+        //     with this `UpdateSlaveMessage`.
+        //
+        // In both of these cases, we need to reconcile such operations
+        // explicitly with the agent. For operations which the agent or resource
+        // provider does not recognize, an OPERATION_DROPPED status update will
+        // be generated and the master will remove the operation from its state
+        // upon receipt of that update.
+        CHECK(slave->resourceProviders.contains(providerId));
+
+        Slave::ResourceProvider& oldProvider =
+          slave->resourceProviders.at(providerId);
+
+        hashmap<UUID, const Operation*> newOperations;
+        foreach (
+            const Operation& operation,
+            resourceProvider.operations().operations()) {
+          newOperations.put(operation.uuid(), &operation);
+        }
+
+        foreachpair (
+            const UUID& uuid,
+            Operation * oldOperation,
+            oldProvider.operations) {
+          if (!newOperations.contains(uuid)) {
+            LOG(WARNING) << "Performing explicit reconciliation with agent for"
+                         << " known operation " << uuid
+                         << " since it was not present in original"
+                         << " reconciliation message from agent";
+
+            ReconcileOperationsMessage::Operation* reconcileOperation =
+              reconcile.add_operations();
+
+            reconcileOperation->mutable_operation_uuid()->CopyFrom(uuid);
+            reconcileOperation->mutable_resource_provider_id()->CopyFrom(
+                providerId);
+          } else {
+            // If a known operation became terminal between any previous offer
+            // operation status update and this `UpdateSlaveMessage`, the total
+            // resources we were sent already had the operation applied. We need
+            // to update the state of the operation to terminal here so that any
+            // update sent by the agent later does not cause us to apply the
+            // operation again.
+
+            const Operation* newOperation = newOperations.at(uuid);
+
+            if (!protobuf::isTerminalState(
+                    oldOperation->latest_status().state()) &&
+                protobuf::isTerminalState(
+                    newOperation->latest_status().state())) {
+              Operation* operation = CHECK_NOTNULL(slave->getOperation(uuid));
+
+              UpdateOperationStatusMessage update =
+                protobuf::createUpdateOperationStatusMessage(
+                    uuid,
+                    newOperation->latest_status(),
+                    newOperation->latest_status(),
+                    operation->framework_id(),
+                    operation->slave_id());
+
+              updateOperation(
+                  operation, update, false); // Do not update resources.
+            }
+          }
+        }
+
+        // Reconcile the total resources. This includes undoing
+        // speculated operations which are only visible in the total,
+        // but never in the used resources. We explicitly allow for
+        // resource providers to change from or to zero capacity.
+        const Resources oldResources =
+          slave->totalResources.filter([&providerId](const Resource& resource) {
+            return resource.provider_id() == providerId;
+          });
+
+        slave->totalResources -= oldResources;
+        slave->totalResources += resourceProvider.total_resources();
+
+        oldProvider.totalResources = resourceProvider.total_resources();
+
+        // Reconcile resource versions.
+        oldProvider.resourceVersion = resourceProvider.resource_version_uuid();
       }
+    }
 
-      // Reconcile the total resources. This includes undoing
-      // speculated operations which are only visible in the total,
-      // but never in the used resources. We explicitly allow for
-      // resource providers to change from or to zero capacity.
-      const Resources oldResources =
-        slave->totalResources.filter([&providerId](const Resource& resource) {
-          return resource.provider_id() == providerId;
-        });
+    // Garbage-collect disappeared resource providers disappeared from
+    // the agent. We only perform the cleanup if the agent sent some set
+    // of resource providers as absence of a set resource_providers
+    // field does not communicate absence of resource providers.
+    const hashset<ResourceProviderID> disappearedResourceProviders =
+      slave->resourceProviders.keys() - receivedResourceProviders;
 
-      slave->totalResources -= oldResources;
-      slave->totalResources += resourceProvider.total_resources();
+    foreach (
+        const ResourceProviderID& resourceProviderId,
+        disappearedResourceProviders) {
+      LOG(INFO) << "Garbage collecting resource provider " << resourceProviderId
+                << " since it disappeared from the reported agent state";
 
-      oldProvider.totalResources = resourceProvider.total_resources();
+      // Remove the resource provider resources from the total resources. This
+      // includes undoing speculated operations which are only visible in the
+      // total, but never in the used resources.
+      CHECK(slave->resourceProviders.contains(resourceProviderId));
 
-      // Reconcile resource versions.
-      oldProvider.resourceVersion = resourceProvider.resource_version_uuid();
+      slave->totalResources -=
+        slave->resourceProviders.at(resourceProviderId).totalResources;
+
+      slave->resourceProviders.erase(resourceProviderId);
     }
   }
 

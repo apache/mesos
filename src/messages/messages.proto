@@ -738,7 +738,7 @@ message UpdateSlaveMessage {
 
   // Whether to update oversubscribed resources or not. If we just use
   // `oversubscribed_resources`, we don't have a way to tell if the
-  // intention is to update the oversubscribed resoruces to empty, or
+  // intention is to update the oversubscribed resources to empty, or
   // leave it unchanged. For backwards compatibility, if this field is
   // unset (version < 1.5), we treat that as if only
   // `oversubscribed_resources` was set.
@@ -777,7 +777,8 @@ message UpdateSlaveMessage {
     repeated ResourceProvider providers = 1;
   }
 
-  // The list of all resource providers on this agent.
+  // The list of all resource providers on this agent. If this field
+  // is unset the resource providers on the agent remained unchanged.
   optional ResourceProviders resource_providers = 8;
 }
 
