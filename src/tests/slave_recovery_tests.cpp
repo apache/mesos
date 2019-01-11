@@ -2798,11 +2798,8 @@ TYPED_TEST(SlaveRecoveryTest, Reboot)
 
   EXPECT_TRUE(executorState.runs.contains(containerId2.get()));
 
-  EXPECT_SOME_EQ(
-      executorPid,
-      executorState
-        .runs[containerId2.get()]
-        .libprocessPid);
+  EXPECT_NONE(executorState.runs[containerId2.get()].forkedPid);
+  EXPECT_NONE(executorState.runs[containerId2.get()].libprocessPid);
 
   EXPECT_TRUE(executorState
                 .runs[containerId2.get()]
