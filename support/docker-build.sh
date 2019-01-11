@@ -73,7 +73,7 @@ case $OS in
     [ "$(uname -m)" = "x86_64" ] && CLANG_PKG=clang-3.5 || CLANG_PKG=
     append_dockerfile "RUN apt-get update"
     append_dockerfile "RUN apt-get install -y build-essential $CLANG_PKG git maven autoconf libtool software-properties-common"
-    append_dockerfile "RUN apt-get install -y python-dev python-six libcurl4-nss-dev libsasl2-dev libapr1-dev libsvn-dev libevent-dev libev-dev"
+    append_dockerfile "RUN apt-get install -y python-dev python-six libcurl4-nss-dev libsasl2-dev libapr1-dev libsvn-dev libevent-dev libev-dev libssl-dev"
     append_dockerfile "RUN apt-get install -y wget curl sed"
 
     case $OS in
