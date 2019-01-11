@@ -171,6 +171,42 @@
     </div>
 
   </div>
+
+  <!-- Only display this table if resource providers are present. -->
+  <div class="col-md-9" ng-if="!_.isEmpty(agent.resource_providers)">
+    <table m-table table-content="agent.resource_providers"
+      title="Resource Providers"
+      class="table table-striped table-bordered table-condensed">
+      <thead>
+        <tr>
+          <th data-key="id">ID</th>
+          <th data-key="name">Name</th>
+          <th data-key="type">Type</th>
+          <!-- TODO(bbannier): Show all resources in stringified representation. -->
+          <th data-key="disk">Disk</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr ng-repeat="provider in $data">
+          <td>
+            {{provider.resource_provider_info.id.value | truncateMesosID}}
+            <button class="btn btn-xs btn-default btn-toggle"
+              clipboard
+              data-clipboard-text="{{provider.resource_provider_info.id.value}}"
+              tooltip="Copy ID"
+              tooltip-placement="right"
+              tooltip-trigger="clipboardhover">
+              <i class="icon-file"></i>
+            </button>
+          </td>
+          <td>{{provider.resource_provider_info.name}}</td>
+          <td>{{provider.resource_provider_info.type}}</td>
+          <td>{{provider.total_resources.disk * (1024 * 1024) | dataSize}}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
   <div class="col-md-9">
     <table m-table table-content="agent.reserved_resources_as_array" title="Resource Reservations"
       class="table table-striped table-bordered table-condensed">

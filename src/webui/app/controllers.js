@@ -688,12 +688,13 @@
       }
 
       $http.jsonp(agentURLPrefix(agent, true) + '/state?jsonp=JSON_CALLBACK')
-        .success(function (response) {
+        .success(function(response) {
           $scope.state = response;
 
           $scope.agent = {};
           $scope.agent.frameworks = {};
           $scope.agent.completed_frameworks = {};
+          $scope.agent.resource_providers = {};
           $scope.agent.url_prefix = agentURLPrefix(agent, false);
 
           // The agent attaches a "/slave/log" file when either
@@ -707,6 +708,28 @@
               reservation.role = role;
               return reservation;
             });
+
+          // Compute resource provider information.
+          _.each($scope.state.resource_providers, function(provider) {
+            // Store a summarized representation of the resource provider's
+            // total scalar resources in the `total_resources` field; the full
+            // original data is available under `total_resources_full`.
+            provider.total_resources_full = _.clone(provider.total_resources);
+            // provider.total_resources = {};
+            _.each(provider.total_resources_full, function(resource) {
+              if (resource.type != "SCALAR") {
+                return;
+              }
+
+              if (!provider.total_resources[resource.name]) {
+                provider.total_resources[resource.name] = 0;
+              }
+
+              provider.total_resources[resource.name] += resource.scalar.value;
+            });
+
+            $scope.agent.resource_providers[provider.resource_provider_info.id.value] = provider;
+          });
 
           // Computes framework stats by setting new attributes on the 'framework'
           // object.
