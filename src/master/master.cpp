@@ -98,8 +98,6 @@
 
 #include "watcher/whitelist_watcher.hpp"
 
-using google::protobuf::RepeatedPtrField;
-
 using std::list;
 using std::reference_wrapper;
 using std::set;
