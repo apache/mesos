@@ -7673,6 +7673,11 @@ UpdateSlaveMessage Slave::generateResourceProviderUpdate() const
     }
   }
 
+  // Always add a `resource_providers` field so we can distinguish the
+  // empty and unset case.
+  UpdateSlaveMessage::ResourceProviders* providers =
+    message.mutable_resource_providers();
+
   foreachvalue (ResourceProvider* resourceProvider, resourceProviders) {
     // If the resource provider has not updated its state we do not
     // need to and cannot include its information in an
@@ -7681,8 +7686,7 @@ UpdateSlaveMessage Slave::generateResourceProviderUpdate() const
       continue;
     }
 
-    UpdateSlaveMessage::ResourceProvider* provider =
-      message.mutable_resource_providers()->add_providers();
+    UpdateSlaveMessage::ResourceProvider* provider = providers->add_providers();
 
     provider->mutable_info()->CopyFrom(
         resourceProvider->info);
@@ -7961,17 +7965,12 @@ void Slave::handleResourceProviderMessage(
         break;
       }
 
-      // A disconnected resource provider effectively results in its
-      // total resources to be set to empty. This will cause offers to
-      // be rescinded so that no operation or task can be launched
-      // using resources from the disconnected resource provider. If
-      // later, the resource provider reconnects, it'll result in
-      // an `UpdateSlaveMessage` so that its resources can be offered
-      // again by the master.
+      // Remove the resource provider's resources from the agent's
+      // total resources and remove it from our internal tracking.
       CHECK(totalResources.contains(resourceProvider->totalResources));
       totalResources -= resourceProvider->totalResources;
 
-      resourceProvider->totalResources = Resources();
+      resourceProviders.erase(resourceProviderId);
 
       // Send the updated resources to the master if the agent is running. Note
       // that since we have already updated our copy of the latest resource

@@ -1350,16 +1350,9 @@ TEST_P(ResourceProviderManagerHttpApiTest, ResourceProviderDisconnect)
   // Simulate a resource provider disconnection.
   resourceProvider.reset();
 
-  {
-    AWAIT_READY(updateSlaveMessage);
-    ASSERT_TRUE(updateSlaveMessage->has_resource_providers());
-    ASSERT_EQ(1, updateSlaveMessage->resource_providers().providers_size());
-
-    const Resources& totalResources =
-      updateSlaveMessage->resource_providers().providers(0).total_resources();
-
-    EXPECT_FALSE(totalResources.contains(devolve(disk)));
-  }
+  AWAIT_READY(updateSlaveMessage);
+  ASSERT_TRUE(updateSlaveMessage->has_resource_providers());
+  EXPECT_EQ(0, updateSlaveMessage->resource_providers().providers_size());
 }
 
 
