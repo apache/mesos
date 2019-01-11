@@ -361,8 +361,8 @@ the following for more information:
     --framework_sorter=VALUE
   </td>
   <td>
-Policy to use for allocating resources between a given user's
-frameworks. Options are the same as for <code>--user_sorter</code>.
+Policy to use for allocating resources between a given role's
+frameworks. Options are the same as for <code>--role_sorter</code>.
 (default: drf)
   </td>
 </tr>
@@ -650,13 +650,14 @@ Can root submit frameworks? (default: true)
   </td>
 </tr>
 
-<tr id="user_sorter">
+<tr id="role_sorter">
   <td>
-    --user_sorter=VALUE
+    --role_sorter=VALUE
   </td>
   <td>
-Policy to use for allocating resources between users. May be one of:
-  dominant_resource_fairness (drf) (default: drf)
+Policy to use for allocating resources between roles. May be one of:
+dominant_resource_fairness (drf) or weighted random uniform distribution
+(random) (default: drf)
   </td>
 </tr>
 
