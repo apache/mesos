@@ -19,6 +19,16 @@
 #include <gtest/gtest.h>
 
 #include <process/clock.hpp>
+#include <process/collect.hpp>
+#include <process/http.hpp>
+#include <process/owned.hpp>
+#include <process/reap.hpp>
+
+#include <stout/os.hpp>
+
+#include "common/values.hpp"
+
+#include "linux/fs.hpp"
 
 #include "slave/gc_process.hpp"
 
@@ -28,6 +38,8 @@
 #include "slave/containerizer/mesos/isolators/network/cni/spec.hpp"
 
 #include "tests/mesos.hpp"
+
+namespace http = process::http;
 
 namespace master = mesos::internal::master;
 namespace paths = mesos::internal::slave::cni::paths;
@@ -2233,6 +2245,184 @@ TEST_F(CniIsolatorTest, ROOT_VerifyCniRootDir)
 
   ASSERT_EQ(path::join(flags.work_dir, paths::CNI_DIR), cniRootDir);
   EXPECT_TRUE(os::exists(cniRootDir));
+}
+
+
+// This test verifies that CNI cleanup (i.e., 'DEL') is properly
+// called after reboot.
+TEST_F(CniIsolatorTest, ROOT_CleanupAfterReboot)
+{
+  // This file will be touched when CNI delete is called.
+  const string cniDeleteSignalFile = path::join(sandbox.get(), "delete");
+
+  Try<net::IP::Network> hostNetwork = getNonLoopbackIP();
+  ASSERT_SOME(hostNetwork);
+
+  Try<string> mockPlugin = strings::format(
+      R"~(
+      #!/bin/sh
+      set -e
+      if [ "x$CNI_COMMAND" = "xADD" ]; then
+        echo '{'
+        echo '  "ip4": {'
+        echo '    "ip": "%s/%d"'
+        echo '  }'
+        echo '}'
+      fi
+      if [ "x$CNI_COMMAND" = "xDEL" ]; then
+        # Make sure CNI_NETNS is a network namespace handle if set.
+        if [ "x$CNI_NETNS" != "x" ]; then
+          PROC_DEV=`stat -c %%d /proc`
+          NETNS_DEV=`stat -c %%d "$CNI_NETNS"`
+          test $PROC_DEV -eq $NETNS_DEV
+        fi
+        touch %s
+      fi
+      )~",
+      hostNetwork->address(),
+      hostNetwork->prefix(),
+      cniDeleteSignalFile);
+
+  ASSERT_SOME(mockPlugin);
+
+  ASSERT_SOME(setupMockPlugin(mockPlugin.get()));
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "network/cni";
+  flags.authenticate_http_readwrite = false;
+  flags.network_cni_plugins_dir = cniPluginDir;
+  flags.network_cni_config_dir = cniConfigDir;
+  flags.network_cni_root_dir_persist = true;
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_checkpoint(true);
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::PARTITION_AWARE);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched,
+      frameworkInfo,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
+
+  const Offer& offer = offers.get()[0];
+
+  CommandInfo command;
+  command.set_value("sleep 1000");
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      Resources::parse("cpus:1;mem:128").get(),
+      command);
+
+  ContainerInfo* container = task.mutable_container();
+  container->set_type(ContainerInfo::MESOS);
+
+  // Make sure the container joins the mock CNI network.
+  container->add_network_infos()->set_name("__MESOS_TEST__");
+
+  Future<TaskStatus> statusStarting;
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusGone;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusGone));
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(task.task_id(), statusStarting->task_id());
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(task.task_id(), statusRunning->task_id());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  // Get the container pid.
+  const ContentType contentType = ContentType::JSON;
+
+  v1::agent::Call call;
+  call.set_type(v1::agent::Call::GET_CONTAINERS);
+
+  Future<http::Response> _response = http::post(
+      slave.get()->pid,
+      "api/v1",
+      None(),
+      serialize(contentType, call),
+      stringify(contentType));
+
+  AWAIT_ASSERT_RESPONSE_STATUS_EQ(http::OK().status, _response);
+
+  Try<v1::agent::Response> response =
+    deserialize<v1::agent::Response>(contentType, _response->body);
+
+  ASSERT_SOME(response);
+  ASSERT_EQ(response->type(), v1::agent::Response::GET_CONTAINERS);
+  ASSERT_EQ(1, response->get_containers().containers().size());
+
+  const auto& containerInfo = response->get_containers().containers(0);
+  ASSERT_TRUE(containerInfo.has_container_status());
+  ASSERT_TRUE(containerInfo.container_status().has_executor_pid());
+
+  pid_t pid = containerInfo.container_status().executor_pid();
+
+  // Simulate a reboot by doing the following:
+  // 1. Stop the agent.
+  // 2. Kill the container manually.
+  // 3. Remove all mounts.
+  // 4. Cleanup the runtime_dir.
+  slave.get()->terminate();
+  slave.get().reset();
+
+  Future<Option<int>> reap = process::reap(pid);
+  ASSERT_SOME(os::killtree(pid, SIGKILL));
+  AWAIT_READY(reap);
+
+  ASSERT_SOME(fs::unmountAll(flags.work_dir));
+  ASSERT_SOME(fs::unmountAll(flags.runtime_dir));
+  ASSERT_SOME(os::rmdir(flags.runtime_dir));
+
+  Future<SlaveReregisteredMessage> slaveReregisteredMessage =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), _, _);
+
+  slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  Clock::pause();
+  Clock::settle();
+  Clock::advance(flags.executor_reregistration_timeout);
+  Clock::resume();
+
+  AWAIT_READY(slaveReregisteredMessage);
+
+  AWAIT_READY(statusGone);
+  EXPECT_EQ(task.task_id(), statusGone->task_id());
+  EXPECT_EQ(TASK_GONE, statusGone->state());
+
+  // NOTE: CNI DEL command should be called.
+  ASSERT_TRUE(os::exists(cniDeleteSignalFile));
 }
 
 } // namespace tests {
