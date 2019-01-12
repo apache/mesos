@@ -49,12 +49,22 @@ namespace allocator {
 struct Options
 {
   Duration allocationInterval = Seconds(1);
+
+  // Resources (by name) that will be excluded from a role's fair share.
   Option<std::set<std::string>> fairnessExcludeResourceNames = None();
+
+  // Filter GPU resources based on the `GPU_RESOURCES` framework capability.
   bool filterGpuResources = true;
+
+  // The master's domain, if any.
   Option<DomainInfo> domain = None();
+
+  // The minimum allocatable resource quantities, if any.
   Option<std::vector<mesos::internal::ResourceQuantities>>
     minAllocatableResources = None();
+
   size_t maxCompletedFrameworks = 0;
+
   bool publishPerFrameworkMetrics = true;
 };
 

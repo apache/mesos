@@ -549,18 +549,6 @@ protected:
   // Slaves to send offers for.
   Option<hashset<std::string>> whitelist;
 
-  // Resources (by name) that will be excluded from a role's fair share.
-  Option<std::set<std::string>> fairnessExcludeResourceNames;
-
-  // Filter GPU resources based on the `GPU_RESOURCES` framework capability.
-  bool filterGpuResources;
-
-  // The master's domain, if any.
-  Option<DomainInfo> domain;
-
-  // The minimum allocatable resources, if any.
-  Option<std::vector<Resources>> minAllocatableResources;
-
   // There are two stages of allocation:
   //
   //   Stage 1: Allocate to satisfy quota guarantees.
