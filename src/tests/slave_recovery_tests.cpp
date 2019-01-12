@@ -2870,6 +2870,12 @@ TYPED_TEST(SlaveRecoveryTest, RebootWithExecutorPidReused)
     .WillOnce(FutureArg<1>(&failedStatus))
     .WillRepeatedly(Return()); // Ignore subsequent updates.
 
+  Future<Nothing> startingAck =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
+  Future<Nothing> runningAck =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
   driver.launchTasks(offers.get()[0].id(), {task});
 
   // Capture the executor ID and PID.
@@ -2880,12 +2886,18 @@ TYPED_TEST(SlaveRecoveryTest, RebootWithExecutorPidReused)
   ExecutorID executorId = registerExecutor.executor_id();
   UPID executorPid = registerExecutorMessage->from;
 
-  // Wait for TASK_STARTING and TASK_RUNNING updates.
+  // Wait for TASK_STARTING and TASK_RUNNING updates and their ACKs
+  // to make sure the next sent status update is not a repeat of the
+  // unacknowledged TASK_RUNNING.
   AWAIT_READY(startingStatus);
   EXPECT_EQ(TASK_STARTING, startingStatus->state());
 
+  AWAIT_READY(startingAck);
+
   AWAIT_READY(runningStatus);
   EXPECT_EQ(TASK_RUNNING, runningStatus->state());
+
+  AWAIT_READY(runningAck);
 
   // Capture the container ID.
   Future<hashset<ContainerID>> containers = containerizer->containers();
