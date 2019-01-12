@@ -1477,6 +1477,7 @@ Release Notes - Mesos - Version 1.4.3 (WIP)
   * [MESOS-9492] - Persist CNI working directory across reboot.
   * [MESOS-9501] - Mesos executor fails to terminate and gets stuck after agent host reboot.
   * [MESOS-9502] - IOswitchboard cleanup could get stuck due to FD leak from a race.
+  * [MESOS-9518] - CNI_NETNS should not be set for orphan containers that do not have network namespace.
 
 ** Improvement:
   * [MESOS-9510] - Disallowed nan, inf and so on in `Value::Scalar`.
