@@ -15,6 +15,7 @@
 // limitations under the License.
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -1023,7 +1024,7 @@ TEST_P(ResourceProviderManagerHttpApiTest, ConvertResources)
 
   const ContentType contentType = GetParam();
 
-  resourceProvider.start(endpointDetector, contentType);
+  resourceProvider.start(std::move(endpointDetector), contentType);
 
   // Wait until the agent's resources have been updated to include the
   // resource provider resources.
@@ -1156,7 +1157,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 
   const ContentType contentType = GetParam();
 
-  resourceProvider->start(endpointDetector, contentType);
+  resourceProvider->start(std::move(endpointDetector), contentType);
 
   // Wait until the agent's resources have been updated to include the
   // resource provider resources. At this point the resource provider
@@ -1176,7 +1177,9 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   EXPECT_CALL(*resourceProvider, subscribed(_))
     .WillOnce(FutureArg<0>(&subscribed1));
 
-  resourceProvider->start(endpointDetector, contentType);
+  endpointDetector =
+    resource_provider::createEndpointDetector(agent.get()->pid);
+  resourceProvider->start(std::move(endpointDetector), contentType);
 
   AWAIT_READY(subscribed1);
   EXPECT_EQ(resourceProviderInfo.id(), subscribed1->provider_id());
@@ -1216,7 +1219,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
   EXPECT_CALL(*resourceProvider, subscribed(_))
     .WillOnce(FutureArg<0>(&subscribed2));
 
-  resourceProvider->start(endpointDetector, contentType);
+  resourceProvider->start(std::move(endpointDetector), contentType);
 
   AWAIT_READY(subscribed2);
   EXPECT_EQ(resourceProviderInfo.id(), subscribed2->provider_id());
@@ -1275,7 +1278,7 @@ TEST_P(ResourceProviderManagerHttpApiTest, ResubscribeUnknownID)
 
   const ContentType contentType = GetParam();
 
-  resourceProvider->start(endpointDetector, contentType);
+  resourceProvider->start(std::move(endpointDetector), contentType);
 
   AWAIT_READY(disconnected);
 }
@@ -1328,7 +1331,7 @@ TEST_P(ResourceProviderManagerHttpApiTest, ResourceProviderDisconnect)
 
   const ContentType contentType = GetParam();
 
-  resourceProvider->start(endpointDetector, contentType);
+  resourceProvider->start(std::move(endpointDetector), contentType);
 
   {
     // Wait until the agent's resources have been updated to include
@@ -1397,7 +1400,7 @@ TEST_F(ResourceProviderManagerHttpApiTest, ResourceProviderSubscribeDisconnect)
   EXPECT_CALL(*resourceProvider1, subscribed(_))
     .WillOnce(FutureArg<0>(&subscribed1));
 
-  resourceProvider1->start(endpointDetector, ContentType::PROTOBUF);
+  resourceProvider1->start(std::move(endpointDetector), ContentType::PROTOBUF);
 
   AWAIT_READY(subscribed1);
 
@@ -1423,7 +1426,9 @@ TEST_F(ResourceProviderManagerHttpApiTest, ResourceProviderSubscribeDisconnect)
   EXPECT_CALL(*resourceProvider2, subscribed(_))
     .WillOnce(FutureArg<0>(&subscribed2));
 
-  resourceProvider2->start(endpointDetector, ContentType::PROTOBUF);
+  endpointDetector =
+    resource_provider::createEndpointDetector(agent.get()->pid);
+  resourceProvider2->start(std::move(endpointDetector), ContentType::PROTOBUF);
 
   AWAIT_READY(disconnected1);
   AWAIT_READY(subscribed2);

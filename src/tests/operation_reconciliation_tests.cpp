@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <utility>
+
 #include <gmock/gmock.h>
 
 #include <mesos/mesos.hpp>
@@ -115,7 +117,7 @@ TEST_P(OperationReconciliationTest, PendingOperation)
 
   ContentType contentType = GetParam();
 
-  resourceProvider->start(endpointDetector, contentType);
+  resourceProvider->start(std::move(endpointDetector), contentType);
 
   // Wait until the agent's resources have been updated to include the
   // resource provider resources.
@@ -704,7 +706,7 @@ TEST_P(OperationReconciliationTest, AgentPendingOperationAfterMasterFailover)
 
   ContentType contentType = GetParam();
 
-  resourceProvider->start(endpointDetector, contentType);
+  resourceProvider->start(std::move(endpointDetector), contentType);
 
   // Wait until the agent's resources have been updated to include the
   // resource provider resources.

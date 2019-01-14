@@ -22,6 +22,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <gmock/gmock.h>
@@ -10500,7 +10501,7 @@ TEST_F(SlaveTest, ResourceProviderSubscribe)
   Owned<EndpointDetector> endpointDetector(
       resource_provider::createEndpointDetector(slave.get()->pid));
 
-  resourceProvider.start(endpointDetector, ContentType::PROTOBUF);
+  resourceProvider.start(std::move(endpointDetector), ContentType::PROTOBUF);
 
   AWAIT_READY(connected);
 
@@ -10605,7 +10606,7 @@ TEST_F(SlaveTest, ResourceProviderPublishAll)
 
   updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
-  resourceProvider.start(endpointDetector, ContentType::PROTOBUF);
+  resourceProvider.start(std::move(endpointDetector), ContentType::PROTOBUF);
 
   AWAIT_READY(updateSlaveMessage);
 
@@ -10897,7 +10898,7 @@ TEST_F(SlaveTest, ResourceProviderReconciliation)
 
   updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
-  resourceProvider.start(endpointDetector, ContentType::PROTOBUF);
+  resourceProvider.start(std::move(endpointDetector), ContentType::PROTOBUF);
 
   AWAIT_READY(updateSlaveMessage);
 
@@ -11104,7 +11105,7 @@ TEST_F(SlaveTest, RunTaskResourceVersions)
 
   updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
-  resourceProvider.start(endpointDetector, ContentType::PROTOBUF);
+  resourceProvider.start(std::move(endpointDetector), ContentType::PROTOBUF);
 
   AWAIT_READY(updateSlaveMessage);
 
