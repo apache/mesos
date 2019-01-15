@@ -216,7 +216,7 @@ range or set. For example, `range:[1-5]` has a quantity of 5 and `set:{a,b}`
 has a quantity of 2. The resources in each set should be delimited by
 semicolons (acting as logical AND), and each set should be delimited by the
 pipe character (acting as logical OR).
-(Example: `disk:1|cpu:1;mem:32;port:1` configures the allocator to only offer
+(Example: `disk:1|cpus:1;mem:32;ports:1` configures the allocator to only offer
 resources if they contain a disk resource of at least 1 megabyte, or if they
 at least contain 1 cpu, 32 megabytes of memory and 1 port.)
 (default: cpus:0.01|mem:32).

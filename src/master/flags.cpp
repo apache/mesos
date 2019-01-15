@@ -498,7 +498,7 @@ mesos::internal::master::Flags::Flags()
       "The resources in each set should be delimited by semicolons (acting as\n"
       "logical AND), and each set should be delimited by the pipe character\n"
       "(acting as logical OR).\n"
-      "(Example: `disk:1|cpu:1;mem:32;port:1` configures the allocator to\n"
+      "(Example: `disk:1|cpus:1;mem:32;ports:1` configures the allocator to\n"
       "only offer resources if they contain a disk resource of at least\n"
       "1 megabyte, or if they at least contain 1 cpu, 32 megabytes of memory\n"
       "and 1 port.)\n",
