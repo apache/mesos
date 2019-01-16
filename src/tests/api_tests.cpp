@@ -4955,6 +4955,8 @@ TEST_P(MasterAPITest, TaskUpdatesUponAgentGone)
 // that are pending when the agent is marked as gone.
 TEST_P(MasterAPITest, OperationUpdatesUponAgentGone)
 {
+  Clock::pause();
+
   master::Flags masterFlags = CreateMasterFlags();
 
   Try<Owned<cluster::Master>> master = this->StartMaster(masterFlags);
@@ -4974,6 +4976,7 @@ TEST_P(MasterAPITest, OperationUpdatesUponAgentGone)
     StartSlave(detector.get(), &containerizer, slaveFlags);
 
   ASSERT_SOME(slave);
+  Clock::advance(slaveFlags.registration_backoff_factor);
   AWAIT_READY(updateSlaveMessage);
 
   // Start and register a resource provider.
@@ -4998,6 +5001,10 @@ TEST_P(MasterAPITest, OperationUpdatesUponAgentGone)
   // Wait until the agent's resources have been updated to include the
   // resource provider resources.
   AWAIT_READY(updateSlaveMessage);
+
+  // Make sure the allocator is updated to include disk resources from
+  // the resource provider.
+  Clock::settle();
 
   // Start and register a framework.
   FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
