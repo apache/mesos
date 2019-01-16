@@ -2731,7 +2731,7 @@ TEST_F(CniIsolatorTest, ROOT_CleanupAfterReboot)
   // 3. Remove all mounts.
   // 4. Cleanup the runtime_dir.
   slave.get()->terminate();
-  slave.get().reset();
+  slave->reset();
 
   Future<Option<int>> reap = process::reap(pid);
   ASSERT_SOME(os::killtree(pid, SIGKILL));
