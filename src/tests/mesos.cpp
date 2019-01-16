@@ -168,17 +168,20 @@ slave::Flags MesosTest::CreateSlaveFlags()
   CHECK_SOME(runtimeDir) << "Failed to create temporary directory";
   flags.runtime_dir = runtimeDir.get();
 
-  flags.fetcher_cache_dir = path::join(sandbox.get(), "fetch");
+  Try<string> agentDir = os::mkdtemp(path::join(sandbox.get(), "XXXXXX"));
+  CHECK_SOME(agentDir) << "Failed to create temporary directory";
+
+  flags.fetcher_cache_dir = path::join(agentDir.get(), "fetch");
 
   flags.launcher_dir = getLauncherDir();
 
-  flags.appc_store_dir = path::join(sandbox.get(), "store", "appc");
+  flags.appc_store_dir = path::join(agentDir.get(), "store", "appc");
 
-  flags.docker_store_dir = path::join(sandbox.get(), "store", "docker");
+  flags.docker_store_dir = path::join(agentDir.get(), "store", "docker");
 
   {
     // Create a default credential file for master/agent authentication.
-    const string& path = path::join(sandbox.get(), "credential");
+    const string& path = path::join(agentDir.get(), "credential");
 
     Try<int_fd> fd = os::open(
         path,
@@ -212,7 +215,7 @@ slave::Flags MesosTest::CreateSlaveFlags()
 
   {
     // Create a secret key for executor authentication.
-    const string path = path::join(sandbox.get(), "jwt_secret_key");
+    const string path = path::join(agentDir.get(), "jwt_secret_key");
 
     Try<int_fd> fd = os::open(
         path,
@@ -238,7 +241,7 @@ slave::Flags MesosTest::CreateSlaveFlags()
 
   {
     // Create a default HTTP credentials file.
-    const string& path = path::join(sandbox.get(), "http_credentials");
+    const string& path = path::join(agentDir.get(), "http_credentials");
 
     Try<int_fd> fd = os::open(
         path,
