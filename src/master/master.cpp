@@ -8955,6 +8955,13 @@ void Master::_markUnreachable(
   } else {
     CHECK(slaves.registered.contains(slave.id()));
 
+    // Notify frameworks that their operations have been transitioned
+    // to `OPERATION_UNREACHABLE`.
+    sendBulkOperationFeedback(
+        slaves.registered.get(slave.id()),
+        OperationState::OPERATION_UNREACHABLE,
+        "Agent was marked unreachable");
+
     __removeSlave(slaves.registered.get(slave.id()), message, unreachableTime);
   }
 }
@@ -8973,10 +8980,34 @@ void Master::markGone(Slave* slave, const TimeInfo& goneTime)
   message.set_message("Agent has been marked gone");
   send(slave->pid, message);
 
-  // Collect all offer operations on this agent and notify frameworks
-  // that they have been transitioned to `OPERATION_GONE_BY_OPERATOR`.
+  // Notify frameworks that their operations have been transitioned
+  // to status `OPERATION_GONE_BY_OPERATOR`.
+  sendBulkOperationFeedback(
+    slave,
+    OperationState::OPERATION_GONE_BY_OPERATOR,
+    "Agent has been marked gone");
+
+  __removeSlave(slave, "Agent has been marked gone", None());
+}
+
+
+// Send an update for every operation on a given slave.
+//
+// NOTE: This is currently purely for the frameworks' convenience, as there
+// are no retries or other mechanisms to ensure reliability. Frameworks who
+// miss this update can (and must) get the latest status via the reconciliation
+// process. This might be changed in the future so clients are not
+// forced to use operation reconciliation.
+void Master::sendBulkOperationFeedback(
+    Slave* slave,
+    OperationState operationState,
+    const std::string& message)
+{
   hashmap<UUID, const Operation*> operations;
-  operations.insert(slave->operations.begin(), slave->operations.end());
+  operations.insert(
+      slave->operations.begin(),
+      slave->operations.end());
+
   foreachvalue (
       const Slave::ResourceProvider& provider,
       slave->resourceProviders) {
@@ -8996,7 +9027,7 @@ void Master::markGone(Slave* slave, const TimeInfo& goneTime)
       continue;
     }
 
-    // NOTE: Frameworks that are not currently registered will not receive
+    // Frameworks that are not currently registered will not receive
     // a notification here and need to rely on the reconciliation process.
     Option<Framework*> framework =
       frameworks.registered.get(operation->framework_id());
@@ -9005,20 +9036,16 @@ void Master::markGone(Slave* slave, const TimeInfo& goneTime)
       continue;
     }
 
-    // We don't need to ensure that the framework reliably gets this message
-    // since it will eventually receive the same status through reconciliation.
     scheduler::Event update;
     update.set_type(scheduler::Event::UPDATE_OPERATION_STATUS);
     *update.mutable_update_operation_status()->mutable_status() =
       protobuf::createOperationStatus(
-          OperationState::OPERATION_GONE_BY_OPERATOR,
+          operationState,
           operation->info().id(),
-          "Agent has been marked gone");
+          message);
 
     framework.get()->send(update);
   }
-
-  __removeSlave(slave, "Agent has been marked gone", None());
 }
 
 

@@ -897,6 +897,12 @@ protected:
   // Remove the operation.
   void removeOperation(Operation* operation);
 
+  // Send operation update for all operations on the agent.
+  void sendBulkOperationFeedback(
+    Slave* slave,
+    OperationState operationState,
+    const std::string& message);
+
   // Attempts to update the allocator by applying the given operation.
   // If successful, updates the slave's resources, sends a
   // 'CheckpointResourcesMessage' to the slave with the updated
