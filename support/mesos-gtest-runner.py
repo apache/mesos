@@ -44,23 +44,23 @@ class Bcolors:
     modifier, and terminate it with 'ENDC'.
     """
 
-    HEADER = '\033[95m' if sys.stdout.isatty() else ''
-    OKBLUE = '\033[94m' if sys.stdout.isatty() else ''
-    OKGREEN = '\033[92m' if sys.stdout.isatty() else ''
-    WARNING = '\033[93m' if sys.stdout.isatty() else ''
-    FAIL = '\033[91m'if sys.stdout.isatty() else ''
-    ENDC = '\033[0m' if sys.stdout.isatty() else ''
-    BOLD = '\033[1m' if sys.stdout.isatty() else ''
-    UNDERLINE = '\033[4m' if sys.stdout.isatty() else ''
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 
     @staticmethod
     def colorize(string, *color_codes):
         """Decorate a string with a number of color codes."""
-        colors = ''.join(color_codes)
-        return '{begin}{string}{end}'.format(
-            begin=colors if sys.stdout.isatty() else '',
-            string=string,
-            end=Bcolors.ENDC if sys.stdout.isatty() else '')
+        if sys.stdout.isatty():
+            colors = ''.join(color_codes)
+            string = '{begin}{string}{end}'.format(
+                begin=colors, string=string, end=Bcolors.ENDC)
+        return string
 
 
 def run_test(opts):
@@ -241,9 +241,7 @@ if __name__ == '__main__':
         Here we set up GoogleTest specific flags, and generate
         distinct shard indices.
         """
-        opts = list(range(jobs))
-
-        args = [os.path.abspath(executable)]
+        args = [executable]
 
         # If we run in a terminal, enable colored test output. We
         # still allow users to disable this themselves via extra args.
@@ -251,10 +249,10 @@ if __name__ == '__main__':
             args.append('--gtest_color=yes')
 
         if filter_:
-            args.append('--gtest_filter={filter}'.format(filter=filter_))
+            args.append('--gtest_filter={}'.format(filter_))
 
-        for opt in opts:
-            yield opt, jobs, args
+        for job in range(jobs):
+            yield job, jobs, args
 
     try:
         RESULTS = []
@@ -279,18 +277,18 @@ if __name__ == '__main__':
         #
         # NOTE: The `RESULTS` array stores the result for each
         # `run_test` invocation returning a tuple (success, output).
-        NFAILED = len([success for success, __ in RESULTS if not success])
+        NFAILED = sum(not success for success, _ in RESULTS)
 
         # TODO(bbannier): Introduce a verbosity which prints results
         # as they arrive; this likely requires some output parsing to
         # ensure results from different tests do not interleave.
-        for result in RESULTS:
-            if not result[0]:
-                if OPTIONS.verbosity > 0:
-                    print(result[1], file=sys.stderr)
-            else:
+        for success, out in RESULTS:
+            if success:
                 if OPTIONS.verbosity > 1:
-                    print(result[1], file=sys.stdout)
+                    print(out, file=sys.stdout)
+            else:
+                if OPTIONS.verbosity > 0:
+                    print(out, file=sys.stderr)
 
         if NFAILED > 0:
             print(Bcolors.colorize(
