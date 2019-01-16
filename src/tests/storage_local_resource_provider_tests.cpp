@@ -3290,8 +3290,7 @@ TEST_F(
 
 // This test verifies that storage local resource provider properly
 // reports the metric related to CSI plugin container terminations.
-TEST_F(
-    StorageLocalResourceProviderTest, DISABLED_ContainerTerminationMetric)
+TEST_F(StorageLocalResourceProviderTest, ContainerTerminationMetric)
 {
   setupResourceProviderConfig(Gigabytes(4));
 
@@ -3313,6 +3312,18 @@ TEST_F(
 
   Future<Nothing> pluginConnected =
     FUTURE_DISPATCH(_, &ContainerDaemonProcess::waitContainer);
+
+  // Since the local resource provider daemon is started after the agent
+  // is registered, it is guaranteed that the slave will send two
+  // `UpdateSlaveMessage`s, where the latter one contains information from
+  // the storage local resource provider.
+  //
+  // NOTE: The order of the two `FUTURE_PROTOBUF`s is reversed because
+  // Google Mock will search the expectations in reverse order.
+  Future<UpdateSlaveMessage> updateSlave2 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+  Future<UpdateSlaveMessage> updateSlave1 =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   Try<Owned<cluster::Slave>> slave = StartSlave(
       detector.get(),
@@ -3340,6 +3351,16 @@ TEST_F(
 
   Future<Nothing> pluginRestarted =
     FUTURE_DISPATCH(_, &ContainerDaemonProcess::launchContainer);
+
+  // Wait for the the resource provider to subscribe before killing it
+  // by observing the agent report the resource provider to the
+  // master. This prevents the plugin from entering a failed, non-
+  // restartable state, see MESOS-9130.
+  //
+  // TODO(bbannier): This step can be removed once MESOS-8400 is implemented.
+  AWAIT_READY(updateSlave1);
+  AWAIT_READY(updateSlave2);
+  ASSERT_FALSE(updateSlave2->resource_providers().providers().empty());
 
   // Kill the plugin container and wait for it to restart.
   // NOTE: We need to wait for `pluginConnected` before issuing the
