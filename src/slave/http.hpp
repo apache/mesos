@@ -350,6 +350,10 @@ private:
       const mesos::agent::Call& call,
       const Option<process::http::authentication::Principal>& principal) const;
 
+  process::Future<process::http::Response> markResourceProviderGone(
+      const mesos::agent::Call& call,
+      const Option<process::http::authentication::Principal>& principal) const;
+
   process::Future<process::http::Response> pruneImages(
       const mesos::agent::Call& call,
       ContentType acceptType,

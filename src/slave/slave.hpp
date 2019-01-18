@@ -661,6 +661,9 @@ private:
 
   void removeOperation(Operation* operation);
 
+  process::Future<Nothing> markResourceProviderGone(
+      const ResourceProviderID& resourceProviderId) const;
+
   Operation* getOperation(const UUID& uuid) const;
 
   void addResourceProvider(ResourceProvider* resourceProvider);

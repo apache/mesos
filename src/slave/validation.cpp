@@ -533,6 +533,14 @@ Option<Error> validate(
       return None();
     }
 
+    case mesos::agent::Call::MARK_RESOURCE_PROVIDER_GONE: {
+      if (!call.has_mark_resource_provider_gone()) {
+        return Error("Expecting 'mark_resource_provider_gone' to be present");
+      }
+
+      return None();
+    }
+
     case mesos::agent::Call::PRUNE_IMAGES: {
       return None();
     }

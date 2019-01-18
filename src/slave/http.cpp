@@ -104,6 +104,7 @@ using mesos::authorization::KILL_STANDALONE_CONTAINER;
 using mesos::authorization::REMOVE_NESTED_CONTAINER;
 using mesos::authorization::REMOVE_STANDALONE_CONTAINER;
 using mesos::authorization::MODIFY_RESOURCE_PROVIDER_CONFIG;
+using mesos::authorization::MARK_RESOURCE_PROVIDER_GONE;
 using mesos::authorization::PRUNE_IMAGES;
 
 using mesos::internal::recordio::Reader;
@@ -654,6 +655,9 @@ Future<Response> Http::_api(
 
     case mesos::agent::Call::REMOVE_RESOURCE_PROVIDER_CONFIG:
       return removeResourceProviderConfig(call, principal);
+
+    case mesos::agent::Call::MARK_RESOURCE_PROVIDER_GONE:
+      return markResourceProviderGone(call, principal);
 
     case mesos::agent::Call::PRUNE_IMAGES:
       return pruneImages(call, mediaTypes.accept, principal);
@@ -3324,6 +3328,37 @@ Future<Response> Http::removeResourceProviderConfig(
       }));
 }
 
+
+Future<Response> Http::markResourceProviderGone(
+    const mesos::agent::Call& call,
+    const Option<Principal>& principal) const
+{
+  CHECK_EQ(mesos::agent::Call::MARK_RESOURCE_PROVIDER_GONE, call.type());
+  CHECK(call.has_mark_resource_provider_gone());
+
+  const ResourceProviderID& resourceProviderId =
+    call.mark_resource_provider_gone().resource_provider_id();
+
+  LOG(INFO)
+    << "Processing MARK_RESOURCE_PROVIDER_GONE for resource provider "
+    << resourceProviderId;
+
+  return ObjectApprovers::create(
+      slave->authorizer, principal, {MARK_RESOURCE_PROVIDER_GONE})
+    .then(defer(
+        slave->self(),
+        [this, resourceProviderId](
+            const Owned<ObjectApprovers>& approvers) -> Future<Response> {
+          if (!approvers->approved<MARK_RESOURCE_PROVIDER_GONE>()) {
+            return Forbidden();
+          }
+
+          return slave->markResourceProviderGone(resourceProviderId)
+            .then([](const Future<Nothing>&) -> Future<Response> {
+              return OK();
+            });
+        }));
+}
 
 // Helper that reads data from `writer` and writes to `reader`.
 // Returns a failed future if there are any errors reading or writing.

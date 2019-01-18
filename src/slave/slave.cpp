@@ -8000,7 +8000,97 @@ void Slave::handleResourceProviderMessage(
       const ResourceProviderID& resourceProviderId =
         message->remove->resourceProviderId;
 
+      if (!resourceProviders.contains(resourceProviderId)) {
+        break;
+      }
+
+      const ResourceProvider* resourceProvider =
+        resourceProviders.at(resourceProviderId);
+
+      CHECK_NOTNULL(resourceProvider);
+
+      // Transition all non-terminal operations on the resource provider to a
+      // terminal state.
+      //
+      // NOTE: We operate on a copy of the operations container since we trigger
+      // removal of current operation in below loop. This invalidates the loop
+      // iterator so it cannot be safely incremented after the loop body.
+      const hashmap<UUID, Operation*> operations = resourceProvider->operations;
+      foreachpair (const UUID& uuid, Operation * operation, operations) {
+        CHECK_NOTNULL(operation);
+
+        if (protobuf::isTerminalState(operation->latest_status().state())) {
+          continue;
+        }
+
+        // The operation might be from an operator API call, thus the framework
+        // ID here is optional.
+        Option<FrameworkID> frameworkId =
+          operation->has_framework_id()
+            ? operation->framework_id()
+            : Option<FrameworkID>::none();
+
+        Option<OperationID> operationId =
+          operation->info().has_id()
+            ? operation->info().id()
+            : Option<OperationID>::none();
+
+        UpdateOperationStatusMessage update =
+          protobuf::createUpdateOperationStatusMessage(
+              uuid,
+              protobuf::createOperationStatus(
+                  OPERATION_GONE_BY_OPERATOR,
+                  operationId,
+                  "The resource provider was removed before a terminal "
+                  "operation status update was received",
+                  None(),
+                  None(),
+                  info.id()),
+              None(),
+              frameworkId);
+
+        updateOperation(operation, update);
+
+        removeOperation(operation);
+
+        // Forward the operation status update to the master.
+        //
+        // The status update from the resource provider does not
+        // provide the agent ID (because the resource provider doesn't
+        // know it), so we inject it here.
+        UpdateOperationStatusMessage _update;
+        _update.CopyFrom(update);
+        _update.mutable_slave_id()->CopyFrom(info.id());
+        send(master.get(), _update);
+      };
+
+      // TODO(bbannier): Consider transitioning all tasks using resources from
+      // this resource provider to e.g., `TASK_GONE_BY_OPERATOR` and terminating
+      // them.
+
+      // Remove the resources of the resource provider from the agent's total.
+      // This needs to be done after triggering the operation status update so
+      // that master does not receive a operations status update for an unknown
+      // operation (gone from `UpdateSlaveMessage`).
+      totalResources -= resourceProvider->totalResources;
+
       resourceProviders.erase(resourceProviderId);
+
+      switch (state) {
+        case RECOVERING:
+        case DISCONNECTED:
+        case TERMINATING: {
+          break;
+        }
+        case RUNNING: {
+          LOG(INFO) << "Forwarding new total resources " << totalResources;
+
+          // Inform the master about the updated resources.
+          send(master.get(), generateResourceProviderUpdate());
+
+          break;
+        }
+      }
 
       LOG(INFO) << "Removed resource provider '" << resourceProviderId << "'";
       break;
@@ -8112,9 +8202,10 @@ void Slave::updateOperation(
     }
 
     // Terminal state, and the conversion has failed.
-    case OPERATION_FAILED:
+    case OPERATION_DROPPED:
     case OPERATION_ERROR:
-    case OPERATION_DROPPED: {
+    case OPERATION_FAILED:
+    case OPERATION_GONE_BY_OPERATOR: {
       break;
     }
 
@@ -8122,7 +8213,6 @@ void Slave::updateOperation(
     case OPERATION_UNSUPPORTED:
     case OPERATION_PENDING:
     case OPERATION_UNREACHABLE:
-    case OPERATION_GONE_BY_OPERATOR:
     case OPERATION_RECOVERING:
     case OPERATION_UNKNOWN: {
       LOG(FATAL)
@@ -8200,6 +8290,27 @@ ResourceProvider* Slave::getResourceProvider(const ResourceProviderID& id) const
   return nullptr;
 }
 
+
+Future<Nothing> Slave::markResourceProviderGone(
+    const ResourceProviderID& resourceProviderId) const
+{
+  auto message = [&resourceProviderId](const string& reason) {
+    return
+      "Could not mark resource provider '" + stringify(resourceProviderId) +
+      "' as gone: " + reason;
+  };
+
+  if (!resourceProviderManager.get()) {
+    return Failure(message("Agent has not registered yet"));
+  }
+
+  if (resourceProviders.contains(resourceProviderId) &&
+      !resourceProviders.at(resourceProviderId)->totalResources.empty()) {
+    return Failure(message("Resource provider has resources"));
+  }
+
+  return resourceProviderManager->removeResourceProvider(resourceProviderId);
+}
 
 void Slave::apply(Operation* operation)
 {

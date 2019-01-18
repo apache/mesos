@@ -11460,9 +11460,10 @@ void Master::updateOperation(
     }
 
     // Terminal state, and the conversion has failed.
-    case OPERATION_FAILED:
+    case OPERATION_DROPPED:
     case OPERATION_ERROR:
-    case OPERATION_DROPPED: {
+    case OPERATION_FAILED:
+    case OPERATION_GONE_BY_OPERATOR: {
       allocator->recoverResources(
           operation->framework_id(),
           operation->slave_id(),
@@ -11476,7 +11477,6 @@ void Master::updateOperation(
     case OPERATION_UNSUPPORTED:
     case OPERATION_PENDING:
     case OPERATION_UNREACHABLE:
-    case OPERATION_GONE_BY_OPERATOR:
     case OPERATION_RECOVERING:
     case OPERATION_UNKNOWN: {
       LOG(FATAL) << "Unexpected operation state "

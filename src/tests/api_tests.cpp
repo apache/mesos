@@ -8334,6 +8334,139 @@ TEST_P(AgentAPITest, GetResourceProviders)
 }
 
 
+TEST_P(AgentAPITest, MarkResourceProviderGone)
+{
+  Clock::pause();
+
+  const ContentType contentType = GetParam();
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  StandaloneMasterDetector detector(master.get()->pid);
+
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.authenticate_http_readwrite = true;
+
+  {
+    // Default principal 2 is not allowed to mark any resource provider gone.
+    mesos::ACL::MarkResourceProvidersGone* acl =
+      slaveFlags.acls->add_mark_resource_providers_gone();
+    acl->mutable_principals()->add_values(DEFAULT_CREDENTIAL_2.principal());
+    acl->mutable_resource_providers()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
+  ASSERT_SOME(slave);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(updateSlaveMessage);
+
+  mesos::v1::ResourceProviderInfo info;
+  info.set_type("org.apache.mesos.rp.test");
+  info.set_name("test");
+
+  // Start a resource provider without resources since resource
+  // providers with resources cannot be marked gone.
+  v1::MockResourceProvider resourceProvider(info, v1::Resource());
+
+  // Start and register a resource provider.
+  Owned<EndpointDetector> endpointDetector(
+      resource_provider::createEndpointDetector(slave.get()->pid));
+
+  Future<mesos::v1::resource_provider::Event::Subscribed> subscribed;
+
+  EXPECT_CALL(resourceProvider, subscribed(_))
+    .WillOnce(DoAll(
+        Invoke(&resourceProvider, &v1::MockResourceProvider::subscribedDefault),
+        FutureArg<0>(&subscribed)))
+    .WillRepeatedly(Return());
+
+  // After the resource provider it will update its resources which
+  // triggers an `UpdateSlaveMessage`.
+  updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  resourceProvider.start(std::move(endpointDetector), contentType);
+
+  AWAIT_READY(subscribed);
+  AWAIT_READY(updateSlaveMessage);
+
+  const mesos::v1::ResourceProviderID& resourceProviderId =
+    subscribed->provider_id();
+
+  // Removing the resource provider should trigger an `UpdateSlaveMessage`.
+  updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  // Mark the resource provider gone.
+  {
+    // We explicitly track whether the resource provider was disconnected as it
+    // indicates whether the agent has cleaned up the connection to the
+    // provider.
+    //
+    // NOTE: As the resource provider driver will try to resubscribe if the
+    // connection is broken will does not succeed, we might observe other
+    // `disconnected` events.
+    Future<Nothing> disconnected;
+    EXPECT_CALL(resourceProvider, disconnected())
+      .WillOnce(FutureSatisfy(&disconnected))
+      .WillRepeatedly(Return());
+
+    v1::agent::Call v1Call;
+    v1Call.set_type(v1::agent::Call::MARK_RESOURCE_PROVIDER_GONE);
+    v1Call.mutable_mark_resource_provider_gone()
+      ->mutable_resource_provider_id()
+      ->CopyFrom(resourceProviderId);
+
+    // `DEFAULT_CREDENTIAL_2` is not able to mark the resource provider as gone.
+    http::Headers headers2 = createBasicAuthHeaders(DEFAULT_CREDENTIAL_2);
+    headers2["Accept"] = stringify(contentType);
+
+    Future<http::Response> v1Response = http::post(
+        slave.get()->pid,
+        "api/v1",
+        headers2,
+        serialize(contentType, v1Call),
+        stringify(contentType));
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::Forbidden().status, v1Response);
+
+    // Other principals are able to remove the resource provider.
+    http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers["Accept"] = stringify(contentType);
+
+    v1Response = http::post(
+        slave.get()->pid,
+        "api/v1",
+        headers,
+        serialize(contentType, v1Call),
+        stringify(contentType));
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(http::OK().status, v1Response);
+
+    AWAIT_READY(disconnected);
+  }
+
+  // Verify that resource provider is not be there anymore.
+  {
+    AWAIT_READY(updateSlaveMessage);
+
+    v1::agent::Call v1Call;
+    v1Call.set_type(v1::agent::Call::GET_RESOURCE_PROVIDERS);
+
+    auto v1Response = post(slave.get()->pid, v1Call, contentType);
+
+    AWAIT_READY(v1Response);
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::agent::Response::GET_RESOURCE_PROVIDERS, v1Response->type());
+
+    EXPECT_TRUE(
+        v1Response->get_resource_providers().resource_providers().empty());
+  }
+}
+
+
 TEST_P(AgentAPITest, GetOperations)
 {
   Clock::pause();
