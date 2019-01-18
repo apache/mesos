@@ -3214,23 +3214,20 @@ Future<Response> Http::addResourceProviderConfig(
   CHECK_EQ(mesos::agent::Call::ADD_RESOURCE_PROVIDER_CONFIG, call.type());
   CHECK(call.has_add_resource_provider_config());
 
+  const ResourceProviderInfo& info = call.add_resource_provider_config().info();
+
+  LOG(INFO)
+    << "Processing ADD_RESOURCE_PROVIDER_CONFIG call with"
+    << " type '" << info.type() << "' and name '" << info.name() << "'";
+
   return ObjectApprovers::create(
-      slave->authorizer,
-      principal,
-      {MODIFY_RESOURCE_PROVIDER_CONFIG})
+             slave->authorizer, principal, {MODIFY_RESOURCE_PROVIDER_CONFIG})
     .then(defer(
         slave->self(),
         [=](const Owned<ObjectApprovers>& approvers) -> Future<Response> {
           if (!approvers->approved<MODIFY_RESOURCE_PROVIDER_CONFIG>()) {
             return Forbidden();
           }
-
-          const ResourceProviderInfo& info =
-              call.add_resource_provider_config().info();
-
-          LOG(INFO)
-              << "Processing ADD_RESOURCE_PROVIDER_CONFIG call with type '"
-              << info.type() << "' and name '" << info.name() << "'";
 
           Option<Error> error = LocalResourceProvider::validate(info);
           if (error.isSome()) {
@@ -3259,6 +3256,13 @@ Future<Response> Http::updateResourceProviderConfig(
   CHECK_EQ(mesos::agent::Call::UPDATE_RESOURCE_PROVIDER_CONFIG, call.type());
   CHECK(call.has_update_resource_provider_config());
 
+  const ResourceProviderInfo& info =
+    call.update_resource_provider_config().info();
+
+  LOG(INFO)
+    << "Processing UPDATE_RESOURCE_PROVIDER_CONFIG call with"
+    << " type '" << info.type() << "' and name '" << info.name() << "'";
+
   return ObjectApprovers::create(
       slave->authorizer,
       principal,
@@ -3269,13 +3273,6 @@ Future<Response> Http::updateResourceProviderConfig(
           if (!approvers->approved<MODIFY_RESOURCE_PROVIDER_CONFIG>()) {
             return Forbidden();
           }
-
-          const ResourceProviderInfo& info =
-              call.update_resource_provider_config().info();
-
-          LOG(INFO)
-              << "Processing UPDATE_RESOURCE_PROVIDER_CONFIG call with type '"
-              << info.type() << "' and name '" << info.name() << "'";
 
           Option<Error> error = LocalResourceProvider::validate(info);
           if (error.isSome()) {
@@ -3304,6 +3301,13 @@ Future<Response> Http::removeResourceProviderConfig(
   CHECK_EQ(mesos::agent::Call::REMOVE_RESOURCE_PROVIDER_CONFIG, call.type());
   CHECK(call.has_remove_resource_provider_config());
 
+  const string& type = call.remove_resource_provider_config().type();
+  const string& name = call.remove_resource_provider_config().name();
+
+  LOG(INFO)
+    << "Processing REMOVE_RESOURCE_PROVIDER_CONFIG call with"
+    << " type '" << type << "' and name '" << name << "'";
+
   return ObjectApprovers::create(
       slave->authorizer,
       principal,
@@ -3314,13 +3318,6 @@ Future<Response> Http::removeResourceProviderConfig(
           if (!approvers->approved<MODIFY_RESOURCE_PROVIDER_CONFIG>()) {
             return Forbidden();
           }
-
-          const string& type = call.remove_resource_provider_config().type();
-          const string& name = call.remove_resource_provider_config().name();
-
-          LOG(INFO)
-              << "Processing REMOVE_RESOURCE_PROVIDER_CONFIG call with type '"
-              << type << "' and name '" << name << "'";
 
           return slave->localResourceProviderDaemon->remove(type, name)
             .then([]() -> Response { return OK(); });
