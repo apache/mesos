@@ -142,6 +142,7 @@ using testing::_;
 using testing::AtMost;
 using testing::DoAll;
 using testing::Eq;
+using testing::Exactly;
 using testing::StrEq;
 using testing::Invoke;
 using testing::InvokeWithoutArgs;
@@ -10697,6 +10698,252 @@ TEST_F(SlaveTest, ResourceProviderPublishAll)
     scheds.emplace_back(std::move(sched));
     drivers.emplace_back(std::move(driver));
   }
+}
+
+
+// This test checks that a resource provider gets properly disconnected when
+// being marked gone, and is not able to reconnect. We expect pending operations
+// to be transition to the correct terminal status.
+TEST_F(SlaveTest, RemoveResourceProvider)
+{
+  Clock::pause();
+
+  // Start an agent and a master.
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  StandaloneMasterDetector detector(master.get()->pid);
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
+  ASSERT_SOME(slave);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  AWAIT_READY(updateSlaveMessage);
+
+  v1::ResourceProviderInfo resourceProviderInfo;
+  resourceProviderInfo.set_type("org.apache.mesos.rp.test");
+  resourceProviderInfo.set_name("test");
+
+  // Register a local resource provider with the agent.
+  v1::Resource disk = v1::createDiskResource(
+      "200",
+      "storage",
+      None(),
+      None(),
+      v1::createDiskSourceRaw(None(), "profile"));
+
+  v1::MockResourceProvider resourceProvider(resourceProviderInfo, disk);
+
+  Owned<EndpointDetector> endpointDetector(
+      resource_provider::createEndpointDetector(slave.get()->pid));
+
+  updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  resourceProvider.start(std::move(endpointDetector), ContentType::PROTOBUF);
+
+  AWAIT_READY(updateSlaveMessage);
+
+  // Register a framework and perform a pending operations on the
+  // resource provider resources.
+  v1::FrameworkInfo framework = v1::DEFAULT_FRAMEWORK_INFO;
+  framework.set_roles(0, disk.reservations(0).role());
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(v1::scheduler::SendSubscribe(framework));
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  // Since the resources from the resource provider have already reached the
+  // master at this point, the framework will be offered resource provider
+  // resources.
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(subscribed);
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+  const v1::Offer& offer = offers->offers(0);
+
+  Option<v1::Resource> rawDisk;
+  foreach (const v1::Resource& resource, offer.resources()) {
+    if (resource.has_provider_id() && resource.has_disk() &&
+        resource.disk().has_source() &&
+        resource.disk().source().type() ==
+          v1::Resource::DiskInfo::Source::RAW) {
+      rawDisk = resource;
+      break;
+    }
+  }
+
+  ASSERT_SOME(rawDisk);
+
+  // Create a pending operation.
+  Future<v1::resource_provider::Event::ApplyOperation> applyOperation;
+  EXPECT_CALL(resourceProvider, applyOperation(_))
+    .WillOnce(FutureArg<0>(&applyOperation));
+
+  v1::OperationID operationId;
+  operationId.set_value("operation");
+
+  mesos.send(v1::createCallAccept(
+      frameworkId,
+      offer,
+      {v1::CREATE_DISK(
+          rawDisk.get(),
+          v1::Resource::DiskInfo::Source::MOUNT,
+          None(),
+          operationId)}));
+
+  // Wait for the operation to reach the resource provider.
+  AWAIT_READY(applyOperation);
+
+  // A resource provider cannot be removed while it still has resources.
+  ASSERT_TRUE(resourceProvider.info.has_id());
+
+  const mesos::v1::ResourceProviderID& resourceProviderId =
+    resourceProvider.info.id();
+
+  v1::agent::Call v1Call;
+  v1Call.set_type(v1::agent::Call::MARK_RESOURCE_PROVIDER_GONE);
+  v1Call.mutable_mark_resource_provider_gone()
+    ->mutable_resource_provider_id()
+    ->CopyFrom(resourceProviderId);
+
+  constexpr ContentType contentType = ContentType::PROTOBUF;
+  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+  headers["Accept"] = stringify(contentType);
+
+  Future<process::http::Response> response = process::http::post(
+    slave.get()->pid,
+    "api/v1",
+    headers,
+    serialize(contentType, v1Call),
+    stringify(contentType));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(InternalServerError().status, response);
+
+  // Remove all resources on the resource provider.
+  updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  {
+    using mesos::v1::resource_provider::Call;
+    using mesos::v1::resource_provider::Event;
+
+    Call call;
+    call.set_type(Call::UPDATE_STATE);
+    call.mutable_resource_provider_id()->CopyFrom(resourceProvider.info.id());
+
+    Call::UpdateState* update = call.mutable_update_state();
+    update->mutable_resources()->Clear();
+    update->mutable_resource_version_uuid()->set_value(
+        id::UUID::random().toBytes());
+
+    // Still report the operation. This allows us to send an operation
+    // status update later on.
+    mesos::v1::Operation* operation = update->add_operations();
+
+    ASSERT_TRUE(applyOperation->has_framework_id());
+    operation->mutable_framework_id()->CopyFrom(applyOperation->framework_id());
+
+    operation->mutable_info()->CopyFrom(applyOperation->info());
+    operation->mutable_uuid()->CopyFrom(applyOperation->operation_uuid());
+    operation->mutable_latest_status()->CopyFrom(
+        evolve(protobuf::createOperationStatus(OPERATION_PENDING)));
+
+    operation->add_statuses()->CopyFrom(operation->latest_status());
+
+    AWAIT_READY(resourceProvider.send(call));
+  }
+
+  // Once the master has seen that there is no resource managed
+  // by the resource provider it can be removed successfully.
+  AWAIT_READY(updateSlaveMessage);
+
+  Future<v1::scheduler::Event::UpdateOperationStatus> updateOperationStatus;
+  EXPECT_CALL(*scheduler, updateOperationStatus(_, _))
+    .WillOnce(FutureArg<1>(&updateOperationStatus));
+
+  // The agent will eventually update the master on its resources
+  // after the resource provider disconnected.
+  updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  // The resource provider will receive a TEARDOWN event on being marked gone.
+  Future<Nothing> teardown;
+  EXPECT_CALL(resourceProvider, teardown())
+    .WillOnce(FutureSatisfy(&teardown));
+
+  // We expect at least two disconnection events, one initially when the
+  // connected resource provider gets removed, and when the automatic attempt
+  // to resubscribe fails and leads the remote to close the connection.
+  Future<Nothing> disconnected;
+  EXPECT_CALL(resourceProvider, disconnected())
+    .WillOnce(DoDefault())
+    .WillOnce(FutureSatisfy(&disconnected))
+    .WillRepeatedly(Return()); // Ignore additional ddisconnection events.
+
+  // The resource provider will automatically attempt to reconnect.
+  Future<Nothing> connected;
+  EXPECT_CALL(resourceProvider, connected())
+    .WillOnce(DoDefault())
+    .WillRepeatedly(Return());
+
+  // The resource provider should never successfully resubscribe.
+  EXPECT_CALL(resourceProvider, subscribed(_))
+    .Times(Exactly(0));
+
+  response = process::http::post(
+      slave.get()->pid,
+      "api/v1",
+      headers,
+      serialize(contentType, v1Call),
+      stringify(contentType));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  AWAIT_READY(teardown);
+
+  // On resource provider removal the framework should have received
+  // an operation status update.
+  AWAIT_READY(updateOperationStatus);
+
+  EXPECT_EQ(
+    v1::OperationState::OPERATION_GONE_BY_OPERATOR,
+    updateOperationStatus->status().state());
+
+  // The status update should be generated by the agent and have no
+  // associated resource provider ID.
+  EXPECT_TRUE(updateOperationStatus->status().has_agent_id());
+  EXPECT_FALSE(updateOperationStatus->status().has_resource_provider_id());
+
+  // The agent should also report a change to its resources.
+  AWAIT_READY(updateSlaveMessage);
+
+  // Once we have seen the second disconnection event we know that the
+  // attempt to resubscribe was unsuccessful.
+  AWAIT_READY(disconnected);
+
+  // Settle the clock to ensure no more `subscribed` calls to the
+  // resource provider are enqueued.
+  Clock::settle();
 }
 
 
