@@ -1321,65 +1321,102 @@ inline typename TOffer::Operation RESERVE(
   operation.mutable_reserve()->mutable_resources()->CopyFrom(resources);
 
   if (operationId.isSome()) {
-    operation.mutable_id()->CopyFrom(operationId.get());
+    *operation.mutable_id() = operationId.get();
   }
 
   return operation;
 }
 
 
-template <typename TResources, typename TOffer>
-inline typename TOffer::Operation UNRESERVE(const TResources& resources)
+template <typename TResources, typename TOperationID, typename TOffer>
+inline typename TOffer::Operation UNRESERVE(
+    const TResources& resources,
+    const Option<TOperationID>& operationId = None())
 {
   typename TOffer::Operation operation;
   operation.set_type(TOffer::Operation::UNRESERVE);
   operation.mutable_unreserve()->mutable_resources()->CopyFrom(resources);
+
+  if (operationId.isSome()) {
+    *operation.mutable_id() = operationId.get();
+  }
+
   return operation;
 }
 
 
-template <typename TResources, typename TOffer>
-inline typename TOffer::Operation CREATE(const TResources& volumes)
+template <typename TResources, typename TOperationID, typename TOffer>
+inline typename TOffer::Operation CREATE(
+    const TResources& volumes,
+    const Option<TOperationID>& operationId = None())
 {
   typename TOffer::Operation operation;
   operation.set_type(TOffer::Operation::CREATE);
   operation.mutable_create()->mutable_volumes()->CopyFrom(volumes);
+
+  if (operationId.isSome()) {
+    *operation.mutable_id() = operationId.get();
+  }
+
   return operation;
 }
 
 
-template <typename TResources, typename TOffer>
-inline typename TOffer::Operation DESTROY(const TResources& volumes)
+template <typename TResources, typename TOperationID, typename TOffer>
+inline typename TOffer::Operation DESTROY(
+    const TResources& volumes,
+    const Option<TOperationID>& operationId = None())
 {
   typename TOffer::Operation operation;
   operation.set_type(TOffer::Operation::DESTROY);
   operation.mutable_destroy()->mutable_volumes()->CopyFrom(volumes);
+
+  if (operationId.isSome()) {
+    *operation.mutable_id() = operationId.get();
+  }
+
   return operation;
 }
 
 
-template <typename TResource, typename TOffer>
+template <typename TResource, typename TOperationID, typename TOffer>
 inline typename TOffer::Operation GROW_VOLUME(
     const TResource& volume,
-    const TResource& addition)
+    const TResource& addition,
+    const Option<TOperationID>& operationId = None())
 {
   typename TOffer::Operation operation;
   operation.set_type(TOffer::Operation::GROW_VOLUME);
   operation.mutable_grow_volume()->mutable_volume()->CopyFrom(volume);
   operation.mutable_grow_volume()->mutable_addition()->CopyFrom(addition);
+
+  if (operationId.isSome()) {
+    *operation.mutable_id() = operationId.get();
+  }
+
   return operation;
 }
 
 
-template <typename TResource, typename TOffer, typename TValueScalar>
+template <
+    typename TResource,
+    typename TValueScalar,
+    typename TOperationID,
+    typename TOffer>
 inline typename TOffer::Operation SHRINK_VOLUME(
     const TResource& volume,
-    const TValueScalar& subtract)
+    const TValueScalar& subtract,
+    const Option<TOperationID>& operationId = None())
 {
   typename TOffer::Operation operation;
   operation.set_type(TOffer::Operation::SHRINK_VOLUME);
   operation.mutable_shrink_volume()->mutable_volume()->CopyFrom(volume);
   operation.mutable_shrink_volume()->mutable_subtract()->CopyFrom(subtract);
+
+  if (operationId.isSome()) {
+    *operation.mutable_id() = operationId.get();
+  }
+
   return operation;
 }
 
@@ -1765,35 +1802,40 @@ inline Offer::Operation RESERVE(Args&&... args)
 template <typename... Args>
 inline Offer::Operation UNRESERVE(Args&&... args)
 {
-  return common::UNRESERVE<Resources, Offer>(std::forward<Args>(args)...);
+  return common::UNRESERVE<Resources, OperationID, Offer>(
+      std::forward<Args>(args)...);
 }
 
 
 template <typename... Args>
 inline Offer::Operation CREATE(Args&&... args)
 {
-  return common::CREATE<Resources, Offer>(std::forward<Args>(args)...);
+  return common::CREATE<Resources, OperationID, Offer>(
+      std::forward<Args>(args)...);
 }
 
 
 template <typename... Args>
 inline Offer::Operation DESTROY(Args&&... args)
 {
-  return common::DESTROY<Resources, Offer>(std::forward<Args>(args)...);
+  return common::DESTROY<Resources, OperationID, Offer>(
+      std::forward<Args>(args)...);
 }
 
 
 template <typename... Args>
 inline Offer::Operation GROW_VOLUME(Args&&... args)
 {
-  return common::GROW_VOLUME<Resource, Offer>(std::forward<Args>(args)...);
+  return common::GROW_VOLUME<Resource, OperationID, Offer>(
+      std::forward<Args>(args)...);
 }
 
 
 template <typename... Args>
 inline Offer::Operation SHRINK_VOLUME(Args&&... args)
 {
-  return common::SHRINK_VOLUME<Resource, Offer>(std::forward<Args>(args)...);
+  return common::SHRINK_VOLUME<Resource, Value::Scalar, OperationID, Offer>(
+      std::forward<Args>(args)...);
 }
 
 
@@ -2063,40 +2105,51 @@ inline mesos::v1::Offer::Operation RESERVE(Args&&... args)
 template <typename... Args>
 inline mesos::v1::Offer::Operation UNRESERVE(Args&&... args)
 {
-  return common::UNRESERVE<mesos::v1::Resources, mesos::v1::Offer>(
-      std::forward<Args>(args)...);
+  return common::UNRESERVE<
+      mesos::v1::Resources,
+      mesos::v1::OperationID,
+      mesos::v1::Offer>(std::forward<Args>(args)...);
 }
 
 
 template <typename... Args>
 inline mesos::v1::Offer::Operation CREATE(Args&&... args)
 {
-  return common::CREATE<mesos::v1::Resources, mesos::v1::Offer>(
-      std::forward<Args>(args)...);
+  return common::CREATE<
+      mesos::v1::Resources,
+      mesos::v1::OperationID,
+      mesos::v1::Offer>(std::forward<Args>(args)...);
 }
 
 
 template <typename... Args>
 inline mesos::v1::Offer::Operation DESTROY(Args&&... args)
 {
-  return common::DESTROY<mesos::v1::Resources, mesos::v1::Offer>(
-      std::forward<Args>(args)...);
+  return common::DESTROY<
+      mesos::v1::Resources,
+      mesos::v1::OperationID,
+      mesos::v1::Offer>(std::forward<Args>(args)...);
 }
 
 
 template <typename... Args>
 inline mesos::v1::Offer::Operation GROW_VOLUME(Args&&... args)
 {
-  return common::GROW_VOLUME<mesos::v1::Resource, mesos::v1::Offer>(
-      std::forward<Args>(args)...);
+  return common::GROW_VOLUME<
+      mesos::v1::Resource,
+      mesos::v1::OperationID,
+      mesos::v1::Offer>(std::forward<Args>(args)...);
 }
 
 
 template <typename... Args>
 inline mesos::v1::Offer::Operation SHRINK_VOLUME(Args&&... args)
 {
-  return common::SHRINK_VOLUME<mesos::v1::Resource, mesos::v1::Offer>(
-      std::forward<Args>(args)...);
+  return common::SHRINK_VOLUME<
+      mesos::v1::Resource,
+      mesos::v1::Value::Scalar,
+      mesos::v1::OperationID,
+      mesos::v1::Offer>(std::forward<Args>(args)...);
 }
 
 
@@ -2740,6 +2793,24 @@ ACTION_P2(SendAcknowledge, frameworkId, agentId)
   acknowledge->mutable_task_id()->CopyFrom(arg1.status().task_id());
   acknowledge->mutable_agent_id()->CopyFrom(agentId);
   acknowledge->set_uuid(arg1.status().uuid());
+
+  arg0->send(call);
+}
+
+
+ACTION_P2(
+    SendAcknowledgeOperationStatus, frameworkId, agentId)
+{
+  Call call;
+  call.set_type(Call::ACKNOWLEDGE_OPERATION_STATUS);
+  call.mutable_framework_id()->CopyFrom(frameworkId);
+
+  Call::AcknowledgeOperationStatus* acknowledge =
+    call.mutable_acknowledge_operation_status();
+
+  acknowledge->mutable_agent_id()->CopyFrom(agentId);
+  acknowledge->set_uuid(arg1.status().uuid().value());
+  acknowledge->mutable_operation_id()->CopyFrom(arg1.status().operation_id());
 
   arg0->send(call);
 }

@@ -14,7 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <atomic>
+#include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <gmock/gmock.h>
@@ -29,6 +32,7 @@
 #include <mesos/module/authorizer.hpp>
 
 #include <process/clock.hpp>
+#include <process/collect.hpp>
 #include <process/future.hpp>
 #include <process/http.hpp>
 #include <process/pid.hpp>
@@ -36,8 +40,15 @@
 
 #include <stout/gtest.hpp>
 #include <stout/try.hpp>
+#include <stout/unreachable.hpp>
 
 #include "authorizer/local/authorizer.hpp"
+
+#include "common/protobuf_utils.hpp"
+#include "common/resources_utils.hpp"
+
+#include "internal/devolve.hpp"
+#include "internal/evolve.hpp"
 
 #include "master/master.hpp"
 
@@ -56,6 +67,8 @@
 #include "tests/utils.hpp"
 
 namespace http = process::http;
+
+using google::protobuf::RepeatedPtrField;
 
 using mesos::internal::master::Master;
 
@@ -81,11 +94,14 @@ using std::string;
 using std::vector;
 
 using testing::_;
+using testing::AllOf;
 using testing::An;
 using testing::AtMost;
 using testing::DoAll;
 using testing::Eq;
+using testing::Invoke;
 using testing::Return;
+using testing::Truly;
 
 namespace mesos {
 namespace internal {
@@ -2746,6 +2762,587 @@ TEST_F(MasterAuthorizationTest, AuthorizedToRegisterNoStaticReservations)
   ASSERT_SOME(agent);
 
   AWAIT_READY(slaveRegisteredMessage);
+}
+
+
+class MasterOperationAuthorizationTest
+  : public MesosTest,
+    public ::testing::WithParamInterface<authorization::Action>
+{
+public:
+  static Resources createAgentResources(const Resources& resources)
+  {
+    Resources agentResources;
+    foreach (
+        Resource resource,
+        resources - resources.filter(&Resources::hasResourceProvider)) {
+      if (Resources::isPersistentVolume(resource)) {
+        if (resource.disk().has_source()) {
+          resource.mutable_disk()->clear_persistence();
+          resource.mutable_disk()->clear_volume();
+        } else {
+          resource.clear_disk();
+        }
+      }
+
+      agentResources += resource;
+    }
+
+    return agentResources;
+  }
+
+  static vector<v1::Offer::Operation> createOperations(
+      const v1::FrameworkID& frameworkId,
+      const v1::AgentID& agentId,
+      const authorization::Action& action)
+  {
+    switch (action) {
+      case authorization::RUN_TASK: {
+        const v1::Resources taskResources =
+          v1::Resources::parse("cpus:1;mem:32").get();
+
+        v1::ExecutorInfo executorInfo = v1::createExecutorInfo(
+            v1::DEFAULT_EXECUTOR_ID,
+            None(),
+            v1::Resources::parse("cpus:1;mem:32;disk:32").get(),
+            v1::ExecutorInfo::DEFAULT,
+            frameworkId);
+
+        return {v1::LAUNCH(
+                    {v1::createTask(agentId, taskResources, ""),
+                     v1::createTask(agentId, taskResources, "")}),
+                v1::LAUNCH_GROUP(
+                    executorInfo,
+                    v1::createTaskGroupInfo(
+                        {v1::createTask(agentId, taskResources, ""),
+                         v1::createTask(agentId, taskResources, "")}))};
+      }
+      case authorization::RESERVE_RESOURCES: {
+        v1::OperationID operationId;
+        operationId.set_value(id::UUID::random().toString());
+
+        v1::Resources reserved;
+        reserved += v1::createReservedResource(
+            "cpus", "1", v1::createDynamicReservationInfo(
+                "role", v1::DEFAULT_CREDENTIAL.principal()));
+        reserved += v1::createReservedResource(
+            "mem", "32", v1::createDynamicReservationInfo(
+                "role", v1::DEFAULT_CREDENTIAL.principal()));
+
+        return {v1::RESERVE(reserved, std::move(operationId))};
+      }
+      case authorization::UNRESERVE_RESOURCES: {
+        v1::OperationID operationId;
+        operationId.set_value(id::UUID::random().toString());
+
+        v1::Resources reserved;
+        reserved += v1::createReservedResource(
+            "cpus", "1", v1::createDynamicReservationInfo("role"));
+        reserved += v1::createReservedResource(
+            "mem", "32", v1::createDynamicReservationInfo("role"));
+
+        return {v1::UNRESERVE(reserved, std::move(operationId))};
+      }
+      case authorization::CREATE_VOLUME: {
+        v1::OperationID operationId;
+        operationId.set_value(id::UUID::random().toString());
+
+        v1::Resources volumes;
+        volumes += v1::createPersistentVolume(
+            Megabytes(32),
+            "role",
+            id::UUID::random().toString(),
+            "path",
+            None(),
+            None(),
+            v1::DEFAULT_CREDENTIAL.principal());
+        volumes += v1::createPersistentVolume(
+            Megabytes(32),
+            "role",
+            id::UUID::random().toString(),
+            "path",
+            None(),
+            None(),
+            v1::DEFAULT_CREDENTIAL.principal());
+
+        return {v1::CREATE(volumes, std::move(operationId))};
+      }
+      case authorization::DESTROY_VOLUME: {
+        v1::OperationID operationId;
+        operationId.set_value(id::UUID::random().toString());
+
+        v1::Resources volumes;
+        volumes += v1::createPersistentVolume(
+            Megabytes(32), "role", id::UUID::random().toString(), "path");
+        volumes += v1::createPersistentVolume(
+            Megabytes(32), "role", id::UUID::random().toString(), "path");
+
+        return {v1::DESTROY(volumes, std::move(operationId))};
+      }
+      case authorization::RESIZE_VOLUME: {
+        v1::OperationID operationId1;
+        operationId1.set_value(id::UUID::random().toString());
+
+        v1::OperationID operationId2;
+        operationId2.set_value(id::UUID::random().toString());
+
+        return {
+          v1::GROW_VOLUME(
+              v1::createPersistentVolume(
+                  Megabytes(32), "role", id::UUID::random().toString(), "path"),
+              v1::Resources::parse("disk", "32", "role").get(),
+              std::move(operationId1)),
+          v1::SHRINK_VOLUME(
+              v1::createPersistentVolume(
+                  Megabytes(64), "role", id::UUID::random().toString(), "path"),
+              mesos::v1::internal::values::parse("32")->scalar(),
+              std::move(operationId2))};
+      }
+      case authorization::CREATE_BLOCK_DISK: {
+        v1::OperationID operationId;
+        operationId.set_value(id::UUID::random().toString());
+
+        v1::Resource raw = v1::createDiskResource(
+            "32", "*", None(), None(), v1::createDiskSourceRaw(
+                None(), "profile"));
+        raw.mutable_provider_id()->set_value("provider");
+
+        return {v1::CREATE_DISK(
+            raw,
+            v1::Resource::DiskInfo::Source::BLOCK,
+            None(),
+            std::move(operationId))};
+      }
+      case authorization::DESTROY_BLOCK_DISK: {
+        v1::OperationID operationId;
+        operationId.set_value(id::UUID::random().toString());
+
+        v1::Resource block = v1::createDiskResource(
+            "32", "*", None(), None(), v1::createDiskSourceBlock(
+                id::UUID::random().toString(), "profile"));
+        block.mutable_provider_id()->set_value("provider");
+
+        return {v1::DESTROY_DISK(block, std::move(operationId))};
+      }
+      case authorization::CREATE_MOUNT_DISK: {
+        v1::OperationID operationId;
+        operationId.set_value(id::UUID::random().toString());
+
+        v1::Resource raw = v1::createDiskResource(
+            "32", "*", None(), None(), v1::createDiskSourceRaw(
+                None(), "profile"));
+        raw.mutable_provider_id()->set_value("provider");
+
+        return {v1::CREATE_DISK(
+            raw,
+            v1::Resource::DiskInfo::Source::MOUNT,
+            None(),
+            std::move(operationId))};
+      }
+      case authorization::DESTROY_MOUNT_DISK: {
+        v1::OperationID operationId;
+        operationId.set_value(id::UUID::random().toString());
+
+        v1::Resource mount = v1::createDiskResource(
+            "32", "*", None(), None(), v1::createDiskSourceMount(
+                None(), id::UUID::random().toString(), "profile"));
+        mount.mutable_provider_id()->set_value("provider");
+
+        return {v1::DESTROY_DISK(mount, std::move(operationId))};
+      }
+      case authorization::DESTROY_RAW_DISK: {
+        v1::OperationID operationId;
+        operationId.set_value(id::UUID::random().toString());
+
+        v1::Resource raw = v1::createDiskResource(
+            "32", "*", None(), None(), v1::createDiskSourceRaw(
+                id::UUID::random().toString(), "profile"));
+        raw.mutable_provider_id()->set_value("provider");
+
+        return {v1::DESTROY_DISK(raw, std::move(operationId))};
+      }
+      case authorization::UNKNOWN:
+      case authorization::REGISTER_FRAMEWORK:
+      case authorization::TEARDOWN_FRAMEWORK:
+      case authorization::GET_ENDPOINT_WITH_PATH:
+      case authorization::VIEW_ROLE:
+      case authorization::UPDATE_WEIGHT:
+      case authorization::GET_QUOTA:
+      case authorization::UPDATE_QUOTA:
+      case authorization::VIEW_FRAMEWORK:
+      case authorization::VIEW_TASK:
+      case authorization::VIEW_EXECUTOR:
+      case authorization::ACCESS_SANDBOX:
+      case authorization::ACCESS_MESOS_LOG:
+      case authorization::VIEW_FLAGS:
+      case authorization::LAUNCH_NESTED_CONTAINER:
+      case authorization::KILL_NESTED_CONTAINER:
+      case authorization::WAIT_NESTED_CONTAINER:
+      case authorization::LAUNCH_NESTED_CONTAINER_SESSION:
+      case authorization::ATTACH_CONTAINER_INPUT:
+      case authorization::ATTACH_CONTAINER_OUTPUT:
+      case authorization::VIEW_CONTAINER:
+      case authorization::SET_LOG_LEVEL:
+      case authorization::REMOVE_NESTED_CONTAINER:
+      case authorization::REGISTER_AGENT:
+      case authorization::UPDATE_MAINTENANCE_SCHEDULE:
+      case authorization::GET_MAINTENANCE_SCHEDULE:
+      case authorization::START_MAINTENANCE:
+      case authorization::STOP_MAINTENANCE:
+      case authorization::GET_MAINTENANCE_STATUS:
+      case authorization::MARK_AGENT_GONE:
+      case authorization::LAUNCH_STANDALONE_CONTAINER:
+      case authorization::KILL_STANDALONE_CONTAINER:
+      case authorization::WAIT_STANDALONE_CONTAINER:
+      case authorization::REMOVE_STANDALONE_CONTAINER:
+      case authorization::VIEW_STANDALONE_CONTAINER:
+      case authorization::MODIFY_RESOURCE_PROVIDER_CONFIG:
+      case authorization::MARK_RESOURCE_PROVIDER_GONE:
+      case authorization::VIEW_RESOURCE_PROVIDER:
+      case authorization::PRUNE_IMAGES:
+        return {};
+    }
+
+    UNREACHABLE();
+  }
+};
+
+
+INSTANTIATE_TEST_CASE_P(
+    AllowedAction,
+    MasterOperationAuthorizationTest,
+    ::testing::Values(
+        authorization::RUN_TASK,
+        authorization::RESERVE_RESOURCES,
+        authorization::UNRESERVE_RESOURCES,
+        authorization::CREATE_VOLUME,
+        authorization::DESTROY_VOLUME,
+        authorization::RESIZE_VOLUME,
+        authorization::CREATE_BLOCK_DISK,
+        authorization::DESTROY_BLOCK_DISK,
+        authorization::CREATE_MOUNT_DISK,
+        authorization::DESTROY_MOUNT_DISK),
+    [](const testing::TestParamInfo<authorization::Action>& action) {
+      return authorization::Action_Name(action.param);
+    });
+
+
+// This test verifies that allowing or denying an action will only result in a
+// success or failure on specific operations but not other operations in an
+// accept call. This is a regression test for MESOS-9474 and MESOS-9480.
+TEST_P(MasterOperationAuthorizationTest, Accept)
+{
+  Clock::pause();
+
+  // We use this flag to control when the mock authorizer starts to deny
+  // disallowed actions.
+  std::atomic_bool permissive(true);
+
+  MockAuthorizer authorizer;
+  EXPECT_CALL(authorizer, authorized(_))
+    .WillRepeatedly(Invoke([&](const authorization::Request& request) {
+      return permissive || request.action() == GetParam();
+    }));
+
+  Try<Owned<cluster::Master>> master = StartMaster(&authorizer);
+  ASSERT_SOME(master);
+
+  // First, we create a list of operations to exercise all authorization
+  // actions, and compute the total resources needed by these operations and set
+  // up their expected terminal states.
+  //
+  // NOTE: We create some `RUN_TASK` operations in the beginning and some in the
+  // end for two reasons: 1. These operations doesn't have operation IDs so
+  // needs to be handled differently. 2. By adding some operations for the
+  // `RUN_TASK` action in the end, we can verify that their results are not
+  // affected by preceding authorizations.
+  vector<v1::Offer::Operation> operations;
+  v1::Resources totalResources;
+  hashmap<v1::TaskID, v1::TaskState> expectedTaskStates;
+  hashmap<v1::OperationID, v1::OperationState> expectedOperationStates;
+
+  // NOTE: Because we create operations before getting an offer, we synthesize
+  // the framework ID and agent ID here and check them later.
+  v1::FrameworkID frameworkId;
+  frameworkId.set_value(master.get()->getMasterInfo().id() + "-0000");
+  v1::AgentID agentId;
+  agentId.set_value(master.get()->getMasterInfo().id() + "-S0");
+
+  auto addRunTaskOperations = [&] {
+    foreach (
+        v1::Offer::Operation& operation,
+        createOperations(frameworkId, agentId, authorization::RUN_TASK)) {
+      if (operation.type() == v1::Offer::Operation::LAUNCH) {
+        foreach (const v1::TaskInfo& task, operation.launch().task_infos()) {
+          totalResources += task.resources();
+          totalResources += task.executor().resources();
+
+          expectedTaskStates.put(
+              task.task_id(),
+              authorization::RUN_TASK == GetParam()
+                ? v1::TASK_FINISHED : v1::TASK_ERROR);
+        }
+      } else if (operation.type() == v1::Offer::Operation::LAUNCH_GROUP) {
+        totalResources += operation.launch_group().executor().resources();
+
+        foreach (
+            const v1::TaskInfo& task,
+            operation.launch_group().task_group().tasks()) {
+          totalResources += task.resources();
+
+          expectedTaskStates.put(
+              task.task_id(),
+              authorization::RUN_TASK == GetParam()
+                ? v1::TASK_FINISHED : v1::TASK_ERROR);
+        }
+      }
+
+      operations.push_back(std::move(operation));
+    }
+  };
+
+  addRunTaskOperations();
+
+  for (int i = 0; i < authorization::Action_descriptor()->value_count(); i++) {
+    const authorization::Action action = static_cast<authorization::Action>(
+        authorization::Action_descriptor()->value(i)->number());
+
+    // Skip `RUN_TASK` operations since they are handled separately.
+    if (action == authorization::RUN_TASK) {
+      continue;
+    }
+
+    foreach (
+        v1::Offer::Operation& operation,
+        createOperations(frameworkId, agentId, action)) {
+      Try<Resources> consumed =
+        protobuf::getConsumedResources(devolve(operation));
+      ASSERT_SOME(consumed);
+      totalResources += evolve(consumed.get());
+
+      ASSERT_TRUE(operation.has_id());
+      expectedOperationStates.put(
+          operation.id(),
+          action == GetParam() ? v1::OPERATION_FINISHED : v1::OPERATION_ERROR);
+
+      operations.push_back(std::move(operation));
+    }
+  }
+
+  addRunTaskOperations();
+
+  // Then, we register a mock agent that has sufficient resources to exercise
+  // all operations and simply replies `TASK_FINISHED` or `OPERATION_FINISHED`
+  // for all tasks or operations it receives.
+  //
+  // NOTE: Since dynamic reservations, persistent volumes and resource
+  // provider resources cannot be specified through the `--resources` flag, we
+  // intercept the `RegisterSlaveMessage` and `UpdateSlaveMessage` to inject
+  // resources required by all operations then forward them to the master.
+  Future<RegisterSlaveMessage> registerSlaveMessage =
+    DROP_PROTOBUF(RegisterSlaveMessage(), _, _);
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    DROP_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), slaveFlags, true);
+  ASSERT_SOME(slave);
+  ASSERT_NE(nullptr, slave.get()->mock());
+
+  EXPECT_CALL(*slave.get()->mock(), runTask(_, _, _, _, _, _, _))
+    .WillRepeatedly(Invoke([&](
+        const process::UPID& from,
+        const FrameworkInfo& frameworkInfo,
+        const FrameworkID& frameworkId,
+        const process::UPID& pid,
+        const TaskInfo& task,
+        const std::vector<ResourceVersionUUID>& resourceVersionUuids,
+        const Option<bool>& launchExecutor) {
+      ASSERT_TRUE(frameworkInfo.has_id());
+
+      StatusUpdateMessage message;
+      message.set_pid(slave.get()->pid);
+      *message.mutable_update() = protobuf::createStatusUpdate(
+          frameworkInfo.id(),
+          devolve(agentId),
+          task.task_id(),
+          TASK_FINISHED,
+          TaskStatus::SOURCE_SLAVE,
+          id::UUID::random());
+
+      process::post(slave.get()->pid, master.get()->pid, message);
+    }));
+
+  EXPECT_CALL(*slave.get()->mock(), runTaskGroup(_, _, _, _, _, _))
+    .WillRepeatedly(Invoke([&](
+        const process::UPID& from,
+        const FrameworkInfo& frameworkInfo,
+        const ExecutorInfo& executorInfo,
+        const TaskGroupInfo& taskGroup,
+        const std::vector<ResourceVersionUUID>& resourceVersionUuids,
+        const Option<bool>& launchExecutor) {
+      ASSERT_TRUE(frameworkInfo.has_id());
+
+      foreach (const TaskInfo& task, taskGroup.tasks()) {
+        StatusUpdateMessage message;
+        message.set_pid(slave.get()->pid);
+        *message.mutable_update() = protobuf::createStatusUpdate(
+            frameworkInfo.id(),
+            devolve(agentId),
+            task.task_id(),
+            TASK_FINISHED,
+            TaskStatus::SOURCE_SLAVE,
+            id::UUID::random());
+
+        process::post(slave.get()->pid, master.get()->pid, message);
+      }
+    }));
+
+  EXPECT_CALL(*slave.get()->mock(), applyOperation(_))
+    .WillRepeatedly(Invoke([&](const ApplyOperationMessage& message) {
+      ASSERT_TRUE(message.has_framework_id());
+      ASSERT_TRUE(message.operation_info().has_id());
+
+      process::post(
+          slave.get()->pid,
+          master.get()->pid,
+          protobuf::createUpdateOperationStatusMessage(
+              message.operation_uuid(),
+              protobuf::createOperationStatus(
+                  OPERATION_FINISHED,
+                  message.operation_info().id(),
+                  None(),
+                  None(),
+                  None(),
+                  devolve(agentId)),
+              None(),
+              message.framework_id(),
+              devolve(agentId)));
+    }));
+
+  slave.get()->start();
+
+  // Settle the clock to ensure that the master has been detected by the agent,
+  // then advance the clock to trigger an authentication and a registration.
+  Clock::settle();
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(registerSlaveMessage);
+
+  {
+    RegisterSlaveMessage message = registerSlaveMessage.get();
+    *message.mutable_slave()->mutable_resources() =
+      createAgentResources(devolve(totalResources));
+    *message.mutable_checkpointed_resources() =
+      devolve(totalResources).filter(needCheckpointing);
+
+    process::post(slave.get()->pid, master.get()->pid, message);
+  }
+
+  AWAIT_READY(slaveRegisteredMessage);
+  EXPECT_EQ(devolve(agentId), slaveRegisteredMessage->slave_id());
+
+  AWAIT_READY(updateSlaveMessage);
+
+  {
+    UpdateSlaveMessage message = updateSlaveMessage.get();
+    UpdateSlaveMessage::ResourceProvider* resourceProvider =
+      message.mutable_resource_providers()->add_providers();
+    resourceProvider->mutable_info()->mutable_id()->set_value("provider");
+    resourceProvider->mutable_info()->set_type("resource_provider_type");
+    resourceProvider->mutable_info()->set_name("resource_provider_name");
+    *resourceProvider->mutable_total_resources() =
+      devolve(totalResources).filter(&Resources::hasResourceProvider);
+    resourceProvider->mutable_operations();
+    resourceProvider->mutable_resource_version_uuid()->set_value(
+        id::UUID::random().toBytes());
+
+    process::post(slave.get()->pid, master.get()->pid, message);
+  }
+
+  // Settle the clock to ensure that the resource providers has been updated.
+  Clock::settle();
+
+  // Finally, we register a framework to exercise all operations, and check that
+  // only authorized tasks and operations are finished.
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_roles(0, "role");
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(v1::scheduler::SendSubscribe(frameworkInfo));
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _)).WillOnce(FutureArg<1>(&subscribed));
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid, ContentType::PROTOBUF, scheduler);
+
+  AWAIT_READY(subscribed);
+  EXPECT_EQ(frameworkId, subscribed->framework_id());
+
+  // Start to deny disallowed actions.
+  permissive = false;
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->offers_size());
+
+  hashmap<v1::TaskID, Future<v1::scheduler::Event::Update>>
+    actualTaskStatusUpdates;
+  hashmap<v1::OperationID, Future<v1::scheduler::Event::UpdateOperationStatus>>
+    actualOperationStatusUpdates;
+
+  foreachkey (const v1::TaskID& taskId, expectedTaskStates) {
+    EXPECT_CALL(*scheduler, update(_, AllOf(
+        TaskStatusUpdateTaskIdEq(taskId),
+        Truly([](const v1::scheduler::Event::Update& update) {
+          return protobuf::isTerminalState(devolve(update.status()).state());
+        }))))
+      .WillOnce(FutureArg<1>(&actualTaskStatusUpdates[taskId]));
+  }
+
+  foreachkey (const v1::OperationID& operationId, expectedOperationStates) {
+    EXPECT_CALL(*scheduler, updateOperationStatus(_, AllOf(
+        v1::scheduler::OperationStatusUpdateOperationIdEq(operationId),
+        Truly([](const v1::scheduler::Event::UpdateOperationStatus& update) {
+          return protobuf::isTerminalState(devolve(update.status()).state());
+        }))))
+      .WillOnce(FutureArg<1>(&actualOperationStatusUpdates[operationId]));
+  }
+
+  mesos.send(v1::createCallAccept(
+      subscribed->framework_id(),
+      offers->offers(0),
+      operations));
+
+  foreachpair (
+      const v1::TaskID& taskId,
+      const Future<v1::scheduler::Event::Update>& update,
+      actualTaskStatusUpdates) {
+    AWAIT_READY(update);
+    EXPECT_EQ(expectedTaskStates[taskId], update->status().state());
+  }
+
+  foreachpair (
+      const v1::OperationID& operationId,
+      const Future<v1::scheduler::Event::UpdateOperationStatus>& update,
+      actualOperationStatusUpdates) {
+    AWAIT_READY(update);
+    EXPECT_EQ(expectedOperationStates[operationId], update->status().state());
+  }
 }
 
 } // namespace tests {

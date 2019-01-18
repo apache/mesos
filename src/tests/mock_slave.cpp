@@ -153,6 +153,8 @@ MockSlave::MockSlave(
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked_shutdownExecutor));
   EXPECT_CALL(*this, _shutdownExecutor(_, _))
     .WillRepeatedly(Invoke(this, &MockSlave::unmocked__shutdownExecutor));
+  EXPECT_CALL(*this, applyOperation(_))
+    .WillRepeatedly(Invoke(this, &MockSlave::unmocked_applyOperation));
 }
 
 
@@ -313,6 +315,11 @@ void MockSlave::unmocked__shutdownExecutor(
   slave::Slave::_shutdownExecutor(framework, executor);
 }
 
+
+void MockSlave::unmocked_applyOperation(const ApplyOperationMessage& message)
+{
+  slave::Slave::applyOperation(message);
+}
 
 } // namespace tests {
 } // namespace internal {

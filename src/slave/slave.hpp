@@ -268,7 +268,8 @@ public:
   void checkpointResourcesMessage(
       const std::vector<Resource>& resources);
 
-  void applyOperation(const ApplyOperationMessage& message);
+  // Made 'virtual' for Slave mocking.
+  virtual void applyOperation(const ApplyOperationMessage& message);
 
   // Reconciles pending operations with the master. This is necessary to handle
   // cases in which operations were dropped in transit, or in which an agent's

@@ -253,6 +253,12 @@ public:
   void unmocked__shutdownExecutor(
       slave::Framework* framework,
       slave::Executor* executor);
+
+  MOCK_METHOD1(applyOperation, void(
+      const ApplyOperationMessage& message));
+
+  void unmocked_applyOperation(
+      const ApplyOperationMessage& message);
 };
 
 } // namespace tests {
