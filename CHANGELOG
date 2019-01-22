@@ -477,6 +477,7 @@ Release Notes - Mesos - Version 1.6.2 (WIP)
   * [MESOS-9480] - Master may skip processing authorization results for `LAUNCH_GROUP`.
   * [MESOS-9492] - Persist CNI working directory across reboot.
   * [MESOS-9518] - CNI_NETNS should not be set for orphan containers that do not have network namespace.
+  * [MESOS-9531] - chown error handling is incorrect in createSandboxDirectory.
 
 ** Improvement
   * [MESOS-9305] - Create cgoup recursively to workaround systemd deleting cgroups_root.
