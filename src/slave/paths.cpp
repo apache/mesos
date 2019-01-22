@@ -799,7 +799,7 @@ Try<Nothing> createSandboxDirectory(
   // Since this is a sandbox directory containing private task data,
   // we want to ensure that it is not accessible to "others".
   Try<Nothing> chmod = os::chmod(directory, 0750);
-  if (mkdir.isError()) {
+  if (chmod.isError()) {
     return Error("Failed to chmod directory: " + chmod.error());
   }
 
