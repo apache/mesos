@@ -2050,7 +2050,8 @@ TEST_F(CniIsolatorTest, ROOT_CleanupAfterReboot)
   Future<TaskStatus> statusGone;
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&statusRunning))
-    .WillOnce(FutureArg<1>(&statusGone));
+    .WillOnce(FutureArg<1>(&statusGone))
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   driver.launchTasks(offer.id(), {task});
 
