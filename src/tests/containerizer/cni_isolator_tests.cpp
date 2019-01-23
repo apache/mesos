@@ -2348,7 +2348,8 @@ TEST_F(CniIsolatorTest, ROOT_CleanupAfterReboot)
   EXPECT_CALL(sched, statusUpdate(&driver, _))
     .WillOnce(FutureArg<1>(&statusStarting))
     .WillOnce(FutureArg<1>(&statusRunning))
-    .WillOnce(FutureArg<1>(&statusGone));
+    .WillOnce(FutureArg<1>(&statusGone))
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
 
   driver.launchTasks(offer.id(), {task});
 
