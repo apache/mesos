@@ -16,6 +16,59 @@
 #include <process/id.hpp>
 #include <process/process.hpp>
 
+#include <stout/unreachable.hpp>
+
+using std::ostream;
+
+namespace grpc {
+
+ostream& operator<<(ostream& stream, StatusCode statusCode)
+{
+  switch (statusCode) {
+    case OK:
+      return stream << "OK";
+    case CANCELLED:
+      return stream << "CANCELLED";
+    case UNKNOWN:
+      return stream << "UNKNOWN";
+    case INVALID_ARGUMENT:
+      return stream << "INVALID_ARGUMENT";
+    case DEADLINE_EXCEEDED:
+      return stream << "DEADLINE_EXCEEDED";
+    case NOT_FOUND:
+      return stream << "NOT_FOUND";
+    case ALREADY_EXISTS:
+      return stream << "ALREADY_EXISTS";
+    case PERMISSION_DENIED:
+      return stream << "PERMISSION_DENIED";
+    case UNAUTHENTICATED:
+      return stream << "UNAUTHENTICATED";
+    case RESOURCE_EXHAUSTED:
+      return stream << "RESOURCE_EXHAUSTED";
+    case FAILED_PRECONDITION:
+      return stream << "FAILED_PRECONDITION";
+    case ABORTED:
+      return stream << "ABORTED";
+    case OUT_OF_RANGE:
+      return stream << "OUT_OF_RANGE";
+    case UNIMPLEMENTED:
+      return stream << "UNIMPLEMENTED";
+    case INTERNAL:
+      return stream << "INTERNAL";
+    case UNAVAILABLE:
+      return stream << "UNAVAILABLE";
+    case DATA_LOSS:
+      return stream << "DATA_LOSS";
+    case DO_NOT_USE:
+      return stream << "DO_NOT_USE";
+  }
+
+  UNREACHABLE();
+}
+
+} // namespace grpc {
+
+
 namespace process {
 namespace grpc {
 namespace client {
