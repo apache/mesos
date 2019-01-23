@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
 #include <memory>
 #include <numeric>
 #include <utility>
@@ -48,6 +49,7 @@
 
 #include <mesos/v1/resource_provider.hpp>
 
+#include <stout/duration.hpp>
 #include <stout/foreach.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
@@ -55,6 +57,7 @@
 #include <stout/os.hpp>
 #include <stout/path.hpp>
 #include <stout/strings.hpp>
+#include <stout/unreachable.hpp>
 
 #include <stout/os/realpath.hpp>
 
@@ -109,6 +112,8 @@ using process::Sequence;
 using process::spawn;
 using process::Timeout;
 
+using process::grpc::StatusError;
+
 using process::http::authentication::Principal;
 
 using process::metrics::Counter;
@@ -129,6 +134,23 @@ using mesos::v1::resource_provider::Driver;
 
 namespace mesos {
 namespace internal {
+
+// Timeout for a CSI plugin component to create its endpoint socket.
+//
+// TODO(chhsiao): Make the timeout configurable.
+constexpr Duration CSI_ENDPOINT_CREATION_TIMEOUT = Minutes(1);
+
+// Storage local resource provider initially picks a random amount of time
+// between `[0, b]`, where `b = DEFAULT_CSI_RETRY_BACKOFF_FACTOR`, to retry CSI
+// calls related to `CREATE_DISK` or `DESTROY_DISK` operations. Subsequent
+// retries are exponentially backed off based on this interval (e.g., 2nd retry
+// uses a random value between `[0, b * 2^1]`, 3rd retry between `[0, b * 2^2]`,
+// etc) up to a maximum of `DEFAULT_CSI_RETRY_INTERVAL_MAX`.
+//
+// TODO(chhsiao): Make the retry parameters configurable.
+constexpr Duration DEFAULT_CSI_RETRY_BACKOFF_FACTOR = Seconds(10);
+constexpr Duration DEFAULT_CSI_RETRY_INTERVAL_MAX = Minutes(10);
+
 
 // Returns true if the string is a valid Java identifier.
 static bool isValidName(const string& s)
@@ -162,11 +184,6 @@ static bool isValidType(const string& s)
 
   return true;
 }
-
-
-// Timeout for a CSI plugin component to create its endpoint socket.
-// TODO(chhsiao): Make the timeout configurable.
-static const Duration CSI_ENDPOINT_CREATION_TIMEOUT = Minutes(1);
 
 
 // Returns the container ID of the standalone container to run a CSI plugin
@@ -408,10 +425,12 @@ private:
       typename std::enable_if<rpc != csi::v0::PROBE, int>::type = 0>
   Future<typename csi::v0::RPCTraits<rpc>::response_type> call(
       const ContainerID& containerId,
-      const typename csi::v0::RPCTraits<rpc>::request_type& request);
+      const typename csi::v0::RPCTraits<rpc>::request_type& request,
+      bool retry = false);
 
   template <csi::v0::RPC rpc>
-  Future<typename csi::v0::RPCTraits<rpc>::response_type> _call(
+  Future<Try<typename csi::v0::RPCTraits<rpc>::response_type, StatusError>>
+  _call(
       csi::v0::Client client,
       const typename csi::v0::RPCTraits<rpc>::request_type& request);
 
@@ -1877,32 +1896,98 @@ template <
 Future<typename csi::v0::RPCTraits<rpc>::response_type>
 StorageLocalResourceProviderProcess::call(
     const ContainerID& containerId,
-    const typename csi::v0::RPCTraits<rpc>::request_type& request)
+    const typename csi::v0::RPCTraits<rpc>::request_type& request,
+    bool retry)
 {
-  // Get the latest service future before making the call.
-  return getService(containerId)
-    .then(defer(self(), &Self::_call<rpc>, lambda::_1, request));
+  using Response = typename csi::v0::RPCTraits<rpc>::response_type;
+
+  Duration maxBackoff = DEFAULT_CSI_RETRY_BACKOFF_FACTOR;
+
+  return loop(
+      self(),
+      [=] {
+        // Perform the call with the latest service future.
+        return getService(containerId)
+          .then(defer(
+              self(),
+              &StorageLocalResourceProviderProcess::_call<rpc>,
+              lambda::_1,
+              request));
+      },
+      [=](const Try<Response, StatusError>& result) mutable
+          -> Future<ControlFlow<Response>> {
+        if (result.isSome()) {
+          return Break(result.get());
+        }
+
+        if (retry) {
+          // See the link below for retryable status codes:
+          // https://grpc.io/grpc/cpp/namespacegrpc.html#aff1730578c90160528f6a8d67ef5c43b // NOLINT
+          switch (result.error().status.error_code()) {
+            case grpc::DEADLINE_EXCEEDED:
+            case grpc::UNAVAILABLE: {
+              Duration delay =
+                maxBackoff * (static_cast<double>(os::random()) / RAND_MAX);
+
+              maxBackoff =
+                std::min(maxBackoff * 2, DEFAULT_CSI_RETRY_INTERVAL_MAX);
+
+              LOG(ERROR)
+                << "Received '" << result.error() << "' while calling " << rpc
+                << ". Retrying in " << delay;
+
+              return after(delay)
+                .then([]() -> Future<ControlFlow<Response>> {
+                  return Continue();
+                });
+            }
+            case grpc::CANCELLED:
+            case grpc::UNKNOWN:
+            case grpc::INVALID_ARGUMENT:
+            case grpc::NOT_FOUND:
+            case grpc::ALREADY_EXISTS:
+            case grpc::PERMISSION_DENIED:
+            case grpc::UNAUTHENTICATED:
+            case grpc::RESOURCE_EXHAUSTED:
+            case grpc::FAILED_PRECONDITION:
+            case grpc::ABORTED:
+            case grpc::OUT_OF_RANGE:
+            case grpc::UNIMPLEMENTED:
+            case grpc::INTERNAL:
+            case grpc::DATA_LOSS: {
+              break;
+            }
+            case grpc::OK:
+            case grpc::DO_NOT_USE: {
+              UNREACHABLE();
+            }
+          }
+        }
+
+        return Failure(result.error());
+      });
 }
 
 
 template <csi::v0::RPC rpc>
-Future<typename csi::v0::RPCTraits<rpc>::response_type>
+Future<Try<typename csi::v0::RPCTraits<rpc>::response_type, StatusError>>
 StorageLocalResourceProviderProcess::_call(
     csi::v0::Client client,
     const typename csi::v0::RPCTraits<rpc>::request_type& request)
 {
+  using Response = typename csi::v0::RPCTraits<rpc>::response_type;
+
   ++metrics.csi_plugin_rpcs_pending.at(rpc);
 
   return client.call<rpc>(request)
-    .onAny(defer(self(), [=](
-        const Future<typename csi::v0::RPCTraits<rpc>::response_type>& future) {
+    .onAny(defer(self(), [=](const Future<Try<Response, StatusError>>& future) {
       --metrics.csi_plugin_rpcs_pending.at(rpc);
-      if (future.isReady()) {
+      if (future.isReady() && future->isSome()) {
         ++metrics.csi_plugin_rpcs_successes.at(rpc);
-      } else if (future.isFailed()) {
-        ++metrics.csi_plugin_rpcs_errors.at(rpc);
-      } else {
+      } else if (future.isDiscarded()) {
         ++metrics.csi_plugin_rpcs_cancelled.at(rpc);
+      } else {
+        ++metrics.csi_plugin_rpcs_errors.at(rpc);
       }
     }));
 }
@@ -1943,7 +2028,14 @@ Future<csi::v0::Client> StorageLocalResourceProviderProcess::waitService(
   return service
     .then(defer(self(), [=](csi::v0::Client client) {
       return _call<csi::v0::PROBE>(client, csi::v0::ProbeRequest())
-        .then([=]() -> csi::v0::Client { return client; });
+        .then([=](const Try<csi::v0::ProbeResponse, StatusError>& result)
+            -> Future<csi::v0::Client> {
+          if (result.isError()) {
+            return Failure(result.error());
+          }
+
+          return client;
+        });
     }));
 }
 
@@ -2682,7 +2774,7 @@ Future<string> StorageLocalResourceProviderProcess::createVolume(
   CHECK_SOME(controllerContainerId);
 
   return call<csi::v0::CREATE_VOLUME>(
-      controllerContainerId.get(), std::move(request))
+      controllerContainerId.get(), std::move(request), true) // Retry.
     .then(defer(self(), [=](
         const csi::v0::CreateVolumeResponse& response) -> string {
       const csi::v0::Volume& volume = response.volume();
@@ -2774,7 +2866,7 @@ Future<bool> StorageLocalResourceProviderProcess::deleteVolume(
             CHECK_SOME(controllerContainerId);
 
             return call<csi::v0::DELETE_VOLUME>(
-                controllerContainerId.get(), std::move(request))
+                controllerContainerId.get(), std::move(request), true) // Retry.
               .then([] { return Nothing(); });
           }));
       }

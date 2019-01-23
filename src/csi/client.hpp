@@ -35,8 +35,9 @@ public:
     : connection(_connection), runtime(_runtime) {}
 
   template <RPC rpc>
-  process::Future<typename RPCTraits<rpc>::response_type> call(
-      typename RPCTraits<rpc>::request_type request);
+  process::Future<
+      Try<typename RPCTraits<rpc>::response_type, process::grpc::StatusError>>
+  call(typename RPCTraits<rpc>::request_type request);
 
 private:
   process::grpc::client::Connection connection;
@@ -45,105 +46,95 @@ private:
 
 
 template <>
-process::Future<GetPluginInfoResponse>
-Client::call<GET_PLUGIN_INFO>(
-    GetPluginInfoRequest request);
+process::Future<Try<GetPluginInfoResponse, process::grpc::StatusError>>
+Client::call<GET_PLUGIN_INFO>(GetPluginInfoRequest request);
 
 
 template <>
-process::Future<GetPluginCapabilitiesResponse>
-Client::call<GET_PLUGIN_CAPABILITIES>(
-    GetPluginCapabilitiesRequest request);
+process::Future<Try<GetPluginCapabilitiesResponse, process::grpc::StatusError>>
+Client::call<GET_PLUGIN_CAPABILITIES>(GetPluginCapabilitiesRequest request);
 
 
 template <>
-process::Future<ProbeResponse>
-Client::call<PROBE>(
-    ProbeRequest request);
+process::Future<Try<ProbeResponse, process::grpc::StatusError>>
+Client::call<PROBE>(ProbeRequest request);
 
 
 template <>
-process::Future<CreateVolumeResponse>
-Client::call<CREATE_VOLUME>(
-    CreateVolumeRequest request);
+process::Future<Try<CreateVolumeResponse, process::grpc::StatusError>>
+Client::call<CREATE_VOLUME>(CreateVolumeRequest request);
 
 
 template <>
-process::Future<DeleteVolumeResponse>
-Client::call<DELETE_VOLUME>(
-    DeleteVolumeRequest request);
+process::Future<Try<DeleteVolumeResponse, process::grpc::StatusError>>
+Client::call<DELETE_VOLUME>(DeleteVolumeRequest request);
 
 
 template <>
-process::Future<ControllerPublishVolumeResponse>
-Client::call<CONTROLLER_PUBLISH_VOLUME>(
-    ControllerPublishVolumeRequest request);
+process::Future<
+    Try<ControllerPublishVolumeResponse, process::grpc::StatusError>>
+Client::call<CONTROLLER_PUBLISH_VOLUME>(ControllerPublishVolumeRequest request);
 
 
 template <>
-process::Future<ControllerUnpublishVolumeResponse>
+process::Future<
+    Try<ControllerUnpublishVolumeResponse, process::grpc::StatusError>>
 Client::call<CONTROLLER_UNPUBLISH_VOLUME>(
     ControllerUnpublishVolumeRequest request);
 
 
 template <>
-process::Future<ValidateVolumeCapabilitiesResponse>
+process::Future<
+    Try<ValidateVolumeCapabilitiesResponse, process::grpc::StatusError>>
 Client::call<VALIDATE_VOLUME_CAPABILITIES>(
     ValidateVolumeCapabilitiesRequest request);
 
 
 template <>
-process::Future<ListVolumesResponse>
-Client::call<LIST_VOLUMES>(
-    ListVolumesRequest request);
+process::Future<Try<ListVolumesResponse, process::grpc::StatusError>>
+Client::call<LIST_VOLUMES>(ListVolumesRequest request);
 
 
 template <>
-process::Future<GetCapacityResponse>
-Client::call<GET_CAPACITY>(
-    GetCapacityRequest request);
+process::Future<Try<GetCapacityResponse, process::grpc::StatusError>>
+Client::call<GET_CAPACITY>(GetCapacityRequest request);
 
 
 template <>
-process::Future<ControllerGetCapabilitiesResponse>
+process::Future<
+    Try<ControllerGetCapabilitiesResponse, process::grpc::StatusError>>
 Client::call<CONTROLLER_GET_CAPABILITIES>(
     ControllerGetCapabilitiesRequest request);
 
 
 template <>
-process::Future<NodeStageVolumeResponse>
-Client::call<NODE_STAGE_VOLUME>(
-    NodeStageVolumeRequest request);
+process::Future<Try<NodeStageVolumeResponse, process::grpc::StatusError>>
+Client::call<NODE_STAGE_VOLUME>(NodeStageVolumeRequest request);
 
 
 template <>
-process::Future<NodeUnstageVolumeResponse>
-Client::call<NODE_UNSTAGE_VOLUME>(
-    NodeUnstageVolumeRequest request);
+process::Future<Try<NodeUnstageVolumeResponse, process::grpc::StatusError>>
+Client::call<NODE_UNSTAGE_VOLUME>(NodeUnstageVolumeRequest request);
 
 
 template <>
-process::Future<NodePublishVolumeResponse>
-Client::call<NODE_PUBLISH_VOLUME>(
-    NodePublishVolumeRequest request);
+process::Future<Try<NodePublishVolumeResponse, process::grpc::StatusError>>
+Client::call<NODE_PUBLISH_VOLUME>(NodePublishVolumeRequest request);
 
 
 template <>
-process::Future<NodeUnpublishVolumeResponse>
-Client::call<NODE_UNPUBLISH_VOLUME>(
-    NodeUnpublishVolumeRequest request);
+process::Future<Try<NodeUnpublishVolumeResponse, process::grpc::StatusError>>
+Client::call<NODE_UNPUBLISH_VOLUME>(NodeUnpublishVolumeRequest request);
 
 
 template <>
-process::Future<NodeGetIdResponse>
-Client::call<NODE_GET_ID>(
-    NodeGetIdRequest request);
+process::Future<Try<NodeGetIdResponse, process::grpc::StatusError>>
+Client::call<NODE_GET_ID>(NodeGetIdRequest request);
 
 
 template <>
-process::Future<NodeGetCapabilitiesResponse>
-Client::call<NODE_GET_CAPABILITIES>(
-    NodeGetCapabilitiesRequest request);
+process::Future<Try<NodeGetCapabilitiesResponse, process::grpc::StatusError>>
+Client::call<NODE_GET_CAPABILITIES>(NodeGetCapabilitiesRequest request);
 
 } // namespace v0 {
 } // namespace csi {
