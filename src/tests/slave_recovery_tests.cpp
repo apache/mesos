@@ -2748,7 +2748,7 @@ TYPED_TEST(SlaveRecoveryTest, Reboot)
   // Modify the boot ID to simulate a reboot.
   ASSERT_SOME(os::write(
       paths::getBootIdPath(paths::getMetaRootDir(flags.work_dir)),
-      "rebooted! ;)"));
+      "rebooted!"));
 
   Future<ReregisterSlaveMessage> reregisterSlaveMessage =
     FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
@@ -2934,7 +2934,7 @@ TYPED_TEST(SlaveRecoveryTest, RebootWithExecutorPidReused)
   // Modify the boot ID to simulate a reboot.
   ASSERT_SOME(os::write(
       paths::getBootIdPath(paths::getMetaRootDir(flags.work_dir)),
-      "rebooted! ;)"));
+      "rebooted!"));
 
   // Modify the executor's pid to simulate the pid is reused after reboot.
   ASSERT_SOME(os::write(pidPath, stringify(::getpid())));
@@ -3014,7 +3014,7 @@ TYPED_TEST(SlaveRecoveryTest, RebootWithSlaveInfoMismatch)
   // Modify the boot ID to simulate a reboot.
   ASSERT_SOME(os::write(
       paths::getBootIdPath(paths::getMetaRootDir(flags.work_dir)),
-      "rebooted! ;)"));
+      "rebooted!"));
 
   Future<RegisterSlaveMessage> registerSlaveMessage =
     FUTURE_PROTOBUF(RegisterSlaveMessage(), _, _);
@@ -3110,7 +3110,7 @@ TYPED_TEST(SlaveRecoveryTest, RebootWithSlaveInfoMismatchAndRestart)
   // Modify the boot ID to simulate a reboot.
   ASSERT_SOME(os::write(
       paths::getBootIdPath(paths::getMetaRootDir(flags.work_dir)),
-      "rebooted! ;)"));
+      "rebooted!"));
 
   // Change agent's resources to cause agent info mismatch.
   flags.resources = "cpus:4;mem:2048;disk:2048";
