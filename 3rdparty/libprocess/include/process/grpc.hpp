@@ -15,6 +15,7 @@
 
 #include <chrono>
 #include <memory>
+#include <ostream>
 #include <string>
 #include <thread>
 #include <type_traits>
@@ -34,6 +35,7 @@
 #include <stout/error.hpp>
 #include <stout/lambda.hpp>
 #include <stout/nothing.hpp>
+#include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
 
@@ -47,6 +49,13 @@
 #define GRPC_CLIENT_METHOD(service, rpc) \
   (&service::Stub::PrepareAsync##rpc)
 
+namespace grpc {
+
+std::ostream& operator<<(std::ostream& stream, StatusCode statusCode);
+
+} // namespace grpc {
+
+
 namespace process {
 namespace grpc {
 
@@ -58,7 +67,10 @@ class StatusError : public Error
 {
 public:
   StatusError(::grpc::Status _status)
-    : Error(_status.error_message()), status(std::move(_status))
+    : Error(stringify(_status.error_code()) +
+            (_status.error_message().empty()
+               ? "" : ": " + _status.error_message())),
+      status(std::move(_status))
   {
     CHECK(!status.ok());
   }
