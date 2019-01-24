@@ -52,6 +52,8 @@ enum RPC
 };
 
 
+namespace internal {
+
 template <RPC>
 struct RPCTraits;
 
@@ -190,6 +192,15 @@ struct RPCTraits<NODE_GET_CAPABILITIES>
   typedef NodeGetCapabilitiesRequest request_type;
   typedef NodeGetCapabilitiesResponse response_type;
 };
+
+} // namespace internal {
+
+
+template <RPC rpc>
+using Request = typename internal::RPCTraits<rpc>::request_type;
+
+template <RPC rpc>
+using Response = typename internal::RPCTraits<rpc>::response_type;
 
 
 std::ostream& operator<<(std::ostream& stream, const RPC& rpc);

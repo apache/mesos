@@ -17,6 +17,17 @@
 #ifndef __RESOURCE_PROVIDER_STORAGE_PROVIDER_HPP__
 #define __RESOURCE_PROVIDER_STORAGE_PROVIDER_HPP__
 
+#include <string>
+
+#include <mesos/mesos.hpp>
+
+#include <process/http.hpp>
+#include <process/owned.hpp>
+
+#include <stout/error.hpp>
+#include <stout/option.hpp>
+#include <stout/try.hpp>
+
 #include "resource_provider/local.hpp"
 
 namespace mesos {
@@ -32,15 +43,15 @@ public:
   static Try<process::Owned<LocalResourceProvider>> create(
       const process::http::URL& url,
       const std::string& workDir,
-      const mesos::ResourceProviderInfo& info,
+      const ResourceProviderInfo& info,
       const SlaveID& slaveId,
       const Option<std::string>& authToken,
       bool strict);
 
   static Try<process::http::authentication::Principal> principal(
-      const mesos::ResourceProviderInfo& info);
+      const ResourceProviderInfo& info);
 
-  static Option<Error> validate(const mesos::ResourceProviderInfo& info);
+  static Option<Error> validate(const ResourceProviderInfo& info);
 
   ~StorageLocalResourceProvider() override;
 
@@ -54,7 +65,7 @@ private:
   explicit StorageLocalResourceProvider(
       const process::http::URL& url,
       const std::string& workDir,
-      const mesos::ResourceProviderInfo& info,
+      const ResourceProviderInfo& info,
       const SlaveID& slaveId,
       const Option<std::string>& authToken,
       bool strict);
