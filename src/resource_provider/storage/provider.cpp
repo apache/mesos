@@ -2013,6 +2013,11 @@ Future<csi::v0::Client> StorageLocalResourceProviderProcess::getService(
       config->resources(),
       containerInfo,
       std::function<Future<Nothing>()>(defer(self(), [=]() -> Future<Nothing> {
+        LOG(INFO)
+          << "CSI plugin container '" << containerId << "' started for plugin"
+          << " type '" << info.storage().plugin().type() << "' and "
+          << " name '" << info.storage().plugin().name() << "'";
+
         CHECK(services.at(containerId)->associate(connect(endpointPath)));
         return services.at(containerId)->future()
           .then([] { return Nothing(); });
@@ -2022,6 +2027,11 @@ Future<csi::v0::Client> StorageLocalResourceProviderProcess::getService(
 
         services.at(containerId)->discard();
         services.at(containerId).reset(new Promise<csi::v0::Client>());
+
+        LOG(INFO)
+          << "CSI plugin container '" << containerId << "' stopped for plugin"
+          << " type '" << info.storage().plugin().type() << "' and "
+          << " name '" << info.storage().plugin().name() << "'";
 
         if (os::exists(endpointPath)) {
           Try<Nothing> rm = os::rm(endpointPath);
