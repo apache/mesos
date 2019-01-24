@@ -42,7 +42,7 @@ echo "${GREEN}Tagging and Voting for mesos-${VERSION} candidate ${CANDIDATE}${NO
 
 read -p "Hit enter to continue ... "
 
-MESOS_GIT_URL="https://git-wip-us.apache.org/repos/asf/mesos.git"
+MESOS_GIT_URL="https://gitbox.apache.org/repos/asf/mesos.git"
 
 # Get the absolute path of the local git clone.
 MESOS_GIT_LOCAL=$(cd "$(dirname $0)"/..; pwd)
@@ -151,14 +151,14 @@ ${VERSION} includes the following:
 *****Announce major bug fixes here*****
 
 The CHANGELOG for the release is available at:
-https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=${TAG}
+https://gitbox.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=${TAG}
 --------------------------------------------------------------------------------
 
 The candidate for Mesos ${VERSION} release is available at:
 ${SVN_DEV_REPO}/${TAG}/${TARBALL}
 
 The tag to be voted on is ${TAG}:
-https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=commit;h=${TAG}
+https://gitbox.apache.org/repos/asf?p=mesos.git;a=commit;h=${TAG}
 
 The SHA512 checksum of the tarball can be found at:
 ${SVN_DEV_REPO}/${TAG}/${TARBALL}.sha512

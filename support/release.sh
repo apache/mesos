@@ -62,7 +62,7 @@ git tag -a ${VERSION} ${TAG} -m "Tagging Mesos ${VERSION}"
 
 echo "${GREEN}Pushing the git tag to the repository...${NORMAL}"
 
-MESOS_GIT_URL="https://git-wip-us.apache.org/repos/asf/mesos.git"
+MESOS_GIT_URL="https://gitbox.apache.org/repos/asf/mesos.git"
 
 git push ${MESOS_GIT_URL} ${VERSION}
 
@@ -109,7 +109,7 @@ It is recommended to use a mirror to download the release:
 http://www.apache.org/dyn/closer.cgi
 
 The CHANGELOG for the release is available at:
-https://git-wip-us.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=${VERSION}
+https://gitbox.apache.org/repos/asf?p=mesos.git;a=blob_plain;f=CHANGELOG;hb=${VERSION}
 
 The mesos-${VERSION}.jar has been released to:
 https://repository.apache.org
