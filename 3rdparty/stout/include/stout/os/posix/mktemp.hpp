@@ -36,23 +36,25 @@ namespace os {
 inline Try<std::string> mktemp(
     const std::string& path = path::join(os::temp(), "XXXXXX"))
 {
-  char* temp = new char[path.size() + 1];
-  ::memcpy(temp, path.c_str(), path.size() + 1);
+  char* _path = new char[path.size() + 1];
+  ::memcpy(_path, path.c_str(), path.size() + 1);
 
-  int_fd fd = ::mkstemp(temp);
+  int_fd fd = ::mkstemp(_path);
+  Try<std::string> temp = std::string(_path);
+  delete[] _path;
+
   if (fd < 0) {
-    delete[] temp;
-    return ErrnoError();
+    temp = ErrnoError();
   }
 
-  // We ignore the return value of close(). This is because users
-  // calling this function are interested in the return value of
-  // mkstemp(). Also an unsuccessful close() doesn't affect the file.
-  os::close(fd);
+  Try<Nothing> close = os::close(fd);
 
-  std::string result(temp);
-  delete[] temp;
-  return result;
+  // We propagate `close` failures if creation of the temp file was successful.
+  if (temp.isSome() && close.isError()) {
+    return Error("Failed to close '" + stringify(fd) + "':" + close.error());
+  }
+
+  return temp;
 }
 
 } // namespace os {

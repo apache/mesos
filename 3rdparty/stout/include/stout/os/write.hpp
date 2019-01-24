@@ -126,21 +126,24 @@ inline Try<Nothing> write(
     return Error(fd.error());
   }
 
-  Try<Nothing> result = write(fd.get(), message);
+  Try<Nothing> write = os::write(fd.get(), message);
 
-  if (sync && result.isSome()) {
+  if (sync && write.isSome()) {
     // We call `fsync()` before closing the file instead of opening it with the
     // `O_SYNC` flag for better performance. See:
     // http://lkml.iu.edu/hypermail/linux/kernel/0105.3/0353.html
-    result = os::fsync(fd.get());
+    write = os::fsync(fd.get());
   }
 
-  // We ignore the return value of `close()` because users calling this function
-  // are interested in the return value of `write()`, or `fsync()` if `sync` is
-  // set to true. Also an unsuccessful `close()` doesn't affect the write.
-  os::close(fd.get());
+  Try<Nothing> close = os::close(fd.get());
 
-  return result;
+  // We propagate `close` failures if `write` on the file was successful.
+  if (write.isSome() && close.isError()) {
+    write =
+      Error("Failed to close '" + stringify(fd.get()) + "':" + close.error());
+  }
+
+  return write;
 }
 
 
