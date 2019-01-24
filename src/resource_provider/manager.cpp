@@ -33,8 +33,9 @@
 #include <process/id.hpp>
 #include <process/process.hpp>
 
-#include <process/metrics/pull_gauge.hpp>
+#include <process/metrics/counter.hpp>
 #include <process/metrics/metrics.hpp>
+#include <process/metrics/pull_gauge.hpp>
 
 #include <stout/hashmap.hpp>
 #include <stout/nothing.hpp>
@@ -92,6 +93,7 @@ using process::http::UnsupportedMediaType;
 
 using process::http::authentication::Principal;
 
+using process::metrics::Counter;
 using process::metrics::PullGauge;
 
 namespace mesos {
@@ -244,6 +246,8 @@ private:
     ~Metrics();
 
     PullGauge subscribed;
+    Counter subscriptions;
+    Counter disconnections;
   };
 
   Owned<Registrar> registrar;
@@ -820,17 +824,6 @@ void ResourceProviderManagerProcess::_subscribe(
 
   const ResourceProviderID& resourceProviderId = resourceProvider->info.id();
 
-  Event event;
-  event.set_type(Event::SUBSCRIBED);
-  event.mutable_subscribed()->mutable_provider_id()
-    ->CopyFrom(resourceProviderId);
-
-  if (!resourceProvider->http.send(event)) {
-    LOG(WARNING) << "Failed to send SUBSCRIBED event to resource provider "
-                 << resourceProviderId << ": connection closed";
-    return;
-  }
-
   resourceProvider->http.closed()
     .onAny(defer(self(), [=](const Future<Nothing>& future) {
       // Iff the remote side closes the HTTP connection, the future will be
@@ -852,6 +845,8 @@ void ResourceProviderManagerProcess::_subscribe(
       message.disconnect = std::move(disconnect);
 
       messages.put(std::move(message));
+
+      ++metrics.disconnections;
     }));
 
   if (!resourceProviders.known.contains(resourceProviderId)) {
@@ -869,12 +864,31 @@ void ResourceProviderManagerProcess::_subscribe(
   message.type = ResourceProviderMessage::Type::SUBSCRIBE;
   message.subscribe = std::move(subscribe);
 
+  // Store a pointer to the resource provider so that we can access it
+  // even after moving it into the list of subscribed providers below.
+  ResourceProvider* _resourceProvider = resourceProvider.get();
+
   // TODO(jieyu): Start heartbeat for the resource provider.
   resourceProviders.subscribed.put(
       resourceProviderId,
       std::move(resourceProvider));
 
   messages.put(std::move(message));
+  ++metrics.subscriptions;
+
+  // Only send a `SUBSCRIBED` event after we have updated our internal
+  // bookkeeping so that e.g., metrics always reflect correct
+  // subscription state.
+  Event event;
+  event.set_type(Event::SUBSCRIBED);
+  event.mutable_subscribed()->mutable_provider_id()
+    ->CopyFrom(resourceProviderId);
+
+  if (!_resourceProvider->http.send(event)) {
+    LOG(WARNING) << "Failed to send SUBSCRIBED event to resource provider "
+                 << resourceProviderId << ": connection closed";
+    return;
+  }
 }
 
 
@@ -992,16 +1006,22 @@ double ResourceProviderManagerProcess::gaugeSubscribed()
 ResourceProviderManagerProcess::Metrics::Metrics(
     const ResourceProviderManagerProcess& manager)
   : subscribed(
-      "resource_provider_manager/subscribed",
-      defer(manager, &ResourceProviderManagerProcess::gaugeSubscribed))
+        "resource_provider_manager/subscribed",
+        defer(manager, &ResourceProviderManagerProcess::gaugeSubscribed)),
+    subscriptions("resource_provider_manager/events/subscribe"),
+    disconnections("resource_provider_manager/events/disconnect")
 {
   process::metrics::add(subscribed);
+  process::metrics::add(subscriptions);
+  process::metrics::add(disconnections);
 }
 
 
 ResourceProviderManagerProcess::Metrics::~Metrics()
 {
   process::metrics::remove(subscribed);
+  process::metrics::remove(subscriptions);
+  process::metrics::remove(disconnections);
 }
 
 
