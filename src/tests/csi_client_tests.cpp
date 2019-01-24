@@ -63,7 +63,7 @@ struct RPCParam
       rpc,
       [](csi::v0::Client client) {
         return client
-          .call<rpc>(typename csi::v0::RPCTraits<rpc>::request_type())
+          .call<rpc>(csi::v0::Request<rpc>())
           .then([] { return Nothing(); });
       }
     };

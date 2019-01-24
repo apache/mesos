@@ -35,9 +35,8 @@ public:
     : connection(_connection), runtime(_runtime) {}
 
   template <RPC rpc>
-  process::Future<
-      Try<typename RPCTraits<rpc>::response_type, process::grpc::StatusError>>
-  call(typename RPCTraits<rpc>::request_type request);
+  process::Future<Try<Response<rpc>, process::grpc::StatusError>> call(
+      Request<rpc> request);
 
 private:
   process::grpc::client::Connection connection;
