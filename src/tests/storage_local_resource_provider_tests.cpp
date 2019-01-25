@@ -3292,6 +3292,11 @@ TEST_F(
 // reports the metric related to CSI plugin container terminations.
 TEST_F(StorageLocalResourceProviderTest, ContainerTerminationMetric)
 {
+  // Since we want to observe a fixed number of `UpdateSlaveMessage`s,
+  // register the agent with paused clock to ensure it does not
+  // register multiple times due to hitting timeouts.
+  Clock::pause();
+
   setupResourceProviderConfig(Gigabytes(4));
 
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -3309,9 +3314,6 @@ TEST_F(StorageLocalResourceProviderTest, ContainerTerminationMetric)
   ASSERT_SOME(_containerizer);
 
   Owned<slave::MesosContainerizer> containerizer(_containerizer.get());
-
-  Future<Nothing> pluginConnected =
-    FUTURE_DISPATCH(_, &ContainerDaemonProcess::waitContainer);
 
   // Since the local resource provider daemon is started after the agent
   // is registered, it is guaranteed that the slave will send two
@@ -3332,7 +3334,25 @@ TEST_F(StorageLocalResourceProviderTest, ContainerTerminationMetric)
 
   ASSERT_SOME(slave);
 
-  AWAIT_READY(pluginConnected);
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  Clock::advance(slaveFlags.authentication_backoff_factor);
+
+  // Wait for the the resource provider to subscribe before killing it
+  // by observing the agent report the resource provider to the
+  // master. This prevents the plugin from entering a failed, non-
+  // restartable state, see MESOS-9130.
+  //
+  // TODO(bbannier): This step can be removed once MESOS-8400 is implemented.
+  AWAIT_READY(updateSlave1);
+
+  // Resume the clock so that the CSI plugin's standalone container is created
+  // and the SLRP's async loop notices it.
+  Clock::resume();
+
+  AWAIT_READY(updateSlave2);
+  ASSERT_FALSE(updateSlave2->resource_providers().providers().empty());
+
+  Clock::pause();
 
   JSON::Object snapshot = Metrics();
 
@@ -3352,27 +3372,20 @@ TEST_F(StorageLocalResourceProviderTest, ContainerTerminationMetric)
   Future<Nothing> pluginRestarted =
     FUTURE_DISPATCH(_, &ContainerDaemonProcess::launchContainer);
 
-  // Wait for the the resource provider to subscribe before killing it
-  // by observing the agent report the resource provider to the
-  // master. This prevents the plugin from entering a failed, non-
-  // restartable state, see MESOS-9130.
-  //
-  // TODO(bbannier): This step can be removed once MESOS-8400 is implemented.
-  AWAIT_READY(updateSlave1);
-  AWAIT_READY(updateSlave2);
-  ASSERT_FALSE(updateSlave2->resource_providers().providers().empty());
-
   // Kill the plugin container and wait for it to restart.
-  // NOTE: We need to wait for `pluginConnected` before issuing the
-  // kill, or it may kill the plugin before it created the endpoint
-  // socket and the resource provider would wait for one minute.
   Future<int> pluginKilled = containerizer->status(pluginContainerId)
     .then([](const ContainerStatus& status) {
       return os::kill(status.executor_pid(), SIGKILL);
     });
 
   AWAIT_ASSERT_EQ(0, pluginKilled);
+
+  // Resume the clock so the plugin container is properly destroyed.
+  Clock::resume();
+
   AWAIT_READY(pluginRestarted);
+
+  Clock::pause();
 
   snapshot = Metrics();
 
