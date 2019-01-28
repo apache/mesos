@@ -24,6 +24,8 @@ import "mesos/appc/spec.proto";
 
 import "mesos/docker/v1.proto";
 
+import "mesos/seccomp/seccomp.proto";
+
 /**
  * Some containers are launched in conjunction with a specific
  * `ContainerClass`. These classes allow an isolator to customize
@@ -237,6 +239,10 @@ message ContainerLaunchInfo {
   // The additional mounts for the container. The mounts specified in
   // this list will be mounted in order.
   repeated ContainerMountInfo mounts = 17;
+
+  // (Linux only) The Seccomp profile for the container.
+  // The profile is used to configure syscall filtering via `libseccomp`.
+  optional seccomp.ContainerSeccompProfile seccomp_profile = 18;
 
   // (Linux only) The capabilities requested for the container.
   // The capabilities are set while launching the container.

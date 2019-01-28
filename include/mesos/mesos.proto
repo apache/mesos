@@ -3147,6 +3147,17 @@ message CapabilityInfo {
 
 
 /**
+ * Encapsulation for Seccomp configuration, which is Linux specific.
+ */
+message SeccompInfo {
+  // A filename of the Seccomp profile. This should be a path
+  // relative to the directory containing Seccomp profiles,
+  // which is specified on the agent via the `--seccomp_config_dir` flag.
+  optional string profile_name = 1;
+}
+
+
+/**
  * Encapsulation for Linux specific configuration.
  * E.g, capabilities, limits etc.
  */
@@ -3169,6 +3180,9 @@ message LinuxInfo {
   // parent container. This field will be ignored if 'namespaces/pid'
   // isolator is not enabled.
   optional bool share_pid_namespace = 4;
+
+  // Represents Seccomp configuration, which is used for syscall filtering.
+  optional SeccompInfo seccomp = 5;
 }
 
 

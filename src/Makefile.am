@@ -309,6 +309,7 @@ OCI_SPEC_PROTO = $(top_srcdir)/include/mesos/oci/spec.proto
 QUOTA_PROTO = $(top_srcdir)/include/mesos/quota/quota.proto
 RESOURCE_PROVIDER_PROTO = $(top_srcdir)/include/mesos/resource_provider/resource_provider.proto
 SCHEDULER_PROTO = $(top_srcdir)/include/mesos/scheduler/scheduler.proto
+SECCOMP_PROTO = $(top_srcdir)/include/mesos/seccomp/seccomp.proto
 STATE_PROTO = $(top_srcdir)/include/mesos/state/state.proto
 OVERSUBSCRIPTION_PROTO = $(top_srcdir)/include/mesos/slave/oversubscription.proto
 URI_PROTO = $(top_srcdir)/include/mesos/uri/uri.proto
@@ -366,6 +367,8 @@ CXX_PROTOS =								\
   ../include/mesos/resource_provider/resource_provider.pb.h		\
   ../include/mesos/scheduler/scheduler.pb.cc				\
   ../include/mesos/scheduler/scheduler.pb.h				\
+  ../include/mesos/seccomp/seccomp.pb.cc				\
+  ../include/mesos/seccomp/seccomp.pb.h					\
   ../include/mesos/slave/containerizer.pb.cc				\
   ../include/mesos/slave/containerizer.pb.h				\
   ../include/mesos/slave/oversubscription.pb.cc				\
@@ -824,6 +827,15 @@ scheduler_HEADERS =							\
 
 nodist_scheduler_HEADERS =						\
   ../include/mesos/scheduler/scheduler.pb.h
+
+seccompdir = $(pkgincludedir)/seccomp
+
+seccomp_HEADERS =							\
+  $(top_srcdir)/include/mesos/seccomp/seccomp.hpp			\
+  $(top_srcdir)/include/mesos/seccomp/seccomp.proto
+
+nodist_seccomp_HEADERS =						\
+  ../include/mesos/seccomp/seccomp.pb.h
 
 agentdir = $(pkgincludedir)/agent
 
@@ -1628,6 +1640,7 @@ libmesos_la_SOURCES =							\
   $(QUOTA_PROTO)							\
   $(RESOURCE_PROVIDER_PROTO)						\
   $(SCHEDULER_PROTO)							\
+  $(SECCOMP_PROTO)							\
   $(STATE_PROTO)							\
   $(URI_PROTO)								\
   $(V1_AGENT_PROTO)							\

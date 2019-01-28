@@ -1,0 +1,104 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto2";
+
+import "mesos/mesos.proto";
+
+package mesos.seccomp;
+
+/**
+ * Encapsulation of Linux seccomp filter
+ * Reference: https://github.com/seccomp/libseccomp/blob/master/include/seccomp.h.in // NOLINT
+ */
+message ContainerSeccompProfile {
+  enum Architecture {
+    UNKNOWN = 0;
+    ARCH_X86 = 1;
+    ARCH_X86_64 = 2;
+    ARCH_X32 = 3;
+    ARCH_ARM = 4;
+    ARCH_AARCH64 = 5;
+    ARCH_MIPS = 6;
+    ARCH_MIPSEL = 7;
+    ARCH_MIPS64 = 8;
+    ARCH_MIPSEL64 = 9;
+    ARCH_MIPS64N32 = 10;
+    ARCH_MIPSEL64N32 = 11;
+    ARCH_PPC = 12;
+    ARCH_PPC64 = 13;
+    ARCH_PPC64LE = 14;
+    ARCH_S390 = 15;
+    ARCH_S390X = 16;
+  }
+
+  message Syscall {
+    enum Action {
+      UNKNOWN = 0;
+      ACT_KILL = 1;
+      ACT_TRAP = 2;
+      ACT_ERRNO = 3;
+      ACT_TRACE = 4;
+      ACT_ALLOW = 5;
+    }
+
+    message Arg {
+      enum Operator {
+        UNKNOWN = 0;
+        CMP_NE = 1;        // not equal
+        CMP_LT = 2;        // less than
+        CMP_LE = 3;        // less than or equal
+        CMP_EQ = 4;        // equal
+        CMP_GE = 5;        // greater than or equal
+        CMP_GT = 6;        // greater than
+        CMP_MASKED_EQ = 7; // masked equality
+      }
+
+      // The number of the argument we are checking, starting at 0.
+      required uint32 index = 1;
+
+      // The comparison operator, e.g. CMP_*.
+      required Operator op = 2;
+
+      // The first comparison value. The rule will match if argument
+      // $syscall_arg[index] is $COMPARE_OP the provided comparison value.
+      required uint64 value = 3;
+
+      // Some comparison operators accept two values. Masked equals,
+      // for example, will mask $syscall_arg[index] with the second value
+      // provided (via bitwise AND) and then compare against the first
+      // value provided.
+      required uint64 value_two = 4;
+    }
+
+    // Encapsulation of filtering rules of the given `Syscall` rule.
+    // Filtering means that we either include or exclude the given
+    // `Syscall` rule by matching rules provided in the `Filter`.
+    message Filter {
+      repeated CapabilityInfo.Capability capabilities = 1;
+    }
+
+    repeated string names = 1;
+    required Action action = 2;
+    repeated Arg args = 3;
+    optional Filter includes = 4;
+    optional Filter excludes = 5;
+  }
+
+  required Syscall.Action default_action = 1;
+  repeated Architecture architectures = 2;
+  repeated Syscall syscalls = 3;
+}
