@@ -43,6 +43,39 @@ We categorize the changes as follows:
   </thead>
 <tr>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Version-->
+  1.8.x
+  </td>
+
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Mesos Core-->
+    <ul style="padding-left:10px;">
+      <li>A <a href="#1-8-x-linux-seccomp-isolator">Linux Seccomp isolator</a></li>
+    </ul>
+  </td>
+
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Flags-->
+    <ul style="padding-left:10px;">
+      <li>A <a href="#1-8-x-linux-seccomp-isolator">seccomp_config_dir</a></li>
+      <li>A <a href="#1-8-x-linux-seccomp-isolator">seccomp_profile_name</a></li>
+    </ul>
+  </td>
+
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Framework API-->
+    <ul style="padding-left:10px;">
+    </ul>
+  </td>
+
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Module API-->
+    <ul style="padding-left:10px;">
+    </ul>
+  </td>
+
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Endpoints-->
+    <ul style="padding-left:10px;">
+    </ul>
+  </td>
+</tr>
+<tr>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Version-->
   1.7.x
   </td>
 
@@ -439,6 +472,14 @@ We categorize the changes as follows:
   </td>
 </tr>
 </table>
+
+## Upgrading from 1.7.x to 1.8.x ##
+
+<a name="1-8-x-linux-seccomp-isolator"></a>
+
+* A new [`linux/seccomp`](isolators/linux-seccomp.md) isolator has been added. The isolator supports the following new agent flags:
+  * `--seccomp_config_dir` specifies the directory path of the Seccomp profiles.
+  * `--seccomp_profile_name` specifies the path of the default Seccomp profile relative to the `seccomp_config_dir`.
 
 ## Upgrading from 1.6.x to 1.7.x ##
 
