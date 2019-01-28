@@ -18,7 +18,7 @@ news:
   - title: Mesos 1.5.2 is released!
     date: January 24, 2019
     blog: mesos-1-5-2-released
-    target_version: 1.5.1
+    target_version: 1.5.2
   - title: Mesos 1.7.0 is released!
     date: September 24, 2018
     blog: mesos-1-7-0-released
