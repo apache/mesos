@@ -65,6 +65,10 @@
 #include "linux/ns.hpp"
 #endif
 
+#ifdef ENABLE_SECCOMP_ISOLATOR
+#include "linux/seccomp/seccomp.hpp"
+#endif
+
 #ifndef __WINDOWS__
 #include "posix/rlimits.hpp"
 #endif // __WINDOWS__
@@ -78,11 +82,17 @@ using std::set;
 using std::string;
 using std::vector;
 
+using process::Owned;
+
 #ifdef __linux__
 using mesos::internal::capabilities::Capabilities;
 using mesos::internal::capabilities::Capability;
 using mesos::internal::capabilities::ProcessCapabilities;
 #endif // __linux__
+
+#ifdef ENABLE_SECCOMP_ISOLATOR
+using mesos::internal::seccomp::SeccompFilter;
+#endif
 
 using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::ContainerMountInfo;
@@ -485,6 +495,45 @@ static Try<Nothing> enterChroot(const string& rootfs)
 }
 
 
+#ifdef __linux__
+static void calculateCapabilities(
+    const ContainerLaunchInfo& launchInfo,
+    ProcessCapabilities* capabilities)
+{
+  // If the task has any effective capabilities, grant them to all
+  // the capability sets.
+  if (launchInfo.has_effective_capabilities()) {
+    set<Capability> target =
+      capabilities::convert(launchInfo.effective_capabilities());
+
+    capabilities->set(capabilities::AMBIENT, target);
+    capabilities->set(capabilities::EFFECTIVE, target);
+    capabilities->set(capabilities::PERMITTED, target);
+    capabilities->set(capabilities::INHERITABLE, target);
+    capabilities->set(capabilities::BOUNDING, target);
+  }
+
+  // If we also have bounding capabilities, apply that in preference to
+  // the effective capabilities.
+  if (launchInfo.has_bounding_capabilities()) {
+    set<Capability> bounding =
+      capabilities::convert(launchInfo.bounding_capabilities());
+
+    capabilities->set(capabilities::BOUNDING, bounding);
+  }
+
+  // Force the inherited set to be the same as the bounding set. If we
+  // are root and capabilities have not been specified, then this is a
+  // no-op. If capabilities have been specified, then we need to clip the
+  // inherited set to prevent file-based capabilities granting privileges
+  // outside the bounding set.
+  capabilities->set(
+      capabilities::INHERITABLE,
+      capabilities->get(capabilities::BOUNDING));
+}
+#endif // __linux__
+
+
 int MesosContainerizerLaunch::execute()
 {
   if (flags.help) {
@@ -790,9 +839,10 @@ int MesosContainerizerLaunch::execute()
 #ifdef __linux__
   // Initialize capabilities support if necessary.
   Option<Capabilities> capabilitiesManager = None();
+  const bool needSetCapabilities = launchInfo.has_effective_capabilities() ||
+                                   launchInfo.has_bounding_capabilities();
 
-  if (launchInfo.has_effective_capabilities() ||
-      launchInfo.has_bounding_capabilities()) {
+  if (needSetCapabilities || launchInfo.has_seccomp_profile()) {
     Try<Capabilities> _capabilitiesManager = Capabilities::create();
     if (_capabilitiesManager.isError()) {
       cerr << "Failed to initialize capabilities support: "
@@ -801,15 +851,15 @@ int MesosContainerizerLaunch::execute()
     }
 
     capabilitiesManager = _capabilitiesManager.get();
+  }
 
-    // Prevent clearing of capabilities on `setuid`.
-    if (uid.isSome()) {
-      Try<Nothing> keepCaps = capabilitiesManager->setKeepCaps();
-      if (keepCaps.isError()) {
-        cerr << "Failed to set process control for keeping capabilities "
-             << "on potential uid change: " << keepCaps.error() << endl;
-        exitWithStatus(EXIT_FAILURE);
-      }
+  // Prevent clearing of capabilities on `setuid`.
+  if (needSetCapabilities && uid.isSome()) {
+    Try<Nothing> keepCaps = capabilitiesManager->setKeepCaps();
+    if (keepCaps.isError()) {
+      cerr << "Failed to set process control for keeping capabilities "
+           << "on potential uid change: " << keepCaps.error() << endl;
+      exitWithStatus(EXIT_FAILURE);
     }
   }
 #else
@@ -892,6 +942,37 @@ int MesosContainerizerLaunch::execute()
     }
   }
 
+#ifdef ENABLE_SECCOMP_ISOLATOR
+  if (launchInfo.has_seccomp_profile()) {
+    CHECK_SOME(capabilitiesManager);
+
+    Try<ProcessCapabilities> capabilities = capabilitiesManager->get();
+    if (capabilities.isError()) {
+      cerr << "Failed to get capabilities for the current process: "
+           << capabilities.error() << endl;
+      exitWithStatus(EXIT_FAILURE);
+    }
+
+    calculateCapabilities(launchInfo, &capabilities.get());
+
+    Try<Owned<SeccompFilter>> seccompFilter = SeccompFilter::create(
+        launchInfo.seccomp_profile(),
+        capabilities.get());
+
+    if (seccompFilter.isError()) {
+      cerr << "Failed to create Seccomp filter: "
+           << seccompFilter.error() << endl;
+      exitWithStatus(EXIT_FAILURE);
+    }
+
+    Try<Nothing> load = seccompFilter.get()->load();
+    if (load.isError()) {
+      cerr << "Failed to load Seccomp filter: " << load.error() << endl;
+      exitWithStatus(EXIT_FAILURE);
+    }
+  }
+#endif // ENABLE_SECCOMP_ISOLATOR
+
 #ifndef __WINDOWS__
   // Change user if provided. Note that we do that after executing the
   // preparation commands so that those commands will be run with the
@@ -921,7 +1002,9 @@ int MesosContainerizerLaunch::execute()
 #endif // __WINDOWS__
 
 #ifdef __linux__
-  if (capabilitiesManager.isSome()) {
+  if (needSetCapabilities) {
+    CHECK_SOME(capabilitiesManager);
+
     Try<ProcessCapabilities> capabilities = capabilitiesManager->get();
     if (capabilities.isError()) {
       cerr << "Failed to get capabilities for the current process: "
@@ -942,36 +1025,7 @@ int MesosContainerizerLaunch::execute()
       exitWithStatus(EXIT_FAILURE);
     }
 
-    // If the task has any effective capabilities, grant them to all
-    // the capability sets.
-    if (launchInfo.has_effective_capabilities()) {
-      set<Capability> target =
-        capabilities::convert(launchInfo.effective_capabilities());
-
-      capabilities->set(capabilities::AMBIENT, target);
-      capabilities->set(capabilities::EFFECTIVE, target);
-      capabilities->set(capabilities::PERMITTED, target);
-      capabilities->set(capabilities::INHERITABLE, target);
-      capabilities->set(capabilities::BOUNDING, target);
-    }
-
-    // If we also have bounding capabilities, apply that in preference to
-    // the effective capabilities.
-    if (launchInfo.has_bounding_capabilities()) {
-      set<Capability> bounding =
-        capabilities::convert(launchInfo.bounding_capabilities());
-
-      capabilities->set(capabilities::BOUNDING, bounding);
-    }
-
-    // Force the inherited set to be the same as the bounding set. If we
-    // are root and capabilities have not been specified, then this is a
-    // no-op. If capabilities have been specified, then we need to clip the
-    // inherited set to prevent file-based capabilities granting privileges
-    // outside the bounding set.
-    capabilities->set(
-        capabilities::INHERITABLE,
-        capabilities->get(capabilities::BOUNDING));
+    calculateCapabilities(launchInfo, &capabilities.get());
 
     Try<Nothing> set = capabilitiesManager->set(capabilities.get());
     if (set.isError()) {
