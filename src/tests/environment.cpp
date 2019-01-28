@@ -914,6 +914,40 @@ public:
 };
 
 
+class SeccompFilter : public TestFilter
+{
+public:
+  SeccompFilter()
+  {
+    // Since the Seccomp parser depends on CPU architecture, we can run Seccomp
+    // tests deterministically only on `x86_64`.
+    Try<string> arch = os::shell("arch");
+    if (arch.isError()) {
+      seccompError = arch.error();
+    } else if (strings::trim(arch.get()) != "x86_64") {
+      seccompError = Error("Seccomp tests cannot be run on non-x86_64 systems");
+    }
+
+    if (seccompError.isSome()) {
+      std::cerr
+        << "-------------------------------------------------------------\n"
+        << "We can't run any SECCOMP tests:\n"
+        << seccompError.get() << "\n"
+        << "-------------------------------------------------------------"
+        << std::endl;
+    }
+  }
+
+  bool disable(const ::testing::TestInfo* test) const override
+  {
+    return matches(test, "SECCOMP_") && seccompError.isSome();
+  }
+
+private:
+  Option<Error> seccompError;
+};
+
+
 class UnprivilegedUserFilter : public TestFilter
 {
 public:
@@ -1070,6 +1104,7 @@ Environment::Environment(const Flags& _flags)
             std::make_shared<PerfCPUCyclesFilter>(),
             std::make_shared<PerfFilter>(),
             std::make_shared<RootFilter>(),
+            std::make_shared<SeccompFilter>(),
             std::make_shared<UnprivilegedUserFilter>(),
             std::make_shared<UnzipFilter>(),
             std::make_shared<VEthFilter>(),
