@@ -1386,6 +1386,26 @@ mesos::internal::slave::Flags::Flags()
       false);
 #endif
 
+#if ENABLE_SECCOMP_ISOLATOR
+  add(&Flags::seccomp_config_dir,
+      "seccomp_config_dir",
+      "Directory path of the Seccomp profiles.\n"
+      "If a container is launched with a specified Seccomp profile name,\n"
+      "the `linux/seccomp` isolator will try to locate a Seccomp profile\n"
+      "in the specified directory.");
+
+  add(&Flags::seccomp_profile_name,
+      "seccomp_profile_name",
+      "Path of the default Seccomp profile relative to the"
+      "`seccomp_config_dir`.\n"
+      "If this flag is specified, the `linux/seccomp` isolator\n"
+      "applies the Seccomp profile by default when launching\n"
+      "a new Mesos container.\n"
+      "NOTE: A Seccomp profile must be compatible with the\n"
+      "Docker Seccomp profile format (e.g., https://github.com/moby/moby/"
+      "blob/master/profiles/seccomp/default.json).");
+#endif
+
   add(&Flags::http_command_executor,
       "http_command_executor",
       "The underlying executor library to be used for the command executor.\n"

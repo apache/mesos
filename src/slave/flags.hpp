@@ -188,6 +188,10 @@ public:
   std::string xfs_project_range;
   bool xfs_kill_containers;
 #endif
+#if ENABLE_SECCOMP_ISOLATOR
+  Option<std::string> seccomp_config_dir;
+  Option<std::string> seccomp_profile_name;
+#endif
   bool http_command_executor;
   Option<SlaveCapabilities> agent_features;
   Option<DomainInfo> domain;

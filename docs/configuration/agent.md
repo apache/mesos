@@ -1627,6 +1627,49 @@ isolator. (default: false)
 
 </table>
 
+## Seccomp Isolator flags
+
+*Available when configured with `--enable-seccomp-isolator`.*
+
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th width="30%">
+        Flag
+      </th>
+      <th>
+        Explanation
+      </th>
+    </tr>
+  </thead>
+
+<tr id="seccomp_config_dir">
+  <td>
+    --seccomp_config_dir=VALUE
+  </td>
+<td>
+Directory path of the Seccomp profiles.
+If a container is launched with a specified Seccomp profile name,
+the <code>linux/seccomp</code> isolator will try to locate a Seccomp
+profile in the specified directory.
+</td>
+</tr>
+
+<tr id="seccomp_profile_name">
+  <td>
+    --seccomp_profile_name=VALUE
+  </td>
+<td>
+Path of the default Seccomp profile relative to the <code>seccomp_config_dir</code>.
+If this flag is specified, the <code>linux/seccomp</code> isolator applies the Seccomp
+profile by default when launching a new Mesos container.
+<b>NOTE</b>: A Seccomp profile must be compatible with the
+Docker Seccomp profile format (e.g., https://github.com/moby/moby/blob/master/profiles/seccomp/default.json).
+</td>
+</tr>
+
+</table>
+
 ## XFS Disk Isolator flags
 
 *Available when configured with `--enable-xfs-disk-isolator`.*
