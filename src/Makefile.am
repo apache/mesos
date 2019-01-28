@@ -1424,7 +1424,9 @@ endif
 if ENABLE_SECCOMP_ISOLATOR
 MESOS_LINUX_FILES +=							\
   linux/seccomp/seccomp.cpp						\
-  linux/seccomp/seccomp.hpp
+  linux/seccomp/seccomp.hpp						\
+  linux/seccomp/seccomp_parser.cpp					\
+  linux/seccomp/seccomp_parser.hpp
 endif
 
 if ENABLE_LINUX_ROUTING

@@ -344,7 +344,8 @@ endif()
 
 if (ENABLE_SECCOMP_ISOLATOR)
   list(APPEND LINUX_SRC
-    linux/seccomp/seccomp.cpp)
+    linux/seccomp/seccomp.cpp
+    linux/seccomp/seccomp_parser.cpp)
 endif ()
 
 set(LOCAL_SRC
