@@ -2653,7 +2653,8 @@ endif
 
 if ENABLE_SECCOMP_ISOLATOR
 mesos_tests_SOURCES +=						\
-  tests/containerizer/linux_seccomp_parser_tests.cpp
+  tests/containerizer/linux_seccomp_parser_tests.cpp		\
+  tests/containerizer/linux_seccomp_isolator_tests.cpp
 endif
 
 mesos_tests_CPPFLAGS = $(MESOS_CPPFLAGS)

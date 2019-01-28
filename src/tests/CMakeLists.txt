@@ -246,7 +246,8 @@ if (LINUX)
 
   if (ENABLE_SECCOMP_ISOLATOR)
     list(APPEND MESOS_TESTS_SRC
-      containerizer/linux_seccomp_parser_tests.cpp)
+      containerizer/linux_seccomp_parser_tests.cpp
+      containerizer/linux_seccomp_isolator_tests.cpp)
   endif()
 
   if (ENABLE_LINUX_ROUTING)
