@@ -1421,6 +1421,12 @@ MESOS_LINUX_FILES +=							\
   slave/containerizer/mesos/isolators/xfs/disk.hpp
 endif
 
+if ENABLE_SECCOMP_ISOLATOR
+MESOS_LINUX_FILES +=							\
+  linux/seccomp/seccomp.cpp						\
+  linux/seccomp/seccomp.hpp
+endif
+
 if ENABLE_LINUX_ROUTING
 MESOS_LINUX_FILES +=							\
   linux/routing/handle.cpp						\

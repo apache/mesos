@@ -342,6 +342,11 @@ if (ENABLE_PORT_MAPPING_ISOLATOR)
     slave/containerizer/mesos/isolators/network/port_mapping.cpp)
 endif()
 
+if (ENABLE_SECCOMP_ISOLATOR)
+  list(APPEND LINUX_SRC
+    linux/seccomp/seccomp.cpp)
+endif ()
+
 set(LOCAL_SRC
   local/local.cpp)
 
