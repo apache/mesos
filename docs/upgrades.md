@@ -85,7 +85,6 @@ We categorize the changes as follows:
       <li>A <a href="#1-7-x-auto-load-subsystems">Automatically load local enabled cgroups subsystems</a></li>
       <li>A <a href="#1-7-x-container-specific-cgroups-mounts">Container-specific cgroups mounts</a></li>
       <li>A <a href="#1-7-x-volume-mode-support">Volume mode support</a></li>
-      <li>C <a href="#1-7-x-create-disk">`CREATE_DISK` and `DESTROY_DISK` operations and ACLs</a></li>
       <li>A <a href="#1-7-x-resource-provider-acls">Resource Provider ACLs</a></li>
     </ul>
   </td>
@@ -100,6 +99,7 @@ We categorize the changes as follows:
 
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Framework API-->
     <ul style="padding-left:10px;">
+      <li>C <a href="#1-7-x-create-disk">`CREATE_DISK` and `DESTROY_DISK` operations and ACLs</a></li>
     </ul>
   </td>
 
@@ -547,7 +547,7 @@ We categorize the changes as follows:
 
 <a name="1-6-x-csi-support"></a>
 
-* CSI v0.2 is now supported as experimental. Due to the incompatibility between CSI v0.1 and v0.2, the experimental support for CSI v0.1 is deprecated, and the operator must remove all storage local resource providers within an agent before upgrading the agent. NOTE: This is a **breaking change** for storage local resource providers.
+* CSI v0.2 is now supported as experimental. Due to the incompatibility between CSI v0.1 and v0.2, the experimental support for CSI v0.1 is removed, and the operator must remove all storage local resource providers within an agent before upgrading the agent. NOTE: This is a **breaking change** for storage local resource providers.
 
 <a name="1-6-x-fetcher-stall-timeout"></a>
 
