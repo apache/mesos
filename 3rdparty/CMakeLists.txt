@@ -36,6 +36,7 @@ set(JEMALLOC_URL        ${FETCH_URL}/jemalloc-${JEMALLOC_VERSION}.tar.gz)
 set(LEVELDB_URL         ${FETCH_URL}/leveldb-${LEVELDB_VERSION}.tar.gz)
 set(LIBARCHIVE_URL      ${FETCH_URL}/libarchive-${LIBARCHIVE_VERSION}.tar.gz)
 set(LIBEV_URL           ${FETCH_URL}/libev-${LIBEV_VERSION}.tar.gz)
+set(LIBSECCOMP_URL      ${FETCH_URL}/libseccomp-${LIBSECCOMP_VERSION}.tar.gz)
 set(NVML_URL            ${FETCH_URL}/nvml-${NVML_VERSION}.tar.gz)
 set(PICOJSON_URL        ${FETCH_URL}/picojson-${PICOJSON_VERSION}.tar.gz)
 set(PROTOBUF_URL        ${FETCH_URL}/protobuf-${PROTOBUF_VERSION}.tar.gz)
@@ -627,6 +628,45 @@ elseif (NOT WIN32) # Windows defaults to `libwinio`, a native implementation.
     INSTALL_COMMAND   ${MAKE_PROGRAM} install
     URL               ${LIBEV_URL}
     URL_HASH          ${LIBEV_HASH})
+endif ()
+
+
+# libseccomp: library, which provides a front-end for generating seccomp filters.
+# https://github.com/seccomp/libseccomp
+##################################################
+if (ENABLE_SECCOMP_ISOLATOR)
+  if (NOT UNBUNDLED_LIBSECCOMP)
+    EXTERNAL(libseccomp ${LIBSECCOMP_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
+    add_library(libseccomp STATIC IMPORTED GLOBAL)
+    add_dependencies(libseccomp ${LIBSECCOMP_TARGET})
+
+    set_target_properties(
+      libseccomp PROPERTIES
+      IMPORTED_LOCATION ${LIBSECCOMP_ROOT}-build/src/.libs/libseccomp.a
+      INTERFACE_INCLUDE_DIRECTORIES "${LIBSECCOMP_ROOT}/include")
+
+    set(
+      LIBSECCOMP_CONFIGURE_COMMAND
+      ${LIBSECCOMP_ROOT}/configure --disable-shared --prefix=${LIBSECCOMP_ROOT}-build)
+
+    MAKE_INCLUDE_DIR(libseccomp)
+    GET_BYPRODUCTS(libseccomp)
+
+    ExternalProject_Add(
+      ${LIBSECCOMP_TARGET}
+      PREFIX            ${LIBSECCOMP_CMAKE_ROOT}
+      BUILD_BYPRODUCTS  ${LIBSECCOMP_BYPRODUCTS}
+      CONFIGURE_COMMAND ${LIBSECCOMP_CONFIGURE_COMMAND}
+      INSTALL_COMMAND   ${CMAKE_NOOP}
+      URL               ${LIBSECCOMP_URL}
+      URL_HASH          ${LIBSECCOMP_HASH})
+  else ()
+    find_package(LIBSECCOMP REQUIRED)
+    add_library(libseccomp SHARED IMPORTED GLOBAL)
+    set_target_properties(libseccomp PROPERTIES
+      IMPORTED_LOCATION ${LIBSECCOMP_LIBS}
+      INTERFACE_INCLUDE_DIRECTORIES ${LIBSECCOMP_INCLUDE_DIR})
+  endif ()
 endif ()
 
 

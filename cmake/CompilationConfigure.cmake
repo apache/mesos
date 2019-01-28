@@ -114,6 +114,19 @@ set(
   CACHE STRING
   "Specify the path to leveldb, e.g. \"C:\\leveldb-Win64\".")
 
+if (ENABLE_SECCOMP_ISOLATOR)
+  option(
+    UNBUNDLED_LIBSECCOMP
+    "Build with an installed libseccomp version instead of the bundled."
+    FALSE)
+
+  set(
+    LIBSECCOMP_ROOT_DIR
+    ""
+    CACHE STRING
+    "Specify the path to libseccomp, e.g. \"C:\\libseccomp-Win64\".")
+endif ()
+
 option(
   ENABLE_SSL
   "Build libprocess with SSL support."
@@ -445,6 +458,11 @@ if (LINUX)
   if (ENABLE_PORT_MAPPING_ISOLATOR OR ENABLE_NETWORK_PORTS_ISOLATOR)
     set(ENABLE_LINUX_ROUTING TRUE)
   endif ()
+
+  option(
+    ENABLE_SECCOMP_ISOLATOR
+    "Whether to enable `linux/seccomp` isolator."
+    FALSE)
 endif ()
 
 # FREEBSD CONFIGURATION.

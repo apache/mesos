@@ -349,6 +349,14 @@ AC_ARG_ENABLE([python-dependency-install],
                               downloaded or installed]),
               [], [enable_python_dependency_install=yes])
 
+AC_ARG_ENABLE([seccomp-isolator],
+              AS_HELP_STRING([--enable-seccomp-isolator],
+                             [Builds the Seccomp isolator which depends on
+                             libseccomp and requires Linux kernel 3.5+
+                             This flag will be deprecated in the future when
+                             we drop support for the outdated Linux kernels.]),
+              [], [enable_seccomp_isolator=no])
+
 AC_ARG_ENABLE([ssl],
               AS_HELP_STRING([--enable-ssl],
                              [use ssl for libprocess communication]),
@@ -472,6 +480,11 @@ AC_ARG_WITH([libprocess],
             AS_HELP_STRING([--with-libprocess=@<:@=DIR@:>@],
                            [specify where to locate the libprocess library]),
             [], [])
+
+AC_ARG_WITH([libseccomp],
+            AS_HELP_STRING([--with-libseccomp=@<:@=DIR@:>@],
+                           [specify where to locate the libseccomp library]),
+            [without_bundled_libseccomp=yes], [])
 
 AC_ARG_WITH([network-isolator],
             AS_HELP_STRING([--with-network-isolator],
@@ -1567,6 +1580,70 @@ else
 fi
 
 AM_CONDITIONAL([WITH_BUNDLED_LIBPROCESS], [test "x$with_bundled_libprocess" = "xyes"])
+
+
+AC_MSG_CHECKING([whether to enable the Seccomp isolator])
+AS_IF([test "x$enable_seccomp_isolator" = "xyes"],
+      [AC_MSG_RESULT([yes])],
+      [AC_MSG_RESULT([no])])
+
+AS_IF([test "x$enable_seccomp_isolator" = "xyes"], [
+  # We only support Seccomp on Linux.
+  AS_IF([test "$OS_NAME" = "linux"],
+        [],
+        [AC_MSG_ERROR([no Seccomp support on $OS_NAME
+-------------------------------------------------------------------
+The Seccomp isolator is only supported on Linux.
+-------------------------------------------------------------------
+  ])])
+
+  AC_CHECK_HEADERS([linux/seccomp.h], [],
+                   [AC_MSG_ERROR([Cannot find seccomp system headers
+-------------------------------------------------------------------
+Please install the Linux kernel headers and make sure that you have
+Linux kernel 3.5+ installed.
+-------------------------------------------------------------------
+  ])])
+
+  # Check if libseccomp prefix path was supplied and if so, add it to
+  # CPPFLAGS while extending it by /include and to LDFLAGS while
+  # extending it by /lib.
+  if test -n "`echo $with_libseccomp`"; then
+    CPPFLAGS="$CPPFLAGS -I${with_libseccomp}/include"
+    LDFLAGS="$LDFLAGS -L${with_libseccomp}/lib"
+  fi
+
+  # Check if user has asked us to use a bundled libseccomp, or if
+  # they asked us to ignore all bundled libraries while compiling and
+  # linking.
+  if test "x$without_bundled_libseccomp" = "xyes" || \
+     test "x$enable_bundled" != "xyes"; then
+    # Check if headers and library were located.
+    AC_CHECK_HEADERS([seccomp.h], [found_libseccomp=yes])
+
+    if test "x$found_libseccomp" = "xyes"; then
+      with_bundled_libseccomp=no
+    else
+      AC_MSG_ERROR([cannot find libseccomp
+-------------------------------------------------------------------
+You have requested the use of a non-bundled libseccomp but no suitable
+libseccomp could be found.
+
+You may want specify the location of libseccomp by providing a prefix
+path via --with-libseccomp=DIR, or check that the path you provided is
+correct if you're already doing this.
+-------------------------------------------------------------------
+])
+    fi
+  else
+    with_bundled_libseccomp=yes
+  fi
+
+  AC_DEFINE([ENABLE_SECCOMP_ISOLATOR])
+])
+
+AM_CONDITIONAL([ENABLE_SECCOMP_ISOLATOR], [test "x$enable_seccomp_isolator" = "xyes"])
+AM_CONDITIONAL([WITH_BUNDLED_LIBSECCOMP], [test "x$with_bundled_libseccomp" = "xyes"])
 
 
 # Perform necessary configuration for port mapping isolator.

@@ -64,6 +64,7 @@ LEVELDB = leveldb-$(LEVELDB_VERSION)
 LIBARCHIVE = libarchive-$(LIBARCHIVE_VERSION)
 LIBEV = libev-$(LIBEV_VERSION)
 LIBEVENT = libevent-$(LIBEVENT_VERSION)
+LIBSECCOMP = libseccomp-$(LIBSECCOMP_VERSION)
 NVML = nvml-$(NVML_VERSION)
 PIP = pip-$(PIP_VERSION)
 PICOJSON = picojson-$(PICOJSON_VERSION)
@@ -88,6 +89,7 @@ EXTRA_DIST =			\
   $(LIBARCHIVE).tar.gz		\
   $(LIBEV).tar.gz		\
   $(LIBEVENT).tar.gz		\
+  $(LIBSECCOMP).tar.gz		\
   $(NVML).tar.gz		\
   $(PIP).tar.gz			\
   $(PROTOBUF).tar.gz		\
@@ -149,6 +151,7 @@ CLEAN_EXTRACTED =		\
   $(LIBARCHIVE)			\
   $(LIBEV)			\
   $(LIBEVENT)			\
+  $(LIBSECCOMP)			\
   $(NVML)			\
   $(PIP)			\
   $(PICOJSON)			\
@@ -343,6 +346,22 @@ $(LIBEVENT)-build-stamp: $(LIBEVENT)-stamp
 	$(MAKE) $(AM_MAKEFLAGS)
 	touch $@
 ALL_LOCAL += $(LIBEVENT)-build-stamp
+endif
+
+if WITH_BUNDLED_LIBSECCOMP
+LIBSECCOMP_CONFIGURE_ARGS = --disable-shared
+
+LIB_LIBSECCOMP = $(LIBSECCOMP)/src/libseccomp.la
+
+$(LIB_LIBSECCOMP): $(LIBSECCOMP)-build-stamp
+
+$(LIBSECCOMP)-build-stamp: $(LIBSECCOMP)-stamp
+	cd $(LIBSECCOMP) &&						\
+	  ./configure $(LIBSECCOMP_CONFIGURE_ARGS) $(CONFIGURE_ARGS) &&	\
+	  $(MAKE) $(AM_MAKEFLAGS)
+	touch $@
+
+ALL_LOCAL += $(LIB_LIBSECCOMP)
 endif
 
 if WITH_BUNDLED_NVML

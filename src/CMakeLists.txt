@@ -560,7 +560,8 @@ target_compile_definitions(
   USE_CMAKE_BUILD_CONFIG
   $<$<BOOL:${ENABLE_XFS_DISK_ISOLATOR}>:ENABLE_XFS_DISK_ISOLATOR>
   $<$<BOOL:${ENABLE_PORT_MAPPING_ISOLATOR}>:ENABLE_PORT_MAPPING_ISOLATOR>
-  $<$<BOOL:${ENABLE_NETWORK_PORTS_ISOLATOR}>:ENABLE_NETWORK_PORTS_ISOLATOR>)
+  $<$<BOOL:${ENABLE_NETWORK_PORTS_ISOLATOR}>:ENABLE_NETWORK_PORTS_ISOLATOR>
+  $<$<BOOL:${ENABLE_SECCOMP_ISOLATOR}>:ENABLE_SECCOMP_ISOLATOR>)
 
 target_include_directories(
   mesos PUBLIC
@@ -580,6 +581,10 @@ target_link_libraries(
 
 if (NOT WIN32)
   target_link_libraries(mesos PUBLIC leveldb)
+endif ()
+
+if (ENABLE_SECCOMP_ISOLATOR)
+  target_link_libraries(mesos PUBLIC libseccomp)
 endif ()
 
 if (ENABLE_PRECOMPILED_HEADERS)

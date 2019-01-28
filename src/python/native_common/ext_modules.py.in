@@ -100,6 +100,15 @@ def _create_module(module_name):
     else:
       EXTRA_OBJECTS.append('-lprotobuf')
 
+    if '@ENABLE_SECCOMP_ISOLATOR_TRUE@' == '':
+        libseccomp = os.path.join('3rdparty', 'libseccomp-2.3.3')
+        libseccomp = os.path.join(
+            abs_top_builddir, libseccomp, 'src', '.libs', 'libseccomp.a')
+
+        if os.path.exists(libseccomp):
+            EXTRA_OBJECTS.append(libseccomp)
+        else:
+            EXTRA_OBJECTS.append('-lseccomp')
 
     # libev is a special case because it needs to be enabled only when
     # libevent *is not* enabled through the top level ./configure.
