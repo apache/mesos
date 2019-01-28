@@ -345,7 +345,8 @@ endif()
 if (ENABLE_SECCOMP_ISOLATOR)
   list(APPEND LINUX_SRC
     linux/seccomp/seccomp.cpp
-    linux/seccomp/seccomp_parser.cpp)
+    linux/seccomp/seccomp_parser.cpp
+    slave/containerizer/mesos/isolators/linux/seccomp.cpp)
 endif ()
 
 set(LOCAL_SRC

@@ -110,6 +110,10 @@
 #include "slave/containerizer/mesos/isolators/volume/secret.hpp"
 #endif // __linux__
 
+#if ENABLE_SECCOMP_ISOLATOR
+#include "slave/containerizer/mesos/isolators/linux/seccomp.hpp"
+#endif
+
 #ifdef ENABLE_PORT_MAPPING_ISOLATOR
 #include "slave/containerizer/mesos/isolators/network/port_mapping.hpp"
 #endif
@@ -439,6 +443,10 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 #if ENABLE_XFS_DISK_ISOLATOR
     {"disk/xfs", &XfsDiskIsolatorProcess::create},
 #endif // ENABLE_XFS_DISK_ISOLATOR
+
+#if ENABLE_SECCOMP_ISOLATOR
+    {"linux/seccomp", &LinuxSeccompIsolatorProcess::create},
+#endif // ENABLE_SECCOMP_ISOLATOR
 
     // GPU isolators.
 

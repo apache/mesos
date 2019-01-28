@@ -1426,7 +1426,9 @@ MESOS_LINUX_FILES +=							\
   linux/seccomp/seccomp.cpp						\
   linux/seccomp/seccomp.hpp						\
   linux/seccomp/seccomp_parser.cpp					\
-  linux/seccomp/seccomp_parser.hpp
+  linux/seccomp/seccomp_parser.hpp					\
+  slave/containerizer/mesos/isolators/linux/seccomp.cpp			\
+  slave/containerizer/mesos/isolators/linux/seccomp.hpp
 endif
 
 if ENABLE_LINUX_ROUTING
