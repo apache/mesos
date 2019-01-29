@@ -1438,12 +1438,17 @@ inline typename TOffer::Operation CREATE_DISK(
 }
 
 
-template <typename TResource, typename TOffer>
-inline typename TOffer::Operation DESTROY_DISK(const TResource& source)
+template <typename TResource, typename TOperationID, typename TOffer>
+inline typename TOffer::Operation DESTROY_DISK(
+    const TResource& source, const Option<TOperationID>& operationId = None())
 {
   typename TOffer::Operation operation;
   operation.set_type(TOffer::Operation::DESTROY_DISK);
   operation.mutable_destroy_disk()->mutable_source()->CopyFrom(source);
+
+  if (operationId.isSome()) {
+    operation.mutable_id()->CopyFrom(operationId.get());
+  }
 
   return operation;
 }
@@ -1818,7 +1823,8 @@ inline Offer::Operation CREATE_DISK(Args&&... args)
 template <typename... Args>
 inline Offer::Operation DESTROY_DISK(Args&&... args)
 {
-  return common::DESTROY_DISK<Resource, Offer>(std::forward<Args>(args)...);
+  return common::DESTROY_DISK<Resource, OperationID, Offer>(
+      std::forward<Args>(args)...);
 }
 
 
@@ -2125,8 +2131,10 @@ inline mesos::v1::Offer::Operation CREATE_DISK(Args&&... args)
 template <typename... Args>
 inline mesos::v1::Offer::Operation DESTROY_DISK(Args&&... args)
 {
-  return common::DESTROY_DISK<mesos::v1::Resource, mesos::v1::Offer>(
-      std::forward<Args>(args)...);
+  return common::DESTROY_DISK<
+      mesos::v1::Resource,
+      mesos::v1::OperationID,
+      mesos::v1::Offer>(std::forward<Args>(args)...);
 }
 
 
@@ -2665,6 +2673,15 @@ MATCHER_P(OffersHaveAnyResource, filter, "")
   }
 
   return false;
+}
+
+
+// This matcher is used to match the operation ID of an
+// `Event.update_operation_status.status` message.
+MATCHER_P(OperationStatusUpdateOperationIdEq, operationId, "")
+{
+  return arg.status().has_operation_id() &&
+    arg.status().operation_id() == operationId;
 }
 
 
