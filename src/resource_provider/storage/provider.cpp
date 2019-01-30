@@ -1753,6 +1753,7 @@ void StorageLocalResourceProviderProcess::reconcileOperations(
       continue;
     }
 
+    // TODO(chhsiao): Consider sending `OPERATION_UNKNOWN` instead.
     dropOperation(
         uuid.get(),
         None(),
@@ -2879,32 +2880,58 @@ void StorageLocalResourceProviderProcess::dropOperation(
   LOG(WARNING)
     << "Dropping operation (uuid: " << operationUuid << "): " << message;
 
+  CHECK(!operations.contains(operationUuid));
+
   UpdateOperationStatusMessage update =
     protobuf::createUpdateOperationStatusMessage(
         protobuf::createUUID(operationUuid),
         protobuf::createOperationStatus(
             OPERATION_DROPPED,
-            operation.isSome() && operation->has_id()
-              ? operation->id() : Option<OperationID>::none(),
+            None(),
             message,
             None(),
-            id::UUID::random(),
+            None(),
             slaveId,
             info.id()),
         None(),
         frameworkId,
         slaveId);
 
-  auto die = [=](const string& message) {
-    LOG(ERROR)
-      << "Failed to update status of operation (uuid: " << operationUuid
-      << "): " << message;
-    fatal();
-  };
+  if (operation.isSome()) {
+    // This operation is dropped intentionally. We have to persist the operation
+    // in the resource provider state and retry the status update.
+    *update.mutable_status()->mutable_uuid() = protobuf::createUUID();
+    if (operation->has_id()) {
+      *update.mutable_status()->mutable_operation_id() = operation->id();
+    }
 
-  statusUpdateManager.update(std::move(update), false)
-    .onFailed(defer(self(), std::bind(die, lambda::_1)))
-    .onDiscarded(defer(self(), std::bind(die, "future discarded")));
+    operations[operationUuid] = protobuf::createOperation(
+        operation.get(),
+        update.status(),
+        frameworkId,
+        slaveId,
+        update.operation_uuid());
+
+    checkpointResourceProviderState();
+
+    auto die = [=](const string& message) {
+      LOG(ERROR)
+        << "Failed to update status of operation (uuid: " << operationUuid
+        << "): " << message;
+      fatal();
+    };
+
+    statusUpdateManager.update(std::move(update))
+      .onFailed(defer(self(), std::bind(die, lambda::_1)))
+      .onDiscarded(defer(self(), std::bind(die, "future discarded")));
+  } else {
+    // This operation is unknown to the resource provider because of a
+    // disconnection, and is being asked for reconciliation. In this case, we
+    // send a status update without a retry. If it is dropped because of another
+    // disconnection, another reconciliation will be triggered by the master
+    // after a reregistration.
+    sendOperationStatusUpdate(std::move(update));
+  }
 
   ++metrics.operations_dropped.at(
       operation.isSome() ? operation->type() : Offer::Operation::UNKNOWN);
@@ -3338,9 +3365,9 @@ void StorageLocalResourceProviderProcess::sendOperationStatusUpdate(
     update->mutable_framework_id()->CopyFrom(_update.framework_id());
   }
 
-  // The latest status should have been set by the status update manager.
-  CHECK(_update.has_latest_status());
-  update->mutable_latest_status()->CopyFrom(_update.latest_status());
+  if (_update.has_latest_status()) {
+    update->mutable_latest_status()->CopyFrom(_update.latest_status());
+  }
 
   auto err = [](const id::UUID& uuid, const string& message) {
     LOG(ERROR)
