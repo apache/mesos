@@ -7846,7 +7846,7 @@ void Slave::handleResourceProviderMessage(
       // the total resources reported by the resource provider, and thus it
       // should not be applied again in an operation status update handler
       // when its terminal status update arrives. So we set the terminal
-      // `latest_status` here to prevent resource convervions elsewhere.
+      // `latest_status` here to prevent resource conversions elsewhere.
       //
       // NOTE: We only update the `latest_status` of a known operation if it
       // is not terminal yet here; its `statuses` would be updated by an
