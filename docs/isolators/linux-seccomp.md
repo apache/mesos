@@ -15,7 +15,7 @@ mechanism for filtering of certain system calls. Seccomp requires Linux kernel
 
 Seccomp filter is defined by a Seccomp profile which must be compatible with
 the Docker Seccomp profile format. An example of the Seccomp profile can be
-found [here](https://github.com/moby/moby/blob/master/profiles/seccomp/default.json).
+found in [default.json](../examples/seccomp_default.json).
 
 **Note**: Mesos containerizer uses `pivot_root` system call, so it **must be**
 specified in the Seccomp profile. Usually, the Docker Seccomp profile contains
