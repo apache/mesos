@@ -231,22 +231,6 @@ public:
       return;
     }
 
-    if (call.type() == Call::SUBSCRIBE && state != CONNECTED) {
-      // It might be possible that the scheduler is retrying. We drop the
-      // request if we have an ongoing subscribe request in flight or if the
-      // scheduler is already subscribed.
-      drop(call, "Scheduler is in state " + stringify(state));
-      return;
-    }
-
-    if (call.type() != Call::SUBSCRIBE && state != SUBSCRIBED) {
-      // We drop all non-subscribe calls if we are not currently subscribed.
-      drop(call, "Scheduler is in state " + stringify(state));
-      return;
-    }
-
-    VLOG(1) << "Sending " << call.type() << " call to " << master.get();
-
     // TODO(vinod): Add support for sending MESSAGE calls directly
     // to the slave, instead of relaying it through the master, as
     // the scheduler driver does.
@@ -258,6 +242,9 @@ public:
     request.keepAlive = true;
     request.headers = {{"Accept", stringify(contentType)},
                        {"Content-Type", stringify(contentType)}};
+
+    VLOG(1) << "Adding authentication headers to " << call.type() << " call to "
+            << master.get();
 
     // TODO(tillt): Add support for multi-step authentication protocols.
     authenticatee->authenticate(request, credential)
@@ -584,9 +571,22 @@ protected:
   void _send(const Call& call, const Future<process::http::Request>& future)
   {
     if (!future.isReady()) {
-      LOG(ERROR) << "HTTP authenticatee "
-                 << (future.isFailed() ? "failed: " + future.failure()
-                                       : "discarded");
+      LOG(ERROR) << "HTTP authenticatee failed while adding authentication"
+                 << " header to request: " << future;
+      return;
+    }
+
+    if (call.type() == Call::SUBSCRIBE && state != CONNECTED) {
+      // It might be possible that the scheduler is retrying. We drop the
+      // request if we have an ongoing subscribe request in flight or if the
+      // scheduler is already subscribed.
+      drop(call, "Scheduler is in state " + stringify(state));
+      return;
+    }
+
+    if (call.type() != Call::SUBSCRIBE && state != SUBSCRIBED) {
+      // We drop all non-subscribe calls if we are not currently subscribed.
+      drop(call, "Scheduler is in state " + stringify(state));
       return;
     }
 
@@ -596,6 +596,8 @@ protected:
       drop(call, "Connection to master interrupted");
       return;
     }
+
+    VLOG(1) << "Sending " << call.type() << " call to " << master.get();
 
     Future<process::http::Response> response;
     if (call.type() == Call::SUBSCRIBE) {
