@@ -71,6 +71,7 @@ namespace paths {
 //   |   |-- resources
 //   |   |   |-- resources.info
 //   |   |   |-- resources.target
+//   |   |   |-- resources_and_operations.state
 //   |   |-- slaves
 //   |       |-- latest (symlink)
 //   |       |-- <slave_id>
@@ -371,6 +372,10 @@ Try<id::UUID> parseOperationPath(
 std::string getOperationUpdatesPath(
     const std::string& rootDir,
     const id::UUID& operationUuid);
+
+
+std::string getResourceStatePath(
+    const std::string& rootDir);
 
 
 std::string getResourcesInfoPath(

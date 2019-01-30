@@ -108,6 +108,7 @@
 #include "slave/flags.hpp"
 #include "slave/paths.hpp"
 #include "slave/slave.hpp"
+#include "slave/state.pb.h"
 #include "slave/task_status_update_manager.hpp"
 
 #ifdef __WINDOWS__
@@ -4115,8 +4116,9 @@ void Slave::updateFramework(
 }
 
 
-void Slave::checkpointResources(
-    vector<Resource> _checkpointedResources,
+// TODO(nfnt): Have this function return a `Result`.
+void Slave::checkpointResourceState(
+    vector<Resource> resources,
     bool changeTotal)
 {
   // TODO(jieyu): Here we assume that CheckpointResourcesMessages are
@@ -4145,21 +4147,72 @@ void Slave::checkpointResources(
   // instead of simply checkpointing results by the master. Fail hard here
   // instead of applying an incompatible message.
   const bool checkpointingResourceProviderResources = std::any_of(
-      _checkpointedResources.begin(),
-      _checkpointedResources.end(),
+      resources.begin(),
+      resources.end(),
       [](const Resource& resource) { return resource.has_provider_id(); });
 
   CHECK(!checkpointingResourceProviderResources)
     << "Resource providers must perform their own checkpointing";
 
-  upgradeResources(&_checkpointedResources);
+  upgradeResources(&resources);
 
-  Resources newCheckpointedResources = _checkpointedResources;
+  Resources resourcesToCheckpoint = resources;
 
-  if (newCheckpointedResources == checkpointedResources) {
-    VLOG(1) << "Ignoring new checkpointed resources identical to the current "
-            << "version: " << checkpointedResources;
+  // Tests if the given Operation needs to be checkpointed on the agent.
+  //
+  // The agent checkpoints pending CREATE/DESTROY operations on agent default
+  // resources and terminal operations on agent default resources that have
+  // unacknowledged status updates.
+  auto operationNeedsCheckpointing = [](const Operation& operation) {
+    Result<ResourceProviderID> resourceProviderId =
+      getResourceProviderId(operation.info());
+
+    CHECK(!resourceProviderId.isError())
+      << "Failed to get resource provider ID: "
+      << resourceProviderId.error();
+
+    if (resourceProviderId.isSome()) {
+      return false;
+    }
+
+    const OperationStatus& status(operation.latest_status());
+
+    // Creating and destroying a persistent volume isn't atomic, so non-terminal
+    // CREATE/DESTROY operations on agent default resources have to be
+    // checkpointed to retry the creation/removal of persistent volumes.
+    if (!protobuf::isTerminalState(status.state())) {
+      Offer::Operation::Type type = operation.info().type();
+
+      return type == Offer::Operation::CREATE ||
+             type == Offer::Operation::DESTROY;
+    }
+
+    return status.has_uuid();
+  };
+
+  hashmap<UUID, Operation> operationsToCheckpoint;
+
+  foreachpair (const UUID& uuid, Operation* operation, operations) {
+    if (operationNeedsCheckpointing(*operation)) {
+      operationsToCheckpoint.put(uuid, *operation);
+    }
+  }
+
+  if (resourcesToCheckpoint == checkpointedResources &&
+      operationsToCheckpoint == checkpointedOperations) {
+    VLOG(1) << "Ignoring new checkpointed resources and operations identical "
+            << "to the current version";
     return;
+  }
+
+  ResourceState resourceState;
+
+  foreach (const Resource& resource, resourcesToCheckpoint) {
+    resourceState.add_resources()->CopyFrom(resource);
+  }
+
+  foreach (const Operation& operation, operationsToCheckpoint.values()) {
+    resourceState.add_operations()->CopyFrom(operation);
   }
 
   // This is a sanity check to verify that the new checkpointed
@@ -4168,11 +4221,11 @@ void Slave::checkpointResources(
   // should be guaranteed compatible by the master.
   Try<Resources> _totalResources = applyCheckpointedResources(
       info.resources(),
-      newCheckpointedResources);
+      resourcesToCheckpoint);
 
   CHECK_SOME(_totalResources)
     << "Failed to apply checkpointed resources "
-    << newCheckpointedResources << " to agent's resources "
+    << resourcesToCheckpoint << " to agent's resources "
     << info.resources();
 
   if (changeTotal) {
@@ -4189,44 +4242,69 @@ void Slave::checkpointResources(
   // the agent restarts during handling of CheckpointResourcesMessage.
 
   CHECK_SOME(state::checkpoint(
-      paths::getResourcesTargetPath(metaDir),
-      newCheckpointedResources))
-    << "Failed to checkpoint resources target " << newCheckpointedResources;
+      paths::getResourceStatePath(metaDir),
+      resourceState,
+      false,
+      false))
+    << "Failed to checkpoint resources " << resourceState.resources()
+    << " and operations " << resourceState.operations();
 
-  Try<Nothing> syncResult = syncCheckpointedResources(
-      newCheckpointedResources);
+  if (resourcesToCheckpoint != checkpointedResources) {
+    CHECK_SOME(state::checkpoint(
+        paths::getResourcesTargetPath(metaDir),
+        resourcesToCheckpoint))
+      << "Failed to checkpoint resources target " << resourcesToCheckpoint;
 
-  if (syncResult.isError()) {
-    // Exit the agent (without committing the checkpoint) on failure.
-    EXIT(EXIT_FAILURE)
-      << "Failed to sync checkpointed resources: "
-      << syncResult.error();
+    Try<Nothing> syncResult = syncCheckpointedResources(resourcesToCheckpoint);
+
+    if (syncResult.isError()) {
+      // Exit the agent (without committing the checkpoint) on failure.
+      EXIT(EXIT_FAILURE)
+        << "Failed to sync checkpointed resources: "
+        << syncResult.error();
+    }
+
+    // Rename the target checkpoint to the committed checkpoint.
+    Try<Nothing> renameResult = os::rename(
+        paths::getResourcesTargetPath(metaDir),
+        paths::getResourcesInfoPath(metaDir));
+
+    if (renameResult.isError()) {
+      // Exit the agent since the checkpoint could not be committed.
+      EXIT(EXIT_FAILURE)
+        << "Failed to checkpoint resources " << resourcesToCheckpoint
+        << ": " << renameResult.error();
+    }
+
+    LOG(INFO) << "Updated checkpointed resources from "
+              << checkpointedResources << " to "
+              << resourcesToCheckpoint;
+
+    checkpointedResources = std::move(resourcesToCheckpoint);
   }
 
-  // Rename the target checkpoint to the committed checkpoint.
-  Try<Nothing> renameResult = os::rename(
-      paths::getResourcesTargetPath(metaDir),
-      paths::getResourcesInfoPath(metaDir));
+  if (operationsToCheckpoint != checkpointedOperations) {
+    LOG(INFO) << "Updated checkpointed operations from "
+              << checkpointedOperations.values() << " to "
+              << operationsToCheckpoint.values();
 
-  if (renameResult.isError()) {
-    // Exit the agent since the checkpoint could not be committed.
-    EXIT(EXIT_FAILURE)
-      << "Failed to checkpoint resources " << newCheckpointedResources
-      << ": " << renameResult.error();
+    checkpointedOperations = std::move(operationsToCheckpoint);
   }
+}
 
-  LOG(INFO) << "Updated checkpointed resources from "
-            << checkpointedResources << " to "
-            << newCheckpointedResources;
 
-  checkpointedResources = newCheckpointedResources;
+void Slave::checkpointResourceState(
+    const Resources& resources,
+    bool changeTotal)
+{
+  checkpointResourceState({resources.begin(), resources.end()}, changeTotal);
 }
 
 
 void Slave::checkpointResourcesMessage(
-    const vector<Resource>& checkpointedResources)
+    const vector<Resource>& resources)
 {
-  checkpointResources(checkpointedResources, true);
+  checkpointResourceState(resources, true);
 }
 
 
@@ -4376,6 +4454,15 @@ void Slave::applyOperation(const ApplyOperationMessage& message)
 
   addOperation(operation);
 
+  // TODO(jieyu): We should drop the operation if the resource version
+  // uuid in the operation does not match that of the agent. This is
+  // currently not possible because if any speculative operation for
+  // agent default resources fails, the agent will crash. We might
+  // want to change that behavior in the future. Revisit this once we
+  // change that behavior.
+  checkpointResourceState(
+      totalResources.filter(mesos::needCheckpointing), false);
+
   if (protobuf::isSpeculativeOperation(message.operation_info())) {
     apply(operation);
   }
@@ -4386,19 +4473,6 @@ void Slave::applyOperation(const ApplyOperationMessage& message)
   }
 
   CHECK(protobuf::isSpeculativeOperation(message.operation_info()));
-
-  // TODO(jieyu): We should drop the operation if the resource version
-  // uuid in the operation does not match that of the agent. This is
-  // currently not possible because if any speculative operation for
-  // agent default resources fails, the agent will crash. We might
-  // want to change that behavior in the future. Revisit this once we
-  // change that behavior.
-  Resources _checkpointedResources = totalResources.filter(needCheckpointing);
-
-  // TODO(nfnt): Have this function return a `Result`.
-  checkpointResources(
-      {_checkpointedResources.begin(), _checkpointedResources.end()},
-      false);
 
   UpdateOperationStatusMessage update =
     protobuf::createUpdateOperationStatusMessage(
@@ -4417,6 +4491,9 @@ void Slave::applyOperation(const ApplyOperationMessage& message)
         info.id());
 
   updateOperation(operation, update);
+
+  checkpointResourceState(
+      totalResources.filter(mesos::needCheckpointing), false);
 
   operationStatusUpdateManager.update(update);
 }
@@ -8277,6 +8354,9 @@ void Slave::removeOperation(Operation* operation)
 
   operations.erase(uuid);
   delete operation;
+
+  checkpointResourceState(
+      totalResources.filter(mesos::needCheckpointing), false);
 }
 
 

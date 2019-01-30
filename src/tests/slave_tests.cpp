@@ -7310,7 +7310,7 @@ TEST_F(SlaveTest, CheckpointedResourcesIncludedInUsage)
     {dynamicReservation, persistentVolume};
 
   // Add checkpointed resources.
-  slave.get()->mock()->checkpointResources(checkpointedResources, true);
+  slave.get()->mock()->checkpointResourceState(checkpointedResources, true);
 
   // We expect that the slave will return ResourceUsage with
   // total and checkpointed slave resources reported.

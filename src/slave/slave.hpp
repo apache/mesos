@@ -257,12 +257,14 @@ public:
   void updateFramework(
       const UpdateFrameworkMessage& message);
 
-  void checkpointResources(
-      std::vector<Resource> checkpointedResources,
+  void checkpointResourceState(const Resources& resources, bool changeTotal);
+
+  void checkpointResourceState(
+      std::vector<Resource> resources,
       bool changeTotal);
 
   void checkpointResourcesMessage(
-      const std::vector<Resource>& checkpointedResources);
+      const std::vector<Resource>& resources);
 
   void applyOperation(const ApplyOperationMessage& message);
 
@@ -844,12 +846,14 @@ private:
   // have already been invalidated.
   UUID resourceVersion;
 
-  // Keeps track of the following:
-  // (1) Pending operations for resources from the agent.
-  // (2) Pending operations or terminal operations that have
-  //     unacknowledged status updates for resource provider
-  //     provided resources.
+  // Keeps track of pending operations or terminal operations that
+  // have unacknowledged status updates. These operations may affect
+  // either agent default resources or resources offered by a resource
+  // provider.
   hashmap<UUID, Operation*> operations;
+
+  // Operations that are checkpointed by the agent.
+  hashmap<UUID, Operation> checkpointedOperations;
 };
 
 
