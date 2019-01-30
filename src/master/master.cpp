@@ -8117,6 +8117,19 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
     }
   }
 
+  // Add new operations reported by the agent which the master isn't aware of.
+  // This could happen, for example, in the case of master failover.
+  foreach (const Operation& operation, message.operations().operations()) {
+    if (!slave->operations.contains(operation.uuid())) {
+      Framework* framework = nullptr;
+      if (operation.has_framework_id()) {
+        framework = getFramework(operation.framework_id());
+      }
+
+      addOperation(framework, slave, new Operation(operation));
+    }
+  }
+
   if (message.has_resource_providers()) {
     hashset<ResourceProviderID> receivedResourceProviders;
 

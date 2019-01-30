@@ -17,6 +17,7 @@
 #include <unistd.h>
 
 #include <memory>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -9065,8 +9066,9 @@ TEST_F(MasterTest, UpdateSlaveMessageWithPendingOffers)
 }
 
 
-// Tests that the master correctly handles resource provider operations
-// that finished during a master failover.
+// Tests that the master correctly handles operations on both agent default
+// resources as well as resource provider resources that finish during a master
+// failover.
 TEST_F(MasterTest, OperationUpdateDuringFailover)
 {
   Clock::pause();
@@ -9110,9 +9112,12 @@ TEST_F(MasterTest, OperationUpdateDuringFailover)
 
   AWAIT_READY(updateSlaveMessage);
 
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
+
   // Start a framework to operate on offers.
   MockScheduler sched;
-  TestingMesosSchedulerDriver driver(&sched, &detector);
+  TestingMesosSchedulerDriver driver(&sched, &detector, frameworkInfo);
 
   // Expect a registration as well as a re-registration after master
   // failover.
@@ -9144,17 +9149,33 @@ TEST_F(MasterTest, OperationUpdateDuringFailover)
 
   ASSERT_SOME(rawDisk);
 
+  Resource reserved = *(CHECK_NOTERROR(Resources::parse("cpus:0.01")).begin());
+  reserved.add_reservations()->CopyFrom(
+      createDynamicReservationInfo(
+          frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal()));
+
   Future<mesos::v1::resource_provider::Event::ApplyOperation> operation;
   EXPECT_CALL(resourceProvider, applyOperation(_))
     .WillOnce(FutureArg<0>(&operation));
 
+  // Drop the operation updates for the finished operations.
+  // As we fail over the master immediately afterwards, we expect
+  // that the operation updates will be part of the agent's
+  // `UPDATE_STATE` message when reregistering with the master.
+  Future<UpdateOperationStatusMessage> updateOperationStatusMessage1 =
+    DROP_PROTOBUF(UpdateOperationStatusMessage(), _, _);
+  Future<UpdateOperationStatusMessage> updateOperationStatusMessage2 =
+    DROP_PROTOBUF(UpdateOperationStatusMessage(), _, _);
+
   driver.acceptOffers(
       {offer.id()},
-      {CREATE_DISK(rawDisk.get(), Resource::DiskInfo::Source::MOUNT)});
+      {CREATE_DISK(rawDisk.get(), Resource::DiskInfo::Source::MOUNT),
+       RESERVE(reserved)});
 
   AWAIT_READY(operation);
 
-  Option<mesos::v1::UUID> operationUUID;
+  Option<mesos::v1::UUID> operationUUID1;
+  Option<mesos::v1::UUID> operationUUID2;
 
   {
     v1::master::Call call;
@@ -9179,29 +9200,28 @@ TEST_F(MasterTest, OperationUpdateDuringFailover)
     const v1::master::Response::GetOperations& operations =
       response_->get_operations();
 
-    ASSERT_EQ(1, operations.operations_size());
+    ASSERT_EQ(2, operations.operations_size());
     EXPECT_EQ(
         mesos::v1::OperationState::OPERATION_PENDING,
         operations.operations(0).latest_status().state());
+    EXPECT_EQ(
+        mesos::v1::OperationState::OPERATION_PENDING,
+        operations.operations(1).latest_status().state());
 
-    operationUUID = operations.operations(0).uuid();
+    operationUUID1 = operations.operations(0).uuid();
+    operationUUID2 = operations.operations(1).uuid();
   }
 
-  CHECK_SOME(operationUUID);
+  CHECK_SOME(operationUUID1);
+  CHECK_SOME(operationUUID2);
 
   EXPECT_CALL(sched, disconnected(&driver));
-
-  // Drop the operation update for the finished operation.
-  // As we fail over the master immediately afterwards, we expect
-  // that the operation update will be part of the agent's
-  // `UPDATE_STATE` message when reregistering with the master.
-  Future<UpdateOperationStatusMessage> updateOperationStatusMessage =
-    DROP_PROTOBUF(UpdateOperationStatusMessage(), _, _);
 
   // Finish the pending operation.
   resourceProvider.operationDefault(operation.get());
 
-  AWAIT_READY(updateOperationStatusMessage);
+  AWAIT_READY(updateOperationStatusMessage1);
+  AWAIT_READY(updateOperationStatusMessage2);
 
   // Fail over the master.
   master->reset();
@@ -9210,6 +9230,11 @@ TEST_F(MasterTest, OperationUpdateDuringFailover)
 
   EXPECT_CALL(sched, offerRescinded(&driver, _))
     .WillRepeatedly(Return());
+
+  // When the agent reregisters it will resume its operation status update
+  // manager, which triggers another status update for the RESERVE operation.
+  updateOperationStatusMessage1 =
+    DROP_PROTOBUF(UpdateOperationStatusMessage(), _, _);
 
   // Start a new master and have agent and framework reconnect.
   // The reconnected agent should report the converted resources.
@@ -9220,6 +9245,7 @@ TEST_F(MasterTest, OperationUpdateDuringFailover)
   Clock::settle();
 
   AWAIT_READY(updateSlaveMessage);
+  AWAIT_READY(updateOperationStatusMessage1);
 
   {
     v1::master::Call call;
@@ -9244,11 +9270,23 @@ TEST_F(MasterTest, OperationUpdateDuringFailover)
     const v1::master::Response::GetOperations& operations =
       response_->get_operations();
 
-    ASSERT_EQ(1, operations.operations_size());
+    ASSERT_EQ(2, operations.operations_size());
     EXPECT_EQ(
         mesos::v1::OperationState::OPERATION_FINISHED,
         operations.operations(0).latest_status().state());
-    EXPECT_EQ(operationUUID.get(), operations.operations(0).uuid());
+    EXPECT_EQ(
+        mesos::v1::OperationState::OPERATION_FINISHED,
+        operations.operations(1).latest_status().state());
+
+    std::set<string> receivedOperationUUIDs =
+      {operations.operations(0).uuid().value(),
+       operations.operations(1).uuid().value()};
+
+    std::set<string> expectedOperationUUIDs =
+      {operationUUID1.get().value(),
+       operationUUID2.get().value()};
+
+    EXPECT_EQ(receivedOperationUUIDs, expectedOperationUUIDs);
   }
 
   driver.stop();
