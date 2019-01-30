@@ -4356,20 +4356,23 @@ void Master::accept(
               break;
             }
 
-            if (getResourceProviderId(operation).isNone()) {
-              drop(framework,
-                   operation,
-                   "Operation requested feedback, but it affects resources not"
-                   " managed by a resource provider");
-              break;
-            }
-
             if (!slave->capabilities.resourceProvider) {
               drop(framework,
                    operation,
                    "Operation requested feedback, but agent " +
                    stringify(slaveId.get()) +
                    " does not have the required RESOURCE_PROVIDER capability");
+              break;
+            }
+
+            if (getResourceProviderId(operation).isNone() &&
+                !slave->capabilities.agentOperationFeedback) {
+              drop(framework,
+                   operation,
+                   "Operation on agent default resources requested feedback,"
+                   " but agent " + stringify(slaveId.get()) +
+                   " does not have the required AGENT_OPERATION_FEEDBACK"
+                   " capability");
               break;
             }
 
@@ -6385,8 +6388,6 @@ void Master::acknowledgeOperationStatus(
   CHECK(acknowledge.has_slave_id());
   const SlaveID& slaveId = acknowledge.slave_id();
 
-  CHECK(acknowledge.has_resource_provider_id());
-
   Slave* slave = slaves.registered.get(slaveId);
   if (slave == nullptr) {
     LOG(WARNING)
@@ -6416,6 +6417,19 @@ void Master::acknowledgeOperationStatus(
       << statusUuid << " of operation '" << operationId << "'"
       << " of framework " << *framework << " to agent " << slaveId
       << " because the agent does not support resource providers";
+
+    metrics->invalid_operation_status_update_acknowledgements++;
+    return;
+  }
+
+  if (!acknowledge.has_resource_provider_id() &&
+      !slave->capabilities.agentOperationFeedback) {
+    LOG(WARNING)
+      << "Cannot send operation status update acknowledgement for status "
+      << statusUuid << " of operation '" << operationId << "'"
+      << " of framework " << *framework << " to agent " << slaveId
+      << " because the agent does not support operation feedback"
+      << " on agent default resources";
 
     metrics->invalid_operation_status_update_acknowledgements++;
     return;
@@ -6474,8 +6488,10 @@ void Master::acknowledgeOperationStatus(
   AcknowledgeOperationStatusMessage message;
   message.mutable_status_uuid()->set_value(statusUuid.toBytes());
   *message.mutable_operation_uuid() = std::move(operationUuid);
-  *message.mutable_resource_provider_id() =
-    std::move(*acknowledge.mutable_resource_provider_id());
+  if (acknowledge.has_resource_provider_id()) {
+    *message.mutable_resource_provider_id() =
+      std::move(*acknowledge.mutable_resource_provider_id());
+  }
 
   send(slave->pid, message);
 

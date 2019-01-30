@@ -2188,7 +2188,7 @@ inline mesos::v1::scheduler::Call createCallAcknowledge(
 inline mesos::v1::scheduler::Call createCallAcknowledgeOperationStatus(
     const mesos::v1::FrameworkID& frameworkId,
     const mesos::v1::AgentID& agentId,
-    const mesos::v1::ResourceProviderID& resourceProviderId,
+    const Option<mesos::v1::ResourceProviderID>& resourceProviderId,
     const mesos::v1::scheduler::Event::UpdateOperationStatus& update)
 {
   mesos::v1::scheduler::Call call;
@@ -2199,7 +2199,10 @@ inline mesos::v1::scheduler::Call createCallAcknowledgeOperationStatus(
     call.mutable_acknowledge_operation_status();
 
   acknowledge->mutable_agent_id()->CopyFrom(agentId);
-  acknowledge->mutable_resource_provider_id()->CopyFrom(resourceProviderId);
+  if (resourceProviderId.isSome()) {
+    acknowledge->mutable_resource_provider_id()->CopyFrom(
+        resourceProviderId.get());
+  }
   acknowledge->set_uuid(update.status().uuid().value());
   acknowledge->mutable_operation_id()->CopyFrom(update.status().operation_id());
 

@@ -4418,8 +4418,6 @@ void Slave::applyOperation(const ApplyOperationMessage& message)
 
   updateOperation(operation, update);
 
-  removeOperation(operation);
-
   operationStatusUpdateManager.update(update);
 }
 
@@ -4610,6 +4608,26 @@ void Slave::operationStatusAcknowledgement(
     if (resourceProviderId.isSome()) {
       CHECK_NOTNULL(resourceProviderManager.get())
         ->acknowledgeOperationStatus(acknowledgement);
+    } else {
+      // Acknowledgement was for an operation on the agent's default resources
+      auto statusUuid = id::UUID::fromBytes(
+          acknowledgement.status_uuid().value());
+
+      auto operationUuid = id::UUID::fromBytes(
+          acknowledgement.operation_uuid().value());
+
+      if (operationUuid.isError() || statusUuid.isError()) {
+        LOG(WARNING) << "Dropping acknowledgement for operation " << operation
+                     << " with provided operation uuid "
+                     << acknowledgement.operation_uuid().value()
+                     << " and status uuid "
+                     << acknowledgement.status_uuid().value() << ".";
+        return;
+      }
+
+      operationStatusUpdateManager.acknowledgement(
+          operationUuid.get(),
+          statusUuid.get());
     }
 
     CHECK(operation->statuses_size() > 0);

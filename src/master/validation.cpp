@@ -669,12 +669,6 @@ Option<Error> validate(
         return Error("Expecting 'agent_id' to be present");
       }
 
-      // TODO(gkleiman): Revisit this once agent supports sending status
-      // updates for operations affecting default resources (MESOS-8194).
-      if (!acknowledge.has_resource_provider_id()) {
-        return Error("Expecting 'resource_provider_id' to be present");
-      }
-
       return None();
     }
 
