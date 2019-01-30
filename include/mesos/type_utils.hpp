@@ -405,6 +405,9 @@ std::ostream& operator<<(std::ostream& stream, const OperationID& operationId);
 std::ostream& operator<<(std::ostream& stream, const OperationState& state);
 
 
+std::ostream& operator<<(std::ostream& stream, const Operation& operation);
+
+
 std::ostream& operator<<(std::ostream& stream, const RateLimits& limits);
 
 

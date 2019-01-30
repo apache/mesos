@@ -768,6 +768,35 @@ ostream& operator<<(ostream& stream, const OperationState& state)
 }
 
 
+ostream& operator<<(ostream& stream, const Operation& operation)
+{
+  stream << operation.uuid() << " (";
+
+  stream << operation.info().type();
+
+  if (operation.has_framework_id()) {
+    stream << " for framework " << operation.framework_id();
+  }
+
+  if (operation.info().has_id()) {
+    stream << ", ID: " << operation.info().id();
+  }
+
+  const OperationStatus& latestStatus(operation.latest_status());
+
+  if (latestStatus.has_resource_provider_id()) {
+    stream << ", affecting resource provider "
+           << latestStatus.resource_provider_id();
+  }
+
+  stream << ", latest state: " << latestStatus.state();
+
+  stream << ")";
+
+  return stream;
+}
+
+
 ostream& operator<<(ostream& stream, const RateLimits& limits)
 {
   return stream << limits.DebugString();
