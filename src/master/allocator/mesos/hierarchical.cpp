@@ -2415,7 +2415,7 @@ bool HierarchicalAllocatorProcess::isFiltered(
 }
 
 
-bool HierarchicalAllocatorProcess::allocatable(const Resources& resources)
+bool HierarchicalAllocatorProcess::allocatable(const Resources& resources) const
 {
   if (options.minAllocatableResources.isNone() ||
       CHECK_NOTNONE(options.minAllocatableResources).empty()) {
