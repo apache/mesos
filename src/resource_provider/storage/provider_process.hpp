@@ -295,7 +295,8 @@ private:
   // applied. Do nothing if the operation is already in a terminal state.
   process::Future<Nothing> _applyOperation(const id::UUID& operationUuid);
 
-  // Sends `OPERATION_DROPPED` without checkpointing the operation status.
+  // Sends `OPERATION_DROPPED` status update. The operation status will be
+  // checkpointed if `operation` is set.
   void dropOperation(
       const id::UUID& operationUuid,
       const Option<FrameworkID>& frameworkId,
@@ -323,8 +324,6 @@ private:
 
   void sendResourceProviderStateUpdate();
 
-  // NOTE: This is a callback for the status update manager and should
-  // not be called directly.
   void sendOperationStatusUpdate(
       const UpdateOperationStatusMessage& update);
 
