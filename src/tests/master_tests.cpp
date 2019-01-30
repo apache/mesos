@@ -9283,8 +9283,8 @@ TEST_F(MasterTest, OperationUpdateDuringFailover)
        operations.operations(1).uuid().value()};
 
     std::set<string> expectedOperationUUIDs =
-      {operationUUID1.get().value(),
-       operationUUID2.get().value()};
+      {operationUUID1->value(),
+       operationUUID2->value()};
 
     EXPECT_EQ(receivedOperationUUIDs, expectedOperationUUIDs);
   }
