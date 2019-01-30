@@ -2489,6 +2489,177 @@ TEST_F(ReservationCheckpointingTest, SendingCheckpointResourcesMessage)
   driver.join();
 }
 
+
+// This test verifies that the agent still checkpoints and recovers resources
+// in the format used by agents that don't atomically checkpoint operations and
+// resources.
+//
+// To verify this the test does the following:
+//
+// 1. Start a master, agent, and a framework.
+// 2. Make the framework reserve resources and assert that they are offered
+//    back.
+// 3. Kill the agent.
+// 4. Remove the file that contains the operations and resources.
+// 5. Start a new agent using the same metadata directory.
+// 6. Start a new framework and assert that it is offered the resources that
+//    were reserved in step #2.
+TEST_F(ReservationTest, ReservationCheckpointedBackwardsCompatibility)
+{
+  // Pause the cock and control it manually in order to
+  // control the timing of the offer cycle.
+  Clock::pause();
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_roles(0, "role");
+
+  master::Flags masterFlags = CreateMasterFlags();
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources = "cpus:8;mem:2048";
+
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  Clock::settle();
+  AWAIT_READY(updateSlaveMessage);
+
+  MockScheduler sched1;
+  MesosSchedulerDriver driver1(
+      &sched1, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Resources unreserved = Resources::parse("cpus:8;mem:2048").get();
+  Resources reserved = unreserved.pushReservation(createDynamicReservationInfo(
+      frameworkInfo.roles(0), frameworkInfo.principal()));
+
+  // We use this to capture offers from 'resourceOffers'.
+  Future<vector<Offer>> offers;
+
+  EXPECT_CALL(sched1, registered(&driver1, _, _));
+
+  // Set an expectation for the first offer.
+  EXPECT_CALL(sched1, resourceOffers(&driver1, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver1.start();
+
+  // Advance the clock to generate an offer.
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::settle();
+
+  // In the first offer, expect an offer with unreserved resources.
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers->size());
+  Offer offer = offers.get()[0];
+
+  Future<Resources> message = getOperationMessage(slave.get()->pid);
+
+  // We use the filter explicitly here so that the resources
+  // will not be filtered for 5 seconds (the default).
+  Filters filters;
+  filters.set_refuse_seconds(0);
+
+  // Reserve the resources.
+  driver1.acceptOffers({offer.id()}, {RESERVE(reserved)}, filters);
+
+  // Expect the agent to receive the operation message.
+  AWAIT_READY(message);
+
+  // This is to make sure the agent processes the operation message.
+  Clock::settle();
+
+  // Set an expectation for the next offer.
+  EXPECT_CALL(sched1, resourceOffers(&driver1, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());  // Ignore subsequent offers.
+
+  // Advance the clock to generate an offer.
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::settle();
+
+  // In the next offer, expect an offer with the reserved resources.
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers->size());
+  offer = offers.get()[0];
+
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(reserved, frameworkInfo.roles(0))));
+
+  // Stop the framework.
+  driver1.stop();
+  driver1.join();
+
+  Future<SlaveReregisteredMessage> slaveReregistered = FUTURE_PROTOBUF(
+      SlaveReregisteredMessage(), master.get()->pid, _);
+
+  updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  // Simulate agent failover.
+  slave.get()->terminate();
+  slave->reset();
+
+  string resourceStatePath = slave::paths::getResourceStatePath(
+      slave::paths::getMetaRootDir(slaveFlags.work_dir));
+  CHECK_SOME(os::rm(resourceStatePath));
+
+  slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Advance the clock, so that the agent re-registers.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  // Resume the clock to avoid deadlocks related to agent registration.
+  // See MESOS-8828.
+  Clock::resume();
+
+  // Wait for the agent to re-register.
+  AWAIT_READY(slaveReregistered);
+  AWAIT_READY(updateSlaveMessage);
+
+  Clock::pause();
+
+  MockScheduler sched2;
+  MesosSchedulerDriver driver2(
+      &sched2, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched2, registered(&driver2, _, _));
+
+  // Set an expectation for the next new framework's first offer.
+  EXPECT_CALL(sched2, resourceOffers(&driver2, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());  // Ignore subsequent offers.
+
+  driver2.start();
+
+  // Advance the clock to generate an offer.
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::settle();
+
+  // Expect an offer with the reserved resources.
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(1u, offers->size());
+  offer = offers.get()[0];
+
+  EXPECT_TRUE(Resources(offer.resources()).contains(
+      allocatedResources(reserved, frameworkInfo.roles(0))));
+
+  driver2.stop();
+  driver2.join();
+}
+
 }  // namespace tests {
 }  // namespace internal {
 }  // namespace mesos {
