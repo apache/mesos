@@ -783,6 +783,13 @@ mesos::internal::slave::Flags::Flags()
             return Error(
                 "RESIZE_VOLUME feature requires RESOURCE_PROVIDER feature");
           }
+
+          if (capabilities.agentOperationFeedback &&
+              !capabilities.resourceProvider) {
+            return Error(
+                "AGENT_OPERATION_FEEDBACK feature"
+                " requires RESOURCE_PROVIDER feature");
+          }
         }
 
         return None();

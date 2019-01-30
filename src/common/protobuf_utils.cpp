@@ -1077,7 +1077,8 @@ bool operator==(const Capabilities& left, const Capabilities& right)
          left.hierarchicalRole == right.hierarchicalRole &&
          left.reservationRefinement == right.reservationRefinement &&
          left.resourceProvider == right.resourceProvider &&
-         left.resizeVolume == right.resizeVolume;
+         left.resizeVolume == right.resizeVolume &&
+         left.agentOperationFeedback == right.agentOperationFeedback;
 }
 
 

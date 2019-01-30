@@ -40,7 +40,8 @@ vector<SlaveInfo::Capability> AGENT_CAPABILITIES()
     SlaveInfo::Capability::MULTI_ROLE,
     SlaveInfo::Capability::RESERVATION_REFINEMENT,
     SlaveInfo::Capability::RESOURCE_PROVIDER,
-    SlaveInfo::Capability::RESIZE_VOLUME};
+    SlaveInfo::Capability::RESIZE_VOLUME,
+    SlaveInfo::Capability::AGENT_OPERATION_FEEDBACK};
 
   vector<SlaveInfo::Capability> result;
   foreach (SlaveInfo::Capability::Type type, types) {

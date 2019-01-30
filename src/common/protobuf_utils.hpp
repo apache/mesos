@@ -286,6 +286,9 @@ struct Capabilities
         case SlaveInfo::Capability::RESIZE_VOLUME:
           resizeVolume = true;
           break;
+        case SlaveInfo::Capability::AGENT_OPERATION_FEEDBACK:
+          agentOperationFeedback = true;
+          break;
         // If adding another case here be sure to update the
         // equality operator.
       }
@@ -298,6 +301,7 @@ struct Capabilities
   bool reservationRefinement = false;
   bool resourceProvider = false;
   bool resizeVolume = false;
+  bool agentOperationFeedback = false;
 
   google::protobuf::RepeatedPtrField<SlaveInfo::Capability>
   toRepeatedPtrField() const
@@ -317,6 +321,9 @@ struct Capabilities
     }
     if (resizeVolume) {
       result.Add()->set_type(SlaveInfo::Capability::RESIZE_VOLUME);
+    }
+    if (agentOperationFeedback) {
+      result.Add()->set_type(SlaveInfo::Capability::AGENT_OPERATION_FEEDBACK);
     }
 
     return result;

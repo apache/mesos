@@ -1543,7 +1543,8 @@ TEST_F(SlaveTest, StateEndpoint)
         "HIERARCHICAL_ROLE",
         "RESERVATION_REFINEMENT",
         "RESOURCE_PROVIDER",
-        "RESIZE_VOLUME"
+        "RESIZE_VOLUME",
+        "AGENT_OPERATION_FEEDBACK"
       ]
     )~");
 
