@@ -162,6 +162,58 @@ TEST_P(SchedulerTest, Subscribe)
 }
 
 
+// Test validates that the scheduler library will not allow multiple
+// SUBSCRIBE requests over the same connection.
+TEST_P(SchedulerTest, SubscribeDrop)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(FutureSatisfy(&connected));
+
+  ContentType contentType = GetParam();
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      contentType,
+      scheduler);
+
+  AWAIT_READY(connected);
+
+  Future<Nothing> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureSatisfy(&subscribed));
+
+  Future<Nothing> heartbeat;
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillOnce(FutureSatisfy(&heartbeat));
+
+  Clock::pause();
+
+  mesos.send(v1::createCallSubscribe(v1::DEFAULT_FRAMEWORK_INFO));
+
+  // Send another SUBSCRIBE request. This one should get dropped as we
+  // already have a SUBSCRIBE in flight on that same connection.
+
+  mesos.send(v1::createCallSubscribe(v1::DEFAULT_FRAMEWORK_INFO));
+
+  AWAIT_READY(subscribed);
+  AWAIT_READY(heartbeat);
+
+  Clock::resume();
+
+  {
+    JSON::Object metrics = Metrics();
+
+    EXPECT_EQ(1u, metrics.values["master/messages_register_framework"]);
+  }
+}
+
+
 // This test verifies that a scheduler can subscribe with the master after
 // failing over to another instance.
 TEST_P(SchedulerTest, SchedulerFailover)
