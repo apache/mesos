@@ -11432,6 +11432,135 @@ TEST_F(SlaveTest, RunTaskResourceVersions)
   EXPECT_EQ(TaskStatus::REASON_INVALID_OFFERS, statusUpdate->reason());
 }
 
+
+// This test verifies that on agent restarts, unacknowledged operation status
+// updates are resent to the master. This verifies that the agent's
+// checkpointing/recovery logic works.
+//
+// To accomplish this:
+//   1. Sends a `RESERVE` operation.
+//   2. Verifies that the framework receives an operation status update. The
+//      status update is not acknowledged.
+//   3. Restarts the agent.
+//   4. Verifies that the agent resends the operation status update.
+TEST_F(SlaveTest, RetryOperationStatusUpdateAfterRecovery)
+{
+  Clock::pause();
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Advance the clock to trigger agent registration.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  // Register a framework to exercise an operation.
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(v1::scheduler::SendSubscribe(frameworkInfo));
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  Future<v1::scheduler::Event::Offers> offers;
+
+  // Set an expectation for the first offer.
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(subscribed);
+
+  const v1::FrameworkID& frameworkId = subscribed->framework_id();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+
+  const v1::Offer& offer = offers->offers(0);
+
+  // Reserve resources.
+  v1::OperationID operationId;
+  operationId.set_value("operation");
+
+  ASSERT_FALSE(offer.resources().empty());
+
+  v1::Resource reservedResources(*(offer.resources().begin()));
+  reservedResources.add_reservations()->CopyFrom(
+      v1::createDynamicReservationInfo(
+          frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal()));
+
+  Future<v1::scheduler::Event::UpdateOperationStatus> update;
+  EXPECT_CALL(*scheduler, updateOperationStatus(_, _))
+    .WillOnce(FutureArg<1>(&update));
+
+  mesos.send(v1::createCallAccept(
+      frameworkId,
+      offer,
+      {v1::RESERVE(reservedResources, operationId)}));
+
+  AWAIT_READY(update);
+
+  EXPECT_EQ(operationId, update->status().operation_id());
+  EXPECT_EQ(v1::OPERATION_FINISHED, update->status().state());
+
+  // Restart the agent.
+  slave.get()->terminate();
+
+  // Once the agent is restarted, the agent should resend the unacknowledged
+  // operation status update.
+  Future<v1::scheduler::Event::UpdateOperationStatus> retriedUpdate;
+  EXPECT_CALL(*scheduler, updateOperationStatus(_, _))
+    .WillOnce(FutureArg<1>(&retriedUpdate));
+
+  slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Advance the clock to trigger agent registration.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(retriedUpdate);
+
+  EXPECT_EQ(operationId, retriedUpdate->status().operation_id());
+  EXPECT_EQ(v1::OPERATION_FINISHED, retriedUpdate->status().state());
+
+  // The scheduler will acknowledge the operation status update, so the agent
+  // should receive an acknowledgement.
+  Future<AcknowledgeOperationStatusMessage> acknowledgeOperationStatusMessage =
+    FUTURE_PROTOBUF(
+      AcknowledgeOperationStatusMessage(), master.get()->pid, slave.get()->pid);
+
+  mesos.send(v1::createCallAcknowledgeOperationStatus(
+      frameworkId, offer.agent_id(), None(), retriedUpdate.get()));
+
+  AWAIT_READY(acknowledgeOperationStatusMessage);
+
+  // The master has acknowledged the operation status update, so the SLRP
+  // shouldn't send further operation status updates.
+  EXPECT_NO_FUTURE_PROTOBUFS(UpdateOperationStatusMessage(), _, _);
+
+  Clock::advance(slave::STATUS_UPDATE_RETRY_INTERVAL_MIN);
+  Clock::settle();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
