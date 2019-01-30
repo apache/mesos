@@ -50,6 +50,7 @@
 
 #include "slave/paths.hpp"
 #include "slave/state.hpp"
+#include "slave/state.pb.h"
 
 namespace mesos {
 namespace internal {
@@ -200,6 +201,31 @@ Try<SlaveState> SlaveState::recover(
 
     state.frameworks[frameworkId] = framework.get();
     state.errors += framework->errors;
+  }
+
+  const string& resourceStatePath = paths::getResourceStatePath(rootDir);
+  if (os::exists(resourceStatePath)) {
+    Result<ResourceState> resourceState =
+      state::read<ResourceState>(resourceStatePath);
+    if (resourceState.isError()) {
+      string message = "Failed to read resource and operations file '" +
+                       resourceStatePath + "': " + resourceState.error();
+
+      if (strict) {
+        return Error(message);
+      } else {
+        LOG(WARNING) << message;
+        state.errors++;
+        return state;
+      }
+    }
+
+    if (resourceState.isSome()) {
+      state.operations = std::vector<Operation>();
+      foreach (const Operation& operation, resourceState->operations()) {
+        state.operations->push_back(operation);
+      }
+    }
   }
 
   return state;
@@ -735,6 +761,33 @@ Try<ResourcesState> ResourcesState::recover(
     bool strict)
 {
   ResourcesState state;
+
+  const string& resourceStatePath = paths::getResourceStatePath(rootDir);
+  if (os::exists(resourceStatePath)) {
+    Result<ResourceState> resourceState =
+      state::read<ResourceState>(resourceStatePath);
+    if (resourceState.isError()) {
+      string message = "Failed to read resource and operations file '" +
+                       resourceStatePath + "': " + resourceState.error();
+
+      if (strict) {
+        return Error(message);
+      } else {
+        LOG(WARNING) << message;
+        state.errors++;
+        return state;
+      }
+    }
+
+    if (resourceState.isSome()) {
+      state.resources = resourceState->resources();
+    }
+
+    return state;
+  }
+
+  LOG(INFO) << "No committed checkpointed resources and operations found at '"
+            << resourceStatePath << "'";
 
   // Process the committed resources.
   const string& infoPath = paths::getResourcesInfoPath(rootDir);

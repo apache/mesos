@@ -546,11 +546,25 @@ public:
   // executors. Otherwise, the slave attempts to shutdown/kill them.
   process::Future<Nothing> _recover();
 
-  // This is a helper to call recover() on the containerizer at the end of
-  // recover() and before __recover().
+  // This is a helper to call `recover()` on the containerizer at the end of
+  // `recover()` and before `__recover()`.
   // TODO(idownes): Remove this when we support defers to objects.
   process::Future<Nothing> _recoverContainerizer(
       const Option<state::SlaveState>& state);
+
+  // This is called after `_recoverContainerizer()`. It will add all
+  // checkpointed operations affecting agent default resources and call
+  // `OperationStatusUpdateManager::recover()`.
+  process::Future<OperationStatusUpdateManagerState> _recoverOperations(
+      const Option<state::SlaveState>& state);
+
+  // This is called after `OperationStatusUpdateManager::recover()`
+  // completes.
+  //
+  // If necessary it will add any missing operation status updates
+  // that couldn't be checkpointed before the agent failed over.
+  process::Future<Nothing> __recoverOperations(
+      const process::Future<OperationStatusUpdateManagerState>& state);
 
   // This is called when recovery finishes.
   // Made 'virtual' for Slave mocking.

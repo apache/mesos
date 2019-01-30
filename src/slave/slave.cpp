@@ -7312,7 +7312,9 @@ Future<Nothing> Slave::recover(const Try<state::State>& state)
   }
 
   return taskStatusUpdateManager->recover(metaDir, slaveState)
-    .then(defer(self(), &Slave::_recoverContainerizer, slaveState));
+    .then(defer(self(), &Slave::_recoverContainerizer, slaveState))
+    .then(defer(self(), &Slave::_recoverOperations, slaveState))
+    .then(defer(self(), &Slave::__recoverOperations, lambda::_1));
 }
 
 
@@ -7320,6 +7322,110 @@ Future<Nothing> Slave::_recoverContainerizer(
     const Option<state::SlaveState>& state)
 {
   return containerizer->recover(state);
+}
+
+
+Future<OperationStatusUpdateManagerState> Slave::_recoverOperations(
+    const Option<state::SlaveState>& state)
+{
+  list<id::UUID> operationUuids;
+  if (state.isSome() && state->operations.isSome()) {
+    foreach (const Operation& operation, state->operations.get()) {
+      Result<ResourceProviderID> resourceProviderId =
+        getResourceProviderId(operation.info());
+
+      // Only operations affecting agent default resources are checkpointed.
+      CHECK(resourceProviderId.isNone());
+
+      operationUuids.push_back(
+          CHECK_NOTERROR(id::UUID::fromBytes(operation.uuid().value())));
+
+      addOperation(new Operation(operation));
+    }
+  }
+
+  return operationStatusUpdateManager.recover(operationUuids, flags.strict);
+}
+
+
+Future<Nothing> Slave::__recoverOperations(
+  const Future<OperationStatusUpdateManagerState>& state)
+{
+  if (!state.isReady()) {
+    EXIT(EXIT_FAILURE)
+      << "Failed to recover operation status update manager: "
+      << (state.isFailed() ? state.failure() : "future discarded") << "\n";
+  }
+
+  if (state->errors > 0) {
+    LOG(WARNING)
+      << "Errors encountered during operation status update manager recovery: "
+      << state->errors;
+
+    metrics.recovery_errors += state->errors;
+  }
+
+  foreachpair (const UUID& uuid,
+               Operation* operation,
+               operations) {
+    const id::UUID operationUuid(
+        CHECK_NOTERROR(id::UUID::fromBytes(uuid.value())));
+
+    // The operation might be from an operator API call, thus the framework
+    // ID here is optional.
+    Option<FrameworkID> frameworkId =
+      operation->has_framework_id()
+        ? operation->framework_id()
+        : Option<FrameworkID>::none();
+
+    if (operation->latest_status().state() == OPERATION_PENDING) {
+      // The agent failed over before creating an `OPERATION_FINISHED` update.
+      CHECK(!state->streams.contains(operationUuid));
+
+      Option<OperationID> operationId =
+        operation->info().has_id()
+          ? operation->info().id()
+          : Option<OperationID>::none();
+
+      UpdateOperationStatusMessage update =
+        protobuf::createUpdateOperationStatusMessage(
+            operation->uuid(),
+            protobuf::createOperationStatus(
+                OPERATION_FINISHED,
+                operationId,
+                None(),
+                None(),
+                id::UUID::random(),
+                info.id(),
+                Option<ResourceProviderID>::none()),
+            None(),
+            frameworkId,
+            info.id());
+
+      updateOperation(operation, update);
+
+      CHECK(protobuf::isSpeculativeOperation(operation->info()));
+      apply(operation);
+
+      checkpointResourceState(
+          totalResources.filter(mesos::needCheckpointing), false);
+
+      operationStatusUpdateManager.update(update);
+    } else if (!state->streams.contains(operationUuid) ||
+               state->streams.get(operationUuid)->isNone()) {
+      // The agent failed over after creating the `OPERATION_FINISHED` update,
+      // but before the operation status update manager checkpointed it.
+      operationStatusUpdateManager.update(
+          protobuf::createUpdateOperationStatusMessage(
+              operation->uuid(),
+              operation->latest_status(),
+              None(),
+              frameworkId,
+              info.id()));
+    }
+  }
+
+  return Nothing();
 }
 
 

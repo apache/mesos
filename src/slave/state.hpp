@@ -386,6 +386,11 @@ struct SlaveState
   SlaveID id;
   Option<SlaveInfo> info;
   hashmap<FrameworkID, FrameworkState> frameworks;
+
+  // `operations` will be `None()` if the agent that checkpointed the
+  // state didn't support checkpointing operations.
+  Option<std::vector<Operation>> operations;
+
   unsigned int errors;
 };
 
