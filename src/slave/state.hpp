@@ -123,7 +123,8 @@ namespace internal {
 inline Try<Nothing> checkpoint(
     const std::string& path,
     const std::string& message,
-    bool sync)
+    bool sync,
+    bool downgradeResources)
 {
   return ::os::write(path, message, sync);
 }
@@ -134,17 +135,24 @@ template <
     typename std::enable_if<
         std::is_convertible<T*, google::protobuf::Message*>::value,
         int>::type = 0>
-inline Try<Nothing> checkpoint(const std::string& path, T message, bool sync)
+inline Try<Nothing> checkpoint(
+    const std::string& path,
+    T message,
+    bool sync,
+    bool downgrade)
 {
-  // If the `Try` from `downgradeResources` returns an `Error`, we currently
-  // continue to checkpoint the resources in a partially downgraded state.
-  // This implies that an agent with refined reservations cannot be downgraded
-  // to versions before reservation refinement support, which was introduced
-  // in 1.4.0.
-  //
-  // TODO(mpark): Do something smarter with the result once
-  // something like an agent recovery capability is introduced.
-  downgradeResources(&message);
+  if (downgrade) {
+    // If the `Try` from `downgradeResources` returns an `Error`, we currently
+    // continue to checkpoint the resources in a partially downgraded state.
+    // This implies that an agent with refined reservations cannot be downgraded
+    // to versions before reservation refinement support, which was introduced
+    // in 1.4.0.
+    //
+    // TODO(mpark): Do something smarter with the result once
+    // something like an agent recovery capability is introduced.
+    downgradeResources(&message);
+  }
+
   return ::protobuf::write(path, message, sync);
 }
 
@@ -152,17 +160,21 @@ inline Try<Nothing> checkpoint(const std::string& path, T message, bool sync)
 inline Try<Nothing> checkpoint(
     const std::string& path,
     google::protobuf::RepeatedPtrField<Resource> resources,
-    bool sync)
+    bool sync,
+    bool downgrade)
 {
-  // If the `Try` from `downgradeResources` returns an `Error`, we currently
-  // continue to checkpoint the resources in a partially downgraded state.
-  // This implies that an agent with refined reservations cannot be downgraded
-  // to versions before reservation refinement support, which was introduced
-  // in 1.4.0.
-  //
-  // TODO(mpark): Do something smarter with the result once
-  // something like an agent recovery capability is introduced.
-  downgradeResources(&resources);
+  if (downgrade) {
+    // If the `Try` from `downgradeResources` returns an `Error`, we currently
+    // continue to checkpoint the resources in a partially downgraded state.
+    // This implies that an agent with refined reservations cannot be downgraded
+    // to versions before reservation refinement support, which was introduced
+    // in 1.4.0.
+    //
+    // TODO(mpark): Do something smarter with the result once
+    // something like an agent recovery capability is introduced.
+    downgradeResources(&resources);
+  }
+
   return ::protobuf::write(path, resources, sync);
 }
 
@@ -170,10 +182,11 @@ inline Try<Nothing> checkpoint(
 inline Try<Nothing> checkpoint(
     const std::string& path,
     const Resources& resources,
-    bool sync)
+    bool sync,
+    bool downgrade)
 {
   const google::protobuf::RepeatedPtrField<Resource>& messages = resources;
-  return checkpoint(path, messages, sync);
+  return checkpoint(path, messages, sync, downgrade);
 }
 
 }  // namespace internal {
@@ -197,7 +210,11 @@ inline Try<Nothing> checkpoint(
 // TODO(chhsiao): Consider enabling syncing by default after evaluating its
 // performance impact.
 template <typename T>
-Try<Nothing> checkpoint(const std::string& path, const T& t, bool sync = false)
+Try<Nothing> checkpoint(
+    const std::string& path,
+    const T& t,
+    bool sync = false,
+    bool downgrade = true)
 {
   // Create the base directory.
   std::string base = Path(path).dirname();
@@ -219,7 +236,8 @@ Try<Nothing> checkpoint(const std::string& path, const T& t, bool sync = false)
   }
 
   // Now checkpoint the instance of T to the temporary file.
-  Try<Nothing> checkpoint = internal::checkpoint(temp.get(), t, sync);
+  Try<Nothing> checkpoint =
+    internal::checkpoint(temp.get(), t, sync, downgrade);
   if (checkpoint.isError()) {
     // Try removing the temporary file on error.
     os::rm(temp.get());
