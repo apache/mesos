@@ -1779,10 +1779,19 @@ TEST_F(StorageLocalResourceProviderTest, AgentRegisteredWithNewId)
 }
 
 
-// This test verifies that the storage local resource provider can
-// publish a volume required by a task, then destroy the published
-// volume after the task finishes.
-TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResources)
+// This test verifies that the storage local resource provider can create and
+// publish a persistent volume used by a task, and the persistent volume will be
+// cleaned up when being destroyed.
+//
+// To accomplish this:
+//   1. Create a MOUNT disk from a RAW disk resource.
+//   2. Create a persistent volume on the MOUNT disk then launches a task to
+//      write a file into it.
+//   3. Destroy the persistent volume but keep the MOUNT disk. The file should
+//      be deleted.
+//   4. Destroy the MOUNT disk.
+TEST_F(
+    StorageLocalResourceProviderTest, ROOT_CreateDestroyPersistentMountVolume)
 {
   const string profilesPath = path::join(sandbox.get(), "profiles.json");
 
@@ -1799,8 +1808,6 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResources)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags slaveFlags = CreateSlaveFlags();
-  slaveFlags.isolation = "filesystem/linux";
-
   slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
 
   Future<SlaveRegisteredMessage> slaveRegisteredMessage =
@@ -1821,103 +1828,79 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResources)
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
-  // The framework is expected to see the following offers in sequence:
-  //   1. One containing a RAW disk resource before `CREATE_DISK`.
-  //   2. One containing a MOUNT disk resource after `CREATE_DISK`.
-  //   3. One containing a persistent volume after `CREATE` and `LAUNCH`.
-  //   4. One containing the original RAW disk resource after `DESTROY`
-  //      and `DESTROY_DISK`.
-  //
-  // We set up the expectations for these offers as the test progresses.
-  Future<vector<Offer>> rawDiskOffers;
-  Future<vector<Offer>> volumeCreatedOffers;
-  Future<vector<Offer>> taskFinishedOffers;
-  Future<vector<Offer>> volumeDestroyedOffers;
-
-  Sequence offers;
-
-  // We use the following filter to filter offers that do not have
-  // wanted resources for 365 days (the maximum).
+  // We use the following filter to filter offers that do not have wanted
+  // resources for 365 days (the maximum).
   Filters declineFilters;
   declineFilters.set_refuse_seconds(Days(365).secs());
 
-  // Decline offers that contain only the agent's default resources.
+  // Decline unwanted offers. The master can send such offers before the
+  // resource provider receives profile updates.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(DeclineOffers(declineFilters));
 
-  // We are only interested in any storage pool or volume with a "test" profile.
-  auto hasSourceType = [](
-      const Resource& r,
-      const Resource::DiskInfo::Source::Type& type) {
+  auto isStoragePool = [](const Resource& r, const string& profile) {
     return r.has_disk() &&
       r.disk().has_source() &&
+      r.disk().source().type() == Resource::DiskInfo::Source::RAW &&
+      r.disk().source().has_vendor() &&
+      r.disk().source().vendor() == TEST_CSI_VENDOR &&
+      !r.disk().source().has_id() &&
       r.disk().source().has_profile() &&
-      r.disk().source().profile() == "test" &&
-      r.disk().source().type() == type;
+      r.disk().source().profile() == profile;
   };
 
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::RAW))))
-    .InSequence(offers)
-    .WillOnce(FutureArg<1>(&rawDiskOffers));
+      std::bind(isStoragePool, lambda::_1, "test"))))
+    .WillOnce(FutureArg<1>(&offers));
 
   driver.start();
 
-  AWAIT_READY(rawDiskOffers);
-  ASSERT_FALSE(rawDiskOffers->empty());
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
 
-  Option<Resource> source;
+  Offer offer = offers->at(0);
 
-  foreach (const Resource& resource, rawDiskOffers->at(0).resources()) {
-    if (hasSourceType(resource, Resource::DiskInfo::Source::RAW)) {
-      source = resource;
-      break;
-    }
-  }
+  // Create a MOUNT disk.
+  Resource raw = *Resources(offer.resources())
+    .filter(std::bind(isStoragePool, lambda::_1, "test"))
+    .begin();
 
-  ASSERT_SOME(source);
+  auto isMountDisk = [](const Resource& r, const string& profile) {
+    return r.has_disk() &&
+      r.disk().has_source() &&
+      r.disk().source().type() == Resource::DiskInfo::Source::MOUNT &&
+      r.disk().source().has_vendor() &&
+      r.disk().source().vendor() == TEST_CSI_VENDOR &&
+      r.disk().source().has_id() &&
+      r.disk().source().has_profile() &&
+      r.disk().source().profile() == profile;
+  };
 
-  // Create a volume.
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::MOUNT))))
-    .InSequence(offers)
-    .WillOnce(FutureArg<1>(&volumeCreatedOffers));
-
-  // We use the following filter so that the resources will not be
-  // filtered for 5 seconds (the default).
-  Filters acceptFilters;
-  acceptFilters.set_refuse_seconds(0);
+      std::bind(isMountDisk, lambda::_1, "test"))))
+    .WillOnce(FutureArg<1>(&offers));
 
   driver.acceptOffers(
-      {rawDiskOffers->at(0).id()},
-      {CREATE_DISK(source.get(), Resource::DiskInfo::Source::MOUNT)},
-      acceptFilters);
+      {offer.id()}, {CREATE_DISK(raw, Resource::DiskInfo::Source::MOUNT)});
 
-  AWAIT_READY(volumeCreatedOffers);
-  ASSERT_FALSE(volumeCreatedOffers->empty());
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
 
-  Option<Resource> volume;
+  offer = offers->at(0);
 
-  foreach (const Resource& resource, volumeCreatedOffers->at(0).resources()) {
-    if (hasSourceType(resource, Resource::DiskInfo::Source::MOUNT)) {
-      volume = resource;
-      break;
-    }
-  }
+  Resource created = *Resources(offer.resources())
+    .filter(std::bind(isMountDisk, lambda::_1, "test"))
+    .begin();
 
-  ASSERT_SOME(volume);
-  ASSERT_TRUE(volume->disk().source().has_vendor());
-  EXPECT_EQ(TEST_CSI_VENDOR, volume->disk().source().vendor());
-  ASSERT_TRUE(volume->disk().source().has_id());
-  ASSERT_TRUE(volume->disk().source().has_metadata());
-  ASSERT_TRUE(volume->disk().source().has_mount());
-  ASSERT_TRUE(volume->disk().source().mount().has_root());
-  EXPECT_FALSE(path::absolute(volume->disk().source().mount().root()));
+  ASSERT_TRUE(created.disk().source().has_metadata());
+  ASSERT_TRUE(created.disk().source().has_mount());
+  ASSERT_TRUE(created.disk().source().mount().has_root());
+  EXPECT_FALSE(path::absolute(created.disk().source().mount().root()));
 
-  // Check if the volume is actually created by the test CSI plugin.
+  // Check if the CSI volume is actually created.
   Option<string> volumePath;
-
-  foreach (const Label& label, volume->disk().source().metadata().labels()) {
+  foreach (const Label& label, created.disk().source().metadata().labels()) {
     if (label.key() == "path") {
       volumePath = label.value();
       break;
@@ -1927,12 +1910,8 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResources)
   ASSERT_SOME(volumePath);
   EXPECT_TRUE(os::exists(volumePath.get()));
 
-  // Put a file into the volume.
-  ASSERT_SOME(os::touch(path::join(volumePath.get(), "file")));
-
-  // Create a persistent volume on the CSI volume, then launch a task to
-  // use the persistent volume.
-  Resource persistentVolume = volume.get();
+  // Create a persistent MOUNT volume then launch a task to write a file.
+  Resource persistentVolume = created;
   persistentVolume.mutable_disk()->mutable_persistence()
     ->set_id(id::UUID::random().toString());
   persistentVolume.mutable_disk()->mutable_persistence()
@@ -1941,56 +1920,76 @@ TEST_F(StorageLocalResourceProviderTest, ROOT_PublishResources)
     ->set_container_path("volume");
   persistentVolume.mutable_disk()->mutable_volume()->set_mode(Volume::RW);
 
-  Future<TaskStatus> taskStarting;
-  Future<TaskStatus> taskRunning;
-  Future<TaskStatus> taskFinished;
+  Future<Nothing> taskFinished;
+  EXPECT_CALL(sched, statusUpdate(&driver, TaskStatusStateEq(TASK_STARTING)));
+  EXPECT_CALL(sched, statusUpdate(&driver, TaskStatusStateEq(TASK_RUNNING)));
+  EXPECT_CALL(sched, statusUpdate(&driver, TaskStatusStateEq(TASK_FINISHED)))
+    .WillOnce(FutureSatisfy(&taskFinished));
 
-  EXPECT_CALL(sched, statusUpdate(&driver, _))
-    .WillOnce(FutureArg<1>(&taskStarting))
-    .WillOnce(FutureArg<1>(&taskRunning))
-    .WillOnce(FutureArg<1>(&taskFinished));
-
-  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveResource(
-      persistentVolume)))
-    .InSequence(offers)
-    .WillOnce(FutureArg<1>(&taskFinishedOffers));
+  EXPECT_CALL(
+      sched, resourceOffers(&driver, OffersHaveResource(persistentVolume)))
+    .WillOnce(FutureArg<1>(&offers));
 
   driver.acceptOffers(
-      {volumeCreatedOffers->at(0).id()},
+      {offer.id()},
       {CREATE(persistentVolume),
        LAUNCH({createTask(
-           volumeCreatedOffers->at(0).slave_id(),
+           offer.slave_id(),
            persistentVolume,
-           createCommandInfo("test -f " + path::join("volume", "file")))})},
-      acceptFilters);
-
-  AWAIT_READY(taskStarting);
-  EXPECT_EQ(TASK_STARTING, taskStarting->state());
-
-  AWAIT_READY(taskRunning);
-  EXPECT_EQ(TASK_RUNNING, taskRunning->state());
+           createCommandInfo("touch " + path::join("volume", "file")))})});
 
   AWAIT_READY(taskFinished);
-  EXPECT_EQ(TASK_FINISHED, taskFinished->state());
 
-  AWAIT_READY(taskFinishedOffers);
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
 
-  // Destroy the persistent volume and the CSI volume.
-  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveResource(source.get())))
-    .InSequence(offers)
-    .WillOnce(FutureArg<1>(&volumeDestroyedOffers));
+  offer = offers->at(0);
 
-  driver.acceptOffers(
-      {taskFinishedOffers->at(0).id()},
-      {DESTROY(persistentVolume),
-       DESTROY_DISK(volume.get())},
-      acceptFilters);
+  // Destroy the persistent volume.
+  Future<UpdateOperationStatusMessage> updateOperationStatusMessage =
+    FUTURE_PROTOBUF(UpdateOperationStatusMessage(), _, _);
 
-  AWAIT_READY(volumeDestroyedOffers);
-  ASSERT_FALSE(volumeDestroyedOffers->empty());
+  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveResource(created)))
+    .WillOnce(FutureArg<1>(&offers));
 
-  // Check if the volume is actually deleted by the test CSI plugin.
+  // TODO(chhsiao): We use the following filter so that the resources will not
+  // be filtered for 5 seconds (the default) because of MESOS-9616. Remove the
+  // filter once it is resolved.
+  Filters acceptFilters;
+  acceptFilters.set_refuse_seconds(0);
+  driver.acceptOffers({offer.id()}, {DESTROY(persistentVolume)}, acceptFilters);
+
+  // NOTE: Since `DESTROY` would be applied by the master synchronously, we
+  // might get an offer before the persistent volume is cleaned up on the agent,
+  // so we wait for an `UpdateOperationStatusMessage` before the check below.
+  AWAIT_READY(updateOperationStatusMessage);
+  EXPECT_EQ(OPERATION_FINISHED, updateOperationStatusMessage->status().state());
+
+  // Check if the CSI volume still exists but has being cleaned up.
+  EXPECT_TRUE(os::exists(volumePath.get()));
+  EXPECT_FALSE(os::exists(path::join(volumePath.get(), "file")));
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
+
+  offer = offers->at(0);
+
+  // Destroy the MOUNT disk.
+  updateOperationStatusMessage =
+    FUTURE_PROTOBUF(UpdateOperationStatusMessage(), _, _);
+
+  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveResource(raw)))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.acceptOffers({offer.id()}, {DESTROY_DISK(created)});
+
+  AWAIT_READY(updateOperationStatusMessage);
+  EXPECT_EQ(OPERATION_FINISHED, updateOperationStatusMessage->status().state());
+
+  // Check if the CSI volume is actually deleted.
   EXPECT_FALSE(os::exists(volumePath.get()));
+
+  AWAIT_READY(offers);
 }
 
 
