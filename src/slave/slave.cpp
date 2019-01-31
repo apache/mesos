@@ -8084,6 +8084,19 @@ void Slave::handleResourceProviderMessage(
       Operation* operation = getOperation(operationUUID);
 
       if (operation != nullptr) {
+        // It is possible for the resource provider to forget or incorrectly
+        // copy the OperationID in its status update. We make sure the ID
+        // is filled in with the correct value before proceeding.
+        if (operation->info().has_id()) {
+          update.mutable_status()->mutable_operation_id()
+            ->CopyFrom(operation->info().id());
+
+          if (update.has_latest_status()) {
+            update.mutable_latest_status()->mutable_operation_id()
+              ->CopyFrom(operation->info().id());
+          }
+        }
+
         // The agent might not know about the operation in the
         // following cases:
         //
