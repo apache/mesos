@@ -308,8 +308,17 @@ private:
       const id::UUID& operationUuid,
       const Resource::DiskInfo::Source::Type& targetType,
       const Option<std::string>& targetProfile);
+
   process::Future<std::vector<ResourceConversion>> applyDestroyDisk(
       const Resource& resource);
+
+  // Synchronously creates persistent volumes.
+  Try<std::vector<ResourceConversion>> applyCreate(
+      const Offer::Operation& operation) const;
+
+  // Synchronously cleans up and destroys persistent volumes.
+  Try<std::vector<ResourceConversion>> applyDestroy(
+      const Offer::Operation& operation) const;
 
   // Synchronously updates `totalResources` and the operation status and
   // then asks the status update manager to send status updates.

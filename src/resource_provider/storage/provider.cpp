@@ -2881,15 +2881,27 @@ Future<Nothing> StorageLocalResourceProviderProcess::_applyOperation(
 
   switch (operation.info().type()) {
     case Offer::Operation::RESERVE:
-    case Offer::Operation::UNRESERVE:
-    case Offer::Operation::CREATE:
-    case Offer::Operation::DESTROY: {
-      // Synchronously apply the speculative operations to ensure that
-      // its result is reflected in the total resources before any of
-      // its succeeding operations is applied.
+    case Offer::Operation::UNRESERVE: {
+      // Synchronously apply the speculative operations to ensure that its
+      // result is reflected in the total resources before any of its succeeding
+      // operations is applied.
       return updateOperationStatus(
           operationUuid,
           getResourceConversions(operation.info()));
+    }
+    case Offer::Operation::CREATE: {
+      // Synchronously create the persistent volumes to ensure that its result
+      // is reflected in the total resources before any of its succeeding
+      // operations is applied.
+      return updateOperationStatus(
+          operationUuid, applyCreate(operation.info()));
+    }
+    case Offer::Operation::DESTROY: {
+      // Synchronously clean up and destroy the persistent volumes to ensure
+      // that its result is reflected in the total resources before any of its
+      // succeeding operations is applied.
+      return updateOperationStatus(
+          operationUuid, applyDestroy(operation.info()));
     }
     case Offer::Operation::CREATE_DISK: {
       CHECK(operation.info().has_create_disk());
@@ -3151,6 +3163,7 @@ Future<vector<ResourceConversion>>
 StorageLocalResourceProviderProcess::applyDestroyDisk(
     const Resource& resource)
 {
+  CHECK(!Resources::isPersistentVolume(resource));
   CHECK(resource.disk().source().type() == Resource::DiskInfo::Source::MOUNT ||
         resource.disk().source().type() == Resource::DiskInfo::Source::BLOCK);
   CHECK(resource.disk().source().has_id());
@@ -3208,6 +3221,79 @@ StorageLocalResourceProviderProcess::applyDestroyDisk(
 
       return conversions;
     }));
+}
+
+
+Try<vector<ResourceConversion>>
+StorageLocalResourceProviderProcess::applyCreate(
+    const Offer::Operation& operation) const
+{
+  CHECK(operation.has_create());
+
+  foreach (const Resource& resource, operation.create().volumes()) {
+    CHECK(Resources::isPersistentVolume(resource));
+
+    // TODO(chhsiao): Support persistent BLOCK volumes.
+    if (resource.disk().source().type() != Resource::DiskInfo::Source::MOUNT) {
+      return Error(
+          "Cannot create persistent volume '" +
+          stringify(resource.disk().persistence().id()) + "' on a " +
+          stringify(resource.disk().source().type()) + " disk");
+    }
+  }
+
+  return getResourceConversions(operation);
+}
+
+
+Try<vector<ResourceConversion>>
+StorageLocalResourceProviderProcess::applyDestroy(
+    const Offer::Operation& operation) const
+{
+  CHECK(operation.has_destroy());
+
+  foreach (const Resource& resource, operation.destroy().volumes()) {
+    // TODO(chhsiao): Support cleaning up persistent BLOCK volumes, presumably
+    // with `dd` or any other utility to zero out the block device.
+    CHECK(Resources::isPersistentVolume(resource));
+    CHECK(resource.disk().source().type() == Resource::DiskInfo::Source::MOUNT);
+    CHECK(resource.disk().source().has_id());
+
+    const string& volumeId = resource.disk().source().id();
+    CHECK(volumes.contains(volumeId));
+
+    const VolumeState& volumeState = volumes.at(volumeId).state;
+
+    // NOTE: Data can only be written to the persistent volume when when it is
+    // in `PUBLISHED` state (i.e., mounted). Once a volume has been transitioned
+    // to `PUBLISHED`, we will set the `node_publish_required` field and always
+    // recover it back to `PUBLISHED` after a failover, until a `DESTROY_DISK`
+    // is applied, which only comes after `DESTROY`. So we only need to clean up
+    // the volume if it has the field set.
+    if (!volumeState.node_publish_required()) {
+      continue;
+    }
+
+    CHECK_EQ(VolumeState::PUBLISHED, volumeState.state());
+
+    const string targetPath = csi::paths::getMountTargetPath(
+        csi::paths::getMountRootDir(
+            slave::paths::getCsiRootDir(workDir),
+            info.storage().plugin().type(),
+            info.storage().plugin().name()),
+        volumeId);
+
+    // Only the data in the target path, but not itself, should be removed.
+    Try<Nothing> rmdir = os::rmdir(targetPath, true, false);
+    if (rmdir.isError()) {
+      return Error(
+          "Failed to remove persistent volume '" +
+          stringify(resource.disk().persistence().id()) + "' at '" +
+          targetPath + "': " + rmdir.error());
+    }
+  }
+
+  return getResourceConversions(operation);
 }
 
 
