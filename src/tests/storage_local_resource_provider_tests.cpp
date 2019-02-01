@@ -55,6 +55,7 @@
 #include "slave/containerizer/mesos/containerizer.hpp"
 
 #include "tests/disk_profile_server.hpp"
+#include "tests/environment.hpp"
 #include "tests/flags.hpp"
 #include "tests/mesos.hpp"
 #include "tests/mock_csi_plugin.hpp"
@@ -113,6 +114,11 @@ public:
       path::join(sandbox.get(), "resource_provider_configs");
 
     ASSERT_SOME(os::mkdir(resourceProviderConfigDir.get()));
+
+    Try<string> mkdtemp = environment->mkdtemp();
+    ASSERT_SOME(mkdtemp);
+
+    testCsiPluginWorkDir = mkdtemp.get();
   }
 
   void TearDown() override
@@ -218,9 +224,6 @@ public:
     const string testCsiPluginPath =
       path::join(tests::flags.build_dir, "src", "test-csi-plugin");
 
-    const string testCsiPluginWorkDir = path::join(sandbox.get(), "storage");
-    ASSERT_SOME(os::mkdir(testCsiPluginWorkDir));
-
     Try<string> resourceProviderConfig = strings::format(
         R"~(
         {
@@ -282,7 +285,7 @@ public:
         TEST_CSI_PLUGIN_NAME,
         testCsiPluginPath,
         testCsiPluginPath,
-        testCsiPluginWorkDir,
+        testCsiPluginWorkDir.get(),
         stringify(capacity),
         createParameters.isSome()
           ? "--create_parameters=" + createParameters.get() : "",
@@ -344,6 +347,7 @@ private:
   Modules modules;
   vector<string> slaveWorkDirs;
   Option<string> resourceProviderConfigDir;
+  Option<string> testCsiPluginWorkDir;
 };
 
 
@@ -2729,6 +2733,177 @@ TEST_F(
 
   // Check if the volume is actually deleted by the test CSI plugin.
   EXPECT_FALSE(os::exists(volumePath.get()));
+}
+
+
+// This test verifies that if the storage local resource provider fails to clean
+// up a persistent volume, the volume will not be destroyed.
+//
+// To accomplish this:
+//   1. Creates a MOUNT disk from a RAW disk resource.
+//   2. Creates a persistent volume on the MOUNT disk then launches a task to
+//      write a file into it.
+//   3. Bind-mounts a file in the CSI volume so the persistent volume cleanup
+//      would fail with EBUSY.
+//   4. Destroys the persistent volume and the MOUNT disk. `DESTROY` would fail
+//      and `DESTROY_DISK` would be dropped.
+TEST_F(
+    StorageLocalResourceProviderTest, ROOT_DestroyPersistentMountVolumeFailed)
+{
+  const string profilesPath = path::join(sandbox.get(), "profiles.json");
+
+  ASSERT_SOME(
+      os::write(profilesPath, createDiskProfileMapping({{"test", None()}})));
+
+  loadUriDiskProfileAdaptorModule(profilesPath);
+
+  setupResourceProviderConfig(Gigabytes(4));
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Register a framework to exercise operations.
+  FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
+  framework.set_roles(0, "storage");
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  // We use the following filter to filter offers that do not have wanted
+  // resources for 365 days (the maximum).
+  Filters declineFilters;
+  declineFilters.set_refuse_seconds(Days(365).secs());
+
+  // Decline unwanted offers. The master can send such offers before the
+  // resource provider receives profile updates.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillRepeatedly(DeclineOffers(declineFilters));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
+      std::bind(isStoragePool<Resource>, lambda::_1, "test"))))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
+
+  Offer offer = offers->at(0);
+
+  // Create a MOUNT disk.
+  Resource raw = *Resources(offer.resources())
+    .filter(std::bind(isStoragePool<Resource>, lambda::_1, "test"))
+    .begin();
+
+  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
+      std::bind(isMountDisk<Resource>, lambda::_1, "test"))))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.acceptOffers(
+      {offer.id()}, {CREATE_DISK(raw, Resource::DiskInfo::Source::MOUNT)});
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
+
+  offer = offers->at(0);
+
+  Resource created = *Resources(offer.resources())
+    .filter(std::bind(isMountDisk<Resource>, lambda::_1, "test"))
+    .begin();
+
+  // Create a persistent MOUNT volume then launch a task to write a file.
+  Resource persistentVolume = created;
+  persistentVolume.mutable_disk()->mutable_persistence()
+    ->set_id(id::UUID::random().toString());
+  persistentVolume.mutable_disk()->mutable_persistence()
+    ->set_principal(framework.principal());
+  persistentVolume.mutable_disk()->mutable_volume()
+    ->set_container_path("volume");
+  persistentVolume.mutable_disk()->mutable_volume()->set_mode(Volume::RW);
+
+  Future<Nothing> taskFinished;
+  EXPECT_CALL(sched, statusUpdate(&driver, TaskStatusStateEq(TASK_STARTING)));
+  EXPECT_CALL(sched, statusUpdate(&driver, TaskStatusStateEq(TASK_RUNNING)));
+  EXPECT_CALL(sched, statusUpdate(&driver, TaskStatusStateEq(TASK_FINISHED)))
+    .WillOnce(FutureSatisfy(&taskFinished));
+
+  EXPECT_CALL(
+      sched, resourceOffers(&driver, OffersHaveResource(persistentVolume)))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.acceptOffers(
+      {offer.id()},
+      {CREATE(persistentVolume),
+       LAUNCH({createTask(
+           offer.slave_id(),
+           persistentVolume,
+           createCommandInfo("touch " + path::join("volume", "file")))})});
+
+  AWAIT_READY(taskFinished);
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
+
+  offer = offers->at(0);
+
+  // Bind-mount the file in the CSI volume to fail persistent volume cleanup.
+  Option<string> volumePath;
+  foreach (const Label& label, created.disk().source().metadata().labels()) {
+    if (label.key() == "path") {
+      volumePath = label.value();
+      break;
+    }
+  }
+
+  ASSERT_SOME(volumePath);
+
+  const string filePath = path::join(volumePath.get(), "file");
+  ASSERT_TRUE(os::exists(filePath));
+  ASSERT_SOME(fs::mount(filePath, filePath, None(), MS_BIND, None()));
+
+  // Destroy the persistent volume and the MOUNT disk, but none will succeed.
+  //
+  // NOTE: The order of the two `FUTURE_PROTOBUF`s is reversed because
+  // Google Mock will search the expectations in reverse order.
+  Future<UpdateOperationStatusMessage> destroyDiskOperationStatus =
+    FUTURE_PROTOBUF(UpdateOperationStatusMessage(), _, _);
+  Future<UpdateOperationStatusMessage> destroyOperationStatus =
+    FUTURE_PROTOBUF(UpdateOperationStatusMessage(), _, _);
+
+  EXPECT_CALL(
+      sched, resourceOffers(&driver, OffersHaveResource(persistentVolume)))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.acceptOffers(
+      {offer.id()}, {DESTROY(persistentVolume), DESTROY_DISK(created)});
+
+  AWAIT_READY(destroyOperationStatus);
+  EXPECT_EQ(OPERATION_FAILED, destroyOperationStatus->status().state());
+
+  AWAIT_READY(destroyDiskOperationStatus);
+  EXPECT_EQ(OPERATION_DROPPED, destroyDiskOperationStatus->status().state());
+
+  AWAIT_READY(offers);
+
+  // Check if the MOUNT disk still exists and not being cleaned up.
+  EXPECT_TRUE(os::exists(filePath));
 }
 
 
