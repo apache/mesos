@@ -60,9 +60,13 @@ message VolumeState {
   map<string, string> publish_info = 4;
 
   // This field is used to check if the node has been rebooted since the volume
-  // was transitioned to `VOL_READY` state. If yes, `NodeStageVolume` needs to
-  // be called to make the volume publishable again. It MUST be set to the boot
-  // ID of the node if the volume is in `VOL_READY` state, and SHOULD remain
-  // unset otherwise. This is an OPTIONAL field.
+  // is made publishable on the node. It MUST be set to the boot ID of the node
+  // when the volume is transitioned to `VOL_READY`, and SHOULD be cleared when
+  // the volume is transitioned to `NODE_READY`. This is an OPTIONAL field.
   string boot_id = 5;
+
+  // This field is used to check if the volume has been used by a container and
+  // hence needs cleanup. If set, the resource provider MUST transition the
+  // volume to `PUBLISHED` state during recovery.
+  bool node_publish_required = 7;
 }
