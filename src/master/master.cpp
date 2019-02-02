@@ -1869,7 +1869,7 @@ void Master::doRegistryGc()
     TimeInfo currentTime = protobuf::getCurrentTime();
     hashset<SlaveID> toRemove;
 
-    foreachpair (const SlaveID& slave,
+    foreachpair (const SlaveID& slaveId,
                  const TimeInfo& removalTime,
                  slaves) {
       // Count-based GC.
@@ -1877,7 +1877,7 @@ void Master::doRegistryGc()
 
       size_t liveCount = count - toRemove.size();
       if (liveCount > flags.registry_max_agent_count) {
-        toRemove.insert(slave);
+        toRemove.insert(slaveId);
         continue;
       }
 
@@ -1886,7 +1886,7 @@ void Master::doRegistryGc()
           currentTime.nanoseconds() - removalTime.nanoseconds());
 
       if (age > flags.registry_max_agent_age) {
-        toRemove.insert(slave);
+        toRemove.insert(slaveId);
       }
     }
 
@@ -1939,29 +1939,29 @@ void Master::_doRegistryGc(
   // operation, but there isn't an easy way to do that.
 
   size_t numRemovedUnreachable = 0;
-  foreach (const SlaveID& slave, toRemoveUnreachable) {
-    if (!slaves.unreachable.contains(slave)) {
-      LOG(WARNING) << "Failed to garbage collect " << slave
+  foreach (const SlaveID& slaveId, toRemoveUnreachable) {
+    if (!slaves.unreachable.contains(slaveId)) {
+      LOG(WARNING) << "Failed to garbage collect " << slaveId
                    << " from the unreachable list";
 
       continue;
     }
 
-    slaves.unreachable.erase(slave);
-    slaves.unreachableTasks.erase(slave);
+    slaves.unreachable.erase(slaveId);
+    slaves.unreachableTasks.erase(slaveId);
     numRemovedUnreachable++;
   }
 
   size_t numRemovedGone = 0;
-  foreach (const SlaveID& slave, toRemoveGone) {
-    if (!slaves.gone.contains(slave)) {
-      LOG(WARNING) << "Failed to garbage collect " << slave
+  foreach (const SlaveID& slaveId, toRemoveGone) {
+    if (!slaves.gone.contains(slaveId)) {
+      LOG(WARNING) << "Failed to garbage collect " << slaveId
                    << " from the gone list";
 
       continue;
     }
 
-    slaves.gone.erase(slave);
+    slaves.gone.erase(slaveId);
     numRemovedGone++;
   }
 
