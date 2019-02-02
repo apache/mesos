@@ -1956,6 +1956,21 @@ void Master::_doRegistryGc(
     }
 
     slaves.unreachable.erase(slaveId);
+
+    // TODO(vinod): Consider moving these tasks into `completedTasks` by
+    // transitioning them to a terminal state and sending status updates.
+    // But it's not clear what this state should be. If a framework
+    // reconciles these tasks after this point it would get `TASK_UNKNOWN`
+    // which seems appropriate but we don't keep tasks in this state in-memory.
+    foreachvalue (Framework* framework, frameworks.registered) {
+      foreach (const TaskID& taskId, framework->unreachableTasks.keys()) {
+        const Owned<Task>& task = framework->unreachableTasks.at(taskId);
+        if (task->slave_id() ==  slaveId) {
+          framework->unreachableTasks.erase(taskId);
+        }
+      }
+    }
+
     numRemovedUnreachable++;
   }
 
