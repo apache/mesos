@@ -2932,16 +2932,30 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByCount)
 
   EXPECT_CALL(sched, registered(&driver, _, _));
 
-  Future<Nothing> resourceOffers;
+  Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, _))
-    .WillOnce(FutureSatisfy(&resourceOffers))
+    .WillOnce(FutureArg<1>(&offers))
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
 
   // Need to make sure the framework AND slave have registered with
   // master. Waiting for resource offers should accomplish both.
-  AWAIT_READY(resourceOffers);
+  AWAIT_READY(offers);
+
+  TaskInfo task = createTask(offers->at(0), SLEEP_COMMAND(60));
+
+  Future<TaskStatus> unreachableStatus;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&unreachableStatus));
+
+  // Drop RunTaskMessage so that the task stays in TASK_STAGING.
+  Future<RunTaskMessage> runTaskMessage =
+    DROP_PROTOBUF(RunTaskMessage(), _, _);
+
+  driver.launchTasks(offers->at(0).id(), {task});
+
+  AWAIT_READY(runTaskMessage);
 
   EXPECT_CALL(sched, offerRescinded(&driver, _))
     .WillRepeatedly(Return());
@@ -2972,6 +2986,8 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByCount)
   TimeInfo partitionTime1 = protobuf::getCurrentTime();
 
   Clock::advance(Milliseconds(100));
+
+  AWAIT_READY(unreachableStatus);
 
   AWAIT_READY(slaveLost1);
 
@@ -3031,13 +3047,13 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByCount)
   slave2.get()->terminate();
   slave2->reset();
 
-  // Do explicit reconciliation for a random task ID on `slave1`. GC
+  // Do explicit reconciliation for the task launched on `slave1`. GC
   // has not occurred yet (since `registry_gc_interval` has not
   // elapsed since the master was started), so the slave should be in
   // the unreachable list; hence `unreachable_time` should be set on
   // the result of the reconciliation request.
   TaskStatus status1;
-  status1.mutable_task_id()->set_value(id::UUID::random().toString());
+  status1.mutable_task_id()->CopyFrom(task.task_id());
   status1.mutable_slave_id()->CopyFrom(slaveId1);
   status1.set_state(TASK_STAGING); // Dummy value.
 
@@ -3052,15 +3068,23 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByCount)
   EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate1->reason());
   EXPECT_EQ(partitionTime1, reconcileUpdate1->unreachable_time());
 
+  JSON::Object stats = Metrics();
+  EXPECT_EQ(1, stats.values["master/tasks_unreachable"]);
+
   // Advance the clock to cause GC to be performed.
   Clock::advance(masterFlags.registry_gc_interval);
   Clock::settle();
 
-  // Do explicit reconciliation for a random task ID on `slave1`.
+  // Ensure task has been removed from unreachable list once the
+  // agent is GC'ed.
+  stats = Metrics();
+  EXPECT_EQ(0, stats.values["master/tasks_unreachable"]);
+
+  // Do explicit reconciliation for the task launched on `slave1`.
   // Because the agent has been removed from the unreachable list in
   // the registry, `unreachable_time` should NOT be set.
   TaskStatus status2;
-  status2.mutable_task_id()->set_value(id::UUID::random().toString());
+  status2.mutable_task_id()->CopyFrom(task.task_id());
   status2.mutable_slave_id()->CopyFrom(slaveId1);
   status2.set_state(TASK_STAGING); // Dummy value.
 
@@ -3094,7 +3118,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(PartitionTest, RegistryGcByCount)
   EXPECT_EQ(TaskStatus::REASON_RECONCILIATION, reconcileUpdate3->reason());
   EXPECT_EQ(partitionTime2, reconcileUpdate3->unreachable_time());
 
-  JSON::Object stats = Metrics();
+  stats = Metrics();
   EXPECT_EQ(2, stats.values["master/slave_unreachable_scheduled"]);
   EXPECT_EQ(2, stats.values["master/slave_unreachable_completed"]);
   EXPECT_EQ(2, stats.values["master/slave_removals"]);
