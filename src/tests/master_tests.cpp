@@ -9294,6 +9294,153 @@ TEST_F(MasterTest, OperationUpdateDuringFailover)
 }
 
 
+// Tests that the master acknowledges reliably-sent operation status updates
+// when the framework that requested feedback has been torn down.
+TEST_F(MasterTest, OperationUpdateCompletedFramework)
+{
+  Clock::pause();
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  StandaloneMasterDetector detector(master.get()->pid);
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
+  ASSERT_SOME(slave);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(updateSlaveMessage);
+
+  // Register a resource provider with the agent.
+  mesos::v1::ResourceProviderInfo resourceProviderInfo;
+  resourceProviderInfo.set_type("org.apache.mesos.resource_provider.test");
+  resourceProviderInfo.set_name("test");
+
+  v1::Resources resourceProviderResources = v1::createDiskResource(
+      "200", "*", None(), None(), v1::createDiskSourceRaw(None(), "profile"));
+
+  v1::MockResourceProvider resourceProvider(
+      resourceProviderInfo,
+      resourceProviderResources);
+
+  Owned<EndpointDetector> endpointDetector(
+      resource_provider::createEndpointDetector(slave.get()->pid));
+
+  updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  resourceProvider.start(endpointDetector, ContentType::PROTOBUF);
+
+  AWAIT_READY(updateSlaveMessage);
+
+  ASSERT_TRUE(resourceProvider.info.has_id());
+
+  // Start a framework to operate on offers.
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
+
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(v1::scheduler::SendSubscribe(frameworkInfo));
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  // Ignore heartbeats.
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return());
+
+  Future<v1::scheduler::Event::Offers> offers;
+
+  // Decline offers that do not contain wanted resources.
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillRepeatedly(v1::scheduler::DeclineOffers());
+
+  EXPECT_CALL(*scheduler, offers( _, v1::scheduler::OffersHaveAnyResource(
+      [](const v1::Resource& r) { return r.has_provider_id(); })))
+    .WillOnce(FutureArg<1>(&offers));
+
+  auto mesos = std::make_shared<v1::scheduler::TestMesos>(
+      master.get()->pid, ContentType::PROTOBUF, scheduler);
+
+  AWAIT_READY(subscribed);
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+
+  const v1::Offer& offer = offers->offers(0);
+
+  EXPECT_CALL(*scheduler, updateOperationStatus(_, _))
+    .WillRepeatedly(Return()); // Do not acknowledge status updates.
+
+  // Perform an operation on resource provider resources.
+  //
+  // NOTE: We use a speculated operation here to avoid running into MESOS-9542.
+  //
+  // TODO(bbannier): Once operations on agent-default resources are backed with
+  // an operation status update manager we could work with just agent resources
+  // in this test.
+  Option<v1::Resource> disk = None();
+  foreach(const v1::Resource& resource, offer.resources()) {
+    if (resource.has_provider_id()) {
+      disk = resource;
+      break;
+    }
+  }
+
+  ASSERT_SOME(disk);
+
+  v1::Resource reserved = disk.get();
+  reserved.add_reservations()->CopyFrom(
+      v1::createDynamicReservationInfo(
+          frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal()));
+
+  // Set an operation ID so the framework would get feedback it would
+  // need to acknowledge.
+  v1::OperationID operationId;
+  operationId.set_value("operation");
+
+  Future<mesos::v1::resource_provider::Event::ApplyOperation> applyOperation;
+  EXPECT_CALL(resourceProvider, applyOperation(_))
+    .WillOnce(FutureArg<0>(&applyOperation));
+
+  mesos->send(v1::createCallAccept(
+      frameworkId, offer, {v1::RESERVE(reserved, operationId)}));
+
+  // Let the operation hang in the resource provider.
+  AWAIT_READY(applyOperation);
+
+  Future<ShutdownFrameworkMessage> shutdownFrameworkMessage =
+    FUTURE_PROTOBUF(ShutdownFrameworkMessage(), _, _);
+
+  // Disconnect the scheduler. Since the default framework failover
+  // timeout is 0 this will cause the framework to be removed.
+  mesos.reset();
+
+  AWAIT_READY(shutdownFrameworkMessage);
+
+  Future<AcknowledgeOperationStatusMessage> acknowledgeOperationStatusMessage =
+    FUTURE_PROTOBUF(AcknowledgeOperationStatusMessage(), _, slave.get()->pid);
+
+  Future<Nothing> acknowledgeOperationStatus;
+  EXPECT_CALL(resourceProvider, acknowledgeOperationStatus(_))
+    .WillOnce(FutureSatisfy(&acknowledgeOperationStatus));
+
+  resourceProvider.operationDefault(applyOperation.get());
+
+  // We expect the master to acknowledge the operation status update.
+  AWAIT_READY(acknowledgeOperationStatusMessage);
+  AWAIT_READY(acknowledgeOperationStatus);
+}
+
+
 // Verifies that both active and terminal per-framework task state metrics
 // report correct values, even after agent reregistration.
 TEST_F(MasterTest, TaskStateMetrics)

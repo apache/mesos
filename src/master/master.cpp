@@ -8674,7 +8674,11 @@ void Master::updateOperationStatus(UpdateOperationStatusMessage&& update)
 
   const OperationStatus& latestStatus = *operation->statuses().rbegin();
 
-  if (operation->info().has_id()) {
+  bool frameworkWillAcknowledge =
+    operation->info().has_id() &&
+    !isCompletedFramework(frameworkId.get());
+
+  if (frameworkWillAcknowledge) {
     // Forward the status update to the framework.
     Framework* framework = getFramework(frameworkId.get());
 
@@ -8695,8 +8699,9 @@ void Master::updateOperationStatus(UpdateOperationStatusMessage&& update)
     }
   } else {
     if (latestStatus.has_uuid()) {
-      // This update is being sent reliably, and it doesn't have an operation
-      // ID, so the master has to send an acknowledgement.
+      // This update is being sent reliably, and either doesn't have
+      // an operation ID or the associated framework terminated, so
+      // the master has to send an acknowledgement.
 
       Result<ResourceProviderID> resourceProviderId =
         getResourceProviderId(operation->info());
