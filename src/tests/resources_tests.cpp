@@ -3830,14 +3830,14 @@ struct ScalarArithmeticParameter
 
 class Resources_Scalar_Arithmetic_BENCHMARK_Test
   : public ::testing::Test,
-    public ::testing::WithParamInterface<ScalarArithmeticParameter>
+    public ::testing::WithParamInterface<int>
 {
-public:
-  // Returns the 'Resources' parameters to run the benchmarks against.
-  static vector<ScalarArithmeticParameter> parameters()
-  {
-    vector<ScalarArithmeticParameter> parameters_;
+protected:
+  static vector<ScalarArithmeticParameter> parameters_;
 
+public:
+  static void SetUpTestCase()
+  {
     // Test a typical vector of scalars.
     ScalarArithmeticParameter scalars;
     scalars.resources =
@@ -3883,10 +3883,22 @@ public:
     parameters_.push_back(std::move(scalars));
     parameters_.push_back(std::move(reservations));
     parameters_.push_back(std::move(shared));
+  }
 
-    return parameters_;
+  // Returns the 'Resources' parameters to run the benchmarks against.
+  static Try<ScalarArithmeticParameter> parameters(int n)
+  {
+    if (n < 0 || n >= static_cast<int>(parameters_.size())) {
+      return Error("Invalid parameter set");
+    }
+
+    return parameters_.at(n);
   }
 };
+
+
+vector<ScalarArithmeticParameter>
+  Resources_Scalar_Arithmetic_BENCHMARK_Test::parameters_;
 
 
 // The Resources benchmark tests are parameterized by the
@@ -3895,8 +3907,7 @@ public:
 INSTANTIATE_TEST_CASE_P(
     ResourcesScalarArithmeticOperators,
     Resources_Scalar_Arithmetic_BENCHMARK_Test,
-    ::testing::ValuesIn(
-        Resources_Scalar_Arithmetic_BENCHMARK_Test::parameters()));
+    ::testing::Range(0, 3));
 
 
 static string abbreviate(string s, size_t max)
@@ -3913,8 +3924,11 @@ static string abbreviate(string s, size_t max)
 
 TEST_P(Resources_Scalar_Arithmetic_BENCHMARK_Test, Arithmetic)
 {
-  const Resources& resources = GetParam().resources;
-  size_t totalOperations = GetParam().totalOperations;
+  const ScalarArithmeticParameter parameter =
+    CHECK_NOTERROR(parameters(GetParam()));
+
+  const Resources& resources = parameter.resources;
+  size_t totalOperations = parameter.totalOperations;
 
   Resources total;
   Stopwatch watch;
@@ -4036,17 +4050,24 @@ struct ContainsParameter
 
 class Resources_Contains_BENCHMARK_Test
   : public ::testing::Test,
-    public ::testing::WithParamInterface<ContainsParameter>
+    public ::testing::WithParamInterface<int>
 {
 public:
+  static vector<ContainsParameter> parameters_;
+
   // Returns the 'Resources' parameters to run the `contains`
   // benchmarks against. This test will include three kind of
   // 'Resources' parameters: scalar, ranges and mixed
   // (scalar and ranges).
-  static vector<ContainsParameter> parameters()
+  //
+  // NOTE: We do not execute this expensive function at test
+  // instantiation time, but at test execution time so we only pay for
+  // its cost when actually executing the test and not during global
+  // test registration.
+  //
+  // TODO(bbannier): Break this function down into orthogonal pieces.
+  static void SetUpTestCase()
   {
-    vector<ContainsParameter> parameters_;
-
     // Test a typical vector of scalars, the superset contains
     // the subset for this case.
     ContainsParameter scalars1;
@@ -4129,10 +4150,20 @@ public:
     parameters_.push_back(std::move(mixed1));
     parameters_.push_back(std::move(mixed2));
     parameters_.push_back(std::move(mixed3));
+  }
 
-    return parameters_;
+  static Try<ContainsParameter> parameters(int n)
+  {
+    if (n < 0 || n >= static_cast<int>(parameters_.size())) {
+      return Error("Invalid parameter set");
+    }
+
+    return parameters_.at(n);
   }
 };
+
+
+vector<ContainsParameter> Resources_Contains_BENCHMARK_Test::parameters_;
 
 
 // The Resources `contains` benchmark tests are parameterized by
@@ -4140,14 +4171,16 @@ public:
 INSTANTIATE_TEST_CASE_P(
     ResourcesContains,
     Resources_Contains_BENCHMARK_Test,
-    ::testing::ValuesIn(Resources_Contains_BENCHMARK_Test::parameters()));
+    ::testing::Range(0, 9));
 
 
 TEST_P(Resources_Contains_BENCHMARK_Test, Contains)
 {
-  const Resources& subset = GetParam().subset;
-  const Resources& superset = GetParam().superset;
-  size_t totalOperations = GetParam().totalOperations;
+  const ContainsParameter parameter = CHECK_NOTERROR(parameters(GetParam()));
+
+  const Resources& subset = parameter.subset;
+  const Resources& superset = parameter.superset;
+  size_t totalOperations = parameter.totalOperations;
 
   Stopwatch watch;
 
