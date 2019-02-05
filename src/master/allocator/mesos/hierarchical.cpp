@@ -1805,6 +1805,9 @@ void HierarchicalAllocatorProcess::__allocate()
   // roles with unsatisfied guarantee can have more choices and higher
   // probability in getting their guarantee satisfied.
   foreach (const SlaveID& slaveId, slaveIds) {
+    CHECK(slaves.contains(slaveId));
+    Slave& slave = slaves.at(slaveId);
+
     foreach (const string& role, quotaRoleSorter->sort()) {
       CHECK(quotas.contains(role));
 
@@ -1825,13 +1828,10 @@ void HierarchicalAllocatorProcess::__allocate()
         FrameworkID frameworkId;
         frameworkId.set_value(frameworkId_);
 
-        CHECK(slaves.contains(slaveId));
         CHECK(frameworks.contains(frameworkId));
 
         const Framework& framework = frameworks.at(frameworkId);
         CHECK(framework.active) << frameworkId;
-
-        Slave& slave = slaves.at(slaveId);
 
         if (!isCapableOfReceivingAgent(framework.capabilities, slave)) {
           continue;
@@ -2023,6 +2023,9 @@ void HierarchicalAllocatorProcess::__allocate()
   // quota guarantees).
 
   foreach (const SlaveID& slaveId, slaveIds) {
+    CHECK(slaves.contains(slaveId));
+    Slave& slave = slaves.at(slaveId);
+
     foreach (const string& role, roleSorter->sort()) {
       // In the second allocation stage, we only allocate
       // for non-quota roles.
@@ -2038,11 +2041,9 @@ void HierarchicalAllocatorProcess::__allocate()
         FrameworkID frameworkId;
         frameworkId.set_value(frameworkId_);
 
-        CHECK(slaves.contains(slaveId));
         CHECK(frameworks.contains(frameworkId));
 
         const Framework& framework = frameworks.at(frameworkId);
-        Slave& slave = slaves.at(slaveId);
 
         if (!isCapableOfReceivingAgent(framework.capabilities, slave)) {
           continue;
