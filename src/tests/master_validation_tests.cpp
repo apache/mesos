@@ -1864,9 +1864,13 @@ TEST(OperationValidationTest, DestroyDisk)
   Resource disk4 = createDiskResource(
       "40", "*", None(), None(), createDiskSourceMount());
 
+  Resource disk5 = createPersistentVolume(
+      Megabytes(50), "role", "id", "path", None(), createDiskSourceMount());
+
   disk1.mutable_provider_id()->set_value("provider1");
   disk2.mutable_provider_id()->set_value("provider2");
   disk3.mutable_provider_id()->set_value("provider3");
+  disk5.mutable_provider_id()->set_value("provider5");
 
   Offer::Operation::DestroyDisk destroyDisk;
   destroyDisk.mutable_source()->CopyFrom(disk1);
@@ -1894,6 +1898,14 @@ TEST(OperationValidationTest, DestroyDisk)
   EXPECT_TRUE(strings::contains(
       error->message,
       "'source' is not managed by a resource provider"));
+
+  destroyDisk.mutable_source()->CopyFrom(disk5);
+
+  error = operation::validate(destroyDisk);
+  ASSERT_SOME(error);
+  EXPECT_TRUE(strings::contains(
+      error->message,
+      "Please destroy the persistent volume first"));
 }
 
 

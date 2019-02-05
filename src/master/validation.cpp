@@ -2548,6 +2548,13 @@ Option<Error> validate(const Offer::Operation::DestroyDisk& destroyDisk)
     return Error("'source' is neither a MOUNT or BLOCK disk resource");
   }
 
+  if (Resources::isPersistentVolume(source)) {
+    return Error(
+        "A disk resource containing a persistent volume " + stringify(source) +
+        " cannot be destroyed directly. Please destroy the persistent volume"
+        " first then destroy the disk resource");
+  }
+
   return None();
 }
 
