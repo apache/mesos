@@ -126,3 +126,30 @@ Offers are reconciled automatically after a failure:
 * Offers do not persist beyond the lifetime of a Master.
 * If a disconnection occurs, offers are no longer valid.
 * Offers are rescinded and regenerated each time the framework (re-)registers.
+
+
+# Operation Reconciliation
+
+When a scheduler specifies an `id` on an offer operation, the master will
+provide updates on the status of that operation. If the scheduler needs to
+reconcile its view of the current states of operations with the master's view,
+it can do so via the `RECONCILE_OPERATIONS` call in the v1 scheduler API.
+
+Operation reconciliation is similar to task reconciliation in that the scheduler
+can perform either explicit or implicit reconciliation by specifying particular
+operation IDs or by leaving the `operations` field unset, respectively.
+
+Operation reconciliation differs from task reconciliation in that the
+`RECONCILE_OPERATIONS` call provides a single HTTP response which contains all
+operation status updates, rather than an asynchronous stream of individual
+updates on the event stream. NOTE, however, that this API is experimental and
+we plan to change this in the near future so that operation reconciliation will
+resemble task reconciliation in this respect.
+
+In order to explicitly reconcile particular operations, the scheduler should
+include in the `RECONCILE_OPERATIONS` call a list of operations, specifying an
+operation ID, agent ID, and resource provider ID (if applicable) for each one.
+
+Similar to task reconciliation, we recommend that schedulers implement a
+periodic reconciliation loop for operations in order to defend against network
+failures and bugs in the scheduler and/or Mesos master.

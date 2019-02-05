@@ -137,8 +137,6 @@ NOTE: Mesos will cap `Filters.refuse_seconds` at 31536000 seconds (365 days).
 
 The master will send task status updates in response to `LAUNCH` and `LAUNCH_GROUP` operations. For other types of operations, if an operation ID is specified, the master will send operation status updates in response.
 
-NOTE: For the time being, an operation ID can only be set if the operation affects resources provided by a [resource provider](csi.md#resource-providers). See [MESOS-8194](https://issues.apache.org/jira/browse/MESOS-8371) for more details.
-
 ```
 ACCEPT Request (JSON):
 POST /api/v1/scheduler  HTTP/1.1
@@ -592,6 +590,27 @@ UPDATE Event (JSON)
         "source"	: "SOURCE_EXECUTOR",
         "uuid"		: "adfadfadbhgvjayd23r2uahj",
         "bytes"		: "uhdjfhuagdj63d7hadkf"
+      }
+  }
+}
+```
+
+### UPDATE_OPERATION_STATUS
+Sent by the master whenever there is an update to the state of an operation for which the scheduler requested feedback by setting the operation's `id` field. It is the responsibility of the scheduler to explicitly acknowledge the receipt of any status updates which have their `uuid` field set, as this indicates that the update will be retried until acknowledgement is received. This ensures that such updates are delivered reliably. See `ACKNOWLEDGE_OPERATION_STATUS` in the Calls section above for the relevant acknowledgement semantics. Note that the `uuid` field contains raw bytes encoded in Base64.
+
+```
+UPDATE_OPERATION_STATUS Event (JSON)
+
+<event-length>
+{
+  "type"	: "UPDATE_OPERATION_STATUS",
+  "update_operation_status"	: {
+    "status"	: {
+        "operation_id" : { "value" : "operation-1234"},
+        "state"        : "OPERATION_FAILED",
+        "uuid"         : "adfadfadbhgvjayd23r2uahj",
+        "agent_id"     : { "value" : "12214-23523-S235235"},
+        "resource_provider_id" : { "value" : "83978-17885-1089645"}
       }
   }
 }
