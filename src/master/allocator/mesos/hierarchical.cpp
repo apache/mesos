@@ -1819,12 +1819,28 @@ void HierarchicalAllocatorProcess::__allocate()
         continue;
       }
 
+      // TODO(bmahler): Handle shared volumes, which are always available but
+      // should be excluded here based on `offeredSharedResources`.
+      if (!allocatable(slave.getAvailable())) {
+        break; // Nothing left on this agent.
+      }
+
       // Fetch frameworks according to their fair share.
       // NOTE: Suppressed frameworks are not included in the sort.
       CHECK(frameworkSorters.contains(role));
       const Owned<Sorter>& frameworkSorter = frameworkSorters.at(role);
 
       foreach (const string& frameworkId_, frameworkSorter->sort()) {
+        Resources available = slave.getAvailable();
+
+        // Offer a shared resource only if it has not been offered in this
+        // offer cycle to a framework.
+        available -= offeredSharedResources.get(slaveId).getOrElse(Resources());
+
+        if (!allocatable(available.allocatableTo(role))) {
+          break; // Nothing left for the role.
+        }
+
         FrameworkID frameworkId;
         frameworkId.set_value(frameworkId_);
 
@@ -1837,14 +1853,7 @@ void HierarchicalAllocatorProcess::__allocate()
           continue;
         }
 
-        // Get the currently available resources on the agent and strip
-        // resources that are incompatible with the framework capabilities.
-        Resources available =
-          stripIncapableResources(slave.getAvailable(), framework.capabilities);
-
-        // Offer a shared resource only if it has not been offered in this
-        // offer cycle to a framework.
-        available -= offeredSharedResources.get(slaveId).getOrElse(Resources());
+        available = stripIncapableResources(available, framework.capabilities);
 
         // In this first stage, we allocate the role's reservations as well as
         // any unreserved resources while ensuring the role stays within its
@@ -1961,21 +1970,9 @@ void HierarchicalAllocatorProcess::__allocate()
             return resource.type() != Value::SCALAR;
           });
 
-        // It is safe to break here, because all frameworks under a role would
-        // consider the same resources, so in case we don't have allocatable
-        // resources, we don't have to check for other frameworks under the
-        // same role. We only break out of the innermost loop, so the next step
-        // will use the same `slaveId`, but a different role.
-        //
-        // NOTE: The resources may not be allocatable here, but they can be
-        // accepted by one of the frameworks during the second allocation
-        // stage.
-        if (!allocatable(toAllocate)) {
-          break;
-        }
-
         // If the framework filters these resources, ignore.
-        if (isFiltered(frameworkId, role, slaveId, toAllocate)) {
+        if (!allocatable(toAllocate) ||
+            isFiltered(frameworkId, role, slaveId, toAllocate)) {
           continue;
         }
 
@@ -2033,11 +2030,27 @@ void HierarchicalAllocatorProcess::__allocate()
         continue;
       }
 
+      // TODO(bmahler): Handle shared volumes, which are always available but
+      // should be excluded here based on `offeredSharedResources`.
+      if (!allocatable(slave.getAvailable())) {
+        break; // Nothing left on this agent.
+      }
+
       // NOTE: Suppressed frameworks are not included in the sort.
       CHECK(frameworkSorters.contains(role));
       const Owned<Sorter>& frameworkSorter = frameworkSorters.at(role);
 
       foreach (const string& frameworkId_, frameworkSorter->sort()) {
+        Resources available = slave.getAvailable();
+
+        // Offer a shared resource only if it has not been offered in this
+        // offer cycle to a framework.
+        available -= offeredSharedResources.get(slaveId).getOrElse(Resources());
+
+        if (!allocatable(available.allocatableTo(role))) {
+          break; // Nothing left for the role.
+        }
+
         FrameworkID frameworkId;
         frameworkId.set_value(frameworkId_);
 
@@ -2049,14 +2062,7 @@ void HierarchicalAllocatorProcess::__allocate()
           continue;
         }
 
-        // Get the currently available resources on the agent and strip
-        // resources that are incompatible with the framework capabilities.
-        Resources available =
-          stripIncapableResources(slave.getAvailable(), framework.capabilities);
-
-        // Offer a shared resource only if it has not been offered in this offer
-        // cycle to a framework.
-        available -= offeredSharedResources.get(slaveId).getOrElse(Resources());
+        available = stripIncapableResources(available, framework.capabilities);
 
         // The resources we offer are the unreserved resources as well as the
         // reserved resources for this particular role and all its ancestors
@@ -2067,20 +2073,6 @@ void HierarchicalAllocatorProcess::__allocate()
         //
         // TODO(mpark): Offer unreserved resources as revocable beyond quota.
         Resources toAllocate = available.allocatableTo(role);
-
-        // It is safe to break here, because all frameworks under a role would
-        // consider the same resources, so in case we don't have allocatable
-        // resources, we don't have to check for other frameworks under the
-        // same role. We only break out of the innermost loop, so the next step
-        // will use the same slaveId, but a different role.
-        //
-        // The difference to the second `allocatable` check is that here we also
-        // check for revocable resources, which can be disabled on a per frame-
-        // work basis, which requires us to go through all frameworks in case we
-        // have allocatable revocable resources.
-        if (!allocatable(toAllocate)) {
-          break;
-        }
 
         // If allocating these resources would reduce the headroom
         // below what is required, we will hold them back.
@@ -2096,15 +2088,8 @@ void HierarchicalAllocatorProcess::__allocate()
           toAllocate -= headroomToAllocate;
         }
 
-        // If the resources are not allocatable, ignore. We cannot break
-        // here, because another framework under the same role could accept
-        // revocable resources and breaking would skip all other frameworks.
-        if (!allocatable(toAllocate)) {
-          continue;
-        }
-
-        // If the framework filters these resources, ignore.
-        if (isFiltered(frameworkId, role, slaveId, toAllocate)) {
+        if (!allocatable(toAllocate) ||
+            isFiltered(frameworkId, role, slaveId, toAllocate)) {
           continue;
         }
 
