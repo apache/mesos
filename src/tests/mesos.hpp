@@ -3163,12 +3163,13 @@ public:
         break;
     }
 
-    if (update->has_status()) {
-      update->mutable_status()->mutable_resource_provider_id()->CopyFrom(
-          info.id());
+    update->mutable_status()->mutable_uuid()->set_value(
+        id::UUID::random().toString());
 
-      update->mutable_latest_status()->CopyFrom(update->status());
-    }
+    update->mutable_status()->mutable_resource_provider_id()->CopyFrom(
+        info.id());
+
+    update->mutable_latest_status()->CopyFrom(update->status());
 
     driver->send(call);
   }
