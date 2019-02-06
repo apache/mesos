@@ -101,6 +101,9 @@ struct Framework
   bool publishPerFrameworkMetrics;
 
   process::Owned<FrameworkMetrics> metrics;
+
+  // TODO(bbannier): Consider documenting examples on how to use this setting.
+  hashmap<std::string, std::vector<ResourceQuantities>> minAllocatableResources;
 };
 
 

@@ -134,6 +134,36 @@ private:
 };
 
 
+// Helper function to unpack a map of per-role `OfferFilters` to the
+// format used by the allocator.
+static hashmap<string, vector<ResourceQuantities>> unpackFrameworkOfferFilters(
+    const ::google::protobuf::Map<string, OfferFilters>& roleOfferFilters)
+{
+  hashmap<string, vector<ResourceQuantities>> result;
+
+  // Use `auto` in place of `protobuf::MapPair<string, AllocatableResources>`
+  // below since `foreach` is a macro and cannot contain angle brackets.
+  foreach (auto&& offerFilters, roleOfferFilters) {
+    const string& role = offerFilters.first;
+    const OfferFilters& allocatableResources = offerFilters.second;
+
+    if (allocatableResources.has_min_allocatable_resources()) {
+      result.insert({role, {}});
+
+      vector<ResourceQuantities>& allocatableResourcesRole = result[role];
+
+      foreach (
+          const OfferFilters::ResourceQuantities& quantities,
+          allocatableResources.min_allocatable_resources().quantities()) {
+        allocatableResourcesRole.push_back(ResourceQuantities(quantities));
+      }
+    }
+  }
+
+  return result;
+}
+
+
 Framework::Framework(
     const FrameworkInfo& frameworkInfo,
     const set<string>& _suppressedRoles,
@@ -143,7 +173,9 @@ Framework::Framework(
     suppressedRoles(_suppressedRoles),
     capabilities(frameworkInfo.capabilities()),
     active(_active),
-    metrics(new FrameworkMetrics(frameworkInfo, publishPerFrameworkMetrics)) {}
+    metrics(new FrameworkMetrics(frameworkInfo, publishPerFrameworkMetrics)),
+    minAllocatableResources(
+        unpackFrameworkOfferFilters(frameworkInfo.offer_filters())) {}
 
 
 void HierarchicalAllocatorProcess::initialize(
@@ -516,6 +548,8 @@ void HierarchicalAllocatorProcess::updateFramework(
   framework.roles = newRoles;
   framework.suppressedRoles = suppressedRoles;
   framework.capabilities = frameworkInfo.capabilities();
+  framework.minAllocatableResources =
+    unpackFrameworkOfferFilters(frameworkInfo.offer_filters());
 }
 
 
