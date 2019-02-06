@@ -2284,6 +2284,121 @@ TEST_F(HierarchicalAllocatorTest, Allocatable)
 }
 
 
+// Check that if a framework specifies minimum allocatable resources, it
+// correctly overrides the global minimum. We check this by ensuring it gets an
+// offer when the global minimum is not satisfied but the framework's
+// role-specific minimum is. This test also confirms that framework minimal
+// allocatable resources can be updated in the allocator by checking that the
+// framework gets no offers with the default flags and only specify a limit
+// later on.
+TEST_F(HierarchicalAllocatorTest, FrameworkMinAllocatable)
+{
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the batch allocation in the allocator, which
+  // would slow down the test.
+  Clock::pause();
+
+  master::Flags flags = master::Flags();
+  flags.min_allocatable_resources = "cpus:0.01|mem:32";
+
+  initialize(flags);
+
+  // Initially start the framework without any non-standard static
+  // offer filters.
+  FrameworkInfo framework = createFrameworkInfo({"role1"});
+  allocator->addFramework(framework.id(), framework, {}, true, {});
+
+  // Not enough memory or cpu to be considered allocatable with
+  // default minimum allocatable resources.
+  SlaveInfo slave = createSlaveInfo(
+      "cpus:" + stringify(0.01 / 2) + ";"
+      "mem:" + stringify(32. / 2) + ";"
+      "disk:128");
+  allocator->addSlave(
+      slave.id(),
+      slave,
+      AGENT_CAPABILITIES(),
+      None(),
+      slave.resources(),
+      {});
+
+  // The framework should not get offers as no resources allocatable
+  // to it are available.
+  Future<Allocation> allocation = allocations.get();
+
+  Clock::settle();
+  ASSERT_TRUE(allocation.isPending());
+
+  // Update the framework with custom minimal allocatable resources
+  // below the globally configured minimal allocatable resources and
+  // statisfiable by the available resources.
+  Value::Scalar minCpus;
+  minCpus.set_value(0.01 / 3);
+
+  framework.mutable_offer_filters()->insert({framework.roles(0), {}});
+  framework.mutable_offer_filters()
+    ->at(framework.roles(0))
+    .mutable_min_allocatable_resources()
+    ->add_quantities()
+    ->mutable_quantities()
+    ->insert({"cpus", minCpus});
+  allocator->updateFramework(framework.id(), framework, {});
+
+  // Advance the clock to trigger allocation of the available resources.
+  Clock::advance(flags.allocation_interval);
+
+  Allocation expected =
+    Allocation(framework.id(), {{"role1", {{slave.id(), slave.resources()}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocation);
+}
+
+
+// Check that a framework-specified empty set of minimum allocatable resource
+// requirements is interpreted as the framework accepting any resources
+// regardless of the global limit.
+TEST_F(HierarchicalAllocatorTest, FrameworkEmptyMinAllocatable)
+{
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the batch allocation in the allocator, which
+  // would slow down the test.
+  Clock::pause();
+
+  master::Flags flags = master::Flags();
+  flags.min_allocatable_resources = "cpus:0.01|mem:32";
+
+  initialize(flags);
+
+  // Add a framework which specifies minimum allocatable resources
+  // with an empty set of quantities.
+  FrameworkInfo framework = createFrameworkInfo({"role1"});
+  framework.mutable_offer_filters()->insert({framework.roles(0), {}});
+  framework.mutable_offer_filters()
+    ->at(framework.roles(0))
+    .mutable_min_allocatable_resources();
+  allocator->addFramework(framework.id(), framework, {}, true, {});
+
+  // Not enough memory or cpu to be considered allocatable with
+  // default minimum allocatable resources.
+  SlaveInfo slave = createSlaveInfo(
+      "cpus:" + stringify(0.01 / 2) + ";"
+      "mem:" + stringify(32. / 2) + ";"
+      "disk:128");
+  allocator->addSlave(
+      slave.id(),
+      slave,
+      AGENT_CAPABILITIES(),
+      None(),
+      slave.resources(),
+      {});
+
+  Allocation expected =
+    Allocation(framework.id(), {{"role1", {{slave.id(), slave.resources()}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocations.get());
+}
+
+
 // This test ensures that frameworks can apply offer operations (e.g.,
 // creating persistent volumes) on their allocations.
 TEST_F(HierarchicalAllocatorTest, UpdateAllocation)
