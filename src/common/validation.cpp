@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 
 #include <mesos/executor/executor.hpp>
 
@@ -612,6 +613,43 @@ Option<Error> validateExecutorCall(const mesos::executor::Call& call)
   }
 
   UNREACHABLE();
+}
+
+
+Option<Error> validateOfferFilters(const OfferFilters& offerFilters)
+{
+  if (offerFilters.has_min_allocatable_resources()) {
+    foreach (
+        const OfferFilters::ResourceQuantities& quantities,
+        offerFilters.min_allocatable_resources().quantities()) {
+      if (quantities.quantities().empty()) {
+        return Error("Resource quantities must contain at least one quantity");
+      }
+
+      // Use `auto` instead of `protobuf::MapPair<strinf, Value::>` since
+      // `foreach` is a macro and does not allow angle brackets.
+      foreach (auto&& quantity, quantities.quantities()) {
+        const Value::Scalar& scalar = quantity.second;
+
+        // We do not allow negative quantities in offer filters.
+        if (scalar.value() < 0) {
+          return Error("Negative resource quantities are not allowed");
+        }
+
+        // Resource quantities cannot have NaN values.
+        if (std::isnan(scalar.value())) {
+          return Error("Resource quantities cannot be NaN");
+        }
+
+        // We do not allow infinite quantities in offer filters.
+        if (std::isinf(scalar.value())) {
+          return Error("Infinite resource quantities are not allowed");
+        }
+      }
+    }
+  }
+
+  return None();
 }
 
 } // namespace validation {

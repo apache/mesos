@@ -69,6 +69,8 @@ Option<Error> validateCheckStatusInfo(const CheckStatusInfo& checkStatusInfo);
 
 Option<Error> validateExecutorCall(const mesos::executor::Call& call);
 
+Option<Error> validateOfferFilters(const OfferFilters& offerFilters);
+
 } // namespace validation {
 } // namespace common {
 } // namespace internal {

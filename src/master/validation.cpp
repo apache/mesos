@@ -518,10 +518,32 @@ Option<Error> validateFrameworkId(const FrameworkInfo& frameworkInfo)
   return common::validation::validateID(frameworkInfo.id().value());
 }
 
+
+Option<Error> validateOfferFilters(const FrameworkInfo& frameworkInfo)
+{
+  // Use `auto` in place of `protobuf::MapPair<string, Value::Scalar>`
+  // below since `foreach` is a macro and cannot contain angle brackets.
+  foreach (auto&& filter, frameworkInfo.offer_filters()) {
+    const OfferFilters& offerFilters = filter.second;
+
+    Option<Error> error =
+      common::validation::validateOfferFilters(offerFilters);
+
+    if (error.isSome()) {
+      return error;
+    }
+  }
+
+  return None();
+}
+
 } // namespace internal {
+
 
 Option<Error> validate(const mesos::FrameworkInfo& frameworkInfo)
 {
+  // TODO(jay_guo): This currently only validates the role(s),
+  // framework ID and offer filters, validate more fields!
   Option<Error> error = internal::validateRoles(frameworkInfo);
 
   if (error.isSome()) {
@@ -529,6 +551,12 @@ Option<Error> validate(const mesos::FrameworkInfo& frameworkInfo)
   }
 
   error = internal::validateFrameworkId(frameworkInfo);
+
+  if (error.isSome()) {
+    return error;
+  }
+
+  error = internal::validateOfferFilters(frameworkInfo);
 
   if (error.isSome()) {
     return error;

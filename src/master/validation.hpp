@@ -105,12 +105,11 @@ Option<Error> validateRoles(const mesos::FrameworkInfo& frameworkInfo);
 
 Option<Error> validateFrameworkId(const mesos::FrameworkInfo& frameworkInfo);
 
+Option<Error> validateOfferFilters(const FrameworkInfo& frameworkInfo);
+
 } // namespace internal {
 
 // Validate a FrameworkInfo.
-//
-// TODO(jay_guo): This currently only validates
-// the role(s), validate more fields!
 Option<Error> validate(const mesos::FrameworkInfo& frameworkInfo);
 
 } // namespace framework {

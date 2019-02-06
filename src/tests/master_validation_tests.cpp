@@ -4718,6 +4718,32 @@ TEST_F(FrameworkInfoValidationTest, ValidateFrameworkID)
 }
 
 
+// This test validates that framework cannot configure negative
+// resources in their minimal allocatable resources offer filters.
+TEST_F(FrameworkInfoValidationTest, ValidateOfferFilters)
+{
+  Value::Scalar scalar;
+  scalar.set_value(-2);
+
+  OfferFilters offerFilters;
+  offerFilters.mutable_min_allocatable_resources()
+    ->add_quantities()
+    ->mutable_quantities()
+    ->insert({"cpus", scalar});
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+
+  ASSERT_FALSE(frameworkInfo.roles().empty());
+
+  frameworkInfo.mutable_offer_filters()->insert(
+      {frameworkInfo.roles(0), offerFilters});
+
+  EXPECT_SOME_EQ(
+      Error("Negative resource quantities are not allowed"),
+      framework::validate(frameworkInfo));
+}
+
+
 // This test ensures that ia framework cannot use the
 // `FrameworkInfo.roles` field without providing the
 // MULTI_ROLE capability.

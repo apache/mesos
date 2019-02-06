@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <limits>
+
 #include <stout/gtest.hpp>
 
 #include "common/validation.hpp"
@@ -78,6 +80,109 @@ TEST(CommonValidationTest, Volume)
         Error("'source.secret' is not set for "
               "SECRET volume"),
         common::validation::validateVolume(volume));
+  }
+}
+
+
+TEST(CommonValidationTest, OfferFilters)
+{
+  // Offer filters can be empty.
+  EXPECT_NONE(common::validation::validateOfferFilters(OfferFilters()));
+
+  {
+    // Offer filters can have empty minimal allocatable resources to
+    // communicate that any resource should be considered allocatable.
+    OfferFilters offerFilters;
+    offerFilters.mutable_min_allocatable_resources();
+    EXPECT_NONE(common::validation::validateOfferFilters(offerFilters));
+  }
+
+  {
+    // Minimal allocatable resources cannot have empty quantities.
+    OfferFilters offerFilters;
+    offerFilters.mutable_min_allocatable_resources()->add_quantities();
+    EXPECT_SOME_EQ(
+        Error("Resource quantities must contain at least one quantity"),
+        common::validation::validateOfferFilters(offerFilters));
+  }
+
+  {
+    // A resource quantity cannot be negative.
+    Value::Scalar scalar;
+    scalar.set_value(-2);
+
+    OfferFilters offerFilters;
+    offerFilters.mutable_min_allocatable_resources()
+      ->add_quantities()
+      ->mutable_quantities()
+      ->insert({"cpus", scalar});
+    EXPECT_SOME_EQ(
+        Error("Negative resource quantities are not allowed"),
+        common::validation::validateOfferFilters(offerFilters));
+  }
+
+  {
+    // A resource quantity must be a number.
+    static_assert(
+        std::numeric_limits<double>::has_quiet_NaN,
+        "Expected double to have a quiet NaN representation");
+
+    Value::Scalar scalar;
+    scalar.set_value(std::numeric_limits<double>::quiet_NaN());
+
+    OfferFilters offerFilters;
+    offerFilters.mutable_min_allocatable_resources()
+      ->add_quantities()
+      ->mutable_quantities()
+      ->insert({"cpus", scalar});
+    EXPECT_SOME_EQ(
+        Error("Resource quantities cannot be NaN"),
+        common::validation::validateOfferFilters(offerFilters));
+  }
+
+  {
+    // A resource quantity cannot be (positive) infinite.
+    static_assert(
+        std::numeric_limits<double>::has_infinity,
+        "Expected double to have a representation of infinity");
+
+    Value::Scalar scalar;
+    scalar.set_value(std::numeric_limits<double>::infinity());
+
+    OfferFilters offerFilters;
+    offerFilters.mutable_min_allocatable_resources()
+      ->add_quantities()
+      ->mutable_quantities()
+      ->insert({"cpus", scalar});
+    EXPECT_SOME_EQ(
+        Error("Infinite resource quantities are not allowed"),
+        common::validation::validateOfferFilters(offerFilters));
+  }
+
+  {
+    // A resource quantity can be zero.
+    Value::Scalar scalar;
+    scalar.set_value(0);
+
+    OfferFilters offerFilters;
+    offerFilters.mutable_min_allocatable_resources()
+      ->add_quantities()
+      ->mutable_quantities()
+      ->insert({"cpus", scalar});
+    EXPECT_NONE(common::validation::validateOfferFilters(offerFilters));
+  }
+
+  {
+    // A resource quantity can be positive.
+    Value::Scalar scalar;
+    scalar.set_value(2);
+
+    OfferFilters offerFilters;
+    offerFilters.mutable_min_allocatable_resources()
+      ->add_quantities()
+      ->mutable_quantities()
+      ->insert({"cpus", scalar});
+    EXPECT_NONE(common::validation::validateOfferFilters(offerFilters));
   }
 }
 
