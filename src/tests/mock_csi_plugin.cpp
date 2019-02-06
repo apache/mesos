@@ -16,6 +16,8 @@
 
 #include "tests/mock_csi_plugin.hpp"
 
+#include <algorithm>
+
 #include <stout/bytes.hpp>
 
 using std::string;
@@ -61,8 +63,20 @@ MockCSIPlugin::MockCSIPlugin()
   EXPECT_CALL(*this, Probe(_, _, A<csi::v0::ProbeResponse*>()))
     .WillRepeatedly(Return(Status::OK));
 
+  // Return a success by default for testing with the test CSI plugin in
+  // forwarding mode.
   EXPECT_CALL(*this, CreateVolume(_, _, A<csi::v0::CreateVolumeResponse*>()))
-    .WillRepeatedly(Return(Status::OK));
+    .WillRepeatedly(Invoke([](
+        ServerContext* context,
+        const csi::v0::CreateVolumeRequest* request,
+        csi::v0::CreateVolumeResponse* response) {
+      response->mutable_volume()->set_capacity_bytes(std::max(
+          request->capacity_range().required_bytes(),
+          request->capacity_range().limit_bytes()));
+      response->mutable_volume()->set_id(request->name());
+
+      return Status::OK;
+    }));
 
   EXPECT_CALL(*this, DeleteVolume(_, _, A<csi::v0::DeleteVolumeResponse*>()))
     .WillRepeatedly(Return(Status::OK));
@@ -169,8 +183,20 @@ MockCSIPlugin::MockCSIPlugin()
   EXPECT_CALL(*this, Probe(_, _, A<csi::v1::ProbeResponse*>()))
     .WillRepeatedly(Return(Status::OK));
 
+  // Return a success by default for testing with the test CSI plugin in
+  // forwarding mode.
   EXPECT_CALL(*this, CreateVolume(_, _, A<csi::v1::CreateVolumeResponse*>()))
-    .WillRepeatedly(Return(Status::OK));
+    .WillRepeatedly(Invoke([](
+        ServerContext* context,
+        const csi::v1::CreateVolumeRequest* request,
+        csi::v1::CreateVolumeResponse* response) {
+      response->mutable_volume()->set_capacity_bytes(std::max(
+          request->capacity_range().required_bytes(),
+          request->capacity_range().limit_bytes()));
+      response->mutable_volume()->set_volume_id(request->name());
+
+      return Status::OK;
+    }));
 
   EXPECT_CALL(*this, DeleteVolume(_, _, A<csi::v1::DeleteVolumeResponse*>()))
     .WillRepeatedly(Return(Status::OK));

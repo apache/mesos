@@ -501,6 +501,23 @@ static bool isMountDisk(const Resource& r, const string& profile)
 }
 
 
+// Tests whether a resource is a BLOCK disk of a given profile but not a
+// persistent volume. A BLOCK disk has both profile and source ID set.
+template <typename Resource>
+static bool isBlockDisk(const Resource& r, const string& profile)
+{
+  return r.has_disk() &&
+    r.disk().has_source() &&
+    r.disk().source().type() == Resource::DiskInfo::Source::BLOCK &&
+    r.disk().source().has_vendor() &&
+    r.disk().source().vendor() == TEST_CSI_VENDOR &&
+    r.disk().source().has_id() &&
+    r.disk().source().has_profile() &&
+    r.disk().source().profile() == profile &&
+    !r.disk().has_persistence();
+}
+
+
 // Tests whether a resource is a preprovisioned volume. A preprovisioned volume
 // is a RAW disk resource with a source ID but no profile.
 template <typename Resource>
@@ -2965,6 +2982,151 @@ TEST_P(
 
   // Check if the volume is actually deleted by the test CSI plugin.
   EXPECT_FALSE(os::exists(volumePath.get()));
+}
+
+
+// This test verifies that the storage local resource provider would fail to
+// create a persistent volume on a BLOCK disk resource.
+//
+// TODO(chhsiao): Update this test once persistent BLOCK volumes are supported.
+TEST_P(StorageLocalResourceProviderTest, CreatePersistentBlockVolume)
+{
+  const string profilesPath = path::join(sandbox.get(), "profiles.json");
+  Try<string> blockDiskProfileMapping = strings::format(
+      R"~(
+      {
+        "profile_matrix": {
+          "test": {
+            "csi_plugin_type_selector": {
+              "plugin_type": "%s"
+            },
+            "volume_capabilities": {
+              "block": {},
+              "access_mode": {
+                "mode": "SINGLE_NODE_WRITER"
+              }
+            }
+          }
+        }
+      }
+      )~",
+      TEST_CSI_PLUGIN_TYPE);
+
+  ASSERT_SOME(blockDiskProfileMapping);
+  ASSERT_SOME(os::write(profilesPath, blockDiskProfileMapping.get()));
+
+  loadUriDiskProfileAdaptorModule(profilesPath);
+
+  const string mockCsiEndpoint =
+    "unix://" + path::join(sandbox.get(), "mock_csi.sock");
+
+  // We use a mock CSI plugin here because the test CSI plugin does not support
+  // block volumes yet.
+  MockCSIPlugin plugin;
+  ASSERT_SOME(plugin.startup(mockCsiEndpoint));
+
+  setupResourceProviderConfig(Bytes(0), None(), None(), mockCsiEndpoint);
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Register a framework to exercise operations.
+  FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
+  framework.set_roles(0, "storage");
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  // We use the following filter to filter offers that do not have wanted
+  // resources for 365 days (the maximum).
+  Filters declineFilters;
+  declineFilters.set_refuse_seconds(Days(365).secs());
+
+  // Decline unwanted offers. The master can send such offers before the
+  // resource provider receives profile updates.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillRepeatedly(DeclineOffers(declineFilters));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
+      std::bind(isStoragePool<Resource>, lambda::_1, "test"))))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
+
+  Offer offer = offers->at(0);
+
+  // Create a BLOCK disk.
+  Resource raw = *Resources(offer.resources())
+    .filter(std::bind(isStoragePool<Resource>, lambda::_1, "test"))
+    .begin();
+
+  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
+      std::bind(isBlockDisk<Resource>, lambda::_1, "test"))))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // We use the following filter so that the resources will not be filtered for
+  // 5 seconds (the default).
+  Filters acceptFilters;
+  acceptFilters.set_refuse_seconds(0);
+
+  driver.acceptOffers(
+      {offer.id()},
+      {CREATE_DISK(raw, Resource::DiskInfo::Source::BLOCK)},
+      acceptFilters);
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
+
+  offer = offers->at(0);
+
+  Resource created = *Resources(offer.resources())
+    .filter(std::bind(isBlockDisk<Resource>, lambda::_1, "test"))
+    .begin();
+
+  // Create a persistent BLOCK volume, which would fail.
+  Resource persistentVolume = created;
+  persistentVolume.mutable_disk()->mutable_persistence()
+    ->set_id(id::UUID::random().toString());
+  persistentVolume.mutable_disk()->mutable_persistence()
+    ->set_principal(framework.principal());
+  persistentVolume.mutable_disk()->mutable_volume()
+    ->set_container_path("volume");
+  persistentVolume.mutable_disk()->mutable_volume()->set_mode(Volume::RW);
+
+  Future<UpdateOperationStatusMessage> createOperationStatus =
+    FUTURE_PROTOBUF(UpdateOperationStatusMessage(), _, _);
+
+  EXPECT_CALL(
+      sched, resourceOffers(&driver, OffersHaveResource(created)))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.acceptOffers({offer.id()}, {CREATE(persistentVolume)}, acceptFilters);
+
+  AWAIT_READY(createOperationStatus);
+  EXPECT_EQ(OPERATION_FAILED, createOperationStatus->status().state());
+
+  AWAIT_EXPECT_READY(offers)
+    << "Failed to wait for an offer containing resource '" << created << "'";
 }
 
 
