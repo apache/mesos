@@ -347,6 +347,54 @@ private:
 };
 
 
+// Tests whether a resource is a storage pool of a given profile. A storage pool
+// is a RAW disk resource with a profile but no source ID.
+template <typename Resource>
+static bool isStoragePool(const Resource& r, const string& profile)
+{
+  return r.has_disk() &&
+    r.disk().has_source() &&
+    r.disk().source().type() == Resource::DiskInfo::Source::RAW &&
+    r.disk().source().has_vendor() &&
+    r.disk().source().vendor() == TEST_CSI_VENDOR &&
+    !r.disk().source().has_id() &&
+    r.disk().source().has_profile() &&
+    r.disk().source().profile() == profile;
+}
+
+
+// Tests whether a resource is a MOUNT disk of a given profile but not a
+// persistent volume. A MOUNT disk has both profile and source ID set.
+template <typename Resource>
+static bool isMountDisk(const Resource& r, const string& profile)
+{
+  return r.has_disk() &&
+    r.disk().has_source() &&
+    r.disk().source().type() == Resource::DiskInfo::Source::MOUNT &&
+    r.disk().source().has_vendor() &&
+    r.disk().source().vendor() == TEST_CSI_VENDOR &&
+    r.disk().source().has_id() &&
+    r.disk().source().has_profile() &&
+    r.disk().source().profile() == profile &&
+    !r.disk().has_persistence();
+}
+
+
+// Tests whether a resource is a preprovisioned volume. A preprovisioned volume
+// is a RAW disk resource with a source ID but no profile.
+template <typename Resource>
+static bool isPreprovisionedVolume(const Resource& r)
+{
+  return r.has_disk() &&
+    r.disk().has_source() &&
+    r.disk().source().type() == Resource::DiskInfo::Source::RAW &&
+    r.disk().source().has_vendor() &&
+    r.disk().source().vendor() == TEST_CSI_VENDOR &&
+    r.disk().source().has_id() &&
+    !r.disk().source().has_profile();
+}
+
+
 // This test verifies that a storage local resource provider can report
 // no resource and recover from this state.
 TEST_F(StorageLocalResourceProviderTest, NoResource)
@@ -530,32 +578,11 @@ TEST_F(StorageLocalResourceProviderTest, DISABLED_SmallDisk)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(DeclineOffers(declineFilters));
 
-  // We expect to receive an offer that contains a storage pool and a
-  // pre-existing volume.
-  auto isStoragePool = [](const Resource& r) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().type() == Resource::DiskInfo::Source::RAW &&
-      r.disk().source().has_vendor() &&
-      r.disk().source().vendor() == TEST_CSI_VENDOR &&
-      !r.disk().source().has_id() &&
-      r.disk().source().has_profile();
-  };
-
-  auto isPreExistingVolume = [](const Resource& r) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().has_vendor() &&
-      r.disk().source().vendor() == TEST_CSI_VENDOR &&
-      r.disk().source().has_id() &&
-      !r.disk().source().has_profile();
-  };
-
   // Since the resource provider always reports the pre-existing volume,
   // but only reports the storage pool after it gets the profile, an
   // offer containing the latter will also contain the former.
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      isStoragePool)))
+      std::bind(isStoragePool<Resource>, lambda::_1, "test"))))
     .WillOnce(FutureArg<1>(&rawDisksOffers));
 
   driver.start();
@@ -566,9 +593,9 @@ TEST_F(StorageLocalResourceProviderTest, DISABLED_SmallDisk)
   Option<Resource> storagePool;
   Option<Resource> preExistingVolume;
   foreach (const Resource& resource, rawDisksOffers->at(0).resources()) {
-    if (isStoragePool(resource)) {
+    if (isStoragePool(resource, "test")) {
       storagePool = resource;
-    } else if (isPreExistingVolume(resource)) {
+    } else if (isPreprovisionedVolume(resource)) {
       preExistingVolume = resource;
     }
   }
@@ -696,22 +723,10 @@ TEST_F(StorageLocalResourceProviderTest, ProfileAppeared)
   AWAIT_READY(offersAfterProfileFound);
   ASSERT_FALSE(offersAfterProfileFound->empty());
 
-  // A storage pool is a RAW disk that has a profile but no ID.
-  auto isStoragePool = [](const Resource& r, const string& profile) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().type() == Resource::DiskInfo::Source::RAW &&
-      r.disk().source().has_vendor() &&
-      r.disk().source().vendor() == TEST_CSI_VENDOR &&
-      !r.disk().source().has_id() &&
-      r.disk().source().has_profile() &&
-      r.disk().source().profile() == profile;
-  };
-
   // A new storage pool with profile "test" should show up now.
   Resources storagePools =
     Resources(offersAfterProfileFound->at(0).resources())
-    .filter(std::bind(isStoragePool, lambda::_1, "test"));
+    .filter(std::bind(isStoragePool<Resource>, lambda::_1, "test"));
 
   EXPECT_FALSE(storagePools.empty());
 }
@@ -766,20 +781,9 @@ TEST_F(StorageLocalResourceProviderTest, CreateDestroyDisk)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(DeclineOffers(declineFilters));
 
-  auto isStoragePool = [](const Resource& r, const string& profile) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().type() == Resource::DiskInfo::Source::RAW &&
-      r.disk().source().has_vendor() &&
-      r.disk().source().vendor() == TEST_CSI_VENDOR &&
-      !r.disk().source().has_id() &&
-      r.disk().source().has_profile() &&
-      r.disk().source().profile() == profile;
-  };
-
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(isStoragePool, lambda::_1, "test"))))
+      std::bind(isStoragePool<Resource>, lambda::_1, "test"))))
     .WillOnce(FutureArg<1>(&offers));
 
   driver.start();
@@ -791,7 +795,7 @@ TEST_F(StorageLocalResourceProviderTest, CreateDestroyDisk)
 
   // Create a MOUNT disk with a pipelined `RESERVE` operation.
   Resource raw = *Resources(offer.resources())
-    .filter(std::bind(isStoragePool, lambda::_1, "test"))
+    .filter(std::bind(isStoragePool<Resource>, lambda::_1, "test"))
     .begin();
 
   Resource reserved = *Resources(raw)
@@ -799,19 +803,8 @@ TEST_F(StorageLocalResourceProviderTest, CreateDestroyDisk)
         framework.roles(0), framework.principal()))
     .begin();
 
-  auto isMountDisk = [](const Resource& r, const string& profile) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().type() == Resource::DiskInfo::Source::MOUNT &&
-      r.disk().source().has_vendor() &&
-      r.disk().source().vendor() == TEST_CSI_VENDOR &&
-      r.disk().source().has_id() &&
-      r.disk().source().has_profile() &&
-      r.disk().source().profile() == profile;
-  };
-
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(isMountDisk, lambda::_1, "test"))))
+      std::bind(isMountDisk<Resource>, lambda::_1, "test"))))
     .WillOnce(FutureArg<1>(&offers));
 
   driver.acceptOffers(
@@ -825,7 +818,7 @@ TEST_F(StorageLocalResourceProviderTest, CreateDestroyDisk)
   offer = offers->at(0);
 
   Resource created = *Resources(offer.resources())
-    .filter(std::bind(isMountDisk, lambda::_1, "test"))
+    .filter(std::bind(isMountDisk<Resource>, lambda::_1, "test"))
     .begin();
 
   ASSERT_TRUE(created.disk().source().has_metadata());
@@ -927,20 +920,9 @@ TEST_F(StorageLocalResourceProviderTest, CreateDestroyDiskWithRecovery)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(DeclineOffers(declineFilters));
 
-  auto isStoragePool = [](const Resource& r, const string& profile) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().type() == Resource::DiskInfo::Source::RAW &&
-      r.disk().source().has_vendor() &&
-      r.disk().source().vendor() == TEST_CSI_VENDOR &&
-      !r.disk().source().has_id() &&
-      r.disk().source().has_profile() &&
-      r.disk().source().profile() == profile;
-  };
-
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(isStoragePool, lambda::_1, "test"))))
+      std::bind(isStoragePool<Resource>, lambda::_1, "test"))))
     .WillOnce(FutureArg<1>(&offers));
 
   driver.start();
@@ -952,7 +934,7 @@ TEST_F(StorageLocalResourceProviderTest, CreateDestroyDiskWithRecovery)
 
   // Create a MOUNT disk with a pipelined `RESERVE` operation.
   Resource raw = *Resources(offer.resources())
-    .filter(std::bind(isStoragePool, lambda::_1, "test"))
+    .filter(std::bind(isStoragePool<Resource>, lambda::_1, "test"))
     .begin();
 
   Resource reserved = *Resources(raw)
@@ -960,19 +942,8 @@ TEST_F(StorageLocalResourceProviderTest, CreateDestroyDiskWithRecovery)
         framework.roles(0), framework.principal()))
     .begin();
 
-  auto isMountDisk = [](const Resource& r, const string& profile) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().type() == Resource::DiskInfo::Source::MOUNT &&
-      r.disk().source().has_vendor() &&
-      r.disk().source().vendor() == TEST_CSI_VENDOR &&
-      r.disk().source().has_id() &&
-      r.disk().source().has_profile() &&
-      r.disk().source().profile() == profile;
-  };
-
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(isMountDisk, lambda::_1, "test"))))
+      std::bind(isMountDisk<Resource>, lambda::_1, "test"))))
     .WillOnce(FutureArg<1>(&offers));
 
   driver.acceptOffers(
@@ -986,7 +957,7 @@ TEST_F(StorageLocalResourceProviderTest, CreateDestroyDiskWithRecovery)
   offer = offers->at(0);
 
   Resource created = *Resources(offer.resources())
-    .filter(std::bind(isMountDisk, lambda::_1, "test"))
+    .filter(std::bind(isMountDisk<Resource>, lambda::_1, "test"))
     .begin();
 
   ASSERT_TRUE(created.disk().source().has_metadata());
@@ -1029,7 +1000,7 @@ TEST_F(StorageLocalResourceProviderTest, CreateDestroyDiskWithRecovery)
   setupResourceProviderConfig(Gigabytes(5));
 
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(isStoragePool, lambda::_1, "test"))))
+      std::bind(isStoragePool<Resource>, lambda::_1, "test"))))
     .WillRepeatedly(DeclineOffers(declineFilters));
 
   // NOTE: The order of these expectations is reversed because Google Mock will
@@ -1053,7 +1024,7 @@ TEST_F(StorageLocalResourceProviderTest, CreateDestroyDiskWithRecovery)
   ASSERT_EQ(1, updateSlaveMessage->resource_providers().providers_size());
   ASSERT_FALSE(Resources(
       updateSlaveMessage->resource_providers().providers(0).total_resources())
-    .filter(std::bind(isStoragePool, lambda::_1, "test"))
+    .filter(std::bind(isStoragePool<Resource>, lambda::_1, "test"))
     .empty());
 
   AWAIT_READY(offers);
@@ -1187,22 +1158,11 @@ TEST_F(StorageLocalResourceProviderTest, ProfileDisappeared)
   EXPECT_CALL(*scheduler, offers(_, _))
     .WillRepeatedly(v1::scheduler::DeclineOffers());
 
-  auto isStoragePool = [](const v1::Resource& r, const string& profile) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().type() == v1::Resource::DiskInfo::Source::RAW &&
-      r.disk().source().has_vendor() &&
-      r.disk().source().vendor() == TEST_CSI_VENDOR &&
-      !r.disk().source().has_id() &&
-      r.disk().source().has_profile() &&
-      r.disk().source().profile() == profile;
-  };
-
   Future<v1::scheduler::Event::Offers> offers;
   EXPECT_CALL(
       *scheduler,
       offers(_, v1::scheduler::OffersHaveAnyResource(
-          std::bind(isStoragePool, lambda::_1, "test1"))))
+          std::bind(isStoragePool<v1::Resource>, lambda::_1, "test1"))))
     .WillOnce(FutureArg<1>(&offers));
 
   v1::scheduler::TestMesos mesos(
@@ -1228,13 +1188,13 @@ TEST_F(StorageLocalResourceProviderTest, ProfileDisappeared)
   EXPECT_CALL(
       *scheduler,
       offers(_, v1::scheduler::OffersHaveAnyResource(
-          std::bind(isStoragePool, lambda::_1, "test1"))))
+          std::bind(isStoragePool<v1::Resource>, lambda::_1, "test1"))))
     .WillOnce(FutureArg<1>(&offers));
 
   // Create a 2GB MOUNT disk of profile 'test1'.
   {
     v1::Resources raw = v1::Resources(offer.resources())
-      .filter(std::bind(isStoragePool, lambda::_1, "test1"));
+      .filter(std::bind(isStoragePool<v1::Resource>, lambda::_1, "test1"));
 
     ASSERT_SOME_EQ(Gigabytes(4), raw.disk());
 
@@ -1275,21 +1235,10 @@ TEST_F(StorageLocalResourceProviderTest, ProfileDisappeared)
 
   offer = offers->offers(0);
 
-  auto isMountDisk = [](const v1::Resource& r, const string& profile) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().type() == v1::Resource::DiskInfo::Source::MOUNT &&
-      r.disk().source().has_vendor() &&
-      r.disk().source().vendor() == TEST_CSI_VENDOR &&
-      r.disk().source().has_id() &&
-      r.disk().source().has_profile() &&
-      r.disk().source().profile() == profile;
-  };
-
   EXPECT_CALL(
       *scheduler,
       offers(_, v1::scheduler::OffersHaveAnyResource(
-          std::bind(isMountDisk, lambda::_1, "test1"))))
+          std::bind(isMountDisk<v1::Resource>, lambda::_1, "test1"))))
     .WillOnce(FutureArg<1>(&offers));
 
   // We drop the agent update (which is triggered by the changes in the known
@@ -1310,7 +1259,7 @@ TEST_F(StorageLocalResourceProviderTest, ProfileDisappeared)
   // operation would be dropped due to a mismatched resource version.
   {
     v1::Resources raw = v1::Resources(offer.resources())
-      .filter(std::bind(isStoragePool, lambda::_1, "test1"));
+      .filter(std::bind(isStoragePool<v1::Resource>, lambda::_1, "test1"));
 
     ASSERT_SOME_EQ(Gigabytes(2), raw.disk());
 
@@ -1349,14 +1298,14 @@ TEST_F(StorageLocalResourceProviderTest, ProfileDisappeared)
   EXPECT_CALL(
       *scheduler,
       offers(_, v1::scheduler::OffersHaveAnyResource(
-          std::bind(isStoragePool, lambda::_1, "test2"))))
+          std::bind(isStoragePool<v1::Resource>, lambda::_1, "test2"))))
     .WillOnce(FutureArg<1>(&offers));
 
   // Destroy the MOUNT disk of profile 'test1'. The returned converted resources
   // should be empty.
   {
     v1::Resources created = v1::Resources(offer.resources())
-      .filter(std::bind(isMountDisk, lambda::_1, "test1"));
+      .filter(std::bind(isMountDisk<v1::Resource>, lambda::_1, "test1"));
 
     ASSERT_SOME_EQ(Gigabytes(2), created.disk());
 
@@ -1392,7 +1341,7 @@ TEST_F(StorageLocalResourceProviderTest, ProfileDisappeared)
   // Check that the freed disk shows up as of profile 'test2'.
   {
     v1::Resources raw = v1::Resources(offer.resources())
-      .filter(std::bind(isStoragePool, lambda::_1, "test2"));
+      .filter(std::bind(isStoragePool<v1::Resource>, lambda::_1, "test2"));
 
     EXPECT_SOME_EQ(Gigabytes(4), raw.disk());
   }
@@ -1572,20 +1521,8 @@ TEST_F(StorageLocalResourceProviderTest, AgentRegisteredWithNewId)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(DeclineOffers(declineFilters));
 
-  // Before the agent fails over, we are interested in the 'test1' storage pool.
-  auto isStoragePool = [](const Resource& r, const string& profile) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().type() == Resource::DiskInfo::Source::RAW &&
-      r.disk().source().has_vendor() &&
-      r.disk().source().vendor() == TEST_CSI_VENDOR &&
-      !r.disk().source().has_id() &&
-      r.disk().source().has_profile() &&
-      r.disk().source().profile() == profile;
-  };
-
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(isStoragePool, lambda::_1, "test1"))))
+      std::bind(isStoragePool<Resource>, lambda::_1, "test1"))))
     .WillOnce(FutureArg<1>(&rawDiskOffers));
 
   driver.start();
@@ -1594,23 +1531,12 @@ TEST_F(StorageLocalResourceProviderTest, AgentRegisteredWithNewId)
   ASSERT_EQ(1u, rawDiskOffers->size());
 
   Resource raw = *Resources(rawDiskOffers->at(0).resources())
-    .filter(std::bind(isStoragePool, lambda::_1, "test1"))
+    .filter(std::bind(isStoragePool<Resource>, lambda::_1, "test1"))
     .begin();
-
-  auto isMountDisk = [](const Resource& r, const string& profile) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().type() == Resource::DiskInfo::Source::MOUNT &&
-      r.disk().source().has_vendor() &&
-      r.disk().source().vendor() == TEST_CSI_VENDOR &&
-      r.disk().source().has_id() &&
-      r.disk().source().has_profile() &&
-      r.disk().source().profile() == profile;
-  };
 
   // Create a MOUNT disk of profile 'test1'.
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(isMountDisk, lambda::_1, "test1"))))
+      std::bind(isMountDisk<Resource>, lambda::_1, "test1"))))
     .WillOnce(FutureArg<1>(&diskCreatedOffers));
 
   // We use the following filter so that the resources will not be
@@ -1627,7 +1553,7 @@ TEST_F(StorageLocalResourceProviderTest, AgentRegisteredWithNewId)
   ASSERT_EQ(1u, diskCreatedOffers->size());
 
   Resource created = *Resources(diskCreatedOffers->at(0).resources())
-    .filter(std::bind(isMountDisk, lambda::_1, "test1"))
+    .filter(std::bind(isMountDisk<Resource>, lambda::_1, "test1"))
     .begin();
 
   ASSERT_TRUE(created.has_provider_id());
@@ -1677,25 +1603,13 @@ TEST_F(StorageLocalResourceProviderTest, AgentRegisteredWithNewId)
   slaveRegisteredMessage =
     FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, Not(slave.get()->pid));
 
-  // After the agent fails over, any volume created before becomes a
-  // preprovisioned volume, which has an ID but no profile.
-  auto isPreprovisionedVolume = [](const Resource& r) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().type() == Resource::DiskInfo::Source::RAW &&
-      r.disk().source().has_vendor() &&
-      r.disk().source().vendor() == TEST_CSI_VENDOR &&
-      r.disk().source().has_id() &&
-      !r.disk().source().has_profile();
-  };
-
   // NOTE: Instead of expecting a preprovisioned volume, we expect an offer with
   // a 'test1' storage pool as an indication that the profile is known to the
   // resource provider. The offer should also have the preprovisioned volume.
   // But, an extra offer with the storage pool may be received as a side effect
   // of this workaround, so we decline it if this happens.
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(isStoragePool, lambda::_1, "test1"))))
+      std::bind(isStoragePool<Resource>, lambda::_1, "test1"))))
     .WillOnce(FutureArg<1>(&slaveRecoveredOffers))
     .WillRepeatedly(DeclineOffers(declineFilters));
 
@@ -1708,7 +1622,7 @@ TEST_F(StorageLocalResourceProviderTest, AgentRegisteredWithNewId)
   ASSERT_EQ(1u, slaveRecoveredOffers->size());
 
   Resources _preprovisioned = Resources(slaveRecoveredOffers->at(0).resources())
-    .filter(isPreprovisionedVolume);
+    .filter(isPreprovisionedVolume<Resource>);
 
   ASSERT_SOME_EQ(Gigabytes(2), _preprovisioned.disk());
 
@@ -1741,7 +1655,7 @@ TEST_F(StorageLocalResourceProviderTest, AgentRegisteredWithNewId)
 
   // Apply profile 'test1' to the preprovisioned volume, which will succeed.
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(isMountDisk, lambda::_1, "test1"))))
+      std::bind(isMountDisk<Resource>, lambda::_1, "test1"))))
     .WillOnce(FutureArg<1>(&diskRecoveredOffers));
 
   driver.acceptOffers(
@@ -1753,7 +1667,7 @@ TEST_F(StorageLocalResourceProviderTest, AgentRegisteredWithNewId)
   ASSERT_EQ(1u, diskRecoveredOffers->size());
 
   Resource recovered = *Resources(diskRecoveredOffers->at(0).resources())
-    .filter(std::bind(isMountDisk, lambda::_1, "test1"))
+    .filter(std::bind(isMountDisk<Resource>, lambda::_1, "test1"))
     .begin();
 
   ASSERT_EQ(preprovisioned.provider_id(), recovered.provider_id());
@@ -1826,20 +1740,9 @@ TEST_F(
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(DeclineOffers(declineFilters));
 
-  auto isStoragePool = [](const Resource& r, const string& profile) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().type() == Resource::DiskInfo::Source::RAW &&
-      r.disk().source().has_vendor() &&
-      r.disk().source().vendor() == TEST_CSI_VENDOR &&
-      !r.disk().source().has_id() &&
-      r.disk().source().has_profile() &&
-      r.disk().source().profile() == profile;
-  };
-
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(isStoragePool, lambda::_1, "test"))))
+      std::bind(isStoragePool<Resource>, lambda::_1, "test"))))
     .WillOnce(FutureArg<1>(&offers));
 
   driver.start();
@@ -1851,22 +1754,11 @@ TEST_F(
 
   // Create a MOUNT disk.
   Resource raw = *Resources(offer.resources())
-    .filter(std::bind(isStoragePool, lambda::_1, "test"))
+    .filter(std::bind(isStoragePool<Resource>, lambda::_1, "test"))
     .begin();
 
-  auto isMountDisk = [](const Resource& r, const string& profile) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().type() == Resource::DiskInfo::Source::MOUNT &&
-      r.disk().source().has_vendor() &&
-      r.disk().source().vendor() == TEST_CSI_VENDOR &&
-      r.disk().source().has_id() &&
-      r.disk().source().has_profile() &&
-      r.disk().source().profile() == profile;
-  };
-
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(isMountDisk, lambda::_1, "test"))))
+      std::bind(isMountDisk<Resource>, lambda::_1, "test"))))
     .WillOnce(FutureArg<1>(&offers));
 
   driver.acceptOffers(
@@ -1878,7 +1770,7 @@ TEST_F(
   offer = offers->at(0);
 
   Resource created = *Resources(offer.resources())
-    .filter(std::bind(isMountDisk, lambda::_1, "test"))
+    .filter(std::bind(isMountDisk<Resource>, lambda::_1, "test"))
     .begin();
 
   ASSERT_TRUE(created.disk().source().has_metadata());
@@ -2043,20 +1935,9 @@ TEST_F(
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(DeclineOffers(declineFilters));
 
-  auto isStoragePool = [](const Resource& r, const string& profile) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().type() == Resource::DiskInfo::Source::RAW &&
-      r.disk().source().has_vendor() &&
-      r.disk().source().vendor() == TEST_CSI_VENDOR &&
-      !r.disk().source().has_id() &&
-      r.disk().source().has_profile() &&
-      r.disk().source().profile() == profile;
-  };
-
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(isStoragePool, lambda::_1, "test"))))
+      std::bind(isStoragePool<Resource>, lambda::_1, "test"))))
     .WillOnce(FutureArg<1>(&offers));
 
   driver.start();
@@ -2068,23 +1949,11 @@ TEST_F(
 
   // Create a MOUNT disk.
   Resource raw = *Resources(offer.resources())
-    .filter(std::bind(isStoragePool, lambda::_1, "test"))
+    .filter(std::bind(isStoragePool<Resource>, lambda::_1, "test"))
     .begin();
 
-  auto isMountDisk = [](const Resource& r, const string& profile) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().type() == Resource::DiskInfo::Source::MOUNT &&
-      r.disk().source().has_vendor() &&
-      r.disk().source().vendor() == TEST_CSI_VENDOR &&
-      r.disk().source().has_id() &&
-      r.disk().source().has_profile() &&
-      r.disk().source().profile() == profile &&
-      !r.disk().has_persistence();
-  };
-
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(isMountDisk, lambda::_1, "test"))))
+      std::bind(isMountDisk<Resource>, lambda::_1, "test"))))
     .WillOnce(FutureArg<1>(&offers));
 
   driver.acceptOffers(
@@ -2096,7 +1965,7 @@ TEST_F(
   offer = offers->at(0);
 
   Resource created = *Resources(offer.resources())
-    .filter(std::bind(isMountDisk, lambda::_1, "test"))
+    .filter(std::bind(isMountDisk<Resource>, lambda::_1, "test"))
     .begin();
 
   // Create a persistent MOUNT volume then launch a task to write a file.
@@ -2192,7 +2061,7 @@ TEST_F(
   setupResourceProviderConfig(Gigabytes(5));
 
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(isStoragePool, lambda::_1, "test"))))
+      std::bind(isStoragePool<Resource>, lambda::_1, "test"))))
     .WillRepeatedly(DeclineOffers(declineFilters));
 
   // NOTE: The order of these expectations is reversed because Google Mock will
@@ -2216,7 +2085,7 @@ TEST_F(
   ASSERT_EQ(1, updateSlaveMessage->resource_providers().providers_size());
   ASSERT_FALSE(Resources(
       updateSlaveMessage->resource_providers().providers(0).total_resources())
-    .filter(std::bind(isStoragePool, lambda::_1, "test"))
+    .filter(std::bind(isStoragePool<Resource>, lambda::_1, "test"))
     .empty());
 
   AWAIT_READY(offers);
@@ -2344,20 +2213,9 @@ TEST_F(
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(DeclineOffers(declineFilters));
 
-  auto isStoragePool = [](const Resource& r, const string& profile) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().type() == Resource::DiskInfo::Source::RAW &&
-      r.disk().source().has_vendor() &&
-      r.disk().source().vendor() == TEST_CSI_VENDOR &&
-      !r.disk().source().has_id() &&
-      r.disk().source().has_profile() &&
-      r.disk().source().profile() == profile;
-  };
-
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(isStoragePool, lambda::_1, "test"))))
+      std::bind(isStoragePool<Resource>, lambda::_1, "test"))))
     .WillOnce(FutureArg<1>(&offers));
 
   driver.start();
@@ -2369,23 +2227,11 @@ TEST_F(
 
   // Create a MOUNT disk.
   Resource raw = *Resources(offer.resources())
-    .filter(std::bind(isStoragePool, lambda::_1, "test"))
+    .filter(std::bind(isStoragePool<Resource>, lambda::_1, "test"))
     .begin();
 
-  auto isMountDisk = [](const Resource& r, const string& profile) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().type() == Resource::DiskInfo::Source::MOUNT &&
-      r.disk().source().has_vendor() &&
-      r.disk().source().vendor() == TEST_CSI_VENDOR &&
-      r.disk().source().has_id() &&
-      r.disk().source().has_profile() &&
-      r.disk().source().profile() == profile &&
-      !r.disk().has_persistence();
-  };
-
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(isMountDisk, lambda::_1, "test"))))
+      std::bind(isMountDisk<Resource>, lambda::_1, "test"))))
     .WillOnce(FutureArg<1>(&offers));
 
   driver.acceptOffers(
@@ -2397,7 +2243,7 @@ TEST_F(
   offer = offers->at(0);
 
   Resource created = *Resources(offer.resources())
-    .filter(std::bind(isMountDisk, lambda::_1, "test"))
+    .filter(std::bind(isMountDisk<Resource>, lambda::_1, "test"))
     .begin();
 
   // Create a persistent MOUNT volume then launch a task to write a file.
@@ -2536,7 +2382,7 @@ TEST_F(
   setupResourceProviderConfig(Gigabytes(5));
 
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(isStoragePool, lambda::_1, "test"))))
+      std::bind(isStoragePool<Resource>, lambda::_1, "test"))))
     .WillRepeatedly(DeclineOffers(declineFilters));
 
   // NOTE: The order of these expectations is reversed because Google Mock will
@@ -2561,7 +2407,7 @@ TEST_F(
   ASSERT_EQ(1, updateSlaveMessage->resource_providers().providers_size());
   ASSERT_FALSE(Resources(
       updateSlaveMessage->resource_providers().providers(0).total_resources())
-    .filter(std::bind(isStoragePool, lambda::_1, "test"))
+    .filter(std::bind(isStoragePool<Resource>, lambda::_1, "test"))
     .empty());
 
   AWAIT_READY(offers);
@@ -2704,19 +2550,8 @@ TEST_F(
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(DeclineOffers(declineFilters));
 
-  // We are only interested in any storage pool or volume with a "test" profile.
-  auto hasSourceType = [](
-      const Resource& r,
-      const Resource::DiskInfo::Source::Type& type) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().has_profile() &&
-      r.disk().source().profile() == "test" &&
-      r.disk().source().type() == type;
-  };
-
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::RAW))))
+      std::bind(isStoragePool<Resource>, lambda::_1, "test"))))
     .InSequence(offers)
     .WillOnce(FutureArg<1>(&rawDiskOffers));
 
@@ -2728,7 +2563,7 @@ TEST_F(
   Option<Resource> source;
 
   foreach (const Resource& resource, rawDiskOffers->at(0).resources()) {
-    if (hasSourceType(resource, Resource::DiskInfo::Source::RAW)) {
+    if (isStoragePool(resource, "test")) {
       source = resource;
       break;
     }
@@ -2758,7 +2593,7 @@ TEST_F(
 
   // Create a volume.
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::MOUNT))))
+      std::bind(isMountDisk<Resource>, lambda::_1, "test"))))
     .InSequence(offers)
     .WillOnce(FutureArg<1>(&volumeCreatedOffers));
 
@@ -2778,7 +2613,7 @@ TEST_F(
   Option<Resource> volume;
 
   foreach (const Resource& resource, volumeCreatedOffers->at(0).resources()) {
-    if (hasSourceType(resource, Resource::DiskInfo::Source::MOUNT)) {
+    if (isMountDisk(resource, "test")) {
       volume = resource;
       break;
     }
@@ -2957,24 +2792,13 @@ TEST_F(StorageLocalResourceProviderTest, ImportPreprovisionedVolume)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(DeclineOffers(declineFilters));
 
-  auto isStoragePool = [](const Resource& r, const string& profile) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().type() == Resource::DiskInfo::Source::RAW &&
-      r.disk().source().has_vendor() &&
-      r.disk().source().vendor() == TEST_CSI_VENDOR &&
-      !r.disk().source().has_id() &&
-      r.disk().source().has_profile() &&
-      r.disk().source().profile() == profile;
-  };
-
   // NOTE: Instead of expecting a preprovisioned volume, we expect an offer with
   // a 'test1' storage pool as an indication that the profile is known to the
   // resource provider. The offer should also have the preprovisioned volume.
   // But, an extra offer with the storage pool may be received as a side effect
   // of this workaround, so we decline it if this happens.
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(isStoragePool, lambda::_1, "test"))))
+      std::bind(isStoragePool<Resource>, lambda::_1, "test"))))
     .WillOnce(FutureArg<1>(&rawDiskOffers))
     .WillRepeatedly(DeclineOffers(declineFilters));
 
@@ -2983,18 +2807,8 @@ TEST_F(StorageLocalResourceProviderTest, ImportPreprovisionedVolume)
   AWAIT_READY(rawDiskOffers);
   ASSERT_EQ(1u, rawDiskOffers->size());
 
-  auto isPreprovisionedVolume = [](const Resource& r) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().type() == Resource::DiskInfo::Source::RAW &&
-      r.disk().source().has_vendor() &&
-      r.disk().source().vendor() == TEST_CSI_VENDOR &&
-      r.disk().source().has_id() &&
-      !r.disk().source().has_profile();
-  };
-
   Resources _preprovisioned = Resources(rawDiskOffers->at(0).resources())
-    .filter(isPreprovisionedVolume);
+    .filter(isPreprovisionedVolume<Resource>);
 
   ASSERT_SOME_EQ(Gigabytes(2), _preprovisioned.disk());
 
@@ -3014,20 +2828,9 @@ TEST_F(StorageLocalResourceProviderTest, ImportPreprovisionedVolume)
   ASSERT_SOME(volumePath);
   ASSERT_TRUE(os::exists(volumePath.get()));
 
-  auto isMountDisk = [](const Resource& r, const string& profile) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().type() == Resource::DiskInfo::Source::MOUNT &&
-      r.disk().source().has_vendor() &&
-      r.disk().source().vendor() == TEST_CSI_VENDOR &&
-      r.disk().source().has_id() &&
-      r.disk().source().has_profile() &&
-      r.disk().source().profile() == profile;
-  };
-
   // Apply profile 'test' to the preprovisioned volume.
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(isMountDisk, lambda::_1, "test"))))
+      std::bind(isMountDisk<Resource>, lambda::_1, "test"))))
     .WillOnce(FutureArg<1>(&diskCreatedOffers));
 
   // We use the following filter so that the resources will not be
@@ -3044,12 +2847,12 @@ TEST_F(StorageLocalResourceProviderTest, ImportPreprovisionedVolume)
   ASSERT_EQ(1u, diskCreatedOffers->size());
 
   Resource created = *Resources(diskCreatedOffers->at(0).resources())
-    .filter(std::bind(isMountDisk, lambda::_1, "test"))
+    .filter(std::bind(isMountDisk<Resource>, lambda::_1, "test"))
     .begin();
 
   // Destroy the created disk.
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(isStoragePool, lambda::_1, "test"))))
+      std::bind(isStoragePool<Resource>, lambda::_1, "test"))))
     .WillOnce(FutureArg<1>(&diskDestroyedOffers));
 
   driver.acceptOffers(
@@ -3061,7 +2864,7 @@ TEST_F(StorageLocalResourceProviderTest, ImportPreprovisionedVolume)
   ASSERT_EQ(1u, diskDestroyedOffers->size());
 
   Resources raw = Resources(diskDestroyedOffers->at(0).resources())
-    .filter(std::bind(isStoragePool, lambda::_1, "test"));
+    .filter(std::bind(isStoragePool<Resource>, lambda::_1, "test"));
 
   EXPECT_SOME_EQ(Gigabytes(4), raw.disk());
 
@@ -3150,14 +2953,8 @@ TEST_F(StorageLocalResourceProviderTest, RetryOperationStatusUpdate)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(DeclineOffers());
 
-  auto isRaw = [](const Resource& r) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().has_profile() &&
-      r.disk().source().type() == Resource::DiskInfo::Source::RAW;
-  };
-
-  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(isRaw)))
+  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
+      std::bind(isStoragePool<Resource>, lambda::_1, "test"))))
     .WillOnce(FutureArg<1>(&offers));
 
   driver.start();
@@ -3177,7 +2974,7 @@ TEST_F(StorageLocalResourceProviderTest, RetryOperationStatusUpdate)
 
   Option<Resource> source;
   foreach (const Resource& resource, offer.resources()) {
-    if (isRaw(resource)) {
+    if (isStoragePool(resource, "test")) {
       source = resource;
       break;
     }
@@ -3308,14 +3105,8 @@ TEST_F(
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(DeclineOffers());
 
-  auto isRaw = [](const Resource& r) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().has_profile() &&
-      r.disk().source().type() == Resource::DiskInfo::Source::RAW;
-  };
-
-  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(isRaw)))
+  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
+      std::bind(isStoragePool<Resource>, lambda::_1, "test"))))
     .WillOnce(FutureArg<1>(&offers));
 
   driver.start();
@@ -3335,7 +3126,7 @@ TEST_F(
 
   Option<Resource> source;
   foreach (const Resource& resource, offer.resources()) {
-    if (isRaw(resource)) {
+    if (isStoragePool(resource, "test")) {
       source = resource;
       break;
     }
@@ -3596,15 +3387,10 @@ TEST_F(StorageLocalResourceProviderTest, OperationUpdate)
 
   Future<v1::scheduler::Event::Offers> offers;
 
-  auto isRaw = [](const v1::Resource& r) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().has_profile() &&
-      r.disk().source().type() == v1::Resource::DiskInfo::Source::RAW;
-  };
-
   EXPECT_CALL(
-      *scheduler, offers(_, v1::scheduler::OffersHaveAnyResource(isRaw)))
+      *scheduler,
+      offers(_, v1::scheduler::OffersHaveAnyResource(
+          std::bind(isStoragePool<v1::Resource>, lambda::_1, "test"))))
     .WillOnce(FutureArg<1>(&offers));
 
   v1::scheduler::TestMesos mesos(
@@ -3635,7 +3421,7 @@ TEST_F(StorageLocalResourceProviderTest, OperationUpdate)
   Option<v1::Resource> source;
   Option<mesos::v1::ResourceProviderID> resourceProviderId;
   foreach (const v1::Resource& resource, offer.resources()) {
-    if (isRaw(resource)) {
+    if (isStoragePool(resource, "test")) {
       source = resource;
 
       ASSERT_TRUE(resource.has_provider_id());
@@ -3747,19 +3533,8 @@ TEST_F(StorageLocalResourceProviderTest, OperationStateMetrics)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(DeclineOffers(declineFilters));
 
-  // We are only interested in any storage pool or volume with a "test" profile.
-  auto hasSourceType = [](
-      const Resource& r,
-      const Resource::DiskInfo::Source::Type& type) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().has_profile() &&
-      r.disk().source().profile() == "test" &&
-      r.disk().source().type() == type;
-  };
-
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::RAW))))
+      std::bind(isStoragePool<Resource>, lambda::_1, "test"))))
     .InSequence(offers)
     .WillOnce(FutureArg<1>(&rawDiskOffers));
 
@@ -3771,7 +3546,7 @@ TEST_F(StorageLocalResourceProviderTest, OperationStateMetrics)
   Option<Resource> source;
 
   foreach (const Resource& resource, rawDiskOffers->at(0).resources()) {
-    if (hasSourceType(resource, Resource::DiskInfo::Source::RAW)) {
+    if (isStoragePool(resource, "test")) {
       source = resource;
       break;
     }
@@ -3796,7 +3571,7 @@ TEST_F(StorageLocalResourceProviderTest, OperationStateMetrics)
 
   // Create a volume.
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::MOUNT))))
+      std::bind(isMountDisk<Resource>, lambda::_1, "test"))))
     .InSequence(offers)
     .WillOnce(FutureArg<1>(&volumeCreatedOffers));
 
@@ -3816,7 +3591,7 @@ TEST_F(StorageLocalResourceProviderTest, OperationStateMetrics)
   Option<Resource> volume;
 
   foreach (const Resource& resource, volumeCreatedOffers->at(0).resources()) {
-    if (hasSourceType(resource, Resource::DiskInfo::Source::MOUNT)) {
+    if (isMountDisk(resource, "test")) {
       volume = resource;
       break;
     }
@@ -3997,19 +3772,8 @@ TEST_F(StorageLocalResourceProviderTest, CsiPluginRpcMetrics)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(DeclineOffers(declineFilters));
 
-  // We are only interested in any storage pool or volume with a "test" profile.
-  auto hasSourceType = [](
-      const Resource& r,
-      const Resource::DiskInfo::Source::Type& type) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().has_profile() &&
-      r.disk().source().profile() == "test" &&
-      r.disk().source().type() == type;
-  };
-
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::RAW))))
+      std::bind(isStoragePool<Resource>, lambda::_1, "test"))))
     .InSequence(offers)
     .WillOnce(FutureArg<1>(&rawDiskOffers));
 
@@ -4021,7 +3785,7 @@ TEST_F(StorageLocalResourceProviderTest, CsiPluginRpcMetrics)
   Option<Resource> source;
 
   foreach (const Resource& resource, rawDiskOffers->at(0).resources()) {
-    if (hasSourceType(resource, Resource::DiskInfo::Source::RAW)) {
+    if (isStoragePool(resource, "test")) {
       source = resource;
       break;
     }
@@ -4074,7 +3838,7 @@ TEST_F(StorageLocalResourceProviderTest, CsiPluginRpcMetrics)
 
   // Create a volume.
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(hasSourceType, lambda::_1, Resource::DiskInfo::Source::MOUNT))))
+      std::bind(isMountDisk<Resource>, lambda::_1, "test"))))
     .InSequence(offers)
     .WillOnce(FutureArg<1>(&volumeCreatedOffers));
 
@@ -4094,7 +3858,7 @@ TEST_F(StorageLocalResourceProviderTest, CsiPluginRpcMetrics)
   Option<Resource> volume;
 
   foreach (const Resource& resource, volumeCreatedOffers->at(0).resources()) {
-    if (hasSourceType(resource, Resource::DiskInfo::Source::MOUNT)) {
+    if (isMountDisk(resource, "test")) {
       volume = resource;
       break;
     }
@@ -4306,16 +4070,10 @@ TEST_F(StorageLocalResourceProviderTest, ReconcileDroppedOperation)
   EXPECT_CALL(sched, resourceOffers(&driver, _))
     .WillRepeatedly(DeclineOffers(declineFilters));
 
-  auto isRaw = [](const Resource& r) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().has_profile() &&
-      r.disk().source().type() == Resource::DiskInfo::Source::RAW;
-  };
-
   Future<vector<Offer>> offersBeforeOperations;
 
-  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(isRaw)))
+  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
+      std::bind(isStoragePool<Resource>, lambda::_1, "test"))))
     .WillOnce(FutureArg<1>(&offersBeforeOperations))
     .WillRepeatedly(DeclineOffers(declineFilters)); // Decline further offers.
 
@@ -4325,7 +4083,8 @@ TEST_F(StorageLocalResourceProviderTest, ReconcileDroppedOperation)
   ASSERT_EQ(1u, offersBeforeOperations->size());
 
   Resources raw =
-    Resources(offersBeforeOperations->at(0).resources()).filter(isRaw);
+    Resources(offersBeforeOperations->at(0).resources())
+      .filter(std::bind(isStoragePool<Resource>, lambda::_1, "test"));
 
   // Create two MOUNT disks of 2GB each.
   ASSERT_SOME_EQ(Gigabytes(4), raw.disk());
@@ -4398,15 +4157,8 @@ TEST_F(StorageLocalResourceProviderTest, ReconcileDroppedOperation)
 
   Future<vector<Offer>> offersAfterOperations;
 
-  auto isMountDisk = [](const Resource& r) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().has_profile() &&
-      r.disk().source().type() == Resource::DiskInfo::Source::MOUNT;
-  };
-
-  EXPECT_CALL(
-      sched, resourceOffers(&driver, OffersHaveAnyResource(isMountDisk)))
+  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
+      std::bind(isMountDisk<Resource>, lambda::_1, "test"))))
     .WillOnce(FutureArg<1>(&offersAfterOperations));
 
   // Advance the clock to trigger a batch allocation.
@@ -4416,7 +4168,8 @@ TEST_F(StorageLocalResourceProviderTest, ReconcileDroppedOperation)
   ASSERT_FALSE(offersAfterOperations->empty());
 
   Resources converted =
-    Resources(offersAfterOperations->at(0).resources()).filter(isMountDisk);
+    Resources(offersAfterOperations->at(0).resources())
+      .filter(std::bind(isMountDisk<Resource>, lambda::_1, "test"));
 
   ASSERT_EQ(1u, converted.size());
 
@@ -4508,15 +4261,10 @@ TEST_F(StorageLocalResourceProviderTest, RetryOperationStatusUpdateToScheduler)
 
   Future<v1::scheduler::Event::Offers> offers;
 
-  auto isRaw = [](const v1::Resource& r) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().has_profile() &&
-      r.disk().source().type() == v1::Resource::DiskInfo::Source::RAW;
-  };
-
   EXPECT_CALL(
-      *scheduler, offers(_, v1::scheduler::OffersHaveAnyResource(isRaw)))
+      *scheduler,
+      offers(_, v1::scheduler::OffersHaveAnyResource(
+          std::bind(isStoragePool<v1::Resource>, lambda::_1, "test"))))
     .WillOnce(FutureArg<1>(&offers));
 
   v1::scheduler::TestMesos mesos(
@@ -4544,7 +4292,7 @@ TEST_F(StorageLocalResourceProviderTest, RetryOperationStatusUpdateToScheduler)
   Option<v1::Resource> source;
   Option<mesos::v1::ResourceProviderID> resourceProviderId;
   foreach (const v1::Resource& resource, offer.resources()) {
-    if (isRaw(resource)) {
+    if (isStoragePool(resource, "test")) {
       source = resource;
 
       ASSERT_TRUE(resource.has_provider_id());
@@ -4699,15 +4447,10 @@ TEST_F(
 
   Future<v1::scheduler::Event::Offers> offers;
 
-  auto isRaw = [](const v1::Resource& r) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().has_profile() &&
-      r.disk().source().type() == v1::Resource::DiskInfo::Source::RAW;
-  };
-
   EXPECT_CALL(
-      *scheduler, offers(_, v1::scheduler::OffersHaveAnyResource(isRaw)))
+      *scheduler,
+      offers(_, v1::scheduler::OffersHaveAnyResource(
+          std::bind(isStoragePool<v1::Resource>, lambda::_1, "test"))))
     .WillOnce(FutureArg<1>(&offers));
 
   v1::scheduler::TestMesos mesos(
@@ -4740,7 +4483,7 @@ TEST_F(
   Option<v1::Resource> source;
   Option<mesos::v1::ResourceProviderID> resourceProviderId;
   foreach (const v1::Resource& resource, offer.resources()) {
-    if (isRaw(resource)) {
+    if (isStoragePool(resource, "test")) {
       source = resource;
 
       ASSERT_TRUE(resource.has_provider_id());
@@ -4958,19 +4701,8 @@ TEST_F(StorageLocalResourceProviderTest, RetryRpcWithExponentialBackoff)
 
   Future<vector<Offer>> offers;
 
-  auto isStoragePool = [](const Resource& r, const string& profile) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().type() == Resource::DiskInfo::Source::RAW &&
-      r.disk().source().has_vendor() &&
-      r.disk().source().vendor() == TEST_CSI_VENDOR &&
-      !r.disk().source().has_id() &&
-      r.disk().source().has_profile() &&
-      r.disk().source().profile() == profile;
-  };
-
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(isStoragePool, lambda::_1, "test"))))
+      std::bind(isStoragePool<Resource>, lambda::_1, "test"))))
     .WillOnce(FutureArg<1>(&offers));
 
   driver.start();
@@ -4979,7 +4711,7 @@ TEST_F(StorageLocalResourceProviderTest, RetryRpcWithExponentialBackoff)
   ASSERT_EQ(1u, offers->size());
 
   Resource raw = *Resources(offers->at(0).resources())
-    .filter(std::bind(isStoragePool, lambda::_1, "test"))
+    .filter(std::bind(isStoragePool<Resource>, lambda::_1, "test"))
     .begin();
 
   // Create a MOUNT disk.
@@ -5048,19 +4780,8 @@ TEST_F(StorageLocalResourceProviderTest, RetryRpcWithExponentialBackoff)
   Clock::settle();
   ASSERT_EQ(0u, createVolumeRequests.size());
 
-  auto isMountDisk = [](const Resource& r, const string& profile) {
-    return r.has_disk() &&
-      r.disk().has_source() &&
-      r.disk().source().type() == Resource::DiskInfo::Source::MOUNT &&
-      r.disk().source().has_vendor() &&
-      r.disk().source().vendor() == TEST_CSI_VENDOR &&
-      r.disk().source().has_id() &&
-      r.disk().source().has_profile() &&
-      r.disk().source().profile() == profile;
-  };
-
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
-      std::bind(isMountDisk, lambda::_1, "test"))))
+      std::bind(isMountDisk<Resource>, lambda::_1, "test"))))
     .WillOnce(FutureArg<1>(&offers));
 
   // Return a successful response for the last `CreateVolume` call.
@@ -5081,7 +4802,7 @@ TEST_F(StorageLocalResourceProviderTest, RetryRpcWithExponentialBackoff)
   ASSERT_EQ(1u, offers->size());
 
   Resource created = *Resources(offers->at(0).resources())
-    .filter(std::bind(isMountDisk, lambda::_1, "test"))
+    .filter(std::bind(isMountDisk<Resource>, lambda::_1, "test"))
     .begin();
 
   // Destroy the MOUNT disk.
