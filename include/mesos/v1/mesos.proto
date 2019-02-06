@@ -410,6 +410,11 @@ message FrameworkInfo {
   // the framework). These labels are not interpreted by Mesos itself.
   // Labels should not contain duplicate key-value pairs.
   optional Labels labels = 11;
+
+  // Specifc resource requirements for each of the framework's roles. This field
+  // is used by e.g., the default allocator to decide whether a framework is
+  // interested in seeing a resource of a certain shape.
+  map<string, OfferFilters> offer_filters = 13;
 }
 
 
@@ -1869,6 +1874,34 @@ message PerfStatistics {
   optional uint64 node_store_misses = 51;
   optional uint64 node_prefetches = 52;
   optional uint64 node_prefetch_misses = 53;
+}
+
+
+/**
+ * Represents filters that allow a framework to control the shape of
+ * offers that will be sent to its role(s). These filters apply
+ * globally to any agent (unlike the existing `DECLINE` filter which
+ * us a time-based resource subset filter that only applies to the
+ * agent that was declined).
+ *
+ * NOTE: Custom allocators might interpret these fields in a different
+ * way, or not at all.
+ */
+message OfferFilters {
+  message ResourceQuantities {
+    // Quantities are pairs of identifiers of scalar resources and
+    // an associated value, e.g., `{"disk": Scalar {"value": 30}}`.
+    map<string, Value.Scalar> quantities = 1;
+  }
+
+  message MinAllocatableResources {
+    // A set of resources is considered allocatable if contained in any of
+    // the following quantities. If no quantities are specified any resource
+    // is considered allocatable.
+    repeated ResourceQuantities quantities = 1;
+  }
+
+  optional MinAllocatableResources min_allocatable_resources = 1;
 }
 
 

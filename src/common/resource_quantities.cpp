@@ -79,6 +79,17 @@ ResourceQuantities::ResourceQuantities()
 }
 
 
+ResourceQuantities::ResourceQuantities(
+    const OfferFilters::ResourceQuantities& quantities)
+{
+  // Use `auto` in place of `protobuf::MapPair<string, Value::Scalar>`
+  // below since `foreach` is a macro and cannot contain angle brackets.
+  foreach (auto&& quantity, quantities.quantities()) {
+    (*this)[quantity.first] = quantity.second;
+  }
+}
+
+
 ResourceQuantities::const_iterator ResourceQuantities::begin()
 {
   return static_cast<const std::vector<std::pair<std::string, Value::Scalar>>&>(

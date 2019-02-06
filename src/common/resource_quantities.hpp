@@ -84,6 +84,9 @@ public:
 
   ResourceQuantities();
 
+  explicit ResourceQuantities(
+      const OfferFilters::ResourceQuantities& quantities);
+
   ResourceQuantities(const ResourceQuantities& that) = default;
   ResourceQuantities(ResourceQuantities&& that) = default;
 

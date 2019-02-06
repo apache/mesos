@@ -501,6 +501,9 @@ void Framework::update(const FrameworkInfo& newInfo)
   // We only merge 'info' from the same framework 'id'.
   CHECK_EQ(info.id(), newInfo.id());
 
+  // We copy over the new (potentially empty) map of per-role filters.
+  *info.mutable_offer_filters() = newInfo.offer_filters();
+
   // Save the old list of roles for later.
   std::set<std::string> oldRoles = roles;
 
