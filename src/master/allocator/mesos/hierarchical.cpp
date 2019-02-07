@@ -1843,7 +1843,7 @@ void HierarchicalAllocatorProcess::__allocate()
 
       // TODO(bmahler): Handle shared volumes, which are always available but
       // should be excluded here based on `offeredSharedResources`.
-      if (!allocatable(slave.getAvailable())) {
+      if (slave.getAvailable().empty()) {
         break; // Nothing left on this agent.
       }
 
@@ -1859,7 +1859,7 @@ void HierarchicalAllocatorProcess::__allocate()
         // offer cycle to a framework.
         available -= offeredSharedResources.get(slaveId).getOrElse(Resources());
 
-        if (!allocatable(available.allocatableTo(role))) {
+        if (available.allocatableTo(role).empty()) {
           break; // Nothing left for the role.
         }
 
@@ -1993,7 +1993,7 @@ void HierarchicalAllocatorProcess::__allocate()
           });
 
         // If the framework filters these resources, ignore.
-        if (!allocatable(toAllocate) ||
+        if (!allocatable(toAllocate, role, framework) ||
             isFiltered(frameworkId, role, slaveId, toAllocate)) {
           continue;
         }
@@ -2054,7 +2054,7 @@ void HierarchicalAllocatorProcess::__allocate()
 
       // TODO(bmahler): Handle shared volumes, which are always available but
       // should be excluded here based on `offeredSharedResources`.
-      if (!allocatable(slave.getAvailable())) {
+      if (slave.getAvailable().empty()) {
         break; // Nothing left on this agent.
       }
 
@@ -2069,7 +2069,7 @@ void HierarchicalAllocatorProcess::__allocate()
         // offer cycle to a framework.
         available -= offeredSharedResources.get(slaveId).getOrElse(Resources());
 
-        if (!allocatable(available.allocatableTo(role))) {
+        if (available.allocatableTo(role).empty()) {
           break; // Nothing left for the role.
         }
 
@@ -2110,7 +2110,8 @@ void HierarchicalAllocatorProcess::__allocate()
           toAllocate -= headroomToAllocate;
         }
 
-        if (!allocatable(toAllocate) ||
+        // If the framework filters these resources, ignore.
+        if (!allocatable(toAllocate, role, framework) ||
             isFiltered(frameworkId, role, slaveId, toAllocate)) {
           continue;
         }
@@ -2435,22 +2436,40 @@ bool HierarchicalAllocatorProcess::isFiltered(
 }
 
 
-bool HierarchicalAllocatorProcess::allocatable(const Resources& resources) const
+bool HierarchicalAllocatorProcess::allocatable(
+    const Resources& resources,
+    const string& role,
+    const Framework& framework) const
 {
-  if (options.minAllocatableResources.isNone() ||
-      CHECK_NOTNONE(options.minAllocatableResources).empty()) {
+  if (resources.empty()) {
+    return false;
+  }
+
+  // By default we check against the globally configured minimal
+  // allocatable resources.
+  //
+  // NOTE: We use a pointer instead of `Option` semantics here to
+  // avoid copying vectors in code in the hot path of the allocator.
+  const vector<ResourceQuantities>* _minAllocatableResources =
+    options.minAllocatableResources.isSome()
+      ? &options.minAllocatableResources.get()
+      : nullptr;
+
+  if (framework.minAllocatableResources.contains(role)) {
+    _minAllocatableResources = &framework.minAllocatableResources.at(role);
+  }
+
+  // If no minimal requirements or an empty set of requirments are
+  // configured any resource is allocatable.
+  if (_minAllocatableResources == nullptr ||
+      _minAllocatableResources->empty()) {
     return true;
   }
 
-  foreach (
-      const ResourceQuantities& resourceQuantities,
-      CHECK_NOTNONE(options.minAllocatableResources)) {
-    if (resources.contains(resourceQuantities)) {
-      return true;
-    }
-  }
-
-  return false;
+  return std::any_of(
+      _minAllocatableResources->begin(),
+      _minAllocatableResources->end(),
+      [&](const ResourceQuantities& qs) { return resources.contains(qs); });
 }
 
 

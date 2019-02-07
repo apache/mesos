@@ -475,7 +475,10 @@ protected:
       const FrameworkID& frameworkID,
       const SlaveID& slaveID) const;
 
-  bool allocatable(const Resources& resources) const;
+  bool allocatable(
+      const Resources& resources,
+      const std::string& role,
+      const Framework& framework) const;
 
   bool initialized;
   bool paused;
