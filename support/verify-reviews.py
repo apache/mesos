@@ -91,15 +91,19 @@ class ReviewError(Exception):
     pass
 
 
-def shell(command):
+def shell(command, working_dir=None):
     """Run a shell command."""
     try:
-        out = subprocess.check_output(
-            command, stderr=subprocess.STDOUT, shell=True)
+        out = subprocess.check_output(command, stderr=subprocess.STDOUT,
+                                      cwd=working_dir, shell=True)
     except subprocess.CalledProcessError as err:
-        print("Error running command '%s': %s" % (command, err.output))
+        error = err.output.decode("utf-8")
+        print("Error running command '%s': %s" % (command, error))
         exit(1)
     return out.decode(sys.stdout.encoding)
+
+SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
+HEAD = shell("git rev-parse HEAD", SCRIPT_PATH)
 
 
 def api(url, data=None):
@@ -130,7 +134,8 @@ def api(url, data=None):
 def apply_review(review_id):
     """Apply a review using the script apply-reviews.py."""
     print("Applying review %s" % review_id)
-    shell("%s support/apply-reviews.py -n -r %s" % (sys.executable, review_id))
+    shell("cd .. && %s support/apply-reviews.py -n -r %s" %
+          (sys.executable, review_id), SCRIPT_PATH)
 
 
 def apply_reviews(review_request, reviews):
@@ -164,7 +169,7 @@ def post_review(review_request, message):
     print("Posting review: %s" % message)
 
     review_url = review_request["links"]["reviews"]["href"]
-    data = urllib.parse.urlencode({'body_top': message, 'public': 'true'})
+    data = urllib.parse.urlencode({"body_top": message, "public": "true"})
     api(review_url, data)
 
 
@@ -172,10 +177,10 @@ def post_review(review_request, message):
 def cleanup():
     """Clean the git repository."""
     try:
-        shell("git clean -fd")
-        HEAD = shell("git rev-parse HEAD")
+        shell("git clean -fd", SCRIPT_PATH)
+
         print(HEAD)
-        shell("git checkout HEAD -- %s" % HEAD)
+        shell("git reset --hard %s" % HEAD, SCRIPT_PATH)
     except subprocess.CalledProcessError as err:
         print("Failed command: %s\n\nError: %s" % (err.cmd, err.output))
 
@@ -246,8 +251,9 @@ def verify_review(review_request):
         if len(output) > REVIEW_SIZE:
             output = "...<truncated>...\n" + output[-REVIEW_SIZE:]
 
-        output += "\nFull log: "
-        output += urllib.parse.urljoin(os.environ['BUILD_URL'], 'console')
+        if os.environ.get("BUILD_URL"):
+            output += "\nFull log: "
+            output += urllib.parse.urljoin(os.environ["BUILD_URL"], "console")
 
         post_review(
             review_request,
