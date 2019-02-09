@@ -842,7 +842,7 @@ TEST_P(OperationReconciliationTest, AgentPendingOperationAfterMasterFailover)
 
   Clock::pause();
 
-  // Test explicit reconciliation
+  // Test explicit reconciliation.
   {
     scheduler::Call::ReconcileOperations::Operation operation;
     operation.mutable_operation_id()->CopyFrom(operationId);
@@ -871,7 +871,7 @@ TEST_P(OperationReconciliationTest, AgentPendingOperationAfterMasterFailover)
     EXPECT_FALSE(operationStatus.has_uuid());
   }
 
-  // Test implicit reconciliation
+  // Test implicit reconciliation.
   {
     const Future<scheduler::APIResult> result =
       mesos.call({createCallReconcileOperations(frameworkId, {})});
