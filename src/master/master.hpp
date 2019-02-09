@@ -660,12 +660,26 @@ protected:
       const std::string& message,
       Option<process::metrics::Counter> reason = None());
 
+  // Removes an agent from the master's state in the following cases:
+  // * When maintenance is started on an agent
+  // * When an agent registers with a new ID from a previously-known IP + port
+  // * When an agent unregisters itself with an `UnregisterSlaveMessage`
   void _removeSlave(
       Slave* slave,
       const process::Future<bool>& registrarResult,
       const std::string& removalCause,
       Option<process::metrics::Counter> reason = None());
 
+  // Removes an agent from the master's state in the following cases:
+  // * When marking an agent unreachable
+  // * When marking an agent gone
+  //
+  // NOTE that in spite of the name `__removeSlave()`, this function is NOT a
+  // continuation of `_removeSlave()`. Rather, these two functions perform
+  // similar logic for slightly different cases.
+  //
+  // TODO(greggomann): refactor `_removeSlave` and `__removeSlave` into a single
+  // common helper function. (See MESOS-9550)
   void __removeSlave(
       Slave* slave,
       const std::string& message,
