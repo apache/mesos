@@ -9070,13 +9070,25 @@ void Master::sendBulkOperationFeedback(
       continue;
     }
 
+    Result<ResourceProviderID> resourceProviderId =
+      getResourceProviderId(operation->info());
+
+    CHECK(!resourceProviderId.isError());
+
     scheduler::Event update;
     update.set_type(scheduler::Event::UPDATE_OPERATION_STATUS);
     *update.mutable_update_operation_status()->mutable_status() =
       protobuf::createOperationStatus(
           operationState,
           operation->info().id(),
-          message);
+          message,
+          None(),
+          None(),
+          slave->id,
+          resourceProviderId.isSome()
+            ? Some(resourceProviderId.get())
+            : Option<ResourceProviderID>::none());
+
 
     framework.get()->send(update);
   }
