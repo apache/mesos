@@ -1177,9 +1177,15 @@ int MesosContainerizerLaunch::execute()
     // Avoid leaking not required file descriptors into the forked process.
     foreach (int_fd fd, fds.get()) {
       if (fd != STDIN_FILENO && fd != STDOUT_FILENO && fd != STDERR_FILENO) {
-        // We use the unwrapped `::close` as opposed to `os::close`
-        // since the former is guaranteed to be async signal safe.
-        ::close(fd);
+        // NOTE: Set "FD_CLOEXEC" on the fd, instead of closing it
+        // because exec below might exec a memfd.
+        int flags = ::fcntl(fd, F_GETFD);
+        if (flags == -1) {
+          ABORT("Failed to get FD flags");
+        }
+        if (::fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1) {
+          ABORT("Failed to set FD_CLOEXEC");
+        }
       }
     }
   }

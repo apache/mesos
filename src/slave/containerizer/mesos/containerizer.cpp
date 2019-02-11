@@ -592,6 +592,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
       Owned<MesosIsolatorProcess>(ioSwitchboard.get()))));
 
   Option<int_fd> initMemFd;
+  Option<int_fd> commandExecutorMemFd;
 
 #ifdef ENABLE_LAUNCHER_SEALING
   // Clone the launcher binary in memory for security concerns.
@@ -606,6 +607,19 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   }
 
   initMemFd = memFd.get();
+
+  // Clone the command executor binary in memory for security.
+  memFd = memfd::cloneSealedFile(
+      path::join(flags.launcher_dir, MESOS_EXECUTOR));
+
+  if (memFd.isError()) {
+    return Error(
+        "Failed to clone a sealed file '" +
+        path::join(flags.launcher_dir, MESOS_EXECUTOR) + "' in memory: " +
+        memFd.error());
+  }
+
+  commandExecutorMemFd = memFd.get();
 #endif // ENABLE_LAUNCHER_SEALING
 
   return new MesosContainerizer(Owned<MesosContainerizerProcess>(
@@ -617,7 +631,8 @@ Try<MesosContainerizer*> MesosContainerizer::create(
           launcher,
           provisioner,
           _isolators,
-          initMemFd)));
+          initMemFd,
+          commandExecutorMemFd)));
 }
 
 
@@ -1958,6 +1973,16 @@ Future<Containerizer::LaunchResult> MesosContainerizerProcess::_launch(
 
   const std::array<int_fd, 2>& pipes = pipes_.get();
 
+  vector<int_fd> whitelistFds{pipes[0], pipes[1]};
+
+  // Seal the command executor binary if needed.
+  if (container->config->has_task_info() && commandExecutorMemFd.isSome()) {
+    launchInfo.mutable_command()->set_value(
+        "/proc/self/fd/" + stringify(commandExecutorMemFd.get()));
+
+    whitelistFds.push_back(commandExecutorMemFd.get());
+  }
+
   // Prepare the flags to pass to the launch process.
   MesosContainerizerLaunch::Flags launchFlags;
 
@@ -1965,8 +1990,6 @@ Future<Containerizer::LaunchResult> MesosContainerizerProcess::_launch(
 
   launchFlags.pipe_read = pipes[0];
   launchFlags.pipe_write = pipes[1];
-
-  const vector<int_fd> whitelistFds{pipes[0], pipes[1]};
 
 #ifndef __WINDOWS__
   // Set the `runtime_directory` launcher flag so that the launch

@@ -167,12 +167,6 @@ using process::UPID;
 
 using process::http::authentication::Principal;
 
-#ifdef __WINDOWS__
-constexpr char MESOS_EXECUTOR[] = "mesos-executor.exe";
-#else
-constexpr char MESOS_EXECUTOR[] = "mesos-executor";
-#endif // __WINDOWS__
-
 namespace mesos {
 namespace internal {
 namespace slave {
