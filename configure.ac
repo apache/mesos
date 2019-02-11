@@ -220,6 +220,17 @@ AC_ARG_ENABLE([java],
                              [don't build Java bindings]),
               [], [enable_java=yes])
 
+AC_ARG_ENABLE([launcher_sealing],
+              AS_HELP_STRING([--enable-launcher-sealing],
+                             [Enables sealing of launcher binary during
+                              initialization of Mesos containerizer.
+                              A copy of launcher's binary is cloned into
+                              memory and sealed to prevent overwriting of
+                              launcher's executable by containers.
+                              This is a Linux-specific feature and requires
+                              the support of memfd by the kernel.]),
+                             [], [enable_launcher_sealing=no])
+
 AC_ARG_ENABLE([libevent],
               AS_HELP_STRING([--enable-libevent],
                              [use libevent instead of libev]),
@@ -1302,6 +1313,26 @@ fi
 
 AM_CONDITIONAL([WITH_BUNDLED_LEVELDB],
                [test "x$with_bundled_leveldb" = "xyes"])
+
+
+# Check if we should use containerizer launcher sealing.
+AC_MSG_CHECKING([whether to enable launcher sealing])
+AC_MSG_RESULT([$enable_launcher_sealing])
+
+AS_IF([test "x$enable_launcher_sealing" = "xyes"], [
+  # We only support launcher sealing on Linux.
+  AS_IF([test "$OS_NAME" = "linux"],
+        [],
+        [AC_MSG_ERROR([no launcher sealing support on $OS_NAME
+-------------------------------------------------------------------
+Launcher sealing is only supported on Linux.
+-------------------------------------------------------------------
+  ])])
+
+  AC_DEFINE([ENABLE_LAUNCHER_SEALING])
+])
+
+AM_CONDITIONAL([ENABLE_LAUNCHER_SEALING], [test "x$enable_launcher_sealing" = "xyes"])
 
 
 # Check if libevent prefix path was provided, and if so, add it to

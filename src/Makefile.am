@@ -1239,7 +1239,6 @@ MESOS_LINUX_FILES =									\
   linux/fs.cpp										\
   linux/ldcache.cpp									\
   linux/ldd.cpp										\
-  linux/memfd.cpp									\
   linux/perf.cpp									\
   linux/systemd.cpp									\
   slave/containerizer/mesos/linux_launcher.cpp						\
@@ -1329,6 +1328,12 @@ MESOS_LINUX_FILES +=							\
   slave/containerizer/mesos/isolators/xfs/utils.hpp			\
   slave/containerizer/mesos/isolators/xfs/disk.cpp			\
   slave/containerizer/mesos/isolators/xfs/disk.hpp
+endif
+
+if ENABLE_LAUNCHER_SEALING
+MESOS_LINUX_FILES +=              \
+  linux/memfd.cpp             \
+  linux/memfd.hpp
 endif
 
 MESOS_NETWORK_ISOLATOR_FILES =						\
@@ -2450,7 +2455,6 @@ mesos_tests_SOURCES +=						\
   tests/containerizer/cni_isolator_tests.cpp			\
   tests/containerizer/docker_volume_isolator_tests.cpp		\
   tests/containerizer/linux_filesystem_isolator_tests.cpp	\
-  tests/containerizer/linux_memfd_tests.cpp			\
   tests/containerizer/fs_tests.cpp				\
   tests/containerizer/memory_pressure_tests.cpp			\
   tests/containerizer/nested_mesos_containerizer_tests.cpp	\
@@ -2463,6 +2467,11 @@ mesos_tests_SOURCES +=						\
   tests/containerizer/setns_test_helper.cpp			\
   tests/containerizer/volume_image_isolator_tests.cpp		\
   tests/containerizer/volume_secret_isolator_tests.cpp
+endif
+
+if ENABLE_LAUNCHER_SEALING
+mesos_tests_SOURCES +=						\
+  tests/containerizer/linux_memfd_tests.cpp
 endif
 
 if ENABLE_PORT_MAPPING_ISOLATOR
