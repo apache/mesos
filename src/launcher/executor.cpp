@@ -82,9 +82,9 @@
 #include "internal/devolve.hpp"
 #include "internal/evolve.hpp"
 
-#ifdef __linux__
+#ifdef ENABLE_LAUNCHER_SEALING
 #include "linux/memfd.hpp"
-#endif // __linux__
+#endif // ENABLE_LAUNCHER_SEALING
 
 #include "logging/logging.hpp"
 
@@ -503,7 +503,7 @@ protected:
     // Determine the mesos containerizer binary depends on whether we
     // need to clone and seal it on linux.
     string initPath = path::join(launcherDir, MESOS_CONTAINERIZER);
-#ifdef __linux__
+#ifdef ENABLE_LAUNCHER_SEALING
     // Clone the launcher binary in memory for security concerns.
     Try<int_fd> memFd = memfd::cloneSealedFile(initPath);
     if (memFd.isError()) {
@@ -513,7 +513,7 @@ protected:
     }
 
     initPath = "/proc/self/fd/" + stringify(memFd.get());
-#endif // __linux__
+#endif // ENABLE_LAUNCHER_SEALING
 
     // Fork the child using launcher.
     vector<string> argv(2);
