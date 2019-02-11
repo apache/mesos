@@ -1300,6 +1300,8 @@ MESOS_LINUX_FILES =									\
   linux/ldcache.hpp									\
   linux/ldd.cpp										\
   linux/ldd.hpp										\
+  linux/memfd.cpp									\
+  linux/memfd.hpp									\
   linux/ns.cpp										\
   linux/ns.hpp										\
   linux/perf.cpp									\

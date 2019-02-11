@@ -273,6 +273,7 @@ set(LINUX_SRC
   linux/fs.cpp
   linux/ldcache.cpp
   linux/ldd.cpp
+  linux/memfd.cpp
   linux/ns.cpp
   linux/perf.cpp
   linux/systemd.cpp
