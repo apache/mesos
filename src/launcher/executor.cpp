@@ -82,6 +82,10 @@
 #include "internal/devolve.hpp"
 #include "internal/evolve.hpp"
 
+#ifdef __linux__
+#include "linux/memfd.hpp"
+#endif // __linux__
+
 #include "logging/logging.hpp"
 
 #include "messages/messages.hpp"
@@ -496,11 +500,26 @@ protected:
 
     launchFlags.launch_info = JSON::protobuf(launchInfo);
 
+    // Determine the mesos containerizer binary depends on whether we
+    // need to clone and seal it on linux.
+    string initPath = path::join(launcherDir, MESOS_CONTAINERIZER);
+#ifdef __linux__
+    // Clone the launcher binary in memory for security concerns.
+    Try<int_fd> memFd = memfd::cloneSealedFile(initPath);
+    if (memFd.isError()) {
+      ABORT(
+          "Failed to clone a sealed file '" + initPath + "' in memory: " +
+          memFd.error());
+    }
+
+    initPath = "/proc/self/fd/" + stringify(memFd.get());
+#endif // __linux__
+
     // TODO(tillt): Consider using a flag allowing / disallowing the
     // log output of possibly sensitive data. See MESOS-7292.
     string commandString = strings::format(
         "%s %s <POSSIBLY-SENSITIVE-DATA>",
-        path::join(launcherDir, MESOS_CONTAINERIZER),
+        initPath,
         MesosContainerizerLaunch::NAME).get();
 
     LOG(INFO) << "Running '" << commandString << "'";
@@ -526,7 +545,7 @@ protected:
     }
 
     Try<Subprocess> s = subprocess(
-        path::join(launcherDir, MESOS_CONTAINERIZER),
+        initPath,
         argv,
         Subprocess::FD(STDIN_FILENO),
         Subprocess::FD(STDOUT_FILENO),

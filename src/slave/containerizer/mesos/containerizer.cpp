@@ -55,6 +55,10 @@
 
 #include "hook/manager.hpp"
 
+#ifdef __linux__
+#include "linux/memfd.hpp"
+#endif // __linux__
+
 #include "module/manager.hpp"
 
 #include "slave/gc.hpp"
@@ -587,6 +591,23 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   _isolators.push_back(Owned<Isolator>(new MesosIsolator(
       Owned<MesosIsolatorProcess>(ioSwitchboard.get()))));
 
+  Option<int_fd> initMemFd;
+
+#ifdef __linux__
+  // Clone the launcher binary in memory for security concerns.
+  Try<int_fd> memFd = memfd::cloneSealedFile(
+      path::join(flags.launcher_dir, MESOS_CONTAINERIZER));
+
+  if (memFd.isError()) {
+    return Error(
+        "Failed to clone a sealed file '" +
+        path::join(flags.launcher_dir, MESOS_CONTAINERIZER) + "' in memory: " +
+        memFd.error());
+  }
+
+  initMemFd = memFd.get();
+#endif // __linux__
+
   return new MesosContainerizer(Owned<MesosContainerizerProcess>(
       new MesosContainerizerProcess(
           flags,
@@ -595,7 +616,8 @@ Try<MesosContainerizer*> MesosContainerizer::create(
           ioSwitchboard.get(),
           launcher,
           provisioner,
-          _isolators)));
+          _isolators,
+          initMemFd)));
 }
 
 
@@ -2034,13 +2056,17 @@ Future<Containerizer::LaunchResult> MesosContainerizerProcess::_launch(
       launchFlagsEnvironment.end());
 
   // Fork the child using launcher.
+  string initPath = initMemFd.isSome()
+    ? ("/proc/self/fd/" + stringify(initMemFd.get()))
+    : path::join(flags.launcher_dir, MESOS_CONTAINERIZER);
+
   vector<string> argv(2);
   argv[0] = path::join(flags.launcher_dir, MESOS_CONTAINERIZER);
   argv[1] = MesosContainerizerLaunch::NAME;
 
   Try<pid_t> forked = launcher->fork(
       containerId,
-      argv[0],
+      initPath,
       argv,
       containerIO.get(),
       nullptr,
