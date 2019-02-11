@@ -132,7 +132,18 @@ static void handleWhitelistFds(const std::vector<int_fd>& whitelist_fds)
         }
 
         if (!found) {
-          ::close(fd);
+          int flags = ::fcntl(fd, F_GETFD);
+          if (flags == -1) {
+            // TODO(gilbert): clean up the use of `os::strerror` during the
+            // timeframe of fork-exec because it is not signal safe.
+            ABORT(
+                "Failed to get file descriptor flags: " + os::strerror(errno));
+          }
+
+          // Close the FD which does not have the FD_CLOEXEC bit.
+          if ((flags & FD_CLOEXEC) == 0){
+            ::close(fd);
+          }
         }
       }
     }
