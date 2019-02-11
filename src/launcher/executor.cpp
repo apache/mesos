@@ -515,15 +515,6 @@ protected:
     initPath = "/proc/self/fd/" + stringify(memFd.get());
 #endif // __linux__
 
-    // TODO(tillt): Consider using a flag allowing / disallowing the
-    // log output of possibly sensitive data. See MESOS-7292.
-    string commandString = strings::format(
-        "%s %s <POSSIBLY-SENSITIVE-DATA>",
-        initPath,
-        MesosContainerizerLaunch::NAME).get();
-
-    LOG(INFO) << "Running '" << commandString << "'";
-
     // Fork the child using launcher.
     vector<string> argv(2);
     argv[0] = MESOS_CONTAINERIZER;
@@ -557,7 +548,7 @@ protected:
         childHooks);
 
     if (s.isError()) {
-      ABORT("Failed to launch '" + commandString + "': " + s.error());
+      ABORT("Failed to launch task subprocess: " + s.error());
     }
 
     return s->pid();
