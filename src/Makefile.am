@@ -1310,7 +1310,6 @@ MESOS_LINUX_FILES =									\
   linux/fs.cpp										\
   linux/ldcache.cpp									\
   linux/ldd.cpp										\
-  linux/memfd.cpp									\
   linux/ns.cpp										\
   linux/perf.cpp									\
   linux/systemd.cpp									\
@@ -1403,6 +1402,12 @@ MESOS_LINUX_FILES +=							\
   slave/containerizer/mesos/isolators/xfs/utils.hpp			\
   slave/containerizer/mesos/isolators/xfs/disk.cpp			\
   slave/containerizer/mesos/isolators/xfs/disk.hpp
+endif
+
+if ENABLE_LAUNCHER_SEALING
+MESOS_LINUX_FILES +=              \
+  linux/memfd.cpp             \
+  linux/memfd.hpp
 endif
 
 MESOS_LINUX_ROUTING_FILES =						\
@@ -2638,7 +2643,6 @@ mesos_tests_SOURCES +=						\
   tests/containerizer/cni_isolator_tests.cpp			\
   tests/containerizer/docker_volume_isolator_tests.cpp		\
   tests/containerizer/linux_filesystem_isolator_tests.cpp	\
-  tests/containerizer/linux_memfd_tests.cpp			\
   tests/containerizer/fs_tests.cpp				\
   tests/containerizer/memory_pressure_tests.cpp			\
   tests/containerizer/nested_mesos_containerizer_tests.cpp	\
@@ -2658,6 +2662,11 @@ mesos_tests_SOURCES +=						\
   tests/agent_resource_provider_config_api_tests.cpp		\
   tests/storage_local_resource_provider_tests.cpp
 endif
+endif
+
+if ENABLE_LAUNCHER_SEALING
+mesos_tests_SOURCES +=						\
+  tests/containerizer/linux_memfd_tests.cpp
 endif
 
 if ENABLE_LINUX_ROUTING
