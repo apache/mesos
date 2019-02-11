@@ -183,6 +183,13 @@ Duration DEFAULT_MASTER_PING_TIMEOUT();
 // Name of the executable for default executor.
 constexpr char MESOS_DEFAULT_EXECUTOR[] = "mesos-default-executor";
 
+#ifdef __WINDOWS__
+constexpr char MESOS_EXECUTOR[] = "mesos-executor.exe";
+#else
+constexpr char MESOS_EXECUTOR[] = "mesos-executor";
+#endif // __WINDOWS__
+
+
 std::vector<SlaveInfo::Capability> AGENT_CAPABILITIES();
 
 } // namespace slave {
