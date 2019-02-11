@@ -227,7 +227,6 @@ if (LINUX)
     containerizer/linux_capabilities_isolator_tests.cpp
     containerizer/linux_devices_isolator_tests.cpp
     containerizer/linux_filesystem_isolator_tests.cpp
-    containerizer/linux_memfd_tests.cpp
     containerizer/memory_pressure_tests.cpp
     containerizer/nested_mesos_containerizer_tests.cpp
     containerizer/ns_tests.cpp
@@ -249,6 +248,11 @@ if (LINUX)
     list(APPEND MESOS_TESTS_SRC
       containerizer/linux_seccomp_parser_tests.cpp
       containerizer/linux_seccomp_isolator_tests.cpp)
+  endif()
+
+  if (ENABLE_LAUNCHER_SEALING)
+    list(APPEND MESOS_TESTS_SRC
+      containerizer/linux_memfd_tests.cpp)
   endif()
 
   if (ENABLE_LINUX_ROUTING)

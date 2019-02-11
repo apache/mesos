@@ -433,6 +433,10 @@ if (LINUX)
       "The XFS disk isolator is not yet supported, see MESOS-9117.")
   endif ()
 
+  option(ENABLE_LAUNCHER_SEALING
+    "Whether to enable containerizer launcher sealing via memfd."
+    FALSE)
+
   option(ENABLE_PORT_MAPPING_ISOLATOR
     "Whether to enable the port mapping isolator."
     FALSE)

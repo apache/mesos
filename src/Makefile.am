@@ -1335,8 +1335,6 @@ MESOS_LINUX_FILES =									\
   linux/ldcache.hpp									\
   linux/ldd.cpp										\
   linux/ldd.hpp										\
-  linux/memfd.cpp									\
-  linux/memfd.hpp									\
   linux/ns.cpp										\
   linux/ns.hpp										\
   linux/perf.cpp									\
@@ -1434,6 +1432,12 @@ MESOS_LINUX_FILES +=							\
   linux/seccomp/seccomp_parser.hpp					\
   slave/containerizer/mesos/isolators/linux/seccomp.cpp			\
   slave/containerizer/mesos/isolators/linux/seccomp.hpp
+endif
+
+if ENABLE_LAUNCHER_SEALING
+MESOS_LINUX_FILES +=							\
+  linux/memfd.cpp							\
+  linux/memfd.hpp
 endif
 
 if ENABLE_LINUX_ROUTING
@@ -2703,7 +2707,6 @@ mesos_tests_SOURCES +=						\
   tests/containerizer/docker_volume_isolator_tests.cpp		\
   tests/containerizer/linux_devices_isolator_tests.cpp		\
   tests/containerizer/linux_filesystem_isolator_tests.cpp	\
-  tests/containerizer/linux_memfd_tests.cpp			\
   tests/containerizer/fs_tests.cpp				\
   tests/containerizer/memory_pressure_tests.cpp			\
   tests/containerizer/nested_mesos_containerizer_tests.cpp	\
@@ -2717,6 +2720,11 @@ mesos_tests_SOURCES +=						\
   tests/containerizer/volume_host_path_isolator_tests.cpp	\
   tests/containerizer/volume_image_isolator_tests.cpp		\
   tests/containerizer/volume_secret_isolator_tests.cpp
+endif
+
+if ENABLE_LAUNCHER_SEALING
+mesos_tests_SOURCES +=						\
+  tests/containerizer/linux_memfd_tests.cpp
 endif
 
 if ENABLE_LINUX_ROUTING

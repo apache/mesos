@@ -273,7 +273,6 @@ set(LINUX_SRC
   linux/fs.cpp
   linux/ldcache.cpp
   linux/ldd.cpp
-  linux/memfd.cpp
   linux/ns.cpp
   linux/perf.cpp
   linux/systemd.cpp
@@ -316,6 +315,11 @@ if (ENABLE_XFS_DISK_ISOLATOR)
   list(APPEND LINUX_SRC
     slave/containerizer/mesos/isolators/xfs/disk.cpp
     slave/containerizer/mesos/isolators/xfs/utils.cpp)
+endif ()
+
+if (ENABLE_LAUNCHER_SEALING)
+  list(APPEND LINUX_SRC
+    linux/memfd.cpp)
 endif ()
 
 if (ENABLE_LINUX_ROUTING)
@@ -569,6 +573,7 @@ target_compile_definitions(
   mesos PUBLIC
   USE_CMAKE_BUILD_CONFIG
   $<$<BOOL:${ENABLE_XFS_DISK_ISOLATOR}>:ENABLE_XFS_DISK_ISOLATOR>
+  $<$<BOOL:${ENABLE_LAUNCHER_SEALING}>:ENABLE_LAUNCHER_SEALING>
   $<$<BOOL:${ENABLE_PORT_MAPPING_ISOLATOR}>:ENABLE_PORT_MAPPING_ISOLATOR>
   $<$<BOOL:${ENABLE_NETWORK_PORTS_ISOLATOR}>:ENABLE_NETWORK_PORTS_ISOLATOR>
   $<$<BOOL:${ENABLE_SECCOMP_ISOLATOR}>:ENABLE_SECCOMP_ISOLATOR>)
