@@ -2796,6 +2796,93 @@ TEST_F(HierarchicalAllocatorTest, UpdateSlaveCapabilities)
 }
 
 
+// This is a white-box test to ensure that MESOS-9554 is fixed.
+// It ensures that if a framework is not capable of receiving
+// any resources on an agent, we still proceed to try allocating
+// those resources to other frameworks (previously, the loop
+// exited incorrectly in this case). This is done through the
+// RESERVATION_REFINEMENT capability.
+TEST_F(HierarchicalAllocatorTest, FrameworkLoopMESOS_9554)
+{
+  // Pause clock to disable batch allocation.
+  Clock::pause();
+
+  initialize();
+
+  // First, we add a framework and agent and ensure the
+  // resources get allocated. This makes framework 1 have
+  // a non-zero share.
+  FrameworkInfo framework1 = createFrameworkInfo(
+      {"parent/child"},
+      {FrameworkInfo::Capability::RESERVATION_REFINEMENT});
+
+  allocator->addFramework(framework1.id(), framework1, {}, true, {});
+
+  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:1;disk:1");
+
+  allocator->addSlave(
+      agent1.id(),
+      agent1,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent1.resources(),
+      {});
+
+  Allocation expected = Allocation(
+      framework1.id(),
+      {{"parent/child", {{agent1.id(), agent1.resources()}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocations.get());
+
+  // Now, we add a framework that is not RESERVATION_REFINEMENT
+  // capable, it will have a lower share of 0 in the same role.
+  FrameworkInfo framework2 = createFrameworkInfo({"parent/child"});
+
+  // We explicitly check to ensure the RESERVATION_REFINEMENT
+  // capability is absent, in case the `createFrameworkInfo`
+  // helper changes in the future.
+  EXPECT_EQ(1, framework2.capabilities_size());
+  ASSERT_EQ(FrameworkInfo::Capability::MULTI_ROLE,
+            framework2.capabilities().begin()->type());
+
+  allocator->addFramework(framework2.id(), framework2, {}, true, {});
+
+  // There is nothing to be allocated.
+  Clock::settle();
+  Future<Allocation> allocation = allocations.get();
+  ASSERT_TRUE(allocation.isPending());
+
+  // Here's the meat of this test. We'll add a second agent with
+  // refined reservations. The lower share framework2 is not capable
+  // of being offered any resources on this agent, and they should
+  // be correctly sent to framework1 instead.
+  Resources resources =
+    CHECK_NOTERROR(Resources::parse("cpus:1;mem:1;disk:1"))
+      .pushReservation(createDynamicReservationInfo("parent"))
+      .pushReservation(createDynamicReservationInfo("parent/child"));
+
+  foreach (const Resource& r, resources) {
+    ASSERT_TRUE(Resources::hasRefinedReservations(r));
+  }
+
+  SlaveInfo agent2 = createSlaveInfo(resources);
+
+  allocator->addSlave(
+      agent2.id(),
+      agent2,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent2.resources(),
+      {});
+
+  expected = Allocation(
+      framework1.id(),
+      {{"parent/child", {{agent2.id(), agent2.resources()}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocation);
+}
+
+
 // This test verifies that a framework that has not opted in for
 // revocable resources do not get allocated oversubscribed resources.
 TEST_F(HierarchicalAllocatorTest, OversubscribedNotAllocated)
