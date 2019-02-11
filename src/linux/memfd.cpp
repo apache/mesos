@@ -101,18 +101,21 @@ Try<int_fd> cloneSealedFile(const std::string& filePath)
     return Error("Failed to open memfd file: " + memFd.error());
   }
 
-  ssize_t written = sendfile(memFd.get(), fileFd.get(), nullptr, size->bytes());
-  if (written == -1) {
-    ErrnoError error("Failed to copy file");
-    os::close(fileFd.get());
-    os::close(memFd.get());
-    return error;
-  } else if (static_cast<uint64_t>(written) != size->bytes()) {
-    os::close(fileFd.get());
-    os::close(memFd.get());
-    return Error(
-        "Expect to write " + stringify(size->bytes()) + " bytes, "
-        "but only " + stringify(written) + " is written");
+  size_t remaining = size->bytes();
+  while (remaining > 0) {
+    ssize_t written = sendfile(memFd.get(), fileFd.get(), nullptr, remaining);
+    if (written == -1) {
+      ErrnoError error("Failed to copy file");
+      os::close(fileFd.get());
+      os::close(memFd.get());
+      return error;
+    } else if (static_cast<size_t>(written) > remaining) {
+      os::close(fileFd.get());
+      os::close(memFd.get());
+      return Error("More bytes written than requested");
+    } else {
+      remaining -= written;
+    }
   }
 
   os::close(fileFd.get());
