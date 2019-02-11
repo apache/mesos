@@ -120,7 +120,7 @@ TEST_F(NamespacesIsolatorTest, ROOT_PidNamespace)
 
   // Write the command's pid namespace inode and init name to files.
   const string command =
-    "stat -Lc %i /proc/self/ns/pid > ns && (cat /proc/1/comm > init)";
+    "stat -Lc %i /proc/self/ns/pid > ns && (cat /proc/1/cmdline > init)";
 
   process::Future<Containerizer::LaunchResult> launch =
     containerizer.get()->launch(
