@@ -1230,6 +1230,7 @@ MESOS_LINUX_FILES =									\
   linux/fs.cpp										\
   linux/ldcache.cpp									\
   linux/ldd.cpp										\
+  linux/memfd.cpp									\
   linux/perf.cpp									\
   linux/systemd.cpp									\
   slave/containerizer/mesos/linux_launcher.cpp						\
