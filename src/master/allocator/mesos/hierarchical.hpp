@@ -516,7 +516,8 @@ protected:
   // that contain no meta-data. Used for accounting resource
   // reservations for quota limit.
   //
-  // Only roles with non-empty reservations will be stored in the map.
+  // Only roles with non-empty scalar reservation quantities will
+  // be stored in the map.
   hashmap<std::string, Resources> reservationScalarQuantities;
 
   // Slaves to send offers for.
