@@ -127,7 +127,13 @@ public:
 
     // Add a default value for network bandwidth if absent.
     if (taskResources.names().count("network_bandwidth") == 0) {
-      taskResources += CHECK_NOTERROR(Resources::parse("network_bandwidth:10"));
+      Resources bandwidth =
+        CHECK_NOTERROR(Resources::parse("network_bandwidth:10"));
+
+      CHECK(!taskResources.allocations().empty());
+      bandwidth.allocate(taskResources.allocations().begin()->first);
+
+      taskResources += bandwidth;
     }
 
     return taskResources;
