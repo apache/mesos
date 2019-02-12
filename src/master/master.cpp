@@ -11697,8 +11697,11 @@ void Master::removeOperation(Operation* operation)
 
   // If the operation was not speculated and is not terminal we
   // need to also recover its used resources in the allocator.
+  // If the operation is an orphan, the resources have already been
+  // recovered from the allocator.
   if (!protobuf::isSpeculativeOperation(operation->info()) &&
-      !protobuf::isTerminalState(operation->latest_status().state())) {
+      !protobuf::isTerminalState(operation->latest_status().state()) &&
+      !slave->orphanedOperations.contains(operation->uuid())) {
     Try<Resources> consumed = protobuf::getConsumedResources(operation->info());
     CHECK_SOME(consumed);
 
@@ -12792,10 +12795,39 @@ void Slave::removeOperation(Operation* operation)
 
   CHECK(!resourceProviderId.isError()) << resourceProviderId.error();
 
-  // Recover the resource used by this operation.
-  if (!protobuf::isSpeculativeOperation(operation->info()) &&
-      !protobuf::isTerminalState(operation->latest_status().state())) {
-    recoverResources(operation);
+  if (orphanedOperations.contains(uuid)) {
+    orphanedOperations.erase(uuid);
+
+    CHECK(!protobuf::isSpeculativeOperation(operation->info()))
+      << "Orphaned operations can only be non-speculative";
+
+    // If the orphan is removed before reaching a terminal state,
+    // the used resources must be added back into the agent's total
+    // resources. Terminal orphaned operations are handled by
+    // `Master::updateOperation`.
+    if (!protobuf::isTerminalState(operation->latest_status().state())) {
+      Try<Resources> consumed =
+        protobuf::getConsumedResources(operation->info());
+
+      CHECK_SOME(consumed);
+
+      Resources consumedUnallocated = consumed.get();
+      consumedUnallocated.unallocate();
+
+      // NOTE: Non-terminal operations are only removed when the agent or
+      // resource provider is removed. When the agent is removed, the master
+      // will call `allocator->removeSlave` in `Master::_removeSlave()`.
+      // When a resource provider is removed, the master will call
+      // `allocator->updateSlave()` in `Master::updateSlave()`.
+      // This means we do not need to update the allocator in this method.
+      totalResources += consumedUnallocated;
+    }
+  } else {
+    // Recover the resource used by this operation.
+    if (!protobuf::isSpeculativeOperation(operation->info()) &&
+        !protobuf::isTerminalState(operation->latest_status().state())) {
+      recoverResources(operation);
+    }
   }
 
   // Remove the operation.
@@ -12804,7 +12836,7 @@ void Slave::removeOperation(Operation* operation)
       << "Unknown operation (uuid: " << uuid << ")"
       << " to agent " << *this;
 
-    operations.erase(operation->uuid());
+    operations.erase(uuid);
   } else {
     CHECK(resourceProviders.contains(resourceProviderId.get()))
       << "resource provider " << resourceProviderId.get() << " is unknown";
@@ -12817,7 +12849,7 @@ void Slave::removeOperation(Operation* operation)
       << " to resource provider " << resourceProviderId.get()
       << " on agent " << *this;
 
-    resourceProvider.operations.erase(operation->uuid());
+    resourceProvider.operations.erase(uuid);
   }
 }
 
