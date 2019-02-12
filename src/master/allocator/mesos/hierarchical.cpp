@@ -2625,6 +2625,10 @@ void HierarchicalAllocatorProcess::trackReservations(
     const Resources scalarQuantitesToTrack =
       resources.createStrippedScalarQuantity();
 
+    if (scalarQuantitesToTrack.empty()) {
+      continue; // Do not insert an empty entry.
+    }
+
     reservationScalarQuantities[role] += scalarQuantitesToTrack;
   }
 }
@@ -2635,12 +2639,17 @@ void HierarchicalAllocatorProcess::untrackReservations(
 {
   foreachpair (const string& role,
                const Resources& resources, reservations) {
+    const Resources scalarQuantitesToUntrack =
+      resources.createStrippedScalarQuantity();
+
+    if (scalarQuantitesToUntrack.empty()) {
+      continue; // Do not CHECK for the role if there's nothing to untrack.
+    }
+
     CHECK(reservationScalarQuantities.contains(role));
     Resources& currentReservationQuantity =
         reservationScalarQuantities.at(role);
 
-    const Resources scalarQuantitesToUntrack =
-      resources.createStrippedScalarQuantity();
     CHECK(currentReservationQuantity.contains(scalarQuantitesToUntrack));
     currentReservationQuantity -= scalarQuantitesToUntrack;
 
