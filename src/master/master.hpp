@@ -153,6 +153,14 @@ Slave(Master* const _master,
 
   void removeOperation(Operation* operation);
 
+  // Marks a non-speculative operation as an orphan when the originating
+  // framework is torn down by the master, or when an agent reregisters
+  // with operations from unknown frameworks. If the operation is
+  // non-terminal, this has the side effect of modifying the agent's
+  // total resources, and should therefore be followed by
+  // `allocator->updateSlave()`.
+  void markOperationAsOrphan(Operation* operation);
+
   Operation* getOperation(const UUID& uuid) const;
 
   void addOffer(Offer* offer);
@@ -247,6 +255,19 @@ Slave(Master* const _master,
   // Pending operations or terminal operations that have
   // unacknowledged status updates on this agent.
   hashmap<UUID, Operation*> operations;
+
+  // Pending operations whose originating framework is unknown.
+  // These operations could be pending, or terminal with unacknowledged
+  // status updates.
+  //
+  // This list can be populated whenever a framework is torn down in the
+  // lifetime of the master, or when an agent reregisters with an operation.
+  //
+  // If the originating framework is completed, the master will
+  // acknowledge any status updates instead of the framework.
+  // If an orphan does not belong to a completed framework, the master
+  // will only acknowledge status updates after a fixed delay.
+  hashset<UUID> orphanedOperations;
 
   // Active offers on this slave.
   hashset<Offer*> offers;
