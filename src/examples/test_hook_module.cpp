@@ -111,6 +111,28 @@ public:
     return labels;
   }
 
+  Result<Resources> masterLaunchTaskResourceDecorator(
+      const TaskInfo& taskInfo,
+      const Resources& slaveResources) override
+  {
+    LOG(INFO) << "Executing 'masterLaunchTaskResourceDecorator' hook";
+
+    // If slave does not declare network bandwidth resource,
+    // don't set a default value for it.
+    if (slaveResources.names().count("network_bandwidth") == 0) {
+      return taskInfo.resources();
+    }
+
+    Resources taskResources = taskInfo.resources();
+
+    // Add a default value for network bandwidth if absent.
+    if (taskResources.names().count("network_bandwidth") == 0) {
+      taskResources += CHECK_NOTERROR(Resources::parse("network_bandwidth:10"));
+    }
+
+    return taskResources;
+  }
+
   Try<Nothing> masterSlaveLostHook(const SlaveInfo& slaveInfo) override
   {
     LOG(INFO) << "Executing 'masterSlaveLostHook' in agent '"

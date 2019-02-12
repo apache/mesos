@@ -4449,6 +4449,12 @@ void Master::accept(
               task.mutable_health_check()->set_type(HealthCheck::HTTP);
             }
           }
+
+          if (HookManager::hooksAvailable()) {
+            *task.mutable_resources() =
+              HookManager::masterLaunchTaskResourceDecorator(task,
+                slave->totalResources);
+          }
         }
 
         break;
@@ -4465,6 +4471,12 @@ void Master::accept(
         foreach (TaskInfo& task, *taskGroup->mutable_tasks()) {
           if (!task.has_executor()) {
             task.mutable_executor()->CopyFrom(executor);
+          }
+
+          if (HookManager::hooksAvailable()) {
+            *task.mutable_resources() =
+              HookManager::masterLaunchTaskResourceDecorator(task,
+                slave->totalResources);
           }
         }
 

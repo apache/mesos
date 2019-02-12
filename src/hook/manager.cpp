@@ -138,6 +138,31 @@ Labels HookManager::masterLaunchTaskLabelDecorator(
 }
 
 
+Resources HookManager::masterLaunchTaskResourceDecorator(
+    const TaskInfo& taskInfo,
+    const Resources& slaveResources)
+{
+  TaskInfo taskInfo_ = taskInfo;
+
+  synchronized (mutex) {
+    foreachpair (const string& name, Hook* hook, availableHooks) {
+      Result<Resources> result =
+        hook->masterLaunchTaskResourceDecorator(
+          taskInfo_,
+          slaveResources);
+
+      if (result.isSome()) {
+        *taskInfo_.mutable_resources() = std::move(result.get());
+      } else if (result.isError()) {
+        LOG(WARNING) << "Master resource decorator hook failed for module '"
+                     << name << "': " << result.error();
+      }
+    }
+  }
+  return std::move(*taskInfo_.mutable_resources());
+}
+
+
 void HookManager::masterSlaveLostHook(const SlaveInfo& slaveInfo)
 {
   foreachpair (const string& name, Hook* hook, availableHooks) {

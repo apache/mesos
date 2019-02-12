@@ -45,6 +45,10 @@ public:
       const FrameworkInfo& frameworkInfo,
       const SlaveInfo& slaveInfo);
 
+  static Resources masterLaunchTaskResourceDecorator(
+      const TaskInfo& taskInfo,
+      const Resources& slaveResources);
+
   static void masterSlaveLostHook(const SlaveInfo& slaveInfo);
 
   static Labels slaveRunTaskLabelDecorator(

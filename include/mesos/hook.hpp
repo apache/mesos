@@ -53,6 +53,21 @@ public:
     return None();
   }
 
+  // This resource decorator hook is called from within the master during
+  // the launchTask routine. An implementation of this hook allows the user
+  // to, for example, allocate a default amount of a certain resource if it is
+  // not provided by the framework. This hook aims to provide default values for
+  // resources that must be accounted. Implementing this hook is useful when one
+  // a new resource is introduced and at least one framework does not support it
+  // yet. Note that the original resources from the TaskInfo will be overwritten
+  // by the ones returned by the hook.
+  virtual Result<Resources> masterLaunchTaskResourceDecorator(
+      const TaskInfo& task,
+      const Resources& slaveResources)
+  {
+    return None();
+  }
+
   // This label decorator hook is called from within the slave when
   // receiving a run task request from the master. A module
   // implementing the hook creates and returns a set of labels. These
