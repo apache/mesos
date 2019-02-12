@@ -11598,77 +11598,144 @@ void Master::updateOperation(
   Slave* slave = slaves.registered.get(operation->slave_id());
   CHECK_NOTNULL(slave);
 
-  switch (operation->latest_status().state()) {
-    // Terminal state, and the conversion is successful.
-    case OPERATION_FINISHED: {
-      const Resources converted =
-        operation->latest_status().converted_resources();
+  // Orphaned operations are handled differently, because the allocator
+  // has no knowledge of resources consumed by these operations;
+  // and any resource consumption is accounted for in the agent's total
+  // resources.
+  if (slave->orphanedOperations.contains(operation->uuid())) {
+    bool updated = false;
 
-      if (convertResources) {
-        allocator->updateAllocation(
-            operation->framework_id(),
-            operation->slave_id(),
-            consumed.get(),
-            {ResourceConversion(consumed.get(), converted)});
+    switch (operation->latest_status().state()) {
+      // Terminal state, and the conversion is successful.
+      case OPERATION_FINISHED: {
+        const Resources converted =
+          operation->latest_status().converted_resources();
 
-        allocator->recoverResources(
-            operation->framework_id(),
-            operation->slave_id(),
-            converted,
-            None());
+        if (convertResources) {
+          Resources convertedUnallocated = converted;
+          convertedUnallocated.unallocate();
 
+          slave->totalResources += convertedUnallocated;
+          updated = true;
+        } else {
+          // NOTE: This is only reachable when an existing orphan operation
+          // is transitioned to a terminal status via an UpdateSlaveMessage.
+          // When this happens, the `slave->totalResources` already contains
+          // the converted resources.
+          // The handling for normal operations must recover the consumed
+          // resources from the allocator. We cannot mirror this resource
+          // recovery (i.e. `slave->totalResources += consumed.get()`) because
+          // the resource has already been converted and no longer exists.
+        }
+
+        break;
+      }
+
+      // Terminal state, and the conversion has failed.
+      case OPERATION_DROPPED:
+      case OPERATION_ERROR:
+      case OPERATION_FAILED:
+      case OPERATION_GONE_BY_OPERATOR: {
         Resources consumedUnallocated = consumed.get();
         consumedUnallocated.unallocate();
 
-        Resources convertedUnallocated = converted;
-        convertedUnallocated.unallocate();
+        slave->totalResources += consumedUnallocated;
+        updated = true;
+        break;
+      }
 
-        slave->apply(
-            {ResourceConversion(consumedUnallocated, convertedUnallocated)});
-      } else {
+      // Non-terminal or not expected from an agent. This shouldn't happen.
+      case OPERATION_UNSUPPORTED:
+      case OPERATION_PENDING:
+      case OPERATION_UNREACHABLE:
+      case OPERATION_RECOVERING:
+      case OPERATION_UNKNOWN: {
+        LOG(FATAL) << "Unexpected operation state "
+                   << operation->latest_status().state();
+
+        break;
+      }
+    }
+
+    // If we've added resources to the agent's total, the allocator
+    // must be informed about the new totals.
+    if (updated) {
+      allocator->updateSlave(slave->id, slave->info, slave->totalResources);
+    }
+
+  } else {
+    switch (operation->latest_status().state()) {
+      // Terminal state, and the conversion is successful.
+      case OPERATION_FINISHED: {
+        const Resources converted =
+          operation->latest_status().converted_resources();
+
+        if (convertResources) {
+          allocator->updateAllocation(
+              operation->framework_id(),
+              operation->slave_id(),
+              consumed.get(),
+              {ResourceConversion(consumed.get(), converted)});
+
+          allocator->recoverResources(
+              operation->framework_id(),
+              operation->slave_id(),
+              converted,
+              None());
+
+          Resources consumedUnallocated = consumed.get();
+          consumedUnallocated.unallocate();
+
+          Resources convertedUnallocated = converted;
+          convertedUnallocated.unallocate();
+
+          slave->apply(
+              {ResourceConversion(consumedUnallocated, convertedUnallocated)});
+        } else {
+          allocator->recoverResources(
+              operation->framework_id(),
+              operation->slave_id(),
+              consumed.get(),
+              None());
+        }
+
+        break;
+      }
+
+      // Terminal state, and the conversion has failed.
+      case OPERATION_DROPPED:
+      case OPERATION_ERROR:
+      case OPERATION_FAILED:
+      case OPERATION_GONE_BY_OPERATOR: {
         allocator->recoverResources(
             operation->framework_id(),
             operation->slave_id(),
             consumed.get(),
             None());
+
+        break;
       }
 
-      break;
+      // Non-terminal or not expected from an agent. This shouldn't happen.
+      case OPERATION_UNSUPPORTED:
+      case OPERATION_PENDING:
+      case OPERATION_UNREACHABLE:
+      case OPERATION_RECOVERING:
+      case OPERATION_UNKNOWN: {
+        LOG(FATAL) << "Unexpected operation state "
+                   << operation->latest_status().state();
+
+        break;
+      }
     }
 
-    // Terminal state, and the conversion has failed.
-    case OPERATION_DROPPED:
-    case OPERATION_ERROR:
-    case OPERATION_FAILED:
-    case OPERATION_GONE_BY_OPERATOR: {
-      allocator->recoverResources(
-          operation->framework_id(),
-          operation->slave_id(),
-          consumed.get(),
-          None());
+    slave->recoverResources(operation);
 
-      break;
+    Framework* framework = getFramework(operation->framework_id());
+
+    if (framework != nullptr) {
+      framework->recoverResources(operation);
     }
-
-    // Non-terminal or not expected from an agent. This shouldn't happen.
-    case OPERATION_UNSUPPORTED:
-    case OPERATION_PENDING:
-    case OPERATION_UNREACHABLE:
-    case OPERATION_RECOVERING:
-    case OPERATION_UNKNOWN: {
-      LOG(FATAL) << "Unexpected operation state "
-                 << operation->latest_status().state();
-
-      break;
-    }
-  }
-
-  slave->recoverResources(operation);
-
-  Framework* framework = getFramework(operation->framework_id());
-
-  if (framework != nullptr) {
-    framework->recoverResources(operation);
   }
 }
 
