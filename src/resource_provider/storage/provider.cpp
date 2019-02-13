@@ -965,6 +965,34 @@ Future<Nothing> StorageLocalResourceProviderProcess::recoverVolumes()
     }
   }
 
+  // Garbage collect leftover mount paths that were failed to remove before.
+  const string mountRootDir = csi::paths::getMountRootDir(
+      slave::paths::getCsiRootDir(workDir),
+      info.storage().plugin().type(),
+      info.storage().plugin().name());
+
+  Try<list<string>> mountPaths = csi::paths::getMountPaths(mountRootDir);
+  if (mountPaths.isError()) {
+    // TODO(chhsiao): This could indicate that something is seriously wrong. To
+    // help debugging the problem, we should surface the error via MESOS-8745.
+    return Failure(
+        "Failed to find mount paths for CSI plugin type '" +
+        info.storage().plugin().type() + "' and name '" +
+        info.storage().plugin().name() + "': " + mountPaths.error());
+  }
+
+  foreach (const string& path, mountPaths.get()) {
+    Try<string> volumeId = csi::paths::parseMountPath(mountRootDir, path);
+    if (volumeId.isError()) {
+      return Failure(
+          "Failed to parse mount path '" + path + "': " + volumeId.error());
+    }
+
+    if (!volumes.contains(volumeId.get())) {
+      garbageCollectMountPath(volumeId.get());
+    }
+  }
+
   return collect(futures).then([] { return Nothing(); });
 }
 
@@ -2353,6 +2381,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::nodeStage(
           info.storage().plugin().name()),
       volumeId);
 
+  // NOTE: The staging path will be cleaned up in `deleteVolume`.
   Try<Nothing> mkdir = os::mkdir(stagingPath);
   if (mkdir.isError()) {
     return Failure(
@@ -2459,6 +2488,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::nodePublish(
           info.storage().plugin().name()),
       volumeId);
 
+  // NOTE: The target path will be cleaned up in `deleteVolume`.
   Try<Nothing> mkdir = os::mkdir(targetPath);
   if (mkdir.isError()) {
     return Failure(
@@ -2555,13 +2585,6 @@ Future<Nothing> StorageLocalResourceProviderProcess::nodeUnpublish(
 
       volume.state.set_state(VolumeState::VOL_READY);
       checkpointVolumeState(volumeId);
-
-      Try<Nothing> rmdir = os::rmdir(targetPath);
-      if (rmdir.isError()) {
-        return Failure(
-            "Failed to remove mount point '" + targetPath + "': " +
-            rmdir.error());
-      }
 
       return Nothing();
     }));
@@ -2710,7 +2733,13 @@ Future<bool> StorageLocalResourceProviderProcess::deleteVolume(
   return deleted
     .then(defer(self(), [this, volumeId, volumePath] {
       volumes.erase(volumeId);
-      CHECK_SOME(os::rmdir(volumePath));
+
+      Try<Nothing> rmdir = os::rmdir(volumePath);
+      CHECK_SOME(rmdir)
+        << "Failed to remove checkpointed volume state at '" << volumePath
+        << "': " << rmdir.error();
+
+      garbageCollectMountPath(volumeId);
 
       return controllerCapabilities.createDeleteVolume;
     }));
@@ -3415,6 +3444,28 @@ void StorageLocalResourceProviderProcess::garbageCollectOperationPath(
   // updates, such as OPERATION_DROPPED.
   if (os::exists(path)) {
     Try<Nothing> rmdir =  os::rmdir(path);
+    if (rmdir.isError()) {
+      LOG(ERROR)
+        << "Failed to remove directory '" << path << "': " << rmdir.error();
+    }
+  }
+}
+
+
+void StorageLocalResourceProviderProcess::garbageCollectMountPath(
+    const string& volumeId)
+{
+  CHECK(!volumes.contains(volumeId));
+
+  const string path = csi::paths::getMountPath(
+      csi::paths::getMountRootDir(
+          slave::paths::getCsiRootDir(workDir),
+          info.storage().plugin().type(),
+          info.storage().plugin().name()),
+      volumeId);
+
+  if (os::exists(path)) {
+    Try<Nothing> rmdir = os::rmdir(path);
     if (rmdir.isError()) {
       LOG(ERROR)
         << "Failed to remove directory '" << path << "': " << rmdir.error();

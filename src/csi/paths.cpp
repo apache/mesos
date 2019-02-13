@@ -282,11 +282,50 @@ string getMountRootDir(
 }
 
 
+Try<list<string>> getMountPaths(const string& mountRootDir)
+{
+  return fs::list(path::join(mountRootDir, "*"));
+}
+
+
+string getMountPath(const string& mountRootDir, const string& volumeId)
+{
+  // Volume ID is percent-encoded to avoid invalid characters in the path.
+  return path::join(mountRootDir, http::encode(volumeId));
+}
+
+
+Try<string> parseMountPath(const string& mountRootDir, const string& dir)
+{
+  // TODO(chhsiao): Consider using `<regex>`, which requires GCC 4.9+.
+
+  // Make sure there's a separator at the end of the `mountRootDir` so that we
+  // don't accidentally slice off part of a directory.
+  const string prefix = path::join(mountRootDir, "");
+
+  if (!strings::startsWith(dir, prefix)) {
+    return Error(
+        "Directory '" + dir + "' does not fall under the mount root directory"
+        " '" + mountRootDir + "'");
+  }
+
+  // Volume ID is percent-encoded to avoid invalid characters in the path.
+  Try<string> volumeId = http::decode(Path(dir).basename());
+  if (volumeId.isError()) {
+    return Error(
+        "Could not decode volume ID from string '" + Path(dir).basename() +
+        "': " + volumeId.error());
+  }
+
+  return volumeId.get();
+}
+
+
 string getMountStagingPath(
     const string& mountRootDir,
     const string& volumeId)
 {
-  return path::join(mountRootDir, http::encode(volumeId), STAGING_DIR);
+  return path::join(getMountPath(mountRootDir, volumeId), STAGING_DIR);
 }
 
 
@@ -294,7 +333,7 @@ string getMountTargetPath(
     const string& mountRootDir,
     const string& volumeId)
 {
-  return path::join(mountRootDir, http::encode(volumeId), TARGET_DIR);
+  return path::join(getMountPath(mountRootDir, volumeId), TARGET_DIR);
 }
 
 } // namespace paths {
