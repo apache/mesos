@@ -3440,8 +3440,6 @@ void StorageLocalResourceProviderProcess::garbageCollectOperationPath(
           metaDir, slaveId, info.type(), info.name(), info.id()),
       operationUuid);
 
-  // NOTE: We check if the path exists since we do not checkpoint some status
-  // updates, such as OPERATION_DROPPED.
   if (os::exists(path)) {
     Try<Nothing> rmdir =  os::rmdir(path);
     if (rmdir.isError()) {
