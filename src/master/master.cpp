@@ -10976,6 +10976,32 @@ void Master::_removeSlave(
     removeInverseOffer(inverseOffer, true); // Rescind!
   }
 
+  // Usually, operations are removed when the framework acknowledges
+  // a terminal operation status update. However, currently only operations
+  // on registered agents can be acknowledged. Since we're about to remove
+  // this agent from the list of registered agents, clean out all outstanding
+  // operations to prevent leaks.
+  //
+  // NOTE: If the agent comes back, there will be a brief window between
+  // the `ReregisterSlaveMessage` and the first `UpdateSlaveMessage` where
+  // where the master will not be able to give correct answers to operation
+  // reconciliation requests. However, since the same thing happens during
+  // master failover, the scheduler must be able to handle this scenario
+  // anyway so we allow it to happen here.
+  foreachvalue (Operation* operation, utils::copy(slave->operations)) {
+    removeOperation(operation);
+  }
+
+  foreachvalue (
+      const Slave::ResourceProvider& provider,
+      slave->resourceProviders) {
+    foreachvalue (
+        Operation* operation,
+        utils::copy(provider.operations)) {
+      removeOperation(operation);
+    }
+  }
+
   // Remove the pending tasks from the slave.
   slave->pendingTasks.clear();
 
