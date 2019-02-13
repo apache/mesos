@@ -106,6 +106,13 @@ constexpr size_t DEFAULT_MAX_COMPLETED_TASKS_PER_FRAMEWORK = 1000;
 // to store in the cache.
 constexpr size_t DEFAULT_MAX_UNREACHABLE_TASKS_PER_FRAMEWORK = 1000;
 
+// The minimum amount of time the master waits for a framework to reregister
+// before the master adopts any operations originating from that
+// framework. This applies to any framework not explicitly marked "completed"
+// in the master's memory.
+// Adopted operations will be acknowledged by the master.
+constexpr Duration MIN_WAIT_BEFORE_ORPHAN_OPERATION_ADOPTION = Minutes(10);
+
 // Time interval to check for updated watchers list.
 constexpr Duration WHITELIST_WATCH_INTERVAL = Seconds(5);
 

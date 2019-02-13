@@ -8725,9 +8725,13 @@ void Master::updateOperationStatus(UpdateOperationStatusMessage&& update)
 
   const OperationStatus& latestStatus = *operation->statuses().rbegin();
 
+  // Frameworks are sent operation status updates when the operation has
+  // a framework-specified ID and the framework is still running.
+  // Orphaned operations have no framework to send updates to.
   bool frameworkWillAcknowledge =
     operation->info().has_id() &&
-    !isCompletedFramework(frameworkId.get());
+    !isCompletedFramework(frameworkId.get()) &&
+    !slave->orphanedOperations.contains(operation->uuid());
 
   if (frameworkWillAcknowledge) {
     // Forward the status update to the framework.
@@ -8753,6 +8757,30 @@ void Master::updateOperationStatus(UpdateOperationStatusMessage&& update)
       // This update is being sent reliably, and either doesn't have
       // an operation ID or the associated framework terminated, so
       // the master has to send an acknowledgement.
+
+      // If an orphan operation belongs to a framework that is not
+      // marked "completed", there is a chance the framework will
+      // reregister in future. The master will drop these status
+      // updates until the framework reregisters or a certain amount
+      // of time has passed since the associated agent has reregistered.
+      //
+      // This behavior prevents the master from acknowledging operations
+      // directly after master failover, while both agents and frameworks
+      // reregister. If an agent with pending operations reregisters first,
+      // the operations may be considered orphans until the framework
+      // reregisters.
+      //
+      // NOTE: Frameworks rotated out of the master's completed frameworks
+      // buffer may also be affected by this wait.
+      if (operation->info().has_id() &&
+          slave->orphanedOperations.contains(operation->uuid()) &&
+          !isCompletedFramework(frameworkId.get())) {
+        if (slave->reregisteredTime.isSome() &&
+            (Clock::now() - slave->reregisteredTime.get()) <
+              MIN_WAIT_BEFORE_ORPHAN_OPERATION_ADOPTION) {
+          return;
+        }
+      }
 
       Result<ResourceProviderID> resourceProviderId =
         getResourceProviderId(operation->info());
