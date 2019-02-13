@@ -2725,6 +2725,47 @@ TEST_F(HierarchicalAllocatorTest, UpdateSlaveCapabilities)
 }
 
 
+// This is a regression test for MESOS-9555 that ensures that
+// the tracking of non-scalar reservations across agents does
+// not lead to a CHECK failure.
+TEST_F(HierarchicalAllocatorTest, NonScalarReservationTrackingMESOS_9555)
+{
+  // Pause clock to disable batch allocation.
+  Clock::pause();
+
+  initialize();
+
+  // Have only non-scalar (ports) reserved for a role.
+  Resources resources = CHECK_NOTERROR(Resources::parse(
+      "cpus:1;mem:1;disk:1;ports(role):[1-2]"));
+
+  SlaveInfo agent1 = createSlaveInfo(resources);
+
+  allocator->addSlave(
+      agent1.id(),
+      agent1,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent1.resources(),
+      {});
+
+  SlaveInfo agent2 = createSlaveInfo(resources);
+
+  allocator->addSlave(
+      agent2.id(),
+      agent2,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent2.resources(),
+      {});
+
+  allocator->removeSlave(agent1.id());
+  allocator->removeSlave(agent2.id());
+
+  Clock::settle();
+}
+
+
 // This test verifies that a framework that has not opted in for
 // revocable resources do not get allocated oversubscribed resources.
 TEST_F(HierarchicalAllocatorTest, OversubscribedNotAllocated)
