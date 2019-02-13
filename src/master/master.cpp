@@ -10283,19 +10283,58 @@ void Master::recoverFramework(
       }
     }
 
-    foreachvalue (Operation* operation, slave->operations) {
-      if (operation->has_framework_id() &&
-          operation->framework_id() == framework->id()) {
-        framework->addOperation(operation);
-      }
-    }
-
+    // Combine all the operations of the agent into one list
+    // so they can be processed the same way.
+    vector<Operation*> allOperations = slave->operations.values();
     foreachvalue (const Slave::ResourceProvider& resourceProvider,
                   slave->resourceProviders) {
       foreachvalue (Operation* operation, resourceProvider.operations) {
-        if (operation->has_framework_id() &&
-            operation->framework_id() == framework->id()) {
-          framework->addOperation(operation);
+        allOperations.push_back(operation);
+      }
+    }
+
+    foreach (Operation* operation, allOperations) {
+      if (operation->has_framework_id() &&
+          operation->framework_id() == framework->id()) {
+        framework->addOperation(operation);
+
+        // If this is an orphaned operation, the orphan's resources
+        // must be added back to the agent's total, and the allocator
+        // will need to be updated with the new total and allocation.
+        if (slave->orphanedOperations.contains(operation->uuid())) {
+          LOG(INFO)
+            << "Recovered orphan operation " << operation->uuid()
+            << (operation->info().has_id()
+                ? " (ID: " + operation->info().id().value() + ")"
+                : "")
+            << " on agent " << operation->slave_id()
+            << " belonging to framework " << operation->framework_id()
+            << " in state " << operation->latest_status().state();
+
+          slave->orphanedOperations.erase(operation->uuid());
+
+          // A terminal orphan operation is one whose resources are no longer
+          // allocated, but the terminal status has yet to be acknowledged.
+          // The operation will be removed once this framework acknowledges it.
+          if (protobuf::isTerminalState(operation->latest_status().state())) {
+            continue;
+          }
+
+          Try<Resources> consumed =
+            protobuf::getConsumedResources(operation->info());
+
+          CHECK_SOME(consumed);
+
+          Resources consumedUnallocated = consumed.get();
+          consumedUnallocated.unallocate();
+
+          slave->totalResources += consumedUnallocated;
+          slave->usedResources[framework->id()] += consumed.get();
+
+          allocator->updateSlave(slave->id, slave->info, slave->totalResources);
+
+          // NOTE: The allocation of these orphan operation resources will be
+          // updated in `addFramework` below.
         }
       }
     }
