@@ -327,6 +327,7 @@ private:
       const Try<std::vector<ResourceConversion>>& conversions);
 
   void garbageCollectOperationPath(const id::UUID& operationUuid);
+  void garbageCollectMountPath(const std::string& volumeId);
 
   void checkpointResourceProviderState();
   void checkpointVolumeState(const std::string& volumeId);

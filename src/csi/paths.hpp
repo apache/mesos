@@ -136,6 +136,20 @@ std::string getMountRootDir(
     const std::string& name);
 
 
+Try<std::list<std::string>> getMountPaths(
+    const std::string& mountRootDir);
+
+
+std::string getMountPath(
+    const std::string& mountRootDir,
+    const std::string& volumeId);
+
+
+Try<std::string> parseMountPath(
+    const std::string& mountRootDir,
+    const std::string& dir);
+
+
 std::string getMountStagingPath(
     const std::string& mountRootDir,
     const std::string& volumeId);
