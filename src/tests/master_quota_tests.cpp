@@ -25,6 +25,7 @@
 
 #include <mesos/quota/quota.hpp>
 
+#include <process/clock.hpp>
 #include <process/future.hpp>
 #include <process/http.hpp>
 #include <process/id.hpp>
@@ -58,6 +59,7 @@ using mesos::quota::QuotaInfo;
 using mesos::quota::QuotaRequest;
 using mesos::quota::QuotaStatus;
 
+using process::Clock;
 using process::Future;
 using process::Owned;
 using process::PID;
@@ -472,6 +474,8 @@ TEST_F(MasterQuotaTest, SetExistingQuota)
 // endpoint via a DELETE request against /quota.
 TEST_F(MasterQuotaTest, RemoveSingleQuota)
 {
+  Clock::pause();
+
   TestAllocator<> allocator;
   EXPECT_CALL(allocator, initialize(_, _, _));
 
@@ -517,8 +521,12 @@ TEST_F(MasterQuotaTest, RemoveSingleQuota)
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
+    // Ensure metrics update is finished.
+    Clock::settle();
+
     const string metricKey =
       "allocator/mesos/quota/roles/" + ROLE1 + "/resources/cpus/guarantee";
+
 
     JSON::Object metrics = Metrics();
 
@@ -536,6 +544,9 @@ TEST_F(MasterQuotaTest, RemoveSingleQuota)
 
     // Ensure that the quota remove request has reached the allocator.
     AWAIT_READY(receivedRemoveRequest);
+
+    // Ensure metrics update is finished.
+    Clock::settle();
 
     metrics = Metrics();
 
