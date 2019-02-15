@@ -881,6 +881,9 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::update(
             source + "' with uid " + stringify(uid) +
             " and gid " + stringify(gid) + ": " + chown.error());
       }
+    } else {
+      LOG(INFO) << "Leaving the ownership of the persistent volume at '"
+                << source << "' unchanged because it is in use";
     }
 
     // Determine the target of the mount.
