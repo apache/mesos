@@ -11,6 +11,7 @@ Release Notes - Mesos - Version 1.7.2 (WIP)
   * [MESOS-9537] - SLRP sends inconsistent status updates for dropped operations.
   * [MESOS-9544] - SLRP does not clean up destroyed persistent volumes.
   * [MESOS-9554] - Allocator might skip allocations because a single framework is incapable of receiving certain resources.
+  * [MESOS-9555] - Allocator CHECK failure: reservationScalarQuantities.contains(role).
 
 Release Notes - Mesos - Version 1.7.1
 -------------------------------------
