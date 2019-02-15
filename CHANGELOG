@@ -890,6 +890,7 @@ Release Notes - Mesos - Version 1.5.3 (WIP)
   * [MESOS-9210] - Mesos v1 scheduler library does not properly handle SUBSCRIBE retries.
   * [MESOS-9532] - ResourceOffersTest.ResourceOfferWithMultipleSlaves is flaky.
   * [MESOS-9533] - CniIsolatorTest.ROOT_CleanupAfterReboot is flaky.
+  * [MESOS-9555] - Allocator CHECK failure: reservationScalarQuantities.contains(role).
 
 
 Release Notes - Mesos - Version 1.5.2
