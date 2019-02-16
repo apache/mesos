@@ -773,10 +773,12 @@ mesos::internal::slave::Flags::Flags()
 
           if (!capabilities.multiRole ||
               !capabilities.hierarchicalRole ||
-              !capabilities.reservationRefinement) {
+              !capabilities.reservationRefinement ||
+              !capabilities.agentOperationFeedback) {
             return Error(
-                "At least the following agent features need to be enabled: "
-                "MULTI_ROLE, HIERARCHICAL_ROLE, RESERVATION_REFINEMENT");
+                "At least the following agent features need to be enabled:"
+                " MULTI_ROLE, HIERARCHICAL_ROLE, RESERVATION_REFINEMENT,"
+                " AGENT_OPERATION_FEEDBACK");
           }
 
           if (capabilities.resizeVolume && !capabilities.resourceProvider) {
