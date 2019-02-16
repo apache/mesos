@@ -755,14 +755,16 @@ mesos::internal::slave::Flags::Flags()
   add(&Flags::agent_features,
       "agent_features",
       "JSON representation of agent features to whitelist. We always require\n"
-      "'MULTI_ROLE', 'HIERARCHICAL_ROLE', and 'RESERVATION_REFINEMENT'.\n"
+      "'MULTI_ROLE', 'HIERARCHICAL_ROLE', 'RESERVATION_REFINEMENT', and\n"
+      "'AGENT_OPERATION_FEEDBACK'.\n"
       "\n"
       "Example:\n"
       "{\n"
       "    \"capabilities\": [\n"
       "        {\"type\": \"MULTI_ROLE\"},\n"
       "        {\"type\": \"HIERARCHICAL_ROLE\"},\n"
-      "        {\"type\": \"RESERVATION_REFINEMENT\"}\n"
+      "        {\"type\": \"RESERVATION_REFINEMENT\"},\n"
+      "        {\"type\": \"AGENT_OPERATION_FEEDBACK\"}\n"
       "    ]\n"
       "}\n",
       [](const Option<SlaveCapabilities>& agentFeatures) -> Option<Error> {

@@ -92,7 +92,8 @@ Example:
   </td>
   <td>
 JSON representation of agent features to whitelist. We always require
-'MULTI_ROLE', 'HIERARCHICAL_ROLE', and 'RESERVATION_REFINEMENT'.
+'MULTI_ROLE', 'HIERARCHICAL_ROLE', 'RESERVATION_REFINEMENT', and
+'AGENT_OPERATION_FEEDBACK'.
 <p/>
 Example:
 <pre><code>
@@ -100,7 +101,8 @@ Example:
     "capabilities": [
         {"type": "MULTI_ROLE"},
         {"type": "HIERARCHICAL_ROLE"},
-        {"type": "RESERVATION_REFINEMENT"}
+        {"type": "RESERVATION_REFINEMENT"},
+        {"type": "AGENT_OPERATION_FEEDBACK"}
     ]
 }
 </pre></code>

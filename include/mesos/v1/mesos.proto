@@ -1002,7 +1002,13 @@ message AgentInfo {
       // (1) The ability to report resources that are provided by some
       //     local resource providers through the resource provider API.
       //
-      // (2) The ability to provide operation feedback.
+      // (2) The ability to provide operation feedback. This also means
+      //     that this capability is a prerequisite for full support of
+      //     feedback for operations on agent default resources. If an
+      //     agent has the mandatory AGENT_OPERATION_FEEDBACK capability
+      //     set but not the RESOURCE_PROVIDER capability, then
+      //     operations on agent default resources which request feedback
+      //     will not be allowed.
       RESOURCE_PROVIDER = 4;
 
       // This expresses the capability for the agent to handle persistent volume
@@ -1011,6 +1017,11 @@ message AgentInfo {
 
       // This expresses the ability of the agent to handle operation feedback
       // for operations on agent default resources.
+      //
+      // Note that full support for this feature also requires the
+      // RESOURCE_PROVIDER capability; if you would like the agent to
+      // handle feedback for operations on agent default resources, the
+      // RESOURCE_PROVIDER capability should be set as well.
       AGENT_OPERATION_FEEDBACK = 6;
     }
 
