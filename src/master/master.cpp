@@ -7296,6 +7296,25 @@ void Master::_reregisterSlave(
       return;
     }
 
+    // If this agent has been downgraded from AGENT_OPERATION_FEEDBACK-capable
+    // to a version which does not have this capability, then we clean up
+    // terminal-but-unACKed operations on agent default resources.
+    vector<SlaveInfo::Capability> slaveCapabilities_ =
+      google::protobuf::convert(reregisterSlaveMessage.agent_capabilities());
+
+    protobuf::slave::Capabilities slaveCapabilities(slaveCapabilities_);
+
+    if (!slaveCapabilities.agentOperationFeedback &&
+        slave->capabilities.agentOperationFeedback) {
+      foreachvalue (Operation* operation, utils::copy(slave->operations)) {
+        if (!operation->latest_status().has_resource_provider_id() &&
+            operation->info().has_id() &&
+            protobuf::isTerminalState(operation->latest_status().state())) {
+          removeOperation(operation);
+        }
+      }
+    }
+
     // Skip updating the registry if `slaveInfo` did not change from its
     // previously known state.
     if (slaveInfo == slave->info) {
