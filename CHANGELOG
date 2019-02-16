@@ -1,8 +1,18 @@
-Release Notes - Mesos - Version 1.6.2 (WIP)
+Release Notes - Mesos - Version 1.6.3 (WIP)
 -------------------------------------------
 * This is a bug fix release.
 
 ** Bug
+
+** Improvement
+
+
+Release Notes - Mesos - Version 1.6.2
+-------------------------------------------
+* This is a bug fix release.
+
+** Bug
+  * [MESOS-7042] - Send SIGKILL after SIGTERM to IOSwitchboard after container termination.
   * [MESOS-7474] - Mesos fetcher cache doesn't retry when missed.
   * [MESOS-8128] - Make os::pipe file descriptors O_CLOEXEC.
   * [MESOS-8418] - mesos-agent high cpu usage because of numerous /proc/mounts reads.
@@ -35,6 +45,7 @@ Release Notes - Mesos - Version 1.6.2 (WIP)
   * [MESOS-9283] - Docker containerizer actor can get backlogged with large number of containers.
   * [MESOS-9308] - URI disk profile adaptor could deadlock.
   * [MESOS-9317] - Some master endpoints do not handle failed authorization properly.
+  * [MESOS-9324] - Resource fragmentation: frameworks may be starved of port resources in the presence of large number frameworks with quota.
   * [MESOS-9332] - Nested container should run as the same user of its parent container by default.
   * [MESOS-9334] - Container stuck at ISOLATING state due to libevent poll never returns.
   * [MESOS-9411] - Validation of JWT tokens using HS256 hashing algorithm is not thread safe.
@@ -42,6 +53,8 @@ Release Notes - Mesos - Version 1.6.2 (WIP)
   * [MESOS-9419] - Executor to framework message crashes master if framework has not re-registered.
   * [MESOS-9480] - Master may skip processing authorization results for `LAUNCH_GROUP`.
   * [MESOS-9492] - Persist CNI working directory across reboot.
+  * [MESOS-9501] - Mesos executor fails to terminate and gets stuck after agent host reboot.
+  * [MESOS-9502] - IOswitchboard cleanup could get stuck due to FD leak from a race.
   * [MESOS-9518] - CNI_NETNS should not be set for orphan containers that do not have network namespace.
   * [MESOS-9531] - chown error handling is incorrect in createSandboxDirectory.
   * [MESOS-9532] - ResourceOffersTest.ResourceOfferWithMultipleSlaves is flaky.
@@ -49,6 +62,7 @@ Release Notes - Mesos - Version 1.6.2 (WIP)
   * [MESOS-9555] - Allocator CHECK failure: reservationScalarQuantities.contains(role).
 
 ** Improvement
+  * [MESOS-8418] - mesos-agent high cpu usage because of numerous /proc/mounts reads
   * [MESOS-9305] - Create cgoup recursively to workaround systemd deleting cgroups_root.
   * [MESOS-9340] - Log all socket errors in libprocess.
   * [MESOS-9501] - Mesos executor fails to terminate and gets stuck after agent host reboot.
