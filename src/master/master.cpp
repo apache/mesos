@@ -4386,13 +4386,14 @@ void Master::accept(
             }
 
             if (getResourceProviderId(operation).isNone() &&
-                !slave->capabilities.agentOperationFeedback) {
+                !(slave->capabilities.agentOperationFeedback &&
+                  slave->capabilities.resourceProvider)) {
               drop(framework,
                    operation,
                    "Operation on agent default resources requested feedback,"
                    " but agent " + stringify(slaveId.get()) +
-                   " does not have the required AGENT_OPERATION_FEEDBACK"
-                   " capability");
+                   " does not have the required AGENT_OPERATION_FEEDBACK and"
+                   " RESOURCE_PROVIDER capabilities");
               break;
             }
 
@@ -6443,12 +6444,14 @@ void Master::acknowledgeOperationStatus(
     return;
   }
 
-  if (!slave->capabilities.resourceProvider) {
+  if (acknowledge.has_resource_provider_id() &&
+      !slave->capabilities.resourceProvider) {
     LOG(WARNING)
       << "Cannot send operation status update acknowledgement for status "
       << statusUuid << " of operation '" << operationId << "'"
       << " of framework " << *framework << " to agent " << slaveId
-      << " because the agent does not support resource providers";
+      << " because the agent does not have the RESOURCE_PROVIDER"
+      << " capability";
 
     metrics->invalid_operation_status_update_acknowledgements++;
     return;
@@ -8754,7 +8757,8 @@ void Master::updateOperationStatus(UpdateOperationStatusMessage&& update)
             resourceProviderId.get());
       }
 
-      CHECK(slave->capabilities.resourceProvider);
+      CHECK(slave->capabilities.resourceProvider ||
+            slave->capabilities.agentOperationFeedback);
 
       send(slave->pid, acknowledgement);
     }
