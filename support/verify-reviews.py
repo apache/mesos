@@ -15,7 +15,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """
 This script is used to build and test (verify) reviews that are posted
 to ReviewBoard. The script is intended for use by automated "ReviewBots"
@@ -53,13 +52,22 @@ REVIEW_SIZE = 1000000  # 1 MB in bytes.
 # Parse arguments.
 parser = argparse.ArgumentParser(
     description="Reviews that need verification from the Review Board")
-parser.add_argument("-u", "--user", type=str, required=True,
-                    help="Review Board user name")
-parser.add_argument("-p", "--password", type=str, required=True,
-                    help="Review Board user password")
-parser.add_argument("-r", "--reviews", type=int, required=False,
-                    default=-1, help="The number of reviews to fetch,"
-                                     " that will need verification")
+parser.add_argument(
+    "-u", "--user", type=str, required=True, help="Review Board user name")
+parser.add_argument(
+    "-p",
+    "--password",
+    type=str,
+    required=True,
+    help="Review Board user password")
+parser.add_argument(
+    "-r",
+    "--reviews",
+    type=int,
+    required=False,
+    default=-1,
+    help="The number of reviews to fetch,"
+    " that will need verification")
 
 # Unless otherwise specified consider pending review requests to Mesos updated
 # since 03/01/2014.
@@ -67,15 +75,27 @@ group = "mesos"
 last_updated = "2014-03-01T00:00:00"
 query_parameters = "?to-groups=%s&status=pending&last-updated-from=%s" \
     % (group, last_updated)
-parser.add_argument("-q", "--query", type=str, required=False,
-                    help="Query parameters", default=query_parameters)
+parser.add_argument(
+    "-q",
+    "--query",
+    type=str,
+    required=False,
+    help="Query parameters",
+    default=query_parameters)
 
-parser.add_argument("-o", "--out-file", type=str, required=False,
-                    help="The out file with the reviews IDs that"
-                         " need verification")
-parser.add_argument("--skip-verify", action='store_true', required=False,
-                    help="Skip the verification and just write the review"
-                         " ids that need verification")
+parser.add_argument(
+    "-o",
+    "--out-file",
+    type=str,
+    required=False,
+    help="The out file with the reviews IDs that"
+    " need verification")
+parser.add_argument(
+    "--skip-verify",
+    action='store_true',
+    required=False,
+    help="Skip the verification and just write the review"
+    " ids that need verification")
 
 parameters = parser.parse_args()
 USER = parameters.user
@@ -94,13 +114,14 @@ class ReviewError(Exception):
 def shell(command, working_dir=None):
     """Run a shell command."""
     try:
-        out = subprocess.check_output(command, stderr=subprocess.STDOUT,
-                                      cwd=working_dir, shell=True)
+        out = subprocess.check_output(
+            command, stderr=subprocess.STDOUT, cwd=working_dir, shell=True)
     except subprocess.CalledProcessError as err:
         error = err.output.decode("utf-8")
         print("Error running command '%s': %s" % (command, error))
         exit(1)
     return out.decode(sys.stdout.encoding)
+
 
 SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
 HEAD = shell("git rev-parse HEAD", SCRIPT_PATH)
@@ -134,8 +155,9 @@ def api(url, data=None):
 def apply_review(review_id):
     """Apply a review using the script apply-reviews.py."""
     print("Applying review %s" % review_id)
-    shell("cd .. && %s support/apply-reviews.py -n -r %s" %
-          (sys.executable, review_id), SCRIPT_PATH)
+    shell(
+        "cd .. && %s support/apply-reviews.py -n -r %s" %
+        (sys.executable, review_id), SCRIPT_PATH)
 
 
 def apply_reviews(review_request, reviews):
@@ -147,9 +169,9 @@ def apply_reviews(review_request, reviews):
 
     # If there is a circular dependency throw an error.`
     if review_request["id"] in reviews:
-        raise ReviewError("Circular dependency detected for review %s."
-                          "Please fix the 'depends_on' field."
-                          % review_request["id"])
+        raise ReviewError(
+            "Circular dependency detected for review %s."
+            "Please fix the 'depends_on' field." % review_request["id"])
     else:
         reviews.append(review_request["id"])
 
@@ -203,7 +225,8 @@ def verify_review(review_request):
 
             # There is no equivalent to `tee` on Windows.
             subprocess.check_call(
-                ['cmd', '/c', '%s 2>&1 > %s' % (command, build_output)])
+                ['cmd', '/c',
+                 '%s 2>&1 > %s' % (command, build_output)])
         else:
             # Launch docker build script.
 
@@ -223,9 +246,10 @@ def verify_review(review_request):
             # `tee` the output so that the console can log the whole build
             # output. `pipefail` ensures that the exit status of the build
             # command ispreserved even after tee'ing.
-            subprocess.check_call(['bash', '-c',
-                                   ('set -o pipefail; %s 2>&1 | tee %s')
-                                   % (command, build_output)])
+            subprocess.check_call([
+                'bash', '-c',
+                ('set -o pipefail; %s 2>&1 | tee %s') % (command, build_output)
+            ])
 
         # Success!
         post_review(
@@ -347,6 +371,7 @@ def main():
             review_ids.append(str(review_request["id"]))
 
     write_review_ids(review_ids)
+
 
 if __name__ == '__main__':
     main()
