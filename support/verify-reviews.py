@@ -113,13 +113,8 @@ class ReviewError(Exception):
 
 def shell(command, working_dir=None):
     """Run a shell command."""
-    try:
-        out = subprocess.check_output(
-            command, stderr=subprocess.STDOUT, cwd=working_dir, shell=True)
-    except subprocess.CalledProcessError as err:
-        error = err.output.decode("utf-8")
-        print("Error running command '%s': %s" % (command, error))
-        exit(1)
+    out = subprocess.check_output(
+        command, stderr=subprocess.STDOUT, cwd=working_dir, shell=True)
     return out.decode(sys.stdout.encoding)
 
 
@@ -183,7 +178,16 @@ def apply_reviews(review_request, reviews):
 
     # Now apply this review if not yet submitted.
     if review_request["status"] != "submitted":
-        apply_review(review_request["id"])
+        # If the patch does not apply we translate the error to a
+        # `ReviewError`; otherwise we let the original exception
+        # propagate.
+        try:
+            apply_review(review_request["id"])
+        except subprocess.CalledProcessError as err:
+            if "patch does not apply" in err.output:
+                raise ReviewError(err.output.decode("utf-8"))
+            else:
+                raise err
 
 
 def post_review(review_request, message):
