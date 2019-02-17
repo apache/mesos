@@ -253,9 +253,8 @@ def verify_review(review_request):
 
         # Success!
         post_review(
-            review_request,
-            "Patch looks great!\n\n" \
-            "Reviews applied: %s\n\n" \
+            review_request, "Patch looks great!\n\n"
+            "Reviews applied: %s\n\n"
             "Passed command: %s" % (reviews, command))
     except subprocess.CalledProcessError as err:
         # If we are here because the docker build command failed, read the
@@ -280,16 +279,14 @@ def verify_review(review_request):
             output += urllib.parse.urljoin(os.environ["BUILD_URL"], "console")
 
         post_review(
-            review_request,
-            "Bad patch!\n\n" \
-            "Reviews applied: %s\n\n" \
-            "Failed command: %s\n\n" \
+            review_request, "Bad patch!\n\n"
+            "Reviews applied: %s\n\n"
+            "Failed command: %s\n\n"
             "Error:\n%s" % (reviews, err.cmd, output))
     except ReviewError as err:
         post_review(
-            review_request,
-            "Bad review!\n\n" \
-            "Reviews applied: %s\n\n" \
+            review_request, "Bad review!\n\n"
+            "Reviews applied: %s\n\n"
             "Error:\n%s" % (reviews, err.args[0]))
 
     # Clean up.
@@ -340,8 +337,8 @@ def needs_verification(review_request):
             print("Latest dependency change timestamp: %s" % dependency_time)
             break
 
-    # Needs verification if there is a new diff, or if the dependencies changed,
-    # after the last time it was verified.
+    # Needs verification if there is a new diff, or if the
+    # dependencies changed, after the last time it was verified.
     return not review_time or review_time < diff_time or \
         (dependency_time and review_time < dependency_time)
 
