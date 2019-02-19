@@ -184,8 +184,9 @@ def apply_reviews(review_request, reviews):
         try:
             apply_review(review_request["id"])
         except subprocess.CalledProcessError as err:
-            if "patch does not apply" in err.output:
-                raise ReviewError(err.output.decode("utf-8"))
+            error = err.output.decode("utf-8")
+            if "patch does not apply" in error:
+                raise ReviewError(error)
             else:
                 raise err
 
