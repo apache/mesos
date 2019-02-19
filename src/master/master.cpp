@@ -8391,6 +8391,15 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
       // total, but never in the used resources.
       CHECK(slave->resourceProviders.contains(resourceProviderId));
 
+      // Clean up any associated operations belonging to the removed
+      // resource provider.
+      foreachvalue (
+          Operation* operation,
+          utils::copy(slave->resourceProviders.at(resourceProviderId)
+            .operations)) {
+        removeOperation(operation);
+      }
+
       slave->totalResources -=
         slave->resourceProviders.at(resourceProviderId).totalResources;
 
