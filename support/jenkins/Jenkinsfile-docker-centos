@@ -1,7 +1,7 @@
 #!groovy
 
 if (env.NODE_LABELS == null) {
-  env.NODE_LABELS = "(ubuntu)&&(!ubuntu-us1)&&(!ubuntu-eu2)&&(!qnode3)&&(!H23)"
+  env.NODE_LABELS = "(ubuntu)&&(!ubuntu-4)&&(!ubuntu-us1)&&(!ubuntu-eu2)&&(!qnode3)&&(!H23)"
 }
 
 node(env.NODE_LABELS) {
