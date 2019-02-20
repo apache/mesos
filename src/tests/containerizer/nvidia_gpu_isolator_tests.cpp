@@ -332,6 +332,116 @@ TEST_F(NvidiaGpuTest, ROOT_INTERNET_CURL_CGROUPS_NVIDIA_GPU_NvidiaDockerImage)
 }
 
 
+// This test verifies that we can enable the Nvidia GPU isolator and launch
+// tasks to run the Tensorflow GPU image, which is based on Nvidia's image that
+// has a special environment variable that indicates that we need to mount a
+// volume containing the Nvidia libraries and binaries.
+TEST_F(NvidiaGpuTest, ROOT_INTERNET_CURL_CGROUPS_NVIDIA_GPU_TensorflowGpuImage)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "docker/runtime,filesystem/linux,"
+                    "cgroups/devices,gpu/nvidia";
+  flags.image_providers = "docker";
+  flags.nvidia_gpu_devices = vector<unsigned int>({0u});
+  flags.resources = "cpus:1;mem:128;gpus:1";
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  // NOTE: We use the default executor (and thus v1 API) in this test to avoid
+  // executor registration timing out due to fetching the Tensorflow GPU image
+  // over a slow connection.
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.add_capabilities()->set_type(
+      v1::FrameworkInfo::Capability::GPU_RESOURCES);
+
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(v1::scheduler::SendSubscribe(frameworkInfo));
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  EXPECT_CALL(*scheduler, failure(_, _))
+    .Times(AtMost(2));
+
+  v1::scheduler::TestMesos mesos(
+    master.get()->pid,
+    ContentType::PROTOBUF,
+    scheduler);
+
+  AWAIT_READY(subscribed);
+
+  const v1::FrameworkID& frameworkId = subscribed->framework_id();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+
+  const v1::AgentID& agentId = offers->offers(0).agent_id();
+
+  mesos::v1::Image image;
+  image.set_type(mesos::v1::Image::DOCKER);
+  image.mutable_docker()->set_name("tensorflow/tensorflow:latest-gpu");
+
+  // Launch a task requesting 1 GPU and run a simple Tensorflow program.
+  v1::ExecutorInfo executor = v1::createExecutorInfo(
+      id::UUID::random().toString(),
+      None(),
+      "cpus:0.1;mem:32;disk:32",
+      v1::ExecutorInfo::DEFAULT,
+      frameworkId);
+
+  v1::TaskInfo task = v1::createTask(
+      agentId,
+      v1::Resources::parse("cpus:0.1;mem:32;gpus:1").get(),
+      "python -c '"
+      "import tensorflow as tf;"
+      "tf.enable_eager_execution();"
+      "print(tf.reduce_sum(tf.random_normal([1000, 1000])));"
+      "'");
+
+  mesos::v1::ContainerInfo* container = task.mutable_container();
+  container->set_type(mesos::v1::ContainerInfo::MESOS);
+  container->mutable_mesos()->mutable_image()->CopyFrom(image);
+
+  EXPECT_CALL(*scheduler, update(_, TaskStatusUpdateStateEq(v1::TASK_STARTING)))
+    .WillOnce(v1::scheduler::SendAcknowledge(frameworkId, agentId));
+
+  EXPECT_CALL(*scheduler, update(_, TaskStatusUpdateStateEq(v1::TASK_RUNNING)))
+    .WillOnce(v1::scheduler::SendAcknowledge(frameworkId, agentId));
+
+  Future<v1::scheduler::Event::Update> terminalStatusUpdate;
+  EXPECT_CALL(*scheduler, update(_, TaskStatusUpdateIsTerminalState()))
+    .WillOnce(DoAll(
+        FutureArg<1>(&terminalStatusUpdate),
+        v1::scheduler::SendAcknowledge(frameworkId, agentId)));
+
+  mesos.send(v1::createCallAccept(
+      frameworkId,
+      offers->offers(0),
+      {v1::LAUNCH_GROUP(executor, v1::createTaskGroupInfo({task}))}));
+
+  // We wait up to 180 seconds to download the docker image.
+  AWAIT_READY_FOR(terminalStatusUpdate, Seconds(180));
+  EXPECT_EQ(v1::TASK_FINISHED, terminalStatusUpdate->status().state());
+}
+
+
 // This test verifies correct failure semantics when
 // a task requests a fractional number of GPUs.
 TEST_F(NvidiaGpuTest, ROOT_CGROUPS_NVIDIA_GPU_FractionalResources)
