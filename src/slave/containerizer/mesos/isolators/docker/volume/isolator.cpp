@@ -268,8 +268,16 @@ Try<Nothing> DockerVolumeIsolatorProcess::_recover(
     paths::getVolumesPath(rootDir, containerId.value());
 
   if (!os::exists(volumesPath)) {
-    VLOG(1) << "The docker volumes checkpointed at '" << volumesPath
-            << "' for container " << containerId << " does not exist";
+    // This could happen if the slave died after creating the container
+    // directory but before it checkpointed anything in it.
+    LOG(WARNING) << "The docker volumes checkpointed at '" << volumesPath
+                 << "' for container " << containerId << " does not exist";
+
+    // Construct an info object with empty docker volumes since no docker
+    // volumes are mounted yet for this container, and this container will
+    // be cleaned up by containerizer (as known orphan container) or by
+    // `recover` (as unknown orphan container).
+    infos.put(containerId, Owned<Info>(new Info(hashset<DockerVolume>())));
 
     return Nothing();
   }
@@ -279,6 +287,21 @@ Try<Nothing> DockerVolumeIsolatorProcess::_recover(
     return Error(
         "Failed to read docker volumes checkpoint file '" +
         volumesPath + "': " + read.error());
+  }
+
+  if (read->empty()) {
+    // This could happen if the slave is hard rebooted after the file is
+    // created but before the data is synced on disk.
+    LOG(WARNING) << "The docker volumes checkpointed at '" << volumesPath
+                 << "' for container " << containerId << " is empty";
+
+    // Construct an info object with empty docker volumes since no docker
+    // volumes are mounted yet for this container, and this container will
+    // be cleaned up by containerizer (as known orphan container) or by
+    // `recover` (as unknown orphan container).
+    infos.put(containerId, Owned<Info>(new Info(hashset<DockerVolume>())));
+
+    return Nothing();
   }
 
   Try<JSON::Object> json = JSON::parse<JSON::Object>(read.get());
