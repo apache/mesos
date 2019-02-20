@@ -15,7 +15,8 @@ DOCKER_IMAGE=${DOCKER_IMAGE:-"mesos/mesos-centos"}
 
 MESOS_SHA=${MESOS_SHA:-$(git rev-parse HEAD)}
 MESOS_TAG_OR_SHA=$(git describe --exact-match "${MESOS_SHA}" 2>/dev/null || echo "${MESOS_SHA}")
-RELEASE_BRANCH=$(git branch --points-at HEAD -r | grep -E 'origin/[0-9]*\.[0-9]*\.x' | grep -E -o '[0-9]*\.[0-9]*\.x' || true)
+CURRENT_BRANCHES=$(git branch --points-at HEAD -r)
+RELEASE_BRANCH=$(echo "${CURRENT_BRANCHES}" | grep -E 'origin/[0-9]*\.[0-9]*\.x' | grep -E -o '[0-9]*\.[0-9]*\.x' || true)
 
 if [ -z "${RELEASE_BRANCH}" ]; then
   RELEASE_BRANCH="master"
