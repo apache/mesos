@@ -33,6 +33,7 @@
 
 #include "slave/containerizer/mesos/isolators/docker/volume/driver.hpp"
 #include "slave/containerizer/mesos/isolators/docker/volume/isolator.hpp"
+#include "slave/containerizer/mesos/isolators/docker/volume/paths.hpp"
 
 #include "slave/containerizer/mesos/isolators/filesystem/linux.hpp"
 
@@ -680,6 +681,156 @@ TEST_F(DockerVolumeIsolatorTest, ROOT_CommandTaskNoRootfsSlaveRecovery)
   // the parameters in `containerInfo`.
   AWAIT_EXPECT_EQ(name1, unmount1Name);
   AWAIT_EXPECT_EQ(name2, unmount2Name);
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test verifies that agent can recover properly even there is
+// an orphan container's docker volumes checkpoint file is empty which
+// could happen in a real environment if the agent is hard rebooted
+// after the file is created but before the data is synced on disk.
+TEST_F(DockerVolumeIsolatorTest, ROOT_EmptyCheckpointFileSlaveRecovery)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  MockDockerVolumeDriverClient* mockClient = new MockDockerVolumeDriverClient;
+
+  Try<Owned<MesosContainerizer>> containerizer =
+    createContainerizer(flags, Owned<DriverClient>(mockClient));
+
+  ASSERT_SOME(containerizer);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(
+      detector.get(),
+      containerizer->get(),
+      flags);
+
+  ASSERT_SOME(slave);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+
+  MockScheduler sched;
+
+  MesosSchedulerDriver driver(
+      &sched,
+      frameworkInfo,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  const Offer& offer = offers.get()[0];
+
+  // Create a volume with relative path.
+  const string driver1 = "driver1";
+  const string name1 = "name1";
+  const string containerPath1 = "tmp/foo1";
+
+  Volume volume1 = createDockerVolume(driver1, name1, containerPath1);
+
+  TaskInfo task = createTask(
+      offer.slave_id(),
+      offer.resources(),
+      "while true; do test -f " + containerPath1 + "/file1; done");
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::MESOS);
+  containerInfo.add_volumes()->CopyFrom(volume1);
+
+  task.mutable_container()->CopyFrom(containerInfo);
+
+  // Create mount point for volume1.
+  const string mountPoint1 = path::join(os::getcwd(), "volume1");
+  ASSERT_SOME(os::mkdir(mountPoint1));
+  ASSERT_SOME(os::touch(path::join(mountPoint1, "file1")));
+
+  Future<string> mount1Name;
+
+  EXPECT_CALL(*mockClient, mount(driver1, _, _))
+    .WillOnce(DoAll(FutureArg<1>(&mount1Name),
+                    Return(mountPoint1)));
+
+  Future<TaskStatus> statusStarting;
+  Future<TaskStatus> statusRunning;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillRepeatedly(Return()); // Ignore subsequent updates.
+
+  Future<Nothing> ack1 =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
+  Future<Nothing> ack2 =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
+
+  // Wait for the ACK to be checkpointed.
+  AWAIT_READY(ack1);
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  // Wait for the ACK to be checkpointed.
+  AWAIT_READY(ack2);
+
+  Future<hashset<ContainerID>> containers = containerizer.get()->containers();
+  AWAIT_READY(containers);
+  ASSERT_EQ(1u, containers->size());
+
+  ContainerID containerId = *(containers->begin());
+
+  // Stop the slave after TASK_RUNNING is received.
+  slave.get()->terminate();
+
+  // Make the docker volumes checkpoint file empty. This is to simulate the
+  // case that the agent is hard rebooted after the file is created but before
+  // the data is synced on disk, i.e., the file is left empty on disk.
+  const string volumesPath = slave::docker::volume::paths::getVolumesPath(
+      flags.docker_volume_checkpoint_dir,
+      containerId.value());
+
+  ASSERT_SOME(os::write(volumesPath, ""));
+
+  mockClient = new MockDockerVolumeDriverClient;
+
+  containerizer = createContainerizer(flags, Owned<DriverClient>(mockClient));
+
+  ASSERT_SOME(containerizer);
+
+  Future<SlaveReregisteredMessage> reregistered =
+    FUTURE_PROTOBUF(SlaveReregisteredMessage(), master.get()->pid, _);
+
+  // Use the same flags.
+  slave = StartSlave(detector.get(), containerizer->get(), flags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(reregistered);
 
   driver.stop();
   driver.join();
