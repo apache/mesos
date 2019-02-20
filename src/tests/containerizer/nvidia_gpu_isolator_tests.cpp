@@ -304,20 +304,20 @@ TEST_F(NvidiaGpuTest, ROOT_INTERNET_CURL_CGROUPS_NVIDIA_GPU_NvidiaDockerImage)
     .Times(2)
     .WillRepeatedly(v1::scheduler::SendAcknowledge(frameworkId, agentId));
 
-  Future<Nothing> task1Finished;
+  Future<v1::scheduler::Event::Update> task1Finished;
   EXPECT_CALL(*scheduler, update(_, AllOf(
       TaskStatusUpdateTaskIdEq(task1),
-      TaskStatusUpdateStateEq(v1::TASK_FINISHED))))
+      TaskStatusUpdateIsTerminalState())))
     .WillOnce(DoAll(
-        FutureSatisfy(&task1Finished),
+        FutureArg<1>(&task1Finished),
         v1::scheduler::SendAcknowledge(frameworkId, agentId)));
 
-  Future<Nothing> task2Failed;
+  Future<v1::scheduler::Event::Update> task2Failed;
   EXPECT_CALL(*scheduler, update(_, AllOf(
       TaskStatusUpdateTaskIdEq(task2),
-      TaskStatusUpdateStateEq(v1::TASK_FAILED))))
+      TaskStatusUpdateIsTerminalState())))
     .WillOnce(DoAll(
-        FutureSatisfy(&task2Failed),
+        FutureArg<1>(&task2Failed),
         v1::scheduler::SendAcknowledge(frameworkId, agentId)));
 
   mesos.send(v1::createCallAccept(
@@ -328,7 +328,10 @@ TEST_F(NvidiaGpuTest, ROOT_INTERNET_CURL_CGROUPS_NVIDIA_GPU_NvidiaDockerImage)
 
   // We wait up to 180 seconds to download the docker image.
   AWAIT_READY_FOR(task1Finished, Seconds(180));
+  EXPECT_EQ(v1::TASK_FINISHED, task1Finished->status().state());
+
   AWAIT_READY(task2Failed);
+  EXPECT_EQ(v1::TASK_FAILED, task2Failed->status().state());
 }
 
 
