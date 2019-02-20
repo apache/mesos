@@ -409,6 +409,20 @@ Future<Option<ContainerLaunchInfo>> NvidiaGpuIsolatorProcess::_prepare(
 
     *launchInfo.add_mounts() = protobuf::slave::createContainerMount(
         volume.HOST_PATH(), target, MS_RDONLY | MS_BIND | MS_REC);
+
+    // TODO(chhsiao): As a workaround, we append `NvidiaVolume` paths into the
+    // `PATH` and `LD_LIBRARY_PATH` environment variables so the binaries and
+    // libraries can be found. However these variables might be overridden by
+    // users, and `LD_LIBRARY_PATH` might get cleared across exec calls. Instead
+    // of injecting `NvidiaVolume`, we could leverage libnvidia-container in the
+    // future. See MESOS-9595.
+    if (containerConfig.has_task_info()) {
+      // Command executor.
+      *launchInfo.mutable_task_environment() = volume.ENV(manifest);
+    } else {
+      // Default executor, custom executor, or nested container.
+      *launchInfo.mutable_environment() = volume.ENV(manifest);
+    }
   }
 
   const string devicesDir = containerizer::paths::getContainerDevicesPath(

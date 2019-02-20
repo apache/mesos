@@ -46,11 +46,10 @@ public:
 
   const std::string& HOST_PATH() const;
   const std::string& CONTAINER_PATH() const;
+  Environment ENV(const ::docker::spec::v1::ImageManifest& manifest) const;
 
-  // Returns whether the container based on a docker image
-  // should have the volume injected. We follow nvidia-docker's
-  // label conventions:
-  //   https://github.com/NVIDIA/nvidia-docker/wiki/Image-inspection
+  // Returns whether the container based on a docker image should have the
+  // volume injected.
   bool shouldInject(const ::docker::spec::v1::ImageManifest& manifest) const;
 
 private:
