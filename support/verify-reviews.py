@@ -70,10 +70,14 @@ parser.add_argument(
     " that will need verification")
 
 # Unless otherwise specified consider pending review requests to Mesos updated
-# since 03/01/2014.
+# since 03/01/2014. Note that we need to explicitly set `max-results` query
+# parameter because the default is 25 (max allowed is 200).
+# TODO(vinod): Paginate through the API to get all pending review requests
+# instead of just getting the first 200.
 group = "mesos"
 last_updated = "2014-03-01T00:00:00"
-query_parameters = "?to-groups=%s&status=pending&last-updated-from=%s" \
+query_parameters = \
+    "?to-groups=%s&status=pending&last-updated-from=%s&max-results=200" \
     % (group, last_updated)
 parser.add_argument(
     "-q",
