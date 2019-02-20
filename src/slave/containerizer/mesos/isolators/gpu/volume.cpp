@@ -14,12 +14,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <linux/limits.h>
-
-#include <string>
+#include <algorithm>
 #include <vector>
 
-#include <mesos/docker/spec.hpp>
+#include <linux/limits.h>
 
 #include <process/owned.hpp>
 
@@ -29,10 +27,10 @@
 #include <stout/foreach.hpp>
 #include <stout/fs.hpp>
 #include <stout/nothing.hpp>
+#include <stout/option.hpp>
 #include <stout/path.hpp>
 #include <stout/result.hpp>
 #include <stout/strings.hpp>
-#include <stout/try.hpp>
 
 #include <stout/os/mkdir.hpp>
 #include <stout/os/realpath.hpp>
@@ -56,80 +54,94 @@ namespace mesos {
 namespace internal {
 namespace slave {
 
-// Much of the logic in this file (including the contents of the
-// `BINARIES` and `LIBRARIES` arrays below) is borrowed from the
-// nvidia-docker-plugin (https://github.com/NVIDIA/nvidia-docker).
+// Much of the logic in this file is borrowed from nvidia-docker 1.0:
+// https://github.com/NVIDIA/nvidia-docker/blob/1.0/src/nvidia/volumes.go
 // Copyright (c) 2015-2016, NVIDIA CORPORATION. All rights reserved.
 
 static constexpr char HOST_VOLUME_PATH_PREFIX[] =
   "/var/run/mesos/isolators/gpu/nvidia_";
 static constexpr char CONTAINER_VOLUME_PATH[] =
   "/usr/local/nvidia";
+static constexpr char CONTAINER_CUDA_RUNTIME_PATH[] =
+  "/usr/local/cuda";
 
+
+// The contents of the `BINARIES` and `LIBRARIES` arrays below are from
+// libnvidia-container to support nvidia-docker 2.0:
+// https://github.com/NVIDIA/libnvidia-container/blob/master/src/nvc_info.c
+// Copyright (c) 2017-2018, NVIDIA CORPORATION. All rights reserved.
 
 static constexpr const char* BINARIES[] = {
+  // ----- Utility -----
+
+  "nvidia-smi",              // System management interface.
+  "nvidia-debugdump",        // GPU coredump utility.
+  "nvidia-persistenced",     // Persistence mode utility.
   // "nvidia-modprobe",      // Kernel module loader.
   // "nvidia-settings",      // X server settings.
   // "nvidia-xconfig",       // X xorg.conf editor.
+
+  // ----- Compute -----
+
   "nvidia-cuda-mps-control", // Multi process service CLI.
   "nvidia-cuda-mps-server",  // Multi process service server.
-  "nvidia-debugdump",        // GPU coredump utility.
-  "nvidia-persistenced",     // Persistence mode utility.
-  "nvidia-smi",              // System management interface.
 };
 
 
 static constexpr const char* LIBRARIES[] = {
-  // ------- X11 -------
+  // -------- Display --------
 
-  // "libnvidia-cfg.so",  // GPU configuration.
-  // "libnvidia-gtk2.so", // GTK2.
-  // "libnvidia-gtk3.so", // GTK3.
-  // "libnvidia-wfb.so",  // Wrapped software rendering module for X server.
-  // "libglx.so",         // GLX extension module for X server.
+  // "libnvidia-gtk2.so",    // GTK2.
+  // "libnvidia-gtk3.so",    // GTK3.
+  // "libnvidia-wfb.so",     // Wrapped software rendering module for X server.
+  // "nvidia_drv.so",        // Driver module for X server.
+  // "libglx.so",            // GLX extension module for X server.
 
-  // ----- Compute -----
+  // -------- Utility --------
 
-  "libnvidia-ml.so",              // Management library.
-  "libcuda.so",                   // CUDA driver library.
-  "libnvidia-ptxjitcompiler.so",  // PTX-SASS JIT compiler.
+  "libnvidia-ml.so",         // Management library.
+  "libnvidia-cfg.so",        // GPU configuration.
+
+  // -------- Compute --------
+
+  "libcuda.so",              // CUDA driver library.
+  "libnvidia-opencl.so",     // NVIDIA OpenCL ICD.
+  "libnvidia-ptxjitcompiler.so", // PTX-SASS JIT compiler.
   "libnvidia-fatbinaryloader.so", // fatbin loader.
-  "libnvidia-opencl.so",          // NVIDIA OpenCL ICD.
-  "libnvidia-compiler.so",        // NVVM-PTX compiler for OpenCL.
-  // "libOpenCL.so",              // OpenCL ICD loader.
+  "libnvidia-compiler.so",   // NVVM-PTX compiler for OpenCL.
 
-  // ------ Video ------
+  // --------- Video ---------
 
-  "libvdpau_nvidia.so",  // NVIDIA VDPAU ICD.
-  "libnvidia-encode.so", // Video encoder.
-  "libnvcuvid.so",       // Video decoder.
-  "libnvidia-fbc.so",    // Framebuffer capture.
-  "libnvidia-ifr.so",    // OpenGL framebuffer capture.
+  "libvdpau_nvidia.so",      // NVIDIA VDPAU ICD.
+  "libnvidia-encode.so",     // Video encoder.
+  "libnvcuvid.so",           // Video decoder.
 
-  // ----- Graphic -----
+  // ------- Graphics --------
 
-  // In an ideal world we would only mount nvidia_* vendor specific
-  // libraries and install ICD loaders inside a container. However,
-  // for backwards compatibility we need to mount everything. This
-  // will hopefully change once GLVND is well established.
+  // "libnvidia-egl-wayland.so", // EGL wayland extensions.
+  "libnvidia-eglcore.so",    // EGL core.
+  "libnvidia-glcore.so",     // OpenGL core.
+  "libnvidia-tls.so",        // Thread local storage.
+  "libnvidia-glsi.so",       // OpenGL system interaction.
+  "libnvidia-fbc.so",        // Framebuffer capture.
+  "libnvidia-ifr.so",        // OpenGL framebuffer capture.
 
-  "libGL.so",         // OpenGL/GLX legacy _or_ compatibility wrapper (GLVND).
-  "libGLX.so",        // GLX ICD loader (GLVND).
-  "libOpenGL.so",     // OpenGL ICD loader (GLVND).
-  "libGLESv1_CM.so",  // OpenGL ES v1 legacy _or_ ICD loader (GLVND).
-  "libGLESv2.so",     // OpenGL ES v2 legacy _or_ ICD loader (GLVND).
-  "libEGL.so",        // EGL ICD loader.
-  "libGLdispatch.so", // OpenGL dispatch (GLVND).
+  // --- Graphics (GLVND) ----
 
-  "libGLX_nvidia.so",         // OpenGL/GLX ICD (GLVND).
-  "libEGL_nvidia.so",         // EGL ICD (GLVND).
-  "libGLESv2_nvidia.so",      // OpenGL ES v2 ICD (GLVND).
-  "libGLESv1_CM_nvidia.so",   // OpenGL ES v1 ICD (GLVND).
-  "libnvidia-eglcore.so",     // EGL core.
-  "libnvidia-egl-wayland.so", // EGL wayland extensions.
-  "libnvidia-glcore.so",      // OpenGL core.
-  "libnvidia-tls.so",         // Thread local storage.
-  "libnvidia-glsi.so",        // OpenGL system interaction.
+  // "libGLX.so",            // GLX ICD loader.
+  // "libOpenGL.so",         // OpenGL ICD loader.
+  // "libGLdispatch.so",     // OpenGL dispatch.
+  "libGLX_nvidia.so",        // OpenGL/GLX ICD.
+  "libEGL_nvidia.so",        // EGL ICD.
+  "libGLESv2_nvidia.so",     // OpenGL ES v2 ICD.
+  "libGLESv1_CM_nvidia.so",  // OpenGL ES v1 ICD.
+
+  // --- Graphics (compat) ---
+
+  "libGL.so",                // OpenGL/GLX legacy _or_ compatibility wrapper.
+  "libEGL.so",               // EGL legacy _or_ ICD loader.
+  "libGLESv1_CM.so",         // OpenGL ES v1 legacy _or_ ICD loader.
+  "libGLESv2.so",            // OpenGL ES v2 legacy _or_ ICD loader.
 };
 
 
@@ -188,6 +200,60 @@ const string& NvidiaVolume::HOST_PATH() const
 const string& NvidiaVolume::CONTAINER_PATH() const
 {
   return containerPath;
+}
+
+
+Environment NvidiaVolume::ENV(const ImageManifest& manifest) const
+{
+  vector<string> paths;
+  vector<string> ldPaths;
+
+  foreach (const string& env, manifest.config().env()) {
+    const vector<string> tokens = strings::split(env, "=", 2);
+    if (tokens.size() != 2) {
+      continue;
+    }
+
+    if (tokens[0] == "PATH") {
+      paths = strings::tokenize(tokens[1], ":");
+    } else if (tokens[0] == "LD_LIBRARY_PATH") {
+      ldPaths = strings::tokenize(tokens[1], ":");
+    }
+  }
+
+  // Inject the `PATH` and `LD_LIBRARY_PATH` environment variables.
+  const string binaryPath = path::join(containerPath, "bin");
+  if (std::find(paths.begin(), paths.end(), binaryPath) == paths.end()) {
+    paths.push_back(binaryPath);
+  }
+
+  // NOTE: CUDA images may contain compatibility libraries, so we inject
+  // their path *BEFORE* paths to the libraries from the host. See:
+  // https://github.com/NVIDIA/libnvidia-container/blob/fe20a8e4a17a63df8116f39795173a461325fb3d/src/nvc_container.c#L185 // NOLINT
+  // https://github.com/NVIDIA/libnvidia-container/blob/fe20a8e4a17a63df8116f39795173a461325fb3d/src/nvc_mount.c#L485 // NOLINT
+  const string libraryPaths[] = {
+    path::join(CONTAINER_CUDA_RUNTIME_PATH, "compat"),
+    path::join(containerPath, "lib"),
+    path::join(containerPath, "lib64")};
+
+  foreach (const string& libraryPath, libraryPaths) {
+    if (std::find(ldPaths.begin(), ldPaths.end(), libraryPath) ==
+        ldPaths.end()) {
+      ldPaths.push_back(libraryPath);
+    }
+  }
+
+  Environment environment;
+
+  Environment::Variable* pathVar = environment.add_variables();
+  pathVar->set_name("PATH");
+  pathVar->set_value(strings::join(":", paths));
+
+  Environment::Variable* ldPathVar = environment.add_variables();
+  ldPathVar->set_name("LD_LIBRARY_PATH");
+  ldPathVar->set_value(strings::join(":", ldPaths));
+
+  return environment;
 }
 
 
@@ -422,12 +488,28 @@ Try<NvidiaVolume> NvidiaVolume::create()
 }
 
 
-// We use the `com.nvidia.volumes.needed` label from nvidia-docker
-// to decide if we should inject the volume or not:
+// We use the `NVIDIA_VISIBLE_DEVICES` environment variable from
+// nvidia-docker to decide if we should inject the volume or not. See:
+// https://github.com/NVIDIA/nvidia-container-runtime/blob/master/README.md#nvidia_visible_devices // NOLINT
 //
-// https://github.com/NVIDIA/nvidia-docker/wiki/Image-inspection
+// To support legacy nvidia-docker (version 1.0 and before), we also check if
+// the `com.nvidia.volumes.needed` label exists. See:
+// https://github.com/NVIDIA/nvidia-docker/wiki/Image-inspection-(version-1.0)
 bool NvidiaVolume::shouldInject(const ImageManifest& manifest) const
 {
+  foreach (const string& env, manifest.config().env()) {
+    const vector<string> tokens = strings::split(env, "=", 2);
+    if (tokens.size() != 2 || tokens[0] != "NVIDIA_VISIBLE_DEVICES") {
+      continue;
+    }
+
+    if (tokens[1] == "" || tokens[1] == "void") {
+      return false;
+    }
+
+    return true;
+  }
+
   if (manifest.config().labels().count("com.nvidia.volumes.needed")) {
     // The label value is used as the name of the volume that
     // nvidia-docker-plugin registers with Docker. We therefore
