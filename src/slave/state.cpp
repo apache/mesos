@@ -170,8 +170,8 @@ Try<SlaveState> SlaveState::recover(
   }
 
   if (slaveInfo.isNone()) {
-    // This could happen if the slave died after opening the file for
-    // writing but before it checkpointed anything.
+    // This could happen if the slave is hard rebooted after the file is created
+    // but before the data is synced on disk.
     LOG(WARNING) << "Found empty agent info file '" << path << "'";
     return state;
   }
@@ -269,8 +269,8 @@ Try<FrameworkState> FrameworkState::recover(
   }
 
   if (frameworkInfo.isNone()) {
-    // This could happen if the slave died after opening the file for
-    // writing but before it checkpointed anything.
+    // This could happen if the slave is hard rebooted after the file is created
+    // but before the data is synced on disk.
     LOG(WARNING) << "Found empty framework info file '" << path << "'";
     return state;
   }
@@ -302,8 +302,8 @@ Try<FrameworkState> FrameworkState::recover(
   }
 
   if (pid->empty()) {
-    // This could happen if the slave died after opening the file for
-    // writing but before it checkpointed anything.
+    // This could happen if the slave is hard rebooted after the file is created
+    // but before the data is synced on disk.
     LOG(WARNING) << "Found empty framework pid file '" << path << "'";
     return state;
   }
@@ -442,8 +442,8 @@ Try<ExecutorState> ExecutorState::recover(
   }
 
   if (executorInfo.isNone()) {
-    // This could happen if the slave died after opening the file for
-    // writing but before it checkpointed anything.
+    // This could happen if the slave is hard rebooted after the file is created
+    // but before the data is synced on disk.
     LOG(WARNING) << "Found empty executor info file '" << path << "'";
     return state;
   }
@@ -552,8 +552,8 @@ Try<RunState> RunState::recover(
   }
 
   if (pid->empty()) {
-    // This could happen if the slave died after opening the file for
-    // writing but before it checkpointed anything.
+    // This could happen if the slave is hard rebooted after the file is created
+    // but before the data is synced on disk.
     LOG(WARNING) << "Found empty executor forked pid file '" << path << "'";
     return state;
   }
@@ -588,8 +588,8 @@ Try<RunState> RunState::recover(
     }
 
     if (pid->empty()) {
-      // This could happen if the slave died after opening the file for
-      // writing but before it checkpointed anything.
+      // This could happen if the slave is hard rebooted after the file is
+      // created but before the data is synced on disk.
       LOG(WARNING) << "Found empty executor libprocess pid file '" << path
                    << "'";
       return state;
@@ -658,8 +658,8 @@ Try<TaskState> TaskState::recover(
   }
 
   if (task.isNone()) {
-    // This could happen if the slave died after opening the file for
-    // writing but before it checkpointed anything.
+    // This could happen if the slave is hard rebooted after the file is created
+    // but before the data is synced on disk.
     LOG(WARNING) << "Found empty task info file '" << path << "'";
     return state;
   }

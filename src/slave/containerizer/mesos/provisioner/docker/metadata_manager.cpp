@@ -263,8 +263,8 @@ Future<Nothing> MetadataManagerProcess::recover()
   }
 
   if (images.isNone()) {
-    // This could happen if the slave died after opening the file for
-    // writing but before persisted on disk.
+    // This could happen if the slave is hard rebooted after the file is created
+    // but before the data is synced on disk.
     LOG(WARNING) << "The images file '" << storedImagesPath << "' is empty";
 
     return Nothing();
