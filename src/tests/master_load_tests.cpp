@@ -178,7 +178,7 @@ public:
     process::spawn(process_.get());
   }
 
-  ~BlockingAuthorizer()
+  ~BlockingAuthorizer() override
   {
     process::terminate(process_.get());
     process::wait(process_.get());
