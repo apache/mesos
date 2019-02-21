@@ -7,6 +7,8 @@ if (env.NODE_LABELS == null) {
 parallel(
   centos7: {
     node(env.NODE_LABELS) {
+      deleteDir()
+
       checkout scm
 
       sh("CENTOS_DISTRO=7 support/packaging/centos/build-rpm-docker.sh")
@@ -16,6 +18,8 @@ parallel(
   },
   centos6: {
     node(env.NODE_LABELS) {
+      deleteDir()
+
       checkout scm
 
       sh("CENTOS_DISTRO=6 support/packaging/centos/build-rpm-docker.sh")
