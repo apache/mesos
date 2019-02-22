@@ -1409,6 +1409,8 @@ MESOS_LINUX_FILES =									\
   slave/containerizer/mesos/isolators/volume/image.hpp					\
   slave/containerizer/mesos/isolators/volume/secret.cpp					\
   slave/containerizer/mesos/isolators/volume/secret.hpp					\
+  slave/containerizer/mesos/isolators/volume/utils.cpp					\
+  slave/containerizer/mesos/isolators/volume/utils.hpp					\
   slave/containerizer/mesos/provisioner/backends/aufs.cpp				\
   slave/containerizer/mesos/provisioner/backends/aufs.hpp				\
   slave/containerizer/mesos/provisioner/backends/bind.cpp				\

@@ -38,6 +38,7 @@
 #include "linux/fs.hpp"
 
 #include "slave/containerizer/mesos/isolators/volume/host_path.hpp"
+#include "slave/containerizer/mesos/isolators/volume/utils.hpp"
 
 using std::string;
 
@@ -52,6 +53,8 @@ using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::ContainerMountInfo;
 using mesos::slave::Isolator;
+
+using mesos::internal::slave::volume::PathValidator;
 
 namespace mesos {
 namespace internal {
@@ -69,7 +72,11 @@ Try<Isolator*> VolumeHostPathIsolatorProcess::create(
   }
 
   Owned<MesosIsolatorProcess> process(
-      new VolumeHostPathIsolatorProcess(flags));
+      flags.host_path_volume_force_creation.isSome()
+      ? new VolumeHostPathIsolatorProcess(
+            flags,
+            PathValidator::parse(flags.host_path_volume_force_creation.get()))
+      : new VolumeHostPathIsolatorProcess(flags));
 
   return new MesosIsolator(process);
 }
@@ -78,7 +85,16 @@ Try<Isolator*> VolumeHostPathIsolatorProcess::create(
 VolumeHostPathIsolatorProcess::VolumeHostPathIsolatorProcess(
     const Flags& _flags)
   : ProcessBase(process::ID::generate("volume-host-path-isolator")),
-    flags(_flags) {}
+    flags(_flags),
+    pathValidator() {}
+
+
+VolumeHostPathIsolatorProcess::VolumeHostPathIsolatorProcess(
+    const Flags& _flags,
+    const PathValidator& _pathValidator)
+  : ProcessBase(process::ID::generate("volume-host-path-isolator")),
+    flags(_flags),
+    pathValidator(_pathValidator) {}
 
 
 VolumeHostPathIsolatorProcess::~VolumeHostPathIsolatorProcess() {}
@@ -164,8 +180,32 @@ Future<Option<ContainerLaunchInfo>> VolumeHostPathIsolatorProcess::prepare(
     }
 
     if (!os::exists(hostPath.get())) {
-      return Failure(
-          "Path '" + hostPath.get() + "' in HOST_PATH volume does not exist");
+      if (pathValidator.isNone()) {
+        return Failure(
+            "Path '" + hostPath.get() + "' in HOST_PATH volume does not exist");
+      }
+
+      Try<string> normalizedPath = path::normalize(hostPath.get());
+      if (normalizedPath.isError()) {
+        return Failure(
+            "Failed to normalized the host path '" + hostPath.get() + "': " +
+            normalizedPath.error());
+      }
+
+      Try<Nothing> validate = pathValidator->validate(normalizedPath.get());
+      if (validate.isError()) {
+        return Failure(
+            "Path '" + hostPath.get() + "' in HOST_PATH volume does not exist "
+            "and is not whitelisted for creation: " + validate.error());
+      }
+
+      // Always assume the non-existing host path as a directory.
+      Try<Nothing> mkdir = os::mkdir(normalizedPath.get());
+      if (mkdir.isError()) {
+        return Failure(
+            "Failed to create the host path at '" + hostPath.get() + "': " +
+            mkdir.error());
+      }
     }
 
     // Determine the mount point for the host volume.

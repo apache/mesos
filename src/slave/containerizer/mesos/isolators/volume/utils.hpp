@@ -14,45 +14,38 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __VOLUME_HOST_PATH_ISOLATOR_HPP__
-#define __VOLUME_HOST_PATH_ISOLATOR_HPP__
+#ifndef __VOLUME_UTILS_HPP__
+#define __VOLUME_UTILS_HPP__
 
-#include "slave/flags.hpp"
+#include <string>
+#include <vector>
 
-#include "slave/containerizer/mesos/isolator.hpp"
-
-#include "slave/containerizer/mesos/isolators/volume/utils.hpp"
+#include <stout/nothing.hpp>
+#include <stout/try.hpp>
 
 namespace mesos {
 namespace internal {
 namespace slave {
+namespace volume {
 
-class VolumeHostPathIsolatorProcess : public MesosIsolatorProcess
+constexpr char HOST_PATH_WHITELIST_DELIM[] = ":";
+
+class PathValidator
 {
 public:
-  static Try<mesos::slave::Isolator*> create(const Flags& flags);
+  static PathValidator parse(const std::string& whitelist);
 
-  ~VolumeHostPathIsolatorProcess() override;
-
-  bool supportsNesting() override;
-  bool supportsStandalone() override;
-
-  process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(
-      const ContainerID& containerId,
-      const mesos::slave::ContainerConfig& containerConfig) override;
+  Try<Nothing> validate(const std::string& path) const;
 
 private:
-  VolumeHostPathIsolatorProcess(const Flags& flags);
-  VolumeHostPathIsolatorProcess(
-      const Flags& flags,
-      const volume::PathValidator& pathValidator);
+  PathValidator(const std::vector<std::string>& whitelist);
 
-  const Flags flags;
-  const Option<volume::PathValidator> pathValidator;
+  const std::vector<std::string> whitelist;
 };
 
+} // namespace volume {
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __VOLUME_HOST_PATH_ISOLATOR_HPP__
+#endif // __VOLUME_UTILS_HPP__

@@ -14,45 +14,44 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __VOLUME_HOST_PATH_ISOLATOR_HPP__
-#define __VOLUME_HOST_PATH_ISOLATOR_HPP__
-
-#include "slave/flags.hpp"
-
-#include "slave/containerizer/mesos/isolator.hpp"
+#include <stout/path.hpp>
+#include <stout/stringify.hpp>
+#include <stout/strings.hpp>
 
 #include "slave/containerizer/mesos/isolators/volume/utils.hpp"
+
+using std::string;
+using std::vector;
 
 namespace mesos {
 namespace internal {
 namespace slave {
+namespace volume {
 
-class VolumeHostPathIsolatorProcess : public MesosIsolatorProcess
+PathValidator::PathValidator(const vector<string>& _whitelist)
+  : whitelist(_whitelist) {}
+
+
+PathValidator PathValidator::parse(const string& whitelist)
 {
-public:
-  static Try<mesos::slave::Isolator*> create(const Flags& flags);
+  return PathValidator(strings::split(whitelist, HOST_PATH_WHITELIST_DELIM));
+}
 
-  ~VolumeHostPathIsolatorProcess() override;
 
-  bool supportsNesting() override;
-  bool supportsStandalone() override;
+Try<Nothing> PathValidator::validate(const string& path) const
+{
+  foreach (const string& allowedPath, whitelist) {
+    const string allowedDirectory = path::join(
+        allowedPath, stringify(os::PATH_SEPARATOR));
+    if (path == allowedPath || strings::startsWith(path, allowedDirectory)) {
+      return Nothing();
+    }
+  }
 
-  process::Future<Option<mesos::slave::ContainerLaunchInfo>> prepare(
-      const ContainerID& containerId,
-      const mesos::slave::ContainerConfig& containerConfig) override;
+  return Error("Path '" + path + "' is not whitelisted");
+}
 
-private:
-  VolumeHostPathIsolatorProcess(const Flags& flags);
-  VolumeHostPathIsolatorProcess(
-      const Flags& flags,
-      const volume::PathValidator& pathValidator);
-
-  const Flags flags;
-  const Option<volume::PathValidator> pathValidator;
-};
-
+} // namespace volume {
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {
-
-#endif // __VOLUME_HOST_PATH_ISOLATOR_HPP__

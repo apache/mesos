@@ -650,6 +650,12 @@ mesos::internal::slave::Flags::Flags()
       "no cgroup limits are set, they are inherited from the root mesos\n"
       "cgroup.");
 
+  add(&Flags::host_path_volume_force_creation,
+      "host_path_volume_force_creation",
+      "A colon-separated list of directories where descendant directories\n"
+      "are allowed to be created by the `volume/host_path` isolator,\n"
+      "if the directories do not exist.");
+
   add(&Flags::nvidia_gpu_devices,
       "nvidia_gpu_devices",
       "A comma-separated list of Nvidia GPU devices. When `gpus` is\n"
