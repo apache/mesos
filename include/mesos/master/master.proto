@@ -229,10 +229,14 @@ message Call {
   //
   // This feature is not implementation complete.
   //
-  // Updates quota given the provided requests, the requests are
-  // applied in an all-or-nothing manner.
+  // Updates quota given the provided quota configurations, these configurations
+  // are applied in an all-or-nothing manner.
   message UpdateQuota {
-    repeated quota.QuotaRequest quota_requests = 1;
+    // Determines whether to skip the capacity validation. See
+    // `quota.QuotaConfig` for more details.
+    optional bool force = 1;
+
+    repeated quota.QuotaConfig quota_configs = 2;
   }
 
   // Sets the quota for resources to be used by a particular role.

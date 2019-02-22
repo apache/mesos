@@ -110,6 +110,58 @@ message QuotaRequest {
   repeated Resource limit = 4;
 }
 
+/**
+ * Describes a role's quota configuration.
+ */
+message QuotaConfig {
+  required string role = 1;
+
+  // Name-value pairs that define the resource guarantees.
+  // Only scalar resources are currently supported.
+  //
+  // Mesos will try its best to ensure that the role can be
+  // allocated at least as many resources as the guarantee.
+  // Despite this, it's possible for the guarantee to not be
+  // satisfiable, if:
+  //   (1) The operator has overcommitted guarantees.
+  //   (2) There is a loss of agents that such that the
+  //       guarantees overcommit the cluster.
+  //   (3) The scheduler is pickier than mesos knows about,
+  //       e.g. the scheduler needs resources from agents
+  //       with specific attributes.
+  //
+  // The provided guarantees will be validated to ensure it
+  // is not overcommitting the cluster. The operator can
+  // disable this via `UpdateQuota.force`.
+  //
+  // If the guarantee is omitted, there is no guarantee.
+  //
+  // Operators may want to set up alerting to let them know
+  // when a guarantee cannot be satisfied.
+  map<string, Value.Scalar> guarantees = 2;
+
+  // Name-value pairs that define the resource limits.
+  // Only scalar resources are currently supported.
+  //
+  // Imposes a limit on the amount of resources allocated to the
+  // role. Mesos will try its best to ensure that the role does
+  // not exceed this limit. Despite this, the limit can be exceeded
+  // when:
+  //   (1) The limit is lowered below the allocation.
+  //   (2) Some agents are partitioned and re-connect with
+  //       resources allocated to the role.
+  //
+  // The provided limits will be validated to ensure it does not
+  // exceed the total cluster size. The operator can disable
+  // this check via `UpdateQuota.force`.
+  //
+  // If the limit is omitted, there is no limit.
+  //
+  // Operators may want to set up alerting to let them know
+  // when the limit is exceeded.
+  map<string, Value.Scalar> limits = 3;
+}
+
 
 /**
  * `QuotaStatus` describes the internal representation for the

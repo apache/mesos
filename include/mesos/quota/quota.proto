@@ -47,6 +47,17 @@ message QuotaRequest {
 
 
 /**
+ * See v1 `QuotaConfig`.
+ */
+message QuotaConfig {
+  required string role = 1;
+
+  map<string, Value.Scalar> guarantees = 2;
+  map<string, Value.Scalar> limits = 3;
+}
+
+
+/**
  * See v1 `QuotaStatus`.
  */
 message QuotaStatus {
