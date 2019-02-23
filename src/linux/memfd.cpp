@@ -26,15 +26,9 @@
 #include <stout/os/open.hpp>
 #include <stout/os/stat.hpp>
 
+#include "linux/memfd.hpp"
+
 using std::string;
-
-#if !defined(MFD_CLOEXEC)
-#define MFD_CLOEXEC 0x0001U
-#endif
-
-#if !defined(MFD_ALLOW_SEALING)
-#define MFD_ALLOW_SEALING 0x0002U
-#endif
 
 #if !defined(F_ADD_SEALS)
 #define F_ADD_SEALS 1033
@@ -64,7 +58,7 @@ namespace mesos {
 namespace internal {
 namespace memfd {
 
-static Try<int_fd> create(const string& name, unsigned int flags)
+Try<int_fd> create(const string& name, unsigned int flags)
 {
 #ifdef __NR_memfd_create
   int_fd fd = ::syscall(__NR_memfd_create, name.c_str(), flags);

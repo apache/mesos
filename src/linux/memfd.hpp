@@ -23,9 +23,21 @@
 
 #include <stout/os/int_fd.hpp>
 
+#if !defined(MFD_CLOEXEC)
+#define MFD_CLOEXEC 0x0001U
+#endif
+
+#if !defined(MFD_ALLOW_SEALING)
+#define MFD_ALLOW_SEALING 0x0002U
+#endif
+
 namespace mesos {
 namespace internal {
 namespace memfd {
+
+// Creates an anonymous in-memory file via `memfd_create`.
+Try<int_fd> create(const std::string& name, unsigned int flags);
+
 
 // Clone a file into a sealed private copy such that any attempt to
 // modify it will not modify the original binary. Returns the memfd of
