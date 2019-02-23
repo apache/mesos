@@ -420,9 +420,22 @@ TEST_F(ContainerLoggerTest, LOGROTATE_CustomRotateOptions)
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  const string customConfig = "some-custom-logrotate-option";
+  const string testFile = sandbox.get() + "/CustomRotateOptions";
 
-  TaskInfo task = createTask(offers.get()[0], "exit 0");
+  // Custom config consists of a postrotate script which creates
+  // an empty file in the temporary directory on log rotation.
+  const string customConfig =
+    "postrotate\n touch " + testFile + "\nendscript";
+
+  // Start a task that spams stdout with 2 MB of (mostly blank) output.
+  // The logrotate container logger module is loaded with parameters that limit
+  // the log size to five files of 2 MB each.  After the task completes,
+  // `logrotate` should trigger rotation of stdout logs, so postrotate
+  // script is executed.
+  TaskInfo task = createTask(
+      offers.get()[0],
+      "i=0; while [ $i -lt 2048 ]; "
+      "do printf '%-1024d\\n' $i; i=$((i+1)); done");
 
   // Add an override for the logger's stdout stream.
   // We will check this by inspecting the generated configuration file.
@@ -454,6 +467,32 @@ TEST_F(ContainerLoggerTest, LOGROTATE_CustomRotateOptions)
   driver.stop();
   driver.join();
 
+  // The `LogrotateContainerLogger` spawns some `mesos-logrotate-logger`
+  // processes above, which continue running briefly after the container exits.
+  // Once they finish reading the container's pipe, they should exit.
+  Try<os::ProcessTree> pstrees = os::pstree(0);
+  ASSERT_SOME(pstrees);
+  foreach (const os::ProcessTree& pstree, pstrees->children) {
+    // Wait for the logger subprocesses to exit, for up to 5 seconds each.
+    Duration waited = Duration::zero();
+    do {
+      if (!os::exists(pstree.process.pid)) {
+        break;
+      }
+
+      // Push the clock ahead to speed up the reaping of subprocesses.
+      Clock::pause();
+      Clock::settle();
+      Clock::advance(Seconds(1));
+      Clock::resume();
+
+      os::sleep(Milliseconds(100));
+      waited += Milliseconds(100);
+    } while (waited < Seconds(5));
+
+    EXPECT_LE(waited, Seconds(5));
+  }
+
   // Check for the expected logger files.
   string sandboxDirectory = path::join(
       slave::paths::getExecutorPath(
@@ -466,14 +505,21 @@ TEST_F(ContainerLoggerTest, LOGROTATE_CustomRotateOptions)
 
   ASSERT_TRUE(os::exists(sandboxDirectory));
 
-  // Check to see if our custom string is sitting in the configuration.
   string stdoutPath = path::join(sandboxDirectory, "stdout.logrotate.conf");
+
+  // Check that `mesos-logrotate-logger` creates config file in the container
+  // sandbox when `ENABLE_LAUNCHER_SEALING` flag is not specified. Otherwise,
+  // the config file is created in `procfs`, so it should not exist in the
+  // container sandbox.
+#ifdef ENABLE_LAUNCHER_SEALING
+  ASSERT_FALSE(os::exists(stdoutPath));
+#else
   ASSERT_TRUE(os::exists(stdoutPath));
+#endif // ENABLE_LAUNCHER_SEALING
 
-  Try<string> stdoutConfig = os::read(stdoutPath);
-  ASSERT_SOME(stdoutConfig);
-
-  ASSERT_TRUE(strings::contains(stdoutConfig.get(), customConfig));
+  // This file should be created by a script on log rotation. The script is
+  // specified via logrotate stdout options.
+  ASSERT_TRUE(os::exists(testFile));
 }
 
 
