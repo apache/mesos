@@ -40,10 +40,19 @@
 #include <stout/os/su.hpp>
 #include <stout/os/write.hpp>
 
+// TODO(abudnik): `ENABLE_LAUNCHER_SEALING` should be replaced with
+// `__linux__`, once we drop support for kernels older than 3.17, which
+// do not support memfd.
+#ifdef ENABLE_LAUNCHER_SEALING
+#include "linux/memfd.hpp"
+#endif // ENABLE_LAUNCHER_SEALING
+
 #include "logging/logging.hpp"
 
 #include "slave/container_loggers/logrotate.hpp"
 
+
+using std::string;
 
 using namespace process;
 using namespace mesos::internal::logger::rotate;
@@ -52,19 +61,79 @@ using namespace mesos::internal::logger::rotate;
 class LogrotateLoggerProcess : public Process<LogrotateLoggerProcess>
 {
 public:
-  LogrotateLoggerProcess(const Flags& _flags)
-    : ProcessBase(process::ID::generate("logrotate-logger")),
-      flags(_flags),
-      leading(None()),
-      bytesWritten(0)
+  static Try<LogrotateLoggerProcess*> create(const Flags& flags)
   {
-    // Prepare a buffer for reading from the `incoming` pipe.
-    length = os::pagesize();
-    buffer = new char[length];
+    Option<int_fd> configMemFd;
+
+    // Calculate the size of the buffer that is used for reading from
+    // the `incoming` pipe.
+    const size_t bufferSize = os::pagesize();
+
+    // Populate the `logrotate` configuration file.
+    // See `Flags::logrotate_options` for the format.
+    //
+    // NOTE: We specify a size of `--max_size - bufferSize` because `logrotate`
+    // has slightly different size semantics.  `logrotate` will rotate when the
+    // max size is *exceeded*.  We rotate to keep files *under* the max size.
+    const string config =
+      "\"" + flags.log_filename.get() + "\" {\n" +
+      flags.logrotate_options.getOrElse("") + "\n" +
+      "size " + stringify(flags.max_size.bytes() - bufferSize) + "\n" +
+      "}";
+
+    // TODO(abudnik): `ENABLE_LAUNCHER_SEALING` should be replaced with
+    // `__linux__`, once we drop support for kernels older than 3.17, which
+    // do not support memfd.
+#ifdef ENABLE_LAUNCHER_SEALING
+    // Create a temporary anonymous file, which can be accessed by a child
+    // process by opening a `/proc/self/fd/<FD of anonymous file>`.
+    // This file is automatically removed on process termination, so we don't
+    // need to garbage collect it.
+    // We use the `memfd` file to pass the configuration to `logrotate`.
+    Try<int_fd> memFd =
+      mesos::internal::memfd::create("mesos_logrotate", 0);
+
+    if (memFd.isError()) {
+      return Error(
+          "Failed to create memfd file '" +
+          flags.log_filename.get() + "': " + memFd.error());
+    }
+
+    Try<Nothing> write = os::write(memFd.get(), config);
+    if (write.isError()) {
+      os::close(memFd.get());
+      return Error("Failed to write memfd file '" + flags.log_filename.get() +
+                   "': " + write.error());
+    }
+
+    // `logrotate` requires configuration file to have 0644 or 0444 permissions.
+    int ret = fchmod(memFd.get(), S_IRUSR | S_IRGRP | S_IROTH);
+    if (ret == -1) {
+      ErrnoError error("Failed to chmod memfd file '" +
+                       flags.log_filename.get() + "'");
+      os::close(memFd.get());
+      return error;
+    }
+
+    configMemFd = memFd.get();
+#else
+    Try<Nothing> result = os::write(
+        flags.log_filename.get() + CONF_SUFFIX, config);
+
+    if (result.isError()) {
+      return Error("Failed to write configuration file: " + result.error());
+    }
+#endif // ENABLE_LAUNCHER_SEALING
+
+    return new LogrotateLoggerProcess(flags, configMemFd, bufferSize);
   }
 
   ~LogrotateLoggerProcess() override
   {
+    if (configMemFd.isSome()) {
+      os::close(configMemFd.get());
+    }
+
     if (buffer != nullptr) {
       delete[] buffer;
       buffer = nullptr;
@@ -79,25 +148,6 @@ public:
   // leading log file, and manages total log size.
   Future<Nothing> run()
   {
-    // Populate the `logrotate` configuration file.
-    // See `Flags::logrotate_options` for the format.
-    //
-    // NOTE: We specify a size of `--max_size - length` because `logrotate`
-    // has slightly different size semantics.  `logrotate` will rotate when the
-    // max size is *exceeded*.  We rotate to keep files *under* the max size.
-    const std::string config =
-      "\"" + flags.log_filename.get() + "\" {\n" +
-      flags.logrotate_options.getOrElse("") + "\n" +
-      "size " + stringify(flags.max_size.bytes() - length) + "\n" +
-      "}";
-
-    Try<Nothing> result = os::write(
-        flags.log_filename.get() + CONF_SUFFIX, config);
-
-    if (result.isError()) {
-      return Failure("Failed to write configuration file: " + result.error());
-    }
-
     // NOTE: This is a prerequisuite for `io::read`.
     Try<Nothing> async = io::prepare_async(STDIN_FILENO);
     if (async.isError()) {
@@ -113,7 +163,7 @@ public:
   // Reads from stdin and writes to the leading log file.
   void loop()
   {
-    io::read(STDIN_FILENO, buffer, length)
+    io::read(STDIN_FILENO, buffer, bufferSize)
       .then(defer(self(), [&](size_t readSize) -> Future<Nothing> {
         // Check if EOF has been reached on the input stream.
         // This indicates that the container (whose logs are being
@@ -171,7 +221,7 @@ public:
     // clearing the STDIN pipe (which would otherwise potentially block
     // the container on write) over log fidelity.
     Try<Nothing> result =
-      os::write(leading.get(), std::string(buffer, readSize));
+      os::write(leading.get(), string(buffer, readSize));
 
     if (result.isError()) {
       std::cerr << "Failed to write: " << result.error() << std::endl;
@@ -198,18 +248,40 @@ public:
     os::shell(
         flags.logrotate_path +
         " --state \"" + flags.log_filename.get() + STATE_SUFFIX + "\" \"" +
-        flags.log_filename.get() + CONF_SUFFIX + "\"");
+        configPath + "\"");
 
     // Reset the number of bytes written.
     bytesWritten = 0;
   }
 
 private:
-  Flags flags;
+  explicit LogrotateLoggerProcess(
+      const Flags& _flags,
+      const Option<int_fd>& _configMemFd,
+      size_t _bufferSize)
+    : ProcessBase(process::ID::generate("logrotate-logger")),
+      flags(_flags),
+      configMemFd(_configMemFd),
+      buffer(new char[_bufferSize]),
+      bufferSize(_bufferSize),
+      leading(None()),
+      bytesWritten(0)
+  {
+    if (configMemFd.isSome()) {
+      configPath = "/proc/self/fd/" + stringify(configMemFd.get());
+    } else {
+      configPath = flags.log_filename.get() + CONF_SUFFIX;
+    }
+  }
+
+  const Flags flags;
+  const Option<int_fd> configMemFd;
+
+  string configPath;
 
   // For reading from stdin.
   char* buffer;
-  size_t length;
+  const size_t bufferSize;
 
   // For writing and rotating the leading log file.
   Option<int> leading;
@@ -264,15 +336,24 @@ int main(int argc, char** argv)
   }
 
   // Asynchronously control the flow and size of logs.
-  LogrotateLoggerProcess process(flags);
-  spawn(&process);
+  Try<LogrotateLoggerProcess*> process = LogrotateLoggerProcess::create(flags);
+  if (process.isError()) {
+    EXIT(EXIT_FAILURE)
+      << Error("Failed to create Logrotate process: " + process.error());
+  }
+
+  spawn(process.get());
 
   // Wait for the logging process to finish.
-  Future<Nothing> status = dispatch(process, &LogrotateLoggerProcess::run);
+  Future<Nothing> status =
+    dispatch(process.get(), &LogrotateLoggerProcess::run);
+
   status.await();
 
-  terminate(process);
-  wait(process);
+  terminate(process.get());
+  wait(process.get());
+
+  delete process.get();
 
   return status.isReady() ? EXIT_SUCCESS : EXIT_FAILURE;
 }
