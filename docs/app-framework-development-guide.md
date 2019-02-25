@@ -58,6 +58,14 @@ schedulers in the same Mesos cluster:
 4. **Do not `REVIVE` frequently**: `REVIVE`ing clears all filters, and therefore
    if `REVIVE` occurs frequently it is similar to always declining with a very
    short timeout (violation of guideline (3)).
+5. **Use `FrameworkInfo.offer_filters`**: This allows the scheduler to specify
+   global offer filters (`Decline` filters, on the other hand, are per-agent).
+   Currently supported is `OfferFilters.min_allocatable_resources` which acts as
+   an override of the cluster level `--min_allocatable_resources` master flag for
+   each of the scheduler's roles. Keeping the `FrameworkInfo.offer_filters`
+   up-to-date with the minimum desired offer shape for each role will ensure that
+   the sccheduler gets a better chance to receive offers sized with sufficient
+   resources.
 
 Operationally, the following can be done to ensure that schedulers get the resources
 they need when co-existing with other schedulers:
