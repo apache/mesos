@@ -958,6 +958,17 @@ environment or find hadoop on <code>PATH</code>)
   </td>
 </tr>
 
+<tr id="host_path_volume_force_creation">
+  <td>
+    --host_path_volume_force_creation
+  </td>
+  <td>
+A colon-separated list of directories where descendant directories are
+allowed to be created by the <code>volume/host_path</code> isolator,
+if the directories do not exist.
+  </td>
+</tr>
+
 <tr id="http_credentials">
   <td>
     --http_credentials=VALUE
