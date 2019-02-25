@@ -197,7 +197,8 @@ def apply_reviews(review_request, reviews):
 
 def post_review(review_request, message):
     """Post a review on the review board."""
-    print("Posting review: %s" % message)
+    print("Posting review on %s :\n%s" \
+          % (review_request["absolute_url"], message))
 
     review_url = review_request["links"]["reviews"]["href"]
     data = urllib.parse.urlencode({"body_top": message, "public": "true"})
