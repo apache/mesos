@@ -331,9 +331,7 @@ struct RandomSorter::Node
       resources[slaveId] += toAdd;
       scalarQuantities += quantitiesToAdd;
 
-      foreach (const Resource& resource, quantitiesToAdd) {
-        totals[resource.name()] += resource.scalar();
-      }
+      totals += ResourceQuantities::fromScalarResources(quantitiesToAdd);
     }
 
     void subtract(const SlaveID& slaveId, const Resources& toRemove)
@@ -355,9 +353,7 @@ struct RandomSorter::Node
       const Resources quantitiesToRemove =
         (toRemove.nonShared() + sharedToRemove).createStrippedScalarQuantity();
 
-      foreach (const Resource& resource, quantitiesToRemove) {
-        totals[resource.name()] -= resource.scalar();
-      }
+      totals -= ResourceQuantities::fromScalarResources(quantitiesToRemove);
 
       CHECK(scalarQuantities.contains(quantitiesToRemove))
         << scalarQuantities << " does not contain " << quantitiesToRemove;
@@ -393,13 +389,8 @@ struct RandomSorter::Node
       scalarQuantities -= oldAllocationQuantity;
       scalarQuantities += newAllocationQuantity;
 
-      foreach (const Resource& resource, oldAllocationQuantity) {
-        totals[resource.name()] -= resource.scalar();
-      }
-
-      foreach (const Resource& resource, newAllocationQuantity) {
-        totals[resource.name()] += resource.scalar();
-      }
+      totals -= ResourceQuantities::fromScalarResources(oldAllocationQuantity);
+      totals += ResourceQuantities::fromScalarResources(newAllocationQuantity);
     }
 
     // We maintain multiple copies of each shared resource allocated

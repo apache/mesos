@@ -344,9 +344,7 @@ struct DRFSorter::Node
       resources[slaveId] += toAdd;
       scalarQuantities += quantitiesToAdd;
 
-      foreach (const Resource& resource, quantitiesToAdd) {
-        totals[resource.name()] += resource.scalar();
-      }
+      totals += ResourceQuantities::fromScalarResources(quantitiesToAdd);
 
       count++;
     }
@@ -370,9 +368,7 @@ struct DRFSorter::Node
       const Resources quantitiesToRemove =
         (toRemove.nonShared() + sharedToRemove).createStrippedScalarQuantity();
 
-      foreach (const Resource& resource, quantitiesToRemove) {
-        totals[resource.name()] -= resource.scalar();
-      }
+      totals -= ResourceQuantities::fromScalarResources(quantitiesToRemove);
 
       CHECK(scalarQuantities.contains(quantitiesToRemove))
         << scalarQuantities << " does not contain " << quantitiesToRemove;
@@ -408,13 +404,8 @@ struct DRFSorter::Node
       scalarQuantities -= oldAllocationQuantity;
       scalarQuantities += newAllocationQuantity;
 
-      foreach (const Resource& resource, oldAllocationQuantity) {
-        totals[resource.name()] -= resource.scalar();
-      }
-
-      foreach (const Resource& resource, newAllocationQuantity) {
-        totals[resource.name()] += resource.scalar();
-      }
+      totals -= ResourceQuantities::fromScalarResources(oldAllocationQuantity);
+      totals += ResourceQuantities::fromScalarResources(newAllocationQuantity);
     }
 
     // We store the number of times this client has been chosen for

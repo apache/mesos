@@ -62,9 +62,10 @@ Try<ResourceQuantities> ResourceQuantities::fromString(const string& text)
       return Error(
           "Failed to parse '" + pair[1] + "' to quantity:"
           " negative values are not allowed");
+    } else if (value->scalar().value() > 0) {
+      result.add(strings::trim(pair[0]), value->scalar());
     }
-
-    result[strings::trim(pair[0])] += value->scalar();
+    // Zero value is silently dropped.
   }
 
   return result;
@@ -79,7 +80,7 @@ ResourceQuantities ResourceQuantities::fromScalarResources(
   foreach (const Resource& resource, resources) {
     CHECK_EQ(Value::SCALAR, resource.type()) << " Resources: " << resources;
 
-    result[resource.name()] += resource.scalar();
+    result.add(resource.name(), resource.scalar());
   }
 
   return result;
@@ -100,7 +101,7 @@ ResourceQuantities::ResourceQuantities(
   // Use `auto` in place of `protobuf::MapPair<string, Value::Scalar>`
   // below since `foreach` is a macro and cannot contain angle brackets.
   foreach (auto&& quantity, quantities.quantities()) {
-    (*this)[quantity.first] = quantity.second;
+    add(quantity.first, quantity.second);
   }
 }
 
@@ -121,7 +122,7 @@ ResourceQuantities::const_iterator ResourceQuantities::end()
 }
 
 
-Option<Value::Scalar> ResourceQuantities::get(const string& name) const
+Value::Scalar ResourceQuantities::get(const string& name) const
 {
   // Don't bother binary searching since
   // we don't expect a large number of elements.
@@ -134,19 +135,103 @@ Option<Value::Scalar> ResourceQuantities::get(const string& name) const
     }
   }
 
-  return None();
+  return Value::Scalar();
 }
 
 
-Value::Scalar& ResourceQuantities::operator[](const string& name)
+ResourceQuantities& ResourceQuantities::operator+=(
+    const ResourceQuantities& right)
 {
+  size_t leftIndex = 0u;
+  size_t rightIndex = 0u;
+
+  // Since quantities are sorted in alphabetical order, we can walk them
+  // at the same time.
+  while (leftIndex < size() && rightIndex < right.size()) {
+    pair<string, Value::Scalar>& left_ = quantities.at(leftIndex);
+    const pair<string, Value::Scalar>& right_ = right.quantities.at(rightIndex);
+
+    if (left_.first < right_.first) {
+      // Item exists in the left but not in the right.
+      ++leftIndex;
+    } else if (left_.first > right_.first) {
+      // Item exists in the right but not in the left.
+      // Insert absent entries in the alphabetical order.
+      quantities.insert(quantities.begin() + leftIndex, right_);
+      ++leftIndex;
+      ++rightIndex;
+    } else {
+      // Item exists in both left and right.
+      left_.second += right_.second;
+      ++leftIndex;
+      ++rightIndex;
+    }
+  }
+
+  // Copy the remaining items in `right`.
+  while (rightIndex < right.size()) {
+    quantities.push_back(right.quantities.at(rightIndex));
+    ++rightIndex;
+  }
+
+  return *this;
+}
+
+
+ResourceQuantities& ResourceQuantities::operator-=(
+    const ResourceQuantities& right)
+{
+  size_t leftIndex = 0u;
+  size_t rightIndex = 0u;
+
+  // Since quantities are sorted in alphabetical order, we can walk them
+  // at the same time.
+  while (leftIndex < size() && rightIndex < right.size()) {
+    pair<string, Value::Scalar>& left_ = quantities.at(leftIndex);
+    const pair<string, Value::Scalar>& right_ = right.quantities.at(rightIndex);
+
+    if (left_.first < right_.first) {
+      // Item exists in the left but not in the right.
+      ++leftIndex;
+    } else if (left_.first > right_.first) {
+      // Item exists in the right but not in the left (i.e. 0), this
+      // would result in a negative entry, so skip it.
+      ++rightIndex;
+    } else {
+      // Item exists in both left and right.
+      if (left_.second <= right_.second) {
+        // Drop negative and zero entries.
+        quantities.erase(quantities.begin() + leftIndex);
+        ++rightIndex;
+      } else {
+        left_.second -= right_.second;
+        ++leftIndex;
+        ++rightIndex;
+      }
+    }
+  }
+
+  return *this;
+}
+
+
+void ResourceQuantities::add(const string& name, const Value::Scalar& scalar)
+{
+  CHECK_GE(scalar, Value::Scalar());
+
+  // Ignore adding zero.
+  if (scalar == Value::Scalar()) {
+    return;
+  }
+
   // Find the location to insert while maintaining
   // alphabetical ordering. Don't bother binary searching
   // since we don't expect a large number of quantities.
   auto it = quantities.begin();
   for (; it != quantities.end(); ++it) {
     if (it->first == name) {
-      return it->second;
+      it->second += scalar;
+      return;
     }
 
     if (it->first > name) {
@@ -154,9 +239,7 @@ Value::Scalar& ResourceQuantities::operator[](const string& name)
     }
   }
 
-  it = quantities.insert(it, std::make_pair(name, Value::Scalar()));
-
-  return it->second;
+  it = quantities.insert(it, std::make_pair(name, scalar));
 }
 
 

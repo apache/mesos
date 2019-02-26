@@ -440,10 +440,7 @@ void RandomSorter::add(const SlaveID& slaveId, const Resources& resources)
       (resources.nonShared() + newShared).createStrippedScalarQuantity();
 
     total_.scalarQuantities += scalarQuantities;
-
-    foreach (const Resource& resource, scalarQuantities) {
-      total_.totals[resource.name()] += resource.scalar();
-    }
+    total_.totals += ResourceQuantities::fromScalarResources(scalarQuantities);
   }
 }
 
@@ -467,12 +464,10 @@ void RandomSorter::remove(const SlaveID& slaveId, const Resources& resources)
     const Resources scalarQuantities =
       (resources.nonShared() + absentShared).createStrippedScalarQuantity();
 
-    foreach (const Resource& resource, scalarQuantities) {
-      total_.totals[resource.name()] -= resource.scalar();
-    }
-
     CHECK(total_.scalarQuantities.contains(scalarQuantities));
     total_.scalarQuantities -= scalarQuantities;
+
+    total_.totals -= ResourceQuantities::fromScalarResources(scalarQuantities);
 
     if (total_.resources[slaveId].empty()) {
       total_.resources.erase(slaveId);
