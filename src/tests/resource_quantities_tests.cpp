@@ -144,6 +144,29 @@ TEST(QuantitiesTest, FromStringInvalid)
 }
 
 
+TEST(QuantitiesTest, FromScalarResources)
+{
+  // Empty resources.
+  ResourceQuantities quantities =
+    ResourceQuantities::fromScalarResources(Resources());
+  EXPECT_EQ(0u, quantities.size());
+
+  // Result entries are ordered alphabetically.
+  quantities = ResourceQuantities::fromScalarResources(
+    CHECK_NOTERROR(Resources::parse("cpus:1;mem:512;disk:800")));
+  EXPECT_EQ(3u, quantities.size());
+  auto it = quantities.begin();
+  EXPECT_EQ("cpus", it->first);
+  EXPECT_DOUBLE_EQ(1, it->second.value());
+  ++it;
+  EXPECT_EQ("disk", it->first);
+  EXPECT_DOUBLE_EQ(800, it->second.value());
+  ++it;
+  EXPECT_EQ("mem", it->first);
+  EXPECT_DOUBLE_EQ(512, it->second.value());
+}
+
+
 TEST(QuantitiesTest, Insertion)
 {
   ResourceQuantities resourceQuantities =

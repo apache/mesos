@@ -22,6 +22,7 @@
 #include <vector>
 
 #include <mesos/mesos.hpp>
+#include <mesos/resources.hpp>
 
 #include <stout/try.hpp>
 
@@ -81,6 +82,13 @@ public:
   // Numbers must be non-negative and finite, otherwise an `Error`
   // will be returned.
   static Try<ResourceQuantities> fromString(const std::string& text);
+
+  // Take scalar `Resources` and combine them into `ResourceQuantities`.
+  // Only the resource name and its scalar value are used and the rest of the
+  // meta-data is ignored. It is caller's responsibility to ensure all
+  // `Resource` entries are of scalar type. Otherwise a `CHECK` error will
+  // be triggered.
+  static ResourceQuantities fromScalarResources(const Resources& resources);
 
   ResourceQuantities();
 
