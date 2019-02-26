@@ -30,32 +30,23 @@ namespace mesos {
 namespace internal {
 
 
-// An efficient collection of resource quantities.
+// An efficient collection of resource quantities. All values are guaranteed
+// to be positive and finite.
 //
-// E.g. [("cpus", 4.5), ("gpus", 0), ("ports", 1000)]
+// E.g. [("cpus", 4.5), ("gpus", 0.1), ("ports", 1000)]
 //
-// We provide map-like semantics: [] operator for inserting/retrieving values,
-// keys are unique, and iteration is sorted.
+// Absent resource entries imply there is no (zero) such resources.
 //
-// Notes on handling negativity and arithmetic operations: during construction,
-// `Value::Scalar` arguments must be non-negative and finite. Invalid arguments
-// will result in an error where `Try` is returned. Once constructed, users can
-// use `[]` operator to mutate values directly. No member methods are provided
-// for arithmetic operations. Users should be mindful of producing negatives
-// when mutating the `Value::Scalar` directly.
+// TODO(mzhu): Add `class ResourceLimits` where absence means infinite amount
+// of such resources.
 //
-// An alternative design for this class was to provide addition and
-// subtraction functions as opposed to a map interface. However, this
-// leads to some un-obvious semantics around presence of zero values
-// (will zero entries be automatically removed?) and handling of negatives
-// (will negatives trigger a crash? will they be converted to zero? Note
-// that Value::Scalar should be non-negative but there is currently no
-// enforcement of this by Value::Scalar arithmetic operations; we probably
-// want all Value::Scalar operations to go through the same negative
-// handling). To avoid the confusion, we provided a map like interface
-// which produces clear semantics: insertion works like maps, and the
-// user is responsible for performing arithmetic operations on the values
-// (using the already provided Value::Scalar arithmetic overloads).
+// Notes on handling negativity and arithmetic operations: values are guaranteed
+// to be positive. This is achieved by construction validation and no public
+// mutation interfaces. During construction, `Value::Scalar` arguments must be
+// non-negative and finite, and entries with zero quantities will be dropped
+// silently. Invalid arguments will result in an error where `Try`
+// is returned. For arithmetic operations, non-positive values are silently
+// dropped--this is consist with `class Resources`.
 //
 // Note for posterity, the status quo prior to this class
 // was to use stripped-down `Resources` objects for storing
@@ -72,6 +63,7 @@ class ResourceQuantities
 public:
   // Parse an input string of semicolon separated "name:number" pairs.
   // Duplicate names are allowed in the input and will be merged into one entry.
+  // Entries with zero values will be silently dropped.
   //
   // Example: "cpus:10;mem:1024;ports:3"
   //          "cpus:10; mem:1024; ports:3"
@@ -114,15 +106,16 @@ public:
 
   size_t size() const { return quantities.size(); };
 
-  // Returns the quantity scalar value if a quantity with the given name
-  // exists (even if the quantity is zero), otherwise return `None()`.
-  Option<Value::Scalar> get(const std::string& name) const;
+  // Returns the quantity scalar value if a quantity with the given name.
+  // If the given name is absent, return zero.
+  Value::Scalar get(const std::string& name) const;
 
-  // Like std::map, returns a reference to the quantity with the given name.
-  // If no quantity exists with the given name, a new entry will be created.
-  Value::Scalar& operator[](const std::string& name);
+  ResourceQuantities& operator+=(const ResourceQuantities& quantities);
+  ResourceQuantities& operator-=(const ResourceQuantities& quantities);
 
 private:
+  void add(const std::string& name, const Value::Scalar& scalar);
+
   // List of name quantity pairs sorted by name.
   // Arithmetic and comparison operations benefit from this sorting.
   std::vector<std::pair<std::string, Value::Scalar>> quantities;

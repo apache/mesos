@@ -515,10 +515,7 @@ void DRFSorter::add(const SlaveID& slaveId, const Resources& resources)
       (resources.nonShared() + newShared).createStrippedScalarQuantity();
 
     total_.scalarQuantities += scalarQuantities;
-
-    foreach (const Resource& resource, scalarQuantities) {
-      total_.totals[resource.name()] += resource.scalar();
-    }
+    total_.totals += ResourceQuantities::fromScalarResources(scalarQuantities);
 
     // We have to recalculate all shares when the total resources
     // change, but we put it off until `sort` is called so that if
@@ -548,12 +545,10 @@ void DRFSorter::remove(const SlaveID& slaveId, const Resources& resources)
     const Resources scalarQuantities =
       (resources.nonShared() + absentShared).createStrippedScalarQuantity();
 
-    foreach (const Resource& resource, scalarQuantities) {
-      total_.totals[resource.name()] -= resource.scalar();
-    }
-
     CHECK(total_.scalarQuantities.contains(scalarQuantities));
     total_.scalarQuantities -= scalarQuantities;
+
+    total_.totals -= ResourceQuantities::fromScalarResources(scalarQuantities);
 
     if (total_.resources[slaveId].empty()) {
       total_.resources.erase(slaveId);
@@ -671,9 +666,7 @@ double DRFSorter::calculateShare(const Node* node) const
       continue;
     }
 
-    Value::Scalar allocation =
-      node->allocation.totals.get(resourceName)
-        .getOrElse(Value::Scalar()); // Absent means zero.
+    Value::Scalar allocation = node->allocation.totals.get(resourceName);
 
     share = std::max(share, allocation.value() / scalar.value());
   }

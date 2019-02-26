@@ -53,13 +53,6 @@ TEST(QuantitiesTest, FromStringValid)
   EXPECT_EQ("cpus", resourceQuantities.begin()->first);
   EXPECT_DOUBLE_EQ(3.14, resourceQuantities.begin()->second.value());
 
-  // Zero value is retained.
-  resourceQuantities =
-    CHECK_NOTERROR(ResourceQuantities::fromString("cpus:0"));
-  EXPECT_EQ(1u, resourceQuantities.size());
-  EXPECT_EQ("cpus", resourceQuantities.begin()->first);
-  EXPECT_DOUBLE_EQ(0, resourceQuantities.begin()->second.value());
-
   // Whitespace is trimmed.
   resourceQuantities =
     CHECK_NOTERROR(ResourceQuantities::fromString(" cpus : 3.14 ; disk : 10 "));
@@ -70,6 +63,10 @@ TEST(QuantitiesTest, FromStringValid)
   ++it;
   EXPECT_EQ("disk", it->first);
   EXPECT_DOUBLE_EQ(10, it->second.value());
+
+  // Zero value.
+  resourceQuantities = CHECK_NOTERROR(ResourceQuantities::fromString("cpus:0"));
+  EXPECT_EQ(0u, resourceQuantities.size());
 
   // Two resources.
   resourceQuantities =
@@ -164,28 +161,6 @@ TEST(QuantitiesTest, FromScalarResources)
   ++it;
   EXPECT_EQ("mem", it->first);
   EXPECT_DOUBLE_EQ(512, it->second.value());
-}
-
-
-TEST(QuantitiesTest, Insertion)
-{
-  ResourceQuantities resourceQuantities =
-    CHECK_NOTERROR(ResourceQuantities::fromString("cpus:10"));
-
-  resourceQuantities["disk"] = Value::Scalar();
-  resourceQuantities["alpha"] = Value::Scalar();
-
-  auto it = resourceQuantities.begin();
-  EXPECT_EQ("alpha", it->first);
-  EXPECT_DOUBLE_EQ(0, it->second.value());
-
-  ++it;
-  EXPECT_EQ("cpus", it->first);
-  EXPECT_DOUBLE_EQ(10, it->second.value());
-
-  ++it;
-  EXPECT_EQ("disk", it->first);
-  EXPECT_DOUBLE_EQ(0, it->second.value());
 }
 
 
