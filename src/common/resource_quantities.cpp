@@ -71,6 +71,21 @@ Try<ResourceQuantities> ResourceQuantities::fromString(const string& text)
 }
 
 
+ResourceQuantities ResourceQuantities::fromScalarResources(
+  const Resources& resources)
+{
+  ResourceQuantities result;
+
+  foreach (const Resource& resource, resources) {
+    CHECK_EQ(Value::SCALAR, resource.type()) << " Resources: " << resources;
+
+    result[resource.name()] += resource.scalar();
+  }
+
+  return result;
+}
+
+
 ResourceQuantities::ResourceQuantities()
 {
   // Pre-reserve space for first-class resources.
