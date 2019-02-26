@@ -33,9 +33,9 @@ using std::vector;
 namespace mesos {
 namespace internal {
 
-  // This function tries to be consistent with `Resources::fromSimpleString()`.
-  // We trim the whitespace around the pair and in the number but whitespace in
-  // "c p us:10" are preserved and will be parsed to {"c p us", 10}.
+// This function tries to be consistent with `Resources::fromSimpleString()`.
+// We trim the whitespace around the pair and in the number but whitespace in
+// "c p us:10" are preserved and will be parsed to {"c p us", 10}.
 Try<ResourceQuantities> ResourceQuantities::fromString(const string& text)
 {
   ResourceQuantities result;
