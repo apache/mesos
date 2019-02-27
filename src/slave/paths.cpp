@@ -557,11 +557,28 @@ Try<list<string>> getOperationPaths(
 }
 
 
+Try<list<string>> getSlaveOperationPaths(
+    const string& metaDir,
+    const SlaveID& slaveId)
+{
+  return getOperationPaths(getSlavePath(metaDir, slaveId));
+}
+
+
 string getOperationPath(
     const string& rootDir,
     const id::UUID& operationUuid)
 {
   return path::join(rootDir, OPERATIONS_DIR, operationUuid.toString());
+}
+
+
+string getSlaveOperationPath(
+    const string& metaDir,
+    const SlaveID& slaveId,
+    const id::UUID& operationUuid)
+{
+  return getOperationPath(getSlavePath(metaDir, slaveId), operationUuid);
 }
 
 
@@ -592,6 +609,15 @@ Try<id::UUID> parseOperationPath(
 }
 
 
+Try<id::UUID> parseSlaveOperationPath(
+    const string& metaDir,
+    const SlaveID& slaveId,
+    const string& dir)
+{
+  return parseOperationPath(getSlavePath(metaDir, slaveId), dir);
+}
+
+
 string getOperationUpdatesPath(
     const string& rootDir,
     const id::UUID& operationUuid)
@@ -599,6 +625,15 @@ string getOperationUpdatesPath(
   return path::join(
       getOperationPath(rootDir, operationUuid),
       OPERATION_UPDATES_FILE);
+}
+
+
+string getSlaveOperationUpdatesPath(
+    const string& metaDir,
+    const SlaveID& slaveId,
+    const id::UUID& operationUuid)
+{
+  return getOperationUpdatesPath(getSlavePath(metaDir, slaveId), operationUuid);
 }
 
 

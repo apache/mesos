@@ -636,13 +636,6 @@ void Slave::initialize()
   taskStatusUpdateManager->pause();
   operationStatusUpdateManager.pause();
 
-  operationStatusUpdateManager.initialize(
-      defer(self(), &Self::sendOperationStatusUpdate, lambda::_1),
-      std::bind(
-          &slave::paths::getOperationUpdatesPath,
-          metaDir,
-          lambda::_1));
-
   // Start disk monitoring.
   // NOTE: We send a delayed message here instead of directly calling
   // checkDiskUsage, to make disabling this feature easy (e.g by specifying
@@ -1496,12 +1489,26 @@ void Slave::registered(
       Clock::cancel(agentRegistrationTimer);
 
       taskStatusUpdateManager->resume(); // Resume status updates.
-      operationStatusUpdateManager.resume();
 
       info.mutable_id()->CopyFrom(slaveId); // Store the slave id.
 
       // Create the slave meta directory.
       paths::createSlaveDirectory(metaDir, slaveId);
+
+      // Initialize and resume the operation status update manager.
+      //
+      // NOTE: There is no need to recover the operation status update manager,
+      // because its streams are checkpointed within the slave meta directory
+      // which was just created.
+      operationStatusUpdateManager.initialize(
+          defer(self(), &Self::sendOperationStatusUpdate, lambda::_1),
+          std::bind(
+              &slave::paths::getSlaveOperationUpdatesPath,
+              metaDir,
+              info.id(),
+              lambda::_1));
+
+      operationStatusUpdateManager.resume();
 
       // Checkpoint slave info.
       const string path = paths::getSlaveInfoPath(metaDir, slaveId);
@@ -4736,8 +4743,9 @@ void Slave::operationStatusAcknowledgement(
 
         // Garbage collect the status update stream.
 
-        const string path = slave::paths::getOperationPath(
+        const string path = slave::paths::getSlaveOperationPath(
             metaDir,
+            info.id(),
             operationUuid.get());
 
         // NOTE: We check if the path exists since we do not checkpoint some
@@ -7346,8 +7354,7 @@ Future<Nothing> Slave::recover(const Try<state::State>& state)
 
   return taskStatusUpdateManager->recover(metaDir, slaveState)
     .then(defer(self(), &Slave::_recoverContainerizer, slaveState))
-    .then(defer(self(), &Slave::_recoverOperations, slaveState))
-    .then(defer(self(), &Slave::__recoverOperations, lambda::_1));
+    .then(defer(self(), &Slave::_recoverOperations, slaveState));
 }
 
 
@@ -7358,10 +7365,22 @@ Future<Nothing> Slave::_recoverContainerizer(
 }
 
 
-Future<OperationStatusUpdateManagerState> Slave::_recoverOperations(
+Future<Nothing> Slave::_recoverOperations(
     const Option<state::SlaveState>& state)
 {
-  if (state.isSome() && state->operations.isSome()) {
+  if (state.isNone()) {
+    return Nothing();
+  }
+
+  operationStatusUpdateManager.initialize(
+      defer(self(), &Self::sendOperationStatusUpdate, lambda::_1),
+      std::bind(
+          &slave::paths::getSlaveOperationUpdatesPath,
+          metaDir,
+          info.id(),
+          lambda::_1));
+
+  if (state->operations.isSome()) {
     foreach (const Operation& operation, state->operations.get()) {
       Result<ResourceProviderID> resourceProviderId =
         getResourceProviderId(operation.info());
@@ -7388,7 +7407,8 @@ Future<OperationStatusUpdateManagerState> Slave::_recoverOperations(
   // operation ID for which a stream hasn't been created, we can't extract the
   // list of streams to recover from the content of the checkpointed
   // `ResourceState` message.
-  Try<list<string>> operationPaths = slave::paths::getOperationPaths(metaDir);
+  Try<list<string>> operationPaths =
+    slave::paths::getSlaveOperationPaths(metaDir, info.id());
 
   if (operationPaths.isError()) {
     return Failure(
@@ -7398,7 +7418,8 @@ Future<OperationStatusUpdateManagerState> Slave::_recoverOperations(
 
   list<id::UUID> operationUuids;
   foreach (const string& path, operationPaths.get()) {
-    Try<id::UUID> uuid = slave::paths::parseOperationPath(metaDir, path);
+    Try<id::UUID> uuid =
+      slave::paths::parseSlaveOperationPath(metaDir, info.id(), path);
 
     if (uuid.isError()) {
       return Failure(
@@ -7427,7 +7448,8 @@ Future<OperationStatusUpdateManagerState> Slave::_recoverOperations(
     operationUuids.emplace_back(std::move(uuid.get()));
   }
 
-  return operationStatusUpdateManager.recover(operationUuids, flags.strict);
+  return operationStatusUpdateManager.recover(operationUuids, flags.strict)
+    .then(defer(self(), &Slave::__recoverOperations, lambda::_1));
 }
 
 
@@ -7472,7 +7494,8 @@ Future<Nothing> Slave::__recoverOperations(
 
   // Garbage collect the operation streams.
   foreach (const id::UUID& uuid, completedOperations) {
-    const string path = slave::paths::getOperationPath(metaDir, uuid);
+    const string path =
+      slave::paths::getSlaveOperationPath(metaDir, info.id(), uuid);
 
     Try<Nothing> rmdir = os::rmdir(path);
     if (rmdir.isError()) {

@@ -555,7 +555,7 @@ public:
   // This is called after `_recoverContainerizer()`. It will add all
   // checkpointed operations affecting agent default resources and call
   // `OperationStatusUpdateManager::recover()`.
-  process::Future<OperationStatusUpdateManagerState> _recoverOperations(
+  process::Future<Nothing> _recoverOperations(
       const Option<state::SlaveState>& state);
 
   // This is called after `OperationStatusUpdateManager::recover()`
