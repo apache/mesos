@@ -40,17 +40,17 @@ inline Try<std::string> mktemp(
   ::memcpy(_path, path.c_str(), path.size() + 1);
 
   int_fd fd = ::mkstemp(_path);
-  Try<std::string> temp = std::string(_path);
+  std::string temp(_path);
   delete[] _path;
 
   if (fd < 0) {
-    temp = ErrnoError();
+    return ErrnoError();
   }
 
   Try<Nothing> close = os::close(fd);
 
   // We propagate `close` failures if creation of the temp file was successful.
-  if (temp.isSome() && close.isError()) {
+  if (close.isError()) {
     return Error("Failed to close '" + stringify(fd) + "':" + close.error());
   }
 
