@@ -1543,15 +1543,9 @@ TEST_F(StorageLocalResourceProviderTest, AgentRegisteredWithNewId)
       std::bind(isMountDisk<Resource>, lambda::_1, "test1"))))
     .WillOnce(FutureArg<1>(&diskCreatedOffers));
 
-  // We use the following filter so that the resources will not be
-  // filtered for 5 seconds (the default).
-  Filters acceptFilters;
-  acceptFilters.set_refuse_seconds(0);
-
   driver.acceptOffers(
       {rawDiskOffers->at(0).id()},
-      {CREATE_DISK(raw, Resource::DiskInfo::Source::MOUNT)},
-      acceptFilters);
+      {CREATE_DISK(raw, Resource::DiskInfo::Source::MOUNT)});
 
   AWAIT_READY(diskCreatedOffers);
   ASSERT_EQ(1u, diskCreatedOffers->size());
@@ -1648,8 +1642,8 @@ TEST_F(StorageLocalResourceProviderTest, AgentRegisteredWithNewId)
 
   driver.acceptOffers(
       {slaveRecoveredOffers->at(0).id()},
-      {CREATE_DISK(preprovisioned, Resource::DiskInfo::Source::MOUNT, "test2")},
-      acceptFilters);
+      {CREATE_DISK(
+          preprovisioned, Resource::DiskInfo::Source::MOUNT, "test2")});
 
   AWAIT_READY(operationFailedStatus);
   EXPECT_EQ(OPERATION_FAILED, operationFailedStatus->status().state());
@@ -1664,8 +1658,8 @@ TEST_F(StorageLocalResourceProviderTest, AgentRegisteredWithNewId)
 
   driver.acceptOffers(
       {operationFailedOffers->at(0).id()},
-      {CREATE_DISK(preprovisioned, Resource::DiskInfo::Source::MOUNT, "test1")},
-      acceptFilters);
+      {CREATE_DISK(
+          preprovisioned, Resource::DiskInfo::Source::MOUNT, "test1")});
 
   AWAIT_READY(diskRecoveredOffers);
   ASSERT_EQ(1u, diskRecoveredOffers->size());
@@ -2601,15 +2595,9 @@ TEST_F(
     .InSequence(offers)
     .WillOnce(FutureArg<1>(&volumeCreatedOffers));
 
-  // We use the following filter so that the resources will not be
-  // filtered for 5 seconds (the default).
-  Filters acceptFilters;
-  acceptFilters.set_refuse_seconds(0);
-
   driver.acceptOffers(
       {rawDiskOffers->at(0).id()},
-      {CREATE_DISK(source.get(), Resource::DiskInfo::Source::MOUNT)},
-      acceptFilters);
+      {CREATE_DISK(source.get(), Resource::DiskInfo::Source::MOUNT)});
 
   AWAIT_READY(volumeCreatedOffers);
   ASSERT_FALSE(volumeCreatedOffers->empty());
@@ -2691,8 +2679,7 @@ TEST_F(
        LAUNCH({createTask(
            volumeCreatedOffers->at(0).slave_id(),
            persistentVolume,
-           createCommandInfo("test -f " + path::join("volume", "file")))})},
-      acceptFilters);
+           createCommandInfo("test -f " + path::join("volume", "file")))})});
 
   AWAIT_READY(taskStarting);
   EXPECT_EQ(TASK_STARTING, taskStarting->state());
@@ -2724,9 +2711,7 @@ TEST_F(
 
   driver.acceptOffers(
       {taskFinishedOffers->at(0).id()},
-      {DESTROY(persistentVolume),
-       DESTROY_DISK(volume.get())},
-      acceptFilters);
+      {DESTROY(persistentVolume), DESTROY_DISK(volume.get())});
 
   AWAIT_READY(volumeDestroyedOffers);
   ASSERT_FALSE(volumeDestroyedOffers->empty());
@@ -3008,15 +2993,9 @@ TEST_F(StorageLocalResourceProviderTest, ImportPreprovisionedVolume)
       std::bind(isMountDisk<Resource>, lambda::_1, "test"))))
     .WillOnce(FutureArg<1>(&diskCreatedOffers));
 
-  // We use the following filter so that the resources will not be
-  // filtered for 5 seconds (the default).
-  Filters acceptFilters;
-  acceptFilters.set_refuse_seconds(0);
-
   driver.acceptOffers(
       {rawDiskOffers->at(0).id()},
-      {CREATE_DISK(preprovisioned, Resource::DiskInfo::Source::MOUNT, "test")},
-      acceptFilters);
+      {CREATE_DISK(preprovisioned, Resource::DiskInfo::Source::MOUNT, "test")});
 
   AWAIT_READY(diskCreatedOffers);
   ASSERT_EQ(1u, diskCreatedOffers->size());
@@ -3030,10 +3009,7 @@ TEST_F(StorageLocalResourceProviderTest, ImportPreprovisionedVolume)
       std::bind(isStoragePool<Resource>, lambda::_1, "test"))))
     .WillOnce(FutureArg<1>(&diskDestroyedOffers));
 
-  driver.acceptOffers(
-      {diskCreatedOffers->at(0).id()},
-      {DESTROY_DISK(created)},
-      acceptFilters);
+  driver.acceptOffers({diskCreatedOffers->at(0).id()}, {DESTROY_DISK(created)});
 
   AWAIT_READY(diskDestroyedOffers);
   ASSERT_EQ(1u, diskDestroyedOffers->size());
@@ -3165,8 +3141,7 @@ TEST_F(StorageLocalResourceProviderTest, RetryOperationStatusUpdate)
   // Create a volume.
   driver.acceptOffers(
       {offer.id()},
-      {CREATE_DISK(source.get(), Resource::DiskInfo::Source::MOUNT)},
-      {});
+      {CREATE_DISK(source.get(), Resource::DiskInfo::Source::MOUNT)});
 
   AWAIT_READY(droppedUpdateOperationStatusMessage);
 
@@ -3317,8 +3292,7 @@ TEST_F(
   // Create a volume.
   driver.acceptOffers(
       {offer.id()},
-      {CREATE_DISK(source.get(), Resource::DiskInfo::Source::MOUNT)},
-      {});
+      {CREATE_DISK(source.get(), Resource::DiskInfo::Source::MOUNT)});
 
   AWAIT_READY(droppedUpdateOperationStatusMessage);
 
@@ -3750,15 +3724,9 @@ TEST_F(StorageLocalResourceProviderTest, OperationStateMetrics)
     .InSequence(offers)
     .WillOnce(FutureArg<1>(&volumeCreatedOffers));
 
-  // We use the following filter so that the resources will not be
-  // filtered for 5 seconds (the default).
-  Filters acceptFilters;
-  acceptFilters.set_refuse_seconds(0);
-
   driver.acceptOffers(
       {rawDiskOffers->at(0).id()},
-      {CREATE_DISK(source.get(), Resource::DiskInfo::Source::MOUNT)},
-      acceptFilters);
+      {CREATE_DISK(source.get(), Resource::DiskInfo::Source::MOUNT)});
 
   AWAIT_READY(volumeCreatedOffers);
   ASSERT_FALSE(volumeCreatedOffers->empty());
@@ -3816,9 +3784,7 @@ TEST_F(StorageLocalResourceProviderTest, OperationStateMetrics)
     .WillRepeatedly(DeclineOffers(declineFilters)); // Decline further offers.
 
   driver.acceptOffers(
-      {volumeCreatedOffers->at(0).id()},
-      {DESTROY_DISK(volume.get())},
-      acceptFilters);
+      {volumeCreatedOffers->at(0).id()}, {DESTROY_DISK(volume.get())});
 
   AWAIT_READY(operationFailedOffers);
   ASSERT_FALSE(operationFailedOffers->empty());
@@ -3843,9 +3809,7 @@ TEST_F(StorageLocalResourceProviderTest, OperationStateMetrics)
     DROP_PROTOBUF(ApplyOperationMessage(), _, _);
 
   driver.acceptOffers(
-      {operationFailedOffers->at(0).id()},
-      {DESTROY_DISK(volume.get())},
-      acceptFilters);
+      {operationFailedOffers->at(0).id()}, {DESTROY_DISK(volume.get())});
 
   AWAIT_READY(applyOperationMessage);
   ASSERT_TRUE(applyOperationMessage
@@ -4017,15 +3981,9 @@ TEST_F(StorageLocalResourceProviderTest, CsiPluginRpcMetrics)
     .InSequence(offers)
     .WillOnce(FutureArg<1>(&volumeCreatedOffers));
 
-  // We use the following filter so that the resources will not be
-  // filtered for 5 seconds (the default).
-  Filters acceptFilters;
-  acceptFilters.set_refuse_seconds(0);
-
   driver.acceptOffers(
       {rawDiskOffers->at(0).id()},
-      {CREATE_DISK(source.get(), Resource::DiskInfo::Source::MOUNT)},
-      acceptFilters);
+      {CREATE_DISK(source.get(), Resource::DiskInfo::Source::MOUNT)});
 
   AWAIT_READY(volumeCreatedOffers);
   ASSERT_FALSE(volumeCreatedOffers->empty());
@@ -4111,9 +4069,7 @@ TEST_F(StorageLocalResourceProviderTest, CsiPluginRpcMetrics)
     .WillRepeatedly(DeclineOffers(declineFilters)); // Decline further offers.
 
   driver.acceptOffers(
-      {volumeCreatedOffers->at(0).id()},
-      {DESTROY_DISK(volume.get())},
-      acceptFilters);
+      {volumeCreatedOffers->at(0).id()}, {DESTROY_DISK(volume.get())});
 
   AWAIT_READY(operationFailedOffers);
   ASSERT_FALSE(operationFailedOffers->empty());
@@ -4276,17 +4232,11 @@ TEST_F(StorageLocalResourceProviderTest, ReconcileDroppedOperation)
   Future<UpdateOperationStatusMessage> operationFinishedStatus =
     FUTURE_PROTOBUF(UpdateOperationStatusMessage(), _, _);
 
-  // We use the following filter so that the resources will not be
-  // filtered for 5 seconds (the default).
-  Filters acceptFilters;
-  acceptFilters.set_refuse_seconds(0);
-
   // Attempt the creation of two volumes.
   driver.acceptOffers(
       {offersBeforeOperations->at(0).id()},
       {CREATE_DISK(source1, Resource::DiskInfo::Source::MOUNT),
-       CREATE_DISK(source2, Resource::DiskInfo::Source::MOUNT)},
-      acceptFilters);
+       CREATE_DISK(source2, Resource::DiskInfo::Source::MOUNT)});
 
   // Ensure that the operations are processed.
   Clock::settle();
