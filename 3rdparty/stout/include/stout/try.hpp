@@ -17,6 +17,7 @@
 
 #include <iostream>
 #include <string>
+#include <utility>
 
 #include <stout/abort.hpp>
 #include <stout/error.hpp>
@@ -83,6 +84,11 @@ public:
 
   const T* operator->() const { return &get(); }
   T* operator->() { return &get(); }
+
+  const T& operator*() const& { return get(); }
+  T& operator*() & { return get(); }
+  const T&& operator*() const&& { return std::move(*this).get(); }
+  T&& operator*() && { return std::move(*this).get(); }
 
   // NOTE: This function is intended to return the error of type `E`.
   // However, we return a `std::string` if `E` == `Error` since that's what it

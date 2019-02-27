@@ -26,3 +26,38 @@ TEST(TryTest, ArrowOperator)
   s->clear();
   EXPECT_TRUE(s->empty());
 }
+
+
+TEST(TryTest, StarOperator)
+{
+  // A test class with a `moved` flag where we can verify if an object
+  // has been moved.
+  struct Foo
+  {
+    bool moved = false;
+    string s;
+
+    Foo(const string& s) { this->s = s; };
+
+    Foo(Foo&& that)
+    {
+      s = std::move(that.s);
+      that.moved = true;
+    };
+
+    Foo& operator=(Foo&& that)
+    {
+      s = std::move(that.s);
+      that.moved = true;
+
+      return *this;
+    };
+  };
+
+  Try<Foo> foo("hello");
+  EXPECT_EQ("hello", (*foo).s);
+
+  Try<Foo> bar(*std::move(foo));
+  EXPECT_EQ("hello", (*bar).s);
+  EXPECT_TRUE(foo->moved);
+}

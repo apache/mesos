@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <functional>
 #include <type_traits>
+#include <utility>
 
 #include <boost/functional/hash.hpp>
 
@@ -122,6 +123,11 @@ public:
 
   const T* operator->() const { return &get(); }
   T* operator->() { return &get(); }
+
+  const T& operator*() const& { return get(); }
+  T& operator*() & { return get(); }
+  const T&& operator*() const&& { return std::move(*this).get(); }
+  T&& operator*() && { return std::move(*this).get(); }
 
   template <typename U>
   T getOrElse(U&& u) const &

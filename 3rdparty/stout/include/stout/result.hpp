@@ -121,6 +121,11 @@ public:
   const T* operator->() const { return &get(); }
   T* operator->() { return &get(); }
 
+  const T& operator*() const& { return get(); }
+  T& operator*() & { return get(); }
+  const T&& operator*() const&& { return std::move(*this).get(); }
+  T&& operator*() && { return std::move(*this).get(); }
+
   const std::string& error() const { assert(isError()); return data.error(); }
 
 private:
