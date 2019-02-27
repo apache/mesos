@@ -4666,40 +4666,28 @@ void Slave::operationStatusAcknowledgement(
     const AcknowledgeOperationStatusMessage& acknowledgement)
 {
   Operation* operation = getOperation(acknowledgement.operation_uuid());
-  if (operation != nullptr) {
-    // If the operation was on resource provider resources forward the
-    // acknowledgement to the resource provider manager as well.
-    Result<ResourceProviderID> resourceProviderId =
-      getResourceProviderId(operation->info());
 
-    CHECK(!resourceProviderId.isError())
-      << "Could not determine resource provider of operation " << operation
-      << ": " << resourceProviderId.error();
+  if (operation == nullptr) {
+    LOG(WARNING) << "Dropping operation update acknowledgement with"
+      << " status_uuid " << acknowledgement.status_uuid() << " and"
+      << " operation_uuid " << acknowledgement.operation_uuid()
+      << " because the operation was not found";
 
-    if (resourceProviderId.isSome()) {
-      CHECK_NOTNULL(resourceProviderManager.get())
-        ->acknowledgeOperationStatus(acknowledgement);
-    } else {
-      // Acknowledgement was for an operation on the agent's default resources
-      auto statusUuid = id::UUID::fromBytes(
-          acknowledgement.status_uuid().value());
+    return;
+  }
 
-      auto operationUuid = id::UUID::fromBytes(
-          acknowledgement.operation_uuid().value());
+  // If the operation was on resource provider resources forward the
+  // acknowledgement to the resource provider manager as well.
+  Result<ResourceProviderID> resourceProviderId =
+    getResourceProviderId(operation->info());
 
-      if (operationUuid.isError() || statusUuid.isError()) {
-        LOG(WARNING) << "Dropping acknowledgement for operation " << operation
-                     << " with provided operation uuid "
-                     << acknowledgement.operation_uuid().value()
-                     << " and status uuid "
-                     << acknowledgement.status_uuid().value() << ".";
-        return;
-      }
+  CHECK(!resourceProviderId.isError())
+    << "Could not determine resource provider of operation " << operation
+    << ": " << resourceProviderId.error();
 
-      operationStatusUpdateManager.acknowledgement(
-          operationUuid.get(),
-          statusUuid.get());
-    }
+  if (resourceProviderId.isSome()) {
+    CHECK_NOTNULL(resourceProviderManager.get())
+      ->acknowledgeOperationStatus(acknowledgement);
 
     CHECK(operation->statuses_size() > 0);
     if (protobuf::isTerminalState(
@@ -4710,12 +4698,63 @@ void Slave::operationStatusAcknowledgement(
       // cause the agent to add the operation back.
       removeOperation(operation);
     }
-  } else {
-    LOG(WARNING) << "Dropping operation update acknowledgement with"
-                 << " status_uuid " << acknowledgement.status_uuid() << " and"
-                 << " operation_uuid " << acknowledgement.operation_uuid()
-                 << " because the operation was not found";
+
+    return;
   }
+
+  // Acknowledgement was for an operation on the agent's default resources.
+  auto statusUuid = id::UUID::fromBytes(
+      acknowledgement.status_uuid().value());
+
+  auto operationUuid = id::UUID::fromBytes(
+      acknowledgement.operation_uuid().value());
+
+  if (operationUuid.isError() || statusUuid.isError()) {
+    LOG(WARNING) << "Dropping acknowledgement for operation " << operation
+      << " with provided operation uuid "
+      << acknowledgement.operation_uuid().value()
+      << " and status uuid "
+      << acknowledgement.status_uuid().value() << ".";
+    return;
+  }
+
+  auto err = [](const id::UUID& uuid, const string& message) {
+    LOG(ERROR)
+      << "Failed to acknowledge status update for operation (uuid: " << uuid
+      << "): " << message;
+  };
+
+  // NOTE: It is possible that an incoming acknowledgement races with an
+  // outgoing retry of status update, and then a duplicated
+  // acknowledgement will be received. In this case, the following call
+  // will fail, so we just leave an error log.
+  operationStatusUpdateManager
+    .acknowledgement(operationUuid.get(), statusUuid.get())
+    .then(defer(self(), [=](bool continuation) {
+      if (!continuation) {
+        removeOperation(operation);
+
+        // Garbage collect the status update stream.
+
+        const string path = slave::paths::getOperationPath(
+            metaDir,
+            operationUuid.get());
+
+        // NOTE: We check if the path exists since we do not checkpoint some
+        // status updates, such as OPERATION_DROPPED.
+        if (os::exists(path)) {
+          Try<Nothing> rmdir = os::rmdir(path);
+          if (rmdir.isError()) {
+            LOG(ERROR) << "Failed to remove operation status update stream "
+                       << "directory '" << path << "': " << rmdir.error();
+          }
+        }
+      }
+
+      return Nothing();
+    }))
+    .onFailed(std::bind(err, operationUuid.get(), lambda::_1))
+    .onDiscarded(std::bind(err, operationUuid.get(), "future discarded"));
 }
 
 
@@ -7407,6 +7446,39 @@ Future<Nothing> Slave::__recoverOperations(
       << state->errors;
 
     metrics.recovery_errors += state->errors;
+  }
+
+  // Clean up operations with terminated streams.
+  //
+  // These are operations with terminal updates that have already been
+  // acknowledged. They could still be checkpointed if the agent failed
+  // over just before removing them from its state.
+  using StreamState = typename OperationStatusUpdateManagerState::StreamState;
+  vector<id::UUID> completedOperations;
+  foreachpair (const id::UUID& uuid,
+               const Option<StreamState>& stream,
+               state->streams) {
+    if (stream.isSome() && stream->terminated) {
+      UUID operationUuid;
+      operationUuid.set_value(uuid.toBytes());
+
+      Operation* operation = getOperation(operationUuid);
+      if (operation != nullptr) {
+        removeOperation(operation);
+        completedOperations.push_back(uuid);
+      }
+    }
+  }
+
+  // Garbage collect the operation streams.
+  foreach (const id::UUID& uuid, completedOperations) {
+    const string path = slave::paths::getOperationPath(metaDir, uuid);
+
+    Try<Nothing> rmdir = os::rmdir(path);
+    if (rmdir.isError()) {
+      LOG(ERROR) << "Failed to remove operation status update stream "
+                 << "directory '" << path << "': " << rmdir.error();
+    }
   }
 
   foreachpair (const UUID& uuid, Operation* operation, operations) {
