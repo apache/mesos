@@ -7322,7 +7322,6 @@ Future<Nothing> Slave::_recoverContainerizer(
 Future<OperationStatusUpdateManagerState> Slave::_recoverOperations(
     const Option<state::SlaveState>& state)
 {
-  list<id::UUID> operationUuids;
   if (state.isSome() && state->operations.isSome()) {
     foreach (const Operation& operation, state->operations.get()) {
       Result<ResourceProviderID> resourceProviderId =
@@ -7331,11 +7330,62 @@ Future<OperationStatusUpdateManagerState> Slave::_recoverOperations(
       // Only operations affecting agent default resources are checkpointed.
       CHECK(resourceProviderId.isNone());
 
-      operationUuids.push_back(
-          CHECK_NOTERROR(id::UUID::fromBytes(operation.uuid().value())));
-
       addOperation(new Operation(operation));
     }
+  }
+
+  // Walk the operation status update streams directories in order to generate
+  // the list of streams to recover.
+  //
+  // NOTE: It is possible for the agent to fail over right after having
+  // checkpointed an operation in a `ResourceState` message, but before having
+  // created the corresponding stream.
+  //
+  // In that case the checkpointed message will contain the operation, but the
+  // corresponding directory for the operation status update stream will not
+  // exist.
+  //
+  // Since the SUM recovery process will return an error if invoked with an
+  // operation ID for which a stream hasn't been created, we can't extract the
+  // list of streams to recover from the content of the checkpointed
+  // `ResourceState` message.
+  Try<list<string>> operationPaths = slave::paths::getOperationPaths(metaDir);
+
+  if (operationPaths.isError()) {
+    return Failure(
+        "Failed to find operation status update streams: " +
+        operationPaths.error());
+  }
+
+  list<id::UUID> operationUuids;
+  foreach (const string& path, operationPaths.get()) {
+    Try<id::UUID> uuid = slave::paths::parseOperationPath(metaDir, path);
+
+    if (uuid.isError()) {
+      return Failure(
+          "Failed to parse operation status update stream path '" + path +
+          "': " + uuid.error());
+    }
+
+    UUID uuid_;
+    uuid_.set_value(uuid->toBytes());
+
+    // NOTE: This could happen if we failed to remove the operation path before.
+    if (!operations.contains(uuid_)) {
+      LOG(WARNING)
+        << "Garbage collecting status update stream for unknown operation"
+        << " (uuid: " << uuid.get() << ")";
+
+      Try<Nothing> rmdir = os::rmdir(path);
+      if (rmdir.isError()) {
+        LOG(ERROR)
+          << "Failed to remove directory '" << path << "': " << rmdir.error();
+      }
+
+      continue;
+    }
+
+    operationUuids.emplace_back(std::move(uuid.get()));
   }
 
   return operationStatusUpdateManager.recover(operationUuids, flags.strict);
@@ -7359,9 +7409,7 @@ Future<Nothing> Slave::__recoverOperations(
     metrics.recovery_errors += state->errors;
   }
 
-  foreachpair (const UUID& uuid,
-               Operation* operation,
-               operations) {
+  foreachpair (const UUID& uuid, Operation* operation, operations) {
     const id::UUID operationUuid(
         CHECK_NOTERROR(id::UUID::fromBytes(uuid.value())));
 
@@ -7373,8 +7421,10 @@ Future<Nothing> Slave::__recoverOperations(
         : Option<FrameworkID>::none();
 
     if (operation->latest_status().state() == OPERATION_PENDING) {
-      // The agent failed over before creating an `OPERATION_FINISHED` update.
-      CHECK(!state->streams.contains(operationUuid));
+      // The agent failed over before the checkpoint of the
+      // `OPERATION_FINISHED` update completed.
+      CHECK(state->streams.get(operationUuid).isNone() ||
+            state->streams.get(operationUuid)->isNone());
 
       Option<OperationID> operationId =
         operation->info().has_id()
