@@ -148,6 +148,103 @@ TEST(QuantitiesTest, FromScalarResources)
 }
 
 
+TEST(QuantitiesTest, Addition)
+{
+  // Empty quantity:
+  // "cpus:10" + [ ] = "cpus:10"
+  ResourceQuantities quantities =
+    CHECK_NOTERROR(ResourceQuantities::fromString("cpus:10"));
+  quantities += ResourceQuantities();
+  vector<pair<string, double>> expected = {{"cpus", 10}};
+  EXPECT_EQ(expected, toVector(quantities));
+
+  // Same name entries:
+  // "cpus:10" + "cpus:0.1" = "cpus:10.1"
+  quantities = CHECK_NOTERROR(ResourceQuantities::fromString("cpus:10"));
+  quantities += CHECK_NOTERROR(ResourceQuantities::fromString("cpus:0.1"));
+  expected = {{"cpus", 10.1}};
+  EXPECT_EQ(expected, toVector(quantities));
+
+  // Different name entries, insert at head:
+  // "cpus:10.1" + "alphas:1" = "alphas:1;cpus:10.1"
+  quantities = CHECK_NOTERROR(ResourceQuantities::fromString("cpus:10.1"));
+  quantities += CHECK_NOTERROR(ResourceQuantities::fromString("alphas:1"));
+  expected = {{"alphas", 1}, {"cpus", 10.1}};
+  EXPECT_EQ(expected, toVector(quantities));
+
+  // Different name entries, insert at tail:
+  // "cpus:10.1" + "mem:1" = "cpus:10.1;mem:1"
+  quantities = CHECK_NOTERROR(ResourceQuantities::fromString("cpus:10.1"));
+  quantities += CHECK_NOTERROR(ResourceQuantities::fromString("mem:1"));
+  expected = {{"cpus", 10.1}, {"mem", 1}};
+  EXPECT_EQ(expected, toVector(quantities));
+
+  // Mixed: "alphas:1;cpus:10.1" + "cpus:1;mem:100" =
+  // "alphas:1;cpus:11.1;mem:100"
+  quantities =
+    CHECK_NOTERROR(ResourceQuantities::fromString("alphas:1;cpus:10.1"));
+  quantities +=
+    CHECK_NOTERROR(ResourceQuantities::fromString("cpus:1;mem:100"));
+  expected = {{"alphas", 1}, {"cpus", 11.1}, {"mem", 100}};
+  EXPECT_EQ(expected, toVector(quantities));
+}
+
+TEST(QuantitiesTest, Subtraction)
+{
+  // Empty subtrahend:
+  // [ ] - "cpus:1" = [ ]
+  ResourceQuantities quantities{};
+  quantities -= CHECK_NOTERROR(ResourceQuantities::fromString("cpus:1"));
+  EXPECT_EQ(0u, quantities.size());
+
+  // Empty minuend:
+  // "cpus:1" - [ ] = "cpus:1"
+  quantities = CHECK_NOTERROR(ResourceQuantities::fromString("cpus:1"));
+  quantities -= ResourceQuantities();
+  vector<pair<string, double>> expected = {{"cpus", 1}};
+  EXPECT_EQ(expected, toVector(quantities));
+
+  // Same name entry, positive result is retained:
+  // "cpus:1" - "cpus:0.4" = "cpus:0.6"
+  quantities = CHECK_NOTERROR(ResourceQuantities::fromString("cpus:1"));
+  quantities -= CHECK_NOTERROR(ResourceQuantities::fromString("cpus:0.4"));
+  expected = {{"cpus", 0.6}};
+  EXPECT_EQ(expected, toVector(quantities));
+
+  // Same name entry, zero is dropped:
+  // "cpus:1" - "cpus:1" = [ ]
+  quantities = CHECK_NOTERROR(ResourceQuantities::fromString("cpus:1"));
+  quantities -= CHECK_NOTERROR(ResourceQuantities::fromString("cpus:1"));
+  EXPECT_EQ(0u, quantities.size());
+
+  // Same name entry, negative entry is dropped:
+  // "cpus:1" - "cpus:1.4" = [ ]
+  quantities = CHECK_NOTERROR(ResourceQuantities::fromString("cpus:1"));
+  quantities -= CHECK_NOTERROR(ResourceQuantities::fromString("cpus:1.4"));
+  EXPECT_EQ(0u, quantities.size());
+
+  // Different name entry:
+  // "cpus:1" - "mem:100" = "cpus:1"
+  quantities = CHECK_NOTERROR(ResourceQuantities::fromString("cpus:1"));
+  quantities -= CHECK_NOTERROR(ResourceQuantities::fromString("mem:100"));
+  expected = {{"cpus", 1}};
+  EXPECT_EQ(expected, toVector(quantities));
+
+  // "cpus:1" - "alphas:1" = "cpus:1"
+  quantities = CHECK_NOTERROR(ResourceQuantities::fromString("cpus:1"));
+  quantities -= CHECK_NOTERROR(ResourceQuantities::fromString("alphas:1"));
+  expected = {{"cpus", 1}};
+  EXPECT_EQ(expected, toVector(quantities));
+
+  // Mixed: "cpus:1;mem:100" - "alphas:1;cpus:0.5" = "cpus:0.5;mem:100"
+  quantities = CHECK_NOTERROR(ResourceQuantities::fromString("cpus:1;mem:100"));
+  quantities -=
+    CHECK_NOTERROR(ResourceQuantities::fromString("alphas:1;cpus:0.5"));
+  expected = {{"cpus", 0.5}, {"mem", 100}};
+  EXPECT_EQ(expected, toVector(quantities));
+}
+
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
