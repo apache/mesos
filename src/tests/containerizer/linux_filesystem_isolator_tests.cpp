@@ -1307,6 +1307,107 @@ TEST_F(LinuxFilesystemIsolatorMesosTest,
   driver.join();
 }
 
+
+// This test verifies that a command task launched with a
+// non-root user can write to a shared persistent volume.
+TEST_F(LinuxFilesystemIsolatorMesosTest,
+       ROOT_UNPRIVILEGED_USER_SharedPersistentVolume)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.resources = "cpus:2;mem:128;disk(role1):128";
+  flags.isolation = "filesystem/linux,docker/runtime";
+  flags.volume_gid_range = "[10000-20000]";
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_roles(0, "role1");
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::SHARED_RESOURCES);
+
+  MesosSchedulerDriver driver(
+      &sched,
+      frameworkInfo,
+      master.get()->pid,
+      DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  // We create a shared volume which shall be used by the task to
+  // write to that volume.
+  Resource volume = createPersistentVolume(
+      Megabytes(4),
+      "role1",
+      "id1",
+      "volume_path",
+      None(),
+      None(),
+      frameworkInfo.principal(),
+      true); // Shared volume.
+
+  Option<string> user = os::getenv("SUDO_USER");
+  ASSERT_SOME(user);
+
+  CommandInfo command = createCommandInfo(
+        "echo hello > volume_path/file");
+
+  command.set_user(user.get());
+
+  Resources taskResources =
+    Resources::parse("cpus:1;mem:64;disk(role1):1").get() + volume;
+
+  TaskInfo task = createTask(
+      offers.get()[0].slave_id(),
+      taskResources,
+      command);
+
+  Future<TaskStatus> statusStarting;
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFinished;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished));
+
+  driver.acceptOffers(
+      {offers.get()[0].id()},
+      {CREATE(volume),
+       LAUNCH({task})});
+
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(task.task_id(), statusStarting->task_id());
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(task.task_id(), statusRunning->task_id());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  AWAIT_READY(statusFinished);
+  EXPECT_EQ(task.task_id(), statusFinished->task_id());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
+
+  driver.stop();
+  driver.join();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
