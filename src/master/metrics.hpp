@@ -60,6 +60,50 @@ struct Metrics
 
   process::metrics::PullGauge outstanding_offers;
 
+  // Contains counters 'prefix/pending', 'prefix/recovering', etc.
+  struct OperationStates {
+    OperationStates(const std::string& prefix);
+    ~OperationStates();
+
+    void update(const OperationState& state, int delta);
+
+    process::metrics::Counter total;
+
+    process::metrics::PushGauge pending;
+    process::metrics::PushGauge recovering;
+    process::metrics::PushGauge unreachable;
+    process::metrics::Counter finished;
+    process::metrics::Counter failed;
+    process::metrics::Counter error;
+    process::metrics::Counter dropped;
+    process::metrics::Counter gone_by_operator;
+  };
+
+  // Operation states are tracked in two granularities: master-wide and
+  // per operation type. Additionally, for every framework the types of
+  // operations are tracked but not their states.
+  //
+  // NOTE: These metrics are missing the implicit operation statuses that
+  // are generated on operation reconciliation. For example, when a framework
+  // queries the state of an unknown operation on an unreachable agent,
+  // the master will generate an `OPERATION_UNREACHABLE` update that is not
+  // counted by these metrics.
+  OperationStates operation_states;
+  hashmap<Offer::Operation::Type, OperationStates> operation_type_states;
+
+  void incrementOperationState(
+      Offer::Operation::Type type,
+      const OperationState& state);
+
+  void decrementOperationState(
+      Offer::Operation::Type type,
+      const OperationState& state);
+
+  void transitionOperationState(
+      Offer::Operation::Type type,
+      const OperationState& oldState,
+      const OperationState& newState);
+
   process::metrics::PushGauge operator_event_stream_subscribers;
 
   // Task state metrics.
@@ -158,6 +202,7 @@ struct Metrics
   process::metrics::Counter messages_reregister_slave;
   process::metrics::Counter messages_unregister_slave;
   process::metrics::Counter messages_status_update;
+  process::metrics::Counter messages_operation_status_update;
   process::metrics::Counter messages_exited_executor;
   process::metrics::Counter messages_update_slave;
 
@@ -174,6 +219,9 @@ struct Metrics
 
   process::metrics::Counter valid_status_update_acknowledgements;
   process::metrics::Counter invalid_status_update_acknowledgements;
+
+  process::metrics::Counter valid_operation_status_updates;
+  process::metrics::Counter invalid_operation_status_updates;
 
   process::metrics::Counter valid_operation_status_update_acknowledgements;
   process::metrics::Counter invalid_operation_status_update_acknowledgements;

@@ -2289,11 +2289,14 @@ void Master::drop(
 {
   CHECK_NOTNULL(framework);
 
-  // TODO(jieyu): Increment a metric.
-
   LOG(WARNING) << "Dropping " << Offer::Operation::Type_Name(operation.type())
                << " operation from framework " << *framework
                << ": " << message;
+
+  // NOTE: Despite the suggestive name of this method, it is called
+  // as part of validation so the correct updated state is `OPERATION_ERROR`,
+  // not `OPERATION_DROPPED`.
+  metrics->incrementOperationState(operation.type(), OPERATION_ERROR);
 
   // NOTE: The operation validation code should be refactored. Due to the order
   // of validation, it's possible that this function will be called before the
@@ -8737,6 +8740,8 @@ void Master::updateOperationStatus(UpdateOperationStatusMessage&& update)
   CHECK(update.has_slave_id())
     << "External resource provider is not supported yet";
 
+  ++metrics->messages_operation_status_update;
+
   const SlaveID& slaveId = update.slave_id();
 
   // The status update for the operation might be for an
@@ -8789,6 +8794,7 @@ void Master::updateOperationStatus(UpdateOperationStatusMessage&& update)
                        : "an operator API call")
                  << ": Agent " << slaveId << " is not registered";
 
+    ++metrics->invalid_operation_status_updates;
     return;
   }
 
@@ -8810,8 +8816,14 @@ void Master::updateOperationStatus(UpdateOperationStatusMessage&& update)
       framework->send(update);
     }
 
+    ++metrics->invalid_operation_status_updates;
     return;
   }
+
+  // TODO(bevers): Most of the `CHECK()`s below could probably be turned
+  // into validation steps that would just reject the message as opposed
+  // to crashing the master.
+  ++metrics->valid_operation_status_updates;
 
   if (operation->info().has_id()) {
     // Agents don't include the framework and operation IDs when sending
@@ -11301,6 +11313,10 @@ void Master::_removeSlave(
   // reconciliation requests. However, since the same thing happens during
   // master failover, the scheduler must be able to handle this scenario
   // anyway so we allow it to happen here.
+  //
+  // TODO(bevers): The operations removed here are implicitly transitioned
+  // to `OPERATION_UNKNOWN` state, but we don't have a corresponding metric
+  // for that, nor is it the correct state.
   foreachvalue (Operation* operation, utils::copy(slave->operations)) {
     removeOperation(operation);
   }
@@ -11452,8 +11468,15 @@ void Master::__removeSlave(
   // reconciliation requests. However, since the same thing happens during
   // master failover, the scheduler must be able to handle this scenario
   // anyway so we allow it to happen here.
+  OperationState transitionState = unreachableTime.isSome() ?
+    OPERATION_UNREACHABLE :
+    OPERATION_GONE_BY_OPERATOR;
+
   foreachvalue (Operation* operation, utils::copy(slave->operations)) {
     removeOperation(operation);
+    metrics->incrementOperationState(
+        operation->info().type(),
+        transitionState);
   }
 
   foreachvalue (
@@ -11463,6 +11486,9 @@ void Master::__removeSlave(
         Operation* operation,
         utils::copy(provider.operations)) {
       removeOperation(operation);
+      metrics->incrementOperationState(
+          operation->info().type(),
+          transitionState);
     }
   }
 
@@ -11742,6 +11768,9 @@ void Master::addOperation(
   CHECK_NOTNULL(operation);
   CHECK_NOTNULL(slave);
 
+  metrics->incrementOperationState(
+      operation->info().type(), operation->latest_status().state());
+
   slave->addOperation(operation);
 
   if (framework != nullptr) {
@@ -11783,6 +11812,11 @@ void Master::updateOperation(
                   : " an operator API call")
             << " (latest state: " << operation->latest_status().state()
             << ", status update state: " << status.state() << ")";
+
+  metrics->transitionOperationState(
+      operation->info().type(),
+      operation->latest_status().state(),
+      status.state());
 
   // Whether the operation has just become terminated.
   const bool terminated =
@@ -11998,12 +12032,27 @@ void Master::removeOperation(Operation* operation)
 
   slave->removeOperation(operation);
 
+  OperationState state = operation->latest_status().state();
+
+  // The common case is that an operation is removed after a terminal status
+  // update has been acknowledged, in thase we have nothing to do here because
+  // the counters for terminal operations represent lifetime totals.
+  // However, it can happen that we need to remove non-terminal operations,
+  // e.g. when an agent is marked gone or a resource provider on an agent
+  // disappears. In this case we need to adjust the metrics to reflect the
+  // current numbers.
+  if (!protobuf::isTerminalState(state)) {
+    metrics->decrementOperationState(
+        operation->info().type(),
+        state);
+  }
+
   // If the operation was not speculated and is not terminal we
   // need to also recover its used resources in the allocator.
   // If the operation is an orphan, the resources have already been
   // recovered from the allocator.
   if (!protobuf::isSpeculativeOperation(operation->info()) &&
-      !protobuf::isTerminalState(operation->latest_status().state()) &&
+      !protobuf::isTerminalState(state) &&
       !slave->orphanedOperations.contains(operation->uuid())) {
     Try<Resources> consumed = protobuf::getConsumedResources(operation->info());
     CHECK_SOME(consumed);

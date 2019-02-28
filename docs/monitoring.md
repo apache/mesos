@@ -657,6 +657,67 @@ The task states listed here match those of the task state machine.
 </tr>
 </table>
 
+#### Operations
+
+The following metrics provide information about offer operations on the master.
+
+Below, `OPERATION_TYPE` refers to any one of `reserve`, `unreserve`, `create`,
+`destroy`, `grow_volume`, `shrink_volume`, `create_disk` or `destroy_disk`.
+
+NOTE: The counter for terminal operation states can over-count over time. In
+particular if an agent contained unacknowledged terminal status updates when
+it was marked gone or marked unreachable, these operations will be double-counted
+as both their original state and `OPERATION_GONE`/`OPERATION_UNREACHABLE`.
+
+<table class="table table-striped">
+<thead>
+<tr><th>Metric</th><th>Description</th><th>Type</th>
+</thead>
+<tr>
+  <td>
+  <code>master/operations/total</code>
+  </td>
+  <td>Total number of operations known to this master</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>master/operations/&lt;OPERATION_STATE&gt;</code>
+  </td>
+  <td>Number of operations in the given non-terminal state (`pending`, `recovering` or `unreachable`)</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>master/operations/&lt;OPERATION_STATE&gt;</code>
+  </td>
+  <td>Number of operations in the given terminal state (`finished`, `error`, `dropped` or `gone_by_operator`)</td>
+  <td>Counter</td>
+</tr>
+
+<tr>
+  <td>
+  <code>master/operations/&lt;OPERATION_TYPE&gt;/total</code>
+  </td>
+  <td>Total number of operations with the given type known to this master</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>master/operations/&lt;OPERATION_TYPE&gt;/&lt;OPERATION_STATE&gt;</code>
+  </td>
+  <td>Number of operations with the given type in the given non-terminal state (`pending`, `recovering` or `unreachable`)</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>master/operations/&lt;OPERATION_TYPE&gt;/&lt;OPERATION_STATE&gt;</code>
+  </td>
+  <td>Number of operations with the given type in the given state (`finished`, `error`, `dropped` or `gone_by_operator`)</td>
+  <td>Counter</td>
+</tr>
+</table>
+
 #### Messages
 
 The following metrics provide information about messages between the master and
