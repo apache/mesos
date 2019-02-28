@@ -268,6 +268,10 @@ message ContainerLaunchInfo {
   // TODO(tillt): Remove this once we no longer support the old style
   // command task (i.e., that uses mesos-execute).
   optional Environment task_environment = 15;
+
+  // (POSIX only) The supplementary group IDs specific for command task
+  // with its own rootfs.
+  repeated uint32 task_supplementary_groups = 20;
 }
 
 
