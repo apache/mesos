@@ -85,6 +85,7 @@ PROTOC_GENERATE(INTERNAL TARGET slave/containerizer/mesos/isolators/network/cni/
 PROTOC_GENERATE(INTERNAL TARGET slave/containerizer/mesos/isolators/docker/volume/state)
 PROTOC_GENERATE(INTERNAL TARGET slave/containerizer/mesos/provisioner/docker/message)
 PROTOC_GENERATE(INTERNAL TARGET slave/state)
+PROTOC_GENERATE(INTERNAL TARGET slave/volume_gid_manager/state)
 PROTOC_GENERATE(INTERNAL TARGET master/registry)
 PROTOC_GENERATE(INTERNAL TARGET resource_provider/registry)
 PROTOC_GENERATE(INTERNAL TARGET resource_provider/state)
@@ -198,7 +199,8 @@ if (NOT WIN32)
     slave/containerizer/mesos/isolators/posix/disk.cpp
     slave/containerizer/mesos/isolators/posix/rlimits.cpp
     slave/containerizer/mesos/isolators/volume/sandbox_path.cpp
-    slave/containerizer/mesos/provisioner/utils.cpp)
+    slave/containerizer/mesos/provisioner/utils.cpp
+    slave/volume_gid_manager/volume_gid_manager.cpp)
 endif ()
 
 set(APPC_SRC
