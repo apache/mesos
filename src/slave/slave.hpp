@@ -547,6 +547,13 @@ public:
   // executors. Otherwise, the slave attempts to shutdown/kill them.
   process::Future<Nothing> _recover();
 
+  // This is a helper to call `recover()` on the volume gid manager.
+  process::Future<Nothing> _recoverVolumeGidManager(bool rebooted);
+
+  // This is a helper to call `recover()` on the task status update manager.
+  process::Future<Option<state::SlaveState>> _recoverTaskStatusUpdates(
+      const Option<state::SlaveState>& slaveState);
+
   // This is a helper to call `recover()` on the containerizer at the end of
   // `recover()` and before `__recover()`.
   // TODO(idownes): Remove this when we support defers to objects.

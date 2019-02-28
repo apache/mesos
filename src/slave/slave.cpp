@@ -7362,14 +7362,38 @@ Future<Nothing> Slave::recover(const Try<state::State>& state)
     }
   }
 
-  return taskStatusUpdateManager->recover(metaDir, slaveState)
+  return _recoverVolumeGidManager(state->rebooted)
+    .then(defer(self(), &Slave::_recoverTaskStatusUpdates, slaveState))
     .then(defer(self(), &Slave::_recoverContainerizer, slaveState))
     .then(defer(self(), &Slave::_recoverOperations, slaveState));
 }
 
 
+Future<Nothing> Slave::_recoverVolumeGidManager(bool rebooted)
+{
+#ifndef __WINDOWS__
+  if (volumeGidManager) {
+    return volumeGidManager->recover(rebooted);
+  }
+  return Nothing();
+#else
+  return Nothing();
+#endif // __WINDOWS__
+}
+
+
+Future<Option<SlaveState>> Slave::_recoverTaskStatusUpdates(
+    const Option<SlaveState>& state)
+{
+  return taskStatusUpdateManager->recover(metaDir, state)
+    .then([state]() -> Future<Option<SlaveState>> {
+      return state;
+    });
+}
+
+
 Future<Nothing> Slave::_recoverContainerizer(
-    const Option<state::SlaveState>& state)
+    const Option<SlaveState>& state)
 {
   return containerizer->recover(state);
 }

@@ -24,6 +24,7 @@
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
 
+#include <stout/os/exists.hpp>
 #include <stout/os/su.hpp>
 
 #include "common/values.hpp"
@@ -31,6 +32,9 @@
 #ifdef __linux__
 #include "linux/fs.hpp"
 #endif // __linux__
+
+#include "slave/paths.hpp"
+#include "slave/state.hpp"
 
 #include "slave/volume_gid_manager/volume_gid_manager.hpp"
 
@@ -42,6 +46,7 @@ using process::Failure;
 using process::Future;
 using process::Owned;
 
+using mesos::internal::values::intervalSetToRanges;
 using mesos::internal::values::rangesToIntervalSet;
 
 namespace mesos {
@@ -152,10 +157,75 @@ static Try<Nothing> setVolumeOwnership(
 class VolumeGidManagerProcess : public process::Process<VolumeGidManagerProcess>
 {
 public:
-  VolumeGidManagerProcess(const IntervalSet<gid_t>& gids)
+  VolumeGidManagerProcess(
+      const IntervalSet<gid_t>& gids,
+      const string& workDir)
     : ProcessBase(process::ID::generate("volume-gid-manager")),
       totalGids(gids),
-      freeGids(gids) {}
+      freeGids(gids),
+      metaDir(paths::getMetaRootDir(workDir)) {}
+
+  Future<Nothing> recover(bool rebooted)
+  {
+    LOG(INFO) << "Recovering volume gid manager";
+
+    const string volumeGidsPath = paths::getVolumeGidsPath(metaDir);
+    if (os::exists(volumeGidsPath)) {
+      Result<VolumeGidInfos> volumeGidInfos =
+        state::read<VolumeGidInfos>(volumeGidsPath);
+
+      if (volumeGidInfos.isError()) {
+        return Failure(
+            "Failed to read volume gid infos from '" + volumeGidsPath +
+            "' " + volumeGidInfos.error());
+      } else if (volumeGidInfos.isNone()) {
+        // This could happen if the agent is hard rebooted after the file is
+        // created but before the data is synced on disk.
+        LOG(WARNING) << "The volume gids file '"
+                     << volumeGidsPath << "' is empty";
+      } else {
+        CHECK_SOME(volumeGidInfos);
+
+        hashset<string> orphans;
+        foreach (const VolumeGidInfo& info, volumeGidInfos->infos()) {
+          freeGids -= info.gid();
+          infos.put(info.path(), info);
+
+          // Normally the gid allocated to the PARENT type SANDBOX_PATH
+          // volume is deallocated when the parent container is destroyed,
+          // However after agent reboot, containerizer will not destroy any
+          // containers since all containers are already gone, so to avoid
+          // gid leak in this case, we need to deallocate gid for the PARENT
+          // type SANDBOX_PATH volume here.
+          if (rebooted && info.type() == VolumeGidInfo::SANDBOX_PATH) {
+            LOG(INFO) << "Deallocating gid " << info.gid() << " for the PARENT"
+                      << "type SANDBOX_PATH volume '" << info.path()
+                      << "' after agent reboot";
+
+            orphans.insert(Path(info.path()).dirname());
+            continue;
+          }
+
+          // This could happen in the case that agent crashes after the
+          // shared persistent volume is deleted but before volume gid
+          // manager deallocates its gid.
+          if (!os::exists(info.path())) {
+            LOG(WARNING) << "Deallocating gid " << info.gid() << " for the "
+                         << "non-existent volume path '" << info.path() << "'";
+
+            orphans.insert(info.path());
+          }
+        }
+
+        // Deallocate all the orphaned paths.
+        foreach (const string& path, orphans) {
+          deallocate(path);
+        }
+      }
+    }
+
+    return Nothing();
+  }
 
   // This method will be called when a container running as non-root user tries
   // to use a shared persistent volume or a PARENT type SANDBOX_PATH volume, the
@@ -217,13 +287,6 @@ public:
         LOG(INFO) << "Allocating gid " << gid << " to the volume path '"
                   << path << "'";
 
-        Try<Nothing> result = setVolumeOwnership(path, gid, true);
-        if (result.isError()) {
-          return Failure(
-              "Failed to set the owner group of the volume path '" + path +
-              "' to " + stringify(gid) + ": " + result.error());
-        }
-
         freeGids -= gid;
 
         VolumeGidInfo info;
@@ -232,6 +295,19 @@ public:
         info.set_gid(gid);
 
         infos.put(path, info);
+
+        Try<Nothing> status = persist();
+        if (status.isError()) {
+          return Failure(
+              "Failed to save state of volume gid infos: " + status.error());
+        }
+
+        Try<Nothing> result = setVolumeOwnership(path, gid, true);
+        if (result.isError()) {
+          return Failure(
+              "Failed to set the owner group of the volume path '" + path +
+              "' to " + stringify(gid) + ": " + result.error());
+        }
       }
     }
 
@@ -251,6 +327,7 @@ public:
   {
     vector<string> sandboxPathVolumes;
 
+    bool changed = false;
     for (auto it = infos.begin(); it != infos.end(); ) {
       const VolumeGidInfo& info = it->second;
       const string& volumePath = info.path();
@@ -275,6 +352,7 @@ public:
         }
 
         it = infos.erase(it);
+        changed = true;
       } else {
         ++it;
       }
@@ -320,12 +398,39 @@ public:
       }
     }
 
+    if (changed) {
+      Try<Nothing> status = persist();
+      if (status.isError()) {
+        return Failure(
+            "Failed to save state of volume gid infos: " + status.error());
+      }
+    }
+
     return Nothing();
   }
 
 private:
+  Try<Nothing> persist()
+  {
+    VolumeGidInfos volumeGidInfos;
+    foreachvalue (const VolumeGidInfo& info, infos) {
+      volumeGidInfos.add_infos()->CopyFrom(info);
+    }
+
+    Try<Nothing> status = state::checkpoint(
+        paths::getVolumeGidsPath(metaDir), volumeGidInfos);
+
+    if (status.isError()) {
+      return Error("Failed to perform checkpoint: " + status.error());
+    }
+
+    return Nothing();
+  }
+
   const IntervalSet<gid_t> totalGids;
   IntervalSet<gid_t> freeGids;
+
+  const string metaDir;
 
   // Allocated gid infos keyed by the volume path.
   hashmap<string, VolumeGidInfo> infos;
@@ -367,8 +472,8 @@ Try<VolumeGidManager*> VolumeGidManager::create(const Flags& flags)
     return Error("Empty volume gid range");
   }
 
-  return new VolumeGidManager(
-      Owned<VolumeGidManagerProcess>(new VolumeGidManagerProcess(gids.get())));
+  return new VolumeGidManager(Owned<VolumeGidManagerProcess>(
+      new VolumeGidManagerProcess(gids.get(), flags.work_dir)));
 }
 
 
@@ -384,6 +489,12 @@ VolumeGidManager::~VolumeGidManager()
 {
   terminate(process.get());
   process::wait(process.get());
+}
+
+
+Future<Nothing> VolumeGidManager::recover(bool rebooted) const
+{
+  return dispatch(process.get(), &VolumeGidManagerProcess::recover, rebooted);
 }
 
 

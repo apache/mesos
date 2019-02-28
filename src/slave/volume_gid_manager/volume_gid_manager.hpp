@@ -44,6 +44,8 @@ public:
 
   ~VolumeGidManager();
 
+  process::Future<Nothing> recover(bool rebooted) const;
+
   process::Future<gid_t> allocate(
       const std::string& path,
       VolumeGidInfo::Type type) const;

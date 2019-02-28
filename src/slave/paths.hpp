@@ -73,39 +73,41 @@ namespace paths {
 //   |   |   |-- resources.target
 //   |   |   |-- resources_and_operations.state
 //   |   |-- slaves
-//   |       |-- latest (symlink)
-//   |       |-- <slave_id>
-//   |           |-- slave.info
-//   |           |-- operations
-//   |           |   |-- <operation_uuid>
-//   |           |       |-- operation.updates
-//   |           |-- resource_providers
-//   |           |   |-- <type>
-//   |           |       |-- <name>
-//   |           |           |-- latest (symlink)
-//   |           |           |-- <resource_provider_id>
-//   |           |               |-- resource_provider.state
-//   |           |               |-- operations
-//   |           |                   |-- <operation_uuid>
-//   |           |                       |-- operation.updates
-//   |           |-- frameworks
-//   |               |-- <framework_id>
-//   |                   |-- framework.info
-//   |                   |-- framework.pid
-//   |                   |-- executors
-//   |                       |-- <executor_id>
-//   |                           |-- executor.info
-//   |                           |-- runs
-//   |                               |-- latest (symlink)
-//   |                               |-- <container_id> (sandbox)
-//   |                                   |-- executor.sentinel (if completed)
-//   |                                   |-- pids
-//   |                                   |   |-- forked.pid
-//   |                                   |   |-- libprocess.pid
-//   |                                   |-- tasks
-//   |                                       |-- <task_id>
-//   |                                           |-- task.info
-//   |                                           |-- task.updates
+//   |   |   |-- latest (symlink)
+//   |   |   |-- <slave_id>
+//   |   |       |-- slave.info
+//   |   |       |-- operations
+//   |   |       |   |-- <operation_uuid>
+//   |   |       |       |-- operation.updates
+//   |   |       |-- resource_providers
+//   |   |       |   |-- <type>
+//   |   |       |       |-- <name>
+//   |   |       |           |-- latest (symlink)
+//   |   |       |           |-- <resource_provider_id>
+//   |   |       |               |-- resource_provider.state
+//   |   |       |               |-- operations
+//   |   |       |                   |-- <operation_uuid>
+//   |   |       |                       |-- operation.updates
+//   |   |       |-- frameworks
+//   |   |           |-- <framework_id>
+//   |   |               |-- framework.info
+//   |   |               |-- framework.pid
+//   |   |               |-- executors
+//   |   |                   |-- <executor_id>
+//   |   |                       |-- executor.info
+//   |   |                       |-- runs
+//   |   |                           |-- latest (symlink)
+//   |   |                           |-- <container_id> (sandbox)
+//   |   |                               |-- executor.sentinel (if completed)
+//   |   |                               |-- pids
+//   |   |                               |   |-- forked.pid
+//   |   |                               |   |-- libprocess.pid
+//   |   |                               |-- tasks
+//   |   |                                   |-- <task_id>
+//   |   |                                       |-- task.info
+//   |   |                                       |-- task.updates
+//   |   |-- volume_gid_manager
+//   |       |-- volume_gids
 //   |-- volumes
 //   |   |-- roles
 //   |       |-- <role>
@@ -433,6 +435,9 @@ std::string getPersistentVolumePath(
 std::string getPersistentVolumePath(
     const std::string& workDir,
     const Resource& resource);
+
+
+std::string getVolumeGidsPath(const std::string& rootDir);
 
 
 Try<std::string> createExecutorDirectory(
