@@ -115,6 +115,11 @@ class ReviewError(Exception):
     pass
 
 
+def parse_time(timestamp):
+    """Parse time in ReviewBoard date format."""
+    return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ")
+
+
 def shell(command, working_dir=None):
     """Run a shell command."""
     out = subprocess.check_output(
@@ -303,8 +308,51 @@ def verify_review(review_request):
     cleanup()
 
 
+def review_updated(review_request, review_time):
+    """Returns whether this review request chain was updated after review
+       time."""
+    # If the latest diff on this review request was uploaded after the last
+    # review from `USER`, we need to verify it.
+    diffs_url = review_request["links"]["diffs"]["href"]
+    diffs = api(diffs_url)
+    diff_time = None
+    if "diffs" in diffs:
+        # Get the timestamp of the latest diff.
+        timestamp = diffs["diffs"][-1]["timestamp"]
+        diff_time = parse_time(timestamp)
+        print("Latest diff timestamp: %s" % diff_time)
+
+    if diff_time and review_time < diff_time:
+        return True
+
+    # If the latest dependency change on this review request happened after the
+    # last review from `USER`, we need to verify it.
+    changes_url = review_request["links"]["changes"]["href"]
+    changes = api(changes_url)
+    dependency_time = None
+    for change in changes["changes"]:
+        if "depends_on" in change["fields_changed"]:
+            timestamp = change["timestamp"]
+            dependency_time = parse_time(timestamp)
+            print("Latest dependency change timestamp: %s" % dependency_time)
+            break
+
+    if dependency_time and review_time < dependency_time:
+        return True
+
+    # Recursively check if any of the dependent review requests need
+    # verification.
+    for review in review_request["depends_on"]:
+        review_url = review["href"]
+        print("Dependent review: %s " % review_url)
+        if review_updated(api(review_url)["review_request"], review_time):
+            return True
+
+    return False
+
+
 def needs_verification(review_request):
-    """Return True if this review request needs to be verified."""
+    """Returns whether this review request chain needs to be verified."""
     print("Checking if review: %s needs verification" % review_request["id"])
 
     # Skip if the review blocks another review.
@@ -312,45 +360,23 @@ def needs_verification(review_request):
         print("Skipping blocking review %s" % review_request["id"])
         return False
 
-    diffs_url = review_request["links"]["diffs"]["href"]
-    diffs = api(diffs_url)
-
-    if "diffs" not in diffs:  # No diffs attached!
-        print("Skipping review %s as it has no diffs" % review_request["id"])
-        return False
-
-    # Get the timestamp of the latest diff.
-    timestamp = diffs["diffs"][-1]["timestamp"]
-    rb_date_format = "%Y-%m-%dT%H:%M:%SZ"
-    diff_time = datetime.strptime(timestamp, rb_date_format)
-    print("Latest diff timestamp: %s" % diff_time)
-
-    # Get the timestamp of the latest review from this script.
+    # Get the timestamp of the latest review from `USER`.
     reviews_url = review_request["links"]["reviews"]["href"]
     reviews = api(reviews_url + "?max-results=200")
     review_time = None
     for review in reversed(reviews["reviews"]):
         if review["links"]["user"]["title"] == USER:
             timestamp = review["timestamp"]
-            review_time = datetime.strptime(timestamp, rb_date_format)
+            review_time = parse_time(timestamp)
             print("Latest review timestamp: %s" % review_time)
             break
 
-    # TODO: Apply this check recursively up the dependency chain.
-    changes_url = review_request["links"]["changes"]["href"]
-    changes = api(changes_url)
-    dependency_time = None
-    for change in changes["changes"]:
-        if "depends_on" in change["fields_changed"]:
-            timestamp = change["timestamp"]
-            dependency_time = datetime.strptime(timestamp, rb_date_format)
-            print("Latest dependency change timestamp: %s" % dependency_time)
-            break
+    # Verify the review request if no reviews were found from `USER`.
+    if review_time is None:
+        return True
 
-    # Needs verification if there is a new diff, or if the
-    # dependencies changed, after the last time it was verified.
-    return not review_time or review_time < diff_time or \
-        (dependency_time and review_time < dependency_time)
+    # Recursively check if any review requests in the chain were updated.
+    return review_updated(review_request, review_time)
 
 
 def write_review_ids(review_ids):
