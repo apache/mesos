@@ -180,8 +180,8 @@ typedef int mode_t;
 // including functions like `OpenProcess`.
 typedef DWORD pid_t;
 
-typedef int uid_t;
-typedef int gid_t;
+typedef UINT uid_t;
+typedef UINT gid_t;
 
 typedef SSIZE_T ssize_t;
 
