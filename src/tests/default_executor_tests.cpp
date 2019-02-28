@@ -3156,6 +3156,149 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 }
 
 
+#ifndef __WINDOWS__
+// This test verifies that the default executor mounts the shared
+// persistent volume in the task container when it is set on a task
+// launched with a non-root user in the task group, and the task can
+// write to the shared persistent volume.
+TEST_P(
+    PersistentVolumeDefaultExecutor,
+    ROOT_UNPRIVILEGED_USER_TaskSandboxSharedPersistentVolume)
+{
+  if (!strings::contains(param.isolation, "filesystem/linux")) {
+    // Only run this test when the `filesystem/linux` isolator is enabled
+    // since that is the only case the `volume/sandbox_path` isolator will
+    // call volume gid manager.
+    return;
+  }
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.launcher = param.launcher;
+  flags.isolation = param.isolation;
+  flags.volume_gid_range = "[10000-20000]";
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  Option<string> user = os::getenv("SUDO_USER");
+  ASSERT_SOME(user);
+
+  // Set the framework user to a non-root user and the task will
+  // be launched with this user by default.
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
+  frameworkInfo.set_user(user.get());
+  frameworkInfo.add_capabilities()->set_type(
+      v1::FrameworkInfo::Capability::SHARED_RESOURCES);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(v1::scheduler::SendSubscribe(frameworkInfo));
+
+  Future<Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(subscribed);
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  v1::Resources unreserved =
+    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+
+  v1::ExecutorInfo executorInfo = v1::createExecutorInfo(
+      v1::DEFAULT_EXECUTOR_ID,
+      None(),
+      unreserved,
+      v1::ExecutorInfo::DEFAULT,
+      frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+
+  const v1::Offer& offer = offers->offers(0);
+
+  // Create a shared persistent volume, and then launch a
+  // task in a task group to write a file to the volume.
+  v1::Resource volume = v1::createPersistentVolume(
+      Megabytes(1),
+      frameworkInfo.roles(0),
+      "id1",
+      "task_volume_path",
+      frameworkInfo.principal(),
+      None(),
+      frameworkInfo.principal(),
+      true);
+
+  v1::Resources reserved =
+    unreserved.pushReservation(v1::createDynamicReservationInfo(
+        frameworkInfo.roles(0), frameworkInfo.principal()));
+
+  v1::TaskInfo taskInfo = v1::createTask(
+      offer.agent_id(),
+      reserved.apply(v1::CREATE(volume)).get(),
+      "echo abc > task_volume_path/file");
+
+  v1::Offer::Operation reserve = v1::RESERVE(reserved);
+  v1::Offer::Operation create = v1::CREATE(volume);
+  v1::Offer::Operation launchGroup = v1::LAUNCH_GROUP(
+      executorInfo,
+      v1::createTaskGroupInfo({taskInfo}));
+
+  Future<Event::Update> updateStarting;
+  Future<Event::Update> updateRunning;
+  Future<Event::Update> updateFinished;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(DoAll(FutureArg<1>(&updateStarting),
+                    v1::scheduler::SendAcknowledge(
+                        frameworkId,
+                        offer.agent_id())))
+    .WillOnce(DoAll(FutureArg<1>(&updateRunning),
+                    v1::scheduler::SendAcknowledge(
+                        frameworkId,
+                        offer.agent_id())))
+    .WillOnce(DoAll(FutureArg<1>(&updateFinished),
+                    v1::scheduler::SendAcknowledge(
+                        frameworkId,
+                        offer.agent_id())));
+
+  mesos.send(v1::createCallAccept(
+      frameworkId,
+      offer,
+      {reserve, create, launchGroup}));
+
+  AWAIT_READY(updateStarting);
+  ASSERT_EQ(v1::TASK_STARTING, updateStarting->status().state());
+  ASSERT_EQ(taskInfo.task_id(), updateStarting->status().task_id());
+
+  AWAIT_READY(updateRunning);
+  ASSERT_EQ(v1::TASK_RUNNING, updateRunning->status().state());
+  ASSERT_EQ(taskInfo.task_id(), updateRunning->status().task_id());
+
+  AWAIT_READY(updateFinished);
+  ASSERT_EQ(v1::TASK_FINISHED, updateFinished->status().state());
+  ASSERT_EQ(taskInfo.task_id(), updateFinished->status().task_id());
+}
+#endif // __WINDOWS__
+
+
 // This test verifies that sibling tasks in the same task group can share a
 // Volume owned by their parent executor using 'sandbox_path' volumes.
 TEST_P_TEMP_DISABLED_ON_WINDOWS(
