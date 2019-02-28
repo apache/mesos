@@ -1108,6 +1108,7 @@ TEST_P(OperationReconciliationTest, ReconcileUnackedAgentOperation)
 
   EXPECT_EQ(operationId, update->status().operation_id());
   EXPECT_EQ(OPERATION_FINISHED, update->status().state());
+  EXPECT_TRUE(metricEquals("master/operations/finished", 1));
 
   ASSERT_TRUE(update->status().has_agent_id());
   EXPECT_EQ(agentId, update->status().agent_id());
@@ -1253,6 +1254,7 @@ TEST_P(OperationReconciliationTest, UnackedAgentOperationAfterMasterFailover)
 
   EXPECT_EQ(operationId, update->status().operation_id());
   EXPECT_EQ(OPERATION_FINISHED, update->status().state());
+  EXPECT_TRUE(metricEquals("master/operations/finished", 1));
 
   // Simulate master failover.
   EXPECT_CALL(*scheduler, disconnected(_));
@@ -1440,6 +1442,7 @@ TEST_P(OperationReconciliationTest, ReconcileAgentOperationOnGoneAgent)
 
   EXPECT_EQ(operationId, update->status().operation_id());
   EXPECT_EQ(OPERATION_FINISHED, update->status().state());
+  EXPECT_TRUE(metricEquals("master/operations/finished", 1));
 
   ASSERT_TRUE(update->status().has_agent_id());
   EXPECT_EQ(agentId, update->status().agent_id());
@@ -1472,6 +1475,11 @@ TEST_P(OperationReconciliationTest, ReconcileAgentOperationOnGoneAgent)
 
   EXPECT_EQ(operationId, goneUpdate->status().operation_id());
   EXPECT_EQ(OPERATION_GONE_BY_OPERATOR, goneUpdate->status().state());
+
+  // TODO(bevers): We have to reset the agent before we can access the
+  // metrics to work around MESOS-9644.
+  slave->reset();
+  EXPECT_TRUE(metricEquals("master/operations/gone_by_operator", 1));
 
   ASSERT_TRUE(goneUpdate->status().has_agent_id());
   EXPECT_EQ(agentId, goneUpdate->status().agent_id());

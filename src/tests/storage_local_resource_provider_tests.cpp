@@ -3608,6 +3608,7 @@ TEST_F(StorageLocalResourceProviderTest, OperationUpdate)
   ASSERT_EQ(
       mesos::v1::OperationState::OPERATION_FINISHED, update->status().state());
   ASSERT_TRUE(update->status().has_uuid());
+  EXPECT_TRUE(metricEquals("master/operations/finished", 1));
 
   ASSERT_TRUE(update->status().has_agent_id());
   EXPECT_EQ(agentId, update->status().agent_id());
@@ -3829,20 +3830,17 @@ TEST_F(StorageLocalResourceProviderTest, OperationStateMetrics)
   AWAIT_READY(operationDroppedStatus);
   EXPECT_EQ(OPERATION_DROPPED, operationDroppedStatus->status().state());
 
-  snapshot = Metrics();
+  EXPECT_TRUE(metricEquals("master/operations/dropped", 1));
+  EXPECT_TRUE(metricEquals("master/operations/create_disk/finished", 1));
+  EXPECT_TRUE(metricEquals("master/operations/destroy_disk/failed", 1));
+  EXPECT_TRUE(metricEquals("master/operations/destroy_disk/dropped", 1));
 
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "operations/create_disk/finished")));
-  EXPECT_EQ(1, snapshot.values.at(metricName(
-      "operations/create_disk/finished")));
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "operations/destroy_disk/failed")));
-  EXPECT_EQ(1, snapshot.values.at(metricName(
-      "operations/destroy_disk/failed")));
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "operations/destroy_disk/dropped")));
-  EXPECT_EQ(1, snapshot.values.at(metricName(
-      "operations/destroy_disk/dropped")));
+  EXPECT_TRUE(metricEquals(metricName(
+      "operations/create_disk/finished"), 1));
+  EXPECT_TRUE(metricEquals(metricName(
+      "operations/destroy_disk/failed"), 1));
+  EXPECT_TRUE(metricEquals(metricName(
+      "operations/destroy_disk/dropped"), 1));
 }
 
 
@@ -4483,6 +4481,9 @@ TEST_F(StorageLocalResourceProviderTest, RetryOperationStatusUpdateToScheduler)
 
   AWAIT_READY(acknowledgeOperationStatusMessage);
 
+  // Verify that the retry was only counted as one operation.
+  EXPECT_TRUE(metricEquals("master/operations/finished", 1));
+
   // Now that the SLRP has received the acknowledgement, the SLRP shouldn't
   // send further operation status updates.
   EXPECT_NO_FUTURE_PROTOBUFS(UpdateOperationStatusMessage(), _, _);
@@ -4638,6 +4639,7 @@ TEST_F(
   ASSERT_EQ(operationId, update->status().operation_id());
   ASSERT_EQ(v1::OperationState::OPERATION_FINISHED, update->status().state());
   ASSERT_TRUE(update->status().has_uuid());
+  EXPECT_TRUE(metricEquals("master/operations/finished", 1));
 
   v1::scheduler::Call::ReconcileOperations::Operation operation;
   operation.mutable_operation_id()->CopyFrom(operationId);
@@ -5000,24 +5002,24 @@ TEST_F(StorageLocalResourceProviderTest, RetryRpcWithExponentialBackoff)
   // Verify that the RPC metrics count the successes and errors correctly.
   //
   // TODO(chhsiao): verify the retry metrics instead once they are in place.
-  JSON::Object snapshot = Metrics();
+  EXPECT_TRUE(metricEquals("master/operations/failed", 1));
+  EXPECT_TRUE(metricEquals("master/operations/finished", 1));
 
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.CreateVolume/successes")));
-  EXPECT_EQ(1, snapshot.values.at(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.CreateVolume/successes")));
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.CreateVolume/errors")));
-  EXPECT_EQ(numRetryableErrors, snapshot.values.at(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.CreateVolume/errors")));
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.DeleteVolume/successes")));
-  EXPECT_EQ(0, snapshot.values.at(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.DeleteVolume/successes")));
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.DeleteVolume/errors")));
-  EXPECT_EQ(numRetryableErrors + 1, snapshot.values.at(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.DeleteVolume/errors")));
+  EXPECT_TRUE(metricEquals(metricName(
+      "csi_plugin/rpcs/csi.v0.Controller.CreateVolume/successes"),
+      1));
+
+  EXPECT_TRUE(metricEquals(metricName(
+      "csi_plugin/rpcs/csi.v0.Controller.CreateVolume/errors"),
+      numRetryableErrors));
+
+  EXPECT_TRUE(metricEquals(metricName(
+      "csi_plugin/rpcs/csi.v0.Controller.DeleteVolume/successes"),
+      0));
+
+  EXPECT_TRUE(metricEquals(metricName(
+      "csi_plugin/rpcs/csi.v0.Controller.DeleteVolume/errors"),
+      numRetryableErrors + 1));
 }
 
 

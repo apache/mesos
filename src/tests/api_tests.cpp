@@ -5114,6 +5114,11 @@ TEST_P(MasterAPITest, OperationUpdatesUponAgentGone)
   EXPECT_EQ(
       v1::OPERATION_GONE_BY_OPERATOR,
       operationGoneUpdate->status().state());
+
+  // TODO(bevers): We have to reset the agent before we can access the
+  // metrics to work around MESOS-9644.
+  slave->reset();
+  EXPECT_TRUE(metricEquals("master/operations/gone_by_operator", 1));
 }
 
 
@@ -5252,6 +5257,11 @@ TEST_P(MasterAPITest, OperationUpdatesUponUnreachable)
   EXPECT_EQ(
       v1::OPERATION_UNREACHABLE,
       operationUnreachableUpdate->status().state());
+
+  // TODO(bevers): We have to reset the agent before we can access the
+  // metrics to work around MESOS-9644.
+  slave->reset();
+  EXPECT_TRUE(metricEquals("master/operations/unreachable", 1));
 
   Clock::resume();
 }

@@ -9247,6 +9247,9 @@ TEST_F(MasterTest, OperationUpdateDuringFailover)
 
   AWAIT_READY(updateOperationStatusMessage1);
   AWAIT_READY(updateOperationStatusMessage2);
+  EXPECT_TRUE(metricEquals("master/operations/pending", 2));
+  EXPECT_TRUE(metricEquals("master/operations/reserve/pending", 1));
+  EXPECT_TRUE(metricEquals("master/operations/create_disk/pending", 1));
 
   // Fail over the master.
   master->reset();
@@ -9313,6 +9316,14 @@ TEST_F(MasterTest, OperationUpdateDuringFailover)
 
     EXPECT_EQ(receivedOperationUUIDs, expectedOperationUUIDs);
   }
+
+  EXPECT_TRUE(metricEquals("master/operations/pending", 0));
+  EXPECT_TRUE(metricEquals("master/operations/reserve/pending", 0));
+  EXPECT_TRUE(metricEquals("master/operations/create_disk/pending", 0));
+
+  EXPECT_TRUE(metricEquals("master/operations/finished", 2));
+  EXPECT_TRUE(metricEquals("master/operations/reserve/finished", 1));
+  EXPECT_TRUE(metricEquals("master/operations/create_disk/finished", 1));
 
   driver.stop();
   driver.join();

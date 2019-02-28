@@ -1559,6 +1559,7 @@ TEST_F(ReservationEndpointsTest, AgentStateEndpointResources)
   // the agent to receive and process the `ApplyOperationMessage` and respond
   // with an initial operation status update.
   AWAIT_READY(updateOperationStatusMessage);
+  EXPECT_TRUE(metricEquals("master/operations/finished", 1));
 
   // Make sure CheckpointResourcesMessage handling is completed
   // before proceeding.

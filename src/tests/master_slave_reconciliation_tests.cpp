@@ -605,6 +605,7 @@ TEST_F(
 
   EXPECT_EQ(operationId, operationDroppedUpdate->status().operation_id());
   EXPECT_EQ(v1::OPERATION_DROPPED, operationDroppedUpdate->status().state());
+  EXPECT_TRUE(metricEquals("master/operations/dropped", 1));
 }
 
 // This test verifies that the master reconciles tasks that are

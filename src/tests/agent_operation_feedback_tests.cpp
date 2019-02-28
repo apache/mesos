@@ -146,6 +146,10 @@ TEST_P(AgentOperationFeedbackTest, RetryOperationStatusUpdate)
   EXPECT_EQ(operationId, update->status().operation_id());
   EXPECT_EQ(OPERATION_FINISHED, update->status().state());
 
+  // The master has already seen the update, so the operation is counted
+  // in the metrics.
+  EXPECT_TRUE(metricEquals("master/operations/finished", 1));
+
   // The agent should resend the unacknowledged operation status update once the
   // status update retry interval lapses.
   Future<scheduler::Event::UpdateOperationStatus> retriedUpdate;
@@ -171,6 +175,9 @@ TEST_P(AgentOperationFeedbackTest, RetryOperationStatusUpdate)
       frameworkId, offer.agent_id(), None(), retriedUpdate.get()));
 
   AWAIT_READY(acknowledgeOperationStatusMessage);
+
+  // Verify that the update has not been double-counted.
+  EXPECT_TRUE(metricEquals("master/operations/finished", 1));
 
   // The operation status update has been acknowledged, so the agent shouldn't
   // send further status updates.
@@ -263,6 +270,7 @@ TEST_P(AgentOperationFeedbackTest, CleanupAcknowledgedTerminalOperation)
 
   EXPECT_EQ(operationId, update->status().operation_id());
   EXPECT_EQ(OPERATION_FINISHED, update->status().state());
+  EXPECT_TRUE(metricEquals("master/operations/finished", 1));
 
   {
     master::Call call;
@@ -417,6 +425,7 @@ TEST_P(AgentOperationFeedbackTest, OperationUpdateContainsAgentID)
 
   EXPECT_EQ(operationId, update->status().operation_id());
   EXPECT_EQ(OPERATION_FINISHED, update->status().state());
+  EXPECT_TRUE(metricEquals("master/operations/finished", 1));
 
   ASSERT_TRUE(update->status().has_agent_id());
   EXPECT_EQ(agentId, update->status().agent_id());
@@ -562,6 +571,7 @@ TEST_P(AgentOperationFeedbackTest, DroppedOperationStatusUpdate)
   EXPECT_EQ(OPERATION_DROPPED, update->status().state());
   EXPECT_FALSE(update->status().has_uuid());
   EXPECT_FALSE(update->status().has_resource_provider_id());
+  EXPECT_TRUE(metricEquals("master/operations/dropped", 1));
 
   const AgentID& agentId(offer.agent_id());
   ASSERT_TRUE(update->status().has_agent_id());

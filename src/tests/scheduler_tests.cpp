@@ -1246,6 +1246,8 @@ TEST_P(SchedulerTest, OperationFeedbackValidationNoResourceProviderCapability)
   EXPECT_EQ(
       mesos::v1::OPERATION_ERROR,
       updateOperationStatus->status().state());
+
+  EXPECT_TRUE(metricEquals("master/operations/error", 1));
 }
 
 

@@ -1533,6 +1533,7 @@ TEST_F(PersistentVolumeEndpointsTest, OfferCreateThenEndpointRemove)
   // Make sure the allocator processes the `RESERVE` operation before summoning
   // an offer.
   AWAIT_READY(updateOperationStatusMessage);
+  EXPECT_TRUE(metricEquals("master/operations/finished", 1));
 
   // Summon an offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1567,6 +1568,7 @@ TEST_F(PersistentVolumeEndpointsTest, OfferCreateThenEndpointRemove)
 
   // Make sure the master processes the accept call before summoning an offer.
   AWAIT_READY(updateOperationStatusMessage);
+  EXPECT_TRUE(metricEquals("master/operations/finished", 2));
 
   // Summon an offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1679,6 +1681,9 @@ TEST_F(PersistentVolumeEndpointsTest, EndpointCreateThenOfferRemove)
     unreserved.pushReservation(createDynamicReservationInfo(
         frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal()));
 
+  Future<AcknowledgeOperationStatusMessage> acknowledgeOperationStatus1 =
+    FUTURE_PROTOBUF(AcknowledgeOperationStatusMessage(), _, _);
+
   Future<Response> response = process::http::post(
       master.get()->pid,
       "reserve",
@@ -1686,6 +1691,7 @@ TEST_F(PersistentVolumeEndpointsTest, EndpointCreateThenOfferRemove)
       createRequestBody(slaveId, "resources", dynamicallyReserved));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
+  AWAIT_READY(acknowledgeOperationStatus1);
 
   // Create a 1MB persistent volume.
   Resources volume = createPersistentVolume(
@@ -1697,6 +1703,9 @@ TEST_F(PersistentVolumeEndpointsTest, EndpointCreateThenOfferRemove)
       None(),
       frameworkInfo.principal());
 
+  Future<AcknowledgeOperationStatusMessage> acknowledgeOperationStatus2 =
+    FUTURE_PROTOBUF(AcknowledgeOperationStatusMessage(), _, _);
+
   response = process::http::post(
       master.get()->pid,
       "create-volumes",
@@ -1704,6 +1713,7 @@ TEST_F(PersistentVolumeEndpointsTest, EndpointCreateThenOfferRemove)
       createRequestBody(slaveId, "volumes", volume));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
+  AWAIT_READY(acknowledgeOperationStatus2);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -1727,13 +1737,18 @@ TEST_F(PersistentVolumeEndpointsTest, EndpointCreateThenOfferRemove)
   EXPECT_TRUE(Resources(offer.resources()).contains(
       allocatedResources(volume, frameworkInfo.roles(0))));
 
-  Future<UpdateOperationStatusMessage> updateOperationStatusMessage =
-    FUTURE_PROTOBUF(UpdateOperationStatusMessage(), _, _);
+  Future<AcknowledgeOperationStatusMessage> acknowledgeOperationStatus3 =
+    FUTURE_PROTOBUF(AcknowledgeOperationStatusMessage(), _, _);
 
   driver.acceptOffers({offer.id()}, {DESTROY(volume)});
 
   // Make sure the master processes the accept call before summoning an offer.
-  AWAIT_READY(updateOperationStatusMessage);
+  AWAIT_READY(acknowledgeOperationStatus3);
+
+  // We expect 3 finished operations, `Reserve`, `CreateVolume` and finally
+  // `DestroyVolume`. The first two are not checked individually because it
+  // would require additional heavy machinery to do it in a non-flaky way.
+  EXPECT_TRUE(metricEquals("master/operations/finished", 3));
 
   // Summon an offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1753,14 +1768,15 @@ TEST_F(PersistentVolumeEndpointsTest, EndpointCreateThenOfferRemove)
     << Resources(offer.resources()) << " vs "
     << allocatedResources(dynamicallyReserved, frameworkInfo.roles(0));
 
-  updateOperationStatusMessage =
-    FUTURE_PROTOBUF(UpdateOperationStatusMessage(), _, _);
+  Future<AcknowledgeOperationStatusMessage> acknowledgeOperationStatus4 =
+    FUTURE_PROTOBUF(AcknowledgeOperationStatusMessage(), _, _);
 
   // Unreserve the resources.
   driver.acceptOffers({offer.id()}, {UNRESERVE(dynamicallyReserved)});
 
   // Make sure the master processes the accept call before summoning an offer.
-  AWAIT_READY(updateOperationStatusMessage);
+  AWAIT_READY(acknowledgeOperationStatus4);
+  EXPECT_TRUE(metricEquals("master/operations/finished", 4));
 
   // Summon an offer.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -1829,6 +1845,9 @@ TEST_F(PersistentVolumeEndpointsTest, ReserveAndSlaveRemoval)
     slave1Unreserved.pushReservation(createDynamicReservationInfo(
         frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal()));
 
+  Future<AcknowledgeOperationStatusMessage> acknowledgeOperationStatus1 =
+    FUTURE_PROTOBUF(AcknowledgeOperationStatusMessage(), _, _);
+
   Future<Response> response = process::http::post(
       master.get()->pid,
       "reserve",
@@ -1836,6 +1855,7 @@ TEST_F(PersistentVolumeEndpointsTest, ReserveAndSlaveRemoval)
       createRequestBody(slaveId1, "resources", slave1Reserved));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(Accepted().status, response);
+  AWAIT_READY(acknowledgeOperationStatus1);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -1860,6 +1880,9 @@ TEST_F(PersistentVolumeEndpointsTest, ReserveAndSlaveRemoval)
 
   Future<UpdateOperationStatusMessage> updateOperationStatusMessage =
     FUTURE_PROTOBUF(UpdateOperationStatusMessage(), _, _);
+
+  Future<AcknowledgeOperationStatusMessage> acknowledgeOperationStatus2 =
+    FUTURE_PROTOBUF(AcknowledgeOperationStatusMessage(), _, _);
 
   // Use the offers API to reserve all CPUs on `slave2`.
   Resources slave2Unreserved = Resources::parse("cpus:3").get();
@@ -1889,6 +1912,10 @@ TEST_F(PersistentVolumeEndpointsTest, ReserveAndSlaveRemoval)
   EXPECT_EQ(sentResources, slave2Reserved);
 
   AWAIT_READY(updateOperationStatusMessage);
+  AWAIT_READY(acknowledgeOperationStatus2);
+
+  // Expect both `Reserve` operations to be finished.
+  EXPECT_TRUE(metricEquals("master/operations/finished", 2));
 
   // Shutdown `slave2` with an explicit shutdown message.
   EXPECT_CALL(sched, offerRescinded(_, _));
