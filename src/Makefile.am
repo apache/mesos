@@ -2663,6 +2663,7 @@ mesos_tests_SOURCES =						\
   tests/containerizer/provisioner_paths_tests.cpp		\
   tests/containerizer/rootfs.hpp				\
   tests/containerizer/setns_test_helper.hpp			\
+  tests/containerizer/volume_gid_manager_tests.cpp		\
   tests/containerizer/volume_sandbox_path_isolator_tests.cpp
 
 if ENABLE_XFS_DISK_ISOLATOR
