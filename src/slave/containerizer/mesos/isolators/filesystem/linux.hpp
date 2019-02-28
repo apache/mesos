@@ -31,6 +31,8 @@
 
 #include "slave/containerizer/mesos/isolator.hpp"
 
+#include "slave/volume_gid_manager/volume_gid_manager.hpp"
+
 namespace mesos {
 namespace internal {
 namespace slave {
@@ -42,7 +44,9 @@ namespace slave {
 class LinuxFilesystemIsolatorProcess : public MesosIsolatorProcess
 {
 public:
-  static Try<mesos::slave::Isolator*> create(const Flags& flags);
+  static Try<mesos::slave::Isolator*> create(
+      const Flags& flags,
+      VolumeGidManager* volumeGidManager = nullptr);
 
   ~LinuxFilesystemIsolatorProcess() override;
 
@@ -65,9 +69,12 @@ public:
       const ContainerID& containerId) override;
 
 private:
-  LinuxFilesystemIsolatorProcess(const Flags& flags);
+  LinuxFilesystemIsolatorProcess(
+      const Flags& flags,
+      VolumeGidManager* volumeGidManager);
 
   const Flags flags;
+  VolumeGidManager* volumeGidManager;
 
   struct Info
   {
@@ -84,6 +91,7 @@ private:
     Resources resources;
 
     Option<ExecutorInfo> executor;
+    std::vector<gid_t> gids;
   };
 
   hashmap<ContainerID, process::Owned<Info>> infos;

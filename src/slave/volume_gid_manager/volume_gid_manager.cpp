@@ -28,6 +28,10 @@
 
 #include "common/values.hpp"
 
+#ifdef __linux__
+#include "linux/fs.hpp"
+#endif // __linux__
+
 #include "slave/volume_gid_manager/volume_gid_manager.hpp"
 
 using std::string;
@@ -168,34 +172,67 @@ public:
       LOG(INFO) << "Use the allocated gid " << gid << " of the volume path '"
                 << path << "'";
     } else {
-      // Allocate a free gid to the specified path and then set the
-      // ownership for it.
-      if (freeGids.empty()) {
-        return Failure(
-            "Failed to allocate gid to the volume path '" + path +
-            "' because the free gid range is exhausted");
+      Option<string> realPath;
+#ifdef __linux__
+      // This is to handle the case that nested containers use shared persistent
+      // volume, in which case we did a workaround in the default executor to
+      // set up a volume mapping (i.e., map the shared persistent volume to a
+      // SANDBOX_PATH volume of PARENT type for nested containers) so that the
+      // nested container can access the shared persistent volume. So here we
+      // need to search the mount table to see if the `path` is the target of a
+      // mount, and check if we have already allocated a gid to the source of
+      // that mount, if yes, then we just return that gid instead of allocating
+      // a new one, otherwise the ownership of the shared persistent volume will
+      // be wrongly overwritten.
+      Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
+      if (table.isError()) {
+        return Failure("Failed to get mount table: " + table.error());
       }
 
-      gid = freeGids.begin()->lower();
-
-      LOG(INFO) << "Allocating gid " << gid << " to the volume path '"
-                << path << "'";
-
-      Try<Nothing> result = setVolumeOwnership(path, gid, true);
-      if (result.isError()) {
-        return Failure(
-            "Failed to set the owner group of the volume path '" + path +
-            "' to " + stringify(gid) + ": " + result.error());
+      foreach (const fs::MountInfoTable::Entry& entry, table->entries) {
+        if (path == entry.target) {
+          realPath = entry.root;
+          break;
+        }
       }
+#endif // __linux__
 
-      freeGids -= gid;
+      if (realPath.isSome() && infos.contains(realPath.get())) {
+        gid = infos[realPath.get()].gid();
 
-      VolumeGidInfo info;
-      info.set_type(type);
-      info.set_path(path);
-      info.set_gid(gid);
+        LOG(INFO) << "Use the allocated gid " << gid << " of the volume path '"
+                  << realPath.get() << "' which is mounted at the volume path '"
+                  << path << "'";
+      } else {
+        // Allocate a free gid to the specified path and then set the
+        // ownership for it.
+        if (freeGids.empty()) {
+          return Failure(
+              "Failed to allocate gid to the volume path '" + path +
+              "' because the free gid range is exhausted");
+        }
 
-      infos.put(path, info);
+        gid = freeGids.begin()->lower();
+
+        LOG(INFO) << "Allocating gid " << gid << " to the volume path '"
+                  << path << "'";
+
+        Try<Nothing> result = setVolumeOwnership(path, gid, true);
+        if (result.isError()) {
+          return Failure(
+              "Failed to set the owner group of the volume path '" + path +
+              "' to " + stringify(gid) + ": " + result.error());
+        }
+
+        freeGids -= gid;
+
+        VolumeGidInfo info;
+        info.set_type(type);
+        info.set_path(path);
+        info.set_gid(gid);
+
+        infos.put(path, info);
+      }
     }
 
     return gid;

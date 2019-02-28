@@ -29,14 +29,17 @@ namespace internal {
 namespace slave {
 
 WindowsFilesystemIsolatorProcess::WindowsFilesystemIsolatorProcess(
-    const Flags& _flags)
+    const Flags& _flags,
+    VolumeGidManager* _volumeGidManager)
   : ProcessBase(process::ID::generate("windows-filesystem-isolator")),
-    PosixFilesystemIsolatorProcess(_flags) {}
+    PosixFilesystemIsolatorProcess(_flags, _volumeGidManager) {}
 
-Try<Isolator*> WindowsFilesystemIsolatorProcess::create(const Flags& flags)
+Try<Isolator*> WindowsFilesystemIsolatorProcess::create(
+    const Flags& flags,
+    VolumeGidManager* volumeGidManager)
 {
   process::Owned<MesosIsolatorProcess> process(
-      new WindowsFilesystemIsolatorProcess(flags));
+      new WindowsFilesystemIsolatorProcess(flags, volumeGidManager));
 
   return new MesosIsolator(process);
 }

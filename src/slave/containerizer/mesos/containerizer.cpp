@@ -371,13 +371,29 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     // Filesystem isolators.
 
 #ifdef __WINDOWS__
-    {"filesystem/windows", &WindowsFilesystemIsolatorProcess::create},
+    {"filesystem/windows",
+      [volumeGidManager] (const Flags& flags) -> Try<Isolator*> {
+        return WindowsFilesystemIsolatorProcess::create(
+            flags,
+            volumeGidManager);
+      }},
 #else
-    {"filesystem/posix", &PosixFilesystemIsolatorProcess::create},
+    {"filesystem/posix",
+      [volumeGidManager] (const Flags& flags) -> Try<Isolator*> {
+        return PosixFilesystemIsolatorProcess::create(
+            flags,
+            volumeGidManager);
+      }},
 #endif // __WINDOWS__
 
 #ifdef __linux__
-    {"filesystem/linux", &LinuxFilesystemIsolatorProcess::create},
+    {"filesystem/linux",
+      [volumeGidManager] (const Flags& flags) -> Try<Isolator*> {
+        return LinuxFilesystemIsolatorProcess::create(
+            flags,
+            volumeGidManager);
+      }},
+
     // TODO(jieyu): Deprecate this in favor of using filesystem/linux.
     {"filesystem/shared", &SharedFilesystemIsolatorProcess::create},
 #endif // __linux__
@@ -1715,35 +1731,49 @@ Future<Containerizer::LaunchResult> MesosContainerizerProcess::_launch(
   }
 
   // For command tasks specifically, we should add the task_environment
-  // flag to the launch command of the command executor.
+  // flag and the task_supplementary_groups flag to the launch command
+  // of the command executor.
   // TODO(tillt): Remove this once we no longer support the old style
   // command task (i.e., that uses mesos-execute).
-  if (container->config->has_task_info() && launchInfo.has_task_environment()) {
-    hashmap<string, string> commandTaskEnvironment;
+  if (container->config->has_task_info()) {
+    if (launchInfo.has_task_environment()) {
+      hashmap<string, string> commandTaskEnvironment;
 
-    foreach (const Environment::Variable& variable,
-             launchInfo.task_environment().variables()) {
-      const string& name = variable.name();
-      const string& value = variable.value();
-      if (commandTaskEnvironment.contains(name) &&
-          commandTaskEnvironment[name] != value) {
-        LOG(WARNING) << "Overwriting environment variable '" << name << "' "
-                     << "for container " << containerId;
+      foreach (const Environment::Variable& variable,
+               launchInfo.task_environment().variables()) {
+        const string& name = variable.name();
+        const string& value = variable.value();
+        if (commandTaskEnvironment.contains(name) &&
+            commandTaskEnvironment[name] != value) {
+          LOG(WARNING) << "Overwriting environment variable '" << name << "' "
+                       << "for container " << containerId;
+        }
+        // TODO(tillt): Consider making this 'secret' aware.
+        commandTaskEnvironment[name] = value;
       }
-      // TODO(tillt): Consider making this 'secret' aware.
-      commandTaskEnvironment[name] = value;
+
+      if (!commandTaskEnvironment.empty()) {
+        Environment taskEnvironment;
+        foreachpair (
+            const string& name, const string& value, commandTaskEnvironment) {
+          Environment::Variable* variable = taskEnvironment.add_variables();
+          variable->set_name(name);
+          variable->set_value(value);
+        }
+        launchInfo.mutable_command()->add_arguments(
+            "--task_environment=" + stringify(JSON::protobuf(taskEnvironment)));
+      }
     }
 
-    if (!commandTaskEnvironment.empty()) {
-      Environment taskEnvironment;
-      foreachpair (
-          const string& name, const string& value, commandTaskEnvironment) {
-        Environment::Variable* variable = taskEnvironment.add_variables();
-        variable->set_name(name);
-        variable->set_value(value);
-      }
+    if (launchInfo.task_supplementary_groups_size() > 0) {
+      // Remove duplicated entries in supplementary groups.
+      set<uint32_t> taskSupplementaryGroups(
+          launchInfo.task_supplementary_groups().begin(),
+          launchInfo.task_supplementary_groups().end());
+
       launchInfo.mutable_command()->add_arguments(
-          "--task_environment=" + stringify(JSON::protobuf(taskEnvironment)));
+          "--task_supplementary_groups=" +
+          strings::join(",", taskSupplementaryGroups));
     }
   }
 

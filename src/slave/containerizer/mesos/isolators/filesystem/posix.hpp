@@ -23,6 +23,8 @@
 
 #include "slave/containerizer/mesos/isolator.hpp"
 
+#include "slave/volume_gid_manager/volume_gid_manager.hpp"
+
 namespace mesos {
 namespace internal {
 namespace slave {
@@ -30,7 +32,9 @@ namespace slave {
 class PosixFilesystemIsolatorProcess : public MesosIsolatorProcess
 {
 public:
-  static Try<mesos::slave::Isolator*> create(const Flags& flags);
+  static Try<mesos::slave::Isolator*> create(
+      const Flags& flags,
+      VolumeGidManager* volumeGidManager);
 
   ~PosixFilesystemIsolatorProcess() override;
 
@@ -50,9 +54,12 @@ public:
       const ContainerID& containerId) override;
 
 protected:
-  PosixFilesystemIsolatorProcess(const Flags& flags);
+  PosixFilesystemIsolatorProcess(
+      const Flags& flags,
+      VolumeGidManager* volumeGidManager);
 
   const Flags flags;
+  VolumeGidManager* volumeGidManager;
 
   struct Info
   {
@@ -63,6 +70,8 @@ protected:
 
     // Track resources so we can unlink unneeded persistent volumes.
     Resources resources;
+
+    std::vector<gid_t> gids;
   };
 
   hashmap<ContainerID, process::Owned<Info>> infos;

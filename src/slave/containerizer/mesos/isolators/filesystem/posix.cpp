@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include <process/collect.hpp>
 #include <process/id.hpp>
 
 #include <stout/fs.hpp>
@@ -45,18 +46,22 @@ namespace internal {
 namespace slave {
 
 PosixFilesystemIsolatorProcess::PosixFilesystemIsolatorProcess(
-    const Flags& _flags)
+    const Flags& _flags,
+    VolumeGidManager* _volumeGidManager)
   : ProcessBase(process::ID::generate("posix-filesystem-isolator")),
-    flags(_flags) {}
+    flags(_flags),
+    volumeGidManager(_volumeGidManager) {}
 
 
 PosixFilesystemIsolatorProcess::~PosixFilesystemIsolatorProcess() {}
 
 
-Try<Isolator*> PosixFilesystemIsolatorProcess::create(const Flags& flags)
+Try<Isolator*> PosixFilesystemIsolatorProcess::create(
+    const Flags& flags,
+    VolumeGidManager* volumeGidManager)
 {
   process::Owned<MesosIsolatorProcess> process(
-      new PosixFilesystemIsolatorProcess(flags));
+      new PosixFilesystemIsolatorProcess(flags, volumeGidManager));
 
   return new MesosIsolator(process);
 }
@@ -101,7 +106,30 @@ Future<Option<ContainerLaunchInfo>> PosixFilesystemIsolatorProcess::prepare(
   infos.put(containerId, Owned<Info>(new Info(containerConfig.directory())));
 
   return update(containerId, executorInfo.resources())
-      .then([]() -> Future<Option<ContainerLaunchInfo>> { return None(); });
+    .then(defer(
+        self(),
+        [this, containerId, containerConfig]() mutable
+            -> Future<Option<ContainerLaunchInfo>> {
+          if (!infos.contains(containerId)) {
+            return Failure("Unknown container");
+          }
+
+          ContainerLaunchInfo launchInfo;
+          foreach (gid_t gid, infos[containerId]->gids) {
+            // For command task with its own rootfs, the command executor will
+            // run as root and the task itself will run as the specified normal
+            // user, so here we add the supplementary group for the task and the
+            // command executor will set it accordingly when launching the task.
+            if (containerConfig.has_task_info() &&
+                containerConfig.has_rootfs()) {
+              launchInfo.add_task_supplementary_groups(gid);
+            } else {
+              launchInfo.add_supplementary_groups(gid);
+            }
+          }
+
+          return launchInfo;
+      }));
 }
 
 
@@ -162,6 +190,8 @@ Future<Nothing> PosixFilesystemIsolatorProcess::update(
   const uid_t uid = s.st_uid;
   const gid_t gid = s.st_gid;
 
+  vector<Future<gid_t>> futures;
+
   // We then link additional persistent volumes.
   foreach (const Resource& resource, resources.persistentVolumes()) {
     // This is enforced by the master.
@@ -183,45 +213,74 @@ Future<Nothing> PosixFilesystemIsolatorProcess::update(
 
     string original = paths::getPersistentVolumePath(flags.work_dir, resource);
 
-    bool isVolumeInUse = false;
+    // If the container's user is root (uid == 0), we do not need to do any
+    // changes about the volume's ownership since it has the full permissions
+    // to access the volume.
+    if (uid != 0) {
+      // For shared persistent volume, if volume gid manager is enabled, call
+      // volume gid manager to allocate a gid to make sure the container has
+      // the permission to access the volume.
+      //
+      // TODO(qianzhang): Support gid allocation for shared persistent volumes
+      // from resource providers.
+      if (resource.has_shared() &&
+          !Resources::hasResourceProvider(resource) &&
+          volumeGidManager) {
+  #ifndef __WINDOWS__
+        LOG(INFO) << "Invoking volume gid manager to allocate gid to the "
+                  << "volume path '" << original << "' for container "
+                  << containerId;
 
-    foreachpair (const ContainerID& _containerId,
-                 const Owned<Info>& info,
-                 infos) {
-      // Skip self.
-      if (_containerId == containerId) {
-        continue;
+        futures.push_back(
+            volumeGidManager->allocate(original, VolumeGidInfo::PERSISTENT));
+  #endif // __WINDOWS__
+      } else {
+        bool isVolumeInUse = false;
+
+        // Check if the shared persistent volume is currently used by another
+        // container. We do not need to do this check for local persistent
+        // volume since it can only be used by one container at a time.
+        if (resource.has_shared()) {
+          foreachpair (const ContainerID& _containerId,
+                       const Owned<Info>& info,
+                       infos) {
+            // Skip self.
+            if (_containerId == containerId) {
+              continue;
+            }
+
+            if (info->resources.contains(resource)) {
+              isVolumeInUse = true;
+              break;
+            }
+          }
+        }
+
+        // Set the ownership of the persistent volume to match that of the
+        // sandbox directory if the volume is not already in use. If the
+        // volume is currently in use by other containers, tasks in this
+        // container may fail to read from or write to the persistent volume
+        // due to incompatible ownership and file system permissions.
+        if (!isVolumeInUse) {
+          // TODO(hausdorff): (MESOS-5461) Persistent volumes maintain the
+          // invariant that they are used by one task at a time. This is
+          // currently enforced by `os::chown`. Windows does not support
+          // `os::chown`, we will need to revisit this later.
+  #ifndef __WINDOWS__
+          LOG(INFO) << "Changing the ownership of the persistent volume at '"
+                    << original << "' with uid " << uid << " and gid " << gid;
+
+          Try<Nothing> chown = os::chown(uid, gid, original, false);
+
+          if (chown.isError()) {
+            return Failure(
+                "Failed to change the ownership of the persistent volume at '" +
+                original + "' with uid " + stringify(uid) +
+                " and gid " + stringify(gid) + ": " + chown.error());
+          }
+  #endif // __WINDOWS__
+        }
       }
-
-      if (info->resources.contains(resource)) {
-        isVolumeInUse = true;
-        break;
-      }
-    }
-
-    // Set the ownership of the persistent volume to match that of the sandbox
-    // directory if the volume is not already in use. If the volume is
-    // currently in use by other containers, tasks in this container may fail
-    // to read from or write to the persistent volume due to incompatible
-    // ownership and file system permissions.
-    if (!isVolumeInUse) {
-      // TODO(hausdorff): (MESOS-5461) Persistent volumes maintain the invariant
-      // that they are used by one task at a time. This is currently enforced by
-      // `os::chown`. Windows does not support `os::chown`, we will need to
-      // revisit this later.
-#ifndef __WINDOWS__
-      LOG(INFO) << "Changing the ownership of the persistent volume at '"
-                << original << "' with uid " << uid << " and gid " << gid;
-
-      Try<Nothing> chown = os::chown(uid, gid, original, false);
-
-      if (chown.isError()) {
-        return Failure(
-            "Failed to change the ownership of the persistent volume at '" +
-            original + "' with uid " + stringify(uid) +
-            " and gid " + stringify(gid) + ": " + chown.error());
-      }
-#endif
     }
 
     string link = path::join(info->directory, containerPath);
@@ -279,7 +338,17 @@ Future<Nothing> PosixFilesystemIsolatorProcess::update(
   // Store the updated resources.
   info->resources = resources;
 
-  return Nothing();
+  return collect(futures)
+    .then(defer(self(), [this, containerId](const vector<gid_t>& gids)
+      -> Future<Nothing> {
+      if (!infos.contains(containerId)) {
+        return Failure("Unknown container");
+      }
+
+      infos[containerId]->gids = gids;
+
+      return Nothing();
+    }));
 }
 
 

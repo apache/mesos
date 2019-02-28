@@ -22,7 +22,10 @@
 #include "slave/flags.hpp"
 
 #include "slave/containerizer/mesos/isolator.hpp"
+
 #include "slave/containerizer/mesos/isolators/filesystem/posix.hpp"
+
+#include "slave/volume_gid_manager/volume_gid_manager.hpp"
 
 namespace mesos {
 namespace internal {
@@ -36,10 +39,14 @@ namespace slave {
 class WindowsFilesystemIsolatorProcess : public PosixFilesystemIsolatorProcess
 {
 public:
-  static Try<mesos::slave::Isolator*> create(const Flags& flags);
+  static Try<mesos::slave::Isolator*> create(
+      const Flags& flags,
+      VolumeGidManager* volumeGidManager);
 
 private:
-  WindowsFilesystemIsolatorProcess(const Flags& flags);
+  WindowsFilesystemIsolatorProcess(
+      const Flags& flags,
+      VolumeGidManager* volumeGidManager);
 };
 
 } // namespace slave {

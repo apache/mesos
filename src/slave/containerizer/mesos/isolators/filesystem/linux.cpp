@@ -37,9 +37,9 @@
 #include <stout/stringify.hpp>
 #include <stout/strings.hpp>
 
+#include <stout/os/realpath.hpp>
 #include <stout/os/shell.hpp>
 #include <stout/os/strerror.hpp>
-#include <stout/os/realpath.hpp>
 
 #include "common/protobuf_utils.hpp"
 
@@ -451,7 +451,9 @@ static Try<Nothing> ensureAllowDevices(const string& _targetDir)
 }
 
 
-Try<Isolator*> LinuxFilesystemIsolatorProcess::create(const Flags& flags)
+Try<Isolator*> LinuxFilesystemIsolatorProcess::create(
+    const Flags& flags,
+    VolumeGidManager* volumeGidManager)
 {
   if (geteuid() != 0) {
     return Error("'filesystem/linux' isolator requires root privileges");
@@ -506,16 +508,18 @@ Try<Isolator*> LinuxFilesystemIsolatorProcess::create(const Flags& flags)
   }
 
   Owned<MesosIsolatorProcess> process(
-      new LinuxFilesystemIsolatorProcess(flags));
+      new LinuxFilesystemIsolatorProcess(flags, volumeGidManager));
 
   return new MesosIsolator(process);
 }
 
 
 LinuxFilesystemIsolatorProcess::LinuxFilesystemIsolatorProcess(
-    const Flags& _flags)
+    const Flags& _flags,
+    VolumeGidManager* _volumeGidManager)
   : ProcessBase(process::ID::generate("linux-filesystem-isolator")),
     flags(_flags),
+    volumeGidManager(_volumeGidManager),
     metrics(PID<LinuxFilesystemIsolatorProcess>(this)) {}
 
 
@@ -748,9 +752,29 @@ Future<Option<ContainerLaunchInfo>> LinuxFilesystemIsolatorProcess::prepare(
   }
 
   return update(containerId, containerConfig.resources())
-    .then([launchInfo]() -> Future<Option<ContainerLaunchInfo>> {
-      return launchInfo;
-    });
+    .then(defer(
+        self(),
+        [this, containerId, containerConfig, launchInfo]() mutable
+            -> Future<Option<ContainerLaunchInfo>> {
+          if (!infos.contains(containerId)) {
+            return Failure("Unknown container");
+          }
+
+          foreach (gid_t gid, infos[containerId]->gids) {
+            // For command task with its own rootfs, the command executor will
+            // run as root and the task itself will run as the specified normal
+            // user, so here we add the supplementary group for the task and the
+            // command executor will set it accordingly when launching the task.
+            if (containerConfig.has_task_info() &&
+                containerConfig.has_rootfs()) {
+              launchInfo.add_task_supplementary_groups(gid);
+            } else {
+              launchInfo.add_supplementary_groups(gid);
+            }
+          }
+
+          return launchInfo;
+    }));
 }
 
 
@@ -826,6 +850,8 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::update(
   const uid_t uid = s.st_uid;
   const gid_t gid = s.st_gid;
 
+  vector<Future<gid_t>> futures;
+
   // We then mount new persistent volumes.
   foreach (const Resource& resource, resources.persistentVolumes()) {
     // This is enforced by the master.
@@ -848,42 +874,68 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::update(
     // Determine the source of the mount.
     string source = paths::getPersistentVolumePath(flags.work_dir, resource);
 
-    bool isVolumeInUse = false;
+    // If the container's user is root (uid == 0), we do not need to do any
+    // changes about the volume's ownership since it has the full permissions
+    // to access the volume.
+    if (uid != 0) {
+      // For shared persistent volume, if volume gid manager is enabled, call
+      // volume gid manager to allocate a gid to make sure the container has
+      // the permission to access the volume.
+      //
+      // TODO(qianzhang): Support gid allocation for shared persistent volumes
+      // from resource providers.
+      if (resource.has_shared() &&
+          !Resources::hasResourceProvider(resource) &&
+          volumeGidManager) {
+        LOG(INFO) << "Invoking volume gid manager to allocate gid to the "
+                  << "volume path '" << source << "' for container "
+                  << containerId;
 
-    foreachpair (const ContainerID& _containerId,
-                 const Owned<Info>& info,
-                 infos) {
-      // Skip self.
-      if (_containerId == containerId) {
-        continue;
+        futures.push_back(
+            volumeGidManager->allocate(source, VolumeGidInfo::PERSISTENT));
+      } else {
+        bool isVolumeInUse = false;
+
+        // Check if the shared persistent volume is currently used by another
+        // container. We do not need to do this check for local persistent
+        // volume since it can only be used by one container at a time.
+        if (resource.has_shared()) {
+          foreachpair (const ContainerID& _containerId,
+                       const Owned<Info>& info,
+                       infos) {
+            // Skip self.
+            if (_containerId == containerId) {
+              continue;
+            }
+
+            if (info->resources.contains(resource)) {
+              isVolumeInUse = true;
+              break;
+            }
+          }
+        }
+
+        // Set the ownership of the persistent volume to match that of the
+        // sandbox directory if the volume is not already in use. If the
+        // volume is currently in use by other containers, tasks in this
+        // container may fail to read from or write to the persistent volume
+        // due to incompatible ownership and file system permissions.
+        if (!isVolumeInUse) {
+          LOG(INFO) << "Changing the ownership of the persistent volume at '"
+                    << source << "' with uid " << uid << " and gid " << gid;
+
+          Try<Nothing> chown = os::chown(uid, gid, source, false);
+          if (chown.isError()) {
+            return Failure(
+                "Failed to change the ownership of the persistent volume at '" +
+                source + "' with uid " + stringify(uid) +
+                " and gid " + stringify(gid) + ": " + chown.error());
+          }
+        } else {
+          LOG(INFO) << "Leaving the ownership of the persistent volume at '"
+                    << source << "' unchanged because it is in use";
+        }
       }
-
-      if (info->resources.contains(resource)) {
-        isVolumeInUse = true;
-        break;
-      }
-    }
-
-    // Set the ownership of the persistent volume to match that of the sandbox
-    // directory if the volume is not already in use. If the volume is
-    // currently in use by other containers, tasks in this container may fail
-    // to read from or write to the persistent volume due to incompatible
-    // ownership and file system permissions.
-    if (!isVolumeInUse) {
-      LOG(INFO) << "Changing the ownership of the persistent volume at '"
-                << source << "' with uid " << uid << " and gid " << gid;
-
-      Try<Nothing> chown = os::chown(uid, gid, source, false);
-
-      if (chown.isError()) {
-        return Failure(
-            "Failed to change the ownership of the persistent volume at '" +
-            source + "' with uid " + stringify(uid) +
-            " and gid " + stringify(gid) + ": " + chown.error());
-      }
-    } else {
-      LOG(INFO) << "Leaving the ownership of the persistent volume at '"
-                << source << "' unchanged because it is in use";
     }
 
     // Determine the target of the mount.
@@ -956,7 +1008,17 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::update(
   // Store the new resources;
   info->resources = resources;
 
-  return Nothing();
+  return collect(futures)
+    .then(defer(self(), [this, containerId](const vector<gid_t>& gids)
+      -> Future<Nothing> {
+      if (!infos.contains(containerId)) {
+        return Failure("Unknown container");
+      }
+
+      infos[containerId]->gids = gids;
+
+      return Nothing();
+    }));
 }
 
 
