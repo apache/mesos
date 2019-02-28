@@ -38,6 +38,8 @@
 
 #include "slave/gc.hpp"
 
+#include "slave/volume_gid_manager/volume_gid_manager.hpp"
+
 #include "slave/containerizer/fetcher.hpp"
 
 namespace mesos {
@@ -72,7 +74,8 @@ public:
       bool local,
       Fetcher* fetcher,
       GarbageCollector* gc,
-      SecretResolver* secretResolver = nullptr);
+      SecretResolver* secretResolver = nullptr,
+      VolumeGidManager* volumeGidManager = nullptr);
 
   // Determine slave resources from flags, probing the system or
   // querying a delegate.

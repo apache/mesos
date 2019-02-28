@@ -166,6 +166,7 @@ static vector<Fetcher*>* fetchers = nullptr;
 static vector<ResourceEstimator*>* resourceEstimators = nullptr;
 static vector<QoSController*>* qosControllers = nullptr;
 static vector<SecretGenerator*>* secretGenerators = nullptr;
+static vector<SecretResolver*>* secretResolvers = nullptr;
 
 
 PID<Master> launch(const Flags& flags, Allocator* _allocator)
@@ -375,6 +376,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
   resourceEstimators = new vector<ResourceEstimator*>();
   qosControllers = new vector<QoSController*>();
   secretGenerators = new vector<SecretGenerator*>();
+  secretResolvers = new vector<SecretResolver*>();
 
   vector<UPID> pids;
 
@@ -504,6 +506,8 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
         << "Failed to initialize secret resolver: " << secretResolver.error();
     }
 
+    secretResolvers->push_back(secretResolver.get());
+
     Try<Containerizer*> containerizer = Containerizer::create(
         slaveFlags,
         true,
@@ -529,6 +533,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
         resourceEstimators->back(),
         qosControllers->back(),
         secretGenerators->back(),
+        nullptr,
         authorizer_); // Same authorizer as master.
 
     slaves[containerizer.get()] = slave;
@@ -600,6 +605,10 @@ void shutdown()
 
     delete fetchers;
     fetchers = nullptr;
+
+    foreach (SecretResolver* secretResolver, *secretResolvers) {
+      delete secretResolver;
+    }
 
     foreach (SecretGenerator* secretGenerator, *secretGenerators) {
       delete secretGenerator;

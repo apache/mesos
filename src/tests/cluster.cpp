@@ -97,6 +97,8 @@
 #include "slave/containerizer/containerizer.hpp"
 #include "slave/containerizer/fetcher.hpp"
 
+#include "slave/volume_gid_manager/volume_gid_manager.hpp"
+
 #include "tests/cluster.hpp"
 #include "tests/mock_registrar.hpp"
 
@@ -427,6 +429,23 @@ Try<process::Owned<Slave>> Slave::create(
     slave->gc.reset(new slave::GarbageCollector(flags.work_dir));
   }
 
+  // If the flag `--volume_gid_range` is specified, create a volume gid manager.
+  slave::VolumeGidManager* volumeGidManager = nullptr;
+
+#ifndef __WINDOWS__
+  if (flags.volume_gid_range.isSome()) {
+    Try<slave::VolumeGidManager*> _volumeGidManager =
+      slave::VolumeGidManager::create(flags);
+
+    if (_volumeGidManager.isError()) {
+      return Error(
+          "Failed to create volume gid manager: " + _volumeGidManager.error());
+    }
+
+    volumeGidManager = _volumeGidManager.get();
+  }
+#endif // __WINDOWS__
+
   // If the containerizer is not provided, create a default one.
   if (containerizer.isSome()) {
     slave->containerizer = containerizer.get();
@@ -436,7 +455,12 @@ Try<process::Owned<Slave>> Slave::create(
 
     Try<slave::Containerizer*> _containerizer =
       slave::Containerizer::create(
-          flags, true, slave->fetcher.get(), gc.getOrElse(slave->gc.get()));
+          flags,
+          true,
+          slave->fetcher.get(),
+          gc.getOrElse(slave->gc.get()),
+          nullptr,
+          volumeGidManager);
 
     if (_containerizer.isError()) {
       return Error("Failed to create containerizer: " + _containerizer.error());
@@ -588,6 +612,7 @@ Try<process::Owned<Slave>> Slave::create(
         resourceEstimator.getOrElse(slave->resourceEstimator.get()),
         qosController.getOrElse(slave->qosController.get()),
         secretGenerator.getOrElse(slave->secretGenerator.get()),
+        volumeGidManager,
         authorizer));
   } else {
     slave->slave.reset(new slave::Slave(
@@ -601,6 +626,7 @@ Try<process::Owned<Slave>> Slave::create(
         resourceEstimator.getOrElse(slave->resourceEstimator.get()),
         qosController.getOrElse(slave->qosController.get()),
         secretGenerator.getOrElse(slave->secretGenerator.get()),
+        volumeGidManager,
         authorizer));
   }
 

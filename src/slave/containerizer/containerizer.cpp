@@ -218,7 +218,8 @@ Try<Containerizer*> Containerizer::create(
     bool local,
     Fetcher* fetcher,
     GarbageCollector* gc,
-    SecretResolver* secretResolver)
+    SecretResolver* secretResolver,
+    VolumeGidManager* volumeGidManager)
 {
   // Get the set of containerizer types.
   const vector<string> _types = strings::split(flags.containerizers, ",");
@@ -288,7 +289,7 @@ Try<Containerizer*> Containerizer::create(
   foreach (const string& type, containerizerTypes) {
     if (type == "mesos") {
       Try<MesosContainerizer*> containerizer = MesosContainerizer::create(
-          flags, local, fetcher, gc, secretResolver, nvidia);
+          flags, local, fetcher, gc, secretResolver, nvidia, volumeGidManager);
       if (containerizer.isError()) {
         return Error("Could not create MesosContainerizer: " +
                      containerizer.error());

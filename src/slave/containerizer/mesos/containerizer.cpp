@@ -176,7 +176,8 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     Fetcher* fetcher,
     GarbageCollector* gc,
     SecretResolver* secretResolver,
-    const Option<NvidiaComponents>& nvidia)
+    const Option<NvidiaComponents>& nvidia,
+    VolumeGidManager* volumeGidManager)
 {
   Try<hashset<string>> isolations = [&flags]() -> Try<hashset<string>> {
     const vector<string> tokens(strings::tokenize(flags.isolation, ","));
@@ -421,7 +422,12 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     // Volume isolators.
 
 #ifndef __WINDOWS__
-    {"volume/sandbox_path", &VolumeSandboxPathIsolatorProcess::create},
+    {"volume/sandbox_path",
+      [volumeGidManager] (const Flags& flags) -> Try<Isolator*> {
+        return VolumeSandboxPathIsolatorProcess::create(
+            flags,
+            volumeGidManager);
+      }},
 #endif // __WINDOWS__
 
 #ifdef __linux__
@@ -562,7 +568,8 @@ Try<MesosContainerizer*> MesosContainerizer::create(
       gc,
       Owned<Launcher>(launcher.get()),
       provisioner,
-      isolators);
+      isolators,
+      volumeGidManager);
 }
 
 
@@ -573,7 +580,8 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     GarbageCollector* gc,
     const Owned<Launcher>& launcher,
     const Shared<Provisioner>& provisioner,
-    const vector<Owned<Isolator>>& isolators)
+    const vector<Owned<Isolator>>& isolators,
+    VolumeGidManager* volumeGidManager)
 {
   // Add I/O switchboard to the isolator list.
   //
@@ -631,6 +639,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
           launcher,
           provisioner,
           _isolators,
+          volumeGidManager,
           initMemFd,
           commandExecutorMemFd)));
 }
@@ -1443,7 +1452,7 @@ Future<Nothing> MesosContainerizerProcess::prepare(
     const ContainerID& containerId,
     const Option<ProvisionInfo>& provisionInfo)
 {
-  // This is because if a 'destroy' happens during the provisoiner is
+  // This is because if a 'destroy' happens during the provisioner is
   // provisioning in '_launch', even if the '____destroy' will wait
   // for the 'provision' in '_launch' to finish, there is still a
   // chance that '____destroy' and its dependencies finish before
@@ -1663,6 +1672,17 @@ Future<Containerizer::LaunchResult> MesosContainerizerProcess::_launch(
 
   foreach (int ns, cloneNamespaces) {
     launchInfo.add_clone_namespaces(ns);
+  }
+
+  // Remove duplicated entries in supplementary groups.
+  set<uint32_t> supplementaryGroups(
+      launchInfo.supplementary_groups().begin(),
+      launchInfo.supplementary_groups().end());
+
+  launchInfo.clear_supplementary_groups();
+
+  foreach (uint32_t gid, supplementaryGroups) {
+    launchInfo.add_supplementary_groups(gid);
   }
 
   // Determine the launch command for the container.
@@ -2701,6 +2721,41 @@ void MesosContainerizerProcess::____destroy(
     const Option<ContainerTermination>& termination)
 {
   CHECK(containers_.contains(containerId));
+
+#ifndef __WINDOWS__
+  if (volumeGidManager) {
+    const Owned<Container>& container = containers_.at(containerId);
+
+    if (container->config.isSome()) {
+      VLOG(1) << "Invoking volume gid manager to deallocate gid for container "
+              << containerId;
+
+      volumeGidManager->deallocate(container->config->directory())
+        .onAny(defer(self(), [=](const Future<Nothing>& future) {
+          CHECK(containers_.contains(containerId));
+
+          if (!future.isReady()) {
+            container->termination.fail(
+                "Failed to deallocate gid when destroying container: " +
+                (future.isFailed() ? future.failure() : "discarded future"));
+
+            ++metrics.container_destroy_errors;
+            return;
+          }
+
+          cleanupIsolators(containerId)
+            .onAny(defer(
+                self(),
+                &Self::_____destroy,
+                containerId,
+                termination,
+                lambda::_1));
+      }));
+
+      return;
+    }
+  }
+#endif // __WINDOWS__
 
   cleanupIsolators(containerId)
     .onAny(defer(

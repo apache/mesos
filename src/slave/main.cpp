@@ -477,8 +477,27 @@ int main(int argc, char** argv)
         << "Failed to initialize secret resolver: " << secretResolver.error();
   }
 
-  Try<Containerizer*> containerizer =
-    Containerizer::create(flags, false, fetcher, gc, secretResolver.get());
+  VolumeGidManager* volumeGidManager = nullptr;
+
+#ifndef __WINDOWS__
+  if (flags.volume_gid_range.isSome()) {
+    Try<VolumeGidManager*> _volumeGidManager = VolumeGidManager::create(flags);
+    if (_volumeGidManager.isError()) {
+      EXIT(EXIT_FAILURE) << "Failed to initialize volume gid manager: "
+                         << _volumeGidManager.error();
+    }
+
+    volumeGidManager = _volumeGidManager.get();
+  }
+#endif // __WINDOWS__
+
+  Try<Containerizer*> containerizer = Containerizer::create(
+      flags,
+      false,
+      fetcher,
+      gc,
+      secretResolver.get(),
+      volumeGidManager);
 
   if (containerizer.isError()) {
     EXIT(EXIT_FAILURE)
@@ -591,6 +610,7 @@ int main(int argc, char** argv)
       resourceEstimator.get(),
       qosController.get(),
       secretGenerator,
+      volumeGidManager,
       authorizer_);
 
   process::spawn(slave);
@@ -615,6 +635,10 @@ int main(int argc, char** argv)
   delete detector;
 
   delete containerizer.get();
+
+  delete volumeGidManager;
+
+  delete secretResolver.get();
 
   delete gc;
 

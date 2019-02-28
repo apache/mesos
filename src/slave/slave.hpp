@@ -127,6 +127,7 @@ public:
         mesos::slave::ResourceEstimator* resourceEstimator,
         mesos::slave::QoSController* qosController,
         mesos::SecretGenerator* secretGenerator,
+        VolumeGidManager* volumeGidManager,
         const Option<Authorizer*>& authorizer);
 
   ~Slave() override;
@@ -834,6 +835,8 @@ private:
   std::shared_ptr<DiskProfileAdaptor> diskProfileAdaptor;
 
   mesos::SecretGenerator* secretGenerator;
+
+  VolumeGidManager* volumeGidManager;
 
   const Option<Authorizer*> authorizer;
 

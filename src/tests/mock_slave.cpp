@@ -36,6 +36,7 @@ using mesos::master::detector::MasterDetector;
 using mesos::internal::slave::Containerizer;
 using mesos::internal::slave::GarbageCollector;
 using mesos::internal::slave::TaskStatusUpdateManager;
+using mesos::internal::slave::VolumeGidManager;
 
 using mesos::slave::ContainerTermination;
 using mesos::slave::ResourceEstimator;
@@ -101,6 +102,7 @@ MockSlave::MockSlave(
     ResourceEstimator* resourceEstimator,
     QoSController* qosController,
     SecretGenerator* secretGenerator,
+    VolumeGidManager* volumeGidManager,
     const Option<Authorizer*>& authorizer)
   // It is necessary to explicitly call `ProcessBase` constructor here even
   // though the direct parent `Slave` already does this. This is because
@@ -119,6 +121,7 @@ MockSlave::MockSlave(
         resourceEstimator,
         qosController,
         secretGenerator,
+        volumeGidManager,
         authorizer)
 {
   // Set up default behaviors, calling the original methods.

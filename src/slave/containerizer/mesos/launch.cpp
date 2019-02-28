@@ -824,6 +824,10 @@ int MesosContainerizerLaunch::execute()
         exitWithStatus(EXIT_FAILURE);
       }
 
+      foreach (uint32_t supplementaryGroup, launchInfo.supplementary_groups()) {
+        _gids->push_back(supplementaryGroup);
+      }
+
       uid = _uid.get();
       gid = _gid.get();
       gids = _gids.get();

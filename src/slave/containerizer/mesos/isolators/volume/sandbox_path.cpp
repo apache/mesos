@@ -18,6 +18,7 @@
 
 #include <glog/logging.h>
 
+#include <process/collect.hpp>
 #include <process/future.hpp>
 #include <process/id.hpp>
 
@@ -62,7 +63,8 @@ namespace internal {
 namespace slave {
 
 Try<Isolator*> VolumeSandboxPathIsolatorProcess::create(
-    const Flags& flags)
+    const Flags& flags,
+    VolumeGidManager* volumeGidManager)
 {
   bool bindMountSupported = false;
 
@@ -72,7 +74,12 @@ Try<Isolator*> VolumeSandboxPathIsolatorProcess::create(
   }
 
   Owned<MesosIsolatorProcess> process(
-      new VolumeSandboxPathIsolatorProcess(flags, bindMountSupported));
+      new VolumeSandboxPathIsolatorProcess(
+          flags,
+#ifdef __linux__
+          volumeGidManager,
+#endif // __linux__
+          bindMountSupported));
 
   return new MesosIsolator(process);
 }
@@ -80,9 +87,15 @@ Try<Isolator*> VolumeSandboxPathIsolatorProcess::create(
 
 VolumeSandboxPathIsolatorProcess::VolumeSandboxPathIsolatorProcess(
     const Flags& _flags,
+#ifdef __linux__
+    VolumeGidManager* _volumeGidManager,
+#endif // __linux__
     bool _bindMountSupported)
   : ProcessBase(process::ID::generate("volume-sandbox-path-isolator")),
     flags(_flags),
+#ifdef __linux__
+    volumeGidManager(_volumeGidManager),
+#endif // __linux__
     bindMountSupported(_bindMountSupported) {}
 
 
@@ -139,6 +152,7 @@ Future<Option<ContainerLaunchInfo>> VolumeSandboxPathIsolatorProcess::prepare(
   }
 
   ContainerLaunchInfo launchInfo;
+  vector<Future<gid_t>> futures;
 
   foreach (const Volume& volume, containerInfo.volumes()) {
     // NOTE: The validation here is for backwards compatibility. For
@@ -249,7 +263,6 @@ Future<Option<ContainerLaunchInfo>> VolumeSandboxPathIsolatorProcess::prepare(
 
       // Get 'sourceRoot''s user and group info for the source path.
       struct stat s;
-
       if (::stat(sourceRoot.c_str(), &s) < 0) {
         return ErrnoFailure("Failed to stat '" + sourceRoot + "'");
       }
@@ -380,6 +393,44 @@ Future<Option<ContainerLaunchInfo>> VolumeSandboxPathIsolatorProcess::prepare(
           source,
           target,
           MS_BIND | MS_REC | (volume.mode() == Volume::RO ? MS_RDONLY : 0));
+
+      // For the PARENT type SANDBOX_PATH volume, if the container's user is
+      // not root and not the owner of the volume, call volume gid manager to
+      // allocate a gid to make sure the container has the permission to access
+      // the volume. Please note that we only do this when `bindMountSupported`
+      // is true but not for the case of using symlink to do the SANDBOX_PATH
+      // volume, because container's sandbox is created with 0750 permissions
+      // (i.e., other users have no permissions, see MESOS-8332 for details), so
+      // the nested container actually has no permissions to access anything
+      // under its parent container's sandbox if their users are different,
+      // that means the nested container cannot access the source path of the
+      // volume (i.e., the source of the symlink) which is under its parent
+      // container's sandbox.
+      if (volumeGidManager &&
+          containerConfig.has_user() &&
+          containerConfig.user() != "root" &&
+          sandboxPath->type() == Volume::Source::SandboxPath::PARENT) {
+        Result<uid_t> uid = os::getuid(containerConfig.user());
+        if (!uid.isSome()) {
+          return Failure(
+              "Failed to get the uid of user '" + containerConfig.user() + "': "
+              + (uid.isError() ? uid.error() : "not found"));
+        }
+
+        struct stat s;
+        if (::stat(source.c_str(), &s) < 0) {
+          return ErrnoFailure("Failed to stat '" + source + "'");
+        }
+
+        if (uid.get() != s.st_uid) {
+          LOG(INFO) << "Invoking volume gid manager to allocate gid to the "
+                    << "volume path '" << source << "' for container "
+                    << containerId;
+
+          futures.push_back(
+              volumeGidManager->allocate(source, VolumeGidInfo::SANDBOX_PATH));
+        }
+      }
 #endif // __linux__
     } else {
       LOG(INFO) << "Linking SANDBOX_PATH volume from "
@@ -402,7 +453,15 @@ Future<Option<ContainerLaunchInfo>> VolumeSandboxPathIsolatorProcess::prepare(
     }
   }
 
-  return launchInfo;
+  return collect(futures)
+    .then([launchInfo](const vector<gid_t>& gids) mutable
+        -> Future<Option<ContainerLaunchInfo>> {
+      foreach (gid_t gid, gids) {
+        launchInfo.add_supplementary_groups(gid);
+      }
+
+      return launchInfo;
+    });
 }
 
 

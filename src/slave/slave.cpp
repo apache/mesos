@@ -197,6 +197,7 @@ Slave::Slave(const string& id,
              ResourceEstimator* _resourceEstimator,
              QoSController* _qosController,
              SecretGenerator* _secretGenerator,
+             VolumeGidManager* _volumeGidManager,
              const Option<Authorizer*>& _authorizer)
   : ProcessBase(id),
     state(RECOVERING),
@@ -226,6 +227,7 @@ Slave::Slave(const string& id,
     resourceEstimator(_resourceEstimator),
     qosController(_qosController),
     secretGenerator(_secretGenerator),
+    volumeGidManager(_volumeGidManager),
     authorizer(_authorizer),
     resourceVersion(protobuf::createUUID()) {}
 

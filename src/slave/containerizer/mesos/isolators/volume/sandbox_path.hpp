@@ -23,6 +23,8 @@
 
 #include "slave/flags.hpp"
 
+#include "slave/volume_gid_manager/volume_gid_manager.hpp"
+
 #include "slave/containerizer/mesos/isolator.hpp"
 
 namespace mesos {
@@ -32,7 +34,9 @@ namespace slave {
 class VolumeSandboxPathIsolatorProcess : public MesosIsolatorProcess
 {
 public:
-  static Try<mesos::slave::Isolator*> create(const Flags& flags);
+  static Try<mesos::slave::Isolator*> create(
+      const Flags& flags,
+      VolumeGidManager* volumeGidManager);
 
   ~VolumeSandboxPathIsolatorProcess() override;
 
@@ -53,9 +57,17 @@ public:
 private:
   VolumeSandboxPathIsolatorProcess(
       const Flags& flags,
+#ifdef __linux__
+      VolumeGidManager* volumeGidManager,
+#endif // __linux__
       bool bindMountSupported);
 
   const Flags flags;
+
+#ifdef __linux__
+  VolumeGidManager* volumeGidManager;
+#endif // __linux__
+
   const bool bindMountSupported;
 
   hashmap<ContainerID, std::string> sandboxes;

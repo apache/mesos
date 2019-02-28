@@ -71,7 +71,8 @@ public:
       Fetcher* fetcher,
       GarbageCollector* gc = nullptr,
       SecretResolver* secretResolver = nullptr,
-      const Option<NvidiaComponents>& nvidia = None());
+      const Option<NvidiaComponents>& nvidia = None(),
+      VolumeGidManager* volumeGidManager = nullptr);
 
   static Try<MesosContainerizer*> create(
       const Flags& flags,
@@ -80,7 +81,8 @@ public:
       GarbageCollector* gc,
       const process::Owned<Launcher>& launcher,
       const process::Shared<Provisioner>& provisioner,
-      const std::vector<process::Owned<mesos::slave::Isolator>>& isolators);
+      const std::vector<process::Owned<mesos::slave::Isolator>>& isolators,
+      VolumeGidManager* volumeGidManager = nullptr);
 
   ~MesosContainerizer() override;
 
@@ -143,6 +145,7 @@ public:
       const process::Owned<Launcher>& _launcher,
       const process::Shared<Provisioner>& _provisioner,
       const std::vector<process::Owned<mesos::slave::Isolator>>& _isolators,
+      VolumeGidManager* _volumeGidManager,
       const Option<int_fd>& _initMemFd,
       const Option<int_fd>& _commandExecutorMemFd)
     : ProcessBase(process::ID::generate("mesos-containerizer")),
@@ -153,6 +156,7 @@ public:
       launcher(_launcher),
       provisioner(_provisioner),
       isolators(_isolators),
+      volumeGidManager(_volumeGidManager),
       initMemFd(_initMemFd),
       commandExecutorMemFd(_commandExecutorMemFd) {}
 
@@ -339,6 +343,7 @@ private:
   const process::Owned<Launcher> launcher;
   const process::Shared<Provisioner> provisioner;
   const std::vector<process::Owned<mesos::slave::Isolator>> isolators;
+  VolumeGidManager* volumeGidManager;
   const Option<int_fd> initMemFd;
   const Option<int_fd> commandExecutorMemFd;
 
