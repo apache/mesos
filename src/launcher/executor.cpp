@@ -139,6 +139,7 @@ public:
       const Option<CapabilityInfo>& _boundingCapabilities,
       const Option<string>& _ttySlavePath,
       const Option<ContainerLaunchInfo>& _taskLaunchInfo,
+      const Option<vector<gid_t>> _taskSupplementaryGroups,
       const FrameworkID& _frameworkId,
       const ExecutorID& _executorId,
       const Duration& _shutdownGracePeriod)
@@ -165,6 +166,7 @@ public:
       boundingCapabilities(_boundingCapabilities),
       ttySlavePath(_ttySlavePath),
       taskLaunchInfo(_taskLaunchInfo),
+      taskSupplementaryGroups(_taskSupplementaryGroups),
       frameworkId(_frameworkId),
       executorId(_executorId),
       lastTaskStatus(None()) {}
@@ -422,7 +424,8 @@ protected:
       const Option<CapabilityInfo>& effectiveCapabilities,
       const Option<CapabilityInfo>& boundingCapabilities,
       const Option<string>& ttySlavePath,
-      const Option<ContainerLaunchInfo>& taskLaunchInfo)
+      const Option<ContainerLaunchInfo>& taskLaunchInfo,
+      const Option<vector<gid_t>>& taskSupplementaryGroups)
   {
     // Prepare the flags to pass to the launch process.
     slave::MesosContainerizerLaunch::Flags launchFlags;
@@ -496,6 +499,12 @@ protected:
 
       launchInfo.mutable_clone_namespaces()->CopyFrom(
           taskLaunchInfo->clone_namespaces());
+    }
+
+    if (taskSupplementaryGroups.isSome()) {
+      foreach (gid_t gid, taskSupplementaryGroups.get()) {
+        launchInfo.add_supplementary_groups(gid);
+      }
     }
 
     launchFlags.launch_info = JSON::protobuf(launchInfo);
@@ -711,7 +720,8 @@ protected:
         effectiveCapabilities,
         boundingCapabilities,
         ttySlavePath,
-        taskLaunchInfo);
+        taskLaunchInfo,
+        taskSupplementaryGroups);
 
     LOG(INFO) << "Forked command at " << pid.get();
 
@@ -1243,6 +1253,7 @@ private:
   Option<CapabilityInfo> boundingCapabilities;
   Option<string> ttySlavePath;
   Option<ContainerLaunchInfo> taskLaunchInfo;
+  Option<vector<gid_t>> taskSupplementaryGroups;
   const FrameworkID frameworkId;
   const ExecutorID executorId;
   Owned<MesosBase> mesos;
@@ -1310,6 +1321,10 @@ public:
         "tty_slave_path",
         "A path to the slave end of the attached TTY if there is one.");
 
+    add(&Flags::task_supplementary_groups,
+        "task_supplementary_groups",
+        "Comma-separated list of supplementary groups to run the task with.");
+
     add(&Flags::launcher_dir,
         "launcher_dir",
         "Directory path of Mesos binaries.",
@@ -1329,6 +1344,7 @@ public:
   Option<mesos::CapabilityInfo> bounding_capabilities;
   Option<string> tty_slave_path;
   Option<JSON::Object> task_launch_info;
+  Option<vector<gid_t>> task_supplementary_groups;
   string launcher_dir;
 };
 
@@ -1421,6 +1437,7 @@ int main(int argc, char** argv)
           flags.bounding_capabilities,
           flags.tty_slave_path,
           task_launch_info,
+          flags.task_supplementary_groups,
           frameworkId,
           executorId,
           shutdownGracePeriod));
