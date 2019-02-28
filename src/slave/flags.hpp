@@ -74,6 +74,7 @@ public:
 
 #ifndef __WINDOWS__
   bool switch_user;
+  Option<std::string> volume_gid_range;
 #endif // __WINDOWS__
   Duration http_heartbeat_interval;
   std::string frameworks_home;  // TODO(benh): Make an Option.

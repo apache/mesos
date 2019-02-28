@@ -330,6 +330,15 @@ mesos::internal::slave::Flags::Flags()
       "NOTE: This feature is not yet supported on Windows agent, and\n"
       "therefore the flag currently does not exist on that platform.",
       true);
+
+  add(&Flags::volume_gid_range,
+      "volume_gid_range",
+      "When this flag is specified, if a task running as non-root user uses a\n"
+      "shared persistent volume or a PARENT type SANDBOX_PATH volume, the\n"
+      "volume will be owned by a gid allocated from this range and have the\n"
+      "`setgid` bit set, and the task process will be launched with the gid\n"
+      "as its supplementary group to make sure it can access the volume.\n"
+      "(Example: `[10000-20000]`)");
 #endif // __WINDOWS__
 
   add(&Flags::http_heartbeat_interval,

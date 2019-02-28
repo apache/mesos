@@ -1518,6 +1518,19 @@ The path to the systemd system run time directory.
 (default: /run/systemd/system)
   </td>
 </tr>
+<tr>
+  <td>
+    --volume_gid_range=VALUE
+  </td>
+  <td>
+When this flag is specified, if a task running as non-root user uses a
+shared persistent volume or a PARENT type SANDBOX_PATH volume, the
+volume will be owned by a gid allocated from this range and have the
+`setgid` bit set, and the task process will be launched with the gid
+as its supplementary group to make sure it can access the volume.
+(Example: <code>[10000-20000]</code>)
+  </td>
+</tr>
 </table>
 
 ## Network Isolator Flags
