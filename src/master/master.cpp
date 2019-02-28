@@ -4230,7 +4230,7 @@ void Master::accept(
   // If invalid, send TASK_DROPPED for the launch attempts. If the
   // framework is not partition-aware, send TASK_LOST instead. If
   // other operations have their `id` field set, then send
-  // OPERATION_DROPPED updates for them.
+  // OPERATION_ERROR updates for them.
   //
   // TODO(jieyu): Consider adding a 'drop' overload for ACCEPT call to
   // consistently handle message dropping. It would be ideal if the
