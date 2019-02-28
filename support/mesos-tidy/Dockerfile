@@ -58,7 +58,6 @@ ENV PATH /opt/bin:$PATH
 RUN apt-get update && \
   apt-get install -qy \
   autoconf \
-  libacl1-dev \
   libapr1-dev \
   libcurl4-nss-dev \
   libsasl2-dev \

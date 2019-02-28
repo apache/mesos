@@ -34,7 +34,6 @@ RUN yum groupinstall -y 'Development Tools' && \
       devtoolset-4-gcc-c++ \
       git \
       java-1.8.0-openjdk-devel \
-      libacl-devel \
       libcurl-devel \
       libevent-devel \
       libev-devel \
