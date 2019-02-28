@@ -4398,7 +4398,6 @@ Try<Nothing> Slave::syncCheckpointedResources(
 
       // We should proceed only if the directory is removed.
       Try<Nothing> result = os::rmdir(path, true, removeRoot);
-
       if (result.isError()) {
         return Error(
             "Failed to remove persistent volume '" +
@@ -4406,6 +4405,15 @@ Try<Nothing> Slave::syncCheckpointedResources(
             "' at '" + path + "': " + result.error());
       }
     }
+
+#ifndef __WINDOWS__
+    // Deallocate the shared persistent volume's gid. Please note that the
+    // gid is allocated when the shared persistent volume is first used by
+    // a container rather than when it is created.
+    if (volume.has_shared() && volumeGidManager) {
+      volumeGidManager->deallocate(path);
+    }
+#endif // __WINDOWS__
   }
 
   return Nothing();
