@@ -2499,6 +2499,121 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleFrameworks)
 }
 
 
+// This test verifies that a command task launched with a non-root user
+// can write to a shared persistent volume. We have a similar test in
+// linux_filesystem_isolator_tests.cpp which tests the implementation of
+// `filesystem/linux` isolator, and this one tests the implementation of
+// `filesystem/posix` isolator.
+TEST_P(PersistentVolumeTest, UNPRIVILEGED_USER_SharedPersistentVolume)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.volume_gid_range = "[10000-20000]";
+
+  // Agent's work directory and `diskPath` are created with the
+  // mode 0700, here we change their modes to 0711 to ensure the
+  // non-root user used to launch the command task can enter it.
+  ASSERT_SOME(os::chmod(slaveFlags.work_dir, 0711));
+  ASSERT_SOME(os::chmod(diskPath, 0711));
+
+  slaveFlags.resources = getSlaveResources();
+
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+  Clock::settle();
+  AWAIT_READY(updateSlaveMessage);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
+  frameworkInfo.add_capabilities()->set_type(
+      FrameworkInfo::Capability::SHARED_RESOURCES);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers1;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers1);
+  ASSERT_FALSE(offers1->empty());
+
+  Offer offer1 = offers1.get()[0];
+
+  // Create a shared volume, and launch a task to write a file to the volume.
+  Resource volume = createPersistentVolume(
+      getDiskResource(Megabytes(2048)),
+      "id1",
+      "path1",
+      None(),
+      frameworkInfo.principal(),
+      true); // Shared volume.
+
+  Option<string> user = os::getenv("SUDO_USER");
+  ASSERT_SOME(user);
+
+  CommandInfo command = createCommandInfo(
+        "echo hello > path1/file");
+
+  command.set_user(user.get());
+
+  TaskInfo task = createTask(
+      offer1.slave_id(),
+      Resources::parse("cpus:1;mem:128").get() + volume,
+      command);
+
+  // We should receive a TASK_STARTING, a TASK_RUNNING
+  // and a TASK_FINISHED for the launched task.
+  Future<TaskStatus> status0;
+  Future<TaskStatus> status1;
+  Future<TaskStatus> status2;
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&status0))
+    .WillOnce(FutureArg<1>(&status1))
+    .WillOnce(FutureArg<1>(&status2));
+
+  driver.acceptOffers(
+      {offer1.id()},
+      {CREATE(volume),
+       LAUNCH({task})});
+
+  AWAIT_READY(status0);
+  EXPECT_EQ(TASK_STARTING, status0->state());
+
+  AWAIT_READY(status1);
+  EXPECT_EQ(TASK_RUNNING, status1->state());
+
+  AWAIT_READY(status2);
+  EXPECT_EQ(TASK_FINISHED, status2->state());
+
+  // Resume the clock so the terminating task and executor can be reaped.
+  Clock::resume();
+
+  driver.stop();
+  driver.join();
+}
+
+
 // This test verifies that the master recovers after a failover and
 // re-offers the shared persistent volume when tasks using the same
 // volume are still running.
