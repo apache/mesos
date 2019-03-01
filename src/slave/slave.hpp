@@ -695,13 +695,9 @@ private:
 
   void apply(Operation* operation);
 
-  // Publish all resources that are needed to run the current set of
-  // tasks and executors on the agent.
-  // NOTE: The `additionalResources` parameter is for publishing
-  // additional task resources when launching executors. Consider
-  // removing this parameter once we revisited MESOS-600.
+  // Prepare all resources to be consumed by the specified container.
   process::Future<Nothing> publishResources(
-      const Option<Resources>& additionalResources = None());
+      const ContainerID& containerId, const Resources& resources);
 
   // PullGauge methods.
   double _frameworks_active()
