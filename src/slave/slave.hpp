@@ -434,16 +434,20 @@ public:
   void finalize() override;
   void exited(const process::UPID& pid) override;
 
-  process::Future<Secret> generateSecret(
+  // Generates a secret for executor authentication. Returns None if there is
+  // no secret generator.
+  process::Future<Option<Secret>> generateSecret(
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
       const ContainerID& containerId);
 
-  // If an executor is launched for a task group, `taskInfo` would not be set.
+  // `executorInfo` is a mutated executor info with some default fields and
+  // resources. If an executor is launched for a task group, `taskInfo` would
+  // not be set.
   void launchExecutor(
-      const Option<process::Future<Secret>>& future,
+      const process::Future<Option<Secret>>& authorizationToken,
       const FrameworkID& frameworkId,
-      const ExecutorID& executorId,
+      const ExecutorInfo& executorInfo,
       const Option<TaskInfo>& taskInfo);
 
   void fileAttached(const process::Future<Nothing>& result,
