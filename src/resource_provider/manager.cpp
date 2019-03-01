@@ -173,7 +173,7 @@ struct ResourceProvider
 
   ResourceProviderInfo info;
   HttpConnection http;
-  hashmap<UUID, Owned<Promise<Nothing>>> publishes;
+  hashmap<id::UUID, Owned<Promise<Nothing>>> publishes;
 };
 
 
@@ -702,12 +702,13 @@ Future<Nothing> ResourceProviderManagerProcess::publishResources(
   foreachpair (const ResourceProviderID& resourceProviderId,
                const Resources& resources,
                providedResources) {
-    UUID uuid = protobuf::createUUID();
+    id::UUID uuid = id::UUID::random();
 
     Event event;
     event.set_type(Event::PUBLISH_RESOURCES);
-    event.mutable_publish_resources()->mutable_uuid()->CopyFrom(uuid);
-    event.mutable_publish_resources()->mutable_resources()->CopyFrom(resources);
+    *event.mutable_publish_resources()->mutable_uuid() =
+      protobuf::createUUID(uuid);
+    *event.mutable_publish_resources()->mutable_resources() = resources;
 
     ResourceProvider* resourceProvider =
       resourceProviders.subscribed.at(resourceProviderId).get();
@@ -960,30 +961,39 @@ void ResourceProviderManagerProcess::updatePublishResourcesStatus(
     ResourceProvider* resourceProvider,
     const Call::UpdatePublishResourcesStatus& update)
 {
-  const UUID& uuid = update.uuid();
+  Try<id::UUID> uuid = id::UUID::fromBytes(update.uuid().value());
 
-  if (!resourceProvider->publishes.contains(uuid)) {
-    LOG(ERROR) << "Ignoring UpdatePublishResourcesStatus from resource"
-               << " provider " << resourceProvider->info.id()
-               << " because UUID " << uuid << " is unknown";
+  if (uuid.isError()) {
+    LOG(ERROR)
+      << "Ignoring UpdatePublishResourcesStatus from resource provider "
+      << resourceProvider->info.id() << ": " << uuid.error();
+
+    return;
+  }
+
+  if (!resourceProvider->publishes.contains(uuid.get())) {
+    LOG(ERROR)
+      << "Ignoring UpdatePublishResourcesStatus from resource provider "
+      << resourceProvider->info.id() << ": Unknown UUID " << uuid.get();
+
     return;
   }
 
   LOG(INFO)
     << "Received UPDATE_PUBLISH_RESOURCES_STATUS call for PUBLISH_RESOURCES"
-    << " event " << uuid << " with " << update.status()
+    << " event " << uuid.get() << " with " << update.status()
     << " status from resource provider " << resourceProvider->info.id();
 
   if (update.status() == Call::UpdatePublishResourcesStatus::OK) {
-    resourceProvider->publishes.at(uuid)->set(Nothing());
+    resourceProvider->publishes.at(uuid.get())->set(Nothing());
   } else {
     // TODO(jieyu): Consider to include an error message in
     // 'UpdatePublishResourcesStatus' and surface that to the caller.
-    resourceProvider->publishes.at(uuid)->fail(
+    resourceProvider->publishes.at(uuid.get())->fail(
         "Received " + stringify(update.status()) + " status");
   }
 
-  resourceProvider->publishes.erase(uuid);
+  resourceProvider->publishes.erase(uuid.get());
 }
 
 
