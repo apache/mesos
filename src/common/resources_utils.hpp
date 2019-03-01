@@ -50,7 +50,7 @@ Try<Resources> applyCheckpointedResources(
 
 
 // Returns the resource provider ID associated with the given
-// operation. Returns None() if the operation is for agent default
+// operation. Returns None if the operation is for agent default
 // resources. We assume the given operation is validated. Therefore,
 // the specified operation should not contain resources from more than
 // one resource provider.
@@ -58,12 +58,11 @@ Result<ResourceProviderID> getResourceProviderId(
     const Offer::Operation& operation);
 
 
-// Returns the ID of the resource provider affected by a resource
-// conversion. Returns None() if the conversion is on agent default
-// resources. We assume a single conversion only being applied on
-// resources from a single resource provider.
+// Returns the resource provider ID associated with the given resources, None if
+// the given resources are agent default resources, or Error if the given
+// resources are from more than one resource providers.
 Result<ResourceProviderID> getResourceProviderId(
-    const ResourceConversion& conversion);
+    const Resources& resources);
 
 
 // Returns the resource conversions from the given offer operation.

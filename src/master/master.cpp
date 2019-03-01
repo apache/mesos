@@ -12538,7 +12538,8 @@ void Slave::apply(const vector<ResourceConversion>& conversions)
   // Also apply the conversion to the explicitly maintained resource
   // provider resources.
   foreach (const ResourceConversion& conversion, conversions) {
-    Result<ResourceProviderID> providerId = getResourceProviderId(conversion);
+    Result<ResourceProviderID> providerId =
+      getResourceProviderId(conversion.consumed);
 
     if (providerId.isNone()) {
       continue;
