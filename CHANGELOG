@@ -705,7 +705,7 @@ All Resolved Issues:
   * [MESOS-5333] - GET /master/maintenance/schedule/ produces 404.
   * [MESOS-5820] - Port master to Windows
   * [MESOS-5882] - `os::cloexec` does not exist on Windows
-  * [MESOS-5940] - `setPaths` doesn’t work on Windows
+  * [MESOS-5940] - `setPaths` doesn't work on Windows
   * [MESOS-6555] - Namespace 'mnt' is not supported
   * [MESOS-6713] - Port `slave_recovery_tests.cpp`
   * [MESOS-6715] - Port `uri_fetcher_tests.cpp`
@@ -873,7 +873,7 @@ All Resolved Issues:
   * [MESOS-6575] - Change `disk/xfs` isolator to terminate executor when it exceeds quota
   * [MESOS-7558] - Add resource provider validation
   * [MESOS-8184] - Implement master's AcknowledgeOfferOperationMessage handler.
-  * [MESOS-8189] - Master’s OperationStatusUpdate handler should forward updates to the framework when OfferOperationID is set.
+  * [MESOS-8189] - Master's OperationStatusUpdate handler should forward updates to the framework when OfferOperationID is set.
   * [MESOS-8190] - Update the master to accept OfferOperationIDs from frameworks.
   * [MESOS-8191] - Implement ReconcileOfferOperations handler in the master
   * [MESOS-8192] - Update the scheduler library to support request/response API calls.
@@ -1078,7 +1078,7 @@ This release contains the following new features:
     to catch-up missing log positions in the replicated log. This opens
     the door for implementing hot standby (by offloading some reading
     from a leader to standbys) and fast failover time (by keeping
-    in-memory storage represented by the log “hot”).
+    in-memory storage represented by the log "hot").
 
   * Several improvements and fixes to the enforcement of quota
     guarantees have been made:
@@ -1508,7 +1508,7 @@ All Resolved Issues:
   * [MESOS-8183] - Add a container daemon to monitor a long-running standalone container.
   * [MESOS-8186] - Implement the agent's AcknowledgeOfferOperationMessage handler.
   * [MESOS-8187] - Enable LRP to send operation status updates, checkpoint, and retry using the SUM.
-  * [MESOS-8193] - Update master’s OfferOperationStatusUpdate handler to acknowledge updates to the agent if OfferOperationID is not set.
+  * [MESOS-8193] - Update master's OfferOperationStatusUpdate handler to acknowledge updates to the agent if OfferOperationID is not set.
   * [MESOS-8195] - Implement explicit offer operation reconciliation between the master, agent and RPs.
   * [MESOS-8196] - Propagate failures from applying offer operations from resource providers.
   * [MESOS-8197] - Implement a library to send offer operation status updates.
@@ -6828,7 +6828,7 @@ All Issues:
   * [MESOS-685] - SlaveRecoveryTest/0.RecoveryTimeout Java SIGSEGV
   * [MESOS-686] - Testing isolator is broken when multiple frameworks are in play
   * [MESOS-702] - Webui table headers are not consistently aligned vertically
-  * [MESOS-729] - ./stout/include/stout/hashmap.hpp:49:5: error: ‘erase’ was not declared in this scope, and no declarations were found by argument-dependent lookup at the point of instantiation [-fpermissive]
+  * [MESOS-729] - ./stout/include/stout/hashmap.hpp:49:5: error: 'erase' was not declared in this scope, and no declarations were found by argument-dependent lookup at the point of instantiation [-fpermissive]
   * [MESOS-732] - Make slave recovery asynchronous
   * [MESOS-734] - MasterTest.ReconcileTaskTest "not authenticated"
   * [MESOS-737] - Recover completed frameworks/executors during recovery

@@ -20,7 +20,7 @@ Cgroups `cpu` subsystem provides 2 mechanisms of limiting the amount
 of CPU time used by cgroups: [CFS shares](https://github.com/torvalds/linux/blob/master/Documentation/scheduler/sched-design-CFS.txt)
 and [CFS bandwidth](https://github.com/torvalds/linux/blob/master/Documentation/scheduler/sched-bwc.txt)
 control. The first one can guarantee some minimum number of CPU
-“shares” to a cgroup when the system is under heavy load. It, however,
+"shares" to a cgroup when the system is under heavy load. It, however,
 does not limit the amount of CPU time available to a cgroup when the
 system is not busy. This mechanism is always enabled when you turn on
 this isolator.
@@ -31,7 +31,7 @@ exports bandwidth statistics in `cpu.stat` file. CFS bandwidth
 mechanism can be enabled with `--cgroups_enable_cfs` agent flag.
 
 Cgroups `cpuacct` subsystem provides accounting for CPU usage by
-cgroup’s tasks. Currently it only provides statistics in
+cgroup's tasks. Currently it only provides statistics in
 `cpuacct.stat` that show time spent by tasks of the cgroup in user
 mode and kernel mode respectively
 

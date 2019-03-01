@@ -295,7 +295,7 @@ message Call {
   //     ]
   //   }
   //
-  // Note that any of the offer’s resources not used in the 'Accept'
+  // Note that any of the offer's resources not used in the 'Accept'
   // call (e.g., to launch a task) are considered unused and might be
   // reoffered to other frameworks. In other words, the same OfferID
   // cannot be used in more than one 'Accept' call.
@@ -363,7 +363,7 @@ message Call {
 
   // Shuts down a custom executor. When the executor gets a shutdown
   // event, it is expected to kill all its tasks (and send TASK_KILLED
-  // updates) and terminate. If the executor doesn’t terminate within
+  // updates) and terminate. If the executor doesn't terminate within
   // a certain timeout (configurable via
   // '--executor_shutdown_grace_period' agent flag), the agent will
   // forcefully destroy the container (executor and its tasks) and

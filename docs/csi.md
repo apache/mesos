@@ -306,7 +306,7 @@ of storage vendor-specific parameters for the disk resources. It provides a way
 for the cluster operator to describe the classes of storage they offer and
 abstracts away the low-level details of a storage system.
 
-Each profile is just a simple string (e.g., "fast”, "slow”, "gold”), as
+Each profile is just a simple string (e.g., "fast", "slow", "gold"), as
 described below:
 
 ```protobuf
@@ -757,7 +757,7 @@ A new authorization action `MODIFY_RESOURCE_PROVIDER_CONFIG` has been added.
 This action applies to adding/updating/removing a SLRP.
 
 For the default Mesos local authorizer, a new ACL
-`ACL.ModifyResourceProviderConfig` has been added， allowing operators limit the
+`ACL.ModifyResourceProviderConfig` has been added, allowing operators limit the
 access to the above API endpoints.
 
 ```protobuf
