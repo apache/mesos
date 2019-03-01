@@ -894,9 +894,7 @@ void ResourceProviderManagerProcess::updatePublishResourcesStatus(
     // TODO(jieyu): Consider to include an error message in
     // 'UpdatePublishResourcesStatus' and surface that to the caller.
     resourceProvider->publishes.at(uuid)->fail(
-        "Failed to publish resources for resource provider " +
-        stringify(resourceProvider->info.id()) + ": Received " +
-        stringify(update.status()) + " status");
+        "Received " + stringify(update.status()) + " status");
   }
 
   resourceProvider->publishes.erase(uuid);

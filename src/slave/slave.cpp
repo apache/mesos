@@ -3064,7 +3064,7 @@ void Slave::__run(
       LOG(INFO) << "Queued " << taskOrTaskGroup(task, taskGroup)
                 << " for executor " << *executor;
 
-      publishResources()
+      publishResources(executor->containerId, executor->allocatedResources())
         .then(defer(self(), [=] {
           return containerizer->update(
               executor->containerId,
@@ -3526,12 +3526,7 @@ void Slave::launchExecutor(
             << "' of framework " << framework->id();
 
   // Launch the container.
-  // NOTE: Since we modify the ExecutorInfo to include the task's
-  // resources when launching the executor, these resources need to be
-  // published before the containerizer preparing them. This should be
-  // revisited after MESOS-600.
-  publishResources(
-      taskInfo.isSome() ? taskInfo->resources() : Option<Resources>::none())
+  publishResources(executor->containerId, resources)
     .then(defer(self(), [=] {
       return containerizer->launch(
           executor->containerId,
@@ -4806,7 +4801,7 @@ void Slave::subscribe(
         }
       }
 
-      publishResources()
+      publishResources(executor->containerId, executor->allocatedResources())
         .then(defer(self(), [=] {
           return containerizer->update(
               executor->containerId,
@@ -4963,7 +4958,7 @@ void Slave::registerExecutor(
         }
       }
 
-      publishResources()
+      publishResources(executor->containerId, executor->allocatedResources())
         .then(defer(self(), [=] {
           return containerizer->update(
               executor->containerId,
@@ -8191,48 +8186,71 @@ void Slave::apply(Operation* operation)
 
 
 Future<Nothing> Slave::publishResources(
-    const Option<Resources>& additionalResources)
+    const ContainerID& containerId, const Resources& resources)
 {
-  // If the resource provider manager has not been created yet no resource
-  // providers have been added and we do not need to publish anything.
-  if (resourceProviderManager == nullptr) {
-    // We check whether the passed additional resources are compatible
-    // with the expectation that no resource provider resources are in
-    // use, yet. This is not an exhaustive consistency check.
-    if (additionalResources.isSome()) {
-      foreach (const Resource& resource, additionalResources.get()) {
-        CHECK(!resource.has_provider_id())
-          << "Cannot publish resource provider resources "
-          << additionalResources.get()
-          << " until resource providers have subscribed";
+  hashset<ResourceProviderID> resourceProviderIds;
+  foreach (const Resource& resource, resources) {
+    if (resource.has_provider_id()) {
+      resourceProviderIds.insert(resource.provider_id());
+    }
+  }
+
+  vector<Future<Nothing>> futures;
+  foreach (const ResourceProviderID& resourceProviderId, resourceProviderIds) {
+    auto hasResourceProviderId = [&](const Resource& resource) {
+      return resource.has_provider_id() &&
+             resource.provider_id() == resourceProviderId;
+    };
+
+    // NOTE: For resources providers that serve quantity-based resources without
+    // identifier (such as cpus and mem), we cannot achieve idempotency with
+    // diff-based resource publishing, so we have to implement the "ensure-all"
+    // semantics, and always calculate the total resources to publish.
+    Option<Resources> containerResources;
+    Resources complementaryResources;
+    foreachvalue (const Framework* framework, frameworks) {
+      foreachvalue (const Executor* executor, framework->executors) {
+        if (executor->containerId == containerId) {
+          containerResources = resources.filter(hasResourceProviderId);
+        } else {
+          complementaryResources +=
+            executor->allocatedResources().filter(hasResourceProviderId);
+        }
       }
     }
 
-    return Nothing();
-  }
+    if (containerResources.isNone()) {
+      // NOTE: This actually should not happen, as the callers have already
+      // ensured the existence of the executor before calling this function
+      // synchronously. However we still treat this as a nonfatal error since
+      // this might change in the future.
+      LOG(WARNING) << "Ignoring publishing resources for container "
+                   << containerId << ": Executor cannot be found";
 
-  Resources resources;
-
-  // NOTE: For resources providers that serve quantity-based resources
-  // without any identifiers (such as memory), it is very hard to keep
-  // track of published resources. So instead of implementing diff-based
-  // resource publishing, we implement an "ensure-all" semantics, and
-  // always calculate the total resources that need to remain published.
-  foreachvalue (const Framework* framework, frameworks) {
-    // NOTE: We do not call `framework->allocatedResource()` here
-    // because we do not want to publsh resources for pending tasks that
-    // have not been authorized yet.
-    foreachvalue (const Executor* executor, framework->executors) {
-      resources += executor->allocatedResources();
+      return Nothing();
     }
+
+    // Since we already have resources from any resource provider in the
+    // resource pool, the resource provider manager must have been created.
+    futures.push_back(
+        CHECK_NOTNULL(resourceProviderManager.get())
+          ->publishResources(containerResources.get() + complementaryResources)
+          .repair([=](const Future<Nothing>& future) -> Future<Nothing> {
+            // TODO(chhsiao): Consider surfacing the set of published resources
+            // and only fail if `published - complementaryResources` does not
+            // contain `containerResources`.
+            return Failure(
+                "Failed to publish resources '" +
+                stringify(containerResources.get()) + "' for container " +
+                stringify(containerId) + ": " + future.failure());
+          }));
   }
 
-  if (additionalResources.isSome()) {
-    resources += additionalResources.get();
-  }
-
-  return CHECK_NOTNULL(resourceProviderManager.get())
-    ->publishResources(resources);
+  // NOTE: Resource cleanups (e.g., unpublishing) are not performed at task
+  // completion, but rather done __lazily__ when necessary. This is not just an
+  // optimization but required because resource allocations are tied to task
+  // lifecycles. As a result, no cleanup is needed here if any future fails.
+  return collect(futures).then([] { return Nothing(); });
 }
 
 
