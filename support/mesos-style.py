@@ -287,7 +287,7 @@ class CppLinter(LinterBase):
         # We do not use a version of cpplint available through pip as
         # we use a custom version (see cpplint.path) to lint C++ files.
         process = subprocess.Popen(
-            [sys.executable, 'support/cpplint.py',
+            [sys.executable, 'support/cpplint.py', '--extensions=hpp,cpp',
              rules_filter] + source_paths,
             stderr=subprocess.PIPE,
             close_fds=True)
