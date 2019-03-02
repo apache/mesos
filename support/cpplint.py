@@ -239,7 +239,6 @@ _ERROR_CATEGORIES = [
     'build/include_order',
     'build/include_what_you_use',
     'build/namespaces',
-    'build/nullptr',
     'build/printf_format',
     'build/storage_class',
     'legal/copyright',
@@ -4429,10 +4428,6 @@ def CheckStyle(filename, clean_lines, linenum, file_extension, nesting_state,
            cleansed_line.find('break;') != -1)):
     error(filename, linenum, 'whitespace/newline', 0,
           'More than one command on the same line')
-
-  if re.search(r'\bNULL\b', cleansed_line):
-    error(filename, linenum, 'build/nullptr', 1,
-          'NULL found; better to use nullptr')
 
   # Some more style checks
   CheckBraces(filename, clean_lines, linenum, error)

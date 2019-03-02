@@ -29,6 +29,7 @@ mesos-*,\
 \
 misc-use-after-move,\
 \
+modernize-use-nullptr,\
 modernize-use-override,\
 \
 readability-redundant-string-cstr\
