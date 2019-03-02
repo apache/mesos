@@ -4324,7 +4324,7 @@ def GetLineWidth(line):
           is_low_surrogate = 0xDC00 <= ord(uc) <= 0xDFFF
           if not is_wide_build and is_low_surrogate:
             width -= 1
-
+          
         width += 1
     return width
   else:
