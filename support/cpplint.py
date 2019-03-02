@@ -33,13 +33,6 @@
 # review the currently made changes please perform a diff against the
 # specific upstream version.
 
-# Modified by Adam B (adam@mesosphere.io) to handle hpp files.
-# Modified by Avinash S (avinash@mesosphere.io) to check for at least
-# a __single__ space in comments is required for hpp and cpp files.
-# Modified by Tomek J (janiszt@gmail.com) to check for NULL usage.
-# Modified by Armand G (agrillet@mesosphere.io) to skip file when linted
-# and to not print anything if there is no error.
-
 """Does google-lint on c++ files.
 
 The goal of this script is to identify places in the code that *may*
