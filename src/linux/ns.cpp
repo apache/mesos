@@ -397,7 +397,7 @@ Try<pid_t> clone(
 
   char base[1];
 
-  iovec iov = {0};
+  iovec iov = {nullptr};
   iov.iov_base = base;
   iov.iov_len = sizeof(base);
 
@@ -413,7 +413,7 @@ Try<pid_t> clone(
   cmessage.cmsg_level = SOL_SOCKET;
   cmessage.cmsg_type = SCM_CREDENTIALS;
 
-  msghdr message = {0};
+  msghdr message = {nullptr};
   message.msg_name = nullptr;
   message.msg_namelen = 0;
   message.msg_iov = &iov;
