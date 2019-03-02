@@ -28,6 +28,11 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# This file was modified for use in Mesos from the upstream revision
+# `43d512ba130` from https://github.com/google/styleguide.git. To
+# review the currently made changes please perform a diff against the
+# specific upstream version.
+
 # Modified by Adam B (adam@mesosphere.io) to handle hpp files.
 # Modified by Avinash S (avinash@mesosphere.io) to check for at least
 # a __single__ space in comments is required for hpp and cpp files.
