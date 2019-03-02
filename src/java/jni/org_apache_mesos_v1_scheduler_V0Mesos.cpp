@@ -759,7 +759,7 @@ void V0ToV1AdapterProcess::__received(const Event& event)
 
 void V0ToV1AdapterProcess::connect()
 {
-  jvm->AttachCurrentThread(JNIENV_CAST(&env), NULL);
+  jvm->AttachCurrentThread(JNIENV_CAST(&env), nullptr);
 
   jclass clazz = env->GetObjectClass(jmesos);
 
@@ -815,7 +815,7 @@ void V0ToV1AdapterProcess::heartbeat()
 
 void V0ToV1AdapterProcess::disconnect()
 {
-  jvm->AttachCurrentThread(JNIENV_CAST(&env), NULL);
+  jvm->AttachCurrentThread(JNIENV_CAST(&env), nullptr);
 
   jclass clazz = env->GetObjectClass(jmesos);
 

@@ -44,7 +44,8 @@ public:
                           const ExecutorInfo& executorInfo,
                           const FrameworkInfo& frameworkInfo,
                           const SlaveInfo& slaveInfo) override;
-  void reregistered(ExecutorDriver* driver, const SlaveInfo& slaveInfo) override;
+  void reregistered(
+      ExecutorDriver* driver, const SlaveInfo& slaveInfo) override;
   void disconnected(ExecutorDriver* driver) override;
   void launchTask(ExecutorDriver* driver, const TaskInfo& task) override;
   void killTask(ExecutorDriver* driver, const TaskID& taskId) override;
@@ -67,7 +68,8 @@ void JNIExecutor::registered(ExecutorDriver* driver,
 
   jclass clazz = env->GetObjectClass(jdriver);
 
-  jfieldID executor = env->GetFieldID(clazz, "executor", "Lorg/apache/mesos/Executor;");
+  jfieldID executor =
+    env->GetFieldID(clazz, "executor", "Lorg/apache/mesos/Executor;");
   jobject jexecutor = env->GetObjectField(jdriver, executor);
 
   clazz = env->GetObjectClass(jexecutor);
@@ -108,7 +110,8 @@ void JNIExecutor::reregistered(ExecutorDriver* driver,
 
   jclass clazz = env->GetObjectClass(jdriver);
 
-  jfieldID executor = env->GetFieldID(clazz, "executor", "Lorg/apache/mesos/Executor;");
+  jfieldID executor =
+    env->GetFieldID(clazz, "executor", "Lorg/apache/mesos/Executor;");
   jobject jexecutor = env->GetObjectField(jdriver, executor);
 
   clazz = env->GetObjectClass(jexecutor);
@@ -143,7 +146,8 @@ void JNIExecutor::disconnected(ExecutorDriver* driver)
 
   jclass clazz = env->GetObjectClass(jdriver);
 
-  jfieldID executor = env->GetFieldID(clazz, "executor", "Lorg/apache/mesos/Executor;");
+  jfieldID executor =
+    env->GetFieldID(clazz, "executor", "Lorg/apache/mesos/Executor;");
   jobject jexecutor = env->GetObjectField(jdriver, executor);
 
   clazz = env->GetObjectClass(jexecutor);
@@ -175,16 +179,18 @@ void JNIExecutor::launchTask(ExecutorDriver* driver, const TaskInfo& desc)
 
   jclass clazz = env->GetObjectClass(jdriver);
 
-  jfieldID executor = env->GetFieldID(clazz, "executor", "Lorg/apache/mesos/Executor;");
+  jfieldID executor =
+    env->GetFieldID(clazz, "executor", "Lorg/apache/mesos/Executor;");
   jobject jexecutor = env->GetObjectField(jdriver, executor);
 
   clazz = env->GetObjectClass(jexecutor);
 
   // executor.launchTask(driver, desc);
-  jmethodID launchTask =
-    env->GetMethodID(clazz, "launchTask",
-		     "(Lorg/apache/mesos/ExecutorDriver;"
-		     "Lorg/apache/mesos/Protos$TaskInfo;)V");
+  jmethodID launchTask = env->GetMethodID(
+      clazz,
+      "launchTask",
+      "(Lorg/apache/mesos/ExecutorDriver;"
+      "Lorg/apache/mesos/Protos$TaskInfo;)V");
 
   jobject jdesc = convert<TaskInfo>(env, desc);
 
@@ -210,16 +216,18 @@ void JNIExecutor::killTask(ExecutorDriver* driver, const TaskID& taskId)
 
   jclass clazz = env->GetObjectClass(jdriver);
 
-  jfieldID executor = env->GetFieldID(clazz, "executor", "Lorg/apache/mesos/Executor;");
+  jfieldID executor =
+    env->GetFieldID(clazz, "executor", "Lorg/apache/mesos/Executor;");
   jobject jexecutor = env->GetObjectField(jdriver, executor);
 
   clazz = env->GetObjectClass(jexecutor);
 
   // executor.killTask(driver, taskId);
-  jmethodID killTask =
-    env->GetMethodID(clazz, "killTask",
-		     "(Lorg/apache/mesos/ExecutorDriver;"
-		     "Lorg/apache/mesos/Protos$TaskID;)V");
+  jmethodID killTask = env->GetMethodID(
+      clazz,
+      "killTask",
+      "(Lorg/apache/mesos/ExecutorDriver;"
+      "Lorg/apache/mesos/Protos$TaskID;)V");
 
   jobject jtaskId = convert<TaskID>(env, taskId);
 
@@ -245,16 +253,18 @@ void JNIExecutor::frameworkMessage(ExecutorDriver* driver, const string& data)
 
   jclass clazz = env->GetObjectClass(jdriver);
 
-  jfieldID executor = env->GetFieldID(clazz, "executor", "Lorg/apache/mesos/Executor;");
+  jfieldID executor =
+    env->GetFieldID(clazz, "executor", "Lorg/apache/mesos/Executor;");
   jobject jexecutor = env->GetObjectField(jdriver, executor);
 
   clazz = env->GetObjectClass(jexecutor);
 
   // executor.frameworkMessage(driver, data);
-  jmethodID frameworkMessage =
-    env->GetMethodID(clazz, "frameworkMessage",
-		     "(Lorg/apache/mesos/ExecutorDriver;"
-		     "[B)V");
+  jmethodID frameworkMessage = env->GetMethodID(
+      clazz,
+      "frameworkMessage",
+      "(Lorg/apache/mesos/ExecutorDriver;"
+      "[B)V");
 
   // byte[] data = ..;
   jbyteArray jdata = env->NewByteArray(data.size());
@@ -282,15 +292,15 @@ void JNIExecutor::shutdown(ExecutorDriver* driver)
 
   jclass clazz = env->GetObjectClass(jdriver);
 
-  jfieldID executor = env->GetFieldID(clazz, "executor", "Lorg/apache/mesos/Executor;");
+  jfieldID executor =
+    env->GetFieldID(clazz, "executor", "Lorg/apache/mesos/Executor;");
   jobject jexecutor = env->GetObjectField(jdriver, executor);
 
   clazz = env->GetObjectClass(jexecutor);
 
   // executor.shutdown(driver);
   jmethodID shutdown =
-    env->GetMethodID(clazz, "shutdown",
-		     "(Lorg/apache/mesos/ExecutorDriver;)V");
+    env->GetMethodID(clazz, "shutdown", "(Lorg/apache/mesos/ExecutorDriver;)V");
 
   env->ExceptionClear();
 
@@ -314,16 +324,18 @@ void JNIExecutor::error(ExecutorDriver* driver, const string& message)
 
   jclass clazz = env->GetObjectClass(jdriver);
 
-  jfieldID executor = env->GetFieldID(clazz, "executor", "Lorg/apache/mesos/Executor;");
+  jfieldID executor =
+    env->GetFieldID(clazz, "executor", "Lorg/apache/mesos/Executor;");
   jobject jexecutor = env->GetObjectField(jdriver, executor);
 
   clazz = env->GetObjectClass(jexecutor);
 
   // executor.error(driver, message);
-  jmethodID error =
-    env->GetMethodID(clazz, "error",
-		     "(Lorg/apache/mesos/ExecutorDriver;"
-		     "Ljava/lang/String;)V");
+  jmethodID error = env->GetMethodID(
+      clazz,
+      "error",
+      "(Lorg/apache/mesos/ExecutorDriver;"
+      "Ljava/lang/String;)V");
 
   jobject jmessage = convert<string>(env, message);
 
@@ -490,8 +502,9 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosExecutorDriver_join
  * Method:    sendStatusUpdate
  * Signature: (Lorg/apache/mesos/Protos/TaskStatus;)Lorg/apache/mesos/Protos/Status;
  */
-JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosExecutorDriver_sendStatusUpdate
-  (JNIEnv* env, jobject thiz, jobject jstatus)
+JNIEXPORT jobject JNICALL
+Java_org_apache_mesos_MesosExecutorDriver_sendStatusUpdate(
+    JNIEnv* env, jobject thiz, jobject jstatus)
 {
   // Construct a C++ TaskStatus from the Java TaskStatus.
   const TaskStatus& taskStatus = construct<TaskStatus>(env, jstatus);
@@ -514,8 +527,9 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosExecutorDriver_sendStatusUp
  * Method:    sendFrameworkMessage
  * Signature: ([B)Lorg/apache/mesos/Protos/Status;
  */
-JNIEXPORT jobject JNICALL Java_org_apache_mesos_MesosExecutorDriver_sendFrameworkMessage
-  (JNIEnv* env, jobject thiz, jbyteArray jdata)
+JNIEXPORT jobject JNICALL
+Java_org_apache_mesos_MesosExecutorDriver_sendFrameworkMessage(
+    JNIEnv* env, jobject thiz, jbyteArray jdata)
 {
   // Construct a C++ string from the Java byte array.
   jbyte* data = env->GetByteArrayElements(jdata, nullptr);

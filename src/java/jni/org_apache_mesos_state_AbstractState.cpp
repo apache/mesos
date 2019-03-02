@@ -102,8 +102,9 @@ JNIEXPORT jlong JNICALL Java_org_apache_mesos_state_AbstractState__1_1fetch
  * Method:    __fetch_cancel
  * Signature: (J)Z
  */
-JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1fetch_1cancel
-  (JNIEnv* env, jobject thiz, jlong jfuture)
+JNIEXPORT jboolean JNICALL
+Java_org_apache_mesos_state_AbstractState__1_1fetch_1cancel(
+    JNIEnv* env, jobject thiz, jlong jfuture)
 {
   Future<Variable>* future = (Future<Variable>*) jfuture;
 
@@ -120,8 +121,9 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1fetch_1
  * Method:    __fetch_is_cancelled
  * Signature: (J)Z
  */
-JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1fetch_1is_1cancelled
-  (JNIEnv* env, jobject thiz, jlong jfuture)
+JNIEXPORT jboolean JNICALL
+Java_org_apache_mesos_state_AbstractState__1_1fetch_1is_1cancelled(
+    JNIEnv* env, jobject thiz, jlong jfuture)
 {
   // We always return false since while we might discard the future in
   // 'cancel' we don't know if it has really been discarded and we
@@ -137,8 +139,9 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1fetch_1
  * Method:    __fetch_is_done
  * Signature: (J)Z
  */
-JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1fetch_1is_1done
-  (JNIEnv* env, jobject thiz, jlong jfuture)
+JNIEXPORT jboolean JNICALL
+Java_org_apache_mesos_state_AbstractState__1_1fetch_1is_1done(
+    JNIEnv* env, jobject thiz, jlong jfuture)
 {
   Future<Variable>* future = (Future<Variable>*) jfuture;
 
@@ -151,8 +154,9 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1fetch_1
  * Method:    __fetch_get
  * Signature: (J)Lorg/apache/mesos/state/Variable;
  */
-JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1fetch_1get
-  (JNIEnv* env, jobject thiz, jlong jfuture)
+JNIEXPORT jobject JNICALL
+Java_org_apache_mesos_state_AbstractState__1_1fetch_1get(
+    JNIEnv* env, jobject thiz, jlong jfuture)
 {
   Future<Variable>* future = (Future<Variable>*) jfuture;
 
@@ -192,8 +196,9 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1fetch_1g
  * Method:    __fetch_get_timeout
  * Signature: (JJLjava/util/concurrent/TimeUnit;)Lorg/apache/mesos/state/Variable;
  */
-JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1fetch_1get_1timeout
-  (JNIEnv* env, jobject thiz, jlong jfuture, jlong jtimeout, jobject junit)
+JNIEXPORT jobject JNICALL
+Java_org_apache_mesos_state_AbstractState__1_1fetch_1get_1timeout(
+    JNIEnv* env, jobject thiz, jlong jfuture, jlong jtimeout, jobject junit)
 {
   Future<Variable>* future = (Future<Variable>*) jfuture;
 
@@ -246,8 +251,9 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1fetch_1g
  * Method:    __fetch_finalize
  * Signature: (J)V
  */
-JNIEXPORT void JNICALL Java_org_apache_mesos_state_AbstractState__1_1fetch_1finalize
-  (JNIEnv* env, jobject thiz, jlong jfuture)
+JNIEXPORT void JNICALL
+Java_org_apache_mesos_state_AbstractState__1_1fetch_1finalize(
+    JNIEnv* env, jobject thiz, jlong jfuture)
 {
   Future<Variable>* future = (Future<Variable>*) jfuture;
 
@@ -260,8 +266,9 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_state_AbstractState__1_1fetch_1fina
  * Method:    cancel
  * Signature: (Z)Z
  */
-JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024FetchFuture_cancel
-  (JNIEnv* env, jobject thiz, jboolean mayInterruptIfRunning)
+JNIEXPORT jboolean JNICALL
+Java_org_apache_mesos_state_AbstractState_00024FetchFuture_cancel(
+    JNIEnv* env, jobject thiz, jboolean mayInterruptIfRunning)
 {
   if (mayInterruptIfRunning) {
     static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
@@ -284,8 +291,9 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024FetchF
  * Method:    is_cancelled
  * Signature: ()Z
  */
-JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024FetchFuture_is_1cancelled
-  (JNIEnv* env, jobject thiz)
+JNIEXPORT jboolean JNICALL
+Java_org_apache_mesos_state_AbstractState_00024FetchFuture_is_1cancelled(
+    JNIEnv* env, jobject thiz)
 {
   static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
   static jfieldID field = env->GetFieldID(clazz, "future", "J");
@@ -304,8 +312,9 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024FetchF
  * Method:    is_done
  * Signature: ()Z
  */
-JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024FetchFuture_is_1done
-  (JNIEnv* env, jobject thiz)
+JNIEXPORT jboolean JNICALL
+Java_org_apache_mesos_state_AbstractState_00024FetchFuture_is_1done(
+    JNIEnv* env, jobject thiz)
 {
   static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
   static jfieldID field = env->GetFieldID(clazz, "future", "J");
@@ -324,8 +333,9 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024FetchF
  * Method:    get
  * Signature: ()Lorg/apache/mesos/state/Variable;
  */
-JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState_00024FetchFuture_get
-  (JNIEnv* env, jobject thiz)
+JNIEXPORT jobject JNICALL
+Java_org_apache_mesos_state_AbstractState_00024FetchFuture_get(
+    JNIEnv* env, jobject thiz)
 {
   static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
   static jfieldID field = env->GetFieldID(clazz, "future", "J");
@@ -344,8 +354,9 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState_00024FetchFu
  * Method:    get_timeout
  * Signature: (JLjava/util/concurrent/TimeUnit;)Lorg/apache/mesos/state/Variable;
  */
-JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState_00024FetchFuture_get_1timeout
-  (JNIEnv* env, jobject thiz, jlong jtimeout, jobject junit)
+JNIEXPORT jobject JNICALL
+Java_org_apache_mesos_state_AbstractState_00024FetchFuture_get_1timeout(
+    JNIEnv* env, jobject thiz, jlong jtimeout, jobject junit)
 {
   static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
   static jfieldID field = env->GetFieldID(clazz, "future", "J");
@@ -366,8 +377,9 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState_00024FetchFu
  * Method:    finalize
  * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_org_apache_mesos_state_AbstractState_00024FetchFuture_finalize
-  (JNIEnv* env, jobject thiz)
+JNIEXPORT void JNICALL
+Java_org_apache_mesos_state_AbstractState_00024FetchFuture_finalize(
+    JNIEnv* env, jobject thiz)
 {
   static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
   static jfieldID field = env->GetFieldID(clazz, "future", "J");
@@ -413,8 +425,9 @@ JNIEXPORT jlong JNICALL Java_org_apache_mesos_state_AbstractState__1_1store
  * Method:    __store_cancel
  * Signature: (J)Z
  */
-JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1store_1cancel
-  (JNIEnv* env, jobject thiz, jlong jfuture)
+JNIEXPORT jboolean JNICALL
+Java_org_apache_mesos_state_AbstractState__1_1store_1cancel(
+    JNIEnv* env, jobject thiz, jlong jfuture)
 {
   Future<Option<Variable>>* future = (Future<Option<Variable>>*) jfuture;
 
@@ -431,8 +444,9 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1store_1
  * Method:    __store_is_cancelled
  * Signature: (J)Z
  */
-JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1store_1is_1cancelled
-  (JNIEnv* env, jobject thiz, jlong jfuture)
+JNIEXPORT jboolean JNICALL
+Java_org_apache_mesos_state_AbstractState__1_1store_1is_1cancelled(
+    JNIEnv* env, jobject thiz, jlong jfuture)
 {
   // We always return false since while we might discard the future in
   // 'cancel' we don't know if it has really been discarded and we
@@ -448,8 +462,9 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1store_1
  * Method:    __store_is_done
  * Signature: (J)Z
  */
-JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1store_1is_1done
-  (JNIEnv* env, jobject thiz, jlong jfuture)
+JNIEXPORT jboolean JNICALL
+Java_org_apache_mesos_state_AbstractState__1_1store_1is_1done(
+    JNIEnv* env, jobject thiz, jlong jfuture)
 {
   Future<Option<Variable>>* future = (Future<Option<Variable>>*) jfuture;
 
@@ -462,8 +477,9 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1store_1
  * Method:    __store_get
  * Signature: (J)Lorg/apache/mesos/state/Variable;
  */
-JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1store_1get
-  (JNIEnv* env, jobject thiz, jlong jfuture)
+JNIEXPORT jobject JNICALL
+Java_org_apache_mesos_state_AbstractState__1_1store_1get(
+    JNIEnv* env, jobject thiz, jlong jfuture)
 {
   Future<Option<Variable>>* future = (Future<Option<Variable>>*) jfuture;
 
@@ -507,8 +523,9 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1store_1g
  * Method:    __store_get_timeout
  * Signature: (JJLjava/util/concurrent/TimeUnit;)Lorg/apache/mesos/state/Variable;
  */
-JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1store_1get_1timeout
-  (JNIEnv* env, jobject thiz, jlong jfuture, jlong jtimeout, jobject junit)
+JNIEXPORT jobject JNICALL
+Java_org_apache_mesos_state_AbstractState__1_1store_1get_1timeout(
+    JNIEnv* env, jobject thiz, jlong jfuture, jlong jtimeout, jobject junit)
 {
   Future<Option<Variable>>* future = (Future<Option<Variable>>*) jfuture;
 
@@ -566,8 +583,9 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1store_1g
  * Method:    __store_finalize
  * Signature: (J)V
  */
-JNIEXPORT void JNICALL Java_org_apache_mesos_state_AbstractState__1_1store_1finalize
-  (JNIEnv* env, jobject thiz, jlong jfuture)
+JNIEXPORT void JNICALL
+Java_org_apache_mesos_state_AbstractState__1_1store_1finalize(
+    JNIEnv* env, jobject thiz, jlong jfuture)
 {
   Future<Option<Variable>>* future = (Future<Option<Variable>>*) jfuture;
 
@@ -580,8 +598,9 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_state_AbstractState__1_1store_1fina
  * Method:    cancel
  * Signature: (Z)Z
  */
-JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024StoreFuture_cancel
-  (JNIEnv* env, jobject thiz, jboolean mayInterruptIfRunning)
+JNIEXPORT jboolean JNICALL
+Java_org_apache_mesos_state_AbstractState_00024StoreFuture_cancel(
+    JNIEnv* env, jobject thiz, jboolean mayInterruptIfRunning)
 {
   if (mayInterruptIfRunning) {
     static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
@@ -604,8 +623,9 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024StoreF
  * Method:    is_cancelled
  * Signature: ()Z
  */
-JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024StoreFuture_is_1cancelled
-  (JNIEnv* env, jobject thiz)
+JNIEXPORT jboolean JNICALL
+Java_org_apache_mesos_state_AbstractState_00024StoreFuture_is_1cancelled(
+    JNIEnv* env, jobject thiz)
 {
   static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
   static jfieldID field = env->GetFieldID(clazz, "future", "J");
@@ -624,8 +644,9 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024StoreF
  * Method:    is_done
  * Signature: ()Z
  */
-JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024StoreFuture_is_1done
-  (JNIEnv* env, jobject thiz)
+JNIEXPORT jboolean JNICALL
+Java_org_apache_mesos_state_AbstractState_00024StoreFuture_is_1done(
+    JNIEnv* env, jobject thiz)
 {
   static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
   static jfieldID field = env->GetFieldID(clazz, "future", "J");
@@ -644,8 +665,9 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024StoreF
  * Method:    get
  * Signature: ()Lorg/apache/mesos/state/Variable;
  */
-JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState_00024StoreFuture_get
-  (JNIEnv* env, jobject thiz)
+JNIEXPORT jobject JNICALL
+Java_org_apache_mesos_state_AbstractState_00024StoreFuture_get(
+    JNIEnv* env, jobject thiz)
 {
   static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
   static jfieldID field = env->GetFieldID(clazz, "future", "J");
@@ -664,8 +686,9 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState_00024StoreFu
  * Method:    get_timeout
  * Signature: (JLjava/util/concurrent/TimeUnit;)Lorg/apache/mesos/state/Variable;
  */
-JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState_00024StoreFuture_get_1timeout
-  (JNIEnv* env, jobject thiz, jlong jtimeout, jobject junit)
+JNIEXPORT jobject JNICALL
+Java_org_apache_mesos_state_AbstractState_00024StoreFuture_get_1timeout(
+    JNIEnv* env, jobject thiz, jlong jtimeout, jobject junit)
 {
   static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
   static jfieldID field = env->GetFieldID(clazz, "future", "J");
@@ -686,8 +709,9 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState_00024StoreFu
  * Method:    finalize
  * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_org_apache_mesos_state_AbstractState_00024StoreFuture_finalize
-  (JNIEnv* env, jobject thiz)
+JNIEXPORT void JNICALL
+Java_org_apache_mesos_state_AbstractState_00024StoreFuture_finalize(
+    JNIEnv* env, jobject thiz)
 {
   static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
   static jfieldID field = env->GetFieldID(clazz, "future", "J");
@@ -732,8 +756,9 @@ JNIEXPORT jlong JNICALL Java_org_apache_mesos_state_AbstractState__1_1expunge
  * Method:    __expunge_cancel
  * Signature: (J)Z
  */
-JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1expunge_1cancel
-  (JNIEnv* env, jobject thiz, jlong jfuture)
+JNIEXPORT jboolean JNICALL
+Java_org_apache_mesos_state_AbstractState__1_1expunge_1cancel(
+    JNIEnv* env, jobject thiz, jlong jfuture)
 {
   Future<bool>* future = (Future<bool>*) jfuture;
 
@@ -750,8 +775,9 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1expunge
  * Method:    __expunge_is_cancelled
  * Signature: (J)Z
  */
-JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1expunge_1is_1cancelled
-  (JNIEnv* env, jobject thiz, jlong jfuture)
+JNIEXPORT jboolean JNICALL
+Java_org_apache_mesos_state_AbstractState__1_1expunge_1is_1cancelled(
+    JNIEnv* env, jobject thiz, jlong jfuture)
 {
   // We always return false since while we might discard the future in
   // 'cancel' we don't know if it has really been discarded and we
@@ -767,8 +793,9 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1expunge
  * Method:    __expunge_is_done
  * Signature: (J)Z
  */
-JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1expunge_1is_1done
-  (JNIEnv* env, jobject thiz, jlong jfuture)
+JNIEXPORT jboolean JNICALL
+Java_org_apache_mesos_state_AbstractState__1_1expunge_1is_1done(
+    JNIEnv* env, jobject thiz, jlong jfuture)
 {
   Future<bool>* future = (Future<bool>*) jfuture;
 
@@ -781,8 +808,9 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1expunge
  * Method:    __expunge_get
  * Signature: (J)Ljava/lang/Boolean;
  */
-JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1expunge_1get
-  (JNIEnv* env, jobject thiz, jlong jfuture)
+JNIEXPORT jobject JNICALL
+Java_org_apache_mesos_state_AbstractState__1_1expunge_1get(
+    JNIEnv* env, jobject thiz, jlong jfuture)
 {
   Future<bool>* future = (Future<bool>*) jfuture;
 
@@ -819,8 +847,9 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1expunge_
  * Method:    __expunge_get_timeout
  * Signature: (JJLjava/util/concurrent/TimeUnit;)Ljava/lang/Boolean;
  */
-JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1expunge_1get_1timeout
-  (JNIEnv* env, jobject thiz, jlong jfuture, jlong jtimeout, jobject junit)
+JNIEXPORT jobject JNICALL
+Java_org_apache_mesos_state_AbstractState__1_1expunge_1get_1timeout(
+    JNIEnv* env, jobject thiz, jlong jfuture, jlong jtimeout, jobject junit)
 {
   Future<bool>* future = (Future<bool>*) jfuture;
 
@@ -871,8 +900,9 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1expunge_
  * Method:    __expunge_finalize
  * Signature: (J)V
  */
-JNIEXPORT void JNICALL Java_org_apache_mesos_state_AbstractState__1_1expunge_1finalize
-  (JNIEnv* env, jobject thiz, jlong jfuture)
+JNIEXPORT void JNICALL
+Java_org_apache_mesos_state_AbstractState__1_1expunge_1finalize(
+    JNIEnv* env, jobject thiz, jlong jfuture)
 {
   Future<bool>* future = (Future<bool>*) jfuture;
 
@@ -885,8 +915,9 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_state_AbstractState__1_1expunge_1fi
  * Method:    cancel
  * Signature: (Z)Z
  */
-JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024ExpungeFuture_cancel
-  (JNIEnv* env, jobject thiz, jboolean mayInterruptIfRunning)
+JNIEXPORT jboolean JNICALL
+Java_org_apache_mesos_state_AbstractState_00024ExpungeFuture_cancel(
+    JNIEnv* env, jobject thiz, jboolean mayInterruptIfRunning)
 {
   if (mayInterruptIfRunning) {
     static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
@@ -909,8 +940,9 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024Expung
  * Method:    is_cancelled
  * Signature: ()Z
  */
-JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024ExpungeFuture_is_1cancelled
-  (JNIEnv* env, jobject thiz)
+JNIEXPORT jboolean JNICALL
+Java_org_apache_mesos_state_AbstractState_00024ExpungeFuture_is_1cancelled(
+    JNIEnv* env, jobject thiz)
 {
   static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
   static jfieldID field = env->GetFieldID(clazz, "future", "J");
@@ -929,8 +961,9 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024Expung
  * Method:    is_done
  * Signature: ()Z
  */
-JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024ExpungeFuture_is_1done
-  (JNIEnv* env, jobject thiz)
+JNIEXPORT jboolean JNICALL
+Java_org_apache_mesos_state_AbstractState_00024ExpungeFuture_is_1done(
+    JNIEnv* env, jobject thiz)
 {
   static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
   static jfieldID field = env->GetFieldID(clazz, "future", "J");
@@ -949,8 +982,9 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024Expung
  * Method:    __get
  * Signature: ()Ljava/lang/Boolean;
  */
-JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState_00024ExpungeFuture_get
-  (JNIEnv* env, jobject thiz)
+JNIEXPORT jobject JNICALL
+Java_org_apache_mesos_state_AbstractState_00024ExpungeFuture_get(
+    JNIEnv* env, jobject thiz)
 {
   static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
   static jfieldID field = env->GetFieldID(clazz, "future", "J");
@@ -969,8 +1003,9 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState_00024Expunge
  * Method:    get_timeout
  * Signature: (JLjava/util/concurrent/TimeUnit;)Ljava/lang/Boolean;
  */
-JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState_00024ExpungeFuture_get_1timeout
-  (JNIEnv* env, jobject thiz, jlong jtimeout, jobject junit)
+JNIEXPORT jobject JNICALL
+Java_org_apache_mesos_state_AbstractState_00024ExpungeFuture_get_1timeout(
+    JNIEnv* env, jobject thiz, jlong jtimeout, jobject junit)
 {
   static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
   static jfieldID field = env->GetFieldID(clazz, "future", "J");
@@ -991,8 +1026,9 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState_00024Expunge
  * Method:    finalize
  * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_org_apache_mesos_state_AbstractState_00024ExpungeFuture_finalize
-  (JNIEnv* env, jobject thiz)
+JNIEXPORT void JNICALL
+Java_org_apache_mesos_state_AbstractState_00024ExpungeFuture_finalize(
+    JNIEnv* env, jobject thiz)
 {
   static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
   static jfieldID field = env->GetFieldID(clazz, "future", "J");
@@ -1032,8 +1068,9 @@ JNIEXPORT jlong JNICALL Java_org_apache_mesos_state_AbstractState__1_1names
  * Method:    __names_cancel
  * Signature: (J)Z
  */
-JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1cancel
-  (JNIEnv* env, jobject thiz, jlong jfuture)
+JNIEXPORT jboolean JNICALL
+Java_org_apache_mesos_state_AbstractState__1_1names_1cancel(
+    JNIEnv* env, jobject thiz, jlong jfuture)
 {
   Future<set<string>>* future = (Future<set<string>>*) jfuture;
 
@@ -1049,8 +1086,9 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1
  * Method:    __names_is_cancelled
  * Signature: (J)Z
  */
-JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1is_1cancelled
-  (JNIEnv* env, jobject thiz, jlong jfuture)
+JNIEXPORT jboolean JNICALL
+Java_org_apache_mesos_state_AbstractState__1_1names_1is_1cancelled(
+    JNIEnv* env, jobject thiz, jlong jfuture)
 {
   // We always return false since while we might discard the future in
   // 'cancel' we don't know if it has really been discarded and we
@@ -1066,8 +1104,9 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1
  * Method:    __names_is_done
  * Signature: (J)Z
  */
-JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1is_1done
-  (JNIEnv* env, jobject thiz, jlong jfuture)
+JNIEXPORT jboolean JNICALL
+Java_org_apache_mesos_state_AbstractState__1_1names_1is_1done(
+    JNIEnv* env, jobject thiz, jlong jfuture)
 {
   Future<set<string>>* future = (Future<set<string>>*) jfuture;
 
@@ -1080,8 +1119,9 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1
  * Method:    __names_get
  * Signature: (J)Ljava/util/Iterator;
  */
-JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1get
-  (JNIEnv* env, jobject thiz, jlong jfuture)
+JNIEXPORT jobject JNICALL
+Java_org_apache_mesos_state_AbstractState__1_1names_1get(
+    JNIEnv* env, jobject thiz, jlong jfuture)
 {
   Future<set<string>>* future = (Future<set<string>>*) jfuture;
 
@@ -1128,8 +1168,9 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1g
  * Method:    __names_get_timeout
  * Signature: (JJLjava/util/concurrent/TimeUnit;)Ljava/util/Iterator;
  */
-JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1get_1timeout
-  (JNIEnv* env, jobject thiz, jlong jfuture, jlong jtimeout, jobject junit)
+JNIEXPORT jobject JNICALL
+Java_org_apache_mesos_state_AbstractState__1_1names_1get_1timeout(
+    JNIEnv* env, jobject thiz, jlong jfuture, jlong jtimeout, jobject junit)
 {
   Future<set<string>>* future = (Future<set<string>>*) jfuture;
 
@@ -1190,8 +1231,9 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1g
  * Method:    __names_finalize
  * Signature: (J)V
  */
-JNIEXPORT void JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1finalize
-  (JNIEnv* env, jobject thiz, jlong jfuture)
+JNIEXPORT void JNICALL
+Java_org_apache_mesos_state_AbstractState__1_1names_1finalize(
+    JNIEnv* env, jobject thiz, jlong jfuture)
 {
   Future<set<string>>* future = (Future<set<string>>*) jfuture;
 
@@ -1204,8 +1246,9 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_state_AbstractState__1_1names_1fina
  * Method:    cancel
  * Signature: (Z)Z
  */
-JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024NamesFuture_cancel
-  (JNIEnv* env, jobject thiz, jboolean mayInterruptIfRunning)
+JNIEXPORT jboolean JNICALL
+Java_org_apache_mesos_state_AbstractState_00024NamesFuture_cancel(
+    JNIEnv* env, jobject thiz, jboolean mayInterruptIfRunning)
 {
   if (mayInterruptIfRunning) {
     static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
@@ -1228,8 +1271,9 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024NamesF
  * Method:    is_cancelled
  * Signature: (J)Z
  */
-JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024NamesFuture_is_1cancelled
-  (JNIEnv* env, jobject thiz)
+JNIEXPORT jboolean JNICALL
+Java_org_apache_mesos_state_AbstractState_00024NamesFuture_is_1cancelled(
+    JNIEnv* env, jobject thiz)
 {
   static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
   static jfieldID field = env->GetFieldID(clazz, "future", "J");
@@ -1248,8 +1292,9 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024NamesF
  * Method:    is_done
  * Signature: ()Z
  */
-JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024NamesFuture_is_1done
-  (JNIEnv* env, jobject thiz)
+JNIEXPORT jboolean JNICALL
+Java_org_apache_mesos_state_AbstractState_00024NamesFuture_is_1done(
+    JNIEnv* env, jobject thiz)
 {
   static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
   static jfieldID field = env->GetFieldID(clazz, "future", "J");
@@ -1268,8 +1313,9 @@ JNIEXPORT jboolean JNICALL Java_org_apache_mesos_state_AbstractState_00024NamesF
  * Method:    get
  * Signature: ()Ljava/util/Iterator;
  */
-JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState_00024NamesFuture_get
-  (JNIEnv* env, jobject thiz)
+JNIEXPORT jobject JNICALL
+Java_org_apache_mesos_state_AbstractState_00024NamesFuture_get(
+    JNIEnv* env, jobject thiz)
 {
   static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
   static jfieldID field = env->GetFieldID(clazz, "future", "J");
@@ -1288,8 +1334,9 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState_00024NamesFu
  * Method:    get_timeout
  * Signature: (JLjava/util/concurrent/TimeUnit;)Ljava/util/Iterator;
  */
-JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState_00024NamesFuture_get_1timeout
-  (JNIEnv* env, jobject thiz, jlong jtimeout, jobject junit)
+JNIEXPORT jobject JNICALL
+Java_org_apache_mesos_state_AbstractState_00024NamesFuture_get_1timeout(
+    JNIEnv* env, jobject thiz, jlong jtimeout, jobject junit)
 {
   static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
   static jfieldID field = env->GetFieldID(clazz, "future", "J");
@@ -1310,8 +1357,9 @@ JNIEXPORT jobject JNICALL Java_org_apache_mesos_state_AbstractState_00024NamesFu
  * Method:    finalize
  * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_org_apache_mesos_state_AbstractState_00024NamesFuture_finalize
-  (JNIEnv* env, jobject thiz)
+JNIEXPORT void JNICALL
+Java_org_apache_mesos_state_AbstractState_00024NamesFuture_finalize(
+    JNIEnv* env, jobject thiz)
 {
   static jclass clazz = (jclass)env->NewGlobalRef(env->GetObjectClass(thiz));
   static jfieldID field = env->GetFieldID(clazz, "future", "J");

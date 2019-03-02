@@ -42,8 +42,8 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_state_LevelDBState_initialize
 {
   string path = construct<string>(env, jpath);
 
-   // Create the C++ Storage and State instances and initialize the
-   // __storage and __state variables.
+  // Create the C++ Storage and State instances and initialize the
+  // __storage and __state variables.
   Storage* storage = new LevelDBStorage(path);
   State* state = new State(storage);
 

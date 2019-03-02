@@ -39,13 +39,14 @@ extern "C" {
  * Method:    initialize
  * Signature: (Ljava/lang/String;JLjava/util/concurrent/TimeUnit;Ljava/lang/String;)V
  */
-JNIEXPORT void JNICALL Java_org_apache_mesos_state_ZooKeeperState_initialize__Ljava_lang_String_2JLjava_util_concurrent_TimeUnit_2Ljava_lang_String_2
-  (JNIEnv* env,
-   jobject thiz,
-   jstring jservers,
-   jlong jtimeout,
-   jobject junit,
-   jstring jznode)
+JNIEXPORT void JNICALL
+Java_org_apache_mesos_state_ZooKeeperState_initialize__Ljava_lang_String_2JLjava_util_concurrent_TimeUnit_2Ljava_lang_String_2( // NOLINT(whitespace/line_length)
+    JNIEnv* env,
+    jobject thiz,
+    jstring jservers,
+    jlong jtimeout,
+    jobject junit,
+    jstring jznode)
 {
   string servers = construct<string>(env, jservers);
 
@@ -60,8 +61,8 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_state_ZooKeeperState_initialize__Lj
 
   string znode = construct<string>(env, jznode);
 
-   // Create the C++ Storage and State instances and initialize the
-   // __storage and __state variables.
+  // Create the C++ Storage and State instances and initialize the
+  // __storage and __state variables.
   Storage* storage = new ZooKeeperStorage(servers, timeout, znode);
   State* state = new State(storage);
 
@@ -82,15 +83,16 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_state_ZooKeeperState_initialize__Lj
  * Method:    initialize
  * Signature: (Ljava/lang/String;JLjava/util/concurrent/TimeUnit;Ljava/lang/String;Ljava/lang/String;[B)V
  */
-JNIEXPORT void JNICALL Java_org_apache_mesos_state_ZooKeeperState_initialize__Ljava_lang_String_2JLjava_util_concurrent_TimeUnit_2Ljava_lang_String_2Ljava_lang_String_2_3B
-  (JNIEnv* env,
-   jobject thiz,
-   jstring jservers,
-   jlong jtimeout,
-   jobject junit,
-   jstring jznode,
-   jstring jscheme,
-   jbyteArray jcredentials)
+JNIEXPORT void JNICALL
+Java_org_apache_mesos_state_ZooKeeperState_initialize__Ljava_lang_String_2JLjava_util_concurrent_TimeUnit_2Ljava_lang_String_2Ljava_lang_String_2_3B( // NOLINT(whitespace/line_length)
+    JNIEnv* env,
+    jobject thiz,
+    jstring jservers,
+    jlong jtimeout,
+    jobject junit,
+    jstring jznode,
+    jstring jscheme,
+    jbyteArray jcredentials)
 {
   string servers = construct<string>(env, jservers);
 

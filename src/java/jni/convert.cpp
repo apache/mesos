@@ -52,7 +52,8 @@ using std::string;
 // http://android.git.kernel.org/?p=platform/frameworks/base.git;a=blob;f=core/jni/AndroidRuntime.cpp;h=f61e2476c71191aa6eabc93bcb26b3c15ccf6136;hb=HEAD
 namespace {
 
-jweak mesosClassLoader = nullptr; // Initialized in JNI_OnLoad later in this file.
+// Initialized in JNI_OnLoad later in this file.
+jweak mesosClassLoader = nullptr;
 
 jclass FindMesosClass(JNIEnv* env, const char* className)
 {

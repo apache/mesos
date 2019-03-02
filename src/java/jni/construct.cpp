@@ -84,7 +84,8 @@ map<string, string> construct(JNIEnv *env, jobject jobj)
   clazz = env->GetObjectClass(jentrySet);
 
   // Iterator iterator = entrySet.iterator();
-  jmethodID iterator = env->GetMethodID(clazz, "iterator", "()Ljava/util/Iterator;");
+  jmethodID iterator =
+    env->GetMethodID(clazz, "iterator", "()Ljava/util/Iterator;");
   jobject jiterator = env->CallObjectMethod(jentrySet, iterator);
 
   clazz = env->GetObjectClass(jiterator);
@@ -101,11 +102,13 @@ map<string, string> construct(JNIEnv *env, jobject jobj)
     clazz = env->GetObjectClass(jentry);
 
     // String key = entry.getKey();
-    jmethodID getKey = env->GetMethodID(clazz, "getKey", "()Ljava/lang/Object;");
+    jmethodID getKey =
+      env->GetMethodID(clazz, "getKey", "()Ljava/lang/Object;");
     jobject jkey = env->CallObjectMethod(jentry, getKey);
 
     // String value = entry.getValue();
-    jmethodID getValue = env->GetMethodID(clazz, "getValue", "()Ljava/lang/Object;");
+    jmethodID getValue =
+      env->GetMethodID(clazz, "getValue", "()Ljava/lang/Object;");
     jobject jvalue = env->CallObjectMethod(jentry, getValue);
 
     const string& key = construct<string>(env, jkey);
