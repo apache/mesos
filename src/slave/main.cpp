@@ -636,7 +636,9 @@ int main(int argc, char** argv)
 
   delete containerizer.get();
 
+#ifndef __WINDOWS__
   delete volumeGidManager;
+#endif // __WINDOWS__
 
   delete secretResolver.get();
 
