@@ -1,4 +1,0 @@
-#!/usr/bin/env bash
-export PYTHONPATH="$PYTHONPATH:../swig/python"
-cd `dirname $0`
-exec ./scaling_sched.py $@
