@@ -203,7 +203,7 @@ static Try<Nothing> assignCgroups(const slave::Flags& flags)
 
       LOG(INFO) << "An agent (or child process) is still running, please"
                 << " consider checking the following process(es) listed in "
-                << path::join(hierarchy.get(), cgroup, "cgroups.proc")
+                << path::join(hierarchy.get(), cgroup, "cgroup.procs")
                 << ":\n" << strings::join("\n", infos);
     }
 
