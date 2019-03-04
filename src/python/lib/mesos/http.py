@@ -217,8 +217,8 @@ class Resource():
         known_exception = self.ERROR_CODE_MAP.get(response.status_code)
         if known_exception:
             raise known_exception(response)
-        else:
-            raise MesosHTTPException(response)
+
+        raise MesosHTTPException(response)
 
     def request(self,
                 method,

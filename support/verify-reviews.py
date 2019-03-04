@@ -112,7 +112,6 @@ SKIP_VERIFY = parameters.skip_verify
 
 class ReviewError(Exception):
     """Exception returned by post_review()."""
-    pass
 
 
 def parse_time(timestamp):
@@ -176,8 +175,8 @@ def apply_reviews(review_request, reviews):
         raise ReviewError(
             "Circular dependency detected for review %s."
             "Please fix the 'depends_on' field." % review_request["id"])
-    else:
-        reviews.append(review_request["id"])
+
+    reviews.append(review_request["id"])
 
     # First recursively apply the dependent reviews.
     for review in review_request["depends_on"]:
@@ -196,8 +195,8 @@ def apply_reviews(review_request, reviews):
             error = err.output.decode("utf-8")
             if "patch does not apply" in error:
                 raise ReviewError(error)
-            else:
-                raise err
+
+            raise err
 
 
 def post_review(review_request, message):

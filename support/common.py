@@ -32,7 +32,6 @@ REVIEWBOARD_URL = "https://reviews.apache.org"
 
 class ReviewError(Exception):
     """Custom exception raised when a review is bad"""
-    pass
 
 
 class ReviewBoardHandler():

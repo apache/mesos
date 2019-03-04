@@ -22,4 +22,3 @@ class CLIException(Exception):
     """
     Exceptions class to handle all CLI errors.
     """
-    pass
