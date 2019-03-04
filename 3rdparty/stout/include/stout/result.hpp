@@ -17,6 +17,7 @@
 
 #include <iostream>
 #include <string>
+#include <utility>
 
 #include <stout/abort.hpp>
 #include <stout/error.hpp>
@@ -112,24 +113,10 @@ public:
   bool isNone() const { return data.isSome() && data->isNone(); }
   bool isError() const { return data.isError(); }
 
-  const T& get() const
-  {
-    if (!isSome()) {
-      std::string errorMessage = "Result::get() but state == ";
-      if (isError()) {
-        errorMessage += "ERROR: " + data.error();
-      } else if (isNone()) {
-        errorMessage += "NONE";
-      }
-      ABORT(errorMessage);
-    }
-    return data->get();
-  }
-
-  T& get()
-  {
-    return const_cast<T&>(static_cast<const Result&>(*this).get());
-  }
+  T& get() & { return get(*this); }
+  const T& get() const& { return get(*this); }
+  T&& get() && { return get(std::move(*this)); }
+  const T&& get() const&& { return get(std::move(*this)); }
 
   const T* operator->() const { return &get(); }
   T* operator->() { return &get(); }
@@ -137,6 +124,24 @@ public:
   const std::string& error() const { assert(isError()); return data.error(); }
 
 private:
+  // This is made static to decouple us from the `const` qualifier of `this`.
+  template <typename Self>
+  static auto get(Self&& self)
+    -> decltype(std::forward<Self>(self).data.get().get())
+  {
+    if (!self.isSome()) {
+      std::string errorMessage = "Result::get() but state == ";
+      if (self.isError()) {
+        errorMessage += "ERROR: " + self.data.error();
+      } else if (self.isNone()) {
+        errorMessage += "NONE";
+      }
+      ABORT(errorMessage);
+    }
+    // NOLINTNEXTLINE(mesos-redundant-get)
+    return std::forward<Self>(self).data.get().get();
+  }
+
   // We leverage Try<Option<T>> to avoid dynamic allocation of T. This
   // means we can take advantage of all the RAII features of 'Try' and
   // makes the implementation of this class much simpler!
