@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+set -e
+
 CURRDIR="$(cd "$(dirname "$0")" && pwd)"
+
+tox -c ${CURRDIR}/../tox.ini -e py3-lint
 
 python ${CURRDIR}/../tests/main.py "$@"

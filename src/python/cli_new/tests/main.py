@@ -21,8 +21,6 @@ This is the main executable of the mesos-cli unit tests.
 import os
 import unittest
 
-from termcolor import colored
-
 from cli.tests import CLITestCase
 
 # pylint: disable=unused-import
@@ -36,5 +34,4 @@ if __name__ == '__main__':
     os.environ["MESOS_CLI_CONFIG"] = os.path.join(os.path.dirname(__file__),
                                                   "default_config.toml")
 
-    print(colored("Running the Mesos CLI unit tests", "yellow"))
     unittest.main(verbosity=2, testRunner=unittest.TextTestRunner)
