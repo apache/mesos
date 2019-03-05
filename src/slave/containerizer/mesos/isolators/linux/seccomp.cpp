@@ -86,6 +86,9 @@ Future<Option<ContainerLaunchInfo>> LinuxSeccompIsolatorProcess::prepare(
 {
   Option<ContainerSeccompProfile> profile = defaultProfile;
 
+  std::string profileName =
+    flags.seccomp_profile_name.isSome() ? flags.seccomp_profile_name.get() : "";
+
   // Framework can override default Seccomp profile for a particular container.
   if (containerConfig.has_container_info() &&
       containerConfig.container_info().has_linux_info() &&
@@ -104,8 +107,8 @@ Future<Option<ContainerLaunchInfo>> LinuxSeccompIsolatorProcess::prepare(
     }
 
     if (seccomp.has_profile_name()) {
-      const auto path =
-        path::join(flags.seccomp_config_dir.get(), seccomp.profile_name());
+      profileName = seccomp.profile_name();
+      const auto path = path::join(flags.seccomp_config_dir.get(), profileName);
 
       Try<ContainerSeccompProfile> customProfile =
         mesos::internal::seccomp::parseProfile(path);
@@ -116,6 +119,8 @@ Future<Option<ContainerLaunchInfo>> LinuxSeccompIsolatorProcess::prepare(
 
       profile = customProfile.get();
     } else if (unconfined) {
+      LOG(INFO) << "Seccomp is not applied to container " << containerId;
+
       return None();
     } else {
       return Failure("Missing Seccomp profile name");
@@ -128,6 +133,9 @@ Future<Option<ContainerLaunchInfo>> LinuxSeccompIsolatorProcess::prepare(
 
   ContainerLaunchInfo launchInfo;
   launchInfo.mutable_seccomp_profile()->CopyFrom(profile.get());
+
+  LOG(INFO) << "Using Seccomp profile '" << profileName
+            << "' for container " << containerId;
 
   return launchInfo;
 }
