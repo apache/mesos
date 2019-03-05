@@ -43,8 +43,17 @@ namespace slave {
  * The `ContainerLogger` is responsible for handling the stdout/stderr of
  * containers.
  *
- * The container logger is also responsible for providing a public interface
- * for retrieving the logs.
+ * The container logger is also responsible for providing a public interface for
+ * retrieving the logs.
+ *
+ * Care should be taken when implementing stateful container loggers: the logger
+ * should be capable of recovering its state and its managed containers during
+ * the agent recovery process in absence of such interface methods as
+ * `ContainerLogger::recover()` and `ContainerLogger::cleanup()`.
+ *
+ * The lack of `ContainerLogger::cleanup()` or similar prevents synchronization
+ * on container termination, i.e., delaying sending a terminal status update for
+ * the container until the logger reports completion.
  *
  * TODO(josephw): Provide an interface for exposing custom log-retrieval
  * endpoints via the Mesos web UI.
@@ -84,10 +93,7 @@ public:
    * within the `ContainerIO` as much as necessary, with some exceptions;
    * see the struct `ContainerIO` above.
    *
-   * NOTE: The container logger should not lose stdout/stderr if the agent fails
-   * over. Additionally, if the container logger is stateful, the logger should
-   * be capable of recovering managed containers during the agent recovery
-   * process. See `ContainerLogger::recover`.
+   * The container logger should not lose stdout/stderr if the agent fails over.
    *
    * @param containerId The ID of the container.
    * @param containerConfig The configurations of the container, including the
