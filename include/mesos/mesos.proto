@@ -3214,6 +3214,13 @@ message SeccompInfo {
   // relative to the directory containing Seccomp profiles,
   // which is specified on the agent via the `--seccomp_config_dir` flag.
   optional string profile_name = 1;
+
+  // If set to `true`, Seccomp is not applied to the container.
+  // If not set or set to `false`, the container is launched with
+  // the profile specified in the `profile_name` field.
+  //
+  // NOTE: `profile_name` should not be specified if `unconfined` set to `true`.
+  optional bool unconfined = 2;
 }
 
 

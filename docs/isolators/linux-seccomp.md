@@ -53,4 +53,6 @@ sudo mesos-agent --master=<master ip> --ip=<agent ip>
 
 In order for a Mesos task to override the agent's default Seccomp profile,
 it should declare the required profile in the `LinuxInfo` field of its
-`ContainerInfo`.
+`ContainerInfo`. E.g., if the agent is launched with the default Seccomp
+profile enabled, a framework can disable Seccomp for a particular task by
+setting an `unconfined` field in the corresponding `SeccompInfo`.

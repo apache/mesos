@@ -93,6 +93,16 @@ Future<Option<ContainerLaunchInfo>> LinuxSeccompIsolatorProcess::prepare(
     const auto& seccomp =
       containerConfig.container_info().linux_info().seccomp();
 
+    const bool unconfined =
+      seccomp.has_unconfined() ? seccomp.unconfined() : false;
+
+    // Validate Seccomp configuration.
+    if (unconfined && seccomp.has_profile_name()) {
+      return Failure(
+          "Invalid Seccomp configuration: 'profile_name' given even "
+          "though 'unconfined' Seccomp setting is enabled");
+    }
+
     if (seccomp.has_profile_name()) {
       const auto path =
         path::join(flags.seccomp_config_dir.get(), seccomp.profile_name());
@@ -105,6 +115,8 @@ Future<Option<ContainerLaunchInfo>> LinuxSeccompIsolatorProcess::prepare(
       }
 
       profile = customProfile.get();
+    } else if (unconfined) {
+      return None();
     } else {
       return Failure("Missing Seccomp profile name");
     }
