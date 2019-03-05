@@ -77,7 +77,7 @@ MARKDOWN_TITLE = "Apache Mesos - HTTP Endpoints%s"
 
 # A global timeout as well as a retry interval when hitting any http
 # endpoints on the master or agent (in seconds).
-RECEIVE_TIMEOUT = 10
+RECEIVE_TIMEOUT = 600
 RETRY_INTERVAL = 0.10
 
 
