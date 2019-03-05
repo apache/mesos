@@ -1025,6 +1025,85 @@ TEST_F(LinuxSeccompIsolatorTest, ROOT_SECCOMP_LaunchWithUnameDisabled)
 }
 
 
+// This test verifies that we can disable Seccomp filtering for a particular
+// task.
+TEST_F(LinuxSeccompIsolatorTest, ROOT_SECCOMP_LaunchWithSeccompDisabled)
+{
+  const string config =
+    R"~(
+    {
+      "defaultAction": "SCMP_ACT_ALLOW",
+      "archMap": [
+        {
+          "architecture": "SCMP_ARCH_X86_64",
+          "subArchitectures": [
+            "SCMP_ARCH_X86",
+            "SCMP_ARCH_X32"
+          ]
+        }
+      ],
+      "syscalls": [
+        {
+          "names": ["uname"],
+          "action": "SCMP_ACT_ERRNO",
+          "args": [],
+          "includes": {},
+          "excludes": {}
+        }
+      ]
+    })~";
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.seccomp_profile_name = createProfile(config);
+
+  Fetcher fetcher(flags);
+
+  Try<MesosContainerizer*> create =
+    MesosContainerizer::create(flags, false, &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<MesosContainerizer> containerizer(create.get());
+
+  SlaveState state;
+  state.id = SlaveID();
+
+  AWAIT_READY(containerizer->recover(state));
+
+  ContainerID containerId;
+  containerId.set_value(id::UUID::random().toString());
+
+  Try<string> directory = environment->mkdtemp();
+  ASSERT_SOME(directory);
+
+  auto containerConfig =  createContainerConfig(
+      None(),
+      createExecutorInfo("executor", "uname", "cpus:1"),
+      directory.get());
+
+  ContainerInfo* container = containerConfig.mutable_container_info();
+  container->set_type(ContainerInfo::MESOS);
+
+  SeccompInfo* seccomp = container->mutable_linux_info()->mutable_seccomp();
+  seccomp->set_unconfined(true);
+
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
+      containerId,
+      containerConfig,
+      map<string, string>(),
+      None());
+
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
+
+  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait.get()->has_status());
+  EXPECT_WEXITSTATUS_EQ(0, wait.get()->status());
+}
+
+
 // This test verifies that we can launch a task container with overridden
 // Seccomp profile.
 TEST_F(LinuxSeccompIsolatorTest, ROOT_SECCOMP_LaunchWithOverriddenProfile)
