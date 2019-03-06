@@ -83,7 +83,14 @@
     - abudnik@mesosphere.com
   jira_user: abudnik
   reviewboard_user: abudnik
-
+  
+- name: Andrei Sekretenko
+  affiliations:
+    - {organization: Mesosphere}
+  emails:
+    - asekretenko@mesosphere.com
+  jira_user: asekretenko
+  
 - name: Andrew Schwartzmeyer
   affiliations:
     - {organization: Microsoft}
