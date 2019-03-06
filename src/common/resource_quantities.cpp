@@ -96,11 +96,11 @@ ResourceQuantities::ResourceQuantities()
 
 
 ResourceQuantities::ResourceQuantities(
-    const OfferFilters::ResourceQuantities& quantities)
+    const google::protobuf::Map<std::string, Value::Scalar>& map)
 {
   // Use `auto` in place of `protobuf::MapPair<string, Value::Scalar>`
   // below since `foreach` is a macro and cannot contain angle brackets.
-  foreach (auto&& quantity, quantities.quantities()) {
+  foreach (auto&& quantity, map) {
     add(quantity.first, quantity.second);
   }
 }

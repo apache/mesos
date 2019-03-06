@@ -155,7 +155,8 @@ static hashmap<string, vector<ResourceQuantities>> unpackFrameworkOfferFilters(
       foreach (
           const OfferFilters::ResourceQuantities& quantities,
           allocatableResources.min_allocatable_resources().quantities()) {
-        allocatableResourcesRole.push_back(ResourceQuantities(quantities));
+        allocatableResourcesRole.push_back(
+          ResourceQuantities(quantities.quantities()));
       }
     }
   }

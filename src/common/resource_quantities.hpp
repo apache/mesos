@@ -85,7 +85,7 @@ public:
   ResourceQuantities();
 
   explicit ResourceQuantities(
-      const OfferFilters::ResourceQuantities& quantities);
+    const google::protobuf::Map<std::string, Value::Scalar>& map);
 
   ResourceQuantities(const ResourceQuantities& that) = default;
   ResourceQuantities(ResourceQuantities&& that) = default;
