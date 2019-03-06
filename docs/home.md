@@ -23,6 +23,7 @@ layout: documentation
 * [Framework Rate Limiting](framework-rate-limiting.md)
 * [Maintenance](maintenance.md) for performing maintenance on a Mesos cluster.
 * [Upgrades](upgrades.md) for upgrading a Mesos cluster.
+* [Downgrades](downgrades.md) for downgrading a Mesos cluster.
 * [Logging](logging.md)
 * [Monitoring / Metrics](monitoring.md)
 * [Debugging using the new CLI](cli.md)
