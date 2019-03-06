@@ -818,7 +818,6 @@ AM_CONDITIONAL([DISABLE_LIBTOOL_WRAPPERS],
 AM_CONDITIONAL([OS_LINUX], [test "x$OS_NAME" = "xlinux"])
 AM_CONDITIONAL([OS_FREEBSD], [test "x$OS_NAME" = "xfreebsd"])
 
-AM_CONDITIONAL([GIT_REPO], [test -d ${srcdir}"/.git"])
 AM_CONDITIONAL([HAS_GPERFTOOLS], [test "x$enable_perftools" = "xyes"])
 
 AM_CONDITIONAL([INSTALL_MODULE_DEPENDENCIES],
@@ -2814,6 +2813,64 @@ m4_define([major_minor_patch],
 AC_SUBST(MESOS_MAJOR_VERSION, m4_car(major_minor_patch))
 AC_SUBST(MESOS_MINOR_VERSION, m4_car(m4_shift(major_minor_patch)))
 AC_SUBST(MESOS_PATCH_VERSION, m4_car(m4_shift2(major_minor_patch)))
+
+
+###############################################################################
+# Configure libbuild definitions passed into 'src/common/git_version.hpp'.
+###############################################################################
+
+git_dir="${srcdir}/.git/"
+git_config=src/common/git_version.hpp
+
+# Create 'src/common/git_version.hpp' only if we did not do so before. This
+# protects the results from getting overwritten by additional configure runs
+# outside the reach of the git repository, as for example done by
+# 'support/packaging/centos/build_rpm.sh'.
+
+AC_MSG_CHECKING([${git_config} presence])
+
+AS_IF([test -f ${git_config}], [AC_MSG_RESULT([yes])], [
+  AC_MSG_RESULT([no])
+
+  AC_MSG_NOTICE([generating ${git_config}])
+
+  # When building from a git clone, the definitions BUILD_GIT_SHA,
+  # BUILD_GIT_BRANCH, and BUILD_GIT_TAG will be emitted.
+
+  AS_IF([test -d ${git_dir}], [
+    # Optionally set BUILD_GIT_SHA.
+    DEFINE_BUILD_GIT_SHA=""
+
+    git_sha="$(git --git-dir=\"${git_dir}\" rev-parse HEAD 2>/dev/null)"
+
+    AS_IF([test $? = 0], [
+      DEFINE_BUILD_GIT_SHA="#define BUILD_GIT_SHA \"${git_sha}\""
+    ])
+    AC_SUBST([DEFINE_BUILD_GIT_SHA])
+
+    # Optionally set BUILD_GIT_BRANCH.
+    DEFINE_BUILD_GIT_BRANCH=""
+
+    git_branch="$(git --git-dir=\"${git_dir}\" symbolic-ref HEAD 2>/dev/null)"
+
+    AS_IF([test $? = 0], [
+      DEFINE_BUILD_GIT_BRANCH="#define BUILD_GIT_BRANCH \"${git_branch}\""
+    ])
+    AC_SUBST([DEFINE_BUILD_GIT_BRANCH])
+
+    # Optionally set BUILD_GIT_TAG.
+    DEFINE_BUILD_GIT_TAG=""
+
+    git_tag="$(git --git-dir=\"${git_dir}\" describe --exact --tags 2>/dev/null)"
+
+    AS_IF([test $? = 0], [
+      DEFINE_BUILD_GIT_TAG="#define BUILD_GIT_TAG \"${git_tag}\""
+    ])
+    AC_SUBST([DEFINE_BUILD_GIT_TAG])
+  ])
+
+  AC_CONFIG_FILES([${git_config}])
+])
 
 
 AC_OUTPUT

@@ -32,6 +32,8 @@
 #include "common/build_config.hpp"
 #endif // USE_CMAKE_BUILD_CONFIG
 
+#include "common/git_version.hpp"
+
 using std::string;
 
 namespace mesos {

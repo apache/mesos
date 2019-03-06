@@ -603,35 +603,65 @@ string(REPLACE "\"" "\\\"" BUILD_FLAGS "${BUILD_FLAGS_RAW}")
 
 set(BUILD_JAVA_JVM_LIBRARY ${JAVA_JVM_LIBRARY})
 
-# When building from source, from a git clone, emit some extra build info.
-if (IS_DIRECTORY "${CMAKE_SOURCE_DIR}/.git")
-  execute_process(
-    COMMAND git rev-parse HEAD
-    OUTPUT_VARIABLE BUILD_GIT_SHA
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    ERROR_QUIET
-    OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-  execute_process(
-    COMMAND git symbolic-ref HEAD
-    OUTPUT_VARIABLE BUILD_GIT_BRANCH
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    ERROR_QUIET
-    OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-  execute_process(
-    COMMAND git describe --exact --tags
-    OUTPUT_VARIABLE BUILD_GIT_TAG
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    ERROR_QUIET
-    OUTPUT_STRIP_TRAILING_WHITESPACE)
-endif ()
-
-# Emit the BUILD_DATE, BUILD_TIME, and BUILD_USER variables into a file.
-# When building from a git clone, the variables BUILD_GIT_SHA,
-# BUILD_GIT_BRANCH, and BUILD_GIT_TAG will also be emitted.
+# Emit the BUILD_DATE, BUILD_TIME and BUILD_USER definitions into a file.
 # This will be updated each time `cmake` is run.
 configure_file(
   "${CMAKE_SOURCE_DIR}/src/common/build_config.hpp.in"
   "${CMAKE_BINARY_DIR}/src/common/build_config.hpp"
   @ONLY)
+
+# Create 'src/common/git_version.hpp' only if we did not do so before.
+# This protects the results from getting overwritten by additional cmake
+# runs outside the reach of the git repository.
+if(NOT EXISTS "${CMAKE_BINARY_DIR}/src/common/git_version.hpp")
+  # When building from a git clone, the definitions BUILD_GIT_SHA,
+  # BUILD_GIT_BRANCH and BUILD_GIT_TAG will be emitted.
+  if (IS_DIRECTORY "${CMAKE_SOURCE_DIR}/.git")
+    # Optionally set BUILD_GIT_SHA.
+    set(DEFINE_BUILD_GIT_SHA "")
+
+    execute_process(
+      COMMAND git rev-parse HEAD
+      OUTPUT_VARIABLE BUILD_GIT_SHA
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      ERROR_QUIET
+      OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+    if (NOT BUILD_GIT_SHA STREQUAL "")
+      set(DEFINE_BUILD_GIT_SHA "#define BUILD_GIT_SHA \"${BUILD_GIT_SHA}\"")
+    endif()
+
+    # Optionally set BUILD_GIT_BRANCH.
+    set(DEFINE_BUILD_GIT_BRANCH "")
+
+    execute_process(
+      COMMAND git symbolic-ref HEAD
+      OUTPUT_VARIABLE BUILD_GIT_BRANCH
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      ERROR_QUIET
+      OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+    if (NOT BUILD_GIT_BRANCH STREQUAL "")
+      set(DEFINE_BUILD_GIT_BRANCH "#define BUILD_GIT_BRANCH \"${BUILD_GIT_BRANCH}\"")
+    endif()
+
+    # Optionally set BUILD_GIT_TAG.
+    set(DEFINE_BUILD_GIT_TAG "")
+
+    execute_process(
+      COMMAND git describe --exact --tags
+      OUTPUT_VARIABLE BUILD_GIT_TAG
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      ERROR_QUIET
+      OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+    if (NOT BUILD_GIT_TAG STREQUAL "")
+      set(DEFINE_BUILD_GIT_TAG "#define BUILD_GIT_TAG \"${BUILD_GIT_TAG}\"")
+    endif()
+  endif ()
+
+  configure_file(
+    "${CMAKE_SOURCE_DIR}/src/common/git_version.hpp.in"
+    "${CMAKE_BINARY_DIR}/src/common/git_version.hpp"
+    @ONLY)
+endif()
