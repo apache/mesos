@@ -908,6 +908,13 @@ message MasterInfo {
     enum Type {
       UNKNOWN = 0;
 
+      // NOTE: When the master starts to use a new capability that
+      // may prevent compatible downgrade, remember to add the
+      // capability to `Registry::MinimumCapability`. Conversely,
+      // the added minimum capability should be removed if the capability
+      // is deemed to be no longer required for compatible downgrade.
+      // See MESOS-8878 for more details.
+
       // The master can handle slaves whose state
       // changes after reregistering.
       AGENT_UPDATE = 1;
