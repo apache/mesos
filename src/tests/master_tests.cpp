@@ -2937,6 +2937,31 @@ TEST_F(MasterTest, RegistryUpdateAfterMasterFailover)
 }
 
 
+TEST_F(MasterTest, RecoverWithMinimumCapability)
+{
+  Try<Owned<cluster::Master>> master = StartMaster(CreateMasterFlags());
+  ASSERT_SOME(master);
+
+  Registry registry;
+
+  registry.add_minimum_capabilities()->set_capability(
+      MasterInfo::Capability::Type_Name(MasterInfo::Capability::AGENT_UPDATE));
+
+  EXPECT_TRUE(
+      Master::misingMinimumCapabilities(master.get()->getMasterInfo(), registry)
+        .empty());
+
+  registry.add_minimum_capabilities()->set_capability("SUPER_POWER");
+
+  hashset<string> result =
+    Master::misingMinimumCapabilities(master->get()->getMasterInfo(), registry);
+
+  hashset<string> expected = {"SUPER_POWER"};
+
+  EXPECT_EQ(expected, result);
+}
+
+
 // This test ensures that when a slave is recovered from the registry
 // but does not reregister with the master, it is marked unreachable
 // in the registry, the framework is informed that the slave is lost,
