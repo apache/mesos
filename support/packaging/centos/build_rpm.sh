@@ -26,6 +26,7 @@ make_dist() {
 
   TMP_BUILD_DIR=`mktemp -d ./mesos-centos-rpm-build-XXXX`
   pushd $TMP_BUILD_DIR
+  export USER=${USER:-centos}
   $MESOS_DIR/configure && make dist
   MESOS_VERSION=$($MESOS_DIR/configure --version|head -1|cut -d' ' -f3)
   popd
