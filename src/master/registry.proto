@@ -85,6 +85,20 @@ message Registry {
     required WeightInfo info = 1;
   }
 
+  // The minimum set of `MasterInfo::Capability` that the master reading
+  // this registry should be capable of.  If the master is upgraded
+  // or downgraded and no longer satisfies these capabilities, the
+  // master is expected to exit upon recovery.
+  //
+  // We do not use `MasterInfo::Capability` in this field directly
+  // because the enumeration may be extended in later Mesos versions.
+  // If an earlier version is given an enum value from a later version,
+  // the protobuf parser will interpret this as an `UNKNOWN` capability,
+  // and we will be unable to provide remediation text to the operator.
+  message MinimumCapability {
+    required string capability = 1;
+  }
+
   // Most recent leading master.
   optional Master master = 1;
 
@@ -130,4 +144,6 @@ message Registry {
 
   // All known resource providers.
   optional resource_provider.registry.Registry resource_provider_registry = 9;
+
+  repeated MinimumCapability minimum_capabilities = 10;
 }
