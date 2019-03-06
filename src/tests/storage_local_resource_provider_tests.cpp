@@ -2134,12 +2134,7 @@ TEST_P(
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveResource(created)))
     .WillOnce(FutureArg<1>(&offers));
 
-  // TODO(chhsiao): We use the following filter so that the resources will not
-  // be filtered for 5 seconds (the default) because of MESOS-9616. Remove the
-  // filter once it is resolved.
-  Filters acceptFilters;
-  acceptFilters.set_refuse_seconds(0);
-  driver.acceptOffers({offer.id()}, {DESTROY(persistentVolume)}, acceptFilters);
+  driver.acceptOffers({offer.id()}, {DESTROY(persistentVolume)});
 
   // NOTE: Since `DESTROY` would be applied by the master synchronously, we
   // might get an offer before the persistent volume is cleaned up on the agent,
@@ -2402,12 +2397,7 @@ TEST_P(
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveResource(created)))
     .WillOnce(FutureArg<1>(&offers));
 
-  // TODO(chhsiao): We use the following filter so that the resources will not
-  // be filtered for 5 seconds (the default) because of MESOS-9616. Remove the
-  // filter once it is resolved.
-  Filters acceptFilters;
-  acceptFilters.set_refuse_seconds(0);
-  driver.acceptOffers({offer.id()}, {DESTROY(persistentVolume)}, acceptFilters);
+  driver.acceptOffers({offer.id()}, {DESTROY(persistentVolume)});
 
   // NOTE: Since `DESTROY` would be applied by the master synchronously, we
   // might get an offer before the persistent volume is cleaned up on the agent,
@@ -2724,12 +2714,7 @@ TEST_P(
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveResource(created)))
     .WillOnce(FutureArg<1>(&offers));
 
-  // TODO(chhsiao): We use the following filter so that the resources will not
-  // be filtered for 5 seconds (the default) because of MESOS-9616. Remove the
-  // filter once it is resolved.
-  Filters acceptFilters;
-  acceptFilters.set_refuse_seconds(0);
-  driver.acceptOffers({offer.id()}, {DESTROY(persistentVolume)}, acceptFilters);
+  driver.acceptOffers({offer.id()}, {DESTROY(persistentVolume)});
 
   // NOTE: Since `DESTROY` would be applied by the master synchronously, we
   // might get an offer before the persistent volume is cleaned up on the agent,
@@ -3124,15 +3109,8 @@ TEST_P(StorageLocalResourceProviderTest, CreatePersistentBlockVolume)
       std::bind(isBlockDisk<Resource>, lambda::_1, "test"))))
     .WillOnce(FutureArg<1>(&offers));
 
-  // We use the following filter so that the resources will not be filtered for
-  // 5 seconds (the default).
-  Filters acceptFilters;
-  acceptFilters.set_refuse_seconds(0);
-
   driver.acceptOffers(
-      {offer.id()},
-      {CREATE_DISK(raw, Resource::DiskInfo::Source::BLOCK)},
-      acceptFilters);
+      {offer.id()}, {CREATE_DISK(raw, Resource::DiskInfo::Source::BLOCK)});
 
   AWAIT_READY(offers);
   ASSERT_EQ(1u, offers->size());
@@ -3160,7 +3138,7 @@ TEST_P(StorageLocalResourceProviderTest, CreatePersistentBlockVolume)
       sched, resourceOffers(&driver, OffersHaveResource(created)))
     .WillOnce(FutureArg<1>(&offers));
 
-  driver.acceptOffers({offer.id()}, {CREATE(persistentVolume)}, acceptFilters);
+  driver.acceptOffers({offer.id()}, {CREATE(persistentVolume)});
 
   AWAIT_READY(createOperationStatus);
   EXPECT_EQ(OPERATION_FAILED, createOperationStatus->status().state());
