@@ -158,7 +158,7 @@ namespace tests {
 // that seem vaguely more slave than master-related are in this file.
 // The others are in "master_tests.cpp".
 
-class SlaveTest : public MesosTest
+class SlaveTest : public ContainerizerTest<slave::MesosContainerizer>
 {
 public:
   const std::string defaultIsolators{
