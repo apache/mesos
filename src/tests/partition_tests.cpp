@@ -2559,11 +2559,16 @@ TEST_F(PartitionTest, PartitionAwareTaskCompletedOnPartitionedAgent)
   AWAIT_READY(execTask);
 
   {
+    Future<Nothing> ___statusUpdate =
+      FUTURE_DISPATCH(slave.get()->pid, &Slave::___statusUpdate);
+
     TaskStatus runningStatus;
     runningStatus.mutable_task_id()->MergeFrom(execTask->task_id());
     runningStatus.set_state(TASK_RUNNING);
 
     execDriver->sendStatusUpdate(runningStatus);
+
+    AWAIT_READY(___statusUpdate);
   }
 
   AWAIT_READY(runningAtScheduler);
@@ -2606,11 +2611,16 @@ TEST_F(PartitionTest, PartitionAwareTaskCompletedOnPartitionedAgent)
 
   // Have the executor inform the slave that the task has finished.
   {
+    Future<Nothing> ___statusUpdate =
+      FUTURE_DISPATCH(slave.get()->pid, &Slave::___statusUpdate);
+
     TaskStatus finishedStatus;
     finishedStatus.mutable_task_id()->MergeFrom(execTask->task_id());
     finishedStatus.set_state(TASK_FINISHED);
 
     execDriver->sendStatusUpdate(finishedStatus);
+
+    AWAIT_READY(___statusUpdate);
   }
 
   // Cause the slave to reregister with the master. Because the
