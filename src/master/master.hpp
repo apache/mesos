@@ -441,6 +441,11 @@ public:
 
   virtual ~Master();
 
+  // Compare this master's capabilities with registry's minimum capability.
+  // Return the set of capabilities missing from this master.
+  static hashset<std::string> misingMinimumCapabilities(
+      const MasterInfo& masterInfo, const Registry& registry);
+
   // Message handlers.
   void submitScheduler(
       const std::string& name);

@@ -391,6 +391,32 @@ Master::Master(
 Master::~Master() {}
 
 
+hashset<string> Master::misingMinimumCapabilities(
+    const MasterInfo& masterInfo, const Registry& registry)
+{
+  if (registry.minimum_capabilities().size() == 0) {
+    return hashset<string>();
+  }
+
+  hashset<string> minimumCapabilities, masterCapabilities;
+
+  foreach (
+      const Registry::MinimumCapability& minimumCapability,
+      registry.minimum_capabilities()) {
+    minimumCapabilities.insert(minimumCapability.capability());
+  }
+
+  foreach (
+      const MasterInfo::Capability& masterCapability,
+      masterInfo.capabilities()) {
+    masterCapabilities.insert(
+        MasterInfo::Capability::Type_Name(masterCapability.type()));
+  }
+
+  return minimumCapabilities - masterCapabilities;
+}
+
+
 // TODO(vinod): Update this interface to return failed futures when
 // capacity is reached.
 struct BoundedRateLimiter
@@ -1720,6 +1746,18 @@ Future<Nothing> Master::recover()
 
 Future<Nothing> Master::_recover(const Registry& registry)
 {
+  hashset<string> missingCapabilities =
+    misingMinimumCapabilities(info_, registry);
+
+  if (!missingCapabilities.empty()) {
+    LOG(ERROR) << "Master is missing the following minimum capabilities: "
+               << strings::join<hashset<string>>(", ", missingCapabilities)
+               << ". See the following documentation for steps to safely "
+               << "recover from this state: "
+               << "http://mesos.apache.org/documentation/latest/downgrades";
+    EXIT(EXIT_FAILURE);
+  }
+
   foreach (const Registry::Slave& slave, registry.slaves().slaves()) {
     SlaveInfo slaveInfo = slave.info();
 
