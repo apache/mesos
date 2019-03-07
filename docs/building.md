@@ -157,6 +157,8 @@ Following are the instructions for stock CentOS 6.6. If you are using a differen
     $ sudo yum groupinstall -y "Development Tools"
 
     # Install 'devtoolset-2-toolchain' which includes GCC 4.8.2 and related packages.
+    # Installing 'devtoolset-3' might be a better choice since `perf` might
+    # conflict with the version of `elfutils` included in devtoolset-2.
     $ sudo yum install -y devtoolset-2-toolchain
 
     # Install other Mesos dependencies.
