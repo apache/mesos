@@ -31,7 +31,22 @@ namespace tests {
 
 // Get the metrics snapshot.
 // TODO(vinod): Move this into a libprocess utility header.
+// TODO(bevers): Rename this to `getMetrics()`.
 JSON::Object Metrics();
+
+template<typename T>
+bool metricEquals(const std::string& metric, const T& value) {
+  JSON::Object metrics = Metrics();
+
+  // NOTE: We can assume `JSON::Number` because all our
+  // metric classes (counters, gauges) do return numbers.
+  const Result<JSON::Number>& result = metrics.at<JSON::Number>(metric);
+  if (!result.isSome()) {
+    return false;
+  }
+
+  return result->as<T>() == value;
+}
 
 // Path finding utilities.
 //
