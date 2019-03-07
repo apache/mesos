@@ -1645,17 +1645,13 @@ private:
      *
      * @param slaveId The ID of the slave that the operation is
      *     updating.
-     * @param required The resources needed to satisfy the operation.
-     *     This is used for an optimization where we try to only
-     *     rescind offers that would contribute to satisfying the
-     *     operation.
      * @param operation The operation to be performed.
      *
-     * @return Returns 'OK' if successful, 'Conflict' otherwise.
+     * @return Returns 'OK' if successful, 'BadRequest' if the
+     *     operation is malformed, 'Conflict' otherwise.
      */
     process::Future<process::http::Response> _operation(
         const SlaveID& slaveId,
-        Resources required,
         const Offer::Operation& operation) const;
 
     // Master API handlers.

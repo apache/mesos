@@ -723,19 +723,6 @@ Future<Response> Master::Http::scheduler(
 }
 
 
-static Resources removeDiskInfos(const Resources& resources)
-{
-  Resources result;
-
-  foreach (Resource resource, resources) {
-    resource.clear_disk();
-    result += resource;
-  }
-
-  return result;
-}
-
-
 string Master::Http::CREATE_VOLUMES_HELP()
 {
   return HELP(
@@ -877,11 +864,7 @@ Future<Response> Master::Http::_createVolumes(
         return Forbidden();
       }
 
-      // The resources required for this operation are equivalent to the
-      // volumes specified by the user minus any DiskInfo (DiskInfo will
-      // be created when this operation is applied).
-      return _operation(
-          slaveId, removeDiskInfos(operation.create().volumes()), operation);
+      return _operation(slaveId, operation);
     }));
 }
 
@@ -1049,7 +1032,7 @@ Future<Response> Master::Http::_destroyVolumes(
         return Forbidden();
       }
 
-      return _operation(slaveId, operation.destroy().volumes(), operation);
+      return _operation(slaveId, operation);
     }));
 }
 
@@ -1136,13 +1119,7 @@ Future<Response> Master::Http::growVolume(
         return Forbidden();
       }
 
-      // The `volume` and `addition` fields contain the resources required for
-      // this operation.
-      return _operation(
-          slaveId,
-          Resources(operation.grow_volume().volume()) +
-            Resources(operation.grow_volume().addition()),
-          operation);
+      return _operation(slaveId, operation);
     }));
 }
 
@@ -1205,9 +1182,7 @@ Future<Response> Master::Http::shrinkVolume(
         return Forbidden();
       }
 
-      // The `volume` field contains the resources required for this operation.
-      return _operation(
-          slaveId, operation.shrink_volume().volume(), operation);
+      return _operation(slaveId, operation);
     }));
 }
 
@@ -2000,12 +1975,7 @@ Future<Response> Master::Http::_reserve(
         return Forbidden();
       }
 
-      // We only allow "pushing" a single reservation at a time, so we require
-      // the resources with one reservation "popped" to be present on the agent.
-      Resources required =
-        Resources(operation.reserve().resources()).popReservation();
-
-      return _operation(slaveId, required, operation);
+      return _operation(slaveId, operation);
     }));
 }
 
@@ -4009,16 +3979,23 @@ Future<Response> Master::Http::_unreserve(
         return Forbidden();
       }
 
-      return _operation(slaveId, operation.unreserve().resources(), operation);
+      return _operation(slaveId, operation);
     }));
 }
 
 
 Future<Response> Master::Http::_operation(
     const SlaveID& slaveId,
-    Resources required,
     const Offer::Operation& operation) const
 {
+  Try<Resources> required = protobuf::getConsumedResources(operation);
+
+  if (required.isError()) {
+    return BadRequest(
+        "Invalid " + stringify(operation.type()) + " operation: " +
+        required.error());
+  }
+
   Slave* slave = master->slaves.registered.get(slaveId);
   if (slave == nullptr) {
     return BadRequest("No agent found with specified ID");
@@ -4039,12 +4016,12 @@ Future<Response> Master::Http::_operation(
     Resources recovered = offer->resources();
     recovered.unallocate();
 
-    if (required == required - recovered) {
+    if (required.get() == required.get() - recovered) {
       continue;
     }
 
     totalRecovered += recovered;
-    required -= recovered;
+    required.get() -= recovered;
 
     // We explicitly pass 'Filters()' which has a default 'refuse_seconds'
     // of 5 seconds rather than 'None()' here, so that we can virtually
