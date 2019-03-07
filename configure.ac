@@ -2829,7 +2829,7 @@ git_config=src/common/git_version.hpp
 
 AC_MSG_CHECKING([${git_config} presence])
 
-AS_IF([test -f ${git_config}], [AC_MSG_RESULT([yes])], [
+AS_IF([test -f ${srcdir}/${git_config} || test -f ${git_config}], [AC_MSG_RESULT([yes])], [
   AC_MSG_RESULT([no])
 
   AC_MSG_NOTICE([generating ${git_config}])
@@ -2841,7 +2841,7 @@ AS_IF([test -f ${git_config}], [AC_MSG_RESULT([yes])], [
     # Optionally set BUILD_GIT_SHA.
     DEFINE_BUILD_GIT_SHA=""
 
-    git_sha="$(git --git-dir=\"${git_dir}\" rev-parse HEAD 2>/dev/null)"
+    git_sha=$(git --git-dir=${git_dir} rev-parse HEAD 2>/dev/null)
 
     AS_IF([test $? = 0], [
       DEFINE_BUILD_GIT_SHA="#define BUILD_GIT_SHA \"${git_sha}\""
@@ -2851,7 +2851,7 @@ AS_IF([test -f ${git_config}], [AC_MSG_RESULT([yes])], [
     # Optionally set BUILD_GIT_BRANCH.
     DEFINE_BUILD_GIT_BRANCH=""
 
-    git_branch="$(git --git-dir=\"${git_dir}\" symbolic-ref HEAD 2>/dev/null)"
+    git_branch=$(git --git-dir=${git_dir} symbolic-ref HEAD 2>/dev/null)
 
     AS_IF([test $? = 0], [
       DEFINE_BUILD_GIT_BRANCH="#define BUILD_GIT_BRANCH \"${git_branch}\""
@@ -2861,7 +2861,7 @@ AS_IF([test -f ${git_config}], [AC_MSG_RESULT([yes])], [
     # Optionally set BUILD_GIT_TAG.
     DEFINE_BUILD_GIT_TAG=""
 
-    git_tag="$(git --git-dir=\"${git_dir}\" describe --exact --tags 2>/dev/null)"
+    git_tag=$(git --git-dir=${git_dir} describe --exact --tags 2>/dev/null)
 
     AS_IF([test $? = 0], [
       DEFINE_BUILD_GIT_TAG="#define BUILD_GIT_TAG \"${git_tag}\""
