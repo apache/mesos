@@ -279,5 +279,161 @@ void ResourceQuantities::add(const string& name, const Value::Scalar& scalar)
 }
 
 
+// This function tries to be consistent with `Resources::fromSimpleString()`.
+// We trim the whitespace around the pair and in the number but whitespace in
+// "c p us:10" are preserved and will be parsed to {"c p us", 10}.
+Try<ResourceLimits> ResourceLimits::fromString(const string& text)
+{
+  ResourceLimits result;
+
+  foreach (const string& token, strings::tokenize(text, ";")) {
+    vector<string> pair = strings::tokenize(token, ":");
+    if (pair.size() != 2) {
+      return Error("Failed to parse '" + token + "': missing or extra ':'");
+    }
+
+    Try<Value> value = values::parse(pair[1]);
+    if (value.isError()) {
+      return Error(
+          "Failed to parse '" + pair[1] + "' to limit: " + value.error());
+    }
+
+    if (value->type() != Value::SCALAR) {
+      return Error(
+          "Failed to parse '" + pair[1] + "' to limit:"
+          " only scalar values are allowed");
+    }
+
+    if (value->scalar().value() < 0) {
+      return Error(
+          "Failed to parse '" + pair[1] + "' to limit:"
+          " negative values are not allowed");
+    } else if (value->scalar().value() >= 0) {
+      // Zero value is preserved.
+      // And duplicate names are not allowed.
+      const string name = strings::trim(pair[0]);
+      if (result.get(name) != None()) {
+            return Error("Failed to parse '" + pair[1] + "' to limit:"
+            " duplicate names are not allowed");
+      }
+      result.set(name, value->scalar());
+    }
+  }
+
+  return result;
+}
+
+
+ResourceLimits::ResourceLimits()
+{
+  // Pre-reserve space for first-class resources.
+  // [cpus, disk, gpus, mem, ports]
+  limits.reserve(5u);
+}
+
+
+ResourceLimits::ResourceLimits(
+  const google::protobuf::Map<std::string, Value::Scalar>& map)
+{
+  // Use `auto` in place of `protobuf::MapPair<string, Value::Scalar>`
+  // below since `foreach` is a macro and cannot contain angle brackets.
+  foreach (auto&& limit, map) {
+    set(limit.first, limit.second);
+  }
+}
+
+
+ResourceLimits::const_iterator ResourceLimits::begin()
+{
+  return static_cast<const std::vector<std::pair<std::string, Value::Scalar>>&>(
+           limits)
+    .begin();
+}
+
+
+ResourceLimits::const_iterator ResourceLimits::end()
+{
+  return static_cast<const std::vector<std::pair<std::string, Value::Scalar>>&>(
+           limits)
+    .end();
+}
+
+
+Option<Value::Scalar> ResourceLimits::get(const string& name) const
+{
+  // Don't bother binary searching since
+  // we don't expect a large number of elements.
+  foreach (auto&& limit, limits) {
+    if (limit.first == name) {
+      return limit.second;
+    } else if (limit.first > name) {
+      // We can return early since we keep names in alphabetical order.
+      break;
+    }
+  }
+
+  return None();
+}
+
+
+bool ResourceLimits::contains(const ResourceLimits& right) const
+{
+  size_t leftIndex = 0u;
+  size_t rightIndex = 0u;
+
+  // Since limits are sorted in alphabetical order, we can walk them
+  // at the same time.
+  while (leftIndex < size() && rightIndex < right.size()) {
+    const pair<string, Value::Scalar>& left_ = limits.at(leftIndex);
+    const pair<string, Value::Scalar>& right_ = right.limits.at(rightIndex);
+
+    if (left_.first < right_.first) {
+      // Left has a finite limit but right has no limit.
+      return false;
+    } else if (left_.first > right_.first) {
+      // Left has a no limit but right has finite limit.
+      ++rightIndex;
+    } else {
+      // Left and right both have finite limits.
+      if (left_.second < right_.second) {
+        return false;
+      }
+      leftIndex++;
+      rightIndex++;
+    }
+  }
+
+  if (leftIndex < size()) {
+    // Left has finite limits for resources that right has no limits for.
+    return false;
+  }
+
+  return true;
+}
+
+
+void ResourceLimits::set(
+    const std::string& name, const Value::Scalar& scalar)
+{
+  // Find the location to insert while maintaining
+  // alphabetical ordering. Don't bother binary searching
+  // since we don't expect a large number of limits.
+  auto it = limits.begin();
+  for (; it != limits.end(); ++it) {
+    if (it->first == name) {
+      // Overwrite if it exists.
+      it->second = scalar;
+      return;
+    }
+
+    if (it->first > name) {
+      break;
+    }
+  }
+
+  it = limits.insert(it, std::make_pair(name, scalar));
+}
+
+
 } // namespace internal {
 } // namespace mesos {
