@@ -289,6 +289,146 @@ TEST(QuantitiesTest, Contains)
 }
 
 
+static vector<pair<string, double>> toVector(
+  const ResourceLimits& limits)
+{
+  vector<pair<string, double>> result;
+
+  foreach (auto& limit, limits) {
+    result.push_back(std::make_pair(limit.first, limit.second.value()));
+  }
+
+  return result;
+}
+
+
+// These are similar to `QuantitiesTest.FromStringValid` except when zero
+// values are involved.
+TEST(LimitsTest, FromStringValid)
+{
+  // A single resource.
+  ResourceLimits resourceLimits =
+    CHECK_NOTERROR(ResourceLimits::fromString("cpus:10"));
+  vector<pair<string, double>> expected = {{"cpus", 10}};
+  EXPECT_EQ(expected, toVector(resourceLimits));
+
+  resourceLimits =
+    CHECK_NOTERROR(ResourceLimits::fromString("cpus:3.14"));
+  expected = {{"cpus", 3.14}};
+  EXPECT_EQ(expected, toVector(resourceLimits));
+
+  // Whitespace is trimmed.
+  resourceLimits =
+    CHECK_NOTERROR(ResourceLimits::fromString(" cpus : 3.14 ; disk : 10 "));
+  expected = {{"cpus", 3.14}, {"disk", 10}};
+  EXPECT_EQ(expected, toVector(resourceLimits));
+
+  // Zero value is preserved.
+  resourceLimits = CHECK_NOTERROR(ResourceLimits::fromString("cpus:0"));
+  expected = {{"cpus", 0}};
+  EXPECT_EQ(expected, toVector(resourceLimits));
+
+  // Two resources.
+  resourceLimits =
+    CHECK_NOTERROR(ResourceLimits::fromString("cpus:10.5;ports:1"));
+  expected = {{"cpus", 10.5}, {"ports", 1}};
+  EXPECT_EQ(expected, toVector(resourceLimits));
+
+  // Two resources with names out of alphabetical order.
+  resourceLimits =
+    CHECK_NOTERROR(ResourceLimits::fromString("ports:3;cpus:10.5"));
+  expected = {{"cpus", 10.5}, {"ports", 3}};
+  EXPECT_EQ(expected, toVector(resourceLimits));
+}
+
+
+// These are identical to `QuantitiesTest.FromStringInvalid`.
+TEST(LimitsTest, FromStringInvalid)
+{
+  // Invalid scalar.
+  Try<ResourceLimits> resourceLimits =
+    ResourceLimits::fromString("cpus:a10");
+  EXPECT_ERROR(resourceLimits);
+
+  resourceLimits = ResourceLimits::fromString("cpus:3.14c");
+  EXPECT_ERROR(resourceLimits);
+
+  // Missing semicolon.
+  resourceLimits = ResourceLimits::fromString("ports:3,cpus:1");
+  EXPECT_ERROR(resourceLimits);
+
+  // Negative value.
+  resourceLimits = ResourceLimits::fromString("ports:3,cpus:-1");
+  EXPECT_ERROR(resourceLimits);
+
+  resourceLimits = ResourceLimits::fromString("cpus:nan");
+  EXPECT_ERROR(resourceLimits);
+
+  resourceLimits = ResourceLimits::fromString("cpus:-nan");
+  EXPECT_ERROR(resourceLimits);
+
+  resourceLimits = ResourceLimits::fromString("cpus:inf");
+  EXPECT_ERROR(resourceLimits);
+
+  resourceLimits = ResourceLimits::fromString("cpus:-inf");
+  EXPECT_ERROR(resourceLimits);
+
+  resourceLimits = ResourceLimits::fromString("cpus:infinity");
+  EXPECT_ERROR(resourceLimits);
+
+  resourceLimits = ResourceLimits::fromString("cpus:-infinity");
+  EXPECT_ERROR(resourceLimits);
+
+  // Duplicate entries.
+  resourceLimits = ResourceLimits::fromString("cpus:1;cpus:2");
+  EXPECT_ERROR(resourceLimits);
+}
+
+
+TEST(LimitsTest, Contains)
+{
+  ResourceLimits infinite{};
+  EXPECT_TRUE(infinite.contains(infinite));
+
+  ResourceLimits finite = CHECK_NOTERROR(ResourceLimits::fromString("cpus:1"));
+  infinite = ResourceLimits();
+  EXPECT_TRUE(infinite.contains(finite));
+  EXPECT_FALSE(finite.contains(infinite));
+
+  finite = CHECK_NOTERROR(ResourceLimits::fromString("cpus:1;mem:1"));
+  EXPECT_TRUE(finite.contains(finite));
+
+  ResourceLimits moreLimits =
+    CHECK_NOTERROR(ResourceLimits::fromString("cpus:1;mem:1;disk:1"));
+  ResourceLimits lessLimits =
+    CHECK_NOTERROR(ResourceLimits::fromString("cpus:1;mem:1"));
+  EXPECT_TRUE(lessLimits.contains(moreLimits));
+  EXPECT_FALSE(moreLimits.contains(lessLimits));
+
+  // Intersected sets.
+  ResourceLimits limits1 =
+    CHECK_NOTERROR(ResourceLimits::fromString("cpus:1;mem:1"));
+  ResourceLimits limits2 =
+    CHECK_NOTERROR(ResourceLimits::fromString("cpus:1;disk:1"));
+  EXPECT_FALSE(limits1.contains(limits2));
+  EXPECT_FALSE(limits2.contains(limits1));
+
+  // Sets with no intersection.
+  limits1 = CHECK_NOTERROR(ResourceLimits::fromString("cpus:1;mem:1"));
+  limits2 = CHECK_NOTERROR(ResourceLimits::fromString("gpu:1;disk:1"));
+  EXPECT_FALSE(limits1.contains(limits2));
+  EXPECT_FALSE(limits2.contains(limits1));
+
+  // Same name, different scalars.
+  ResourceLimits higherLimits =
+    CHECK_NOTERROR(ResourceLimits::fromString("cpus:2;mem:2"));
+  ResourceLimits lowerLimits =
+    CHECK_NOTERROR(ResourceLimits::fromString("cpus:2;mem:1"));
+  EXPECT_TRUE(higherLimits.contains(lowerLimits));
+  EXPECT_FALSE(lowerLimits.contains(higherLimits));
+}
+
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
