@@ -537,3 +537,38 @@ TEST_F(ArchiverTest, ExtractZipFileWithLongDestinationDir)
 
   ASSERT_SOME_EQ("Howdy there, partner! (.zip)\n", os::read(extractedFile));
 }
+
+
+TEST_F(ArchiverTest, ExtractZipWithDotDot)
+{
+  // Construct a exploit.zip file that should not be extracted.
+  string dir = path::join(sandbox.get(), "somedir");
+  ASSERT_SOME(os::mkdir(dir));
+
+  Try<string> path = os::mktemp(path::join(dir, "XXXXXX"));
+  ASSERT_SOME(path);
+
+  // Extract from the same directory as the zip file.
+  ASSERT_SOME(os::chdir(dir));
+
+  // This is a file contructed with the following Python code:
+  //   import zipfile
+  //   zip = zipfile.ZipFile("exploit.zip", "w")
+  //   zip.writestr("../unsecure_file.txt", "content")
+  //   zip.close()
+
+  ASSERT_SOME(os::write(path.get(), base64::decode(
+      "UEsDBBQAAAAAACZbZk6pMMX+BwAAAAcAAAAUAAAALi4vdW5zZWN1cmVfZmls"
+      "ZS50eHRjb250ZW50UEsBAhQDFAAAAAAAJltmTqkwxf4HAAAABwAAABQAAAAA"
+      "AAAAAAAAAIABAAAAAC4uL3Vuc2VjdXJlX2ZpbGUudHh0UEsFBgAAAAABAAEA"
+      "QgAAADkAAAAAAA==").get()));
+
+  string extractedFile = path::join(sandbox.get(), "unsecure_file.txt");
+
+  EXPECT_ERROR(archiver::extract(path.get(), ""));
+  ASSERT_FALSE(os::exists(extractedFile));
+
+  // Just to sanity check, extract again, with the secure flag disabled.
+  EXPECT_SOME(archiver::extract(path.get(), "", 0));
+  ASSERT_TRUE(os::exists(extractedFile));
+}

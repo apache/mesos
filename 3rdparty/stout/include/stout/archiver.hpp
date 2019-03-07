@@ -40,7 +40,7 @@ namespace archiver {
 inline Try<Nothing> extract(
   const std::string& source,
   const std::string& destination,
-  const int flags = ARCHIVE_EXTRACT_TIME)
+  const int flags = ARCHIVE_EXTRACT_TIME | ARCHIVE_EXTRACT_SECURE_NODOTDOT)
 {
   // Get references to libarchive for reading/handling a compressed file.
   std::unique_ptr<struct archive, std::function<void(struct archive*)>> reader(
