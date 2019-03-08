@@ -2613,6 +2613,7 @@ mesos_tests_SOURCES =						\
   tests/utils.cpp						\
   tests/utils.hpp						\
   tests/values_tests.cpp					\
+  tests/volume_gid_manager_tests.cpp				\
   tests/zookeeper.hpp						\
   tests/zookeeper_test_server.hpp				\
   tests/zookeeper_url_tests.cpp					\
@@ -2650,7 +2651,6 @@ mesos_tests_SOURCES =						\
   tests/containerizer/provisioner_paths_tests.cpp		\
   tests/containerizer/rootfs.hpp				\
   tests/containerizer/setns_test_helper.hpp			\
-  tests/containerizer/volume_gid_manager_tests.cpp		\
   tests/containerizer/volume_sandbox_path_isolator_tests.cpp
 
 if ENABLE_XFS_DISK_ISOLATOR

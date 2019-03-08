@@ -192,7 +192,8 @@ if (NOT WIN32)
     reservation_tests.cpp
     state_tests.cpp
     teardown_tests.cpp
-    upgrade_tests.cpp)
+    upgrade_tests.cpp
+    volume_gid_manager_tests.cpp)
 
   list(APPEND MESOS_TESTS_SRC
     common/command_utils_tests.cpp)
@@ -211,7 +212,6 @@ if (NOT WIN32)
     containerizer/provisioner_backend_tests.cpp
     containerizer/provisioner_docker_tests.cpp
     containerizer/provisioner_paths_tests.cpp
-    containerizer/volume_gid_manager_tests.cpp
     containerizer/volume_sandbox_path_isolator_tests.cpp)
 endif ()
 

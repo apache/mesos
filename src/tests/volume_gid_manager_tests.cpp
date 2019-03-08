@@ -471,6 +471,194 @@ TEST_F(VolumeGidManagerTest, ROOT_UNPRIVILEGED_USER_SlaveRecovery)
 }
 
 
+// This test verifies that a nested container which is launched with a
+// non-root user and has checkpoint enabled can write to a PARENT type
+// SANDBOX_PATH volume and the owner group of the volume will be changed
+// to the first gid in the agent flag `--volume_gid_range`. After the
+// agent is rebooted, the owner group of the volume will be changed back
+// to the original one.
+TEST_F(VolumeGidManagerTest, ROOT_UNPRIVILEGED_USER_SlaveReboot)
+{
+  // Reinitialize libprocess to ensure volume gid manager's metrics
+  // can be added in each iteration of this test (i.e., run this test
+  // repeatedly with the `--gtest_repeat` option).
+  process::reinitialize(None(), None(), None());
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.authenticate_http_readwrite = false;
+  flags.isolation = "filesystem/linux,volume/sandbox_path";
+  flags.volume_gid_range = "[10000-20000]";
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_checkpoint(true);
+
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(v1::scheduler::SendSubscribe(frameworkInfo));
+
+  Future<Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(subscribed);
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  v1::Resources resources =
+    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+
+  v1::ExecutorInfo executorInfo = v1::createExecutorInfo(
+      v1::DEFAULT_EXECUTOR_ID,
+      None(),
+      resources,
+      v1::ExecutorInfo::DEFAULT,
+      frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+
+  const v1::Offer& offer = offers->offers(0);
+  const v1::AgentID& agentId = offer.agent_id();
+
+  Option<string> user = os::getenv("SUDO_USER");
+  ASSERT_SOME(user);
+
+  v1::CommandInfo command =
+    v1::createCommandInfo("echo 'hello' > task_volume_path/file && sleep 1000");
+
+  command.set_user(user.get());
+
+  // Launch a task with a non-root user and a PARENT type SANDBOX_PATH volume.
+  v1::TaskInfo taskInfo = v1::createTask(
+      agentId,
+      resources,
+      command);
+
+  mesos::v1::ContainerInfo* containerInfo = taskInfo.mutable_container();
+  containerInfo->set_type(mesos::v1::ContainerInfo::MESOS);
+
+  mesos::v1::Volume* taskVolume = containerInfo->add_volumes();
+  taskVolume->set_mode(mesos::v1::Volume::RW);
+  taskVolume->set_container_path("task_volume_path");
+
+  mesos::v1::Volume::Source* source = taskVolume->mutable_source();
+  source->set_type(mesos::v1::Volume::Source::SANDBOX_PATH);
+
+  mesos::v1::Volume::Source::SandboxPath* sandboxPath =
+    source->mutable_sandbox_path();
+
+  sandboxPath->set_type(mesos::v1::Volume::Source::SandboxPath::PARENT);
+  sandboxPath->set_path("executor_volume_path");
+
+  v1::Offer::Operation launchGroup = v1::LAUNCH_GROUP(
+      executorInfo,
+      v1::createTaskGroupInfo({taskInfo}));
+
+  Future<Event::Update> updateStarting;
+  Future<Event::Update> updateRunning;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(DoAll(FutureArg<1>(&updateStarting),
+                    v1::scheduler::SendAcknowledge(
+                        frameworkId,
+                        agentId)))
+    .WillOnce(DoAll(FutureArg<1>(&updateRunning),
+                    v1::scheduler::SendAcknowledge(
+                        frameworkId,
+                        agentId)))
+    .WillRepeatedly(Return());
+
+  Future<Nothing> ackStarting =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
+  Future<Nothing> ackRunning =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
+  mesos.send(v1::createCallAccept(
+      frameworkId,
+      offer,
+      {launchGroup}));
+
+  AWAIT_READY(updateStarting);
+  ASSERT_EQ(v1::TASK_STARTING, updateStarting->status().state());
+  ASSERT_EQ(taskInfo.task_id(), updateStarting->status().task_id());
+
+  AWAIT_READY(ackStarting);
+
+  AWAIT_READY(updateRunning);
+  ASSERT_EQ(v1::TASK_RUNNING, updateRunning->status().state());
+  ASSERT_EQ(taskInfo.task_id(), updateRunning->status().task_id());
+
+  AWAIT_READY(ackRunning);
+
+  // One gid should have been allocated to the volume.
+  JSON::Object metrics = Metrics();
+  EXPECT_EQ(
+      metrics.at<JSON::Number>("volume_gid_manager/volume_gids_total")
+        ->as<int>() - 1,
+      metrics.at<JSON::Number>("volume_gid_manager/volume_gids_free")
+        ->as<int>());
+
+  string executorSandbox = slave::paths::getExecutorLatestRunPath(
+      flags.work_dir,
+      devolve(agentId),
+      devolve(frameworkId),
+      devolve(executorInfo.executor_id()));
+
+  string volumePath = path::join(executorSandbox, "executor_volume_path");
+
+  // The owner group of the volume should be changed to the gid allocated
+  // to it, i.e., the first gid in the agent flag `--volume_gid_range`.
+  struct stat s;
+  EXPECT_EQ(0, ::stat(volumePath.c_str(), &s));
+  EXPECT_EQ(10000u, s.st_gid);
+
+  // Stop the slave.
+  slave.get()->terminate();
+
+  // Modify the boot ID to simulate a reboot.
+  ASSERT_SOME(os::write(
+      slave::paths::getBootIdPath(slave::paths::getMetaRootDir(flags.work_dir)),
+      "rebooted!"));
+
+  // Remove the runtime directory to simulate a reboot.
+  ASSERT_SOME(os::rmdir(flags.runtime_dir));
+
+  Future<Nothing> __recover = FUTURE_DISPATCH(_, &Slave::__recover);
+
+  // Restart the slave.
+  slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(__recover);
+
+  // The owner group of the volume should be changed back to
+  // the original one, i.e., root.
+  EXPECT_EQ(0, ::stat(volumePath.c_str(), &s));
+  EXPECT_EQ(0u, s.st_gid);
+}
+
+
 // This test verifies that agent is started with only one free volume gid
 // and a task which is launched with a non-root user and tries to use two
 // PARENT type SANDBOX_PATH volumes will fail due to volume gid exhausted.
