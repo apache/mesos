@@ -530,6 +530,23 @@ inline bool operator!=(
 }
 
 
+template <typename Key, typename Value>
+inline std::ostream& operator<<(
+  std::ostream& stream, const Map<Key, Value>& map)
+{
+  stream << "{ ";
+  for (auto it = map.cbegin(); it != map.end(); ++it) {
+    if (it != map.cbegin()) {
+      stream << ", ";
+    }
+    stream << it->first << ": " << it->second;
+  }
+  stream << " }";
+
+  return stream;
+}
+
+
 template <typename T>
 inline std::ostream& operator<<(
     std::ostream& stream,
