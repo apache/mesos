@@ -262,37 +262,28 @@ public:
       LOG(INFO) << "Use the allocated gid " << gid << " of the volume path '"
                 << path << "'";
     } else {
-      Option<string> realPath;
-#ifdef __linux__
-      // This is to handle the case that nested containers use shared persistent
-      // volume, in which case we did a workaround in the default executor to
-      // set up a volume mapping (i.e., map the shared persistent volume to a
-      // SANDBOX_PATH volume of PARENT type for nested containers) so that the
-      // nested container can access the shared persistent volume. So here we
-      // need to search the mount table to see if the `path` is the target of a
-      // mount, and check if we have already allocated a gid to the source of
-      // that mount, if yes, then we just return that gid instead of allocating
-      // a new one, otherwise the ownership of the shared persistent volume will
-      // be wrongly overwritten.
-      Try<fs::MountInfoTable> table = fs::MountInfoTable::read();
-      if (table.isError()) {
-        return Failure("Failed to get mount table: " + table.error());
+      struct stat s;
+      if (::stat(path.c_str(), &s) < 0) {
+        return Failure("Failed to stat '" + path + "': " + os::strerror(errno));
       }
 
-      foreach (const fs::MountInfoTable::Entry& entry, table->entries) {
-        if (path == entry.target) {
-          realPath = entry.root;
-          break;
-        }
-      }
-#endif // __linux__
+      // If the gid of the specified path is in the total gid range, just
+      // return the gid. This could happen in the case that nested container
+      // uses persistent volume, in which case we did a workaround in the
+      // default executor to set up a volume mapping (i.e., map the persistent
+      // volume to a PARENT type SANDBOX_PATH volume for the nested container)
+      // so that the nested container can access the persistent volume.
+      //
+      // Please note that in the case of shared persistent volume, operator
+      // should NOT restart agent with a different total gid range, otherwise
+      // the gid of the shared persistent volume may be overwritten if a nested
+      // container tries to use the shared persistent volume after the restart.
+      if (totalGids.contains(s.st_gid)) {
+        gid = s.st_gid;
 
-      if (realPath.isSome() && infos.contains(realPath.get())) {
-        gid = infos[realPath.get()].gid();
-
-        LOG(INFO) << "Use the allocated gid " << gid << " of the volume path '"
-                  << realPath.get() << "' which is mounted at the volume path '"
-                  << path << "'";
+        LOG(INFO) << "Use the gid " << gid << " for the volume path '" << path
+                  << "' which should be the mount point of another volume "
+                  << "which is actually allocated with the gid";
       } else {
         // Allocate a free gid to the specified path and then set the
         // ownership for it.
