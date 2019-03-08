@@ -1318,10 +1318,10 @@ TEST_F(LinuxFilesystemIsolatorMesosTest,
 }
 
 
-// This test verifies that a command task launched with a
-// non-root user can write to a shared persistent volume.
+// This test verifies that a command task launched with a non-root user can
+// write to a shared persistent volume and a non-shared persistent volume.
 TEST_F(LinuxFilesystemIsolatorMesosTest,
-       ROOT_UNPRIVILEGED_USER_SharedPersistentVolume)
+       ROOT_UNPRIVILEGED_USER_PersistentVolumes)
 {
   // Reinitialize libprocess to ensure volume gid manager's metrics
   // can be added in each iteration of this test (i.e., run this test
@@ -1365,28 +1365,38 @@ TEST_F(LinuxFilesystemIsolatorMesosTest,
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
 
-  // We create a shared volume which shall be used by the task to
-  // write to that volume.
-  Resource volume = createPersistentVolume(
+  // Create two persistent volumes (shared and non-shared)
+  // which shall be used by the task to write to the volumes.
+  Resource volume1 = createPersistentVolume(
       Megabytes(4),
       "role1",
       "id1",
-      "volume_path",
+      "volume_path1",
       None(),
       None(),
       frameworkInfo.principal(),
       true); // Shared volume.
 
+  Resource volume2 = createPersistentVolume(
+      Megabytes(4),
+      "role1",
+      "id2",
+      "volume_path2",
+      None(),
+      None(),
+      frameworkInfo.principal(),
+      false); // Non-shared volume.
+
   Option<string> user = os::getenv("SUDO_USER");
   ASSERT_SOME(user);
 
   CommandInfo command = createCommandInfo(
-        "echo hello > volume_path/file");
+        "echo hello > volume_path1/file && echo world > volume_path2/file");
 
   command.set_user(user.get());
 
   Resources taskResources =
-    Resources::parse("cpus:1;mem:64;disk(role1):1").get() + volume;
+    Resources::parse("cpus:1;mem:64;disk(role1):1").get() + volume1 + volume2;
 
   TaskInfo task = createTask(
       offers.get()[0].slave_id(),
@@ -1404,7 +1414,8 @@ TEST_F(LinuxFilesystemIsolatorMesosTest,
 
   driver.acceptOffers(
       {offers.get()[0].id()},
-      {CREATE(volume),
+      {CREATE(volume1),
+       CREATE(volume2),
        LAUNCH({task})});
 
   AWAIT_READY(statusStarting);
@@ -1419,12 +1430,12 @@ TEST_F(LinuxFilesystemIsolatorMesosTest,
   EXPECT_EQ(task.task_id(), statusFinished->task_id());
   EXPECT_EQ(TASK_FINISHED, statusFinished->state());
 
-  // One gid should have been allocated to the volume. Please note that shared
+  // Two gids should have been allocated to the volumes. Please note that
   // persistent volume's gid will be deallocated only when it is destroyed.
   JSON::Object metrics = Metrics();
   EXPECT_EQ(
       metrics.at<JSON::Number>("volume_gid_manager/volume_gids_total")
-        ->as<int>() - 1,
+        ->as<int>() - 2,
       metrics.at<JSON::Number>("volume_gid_manager/volume_gids_free")
         ->as<int>());
 
