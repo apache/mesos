@@ -46,6 +46,16 @@ using std::vector;
 using testing::AtMost;
 using testing::DoAll;
 
+namespace process {
+
+void reinitialize(
+    const Option<string>& delegate,
+    const Option<string>& readonlyAuthenticationRealm,
+    const Option<string>& readwriteAuthenticationRealm);
+
+} // namespace process {
+
+
 namespace mesos {
 namespace internal {
 namespace tests {
@@ -91,6 +101,11 @@ TEST_F(VolumeGidManagerTest, ROOT_Flag)
 // volume will only be allocated with gid once rather than twice.
 TEST_F(VolumeGidManagerTest, ROOT_UNPRIVILEGED_USER_GidReused)
 {
+  // Reinitialize libprocess to ensure volume gid manager's metrics
+  // can be added in each iteration of this test (i.e., run this test
+  // repeatedly with the `--gtest_repeat` option).
+  process::reinitialize(None(), None(), None());
+
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
@@ -192,6 +207,14 @@ TEST_F(VolumeGidManagerTest, ROOT_UNPRIVILEGED_USER_GidReused)
   EXPECT_EQ(task.task_id(), statusRunning->task_id());
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
+  // One gid should have been allocated to the volume.
+  JSON::Object metrics = Metrics();
+  EXPECT_EQ(
+      metrics.at<JSON::Number>("volume_gid_manager/volume_gids_total")
+        ->as<int>() - 1,
+      metrics.at<JSON::Number>("volume_gid_manager/volume_gids_free")
+        ->as<int>());
+
   string volumePath =
     slave::paths::getPersistentVolumePath(flags.work_dir, volume);
 
@@ -225,6 +248,14 @@ TEST_F(VolumeGidManagerTest, ROOT_UNPRIVILEGED_USER_GidReused)
   EXPECT_EQ(task.task_id(), statusRunning->task_id());
   EXPECT_EQ(TASK_RUNNING, statusRunning->state());
 
+  // Still one gid is allocated.
+  metrics = Metrics();
+  EXPECT_EQ(
+      metrics.at<JSON::Number>("volume_gid_manager/volume_gids_total")
+        ->as<int>() - 1,
+      metrics.at<JSON::Number>("volume_gid_manager/volume_gids_free")
+        ->as<int>());
+
   // The owner group of the volume should still be the
   // one allocated when the first task was launched.
   EXPECT_EQ(0, ::stat(volumePath.c_str(), &s));
@@ -244,6 +275,11 @@ TEST_F(VolumeGidManagerTest, ROOT_UNPRIVILEGED_USER_GidReused)
 // volume will be changed back to the original one.
 TEST_F(VolumeGidManagerTest, ROOT_UNPRIVILEGED_USER_SlaveRecovery)
 {
+  // Reinitialize libprocess to ensure volume gid manager's metrics
+  // can be added in each iteration of this test (i.e., run this test
+  // repeatedly with the `--gtest_repeat` option).
+  process::reinitialize(None(), None(), None());
+
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
@@ -375,6 +411,14 @@ TEST_F(VolumeGidManagerTest, ROOT_UNPRIVILEGED_USER_SlaveRecovery)
   ASSERT_EQ(taskInfo.task_id(), updateRunning->status().task_id());
 
   AWAIT_READY(ackRunning);
+
+  // One gid should have been allocated to the volume.
+  JSON::Object metrics = Metrics();
+  EXPECT_EQ(
+      metrics.at<JSON::Number>("volume_gid_manager/volume_gids_total")
+        ->as<int>() - 1,
+      metrics.at<JSON::Number>("volume_gid_manager/volume_gids_free")
+        ->as<int>());
 
   string executorSandbox = slave::paths::getExecutorLatestRunPath(
       flags.work_dir,

@@ -65,6 +65,16 @@ using mesos::master::detector::MasterDetector;
 using mesos::slave::ContainerTermination;
 using mesos::slave::Isolator;
 
+namespace process {
+
+void reinitialize(
+    const Option<string>& delegate,
+    const Option<string>& readonlyAuthenticationRealm,
+    const Option<string>& readwriteAuthenticationRealm);
+
+} // namespace process {
+
+
 namespace mesos {
 namespace internal {
 namespace tests {
@@ -1313,6 +1323,11 @@ TEST_F(LinuxFilesystemIsolatorMesosTest,
 TEST_F(LinuxFilesystemIsolatorMesosTest,
        ROOT_UNPRIVILEGED_USER_SharedPersistentVolume)
 {
+  // Reinitialize libprocess to ensure volume gid manager's metrics
+  // can be added in each iteration of this test (i.e., run this test
+  // repeatedly with the `--gtest_repeat` option).
+  process::reinitialize(None(), None(), None());
+
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
@@ -1403,6 +1418,15 @@ TEST_F(LinuxFilesystemIsolatorMesosTest,
   AWAIT_READY(statusFinished);
   EXPECT_EQ(task.task_id(), statusFinished->task_id());
   EXPECT_EQ(TASK_FINISHED, statusFinished->state());
+
+  // One gid should have been allocated to the volume. Please note that shared
+  // persistent volume's gid will be deallocated only when it is destroyed.
+  JSON::Object metrics = Metrics();
+  EXPECT_EQ(
+      metrics.at<JSON::Number>("volume_gid_manager/volume_gids_total")
+        ->as<int>() - 1,
+      metrics.at<JSON::Number>("volume_gid_manager/volume_gids_free")
+        ->as<int>());
 
   driver.stop();
   driver.join();

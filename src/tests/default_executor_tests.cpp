@@ -84,6 +84,18 @@ using mesos::internal::slave::Slave;
 
 using mesos::slave::ContainerTermination;
 
+#ifndef __WINDOWS__
+namespace process {
+
+void reinitialize(
+    const Option<string>& delegate,
+    const Option<string>& readonlyAuthenticationRealm,
+    const Option<string>& readwriteAuthenticationRealm);
+
+} // namespace process {
+#endif // __WINDOWS__
+
+
 namespace mesos {
 namespace internal {
 namespace tests {
@@ -3312,6 +3324,11 @@ TEST_P(
     return;
   }
 
+  // Reinitialize libprocess to ensure volume gid manager's metrics
+  // can be added in each iteration of this test (i.e., run this test
+  // repeatedly with the `--gtest_repeat` option).
+  process::reinitialize(None(), None(), None());
+
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
 
@@ -3435,6 +3452,15 @@ TEST_P(
   AWAIT_READY(updateFinished);
   ASSERT_EQ(v1::TASK_FINISHED, updateFinished->status().state());
   ASSERT_EQ(taskInfo.task_id(), updateFinished->status().task_id());
+
+  // One gid should have been allocated to the volume. Please note that shared
+  // persistent volume's gid will be deallocated only when it is destroyed.
+  JSON::Object metrics = Metrics();
+  EXPECT_EQ(
+      metrics.at<JSON::Number>("volume_gid_manager/volume_gids_total")
+        ->as<int>() - 1,
+      metrics.at<JSON::Number>("volume_gid_manager/volume_gids_free")
+        ->as<int>());
 }
 #endif // __WINDOWS__
 

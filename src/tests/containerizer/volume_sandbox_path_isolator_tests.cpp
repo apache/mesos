@@ -49,6 +49,18 @@ using mesos::internal::slave::state::SlaveState;
 
 using mesos::slave::ContainerTermination;
 
+#ifdef __linux__
+namespace process {
+
+void reinitialize(
+    const Option<string>& delegate,
+    const Option<string>& readonlyAuthenticationRealm,
+    const Option<string>& readwriteAuthenticationRealm);
+
+} // namespace process {
+#endif // __linux__
+
+
 namespace mesos {
 namespace internal {
 namespace tests {
@@ -441,6 +453,11 @@ TEST_F(VolumeSandboxPathIsolatorTest,
 TEST_F(VolumeSandboxPathIsolatorTest,
        ROOT_UNPRIVILEGED_USER_ParentTypeDifferentUser)
 {
+  // Reinitialize libprocess to ensure volume gid manager's metrics
+  // can be added in each iteration of this test (i.e., run this test
+  // repeatedly with the `--gtest_repeat` option).
+  process::reinitialize(None(), None(), None());
+
   slave::Flags flags = CreateSlaveFlags();
   flags.isolation = "filesystem/linux,volume/sandbox_path";
   flags.volume_gid_range = "[10000-20000]";
@@ -534,6 +551,14 @@ TEST_F(VolumeSandboxPathIsolatorTest,
   ASSERT_TRUE(wait.get()->has_status());
   EXPECT_WEXITSTATUS_EQ(0, wait.get()->status());
 
+  // One gid should have been allocated to the volume.
+  JSON::Object metrics = Metrics();
+  EXPECT_EQ(
+      metrics.at<JSON::Number>("volume_gid_manager/volume_gids_total")
+        ->as<int>() - 1,
+      metrics.at<JSON::Number>("volume_gid_manager/volume_gids_free")
+        ->as<int>());
+
   string volumePath = path::join(directory.get(), "shared");
 
   // The owner group of the volume should be changed to the gid allocated
@@ -549,6 +574,14 @@ TEST_F(VolumeSandboxPathIsolatorTest,
   ASSERT_SOME(termination.get());
   ASSERT_TRUE(termination.get()->has_status());
   EXPECT_WTERMSIG_EQ(SIGKILL, termination.get()->status());
+
+  // The gid allocated to the volume should have been deallocated.
+  metrics = Metrics();
+  EXPECT_EQ(
+      metrics.at<JSON::Number>("volume_gid_manager/volume_gids_total")
+        ->as<int>(),
+      metrics.at<JSON::Number>("volume_gid_manager/volume_gids_free")
+        ->as<int>());
 
   // The owner group of the volume should be changed back to
   // the original one, i.e., root.
