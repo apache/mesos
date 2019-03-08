@@ -979,6 +979,13 @@ Option<Error> validateExecutorID(const ExecutorInfo& executor)
 
 Option<Error> validateType(const ExecutorInfo& executor)
 {
+  if (executor.has_container()) {
+    Option<Error> unionError =
+      protobuf::validateProtobufUnion(executor.container());
+    if (unionError.isSome()) {
+      return unionError;
+    }
+  }
   switch (executor.type()) {
     case ExecutorInfo::DEFAULT:
       if (executor.has_command()) {
