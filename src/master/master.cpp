@@ -10847,7 +10847,7 @@ void Master::removeFramework(Framework* framework)
     }
   }
 
-  // Prevent any allocations from ocurring between the multiple resource
+  // Prevent any allocations from occurring between the multiple resource
   // changes below. Removal of a framework removes allocation, while orphan
   // operations will reduce total resources.
   allocator->pause();
