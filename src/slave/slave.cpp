@@ -4405,7 +4405,7 @@ Try<Nothing> Slave::syncCheckpointedResources(
     // Deallocate the shared persistent volume's gid. Please note that the
     // gid is allocated when the shared persistent volume is first used by
     // a container rather than when it is created.
-    if (volume.has_shared() && volumeGidManager) {
+    if (volumeGidManager) {
       volumeGidManager->deallocate(path);
     }
 #endif // __WINDOWS__

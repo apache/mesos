@@ -878,14 +878,13 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::update(
     // changes about the volume's ownership since it has the full permissions
     // to access the volume.
     if (uid != 0) {
-      // For shared persistent volume, if volume gid manager is enabled, call
-      // volume gid manager to allocate a gid to make sure the container has
-      // the permission to access the volume.
+      // For persistent volumes not from resource providers, if volume gid
+      // manager is enabled, call volume gid manager to allocate a gid to
+      // make sure the container has the permission to access the volume.
       //
-      // TODO(qianzhang): Support gid allocation for shared persistent volumes
-      // from resource providers.
-      if (resource.has_shared() &&
-          !Resources::hasResourceProvider(resource) &&
+      // TODO(qianzhang): Support gid allocation for persistent volumes from
+      // resource providers.
+      if (!Resources::hasResourceProvider(resource) &&
           volumeGidManager) {
         LOG(INFO) << "Invoking volume gid manager to allocate gid to the "
                   << "volume path '" << source << "' for container "
