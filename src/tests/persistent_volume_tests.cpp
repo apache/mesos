@@ -2510,11 +2510,11 @@ TEST_P(PersistentVolumeTest, SharedPersistentVolumeMultipleFrameworks)
 
 
 // This test verifies that a command task launched with a non-root user
-// can write to a shared persistent volume. We have a similar test in
-// linux_filesystem_isolator_tests.cpp which tests the implementation of
-// `filesystem/linux` isolator, and this one tests the implementation of
-// `filesystem/posix` isolator.
-TEST_P(PersistentVolumeTest, UNPRIVILEGED_USER_SharedPersistentVolume)
+// can write to a shared persistent volume and a non-shared persistent
+// volume. We have a similar test in linux_filesystem_isolator_tests.cpp
+// which tests the implementation of `filesystem/linux` isolator, and
+// this one tests the implementation of `filesystem/posix` isolator.
+TEST_P(PersistentVolumeTest, UNPRIVILEGED_USER_PersistentVolumes)
 {
   // Reinitialize libprocess to ensure volume gid manager's metrics
   // can be added in each iteration of this test (i.e., run this test
@@ -2574,26 +2574,35 @@ TEST_P(PersistentVolumeTest, UNPRIVILEGED_USER_SharedPersistentVolume)
 
   Offer offer1 = offers1.get()[0];
 
-  // Create a shared volume, and launch a task to write a file to the volume.
-  Resource volume = createPersistentVolume(
-      getDiskResource(Megabytes(2048)),
+  // Create two persistent volumes (shared and non-shared),
+  // and launch a task to write a file to each volume.
+  Resource volume1 = createPersistentVolume(
+      getDiskResource(Megabytes(2048), 1),
       "id1",
       "path1",
       None(),
       frameworkInfo.principal(),
       true); // Shared volume.
 
+  Resource volume2 = createPersistentVolume(
+      getDiskResource(Megabytes(2048), 2),
+      "id2",
+      "path2",
+      None(),
+      frameworkInfo.principal(),
+      false); // Non-shared volume.
+
   Option<string> user = os::getenv("SUDO_USER");
   ASSERT_SOME(user);
 
   CommandInfo command = createCommandInfo(
-        "echo hello > path1/file");
+        "echo hello > path1/file && echo world > path2/file");
 
   command.set_user(user.get());
 
   TaskInfo task = createTask(
       offer1.slave_id(),
-      Resources::parse("cpus:1;mem:128").get() + volume,
+      Resources::parse("cpus:1;mem:128").get() + volume1 + volume2,
       command);
 
   // We should receive a TASK_STARTING, a TASK_RUNNING
@@ -2609,7 +2618,8 @@ TEST_P(PersistentVolumeTest, UNPRIVILEGED_USER_SharedPersistentVolume)
 
   driver.acceptOffers(
       {offer1.id()},
-      {CREATE(volume),
+      {CREATE(volume1),
+       CREATE(volume2),
        LAUNCH({task})});
 
   AWAIT_READY(status0);
@@ -2626,7 +2636,7 @@ TEST_P(PersistentVolumeTest, UNPRIVILEGED_USER_SharedPersistentVolume)
   JSON::Object metrics = Metrics();
   EXPECT_EQ(
       metrics.at<JSON::Number>("volume_gid_manager/volume_gids_total")
-        ->as<int>() - 1,
+        ->as<int>() - 2,
       metrics.at<JSON::Number>("volume_gid_manager/volume_gids_free")
         ->as<int>());
 
