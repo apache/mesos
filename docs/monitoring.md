@@ -1601,6 +1601,20 @@ the agent and their current usage.
   <td>Allocated revocable memory in MB</td>
   <td>Gauge</td>
 </tr>
+<tr>
+  <td>
+  <code>volume_gid_manager/volume_gids_total</code>
+  </td>
+  <td>Number of gids configured for volume gid manager</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>volume_gid_manager/volume_gids_free</code>
+  </td>
+  <td>Number of free gids available for volume gid manager</td>
+  <td>Gauge</td>
+</tr>
 </table>
 
 #### Agent

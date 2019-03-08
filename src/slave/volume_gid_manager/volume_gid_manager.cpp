@@ -24,6 +24,9 @@
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
 
+#include <process/metrics/metrics.hpp>
+#include <process/metrics/push_gauge.hpp>
+
 #include <stout/os/exists.hpp>
 #include <stout/os/su.hpp>
 
@@ -163,7 +166,17 @@ public:
     : ProcessBase(process::ID::generate("volume-gid-manager")),
       totalGids(gids),
       freeGids(gids),
-      metaDir(paths::getMetaRootDir(workDir)) {}
+      metaDir(paths::getMetaRootDir(workDir))
+  {
+    // At the beginning, the free gid range is the same as the
+    // configured gid range (i.e., the total gid range).
+
+    LOG(INFO) << "Allocating " << totalGids.size()
+              << " volume gids from the range " << totalGids;
+
+    metrics.volume_gids_total = totalGids.size();
+    metrics.volume_gids_free = freeGids.size();
+  }
 
   Future<Nothing> recover(bool rebooted)
   {
@@ -189,6 +202,13 @@ public:
         hashset<string> orphans;
         foreach (const VolumeGidInfo& info, volumeGidInfos->infos()) {
           freeGids -= info.gid();
+
+          // The operator could have changed the volume gid range, so as per
+          // deallocate(), we should only count this if is is still in range.
+          if (totalGids.contains(info.gid())) {
+            --metrics.volume_gids_free;
+          }
+
           infos.put(info.path(), info);
 
           // Normally the gid allocated to the PARENT type SANDBOX_PATH
@@ -198,7 +218,7 @@ public:
           // gid leak in this case, we need to deallocate gid for the PARENT
           // type SANDBOX_PATH volume here.
           if (rebooted && info.type() == VolumeGidInfo::SANDBOX_PATH) {
-            LOG(INFO) << "Deallocating gid " << info.gid() << " for the PARENT"
+            LOG(INFO) << "Deallocating gid " << info.gid() << " for the PARENT "
                       << "type SANDBOX_PATH volume '" << info.path()
                       << "' after agent reboot";
 
@@ -288,6 +308,7 @@ public:
                   << path << "'";
 
         freeGids -= gid;
+        --metrics.volume_gids_free;
 
         VolumeGidInfo info;
         info.set_type(type);
@@ -349,6 +370,7 @@ public:
         // deallocate gid for a previous volume path from the old range.
         if (totalGids.contains(gid)) {
           freeGids += gid;
+          ++metrics.volume_gids_free;
         }
 
         it = infos.erase(it);
@@ -434,6 +456,26 @@ private:
 
   // Allocated gid infos keyed by the volume path.
   hashmap<string, VolumeGidInfo> infos;
+
+  struct Metrics
+  {
+    Metrics()
+      : volume_gids_total("volume_gid_manager/volume_gids_total"),
+        volume_gids_free("volume_gid_manager/volume_gids_free")
+    {
+      process::metrics::add(volume_gids_total);
+      process::metrics::add(volume_gids_free);
+    }
+
+    ~Metrics()
+    {
+      process::metrics::remove(volume_gids_free);
+      process::metrics::remove(volume_gids_total);
+    }
+
+    process::metrics::PushGauge volume_gids_total;
+    process::metrics::PushGauge volume_gids_free;
+  } metrics;
 };
 
 
