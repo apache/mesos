@@ -133,6 +133,18 @@ Option<Error> quotaInfo(const mesos::quota::QuotaInfo& quotaInfo);
  */
 Option<Error> validate(const mesos::quota::QuotaRequest& request);
 
+/**
+ * A `QuotaConfig` is valid if the following conditions are met:
+ *
+ *   (1) The config has a valid non-"*" role.
+ *
+ *   (2) Resource scalar values are non-negative and finite.
+ *
+ *   (3) If both guarantees and limits are set for a particular
+ *       resource, then guarantee <= limit for that resource.
+ */
+Option<Error> validate(const mesos::quota::QuotaConfig& config);
+
 } // namespace quota {
 } // namespace master {
 } // namespace internal {

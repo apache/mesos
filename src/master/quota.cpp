@@ -27,10 +27,14 @@
 #include <stout/option.hpp>
 #include <stout/set.hpp>
 
+#include "common/resource_quantities.hpp"
 #include "common/resources_utils.hpp"
+#include "common/validation.hpp"
 
+using google::protobuf::Map;
 using google::protobuf::RepeatedPtrField;
 
+using mesos::quota::QuotaConfig;
 using mesos::quota::QuotaInfo;
 using mesos::quota::QuotaRequest;
 
@@ -287,6 +291,62 @@ Option<Error> validate(const QuotaRequest& request)
                      " is not contained within the 'QuotaRequest.limit'"
                      " (" + stringify(limit) + ")");
     }
+  }
+
+  return None();
+}
+
+Option<Error> validate(const QuotaConfig& config)
+{
+  if (!config.has_role()) {
+    return Error("'QuotaConfig.role' must be set");
+  }
+
+  // Check the provided role is valid.
+  Option<Error> error = roles::validate(config.role());
+  if (error.isSome()) {
+    return Error("Invalid 'QuotaConfig.role': " + error->message);
+  }
+
+  // Disallow quota for '*' role.
+  if (config.role() == "*") {
+    return Error(
+      "Invalid 'QuotaConfig.role': setting quota for the"
+      " default '*' role is not supported");
+  }
+
+  // Validate scalar values.
+  foreach (auto&& guarantee, config.guarantees()) {
+    Option<Error> error =
+      common::validation::validateInputScalarValue(guarantee.second.value());
+
+    if (error.isSome()) {
+      return Error(
+          "Invalid guarantee configuration {'" + guarantee.first + "': " +
+          stringify(guarantee.second) + "}: " + error->message);
+    }
+  }
+
+  foreach (auto&& limit, config.limits()) {
+    Option<Error> error =
+      common::validation::validateInputScalarValue(limit.second.value());
+
+    if (error.isSome()) {
+      return Error(
+          "Invalid limit configuration {'" + limit.first + "': " +
+          stringify(limit.second) + "}: " + error->message);
+    }
+  }
+
+  // Validate guarantees <= limits.
+  ResourceLimits limits{config.limits()};
+  ResourceQuantities guarantees{config.guarantees()};
+
+  if (!limits.contains(guarantees)) {
+    return Error(
+        "'QuotaConfig.guarantees' " + stringify(config.guarantees()) +
+        " is not contained within the 'QuotaConfig.limits' " +
+        stringify(config.limits()));
   }
 
   return None();
