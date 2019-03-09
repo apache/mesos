@@ -55,6 +55,12 @@ public:
   Try(T&& t)
     : data(Some(std::move(t))) {}
 
+  template <typename U>
+  Try(const _Some<U>& some) : data(some) {}
+
+  template <typename U>
+  Try(_Some<U>&& some) : data(std::move(some)) {}
+
   // We don't need to implement these because we are leveraging
   // Option<T>.
   Try(const Try& that) = default;
