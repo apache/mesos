@@ -626,27 +626,40 @@ Option<Error> validateOfferFilters(const OfferFilters& offerFilters)
         return Error("Resource quantities must contain at least one quantity");
       }
 
-      // Use `auto` instead of `protobuf::MapPair<strinf, Value::>` since
+      // Use `auto` instead of `protobuf::MapPair<string, Value::>` since
       // `foreach` is a macro and does not allow angle brackets.
       foreach (auto&& quantity, quantities.quantities()) {
-        const Value::Scalar& scalar = quantity.second;
-
-        // We do not allow negative quantities in offer filters.
-        if (scalar.value() < 0) {
-          return Error("Negative resource quantities are not allowed");
-        }
-
-        // Resource quantities cannot have NaN values.
-        if (std::isnan(scalar.value())) {
-          return Error("Resource quantities cannot be NaN");
-        }
-
-        // We do not allow infinite quantities in offer filters.
-        if (std::isinf(scalar.value())) {
-          return Error("Infinite resource quantities are not allowed");
+        Option<Error> error = validateInputScalarValue(quantity.second.value());
+        if (error.isSome()) {
+          return Error(
+              "Invalid resource quantity for '" + quantity.first + "': " +
+              error->message);
         }
       }
     }
+  }
+
+  return None();
+}
+
+Option<Error> validateInputScalarValue(double value)
+{
+  switch (std::fpclassify(value)) {
+    case FP_INFINITE:
+      return Error("Infinite values not supported");
+    case FP_NAN:
+      return Error("NaN not supported");
+    case FP_SUBNORMAL:
+      return Error("Subnormal values not supported");
+    case FP_ZERO:
+      break;
+    case FP_NORMAL:
+      if (value < 0) {
+        return Error("Negative values not supported");
+      }
+      break;
+    default:
+      return Error("Unknown error");
   }
 
   return None();

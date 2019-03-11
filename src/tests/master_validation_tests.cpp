@@ -4739,7 +4739,8 @@ TEST_F(FrameworkInfoValidationTest, ValidateOfferFilters)
       {frameworkInfo.roles(0), offerFilters});
 
   EXPECT_SOME_EQ(
-      Error("Negative resource quantities are not allowed"),
+      Error("Invalid resource quantity for 'cpus': "
+        "Negative values not supported"),
       framework::validate(frameworkInfo));
 }
 

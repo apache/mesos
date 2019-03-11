@@ -15,6 +15,7 @@
 // limitations under the License.
 
 #include "common/values.hpp"
+#include "common/validation.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -725,17 +726,8 @@ Try<Value> parse(const string& text)
     } else if (index == string::npos) {
       Try<double> value_ = numify<double>(temp);
       if (!value_.isError()) {
-        Option<Error> error = [value_]() -> Option<Error> {
-          switch (std::fpclassify(value_.get())) {
-            case FP_NORMAL:     return None();
-            case FP_ZERO:       return None();
-            case FP_INFINITE:   return Error("Infinite values not supported");
-            case FP_NAN:        return Error("NaN not supported");
-            case FP_SUBNORMAL:  return Error("Subnormal values not supported");
-            default:            return Error("Unknown error");
-          }
-        }();
-
+        Option<Error> error =
+          common::validation::validateInputScalarValue(*value_);
         if (error.isSome()) {
           return Error("Invalid scalar value '" + temp + "':" + error->message);
         }

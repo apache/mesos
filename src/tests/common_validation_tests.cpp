@@ -117,7 +117,9 @@ TEST(CommonValidationTest, OfferFilters)
       ->mutable_quantities()
       ->insert({"cpus", scalar});
     EXPECT_SOME_EQ(
-        Error("Negative resource quantities are not allowed"),
+        Error(
+            "Invalid resource quantity for 'cpus': "
+            "Negative values not supported"),
         common::validation::validateOfferFilters(offerFilters));
   }
 
@@ -136,7 +138,7 @@ TEST(CommonValidationTest, OfferFilters)
       ->mutable_quantities()
       ->insert({"cpus", scalar});
     EXPECT_SOME_EQ(
-        Error("Resource quantities cannot be NaN"),
+        Error("Invalid resource quantity for 'cpus': NaN not supported"),
         common::validation::validateOfferFilters(offerFilters));
   }
 
@@ -155,7 +157,9 @@ TEST(CommonValidationTest, OfferFilters)
       ->mutable_quantities()
       ->insert({"cpus", scalar});
     EXPECT_SOME_EQ(
-        Error("Infinite resource quantities are not allowed"),
+        Error(
+            "Invalid resource quantity for 'cpus': "
+            "Infinite values not supported"),
         common::validation::validateOfferFilters(offerFilters));
   }
 
