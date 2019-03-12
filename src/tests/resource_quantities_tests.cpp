@@ -245,6 +245,50 @@ TEST(QuantitiesTest, Subtraction)
 }
 
 
+TEST(QuantitiesTest, Contains)
+{
+  ResourceQuantities empty{};
+  EXPECT_TRUE(empty.contains(empty));
+
+  ResourceQuantities some =
+    CHECK_NOTERROR(ResourceQuantities::fromString("cpus:1"));
+  EXPECT_TRUE(some.contains(empty));
+  EXPECT_FALSE(empty.contains(some));
+
+  // Self contains.
+  some = CHECK_NOTERROR(ResourceQuantities::fromString("cpus:1;mem:1"));
+  EXPECT_TRUE(some.contains(some));
+
+  // Superset and subset.
+  ResourceQuantities superset =
+    CHECK_NOTERROR(ResourceQuantities::fromString("cpus:1;mem:1;disk:1"));
+  ResourceQuantities subset =
+    CHECK_NOTERROR(ResourceQuantities::fromString("cpus:1;mem:1"));
+  EXPECT_TRUE(superset.contains(subset));
+  EXPECT_FALSE(subset.contains(superset));
+
+  // Intersected sets.
+  ResourceQuantities set1 =
+    CHECK_NOTERROR(ResourceQuantities::fromString("cpus:1;mem:1"));
+  ResourceQuantities set2 =
+    CHECK_NOTERROR(ResourceQuantities::fromString("cpus:1;disk:1"));
+  EXPECT_FALSE(set1.contains(set2));
+  EXPECT_FALSE(set2.contains(set1));
+
+  // Sets with no intersection.
+  set1 = CHECK_NOTERROR(ResourceQuantities::fromString("cpus:1;mem:1"));
+  set2 = CHECK_NOTERROR(ResourceQuantities::fromString("gpu:1;disk:1"));
+  EXPECT_FALSE(set1.contains(set2));
+  EXPECT_FALSE(set2.contains(set1));
+
+  // Same name, different scalars.
+  superset = CHECK_NOTERROR(ResourceQuantities::fromString("cpus:2;mem:2"));
+  subset = CHECK_NOTERROR(ResourceQuantities::fromString("cpus:2;mem:1"));
+  EXPECT_TRUE(superset.contains(subset));
+  EXPECT_FALSE(subset.contains(superset));
+}
+
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

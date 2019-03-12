@@ -113,6 +113,8 @@ public:
   // If the given name is absent, return zero.
   Value::Scalar get(const std::string& name) const;
 
+  bool contains(const ResourceQuantities& quantities) const;
+
   ResourceQuantities& operator+=(const ResourceQuantities& quantities);
   ResourceQuantities& operator-=(const ResourceQuantities& quantities);
 

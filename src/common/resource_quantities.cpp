@@ -139,6 +139,42 @@ Value::Scalar ResourceQuantities::get(const string& name) const
 }
 
 
+bool ResourceQuantities::contains(const ResourceQuantities& right) const
+{
+  size_t leftIndex = 0u;
+  size_t rightIndex = 0u;
+
+  // Since quantities are sorted in alphabetical order, we can walk them
+  // at the same time.
+  while (leftIndex < size() && rightIndex < right.size()) {
+    const pair<string, Value::Scalar>& left_ = quantities.at(leftIndex);
+    const pair<string, Value::Scalar>& right_ = right.quantities.at(rightIndex);
+
+    if (left_.first < right_.first) {
+      // Item exists in the left but not in the right.
+      ++leftIndex;
+    } else if (left_.first > right_.first) {
+      // Item exists in the right but not in the left.
+      return false;
+    } else {
+      // Item exists in both left and right.
+      if (left_.second < right_.second) {
+        return false;
+      }
+      ++leftIndex;
+      ++rightIndex;
+    }
+  }
+
+  // Right contains items that left does not have.
+  if (rightIndex < right.size()) {
+    return false;
+  }
+
+  return true;
+}
+
+
 ResourceQuantities& ResourceQuantities::operator+=(
     const ResourceQuantities& right)
 {
