@@ -38,31 +38,37 @@ namespace internal {
 namespace tests {
 
 
+static vector<pair<string, double>> toVector(
+  const ResourceQuantities& quantities)
+{
+  vector<pair<string, double>> result;
+
+  foreach (auto&& quantity, quantities) {
+    result.push_back(std::make_pair(quantity.first, quantity.second.value()));
+  }
+
+  return result;
+}
+
+
 TEST(QuantitiesTest, FromStringValid)
 {
   // A single resource.
   ResourceQuantities resourceQuantities =
     CHECK_NOTERROR(ResourceQuantities::fromString("cpus:10"));
-  EXPECT_EQ(1u, resourceQuantities.size());
-  EXPECT_EQ("cpus", resourceQuantities.begin()->first);
-  EXPECT_DOUBLE_EQ(10, resourceQuantities.begin()->second.value());
+  vector<pair<string, double>> expected = {{"cpus", 10}};
+  EXPECT_EQ(expected, toVector(resourceQuantities));
 
   resourceQuantities =
     CHECK_NOTERROR(ResourceQuantities::fromString("cpus:3.14"));
-  EXPECT_EQ(1u, resourceQuantities.size());
-  EXPECT_EQ("cpus", resourceQuantities.begin()->first);
-  EXPECT_DOUBLE_EQ(3.14, resourceQuantities.begin()->second.value());
+  expected = {{"cpus", 3.14}};
+  EXPECT_EQ(expected, toVector(resourceQuantities));
 
   // Whitespace is trimmed.
   resourceQuantities =
     CHECK_NOTERROR(ResourceQuantities::fromString(" cpus : 3.14 ; disk : 10 "));
-  EXPECT_EQ(2u, resourceQuantities.size());
-  auto it = resourceQuantities.begin();
-  EXPECT_EQ("cpus", it->first);
-  EXPECT_DOUBLE_EQ(3.14, it->second.value());
-  ++it;
-  EXPECT_EQ("disk", it->first);
-  EXPECT_DOUBLE_EQ(10, it->second.value());
+  expected = {{"cpus", 3.14}, {"disk", 10}};
+  EXPECT_EQ(expected, toVector(resourceQuantities));
 
   // Zero value.
   resourceQuantities = CHECK_NOTERROR(ResourceQuantities::fromString("cpus:0"));
@@ -71,35 +77,20 @@ TEST(QuantitiesTest, FromStringValid)
   // Two resources.
   resourceQuantities =
     CHECK_NOTERROR(ResourceQuantities::fromString("cpus:10.5;ports:1"));
-  EXPECT_EQ(2u, resourceQuantities.size());
-  it = resourceQuantities.begin();
-  EXPECT_EQ("cpus", it->first);
-  EXPECT_DOUBLE_EQ(10.5, it->second.value());
-  ++it;
-  EXPECT_EQ("ports", it->first);
-  EXPECT_DOUBLE_EQ(1, it->second.value());
+  expected = {{"cpus", 10.5}, {"ports", 1}};
+  EXPECT_EQ(expected, toVector(resourceQuantities));
 
   // Two resources with names out of alphabetical order.
   resourceQuantities =
     CHECK_NOTERROR(ResourceQuantities::fromString("ports:3;cpus:10.5"));
-  EXPECT_EQ(2u, resourceQuantities.size());
-  it = resourceQuantities.begin();
-  EXPECT_EQ("cpus", it->first);
-  EXPECT_DOUBLE_EQ(10.5, it->second.value());
-  ++it;
-  EXPECT_EQ("ports", it->first);
-  EXPECT_DOUBLE_EQ(3, it->second.value());
+  expected = {{"cpus", 10.5}, {"ports", 3}};
+  EXPECT_EQ(expected, toVector(resourceQuantities));
 
   // Duplicate resource names.
   resourceQuantities =
     CHECK_NOTERROR(ResourceQuantities::fromString("ports:3;cpus:1;cpus:10.5"));
-  EXPECT_EQ(2u, resourceQuantities.size());
-  it = resourceQuantities.begin();
-  EXPECT_EQ("cpus", it->first);
-  EXPECT_DOUBLE_EQ(11.5, it->second.value());
-  ++it;
-  EXPECT_EQ("ports", it->first);
-  EXPECT_DOUBLE_EQ(3, it->second.value());
+  expected = {{"cpus", 11.5}, {"ports", 3}};
+  EXPECT_EQ(expected, toVector(resourceQuantities));
 }
 
 
@@ -151,16 +142,9 @@ TEST(QuantitiesTest, FromScalarResources)
   // Result entries are ordered alphabetically.
   quantities = ResourceQuantities::fromScalarResources(
     CHECK_NOTERROR(Resources::parse("cpus:1;mem:512;disk:800")));
-  EXPECT_EQ(3u, quantities.size());
-  auto it = quantities.begin();
-  EXPECT_EQ("cpus", it->first);
-  EXPECT_DOUBLE_EQ(1, it->second.value());
-  ++it;
-  EXPECT_EQ("disk", it->first);
-  EXPECT_DOUBLE_EQ(800, it->second.value());
-  ++it;
-  EXPECT_EQ("mem", it->first);
-  EXPECT_DOUBLE_EQ(512, it->second.value());
+  vector<pair<string, double>> expected = {
+    {"cpus", 1}, {"disk", 800}, {"mem", 512}};
+  EXPECT_EQ(expected, toVector(quantities));
 }
 
 
