@@ -21,6 +21,8 @@
 
 #include <mesos/resources.hpp>
 
+#include <process/async.hpp>
+#include <process/collect.hpp>
 #include <process/dispatch.hpp>
 #include <process/id.hpp>
 
@@ -41,13 +43,16 @@
 
 #include "slave/volume_gid_manager/volume_gid_manager.hpp"
 
+using std::pair;
 using std::string;
 using std::vector;
 
+using process::async;
 using process::dispatch;
 using process::Failure;
 using process::Future;
 using process::Owned;
+using process::Promise;
 
 using mesos::internal::values::intervalSetToRanges;
 using mesos::internal::values::rangesToIntervalSet;
@@ -261,6 +266,12 @@ public:
 
       LOG(INFO) << "Use the allocated gid " << gid << " of the volume path '"
                 << path << "'";
+
+      // If we are already setting ownership for the specified path, skip the
+      // additional setting.
+      if (setting.contains(path)) {
+        return setting[path]->future();
+      }
     } else {
       struct stat s;
       if (::stat(path.c_str(), &s) < 0) {
@@ -314,12 +325,26 @@ public:
               "Failed to save state of volume gid infos: " + status.error());
         }
 
-        Try<Nothing> result = setVolumeOwnership(path, gid, true);
-        if (result.isError()) {
-          return Failure(
-              "Failed to set the owner group of the volume path '" + path +
-              "' to " + stringify(gid) + ": " + result.error());
-        }
+        Owned<Promise<gid_t>> promise(new Promise<gid_t>());
+
+        Future<gid_t> future = async(&setVolumeOwnership, path, gid, true)
+          .then([path, gid](const Try<Nothing>& result) -> Future<gid_t> {
+            if (result.isError()) {
+              return Failure(
+                  "Failed to set the owner group of the volume path '" + path +
+                  "' to " + stringify(gid) + ": " + result.error());
+            }
+
+            return gid;
+          })
+          .onAny(defer(self(), [=](const Future<gid_t>&) {
+            setting.erase(path);
+          }));
+
+        promise->associate(future);
+        setting[path] = promise;
+
+        return promise->future();
       }
     }
 
@@ -376,6 +401,8 @@ public:
     // avoid leaking it to other containers in the case that its gid is
     // allocated to another volume, we need to change its owner group back
     // to the original one (i.e., the primary group of its owner).
+    vector<Future<Try<Nothing>>> futures;
+    vector<pair<string, gid_t>> volumeGids;
     foreach (const string& volume, sandboxPathVolumes) {
       // Get the uid of the volume's owner.
       struct stat s;
@@ -403,23 +430,42 @@ public:
         continue;
       }
 
-      Try<Nothing> result = setVolumeOwnership(volume, gid.get(), false);
-      if (result.isError()) {
-        LOG(WARNING) << "Failed to set the owner group of the volume path '"
-                     << volume << "' back to " << gid.get() << ": "
-                     << result.error();
-      }
+      futures.push_back(async(&setVolumeOwnership, volume, gid.get(), false));
+      volumeGids.push_back({volume, gid.get()});
     }
 
-    if (changed) {
-      Try<Nothing> status = persist();
-      if (status.isError()) {
-        return Failure(
-            "Failed to save state of volume gid infos: " + status.error());
-      }
-    }
+    return await(futures)
+      .then(defer(
+          self(),
+          [=](const vector<Future<Try<Nothing>>>& results) -> Future<Nothing> {
+            for (size_t i = 0; i < results.size(); ++i) {
+              const Future<Try<Nothing>>& result = results[i];
+              const string& path = volumeGids[i].first;
+              const gid_t gid = volumeGids[i].second;
 
-    return Nothing();
+              if (!result.isReady()) {
+                LOG(WARNING) << "Failed to set the owner group of the volume "
+                             << "path '" << path << "' back to " << gid << ": "
+                             << (result.isFailed() ?
+                                 result.failure() : "discarded");
+              } else if (result->isError()) {
+                LOG(WARNING) << "Failed to set the owner group of the volume "
+                             << "path '" << path << "' back to " << gid << ": "
+                             << result->error();
+              }
+            }
+
+            if (changed) {
+              Try<Nothing> status = persist();
+              if (status.isError()) {
+                return Failure(
+                    "Failed to save state of volume gid infos: " +
+                    status.error());
+              }
+            }
+
+            return Nothing();
+          }));
   }
 
 private:
@@ -444,6 +490,8 @@ private:
   IntervalSet<gid_t> freeGids;
 
   const string metaDir;
+
+  hashmap<string, Owned<Promise<gid_t>>> setting;
 
   // Allocated gid infos keyed by the volume path.
   hashmap<string, VolumeGidInfo> infos;
