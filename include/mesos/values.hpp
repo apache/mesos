@@ -27,7 +27,10 @@ namespace mesos {
 
 std::ostream& operator<<(std::ostream& stream, const Value::Scalar& scalar);
 bool operator==(const Value::Scalar& left, const Value::Scalar& right);
+bool operator<(const Value::Scalar& left, const Value::Scalar& right);
 bool operator<=(const Value::Scalar& left, const Value::Scalar& right);
+bool operator>(const Value::Scalar& left, const Value::Scalar& right);
+bool operator>=(const Value::Scalar& left, const Value::Scalar& right);
 Value::Scalar operator+(const Value::Scalar& left, const Value::Scalar& right);
 Value::Scalar operator-(const Value::Scalar& left, const Value::Scalar& right);
 Value::Scalar& operator+=(Value::Scalar& left, const Value::Scalar& right);
