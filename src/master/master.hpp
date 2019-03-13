@@ -1166,6 +1166,11 @@ private:
         const Option<process::http::authentication::Principal>&
             principal) const;
 
+    process::Future<process::http::Response> update(
+        const mesos::master::Call& call,
+        const Option<process::http::authentication::Principal>& principal)
+      const;
+
     process::Future<process::http::Response> set(
         const mesos::master::Call& call,
         const Option<process::http::authentication::Principal>&

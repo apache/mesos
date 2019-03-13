@@ -50,6 +50,7 @@ using http::Accepted;
 using http::BadRequest;
 using http::Conflict;
 using http::Forbidden;
+using http::NotImplemented;
 using http::OK;
 
 using mesos::authorization::createSubject;
@@ -415,6 +416,43 @@ Future<QuotaStatus> Master::QuotaHandler::_status(
 
       return status;
     }));
+}
+
+
+Future<http::Response> Master::QuotaHandler::update(
+    const mesos::master::Call& call, const Option<Principal>& principal) const
+{
+  CHECK_EQ(mesos::master::Call::UPDATE_QUOTA, call.type());
+  CHECK(call.has_update_quota());
+
+  // Validate `QuotaConfig`.
+  foreach (auto&& config, call.update_quota().quota_configs()) {
+    // Check that the role is on the role whitelist, if it exists.
+    if (!master->isWhitelistedRole(config.role())) {
+      return BadRequest(
+          "Invalid QuotaConfig: '" + config.role() + "'"
+          " is not on the roles whitelist");
+    }
+
+    // Setting quota on a nested role is temporarily disabled.
+    //
+    // TODO(mzhu): Remove this check when MESOS-7402 is fixed.
+    bool nestedRole = strings::contains(config.role(), "/");
+    if (nestedRole) {
+      return BadRequest(
+          "Updating quota on nested role '" + config.role() +
+          "' is not supported yet");
+    }
+
+    Option<Error> error = quota::validate(config);
+
+    if (error.isSome()) {
+      return BadRequest(
+          "Invalid QuotaConfig: " + error->message);
+    }
+  }
+
+  return NotImplemented();
 }
 
 
