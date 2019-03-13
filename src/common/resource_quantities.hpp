@@ -199,6 +199,8 @@ public:
   //    `[("cpu":1)]` will not contain `[("cpu":2)]`.
   bool contains(const ResourceLimits& right) const;
 
+  bool contains(const ResourceQuantities& quantities) const;
+
 private:
   // Set the limit of the resource with `name` to `scalar`.
   // Note, the existing limit of the resource will be overwritten.

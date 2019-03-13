@@ -429,6 +429,51 @@ TEST(LimitsTest, Contains)
 }
 
 
+TEST(LimitsTest, ContainsQuantities)
+{
+  ResourceLimits noLimit{};
+  ResourceQuantities emptyQuantity{};
+  EXPECT_TRUE(noLimit.contains(emptyQuantity));
+
+  ResourceLimits limits = CHECK_NOTERROR(ResourceLimits::fromString("cpus:1"));
+  EXPECT_TRUE(limits.contains(emptyQuantity));
+
+  limits = CHECK_NOTERROR(ResourceLimits::fromString("cpus:1;mem:1"));
+  ResourceQuantities quantities =
+    CHECK_NOTERROR(ResourceQuantities::fromString("cpus:1;mem:1"));
+  EXPECT_TRUE(limits.contains(quantities));
+
+  // Superset and subset.
+  limits = CHECK_NOTERROR(ResourceLimits::fromString("cpus:1;mem:1;disk:1"));
+  quantities = CHECK_NOTERROR(ResourceQuantities::fromString("cpus:1;mem:1"));
+  EXPECT_TRUE(limits.contains(quantities));
+
+  limits = CHECK_NOTERROR(ResourceLimits::fromString("cpus:1;mem:1"));
+  quantities =
+    CHECK_NOTERROR(ResourceQuantities::fromString("cpus:1;mem:1;disk:1"));
+  EXPECT_TRUE(limits.contains(quantities));
+
+  // Intersected sets.
+  limits = CHECK_NOTERROR(ResourceLimits::fromString("cpus:1;mem:1"));
+  quantities = CHECK_NOTERROR(ResourceQuantities::fromString("cpus:1;disk:1"));
+  EXPECT_TRUE(limits.contains(quantities));
+
+  // Sets with no intersection.
+  limits = CHECK_NOTERROR(ResourceLimits::fromString("cpus:1;mem:1"));
+  quantities = CHECK_NOTERROR(ResourceQuantities::fromString("gpu:1;disk:1"));
+  EXPECT_TRUE(limits.contains(quantities));
+
+  // Same name, different scalars.
+  limits = CHECK_NOTERROR(ResourceLimits::fromString("cpus:2;mem:2"));
+  quantities = CHECK_NOTERROR(ResourceQuantities::fromString("cpus:2;mem:1"));
+  EXPECT_TRUE(limits.contains(quantities));
+
+  limits = CHECK_NOTERROR(ResourceLimits::fromString("cpus:2;mem:1"));
+  quantities = CHECK_NOTERROR(ResourceQuantities::fromString("cpus:2;mem:2"));
+  EXPECT_FALSE(limits.contains(quantities));
+}
+
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

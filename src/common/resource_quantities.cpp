@@ -412,6 +412,20 @@ bool ResourceLimits::contains(const ResourceLimits& right) const
 }
 
 
+bool ResourceLimits::contains(const ResourceQuantities& quantities) const
+{
+  foreachpair (const string& name, const Value::Scalar& quantity, quantities) {
+    Option<Value::Scalar> limit = get(name);
+
+    if (limit.isSome() && *limit < quantity) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
 void ResourceLimits::set(
     const std::string& name, const Value::Scalar& scalar)
 {
