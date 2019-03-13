@@ -132,7 +132,7 @@ private:
   // This is made static to decouple us from the `const` qualifier of `this`.
   template <typename Self>
   static auto get(Self&& self)
-    -> decltype(std::forward<Self>(self).data.get().get())
+    -> decltype(**(std::forward<Self>(self).data))
   {
     if (!self.isSome()) {
       std::string errorMessage = "Result::get() but state == ";
@@ -143,8 +143,7 @@ private:
       }
       ABORT(errorMessage);
     }
-    // NOLINTNEXTLINE(mesos-redundant-get)
-    return std::forward<Self>(self).data.get().get();
+    return **(std::forward<Self>(self).data);
   }
 
   // We leverage Try<Option<T>> to avoid dynamic allocation of T. This
