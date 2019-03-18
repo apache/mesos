@@ -6,7 +6,7 @@ Release Notes - Mesos - Version 1.6.3 (WIP)
   * [MESOS-9507] - Agent could not recover due to empty docker volume checkpointed files.
 
 ** Improvement
- * [MESOS-8880] - Add minimum capabilities in the master.
+  * [MESOS-8880] - Add minimum capabilities in the master.
 
 
 Release Notes - Mesos - Version 1.6.2
