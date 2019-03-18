@@ -1273,9 +1273,11 @@ StorageLocalResourceProviderProcess::reconcileOperationStatuses()
           case OPERATION_FAILED:
             ++metrics.operations_failed.at(operation.info().type());
             break;
+          case OPERATION_DROPPED:
+            ++metrics.operations_dropped.at(operation.info().type());
+            break;
           case OPERATION_UNSUPPORTED:
           case OPERATION_ERROR:
-          case OPERATION_DROPPED:
           case OPERATION_UNREACHABLE:
           case OPERATION_GONE_BY_OPERATOR:
           case OPERATION_RECOVERING:
