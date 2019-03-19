@@ -1728,7 +1728,10 @@ Resources Resources::pushReservation(
       resourcesNoMutationWithoutExclusiveOwnership) {
     Resource_ r_ = *resource_;
     r_.resource.add_reservations()->CopyFrom(reservation);
-    CHECK_NONE(Resources::validate(r_.resource));
+    Option<Error> validationError = Resources::validate(r_.resource);
+    CHECK_NONE(validationError)
+      << "Invalid resource " << r_ << ": " << validationError.get();
+
     result.add(std::move(r_));
   }
 
