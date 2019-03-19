@@ -188,25 +188,27 @@ private:
 
 
 Option<Error> Master::QuotaHandler::capacityHeuristic(
-    const QuotaInfo& request) const
+    const vector<Resources>& agents,
+    const hashmap<string, Quota>& quotas,
+    const QuotaInfo& request)
 {
-  VLOG(1) << "Performing capacity heuristic check for a set quota request";
+  Resources totalQuota = [&]() {
+    QuotaTree quotaTree({});
 
-  // This should have been validated earlier.
-  CHECK(master->isWhitelistedRole(request.role()));
-  CHECK(!master->quotas.contains(request.role()));
+    foreachpair (const string& role, const Quota& quota, quotas) {
+      if (role != request.role()) {
+        quotaTree.insert(role, quota);
+      }
+    }
 
-  hashmap<string, Quota> quotaMap = master->quotas;
+    quotaTree.insert(request.role(), Quota{request});
 
-  // Check that adding the requested quota to the existing quotas does
-  // not violate the capacity heuristic.
-  quotaMap[request.role()] = Quota{request};
+    // Hard CHECK since this is already validated earlier
+    // during request validation.
+    CHECK_NONE(quotaTree.validate());
 
-  QuotaTree quotaTree(quotaMap);
-
-  CHECK_NONE(quotaTree.validate());
-
-  Resources totalQuota = quotaTree.total();
+    return quotaTree.total();
+  }();
 
   // Determine whether the total quota, including the new request, does
   // not exceed the sum of non-static cluster resources.
@@ -216,19 +218,13 @@ Option<Error> Master::QuotaHandler::capacityHeuristic(
   // reduce the cost of the function significantly. This early exit does
   // not influence the declared inequality check.
   Resources nonStaticClusterResources;
-  foreachvalue (Slave* slave, master->slaves.registered) {
-    // We do not consider disconnected or inactive agents, because they
-    // do not participate in resource allocation.
-    if (!slave->connected || !slave->active) {
-      continue;
-    }
 
-    // NOTE: Dynamic reservations are not excluded here because they do
-    // not show up in `SlaveInfo` resources. In contrast to static
+  foreach (const Resources& agent, agents) {
+    // NOTE: Dynamic reservation metadata is already stripped because the
+    // caller passes `SlaveInfo.resources`. In contrast to static
     // reservations, dynamic reservations may be unreserved at any time,
     // hence making resources available for quota'ed frameworks.
-    Resources nonStaticAgentResources =
-      Resources(slave->info.resources()).unreserved();
+    Resources nonStaticAgentResources = agent.unreserved();
 
     nonStaticClusterResources += nonStaticAgentResources;
 
@@ -600,8 +596,26 @@ Future<http::Response> Master::QuotaHandler::__set(
   if (forced) {
     VLOG(1) << "Using force flag to override quota capacity heuristic check";
   } else {
+    // Check for quota overcommit.
+    vector<Resources> activeAgents;
+    activeAgents.reserve(master->slaves.registered.size());
+
+    foreachvalue (const Slave* agent, master->slaves.registered) {
+      // We do not consider disconnected or inactive agents, because they
+      // do not participate in resource allocation.
+      if (agent->connected && agent->active) {
+        // TODO(bmahler): Pass `agent->totalResources` here instead
+        // to include resource provider resources.
+        activeAgents.push_back(agent->info.resources());
+      }
+    }
+
     // Validate whether a quota request can be satisfied.
-    Option<Error> error = capacityHeuristic(quotaInfo);
+    Option<Error> error = capacityHeuristic(
+        activeAgents,
+        master->quotas,
+        quotaInfo);
+
     if (error.isSome()) {
       return Conflict(
           "Heuristic capacity check for set quota request failed: " +

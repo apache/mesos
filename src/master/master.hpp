@@ -1211,8 +1211,10 @@ private:
     //   * Even if there are enough resources at the moment of this check,
     //     agents may terminate at any time, rendering the cluster under
     //     quota.
-    Option<Error> capacityHeuristic(
-        const mesos::quota::QuotaInfo& request) const;
+    static Option<Error> capacityHeuristic(
+        const std::vector<Resources>& agents,
+        const hashmap<std::string, Quota>& quotas,
+        const mesos::quota::QuotaInfo& request);
 
     // We always want to rescind offers after the capacity heuristic. The
     // reason for this is the race between the allocator and the master:
