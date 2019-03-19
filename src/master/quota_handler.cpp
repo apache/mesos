@@ -545,15 +545,19 @@ Future<http::Response> Master::QuotaHandler::_set(
         " for role '" + quotaInfo.role() + "' which already has quota");
   }
 
-  hashmap<string, Quota> quotaMap = master->quotas;
-
   // Validate that adding this quota does not violate the hierarchical
   // relationship between quotas.
-  quotaMap[quotaInfo.role()] = Quota{quotaInfo};
-
-  QuotaTree quotaTree(quotaMap);
-
   {
+    QuotaTree quotaTree({});
+
+    foreachpair (const string& role, const Quota& quota, master->quotas) {
+      if (role != quotaInfo.role()) {
+        quotaTree.insert(role, quota);
+      }
+    }
+
+    quotaTree.insert(quotaInfo.role(), Quota{quotaInfo});
+
     Option<Error> error = quotaTree.validate();
     if (error.isSome()) {
       return BadRequest(
