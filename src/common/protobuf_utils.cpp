@@ -77,6 +77,62 @@ namespace mesos {
 namespace internal {
 namespace protobuf {
 
+// If `descriptor` is not a descriptor of a protobuf union,
+// this constructor will abort the process.
+UnionValidator::UnionValidator(const google::protobuf::Descriptor* descriptor)
+{
+  const auto* typeFieldDescriptor = descriptor->FindFieldByName("type");
+  CHECK_NOTNULL(typeFieldDescriptor);
+
+  typeDescriptor_ = typeFieldDescriptor->enum_type();
+  CHECK_NOTNULL(typeDescriptor_);
+
+  const auto* unknownTypeValueDescriptor =
+    typeDescriptor_->FindValueByNumber(0);
+  if (unknownTypeValueDescriptor != nullptr) {
+    CHECK_EQ(unknownTypeValueDescriptor->name(), "UNKNOWN");
+  }
+
+  for (int index = 0; index < typeDescriptor_->value_count(); index++) {
+    const auto* typeValueDescriptor = typeDescriptor_->value(index);
+    if (typeValueDescriptor->number() == 0) {
+      // We are skipping the "UNKNOWN" value of the enum.
+      continue;
+    }
+
+    const auto* fieldDescriptor =
+      descriptor->FindFieldByName(strings::lower(typeValueDescriptor->name()));
+
+    CHECK_NOTNULL(fieldDescriptor);
+    unionFieldDescriptors_.emplace_back(
+        typeValueDescriptor->number(), fieldDescriptor);
+  }
+}
+
+
+Option<Error> UnionValidator::validate(
+  const int messageTypeNumber, const google::protobuf::Message& message) const
+{
+  const auto* reflection = message.GetReflection();
+  for (const auto& item : unionFieldDescriptors_) {
+    const auto typeNumber = item.first;
+    const auto* fieldDescriptor = item.second;
+    if (
+        messageTypeNumber != typeNumber &&
+        reflection->HasField(message, fieldDescriptor)) {
+      const auto* descr = typeDescriptor_->FindValueByNumber(messageTypeNumber);
+      return Error(
+          "Protobuf union `" + message.GetDescriptor()->full_name() +
+          "` with `Type == " +
+          (descr == nullptr ? string("<UNKNOWN>") : descr->name()) +
+          "` should not have the field `" +
+          fieldDescriptor->name() + "` set.");
+    }
+  }
+  return None();
+}
+
+
 bool frameworkHasCapability(
     const FrameworkInfo& framework,
     FrameworkInfo::Capability::Type capability)

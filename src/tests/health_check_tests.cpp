@@ -1819,11 +1819,11 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   }
 }
 
-
+#ifdef __linux__
 // Tests a healthy docker task via CMD health checks using the
 // DefaultExecutor.
 TEST_F_TEMP_DISABLED_ON_WINDOWS(
-    HealthCheckTest, DefaultExecutorWithDockerImageCommandHealthCheck)
+    HealthCheckTest, ROOT_DefaultExecutorWithDockerImageCommandHealthCheck)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -1838,6 +1838,17 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
   flags.acls = acls;
 #endif // USE_SSL_SOCKET
+
+  const string directory = path::join(os::getcwd(), "archives");
+
+  Future<Nothing> testImage = DockerArchive::create(directory, "alpine");
+  AWAIT_READY(testImage);
+  ASSERT_TRUE(os::exists(path::join(directory, "alpine.tar")));
+
+  flags.isolation = "docker/runtime,filesystem/linux";
+  flags.image_providers = "docker";
+  flags.docker_registry = directory;
+  flags.docker_store_dir = path::join(os::getcwd(), "store");
 
   Fetcher fetcher(flags);
 
@@ -1889,9 +1900,13 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
   TaskInfo task = createTask(offers->front(), "sleep 120");
 
   // TODO(tnachen): Use local image to test if possible.
+  Image image;
+  image.set_type(Image::DOCKER);
+  image.mutable_docker()->set_name("alpine");
+
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::MESOS);
-  containerInfo.mutable_docker()->set_image("alpine");
+  containerInfo.mutable_mesos()->mutable_image()->CopyFrom(image);
 
   task.mutable_container()->CopyFrom(containerInfo);
 
@@ -1954,6 +1969,7 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
     AWAIT_READY(containerizer->wait(containerId));
   }
 }
+#endif  // __linux__
 
 
 // This test verifies that the debug container launched by the command health

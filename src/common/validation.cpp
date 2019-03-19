@@ -32,6 +32,8 @@
 
 #include <stout/os/constants.hpp>
 
+#include "common/protobuf_utils.hpp"
+
 using std::string;
 
 using google::protobuf::RepeatedPtrField;
@@ -264,6 +266,11 @@ Option<Error> validateVolume(const Volume& volume)
 
 Option<Error> validateContainerInfo(const ContainerInfo& containerInfo)
 {
+  Option<Error> unionError = protobuf::validateProtobufUnion(containerInfo);
+  if (unionError.isSome()) {
+    return unionError;
+  }
+
   foreach (const Volume& volume, containerInfo.volumes()) {
     Option<Error> error = validateVolume(volume);
     if (error.isSome()) {

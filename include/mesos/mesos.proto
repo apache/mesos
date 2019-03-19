@@ -3328,6 +3328,8 @@ message TTYInfo {
  */
 message ContainerInfo {
   // All container implementation types.
+  // For each type there should be a field in the ContainerInfo itself
+  // with exactly matching name in lowercase.
   enum Type {
     DOCKER = 1;
     MESOS = 2;
@@ -3381,8 +3383,8 @@ message ContainerInfo {
   repeated Volume volumes = 2;
   optional string hostname = 4;
 
-  // Only one of the following *Info messages should be set to match
-  // the type.
+  // At most one of the following *Info messages should be set to match
+  // the type, i.e. the "protobuf union" in ContainerInfo should be valid.
   optional DockerInfo docker = 3;
   optional MesosInfo mesos = 5;
 

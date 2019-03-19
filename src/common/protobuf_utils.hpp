@@ -64,6 +64,51 @@ struct Slave;
 
 namespace protobuf {
 
+// Internal helper class for protobuf union validation.
+class UnionValidator
+{
+public:
+  UnionValidator(const google::protobuf::Descriptor*);
+  Option<Error> validate(
+      const int messageTypeNumber, const google::protobuf::Message&) const;
+
+private:
+  std::vector<std::pair<int, const google::protobuf::FieldDescriptor*>>
+    unionFieldDescriptors_;
+  const google::protobuf::EnumDescriptor* typeDescriptor_;
+};
+
+//
+// A message is a "protobuf union" if, and only if,
+// the following requirements are satisfied:
+// 1. It has a required field named `type` of an enum type.
+// 2. A member of this enum with a number (not index!) of 0
+//    either is named "UNKNOWN" or does not exist.
+// 3. For each other member of this enum there is an optional field
+//    in the message with an exactly matching name in lowercase.
+// (Being or not being a protobuf uinion depends on a message declaration only.)
+//
+// A "protobuf union" is valid if, and only if, all the message fields
+// which correspond to members of this enum that do not matching the value
+// of the `type` field, are not set.
+// (Validity of the protobuf union depends on the message contents.
+// Note that it does not depend on whether the matching field is set or not.)
+//
+// NOTE: If possible, oneof should be used in the new messages instead
+// of the "protobuf union".
+//
+// This function returns None if the protobuf union is valid
+// and Error otherwise.
+// In case the ProtobufUnion is not a protobuf union,
+// this function will abort the process on the first use.
+template <class ProtobufUnion>
+Option<Error> validateProtobufUnion(const ProtobufUnion& message)
+{
+  static const UnionValidator validator(ProtobufUnion::descriptor());
+  return validator.validate(message.type(), message);
+}
+
+
 bool frameworkHasCapability(
     const FrameworkInfo& framework,
     FrameworkInfo::Capability::Type capability);
