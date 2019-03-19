@@ -94,6 +94,13 @@ canonical list is located on
       <td>idownes@apache.org</td>
     </tr>
     <tr>
+      <td>+1</td>
+      <td>Benno Evers</td>
+      <td>Mesosphere</td>
+      <td></td>
+      <td>bennoe@apache.org</td>
+    </tr>
+    <tr>
       <td>-8</td>
       <td>Ali Ghodsi</td>
       <td>UC Berkeley</td>
