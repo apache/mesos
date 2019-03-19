@@ -51,6 +51,8 @@ using google::protobuf::RepeatedPtrField;
 
 using mesos::internal::master::Master;
 
+using mesos::internal::master::allocator::MesosAllocatorProcess;
+
 using mesos::internal::slave::Slave;
 
 using mesos::master::detector::MasterDetector;
@@ -764,6 +766,65 @@ TEST_F(MasterQuotaTest, AvailableResourcesSingleAgent)
   EXPECT_EQ(defaultAgentResources, agentTotalResources.get());
 
   // We request quota for a portion of resources available on the agent.
+  Resources quotaResources = Resources::parse("cpus:1;mem:512").get();
+  EXPECT_TRUE(agentTotalResources->contains(quotaResources));
+
+  // Send a quota request for the specified role.
+  Future<Quota> receivedQuotaRequest;
+  EXPECT_CALL(allocator, setQuota(Eq(ROLE1), _))
+    .WillOnce(DoAll(InvokeSetQuota(&allocator),
+                    FutureArg<1>(&receivedQuotaRequest)));
+
+  Future<Response> response = process::http::post(
+      master.get()->pid,
+      "quota",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      createRequestBody(ROLE1, quotaResources));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Quota request is granted and reached the allocator. Make sure nothing
+  // got lost in-between.
+  AWAIT_READY(receivedQuotaRequest);
+
+  EXPECT_EQ(ROLE1, receivedQuotaRequest->info.role());
+  EXPECT_EQ(quotaResources, receivedQuotaRequest->info.guarantee());
+}
+
+
+// Checks that an operator can request quota when enough resources are
+// available on single disconnected agent.
+TEST_F(MasterQuotaTest, AvailableResourcesSingleDisconnectedAgent)
+{
+  TestAllocator<> allocator;
+  EXPECT_CALL(allocator, initialize(_, _, _));
+
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator);
+  ASSERT_SOME(master);
+
+  // Start an agent and wait until its resources are available.
+  Future<Resources> agentTotalResources;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                    FutureArg<4>(&agentTotalResources)));
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(agentTotalResources);
+  EXPECT_EQ(defaultAgentResources, agentTotalResources.get());
+
+  // Spoof the agent disconnecting from the master.
+  Future<Nothing> deactivateSlave =
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::deactivateSlave);
+
+  process::inject::exited(slave.get()->pid, master.get()->pid);
+
+  AWAIT_READY(deactivateSlave);
+
+  // We request quota for a portion of resources available
+  // on the disconnected agent.
   Resources quotaResources = Resources::parse("cpus:1;mem:512").get();
   EXPECT_TRUE(agentTotalResources->contains(quotaResources));
 
