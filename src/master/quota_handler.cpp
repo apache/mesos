@@ -596,23 +596,32 @@ Future<http::Response> Master::QuotaHandler::__set(
   if (forced) {
     VLOG(1) << "Using force flag to override quota capacity heuristic check";
   } else {
-    // Check for quota overcommit.
-    vector<Resources> activeAgents;
-    activeAgents.reserve(master->slaves.registered.size());
+    // Check for quota overcommit. We include resources from all
+    // registered agents, even if they are disconnected.
+    //
+    // Disconnection tends to be a transient state (e.g. agent
+    // might be getting restarted as part of an upgrade, there
+    // might be a transient networking issue, etc), so excluding
+    // disconnected agents could produce an unstable capacity
+    // calculation.
+    //
+    // TODO(bmahler): In the same vein, include agents that
+    // are recovered from the registry but not yet registered.
+    // Because we currently exclude them, the calculated capacity
+    // is 0 immediately after a failover and slowly works its way
+    // up to the pre-failover capacity as the agents re-register.
+    vector<Resources> agents;
+    agents.reserve(master->slaves.registered.size());
 
     foreachvalue (const Slave* agent, master->slaves.registered) {
-      // We do not consider disconnected or inactive agents, because they
-      // do not participate in resource allocation.
-      if (agent->connected && agent->active) {
-        // TODO(bmahler): Pass `agent->totalResources` here instead
-        // to include resource provider resources.
-        activeAgents.push_back(agent->info.resources());
-      }
+      // TODO(bmahler): Pass `agent->totalResources` here instead
+      // to include resource provider resources.
+      agents.push_back(agent->info.resources());
     }
 
     // Validate whether a quota request can be satisfied.
     Option<Error> error = capacityHeuristic(
-        activeAgents,
+        agents,
         master->quotas,
         quotaInfo);
 
