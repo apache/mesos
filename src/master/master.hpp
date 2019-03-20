@@ -1098,9 +1098,9 @@ private:
       Framework* framework,
       mesos::scheduler::Call::Reconcile&& reconcile);
 
-  mesos::scheduler::Response::ReconcileOperations reconcileOperations(
+  void reconcileOperations(
       Framework* framework,
-      const mesos::scheduler::Call::ReconcileOperations& reconcile);
+      mesos::scheduler::Call::ReconcileOperations&& reconcile);
 
   void message(
       Framework* framework,

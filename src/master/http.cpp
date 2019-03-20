@@ -703,8 +703,9 @@ Future<Response> Master::Http::scheduler(
       return Accepted();
 
     case scheduler::Call::RECONCILE_OPERATIONS:
-      return reconcileOperations(
-          framework, call.reconcile_operations(), acceptType);
+      master->reconcileOperations(
+          framework, std::move(*call.mutable_reconcile_operations()));
+      return Accepted();
 
     case scheduler::Call::MESSAGE:
       master->message(framework, std::move(*call.mutable_message()));
@@ -4184,20 +4185,6 @@ Future<Response> Master::Http::_markAgentGone(const SlaveID& slaveId) const
   return gone.then([]() -> Future<Response> {
     return OK();
   });
-}
-
-
-Future<Response> Master::Http::reconcileOperations(
-    Framework* framework,
-    const scheduler::Call::ReconcileOperations& call,
-    ContentType contentType) const
-{
-  mesos::scheduler::Response response;
-  response.set_type(mesos::scheduler::Response::RECONCILE_OPERATIONS);
-  *response.mutable_reconcile_operations() =
-    master->reconcileOperations(framework, call);
-
-  return OK(serialize(contentType, evolve(response)), stringify(contentType));
 }
 
 } // namespace master {

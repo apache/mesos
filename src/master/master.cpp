@@ -9546,35 +9546,45 @@ void Master::reconcile(
 }
 
 
-scheduler::Response::ReconcileOperations Master::reconcileOperations(
+void Master::reconcileOperations(
     Framework* framework,
-    const scheduler::Call::ReconcileOperations& reconcile)
+    scheduler::Call::ReconcileOperations&& reconcile)
 {
   CHECK_NOTNULL(framework);
 
   ++metrics->messages_reconcile_operations;
 
-  scheduler::Response::ReconcileOperations response;
+  // We declare the following `scheduler::Event` outside the following lambda so
+  // that we construct it only once and use it for all updates sent below.
+  scheduler::Event update;
+  update.set_type(scheduler::Event::UPDATE_OPERATION_STATUS);
+
+  auto sendOperationUpdate = [&update, framework](OperationStatus&& status) {
+    *update.mutable_update_operation_status()->mutable_status() =
+      std::move(status);
+
+    framework->send(update);
+  };
 
   if (reconcile.operations_size() == 0) {
     // Implicit reconciliation.
     LOG(INFO) << "Performing implicit operation state reconciliation"
                  " for framework " << *framework;
 
-    response.mutable_operation_statuses()->Reserve(
-        framework->operations.size());
-
     foreachvalue (Operation* operation, framework->operations) {
+      OperationStatus status;
       if (operation->statuses().empty()) {
         // This can happen if the operation is pending.
-        response.add_operation_statuses()->CopyFrom(operation->latest_status());
+        status = operation->latest_status();
       } else {
-        response.add_operation_statuses()->CopyFrom(
-            *operation->statuses().rbegin());
+        status = *operation->statuses().rbegin();
       }
-    }
 
-    return response;
+      // This update is not sent reliably, so we unset the uuid.
+      status.clear_uuid();
+
+      sendOperationUpdate(std::move(status));
+    }
   }
 
   // Explicit reconciliation.
@@ -9606,18 +9616,21 @@ scheduler::Response::ReconcileOperations Master::reconcileOperations(
     Option<Operation*> frameworkOperation =
       framework->getOperation(operation.operation_id());
 
-    OperationStatus* status = response.add_operation_statuses();
+    OperationStatus status;
     if (frameworkOperation.isSome()) {
       // (1) Operation is known: resend the latest status sent to the framework.
       if (frameworkOperation.get()->statuses().empty()) {
         // This can happen if the operation is pending.
-        *status = frameworkOperation.get()->latest_status();
+        status = frameworkOperation.get()->latest_status();
       } else {
-        *status = *frameworkOperation.get()->statuses().rbegin();
+        status = *frameworkOperation.get()->statuses().rbegin();
       }
+
+      // This update is not sent reliably, so we unset the uuid.
+      status.clear_uuid();
     } else if (slaveId.isSome() && slaves.recovered.contains(slaveId.get())) {
       // (2) Operation is unknown, slave is recovered: OPERATION_RECOVERING.
-      *status = protobuf::createOperationStatus(
+      status = protobuf::createOperationStatus(
           OperationState::OPERATION_RECOVERING,
           operation.operation_id(),
           "Reconciliation: Agent is recovered but has not re-registered",
@@ -9627,7 +9640,7 @@ scheduler::Response::ReconcileOperations Master::reconcileOperations(
           resourceProviderId);
     } else if (slaveId.isSome() && slaves.registered.contains(slaveId.get())) {
       // (3) Operation is unknown, slave is registered: OPERATION_UNKNOWN.
-      *status = protobuf::createOperationStatus(
+      status = protobuf::createOperationStatus(
           OperationState::OPERATION_UNKNOWN,
           operation.operation_id(),
           "Reconciliation: Operation is unknown",
@@ -9637,7 +9650,7 @@ scheduler::Response::ReconcileOperations Master::reconcileOperations(
           resourceProviderId);
     } else if (slaveId.isSome() && slaves.unreachable.contains(slaveId.get())) {
       // (4) Operation is unknown, slave is unreachable: OPERATION_UNREACHABLE.
-      *status = protobuf::createOperationStatus(
+      status = protobuf::createOperationStatus(
           OperationState::OPERATION_UNREACHABLE,
           operation.operation_id(),
           "Reconciliation: Agent is unreachable",
@@ -9647,7 +9660,7 @@ scheduler::Response::ReconcileOperations Master::reconcileOperations(
           resourceProviderId);
     } else if (slaveId.isSome() && slaves.gone.contains(slaveId.get())) {
       // (5) Operation is unknown, slave is gone: OPERATION_GONE_BY_OPERATOR.
-      *status = protobuf::createOperationStatus(
+      status = protobuf::createOperationStatus(
           OperationState::OPERATION_GONE_BY_OPERATOR,
           operation.operation_id(),
           "Reconciliation: Agent marked gone by operator",
@@ -9657,7 +9670,7 @@ scheduler::Response::ReconcileOperations Master::reconcileOperations(
           resourceProviderId);
     } else if (slaveId.isSome()) {
       // (6) Operation is unknown, slave is unknown: OPERATION_UNKNOWN.
-      *status = protobuf::createOperationStatus(
+      status = protobuf::createOperationStatus(
           OperationState::OPERATION_UNKNOWN,
           operation.operation_id(),
           "Reconciliation: Both operation and agent are unknown",
@@ -9667,7 +9680,7 @@ scheduler::Response::ReconcileOperations Master::reconcileOperations(
           resourceProviderId);
     } else {
       // (7) Operation is unknown, slave is unknown: OPERATION_UNKNOWN.
-      *status = protobuf::createOperationStatus(
+      status = protobuf::createOperationStatus(
           OperationState::OPERATION_UNKNOWN,
           operation.operation_id(),
           "Reconciliation: Operation is unknown and no 'agent_id' was"
@@ -9677,9 +9690,9 @@ scheduler::Response::ReconcileOperations Master::reconcileOperations(
           slaveId,
           resourceProviderId);
     }
-  }
 
-  return response;
+    sendOperationUpdate(std::move(status));
+  }
 }
 
 

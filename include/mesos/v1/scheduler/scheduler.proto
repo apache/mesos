@@ -208,6 +208,9 @@ message Event {
 
 
 /**
+ * NOTE: After resolution of MESOS-9648, this message is not currently used by
+ * Mesos. It is left in place in anticipation of future use.
+ *
  * Synchronous responses for calls made to the scheduler API.
  */
 message Response {
@@ -215,15 +218,21 @@ message Response {
   enum Type {
     UNKNOWN = 0;
 
-    RECONCILE_OPERATIONS = 1; // See 'ReconcileOperations' below.
+    // DEPRECATED.
+    //
+    // See 'ReconcileOperations' below.
+    RECONCILE_OPERATIONS = 1 [deprecated = true];
   }
 
+  // DEPRECATED.
   message ReconcileOperations {
-    repeated OperationStatus operation_statuses = 1;
+    repeated OperationStatus operation_statuses = 1 [deprecated = true];
   }
 
   optional Type type = 1;
-  optional ReconcileOperations reconcile_operations = 2;
+
+  // DEPRECATED.
+  optional ReconcileOperations reconcile_operations = 2 [deprecated = true];
 }
 
 
@@ -528,6 +537,9 @@ message APIResult {
   // HTTP status code with which the master responded.
   required uint32 status_code = 1;
 
+  // NOTE: After resolution of MESOS-9648, this field is not currently used by
+  // Mesos. It is left in place in anticipation of future use.
+  //
   // This field will only be set if the call completed successfully and the
   // master responded with `200 OK` and a non-empty body.
   optional Response response = 2;

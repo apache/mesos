@@ -210,6 +210,9 @@ message Event {
 
 
 /**
+ * NOTE: After resolution of MESOS-9648, this message is not currently used by
+ * Mesos. It is left in place in anticipation of future use.
+ *
  * Synchronous responses for calls made to the scheduler API.
  */
 message Response {
@@ -217,14 +220,20 @@ message Response {
   enum Type {
     UNKNOWN = 0;
 
-    RECONCILE_OPERATIONS = 1; // See 'ReconcileOperations' below.
+    // DEPRECATED.
+    //
+    // See 'ReconcileOperations' below.
+    RECONCILE_OPERATIONS = 1 [deprecated = true];
   }
 
+  // DEPRECATED.
   message ReconcileOperations {
     repeated OperationStatus operation_statuses = 1;
   }
 
   optional Type type = 1;
+
+  // DEPRECATED.
   optional ReconcileOperations reconcile_operations = 2;
 }
 
