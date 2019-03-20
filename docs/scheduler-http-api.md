@@ -385,7 +385,7 @@ HTTP/1.1 202 Accepted
 ```
 
 ### RECONCILE_OPERATIONS
-Sent by the scheduler to query the status of non-terminal operations. The master will respond with a `RECONCILE_OPERATIONS` response containing the status of each operation in the list. If the list of operations is empty, the master will include in the response all currently known operations of the framework.
+Sent by the scheduler to query the status of non-terminal and terminal-but-unacknowledged operations. This causes the master to send back `UPDATE_OPERATION_STATUS` events for each operation in the list. If the list of operations is empty, the master will send events for all currently known operations of the framework.
 
 ```
 RECONCILE_OPERATIONS Request (JSON):
@@ -403,29 +403,15 @@ Mesos-Stream-Id: 130ae4e3-6b13-4ef4-baa9-9f2e85c3e9af
     "operations": [
       {
         "operation_id": { "value": "312325" },
-        "agent_id": { "value": "123535" }
+        "agent_id": { "value": "123535" },
+        "resource_provider_id": { "value": "927695" }
       }
     ]
   }
 }
 
 RECONCILE_OPERATIONS Response:
-HTTP/1.1 200 Accepted
-
-Content-Type: application/json
-
-{
-  "type": "RECONCILE_OPERATIONS",
-  "reconcile_operations": {
-    "operation_statuses": [
-      {
-        "operation_id": { "value": "312325" },
-        "state": "OPERATION_PENDING",
-        "uuid": "adfadfadbhgvjayd23r2uahj"
-      }
-    ]
-  }
-}
+HTTP/1.1 202 Accepted
 
 ```
 

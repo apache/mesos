@@ -139,16 +139,17 @@ Operation reconciliation is similar to task reconciliation in that the scheduler
 can perform either explicit or implicit reconciliation by specifying particular
 operation IDs or by leaving the `operations` field unset, respectively.
 
-Operation reconciliation differs from task reconciliation in that the
-`RECONCILE_OPERATIONS` call provides a single HTTP response which contains all
-operation status updates, rather than an asynchronous stream of individual
-updates on the event stream. NOTE, however, that this API is experimental and
-we plan to change this in the near future so that operation reconciliation will
-resemble task reconciliation in this respect.
-
 In order to explicitly reconcile particular operations, the scheduler should
 include in the `RECONCILE_OPERATIONS` call a list of operations, specifying an
 operation ID, agent ID, and resource provider ID (if applicable) for each one.
+While the agent and resource provider IDs are optional, the master will be able
+to provide the highest quality reconciliation information when they are set. For
+example, if the relevant agent is not currently registered, inclusion of the
+agent ID will allow the master to respond with states like
+`OPERATION_RECOVERING`, `OPERATION_UNREACHABLE`, or `OPERATION_GONE_BY_OPERATOR`
+when the agent is recovering, unreachable, or gone, respectively. Inclusion of
+the resource provider ID provides the same benefit for cases where the
+resource provider is recovering or gone.
 
 Similar to task reconciliation, we recommend that schedulers implement a
 periodic reconciliation loop for operations in order to defend against network
