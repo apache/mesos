@@ -41,7 +41,7 @@ def _create_module(module_name):
     # libraries when building the final result, we need to explicitly
     # include them here (or more precisely, down where we actually include
     # libev.a and libprofiler.a).
-    glog = os.path.join('3rdparty', 'glog-0.3.3')
+    glog = os.path.join('3rdparty', 'glog-0.3.5')
     gperftools = os.path.join('3rdparty', 'gperftools-2.5')
     protobuf = os.path.join('3rdparty', 'protobuf-3.5.0')
 

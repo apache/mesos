@@ -248,8 +248,17 @@ $(LIB_GLOG): $(GLOG)-build-stamp
 # when building with clang).
 # We explicitly build only libglog.la as it is the artifact we depend
 # on. This e.g., avoids building glog-internal tests.
+#
+# NOTE:
+# On some platforms patch fails to remove test-driver (it is a broken symlink),
+# that's why we need to remove it here.
+# Also, autogen.sh might be CREATED by the patch and might need its mode fixed.
 $(GLOG)-build-stamp: $(GLOG)-stamp
-	cd $(GLOG) && ./configure GTEST_CONFIG=no $(CONFIGURE_ARGS) && \
+	cd $(GLOG) &&\
+	  rm -f test-driver &&\
+	  chmod a+x ./autogen.sh &&\
+	  ./autogen.sh && \
+	  ./configure GTEST_CONFIG=no $(CONFIGURE_ARGS) && \
           $(MAKE) $(AM_MAKEFLAGS) $(GLOG_LDFLAGS) libglog.la
 	touch $@
 

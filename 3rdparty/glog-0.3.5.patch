@@ -1,0 +1,74 @@
+diff --git a/README b/README
+index 77efd37..452fc48 100644
+--- a/README
++++ b/README
+@@ -2,4 +2,4 @@ This repository contains a C++ implementation of the Google logging
+ module.  Documentation for the implementation is in doc/.
+ 
+ See INSTALL for (generic) installation instructions for C++: basically
+-   ./configure && make && make install
++   ./autogen.sh && ./configure && make && make install
+diff --git a/autogen.sh b/autogen.sh
+new file mode 100755
+index 0000000..08b6590
+--- /dev/null
++++ b/autogen.sh
+@@ -0,0 +1,5 @@
++#!/bin/sh
++
++set -eu
++
++autoreconf -i
+diff --git a/configure.ac b/configure.ac
+index 69711b7..9b77c07 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -127,27 +127,9 @@ if test x"$acx_pthread_ok" = x"yes"; then
+   AC_CHECK_LIB(pthread, pthread_self)
+ fi
+ 
+-# Check if there is google-gflags library installed.
+-SAVE_CFLAGS="$CFLAGS"
+-SAVE_LIBS="$LIBS"
+-AC_ARG_WITH(gflags, AS_HELP_STRING[--with-gflags=GFLAGS_DIR],
+-  GFLAGS_CFLAGS="-I${with_gflags}/include"
+-  GFLAGS_LIBS="-L${with_gflags}/lib -lgflags"
+-  CFLAGS="$CFLAGS $GFLAGS_CFLAGS"
+-  LIBS="$LIBS $GFLAGS_LIBS"
+-)
+-AC_CHECK_LIB(gflags, main, ac_cv_have_libgflags=1, ac_cv_have_libgflags=0)
+-if test x"$ac_cv_have_libgflags" = x"1"; then
+-  AC_DEFINE(HAVE_LIB_GFLAGS, 1, [define if you have google gflags library])
+-  if test x"$GFLAGS_LIBS" = x""; then
+-    GFLAGS_LIBS="-lgflags"
+-  fi
+-else
+-  GFLAGS_CFLAGS=
+-  GFLAGS_LIBS=
+-fi
+-CFLAGS="$SAVE_CFLAGS"
+-LIBS="$SAVE_LIBS"
++GFLAGS_CFLAGS=
++GFLAGS_LIBS=
++ac_cv_have_libgflags=0
+ 
+ # TODO(hamaji): Use official m4 macros provided by testing libraries
+ #               once the m4 macro of Google Mocking becomes ready.
+diff --git a/src/glog/stl_logging.h.in b/src/glog/stl_logging.h.in
+index 600945d..bd935d5 100644
+--- a/src/glog/stl_logging.h.in
++++ b/src/glog/stl_logging.h.in
+@@ -59,6 +59,13 @@
+ #include <utility>
+ #include <vector>
+ 
++#if defined (__GNUC__) && !defined(_LIBCPP_VERSION)
++# define GLOG_STL_LOGGING_FOR_EXT_HASH
++# define GLOG_STL_LOGGING_FOR_EXT_SLIST
++#elif defined(_LIBCPP_VERSION)
++# define GLOG_STL_LOGGING_FOR_UNORDERED
++#endif
++
+ #ifdef GLOG_STL_LOGGING_FOR_UNORDERED
+ # include <unordered_map>
+ # include <unordered_set>

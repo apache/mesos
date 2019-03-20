@@ -379,18 +379,11 @@ if (WIN32)
       IMPORTED_IMPLIB ${GLOG_ROOT}-build/glog${CMAKE_IMPORT_LIBRARY_SUFFIX})
   endif ()
 else ()
-  # TODO(andschwa): Build with CMake instead when glog is updated.
-  set(GLOG_CONFIG_CMD  ${GLOG_ROOT}/src/../configure --with-pic GTEST_CONFIG=no --prefix=${GLOG_ROOT}-build)
-  if (FREEBSD)
-    list(APPEND GLOG_CONFIG_CMD LDFLAGS=-lexecinfo)
-  endif ()
-  set(GLOG_BUILD_CMD   ${MAKE_PROGRAM})
-  set(GLOG_INSTALL_CMD ${MAKE_PROGRAM} install)
-
   set_target_properties(
     glog PROPERTIES
-    IMPORTED_LOCATION ${GLOG_ROOT}-build/lib/libglog${LIBRARY_SUFFIX}
-    INTERFACE_INCLUDE_DIRECTORIES ${GLOG_ROOT}-build/include)
+    INTERFACE_INCLUDE_DIRECTORIES "${GLOG_ROOT}-build;${GLOG_ROOT}/src"
+    IMPORTED_LOCATION ${GLOG_ROOT}-build/libglog${LIBRARY_SUFFIX}
+    IMPORTED_IMPLIB ${GLOG_ROOT}-build/libglog${CMAKE_IMPORT_LIBRARY_SUFFIX})
 endif ()
 
 MAKE_INCLUDE_DIR(glog)
@@ -402,9 +395,7 @@ ExternalProject_Add(
   BUILD_BYPRODUCTS  ${GLOG_BYPRODUCTS}
   PATCH_COMMAND     ${GLOG_PATCH_CMD}
   CMAKE_ARGS        ${CMAKE_CXX_FORWARD_ARGS};-DBUILD_TESTING=OFF
-  CONFIGURE_COMMAND ${GLOG_CONFIG_CMD}
-  BUILD_COMMAND     ${GLOG_BUILD_CMD}
-  INSTALL_COMMAND   ${GLOG_INSTALL_CMD}
+  INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${GLOG_URL}
   URL_HASH          ${GLOG_HASH})
 

@@ -48,8 +48,8 @@ set(ZOOKEEPER_HASH          "SHA256=F10A0B51F45C4F64C1FE69EF713ABF9EB9571BC7385A
 
 # Platform-dependent versions.
 if (NOT WIN32)
-  set(GLOG_VERSION      "0.3.3")
-  set(GLOG_HASH         "SHA256=FBF90C2285BA0561DB7A40F8A4EEFB9AA963E7D399BD450363E959929FE849D0")
+  set(GLOG_VERSION      "0.3.5")
+  set(GLOG_HASH         "SHA256=7580E408A2C0B5A89CA214739978CE6FF480B5E7D8D7698A2AA92FADC484D1E0")
 else ()
   # TODO(andschwa): (MESOS-3394) Update Windows to use glog v0.3.6 when it is
   # released, as it contains our patches. For now, we simply point Windows
