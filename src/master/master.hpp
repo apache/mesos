@@ -1192,26 +1192,23 @@ private:
             principal) const;
 
   private:
-    // Heuristically tries to determine whether a quota request could
-    // reasonably be satisfied given the current cluster capacity. The
-    // goal is to determine whether a user may accidentally request an
-    // amount of resources that would prevent frameworks without quota
-    // from getting any offers. A force flag will allow users to bypass
-    // this check.
+    // Returns an error if the total quota guarantees overcommits
+    // the cluster. This is not a quota satisfiability check: it's
+    // possible that quota is unsatisfiable even if the quota
+    // does not overcommit the cluster.
+
+    // Returns an error if the total quota guarantees overcommits
+    // the cluster. This is not a quota satisfiability check: it's
+    // possible that quota is unsatisfiable even if the quota
+    // does not overcommit the cluster. Specifically, we verify that
+    // the following inequality holds:
     //
-    // The heuristic tests whether the total quota, including the new
-    // request, does not exceed the sum of non-static cluster resources,
-    // i.e. the following inequality holds:
-    //   total - statically reserved >= total quota + quota request
+    //    total cluster capacity >= total quota w/ quota request applied
     //
-    // Please be advised that:
-    //   * It is up to an allocator how to satisfy quota (for example,
-    //     what resources to account towards quota, as well as which
-    //     resources to consider allocatable for quota).
-    //   * Even if there are enough resources at the moment of this check,
-    //     agents may terminate at any time, rendering the cluster under
-    //     quota.
-    static Option<Error> capacityHeuristic(
+    // Note, total cluster capacity accounts resources of all the
+    // registered agents, including resources from resource providers
+    // as well as reservations (both static and dynamic ones).
+    static Option<Error> overcommitCheck(
         const std::vector<Resources>& agents,
         const hashmap<std::string, Quota>& quotas,
         const mesos::quota::QuotaInfo& request);

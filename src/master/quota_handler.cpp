@@ -187,59 +187,45 @@ private:
 };
 
 
-Option<Error> Master::QuotaHandler::capacityHeuristic(
+Option<Error> Master::QuotaHandler::overcommitCheck(
     const vector<Resources>& agents,
     const hashmap<string, Quota>& quotas,
     const QuotaInfo& request)
 {
-  Resources totalQuota = [&]() {
-    QuotaTree quotaTree({});
+  ResourceQuantities totalQuota = ResourceQuantities::fromScalarResources(
+      [&]() {
+        QuotaTree quotaTree({});
 
-    foreachpair (const string& role, const Quota& quota, quotas) {
-      if (role != request.role()) {
-        quotaTree.insert(role, quota);
-      }
-    }
+        foreachpair (const string& role, const Quota& quota, quotas) {
+          if (role != request.role()) {
+            quotaTree.insert(role, quota);
+          }
+        }
 
-    quotaTree.insert(request.role(), Quota{request});
+        quotaTree.insert(request.role(), Quota{request});
 
-    // Hard CHECK since this is already validated earlier
-    // during request validation.
-    CHECK_NONE(quotaTree.validate());
+        // Hard CHECK since this is already validated earlier
+        // during request validation.
+        CHECK_NONE(quotaTree.validate());
 
-    return quotaTree.total();
-  }();
+        return quotaTree.total();
+      }());
 
-  // Determine whether the total quota, including the new request, does
-  // not exceed the sum of non-static cluster resources.
-  //
-  // NOTE: We do not necessarily calculate the full sum of non-static
-  // cluster resources. We apply the early termination logic as it can
-  // reduce the cost of the function significantly. This early exit does
-  // not influence the declared inequality check.
-  Resources nonStaticClusterResources;
+  // Determine whether quota overcommits the cluster.
+  ResourceQuantities capacity;
 
   foreach (const Resources& agent, agents) {
-    // NOTE: Dynamic reservation metadata is already stripped because the
-    // caller passes `SlaveInfo.resources`. In contrast to static
-    // reservations, dynamic reservations may be unreserved at any time,
-    // hence making resources available for quota'ed frameworks.
-    Resources nonStaticAgentResources = agent.unreserved();
-
-    nonStaticClusterResources += nonStaticAgentResources;
-
-    // If we have found enough resources to satisfy the inequality, then
-    // we can return early.
-    if (nonStaticClusterResources.contains(totalQuota)) {
-      return None();
-    }
+    capacity += ResourceQuantities::fromScalarResources(
+        agent.nonRevocable().scalars());
   }
 
-  // If we reached this point, there are not enough available resources
-  // in the cluster, hence the request does not pass the heuristic.
-  return Error(
-      "Not enough available cluster capacity to reasonably satisfy quota "
-      "request; the force flag can be used to override this check");
+  if (!capacity.contains(totalQuota)) {
+    return Error(
+        "Not enough available cluster capacity to reasonably satisfy quota "
+        "request; the force flag can be used to override this check");
+  }
+
+  return None();
 }
 
 
@@ -570,7 +556,6 @@ Future<http::Response> Master::QuotaHandler::_set(
                       quotaInfo.role() + "' is not supported yet");
   }
 
-  // The force flag is used to overwrite the `capacityHeuristic` check.
   const bool forced = quotaRequest.force();
 
   if (principal.isSome()) {
@@ -614,20 +599,19 @@ Future<http::Response> Master::QuotaHandler::__set(
     agents.reserve(master->slaves.registered.size());
 
     foreachvalue (const Slave* agent, master->slaves.registered) {
-      // TODO(bmahler): Pass `agent->totalResources` here instead
-      // to include resource provider resources.
-      agents.push_back(agent->info.resources());
+      agents.push_back(agent->totalResources);
     }
 
-    // Validate whether a quota request can be satisfied.
-    Option<Error> error = capacityHeuristic(
+    // Validate whether quota overcommits the cluster capacity.
+    Option<Error> error = overcommitCheck(
         agents,
         master->quotas,
         quotaInfo);
 
     if (error.isSome()) {
       return Conflict(
-          "Heuristic capacity check for set quota request failed: " +
+          "Quota guarantees overcommit the cluster"
+          " (use 'force' to bypass this check): " +
           error->message);
     }
   }
