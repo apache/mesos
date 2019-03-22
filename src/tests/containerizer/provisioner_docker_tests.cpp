@@ -639,15 +639,18 @@ TEST_P(ProvisionerDockerHdfsTest, ROOT_ImageTarPullerHdfsFetcherSimpleCommand)
 // when specifying the repository name (e.g., 'busybox'). The registry
 // puller normalize docker official images if necessary.
 INSTANTIATE_TEST_CASE_P(
-    ImageAlpine,
+    ContainerImage,
     ProvisionerDockerTest,
     ::testing::ValuesIn(vector<string>({
         "alpine", // Verifies the normalization of the Docker repository name.
         "library/alpine",
+        "gcr.io/google-containers/busybox:1.24", // manifest.v1+prettyjws
+        "gcr.io/google-containers/busybox:1.27", // manifest.v2+json
         // TODO(alexr): The registry below is unreliable and hence disabled.
         // Consider re-enabling shall it become more stable.
         // "registry.cn-hangzhou.aliyuncs.com/acs-sample/alpine",
-        "quay.io/coreos/alpine-sh"})));
+        "quay.io/coreos/alpine-sh" // manifest.v1+prettyjws
+      })));
 
 
 // TODO(jieyu): This is a ROOT test because of MESOS-4757. Remove the
