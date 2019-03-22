@@ -1,24 +1,3 @@
-diff --git a/README b/README
-index 77efd37..452fc48 100644
---- a/README
-+++ b/README
-@@ -2,4 +2,4 @@ This repository contains a C++ implementation of the Google logging
- module.  Documentation for the implementation is in doc/.
- 
- See INSTALL for (generic) installation instructions for C++: basically
--   ./configure && make && make install
-+   ./autogen.sh && ./configure && make && make install
-diff --git a/autogen.sh b/autogen.sh
-new file mode 100755
-index 0000000..08b6590
---- /dev/null
-+++ b/autogen.sh
-@@ -0,0 +1,5 @@
-+#!/bin/sh
-+
-+set -eu
-+
-+autoreconf -i
 diff --git a/configure.ac b/configure.ac
 index 69711b7..9b77c07 100644
 --- a/configure.ac

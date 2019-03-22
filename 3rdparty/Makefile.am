@@ -133,7 +133,6 @@ EXTRA_DIST +=			\
   $(PROTOBUF).patch		\
   bzip2-1.0.6.patch		\
   cyrus-sasl-2.1.27rc3.patch	\
-  glog-da816ea70.patch		\
   xz-5.2.3.patch
 
 CLEAN_EXTRACTED =		\
