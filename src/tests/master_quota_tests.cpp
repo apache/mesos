@@ -792,6 +792,60 @@ TEST_F(MasterQuotaTest, AvailableResourcesSingleAgent)
 }
 
 
+// Checks that the quota capacity heuristic includes
+// reservations. This means quota is potentially not
+// satisfiable! E.g. if all resources are reserved to
+// some role without any quota guarantee, the role with
+// quota guarantee won't be satisfied.
+TEST_F(MasterQuotaTest, AvailableResourcesSingleReservedAgent)
+{
+  TestAllocator<> allocator;
+  EXPECT_CALL(allocator, initialize(_, _, _));
+
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator);
+  ASSERT_SOME(master);
+
+  // Start an agent and wait until its resources are available.
+  Future<Resources> agentTotalResources;
+  EXPECT_CALL(allocator, addSlave(_, _, _, _, _, _))
+    .WillOnce(DoAll(InvokeAddSlave(&allocator),
+                    FutureArg<4>(&agentTotalResources)));
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.resources = "cpus(other-role):1;mem(other-role):512";
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(agentTotalResources);
+
+  // We request all resources on the agent, including reservations.
+  Resources quotaResources = Resources::parse("cpus:1;mem:512").get();
+
+  // Send a quota request for the specified role.
+  Future<Quota> receivedQuotaRequest;
+  EXPECT_CALL(allocator, setQuota(Eq(ROLE1), _))
+    .WillOnce(DoAll(InvokeSetQuota(&allocator),
+                    FutureArg<1>(&receivedQuotaRequest)));
+
+  Future<Response> response = process::http::post(
+      master.get()->pid,
+      "quota",
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+      createRequestBody(ROLE1, quotaResources));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  // Quota request is granted and reached the allocator. Make sure nothing
+  // got lost in-between.
+  AWAIT_READY(receivedQuotaRequest);
+
+  EXPECT_EQ(ROLE1, receivedQuotaRequest->info.role());
+  EXPECT_EQ(quotaResources, receivedQuotaRequest->info.guarantee());
+}
+
+
 // Checks that an operator can request quota when enough resources are
 // available on single disconnected agent.
 TEST_F(MasterQuotaTest, AvailableResourcesSingleDisconnectedAgent)
