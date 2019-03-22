@@ -412,6 +412,9 @@ std::ostream& operator<<(
 std::ostream& operator<<(std::ostream& stream, const TaskStatus& status);
 
 
+std::ostream& operator<<(std::ostream& stream, const OperationStatus& status);
+
+
 std::ostream& operator<<(std::ostream& stream, const AgentID& agentId);
 
 
