@@ -486,12 +486,14 @@ TEST_F(ProvisionerDockerTest, ROOT_LocalPullerSimpleCommand)
 // when specifying the repository name (e.g., 'busybox'). The registry
 // puller normalize docker official images if necessary.
 INSTANTIATE_TEST_CASE_P(
-    ImageAlpine,
+    ContainerImage,
     ProvisionerDockerTest,
     ::testing::ValuesIn(vector<string>({
         "alpine", // Verifies the normalization of the Docker repository name.
         "library/alpine",
-        "quay.io/coreos/alpine-sh",
+        "gcr.io/google-containers/busybox:1.24", // manifest.v1+prettyjws
+        "gcr.io/google-containers/busybox:1.27", // manifest.v2+json
+        "quay.io/coreos/alpine-sh", // manifest.v1+prettyjws
         "registry.cn-hangzhou.aliyuncs.com/acs-sample/alpine"})));
 
 
