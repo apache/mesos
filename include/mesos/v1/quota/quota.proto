@@ -25,7 +25,7 @@ option java_outer_classname = "Protos";
 
 
 /**
- * Describes the resource guarantees and limits for a role.
+ * Describes the resource guarantees for a role.
  * Persisted in the registry.
  */
 message QuotaInfo {
@@ -35,7 +35,6 @@ message QuotaInfo {
   optional string principal = 2;
 
   repeated Resource guarantee = 3;
-  repeated Resource limit = 4;
 }
 
 
@@ -43,12 +42,10 @@ message QuotaInfo {
  * Describes an update to a role's quota. This is a copy of
  * `QuotaInfo` which omits the principal since it is determined
  * during authentication. Also allows the user to force the update
- * in the case of a guarantee overcommit or a limit exceeding the
- * parent's limit (or overall cluster size if a top level role).
+ * in the case of a guarantee overcommit.
  */
 message QuotaRequest {
-  // See `guarantee` and `limit` for the behavior of `force`
-  // on these two fields.
+  // See `guarantee` for the behavior of `force`.
   optional bool force = 1;
 
   optional string role = 2;
@@ -76,38 +73,6 @@ message QuotaRequest {
   // NOTE: The resources must be scalars without additional
   // metadata like reservations, disk information, etc.
   repeated Resource guarantee = 3;
-
-  // EXPERIMENTAL DO NOT USE.
-  //
-  // This feature is not implementation complete.
-  //
-  // Imposes a limit on the amount of resources allocated to the
-  // role. Mesos will try its best to ensure that the role does
-  // not exceed this limit. Despite this, the limit can be exceeded
-  // when:
-  //   (1) The limit is lowered below the allocation.
-  //   (2) Some agents are partitioned and re-connect with
-  //       resources allocated to the role.
-  //
-  // The provided limit will be validated to ensure it does not
-  // exceed the total cluster size. The operator can disable
-  // this check via `QuotaRequest.force`.
-  //
-  // If the limit is omitted, there is no limit.
-  //
-  // Operators may want to set up alerting to let them know
-  // when the limit is exceeded.
-  //
-  // NOTE: The resources must be scalars without additional
-  // metadata like reservations, disk information, etc.
-  //
-  // NOTE: The limit was introduced alongside the v1 `UPDATE_QUOTA`
-  // `master::Call`. Note that the old v0 `POST /quota` endpoint and
-  // the v1 `SetQuota` `master::Call` continue to implicitly set
-  // limit to the guarantee for backwards compatibility. Users
-  // should switch to the v1 `UPDATE_QUOTA` `master::Call` which
-  // does not implicitly set the limit.
-  repeated Resource limit = 4;
 }
 
 /**

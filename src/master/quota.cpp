@@ -95,14 +95,12 @@ namespace {
 
 QuotaInfo createQuotaInfo(
     const string& role,
-    const RepeatedPtrField<Resource>& guarantee,
-    const RepeatedPtrField<Resource>& limit)
+    const RepeatedPtrField<Resource>& guarantee)
 {
   QuotaInfo quota;
 
   quota.set_role(role);
   quota.mutable_guarantee()->CopyFrom(guarantee);
-  quota.mutable_limit()->CopyFrom(limit);
 
   return quota;
 }
@@ -112,7 +110,7 @@ QuotaInfo createQuotaInfo(
 
 QuotaInfo createQuotaInfo(const QuotaRequest& request)
 {
-  return createQuotaInfo(request.role(), request.guarantee(), request.limit());
+  return createQuotaInfo(request.role(), request.guarantee());
 }
 
 
@@ -175,126 +173,10 @@ Option<Error> quotaInfo(const QuotaInfo& quotaInfo)
     names.insert(resource.name());
   }
 
-  // TODO(bmahler): We ensure the limit is not set here to enforce
-  // that the v0 API and v1 SET_QUOTA Call cannot set an explicit
-  // limit. Ideally this check would be done during call validation
-  // but, at the time of writing this comment, call validation does
-  // not validate the call type specific messages within `Call`.
-  // Once we start to allow limit to be set via UPDATE_QUOTA, this
-  // check will have to be moved into a SET_QUOTA validator and
-  // a v0 /quota validator.
-  if (quotaInfo.limit_size() > 0) {
-    return Error("Setting QuotaInfo.limit is not supported via"
-                 " /quota and the SET_QUOTA Call,"
-                 "please use the UPDATE_QUOTA Call");
-  }
-
   return None();
 }
 
 } // namespace validation {
-
-Option<Error> validate(const QuotaRequest& request)
-{
-  if (!request.has_role()) {
-    return Error("'QuotaRequest.role' must be set");
-  }
-
-  // Check the provided role is valid.
-  Option<Error> error = roles::validate(request.role());
-  if (error.isSome()) {
-    return Error("Invalid 'QuotaRequest.role': " + error->message);
-  }
-
-  // Disallow quota for '*' role.
-  //
-  // TODO(alexr): Consider allowing setting quota for '*' role,
-  // see MESOS-3938.
-  if (request.role() == "*") {
-    return Error("Invalid 'QuotaRequest.role': setting quota for the"
-                 " default '*' role is not supported");
-  }
-
-  // Define a helper for use against guarantee and limit.
-  auto validateQuotaResources = [](
-      const RepeatedPtrField<Resource>& resources) -> Option<Error> {
-    hashset<string> names;
-
-    // Check that each resource does not contain fields
-    // that are disallowed for quota resources.
-    foreach (const Resource& resource, resources) {
-      if (resource.has_reservation()) {
-        return Error("'Resource.reservation' must not be set");
-      }
-
-      if (resource.reservations_size() > 0) {
-        return Error("'Resource.reservations' must not be set");
-      }
-
-      if (resource.has_disk()) {
-        return Error("'Resource.disk' must not be set");
-      }
-
-      if (resource.has_revocable()) {
-        return Error("'Resource.revocable' must not be set");
-      }
-
-      if (resource.type() != Value::SCALAR) {
-        return Error("'Resource.type' must be 'SCALAR'");
-      }
-
-      if (resource.has_shared()) {
-        return Error("'Resource.shared' must not be set");
-      }
-
-      if (resource.has_provider_id()) {
-        return Error("'Resource.provider_id' must not be set");
-      }
-
-      // Check that resource names do not repeat.
-      if (names.contains(resource.name())) {
-        return Error("Duplicate '" + resource.name() + "'; only a single"
-                     " entry for each resource is supported");
-      }
-
-      names.insert(resource.name());
-    }
-
-    // Finally, ensure the resources are valid.
-    return Resources::validate(resources);
-  };
-
-  error = validateQuotaResources(request.guarantee());
-  if (error.isSome()) {
-    return Error("Invalid 'QuotaRequest.guarantee': " + error->message);
-  }
-
-  error = validateQuotaResources(request.limit());
-  if (error.isSome()) {
-    return Error("Invalid 'QuotaRequest.limit': " + error->message);
-  }
-
-  // Validate that guarantee <= limit.
-  Resources guarantee = request.guarantee();
-  Resources limit = request.limit();
-
-  // This needs to be checked on a per-resource basis for those
-  // resources that are specified in both the guarantee and limit.
-  foreach (const string& name, guarantee.names() & limit.names()) {
-    Value::Scalar guaranteeScalar =
-      CHECK_NOTNONE(guarantee.get<Value::Scalar>(name));
-    Value::Scalar limitScalar =
-      CHECK_NOTNONE(limit.get<Value::Scalar>(name));
-
-    if (!(guaranteeScalar <= limitScalar)) {
-      return Error("'QuotaRequest.guarantee' (" + stringify(guarantee) + ")"
-                     " is not contained within the 'QuotaRequest.limit'"
-                     " (" + stringify(limit) + ")");
-    }
-  }
-
-  return None();
-}
 
 Option<Error> validate(const QuotaConfig& config)
 {

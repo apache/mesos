@@ -31,7 +31,6 @@ message QuotaInfo {
   optional string role = 1;
   optional string principal = 2;
   repeated Resource guarantee = 3;
-  repeated Resource limit = 4;
 }
 
 
@@ -42,7 +41,6 @@ message QuotaRequest {
   optional bool force = 1 [default = false];
   optional string role = 2;
   repeated Resource guarantee = 3;
-  repeated Resource limit = 4;
 }
 
 
