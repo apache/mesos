@@ -1632,20 +1632,6 @@ void HierarchicalAllocatorProcess::__allocate()
   // TODO(vinod): Implement a smarter sorting algorithm.
   std::random_shuffle(slaveIds.begin(), slaveIds.end());
 
-  // Returns the __quantity__ of resources allocated to a role with
-  // non-default quota. Since we account for reservations and persistent
-  // volumes toward quota, we strip reservation and persistent volumes
-  // related information for comparability. The result is used to
-  // determine whether a role's quota guarantee is satisfied, and
-  // also to determine how many resources the role would need in
-  // order to meet its quota guarantee.
-  //
-  // NOTE: Revocable resources are excluded in `quotaRoleSorter`.
-  auto getQuotaRoleAllocatedScalarQuantities = [this](const string& role) {
-    CHECK(quotas.contains(role));
-    return quotaRoleSorter->allocationScalarQuantities(role);
-  };
-
   // Returns the result of shrinking the provided resources down to the
   // target scalar quantities. If a resource does not have a target
   // quantity provided, it will not be shrunk.
@@ -1722,9 +1708,11 @@ void HierarchicalAllocatorProcess::__allocate()
     rolesConsumedQuotaScalarQuantites[role] +=
       reservationScalarQuantities.get(role).getOrElse(Resources());
 
-    // Then add allocated resoruces.
+    // Then add allocated resource _quantities_ .
+    // NOTE: Revocable resources are excluded in `quotaRoleSorter`.
+    CHECK(quotas.contains(role));
     rolesConsumedQuotaScalarQuantites[role] +=
-      getQuotaRoleAllocatedScalarQuantities(role);
+      quotaRoleSorter->allocationScalarQuantities(role);
 
     // Lastly subtract allocated reservations on each agent.
     foreachvalue (
