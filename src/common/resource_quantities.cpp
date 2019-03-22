@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <ostream>
 #include <string>
 #include <vector>
 
@@ -26,6 +27,7 @@
 
 #include "common/resource_quantities.hpp"
 
+using std::ostream;
 using std::pair;
 using std::string;
 using std::vector;
@@ -276,6 +278,28 @@ void ResourceQuantities::add(const string& name, const Value::Scalar& scalar)
   }
 
   it = quantities.insert(it, std::make_pair(name, scalar));
+}
+
+
+ostream& operator<<(
+    ostream& stream,
+    const ResourceQuantities& quantities)
+{
+  if (quantities.begin() == quantities.end()) {
+    stream << "{}";
+    return stream;
+  }
+
+  auto it = quantities.begin();
+
+  while (it != quantities.end()) {
+    stream << it->first << ':' << it->second;
+    if (++it != quantities.end()) {
+      stream << "; ";
+    }
+  }
+
+  return stream;
 }
 
 

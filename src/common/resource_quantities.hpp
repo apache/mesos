@@ -124,6 +124,9 @@ private:
 };
 
 
+std::ostream& operator<<(std::ostream& stream, const ResourceQuantities& q);
+
+
 // An efficient collection of resource limits. All values are guaranteed
 // to be non-negative and finite.
 //

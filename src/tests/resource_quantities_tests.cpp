@@ -21,6 +21,7 @@
 
 #include <stout/check.hpp>
 #include <stout/gtest.hpp>
+#include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
 #include <mesos/values.hpp>
@@ -286,6 +287,18 @@ TEST(QuantitiesTest, Contains)
   subset = CHECK_NOTERROR(ResourceQuantities::fromString("cpus:2;mem:1"));
   EXPECT_TRUE(superset.contains(subset));
   EXPECT_FALSE(subset.contains(superset));
+}
+
+
+TEST(QuantitiesTest, Stringify)
+{
+  ResourceQuantities empty{};
+  EXPECT_EQ("{}", stringify(empty));
+
+  ResourceQuantities some =
+    CHECK_NOTERROR(ResourceQuantities::fromString("cpus:1;mem:1024"));
+
+  EXPECT_EQ("cpus:1; mem:1024", stringify(some));
 }
 
 
