@@ -253,6 +253,24 @@ ResourceQuantities& ResourceQuantities::operator-=(
 }
 
 
+ResourceQuantities ResourceQuantities::operator+(
+    const ResourceQuantities& right) const
+{
+  ResourceQuantities result = *this;
+  result += right;
+  return result;
+}
+
+
+ResourceQuantities ResourceQuantities::operator-(
+    const ResourceQuantities& right) const
+{
+  ResourceQuantities result = *this;
+  result -= right;
+  return result;
+}
+
+
 void ResourceQuantities::add(const string& name, const Value::Scalar& scalar)
 {
   CHECK_GE(scalar, Value::Scalar());

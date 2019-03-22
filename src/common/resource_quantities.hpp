@@ -115,6 +115,9 @@ public:
   ResourceQuantities& operator+=(const ResourceQuantities& quantities);
   ResourceQuantities& operator-=(const ResourceQuantities& quantities);
 
+  ResourceQuantities operator+(const ResourceQuantities& quantities) const;
+  ResourceQuantities operator-(const ResourceQuantities& quantities) const;
+
 private:
   void add(const std::string& name, const Value::Scalar& scalar);
 
