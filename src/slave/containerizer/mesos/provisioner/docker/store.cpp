@@ -301,6 +301,13 @@ Future<Image> StoreProcess::_get(
       }
     }
 
+    if (image->has_config_digest() &&
+        !os::exists(paths::getImageLayerPath(
+            flags.docker_store_dir,
+            image->config_digest()))) {
+      layerMissed = true;
+    }
+
     if (!layerMissed) {
       return image.get();
     }
@@ -368,16 +375,25 @@ Future<ImageInfo> StoreProcess::__get(
         backend));
   }
 
-  const string path = paths::getImageLayerManifestPath(
-      flags.docker_store_dir,
-      image.layer_ids(image.layer_ids_size() - 1));
+  string configPath;
+  if (image.has_config_digest()) {
+    // Optional 'config_digest' will only be set for docker manifest
+    // V2 Schema2 case.
+    configPath = paths::getImageLayerPath(
+        flags.docker_store_dir,
+        image.config_digest());
+  } else {
+    // Read the manifest from the last layer because all runtime config
+    // are merged at the leaf already.
+    configPath = paths::getImageLayerManifestPath(
+        flags.docker_store_dir,
+        image.layer_ids(image.layer_ids_size() - 1));
+  }
 
-  // Read the manifest from the last layer because all runtime config
-  // are merged at the leaf already.
-  Try<string> manifest = os::read(path);
+  Try<string> manifest = os::read(configPath);
   if (manifest.isError()) {
     return Failure(
-        "Failed to read manifest from '" + path + "': " +
+        "Failed to read manifest from '" + configPath + "': " +
         manifest.error());
   }
 
@@ -386,7 +402,7 @@ Future<ImageInfo> StoreProcess::__get(
 
   if (v1.isError()) {
     return Failure(
-        "Failed to parse docker v1 manifest from '" + path + "': " +
+        "Failed to parse docker v1 manifest from '" + configPath + "': " +
         v1.error());
   }
 
@@ -405,7 +421,25 @@ Future<Image> StoreProcess::moveLayers(
   }
 
   return collect(futures)
-    .then([image]() -> Image { return image; });
+    .then([=]() -> Future<Image> {
+      if (image.has_config_digest()) {
+        const string configSource = path::join(staging, image.config_digest());
+        const string configTarget = paths::getImageLayerPath(
+            flags.docker_store_dir,
+            image.config_digest());
+
+        if (!os::exists(configTarget)) {
+          Try<Nothing> rename = os::rename(configSource, configTarget);
+          if (rename.isError()) {
+            return Failure(
+                "Failed to move image manifest config from '" + configSource +
+                "' to '" + configTarget + "': " + rename.error());
+          }
+        }
+      }
+
+      return image;
+    });
 }
 
 
