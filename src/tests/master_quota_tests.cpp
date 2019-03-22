@@ -651,6 +651,11 @@ TEST_F(MasterQuotaTest, InsufficientResourcesSingleAgent)
         createRequestBody(ROLE1, quotaResources));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(Conflict().status, response);
+    EXPECT_EQ("Quota guarantees overcommit the cluster"
+              " (use 'force' to bypass this check): "
+              "Total quota guarantees 'cpus:3; mem:2048'"
+              " exceed cluster capacity 'cpus:2; disk:1024; mem:1024'",
+              response->body);
   }
 
   // Force flag should override the `capacityHeuristic` check and make the
@@ -726,6 +731,11 @@ TEST_F(MasterQuotaTest, InsufficientResourcesMultipleAgents)
         createRequestBody(ROLE1, quotaResources));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(Conflict().status, response);
+    EXPECT_EQ("Quota guarantees overcommit the cluster"
+              " (use 'force' to bypass this check):"
+              " Total quota guarantees 'cpus:5; mem:3072' exceed"
+              " cluster capacity 'cpus:4; disk:2048; mem:2048'",
+              response->body);
   }
 
   // Force flag should override the `capacityHeuristic` check and make the

@@ -220,9 +220,12 @@ Option<Error> Master::QuotaHandler::overcommitCheck(
   }
 
   if (!capacity.contains(totalQuota)) {
+    // TODO(bmahler): Specialize this message based on whether
+    // this request leads to the overcommit vs the quota was
+    // already overcommitted.
     return Error(
-        "Not enough available cluster capacity to reasonably satisfy quota "
-        "request; the force flag can be used to override this check");
+        "Total quota guarantees '" + stringify(totalQuota) + "'"
+        " exceed cluster capacity '" + stringify(capacity) + "'");
   }
 
   return None();
