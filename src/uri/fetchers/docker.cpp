@@ -458,19 +458,11 @@ private:
       const http::Headers& authHeaders,
       const http::Response& response);
 
-  Future<Nothing> ___fetch(
+  Future<Nothing> fetchBlobs(
       const URI& uri,
       const string& directory,
-      const http::Headers& authHeaders,
-      const spec::v2::ImageManifest& manifest);
-
-  Try<spec::v2::ImageManifest> saveV2S1Manifest(
-      const string& directory,
-      const http::Response& response);
-
-  Try<spec::v2_2::ImageManifest> saveV2S2Manifest(
-      const string& directory,
-      const http::Response& response);
+      const hashset<string>& digests,
+      const http::Headers& authHeaders);
 
   Future<Nothing> fetchBlob(
       const URI& uri,
@@ -681,13 +673,14 @@ Future<Nothing> DockerFetcherPluginProcess::fetch(
 
   URI manifestUri = getManifestUri(uri);
 
-  // Request a Version 2 Schema 1 manifest. The MIME type of a Schema 1
-  // manifest is described in the following link:
-  // https://docs.docker.com/registry/spec/manifest-v2-1/
-  // Note: The 'Accept' header is required for Amazon ECR. See:
-  // https://forums.aws.amazon.com/message.jspa?messageID=780440
+  // Both docker manifest v2s1 and v2s2 are supported. We put all
+  // accept headers to the curl request for manifest because:
+  // 1. v2+json is needed since some registries start to deprecate
+  //    schema 1 support.
+  // 2. Some registries only support one schema type.
   http::Headers manifestHeaders = {
     {"Accept",
+     "application/vnd.docker.distribution.manifest.v2+json,"
      "application/vnd.docker.distribution.manifest.v1+json,"
      "application/vnd.docker.distribution.manifest.v1+prettyjws"
     }
@@ -738,71 +731,129 @@ Future<Nothing> DockerFetcherPluginProcess::__fetch(
     const http::Headers& authHeaders,
     const http::Response& response)
 {
-  Try<spec::v2::ImageManifest> manifest =
-      saveV2S1Manifest(directory, response);
-
-  if (manifest.isError()) {
-    return Failure(manifest.error());
+  if (response.code != http::Status::OK) {
+    return Failure(
+        "Unexpected HTTP response '" + response.status + "' "
+        "when trying to get the manifest");
   }
 
-#ifdef __WINDOWS__
-  URI manifestUri = getManifestUri(uri);
+  CHECK_EQ(response.type, http::Response::BODY);
 
-  // Fetching version 2 schema 2 manifest:
+  Option<string> contentType = response.headers.get("Content-Type");
+  if (contentType.isNone()) {
+    return Failure("No Content-Type present");
+  }
+
+  // NOTE: Docker supports the following five media types.
+  //
+  // V2 schema 1 manifest:
+  // 1. application/vnd.docker.distribution.manifest.v1+json
+  // 2. application/vnd.docker.distribution.manifest.v1+prettyjws
+  // 3. application/json
+  //
+  // For more details, see:
+  // https://docs.docker.com/registry/spec/manifest-v2-1/
+  //
+  // V2 schema 2 manifest:
+  // 1. application/vnd.docker.distribution.manifest.v2+json
+  // 2. application/vnd.docker.distribution.manifest.list.v2+json
+  //    (manifest list is not supported yet)
+  //
+  // For more details, see:
   // https://docs.docker.com/registry/spec/manifest-v2-2/
-  //
-  // If fetch is failed, program continues without schema 2 manifest.
-  //
-  // Schema 2 manifest may have foreign URLs to fetch blobs from servers
-  // other than Docker Hub. Some file layers, for example, Windows OS
-  // layers are only stored on Microsoft servers, so only with schema 2
-  // manifest, such layers can be successfully fetched.
-  http::Headers s2ManifestHeaders = {
-    {"Accept", "application/vnd.docker.distribution.manifest.v2+json"}
-  };
+  bool isV2Schema1 =
+    strings::startsWith(
+        contentType.get(),
+        "application/vnd.docker.distribution.manifest.v1") ||
+    strings::startsWith(
+        contentType.get(),
+        "application/json");
 
-  return curl(manifestUri, s2ManifestHeaders + authHeaders, stallTimeout)
-      .then(defer(self(), [=](const http::Response& response)
-          -> Future<Nothing> {
-        Try<spec::v2_2::ImageManifest> manifest =
-            saveV2S2Manifest(directory, response);
+  // TODO(gilbert): Support manifest list (fat manifest) in V2 Schema2.
+  bool isV2Schema2 =
+    contentType.get() == "application/vnd.docker.distribution.manifest.v2+json";
 
-        if (manifest.isError()) {
-          LOG(WARNING) << "Failed to fetch schema 2 manifest: "
-                       << manifest.error();
-        }
+  if (isV2Schema1) {
+    // Parse V2 schema 1 image manifest.
+    Try<spec::v2::ImageManifest> manifest = spec::v2::parse(response.body);
+    if (manifest.isError()) {
+      return Failure(
+          "Failed to parse the V2 Schema 1 image manifest: " +
+          manifest.error());
+    }
 
-        return Nothing();
-      }))
-      .then(defer(self(),
-                  &Self::___fetch,
-                  uri,
-                  directory,
-                  authHeaders,
-                  manifest.get()));
-#else
-  return ___fetch(uri, directory, authHeaders, manifest.get());
-#endif
+    // Save manifest to 'directory'.
+    Try<Nothing> write = os::write(
+        path::join(directory, "manifest"), response.body);
+
+    if (write.isError()) {
+      return Failure(
+          "Failed to write the V2 Schema 1 image manifest to "
+          "'" + directory + "': " + write.error());
+    }
+
+    // No need to proceed if we only want manifest.
+    if (uri.scheme() == "docker-manifest") {
+      return Nothing();
+    }
+
+    hashset<string> digests;
+    for (int i = 0; i < manifest->fslayers_size(); i++) {
+      digests.insert(manifest->fslayers(i).blobsum());
+    }
+
+    return fetchBlobs(uri, directory, digests, authHeaders);
+  } else if (isV2Schema2) {
+    // Parse V2 schema 2 manifest.
+    Try<spec::v2_2::ImageManifest> manifest =
+      spec::v2_2::parse(response.body);
+
+    if (manifest.isError()) {
+      return Failure(
+          "Failed to parse the V2 Schema 2 image manifest: " +
+          manifest.error());
+    }
+
+    // Save manifest to 'directory'.
+    Try<Nothing> write = os::write(
+        path::join(directory, "manifest"), response.body);
+
+    if (write.isError()) {
+      return Failure(
+          "Failed to write the V2 Schema 2 image manifest to "
+          "'" + directory + "': " + write.error());
+    }
+
+    // No need to proceed if we only want manifest.
+    if (uri.scheme() == "docker-manifest") {
+      return Nothing();
+    }
+
+    hashset<string> digests{manifest->config().digest()};
+    for (int i = 0; i < manifest->layers_size(); i++) {
+      digests.insert(manifest->layers(i).digest());
+    }
+
+    // TODO(gilbert): Verify the digest after contents are fetched.
+    return fetchBlobs(uri, directory, digests, authHeaders);
+  }
+
+  return Failure("Unsupported manifest MIME type: " + contentType.get());
 }
 
 
-Future<Nothing> DockerFetcherPluginProcess::___fetch(
+Future<Nothing> DockerFetcherPluginProcess::fetchBlobs(
     const URI& uri,
     const string& directory,
-    const http::Headers& authHeaders,
-    const spec::v2::ImageManifest& manifest)
+    const hashset<string>& digests,
+    const http::Headers& authHeaders)
 {
-  // No need to proceed if we only want manifest.
-  if (uri.scheme() == "docker-manifest") {
-    return Nothing();
-  }
-
-  // Download all the filesystem layers.
   vector<Future<Nothing>> futures;
-  for (int i = 0; i < manifest.fslayers_size(); i++) {
+
+  foreach (const string& digest, digests) {
     URI blob = uri::docker::blob(
         uri.path(),                         // The 'repository'.
-        manifest.fslayers(i).blobsum(),    // The 'digest'.
+        digest,                             // The 'digest'.
         uri.host(),                         // The 'registry'.
         (uri.has_fragment()                 // The 'scheme'.
           ? Option<string>(uri.fragment())
@@ -811,124 +862,11 @@ Future<Nothing> DockerFetcherPluginProcess::___fetch(
           ? Option<int>(uri.port())
           : None()));
 
-    // Use the same 'authHeaders' as for the manifest to pull the blobs.
-    futures.push_back(fetchBlob(
-        blob,
-        directory,
-        authHeaders));
+    futures.push_back(fetchBlob(blob, directory, authHeaders));
   }
 
   return collect(futures)
     .then([]() -> Future<Nothing> { return Nothing(); });
-}
-
-
-Try<spec::v2::ImageManifest> DockerFetcherPluginProcess::saveV2S1Manifest(
-    const string& directory,
-    const http::Response& response)
-{
-  if (response.code != http::Status::OK) {
-    return Error(
-        "Unexpected HTTP response '" + response.status + "' "
-        "when trying to get the schema 1 manifest");
-  }
-
-  CHECK_EQ(response.type, http::Response::BODY);
-
-  // Check if we got a V2 Schema 1 manifest.
-  // TODO(ipronin): We have to support Schema 2 manifests to be able to use
-  // digests for pulling images that were pushed with Docker 1.10+ to
-  // Registry 2.3+.
-  Option<string> contentType = response.headers.get("Content-Type");
-  if (contentType.isSome()) {
-    // NOTE: Docker support the following three media type for V2
-    // schema 1 manifest:
-    // 1. application/vnd.docker.distribution.manifest.v1+json
-    // 2. application/vnd.docker.distribution.manifest.v1+prettyjws
-    // 3. application/json
-    // For more details, see:
-    // https://docs.docker.com/registry/spec/manifest-v2-1/
-    bool isV2Schema1 =
-      strings::startsWith(
-          contentType.get(),
-          "application/vnd.docker.distribution.manifest.v1") ||
-      strings::startsWith(
-          contentType.get(),
-          "application/json");
-
-    if (!isV2Schema1) {
-      return Error(
-          "Unsupported schema 1 manifest MIME type: " +
-          contentType.get());
-    }
-  }
-
-  Try<spec::v2::ImageManifest> manifest = spec::v2::parse(response.body);
-  if (manifest.isError()) {
-    return Error(
-        "Failed to parse the schema 1 image manifest: " +
-        manifest.error());
-  }
-
-  // Save manifest to 'directory'.
-  Try<Nothing> write = os::write(
-      path::join(directory, "manifest"), response.body);
-
-  if (write.isError()) {
-    return Error(
-        "Failed to write the schema 1 image manifest to '" +
-        directory + "': " + write.error());
-  }
-
-  return manifest;
-}
-
-
-Try<spec::v2_2::ImageManifest> DockerFetcherPluginProcess::saveV2S2Manifest(
-    const string& directory,
-    const http::Response& response)
-{
-  if (response.code != http::Status::OK) {
-    return Error(
-        "Unexpected HTTP response '" + response.status +
-        "' when trying to get the schema 2 manifest");
-  }
-
-  Option<string> contentType = response.headers.get("Content-Type");
-  if (contentType.isSome()) {
-    bool isV2Schema2 =
-      strings::startsWith(
-          contentType.get(),
-          "application/vnd.docker.distribution.manifest.v2") ||
-      strings::startsWith(
-          contentType.get(),
-          "application/json");
-
-    if (!isV2Schema2) {
-      return Error(
-          "Unsupported schema 2 manifest MIME type: " +
-          contentType.get());
-    }
-  }
-
-  Try<spec::v2_2::ImageManifest> manifest = spec::v2_2::parse(response.body);
-  if (manifest.isError()) {
-    return Error(
-        "Failed to parse the schema 2 manifest: " +
-        manifest.error());
-  }
-
-  // Save manifest to 'directory'.
-  Try<Nothing> write = os::write(
-      path::join(directory, "manifest_v2s2"), response.body);
-
-  if (write.isError()) {
-    return Error(
-        "Failed to write the schema 2 image manifest to '" +
-        directory + "': " + write.error());
-  }
-
-  return manifest;
 }
 
 
@@ -1025,7 +963,7 @@ Future<Nothing> DockerFetcherPluginProcess::urlFetchBlob(
       const URI& blobUri,
       const http::Headers& authHeaders)
 {
-  Try<string> _manifest = os::read(path::join(directory, "manifest_v2s2"));
+  Try<string> _manifest = os::read(path::join(directory, "manifest"));
   if (_manifest.isError()) {
     return Failure("Schema 2 manifest does not exist");
   }
