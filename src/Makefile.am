@@ -2274,6 +2274,11 @@ test_http_executor_SOURCES = examples/test_http_executor.cpp
 test_http_executor_CPPFLAGS = $(MESOS_CPPFLAGS)
 test_http_executor_LDADD = libmesos.la $(LDADD)
 
+check_PROGRAMS += operation-feedback-framework
+operation_feedback_framework_SOURCES = examples/operation_feedback_framework.cpp
+operation_feedback_framework_CPPFLAGS = $(MESOS_CPPFLAGS)
+operation_feedback_framework_LDADD = libmesos.la $(LDADD)
+
 check_PROGRAMS += long-lived-framework
 long_lived_framework_SOURCES = examples/long_lived_framework.cpp
 long_lived_framework_CPPFLAGS = $(MESOS_CPPFLAGS)
@@ -2796,6 +2801,7 @@ dist_check_SCRIPTS +=						\
   tests/java_v0_framework_test.sh				\
   tests/java_v1_framework_test.sh				\
   tests/no_executor_framework_test.sh				\
+  tests/operation_feedback_framework_test.sh			\
   tests/persistent_volume_framework_test.sh			\
   tests/python_framework_test.sh				\
   tests/test_http_framework_test.sh				\

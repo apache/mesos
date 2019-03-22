@@ -34,6 +34,9 @@ TEST_SCRIPT(ExamplesTest, DynamicReservationFramework,
 TEST_SCRIPT(ExamplesTest, DiskFullFramework,
             "disk_full_framework_test.sh")
 
+TEST_SCRIPT(ExamplesTest, OperationFeedbackFramework,
+            "operation_feedback_framework_test.sh")
+
 #ifdef MESOS_HAS_JAVA
 TEST_SCRIPT(ExamplesTest, JavaFramework, "java_framework_test.sh")
 TEST_SCRIPT(ExamplesTest, JavaException, "java_exception_test.sh")

@@ -357,6 +357,7 @@ if (NOT WIN32)
     load-generator-framework
     long-lived-executor
     long-lived-framework
+    operation-feedback-framework
     no-executor-framework
     persistent-volume-framework
     test-executor
