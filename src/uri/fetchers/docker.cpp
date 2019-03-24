@@ -947,6 +947,8 @@ Future<Nothing> DockerFetcherPluginProcess::urlFetchBlob(
     return Failure("Schema 2 manifest does not exist");
   }
 
+  // TODO(gilbert): Support v2s2 additional urls for non-windows platforms.
+  // We should avoid parsing the manifest for each layer.
   Try<spec::v2_2::ImageManifest> manifest = spec::v2_2::parse(_manifest.get());
   if (manifest.isError()) {
     return Failure(
