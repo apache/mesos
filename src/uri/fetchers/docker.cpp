@@ -689,7 +689,10 @@ Future<Nothing> DockerFetcherPluginProcess::fetch(
   // Note: The 'Accept' header is required for Amazon ECR. See:
   // https://forums.aws.amazon.com/message.jspa?messageID=780440
   http::Headers manifestHeaders = {
-    {"Accept", "application/vnd.docker.distribution.manifest.v1+json"}
+    {"Accept",
+     "application/vnd.docker.distribution.manifest.v1+json,"
+     "application/vnd.docker.distribution.manifest.v1+prettyjws"
+    }
   };
 
   return curl(manifestUri, manifestHeaders + basicAuthHeaders, stallTimeout)
