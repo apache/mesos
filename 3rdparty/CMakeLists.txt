@@ -342,8 +342,6 @@ add_dependencies(glog ${GLOG_TARGET})
 PATCH_CMD(GLOG_PATCH_CMD glog-${GLOG_VERSION}.patch)
 
 if (WIN32)
-  set(GLOG_INSTALL_CMD ${CMAKE_NOOP})
-
   # NOTE: Windows-specific workaround for a glog issue documented here[1].
   # Basically, Windows.h and glog/logging.h both define ERROR. Since we don't
   # need the Windows ERROR, we can use this flag to avoid defining it at all.
@@ -372,19 +370,26 @@ if (WIN32)
       IMPORTED_LOCATION_RELEASE ${GLOG_ROOT}-build/Release/glog${LIBRARY_SUFFIX}
       IMPORTED_IMPLIB_DEBUG ${GLOG_ROOT}-build/Debug/glog${CMAKE_IMPORT_LIBRARY_SUFFIX}
       IMPORTED_IMPLIB_RELEASE ${GLOG_ROOT}-build/Release/glog${CMAKE_IMPORT_LIBRARY_SUFFIX})
-  else ()
-    set_target_properties(
-      glog PROPERTIES
-      IMPORTED_LOCATION ${GLOG_ROOT}-build/glog${LIBRARY_SUFFIX}
-      IMPORTED_IMPLIB ${GLOG_ROOT}-build/glog${CMAKE_IMPORT_LIBRARY_SUFFIX})
   endif ()
-else ()
-  set_target_properties(
-    glog PROPERTIES
-    INTERFACE_INCLUDE_DIRECTORIES "${GLOG_ROOT}-build;${GLOG_ROOT}/src"
-    IMPORTED_LOCATION ${GLOG_ROOT}-build/libglog${LIBRARY_SUFFIX}
-    IMPORTED_IMPLIB ${GLOG_ROOT}-build/libglog${CMAKE_IMPORT_LIBRARY_SUFFIX})
 endif ()
+
+set(GLOG_INSTALL_PREFIX ${GLOG_ROOT}-install)
+
+set(
+  GLOG_CMAKE_ARGS
+  ${CMAKE_CXX_FORWARD_ARGS}
+  -DBUILD_TESTING=OFF
+  -DCMAKE_INSTALL_BINDIR=${GLOG_INSTALL_PREFIX}/bin
+  -DCMAKE_INSTALL_INCLUDEDIR=${GLOG_INSTALL_PREFIX}/include
+  -DCMAKE_INSTALL_LIBDIR=${GLOG_INSTALL_PREFIX}/lib
+)
+
+set_target_properties(
+  glog PROPERTIES
+  INTERFACE_INCLUDE_DIRECTORIES ${GLOG_INSTALL_PREFIX}/include
+  IMPORTED_LOCATION ${GLOG_INSTALL_PREFIX}/lib/libglog${LIBRARY_SUFFIX}
+  IMPORTED_IMPLIB ${GLOG_INSTALL_PREFIX}/lib/libglog${CMAKE_IMPORT_LIBRARY_SUFFIX}
+)
 
 MAKE_INCLUDE_DIR(glog)
 GET_BYPRODUCTS(glog)
@@ -394,8 +399,7 @@ ExternalProject_Add(
   PREFIX            ${GLOG_CMAKE_ROOT}
   BUILD_BYPRODUCTS  ${GLOG_BYPRODUCTS}
   PATCH_COMMAND     ${GLOG_PATCH_CMD}
-  CMAKE_ARGS        ${CMAKE_CXX_FORWARD_ARGS};-DBUILD_TESTING=OFF
-  INSTALL_COMMAND   ${CMAKE_NOOP}
+  CMAKE_ARGS        ${GLOG_CMAKE_ARGS}
   URL               ${GLOG_URL}
   URL_HASH          ${GLOG_HASH})
 

@@ -254,8 +254,6 @@ $(LIB_GLOG): $(GLOG)-build-stamp
 # Also, autogen.sh might be CREATED by the patch and might need its mode fixed.
 $(GLOG)-build-stamp: $(GLOG)-stamp
 	cd $(GLOG) &&\
-	  rm -f test-driver &&\
-	  chmod a+x ./autogen.sh &&\
 	  ./autogen.sh && \
 	  ./configure GTEST_CONFIG=no $(CONFIGURE_ARGS) && \
           $(MAKE) $(AM_MAKEFLAGS) $(GLOG_LDFLAGS) libglog.la
