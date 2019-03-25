@@ -19,7 +19,12 @@ If you'd like to make significant contributions to Mesos, then you'll want to be
 ## Issue Tracking, Code Review, and Mailing Lists
 
 * We use [Apache Software Foundation JIRA](https://issues.apache.org/jira/browse/mesos/) to track and manage issues. If you don't already have an account, you'll need to create one.
-* We use [Apache Review Board](https://reviews.apache.org) for code reviews. If you don't already have an account, you'll need to create one (it's separate from your Apache JIRA account).
+
+* We use [Apache Review Board](https://reviews.apache.org) for code reviews.
+
+  **NOTE**: Apache Review Board currently does not allow creation of new accounts. We are aware of this and are looking into possible solutions;
+  in the meantime please coordinate with your shepherd on how to best transmit your patches.
+
     * A code review request should be created for every JIRA that involves a change to the codebase.
 * Once your JIRA and Review Board accounts are in place please go ahead and create a review or GitHub pull request with an entry for yourself in [contributors.yaml](https://github.com/apache/mesos/blob/master/docs/contributors.yaml) file.
     * The file is used to map contributions to the JIRA and Review Board accounts of their respective authors. We also use this mapping to track contributions of various organizations to Apache Mesos.
