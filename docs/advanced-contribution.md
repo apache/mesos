@@ -43,7 +43,7 @@ Here is the standard procedure for proposing and making changes to Mesos:
     3. Issues marked with the "[newbie](https://issues.apache.org/jira/browse/MESOS-1?jql=project%20%3D%20MESOS%20AND%20status%20%3D%20Accepted%20AND%20labels%20%3D%20newbie)" label can be good candidates for "starter" projects. You can also look for the labels "newbie++", "beginner", and "beginners".
     4. When identifying a JIRA issue to work on, it is recommended to work on items that are relevant to the next release. Selecting work items important for the next release increases the priority for reviewers during the contribution process. See the tracking ticket for the release to figure out the high priority projects or ask the release manager to guide you.
 2. Assign the JIRA to yourself.
-    1. You will be able to assign the JIRA to yourself as soon as your pull request with additions to the contributors.yaml file is merged.
+    1. You will be able to assign the JIRA to yourself as soon as a JIRA admin updates your account to 'contributor' status. This will usually be done soon after your pull request with additions to the contributors.yaml file is merged.
 3. Formulate a plan for resolving the issue. Guidelines to consider when designing a solution can be found in the [effective-code-reviewing](effective-code-reviewing.md) document. It is important to discuss your proposed solution within the JIRA ticket early in the resolution process in order to get feedback from reviewers. Early discussions will help:
     1. ensure the solution will be scoped in a consumable fashion;
     2. eliminate duplicate work with other contributions; and
