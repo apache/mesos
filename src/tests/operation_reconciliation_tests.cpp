@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
 #include <utility>
 
 #include <gmock/gmock.h>
@@ -1527,6 +1528,368 @@ TEST_P(OperationReconciliationTest, ReconcileAgentOperationOnGoneAgent)
     // received by the scheduler.
     Clock::settle();
   }
+}
+
+
+// This test ensures that the master responds with `OPERATION_RECOVERING` for an
+// operation on resources offered by a resource provider which is not currently
+// subscribed with a registered agent.
+TEST_P(OperationReconciliationTest, OperationOnUnsubscribedProvider)
+{
+  Clock::pause();
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  mesos::internal::slave::Flags slaveFlags = CreateSlaveFlags();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Advance the clock to trigger agent registration.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  // Wait for the agent to register.
+  AWAIT_READY(updateSlaveMessage);
+
+  // Start and register a resource provider.
+  ResourceProviderInfo resourceProviderInfo;
+  resourceProviderInfo.set_type("org.apache.mesos.rp.test");
+  resourceProviderInfo.set_name("test");
+
+  Resource disk =
+    createDiskResource("200", "*", None(), None(), createDiskSourceRaw());
+
+  Owned<MockResourceProvider> resourceProvider(
+      new MockResourceProvider(
+          resourceProviderInfo,
+          Resources(disk)));
+
+  Owned<EndpointDetector> endpointDetector(
+      mesos::internal::tests::resource_provider::createEndpointDetector(
+          slave.get()->pid));
+
+  updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  // NOTE: We need to resume the clock so that the resource provider can
+  // fully register.
+  Clock::resume();
+
+  ContentType contentType = GetParam();
+
+  resourceProvider->start(std::move(endpointDetector), contentType);
+
+  // Wait until the agent's resources have been updated to include the
+  // resource provider resources.
+  AWAIT_READY(updateSlaveMessage);
+  ASSERT_TRUE(updateSlaveMessage->has_resource_providers());
+  ASSERT_EQ(1, updateSlaveMessage->resource_providers().providers_size());
+
+  Clock::pause();
+
+  auto scheduler = std::make_shared<MockHTTPScheduler>();
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
+
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(scheduler::SendSubscribe(frameworkInfo));
+
+  Future<scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(scheduler::DeclineOffers()); // Decline subsequent offers.
+
+  // Ignore heartbeats.
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return());
+
+  scheduler::TestMesos mesos(master.get()->pid, GetParam(), scheduler);
+
+  AWAIT_READY(subscribed);
+  FrameworkID frameworkId(subscribed->framework_id());
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+
+  const Offer& offer = offers->offers(0);
+  const AgentID& agentId = offer.agent_id();
+
+  // We'll drop the `ApplyOperationMessage` from the master to the agent.
+  Future<ApplyOperationMessage> applyOperationMessage =
+    DROP_PROTOBUF(ApplyOperationMessage(), master.get()->pid, _);
+
+  Resources resources =
+    Resources(offer.resources()).filter([](const Resource& resource) {
+      return resource.has_provider_id();
+    });
+
+  ASSERT_FALSE(resources.empty());
+
+  Resource reservedResources = *(resources.begin());
+  reservedResources.add_reservations()->CopyFrom(
+      createDynamicReservationInfo(
+          frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal()));
+
+  ResourceProviderID resourceProviderId(reservedResources.provider_id());
+
+  OperationID operationId;
+  operationId.set_value("operation");
+
+  mesos.send(createCallAccept(
+      frameworkId,
+      offer,
+      {RESERVE(reservedResources, operationId)}));
+
+  AWAIT_READY(applyOperationMessage);
+
+  // Terminate the resource provider.
+  resourceProvider.reset();
+
+  // Make sure the resource provider manager processes the disconnection.
+  Clock::settle();
+
+  scheduler::Call::ReconcileOperations::Operation operation;
+  operation.mutable_operation_id()->CopyFrom(operationId);
+  operation.mutable_agent_id()->CopyFrom(agentId);
+  operation.mutable_resource_provider_id()->CopyFrom(resourceProviderId);
+
+  Future<v1::scheduler::Event::UpdateOperationStatus> reconciliationUpdate;
+  EXPECT_CALL(*scheduler, updateOperationStatus(_, _))
+    .WillOnce(FutureArg<1>(&reconciliationUpdate));
+
+  const Future<scheduler::APIResult> result =
+    mesos.call({createCallReconcileOperations(frameworkId, {operation})});
+
+  AWAIT_READY(result);
+
+  // The master should respond with '202 Accepted' and an
+  // empty body (response field unset).
+  ASSERT_EQ(process::http::Status::ACCEPTED, result->status_code());
+  EXPECT_FALSE(result->has_response());
+
+  AWAIT_READY(reconciliationUpdate);
+
+  EXPECT_EQ(operationId, reconciliationUpdate->status().operation_id());
+  EXPECT_EQ(OPERATION_RECOVERING, reconciliationUpdate->status().state());
+  EXPECT_FALSE(reconciliationUpdate->status().has_uuid());
+}
+
+
+// Verifies that when the master forwards a framework-initiated reconciliation
+// request to the agent, and this forwarded request races with an
+// `UpdateSlaveMessage` which includes information about a resource provider
+// included in that reconciliation request, the agent will correctly fulfill the
+// reconciliation request by sending an operation status update containing the
+// latest state of the operation to the framework.
+TEST_P(
+    OperationReconciliationTest,
+    FrameworkReconciliationRaceWithUpdateSlaveMessage)
+{
+  Clock::pause();
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  auto detector = std::make_shared<StandaloneMasterDetector>(master.get()->pid);
+
+  mesos::internal::slave::Flags slaveFlags = CreateSlaveFlags();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Advance the clock to trigger agent registration.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  // Wait for the agent to register.
+  AWAIT_READY(updateSlaveMessage);
+
+  // Start and register a resource provider.
+  ResourceProviderInfo resourceProviderInfo;
+  resourceProviderInfo.set_type("org.apache.mesos.rp.test");
+  resourceProviderInfo.set_name("test");
+
+  Resource disk =
+    createDiskResource("200", "*", None(), None(), createDiskSourceRaw());
+
+  Owned<MockResourceProvider> resourceProvider(
+      new MockResourceProvider(
+          resourceProviderInfo,
+          Resources(disk)));
+
+  Owned<EndpointDetector> endpointDetector(
+      mesos::internal::tests::resource_provider::createEndpointDetector(
+          slave.get()->pid));
+
+  updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  // NOTE: We need to resume the clock so that the resource provider can
+  // fully register.
+  Clock::resume();
+
+  ContentType contentType = GetParam();
+
+  resourceProvider->start(std::move(endpointDetector), contentType);
+
+  // Wait until the agent's resources have been updated to include the
+  // resource provider resources. At this point the resource provider
+  // will have an ID assigned by the agent.
+  AWAIT_READY(updateSlaveMessage);
+  ASSERT_TRUE(updateSlaveMessage->has_resource_providers());
+  ASSERT_EQ(1, updateSlaveMessage->resource_providers().providers_size());
+
+  ASSERT_TRUE(resourceProvider->info.has_id());
+
+  resourceProviderInfo = resourceProvider->info;
+
+  Clock::pause();
+
+  auto scheduler = std::make_shared<MockHTTPScheduler>();
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
+
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(scheduler::SendSubscribe(frameworkInfo));
+
+  Future<scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(scheduler::DeclineOffers()); // Decline subsequent offers.
+
+  // Ignore heartbeats.
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return());
+
+  scheduler::TestMesos mesos(
+      master.get()->pid,
+      GetParam(),
+      scheduler,
+      detector);
+
+  AWAIT_READY(subscribed);
+  FrameworkID frameworkId(subscribed->framework_id());
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+
+  const Offer& offer = offers->offers(0);
+  const AgentID& agentId = offer.agent_id();
+
+  Resources resources =
+    Resources(offer.resources()).filter([](const Resource& resource) {
+      return resource.has_provider_id();
+    });
+
+  ASSERT_FALSE(resources.empty());
+
+  Resource reservedResources = *(resources.begin());
+  reservedResources.add_reservations()->CopyFrom(
+      createDynamicReservationInfo(
+          frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal()));
+
+  ResourceProviderID resourceProviderId(reservedResources.provider_id());
+
+  OperationID operationId;
+  operationId.set_value("operation");
+
+  // Don't acknowledge the terminal operation status update so that the
+  // operation remains in the resource provider and agent state.
+  Future<v1::scheduler::Event::UpdateOperationStatus> finishedUpdate;
+  EXPECT_CALL(*scheduler, updateOperationStatus(_, _))
+    .WillOnce(FutureArg<1>(&finishedUpdate));
+
+  mesos.send(createCallAccept(
+      frameworkId,
+      offer,
+      {RESERVE(reservedResources, operationId)}));
+
+  AWAIT_READY(finishedUpdate);
+  EXPECT_EQ(operationId, finishedUpdate->status().operation_id());
+  EXPECT_EQ(OPERATION_FINISHED, finishedUpdate->status().state());
+  EXPECT_TRUE(finishedUpdate->status().has_uuid());
+
+  EXPECT_CALL(*scheduler, disconnected(_))
+    .Times(2);
+
+  EXPECT_CALL(*scheduler, connected(_))
+    .Times(2);
+
+  // Drop the `UpdateSlaveMessage` which contains the resubscribed resource
+  // provider in order to simulate a race between this message and the
+  // RECONCILE_OPERATIONS scheduler call below.
+  updateSlaveMessage = DROP_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  // Restart the master to clear out the master's operation state and force
+  // an agent reregistration.
+  master->reset();
+  master = StartMaster();
+  ASSERT_SOME(master);
+
+  detector->appoint(master.get()->pid);
+
+  // Advance the clock to trigger agent registration.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  // Wait for the agent to reregister.
+  AWAIT_READY(updateSlaveMessage);
+  ASSERT_TRUE(updateSlaveMessage->has_resource_providers());
+  ASSERT_EQ(1, updateSlaveMessage->resource_providers().providers_size());
+
+  Future<scheduler::Event::Subscribed> resubscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&resubscribed));
+
+  frameworkInfo.mutable_id()->CopyFrom(frameworkId);
+
+  mesos.send(createCallSubscribe(frameworkInfo, frameworkId));
+
+  AWAIT_READY(resubscribed);
+
+  scheduler::Call::ReconcileOperations::Operation operation;
+  operation.mutable_operation_id()->CopyFrom(operationId);
+  operation.mutable_agent_id()->CopyFrom(agentId);
+  operation.mutable_resource_provider_id()->CopyFrom(resourceProviderId);
+
+  Future<v1::scheduler::Event::UpdateOperationStatus> reconciliationUpdate;
+  EXPECT_CALL(*scheduler, updateOperationStatus(_, _))
+    .WillOnce(FutureArg<1>(&reconciliationUpdate));
+
+  // Verify that the master forwards the reconciliation request to the agent.
+  Future<ReconcileOperationsMessage> reconcileOperationsMessage =
+    FUTURE_PROTOBUF(ReconcileOperationsMessage(), _, _);
+
+  const Future<scheduler::APIResult> result =
+    mesos.call({createCallReconcileOperations(frameworkId, {operation})});
+
+  AWAIT_READY(reconcileOperationsMessage);
+  AWAIT_READY(result);
+
+  // The master should respond with '202 Accepted' and an
+  // empty body (response field unset).
+  ASSERT_EQ(process::http::Status::ACCEPTED, result->status_code());
+  EXPECT_FALSE(result->has_response());
+
+  AWAIT_READY(reconciliationUpdate);
+
+  EXPECT_EQ(operationId, reconciliationUpdate->status().operation_id());
+  EXPECT_EQ(OPERATION_FINISHED, reconciliationUpdate->status().state());
+  EXPECT_FALSE(reconciliationUpdate->status().has_uuid());
 }
 
 } // namespace v1 {
