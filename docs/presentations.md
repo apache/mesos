@@ -6,6 +6,9 @@ layout: documentation
 # Video and Slides of Mesos Presentations
 _(Listed in reverse chronological order)_
 
+## MesosCon North America 2018
+[Video playlist](https://www.youtube.com/playlist?list=PL-cRvJ6sAbfjvQCLT3ktrpnVwrJKTodfm) + [Slides](https://mesoscon18.sched.com/)
+
 ## Jolt: Running Distributed, Fault-Tolerant Tests at Scale using Mesos
 [Video](https://www.youtube.com/watch?v=2uGwlVs8Cpw)
 Sunil Shah, Kyle Kelly, and Timmy Zhu Presented November 1, 2017 at [Bay Area Mesos User Group Meetup](https://www.meetup.com/Bay-Area-Mesos-User-Group/events/244469969/)
