@@ -79,6 +79,20 @@ public:
   // be triggered.
   static ResourceQuantities fromScalarResources(const Resources& resources);
 
+  // Returns the summed up `ResourceQuantities` given a
+  // `hashmap<Key, ResourceQuantities>`.
+  template <typename Key>
+  static ResourceQuantities sum(const hashmap<Key, ResourceQuantities>& map)
+  {
+    ResourceQuantities result;
+
+    foreachvalue (const ResourceQuantities& quantities, map) {
+      result += quantities;
+    }
+
+    return result;
+  }
+
   ResourceQuantities();
 
   explicit ResourceQuantities(

@@ -302,6 +302,43 @@ TEST(QuantitiesTest, Stringify)
 }
 
 
+TEST(QuantitiesTest, Sum)
+{
+  ResourceQuantities empty{};
+  ResourceQuantities cpus1 =
+    CHECK_NOTERROR(ResourceQuantities::fromString("cpus:1"));
+  ResourceQuantities cpus2 =
+    CHECK_NOTERROR(ResourceQuantities::fromString("cpus:2"));
+  ResourceQuantities memory =
+    CHECK_NOTERROR(ResourceQuantities::fromString("memory:1"));
+  ResourceQuantities cpuAndMemory =
+    CHECK_NOTERROR(ResourceQuantities::fromString("cpus:1;memory:1"));
+
+  hashmap<string, ResourceQuantities> quantitiesMap;
+  vector<pair<string, double>> expected;
+  EXPECT_EQ(expected, toVector(ResourceQuantities::sum(quantitiesMap)));
+
+  quantitiesMap["empty"] = empty;
+  EXPECT_EQ(expected, toVector(ResourceQuantities::sum(quantitiesMap)));
+
+  quantitiesMap["cpus1"] = cpus1;
+  expected = {{"cpus", 1}};
+  EXPECT_EQ(expected, toVector(ResourceQuantities::sum(quantitiesMap)));
+
+  quantitiesMap["cpus2"] = cpus2;
+  expected = {{"cpus", 3}};
+  EXPECT_EQ(expected, toVector(ResourceQuantities::sum(quantitiesMap)));
+
+  quantitiesMap["memory"] = memory;
+  expected = {{"cpus", 3}, {"memory", 1}};
+  EXPECT_EQ(expected, toVector(ResourceQuantities::sum(quantitiesMap)));
+
+  quantitiesMap["cpuAndMemory"] = cpuAndMemory;
+  expected = {{"cpus", 4}, {"memory", 2}};
+  EXPECT_EQ(expected, toVector(ResourceQuantities::sum(quantitiesMap)));
+}
+
+
 static vector<pair<string, double>> toVector(
   const ResourceLimits& limits)
 {
