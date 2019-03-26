@@ -120,6 +120,8 @@ public:
 
   size_t size() const { return quantities.size(); };
 
+  bool empty() const { return quantities.empty(); }
+
   // Returns the quantity scalar value if a quantity with the given name.
   // If the given name is absent, return zero.
   Value::Scalar get(const std::string& name) const;
