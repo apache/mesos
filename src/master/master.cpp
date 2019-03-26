@@ -8745,6 +8745,26 @@ void Master::updateOperationStatus(UpdateOperationStatusMessage&& update)
     ? update.framework_id()
     : Option<FrameworkID>::none();
 
+  // If the operation UUID is not set, then this must be an update sent as a
+  // result of a framework-inititated reconciliation which was forwarded to the
+  // agent. Since the operation UUID is not known, there is nothing for the
+  // master to do but forward the update to the framework and return.
+  if (!update.has_operation_uuid()) {
+    // Forward the status update to the framework.
+    Framework* framework = getFramework(frameworkId.get());
+
+    if (framework == nullptr || !framework->connected()) {
+      LOG(WARNING) << "Received operation status update " << update
+                   << ", but the framework is "
+                   << (framework == nullptr ? "unknown" : "disconnected");
+    } else {
+      LOG(INFO) << "Forwarding operation status update " << update;
+      framework->send(update);
+    }
+
+    return;
+  }
+
   Slave* slave = slaves.registered.get(slaveId);
 
   const UUID& uuid = update.operation_uuid();
@@ -8774,12 +8794,21 @@ void Master::updateOperationStatus(UpdateOperationStatusMessage&& update)
 
   Operation* operation = slave->getOperation(update.operation_uuid());
   if (operation == nullptr) {
-    LOG(ERROR) << "Failed to find the operation '"
-               << update.status().operation_id() << "' (uuid: " << uuid << ")"
-               << " for " << (frameworkId.isSome()
-                     ? "framework " + stringify(frameworkId.get())
-                     : "an operator API call")
-               << " on agent " << slaveId;
+    // If the operation cannot be found, then this must be an update sent as a
+    // result of a framework-inititated reconciliation which was forwarded to
+    // the agent. Since the operation is not known to the master, there is
+    // nothing for the master to do but forward the update to the framework and
+    // return.
+    Framework* framework = getFramework(frameworkId.get());
+
+    if (framework == nullptr || !framework->connected()) {
+      LOG(WARNING) << "Received operation status update " << update
+                   << ", but the framework is "
+                   << (framework == nullptr ? "unknown" : "disconnected");
+    } else {
+      LOG(INFO) << "Forwarding operation status update " << update;
+      framework->send(update);
+    }
 
     return;
   }
@@ -9595,11 +9624,16 @@ void Master::reconcileOperations(
   // Explicit reconciliation occurs for the following cases:
   //   (1) Operation is known: the latest status sent to the framework.
   //   (2) Operation is unknown, slave is recovered: OPERATION_RECOVERING.
-  //   (3) Operation is unknown, slave is registered: OPERATION_UNKNOWN.
+  //   (3) Operation is unknown, slave is registered: see #3 below.
   //   (4) Operation is unknown, slave is unreachable: OPERATION_UNREACHABLE.
   //   (5) Operation is unknown, slave is gone: OPERATION_GONE_BY_OPERATOR.
   //   (6) Operation is unknown, slave is unknown: OPERATION_UNKNOWN.
   //   (7) Operation is unknown, slave ID is not specified: OPERATION_UNKNOWN.
+
+  // For #3 above, we forward reconciliation requests to the agent. This
+  // container is used to build up those forwarded reconciliation messages.
+  // For more information, see #3 below.
+  hashmap<SlaveID, ReconcileOperationsMessage> forwardedReconciliations;
 
   foreach (const scheduler::Call::ReconcileOperations::Operation& operation,
            reconcile.operations()) {
@@ -9639,15 +9673,49 @@ void Master::reconcileOperations(
           slaveId,
           resourceProviderId);
     } else if (slaveId.isSome() && slaves.registered.contains(slaveId.get())) {
-      // (3) Operation is unknown, slave is registered: OPERATION_UNKNOWN.
-      status = protobuf::createOperationStatus(
-          OperationState::OPERATION_UNKNOWN,
-          operation.operation_id(),
-          "Reconciliation: Operation is unknown",
-          None(),
-          None(),
-          slaveId,
-          resourceProviderId);
+      // (3) Operation is unknown, slave is registered: if the operation has a
+      //     resource provider ID and that resource provider is not currently
+      //     subscribed and the agent has the AGENT_OPERATION_FEEDBACK
+      //     capability, then we forward the reconciliation request to the agent
+      //     to respond based on whether or not this resource provider has been
+      //     seen before. Otherwise, we respond with OPERATION_UNKNOWN.
+      Slave* slave = CHECK_NOTNULL(slaves.registered.get(slaveId.get()));
+      if (resourceProviderId.isSome() &&
+          !slave->resourceProviders.contains(resourceProviderId.get()) &&
+          slave->capabilities.agentOperationFeedback) {
+        // NOTE: it is intentional that we implicitly initialize the
+        // `reconciliationMessage` via `operator[]` here.
+        ReconcileOperationsMessage& reconciliationMessage =
+          forwardedReconciliations[slaveId.get()];
+        if (!reconciliationMessage.has_framework_id()) {
+          reconciliationMessage.mutable_framework_id()
+            ->CopyFrom(framework->id());
+        }
+
+        ReconcileOperationsMessage::Operation* forwardedOperation =
+          reconciliationMessage.add_operations();
+
+        forwardedOperation->mutable_operation_id()
+          ->CopyFrom(operation.operation_id());
+        if (resourceProviderId.isSome()) {
+          forwardedOperation->mutable_resource_provider_id()
+            ->CopyFrom(resourceProviderId.get());
+        }
+
+        // Defer sending the `reconciliationMessage` until this loop is
+        // complete, as we aggregate multiple operations into the message
+        // during the loop.
+        continue;
+      } else {
+        status = protobuf::createOperationStatus(
+            OperationState::OPERATION_UNKNOWN,
+            operation.operation_id(),
+            "Reconciliation: Operation is unknown",
+            None(),
+            None(),
+            slaveId,
+            resourceProviderId);
+      }
     } else if (slaveId.isSome() && slaves.unreachable.contains(slaveId.get())) {
       // (4) Operation is unknown, slave is unreachable: OPERATION_UNREACHABLE.
       status = protobuf::createOperationStatus(
@@ -9692,6 +9760,14 @@ void Master::reconcileOperations(
     }
 
     sendOperationUpdate(std::move(status));
+  }
+
+  foreachpair (
+      const SlaveID& slaveId,
+      const ReconcileOperationsMessage& message,
+      forwardedReconciliations) {
+    CHECK(slaves.registered.contains(slaveId));
+    send(slaves.registered.get(slaveId)->pid, message);
   }
 }
 

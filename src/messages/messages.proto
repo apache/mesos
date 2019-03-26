@@ -477,11 +477,26 @@ message ReconcileTasksMessage {
  */
 message ReconcileOperationsMessage {
   message Operation {
-    required UUID operation_uuid = 1;
+    // NOTE: the `operation_uuid` field was changed from `required` to
+    // `optional` in Mesos 1.8. The master code protects agents without the
+    // AGENT_OPERATION_FEEDBACK capability from receiving messages in which this
+    // field is not set.
+    optional UUID operation_uuid = 1;
+    optional OperationID operation_id = 3;
+
     optional ResourceProviderID resource_provider_id = 2;
   }
 
   repeated Operation operations = 1;
+
+  // If set, this framework is the source of the reconciliation request. The
+  // semantics of the agent's response depend on whether the reconciliation
+  // originated in the master or the framework. Namely, in the case where an
+  // operation ID is not recognized by a currently-subscribed resource
+  // provider, the agent will return OPERATION_DROPPED in the case of
+  // master-initiated reconciliation, or OPERATION_UNKNOWN in the case of
+  // framework-initiated reconciliation.
+  optional FrameworkID framework_id = 2;
 }
 
 
@@ -799,7 +814,12 @@ message UpdateOperationStatusMessage {
   // This is the internal UUID for the operation, which is kept
   // independently from the framework-specified operation ID, which is
   // optional.
-  required UUID operation_uuid = 5;
+  //
+  // NOTE that this field was changed from `required` to `optional` in Mesos
+  // 1.8. Only reconciliation requests forwarded to agents by post-1.8 masters
+  // will lead to the construction of messages which leave this field unset, so
+  // older masters are protected from malformed messages.
+  optional UUID operation_uuid = 5;
 }
 
 

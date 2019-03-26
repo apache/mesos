@@ -4507,47 +4507,113 @@ void Slave::applyOperation(const ApplyOperationMessage& message)
 
 void Slave::reconcileOperations(const ReconcileOperationsMessage& message)
 {
-  bool containsResourceProviderOperations = false;
+  // If the `framework_id` field in the message is set, then this reconciliation
+  // request was initiated by the framework. This means the operations in this
+  // message were not known to the master at the time of reconciliation. If the
+  // resource provider manager doesn't recognize the operation either, then we
+  // will return OPERATION_UNKNOWN.
+  if (message.has_framework_id()) {
+    foreach (
+        const ReconcileOperationsMessage::Operation& operation,
+        message.operations()) {
+      Option<UUID> operationUuid;
+      if (operation.has_operation_uuid()) {
+        operationUuid = operation.operation_uuid();
+      } else if (operation.has_operation_id()) {
+        auto key = std::make_pair(
+            message.framework_id(), operation.operation_id());
+        if (operationIds.contains(key)) {
+          operationUuid = operationIds.at(key);
+        }
+      }
 
-  foreach (
-      const ReconcileOperationsMessage::Operation& operation,
-      message.operations()) {
-    if (operation.has_resource_provider_id()) {
-      containsResourceProviderOperations = true;
-      continue;
+      if (operationUuid.isSome()) {
+        Operation* storedOperation = getOperation(operationUuid.get());
+
+        // If the agent knows this operation, then the reconciliation request
+        // must have raced with an `UpdateSlaveMessage` from the agent. We
+        // satisfy this reconciliation request with the latest stored state of
+        // the operation.
+        if (storedOperation != nullptr) {
+          // Clear the status UUID from the latest status since this update is
+          // not sent reliably and thus does not require acknowledgement.
+          OperationStatus status = storedOperation->latest_status();
+          status.clear_uuid();
+
+          UpdateOperationStatusMessage update =
+            protobuf::createUpdateOperationStatusMessage(
+                operationUuid.get(),
+                status,
+                None(),
+                message.framework_id(),
+                info.id());
+
+          send(master.get(), update);
+
+          continue;
+        }
+      }
+
+      // If the agent doesn't know this operation and the operation includes a
+      // resource provider ID, then we forward the reconciliation to the
+      // resource provider manager to satisfy it based on whether or not the
+      // specified resource provider is known.
+      CHECK_NOTNULL(resourceProviderManager.get())
+        ->reconcileOperations(message);
+    }
+  // If the `framework_id` field in the message is not set, then this
+  // reconciliation was initiated by the master. We help the master reconcile
+  // its in-memory state below. If operations known by the master are not known
+  // by the agent/RP, then we return OPERATION_DROPPED to indicate that the
+  // operation never made it to the agent.
+  } else {
+    bool forwardToResourceProvider = false;
+
+    foreach (
+        const ReconcileOperationsMessage::Operation& operation,
+        message.operations()) {
+      // The `operation_uuid` field should always be set for
+      // master-initiated reconciliations.
+      CHECK(operation.has_operation_uuid());
+
+      if (operation.has_resource_provider_id()) {
+        forwardToResourceProvider = true;
+        continue;
+      }
+
+      // The master reconciles when it notices that an operation is missing from
+      // an `UpdateSlaveMessage`. If we cannot find an operation in the agent
+      // state, we send an update to inform the master. If we do find the
+      // operation, then the master and agent state are consistent and we do not
+      // need to do anything.
+      Operation* storedOperation = getOperation(operation.operation_uuid());
+      if (storedOperation == nullptr) {
+        // For agent default resources, we send best-effort operation status
+        // updates to the master. This is satisfactory because a dropped message
+        // would imply a subsequent agent reregistration, after which an
+        // `UpdateSlaveMessage` would be sent with pending operations.
+        UpdateOperationStatusMessage update =
+          protobuf::createUpdateOperationStatusMessage(
+              operation.operation_uuid(),
+              protobuf::createOperationStatus(
+                  OPERATION_DROPPED,
+                  None(),
+                  None(),
+                  None(),
+                  None(),
+                  info.id()),
+              None(),
+              None(),
+              info.id());
+
+        send(master.get(), update);
+      }
     }
 
-    // The master reconciles when it notices that an operation is missing from
-    // an `UpdateSlaveMessage`. If we cannot find an operation in the agent
-    // state, we send an update to inform the master. If we do find the
-    // operation, then the master and agent state are consistent and we do not
-    // need to do anything.
-    Operation* storedOperation = getOperation(operation.operation_uuid());
-    if (storedOperation == nullptr) {
-      // For agent default resources, we send best-effort operation status
-      // updates to the master. This is satisfactory because a dropped message
-      // would imply a subsequent agent reregistration, after which an
-      // `UpdateSlaveMessage` would be sent with pending operations.
-      UpdateOperationStatusMessage update =
-        protobuf::createUpdateOperationStatusMessage(
-            operation.operation_uuid(),
-            protobuf::createOperationStatus(
-                OPERATION_DROPPED,
-                None(),
-                None(),
-                None(),
-                None(),
-                info.id()),
-            None(),
-            None(),
-            info.id());
-
-      send(master.get(), update);
+    if (forwardToResourceProvider) {
+      CHECK_NOTNULL(resourceProviderManager.get())
+        ->reconcileOperations(message);
     }
-  }
-
-  if (containsResourceProviderOperations) {
-    CHECK_NOTNULL(resourceProviderManager.get())->reconcileOperations(message);
   }
 }
 
