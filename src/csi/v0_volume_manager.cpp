@@ -42,7 +42,7 @@
 
 #include "csi/client.hpp"
 #include "csi/paths.hpp"
-#include "csi/utils.hpp"
+#include "csi/v0_utils.hpp"
 #include "csi/v0_volume_manager_process.hpp"
 
 #include "slave/state.hpp"

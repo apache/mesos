@@ -24,7 +24,7 @@
 #include <mesos/csi/types.hpp>
 #include <mesos/csi/v0.hpp>
 
-#include "csi/utils.hpp"
+#include "csi/v0_utils.hpp"
 
 namespace util = google::protobuf::util;
 

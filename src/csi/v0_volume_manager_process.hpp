@@ -47,7 +47,7 @@
 #include "csi/rpc.hpp"
 #include "csi/service_manager.hpp"
 #include "csi/state.hpp"
-#include "csi/utils.hpp"
+#include "csi/v0_utils.hpp"
 #include "csi/v0_volume_manager.hpp"
 #include "csi/volume_manager.hpp"
 

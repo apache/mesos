@@ -41,7 +41,7 @@
 #include <stout/os/mkdir.hpp>
 #include <stout/os/rmdir.hpp>
 
-#include "csi/utils.hpp"
+#include "csi/v0_utils.hpp"
 
 #include "linux/fs.hpp"
 

@@ -39,7 +39,7 @@
 #include <stout/result.hpp>
 #include <stout/strings.hpp>
 
-#include "csi/utils.hpp"
+#include "csi/v0_utils.hpp"
 
 #include "resource_provider/storage/disk_profile_utils.hpp"
 

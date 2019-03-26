@@ -14,102 +14,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "csi/utils.hpp"
+#include "csi/v0_utils.hpp"
 
 #include <stout/unreachable.hpp>
-
-using std::ostream;
-
-namespace csi {
-namespace v0 {
-
-bool operator==(
-    const ControllerServiceCapability::RPC& left,
-    const ControllerServiceCapability::RPC& right)
-{
-  return left.type() == right.type();
-}
-
-
-bool operator==(
-    const ControllerServiceCapability& left,
-    const ControllerServiceCapability& right)
-{
-  return left.has_rpc() == right.has_rpc() &&
-    (!left.has_rpc() || left.rpc() == right.rpc());
-}
-
-
-bool operator==(const VolumeCapability& left, const VolumeCapability& right)
-{
-  // NOTE: This enumeration is set when `block` or `mount` are set and
-  // covers the case where neither are set.
-  if (left.access_type_case() != right.access_type_case()) {
-    return false;
-  }
-
-  // NOTE: No need to check `block` for equality as that object is empty.
-
-  if (left.has_mount()) {
-    if (left.mount().fs_type() != right.mount().fs_type()) {
-      return false;
-    }
-
-    if (left.mount().mount_flags_size() != right.mount().mount_flags_size()) {
-      return false;
-    }
-
-    // NOTE: Ordering may or may not matter for these flags, but this helper
-    // only checks for complete equality.
-    for (int i = 0; i < left.mount().mount_flags_size(); i++) {
-      if (left.mount().mount_flags(i) != right.mount().mount_flags(i)) {
-        return false;
-      }
-    }
-  }
-
-  if (left.has_access_mode() != right.has_access_mode()) {
-    return false;
-  }
-
-  if (left.has_access_mode()) {
-    if (left.access_mode().mode() != right.access_mode().mode()) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-
-ostream& operator<<(
-    ostream& stream,
-    const ControllerServiceCapability::RPC::Type& type)
-{
-  return stream << ControllerServiceCapability::RPC::Type_Name(type);
-}
-
-} // namespace v0 {
-} // namespace csi {
-
 
 namespace mesos {
 namespace csi {
 namespace v0 {
 
 types::VolumeCapability::BlockVolume devolve(
-    const VolumeCapability::BlockVolume& blockVolume)
+    const VolumeCapability::BlockVolume& block)
 {
   return types::VolumeCapability::BlockVolume();
 }
 
 
 types::VolumeCapability::MountVolume devolve(
-    const VolumeCapability::MountVolume& mountVolume)
+    const VolumeCapability::MountVolume& mount)
 {
   types::VolumeCapability::MountVolume result;
-  result.set_fs_type(mountVolume.fs_type());
-  *result.mutable_mount_flags() = mountVolume.mount_flags();
+  result.set_fs_type(mount.fs_type());
+  *result.mutable_mount_flags() = mount.mount_flags();
   return result;
 }
 
@@ -161,17 +86,17 @@ types::VolumeCapability::AccessMode devolve(
 }
 
 
-types::VolumeCapability devolve(const VolumeCapability& volumeCapability)
+types::VolumeCapability devolve(const VolumeCapability& capability)
 {
   types::VolumeCapability result;
 
-  switch (volumeCapability.access_type_case()) {
+  switch (capability.access_type_case()) {
     case VolumeCapability::kBlock: {
-      *result.mutable_block() = devolve(volumeCapability.block());
+      *result.mutable_block() = devolve(capability.block());
       break;
     }
     case VolumeCapability::kMount: {
-      *result.mutable_mount() = devolve(volumeCapability.mount());
+      *result.mutable_mount() = devolve(capability.mount());
       break;
     }
     case VolumeCapability::ACCESS_TYPE_NOT_SET: {
@@ -179,8 +104,8 @@ types::VolumeCapability devolve(const VolumeCapability& volumeCapability)
     }
   }
 
-  if (volumeCapability.has_access_mode()) {
-    *result.mutable_access_mode() = devolve(volumeCapability.access_mode());
+  if (capability.has_access_mode()) {
+    *result.mutable_access_mode() = devolve(capability.access_mode());
   }
 
   return result;
@@ -188,18 +113,18 @@ types::VolumeCapability devolve(const VolumeCapability& volumeCapability)
 
 
 VolumeCapability::BlockVolume evolve(
-    const types::VolumeCapability::BlockVolume& blockVolume)
+    const types::VolumeCapability::BlockVolume& block)
 {
   return VolumeCapability::BlockVolume();
 }
 
 
 VolumeCapability::MountVolume evolve(
-    const types::VolumeCapability::MountVolume& mountVolume)
+    const types::VolumeCapability::MountVolume& mount)
 {
   VolumeCapability::MountVolume result;
-  result.set_fs_type(mountVolume.fs_type());
-  *result.mutable_mount_flags() = mountVolume.mount_flags();
+  result.set_fs_type(mount.fs_type());
+  *result.mutable_mount_flags() = mount.mount_flags();
   return result;
 }
 
@@ -247,17 +172,17 @@ VolumeCapability::AccessMode evolve(
 }
 
 
-VolumeCapability evolve(const types::VolumeCapability& volumeCapability)
+VolumeCapability evolve(const types::VolumeCapability& capability)
 {
   VolumeCapability result;
 
-  switch (volumeCapability.access_type_case()) {
+  switch (capability.access_type_case()) {
     case types::VolumeCapability::kBlock: {
-      *result.mutable_block() = evolve(volumeCapability.block());
+      *result.mutable_block() = evolve(capability.block());
       break;
     }
     case types::VolumeCapability::kMount: {
-      *result.mutable_mount() = evolve(volumeCapability.mount());
+      *result.mutable_mount() = evolve(capability.mount());
       break;
     }
     case types::VolumeCapability::ACCESS_TYPE_NOT_SET: {
@@ -265,8 +190,8 @@ VolumeCapability evolve(const types::VolumeCapability& volumeCapability)
     }
   }
 
-  if (volumeCapability.has_access_mode()) {
-    *result.mutable_access_mode() = evolve(volumeCapability.access_mode());
+  if (capability.has_access_mode()) {
+    *result.mutable_access_mode() = evolve(capability.access_mode());
   }
 
   return result;

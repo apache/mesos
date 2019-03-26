@@ -17,11 +17,21 @@
 #ifndef __MESOS_CSI_V0_HPP__
 #define __MESOS_CSI_V0_HPP__
 
+#include <ostream>
+#include <type_traits>
+
 // ONLY USEFUL AFTER RUNNING PROTOC.
 #include <csi/v0/csi.pb.h>
 
 // ONLY USEFUL AFTER RUNNING PROTOC WITH GRPC CPP PLUGIN.
 #include <csi/v0/csi.grpc.pb.h>
+
+#include <google/protobuf/message.h>
+
+#include <google/protobuf/util/json_util.h>
+#include <google/protobuf/util/message_differencer.h>
+
+#include <stout/check.hpp>
 
 namespace mesos {
 namespace csi {
@@ -32,5 +42,62 @@ using namespace ::csi::v0;
 } // namespace v0 {
 } // namespace csi {
 } // namespace mesos {
+
+
+namespace csi {
+namespace v0 {
+
+// Default implementation for comparing protobuf messages in namespace
+// `csi::v0`. Note that any non-template overloading of the equality operator
+// would take precedence over this function template.
+template <
+    typename Message,
+    typename std::enable_if<std::is_convertible<
+        Message*, google::protobuf::Message*>::value, int>::type = 0>
+bool operator==(const Message& left, const Message& right)
+{
+  // NOTE: `MessageDifferencer::Equivalent` would ignore unknown fields and load
+  // default values for unset fields (which are indistinguishable in proto3).
+  return google::protobuf::util::MessageDifferencer::Equivalent(left, right);
+}
+
+
+template <
+    typename Message,
+    typename std::enable_if<std::is_convertible<
+        Message*, google::protobuf::Message*>::value, int>::type = 0>
+bool operator!=(const Message& left, const Message& right)
+{
+  return !(left == right);
+}
+
+
+std::ostream& operator<<(
+    std::ostream& stream,
+    const ControllerServiceCapability::RPC::Type& type);
+
+
+// Default implementation for output protobuf messages in namespace `csi::v0`.
+// Note that any non-template overloading of the output operator would take
+// precedence over this function template.
+template <
+    typename Message,
+    typename std::enable_if<std::is_convertible<
+        Message*, google::protobuf::Message*>::value, int>::type = 0>
+std::ostream& operator<<(std::ostream& stream, const Message& message)
+{
+  // NOTE: We use Google's JSON utility functions for proto3.
+  std::string output;
+  google::protobuf::util::Status status =
+    google::protobuf::util::MessageToJsonString(message, &output);
+
+  CHECK(status.ok())
+    << "Could not convert messages to string: " << status.error_message();
+
+  return stream << output;
+}
+
+} // namespace v0 {
+} // namespace csi {
 
 #endif // __MESOS_CSI_V0_HPP__

@@ -238,7 +238,8 @@ set(CSI_SRC
   csi/paths.cpp
   csi/rpc.cpp
   csi/service_manager.cpp
-  csi/utils.cpp
+  csi/v0.cpp
+  csi/v0_utils.cpp
   csi/v0_volume_manager.cpp
   csi/volume_manager.cpp)
 

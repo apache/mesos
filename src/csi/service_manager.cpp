@@ -51,7 +51,7 @@
 
 #include "csi/client.hpp"
 #include "csi/paths.hpp"
-#include "csi/utils.hpp"
+#include "csi/v0_utils.hpp"
 
 #include "internal/devolve.hpp"
 #include "internal/evolve.hpp"
