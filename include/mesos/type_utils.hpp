@@ -840,6 +840,24 @@ struct hash<std::pair<mesos::FrameworkID, mesos::ExecutorID>>
   }
 };
 
+
+template <>
+struct hash<std::pair<mesos::FrameworkID, mesos::OperationID>>
+{
+  typedef size_t result_type;
+
+  typedef std::pair<
+      mesos::FrameworkID, mesos::OperationID> argument_type;
+
+  result_type operator()(const argument_type& pair) const
+  {
+    size_t seed = 0;
+    boost::hash_combine(seed, std::hash<mesos::FrameworkID>()(pair.first));
+    boost::hash_combine(seed, std::hash<mesos::OperationID>()(pair.second));
+    return seed;
+  }
+};
+
 } // namespace std {
 
 #endif // __MESOS_TYPE_UTILS_H__

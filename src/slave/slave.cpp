@@ -8489,6 +8489,12 @@ void Slave::addOperation(Operation* operation)
 {
   operations.put(operation->uuid(), operation);
 
+  if (operation->info().has_id() && operation->has_framework_id()) {
+    operationIds.put(
+        std::make_pair(operation->framework_id(), operation->info().id()),
+        operation->uuid());
+  }
+
   Result<ResourceProviderID> resourceProviderId =
     getResourceProviderId(operation->info());
 
@@ -8638,6 +8644,11 @@ void Slave::removeOperation(Operation* operation)
 
   CHECK(operations.contains(uuid))
     << "Unknown operation (uuid: " << uuid << ")";
+
+  if (operation->info().has_id() && operation->has_framework_id()) {
+    operationIds.erase(
+        std::make_pair(operation->framework_id(), operation->info().id()));
+  }
 
   operations.erase(uuid);
   delete operation;

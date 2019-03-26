@@ -22,6 +22,7 @@
 #include <list>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <mesos/attributes.hpp>
@@ -871,6 +872,11 @@ private:
   // either agent default resources or resources offered by a resource
   // provider.
   hashmap<UUID, Operation*> operations;
+
+  // Maps framework-supplied operation IDs to the operation's internal UUID.
+  // This is used to satisfy some reconciliation requests which are forwarded
+  // from the master to the agent.
+  hashmap<std::pair<FrameworkID, OperationID>, UUID> operationIds;
 
   // Operations that are checkpointed by the agent.
   hashmap<UUID, Operation> checkpointedOperations;
