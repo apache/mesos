@@ -1560,20 +1560,18 @@ libmesos_no_3rdparty_la_LIBADD += libbuild.la
 # Convenience library for build the CSI client.
 noinst_LTLIBRARIES += libcsi.la
 libcsi_la_SOURCES =							\
-  csi/client.cpp							\
-  csi/client.hpp							\
   csi/types.cpp								\
   csi/metrics.cpp							\
   csi/metrics.hpp							\
   csi/paths.cpp								\
   csi/paths.hpp								\
-  csi/rpc.cpp								\
-  csi/rpc.hpp								\
   csi/service_manager.cpp						\
   csi/service_manager.hpp						\
   csi/state.hpp								\
   csi/state.proto							\
   csi/v0.cpp								\
+  csi/v0_client.cpp							\
+  csi/v0_client.hpp							\
   csi/v0_utils.cpp							\
   csi/v0_utils.hpp							\
   csi/v0_volume_manager.cpp						\

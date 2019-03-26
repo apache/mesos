@@ -49,8 +49,8 @@
 
 #include "common/http.hpp"
 
-#include "csi/client.hpp"
 #include "csi/paths.hpp"
+#include "csi/v0_client.hpp"
 #include "csi/v0_utils.hpp"
 
 #include "internal/devolve.hpp"
@@ -493,11 +493,9 @@ Future<Nothing> ServiceManagerProcess::waitEndpoint(const string& endpoint)
       // `Probe` calls to support CSI v1 in a backward compatible way.
       ++metrics->csi_plugin_rpcs_pending;
 
-      return v0::Client(endpoint, runtime)
-        .call<v0::PROBE>(v0::ProbeRequest())
+      return v0::Client(endpoint, runtime).probe(v0::ProbeRequest())
         .then(process::defer(self(), [=](
-            const Try<v0::ProbeResponse, StatusError>& result)
-            -> Future<Nothing> {
+            const v0::RPCResult<v0::ProbeResponse>& result) -> Future<Nothing> {
           if (result.isError()) {
             return Failure(
                 "Failed to probe endpoint '" + endpoint +

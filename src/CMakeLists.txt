@@ -232,13 +232,12 @@ set(COMMON_SRC
   common/values.cpp)
 
 set(CSI_SRC
-  csi/client.cpp
   csi/types.cpp
   csi/metrics.cpp
   csi/paths.cpp
-  csi/rpc.cpp
   csi/service_manager.cpp
   csi/v0.cpp
+  csi/v0_client.cpp
   csi/v0_utils.cpp
   csi/v0_volume_manager.cpp
   csi/volume_manager.cpp)

@@ -14,14 +14,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "csi/v0_client.hpp"
+
 #include <utility>
 
-#include "csi/client.hpp"
-
-using process::Failure;
 using process::Future;
-
-using process::grpc::StatusError;
 
 using process::grpc::client::CallOptions;
 
@@ -29,9 +26,8 @@ namespace mesos {
 namespace csi {
 namespace v0 {
 
-template <>
-Future<Try<GetPluginInfoResponse, process::grpc::StatusError>>
-Client::call<GET_PLUGIN_INFO>(GetPluginInfoRequest request)
+Future<RPCResult<GetPluginInfoResponse>>
+Client::getPluginInfo(GetPluginInfoRequest request)
 {
   return runtime.call(
       connection,
@@ -41,10 +37,8 @@ Client::call<GET_PLUGIN_INFO>(GetPluginInfoRequest request)
 }
 
 
-template <>
-Future<Try<GetPluginCapabilitiesResponse, process::grpc::StatusError>>
-Client::call<GET_PLUGIN_CAPABILITIES>(
-    GetPluginCapabilitiesRequest request)
+Future<RPCResult<GetPluginCapabilitiesResponse>>
+Client::getPluginCapabilities(GetPluginCapabilitiesRequest request)
 {
   return runtime.call(
       connection,
@@ -54,10 +48,7 @@ Client::call<GET_PLUGIN_CAPABILITIES>(
 }
 
 
-template <>
-Future<Try<ProbeResponse, process::grpc::StatusError>>
-Client::call<PROBE>(
-    ProbeRequest request)
+Future<RPCResult<ProbeResponse>> Client::probe(ProbeRequest request)
 {
   return runtime.call(
       connection,
@@ -67,10 +58,8 @@ Client::call<PROBE>(
 }
 
 
-template <>
-Future<Try<CreateVolumeResponse, process::grpc::StatusError>>
-Client::call<CREATE_VOLUME>(
-    CreateVolumeRequest request)
+Future<RPCResult<CreateVolumeResponse>>
+Client::createVolume(CreateVolumeRequest request)
 {
   return runtime.call(
       connection,
@@ -80,10 +69,8 @@ Client::call<CREATE_VOLUME>(
 }
 
 
-template <>
-Future<Try<DeleteVolumeResponse, process::grpc::StatusError>>
-Client::call<DELETE_VOLUME>(
-    DeleteVolumeRequest request)
+Future<RPCResult<DeleteVolumeResponse>>
+Client::deleteVolume(DeleteVolumeRequest request)
 {
   return runtime.call(
       connection,
@@ -93,10 +80,8 @@ Client::call<DELETE_VOLUME>(
 }
 
 
-template <>
-Future<Try<ControllerPublishVolumeResponse, process::grpc::StatusError>>
-Client::call<CONTROLLER_PUBLISH_VOLUME>(
-    ControllerPublishVolumeRequest request)
+Future<RPCResult<ControllerPublishVolumeResponse>>
+Client::controllerPublishVolume(ControllerPublishVolumeRequest request)
 {
   return runtime.call(
       connection,
@@ -106,10 +91,8 @@ Client::call<CONTROLLER_PUBLISH_VOLUME>(
 }
 
 
-template <>
-Future<Try<ControllerUnpublishVolumeResponse, process::grpc::StatusError>>
-Client::call<CONTROLLER_UNPUBLISH_VOLUME>(
-    ControllerUnpublishVolumeRequest request)
+Future<RPCResult<ControllerUnpublishVolumeResponse>>
+Client::controllerUnpublishVolume(ControllerUnpublishVolumeRequest request)
 {
   return runtime.call(
       connection,
@@ -119,10 +102,8 @@ Client::call<CONTROLLER_UNPUBLISH_VOLUME>(
 }
 
 
-template <>
-Future<Try<ValidateVolumeCapabilitiesResponse, process::grpc::StatusError>>
-Client::call<VALIDATE_VOLUME_CAPABILITIES>(
-    ValidateVolumeCapabilitiesRequest request)
+Future<RPCResult<ValidateVolumeCapabilitiesResponse>>
+Client::validateVolumeCapabilities(ValidateVolumeCapabilitiesRequest request)
 {
   return runtime.call(
       connection,
@@ -132,10 +113,8 @@ Client::call<VALIDATE_VOLUME_CAPABILITIES>(
 }
 
 
-template <>
-Future<Try<ListVolumesResponse, process::grpc::StatusError>>
-Client::call<LIST_VOLUMES>(
-    ListVolumesRequest request)
+Future<RPCResult<ListVolumesResponse>>
+Client::listVolumes(ListVolumesRequest request)
 {
   return runtime.call(
       connection,
@@ -145,10 +124,8 @@ Client::call<LIST_VOLUMES>(
 }
 
 
-template <>
-Future<Try<GetCapacityResponse, process::grpc::StatusError>>
-Client::call<GET_CAPACITY>(
-    GetCapacityRequest request)
+Future<RPCResult<GetCapacityResponse>>
+Client::getCapacity(GetCapacityRequest request)
 {
   return runtime.call(
       connection,
@@ -158,10 +135,8 @@ Client::call<GET_CAPACITY>(
 }
 
 
-template <>
-Future<Try<ControllerGetCapabilitiesResponse, process::grpc::StatusError>>
-Client::call<CONTROLLER_GET_CAPABILITIES>(
-    ControllerGetCapabilitiesRequest request)
+Future<RPCResult<ControllerGetCapabilitiesResponse>>
+Client::controllerGetCapabilities(ControllerGetCapabilitiesRequest request)
 {
   return runtime.call(
       connection,
@@ -171,10 +146,8 @@ Client::call<CONTROLLER_GET_CAPABILITIES>(
 }
 
 
-template <>
-Future<Try<NodeStageVolumeResponse, process::grpc::StatusError>>
-Client::call<NODE_STAGE_VOLUME>(
-    NodeStageVolumeRequest request)
+Future<RPCResult<NodeStageVolumeResponse>>
+Client::nodeStageVolume(NodeStageVolumeRequest request)
 {
   return runtime.call(
       connection,
@@ -184,10 +157,8 @@ Client::call<NODE_STAGE_VOLUME>(
 }
 
 
-template <>
-Future<Try<NodeUnstageVolumeResponse, process::grpc::StatusError>>
-Client::call<NODE_UNSTAGE_VOLUME>(
-    NodeUnstageVolumeRequest request)
+Future<RPCResult<NodeUnstageVolumeResponse>>
+Client::nodeUnstageVolume(NodeUnstageVolumeRequest request)
 {
   return runtime.call(
       connection,
@@ -197,10 +168,8 @@ Client::call<NODE_UNSTAGE_VOLUME>(
 }
 
 
-template <>
-Future<Try<NodePublishVolumeResponse, process::grpc::StatusError>>
-Client::call<NODE_PUBLISH_VOLUME>(
-    NodePublishVolumeRequest request)
+Future<RPCResult<NodePublishVolumeResponse>>
+Client::nodePublishVolume(NodePublishVolumeRequest request)
 {
   return runtime.call(
       connection,
@@ -210,10 +179,8 @@ Client::call<NODE_PUBLISH_VOLUME>(
 }
 
 
-template <>
-Future<Try<NodeUnpublishVolumeResponse, process::grpc::StatusError>>
-Client::call<NODE_UNPUBLISH_VOLUME>(
-    NodeUnpublishVolumeRequest request)
+Future<RPCResult<NodeUnpublishVolumeResponse>>
+Client::nodeUnpublishVolume(NodeUnpublishVolumeRequest request)
 {
   return runtime.call(
       connection,
@@ -223,10 +190,8 @@ Client::call<NODE_UNPUBLISH_VOLUME>(
 }
 
 
-template <>
-Future<Try<NodeGetIdResponse, process::grpc::StatusError>>
-Client::call<NODE_GET_ID>(
-    NodeGetIdRequest request)
+Future<RPCResult<NodeGetIdResponse>>
+Client::nodeGetId(NodeGetIdRequest request)
 {
   return runtime.call(
       connection,
@@ -236,10 +201,8 @@ Client::call<NODE_GET_ID>(
 }
 
 
-template <>
-Future<Try<NodeGetCapabilitiesResponse, process::grpc::StatusError>>
-Client::call<NODE_GET_CAPABILITIES>(
-    NodeGetCapabilitiesRequest request)
+Future<RPCResult<NodeGetCapabilitiesResponse>>
+Client::nodeGetCapabilities(NodeGetCapabilitiesRequest request)
 {
   return runtime.call(
       connection,

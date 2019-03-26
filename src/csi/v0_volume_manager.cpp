@@ -40,8 +40,8 @@
 #include <stout/try.hpp>
 #include <stout/unreachable.hpp>
 
-#include "csi/client.hpp"
 #include "csi/paths.hpp"
+#include "csi/v0_client.hpp"
 #include "csi/v0_utils.hpp"
 #include "csi/v0_volume_manager_process.hpp"
 
@@ -253,7 +253,7 @@ Future<vector<VolumeInfo>> VolumeManagerProcess::listVolumes()
 
   // TODO(chhsiao): Set the max entries and use a loop to do multiple
   // `ListVolumes` calls.
-  return call<LIST_VOLUMES>(CONTROLLER_SERVICE, ListVolumesRequest())
+  return call(CONTROLLER_SERVICE, &Client::listVolumes, ListVolumesRequest())
     .then(process::defer(self(), [](const ListVolumesResponse& response) {
       vector<VolumeInfo> result;
       foreach (const auto& entry, response.entries()) {
@@ -279,7 +279,7 @@ Future<Bytes> VolumeManagerProcess::getCapacity(
   *request.add_volume_capabilities() = evolve(capability);
   *request.mutable_parameters() = parameters;
 
-  return call<GET_CAPACITY>(CONTROLLER_SERVICE, std::move(request))
+  return call(CONTROLLER_SERVICE, &Client::getCapacity, std::move(request))
     .then([](const GetCapacityResponse& response) {
       return Bytes(response.available_capacity());
     });
@@ -308,7 +308,8 @@ Future<VolumeInfo> VolumeManagerProcess::createVolume(
   *request.mutable_parameters() = parameters;
 
   // We retry the `CreateVolume` call for MESOS-9517.
-  return call<CREATE_VOLUME>(CONTROLLER_SERVICE, std::move(request), true)
+  return call(
+      CONTROLLER_SERVICE, &Client::createVolume, std::move(request), true)
     .then(process::defer(self(), [=](
         const CreateVolumeResponse& response) -> Future<VolumeInfo> {
       const string& volumeId = response.volume().id();
@@ -371,8 +372,10 @@ Future<Option<Error>> VolumeManagerProcess::validateVolume(
   *request.add_volume_capabilities() = evolve(capability);
   *request.mutable_volume_attributes() = volumeInfo.context;
 
-  return call<VALIDATE_VOLUME_CAPABILITIES>(
-      CONTROLLER_SERVICE, std::move(request))
+  return call(
+      CONTROLLER_SERVICE,
+      &Client::validateVolumeCapabilities,
+      std::move(request))
     .then(process::defer(self(), [=](
         const ValidateVolumeCapabilitiesResponse& response)
         -> Future<Option<Error>> {
@@ -494,10 +497,11 @@ Future<Nothing> VolumeManagerProcess::unpublishVolume(const string& volumeId)
 }
 
 
-template <RPC Rpc>
-Future<Response<Rpc>> VolumeManagerProcess::call(
+template <typename Request, typename Response>
+Future<Response> VolumeManagerProcess::call(
     const Service& service,
-    const Request<Rpc>& request,
+    Future<RPCResult<Response>> (Client::*rpc)(Request),
+    const Request& request,
     const bool retry) // Made immutable in the following mutable lambda.
 {
   Duration maxBackoff = DEFAULT_CSI_RETRY_BACKOFF_FACTOR;
@@ -508,10 +512,14 @@ Future<Response<Rpc>> VolumeManagerProcess::call(
         // Make the call to the latest service endpoint.
         return serviceManager->getServiceEndpoint(service)
           .then(process::defer(
-              self(), &VolumeManagerProcess::_call<Rpc>, lambda::_1, request));
+              self(),
+              &VolumeManagerProcess::_call<Request, Response>,
+              lambda::_1,
+              rpc,
+              request));
       },
-      [=](const Try<Response<Rpc>, StatusError>& result) mutable
-          -> Future<ControlFlow<Response<Rpc>>> {
+      [=](const RPCResult<Response>& result) mutable
+          -> Future<ControlFlow<Response>> {
         Option<Duration> backoff = retry
           ? maxBackoff * (static_cast<double>(os::random()) / RAND_MAX)
           : Option<Duration>::none();
@@ -520,36 +528,36 @@ Future<Response<Rpc>> VolumeManagerProcess::call(
 
         // We dispatch `__call` for testing purpose.
         return process::dispatch(
-            self(), &VolumeManagerProcess::__call<Rpc>, result, backoff);
+            self(), &VolumeManagerProcess::__call<Response>, result, backoff);
       });
 }
 
 
-template <RPC Rpc>
-Future<Try<Response<Rpc>, StatusError>> VolumeManagerProcess::_call(
-    const string& endpoint, const Request<Rpc>& request)
+template <typename Request, typename Response>
+Future<RPCResult<Response>> VolumeManagerProcess::_call(
+    const string& endpoint,
+    Future<RPCResult<Response>> (Client::*rpc)(Request),
+    const Request& request)
 {
   ++metrics->csi_plugin_rpcs_pending;
 
-  return Client(endpoint, runtime).call<Rpc>(request)
-    .onAny(defer(self(), [=](
-        const Future<Try<Response<Rpc>, StatusError>>& future) {
-      --metrics->csi_plugin_rpcs_pending;
-      if (future.isReady() && future->isSome()) {
-        ++metrics->csi_plugin_rpcs_finished;
-      } else if (future.isDiscarded()) {
-        ++metrics->csi_plugin_rpcs_cancelled;
-      } else {
-        ++metrics->csi_plugin_rpcs_failed;
-      }
-    }));
+  return (Client(endpoint, runtime).*rpc)(request).onAny(
+      process::defer(self(), [=](const Future<RPCResult<Response>>& future) {
+        --metrics->csi_plugin_rpcs_pending;
+        if (future.isReady() && future->isSome()) {
+          ++metrics->csi_plugin_rpcs_finished;
+        } else if (future.isDiscarded()) {
+          ++metrics->csi_plugin_rpcs_cancelled;
+        } else {
+          ++metrics->csi_plugin_rpcs_failed;
+        }
+      }));
 }
 
 
-template <RPC Rpc>
-Future<ControlFlow<Response<Rpc>>> VolumeManagerProcess::__call(
-    const Try<Response<Rpc>, StatusError>& result,
-    const Option<Duration>& backoff)
+template <typename Response>
+Future<ControlFlow<Response>> VolumeManagerProcess::__call(
+    const RPCResult<Response>& result, const Option<Duration>& backoff)
 {
   if (result.isSome()) {
     return Break(result.get());
@@ -564,13 +572,12 @@ Future<ControlFlow<Response<Rpc>>> VolumeManagerProcess::__call(
   switch (result.error().status.error_code()) {
     case grpc::DEADLINE_EXCEEDED:
     case grpc::UNAVAILABLE: {
-      LOG(ERROR) << "Received '" << result.error() << "' while calling " << Rpc
-                 << ". Retrying in " << backoff.get();
+      LOG(ERROR) << "Received '" << result.error() << "' while expecting "
+                 << Response::descriptor()->name() << ". Retrying in "
+                 << backoff.get();
 
       return process::after(backoff.get())
-        .then([]() -> Future<ControlFlow<Response<Rpc>>> {
-          return Continue();
-        });
+        .then([]() -> Future<ControlFlow<Response>> { return Continue(); });
     }
     case grpc::CANCELLED:
     case grpc::UNKNOWN:
@@ -603,8 +610,10 @@ Future<Nothing> VolumeManagerProcess::prepareServices()
   CHECK(!services.empty());
 
   // Get the plugin capabilities.
-  return call<GET_PLUGIN_CAPABILITIES>(
-      *services.begin(), GetPluginCapabilitiesRequest())
+  return call(
+      *services.begin(),
+      &Client::getPluginCapabilities,
+      GetPluginCapabilitiesRequest())
     .then(process::defer(self(), [=](
         const GetPluginCapabilitiesResponse& response) -> Future<Nothing> {
       pluginCapabilities = response.capabilities();
@@ -622,11 +631,11 @@ Future<Nothing> VolumeManagerProcess::prepareServices()
     .then(process::defer(self(), [this] {
       vector<Future<GetPluginInfoResponse>> futures;
       foreach (const Service& service, services) {
-        futures.push_back(
-            call<GET_PLUGIN_INFO>(CONTROLLER_SERVICE, GetPluginInfoRequest())
-              .onReady([service](const GetPluginInfoResponse& response) {
-                LOG(INFO) << service << " loaded: " << stringify(response);
-              }));
+        futures.push_back(call(
+            CONTROLLER_SERVICE, &Client::getPluginInfo, GetPluginInfoRequest())
+          .onReady([service](const GetPluginInfoResponse& response) {
+            LOG(INFO) << service << " loaded: " << stringify(response);
+          }));
       }
 
       return process::collect(futures)
@@ -650,8 +659,10 @@ Future<Nothing> VolumeManagerProcess::prepareServices()
         return Nothing();
       }
 
-      return call<CONTROLLER_GET_CAPABILITIES>(
-          CONTROLLER_SERVICE, ControllerGetCapabilitiesRequest())
+      return call(
+          CONTROLLER_SERVICE,
+          &Client::controllerGetCapabilities,
+          ControllerGetCapabilitiesRequest())
         .then(process::defer(self(), [this](
             const ControllerGetCapabilitiesResponse& response) {
           controllerCapabilities = response.capabilities();
@@ -665,14 +676,16 @@ Future<Nothing> VolumeManagerProcess::prepareServices()
         return Nothing();
       }
 
-      return call<NODE_GET_CAPABILITIES>(
-          NODE_SERVICE, NodeGetCapabilitiesRequest())
+      return call(
+          NODE_SERVICE,
+          &Client::nodeGetCapabilities,
+          NodeGetCapabilitiesRequest())
         .then(process::defer(self(), [this](
             const NodeGetCapabilitiesResponse& response) -> Future<Nothing> {
           nodeCapabilities = response.capabilities();
 
           if (controllerCapabilities->publishUnpublishVolume) {
-            return call<NODE_GET_ID>(NODE_SERVICE, NodeGetIdRequest())
+            return call(NODE_SERVICE, &Client::nodeGetId, NodeGetIdRequest())
               .then(process::defer(self(), [this](
                   const NodeGetIdResponse& response) {
                 nodeId = response.node_id();
@@ -754,7 +767,8 @@ Future<bool> VolumeManagerProcess::__deleteVolume(
   request.set_volume_id(volumeId);
 
   // We retry the `DeleteVolume` call for MESOS-9517.
-  return call<DELETE_VOLUME>(CONTROLLER_SERVICE, std::move(request), true)
+  return call(
+      CONTROLLER_SERVICE, &Client::deleteVolume, std::move(request), true)
     .then([] { return true; });
 }
 
@@ -808,7 +822,8 @@ Future<Nothing> VolumeManagerProcess::_attachVolume(const string& volumeId)
   request.set_readonly(false);
   *request.mutable_volume_attributes() = volumeState.volume_attributes();
 
-  return call<CONTROLLER_PUBLISH_VOLUME>(CONTROLLER_SERVICE, std::move(request))
+  return call(
+      CONTROLLER_SERVICE, &Client::controllerPublishVolume, std::move(request))
     .then(process::defer(self(), [this, volumeId](
         const ControllerPublishVolumeResponse& response) {
       CHECK(volumes.contains(volumeId));
@@ -863,8 +878,10 @@ Future<Nothing> VolumeManagerProcess::_detachVolume(const string& volumeId)
   request.set_volume_id(volumeId);
   request.set_node_id(CHECK_NOTNONE(nodeId));
 
-  return call<CONTROLLER_UNPUBLISH_VOLUME>(
-      CONTROLLER_SERVICE, std::move(request))
+  return call(
+      CONTROLLER_SERVICE,
+      &Client::controllerUnpublishVolume,
+      std::move(request))
     .then(process::defer(self(), [this, volumeId] {
       CHECK(volumes.contains(volumeId));
       VolumeState& volumeState = volumes.at(volumeId).state;
@@ -941,7 +958,7 @@ Future<Nothing> VolumeManagerProcess::_publishVolume(const string& volumeId)
     request.set_staging_target_path(stagingPath);
   }
 
-  return call<NODE_PUBLISH_VOLUME>(NODE_SERVICE, std::move(request))
+  return call(NODE_SERVICE, &Client::nodePublishVolume, std::move(request))
     .then(defer(self(), [this, volumeId, targetPath] {
       CHECK(volumes.contains(volumeId));
       VolumeState& volumeState = volumes.at(volumeId).state;
@@ -1022,7 +1039,7 @@ Future<Nothing> VolumeManagerProcess::__publishVolume(const string& volumeId)
     evolve(volumeState.volume_capability());
   *request.mutable_volume_attributes() = volumeState.volume_attributes();
 
-  return call<NODE_STAGE_VOLUME>(NODE_SERVICE, std::move(request))
+  return call(NODE_SERVICE, &Client::nodeStageVolume, std::move(request))
     .then(process::defer(self(), [this, volumeId] {
       CHECK(volumes.contains(volumeId));
       VolumeState& volumeState = volumes.at(volumeId).state;
@@ -1082,7 +1099,7 @@ Future<Nothing> VolumeManagerProcess::_unpublishVolume(const string& volumeId)
   request.set_volume_id(volumeId);
   request.set_staging_target_path(stagingPath);
 
-  return call<NODE_UNSTAGE_VOLUME>(NODE_SERVICE, std::move(request))
+  return call(NODE_SERVICE, &Client::nodeUnstageVolume, std::move(request))
     .then(process::defer(self(), [this, volumeId] {
       CHECK(volumes.contains(volumeId));
       VolumeState& volumeState = volumes.at(volumeId).state;
@@ -1134,7 +1151,7 @@ Future<Nothing> VolumeManagerProcess::__unpublishVolume(const string& volumeId)
   request.set_volume_id(volumeId);
   request.set_target_path(targetPath);
 
-  return call<NODE_UNPUBLISH_VOLUME>(NODE_SERVICE, std::move(request))
+  return call(NODE_SERVICE, &Client::nodeUnpublishVolume, std::move(request))
     .then(process::defer(self(), [this, volumeId] {
       CHECK(volumes.contains(volumeId));
       VolumeState& volumeState = volumes.at(volumeId).state;

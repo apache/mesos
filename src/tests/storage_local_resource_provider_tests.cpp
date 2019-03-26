@@ -41,7 +41,6 @@
 #include <stout/os/realpath.hpp>
 
 #include "csi/paths.hpp"
-#include "csi/rpc.hpp"
 #include "csi/state.hpp"
 #include "csi/v0_volume_manager_process.hpp"
 
@@ -4951,14 +4950,14 @@ TEST_F(StorageLocalResourceProviderTest, RetryRpcWithExponentialBackoff)
       {CREATE_DISK(raw, Resource::DiskInfo::Source::MOUNT)});
 
   AWAIT_READY(createVolumeRequests.get())
-    << "Failed to wait for " << csi::v0::CREATE_VOLUME << " call #1";
+    << "Failed to wait for CreateVolumeRequest #1";
 
   // Settle the clock to verify that there is no more outstanding request.
   Clock::settle();
   ASSERT_EQ(0u, createVolumeRequests.size());
 
   Future<Nothing> createVolumeCall = FUTURE_DISPATCH(
-      _, &csi::v0::VolumeManagerProcess::__call<csi::v0::CREATE_VOLUME>);
+      _, &csi::v0::VolumeManagerProcess::__call<csi::v0::CreateVolumeResponse>);
 
   // Return `DEADLINE_EXCEEDED` for the first `CreateVolume` call.
   createVolumeResults.put(
@@ -4976,15 +4975,15 @@ TEST_F(StorageLocalResourceProviderTest, RetryRpcWithExponentialBackoff)
   // Return `UNAVAILABLE` for subsequent `CreateVolume` calls.
   for (size_t i = 1; i < numRetryableErrors; i++) {
     AWAIT_READY(createVolumeRequests.get())
-      << "Failed to wait for " << csi::v0::CREATE_VOLUME << " call #"
-      << (i + 1);
+      << "Failed to wait for CreateVolumeRequest #" << (i + 1);
 
     // Settle the clock to verify that there is no more outstanding request.
     Clock::settle();
     ASSERT_EQ(0u, createVolumeRequests.size());
 
     createVolumeCall = FUTURE_DISPATCH(
-        _, &csi::v0::VolumeManagerProcess::__call<csi::v0::CREATE_VOLUME>);
+        _,
+        &csi::v0::VolumeManagerProcess::__call<csi::v0::CreateVolumeResponse>);
 
     createVolumeResults.put(StatusError(grpc::Status(grpc::UNAVAILABLE, "")));
 
@@ -5000,8 +4999,7 @@ TEST_F(StorageLocalResourceProviderTest, RetryRpcWithExponentialBackoff)
   }
 
   AWAIT_READY(createVolumeRequests.get())
-    << "Failed to wait for " << csi::v0::CREATE_VOLUME << " call #"
-    << (numRetryableErrors + 1);
+    << "Failed to wait for CreateVolumeRequest #" << (numRetryableErrors + 1);
 
   // Settle the clock to verify that there is no more outstanding request.
   Clock::settle();
@@ -5038,14 +5036,14 @@ TEST_F(StorageLocalResourceProviderTest, RetryRpcWithExponentialBackoff)
   driver.acceptOffers({offers->at(0).id()}, {DESTROY_DISK(created)});
 
   AWAIT_READY(deleteVolumeRequests.get())
-    << "Failed to wait for " << csi::v0::DELETE_VOLUME << " call #1";
+    << "Failed to wait for DeleteVolumeRequest #1";
 
   // Settle the clock to verify that there is no more outstanding request.
   Clock::settle();
   ASSERT_EQ(0u, deleteVolumeRequests.size());
 
   Future<Nothing> deleteVolumeCall = FUTURE_DISPATCH(
-      _, &csi::v0::VolumeManagerProcess::__call<csi::v0::DELETE_VOLUME>);
+      _, &csi::v0::VolumeManagerProcess::__call<csi::v0::DeleteVolumeResponse>);
 
   // Return `DEADLINE_EXCEEDED` for the first `DeleteVolume` call.
   deleteVolumeResults.put(
@@ -5063,15 +5061,15 @@ TEST_F(StorageLocalResourceProviderTest, RetryRpcWithExponentialBackoff)
   // Return `UNAVAILABLE` for subsequent `DeleteVolume` calls.
   for (size_t i = 1; i < numRetryableErrors; i++) {
     AWAIT_READY(deleteVolumeRequests.get())
-      << "Failed to wait for " << csi::v0::DELETE_VOLUME << " call #"
-      << (i + 1);
+      << "Failed to wait for DeleteVolumeRequest #" << (i + 1);
 
     // Settle the clock to verify that there is no more outstanding request.
     Clock::settle();
     ASSERT_EQ(0u, deleteVolumeRequests.size());
 
     deleteVolumeCall = FUTURE_DISPATCH(
-        _, &csi::v0::VolumeManagerProcess::__call<csi::v0::DELETE_VOLUME>);
+        _,
+        &csi::v0::VolumeManagerProcess::__call<csi::v0::DeleteVolumeResponse>);
 
     deleteVolumeResults.put(StatusError(grpc::Status(grpc::UNAVAILABLE, "")));
 
@@ -5087,8 +5085,7 @@ TEST_F(StorageLocalResourceProviderTest, RetryRpcWithExponentialBackoff)
   }
 
   AWAIT_READY(deleteVolumeRequests.get())
-    << "Failed to wait for " << csi::v0::DELETE_VOLUME << " call #"
-    << (numRetryableErrors + 1);
+    << "Failed to wait for DeleteVolumeRequest #" << (numRetryableErrors + 1);
 
   // Settle the clock to verify that there is no more outstanding request.
   Clock::settle();

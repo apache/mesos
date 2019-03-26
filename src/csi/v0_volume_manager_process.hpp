@@ -44,9 +44,9 @@
 #include <stout/try.hpp>
 
 #include "csi/metrics.hpp"
-#include "csi/rpc.hpp"
 #include "csi/service_manager.hpp"
 #include "csi/state.hpp"
+#include "csi/v0_client.hpp"
 #include "csi/v0_utils.hpp"
 #include "csi/v0_volume_manager.hpp"
 #include "csi/volume_manager.hpp"
@@ -118,18 +118,22 @@ public:
   // NOTE: We currently ensure this by 1) resource locking to forbid concurrent
   // calls on the same volume, and 2) no profile update while there are ongoing
   // `CREATE_DISK` or `DESTROY_DISK` operations.
-  template <RPC Rpc>
-  process::Future<Response<Rpc>> call(
-      const Service& service, const Request<Rpc>& request, bool retry = false);
+  template <typename Request, typename Response>
+  process::Future<Response> call(
+      const Service& service,
+      process::Future<RPCResult<Response>> (Client::*rpc)(Request),
+      const Request& request,
+      bool retry = false);
 
-  template <RPC Rpc>
-  process::Future<Try<Response<Rpc>, process::grpc::StatusError>>
-  _call(const std::string& endpoint, const Request<Rpc>& request);
+  template <typename Request, typename Response>
+  process::Future<RPCResult<Response>> _call(
+      const std::string& endpoint,
+      process::Future<RPCResult<Response>> (Client::*rpc)(Request),
+      const Request& request);
 
-  template <RPC Rpc>
-  process::Future<process::ControlFlow<Response<Rpc>>> __call(
-      const Try<Response<Rpc>, process::grpc::StatusError>& result,
-      const Option<Duration>& backoff);
+  template <typename Response>
+  process::Future<process::ControlFlow<Response>> __call(
+      const RPCResult<Response>& result, const Option<Duration>& backoff);
 
 private:
   process::Future<Nothing> prepareServices();
