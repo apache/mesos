@@ -2017,7 +2017,7 @@ message Offer {
     message CreateDisk {
       required Resource source = 1;
 
-      // NOTE: Only `MOUNT` or `BLOCK` is allowed in the `target_type` field.
+      // NOTE: Only `MOUNT` or `BLOCK` is allowed in this field.
       required Resource.DiskInfo.Source.Type target_type = 2;
 
       // Apply the specified profile to the created disk. This field must be set
@@ -2028,18 +2028,20 @@ message Offer {
       optional string target_profile = 3;
     }
 
-    // Destroy a `MOUNT` or `BLOCK` disk resource backed by a CSI volume.
+    // Destroy a disk resource backed by a CSI volume.
     //
     // In the typical case where the CSI plugin of the volume supports volume
-    // deprovisioning and the profile of the disk resource is known to Mesos,
-    // the volume will be deprovisioned and a `RAW` disk resource with the same
-    // profile but no source ID will be returned. However, the following corner
-    // cases could lead to different outcomes:
+    // deprovisioning and the disk resource is a `MOUNT` or `BLOCK` disk with a
+    // profile known to Mesos, the volume will be deprovisioned and a `RAW` disk
+    // resource with the same profile but no source ID will be returned.
+    // However, the following scenarios could lead to different outcomes:
     //
     // (1) If the CSI plugin supports volume deprovisioning but the profile of
-    //     the disk resource is no longer reported by the disk profile adaptor,
-    //     the volume will be deprovisioned but no resource will be returned.
-    //
+    //     the disk resource is unknown to the disk profile adaptor, or the disk
+    //     resource is a `RAW` disk with no profile but a source ID (see above
+    //     for possible scenarios), the volume will be deprovisioned but no
+    //     resource will be returned.
+     //
     // (2) If the CSI plugin does not support volume deprovisioning, the volume
     //     won't be deprovisioned and a `RAW` disk resource with no profile but
     //     the same source ID will be returned.
@@ -2047,7 +2049,7 @@ message Offer {
     // NOTE: For the time being, this API is subject to change and the related
     // feature is experimental.
     message DestroyDisk {
-      // NOTE: Only a `MOUNT` or `BLOCK` disk is allowed in the `source` field.
+      // NOTE: Only a `MOUNT`, `BLOCK` or `RAW` disk is allowed in this field.
       required Resource source = 1;
     }
 
