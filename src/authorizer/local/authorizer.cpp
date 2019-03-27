@@ -431,6 +431,7 @@ public:
         case authorization::DESTROY_BLOCK_DISK:
         case authorization::CREATE_MOUNT_DISK:
         case authorization::DESTROY_MOUNT_DISK:
+        case authorization::DESTROY_RAW_DISK:
           return Error("Authorization for action " + stringify(action_) +
                        " requires a specialized approver object.");
         case authorization::UNKNOWN:
@@ -607,7 +608,8 @@ public:
         case authorization::CREATE_BLOCK_DISK:
         case authorization::DESTROY_BLOCK_DISK:
         case authorization::CREATE_MOUNT_DISK:
-        case authorization::DESTROY_MOUNT_DISK: {
+        case authorization::DESTROY_MOUNT_DISK:
+        case authorization::DESTROY_RAW_DISK: {
           entityObject.set_type(ACL::Entity::SOME);
           if (object->resource) {
             if (object->resource->reservations_size() > 0) {
@@ -945,6 +947,11 @@ public:
           createHierarchicalRoleACLs(acls.destroy_mount_disks());
         break;
       }
+      case authorization::DESTROY_RAW_DISK: {
+        hierarchicalRoleACLs =
+          createHierarchicalRoleACLs(acls.destroy_raw_disks());
+        break;
+      }
       case authorization::ACCESS_MESOS_LOG:
       case authorization::ACCESS_SANDBOX:
       case authorization::ATTACH_CONTAINER_INPUT:
@@ -1167,7 +1174,8 @@ public:
       case authorization::CREATE_BLOCK_DISK:
       case authorization::DESTROY_BLOCK_DISK:
       case authorization::CREATE_MOUNT_DISK:
-      case authorization::DESTROY_MOUNT_DISK: {
+      case authorization::DESTROY_MOUNT_DISK:
+      case authorization::DESTROY_RAW_DISK: {
         return getHierarchicalRoleApprover(subject, action);
       }
       case authorization::ACCESS_MESOS_LOG:
@@ -1606,6 +1614,7 @@ private:
       case authorization::DESTROY_BLOCK_DISK:
       case authorization::CREATE_MOUNT_DISK:
       case authorization::DESTROY_MOUNT_DISK:
+      case authorization::DESTROY_RAW_DISK:
         return Error("Extracting ACLs for " + stringify(action) + " requires "
                      "a specialized function");
       case authorization::UNKNOWN:

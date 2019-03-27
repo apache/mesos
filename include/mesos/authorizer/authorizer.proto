@@ -292,6 +292,12 @@ enum Action {
   // NOTE: For consistency, the `value` field will be set with the most refined
   // role until all `*_WITH_ROLE` aliases are removed.
   DESTROY_MOUNT_DISK = 46;
+
+  // `DESTROY_RAW_DISK` will have an object with `Resource` set.
+  //
+  // NOTE: For consistency, the `value` field will be set with the most refined
+  // role until all `*_WITH_ROLE` aliases are removed.
+  DESTROY_RAW_DISK = 49;
 }
 
 

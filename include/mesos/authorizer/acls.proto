@@ -567,6 +567,15 @@ message ACL {
     required Entity roles = 2;
   }
 
+  // Which principals are authorized to destroy raw disks.
+  message DestroyRawDisk {
+    // Subjects: Framework principal.
+    required Entity principals = 1;
+
+    // Objects: The list of roles for which volume disks can be destroyed.
+    required Entity roles = 2;
+  }
+
   // Which principals are authorized to access resource provider information.
   message ViewResourceProvider {
     // Subjects: HTTP Username.
@@ -661,4 +670,5 @@ message ACLs {
   repeated ACL.DestroyBlockDisk destroy_block_disks = 50;
   repeated ACL.CreateMountDisk create_mount_disks = 51;
   repeated ACL.DestroyMountDisk destroy_mount_disks = 52;
+  repeated ACL.DestroyRawDisk destroy_raw_disks = 55;
 }

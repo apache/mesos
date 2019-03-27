@@ -3989,9 +3989,12 @@ Future<bool> Master::authorizeDestroyDisk(
       action = authorization::DESTROY_BLOCK_DISK;
       break;
     }
-    case Resource::DiskInfo::Source::UNKNOWN:
-    case Resource::DiskInfo::Source::PATH:
     case Resource::DiskInfo::Source::RAW: {
+      action = authorization::DESTROY_RAW_DISK;
+      break;
+    }
+    case Resource::DiskInfo::Source::UNKNOWN:
+    case Resource::DiskInfo::Source::PATH: {
       return Failure(
           "Failed to authorize principal '" +
           (principal.isSome() ? stringify(principal.get()) : "ANY") +
