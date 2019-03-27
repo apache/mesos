@@ -169,5 +169,55 @@
         "type": "ANY"
       }
     }
+  ],
+  "create_block_disks": [
+    {
+      "principals": {
+        "type": "ANY"
+      },
+      "roles": {
+        "type": "ANY"
+      }
+    }
+  ],
+  "destroy_block_disks": [
+    {
+      "principals": {
+        "type": "ANY"
+      },
+      "roles": {
+        "type": "ANY"
+      }
+    }
+  ],
+  "create_mount_disks": [
+    {
+      "principals": {
+        "type": "ANY"
+      },
+      "roles": {
+        "type": "ANY"
+      }
+    }
+  ],
+  "destroy_mount_disks": [
+    {
+      "principals": {
+        "type": "ANY"
+      },
+      "roles": {
+        "type": "ANY"
+      }
+    }
+  ],
+  "destroy_raw_disks": [
+    {
+      "principals": {
+        "type": "ANY"
+      },
+      "roles": {
+        "type": "ANY"
+      }
+    }
   ]
 }

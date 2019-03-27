@@ -252,6 +252,10 @@ enum Action {
   MODIFY_RESOURCE_PROVIDER_CONFIG = 39;
 
   // This action will not fill in any object fields. A principal is either
+  // allowed to view resource provider information or is unauthorized.
+  VIEW_RESOURCE_PROVIDER = 47;
+
+  // This action will not fill in any object fields. A principal is either
   // allowed to prune unused container images or is unauthorized.
   PRUNE_IMAGES = 41;
 
@@ -285,9 +289,11 @@ enum Action {
   // role until all `*_WITH_ROLE` aliases are removed.
   DESTROY_MOUNT_DISK = 46;
 
-  // This action will not fill in any object fields. A principal is either
-  // allowed to view resource provider information or is unauthorized.
-  VIEW_RESOURCE_PROVIDER = 47;
+  // `DESTROY_RAW_DISK` will have an object with `Resource` set.
+  //
+  // NOTE: For consistency, the `value` field will be set with the most refined
+  // role until all `*_WITH_ROLE` aliases are removed.
+  DESTROY_RAW_DISK = 49;
 }
 
 
