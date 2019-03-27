@@ -2603,8 +2603,13 @@ Option<Error> validate(const Offer::Operation::DestroyDisk& destroyDisk)
   }
 
   if (!Resources::isDisk(source, Resource::DiskInfo::Source::MOUNT) &&
-      !Resources::isDisk(source, Resource::DiskInfo::Source::BLOCK)) {
-    return Error("'source' is neither a MOUNT or BLOCK disk resource");
+      !Resources::isDisk(source, Resource::DiskInfo::Source::BLOCK) &&
+      !Resources::isDisk(source, Resource::DiskInfo::Source::RAW)) {
+    return Error("'source' is neither a MOUNT, BLOCK or RAW disk resource");
+  }
+
+  if (!source.disk().source().has_id()) {
+    return Error("'source' is not backed by a CSI volume");
   }
 
   if (Resources::isPersistentVolume(source)) {
