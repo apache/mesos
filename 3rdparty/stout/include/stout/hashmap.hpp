@@ -89,7 +89,7 @@ public:
   }
 
   // Checks whether there exists a bound value in this map.
-  bool containsValue(const Value& v) const
+  bool contains_value(const Value& v) const
   {
     foreachvalue (const Value& value, *this) {
       if (value == v) {
