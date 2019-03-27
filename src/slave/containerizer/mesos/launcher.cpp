@@ -61,7 +61,7 @@ Future<hashset<ContainerID>> SubprocessLauncher::recover(
     const ContainerID& containerId = state.container_id();
     pid_t pid = static_cast<pid_t>(state.pid());
 
-    if (pids.containsValue(pid)) {
+    if (pids.contains_value(pid)) {
       // This should (almost) never occur. There is the possibility
       // that a new executor is launched with the same pid as one that
       // just exited (highly unlikely) and the slave dies after the

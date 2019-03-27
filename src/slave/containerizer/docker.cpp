@@ -1056,7 +1056,7 @@ Future<Nothing> DockerContainerizerProcess::_recover(
         container->status.future()
           ->onAny(defer(self(), &Self::reaped, containerId));
 
-        if (pids.containsValue(pid)) {
+        if (pids.contains_value(pid)) {
           // This should (almost) never occur. There is the
           // possibility that a new executor is launched with the same
           // pid as one that just exited (highly unlikely) and the

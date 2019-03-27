@@ -10930,7 +10930,7 @@ void Master::removeFramework(Framework* framework)
     // Remove the metrics for the principal if this framework is the
     // last one with this principal.
     if (principal.isSome() &&
-        !frameworks.principals.containsValue(principal.get())) {
+        !frameworks.principals.contains_value(principal.get())) {
       CHECK(metrics->frameworks.contains(principal.get()));
       metrics->frameworks.erase(principal.get());
     }
