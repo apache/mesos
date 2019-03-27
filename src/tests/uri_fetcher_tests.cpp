@@ -302,29 +302,17 @@ TEST_F(DockerFetcherPluginTest, INTERNET_CURL_FetchManifest)
 
   AWAIT_READY_FOR(fetcher.get()->fetch(uri, dir), Seconds(60));
 
-  // Version 2 schema 1 image manifest test
-  Try<string> _s1Manifest = os::read(path::join(dir, "manifest"));
-  ASSERT_SOME(_s1Manifest);
-
-  Try<docker::spec::v2::ImageManifest> s1Manifest =
-    docker::spec::v2::parse(_s1Manifest.get());
-
-  ASSERT_SOME(s1Manifest);
-  EXPECT_EQ(1u, s1Manifest->schemaversion());
-  EXPECT_EQ(TEST_REPOSITORY, s1Manifest->name());
-  EXPECT_EQ("latest", s1Manifest->tag());
-
-#ifdef __WINDOWS__
   // Version 2 schema 2 image manifest test
-  Try<string> _s2Manifest = os::read(path::join(dir, "manifest_v2s2"));
-  ASSERT_SOME(_s2Manifest);
+  Try<string> _manifest = os::read(path::join(dir, "manifest"));
+  ASSERT_SOME(_manifest);
 
-  Try<docker::spec::v2_2::ImageManifest> s2Manifest =
-    docker::spec::v2_2::parse(_s2Manifest.get());
+  Try<docker::spec::v2_2::ImageManifest> manifest =
+    docker::spec::v2_2::parse(_manifest.get());
 
-  ASSERT_SOME(s2Manifest);
-  EXPECT_EQ(2u, s2Manifest->schemaversion());
-#endif // __WINDOWS__
+  ASSERT_SOME(manifest);
+  EXPECT_EQ(2u, manifest->schemaversion());
+  EXPECT_EQ("application/vnd.docker.distribution.manifest.v2+json",
+            manifest->mediatype());
 }
 
 
@@ -360,19 +348,21 @@ TEST_F(DockerFetcherPluginTest, INTERNET_CURL_FetchImage)
   Try<string> _manifest = os::read(path::join(dir, "manifest"));
   ASSERT_SOME(_manifest);
 
-  Try<docker::spec::v2::ImageManifest> manifest =
-      docker::spec::v2::parse(_manifest.get());
+  Try<docker::spec::v2_2::ImageManifest> manifest =
+      docker::spec::v2_2::parse(_manifest.get());
 
   ASSERT_SOME(manifest);
-  EXPECT_EQ(1u, manifest->schemaversion());
-  EXPECT_EQ(TEST_REPOSITORY, manifest->name());
-  EXPECT_EQ("latest", manifest->tag());
+  EXPECT_EQ(2u, manifest->schemaversion());
+  EXPECT_EQ("application/vnd.docker.distribution.manifest.v2+json",
+            manifest->mediatype());
 
-  for (int i = 0; i < manifest->fslayers_size(); i++) {
+  EXPECT_TRUE(os::exists(path::join(dir, manifest->config().digest())));
+
+  for (int i = 0; i < manifest->layers_size(); i++) {
     EXPECT_TRUE(os::exists(
         DockerFetcherPlugin::getBlobPath(
             dir,
-            manifest->fslayers(i).blobsum())));
+            manifest->layers(i).digest())));
   }
 }
 
@@ -395,19 +385,21 @@ TEST_F(DockerFetcherPluginTest, INTERNET_CURL_InvokeFetchByName)
   Try<string> _manifest = os::read(path::join(dir, "manifest"));
   ASSERT_SOME(_manifest);
 
-  Try<docker::spec::v2::ImageManifest> manifest =
-      docker::spec::v2::parse(_manifest.get());
+  Try<docker::spec::v2_2::ImageManifest> manifest =
+      docker::spec::v2_2::parse(_manifest.get());
 
   ASSERT_SOME(manifest);
-  EXPECT_EQ(1u, manifest->schemaversion());
-  EXPECT_EQ(TEST_REPOSITORY, manifest->name());
-  EXPECT_EQ("latest", manifest->tag());
+  EXPECT_EQ(2u, manifest->schemaversion());
+  EXPECT_EQ("application/vnd.docker.distribution.manifest.v2+json",
+            manifest->mediatype());
 
-  for (int i = 0; i < manifest->fslayers_size(); i++) {
+  EXPECT_TRUE(os::exists(path::join(dir, manifest->config().digest())));
+
+  for (int i = 0; i < manifest->layers_size(); i++) {
     EXPECT_TRUE(os::exists(
         DockerFetcherPlugin::getBlobPath(
             dir,
-            manifest->fslayers(i).blobsum())));
+            manifest->layers(i).digest())));
   }
 }
 
