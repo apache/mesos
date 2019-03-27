@@ -465,7 +465,9 @@ void ResourceProviderManagerProcess::applyOperation(
     const ApplyOperationMessage& message)
 {
   const Offer::Operation& operation = message.operation_info();
-  const FrameworkID& frameworkId = message.framework_id();
+  const Option<FrameworkID> frameworkId = message.has_framework_id()
+    ? message.framework_id()
+    : Option<FrameworkID>::none();
   const UUID& operationUUID = message.operation_uuid();
 
   Result<ResourceProviderID> resourceProviderId =
@@ -474,7 +476,11 @@ void ResourceProviderManagerProcess::applyOperation(
   if (!resourceProviderId.isSome()) {
     LOG(ERROR) << "Failed to get the resource provider ID of operation "
                << "'" << operation.id() << "' (uuid: " << operationUUID
-               << ") from framework " << frameworkId << ": "
+               << ") from "
+               << (frameworkId.isSome()
+                     ? "framework " + stringify(frameworkId.get())
+                     : "an operator API call")
+               << ": "
                << (resourceProviderId.isError() ? resourceProviderId.error()
                                                 : "Not found");
     return;
@@ -482,7 +488,10 @@ void ResourceProviderManagerProcess::applyOperation(
 
   if (!resourceProviders.subscribed.contains(resourceProviderId.get())) {
     LOG(WARNING) << "Dropping operation '" << operation.id() << "' (uuid: "
-                 << operationUUID << ") from framework " << frameworkId
+                 << operationUUID << ") from "
+                 << (frameworkId.isSome()
+                       ? "framework " + stringify(frameworkId.get())
+                       : "an operator API call")
                  << " because resource provider " << resourceProviderId.get()
                  << " is not subscribed";
     return;
@@ -502,8 +511,10 @@ void ResourceProviderManagerProcess::applyOperation(
 
   Event event;
   event.set_type(Event::APPLY_OPERATION);
-  event.mutable_apply_operation()
-    ->mutable_framework_id()->CopyFrom(frameworkId);
+  if (frameworkId.isSome()) {
+    event.mutable_apply_operation()
+      ->mutable_framework_id()->CopyFrom(frameworkId.get());
+  }
   event.mutable_apply_operation()->mutable_info()->CopyFrom(operation);
   event.mutable_apply_operation()
     ->mutable_operation_uuid()->CopyFrom(message.operation_uuid());
@@ -513,9 +524,12 @@ void ResourceProviderManagerProcess::applyOperation(
 
   if (!resourceProvider->http.send(event)) {
     LOG(WARNING) << "Failed to send operation '" << operation.id() << "' "
-                 << "(uuid: " << operationUUID << ") from framework "
-                 << frameworkId << " to resource provider "
-                 << resourceProviderId.get() << ": connection closed";
+                 << "(uuid: " << operationUUID << ") from "
+                 << (frameworkId.isSome()
+                       ? "framework " + stringify(frameworkId.get())
+                       : "an operator API call")
+                 << " to resource provider " << resourceProviderId.get()
+                 << ": connection closed";
   }
 }
 
