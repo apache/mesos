@@ -1628,15 +1628,17 @@ TYPED_TEST(CommonSorterTest, RemoveSharedResources)
   sorter.add(
       slaveId, Resources::parse("cpus:100;mem:100;disk(role1):900").get());
 
-  Resources quantity1 = sorter.totalScalarQuantities();
+  ResourceQuantities quantity1 = sorter.totalScalarQuantities();
 
   sorter.add(slaveId, sharedDisk);
-  Resources quantity2 = sorter.totalScalarQuantities();
+  ResourceQuantities quantity2 = sorter.totalScalarQuantities();
 
-  EXPECT_EQ(Resources::parse("disk:100").get(), quantity2 - quantity1);
+  EXPECT_EQ(
+      CHECK_NOTERROR(ResourceQuantities::fromString("disk:100")),
+      quantity2 - quantity1);
 
   sorter.add(slaveId, sharedDisk);
-  Resources quantity3 = sorter.totalScalarQuantities();
+  ResourceQuantities quantity3 = sorter.totalScalarQuantities();
 
   EXPECT_NE(quantity1, quantity3);
   EXPECT_EQ(quantity2, quantity3);

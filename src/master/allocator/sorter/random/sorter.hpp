@@ -85,7 +85,7 @@ public:
   const hashmap<SlaveID, Resources>& allocation(
       const std::string& clientPath) const override;
 
-  const Resources& allocationScalarQuantities(
+  const ResourceQuantities& allocationScalarQuantities(
       const std::string& clientPath) const override;
 
   hashmap<std::string, Resources> allocation(
@@ -95,7 +95,7 @@ public:
       const std::string& clientPath,
       const SlaveID& slaveId) const override;
 
-  const Resources& totalScalarQuantities() const override;
+  const ResourceQuantities& totalScalarQuantities() const override;
 
   void add(const SlaveID& slaveId, const Resources& resources) override;
 
@@ -155,26 +155,10 @@ private:
     // number of copies in the sorter.
     hashmap<SlaveID, Resources> resources;
 
-    // NOTE: Scalars can be safely aggregated across slaves. We keep
-    // that to speed up the calculation of shares. See MESOS-2891 for
-    // the reasons why we want to do that.
-    //
-    // NOTE: We omit information about dynamic reservations and
-    // persistent volumes here to enable resources to be aggregated
-    // across slaves more effectively. See MESOS-4833 for more
-    // information.
-    //
-    // Sharedness info is also stripped out when resource identities
-    // are omitted because sharedness inherently refers to the
-    // identities of resources and not quantities.
-    Resources scalarQuantities;
-
-    // To improve the performance of calculating shares, we store
-    // a redundant but more efficient version of `scalarQuantities`.
-    // See MESOS-4694.
-    //
-    // TODO(bmahler): Can we remove `scalarQuantities` in favor of
-    // using this type whenever scalar quantities are needed?
+    // We keep the aggregated scalar resource quantities to speed
+    // up share calculation. Note, resources shared count are ignored.
+    // Because sharedness inherently refers to the identities of resources
+    // and not quantities.
     ResourceQuantities totals;
   } total_;
 };
@@ -325,13 +309,12 @@ struct RandomSorter::Node
             return !resources[slaveId].contains(resource);
         });
 
-      const Resources quantitiesToAdd =
-        (toAdd.nonShared() + sharedToAdd).createStrippedScalarQuantity();
+      const ResourceQuantities quantitiesToAdd =
+        ResourceQuantities::fromScalarResources(
+            (toAdd.nonShared() + sharedToAdd).scalars());
 
       resources[slaveId] += toAdd;
-      scalarQuantities += quantitiesToAdd;
-
-      totals += ResourceQuantities::fromScalarResources(quantitiesToAdd);
+      totals += quantitiesToAdd;
     }
 
     void subtract(const SlaveID& slaveId, const Resources& toRemove)
@@ -350,15 +333,14 @@ struct RandomSorter::Node
             return !resources[slaveId].contains(resource);
         });
 
-      const Resources quantitiesToRemove =
-        (toRemove.nonShared() + sharedToRemove).createStrippedScalarQuantity();
+      const ResourceQuantities quantitiesToRemove =
+        ResourceQuantities::fromScalarResources(
+            (toRemove.nonShared() + sharedToRemove).scalars());
 
-      totals -= ResourceQuantities::fromScalarResources(quantitiesToRemove);
+      CHECK(totals.contains(quantitiesToRemove))
+        << totals << " does not contain " << quantitiesToRemove;
 
-      CHECK(scalarQuantities.contains(quantitiesToRemove))
-        << scalarQuantities << " does not contain " << quantitiesToRemove;
-
-      scalarQuantities -= quantitiesToRemove;
+      totals -= quantitiesToRemove;
 
       if (resources[slaveId].empty()) {
         resources.erase(slaveId);
@@ -370,27 +352,24 @@ struct RandomSorter::Node
         const Resources& oldAllocation,
         const Resources& newAllocation)
     {
-      const Resources oldAllocationQuantity =
-        oldAllocation.createStrippedScalarQuantity();
-      const Resources newAllocationQuantity =
-        newAllocation.createStrippedScalarQuantity();
+      const ResourceQuantities oldAllocationQuantities =
+        ResourceQuantities::fromScalarResources(oldAllocation.scalars());
+      const ResourceQuantities newAllocationQuantities =
+        ResourceQuantities::fromScalarResources(newAllocation.scalars());
 
       CHECK(resources.contains(slaveId));
       CHECK(resources[slaveId].contains(oldAllocation))
         << "Resources " << resources[slaveId] << " at agent " << slaveId
         << " does not contain " << oldAllocation;
 
-      CHECK(scalarQuantities.contains(oldAllocationQuantity))
-        << scalarQuantities << " does not contain " << oldAllocationQuantity;
+      CHECK(totals.contains(oldAllocationQuantities))
+        << totals << " does not contain " << oldAllocationQuantities;
 
       resources[slaveId] -= oldAllocation;
       resources[slaveId] += newAllocation;
 
-      scalarQuantities -= oldAllocationQuantity;
-      scalarQuantities += newAllocationQuantity;
-
-      totals -= ResourceQuantities::fromScalarResources(oldAllocationQuantity);
-      totals += ResourceQuantities::fromScalarResources(newAllocationQuantity);
+      totals -= oldAllocationQuantities;
+      totals += newAllocationQuantities;
     }
 
     // We maintain multiple copies of each shared resource allocated
@@ -399,17 +378,10 @@ struct RandomSorter::Node
     // not been recovered from) a specific client.
     hashmap<SlaveID, Resources> resources;
 
-    // Similarly, we aggregate scalars across slaves and omit information
-    // about dynamic reservations, persistent volumes and sharedness of
-    // the corresponding resource. See notes above.
-    Resources scalarQuantities;
-
-    // To improve the performance of calculating shares, we store
-    // a redundant but more efficient version of `scalarQuantities`.
-    // See MESOS-4694.
-    //
-    // TODO(bmahler): Can we remove `scalarQuantities` in favor of
-    // using this type whenever scalar quantities are needed?
+    // We keep the aggregated scalar resource quantities to speed
+    // up share calculation. Note, resources shared count are ignored.
+    // Because sharedness inherently refers to the identities of resources
+    // and not quantities.
     ResourceQuantities totals;
   } allocation;
 };

@@ -445,11 +445,11 @@ const hashmap<SlaveID, Resources>& DRFSorter::allocation(
 }
 
 
-const Resources& DRFSorter::allocationScalarQuantities(
+const ResourceQuantities& DRFSorter::allocationScalarQuantities(
     const string& clientPath) const
 {
   const Node* client = CHECK_NOTNULL(find(clientPath));
-  return client->allocation.scalarQuantities;
+  return client->allocation.totals;
 }
 
 
@@ -493,9 +493,9 @@ Resources DRFSorter::allocation(
 }
 
 
-const Resources& DRFSorter::totalScalarQuantities() const
+const ResourceQuantities& DRFSorter::totalScalarQuantities() const
 {
-  return total_.scalarQuantities;
+  return total_.totals;
 }
 
 
@@ -511,11 +511,11 @@ void DRFSorter::add(const SlaveID& slaveId, const Resources& resources)
 
     total_.resources[slaveId] += resources;
 
-    const Resources scalarQuantities =
-      (resources.nonShared() + newShared).createStrippedScalarQuantity();
+    const ResourceQuantities scalarQuantities =
+      ResourceQuantities::fromScalarResources(
+          (resources.nonShared() + newShared).scalars());
 
-    total_.scalarQuantities += scalarQuantities;
-    total_.totals += ResourceQuantities::fromScalarResources(scalarQuantities);
+    total_.totals += scalarQuantities;
 
     // We have to recalculate all shares when the total resources
     // change, but we put it off until `sort` is called so that if
@@ -542,13 +542,12 @@ void DRFSorter::remove(const SlaveID& slaveId, const Resources& resources)
         return !total_.resources[slaveId].contains(resource);
       });
 
-    const Resources scalarQuantities =
-      (resources.nonShared() + absentShared).createStrippedScalarQuantity();
+    const ResourceQuantities scalarQuantities =
+      ResourceQuantities::fromScalarResources(
+          (resources.nonShared() + absentShared).scalars());
 
-    CHECK(total_.scalarQuantities.contains(scalarQuantities));
-    total_.scalarQuantities -= scalarQuantities;
-
-    total_.totals -= ResourceQuantities::fromScalarResources(scalarQuantities);
+    CHECK(total_.totals.contains(scalarQuantities));
+    total_.totals -= scalarQuantities;
 
     if (total_.resources[slaveId].empty()) {
       total_.resources.erase(slaveId);

@@ -109,9 +109,8 @@ public:
       const std::string& client) const = 0;
 
   // Returns the total scalar resource quantities that are allocated to
-  // this client. This omits metadata about dynamic reservations and
-  // persistent volumes; see `Resources::createStrippedScalarQuantity`.
-  virtual const Resources& allocationScalarQuantities(
+  // this client.
+  virtual const ResourceQuantities& allocationScalarQuantities(
       const std::string& client) const = 0;
 
   // Returns the clients that have allocations on this slave.
@@ -124,10 +123,8 @@ public:
       const std::string& client,
       const SlaveID& slaveId) const = 0;
 
-  // Returns the total scalar resource quantities in this sorter. This
-  // omits metadata about dynamic reservations and persistent volumes; see
-  // `Resources::createStrippedScalarQuantity`.
-  virtual const Resources& totalScalarQuantities() const = 0;
+  // Returns the total scalar resource quantities in this sorter.
+  virtual const ResourceQuantities& totalScalarQuantities() const = 0;
 
   // Add resources to the total pool of resources this
   // Sorter should consider.

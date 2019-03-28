@@ -369,11 +369,11 @@ const hashmap<SlaveID, Resources>& RandomSorter::allocation(
 }
 
 
-const Resources& RandomSorter::allocationScalarQuantities(
+const ResourceQuantities& RandomSorter::allocationScalarQuantities(
     const string& clientPath) const
 {
   const Node* client = CHECK_NOTNULL(find(clientPath));
-  return client->allocation.scalarQuantities;
+  return client->allocation.totals;
 }
 
 
@@ -418,9 +418,9 @@ Resources RandomSorter::allocation(
 }
 
 
-const Resources& RandomSorter::totalScalarQuantities() const
+const ResourceQuantities& RandomSorter::totalScalarQuantities() const
 {
-  return total_.scalarQuantities;
+  return total_.totals;
 }
 
 
@@ -436,11 +436,11 @@ void RandomSorter::add(const SlaveID& slaveId, const Resources& resources)
 
     total_.resources[slaveId] += resources;
 
-    const Resources scalarQuantities =
-      (resources.nonShared() + newShared).createStrippedScalarQuantity();
+    const ResourceQuantities scalarQuantities =
+      ResourceQuantities::fromScalarResources(
+          (resources.nonShared() + newShared).scalars());
 
-    total_.scalarQuantities += scalarQuantities;
-    total_.totals += ResourceQuantities::fromScalarResources(scalarQuantities);
+    total_.totals += scalarQuantities;
   }
 }
 
@@ -461,13 +461,12 @@ void RandomSorter::remove(const SlaveID& slaveId, const Resources& resources)
         return !total_.resources[slaveId].contains(resource);
       });
 
-    const Resources scalarQuantities =
-      (resources.nonShared() + absentShared).createStrippedScalarQuantity();
+    const ResourceQuantities scalarQuantities =
+      ResourceQuantities::fromScalarResources(
+          (resources.nonShared() + absentShared).scalars());
 
-    CHECK(total_.scalarQuantities.contains(scalarQuantities));
-    total_.scalarQuantities -= scalarQuantities;
-
-    total_.totals -= ResourceQuantities::fromScalarResources(scalarQuantities);
+    CHECK(total_.totals.contains(scalarQuantities));
+    total_.totals -= scalarQuantities;
 
     if (total_.resources[slaveId].empty()) {
       total_.resources.erase(slaveId);

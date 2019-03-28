@@ -1708,11 +1708,9 @@ void HierarchicalAllocatorProcess::__allocate()
 
     // Then add allocated resource _quantities_ .
     // NOTE: Revocable resources are excluded in `quotaRoleSorter`.
-    //
-    // TODO(mzhu): Update sorter to return `ResourceQuantities` directly.
     CHECK(quotaGuarantees.contains(role));
-    rolesConsumedQuota[role] += ResourceQuantities::fromScalarResources(
-        quotaRoleSorter->allocationScalarQuantities(role));
+    rolesConsumedQuota[role] +=
+      quotaRoleSorter->allocationScalarQuantities(role);
 
     // Lastly subtract allocated reservations on each agent.
     foreachvalue (
@@ -1753,18 +1751,11 @@ void HierarchicalAllocatorProcess::__allocate()
   //                        allocated resources -
   //                        unallocated reservations -
   //                        unallocated revocable resources
-  //
-  // TODO(mzhu): Update sorter to return `ResourceQuantities` directly.
-  ResourceQuantities availableHeadroom =
-    ResourceQuantities::fromScalarResources(
-        roleSorter->totalScalarQuantities());
+  ResourceQuantities availableHeadroom = roleSorter->totalScalarQuantities();
 
   // Subtract allocated resources from the total.
-  //
-  // TODO(mzhu): Update sorter to return `ResourceQuantities` directly.
   foreachkey (const string& role, roles) {
-    availableHeadroom -= ResourceQuantities::fromScalarResources(
-        roleSorter->allocationScalarQuantities(role));
+    availableHeadroom -= roleSorter->allocationScalarQuantities(role);
   }
 
   // Calculate total allocated reservations. Note that we need to ensure
@@ -2457,11 +2448,7 @@ double HierarchicalAllocatorProcess::_resources_offered_or_allocated(
 double HierarchicalAllocatorProcess::_resources_total(
     const string& resource)
 {
-  Option<Value::Scalar> total =
-    roleSorter->totalScalarQuantities()
-      .get<Value::Scalar>(resource);
-
-  return total.isSome() ? total->value() : 0;
+  return roleSorter->totalScalarQuantities().get(resource).value();
 }
 
 
@@ -2475,11 +2462,7 @@ double HierarchicalAllocatorProcess::_quota_allocated(
     return 0.;
   }
 
-  Option<Value::Scalar> used =
-    roleSorter->allocationScalarQuantities(role)
-      .get<Value::Scalar>(resource);
-
-  return used.isSome() ? used->value() : 0;
+  return roleSorter->allocationScalarQuantities(role).get(resource).value();
 }
 
 
