@@ -177,6 +177,18 @@ bool ResourceQuantities::contains(const ResourceQuantities& right) const
 }
 
 
+bool ResourceQuantities::operator==(const ResourceQuantities& that) const
+{
+  return quantities == that.quantities;
+}
+
+
+bool ResourceQuantities::operator!=(const ResourceQuantities& that) const
+{
+  return quantities != that.quantities;
+}
+
+
 ResourceQuantities& ResourceQuantities::operator+=(
     const ResourceQuantities& right)
 {

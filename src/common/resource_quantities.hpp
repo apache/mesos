@@ -128,6 +128,9 @@ public:
 
   bool contains(const ResourceQuantities& quantities) const;
 
+  bool operator==(const ResourceQuantities& quantities) const;
+  bool operator!=(const ResourceQuantities& quantities) const;
+
   ResourceQuantities& operator+=(const ResourceQuantities& quantities);
   ResourceQuantities& operator-=(const ResourceQuantities& quantities);
 
