@@ -102,6 +102,9 @@ public:
   // If the given name is absent, return zero.
   Value::Scalar get(const std::string& name) const;
 
+  bool operator==(const ResourceQuantities& quantities) const;
+  bool operator!=(const ResourceQuantities& quantities) const;
+
   ResourceQuantities& operator+=(const ResourceQuantities& quantities);
   ResourceQuantities& operator-=(const ResourceQuantities& quantities);
 
