@@ -735,6 +735,133 @@ TEST_P(ProvisionerDockerTest, ROOT_INTERNET_CURL_SimpleCommand)
 }
 
 
+// This test verifies the functionality of image `cached` option
+// for image force pulling.
+TEST_F(ProvisionerDockerTest, ROOT_INTERNET_CURL_ImageForcePulling)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "docker/runtime,filesystem/linux";
+  flags.image_providers = "docker";
+
+  // Image pulling time may be long, depending on the location of
+  // the registry server.
+  flags.executor_registration_timeout = Minutes(10);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers1, offers2;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers1);
+  ASSERT_EQ(1u, offers1->size());
+
+  const Offer& offer1 = offers1.get()[0];
+
+  // NOTE: We use a non-shell command here because 'sh' might not be
+  // in the PATH. 'alpine' does not specify env PATH in the image. On
+  // some linux distribution, '/bin' is not in the PATH by default.
+  CommandInfo command;
+  command.set_shell(false);
+  command.set_value("/bin/ls");
+  command.add_arguments("ls");
+  command.add_arguments("-al");
+  command.add_arguments("/");
+
+  TaskInfo task = createTask(
+      offer1.slave_id(),
+      Resources::parse("cpus:1;mem:128").get(),
+      command);
+
+  Image image;
+  image.set_type(Image::DOCKER);
+  image.mutable_docker()->set_name("alpine");
+
+  ContainerInfo* container = task.mutable_container();
+  container->set_type(ContainerInfo::MESOS);
+  container->mutable_mesos()->mutable_image()->CopyFrom(image);
+
+  Future<TaskStatus> statusStarting1;
+  Future<TaskStatus> statusRunning1;
+  Future<TaskStatus> statusFinished1;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting1))
+    .WillOnce(FutureArg<1>(&statusRunning1))
+    .WillOnce(FutureArg<1>(&statusFinished1));
+
+  driver.launchTasks(offer1.id(), {task});
+
+  AWAIT_READY_FOR(statusStarting1, Minutes(10));
+  EXPECT_EQ(task.task_id(), statusStarting1->task_id());
+  EXPECT_EQ(TASK_STARTING, statusStarting1->state());
+
+  AWAIT_READY(statusRunning1);
+  EXPECT_EQ(task.task_id(), statusRunning1->task_id());
+  EXPECT_EQ(TASK_RUNNING, statusRunning1->state());
+
+  AWAIT_READY(statusFinished1);
+  EXPECT_EQ(task.task_id(), statusFinished1->task_id());
+  EXPECT_EQ(TASK_FINISHED, statusFinished1->state());
+
+  AWAIT_READY(offers2);
+  ASSERT_EQ(1u, offers2->size());
+
+  const Offer& offer2 = offers2.get()[0];
+
+  task = createTask(
+      offer2.slave_id(),
+      Resources::parse("cpus:1;mem:128").get(),
+      command);
+
+  // Image force pulling.
+  image.set_cached(false);
+
+  container = task.mutable_container();
+  container->set_type(ContainerInfo::MESOS);
+  container->mutable_mesos()->mutable_image()->CopyFrom(image);
+
+  Future<TaskStatus> statusStarting2;
+  Future<TaskStatus> statusRunning2;
+  Future<TaskStatus> statusFinished2;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting2))
+    .WillOnce(FutureArg<1>(&statusRunning2))
+    .WillOnce(FutureArg<1>(&statusFinished2));
+
+  driver.launchTasks(offer2.id(), {task});
+
+  AWAIT_READY_FOR(statusStarting2, Minutes(10));
+  EXPECT_EQ(task.task_id(), statusStarting2->task_id());
+  EXPECT_EQ(TASK_STARTING, statusStarting2->state());
+
+  AWAIT_READY(statusRunning2);
+  EXPECT_EQ(task.task_id(), statusRunning2->task_id());
+  EXPECT_EQ(TASK_RUNNING, statusRunning2->state());
+
+  AWAIT_READY(statusFinished2);
+  EXPECT_EQ(task.task_id(), statusFinished2->task_id());
+  EXPECT_EQ(TASK_FINISHED, statusFinished2->state());
+
+  driver.stop();
+  driver.join();
+}
+
+
 // This test verifies that the scratch based docker image (that
 // only contain a single binary and its dependencies) can be
 // launched correctly.
