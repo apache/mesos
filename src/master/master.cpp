@@ -11473,10 +11473,10 @@ void Master::__removeSlave(
     OPERATION_GONE_BY_OPERATOR;
 
   foreachvalue (Operation* operation, utils::copy(slave->operations)) {
-    removeOperation(operation);
     metrics->incrementOperationState(
         operation->info().type(),
         transitionState);
+    removeOperation(operation);
   }
 
   foreachvalue (
@@ -11485,10 +11485,10 @@ void Master::__removeSlave(
     foreachvalue (
         Operation* operation,
         utils::copy(provider.operations)) {
-      removeOperation(operation);
       metrics->incrementOperationState(
           operation->info().type(),
           transitionState);
+      removeOperation(operation);
     }
   }
 
