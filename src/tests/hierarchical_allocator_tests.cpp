@@ -3705,6 +3705,55 @@ TEST_F(HierarchicalAllocatorTest, QuotaAllocationGranularityUnchoppableResource)
 }
 
 
+// This test ensures that quota is satisfied in the presence of multiple
+// unreserved disk resources. This is a regression test for MESOS-9692.
+TEST_F(HierarchicalAllocatorTest, QuotaAllocationMultipleDisk)
+{
+  // The test sets a quota that contains 100 disk resources and
+  // an agent with two kinds of disk resources: 50 vanilla disks
+  // and 50 mount disks. Both disks (100 in total) should be offered
+  // to the framework in a single offer to meet its role's quota.
+
+  Clock::pause();
+  initialize();
+
+  const string QUOTA_ROLE{"quota-role"};
+
+  const Quota quota = createQuota(QUOTA_ROLE, "cpus:1;mem:512;disk:100");
+  allocator->setQuota(QUOTA_ROLE, quota);
+
+  // Create 50 disk resource of type `MOUNT`.
+  Resources mountDiskResource = createDiskResource(
+      "50", "*", None(), None(), createDiskSourceMount(), false);
+
+  Resources agentResources =
+    Resources::parse("cpus:1;mem:512;disk:50").get() + mountDiskResource;
+
+  SlaveInfo agent1 = createSlaveInfo(agentResources);
+  allocator->addSlave(
+      agent1.id(),
+      agent1,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent1.resources(),
+      {});
+
+  // Create `framework` under `QUOTA_ROLE`.
+  // This will tigger an event-driven allocation loop.
+  FrameworkInfo framework = createFrameworkInfo({QUOTA_ROLE});
+  allocator->addFramework(framework.id(), framework, {}, true, {});
+
+  Clock::settle();
+
+  // `framework` will get all resources (including both disks) of `agent1` to
+  // satisfy its role's quota.
+  Allocation expected = Allocation(
+      framework.id(), {{QUOTA_ROLE, {{agent1.id(), agent1.resources()}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocations.get());
+}
+
+
 // This test verifies the behavior of allocating a resource to quota roles
 // that has no quota set for that particular resource (e.g. allocating
 // memory to a role with only quota set for CPU). If a role has no quota
