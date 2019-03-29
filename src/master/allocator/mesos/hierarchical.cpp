@@ -1633,8 +1633,7 @@ void HierarchicalAllocatorProcess::__allocate()
   std::random_shuffle(slaveIds.begin(), slaveIds.end());
 
   // Returns the result of shrinking the provided resources down to the
-  // target scalar quantities. If a resource does not have a target
-  // quantity provided, it will not be shrunk.
+  // target resource quantities.
   //
   // Note that some resources are indivisible (e.g. MOUNT volume) and
   // may be excluded in entirety in order to achieve the target size
@@ -1643,27 +1642,27 @@ void HierarchicalAllocatorProcess::__allocate()
   // Note also that there may be more than one result that satisfies
   // the target sizes (e.g. need to exclude 1 of 2 disks); this function
   // will make a random choice in these cases.
-  auto shrinkResources =
-    [](const Resources& resources,
-       hashmap<string, Value::Scalar> targetScalarQuantites) {
-    google::protobuf::RepeatedPtrField<Resource>
-      resourceVector = resources;
+  auto shrinkResources = [](const Resources& resources,
+                            ResourceQuantities target) {
+    if (target.empty()) {
+      return Resources();
+    }
+
+    google::protobuf::RepeatedPtrField<Resource> resourceVector = resources;
 
     random_shuffle(resourceVector.begin(), resourceVector.end());
 
     Resources result;
     foreach (Resource& resource, resourceVector) {
-      if (!targetScalarQuantites.contains(resource.name())) {
-        // Resource that has no target quantity is left as is.
-        result += std::move(resource);
+      Value::Scalar scalar = target.get(resource.name());
+
+      if (scalar == Value::Scalar()) {
+        // Resource that has zero quantity is dropped (shrunk to zero).
         continue;
       }
 
-      Option<Value::Scalar> limitScalar =
-        targetScalarQuantites.get(resource.name());
-
-      if (Resources::shrink(&resource, limitScalar.get())) {
-        targetScalarQuantites[resource.name()] -= resource.scalar();
+      if (Resources::shrink(&resource, scalar)) {
+        target -= ResourceQuantities::fromScalarResources(resource);
         result += std::move(resource);
       }
     }
@@ -1910,21 +1909,9 @@ void HierarchicalAllocatorProcess::__allocate()
         Resources unreserved = available.nonRevocable().unreserved();
 
         // First, allocate resources up to a role's quota guarantee.
-
-        hashmap<string, Value::Scalar> unsatisfiedQuotaGuaranteeScalarLimit;
-        foreach (const string& name, unsatisfiedQuotaGuarantee.names()) {
-          unsatisfiedQuotaGuaranteeScalarLimit[name] +=
-            CHECK_NOTNONE(unsatisfiedQuotaGuarantee.get<Value::Scalar>(name));
-        }
-
-        Resources newQuotaAllocation =
-          unreserved.filter([&](const Resource& resource) {
-            return
-              unsatisfiedQuotaGuaranteeScalarLimit.contains(resource.name());
-          });
-
-        newQuotaAllocation = shrinkResources(newQuotaAllocation,
-            unsatisfiedQuotaGuaranteeScalarLimit);
+        Resources newQuotaAllocation = shrinkResources(
+            unreserved,
+            ResourceQuantities::fromScalarResources(unsatisfiedQuotaGuarantee));
 
         toAllocate += newQuotaAllocation;
 
@@ -1950,26 +1937,11 @@ void HierarchicalAllocatorProcess::__allocate()
               }
           );
 
-        // Allocation Limit = Available Headroom - Required Headroom
-        Resources headroomResourcesLimit = availableHeadroom - requiredHeadroom;
+        Resources surplusHeadroom = availableHeadroom - requiredHeadroom;
 
-        hashmap<string, Value::Scalar> headroomScalarLimit;
-        foreach (const string& name, headroomResourcesLimit.names()) {
-          headroomScalarLimit[name] =
-            CHECK_NOTNONE(headroomResourcesLimit.get<Value::Scalar>(name));
-        }
-
-        // If a resource type is absent in `headroomScalarLimit`, it means this
-        // type of resource is already in quota headroom deficit and we make
-        // no more allocations. They are filtered out.
-        nonQuotaGuaranteeResources = nonQuotaGuaranteeResources.filter(
-            [&] (const Resource& resource) {
-              return headroomScalarLimit.contains(resource.name());
-            }
-          );
-
-        nonQuotaGuaranteeResources =
-          shrinkResources(nonQuotaGuaranteeResources, headroomScalarLimit);
+        nonQuotaGuaranteeResources = shrinkResources(
+            nonQuotaGuaranteeResources,
+            ResourceQuantities::fromScalarResources(surplusHeadroom.scalars()));
 
         toAllocate += nonQuotaGuaranteeResources;
 
