@@ -541,17 +541,17 @@ protected:
   // (e.g. some tasks and/or executors are consuming resources under the role).
   hashmap<std::string, hashset<FrameworkID>> roles;
 
-  // Configured quota for each role, if any. If a role does not have
-  // an entry here it has the default quota of (no guarantee, no limit).
-  hashmap<std::string, Quota> quotas;
+  // Configured guaranteed resource quantities for each role, if any.
+  // If a role does not have an entry here it has (the default)
+  // no guarantee.
+  hashmap<std::string, ResourceQuantities> quotaGuarantees;
 
   // Aggregated resource reservations on all agents tied to a
-  // particular role, if any. These are stripped scalar quantities
-  // that contain no meta-data.
+  // particular role, if any.
   //
   // Only roles with non-empty scalar reservation quantities will
   // be stored in the map.
-  hashmap<std::string, Resources> reservationScalarQuantities;
+  hashmap<std::string, ResourceQuantities> reservationScalarQuantities;
 
   // Slaves to send offers for.
   Option<hashset<std::string>> whitelist;
