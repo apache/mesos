@@ -1596,6 +1596,8 @@ libcsi_la_SOURCES =							\
   csi/v0_volume_manager.hpp						\
   csi/v0_volume_manager_process.hpp					\
   csi/v1.cpp								\
+  csi/v1_client.cpp							\
+  csi/v1_client.hpp							\
   csi/volume_manager.cpp						\
   csi/volume_manager.hpp
 
