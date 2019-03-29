@@ -1663,7 +1663,7 @@ void HierarchicalAllocatorProcess::__allocate()
         targetScalarQuantites.get(resource.name());
 
       if (Resources::shrink(&resource, limitScalar.get())) {
-        targetScalarQuantites[resource.name()] -= limitScalar.get();
+        targetScalarQuantites[resource.name()] -= resource.scalar();
         result += std::move(resource);
       }
     }
