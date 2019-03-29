@@ -710,7 +710,8 @@ csidir = $(pkgincludedir)/csi
 csi_HEADERS =								\
   $(top_srcdir)/include/mesos/csi/types.hpp				\
   $(top_srcdir)/include/mesos/csi/types.proto				\
-  $(top_srcdir)/include/mesos/csi/v0.hpp
+  $(top_srcdir)/include/mesos/csi/v0.hpp				\
+  $(top_srcdir)/include/mesos/csi/v1.hpp
 
 nodist_csi_HEADERS =							\
   ../include/mesos/csi/types.pb.h
@@ -1594,6 +1595,7 @@ libcsi_la_SOURCES =							\
   csi/v0_volume_manager.cpp						\
   csi/v0_volume_manager.hpp						\
   csi/v0_volume_manager_process.hpp					\
+  csi/v1.cpp								\
   csi/volume_manager.cpp						\
   csi/volume_manager.hpp
 
