@@ -27,6 +27,7 @@ set(JAVA_PROTOBUF_SRC "")
 # NOTE: The following `PROTOC_GENERATE` calls will list append to
 # `PUBLIC_PROTOBUF_SRC`. The GRPC option is a noop if gRPC is disabled.
 PROTOC_GENERATE(GRPC LIB csi_v0 TARGET csi/v0/csi)
+PROTOC_GENERATE(GRPC LIB csi_v1 TARGET csi/v1/csi)
 
 # NOTE: The following `PROTOC_GENERATE` calls will list append to
 # `PUBLIC_PROTOBUF_SRC`.

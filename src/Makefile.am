@@ -27,6 +27,7 @@ include ../3rdparty/versions.am
 BOOST = 3rdparty/boost-$(BOOST_VERSION)
 CONCURRENTQUEUE = 3rdparty/concurrentqueue-$(CONCURRENTQUEUE_VERSION)
 CSI_V0 = 3rdparty/csi-$(CSI_V0_VERSION)
+CSI_V1 = 3rdparty/csi-$(CSI_V1_VERSION)
 ELFIO = 3rdparty/elfio-$(ELFIO_VERSION)
 GLOG = 3rdparty/glog-$(GLOG_VERSION)
 GMOCK = $(GOOGLETEST)/googlemock
@@ -139,6 +140,9 @@ MESOS_CPPFLAGS += -I../include
 # Protobuf headers that depend on mesos.pb.h need this.
 MESOS_CPPFLAGS += -I../include/mesos
 
+# Set up include paths for the protocol buffer compiler.
+PROTOCFLAGS = -I$(top_srcdir)/include -I$(srcdir) -I../$(CSI_V0) -I../$(CSI_V1)
+
 # Header only dependencies will be ignored for --disable-bundled.
 #
 # For non-convenience libraries we need to link them in to make the shared
@@ -247,10 +251,12 @@ if WITH_BUNDLED_PROTOBUF
 MESOS_CPPFLAGS += -I../$(PROTOBUF)/src
 LIB_PROTOBUF = ../$(PROTOBUF)/src/libprotobuf.la
 PROTOC = ../$(PROTOBUF)/src/protoc
+PROTOCFLAGS += -I../$(PROTOBUF)/src
 else
 LIB_PROTOBUF = -lprotobuf
 LDADD += -lprotobuf
 PROTOC = @PROTOCOMPILER@
+PROTOCFLAGS += @PROTOBUF_PROTOCFLAGS@
 endif
 
 if WITH_BUNDLED_RAPIDJSON
@@ -269,9 +275,6 @@ else
 LIB_ZOOKEEPER = -lzookeeper_mt
 LDADD += -lzookeeper_mt
 endif
-
-# Set up include paths for the protocol buffer compiler.
-PROTOCFLAGS = -I$(top_srcdir)/include -I$(srcdir) -I../$(CSI_V0)
 
 # README: we build the Mesos library out of a collection of
 # convenience libraries (that is, libraries that do not get installed
@@ -422,6 +425,10 @@ CXX_CSI_PROTOS =							\
   ../include/csi/v0/csi.grpc.pb.h					\
   ../include/csi/v0/csi.pb.cc						\
   ../include/csi/v0/csi.pb.h						\
+  ../include/csi/v1/csi.grpc.pb.cc					\
+  ../include/csi/v1/csi.grpc.pb.h					\
+  ../include/csi/v1/csi.pb.cc						\
+  ../include/csi/v1/csi.pb.h						\
   ../include/mesos/csi/types.pb.cc					\
   ../include/mesos/csi/types.pb.h					\
   csi/state.pb.cc							\
@@ -494,6 +501,10 @@ CLEANFILES +=								\
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=. $^
 
 ../include/%.grpc.pb.cc ../include/%.grpc.pb.h ../include/%.pb.cc ../include/%.pb.h: ../$(CSI_V0)/%.proto
+	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include --grpc_out=../include	\
+		--plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN) $^
+
+../include/%.grpc.pb.cc ../include/%.grpc.pb.h ../include/%.pb.cc ../include/%.pb.h: ../$(CSI_V1)/%.proto
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include --grpc_out=../include	\
 		--plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN) $^
 
@@ -710,6 +721,12 @@ csi_v0dir = $(includedir)/csi/v0
 nodist_csi_v0_HEADERS =							\
   ../include/csi/v0/csi.grpc.pb.h					\
   ../include/csi/v0/csi.pb.h
+
+csi_v1dir = $(includedir)/csi/v1
+
+nodist_csi_v1_HEADERS =							\
+  ../include/csi/v1/csi.grpc.pb.h					\
+  ../include/csi/v1/csi.pb.h
 
 dockerdir = $(pkgincludedir)/docker
 

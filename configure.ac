@@ -1805,6 +1805,12 @@ if test "x$without_bundled_protobuf" = "xyes" || \
                     [AC_MSG_ERROR([cannot find PROTOBUF_JAR=$PROTOBUF_JAR])])
     fi
 
+    AC_CHECK_FILE([$PROTOBUFPREFIX/include/google/protobuf/wrappers.proto],
+                  [],
+                  [AC_MSG_ERROR([cannot find protobuf proto files])])
+
+    PROTOBUF_PROTOCFLAGS="-I${PROTOBUFPREFIX}/include"
+
     AC_CHECK_TOOL([PROTOCOMPILER_TEST], [protoc], [], [$PROTOBUFPREFIX/bin])
 
     if test -z "`echo $PROTOCOMPILER_TEST`"; then
@@ -1816,7 +1822,6 @@ if test "x$without_bundled_protobuf" = "xyes" || \
     if test "x$enable_python" = "xyes"; then
       AC_PYTHON_MODULE([google.protobuf], [yes])
     fi
-
   else
     AC_MSG_ERROR([cannot find protobuf
 -------------------------------------------------------------------
@@ -1840,6 +1845,7 @@ AM_CONDITIONAL([WITH_BUNDLED_PROTOBUF],
 AC_SUBST([PROTOBUF_CPPFLAGS])
 AC_SUBST([PROTOBUF_JAR])
 AC_SUBST([PROTOBUF_LINKERFLAGS])
+AC_SUBST([PROTOBUF_PROTOCFLAGS])
 AC_SUBST([PROTOCOMPILER])
 
 

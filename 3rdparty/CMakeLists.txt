@@ -27,6 +27,7 @@ set(BOOST_URL           ${FETCH_URL}/boost-${BOOST_VERSION}.tar.gz)
 set(BZIP2_URL           ${FETCH_URL}/bzip2-${BZIP2_VERSION}.tar.gz)
 set(CONCURRENTQUEUE_URL ${FETCH_URL}/concurrentqueue-${CONCURRENTQUEUE_VERSION}.tar.gz)
 set(CSI_V0_URL          ${FETCH_URL}/csi-${CSI_V0_VERSION}.tar.gz)
+set(CSI_V1_URL          ${FETCH_URL}/csi-${CSI_V1_VERSION}.tar.gz)
 set(ELFIO_URL           ${FETCH_URL}/elfio-${ELFIO_VERSION}.tar.gz)
 set(GLOG_URL            ${FETCH_URL}/glog-${GLOG_VERSION}.tar.gz)
 set(GOOGLETEST_URL      ${FETCH_URL}/googletest-release-${GOOGLETEST_VERSION}.tar.gz)
@@ -299,11 +300,20 @@ add_library(csi_v0 INTERFACE)
 add_dependencies(csi_v0 ${CSI_V0_TARGET})
 target_include_directories(csi_v0 INTERFACE ${CSI_V0_ROOT})
 
-# NOTE: To support multiple CSI versions, we move the CSI proto file to a
-# version-qualified path so `protoc` can find it.
+EXTERNAL(csi_v1 ${CSI_V1_VERSION} ${CMAKE_CURRENT_BINARY_DIR})
+add_library(csi_v1 INTERFACE)
+add_dependencies(csi_v1 ${CSI_V1_TARGET})
+target_include_directories(csi_v1 INTERFACE ${CSI_V1_ROOT})
+
+# NOTE: To support multiple CSI versions, we move the CSI proto files to
+# version-qualified paths so `protoc` can find them.
 set(CSI_V0_CONFIG_CMD
   ${CMAKE_COMMAND} -E make_directory ${CSI_V0_ROOT}/csi/v0 &&
   ${CMAKE_COMMAND} -E rename ${CSI_V0_ROOT}/csi.proto ${CSI_V0_ROOT}/csi/v0/csi.proto)
+
+set(CSI_V1_CONFIG_CMD
+  ${CMAKE_COMMAND} -E make_directory ${CSI_V1_ROOT}/csi/v1 &&
+  ${CMAKE_COMMAND} -E rename ${CSI_V1_ROOT}/csi.proto ${CSI_V1_ROOT}/csi/v1/csi.proto)
 
 ExternalProject_Add(
   ${CSI_V0_TARGET}
@@ -314,6 +324,16 @@ ExternalProject_Add(
   INSTALL_COMMAND   ${CMAKE_NOOP}
   URL               ${CSI_V0_URL}
   URL_HASH          ${CSI_V0_HASH})
+
+ExternalProject_Add(
+  ${CSI_V1_TARGET}
+  PREFIX            ${CSI_V1_CMAKE_ROOT}
+  BUILD_BYPRODUCTS  ${CSI_V1_ROOT}/csi/v1/csi.proto
+  CONFIGURE_COMMAND ${CSI_V1_CONFIG_CMD}
+  BUILD_COMMAND     ${CMAKE_NOOP}
+  INSTALL_COMMAND   ${CMAKE_NOOP}
+  URL               ${CSI_V1_URL}
+  URL_HASH          ${CSI_V1_HASH})
 
 
 # ELFIO: library for reading and generating ELF files.

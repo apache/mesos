@@ -101,9 +101,15 @@ function(PROTOC_GENERATE)
     set(JAVA_OUT ${MESOS_BIN_SRC_DIR}/java/generated)
   endif()
 
+  get_target_property(
+    PROTOBUF_INCLUDE_DIR
+    protobuf
+    INTERFACE_INCLUDE_DIRECTORIES)
+
   set(PROTOC_OPTIONS
     -I${MESOS_PUBLIC_INCLUDE_DIR}
     -I${MESOS_SRC_DIR}
+    -I${PROTOBUF_INCLUDE_DIR}
     --cpp_out=${CPP_OUT})
 
   foreach (LIB_PROTO_PATH IN LISTS LIB_PROTO_PATHS)
