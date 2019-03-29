@@ -1262,17 +1262,6 @@ bool Resources::isShared(const Resource& resource)
 }
 
 
-bool Resources::isScalarQuantity(const Resources& resources)
-{
-  // Instead of checking the absence of non-scalar-quantity fields,
-  // we do an equality check between the original resources object and
-  // its stripped counterpart.
-  //
-  // We remove the static reservation metadata here via `toUnreserved()`.
-  return resources == resources.createStrippedScalarQuantity().toUnreserved();
-}
-
-
 bool Resources::hasRefinedReservations(const Resource& resource)
 {
   CHECK(!resource.has_role()) << resource;

@@ -349,11 +349,6 @@ public:
   // Tests if the given Resource object is shared.
   static bool isShared(const Resource& resource);
 
-  // Tests if the given Resources object is a "pure" scalar quantity which
-  // consists of resource objects with ONLY name, type (set to "Scalar")
-  // and scalar fields set.
-  static bool isScalarQuantity(const Resources& resources);
-
   // Tests if the given Resource object has refined reservations.
   static bool hasRefinedReservations(const Resource& resource);
 
