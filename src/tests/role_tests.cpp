@@ -788,6 +788,16 @@ TEST_F(RoleTest, Parsing)
 }
 
 
+TEST_F(RoleTest, Ancestors)
+{
+  EXPECT_EQ(vector<string>(),
+            roles::ancestors("role"));
+
+  EXPECT_EQ(vector<string>({"a/b/c", "a/b", "a"}),
+            roles::ancestors("a/b/c/d"));
+}
+
+
 // This tests the validate functions of roles. Keep in mind that
 // roles::validate returns Option<Error>, so it will return None() when
 // validation succeeds, or Error() when validation fails.

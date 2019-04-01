@@ -50,6 +50,18 @@ Try<std::vector<std::string>> parse(const std::string& text);
 
 
 /**
+ * Returns the ancestor roles for the role.
+ * E.g. "a/b/c/d" returns ["a/b/c", "a/b", "a"].
+ *
+ * Assumes the provided role is valid.
+ *
+ * TODO(bmahler): Use string_view to avoid copying, this requires
+ * overloading to ensure that the argument is not an rvalue.
+ */
+std::vector<std::string> ancestors(const std::string& role);
+
+
+/**
  * Validates the given role name. A role name must be a valid directory name,
  * so it cannot:
  * - Be an empty string

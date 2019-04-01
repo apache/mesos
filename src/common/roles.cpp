@@ -55,6 +55,20 @@ Try<vector<string>> parse(const string& text)
 }
 
 
+vector<string> ancestors(const string& role)
+{
+  vector<string> result;
+
+  for (int i = role.size() - 1; i >= 0; --i) {
+    if (role[i] == '/') {
+      result.push_back(role.substr(0, i));
+    }
+  }
+
+  return result;
+}
+
+
 // TODO(haosdent): Pull this out into `stout` and make it satisfy all
 // OS/locale constraints.
 // \x09 is horizontal tab (whitespace);
