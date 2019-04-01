@@ -28,7 +28,9 @@ package mesos.internal.slave.docker;
 message Image {
   required .docker.spec.ImageReference reference = 1;
 
-  // The order of the layers represents the dependency between layers.
+  // The order of the layers represents the dependency between layers,
+  // where the root layer's id (no parent layer) is first and the leaf
+  // layer's id is last.
   repeated string layer_ids = 2;
 }
 

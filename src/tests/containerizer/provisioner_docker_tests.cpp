@@ -36,6 +36,7 @@
 #include "slave/containerizer/mesos/provisioner/constants.hpp"
 #include "slave/containerizer/mesos/provisioner/paths.hpp"
 
+#include "slave/containerizer/mesos/provisioner/docker/message.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/metadata_manager.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/paths.hpp"
 #include "slave/containerizer/mesos/provisioner/docker/puller.hpp"
@@ -313,20 +314,20 @@ public:
 
   MOCK_METHOD4(
       pull,
-      Future<vector<string>>(
+      Future<slave::docker::Image>(
           const spec::ImageReference&,
           const string&,
           const string&,
           const Option<Secret>&));
 
-  Future<vector<string>> unmocked_pull(
+  Future<slave::docker::Image> unmocked_pull(
       const spec::ImageReference& reference,
       const string& directory,
       const string& backend,
       const Option<Secret>& config)
   {
-    // TODO(gilbert): Allow return list to be overridden.
-    return vector<string>();
+    // TODO(gilbert): Allow return Image to be overridden.
+    return slave::docker::Image();
   }
 };
 
@@ -343,7 +344,7 @@ TEST_F(ProvisionerDockerLocalStoreTest, PullingSameImageSimutanuously)
   MockPuller* puller = new MockPuller();
   Future<Nothing> pull;
   Future<string> directory;
-  Promise<vector<string>> promise;
+  Promise<slave::docker::Image> promise;
 
   EXPECT_CALL(*puller, pull(_, _, _, _))
     .WillOnce(testing::DoAll(FutureSatisfy(&pull),
@@ -384,7 +385,14 @@ TEST_F(ProvisionerDockerLocalStoreTest, PullingSameImageSimutanuously)
   Future<slave::ImageInfo> imageInfo2 =
     store.get()->get(mesosImage, COPY_BACKEND);
 
-  const vector<string> result = {"456"};
+  Try<spec::ImageReference> reference =
+    spec::parseImageReference(mesosImage.docker().name());
+
+  ASSERT_SOME(reference);
+
+  slave::docker::Image result;
+  result.mutable_reference()->CopyFrom(reference.get());
+  result.add_layer_ids("456");
 
   ASSERT_TRUE(imageInfo2.isPending());
   promise.set(result);

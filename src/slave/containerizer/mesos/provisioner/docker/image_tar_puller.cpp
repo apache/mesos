@@ -66,13 +66,13 @@ public:
 
   ~ImageTarPullerProcess() override {}
 
-  Future<vector<string>> pull(
+  Future<Image> pull(
       const spec::ImageReference& reference,
       const string& directory,
       const string& backend);
 
 private:
-  Future<vector<string>> _pull(
+  Future<Image> _pull(
       const spec::ImageReference& reference,
       const string& directory,
       const string& backend);
@@ -152,7 +152,7 @@ ImageTarPuller::~ImageTarPuller()
 }
 
 
-Future<vector<string>> ImageTarPuller::pull(
+Future<Image> ImageTarPuller::pull(
     const spec::ImageReference& reference,
     const string& directory,
     const string& backend,
@@ -167,7 +167,7 @@ Future<vector<string>> ImageTarPuller::pull(
 }
 
 
-Future<vector<string>> ImageTarPullerProcess::pull(
+Future<Image> ImageTarPullerProcess::pull(
     const spec::ImageReference& reference,
     const string& directory,
     const string& backend)
@@ -186,7 +186,7 @@ Future<vector<string>> ImageTarPullerProcess::pull(
             << "' to '" << directory << "' using HDFS uri fetcher";
 
     return fetcher->fetch(uri, directory)
-      .then(defer(self(), [=]() -> Future<vector<string>> {
+      .then(defer(self(), [=]() -> Future<Image> {
         const string source = paths::getImageArchiveTarPath(directory, image);
 
         VLOG(1) << "Untarring image '" << reference
@@ -216,7 +216,7 @@ Future<vector<string>> ImageTarPullerProcess::pull(
 }
 
 
-Future<vector<string>> ImageTarPullerProcess::_pull(
+Future<Image> ImageTarPullerProcess::_pull(
     const spec::ImageReference& reference,
     const string& directory,
     const string& backend)
@@ -294,7 +294,15 @@ Future<vector<string>> ImageTarPullerProcess::_pull(
   }
 
   return extractLayers(directory, layerIds, backend)
-    .then([layerIds]() -> vector<string> { return layerIds; });
+    .then([reference, layerIds]() -> Image {
+      Image image;
+      image.mutable_reference()->CopyFrom(reference);
+      foreach (const string& layerId, layerIds) {
+        image.add_layer_ids(layerId);
+      }
+
+      return image;
+    });
 }
 
 
