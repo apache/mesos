@@ -24,6 +24,7 @@
 
 #include <mesos/attributes.hpp>
 #include <mesos/resources.hpp>
+#include <mesos/roles.hpp>
 #include <mesos/type_utils.hpp>
 
 #include <process/after.hpp>
@@ -1707,16 +1708,21 @@ void HierarchicalAllocatorProcess::__allocate()
       reservationScalarQuantities.get(role).getOrElse(ResourceQuantities());
 
     // Then add allocated resource _quantities_ .
-    // NOTE: Revocable resources are excluded in `quotaRoleSorter`.
-    CHECK(quotaGuarantees.contains(role));
-    rolesConsumedQuota[role] +=
-      quotaRoleSorter->allocationScalarQuantities(role);
+    if (roleSorter->contains(role)) {
+      foreachvalue (const Resources& resources, roleSorter->allocation(role)) {
+        rolesConsumedQuota[role] +=
+          ResourceQuantities::fromScalarResources(
+              resources.nonRevocable().scalars());
+      }
+    }
 
     // Lastly subtract allocated reservations on each agent.
-    foreachvalue (
-        const Resources& resources, quotaRoleSorter->allocation(role)) {
-      rolesConsumedQuota[role] -=
-        ResourceQuantities::fromScalarResources(resources.reserved().scalars());
+    if (roleSorter->contains(role)) {
+      foreachvalue (const Resources& resources, roleSorter->allocation(role)) {
+        rolesConsumedQuota[role] -=
+          ResourceQuantities::fromScalarResources(
+              resources.reserved().scalars());
+      }
     }
   }
 
@@ -1753,34 +1759,42 @@ void HierarchicalAllocatorProcess::__allocate()
   //                        unallocated revocable resources
   ResourceQuantities availableHeadroom = roleSorter->totalScalarQuantities();
 
+  // NOTE: We only sum over top level roles since those
+  // store the aggregated information in both the role
+  // sorter and the `reservationScalarQuantities`.
+
   // Subtract allocated resources from the total.
   foreachkey (const string& role, roles) {
-    availableHeadroom -= roleSorter->allocationScalarQuantities(role);
+    if (!strings::contains(role, "/")) {
+      availableHeadroom -= roleSorter->allocationScalarQuantities(role);
+    }
   }
 
-  // Calculate total allocated reservations. Note that we need to ensure
-  // we count a reservation for "a" being allocated to "a/b", therefore
-  // we cannot simply loop over the reservations' roles.
   ResourceQuantities totalAllocatedReservation;
   foreachkey (const string& role, roles) {
-    const hashmap<SlaveID, Resources>* allocations;
-    if (quotaRoleSorter->contains(role)) {
-      allocations = &quotaRoleSorter->allocation(role);
-    } else if (roleSorter->contains(role)) {
-      allocations = &roleSorter->allocation(role);
-    } else {
+    if (strings::contains(role, "/")) {
+      continue; // Only top level roles.
+    }
+
+    if (!roleSorter->contains(role)) {
       continue; // This role has no allocation.
     }
 
-    foreachvalue (const Resources& resources, *CHECK_NOTNULL(allocations)) {
+    foreachvalue (const Resources& resources, roleSorter->allocation(role)) {
       totalAllocatedReservation +=
         ResourceQuantities::fromScalarResources(resources.reserved().scalars());
     }
   }
 
+  ResourceQuantities totalReservation;
+  foreachkey (const string& role, reservationScalarQuantities) {
+    if (!strings::contains(role, "/")) {
+      totalReservation += reservationScalarQuantities.at(role);
+    }
+  }
+
   // Subtract total unallocated reservations.
-  availableHeadroom -= ResourceQuantities::sum(reservationScalarQuantities) -
-                       totalAllocatedReservation;
+  availableHeadroom -= totalReservation - totalAllocatedReservation;
 
   // Subtract revocable resources.
   foreachvalue (const Slave& slave, slaves) {
@@ -1965,6 +1979,9 @@ void HierarchicalAllocatorProcess::__allocate()
 
         // Update role consumed quota.
         rolesConsumedQuota[role] += allocatedUnreserved;
+        for (const string& ancestor : roles::ancestors(role)) {
+          rolesConsumedQuota[ancestor] += allocatedUnreserved;
+        }
 
         // Track quota guarantee headroom change.
 
@@ -2575,7 +2592,11 @@ void HierarchicalAllocatorProcess::trackReservations(
       continue; // Do not insert an empty entry.
     }
 
+    // Track it hierarchically up to the top level role.
     reservationScalarQuantities[role] += quantities;
+    for (const string& ancestor : roles::ancestors(role)) {
+      reservationScalarQuantities[ancestor] += quantities;
+    }
   }
 }
 
@@ -2592,15 +2613,21 @@ void HierarchicalAllocatorProcess::untrackReservations(
       continue; // Do not CHECK for the role if there's nothing to untrack.
     }
 
-    CHECK(reservationScalarQuantities.contains(role));
-    ResourceQuantities& currentReservationQuantities =
-        reservationScalarQuantities.at(role);
+    // Untrack it hierarchically up to the top level role.
+    vector<string> roles = roles::ancestors(role);
+    roles.insert(roles.begin(), role);
 
-    CHECK(currentReservationQuantities.contains(quantities));
-    currentReservationQuantities -= quantities;
+    for (const string& r : roles) {
+      CHECK(reservationScalarQuantities.contains(r));
+      ResourceQuantities& currentReservationQuantities =
+        reservationScalarQuantities.at(r);
 
-    if (currentReservationQuantities.empty()) {
-      reservationScalarQuantities.erase(role);
+      CHECK(currentReservationQuantities.contains(quantities));
+      currentReservationQuantities -= quantities;
+
+      if (currentReservationQuantities.empty()) {
+        reservationScalarQuantities.erase(r);
+      }
     }
   }
 }
