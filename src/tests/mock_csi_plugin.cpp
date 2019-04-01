@@ -26,13 +26,10 @@ using grpc::ServerBuilder;
 using grpc::ServerContext;
 using grpc::Status;
 
-using mesos::csi::v0::Controller;
-using mesos::csi::v0::Identity;
-using mesos::csi::v0::Node;
-
 using process::grpc::client::Connection;
 
 using testing::_;
+using testing::A;
 using testing::Invoke;
 using testing::Return;
 
@@ -42,12 +39,13 @@ namespace tests {
 
 MockCSIPlugin::MockCSIPlugin()
 {
-  EXPECT_CALL(*this, GetPluginInfo(_, _, _))
+  EXPECT_CALL(*this, GetPluginInfo(_, _, A<csi::v0::GetPluginInfoResponse*>()))
     .WillRepeatedly(Return(Status::OK));
 
-  // Enable all plugin capabilities by default for testing with the test CSI
-  // plugin in forwarding mode.
-  EXPECT_CALL(*this, GetPluginCapabilities(_, _, _))
+  // Enable all plugin service capabilities by default for testing with the test
+  // CSI plugin in forwarding mode.
+  EXPECT_CALL(*this, GetPluginCapabilities(
+      _, _, A<csi::v0::GetPluginCapabilitiesResponse*>()))
     .WillRepeatedly(Invoke([](
         ServerContext* context,
         const csi::v0::GetPluginCapabilitiesRequest* request,
@@ -58,33 +56,37 @@ MockCSIPlugin::MockCSIPlugin()
       return Status::OK;
     }));
 
-  EXPECT_CALL(*this, Probe(_, _, _))
+  EXPECT_CALL(*this, Probe(_, _, A<csi::v0::ProbeResponse*>()))
     .WillRepeatedly(Return(Status::OK));
 
-  EXPECT_CALL(*this, CreateVolume(_, _, _))
+  EXPECT_CALL(*this, CreateVolume(_, _, A<csi::v0::CreateVolumeResponse*>()))
     .WillRepeatedly(Return(Status::OK));
 
-  EXPECT_CALL(*this, DeleteVolume(_, _, _))
+  EXPECT_CALL(*this, DeleteVolume(_, _, A<csi::v0::DeleteVolumeResponse*>()))
     .WillRepeatedly(Return(Status::OK));
 
-  EXPECT_CALL(*this, ControllerPublishVolume(_, _, _))
+  EXPECT_CALL(*this, ControllerPublishVolume(
+      _, _, A<csi::v0::ControllerPublishVolumeResponse*>()))
     .WillRepeatedly(Return(Status::OK));
 
-  EXPECT_CALL(*this, ControllerUnpublishVolume(_, _, _))
+  EXPECT_CALL(*this, ControllerUnpublishVolume(
+      _, _, A<csi::v0::ControllerUnpublishVolumeResponse*>()))
     .WillRepeatedly(Return(Status::OK));
 
-  EXPECT_CALL(*this, ValidateVolumeCapabilities(_, _, _))
+  EXPECT_CALL(*this, ValidateVolumeCapabilities(
+      _, _, A<csi::v0::ValidateVolumeCapabilitiesResponse*>()))
     .WillRepeatedly(Return(Status::OK));
 
-  EXPECT_CALL(*this, ListVolumes(_, _, _))
+  EXPECT_CALL(*this, ListVolumes(_, _, A<csi::v0::ListVolumesResponse*>()))
     .WillRepeatedly(Return(Status::OK));
 
-  EXPECT_CALL(*this, GetCapacity(_, _, _))
+  EXPECT_CALL(*this, GetCapacity(_, _, A<csi::v0::GetCapacityResponse*>()))
     .WillRepeatedly(Return(Status::OK));
 
-  // Enable all controller capabilities by default for testing with the test CSI
-  // plugin in forwarding mode.
-  EXPECT_CALL(*this, ControllerGetCapabilities(_, _, _))
+  // Enable all controller RPC capabilities by default for testing with the test
+  // CSI plugin in forwarding mode.
+  EXPECT_CALL(*this, ControllerGetCapabilities(
+      _, _, A<csi::v0::ControllerGetCapabilitiesResponse*>()))
     .WillRepeatedly(Invoke([](
         ServerContext* context,
         const csi::v0::ControllerGetCapabilitiesRequest* request,
@@ -94,31 +96,36 @@ MockCSIPlugin::MockCSIPlugin()
       response->add_capabilities()->mutable_rpc()->set_type(
           csi::v0::ControllerServiceCapability::RPC::PUBLISH_UNPUBLISH_VOLUME);
       response->add_capabilities()->mutable_rpc()->set_type(
-          csi::v0::ControllerServiceCapability::RPC::GET_CAPACITY);
-      response->add_capabilities()->mutable_rpc()->set_type(
           csi::v0::ControllerServiceCapability::RPC::LIST_VOLUMES);
+      response->add_capabilities()->mutable_rpc()->set_type(
+          csi::v0::ControllerServiceCapability::RPC::GET_CAPACITY);
 
       return Status::OK;
     }));
 
-  EXPECT_CALL(*this, NodeStageVolume(_, _, _))
+  EXPECT_CALL(*this, NodeStageVolume(
+      _, _, A<csi::v0::NodeStageVolumeResponse*>()))
     .WillRepeatedly(Return(Status::OK));
 
-  EXPECT_CALL(*this, NodeUnstageVolume(_, _, _))
+  EXPECT_CALL(*this, NodeUnstageVolume(
+      _, _, A<csi::v0::NodeUnstageVolumeResponse*>()))
     .WillRepeatedly(Return(Status::OK));
 
-  EXPECT_CALL(*this, NodePublishVolume(_, _, _))
+  EXPECT_CALL(*this, NodePublishVolume(
+      _, _, A<csi::v0::NodePublishVolumeResponse*>()))
     .WillRepeatedly(Return(Status::OK));
 
-  EXPECT_CALL(*this, NodeUnpublishVolume(_, _, _))
+  EXPECT_CALL(*this, NodeUnpublishVolume(
+      _, _, A<csi::v0::NodeUnpublishVolumeResponse*>()))
     .WillRepeatedly(Return(Status::OK));
 
-  EXPECT_CALL(*this, NodeGetId(_, _, _))
+  EXPECT_CALL(*this, NodeGetId(_, _, A<csi::v0::NodeGetIdResponse*>()))
     .WillRepeatedly(Return(Status::OK));
 
-  // Enable all node capabilities by default for testing with the test CSI
+  // Enable all node RPC capabilities by default for testing with the test CSI
   // plugin in forwarding mode.
-  EXPECT_CALL(*this, NodeGetCapabilities(_, _, _))
+  EXPECT_CALL(*this, NodeGetCapabilities(
+      _, _, A<csi::v0::NodeGetCapabilitiesResponse*>()))
     .WillRepeatedly(Invoke([](
         ServerContext* context,
         const csi::v0::NodeGetCapabilitiesRequest* request,
@@ -128,6 +135,142 @@ MockCSIPlugin::MockCSIPlugin()
 
       return Status::OK;
     }));
+
+  EXPECT_CALL(*this, GetPluginInfo(_, _, A<csi::v1::GetPluginInfoResponse*>()))
+    .WillRepeatedly(Return(Status::OK));
+
+  // Enable all plugin service capabilities by default for testing with the test
+  // CSI plugin in forwarding mode.
+  EXPECT_CALL(*this, GetPluginCapabilities(
+      _, _, A<csi::v1::GetPluginCapabilitiesResponse*>()))
+    .WillRepeatedly(Invoke([](
+        ServerContext* context,
+        const csi::v1::GetPluginCapabilitiesRequest* request,
+        csi::v1::GetPluginCapabilitiesResponse* response) {
+      response->add_capabilities()->mutable_service()->set_type(
+          csi::v1::PluginCapability::Service::CONTROLLER_SERVICE);
+      response->add_capabilities()->mutable_service()->set_type(
+          csi::v1::PluginCapability::Service::VOLUME_ACCESSIBILITY_CONSTRAINTS);
+
+      return Status::OK;
+    }));
+
+  EXPECT_CALL(*this, Probe(_, _, A<csi::v1::ProbeResponse*>()))
+    .WillRepeatedly(Return(Status::OK));
+
+  EXPECT_CALL(*this, CreateVolume(_, _, A<csi::v1::CreateVolumeResponse*>()))
+    .WillRepeatedly(Return(Status::OK));
+
+  EXPECT_CALL(*this, DeleteVolume(_, _, A<csi::v1::DeleteVolumeResponse*>()))
+    .WillRepeatedly(Return(Status::OK));
+
+  EXPECT_CALL(*this, ControllerPublishVolume(
+      _, _, A<csi::v1::ControllerPublishVolumeResponse*>()))
+    .WillRepeatedly(Return(Status::OK));
+
+  EXPECT_CALL(*this, ControllerUnpublishVolume(
+      _, _, A<csi::v1::ControllerUnpublishVolumeResponse*>()))
+    .WillRepeatedly(Return(Status::OK));
+
+  EXPECT_CALL(*this, ValidateVolumeCapabilities(
+      _, _, A<csi::v1::ValidateVolumeCapabilitiesResponse*>()))
+    .WillRepeatedly(Return(Status::OK));
+
+  EXPECT_CALL(*this, ListVolumes(_, _, A<csi::v1::ListVolumesResponse*>()))
+    .WillRepeatedly(Return(Status::OK));
+
+  EXPECT_CALL(*this, GetCapacity(_, _, A<csi::v1::GetCapacityResponse*>()))
+    .WillRepeatedly(Return(Status::OK));
+
+  // Enable all controller RPC capabilities by default for testing with the test
+  // CSI plugin in forwarding mode.
+  EXPECT_CALL(*this, ControllerGetCapabilities(
+      _, _, A<csi::v1::ControllerGetCapabilitiesResponse*>()))
+    .WillRepeatedly(Invoke([](
+        ServerContext* context,
+        const csi::v1::ControllerGetCapabilitiesRequest* request,
+        csi::v1::ControllerGetCapabilitiesResponse* response) {
+      response->add_capabilities()->mutable_rpc()->set_type(
+          csi::v1::ControllerServiceCapability::RPC::CREATE_DELETE_VOLUME);
+      response->add_capabilities()->mutable_rpc()->set_type(
+          csi::v1::ControllerServiceCapability::RPC::PUBLISH_UNPUBLISH_VOLUME);
+      response->add_capabilities()->mutable_rpc()->set_type(
+          csi::v1::ControllerServiceCapability::RPC::LIST_VOLUMES);
+      response->add_capabilities()->mutable_rpc()->set_type(
+          csi::v1::ControllerServiceCapability::RPC::GET_CAPACITY);
+      response->add_capabilities()->mutable_rpc()->set_type(
+          csi::v1::ControllerServiceCapability::RPC::CREATE_DELETE_SNAPSHOT);
+      response->add_capabilities()->mutable_rpc()->set_type(
+          csi::v1::ControllerServiceCapability::RPC::LIST_SNAPSHOTS);
+      response->add_capabilities()->mutable_rpc()->set_type(
+          csi::v1::ControllerServiceCapability::RPC::CLONE_VOLUME);
+      response->add_capabilities()->mutable_rpc()->set_type(
+          csi::v1::ControllerServiceCapability::RPC::PUBLISH_READONLY);
+      response->add_capabilities()->mutable_rpc()->set_type(
+          csi::v1::ControllerServiceCapability::RPC::EXPAND_VOLUME);
+
+      return Status::OK;
+    }));
+
+  EXPECT_CALL(*this, CreateSnapshot(
+      _, _, A<csi::v1::CreateSnapshotResponse*>()))
+    .WillRepeatedly(Return(Status::OK));
+
+  EXPECT_CALL(*this, DeleteSnapshot(
+      _, _, A<csi::v1::DeleteSnapshotResponse*>()))
+    .WillRepeatedly(Return(Status::OK));
+
+  EXPECT_CALL(*this, ListSnapshots(_, _, A<csi::v1::ListSnapshotsResponse*>()))
+    .WillRepeatedly(Return(Status::OK));
+
+  EXPECT_CALL(*this, ControllerExpandVolume(
+      _, _, A<csi::v1::ControllerExpandVolumeResponse*>()))
+    .WillRepeatedly(Return(Status::OK));
+
+  EXPECT_CALL(*this, NodeStageVolume(
+      _, _, A<csi::v1::NodeStageVolumeResponse*>()))
+    .WillRepeatedly(Return(Status::OK));
+
+  EXPECT_CALL(*this, NodeUnstageVolume(
+      _, _, A<csi::v1::NodeUnstageVolumeResponse*>()))
+    .WillRepeatedly(Return(Status::OK));
+
+  EXPECT_CALL(*this, NodePublishVolume(
+      _, _, A<csi::v1::NodePublishVolumeResponse*>()))
+    .WillRepeatedly(Return(Status::OK));
+
+  EXPECT_CALL(*this, NodeUnpublishVolume(
+      _, _, A<csi::v1::NodeUnpublishVolumeResponse*>()))
+    .WillRepeatedly(Return(Status::OK));
+
+  EXPECT_CALL(*this, NodeGetVolumeStats(
+      _, _, A<csi::v1::NodeGetVolumeStatsResponse*>()))
+    .WillRepeatedly(Return(Status::OK));
+
+  EXPECT_CALL(*this, NodeExpandVolume(
+      _, _, A<csi::v1::NodeExpandVolumeResponse*>()))
+    .WillRepeatedly(Return(Status::OK));
+
+  // Enable all node RPC capabilities by default for testing with the test CSI
+  // plugin in forwarding mode.
+  EXPECT_CALL(*this, NodeGetCapabilities(
+      _, _, A<csi::v1::NodeGetCapabilitiesResponse*>()))
+    .WillRepeatedly(Invoke([](
+        ServerContext* context,
+        const csi::v1::NodeGetCapabilitiesRequest* request,
+        csi::v1::NodeGetCapabilitiesResponse* response) {
+      response->add_capabilities()->mutable_rpc()->set_type(
+          csi::v1::NodeServiceCapability::RPC::STAGE_UNSTAGE_VOLUME);
+      response->add_capabilities()->mutable_rpc()->set_type(
+          csi::v1::NodeServiceCapability::RPC::GET_VOLUME_STATS);
+      response->add_capabilities()->mutable_rpc()->set_type(
+          csi::v1::NodeServiceCapability::RPC::EXPAND_VOLUME);
+
+      return Status::OK;
+    }));
+
+  EXPECT_CALL(*this, NodeGetInfo(_, _, A<csi::v1::NodeGetInfoResponse*>()))
+    .WillRepeatedly(Return(Status::OK));
 }
 
 
@@ -139,9 +282,12 @@ Try<Connection> MockCSIPlugin::startup(const Option<string>& address)
     builder.AddListeningPort(address.get(), InsecureServerCredentials());
   }
 
-  builder.RegisterService(static_cast<Identity::Service*>(this));
-  builder.RegisterService(static_cast<Controller::Service*>(this));
-  builder.RegisterService(static_cast<Node::Service*>(this));
+  builder.RegisterService(static_cast<csi::v0::Identity::Service*>(this));
+  builder.RegisterService(static_cast<csi::v0::Controller::Service*>(this));
+  builder.RegisterService(static_cast<csi::v0::Node::Service*>(this));
+  builder.RegisterService(static_cast<csi::v1::Identity::Service*>(this));
+  builder.RegisterService(static_cast<csi::v1::Controller::Service*>(this));
+  builder.RegisterService(static_cast<csi::v1::Node::Service*>(this));
 
   server = builder.BuildAndStart();
   if (!server) {

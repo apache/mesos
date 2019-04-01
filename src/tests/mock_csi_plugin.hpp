@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __TESTS_MOCKCSIPLUGIN_HPP__
-#define __TESTS_MOCKCSIPLUGIN_HPP__
+#ifndef __TESTS_MOCK_CSI_PLUGIN_HPP__
+#define __TESTS_MOCK_CSI_PLUGIN_HPP__
 
 #include <memory>
 #include <string>
@@ -25,6 +25,7 @@
 #include <grpcpp/grpcpp.h>
 
 #include <mesos/csi/v0.hpp>
+#include <mesos/csi/v1.hpp>
 
 #include <process/grpc.hpp>
 
@@ -38,12 +39,18 @@ namespace internal {
 namespace tests {
 
 // Definition of a mock CSI plugin to be used in tests with gmock.
-class MockCSIPlugin : public csi::v0::Identity::Service,
-                      public csi::v0::Controller::Service,
-                      public csi::v0::Node::Service
+class MockCSIPlugin
+  : public csi::v0::Identity::Service,
+    public csi::v0::Controller::Service,
+    public csi::v0::Node::Service,
+    public csi::v1::Identity::Service,
+    public csi::v1::Controller::Service,
+    public csi::v1::Node::Service
 {
 public:
   MockCSIPlugin();
+
+  // CSI v0 RPCs.
 
   MOCK_METHOD3(GetPluginInfo, grpc::Status(
       grpc::ServerContext*,
@@ -130,8 +137,126 @@ public:
       const csi::v0::NodeGetCapabilitiesRequest*,
       csi::v0::NodeGetCapabilitiesResponse*));
 
+  // CSI v1 RPCs.
+
+  MOCK_METHOD3(GetPluginInfo, grpc::Status(
+      grpc::ServerContext*,
+      const csi::v1::GetPluginInfoRequest*,
+      csi::v1::GetPluginInfoResponse*));
+
+  MOCK_METHOD3(GetPluginCapabilities, grpc::Status(
+      grpc::ServerContext*,
+      const csi::v1::GetPluginCapabilitiesRequest*,
+      csi::v1::GetPluginCapabilitiesResponse*));
+
+  MOCK_METHOD3(Probe, grpc::Status(
+      grpc::ServerContext*,
+      const csi::v1::ProbeRequest*,
+      csi::v1::ProbeResponse*));
+
+  MOCK_METHOD3(CreateVolume, grpc::Status(
+      grpc::ServerContext*,
+      const csi::v1::CreateVolumeRequest*,
+      csi::v1::CreateVolumeResponse*));
+
+  MOCK_METHOD3(DeleteVolume, grpc::Status(
+      grpc::ServerContext*,
+      const csi::v1::DeleteVolumeRequest*,
+      csi::v1::DeleteVolumeResponse*));
+
+  MOCK_METHOD3(ControllerPublishVolume, grpc::Status(
+      grpc::ServerContext*,
+      const csi::v1::ControllerPublishVolumeRequest*,
+      csi::v1::ControllerPublishVolumeResponse*));
+
+  MOCK_METHOD3(ControllerUnpublishVolume, grpc::Status(
+      grpc::ServerContext*,
+      const csi::v1::ControllerUnpublishVolumeRequest*,
+      csi::v1::ControllerUnpublishVolumeResponse*));
+
+  MOCK_METHOD3(ValidateVolumeCapabilities, grpc::Status(
+      grpc::ServerContext*,
+      const csi::v1::ValidateVolumeCapabilitiesRequest*,
+      csi::v1::ValidateVolumeCapabilitiesResponse*));
+
+  MOCK_METHOD3(ListVolumes, grpc::Status(
+      grpc::ServerContext*,
+      const csi::v1::ListVolumesRequest*,
+      csi::v1::ListVolumesResponse*));
+
+  MOCK_METHOD3(GetCapacity, grpc::Status(
+      grpc::ServerContext*,
+      const csi::v1::GetCapacityRequest*,
+      csi::v1::GetCapacityResponse*));
+
+  MOCK_METHOD3(ControllerGetCapabilities, grpc::Status(
+      grpc::ServerContext*,
+      const csi::v1::ControllerGetCapabilitiesRequest*,
+      csi::v1::ControllerGetCapabilitiesResponse*));
+
+  MOCK_METHOD3(CreateSnapshot, grpc::Status(
+      grpc::ServerContext*,
+      const csi::v1::CreateSnapshotRequest*,
+      csi::v1::CreateSnapshotResponse*));
+
+  MOCK_METHOD3(DeleteSnapshot, grpc::Status(
+      grpc::ServerContext*,
+      const csi::v1::DeleteSnapshotRequest*,
+      csi::v1::DeleteSnapshotResponse*));
+
+  MOCK_METHOD3(ListSnapshots, grpc::Status(
+      grpc::ServerContext*,
+      const csi::v1::ListSnapshotsRequest*,
+      csi::v1::ListSnapshotsResponse*));
+
+  MOCK_METHOD3(ControllerExpandVolume, grpc::Status(
+      grpc::ServerContext*,
+      const csi::v1::ControllerExpandVolumeRequest*,
+      csi::v1::ControllerExpandVolumeResponse*));
+
+  MOCK_METHOD3(NodeStageVolume, grpc::Status(
+      grpc::ServerContext*,
+      const csi::v1::NodeStageVolumeRequest*,
+      csi::v1::NodeStageVolumeResponse*));
+
+  MOCK_METHOD3(NodeUnstageVolume, grpc::Status(
+      grpc::ServerContext*,
+      const csi::v1::NodeUnstageVolumeRequest*,
+      csi::v1::NodeUnstageVolumeResponse*));
+
+  MOCK_METHOD3(NodePublishVolume, grpc::Status(
+      grpc::ServerContext*,
+      const csi::v1::NodePublishVolumeRequest*,
+      csi::v1::NodePublishVolumeResponse*));
+
+  MOCK_METHOD3(NodeUnpublishVolume, grpc::Status(
+      grpc::ServerContext*,
+      const csi::v1::NodeUnpublishVolumeRequest*,
+      csi::v1::NodeUnpublishVolumeResponse*));
+
+  MOCK_METHOD3(NodeGetVolumeStats, grpc::Status(
+      grpc::ServerContext*,
+      const csi::v1::NodeGetVolumeStatsRequest*,
+      csi::v1::NodeGetVolumeStatsResponse*));
+
+  MOCK_METHOD3(NodeExpandVolume, grpc::Status(
+      grpc::ServerContext*,
+      const csi::v1::NodeExpandVolumeRequest*,
+      csi::v1::NodeExpandVolumeResponse*));
+
+  MOCK_METHOD3(NodeGetCapabilities, grpc::Status(
+      grpc::ServerContext*,
+      const csi::v1::NodeGetCapabilitiesRequest*,
+      csi::v1::NodeGetCapabilitiesResponse*));
+
+  MOCK_METHOD3(NodeGetInfo, grpc::Status(
+      grpc::ServerContext*,
+      const csi::v1::NodeGetInfoRequest*,
+      csi::v1::NodeGetInfoResponse*));
+
   Try<process::grpc::client::Connection> startup(
       const Option<std::string>& address = None());
+
   Try<Nothing> shutdown();
 
 private:
@@ -142,4 +267,4 @@ private:
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __TESTS_MOCKCSIPLUGIN_HPP__
+#endif // __TESTS_MOCK_CSI_PLUGIN_HPP__

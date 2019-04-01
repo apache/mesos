@@ -24,6 +24,7 @@
 #include <stout/tests/utils.hpp>
 
 #include "csi/v0_client.hpp"
+#include "csi/v1_client.hpp"
 
 #include "tests/mock_csi_plugin.hpp"
 
@@ -123,6 +124,36 @@ INSTANTIATE_TEST_CASE_P(
         RPCParam::create(&csi::v0::Client::nodeUnpublishVolume),
         RPCParam::create(&csi::v0::Client::nodeGetId),
         RPCParam::create(&csi::v0::Client::nodeGetCapabilities)),
+    RPCParam::Printer());
+
+
+INSTANTIATE_TEST_CASE_P(
+    V1,
+    CSIClientTest,
+    Values(
+        RPCParam::create(&csi::v1::Client::getPluginInfo),
+        RPCParam::create(&csi::v1::Client::getPluginCapabilities),
+        RPCParam::create(&csi::v1::Client::probe),
+        RPCParam::create(&csi::v1::Client::createVolume),
+        RPCParam::create(&csi::v1::Client::deleteVolume),
+        RPCParam::create(&csi::v1::Client::controllerPublishVolume),
+        RPCParam::create(&csi::v1::Client::controllerUnpublishVolume),
+        RPCParam::create(&csi::v1::Client::validateVolumeCapabilities),
+        RPCParam::create(&csi::v1::Client::listVolumes),
+        RPCParam::create(&csi::v1::Client::getCapacity),
+        RPCParam::create(&csi::v1::Client::controllerGetCapabilities),
+        RPCParam::create(&csi::v1::Client::createSnapshot),
+        RPCParam::create(&csi::v1::Client::deleteSnapshot),
+        RPCParam::create(&csi::v1::Client::listSnapshots),
+        RPCParam::create(&csi::v1::Client::controllerExpandVolume),
+        RPCParam::create(&csi::v1::Client::nodeStageVolume),
+        RPCParam::create(&csi::v1::Client::nodeUnstageVolume),
+        RPCParam::create(&csi::v1::Client::nodePublishVolume),
+        RPCParam::create(&csi::v1::Client::nodeUnpublishVolume),
+        RPCParam::create(&csi::v1::Client::nodeGetVolumeStats),
+        RPCParam::create(&csi::v1::Client::nodeExpandVolume),
+        RPCParam::create(&csi::v1::Client::nodeGetCapabilities),
+        RPCParam::create(&csi::v1::Client::nodeGetInfo)),
     RPCParam::Printer());
 
 

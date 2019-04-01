@@ -87,6 +87,8 @@ using process::reap;
 
 using process::grpc::StatusError;
 
+using testing::_;
+using testing::A;
 using testing::AllOf;
 using testing::AtMost;
 using testing::Between;
@@ -4793,7 +4795,7 @@ TEST_F(StorageLocalResourceProviderTest, RetryRpcWithExponentialBackoff)
   MockCSIPlugin plugin;
   ASSERT_SOME(plugin.startup(mockCsiEndpoint));
 
-  EXPECT_CALL(plugin, GetCapacity(_, _, _))
+  EXPECT_CALL(plugin, GetCapacity(_, _, A<csi::v0::GetCapacityResponse*>()))
     .WillRepeatedly(Invoke([](
         grpc::ServerContext* context,
         const csi::v0::GetCapacityRequest* request,
@@ -4805,7 +4807,7 @@ TEST_F(StorageLocalResourceProviderTest, RetryRpcWithExponentialBackoff)
 
   Queue<csi::v0::CreateVolumeRequest> createVolumeRequests;
   Queue<Try<csi::v0::CreateVolumeResponse, StatusError>> createVolumeResults;
-  EXPECT_CALL(plugin, CreateVolume(_, _, _))
+  EXPECT_CALL(plugin, CreateVolume(_, _, A<csi::v0::CreateVolumeResponse*>()))
     .WillRepeatedly(Invoke([&](
         grpc::ServerContext* context,
         const csi::v0::CreateVolumeRequest* request,
@@ -4830,7 +4832,7 @@ TEST_F(StorageLocalResourceProviderTest, RetryRpcWithExponentialBackoff)
 
   Queue<csi::v0::DeleteVolumeRequest> deleteVolumeRequests;
   Queue<Try<csi::v0::DeleteVolumeResponse, StatusError>> deleteVolumeResults;
-  EXPECT_CALL(plugin, DeleteVolume(_, _, _))
+  EXPECT_CALL(plugin, DeleteVolume(_, _, A<csi::v0::DeleteVolumeResponse*>()))
     .WillRepeatedly(Invoke([&](
         grpc::ServerContext* context,
         const csi::v0::DeleteVolumeRequest* request,
