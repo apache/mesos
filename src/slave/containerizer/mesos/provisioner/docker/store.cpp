@@ -105,9 +105,9 @@ private:
       const Image& image,
       const string& backend);
 
-  Future<vector<string>> moveLayers(
+  Future<Image> moveLayers(
       const string& staging,
-      const vector<string>& layerIds,
+      const Image& image,
       const string& backend);
 
   Future<Nothing> moveLayer(
@@ -331,8 +331,8 @@ Future<Image> StoreProcess::_get(
                   staging.get(),
                   lambda::_1,
                   backend))
-      .then(defer(self(), [=](const vector<string>& layerIds) {
-        return metadataManager->put(reference, layerIds);
+      .then(defer(self(), [=](const Image& image) {
+        return metadataManager->put(image);
       }))
       .onAny(defer(self(), [=](const Future<Image>&) {
         pulling.erase(name);
@@ -390,18 +390,18 @@ Future<ImageInfo> StoreProcess::__get(
 }
 
 
-Future<vector<string>> StoreProcess::moveLayers(
+Future<Image> StoreProcess::moveLayers(
     const string& staging,
-    const vector<string>& layerIds,
+    const Image& image,
     const string& backend)
 {
   list<Future<Nothing>> futures;
-  foreach (const string& layerId, layerIds) {
+  foreach (const string& layerId, image.layer_ids()) {
     futures.push_back(moveLayer(staging, layerId, backend));
   }
 
   return collect(futures)
-    .then([layerIds]() -> vector<string> { return layerIds; });
+    .then([image]() -> Image { return image; });
 }
 
 
