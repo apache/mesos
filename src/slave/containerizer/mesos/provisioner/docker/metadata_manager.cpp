@@ -59,9 +59,7 @@ public:
 
   Future<Nothing> recover();
 
-  Future<Image> put(
-      const spec::ImageReference& reference,
-      const vector<string>& layerIds);
+  Future<Image> put(const Image& image);
 
   Future<Option<Image>> get(
       const spec::ImageReference& reference,
@@ -111,15 +109,12 @@ Future<Nothing> MetadataManager::recover()
 }
 
 
-Future<Image> MetadataManager::put(
-    const spec::ImageReference& reference,
-    const vector<string>& layerIds)
+Future<Image> MetadataManager::put(const Image& image)
 {
   return dispatch(
       process.get(),
       &MetadataManagerProcess::put,
-      reference,
-      layerIds);
+      image);
 }
 
 
@@ -145,19 +140,10 @@ Future<hashset<string>> MetadataManager::prune(
 }
 
 
-Future<Image> MetadataManagerProcess::put(
-    const spec::ImageReference& reference,
-    const vector<string>& layerIds)
+Future<Image> MetadataManagerProcess::put(const Image& image)
 {
-  const string imageReference = stringify(reference);
-
-  Image dockerImage;
-  dockerImage.mutable_reference()->CopyFrom(reference);
-  foreach (const string& layerId, layerIds) {
-    dockerImage.add_layer_ids(layerId);
-  }
-
-  storedImages[imageReference] = dockerImage;
+  const string imageReference = stringify(image.reference());
+  storedImages[imageReference] = image;
 
   Try<Nothing> status = persist();
   if (status.isError()) {
@@ -166,7 +152,7 @@ Future<Image> MetadataManagerProcess::put(
 
   VLOG(1) << "Successfully cached image '" << imageReference << "'";
 
-  return dockerImage;
+  return image;
 }
 
 

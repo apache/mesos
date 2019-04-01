@@ -67,26 +67,26 @@ public:
       const Shared<uri::Fetcher>& _fetcher,
       SecretResolver* _secretResolver);
 
-  Future<vector<string>> pull(
+  Future<Image> pull(
       const spec::ImageReference& reference,
       const string& directory,
       const string& backend,
       const Option<Secret>& config);
 
 private:
-  Future<vector<string>> _pull(
+  Future<Image> _pull(
       const spec::ImageReference& reference,
       const string& directory,
       const string& backend,
       const Option<Secret::Value>& config = None());
 
-  Future<vector<string>> __pull(
+  Future<Image> __pull(
       const spec::ImageReference& reference,
       const string& directory,
       const string& backend,
       const Option<Secret::Value>& config);
 
-  Future<vector<string>> ___pull(
+  Future<Image> ___pull(
     const spec::ImageReference& reference,
     const string& directory,
     const spec::v2::ImageManifest& manifest,
@@ -154,7 +154,7 @@ RegistryPuller::~RegistryPuller()
 }
 
 
-Future<vector<string>> RegistryPuller::pull(
+Future<Image> RegistryPuller::pull(
     const spec::ImageReference& reference,
     const string& directory,
     const string& backend,
@@ -217,7 +217,7 @@ static spec::ImageReference normalize(
 }
 
 
-Future<vector<string>> RegistryPullerProcess::pull(
+Future<Image> RegistryPullerProcess::pull(
     const spec::ImageReference& reference,
     const string& directory,
     const string& backend,
@@ -237,7 +237,7 @@ Future<vector<string>> RegistryPullerProcess::pull(
 }
 
 
-Future<vector<string>> RegistryPullerProcess::_pull(
+Future<Image> RegistryPullerProcess::_pull(
     const spec::ImageReference& _reference,
     const string& directory,
     const string& backend,
@@ -296,7 +296,7 @@ Future<vector<string>> RegistryPullerProcess::_pull(
 }
 
 
-Future<vector<string>> RegistryPullerProcess::__pull(
+Future<Image> RegistryPullerProcess::__pull(
     const spec::ImageReference& reference,
     const string& directory,
     const string& backend,
@@ -332,7 +332,7 @@ Future<vector<string>> RegistryPullerProcess::__pull(
 }
 
 
-Future<vector<string>> RegistryPullerProcess::___pull(
+Future<Image> RegistryPullerProcess::___pull(
     const spec::ImageReference& reference,
     const string& directory,
     const spec::v2::ImageManifest& manifest,
@@ -414,7 +414,7 @@ Future<vector<string>> RegistryPullerProcess::___pull(
   }
 
   return collect(futures)
-    .then([=]() -> Future<vector<string>> {
+    .then([=]() -> Future<Image> {
       // Remove the tarballs after the extraction.
       foreach (const string& blobSum, blobSums) {
         const string tar = path::join(directory, blobSum);
@@ -427,7 +427,13 @@ Future<vector<string>> RegistryPullerProcess::___pull(
         }
       }
 
-      return layerIds;
+      Image image;
+      image.mutable_reference()->CopyFrom(reference);
+      foreach (const string& layerId, layerIds) {
+        image.add_layer_ids(layerId);
+      }
+
+      return image;
     });
 }
 

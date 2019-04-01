@@ -32,6 +32,8 @@
 
 #include <mesos/secret/resolver.hpp>
 
+#include "slave/containerizer/mesos/provisioner/docker/message.hpp"
+
 #include "slave/flags.hpp"
 
 namespace mesos {
@@ -58,7 +60,7 @@ public:
    * @param directory The target directory to store the layers.
    * @return an ordered list of layer ids.
    */
-  virtual process::Future<std::vector<std::string>> pull(
+  virtual process::Future<Image> pull(
       const ::docker::spec::ImageReference& reference,
       const std::string& directory,
       const std::string& backend,

@@ -68,18 +68,10 @@ public:
   process::Future<Nothing> recover();
 
   /**
-   * Create an Image, put it in metadata manager and persist the reference
+   * Put the image in metadata manager and persist the reference
    * store state to disk.
-   *
-   * @param reference the reference of the Docker image to place in the
-   *                  reference store.
-   * @param layerIds the list of layer ids that comprise the Docker image in
-   *                 order where the root layer's id (no parent layer) is first
-   *                 and the leaf layer's id is last.
    */
-  process::Future<Image> put(
-      const ::docker::spec::ImageReference& reference,
-      const std::vector<std::string>& layerIds);
+  process::Future<Image> put(const Image& image);
 
   /**
    * Retrieve Image based on image reference if it is among the Images

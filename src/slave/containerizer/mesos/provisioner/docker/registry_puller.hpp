@@ -58,7 +58,7 @@ public:
    * @param reference local name of the image.
    * @param directory path to which the layers will be downloaded.
    */
-  process::Future<std::vector<std::string>> pull(
+  process::Future<Image> pull(
       const ::docker::spec::ImageReference& reference,
       const std::string& directory,
       const std::string& backend,

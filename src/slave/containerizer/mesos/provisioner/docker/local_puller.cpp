@@ -58,13 +58,13 @@ public:
 
   ~LocalPullerProcess() {}
 
-  Future<vector<string>> pull(
+  Future<Image> pull(
       const spec::ImageReference& reference,
       const string& directory,
       const string& backend);
 
 private:
-  Future<vector<string>> _pull(
+  Future<Image> _pull(
       const spec::ImageReference& reference,
       const string& directory,
       const string& backend);
@@ -119,7 +119,7 @@ LocalPuller::~LocalPuller()
 }
 
 
-Future<vector<string>> LocalPuller::pull(
+Future<Image> LocalPuller::pull(
     const spec::ImageReference& reference,
     const string& directory,
     const string& backend,
@@ -134,7 +134,7 @@ Future<vector<string>> LocalPuller::pull(
 }
 
 
-Future<vector<string>> LocalPullerProcess::pull(
+Future<Image> LocalPullerProcess::pull(
     const spec::ImageReference& reference,
     const string& directory,
     const string& backend)
@@ -160,7 +160,7 @@ Future<vector<string>> LocalPullerProcess::pull(
 }
 
 
-Future<vector<string>> LocalPullerProcess::_pull(
+Future<Image> LocalPullerProcess::_pull(
     const spec::ImageReference& reference,
     const string& directory,
     const string& backend)
@@ -238,7 +238,15 @@ Future<vector<string>> LocalPullerProcess::_pull(
   }
 
   return extractLayers(directory, layerIds, backend)
-    .then([layerIds]() -> vector<string> { return layerIds; });
+    .then([reference, layerIds]() -> Image {
+      Image image;
+      image.mutable_reference()->CopyFrom(reference);
+      foreach (const string& layerId, layerIds) {
+        image.add_layer_ids(layerId);
+      }
+
+      return image;
+    });
 }
 
 
