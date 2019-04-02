@@ -160,6 +160,9 @@ private:
       const Resources& checkpointed,
       const Resources& discovered);
 
+  process::Future<Resources> getRawVolumes();
+  process::Future<Resources> getStoragePools();
+
   // Spawns a loop to watch for changes in the set of known profiles and update
   // the profile mapping and storage pools accordingly.
   void watchProfiles();
@@ -249,10 +252,12 @@ private:
       const google::protobuf::Map<std::string, std::string>& parameters);
 
   // NOTE: This can only be called after `prepareServices`.
-  process::Future<Resources> listVolumes();
+  process::Future<std::vector<csi::VolumeInfo>> listVolumes();
 
   // NOTE: This can only be called after `prepareServices`.
-  process::Future<Resources> getCapacities();
+  process::Future<Bytes> getCapacity(
+      const csi::types::VolumeCapability& capability,
+      const google::protobuf::Map<std::string, std::string>& parameters);
 
   // Applies the operation. Speculative operations will be synchronously
   // applied. Do nothing if the operation is already in a terminal state.
