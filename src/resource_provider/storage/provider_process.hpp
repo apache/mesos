@@ -56,6 +56,7 @@
 #include "csi/service_manager.hpp"
 #include "csi/state.hpp"
 #include "csi/utils.hpp"
+#include "csi/volume_manager.hpp"
 
 #include "status_update_manager/operation.hpp"
 
@@ -229,26 +230,23 @@ private:
   // Transition a volume to `VOL_READY` state from any state below.
   process::Future<Nothing> __unpublishVolume(const std::string& volumeId);
 
-  // Returns a CSI volume ID.
-  //
   // NOTE: This can only be called after `prepareServices`.
-  process::Future<std::string> createVolume(
+  process::Future<csi::VolumeInfo> createVolume(
       const std::string& name,
       const Bytes& capacity,
-      const DiskProfileAdaptor::ProfileInfo& profileInfo);
+      const csi::types::VolumeCapability& capability,
+      const google::protobuf::Map<std::string, std::string>& parameters);
 
-  // Returns true if the volume has been deprovisioned.
-  //
   // NOTE: This can only be called after `prepareServices`.
   process::Future<bool> deleteVolume(const std::string& volumeId);
+  process::Future<bool> _deleteVolume(const std::string& volumeId);
+  process::Future<bool> __deleteVolume(const std::string& volumeId);
 
-  // Validates if a volume supports the capability of the specified profile.
-  //
   // NOTE: This can only be called after `prepareServices`.
-  process::Future<Nothing> validateVolume(
-      const std::string& volumeId,
-      const Option<Labels>& metadata,
-      const DiskProfileAdaptor::ProfileInfo& profileInfo);
+  process::Future<Option<Error>> validateVolume(
+      const csi::VolumeInfo& volumeInfo,
+      const csi::types::VolumeCapability& capability,
+      const google::protobuf::Map<std::string, std::string>& parameters);
 
   // NOTE: This can only be called after `prepareServices`.
   process::Future<Resources> listVolumes();
