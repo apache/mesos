@@ -529,18 +529,18 @@ template <RPC Rpc>
 Future<Try<Response<Rpc>, StatusError>> VolumeManagerProcess::_call(
     const string& endpoint, const Request<Rpc>& request)
 {
-  ++metrics->csi_plugin_rpcs_pending.at(Rpc);
+  ++metrics->csi_plugin_rpcs_pending;
 
   return Client(endpoint, runtime).call<Rpc>(request)
     .onAny(defer(self(), [=](
         const Future<Try<Response<Rpc>, StatusError>>& future) {
-      --metrics->csi_plugin_rpcs_pending.at(Rpc);
+      --metrics->csi_plugin_rpcs_pending;
       if (future.isReady() && future->isSome()) {
-        ++metrics->csi_plugin_rpcs_successes.at(Rpc);
+        ++metrics->csi_plugin_rpcs_finished;
       } else if (future.isDiscarded()) {
-        ++metrics->csi_plugin_rpcs_cancelled.at(Rpc);
+        ++metrics->csi_plugin_rpcs_cancelled;
       } else {
-        ++metrics->csi_plugin_rpcs_errors.at(Rpc);
+        ++metrics->csi_plugin_rpcs_failed;
       }
     }));
 }

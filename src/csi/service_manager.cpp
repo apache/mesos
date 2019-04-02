@@ -491,7 +491,7 @@ Future<Nothing> ServiceManagerProcess::waitEndpoint(const string& endpoint)
     .then(process::defer(self(), [=]() -> Future<Nothing> {
       // TODO(chhsiao): Detect which CSI version to use through versioned
       // `Probe` calls to support CSI v1 in a backward compatible way.
-      ++metrics->csi_plugin_rpcs_pending.at(v0::PROBE);
+      ++metrics->csi_plugin_rpcs_pending;
 
       return v0::Client(endpoint, runtime)
         .call<v0::PROBE>(v0::ProbeRequest())
@@ -507,13 +507,13 @@ Future<Nothing> ServiceManagerProcess::waitEndpoint(const string& endpoint)
           return Nothing();
         }))
         .onAny(process::defer(self(), [this](const Future<Nothing>& future) {
-          --metrics->csi_plugin_rpcs_pending.at(v0::PROBE);
+          --metrics->csi_plugin_rpcs_pending;
           if (future.isReady()) {
-            ++metrics->csi_plugin_rpcs_successes.at(v0::PROBE);
+            ++metrics->csi_plugin_rpcs_finished;
           } else if (future.isDiscarded()) {
-            ++metrics->csi_plugin_rpcs_cancelled.at(v0::PROBE);
+            ++metrics->csi_plugin_rpcs_cancelled;
           } else {
-            ++metrics->csi_plugin_rpcs_errors.at(v0::PROBE);
+            ++metrics->csi_plugin_rpcs_failed;
           }
         }));
     }));

@@ -22,8 +22,6 @@
 #include <process/metrics/counter.hpp>
 #include <process/metrics/push_gauge.hpp>
 
-#include "csi/rpc.hpp"
-
 namespace mesos {
 namespace csi {
 
@@ -34,10 +32,10 @@ struct Metrics
   ~Metrics();
 
   process::metrics::Counter csi_plugin_container_terminations;
-  hashmap<csi::v0::RPC, process::metrics::PushGauge> csi_plugin_rpcs_pending;
-  hashmap<csi::v0::RPC, process::metrics::Counter> csi_plugin_rpcs_successes;
-  hashmap<csi::v0::RPC, process::metrics::Counter> csi_plugin_rpcs_errors;
-  hashmap<csi::v0::RPC, process::metrics::Counter> csi_plugin_rpcs_cancelled;
+  process::metrics::PushGauge csi_plugin_rpcs_pending;
+  process::metrics::Counter csi_plugin_rpcs_finished;
+  process::metrics::Counter csi_plugin_rpcs_failed;
+  process::metrics::Counter csi_plugin_rpcs_cancelled;
 };
 
 } // namespace csi {

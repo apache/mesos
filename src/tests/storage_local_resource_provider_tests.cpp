@@ -4128,48 +4128,17 @@ TEST_F(StorageLocalResourceProviderTest, CsiPluginRpcMetrics)
 
   ASSERT_SOME(source);
 
-  JSON::Object snapshot = Metrics();
+  // We expect that the following RPC calls are made during startup: `Probe`,
+  // `GetPluginInfo` (2), `GetPluginCapabilities, `ControllerGetCapabilities`,
+  // `ListVolumes`, `GetCapacity`, `NodeGetCapabilities`, `NodeGetId`.
+  //
+  // TODO(chhsiao): As these are implementation details, we should count the
+  // calls processed by a mock CSI plugin and check the metrics against that.
+  const int numFinishedStartupRpcs = 9;
 
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Identity.Probe/successes")));
-  EXPECT_EQ(1, snapshot.values.at( metricName(
-      "csi_plugin/rpcs/csi.v0.Identity.Probe/successes")));
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Identity.GetPluginInfo/successes")));
-  EXPECT_EQ(2, snapshot.values.at(metricName(
-      "csi_plugin/rpcs/csi.v0.Identity.GetPluginInfo/successes")));
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Identity.GetPluginCapabilities/successes")));
-  EXPECT_EQ(1, snapshot.values.at(metricName(
-      "csi_plugin/rpcs/csi.v0.Identity.GetPluginCapabilities/successes")));
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.ControllerGetCapabilities/successes"))); // NOLINT(whitespace/line_length)
-  EXPECT_EQ(1, snapshot.values.at(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.ControllerGetCapabilities/successes"))); // NOLINT(whitespace/line_length)
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.ListVolumes/successes")));
-  EXPECT_EQ(1, snapshot.values.at(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.ListVolumes/successes")));
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.GetCapacity/successes")));
-  EXPECT_EQ(1, snapshot.values.at(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.GetCapacity/successes")));
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.CreateVolume/successes")));
-  EXPECT_EQ(0, snapshot.values.at(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.CreateVolume/successes")));
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.DeleteVolume/errors")));
-  EXPECT_EQ(0, snapshot.values.at(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.DeleteVolume/errors")));
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Node.NodeGetCapabilities/successes")));
-  EXPECT_EQ(1, snapshot.values.at(metricName(
-      "csi_plugin/rpcs/csi.v0.Node.NodeGetCapabilities/successes")));
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Node.NodeGetId/successes")));
-  EXPECT_EQ(1, snapshot.values.at(metricName(
-      "csi_plugin/rpcs/csi.v0.Node.NodeGetId/successes")));
+  EXPECT_TRUE(metricEquals(
+      metricName("csi_plugin/rpcs_finished"), numFinishedStartupRpcs));
+  EXPECT_TRUE(metricEquals(metricName("csi_plugin/rpcs_failed"), 0));
 
   // Create a volume.
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
@@ -4202,48 +4171,10 @@ TEST_F(StorageLocalResourceProviderTest, CsiPluginRpcMetrics)
   ASSERT_TRUE(volume->disk().source().mount().has_root());
   EXPECT_FALSE(path::absolute(volume->disk().source().mount().root()));
 
-  snapshot = Metrics();
-
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Identity.Probe/successes")));
-  EXPECT_EQ(1, snapshot.values.at( metricName(
-      "csi_plugin/rpcs/csi.v0.Identity.Probe/successes")));
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Identity.GetPluginInfo/successes")));
-  EXPECT_EQ(2, snapshot.values.at(metricName(
-      "csi_plugin/rpcs/csi.v0.Identity.GetPluginInfo/successes")));
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Identity.GetPluginCapabilities/successes")));
-  EXPECT_EQ(1, snapshot.values.at(metricName(
-      "csi_plugin/rpcs/csi.v0.Identity.GetPluginCapabilities/successes")));
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.ControllerGetCapabilities/successes"))); // NOLINT(whitespace/line_length)
-  EXPECT_EQ(1, snapshot.values.at(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.ControllerGetCapabilities/successes"))); // NOLINT(whitespace/line_length)
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.ListVolumes/successes")));
-  EXPECT_EQ(1, snapshot.values.at(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.ListVolumes/successes")));
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.GetCapacity/successes")));
-  EXPECT_EQ(1, snapshot.values.at(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.GetCapacity/successes")));
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.CreateVolume/successes")));
-  EXPECT_EQ(1, snapshot.values.at(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.CreateVolume/successes")));
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.DeleteVolume/errors")));
-  EXPECT_EQ(0, snapshot.values.at(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.DeleteVolume/errors")));
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Node.NodeGetCapabilities/successes")));
-  EXPECT_EQ(1, snapshot.values.at(metricName(
-      "csi_plugin/rpcs/csi.v0.Node.NodeGetCapabilities/successes")));
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Node.NodeGetId/successes")));
-  EXPECT_EQ(1, snapshot.values.at(metricName(
-      "csi_plugin/rpcs/csi.v0.Node.NodeGetId/successes")));
+  // An additional `CreateVolume` RPC call is now finished.
+  EXPECT_TRUE(metricEquals(
+      metricName("csi_plugin/rpcs_finished"), numFinishedStartupRpcs + 1));
+  EXPECT_TRUE(metricEquals(metricName("csi_plugin/rpcs_failed"), 0));
 
   // Remove the volume out of band to fail `DESTROY_DISK`.
   Option<string> volumePath;
@@ -4270,48 +4201,10 @@ TEST_F(StorageLocalResourceProviderTest, CsiPluginRpcMetrics)
   AWAIT_READY(operationFailedOffers);
   ASSERT_FALSE(operationFailedOffers->empty());
 
-  snapshot = Metrics();
-
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Identity.Probe/successes")));
-  EXPECT_EQ(1, snapshot.values.at( metricName(
-      "csi_plugin/rpcs/csi.v0.Identity.Probe/successes")));
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Identity.GetPluginInfo/successes")));
-  EXPECT_EQ(2, snapshot.values.at(metricName(
-      "csi_plugin/rpcs/csi.v0.Identity.GetPluginInfo/successes")));
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Identity.GetPluginCapabilities/successes")));
-  EXPECT_EQ(1, snapshot.values.at(metricName(
-      "csi_plugin/rpcs/csi.v0.Identity.GetPluginCapabilities/successes")));
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.ControllerGetCapabilities/successes"))); // NOLINT(whitespace/line_length)
-  EXPECT_EQ(1, snapshot.values.at(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.ControllerGetCapabilities/successes"))); // NOLINT(whitespace/line_length)
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.ListVolumes/successes")));
-  EXPECT_EQ(1, snapshot.values.at(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.ListVolumes/successes")));
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.GetCapacity/successes")));
-  EXPECT_EQ(1, snapshot.values.at(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.GetCapacity/successes")));
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.CreateVolume/successes")));
-  EXPECT_EQ(1, snapshot.values.at(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.CreateVolume/successes")));
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.DeleteVolume/errors")));
-  EXPECT_EQ(1, snapshot.values.at(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.DeleteVolume/errors")));
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Node.NodeGetCapabilities/successes")));
-  EXPECT_EQ(1, snapshot.values.at(metricName(
-      "csi_plugin/rpcs/csi.v0.Node.NodeGetCapabilities/successes")));
-  ASSERT_NE(0u, snapshot.values.count(metricName(
-      "csi_plugin/rpcs/csi.v0.Node.NodeGetId/successes")));
-  EXPECT_EQ(1, snapshot.values.at(metricName(
-      "csi_plugin/rpcs/csi.v0.Node.NodeGetId/successes")));
+  // An additional `DeleteVolume` RPC call is now failed.
+  EXPECT_TRUE(metricEquals(
+      metricName("csi_plugin/rpcs_finished"), numFinishedStartupRpcs + 1));
+  EXPECT_TRUE(metricEquals(metricName("csi_plugin/rpcs_failed"), 1));
 }
 
 
@@ -5037,6 +4930,18 @@ TEST_F(StorageLocalResourceProviderTest, RetryRpcWithExponentialBackoff)
     .filter(std::bind(isStoragePool<Resource>, lambda::_1, "test"))
     .begin();
 
+  // We expect that the following RPC calls are made during startup: `Probe`,
+  // `GetPluginInfo` (2), `GetPluginCapabilities, `ControllerGetCapabilities`,
+  // `ListVolumes`, `GetCapacity`, `NodeGetCapabilities`, `NodeGetId`.
+  //
+  // TODO(chhsiao): As these are implementation details, we should count the
+  // calls processed by a mock CSI plugin and check the metrics against that.
+  const int numFinishedStartupRpcs = 9;
+
+  EXPECT_TRUE(metricEquals(
+      metricName("csi_plugin/rpcs_finished"), numFinishedStartupRpcs));
+  EXPECT_TRUE(metricEquals(metricName("csi_plugin/rpcs_failed"), 0));
+
   // Create a MOUNT disk.
   Future<UpdateOperationStatusMessage> updateOperationStatus =
     FUTURE_PROTOBUF(UpdateOperationStatusMessage(), _, _);
@@ -5201,21 +5106,12 @@ TEST_F(StorageLocalResourceProviderTest, RetryRpcWithExponentialBackoff)
   EXPECT_TRUE(metricEquals("master/operations/failed", 1));
   EXPECT_TRUE(metricEquals("master/operations/finished", 1));
 
-  EXPECT_TRUE(metricEquals(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.CreateVolume/successes"),
-      1));
-
-  EXPECT_TRUE(metricEquals(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.CreateVolume/errors"),
-      numRetryableErrors));
-
-  EXPECT_TRUE(metricEquals(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.DeleteVolume/successes"),
-      0));
-
-  EXPECT_TRUE(metricEquals(metricName(
-      "csi_plugin/rpcs/csi.v0.Controller.DeleteVolume/errors"),
-      numRetryableErrors + 1));
+  // There should be 1 finished and 10 failed `CreateVolume` calls, and 11
+  // failed `DeleteVolume` calls.
+  EXPECT_TRUE(metricEquals(
+      metricName("csi_plugin/rpcs_finished"), numFinishedStartupRpcs + 1));
+  EXPECT_TRUE(metricEquals(
+      metricName("csi_plugin/rpcs_failed"), numRetryableErrors * 2 + 1));
 }
 
 
