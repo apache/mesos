@@ -244,6 +244,7 @@ set(CSI_SRC
   csi/metrics.cpp
   csi/paths.cpp
   csi/rpc.cpp
+  csi/service_manager.cpp
   csi/utils.cpp)
 
 set(DOCKER_SRC

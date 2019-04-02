@@ -17,13 +17,11 @@
 #ifndef __RESOURCE_PROVIDER_STORAGE_PROVIDER_PROCESS_HPP__
 #define __RESOURCE_PROVIDER_STORAGE_PROVIDER_PROCESS_HPP__
 
-#include <functional>
 #include <memory>
 #include <string>
 #include <type_traits>
 #include <vector>
 
-#include <mesos/http.hpp>
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
 
@@ -53,13 +51,11 @@
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
 
-#include "csi/client.hpp"
 #include "csi/metrics.hpp"
 #include "csi/rpc.hpp"
+#include "csi/service_manager.hpp"
 #include "csi/state.hpp"
 #include "csi/utils.hpp"
-
-#include "slave/container_daemon.hpp"
 
 #include "status_update_manager/operation.hpp"
 
@@ -118,13 +114,13 @@ public:
       csi::v0::RPC rpc,
       typename std::enable_if<rpc != csi::v0::PROBE, int>::type = 0>
   process::Future<csi::v0::Response<rpc>> call(
-      const ContainerID& containerId,
+      const csi::Service& service,
       const csi::v0::Request<rpc>& request,
-      const bool retry = false); // remains const in a mutable lambda.
+      bool retry = false);
 
   template <csi::v0::RPC rpc>
   process::Future<Try<csi::v0::Response<rpc>, process::grpc::StatusError>>
-  _call(csi::v0::Client client, const csi::v0::Request<rpc>& request);
+  _call(const std::string& endpoint, const csi::v0::Request<rpc>& request);
 
   template <csi::v0::RPC rpc>
   process::Future<process::ControlFlow<csi::v0::Response<rpc>>> __call(
@@ -150,7 +146,6 @@ private:
   // The recover functions are responsible to recover the state of the
   // resource provider and CSI volumes from checkpointed data.
   process::Future<Nothing> recover();
-  process::Future<Nothing> recoverServices();
   process::Future<Nothing> recoverVolumes();
   process::Future<Nothing> recoverResourceProviderState();
 
@@ -193,27 +188,6 @@ private:
       const resource_provider::Event::AcknowledgeOperationStatus& acknowledge);
   void reconcileOperations(
       const resource_provider::Event::ReconcileOperations& reconcile);
-
-  // Returns a future of a CSI client that waits for the endpoint socket to
-  // appear if necessary, then connects to the socket and check its readiness.
-  process::Future<csi::v0::Client> waitService(const std::string& endpoint);
-
-  // Returns a future of the latest CSI client for the specified plugin
-  // container. If the container is not already running, this method will start
-  // a new a new container daemon.
-  process::Future<csi::v0::Client> getService(const ContainerID& containerId);
-
-  // Lists all running plugin containers for this resource provider.
-  // NOTE: This might return containers that are not actually running, e.g., if
-  // they are being destroyed.
-  process::Future<hashmap<ContainerID, Option<ContainerStatus>>>
-  getContainers();
-
-  // Waits for the specified plugin container to be terminated.
-  process::Future<Nothing> waitContainer(const ContainerID& containerId);
-
-  // Kills the specified plugin container.
-  process::Future<Nothing> killContainer(const ContainerID& containerId);
 
   process::Future<Nothing> prepareIdentityService();
 
@@ -367,12 +341,8 @@ private:
   // The mapping of known profiles fetched from the DiskProfileAdaptor.
   hashmap<std::string, DiskProfileAdaptor::ProfileInfo> profileInfos;
 
-  hashmap<ContainerID, process::Owned<slave::ContainerDaemon>> daemons;
-  hashmap<ContainerID, process::Owned<process::Promise<csi::v0::Client>>>
-    services;
+  process::Owned<csi::ServiceManager> serviceManager;
 
-  Option<ContainerID> nodeContainerId;
-  Option<ContainerID> controllerContainerId;
   Option<csi::v0::GetPluginInfoResponse> pluginInfo;
   csi::v0::PluginCapabilities pluginCapabilities;
   csi::v0::ControllerCapabilities controllerCapabilities;

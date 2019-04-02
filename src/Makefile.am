@@ -1560,6 +1560,8 @@ libcsi_la_SOURCES =							\
   csi/paths.hpp								\
   csi/rpc.cpp								\
   csi/rpc.hpp								\
+  csi/service_manager.cpp						\
+  csi/service_manager.hpp						\
   csi/state.hpp								\
   csi/state.proto							\
   csi/utils.cpp								\
