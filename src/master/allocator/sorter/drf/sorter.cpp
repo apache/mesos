@@ -210,14 +210,11 @@ void DRFSorter::remove(const string& clientPath)
 
     // Update `parent` to reflect the fact that the resources in the
     // leaf node are no longer allocated to the subtree rooted at
-    // `parent`. We skip `root`, because we never update the
-    // allocation made to the root node.
-    if (parent != root) {
-      foreachpair (const SlaveID& slaveId,
-                   const Resources& resources,
-                   leafAllocation) {
-        parent->allocation.subtract(slaveId, resources);
-      }
+    // `parent`.
+    foreachpair (const SlaveID& slaveId,
+                 const Resources& resources,
+                 leafAllocation) {
+      parent->allocation.subtract(slaveId, resources);
     }
 
     if (current->children.empty()) {
@@ -343,17 +340,13 @@ void DRFSorter::allocated(
 
   // Walk up the tree adjusting allocations. If the tree is
   // sorted, we keep it sorted (see below).
-  //
-  // NOTE: We don't currently update the `allocation` for the root
-  // node. This is debatable, but the current implementation doesn't
-  // require looking at the allocation of the root node.
-  while (current != root) {
+  while (current != nullptr) {
     current->allocation.add(slaveId, resources);
 
     // Note that inactive leaves are not sorted, and are always
     // stored in `children` after the active leaves and internal
     // nodes. See the comment on `Node::children`.
-    if (!dirty && current->kind != Node::INACTIVE_LEAF) {
+    if (current != root && !dirty && current->kind != Node::INACTIVE_LEAF) {
       current->share = calculateShare(current);
 
       vector<Node*>& children = current->parent->children;
@@ -384,7 +377,7 @@ void DRFSorter::allocated(
       }
     }
 
-    current = CHECK_NOTNULL(current->parent);
+    current = current->parent;
   }
 }
 
@@ -401,12 +394,9 @@ void DRFSorter::update(
 
   Node* current = CHECK_NOTNULL(find(clientPath));
 
-  // NOTE: We don't currently update the `allocation` for the root
-  // node. This is debatable, but the current implementation doesn't
-  // require looking at the allocation of the root node.
-  while (current != root) {
+  while (current != nullptr) {
     current->allocation.update(slaveId, oldAllocation, newAllocation);
-    current = CHECK_NOTNULL(current->parent);
+    current = current->parent;
   }
 
   // Just assume the total has changed, per the TODO above.
@@ -421,12 +411,9 @@ void DRFSorter::unallocated(
 {
   Node* current = CHECK_NOTNULL(find(clientPath));
 
-  // NOTE: We don't currently update the `allocation` for the root
-  // node. This is debatable, but the current implementation doesn't
-  // require looking at the allocation of the root node.
-  while (current != root) {
+  while (current != nullptr) {
     current->allocation.subtract(slaveId, resources);
-    current = CHECK_NOTNULL(current->parent);
+    current = current->parent;
   }
 
   // TODO(bmahler): Similar to `allocated()`, avoid dirtying the

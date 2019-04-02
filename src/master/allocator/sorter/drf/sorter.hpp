@@ -227,6 +227,7 @@ struct DRFSorter::Node
   // label for virtual leaf nodes.
   std::string path;
 
+  // NOTE: Not computed for root node.
   double share;
 
   // Cached weight of the node, access this through `getWeight()`.

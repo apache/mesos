@@ -199,14 +199,11 @@ void RandomSorter::remove(const string& clientPath)
 
     // Update `parent` to reflect the fact that the resources in the
     // leaf node are no longer allocated to the subtree rooted at
-    // `parent`. We skip `root`, because we never update the
-    // allocation made to the root node.
-    if (parent != root) {
-      foreachpair (const SlaveID& slaveId,
-                   const Resources& resources,
-                   leafAllocation) {
-        parent->allocation.subtract(slaveId, resources);
-      }
+    // `parent`.
+    foreachpair (const SlaveID& slaveId,
+                 const Resources& resources,
+                 leafAllocation) {
+      parent->allocation.subtract(slaveId, resources);
     }
 
     if (current->children.empty()) {
@@ -313,12 +310,9 @@ void RandomSorter::allocated(
 {
   Node* current = CHECK_NOTNULL(find(clientPath));
 
-  // NOTE: We don't currently update the `allocation` for the root
-  // node. This is debatable, but the current implementation doesn't
-  // require looking at the allocation of the root node.
-  while (current != root) {
+  while (current != nullptr) {
     current->allocation.add(slaveId, resources);
-    current = CHECK_NOTNULL(current->parent);
+    current = current->parent;
   }
 }
 
@@ -334,12 +328,9 @@ void RandomSorter::update(
 
   Node* current = CHECK_NOTNULL(find(clientPath));
 
-  // NOTE: We don't currently update the `allocation` for the root
-  // node. This is debatable, but the current implementation doesn't
-  // require looking at the allocation of the root node.
-  while (current != root) {
+  while (current != nullptr) {
     current->allocation.update(slaveId, oldAllocation, newAllocation);
-    current = CHECK_NOTNULL(current->parent);
+    current = current->parent;
   }
 }
 
@@ -351,12 +342,9 @@ void RandomSorter::unallocated(
 {
   Node* current = CHECK_NOTNULL(find(clientPath));
 
-  // NOTE: We don't currently update the `allocation` for the root
-  // node. This is debatable, but the current implementation doesn't
-  // require looking at the allocation of the root node.
-  while (current != root) {
+  while (current != nullptr) {
     current->allocation.subtract(slaveId, resources);
-    current = CHECK_NOTNULL(current->parent);
+    current = current->parent;
   }
 }
 
