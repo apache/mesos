@@ -20,8 +20,6 @@
 #include <string>
 #include <tuple>
 
-#include <csi/spec.hpp>
-
 #include <mesos/resource_provider/storage/disk_profile_adaptor.hpp>
 
 #include <process/future.hpp>

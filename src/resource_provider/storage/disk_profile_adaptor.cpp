@@ -16,8 +16,6 @@
 
 #include <string>
 
-#include <csi/spec.hpp>
-
 #include <mesos/module/disk_profile_adaptor.hpp>
 
 #include <mesos/resource_provider/storage/disk_profile_adaptor.hpp>

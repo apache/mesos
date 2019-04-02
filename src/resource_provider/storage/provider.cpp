@@ -1784,7 +1784,8 @@ Future<Nothing> StorageLocalResourceProviderProcess::controllerPublish(
   csi::v0::ControllerPublishVolumeRequest request;
   request.set_volume_id(volumeId);
   request.set_node_id(nodeId.get());
-  *request.mutable_volume_capability() = volume.state.volume_capability();
+  *request.mutable_volume_capability() =
+    csi::v0::evolve(volume.state.volume_capability());
   request.set_readonly(false);
   *request.mutable_volume_attributes() = volume.state.volume_attributes();
 
@@ -1891,7 +1892,8 @@ Future<Nothing> StorageLocalResourceProviderProcess::nodeStage(
   request.set_volume_id(volumeId);
   *request.mutable_publish_info() = volume.state.publish_info();
   request.set_staging_target_path(stagingPath);
-  *request.mutable_volume_capability() = volume.state.volume_capability();
+  *request.mutable_volume_capability() =
+    csi::v0::evolve(volume.state.volume_capability());
   *request.mutable_volume_attributes() = volume.state.volume_attributes();
 
   return call<csi::v0::NODE_STAGE_VOLUME>(csi::NODE_SERVICE, std::move(request))
@@ -1993,7 +1995,8 @@ Future<Nothing> StorageLocalResourceProviderProcess::nodePublish(
   request.set_volume_id(volumeId);
   *request.mutable_publish_info() = volume.state.publish_info();
   request.set_target_path(targetPath);
-  *request.mutable_volume_capability() = volume.state.volume_capability();
+  *request.mutable_volume_capability() =
+    csi::v0::evolve(volume.state.volume_capability());
   request.set_readonly(false);
   *request.mutable_volume_attributes() = volume.state.volume_attributes();
 
@@ -2087,7 +2090,7 @@ Future<string> StorageLocalResourceProviderProcess::createVolume(
   request.set_name(name);
   request.mutable_capacity_range()->set_required_bytes(capacity.bytes());
   request.mutable_capacity_range()->set_limit_bytes(capacity.bytes());
-  *request.add_volume_capabilities() = profileInfo.capability;
+  *request.add_volume_capabilities() = csi::v0::evolve(profileInfo.capability);
   *request.mutable_parameters() = profileInfo.parameters;
 
   return call<csi::v0::CREATE_VOLUME>(
@@ -2276,7 +2279,7 @@ Future<Nothing> StorageLocalResourceProviderProcess::validateVolume(
   // once we get CSI v1.
   csi::v0::ValidateVolumeCapabilitiesRequest request;
   request.set_volume_id(volumeId);
-  *request.add_volume_capabilities() = profileInfo.capability;
+  *request.add_volume_capabilities() = csi::v0::evolve(profileInfo.capability);
   *request.mutable_volume_attributes() = volumeAttributes;
 
   return call<csi::v0::VALIDATE_VOLUME_CAPABILITIES>(
@@ -2365,7 +2368,8 @@ Future<Resources> StorageLocalResourceProviderProcess::getCapacities()
                const DiskProfileAdaptor::ProfileInfo& profileInfo,
                profileInfos) {
     csi::v0::GetCapacityRequest request;
-    *request.add_volume_capabilities() = profileInfo.capability;
+    *request.add_volume_capabilities() =
+      csi::v0::evolve(profileInfo.capability);
     *request.mutable_parameters() = profileInfo.parameters;
 
     futures.push_back(

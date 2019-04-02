@@ -21,9 +21,9 @@
 #include <string>
 #include <tuple>
 
-#include <csi/spec.hpp>
-
 #include <mesos/mesos.hpp>
+
+#include <mesos/csi/types.hpp>
 
 #include <process/future.hpp>
 
@@ -63,7 +63,7 @@ public:
      * of `VolumeCapability` objects, the module will only allow a single
      * `VolumeCapability`.
      */
-    csi::v0::VolumeCapability capability;
+    csi::types::VolumeCapability capability;
 
     /**
      * Free-form key-value pairs which should be passed into the body

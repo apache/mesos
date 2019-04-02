@@ -20,8 +20,6 @@
 #include <string>
 #include <tuple>
 
-#include <csi/spec.hpp>
-
 #include <mesos/type_utils.hpp>
 
 #include <mesos/module/disk_profile_adaptor.hpp>
@@ -132,7 +130,7 @@ Future<DiskProfileAdaptor::ProfileInfo>
   }
 
   return DiskProfileAdaptor::ProfileInfo{
-    manifest.volume_capabilities(),
+    csi::v0::devolve(manifest.volume_capabilities()),
     manifest.create_parameters()
   };
 }

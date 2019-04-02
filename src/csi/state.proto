@@ -16,7 +16,7 @@
 
 syntax = "proto3";
 
-import "csi.proto";
+import "mesos/csi/types.proto";
 
 package mesos.csi.state;
 
@@ -44,7 +44,7 @@ message VolumeState {
   State state = 1;
 
   // The capability used to publish the volume. This is a REQUIRED field.
-  .csi.v0.VolumeCapability volume_capability = 2;
+  types.VolumeCapability volume_capability = 2;
 
   // The parameters used when creating the volume. This is an OPTIONAL field.
   map<string, string> parameters = 6;
