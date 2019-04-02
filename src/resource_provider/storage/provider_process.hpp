@@ -192,41 +192,42 @@ private:
 
   process::Future<Nothing> publishVolume(const std::string& volumeId);
 
-  // Transitions the state of the specified volume from `CREATED` or
-  // `CONTROLLER_PUBLISH` to `NODE_READY`.
+  // The following methods are used to manage volume lifecycles. Transient
+  // states are omitted.
   //
-  // NOTE: This can only be called after `prepareServices`.
-  process::Future<Nothing> controllerPublish(const std::string& volumeId);
+  //                          +------------+
+  //                 +  +  +  |  CREATED   |  ^
+  //   _attachVolume |  |  |  +---+----^---+  |
+  //                 |  |  |      |    |      | _detachVolume
+  //                 |  |  |  +---v----+---+  |
+  //                 v  +  +  | NODE_READY |  +  ^
+  //                    |  |  +---+----^---+  |  |
+  //    __publishVolume |  |      |    |      |  | _unpublishVolume
+  //                    |  |  +---v----+---+  |  |
+  //                    v  +  | VOL_READY  |  +  +  ^
+  //                       |  +---+----^---+  |  |  |
+  //        _publishVolume |      |    |      |  |  | __unpublishVolume
+  //                       |  +---v----+---+  |  |  |
+  //                       V  | PUBLISHED  |  +  +  +
+  //                          +------------+
 
-  // Transitions the state of the specified volume from `NODE_READY`,
-  // `CONTROLLER_PUBLISH` or `CONTROLLER_UNPUBLISH` to `CREATED`.
-  //
-  // NOTE: This can only be called after `prepareServices`.
-  process::Future<Nothing> controllerUnpublish(const std::string& volumeId);
+  // Transition a volume to `NODE_READY` state from any state above.
+  process::Future<Nothing> _attachVolume(const std::string& volumeId);
 
-  // Transitions the state of the specified volume from `NODE_READY` or
-  // `NODE_STAGE` to `VOL_READY`.
-  //
-  // NOTE: This can only be called after `prepareServices`.
-  process::Future<Nothing> nodeStage(const std::string& volumeId);
+  // Transition a volume to `CREATED` state from any state below.
+  process::Future<Nothing> _detachVolume(const std::string& volumeId);
 
-  // Transitions the state of the specified volume from `VOL_READY`,
-  // `NODE_STAGE` or `NODE_UNSTAGE` to `NODE_READY`.
-  //
-  // NOTE: This can only be called after `prepareServices`.
-  process::Future<Nothing> nodeUnstage(const std::string& volumeId);
+  // Transition a volume to `PUBLISHED` state from any state above.
+  process::Future<Nothing> _publishVolume(const std::string& volumeId);
 
-  // Transitions the state of the specified volume from `VOL_READY` or
-  // `NODE_PUBLISH` to `PUBLISHED`.
-  //
-  // NOTE: This can only be called after `prepareServices`.
-  process::Future<Nothing> nodePublish(const std::string& volumeId);
+  // Transition a volume to `VOL_READY` state from any state above.
+  process::Future<Nothing> __publishVolume(const std::string& volumeId);
 
-  // Transitions the state of the specified volume from `PUBLISHED`,
-  // `NODE_PUBLISH` or `NODE_UNPUBLISH` to `VOL_READY`.
-  //
-  // NOTE: This can only be called after `prepareServices`.
-  process::Future<Nothing> nodeUnpublish(const std::string& volumeId);
+  // Transition a volume to `NODE_READY` state from any state below.
+  process::Future<Nothing> _unpublishVolume(const std::string& volumeId);
+
+  // Transition a volume to `VOL_READY` state from any state below.
+  process::Future<Nothing> __unpublishVolume(const std::string& volumeId);
 
   // Returns a CSI volume ID.
   //
