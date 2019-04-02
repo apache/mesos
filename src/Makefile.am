@@ -1554,6 +1554,8 @@ noinst_LTLIBRARIES += libcsi.la
 libcsi_la_SOURCES =							\
   csi/client.cpp							\
   csi/client.hpp							\
+  csi/metrics.cpp							\
+  csi/metrics.hpp							\
   csi/paths.cpp								\
   csi/paths.hpp								\
   csi/rpc.cpp								\

@@ -54,6 +54,7 @@
 #include <stout/uuid.hpp>
 
 #include "csi/client.hpp"
+#include "csi/metrics.hpp"
 #include "csi/rpc.hpp"
 #include "csi/state.hpp"
 #include "csi/utils.hpp"
@@ -399,19 +400,11 @@ private:
   // that any reconciliation waits for these operations to finish.
   process::Sequence sequence;
 
-  struct Metrics
+  struct Metrics : public csi::Metrics
   {
     explicit Metrics(const std::string& prefix);
     ~Metrics();
 
-    // CSI plugin metrics.
-    process::metrics::Counter csi_plugin_container_terminations;
-    hashmap<csi::v0::RPC, process::metrics::PushGauge> csi_plugin_rpcs_pending;
-    hashmap<csi::v0::RPC, process::metrics::Counter> csi_plugin_rpcs_successes;
-    hashmap<csi::v0::RPC, process::metrics::Counter> csi_plugin_rpcs_errors;
-    hashmap<csi::v0::RPC, process::metrics::Counter> csi_plugin_rpcs_cancelled;
-
-    // Operation state metrics.
     hashmap<Offer::Operation::Type, process::metrics::PushGauge>
       operations_pending;
     hashmap<Offer::Operation::Type, process::metrics::Counter>

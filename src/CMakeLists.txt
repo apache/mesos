@@ -241,6 +241,7 @@ set(COMMON_SRC
 
 set(CSI_SRC
   csi/client.cpp
+  csi/metrics.cpp
   csi/paths.cpp
   csi/rpc.cpp
   csi/utils.cpp)
