@@ -20,9 +20,15 @@
 
 #include <stout/strings.hpp>
 
+#include <stout/os/mkdir.hpp>
+
 #include "linux/ns.hpp"
 
+#include "slave/containerizer/mesos/paths.hpp"
+
 #include "slave/containerizer/mesos/isolators/namespaces/pid.hpp"
+
+using std::string;
 
 using process::Failure;
 using process::Future;
@@ -118,31 +124,62 @@ Future<Option<ContainerLaunchInfo>> NamespacesPidIsolatorProcess::prepare(
     }
   }
 
-  // For the container which wants to share pid namespace
-  // with its parent, just return immediately.
-  if (sharePidNamespace) {
-    return launchInfo;
+  if (!sharePidNamespace) {
+    // For the container which does not want to share pid namespace with
+    // its parent, make sure we will clone a new pid namespace for it.
+    launchInfo.add_clone_namespaces(CLONE_NEWPID);
+
+    // Since this container is guaranteed to have its own pid
+    // namespace, we need to to mount /proc so container's pids can be
+    // shown properly. We will not see EBUSY when doing the mount as
+    // it won't be the same as the host /proc mount.
+    //
+    // NOTE: 'filesystem/linux' isolator will make sure mounts in the
+    // child mount namespace will not be propagated back to the host
+    // mount namespace.
+    ContainerMountInfo* mount = launchInfo.add_mounts();
+    mount->set_source("proc");
+    mount->set_target("/proc");
+    mount->set_type("proc");
+    mount->set_flags(MS_NOSUID | MS_NODEV | MS_NOEXEC);
+  } else {
+    if (containerId.has_parent()) {
+      // This container shares the same pid namespace as its parent
+      // and is not a top level container. This means it might not
+      // share the same pid namespace as the agent. In this case, we
+      // will mount `/proc`. In the case where this container does
+      // share the pid namespace of the agent (because its parent
+      // shares the same pid namespace of the agent), mounting `/proc`
+      // at the same place will result in EBUSY. As a result, we
+      // always "move" (MS_MOVE) the mounts under `/proc` to a new
+      // location and mount the `/proc` again at the old location. See
+      // MESOS-9529 for details.
+      //
+      // TODO(jieyu): Consider unmount the old proc mounts.
+      const string mountPoint =
+        containerizer::paths::getHostProcMountPointPath(
+            flags.runtime_dir,
+            containerId);
+
+      Try<Nothing> mkdir = os::mkdir(mountPoint);
+      if (mkdir.isError()) {
+        return Failure(
+            "Failed to create host proc mount point at "
+            "'" + mountPoint + "': " + mkdir.error());
+      }
+
+      ContainerMountInfo* mount = launchInfo.add_mounts();
+      mount->set_source("/proc");
+      mount->set_target(mountPoint);
+      mount->set_flags(MS_MOVE);
+
+      mount = launchInfo.add_mounts();
+      mount->set_source("proc");
+      mount->set_target("/proc");
+      mount->set_type("proc");
+      mount->set_flags(MS_NOSUID | MS_NODEV | MS_NOEXEC);
+    }
   }
-
-  // For the container which does not want to share pid namespace with
-  // its parent, make sure we will clone a new pid namespace for it.
-  launchInfo.add_clone_namespaces(CLONE_NEWPID);
-
-  // Mount /proc with standard options for the container's pid
-  // namespace to show the container's pids (and other /proc files),
-  // not the parent's. This technique was taken from unshare.c in
-  // utils-linux for --mount-proc.
-  //
-  // NOTE: 'filesystem/linux' isolator will make sure mounts in the
-  // child mount namespace will not be propagated back to the host
-  // mount namespace.
-  //
-  // TOOD(jieyu): Consider unmount the existing /proc.
-  ContainerMountInfo* mount = launchInfo.add_mounts();
-  mount->set_source("proc");
-  mount->set_target("/proc");
-  mount->set_type("proc");
-  mount->set_flags(MS_NOSUID | MS_NODEV | MS_NOEXEC);
 
   return launchInfo;
 }
