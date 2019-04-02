@@ -424,13 +424,37 @@ Future<bool> VolumeManagerProcess::deleteVolume(const string& volumeId)
 
 Future<Nothing> VolumeManagerProcess::attachVolume(const string& volumeId)
 {
-  return Failure("Unimplemented");
+  if (!volumes.contains(volumeId)) {
+    return Failure("Cannot attach unknown volume '" + volumeId + "'");
+  }
+
+  VolumeData& volume = volumes.at(volumeId);
+
+  LOG(INFO) << "Attaching volume '" << volumeId << "' in "
+            << volume.state.state() << " state";
+
+  // Volume attaching is serialized with other operations on the same volume to
+  // avoid races.
+  return volume.sequence->add(std::function<Future<Nothing>()>(
+      process::defer(self(), &Self::_attachVolume, volumeId)));
 }
 
 
 Future<Nothing> VolumeManagerProcess::detachVolume(const string& volumeId)
 {
-  return Failure("Unimplemented");
+  if (!volumes.contains(volumeId)) {
+    return Failure("Cannot detach unknown volume '" + volumeId + "'");
+  }
+
+  VolumeData& volume = volumes.at(volumeId);
+
+  LOG(INFO) << "Detaching volume '" << volumeId << "' in "
+            << volume.state.state() << " state";
+
+  // Volume detaching is serialized with other operations on the same volume to
+  // avoid races.
+  return volume.sequence->add(std::function<Future<Nothing>()>(
+      process::defer(self(), &Self::_detachVolume, volumeId)));
 }
 
 
@@ -454,7 +478,19 @@ Future<Nothing> VolumeManagerProcess::publishVolume(const string& volumeId)
 
 Future<Nothing> VolumeManagerProcess::unpublishVolume(const string& volumeId)
 {
-  return Failure("Unimplemented");
+  if (!volumes.contains(volumeId)) {
+    return Failure("Cannot unpublish unknown volume '" + volumeId + "'");
+  }
+
+  VolumeData& volume = volumes.at(volumeId);
+
+  LOG(INFO) << "Unpublishing volume '" << volumeId << "' in "
+            << volume.state.state() << " state";
+
+  // Volume unpublishing is serialized with other operations on the same volume
+  // to avoid races.
+  return volume.sequence->add(std::function<Future<Nothing>()>(
+      process::defer(self(), &Self::_unpublishVolume, volumeId)));
 }
 
 
