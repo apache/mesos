@@ -249,6 +249,17 @@ Result<unix::Address> getContainerIOSwitchboardAddress(
 
   return address.get();
 }
+
+
+string getHostProcMountPointPath(
+    const string& runtimeDir,
+    const ContainerID& containerId)
+{
+  return path::join(
+      getRuntimePath(runtimeDir, containerId),
+      MNT_DIRECTORY,
+      MNT_HOST_PROC);
+}
 #endif // __WINDOWS__
 
 
