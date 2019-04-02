@@ -248,6 +248,7 @@ set(CSI_SRC
   csi/rpc.cpp
   csi/service_manager.cpp
   csi/utils.cpp
+  csi/v0_volume_manager.cpp
   csi/volume_manager.cpp)
 
 set(DOCKER_SRC

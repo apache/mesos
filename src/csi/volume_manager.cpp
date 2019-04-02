@@ -16,11 +16,17 @@
 
 #include "csi/volume_manager.hpp"
 
+#include <process/grpc.hpp>
+
+#include "csi/v0_volume_manager.hpp"
+
 namespace http = process::http;
 
 using std::string;
 
 using process::Owned;
+
+using process::grpc::client::Runtime;
 
 namespace mesos {
 namespace csi {
@@ -40,8 +46,15 @@ Try<Owned<VolumeManager>> VolumeManager::create(
         info.type() + "' and name '" + info.name() + "'");
   }
 
-  // TODO(chhsiao): Add a v0 VolumeManager.
-  return Error("Unimplemented");
+  return new v0::VolumeManager(
+      agentUrl,
+      rootDir,
+      info,
+      services,
+      containerPrefix,
+      authToken,
+      Runtime(),
+      metrics);
 }
 
 } // namespace csi {

@@ -1579,6 +1579,9 @@ libcsi_la_SOURCES =							\
   csi/state.proto							\
   csi/utils.cpp								\
   csi/utils.hpp								\
+  csi/v0_volume_manager.cpp						\
+  csi/v0_volume_manager.hpp						\
+  csi/v0_volume_manager_process.hpp					\
   csi/volume_manager.cpp						\
   csi/volume_manager.hpp						\
   ../include/csi/spec.hpp
