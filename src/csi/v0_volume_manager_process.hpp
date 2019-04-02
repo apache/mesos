@@ -29,23 +29,41 @@
 #include <process/future.hpp>
 #include <process/grpc.hpp>
 #include <process/http.hpp>
+#include <process/loop.hpp>
 #include <process/owned.hpp>
 #include <process/process.hpp>
+#include <process/sequence.hpp>
 
 #include <stout/bytes.hpp>
+#include <stout/duration.hpp>
 #include <stout/error.hpp>
+#include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
+#include <stout/try.hpp>
 
 #include "csi/metrics.hpp"
+#include "csi/rpc.hpp"
 #include "csi/service_manager.hpp"
+#include "csi/state.hpp"
+#include "csi/utils.hpp"
 #include "csi/v0_volume_manager.hpp"
 #include "csi/volume_manager.hpp"
 
 namespace mesos {
 namespace csi {
 namespace v0 {
+
+// The CSI volume manager initially picks a random amount of time between
+// `[0, b]`, where `b = DEFAULT_CSI_RETRY_BACKOFF_FACTOR`, to retry CSI calls.
+// Subsequent retries are exponentially backed off based on this interval (e.g.,
+// 2nd retry uses a random value between `[0, b * 2^1]`, 3rd retry between
+// `[0, b * 2^2]`, etc) up to a maximum of `DEFAULT_CSI_RETRY_INTERVAL_MAX`.
+//
+// TODO(chhsiao): Make the retry parameters configurable.
+constexpr Duration DEFAULT_CSI_RETRY_BACKOFF_FACTOR = Seconds(10);
+constexpr Duration DEFAULT_CSI_RETRY_INTERVAL_MAX = Minutes(10);
 
 
 class VolumeManagerProcess : public process::Process<VolumeManagerProcess>
@@ -90,7 +108,76 @@ public:
 
   process::Future<Nothing> unpublishVolume(const std::string& volumeId);
 
+  // Wrapper functions to make CSI calls and update RPC metrics. Made public for
+  // testing purpose.
+  //
+  // The call is made asynchronously and thus no guarantee is provided on the
+  // order in which calls are sent. Callers need to either ensure to not have
+  // multiple conflicting calls in flight, or treat results idempotently.
+  //
+  // NOTE: We currently ensure this by 1) resource locking to forbid concurrent
+  // calls on the same volume, and 2) no profile update while there are ongoing
+  // `CREATE_DISK` or `DESTROY_DISK` operations.
+  template <RPC Rpc>
+  process::Future<Response<Rpc>> call(
+      const Service& service, const Request<Rpc>& request, bool retry = false);
+
+  template <RPC Rpc>
+  process::Future<Try<Response<Rpc>, process::grpc::StatusError>>
+  _call(const std::string& endpoint, const Request<Rpc>& request);
+
+  template <RPC Rpc>
+  process::Future<process::ControlFlow<Response<Rpc>>> __call(
+      const Try<Response<Rpc>, process::grpc::StatusError>& result,
+      const Option<Duration>& backoff);
+
 private:
+  process::Future<Nothing> prepareServices();
+
+  process::Future<bool> _deleteVolume(const std::string& volumeId);
+  process::Future<bool> __deleteVolume(const std::string& volumeId);
+
+  // The following methods are used to manage volume lifecycles. Transient
+  // states are omitted.
+  //
+  //                          +------------+
+  //                 +  +  +  |  CREATED   |  ^
+  //   _attachVolume |  |  |  +---+----^---+  |
+  //                 |  |  |      |    |      | _detachVolume
+  //                 |  |  |  +---v----+---+  |
+  //                 v  +  +  | NODE_READY |  +  ^
+  //                    |  |  +---+----^---+  |  |
+  //    __publishVolume |  |      |    |      |  | _unpublishVolume
+  //                    |  |  +---v----+---+  |  |
+  //                    v  +  | VOL_READY  |  +  +  ^
+  //                       |  +---+----^---+  |  |  |
+  //        _publishVolume |      |    |      |  |  | __unpublishVolume
+  //                       |  +---v----+---+  |  |  |
+  //                       V  | PUBLISHED  |  +  +  +
+  //                          +------------+
+
+  // Transition a volume to `NODE_READY` state from any state above.
+  process::Future<Nothing> _attachVolume(const std::string& volumeId);
+
+  // Transition a volume to `CREATED` state from any state below.
+  process::Future<Nothing> _detachVolume(const std::string& volumeId);
+
+  // Transition a volume to `PUBLISHED` state from any state above.
+  process::Future<Nothing> _publishVolume(const std::string& volumeId);
+
+  // Transition a volume to `VOL_READY` state from any state above.
+  process::Future<Nothing> __publishVolume(const std::string& volumeId);
+
+  // Transition a volume to `NODE_READY` state from any state below.
+  process::Future<Nothing> _unpublishVolume(const std::string& volumeId);
+
+  // Transition a volume to `VOL_READY` state from any state below.
+  process::Future<Nothing> __unpublishVolume(const std::string& volumeId);
+
+  void checkpointVolumeState(const std::string& volumeId);
+
+  void garbageCollectMountPath(const std::string& volumeId);
+
   const std::string rootDir;
   const CSIPluginInfo info;
   const hashset<Service> services;
@@ -98,6 +185,26 @@ private:
   process::grpc::client::Runtime runtime;
   Metrics* metrics;
   process::Owned<ServiceManager> serviceManager;
+
+  Option<std::string> bootId;
+  Option<PluginCapabilities> pluginCapabilities;
+  Option<ControllerCapabilities> controllerCapabilities;
+  Option<NodeCapabilities> nodeCapabilities;
+  Option<std::string> nodeId;
+
+  struct VolumeData
+  {
+    VolumeData(state::VolumeState&& _state)
+      : state(_state), sequence(new process::Sequence("csi-volume-sequence")) {}
+
+    state::VolumeState state;
+
+    // We call all CSI operations on the same volume in a sequence to ensure
+    // that they are processed in a sequential order.
+    process::Owned<process::Sequence> sequence;
+  };
+
+  hashmap<std::string, VolumeData> volumes;
 };
 
 } // namespace v0 {

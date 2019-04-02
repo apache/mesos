@@ -19,7 +19,6 @@
 
 #include <memory>
 #include <string>
-#include <type_traits>
 #include <vector>
 
 #include <mesos/mesos.hpp>
@@ -32,9 +31,7 @@
 #include <mesos/v1/resource_provider.hpp>
 
 #include <process/future.hpp>
-#include <process/grpc.hpp>
 #include <process/http.hpp>
-#include <process/loop.hpp>
 #include <process/owned.hpp>
 #include <process/process.hpp>
 #include <process/sequence.hpp>
@@ -42,8 +39,6 @@
 #include <process/metrics/counter.hpp>
 #include <process/metrics/push_gauge.hpp>
 
-#include <stout/bytes.hpp>
-#include <stout/duration.hpp>
 #include <stout/hashset.hpp>
 #include <stout/linkedhashmap.hpp>
 #include <stout/nothing.hpp>
@@ -52,28 +47,12 @@
 #include <stout/uuid.hpp>
 
 #include "csi/metrics.hpp"
-#include "csi/rpc.hpp"
-#include "csi/service_manager.hpp"
-#include "csi/state.hpp"
-#include "csi/utils.hpp"
 #include "csi/volume_manager.hpp"
 
 #include "status_update_manager/operation.hpp"
 
 namespace mesos {
 namespace internal {
-
-// Storage local resource provider initially picks a random amount of time
-// between `[0, b]`, where `b = DEFAULT_CSI_RETRY_BACKOFF_FACTOR`, to retry CSI
-// calls related to `CREATE_DISK` or `DESTROY_DISK` operations. Subsequent
-// retries are exponentially backed off based on this interval (e.g., 2nd retry
-// uses a random value between `[0, b * 2^1]`, 3rd retry between `[0, b * 2^2]`,
-// etc) up to a maximum of `DEFAULT_CSI_RETRY_INTERVAL_MAX`.
-//
-// TODO(chhsiao): Make the retry parameters configurable.
-constexpr Duration DEFAULT_CSI_RETRY_BACKOFF_FACTOR = Seconds(10);
-constexpr Duration DEFAULT_CSI_RETRY_INTERVAL_MAX = Minutes(10);
-
 
 class StorageLocalResourceProviderProcess
   : public process::Process<StorageLocalResourceProviderProcess>
@@ -97,57 +76,11 @@ public:
   void disconnected();
   void received(const resource_provider::Event& event);
 
-  // Wrapper functions to make CSI calls and update RPC metrics. Made public for
-  // testing purpose.
-  //
-  // The call is made asynchronously and thus no guarantee is provided on the
-  // order in which calls are sent. Callers need to either ensure to not have
-  // multiple conflicting calls in flight, or treat results idempotently.
-  //
-  // NOTE: We currently ensure this by 1) resource locking to forbid concurrent
-  // calls on the same volume, and 2) no profile update while there are ongoing
-  // `CREATE_DISK` or `DESTROY_DISK` operations.
-  //
-  // NOTE: Since this function uses `getService` to obtain the latest service
-  // future, which depends on probe results, it is disabled for making probe
-  // calls; `_call` should be used directly instead.
-  template <
-      csi::v0::RPC rpc,
-      typename std::enable_if<rpc != csi::v0::PROBE, int>::type = 0>
-  process::Future<csi::v0::Response<rpc>> call(
-      const csi::Service& service,
-      const csi::v0::Request<rpc>& request,
-      bool retry = false);
-
-  template <csi::v0::RPC rpc>
-  process::Future<Try<csi::v0::Response<rpc>, process::grpc::StatusError>>
-  _call(const std::string& endpoint, const csi::v0::Request<rpc>& request);
-
-  template <csi::v0::RPC rpc>
-  process::Future<process::ControlFlow<csi::v0::Response<rpc>>> __call(
-      const Try<csi::v0::Response<rpc>, process::grpc::StatusError>& result,
-      const Option<Duration>& backoff);
-
 private:
-  struct VolumeData
-  {
-    VolumeData(csi::state::VolumeState&& _state)
-      : state(_state), sequence(new process::Sequence("volume-sequence")) {}
-
-    csi::state::VolumeState state;
-
-    // We run all CSI operations for the same volume on a sequence to
-    // ensure that they are processed in a sequential order.
-    process::Owned<process::Sequence> sequence;
-  };
-
   void initialize() override;
   void fatal();
 
-  // The recover functions are responsible to recover the state of the
-  // resource provider and CSI volumes from checkpointed data.
   process::Future<Nothing> recover();
-  process::Future<Nothing> recoverVolumes();
 
   void doReliableRegistration();
 
@@ -192,73 +125,6 @@ private:
   void reconcileOperations(
       const resource_provider::Event::ReconcileOperations& reconcile);
 
-  process::Future<Nothing> prepareServices();
-
-  process::Future<Nothing> publishVolume(const std::string& volumeId);
-
-  // The following methods are used to manage volume lifecycles. Transient
-  // states are omitted.
-  //
-  //                          +------------+
-  //                 +  +  +  |  CREATED   |  ^
-  //   _attachVolume |  |  |  +---+----^---+  |
-  //                 |  |  |      |    |      | _detachVolume
-  //                 |  |  |  +---v----+---+  |
-  //                 v  +  +  | NODE_READY |  +  ^
-  //                    |  |  +---+----^---+  |  |
-  //    __publishVolume |  |      |    |      |  | _unpublishVolume
-  //                    |  |  +---v----+---+  |  |
-  //                    v  +  | VOL_READY  |  +  +  ^
-  //                       |  +---+----^---+  |  |  |
-  //        _publishVolume |      |    |      |  |  | __unpublishVolume
-  //                       |  +---v----+---+  |  |  |
-  //                       V  | PUBLISHED  |  +  +  +
-  //                          +------------+
-
-  // Transition a volume to `NODE_READY` state from any state above.
-  process::Future<Nothing> _attachVolume(const std::string& volumeId);
-
-  // Transition a volume to `CREATED` state from any state below.
-  process::Future<Nothing> _detachVolume(const std::string& volumeId);
-
-  // Transition a volume to `PUBLISHED` state from any state above.
-  process::Future<Nothing> _publishVolume(const std::string& volumeId);
-
-  // Transition a volume to `VOL_READY` state from any state above.
-  process::Future<Nothing> __publishVolume(const std::string& volumeId);
-
-  // Transition a volume to `NODE_READY` state from any state below.
-  process::Future<Nothing> _unpublishVolume(const std::string& volumeId);
-
-  // Transition a volume to `VOL_READY` state from any state below.
-  process::Future<Nothing> __unpublishVolume(const std::string& volumeId);
-
-  // NOTE: This can only be called after `prepareServices`.
-  process::Future<csi::VolumeInfo> createVolume(
-      const std::string& name,
-      const Bytes& capacity,
-      const csi::types::VolumeCapability& capability,
-      const google::protobuf::Map<std::string, std::string>& parameters);
-
-  // NOTE: This can only be called after `prepareServices`.
-  process::Future<bool> deleteVolume(const std::string& volumeId);
-  process::Future<bool> _deleteVolume(const std::string& volumeId);
-  process::Future<bool> __deleteVolume(const std::string& volumeId);
-
-  // NOTE: This can only be called after `prepareServices`.
-  process::Future<Option<Error>> validateVolume(
-      const csi::VolumeInfo& volumeInfo,
-      const csi::types::VolumeCapability& capability,
-      const google::protobuf::Map<std::string, std::string>& parameters);
-
-  // NOTE: This can only be called after `prepareServices`.
-  process::Future<std::vector<csi::VolumeInfo>> listVolumes();
-
-  // NOTE: This can only be called after `prepareServices`.
-  process::Future<Bytes> getCapacity(
-      const csi::types::VolumeCapability& capability,
-      const google::protobuf::Map<std::string, std::string>& parameters);
-
   // Applies the operation. Speculative operations will be synchronously
   // applied. Do nothing if the operation is already in a terminal state.
   process::Future<Nothing> _applyOperation(const id::UUID& operationUuid);
@@ -295,10 +161,8 @@ private:
       const Try<std::vector<ResourceConversion>>& conversions);
 
   void garbageCollectOperationPath(const id::UUID& operationUuid);
-  void garbageCollectMountPath(const std::string& volumeId);
 
   void checkpointResourceProviderState();
-  void checkpointVolumeState(const std::string& volumeId);
 
   void sendResourceProviderStateUpdate();
 
@@ -326,25 +190,13 @@ private:
 
   std::shared_ptr<DiskProfileAdaptor> diskProfileAdaptor;
 
-  process::grpc::client::Runtime runtime;
   process::Owned<v1::resource_provider::Driver> driver;
   OperationStatusUpdateManager statusUpdateManager;
 
   // The mapping of known profiles fetched from the DiskProfileAdaptor.
   hashmap<std::string, DiskProfileAdaptor::ProfileInfo> profileInfos;
 
-  process::Owned<csi::ServiceManager> serviceManager;
-
-  // TODO(chhsiao): Remove the following variables after refactoring.
-  std::string rootDir;
-  CSIPluginInfo pluginInfo;
-  hashset<csi::Service> services;
-
-  Option<std::string> bootId;
-  Option<csi::v0::PluginCapabilities> pluginCapabilities;
-  Option<csi::v0::ControllerCapabilities> controllerCapabilities;
-  Option<csi::v0::NodeCapabilities> nodeCapabilities;
-  Option<std::string> nodeId;
+  process::Owned<csi::VolumeManager> volumeManager;
 
   // We maintain the following invariant: if one operation depends on
   // another, they cannot be in PENDING state at the same time, i.e.,
@@ -356,7 +208,6 @@ private:
   LinkedHashMap<id::UUID, Operation> operations;
   Resources totalResources;
   id::UUID resourceVersion;
-  hashmap<std::string, VolumeData> volumes;
 
   // If pending, it means that the storage pools are being reconciled, and all
   // incoming operations that disallow reconciliation will be dropped.

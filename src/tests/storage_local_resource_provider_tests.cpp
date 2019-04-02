@@ -43,14 +43,13 @@
 #include "csi/paths.hpp"
 #include "csi/rpc.hpp"
 #include "csi/state.hpp"
+#include "csi/v0_volume_manager_process.hpp"
 
 #include "linux/fs.hpp"
 
 #include "master/detector/standalone.hpp"
 
 #include "module/manager.hpp"
-
-#include "resource_provider/storage/provider_process.hpp"
 
 #include "slave/container_daemon_process.hpp"
 #include "slave/paths.hpp"
@@ -5054,7 +5053,7 @@ TEST_F(StorageLocalResourceProviderTest, RetryRpcWithExponentialBackoff)
   ASSERT_EQ(0u, createVolumeRequests.size());
 
   Future<Nothing> createVolumeCall = FUTURE_DISPATCH(
-      _, &StorageLocalResourceProviderProcess::__call<csi::v0::CREATE_VOLUME>);
+      _, &csi::v0::VolumeManagerProcess::__call<csi::v0::CREATE_VOLUME>);
 
   // Return `DEADLINE_EXCEEDED` for the first `CreateVolume` call.
   createVolumeResults.put(
@@ -5062,7 +5061,7 @@ TEST_F(StorageLocalResourceProviderTest, RetryRpcWithExponentialBackoff)
 
   AWAIT_READY(createVolumeCall);
 
-  Duration createVolumeBackoff = DEFAULT_CSI_RETRY_BACKOFF_FACTOR;
+  Duration createVolumeBackoff = csi::v0::DEFAULT_CSI_RETRY_BACKOFF_FACTOR;
 
   // Settle the clock to ensure that the retry timer has been set, then advance
   // the clock by the maximum backoff to trigger a retry.
@@ -5080,15 +5079,14 @@ TEST_F(StorageLocalResourceProviderTest, RetryRpcWithExponentialBackoff)
     ASSERT_EQ(0u, createVolumeRequests.size());
 
     createVolumeCall = FUTURE_DISPATCH(
-        _,
-        &StorageLocalResourceProviderProcess::__call<csi::v0::CREATE_VOLUME>);
+        _, &csi::v0::VolumeManagerProcess::__call<csi::v0::CREATE_VOLUME>);
 
     createVolumeResults.put(StatusError(grpc::Status(grpc::UNAVAILABLE, "")));
 
     AWAIT_READY(createVolumeCall);
 
-    createVolumeBackoff =
-      std::min(createVolumeBackoff * 2, DEFAULT_CSI_RETRY_INTERVAL_MAX);
+    createVolumeBackoff = std::min(
+        createVolumeBackoff * 2, csi::v0::DEFAULT_CSI_RETRY_INTERVAL_MAX);
 
     // Settle the clock to ensure that the retry timer has been set, then
     // advance the clock by the maximum backoff to trigger a retry.
@@ -5142,7 +5140,7 @@ TEST_F(StorageLocalResourceProviderTest, RetryRpcWithExponentialBackoff)
   ASSERT_EQ(0u, deleteVolumeRequests.size());
 
   Future<Nothing> deleteVolumeCall = FUTURE_DISPATCH(
-      _, &StorageLocalResourceProviderProcess::__call<csi::v0::DELETE_VOLUME>);
+      _, &csi::v0::VolumeManagerProcess::__call<csi::v0::DELETE_VOLUME>);
 
   // Return `DEADLINE_EXCEEDED` for the first `DeleteVolume` call.
   deleteVolumeResults.put(
@@ -5150,7 +5148,7 @@ TEST_F(StorageLocalResourceProviderTest, RetryRpcWithExponentialBackoff)
 
   AWAIT_READY(deleteVolumeCall);
 
-  Duration deleteVolumeBackoff = DEFAULT_CSI_RETRY_BACKOFF_FACTOR;
+  Duration deleteVolumeBackoff = csi::v0::DEFAULT_CSI_RETRY_BACKOFF_FACTOR;
 
   // Settle the clock to ensure that the retry timer has been set, then advance
   // the clock by the maximum backoff to trigger a retry.
@@ -5168,15 +5166,14 @@ TEST_F(StorageLocalResourceProviderTest, RetryRpcWithExponentialBackoff)
     ASSERT_EQ(0u, deleteVolumeRequests.size());
 
     deleteVolumeCall = FUTURE_DISPATCH(
-        _,
-        &StorageLocalResourceProviderProcess::__call<csi::v0::DELETE_VOLUME>);
+        _, &csi::v0::VolumeManagerProcess::__call<csi::v0::DELETE_VOLUME>);
 
     deleteVolumeResults.put(StatusError(grpc::Status(grpc::UNAVAILABLE, "")));
 
     AWAIT_READY(deleteVolumeCall);
 
-    deleteVolumeBackoff =
-      std::min(deleteVolumeBackoff * 2, DEFAULT_CSI_RETRY_INTERVAL_MAX);
+    deleteVolumeBackoff = std::min(
+        deleteVolumeBackoff * 2, csi::v0::DEFAULT_CSI_RETRY_INTERVAL_MAX);
 
     // Settle the clock to ensure that the retry timer has been set, then
     // advance the clock by the maximum backoff to trigger a retry.
