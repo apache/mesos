@@ -16,14 +16,9 @@
 
 #include "csi/utils.hpp"
 
-#include <google/protobuf/util/json_util.h>
-
-#include <stout/strings.hpp>
+#include <stout/unreachable.hpp>
 
 using std::ostream;
-using std::string;
-
-using google::protobuf::util::MessageToJsonString;
 
 namespace csi {
 namespace v0 {
@@ -45,7 +40,8 @@ bool operator==(
 }
 
 
-bool operator==(const VolumeCapability& left, const VolumeCapability& right) {
+bool operator==(const VolumeCapability& left, const VolumeCapability& right)
+{
   // NOTE: This enumeration is set when `block` or `mount` are set and
   // covers the case where neither are set.
   if (left.access_type_case() != right.access_type_case()) {
@@ -95,3 +91,187 @@ ostream& operator<<(
 
 } // namespace v0 {
 } // namespace csi {
+
+
+namespace mesos {
+namespace csi {
+namespace v0 {
+
+types::VolumeCapability::BlockVolume devolve(
+    const VolumeCapability::BlockVolume& blockVolume)
+{
+  return types::VolumeCapability::BlockVolume();
+}
+
+
+types::VolumeCapability::MountVolume devolve(
+    const VolumeCapability::MountVolume& mountVolume)
+{
+  types::VolumeCapability::MountVolume result;
+  result.set_fs_type(mountVolume.fs_type());
+  *result.mutable_mount_flags() = mountVolume.mount_flags();
+  return result;
+}
+
+
+types::VolumeCapability::AccessMode devolve(
+    const VolumeCapability::AccessMode& accessMode)
+{
+  types::VolumeCapability::AccessMode result;
+
+  switch (accessMode.mode()) {
+    case VolumeCapability::AccessMode::UNKNOWN: {
+      result.set_mode(types::VolumeCapability::AccessMode::UNKNOWN);
+      break;
+    }
+    case VolumeCapability::AccessMode::SINGLE_NODE_WRITER: {
+      result.set_mode(types::VolumeCapability::AccessMode::SINGLE_NODE_WRITER);
+      break;
+    }
+    case VolumeCapability::AccessMode::SINGLE_NODE_READER_ONLY: {
+      result.set_mode(
+          types::VolumeCapability::AccessMode::SINGLE_NODE_READER_ONLY);
+      break;
+    }
+    case VolumeCapability::AccessMode::MULTI_NODE_READER_ONLY: {
+      result.set_mode(
+          types::VolumeCapability::AccessMode::MULTI_NODE_READER_ONLY);
+      break;
+    }
+    case VolumeCapability::AccessMode::MULTI_NODE_SINGLE_WRITER: {
+      result.set_mode(
+          types::VolumeCapability::AccessMode::MULTI_NODE_SINGLE_WRITER);
+      break;
+    }
+    case VolumeCapability::AccessMode::MULTI_NODE_MULTI_WRITER: {
+      result.set_mode(
+          types::VolumeCapability::AccessMode::MULTI_NODE_MULTI_WRITER);
+      break;
+    }
+    // NOTE: We avoid using a default clause for the following values in
+    // proto3's open enum to enable the compiler to detect missing enum cases
+    // for us. See: https://github.com/google/protobuf/issues/3917
+    case google::protobuf::kint32min:
+    case google::protobuf::kint32max: {
+      UNREACHABLE();
+    }
+  }
+
+  return result;
+}
+
+
+types::VolumeCapability devolve(const VolumeCapability& volumeCapability)
+{
+  types::VolumeCapability result;
+
+  switch (volumeCapability.access_type_case()) {
+    case VolumeCapability::kBlock: {
+      *result.mutable_block() = devolve(volumeCapability.block());
+      break;
+    }
+    case VolumeCapability::kMount: {
+      *result.mutable_mount() = devolve(volumeCapability.mount());
+      break;
+    }
+    case VolumeCapability::ACCESS_TYPE_NOT_SET: {
+      break;
+    }
+  }
+
+  if (volumeCapability.has_access_mode()) {
+    *result.mutable_access_mode() = devolve(volumeCapability.access_mode());
+  }
+
+  return result;
+}
+
+
+VolumeCapability::BlockVolume evolve(
+    const types::VolumeCapability::BlockVolume& blockVolume)
+{
+  return VolumeCapability::BlockVolume();
+}
+
+
+VolumeCapability::MountVolume evolve(
+    const types::VolumeCapability::MountVolume& mountVolume)
+{
+  VolumeCapability::MountVolume result;
+  result.set_fs_type(mountVolume.fs_type());
+  *result.mutable_mount_flags() = mountVolume.mount_flags();
+  return result;
+}
+
+
+VolumeCapability::AccessMode evolve(
+    const types::VolumeCapability::AccessMode& accessMode)
+{
+  VolumeCapability::AccessMode result;
+
+  switch (accessMode.mode()) {
+    case types::VolumeCapability::AccessMode::UNKNOWN: {
+      result.set_mode(VolumeCapability::AccessMode::UNKNOWN);
+      break;
+    }
+    case types::VolumeCapability::AccessMode::SINGLE_NODE_WRITER: {
+      result.set_mode(VolumeCapability::AccessMode::SINGLE_NODE_WRITER);
+      break;
+    }
+    case types::VolumeCapability::AccessMode::SINGLE_NODE_READER_ONLY: {
+      result.set_mode(VolumeCapability::AccessMode::SINGLE_NODE_READER_ONLY);
+      break;
+    }
+    case types::VolumeCapability::AccessMode::MULTI_NODE_READER_ONLY: {
+      result.set_mode(VolumeCapability::AccessMode::MULTI_NODE_READER_ONLY);
+      break;
+    }
+    case types::VolumeCapability::AccessMode::MULTI_NODE_SINGLE_WRITER: {
+      result.set_mode(VolumeCapability::AccessMode::MULTI_NODE_SINGLE_WRITER);
+      break;
+    }
+    case types::VolumeCapability::AccessMode::MULTI_NODE_MULTI_WRITER: {
+      result.set_mode(VolumeCapability::AccessMode::MULTI_NODE_MULTI_WRITER);
+      break;
+    }
+    // NOTE: We avoid using a default clause for the following values in
+    // proto3's open enum to enable the compiler to detect missing enum cases
+    // for us. See: https://github.com/google/protobuf/issues/3917
+    case google::protobuf::kint32min:
+    case google::protobuf::kint32max: {
+      UNREACHABLE();
+    }
+  }
+
+  return result;
+}
+
+
+VolumeCapability evolve(const types::VolumeCapability& volumeCapability)
+{
+  VolumeCapability result;
+
+  switch (volumeCapability.access_type_case()) {
+    case types::VolumeCapability::kBlock: {
+      *result.mutable_block() = evolve(volumeCapability.block());
+      break;
+    }
+    case types::VolumeCapability::kMount: {
+      *result.mutable_mount() = evolve(volumeCapability.mount());
+      break;
+    }
+    case types::VolumeCapability::ACCESS_TYPE_NOT_SET: {
+      break;
+    }
+  }
+
+  if (volumeCapability.has_access_mode()) {
+    *result.mutable_access_mode() = evolve(volumeCapability.access_mode());
+  }
+
+  return result;
+}
+
+} // namespace v0 {
+} // namespace csi {
+} // namespace mesos {

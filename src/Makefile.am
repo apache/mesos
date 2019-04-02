@@ -294,6 +294,7 @@ APPC_SPEC_PROTO = $(top_srcdir)/include/mesos/appc/spec.proto
 AUTHENTICATION_PROTO = $(top_srcdir)/include/mesos/authentication/authentication.proto
 AUTHORIZATION_PROTO = $(top_srcdir)/include/mesos/authorizer/authorizer.proto
 CONTAINERIZER_PROTO = $(top_srcdir)/include/mesos/slave/containerizer.proto
+CSI_TYPES_PROTO = $(top_srcdir)/include/mesos/csi/types.proto
 DOCKER_SPEC_PROTO = $(top_srcdir)/include/mesos/docker/spec.proto
 DOCKER_V1_PROTO = $(top_srcdir)/include/mesos/docker/v1.proto
 DOCKER_V2_PROTO = $(top_srcdir)/include/mesos/docker/v2.proto
@@ -427,6 +428,8 @@ CXX_CSI_PROTOS =							\
   ../include/csi/csi.grpc.pb.h						\
   ../include/csi/csi.pb.cc						\
   ../include/csi/csi.pb.h						\
+  ../include/mesos/csi/types.pb.cc					\
+  ../include/mesos/csi/types.pb.h					\
   csi/state.pb.cc							\
   csi/state.pb.h
 
@@ -701,6 +704,15 @@ authorizer_HEADERS =							\
 nodist_authorizer_HEADERS =						\
   ../include/mesos/authorizer/acls.pb.h					\
   ../include/mesos/authorizer/authorizer.pb.h
+
+csidir = $(pkgincludedir)/csi
+
+csi_HEADERS =								\
+  $(top_srcdir)/include/mesos/csi/types.hpp				\
+  $(top_srcdir)/include/mesos/csi/types.proto
+
+nodist_csi_HEADERS =							\
+  ../include/mesos/csi/types.pb.h
 
 dockerdir = $(pkgincludedir)/docker
 
@@ -1554,6 +1566,7 @@ noinst_LTLIBRARIES += libcsi.la
 libcsi_la_SOURCES =							\
   csi/client.cpp							\
   csi/client.hpp							\
+  csi/types.cpp								\
   csi/metrics.cpp							\
   csi/metrics.hpp							\
   csi/paths.cpp								\
@@ -1643,6 +1656,7 @@ libmesos_la_SOURCES =							\
   $(AUTHENTICATION_PROTO)						\
   $(AUTHORIZATION_PROTO)						\
   $(CONTAINERIZER_PROTO)						\
+  $(CSI_TYPES_PROTO)							\
   $(EXECUTOR_PROTO)							\
   $(DOCKER_SPEC_PROTO)							\
   $(DOCKER_V1_PROTO)							\
@@ -2521,6 +2535,7 @@ mesos_tests_SOURCES =						\
   tests/cram_md5_authentication_tests.cpp			\
   tests/credentials_tests.cpp					\
   tests/csi_client_tests.cpp					\
+  tests/csi_utils_tests.cpp					\
   tests/default_executor_tests.cpp				\
   tests/disk_profile_adaptor_tests.cpp				\
   tests/disk_profile_server.hpp					\

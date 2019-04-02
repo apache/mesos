@@ -1,0 +1,90 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package mesos.csi.types;
+
+// This file contains "unversioned" CSI protobuf definitions used by Mesos. For
+// any CSI version, an unversioned CSI protobuf constructed from a versioned one
+// can be used to reconstructed back the same versioned protobuf (excluding
+// unknown fields). An unversioned protobuf can also be used to construct a
+// protobuf of another CSI version, but version-specific details might be lost.
+
+
+/**
+ * Protobuf to specify a capability of a volume:
+ * https://github.com/container-storage-interface/spec/blob/release-1.1/spec.md#createvolume
+ */
+message VolumeCapability {
+  // Indicate that the volume will be accessed via the block device API.
+  message BlockVolume {
+    // Intentionally empty, for now.
+  }
+
+  // Indicate that the volume will be accessed via the filesystem API.
+  message MountVolume {
+    // The filesystem type. This field is OPTIONAL.
+    // An empty string is equal to an unspecified field value.
+    string fs_type = 1;
+
+    // The mount options that can be used for the volume. This field is
+    // OPTIONAL. `mount_flags` MAY contain sensitive information.
+    // Therefore, the CO and the Plugin MUST NOT leak this information
+    // to untrusted entities. The total size of this repeated field
+    // SHALL NOT exceed 4 KiB.
+    repeated string mount_flags = 2;
+  }
+
+  // Specify how a volume can be accessed.
+  message AccessMode {
+    enum Mode {
+      UNKNOWN = 0;
+
+      // Can only be published once as read/write on a single node, at
+      // any given time.
+      SINGLE_NODE_WRITER = 1;
+
+      // Can only be published once as readonly on a single node, at
+      // any given time.
+      SINGLE_NODE_READER_ONLY = 2;
+
+      // Can be published as readonly at multiple nodes simultaneously.
+      MULTI_NODE_READER_ONLY = 3;
+
+      // Can be published at multiple nodes simultaneously. Only one of
+      // the node can be used as read/write. The rest will be readonly.
+      MULTI_NODE_SINGLE_WRITER = 4;
+
+      // Can be published as read/write at multiple nodes
+      // simultaneously.
+      MULTI_NODE_MULTI_WRITER = 5;
+    }
+
+    // This field is REQUIRED.
+    Mode mode = 1;
+  }
+
+  // Specifies what API the volume will be accessed using. One of the
+  // following fields MUST be specified.
+  oneof access_type {
+    BlockVolume block = 1;
+    MountVolume mount = 2;
+  }
+
+  // This is a REQUIRED field.
+  AccessMode access_mode = 3;
+}

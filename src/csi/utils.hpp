@@ -28,6 +28,8 @@
 
 #include <mesos/mesos.hpp>
 
+#include <mesos/csi/types.hpp>
+
 #include <stout/foreach.hpp>
 #include <stout/try.hpp>
 #include <stout/unreachable.hpp>
@@ -175,6 +177,14 @@ struct NodeCapabilities
 
   bool stageUnstageVolume = false;
 };
+
+
+// Helpers to devolve CSI v0 protobufs to their unversioned counterparts.
+types::VolumeCapability devolve(const VolumeCapability& capability);
+
+
+// Helpers to evolve unversioned CSI protobufs to their v0 counterparts.
+VolumeCapability evolve(const types::VolumeCapability& capability);
 
 } // namespace v0 {
 } // namespace csi {

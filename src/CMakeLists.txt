@@ -41,6 +41,7 @@ PROTOC_GENERATE(TARGET mesos/appc/spec)
 PROTOC_GENERATE(TARGET mesos/authentication/authentication)
 PROTOC_GENERATE(TARGET mesos/authorizer/acls)
 PROTOC_GENERATE(TARGET mesos/authorizer/authorizer)
+PROTOC_GENERATE(TARGET mesos/csi/types)
 PROTOC_GENERATE(TARGET mesos/docker/spec)
 PROTOC_GENERATE(TARGET mesos/docker/v1)
 PROTOC_GENERATE(TARGET mesos/docker/v2)
@@ -241,6 +242,7 @@ set(COMMON_SRC
 
 set(CSI_SRC
   csi/client.cpp
+  csi/types.cpp
   csi/metrics.cpp
   csi/paths.cpp
   csi/rpc.cpp
