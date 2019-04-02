@@ -17,18 +17,14 @@
 # PROTOC_GENERATE is a convenience function that will:
 #   (1) Compile .proto files found in the Mesos public-facing `include/`
 #       directory, or with the `INTERNAL` option the Mesos `src/` directory,
-#       or with the `LIB` option a third-party specification library.
+#       or with the `LIB` option the external library's include directory.
 #   (2) Place the generated files in the build folder, under the `include/`
-#       directory, or with the `INTERNAL` option the `src/` directory. The
-#       `JAVA` option will generate the Java Protobuf files to
-#       `src/java/generated` (not supported with the `LIB` option). The `GRPC`
+#       directory, or with the `INTERNAL` option the `src/` directory (cannot
+#       be used in conjunction with the `LIB` option). The `JAVA` option will
+#       generate the Java Protobuf files to `src/java/generated`. The `GRPC`
 #       option will generate the `.grpc.pb.h` and `.grpc.pb.cc` files.
-#   (3) With the `LIB` option, append to list variable `PUBLIC_PROTO_PATH` or
-#       `INTERNAL_PROTO_PATH` the fully qualified path to the library's include
-#       directory, and append to list variable `PUBLIC_PROTOBUF_INCLUDE_DIR` or
-#       `INTERNAL_PROTOBUF_INCLUDE_DIR` the fully qualified path to the
-#       directory where the generated `.pb.h` files are placed. This export is a
-#       *side effect* and modifies the variables in the parent scope.
+#   (3) With the `LIB` option, append to list variable `LIB_PROTO_PATHS` the
+#       fully qualified path to the external library's include directory.
 #   (4) Append to list variables `PUBLIC_PROTOBUF_SRC`, `INTERNAL_PROTOBUF_SRC`,
 #       and `JAVA_PROTOBUF_SRC` (depending on options passed in) the fully
 #       qualified path to the generated files. This export is a *side effect*
@@ -48,25 +44,23 @@
 #   (2) Append the path `${MESOS_ROOT}/build/include/mesos/mesos.pb.cc` to
 #       the parent scope variable `PUBLIC_PROTOBUF_SRC`.
 #
-# Example 2: Suppose we wish to compile `csi.proto` in the `csi` specification
-# library (assuming version 0.1.0) with gRPC enabled, we might pass in the
-# following values for the parameters:
+# Example 2: Suppose we wish to compile `csi/v0/csi.proto` in the `csi_v0`
+# external library with gRPC enabled, we might pass in the following values for
+# the parameters:
 #
-#   PROTOC_GENERATE(GRPC LIB csi TARGET csi)
+#   PROTOC_GENERATE(GRPC LIB csi_v0 TARGET csi/v0/csi)
 #
-# Where `csi.proto` would be the relative path to the .proto file in the `csi`
-# library's include directory. In this case, this function would:
+# Where `csi/v0/csi.proto` would be the relative path to the .proto file in the
+# `csi_v0` library's include directory. In this case, this function would:
 #
-#   (1) Compile `build/3rdparty/csi-0.1.0/src/csi-0.1.0/csi.proto`, which would
-#       generate the files `build/include/csi/csi.pb.h`,
-#       `build/include/csi/csi.pb.cc`, `build/include/csi/csi.grpc.pb.h`, and
-#       `build/include/csi/csi.grpc.pb.cc`.
-#   (2) Append the path `${MESOS_ROOT}/build/3rdparty/csi-0.1.0/src/csi-0.1.0/`
-#       to the parent scope variable `PUBLIC_PROTO_PATH`, and the path
-#       `${MESOS_ROOT}/build/include/csi/` to the parent scope variable
-#       `PUBLIC_PROTOBUF_INCLUDE_DIR`.
-#   (3) Append the paths `${MESOS_ROOT}/build/include/csi/csi.pb.cc` and
-#       `${MESOS_ROOT}/build/include/csi/csi.grpc.pb.cc` to the parent scope
+#   (1) Compile `${CSI_V0_ROOT}/csi/v0/csi.proto`, which would generate the
+#       files `build/include/csi/v0/csi.pb.h`, `build/include/csi/v0/csi.pb.cc`,
+#       `build/include/csi/v0/csi.grpc.pb.h`, and
+#       `build/include/csi/v0/csi.grpc.pb.cc`.
+#   (2) Append the path `${CSI_V0_ROOT}` to the parent scope variable
+#       `LIB_PROTO_PATHS`.
+#   (3) Append the paths `${MESOS_ROOT}/build/include/csi/v0/csi.pb.cc` and
+#       `${MESOS_ROOT}/build/include/csi/v0/csi.grpc.pb.cc` to the parent scope
 #       variable `PUBLIC_PROTOBUF_SRC`.
 #
 # NOTE: The `protoc` binary used here is an imported executable target from
@@ -79,53 +73,42 @@ function(PROTOC_GENERATE)
 
   # Fully qualified paths for the input .proto file and the output directories.
   if (PROTOC_LIB)
+    if (PROTOC_INTERNAL)
+      message(FATAL_ERROR
+        "Cannot generate internal proto files from an external library")
+    endif()
+
     get_target_property(
-      PROTOC_LIB_INCLUDE_DIR
+      LIB_INCLUDE_DIR
       ${PROTOC_LIB}
       INTERFACE_INCLUDE_DIRECTORIES)
 
-    set(PROTO ${PROTOC_LIB_INCLUDE_DIR}/${PROTOC_TARGET}.proto)
+    list(APPEND LIB_PROTO_PATHS ${LIB_INCLUDE_DIR})
+    list(REMOVE_DUPLICATES LIB_PROTO_PATHS)
+    set(LIB_PROTO_PATHS ${LIB_PROTO_PATHS} PARENT_SCOPE)
 
-    # TODO(chhsiao): `PUBLIC_PROTOBUF_INCLUDE_DIR` and
-    # `INTERNAL_PROTOBUF_INCLUDE_DIR` are temporary include directories which
-    # point to the generated header files. Derivative protocol buffers need the
-    # headers in order to build. These variables can be removed if all 3rd-party
-    # specification libraries build their own generated code.
-    if (PROTOC_INTERNAL)
-      set(CPP_OUT ${MESOS_BIN_SRC_DIR}/${PROTOC_LIB})
-      list(APPEND INTERNAL_PROTO_PATH ${PROTOC_LIB_INCLUDE_DIR})
-      list(APPEND INTERNAL_PROTOBUF_INCLUDE_DIR ${CPP_OUT})
-    else ()
-      set(CPP_OUT ${MESOS_BIN_INCLUDE_DIR}/${PROTOC_LIB})
-      list(APPEND PUBLIC_PROTO_PATH ${PROTOC_LIB_INCLUDE_DIR})
-      list(APPEND PUBLIC_PROTOBUF_INCLUDE_DIR ${CPP_OUT})
-    endif ()
+    set(PROTO ${LIB_INCLUDE_DIR}/${PROTOC_TARGET}.proto)
+    set(CPP_OUT ${MESOS_BIN_INCLUDE_DIR})
+  elseif (PROTOC_INTERNAL)
+    set(PROTO ${MESOS_SRC_DIR}/${PROTOC_TARGET}.proto)
+    set(CPP_OUT ${MESOS_BIN_SRC_DIR})
   else ()
-    if (PROTOC_INTERNAL)
-      set(PROTO ${MESOS_SRC_DIR}/${PROTOC_TARGET}.proto)
-      set(CPP_OUT ${MESOS_BIN_SRC_DIR})
-    else ()
-      set(PROTO ${MESOS_PUBLIC_INCLUDE_DIR}/${PROTOC_TARGET}.proto)
-      set(CPP_OUT ${MESOS_BIN_INCLUDE_DIR})
-    endif()
+    set(PROTO ${MESOS_PUBLIC_INCLUDE_DIR}/${PROTOC_TARGET}.proto)
+    set(CPP_OUT ${MESOS_BIN_INCLUDE_DIR})
+  endif()
 
-    if (PROTOC_JAVA AND HAS_JAVA)
-      set(JAVA_OUT ${MESOS_BIN_SRC_DIR}/java/generated)
-    endif()
-  endif ()
+  if (PROTOC_JAVA AND HAS_JAVA)
+    set(JAVA_OUT ${MESOS_BIN_SRC_DIR}/java/generated)
+  endif()
 
   set(PROTOC_OPTIONS
     -I${MESOS_PUBLIC_INCLUDE_DIR}
     -I${MESOS_SRC_DIR}
     --cpp_out=${CPP_OUT})
 
-  if (PUBLIC_PROTO_PATH)
-    list(APPEND PROTOC_OPTIONS -I${PUBLIC_PROTO_PATH})
-  endif ()
-
-  if (INTERNAL_PROTO_PATH)
-    list(APPEND PROTOC_OPTIONS -I${INTERNAL_PROTO_PATH})
-  endif ()
+  foreach (LIB_PROTO_PATH IN LISTS LIB_PROTO_PATHS)
+    list(APPEND PROTOC_OPTIONS -I${LIB_PROTO_PATH})
+  endforeach (LIB_PROTO_PATH)
 
   if (PROTOC_GRPC)
     list(APPEND PROTOC_OPTIONS
@@ -138,7 +121,8 @@ function(PROTOC_GENERATE)
       --java_out=${JAVA_OUT})
   endif ()
 
-  # Fully qualified paths for the output .pb.h and .pb.cc files.
+  # Fully qualified paths for the input .proto file and the output .pb.h and
+  # .pb.cc files.
   set(CC ${CPP_OUT}/${PROTOC_TARGET}.pb.cc)
   set(H ${CPP_OUT}/${PROTOC_TARGET}.pb.h)
 
@@ -155,20 +139,9 @@ function(PROTOC_GENERATE)
 
   # Export variables holding the target filenames.
   if (PROTOC_INTERNAL)
-    set(INTERNAL_PROTO_PATH ${INTERNAL_PROTO_PATH} PARENT_SCOPE)
-
-    set(
-      INTERNAL_PROTOBUF_INCLUDE_DIR
-      ${INTERNAL_PROTOBUF_INCLUDE_DIR}
-      PARENT_SCOPE)
-
     list(APPEND INTERNAL_PROTOBUF_SRC ${CC} ${GRPC_CC})
     set(INTERNAL_PROTOBUF_SRC ${INTERNAL_PROTOBUF_SRC} PARENT_SCOPE)
   else ()
-    set(PUBLIC_PROTO_PATH ${PUBLIC_PROTO_PATH} PARENT_SCOPE)
-
-    set(PUBLIC_PROTOBUF_INCLUDE_DIR ${PUBLIC_PROTOBUF_INCLUDE_DIR} PARENT_SCOPE)
-
     list(APPEND PUBLIC_PROTOBUF_SRC ${CC} ${GRPC_CC})
     set(PUBLIC_PROTOBUF_SRC ${PUBLIC_PROTOBUF_SRC} PARENT_SCOPE)
   endif ()
@@ -179,35 +152,18 @@ function(PROTOC_GENERATE)
   endif ()
 
   # Make the directory that generated files go into.
-  # TODO(chhsiao): Put the following directory creation targets together with
-  # `make_bin_include_dir` and `make_bin_src_dir`, and find a better way to
-  # ensure that the output directories are created.
-  if (PROTOC_LIB)
-    if (PROTOC_INTERNAL)
-      set(MAKE_CPP_OUT_DIR make_bin_src_${PROTOC_LIB}_dir)
-      add_custom_target(
-        ${MAKE_CPP_OUT_DIR} ALL
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${CPP_OUT}
-        DEPENDS make_bin_src_dir)
-    else ()
-      set(MAKE_CPP_OUT_DIR make_bin_include_${PROTOC_LIB}_dir)
-      add_custom_target(
-        ${MAKE_CPP_OUT_DIR} ALL
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${CPP_OUT}
-        DEPENDS make_bin_include_dir)
-    endif()
-
-    set(PROTOC_DEPENDS ${MAKE_CPP_OUT_DIR} ${PROTOC_LIB})
+  if (PROTOC_INTERNAL)
+    set(PROTOC_DEPENDS make_bin_src_dir)
   else ()
-    if (PROTOC_INTERNAL)
-      set(PROTOC_DEPENDS make_bin_src_dir)
-    else ()
-      set(PROTOC_DEPENDS make_bin_include_dir)
-    endif ()
+    set(PROTOC_DEPENDS make_bin_include_dir)
+  endif ()
 
-    if (JAVA_OUT)
-      list(APPEND PROTOC_DEPENDS make_bin_java_dir)
-    endif ()
+  if (PROTOC_LIB)
+    list(APPEND PROTOC_DEPENDS ${PROTOC_LIB})
+  endif ()
+
+  if (JAVA_OUT)
+    list(APPEND PROTOC_DEPENDS make_bin_java_dir)
   endif ()
 
   # Make sure that the gRPC plugin is built.

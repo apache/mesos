@@ -26,7 +26,7 @@ include ../3rdparty/versions.am
 # them include $(top_builddir) as appropriate.
 BOOST = 3rdparty/boost-$(BOOST_VERSION)
 CONCURRENTQUEUE = 3rdparty/concurrentqueue-$(CONCURRENTQUEUE_VERSION)
-CSI = 3rdparty/csi-$(CSI_VERSION)
+CSI_V0 = 3rdparty/csi-$(CSI_V0_VERSION)
 ELFIO = 3rdparty/elfio-$(ELFIO_VERSION)
 GLOG = 3rdparty/glog-$(GLOG_VERSION)
 GMOCK = $(GOOGLETEST)/googlemock
@@ -271,13 +271,7 @@ LDADD += -lzookeeper_mt
 endif
 
 # Set up include paths for the protocol buffer compiler.
-PROTOCFLAGS = -I$(top_srcdir)/include -I$(srcdir) -I../$(CSI)
-
-# TODO(josephw): This is a temporary include directory which points to the
-# generated CSI protocol buffer code. Derivative protocol buffers need
-# this include in order to build. When the 3rdparty CSI repo builds its own
-# generated code, this can be changed to include that directory instead.
-MESOS_CPPFLAGS += -I../include/csi
+PROTOCFLAGS = -I$(top_srcdir)/include -I$(srcdir) -I../$(CSI_V0)
 
 # README: we build the Mesos library out of a collection of
 # convenience libraries (that is, libraries that do not get installed
@@ -424,10 +418,10 @@ CXX_PROTOS +=								\
   resource_provider/storage/disk_profile.pb.h
 
 CXX_CSI_PROTOS =							\
-  ../include/csi/csi.grpc.pb.cc						\
-  ../include/csi/csi.grpc.pb.h						\
-  ../include/csi/csi.pb.cc						\
-  ../include/csi/csi.pb.h						\
+  ../include/csi/v0/csi.grpc.pb.cc					\
+  ../include/csi/v0/csi.grpc.pb.h					\
+  ../include/csi/v0/csi.pb.cc						\
+  ../include/csi/v0/csi.pb.h						\
   ../include/mesos/csi/types.pb.cc					\
   ../include/mesos/csi/types.pb.h					\
   csi/state.pb.cc							\
@@ -499,14 +493,9 @@ CLEANFILES +=								\
 %.pb.cc %.pb.h: %.proto
 	$(PROTOC) $(PROTOCFLAGS) --cpp_out=. $^
 
-../include/csi/%.pb.cc ../include/csi/%.pb.h: ../$(CSI)/%.proto
-	$(MKDIR_P) $(@D)
-	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include/csi $^
-
-../include/csi/%.grpc.pb.cc ../include/csi/%.grpc.pb.h: ../$(CSI)/%.proto
-	$(MKDIR_P) $(@D)
-	$(PROTOC) $(PROTOCFLAGS) --grpc_out=../include/csi $^		\
-	          --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN)
+../include/%.grpc.pb.cc ../include/%.grpc.pb.h ../include/%.pb.cc ../include/%.pb.h: ../$(CSI_V0)/%.proto
+	$(PROTOC) $(PROTOCFLAGS) --cpp_out=../include --grpc_out=../include	\
+		--plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN) $^
 
 # Targets for generating Java protocol buffer code.
 java/generated/org/apache/mesos/executor/Protos.java: $(EXECUTOR_PROTO)
@@ -709,10 +698,18 @@ csidir = $(pkgincludedir)/csi
 
 csi_HEADERS =								\
   $(top_srcdir)/include/mesos/csi/types.hpp				\
-  $(top_srcdir)/include/mesos/csi/types.proto
+  $(top_srcdir)/include/mesos/csi/types.proto				\
+  $(top_srcdir)/include/mesos/csi/v0.hpp
 
 nodist_csi_HEADERS =							\
   ../include/mesos/csi/types.pb.h
+
+# Install the generated CSI headers into $PREFIX/include.
+csi_v0dir = $(includedir)/csi/v0
+
+nodist_csi_v0_HEADERS =							\
+  ../include/csi/v0/csi.grpc.pb.h					\
+  ../include/csi/v0/csi.pb.h
 
 dockerdir = $(pkgincludedir)/docker
 
@@ -1582,8 +1579,7 @@ libcsi_la_SOURCES =							\
   csi/v0_volume_manager.hpp						\
   csi/v0_volume_manager_process.hpp					\
   csi/volume_manager.cpp						\
-  csi/volume_manager.hpp						\
-  ../include/csi/spec.hpp
+  csi/volume_manager.hpp
 
 nodist_libcsi_la_SOURCES = $(CXX_CSI_PROTOS)
 libcsi_la_CPPFLAGS = $(MESOS_CPPFLAGS)

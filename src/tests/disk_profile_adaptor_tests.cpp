@@ -19,9 +19,8 @@
 #include <tuple>
 #include <vector>
 
-#include <csi/spec.hpp>
-
 #include <mesos/csi/types.hpp>
+#include <mesos/csi/v0.hpp>
 
 #include <mesos/module/disk_profile_adaptor.hpp>
 

@@ -14,14 +14,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __CSI_SPEC_HPP__
-#define __CSI_SPEC_HPP__
+#ifndef __MESOS_CSI_V0_HPP__
+#define __MESOS_CSI_V0_HPP__
 
 // ONLY USEFUL AFTER RUNNING PROTOC.
-#include <csi/csi.pb.h>
+#include <csi/v0/csi.pb.h>
 
 // ONLY USEFUL AFTER RUNNING PROTOC WITH GRPC CPP PLUGIN.
-#include <csi/csi.grpc.pb.h>
+#include <csi/v0/csi.grpc.pb.h>
 
 namespace mesos {
 namespace csi {
@@ -33,4 +33,4 @@ using namespace ::csi::v0;
 } // namespace csi {
 } // namespace mesos {
 
-#endif // __CSI_SPEC_HPP__
+#endif // __MESOS_CSI_V0_HPP__

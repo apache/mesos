@@ -17,13 +17,12 @@
 #include <string>
 #include <vector>
 
-#include <csi/spec.hpp>
-
 #include <google/protobuf/util/json_util.h>
 
 #include <gtest/gtest.h>
 
 #include <mesos/csi/types.hpp>
+#include <mesos/csi/v0.hpp>
 
 #include "csi/utils.hpp"
 

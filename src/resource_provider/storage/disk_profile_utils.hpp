@@ -17,9 +17,9 @@
 #ifndef __RESOURCE_PROVIDER_URI_DISK_PROFILE_UTILS_HPP__
 #define __RESOURCE_PROVIDER_URI_DISK_PROFILE_UTILS_HPP__
 
-#include <csi/spec.hpp>
-
 #include <mesos/mesos.hpp>
+
+#include <mesos/csi/v0.hpp>
 
 #include <stout/option.hpp>
 #include <stout/try.hpp>

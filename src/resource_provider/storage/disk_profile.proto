@@ -16,7 +16,7 @@
 
 syntax = "proto3";
 
-import "csi.proto";
+import "csi/v0/csi.proto";
 
 package mesos.resource_provider;
 

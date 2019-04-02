@@ -18,20 +18,15 @@
 #########################################
 include(MesosProtobuf)
 
-set(PUBLIC_PROTO_PATH "")
-set(PUBLIC_PROTOBUF_INCLUDE_DIR "")
 set(PUBLIC_PROTOBUF_SRC "")
-set(INTERNAL_PROTO_PATH "")
-set(INTERNAL_PROTOBUF_INCLUDE_DIR "")
 set(INTERNAL_PROTOBUF_SRC "")
 set(JAVA_PROTOBUF_SRC "")
 
 # Build the protobuf structs.
 #
 # NOTE: The following `PROTOC_GENERATE` calls will list append to
-# `PUBLIC_PROTO_PATH`, `PUBLIC_PROTOBUF_INCLUDE_DIR` and `PUBLIC_PROTOBUF_SRC`.
-# The GRPC option is a noop if gRPC is disabled.
-PROTOC_GENERATE(GRPC LIB csi TARGET csi)
+# `PUBLIC_PROTOBUF_SRC`. The GRPC option is a noop if gRPC is disabled.
+PROTOC_GENERATE(GRPC LIB csi_v0 TARGET csi/v0/csi)
 
 # NOTE: The following `PROTOC_GENERATE` calls will list append to
 # `PUBLIC_PROTOBUF_SRC`.
@@ -119,11 +114,7 @@ target_link_libraries(mesos-protobufs PUBLIC
 target_include_directories(
   mesos-protobufs
   PUBLIC
-  ${MESOS_PROTOBUF_HEADER_INCLUDE_DIRS}
-  ${PUBLIC_PROTOBUF_INCLUDE_DIR}
-
-  PRIVATE
-  ${INTERNAL_PROTOBUF_INCLUDE_DIR})
+  ${MESOS_PROTOBUF_HEADER_INCLUDE_DIRS})
 
 
 # BUILD JAVA ARTIFACTS.
