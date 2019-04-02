@@ -147,7 +147,6 @@ private:
   // resource provider and CSI volumes from checkpointed data.
   process::Future<Nothing> recover();
   process::Future<Nothing> recoverVolumes();
-  process::Future<Nothing> recoverResourceProviderState();
 
   void doReliableRegistration();
 
@@ -189,56 +188,49 @@ private:
   void reconcileOperations(
       const resource_provider::Event::ReconcileOperations& reconcile);
 
-  process::Future<Nothing> prepareIdentityService();
+  process::Future<Nothing> prepareServices();
 
-  // NOTE: This can only be called after `prepareIdentityService`.
-  process::Future<Nothing> prepareControllerService();
-
-  // NOTE: This can only be called after `prepareIdentityService` and
-  // `prepareControllerService`.
-  process::Future<Nothing> prepareNodeService();
+  process::Future<Nothing> publishVolume(const std::string& volumeId);
 
   // Transitions the state of the specified volume from `CREATED` or
   // `CONTROLLER_PUBLISH` to `NODE_READY`.
   //
-  // NOTE: This can only be called after `prepareControllerService` and
-  // `prepareNodeService`.
+  // NOTE: This can only be called after `prepareServices`.
   process::Future<Nothing> controllerPublish(const std::string& volumeId);
 
   // Transitions the state of the specified volume from `NODE_READY`,
   // `CONTROLLER_PUBLISH` or `CONTROLLER_UNPUBLISH` to `CREATED`.
   //
-  // NOTE: This can only be called after `prepareControllerService` and
-  // `prepareNodeService`.
+  // NOTE: This can only be called after `prepareServices`.
   process::Future<Nothing> controllerUnpublish(const std::string& volumeId);
 
   // Transitions the state of the specified volume from `NODE_READY` or
   // `NODE_STAGE` to `VOL_READY`.
   //
-  // NOTE: This can only be called after `prepareNodeService`.
+  // NOTE: This can only be called after `prepareServices`.
   process::Future<Nothing> nodeStage(const std::string& volumeId);
 
   // Transitions the state of the specified volume from `VOL_READY`,
   // `NODE_STAGE` or `NODE_UNSTAGE` to `NODE_READY`.
   //
-  // NOTE: This can only be called after `prepareNodeService`.
+  // NOTE: This can only be called after `prepareServices`.
   process::Future<Nothing> nodeUnstage(const std::string& volumeId);
 
   // Transitions the state of the specified volume from `VOL_READY` or
   // `NODE_PUBLISH` to `PUBLISHED`.
   //
-  // NOTE: This can only be called after `prepareNodeService`.
+  // NOTE: This can only be called after `prepareServices`.
   process::Future<Nothing> nodePublish(const std::string& volumeId);
 
   // Transitions the state of the specified volume from `PUBLISHED`,
   // `NODE_PUBLISH` or `NODE_UNPUBLISH` to `VOL_READY`.
   //
-  // NOTE: This can only be called after `prepareNodeService`.
+  // NOTE: This can only be called after `prepareServices`.
   process::Future<Nothing> nodeUnpublish(const std::string& volumeId);
 
   // Returns a CSI volume ID.
   //
-  // NOTE: This can only be called after `prepareControllerService`.
+  // NOTE: This can only be called after `prepareServices`.
   process::Future<std::string> createVolume(
       const std::string& name,
       const Bytes& capacity,
@@ -246,24 +238,21 @@ private:
 
   // Returns true if the volume has been deprovisioned.
   //
-  // NOTE: This can only be called after `prepareControllerService` and
-  // `prepareNodeService` (since it may require `NodeUnpublishVolume`).
+  // NOTE: This can only be called after `prepareServices`.
   process::Future<bool> deleteVolume(const std::string& volumeId);
 
   // Validates if a volume supports the capability of the specified profile.
   //
-  // NOTE: This can only be called after `prepareIdentityService`.
+  // NOTE: This can only be called after `prepareServices`.
   process::Future<Nothing> validateVolume(
       const std::string& volumeId,
       const Option<Labels>& metadata,
       const DiskProfileAdaptor::ProfileInfo& profileInfo);
 
-  // NOTE: This can only be called after `prepareControllerService` and the
-  // resource provider ID has been obtained.
+  // NOTE: This can only be called after `prepareServices`.
   process::Future<Resources> listVolumes();
 
-  // NOTE: This can only be called after `prepareControllerService` and the
-  // resource provider ID has been obtained.
+  // NOTE: This can only be called after `prepareServices`.
   process::Future<Resources> getCapacities();
 
   // Applies the operation. Speculative operations will be synchronously
@@ -333,7 +322,6 @@ private:
 
   std::shared_ptr<DiskProfileAdaptor> diskProfileAdaptor;
 
-  std::string bootId;
   process::grpc::client::Runtime runtime;
   process::Owned<v1::resource_provider::Driver> driver;
   OperationStatusUpdateManager statusUpdateManager;
@@ -343,10 +331,15 @@ private:
 
   process::Owned<csi::ServiceManager> serviceManager;
 
-  Option<csi::v0::GetPluginInfoResponse> pluginInfo;
-  csi::v0::PluginCapabilities pluginCapabilities;
-  csi::v0::ControllerCapabilities controllerCapabilities;
-  csi::v0::NodeCapabilities nodeCapabilities;
+  // TODO(chhsiao): Remove the following variables after refactoring.
+  std::string rootDir;
+  CSIPluginInfo pluginInfo;
+  hashset<csi::Service> services;
+
+  Option<std::string> bootId;
+  Option<csi::v0::PluginCapabilities> pluginCapabilities;
+  Option<csi::v0::ControllerCapabilities> controllerCapabilities;
+  Option<csi::v0::NodeCapabilities> nodeCapabilities;
   Option<std::string> nodeId;
 
   // We maintain the following invariant: if one operation depends on
