@@ -28,19 +28,6 @@
 
 #include <glog/logging.h>
 
-#include <process/collect.hpp>
-#include <process/defer.hpp>
-#include <process/delay.hpp>
-#include <process/future.hpp>
-#include <process/grpc.hpp>
-#include <process/id.hpp>
-#include <process/loop.hpp>
-#include <process/process.hpp>
-
-#include <process/metrics/counter.hpp>
-#include <process/metrics/metrics.hpp>
-#include <process/metrics/push_gauge.hpp>
-
 #include <mesos/http.hpp>
 #include <mesos/resources.hpp>
 #include <mesos/type_utils.hpp>
@@ -50,6 +37,20 @@
 #include <mesos/resource_provider/storage/disk_profile_adaptor.hpp>
 
 #include <mesos/v1/resource_provider.hpp>
+
+#include <process/collect.hpp>
+#include <process/defer.hpp>
+#include <process/delay.hpp>
+#include <process/future.hpp>
+#include <process/grpc.hpp>
+#include <process/id.hpp>
+#include <process/loop.hpp>
+#include <process/process.hpp>
+#include <process/sequence.hpp>
+
+#include <process/metrics/counter.hpp>
+#include <process/metrics/metrics.hpp>
+#include <process/metrics/push_gauge.hpp>
 
 #include <stout/bytes.hpp>
 #include <stout/duration.hpp>
@@ -79,8 +80,6 @@
 #include "resource_provider/detector.hpp"
 #include "resource_provider/state.hpp"
 
-#include "resource_provider/storage/provider_process.hpp"
-
 #include "slave/paths.hpp"
 #include "slave/state.hpp"
 
@@ -106,8 +105,10 @@ using process::Failure;
 using process::Future;
 using process::loop;
 using process::Owned;
+using process::Process;
 using process::ProcessBase;
 using process::Promise;
+using process::Sequence;
 using process::spawn;
 
 using process::grpc::StatusError;
@@ -222,6 +223,179 @@ static inline Resource createRawDiskResource(
 
   return resource;
 }
+
+
+class StorageLocalResourceProviderProcess
+  : public Process<StorageLocalResourceProviderProcess>
+{
+public:
+  explicit StorageLocalResourceProviderProcess(
+      const http::URL& _url,
+      const string& _workDir,
+      const ResourceProviderInfo& _info,
+      const SlaveID& _slaveId,
+      const Option<string>& _authToken,
+      bool _strict);
+
+  StorageLocalResourceProviderProcess(
+      const StorageLocalResourceProviderProcess& other) = delete;
+
+  StorageLocalResourceProviderProcess& operator=(
+      const StorageLocalResourceProviderProcess& other) = delete;
+
+  void connected();
+  void disconnected();
+  void received(const Event& event);
+
+private:
+  void initialize() override;
+  void fatal();
+
+  Future<Nothing> recover();
+
+  void doReliableRegistration();
+
+  // The reconcile functions are responsible to reconcile the state of
+  // the resource provider from the recovered state and other sources of
+  // truth, such as CSI plugin responses or the status update manager.
+  Future<Nothing> reconcileResourceProviderState();
+  Future<Nothing> reconcileOperationStatuses();
+  ResourceConversion reconcileResources(
+      const Resources& checkpointed,
+      const Resources& discovered);
+
+  Future<Resources> getRawVolumes();
+  Future<Resources> getStoragePools();
+
+  // Spawns a loop to watch for changes in the set of known profiles and update
+  // the profile mapping and storage pools accordingly.
+  void watchProfiles();
+
+  // Update the profile mapping when the set of known profiles changes.
+  // NOTE: This function never fails. If it fails to translate a new
+  // profile, the resource provider will continue to operate with the
+  // set of profiles it knows about.
+  Future<Nothing> updateProfiles(const hashset<string>& profiles);
+
+  // Reconcile the storage pools when the set of known profiles changes,
+  // or a volume with an unknown profile is destroyed.
+  Future<Nothing> reconcileStoragePools();
+
+  // Returns true if the storage pools are allowed to be reconciled when
+  // the operation is being applied.
+  static bool allowsReconciliation(const Offer::Operation& operation);
+
+  // Functions for received events.
+  void subscribed(const Event::Subscribed& subscribed);
+  void applyOperation(const Event::ApplyOperation& operation);
+  void publishResources(const Event::PublishResources& publish);
+  void acknowledgeOperationStatus(
+      const Event::AcknowledgeOperationStatus& acknowledge);
+  void reconcileOperations(const Event::ReconcileOperations& reconcile);
+
+  // Applies the operation. Speculative operations will be synchronously
+  // applied. Do nothing if the operation is already in a terminal state.
+  Future<Nothing> _applyOperation(const id::UUID& operationUuid);
+
+  // Sends `OPERATION_DROPPED` status update. The operation status will be
+  // checkpointed if `operation` is set.
+  void dropOperation(
+      const id::UUID& operationUuid,
+      const Option<FrameworkID>& frameworkId,
+      const Option<Offer::Operation>& operation,
+      const string& message);
+
+  Future<vector<ResourceConversion>> applyCreateDisk(
+      const Resource& resource,
+      const id::UUID& operationUuid,
+      const Resource::DiskInfo::Source::Type& targetType,
+      const Option<string>& targetProfile);
+
+  Future<vector<ResourceConversion>> applyDestroyDisk(
+      const Resource& resource);
+
+  // Synchronously creates persistent volumes.
+  Try<vector<ResourceConversion>> applyCreate(
+      const Offer::Operation& operation) const;
+
+  // Synchronously cleans up and destroys persistent volumes.
+  Try<vector<ResourceConversion>> applyDestroy(
+      const Offer::Operation& operation) const;
+
+  // Synchronously updates `totalResources` and the operation status and
+  // then asks the status update manager to send status updates.
+  Try<Nothing> updateOperationStatus(
+      const id::UUID& operationUuid,
+      const Try<vector<ResourceConversion>>& conversions);
+
+  void garbageCollectOperationPath(const id::UUID& operationUuid);
+
+  void checkpointResourceProviderState();
+
+  void sendResourceProviderStateUpdate();
+
+  void sendOperationStatusUpdate(const UpdateOperationStatusMessage& update);
+
+  enum State
+  {
+    RECOVERING,
+    DISCONNECTED,
+    CONNECTED,
+    SUBSCRIBED,
+    READY
+  } state;
+
+  const http::URL url;
+  const string workDir;
+  const string metaDir;
+  const ContentType contentType;
+  ResourceProviderInfo info;
+  const string vendor;
+  const SlaveID slaveId;
+  const Option<string> authToken;
+  const bool strict;
+
+  shared_ptr<DiskProfileAdaptor> diskProfileAdaptor;
+
+  Owned<Driver> driver;
+  OperationStatusUpdateManager statusUpdateManager;
+
+  // The mapping of known profiles fetched from the DiskProfileAdaptor.
+  hashmap<string, DiskProfileAdaptor::ProfileInfo> profileInfos;
+
+  Owned<VolumeManager> volumeManager;
+
+  // We maintain the following invariant: if one operation depends on
+  // another, they cannot be in PENDING state at the same time, i.e.,
+  // the result of the preceding operation must have been reflected in
+  // the total resources.
+  //
+  // NOTE: We store the list of operations in a `LinkedHashMap` to
+  // preserve the order we receive the operations in case we need it.
+  LinkedHashMap<id::UUID, Operation> operations;
+  Resources totalResources;
+  id::UUID resourceVersion;
+
+  // If pending, it means that the storage pools are being reconciled, and all
+  // incoming operations that disallow reconciliation will be dropped.
+  Future<Nothing> reconciled;
+
+  // We maintain a sequence to coordinate reconciliations of storage pools. It
+  // keeps track of pending operations that disallow reconciliation, and ensures
+  // that any reconciliation waits for these operations to finish.
+  Sequence sequence;
+
+  struct Metrics : public csi::Metrics
+  {
+    explicit Metrics(const string& prefix);
+    ~Metrics();
+
+    hashmap<Offer::Operation::Type, PushGauge> operations_pending;
+    hashmap<Offer::Operation::Type, Counter> operations_finished;
+    hashmap<Offer::Operation::Type, Counter> operations_failed;
+    hashmap<Offer::Operation::Type, Counter> operations_dropped;
+  } metrics;
+};
 
 
 StorageLocalResourceProviderProcess::StorageLocalResourceProviderProcess(
