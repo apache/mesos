@@ -120,7 +120,7 @@ TEST_F(NamespacesIsolatorTest, ROOT_PidNamespace)
 
   // Write the command's pid namespace inode and init name to files.
   const string command =
-    "stat -Lc %i /proc/self/ns/pid > ns && (cat /proc/1/cmdline > init)";
+    "stat -Lc %i /proc/1/ns/pid > ns && (cat /proc/1/cmdline > init)";
 
   process::Future<Containerizer::LaunchResult> launch =
     containerizer.get()->launch(
@@ -179,7 +179,7 @@ TEST_F(NamespacesIsolatorTest, ROOT_SharePidNamespace)
   ASSERT_SOME(containerizer);
 
   // Write the command's pid namespace inode to file.
-  const string command = "stat -Lc %i /proc/self/ns/pid > ns";
+  const string command = "stat -Lc %i /proc/1/ns/pid > ns";
 
   mesos::slave::ContainerConfig containerConfig = createContainerConfig(
       None(),
