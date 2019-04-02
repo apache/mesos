@@ -2295,7 +2295,7 @@ TEST_P(DefaultExecutorTest, ROOT_MultiTaskgroupSharePidNamespace)
   v1::TaskInfo taskInfo1 = v1::createTask(
       agentId,
       v1::Resources::parse("cpus:0.1;mem:32;disk:32").get(),
-      "stat -Lc %i /proc/self/ns/pid > ns && sleep 1000");
+      "stat -Lc %i /proc/1/ns/pid > ns && sleep 1000");
 
   mesos::v1::ContainerInfo* containerInfo = taskInfo1.mutable_container();
   containerInfo->set_type(mesos::v1::ContainerInfo::MESOS);
@@ -2337,7 +2337,7 @@ TEST_P(DefaultExecutorTest, ROOT_MultiTaskgroupSharePidNamespace)
   v1::TaskInfo taskInfo2 = v1::createTask(
       agentId,
       v1::Resources::parse("cpus:0.1;mem:32;disk:32").get(),
-      "stat -Lc %i /proc/self/ns/pid > ns && sleep 1000");
+      "stat -Lc %i /proc/1/ns/pid > ns && sleep 1000");
 
   containerInfo = taskInfo2.mutable_container();
   containerInfo->set_type(mesos::v1::ContainerInfo::MESOS);

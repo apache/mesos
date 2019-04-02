@@ -827,7 +827,7 @@ TEST_F(NestedMesosContainerizerTest,
           None(),
           createExecutorInfo(
               "executor",
-              "stat -Lc %i /proc/self/ns/pid > ns && sleep 1000",
+              "stat -Lc %i /proc/1/ns/pid > ns && sleep 1000",
               "cpus:1"),
           directory.get()),
       map<string, string>(),
@@ -848,7 +848,7 @@ TEST_F(NestedMesosContainerizerTest,
   launch = containerizer->launch(
       nestedContainerId1,
       createContainerConfig(
-          createCommandInfo("stat -Lc %i /proc/self/ns/pid > ns"),
+          createCommandInfo("stat -Lc %i /proc/1/ns/pid > ns"),
           container),
       map<string, string>(),
       None());
@@ -873,7 +873,7 @@ TEST_F(NestedMesosContainerizerTest,
   launch = containerizer->launch(
       nestedContainerId2,
       createContainerConfig(
-          createCommandInfo("stat -Lc %i /proc/self/ns/pid > ns"),
+          createCommandInfo("stat -Lc %i /proc/1/ns/pid > ns"),
           container),
       map<string, string>(),
       None());
