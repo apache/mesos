@@ -32,6 +32,10 @@ message Image {
   // where the root layer's id (no parent layer) is first and the leaf
   // layer's id is last.
   repeated string layer_ids = 2;
+
+  // The digest of Docker V2 Schema2 manifest config. Only exists when
+  // pulling an image via V2 Schema2 manifest.
+  optional string config_digest = 3;
 }
 
 
