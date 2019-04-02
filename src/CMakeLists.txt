@@ -247,7 +247,8 @@ set(CSI_SRC
   csi/paths.cpp
   csi/rpc.cpp
   csi/service_manager.cpp
-  csi/utils.cpp)
+  csi/utils.cpp
+  csi/volume_manager.cpp)
 
 set(DOCKER_SRC
   docker/docker.cpp

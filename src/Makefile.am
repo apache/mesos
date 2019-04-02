@@ -1579,6 +1579,8 @@ libcsi_la_SOURCES =							\
   csi/state.proto							\
   csi/utils.cpp								\
   csi/utils.hpp								\
+  csi/volume_manager.cpp						\
+  csi/volume_manager.hpp						\
   ../include/csi/spec.hpp
 
 nodist_libcsi_la_SOURCES = $(CXX_CSI_PROTOS)
