@@ -614,6 +614,21 @@ TEST(DRFSorterTest, HierarchicalAllocation)
     EXPECT_EQ(aResources, sorter.allocation("a", slaveId));
     EXPECT_EQ(cResources, sorter.allocation("b/c", slaveId));
     EXPECT_EQ(dResources, sorter.allocation("b/d", slaveId));
+
+    EXPECT_EQ(
+        ResourceQuantities::fromScalarResources(aResources.scalars()),
+        sorter.allocationScalarQuantities("a"));
+    EXPECT_EQ(
+        ResourceQuantities::fromScalarResources(cResources.scalars()),
+        sorter.allocationScalarQuantities("b/c"));
+    EXPECT_EQ(
+        ResourceQuantities::fromScalarResources(dResources.scalars()),
+        sorter.allocationScalarQuantities("b/d"));
+
+    EXPECT_EQ(
+        ResourceQuantities::fromScalarResources(
+            (aResources + cResources + dResources).scalars()),
+        sorter.allocationScalarQuantities());
   }
 
   Resources aExtraResources = Resources::parse("cpus:2;mem:2").get();
@@ -1058,6 +1073,14 @@ TYPED_TEST(CommonSorterTest, UpdateAllocation)
   EXPECT_EQ(1u, allocation.size());
   EXPECT_EQ(newAllocation.get(), allocation.at(slaveId));
   EXPECT_EQ(newAllocation.get(), sorter.allocation("a", slaveId));
+
+  EXPECT_EQ(
+      CHECK_NOTERROR(ResourceQuantities::fromString("cpus:10;mem:10;disk:10")),
+      sorter.allocationScalarQuantities("a"));
+
+  EXPECT_EQ(
+      CHECK_NOTERROR(ResourceQuantities::fromString("cpus:10;mem:10;disk:10")),
+      sorter.allocationScalarQuantities());
 }
 
 
@@ -1095,6 +1118,14 @@ TYPED_TEST(CommonSorterTest, UpdateAllocationNestedClient)
   EXPECT_EQ(1u, allocation.size());
   EXPECT_EQ(newAllocation.get(), allocation.at(slaveId));
   EXPECT_EQ(newAllocation.get(), sorter.allocation("a/x", slaveId));
+
+  EXPECT_EQ(
+      CHECK_NOTERROR(ResourceQuantities::fromString("cpus:10;mem:10;disk:10")),
+      sorter.allocationScalarQuantities("a/x"));
+
+  EXPECT_EQ(
+      CHECK_NOTERROR(ResourceQuantities::fromString("cpus:10;mem:10;disk:10")),
+      sorter.allocationScalarQuantities());
 }
 
 
@@ -1128,10 +1159,22 @@ TYPED_TEST(CommonSorterTest, AllocationForInactiveClient)
   EXPECT_EQ(
       Resources::parse("cpus:2;mem:2").get(), agentAllocation1.at(slaveId));
 
+  EXPECT_EQ(
+      CHECK_NOTERROR(ResourceQuantities::fromString("cpus:2;mem:2")),
+      sorter.allocationScalarQuantities("a"));
+
   hashmap<SlaveID, Resources> agentAllocation2 = sorter.allocation("b");
   EXPECT_EQ(1u, agentAllocation2.size());
   EXPECT_EQ(
       Resources::parse("cpus:3;mem:3").get(), agentAllocation2.at(slaveId));
+
+  EXPECT_EQ(
+      CHECK_NOTERROR(ResourceQuantities::fromString("cpus:3;mem:3")),
+      sorter.allocationScalarQuantities("b"));
+
+  EXPECT_EQ(
+      CHECK_NOTERROR(ResourceQuantities::fromString("cpus:5;mem:5")),
+      sorter.allocationScalarQuantities());
 }
 
 
@@ -1165,6 +1208,16 @@ TYPED_TEST(CommonSorterTest, MultipleSlaves)
   EXPECT_EQ(2u, sorter.allocation("framework").size());
   EXPECT_EQ(slaveResources, sorter.allocation("framework", slaveA));
   EXPECT_EQ(slaveResources, sorter.allocation("framework", slaveB));
+
+  EXPECT_EQ(
+      ResourceQuantities::fromScalarResources(slaveResources.scalars()) +
+        ResourceQuantities::fromScalarResources(slaveResources.scalars()),
+      sorter.allocationScalarQuantities("framework"));
+
+  EXPECT_EQ(
+      ResourceQuantities::fromScalarResources(slaveResources.scalars()) +
+        ResourceQuantities::fromScalarResources(slaveResources.scalars()),
+      sorter.allocationScalarQuantities());
 }
 
 
@@ -1211,6 +1264,16 @@ TYPED_TEST(CommonSorterTest, MultipleSlavesUpdateAllocation)
   EXPECT_EQ(2u, sorter.allocation("framework").size());
   EXPECT_EQ(newAllocation.get(), sorter.allocation("framework", slaveA));
   EXPECT_EQ(newAllocation.get(), sorter.allocation("framework", slaveB));
+
+  EXPECT_EQ(
+      ResourceQuantities::fromScalarResources(slaveResources.scalars()) +
+        ResourceQuantities::fromScalarResources(slaveResources.scalars()),
+      sorter.allocationScalarQuantities("framework"));
+
+  EXPECT_EQ(
+      ResourceQuantities::fromScalarResources(slaveResources.scalars()) +
+        ResourceQuantities::fromScalarResources(slaveResources.scalars()),
+      sorter.allocationScalarQuantities());
 }
 
 
