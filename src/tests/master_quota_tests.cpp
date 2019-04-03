@@ -879,6 +879,13 @@ TEST_F(MasterQuotaTest, AvailableResourcesSingleDisconnectedAgent)
   AWAIT_READY(agentTotalResources);
   EXPECT_EQ(defaultAgentResources, agentTotalResources.get());
 
+  // Make sure there are no agent registration retries in flight.
+  // Pausing also ensures the master does not continue to ping
+  // the agent once we spoof disconnection (which would trigger
+  // the agent to re-register).
+  Clock::pause();
+  Clock::settle();
+
   // Spoof the agent disconnecting from the master.
   Future<Nothing> deactivateSlave =
     FUTURE_DISPATCH(_, &MesosAllocatorProcess::deactivateSlave);
