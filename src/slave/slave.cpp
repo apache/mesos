@@ -1519,6 +1519,9 @@ void Slave::registered(
 
       CHECK_SOME(state::checkpoint(path, info));
 
+      // If we registered with this agent ID for the first time initialize
+      // the resource provider manager with it; if the manager was already
+      // initialized with a recovered agent ID this is a no-op.
       initializeResourceProviderManager(flags, info.id());
 
       // We start the local resource providers daemon once the agent is
@@ -7384,6 +7387,11 @@ Future<Nothing> Slave::recover(const Try<state::State>& state)
       if (!(slaveState->info.get() == info)) {
         requiredMasterCapabilities.agentUpdate = true;
       }
+
+      // If we restarted the agent process and will reuse the same agent ID
+      // we can immediately start the resource provider manager. This allows
+      // executors recovered later on to resubscribe immediately.
+      initializeResourceProviderManager(flags, info.id());
 
       // Recover the frameworks.
       foreachvalue (const FrameworkState& frameworkState,
