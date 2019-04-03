@@ -6187,6 +6187,103 @@ TEST_F(HierarchicalAllocatorTest, QuotaWithNestedRoleReservation)
 }
 
 
+// This test ensures that quota headroom is calculated correctly
+// in the presence of subrole's allocations.
+TEST_F(HierarchicalAllocatorTest, QuotaHeadroomWithNestedRoleAllocation)
+{
+  // Setup:
+  //   agents: 2 * R
+  //    roles: "a"   --> allocated R
+  //           "a/b" --> allocated R
+  //           "quota-role" --> guarantee R w/ no framework
+  //
+  // Test: Add 1 more agent with R.
+  //       Ensure agent is held back for "quota-role".
+  //       Add 1 more agent with R.
+  //       Ensure only 1 of the two extra agents goes to "a" or "a/b"
+  //         (since there is enough headroom for "quota-role")
+
+  Clock::pause();
+
+  initialize();
+
+  const string PARENT_ROLE = "a";
+  const string CHILD_ROLE = "a/b";
+
+  // Add framework1 under the parent role "a/b".
+  FrameworkInfo framework1 = createFrameworkInfo({CHILD_ROLE});
+  allocator->addFramework(framework1.id(), framework1, {}, true, {});
+
+  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:100");
+  allocator->addSlave(
+      agent1.id(),
+      agent1,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent1.resources(),
+      {});
+
+  // All the resources of agent1 are offered to framework1.
+  Allocation expected = Allocation(
+      framework1.id(), {{CHILD_ROLE, {{agent1.id(), agent1.resources()}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocations.get());
+
+  // Add framework2 under the child role "a".
+  FrameworkInfo framework2 = createFrameworkInfo({PARENT_ROLE});
+  allocator->addFramework(framework2.id(), framework2, {}, true, {});
+
+  // Add `agent2` which will be allocated to `framework2`.
+  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:100");
+  allocator->addSlave(
+      agent2.id(),
+      agent2,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent2.resources(),
+      {});
+
+  // All the resources of agent2 are offered to framework2.
+  expected = Allocation(
+      framework2.id(), {{PARENT_ROLE, {{agent2.id(), agent2.resources()}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocations.get());
+
+  const string QUOTA_ROLE{"quota-role"};
+
+  Quota quota = createQuota(QUOTA_ROLE, "cpus:1;mem:100");
+  allocator->setQuota(QUOTA_ROLE, quota);
+
+  SlaveInfo agent3 = createSlaveInfo("cpus:1;mem:100");
+  allocator->addSlave(
+      agent3.id(),
+      agent3,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent3.resources(),
+      {});
+
+  Future<Allocation> allocation = allocations.get();
+  EXPECT_TRUE(allocation.isPending());
+
+  SlaveInfo agent4 = createSlaveInfo("cpus:1;mem:100");
+  allocator->addSlave(
+      agent4.id(),
+      agent4,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent4.resources(),
+      {});
+
+  Clock::settle();
+
+  // There should be one allocation made. Either agent3 or agent4 is
+  // allocated and the other agent is set aside for the quota headroom.
+  AWAIT_READY(allocation);
+  EXPECT_TRUE(allocations.get().isPending());
+}
+
+
 // This test checks that quota guarantees work as expected when a
 // nested role is created as a child of an existing quota'd role.
 //
