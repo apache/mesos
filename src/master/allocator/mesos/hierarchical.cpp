@@ -1765,9 +1765,7 @@ void HierarchicalAllocatorProcess::__allocate()
   // we need to loop over only top level roles for the latter.
 
   // Subtract allocated resources from the total.
-  foreachkey (const string& role, roles) {
-    availableHeadroom -= roleSorter->allocationScalarQuantities(role);
-  }
+  availableHeadroom -= roleSorter->allocationScalarQuantities();
 
   ResourceQuantities totalAllocatedReservation;
   foreachkey (const string& role, roles) {
