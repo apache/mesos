@@ -1694,34 +1694,35 @@ void HierarchicalAllocatorProcess::__allocate()
   //       would no longer need to track reservations separately.
   hashmap<string, ResourceQuantities> rolesConsumedQuota;
 
-  // We charge a role against its quota by considering its allocation as well
-  // as any unallocated reservations since reservations are bound to the role.
-  // In other words, we always consider reservations as consuming quota,
-  // regardless of whether they are allocated.
+  // We charge a role against its quota by considering its allocation
+  // (including all subrole allocations) as well as any unallocated
+  // reservations (including all subrole reservations) since reservations
+  // are bound to the role. In other words, we always consider reservations
+  // as consuming quota, regardless of whether they are allocated.
   // It is calculated as:
   //
   //   Consumed Quota = reservations + unreserved allocation
-  //                  = reservations + allocation - allocated reservations
+
+  // First add reservations.
   foreachkey (const string& role, quotaGuarantees) {
-    // First add reservations.
     rolesConsumedQuota[role] +=
       reservationScalarQuantities.get(role).getOrElse(ResourceQuantities());
+  }
 
-    // Then add allocated resource _quantities_ .
-    if (roleSorter->contains(role)) {
-      foreachvalue (const Resources& resources, roleSorter->allocation(role)) {
-        rolesConsumedQuota[role] +=
-          ResourceQuantities::fromScalarResources(
-              resources.nonRevocable().scalars());
-      }
+  // Then add the unreserved allocation.
+  foreachkey (const string& role, roles) {
+    const string& topLevelRole = strings::contains(role, "/") ?
+      role.substr(0, role.find('/')) : role;
+
+    if (!quotaGuarantees.contains(topLevelRole)) {
+      continue;
     }
 
-    // Lastly subtract allocated reservations on each agent.
     if (roleSorter->contains(role)) {
       foreachvalue (const Resources& resources, roleSorter->allocation(role)) {
-        rolesConsumedQuota[role] -=
+        rolesConsumedQuota[topLevelRole] +=
           ResourceQuantities::fromScalarResources(
-              resources.reserved().scalars());
+              resources.unreserved().nonRevocable().scalars());
       }
     }
   }
@@ -1759,23 +1760,17 @@ void HierarchicalAllocatorProcess::__allocate()
   //                        unallocated revocable resources
   ResourceQuantities availableHeadroom = roleSorter->totalScalarQuantities();
 
-  // NOTE: We only sum over top level roles since those
-  // store the aggregated information in both the role
-  // sorter and the `reservationScalarQuantities`.
+  // NOTE: The role sorter does not return aggregated allocation
+  // information whereas `reservationScalarQuantities` does, so
+  // we need to loop over only top level roles for the latter.
 
   // Subtract allocated resources from the total.
   foreachkey (const string& role, roles) {
-    if (!strings::contains(role, "/")) {
-      availableHeadroom -= roleSorter->allocationScalarQuantities(role);
-    }
+    availableHeadroom -= roleSorter->allocationScalarQuantities(role);
   }
 
   ResourceQuantities totalAllocatedReservation;
   foreachkey (const string& role, roles) {
-    if (strings::contains(role, "/")) {
-      continue; // Only top level roles.
-    }
-
     if (!roleSorter->contains(role)) {
       continue; // This role has no allocation.
     }
