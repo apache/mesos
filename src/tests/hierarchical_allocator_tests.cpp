@@ -6118,6 +6118,61 @@ TEST_F(HierarchicalAllocatorTest, QuotaWithAncestorReservations)
 }
 
 
+// This test verifies that a subrole's reservation is counted towards
+// parent's consumed quota. See MESOS-9688.
+TEST_F(HierarchicalAllocatorTest, QuotaWithNestedRoleReservation)
+{
+  // The test sets a parent role "a" and a child role "a/b".
+  // The parent role has a quota of "cpus:1;mem:1024".
+  // Two agents with the same resources ("cpus:1;mem:1024") are
+  // added. One of them is reserved to the child role.
+  // A framework under the parent role should get no offers even
+  // though there is one free agent with unreserved resources.
+  // This is because the parent role has consumed all of its quota
+  // limits in the form of child reservations.
+
+  Clock::pause();
+
+  initialize();
+
+  const string PARENT_ROLE{"a"};
+  const string CHILD_ROLE{"a/b"};
+
+  Quota quota = createQuota(PARENT_ROLE, "cpus:1;mem:1024");
+  allocator->setQuota(PARENT_ROLE, quota);
+
+  // This agent is reserved for the child role "a/b".
+  SlaveInfo agent1 = createSlaveInfo("cpus(a/b):1;mem(a/b):1024");
+  allocator->addSlave(
+      agent1.id(),
+      agent1,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent1.resources(),
+      {});
+
+  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:1024");
+  allocator->addSlave(
+      agent2.id(),
+      agent2,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent2.resources(),
+      {});
+
+  // Add framework1 under the parent role "a".
+  FrameworkInfo framework1 = createFrameworkInfo({PARENT_ROLE});
+  allocator->addFramework(framework1.id(), framework1, {}, true, {});
+
+  // Process all events.
+  Clock::settle();
+
+  // No allocations are made because framework1's role "a" has
+  // reached its quota limit.
+  EXPECT_TRUE(allocations.get().isPending());
+}
+
+
 // This test checks that quota guarantees work as expected when a
 // nested role is created as a child of an existing quota'd role.
 TEST_F(HierarchicalAllocatorTest, NestedRoleQuota)
