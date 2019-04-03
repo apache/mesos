@@ -440,6 +440,12 @@ const ResourceQuantities& DRFSorter::allocationScalarQuantities(
 }
 
 
+const ResourceQuantities& DRFSorter::allocationScalarQuantities() const
+{
+  return root->allocation.totals;
+}
+
+
 hashmap<string, Resources> DRFSorter::allocation(const SlaveID& slaveId) const
 {
   hashmap<string, Resources> result;

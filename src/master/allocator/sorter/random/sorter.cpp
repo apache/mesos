@@ -365,6 +365,12 @@ const ResourceQuantities& RandomSorter::allocationScalarQuantities(
 }
 
 
+const ResourceQuantities& RandomSorter::allocationScalarQuantities() const
+{
+  return root->allocation.totals;
+}
+
+
 hashmap<string, Resources> RandomSorter::allocation(
     const SlaveID& slaveId) const
 {
