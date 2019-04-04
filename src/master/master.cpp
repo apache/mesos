@@ -10543,15 +10543,30 @@ void Master::recoverFramework(
           slave->totalResources += consumedUnallocated;
           slave->usedResources[framework->id()] += consumed.get();
 
-          allocator->updateSlave(slave->id, slave->info, slave->totalResources);
+          hashmap<FrameworkID, Resources> usedResources;
+          usedResources.put(framework->id(), consumed.get());
 
-          // NOTE: The allocation of these orphan operation resources will be
-          // updated in `addFramework` below.
+          // This call to `addResourceProvider()` adds orphan operation
+          // resources back to the agent's total and used resources. This
+          // prevents these resources from being offered while the operation is
+          // still pending.
+          //
+          // NOTE: We intentionally call `addResourceProvider()` before we call
+          // `addFramework()` below because if the order were reversed, these
+          // resources would be incorrectly tracked twice in the allocator.
+          allocator->addResourceProvider(
+              slave->id,
+              consumedUnallocated,
+              usedResources);
         }
       }
     }
   }
 
+  // NOTE: We intentionally call `addFramework()` after we called
+  // `addResourceProvider()` above because if the order were reversed, the
+  // resources of orphan operations would be incorrectly tracked twice in the
+  // allocator.
   addFramework(framework, suppressedRoles);
 }
 
