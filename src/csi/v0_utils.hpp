@@ -17,6 +17,8 @@
 #ifndef __CSI_V0_UTILS_HPP__
 #define __CSI_V0_UTILS_HPP__
 
+#include <google/protobuf/message.h>
+
 #include <mesos/csi/types.hpp>
 #include <mesos/csi/v0.hpp>
 
@@ -31,7 +33,8 @@ struct PluginCapabilities
 {
   PluginCapabilities() = default;
 
-  template <typename Iterable> PluginCapabilities(const Iterable& capabilities)
+  template <typename Iterable>
+  PluginCapabilities(const Iterable& capabilities)
   {
     foreach (const auto& capability, capabilities) {
       if (capability.has_service() &&
@@ -43,6 +46,10 @@ struct PluginCapabilities
           case PluginCapability::Service::CONTROLLER_SERVICE:
             controllerService = true;
             break;
+
+          // NOTE: We avoid using a default clause for the following values in
+          // proto3's open enum to enable the compiler to detect missing enum
+          // cases for us. See: https://github.com/google/protobuf/issues/3917
           case google::protobuf::kint32min:
           case google::protobuf::kint32max:
             UNREACHABLE();
@@ -81,6 +88,10 @@ struct ControllerCapabilities
           case ControllerServiceCapability::RPC::GET_CAPACITY:
             getCapacity = true;
             break;
+
+          // NOTE: We avoid using a default clause for the following values in
+          // proto3's open enum to enable the compiler to detect missing enum
+          // cases for us. See: https://github.com/google/protobuf/issues/3917
           case google::protobuf::kint32min:
           case google::protobuf::kint32max:
             UNREACHABLE();
@@ -100,7 +111,8 @@ struct NodeCapabilities
 {
   NodeCapabilities() = default;
 
-  template <typename Iterable> NodeCapabilities(const Iterable& capabilities)
+  template <typename Iterable>
+  NodeCapabilities(const Iterable& capabilities)
   {
     foreach (const auto& capability, capabilities) {
       if (capability.has_rpc() &&
@@ -111,6 +123,10 @@ struct NodeCapabilities
           case NodeServiceCapability::RPC::STAGE_UNSTAGE_VOLUME:
             stageUnstageVolume = true;
             break;
+
+          // NOTE: We avoid using a default clause for the following values in
+          // proto3's open enum to enable the compiler to detect missing enum
+          // cases for us. See: https://github.com/google/protobuf/issues/3917
           case google::protobuf::kint32min:
           case google::protobuf::kint32max:
             UNREACHABLE();
@@ -126,9 +142,16 @@ struct NodeCapabilities
 // Helpers to devolve CSI v0 protobufs to their unversioned counterparts.
 types::VolumeCapability devolve(const VolumeCapability& capability);
 
+google::protobuf::RepeatedPtrField<types::VolumeCapability> devolve(
+    const google::protobuf::RepeatedPtrField<VolumeCapability>& capabilities);
+
 
 // Helpers to evolve unversioned CSI protobufs to their v0 counterparts.
 VolumeCapability evolve(const types::VolumeCapability& capability);
+
+google::protobuf::RepeatedPtrField<VolumeCapability> evolve(
+    const google::protobuf::RepeatedPtrField<types::VolumeCapability>&
+      capabilities);
 
 } // namespace v0 {
 } // namespace csi {

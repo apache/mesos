@@ -16,11 +16,24 @@
 
 #include "csi/v0_utils.hpp"
 
-#include <stout/unreachable.hpp>
+using google::protobuf::RepeatedPtrField;
 
 namespace mesos {
 namespace csi {
 namespace v0 {
+
+// Helper for repeated field devolving to `T1` from `T2`.
+template <typename T1, typename T2>
+RepeatedPtrField<T1> devolve(RepeatedPtrField<T2> from)
+{
+  RepeatedPtrField<T1> to;
+  foreach (const T2& value, from) {
+    *to.Add() = devolve(value);
+  }
+
+  return to;
+}
+
 
 types::VolumeCapability::BlockVolume devolve(
     const VolumeCapability::BlockVolume& block)
@@ -112,6 +125,26 @@ types::VolumeCapability devolve(const VolumeCapability& capability)
 }
 
 
+RepeatedPtrField<types::VolumeCapability> devolve(
+    const RepeatedPtrField<VolumeCapability>& capabilities)
+{
+  return devolve<types::VolumeCapability>(capabilities);
+}
+
+
+// Helper for repeated field evolving to `T1` from `T2`.
+template <typename T1, typename T2>
+RepeatedPtrField<T1> evolve(RepeatedPtrField<T2> from)
+{
+  RepeatedPtrField<T1> to;
+  foreach (const T2& value, from) {
+    *to.Add() = evolve(value);
+  }
+
+  return to;
+}
+
+
 VolumeCapability::BlockVolume evolve(
     const types::VolumeCapability::BlockVolume& block)
 {
@@ -195,6 +228,13 @@ VolumeCapability evolve(const types::VolumeCapability& capability)
   }
 
   return result;
+}
+
+
+RepeatedPtrField<VolumeCapability> devolve(
+    const RepeatedPtrField<types::VolumeCapability>& capabilities)
+{
+  return evolve<VolumeCapability>(capabilities);
 }
 
 } // namespace v0 {
