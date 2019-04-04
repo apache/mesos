@@ -6175,7 +6175,10 @@ TEST_F(HierarchicalAllocatorTest, QuotaWithNestedRoleReservation)
 
 // This test checks that quota guarantees work as expected when a
 // nested role is created as a child of an existing quota'd role.
-TEST_F(HierarchicalAllocatorTest, NestedRoleQuota)
+//
+// TODO(bmahler): Re-enable this test once hierarchical quota is
+// implemented.
+TEST_F(HierarchicalAllocatorTest, DISABLED_NestedRoleQuota)
 {
   // Pausing the clock is not necessary, but ensures that the test
   // doesn't rely on the batch allocation in the allocator, which
@@ -6264,7 +6267,10 @@ TEST_F(HierarchicalAllocatorTest, NestedRoleQuota)
 // This test checks that quota guarantees work as expected when a
 // nested role is created as a child of an existing quota'd role, and
 // the parent role has been allocated resources.
-TEST_F(HierarchicalAllocatorTest, NestedRoleQuotaAllocateToParent)
+//
+// TODO(bmahler): Re-enable this test once hierarchical quota is
+// implemented.
+TEST_F(HierarchicalAllocatorTest, DISABLED_NestedRoleQuotaAllocateToParent)
 {
   // Pausing the clock is not necessary, but ensures that the test
   // doesn't rely on the batch allocation in the allocator, which
