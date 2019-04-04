@@ -243,6 +243,7 @@ set(CSI_SRC
   csi/v0_volume_manager.cpp
   csi/v1.cpp
   csi/v1_client.cpp
+  csi/v1_utils.cpp
   csi/volume_manager.cpp)
 
 set(DOCKER_SRC

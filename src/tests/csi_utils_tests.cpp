@@ -23,23 +23,62 @@
 
 #include <mesos/csi/types.hpp>
 #include <mesos/csi/v0.hpp>
+#include <mesos/csi/v1.hpp>
 
 #include "csi/v0_utils.hpp"
+#include "csi/v1_utils.hpp"
 
 namespace util = google::protobuf::util;
 
 using std::string;
 using std::vector;
 
+// NOTE: We define the following function templates in proper namespaces so
+// argument-dependent lookup can do the magic to pick up the right functions
+// for a given protobuf in the tests.
+namespace csi {
+namespace v0 {
+
+template <typename T>
+T devolveAndEvolve(const T& t)
+{
+  return mesos::csi::v0::evolve(mesos::csi::v0::devolve(t));
+}
+
+} // namespace v0 {
+
+
+namespace v1 {
+
+template <typename T>
+T devolveAndEvolve(const T& t)
+{
+  return mesos::csi::v1::evolve(mesos::csi::v1::devolve(t));
+}
+
+} // namespace v1 {
+} // namespace csi {
+
+
 namespace mesos {
 namespace internal {
 namespace tests {
 
+template <typename T>
+class CSIUtilsTest : public testing::Test {};
+
+
+using VolumeCapabilityTypes = testing::Types<
+    csi::v0::VolumeCapability,
+    csi::v1::VolumeCapability>;
+
+
+TYPED_TEST_CASE(CSIUtilsTest, VolumeCapabilityTypes);
+
+
 // This test verifies that a versioned CSI `VolumeCapability` protobuf can be
 // devolved to an unversioned protobuf then be evolved back to the same one.
-//
-// TODO(chhsiao): Parameterize this test with CSI versions.
-TEST(CsiUtilsTest, VolumeCapabilityEvolve)
+TYPED_TEST(CSIUtilsTest, DevolveAndEvolve)
 {
   // The following JSON examples contains both valid and invalid CSI volume
   // capabilities. However, no matter if the capability is valid, they should be
@@ -155,10 +194,9 @@ TEST(CsiUtilsTest, VolumeCapabilityEvolve)
 
   foreach (const string& example, examples) {
     // NOTE: We use Google's JSON utility functions for proto3.
-    csi::v0::VolumeCapability versioned;
+    TypeParam versioned;
     ASSERT_EQ(util::Status::OK, util::JsonStringToMessage(example, &versioned));
-    EXPECT_EQ(versioned, csi::v0::evolve(csi::v0::devolve(versioned)))
-      << example;
+    EXPECT_EQ(versioned, devolveAndEvolve(versioned)) << example;
   }
 }
 
