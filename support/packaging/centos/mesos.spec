@@ -93,7 +93,6 @@ This package provides files for developing Mesos frameworks/modules.
     --enable-install-module-dependencies \
     --enable-libevent \
     --enable-ssl \
-    --enable-grpc \
     --enable-hardening \
     --enable-xfs-disk-isolator=%{_with_xfs}
 
@@ -160,6 +159,7 @@ install -m 0644 src/java/target/mesos-*.jar %{buildroot}%{_datadir}/java/
 ######################
 %files devel
 %doc LICENSE NOTICE
+%{_includedir}/csi/
 %{_includedir}/elfio/
 %{_includedir}/mesos/
 %{_includedir}/stout/
