@@ -1598,6 +1598,8 @@ libcsi_la_SOURCES =							\
   csi/v1.cpp								\
   csi/v1_client.cpp							\
   csi/v1_client.hpp							\
+  csi/v1_utils.cpp							\
+  csi/v1_utils.hpp							\
   csi/volume_manager.cpp						\
   csi/volume_manager.hpp
 
