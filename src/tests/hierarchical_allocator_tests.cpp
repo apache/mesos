@@ -6122,14 +6122,19 @@ TEST_F(HierarchicalAllocatorTest, QuotaWithAncestorReservations)
 // parent's consumed quota. See MESOS-9688.
 TEST_F(HierarchicalAllocatorTest, QuotaWithNestedRoleReservation)
 {
-  // The test sets a parent role "a" and a child role "a/b".
-  // The parent role has a quota of "cpus:1;mem:1024".
-  // Two agents with the same resources ("cpus:1;mem:1024") are
-  // added. One of them is reserved to the child role.
-  // A framework under the parent role should get no offers even
-  // though there is one free agent with unreserved resources.
-  // This is because the parent role has consumed all of its quota
-  // limits in the form of child reservations.
+  // Setup:
+  //   Roles: "a"   --> guarantee cpus:2;mem:200
+  //          "a/b" --> reservation cpus:1;mem:100
+  //
+  // Test:
+  //   Add a second agent with cpus:10;mem:1000
+  //   Expect "a" to be allocated cpus:1;mem:100 to reach
+  //     its guarantee (since it already has a consumption of
+  //     cpus:1;mem:100 from the "a/b" reservation).
+
+  // -------
+  // Setup
+  // -------
 
   Clock::pause();
 
@@ -6138,11 +6143,11 @@ TEST_F(HierarchicalAllocatorTest, QuotaWithNestedRoleReservation)
   const string PARENT_ROLE{"a"};
   const string CHILD_ROLE{"a/b"};
 
-  Quota quota = createQuota(PARENT_ROLE, "cpus:1;mem:1024");
+  Quota quota = createQuota(PARENT_ROLE, "cpus:2;mem:200");
   allocator->setQuota(PARENT_ROLE, quota);
 
   // This agent is reserved for the child role "a/b".
-  SlaveInfo agent1 = createSlaveInfo("cpus(a/b):1;mem(a/b):1024");
+  SlaveInfo agent1 = createSlaveInfo("cpus(a/b):1;mem(a/b):100");
   allocator->addSlave(
       agent1.id(),
       agent1,
@@ -6151,7 +6156,11 @@ TEST_F(HierarchicalAllocatorTest, QuotaWithNestedRoleReservation)
       agent1.resources(),
       {});
 
-  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:1024");
+  // -------
+  // Test
+  // -------
+
+  SlaveInfo agent2 = createSlaveInfo("cpus:10;mem:1000");
   allocator->addSlave(
       agent2.id(),
       agent2,
@@ -6167,9 +6176,14 @@ TEST_F(HierarchicalAllocatorTest, QuotaWithNestedRoleReservation)
   // Process all events.
   Clock::settle();
 
-  // No allocations are made because framework1's role "a" has
-  // reached its quota limit.
-  EXPECT_TRUE(allocations.get().isPending());
+  Allocation expected = Allocation(
+      framework1.id(),
+      {{
+          PARENT_ROLE,
+          {{agent2.id(), *Resources::fromSimpleString("cpus:1;mem:100")}}
+      }});
+
+  AWAIT_EXPECT_EQ(expected, allocations.get());
 }
 
 
