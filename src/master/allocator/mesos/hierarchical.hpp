@@ -539,6 +539,12 @@ protected:
   // Specifically, we keep track of the roles when a framework subscribes to
   // the role, and/or when there are resources allocated to the role
   // (e.g. some tasks and/or executors are consuming resources under the role).
+  //
+  // NOTE: There is currently not a role entry when there is a
+  // reservation but no allocation / framework!
+  //
+  // TODO(bmahler): Turn this into a `hashmap<string, Role>` that
+  // also tracks a role if it has reservations.
   hashmap<std::string, hashset<FrameworkID>> roles;
 
   // Configured guaranteed resource quantities for each role, if any.
