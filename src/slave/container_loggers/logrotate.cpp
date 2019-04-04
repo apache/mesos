@@ -339,7 +339,7 @@ int main(int argc, char** argv)
   Try<LogrotateLoggerProcess*> process = LogrotateLoggerProcess::create(flags);
   if (process.isError()) {
     EXIT(EXIT_FAILURE)
-      << Error("Failed to create Logrotate process: " + process.error());
+      << "Failed to create Logrotate process: " << process.error();
   }
 
   spawn(process.get());
