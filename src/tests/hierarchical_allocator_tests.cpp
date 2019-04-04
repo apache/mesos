@@ -6186,6 +6186,83 @@ TEST_F(HierarchicalAllocatorTest, QuotaWithNestedRoleReservation)
   AWAIT_EXPECT_EQ(expected, allocations.get());
 }
 
+// This test ensures that nested role's allocation is accounted
+// to top-level role's consumed quota.
+TEST_F(HierarchicalAllocatorTest, QuotaWithNestedRoleAllocation)
+{
+  // Setup:
+  // agent1: R
+  // Roles:
+  //     "a"   --> guarantee with R w/ no framework
+  //     "a/b" --> has `framework1`, allocated R on agent1
+  //
+  // Test:
+  //   Add `framework2` under "a"
+  //   Add agent2 with R
+  // Ensure:
+  //   `agent2` is allocated to `framework1` under `a/b`, even though, role
+  // `a` and `framework2` have lower shares. This is because role `a` has
+  // reached its quota limit (due to its subrole's allocation). Also,
+  // currently, subrole's allocations are not constrained by top-level
+  // role's quota (though they are tracked post factum).
+  //
+  // TODO(mzhu): Once we finish support for hierarchical quota, no allocation
+  // should be made since "a/b" will also be bound by the quota of "a".
+
+  // --- SET UP ---
+
+  Clock::pause();
+
+  initialize();
+
+  const string PARENT_ROLE{"a"};
+  const string CHILD_ROLE{"a/b"};
+
+  // Add framework1 under the child role "a/b".
+  FrameworkInfo framework1 = createFrameworkInfo({CHILD_ROLE});
+  allocator->addFramework(framework1.id(), framework1, {}, true, {});
+
+  SlaveInfo agent1 = createSlaveInfo("cpus:1;mem:1024");
+  allocator->addSlave(
+      agent1.id(),
+      agent1,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent1.resources(),
+      {});
+
+  Allocation expected = Allocation(
+      framework1.id(), {{CHILD_ROLE, {{agent1.id(), agent1.resources()}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocations.get());
+
+  Quota quota = createQuota(PARENT_ROLE, "cpus:1;mem:1024");
+  allocator->setQuota(PARENT_ROLE, quota);
+
+  // --- TEST ---
+
+  // Add framework2 under the parent role "a".
+  FrameworkInfo framework2 = createFrameworkInfo({PARENT_ROLE});
+  allocator->addFramework(framework2.id(), framework2, {}, true, {});
+
+  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:1024");
+  allocator->addSlave(
+      agent2.id(),
+      agent2,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent2.resources(),
+      {});
+
+  // Process all events.
+  Clock::settle();
+
+  expected = Allocation(
+      framework1.id(), {{CHILD_ROLE, {{agent2.id(), agent2.resources()}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocations.get());
+}
+
 
 // This test ensures that quota headroom is calculated correctly
 // in the presence of subrole's allocations.
