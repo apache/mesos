@@ -95,6 +95,13 @@ canonical list is located on
     </tr>
     <tr>
       <td>+1</td>
+      <td>Andrei Budnik</td>
+      <td>Mesosphere</td>
+      <td></td>
+      <td>abudnik@apache.org</td>
+    </tr>
+    <tr>
+      <td>+1</td>
       <td>Benno Evers</td>
       <td>Mesosphere</td>
       <td></td>
