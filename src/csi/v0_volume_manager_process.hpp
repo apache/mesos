@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __CSI_VOLUME_MANAGER_PROCESS_HPP__
-#define __CSI_VOLUME_MANAGER_PROCESS_HPP__
+#ifndef __CSI_V0_VOLUME_MANAGER_PROCESS_HPP__
+#define __CSI_V0_VOLUME_MANAGER_PROCESS_HPP__
 
 #include <string>
 #include <vector>
@@ -215,4 +215,4 @@ private:
 } // namespace csi {
 } // namespace mesos {
 
-#endif // __CSI_VOLUME_MANAGER_PROCESS_HPP__
+#endif // __CSI_V0_VOLUME_MANAGER_PROCESS_HPP__
