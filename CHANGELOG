@@ -1,5 +1,5 @@
-Release Notes - Mesos - Version 1.8.0 (WIP)
--------------------------------------------
+Release Notes - Mesos - Version 1.8.0
+-------------------------------------
 This release contains the following highlights:
 
   * Performance Improvements:
@@ -12,6 +12,297 @@ This release contains the following highlights:
       resource quantities. Note that this feature currently requires that
       the scheduler re-subscribes each time it wants to mutate the
       minimum resource quantity offer filter information, see MESOS-7258.
+
+Unresolved Critical Issues:
+  * [MESOS-9697] Release RPMs are not uploaded to bintray
+  * [MESOS-9672] Docker containerizer should ignore pids of executors that do not pass the connection check.
+  * [MESOS-9667] Check failure when executor for task using resource provider resources subscribes before agent is registered
+  * [MESOS-9654] `PUBLISH_RESOURCES` should fail if the resource version changes.
+  * [MESOS-9619] Mesos Master Crashes with Launch Group when using Port Resources
+  * [MESOS-9616] `Filters.refuse_seconds` declines resources not in offers.
+  * [MESOS-9609] Master check failure when marking agent unreachable
+  * [MESOS-9579] ExecutorHttpApiTest.HeartbeatCalls is flaky.
+  * [MESOS-9560] ContentType/AgentAPITest.MarkResourceProviderGone/1 is flaky
+  * [MESOS-9536] Nested container launched with non-root user may not be able to write to its sandbox via the environment variable
+  * [MESOS-9520] IOTest.Read hangs on Windows
+  * [MESOS-9500] spark submit with docker image on mesos cluster fails.
+  * [MESOS-9426] ZK master detection can become forever pending.
+  * [MESOS-9393] Fetcher crashes extracting archives with non-ASCII filenames.
+  * [MESOS-9365] Windows - GET_CONTAINERS API call causes the Mesos agent to fail
+  * [MESOS-9355] Persistence volume does not unmount correctly with wrong artifact URI
+  * [MESOS-9352] Data in persistent volume deleted accidentally when using Docker container and Persistent volume
+  * [MESOS-9306] Mesos containerizer can get stuck during cgroup cleanup
+  * [MESOS-9180] tasks get stuck in TASK_KILLING on the default executor
+  * [MESOS-9053] Network ports isolator can falsely trigger while destroying containers.
+  * [MESOS-9006] The agent's GET_AGENT leaks resource information when using authorization
+  * [MESOS-8946] CURL 7.58 causes Mesos to fail decoding raw responses.
+  * [MESOS-8840] `cpu.cfs_quota_us` may be accidentally set for command task using docker during agent recovery.
+  * [MESOS-8803] Libprocess deadlocks in a test.
+  * [MESOS-8769] Agent crashes when CNI config not defined
+  * [MESOS-8679] If the first KILL stuck in the default executor, all other KILLs will be ignored.
+  * [MESOS-8608] RmdirContinueOnErrorTest.RemoveWithContinueOnError fails.
+  * [MESOS-8467] Destroyed executors might be used after `Slave::publishResource()`.
+  * [MESOS-8257] Unified Containerizer "leaks" a target container mount path to the host FS when the target resolves to an absolute path
+  * [MESOS-8256] Libprocess can silently deadlock due to worker thread exhaustion.
+  * [MESOS-8096] Enqueueing events in MockHTTPScheduler can lead to segfaults.
+  * [MESOS-8038] Launching GPU task sporadically fails.
+  * [MESOS-7971] PersistentVolumeEndpointsTest.EndpointCreateThenOfferRemove test is flaky
+  * [MESOS-7911] Non-checkpointing framework's tasks should not be marked LOST when agent disconnects.
+  * [MESOS-7748] Slow subscribers of streaming APIs can lead to Mesos OOMing.
+  * [MESOS-7721] Master's agent removal rate limit also applies to agent unreachability.
+  * [MESOS-7566] Master crash due to failed check in DRFSorter::remove
+  * [MESOS-7386] Executor not cleaning up existing running docker containers if external logrotate/logger processes die/killed
+  * [MESOS-5989] Libevent SSL Socket downgrade code accesses uninitialized memory / assumes single peek is sufficient.
+  * [MESOS-5754] CommandInfo.user not honored in docker containerizer
+  * [MESOS-2842] Master crashes when framework changes principal on re-registration
+
+All Resolved Issues:
+** Bug
+  * [MESOS-5048] - MesosContainerizerSlaveRecoveryTest.ResourceStatistics is flaky
+  * [MESOS-5189] - SSLTest.ProtocolMismatch is slow
+  * [MESOS-6874] - Agent silently ignores FS isolation when protobuf is malformed
+  * [MESOS-6949] - SchedulerTest.MasterFailover is flaky
+  * [MESOS-6990] - PartitionTest.TaskCompletedOnPartitionedAgent is flaky.
+  * [MESOS-7042] - Send SIGKILL after SIGTERM to IOSwitchboard after container termination.
+  * [MESOS-7076] - libprocess tests fail when using libevent 2.1.8
+  * [MESOS-7474] - Mesos fetcher cache doesn't retry when missed.
+  * [MESOS-7564] - Introduce a heartbeat mechanism for v1 HTTP executor <-> agent communication.
+  * [MESOS-7883] - Quota heuristic check not accounting for mount volumes
+  * [MESOS-8156] - Add a socketpair helper to the stout net API
+  * [MESOS-8343] - SchedulerHttpApiTest.UpdatePidToHttpScheduler is flaky.
+  * [MESOS-8470] - CHECK failure in DRFSorter due to invalid framework id.
+  * [MESOS-8545] - AgentAPIStreamingTest.AttachInputToNestedContainerSession is flaky.
+  * [MESOS-8547] - Mount devpts with compatible defaults.
+  * [MESOS-8568] - Command checks should always call `WAIT_NESTED_CONTAINER` before `REMOVE_NESTED_CONTAINER`
+  * [MESOS-8782] - Transition operations to OPERATION_GONE_BY_OPERATOR when marking an agent gone.
+  * [MESOS-8783] - Transition pending operations to OPERATION_UNREACHABLE when an agent is removed.
+  * [MESOS-8797] - Check failed in the default executor while running `MesosContainerizer/DefaultExecutorTest.TaskUsesExecutor/0` test.
+  * [MESOS-8835] - mesos-tests takes a long time to execute no tests
+  * [MESOS-8872] - OperationReconciliationTest.AgentPendingOperationAfterMasterFailover is flaky.
+  * [MESOS-8887] - Unreachable tasks are not GC'ed when unreachable agent is GC'ed.
+  * [MESOS-8907] - Docker image fetcher fails with HTTP/2.
+  * [MESOS-8978] - Command executor calling setsid breaks the tty support.
+  * [MESOS-9056] - mesos-style.py messaging is poor
+  * [MESOS-9074] - Pylint is too noisy when using mesos-style.py
+  * [MESOS-9079] - Test MasterTestPrePostReservationRefinement.LaunchGroup is flaky.
+  * [MESOS-9089] - Test `PartitionTest.PartitionAwareTaskCompletedOnPartitionedAgent` is flaky.
+  * [MESOS-9112] - mesos-style reports violations on a clean checkout
+  * [MESOS-9124] - Agent reconfiguration can cause master to REVIVE on scheduler's behalf
+  * [MESOS-9130] - Test `StorageLocalResourceProviderTest.ROOT_ContainerTerminationMetric` is flaky.
+  * [MESOS-9131] - Health checks launching nested containers while a container is being destroyed lead to unkillable tasks.
+  * [MESOS-9143] - MasterQuotaTest.RemoveSingleQuota is flaky.
+  * [MESOS-9168] - Libprocess' http client does not encode the outgoing query.
+  * [MESOS-9172] - Fetcher deadlock with duplicated URIs.
+  * [MESOS-9179] - ./support/python3/mesos-gtest-runner.py --help crashes
+  * [MESOS-9186] - Failed to build Mesos with Python 3.7 and new CLI enabled
+  * [MESOS-9187] - Add allocator benchmark to allow multiple framework/agent profiles.
+  * [MESOS-9190] - Test `StorageLocalResourceProviderTest.ROOT_CreateDestroyDiskRecovery` is flaky.
+  * [MESOS-9193] - Mesos build fail with Clang 3.5.
+  * [MESOS-9210] - Mesos v1 scheduler library does not properly handle SUBSCRIBE retries
+  * [MESOS-9212] - Disable SIGCHLD handling in libev.
+  * [MESOS-9214] - Stout.FsTest.Used fails on macOS
+  * [MESOS-9217] - LongLivedDefaultExecutorRestart is flaky.
+  * [MESOS-9222] - Linking libevent should be avoided.
+  * [MESOS-9225] - Github's mesos/modules does not build.
+  * [MESOS-9228] - SLRP does not clean up plugin containers after it is removed.
+  * [MESOS-9231] - `docker inspect` may return an unexpected result to Docker executor due to a race condition.
+  * [MESOS-9232] - verify-reviews.py broken after enabling python3 support scripts
+  * [MESOS-9240] - CSI protobuf build fails when dependency tracking is disabled.
+  * [MESOS-9253] - Reviewbot is failing when posting a review
+  * [MESOS-9266] - Whenever our packaging tasks trigger errors we run into permission problems.
+  * [MESOS-9274] - v1 JAVA scheduler library can drop TEARDOWN upon destruction.
+  * [MESOS-9279] - Docker Containerizer 'usage' call might be expensive if mount table is big.
+  * [MESOS-9281] - SLRP gets a stale checkpoint after system crash.
+  * [MESOS-9283] - Docker containerizer actor can get backlogged with large number of containers.
+  * [MESOS-9293] - If a framework looses operation information it cannot reconcile to acknowledge updates.
+  * [MESOS-9295] - Nested container launch could fail if the agent upgrade with new cgroup subsystems.
+  * [MESOS-9300] - XFS isolator can mislabel project IDs on persistence volumes.
+  * [MESOS-9302] - Mesos fails to build on Fedora 28
+  * [MESOS-9308] - URI disk profile adaptor could deadlock.
+  * [MESOS-9316] - FsTest.Used is flaky
+  * [MESOS-9317] - Some master endpoints do not handle failed authorization properly.
+  * [MESOS-9319] - Move root filesystem creation to the `filesystem/linux` isolator.
+  * [MESOS-9324] - Resource fragmentation: frameworks may be starved of port resources in the presence of large number frameworks with quota.
+  * [MESOS-9331] - Some library functions ignore failures from ::close which should probably be handled.
+  * [MESOS-9334] - Container stuck at ISOLATING state due to libevent poll never returns.
+  * [MESOS-9350] - CLI build step is broken with CMake due to missing file.
+  * [MESOS-9354] - Automatically remount read-only bind mounts.
+  * [MESOS-9357] - FetcherTest.DuplicateFileURI fails on macos
+  * [MESOS-9358] - Test `SlaveRecoveryTest.AgentReconfigurationWithRunningTask` is flaky.
+  * [MESOS-9362] - Test `CgroupsIsolatorTest.ROOT_CGROUPS_CreateRecursively` is flaky.
+  * [MESOS-9366] - Test `HealthCheckTest.HealthyTaskNonShell` can hang.
+  * [MESOS-9367] - GetContainers call crashes when using XFS disk isolation.
+  * [MESOS-9370] - Unable to build new Mesos CLI with PyInstaller and Python 3.7.
+  * [MESOS-9382] - mesos-gtest-runner doesn't work on systems without ulimit binary
+  * [MESOS-9390] - Warnings in AdaptedOperation prevent clang build
+  * [MESOS-9397] - PosixRLimitsIsolatorTest.UnsetLimits is broken on macOS 10.14.2 beta3.
+  * [MESOS-9398] - post-reviews.py fails to update an existing chain.
+  * [MESOS-9411] - Validation of JWT tokens using HS256 hashing algorithm is not thread safe.
+  * [MESOS-9417] - User mesosphere made lots of incorrect ticket updates
+  * [MESOS-9418] - Add support for the `Discard` blkio operation type.
+  * [MESOS-9419] - Executor to framework message crashes master if framework has not re-registered.
+  * [MESOS-9434] - Completed framework update streams may retry forever
+  * [MESOS-9459] - Reviewbot is not verifying reviews that need verification
+  * [MESOS-9462] - Devices in a container are inaccessible due to `nodev` on `/var/run`.
+  * [MESOS-9469] - Mesos does not validate framework-supplied FrameworkIDs
+  * [MESOS-9474] - Master does not respect authorization result for `CREATE_DISK` and `DESTROY_DISK`.
+  * [MESOS-9479] - SLRP does not set RP ID in produced OperationStatus.
+  * [MESOS-9480] - Master may skip processing authorization results for `LAUNCH_GROUP`.
+  * [MESOS-9492] - Persist CNI working directory across reboot.
+  * [MESOS-9495] - Test `MasterTest.CreateVolumesV1AuthorizationFailure` is flaky.
+  * [MESOS-9501] - Mesos executor fails to terminate and gets stuck after agent host reboot.
+  * [MESOS-9502] - IOswitchboard cleanup could get stuck due to FD leak from a race.
+  * [MESOS-9505] - `make check` failed with linking errors when c-ares is installed.
+  * [MESOS-9507] - Agent could not recover due to empty docker volume checkpointed files.
+  * [MESOS-9508] - Official 1.7.0 tarball can't be built on Ubuntu 16.04 LTS.
+  * [MESOS-9514] - Reviewboard bot fails on verify-reviews.py.
+  * [MESOS-9517] - SLRP should treat gRPC timeouts as non-terminal errors, instead of reporting OPERATION_FAILED.
+  * [MESOS-9518] - CNI_NETNS should not be set for orphan containers that do not have network namespace.
+  * [MESOS-9519] - Unable to build Mesos with CMake on Ubuntu 14.04.
+  * [MESOS-9521] - MasterAPITest.OperationUpdatesUponAgentGone is flaky
+  * [MESOS-9529] - `/proc` should be remounted even if a nested container set `share_pid_namespace` to true
+  * [MESOS-9531] - chown error handling is incorrect in createSandboxDirectory.
+  * [MESOS-9532] - ResourceOffersTest.ResourceOfferWithMultipleSlaves is flaky.
+  * [MESOS-9533] - CniIsolatorTest.ROOT_CleanupAfterReboot is flaky.
+  * [MESOS-9537] - SLRP sends inconsistent status updates for dropped operations.
+  * [MESOS-9542] - Hierarchical allocator check failure when an operation on a shutdown framework finishes
+  * [MESOS-9544] - SLRP does not clean up destroyed persistent volumes.
+  * [MESOS-9549] - nvidia/cuda 10 does not work on GPU isolator.
+  * [MESOS-9554] - Allocator might skip allocations because a single framework is incapable of receiving certain resources.
+  * [MESOS-9555] - Allocator CHECK failure: reservationScalarQuantities.contains(role).
+  * [MESOS-9557] - Operations are leaked in Framework struct when agents are removed
+  * [MESOS-9559] - OPERATION_UNREACHABLE and OPERATION_GONE_BY_OPERATOR updates don't include the agent/RP IDs
+  * [MESOS-9564] - Logrotate container logger lets tasks execute arbitrary commands in the Mesos agent's namespace
+  * [MESOS-9568] - SLRP does not clean up mount directories for destroyed MOUNT disks.
+  * [MESOS-9573] - Agent should not try to recover operation status update streams that haven't been created yet.
+  * [MESOS-9574] - Operation status update streams are not properly garbage collected.
+  * [MESOS-9582] - Reviewbot jenkins jobs stops validating any reviews as soon as it sees a patch which does not apply
+  * [MESOS-9590] - Mesos CI sometimes, incorrectly, overwrites already-pushed mesos master nightly images with new images built from non-master branches.
+  * [MESOS-9592] - Mesos Websitebot is flaky
+  * [MESOS-9597] - Status update streams for operations affecting agent default resources should be stored under "meta/slaves/<slave_id>/operations/"
+  * [MESOS-9605] - mesos/mesos-centos nightly docker image has to include the SHA of the build.
+  * [MESOS-9607] - Removing a resource provider with consumers breaks resource publishing.
+  * [MESOS-9610] - Fetcher vulnerability - escaping from sandbox
+  * [MESOS-9612] - Resource provider manager assumes all operations are triggered by frameworks
+  * [MESOS-9621] - Mesos failed to build due to error LNK2019 on Windows using MSVC.
+  * [MESOS-9629] - Pylint reports cyclic dependencies in cli_new
+  * [MESOS-9635] - OperationReconciliationTest.AgentPendingOperationAfterMasterFailover is flaky again (3x) due to orphan operations
+  * [MESOS-9637] - Impossible to CREATE a volume on resource provider resources over the operator API
+  * [MESOS-9661] - Agent crashes when SLRP recovers dropped operations.
+  * [MESOS-9688] - Quota is not enforced properly when subroles have reservations.
+  * [MESOS-9691] - Quota headroom calculation is off when subroles are involved.
+  * [MESOS-9692] - Quota may be under allocated for disk resources.
+  * [MESOS-9696] - Test MasterQuotaTest.AvailableResourcesSingleDisconnectedAgent is flaky
+
+** Epic
+  * [MESOS-8054] - Feedback for operations
+  * [MESOS-8345] - Improve master responsiveness while serving state information.
+  * [MESOS-9029] - Seccomp syscall filtering in Mesos containerizer
+  * [MESOS-9211] - Make the new Mesos CLI production ready
+
+** Story
+  * [MESOS-907] - Add Kerberos Authentication support
+
+** Improvement
+  * [MESOS-4036] - Install instructions for CentOS 6.6 lead to errors running `perf`.
+  * [MESOS-4599] - ReviewBot should re-verify a review chain if any of the reviews is updated
+  * [MESOS-5158] - Provide XFS quota support for persistent volumes.
+  * [MESOS-6765] - Make the Resources wrapper "copy-on-write" to improve performance.
+  * [MESOS-6934] - Support pulling Docker images with V2 Schema 2 image manifest
+  * [MESOS-7124] - Replace monadic type get() functions with operator*
+  * [MESOS-7947] - Add GC capability to nested containers
+  * [MESOS-8025] - Update the master field in the new CLI config to accept a URL instead of an <ip:port>
+  * [MESOS-8206] - Add the pip-requirements from other modules to the pylint virtual environment
+  * [MESOS-8380] - Update WebUI to show local resource providers.
+  * [MESOS-8403] - Add agent HTTP API operator call to mark local resource providers as gone
+  * [MESOS-8880] - Add minimum capabilities in the master.
+  * [MESOS-8999] - Add default bodies for libprocess HTTP error responses.
+  * [MESOS-9133] - Make the range of ports protected by the network/ports isolator configurable.
+  * [MESOS-9158] - Parallel serving of state-related read-only requests in the Master.
+  * [MESOS-9194] - Extend request batching to '/roles' endpoint
+  * [MESOS-9223] - Storage local provider does not sufficiently handle container launch failures or errors
+  * [MESOS-9224] - De-duplicate read-only requests to master based on principal.
+  * [MESOS-9239] - Improve sorting performance in the DRF sorter.
+  * [MESOS-9249] - Avoid dirtying the DRF sorter when allocating resources.
+  * [MESOS-9255] - Use consistent "totals" across role / framework DRF.
+  * [MESOS-9258] - Prevent subscribers to the master's event stream from leaking connections
+  * [MESOS-9275] - Allow optional `profile` to be specified in `CREATE_DISK` offer operation.
+  * [MESOS-9292] - Rejected quotas request error messages should specify which resources were overcommitted.
+  * [MESOS-9301] - Add flag to disable per-framework metrics.
+  * [MESOS-9305] - Create cgoup recursively to workaround systemd deleting cgroups_root.
+  * [MESOS-9315] - Adding support for implicit allocation of mandatory custom resources in Mesos
+  * [MESOS-9321] - Add an optional `vendor` field in `Resource.DiskInfo.Source`.
+  * [MESOS-9340] - Log all socket errors in libprocess.
+  * [MESOS-9384] - Resource providers reported by master should reflect connected resource providers
+  * [MESOS-9406] - Allow for optionally unbundled leveldb from CMake builds.
+  * [MESOS-9486] - Set up `object.value` for `CREATE_DISK` and `DESTROY_DISK` authorizations.
+  * [MESOS-9504] - Use ResourceQuantities in the allocator and sorter to improve performance.
+  * [MESOS-9510] - Disallowed nan, inf and so on in `Value::Scalar`.
+  * [MESOS-9516] - Extend `min_allocatable_resources` flag to cover non-scalar resources.
+  * [MESOS-9523] - Add per-framework allocatable resources matcher/filter.
+  * [MESOS-9540] - Support `DESTROY_DISK` on preprovisioned CSI volumes.
+  * [MESOS-9608] - Refactor and Improve `class ResourceQuantity`.
+  * [MESOS-9613] - Support seccomp `unconfined` option for whitelisting.
+  * [MESOS-9628] - Consider running tox as part of test suite, not as part of style checking
+  * [MESOS-9642] - Avoid reading host mount table when allocating a gid in GIDManager.
+  * [MESOS-9643] - Make setting volume ownership asynchronous in volume gid manager
+  * [MESOS-9655] - Improving SLRP tests for preprovisioned volumes.
+
+** Task
+  * [MESOS-4509] - Remove deprecated .json endpoints.
+  * [MESOS-5827] - Add example framework for using inverse offers
+  * [MESOS-6551] - Add attach/exec commands to the Mesos CLI
+  * [MESOS-6630] - Add some benchmark test for quota allocation
+  * [MESOS-6840] - Tests for quota capacity heuristic.
+  * [MESOS-8241] - Add metrics for offer operation feedback
+  * [MESOS-8528] - Design Doc for Storage External Resource Provider (SERP) support.
+  * [MESOS-8770] - Use Python3 for Mesos support scripts
+  * [MESOS-8810] - Grant non-root task user the permissions to access the SANDBOX_PATH volume of PARENT type
+  * [MESOS-8813] - Support multiple tasks with different users can access a persistent volume.
+  * [MESOS-8957] - Install Python 3 on Mesos CI instances
+  * [MESOS-8975] - Problem and solution overview for the slow API issue.
+  * [MESOS-9009] - Support for creation non-existing host paths in a whitelist as source paths
+  * [MESOS-9032] - Update build scripts to support `seccomp-isolator` flag and `libseccomp` library
+  * [MESOS-9033] - Add Seccomp-related protobufs
+  * [MESOS-9034] - Implement a wrapper class for `libseccomp` API
+  * [MESOS-9035] - Implement `linux/seccomp` isolator
+  * [MESOS-9099] - Add allocator quota tests regarding reserve/unreserve already allocated resources.
+  * [MESOS-9105] - Implement Docker Seccomp profile parser.
+  * [MESOS-9106] - Add seccomp filter into containerizer launcher.
+  * [MESOS-9229] - Install Python3 on ubuntu-16.04-arm docker image
+  * [MESOS-9265] - Analyse and pinpoint libprocess SSL failures when using libevent 2.1.8.
+  * [MESOS-9270] - Get rid of dependency on `net-tools` in network/cni isolator.
+  * [MESOS-9278] - Add an operation status update manager to the agent
+  * [MESOS-9318] - Consider providing better operation status updates while an RP is recovering
+  * [MESOS-9333] - Document usage and build of new Mesos CLI
+  * [MESOS-9356] - Make agent atomically checkpoint operations and resources
+  * [MESOS-9392] - Implement tests for Seccomp parser
+  * [MESOS-9396] - Use the built CLI binary when running new CLI integration tests in CI
+  * [MESOS-9399] - Update 'mesos task list' to only list running tasks
+  * [MESOS-9409] - Implement Seccomp isolator tests
+  * [MESOS-9471] - Master should track operations on agent default resources.
+  * [MESOS-9472] - Unblock operation feedback on agent default resources.
+  * [MESOS-9473] - Add end to end tests for operations on agent default resources.
+  * [MESOS-9477] - Documentation for operation feedback
+  * [MESOS-9525] - Agent capability for operation feedback on default resources
+  * [MESOS-9535] - Master should clean up operations from downgraded agents
+  * [MESOS-9538] - Agent `ReconcileOperations` handler should handle operation affecting default resources
+  * [MESOS-9578] - Document per framework minimal allocatable resources in framework development guides
+  * [MESOS-9596] - Add a new `UPDATE_QUOTA` operator call.
+  * [MESOS-9604] - Clean up `QuotaRequest` and `QuotaInfo`.
+  * [MESOS-9615] - Example framework for feedback on agent default resources
+  * [MESOS-9620] - Add metrics for volume gid manager
+  * [MESOS-9622] - Refactor SLRP with a CSI volume manager.
+  * [MESOS-9625] - Make `DiskProfileAdaptor` agnostic to CSI spec version.
+  * [MESOS-9632] - Refactor SLRP with a CSI service manager.
+  * [MESOS-9639] - Make CSI plugin RPC metrics agnostic to CSI versions.
+  * [MESOS-9648] - Make operation reconciliation send asynchronous updates
+  * [MESOS-9651] - Design for docker registry v2 schema2 basic support.
+  * [MESOS-9676] - Add prettyjws support for docker v2 s1 manifest.
+  * [MESOS-9694] - Refactor UCR docker store to construct 'Image' protobuf at Puller.
+
+** Documentation
+  * [MESOS-9036] - Document `linux/seccomp` isolator
 
 
 Release Notes - Mesos - Version 1.7.3 (WIP)
