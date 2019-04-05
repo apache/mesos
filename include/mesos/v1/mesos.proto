@@ -3221,7 +3221,9 @@ message SeccompInfo {
   // If not set or set to `false`, the container is launched with
   // the profile specified in the `profile_name` field.
   //
-  // NOTE: `profile_name` should not be specified if `unconfined` set to `true`.
+  // NOTE: `profile_name` must not be specified if `unconfined` set to `true`.
+  // `profile_name` must be specified if `unconfined` is not set or
+  // is set to `false`.
   optional bool unconfined = 2;
 }
 
@@ -3251,6 +3253,7 @@ message LinuxInfo {
   optional bool share_pid_namespace = 4;
 
   // Represents Seccomp configuration, which is used for syscall filtering.
+  // This field is used to override the agent's default Seccomp configuration.
   optional SeccompInfo seccomp = 5;
 }
 
