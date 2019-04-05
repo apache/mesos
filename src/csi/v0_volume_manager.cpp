@@ -326,7 +326,7 @@ Future<VolumeInfo> VolumeManagerProcess::createVolume(
       volumeState.set_state(VolumeState::CREATED);
       *volumeState.mutable_volume_capability() = capability;
       *volumeState.mutable_parameters() = parameters;
-      *volumeState.mutable_volume_attributes() = response.volume().attributes();
+      *volumeState.mutable_volume_context() = response.volume().attributes();
 
       volumes.put(volumeId, std::move(volumeState));
       checkpointVolumeState(volumeId);
@@ -397,7 +397,7 @@ Future<Option<Error>> VolumeManagerProcess::validateVolume(
       volumeState.set_state(VolumeState::CREATED);
       *volumeState.mutable_volume_capability() = capability;
       *volumeState.mutable_parameters() = parameters;
-      *volumeState.mutable_volume_attributes() = volumeInfo.context;
+      *volumeState.mutable_volume_context() = volumeInfo.context;
 
       volumes.put(volumeInfo.id, std::move(volumeState));
       checkpointVolumeState(volumeInfo.id);
@@ -820,7 +820,7 @@ Future<Nothing> VolumeManagerProcess::_attachVolume(const string& volumeId)
   *request.mutable_volume_capability() =
     evolve(volumeState.volume_capability());
   request.set_readonly(false);
-  *request.mutable_volume_attributes() = volumeState.volume_attributes();
+  *request.mutable_volume_attributes() = volumeState.volume_context();
 
   return call(
       CONTROLLER_SERVICE, &Client::controllerPublishVolume, std::move(request))
@@ -829,7 +829,7 @@ Future<Nothing> VolumeManagerProcess::_attachVolume(const string& volumeId)
       CHECK(volumes.contains(volumeId));
       VolumeState& volumeState = volumes.at(volumeId).state;
       volumeState.set_state(VolumeState::NODE_READY);
-      *volumeState.mutable_publish_info() = response.publish_info();
+      *volumeState.mutable_publish_context() = response.publish_info();
 
       checkpointVolumeState(volumeId);
 
@@ -886,7 +886,7 @@ Future<Nothing> VolumeManagerProcess::_detachVolume(const string& volumeId)
       CHECK(volumes.contains(volumeId));
       VolumeState& volumeState = volumes.at(volumeId).state;
       volumeState.set_state(VolumeState::CREATED);
-      volumeState.mutable_publish_info()->clear();
+      volumeState.mutable_publish_context()->clear();
 
       checkpointVolumeState(volumeId);
 
@@ -943,12 +943,12 @@ Future<Nothing> VolumeManagerProcess::_publishVolume(const string& volumeId)
 
   NodePublishVolumeRequest request;
   request.set_volume_id(volumeId);
-  *request.mutable_publish_info() = volumeState.publish_info();
+  *request.mutable_publish_info() = volumeState.publish_context();
   request.set_target_path(targetPath);
   *request.mutable_volume_capability() =
     evolve(volumeState.volume_capability());
   request.set_readonly(false);
-  *request.mutable_volume_attributes() = volumeState.volume_attributes();
+  *request.mutable_volume_attributes() = volumeState.volume_context();
 
   if (nodeCapabilities->stageUnstageVolume) {
     const string stagingPath = paths::getMountStagingPath(
@@ -1033,11 +1033,11 @@ Future<Nothing> VolumeManagerProcess::__publishVolume(const string& volumeId)
 
   NodeStageVolumeRequest request;
   request.set_volume_id(volumeId);
-  *request.mutable_publish_info() = volumeState.publish_info();
+  *request.mutable_publish_info() = volumeState.publish_context();
   request.set_staging_target_path(stagingPath);
   *request.mutable_volume_capability() =
     evolve(volumeState.volume_capability());
-  *request.mutable_volume_attributes() = volumeState.volume_attributes();
+  *request.mutable_volume_attributes() = volumeState.volume_context();
 
   return call(NODE_SERVICE, &Client::nodeStageVolume, std::move(request))
     .then(process::defer(self(), [this, volumeId] {
