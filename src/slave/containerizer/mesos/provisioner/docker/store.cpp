@@ -390,7 +390,7 @@ Future<Image> StoreProcess::moveLayers(
   }
 
   return collect(futures)
-    .then([=]() -> Future<Image> {
+    .then(defer(self(), [=]() -> Future<Image> {
       if (image.has_config_digest()) {
         const string configSource = path::join(staging, image.config_digest());
         const string configTarget = paths::getImageLayerPath(
@@ -408,7 +408,7 @@ Future<Image> StoreProcess::moveLayers(
       }
 
       return image;
-    });
+    }));
 }
 
 
