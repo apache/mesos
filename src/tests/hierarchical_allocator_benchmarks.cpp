@@ -502,6 +502,8 @@ struct QuotaParam
       largeQuotaRoleCount(_largeQuotaRoleCount),
       frameworksPerRole(_frameworksPerRole) {}
 
+  QuotaParam() = default;
+
   // `smallQuotaRole` will have a resource quota of 1/5 an agent, this will
   // lead to agent chopping.
   //
@@ -514,17 +516,17 @@ struct QuotaParam
   //
   // TODO(mzhu): Consider adding another parameter to control the chopping.
 
-  const size_t smallQuotaRoleCount;
-  const size_t largeQuotaRoleCount;
+  size_t smallQuotaRoleCount;
+  size_t largeQuotaRoleCount;
 
   // Number of frameworks per role.
-  const size_t frameworksPerRole;
+  size_t frameworksPerRole;
 };
 
 
 class BENCHMARK_HierarchicalAllocator_WithQuotaParam
   : public HierarchicalAllocations_BenchmarkBase,
-    public WithParamInterface<QuotaParam> {};
+    public WithParamInterface<std::tuple<const char*, QuotaParam>> {};
 
 
 // Since the quota performance is mostly decided by number of agents and
@@ -532,10 +534,12 @@ class BENCHMARK_HierarchicalAllocator_WithQuotaParam
 INSTANTIATE_TEST_CASE_P(
     QuotaParam,
     BENCHMARK_HierarchicalAllocator_WithQuotaParam,
-    ::testing::Values(
-        QuotaParam(25U, 5U, 1U), // 30 agents in total
-        QuotaParam(250U, 50U, 1U), // 300 agents in total
-        QuotaParam(2500U, 500U, 1U))); // 3000 agents in total
+    ::testing::Combine(
+        ::testing::Values("drf", "random"),
+        ::testing::Values(
+            QuotaParam(25U, 5U, 1U), // 30 agents in total
+            QuotaParam(250U, 50U, 1U), // 300 agents in total
+            QuotaParam(2500U, 500U, 1U)))); // 3000 agents in total
 
 
 // This benchmark evaluates the allocator performance in the presence of
@@ -554,37 +558,41 @@ TEST_P(BENCHMARK_HierarchicalAllocator_WithQuotaParam, LargeAndSmallQuota)
   const string smallQuotaResourcesString = "cpus:1;mem:1024;disk:1024";
   const string largeQuotaResourcesString = "cpus:4;mem:4096;disk:4096";
 
-  BenchmarkConfig config;
+  const string& sorter = std::get<0>(GetParam());
+
+  BenchmarkConfig config{master::DEFAULT_ALLOCATOR, sorter, sorter};
+
+  const QuotaParam& quotaParam = std::get<1>(GetParam());
 
   // Store roles for setting up quota later (after allocator is initialized).
   vector<string> smallQuotaRoles;
 
   // Add framework profiles for `smallQuotaRole`.
-  for (size_t i = 0; i < GetParam().smallQuotaRoleCount; i++) {
+  for (size_t i = 0; i < quotaParam.smallQuotaRoleCount; i++) {
     string role("smallQuotaRole" + stringify(i));
     smallQuotaRoles.push_back(role);
     config.frameworkProfiles.push_back(FrameworkProfile(
         "framework_small_" + stringify(i),
         {role},
-        GetParam().frameworksPerRole));
+        quotaParam.frameworksPerRole));
   }
 
   // Store roles for setting up quota later (after allocator is initialized).
   vector<string> largeQuotaRoles;
 
   // Add framework profiles for `largeQuotaRole`.
-  for (size_t i = 0; i < GetParam().largeQuotaRoleCount; i++) {
+  for (size_t i = 0; i < quotaParam.largeQuotaRoleCount; i++) {
     string role("largeQuotaRole" + stringify(i));
     largeQuotaRoles.push_back(role);
     config.frameworkProfiles.push_back(FrameworkProfile(
         "framework_large_" + stringify(i),
         {role},
-        GetParam().frameworksPerRole));
+        quotaParam.frameworksPerRole));
   }
 
   // See comment above in `QuotaParam` regarding how we decide agent counts.
   size_t agentCount =
-    GetParam().smallQuotaRoleCount / 5 + GetParam().largeQuotaRoleCount * 5;
+    quotaParam.smallQuotaRoleCount / 5 + quotaParam.largeQuotaRoleCount * 5;
 
   // Add agent profiles.
   config.agentProfiles.push_back(AgentProfile(
@@ -595,11 +603,11 @@ TEST_P(BENCHMARK_HierarchicalAllocator_WithQuotaParam, LargeAndSmallQuota)
   initializeCluster(config);
 
   size_t totalRoleCount =
-    GetParam().smallQuotaRoleCount + GetParam().largeQuotaRoleCount;
+    quotaParam.smallQuotaRoleCount + quotaParam.largeQuotaRoleCount;
 
   cout << "Benchmark setup: " << agentCount << " agents, " << totalRoleCount
-       << " roles, " << totalRoleCount * GetParam().frameworksPerRole
-       << " frameworks" << endl;
+       << " roles, " << totalRoleCount * quotaParam.frameworksPerRole
+       << " frameworks, with " << sorter << " sorter" << endl;
 
   // Pause the allocator here to prevent any event-driven allocations while
   // setting up the quota (while setting quota currently does not lead to
@@ -664,28 +672,32 @@ struct NonQuotaVsQuotaParam
       frameworksPerRole(_frameworksPerRole),
       setQuota(_setQuota) {}
 
-  const size_t roleCount;
+  NonQuotaVsQuotaParam() = default;
+
+  size_t roleCount;
 
   // This determines the number of agents needed to satisfy a role's quota.
   // And total number of agents in the cluster will be
   // roleCount * agentsPerRole.
-  const size_t agentsPerRole;
+  size_t agentsPerRole;
 
-  const size_t frameworksPerRole;
+  size_t frameworksPerRole;
 
-  const bool setQuota;
+  bool setQuota;
 };
 
 
 class BENCHMARK_HierarchicalAllocator_WithNonQuotaVsQuotaParam
   : public HierarchicalAllocations_BenchmarkBase,
-    public WithParamInterface<NonQuotaVsQuotaParam> {};
+    public WithParamInterface<std::tuple<const char*, NonQuotaVsQuotaParam>> {};
 
 
 INSTANTIATE_TEST_CASE_P(
     NonQuotaVsQuotaParam,
     BENCHMARK_HierarchicalAllocator_WithNonQuotaVsQuotaParam,
-    ::testing::Values(
+    ::testing::Combine(
+      ::testing::Values("drf", "random"),
+      ::testing::Values(
         // 10 roles, 10*2 = 20 agents, 10*2 = 20 frameworks,
         // without and with quota.
         NonQuotaVsQuotaParam(10U, 2U, 2U, false),
@@ -697,7 +709,7 @@ INSTANTIATE_TEST_CASE_P(
         // 1000 roles, 1000*2 = 2000 agents, 1000*2 = 2000 frameworks.
         // without and with quota.
         NonQuotaVsQuotaParam(1000U, 2U, 2U, false),
-        NonQuotaVsQuotaParam(1000U, 2U, 2U, true)));
+        NonQuotaVsQuotaParam(1000U, 2U, 2U, true))));
 
 
 // This benchmark evaluates the performance difference between nonquota
@@ -717,19 +729,23 @@ TEST_P(
 
   const string agentResourcesString = "cpus:2;mem:2048;disk:2048";
 
-  BenchmarkConfig config;
+  const string& sorter = std::get<0>(GetParam());
+
+  BenchmarkConfig config{master::DEFAULT_ALLOCATOR, sorter, sorter};
+
+  const NonQuotaVsQuotaParam& quotaParam = std::get<1>(GetParam());
 
   // Store roles for setting up quota later if needed.
   vector<string> roles;
 
-  for (size_t i = 0; i < GetParam().roleCount; i++) {
+  for (size_t i = 0; i < quotaParam.roleCount; i++) {
     string role("role" + stringify(i));
     roles.push_back(role);
     config.frameworkProfiles.push_back(FrameworkProfile(
-        "framework_" + stringify(i), {role}, GetParam().frameworksPerRole));
+        "framework_" + stringify(i), {role}, quotaParam.frameworksPerRole));
   }
 
-  size_t agentCount = GetParam().roleCount * GetParam().agentsPerRole;
+  size_t agentCount = quotaParam.roleCount * quotaParam.agentsPerRole;
 
   // Add agent profiles.
   config.agentProfiles.push_back(AgentProfile(
@@ -739,14 +755,14 @@ TEST_P(
 
   initializeCluster(config);
 
-  if (GetParam().setQuota) {
+  if (quotaParam.setQuota) {
     // We ensure the same allocations are made for both nonquota and quota
     // settings for fair comparison. Thus quota is set to consume multiple
     // agents and each agent will be offered as a whole.
     const string quotaResourcesString =
-      "cpus:" + stringify(2 * GetParam().agentsPerRole) +
-      ";mem:" + stringify(2048 * GetParam().agentsPerRole) +
-      ";disk:" + stringify(2048 * GetParam().agentsPerRole);
+      "cpus:" + stringify(2 * quotaParam.agentsPerRole) +
+      ";mem:" + stringify(2048 * quotaParam.agentsPerRole) +
+      ";disk:" + stringify(2048 * quotaParam.agentsPerRole);
 
     // Pause the allocator here to prevent any event-driven allocations while
     // setting up the quota (while setting quota currently does not lead to
@@ -764,9 +780,9 @@ TEST_P(
     cout << "Nonquota run setup: ";
   }
 
-  cout << agentCount << " agents, " << GetParam().roleCount << " roles, "
-       << GetParam().roleCount * GetParam().frameworksPerRole << " frameworks"
-       << endl;
+  cout << agentCount << " agents, " << quotaParam.roleCount << " roles, "
+       << quotaParam.roleCount * quotaParam.frameworksPerRole << " frameworks,"
+       << " with " << sorter << " sorter " << endl;
 
   Stopwatch watch;
   watch.start();
