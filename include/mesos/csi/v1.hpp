@@ -39,6 +39,8 @@ namespace v1 {
 
 using namespace ::csi::v1;
 
+constexpr char API_VERSION[] = "v1";
+
 } // namespace v1 {
 } // namespace csi {
 } // namespace mesos {
