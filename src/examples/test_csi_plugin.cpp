@@ -33,10 +33,12 @@
 
 #include <mesos/csi/types.hpp>
 #include <mesos/csi/v0.hpp>
+#include <mesos/csi/v1.hpp>
 
 #include <process/grpc.hpp>
 #include <process/http.hpp>
 
+#include <stout/adaptor.hpp>
 #include <stout/bytes.hpp>
 #include <stout/flags.hpp>
 #include <stout/foreach.hpp>
@@ -56,6 +58,7 @@
 #include <stout/os/rmdir.hpp>
 
 #include "csi/v0_utils.hpp"
+#include "csi/v1_utils.hpp"
 
 #include "linux/fs.hpp"
 
@@ -106,6 +109,20 @@ class Flags : public virtual mesos::internal::logging::Flags
 public:
   Flags()
   {
+    const hashset<string> supportedApiVersions =
+      {mesos::csi::v0::API_VERSION, mesos::csi::v1::API_VERSION};
+
+    add(&Flags::api_version,
+        "api_version",
+        "If set, the plugin would only serve CSI calls of the specified API\n"
+        "version. Otherwise, the plugin serves all supported API versions by\n"
+        "default. (Supported values: " + stringify(supportedApiVersions) + ")",
+        [=](const Option<string>& apiVersion) {
+          return apiVersion.isNone() ||
+            supportedApiVersions.contains(apiVersion.get())
+              ? Option<Error>::none() : Error("Unsupported API version");
+        });
+
     add(&Flags::endpoint,
         "endpoint",
         "Path to the Unix domain socket the plugin should bind to.");
@@ -138,6 +155,7 @@ public:
         "domain socket. (Example: 'unix:///path/to/socket')");
   }
 
+  Option<string> api_version;
   string endpoint;
   string work_dir;
   Bytes available_capacity;
@@ -150,17 +168,22 @@ public:
 class TestCSIPlugin
   : public csi::v0::Identity::Service,
     public csi::v0::Controller::Service,
-    public csi::v0::Node::Service
+    public csi::v0::Node::Service,
+    public csi::v1::Identity::Service,
+    public csi::v1::Controller::Service,
+    public csi::v1::Node::Service
 {
 public:
   TestCSIPlugin(
-      const string& _workDir,
+      const Option<string>& _apiVersion,
       const string& _endpoint,
+      const string& _workDir,
       const Bytes& _availableCapacity,
       const hashmap<string, string>& _createParameters,
       const hashmap<string, Bytes>& _volumes)
-    : workDir(_workDir),
+    : apiVersion(_apiVersion),
       endpoint(_endpoint),
+      workDir(_workDir),
       availableCapacity(_availableCapacity),
       createParameters(_createParameters.begin(), _createParameters.end())
   {
@@ -207,6 +230,8 @@ public:
   }
 
   void run();
+
+  // CSI v0 RPCs.
 
   Status GetPluginInfo(
       ServerContext* context,
@@ -293,6 +318,93 @@ public:
       const csi::v0::NodeGetCapabilitiesRequest* request,
       csi::v0::NodeGetCapabilitiesResponse* response) override;
 
+  // CSI v1 RPCs.
+
+  Status GetPluginInfo(
+      ServerContext* context,
+      const csi::v1::GetPluginInfoRequest* request,
+      csi::v1::GetPluginInfoResponse* response) override;
+
+  Status GetPluginCapabilities(
+      ServerContext* context,
+      const csi::v1::GetPluginCapabilitiesRequest* request,
+      csi::v1::GetPluginCapabilitiesResponse* response) override;
+
+  Status Probe(
+      ServerContext* context,
+      const csi::v1::ProbeRequest* request,
+      csi::v1::ProbeResponse* response) override;
+
+  Status CreateVolume(
+      ServerContext* context,
+      const csi::v1::CreateVolumeRequest* request,
+      csi::v1::CreateVolumeResponse* response) override;
+
+  Status DeleteVolume(
+      ServerContext* context,
+      const csi::v1::DeleteVolumeRequest* request,
+      csi::v1::DeleteVolumeResponse* response) override;
+
+  Status ControllerPublishVolume(
+      ServerContext* context,
+      const csi::v1::ControllerPublishVolumeRequest* request,
+      csi::v1::ControllerPublishVolumeResponse* response) override;
+
+  Status ControllerUnpublishVolume(
+      ServerContext* context,
+      const csi::v1::ControllerUnpublishVolumeRequest* request,
+      csi::v1::ControllerUnpublishVolumeResponse* response) override;
+
+  Status ValidateVolumeCapabilities(
+      ServerContext* context,
+      const csi::v1::ValidateVolumeCapabilitiesRequest* request,
+      csi::v1::ValidateVolumeCapabilitiesResponse* response) override;
+
+  Status ListVolumes(
+      ServerContext* context,
+      const csi::v1::ListVolumesRequest* request,
+      csi::v1::ListVolumesResponse* response) override;
+
+  Status GetCapacity(
+      ServerContext* context,
+      const csi::v1::GetCapacityRequest* request,
+      csi::v1::GetCapacityResponse* response) override;
+
+  Status ControllerGetCapabilities(
+      ServerContext* context,
+      const csi::v1::ControllerGetCapabilitiesRequest* request,
+      csi::v1::ControllerGetCapabilitiesResponse* response) override;
+
+  Status NodeStageVolume(
+      ServerContext* context,
+      const csi::v1::NodeStageVolumeRequest* request,
+      csi::v1::NodeStageVolumeResponse* response) override;
+
+  Status NodeUnstageVolume(
+      ServerContext* context,
+      const csi::v1::NodeUnstageVolumeRequest* request,
+      csi::v1::NodeUnstageVolumeResponse* response) override;
+
+  Status NodePublishVolume(
+      ServerContext* context,
+      const csi::v1::NodePublishVolumeRequest* request,
+      csi::v1::NodePublishVolumeResponse* response) override;
+
+  Status NodeUnpublishVolume(
+      ServerContext* context,
+      const csi::v1::NodeUnpublishVolumeRequest* request,
+      csi::v1::NodeUnpublishVolumeResponse* response) override;
+
+  Status NodeGetCapabilities(
+      ServerContext* context,
+      const csi::v1::NodeGetCapabilitiesRequest* request,
+      csi::v1::NodeGetCapabilitiesResponse* response) override;
+
+  Status NodeGetInfo(
+      ServerContext* context,
+      const csi::v1::NodeGetInfoRequest* request,
+      csi::v1::NodeGetInfoResponse* response) override;
+
 private:
   struct VolumeInfo
   {
@@ -360,8 +472,9 @@ private:
   Try<Nothing, StatusError> nodeUnpublishVolume(
       const string& volumeId, const string& targetPath);
 
-  const string workDir;
+  const Option<string> apiVersion;
   const string endpoint;
+  const string workDir;
 
   Bytes availableCapacity;
   VolumeCapability defaultVolumeCapability;
@@ -374,9 +487,18 @@ void TestCSIPlugin::run()
 {
   ServerBuilder builder;
   builder.AddListeningPort(endpoint, grpc::InsecureServerCredentials());
-  builder.RegisterService(static_cast<csi::v0::Identity::Service*>(this));
-  builder.RegisterService(static_cast<csi::v0::Controller::Service*>(this));
-  builder.RegisterService(static_cast<csi::v0::Node::Service*>(this));
+
+  if (apiVersion.isNone() || apiVersion.get() == mesos::csi::v0::API_VERSION) {
+    builder.RegisterService(static_cast<csi::v0::Identity::Service*>(this));
+    builder.RegisterService(static_cast<csi::v0::Controller::Service*>(this));
+    builder.RegisterService(static_cast<csi::v0::Node::Service*>(this));
+  }
+
+  if (apiVersion.isNone() || apiVersion.get() == mesos::csi::v1::API_VERSION) {
+    builder.RegisterService(static_cast<csi::v1::Identity::Service*>(this));
+    builder.RegisterService(static_cast<csi::v1::Controller::Service*>(this));
+    builder.RegisterService(static_cast<csi::v1::Node::Service*>(this));
+  }
 
   std::unique_ptr<Server> server = builder.BuildAndStart();
   server->Wait();
@@ -602,14 +724,16 @@ Status TestCSIPlugin::ControllerGetCapabilities(
 {
   LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
 
-  response->add_capabilities()->mutable_rpc()->set_type(
-      csi::v0::ControllerServiceCapability::RPC::CREATE_DELETE_VOLUME);
-  response->add_capabilities()->mutable_rpc()->set_type(
-      csi::v0::ControllerServiceCapability::RPC::PUBLISH_UNPUBLISH_VOLUME);
-  response->add_capabilities()->mutable_rpc()->set_type(
-      csi::v0::ControllerServiceCapability::RPC::GET_CAPACITY);
-  response->add_capabilities()->mutable_rpc()->set_type(
-      csi::v0::ControllerServiceCapability::RPC::LIST_VOLUMES);
+  const vector<csi::v0::ControllerServiceCapability::RPC::Type> rpcs = {
+    csi::v0::ControllerServiceCapability::RPC::CREATE_DELETE_VOLUME,
+    csi::v0::ControllerServiceCapability::RPC::PUBLISH_UNPUBLISH_VOLUME,
+    csi::v0::ControllerServiceCapability::RPC::GET_CAPACITY,
+    csi::v0::ControllerServiceCapability::RPC::LIST_VOLUMES,
+  };
+
+  foreach (const csi::v0::ControllerServiceCapability::RPC::Type rpc, rpcs) {
+    response->add_capabilities()->mutable_rpc()->set_type(rpc);
+  }
 
   return Status::OK;
 }
@@ -732,11 +856,397 @@ Status TestCSIPlugin::NodeGetCapabilities(
 }
 
 
+Status TestCSIPlugin::GetPluginInfo(
+    ServerContext* context,
+    const csi::v1::GetPluginInfoRequest* request,
+    csi::v1::GetPluginInfoResponse* response)
+{
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
+
+  // Since CSI v1 requires the plugin name to follow the (forward) domain name
+  // notation, we reverse the plugin's reverse-DNS name here.
+  response->set_name(
+      strings::join(".", adaptor::reverse(strings::split(".", PLUGIN_NAME))));
+
+  response->set_vendor_version(MESOS_VERSION);
+
+  return Status::OK;
+}
+
+
+Status TestCSIPlugin::GetPluginCapabilities(
+    ServerContext* context,
+    const csi::v1::GetPluginCapabilitiesRequest* request,
+    csi::v1::GetPluginCapabilitiesResponse* response)
+{
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
+
+  response->add_capabilities()->mutable_service()->set_type(
+      csi::v1::PluginCapability::Service::CONTROLLER_SERVICE);
+
+  return Status::OK;
+}
+
+
+Status TestCSIPlugin::Probe(
+    ServerContext* context,
+    const csi::v1::ProbeRequest* request,
+    csi::v1::ProbeResponse* response)
+{
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
+
+  response->mutable_ready()->set_value(true);
+
+  return Status::OK;
+}
+
+
+Status TestCSIPlugin::CreateVolume(
+    ServerContext* context,
+    const csi::v1::CreateVolumeRequest* request,
+    csi::v1::CreateVolumeResponse* response)
+{
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
+
+  // TODO(chhsiao): Validate the request.
+
+  Try<VolumeInfo, StatusError> result = createVolume(
+      request->name(),
+      request->capacity_range().required_bytes()
+        ? request->capacity_range().required_bytes() : 1,
+      request->capacity_range().limit_bytes()
+        ? request->capacity_range().limit_bytes()
+        : std::numeric_limits<int64_t>::max(),
+      mesos::csi::v1::devolve(request->volume_capabilities()),
+      request->parameters());
+
+  if (result.isError()) {
+    return result.error().status;
+  }
+
+  response->mutable_volume()->set_volume_id(result->id);
+  response->mutable_volume()->set_capacity_bytes(result->size.bytes());
+  (*response->mutable_volume()->mutable_volume_context())["path"] =
+    getVolumePath(result.get());
+
+  return Status::OK;
+}
+
+
+Status TestCSIPlugin::DeleteVolume(
+    ServerContext* context,
+    const csi::v1::DeleteVolumeRequest* request,
+    csi::v1::DeleteVolumeResponse* response)
+{
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
+
+  // TODO(chhsiao): Validate the request.
+
+  Try<Nothing, StatusError> result = deleteVolume(request->volume_id());
+
+  if (result.isError()) {
+    return result.error().status;
+  }
+
+  return Status::OK;
+}
+
+
+Status TestCSIPlugin::ControllerPublishVolume(
+    ServerContext* context,
+    const csi::v1::ControllerPublishVolumeRequest* request,
+    csi::v1::ControllerPublishVolumeResponse* response)
+{
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
+
+  // TODO(chhsiao): Validate the request.
+
+  Try<Nothing, StatusError> result = controllerPublishVolume(
+      request->volume_id(),
+      request->node_id(),
+      mesos::csi::v1::devolve(request->volume_capability()),
+      request->readonly(),
+      request->volume_context());
+
+  if (result.isError()) {
+    return result.error().status;
+  }
+
+  return Status::OK;
+}
+
+
+Status TestCSIPlugin::ControllerUnpublishVolume(
+    ServerContext* context,
+    const csi::v1::ControllerUnpublishVolumeRequest* request,
+    csi::v1::ControllerUnpublishVolumeResponse* response)
+{
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
+
+  // TODO(chhsiao): Validate the request.
+
+  Try<Nothing, StatusError> result =
+    controllerUnpublishVolume(request->volume_id(), request->node_id());
+
+  if (result.isError()) {
+    return result.error().status;
+  }
+
+  return Status::OK;
+}
+
+
+Status TestCSIPlugin::ValidateVolumeCapabilities(
+    ServerContext* context,
+    const csi::v1::ValidateVolumeCapabilitiesRequest* request,
+    csi::v1::ValidateVolumeCapabilitiesResponse* response)
+{
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
+
+  // TODO(chhsiao): Validate the request.
+
+  Try<Option<Error>, StatusError> result = validateVolumeCapabilities(
+      request->volume_id(),
+      request->volume_context(),
+      mesos::csi::v1::devolve(request->volume_capabilities()),
+      request->parameters());
+
+  if (result.isError()) {
+    return result.error().status;
+  }
+
+  if (result->isSome()) {
+    response->set_message(result->get().message);
+  } else {
+    *response->mutable_confirmed()->mutable_volume_context() =
+      request->volume_context();
+    *response->mutable_confirmed()->mutable_volume_capabilities() =
+      request->volume_capabilities();
+    *response->mutable_confirmed()->mutable_parameters() =
+      request->parameters();
+  }
+
+  return Status::OK;
+}
+
+
+Status TestCSIPlugin::ListVolumes(
+    ServerContext* context,
+    const csi::v1::ListVolumesRequest* request,
+    csi::v1::ListVolumesResponse* response)
+{
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
+
+  Try<vector<VolumeInfo>, StatusError> result = listVolumes(
+      request->max_entries()
+        ? request->max_entries() : Option<int32_t>::none(),
+      !request->starting_token().empty()
+        ? request->starting_token() : Option<string>::none());
+
+  if (result.isError()) {
+    return result.error().status;
+  }
+
+  foreach (const VolumeInfo& volumeInfo, result.get()) {
+    csi::v1::Volume* volume = response->add_entries()->mutable_volume();
+    volume->set_volume_id(volumeInfo.id);
+    volume->set_capacity_bytes(volumeInfo.size.bytes());
+    (*volume->mutable_volume_context())["path"] = getVolumePath(volumeInfo);
+  }
+
+  return Status::OK;
+}
+
+
+Status TestCSIPlugin::GetCapacity(
+    ServerContext* context,
+    const csi::v1::GetCapacityRequest* request,
+    csi::v1::GetCapacityResponse* response)
+{
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
+
+  Try<Bytes, StatusError> result = getCapacity(
+      mesos::csi::v1::devolve(request->volume_capabilities()),
+      request->parameters());
+
+  if (result.isError()) {
+    return result.error().status;
+  }
+
+  response->set_available_capacity(result->bytes());
+
+  return Status::OK;
+}
+
+
 string TestCSIPlugin::getVolumePath(const VolumeInfo& volumeInfo)
 {
   return path::join(
       workDir,
       strings::join("-", stringify(volumeInfo.size), volumeInfo.id));
+}
+
+
+Status TestCSIPlugin::ControllerGetCapabilities(
+    ServerContext* context,
+    const csi::v1::ControllerGetCapabilitiesRequest* request,
+    csi::v1::ControllerGetCapabilitiesResponse* response)
+{
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
+
+  const vector<csi::v1::ControllerServiceCapability::RPC::Type> rpcs = {
+    csi::v1::ControllerServiceCapability::RPC::CREATE_DELETE_VOLUME,
+    csi::v1::ControllerServiceCapability::RPC::PUBLISH_UNPUBLISH_VOLUME,
+    csi::v1::ControllerServiceCapability::RPC::GET_CAPACITY,
+    csi::v1::ControllerServiceCapability::RPC::LIST_VOLUMES,
+  };
+
+  foreach (const csi::v1::ControllerServiceCapability::RPC::Type rpc, rpcs) {
+    response->add_capabilities()->mutable_rpc()->set_type(rpc);
+  }
+
+  return Status::OK;
+}
+
+
+Status TestCSIPlugin::NodeStageVolume(
+    ServerContext* context,
+    const csi::v1::NodeStageVolumeRequest* request,
+    csi::v1::NodeStageVolumeResponse* response)
+{
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
+
+  // TODO(chhsiao): Validate the request.
+
+  Try<Nothing, StatusError> result = nodeStageVolume(
+      request->volume_id(),
+      request->publish_context(),
+      request->staging_target_path(),
+      mesos::csi::v1::devolve(request->volume_capability()),
+      request->volume_context());
+
+  if (result.isError()) {
+    return result.error().status;
+  }
+
+  return Status::OK;
+}
+
+
+Status TestCSIPlugin::NodeUnstageVolume(
+    ServerContext* context,
+    const csi::v1::NodeUnstageVolumeRequest* request,
+    csi::v1::NodeUnstageVolumeResponse* response)
+{
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
+
+  // TODO(chhsiao): Validate the request.
+
+  Try<Nothing, StatusError> result =
+    nodeUnstageVolume(request->volume_id(), request->staging_target_path());
+
+  if (result.isError()) {
+    return result.error().status;
+  }
+
+  return Status::OK;
+}
+
+
+Status TestCSIPlugin::NodePublishVolume(
+    ServerContext* context,
+    const csi::v1::NodePublishVolumeRequest* request,
+    csi::v1::NodePublishVolumeResponse* response)
+{
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
+
+  // TODO(chhsiao): Validate the request.
+
+  // Since CSI v1 states that creation of the target path is the responsibility
+  // of the plugin, we create the mount point here if it does not exist.
+  if (!os::exists(request->target_path())) {
+    Try<Nothing> mkdir = os::mkdir(request->target_path());
+    if (mkdir.isError()) {
+      return Status(
+          grpc::INTERNAL,
+          "Failed to create target path '" + request->target_path() +
+            "' for volume '" + request->volume_id() + "': " + mkdir.error());
+    }
+  }
+
+  Try<Nothing, StatusError> result = nodePublishVolume(
+      request->volume_id(),
+      request->publish_context(),
+      request->staging_target_path(),
+      request->target_path(),
+      mesos::csi::v1::devolve(request->volume_capability()),
+      request->readonly(),
+      request->volume_context());
+
+  if (result.isError()) {
+    return result.error().status;
+  }
+
+  return Status::OK;
+}
+
+
+Status TestCSIPlugin::NodeUnpublishVolume(
+    ServerContext* context,
+    const csi::v1::NodeUnpublishVolumeRequest* request,
+    csi::v1::NodeUnpublishVolumeResponse* response)
+{
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
+
+  // TODO(chhsiao): Validate the request.
+
+  Try<Nothing, StatusError> result =
+    nodeUnpublishVolume(request->volume_id(), request->target_path());
+
+  if (result.isError()) {
+    return result.error().status;
+  }
+
+  // Since CSI v1 requires the plugin to delete the target path, we delete it
+  // here if it has not been deleted by a previous attempt.
+  if (os::exists(request->target_path())) {
+    Try<Nothing> rmdir = os::rmdir(request->target_path());
+    if (rmdir.isError()) {
+      return Status(
+          grpc::INTERNAL,
+          "Failed to remove target path '" + request->target_path() +
+            "' for volume '" + request->volume_id() + "': " + rmdir.error());
+    }
+  }
+
+  return Status::OK;
+}
+
+
+Status TestCSIPlugin::NodeGetCapabilities(
+    ServerContext* context,
+    const csi::v1::NodeGetCapabilitiesRequest* request,
+    csi::v1::NodeGetCapabilitiesResponse* response)
+{
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
+
+  response->add_capabilities()->mutable_rpc()->set_type(
+      csi::v1::NodeServiceCapability::RPC::STAGE_UNSTAGE_VOLUME);
+
+  return Status::OK;
+}
+
+
+Status TestCSIPlugin::NodeGetInfo(
+    ServerContext* context,
+    const csi::v1::NodeGetInfoRequest* request,
+    csi::v1::NodeGetInfoResponse* response)
+{
+  LOG(INFO) << request->GetDescriptor()->name() << " '" << *request << "'";
+
+  response->set_node_id(NODE_ID);
+
+  return Status::OK;
 }
 
 
@@ -1495,8 +2005,9 @@ int main(int argc, char** argv)
     proxy.run();
   } else {
     TestCSIPlugin plugin(
-        flags.work_dir,
+        flags.api_version,
         flags.endpoint,
+        flags.work_dir,
         flags.available_capacity,
         createParameters,
         volumes);
