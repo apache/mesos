@@ -23,6 +23,7 @@
 #include <vector>
 
 #include <mesos/http.hpp>
+#include <mesos/type_utils.hpp>
 
 #include <mesos/agent/agent.hpp>
 
@@ -51,7 +52,6 @@
 
 #include "csi/paths.hpp"
 #include "csi/v0_client.hpp"
-#include "csi/v0_utils.hpp"
 
 #include "internal/devolve.hpp"
 #include "internal/evolve.hpp"
@@ -105,11 +105,19 @@ static ContainerID getContainerId(
     const string& containerPrefix,
     const CSIPluginContainerInfo& container)
 {
+  // NOTE: We cannot simply stringify `container.services()` since it returns
+  // `RepeatedField<int>`, so we reconstruct the list of services here.
+  vector<Service> services;
+  services.reserve(container.services_size());
+  for (int i = 0; i < container.services_size(); i++) {
+    services.push_back(container.services(i));
+  }
+
   ContainerID containerId;
   containerId.set_value(
       containerPrefix +
       strings::join("-", strings::replace(info.type(), ".", "-"), info.name()) +
-      "--" + strings::join("-", container.services()));
+      "--" + strings::join("-", services));
 
   return containerId;
 }
