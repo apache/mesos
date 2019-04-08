@@ -70,13 +70,11 @@ class VolumeManagerProcess : public process::Process<VolumeManagerProcess>
 {
 public:
   explicit VolumeManagerProcess(
-      const process::http::URL& agentUrl,
       const std::string& _rootDir,
       const CSIPluginInfo& _info,
       const hashset<Service> _services,
-      const std::string& containerPrefix,
-      const Option<std::string>& authToken,
       const process::grpc::client::Runtime& _runtime,
+      ServiceManager* _serviceManager,
       Metrics* _metrics);
 
   process::Future<Nothing> recover();
@@ -146,8 +144,8 @@ private:
   //
   //                          +------------+
   //                 +  +  +  |  CREATED   |  ^
-  //   _attachVolume |  |  |  +---+----^---+  |
-  //                 |  |  |      |    |      | _detachVolume
+  //                 |  |  |  +---+----^---+  |
+  //   _attachVolume |  |  |      |    |      | _detachVolume
   //                 |  |  |  +---v----+---+  |
   //                 v  +  +  | NODE_READY |  +  ^
   //                    |  |  +---+----^---+  |  |
@@ -187,8 +185,8 @@ private:
   const hashset<Service> services;
 
   process::grpc::client::Runtime runtime;
+  ServiceManager* serviceManager;
   Metrics* metrics;
-  process::Owned<ServiceManager> serviceManager;
 
   Option<std::string> bootId;
   Option<PluginCapabilities> pluginCapabilities;

@@ -22,6 +22,9 @@
 #include <tuple>
 #include <vector>
 
+#include <mesos/csi/v0.hpp>
+#include <mesos/csi/v1.hpp>
+
 #include <process/clock.hpp>
 #include <process/collect.hpp>
 #include <process/future.hpp>
@@ -4794,6 +4797,11 @@ TEST_F(StorageLocalResourceProviderTest, RetryRpcWithExponentialBackoff)
 
   MockCSIPlugin plugin;
   ASSERT_SOME(plugin.startup(mockCsiEndpoint));
+
+  // TODO(chhsiao): Since this test expects CSI v0 protobufs, we disable CSI v1
+  // for now. Remove this once the expectations are parameterized.
+  EXPECT_CALL(plugin, Probe(_, _, A<csi::v1::ProbeResponse*>()))
+    .WillRepeatedly(Return(grpc::Status(grpc::UNIMPLEMENTED, "")));
 
   EXPECT_CALL(plugin, GetCapacity(_, _, A<csi::v0::GetCapacityResponse*>()))
     .WillRepeatedly(Invoke([](

@@ -72,6 +72,7 @@
 
 #include "csi/metrics.hpp"
 #include "csi/paths.hpp"
+#include "csi/service_manager.hpp"
 #include "csi/volume_manager.hpp"
 
 #include "internal/devolve.hpp"
@@ -113,11 +114,14 @@ using process::spawn;
 
 using process::grpc::StatusError;
 
+using process::grpc::client::Runtime;
+
 using process::http::authentication::Principal;
 
 using process::metrics::Counter;
 using process::metrics::PushGauge;
 
+using mesos::csi::ServiceManager;
 using mesos::csi::VolumeInfo;
 using mesos::csi::VolumeManager;
 
@@ -177,6 +181,14 @@ static inline http::URL extractParentEndpoint(const http::URL& url)
   parent.path = Path(url.path).dirname();
 
   return parent;
+}
+
+
+static string getContainerPrefix(const ResourceProviderInfo& info)
+{
+  const Principal principal = LocalResourceProvider::principal(info);
+  CHECK(principal.claims.contains("cid_prefix"));
+  return principal.claims.at("cid_prefix");
 }
 
 
@@ -363,6 +375,11 @@ private:
   // The mapping of known profiles fetched from the DiskProfileAdaptor.
   hashmap<string, DiskProfileAdaptor::ProfileInfo> profileInfos;
 
+  Runtime runtime;
+
+  // NOTE: `serviceManager` must be destructed after `volumeManager` since the
+  // latter holds a pointer of the former.
+  Owned<ServiceManager> serviceManager;
   Owned<VolumeManager> volumeManager;
 
   // We maintain the following invariant: if one operation depends on
@@ -494,30 +511,6 @@ void StorageLocalResourceProviderProcess::received(const Event& event)
 
 void StorageLocalResourceProviderProcess::initialize()
 {
-  const Principal principal = LocalResourceProvider::principal(info);
-  CHECK(principal.claims.contains("cid_prefix"));
-  const string& containerPrefix = principal.claims.at("cid_prefix");
-
-  Try<Owned<VolumeManager>> volumeManager_ = VolumeManager::create(
-      extractParentEndpoint(url),
-      slave::paths::getCsiRootDir(workDir),
-      info.storage().plugin(),
-      {csi::CONTROLLER_SERVICE, csi::NODE_SERVICE},
-      containerPrefix,
-      authToken,
-      &metrics);
-
-  if (volumeManager_.isError()) {
-    LOG(ERROR)
-      << "Failed to create CSI volume manager for resource provider with type '"
-      << info.type() << "' and name '" << info.name()
-      << "': " << volumeManager_.error();
-
-    fatal();
-  }
-
-  volumeManager = std::move(volumeManager_).get();
-
   auto die = [=](const string& message) {
     LOG(ERROR)
       << "Failed to recover resource provider with type '" << info.type()
@@ -547,7 +540,41 @@ Future<Nothing> StorageLocalResourceProviderProcess::recover()
 {
   CHECK_EQ(RECOVERING, state);
 
-  return volumeManager->recover()
+  serviceManager.reset(new ServiceManager(
+      extractParentEndpoint(url),
+      slave::paths::getCsiRootDir(workDir),
+      info.storage().plugin(),
+      {csi::CONTROLLER_SERVICE, csi::NODE_SERVICE},
+      getContainerPrefix(info),
+      authToken,
+      runtime,
+      &metrics));
+
+  return serviceManager->recover()
+    .then(defer(self(), [=] {
+      return serviceManager->getApiVersion();
+    }))
+    .then(defer(self(), [=](const string& apiVersion) -> Future<Nothing> {
+      Try<Owned<VolumeManager>> volumeManager_ = VolumeManager::create(
+          slave::paths::getCsiRootDir(workDir),
+          info.storage().plugin(),
+          {csi::CONTROLLER_SERVICE, csi::NODE_SERVICE},
+          apiVersion,
+          runtime,
+          serviceManager.get(),
+          &metrics);
+
+      if (volumeManager_.isError()) {
+        return Failure(
+            "Failed to create CSI volume manager for resource provider with "
+            "type '" + info.type() + "' and name '" + info.name() + "': " +
+            volumeManager_.error());
+      }
+
+      volumeManager = std::move(volumeManager_.get());
+
+      return volumeManager->recover();
+    }))
     .then(defer(self(), [=]() -> Future<Nothing> {
       // Recover the resource provider ID and state from the latest symlink. If
       // the symlink does not exist, this is a new resource provider, and the

@@ -52,6 +52,7 @@
 
 #include "csi/paths.hpp"
 #include "csi/v0_client.hpp"
+#include "csi/v1_client.hpp"
 
 #include "internal/devolve.hpp"
 #include "internal/evolve.hpp"
@@ -139,6 +140,7 @@ public:
   Future<Nothing> recover();
 
   Future<string> getServiceEndpoint(const Service& service);
+  Future<string> getApiVersion();
 
 private:
   // Returns the container info of the specified container for this CSI plugin.
@@ -155,8 +157,11 @@ private:
   // Kills the specified plugin container.
   Future<Nothing> killContainer(const ContainerID& containerId);
 
-  // Waits for the endpoint (URI to a Unix domain socket) to be ready.
+  // Waits for the endpoint (URI to a Unix domain socket) to be created.
   Future<Nothing> waitEndpoint(const string& endpoint);
+
+  // Probes the endpoint to detect the API version and check for readiness.
+  Future<Nothing> probeEndpoint(const string& endpoint);
 
   // Returns the URI of the latest service endpoint for the specified plugin
   // container. If the container is not already running, this method will start
@@ -174,6 +179,7 @@ private:
   Metrics* metrics;
 
   http::Headers headers;
+  Option<string> apiVersion;
   hashmap<Service, ContainerID> serviceContainers;
 
   hashmap<ContainerID, Owned<ContainerDaemon>> daemons;
@@ -350,6 +356,20 @@ Future<string> ServiceManagerProcess::getServiceEndpoint(const Service& service)
 }
 
 
+Future<string> ServiceManagerProcess::getApiVersion()
+{
+  if (apiVersion.isSome()) {
+    return apiVersion.get();
+  }
+
+  // Ensure that the plugin has been probed (which does the API version
+  // detection) through `getEndpoint` before returning the API version.
+  CHECK(!serviceContainers.empty());
+  return getEndpoint(serviceContainers.begin()->second)
+    .then(process::defer(self(), [=] { return CHECK_NOTNONE(apiVersion); }));
+}
+
+
 Option<CSIPluginContainerInfo> ServiceManagerProcess::getContainerInfo(
     const ContainerID& containerId)
 {
@@ -384,8 +404,8 @@ ServiceManagerProcess::getContainers()
             httpResponse.status + "' (" + httpResponse.body + ")");
       }
 
-      Try<v1::agent::Response> v1Response =
-        internal::deserialize<v1::agent::Response>(
+      Try<mesos::v1::agent::Response> v1Response =
+        internal::deserialize<mesos::v1::agent::Response>(
             contentType, httpResponse.body);
 
       if (v1Response.isError()) {
@@ -473,55 +493,117 @@ Future<Nothing> ServiceManagerProcess::waitEndpoint(const string& endpoint)
   const string endpointPath =
     strings::remove(endpoint, "unix://", strings::PREFIX);
 
-  Future<Nothing> created = Nothing();
-  if (!os::exists(endpointPath)) {
-    // Wait for the endpoint socket to appear until the timeout expires.
-    Timeout timeout = Timeout::in(CSI_ENDPOINT_CREATION_TIMEOUT);
-
-    created = process::loop(
-        [=]() -> Future<Nothing> {
-          if (timeout.expired()) {
-            return Failure("Timed out waiting for endpoint '" + endpoint + "'");
-          }
-
-          return process::after(Milliseconds(10));
-        },
-        [=](const Nothing&) -> ControlFlow<Nothing> {
-          if (os::exists(endpointPath)) {
-            return Break();
-          }
-
-          return Continue();
-        });
+  if (os::exists(endpointPath)) {
+    return Nothing();
   }
 
-  return created
-    .then(process::defer(self(), [=]() -> Future<Nothing> {
-      // TODO(chhsiao): Detect which CSI version to use through versioned
-      // `Probe` calls to support CSI v1 in a backward compatible way.
-      ++metrics->csi_plugin_rpcs_pending;
+  // Wait for the endpoint socket to appear until the timeout expires.
+  Timeout timeout = Timeout::in(CSI_ENDPOINT_CREATION_TIMEOUT);
 
-      return v0::Client(endpoint, runtime).probe(v0::ProbeRequest())
-        .then(process::defer(self(), [=](
-            const v0::RPCResult<v0::ProbeResponse>& result) -> Future<Nothing> {
-          if (result.isError()) {
-            return Failure(
-                "Failed to probe endpoint '" + endpoint +
-                "': " + stringify(result.error()));
-          }
+  return process::loop(
+      [=]() -> Future<Nothing> {
+        if (timeout.expired()) {
+          return Failure("Timed out waiting for endpoint '" + endpoint + "'");
+        }
 
-          return Nothing();
-        }))
-        .onAny(process::defer(self(), [this](const Future<Nothing>& future) {
-          --metrics->csi_plugin_rpcs_pending;
-          if (future.isReady()) {
-            ++metrics->csi_plugin_rpcs_finished;
-          } else if (future.isDiscarded()) {
-            ++metrics->csi_plugin_rpcs_cancelled;
-          } else {
-            ++metrics->csi_plugin_rpcs_failed;
-          }
-        }));
+        return process::after(Milliseconds(10));
+      },
+      [=](const Nothing&) -> ControlFlow<Nothing> {
+        if (os::exists(endpointPath)) {
+          return Break();
+        }
+
+        return Continue();
+      });
+}
+
+
+Future<Nothing> ServiceManagerProcess::probeEndpoint(const string& endpoint)
+{
+  // Each probe function returns its API version if the probe is successful,
+  // an error if the API version is implemented but the probe fails, or a `None`
+  // if the API version is not implemented.
+  static const hashmap<
+      string,
+      std::function<Future<Result<string>>(const string&, const Runtime&)>>
+    probers = {
+      {v0::API_VERSION,
+       [](const string& endpoint, const Runtime& runtime) {
+         LOG(INFO) << "Probing endpoint '" << endpoint << "' with CSI v0";
+
+         return v0::Client(endpoint, runtime)
+           .probe(v0::ProbeRequest())
+           .then([](const v0::RPCResult<v0::ProbeResponse>& result) {
+             return result.isError()
+               ? (result.error().status.error_code() == grpc::UNIMPLEMENTED
+                    ? Result<string>::none() : result.error())
+               : v0::API_VERSION;
+           });
+       }},
+      {v1::API_VERSION,
+       [](const string& endpoint, const Runtime& runtime) {
+         LOG(INFO) << "Probing endpoint '" << endpoint << "' with CSI v1";
+
+         return v1::Client(endpoint, runtime).probe(v1::ProbeRequest())
+           .then([](const v1::RPCResult<v1::ProbeResponse>& result) {
+             // TODO(chhsiao): Retry when `result->ready` is false.
+             return result.isError()
+               ? (result.error().status.error_code() == grpc::UNIMPLEMENTED
+                    ? Result<string>::none() : result.error())
+               : v1::API_VERSION;
+           });
+       }},
+    };
+
+  ++metrics->csi_plugin_rpcs_pending;
+
+  Future<Result<string>> probed;
+
+  if (apiVersion.isSome()) {
+    CHECK(probers.contains(apiVersion.get()));
+    probed = probers.at(apiVersion.get())(endpoint, runtime);
+  } else {
+    probed = probers.at(v1::API_VERSION)(endpoint, runtime)
+      .then(process::defer(self(), [=](const Result<string>& result) {
+        return result.isNone()
+          ? probers.at(v0::API_VERSION)(endpoint, runtime) : result;
+      }));
+  }
+
+  return probed
+    .then(process::defer(self(), [=](
+        const Result<string>& result) -> Future<Nothing> {
+      if (result.isError()) {
+        return Failure(
+            "Failed to probe endpoint '" + endpoint + "': " + result.error());
+      }
+
+      if (result.isNone()) {
+        return Failure(
+            "Failed to probe endpoint '" + endpoint + "': Unknown API version");
+      }
+
+      if (apiVersion.isNone()) {
+        apiVersion = result.get();
+      } else if (apiVersion != result.get()) {
+        return Failure(
+            "Failed to probe endpoint '" + endpoint +
+            "': Inconsistent API version");
+      }
+
+      return Nothing();
+    }))
+    .onAny(process::defer(self(), [this](const Future<Nothing>& future) {
+      // We only update the metrics after the whole detection loop is done so
+      // it won't introduce much noise.
+      --metrics->csi_plugin_rpcs_pending;
+      if (future.isReady()) {
+        ++metrics->csi_plugin_rpcs_finished;
+      } else if (future.isDiscarded()) {
+        ++metrics->csi_plugin_rpcs_cancelled;
+      } else {
+        ++metrics->csi_plugin_rpcs_failed;
+      }
     }));
 }
 
@@ -624,6 +706,7 @@ Future<string> ServiceManagerProcess::getEndpoint(
 
             CHECK(endpoints.at(containerId)->associate(
                 waitEndpoint(endpoint)
+                  .then(process::defer(self(), &Self::probeEndpoint, endpoint))
                   .then([endpoint]() -> string { return endpoint; })));
 
             return endpoints.at(containerId)->future().then([] {
@@ -726,6 +809,13 @@ Future<string> ServiceManager::getServiceEndpoint(const Service& service)
   return recovered
     .then(process::defer(
         process.get(), &ServiceManagerProcess::getServiceEndpoint, service));
+}
+
+
+Future<string> ServiceManager::getApiVersion()
+{
+  return recovered
+    .then(process::defer(process.get(), &ServiceManagerProcess::getApiVersion));
 }
 
 } // namespace csi {

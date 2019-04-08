@@ -53,13 +53,11 @@ class VolumeManager : public csi::VolumeManager
 {
 public:
   VolumeManager(
-      const process::http::URL& agentUrl,
       const std::string& rootDir,
       const CSIPluginInfo& info,
       const hashset<Service>& services,
-      const std::string& containerPrefix,
-      const Option<std::string>& authToken,
       const process::grpc::client::Runtime& runtime,
+      ServiceManager* serviceManager,
       Metrics* metrics);
 
   // Since this class contains `Owned` members which should not but can be
