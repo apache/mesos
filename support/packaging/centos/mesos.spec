@@ -87,10 +87,13 @@ This package provides files for developing Mesos frameworks/modules.
 %setup -q
 
 %build
+%{!?el6:%define launcher_sealing --enable-launcher-sealing}
+
 %configure \
     --enable-optimize \
     --disable-python-dependency-install \
     --enable-install-module-dependencies \
+    %{launcher_sealing} \
     --enable-libevent \
     --enable-ssl \
     --enable-hardening \
