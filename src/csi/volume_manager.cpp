@@ -16,9 +16,14 @@
 
 #include "csi/volume_manager.hpp"
 
-#include <process/grpc.hpp>
+#include <memory>
 
+#include <mesos/csi/v0.hpp>
+#include <mesos/csi/v1.hpp>
+
+#include "csi/service_manager.hpp"
 #include "csi/v0_volume_manager.hpp"
+#include "csi/v1_volume_manager.hpp"
 
 namespace http = process::http;
 
@@ -32,12 +37,12 @@ namespace mesos {
 namespace csi {
 
 Try<Owned<VolumeManager>> VolumeManager::create(
-    const http::URL& agentUrl,
     const string& rootDir,
     const CSIPluginInfo& info,
     const hashset<Service>& services,
-    const string& containerPrefix,
-    const Option<string>& authToken,
+    const string& apiVersion,
+    const Runtime& runtime,
+    ServiceManager* serviceManager,
     Metrics* metrics)
 {
   if (services.empty()) {
@@ -46,15 +51,15 @@ Try<Owned<VolumeManager>> VolumeManager::create(
         info.type() + "' and name '" + info.name() + "'");
   }
 
-  return new v0::VolumeManager(
-      agentUrl,
-      rootDir,
-      info,
-      services,
-      containerPrefix,
-      authToken,
-      Runtime(),
-      metrics);
+  if (apiVersion == v0::API_VERSION) {
+    return Try<Owned<VolumeManager>>(new v0::VolumeManager(
+        rootDir, info, services, runtime, serviceManager, metrics));
+  } else if (apiVersion == v1::API_VERSION) {
+    return Try<Owned<VolumeManager>>(new v1::VolumeManager(
+        rootDir, info, services, runtime, serviceManager, metrics));
+  }
+
+  return Error("Unsupported CSI API version: " + apiVersion);
 }
 
 } // namespace csi {

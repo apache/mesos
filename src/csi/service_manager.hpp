@@ -73,6 +73,7 @@ public:
   process::Future<Nothing> recover();
 
   process::Future<std::string> getServiceEndpoint(const Service& service);
+  process::Future<std::string> getApiVersion();
 
 private:
   process::Owned<ServiceManagerProcess> process;

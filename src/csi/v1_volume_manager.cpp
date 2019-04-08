@@ -64,6 +64,7 @@ using process::Continue;
 using process::ControlFlow;
 using process::Failure;
 using process::Future;
+using process::Owned;
 using process::ProcessBase;
 
 using process::grpc::StatusError;
@@ -75,29 +76,19 @@ namespace csi {
 namespace v1 {
 
 VolumeManagerProcess::VolumeManagerProcess(
-    const http::URL& agentUrl,
     const string& _rootDir,
     const CSIPluginInfo& _info,
     const hashset<Service> _services,
-    const string& containerPrefix,
-    const Option<string>& authToken,
     const Runtime& _runtime,
+    ServiceManager* _serviceManager,
     Metrics* _metrics)
   : ProcessBase(process::ID::generate("csi-v1-volume-manager")),
     rootDir(_rootDir),
     info(_info),
     services(_services),
     runtime(_runtime),
-    metrics(_metrics),
-    serviceManager(new ServiceManager(
-        agentUrl,
-        rootDir,
-        info,
-        services,
-        containerPrefix,
-        authToken,
-        runtime,
-        metrics))
+    serviceManager(_serviceManager),
+    metrics(_metrics)
 {
   // This should have been validated in `VolumeManager::create`.
   CHECK(!services.empty())
@@ -115,8 +106,7 @@ Future<Nothing> VolumeManagerProcess::recover()
 
   bootId = bootId_.get();
 
-  return serviceManager->recover()
-    .then(process::defer(self(), &Self::prepareServices))
+  return prepareServices()
     .then(process::defer(self(), [this]() -> Future<Nothing> {
       // Recover the states of CSI volumes.
       Try<list<string>> volumePaths =
@@ -1224,22 +1214,18 @@ void VolumeManagerProcess::garbageCollectMountPath(const string& volumeId)
 
 
 VolumeManager::VolumeManager(
-    const http::URL& agentUrl,
     const string& rootDir,
     const CSIPluginInfo& info,
     const hashset<Service>& services,
-    const string& containerPrefix,
-    const Option<string>& authToken,
     const Runtime& runtime,
+    ServiceManager* serviceManager,
     Metrics* metrics)
   : process(new VolumeManagerProcess(
-        agentUrl,
         rootDir,
         info,
         services,
-        containerPrefix,
-        authToken,
         runtime,
+        serviceManager,
         metrics))
 {
   process::spawn(CHECK_NOTNULL(process.get()));

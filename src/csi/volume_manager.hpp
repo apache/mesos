@@ -27,6 +27,7 @@
 #include <mesos/csi/types.hpp>
 
 #include <process/future.hpp>
+#include <process/grpc.hpp>
 #include <process/http.hpp>
 #include <process/owned.hpp>
 
@@ -56,12 +57,12 @@ class VolumeManager
 {
 public:
   static Try<process::Owned<VolumeManager>> create(
-      const process::http::URL& agentUrl,
       const std::string& rootDir,
       const CSIPluginInfo& info,
       const hashset<Service>& services,
-      const std::string& containerPrefix,
-      const Option<std::string>& authToken,
+      const std::string& apiVersion,
+      const process::grpc::client::Runtime& runtime,
+      ServiceManager* serviceManager,
       Metrics* metrics);
 
   virtual ~VolumeManager() = default;
