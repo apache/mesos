@@ -193,6 +193,7 @@ All Resolved Issues:
   * [MESOS-9691] - Quota headroom calculation is off when subroles are involved.
   * [MESOS-9692] - Quota may be under allocated for disk resources.
   * [MESOS-9696] - Test MasterQuotaTest.AvailableResourcesSingleDisconnectedAgent is flaky
+  * [MESOS-9707] - Calling link::lo() may cause runtime error
 
 ** Epic
   * [MESOS-8054] - Feedback for operations
