@@ -1716,8 +1716,12 @@ Try<Nothing, StatusError> TestCSIPlugin::nodeUnpublishVolume(
 class CSIProxy
 {
 public:
-  CSIProxy(const string& _endpoint, const string& forward)
-    : endpoint(_endpoint),
+  CSIProxy(
+      const Option<string>& _apiVersion,
+      const string& _endpoint,
+      const string& forward)
+    : apiVersion(_apiVersion),
+      endpoint(_endpoint),
       stub(grpc::CreateChannel(forward, grpc::InsecureChannelCredentials())),
       service(new AsyncGenericService()) {}
 
@@ -1747,6 +1751,7 @@ private:
 
   void serve(ServerCompletionQueue* completionQueue);
 
+  const Option<string> apiVersion;
   const string endpoint;
 
   GenericStub stub;
@@ -1779,13 +1784,13 @@ void CSIProxy::run()
 // The lifecycle of a forwarded CSI call is shown as follows. The transitions
 // happen after the completions of the API calls.
 //
-//                                                     Server-side
-//        +-------------+             +-------------+ WriteAndFinish +---+
-//        | INITIALIZED |             |  FINISHING  +----------------> X |
-//        +------+------+             +------^------+                +---+
-//   Server-side |                           | Client-side
-//   RequestCall |        Server-side        | Finish (unary call)
-//        +------v------+    Read     +------+------+
+//                        Unsupported                  Server-side
+//        +-------------+ API version +-------------+ WriteAndFinish +---+
+//        | INITIALIZED |   +--------->  FINISHING  +----------------> X |
+//        +------+------+   |         +------^------+                +---+
+//   Server-side |   +------+                | Client-side
+//   RequestCall |   |    Server-side        | Finish (unary call)
+//        +------v---+--+    Read     +------+------+
 //        |  REQUESTED  +-------------> FORWARDING  |
 //        +-------------+             +-------------+
 //
@@ -1816,7 +1821,7 @@ void CSIProxy::serve(ServerCompletionQueue* completionQueue)
         if (!ok) {
           // Server-side `RequestCall`: the server has been shutdown so continue
           // to drain the queue.
-          continue;
+          break;
         }
 
         call->state = Call::State::REQUESTED;
@@ -1841,13 +1846,29 @@ void CSIProxy::serve(ServerCompletionQueue* completionQueue)
       case Call::State::REQUESTED: {
         if (!ok) {
           // Server-side `Read`: the client has done a `WritesDone` already, so
-          // clean up the call and move on to the next one.
+          // clean up the call and move to the next iteration immediately.
           delete call;
           continue;
         }
 
-        LOG(INFO) << "Forwarding " << call->serverContext.method() << " call";
+        // The expected method names are of the following form:
+        //   /csi.<api_version>.<service_name>/<rpc_name>
+        // See: https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md#requests // NOLINT
+        if (apiVersion.isSome() &&
+            !strings::startsWith(
+                call->serverContext.method(),
+                "/csi." + apiVersion.get() + ".")) {
+          // The proxy does not support the API version of the call so respond
+          // with `UNIMPLEMENTED`.
+          call->state = Call::State::FINISHING;
+          call->status = Status(grpc::UNIMPLEMENTED, "");
+          call->serverReaderWriter.WriteAndFinish(
+              call->response, WriteOptions(), call->status, call);
 
+          break;
+        }
+
+        LOG(INFO) << "Forwarding " << call->serverContext.method() << " call";
         call->state = Call::State::FORWARDING;
 
         call->clientContext.set_wait_for_ready(true);
@@ -1895,10 +1916,10 @@ void CSIProxy::serve(ServerCompletionQueue* completionQueue)
                      << call->serverContext.method() << " call";
         }
 
-        // The call is completed so clean it up.
+        // The call is completed so clean it up and move to the next iteration
+        // immediately.
         delete call;
-
-        break;
+        continue;
       }
     }
   }
@@ -2000,7 +2021,7 @@ int main(int argc, char** argv)
   }
 
   if (flags.forward.isSome()) {
-    CSIProxy proxy(flags.endpoint, flags.forward.get());
+    CSIProxy proxy(flags.api_version, flags.endpoint, flags.forward.get());
 
     proxy.run();
   } else {
