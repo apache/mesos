@@ -16,7 +16,6 @@ This release contains the following highlights:
 Unresolved Critical Issues:
   * [MESOS-9697] Release RPMs are not uploaded to bintray
   * [MESOS-9672] Docker containerizer should ignore pids of executors that do not pass the connection check.
-  * [MESOS-9667] Check failure when executor for task using resource provider resources subscribes before agent is registered
   * [MESOS-9654] `PUBLISH_RESOURCES` should fail if the resource version changes.
   * [MESOS-9619] Mesos Master Crashes with Launch Group when using Port Resources
   * [MESOS-9616] `Filters.refuse_seconds` declines resources not in offers.
@@ -194,6 +193,7 @@ All Resolved Issues:
   * [MESOS-9692] - Quota may be under allocated for disk resources.
   * [MESOS-9696] - Test MasterQuotaTest.AvailableResourcesSingleDisconnectedAgent is flaky
   * [MESOS-9707] - Calling link::lo() may cause runtime error
+  * [MESOS-9667] - Check failure when executor for task using resource provider resources subscribes before agent is registered.
 
 ** Epic
   * [MESOS-8054] - Feedback for operations
