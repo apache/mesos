@@ -295,7 +295,9 @@ All Resolved Issues:
   * [MESOS-9620] - Add metrics for volume gid manager
   * [MESOS-9622] - Refactor SLRP with a CSI volume manager.
   * [MESOS-9623] - Implement CSI volume manager with CSI v1.
+  * [MESOS-9624] - Bundle CSI spec v1.0 in Mesos.
   * [MESOS-9625] - Make `DiskProfileAdaptor` agnostic to CSI spec version.
+  * [MESOS-9626] - Make SLRP pick the appropriate CSI versions for plugins.
   * [MESOS-9632] - Refactor SLRP with a CSI service manager.
   * [MESOS-9639] - Make CSI plugin RPC metrics agnostic to CSI versions.
   * [MESOS-9648] - Make operation reconciliation send asynchronous updates
