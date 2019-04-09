@@ -99,7 +99,7 @@ Result<string> lo()
     Result<bool> test = link::internal::test(link, IFF_LOOPBACK);
     if (test.isError()) {
       return Error("Failed to check the flag on link: " + link);
-    } else if (test.get()) {
+    } else if (test.isSome() && test.get()) {
       return link;
     }
   }
