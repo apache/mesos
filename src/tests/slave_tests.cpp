@@ -139,6 +139,7 @@ using std::string;
 using std::vector;
 
 using testing::_;
+using testing::AtLeast;
 using testing::AtMost;
 using testing::DoAll;
 using testing::Eq;
@@ -11691,6 +11692,7 @@ TEST_F(SlaveTest, AgentFailoverHTTPExecutorUsingResourceProviderResources)
   Future<v1::scheduler::Event::Update> taskStarting;
   Future<v1::scheduler::Event::Update> taskRunning;
   EXPECT_CALL(*scheduler, update(_, _))
+    .Times(AtLeast(2))
     .WillOnce(DoAll(
         v1::scheduler::SendAcknowledge(frameworkId, agentId),
         FutureArg<1>(&taskStarting)))
@@ -11732,22 +11734,26 @@ TEST_F(SlaveTest, AgentFailoverHTTPExecutorUsingResourceProviderResources)
   // Fail over the agent. We expect the agent to destroy the running
   // container since the resource provider has not resubscribed when
   // the executor resubscribes which prevents publishing of used resources.
-  EXPECT_CALL(resourceProvider, disconnected());
+  EXPECT_CALL(resourceProvider, disconnected())
+    .Times(AtMost(1));
 
   slave.get()->terminate();
 
-  Future<Nothing> destroy =
-    FUTURE_DISPATCH(_, &MesosContainerizerProcess::destroy);
+  // Stop the mock resource provider so it won't resubscribe. This ensures that
+  // the executor container will be destroyed during agent recovery.
+  resourceProvider.stop();
+
+  Future<Nothing> executorTerminated =
+    FUTURE_DISPATCH(_, &Slave::executorTerminated);
 
   slave = StartSlave(&detector, processId, slaveFlags);
   ASSERT_SOME(slave);
 
-  AWAIT_READY(destroy);
+  // Resume the clock so the task and the executor can be reaped.
+  Clock::resume();
 
-  // Trigger a executor registration timeout so the agent finishes
-  // recovery and can shut down as part of being destructed.
-  Clock::advance(slaveFlags.executor_registration_timeout);
-  Clock::settle();
+  // Wait until the executor is reaped.
+  AWAIT_READY(executorTerminated);
 
   // NOTE: We do not check that the task is reported as `TASK_LOST`
   // to the framework since we have not made sure that the task status
