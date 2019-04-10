@@ -44,10 +44,6 @@
 
 #include "examples/flags.hpp"
 
-// TODO(bevers): Write a version of `isTerminalState()` that is available
-// from public headers and can handle v1 protobufs.
-#include "internal/devolve.hpp"
-
 #include "logging/logging.hpp"
 
 using process::Owned;
@@ -62,6 +58,7 @@ using mesos::v1::AgentID;
 using mesos::v1::Credential;
 using mesos::v1::FrameworkID;
 using mesos::v1::FrameworkInfo;
+using mesos::v1::Label;
 using mesos::v1::Offer;
 using mesos::v1::OperationID;
 using mesos::v1::OperationState;
@@ -106,6 +103,7 @@ using mesos::v1::scheduler::Mesos;
 namespace {
 
 constexpr char FRAMEWORK_NAME[] = "Operation Feedback Framework (C++)";
+constexpr char RESERVATIONS_LABEL[] = "operation_feedback_framework_label";
 constexpr Duration RECONCILIATION_INTERVAL = Seconds(30);
 constexpr Duration RESUBSCRIPTION_INTERVAL = Seconds(2);
 
@@ -154,7 +152,7 @@ constexpr Duration RESUBSCRIPTION_INTERVAL = Seconds(2);
 //    left waiting for an offer from that agent forever.
 //
 //  - If the framework is killed or shut down before all reservations have been
-//    unreserved, these left-over reservation require manual cleanup.
+//    unreserved, these left-over reservations require manual cleanup.
 //
 //  - The framework does not currently suppress or revive offers.
 
@@ -169,10 +167,13 @@ public:
       const string& _master,
       const string& _role,
       const Option<Credential>& _credential,
+      bool _cleanupUnknownReservations)
     : framework(_framework),
       master(_master),
       role(_role),
-      credential(_credential)
+      credential(_credential),
+      cleanupUnknownReservations(_cleanupUnknownReservations),
+      reservationsLabelValue(id::UUID::random().toString())
   {
   }
 
@@ -188,6 +189,10 @@ public:
     reservationInfo.set_role(role);
     reservationInfo.set_principal(framework.principal());
 
+    Label* label = reservationInfo.mutable_labels()->add_labels();
+    label->set_key(RESERVATIONS_LABEL);
+    label->set_value(reservationsLabelValue);
+
     SchedulerTask task;
     task.stage = SchedulerTask::AWAITING_RESERVE_OFFER;
     task.taskResources = resources;
@@ -195,6 +200,7 @@ public:
     // The task will run on reserved resources.
     Resources taskResourcesReserved =
       task.taskResources.pushReservation(reservationInfo);
+
     task.taskInfo.mutable_resources()->CopyFrom(taskResourcesReserved);
     task.taskInfo.mutable_command()->set_shell(true);
     task.taskInfo.mutable_command()->set_value(command);
@@ -316,6 +322,34 @@ protected:
       Resources remaining(offer.resources());
       int reservations = 0, launches = 0, unreservations = 0;
       bool havePendingTasks = false;  // Whether any task awaits an offer.
+
+      // Cleanup reservations from previous runs.
+      //
+      // NOTE: We don't set an operation ID for these unreservations, so we
+      // don't expect to receive any operation status updates for them.
+      if (cleanupUnknownReservations) {
+        Resources reserved = remaining.reserved(role);
+        foreach (const Resource& resource, reserved) {
+          foreach (Label label, resource.reservations(0).labels().labels()) {
+            if (label.key() != RESERVATIONS_LABEL) {
+              continue;
+            }
+
+            if (label.value() != reservationsLabelValue) {
+              LOG(INFO) << "Removing reservation made by another instance "
+                        << "of the framework: " << resource;
+
+              Offer::Operation* operation = accept->add_operations();
+              operation->set_type(Offer::Operation::UNRESERVE);
+              operation->mutable_unreserve()->add_resources()->CopyFrom(
+                  resource);
+
+              remaining -= resource;
+              ++unreservations;
+            }
+          }
+        }
+      }
 
       // For each pending task that does not yet have a reservation,
       // check whether the offer contains enough unreserved resources
@@ -699,6 +733,13 @@ private:
   string role;
   Option<Credential> credential;
 
+  // See `cleanup_unknown_reservations` flag description below.
+  bool cleanupUnknownReservations;
+
+  // The value for the label that will be used to mark reservations made by the
+  // current instance of the framework.
+  string reservationsLabelValue;
+
   // Represents a task lifecycle from the scheduler's perspective, i.e.
   // a reserve operation followed by a mesos task followed by an unreserve
   // operation.
@@ -749,6 +790,13 @@ public:
         "user",
         "The username under which to run tasks.");
 
+    add(&Flags::cleanup_unknown_reservations,
+        "cleanup_unknown_reservations",
+        "Cleanup reservations not made by this instance of the framework.\n"
+        "This should only be enabled if no other framework is making\n"
+        "reservations under the same role.",
+        true);
+
     add(&Flags::command,
         "command",
         "The command to run for each task.",
@@ -769,6 +817,7 @@ public:
   string resources;
   Option<string> user;
   int num_tasks;
+  bool cleanup_unknown_reservations;
 };
 
 
@@ -836,7 +885,8 @@ int main(int argc, char** argv)
       framework,
       flags.master,
       flags.role,
-      credential);
+      credential,
+      flags.cleanup_unknown_reservations);
 
   for (int i=0; i < flags.num_tasks; ++i) {
     scheduler.addTask(flags.command, parsedResources.get());
