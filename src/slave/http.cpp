@@ -789,6 +789,12 @@ Future<Response> Http::executor(
           string("Expecting 'Accept' to allow ") +
           "'" + APPLICATION_PROTOBUF + "' or '" + APPLICATION_JSON + "'");
     }
+  } else if (call.type() == executor::Call::HEARTBEAT) {
+    // We return early here before doing any validation because currently
+    // this proto may contain dummy values for framework and executor IDs
+    // (which is safe).
+    // See: TODO inside `heartbeat()` in src/executor/executor.cpp.
+    return Accepted();
   } else {
     if (slave->state == Slave::RECOVERING) {
       return ServiceUnavailable("Agent has not finished recovery");
@@ -864,7 +870,8 @@ Future<Response> Http::executor(
     }
 
     case executor::Call::HEARTBEAT: {
-      return Accepted();
+      // This should be handled before hitting this switch statement.
+      UNREACHABLE();
     }
 
     case executor::Call::UNKNOWN: {
