@@ -5024,7 +5024,22 @@ void Slave::subscribe(
       const ContainerID& containerId = executor->containerId;
       const Resources& resources = executor->allocatedResources();
 
-      publishResources(containerId, resources)
+      Future<Nothing> resourcesPublished;
+      if (executor->queuedTasks.empty()) {
+        // Since no task is queued, all resources should have been published
+        // before, so we skip resource publishing here. This avoids failures due
+        // to unregistered resource providers during recovery (see MESOS-9711).
+        //
+        // NOTE: It is safe to not update the published resources when the
+        // executor reduces its resource consumption (e.g., due to task
+        // completion) because we don't require resources to be unpublished
+        // after use. See comments in `publishResources` for details.
+        resourcesPublished = Nothing();
+      } else {
+        resourcesPublished = publishResources(containerId, resources);
+      }
+
+      resourcesPublished
         .then(defer(self(), [this, containerId, resources] {
           // NOTE: The executor struct could have been removed before
           // containerizer update, so we use the captured container ID and

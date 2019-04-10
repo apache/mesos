@@ -11568,9 +11568,9 @@ TEST_F(SlaveTest, RetryOperationStatusUpdateAfterRecovery)
 }
 
 
-// This test verifies that on agent failover HTTP-based executors using
-// resource provider resources can resubscribe without crashing the
-// agent. This is a regression test for MESOS-9667.
+// This test verifies that on agent failover HTTP-based executors using resource
+// provider resources can resubscribe without crashing the agent or killing the
+// executor. This is a regression test for MESOS-9667 and MESOS-9711.
 TEST_F(SlaveTest, AgentFailoverHTTPExecutorUsingResourceProviderResources)
 {
   // This test is run with paused clock to avoid
@@ -11623,7 +11623,7 @@ TEST_F(SlaveTest, AgentFailoverHTTPExecutorUsingResourceProviderResources)
 
   AWAIT_READY(updateSlaveMessage);
 
-  // Register a framework to excercise operations.
+  // Register a framework to exercise operations.
   auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
 
   Future<Nothing> connected;
@@ -11692,13 +11692,22 @@ TEST_F(SlaveTest, AgentFailoverHTTPExecutorUsingResourceProviderResources)
   Future<v1::scheduler::Event::Update> taskStarting;
   Future<v1::scheduler::Event::Update> taskRunning;
   EXPECT_CALL(*scheduler, update(_, _))
-    .Times(AtLeast(2))
     .WillOnce(DoAll(
         v1::scheduler::SendAcknowledge(frameworkId, agentId),
         FutureArg<1>(&taskStarting)))
     .WillOnce(DoAll(
         v1::scheduler::SendAcknowledge(frameworkId, agentId),
         FutureArg<1>(&taskRunning)));
+
+  // The following futures will ensure that the task status update manager has
+  // checkpointed the status update acknowledgements so there will be no retry.
+  //
+  // NOTE: The order of the two `FUTURE_DISPATCH`s is reversed because Google
+  // Mock will search the expectations in reverse order.
+  Future<Nothing> _taskRunningAcknowledgement =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+  Future<Nothing> _taskStartingAcknowledgement =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
 
   {
     v1::Resources executorResources =
@@ -11727,41 +11736,37 @@ TEST_F(SlaveTest, AgentFailoverHTTPExecutorUsingResourceProviderResources)
 
   AWAIT_READY(taskStarting);
   ASSERT_EQ(v1::TaskState::TASK_STARTING, taskStarting->status().state());
+  ASSERT_EQ(v1::TaskStatus::SOURCE_EXECUTOR, taskStarting->status().source());
+  AWAIT_READY(_taskStartingAcknowledgement);
 
   AWAIT_READY(taskRunning);
   ASSERT_EQ(v1::TaskState::TASK_RUNNING, taskRunning->status().state());
+  ASSERT_EQ(v1::TaskStatus::SOURCE_EXECUTOR, taskRunning->status().source());
+  AWAIT_READY(_taskRunningAcknowledgement);
 
-  // Fail over the agent. We expect the agent to destroy the running
-  // container since the resource provider has not resubscribed when
-  // the executor resubscribes which prevents publishing of used resources.
+  // Fail over the agent. We expect the executor to resubscribe successfully
+  // even if the resource provider does not resubscribe.
   EXPECT_CALL(resourceProvider, disconnected())
     .Times(AtMost(1));
 
+  EXPECT_NO_FUTURE_DISPATCHES(_, &Slave::executorTerminated);
+
   slave.get()->terminate();
 
-  // Stop the mock resource provider so it won't resubscribe. This ensures that
-  // the executor container will be destroyed during agent recovery.
+  // Stop the mock resource provider so it won't resubscribe.
   resourceProvider.stop();
 
-  Future<Nothing> executorTerminated =
-    FUTURE_DISPATCH(_, &Slave::executorTerminated);
+  // The following future will be satisfied when an HTTP executor subscribes.
+  Future<Nothing> executorSubscribed = FUTURE_DISPATCH(_, &Slave::___run);
 
   slave = StartSlave(&detector, processId, slaveFlags);
   ASSERT_SOME(slave);
 
-  // Resume the clock so the task and the executor can be reaped.
+  // Resume the clock so when the regression happens, we'll see the executor
+  // termination and the test will likely (but not 100% reliable) fail.
   Clock::resume();
 
-  // Wait until the executor is reaped.
-  AWAIT_READY(executorTerminated);
-
-  // NOTE: We do not check that the task is reported as `TASK_LOST`
-  // to the framework since we have not made sure that the task status
-  // update acknowledgement has been processed.
-
-  // TODO(bbannier): Once MESOS-9711 is fixed make sure that the executor
-  // can resubscribe even if it initially attempted to resubscribe before
-  // the resource provider has resubscribed.
+  AWAIT_READY(executorSubscribed);
 }
 
 } // namespace tests {
