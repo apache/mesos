@@ -792,6 +792,9 @@ protected:
     if (connections.isSome()) {
       Call call;
       call.set_type(Call::HEARTBEAT);
+
+      // TODO(josephw): Consider exposing the actual values to the executor
+      // library and inserting them below.
       call.mutable_executor_id()->set_value("unused");
       call.mutable_framework_id()->set_value("unused");
 
