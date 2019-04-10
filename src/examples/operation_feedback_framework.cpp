@@ -165,14 +165,14 @@ class OperationFeedbackScheduler
 
 public:
   OperationFeedbackScheduler(
-      const FrameworkInfo& framework,
-      const string& master,
-      const string& role,
-      const Option<Credential>& credential)
-    : framework_(framework),
-      master_(master),
-      role_(role),
-      credential_(credential)
+      const FrameworkInfo& _framework,
+      const string& _master,
+      const string& _role,
+      const Option<Credential>& _credential,
+    : framework(_framework),
+      master(_master),
+      role(_role),
+      credential(_credential)
   {
   }
 
@@ -185,13 +185,13 @@ public:
 
     Resource::ReservationInfo reservationInfo;
     reservationInfo.set_type(Resource::ReservationInfo::DYNAMIC);
-    reservationInfo.set_role(role_);
-    reservationInfo.set_principal(framework_.principal());
+    reservationInfo.set_role(role);
+    reservationInfo.set_principal(framework.principal());
 
     SchedulerTask task;
     task.stage = SchedulerTask::AWAITING_RESERVE_OFFER;
     task.taskResources = resources;
-    task.taskResources.allocate(role_);
+    task.taskResources.allocate(role);
     // The task will run on reserved resources.
     Resources taskResourcesReserved =
       task.taskResources.pushReservation(reservationInfo);
@@ -203,7 +203,7 @@ public:
     task.taskInfo.set_name(
         "Operation Feedback Task " + stringify(taskIdCounter));
 
-    tasks_.push_back(task);
+    tasks.push_back(task);
     return;
   }
 
@@ -212,23 +212,23 @@ protected:
   {
     // We initialize the library here to ensure that callbacks are only invoked
     // after the process has spawned.
-    mesos_.reset(
+    mesos.reset(
         new Mesos(
-            master_,
+            master,
             mesos::ContentType::PROTOBUF,
             process::defer(self(), &Self::connected),
             process::defer(self(), &Self::disconnected),
             process::defer(self(), &Self::received, lambda::_1),
-            credential_));
+            credential));
   }
 
   void finalize() override
   {
-    if (framework_.has_id()) {
+    if (framework.has_id()) {
       Call call;
-      call.mutable_framework_id()->CopyFrom(framework_.id());
+      call.mutable_framework_id()->CopyFrom(framework.id());
       call.set_type(Call::TEARDOWN);
-      mesos_->send(call);
+      mesos->send(call);
     }
   }
 
@@ -248,8 +248,8 @@ protected:
     // In particular, running this with the `--master=local` flag frequently
     // results in `503 Service Unavailable` responses.
     // Therefore, we have to retry in a loop until we're actually registered.
-    if (!framework_.has_id()) {
-      mesos_->send(SUBSCRIBE(framework_));
+    if (!framework.has_id()) {
+      mesos->send(SUBSCRIBE(framework));
       process::delay(RESUBSCRIPTION_INTERVAL, self(), &Self::subscribe);
     }
   }
@@ -269,8 +269,8 @@ protected:
 
       switch (event.type()) {
         case Event::SUBSCRIBED: {
-          framework_.mutable_id()->CopyFrom(event.subscribed().framework_id());
-          LOG(INFO) << "Subscribed with ID '" << framework_.id();
+          framework.mutable_id()->CopyFrom(event.subscribed().framework_id());
+          LOG(INFO) << "Subscribed with ID '" << framework.id();
           break;
         }
 
@@ -309,7 +309,7 @@ protected:
 
       Call call;
       call.set_type(Call::ACCEPT);
-      call.mutable_framework_id()->CopyFrom(framework_.id());
+      call.mutable_framework_id()->CopyFrom(framework.id());
       Call::Accept* accept = call.mutable_accept();
       accept->add_offer_ids()->CopyFrom(offer.id());
 
@@ -390,14 +390,14 @@ protected:
           << reservations << " `RESERVE` operations, "
           << launches << " `LAUNCH` operations and "
           << unreservations << " `UNRESERVE` operations while having "
-          << tasks_.size() << " non-completed tasks";
+          << tasks.size() << " non-completed tasks";
       }
 
       // Each `ACCEPT` call must only contain offers with the same agent
       // id, so we have to send one call per offer back to the master.
       // We also want to send the `ACCEPT` call if we don't launch any
       // operations on this offer, in order to decline the offer.
-      mesos_->send(call);
+      mesos->send(call);
     }
   }
 
@@ -407,18 +407,18 @@ protected:
 
     const TaskID& taskId = status.task_id();
 
-    auto taskIterator = std::find_if(tasks_.begin(), tasks_.end(),
+    auto taskIterator = std::find_if(tasks.begin(), tasks.end(),
       [&] (const SchedulerTask& tx) {
         return tx.taskInfo.task_id() == taskId;
       });
 
-    if (taskIterator == tasks_.end()) {
+    if (taskIterator == tasks.end()) {
       LOG(WARNING) << "Status update for unknown task " << taskId;
       return;
     }
 
     if (status.has_uuid()) {
-      mesos_->send(ACKNOWLEDGE(status, framework_.id()));
+      mesos->send(ACKNOWLEDGE(status, framework.id()));
     }
 
     if (taskIterator->stage != SchedulerTask::AWAITING_TASK_FINISHED) {
@@ -468,27 +468,27 @@ protected:
     VLOG(1) << "Received operation status update " << status;
 
     if (status.has_uuid()) {
-      mesos_->send(ACKNOWLEDGE_OPERATION(status, framework_.id()));
+      mesos->send(ACKNOWLEDGE_OPERATION(status, framework.id()));
     }
 
     const OperationID& operationId = status.operation_id();
 
-    auto taskIterator = std::find_if(tasks_.begin(), tasks_.end(),
+    auto taskIterator = std::find_if(tasks.begin(), tasks.end(),
         [&] (const SchedulerTask& tx) {
           return tx.reserveOperationId == operationId;
         });
 
-    if (taskIterator != tasks_.end()) {
+    if (taskIterator != tasks.end()) {
       handleReserveOperationStatusUpdate(taskIterator, status);
       return;
     }
 
-    taskIterator = std::find_if(tasks_.begin(), tasks_.end(),
+    taskIterator = std::find_if(tasks.begin(), tasks.end(),
         [&] (const SchedulerTask& tx) {
           return tx.unreserveOperationId == operationId;
         });
 
-    if (taskIterator != tasks_.end()) {
+    if (taskIterator != tasks.end()) {
       handleUnreserveOperationStatusUpdate(taskIterator, status);
       return;
     }
@@ -586,8 +586,8 @@ protected:
         // We also count `GONE_BY_OPERATOR` as a success, because in that
         // case there's nothing left to unreserve.
         LOG(INFO) << "Task " << task->taskInfo.task_id() << " done; removing";
-        tasks_.erase(task);
-        if (tasks_.empty()) {
+        tasks.erase(task);
+        if (tasks.empty()) {
           LOG(INFO) << "All tasks completed, shutting down the framework...";
           process::terminate(self());
         }
@@ -600,16 +600,16 @@ protected:
     // Keep reconciling as long as the framework is running.
     process::delay(RECONCILIATION_INTERVAL, self(), &Self::reconcileOperations);
 
-    if (!framework_.has_id()) {
+    if (!framework.has_id()) {
       return;
     }
 
     Call call;
     call.set_type(Call::RECONCILE_OPERATIONS);
-    call.mutable_framework_id()->CopyFrom(framework_.id());
+    call.mutable_framework_id()->CopyFrom(framework.id());
     Call::ReconcileOperations* reconcile = call.mutable_reconcile_operations();
 
-    for (const SchedulerTask& task : tasks_) {
+    for (const SchedulerTask& task : tasks) {
       switch (task.stage) {
         case SchedulerTask::AWAITING_RESERVE_OFFER:
         case SchedulerTask::AWAITING_UNRESERVE_OFFER:
@@ -637,7 +637,7 @@ protected:
       }
     }
 
-    mesos_->send(call);
+    mesos->send(call);
   }
 
 private:
@@ -693,11 +693,11 @@ private:
     return call;
   }
 
-  Owned<Mesos> mesos_;
-  FrameworkInfo framework_;
-  string master_;
-  string role_;
-  Option<Credential> credential_;
+  Owned<Mesos> mesos;
+  FrameworkInfo framework;
+  string master;
+  string role;
+  Option<Credential> credential;
 
   // Represents a task lifecycle from the scheduler's perspective, i.e.
   // a reserve operation followed by a mesos task followed by an unreserve
@@ -723,7 +723,7 @@ private:
     Option<OperationID> unreserveOperationId;
   };
 
-  std::list<SchedulerTask> tasks_;
+  std::list<SchedulerTask> tasks;
 
   // This function needs to have `SchedulerTask::Stage` be already defined.
   template<typename UnaryOperation>
@@ -731,7 +731,7 @@ private:
       SchedulerTask::Stage stage,
       UnaryOperation f)
   {
-    for (SchedulerTask& task : tasks_) {
+    for (SchedulerTask& task : tasks) {
       if (task.stage == stage) {
         f(task);
       }
