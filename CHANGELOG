@@ -40,7 +40,6 @@ Unresolved Critical Issues:
   * [MESOS-8769] Agent crashes when CNI config not defined
   * [MESOS-8679] If the first KILL stuck in the default executor, all other KILLs will be ignored.
   * [MESOS-8608] RmdirContinueOnErrorTest.RemoveWithContinueOnError fails.
-  * [MESOS-8467] Destroyed executors might be used after `Slave::publishResource()`.
   * [MESOS-8257] Unified Containerizer "leaks" a target container mount path to the host FS when the target resolves to an absolute path
   * [MESOS-8256] Libprocess can silently deadlock due to worker thread exhaustion.
   * [MESOS-8096] Enqueueing events in MockHTTPScheduler can lead to segfaults.
@@ -69,6 +68,7 @@ All Resolved Issues:
   * [MESOS-7883] - Quota heuristic check not accounting for mount volumes
   * [MESOS-8156] - Add a socketpair helper to the stout net API
   * [MESOS-8343] - SchedulerHttpApiTest.UpdatePidToHttpScheduler is flaky.
+  * [MESOS-8467] - Destroyed executors might be used after `Slave::publishResource()`.
   * [MESOS-8470] - CHECK failure in DRFSorter due to invalid framework id.
   * [MESOS-8545] - AgentAPIStreamingTest.AttachInputToNestedContainerSession is flaky.
   * [MESOS-8547] - Mount devpts with compatible defaults.
