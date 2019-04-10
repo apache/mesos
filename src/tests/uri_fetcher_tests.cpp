@@ -115,6 +115,25 @@ TEST_F(CurlFetcherPluginTest, CURL_ValidUri)
 }
 
 
+TEST_F(CurlFetcherPluginTest, CURL_ValidUriWithOutputFileName)
+{
+  URI uri = uri::http(
+      stringify(server.self().address.ip),
+      "/TestHttpServer/test",
+      server.self().address.port);
+
+  EXPECT_CALL(server, test(_))
+    .WillOnce(Return(http::OK("test")));
+
+  Try<Owned<uri::Fetcher>> fetcher = uri::fetcher::create();
+  ASSERT_SOME(fetcher);
+
+  AWAIT_READY(fetcher.get()->fetch(uri, os::getcwd(), None(), "file"));
+
+  EXPECT_TRUE(os::exists(path::join(os::getcwd(), "file")));
+}
+
+
 TEST_F(CurlFetcherPluginTest, CURL_InvalidUri)
 {
   URI uri = uri::http(
