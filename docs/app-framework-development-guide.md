@@ -130,19 +130,23 @@ commands or Docker containers.
 
 The current semantics of the default executor are as folows:
 
--- Tasks are launched as nested containers underneath the executor container.
+-- Task group is an atomic unit of deployment of a scheduler onto the default executor.
+
+-- The default executor can run one or more task groups (since Mesos 1.2) and each task group can be launched by the scheduler at different points in time.
+
+-- All task groups' tasks are launched as nested containers underneath the executor container.
 
 -- Task containers and executor container share resources like cpu, memory,
    network and volumes.
+   
+-- Each task can have its own separate root file system (e.g., Docker image).
 
--- There is no resource isolation between different tasks within an executor.
+-- There is no resource isolation between different tasks or task groups within an executor.
    Tasks' resources are added to the executor container.
 
 -- If any of the tasks exits with a non-zero exit code, all the tasks in the task group
-   are killed and the executor shuts down.
-
--- Multiple task groups are not supported.
-
+   are killed automatically. The default executor commits suicide if there are no active task groups.
+   
 
 Once the default executor is considered **stable**, the command executor will be deprecated in favor of it.
 
