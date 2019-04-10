@@ -95,12 +95,14 @@ public:
    * @param uri the URI to fetch
    * @param directory the directory the URI will be downloaded to
    * @param data the optional user defined data
+   * @param outputFileName the optional output file name
    */
   // TODO(jieyu): Consider using 'Path' for 'directory' here.
   process::Future<Nothing> fetch(
       const URI& uri,
       const std::string& directory,
-      const Option<std::string>& data = None()) const;
+      const Option<std::string>& data = None(),
+      const Option<std::string>& outputFileName = None()) const;
 
   /**
    * Fetches a URI to the given directory. This method will dispatch
@@ -110,12 +112,14 @@ public:
    * @param directory the directory the URI will be downloaded to
    * @param name of the plugin that is used to download
    * @param data the optional user defined data
+   * @param outputFileName the optional output file name
    */
   process::Future<Nothing> fetch(
       const URI& uri,
       const std::string& directory,
       const std::string& name,
-      const Option<std::string>& data = None()) const;
+      const Option<std::string>& data = None(),
+      const Option<std::string>& outputFileName = None()) const;
 
 private:
   Fetcher(const Fetcher&) = delete; // Not copyable.
