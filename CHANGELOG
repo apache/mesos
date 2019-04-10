@@ -188,12 +188,14 @@ All Resolved Issues:
   * [MESOS-9635] - OperationReconciliationTest.AgentPendingOperationAfterMasterFailover is flaky again (3x) due to orphan operations
   * [MESOS-9637] - Impossible to CREATE a volume on resource provider resources over the operator API
   * [MESOS-9661] - Agent crashes when SLRP recovers dropped operations.
+  * [MESOS-9667] - Check failure when executor for task using resource provider resources subscribes before agent is registered.
   * [MESOS-9688] - Quota is not enforced properly when subroles have reservations.
   * [MESOS-9691] - Quota headroom calculation is off when subroles are involved.
   * [MESOS-9692] - Quota may be under allocated for disk resources.
   * [MESOS-9696] - Test MasterQuotaTest.AvailableResourcesSingleDisconnectedAgent is flaky
   * [MESOS-9707] - Calling link::lo() may cause runtime error
   * [MESOS-9667] - Check failure when executor for task using resource provider resources subscribes before agent is registered.
+  * [MESOS-9711] - Avoid shutting down executors registering before a required resource provider.
   * [MESOS-9712] - StorageLocalResourceProviderTest.CsiPluginRpcMetrics is flaky.
   * [MESOS-9727] - Heartbeat calls from executor to agent are reported as errors.
 
