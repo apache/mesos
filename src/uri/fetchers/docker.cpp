@@ -607,7 +607,8 @@ string DockerFetcherPlugin::name() const
 Future<Nothing> DockerFetcherPlugin::fetch(
     const URI& uri,
     const string& directory,
-    const Option<string>& data) const
+    const Option<string>& data,
+    const Option<string>& outputFileName) const
 {
   return dispatch(
       process.get(),

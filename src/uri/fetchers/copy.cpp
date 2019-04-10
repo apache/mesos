@@ -77,7 +77,8 @@ string CopyFetcherPlugin::name() const
 Future<Nothing> CopyFetcherPlugin::fetch(
     const URI& uri,
     const string& directory,
-    const Option<string>& data) const
+    const Option<string>& data,
+    const Option<string>& outputFileName) const
 {
   // TODO(jojy): Validate the given URI.
 

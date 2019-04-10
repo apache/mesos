@@ -110,7 +110,11 @@ Future<Nothing> Fetcher::fetch(
     return Failure("Scheme '" + uri.scheme() + "' is not supported");
   }
 
-  return pluginsByScheme.at(uri.scheme())->fetch(uri, directory, data);
+  return pluginsByScheme.at(uri.scheme())->fetch(
+      uri,
+      directory,
+      data,
+      outputFileName);
 }
 
 
@@ -125,7 +129,7 @@ Future<Nothing> Fetcher::fetch(
     return Failure("Plugin  '" + name + "' is not registered.");
   }
 
-  return pluginsByName.at(name)->fetch(uri, directory, data);
+  return pluginsByName.at(name)->fetch(uri, directory, data, outputFileName);
 }
 
 } // namespace uri {

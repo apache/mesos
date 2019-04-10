@@ -51,7 +51,8 @@ public:
   process::Future<Nothing> fetch(
       const URI& uri,
       const std::string& directory,
-      const Option<std::string>& data = None()) const override;
+      const Option<std::string>& data = None(),
+      const Option<std::string>& outputFileName = None()) const override;
 
 private:
   explicit CurlFetcherPlugin(const Flags& _flags) : flags(_flags) {}

@@ -72,13 +72,15 @@ public:
      * @param uri the URI to fetch
      * @param directory the directory the URI will be downloaded to
      * @param data the optional user defined data
+     * @param outputFileName the optional output file name
      */
     // TODO(gilbert): Change the parameter 'data' as a hashmap
     // of <string, Secret::Value>, and update the comment.
     virtual process::Future<Nothing> fetch(
         const URI& uri,
         const std::string& directory,
-        const Option<std::string>& data = None()) const = 0;
+        const Option<std::string>& data = None(),
+        const Option<std::string>& outputFileName = None()) const = 0;
   };
 
   /**
