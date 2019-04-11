@@ -194,6 +194,7 @@ All Resolved Issues:
   * [MESOS-9696] - Test MasterQuotaTest.AvailableResourcesSingleDisconnectedAgent is flaky
   * [MESOS-9707] - Calling link::lo() may cause runtime error
   * [MESOS-9667] - Check failure when executor for task using resource provider resources subscribes before agent is registered.
+  * [MESOS-9712] - StorageLocalResourceProviderTest.CsiPluginRpcMetrics is flaky.
   * [MESOS-9727] - Heartbeat calls from executor to agent are reported as errors.
 
 ** Epic
