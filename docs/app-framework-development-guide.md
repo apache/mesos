@@ -144,7 +144,7 @@ The current semantics of the default executor are as folows:
 -- There is no resource isolation between different tasks or task groups within an executor.
    Tasks' resources are added to the executor container.
 
--- If any of the tasks exits with a non-zero exit code, all the tasks in the task group
+-- If any of the tasks exits with a non-zero exit code or killed by the scheduler, all the tasks in the task group
    are killed automatically. The default executor commits suicide if there are no active task groups.
    
 
