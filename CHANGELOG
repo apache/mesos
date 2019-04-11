@@ -14,45 +14,45 @@ This release contains the following highlights:
       minimum resource quantity offer filter information, see MESOS-7258.
 
 Unresolved Critical Issues:
-  * [MESOS-9697] Release RPMs are not uploaded to bintray
-  * [MESOS-9672] Docker containerizer should ignore pids of executors that do not pass the connection check.
-  * [MESOS-9654] `PUBLISH_RESOURCES` should fail if the resource version changes.
-  * [MESOS-9619] Mesos Master Crashes with Launch Group when using Port Resources
-  * [MESOS-9616] `Filters.refuse_seconds` declines resources not in offers.
-  * [MESOS-9609] Master check failure when marking agent unreachable
-  * [MESOS-9579] ExecutorHttpApiTest.HeartbeatCalls is flaky.
-  * [MESOS-9560] ContentType/AgentAPITest.MarkResourceProviderGone/1 is flaky
-  * [MESOS-9536] Nested container launched with non-root user may not be able to write to its sandbox via the environment variable
-  * [MESOS-9520] IOTest.Read hangs on Windows
-  * [MESOS-9500] spark submit with docker image on mesos cluster fails.
-  * [MESOS-9426] ZK master detection can become forever pending.
-  * [MESOS-9393] Fetcher crashes extracting archives with non-ASCII filenames.
-  * [MESOS-9365] Windows - GET_CONTAINERS API call causes the Mesos agent to fail
-  * [MESOS-9355] Persistence volume does not unmount correctly with wrong artifact URI
-  * [MESOS-9352] Data in persistent volume deleted accidentally when using Docker container and Persistent volume
-  * [MESOS-9306] Mesos containerizer can get stuck during cgroup cleanup
-  * [MESOS-9180] tasks get stuck in TASK_KILLING on the default executor
-  * [MESOS-9053] Network ports isolator can falsely trigger while destroying containers.
-  * [MESOS-9006] The agent's GET_AGENT leaks resource information when using authorization
-  * [MESOS-8946] CURL 7.58 causes Mesos to fail decoding raw responses.
-  * [MESOS-8840] `cpu.cfs_quota_us` may be accidentally set for command task using docker during agent recovery.
-  * [MESOS-8803] Libprocess deadlocks in a test.
-  * [MESOS-8769] Agent crashes when CNI config not defined
-  * [MESOS-8679] If the first KILL stuck in the default executor, all other KILLs will be ignored.
-  * [MESOS-8608] RmdirContinueOnErrorTest.RemoveWithContinueOnError fails.
-  * [MESOS-8257] Unified Containerizer "leaks" a target container mount path to the host FS when the target resolves to an absolute path
-  * [MESOS-8256] Libprocess can silently deadlock due to worker thread exhaustion.
-  * [MESOS-8096] Enqueueing events in MockHTTPScheduler can lead to segfaults.
-  * [MESOS-8038] Launching GPU task sporadically fails.
-  * [MESOS-7971] PersistentVolumeEndpointsTest.EndpointCreateThenOfferRemove test is flaky
-  * [MESOS-7911] Non-checkpointing framework's tasks should not be marked LOST when agent disconnects.
-  * [MESOS-7748] Slow subscribers of streaming APIs can lead to Mesos OOMing.
-  * [MESOS-7721] Master's agent removal rate limit also applies to agent unreachability.
-  * [MESOS-7566] Master crash due to failed check in DRFSorter::remove
-  * [MESOS-7386] Executor not cleaning up existing running docker containers if external logrotate/logger processes die/killed
-  * [MESOS-5989] Libevent SSL Socket downgrade code accesses uninitialized memory / assumes single peek is sufficient.
-  * [MESOS-5754] CommandInfo.user not honored in docker containerizer
-  * [MESOS-2842] Master crashes when framework changes principal on re-registration
+  * [MESOS-9697] - Release RPMs are not uploaded to bintray
+  * [MESOS-9672] - Docker containerizer should ignore pids of executors that do not pass the connection check.
+  * [MESOS-9654] - `PUBLISH_RESOURCES` should fail if the resource version changes.
+  * [MESOS-9619] - Mesos Master Crashes with Launch Group when using Port Resources
+  * [MESOS-9616] - `Filters.refuse_seconds` declines resources not in offers.
+  * [MESOS-9609] - Master check failure when marking agent unreachable
+  * [MESOS-9579] - ExecutorHttpApiTest.HeartbeatCalls is flaky.
+  * [MESOS-9560] - ContentType/AgentAPITest.MarkResourceProviderGone/1 is flaky
+  * [MESOS-9536] - Nested container launched with non-root user may not be able to write to its sandbox via the environment variable
+  * [MESOS-9520] - IOTest.Read hangs on Windows
+  * [MESOS-9500] - spark submit with docker image on mesos cluster fails.
+  * [MESOS-9426] - ZK master detection can become forever pending.
+  * [MESOS-9393] - Fetcher crashes extracting archives with non-ASCII filenames.
+  * [MESOS-9365] - Windows - GET_CONTAINERS API call causes the Mesos agent to fail
+  * [MESOS-9355] - Persistence volume does not unmount correctly with wrong artifact URI
+  * [MESOS-9352] - Data in persistent volume deleted accidentally when using Docker container and Persistent volume
+  * [MESOS-9306] - Mesos containerizer can get stuck during cgroup cleanup
+  * [MESOS-9180] - tasks get stuck in TASK_KILLING on the default executor
+  * [MESOS-9053] - Network ports isolator can falsely trigger while destroying containers.
+  * [MESOS-9006] - The agent's GET_AGENT leaks resource information when using authorization
+  * [MESOS-8946] - CURL 7.58 causes Mesos to fail decoding raw responses.
+  * [MESOS-8840] - `cpu.cfs_quota_us` may be accidentally set for command task using docker during agent recovery.
+  * [MESOS-8803] - Libprocess deadlocks in a test.
+  * [MESOS-8769] - Agent crashes when CNI config not defined
+  * [MESOS-8679] - If the first KILL stuck in the default executor, all other KILLs will be ignored.
+  * [MESOS-8608] - RmdirContinueOnErrorTest.RemoveWithContinueOnError fails.
+  * [MESOS-8257] - Unified Containerizer "leaks" a target container mount path to the host FS when the target resolves to an absolute path
+  * [MESOS-8256] - Libprocess can silently deadlock due to worker thread exhaustion.
+  * [MESOS-8096] - Enqueueing events in MockHTTPScheduler can lead to segfaults.
+  * [MESOS-8038] - Launching GPU task sporadically fails.
+  * [MESOS-7971] - PersistentVolumeEndpointsTest.EndpointCreateThenOfferRemove test is flaky
+  * [MESOS-7911] - Non-checkpointing framework's tasks should not be marked LOST when agent disconnects.
+  * [MESOS-7748] - Slow subscribers of streaming APIs can lead to Mesos OOMing.
+  * [MESOS-7721] - Master's agent removal rate limit also applies to agent unreachability.
+  * [MESOS-7566] - Master crash due to failed check in DRFSorter::remove
+  * [MESOS-7386] - Executor not cleaning up existing running docker containers if external logrotate/logger processes die/killed
+  * [MESOS-5989] - Libevent SSL Socket downgrade code accesses uninitialized memory / assumes single peek is sufficient.
+  * [MESOS-5754] - CommandInfo.user not honored in docker containerizer
+  * [MESOS-2842] - Master crashes when framework changes principal on re-registration
 
 All Resolved Issues:
 ** Bug
