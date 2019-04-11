@@ -58,10 +58,6 @@ if (WIN32)
   set(ZLIB_URL    ${3RDPARTY_DEPENDENCIES}/zlib-${ZLIB_VERSION}.tar.gz)
   set(SASL2_URL   ${3RDPARTY_DEPENDENCIES}/cyrus-sasl-${SASL2_VERSION}.tar.gz)
   set(WCLAYER_URL ${3RDPARTY_DEPENDENCIES}/wclayer.exe)
-
-  # NOTE: The Windows version of Glog is patched and only available in the
-  # 3rdparty repo, not the local repo.
-  set(GLOG_URL   ${3RDPARTY_DEPENDENCIES}/glog-${GLOG_VERSION}.tar.gz)
 endif ()
 
 if (NOT WIN32)
@@ -366,9 +362,9 @@ add_dependencies(glog ${GLOG_TARGET})
 # On Windows, patch it to enable stack tracing.
 PATCH_CMD(GLOG_PATCH_CMD glog-${GLOG_VERSION}.patch)
 
-if (WIN32)
-  set(GLOG_INSTALL_CMD ${CMAKE_NOOP})
+set(GLOG_LIBRARY_NAME libglog)
 
+if (WIN32)
   # NOTE: Windows-specific workaround for a glog issue documented here[1].
   # Basically, Windows.h and glog/logging.h both define ERROR. Since we don't
   # need the Windows ERROR, we can use this flag to avoid defining it at all.
@@ -385,38 +381,43 @@ if (WIN32)
 
   set_target_properties(
     glog PROPERTIES
-    INTERFACE_INCLUDE_DIRECTORIES ${GLOG_ROOT}/src/windows
     # TODO(andschwa): Remove this when glog is updated.
     IMPORTED_LINK_INTERFACE_LIBRARIES DbgHelp
     INTERFACE_COMPILE_DEFINITIONS "${GLOG_COMPILE_DEFINITIONS}")
 
-  if (CMAKE_GENERATOR MATCHES "Visual Studio")
-    set_target_properties(
-      glog PROPERTIES
-      IMPORTED_LOCATION_DEBUG ${GLOG_ROOT}-build/Debug/glog${LIBRARY_SUFFIX}
-      IMPORTED_LOCATION_RELEASE ${GLOG_ROOT}-build/Release/glog${LIBRARY_SUFFIX}
-      IMPORTED_IMPLIB_DEBUG ${GLOG_ROOT}-build/Debug/glog${CMAKE_IMPORT_LIBRARY_SUFFIX}
-      IMPORTED_IMPLIB_RELEASE ${GLOG_ROOT}-build/Release/glog${CMAKE_IMPORT_LIBRARY_SUFFIX})
-  else ()
-    set_target_properties(
-      glog PROPERTIES
-      IMPORTED_LOCATION ${GLOG_ROOT}-build/glog${LIBRARY_SUFFIX}
-      IMPORTED_IMPLIB ${GLOG_ROOT}-build/glog${CMAKE_IMPORT_LIBRARY_SUFFIX})
-  endif ()
-else ()
-  # TODO(andschwa): Build with CMake instead when glog is updated.
-  set(GLOG_CONFIG_CMD  ${GLOG_ROOT}/src/../configure --with-pic GTEST_CONFIG=no --prefix=${GLOG_ROOT}-build)
-  if (FREEBSD)
-    list(APPEND GLOG_CONFIG_CMD LDFLAGS=-lexecinfo)
-  endif ()
-  set(GLOG_BUILD_CMD   ${MAKE_PROGRAM})
-  set(GLOG_INSTALL_CMD ${MAKE_PROGRAM} install)
+endif ()
 
+set(GLOG_INSTALL_DIR ${GLOG_ROOT}-install)
+
+if (CMAKE_GENERATOR MATCHES "Visual Studio")
   set_target_properties(
     glog PROPERTIES
-    IMPORTED_LOCATION ${GLOG_ROOT}-build/lib/libglog${LIBRARY_SUFFIX}
-    INTERFACE_INCLUDE_DIRECTORIES ${GLOG_ROOT}-build/include)
+    IMPORTED_LOCATION_DEBUG ${GLOG_INSTALL_DIR}/lib/glogd${LIBRARY_SUFFIX}
+    IMPORTED_IMPLIB_DEBUG ${GLOG_INSTALL_DIR}/lib/glogd${CMAKE_IMPORT_LIBRARY_SUFFIX}
+    IMPORTED_LOCATION_RELEASE ${GLOG_INSTALL_DIR}/lib/glog${LIBRARY_SUFFIX}
+    IMPORTED_IMPLIB_RELEASE ${GLOG_INSTALL_DIR}/lib/glog${CMAKE_IMPORT_LIBRARY_SUFFIX}
+  )
+else ()
+  set_target_properties(
+    glog PROPERTIES
+    IMPORTED_LOCATION ${GLOG_INSTALL_DIR}/lib/libglog${LIBRARY_SUFFIX}
+    IMPORTED_IMPLIB ${GLOG_INSTALL_DIR}/lib/libglog${CMAKE_IMPORT_LIBRARY_SUFFIX}
+  )
 endif ()
+
+set_target_properties(
+  glog PROPERTIES
+  INTERFACE_INCLUDE_DIRECTORIES ${GLOG_INSTALL_DIR}/include
+)
+
+set(
+  GLOG_CMAKE_ARGS
+  ${CMAKE_CXX_FORWARD_ARGS}
+  -DBUILD_TESTING=OFF
+  -DCMAKE_INSTALL_BINDIR=${GLOG_INSTALL_DIR}/bin
+  -DCMAKE_INSTALL_INCLUDEDIR=${GLOG_INSTALL_DIR}/include
+  -DCMAKE_INSTALL_LIBDIR=${GLOG_INSTALL_DIR}/lib
+)
 
 MAKE_INCLUDE_DIR(glog)
 GET_BYPRODUCTS(glog)
@@ -426,10 +427,8 @@ ExternalProject_Add(
   PREFIX            ${GLOG_CMAKE_ROOT}
   BUILD_BYPRODUCTS  ${GLOG_BYPRODUCTS}
   PATCH_COMMAND     ${GLOG_PATCH_CMD}
-  CMAKE_ARGS        ${CMAKE_CXX_FORWARD_ARGS};-DBUILD_TESTING=OFF
-  CONFIGURE_COMMAND ${GLOG_CONFIG_CMD}
-  BUILD_COMMAND     ${GLOG_BUILD_CMD}
-  INSTALL_COMMAND   ${GLOG_INSTALL_CMD}
+  CMAKE_ARGS        ${GLOG_CMAKE_ARGS}
+  INSTALL_DIR       ${GLOG_INSTALL_DIR}
   URL               ${GLOG_URL}
   URL_HASH          ${GLOG_HASH})
 

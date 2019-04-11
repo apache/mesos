@@ -1,0 +1,282 @@
+diff --git a/configure.ac b/configure.ac
+index 69711b7..9b77c07 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -127,27 +127,9 @@ if test x"$acx_pthread_ok" = x"yes"; then
+   AC_CHECK_LIB(pthread, pthread_self)
+ fi
+ 
+-# Check if there is google-gflags library installed.
+-SAVE_CFLAGS="$CFLAGS"
+-SAVE_LIBS="$LIBS"
+-AC_ARG_WITH(gflags, AS_HELP_STRING[--with-gflags=GFLAGS_DIR],
+-  GFLAGS_CFLAGS="-I${with_gflags}/include"
+-  GFLAGS_LIBS="-L${with_gflags}/lib -lgflags"
+-  CFLAGS="$CFLAGS $GFLAGS_CFLAGS"
+-  LIBS="$LIBS $GFLAGS_LIBS"
+-)
+-AC_CHECK_LIB(gflags, main, ac_cv_have_libgflags=1, ac_cv_have_libgflags=0)
+-if test x"$ac_cv_have_libgflags" = x"1"; then
+-  AC_DEFINE(HAVE_LIB_GFLAGS, 1, [define if you have google gflags library])
+-  if test x"$GFLAGS_LIBS" = x""; then
+-    GFLAGS_LIBS="-lgflags"
+-  fi
+-else
+-  GFLAGS_CFLAGS=
+-  GFLAGS_LIBS=
+-fi
+-CFLAGS="$SAVE_CFLAGS"
+-LIBS="$SAVE_LIBS"
++GFLAGS_CFLAGS=
++GFLAGS_LIBS=
++ac_cv_have_libgflags=0
+ 
+ # TODO(hamaji): Use official m4 macros provided by testing libraries
+ #               once the m4 macro of Google Mocking becomes ready.
+diff --git a/src/glog/stl_logging.h.in b/src/glog/stl_logging.h.in
+index 600945d..bd935d5 100644
+--- a/src/glog/stl_logging.h.in
++++ b/src/glog/stl_logging.h.in
+@@ -59,6 +59,13 @@
+ #include <utility>
+ #include <vector>
+ 
++#if defined (__GNUC__) && !defined(_LIBCPP_VERSION)
++# define GLOG_STL_LOGGING_FOR_EXT_HASH
++# define GLOG_STL_LOGGING_FOR_EXT_SLIST
++#elif defined(_LIBCPP_VERSION)
++# define GLOG_STL_LOGGING_FOR_UNORDERED
++#endif
++
+ #ifdef GLOG_STL_LOGGING_FOR_UNORDERED
+ # include <unordered_map>
+ # include <unordered_set>
+diff --git a/src/glog/logging.h.in b/src/glog/logging.h.in
+index 9968b96..ee0dc82 100644
+--- a/src/glog/logging.h.in
++++ b/src/glog/logging.h.in
+@@ -1423,6 +1423,16 @@ class GOOGLE_GLOG_DLL_DECL LogSink {
+   // Sink's logging logic (message_len is such as to exclude '\n' at the end).
+   // This method can't use LOG() or CHECK() as logging system mutex(s) are held
+   // during this call.
++  virtual void send(LogSeverity severity, const char* full_filename,
++                    const char* base_filename, int line,
++                    const struct ::tm* tm_time,
++                    const char* message, size_t message_len, int32 usecs) {
++    send(severity, full_filename, base_filename, line,
++         tm_time, message, message_len);
++  }
++  // This send() signature is obsolete.
++  // New implementations should define this in terms of
++  // the above send() method.
+   virtual void send(LogSeverity severity, const char* full_filename,
+                     const char* base_filename, int line,
+                     const struct ::tm* tm_time,
+@@ -1447,7 +1457,15 @@ class GOOGLE_GLOG_DLL_DECL LogSink {
+   // Can be useful to implement send().
+   static std::string ToString(LogSeverity severity, const char* file, int line,
+                               const struct ::tm* tm_time,
+-                              const char* message, size_t message_len);
++                              const char* message, size_t message_len,
++                              int32 usecs);
++
++  // Obsolete
++  static std::string ToString(LogSeverity severity, const char* file, int line,
++                              const struct ::tm* tm_time,
++                              const char* message, size_t message_len) {
++    return ToString(severity, file, line, tm_time, message, message_len, 0);
++  }
+ };
+ 
+ // Add or remove a LogSink as a consumer of logging data.  Thread-safe.
+diff --git a/src/logging.cc b/src/logging.cc
+index 0c86cf6..2da00eb 100644
+--- a/src/logging.cc
++++ b/src/logging.cc
+@@ -349,6 +349,7 @@ struct LogMessage::LogMessageData  {
+   };
+   time_t timestamp_;            // Time of creation of LogMessage
+   struct ::tm tm_time_;         // Time of creation of LogMessage
++  int32 usecs_;                   // Time of creation of LogMessage - microseconds part
+   size_t num_prefix_chars_;     // # of chars of prefix in this message
+   size_t num_chars_to_log_;     // # of chars of msg to send to log
+   size_t num_chars_to_syslog_;  // # of chars of msg to send to syslog
+@@ -515,7 +516,8 @@ class LogDestination {
+                          int line,
+                          const struct ::tm* tm_time,
+                          const char* message,
+-                         size_t message_len);
++                         size_t message_len,
++                         int32 usecs);
+ 
+   // Wait for all registered sinks via WaitTillSent
+   // including the optional one in "data".
+@@ -782,12 +784,13 @@ inline void LogDestination::LogToSinks(LogSeverity severity,
+                                        int line,
+                                        const struct ::tm* tm_time,
+                                        const char* message,
+-                                       size_t message_len) {
++                                       size_t message_len,
++                                       int32 usecs) {
+   ReaderMutexLock l(&sink_mutex_);
+   if (sinks_) {
+     for (int i = sinks_->size() - 1; i >= 0; i--) {
+       (*sinks_)[i]->send(severity, full_filename, base_filename,
+-                         line, tm_time, message, message_len);
++                         line, tm_time, message, message_len, usecs);
+     }
+   }
+ }
+@@ -1265,7 +1268,7 @@ void LogMessage::Init(const char* file,
+   WallTime now = WallTime_Now();
+   data_->timestamp_ = static_cast<time_t>(now);
+   localtime_r(&data_->timestamp_, &data_->tm_time_);
+-  int usecs = static_cast<int>((now - data_->timestamp_) * 1000000);
++  data_->usecs_ = static_cast<int32>((now - data_->timestamp_) * 1000000);
+ 
+   data_->num_chars_to_log_ = 0;
+   data_->num_chars_to_syslog_ = 0;
+@@ -1285,7 +1288,7 @@ void LogMessage::Init(const char* file,
+              << setw(2) << data_->tm_time_.tm_hour  << ':'
+              << setw(2) << data_->tm_time_.tm_min   << ':'
+              << setw(2) << data_->tm_time_.tm_sec   << "."
+-             << setw(6) << usecs
++             << setw(6) << data_->usecs_
+              << ' '
+              << setfill(' ') << setw(5)
+              << static_cast<unsigned int>(GetTID()) << setfill('0')
+@@ -1432,7 +1435,8 @@ void LogMessage::SendToLog() EXCLUSIVE_LOCKS_REQUIRED(log_mutex) {
+                                data_->line_, &data_->tm_time_,
+                                data_->message_text_ + data_->num_prefix_chars_,
+                                (data_->num_chars_to_log_ -
+-                                data_->num_prefix_chars_ - 1));
++                                data_->num_prefix_chars_ - 1),
++                               data_->usecs_);
+   } else {
+ 
+     // log this message to all log files of severity <= severity_
+@@ -1449,7 +1453,8 @@ void LogMessage::SendToLog() EXCLUSIVE_LOCKS_REQUIRED(log_mutex) {
+                                data_->line_, &data_->tm_time_,
+                                data_->message_text_ + data_->num_prefix_chars_,
+                                (data_->num_chars_to_log_
+-                                - data_->num_prefix_chars_ - 1));
++                                - data_->num_prefix_chars_ - 1),
++                               data_->usecs_);
+     // NOTE: -1 removes trailing \n
+   }
+ 
+@@ -1545,7 +1550,8 @@ void LogMessage::SendToSink() EXCLUSIVE_LOCKS_REQUIRED(log_mutex) {
+                        data_->line_, &data_->tm_time_,
+                        data_->message_text_ + data_->num_prefix_chars_,
+                        (data_->num_chars_to_log_ -
+-                        data_->num_prefix_chars_ - 1));
++                        data_->num_prefix_chars_ - 1),
++                       data_->usecs_);
+   }
+ }
+ 
+@@ -1672,16 +1678,10 @@ void LogSink::WaitTillSent() {
+ 
+ string LogSink::ToString(LogSeverity severity, const char* file, int line,
+                          const struct ::tm* tm_time,
+-                         const char* message, size_t message_len) {
++                         const char* message, size_t message_len, int32 usecs) {
+   ostringstream stream(string(message, message_len));
+   stream.fill('0');
+ 
+-  // FIXME(jrvb): Updating this to use the correct value for usecs
+-  // requires changing the signature for both this method and
+-  // LogSink::send().  This change needs to be done in a separate CL
+-  // so subclasses of LogSink can be updated at the same time.
+-  int usecs = 0;
+-
+   stream << LogSeverityNames[severity][0]
+          << setw(2) << 1+tm_time->tm_mon
+          << setw(2) << tm_time->tm_mday
+diff --git a/src/logging_unittest.cc b/src/logging_unittest.cc
+index 762c752..7f9de36 100644
+--- a/src/logging_unittest.cc
++++ b/src/logging_unittest.cc
+@@ -487,9 +487,16 @@ class TestLogSinkImpl : public LogSink {
+   virtual void send(LogSeverity severity, const char* /* full_filename */,
+                     const char* base_filename, int line,
+                     const struct tm* tm_time,
+-                    const char* message, size_t message_len) {
++                    const char* message, size_t message_len, int usecs) {
+     errors.push_back(
+-      ToString(severity, base_filename, line, tm_time, message, message_len));
++      ToString(severity, base_filename, line, tm_time, message, message_len, usecs));
++  }
++  virtual void send(LogSeverity severity, const char* full_filename,
++                    const char* base_filename, int line,
++                    const struct tm* tm_time,
++                    const char* message, size_t message_len) {
++    send(severity, full_filename, base_filename, line,
++         tm_time, message, message_len, 0);
+   }
+ };
+ 
+@@ -1010,15 +1017,23 @@ class TestWaitingLogSink : public LogSink {
+   virtual void send(LogSeverity severity, const char* /* full_filename */,
+                     const char* base_filename, int line,
+                     const struct tm* tm_time,
+-                    const char* message, size_t message_len) {
++                    const char* message, size_t message_len, int usecs) {
+     // Push it to Writer thread if we are the original logging thread.
+     // Note: Something like ThreadLocalLogSink is a better choice
+     //       to do thread-specific LogSink logic for real.
+     if (pthread_equal(tid_, pthread_self())) {
+       writer_.Buffer(ToString(severity, base_filename, line,
+-                              tm_time, message, message_len));
++                              tm_time, message, message_len, usecs));
+     }
+   }
++
++  virtual void send(LogSeverity severity, const char* full_filename,
++                    const char* base_filename, int line,
++                    const struct tm* tm_time,
++                    const char* message, size_t message_len) {
++    send(severity, full_filename, base_filename, line, tm_time, message, message_len);
++  }
++
+   virtual void WaitTillSent() {
+     // Wait for Writer thread if we are the original logging thread.
+     if (pthread_equal(tid_, pthread_self()))  writer_.Wait();
+diff --git a/src/windows/glog/logging.h b/src/windows/glog/logging.h
+index 3681fa3..d8193ae 100755
+--- a/src/windows/glog/logging.h
++++ b/src/windows/glog/logging.h
+@@ -1427,6 +1427,16 @@ class GOOGLE_GLOG_DLL_DECL LogSink {
+   // Sink's logging logic (message_len is such as to exclude '\n' at the end).
+   // This method can't use LOG() or CHECK() as logging system mutex(s) are held
+   // during this call.
++  virtual void send(LogSeverity severity, const char* full_filename,
++                    const char* base_filename, int line,
++                    const struct ::tm* tm_time,
++                    const char* message, size_t message_len, int32 usecs) {
++    send(severity, full_filename, base_filename, line,
++         tm_time, message, message_len);
++  }
++  // This send() signature is obsolete.
++  // New implementations should define this in terms of
++  // the above send() method.
+   virtual void send(LogSeverity severity, const char* full_filename,
+                     const char* base_filename, int line,
+                     const struct ::tm* tm_time,
+@@ -1451,7 +1461,15 @@ class GOOGLE_GLOG_DLL_DECL LogSink {
+   // Can be useful to implement send().
+   static std::string ToString(LogSeverity severity, const char* file, int line,
+                               const struct ::tm* tm_time,
+-                              const char* message, size_t message_len);
++                              const char* message, size_t message_len,
++                              int32 usecs);
++
++  // Obsolete
++  static std::string ToString(LogSeverity severity, const char* file, int line,
++                              const struct ::tm* tm_time,
++                              const char* message, size_t message_len) {
++    return ToString(severity, file, line, tm_time, message, message_len, 0);
++  }
+ };
+ 
+ // Add or remove a LogSink as a consumer of logging data.  Thread-safe.

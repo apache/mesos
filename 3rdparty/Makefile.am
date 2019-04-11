@@ -135,7 +135,6 @@ EXTRA_DIST +=			\
   $(PROTOBUF).patch		\
   bzip2-1.0.6.patch		\
   cyrus-sasl-2.1.27rc3.patch	\
-  glog-da816ea70.patch		\
   xz-5.2.3.patch
 
 CLEAN_EXTRACTED =		\
@@ -265,8 +264,15 @@ $(LIB_GLOG): $(GLOG)-build-stamp
 # when building with clang).
 # We explicitly build only libglog.la as it is the artifact we depend
 # on. This e.g., avoids building glog-internal tests.
+#
+# NOTE:
+# On some platforms patch fails to remove test-driver (it is a broken symlink),
+# that's why we need to remove it here.
+# Also, autogen.sh might be CREATED by the patch and might need its mode fixed.
 $(GLOG)-build-stamp: $(GLOG)-stamp
-	cd $(GLOG) && ./configure GTEST_CONFIG=no $(CONFIGURE_ARGS) && \
+	cd $(GLOG) &&\
+	  ./autogen.sh && \
+	  ./configure GTEST_CONFIG=no $(CONFIGURE_ARGS) && \
           $(MAKE) $(AM_MAKEFLAGS) $(GLOG_LDFLAGS) libglog.la
 	touch $@
 

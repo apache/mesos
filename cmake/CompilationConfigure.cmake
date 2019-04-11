@@ -239,7 +239,6 @@ if (WIN32 AND REBUNDLED)
     "  * curl\n"
     "  * apr\n"
     "  * zlib\n"
-    "  * glog\n"
     "do not come rebundled in the Mesos repository.  They will be downloaded from "
     "the Internet, even though the `REBUNDLED` flag was set.")
 endif ()
