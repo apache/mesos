@@ -72,6 +72,8 @@ This guide describes the process of doing an official release of Mesos.
    to track the progress of targeted issues as the release date approaches. This
    JIRA filter may be useful (`<X.Y.Z>` is the release version):
    `project = MESOS AND "Target Version/s" = <X.Y.Z> AND (fixVersion != <X.Y.Z> OR fixVersion = EMPTY)`
+   Note, you may need to request permission to create shared dashboard and filters by opening
+   an Apache INFRA ticket.
 
    **PROTIP:** Use `bulk edit` option in JIRA to move the tickets and make sure
    to **uncheck** the option that emails everyone about the move to avoid
