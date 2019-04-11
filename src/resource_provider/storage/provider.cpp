@@ -377,6 +377,19 @@ private:
 
   Runtime runtime;
 
+  // NOTE: `metrics` must be destructed after `volumeManager` and
+  // `serviceManager` since they hold a pointer to it.
+  struct Metrics : public csi::Metrics
+  {
+    explicit Metrics(const string& prefix);
+    ~Metrics();
+
+    hashmap<Offer::Operation::Type, PushGauge> operations_pending;
+    hashmap<Offer::Operation::Type, Counter> operations_finished;
+    hashmap<Offer::Operation::Type, Counter> operations_failed;
+    hashmap<Offer::Operation::Type, Counter> operations_dropped;
+  } metrics;
+
   // NOTE: `serviceManager` must be destructed after `volumeManager` since the
   // latter holds a pointer of the former.
   Owned<ServiceManager> serviceManager;
@@ -401,17 +414,6 @@ private:
   // keeps track of pending operations that disallow reconciliation, and ensures
   // that any reconciliation waits for these operations to finish.
   Sequence sequence;
-
-  struct Metrics : public csi::Metrics
-  {
-    explicit Metrics(const string& prefix);
-    ~Metrics();
-
-    hashmap<Offer::Operation::Type, PushGauge> operations_pending;
-    hashmap<Offer::Operation::Type, Counter> operations_finished;
-    hashmap<Offer::Operation::Type, Counter> operations_failed;
-    hashmap<Offer::Operation::Type, Counter> operations_dropped;
-  } metrics;
 };
 
 
@@ -434,9 +436,9 @@ StorageLocalResourceProviderProcess::StorageLocalResourceProviderProcess(
     slaveId(_slaveId),
     authToken(_authToken),
     strict(_strict),
+    metrics("resource_providers/" + info.type() + "." + info.name() + "/"),
     resourceVersion(id::UUID::random()),
-    sequence("storage-local-resource-provider-sequence"),
-    metrics("resource_providers/" + info.type() + "." + info.name() + "/")
+    sequence("storage-local-resource-provider-sequence")
 {
   diskProfileAdaptor = DiskProfileAdaptor::getAdaptor();
   CHECK_NOTNULL(diskProfileAdaptor.get());
