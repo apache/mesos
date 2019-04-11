@@ -22,6 +22,76 @@ import sys
 
 from setuptools import Extension
 
+class BadAutoconfSubstitutes(ValueError):
+    pass
+
+def _get_ac_subst_bool(true_subst, false_subst):
+    """
+        This function accepts arguments which are supposedly a result
+        of substitution by the code in the configure script that
+        was generated for a boolean flag.
+        It either returns the value of this flag, or fails if the
+        combination of these "substitution results" is not valid.
+
+        Usage example.
+        - configure.ac:
+            AM_CONDITIONAL([FLAG], 0])
+            AM_CONDITIONAL([FLAG2], 1)
+
+        - This file (before processing by the configure script):
+            >>> __get_ac_subst_bool('@FLAG_TRUE@', '@FLAG_FALSE@')
+            True
+            >>> __get_ac_subst_bool('@FLAG2_TRUE@', '@FLAG2_FALSE@')
+            False
+            >>> __get_ac_subst_bool('@BAD_FLAG_TRUE@', '@BAD_FLAG_FALSE@')
+            Traceback (most recent call last):
+            ...
+            BadAutoconfSubstitutes: ...
+
+        Inside workings - what is really going on in this example
+        after running the configure script:
+            >>> __get_ac_subst_bool('', '#')
+            >>> True
+            >>> __get_ac_subst_bool('#', '')
+            >>> False
+            >>> __get_ac_subst_bool('@BAD_FLAG_TRUE@', '@BAD_FLAG_FALSE@')
+            Traceback (most recent call last):
+            ...
+            BadAutoconfSubstitutes: ...
+    """
+    if true_subst == "" and false_subst == "#":
+        return True
+    if true_subst == "#" and false_subst == "":
+        return False
+    raise BadAutoconfSubstitutes(
+        "Bad values substitutes were inserted (or nothing were inserted) "
+        "into this file by the configure script: %s and %s".format(
+            true_subst, false_subst
+        )
+    )
+
+
+def cond_multiple_extra_objects(true_subst, false_subst, bundled, system):
+    """
+        Depending on the provided results of substitution by the configure
+        script, return either `bundled` or `system` objects.
+        If adding bundled objects, check their existence
+        and fail if they are missing.
+    """
+    use_bundled = _get_ac_subst_bool(true_subst, false_subst)
+    if use_bundled:
+        for obj in bundled:
+            if not os.path.exists(obj):
+                raise RuntimeError("{} does not exist.".format(obj))
+        return bundled
+    return system
+
+
+def _cond_extra_object(true_subst, false_subst, bundled, system):
+    return cond_multiple_extra_objects(true_subst, false_subst,
+                                 [bundled], [system])
+
+
 def _create_module(module_name):
     abs_top_srcdir = '@abs_top_srcdir@'
     abs_top_builddir = '@abs_top_builddir@'
@@ -73,73 +143,80 @@ def _create_module(module_name):
 
     # For leveldb, we need to check for the presence of libleveldb.a, since
     # it is possible to disable leveldb inside mesos.
-    libglog = os.path.join(abs_top_builddir, glog, '.libs', 'libglog.a')
     libleveldb = os.path.join(abs_top_builddir, leveldb, 'out-static', 'libleveldb.a')
-    libzookeeper = os.path.join(
-        abs_top_builddir, zookeeper, '.libs', 'libzookeeper_mt.a')
-    libprotobuf = os.path.join(
-        abs_top_builddir, protobuf, 'src', '.libs', 'libprotobuf.a')
-
-    if os.path.exists(libleveldb):
-        EXTRA_OBJECTS.append(libleveldb)
-    else:
-        EXTRA_OBJECTS.append('-lleveldb')
-
-    if os.path.exists(libzookeeper):
-        EXTRA_OBJECTS.append(libzookeeper)
-    else:
-        EXTRA_OBJECTS.append('-lzookeeper_mt')
-
-    if os.path.exists(libglog):
-        EXTRA_OBJECTS.append(libglog)
-    else:
-        EXTRA_OBJECTS.append('-lglog')
-
-    if os.path.exists(libprotobuf):
-      EXTRA_OBJECTS.append(libprotobuf)
-    else:
-      EXTRA_OBJECTS.append('-lprotobuf')
+    EXTRA_OBJECTS += _cond_extra_object(
+        "@WITH_BUNDLED_LEVELDB_TRUE@",
+        "@WITH_BUNDLED_LEVELDB_FALSE@",
+        libleveldb,
+        '-lleveldb'
+    )
+    EXTRA_OBJECTS += _cond_extra_object(
+        "@WITH_BUNDLED_ZOOKEEPER_TRUE@",
+        "@WITH_BUNDLED_ZOOKEEPER_FALSE@",
+        os.path.join(abs_top_builddir, zookeeper, '.libs', 'libzookeeper_mt.a'),
+        '-lzookeeper_mt'
+    )
+    EXTRA_OBJECTS += _cond_extra_object(
+        "@WITH_BUNDLED_GLOG_TRUE@",
+        "@WITH_BUNDLED_GLOG_FALSE@",
+        os.path.join(abs_top_builddir, glog, '.libs', 'libglog.a'),
+        '-lglog'
+    )
+    EXTRA_OBJECTS += _cond_extra_object(
+        "@WITH_BUNDLED_PROTOBUF_TRUE@",
+        "@WITH_BUNDLED_PROTOBUF_FALSE@",
+        os.path.join(abs_top_builddir, protobuf, 'src', '.libs', 'libprotobuf.a'),
+        '-lprotobuf'
+    )
 
     if '@ENABLE_SECCOMP_ISOLATOR_TRUE@' == '':
         libseccomp = os.path.join('3rdparty', 'libseccomp-2.3.3')
         libseccomp = os.path.join(
             abs_top_builddir, libseccomp, 'src', '.libs', 'libseccomp.a')
-
-        if os.path.exists(libseccomp):
-            EXTRA_OBJECTS.append(libseccomp)
-        else:
-            EXTRA_OBJECTS.append('-lseccomp')
+        EXTRA_OBJECTS += _cond_extra_object(
+            "@WITH_BUNDLED_LIBSECCOMP_TRUE@",
+            "@WITH_BUNDLED_LIBSECCOMP_FALSE@",
+            libseccomp,
+            '-lseccomp'
+        )
 
     # libev is a special case because it needs to be enabled only when
     # libevent *is not* enabled through the top level ./configure.
     #
     # TODO(hartem): this entire block MUST be removed once libev is deprecated
     # in favor of libevent.
-    if '@ENABLE_LIBEVENT_TRUE@' == '#':
+    if not _get_ac_subst_bool(
+        '@ENABLE_LIBEVENT_TRUE@',
+        '@ENABLE_LIBEVENT_FALSE@'
+        ):
         libev = os.path.join('3rdparty', 'libev-4.22')
-        libev = os.path.join(abs_top_builddir, libev, '.libs', 'libev.a')
-
-        if os.path.exists(libev):
-            EXTRA_OBJECTS.append(libev)
-        else:
-            EXTRA_OBJECTS.append('-lev')
+        EXTRA_OBJECTS += _cond_extra_object(
+            "@WITH_BUNDLED_LIBEV_TRUE@",
+            "@WITH_BUNDLED_LIBEV_FALSE@",
+            os.path.join(abs_top_builddir, libev, '.libs', 'libev.a'),
+            '-lev'
+        )
     else:
         libevent_dir = os.path.join('3rdparty', 'libevent-2.0.22-stable')
         libevent_dir = os.path.join(abs_top_builddir, libevent_dir, '.libs')
 
-        libevent_core = os.path.join(libevent_dir, 'libevent_core.a')
+        libevent_bundled = [
+            os.path.join(libevent_dir, 'libevent_core.a'),
+            os.path.join(libevent_dir, 'libevent_pthreads.a'),
+        ]
+        libevent_system = ['-levent_core', '-levent_pthreads']
+        if _get_ac_subst_bool('@ENABLE_SSL_TRUE@', '@ENABLE_SSL_FALSE@'):
+            libevent_bundled.append(
+                os.path.join(libevent_dir, 'libevent_openssl.a')
+            )
+            libevent_system.append('-levent_core')
 
-        # Check if a bundled version of libevent was built.
-        if os.path.exists(libevent_core):
-            EXTRA_OBJECTS.append(libevent_core)
-            EXTRA_OBJECTS.append(os.path.join(libevent_dir, 'libevent_pthreads.a'))
-            if '@ENABLE_SSL_TRUE@' == '':
-                EXTRA_OBJECTS.append(os.path.join(libevent_dir, 'libevent_openssl.a'))
-        else:
-            EXTRA_OBJECTS.append('-levent_core')
-            EXTRA_OBJECTS.append('-levent_pthreads')
-            if '@ENABLE_SSL_TRUE@' == '':
-                EXTRA_OBJECTS.append(-levent_openssl)
+        EXTRA_OBJECTS += cond_multiple_extra_objects(
+            "@WITH_BUNDLED_LIBEVENT_TRUE@",
+            "@WITH_BUNDLED_LIBEVENT_FALSE@",
+            libevent_bundled,
+            libevent_system
+        )
 
     # For gperftools, we need to check for the presence of libprofiler.a, since
     # it is possible to disable perftools inside libprocess.
@@ -157,22 +234,12 @@ def _create_module(module_name):
     libgrpc = os.path.join(abs_top_builddir, grpc, 'libs', 'opt', 'libgrpc%s.a' % grpc_variant)
     libgpr = os.path.join(abs_top_builddir, grpc, 'libs', 'opt', 'libgpr.a')
 
-    if os.path.exists(libgrpcpp):
-        EXTRA_OBJECTS.append(libgrpcpp)
-    else:
-        EXTRA_OBJECTS.append('-lgrpc++%s' % grpc_variant)
-
-    if os.path.exists(libgrpc):
-        EXTRA_OBJECTS.append(libgrpc)
-    else:
-        EXTRA_OBJECTS.append('-lgrpc%s' % grpc_variant)
-
-    if os.path.exists(libgpr):
-        EXTRA_OBJECTS.append(libgpr)
-    else:
-        EXTRA_OBJECTS.append('-lgpr')
-
-
+    EXTRA_OBJECTS += cond_multiple_extra_objects(
+        "@WITH_BUNDLED_GRPC_TRUE@",
+        "@WITH_BUNDLED_GRPC_FALSE@",
+        [libgrpcpp, libgrpc, libgpr],
+        ['-lgrpc++%s' % grpc_variant, '-lgrpc%s' % grpc_variant, '-lgpr']
+    )
     # OSX uses a different linker (llvm-ld) and doesn't support --as-needed
     # TODO(SteveNiemitz): Feature detect --as-needed instead of looking at
     # sys.platform.
