@@ -13,6 +13,13 @@ This release contains the following highlights:
       the scheduler re-subscribes each time it wants to mutate the
       minimum resource quantity offer filter information, see MESOS-7258.
 
+    * The new Mesos CLI now offers the task subcommand. The first
+      command, attach, allows you to attach your terminal to a running
+      task launched with a tty. The second command, exec, launches a
+      new nested container inside a running task. To build the CLI,
+      use the flag `--enable-new-cli` with Autotools and
+      `-DENABLE_NEW_CLI=1` with CMake on MacOS or Linux.
+
 Unresolved Critical Issues:
   * [MESOS-9697] - Release RPMs are not uploaded to bintray
   * [MESOS-9672] - Docker containerizer should ignore pids of executors that do not pass the connection check.
