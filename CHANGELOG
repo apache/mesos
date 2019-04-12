@@ -20,7 +20,7 @@ This release contains the following highlights:
       use the flag `--enable-new-cli` with Autotools and
       `-DENABLE_NEW_CLI=1` with CMake on MacOS or Linux.
 
-  * API Changes:
+  * Operation Feedback:
 
     * V1 schedulers can now receive operation feedback for operations on agent
       default resources, i.e. normal cpu, memory, and disk. This means that the
@@ -35,6 +35,18 @@ This release contains the following highlights:
       status updates are sent on the scheduler's event stream to satisfy the
       reconciliation request. This is similar to the way in which the master
       replies to requests for task status reconciliation.
+
+  * Container Storage Interface (CSI):
+
+    * **Experimental** Supported the new CSI v1 API. Operators can deploy
+      plugins that are compatible to either CSI v0 or v1 to create persistent
+      volumes through storage local resource providers, and Mesos will
+      automatically detect which CSI versions are supported by the plugins.
+
+Additional API Changes:
+  * [MESOS-9540] - Improved the experimental `DESTROY_DISK` operations so
+    frameworks can now deprovision any unwanted pre-provisioned CSI volume
+    directly, if they are authorized to perform `DESTROY_RAW_DISK` actions.
 
 Unresolved Critical Issues:
   * [MESOS-9697] - Release RPMs are not uploaded to bintray
@@ -78,6 +90,7 @@ Unresolved Critical Issues:
   * [MESOS-2842] - Master crashes when framework changes principal on re-registration
 
 All Resolved Issues:
+
 ** Bug
   * [MESOS-5048] - MesosContainerizerSlaveRecoveryTest.ResourceStatistics is flaky
   * [MESOS-5189] - SSLTest.ProtocolMismatch is slow
