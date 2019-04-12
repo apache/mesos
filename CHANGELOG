@@ -221,6 +221,7 @@ All Resolved Issues:
   * [MESOS-9711] - Avoid shutting down executors registering before a required resource provider.
   * [MESOS-9712] - StorageLocalResourceProviderTest.CsiPluginRpcMetrics is flaky.
   * [MESOS-9727] - Heartbeat calls from executor to agent are reported as errors.
+  * [MESOS-9729] - Unpublishing a volume that is failed to publish crashes the agent with CSI v1.
 
 ** Epic
   * [MESOS-8054] - Feedback for operations
