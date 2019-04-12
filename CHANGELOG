@@ -22,6 +22,12 @@ This release contains the following highlights:
 
   * API Changes:
 
+    * V1 schedulers can now receive operation feedback for operations on agent
+      default resources, i.e. normal cpu, memory, and disk. This means that the
+      v1 scheduler API's operation feedback feature can now be used for all
+      non-task-launch operations (any offer operations except for LAUNCH and
+      LAUNCH_GROUP) on any type of resources.
+
     * The experimental operation feedback API for v1 schedulers made a breaking
       change: the RECONCILE_OPERATIONS call no longer returns a 200 OK response
       with a body containing the full reconciliation results. Instead, a
