@@ -599,7 +599,7 @@ if test "x$without_bundled_elfio" = "xyes" || \
      CPPFLAGS="-I${with_elfio} $CPPFLAGS"
   fi
 
-  AC_CHECK_HEADERS([elfio/elfio.h], [],
+  AC_CHECK_HEADERS([elfio/elfio.hpp], [],
                    [AC_MSG_ERROR([Cannot find the ELFIO headers
 -------------------------------------------------------------------
 You have requested the use of a non-bundled ELFIO but no suitable
