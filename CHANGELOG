@@ -36,6 +36,28 @@ This release contains the following highlights:
       reconciliation request. This is similar to the way in which the master
       replies to requests for task status reconciliation.
 
+  * Containerization:
+
+    * [MESOS-9029] - New `linux/seccomp` isolator: Containers launched
+      by Mesos containerizer can be sandboxed by enabling filtering of
+      system calls using a configurable policy.
+
+    * [MESOS-9675] - Support pulling docker images with docker manifest
+      V2 Schema2 on Mesos Containerizer.
+
+    * [MESOS-9133] - Support custom port range option to the `network/ports`
+      isolator. Added the `--container_ports_isolated_range` flag to the
+      `network/ports` isolator. This allows the operator to specify a custom
+      port range to be protected by the isolator.
+
+    * [MESOS-5158] - Support XFS quota for persistent volumes. Added
+      persistent volume support to the `disk/xfs` isolator.
+
+    * [MESOS-9009] - Support an option to create non-existing host
+      paths for host path volume in Mesos Containerizer. Added a new
+      agent flag `--host_path_volume_force_creation` for the
+      `volume/host_path` isolator.
+
   * Container Storage Interface (CSI):
 
     * **Experimental** Supported the new CSI v1 API. Operators can deploy
