@@ -375,7 +375,8 @@ TEST_F(DockerFetcherPluginTest, INTERNET_CURL_FetchImage)
   EXPECT_EQ("application/vnd.docker.distribution.manifest.v2+json",
             manifest->mediatype());
 
-  EXPECT_TRUE(os::exists(path::join(dir, manifest->config().digest())));
+  EXPECT_TRUE(os::exists(DockerFetcherPlugin::getBlobPath(
+      dir, manifest->config().digest())));
 
   for (int i = 0; i < manifest->layers_size(); i++) {
     EXPECT_TRUE(os::exists(
@@ -412,7 +413,8 @@ TEST_F(DockerFetcherPluginTest, INTERNET_CURL_InvokeFetchByName)
   EXPECT_EQ("application/vnd.docker.distribution.manifest.v2+json",
             manifest->mediatype());
 
-  EXPECT_TRUE(os::exists(path::join(dir, manifest->config().digest())));
+  EXPECT_TRUE(os::exists(DockerFetcherPlugin::getBlobPath(
+      dir, manifest->config().digest())));
 
   for (int i = 0; i < manifest->layers_size(); i++) {
     EXPECT_TRUE(os::exists(
