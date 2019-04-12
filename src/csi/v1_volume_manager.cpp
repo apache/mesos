@@ -975,7 +975,12 @@ Future<Nothing> VolumeManagerProcess::_publishVolume(const string& volumeId)
   }
 
   return call(NODE_SERVICE, &Client::nodePublishVolume, std::move(request))
-    .then(defer(self(), [this, volumeId, targetPath] {
+    .then(process::defer(self(), [this, volumeId, targetPath]()
+        -> Future<Nothing> {
+      if (!os::exists(targetPath)) {
+        return Failure("Target path '" + targetPath + "' not created");
+      }
+
       CHECK(volumes.contains(volumeId));
       VolumeState& volumeState = volumes.at(volumeId).state;
 
@@ -1158,8 +1163,6 @@ Future<Nothing> VolumeManagerProcess::__unpublishVolume(const string& volumeId)
   const string targetPath = paths::getMountTargetPath(
       paths::getMountRootDir(rootDir, info.type(), info.name()), volumeId);
 
-  CHECK(os::exists(targetPath));
-
   LOG(INFO) << "Calling '/csi.v1.Node/NodeUnpublishVolume' for volume '"
             << volumeId << "'";
 
@@ -1168,7 +1171,12 @@ Future<Nothing> VolumeManagerProcess::__unpublishVolume(const string& volumeId)
   request.set_target_path(targetPath);
 
   return call(NODE_SERVICE, &Client::nodeUnpublishVolume, std::move(request))
-    .then(process::defer(self(), [this, volumeId] {
+    .then(process::defer(self(), [this, volumeId, targetPath]()
+        -> Future<Nothing> {
+      if (os::exists(targetPath)) {
+        return Failure("Target path '" + targetPath + "' not removed");
+      }
+
       CHECK(volumes.contains(volumeId));
       VolumeState& volumeState = volumes.at(volumeId).state;
       volumeState.set_state(VolumeState::VOL_READY);
