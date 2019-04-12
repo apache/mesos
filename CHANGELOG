@@ -20,6 +20,16 @@ This release contains the following highlights:
       use the flag `--enable-new-cli` with Autotools and
       `-DENABLE_NEW_CLI=1` with CMake on MacOS or Linux.
 
+  * API Changes:
+
+    * The experimental operation feedback API for v1 schedulers made a breaking
+      change: the RECONCILE_OPERATIONS call no longer returns a 200 OK response
+      with a body containing the full reconciliation results. Instead, a
+      successful request now returns 202 Accepted, and a series of operation
+      status updates are sent on the scheduler's event stream to satisfy the
+      reconciliation request. This is similar to the way in which the master
+      replies to requests for task status reconciliation.
+
 Unresolved Critical Issues:
   * [MESOS-9697] - Release RPMs are not uploaded to bintray
   * [MESOS-9672] - Docker containerizer should ignore pids of executors that do not pass the connection check.
