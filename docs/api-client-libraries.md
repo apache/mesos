@@ -53,7 +53,7 @@ run into any issues, file them with the library maintainers.*
   <td>Go</td>
 </tr>
 <tr>
-  <td><a href="https://github.com/verizonlabs/mesos-framework-sdk">
+  <td><a href="https://github.com/carlonelong/mesos-framework-sdk">
   mesos-framework-sdk</a></td>
   <td>Go</td>
 </tr>
@@ -143,5 +143,23 @@ run into any issues, file them with the library maintainers.*
   <td>
     Go
   </td>
+</tr>
+</table>
+
+## Resource Provider API
+
+### User Contributed
+
+*Note: These libraries are supported by their authors, so if you
+run into any issues, file them with the library maintainers.*
+
+<table class="table table-bordered">
+<thead>
+<tr><th>Name</th><th>Language</th>
+</thead>
+<tr>
+  <td><a href="https://github.com/carlonelong/mesos-resource-provider-sdk">
+  mesos-resource-provider-sdk</a></td>
+  <td>Go</td>
 </tr>
 </table>
