@@ -6,6 +6,10 @@ Release Notes - Mesos - Version 1.5.4 (WIP)
   * [MESOS-9529] - `/proc` should be remounted even if a nested container set `share_pid_namespace` to true.
   * [MESOS-9707] - Calling link::lo() may cause runtime error
 
+** Improvement
+  * [MESOS-9159] - Support Foreign URLs in docker registry puller.
+  * [MESOS-9675] - Docker Manifest V2 Schema2 Support.
+
 
 Release Notes - Mesos - Version 1.5.3
 -------------------------------------
