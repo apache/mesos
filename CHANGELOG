@@ -13,6 +13,12 @@ This release contains the following highlights:
       the scheduler re-subscribes each time it wants to mutate the
       minimum resource quantity offer filter information, see MESOS-7258.
 
+    * Responses for concurrent requests to read-only master HTTP endpoints
+      (e.g. `/state`, `/state-summary`, etc.) are now only computed once
+      when it can be guaranteed that the responses would be equal.
+      This should significantly increase master responsiveness under
+      heavy load. See MESOS-9224.
+
   * CLI
 
     * The new Mesos CLI now offers the task subcommand. The first
