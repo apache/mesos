@@ -313,6 +313,7 @@ All Resolved Issues:
   * [MESOS-9642] - Avoid reading host mount table when allocating a gid in GIDManager.
   * [MESOS-9643] - Make setting volume ownership asynchronous in volume gid manager
   * [MESOS-9655] - Improving SLRP tests for preprovisioned volumes.
+  * [MESOS-9704] - Support docker manifest v2s2 config GC.
 
 ** Task
   * [MESOS-4509] - Remove deprecated .json endpoints.
