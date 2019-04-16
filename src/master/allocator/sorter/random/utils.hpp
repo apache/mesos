@@ -67,10 +67,6 @@ void weightedShuffle(
       [&](size_t i, size_t j){ return keys[i] < keys[j]; });
 
   // Now apply the permutation to `items`.
-  //
-  // TODO(bmahler): Consider avoiding the copy of entries in `items`
-  // via an in-place application of the permutation:
-  //   https://blog.merovius.de/2014/08/12/applying-permutation-in-constant.html
   std::vector<typename std::iterator_traits<RandomAccessIterator>::value_type>
     shuffled(end - begin);
 
