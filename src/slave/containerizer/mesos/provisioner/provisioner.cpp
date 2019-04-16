@@ -442,6 +442,10 @@ Future<Nothing> ProvisionerProcess::recover(
             layers->paths().begin(),
             layers->paths().end(),
             std::back_inserter(info->layers.get()));
+
+        if (layers->has_config()) {
+          info->layers->push_back(layers->config());
+        }
       }
     }
 
@@ -556,6 +560,10 @@ Future<ProvisionInfo> ProvisionerProcess::_provision(
   infos[containerId]->rootfses[backend].insert(rootfsId);
   infos[containerId]->layers = imageInfo.layers;
 
+  if (imageInfo.config.isSome()) {
+    infos[containerId]->layers->push_back(imageInfo.config.get());
+  }
+
   string backendDir = provisioner::paths::getBackendDir(
       rootDir,
       containerId,
@@ -573,6 +581,10 @@ Future<ProvisionInfo> ProvisionerProcess::_provision(
 
       foreach (const string& layer, imageInfo.layers) {
         containerLayers.add_paths(layer);
+      }
+
+      if (imageInfo.config.isSome()) {
+        containerLayers.set_config(imageInfo.config.get());
       }
 
       Try<Nothing> checkpoint = slave::state::checkpoint(path, containerLayers);

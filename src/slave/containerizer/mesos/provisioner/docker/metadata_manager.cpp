@@ -201,6 +201,10 @@ Future<hashset<string>> MetadataManagerProcess::prune(
     foreach (const string& layerId, image->layer_ids()) {
       retainedLayers.insert(layerId);
     }
+
+    if (image->has_config_digest()) {
+      retainedLayers.insert(image->config_digest());
+    }
   }
 
   storedImages = std::move(retainedImages);
