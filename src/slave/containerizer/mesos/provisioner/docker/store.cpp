@@ -431,6 +431,10 @@ Future<ImageInfo> StoreProcess::__get(
         v1.error());
   }
 
+  if (image.has_config_digest()) {
+    return ImageInfo{layerPaths, v1.get(), None(), configPath};
+  }
+
   return ImageInfo{layerPaths, v1.get()};
 }
 
