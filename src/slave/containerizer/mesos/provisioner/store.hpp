@@ -51,6 +51,9 @@ struct ImageInfo
 
   // Appc image manifest.
   Option<::appc::spec::ImageManifest> appcManifest;
+
+  // Path of docker manifest v2 schema2 config.
+  Option<std::string> config;
 };
 
 
