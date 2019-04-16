@@ -305,4 +305,9 @@ message ContainerTermination {
 message ContainerLayers {
   // Paths of all layers used to provision the container.
   repeated string paths = 1;
+
+  // Path of docker manifest v2 schema2 config. If an image is
+  // downloaded via docker manifest v2s2, the config will be
+  // persisted in the image store.
+  optional string config = 2;
 }
