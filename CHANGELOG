@@ -13,6 +13,8 @@ This release contains the following highlights:
       the scheduler re-subscribes each time it wants to mutate the
       minimum resource quantity offer filter information, see MESOS-7258.
 
+  * CLI
+
     * The new Mesos CLI now offers the task subcommand. The first
       command, attach, allows you to attach your terminal to a running
       task launched with a tty. The second command, exec, launches a
