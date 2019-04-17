@@ -274,6 +274,7 @@ All Resolved Issues:
   * [MESOS-8345] - Improve master responsiveness while serving state information.
   * [MESOS-9029] - Seccomp syscall filtering in Mesos containerizer
   * [MESOS-9211] - Make the new Mesos CLI production ready
+  * [MESOS-9675] - Docker Manifest V2 Schema2 Support.
 
 ** Story
   * [MESOS-907] - Add Kerberos Authentication support
