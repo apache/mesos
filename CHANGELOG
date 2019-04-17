@@ -22,6 +22,11 @@ This release contains the following highlights:
       This should significantly increase master responsiveness under
       heavy load.
 
+    * Allocator cycle time is significantly decreased (around 40% for a
+      small size cluster and up to 70% for larger clusters) when quota is
+      used. This greatly narrows the allocator performance gap between
+      quota and non-quota usage scenarios.
+
   * CLI
 
     * The new Mesos CLI now offers the task subcommand. The first
