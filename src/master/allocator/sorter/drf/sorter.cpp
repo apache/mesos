@@ -71,102 +71,91 @@ void DRFSorter::initialize(
 
 void DRFSorter::add(const string& clientPath)
 {
-  vector<string> pathElements = strings::tokenize(clientPath, "/");
-  CHECK(!pathElements.empty());
+  CHECK(!clients.contains(clientPath)) << clientPath;
 
-  Node* current = root;
-  Node* lastCreatedNode = nullptr;
+  // Adding a client is a two phase algorithm:
+  //
+  //            root
+  //          /  |  \       Three interesting cases:
+  //         a   e   w        Add a                     (i.e. phase 1(a))
+  //         |      / \       Add e/f, e/f/g, e/f/g/... (i.e. phase 1(b))
+  //         b     .   z      Add w/x, w/x/y, w/x/y/... (i.e. phase 1(c))
+  //
+  //   Phase 1: Walk down the tree until:
+  //     (a) we run out of tokens -> add "." node
+  //     (b) or, we reach a leaf -> transform the leaf into internal + "."
+  //     (c) or, we're at an internal node but can't find the next child
+  //
+  //   Phase 2: For any remaining tokens, walk down creating children:
+  //     (a) if last token of the client path -> create INACTIVE_LEAF
+  //     (b) else, create INTERNAL and keep going
+
+  vector<string> tokens = strings::split(clientPath, "/");
+  auto token = tokens.begin();
 
   // Traverse the tree to add new nodes for each element of the path,
   // if that node doesn't already exist (similar to `mkdir -p`).
-  foreach (const string& element, pathElements) {
-    Node* node = nullptr;
+  Node* current = root;
 
-    foreach (Node* child, current->children) {
-      if (child->name == element) {
-        node = child;
-        break;
-      }
+  // Phase 1:
+  while (true) {
+    // Case (a).
+    if (token == tokens.end()) {
+      Node* virt = new Node(".", Node::INACTIVE_LEAF, current);
+
+      current->addChild(virt);
+      current = virt;
+
+      break;
     }
 
-    if (node != nullptr) {
-      current = node;
-      continue;
-    }
-
-    // We didn't find `element`, so add a new child to `current`.
-    //
-    // If adding this child would result in turning `current` from a
-    // leaf node into an internal node, we need to create an
-    // additional child node: `current` must have been associated with
-    // a client and clients must always be associated with leaf nodes.
+    // Case (b).
     if (current->isLeaf()) {
-      Node* parent = CHECK_NOTNULL(current->parent);
+      Node::Kind oldKind = current->kind;
 
-      parent->removeChild(current);
+      current->parent->removeChild(current);
+      current->kind = Node::INTERNAL;
+      current->parent->addChild(current);
 
-      // Create a node under `parent`. This internal node will take
-      // the place of `current` in the tree.
-      Node* internal = new Node(current->name, Node::INTERNAL, parent);
-      parent->addChild(internal);
-      internal->allocation = current->allocation;
+      Node* virt = new Node(".", oldKind, current);
+      virt->allocation = current->allocation;
 
-      CHECK_EQ(current->path, internal->path);
+      current->addChild(virt);
+      clients[virt->clientPath()] = virt;
 
-      // Update `current` to become a virtual leaf node and a child of
-      // `internal`.
-      current->name = ".";
-      current->parent = internal;
-      current->path = strings::join("/", parent->path, current->name);
-
-      internal->addChild(current);
-
-      CHECK_EQ(internal->path, current->clientPath());
-
-      current = internal;
+      break;
     }
 
-    // Now actually add a new child to `current`.
-    Node* newChild = new Node(element, Node::INTERNAL, current);
-    current->addChild(newChild);
+    Option<Node*> child = [&]() -> Option<Node*> {
+      foreach (Node* c, current->children) {
+        if (c->name == *token) return c;
+      }
+      return None();
+    }();
 
-    current = newChild;
-    lastCreatedNode = newChild;
+    // Case (c).
+    if (child.isNone()) break;
+
+    current = *child;
+    ++token;
   }
 
-  CHECK(current->kind == Node::INTERNAL);
+  // Phase 2:
+  for (; token != tokens.end(); ++token) {
+    Node::Kind kind = (token == tokens.end() - 1)
+      ? Node::INACTIVE_LEAF : Node::INTERNAL;
 
-  // `current` is the node associated with the last element of the
-  // path. If we didn't add `current` to the tree above, create a leaf
-  // node now. For example, if the tree contains "a/b" and we add a
-  // new client "a", we want to create a new leaf node "a/." here.
-  if (current != lastCreatedNode) {
-    Node* newChild = new Node(".", Node::INACTIVE_LEAF, current);
-    current->addChild(newChild);
-    current = newChild;
-  } else {
-    // If we created `current` in the loop above, it was marked an
-    // `INTERNAL` node. It should actually be an inactive leaf node.
-    current->kind = Node::INACTIVE_LEAF;
+    Node* child = new Node(*token, kind, current);
 
-    // `current` has changed from an internal node to an inactive
-    // leaf, so remove and re-add it to its parent. This moves it to
-    // the end of the parent's list of children.
-    CHECK_NOTNULL(current->parent);
-
-    current->parent->removeChild(current);
-    current->parent->addChild(current);
+    current->addChild(child);
+    current = child;
   }
 
-  // `current` is the newly created node associated with the last
-  // element of the path. `current` should be an inactive leaf node.
   CHECK(current->children.empty());
   CHECK(current->kind == Node::INACTIVE_LEAF);
 
-  // Add a new entry to the lookup table. The full path of the newly
-  // added client should not already exist in `clients`.
   CHECK_EQ(clientPath, current->clientPath());
-  CHECK(!clients.contains(clientPath));
+  CHECK(!clients.contains(clientPath)) << clientPath;
 
   clients[clientPath] = current;
 
