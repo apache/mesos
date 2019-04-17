@@ -13,11 +13,14 @@ This release contains the following highlights:
       the scheduler re-subscribes each time it wants to mutate the
       minimum resource quantity offer filter information, see MESOS-7258.
 
-    * Responses for concurrent requests to read-only master HTTP endpoints
-      (e.g. `/state`, `/state-summary`, etc.) are now only computed once
-      when it can be guaranteed that the responses would be equal.
+    * The batching mechanism used for requests to the master's `/state`
+      endpoint was extending to other read-only master endpoints like
+      `/state-summary`, `/frameworks`, `/roles`, etc. (see MESOS-9158)
+      In addition, responses for multiple concurrent requests to read-only master
+      endpoints are now only computed once in cases where it can be guaranteed
+      that all responses would be equal. (see MESOS-9224)
       This should significantly increase master responsiveness under
-      heavy load. See MESOS-9224.
+      heavy load.
 
   * CLI
 
