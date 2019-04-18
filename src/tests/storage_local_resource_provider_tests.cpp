@@ -1011,22 +1011,13 @@ TEST_P(StorageLocalResourceProviderTest, CreateDestroyDisk)
     .filter(std::bind(isMountDisk<Resource>, lambda::_1, "test"))
     .begin();
 
-  ASSERT_TRUE(created.disk().source().has_metadata());
   ASSERT_TRUE(created.disk().source().has_mount());
   ASSERT_TRUE(created.disk().source().mount().has_root());
   EXPECT_FALSE(path::absolute(created.disk().source().mount().root()));
 
   // Check if the volume is actually created by the test CSI plugin.
-  Option<string> volumePath;
-  foreach (const Label& label, created.disk().source().metadata().labels()) {
-    if (label.key() == "path") {
-      volumePath = label.value();
-      break;
-    }
-  }
-
-  ASSERT_SOME(volumePath);
-  EXPECT_TRUE(os::exists(volumePath.get()));
+  const string& volumePath = created.disk().source().id();
+  EXPECT_TRUE(os::exists(volumePath));
 
   // Destroy the MOUNT disk with pipelined `CREATE`, `DESTROY` and `UNRESERVE`
   // operations. Note that `UNRESERVE` can come before `DESTROY_DISK`.
@@ -1056,7 +1047,7 @@ TEST_P(StorageLocalResourceProviderTest, CreateDestroyDisk)
   AWAIT_READY(offers);
 
   // Check if the volume is actually deleted by the test CSI plugin.
-  EXPECT_FALSE(os::exists(volumePath.get()));
+  EXPECT_FALSE(os::exists(volumePath));
 }
 
 
@@ -1150,22 +1141,13 @@ TEST_P(StorageLocalResourceProviderTest, CreateDestroyDiskWithRecovery)
     .filter(std::bind(isMountDisk<Resource>, lambda::_1, "test"))
     .begin();
 
-  ASSERT_TRUE(created.disk().source().has_metadata());
   ASSERT_TRUE(created.disk().source().has_mount());
   ASSERT_TRUE(created.disk().source().mount().has_root());
   EXPECT_FALSE(path::absolute(created.disk().source().mount().root()));
 
   // Check if the volume is actually created by the test CSI plugin.
-  Option<string> volumePath;
-  foreach (const Label& label, created.disk().source().metadata().labels()) {
-    if (label.key() == "path") {
-      volumePath = label.value();
-      break;
-    }
-  }
-
-  ASSERT_SOME(volumePath);
-  EXPECT_TRUE(os::exists(volumePath.get()));
+  const string& volumePath = created.disk().source().id();
+  EXPECT_TRUE(os::exists(volumePath));
 
   // Restart the agent.
   EXPECT_CALL(sched, offerRescinded(_, _));
@@ -1250,7 +1232,7 @@ TEST_P(StorageLocalResourceProviderTest, CreateDestroyDiskWithRecovery)
   AWAIT_READY(offers);
 
   // Check if the volume is actually deleted by the test CSI plugin.
-  EXPECT_FALSE(os::exists(volumePath.get()));
+  EXPECT_FALSE(os::exists(volumePath));
 }
 
 
@@ -1882,17 +1864,9 @@ TEST_P(StorageLocalResourceProviderTest, ROOT_AgentRegisteredWithNewId)
     ASSERT_NE(sourceIdToProviderId.at(volume.disk().source().id()),
               volume.provider_id());
 
-    Option<string> volumePath;
-    foreach (const Label& label, volume.disk().source().metadata().labels()) {
-      if (label.key() == "path") {
-        volumePath = label.value();
-        break;
-      }
-    }
-
-    ASSERT_SOME(volumePath);
-    ASSERT_TRUE(os::exists(volumePath.get()));
-    volumePaths.push_back(volumePath.get());
+    const string& volumePath = volume.disk().source().id();
+    ASSERT_TRUE(os::exists(volumePath));
+    volumePaths.push_back(volumePath);
   }
 
   // Apply profiles 'good' and 'bad' to the preprovisioned volumes. The first
@@ -2080,22 +2054,13 @@ TEST_P(
     .filter(std::bind(isMountDisk<Resource>, lambda::_1, "test"))
     .begin();
 
-  ASSERT_TRUE(created.disk().source().has_metadata());
   ASSERT_TRUE(created.disk().source().has_mount());
   ASSERT_TRUE(created.disk().source().mount().has_root());
   EXPECT_FALSE(path::absolute(created.disk().source().mount().root()));
 
   // Check if the CSI volume is actually created.
-  Option<string> volumePath;
-  foreach (const Label& label, created.disk().source().metadata().labels()) {
-    if (label.key() == "path") {
-      volumePath = label.value();
-      break;
-    }
-  }
-
-  ASSERT_SOME(volumePath);
-  EXPECT_TRUE(os::exists(volumePath.get()));
+  const string& volumePath = created.disk().source().id();
+  EXPECT_TRUE(os::exists(volumePath));
 
   // Create a persistent MOUNT volume then launch a task to write a file.
   Resource persistentVolume = created;
@@ -2148,8 +2113,8 @@ TEST_P(
   EXPECT_EQ(OPERATION_FINISHED, updateOperationStatusMessage->status().state());
 
   // Check if the CSI volume still exists but has being cleaned up.
-  EXPECT_TRUE(os::exists(volumePath.get()));
-  EXPECT_FALSE(os::exists(path::join(volumePath.get(), "file")));
+  EXPECT_TRUE(os::exists(volumePath));
+  EXPECT_FALSE(os::exists(path::join(volumePath, "file")));
 
   AWAIT_READY(offers);
   ASSERT_EQ(1u, offers->size());
@@ -2169,7 +2134,7 @@ TEST_P(
   EXPECT_EQ(OPERATION_FINISHED, updateOperationStatusMessage->status().state());
 
   // Check if the CSI volume is actually deleted.
-  EXPECT_FALSE(os::exists(volumePath.get()));
+  EXPECT_FALSE(os::exists(volumePath));
 
   AWAIT_READY(offers);
 }
@@ -2411,18 +2376,9 @@ TEST_P(
   EXPECT_EQ(OPERATION_FINISHED, updateOperationStatusMessage->status().state());
 
   // Check if the CSI volume still exists but has being cleaned up.
-  Option<string> volumePath;
-
-  foreach (const Label& label, created.disk().source().metadata().labels()) {
-    if (label.key() == "path") {
-      volumePath = label.value();
-      break;
-    }
-  }
-
-  ASSERT_SOME(volumePath);
-  EXPECT_TRUE(os::exists(volumePath.get()));
-  EXPECT_FALSE(os::exists(path::join(volumePath.get(), "file")));
+  const string& volumePath = created.disk().source().id();
+  EXPECT_TRUE(os::exists(volumePath));
+  EXPECT_FALSE(os::exists(path::join(volumePath, "file")));
 
   AWAIT_READY(offers);
   ASSERT_EQ(1u, offers->size());
@@ -2442,7 +2398,7 @@ TEST_P(
   EXPECT_EQ(OPERATION_FINISHED, updateOperationStatusMessage->status().state());
 
   // Check if the CSI volume is actually deleted.
-  EXPECT_FALSE(os::exists(volumePath.get()));
+  EXPECT_FALSE(os::exists(volumePath));
 
   AWAIT_READY(offers);
 }
@@ -2728,18 +2684,9 @@ TEST_P(
   EXPECT_EQ(OPERATION_FINISHED, updateOperationStatusMessage->status().state());
 
   // Check if the CSI volume still exists but has being cleaned up.
-  Option<string> volumePath;
-
-  foreach (const Label& label, created.disk().source().metadata().labels()) {
-    if (label.key() == "path") {
-      volumePath = label.value();
-      break;
-    }
-  }
-
-  ASSERT_SOME(volumePath);
-  EXPECT_TRUE(os::exists(volumePath.get()));
-  EXPECT_FALSE(os::exists(path::join(volumePath.get(), "file")));
+  const string& volumePath = created.disk().source().id();
+  EXPECT_TRUE(os::exists(volumePath));
+  EXPECT_FALSE(os::exists(path::join(volumePath, "file")));
 
   AWAIT_READY(offers);
   ASSERT_EQ(1u, offers->size());
@@ -2759,7 +2706,7 @@ TEST_P(
   EXPECT_EQ(OPERATION_FINISHED, updateOperationStatusMessage->status().state());
 
   // Check if the CSI volume is actually deleted.
-  EXPECT_FALSE(os::exists(volumePath.get()));
+  EXPECT_FALSE(os::exists(volumePath));
 
   AWAIT_READY(offers);
 }
@@ -2909,23 +2856,13 @@ TEST_P(
   ASSERT_TRUE(volume->disk().source().has_vendor());
   EXPECT_EQ(TEST_CSI_VENDOR, volume->disk().source().vendor());
   ASSERT_TRUE(volume->disk().source().has_id());
-  ASSERT_TRUE(volume->disk().source().has_metadata());
   ASSERT_TRUE(volume->disk().source().has_mount());
   ASSERT_TRUE(volume->disk().source().mount().has_root());
   EXPECT_FALSE(path::absolute(volume->disk().source().mount().root()));
 
   // Check if the volume is actually created by the test CSI plugin.
-  Option<string> volumePath;
-
-  foreach (const Label& label, volume->disk().source().metadata().labels()) {
-    if (label.key() == "path") {
-      volumePath = label.value();
-      break;
-    }
-  }
-
-  ASSERT_SOME(volumePath);
-  EXPECT_TRUE(os::exists(volumePath.get()));
+  const string& volumePath = volume->disk().source().id();
+  EXPECT_TRUE(os::exists(volumePath));
 
   pluginRestarted =
     FUTURE_DISPATCH(_, &ContainerDaemonProcess::launchContainer);
@@ -2940,7 +2877,7 @@ TEST_P(
   AWAIT_READY(pluginRestarted);
 
   // Put a file into the volume.
-  ASSERT_SOME(os::touch(path::join(volumePath.get(), "file")));
+  ASSERT_SOME(os::touch(path::join(volumePath, "file")));
 
   // Create a persistent volume on the CSI volume, then launch a task to
   // use the persistent volume.
@@ -3011,7 +2948,7 @@ TEST_P(
   ASSERT_FALSE(volumeDestroyedOffers->empty());
 
   // Check if the volume is actually deleted by the test CSI plugin.
-  EXPECT_FALSE(os::exists(volumePath.get()));
+  EXPECT_FALSE(os::exists(volumePath));
 }
 
 
@@ -3908,17 +3845,8 @@ TEST_P(
   offer = offers->at(0);
 
   // Bind-mount the file in the CSI volume to fail persistent volume cleanup.
-  Option<string> volumePath;
-  foreach (const Label& label, created.disk().source().metadata().labels()) {
-    if (label.key() == "path") {
-      volumePath = label.value();
-      break;
-    }
-  }
-
-  ASSERT_SOME(volumePath);
-
-  const string filePath = path::join(volumePath.get(), "file");
+  const string& volumePath = created.disk().source().id();
+  const string filePath = path::join(volumePath, "file");
   ASSERT_TRUE(os::exists(filePath));
   ASSERT_SOME(fs::mount(filePath, filePath, None(), MS_BIND, None()));
 
@@ -4052,17 +3980,9 @@ TEST_P(StorageLocalResourceProviderTest, CreateDestroyPreprovisionedVolume)
   // Get the volume paths of the preprovisioned volumes.
   vector<string> volumePaths;
   foreach (const Resource& volume, preprovisioned) {
-    Option<string> volumePath;
-    foreach (const Label& label, volume.disk().source().metadata().labels()) {
-      if (label.key() == "path") {
-        volumePath = label.value();
-        break;
-      }
-    }
-
-    ASSERT_SOME(volumePath);
-    ASSERT_TRUE(os::exists(volumePath.get()));
-    volumePaths.push_back(volumePath.get());
+    const string& volumePath = volume.disk().source().id();
+    ASSERT_TRUE(os::exists(volumePath));
+    volumePaths.push_back(volumePath);
   }
 
   // Apply profile 'test' and 'unknown' to the preprovisioned volumes. The first
@@ -4872,7 +4792,6 @@ TEST_P(StorageLocalResourceProviderTest, OperationStateMetrics)
   ASSERT_TRUE(volume->disk().source().has_vendor());
   EXPECT_EQ(TEST_CSI_VENDOR, volume->disk().source().vendor());
   ASSERT_TRUE(volume->disk().source().has_id());
-  ASSERT_TRUE(volume->disk().source().has_metadata());
   ASSERT_TRUE(volume->disk().source().has_mount());
   ASSERT_TRUE(volume->disk().source().mount().has_root());
   EXPECT_FALSE(path::absolute(volume->disk().source().mount().root()));
@@ -4893,17 +4812,8 @@ TEST_P(StorageLocalResourceProviderTest, OperationStateMetrics)
       "operations/destroy_disk/dropped")));
 
   // Remove the volume out of band to fail `DESTROY_DISK`.
-  Option<string> volumePath;
-
-  foreach (const Label& label, volume->disk().source().metadata().labels()) {
-    if (label.key() == "path") {
-      volumePath = label.value();
-      break;
-    }
-  }
-
-  ASSERT_SOME(volumePath);
-  ASSERT_SOME(os::rmdir(volumePath.get()));
+  const string& volumePath = volume->disk().source().id();
+  ASSERT_SOME(os::rmdir(volumePath));
 
   // Destroy the created volume, which will fail.
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveResource(volume.get())))
@@ -5095,7 +5005,6 @@ TEST_P(StorageLocalResourceProviderTest, CsiPluginRpcMetrics)
   ASSERT_TRUE(volume->disk().source().has_vendor());
   EXPECT_EQ(TEST_CSI_VENDOR, volume->disk().source().vendor());
   ASSERT_TRUE(volume->disk().source().has_id());
-  ASSERT_TRUE(volume->disk().source().has_metadata());
   ASSERT_TRUE(volume->disk().source().has_mount());
   ASSERT_TRUE(volume->disk().source().mount().has_root());
   EXPECT_FALSE(path::absolute(volume->disk().source().mount().root()));
@@ -5106,17 +5015,8 @@ TEST_P(StorageLocalResourceProviderTest, CsiPluginRpcMetrics)
   EXPECT_TRUE(metricEquals(metricName("csi_plugin/rpcs_failed"), 0));
 
   // Remove the volume out of band to fail `DESTROY_DISK`.
-  Option<string> volumePath;
-
-  foreach (const Label& label, volume->disk().source().metadata().labels()) {
-    if (label.key() == "path") {
-      volumePath = label.value();
-      break;
-    }
-  }
-
-  ASSERT_SOME(volumePath);
-  ASSERT_SOME(os::rmdir(volumePath.get()));
+  const string& volumePath = volume->disk().source().id();
+  ASSERT_SOME(os::rmdir(volumePath));
 
   // Destroy the created volume, which will fail.
   EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveResource(volume.get())))
