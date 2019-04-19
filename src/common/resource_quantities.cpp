@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include <mesos/resources.hpp>
 #include <mesos/values.hpp>
 
 #include <stout/check.hpp>
@@ -66,6 +67,36 @@ Try<ResourceQuantities> ResourceQuantities::fromString(const string& text)
       result.add(strings::trim(pair[0]), value->scalar());
     }
     // Zero value is silently dropped.
+  }
+
+  return result;
+}
+
+
+ResourceQuantities ResourceQuantities::fromResources(const Resources& resources)
+{
+  ResourceQuantities result;
+
+  foreach (const Resource& resource, resources) {
+    switch (resource.type()) {
+      case Value::SCALAR: {
+        result.add(resource.name(), resource.scalar());
+        break;
+      }
+      case Value::SET: {
+        result.add(resource.name(), resource.set().item_size());
+        break;
+      }
+      case Value::RANGES: {
+        foreach (const Value::Range& range, resource.ranges().range()) {
+          result.add(resource.name(), range.end() - range.begin() + 1);
+        }
+        break;
+      }
+      case Value::TEXT: {
+        LOG(FATAL) << "TEXT type resources are not valid";
+      }
+    }
   }
 
   return result;
@@ -226,6 +257,15 @@ void ResourceQuantities::add(const string& name, const Value::Scalar& scalar)
   }
 
   it = quantities.insert(it, std::make_pair(name, scalar));
+}
+
+
+void ResourceQuantities::add(const string& name, const double value)
+{
+  Value::Scalar scalar;
+  scalar.set_value(value);
+
+  add(name, std::move(scalar));
 }
 
 

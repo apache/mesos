@@ -38,6 +38,19 @@ namespace internal {
 namespace tests {
 
 
+static vector<pair<string, double>> toVector(
+  const ResourceQuantities& quantities)
+{
+  vector<pair<string, double>> result;
+
+  foreach (auto&& quantity, quantities) {
+    result.push_back(std::make_pair(quantity.first, quantity.second.value()));
+  }
+
+  return result;
+}
+
+
 TEST(QuantitiesTest, FromStringValid)
 {
   // A single resource.
@@ -138,6 +151,24 @@ TEST(QuantitiesTest, FromStringInvalid)
 
   resourceQuantities = ResourceQuantities::fromString("cpus:-infinity");
   EXPECT_ERROR(resourceQuantities);
+}
+
+
+TEST(QuantitiesTest, FromResources)
+{
+  // Empty resources.
+  ResourceQuantities quantities =
+    ResourceQuantities::fromResources(Resources());
+  EXPECT_EQ(0u, quantities.size());
+
+  // Result entries are ordered alphabetically.
+  quantities =
+    ResourceQuantities::fromResources(
+        CHECK_NOTERROR(Resources::parse(
+            "cpus:1;mem:512;ports:[5000-6000];zones:{a,b};disk:800")));
+  vector<pair<string, double>> expected = {
+    {"cpus", 1}, {"disk", 800}, {"mem", 512}, {"ports", 1001}, {"zones", 2}};
+  EXPECT_EQ(expected, toVector(quantities));
 }
 
 
