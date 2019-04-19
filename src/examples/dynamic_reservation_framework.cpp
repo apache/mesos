@@ -115,7 +115,7 @@ public:
       const State state = states[offer.slave_id()];
 
       Filters filters;
-      filters.set_refuse_seconds(0);
+      filters.set_refuse_seconds(Weeks(2).secs());
 
       switch (state) {
         case State::INIT: {
