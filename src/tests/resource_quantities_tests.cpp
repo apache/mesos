@@ -149,6 +149,24 @@ TEST(QuantitiesTest, FromScalarResources)
 }
 
 
+TEST(QuantitiesTest, FromResources)
+{
+  // Empty resources.
+  ResourceQuantities quantities =
+    ResourceQuantities::fromResources(Resources());
+  EXPECT_EQ(0u, quantities.size());
+
+  // Result entries are ordered alphabetically.
+  quantities =
+    ResourceQuantities::fromResources(
+        CHECK_NOTERROR(Resources::parse(
+            "cpus:1;mem:512;ports:[5000-6000];zones:{a,b};disk:800")));
+  vector<pair<string, double>> expected = {
+    {"cpus", 1}, {"disk", 800}, {"mem", 512}, {"ports", 1001}, {"zones", 2}};
+  EXPECT_EQ(expected, toVector(quantities));
+}
+
+
 TEST(QuantitiesTest, Addition)
 {
   // Empty quantity:
