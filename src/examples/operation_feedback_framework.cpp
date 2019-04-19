@@ -25,10 +25,16 @@
 
 #include <mesos/authorizer/acls.hpp>
 
+#include <process/clock.hpp>
 #include <process/defer.hpp>
 #include <process/delay.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
+#include <process/time.hpp>
+
+#include <process/metrics/counter.hpp>
+#include <process/metrics/pull_gauge.hpp>
+#include <process/metrics/metrics.hpp>
 
 #include <stout/check.hpp>
 #include <stout/exit.hpp>
@@ -46,6 +52,7 @@
 
 #include "logging/logging.hpp"
 
+using process::Clock;
 using process::Owned;
 
 using std::string;
@@ -103,6 +110,7 @@ using mesos::v1::scheduler::Mesos;
 namespace {
 
 constexpr char FRAMEWORK_NAME[] = "Operation Feedback Framework (C++)";
+constexpr char FRAMEWORK_METRICS_PREFIX[] = "operation_feedback_framework";
 constexpr char RESERVATIONS_LABEL[] = "operation_feedback_framework_label";
 constexpr Duration RECONCILIATION_INTERVAL = Seconds(30);
 constexpr Duration RESUBSCRIPTION_INTERVAL = Seconds(2);
@@ -173,8 +181,10 @@ public:
       role(_role),
       credential(_credential),
       cleanupUnknownReservations(_cleanupUnknownReservations),
-      reservationsLabelValue(id::UUID::random().toString())
+      reservationsLabelValue(id::UUID::random().toString()),
+      metrics(*this)
   {
+    startTime = Clock::now();
   }
 
   ~OperationFeedbackScheduler() override {}
@@ -275,6 +285,7 @@ protected:
 
       switch (event.type()) {
         case Event::SUBSCRIBED: {
+          isSubscribed = true;
           framework.mutable_id()->CopyFrom(event.subscribed().framework_id());
           LOG(INFO) << "Subscribed with ID '" << framework.id();
           break;
@@ -778,6 +789,42 @@ private:
       }
     }
   }
+
+  process::Time startTime;
+  double _uptime_secs()
+  {
+    return (Clock::now() - startTime).secs();
+  }
+
+  bool isSubscribed;
+  double _subscribed()
+  {
+    return isSubscribed ? 1 : 0;
+  }
+
+  struct Metrics
+  {
+    Metrics(const OperationFeedbackScheduler& _scheduler)
+      : uptime_secs(
+            string(FRAMEWORK_METRICS_PREFIX) + "/uptime_secs",
+            defer(_scheduler, &OperationFeedbackScheduler::_uptime_secs)),
+        subscribed(
+            string(FRAMEWORK_METRICS_PREFIX) + "/subscribed",
+            defer(_scheduler, &OperationFeedbackScheduler::_subscribed))
+    {
+      process::metrics::add(uptime_secs);
+      process::metrics::add(subscribed);
+    }
+
+    ~Metrics()
+    {
+      process::metrics::remove(uptime_secs);
+      process::metrics::remove(subscribed);
+    }
+
+    process::metrics::PullGauge uptime_secs;
+    process::metrics::PullGauge subscribed;
+  } metrics;
 };
 
 
