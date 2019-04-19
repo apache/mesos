@@ -1837,15 +1837,25 @@ Future<Containerizer::LaunchResult> MesosContainerizerProcess::_launch(
   if (container->containerClass() == ContainerClass::DEFAULT) {
     // TODO(jieyu): Consider moving this to filesystem isolator.
     //
-    // NOTE: For the command executor case, although it uses the host
-    // filesystem for itself, we still set 'MESOS_SANDBOX' according to
-    // the root filesystem of the task (if specified). Command executor
-    // itself does not use this environment variable.
+    // NOTE: For the command executor case, although it uses the host filesystem
+    // for itself, we still set `MESOS_SANDBOX` according to the root filesystem
+    // of the task (if specified). Command executor itself does not use this
+    // environment variable. For nested container which does not have its own
+    // rootfs, if the `filesystem/linux` isolator is enabled, we will also set
+    // `MESOS_SANDBOX` to `flags.sandbox_directory` since in `prepare` method
+    // of the `filesystem/linux` isolator we bind mount such nested container's
+    // sandbox to `flags.sandbox_directory`. Since such bind mount is only done
+    // by the `filesystem/linux` isolator, if another filesystem isolator (e.g.,
+    // `filesystem/posix`) is enabled instead, nested container may still have
+    // no permission to access its sandbox via `MESOS_SANDBOX`.
     Environment::Variable* variable = containerEnvironment.add_variables();
     variable->set_name("MESOS_SANDBOX");
-    variable->set_value(container->config->has_rootfs()
-      ? flags.sandbox_directory
-      : container->config->directory());
+    variable->set_value(
+        (container->config->has_rootfs() ||
+         (strings::contains(flags.isolation, "filesystem/linux") &&
+          containerId.has_parent()))
+          ? flags.sandbox_directory
+          : container->config->directory());
   }
 
   // `launchInfo.environment` contains the environment returned by

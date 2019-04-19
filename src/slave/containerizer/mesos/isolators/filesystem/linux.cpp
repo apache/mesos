@@ -502,6 +502,16 @@ Try<Isolator*> LinuxFilesystemIsolatorProcess::create(
         containersRuntimeDir + "': " + mkdir.error());
   }
 
+  // Create sandbox directory. We will bind mount the sandbox of nested
+  // container which does not have its own rootfs to this directory. See
+  // `prepare` for details.
+  mkdir = os::mkdir(flags.sandbox_directory);
+  if (mkdir.isError()) {
+    return Error(
+        "Failed to create sandbox directory at '" +
+        flags.sandbox_directory + "': " + mkdir.error());
+  }
+
   Try<Nothing> containersDirMount = ensureAllowDevices(containersRuntimeDir);
   if (containersDirMount.isError()) {
     return Error(containersDirMount.error());
@@ -744,6 +754,19 @@ Future<Option<ContainerLaunchInfo>> LinuxFilesystemIsolatorProcess::prepare(
 
     *launchInfo.add_mounts() = createContainerMount(
         containerConfig.directory(), sandbox, MS_BIND | MS_REC);
+  } else if (containerId.has_parent()) {
+    // For nested container which does not have its own rootfs, bind mount its
+    // sandbox to the directory specified via `flags.sandbox_directory` (e.g.,
+    // `/mnt/mesos/sandbox`) in its own mount namespace and set the environment
+    // variable `MESOS_SANDBOX` to `flags.sandbox_directory` (see the `_launch`
+    // method of `MesosContainerizerProcess` for details). The reason that we do
+    // this is, in MESOS-8332 we narrowed task sandbox permissions from 0755 to
+    // 0750, since nested container's sandbox is subdirectory under its parent's
+    // sandbox, if we still set `MESOS_SANDBOX` to `containerConfig.directory()`
+    // for nested container, it will not have permission to access its sandbox
+    // via `MESOS_SANDBOX` if its user is different from its parent's user.
+    *launchInfo.add_mounts() = createContainerMount(
+        containerConfig.directory(), flags.sandbox_directory, MS_BIND | MS_REC);
   }
 
   // Currently, we only need to update resources for top level containers.
