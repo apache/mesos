@@ -22,6 +22,7 @@
 #include <vector>
 
 #include <mesos/mesos.hpp>
+#include <mesos/resources.hpp>
 
 #include <stout/try.hpp>
 
@@ -74,6 +75,12 @@ public:
   // will be returned.
   static Try<ResourceQuantities> fromString(const std::string& text);
 
+  // Take `Resources` and combine them into `ResourceQuantities`. This function
+  // assumes that the provided resources have already been validated; for
+  // example, it assumes that ranges do not overlap and that sets do not contain
+  // duplicate items.
+  static ResourceQuantities fromResources(const Resources& resources);
+
   ResourceQuantities();
 
   ResourceQuantities(const ResourceQuantities& that) = default;
@@ -110,6 +117,7 @@ public:
 
 private:
   void add(const std::string& name, const Value::Scalar& scalar);
+  void add(const std::string& name, double value);
 
   // List of name quantity pairs sorted by name.
   // Arithmetic and comparison operations benefit from this sorting.
