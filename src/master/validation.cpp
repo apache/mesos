@@ -40,6 +40,7 @@
 #include "checks/health_checker.hpp"
 
 #include "common/protobuf_utils.hpp"
+#include "common/resource_quantities.hpp"
 #include "common/validation.hpp"
 
 #include "master/master.hpp"
@@ -897,6 +898,23 @@ Option<Error> validateAllocatedToSingleRole(const Resources& resources)
   return None();
 }
 
+
+bool detectOverlappingSetAndRangeResources(
+    const vector<Resources>& resources)
+{
+  // If the sum of quantities of each `Resources` is not equal to the quantities
+  // of the sum of `Resources`, then there is some overlap in ranges or sets.
+  ResourceQuantities totalQuantities;
+  Resources totalResources;
+
+  foreach (const Resources& resources_, resources) {
+    totalQuantities += ResourceQuantities::fromResources(resources_);
+    totalResources += resources_;
+  }
+
+  return totalQuantities != ResourceQuantities::fromResources(totalResources);
+}
+
 namespace internal {
 
 // Validates that all the given resources are from the same resource
@@ -1357,6 +1375,18 @@ Option<Error> validateTaskAndExecutorResources(const TaskInfo& task)
         "Task and its executor use invalid resources: " + error->message);
   }
 
+  // We perform the check for `has_executor()` again here because we needed to
+  // validate the total resources before checking for overlapping ranges/sets.
+  if (task.has_executor()) {
+    if (resource::detectOverlappingSetAndRangeResources({
+            task.resources(),
+            task.executor().resources()})) {
+      return Error("There are overlapping resources in the task resources " +
+                   stringify(task.resources()) + " and executor resources " +
+                   stringify(task.executor().resources()));
+    }
+  }
+
   error = resource::validateUniquePersistenceID(total);
   if (error.isSome()) {
     return Error("Task and its executor use duplicate persistence ID: " +
@@ -1623,7 +1653,10 @@ Option<Error> validateTaskGroupAndExecutorResources(
     const ExecutorInfo& executor)
 {
   Resources total = executor.resources();
+
+  vector<Resources> taskResources;
   foreach (const TaskInfo& task, taskGroup.tasks()) {
+    taskResources.push_back(task.resources());
     total += task.resources();
   }
 
@@ -1637,6 +1670,16 @@ Option<Error> validateTaskGroupAndExecutorResources(
   if (error.isSome()) {
     return Error("Task group and executor mix revocable and non-revocable"
                  " resources: " + error->message);
+  }
+
+  vector<Resources> allResources(taskResources);
+  allResources.push_back(executor.resources());
+
+  if (resource::detectOverlappingSetAndRangeResources(allResources)) {
+    return Error("There are overlapping resources in the task group's task"
+                 " resources " + stringify(taskResources) +
+                 " and/or executor resources " +
+                 stringify(executor.resources()));
   }
 
   return None();

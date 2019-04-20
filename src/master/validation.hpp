@@ -138,6 +138,11 @@ Option<Error> validateSingleResourceProvider(
 
 } // namespace internal {
 
+// Returns `true` if there is any overlap between set- or range-valued
+// resources in the provided `Resources` objects.
+bool detectOverlappingSetAndRangeResources(
+    const std::vector<Resources>& resources);
+
 // Validates resources specified by frameworks.
 // NOTE: We cannot take 'Resources' here because invalid resources are
 // silently ignored within its constructor.
