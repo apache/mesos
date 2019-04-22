@@ -243,6 +243,88 @@ TEST_F(NestedMesosContainerizerTest, ROOT_CGROUPS_LaunchNested)
 }
 
 
+// This is a regression test for MESOS-9536. It verifies that a nested
+// container launched with a non-root user has the permission to write
+// to its own sandbox via the `MESOS_SANDBOX` environment variable while
+// its parent container is launched with a different user (root).
+TEST_F(NestedMesosContainerizerTest,
+       ROOT_CGROUPS_UNPRIVILEGED_USER_NestedContainerAccessMesosSandbox)
+{
+  slave::Flags flags = CreateSlaveFlags();
+  flags.launcher = "linux";
+  flags.isolation = "cgroups/cpu,filesystem/linux,namespaces/pid";
+
+  Fetcher fetcher(flags);
+
+  Try<MesosContainerizer*> create = MesosContainerizer::create(
+      flags,
+      false,
+      &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<MesosContainerizer> containerizer(create.get());
+
+  SlaveState state;
+  state.id = SlaveID();
+
+  AWAIT_READY(containerizer->recover(state));
+
+  ContainerID containerId;
+  containerId.set_value(id::UUID::random().toString());
+
+  Try<string> directory = environment->mkdtemp();
+  ASSERT_SOME(directory);
+
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
+      containerId,
+      createContainerConfig(
+          None(),
+          createExecutorInfo("executor", "sleep 1000", "cpus:1"),
+          directory.get()),
+      map<string, string>(),
+      None());
+
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
+
+  // Launch the nested container with a non-root user.
+  ContainerID nestedContainerId;
+  nestedContainerId.mutable_parent()->CopyFrom(containerId);
+  nestedContainerId.set_value(id::UUID::random().toString());
+
+  Option<string> user = os::getenv("SUDO_USER");
+  ASSERT_SOME(user);
+
+  launch = containerizer->launch(
+      nestedContainerId,
+      createContainerConfig(
+          createCommandInfo("echo 'hello' > $MESOS_SANDBOX/file"),
+          None(),
+          None(),
+          user.get()),
+      map<string, string>(),
+      None());
+
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
+
+  Future<Option<ContainerTermination>> wait = containerizer->wait(
+      nestedContainerId);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait.get()->has_status());
+  EXPECT_WEXITSTATUS_EQ(0, wait.get()->status());
+
+  Future<Option<ContainerTermination>> termination =
+    containerizer->destroy(containerId);
+
+  AWAIT_READY(termination);
+  ASSERT_SOME(termination.get());
+  ASSERT_TRUE(termination.get()->has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, termination.get()->status());
+}
+
+
 // This test verifies that a debug container inherits the
 // environment of its parent even after agent failover.
 TEST_F(NestedMesosContainerizerTest,
