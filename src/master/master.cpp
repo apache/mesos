@@ -5456,13 +5456,38 @@ void Master::_accept(
         conversions);
   }
 
-  if (!_offeredResources.empty()) {
-    // Tell the allocator about the unused (e.g., refused) resources.
+  // We now need to compute the amounts of remaining (1) speculatively converted
+  // resources to recover without a filter and (2) resources that are implicitly
+  // declined with the filter:
+  //
+  // Speculatively converted resources
+  //   = (offered resources).apply(speculative operations)
+  //       - resources consumed by non-speculative operations
+  //       - offered resources not consumed by any operation
+  //   = `_offeredResources` - offered resources not consumed by any operation
+  //   = `_offeredResources` - offered resources
+  //
+  // (The last equality holds because resource subtraction yields no negatives.)
+  //
+  // Implicitly declined resources
+  //   = (offered resources).apply(speculative operations)
+  //       - resources consumed by non-speculative operations
+  //       - speculatively converted resources
+  //   = `_offeredResources` - speculatively converted resources
+  Resources speculativelyConverted = _offeredResources - offeredResources;
+  Resources implicitlyDeclined = _offeredResources - speculativelyConverted;
+
+  // Tell the allocator about the net speculatively converted resources. These
+  // resources should not be implicitly declined.
+  if (!speculativelyConverted.empty()) {
     allocator->recoverResources(
-        frameworkId,
-        slaveId,
-        _offeredResources,
-        accept.filters());
+        frameworkId, slaveId, speculativelyConverted, None());
+  }
+
+  // Tell the allocator about the implicitly declined resources.
+  if (!implicitlyDeclined.empty()) {
+    allocator->recoverResources(
+        frameworkId, slaveId, implicitlyDeclined, accept.filters());
   }
 }
 
