@@ -6495,7 +6495,8 @@ TEST_F(SlaveTest, UpdateOperationStatusRetry)
 
   Future<v1::scheduler::Event::Offers> offers;
   EXPECT_CALL(*scheduler, offers(_, _))
-    .WillOnce(FutureArg<1>(&offers));
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   ContentType contentType = ContentType::PROTOBUF;
 
