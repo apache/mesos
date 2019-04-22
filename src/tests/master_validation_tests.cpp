@@ -444,6 +444,88 @@ TEST_F(ResourceValidationTest, SingleResourceProvider)
 }
 
 
+// Unit test for the `resource::detectOverlappingSetAndRangeResources()` helper
+// function. This function should return `true` when it receives two or more
+// `Resources` objects which contain overlapping sets or ranges.
+TEST_F(ResourceValidationTest, OverlappingSetsAndRanges)
+{
+  // An empty vector, which cannot overlap.
+  EXPECT_FALSE(resource::detectOverlappingSetAndRangeResources({}));
+
+  // One group of resources containing a set, which cannot overlap.
+  EXPECT_FALSE(
+      resource::detectOverlappingSetAndRangeResources(
+          {CHECK_NOTERROR(Resources::parse("zones:{a,b,c}"))}));
+
+  // Two groups of resources with non-overlapping ranges.
+  EXPECT_FALSE(
+      resource::detectOverlappingSetAndRangeResources({
+          CHECK_NOTERROR(Resources::parse("ports:[5555-5556]")),
+          CHECK_NOTERROR(Resources::parse("ports:[5557-5558]"))
+      }));
+
+  // Two groups of resources with identical ranges.
+  EXPECT_TRUE(
+      resource::detectOverlappingSetAndRangeResources({
+          CHECK_NOTERROR(Resources::parse("ports:[5555-5556]")),
+          CHECK_NOTERROR(Resources::parse("ports:[5555-5556]"))
+      }));
+
+  // Two groups of resources with overlapping ranges.
+  EXPECT_TRUE(
+      resource::detectOverlappingSetAndRangeResources({
+          CHECK_NOTERROR(Resources::parse("ports:[5555-5557]")),
+          CHECK_NOTERROR(Resources::parse("ports:[5556-5558]"))
+      }));
+
+  // Three groups of resources, two of which have overlapping ranges.
+  EXPECT_TRUE(
+      resource::detectOverlappingSetAndRangeResources({
+          CHECK_NOTERROR(Resources::parse("ports:[5555-5557]")),
+          CHECK_NOTERROR(Resources::parse("ports:[5558-5559]")),
+          CHECK_NOTERROR(Resources::parse("ports:[5559-5560]"))
+      }));
+
+  // Two groups of resources with overlapping ranges
+  // and other scalar resources.
+  EXPECT_TRUE(
+      resource::detectOverlappingSetAndRangeResources({
+          CHECK_NOTERROR(Resources::parse("cpus:0.1;mem:32;ports:[5555-5557]")),
+          CHECK_NOTERROR(
+              Resources::parse("cpus:1.0;mem:2048;disk:4096;ports:[5556-5558]"))
+      }));
+
+  // Two groups of resources with non-overlapping sets.
+  EXPECT_FALSE(
+      resource::detectOverlappingSetAndRangeResources({
+          CHECK_NOTERROR(Resources::parse("zones:{a,b}")),
+          CHECK_NOTERROR(Resources::parse("zones:{c,d}"))
+      }));
+
+  // Two groups of resources with identical sets.
+  EXPECT_TRUE(
+      resource::detectOverlappingSetAndRangeResources({
+          CHECK_NOTERROR(Resources::parse("zones:{a,b}")),
+          CHECK_NOTERROR(Resources::parse("zones:{a,b}"))
+      }));
+
+  // Two groups of resources with overlapping sets.
+  EXPECT_TRUE(
+      resource::detectOverlappingSetAndRangeResources({
+          CHECK_NOTERROR(Resources::parse("zones:{a,b,c}")),
+          CHECK_NOTERROR(Resources::parse("zones:{c,d,e}"))
+      }));
+
+  // Three groups of resources, two of which have overlapping sets.
+  EXPECT_TRUE(
+      resource::detectOverlappingSetAndRangeResources({
+          CHECK_NOTERROR(Resources::parse("zones:{a,b,c}")),
+          CHECK_NOTERROR(Resources::parse("zones:{d,e,f}")),
+          CHECK_NOTERROR(Resources::parse("zones:{g,h,a}"))
+      }));
+}
+
+
 class ReserveOperationValidationTest : public MesosTest {};
 
 
