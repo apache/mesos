@@ -970,7 +970,7 @@ protected:
   // Remove an inverse offer and optionally rescind it as well.
   void removeInverseOffer(InverseOffer* inverseOffer, bool rescind = false);
 
-  bool isCompletedFramework(const FrameworkID& frameworkId);
+  bool isCompletedFramework(const FrameworkID& frameworkId) const;
 
   Framework* getFramework(const FrameworkID& frameworkId) const;
   Offer* getOffer(const OfferID& offerId) const;
@@ -1139,6 +1139,11 @@ private:
    * (and access control is done via ACLs).
    */
   bool isWhitelistedRole(const std::string& name) const;
+
+  // Validates subscription prerequisites common
+  // both for HTTP and driver-based frameworks.
+  Option<Error> validateFrameworkSubscription(
+      const scheduler::Call::Subscribe&) const;
 
   /**
    * Inner class used to namespace the handling of quota requests.

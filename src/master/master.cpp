@@ -2550,6 +2550,75 @@ void Master::reregisterFramework(
 }
 
 
+Option<Error> Master::validateFrameworkSubscription(
+  const scheduler::Call::Subscribe& subscribe) const
+{
+  const FrameworkInfo& frameworkInfo = subscribe.framework_info();
+  Option<Error> validationError =
+    validation::framework::validate(frameworkInfo);
+
+  if (!validationError.isNone()){
+    return validationError;
+  }
+
+  // Check the framework's role(s) against the whitelist.
+  set<string> invalidRoles;
+
+  if (protobuf::frameworkHasCapability(
+          frameworkInfo,
+          FrameworkInfo::Capability::MULTI_ROLE)) {
+    foreach (const string& role, frameworkInfo.roles()) {
+      if (!isWhitelistedRole(role)) {
+        invalidRoles.insert(role);
+      }
+    }
+  } else {
+    if (!isWhitelistedRole(frameworkInfo.role())) {
+      invalidRoles.insert(frameworkInfo.role());
+    }
+  }
+
+  if (!invalidRoles.empty()) {
+    return Error("Roles " + stringify(invalidRoles) +
+                 " are not present in the master's --roles");
+  }
+
+  // Ensure each of the suppressed role is contained in the list of roles.
+  set<string> frameworkRoles = protobuf::framework::getRoles(frameworkInfo);
+  // The suppressed roles must be contained within the list of all
+  // roles for the framwork.
+  foreach (const string& role, subscribe.suppressed_roles()) {
+    if (!frameworkRoles.count(role)) {
+      return Error("Suppressed role '" + role +
+                   "' is not contained in the list of roles");
+    }
+  }
+
+  // TODO(vinod): Deprecate this in favor of authorization.
+  if (frameworkInfo.user() == "root" && !flags.root_submissions) {
+    return Error("User 'root' is not allowed to run frameworks"
+                 " without --root_submissions set");
+  }
+
+  if (frameworkInfo.has_id() && isCompletedFramework(frameworkInfo.id())) {
+    // This could happen if a framework tries to subscribe after its failover
+    // timeout has elapsed, or it has been torn down via the operator API,
+    // or it unregistered itself by calling 'stop()' on the scheduler driver.
+    //
+    // TODO(vinod): Master should persist admitted frameworks to the
+    // registry and remove them from it after failover timeout.
+    return Error("Framework has been removed");
+  }
+
+  if (!isValidFailoverTimeout(frameworkInfo)) {
+    return Error("The framework failover_timeout (" +
+                 stringify(frameworkInfo.failover_timeout()) +
+                 ") is invalid");
+  }
+  return Option<Error>::none();
+}
+
+
 void Master::subscribe(
     StreamingHttpConnection<v1::scheduler::Event> http,
     const scheduler::Call::Subscribe& subscribe)
@@ -2569,72 +2638,7 @@ void Master::subscribe(
             << " HTTP framework '" << frameworkInfo.name() << "'";
 
   Option<Error> validationError =
-    validation::framework::validate(frameworkInfo);
-
-  if (validationError.isNone()) {
-    // Check the framework's role(s) against the whitelist.
-    set<string> invalidRoles;
-
-    if (protobuf::frameworkHasCapability(
-            frameworkInfo,
-            FrameworkInfo::Capability::MULTI_ROLE)) {
-      foreach (const string& role, frameworkInfo.roles()) {
-        if (!isWhitelistedRole(role)) {
-          invalidRoles.insert(role);
-        }
-      }
-    } else {
-      if (!isWhitelistedRole(frameworkInfo.role())) {
-        invalidRoles.insert(frameworkInfo.role());
-      }
-    }
-
-    if (!invalidRoles.empty()) {
-      validationError = Error("Roles " + stringify(invalidRoles) +
-                              " are not present in master's --roles");
-    }
-  }
-
-  // Ensure each of the suppressed role is contained in the list of roles.
-  set<string> frameworkRoles = protobuf::framework::getRoles(frameworkInfo);
-  set<string> suppressedRoles = set<string>(
-      subscribe.suppressed_roles().begin(), subscribe.suppressed_roles().end());
-
-  if (validationError.isNone()) {
-    // The suppressed roles must be contained within the list of all
-    // roles for the framwork.
-    foreach (const string& role, suppressedRoles) {
-      if (!frameworkRoles.count(role)) {
-        validationError = Error("Suppressed role '" + role +
-                                "' is not contained in the list of roles");
-
-        break;
-      }
-    }
-  }
-
-  // TODO(vinod): Deprecate this in favor of authorization.
-  if (validationError.isNone() &&
-      frameworkInfo.user() == "root" && !flags.root_submissions) {
-    validationError = Error("User 'root' is not allowed to run frameworks"
-                            " without --root_submissions set");
-  }
-
-  if (validationError.isNone() && frameworkInfo.has_id() &&
-      isCompletedFramework(frameworkInfo.id())) {
-    // This could happen if a framework tries to subscribe after its failover
-    // timeout has elapsed, or it has been torn down via the operator API.
-    //
-    // TODO(vinod): Master should persist admitted frameworks to the
-    // registry and remove them from it after failover timeout.
-    validationError = Error("Framework has been removed");
-  }
-
-  if (validationError.isNone() && !isValidFailoverTimeout(frameworkInfo)) {
-    validationError = Error("The framework failover_timeout (" +
-                            stringify(frameworkInfo.failover_timeout()) +
-                            ") is invalid");
-  }
+    validateFrameworkSubscription(subscribe);
 
   if (validationError.isSome()) {
     LOG(INFO) << "Refusing subscription of framework"
@@ -2648,6 +2652,10 @@ void Master::subscribe(
     http.close();
     return;
   }
+
+  set<string> suppressedRoles = set<string>(
+      subscribe.suppressed_roles().begin(),
+      subscribe.suppressed_roles().end());
 
   // Need to disambiguate for the compiler.
   void (Master::*_subscribe)(
@@ -2833,73 +2841,7 @@ void Master::subscribe(
   }
 
   Option<Error> validationError =
-    validation::framework::validate(frameworkInfo);
-
-  if (validationError.isNone()) {
-    // Check the framework's role(s) against the whitelist.
-    set<string> invalidRoles;
-
-    if (protobuf::frameworkHasCapability(
-            frameworkInfo,
-            FrameworkInfo::Capability::MULTI_ROLE)) {
-      foreach (const string& role, frameworkInfo.roles()) {
-        if (!isWhitelistedRole(role)) {
-          invalidRoles.insert(role);
-        }
-      }
-    } else {
-      if (!isWhitelistedRole(frameworkInfo.role())) {
-        invalidRoles.insert(frameworkInfo.role());
-      }
-    }
-
-    if (!invalidRoles.empty()) {
-      validationError = Error("Roles " + stringify(invalidRoles) +
-                              " are not present in the master's --roles");
-    }
-  }
-
-  // Ensure each of the suppressed role is contained in the list of roles.
-  set<string> frameworkRoles = protobuf::framework::getRoles(frameworkInfo);
-  set<string> suppressedRoles = set<string>(
-      subscribe.suppressed_roles().begin(), subscribe.suppressed_roles().end());
-
-  if (validationError.isNone()) {
-    // The suppressed roles must be contained within the list of all
-    // roles for the framwork.
-    foreach (const string& role, suppressedRoles) {
-      if (!frameworkRoles.count(role)) {
-        validationError = Error("Suppressed role '" + role +
-                                "' is not contained in the list of roles");
-
-        break;
-      }
-    }
-  }
-
-  // TODO(vinod): Deprecate this in favor of authorization.
-  if (validationError.isNone() &&
-      frameworkInfo.user() == "root" && !flags.root_submissions) {
-    validationError = Error("User 'root' is not allowed to run frameworks"
-                            " without --root_submissions set");
-  }
-
-  if (validationError.isNone() && frameworkInfo.has_id() &&
-      isCompletedFramework(frameworkInfo.id())) {
-    // This could happen if a framework tries to subscribe after its
-    // failover timeout has elapsed or it unregistered itself by
-    // calling 'stop()' on the scheduler driver.
-    //
-    // TODO(vinod): Master should persist admitted frameworks to the
-    // registry and remove them from it after failover timeout.
-    validationError = Error("Framework has been removed");
-  }
-
-  if (validationError.isNone() && !isValidFailoverTimeout(frameworkInfo)) {
-    validationError = Error("The framework failover_timeout (" +
-                            stringify(frameworkInfo.failover_timeout()) +
-                            ") is invalid");
-  }
+    validateFrameworkSubscription(subscribe);
 
   // Note that re-authentication errors are already handled above.
   if (validationError.isNone()) {
@@ -2932,6 +2874,10 @@ void Master::subscribe(
 
     frameworkInfo.set_principal(authenticated[from]);
   }
+
+  set<string> suppressedRoles = set<string>(
+      subscribe.suppressed_roles().begin(),
+      subscribe.suppressed_roles().end());
 
   // Need to disambiguate for the compiler.
   void (Master::*_subscribe)(
@@ -12337,7 +12283,7 @@ void Master::removeInverseOffer(InverseOffer* inverseOffer, bool rescind)
 }
 
 
-bool Master::isCompletedFramework(const FrameworkID& frameworkId)
+bool Master::isCompletedFramework(const FrameworkID& frameworkId) const
 {
   return frameworks.completed.contains(frameworkId);
 }
