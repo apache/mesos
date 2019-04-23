@@ -4833,24 +4833,24 @@ void Master::_accept(
     return;
   }
 
-  // Some operations update the offered resources. We keep
-  // updated offered resources here. When a task is successfully
-  // launched, we remove its resource from offered resources.
-  Resources _offeredResources = offeredResources;
+  // We maintain the "running remaining" resources here to support pipelining of
+  // speculative operations (e.g., RESERVE), which would modify the remaining
+  // resources. Resources consumed by non-speculative operations (e.g., LAUNCH)
+  // are removed from the remaining resources.
+  Resources remainingResources = offeredResources;
 
   // Converted resources from volume resizes. These converted resources are not
-  // put into `_offeredResources`, so no other operations can consume them.
+  // put into `remainingResources`, so no other operations can consume them.
   // TODO(zhitao): This will be unnecessary once `GROW_VOLUME` and
   // `SHRINK_VOLUME` become non-speculative.
   Resources resizedResources;
 
-  // We keep track of the shared resources from the offers separately.
-  // `offeredSharedResources` can be modified by CREATE/DESTROY but we
-  // don't remove from it when a task is successfully launched so this
-  // variable always tracks the *total* amount. We do this to support
-  // validation of tasks involving shared resources. See comments in
-  // the LAUNCH case below.
-  Resources offeredSharedResources = offeredResources.shared();
+  // We keep track of the "running remaining" shared resources from the offers
+  // separately. `remainingSharedResources` can be modified by CREATE/DESTROY
+  // but we don't remove from it when a task is successfully launched so this
+  // variable always tracks the *total* amount. We do this to support validation
+  // of tasks involving shared resources. See comments in the LAUNCH case below.
+  Resources remainingSharedResources = offeredResources.shared();
 
   // Maintain a list of resource conversions to pass to the allocator
   // as a result of operations. Note that:
@@ -4927,13 +4927,13 @@ void Master::_accept(
           continue;
         }
 
-        Try<Resources> resources = _offeredResources.apply(_conversions.get());
+        Try<Resources> resources = remainingResources.apply(_conversions.get());
         if (resources.isError()) {
           drop(framework, operation, resources.error());
           continue;
         }
 
-        _offeredResources = resources.get();
+        remainingResources = resources.get();
 
         LOG(INFO) << "Applying RESERVE operation for resources "
                   << operation.reserve().resources() << " from framework "
@@ -4994,13 +4994,13 @@ void Master::_accept(
           continue;
         }
 
-        Try<Resources> resources = _offeredResources.apply(_conversions.get());
+        Try<Resources> resources = remainingResources.apply(_conversions.get());
         if (resources.isError()) {
           drop(framework, operation, resources.error());
           continue;
         }
 
-        _offeredResources = resources.get();
+        remainingResources = resources.get();
 
         LOG(INFO) << "Applying UNRESERVE operation for resources "
                   << operation.unreserve().resources() << " from framework "
@@ -5071,14 +5071,14 @@ void Master::_accept(
           continue;
         }
 
-        Try<Resources> resources = _offeredResources.apply(_conversions.get());
+        Try<Resources> resources = remainingResources.apply(_conversions.get());
         if (resources.isError()) {
           drop(framework, operation, resources.error());
           continue;
         }
 
-        _offeredResources = resources.get();
-        offeredSharedResources = _offeredResources.shared();
+        remainingResources = resources.get();
+        remainingSharedResources = remainingResources.shared();
 
         LOG(INFO) << "Applying CREATE operation for volumes "
                   << operation.create().volumes() << " from framework "
@@ -5165,14 +5165,14 @@ void Master::_accept(
           continue;
         }
 
-        Try<Resources> resources = _offeredResources.apply(_conversions.get());
+        Try<Resources> resources = remainingResources.apply(_conversions.get());
         if (resources.isError()) {
           drop(framework, operation, resources.error());
           continue;
         }
 
-        _offeredResources = resources.get();
-        offeredSharedResources = _offeredResources.shared();
+        remainingResources = resources.get();
+        remainingSharedResources = remainingResources.shared();
 
         LOG(INFO) << "Applying DESTROY operation for volumes "
                   << operation.destroy().volumes() << " from framework "
@@ -5240,18 +5240,18 @@ void Master::_accept(
         const Resources& consumed = _conversions->at(0).consumed;
         const Resources& converted = _conversions->at(0).converted;
 
-        if (!_offeredResources.contains(consumed)) {
+        if (!remainingResources.contains(consumed)) {
           drop(
               framework,
               operation,
               "Invalid GROW_VOLUME operation: " +
-              stringify(_offeredResources) + " does not contain " +
+              stringify(remainingResources) + " does not contain " +
               stringify(consumed));
 
           continue;
         }
 
-        _offeredResources -= consumed;
+        remainingResources -= consumed;
         resizedResources += converted;
 
         LOG(INFO) << "Processing GROW_VOLUME operation for volume "
@@ -5323,18 +5323,18 @@ void Master::_accept(
         const Resources& consumed = _conversions->at(0).consumed;
         const Resources& converted = _conversions->at(0).converted;
 
-        if (!_offeredResources.contains(consumed)) {
+        if (!remainingResources.contains(consumed)) {
           drop(
               framework,
               operation,
               "Invalid SHRINK_VOLUME operation: " +
-              stringify(_offeredResources) + " does not contain " +
+              stringify(remainingResources) + " does not contain " +
               stringify(consumed));
 
           continue;
         }
 
-        _offeredResources -= consumed;
+        remainingResources -= consumed;
         resizedResources += converted;
 
         LOG(INFO) << "Processing SHRINK_VOLUME operation for volume "
@@ -5424,7 +5424,7 @@ void Master::_accept(
           // of a shared persistent volume from the offer; 3 tasks can be
           // launched on 2 copies of a shared persistent volume from 2 offers.
           Resources available =
-            _offeredResources.nonShared() + offeredSharedResources;
+            remainingResources.nonShared() + remainingSharedResources;
 
           Option<Error> error =
             validation::task::validate(task, framework, slave, available);
@@ -5485,10 +5485,10 @@ void Master::_accept(
             // of each consumed shared resource (guaranteed by master
             // validation).
             foreach (const Resource& resource, consumedShared) {
-              CHECK(offeredSharedResources.contains(resource));
+              CHECK(remainingSharedResources.contains(resource));
             }
 
-            Resources additional = consumedShared - _offeredResources.shared();
+            Resources additional = consumedShared - remainingResources.shared();
             if (!additional.empty()) {
               LOG(INFO) << "Allocating additional resources " << additional
                         << " for task " << task.task_id()
@@ -5498,7 +5498,7 @@ void Master::_accept(
               conversions.emplace_back(Resources(), additional);
             }
 
-            _offeredResources -= consumed;
+            remainingResources -= consumed;
 
             RunTaskMessage message;
             message.mutable_framework()->MergeFrom(framework->info);
@@ -5632,7 +5632,7 @@ void Master::_accept(
           reason = TaskStatus::REASON_TASK_GROUP_UNAUTHORIZED;
         } else {
           error = validation::task::group::validate(
-              taskGroup, executor, framework, slave, _offeredResources);
+              taskGroup, executor, framework, slave, remainingResources);
 
           if (error.isSome()) {
             reason = TaskStatus::REASON_TASK_GROUP_INVALID;
@@ -5754,10 +5754,10 @@ void Master::_accept(
           }
         }
 
-        CHECK(_offeredResources.contains(totalResources))
-          << _offeredResources << " does not contain " << totalResources;
+        CHECK(remainingResources.contains(totalResources))
+          << remainingResources << " does not contain " << totalResources;
 
-        _offeredResources -= totalResources;
+        remainingResources -= totalResources;
 
         // If the agent does not support reservation refinement, downgrade
         // the task and executor resources to the "pre-reservation-refinement"
@@ -5830,16 +5830,16 @@ void Master::_accept(
 
         const Resource& consumed = operation.create_disk().source();
 
-        if (!_offeredResources.contains(consumed)) {
+        if (!remainingResources.contains(consumed)) {
           drop(framework,
                operation,
                "Invalid CREATE_DISK Operation: " +
-                 stringify(_offeredResources) + " does not contain " +
+                 stringify(remainingResources) + " does not contain " +
                  stringify(consumed));
           continue;
         }
 
-        _offeredResources -= consumed;
+        remainingResources -= consumed;
 
         LOG(INFO) << "Processing CREATE_DISK operation with source "
                   << operation.create_disk().source() << " from framework "
@@ -5897,16 +5897,16 @@ void Master::_accept(
 
         const Resource& consumed = operation.destroy_disk().source();
 
-        if (!_offeredResources.contains(consumed)) {
+        if (!remainingResources.contains(consumed)) {
           drop(framework,
                operation,
                "Invalid DESTROY_DISK Operation: " +
-                 stringify(_offeredResources) + " does not contain " +
+                 stringify(remainingResources) + " does not contain " +
                  stringify(consumed));
           continue;
         }
 
-        _offeredResources -= consumed;
+        remainingResources -= consumed;
 
         LOG(INFO) << "Processing DESTROY_DISK operation for volume "
                   << operation.destroy_disk().source() << " from framework "
@@ -5946,8 +5946,8 @@ void Master::_accept(
   //   = (offered resources).apply(speculative operations)
   //       - resources consumed by non-speculative operations
   //       - offered resources not consumed by any operation
-  //   = `_offeredResources` - offered resources not consumed by any operation
-  //   = `_offeredResources` - offered resources
+  //   = remaining resources - offered resources not consumed by any operation
+  //   = remaining resources - offered resources
   //
   // (The last equality holds because resource subtraction yields no negatives.)
   //
@@ -5955,15 +5955,15 @@ void Master::_accept(
   //   = (offered resources).apply(speculative operations)
   //       - resources consumed by non-speculative operations
   //       - speculatively converted resources
-  //   = `_offeredResources` - speculatively converted resources
+  //   = remaining resources - speculatively converted resources
   //
   // TODO(zhitao): Right now `GROW_VOLUME` and `SHRINK_VOLUME` are implemented
   // as speculative operations. Since the plan is to make them non-speculative
-  // in the future, their results are not in `_offeredResources`, so we add them
-  // back here. Remove this once the operations become non-speculative.
+  // in the future, their results are not in the remaining resources, so we add
+  // them back here. Remove this once the operations become non-speculative.
   Resources speculativelyConverted =
-    _offeredResources + resizedResources - offeredResources;
-  Resources implicitlyDeclined = _offeredResources - speculativelyConverted;
+    remainingResources + resizedResources - offeredResources;
+  Resources implicitlyDeclined = remainingResources - speculativelyConverted;
 
   // Prevent any allocations from occurring during resource recovery below.
   allocator->pause();
