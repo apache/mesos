@@ -2605,7 +2605,8 @@ public:
       ContentType contentType,
       const std::shared_ptr<MockHTTPScheduler<Mesos, Event>>& scheduler,
       const Option<std::shared_ptr<mesos::master::detector::MasterDetector>>&
-          detector = None())
+          detector = None(),
+      const mesos::v1::Credential& credential = v1::DEFAULT_CREDENTIAL)
     : Mesos(
           master,
           contentType,
@@ -2619,7 +2620,7 @@ public:
                        scheduler,
                        this,
                        lambda::_1),
-          v1::DEFAULT_CREDENTIAL,
+          credential,
           detector) {}
 
   ~TestMesos() override

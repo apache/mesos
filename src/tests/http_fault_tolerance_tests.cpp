@@ -80,6 +80,96 @@ namespace tests {
 // the corresponding tests in `src/tests/fault_tolerance_tests.cpp`.
 class HttpFaultToleranceTest : public MesosTest {};
 
+// This test verifies that a framework attempting to resubscribe
+// with a different principal during its failover timeout
+// gets an error.
+TEST_F(HttpFaultToleranceTest, FrameworkPrincipalChangeFails)
+{
+  master::Flags flags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(flags);
+  ASSERT_SOME(master);
+
+  v1::FrameworkID frameworkId;
+
+  // Launch the first (i.e., failing) scheduler and wait until it receives
+  // a `SUBSCRIBED` event to launch the second (i.e., failover) scheduler.
+  {
+    v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+    frameworkInfo.set_failover_timeout(Weeks(2).secs());
+
+    auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+    Future<Nothing> connected;
+    EXPECT_CALL(*scheduler, connected(_))
+      .WillOnce(v1::scheduler::SendSubscribe(frameworkInfo));
+
+    v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::JSON,
+      scheduler);
+
+    EXPECT_CALL(*scheduler, heartbeat(_))
+      .WillRepeatedly(Return()); // Ignore heartbeats.
+
+    Future<Event::Subscribed> subscribed;
+    EXPECT_CALL(*scheduler, subscribed(_, _))
+      .WillOnce(FutureArg<1>(&subscribed));
+
+    AWAIT_READY(subscribed);
+
+    frameworkId = subscribed->framework_id();
+  }
+
+
+  // Now launch the second (i.e., failover) scheduler using the framework id
+  // recorded from the first scheduler but another set of valid credentials.
+  // The scheduler should get an error instead of "Subscribed" message.
+  // The master should disconnect the scheduler after sending an error.
+  {
+    v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+
+    frameworkInfo.mutable_id()->CopyFrom(frameworkId);
+    frameworkInfo.set_principal(v1::DEFAULT_CREDENTIAL_2.principal());
+
+    auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+    // We do not resubscribe after the master disconnects us.
+    Future<Nothing> connected;
+    EXPECT_CALL(*scheduler, connected(_))
+      .WillOnce(v1::scheduler::SendSubscribe(frameworkInfo, frameworkId))
+      .WillRepeatedly(Return());
+
+    v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::JSON,
+      scheduler,
+      None(),
+      v1::DEFAULT_CREDENTIAL_2);
+
+    EXPECT_CALL(*scheduler, heartbeat(_))
+      .WillRepeatedly(Return()); // Ignore heartbeats.
+
+    // Fail the test if we got `Subscribed` before the master disconnects us.
+    Future<Event::Subscribed> subscribed;
+    EXPECT_CALL(*scheduler, subscribed(_, _))
+      .Times(AtMost(0));
+
+    Future<Nothing> disconnected;
+    EXPECT_CALL(*scheduler, disconnected(_))
+      .WillOnce(FutureSatisfy(&disconnected));
+
+    Future<Event::Error> error;
+    EXPECT_CALL(*scheduler, error(_, _))
+      .WillOnce(FutureArg<1>(&error));
+
+    AWAIT_READY(error);
+    EXPECT_EQ(error.get().message(),
+              "Changing framework's principal is not allowed.");
+
+    AWAIT_READY(disconnected);
+  }
+}
+
 
 // This test verifies that a framework attempting to subscribe
 // after its failover timeout has elapsed is disallowed.

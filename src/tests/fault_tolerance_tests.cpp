@@ -2017,6 +2017,61 @@ TEST_F(FaultToleranceTest, SplitBrainMasters)
 }
 
 
+// This test verifies that when a framework tries to change its
+// principal on re-registration, it gets an error.
+TEST_F(FaultToleranceTest, ChangePrincipalOnReRegistrationFails)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  // Launch the first (i.e., failing) scheduler and wait until
+  // registered gets called.
+
+  MockScheduler sched1;
+  MesosSchedulerDriver driver1(
+      &sched1, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched1, registered(&driver1, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  driver1.start();
+  AWAIT_READY(frameworkId);
+
+  // Now launch the second (i.e., failover) scheduler with ANOTHER principal
+  // using the framework id recorded from the first scheduler, and wait
+  // until it gets an error.
+
+  FrameworkInfo finfo2 = DEFAULT_FRAMEWORK_INFO;
+
+  finfo2.mutable_id()->MergeFrom(frameworkId.get());
+  finfo2.set_principal(DEFAULT_CREDENTIAL_2.principal());
+
+  MockScheduler sched2;
+  MesosSchedulerDriver driver2(
+      &sched2, finfo2, master.get()->pid, DEFAULT_CREDENTIAL_2);
+
+  // Scheduler should never be registered.
+  // We cannot check "never", therefore we check that it is not registered
+  // at least before it receives the error.
+
+  EXPECT_CALL(sched2, registered(&driver2, _, _))
+    .Times(AtMost(0));
+
+  Future<Nothing> sched2Error;
+  EXPECT_CALL(sched2,
+      error(&driver2, "Changing framework's principal is not allowed."))
+    .WillOnce(FutureSatisfy(&sched2Error));
+
+  driver2.start();
+  AWAIT_READY(sched2Error);
+}
+
+
 // This test verifies that when a framework reregisters with updated
 // FrameworkInfo, it gets updated in the master. The steps involved
 // are:
