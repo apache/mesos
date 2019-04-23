@@ -2561,6 +2561,39 @@ Option<Error> Master::validateFrameworkSubscription(
     return validationError;
   }
 
+  // Validate that resubscribing framework does not attempt
+  // to change its principal.
+  if (frameworkInfo.has_id() && !frameworkInfo.id().value().empty()) {
+    const Framework* framework = getFramework(frameworkInfo.id());
+
+    // TODO(asekretenko): Masters do not store `FrameworkInfo` messages in the
+    // replicated log, so it is possible that the previous principal is still
+    // unknown at the time of re-registration. This has to be changed if we
+    // decide to start storing `FrameworkInfo` messages.
+    if (framework != nullptr) {
+      Option<string> oldPrincipal;
+      if (framework->info.has_principal()) {
+          oldPrincipal = framework->info.principal();
+      }
+
+      Option<string> newPrincipal;
+      if (frameworkInfo.has_principal()) {
+        newPrincipal = frameworkInfo.principal();
+      }
+
+      if (oldPrincipal != newPrincipal) {
+        LOG(WARNING)
+          << "Framework " << frameworkInfo.id() << " which had a principal '"
+          << (oldPrincipal.isSome() ? oldPrincipal.get() : "<NONE>")
+          << "' tried to (re)subscribe with a new principal '"
+          << (newPrincipal.isSome() ? newPrincipal.get() : "<NONE>")
+          << "'";
+
+        return Error("Changing framework's principal is not allowed.");
+      }
+    }
+  }
+
   // Check the framework's role(s) against the whitelist.
   set<string> invalidRoles;
 
