@@ -29,6 +29,7 @@
 
 #include <stout/check.hpp>
 #include <stout/hashmap.hpp>
+#include <stout/hashset.hpp>
 #include <stout/option.hpp>
 
 #include "common/resource_quantities.hpp"
@@ -122,6 +123,10 @@ private:
   // been configured for the node's path, the default weight (1.0) is
   // returned.
   double getWeight(const Node* node) const;
+
+  // Get active internal nodes -- internal nodes that have at least
+  // one active leaf descendant.
+  hashset<Node*> activeInternalNodes() const;
 
   // Returns the client associated with the given path. Returns
   // nullptr if the path is not found or if the path identifies an

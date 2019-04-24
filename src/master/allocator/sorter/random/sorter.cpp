@@ -545,6 +545,45 @@ double RandomSorter::getWeight(const Node* node) const
 }
 
 
+hashset<RandomSorter::Node*> RandomSorter::activeInternalNodes() const
+{
+  // Using post-order traversal to find all the internal nodes
+  // that have at least one active leaf descendant and store
+  // them in the input `result` hashset.
+  //
+  // Returns true if the subtree at the input `node` contains any
+  // active leaf node.
+  std::function<bool(Node*, hashset<Node*>&)> searchActiveInternal =
+    [&searchActiveInternal](Node* node, hashset<Node*>& result) {
+      switch (node->kind) {
+        case Node::ACTIVE_LEAF: return true;
+
+        case Node::INACTIVE_LEAF: return false;
+
+        case Node::INTERNAL: {
+          bool active = false;
+          foreach (Node* child, node->children) {
+            if (searchActiveInternal(child, result)) {
+              active = true;
+            }
+          }
+
+          if (active) {
+            result.insert(node);
+          }
+          return active;
+        }
+      }
+      UNREACHABLE();
+    };
+
+  hashset<Node*> result;
+  searchActiveInternal(root, result);
+
+  return result;
+}
+
+
 RandomSorter::Node* RandomSorter::find(const string& clientPath) const
 {
   Option<Node*> client_ = clients.get(clientPath);
