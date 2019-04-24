@@ -11780,7 +11780,10 @@ void Master::removeTask(Task* task, bool unreachable)
               << " on agent " << *slave;
   }
 
-  slaves.unreachableTasks[slave->id].put(task->framework_id(), task->task_id());
+  if (unreachable) {
+    slaves.unreachableTasks[slave->id].put(
+        task->framework_id(), task->task_id());
+  }
 
   // Remove from framework.
   Framework* framework = getFramework(task->framework_id());
