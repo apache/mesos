@@ -33,6 +33,7 @@
 #include <stout/option.hpp>
 #include <stout/strings.hpp>
 
+using std::pair;
 using std::set;
 using std::string;
 using std::vector;
@@ -460,66 +461,16 @@ void RandomSorter::remove(const SlaveID& slaveId, const Resources& resources)
 
 vector<string> RandomSorter::sort()
 {
-  std::function<void (Node*)> shuffleTree = [this, &shuffleTree](Node* node) {
-    // Inactive leaves are always stored at the end of the
-    // `children` vector; this means that we should only shuffle
-    // the prefix of the vector before the first inactive leaf.
-    auto inactiveBegin = std::find_if(
-        node->children.begin(),
-        node->children.end(),
-        [](Node* n) { return n->kind == Node::INACTIVE_LEAF; });
+  pair<vector<string>, vector<double>> clientsAndWeights =
+    SortInfo(this).getClientsAndWeights();
 
-    vector<double> weights(inactiveBegin - node->children.begin());
+  weightedShuffle(
+      clientsAndWeights.first.begin(),
+      clientsAndWeights.first.end(),
+      clientsAndWeights.second,
+      generator);
 
-    for (int i = 0; i < inactiveBegin - node->children.begin(); ++i) {
-      weights[i] = getWeight(node->children[i]);
-    }
-
-    weightedShuffle(node->children.begin(), inactiveBegin, weights, generator);
-
-    foreach (Node* child, node->children) {
-      if (child->kind == Node::INTERNAL) {
-        shuffleTree(child);
-      } else if (child->kind == Node::INACTIVE_LEAF) {
-        break;
-      }
-    }
-  };
-
-  shuffleTree(root);
-
-  // Return all active leaves in the tree via pre-order traversal.
-  // The children of each node are already shuffled, with
-  // inactive leaves stored after active leaves and internal nodes.
-  vector<string> result;
-
-  // TODO(bmahler): This over-reserves where there are inactive
-  // clients, only reserve the number of active clients.
-  result.reserve(clients.size());
-
-  std::function<void (const Node*)> listClients =
-      [&listClients, &result](const Node* node) {
-    foreach (const Node* child, node->children) {
-      switch (child->kind) {
-        case Node::ACTIVE_LEAF:
-          result.push_back(child->clientPath());
-          break;
-
-        case Node::INACTIVE_LEAF:
-          // As soon as we see the first inactive leaf, we can stop
-          // iterating over the current node's list of children.
-          return;
-
-        case Node::INTERNAL:
-          listClients(child);
-          break;
-      }
-    }
-  };
-
-  listClients(root);
-
-  return result;
+  return std::move(clientsAndWeights.first);
 }
 
 
@@ -597,6 +548,70 @@ RandomSorter::Node* RandomSorter::find(const string& clientPath) const
   CHECK(client->isLeaf());
 
   return client;
+}
+
+
+pair<vector<string>, vector<double>>
+RandomSorter::SortInfo::getClientsAndWeights()
+{
+  updateRelativeWeights();
+
+  return std::make_pair(clients, weights);
+}
+
+
+void RandomSorter::SortInfo::updateRelativeWeights()
+{
+  hashset<Node*> activeInternalNodes = sorter->activeInternalNodes();
+
+  auto isActive = [&activeInternalNodes](Node* node) {
+    return node->kind == Node::ACTIVE_LEAF ||
+           activeInternalNodes.contains(node);
+  };
+
+  clients.reserve(sorter->clients.size());
+  weights.reserve(sorter->clients.size());
+
+  // We use the following formula to compute the relative weights (Rw):
+  //
+  //                                    weight(node)
+  // Rw(node) = Rw(parent) * -------------------------------------------
+  //                         weight(node) + SUM(weight(active siblings))
+  //
+  // Using pre-order traversal to calculate node's relative weight.
+  // Active leaves and their relative weights are stored in `clients`
+  // and `weights`.
+  std::function<void(Node*, double, double)> calculateRelativeWeights =
+    [&](Node* node, double siblingWeights, double parentRelativeWeight) {
+      // We only calculate relative weights for active nodes.
+      if (!isActive(node)) {
+        return;
+      }
+      double relativeWeight = parentRelativeWeight * sorter->getWeight(node) /
+                              (sorter->getWeight(node) + siblingWeights);
+
+      // Store the result for active leaves.
+      if (node->kind == Node::ACTIVE_LEAF) {
+        clients.push_back(node->clientPath());
+        weights.push_back(relativeWeight);
+      }
+
+      // Calculate active children's total weights.
+      double totalWeights_ = 0.0;
+
+      foreach (Node* child, node->children) {
+        totalWeights_ += isActive(child) ? sorter->getWeight(child) : 0.0;
+      }
+
+      foreach (Node* child, node->children) {
+        if (isActive(child)) {
+          calculateRelativeWeights(
+              child, totalWeights_ - sorter->getWeight(child), relativeWeight);
+        }
+      }
+    };
+
+  calculateRelativeWeights(sorter->root, 0.0, 1.0);
 }
 
 } // namespace allocator {
