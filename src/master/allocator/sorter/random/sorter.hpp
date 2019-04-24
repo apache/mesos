@@ -134,17 +134,19 @@ private:
   Node* find(const std::string& clientPath) const;
 
   // Sorting related info are kept in memory to avoid recalculations.
-  //
-  // TODO(mzhu): Keep this in the memory to avoid recalculations.
   struct SortInfo
   {
   public:
-    SortInfo(const RandomSorter* sorter_) : sorter(sorter_) {}
+    SortInfo(const RandomSorter* sorter_) : dirty(true), sorter(sorter_) {}
 
     // Returns a pair of vectors which are active clients and
     // their corresponding relative weights.
     std::pair<std::vector<std::string>, std::vector<double>>
     getClientsAndWeights();
+
+    // A dirty bit indicates whether the info is up-to-date
+    // and requires recalculation.
+    bool dirty;
 
   private:
     void updateRelativeWeights();
@@ -160,7 +162,7 @@ private:
     std::vector<double> weights;
 
     const RandomSorter* sorter;
-  };
+  } sortInfo;
 
   // Used for random number generation.
   std::mt19937 generator;

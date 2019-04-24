@@ -47,13 +47,13 @@ namespace allocator {
 
 
 RandomSorter::RandomSorter()
-  : root(new Node("", Node::INTERNAL, nullptr)) {}
+  : sortInfo(this), root(new Node("", Node::INTERNAL, nullptr)) {}
 
 
 RandomSorter::RandomSorter(
     const UPID& allocator,
     const string& metricsPrefix)
-  : root(new Node("", Node::INTERNAL, nullptr)) {}
+  : sortInfo(this), root(new Node("", Node::INTERNAL, nullptr)) {}
 
 
 RandomSorter::~RandomSorter()
@@ -69,6 +69,8 @@ void RandomSorter::initialize(
 void RandomSorter::add(const string& clientPath)
 {
   CHECK(!clients.contains(clientPath)) << clientPath;
+
+  sortInfo.dirty = true;
 
   // Adding a client is a two phase algorithm:
   //
@@ -160,6 +162,8 @@ void RandomSorter::add(const string& clientPath)
 
 void RandomSorter::remove(const string& clientPath)
 {
+  sortInfo.dirty = true;
+
   Node* current = CHECK_NOTNULL(find(clientPath));
 
   // Save a copy of the leaf node's allocated resources, because we
@@ -237,6 +241,8 @@ void RandomSorter::remove(const string& clientPath)
 
 void RandomSorter::activate(const string& clientPath)
 {
+  sortInfo.dirty = true;
+
   Node* client = CHECK_NOTNULL(find(clientPath));
 
   if (client->kind == Node::INACTIVE_LEAF) {
@@ -254,6 +260,8 @@ void RandomSorter::activate(const string& clientPath)
 
 void RandomSorter::deactivate(const string& clientPath)
 {
+  sortInfo.dirty = true;
+
   Node* client = CHECK_NOTNULL(find(clientPath));
 
   if (client->kind == Node::ACTIVE_LEAF) {
@@ -271,6 +279,8 @@ void RandomSorter::deactivate(const string& clientPath)
 
 void RandomSorter::updateWeight(const string& path, double weight)
 {
+  sortInfo.dirty = true;
+
   weights[path] = weight;
 
   // Update the weight of the corresponding internal node,
@@ -562,6 +572,10 @@ RandomSorter::SortInfo::getClientsAndWeights()
 
 void RandomSorter::SortInfo::updateRelativeWeights()
 {
+  if (!dirty) {
+    return;
+  }
+
   hashset<Node*> activeInternalNodes = sorter->activeInternalNodes();
 
   auto isActive = [&activeInternalNodes](Node* node) {
@@ -569,6 +583,8 @@ void RandomSorter::SortInfo::updateRelativeWeights()
            activeInternalNodes.contains(node);
   };
 
+  // Note, though we reserve here, the size of the vector will always
+  // grow (as we add more roles).
   clients.reserve(sorter->clients.size());
   weights.reserve(sorter->clients.size());
 
@@ -612,6 +628,8 @@ void RandomSorter::SortInfo::updateRelativeWeights()
     };
 
   calculateRelativeWeights(sorter->root, 0.0, 1.0);
+
+  dirty = false;
 }
 
 } // namespace allocator {
