@@ -9246,18 +9246,100 @@ void Master::_markUnreachable(
 }
 
 
-void Master::markGone(Slave* slave, const TimeInfo& goneTime)
+void Master::markGone(const SlaveID& slaveId, const TimeInfo& goneTime)
 {
-  CHECK_NOTNULL(slave);
-  CHECK(slaves.markingGone.contains(slave->info.id()));
-  slaves.markingGone.erase(slave->info.id());
+  CHECK(slaves.markingGone.contains(slaveId));
 
-  slaves.gone[slave->id] = goneTime;
+  slaves.markingGone.erase(slaveId);
+
+  slaves.gone[slaveId] = goneTime;
+
+  const string message = "Agent has been marked gone";
+
+  Slave* slave = slaves.registered.get(slaveId);
+
+  // If the `Slave` struct does not exist, then the agent
+  // must be either recovered or unreachable.
+  if (slave == nullptr) {
+    CHECK(slaves.recovered.contains(slaveId) ||
+          slaves.unreachable.contains(slaveId));
+
+    // When a recovered agent is marked gone, we have no task metadata to use in
+    // order to send task status updates. We could retain this agent ID and send
+    // updates upon reregistration but do not currently do this. See MESOS-9739.
+    if (slaves.recovered.contains(slaveId)) {
+      return;
+    }
+
+    slaves.unreachable.erase(slaveId);
+
+    // TODO(vinod): Consider moving these tasks into `completedTasks` by
+    // transitioning them to a terminal state and sending status updates.
+    // But it's not clear what this state should be. If a framework
+    // reconciles these tasks after this point it would get `TASK_UNKNOWN`
+    // which seems appropriate but we don't keep tasks in this state in-memory.
+    if (slaves.unreachableTasks.contains(slaveId)) {
+      foreachkey (const FrameworkID& frameworkId,
+                  slaves.unreachableTasks.at(slaveId)) {
+        Framework* framework = getFramework(frameworkId);
+        if (framework == nullptr) {
+          continue;
+        }
+
+        TaskState newTaskState = TASK_GONE_BY_OPERATOR;
+        TaskStatus::Reason newTaskReason =
+          TaskStatus::REASON_SLAVE_REMOVED_BY_OPERATOR;
+
+        if (!framework->capabilities.partitionAware) {
+          newTaskState = TASK_LOST;
+          newTaskReason = TaskStatus::REASON_SLAVE_REMOVED;
+        }
+
+        foreach (const TaskID& taskId,
+                 slaves.unreachableTasks.at(slaveId).get(frameworkId)) {
+          if (framework->unreachableTasks.contains(taskId)) {
+            const Owned<Task>& task = framework->unreachableTasks.at(taskId);
+
+            const StatusUpdate& update = protobuf::createStatusUpdate(
+                task->framework_id(),
+                task->slave_id(),
+                task->task_id(),
+                newTaskState,
+                TaskStatus::SOURCE_MASTER,
+                None(),
+                message,
+                newTaskReason,
+                (task->has_executor_id()
+                   ? Option<ExecutorID>(task->executor_id())
+                   : None()));
+
+            updateTask(task.get(), update);
+
+            if (!framework->connected()) {
+              LOG(WARNING) << "Dropping update " << update
+                           << " for disconnected "
+                           << " framework " << frameworkId;
+            } else {
+              forward(update, UPID(), framework);
+            }
+
+            // Move task from unreachable map to completed map.
+            framework->addCompletedTask(std::move(*task));
+            framework->unreachableTasks.erase(taskId);
+          }
+        }
+      }
+
+      slaves.unreachableTasks.erase(slaveId);
+    }
+
+    return;
+  }
 
   // Shutdown the agent if it transitioned to gone.
-  ShutdownMessage message;
-  message.set_message("Agent has been marked gone");
-  send(slave->pid, message);
+  ShutdownMessage shutdownMessage;
+  shutdownMessage.set_message(message);
+  send(slave->pid, shutdownMessage);
 
   // Notify frameworks that their operations have been transitioned
   // to status `OPERATION_GONE_BY_OPERATOR`.
@@ -9266,7 +9348,7 @@ void Master::markGone(Slave* slave, const TimeInfo& goneTime)
     OperationState::OPERATION_GONE_BY_OPERATOR,
     "Agent has been marked gone");
 
-  __removeSlave(slave, "Agent has been marked gone", None());
+  __removeSlave(slave, message, None());
 }
 
 
