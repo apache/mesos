@@ -564,7 +564,7 @@ public:
       bool duringMasterFailover,
       const std::string& message);
 
-  void markGone(Slave* slave, const TimeInfo& goneTime);
+  void markGone(const SlaveID& slaveId, const TimeInfo& goneTime);
 
   void authenticate(
       const process::UPID& from,
