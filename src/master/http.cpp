@@ -4171,15 +4171,7 @@ Future<Response> Master::Http::_markAgentGone(const SlaveID& slaveId) const
                  << registrarResult.failure();
     }
 
-    Slave* slave = master->slaves.registered.get(slaveId);
-
-    // This can happen if the agent that is being marked as
-    // gone is not currently registered (unreachable/recovered).
-    if (slave == nullptr) {
-      return;
-    }
-
-    master->markGone(slave, goneTime);
+    master->markGone(slaveId, goneTime);
   }));
 
   return gone.then([]() -> Future<Response> {
