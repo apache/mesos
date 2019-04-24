@@ -163,7 +163,7 @@ TEST_F(HttpFaultToleranceTest, FrameworkPrincipalChangeFails)
       .WillOnce(FutureArg<1>(&error));
 
     AWAIT_READY(error);
-    EXPECT_EQ(error.get().message(),
+    EXPECT_EQ(error->message(),
               "Changing framework's principal is not allowed.");
 
     AWAIT_READY(disconnected);
