@@ -115,6 +115,7 @@ using std::string;
 using std::vector;
 
 using testing::_;
+using testing::AllOf;
 using testing::AtMost;
 using testing::DoAll;
 using testing::Eq;
@@ -9453,6 +9454,305 @@ TEST_F(MasterTest, CollectAuthorizations)
 
     AWAIT_EXPECT_TRUE(result);
   }
+}
+
+
+// This test verifies that a request to launch a task or task group which
+// attempts to use overlapping set- or range-valued resources will fail.
+TEST_F(MasterTest, LaunchOverlappingSetAndRangeResources)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.resources =
+    "cpus:1;mem:2048;disk:2048;ports:[5555-6666];zones:{a,b,c}";
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Advance the clock to trigger agent registration.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(v1::scheduler::SendSubscribe(v1::DEFAULT_FRAMEWORK_INFO));
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(subscribed);
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  // Create resource and executor objects which we will use for several
+  // different tests below.
+
+  Try<v1::Resources> resourcesWithRanges_ =
+    v1::Resources::parse("cpus:0.1;mem:32;disk:32;ports:[5555-5555]");
+  CHECK_SOME(resourcesWithRanges_);
+  RepeatedPtrField<v1::Resource> resourcesWithRanges(
+      resourcesWithRanges_.get());
+
+  Try<v1::Resources> resourcesWithSets_ =
+    v1::Resources::parse("cpus:0.1;mem:32;disk:32;zones:{a,b,c}");
+  CHECK_SOME(resourcesWithSets_);
+  RepeatedPtrField<v1::Resource> resourcesWithSets(resourcesWithSets_.get());
+
+  Try<v1::Resources> resourcesWithoutSetsAndRanges_ =
+    v1::Resources::parse("cpus:0.1;mem:32;disk:32");
+  CHECK_SOME(resourcesWithoutSetsAndRanges_);
+  RepeatedPtrField<v1::Resource> resourcesWithoutSetsAndRanges(
+      resourcesWithoutSetsAndRanges_.get());
+
+  v1::ExecutorInfo executorInfo;
+  executorInfo.set_type(v1::ExecutorInfo::DEFAULT);
+  executorInfo.mutable_executor_id()->CopyFrom(v1::DEFAULT_EXECUTOR_ID);
+  executorInfo.mutable_framework_id()->CopyFrom(frameworkId);
+
+  // Set 0s filter when accepting to immediately get another offer.
+  v1::Filters filters;
+  filters.set_refuse_seconds(0);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+
+  v1::Offer offer = offers->offers(0);
+
+  const v1::AgentID& agentId = offer.agent_id();
+
+  // An executor and a task in a task group which both specify
+  // the same range-valued resource (ports).
+  {
+    executorInfo.mutable_resources()->CopyFrom(resourcesWithRanges);
+
+    const v1::TaskInfo taskInfo =
+      v1::createTask(agentId, resourcesWithRanges, SLEEP_COMMAND(99999));
+
+    Future<v1::scheduler::Event::Update> taskStatusUpdate;
+    EXPECT_CALL(
+        *scheduler,
+        update(_, AllOf(
+            TaskStatusUpdateTaskIdEq(taskInfo),
+            TaskStatusUpdateStateEq(v1::TASK_ERROR))))
+      .WillOnce(FutureArg<1>(&taskStatusUpdate));
+
+    mesos.send(
+        v1::createCallAccept(
+            frameworkId,
+            offer,
+            {v1::LAUNCH_GROUP(
+                executorInfo,
+                v1::createTaskGroupInfo({taskInfo}))},
+            filters));
+
+    AWAIT_READY(taskStatusUpdate);
+  }
+
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // Advance the clock to trigger a batch allocation.
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+
+  offer = offers->offers(0);
+
+  // Two tasks in a task group which both specify
+  // the same range-valued resource (ports).
+  {
+    executorInfo.mutable_resources()->CopyFrom(resourcesWithoutSetsAndRanges);
+
+    const v1::TaskInfo taskInfo1 =
+      v1::createTask(agentId, resourcesWithRanges, SLEEP_COMMAND(99999));
+    const v1::TaskInfo taskInfo2 =
+      v1::createTask(agentId, resourcesWithRanges, SLEEP_COMMAND(99999));
+
+    Future<v1::scheduler::Event::Update> task1StatusUpdate;
+    EXPECT_CALL(
+        *scheduler,
+        update(_, AllOf(
+            TaskStatusUpdateTaskIdEq(taskInfo1),
+            TaskStatusUpdateStateEq(v1::TASK_ERROR))))
+      .WillOnce(FutureArg<1>(&task1StatusUpdate));
+
+    Future<v1::scheduler::Event::Update> task2StatusUpdate;
+    EXPECT_CALL(
+        *scheduler,
+        update(_, AllOf(
+            TaskStatusUpdateTaskIdEq(taskInfo2),
+            TaskStatusUpdateStateEq(v1::TASK_ERROR))))
+      .WillOnce(FutureArg<1>(&task2StatusUpdate));
+
+    mesos.send(
+        v1::createCallAccept(
+            frameworkId,
+            offer,
+            {v1::LAUNCH_GROUP(
+                executorInfo,
+                v1::createTaskGroupInfo({taskInfo1, taskInfo2}))},
+            filters));
+
+    AWAIT_READY(task1StatusUpdate);
+    AWAIT_READY(task2StatusUpdate);
+  }
+
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // Advance the clock to trigger a batch allocation.
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+
+  offer = offers->offers(0);
+
+  // An executor and a task in a task group which both specify
+  // the same set-valued resource (zones).
+  {
+    executorInfo.mutable_resources()->CopyFrom(resourcesWithSets);
+
+    const v1::TaskInfo taskInfo =
+      v1::createTask(agentId, resourcesWithSets, SLEEP_COMMAND(99999));
+
+    Future<v1::scheduler::Event::Update> taskStatusUpdate;
+    EXPECT_CALL(
+        *scheduler,
+        update(_, AllOf(
+            TaskStatusUpdateTaskIdEq(taskInfo),
+            TaskStatusUpdateStateEq(v1::TASK_ERROR))))
+      .WillOnce(FutureArg<1>(&taskStatusUpdate));
+
+    mesos.send(
+        v1::createCallAccept(
+            frameworkId,
+            offer,
+            {v1::LAUNCH_GROUP(
+                executorInfo,
+                v1::createTaskGroupInfo({taskInfo}))},
+            filters));
+
+    AWAIT_READY(taskStatusUpdate);
+  }
+
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // Advance the clock to trigger a batch allocation.
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+
+  offer = offers->offers(0);
+
+  // Two tasks in a task group which both specify
+  // the same set-valued resource (zones).
+  {
+    executorInfo.mutable_resources()->CopyFrom(resourcesWithoutSetsAndRanges);
+
+    const v1::TaskInfo taskInfo1 =
+      v1::createTask(agentId, resourcesWithSets, SLEEP_COMMAND(99999));
+    const v1::TaskInfo taskInfo2 =
+      v1::createTask(agentId, resourcesWithSets, SLEEP_COMMAND(99999));
+
+    Future<v1::scheduler::Event::Update> task1StatusUpdate;
+    EXPECT_CALL(
+        *scheduler,
+        update(_, AllOf(
+            TaskStatusUpdateTaskIdEq(taskInfo1),
+            TaskStatusUpdateStateEq(v1::TASK_ERROR))))
+      .WillOnce(FutureArg<1>(&task1StatusUpdate));
+
+    Future<v1::scheduler::Event::Update> task2StatusUpdate;
+    EXPECT_CALL(
+        *scheduler,
+        update(_, AllOf(
+            TaskStatusUpdateTaskIdEq(taskInfo2),
+            TaskStatusUpdateStateEq(v1::TASK_ERROR))))
+      .WillOnce(FutureArg<1>(&task2StatusUpdate));
+
+    mesos.send(
+        v1::createCallAccept(
+            frameworkId,
+            offer,
+            {v1::LAUNCH_GROUP(
+                executorInfo,
+                v1::createTaskGroupInfo({taskInfo1, taskInfo2}))},
+            filters));
+
+    AWAIT_READY(task1StatusUpdate);
+    AWAIT_READY(task2StatusUpdate);
+  }
+
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // Advance the clock to trigger a batch allocation.
+  Clock::advance(masterFlags.allocation_interval);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+
+  offer = offers->offers(0);
+
+  // An executor and a single task in a LAUNCH operation which both specify
+  // the same range-valued resource (ports).
+  {
+    executorInfo.mutable_resources()->CopyFrom(resourcesWithRanges);
+    executorInfo.set_type(v1::ExecutorInfo::CUSTOM);
+    executorInfo.mutable_command()->CopyFrom(
+        v1::createCommandInfo("custom-command"));
+
+    v1::TaskInfo taskInfo;
+    taskInfo.set_name("test-task");
+    taskInfo.mutable_task_id()->set_value(id::UUID::random().toString());
+    taskInfo.mutable_agent_id()->CopyFrom(agentId);
+    taskInfo.mutable_resources()->CopyFrom(resourcesWithRanges);
+    taskInfo.mutable_executor()->CopyFrom(executorInfo);
+
+    Future<v1::scheduler::Event::Update> taskStatusUpdate;
+    EXPECT_CALL(
+        *scheduler,
+        update(_, AllOf(
+            TaskStatusUpdateTaskIdEq(taskInfo),
+            TaskStatusUpdateStateEq(v1::TASK_ERROR))))
+      .WillOnce(FutureArg<1>(&taskStatusUpdate));
+
+    mesos.send(
+        v1::createCallAccept(
+            frameworkId,
+            offer,
+            {v1::LAUNCH({taskInfo})},
+            filters));
+
+    AWAIT_READY(taskStatusUpdate);
+  }
+
+  Clock::resume();
 }
 
 } // namespace tests {
