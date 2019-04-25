@@ -257,6 +257,7 @@ All Resolved Issues:
   * [MESOS-9607] - Removing a resource provider with consumers breaks resource publishing.
   * [MESOS-9610] - Fetcher vulnerability - escaping from sandbox
   * [MESOS-9612] - Resource provider manager assumes all operations are triggered by frameworks
+  * [MESOS-9619] - Mesos Master Crashes with Launch Group when using Port Resources
   * [MESOS-9621] - Mesos failed to build due to error LNK2019 on Windows using MSVC.
   * [MESOS-9629] - Pylint reports cyclic dependencies in cli_new
   * [MESOS-9635] - OperationReconciliationTest.AgentPendingOperationAfterMasterFailover is flaky again (3x) due to orphan operations
