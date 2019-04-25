@@ -133,6 +133,8 @@ message ACL {
   }
 
   // Which principals are authorized to update quotas for the given roles.
+  // This ACL is currently used for two authorizatble actions:
+  // `UPDATE_QUOTA` and `UPDATE_QUOTA_WITH_CONFIG`.
   message UpdateQuota {
     // Subjects: Operator username.
     required Entity principals = 1;

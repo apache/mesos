@@ -424,6 +424,7 @@ public:
         case authorization::GET_QUOTA:
         case authorization::RESERVE_RESOURCES:
         case authorization::UPDATE_QUOTA:
+        case authorization::UPDATE_QUOTA_WITH_CONFIG:
         case authorization::UPDATE_WEIGHT:
         case authorization::VIEW_ROLE:
         case authorization::REGISTER_FRAMEWORK:
@@ -665,6 +666,15 @@ public:
           CHECK_NOTNULL(object->quota_info);
 
           entityObject.add_values(object->quota_info->role());
+          entityObject.set_type(mesos::ACL::Entity::SOME);
+
+          break;
+        }
+        case authorization::UPDATE_QUOTA_WITH_CONFIG: {
+          // Check object has the required types set.
+          CHECK_NOTNULL(object->value);
+
+          entityObject.add_values(*(object->value));
           entityObject.set_type(mesos::ACL::Entity::SOME);
 
           break;
@@ -922,7 +932,8 @@ public:
             createHierarchicalRoleACLs(acls.register_frameworks());
         break;
       }
-      case authorization::UPDATE_QUOTA: {
+      case authorization::UPDATE_QUOTA:
+      case authorization::UPDATE_QUOTA_WITH_CONFIG: {
         hierarchicalRoleACLs =
             createHierarchicalRoleACLs(acls.update_quotas());
         break;
@@ -1171,6 +1182,7 @@ public:
       case authorization::GET_QUOTA:
       case authorization::REGISTER_FRAMEWORK:
       case authorization::UPDATE_QUOTA:
+      case authorization::UPDATE_QUOTA_WITH_CONFIG:
       case authorization::CREATE_BLOCK_DISK:
       case authorization::DESTROY_BLOCK_DISK:
       case authorization::CREATE_MOUNT_DISK:
@@ -1608,6 +1620,7 @@ private:
       case authorization::VIEW_ROLE:
       case authorization::GET_QUOTA:
       case authorization::UPDATE_QUOTA:
+      case authorization::UPDATE_QUOTA_WITH_CONFIG:
       case authorization::LAUNCH_NESTED_CONTAINER_SESSION:
       case authorization::LAUNCH_NESTED_CONTAINER:
       case authorization::CREATE_BLOCK_DISK:
