@@ -55,6 +55,7 @@ using http::OK;
 
 using mesos::authorization::createSubject;
 
+using mesos::quota::QuotaConfig;
 using mesos::quota::QuotaInfo;
 using mesos::quota::QuotaRequest;
 using mesos::quota::QuotaStatus;
@@ -814,6 +815,32 @@ Future<bool> Master::QuotaHandler::authorizeUpdateQuota(
   }
 
   request.mutable_object()->mutable_quota_info()->CopyFrom(quotaInfo);
+
+  return master->authorizer.get()->authorized(request);
+}
+
+
+Future<bool> Master::QuotaHandler::authorizeUpdateQuotaConfig(
+    const Option<Principal>& principal, const QuotaConfig& quotaConfig) const
+{
+  if (master->authorizer.isNone()) {
+    return true;
+  }
+
+  LOG(INFO) << "Authorizing principal '"
+            << (principal.isSome() ? stringify(principal.get()) : "ANY")
+            << "' to update quota config"
+            << " for role '" << quotaConfig.role() << "'";
+
+  authorization::Request request;
+  request.set_action(authorization::UPDATE_QUOTA_WITH_CONFIG);
+
+  Option<authorization::Subject> subject = createSubject(principal);
+  if (subject.isSome()) {
+    *request.mutable_subject() = std::move(*subject);
+  }
+
+  *request.mutable_object()->mutable_value() = quotaConfig.role();
 
   return master->authorizer.get()->authorized(request);
 }

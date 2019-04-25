@@ -50,7 +50,7 @@ message Object {
   optional Task task = 3;
   optional TaskInfo task_info = 4;
   optional ExecutorInfo executor_info = 5;
-  optional quota.QuotaInfo quota_info = 6;
+  optional quota.QuotaInfo quota_info = 6 [deprecated = true];
   optional WeightInfo weight_info = 7;
   optional Resource resource = 8;
   optional CommandInfo command_info = 9;
@@ -136,7 +136,18 @@ enum Action {
   GET_QUOTA_WITH_ROLE = 11;
 
   // `UPDATE_QUOTA` will have an object with a `QuotaInfo` set.
-  UPDATE_QUOTA = 12;
+  //
+  // TODO(mzhu): Remove this action after associated API calls `SET_QUOTA`
+  // and `REMOVE_QUOTA` are no longer supported.
+  //
+  // NOTE: We cannot reuse this action for the `UPDATE_QUOTA` API call,
+  // because the associated `QuotaConfig` message contains more information
+  // than `QuotaInfo`.
+  UPDATE_QUOTA = 12 [deprecated = true];
+
+  // `UPDATE_QUOTA_WITH_CONFIG` will have an object
+  // with a `value` field set to the role name.
+  UPDATE_QUOTA_WITH_CONFIG = 50;
 
   // `VIEW_FRAMEWORK` will have an object with a `FrameworkInfo` set.
   VIEW_FRAMEWORK = 13;

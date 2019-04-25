@@ -2969,6 +2969,7 @@ public:
       case authorization::UPDATE_WEIGHT:
       case authorization::GET_QUOTA:
       case authorization::UPDATE_QUOTA:
+      case authorization::UPDATE_QUOTA_WITH_CONFIG:
       case authorization::VIEW_FRAMEWORK:
       case authorization::VIEW_TASK:
       case authorization::VIEW_EXECUTOR:

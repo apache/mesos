@@ -1265,9 +1265,16 @@ private:
         const Option<process::http::authentication::Principal>& principal,
         const mesos::quota::QuotaInfo& quotaInfo) const;
 
+    // This auth function is used for legacy `SET_QUOTA` and `REMOVE_QUOTA`
+    // calls. Remove this function after the associated API calls are
+    // no longer supported.
     process::Future<bool> authorizeUpdateQuota(
         const Option<process::http::authentication::Principal>& principal,
         const mesos::quota::QuotaInfo& quotaInfo) const;
+
+    process::Future<bool> authorizeUpdateQuotaConfig(
+        const Option<process::http::authentication::Principal>& principal,
+        const mesos::quota::QuotaConfig& quotaConfig) const;
 
     process::Future<mesos::quota::QuotaStatus> _status(
         const Option<process::http::authentication::Principal>&
