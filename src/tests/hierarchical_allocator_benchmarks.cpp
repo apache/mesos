@@ -384,8 +384,6 @@ TEST_F(BENCHMARK_HierarchicalAllocations, MultiFrameworkAllocations)
 
   initializeCluster(config);
 
-  cout << "Start allocation\n";
-
   // Now perform allocations. We continue until either we timeout or we have
   // launched all of the expected tasks.
   const Duration TEST_TIMEOUT = Seconds(30);
@@ -623,8 +621,6 @@ TEST_P(BENCHMARK_HierarchicalAllocator_WithQuotaParam, LargeAndSmallQuota)
   }
 
   allocator->resume();
-
-  cout << "Start allocation" << endl;
 
   Stopwatch watch;
   watch.start();
