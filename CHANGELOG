@@ -274,6 +274,7 @@ All Resolved Issues:
   * [MESOS-9712] - StorageLocalResourceProviderTest.CsiPluginRpcMetrics is flaky.
   * [MESOS-9727] - Heartbeat calls from executor to agent are reported as errors.
   * [MESOS-9729] - Unpublishing a volume that is failed to publish crashes the agent with CSI v1.
+  * [MESOS-9733] - Random sorter generates non-uniform result for hierarchical roles.
 
 ** Epic
   * [MESOS-8054] - Feedback for operations
