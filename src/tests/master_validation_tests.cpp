@@ -3341,7 +3341,9 @@ TEST_F(TaskValidationTest, TaskMissingDockerInfo)
 
 // This test verifies that a task that has `ContainerInfo` set as MESOS
 // but has a `DockerInfo` is rejected during `TaskInfo` validation.
-TEST_F(TaskValidationTest, TaskMesosTypeWithDockerInfo)
+// TODO(josephw): Enable this regression test when we officially deprecate
+// this invalid protobuf. See MESOS-6874 and MESOS-9740.
+TEST_F(TaskValidationTest, DISABLED_TaskMesosTypeWithDockerInfo)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -3547,21 +3549,6 @@ TEST_F(ExecutorValidationTest, ExecutorType)
         error->message,
         "'ExecutorInfo.container.mesos.image' must not be set for "
         "'DEFAULT' executor"));
-  }
-  {
-    // Invalid protobuf union in ContainerInfo.
-    executorInfo.set_type(ExecutorInfo::CUSTOM);
-    executorInfo.mutable_command();
-    executorInfo.mutable_container()->set_type(ContainerInfo::DOCKER);
-    executorInfo.mutable_container()->mutable_mesos();
-
-    Option<Error> error = ::executor::internal::validateType(executorInfo);
-
-    EXPECT_SOME(error);
-    EXPECT_TRUE(strings::contains(
-      error->message,
-      "Protobuf union `mesos.ContainerInfo` with `Type == DOCKER` "
-      "should not have the field `mesos` set."));
   }
 }
 

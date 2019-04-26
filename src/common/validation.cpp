@@ -268,7 +268,14 @@ Option<Error> validateContainerInfo(const ContainerInfo& containerInfo)
 {
   Option<Error> unionError = protobuf::validateProtobufUnion(containerInfo);
   if (unionError.isSome()) {
-    return unionError;
+    // TODO(josephw): There is not enough information in this function to
+    // print an actionable warning. Readers of this warning will not know
+    // which container (task or executor) has this problem. Printing
+    // the entire ContainerInfo is the best we can do.
+    LOG(WARNING)
+      << "Invalid protobuf union detected in the given ContainerInfo ("
+      << containerInfo.DebugString()
+      << "): " << unionError.get();
   }
 
   foreach (const Volume& volume, containerInfo.volumes()) {
