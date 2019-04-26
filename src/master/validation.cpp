@@ -1001,7 +1001,13 @@ Option<Error> validateType(const ExecutorInfo& executor)
     Option<Error> unionError =
       protobuf::validateProtobufUnion(executor.container());
     if (unionError.isSome()) {
-      return unionError;
+      LOG(WARNING)
+        << "Executor " << executor.executor_id()
+        // NOTE: Validation of FrameworkID is done after this validation.
+        << " of framework '"
+        << (executor.has_framework_id() ? executor.framework_id().value() : "")
+        << "' has an invalid protobuf union: "
+        << unionError.get();
     }
   }
   switch (executor.type()) {
