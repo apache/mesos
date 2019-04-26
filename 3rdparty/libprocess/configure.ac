@@ -559,7 +559,7 @@ you provided is correct if you're already doing this.
 ])
   fi
 else
-  with_bundled_boost=yes
+  with_bundled_concurrentqueue=yes
 fi
 
 AM_CONDITIONAL([WITH_BUNDLED_CONCURRENTQUEUE],
