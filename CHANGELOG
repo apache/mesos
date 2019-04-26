@@ -90,7 +90,6 @@ Unresolved Critical Issues:
   * [MESOS-9697] - Release RPMs are not uploaded to bintray
   * [MESOS-9672] - Docker containerizer should ignore pids of executors that do not pass the connection check.
   * [MESOS-9654] - `PUBLISH_RESOURCES` should fail if the resource version changes.
-  * [MESOS-9619] - Mesos Master Crashes with Launch Group when using Port Resources
   * [MESOS-9616] - `Filters.refuse_seconds` declines resources not in offers.
   * [MESOS-9609] - Master check failure when marking agent unreachable
   * [MESOS-9579] - ExecutorHttpApiTest.HeartbeatCalls is flaky.
