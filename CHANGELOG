@@ -275,6 +275,7 @@ All Resolved Issues:
   * [MESOS-9727] - Heartbeat calls from executor to agent are reported as errors.
   * [MESOS-9729] - Unpublishing a volume that is failed to publish crashes the agent with CSI v1.
   * [MESOS-9733] - Random sorter generates non-uniform result for hierarchical roles.
+  * [MESOS-9740] - Invalid protobuf unions in ExecutorInfo::ContainerInfo will prevent agents from reregistering with 1.8+ masters
 
 ** Epic
   * [MESOS-8054] - Feedback for operations
