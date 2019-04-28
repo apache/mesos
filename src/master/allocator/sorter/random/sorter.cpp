@@ -472,7 +472,7 @@ void RandomSorter::remove(const SlaveID& slaveId, const Resources& resources)
 vector<string> RandomSorter::sort()
 {
   pair<vector<string>, vector<double>> clientsAndWeights =
-    SortInfo(this).getClientsAndWeights();
+    sortInfo.getClientsAndWeights();
 
   weightedShuffle(
       clientsAndWeights.first.begin(),
