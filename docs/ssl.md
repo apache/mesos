@@ -70,7 +70,9 @@ A list of `:`-separated ciphers. Use these if you want to restrict or open up th
 #### LIBPROCESS_SSL_ENABLE_TLS_V1_0=(false|0,true|1) [default=false|0]
 #### LIBPROCESS_SSL_ENABLE_TLS_V1_1=(false|0,true|1) [default=false|0]
 #### LIBPROCESS_SSL_ENABLE_TLS_V1_2=(false|0,true|1) [default=true|1]
+#### LIBPROCESS_SSL_ENABLE_TLS_V1_3=(false|0,true|1) [default=false|0]
 The above switches enable / disable the specified protocols. By default only TLS V1.2 is enabled. SSL V2 is always disabled; there is no switch to enable it. The mentality here is to restrict security by default, and force users to open it up explicitly. Many older version of the protocols have known vulnerabilities, so only enable these if you fully understand the risks.
+TLS V1.3 is not supported yet and should not be enabled. [MESOS-9730](https://issues.apache.org/jira/browse/MESOS-9730).
 _SSLv2 is disabled completely because modern versions of OpenSSL disable it using multiple compile time configuration options._
 #<a name="Dependencies"></a>Dependencies
 
