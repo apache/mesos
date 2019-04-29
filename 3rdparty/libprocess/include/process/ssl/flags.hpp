@@ -50,6 +50,7 @@ public:
   bool enable_tls_v1_0;
   bool enable_tls_v1_1;
   bool enable_tls_v1_2;
+  bool enable_tls_v1_3;
 };
 
 

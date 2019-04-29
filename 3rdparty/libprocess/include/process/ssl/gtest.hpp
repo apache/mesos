@@ -131,6 +131,7 @@ protected:
     os::unsetenv("LIBPROCESS_SSL_ENABLE_TLS_V1_0");
     os::unsetenv("LIBPROCESS_SSL_ENABLE_TLS_V1_1");
     os::unsetenv("LIBPROCESS_SSL_ENABLE_TLS_V1_2");
+    os::unsetenv("LIBPROCESS_SSL_ENABLE_TLS_V1_3");
 
     // Copy the given map into the clean slate.
     foreachpair (
