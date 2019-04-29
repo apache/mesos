@@ -121,7 +121,12 @@ static const vector<string> protocols = {
 #endif
   "LIBPROCESS_SSL_ENABLE_TLS_V1_0",
   "LIBPROCESS_SSL_ENABLE_TLS_V1_1",
-  "LIBPROCESS_SSL_ENABLE_TLS_V1_2"
+  "LIBPROCESS_SSL_ENABLE_TLS_V1_2",
+// On some platforms, we need to build against OpenSSL versions that
+// do not support TLS 1.3 yet.
+#ifdef SSL_OP_NO_TLSv1_3
+  "LIBPROCESS_SSL_ENABLE_TLS_V1_3",
+#endif
 };
 
 

@@ -51,6 +51,7 @@ namespace openssl {
 //    LIBPROCESS_SSL_ENABLE_TLS_V1_0=(false|0,true|1)
 //    LIBPROCESS_SSL_ENABLE_TLS_V1_1=(false|0,true|1)
 //    LIBPROCESS_SSL_ENABLE_TLS_V1_2=(false|0,true|1)
+//    LIBPROCESS_SSL_ENABLE_TLS_V1_3=(false|0,true|1)
 //    LIBPROCESS_SSL_ECDH_CURVES=(auto|list of curves separated by ':')
 //
 // TODO(benh): When/If we need to support multiple contexts in the

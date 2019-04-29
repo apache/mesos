@@ -159,6 +159,11 @@ Flags::Flags()
       "enable_tls_v1_2",
       "Enable SSLV1.2.",
       true);
+
+  add(&Flags::enable_tls_v1_3,
+      "enable_tls_v1_3",
+      "Enable SSLV1.3.",
+      false);
 }
 
 
@@ -654,7 +659,11 @@ void reinitialize()
       SSL_OP_NO_SSLv3 |
       SSL_OP_NO_TLSv1 |
       SSL_OP_NO_TLSv1_1 |
-      SSL_OP_NO_TLSv1_2);
+      SSL_OP_NO_TLSv1_2
+#if defined(SSL_OP_NO_TLSv1_3)
+      | SSL_OP_NO_TLSv1_3
+#endif
+      );
 
   // Use server preference for cipher.
   long ssl_options = SSL_OP_CIPHER_SERVER_PREFERENCE;
@@ -672,6 +681,10 @@ void reinitialize()
   if (!ssl_flags->enable_tls_v1_1) { ssl_options |= SSL_OP_NO_TLSv1_1; }
   // Disable TLSv1.2.
   if (!ssl_flags->enable_tls_v1_2) { ssl_options |= SSL_OP_NO_TLSv1_2; }
+#if defined(SSL_OP_NO_TLSv1_3)
+  // Disable TLSv1.3.
+  if (!ssl_flags->enable_tls_v1_3) { ssl_options |= SSL_OP_NO_TLSv1_3; }
+#endif
 
   SSL_CTX_set_options(ctx, ssl_options);
 
