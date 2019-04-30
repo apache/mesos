@@ -11460,7 +11460,9 @@ void Master::__removeSlave(
   // the framework has opted in to the PARTITION_AWARE capability.
   foreachkey (const FrameworkID& frameworkId, utils::copy(slave->tasks)) {
     Framework* framework = getFramework(frameworkId);
-    CHECK_NOTNULL(framework);
+    CHECK(framework != nullptr)
+      << "Framework " << frameworkId << " not found while removing agent "
+      << *slave << "; agent tasks: " << slave->tasks;
 
     TaskState newTaskState = TASK_UNREACHABLE;
     TaskStatus::Reason newTaskReason = TaskStatus::REASON_SLAVE_REMOVED;
