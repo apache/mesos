@@ -1734,6 +1734,10 @@ void HierarchicalAllocatorProcess::__allocate()
       slave.getAvailable().revocable().createStrippedScalarQuantity();
   }
 
+  LOG(INFO) << "Before allocation, required quota headroom is "
+            << requiredHeadroom
+            << " and available quota headroom is " << availableHeadroom;
+
   // Due to the two stages in the allocation algorithm and the nature of
   // shared resources being re-offerable even if already allocated, the
   // same shared resources can appear in two (and not more due to the
@@ -2009,6 +2013,18 @@ void HierarchicalAllocatorProcess::__allocate()
   // are not part of the headroom (and therefore can't be used to satisfy
   // quota guarantees).
 
+  // For logging purposes, we track the number of agents that had resources
+  // held back for quota headroom, as well as how many resources in total
+  // were held back.
+  //
+  // While we also held resources back for quota headroom in the first stage,
+  // we do not track it there. This is because in the second stage, we try to
+  // allocate all resources (including the ones held back in the first stage).
+  // Thus only resources held back in the second stage are truly held back for
+  // the whole allocation cycle.
+  Resources heldBackForHeadroom;
+  size_t heldBackAgentCount = 0;
+
   foreach (const SlaveID& slaveId, slaveIds) {
     foreach (const string& role, roleSorter->sort()) {
       // In the second allocation stage, we only allocate
@@ -2118,6 +2134,8 @@ void HierarchicalAllocatorProcess::__allocate()
 
         if (!sufficientHeadroom) {
           toAllocate -= headroomToAllocate;
+          heldBackForHeadroom += headroomToAllocate;
+          ++heldBackAgentCount;
         }
 
         // If the resources are not allocatable, ignore. We cannot break
@@ -2153,6 +2171,12 @@ void HierarchicalAllocatorProcess::__allocate()
       }
     }
   }
+
+  LOG(INFO) << "After allocation, " << requiredHeadroom
+            << " are required for quota headroom, "
+            << heldBackForHeadroom << " were held back from "
+            << heldBackAgentCount
+            << " agents to ensure sufficient quota headroom";
 
   if (offerable.empty()) {
     VLOG(2) << "No allocations performed";
