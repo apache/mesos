@@ -4,7 +4,7 @@ Release Notes - Mesos - Version 1.8.1 (WIP)
 
 ** Bug
   * [MESOS-9536] - Nested container launched with non-root user may not be able to write to its sandbox via the environment variable `MESOS_SANDBOX`.
-
+  * [MESOS-9695] - Remove the duplicate pid check in Docker containerizer
 
 Release Notes - Mesos - Version 1.8.0
 -------------------------------------
