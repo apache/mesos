@@ -936,10 +936,6 @@ Future<Nothing> DockerContainerizerProcess::_recover(
       }
     }
 
-    // Collection of pids that we've started reaping in order to
-    // detect very unlikely duplicate scenario (see below).
-    hashmap<ContainerID, pid_t> pids;
-
     foreachvalue (const FrameworkState& framework, state->frameworks) {
       foreachvalue (const ExecutorState& executor, framework.executors) {
         if (executor.info.isNone()) {
@@ -1018,9 +1014,12 @@ Future<Nothing> DockerContainerizerProcess::_recover(
 
         // Only reap the executor process if the executor can be connected
         // otherwise just set `container->status` to `None()`. This is to
-        // avoid reaping an irrelevant process, e.g., after the agent host is
-        // rebooted, the executor pid happens to be reused by another process.
-        // See MESOS-8125 for details.
+        // avoid reaping an irrelevant process, e.g., agent process is stopped
+        // for a long time, and during this time executor terminates and its
+        // pid happens to be reused by another irrelevant process. When agent
+        // is restarted, it still considers this executor not complete (i.e.,
+        // `run->completed` is false), so we would reap the irrelevant process
+        // if we do not check whether that process can be connected.
         // Note that if both the pid and the port of the executor are reused
         // by another process or two processes respectively after the agent
         // host reboots we will still reap an irrelevant process, but that
@@ -1055,20 +1054,6 @@ Future<Nothing> DockerContainerizerProcess::_recover(
 
         container->status.future()
           ->onAny(defer(self(), &Self::reaped, containerId));
-
-        if (pids.contains_value(pid)) {
-          // This should (almost) never occur. There is the
-          // possibility that a new executor is launched with the same
-          // pid as one that just exited (highly unlikely) and the
-          // slave dies after the new executor is launched but before
-          // it hears about the termination of the earlier executor
-          // (also unlikely).
-          return Failure(
-              "Detected duplicate pid " + stringify(pid) +
-              " for container " + stringify(containerId));
-        }
-
-        pids.put(containerId, pid);
 
         const string sandboxDirectory = paths::getExecutorRunPath(
             flags.work_dir,
