@@ -174,7 +174,7 @@ TEST(VersionTest, ParseInvalid)
     "1.1.2+exp;",
     "-foo",
     "+foo",
-    u8"1.0.0-b\u00e9ta"
+    "1.0.0-b\u00e9ta"
   };
 
   foreach (const string& input, inputs) {
