@@ -309,7 +309,7 @@ static constexpr char TEST_DIGEST[] = "sha256:a3ed95caeb02ffe68cdd9fd844066"
 class DockerFetcherPluginTest : public TemporaryDirectoryTest {};
 
 
-TEST_F(DockerFetcherPluginTest, INTERNET_CURL_FetchManifest)
+TEST_F(DockerFetcherPluginTest, DISABLED_INTERNET_CURL_FetchManifest)
 {
   URI uri = uri::docker::manifest(
       TEST_REPOSITORY, "latest", DOCKER_REGISTRY_HOST);
@@ -352,7 +352,7 @@ TEST_F(DockerFetcherPluginTest, INTERNET_CURL_FetchBlob)
 
 
 // Fetches the image manifest and all blobs in that image.
-TEST_F(DockerFetcherPluginTest, INTERNET_CURL_FetchImage)
+TEST_F(DockerFetcherPluginTest, DISABLED_INTERNET_CURL_FetchImage)
 {
   URI uri = uri::docker::image(
       TEST_REPOSITORY, "latest", DOCKER_REGISTRY_HOST);
@@ -388,7 +388,7 @@ TEST_F(DockerFetcherPluginTest, INTERNET_CURL_FetchImage)
 
 
 // This test verifies invoking 'fetch' by plugin name.
-TEST_F(DockerFetcherPluginTest, INTERNET_CURL_InvokeFetchByName)
+TEST_F(DockerFetcherPluginTest, DISABLED_INTERNET_CURL_InvokeFetchByName)
 {
   URI uri = uri::docker::image(
       TEST_REPOSITORY, "latest", DOCKER_REGISTRY_HOST);
