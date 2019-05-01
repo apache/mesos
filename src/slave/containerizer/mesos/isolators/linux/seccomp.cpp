@@ -14,8 +14,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <linux/seccomp.h>
-
 #include <sys/prctl.h>
 
 #include <stout/path.hpp>
@@ -33,6 +31,14 @@ using mesos::seccomp::ContainerSeccompProfile;
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::Isolator;
+
+// NOTE: The definition below was taken from the Linux Kernel sources.
+//
+// TODO(abudnik): This definition should be removed in favor of using
+// `linux/seccomp.h` once we drop support for kernels older than 3.5.
+#if !defined(SECCOMP_MODE_FILTER)
+#define SECCOMP_MODE_FILTER 2
+#endif
 
 namespace mesos {
 namespace internal {

@@ -1627,14 +1627,6 @@ The Seccomp isolator is only supported on Linux.
 -------------------------------------------------------------------
   ])])
 
-  AC_CHECK_HEADERS([linux/seccomp.h], [],
-                   [AC_MSG_ERROR([Cannot find seccomp system headers
--------------------------------------------------------------------
-Please install the Linux kernel headers and make sure that you have
-Linux kernel 3.5+ installed.
--------------------------------------------------------------------
-  ])])
-
   # Check if libseccomp prefix path was supplied and if so, add it to
   # CPPFLAGS while extending it by /include and to LDFLAGS while
   # extending it by /lib.
