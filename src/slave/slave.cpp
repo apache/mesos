@@ -10024,6 +10024,18 @@ void Framework::recoverExecutor(
           executor->containerId,
           defaultExecutorTasks));
 
+    // Make sure there are no "launched tasks" on a recovered completed
+    // executor. We can only encounter these non-terminal terminated tasks
+    // when recovering a checkpointed executor that is missing a terminal
+    // status update. See MESOS-9750 for a one way to enter this state.
+    foreachpair (
+        const TaskID& taskId,
+        Task* task,
+        utils::copy(executor->launchedTasks)) {
+      executor->launchedTasks.erase(taskId);
+      executor->terminatedTasks[taskId] = task;
+    }
+
     // GC the executor run's meta directory.
     slave->garbageCollect(paths::getExecutorRunPath(
         slave->metaDir, slave->info.id(), id(), state.id, runId));
