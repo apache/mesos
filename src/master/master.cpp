@@ -8759,8 +8759,9 @@ void Master::updateOperationStatus(UpdateOperationStatusMessage&& update)
 
   const SlaveID& slaveId = update.slave_id();
 
-  // The status update for the operation might be for an
-  // operator API call, thus the framework ID here is optional.
+  // While currently only frameworks can initiate operations which request
+  // feedback, in some cases such as master/agent reconciliation, the framework
+  // ID will not be set in the update message.
   Option<FrameworkID> frameworkId = update.has_framework_id()
     ? update.framework_id()
     : Option<FrameworkID>::none();
@@ -8770,6 +8771,8 @@ void Master::updateOperationStatus(UpdateOperationStatusMessage&& update)
   // agent. Since the operation UUID is not known, there is nothing for the
   // master to do but forward the update to the framework and return.
   if (!update.has_operation_uuid()) {
+    CHECK_SOME(frameworkId);
+
     // Forward the status update to the framework.
     Framework* framework = getFramework(frameworkId.get());
 
@@ -8815,11 +8818,20 @@ void Master::updateOperationStatus(UpdateOperationStatusMessage&& update)
 
   Operation* operation = slave->getOperation(update.operation_uuid());
   if (operation == nullptr) {
-    // If the operation cannot be found, then this must be an update sent as a
-    // result of a framework-inititated reconciliation which was forwarded to
-    // the agent. Since the operation is not known to the master, there is
-    // nothing for the master to do but forward the update to the framework and
-    // return.
+    // If the operation cannot be found and no framework ID was set, then this
+    // must be a duplicate update as a result of master/agent reconciliation. In
+    // this case, a terminal reconciliation update has already been received by
+    // the master, so we simply return.
+    if (frameworkId.isNone()) {
+      return;
+    }
+
+    // If the operation cannot be found and a framework ID was set, then this
+    // must be an update sent as a result of a framework-inititated
+    // reconciliation which was forwarded to the agent and raced with an
+    // `UpdateSlaveMessage` which removed the operation. Since the operation is
+    // not known to the master, there is nothing for the master to do but
+    // forward the update to the framework and return.
     Framework* framework = getFramework(frameworkId.get());
 
     if (framework == nullptr || !framework->connected()) {
@@ -8846,7 +8858,7 @@ void Master::updateOperationStatus(UpdateOperationStatusMessage&& update)
     // `ReconcileOperationsMessage`, but they can be deduced from the operation
     // info kept on the master.
 
-    // Only operations done via the scheduler API can have an ID.
+    // Currently, only operations done via the scheduler API can have an ID.
     CHECK(operation->has_framework_id());
 
     frameworkId = operation->framework_id();
@@ -8866,10 +8878,13 @@ void Master::updateOperationStatus(UpdateOperationStatusMessage&& update)
   // Orphaned operations have no framework to send updates to.
   bool frameworkWillAcknowledge =
     operation->info().has_id() &&
+    frameworkId.isSome() &&
     !isCompletedFramework(frameworkId.get()) &&
     !slave->orphanedOperations.contains(operation->uuid());
 
   if (frameworkWillAcknowledge) {
+    CHECK_SOME(frameworkId);
+
     // Forward the status update to the framework.
     Framework* framework = getFramework(frameworkId.get());
 
@@ -8910,6 +8925,7 @@ void Master::updateOperationStatus(UpdateOperationStatusMessage&& update)
       // buffer may also be affected by this wait.
       if (operation->info().has_id() &&
           slave->orphanedOperations.contains(operation->uuid()) &&
+          frameworkId.isSome() &&
           !isCompletedFramework(frameworkId.get())) {
         if (slave->reregisteredTime.isSome() &&
             (Clock::now() - slave->reregisteredTime.get()) <

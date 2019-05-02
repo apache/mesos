@@ -580,6 +580,144 @@ TEST_P(AgentOperationFeedbackTest, DroppedOperationStatusUpdate)
   Clock::resume();
 }
 
+
+// When a scheduler requests feedback for an operation and the operation is
+// dropped en route to the agent, it's possible that a `ReregisterSlaveMessage`
+// from the agent races with a `SlaveReregisteredMessage` from the master. In
+// this case, master/agent reconciliation of the operation may be performed more
+// than once, leading to duplicate operation status updates. This test verifies
+// that the master gracefully handles such a sequence of events. This is a
+// regression test for MESOS-9698.
+TEST_P(AgentOperationFeedbackTest, DroppedOperationDuplicateStatusUpdate)
+{
+  Clock::pause();
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Advance the clock to trigger agent registration.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  // Register a framework to exercise an operation.
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_roles(0, DEFAULT_TEST_ROLE);
+
+  auto scheduler = std::make_shared<MockHTTPScheduler>();
+
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(scheduler::SendSubscribe(frameworkInfo));
+
+  Future<scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  Future<scheduler::Event::Offers> offers;
+
+  // Set an expectation for the first offer.
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  scheduler::TestMesos mesos(master.get()->pid, GetParam(), scheduler);
+
+  AWAIT_READY(subscribed);
+
+  const FrameworkID& frameworkId = subscribed->framework_id();
+
+  AWAIT_READY(offers);
+
+  ASSERT_FALSE(offers->offers().empty());
+
+  const Offer& offer = offers->offers(0);
+
+  // Reserve resources.
+  OperationID operationId;
+  operationId.set_value("operation");
+
+  ASSERT_FALSE(offer.resources().empty());
+
+  Resource reservedResources(*(offer.resources().begin()));
+  reservedResources.add_reservations()->CopyFrom(
+      createDynamicReservationInfo(
+          frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal()));
+
+  // Drop the operation in its way to the agent.
+  Future<ApplyOperationMessage> applyOperationMessage =
+    DROP_PROTOBUF(ApplyOperationMessage(), _, _);
+
+  mesos.send(createCallAccept(
+      frameworkId,
+      offer,
+      {RESERVE(reservedResources, operationId)}));
+
+  AWAIT_READY(applyOperationMessage);
+
+  // Capture the update on the way from agent to master
+  // so that we can inject a duplicate.
+  Future<UpdateOperationStatusMessage> updateOperationStatusMessage =
+    FUTURE_PROTOBUF(UpdateOperationStatusMessage(), _, _);
+
+  Future<scheduler::Event::UpdateOperationStatus> update;
+  EXPECT_CALL(*scheduler, updateOperationStatus(_, _))
+    .WillOnce(FutureArg<1>(&update));
+
+  Future<ReregisterSlaveMessage> reregisterSlaveMessage =
+    FUTURE_PROTOBUF(ReregisterSlaveMessage(), _, _);
+
+  // Resume the clock to avoid deadlocks related to agent registration.
+  // See MESOS-8828.
+  Clock::resume();
+
+  // Restart the agent to trigger operation reconciliation. This is reasonable
+  // because dropped messages from master to agent should only occur when there
+  // is an agent disconnection.
+  slave->reset();
+
+  slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(reregisterSlaveMessage);
+
+  Clock::pause();
+
+  AWAIT_READY(updateOperationStatusMessage);
+  AWAIT_READY(update);
+
+  EXPECT_EQ(operationId, update->status().operation_id());
+  EXPECT_EQ(OPERATION_DROPPED, update->status().state());
+  EXPECT_FALSE(update->status().has_uuid());
+  EXPECT_FALSE(update->status().has_resource_provider_id());
+  EXPECT_TRUE(metricEquals("master/operations/dropped", 1));
+
+  const AgentID& agentId(offer.agent_id());
+  ASSERT_TRUE(update->status().has_agent_id());
+  EXPECT_EQ(agentId, update->status().agent_id());
+
+  // Inject a duplicate operation status update. Before resolution of
+  // MESOS-9698, this would crash the master.
+  process::post(
+      slave.get()->pid,
+      master.get()->pid,
+      updateOperationStatusMessage.get());
+
+  // Since a terminal update was already received by the master, nothing should
+  // be forwarded to the scheduler now. Settle the clock to ensure that we would
+  // notice if this happens.
+  Clock::settle();
+
+  Clock::resume();
+}
+
 } // namespace v1 {
 } // namespace tests {
 } // namespace internal {
