@@ -403,7 +403,7 @@ public:
   void settle();
 
   // The /__processes__ route.
-  Future<Response> __processes__(const Request&);
+  Future<Response> __processes__(const Request& request);
 
   void install(Filter* f)
   {
@@ -3387,7 +3387,7 @@ void ProcessManager::settle()
 }
 
 
-Future<Response> ProcessManager::__processes__(const Request&)
+Future<Response> ProcessManager::__processes__(const Request& request)
 {
   synchronized (processes_mutex) {
     return collect(lambda::map(
@@ -3407,14 +3407,27 @@ Future<Response> ProcessManager::__processes__(const Request&)
             });
         },
         process_manager->processes.values()))
-      .then([](const std::vector<Option<JSON::Object>>& objects) -> Response {
+      .then([request](
+          const std::vector<Option<JSON::Object>>& objects) -> Response {
         JSON::Array array;
         foreach (const Option<JSON::Object>& object, objects) {
           if (object.isSome()) {
             array.values.push_back(*object);
           }
         }
-        return OK(array);
+
+        Response response = OK(array);
+
+        // TODO(alexr): Generalize response logging in libprocess.
+        VLOG(1) << "HTTP " << request.method << " for " << request.url
+                << (request.client.isSome()
+                    ? " from " + stringify(request.client.get())
+                    : "")
+                << ": '" << response.status << "'"
+                << " after " << (process::Clock::now() - request.received).ms()
+                << Milliseconds::units();
+
+        return response;
       });
   }
 }
