@@ -78,7 +78,10 @@ using process::defer;
 using process::Deferred;
 using process::Event;
 using process::Executor;
+using process::DispatchEvent;
 using process::ExitedEvent;
+using process::TerminateEvent;
+using process::Failure;
 using process::Future;
 using process::Message;
 using process::MessageEncoder;
@@ -87,6 +90,7 @@ using process::Owned;
 using process::PID;
 using process::Process;
 using process::ProcessBase;
+using process::Promise;
 using process::run;
 using process::Subprocess;
 using process::TerminateEvent;
@@ -2080,4 +2084,66 @@ TEST_F(ProcessTest, FirewallUninstall)
 
   terminate(process);
   wait(process);
+}
+
+
+// This ensures that the `/__processes__` endpoint does not hang
+// if one of the dispatches is abandoned. This can occur if a
+// process is terminated with `inject == true` after the
+// `/__processes__` endpoint handler has dispatched to it.
+TEST_F(ProcessTest, ProcessesEndpointNoHang)
+{
+  // This process will hold itself in a dispatch handler
+  // until both are present in its event queue:
+  //   (1) an injected terminate event, and
+  //   (2) a dispatch event from the `__processes__` endpoint.
+  //
+  // At that point, we know that the future for (2) will get
+  // abandoned.
+  class TestProcess : public Process<TestProcess>
+  {
+  public:
+    Future<Nothing> wait_for_terminate(Promise<Nothing>&& p)
+    {
+      p.set(Nothing()); // Notify that we're inside the function.
+
+      Time start = Clock::now();
+
+      while (Clock::now() - start < process::TEST_AWAIT_TIMEOUT) {
+        if (eventCount<TerminateEvent>() == 1 &&
+            eventCount<DispatchEvent>() == 1) {
+          return Nothing();
+        }
+
+        os::sleep(Milliseconds(1));
+      }
+
+      return Failure("Timed out waiting for terminate and dispatch");
+    }
+  };
+
+  PID<TestProcess> process = spawn(new TestProcess(), true);
+
+  Promise<Nothing> promise;
+  Future<Nothing> inside = promise.future();
+
+  Future<Nothing> waited =
+    dispatch(process, &TestProcess::wait_for_terminate, std::move(promise));
+
+  AWAIT_READY(inside);
+
+  http::URL url = http::URL(
+      "http",
+      process::address().ip,
+      process::address().port,
+      "/__processes__");
+
+  Future<http::Response> response = http::get(url);
+
+  terminate(process, true);
+
+  AWAIT_READY(waited);
+
+  AWAIT_READY(response);
+  EXPECT_EQ(http::Status::OK, response->code);
 }
