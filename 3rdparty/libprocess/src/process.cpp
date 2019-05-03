@@ -3396,15 +3396,23 @@ Future<Response> ProcessManager::__processes__(const Request&)
           // high-priority set of events (i.e., mailbox).
           return dispatch(
               process->self(),
-              [process]() -> JSON::Object {
-                return *process;
-              });
+              [process]() -> Option<JSON::Object> {
+                return Option<JSON::Object>(*process);
+              })
+            // We must recover abandoned futures in case
+            // the process is terminated and the dispatch
+            // is dropped.
+            .recover([](const Future<Option<JSON::Object>>& f) {
+              return Option<JSON::Object>::none();
+            });
         },
         process_manager->processes.values()))
-      .then([](const std::vector<JSON::Object>& objects) -> Response {
+      .then([](const std::vector<Option<JSON::Object>>& objects) -> Response {
         JSON::Array array;
-        foreach (const JSON::Object& object, objects) {
-          array.values.push_back(object);
+        foreach (const Option<JSON::Object>& object, objects) {
+          if (object.isSome()) {
+            array.values.push_back(*object);
+          }
         }
         return OK(array);
       });
