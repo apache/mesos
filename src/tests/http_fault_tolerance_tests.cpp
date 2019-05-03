@@ -103,17 +103,17 @@ TEST_F(HttpFaultToleranceTest, FrameworkPrincipalChangeFails)
     EXPECT_CALL(*scheduler, connected(_))
       .WillOnce(v1::scheduler::SendSubscribe(frameworkInfo));
 
-    v1::scheduler::TestMesos mesos(
-      master.get()->pid,
-      ContentType::JSON,
-      scheduler);
-
     EXPECT_CALL(*scheduler, heartbeat(_))
       .WillRepeatedly(Return()); // Ignore heartbeats.
 
     Future<Event::Subscribed> subscribed;
     EXPECT_CALL(*scheduler, subscribed(_, _))
       .WillOnce(FutureArg<1>(&subscribed));
+
+    v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::JSON,
+      scheduler);
 
     AWAIT_READY(subscribed);
 
@@ -139,13 +139,6 @@ TEST_F(HttpFaultToleranceTest, FrameworkPrincipalChangeFails)
       .WillOnce(v1::scheduler::SendSubscribe(frameworkInfo, frameworkId))
       .WillRepeatedly(Return());
 
-    v1::scheduler::TestMesos mesos(
-      master.get()->pid,
-      ContentType::JSON,
-      scheduler,
-      None(),
-      v1::DEFAULT_CREDENTIAL_2);
-
     EXPECT_CALL(*scheduler, heartbeat(_))
       .WillRepeatedly(Return()); // Ignore heartbeats.
 
@@ -161,6 +154,13 @@ TEST_F(HttpFaultToleranceTest, FrameworkPrincipalChangeFails)
     Future<Event::Error> error;
     EXPECT_CALL(*scheduler, error(_, _))
       .WillOnce(FutureArg<1>(&error));
+
+    v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::JSON,
+      scheduler,
+      None(),
+      v1::DEFAULT_CREDENTIAL_2);
 
     AWAIT_READY(error);
     EXPECT_EQ(error->message(),
