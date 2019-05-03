@@ -494,6 +494,11 @@ public:
     return stringify(diskProfileMapping);
   }
 
+  static Resources createTaskResources(const Resources& additional)
+  {
+    return Resources::parse("cpus:0.1;mem:128").get() + additional;
+  }
+
   string metricName(const string& basename)
   {
     return "resource_providers/" + stringify(TEST_SLRP_TYPE) + "." +
@@ -1792,7 +1797,7 @@ TEST_P(StorageLocalResourceProviderTest, ROOT_AgentRegisteredWithNewId)
       {CREATE(persistentVolumes),
        LAUNCH({createTask(
            offer.slave_id(),
-           persistentVolumes,
+           createTaskResources(persistentVolumes),
            createCommandInfo(
                "touch " + path::join(containerPaths[0], "file") + " " +
                path::join(containerPaths[1], "file")))})});
@@ -1966,7 +1971,7 @@ TEST_P(StorageLocalResourceProviderTest, ROOT_AgentRegisteredWithNewId)
       {CREATE(imported),
        LAUNCH({createTask(
            offer.slave_id(),
-           imported,
+           createTaskResources(imported),
            createCommandInfo("test -f " + path::join("volume", "file")))}),
        DESTROY_DISK(preprovisioned[1])});
 
@@ -2117,7 +2122,7 @@ TEST_P(
       {CREATE(persistentVolume),
        LAUNCH({createTask(
            offer.slave_id(),
-           persistentVolume,
+           createTaskResources(persistentVolume),
            createCommandInfo("touch " + path::join("volume", "file")))})});
 
   AWAIT_READY(taskFinished);
@@ -2290,7 +2295,7 @@ TEST_P(
       {CREATE(persistentVolume),
        LAUNCH({createTask(
            offer.slave_id(),
-           persistentVolume,
+           createTaskResources(persistentVolume),
            createCommandInfo("touch " + path::join("volume", "file")))})});
 
   AWAIT_READY(taskFinished);
@@ -2328,7 +2333,7 @@ TEST_P(
       {offer.id()},
       {LAUNCH({createTask(
            offer.slave_id(),
-           persistentVolume,
+           createTaskResources(persistentVolume),
            createCommandInfo("test -f " + path::join("volume", "file")))})});
 
   AWAIT_READY(taskFinished);
@@ -2563,7 +2568,7 @@ TEST_P(
       {CREATE(persistentVolume),
        LAUNCH({createTask(
            offer.slave_id(),
-           persistentVolume,
+           createTaskResources(persistentVolume),
            createCommandInfo("touch " + path::join("volume", "file")))})});
 
   AWAIT_READY(taskFinished);
@@ -2640,7 +2645,7 @@ TEST_P(
       {offer.id()},
       {LAUNCH({createTask(
            offer.slave_id(),
-           persistentVolume,
+           createTaskResources(persistentVolume),
            createCommandInfo("test -f " + path::join("volume", "file")))})});
 
   AWAIT_READY(taskFinished);
@@ -2967,7 +2972,7 @@ TEST_P(
       {CREATE(persistentVolume),
        LAUNCH({createTask(
            volumeCreatedOffers->at(0).slave_id(),
-           persistentVolume,
+           createTaskResources(persistentVolume),
            createCommandInfo("test -f " + path::join("volume", "file")))})});
 
   AWAIT_READY(taskStarting);
@@ -3271,7 +3276,7 @@ TEST_P(StorageLocalResourceProviderTest, DestroyUnpublishedPersistentVolume)
       {CREATE(persistentVolume),
        LAUNCH({createTask(
            offer.slave_id(),
-           persistentVolume,
+           createTaskResources(persistentVolume),
            createCommandInfo("touch " + path::join("volume", "file")))})});
 
   AWAIT_READY(nodePublishVolumeCall);
@@ -3435,7 +3440,7 @@ TEST_P(
       {CREATE(persistentVolume),
        LAUNCH({createTask(
            offer.slave_id(),
-           persistentVolume,
+           createTaskResources(persistentVolume),
            createCommandInfo("touch " + path::join("volume", "file")))})});
 
   AWAIT_READY(nodePublishVolumeCall);
@@ -3651,7 +3656,7 @@ TEST_P(
       {CREATE(persistentVolume),
        LAUNCH({createTask(
            offer.slave_id(),
-           persistentVolume,
+           createTaskResources(persistentVolume),
            createCommandInfo("touch " + path::join("volume", "file")))})});
 
   AWAIT_READY(nodePublishVolumeCall);
@@ -3892,7 +3897,7 @@ TEST_P(
       {CREATE(persistentVolume),
        LAUNCH({createTask(
            offer.slave_id(),
-           persistentVolume,
+           createTaskResources(persistentVolume),
            createCommandInfo("touch " + path::join("volume", "file")))})});
 
   AWAIT_READY(taskFinished);
