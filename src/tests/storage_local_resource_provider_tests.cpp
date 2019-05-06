@@ -22,6 +22,8 @@
 #include <tuple>
 #include <vector>
 
+#include <google/protobuf/repeated_field.h>
+
 #include <mesos/csi/v0.hpp>
 #include <mesos/csi/v1.hpp>
 
@@ -78,6 +80,8 @@ using std::multiset;
 using std::shared_ptr;
 using std::string;
 using std::vector;
+
+using google::protobuf::RepeatedPtrField;
 
 using mesos::internal::slave::ContainerDaemonProcess;
 
@@ -234,8 +238,9 @@ public:
   void setupResourceProviderConfig(
       const Bytes& capacity,
       const Option<string> volumes = None(),
+      const Option<string> forward = None(),
       const Option<string> createParameters = None(),
-      const Option<string> forward = None())
+      const Option<string> volumeMetadata = None())
   {
     const string testCsiPluginPath =
       path::join(tests::flags.build_dir, "src", "test-csi-plugin");
@@ -269,9 +274,10 @@ public:
                       "--api_version=%s",
                       "--work_dir=%s",
                       "--available_capacity=%s",
+                      "--volumes=%s",
                       "%s",
-                      "%s",
-                      "%s"
+                      "--create_parameters=%s",
+                      "--volume_metadata=%s"
                     ]
                   },
                   "resources": [
@@ -305,10 +311,10 @@ public:
         GetParam(),
         testCsiPluginWorkDir.get(),
         stringify(capacity),
-        createParameters.isSome()
-          ? "--create_parameters=" + createParameters.get() : "",
-        volumes.isSome() ? "--volumes=" + volumes.get() : "",
-        forward.isSome() ? "--forward=" + forward.get() : "");
+        volumes.getOrElse(""),
+        forward.isSome() ? "--forward=" + forward.get() : "",
+        createParameters.getOrElse(""),
+        volumeMetadata.getOrElse(""));
 
     ASSERT_SOME(resourceProviderConfig);
 
@@ -1236,6 +1242,127 @@ TEST_P(StorageLocalResourceProviderTest, CreateDestroyDiskWithRecovery)
 }
 
 
+// This test verifies that the storage local resource provider can properly
+// handle changes in volume metadata. This is a regression test for MESOS-9395.
+TEST_P(StorageLocalResourceProviderTest, RecoverDiskWithChangedMetadata)
+{
+  const string profilesPath = path::join(sandbox.get(), "profiles.json");
+
+  ASSERT_SOME(
+      os::write(profilesPath, createDiskProfileMapping({{"test", None()}})));
+
+  loadUriDiskProfileAdaptorModule(profilesPath);
+
+  // Add metadata "label=foo" to each created volume.
+  setupResourceProviderConfig(
+      Gigabytes(4), None(), None(), None(), "label=foo");
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  slaveFlags.disk_profile_adaptor = URI_DISK_PROFILE_ADAPTOR_NAME;
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Register a framework to exercise operations.
+  FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
+  framework.set_roles(0, "storage/role");
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, framework, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  // We use the following filter to filter offers that do not have wanted
+  // resources for 365 days (the maximum).
+  Filters declineFilters;
+  declineFilters.set_refuse_seconds(Days(365).secs());
+
+  // Decline unwanted offers. The master can send such offers before the
+  // resource provider receives profile updates.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillRepeatedly(DeclineOffers(declineFilters));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
+      &Resources::hasResourceProvider)))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
+
+  Offer offer = offers->at(0);
+
+  // Create a MOUNT disk.
+  RepeatedPtrField<Resource> raw =
+    Resources(offer.resources()).filter(&Resources::hasResourceProvider);
+
+  ASSERT_EQ(1, raw.size());
+  ASSERT_TRUE(isStoragePool(raw[0], "test"));
+
+  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
+      &Resources::hasResourceProvider)))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.acceptOffers(
+      {offer.id()},
+      {CREATE_DISK(raw[0], Resource::DiskInfo::Source::MOUNT)});
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
+
+  offer = offers->at(0);
+
+  RepeatedPtrField<Resource> created =
+    Resources(offer.resources()).filter(&Resources::hasResourceProvider);
+
+  ASSERT_EQ(1, created.size());
+  ASSERT_TRUE(isMountDisk(created[0], "test"));
+  EXPECT_TRUE(created[0].disk().source().has_metadata());
+
+  // Restart the agent.
+  EXPECT_CALL(sched, offerRescinded(_, _));
+
+  slave.get()->terminate();
+
+  // Add metadata "label=bar" to each created volume. This dose not conform to
+  // the CSI specification in terms of backward compatibility, but Mesos should
+  // be robust to handle changes in the metadata.
+  setupResourceProviderConfig(
+      Gigabytes(4), None(), None(), None(), "label=bar");
+
+  EXPECT_CALL(sched, resourceOffers(&driver, OffersHaveAnyResource(
+      Resources::hasResourceProvider)))
+    .WillOnce(FutureArg<1>(&offers));
+
+  slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
+
+  offer = offers->at(0);
+
+  RepeatedPtrField<Resource> recovered =
+    Resources(offer.resources()).filter(&Resources::hasResourceProvider);
+
+  ASSERT_EQ(1, recovered.size()) << "To many resources: " << recovered;
+  ASSERT_TRUE(isMountDisk(recovered[0], "test"));
+  ASSERT_TRUE(recovered[0].disk().source().has_metadata());
+  EXPECT_NE(created[0].disk().source().metadata(),
+            recovered[0].disk().source().metadata())
+    << "'" << JSON::protobuf(created[0].disk().source().metadata()) << "' vs "
+       "'" << JSON::protobuf(recovered[0].disk().source().metadata()) << "'";
+}
+
+
 // This test verifies that a framework cannot create a volume during and after
 // the profile disappears, and destroying a volume with a stale profile will
 // recover the freed disk with another appeared profile.
@@ -1644,7 +1771,7 @@ TEST_P(StorageLocalResourceProviderTest, ROOT_AgentRegisteredWithNewId)
 
   loadUriDiskProfileAdaptorModule(profilesPath);
 
-  setupResourceProviderConfig(Gigabytes(5), None(), "label=foo");
+  setupResourceProviderConfig(Gigabytes(5), None(), None(), "label=foo");
 
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -1809,7 +1936,7 @@ TEST_P(StorageLocalResourceProviderTest, ROOT_AgentRegisteredWithNewId)
   // allocation for the persistent volume.
   //
   // TODO(chhsiao): Remove this workaround once MESOS-9553 is done.
-  setupResourceProviderConfig(Gigabytes(6), None(), "label=foo");
+  setupResourceProviderConfig(Gigabytes(6), None(), None(), "label=foo");
 
   // NOTE: The order of these expectations is reversed because Google Mock will
   // search the expectations in reverse order.
@@ -2992,7 +3119,7 @@ TEST_P(StorageLocalResourceProviderTest, CreatePersistentBlockVolume)
   MockCSIPlugin plugin;
   ASSERT_SOME(plugin.startup(mockCsiEndpoint));
 
-  setupResourceProviderConfig(Bytes(0), None(), None(), mockCsiEndpoint);
+  setupResourceProviderConfig(Bytes(0), None(), mockCsiEndpoint);
 
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -3115,7 +3242,7 @@ TEST_P(StorageLocalResourceProviderTest, DestroyUnpublishedPersistentVolume)
   MockCSIPlugin plugin;
   ASSERT_SOME(plugin.startup(mockCsiEndpoint));
 
-  setupResourceProviderConfig(Bytes(0), None(), None(), mockCsiEndpoint);
+  setupResourceProviderConfig(Bytes(0), None(), mockCsiEndpoint);
 
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -3279,7 +3406,7 @@ TEST_P(
   MockCSIPlugin plugin;
   ASSERT_SOME(plugin.startup(mockCsiEndpoint));
 
-  setupResourceProviderConfig(Bytes(0), None(), None(), mockCsiEndpoint);
+  setupResourceProviderConfig(Bytes(0), None(), mockCsiEndpoint);
 
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -3495,7 +3622,7 @@ TEST_P(
   MockCSIPlugin plugin;
   ASSERT_SOME(plugin.startup(mockCsiEndpoint));
 
-  setupResourceProviderConfig(Bytes(0), None(), None(), mockCsiEndpoint);
+  setupResourceProviderConfig(Bytes(0), None(), mockCsiEndpoint);
 
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -5623,7 +5750,7 @@ TEST_P(StorageLocalResourceProviderTest, RetryRpcWithExponentialBackoff)
   MockCSIPlugin plugin;
   ASSERT_SOME(plugin.startup(mockCsiEndpoint));
 
-  setupResourceProviderConfig(Bytes(0), None(), None(), mockCsiEndpoint);
+  setupResourceProviderConfig(Bytes(0), None(), mockCsiEndpoint);
 
   master::Flags masterFlags = CreateMasterFlags();
 

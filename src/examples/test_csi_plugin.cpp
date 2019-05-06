@@ -146,6 +146,12 @@ public:
         "specified as a semicolon-delimited list of param=value pairs.\n"
         "(Example: 'param1=value1;param2=value2')");
 
+    add(&Flags::volume_metadata,
+        "volume_metadata",
+        "The static properties to add to the contextual information of each\n"
+        "volume. The metadata are specified as a semicolon-delimited list of\n"
+        "prop=value pairs. (Example: 'prop1=value1;prop2=value2')");
+
     add(&Flags::volumes,
         "volumes",
         "Creates preprovisioned volumes upon start-up. The volumes are\n"
@@ -164,6 +170,7 @@ public:
   string work_dir;
   Bytes available_capacity;
   Option<string> create_parameters;
+  Option<string> volume_metadata;
   Option<string> volumes;
   Option<string> forward;
 };
@@ -184,12 +191,14 @@ public:
       const string& _workDir,
       const Bytes& _availableCapacity,
       const hashmap<string, string>& _createParameters,
+      const hashmap<string, string>& _volumeMetadata,
       const hashmap<string, Bytes>& _volumes)
     : apiVersion(_apiVersion),
       endpoint(_endpoint),
       workDir(_workDir),
       availableCapacity(_availableCapacity),
-      createParameters(_createParameters.begin(), _createParameters.end())
+      createParameters(_createParameters.begin(), _createParameters.end()),
+      volumeMetadata(_volumeMetadata.begin(), _volumeMetadata.end())
   {
     // Construct the default mount volume capability.
     defaultVolumeCapability.mutable_mount();
@@ -221,7 +230,7 @@ public:
       }
 
       VolumeInfo volumeInfo{
-        capacity, getVolumePath(capacity, name), Map<string, string>()};
+        capacity, getVolumePath(capacity, name), volumeMetadata};
 
       Try<Nothing> mkdir = os::mkdir(volumeInfo.id);
       CHECK_SOME(mkdir)
@@ -483,6 +492,7 @@ private:
   Bytes availableCapacity;
   VolumeCapability defaultVolumeCapability;
   Map<string, string> createParameters;
+  Map<string, string> volumeMetadata;
   hashmap<string, VolumeInfo> volumes;
 };
 
@@ -1289,7 +1299,7 @@ Try<VolumeInfo> TestCSIPlugin::parseVolumePath(const string& dir)
     << "Cannot reconstruct volume path '" << dir << "' from volume name '"
     << name.get() << "' and capacity " << capacity.get();
 
-  return VolumeInfo{capacity.get(), dir, Map<string, string>()};
+  return VolumeInfo{capacity.get(), dir, volumeMetadata};
 }
 
 
@@ -1352,7 +1362,7 @@ Try<VolumeInfo, StatusError> TestCSIPlugin::createVolume(
 
     VolumeInfo volumeInfo{min(max(defaultSize, requiredBytes), limitBytes),
                           getVolumePath(volumeInfo.capacity, name),
-                          Map<string, string>()};
+                          volumeMetadata};
 
     Try<Nothing> mkdir = os::mkdir(volumeInfo.id);
     if (mkdir.isError()) {
@@ -1995,19 +2005,27 @@ int main(int argc, char** argv)
     foreachpair (const string& param,
                  const vector<string>& values,
                  strings::pairs(flags.create_parameters.get(), ";", "=")) {
-      Option<Error> error;
-
       if (values.size() != 1) {
-        error = "Parameter keys must be unique";
-      } else {
-        createParameters.put(param, values[0]);
-      }
-
-      if (error.isSome()) {
-        cerr << "Failed to parse the '--create_parameters' flags: "
-             << error->message << endl;
+        cerr << "Parameter key '" << param << "' is not unique" << endl;
         return EXIT_FAILURE;
       }
+
+      createParameters.put(param, values[0]);
+    }
+  }
+
+  hashmap<string, string> volumeMetadata;
+
+  if (flags.volume_metadata.isSome()) {
+    foreachpair (const string& prop,
+                 const vector<string>& values,
+                 strings::pairs(flags.volume_metadata.get(), ";", "=")) {
+      if (values.size() != 1) {
+        cerr << "Metadata key '" << prop << "' is not unique" << endl;
+        return EXIT_FAILURE;
+      }
+
+      volumeMetadata.put(prop, values[0]);
     }
   }
 
@@ -2060,6 +2078,7 @@ int main(int argc, char** argv)
         flags.work_dir,
         flags.available_capacity,
         createParameters,
+        volumeMetadata,
         volumes);
 
     plugin.run();
