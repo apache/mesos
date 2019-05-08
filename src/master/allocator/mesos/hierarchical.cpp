@@ -2005,6 +2005,11 @@ void HierarchicalAllocatorProcess::__allocate()
   // are not part of the headroom (and therefore can't be used to satisfy
   // quota guarantees).
 
+  // We randomize the agents here to "spread out" the effect of the first
+  // stage, which tends to allocate from the front of the agent list more
+  // so than the back.
+  std::random_shuffle(slaveIds.begin(), slaveIds.end());
+
   foreach (const SlaveID& slaveId, slaveIds) {
     CHECK(slaves.contains(slaveId));
     Slave& slave = slaves.at(slaveId);
