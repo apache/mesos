@@ -5861,7 +5861,9 @@ TEST_P(StorageLocalResourceProviderTest, RetryRpcWithExponentialBackoff)
   AWAIT_READY(updateOperationStatus);
   EXPECT_EQ(OPERATION_FINISHED, updateOperationStatus->status().state());
 
-  // Advance the clock to trigger a batch allocation.
+  // Settle the clock to recover the created disk, then advance the clock to
+  // trigger a batch allocation.
+  Clock::settle();
   Clock::advance(masterFlags.allocation_interval);
 
   AWAIT_READY(offers);
