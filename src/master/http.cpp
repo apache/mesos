@@ -602,7 +602,7 @@ Future<Response> Master::Http::scheduler(
     StreamingHttpConnection<v1::scheduler::Event> http(
         pipe.writer(), acceptType, streamId);
 
-    master->subscribe(http, call.subscribe());
+    master->subscribe(http, std::move(*call.mutable_subscribe()));
 
     return ok;
   }

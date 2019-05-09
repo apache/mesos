@@ -1023,24 +1023,24 @@ private:
 
   void subscribe(
       StreamingHttpConnection<v1::scheduler::Event> http,
-      const mesos::scheduler::Call::Subscribe& subscribe);
+      mesos::scheduler::Call::Subscribe&& subscribe);
 
   void _subscribe(
       StreamingHttpConnection<v1::scheduler::Event> http,
       const FrameworkInfo& frameworkInfo,
       bool force,
-      const std::set<std::string>& suppressedRoles,
+      google::protobuf::RepeatedPtrField<std::string>&& suppressedRoles,
       const process::Future<bool>& authorized);
 
   void subscribe(
       const process::UPID& from,
-      const mesos::scheduler::Call::Subscribe& subscribe);
+      mesos::scheduler::Call::Subscribe&& subscribe);
 
   void _subscribe(
       const process::UPID& from,
       const FrameworkInfo& frameworkInfo,
       bool force,
-      const std::set<std::string>& suppressedRoles,
+      google::protobuf::RepeatedPtrField<std::string>&& suppressedRoles,
       const process::Future<bool>& authorized);
 
   // Subscribes a client to the 'api/vX' endpoint.

@@ -21,6 +21,7 @@
 #include <fstream>
 #include <functional>
 #include <iomanip>
+#include <iterator>
 #include <list>
 #include <memory>
 #include <set>
@@ -99,6 +100,7 @@
 #include "watcher/whitelist_watcher.hpp"
 
 using std::list;
+using std::make_move_iterator;
 using std::reference_wrapper;
 using std::set;
 using std::shared_ptr;
@@ -2378,7 +2380,7 @@ void Master::receive(
   }
 
   if (call.type() == scheduler::Call::SUBSCRIBE) {
-    subscribe(from, call.subscribe());
+    subscribe(from, std::move(*call.mutable_subscribe()));
     return;
   }
 
@@ -2518,7 +2520,7 @@ void Master::registerFramework(
   scheduler::Call::Subscribe call;
   *call.mutable_framework_info() = std::move(frameworkInfo);
 
-  subscribe(from, call);
+  subscribe(from, std::move(call));
 }
 
 
@@ -2546,7 +2548,7 @@ void Master::reregisterFramework(
   *call.mutable_framework_info() = std::move(frameworkInfo);
   call.set_force(reregisterFrameworkMessage.failover());
 
-  subscribe(from, call);
+  subscribe(from, std::move(call));
 }
 
 
@@ -2654,7 +2656,7 @@ Option<Error> Master::validateFrameworkSubscription(
 
 void Master::subscribe(
     StreamingHttpConnection<v1::scheduler::Event> http,
-    const scheduler::Call::Subscribe& subscribe)
+    scheduler::Call::Subscribe&& subscribe)
 {
   // TODO(anand): Authenticate the framework.
 
@@ -2686,16 +2688,12 @@ void Master::subscribe(
     return;
   }
 
-  set<string> suppressedRoles = set<string>(
-      subscribe.suppressed_roles().begin(),
-      subscribe.suppressed_roles().end());
-
   // Need to disambiguate for the compiler.
   void (Master::*_subscribe)(
       StreamingHttpConnection<v1::scheduler::Event>,
       const FrameworkInfo&,
       bool,
-      const set<string>&,
+      google::protobuf::RepeatedPtrField<string>&&,
       const Future<bool>&) = &Self::_subscribe;
 
   authorizeFramework(frameworkInfo)
@@ -2704,7 +2702,7 @@ void Master::subscribe(
                  http,
                  frameworkInfo,
                  subscribe.force(),
-                 suppressedRoles,
+                 std::move(*subscribe.mutable_suppressed_roles()),
                  lambda::_1));
 }
 
@@ -2713,7 +2711,7 @@ void Master::_subscribe(
     StreamingHttpConnection<v1::scheduler::Event> http,
     const FrameworkInfo& frameworkInfo,
     bool force,
-    const set<string>& suppressedRoles,
+    google::protobuf::RepeatedPtrField<string>&& suppressedRolesField,
     const Future<bool>& authorized)
 {
   CHECK(!authorized.isDiscarded());
@@ -2745,6 +2743,10 @@ void Master::_subscribe(
             << "' with checkpointing "
             << (frameworkInfo.checkpoint() ? "enabled" : "disabled")
             << " and capabilities " << frameworkInfo.capabilities();
+
+  set<string> suppressedRoles = set<string>(
+      make_move_iterator(suppressedRolesField.begin()),
+      make_move_iterator(suppressedRolesField.end()));
 
   if (!frameworkInfo.has_id() || frameworkInfo.id() == "") {
     // If we are here the framework is subscribing for the first time.
@@ -2843,7 +2845,7 @@ void Master::_subscribe(
 
 void Master::subscribe(
     const UPID& from,
-    const scheduler::Call::Subscribe& subscribe)
+    scheduler::Call::Subscribe&& subscribe)
 {
   FrameworkInfo frameworkInfo = subscribe.framework_info();
 
@@ -2865,11 +2867,11 @@ void Master::subscribe(
               << " because authentication is still in progress";
 
     // Need to disambiguate for the compiler.
-    void (Master::*f)(const UPID&, const scheduler::Call::Subscribe&)
+    void (Master::*f)(const UPID&, scheduler::Call::Subscribe&&)
       = &Self::subscribe;
 
     authenticating[from]
-      .onReady(defer(self(), f, from, subscribe));
+      .onReady(defer(self(), f, from, std::move(subscribe)));
     return;
   }
 
@@ -2908,16 +2910,12 @@ void Master::subscribe(
     frameworkInfo.set_principal(authenticated[from]);
   }
 
-  set<string> suppressedRoles = set<string>(
-      subscribe.suppressed_roles().begin(),
-      subscribe.suppressed_roles().end());
-
   // Need to disambiguate for the compiler.
   void (Master::*_subscribe)(
       const UPID&,
       const FrameworkInfo&,
       bool,
-      const set<string>&,
+      google::protobuf::RepeatedPtrField<string>&&,
       const Future<bool>&) = &Self::_subscribe;
 
   authorizeFramework(frameworkInfo)
@@ -2926,7 +2924,7 @@ void Master::subscribe(
                  from,
                  frameworkInfo,
                  subscribe.force(),
-                 suppressedRoles,
+                 std::move(*subscribe.mutable_suppressed_roles()),
                  lambda::_1));
 }
 
@@ -2935,7 +2933,7 @@ void Master::_subscribe(
     const UPID& from,
     const FrameworkInfo& frameworkInfo,
     bool force,
-    const set<string>& suppressedRoles,
+    google::protobuf::RepeatedPtrField<string>&& suppressedRolesField,
     const Future<bool>& authorized)
 {
   CHECK(!authorized.isDiscarded());
@@ -2976,6 +2974,10 @@ void Master::_subscribe(
 
     return;
   }
+
+  set<string> suppressedRoles = set<string>(
+      make_move_iterator(suppressedRolesField.begin()),
+      make_move_iterator(suppressedRolesField.end()));
 
   LOG(INFO) << "Subscribing framework " << frameworkInfo.name()
             << " with checkpointing "
