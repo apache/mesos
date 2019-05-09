@@ -2553,9 +2553,9 @@ void Master::reregisterFramework(
 
 
 Option<Error> Master::validateFrameworkSubscription(
-  const scheduler::Call::Subscribe& subscribe) const
+  const FrameworkInfo& frameworkInfo,
+  const google::protobuf::RepeatedPtrField<std::string>& suppressedRoles) const
 {
-  const FrameworkInfo& frameworkInfo = subscribe.framework_info();
   Option<Error> validationError =
     validation::framework::validate(frameworkInfo);
 
@@ -2622,7 +2622,7 @@ Option<Error> Master::validateFrameworkSubscription(
   set<string> frameworkRoles = protobuf::framework::getRoles(frameworkInfo);
   // The suppressed roles must be contained within the list of all
   // roles for the framwork.
-  foreach (const string& role, subscribe.suppressed_roles()) {
+  foreach (const string& role, suppressedRoles) {
     if (!frameworkRoles.count(role)) {
       return Error("Suppressed role '" + role +
                    "' is not contained in the list of roles");
@@ -2673,7 +2673,7 @@ void Master::subscribe(
             << " HTTP framework '" << frameworkInfo.name() << "'";
 
   Option<Error> validationError =
-    validateFrameworkSubscription(subscribe);
+    validateFrameworkSubscription(frameworkInfo, subscribe.suppressed_roles());
 
   if (validationError.isSome()) {
     LOG(INFO) << "Refusing subscription of framework"
@@ -2876,7 +2876,7 @@ void Master::subscribe(
   }
 
   Option<Error> validationError =
-    validateFrameworkSubscription(subscribe);
+    validateFrameworkSubscription(frameworkInfo, subscribe.suppressed_roles());
 
   // Note that re-authentication errors are already handled above.
   if (validationError.isNone()) {

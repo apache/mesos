@@ -1140,10 +1140,12 @@ private:
    */
   bool isWhitelistedRole(const std::string& name) const;
 
-  // Validates subscription prerequisites common
+  // Validates (re)subscription prerequisites common
   // both for HTTP and driver-based frameworks.
   Option<Error> validateFrameworkSubscription(
-      const scheduler::Call::Subscribe&) const;
+      const FrameworkInfo&,
+      const google::protobuf::RepeatedPtrField<std::string>& suppressedRoles)
+    const;
 
   /**
    * Inner class used to namespace the handling of quota requests.
