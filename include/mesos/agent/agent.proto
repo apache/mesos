@@ -315,9 +315,9 @@ message Call {
   //   exists.
   // Returns 400 Bad Request if `info` is not well-formed.
   // Returns 403 Forbidden if the call is not authorized.
-  // Returns 409 Conflict if another config file that describes a
-  //   resource provider of the same type and name exists, but the content is
-  //   not identical.
+  // Returns 409 Conflict if another config file that describes a resource
+  //   provider of the same type and name exists, but the content is not
+  //   identical.
   // Returns 500 Internal Server Error if anything goes wrong.
   //
   // NOTE: For the time being, this API is subject to change and the related
@@ -342,8 +342,8 @@ message Call {
   //   in the config file.
   // Returns 400 Bad Request if `info` is not well-formed.
   // Returns 403 Forbidden if the call is not authorized.
-  // Returns 404 Not Found if no config file describes a resource
-  //   provider of the same type and name exists.
+  // Returns 409 Conflict if no config file describes a resource provider of the
+  //   same type and name exists.
   // Returns 500 Internal Server Error if anything goes wrong.
   //
   // NOTE: For the time being, this API is subject to change and the related
