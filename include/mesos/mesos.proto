@@ -1510,7 +1510,8 @@ message Resource {
       optional string id = 4; // EXPERIMENTAL.
 
       // Additional metadata for this source. This field maps onto CSI volume
-      // attributes and is not expected to be set by frameworks.
+      // context. Frameworks should neither alter this field, nor expect this
+      // field to remain unchanged.
       optional Labels metadata = 5; // EXPERIMENTAL.
 
       // This field serves as an indirection to a set of storage
