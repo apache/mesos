@@ -499,7 +499,7 @@ public:
     return Resources::parse("cpus:0.1;mem:128").get() + additional;
   }
 
-  string metricName(const string& basename)
+  static string metricName(const string& basename)
   {
     return "resource_providers/" + stringify(TEST_SLRP_TYPE) + "." +
       stringify(TEST_SLRP_NAME) + "/" + basename;
