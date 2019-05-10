@@ -3249,9 +3249,11 @@ Future<Response> Http::addResourceProviderConfig(
           }
 
           return slave->localResourceProviderDaemon->add(info)
-            .then([](bool added) -> Response {
+            .then([info](bool added) -> Response {
               if (!added) {
-                return Conflict();
+                return Conflict(
+                    "Resource provider with type '" + info.type() +
+                    "' and name '" + info.name() + "' already exists");
               }
 
               return OK();
@@ -3294,9 +3296,11 @@ Future<Response> Http::updateResourceProviderConfig(
           }
 
           return slave->localResourceProviderDaemon->update(info)
-            .then([](bool updated) -> Response {
+            .then([info](bool updated) -> Response {
               if (!updated) {
-                return NotFound();
+                return Conflict(
+                    "Resource provider with type '" + info.type() +
+                    "' and name '" + info.name() + "' does not exist");
               }
 
               return OK();
