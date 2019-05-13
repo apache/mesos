@@ -583,6 +583,9 @@ void RandomSorter::SortInfo::updateRelativeWeights()
            activeInternalNodes.contains(node);
   };
 
+  clients.clear();
+  weights.clear();
+
   // Note, though we reserve here, the size of the vector will always
   // grow (as we add more roles).
   clients.reserve(sorter->clients.size());
