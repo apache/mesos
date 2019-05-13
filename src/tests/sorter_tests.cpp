@@ -880,9 +880,9 @@ TEST(DRFSorterTest, AddChildToInactiveLeaf)
 // This test checks what happens when a sorter client is removed,
 // which allows a leaf node to be collapsed into its parent node. This
 // is basically the inverse situation to `AddChildToLeaf`.
-TEST(DRFSorterTest, RemoveLeafCollapseParent)
+TYPED_TEST(CommonSorterTest, RemoveLeafCollapseParent)
 {
-  DRFSorter sorter;
+  TypeParam sorter;
 
   SlaveID slaveId;
   slaveId.set_value("agentId");
@@ -904,20 +904,30 @@ TEST(DRFSorterTest, RemoveLeafCollapseParent)
   sorter.allocated(
       "a/c", slaveId, Resources::parse("cpus:5;mem:5").get());
 
-  EXPECT_EQ(vector<string>({"b", "a/c", "a"}), sorter.sort());
+  // We sort the `sort()` output alphabetically here since we only
+  // want to verify the content of elements but not their order.
+  vector<string> clients = sorter.sort();
+  sort(clients.begin(), clients.end());
+
+  EXPECT_EQ(vector<string>({"a", "a/c", "b"}), clients);
 
   sorter.remove("a/c");
 
-  EXPECT_EQ(vector<string>({"b", "a"}), sorter.sort());
+  // We sort the `sort()` output alphabetically here since we only
+  // want to verify the content of elements but not their order.
+  clients = sorter.sort();
+  sort(clients.begin(), clients.end());
+
+  EXPECT_EQ(vector<string>({"a", "b"}), clients);
 }
 
 
 // This test checks what happens when a sorter client is removed and a
 // leaf node can be collapsed into its parent node, we correctly
 // propagate the `inactive` flag from leaf -> parent.
-TEST(DRFSorterTest, RemoveLeafCollapseParentInactive)
+TYPED_TEST(CommonSorterTest, RemoveLeafCollapseParentInactive)
 {
-  DRFSorter sorter;
+  TypeParam sorter;
 
   SlaveID slaveId;
   slaveId.set_value("agentId");
@@ -941,7 +951,12 @@ TEST(DRFSorterTest, RemoveLeafCollapseParentInactive)
 
   sorter.deactivate("a");
 
-  EXPECT_EQ(vector<string>({"b", "a/c"}), sorter.sort());
+  // We sort the `sort()` output alphabetically here since we only
+  // want to verify the content of elements but not their order.
+  vector<string> clients = sorter.sort();
+  sort(clients.begin(), clients.end());
+
+  EXPECT_EQ(vector<string>({"a/c", "b"}), clients);
 
   sorter.remove("a/c");
 
