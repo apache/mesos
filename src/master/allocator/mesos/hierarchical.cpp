@@ -1780,9 +1780,11 @@ void HierarchicalAllocatorProcess::__allocate()
       slave.getAvailable().revocable().createStrippedScalarQuantity();
   }
 
-  LOG(INFO) << "Before allocation, required quota headroom is "
-            << requiredHeadroom
-            << " and available quota headroom is " << availableHeadroom;
+  if (!quotas.empty()) {
+    LOG(INFO) << "Before allocation, required quota headroom is "
+              << requiredHeadroom
+              << " and available quota headroom is " << availableHeadroom;
+  }
 
   // Due to the two stages in the allocation algorithm and the nature of
   // shared resources being re-offerable even if already allocated, the
@@ -2133,11 +2135,13 @@ void HierarchicalAllocatorProcess::__allocate()
     }
   }
 
-  LOG(INFO) << "After allocation, " << requiredHeadroom
-            << " are required for quota headroom, "
-            << heldBackForHeadroom << " were held back from "
-            << heldBackAgentCount
-            << " agents to ensure sufficient quota headroom";
+  if (!quotas.empty()) {
+    LOG(INFO) << "After allocation, " << requiredHeadroom
+              << " are required for quota headroom, "
+              << heldBackForHeadroom << " were held back from "
+              << heldBackAgentCount
+              << " agents to ensure sufficient quota headroom";
+  }
 
   if (offerable.empty()) {
     VLOG(2) << "No allocations performed";
