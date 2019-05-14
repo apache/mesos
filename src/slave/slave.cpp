@@ -6381,6 +6381,19 @@ void Slave::executorTerminated(
           sendExecutorTerminatedStatusUpdate(
               taskId, termination, frameworkId, executor);
         }
+      } else {
+        // When the framework is TERMINATING, we cannot send status updates
+        // for "launched tasks", but these tasks no longer belong in the
+        // `launchedTasks` structure. These tasks will continue to show
+        // in the agent's state (as a completed executor) for some time
+        // after the framework/executor terminates.
+        foreachpair (
+            const TaskID& taskId,
+            Task* task,
+            utils::copy(executor->launchedTasks)) {
+          executor->launchedTasks.erase(taskId);
+          executor->terminatedTasks[taskId] = task;
+        }
       }
 
       // Only send ExitedExecutorMessage if it is not a Command (or
