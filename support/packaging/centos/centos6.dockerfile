@@ -27,7 +27,7 @@ RUN curl -sSL \
 
 # PostgreSQL repo for libevent2.
 RUN  rpm -Uvh --replacepkgs \
-      http://yum.postgresql.org/9.5/redhat/rhel-6-x86_64/pgdg-centos95-9.5-2.noarch.rpm
+      http://yum.postgresql.org/9.5/redhat/rhel-6-x86_64/pgdg-centos95-9.5-3.noarch.rpm
 
 # Setup JDK
 RUN echo -e 'export JAVA_HOME=/usr/lib/jvm/java-openjdk' >> /etc/profile.d/java-home.sh
