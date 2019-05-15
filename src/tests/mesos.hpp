@@ -73,8 +73,6 @@
 #include "common/http.hpp"
 #include "common/protobuf_utils.hpp"
 
-#include "internal/devolve.hpp"
-
 #include "messages/messages.hpp" // For google::protobuf::Message.
 
 #include "master/master.hpp"
@@ -3694,14 +3692,6 @@ MATCHER_P(TaskStatusUpdateTaskIdEq, taskId, "")
 MATCHER_P(TaskStatusUpdateStateEq, taskState, "")
 {
   return arg.status().state() == taskState;
-}
-
-
-// This matcher is used to match an `Event.update.status` message whose state is
-// terminal.
-MATCHER(TaskStatusUpdateIsTerminalState, "")
-{
-  return protobuf::isTerminalState(devolve(arg.status()).state());
 }
 
 
