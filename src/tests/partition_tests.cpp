@@ -2794,7 +2794,7 @@ TEST_F(PartitionTest, AgentWithTerminalTaskPartitioned)
   EXPECT_CALL(
       sched,
       statusUpdate(&driver, AllOf(
-          TaskStatusTaskIdEq(task),
+          TaskStatusTaskIdEq(task.task_id()),
           TaskStatusStateEq(TASK_STARTING))))
     .InSequence(taskSequence)
     .WillOnce(FutureArg<1>(&starting));
@@ -2802,7 +2802,7 @@ TEST_F(PartitionTest, AgentWithTerminalTaskPartitioned)
   EXPECT_CALL(
       sched,
       statusUpdate(&driver, AllOf(
-          TaskStatusTaskIdEq(task),
+          TaskStatusTaskIdEq(task.task_id()),
           TaskStatusStateEq(TASK_RUNNING))))
     .InSequence(taskSequence)
     .WillOnce(FutureArg<1>(&running));
@@ -2810,7 +2810,7 @@ TEST_F(PartitionTest, AgentWithTerminalTaskPartitioned)
   EXPECT_CALL(
       sched,
       statusUpdate(&driver, AllOf(
-          TaskStatusTaskIdEq(task),
+          TaskStatusTaskIdEq(task.task_id()),
           TaskStatusStateEq(TASK_FINISHED))))
     .InSequence(taskSequence)
     .WillOnce(FutureArg<1>(&finished))

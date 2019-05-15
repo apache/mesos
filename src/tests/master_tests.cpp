@@ -6317,7 +6317,7 @@ TEST_F(MasterTest, MasterFailoverLongLivedExecutor)
     .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
 
   Future<TaskStatus> status1;
-  EXPECT_CALL(sched, statusUpdate(&driver, TaskStatusTaskIdEq(task1)))
+  EXPECT_CALL(sched, statusUpdate(&driver, TaskStatusTaskIdEq(task1.task_id())))
     .WillOnce(FutureArg<1>(&status1))
     .WillRepeatedly(Return());
 
@@ -6361,7 +6361,7 @@ TEST_F(MasterTest, MasterFailoverLongLivedExecutor)
   task2.mutable_task_id()->set_value("2");
 
   Future<TaskStatus> status2;
-  EXPECT_CALL(sched, statusUpdate(&driver, TaskStatusTaskIdEq(task2)))
+  EXPECT_CALL(sched, statusUpdate(&driver, TaskStatusTaskIdEq(task2.task_id())))
     .WillOnce(FutureArg<1>(&status2))
     .WillRepeatedly(Return());
 
@@ -9903,7 +9903,7 @@ TEST_F(MasterTest, TaskStateMetrics)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(task1),
+          TaskStatusUpdateTaskIdEq(task1.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_STARTING))))
     .InSequence(taskSequence1)
     .WillOnce(v1::scheduler::SendAcknowledge(frameworkId, agentId));
@@ -9911,7 +9911,7 @@ TEST_F(MasterTest, TaskStateMetrics)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(task1),
+          TaskStatusUpdateTaskIdEq(task1.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_RUNNING))))
     .InSequence(taskSequence1)
     .WillOnce(DoAll(
@@ -9954,7 +9954,7 @@ TEST_F(MasterTest, TaskStateMetrics)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(task2),
+          TaskStatusUpdateTaskIdEq(task2.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_STARTING))))
     .InSequence(taskSequence2)
     .WillOnce(v1::scheduler::SendAcknowledge(frameworkId, agentId));
@@ -9962,7 +9962,7 @@ TEST_F(MasterTest, TaskStateMetrics)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(task2),
+          TaskStatusUpdateTaskIdEq(task2.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_RUNNING))))
     .InSequence(taskSequence2)
     .WillOnce(v1::scheduler::SendAcknowledge(frameworkId, agentId));
@@ -9970,7 +9970,7 @@ TEST_F(MasterTest, TaskStateMetrics)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(task2),
+          TaskStatusUpdateTaskIdEq(task2.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_FINISHED))))
     .InSequence(taskSequence2)
     .WillOnce(FutureArg<1>(&finishedUpdate))
@@ -10281,7 +10281,7 @@ TEST_P(MasterTestPrePostReservationRefinement, LaunchGroup)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo),
+          TaskStatusUpdateTaskIdEq(taskInfo.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_STARTING))))
     .InSequence(updateSequence)
     .WillOnce(DoAll(
@@ -10291,7 +10291,7 @@ TEST_P(MasterTestPrePostReservationRefinement, LaunchGroup)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-            TaskStatusUpdateTaskIdEq(taskInfo),
+            TaskStatusUpdateTaskIdEq(taskInfo.task_id()),
             TaskStatusUpdateStateEq(v1::TASK_RUNNING))))
     .InSequence(updateSequence)
     .WillOnce(FutureArg<1>(&runningUpdate));

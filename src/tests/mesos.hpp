@@ -3668,9 +3668,9 @@ MATCHER_P(OffersHaveResource, resource, "")
 
 
 // This matcher is used to match the task id of a `TaskStatus` message.
-MATCHER_P(TaskStatusTaskIdEq, taskInfo, "")
+MATCHER_P(TaskStatusTaskIdEq, taskId, "")
 {
-  return arg.task_id() == taskInfo.task_id();
+  return arg.task_id() == taskId;
 }
 
 
@@ -3683,9 +3683,9 @@ MATCHER_P(TaskStatusStateEq, taskState, "")
 
 // This matcher is used to match the task id of an `Event.update.status`
 // message.
-MATCHER_P(TaskStatusUpdateTaskIdEq, taskInfo, "")
+MATCHER_P(TaskStatusUpdateTaskIdEq, taskId, "")
 {
-  return arg.status().task_id() == taskInfo.task_id();
+  return arg.status().task_id() == taskId;
 }
 
 

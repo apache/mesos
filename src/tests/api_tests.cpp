@@ -5025,7 +5025,7 @@ TEST_P(MasterAPITest, UnreachableAgentMarkedGone)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo),
+          TaskStatusUpdateTaskIdEq(taskInfo.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_STARTING))))
     .InSequence(updateSequence)
     .WillOnce(DoAll(
@@ -5035,7 +5035,7 @@ TEST_P(MasterAPITest, UnreachableAgentMarkedGone)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-            TaskStatusUpdateTaskIdEq(taskInfo),
+            TaskStatusUpdateTaskIdEq(taskInfo.task_id()),
             TaskStatusUpdateStateEq(v1::TASK_RUNNING))))
     .InSequence(updateSequence)
     .WillOnce(DoAll(
@@ -5056,7 +5056,7 @@ TEST_P(MasterAPITest, UnreachableAgentMarkedGone)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-            TaskStatusUpdateTaskIdEq(taskInfo),
+            TaskStatusUpdateTaskIdEq(taskInfo.task_id()),
             TaskStatusUpdateStateEq(v1::TASK_UNREACHABLE))))
     .WillOnce(FutureArg<1>(&unreachableUpdate));
 
@@ -5092,7 +5092,7 @@ TEST_P(MasterAPITest, UnreachableAgentMarkedGone)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-            TaskStatusUpdateTaskIdEq(taskInfo),
+            TaskStatusUpdateTaskIdEq(taskInfo.task_id()),
             TaskStatusUpdateStateEq(v1::TASK_GONE_BY_OPERATOR))))
     .WillOnce(FutureArg<1>(&goneUpdate));
 

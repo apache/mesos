@@ -734,7 +734,7 @@ TEST_F(GarbageCollectorIntegrationTest, LongLivedDefaultExecutor)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(longLivedTaskInfo),
+          TaskStatusUpdateTaskIdEq(longLivedTaskInfo.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_STARTING))))
     .InSequence(longTask)
     .WillOnce(DoAll(
@@ -744,7 +744,7 @@ TEST_F(GarbageCollectorIntegrationTest, LongLivedDefaultExecutor)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(longLivedTaskInfo),
+          TaskStatusUpdateTaskIdEq(longLivedTaskInfo.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_RUNNING))))
     .InSequence(longTask)
     .WillOnce(DoAll(
@@ -759,7 +759,7 @@ TEST_F(GarbageCollectorIntegrationTest, LongLivedDefaultExecutor)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(shortLivedTaskInfo),
+          TaskStatusUpdateTaskIdEq(shortLivedTaskInfo.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_STARTING))))
     .InSequence(shortTask)
     .WillOnce(DoAll(
@@ -769,7 +769,7 @@ TEST_F(GarbageCollectorIntegrationTest, LongLivedDefaultExecutor)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(shortLivedTaskInfo),
+          TaskStatusUpdateTaskIdEq(shortLivedTaskInfo.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_RUNNING))))
     .InSequence(shortTask)
     .WillOnce(DoAll(
@@ -779,7 +779,7 @@ TEST_F(GarbageCollectorIntegrationTest, LongLivedDefaultExecutor)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(shortLivedTaskInfo),
+          TaskStatusUpdateTaskIdEq(shortLivedTaskInfo.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_FINISHED))))
     .InSequence(shortTask)
     .WillOnce(DoAll(
@@ -988,7 +988,7 @@ TEST_F(GarbageCollectorIntegrationTest, LongLivedDefaultExecutorRestart)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(longLivedTaskInfo),
+          TaskStatusUpdateTaskIdEq(longLivedTaskInfo.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_STARTING))))
     .InSequence(longTask)
     .WillOnce(DoAll(
@@ -998,7 +998,7 @@ TEST_F(GarbageCollectorIntegrationTest, LongLivedDefaultExecutorRestart)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(longLivedTaskInfo),
+          TaskStatusUpdateTaskIdEq(longLivedTaskInfo.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_RUNNING))))
     .InSequence(longTask)
     .WillOnce(DoAll(
@@ -1013,7 +1013,7 @@ TEST_F(GarbageCollectorIntegrationTest, LongLivedDefaultExecutorRestart)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(shortLivedTaskInfo),
+          TaskStatusUpdateTaskIdEq(shortLivedTaskInfo.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_STARTING))))
     .InSequence(shortTask)
     .WillOnce(DoAll(
@@ -1023,7 +1023,7 @@ TEST_F(GarbageCollectorIntegrationTest, LongLivedDefaultExecutorRestart)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(shortLivedTaskInfo),
+          TaskStatusUpdateTaskIdEq(shortLivedTaskInfo.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_RUNNING))))
     .InSequence(shortTask)
     .WillOnce(DoAll(
@@ -1033,7 +1033,7 @@ TEST_F(GarbageCollectorIntegrationTest, LongLivedDefaultExecutorRestart)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(shortLivedTaskInfo),
+          TaskStatusUpdateTaskIdEq(shortLivedTaskInfo.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_FINISHED))))
     .InSequence(shortTask)
     .WillOnce(DoAll(

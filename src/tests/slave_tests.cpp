@@ -4956,14 +4956,16 @@ TEST_F(SlaveTest, LaunchTasksReorderUnscheduleGC)
 
   Future<v1::scheduler::Event::Update> taskStarting1, taskStarting2;
   Future<v1::scheduler::Event::Update> taskRunning1, taskRunning2;
-  EXPECT_CALL(*scheduler, update(_, TaskStatusUpdateTaskIdEq(taskInfo1)))
+  EXPECT_CALL(
+      *scheduler, update(_, TaskStatusUpdateTaskIdEq(taskInfo1.task_id())))
     .WillOnce(DoAll(
         FutureArg<1>(&taskStarting1),
         v1::scheduler::SendAcknowledge(frameworkId, agentId)))
     .WillOnce(DoAll(
         FutureArg<1>(&taskRunning1),
         v1::scheduler::SendAcknowledge(frameworkId, agentId)));
-  EXPECT_CALL(*scheduler, update(_, TaskStatusUpdateTaskIdEq(taskInfo2)))
+  EXPECT_CALL(
+      *scheduler, update(_, TaskStatusUpdateTaskIdEq(taskInfo2.task_id())))
     .WillOnce(DoAll(
         FutureArg<1>(&taskStarting2),
         v1::scheduler::SendAcknowledge(frameworkId, agentId)))
@@ -5092,14 +5094,16 @@ TEST_F(SlaveTest, LaunchTasksReorderTaskAuthorization)
 
   Future<v1::scheduler::Event::Update> taskStarting1, taskStarting2;
   Future<v1::scheduler::Event::Update> taskRunning1, taskRunning2;
-  EXPECT_CALL(*scheduler, update(_, TaskStatusUpdateTaskIdEq(taskInfo1)))
+  EXPECT_CALL(
+      *scheduler, update(_, TaskStatusUpdateTaskIdEq(taskInfo1.task_id())))
     .WillOnce(DoAll(
         FutureArg<1>(&taskStarting1),
         v1::scheduler::SendAcknowledge(frameworkId, agentId)))
     .WillOnce(DoAll(
         FutureArg<1>(&taskRunning1),
         v1::scheduler::SendAcknowledge(frameworkId, agentId)));
-  EXPECT_CALL(*scheduler, update(_, TaskStatusUpdateTaskIdEq(taskInfo2)))
+  EXPECT_CALL(
+      *scheduler, update(_, TaskStatusUpdateTaskIdEq(taskInfo2.task_id())))
     .WillOnce(DoAll(
         FutureArg<1>(&taskStarting2),
         v1::scheduler::SendAcknowledge(frameworkId, agentId)))
@@ -5229,15 +5233,18 @@ TEST_F(SlaveTest, LaunchTaskGroupsUsingSameExecutorKillFirstTaskGroup)
   Future<v1::scheduler::Event::Update> task1Killed;
   Future<v1::scheduler::Event::Update> task2Lost;
   Future<v1::scheduler::Event::Update> task3Lost;
-  EXPECT_CALL(*scheduler, update(_, TaskStatusUpdateTaskIdEq(taskInfo1)))
+  EXPECT_CALL(
+      *scheduler, update(_, TaskStatusUpdateTaskIdEq(taskInfo1.task_id())))
     .WillOnce(DoAll(
         FutureArg<1>(&task1Killed),
         v1::scheduler::SendAcknowledge(frameworkId, agentId)));
-  EXPECT_CALL(*scheduler, update(_, TaskStatusUpdateTaskIdEq(taskInfo2)))
+  EXPECT_CALL(
+      *scheduler, update(_, TaskStatusUpdateTaskIdEq(taskInfo2.task_id())))
     .WillOnce(DoAll(
         FutureArg<1>(&task2Lost),
         v1::scheduler::SendAcknowledge(frameworkId, agentId)));
-  EXPECT_CALL(*scheduler, update(_, TaskStatusUpdateTaskIdEq(taskInfo3)))
+  EXPECT_CALL(
+      *scheduler, update(_, TaskStatusUpdateTaskIdEq(taskInfo3.task_id())))
     .WillOnce(DoAll(
         FutureArg<1>(&task3Lost),
         v1::scheduler::SendAcknowledge(frameworkId, agentId)));
@@ -5455,14 +5462,16 @@ TEST_F(SlaveTest, LaunchTaskGroupsUsingSameExecutorKillLaterTaskGroup)
 
   Future<v1::scheduler::Event::Update> task1Starting, task1Running;
   Future<v1::scheduler::Event::Update> task2Killed;
-  EXPECT_CALL(*scheduler, update(_, TaskStatusUpdateTaskIdEq(taskInfo1)))
+  EXPECT_CALL(
+      *scheduler, update(_, TaskStatusUpdateTaskIdEq(taskInfo1.task_id())))
     .WillOnce(DoAll(
         FutureArg<1>(&task1Starting),
         v1::scheduler::SendAcknowledge(frameworkId, agentId)))
     .WillOnce(DoAll(
         FutureArg<1>(&task1Running),
         v1::scheduler::SendAcknowledge(frameworkId, agentId)));
-  EXPECT_CALL(*scheduler, update(_, TaskStatusUpdateTaskIdEq(taskInfo2)))
+  EXPECT_CALL(
+      *scheduler, update(_, TaskStatusUpdateTaskIdEq(taskInfo2.task_id())))
     .WillOnce(DoAll(
         FutureArg<1>(&task2Killed),
         v1::scheduler::SendAcknowledge(frameworkId, agentId)));
@@ -5645,14 +5654,16 @@ TEST_F(SlaveTest, ShutdownExecutorWhileTaskLaunching)
 
   Future<v1::scheduler::Event::Update> task1Starting, task1Running;
   Future<v1::scheduler::Event::Update> task2Lost;
-  EXPECT_CALL(*scheduler, update(_, TaskStatusUpdateTaskIdEq(taskInfo1)))
+  EXPECT_CALL(
+      *scheduler, update(_, TaskStatusUpdateTaskIdEq(taskInfo1.task_id())))
     .WillOnce(DoAll(
         FutureArg<1>(&task1Starting),
         v1::scheduler::SendAcknowledge(frameworkId, agentId)))
     .WillOnce(DoAll(
         FutureArg<1>(&task1Running),
         v1::scheduler::SendAcknowledge(frameworkId, agentId)));
-  EXPECT_CALL(*scheduler, update(_, TaskStatusUpdateTaskIdEq(taskInfo2)))
+  EXPECT_CALL(
+      *scheduler, update(_, TaskStatusUpdateTaskIdEq(taskInfo2.task_id())))
     .WillOnce(DoAll(
         FutureArg<1>(&task2Lost),
         v1::scheduler::SendAcknowledge(frameworkId, agentId)));

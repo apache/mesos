@@ -306,7 +306,7 @@ TEST_F(NvidiaGpuTest, ROOT_INTERNET_CURL_CGROUPS_NVIDIA_GPU_NvidiaDockerImage)
 
   Future<v1::scheduler::Event::Update> task1Finished;
   EXPECT_CALL(*scheduler, update(_, AllOf(
-      TaskStatusUpdateTaskIdEq(task1),
+      TaskStatusUpdateTaskIdEq(task1.task_id()),
       TaskStatusUpdateIsTerminalState())))
     .WillOnce(DoAll(
         FutureArg<1>(&task1Finished),
@@ -314,7 +314,7 @@ TEST_F(NvidiaGpuTest, ROOT_INTERNET_CURL_CGROUPS_NVIDIA_GPU_NvidiaDockerImage)
 
   Future<v1::scheduler::Event::Update> task2Failed;
   EXPECT_CALL(*scheduler, update(_, AllOf(
-      TaskStatusUpdateTaskIdEq(task2),
+      TaskStatusUpdateTaskIdEq(task2.task_id()),
       TaskStatusUpdateIsTerminalState())))
     .WillOnce(DoAll(
         FutureArg<1>(&task2Failed),

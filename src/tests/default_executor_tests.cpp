@@ -413,7 +413,7 @@ TEST_P(DefaultExecutorTest, KillTask)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo1),
+          TaskStatusUpdateTaskIdEq(taskInfo1.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_STARTING))))
     .InSequence(task1)
     .WillOnce(
@@ -424,7 +424,7 @@ TEST_P(DefaultExecutorTest, KillTask)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo1),
+          TaskStatusUpdateTaskIdEq(taskInfo1.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_RUNNING))))
     .InSequence(task1)
     .WillOnce(
@@ -435,7 +435,7 @@ TEST_P(DefaultExecutorTest, KillTask)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo1),
+          TaskStatusUpdateTaskIdEq(taskInfo1.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_KILLED))))
     .InSequence(task1)
     .WillOnce(
@@ -451,7 +451,7 @@ TEST_P(DefaultExecutorTest, KillTask)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo2),
+          TaskStatusUpdateTaskIdEq(taskInfo2.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_STARTING))))
     .InSequence(task2)
     .WillOnce(
@@ -462,7 +462,7 @@ TEST_P(DefaultExecutorTest, KillTask)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo2),
+          TaskStatusUpdateTaskIdEq(taskInfo2.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_RUNNING))))
     .InSequence(task2)
     .WillOnce(
@@ -473,7 +473,7 @@ TEST_P(DefaultExecutorTest, KillTask)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo2),
+          TaskStatusUpdateTaskIdEq(taskInfo2.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_KILLED))))
     .InSequence(task2)
     .WillOnce(
@@ -520,7 +520,7 @@ TEST_P(DefaultExecutorTest, KillTask)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo3),
+          TaskStatusUpdateTaskIdEq(taskInfo3.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_STARTING))))
     .InSequence(task3)
     .WillOnce(
@@ -531,7 +531,7 @@ TEST_P(DefaultExecutorTest, KillTask)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo3),
+          TaskStatusUpdateTaskIdEq(taskInfo3.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_RUNNING))))
     .InSequence(task3)
     .WillOnce(
@@ -542,7 +542,7 @@ TEST_P(DefaultExecutorTest, KillTask)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo3),
+          TaskStatusUpdateTaskIdEq(taskInfo3.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_KILLED))))
     .InSequence(task3)
     .WillOnce(
@@ -667,7 +667,7 @@ TEST_P(DefaultExecutorTest, KillMultipleTasks)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo1),
+          TaskStatusUpdateTaskIdEq(taskInfo1.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_STARTING))))
     .InSequence(task1)
     .WillOnce(
@@ -678,7 +678,7 @@ TEST_P(DefaultExecutorTest, KillMultipleTasks)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo1),
+          TaskStatusUpdateTaskIdEq(taskInfo1.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_RUNNING))))
     .InSequence(task1)
     .WillOnce(
@@ -689,7 +689,7 @@ TEST_P(DefaultExecutorTest, KillMultipleTasks)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo1),
+          TaskStatusUpdateTaskIdEq(taskInfo1.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_KILLED))))
     .InSequence(task1)
     .WillOnce(
@@ -705,7 +705,7 @@ TEST_P(DefaultExecutorTest, KillMultipleTasks)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo2),
+          TaskStatusUpdateTaskIdEq(taskInfo2.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_STARTING))))
     .InSequence(task2)
     .WillOnce(
@@ -716,7 +716,7 @@ TEST_P(DefaultExecutorTest, KillMultipleTasks)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo2),
+          TaskStatusUpdateTaskIdEq(taskInfo2.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_RUNNING))))
     .InSequence(task2)
     .WillOnce(
@@ -727,7 +727,7 @@ TEST_P(DefaultExecutorTest, KillMultipleTasks)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo2),
+          TaskStatusUpdateTaskIdEq(taskInfo2.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_KILLED))))
     .InSequence(task2)
     .WillOnce(
@@ -827,7 +827,7 @@ TEST_P(DefaultExecutorTest, KillTaskGroupOnTaskFailure)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo1),
+          TaskStatusUpdateTaskIdEq(taskInfo1.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_STARTING))))
     .InSequence(task1)
     .WillOnce(
@@ -838,7 +838,7 @@ TEST_P(DefaultExecutorTest, KillTaskGroupOnTaskFailure)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo1),
+          TaskStatusUpdateTaskIdEq(taskInfo1.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_RUNNING))))
     .InSequence(task1)
     .WillOnce(
@@ -849,7 +849,7 @@ TEST_P(DefaultExecutorTest, KillTaskGroupOnTaskFailure)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo1),
+          TaskStatusUpdateTaskIdEq(taskInfo1.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_FAILED))))
     .InSequence(task1)
     .WillOnce(
@@ -865,7 +865,7 @@ TEST_P(DefaultExecutorTest, KillTaskGroupOnTaskFailure)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo2),
+          TaskStatusUpdateTaskIdEq(taskInfo2.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_STARTING))))
     .InSequence(task2)
     .WillOnce(
@@ -876,7 +876,7 @@ TEST_P(DefaultExecutorTest, KillTaskGroupOnTaskFailure)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo2),
+          TaskStatusUpdateTaskIdEq(taskInfo2.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_RUNNING))))
     .InSequence(task2)
     .WillOnce(
@@ -887,7 +887,7 @@ TEST_P(DefaultExecutorTest, KillTaskGroupOnTaskFailure)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo2),
+          TaskStatusUpdateTaskIdEq(taskInfo2.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_KILLED))))
     .InSequence(task2)
     .WillOnce(
@@ -1062,7 +1062,7 @@ TEST_P(DefaultExecutorTest, ROOT_ContainerStatusForTask)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo1),
+          TaskStatusUpdateTaskIdEq(taskInfo1.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_STARTING))))
     .InSequence(task1)
     .WillOnce(
@@ -1073,7 +1073,7 @@ TEST_P(DefaultExecutorTest, ROOT_ContainerStatusForTask)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo1),
+          TaskStatusUpdateTaskIdEq(taskInfo1.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_RUNNING))))
     .InSequence(task1)
     .WillOnce(
@@ -1088,7 +1088,7 @@ TEST_P(DefaultExecutorTest, ROOT_ContainerStatusForTask)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo2),
+          TaskStatusUpdateTaskIdEq(taskInfo2.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_STARTING))))
     .InSequence(task2)
     .WillOnce(
@@ -1099,7 +1099,7 @@ TEST_P(DefaultExecutorTest, ROOT_ContainerStatusForTask)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo2),
+          TaskStatusUpdateTaskIdEq(taskInfo2.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_RUNNING))))
     .InSequence(task2)
     .WillOnce(
@@ -1309,7 +1309,7 @@ TEST_P(DefaultExecutorTest, CommitSuicideOnKillTask)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo1),
+          TaskStatusUpdateTaskIdEq(taskInfo1.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_STARTING))))
     .InSequence(task1)
     .WillOnce(
@@ -1320,7 +1320,7 @@ TEST_P(DefaultExecutorTest, CommitSuicideOnKillTask)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo1),
+          TaskStatusUpdateTaskIdEq(taskInfo1.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_RUNNING))))
     .InSequence(task1)
     .WillOnce(
@@ -1331,7 +1331,7 @@ TEST_P(DefaultExecutorTest, CommitSuicideOnKillTask)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo1),
+          TaskStatusUpdateTaskIdEq(taskInfo1.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_FINISHED))))
     .InSequence(task1)
     .WillOnce(
@@ -1347,7 +1347,7 @@ TEST_P(DefaultExecutorTest, CommitSuicideOnKillTask)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo2),
+          TaskStatusUpdateTaskIdEq(taskInfo2.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_STARTING))))
     .InSequence(task2)
     .WillOnce(
@@ -1358,7 +1358,7 @@ TEST_P(DefaultExecutorTest, CommitSuicideOnKillTask)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo2),
+          TaskStatusUpdateTaskIdEq(taskInfo2.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_RUNNING))))
     .InSequence(task2)
     .WillOnce(
@@ -1369,7 +1369,7 @@ TEST_P(DefaultExecutorTest, CommitSuicideOnKillTask)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo2),
+          TaskStatusUpdateTaskIdEq(taskInfo2.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_KILLED))))
     .InSequence(task2)
     .WillOnce(
@@ -1907,7 +1907,7 @@ TEST_P(DefaultExecutorTest, MaxCompletionTime)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo1),
+          TaskStatusUpdateTaskIdEq(taskInfo1.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_STARTING))))
     .InSequence(task1)
     .WillOnce(
@@ -1918,7 +1918,7 @@ TEST_P(DefaultExecutorTest, MaxCompletionTime)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo1),
+          TaskStatusUpdateTaskIdEq(taskInfo1.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_RUNNING))))
     .InSequence(task1)
     .WillOnce(
@@ -1929,7 +1929,7 @@ TEST_P(DefaultExecutorTest, MaxCompletionTime)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo1),
+          TaskStatusUpdateTaskIdEq(taskInfo1.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_FINISHED))))
     .InSequence(task1)
     .WillOnce(
@@ -1945,7 +1945,7 @@ TEST_P(DefaultExecutorTest, MaxCompletionTime)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo2),
+          TaskStatusUpdateTaskIdEq(taskInfo2.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_STARTING))))
     .InSequence(task2)
     .WillOnce(
@@ -1956,7 +1956,7 @@ TEST_P(DefaultExecutorTest, MaxCompletionTime)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo2),
+          TaskStatusUpdateTaskIdEq(taskInfo2.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_RUNNING))))
     .InSequence(task2)
     .WillOnce(
@@ -1967,7 +1967,7 @@ TEST_P(DefaultExecutorTest, MaxCompletionTime)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo2),
+          TaskStatusUpdateTaskIdEq(taskInfo2.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_FAILED))))
     .InSequence(task2)
     .WillOnce(
@@ -1983,7 +1983,7 @@ TEST_P(DefaultExecutorTest, MaxCompletionTime)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo3),
+          TaskStatusUpdateTaskIdEq(taskInfo3.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_STARTING))))
     .InSequence(task3)
     .WillOnce(
@@ -1994,7 +1994,7 @@ TEST_P(DefaultExecutorTest, MaxCompletionTime)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo3),
+          TaskStatusUpdateTaskIdEq(taskInfo3.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_RUNNING))))
     .InSequence(task3)
     .WillOnce(
@@ -2005,7 +2005,7 @@ TEST_P(DefaultExecutorTest, MaxCompletionTime)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(taskInfo3),
+          TaskStatusUpdateTaskIdEq(taskInfo3.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_KILLED))))
     .InSequence(task3)
     .WillOnce(
@@ -4160,7 +4160,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, ROOT_LaunchGroupFailure)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(sleepTaskInfo1),
+          TaskStatusUpdateTaskIdEq(sleepTaskInfo1.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_STARTING))))
     .InSequence(sleepTask1)
     .WillOnce(
@@ -4171,7 +4171,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, ROOT_LaunchGroupFailure)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(sleepTaskInfo1),
+          TaskStatusUpdateTaskIdEq(sleepTaskInfo1.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_RUNNING))))
     .InSequence(sleepTask1)
     .WillOnce(
@@ -4182,7 +4182,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, ROOT_LaunchGroupFailure)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(sleepTaskInfo1),
+          TaskStatusUpdateTaskIdEq(sleepTaskInfo1.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_KILLED))))
     .InSequence(sleepTask1)
     .WillOnce(
@@ -4198,7 +4198,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, ROOT_LaunchGroupFailure)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(sleepTaskInfo2),
+          TaskStatusUpdateTaskIdEq(sleepTaskInfo2.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_STARTING))))
     .InSequence(sleepTask2)
     .WillOnce(
@@ -4209,7 +4209,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, ROOT_LaunchGroupFailure)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(sleepTaskInfo2),
+          TaskStatusUpdateTaskIdEq(sleepTaskInfo2.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_RUNNING))))
     .InSequence(sleepTask2)
     .WillOnce(
@@ -4220,7 +4220,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, ROOT_LaunchGroupFailure)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(sleepTaskInfo2),
+          TaskStatusUpdateTaskIdEq(sleepTaskInfo2.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_KILLED))))
     .InSequence(sleepTask2)
     .WillOnce(
@@ -4235,7 +4235,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, ROOT_LaunchGroupFailure)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(failingTaskInfo),
+          TaskStatusUpdateTaskIdEq(failingTaskInfo.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_STARTING))))
     .InSequence(failingTask)
     .WillOnce(
@@ -4246,7 +4246,7 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, ROOT_LaunchGroupFailure)
   EXPECT_CALL(
       *scheduler,
       update(_, AllOf(
-          TaskStatusUpdateTaskIdEq(failingTaskInfo),
+          TaskStatusUpdateTaskIdEq(failingTaskInfo.task_id()),
           TaskStatusUpdateStateEq(v1::TASK_FAILED))))
     .InSequence(failingTask)
     .WillOnce(
