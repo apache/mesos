@@ -2539,8 +2539,9 @@ TEST_P(MasterAPITest, SubscribersReceiveHealthUpdates)
 
 
 // This test verifies that subscribing to the 'api/v1' endpoint between
-// a master failover and an agent re-registration won't cause the master
-// to crash. See MESOS-8601.
+// a master failover and an agent reregistration won't cause the master
+// to crash, and frameworks recovered through agent reregistration will be
+// broadcast to subscribers. See MESOS-8601 and MESOS-9785.
 TEST_P(MasterAPITest, MasterFailover)
 {
   ContentType contentType = GetParam();
@@ -2691,21 +2692,35 @@ TEST_P(MasterAPITest, MasterFailover)
 
   AWAIT_READY(slaveReregisteredMessage);
 
-  // The agent re-registration should result in an `AGENT_ADDED` event
-  // and a `TASK_ADDED` event.
-  set<v1::master::Event::Type> expectedEvents =
-    {v1::master::Event::AGENT_ADDED, v1::master::Event::TASK_ADDED};
-  set<v1::master::Event::Type> observedEvents;
+  // The agent re-registration should result in an `AGENT_ADDED` event,
+  // a `FRAMEWORK_ADDED` event and a `TASK_ADDED` event in order.
+  event = decoder.read();
+  AWAIT_READY(event);
+
+  EXPECT_EQ(v1::master::Event::AGENT_ADDED, event.get()->type());
+  const v1::master::Event::AgentAdded& agentAdded = event.get()->agent_added();
+
+  EXPECT_EQ(agentId, agentAdded.agent().agent_info().id());
 
   event = decoder.read();
   AWAIT_READY(event);
-  observedEvents.insert(event->get().type());
+
+  EXPECT_EQ(v1::master::Event::FRAMEWORK_ADDED, event.get()->type());
+  const v1::master::Event::FrameworkAdded& frameworkAdded =
+    event.get()->framework_added();
+
+  EXPECT_EQ(frameworkId, frameworkAdded.framework().framework_info().id());
+  EXPECT_FALSE(frameworkAdded.framework().active());
+  EXPECT_FALSE(frameworkAdded.framework().connected());
+  EXPECT_TRUE(frameworkAdded.framework().recovered());
 
   event = decoder.read();
   AWAIT_READY(event);
-  observedEvents.insert(event->get().type());
 
-  EXPECT_EQ(expectedEvents, observedEvents);
+  EXPECT_EQ(v1::master::Event::TASK_ADDED, event.get()->type());
+  const v1::master::Event::TaskAdded& taskAdded = event.get()->task_added();
+
+  EXPECT_EQ(task.task_id(), taskAdded.task().task_id());
 }
 
 
