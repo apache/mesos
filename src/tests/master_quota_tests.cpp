@@ -58,6 +58,7 @@ using mesos::quota::QuotaInfo;
 using mesos::quota::QuotaRequest;
 using mesos::quota::QuotaStatus;
 
+using process::Clock;
 using process::Future;
 using process::Owned;
 using process::PID;
