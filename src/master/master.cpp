@@ -10521,6 +10521,13 @@ void Master::recoverFramework(
 
   Framework* framework = new Framework(this, flags, info);
 
+  // Send a `FRAMEWORK_ADDED` event to subscribers before adding recovered tasks
+  // so the framework ID referred by any succeeding `TASK_ADDED` event will be
+  // known to subscribers.
+  if (!subscribers.subscribed.empty()) {
+    subscribers.send(protobuf::master::event::createFrameworkAdded(*framework));
+  }
+
   // Add active operations, tasks, and executors to the framework.
   foreachvalue (Slave* slave, slaves.registered) {
     if (slave->tasks.contains(framework->id())) {
