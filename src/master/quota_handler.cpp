@@ -681,6 +681,13 @@ Future<http::Response> Master::QuotaHandler::_remove(
 
 Future<http::Response> Master::QuotaHandler::__remove(const string& role) const
 {
+  // Double check if the quota still exists. It may have been removed
+  // by a previous removal already.
+  if (!master->quotas.contains(role)) {
+    return BadRequest(
+        "Failed to remove quota: Role '" + role + "' has no quota set");
+  }
+
   // Remove quota from the quota-related local state. We do this before
   // updating the registry in order to make sure that we are not already
   // trying to remove quota for this role (since this is a multi-phase event).
