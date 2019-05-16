@@ -26,6 +26,7 @@
 #include <process/ssl/flags.hpp>
 
 #include <stout/net.hpp>
+#include <stout/stopwatch.hpp>
 #include <stout/synchronized.hpp>
 
 #include <stout/os/close.hpp>
@@ -1152,7 +1153,19 @@ void LibeventSSLSocketImpl::accept_SSL_callback(AcceptRequest* request)
           Option<string> peer_hostname = None();
 
           if (request->ip.isSome()) {
+            Stopwatch watch;
+
+            watch.start();
             Try<string> hostname = net::getHostname(request->ip.get());
+            watch.stop();
+
+            // Due to MESOS-9339, a slow reverse DNS lookup will cause
+            // serious issues as it blocks the event loop thread.
+            if (watch.elapsed() > Milliseconds(100)) {
+              LOG(WARNING) << "Reverse DNS lookup for '" << *request->ip << "'"
+                           << " took " << watch.elapsed().ms() << "ms"
+                           << ", slowness is problematic (see MESOS-9339)";
+            }
 
             if (hostname.isError()) {
               VLOG(2) << "Could not determine hostname of peer: "
