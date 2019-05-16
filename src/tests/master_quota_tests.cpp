@@ -65,6 +65,7 @@ using process::Clock;
 using process::Future;
 using process::Owned;
 using process::PID;
+using process::Promise;
 
 using process::http::BadRequest;
 using process::http::Conflict;
@@ -505,6 +506,65 @@ TEST_F(MasterQuotaTest, RemoveSingleQuota)
 
     ASSERT_NONE(metrics.at<JSON::Number>(metricKey));
   }
+}
+
+
+// This test ensures that master can handle two racing quota removal requests.
+// This is a regression test for MESOS-9786.
+TEST_F(MasterQuotaTest, RemoveQuotaRace)
+{
+  Clock::pause();
+
+  // Start master with a mock authorizer to block quota removal requests.
+  MockAuthorizer authorizer;
+
+  Try<Owned<cluster::Master>> master = StartMaster(&authorizer);
+  ASSERT_SOME(master);
+
+  // Use the force flag for setting quota that cannot be satisfied in
+  // this empty cluster without any agents.
+  const bool FORCE = true;
+
+  // Wrap the `http::requestDelete` into a lambda for readability of the test.
+  auto removeQuota = [&master](const string& path) {
+    return process::http::requestDelete(
+        master.get()->pid,
+        path,
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+  };
+
+  // Set quota for `ROLE1`.
+  {
+    Resources quotaResources = Resources::parse("cpus:1;mem:512").get();
+
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(ROLE1, quotaResources, FORCE));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  }
+
+  // Intercept both quota removal authorizations.
+  Future<Nothing> authorize1, authorize2;
+  Promise<bool> promise1, promise2;
+  EXPECT_CALL(authorizer, authorized(_))
+    .WillOnce(DoAll(FutureSatisfy(&authorize1), Return(promise1.future())))
+    .WillOnce(DoAll(FutureSatisfy(&authorize2), Return(promise2.future())));
+
+  Future<Response> response1 = removeQuota("quota/" + ROLE1);
+  AWAIT_READY(authorize1);
+
+  Future<Response> response2 = removeQuota("quota/" + ROLE1);
+  AWAIT_READY(authorize2);
+
+  // Authorize and process both requests. Only the first request will succeed.
+  promise1.set(true);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response1);
+
+  promise2.set(true);
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response2);
 }
 
 
