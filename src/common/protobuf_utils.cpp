@@ -1438,10 +1438,6 @@ mesos::master::Event createTaskAdded(const Task& task)
 mesos::master::Event createFrameworkAdded(
     const mesos::internal::master::Framework& _framework)
 {
-  CHECK(_framework.active());
-  CHECK(_framework.connected());
-  CHECK(!_framework.recovered());
-
   mesos::master::Event event;
   event.set_type(mesos::master::Event::FRAMEWORK_ADDED);
 

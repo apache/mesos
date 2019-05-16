@@ -2630,8 +2630,9 @@ TEST_P(MasterAPITest, SubscribersReceiveHealthUpdates)
 
 
 // This test verifies that subscribing to the 'api/v1' endpoint between
-// a master failover and an agent re-registration won't cause the master
-// to crash. See MESOS-8601.
+// a master failover and an agent reregistration won't cause the master
+// to crash, and frameworks recovered through agent reregistration will be
+// broadcast to subscribers. See MESOS-8601 and MESOS-9785.
 TEST_P(MasterAPITest, MasterFailover)
 {
   ContentType contentType = GetParam();
@@ -2733,15 +2734,24 @@ TEST_P(MasterAPITest, MasterFailover)
   EXPECT_CALL(subscriber, subscribed(_))
     .WillOnce(FutureArg<0>(&subscribedToMasterAPIEvents));
 
-  // The agent re-registration should result in an `AGENT_ADDED` event
-  // and a `TASK_ADDED` event.
-  Future<Nothing> taskAdded;
-  EXPECT_CALL(subscriber, taskAdded(_))
-    .WillOnce(FutureSatisfy(&taskAdded));
+  // The agent re-registration should result in an `AGENT_ADDED` event,
+  // a `FRAMEWORK_ADDED` event and a `TASK_ADDED` event in order.
+  Sequence masterEventsSequence;
 
-  Future<Nothing> agentAdded;
+  Future<v1::master::Event::AgentAdded> agentAdded;
   EXPECT_CALL(subscriber, agentAdded(_))
-    .WillOnce(FutureSatisfy(&agentAdded));
+    .InSequence(masterEventsSequence)
+    .WillOnce(FutureArg<0>(&agentAdded));
+
+  Future<v1::master::Event::FrameworkAdded> frameworkAdded;
+  EXPECT_CALL(subscriber, frameworkAdded(_))
+    .InSequence(masterEventsSequence)
+    .WillOnce(FutureArg<0>(&frameworkAdded));
+
+  Future<v1::master::Event::TaskAdded> taskAdded;
+  EXPECT_CALL(subscriber, taskAdded(_))
+    .InSequence(masterEventsSequence)
+    .WillOnce(FutureArg<0>(&taskAdded));
 
   // Create event stream after the master failover but before the agent
   // re-registration. We should see no framework, agent, task and
@@ -2764,8 +2774,18 @@ TEST_P(MasterAPITest, MasterFailover)
   Clock::advance(slaveFlags.registration_backoff_factor);
 
   AWAIT_READY(slaveReregisteredMessage);
-  AWAIT_READY(taskAdded);
+
   AWAIT_READY(agentAdded);
+  EXPECT_EQ(agentId, agentAdded->agent().agent_info().id());
+
+  AWAIT_READY(frameworkAdded);
+  EXPECT_EQ(frameworkId, frameworkAdded->framework().framework_info().id());
+  EXPECT_FALSE(frameworkAdded->framework().active());
+  EXPECT_FALSE(frameworkAdded->framework().connected());
+  EXPECT_TRUE(frameworkAdded->framework().recovered());
+
+  AWAIT_READY(taskAdded);
+  EXPECT_EQ(task.task_id(), taskAdded->task().task_id());
 }
 
 
