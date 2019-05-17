@@ -24,16 +24,8 @@ def dockerArgs() {
 }
 
 def uploadToBintray(def pattern) {
-  withCredentials([string(credentialsId: 'karya_bintray_credentials', variable: 'BINTRAY_CREDS')]) {
-    // Do not upload debug packages yet as they are larger than the max file
-    // upload size imposed by bintray for the mesos org (250 MB). Once the mesos
-    // repos are moved under the apache org, we'll probably be able to upload
-    // larger files. An alternative would be to split mesos package into smaller
-    // packages such as mesos-sched, mesos-modules, etc., and then have the
-    // mesos meta package declare a dependency on these sub packages. That way
-    // we can have much smaller debug files.
+  withCredentials([string(credentialsId: params.BINTRAY_CREDENTIALS_ID, variable: 'BINTRAY_CREDS')]) {
     sh 'find . -name ' + pattern ' | ' +
-       'grep -v debug | ' +
        'while read rpm ; do support/packaging/bintray.sh $rpm; done'
   }
 }
