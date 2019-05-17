@@ -9,7 +9,8 @@ RUN yum install -y              \
       redhat-rpm-config         \
       rpm-build                 \
       scl-utils                 \
-      yum-utils
+      yum-utils                 \
+      devtoolset-7
 
 # Add the Subversion repo.
 RUN echo -e '[WANdiscoSVN]\n\

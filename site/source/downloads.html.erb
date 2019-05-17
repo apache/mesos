@@ -23,34 +23,41 @@ breadcrumb: Downloads
 
   <div class="col-md-8">
     <h1>Download Mesos</h1>
-      <p>Download the most recent stable release:
-        Source
-	      <a href="http://www.apache.org/dyn/closer.cgi/mesos/<%= data.releases.latest_stable.version %>/mesos-<%= data.releases.latest_stable.version %>.tar.gz">
-          <%= data.releases.latest_stable.version %>
-        </a>,
-        RPM
-        <a href="https://bintray.com/mesos/el/mesos/<%= data.releases.latest_stable.version %>#files">
-        <%= data.releases.latest_stable.version %>
-        </a>
-        (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=<%= data.releases.latest_stable.jira_version %>">
+      <p>Download the most recent stable release: (<a href="https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12311242&version=<%= data.releases.latest_stable.jira_version %>">
           Release Notes
         </a>)
+      <ul>
+        <li>
+          Source
+	  <a href="http://www.apache.org/dyn/closer.cgi/mesos/<%= data.releases.latest_stable.version %>/mesos-<%= data.releases.latest_stable.version %>.tar.gz">
+          <%= data.releases.latest_stable.version %>
+          </a>
+        </li>
+        <li>
+          RPM
+          <a href="https://bintray.com/apache/mesos/el/mesos/<%= data.releases.latest_stable.version %>#files">
+            <%= data.releases.latest_stable.version %>
+          </a>
+        </li>
+      </ul>
       </p>
-
-      <h4>Getting the code via source control</h4>
-      <p>The codebase can also be downloaded from the Apache git repository at:
-        <code>https://gitbox.apache.org/repos/asf/mesos.git</code>.
-        This repository is also mirrored on
-        <a href="https://github.com/apache/mesos">GitHub</a>.
-      </p>
-
-      <h4>Getting older Mesos binaries</h4>
-      Previous versions of Mesos can be downloaded from the BinTray URL:<a href="https://bintray.com/mesos">https://bintray.com/mesos</a>.
 
       <p>Once you have downloaded Mesos, follow the
         <a href="/getting-started/">getting started instructions</a>,
         and take a look at the rest of the
         <a href="/documentation/">Mesos documentation</a>.
       </p>
+
+      <h4>Getting the code via source control</h4>
+      <p>The codebase can also be downloaded from the Apache git repository at:
+        <code>https://gitbox.apache.org/repos/asf/mesos.git</code>.
+        <br />
+        This repository is also mirrored on
+        <a href="https://github.com/apache/mesos">GitHub</a>.
+      </p>
+
+      <h4>Getting older Mesos binaries</h4>
+      Some previous versions of Mesos can be downloaded from BinTray: <a href="https://bintray.com/apache/mesos">https://bintray.com/apache/mesos</a>.
+
   </div>
 </div>
