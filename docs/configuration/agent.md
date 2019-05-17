@@ -637,6 +637,19 @@ Example JSON (<code>$HOME/.docker/config.json</code>):
   </td>
 </tr>
 
+<tr id="docker_ignore_runtime">
+  <td>
+    --docker_ignore_runtime=VALUE
+  </td>
+  <td>
+Ignore any runtime configuration specified in the Docker image. The
+Mesos containerizer will not propagate Docker runtime specifications
+such as <code>WORKDIR</code>, <code>ENV</code> and <code>CMD</code>
+to the container.
+(default: false)
+  </td>
+</tr>
+
 <tr id="docker_kill_orphans">
   <td>
     --[no-]docker_kill_orphans

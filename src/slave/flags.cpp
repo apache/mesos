@@ -224,6 +224,13 @@ mesos::internal::slave::Flags::Flags()
       "volumes that each container uses.",
       "/var/run/mesos/isolators/docker/volume");
 
+  add(&Flags::docker_ignore_runtime,
+      "docker_ignore_runtime",
+      "Ignore any runtime configuration specified in the Docker image. The\n"
+      "Mesos containerizer will not propagate Docker runtime specifications\n"
+      "such as `WORKDIR`, `ENV` and `CMD` to the container.\n",
+      false);
+
   add(&Flags::default_role,
       "default_role",
       "Any resources in the `--resources` flag that\n"

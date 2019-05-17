@@ -84,6 +84,10 @@ Future<Option<ContainerLaunchInfo>> DockerRuntimeIsolatorProcess::prepare(
     const ContainerID& containerId,
     const ContainerConfig& containerConfig)
 {
+  if (flags.docker_ignore_runtime) {
+    return None();
+  }
+
   if (!containerConfig.has_container_info()) {
     return None();
   }

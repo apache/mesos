@@ -43,6 +43,35 @@ We categorize the changes as follows:
   </thead>
 <tr>
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Version-->
+  1.9.x
+  </td>
+
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Mesos Core-->
+  </td>
+
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Flags-->
+    <ul style="padding-left:10px;">
+      <li>A <a href="#1-9-x-docker-ignore-runtime">docker_ignore_runtime</a></li>
+    </ul>
+  </td>
+
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Framework API-->
+    <ul style="padding-left:10px;">
+    </ul>
+  </td>
+
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Module API-->
+    <ul style="padding-left:10px;">
+    </ul>
+  </td>
+
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Endpoints-->
+    <ul style="padding-left:10px;">
+    </ul>
+  </td>
+</tr>
+<tr>
+  <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Version-->
   1.8.x
   </td>
 
@@ -472,6 +501,11 @@ We categorize the changes as follows:
   </td>
 </tr>
 </table>
+
+## Upgrading from 1.8.x to 1.9.x ##
+
+<a name="1-9-x-docker-ignore-runtime"></a>
+  * A new [`--docker_ignore_runtime`](configuration/agent.md#docker_ignore_runtime) flag has been added. This causes the agent to ignore any runtime configuration present in Docker images.
 
 ## Upgrading from 1.7.x to 1.8.x ##
 

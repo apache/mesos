@@ -1382,6 +1382,103 @@ TEST_F(ProvisionerDockerTest, ROOT_INTERNET_CURL_ImageDigest)
 }
 
 
+// This test verifies that Docker manifest configuration is not carried over
+// into the container if the `--docker_ignore_runtime` flag is set. Due to the
+// complexity of the `CommandInfo` mapping, simply check to see if the
+// environment was merged by the isolator into the task container.
+TEST_F(ProvisionerDockerTest, ROOT_DockerIgnoreRuntime)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  const string directory = path::join(os::getcwd(), "registry");
+
+  const std::vector<std::string>& environment = {
+    {"DOCKER_RUNTIME_ENV=true"},
+  };
+
+  // Setting the entrypoint and command that will be reflected in the
+  // manifest.
+  Future<Nothing> testImage = DockerArchive::create(
+      directory, "alpine", "null", "null", environment);
+  AWAIT_READY(testImage);
+
+  ASSERT_TRUE(os::exists(path::join(directory, "alpine.tar")));
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.isolation = "docker/runtime,filesystem/linux";
+  flags.image_providers = "docker";
+  flags.docker_registry = directory;
+  flags.docker_store_dir = path::join(os::getcwd(), "store");
+  flags.docker_ignore_runtime = true;
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, DEFAULT_FRAMEWORK_INFO, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(&driver, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
+
+  const Offer& offer = offers.get()[0];
+
+  // This task will fail if Docker manifest metadata is propagated
+  // to the container i.e. the `DOCKER_RUNTIME_ENV` variable should
+  // not be present in the container since we are setting the
+  // `--docker_ignore_runtime` flag.
+  TaskInfo task = createTask(
+    offer.slave_id(),
+    offer.resources(),
+    "test -z $DOCKER_RUNTIME_ENV");
+
+  Image image;
+  image.set_type(Image::DOCKER);
+  image.mutable_docker()->set_name("alpine");
+
+  ContainerInfo* container = task.mutable_container();
+  container->set_type(ContainerInfo::MESOS);
+  container->mutable_mesos()->mutable_image()->CopyFrom(image);
+
+  Future<TaskStatus> statusStarting;
+  Future<TaskStatus> statusRunning;
+  Future<TaskStatus> statusFinished;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusStarting))
+    .WillOnce(FutureArg<1>(&statusRunning))
+    .WillOnce(FutureArg<1>(&statusFinished));
+
+  driver.launchTasks(offer.id(), {task});
+
+  AWAIT_READY(statusStarting);
+  EXPECT_EQ(task.task_id(), statusStarting->task_id());
+  EXPECT_EQ(TASK_STARTING, statusStarting->state());
+
+  AWAIT_READY(statusRunning);
+  EXPECT_EQ(task.task_id(), statusRunning->task_id());
+  EXPECT_EQ(TASK_RUNNING, statusRunning->state());
+
+  AWAIT_READY(statusFinished);
+  EXPECT_EQ(task.task_id(), statusFinished->task_id());
+  EXPECT_EQ(TASK_FINISHED, statusFinished->state());
+
+  driver.stop();
+  driver.join();
+}
+
+
 // This test verifies that if a container image is specified, the
 // command runs as the specified user "$SUDO_USER" and the sandbox of
 // the command task is writeable by the specified user. It also
