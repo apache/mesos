@@ -289,4 +289,26 @@ struct _CheckFatal
   std::ostringstream out;
 };
 
+
+// Check on whether some container (that supports the contains()
+// member function) contains the given key. This prints a message
+// of the form:
+//
+// Check failed: $ContainerName does not contain $Value
+#define CHECK_CONTAINS(container, key)                                    \
+  if (!(container).contains(key))                                         \
+    google::LogMessageFatal(__FILE__, __LINE__).stream()                  \
+      << "Check failed: "  << #container << " does not contain " << (key) \
+
+
+// Check on whether some container (that supports the contains()
+// member function) does not contain the given key. This prints
+// a message of the form:
+//
+// Check failed: $ContainerName already contains $Value
+#define CHECK_NOT_CONTAINS(container, key)                                \
+  if ((container).contains(key))                                          \
+    google::LogMessageFatal(__FILE__, __LINE__).stream()                  \
+      << "Check failed: "  << #container << " already contains " << (key) \
+
 #endif // __STOUT_CHECK_HPP__
