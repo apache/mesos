@@ -1127,7 +1127,8 @@ void LibeventSSLSocketImpl::accept_SSL_callback(AcceptRequest* request)
             // Due to MESOS-9339, a slow reverse DNS lookup will cause
             // serious issues as it blocks the event loop thread.
             if (watch.elapsed() > Milliseconds(100)) {
-              LOG(WARNING) << "Reverse DNS lookup for '" << *request->ip << "'"
+              LOG(WARNING) << "Reverse DNS lookup for"
+                           << " '" << request->ip.get() << "'"
                            << " took " << watch.elapsed().ms() << "ms"
                            << ", slowness is problematic (see MESOS-9339)";
             }
