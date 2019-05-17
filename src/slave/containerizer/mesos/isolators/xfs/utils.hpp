@@ -24,7 +24,13 @@
 #include <stout/nothing.hpp>
 #include <stout/try.hpp>
 
+// Fedora 30 defines prid_t via <xfs/xfs.h>, but earlier versions
+// need an explicit <xfs/xfs_types.h>.
+#include <xfs/xfs.h>
+
+#if HAVE_XFS_XFS_TYPES_H
 #include <xfs/xfs_types.h>
+#endif
 
 namespace mesos {
 namespace internal {

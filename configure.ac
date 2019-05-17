@@ -2189,6 +2189,9 @@ packages for XFS disk isolator support.
 -------------------------------------------------------------------
   ])])
 
+  # xfs_types.h is optional, depending on the build OS.
+  AC_CHECK_HEADERS([xfs/xfs_types.h])
+
   AC_CHECK_HEADERS([blkid/blkid.h], [], [AC_MSG_ERROR([missing libblkid headers
 -------------------------------------------------------------------
 Please install the libblkid development package for XFS disk
