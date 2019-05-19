@@ -596,7 +596,7 @@ Future<Nothing> LinuxFilesystemIsolatorProcess::recover(
           rootSandboxPath,
           entry.target);
 
-    // Since we pass the same 'entry.target' to 'parseSandboxPath' and
+    // Since we pass the same 'entry.target' to 'parseExecutorRunPath' and
     // 'parseSandboxPath', we should not see an error here.
     if (containerId.isError()) {
       return Failure("Parsing sandbox path failed: " + containerId.error());
