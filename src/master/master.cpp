@@ -2813,19 +2813,8 @@ void Master::_subscribe(
     failoverFramework(framework, http);
   } else {
     // The framework has not yet reregistered after master failover.
-    Try<Nothing> activate = activateRecoveredFramework(
+    activateRecoveredFramework(
         framework, frameworkInfo, None(), http, suppressedRoles);
-
-    if (activate.isError()) {
-      LOG(INFO) << "Could not update FrameworkInfo of framework '"
-                << frameworkInfo.name() << "': " << activate.error();
-
-      FrameworkErrorMessage message;
-      message.set_message(activate.error());
-      http.send(message);
-      http.close();
-      return;
-    }
   }
 
   if (!subscribers.subscribed.empty()) {
@@ -3160,18 +3149,8 @@ void Master::_subscribe(
     }
   } else {
     // The framework has not yet reregistered after master failover.
-    Try<Nothing> activate = activateRecoveredFramework(
+    activateRecoveredFramework(
         framework, frameworkInfo, from, None(), suppressedRoles);
-
-    if (activate.isError()) {
-      LOG(INFO) << "Could not update FrameworkInfo of framework '"
-                << frameworkInfo.name() << "': " << activate.error();
-
-      FrameworkErrorMessage message;
-      message.set_message(activate.error());
-      send(from, message);
-      return;
-    }
 
     if (!subscribers.subscribed.empty()) {
       subscribers.send(
@@ -10690,7 +10669,7 @@ void Master::recoverFramework(
 }
 
 
-Try<Nothing> Master::activateRecoveredFramework(
+void Master::activateRecoveredFramework(
     Framework* framework,
     const FrameworkInfo& frameworkInfo,
     const Option<UPID>& pid,
@@ -10767,8 +10746,6 @@ Try<Nothing> Master::activateRecoveredFramework(
     // Start the heartbeat after sending SUBSCRIBED event.
     framework->heartbeat();
   }
-
-  return Nothing();
 }
 
 
