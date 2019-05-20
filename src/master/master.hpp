@@ -2299,14 +2299,6 @@ private:
   process::Time startTime; // Start time used to calculate uptime.
 
   Option<process::Time> electedTime; // Time when this master is elected.
-
-  // Validates the framework including authorization.
-  // Returns None if the framework is valid.
-  // Returns Error if the framework is invalid.
-  // Returns Failure if authorization returns 'Failure'.
-  process::Future<Option<Error>> validate(
-      const FrameworkInfo& frameworkInfo,
-      const process::UPID& from);
 };
 
 
