@@ -2566,12 +2566,15 @@ Option<Error> Master::validateFrameworkSubscription(
   Option<Error> validationError =
     validation::framework::validate(frameworkInfo);
 
-  if (!validationError.isNone()){
+  if (validationError.isSome()) {
     return validationError;
   }
 
   // Validate that resubscribing framework does not attempt
-  // to change its principal.
+  // to change immutable fields of the FrameworkInfo.
+  //
+  // TODO(asekretenko): This currently does not check 'user' and 'checkpoint',
+  // which are both immutable! Update this to check these fields.
   if (frameworkInfo.has_id() && !frameworkInfo.id().value().empty()) {
     const Framework* framework = getFramework(frameworkInfo.id());
 
@@ -2580,25 +2583,11 @@ Option<Error> Master::validateFrameworkSubscription(
     // unknown at the time of re-registration. This has to be changed if we
     // decide to start storing `FrameworkInfo` messages.
     if (framework != nullptr) {
-      Option<string> oldPrincipal;
-      if (framework->info.has_principal()) {
-          oldPrincipal = framework->info.principal();
-      }
+      validationError = validation::framework::validateUpdate(
+          framework->info, frameworkInfo);
 
-      Option<string> newPrincipal;
-      if (frameworkInfo.has_principal()) {
-        newPrincipal = frameworkInfo.principal();
-      }
-
-      if (oldPrincipal != newPrincipal) {
-        LOG(WARNING)
-          << "Framework " << frameworkInfo.id() << " which had a principal '"
-          << (oldPrincipal.isSome() ? oldPrincipal.get() : "<NONE>")
-          << "' tried to (re)subscribe with a new principal '"
-          << (newPrincipal.isSome() ? newPrincipal.get() : "<NONE>")
-          << "'";
-
-        return Error("Changing framework's principal is not allowed.");
+      if (validationError.isSome()) {
+        return validationError;
       }
     }
   }

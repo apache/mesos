@@ -566,6 +566,40 @@ Option<Error> validate(const mesos::FrameworkInfo& frameworkInfo)
   return None();
 }
 
+
+Option<Error> validateUpdate(
+    const FrameworkInfo& oldInfo,
+    const FrameworkInfo& newInfo)
+{
+  Option<string> oldPrincipal = None();
+  if (oldInfo.has_principal()) {
+    oldPrincipal = oldInfo.principal();
+  }
+
+  Option<string> newPrincipal = None();
+  if (newInfo.has_principal()) {
+    newPrincipal = newInfo.principal();
+  }
+
+  if (oldPrincipal != newPrincipal) {
+    // We should not expose the old principal to the 'scheduler' which tries
+    // to subscribe with a known framework ID but another principal.
+    // However, it still should be possible for the people having access to
+    // the master to understand what is going on, hence the log message.
+    LOG(WARNING)
+      << "Framework " << oldInfo.id() << " which had a principal "
+      << " '" << oldPrincipal.getOrElse("<NONE>") << "'"
+      << " tried to (re)subscribe with a new principal "
+      << " '" << newPrincipal.getOrElse("<NONE>") << "'";
+
+    return Error("Changing framework's principal is not allowed.");
+  }
+
+  // TODO(asekretenko): Validate that 'user' and 'checkpoint' are not modified.
+
+  return None();
+}
+
 } // namespace framework {
 
 

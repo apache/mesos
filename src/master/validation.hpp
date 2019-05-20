@@ -112,6 +112,14 @@ Option<Error> validateOfferFilters(const FrameworkInfo& frameworkInfo);
 // Validate a FrameworkInfo.
 Option<Error> validate(const mesos::FrameworkInfo& frameworkInfo);
 
+// Validate that the immutable fields of two FrameworkInfos are identical.
+//
+// TODO(asekretenko): This currently does not check 'user' and 'checkpoint',
+// which are both immutable! Update this to check these fields.
+Option<Error> validateUpdate(
+    const FrameworkInfo& oldInfo,
+    const FrameworkInfo& newInfo);
+
 } // namespace framework {
 
 
