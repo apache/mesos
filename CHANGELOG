@@ -905,7 +905,6 @@ Release Notes - Mesos - Version 1.6.3 (WIP)
 ** Bug
   * [MESOS-9507] - Agent could not recover due to empty docker volume checkpointed files.
   * [MESOS-9529] - `/proc` should be remounted even if a nested container set `share_pid_namespace` to true.
-  * [MESOS-9536] - Nested container launched with non-root user may not be able to write to its sandbox via the environment variable `MESOS_SANDBOX`.
   * [MESOS-9564] - Logrotate container logger lets tasks execute arbitrary commands in the Mesos agent's namespace.
   * [MESOS-9616] - `Filters.refuse_seconds` declines resources not in offers.
   * [MESOS-9619] - Mesos Master Crashes with Launch Group when using Port Resources
