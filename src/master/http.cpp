@@ -715,6 +715,9 @@ Future<Response> Master::Http::scheduler(
       master->request(framework, call.request());
       return Accepted();
 
+    case scheduler::Call::UPDATE_FRAMEWORK:
+      return NotImplemented();
+
     case scheduler::Call::UNKNOWN:
       LOG(WARNING) << "Received 'UNKNOWN' call";
       return NotImplemented();

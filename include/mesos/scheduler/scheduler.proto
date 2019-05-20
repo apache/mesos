@@ -267,6 +267,7 @@ message Call {
     MESSAGE = 10;    // See 'Message' below.
     REQUEST = 11;    // See 'Request' below.
     SUPPRESS = 12;   // Inform master to stop sending offers to the framework.
+    UPDATE_FRAMEWORK = 17; // See `UpdateFramework` below.
 
     // TODO(benh): Consider adding an 'ACTIVATE' and 'DEACTIVATE' for
     // already subscribed frameworks as a way of stopping offers from
@@ -488,6 +489,34 @@ message Call {
     repeated string roles = 1;
   }
 
+  // Updates the FrameworkInfo. All fields can be updated except for:
+  //
+  // * FrameworkInfo.checkpoint
+  // * FrameworkInfo.principal
+  // * FrameworkInfo.user
+  //
+  // The call returns after the update is either applied completely or
+  // not applied at all. No incomplete updates occur.
+  //
+  // The HTTP response codes specific to this call are:
+  //
+  // * 200 OK: update operation was successfully completed.
+  // * 400 Bad Request: the requested update is not valid.
+  // * 403 Forbidden: framework is not authorized to use some entities
+  //   requested by the update (e.g. not authorized to use some of the
+  //   supplied roles).
+  // * 409 Conflict: framework disappeared while this call was being processed
+  //   (example: the framework was removed by a concurrent TEARDOWN call).
+  //
+  message UpdateFramework {
+    required FrameworkInfo framework_info = 1;
+
+    // List of suppressed roles for which the framework does not wish to be
+    // offered resources. The framework can decide to suppress all or a subset
+    // of roles provided in the new `framework_info`.
+    repeated string suppressed_roles = 2;
+  }
+
   // Identifies who generated this call. Master assigns a framework id
   // when a new scheduler subscribes for the first time. Once assigned,
   // the scheduler must set the 'framework_id' here and within its
@@ -517,4 +546,5 @@ message Call {
   optional Message message = 10;
   optional Request request = 11;
   optional Suppress suppress = 16;
+  optional UpdateFramework update_framework = 19;
 }

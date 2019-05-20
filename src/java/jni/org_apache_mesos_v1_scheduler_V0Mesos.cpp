@@ -600,7 +600,8 @@ void V0ToV1AdapterProcess::send(SchedulerDriver* driver, const Call& _call)
 
     case scheduler::Call::ACCEPT_INVERSE_OFFERS:
     case scheduler::Call::DECLINE_INVERSE_OFFERS:
-    case scheduler::Call::SHUTDOWN: {
+    case scheduler::Call::SHUTDOWN:
+    case scheduler::Call::UPDATE_FRAMEWORK: {
       // TODO(anand): Throw java error.
       LOG(ERROR) << "Received an unexpected " << call.type() << " call";
       break;

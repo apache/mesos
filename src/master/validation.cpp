@@ -725,6 +725,9 @@ Option<Error> validate(
       }
       return None();
 
+    case mesos::scheduler::Call::UPDATE_FRAMEWORK:
+      return Error("Call not implemented");
+
     case mesos::scheduler::Call::UNKNOWN:
       return None();
   }

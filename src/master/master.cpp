@@ -2490,6 +2490,13 @@ void Master::receive(
       suppress(framework, call.suppress());
       break;
 
+    case scheduler::Call::UPDATE_FRAMEWORK:
+      drop(
+          from,
+          call,
+          "'UPDATE_FRAMEWORK' is not supported by the v0 API");
+      break;
+
     case scheduler::Call::UNKNOWN:
       LOG(WARNING) << "'UNKNOWN' call";
       break;
