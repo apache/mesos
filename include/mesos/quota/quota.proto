@@ -59,5 +59,6 @@ message QuotaConfig {
  * See v1 `QuotaStatus`.
  */
 message QuotaStatus {
-  repeated QuotaInfo infos = 1;
+  repeated QuotaInfo infos = 1 [deprecated = true];
+  repeated QuotaConfig configs = 2;
 }

@@ -133,7 +133,16 @@ message QuotaConfig {
  * /quota/status response and `GET_QUOTA` `master::Response`.
  */
 message QuotaStatus {
-  // Returns all non-default quotas. Those ommitted from this
+  // Returns all non-default quotas. Those omitted from this
   // list have the default of: no guarantee and no limit.
-  repeated QuotaInfo infos = 1;
+  //
+  // For backwards compatibility, `infos` are still filled along
+  // side `configs`. Note, however `infos` will contain less information
+  // comparing to `configs` (e.g. info does not contain information
+  // regarding quota limits).
+  repeated QuotaInfo infos = 1 [deprecated = true];
+
+  // Returns all non-default quotas. Those omitted from this
+  // list have the default of: no guarantee and no limit.
+  repeated QuotaConfig configs = 2;
 }
