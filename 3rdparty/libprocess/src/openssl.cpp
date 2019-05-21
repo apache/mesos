@@ -515,15 +515,16 @@ void reinitialize()
               << "Set CA directory path with LIBPROCESS_SSL_CA_DIR=<dirpath>";
   }
 
-  if (!ssl_flags->verify_cert) {
-    LOG(INFO) << "Will not verify peer certificate!\n"
-              << "NOTE: Set LIBPROCESS_SSL_VERIFY_CERT=1 to enable "
-              << "peer certificate verification";
-  }
 
-  if (!ssl_flags->require_cert) {
+  if (ssl_flags->require_cert) {
+    LOG(INFO) << "Will require peer certificates for all TLS connections.";
+  } else if (ssl_flags->verify_cert) {
     LOG(INFO) << "Will only verify peer certificate if presented!\n"
               << "NOTE: Set LIBPROCESS_SSL_REQUIRE_CERT=1 to require "
+              << "peer certificate verification";
+  } else {
+    LOG(INFO) << "Will not verify peer certificate!\n"
+              << "NOTE: Set LIBPROCESS_SSL_VERIFY_CERT=1 to enable "
               << "peer certificate verification";
   }
 
