@@ -76,7 +76,16 @@ message QuotaRequest {
 }
 
 /**
- * Describes a role's quota configuration.
+ * Describes a role's quota configuration. This replaces the legacy
+ * quota related messages: `QuotaInfo` and `QuotaRequest`. This is
+ * used in both `UPDATE_QUOTA` and `GET_QUOTA` calls as well as persisted
+ * in the registry.
+ *
+ * We use this new message in the new call `UPDATE_QUOTA` instead of reusing
+ * the legacy `QuotaRequest` message. This avoids confusions with deprecated
+ * fields and provides a cleaner interface. In `QuotaStatus` returned by
+ * `GET_QUOTA`, the legacy `infos` field is still filled along side `configs`
+ * for backwards compatibility.
  */
 message QuotaConfig {
   required string role = 1;
