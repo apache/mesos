@@ -2559,7 +2559,7 @@ void Master::reregisterFramework(
 }
 
 
-Option<Error> Master::validateFrameworkSubscription(
+Option<Error> Master::validateFramework(
   const FrameworkInfo& frameworkInfo,
   const google::protobuf::RepeatedPtrField<std::string>& suppressedRoles) const
 {
@@ -2647,7 +2647,7 @@ void Master::subscribe(
             << " HTTP framework '" << frameworkInfo.name() << "'";
 
   Option<Error> validationError =
-    validateFrameworkSubscription(frameworkInfo, subscribe.suppressed_roles());
+    validateFramework(frameworkInfo, subscribe.suppressed_roles());
 
   if (validationError.isSome()) {
     LOG(INFO) << "Refusing subscription of framework"
@@ -2865,7 +2865,7 @@ void Master::subscribe(
   }
 
   Option<Error> validationError =
-    validateFrameworkSubscription(frameworkInfo, subscribe.suppressed_roles());
+    validateFramework(frameworkInfo, subscribe.suppressed_roles());
 
   // Note that re-authentication errors are already handled above.
   if (validationError.isNone()) {
@@ -3154,6 +3154,76 @@ void Master::_subscribe(
   }
 
   sendFrameworkUpdates(*framework);
+}
+
+
+Future<process::http::Response> Master::updateFramework(
+    mesos::scheduler::Call::UpdateFramework&& call)
+{
+  Option<Error> error =
+    validateFramework(call.framework_info(), call.suppressed_roles());
+
+  if (error.isSome()) {
+    return process::http::BadRequest(
+        "Supplied FrameworkInfo is not valid: " + error->message);
+  }
+
+  LOG(INFO) << "Processing UPDATE_FRAMEWORK call for framework "
+            << call.framework_info().id();
+
+  Future<bool> authorized = authorizeFramework(call.framework_info());
+
+  return authorized
+    .then(defer(self(), &Self::_updateFramework, std::move(call), lambda::_1));
+}
+
+
+Future<process::http::Response> Master::_updateFramework(
+    mesos::scheduler::Call::UpdateFramework&& call,
+    const Future<bool>& authorized)
+{
+  if (authorized.isFailed()) {
+    return process::http::BadRequest(
+        "Authorization failure: " + authorized.failure());
+  }
+
+  // TODO(asekretenko): We should make it possible for the authorizer to return
+  // the exact cause of declined authorization, after which we can simply
+  // forward it here.
+  if (!authorized.get()) {
+    return process::http::Forbidden(
+        "Not authorized to use roles '" +
+        stringify(protobuf::framework::getRoles(call.framework_info())) + "'");
+  }
+
+  Framework* framework = getFramework(call.framework_info().id());
+
+  // TODO(asekretenko): Test against the race with framework removal.
+  if (framework == nullptr) {
+    return process::http::Conflict(
+        "Framework was removed while this call was being processed");
+  }
+
+  // We need to validate the FrameworkInfo update here
+  // to avoid races with SUBSCRIBE or another UPDATE_FRAMEWORK call.
+  //
+  // TODO(asekretenko): Test against these races.
+  Option<Error> error = validation::framework::validateUpdate(
+    framework->info, call.framework_info());
+
+  if (error.isSome()) {
+    return process::http::BadRequest(
+        "FrameworkInfo update is not valid: " + error->message);
+  }
+
+  set<string> suppressedRoles(
+    make_move_iterator(call.mutable_suppressed_roles()->begin()),
+    make_move_iterator(call.mutable_suppressed_roles()->end()));
+
+  updateFramework(framework, call.framework_info(), suppressedRoles);
+  sendFrameworkUpdates(*framework);
+
+  return process::http::OK();
 }
 
 

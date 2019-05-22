@@ -797,7 +797,16 @@ Option<Error> validate(
       return None();
 
     case mesos::scheduler::Call::UPDATE_FRAMEWORK:
-      return Error("Call not implemented");
+      if (!call.has_update_framework()) {
+        return Error("Expecting 'update_framework' to be present");
+      }
+
+      if (call.framework_id() !=
+          call.update_framework().framework_info().id()) {
+        return Error(
+            "'framework_id' differs from 'update_framework.framework_info.id'");
+      }
+      return None();
 
     case mesos::scheduler::Call::UNKNOWN:
       return None();

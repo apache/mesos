@@ -653,6 +653,12 @@ protected:
   // executors and recover the resources.
   void removeFramework(Slave* slave, Framework* framework);
 
+  // Performs actions common for all the framework update paths.
+  //
+  // NOTE: the fields 'id', 'principal', 'name' and 'checkpoint' in the
+  // 'frameworkInfo' should have the same values as in 'framework->info',
+  // otherwise this method terminates the program.
+  //
   // TODO(asekretenko): Make sending FrameworkInfo updates to slaves, API
   // subscribers and anywhere else a responsibility of this method -
   // currently is is not, see MESOS-9746. After that we can remove the
@@ -1049,6 +1055,13 @@ private:
       google::protobuf::RepeatedPtrField<std::string>&& suppressedRoles,
       const process::Future<bool>& authorized);
 
+  process::Future<process::http::Response> updateFramework(
+      mesos::scheduler::Call::UpdateFramework&& call);
+
+  process::Future<process::http::Response> _updateFramework(
+      mesos::scheduler::Call::UpdateFramework&& call,
+      const process::Future<bool>& authorized);
+
   // Subscribes a client to the 'api/vX' endpoint.
   void subscribe(
       const StreamingHttpConnection<v1::master::Event>& http,
@@ -1146,10 +1159,10 @@ private:
    */
   bool isWhitelistedRole(const std::string& name) const;
 
-  // Validates (re)subscription prerequisites common
-  // both for HTTP and driver-based frameworks.
-  Option<Error> validateFrameworkSubscription(
-      const FrameworkInfo&,
+  // Performs validations of the FrameworkInfo and suppressed roles set
+  // which do not depend on the current state of this framework.
+  Option<Error> validateFramework(
+      const FrameworkInfo& frameworkInfo,
       const google::protobuf::RepeatedPtrField<std::string>& suppressedRoles)
     const;
 

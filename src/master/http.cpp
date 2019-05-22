@@ -716,7 +716,8 @@ Future<Response> Master::Http::scheduler(
       return Accepted();
 
     case scheduler::Call::UPDATE_FRAMEWORK:
-      return NotImplemented();
+      return master->updateFramework(
+          std::move(*call.mutable_update_framework()));
 
     case scheduler::Call::UNKNOWN:
       LOG(WARNING) << "Received 'UNKNOWN' call";
