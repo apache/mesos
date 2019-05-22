@@ -2653,11 +2653,7 @@ void HierarchicalAllocatorProcess::untrackReservations(
       continue; // Do not CHECK for the role if there's nothing to untrack.
     }
 
-    // Untrack it hierarchically up to the top level role.
-    vector<string> roles = roles::ancestors(role);
-    roles.insert(roles.begin(), role);
-
-    for (const string& r : roles) {
+    auto untrack = [&](const string& r) {
       CHECK_CONTAINS(reservationScalarQuantities, r);
 
       ResourceQuantities& currentReservationQuantities =
@@ -2672,6 +2668,12 @@ void HierarchicalAllocatorProcess::untrackReservations(
       if (currentReservationQuantities.empty()) {
         reservationScalarQuantities.erase(r);
       }
+    };
+
+    // Untrack it hierarchically up to the top level role.
+    untrack(role);
+    for (const string& ancestor : roles::ancestors(role)) {
+      untrack(ancestor);
     }
   }
 }
