@@ -107,6 +107,22 @@ struct Framework
 };
 
 
+struct Role
+{
+  // IDs of the frameworks susbscibed to the role, if any.
+  hashset<FrameworkID> frameworks;
+
+  // Aggregated reserved scalar resource quantities on all agents tied to this
+  // role, if any. Note that non-scalar resources, such as ports, are excluded.
+  ResourceQuantities reservationScalarQuantities;
+
+  bool isEmpty() const
+  {
+    return frameworks.empty() && reservationScalarQuantities.empty();
+  }
+};
+
+
 class Slave
 {
 public:
@@ -538,26 +554,14 @@ protected:
   // We track information about roles that we're aware of in the system.
   // Specifically, we keep track of the roles when a framework subscribes to
   // the role, and/or when there are resources allocated to the role
-  // (e.g. some tasks and/or executors are consuming resources under the role).
-  //
-  // NOTE: There is currently not a role entry when there is a
-  // reservation but no allocation / framework!
-  //
-  // TODO(bmahler): Turn this into a `hashmap<string, Role>` that
-  // also tracks a role if it has reservations.
-  hashmap<std::string, hashset<FrameworkID>> roles;
+  // (e.g. some tasks and/or executors are consuming resources under the role),
+  // and/or when there are reservations tied to this role.
+  hashmap<std::string, Role> roles;
 
   // Configured guaranteed resource quantities for each role, if any.
   // If a role does not have an entry here it has (the default)
   // no guarantee.
   hashmap<std::string, ResourceQuantities> quotaGuarantees;
-
-  // Aggregated resource reservations on all agents tied to a
-  // particular role, if any.
-  //
-  // Only roles with non-empty scalar reservation quantities will
-  // be stored in the map.
-  hashmap<std::string, ResourceQuantities> reservationScalarQuantities;
 
   // Slaves to send offers for.
   Option<hashset<std::string>> whitelist;

@@ -1709,12 +1709,17 @@ void HierarchicalAllocatorProcess::__allocate()
 
   // First add reservations.
   foreachkey (const string& role, quotaGuarantees) {
-    rolesConsumedQuota[role] +=
-      reservationScalarQuantities.get(role).getOrElse(ResourceQuantities());
+    if (roles.contains(role)) {
+      rolesConsumedQuota[role] += roles.at(role).reservationScalarQuantities;
+    }
   }
 
   // Then add the unreserved allocation.
-  foreachkey (const string& role, roles) {
+  foreachpair (const string& role, const Role& r, roles) {
+    if (r.frameworks.empty()) {
+      continue;
+    }
+
     const string& topLevelRole = strings::contains(role, "/") ?
       role.substr(0, role.find('/')) : role;
 
@@ -1784,9 +1789,9 @@ void HierarchicalAllocatorProcess::__allocate()
   }
 
   ResourceQuantities totalReservation;
-  foreachkey (const string& role, reservationScalarQuantities) {
+  foreachpair (const string& role, const Role& r, roles) {
     if (!strings::contains(role, "/")) {
-      totalReservation += reservationScalarQuantities.at(role);
+      totalReservation += r.reservationScalarQuantities;
     }
   }
 
@@ -1841,7 +1846,7 @@ void HierarchicalAllocatorProcess::__allocate()
 
       // If there are no active frameworks in this role, we do not
       // need to do any allocations for this role.
-      if (!roles.contains(role)) {
+      if (!roles.contains(role) || roles.at(role).frameworks.empty()) {
         continue;
       }
 
@@ -2156,12 +2161,6 @@ void HierarchicalAllocatorProcess::__allocate()
 
 void HierarchicalAllocatorProcess::deallocate()
 {
-  // If no frameworks are currently registered, no work to do.
-  if (roles.empty()) {
-    return;
-  }
-  CHECK(!frameworkSorters.empty());
-
   // In this case, `offerable` is actually the slaves and/or resources that we
   // want the master to create `InverseOffer`s from.
   hashmap<FrameworkID, hashmap<SlaveID, UnavailableResources>> offerable;
@@ -2541,7 +2540,7 @@ bool HierarchicalAllocatorProcess::isFrameworkTrackedUnderRole(
     const string& role) const
 {
   return roles.contains(role) &&
-         roles.at(role).contains(frameworkId);
+         roles.at(role).frameworks.contains(frameworkId);
 }
 
 
@@ -2553,10 +2552,9 @@ void HierarchicalAllocatorProcess::trackFrameworkUnderRole(
 
   // If this is the first framework to subscribe to this role, or have
   // resources allocated to this role, initialize state as necessary.
-  if (!roles.contains(role)) {
+  if (roles[role].frameworks.empty()) {
     CHECK_NOT_CONTAINS(*roleSorter, role);
 
-    roles[role] = {};
     roleSorter->add(role);
     roleSorter->activate(role);
 
@@ -2572,9 +2570,9 @@ void HierarchicalAllocatorProcess::trackFrameworkUnderRole(
     metrics.addRole(role);
   }
 
-  CHECK_NOT_CONTAINS(roles.at(role), frameworkId) << " for role " << role;
-
-  roles.at(role).insert(frameworkId);
+  CHECK_NOT_CONTAINS(roles.at(role).frameworks, frameworkId)
+    << " for role " << role;
+  roles.at(role).frameworks.insert(frameworkId);
 
   CHECK_NOT_CONTAINS(*frameworkSorters.at(role), frameworkId.value())
     << " for role " << role;
@@ -2590,12 +2588,14 @@ void HierarchicalAllocatorProcess::untrackFrameworkUnderRole(
   CHECK(initialized);
 
   CHECK_CONTAINS(roles, role);
-  CHECK_CONTAINS(roles.at(role), frameworkId) << " for role " << role;
+  CHECK_CONTAINS(roles.at(role).frameworks, frameworkId)
+    << " for role " << role;
+
   CHECK_CONTAINS(frameworkSorters, role);
   CHECK_CONTAINS(*frameworkSorters.at(role), frameworkId.value())
     << " for role " << role;
 
-  roles.at(role).erase(frameworkId);
+  roles.at(role).frameworks.erase(frameworkId);
   frameworkSorters.at(role)->remove(frameworkId.value());
 
   // If no more frameworks are subscribed to this role or have resources
@@ -2607,15 +2607,18 @@ void HierarchicalAllocatorProcess::untrackFrameworkUnderRole(
   // there, since roles with a quota set still influence allocation even if
   // they don't have any registered frameworks.
 
-  if (roles.at(role).empty()) {
+  if (roles.at(role).frameworks.empty()) {
     CHECK_EQ(frameworkSorters.at(role)->count(), 0u);
 
-    roles.erase(role);
     roleSorter->remove(role);
 
     frameworkSorters.erase(role);
 
     metrics.removeRole(role);
+  }
+
+  if (roles.at(role).isEmpty()) {
+    roles.erase(role);
   }
 }
 
@@ -2633,9 +2636,9 @@ void HierarchicalAllocatorProcess::trackReservations(
     }
 
     // Track it hierarchically up to the top level role.
-    reservationScalarQuantities[role] += quantities;
+    roles[role].reservationScalarQuantities += quantities;
     for (const string& ancestor : roles::ancestors(role)) {
-      reservationScalarQuantities[ancestor] += quantities;
+      roles[ancestor].reservationScalarQuantities += quantities;
     }
   }
 }
@@ -2654,19 +2657,16 @@ void HierarchicalAllocatorProcess::untrackReservations(
     }
 
     auto untrack = [&](const string& r) {
-      CHECK_CONTAINS(reservationScalarQuantities, r);
+      CHECK_CONTAINS(roles, r);
 
-      ResourceQuantities& currentReservationQuantities =
-        reservationScalarQuantities.at(r);
-
-      CHECK(currentReservationQuantities.contains(quantities))
-        << "current reservation " << currentReservationQuantities
+      CHECK_CONTAINS(roles.at(r).reservationScalarQuantities, quantities)
+        << "current reservation " << roles.at(r).reservationScalarQuantities
         << " does not contain " << quantities;
 
-      currentReservationQuantities -= quantities;
+      roles.at(r).reservationScalarQuantities -= quantities;
 
-      if (currentReservationQuantities.empty()) {
-        reservationScalarQuantities.erase(r);
+      if (roles.at(r).isEmpty()) {
+        roles.erase(r);
       }
     };
 
