@@ -2570,28 +2570,6 @@ Option<Error> Master::validateFrameworkSubscription(
     return validationError;
   }
 
-  // Validate that resubscribing framework does not attempt
-  // to change immutable fields of the FrameworkInfo.
-  //
-  // TODO(asekretenko): This currently does not check 'user' and 'checkpoint',
-  // which are both immutable! Update this to check these fields.
-  if (frameworkInfo.has_id() && !frameworkInfo.id().value().empty()) {
-    const Framework* framework = getFramework(frameworkInfo.id());
-
-    // TODO(asekretenko): Masters do not store `FrameworkInfo` messages in the
-    // replicated log, so it is possible that the previous principal is still
-    // unknown at the time of re-registration. This has to be changed if we
-    // decide to start storing `FrameworkInfo` messages.
-    if (framework != nullptr) {
-      validationError = validation::framework::validateUpdate(
-          framework->info, frameworkInfo);
-
-      if (validationError.isSome()) {
-        return validationError;
-      }
-    }
-  }
-
   // Check the framework's role(s) against the whitelist.
   set<string> invalidRoles;
 
@@ -2788,6 +2766,21 @@ void Master::_subscribe(
   }
 
   CHECK_NOTNULL(framework);
+
+  // The new framework info cannot be validated against the current one
+  // before authorization because the current framework info might have been
+  // modified by another concurrent SUBSCRIBE call.
+  // Therefore, we have to do this validation here.
+  Option<Error> updateValidationError = validation::framework::validateUpdate(
+      framework->info, frameworkInfo);
+
+  if (updateValidationError.isSome()) {
+    FrameworkErrorMessage message;
+    message.set_message(updateValidationError->message);
+    http.send(message);
+    http.close();
+    return;
+  }
 
   framework->metrics.incrementCall(scheduler::Call::SUBSCRIBE);
 
@@ -3045,6 +3038,20 @@ void Master::_subscribe(
   }
 
   CHECK_NOTNULL(framework);
+
+  // The new framework info cannot be validated against the current one
+  // before authorization because the current framework info might have been
+  // modified by another concurrent SUBSCRIBE call.
+  // Therefore, we have to do this validation here.
+  Option<Error> updateValidationError = validation::framework::validateUpdate(
+      framework->info, frameworkInfo);
+
+  if (updateValidationError.isSome()) {
+    FrameworkErrorMessage message;
+    message.set_message(updateValidationError->message);
+    send(from, message);
+    return;
+  }
 
   if (!framework->recovered()) {
     // The framework has previously been registered with this master;
