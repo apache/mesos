@@ -104,6 +104,12 @@ Offer devolve(const v1::Offer& offer)
 }
 
 
+Offer::Operation devolve(const v1::Offer::Operation& operation)
+{
+  return devolve<Offer::Operation>(operation);
+}
+
+
 OperationStatus devolve(const v1::OperationStatus& status)
 {
   OperationStatus _status = devolve<OperationStatus>(status);
