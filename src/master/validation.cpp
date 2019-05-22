@@ -595,10 +595,47 @@ Option<Error> validateUpdate(
     return Error("Changing framework's principal is not allowed.");
   }
 
-  // TODO(asekretenko): Validate that 'user' and 'checkpoint' are not modified.
+  if (newInfo.user() != oldInfo.user()) {
+    return Error(
+        "Updating 'FrameworkInfo.user' is unsupported"
+        "; attempted to update from '" + oldInfo.user() + "'"
+        " to '" + newInfo.user() + "'");
+  }
+
+  if (newInfo.checkpoint() != oldInfo.checkpoint()) {
+    return Error(
+        "Updating 'FrameworkInfo.checkpoint' is unsupported"
+        "; attempted to update"
+        " from '" + stringify(oldInfo.checkpoint()) + "'"
+        " to '" + stringify(newInfo.checkpoint()) + "'");
+  }
 
   return None();
 }
+
+
+void preserveImmutableFields(
+    const FrameworkInfo& oldInfo,
+    FrameworkInfo* newInfo)
+{
+  if (newInfo->user() != oldInfo.user()) {
+    LOG(WARNING)
+      << "Cannot update 'FrameworkInfo.user' to '" << newInfo->user() << "'"
+      << " for framework " << oldInfo.id() << "; see MESOS-703";
+
+    newInfo->set_user(oldInfo.user());
+  }
+
+  if (newInfo->checkpoint() != oldInfo.checkpoint()) {
+    LOG(WARNING)
+      << "Cannot update FrameworkInfo.checkpoint to"
+      << " '" << stringify(newInfo->checkpoint()) << "'"
+      << " for framework " << oldInfo.id() << "; see MESOS-703";
+
+    newInfo->set_checkpoint(oldInfo.checkpoint());
+  }
+}
+
 
 } // namespace framework {
 

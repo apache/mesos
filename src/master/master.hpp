@@ -1033,7 +1033,7 @@ private:
 
   void _subscribe(
       StreamingHttpConnection<v1::scheduler::Event> http,
-      const FrameworkInfo& frameworkInfo,
+      FrameworkInfo&& frameworkInfo,
       bool force,
       google::protobuf::RepeatedPtrField<std::string>&& suppressedRoles,
       const process::Future<bool>& authorized);
@@ -1044,7 +1044,7 @@ private:
 
   void _subscribe(
       const process::UPID& from,
-      const FrameworkInfo& frameworkInfo,
+      FrameworkInfo&& frameworkInfo,
       bool force,
       google::protobuf::RepeatedPtrField<std::string>&& suppressedRoles,
       const process::Future<bool>& authorized);

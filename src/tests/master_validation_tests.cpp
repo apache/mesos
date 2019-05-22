@@ -4782,15 +4782,11 @@ TEST_F(FrameworkInfoValidationTest, ValidateUpdate)
         DEFAULT_FRAMEWORK_INFO, frameworkInfo));
   }
 
-
-  // TODO(asekretenko): The validate function currently does not check
-  // 'user' and 'checkpoint', which are both immutable! Update this to
-  // test that these fields are also validated.
   {
     FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
     *frameworkInfo.mutable_user() += "_foo";
 
-    EXPECT_NONE(framework::validateUpdate(
+    EXPECT_SOME(framework::validateUpdate(
         DEFAULT_FRAMEWORK_INFO, frameworkInfo));
   }
 
@@ -4798,7 +4794,7 @@ TEST_F(FrameworkInfoValidationTest, ValidateUpdate)
     FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
     frameworkInfo.set_checkpoint(!frameworkInfo.checkpoint());
 
-    EXPECT_NONE(framework::validateUpdate(
+    EXPECT_SOME(framework::validateUpdate(
         DEFAULT_FRAMEWORK_INFO, frameworkInfo));
   }
 }

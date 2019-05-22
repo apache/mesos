@@ -2634,7 +2634,7 @@ void Master::subscribe(
 {
   // TODO(anand): Authenticate the framework.
 
-  const FrameworkInfo& frameworkInfo = subscribe.framework_info();
+  FrameworkInfo& frameworkInfo = *subscribe.mutable_framework_info();
 
   // Update messages_{re}register_framework accordingly.
   if (!frameworkInfo.has_id() || frameworkInfo.id() == "") {
@@ -2665,25 +2665,27 @@ void Master::subscribe(
   // Need to disambiguate for the compiler.
   void (Master::*_subscribe)(
       StreamingHttpConnection<v1::scheduler::Event>,
-      const FrameworkInfo&,
+      FrameworkInfo&&,
       bool,
       google::protobuf::RepeatedPtrField<string>&&,
       const Future<bool>&) = &Self::_subscribe;
 
-  authorizeFramework(frameworkInfo)
-    .onAny(defer(self(),
-                 _subscribe,
-                 http,
-                 frameworkInfo,
-                 subscribe.force(),
-                 std::move(*subscribe.mutable_suppressed_roles()),
-                 lambda::_1));
+  Future<bool> authorized = authorizeFramework(frameworkInfo);
+
+  authorized.onAny(
+      defer(self(),
+            _subscribe,
+            http,
+            std::move(frameworkInfo),
+            subscribe.force(),
+            std::move(*subscribe.mutable_suppressed_roles()),
+            lambda::_1));
 }
 
 
 void Master::_subscribe(
     StreamingHttpConnection<v1::scheduler::Event> http,
-    const FrameworkInfo& frameworkInfo,
+    FrameworkInfo&& frameworkInfo,
     bool force,
     google::protobuf::RepeatedPtrField<string>&& suppressedRolesField,
     const Future<bool>& authorized)
@@ -2767,6 +2769,9 @@ void Master::_subscribe(
 
   CHECK_NOTNULL(framework);
 
+  validation::framework::preserveImmutableFields(
+    framework->info, &frameworkInfo);
+
   // The new framework info cannot be validated against the current one
   // before authorization because the current framework info might have been
   // modified by another concurrent SUBSCRIBE call.
@@ -2831,7 +2836,7 @@ void Master::subscribe(
     const UPID& from,
     scheduler::Call::Subscribe&& subscribe)
 {
-  FrameworkInfo frameworkInfo = subscribe.framework_info();
+  FrameworkInfo& frameworkInfo = *subscribe.mutable_framework_info();
 
   // Update messages_{re}register_framework accordingly.
   if (!frameworkInfo.has_id() || frameworkInfo.id() == "") {
@@ -2897,25 +2902,27 @@ void Master::subscribe(
   // Need to disambiguate for the compiler.
   void (Master::*_subscribe)(
       const UPID&,
-      const FrameworkInfo&,
+      FrameworkInfo&&,
       bool,
       google::protobuf::RepeatedPtrField<string>&&,
       const Future<bool>&) = &Self::_subscribe;
 
-  authorizeFramework(frameworkInfo)
-    .onAny(defer(self(),
-                 _subscribe,
-                 from,
-                 frameworkInfo,
-                 subscribe.force(),
-                 std::move(*subscribe.mutable_suppressed_roles()),
-                 lambda::_1));
+  Future<bool> authorized = authorizeFramework(frameworkInfo);
+
+  authorized.onAny(
+      defer(self(),
+            _subscribe,
+            from,
+            std::move(frameworkInfo),
+            subscribe.force(),
+            std::move(*subscribe.mutable_suppressed_roles()),
+            lambda::_1));
 }
 
 
 void Master::_subscribe(
     const UPID& from,
-    const FrameworkInfo& frameworkInfo,
+    FrameworkInfo&& frameworkInfo,
     bool force,
     google::protobuf::RepeatedPtrField<string>&& suppressedRolesField,
     const Future<bool>& authorized)
@@ -2987,10 +2994,9 @@ void Master::_subscribe(
     CHECK(!frameworks.principals.contains(from));
 
     // Assign a new FrameworkID.
-    FrameworkInfo frameworkInfo_ = frameworkInfo;
-    frameworkInfo_.mutable_id()->CopyFrom(newFrameworkId());
+    frameworkInfo.mutable_id()->CopyFrom(newFrameworkId());
 
-    Framework* framework = new Framework(this, flags, frameworkInfo_, from);
+    Framework* framework = new Framework(this, flags, frameworkInfo, from);
 
     addFramework(framework, suppressedRoles);
 
@@ -3038,6 +3044,9 @@ void Master::_subscribe(
   }
 
   CHECK_NOTNULL(framework);
+
+  validation::framework::preserveImmutableFields(
+    framework->info, &frameworkInfo);
 
   // The new framework info cannot be validated against the current one
   // before authorization because the current framework info might have been

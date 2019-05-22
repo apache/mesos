@@ -113,12 +113,22 @@ Option<Error> validateOfferFilters(const FrameworkInfo& frameworkInfo);
 Option<Error> validate(const mesos::FrameworkInfo& frameworkInfo);
 
 // Validate that the immutable fields of two FrameworkInfos are identical.
-//
-// TODO(asekretenko): This currently does not check 'user' and 'checkpoint',
-// which are both immutable! Update this to check these fields.
+// Currently these fields are 'principal', 'user' and 'checkpoint'.
 Option<Error> validateUpdate(
     const FrameworkInfo& oldInfo,
     const FrameworkInfo& newInfo);
+
+// Adjusts `newInfo` to ensure that the `user` and `checkpoint` fields
+// are not modified and logs a warning if they were modified.
+//
+// NOTE: This is a legacy function used to preserve the behavior of
+// re-subscription silently ignoring these fields. It should not be
+// used in new code.
+//
+// TODO(asekretenko): Remove this function (see MESOS-9747).
+void preserveImmutableFields(
+    const FrameworkInfo& oldInfo,
+    FrameworkInfo* newInfo);
 
 } // namespace framework {
 
