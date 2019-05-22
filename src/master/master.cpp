@@ -2806,23 +2806,29 @@ void Master::_subscribe(
         framework, frameworkInfo, None(), http, suppressedRoles);
   }
 
+  sendFrameworkUpdates(*framework);
+}
+
+
+void Master::sendFrameworkUpdates(const Framework& framework)
+{
   if (!subscribers.subscribed.empty()) {
     subscribers.send(
-        protobuf::master::event::createFrameworkUpdated(*framework));
+      protobuf::master::event::createFrameworkUpdated(framework));
   }
 
-  // Broadcast the new framework pid to all the slaves. We have to
-  // broadcast because an executor might be running on a slave but
-  // it currently isn't running any tasks.
+  // Broadcast the new framework info and pid to all the slaves. We have to do
+  // this upon frameworkInfo/pid updates because an executor might be running
+  // on a slave but it currently isn't running any tasks.
   foreachvalue (Slave* slave, slaves.registered) {
     UpdateFrameworkMessage message;
-    message.mutable_framework_id()->CopyFrom(frameworkInfo.id());
+    message.mutable_framework_id()->CopyFrom(framework.id());
 
     // TODO(anand): We set 'pid' to UPID() for http frameworks
     // as 'pid' was made optional in 0.24.0. In 0.25.0, we
     // no longer have to set pid here for http frameworks.
-    message.set_pid(UPID());
-    message.mutable_framework_info()->CopyFrom(frameworkInfo);
+    message.set_pid(framework.pid.getOrElse(UPID()));
+    message.mutable_framework_info()->CopyFrom(framework.info);
     send(slave->pid, message);
   }
 }
@@ -3077,11 +3083,6 @@ void Master::_subscribe(
       // if necesssary.
       LOG(INFO) << "Framework " << *framework << " failed over";
       failoverFramework(framework, from);
-
-      if (!subscribers.subscribed.empty()) {
-        subscribers.send(
-            protobuf::master::event::createFrameworkUpdated(*framework));
-      }
     } else {
       LOG(INFO) << "Allowing framework " << *framework
                 << " to subscribe with an already used id";
@@ -3129,34 +3130,14 @@ void Master::_subscribe(
       message.mutable_framework_id()->MergeFrom(frameworkInfo.id());
       message.mutable_master_info()->MergeFrom(info_);
       framework->send(message);
-
-      if (!subscribers.subscribed.empty()) {
-        subscribers.send(
-            protobuf::master::event::createFrameworkUpdated(*framework));
-      }
-      return;
     }
   } else {
     // The framework has not yet reregistered after master failover.
     activateRecoveredFramework(
         framework, frameworkInfo, from, None(), suppressedRoles);
-
-    if (!subscribers.subscribed.empty()) {
-      subscribers.send(
-          protobuf::master::event::createFrameworkUpdated(*framework));
-    }
   }
 
-  // Broadcast the new framework pid to all the slaves. We have to
-  // broadcast because an executor might be running on a slave but
-  // it currently isn't running any tasks.
-  foreachvalue (Slave* slave, slaves.registered) {
-    UpdateFrameworkMessage message;
-    message.mutable_framework_id()->CopyFrom(frameworkInfo.id());
-    message.set_pid(from);
-    message.mutable_framework_info()->CopyFrom(frameworkInfo);
-    send(slave->pid, message);
-  }
+  sendFrameworkUpdates(*framework);
 }
 
 

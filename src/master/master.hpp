@@ -653,10 +653,16 @@ protected:
   // executors and recover the resources.
   void removeFramework(Slave* slave, Framework* framework);
 
+  // TODO(asekretenko): Make sending FrameworkInfo updates to slaves, API
+  // subscribers and anywhere else a responsibility of this method -
+  // currently is is not, see MESOS-9746. After that we can remove the
+  // 'sendFrameworkUpdates()' method.
   void updateFramework(
       Framework* framework,
       const FrameworkInfo& frameworkInfo,
       const std::set<std::string>& suppressedRoles);
+
+  void sendFrameworkUpdates(const Framework& framework);
 
   void disconnect(Framework* framework);
   void deactivate(Framework* framework, bool rescind);
