@@ -3298,7 +3298,7 @@ TEST_P(MasterOperationAuthorizationTest, Accept)
   permissive = false;
 
   AWAIT_READY(offers);
-  ASSERT_EQ(1u, offers->offers_size());
+  ASSERT_EQ(1, offers->offers_size());
 
   hashmap<v1::TaskID, Future<v1::scheduler::Event::Update>>
     actualTaskStatusUpdates;
