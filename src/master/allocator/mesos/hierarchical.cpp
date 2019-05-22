@@ -1856,10 +1856,9 @@ void HierarchicalAllocatorProcess::__allocate()
         break; // Nothing left on this agent.
       }
 
-      // Fetch frameworks according to their fair share.
+      // Fetch frameworks in the order provided by the sorter.
       // NOTE: Suppressed frameworks are not included in the sort.
       CHECK_CONTAINS(frameworkSorters, role);
-
       const Owned<Sorter>& frameworkSorter = frameworkSorters.at(role);
 
       foreach (const string& frameworkId_, frameworkSorter->sort()) {
