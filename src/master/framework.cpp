@@ -501,77 +501,21 @@ void Framework::update(const FrameworkInfo& newInfo)
   // We only merge 'info' from the same framework 'id'.
   CHECK_EQ(info.id(), newInfo.id());
 
-  // We copy over the new (potentially empty) map of per-role filters.
-  *info.mutable_offer_filters() = newInfo.offer_filters();
+  // Fields 'principal', 'user' and 'update' are immutable.
+  // They should be validated before calling this method.
+  //
+  // TODO(asekretenko): Make it possible to update 'user'
+  // and 'checkpoint' as per design doc in MESOS-703.
+  CHECK_EQ(info.principal(), newInfo.principal());
+  CHECK_EQ(info.user(), newInfo.user());
+  CHECK_EQ(info.checkpoint(), newInfo.checkpoint());
+
+  info.CopyFrom(newInfo);
 
   // Save the old list of roles for later.
   std::set<std::string> oldRoles = roles;
-
-  // TODO(jmlvanre): Merge other fields as per design doc in
-  // MESOS-703.
-
-  info.clear_role();
-  info.clear_roles();
-
-  if (newInfo.has_role()) {
-    info.set_role(newInfo.role());
-  }
-
-  if (newInfo.roles_size() > 0) {
-    info.mutable_roles()->CopyFrom(newInfo.roles());
-  }
-
-  roles = protobuf::framework::getRoles(newInfo);
-
-  if (newInfo.user() != info.user()) {
-    LOG(WARNING) << "Cannot update FrameworkInfo.user to '" << newInfo.user()
-                 << "' for framework " << id() << ". Check MESOS-703";
-  }
-
-  info.set_name(newInfo.name());
-
-  if (newInfo.has_failover_timeout()) {
-    info.set_failover_timeout(newInfo.failover_timeout());
-  } else {
-    info.clear_failover_timeout();
-  }
-
-  if (newInfo.checkpoint() != info.checkpoint()) {
-    LOG(WARNING) << "Cannot update FrameworkInfo.checkpoint to '"
-                 << stringify(newInfo.checkpoint()) << "' for framework "
-                 << id() << ". Check MESOS-703";
-  }
-
-  if (newInfo.has_hostname()) {
-    info.set_hostname(newInfo.hostname());
-  } else {
-    info.clear_hostname();
-  }
-
-  if (newInfo.principal() != info.principal()) {
-    LOG(WARNING) << "Cannot update FrameworkInfo.principal to '"
-                 << newInfo.principal() << "' for framework " << id()
-                 << ". Check MESOS-703";
-  }
-
-  if (newInfo.has_webui_url()) {
-    info.set_webui_url(newInfo.webui_url());
-  } else {
-    info.clear_webui_url();
-  }
-
-  if (newInfo.capabilities_size() > 0) {
-    info.mutable_capabilities()->CopyFrom(newInfo.capabilities());
-  } else {
-    info.clear_capabilities();
-  }
+  roles = protobuf::framework::getRoles(info);
   capabilities = protobuf::framework::Capabilities(info.capabilities());
-
-  if (newInfo.has_labels()) {
-    info.mutable_labels()->CopyFrom(newInfo.labels());
-  } else {
-    info.clear_labels();
-  }
 
   const std::set<std::string>& newRoles = roles;
 
