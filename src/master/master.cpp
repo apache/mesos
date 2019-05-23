@@ -12065,9 +12065,8 @@ void Master::Subscribers::send(
   Shared<Task> sharedTask(task.isSome() ? new Task(task.get()) : nullptr);
 
   foreachvalue (const Owned<Subscriber>& subscriber, subscribed) {
-    ObjectApprovers::create(
+    subscriber->getApprovers(
         master->authorizer,
-        subscriber->principal,
         {VIEW_ROLE, VIEW_FRAMEWORK, VIEW_TASK, VIEW_EXECUTOR})
       .then(defer(
           master->self(),
@@ -12081,6 +12080,18 @@ void Master::Subscribers::send(
             return Nothing();
           }));
   }
+}
+
+
+Future<Owned<ObjectApprovers>> Master::Subscribers::Subscriber::getApprovers(
+    const Option<Authorizer*>& authorizer,
+    std::initializer_list<authorization::Action> actions)
+{
+  Future<Owned<ObjectApprovers>> approvers =
+    ObjectApprovers::create(authorizer, principal, actions);
+
+  return approversSequence.add<Owned<ObjectApprovers>>(
+      [approvers] { return approvers; });
 }
 
 
