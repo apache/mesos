@@ -113,7 +113,9 @@ struct Role
   hashset<FrameworkID> frameworks;
 
   // Aggregated reserved scalar resource quantities on all agents tied to this
-  // role, if any. Note that non-scalar resources, such as ports, are excluded.
+  // role, if any. This includes both its own reservations as well as
+  // reservations of any of its subroles (i.e. it is hierarchical aware).
+  // Note that non-scalar resources, such as ports, are excluded.
   ResourceQuantities reservationScalarQuantities;
 
   bool isEmpty() const
