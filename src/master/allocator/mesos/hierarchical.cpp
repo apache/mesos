@@ -1708,8 +1708,13 @@ void HierarchicalAllocatorProcess::__allocate()
   //   Consumed Quota = reservations + unreserved allocation
 
   // First add reservations.
+  //
+  // Currently, only top level roles can have quota set and thus
+  // we only track consumed quota for top level roles.
   foreachkey (const string& role, quotaGuarantees) {
     if (roles.contains(role)) {
+      // Note, `reservationScalarQuantities` in `struct role`
+      // is hierarchical aware, thus it also includes subrole reservations.
       rolesConsumedQuota[role] += roles.at(role).reservationScalarQuantities;
     }
   }
