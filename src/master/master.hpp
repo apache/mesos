@@ -49,6 +49,7 @@
 #include <process/owned.hpp>
 #include <process/process.hpp>
 #include <process/protobuf.hpp>
+#include <process/sequence.hpp>
 #include <process/timer.hpp>
 
 #include <process/metrics/counter.hpp>
@@ -2140,6 +2141,12 @@ private:
       Subscriber(const Subscriber&) = delete;
       Subscriber& operator=(const Subscriber&) = delete;
 
+      // Creates object approvers. The futures returned by this method will be
+      // completed in the calling order.
+      process::Future<process::Owned<ObjectApprovers>> getApprovers(
+          const Option<Authorizer*>& authorizer,
+          std::initializer_list<authorization::Action> actions);
+
       // TODO(greggomann): Refactor this function into multiple event-specific
       // overloads. See MESOS-8475.
       void send(
@@ -2160,6 +2167,10 @@ private:
       StreamingHttpConnection<v1::master::Event> http;
       ResponseHeartbeater<mesos::master::Event, v1::master::Event> heartbeater;
       const Option<process::http::authentication::Principal> principal;
+
+      // We maintain a sequence to coordinate the creation of object approvers
+      // in order to sequentialize all events to the subscriber.
+      process::Sequence approversSequence;
     };
 
     // Sends the event to all subscribers connected to the 'api/vX' endpoint.
