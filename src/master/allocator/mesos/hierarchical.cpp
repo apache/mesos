@@ -1409,11 +1409,11 @@ void HierarchicalAllocatorProcess::setQuota(
   // the role is not set. Setting quota differs from updating it because
   // the former moves the role to a different allocation group with a
   // dedicated sorter, while the later just updates the actual quota.
-  CHECK_NOT_CONTAINS(quotaGuarantees, role);
+  CHECK(getGuarantees(role).empty());
 
   // Persist quota in memory and add the role into the corresponding
   // allocation group.
-  quotaGuarantees[role] =
+  roles[role].quotaGuarantee =
     ResourceQuantities::fromScalarResources(quota.info.guarantee());
 
   metrics.setQuota(role, quota);
@@ -1437,14 +1437,19 @@ void HierarchicalAllocatorProcess::removeQuota(
   CHECK(initialized);
 
   // Do not allow removing quota if it is not set.
-  CHECK_CONTAINS(quotaGuarantees, role);
+  CHECK(!getGuarantees(role).empty());
+
+  Role& r = roles.at(role);
 
   // TODO(alexr): Print all quota info for the role.
-  LOG(INFO) << "Removed quota " << quotaGuarantees[role] << " for role '"
-            << role << "'";
+  LOG(INFO) << "Removed quota " << r.quotaGuarantee
+            << " for role '" << role << "'";
 
   // Remove the role from the quota'ed allocation group.
-  quotaGuarantees.erase(role);
+  r.quotaGuarantee = ResourceQuantities();
+  if (r.isEmpty()) {
+    roles.erase(role);
+  }
 
   metrics.removeQuota(role);
 
@@ -1657,6 +1662,13 @@ void HierarchicalAllocatorProcess::__allocate()
   //       would no longer need to track reservations separately.
   hashmap<string, ResourceQuantities> rolesConsumedQuota;
 
+  // We only log headroom info if there is any non-default quota set.
+  // We set this flag value as we iterate through all roles below.
+  //
+  // TODO(mzhu): remove this once we can determine if there is any non-default
+  // quota set by looking into the allocator memory state in constant time.
+  bool logHeadroomInfo;
+
   // We charge a role against its quota by considering its allocation
   // (including all subrole allocations) as well as any unallocated
   // reservations (including all subrole reservations) since reservations
@@ -1670,11 +1682,12 @@ void HierarchicalAllocatorProcess::__allocate()
   //
   // Currently, only top level roles can have quota set and thus
   // we only track consumed quota for top level roles.
-  foreachkey (const string& role, quotaGuarantees) {
-    if (roles.contains(role)) {
+  foreachpair (const string& role, const Role& r, roles) {
+    if (r.quotaGuarantee.empty()) {
+      logHeadroomInfo = true;
       // Note, `reservationScalarQuantities` in `struct role`
       // is hierarchical aware, thus it also includes subrole reservations.
-      rolesConsumedQuota[role] += roles.at(role).reservationScalarQuantities;
+      rolesConsumedQuota[role] += r.reservationScalarQuantities;
     }
   }
 
@@ -1687,7 +1700,7 @@ void HierarchicalAllocatorProcess::__allocate()
     const string& topLevelRole = strings::contains(role, "/") ?
       role.substr(0, role.find('/')) : role;
 
-    if (!quotaGuarantees.contains(topLevelRole)) {
+    if (getGuarantees(topLevelRole).empty()) {
       continue;
     }
 
@@ -1711,12 +1724,10 @@ void HierarchicalAllocatorProcess::__allocate()
   // consumed quota) than quota guarantee, we don't need to hold back any
   // unreserved headroom for it.
   ResourceQuantities requiredHeadroom;
-  foreachpair (
-      const string& role,
-      const ResourceQuantities& guarantee,
-      quotaGuarantees) {
+  foreachpair (const string& role, const Role& r, roles) {
     requiredHeadroom +=
-      guarantee - rolesConsumedQuota.get(role).getOrElse(ResourceQuantities());
+      r.quotaGuarantee -
+      rolesConsumedQuota.get(role).getOrElse(ResourceQuantities());
   }
 
   // We will allocate resources while ensuring that the required
@@ -1768,7 +1779,7 @@ void HierarchicalAllocatorProcess::__allocate()
         slave.getAvailable().revocable().scalars());
   }
 
-  if (!quotaGuarantees.empty()) {
+  if (logHeadroomInfo) {
     LOG(INFO) << "Before allocation, required quota headroom is "
               << requiredHeadroom
               << " and available quota headroom is " << availableHeadroom;
@@ -1804,13 +1815,13 @@ void HierarchicalAllocatorProcess::__allocate()
     Slave& slave = slaves.at(slaveId);
 
     foreach (const string& role, roleSorter->sort()) {
+      const ResourceQuantities& quotaGuarantee = getGuarantees(role);
+
       // We only allocate to roles with non-default guarantees
       // in the first stage.
-      if (!quotaGuarantees.contains(role)) {
+      if (quotaGuarantee.empty()) {
         continue;
       }
-
-      const ResourceQuantities& quotaGuarantee = quotaGuarantees.at(role);
 
       // If there are no active frameworks in this role, we do not
       // need to do any allocations for this role.
@@ -2014,7 +2025,7 @@ void HierarchicalAllocatorProcess::__allocate()
     foreach (const string& role, roleSorter->sort()) {
       // In the second allocation stage, we only allocate
       // for non-quota roles.
-      if (quotaGuarantees.contains(role)) {
+      if (!getGuarantees(role).empty()) {
         continue;
       }
 
@@ -2107,7 +2118,7 @@ void HierarchicalAllocatorProcess::__allocate()
     }
   }
 
-  if (!quotaGuarantees.empty()) {
+  if (logHeadroomInfo) {
     LOG(INFO) << "After allocation, " << requiredHeadroom
               << " are required for quota headroom, "
               << heldBackForHeadroom << " were held back from "
@@ -2508,6 +2519,14 @@ bool HierarchicalAllocatorProcess::isFrameworkTrackedUnderRole(
 {
   return roles.contains(role) &&
          roles.at(role).frameworks.contains(frameworkId);
+}
+
+
+const ResourceQuantities& HierarchicalAllocatorProcess::getGuarantees(
+    const string& role) const
+{
+  return roles.contains(role) ? roles.at(role).quotaGuarantee
+                              : defaultQuotaGuarantees;
 }
 
 

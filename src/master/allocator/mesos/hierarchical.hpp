@@ -117,9 +117,15 @@ struct Role
   // Note that non-scalar resources, such as ports, are excluded.
   ResourceQuantities reservationScalarQuantities;
 
+  // Configured guaranteed resource quantities for this role.
+  // By default, a role has no guarantee.
+  ResourceQuantities quotaGuarantee;
+
   bool isEmpty() const
   {
-    return frameworks.empty() && reservationScalarQuantities.empty();
+    return frameworks.empty() &&
+           reservationScalarQuantities.empty() &&
+           quotaGuarantee.empty();
   }
 };
 
@@ -557,11 +563,6 @@ protected:
   // and/or when there are reservations tied to this role.
   hashmap<std::string, Role> roles;
 
-  // Configured guaranteed resource quantities for each role, if any.
-  // If a role does not have an entry here it has (the default)
-  // no guarantee.
-  hashmap<std::string, ResourceQuantities> quotaGuarantees;
-
   // Slaves to send offers for.
   Option<hashset<std::string>> whitelist;
 
@@ -616,10 +617,21 @@ protected:
   // Factory function for framework sorters.
   const std::function<Sorter*()> frameworkSorterFactory;
 
+  // By default, roles have empty quota guarantees.
+  //
+  // We keep this in memory so that roles that are absent in the `roles` map
+  // could also keep their quota state in memory.
+  //
+  // TODO(mzhu): remove this once we have proper role life cycle management
+  // such that every role would have an entry in the `roles` map.
+  const ResourceQuantities defaultQuotaGuarantees;
+
 private:
   bool isFrameworkTrackedUnderRole(
       const FrameworkID& frameworkId,
       const std::string& role) const;
+
+  const ResourceQuantities& getGuarantees(const std::string& role) const;
 
   void trackFrameworkUnderRole(
       const FrameworkID& frameworkId,
