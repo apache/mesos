@@ -52,8 +52,10 @@ Try<Owned<Fetcher>> create(const Option<Flags>& _flags)
        [flags]() { return CopyFetcherPlugin::create(flags); }},
     {HadoopFetcherPlugin::NAME,
        [flags]() { return HadoopFetcherPlugin::create(flags); }},
+#ifndef __WINDOWS__
     {DockerFetcherPlugin::NAME,
        [flags]() { return DockerFetcherPlugin::create(flags); }},
+#endif // __WINDOWS__
   };
 
   vector<Owned<Fetcher::Plugin>> plugins;

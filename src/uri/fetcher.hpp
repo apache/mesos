@@ -27,8 +27,11 @@
 
 #include "uri/fetchers/copy.hpp"
 #include "uri/fetchers/curl.hpp"
-#include "uri/fetchers/docker.hpp"
 #include "uri/fetchers/hadoop.hpp"
+
+#ifndef __WINDOWS__
+#include "uri/fetchers/docker.hpp"
+#endif // __WINDOWS__
 
 namespace mesos {
 namespace uri {
@@ -40,8 +43,10 @@ namespace fetcher {
 class Flags :
   public virtual CopyFetcherPlugin::Flags,
   public virtual CurlFetcherPlugin::Flags,
-  public virtual HadoopFetcherPlugin::Flags,
-  public virtual DockerFetcherPlugin::Flags {};
+#ifndef __WINDOWS__
+  public virtual DockerFetcherPlugin::Flags,
+#endif // __WINDOWS__
+  public virtual HadoopFetcherPlugin::Flags {};
 
 
 /**

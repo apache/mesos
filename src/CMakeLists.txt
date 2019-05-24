@@ -26,27 +26,24 @@ set(JAVA_PROTOBUF_SRC "")
 #
 # NOTE: The following `PROTOC_GENERATE` calls will list append to
 # `PUBLIC_PROTOBUF_SRC`. The GRPC option is a noop if gRPC is disabled.
-PROTOC_GENERATE(GRPC LIB csi_v0 TARGET csi/v0/csi)
-PROTOC_GENERATE(GRPC LIB csi_v1 TARGET csi/v1/csi)
+
+if (NOT WIN32)
+  PROTOC_GENERATE(GRPC LIB csi_v0 TARGET csi/v0/csi)
+  PROTOC_GENERATE(GRPC LIB csi_v1 TARGET csi/v1/csi)
+endif ()
 
 # NOTE: The following `PROTOC_GENERATE` calls will list append to
 # `PUBLIC_PROTOBUF_SRC`.
 PROTOC_GENERATE(TARGET mesos/agent/agent)
 PROTOC_GENERATE(TARGET mesos/allocator/allocator)
-PROTOC_GENERATE(TARGET mesos/appc/spec)
 PROTOC_GENERATE(TARGET mesos/authentication/authentication)
 PROTOC_GENERATE(TARGET mesos/authorizer/acls)
 PROTOC_GENERATE(TARGET mesos/authorizer/authorizer)
 PROTOC_GENERATE(TARGET mesos/csi/types)
-PROTOC_GENERATE(TARGET mesos/docker/spec)
-PROTOC_GENERATE(TARGET mesos/docker/v1)
-PROTOC_GENERATE(TARGET mesos/docker/v2)
-PROTOC_GENERATE(TARGET mesos/docker/v2_2)
 PROTOC_GENERATE(TARGET mesos/maintenance/maintenance)
 PROTOC_GENERATE(TARGET mesos/master/master)
 PROTOC_GENERATE(TARGET mesos/module/hook)
 PROTOC_GENERATE(TARGET mesos/module/module)
-PROTOC_GENERATE(TARGET mesos/oci/spec)
 PROTOC_GENERATE(TARGET mesos/quota/quota)
 PROTOC_GENERATE(TARGET mesos/resource_provider/resource_provider)
 PROTOC_GENERATE(TARGET mesos/seccomp/seccomp)
@@ -54,6 +51,18 @@ PROTOC_GENERATE(TARGET mesos/slave/containerizer)
 PROTOC_GENERATE(TARGET mesos/slave/oversubscription)
 PROTOC_GENERATE(TARGET mesos/state/state)
 PROTOC_GENERATE(TARGET mesos/uri/uri)
+
+# TODO(josephw): Remove or stub the provisioner in the Windows sources
+# so these can be excluded from the Windows build.
+PROTOC_GENERATE(TARGET mesos/appc/spec)
+PROTOC_GENERATE(TARGET mesos/docker/v1)
+
+if (NOT WIN32)
+  PROTOC_GENERATE(TARGET mesos/docker/spec)
+  PROTOC_GENERATE(TARGET mesos/docker/v2)
+  PROTOC_GENERATE(TARGET mesos/docker/v2_2)
+  PROTOC_GENERATE(TARGET mesos/oci/spec)
+endif ()
 
 # NOTE: The following `PROTOC_GENERATE` calls will list append to
 # `PUBLIC_PROTOBUF_SRC` and/or `JAVA_PROTOBUF_SRC`. The JAVA option is a noop if
@@ -74,20 +83,23 @@ PROTOC_GENERATE(JAVA TARGET mesos/v1/scheduler/scheduler)
 
 # NOTE: The following `PROTOC_GENERATE` calls will list append to
 # `INTERNAL_PROTOBUF_SRC`.
+PROTOC_GENERATE(INTERNAL TARGET master/registry)
 PROTOC_GENERATE(INTERNAL TARGET messages/flags)
 PROTOC_GENERATE(INTERNAL TARGET messages/log)
 PROTOC_GENERATE(INTERNAL TARGET messages/messages)
 PROTOC_GENERATE(INTERNAL TARGET messages/state)
-PROTOC_GENERATE(INTERNAL TARGET slave/containerizer/mesos/isolators/network/cni/spec)
-PROTOC_GENERATE(INTERNAL TARGET slave/containerizer/mesos/isolators/docker/volume/state)
-PROTOC_GENERATE(INTERNAL TARGET slave/containerizer/mesos/provisioner/docker/message)
-PROTOC_GENERATE(INTERNAL TARGET slave/state)
-PROTOC_GENERATE(INTERNAL TARGET slave/volume_gid_manager/state)
-PROTOC_GENERATE(INTERNAL TARGET master/registry)
 PROTOC_GENERATE(INTERNAL TARGET resource_provider/registry)
 PROTOC_GENERATE(INTERNAL TARGET resource_provider/state)
-PROTOC_GENERATE(INTERNAL TARGET resource_provider/storage/disk_profile)
-PROTOC_GENERATE(INTERNAL TARGET csi/state)
+PROTOC_GENERATE(INTERNAL TARGET slave/containerizer/mesos/isolators/network/cni/spec)
+PROTOC_GENERATE(INTERNAL TARGET slave/state)
+
+if (NOT WIN32)
+  PROTOC_GENERATE(INTERNAL TARGET csi/state)
+  PROTOC_GENERATE(INTERNAL TARGET resource_provider/storage/disk_profile)
+  PROTOC_GENERATE(INTERNAL TARGET slave/containerizer/mesos/isolators/docker/volume/state)
+  PROTOC_GENERATE(INTERNAL TARGET slave/containerizer/mesos/provisioner/docker/message)
+  PROTOC_GENERATE(INTERNAL TARGET slave/volume_gid_manager/state)
+endif ()
 
 
 # BUILD PROTOBUFS.
@@ -163,35 +175,35 @@ set(AGENT_SRC
   slave/containerizer/mesos/mount.cpp
   slave/containerizer/mesos/paths.cpp
   slave/containerizer/mesos/io/switchboard.cpp
+  slave/containerizer/mesos/isolators/environment_secret.cpp
+  slave/containerizer/mesos/isolators/filesystem/posix.cpp
   slave/containerizer/mesos/provisioner/backend.cpp
   slave/containerizer/mesos/provisioner/paths.cpp
   slave/containerizer/mesos/provisioner/provisioner.cpp
   slave/containerizer/mesos/provisioner/store.cpp
-  slave/containerizer/mesos/provisioner/appc/cache.cpp
-  slave/containerizer/mesos/provisioner/appc/fetcher.cpp
-  slave/containerizer/mesos/provisioner/appc/paths.cpp
-  slave/containerizer/mesos/provisioner/appc/store.cpp
   slave/containerizer/mesos/provisioner/backends/copy.cpp
-  slave/containerizer/mesos/provisioner/docker/image_tar_puller.cpp
-  slave/containerizer/mesos/provisioner/docker/metadata_manager.cpp
-  slave/containerizer/mesos/provisioner/docker/paths.cpp
-  slave/containerizer/mesos/provisioner/docker/puller.cpp
-  slave/containerizer/mesos/provisioner/docker/registry_puller.cpp
-  slave/containerizer/mesos/provisioner/docker/store.cpp
   slave/resource_estimators/noop.cpp)
 
 if (NOT WIN32)
   list(APPEND AGENT_SRC
     slave/containerizer/mesos/utils.cpp
-    slave/containerizer/mesos/isolators/environment_secret.cpp
     slave/containerizer/mesos/isolators/docker/volume/driver.cpp
     slave/containerizer/mesos/isolators/docker/volume/paths.cpp
-    slave/containerizer/mesos/isolators/filesystem/posix.cpp
     slave/containerizer/mesos/isolators/network/cni/paths.cpp
     slave/containerizer/mesos/isolators/network/cni/spec.cpp
     slave/containerizer/mesos/isolators/posix/disk.cpp
     slave/containerizer/mesos/isolators/posix/rlimits.cpp
     slave/containerizer/mesos/isolators/volume/sandbox_path.cpp
+    slave/containerizer/mesos/provisioner/appc/cache.cpp
+    slave/containerizer/mesos/provisioner/appc/fetcher.cpp
+    slave/containerizer/mesos/provisioner/appc/paths.cpp
+    slave/containerizer/mesos/provisioner/appc/store.cpp
+    slave/containerizer/mesos/provisioner/docker/image_tar_puller.cpp
+    slave/containerizer/mesos/provisioner/docker/metadata_manager.cpp
+    slave/containerizer/mesos/provisioner/docker/paths.cpp
+    slave/containerizer/mesos/provisioner/docker/puller.cpp
+    slave/containerizer/mesos/provisioner/docker/registry_puller.cpp
+    slave/containerizer/mesos/provisioner/docker/store.cpp
     slave/containerizer/mesos/provisioner/utils.cpp
     slave/volume_gid_manager/volume_gid_manager.cpp)
 endif ()
@@ -432,13 +444,13 @@ set(RESOURCE_PROVIDER_SRC
   resource_provider/manager.cpp
   resource_provider/registrar.cpp
   resource_provider/validation.cpp
-  resource_provider/storage/disk_profile_adaptor.cpp
-  resource_provider/storage/disk_profile_utils.cpp)
+  resource_provider/storage/disk_profile_adaptor.cpp)
 
 # NOTE: The storage local resource provider uses Unix domain sockets to talk to
 # CSI plugins, thus it is currently not supported on Windows.
 if (NOT WIN32)
   list(APPEND RESOURCE_PROVIDER_SRC
+    resource_provider/storage/disk_profile_utils.cpp
     resource_provider/storage/provider.cpp)
 endif ()
 
@@ -467,8 +479,12 @@ set(URI_SRC
   uri/utils.cpp
   uri/fetchers/copy.cpp
   uri/fetchers/curl.cpp
-  uri/fetchers/docker.cpp
   uri/fetchers/hadoop.cpp)
+
+if (NOT WIN32)
+  list(APPEND URI_SRC
+    uri/fetchers/docker.cpp)
+endif ()
 
 set(USAGE_SRC
   usage/usage.cpp)
@@ -486,11 +502,11 @@ set(WATCHER_SRC
   watcher/whitelist_watcher.cpp)
 
 set(WIN32_SRC
-  slave/containerizer/mesos/isolators/docker/runtime.cpp
+  # NOTE: Needed for a helper inside slave/paths.cpp.
+  csi/paths.cpp
+
   slave/containerizer/mesos/isolators/windows/cpu.cpp
   slave/containerizer/mesos/isolators/windows/mem.cpp
-  slave/containerizer/mesos/isolators/environment_secret.cpp
-  slave/containerizer/mesos/isolators/filesystem/posix.cpp
   slave/containerizer/mesos/isolators/filesystem/windows.cpp)
 
 set(ZOOKEEPER_SRC
@@ -502,11 +518,9 @@ set(ZOOKEEPER_SRC
 
 set(MESOS_SRC
   ${AGENT_SRC}
-  ${APPC_SRC}
   ${AUTHENTICATION_SRC}
   ${AUTHORIZER_SRC}
   ${COMMON_SRC}
-  ${CSI_SRC}
   ${DOCKER_SRC}
   ${EXECUTOR_SRC}
   ${FILES_SRC}
@@ -518,7 +532,6 @@ set(MESOS_SRC
   ${MASTER_SRC}
   ${MESSAGES_SRC}
   ${MODULE_SRC}
-  ${OCI_SRC}
   ${RESOURCE_PROVIDER_SRC}
   ${SCHEDULER_SRC}
   ${SECRET_SRC}
@@ -533,7 +546,10 @@ set(MESOS_SRC
 
 if (NOT WIN32)
   list(APPEND MESOS_SRC
+    ${APPC_SRC}
+    ${CSI_SRC}
     ${LOG_SRC}
+    ${OCI_SRC}
     ${POSIX_SRC})
 endif ()
 
@@ -629,10 +645,13 @@ add_subdirectory(master)
 add_subdirectory(python/cli_new)
 add_subdirectory(python/executor)
 add_subdirectory(python/scheduler)
-add_subdirectory(resource_provider/storage)
 add_subdirectory(slave)
 add_subdirectory(slave/containerizer/mesos)
 add_subdirectory(usage)
+
+if (NOT WIN32)
+  add_subdirectory(resource_provider/storage)
+endif()
 
 
 # BUILD THE MESOS TESTS.

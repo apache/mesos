@@ -35,7 +35,9 @@
 
 #include <stout/tests/utils.hpp>
 
+#ifndef __WINDOWS__
 #include <mesos/docker/spec.hpp>
+#endif // __WINDOWS__
 
 #include "uri/fetcher.hpp"
 
@@ -49,7 +51,9 @@ namespace http = process::http;
 using std::list;
 using std::string;
 
+#ifndef __WINDOWS__
 using mesos::uri::DockerFetcherPlugin;
+#endif // __WINDOWS__
 
 using process::Future;
 using process::Owned;
@@ -306,6 +310,9 @@ static constexpr char TEST_DIGEST[] = "sha256:a3ed95caeb02ffe68cdd9fd844066"
 #endif // __WINDOWS__
 
 
+// NOTE: Windows images exist and can be fetched, but there is no Windows
+// provisioner in the Mesos containerizer that can use these images.
+#ifndef __WINDOWS__
 class DockerFetcherPluginTest : public TemporaryDirectoryTest {};
 
 
@@ -423,6 +430,7 @@ TEST_F(DockerFetcherPluginTest, DISABLED_INTERNET_CURL_InvokeFetchByName)
             manifest->layers(i).digest())));
   }
 }
+#endif // __WINDOWS__
 
 
 class CopyFetcherPluginTest : public TemporaryDirectoryTest {};

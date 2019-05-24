@@ -27,9 +27,11 @@
 
 #include "slave/containerizer/mesos/provisioner/store.hpp"
 
+#ifndef __WINDOWS__
 #include "slave/containerizer/mesos/provisioner/appc/store.hpp"
 
 #include "slave/containerizer/mesos/provisioner/docker/store.hpp"
+#endif // __WINDOWS__
 
 using std::string;
 using std::vector;
@@ -44,6 +46,13 @@ Try<hashmap<Image::Type, Owned<Store>>> Store::create(
     const Flags& flags,
     SecretResolver* secretResolver)
 {
+#ifdef __WINDOWS__
+  if (!flags.image_providers.isNone()) {
+    return Error("Image stores are not supported on Windows");
+  }
+
+  return hashmap<Image::Type, Owned<Store>>();
+#else
   if (flags.image_providers.isNone()) {
     return hashmap<Image::Type, Owned<Store>>();
   }
@@ -86,6 +95,7 @@ Try<hashmap<Image::Type, Owned<Store>>> Store::create(
   }
 
   return stores;
+#endif // __WINDOWS__
 }
 
 

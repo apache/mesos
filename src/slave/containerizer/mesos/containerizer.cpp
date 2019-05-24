@@ -407,7 +407,6 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 #endif // __WINDOWS__
 
 #ifdef __WINDOWS__
-    {"docker/runtime", &DockerRuntimeIsolatorProcess::create},
     {"windows/cpu", &WindowsCpuIsolatorProcess::create},
     {"windows/mem", &WindowsMemIsolatorProcess::create},
 #endif // __WINDOWS__

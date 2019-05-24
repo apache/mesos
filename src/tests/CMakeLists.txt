@@ -50,7 +50,6 @@ set(MESOS_TESTS_UTILS_SRC
   main.cpp
   master/mock_master_api_subscriber.cpp
   mesos.cpp
-  mock_csi_plugin.cpp
   mock_docker.cpp
   mock_fetcher.cpp
   mock_registrar.cpp
@@ -63,6 +62,7 @@ set(MESOS_TESTS_UTILS_SRC
 if (NOT WIN32)
   list(APPEND MESOS_TESTS_UTILS_SRC
     kill_policy_test_helper.cpp
+    mock_csi_plugin.cpp
     script.cpp
     containerizer/memory_test_helper.cpp)
 endif ()
@@ -91,8 +91,6 @@ set(MESOS_TESTS_SRC
   container_daemon_tests.cpp
   cram_md5_authentication_tests.cpp
   credentials_tests.cpp
-  csi_client_tests.cpp
-  csi_utils_tests.cpp
   default_executor_tests.cpp
   exception_tests.cpp
   executor_http_api_tests.cpp
@@ -162,13 +160,14 @@ list(APPEND MESOS_TESTS_SRC
   containerizer/containerizer_tests.cpp
   containerizer/cpu_isolator_tests.cpp
   containerizer/docker_containerizer_tests.cpp
-  containerizer/docker_spec_tests.cpp
   containerizer/docker_tests.cpp
   containerizer/memory_isolator_tests.cpp)
 
 if (NOT WIN32)
   list(APPEND MESOS_TESTS_SRC
     container_logger_tests.cpp
+    csi_client_tests.cpp
+    csi_utils_tests.cpp
     disk_profile_adaptor_tests.cpp
     disk_quota_tests.cpp
     dynamic_weights_tests.cpp
@@ -204,6 +203,7 @@ if (NOT WIN32)
   list(APPEND MESOS_TESTS_SRC
     containerizer/appc_spec_tests.cpp
     containerizer/composing_containerizer_tests.cpp
+    containerizer/docker_spec_tests.cpp
     containerizer/environment_secret_isolator_tests.cpp
     containerizer/io_switchboard_tests.cpp
     containerizer/isolator_tests.cpp
