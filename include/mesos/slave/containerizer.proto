@@ -243,6 +243,11 @@ message ContainerLaunchInfo {
   // this list will be mounted in order.
   repeated ContainerMountInfo mounts = 17;
 
+  // The set of paths to mask in the container. Files are masked by mounting
+  // `/dev/null` and directories are masked by mounting a zero-sized `tmpfs.
+  // Paths are masked after all other mounts are made.
+  repeated string masked_paths = 21;
+
   // (Linux only) The Seccomp profile for the container.
   // The profile is used to configure syscall filtering via `libseccomp`.
   optional seccomp.ContainerSeccompProfile seccomp_profile = 18;

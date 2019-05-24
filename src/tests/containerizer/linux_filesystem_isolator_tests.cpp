@@ -195,6 +195,62 @@ TEST_F(LinuxFilesystemIsolatorTest, ROOT_PseudoDevicesWithRootFilesystem)
 }
 
 
+// This test verifies that paths can be masked in the container's
+// root filesystem.
+TEST_F(LinuxFilesystemIsolatorTest, ROOT_MaskedPathsWithRootFilesystem)
+{
+  AWAIT_READY(DockerArchive::create(GetRegistryPath(), "test_image"));
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  Fetcher fetcher(flags);
+
+  Try<MesosContainerizer*> create =
+    MesosContainerizer::create(flags, true, &fetcher);
+
+  ASSERT_SOME(create);
+
+  Owned<Containerizer> containerizer(create.get());
+
+  ContainerID containerId;
+  containerId.set_value(id::UUID::random().toString());
+
+  ExecutorInfo executor = createExecutorInfo(
+      "test_executor",
+      "set -x;"
+      // /proc/keys should be a char special because we masked it.
+      "test -c /proc/keys || exit 1;"
+      "test -s /proc/keys && exit 1;"
+      // /proc/scsi/scsi should not exist since we masked /proc/scsi.
+      "test -d /proc/scsi/scsi && exit 1;"
+      // Verify masked paths are read-only.
+      "mkdir /proc/scsi/foo && exit 1;"
+      "dd if=/dev/zero of=/proc/keys count=1;"
+      "test -c /proc/keys || exit 1;"
+      "exit 0");
+
+  executor.mutable_container()->CopyFrom(createContainerInfo("test_image"));
+
+  string directory = path::join(flags.work_dir, "sandbox");
+  ASSERT_SOME(os::mkdir(directory));
+
+  Future<Containerizer::LaunchResult> launch = containerizer->launch(
+      containerId,
+      createContainerConfig(None(), executor, directory),
+      map<string, string>(),
+      None());
+
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
+
+  Future<Option<ContainerTermination>> wait = containerizer->wait(containerId);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait->get().has_status());
+  EXPECT_WEXITSTATUS_EQ(0, wait->get().status());
+}
+
+
 // This test verifies that the metrics about the number of executors
 // that have root filesystem specified is correctly reported.
 TEST_F(LinuxFilesystemIsolatorTest, ROOT_Metrics)

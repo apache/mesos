@@ -154,6 +154,21 @@ static const ContainerMountInfo ROOTFS_CONTAINER_MOUNTS[] = {
 };
 
 
+static const vector<string> ROOTFS_MASKED_PATHS = {
+  "/proc/acpi",
+  "/proc/asound",
+  "/proc/kcore",
+  "/proc/keys",
+  "/proc/key-users",
+  "/proc/latency_stats",
+  "/proc/sched_debug",
+  "/proc/scsi",
+  "/proc/timer_list",
+  "/proc/timer_stats",
+  "/sys/firmware",
+};
+
+
 static Try<Nothing> makeStandardDevices(
     const string& devicesDir,
     const string& rootDir,
@@ -451,6 +466,44 @@ static Try<Nothing> ensureAllowDevices(const string& _targetDir)
 }
 
 
+// We define a container is privileged if it is sharing the PID
+// namespace with the host. For nested containers, we walk up
+// the tree and verify it is shared all the way up to the root.
+static Try<bool> isPrivilegedContainer(
+    const string runtimeDir,
+    const ContainerID& containerId,
+    const ContainerConfig& containerConfig)
+{
+  if (!containerConfig.container_info().linux_info().share_pid_namespace()) {
+    return false;
+  }
+
+  CHECK(containerConfig.container_info().linux_info().share_pid_namespace());
+
+  // If we are a root container, we are privileged because we share
+  // the host's PID namespace.
+  if (!containerId.has_parent()) {
+    return true;
+  }
+
+  // If we are a nested container, we have to walk up the container tree.
+  ContainerID parentId = containerId.parent();
+  Result<ContainerConfig> parentConfig =
+    containerizer::paths::getContainerConfig(runtimeDir, parentId);
+
+  if (parentConfig.isNone()) {
+    return Error(
+        "Failed to find config for parent container " + stringify(parentId));
+  }
+
+  if (parentConfig.isError()) {
+    return Error(parentConfig.error());
+  }
+
+  return isPrivilegedContainer(runtimeDir, parentId, parentConfig.get());
+}
+
+
 Try<Isolator*> LinuxFilesystemIsolatorProcess::create(
     const Flags& flags,
     VolumeGidManager* volumeGidManager)
@@ -744,6 +797,20 @@ Future<Option<ContainerLaunchInfo>> LinuxFilesystemIsolatorProcess::prepare(
 
     *launchInfo.add_mounts() = createContainerMount(
         containerConfig.directory(), sandbox, MS_BIND | MS_REC);
+
+    Try<bool> privileged =
+      isPrivilegedContainer(flags.runtime_dir, containerId, containerConfig);
+    if (privileged.isError()) {
+      return Failure(privileged.error());
+    }
+
+    // Apply container path masking for non-privileged containers.
+    if (!privileged.get()) {
+      foreach (const string& path, ROOTFS_MASKED_PATHS) {
+        launchInfo.add_masked_paths(
+            path::join(containerConfig.rootfs(), path));
+      }
+    }
   }
 
   // Currently, we only need to update resources for top level containers.

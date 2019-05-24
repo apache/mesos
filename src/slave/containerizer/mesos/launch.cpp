@@ -452,6 +452,26 @@ static Try<Nothing> prepareMounts(const ContainerLaunchInfo& launchInfo)
 }
 
 
+static Try<Nothing> maskPath(const string& target)
+{
+  Try<Nothing> mnt = Nothing();
+
+#ifdef __linux__
+  if (os::stat::isfile(target)) {
+    mnt = fs::mount("/dev/null", target, None(), MS_BIND | MS_RDONLY, None());
+  } else if (os::stat::isdir(target)) {
+    mnt = fs::mount(None(), target, "tmpfs", MS_RDONLY, "size=0");
+  }
+#endif // __linux__
+
+  if (mnt.isError()) {
+    return Error("Failed to mask '" + target + "': " + mnt.error());
+  }
+
+  return Nothing();
+}
+
+
 static Try<Nothing> installResourceLimits(const RLimitInfo& limits)
 {
 #ifdef __WINDOWS__
@@ -742,6 +762,14 @@ int MesosContainerizerLaunch::execute()
   if (mount.isError()) {
     cerr << "Failed to prepare mounts: " << mount.error() << endl;
     exitWithStatus(EXIT_FAILURE);
+  }
+
+  foreach (const string& target, launchInfo.masked_paths()) {
+    mount = maskPath(target);
+    if (mount.isError()) {
+      cerr << "Failed to mask container paths: " << mount.error() << endl;
+      exitWithStatus(EXIT_FAILURE);
+    }
   }
 
   // Run additional preparation commands. These are run as the same
