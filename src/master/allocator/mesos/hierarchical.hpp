@@ -119,13 +119,13 @@ struct Role
 
   // Configured guaranteed resource quantities for this role.
   // By default, a role has no guarantee.
-  ResourceQuantities quotaGuarantee;
+  ResourceQuantities quotaGuarantees;
 
   bool isEmpty() const
   {
     return frameworks.empty() &&
            reservationScalarQuantities.empty() &&
-           quotaGuarantee.empty();
+           quotaGuarantees.empty();
   }
 };
 
