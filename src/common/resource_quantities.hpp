@@ -218,6 +218,8 @@ public:
 
   size_t size() const { return limits.size(); };
 
+  bool empty() const { return limits.empty(); }
+
   // Returns the limit of the resource with the given name.
   // If there is no explicit limit for the resource, return `None()`.
   // Note, `None()` implies that the limit of the resource is infinite.
