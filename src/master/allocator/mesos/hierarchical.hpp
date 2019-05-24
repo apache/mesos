@@ -117,15 +117,17 @@ struct Role
   // Note that non-scalar resources, such as ports, are excluded.
   ResourceQuantities reservationScalarQuantities;
 
-  // Configured guaranteed resource quantities for this role.
-  // By default, a role has no guarantee.
+  // Configured guaranteed resource quantities and resource limits for
+  // this role. By default, a role has no guarantee and no limit.
   ResourceQuantities quotaGuarantees;
+  ResourceLimits quotaLimits;
 
   bool isEmpty() const
   {
     return frameworks.empty() &&
            reservationScalarQuantities.empty() &&
-           quotaGuarantees.empty();
+           quotaGuarantees.empty() &&
+           quotaLimits.empty();
   }
 };
 
@@ -617,7 +619,7 @@ protected:
   // Factory function for framework sorters.
   const std::function<Sorter*()> frameworkSorterFactory;
 
-  // By default, roles have empty quota guarantees.
+  // By default, roles have empty quota guarantees and limits.
   //
   // We keep this in memory so that roles that are absent in the `roles` map
   // could also keep their quota state in memory.
@@ -625,6 +627,7 @@ protected:
   // TODO(mzhu): remove this once we have proper role life cycle management
   // such that every role would have an entry in the `roles` map.
   const ResourceQuantities defaultQuotaGuarantees;
+  const ResourceLimits defaultQuotaLimits;
 
 private:
   bool isFrameworkTrackedUnderRole(
@@ -632,6 +635,7 @@ private:
       const std::string& role) const;
 
   const ResourceQuantities& getGuarantees(const std::string& role) const;
+  const ResourceLimits& getLimits(const std::string& role) const;
 
   void trackFrameworkUnderRole(
       const FrameworkID& frameworkId,

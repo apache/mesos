@@ -1409,10 +1409,19 @@ void HierarchicalAllocatorProcess::setQuota(
   // the role is not set. Setting quota differs from updating it because
   // the former moves the role to a different allocation group with a
   // dedicated sorter, while the later just updates the actual quota.
-  CHECK(getGuarantees(role).empty());
+  CHECK(getGuarantees(role).empty() && getLimits(role).empty());
 
-  // Persist quota in memory and add the role into the corresponding
-  // allocation group.
+  // In the legacy `SetQuota` call, quota guarantee also acts as quota limits.
+  //
+  // Note, quota has been validated to have no duplicate resource names.
+  roles[role].quotaLimits = [&]() {
+    google::protobuf::Map<string, Value::Scalar> limits;
+    foreach (const Resource& r, quota.info.guarantee()) {
+      limits[r.name()] = r.scalar();
+    }
+    return ResourceLimits(limits);
+  }();
+
   roles[role].quotaGuarantees =
     ResourceQuantities::fromScalarResources(quota.info.guarantee());
 
@@ -1437,7 +1446,7 @@ void HierarchicalAllocatorProcess::removeQuota(
   CHECK(initialized);
 
   // Do not allow removing quota if it is not set.
-  CHECK(!getGuarantees(role).empty());
+  CHECK(!getGuarantees(role).empty() || !getLimits(role).empty());
 
   Role& r = roles.at(role);
 
@@ -1445,8 +1454,8 @@ void HierarchicalAllocatorProcess::removeQuota(
   LOG(INFO) << "Removed quota " << r.quotaGuarantees
             << " for role '" << role << "'";
 
-  // Remove the role from the quota'ed allocation group.
   r.quotaGuarantees = ResourceQuantities();
+  r.quotaLimits = ResourceLimits();
   if (r.isEmpty()) {
     roles.erase(role);
   }
@@ -1683,7 +1692,7 @@ void HierarchicalAllocatorProcess::__allocate()
   // Currently, only top level roles can have quota set and thus
   // we only track consumed quota for top level roles.
   foreachpair (const string& role, const Role& r, roles) {
-    if (r.quotaGuarantees.empty()) {
+    if (!r.quotaGuarantees.empty() || !r.quotaLimits.empty()) {
       logHeadroomInfo = true;
       // Note, `reservationScalarQuantities` in `struct role`
       // is hierarchical aware, thus it also includes subrole reservations.
@@ -1700,7 +1709,8 @@ void HierarchicalAllocatorProcess::__allocate()
     const string& topLevelRole = strings::contains(role, "/") ?
       role.substr(0, role.find('/')) : role;
 
-    if (getGuarantees(topLevelRole).empty()) {
+    if (getGuarantees(topLevelRole).empty() &&
+        getLimits(topLevelRole).empty()) {
       continue;
     }
 
@@ -2024,7 +2034,7 @@ void HierarchicalAllocatorProcess::__allocate()
 
     foreach (const string& role, roleSorter->sort()) {
       // In the second allocation stage, we only allocate
-      // for non-quota roles.
+      // to roles with default guarantees (i.e. no guarantees).
       if (!getGuarantees(role).empty()) {
         continue;
       }
@@ -2527,6 +2537,13 @@ const ResourceQuantities& HierarchicalAllocatorProcess::getGuarantees(
 {
   return roles.contains(role) ? roles.at(role).quotaGuarantees
                               : defaultQuotaGuarantees;
+}
+
+
+const ResourceLimits& HierarchicalAllocatorProcess::getLimits(
+    const string& role) const
+{
+  return roles.contains(role) ? roles.at(role).quotaLimits : defaultQuotaLimits;
 }
 
 
