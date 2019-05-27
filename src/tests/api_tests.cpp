@@ -6888,7 +6888,8 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(
 
     // The latest state of this terminated task will not be terminal,
     // because the executor was not given the chance to send the update.
-    EXPECT_EQ(TASK_RUNNING, getState.get_tasks().terminated_tasks(0).state());
+    EXPECT_EQ(
+        v1::TASK_RUNNING, getState.get_tasks().terminated_tasks(0).state());
   }
 }
 
