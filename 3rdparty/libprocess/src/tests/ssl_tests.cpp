@@ -265,14 +265,45 @@ TEST_F(SSLTest, VerifyBadCA)
       {"LIBPROCESS_SSL_ENABLED", "true"},
       {"LIBPROCESS_SSL_KEY_FILE", key_path().string()},
       {"LIBPROCESS_SSL_CERT_FILE", certificate_path().string()},
-      {"LIBPROCESS_SSL_VERIFY_CERT", "true"}});
+      {"LIBPROCESS_SSL_REQUIRE_CERT", "true"}});
   ASSERT_SOME(server);
 
   Try<Subprocess> client = launch_client({
       {"LIBPROCESS_SSL_ENABLED", "true"},
       {"LIBPROCESS_SSL_KEY_FILE", scrap_key_path().string()},
       {"LIBPROCESS_SSL_CERT_FILE", scrap_certificate_path().string()},
-      {"LIBPROCESS_SSL_REQUIRE_CERT", "false"}},
+      {"LIBPROCESS_SSL_VERIFY_CERT", "false"}},
+      server.get(),
+      true);
+  ASSERT_SOME(client);
+
+  Future<Socket> socket = server->accept();
+  AWAIT_ASSERT_FAILED(socket);
+
+  AWAIT_ASSERT_READY(await_subprocess(client.get(), None()));
+}
+
+
+// Ensure that a server that attempts to present no certificate at all
+// is NOT allowed to communicate when the LIBPROCESS_SSL_VERIFY_CERT
+// flag is enabled in the client.
+TEST_F(SSLTest, NoAnonymousCipherIfVerify)
+{
+  Try<Socket> server = setup_server({
+      {"LIBPROCESS_SSL_ENABLED", "true"},
+      {"LIBPROCESS_SSL_KEY_FILE", key_path().string()},
+      {"LIBPROCESS_SSL_CERT_FILE", certificate_path().string()},
+      // ADH stands for "Anonymous Diffie-Hellman", and is the only
+      // anonymous cipher supported by OpenSSL out of the box.
+      {"LIBPROCESS_SSL_CIPHERS", "ADH-AES256-SHA"}});
+  ASSERT_SOME(server);
+
+  Try<Subprocess> client = launch_client({
+      {"LIBPROCESS_SSL_ENABLED", "true"},
+      {"LIBPROCESS_SSL_KEY_FILE", key_path().string()},
+      {"LIBPROCESS_SSL_CERT_FILE", certificate_path().string()},
+      {"LIBPROCESS_SSL_VERIFY_CERT", "true"},
+      {"LIBPROCESS_SSL_CIPHERS", "ADH-AES256-SHA"}},
       server.get(),
       true);
   ASSERT_SOME(client);

@@ -71,6 +71,8 @@
 using std::queue;
 using std::string;
 
+using process::network::openssl::Mode;
+
 // Specialization of 'synchronize' to use bufferevent with the
 // 'synchronized' macro.
 static Synchronized<bufferevent> synchronize(bufferevent* bev)
@@ -439,7 +441,9 @@ void LibeventSSLSocketImpl::event_callback(short events)
     // Do post-validation of connection.
     SSL* ssl = bufferevent_openssl_get_ssl(bev);
 
-    Try<Nothing> verify = openssl::verify(ssl, peer_hostname, peer_ip);
+    Try<Nothing> verify = openssl::verify(
+        ssl, Mode::CLIENT, peer_hostname, peer_ip);
+
     if (verify.isError()) {
       VLOG(1) << "Failed connect, verification error: " << verify.error();
       SSL_free(ssl);
@@ -1184,7 +1188,7 @@ void LibeventSSLSocketImpl::accept_SSL_callback(AcceptRequest* request)
           CHECK_NOTNULL(ssl);
 
           Try<Nothing> verify =
-            openssl::verify(ssl, peer_hostname, request->ip);
+            openssl::verify(ssl, Mode::SERVER, peer_hostname, request->ip);
 
           if (verify.isError()) {
             VLOG(1) << "Failed accept, verification error: " << verify.error();

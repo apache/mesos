@@ -64,10 +64,20 @@ void initialize();
 // Returns the _global_ OpenSSL context.
 SSL_CTX* context();
 
+// An enum to track whether a given SSL object is in client or server mode.
+//
+// TODO(bevers): Once the minimum supported OpenSSL version is at least 1.1.1,
+// we can remove this enum and use the `SSL_is_server(ssl)` function instead.
+enum class Mode {
+  CLIENT,
+  SERVER,
+};
+
 // Verify that the hostname is properly associated with the peer
 // certificate associated with the specified SSL connection.
 Try<Nothing> verify(
     const SSL* const ssl,
+    Mode mode,
     const Option<std::string>& hostname = None(),
     const Option<net::IP>& ip = None());
 
