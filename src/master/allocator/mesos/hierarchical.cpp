@@ -43,6 +43,7 @@
 
 #include "common/protobuf_utils.hpp"
 #include "common/resource_quantities.hpp"
+#include "common/resources_utils.hpp"
 
 using std::set;
 using std::string;
@@ -1610,44 +1611,6 @@ void HierarchicalAllocatorProcess::__allocate()
   //
   // TODO(vinod): Implement a smarter sorting algorithm.
   std::random_shuffle(slaveIds.begin(), slaveIds.end());
-
-  // Returns the result of shrinking the provided resources down to the
-  // target resource quantities.
-  //
-  // Note that some resources are indivisible (e.g. MOUNT volume) and
-  // may be excluded in entirety in order to achieve the target size
-  // (this may lead to the result size being smaller than the target size).
-  //
-  // Note also that there may be more than one result that satisfies
-  // the target sizes (e.g. need to exclude 1 of 2 disks); this function
-  // will make a random choice in these cases.
-  auto shrinkResources = [](const Resources& resources,
-                            ResourceQuantities target) {
-    if (target.empty()) {
-      return Resources();
-    }
-
-    google::protobuf::RepeatedPtrField<Resource> resourceVector = resources;
-
-    random_shuffle(resourceVector.begin(), resourceVector.end());
-
-    Resources result;
-    foreach (Resource& resource, resourceVector) {
-      Value::Scalar scalar = target.get(resource.name());
-
-      if (scalar == Value::Scalar()) {
-        // Resource that has zero quantity is dropped (shrunk to zero).
-        continue;
-      }
-
-      if (Resources::shrink(&resource, scalar)) {
-        target -= ResourceQuantities::fromScalarResources(resource);
-        result += std::move(resource);
-      }
-    }
-
-    return result;
-  };
 
   // To enforce quota, we keep track of consumed quota for roles with a
   // non-default quota.

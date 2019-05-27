@@ -25,6 +25,8 @@ using google::protobuf::Descriptor;
 using google::protobuf::Message;
 using google::protobuf::RepeatedPtrField;
 
+using mesos::internal::ResourceQuantities;
+
 namespace mesos {
 
 bool needCheckpointing(const Resource& resource)
@@ -903,5 +905,39 @@ Try<Nothing> downgradeResources(Message* message)
   return internal::convertResourcesImpl(
       message, downgradeResource, resourcesContainment);
 }
+
+
+Resources shrinkResources(const Resources& resources, ResourceQuantities target)
+{
+  if (target.empty()) {
+    return Resources();
+  }
+
+  // TODO(mzhu): Add a `shuffle()` method in `Resources` to avoid this copy.
+  google::protobuf::RepeatedPtrField<Resource> resourceVector = resources;
+
+  random_shuffle(resourceVector.begin(), resourceVector.end());
+
+  Resources result;
+  foreach (Resource& resource, resourceVector) {
+    Value::Scalar scalar = target.get(resource.name());
+
+    if (scalar == Value::Scalar()) {
+      // Resource that has zero quantity is dropped (shrunk to zero).
+      continue;
+    }
+
+    // Target can only be explicitly specified for scalar resources.
+    CHECK_EQ(Value::SCALAR, resource.type()) << " Resources: " << resources;
+
+    if (Resources::shrink(&resource, scalar)) {
+      target -= ResourceQuantities::fromScalarResources(resource);
+      result += std::move(resource);
+    }
+  }
+
+  return result;
+}
+
 
 } // namespace mesos {

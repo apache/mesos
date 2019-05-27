@@ -32,6 +32,8 @@
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 
+#include "resource_quantities.hpp"
+
 namespace mesos {
 
 // Tests if the given Resource needs to be checkpointed on the slave.
@@ -214,6 +216,23 @@ Try<Nothing> downgradeResources(std::vector<Resource>* resources);
 
 
 Try<Nothing> downgradeResources(google::protobuf::Message* message);
+
+
+// Returns the result of shrinking resources down to the target
+// scalar resource quantities. Target quantities can only be explicitly
+// specified for scalar resources. Otherwise a `CHECK` error will occur.
+// Note `ResourceQuantities` has absent-means-zero semantics. This means
+// all non-scalar resources (if any) will be dropped post shrinking.
+//
+// Note that some resources are indivisible (e.g. MOUNT volume) and
+// may be excluded in entirety in order to achieve the target size
+// (this may lead to the result size being smaller than the target size).
+//
+// Note also that there may be more than one result that satisfies
+// the target sizes (e.g. need to exclude 1 of 2 disks); this function
+// will make a random choice in these cases.
+Resources shrinkResources(
+    const Resources& resources, mesos::internal::ResourceQuantities target);
 
 
 } // namespace mesos {
