@@ -66,6 +66,7 @@ using google::protobuf::RepeatedPtrField;
 
 using mesos::authorization::VIEW_ROLE;
 
+using mesos::slave::ContainerFileOperation;
 using mesos::slave::ContainerLimitation;
 using mesos::slave::ContainerMountInfo;
 using mesos::slave::ContainerState;
@@ -1239,6 +1240,20 @@ ContainerMountInfo createContainerMount(
   mnt.set_flags(flags);
 
   return mnt;
+}
+
+
+mesos::slave::ContainerFileOperation containerSymlinkOperation(
+    const std::string& source,
+    const std::string& target)
+{
+  ContainerFileOperation op;
+
+  op.set_operation(ContainerFileOperation::SYMLINK);
+  op.mutable_symlink()->set_source(source);
+  op.mutable_symlink()->set_target(target);
+
+  return op;
 }
 
 } // namespace slave {

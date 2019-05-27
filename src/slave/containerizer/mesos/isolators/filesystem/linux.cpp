@@ -61,6 +61,7 @@ using std::string;
 using std::vector;
 
 using mesos::internal::protobuf::slave::createContainerMount;
+using mesos::internal::protobuf::slave::containerSymlinkOperation;
 
 using mesos::slave::ContainerClass;
 using mesos::slave::ContainerConfig;
@@ -213,13 +214,8 @@ static Try<Nothing> makeStandardDevices(
   };
 
   foreach (const auto& symlink, symlinks) {
-    CommandInfo* ln = launchInfo.add_pre_exec_commands();
-    ln->set_shell(false);
-    ln->set_value("ln");
-    ln->add_arguments("ln");
-    ln->add_arguments("-s");
-    ln->add_arguments(symlink.first);
-    ln->add_arguments(symlink.second);
+    *launchInfo.add_file_operations() =
+      containerSymlinkOperation(symlink.first, symlink.second);
   }
 
   // TODO(idownes): Set up console device.

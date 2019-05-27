@@ -193,6 +193,29 @@ message ContainerMountInfo {
 
 
 /**
+ * Describes a file operation to be applied to the container at
+ * launch time.
+ */
+message ContainerFileOperation {
+  enum Operation {
+    // Create a symlink that points to `source` at `target`.
+    SYMLINK = 1;
+  };
+
+  message Symlink {
+    optional string source = 1;
+    optional string target = 2;
+  }
+
+  optional Operation operation = 1;
+
+  oneof parameters {
+    Symlink symlink = 2;
+  }
+}
+
+
+/**
  * Protobuf returned by Isolator::prepare(). The command is executed
  * by the Launcher in the containerized context.
  * Note: Currently, any URIs or Environment in the CommandInfo will be
@@ -202,7 +225,7 @@ message ContainerMountInfo {
 message ContainerLaunchInfo {
   // The additional preparation commands to execute before
   // executing the command.
-  repeated CommandInfo pre_exec_commands = 1;
+  repeated CommandInfo pre_exec_commands = 1 [deprecated=true];
 
   // The environment set for the container.
   optional Environment environment = 2;
@@ -247,6 +270,10 @@ message ContainerLaunchInfo {
   // `/dev/null` and directories are masked by mounting a zero-sized `tmpfs.
   // Paths are masked after all other mounts are made.
   repeated string masked_paths = 21;
+
+  // The list of filesystem operations to perform after the container
+  // mounts, but before launching the container process.
+  repeated ContainerFileOperation file_operations = 22;
 
   // (Linux only) The Seccomp profile for the container.
   // The profile is used to configure syscall filtering via `libseccomp`.

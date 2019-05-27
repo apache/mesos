@@ -414,6 +414,11 @@ mesos::slave::ContainerMountInfo createContainerMount(
     const std::string& options,
     unsigned long flags);
 
+
+mesos::slave::ContainerFileOperation containerSymlinkOperation(
+    const std::string& source,
+    const std::string& target);
+
 } // namespace slave {
 
 namespace maintenance {

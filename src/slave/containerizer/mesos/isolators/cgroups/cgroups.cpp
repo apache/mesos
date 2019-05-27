@@ -42,6 +42,8 @@
 #include "slave/containerizer/mesos/isolators/cgroups/cgroups.hpp"
 #include "slave/containerizer/mesos/isolators/cgroups/constants.hpp"
 
+using mesos::internal::protobuf::slave::containerSymlinkOperation;
+
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::ContainerLimitation;
@@ -565,18 +567,12 @@ Future<Option<ContainerLaunchInfo>> CgroupsIsolatorProcess::__prepare(
   foreach (const string& hierarchy, subsystems.keys()) {
     if (subsystems.get(hierarchy).size() > 1) {
       foreach (const Owned<Subsystem>& subsystem, subsystems.get(hierarchy)) {
-        CommandInfo* command = launchInfo.add_pre_exec_commands();
-        command->set_shell(false);
-        command->set_value("ln");
-        command->add_arguments("ln");
-        command->add_arguments("-s");
-        command->add_arguments(
-            path::join("/sys/fs/cgroup", Path(hierarchy).basename()));
-
-        command->add_arguments(path::join(
-            containerConfig.rootfs(),
-            "/sys/fs/cgroup",
-            subsystem->name()));
+        *launchInfo.add_file_operations() = containerSymlinkOperation(
+            path::join("/sys/fs/cgroup", Path(hierarchy).basename()),
+            path::join(
+              containerConfig.rootfs(),
+              "/sys/fs/cgroup",
+              subsystem->name()));
       }
     }
   }

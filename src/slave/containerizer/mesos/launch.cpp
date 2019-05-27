@@ -33,6 +33,7 @@
 
 #include <stout/adaptor.hpp>
 #include <stout/foreach.hpp>
+#include <stout/fs.hpp>
 #include <stout/option.hpp>
 #include <stout/os.hpp>
 #include <stout/path.hpp>
@@ -94,6 +95,7 @@ using mesos::internal::capabilities::ProcessCapabilities;
 using mesos::internal::seccomp::SeccompFilter;
 #endif
 
+using mesos::slave::ContainerFileOperation;
 using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::ContainerMountInfo;
 
@@ -472,6 +474,25 @@ static Try<Nothing> maskPath(const string& target)
 }
 
 
+static Try<Nothing> executeFileOperation(const ContainerFileOperation& op)
+{
+  Try<Nothing> result = Nothing();
+
+  switch (op.operation()) {
+    case ContainerFileOperation::SYMLINK:
+      result = ::fs::symlink(op.symlink().source(), op.symlink().target());
+      if (result.isError()) {
+        return Error(
+            "Failed to link '" + op.symlink().source() + "' as '" +
+            op.symlink().target() + "': " + result.error());
+      }
+      break;
+  }
+
+  return result;
+}
+
+
 static Try<Nothing> installResourceLimits(const RLimitInfo& limits)
 {
 #ifdef __WINDOWS__
@@ -768,6 +789,13 @@ int MesosContainerizerLaunch::execute()
     mount = maskPath(target);
     if (mount.isError()) {
       cerr << "Failed to mask container paths: " << mount.error() << endl;
+    }
+  }
+
+  foreach (const ContainerFileOperation& op, launchInfo.file_operations()) {
+    Try<Nothing> result = executeFileOperation(op);
+    if (result.isError()) {
+      cerr << result.error() << endl;
       exitWithStatus(EXIT_FAILURE);
     }
   }
