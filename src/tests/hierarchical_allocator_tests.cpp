@@ -4348,7 +4348,10 @@ TEST_F(HierarchicalAllocatorTest, QuotaAgainstStarvation)
 // have any frameworks currently registered. It also ensures an event-
 // triggered allocation does not unnecessarily deprive non-quota'ed
 // frameworks of resources.
-TEST_F(HierarchicalAllocatorTest, QuotaAbsentFramework)
+//
+// TODO(mzhu): Add a similar test but with only one agent. The test
+// will then verify the agent is "chopped" to maintain the quota headroom.
+TEST_F(HierarchicalAllocatorTest, QuotaAbsentFrameworkWholeAgent)
 {
   // Pausing the clock is not necessary, but ensures that the test
   // doesn't rely on the batch allocation in the allocator, which
@@ -4374,6 +4377,9 @@ TEST_F(HierarchicalAllocatorTest, QuotaAbsentFramework)
   // NOTE: No allocations happen because there are no resources to allocate.
   Clock::settle();
 
+  Resources agentResources =
+    CHECK_NOTERROR(Resources::parse("cpus:2;mem:1024"));
+
   // Total cluster resources (0 agents): 0.
   // QUOTA_ROLE share = 0 [quota: cpus=2, mem=1024]
   //   no frameworks
@@ -4381,11 +4387,7 @@ TEST_F(HierarchicalAllocatorTest, QuotaAbsentFramework)
   //   framework share = 0
 
   // Each `addSlave()` triggers an event-based allocation.
-  //
-  // NOTE: The second event-based allocation for `agent2` takes into account
-  // that `agent1`'s resources are laid away for `QUOTA_ROLE`'s quota and
-  // hence freely allocates for the non-quota'ed `NO_QUOTA_ROLE` role.
-  SlaveInfo agent1 = createSlaveInfo("cpus:2;mem:1024;disk:0");
+  SlaveInfo agent1 = createSlaveInfo(agentResources);
   allocator->addSlave(
       agent1.id(),
       agent1,
@@ -4394,7 +4396,14 @@ TEST_F(HierarchicalAllocatorTest, QuotaAbsentFramework)
       agent1.resources(),
       {});
 
-  SlaveInfo agent2 = createSlaveInfo("cpus:1;mem:512;disk:0");
+  Future<Allocation> allocation = allocations.get();
+
+  // `framework` won't get any allocation because all of the agent1's resources
+  // are set aside to satisfy `QUOTA_ROLE` role's quota guarantee (even though
+  // there is no framework under the role).
+  EXPECT_TRUE(allocation.isPending());
+
+  SlaveInfo agent2 = createSlaveInfo(agentResources);
   allocator->addSlave(
       agent2.id(),
       agent2,
@@ -4403,29 +4412,18 @@ TEST_F(HierarchicalAllocatorTest, QuotaAbsentFramework)
       agent2.resources(),
       {});
 
-  // `framework` can only be allocated resources on `agent2`. This
-  // is due to the coarse-grained nature of the allocations. All the
-  // free resources on `agent1` would be considered to construct an
-  // offer, and that would exceed the resources allowed to be offered
-  // to the non-quota'ed role.
-  //
-  // NOTE: We would prefer to test that, without the presence of
-  // `agent2`, `framework` is not allocated anything. However, we
-  // can't easily test for the absence of an allocation from the
-  // framework side, so we make due with this instead.
+  // `agent1` and `agent2` have identical resources. One of them
+  // will be allocated. The other agent will be set aside for `QUOTA_ROLE`
+  // quota guarantee.
+  AWAIT_READY(allocation);
 
-  Allocation expected = Allocation(
-      framework.id(),
-      {{NO_QUOTA_ROLE, {{agent2.id(), agent2.resources()}}}});
+  ASSERT_EQ(allocation->frameworkId, framework.id());
+  ASSERT_EQ(1u, allocation->resources.size());
+  ASSERT_TRUE(allocation->resources.contains(NO_QUOTA_ROLE));
 
-  AWAIT_EXPECT_EQ(expected, allocations.get());
-
-  // Total cluster resources (2 agents): cpus=3, mem=1536.
-  // QUOTA_ROLE share = 0 [quota: cpus=2, mem=1024], but
-  //                    (cpus=2, mem=1024) are laid away
-  //   no frameworks
-  // NO_QUOTA_ROLE share = 0.33
-  //   framework share = 1 (cpus=1, mem=512)
+  agentResources.allocate(NO_QUOTA_ROLE);
+  EXPECT_EQ(
+      agentResources, Resources::sum(allocation->resources.at(NO_QUOTA_ROLE)));
 }
 
 
