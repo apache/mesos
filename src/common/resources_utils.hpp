@@ -218,11 +218,19 @@ Try<Nothing> downgradeResources(std::vector<Resource>* resources);
 Try<Nothing> downgradeResources(google::protobuf::Message* message);
 
 
-// Returns the result of shrinking resources down to the target
-// scalar resource quantities. Target quantities can only be explicitly
-// specified for scalar resources. Otherwise a `CHECK` error will occur.
-// Note `ResourceQuantities` has absent-means-zero semantics. This means
-// all non-scalar resources (if any) will be dropped post shrinking.
+// These two functions shrink resources down to the target scalar resource
+// quantities or limits respectively. Target can only be specified for
+// scalar resources. Otherwise a `CHECK` error will occur.
+//
+// The primary difference between these two shrink functions is about resources
+// that have no quantity/limit specified in the `target`:
+//
+// - If the target is `ResourceQuantities`, due to its absent-means-zero
+//   semantic, such resources will the dropped i.e. shrink down to zero.
+//
+// - If the target is `ResourceLimits`, due to its absent-means-infinite
+//   semantic, such resources will be kept as-is in the result since it
+//   is already below the (infinite) limit.
 //
 // Note that some resources are indivisible (e.g. MOUNT volume) and
 // may be excluded in entirety in order to achieve the target size
@@ -233,6 +241,8 @@ Try<Nothing> downgradeResources(google::protobuf::Message* message);
 // will make a random choice in these cases.
 Resources shrinkResources(
     const Resources& resources, mesos::internal::ResourceQuantities target);
+Resources shrinkResources(
+    const Resources& resources, mesos::internal::ResourceLimits target);
 
 
 } // namespace mesos {

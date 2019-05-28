@@ -25,6 +25,7 @@ using google::protobuf::Descriptor;
 using google::protobuf::Message;
 using google::protobuf::RepeatedPtrField;
 
+using mesos::internal::ResourceLimits;
 using mesos::internal::ResourceQuantities;
 
 namespace mesos {
@@ -931,6 +932,40 @@ Resources shrinkResources(const Resources& resources, ResourceQuantities target)
     CHECK_EQ(Value::SCALAR, resource.type()) << " Resources: " << resources;
 
     if (Resources::shrink(&resource, scalar)) {
+      target -= ResourceQuantities::fromScalarResources(resource);
+      result += std::move(resource);
+    }
+  }
+
+  return result;
+}
+
+
+Resources shrinkResources(const Resources& resources, ResourceLimits target)
+{
+  if (target.empty()) {
+    return resources;
+  }
+
+  // TODO(mzhu): Add a `shuffle()` method in `Resources` to avoid this copy.
+  google::protobuf::RepeatedPtrField<Resource> resourceVector = resources;
+
+  random_shuffle(resourceVector.begin(), resourceVector.end());
+
+  Resources result;
+  foreach (Resource resource, resourceVector) {
+    Option<Value::Scalar> limit = target.get(resource.name());
+
+    if (limit.isNone()) {
+      // Resource that has infinite limit is kept as is.
+      result += std::move(resource);
+      continue;
+    }
+
+    // Target can only be explicitly specified for scalar resources.
+    CHECK_EQ(Value::SCALAR, resource.type()) << " Resources: " << resources;
+
+    if (Resources::shrink(&resource, *limit)) {
       target -= ResourceQuantities::fromScalarResources(resource);
       result += std::move(resource);
     }
