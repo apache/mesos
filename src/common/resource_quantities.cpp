@@ -505,6 +505,18 @@ bool ResourceLimits::contains(const ResourceLimits& right) const
 }
 
 
+bool ResourceLimits::operator==(const ResourceLimits& that) const
+{
+  return limits == that.limits;
+}
+
+
+bool ResourceLimits::operator!=(const ResourceLimits& that) const
+{
+  return limits != that.limits;
+}
+
+
 bool ResourceLimits::contains(const ResourceQuantities& quantities) const
 {
   foreachpair (const string& name, const Value::Scalar& quantity, quantities) {

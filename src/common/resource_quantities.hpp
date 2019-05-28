@@ -233,6 +233,9 @@ public:
   //    `[("cpu":1)]` will not contain `[("cpu":2)]`.
   bool contains(const ResourceLimits& right) const;
 
+  bool operator==(const ResourceLimits& limits) const;
+  bool operator!=(const ResourceLimits& limits) const;
+
   bool contains(const ResourceQuantities& quantities) const;
 
 private:
