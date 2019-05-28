@@ -1881,10 +1881,10 @@ void HierarchicalAllocatorProcess::__allocate()
         Resources unreserved = available.nonRevocable().unreserved();
 
         // First, allocate resources up to a role's quota guarantee.
-        Resources newQuotaAllocation =
+        Resources newGuaranteeAllocation =
           shrinkResources(unreserved, unsatisfiedQuotaGuarantees);
 
-        toAllocate += newQuotaAllocation;
+        toAllocate += newGuaranteeAllocation;
 
         // We only include the non-quota guarantee resources (with headroom
         // taken into account) if this role is getting any other resources
@@ -1948,8 +1948,8 @@ void HierarchicalAllocatorProcess::__allocate()
         // role's guarantee should be subtracted. Allocation of reserved
         // resources or resources that this role has unset guarantee do not
         // affect `requiredHeadroom`.
-        requiredHeadroom -=
-          ResourceQuantities::fromScalarResources(newQuotaAllocation.scalars());
+        requiredHeadroom -= ResourceQuantities::fromScalarResources(
+            newGuaranteeAllocation.scalars());
 
         // `availableHeadroom` counts total unreserved non-revocable resources
         // in the cluster.
