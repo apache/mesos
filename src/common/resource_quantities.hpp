@@ -29,6 +29,9 @@
 namespace mesos {
 namespace internal {
 
+// Forward declaration.
+class ResourceLimits;
+
 
 // An efficient collection of resource quantities. All values are guaranteed
 // to be positive and finite.
@@ -144,6 +147,8 @@ public:
   ResourceQuantities operator-(const ResourceQuantities& quantities) const;
 
 private:
+  friend class ResourceLimits;
+
   void add(const std::string& name, const Value::Scalar& scalar);
   void add(const std::string& name, double value);
 
@@ -237,6 +242,9 @@ public:
   bool operator!=(const ResourceLimits& limits) const;
 
   bool contains(const ResourceQuantities& quantities) const;
+
+  ResourceLimits& operator-=(const ResourceQuantities& quantities);
+  ResourceLimits operator-(const ResourceQuantities& quantities) const;
 
 private:
   // Set the limit of the resource with `name` to `scalar`.

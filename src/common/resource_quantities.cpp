@@ -517,6 +517,7 @@ bool ResourceLimits::operator!=(const ResourceLimits& that) const
 }
 
 
+// TODO(mzhu): Given the friendship, optimize this to be one pass.
 bool ResourceLimits::contains(const ResourceQuantities& quantities) const
 {
   foreachpair (const string& name, const Value::Scalar& quantity, quantities) {
@@ -528,6 +529,49 @@ bool ResourceLimits::contains(const ResourceQuantities& quantities) const
   }
 
   return true;
+}
+
+
+ResourceLimits& ResourceLimits::operator-=(const ResourceQuantities& quantities)
+{
+  size_t limitsIndex = 0u;
+  size_t quantitiesIndex = 0u;
+
+  // Since both limits and quantities are sorted in alphabetical order, we can
+  // walk them at the same time.
+  while (limitsIndex < size() && quantitiesIndex < quantities.size()) {
+    pair<string, Value::Scalar>& limit = limits.at(limitsIndex);
+    const pair<string, Value::Scalar>& quantity =
+      quantities.quantities.at(quantitiesIndex);
+
+    if (limit.first < quantity.first) {
+      // Item exists in limits but not in quantities i.e.
+      // finite limit minus zero quantity.
+      ++limitsIndex;
+    } else if (limit.first > quantity.first) {
+      // Item exists in quantities but not in limits i.e.
+      // infinite limit minus finite quantity.
+      ++quantitiesIndex;
+    } else {
+      // Item exists in both limits and quantities i.e.
+      // finite limits minus finite quantity.
+      limit.second = std::max(limit.second - quantity.second,
+                              Value::Scalar());
+      ++limitsIndex;
+      ++quantitiesIndex;
+    }
+  }
+
+  return *this;
+}
+
+
+ResourceLimits ResourceLimits::operator-(
+    const ResourceQuantities& quantities) const
+{
+  ResourceLimits result = *this;
+  result -= quantities;
+  return result;
 }
 
 
