@@ -18,6 +18,7 @@ Release Notes - Mesos - Version 1.8.1 (WIP)
 ** Bug
   * [MESOS-9616] - `Filters.refuse_seconds` declines resources not in offers.
   * [MESOS-9695] - Remove the duplicate pid check in Docker containerizer
+  * [MESOS-9750] - Agent V1 GET_STATE response may report a complete executor's tasks as non-terminal after a graceful agent shutdown.
   * [MESOS-9766] - /__processes__ endpoint can hang.
   * [MESOS-9779] - `UPDATE_RESOURCE_PROVIDER_CONFIG` agent call returns 404 ambiguously.
   * [MESOS-9782] - Random sorter fails to clear removed clients.
@@ -440,6 +441,7 @@ Release Notes - Mesos - Version 1.7.3 (WIP)
   * [MESOS-9692] - Quota may be under allocated for disk resources.
   * [MESOS-9695] - Remove the duplicate pid check in Docker containerizer
   * [MESOS-9707] - Calling link::lo() may cause runtime error
+  * [MESOS-9750] - Agent V1 GET_STATE response may report a complete executor's tasks as non-terminal after a graceful agent shutdown.
   * [MESOS-9766] - /__processes__ endpoint can hang.
   * [MESOS-9786] - Race between two REMOVE_QUOTA calls crashes the master.
   * [MESOS-9787] - Log slow SSL (TLS) peer reverse DNS lookup.
