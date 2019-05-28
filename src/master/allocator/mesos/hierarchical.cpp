@@ -1898,18 +1898,15 @@ void HierarchicalAllocatorProcess::__allocate()
         // Second, allocate scalar resources with unset quota while maintaining
         // the quota headroom.
 
-        Resources nonQuotaGuaranteeResources =
+        Resources noGuaranteeScalarResources =
           unreserved.filter([&](const Resource& resource) {
-            return quotaGuarantees.get(resource.name()) == Value::Scalar();
+            return resource.type() == Value::SCALAR &&
+                   quotaGuarantees.get(resource.name()) == Value::Scalar();
           });
 
-        ResourceQuantities surplusHeadroom =
-          availableHeadroom - requiredHeadroom;
-
-        nonQuotaGuaranteeResources =
-          shrinkResources(nonQuotaGuaranteeResources, surplusHeadroom);
-
-        toAllocate += nonQuotaGuaranteeResources;
+        // surplusHeadroom = availableHeadroom - requiredHeadroom;
+        toAllocate += shrinkResources(
+            noGuaranteeScalarResources, availableHeadroom - requiredHeadroom);
 
         // Lastly, allocate non-scalar resources--we currently do not support
         // setting quota for non-scalar resources. They are always allocated
