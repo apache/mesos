@@ -52,17 +52,16 @@ namespace allocator {
 // can typedef an instantiation of it with DRF sorters.
 template <
     typename RoleSorter,
-    typename FrameworkSorter,
-    typename QuotaRoleSorter>
+    typename FrameworkSorter>
 class HierarchicalAllocatorProcess;
 
-typedef HierarchicalAllocatorProcess<DRFSorter, DRFSorter, DRFSorter>
+typedef HierarchicalAllocatorProcess<DRFSorter, DRFSorter>
 HierarchicalDRFAllocatorProcess;
 
 typedef MesosAllocator<HierarchicalDRFAllocatorProcess>
 HierarchicalDRFAllocator;
 
-typedef HierarchicalAllocatorProcess<RandomSorter, RandomSorter, RandomSorter>
+typedef HierarchicalAllocatorProcess<RandomSorter, RandomSorter>
 HierarchicalRandomAllocatorProcess;
 
 typedef MesosAllocator<HierarchicalRandomAllocatorProcess>
@@ -290,14 +289,12 @@ class HierarchicalAllocatorProcess : public MesosAllocatorProcess
 public:
   HierarchicalAllocatorProcess(
       const std::function<Sorter*()>& roleSorterFactory,
-      const std::function<Sorter*()>& _frameworkSorterFactory,
-      const std::function<Sorter*()>& quotaRoleSorterFactory)
+      const std::function<Sorter*()>& _frameworkSorterFactory)
     : initialized(false),
       paused(true),
       metrics(*this),
       completedFrameworkMetrics(0),
       roleSorter(roleSorterFactory()),
-      quotaRoleSorter(quotaRoleSorterFactory()),
       frameworkSorterFactory(_frameworkSorterFactory) {}
 
   ~HierarchicalAllocatorProcess() override {}
@@ -608,25 +605,6 @@ protected:
   // The total cluster resources are used as the resource pool.
   process::Owned<Sorter> roleSorter;
 
-  // TODO(bmahler): Remove this in favor of either using the same sorting
-  // between satisfying guarantees and bursting above guarantees up to
-  // limits, or have a different sorting technique specifically for
-  // satisfying guarantees (e.g. MESOS-8026). This is tech debt from
-  // when a "quota role" was considered different from a "non-quota"
-  // role. However, they are the same, one just has a default quota.
-  //
-  // A dedicated sorter for roles that have a non-default quota.
-  // This sorter determines the order in which guarantees are allocated
-  // during Level 1 of the first stage. Since only non-revocable
-  // resources are available for quota, the total cluster non-revocable
-  // resources are used as the resource pool.
-  //
-  // NOTE: A role appears in `quotaRoleSorter` if it has a non-default
-  // quota (even if no frameworks are currently registered in that role).
-  // In contrast, `roleSorter` only contains entries for roles with one
-  // or more registered frameworks.
-  process::Owned<Sorter> quotaRoleSorter;
-
   // A collection of sorters, one per active role. Each sorter determines
   // the order in which frameworks that belong to the same role are allocated
   // resources inside the role's share. These sorters are used during Level 2
@@ -725,8 +703,7 @@ private:
 // to keep the implementation of the allocator in the implementation file.
 template <
     typename RoleSorter,
-    typename FrameworkSorter,
-    typename QuotaRoleSorter>
+    typename FrameworkSorter>
 class HierarchicalAllocatorProcess
   : public internal::HierarchicalAllocatorProcess
 {
@@ -737,8 +714,7 @@ public:
           [this]() -> Sorter* {
             return new RoleSorter(this->self(), "allocator/mesos/roles/");
           },
-          []() -> Sorter* { return new FrameworkSorter(); },
-          []() -> Sorter* { return new QuotaRoleSorter(); }) {}
+          []() -> Sorter* { return new FrameworkSorter(); }) {}
 };
 
 } // namespace allocator {
