@@ -147,22 +147,22 @@ Flags::Flags()
 
   add(&Flags::enable_tls_v1_0,
       "enable_tls_v1_0",
-      "Enable SSLV1.0.",
+      "Enable TLSv1.0.",
       false);
 
   add(&Flags::enable_tls_v1_1,
       "enable_tls_v1_1",
-      "Enable SSLV1.1.",
+      "Enable TLSv1.1.",
       false);
 
   add(&Flags::enable_tls_v1_2,
       "enable_tls_v1_2",
-      "Enable SSLV1.2.",
+      "Enable TLSv1.2.",
       true);
 
   add(&Flags::enable_tls_v1_3,
       "enable_tls_v1_3",
-      "Enable SSLV1.3.",
+      "Enable TLSv1.3.",
       false);
 }
 
