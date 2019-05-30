@@ -17,6 +17,7 @@
 #ifndef __RESOURCE_PROVIDER_URI_DISK_PROFILE_ADAPTOR_HPP__
 #define __RESOURCE_PROVIDER_URI_DISK_PROFILE_ADAPTOR_HPP__
 
+#include <list>
 #include <string>
 #include <tuple>
 
@@ -224,10 +225,9 @@ public:
 
 private:
   // Helper that is called upon successfully polling and parsing the `--uri`.
-  // This method will check the following conditions before updating the state
-  // of the module:
-  //   * All known profiles must be included in the updated set.
-  //   * All properties of known profiles must match those in the updated set.
+  // This method will validate that the capability and parameters of a known
+  // profile must remain the same. Then, any watcher will be notified if its set
+  // of profiles has been changed.
   void notify(const resource_provider::DiskProfileMapping& parsed);
 
   UriDiskProfileAdaptor::Flags flags;
@@ -247,8 +247,18 @@ private:
   // TODO(josephw): Consider persisting this mapping across agent restarts.
   hashmap<std::string, ProfileRecord> profileMatrix;
 
-  // Will be satisfied whenever `profileMatrix` is changed.
-  process::Owned<process::Promise<Nothing>> watchPromise;
+  struct WatcherData
+  {
+    WatcherData(
+        const hashset<std::string>& _known, const ResourceProviderInfo& _info)
+      : known(_known), info(_info) {}
+
+    hashset<std::string> known;
+    ResourceProviderInfo info;
+    process::Promise<hashset<std::string>> promise;
+  };
+
+  std::vector<WatcherData> watchers;
 };
 
 } // namespace storage {
