@@ -70,7 +70,14 @@ public:
       "The message to send as the client.",
       "Hello World");
 
-    add(&Flags::server, "server", "IP address of server", "127.0.0.1");
+    add(&Flags::server,
+      "server",
+      "IP address of server",
+      "127.0.0.1");
+
+    add(&Flags::server_hostname,
+      "server_hostname",
+      "Hostname of server");
 
     add(&Flags::port, "port", "Port of server", 5050);
   }
@@ -78,6 +85,7 @@ public:
   bool use_ssl;
   string data;
   string server;
+  Option<string> server_hostname;
   uint16_t port;
 };
 
@@ -142,7 +150,7 @@ TEST_F(SSLClientTest, client)
   Try<net::IP> ip = net::IP::parse(flags.server, AF_INET);
   EXPECT_SOME(ip);
 
-  // Connect to the server socket located at `ip:port`.
+  // Connect to the server.
   Address address(ip.get(), flags.port);
   Future<Nothing> connect = [&]() {
     switch(socket.kind()) {
@@ -151,7 +159,7 @@ TEST_F(SSLClientTest, client)
       case SocketImpl::Kind::SSL:
         return socket.connect(
             address,
-            openssl::create_tls_client_config(None()));
+            openssl::create_tls_client_config(flags.server_hostname));
     }
     UNREACHABLE();
   }();
