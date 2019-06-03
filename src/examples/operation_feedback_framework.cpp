@@ -114,6 +114,7 @@ constexpr char FRAMEWORK_METRICS_PREFIX[] = "operation_feedback_framework";
 constexpr char RESERVATIONS_LABEL[] = "operation_feedback_framework_label";
 constexpr Duration RECONCILIATION_INTERVAL = Seconds(30);
 constexpr Duration RESUBSCRIPTION_INTERVAL = Seconds(2);
+constexpr Seconds REFUSE_TIME = Seconds::max();
 
 } // namespace {
 
@@ -161,8 +162,6 @@ constexpr Duration RESUBSCRIPTION_INTERVAL = Seconds(2);
 //
 //  - If the framework is killed or shut down before all reservations have been
 //    unreserved, these left-over reservations require manual cleanup.
-//
-//  - The framework does not currently suppress or revive offers.
 
 class OperationFeedbackScheduler
   : public process::Process<OperationFeedbackScheduler>
@@ -185,6 +184,9 @@ public:
       metrics(*this)
   {
     startTime = Clock::now();
+
+    LOG(INFO) << "Tagging reservations with label {'" << RESERVATIONS_LABEL
+              << "': '" << reservationsLabelValue << "'}";
   }
 
   ~OperationFeedbackScheduler() override {}
@@ -329,6 +331,7 @@ protected:
       call.mutable_framework_id()->CopyFrom(framework.id());
       Call::Accept* accept = call.mutable_accept();
       accept->add_offer_ids()->CopyFrom(offer.id());
+      accept->mutable_filters()->set_refuse_seconds(REFUSE_TIME.secs());
 
       Resources remaining(offer.resources());
       int reservations = 0, launches = 0, unreservations = 0;
@@ -584,6 +587,16 @@ protected:
                   << task->taskInfo.task_id() << "; awaiting launch offer";
 
         task->stage = SchedulerTask::AWAITING_LAUNCH_OFFER;
+
+        LOG(INFO) << "Reviving offers for role '"  << role << "'";
+
+        Call call;
+        call.set_type(Call::REVIVE);
+        call.mutable_framework_id()->CopyFrom(framework.id());
+        call.mutable_revive()->add_roles(role);
+
+        mesos->send(call);
+
         break;
       }
     }
