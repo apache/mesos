@@ -1928,7 +1928,7 @@ TEST(ResourcesTest, ShrinkToQuantities)
   // Repeat the same chopping for 1000 times, expecting the chopping
   // result to be different from the first time at least once.
   const size_t count = 1000u;
-  bool atLeastDifferentOnce;
+  bool atLeastDifferentOnce = false;
 
   for (size_t i = 0; i < count; i++) {
     if (shrink(combinedDisk20, "disk:10") != shrunk10) {
@@ -1994,7 +1994,7 @@ TEST(ResourcesTest, ShrinkToLimits)
   // Repeat the same chopping for 1000 times, expecting the chopping
   // result to be different from the first time at least once.
   const size_t count = 1000u;
-  bool atLeastDifferentOnce;
+  bool atLeastDifferentOnce = false;
 
   for (size_t i = 0; i < count; i++) {
     if (shrink(combinedDisk20, "disk:10") != shrunk10) {

@@ -1639,7 +1639,7 @@ void HierarchicalAllocatorProcess::__allocate()
   //
   // TODO(mzhu): remove this once we can determine if there is any non-default
   // quota set by looking into the allocator memory state in constant time.
-  bool logHeadroomInfo;
+  bool logHeadroomInfo = false;
 
   // We charge a role against its quota by considering its allocation
   // (including all subrole allocations) as well as any unallocated
