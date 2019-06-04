@@ -25,6 +25,8 @@
 
 #include <mesos/quota/quota.hpp>
 
+#include <mesos/resource_quantities.hpp>
+
 #include <process/collect.hpp>
 #include <process/defer.hpp>
 #include <process/future.hpp>
@@ -73,16 +75,19 @@ namespace mesos {
 namespace internal {
 namespace master {
 
-// Represents the tree of roles that have quota. The quota of a child
-// node is "contained" in the quota of its parent node. This has two
+// Represents the tree of roles that have quota. The quota guarantees of a child
+// node is "contained" in the guarantees of its parent node. This has two
 // implications:
 //
-//   (1) The quota of a parent must be greater than or equal to the
-//       sum of the quota of its children.
+//   (1) The quota guarantees of a parent must be greater than or equal to the
+//       sum of the quota guarantees of its children.
 //
 //   (2) When computing the total resources guaranteed by quota, we
 //       don't want to double-count resource guarantees between a
 //       parent role and its children.
+//
+// TODO(mzhu): The above check is only about guarantees. We should extend
+// the check to also cover limits.
 class QuotaTree
 {
 public:
@@ -90,11 +95,11 @@ public:
     : root(new Node(""))
   {
     foreachpair (const string& role, const Quota& quota, quotas) {
-      insert(role, quota);
+      insert(role, Quota2(quota.info));
     }
   }
 
-  void insert(const string& role, const Quota& quota)
+  void insert(const string& role, const Quota2& quota)
   {
     // Create the path from root->leaf in the tree. Any missing nodes
     // are created implicitly.
@@ -110,15 +115,18 @@ public:
       current = current->children.at(component).get();
     }
 
-    // Update `current` with the guaranteed quota resources for this
-    // role. A path in the tree should be associated with at most one
-    // quota guarantee, so the current guarantee should be empty.
-    CHECK(current->quota.info.guarantee().empty());
+    // Update `current` with the configured quota for this role.
+    // A path in the tree should be associated with at most one
+    // quota, so the current quota should be unset (default).
+    CHECK(current->quota == DEFAULT_QUOTA);
     current->quota = quota;
   }
 
-  // Check whether the tree satisfies the "parent >= sum(children)"
-  // constraint described above.
+  // Check whether the tree satisfies:
+  //
+  //   parent guarantees >= sum(children guarantees)
+  //
+  // TODO(mzhu): Add limit check.
   Option<Error> validate() const
   {
     // Don't check the root node because it does not have quota set.
@@ -132,17 +140,17 @@ public:
     return None();
   }
 
-  // Returns the total resources requested by all quotas in the
-  // tree. Since a role's quota must be greater than or equal to the
-  // sum of the quota of its children, we can just sum the quota of
-  // the top-level roles.
-  Resources total() const
+  // Returns the total guaranteed resource quantities requested by
+  // all quotas in the tree. Since a role's guarantees must be greater
+  // than or equal to the sum of the guarantees of its children, we can
+  // just sum the guarantees of the top-level roles.
+  ResourceQuantities totalGuarantees() const
   {
-    Resources result;
+    ResourceQuantities result;
 
     // Don't include the root node because it does not have quota set.
     foreachvalue (const unique_ptr<Node>& child, root->children) {
-      result += child->quota.info.guarantee();
+      result += child->quota.guarantees;
     }
 
     return result;
@@ -162,25 +170,24 @@ private:
         }
       }
 
-      Resources childResources;
+      ResourceQuantities childGuarantees;
       foreachvalue (const unique_ptr<Node>& child, children) {
-        childResources += child->quota.info.guarantee();
+        childGuarantees += child->quota.guarantees;
       }
 
-      Resources selfResources = quota.info.guarantee();
-
-      if (!selfResources.contains(childResources)) {
-        return Error("Invalid quota configuration. Parent role '" +
-                     name + "' with quota " + stringify(selfResources) +
-                     " does not contain the sum of its children's" +
-                     " resources (" + stringify(childResources) + ")");
+      // Check if self guarantees contains sum of children's guarantees.
+      if (!quota.guarantees.contains(childGuarantees)) {
+        return Error("Invalid quota configuration. Parent role '" + name +
+                     "' with guarantees (" + stringify(quota.guarantees) +
+                     ") does not contain the sum of its children's" +
+                     " guarantees (" + stringify(childGuarantees) + ")");
       }
 
       return None();
     }
 
     const string name;
-    Quota quota;
+    Quota2 quota;
     hashmap<string, unique_ptr<Node>> children;
   };
 
@@ -193,24 +200,23 @@ Option<Error> Master::QuotaHandler::overcommitCheck(
     const hashmap<string, Quota>& quotas,
     const QuotaInfo& request)
 {
-  ResourceQuantities totalQuota = ResourceQuantities::fromScalarResources(
-      [&]() {
-        QuotaTree quotaTree({});
+  ResourceQuantities totalGuarantees = [&]() {
+    QuotaTree quotaTree({});
 
-        foreachpair (const string& role, const Quota& quota, quotas) {
-          if (role != request.role()) {
-            quotaTree.insert(role, quota);
-          }
-        }
+    foreachpair (const string& role, const Quota& quota, quotas) {
+      if (role != request.role()) {
+        quotaTree.insert(role, Quota2(quota.info));
+      }
+    }
 
-        quotaTree.insert(request.role(), Quota{request});
+    quotaTree.insert(request.role(), Quota2{request});
 
-        // Hard CHECK since this is already validated earlier
-        // during request validation.
-        CHECK_NONE(quotaTree.validate());
+    // Hard CHECK since this is already validated earlier
+    // during request validation.
+    CHECK_NONE(quotaTree.validate());
 
-        return quotaTree.total();
-      }());
+    return quotaTree.totalGuarantees();
+  }();
 
   // Determine whether quota overcommits the cluster.
   ResourceQuantities capacity;
@@ -220,12 +226,12 @@ Option<Error> Master::QuotaHandler::overcommitCheck(
         agent.nonRevocable().scalars());
   }
 
-  if (!capacity.contains(totalQuota)) {
+  if (!capacity.contains(totalGuarantees)) {
     // TODO(bmahler): Specialize this message based on whether
     // this request leads to the overcommit vs the quota was
     // already overcommitted.
     return Error(
-        "Total quota guarantees '" + stringify(totalQuota) + "'"
+        "Total quota guarantees '" + stringify(totalGuarantees) + "'"
         " exceed cluster capacity '" + stringify(capacity) + "'");
   }
 
@@ -538,11 +544,11 @@ Future<http::Response> Master::QuotaHandler::_set(
 
     foreachpair (const string& role, const Quota& quota, master->quotas) {
       if (role != quotaInfo.role()) {
-        quotaTree.insert(role, quota);
+        quotaTree.insert(role, Quota2(quota.info));
       }
     }
 
-    quotaTree.insert(quotaInfo.role(), Quota{quotaInfo});
+    quotaTree.insert(quotaInfo.role(), Quota2{quotaInfo});
 
     Option<Error> error = quotaTree.validate();
     if (error.isSome()) {
