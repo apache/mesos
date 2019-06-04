@@ -22,6 +22,7 @@
 #include <google/protobuf/repeated_field.h>
 
 #include <mesos/mesos.hpp>
+#include <mesos/resource_quantities.hpp>
 #include <mesos/resources.hpp>
 
 #include <mesos/v1/mesos.hpp>
@@ -31,8 +32,6 @@
 #include <stout/nothing.hpp>
 #include <stout/option.hpp>
 #include <stout/try.hpp>
-
-#include "resource_quantities.hpp"
 
 namespace mesos {
 
@@ -240,9 +239,9 @@ Try<Nothing> downgradeResources(google::protobuf::Message* message);
 // the target sizes (e.g. need to exclude 1 of 2 disks); this function
 // will make a random choice in these cases.
 Resources shrinkResources(
-    const Resources& resources, mesos::internal::ResourceQuantities target);
+    const Resources& resources, ResourceQuantities target);
 Resources shrinkResources(
-    const Resources& resources, mesos::internal::ResourceLimits target);
+    const Resources& resources, ResourceLimits target);
 
 
 } // namespace mesos {

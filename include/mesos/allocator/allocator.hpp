@@ -27,6 +27,7 @@
 
 #include <mesos/quota/quota.hpp>
 
+#include <mesos/resource_quantities.hpp>
 #include <mesos/resources.hpp>
 
 #include <process/future.hpp>
@@ -38,7 +39,6 @@
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 
-#include "common/resource_quantities.hpp"
 
 namespace mesos {
 namespace allocator {
@@ -60,8 +60,7 @@ struct Options
   Option<DomainInfo> domain = None();
 
   // The minimum allocatable resource quantities, if any.
-  Option<std::vector<mesos::internal::ResourceQuantities>>
-    minAllocatableResources = None();
+  Option<std::vector<ResourceQuantities>> minAllocatableResources = None();
 
   size_t maxCompletedFrameworks = 0;
 

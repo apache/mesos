@@ -25,14 +25,13 @@
 
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
+#include <mesos/resource_quantities.hpp>
 #include <mesos/values.hpp>
 
 #include <stout/check.hpp>
 #include <stout/hashmap.hpp>
 #include <stout/hashset.hpp>
 #include <stout/option.hpp>
-
-#include "common/resource_quantities.hpp"
 
 #include "master/allocator/sorter/sorter.hpp"
 

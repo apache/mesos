@@ -24,15 +24,13 @@
 #include <stout/stringify.hpp>
 #include <stout/try.hpp>
 
+#include <mesos/resources.hpp>
+#include <mesos/resource_quantities.hpp>
 #include <mesos/values.hpp>
-
-#include "common/resource_quantities.hpp"
 
 using std::pair;
 using std::string;
 using std::vector;
-
-using mesos::internal::ResourceQuantities;
 
 namespace mesos {
 namespace internal {

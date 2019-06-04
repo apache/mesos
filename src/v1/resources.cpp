@@ -26,6 +26,7 @@
 #include <google/protobuf/repeated_field.h>
 
 #include <mesos/roles.hpp>
+#include <mesos/resource_quantities.hpp>
 
 #include <mesos/v1/mesos.hpp>
 #include <mesos/v1/resources.hpp>
@@ -39,7 +40,6 @@
 #include <stout/strings.hpp>
 #include <stout/unreachable.hpp>
 
-#include "common/resource_quantities.hpp"
 #include "common/resources_utils.hpp"
 
 using std::make_shared;
@@ -52,8 +52,6 @@ using std::string;
 using std::vector;
 
 using google::protobuf::RepeatedPtrField;
-
-using mesos::internal::ResourceQuantities;
 
 namespace mesos {
 namespace v1 {

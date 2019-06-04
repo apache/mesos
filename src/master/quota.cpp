@@ -19,6 +19,7 @@
 #include <string>
 
 #include <mesos/mesos.hpp>
+#include <mesos/resource_quantities.hpp>
 #include <mesos/resources.hpp>
 #include <mesos/roles.hpp>
 #include <mesos/values.hpp>
@@ -27,7 +28,6 @@
 #include <stout/option.hpp>
 #include <stout/set.hpp>
 
-#include "common/resource_quantities.hpp"
 #include "common/resources_utils.hpp"
 #include "common/validation.hpp"
 

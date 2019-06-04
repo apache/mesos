@@ -28,6 +28,7 @@
 #include <google/protobuf/repeated_field.h>
 
 #include <mesos/mesos.hpp>
+#include <mesos/resource_quantities.hpp>
 #include <mesos/type_utils.hpp>
 #include <mesos/values.hpp>
 
@@ -58,8 +59,6 @@ namespace mesos {
 
 // Forward declaration.
 class ResourceConversion;
-
-namespace internal { class ResourceQuantities; }
 
 
 // Helper functions.
@@ -446,8 +445,7 @@ public:
   // quantities are the number of different instances in the range or set.
   // For example, "range:[1-5]" has a quantity of 5 and "set:{a,b}" has a
   // quantity of 2.
-  bool contains(
-      const mesos::internal::ResourceQuantities& quantities) const;
+  bool contains(const ResourceQuantities& quantities) const;
 
   // Count the Resource objects that match the specified value.
   //

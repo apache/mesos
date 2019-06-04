@@ -24,6 +24,7 @@
 
 #include <glog/logging.h>
 
+#include <mesos/resource_quantities.hpp>
 #include <mesos/roles.hpp>
 #include <mesos/type_utils.hpp>
 
@@ -40,7 +41,6 @@
 #include "checks/health_checker.hpp"
 
 #include "common/protobuf_utils.hpp"
-#include "common/resource_quantities.hpp"
 #include "common/validation.hpp"
 
 #include "master/master.hpp"

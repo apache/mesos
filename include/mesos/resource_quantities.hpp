@@ -22,14 +22,15 @@
 #include <vector>
 
 #include <mesos/mesos.hpp>
-#include <mesos/resources.hpp>
 
+#include <stout/hashmap.hpp>
 #include <stout/try.hpp>
 
 namespace mesos {
-namespace internal {
 
 // Forward declaration.
+class Resources;
+
 class ResourceLimits;
 
 
@@ -260,7 +261,6 @@ private:
 std::ostream& operator<<(std::ostream& stream, const ResourceLimits& limits);
 
 
-} // namespace internal {
 } // namespace mesos {
 
 #endif //  __COMMON_RESOURCE_QUANTITIES_HPP__

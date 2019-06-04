@@ -25,9 +25,6 @@ using google::protobuf::Descriptor;
 using google::protobuf::Message;
 using google::protobuf::RepeatedPtrField;
 
-using mesos::internal::ResourceLimits;
-using mesos::internal::ResourceQuantities;
-
 namespace mesos {
 
 bool needCheckpointing(const Resource& resource)

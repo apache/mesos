@@ -18,6 +18,8 @@
 #include <string>
 #include <vector>
 
+#include <mesos/resource_quantities.hpp>
+#include <mesos/resources.hpp>
 #include <mesos/values.hpp>
 
 #include <stout/check.hpp>
@@ -25,15 +27,12 @@
 #include <stout/foreach.hpp>
 #include <stout/numify.hpp>
 
-#include "common/resource_quantities.hpp"
-
 using std::ostream;
 using std::pair;
 using std::string;
 using std::vector;
 
 namespace mesos {
-namespace internal {
 
 // This function tries to be consistent with `Resources::fromSimpleString()`.
 // We trim the whitespace around the pair and in the number but whitespace in
@@ -48,7 +47,7 @@ Try<ResourceQuantities> ResourceQuantities::fromString(const string& text)
       return Error("Failed to parse '" + token + "': missing or extra ':'");
     }
 
-    Try<Value> value = values::parse(pair[1]);
+    Try<Value> value = internal::values::parse(pair[1]);
     if (value.isError()) {
       return Error(
           "Failed to parse '" + pair[1] + "' to quantity: " + value.error());
@@ -363,7 +362,7 @@ Try<ResourceLimits> ResourceLimits::fromString(const string& text)
       return Error("Failed to parse '" + token + "': missing or extra ':'");
     }
 
-    Try<Value> value = values::parse(pair[1]);
+    Try<Value> value = internal::values::parse(pair[1]);
     if (value.isError()) {
       return Error(
           "Failed to parse '" + pair[1] + "' to limit: " + value.error());
@@ -620,5 +619,4 @@ ostream& operator<<(
 }
 
 
-} // namespace internal {
 } // namespace mesos {

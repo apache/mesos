@@ -28,11 +28,11 @@
 #include <stout/json.hpp>
 #include <stout/protobuf.hpp>
 
+#include <mesos/resource_quantities.hpp>
 #include <mesos/resources.hpp>
 
 #include <mesos/v1/resources.hpp>
 
-#include "common/resource_quantities.hpp"
 #include "common/resources_utils.hpp"
 
 #include "internal/evolve.hpp"
@@ -58,9 +58,6 @@ using google::protobuf::RepeatedPtrField;
 using mesos::internal::evolve;
 
 using mesos::internal::protobuf::createLabel;
-
-using mesos::internal::ResourceLimits;
-using mesos::internal::ResourceQuantities;
 
 namespace mesos {
 namespace internal {

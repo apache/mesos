@@ -647,6 +647,7 @@ pkginclude_HEADERS =							\
   $(top_srcdir)/include/mesos/mesos.proto				\
   $(top_srcdir)/include/mesos/module.hpp				\
   $(top_srcdir)/include/mesos/resources.hpp				\
+  $(top_srcdir)/include/mesos/resource_quantities.hpp				\
   $(top_srcdir)/include/mesos/roles.hpp					\
   $(top_srcdir)/include/mesos/scheduler.hpp				\
   $(top_srcdir)/include/mesos/type_utils.hpp				\
@@ -1075,7 +1076,6 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   common/recordio.hpp							\
   common/resources.cpp							\
   common/resource_quantities.cpp					\
-  common/resource_quantities.hpp					\
   common/resources_utils.cpp						\
   common/resources_utils.hpp						\
   common/roles.cpp							\

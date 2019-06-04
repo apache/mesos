@@ -40,8 +40,6 @@
 #include <stout/stopwatch.hpp>
 #include <stout/utils.hpp>
 
-#include "common/resource_quantities.hpp"
-
 #include "master/constants.hpp"
 #include "master/flags.hpp"
 
@@ -62,8 +60,6 @@ using mesos::internal::master::allocator::HierarchicalDRFAllocator;
 using mesos::internal::protobuf::createLabel;
 
 using mesos::internal::slave::AGENT_CAPABILITIES;
-
-using mesos::internal::ResourceQuantities;
 
 using mesos::allocator::Allocator;
 

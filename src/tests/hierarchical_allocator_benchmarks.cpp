@@ -32,8 +32,6 @@
 #include <stout/hashmap.hpp>
 #include <stout/stopwatch.hpp>
 
-#include "common/resource_quantities.hpp"
-
 #include "master/constants.hpp"
 
 #include "master/allocator/mesos/hierarchical.hpp"
@@ -45,8 +43,6 @@ using mesos::internal::master::MIN_CPUS;
 using mesos::internal::master::MIN_MEM;
 
 using mesos::internal::master::allocator::HierarchicalDRFAllocator;
-
-using mesos::internal::ResourceQuantities;
 
 using mesos::internal::slave::AGENT_CAPABILITIES;
 

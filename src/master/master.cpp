@@ -30,6 +30,7 @@
 #include <utility>
 
 #include <mesos/module.hpp>
+#include <mesos/resource_quantities.hpp>
 #include <mesos/roles.hpp>
 
 #include <mesos/authentication/authenticator.hpp>
@@ -80,7 +81,6 @@
 #include "common/build.hpp"
 #include "common/http.hpp"
 #include "common/protobuf_utils.hpp"
-#include "common/resource_quantities.hpp"
 #include "common/status_utils.hpp"
 
 #include "credentials/credentials.hpp"
@@ -149,8 +149,6 @@ using mesos::authorization::VIEW_EXECUTOR;
 using mesos::master::contender::MasterContender;
 
 using mesos::master::detector::MasterDetector;
-
-using mesos::internal::ResourceQuantities;
 
 static bool isValidFailoverTimeout(const FrameworkInfo& frameworkInfo);
 

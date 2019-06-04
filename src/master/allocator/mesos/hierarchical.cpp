@@ -23,6 +23,7 @@
 #include <vector>
 
 #include <mesos/attributes.hpp>
+#include <mesos/resource_quantities.hpp>
 #include <mesos/resources.hpp>
 #include <mesos/roles.hpp>
 #include <mesos/type_utils.hpp>
@@ -42,7 +43,6 @@
 #include <stout/stringify.hpp>
 
 #include "common/protobuf_utils.hpp"
-#include "common/resource_quantities.hpp"
 #include "common/resources_utils.hpp"
 
 using std::set;
