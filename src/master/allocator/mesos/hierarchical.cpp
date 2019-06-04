@@ -1857,10 +1857,19 @@ void HierarchicalAllocatorProcess::__allocate()
         //      the disk, gpu, and ports in the allocation, despite the
         //      role not having any quota guarantee for them.
         //
-        // We have to do this for now because it's not possible to set
-        // quota on non-scalar resources, like ports. For scalar resources
-        // that this role has no quota for, it can be allocated as long
-        // as the quota headroom is not violated.
+        // Rationale of allocating all non-guaranteed resources on the agent
+        // (subject to role limits and global headroom requirements):
+        //
+        // Currently, it is not possible to set quota on non-scalar resources,
+        // like ports. A user may also only choose to set guarantees on some
+        // scalar resources (e.g. on cpu but not on memory). If we do not
+        // allocate these resources together with the guarantees, frameworks
+        // will get non-usable offers (e.g. with no ports or memory).
+        // However, the downside of this approach is that, after one allocation,
+        // the agent will be deprived of some resources (e.g. no ports),
+        // rendering any subsequent offers non-usable. Users are advised to
+        // leverage the `min_allocatbale_resources` to help prevent such offers
+        // and reduce resource fragmentation.
         //
         // TODO(mzhu): Since we're treating the resources with unset
         // quota as having no guarantee and no limit, these should be
