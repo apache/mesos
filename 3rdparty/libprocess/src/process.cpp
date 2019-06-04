@@ -369,13 +369,15 @@ public:
       const Socket& socket,
       Request* request);
 
+  // Returns whether the event was delivered to the destination's
+  // queue. This function takes ownership over `event` and will
+  // delete it if it was not delivered.
   bool deliver(
-      ProcessBase* receiver,
+      ProcessBase* destination,
       Event* event,
       ProcessBase* sender = nullptr);
-
   bool deliver(
-      const UPID& to,
+      const UPID& destination,
       Event* event,
       ProcessBase* sender = nullptr);
 
@@ -424,6 +426,8 @@ public:
   }
 
 private:
+  bool _deliver(ProcessBase* destination, Event* event, ProcessBase* sender);
+
   // Delegate process name to receive root HTTP requests.
   const Option<string> delegate;
 
@@ -1591,7 +1595,7 @@ void SocketManager::link(
           // for the linkee. At this point, we have not passed ownership of
           // this socket to the `SocketManager`, so there is only one possible
           // linkee to notify.
-          process->enqueue(new ExitedEvent(to));
+          process_manager->deliver(process, new ExitedEvent(to));
           return;
         }
         socket = create.get();
@@ -1624,7 +1628,7 @@ void SocketManager::link(
           // for the linkee. At this point, we have not passed ownership of
           // this socket to the `SocketManager`, so there is only one possible
           // linkee to notify.
-          process->enqueue(new ExitedEvent(to));
+          process_manager->deliver(process, new ExitedEvent(to));
           return;
         }
 
@@ -2260,7 +2264,7 @@ void SocketManager::exited(const Address& address)
       CHECK(links.linkers.contains(linkee));
 
       foreach (ProcessBase* linker, links.linkers[linkee]) {
-        linker->enqueue(new ExitedEvent(linkee));
+        process_manager->deliver(linker, new ExitedEvent(linkee));
 
         // Remove the linkee pid from the linker.
         CHECK(links.linkees.contains(linker));
@@ -2327,7 +2331,7 @@ void SocketManager::exited(ProcessBase* process)
     foreach (ProcessBase* linker, links.linkers[pid]) {
       CHECK(linker != process) << "Process linked with itself";
       Clock::update(linker, time);
-      linker->enqueue(new ExitedEvent(pid));
+      process_manager->deliver(linker, new ExitedEvent(pid));
 
       // Remove the linkee pid from the linker.
       CHECK(links.linkees.contains(linker));
@@ -2766,7 +2770,48 @@ void ProcessManager::handle(
 
 
 bool ProcessManager::deliver(
-    ProcessBase* receiver,
+    ProcessBase* destination,
+    Event* event,
+    ProcessBase* sender)
+{
+  CHECK(event != nullptr);
+
+  if (_deliver(destination, event, sender)) {
+    return true;
+  }
+
+  delete event;
+  return false;
+}
+
+
+bool ProcessManager::deliver(
+    const UPID& destination,
+    Event* event,
+    ProcessBase* sender)
+{
+  CHECK(event != nullptr);
+
+  if (ProcessReference reference = use(destination)) {
+    if (_deliver(reference, event, sender)) {
+      return true;
+    }
+  } else {
+    VLOG(2) << "Dropping event for process " << destination;
+  }
+
+  // Note that we must delete the event without holding the
+  // process reference, since deletion of a dispatch event
+  // may invoke other code via destructors of objects bound
+  // into the dispatched function and therefore can lead to
+  // deadlock. An example of such a deadlock is in MESOS-9808.
+  delete event;
+  return false;
+}
+
+
+bool ProcessManager::_deliver(
+    ProcessBase* destination,
     Event* event,
     ProcessBase* sender)
 {
@@ -2780,30 +2825,10 @@ bool ProcessManager::deliver(
   // time).
   if (Clock::paused()) {
     Clock::update(
-        receiver, Clock::now(sender != nullptr ? sender : __process__));
+        destination, Clock::now(sender != nullptr ? sender : __process__));
   }
 
-  receiver->enqueue(event);
-
-  return true;
-}
-
-
-bool ProcessManager::deliver(
-    const UPID& to,
-    Event* event,
-    ProcessBase* sender)
-{
-  CHECK(event != nullptr);
-
-  if (ProcessReference receiver = use(to)) {
-    return deliver(receiver, event, sender);
-  }
-
-  VLOG(2) << "Dropping event for process " << to;
-
-  delete event;
-  return false;
+  return destination->enqueue(event);
 }
 
 
@@ -3141,7 +3166,7 @@ void ProcessManager::link(
     } else {
       // Since the pid isn't valid its process must have already died
       // (or hasn't been spawned yet) so send a process exit message.
-      process->enqueue(new ExitedEvent(to));
+      process_manager->deliver(process, new ExitedEvent(to));
     }
   }
 }
@@ -3158,11 +3183,11 @@ void ProcessManager::terminate(
           process, Clock::now(sender != nullptr ? sender : __process__));
     }
 
-    if (sender != nullptr) {
-      process->enqueue(new TerminateEvent(sender->self(), inject));
-    } else {
-      process->enqueue(new TerminateEvent(UPID(), inject));
-    }
+    process_manager->deliver(
+        process,
+        new TerminateEvent(
+            sender != nullptr ? sender->self() : UPID(),
+            inject));
   }
 }
 
@@ -3500,7 +3525,7 @@ size_t ProcessBase::eventCount<TerminateEvent>()
 }
 
 
-void ProcessBase::enqueue(Event* event)
+bool ProcessBase::enqueue(Event* event)
 {
   CHECK_NOTNULL(event);
 
@@ -3513,15 +3538,27 @@ void ProcessBase::enqueue(Event* event)
     event->is<TerminateEvent>() &&
     event->as<TerminateEvent>().inject;
 
+  bool enqueued = false;
+
   switch (old) {
     case State::BOTTOM:
     case State::READY:
     case State::BLOCKED:
-      events->producer.enqueue(event);
+      enqueued = events->producer.enqueue(event);
       break;
     case State::TERMINATING:
-      delete event;
-      return;
+      break;
+  }
+
+  // NOTE: It's the responsibility of the caller to delete the
+  // undelivered event. This is by design since the destruction
+  // of a dispatch event may invoke other code. Therefore, if
+  // the caller is holding a `ProcessReference` to this process
+  // it must be cleared prior to deleting the dispatch event.
+  if (!enqueued) {
+    // TODO(bmahler): Log the type of event being dropped.
+    VLOG(2) << "Dropping event for TERMINATING process " << pid;
+    return false;
   }
 
   // We need to store terminate _AFTER_ we enqueue the event because
@@ -3547,6 +3584,8 @@ void ProcessBase::enqueue(Event* event)
       process_manager->enqueue(this);
     }
   }
+
+  return true;
 }
 
 

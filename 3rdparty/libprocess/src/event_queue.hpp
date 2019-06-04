@@ -73,7 +73,10 @@ public:
   class Producer
   {
   public:
-    void enqueue(Event* event) { queue->enqueue(event); }
+    // Returns false if not enqueued; this means the queue
+    // is decomissioned. In this case the caller retains
+    // ownership of the event.
+    bool enqueue(Event* event) { return queue->enqueue(event); }
 
   private:
     friend class EventQueue;
@@ -106,19 +109,16 @@ private:
   friend class Consumer;
 
 #ifndef LOCK_FREE_EVENT_QUEUE
-  void enqueue(Event* event)
+  bool enqueue(Event* event)
   {
-    bool enqueued = false;
     synchronized (mutex) {
       if (comissioned) {
         events.push_back(event);
-        enqueued = true;
+        return true;
       }
     }
 
-    if (!enqueued) {
-      delete event;
-    }
+    return false;
   }
 
   Event* dequeue()
@@ -185,13 +185,14 @@ private:
   std::deque<Event*> events;
   bool comissioned = true;
 #else // LOCK_FREE_EVENT_QUEUE
-  void enqueue(Event* event)
+  bool enqueue(Event* event)
   {
     if (comissioned.load()) {
       queue.enqueue(event);
-    } else {
-      delete event;
+      return true;
     }
+
+    return false;
   }
 
   Event* dequeue()
