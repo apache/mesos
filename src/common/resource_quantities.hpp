@@ -257,6 +257,9 @@ private:
 };
 
 
+std::ostream& operator<<(std::ostream& stream, const ResourceLimits& limits);
+
+
 } // namespace internal {
 } // namespace mesos {
 

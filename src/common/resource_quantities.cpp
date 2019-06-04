@@ -350,28 +350,6 @@ void ResourceQuantities::add(const string& name, const double value)
 }
 
 
-ostream& operator<<(
-    ostream& stream,
-    const ResourceQuantities& quantities)
-{
-  if (quantities.begin() == quantities.end()) {
-    stream << "{}";
-    return stream;
-  }
-
-  auto it = quantities.begin();
-
-  while (it != quantities.end()) {
-    stream << it->first << ':' << it->second;
-    if (++it != quantities.end()) {
-      stream << "; ";
-    }
-  }
-
-  return stream;
-}
-
-
 // This function tries to be consistent with `Resources::fromSimpleString()`.
 // We trim the whitespace around the pair and in the number but whitespace in
 // "c p us:10" are preserved and will be parsed to {"c p us", 10}.
@@ -595,6 +573,50 @@ void ResourceLimits::set(
   }
 
   it = limits.insert(it, std::make_pair(name, scalar));
+}
+
+
+ostream& operator<<(
+    ostream& stream,
+    const ResourceQuantities& quantities)
+{
+  if (quantities.begin() == quantities.end()) {
+    stream << "{}";
+    return stream;
+  }
+
+  auto it = quantities.begin();
+
+  while (it != quantities.end()) {
+    stream << it->first << ':' << it->second;
+    if (++it != quantities.end()) {
+      stream << "; ";
+    }
+  }
+
+  return stream;
+}
+
+
+ostream& operator<<(
+    ostream& stream,
+    const ResourceLimits& limits)
+{
+  if (limits.begin() == limits.end()) {
+    stream << "{}";
+    return stream;
+  }
+
+  auto it = limits.begin();
+
+  while (it != limits.end()) {
+    stream << it->first << ':' << it->second;
+    if (++it != limits.end()) {
+      stream << "; ";
+    }
+  }
+
+  return stream;
 }
 
 
