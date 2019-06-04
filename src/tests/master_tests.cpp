@@ -169,14 +169,14 @@ TEST_F(MasterTest, TaskRunning)
 
   // Ensure the hostname and url are set correctly.
   EXPECT_EQ(
-      slave.get()->pid.address.hostname().get(),
+      slave.get()->pid.address.lookup_hostname().get(),
       offers.get()[0].hostname());
 
   mesos::URL url;
   url.set_scheme("http");
   url.mutable_address()->set_ip(stringify(slave.get()->pid.address.ip));
   url.mutable_address()->set_hostname(
-      slave.get()->pid.address.hostname().get());
+      slave.get()->pid.address.lookup_hostname().get());
 
   url.mutable_address()->set_port(slave.get()->pid.address.port);
   url.set_path("/" + slave.get()->pid.id);
@@ -1447,7 +1447,7 @@ TEST_F(HostnameTest, LookupEnabled)
   ASSERT_SOME(master);
 
   EXPECT_EQ(
-      master.get()->pid.address.hostname().get(),
+      master.get()->pid.address.lookup_hostname().get(),
       master.get()->getMasterInfo().hostname());
 }
 
@@ -3642,8 +3642,10 @@ TEST_F(MasterZooKeeperTest, MasterInfoAddress)
 
   // Protect from failures on those hosts where
   // hostname cannot be resolved.
-  if (master.get()->pid.address.hostname().isSome()) {
-    ASSERT_EQ(master.get()->pid.address.hostname().get(), address.hostname());
+  if (master.get()->pid.address.lookup_hostname().isSome()) {
+    ASSERT_EQ(
+        master.get()->pid.address.lookup_hostname().get(),
+        address.hostname());
   }
 
   driver.stop();
