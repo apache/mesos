@@ -642,7 +642,7 @@ Future<http::Response> Master::QuotaHandler::__set(
       // See the top comment in "master/quota.hpp" for why this check is here.
       CHECK(result);
 
-      master->allocator->setQuota(quotaInfo.role(), quota);
+      master->allocator->updateQuota(quotaInfo.role(), Quota2{quota.info});
 
       // Rescind outstanding offers to facilitate satisfying the quota request.
       // NOTE: We set quota before we rescind to avoid a race. If we were to
@@ -764,7 +764,7 @@ Future<http::Response> Master::QuotaHandler::__remove(const string& role) const
       // See the top comment in "master/quota.hpp" for why this check is here.
       CHECK(result);
 
-      master->allocator->removeQuota(role);
+      master->allocator->updateQuota(role, DEFAULT_QUOTA);
 
       return OK();
     }));

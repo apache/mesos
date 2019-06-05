@@ -430,6 +430,9 @@ public:
    *
    * TODO(alexr): Consider adding an `updateQuota()` method which allows
    * updating existing quota.
+   *
+   * TODO(mzhu): Remove this call in favor of `updateQuota`.
+   *
    */
   virtual void setQuota(
       const std::string& role,
@@ -448,9 +451,24 @@ public:
    *
    * TODO(alexr): Consider returning a future which an allocator can fail in
    * order to report failure.
+   *
+   * TODO(mzhu): Remove this call in favor of `updateQuota`.
    */
   virtual void removeQuota(
       const std::string& role) = 0;
+
+  /**
+   * Informs the allocator to update quota for the given role.
+   *
+   * It is up to the allocator implementation how to satisfy quota. An
+   * implementation may employ different strategies for roles with or
+   * without quota. All roles have a default quota defined as `DEFAULT_QUOTA`.
+   * Currently, it is no guarantees and no limits. Thus to "remove" a quota,
+   * one should simply update the quota to be `DEFAULT_QUOTA`.
+   */
+  virtual void updateQuota(
+      const std::string& role,
+      const Quota2& quota) = 0;
 
   /**
    * Updates the weight associated with one or more roles. If a role

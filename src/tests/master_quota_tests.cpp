@@ -39,6 +39,7 @@
 
 #include "common/resources_utils.hpp"
 
+#include "master/constants.hpp"
 #include "master/flags.hpp"
 #include "master/master.hpp"
 
@@ -487,17 +488,15 @@ TEST_F(MasterQuotaTest, RemoveSingleQuota)
     EXPECT_EQ(1, metrics.values[metricKey]);
 
     // Remove the previously requested quota.
-    Future<Nothing> receivedRemoveRequest;
-    EXPECT_CALL(allocator, removeQuota(Eq(ROLE1)))
-      .WillOnce(DoAll(InvokeRemoveQuota(&allocator),
-                      FutureSatisfy(&receivedRemoveRequest)));
+    Future<Nothing> receivedQuotaRequest;
+    EXPECT_CALL(allocator, updateQuota(Eq(ROLE1), Eq(master::DEFAULT_QUOTA)))
+      .WillOnce(DoAll(
+          InvokeUpdateQuota(&allocator), FutureSatisfy(&receivedQuotaRequest)));
 
     response = removeQuota("quota/" + ROLE1);
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
-
-    // Ensure that the quota remove request has reached the allocator.
-    AWAIT_READY(receivedRemoveRequest);
+    AWAIT_READY(receivedQuotaRequest);
 
     // Ensure metrics update is finished.
     Clock::settle();
@@ -840,9 +839,9 @@ TEST_F(MasterQuotaTest, AvailableResourcesSingleAgent)
   EXPECT_TRUE(agentTotalResources->contains(quotaResources));
 
   // Send a quota request for the specified role.
-  Future<Quota> receivedQuotaRequest;
-  EXPECT_CALL(allocator, setQuota(Eq(ROLE1), _))
-    .WillOnce(DoAll(InvokeSetQuota(&allocator),
+  Future<Quota2> receivedQuotaRequest;
+  EXPECT_CALL(allocator, updateQuota(Eq(ROLE1), _))
+    .WillOnce(DoAll(InvokeUpdateQuota(&allocator),
                     FutureArg<1>(&receivedQuotaRequest)));
 
   Future<Response> response = process::http::post(
@@ -857,8 +856,9 @@ TEST_F(MasterQuotaTest, AvailableResourcesSingleAgent)
   // got lost in-between.
   AWAIT_READY(receivedQuotaRequest);
 
-  EXPECT_EQ(ROLE1, receivedQuotaRequest->info.role());
-  EXPECT_EQ(quotaResources, receivedQuotaRequest->info.guarantee());
+  EXPECT_EQ(
+      ResourceQuantities::fromScalarResources(quotaResources),
+      receivedQuotaRequest->guarantees);
 }
 
 
@@ -894,9 +894,9 @@ TEST_F(MasterQuotaTest, AvailableResourcesSingleReservedAgent)
   Resources quotaResources = Resources::parse("cpus:1;mem:512").get();
 
   // Send a quota request for the specified role.
-  Future<Quota> receivedQuotaRequest;
-  EXPECT_CALL(allocator, setQuota(Eq(ROLE1), _))
-    .WillOnce(DoAll(InvokeSetQuota(&allocator),
+  Future<Quota2> receivedQuotaRequest;
+  EXPECT_CALL(allocator, updateQuota(Eq(ROLE1), _))
+    .WillOnce(DoAll(InvokeUpdateQuota(&allocator),
                     FutureArg<1>(&receivedQuotaRequest)));
 
   Future<Response> response = process::http::post(
@@ -911,8 +911,9 @@ TEST_F(MasterQuotaTest, AvailableResourcesSingleReservedAgent)
   // got lost in-between.
   AWAIT_READY(receivedQuotaRequest);
 
-  EXPECT_EQ(ROLE1, receivedQuotaRequest->info.role());
-  EXPECT_EQ(quotaResources, receivedQuotaRequest->info.guarantee());
+  EXPECT_EQ(
+      ResourceQuantities::fromScalarResources(quotaResources),
+      receivedQuotaRequest->guarantees);
 }
 
 
@@ -960,9 +961,9 @@ TEST_F(MasterQuotaTest, AvailableResourcesSingleDisconnectedAgent)
   EXPECT_TRUE(agentTotalResources->contains(quotaResources));
 
   // Send a quota request for the specified role.
-  Future<Quota> receivedQuotaRequest;
-  EXPECT_CALL(allocator, setQuota(Eq(ROLE1), _))
-    .WillOnce(DoAll(InvokeSetQuota(&allocator),
+  Future<Quota2> receivedQuotaRequest;
+  EXPECT_CALL(allocator, updateQuota(Eq(ROLE1), _))
+    .WillOnce(DoAll(InvokeUpdateQuota(&allocator),
                     FutureArg<1>(&receivedQuotaRequest)));
 
   Future<Response> response = process::http::post(
@@ -977,8 +978,9 @@ TEST_F(MasterQuotaTest, AvailableResourcesSingleDisconnectedAgent)
   // got lost in-between.
   AWAIT_READY(receivedQuotaRequest);
 
-  EXPECT_EQ(ROLE1, receivedQuotaRequest->info.role());
-  EXPECT_EQ(quotaResources, receivedQuotaRequest->info.guarantee());
+  EXPECT_EQ(
+      ResourceQuantities::fromScalarResources(quotaResources),
+      receivedQuotaRequest->guarantees);
 }
 
 
@@ -1028,9 +1030,9 @@ TEST_F(MasterQuotaTest, AvailableResourcesMultipleAgents)
     });
 
   // Send a quota request for the specified role.
-  Future<Quota> receivedQuotaRequest;
-  EXPECT_CALL(allocator, setQuota(Eq(ROLE1), _))
-    .WillOnce(DoAll(InvokeSetQuota(&allocator),
+  Future<Quota2> receivedQuotaRequest;
+  EXPECT_CALL(allocator, updateQuota(Eq(ROLE1), _))
+    .WillOnce(DoAll(InvokeUpdateQuota(&allocator),
                     FutureArg<1>(&receivedQuotaRequest)));
 
   Future<Response> response = process::http::post(
@@ -1044,9 +1046,9 @@ TEST_F(MasterQuotaTest, AvailableResourcesMultipleAgents)
   // Quota request is granted and reached the allocator. Make sure nothing
   // got lost in-between.
   AWAIT_READY(receivedQuotaRequest);
-
-  EXPECT_EQ(ROLE1, receivedQuotaRequest->info.role());
-  EXPECT_EQ(quotaResources, receivedQuotaRequest->info.guarantee());
+  EXPECT_EQ(
+      ResourceQuantities::fromScalarResources(quotaResources),
+      receivedQuotaRequest->guarantees);
 }
 
 
@@ -1188,9 +1190,9 @@ TEST_F(MasterQuotaTest, AvailableResourcesAfterRescinding)
     .WillRepeatedly(Return());
 
   // Send a quota request for the specified role.
-  Future<Quota> receivedQuotaRequest;
-  EXPECT_CALL(allocator, setQuota(Eq(ROLE2), _))
-    .WillOnce(DoAll(InvokeSetQuota(&allocator),
+  Future<Quota2> receivedQuotaRequest;
+  EXPECT_CALL(allocator, updateQuota(Eq(ROLE2), _))
+    .WillOnce(DoAll(InvokeUpdateQuota(&allocator),
                     FutureArg<1>(&receivedQuotaRequest)));
 
   Future<Response> response = process::http::post(
@@ -1215,8 +1217,9 @@ TEST_F(MasterQuotaTest, AvailableResourcesAfterRescinding)
   // The quota request is granted and reached the allocator. Make sure nothing
   // got lost in-between.
   AWAIT_READY(receivedQuotaRequest);
-  EXPECT_EQ(ROLE2, receivedQuotaRequest->info.role());
-  EXPECT_EQ(quotaResources, receivedQuotaRequest->info.guarantee());
+  EXPECT_EQ(
+      ResourceQuantities::fromScalarResources(quotaResources),
+      receivedQuotaRequest->guarantees);
 
   // Ensure `RescindResourceOfferMessage`s are processed by `sched1`.
   AWAIT_READY(offerRescinded1);
@@ -1300,10 +1303,10 @@ TEST_F(MasterQuotaTest, RecoverQuotaEmptyCluster)
 
   // Delete quota.
   {
-    Future<Nothing> receivedRemoveRequest;
-    EXPECT_CALL(allocator, removeQuota(Eq(ROLE1)))
-      .WillOnce(DoAll(InvokeRemoveQuota(&allocator),
-                      FutureSatisfy(&receivedRemoveRequest)));
+    Future<Nothing> receivedQuotaRequest;
+    EXPECT_CALL(allocator, updateQuota(Eq(ROLE1), Eq(master::DEFAULT_QUOTA)))
+      .WillOnce(DoAll(
+          InvokeUpdateQuota(&allocator), FutureSatisfy(&receivedQuotaRequest)));
 
     Future<Response> response = process::http::requestDelete(
         master.get()->pid,
@@ -1311,7 +1314,7 @@ TEST_F(MasterQuotaTest, RecoverQuotaEmptyCluster)
         createBasicAuthHeaders(DEFAULT_CREDENTIAL));
 
     // Quota request succeeds and reaches the allocator.
-    AWAIT_READY(receivedRemoveRequest);
+    AWAIT_READY(receivedQuotaRequest);
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   }
 }
@@ -1345,9 +1348,9 @@ TEST_F(MasterQuotaTest, NoAuthenticationNoAuthorization)
   {
     Resources quotaResources = Resources::parse("cpus:1;mem:512").get();
 
-    Future<Quota> receivedSetRequest;
-    EXPECT_CALL(allocator, setQuota(Eq(ROLE1), _))
-      .WillOnce(DoAll(InvokeSetQuota(&allocator),
+    Future<Quota2> receivedSetRequest;
+    EXPECT_CALL(allocator, updateQuota(Eq(ROLE1), _))
+      .WillOnce(DoAll(InvokeUpdateQuota(&allocator),
                       FutureArg<1>(&receivedSetRequest)));
 
     // Send a set quota request with absent credentials.
@@ -1364,10 +1367,10 @@ TEST_F(MasterQuotaTest, NoAuthenticationNoAuthorization)
 
   // Check whether quota can be removed.
   {
-    Future<Nothing> receivedRemoveRequest;
-    EXPECT_CALL(allocator, removeQuota(Eq(ROLE1)))
-      .WillOnce(DoAll(InvokeRemoveQuota(&allocator),
-                      FutureSatisfy(&receivedRemoveRequest)));
+    Future<Nothing> receivedQuotaRequest;
+    EXPECT_CALL(allocator, updateQuota(Eq(ROLE1), Eq(master::DEFAULT_QUOTA)))
+      .WillOnce(DoAll(
+          InvokeUpdateQuota(&allocator), FutureSatisfy(&receivedQuotaRequest)));
 
     // Send a remove quota request with absent credentials.
     Future<Response> response = process::http::requestDelete(
@@ -1376,7 +1379,7 @@ TEST_F(MasterQuotaTest, NoAuthenticationNoAuthorization)
         None());
 
     // Quota request succeeds and reaches the allocator.
-    AWAIT_READY(receivedRemoveRequest);
+    AWAIT_READY(receivedQuotaRequest);
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   }
 }
@@ -1487,9 +1490,9 @@ TEST_F(MasterQuotaTest, AuthorizeGetUpdateQuotaRequests)
     // request below to override the capacity heuristic check.
     Resources quotaResources = Resources::parse("cpus:1;mem:512").get();
 
-    Future<Quota> quota;
-    EXPECT_CALL(allocator, setQuota(Eq(ROLE1), _))
-      .WillOnce(DoAll(InvokeSetQuota(&allocator),
+    Future<Quota2> quota;
+    EXPECT_CALL(allocator, updateQuota(Eq(ROLE1), _))
+      .WillOnce(DoAll(InvokeUpdateQuota(&allocator),
                       FutureArg<1>(&quota)));
 
     Future<Response> response = process::http::post(
@@ -1502,14 +1505,9 @@ TEST_F(MasterQuotaTest, AuthorizeGetUpdateQuotaRequests)
 
     AWAIT_READY(quota);
 
-    // Extract the principal from `DEFAULT_CREDENTIAL` because `EXPECT_EQ`
-    // does not compile if `DEFAULT_CREDENTIAL.principal()` is used as an
-    // argument.
-    const string principal = DEFAULT_CREDENTIAL.principal();
-
-    EXPECT_EQ(ROLE1, quota->info.role());
-    EXPECT_EQ(principal, quota->info.principal());
-    EXPECT_EQ(quotaResources, quota->info.guarantee());
+    EXPECT_EQ(
+        ResourceQuantities::fromScalarResources(quotaResources),
+        quota->guarantees);
   }
 
   // Try to get the previously requested quota using a principal that is
@@ -1582,10 +1580,10 @@ TEST_F(MasterQuotaTest, AuthorizeGetUpdateQuotaRequests)
 
   // Remove the previously requested quota using the default principal.
   {
-    Future<Nothing> receivedRemoveRequest;
-    EXPECT_CALL(allocator, removeQuota(Eq(ROLE1)))
-      .WillOnce(DoAll(InvokeRemoveQuota(&allocator),
-                      FutureSatisfy(&receivedRemoveRequest)));
+    Future<Nothing> receivedQuotaRequest;
+    EXPECT_CALL(allocator, updateQuota(Eq(ROLE1), Eq(master::DEFAULT_QUOTA)))
+      .WillOnce(DoAll(
+          InvokeUpdateQuota(&allocator), FutureSatisfy(&receivedQuotaRequest)));
 
     Future<Response> response = process::http::requestDelete(
         master.get()->pid,
@@ -1594,7 +1592,7 @@ TEST_F(MasterQuotaTest, AuthorizeGetUpdateQuotaRequests)
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
-    AWAIT_READY(receivedRemoveRequest);
+    AWAIT_READY(receivedQuotaRequest);
   }
 }
 

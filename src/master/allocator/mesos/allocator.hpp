@@ -165,6 +165,10 @@ public:
   void removeQuota(
       const std::string& role) override;
 
+  void updateQuota(
+      const std::string& role,
+      const Quota2& quota) override;
+
   void updateWeights(
       const std::vector<WeightInfo>& weightInfos) override;
 
@@ -311,6 +315,10 @@ public:
 
   virtual void removeQuota(
       const std::string& role) = 0;
+
+  virtual void updateQuota(
+      const std::string& role,
+      const Quota2& quota) = 0;
 
   virtual void updateWeights(
       const std::vector<WeightInfo>& weightInfos) = 0;
@@ -697,6 +705,19 @@ inline void MesosAllocator<AllocatorProcess>::removeQuota(
       process,
       &MesosAllocatorProcess::removeQuota,
       role);
+}
+
+
+template <typename AllocatorProcess>
+inline void MesosAllocator<AllocatorProcess>::updateQuota(
+    const std::string& role,
+    const Quota2& quota)
+{
+  process::dispatch(
+      process,
+      &MesosAllocatorProcess::updateQuota,
+      role,
+      quota);
 }
 
 

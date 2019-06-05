@@ -1463,6 +1463,22 @@ void HierarchicalAllocatorProcess::removeQuota(
 }
 
 
+void HierarchicalAllocatorProcess::updateQuota(
+    const string& role,
+    const Quota2& quota)
+{
+  CHECK(initialized);
+
+  roles[role].quota = quota;
+
+  metrics.updateQuota(role, quota);
+
+  LOG(INFO) << "Updated quota for role '" << role << "', "
+            << " guarantees: " << quota.guarantees
+            << " limits: " << quota.limits;
+}
+
+
 void HierarchicalAllocatorProcess::updateWeights(
     const vector<WeightInfo>& weightInfos)
 {

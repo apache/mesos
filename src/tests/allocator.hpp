@@ -212,6 +212,12 @@ ACTION_P(InvokeRemoveQuota, allocator)
 }
 
 
+ACTION_P(InvokeUpdateQuota, allocator)
+{
+  allocator->real->updateQuota(arg0, arg1);
+}
+
+
 ACTION_P(InvokeUpdateWeights, allocator)
 {
   allocator->real->updateWeights(arg0);
@@ -382,6 +388,11 @@ public:
     EXPECT_CALL(*this, removeQuota(_))
       .WillRepeatedly(DoDefault());
 
+    ON_CALL(*this, updateQuota(_, _))
+      .WillByDefault(InvokeUpdateQuota(this));
+    EXPECT_CALL(*this, updateQuota(_, _))
+      .WillRepeatedly(DoDefault());
+
     ON_CALL(*this, updateWeights(_))
       .WillByDefault(InvokeUpdateWeights(this));
     EXPECT_CALL(*this, updateWeights(_))
@@ -515,6 +526,10 @@ public:
 
   MOCK_METHOD1(removeQuota, void(
       const std::string&));
+
+  MOCK_METHOD2(updateQuota, void(
+      const std::string&,
+      const Quota2&));
 
   MOCK_METHOD1(updateWeights, void(
       const std::vector<WeightInfo>&));

@@ -429,6 +429,10 @@ public:
   void removeQuota(
       const std::string& role) override;
 
+  void updateQuota(
+      const std::string& role,
+      const Quota2& quota) override;
+
   void updateWeights(
       const std::vector<WeightInfo>& weightInfos) override;
 
