@@ -19,6 +19,7 @@
 #include <string>
 
 #include <mesos/mesos.hpp>
+#include <mesos/quota/quota.hpp>
 #include <mesos/resource_quantities.hpp>
 #include <mesos/resources.hpp>
 #include <mesos/roles.hpp>
@@ -237,4 +238,53 @@ Option<Error> validate(const QuotaConfig& config)
 } // namespace quota {
 } // namespace master {
 } // namespace internal {
+
+Quota2::Quota2(const QuotaConfig& config)
+{
+  guarantees = ResourceQuantities(config.guarantees());
+  limits = ResourceLimits(config.limits());
+}
+
+
+Quota2::Quota2(const QuotaInfo& info)
+{
+  guarantees = ResourceQuantities::fromScalarResources(info.guarantee());
+
+  // For legacy `QuotaInfo`, guarantee also acts as limit.
+  limits = [&info]() {
+    google::protobuf::Map<string, Value::Scalar> limits;
+    foreach (const Resource& r, info.guarantee()) {
+      limits[r.name()] = r.scalar();
+    }
+    return ResourceLimits(limits);
+  }();
+}
+
+
+Quota2::Quota2(const QuotaRequest& request)
+{
+  guarantees = ResourceQuantities::fromScalarResources(request.guarantee());
+
+  // For legacy `QuotaInfo`, guarantee also acts as limit.
+  limits = [&request]() {
+    google::protobuf::Map<string, Value::Scalar> limits;
+    foreach (const Resource& r, request.guarantee()) {
+      limits[r.name()] = r.scalar();
+    }
+    return ResourceLimits(limits);
+  }();
+}
+
+
+bool Quota2::operator==(const Quota2& that) const
+{
+  return guarantees == that.guarantees && limits == that.limits;
+}
+
+
+bool Quota2::operator!=(const Quota2& that) const
+{
+  return guarantees != that.guarantees || limits != that.limits;
+}
+
 } // namespace mesos {

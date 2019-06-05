@@ -17,6 +17,8 @@
 #ifndef __MESOS_QUOTA_PROTO_HPP__
 #define __MESOS_QUOTA_PROTO_HPP__
 
+#include <mesos/resource_quantities.hpp>
+
 // ONLY USEFUL AFTER RUNNING PROTOC.
 #include <mesos/quota/quota.pb.h>
 
@@ -27,5 +29,26 @@ struct Quota
   // Holds the quota protobuf, as constructed from an operator's request.
   mesos::quota::QuotaInfo info;
 };
+
+
+namespace mesos {
+
+// TODO(mzhu): replace `struct Quota` above.
+struct Quota2
+{
+  ResourceQuantities guarantees;
+  ResourceLimits limits;
+
+  Quota2() {};
+
+  Quota2(const mesos::quota::QuotaConfig& config);
+  Quota2(const mesos::quota::QuotaInfo& info);
+  Quota2(const mesos::quota::QuotaRequest& request);
+
+  bool operator==(const Quota2& quota) const;
+  bool operator!=(const Quota2& quota) const;
+};
+
+} // namespace mesos {
 
 #endif // __MESOS_QUOTA_PROTO_HPP__
