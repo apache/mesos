@@ -1410,21 +1410,12 @@ void HierarchicalAllocatorProcess::setQuota(
   // the role is not set. Setting quota differs from updating it because
   // the former moves the role to a different allocation group with a
   // dedicated sorter, while the later just updates the actual quota.
-  CHECK(getGuarantees(role).empty() && getLimits(role).empty());
+  CHECK(getQuota(role) == DEFAULT_QUOTA);
 
   // In the legacy `SetQuota` call, quota guarantee also acts as quota limits.
   //
   // Note, quota has been validated to have no duplicate resource names.
-  roles[role].quotaLimits = [&]() {
-    google::protobuf::Map<string, Value::Scalar> limits;
-    foreach (const Resource& r, quota.info.guarantee()) {
-      limits[r.name()] = r.scalar();
-    }
-    return ResourceLimits(limits);
-  }();
-
-  roles[role].quotaGuarantees =
-    ResourceQuantities::fromScalarResources(quota.info.guarantee());
+  roles[role].quota = Quota2(quota.info);
 
   metrics.setQuota(role, quota);
 
@@ -1447,16 +1438,16 @@ void HierarchicalAllocatorProcess::removeQuota(
   CHECK(initialized);
 
   // Do not allow removing quota if it is not set.
-  CHECK(!getGuarantees(role).empty() || !getLimits(role).empty());
+  // Note: it is impossible to set to default quota using the old `setQuota`.
+  CHECK(getQuota(role) != DEFAULT_QUOTA);
 
   Role& r = roles.at(role);
 
   // TODO(alexr): Print all quota info for the role.
-  LOG(INFO) << "Removed quota " << r.quotaGuarantees
+  LOG(INFO) << "Removed quota " << r.quota.guarantees
             << " for role '" << role << "'";
 
-  r.quotaGuarantees = ResourceQuantities();
-  r.quotaLimits = ResourceLimits();
+  r.quota = DEFAULT_QUOTA;
   if (r.isEmpty()) {
     roles.erase(role);
   }
@@ -1657,7 +1648,7 @@ void HierarchicalAllocatorProcess::__allocate()
   foreachpair (const string& role, const Role& r, roles) {
     // TODO(mzhu): Track all role consumed quota. We may want to expose
     // these as metrics.
-    if (!r.quotaGuarantees.empty() || !r.quotaLimits.empty()) {
+    if (r.quota != DEFAULT_QUOTA) {
       logHeadroomInfo = true;
       // Note, `reservationScalarQuantities` in `struct role`
       // is hierarchical aware, thus it also includes subrole reservations.
@@ -1674,8 +1665,7 @@ void HierarchicalAllocatorProcess::__allocate()
     const string& topLevelRole = strings::contains(role, "/") ?
       role.substr(0, role.find('/')) : role;
 
-    if (getGuarantees(topLevelRole).empty() &&
-        getLimits(topLevelRole).empty()) {
+    if (getQuota(topLevelRole) == DEFAULT_QUOTA) {
       continue;
     }
 
@@ -1701,7 +1691,7 @@ void HierarchicalAllocatorProcess::__allocate()
   ResourceQuantities requiredHeadroom;
   foreachpair (const string& role, const Role& r, roles) {
     requiredHeadroom +=
-      r.quotaGuarantees -
+      r.quota.guarantees -
       rolesConsumedQuota.get(role).getOrElse(ResourceQuantities());
   }
 
@@ -1788,8 +1778,8 @@ void HierarchicalAllocatorProcess::__allocate()
     Slave& slave = slaves.at(slaveId);
 
     foreach (const string& role, roleSorter->sort()) {
-      const ResourceQuantities& quotaGuarantees = getGuarantees(role);
-      const ResourceLimits& quotaLimits = getLimits(role);
+      const ResourceQuantities& quotaGuarantees = getQuota(role).guarantees;
+      const ResourceLimits& quotaLimits = getQuota(role).limits;
 
       // We only allocate to roles with non-default guarantees
       // in the first stage.
@@ -2039,7 +2029,7 @@ void HierarchicalAllocatorProcess::__allocate()
         break; // Nothing left on this agent.
       }
 
-      const ResourceLimits& quotaLimits = getLimits(role);
+      const ResourceLimits& quotaLimits = getQuota(role).limits;
 
       // NOTE: Suppressed frameworks are not included in the sort.
       CHECK_CONTAINS(frameworkSorters, role);
@@ -2137,7 +2127,7 @@ void HierarchicalAllocatorProcess::__allocate()
         ResourceQuantities increasedQuotaConsumption =
           ResourceQuantities::fromScalarResources(additionalScalarAllocation);
 
-        if (!getGuarantees(role).empty() || !getLimits(role).empty()) {
+        if (getQuota(role) != DEFAULT_QUOTA) {
           rolesConsumedQuota[role] += increasedQuotaConsumption;
           for (const string& ancestor : roles::ancestors(role)) {
             rolesConsumedQuota[ancestor] += increasedQuotaConsumption;
@@ -2557,18 +2547,9 @@ bool HierarchicalAllocatorProcess::isFrameworkTrackedUnderRole(
 }
 
 
-const ResourceQuantities& HierarchicalAllocatorProcess::getGuarantees(
-    const string& role) const
+const Quota2& HierarchicalAllocatorProcess::getQuota(const string& role) const
 {
-  return roles.contains(role) ? roles.at(role).quotaGuarantees
-                              : defaultQuotaGuarantees;
-}
-
-
-const ResourceLimits& HierarchicalAllocatorProcess::getLimits(
-    const string& role) const
-{
-  return roles.contains(role) ? roles.at(role).quotaLimits : defaultQuotaLimits;
+  return roles.contains(role) ? roles.at(role).quota : DEFAULT_QUOTA;
 }
 
 
