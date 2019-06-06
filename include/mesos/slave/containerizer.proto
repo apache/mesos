@@ -200,6 +200,16 @@ message ContainerFileOperation {
   enum Operation {
     // Create a symlink that points to `source` at `target`.
     SYMLINK = 1;
+
+    // Perform a container mount. This can be used when a mount is part
+    // of a sequence of steps involving other filesystem operations.
+    MOUNT = 2;
+
+    // Rename a path;
+    RENAME = 3;
+
+    // Create a directory.
+    MKDIR = 4;
   };
 
   message Symlink {
@@ -207,10 +217,23 @@ message ContainerFileOperation {
     optional string target = 2;
   }
 
+  message Rename {
+    optional string source = 1;
+    optional string target = 2;
+  }
+
+  message Mkdir {
+    optional string target = 1;
+    optional bool recursive = 2;
+  }
+
   optional Operation operation = 1;
 
   oneof parameters {
     Symlink symlink = 2;
+    Mkdir mkdir = 3;
+    Rename rename = 4;
+    ContainerMountInfo mount = 5;
   }
 }
 

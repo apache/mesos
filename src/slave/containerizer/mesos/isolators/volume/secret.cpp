@@ -16,6 +16,8 @@
 
 #include "slave/containerizer/mesos/isolators/volume/secret.hpp"
 
+#include <sys/mount.h>
+
 #include <string>
 #include <vector>
 
@@ -38,6 +40,7 @@
 #include "linux/ns.hpp"
 #endif // __linux__
 
+#include "common/protobuf_utils.hpp"
 #include "common/validation.hpp"
 
 using std::string;
@@ -47,11 +50,17 @@ using process::Failure;
 using process::Future;
 using process::Owned;
 
+using mesos::internal::protobuf::slave::containerMkdirOperation;
+using mesos::internal::protobuf::slave::containerMountOperation;
+using mesos::internal::protobuf::slave::containerRenameOperation;
+using mesos::internal::protobuf::slave::createContainerMount;
+
 using mesos::slave::ContainerClass;
 using mesos::slave::ContainerConfig;
 using mesos::slave::ContainerLaunchInfo;
 using mesos::slave::ContainerState;
 using mesos::slave::Isolator;
+
 
 namespace mesos {
 namespace internal {
@@ -135,15 +144,8 @@ Future<Option<ContainerLaunchInfo>> VolumeSecretIsolatorProcess::prepare(
   }
 
   // Mount ramfs in the container.
-  CommandInfo* command = launchInfo.add_pre_exec_commands();
-  command->set_shell(false);
-  command->set_value("mount");
-  command->add_arguments("mount");
-  command->add_arguments("-n");
-  command->add_arguments("-t");
-  command->add_arguments("ramfs");
-  command->add_arguments("ramfs");
-  command->add_arguments(sandboxSecretRootDir);
+  *launchInfo.add_file_operations() = containerMountOperation(
+      createContainerMount("ramfs", sandboxSecretRootDir, "ramfs", 0));
 
   vector<Future<Nothing>> futures;
   foreach (const Volume& volume, containerInfo.volumes()) {
@@ -250,44 +252,20 @@ Future<Option<ContainerLaunchInfo>> VolumeSecretIsolatorProcess::prepare(
     }
 
     // Create directory tree inside sandbox secret root dir.
-    command = launchInfo.add_pre_exec_commands();
-    command->set_shell(false);
-    command->set_value("mkdir");
-    command->add_arguments("mkdir");
-    command->add_arguments("-p");
-    command->add_arguments(Path(sandboxSecretPath).dirname());
+    *launchInfo.add_file_operations() = containerMkdirOperation(
+        Path(sandboxSecretPath).dirname(), true /* recursive */);
 
     // Move secret from hostSecretPath to sandboxSecretPath.
-    command = launchInfo.add_pre_exec_commands();
-    command->set_shell(false);
-    command->set_value("mv");
-    command->add_arguments("mv");
-    command->add_arguments("-f");
-    command->add_arguments(hostSecretPath);
-    command->add_arguments(sandboxSecretPath);
+    *launchInfo.add_file_operations() = containerRenameOperation(
+        hostSecretPath, sandboxSecretPath);
+
+    const unsigned long flags =
+      volume.mode() == Volume::RO ? (MS_BIND | MS_REC | MS_RDONLY)
+                                  : (MS_BIND | MS_REC);
 
     // Bind mount sandboxSecretPath to targetContainerPath
-    command = launchInfo.add_pre_exec_commands();
-    command->set_shell(false);
-    command->set_value("mount");
-    command->add_arguments("mount");
-    command->add_arguments("-n");
-    command->add_arguments("--rbind");
-    command->add_arguments(sandboxSecretPath);
-    command->add_arguments(targetContainerPath);
-
-    // If the mount needs to be read-only, do a remount.
-    if (volume.mode() == Volume::RO) {
-      command = launchInfo.add_pre_exec_commands();
-      command->set_shell(false);
-      command->set_value("mount");
-      command->add_arguments("mount");
-      command->add_arguments("-n");
-      command->add_arguments("-o");
-      command->add_arguments("bind,ro,remount");
-      command->add_arguments(sandboxSecretPath);
-      command->add_arguments(targetContainerPath);
-    }
+    *launchInfo.add_file_operations() = containerMountOperation(
+        createContainerMount(sandboxSecretPath, targetContainerPath, flags));
 
     Future<Nothing> future = secretResolver->resolve(secret)
       .then([hostSecretPath](const Secret::Value& value) -> Future<Nothing> {

@@ -419,6 +419,20 @@ mesos::slave::ContainerFileOperation containerSymlinkOperation(
     const std::string& source,
     const std::string& target);
 
+
+mesos::slave::ContainerFileOperation containerRenameOperation(
+    const std::string& source,
+    const std::string& target);
+
+
+mesos::slave::ContainerFileOperation containerMkdirOperation(
+    const std::string& target,
+    const bool recursive);
+
+
+mesos::slave::ContainerFileOperation containerMountOperation(
+    const mesos::slave::ContainerMountInfo& mnt);
+
 } // namespace slave {
 
 namespace maintenance {

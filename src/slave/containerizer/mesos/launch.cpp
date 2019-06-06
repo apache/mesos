@@ -259,6 +259,19 @@ static void exitWithStatus(int status)
 }
 
 
+#ifdef __linux__
+static Try<Nothing> mountContainerFilesystem(const ContainerMountInfo& mount)
+{
+  return fs::mount(
+      mount.has_source() ? Option<string>(mount.source()) : None(),
+      mount.target(),
+      mount.has_type() ? Option<string>(mount.type()) : None(),
+      mount.has_flags() ? mount.flags() : 0,
+      mount.has_options() ? Option<string>(mount.options()) : None());
+}
+#endif // __linux__
+
+
 static Try<Nothing> prepareMounts(const ContainerLaunchInfo& launchInfo)
 {
 #ifdef __linux__
@@ -435,13 +448,7 @@ static Try<Nothing> prepareMounts(const ContainerLaunchInfo& launchInfo)
       }
     }
 
-    Try<Nothing> mnt = fs::mount(
-        (mount.has_source() ? Option<string>(mount.source()) : None()),
-        mount.target(),
-        (mount.has_type() ? Option<string>(mount.type()) : None()),
-        (mount.has_flags() ? mount.flags() : 0),
-        (mount.has_options() ? Option<string>(mount.options()) : None()));
-
+    Try<Nothing> mnt = mountContainerFilesystem(mount);
     if (mnt.isError()) {
       return Error(
           "Failed to mount '" + stringify(JSON::protobuf(mount)) +
@@ -476,20 +483,74 @@ static Try<Nothing> maskPath(const string& target)
 
 static Try<Nothing> executeFileOperation(const ContainerFileOperation& op)
 {
-  Try<Nothing> result = Nothing();
-
   switch (op.operation()) {
-    case ContainerFileOperation::SYMLINK:
-      result = ::fs::symlink(op.symlink().source(), op.symlink().target());
+    case ContainerFileOperation::SYMLINK: {
+      Try<Nothing> result =
+        ::fs::symlink(op.symlink().source(), op.symlink().target());
       if (result.isError()) {
         return Error(
             "Failed to link '" + op.symlink().source() + "' as '" +
             op.symlink().target() + "': " + result.error());
       }
-      break;
+
+      return Nothing();
+    }
+
+#ifdef __linux__
+    case ContainerFileOperation::MOUNT: {
+      Try<Nothing> result = mountContainerFilesystem(op.mount());
+      if (result.isError()) {
+        return Error(
+            "Failed to mount '" + stringify(JSON::protobuf(op.mount())) +
+            "': " + result.error());
+      }
+
+      return Nothing();
+    }
+#endif // __linux__
+
+    case ContainerFileOperation::RENAME: {
+      Try<Nothing> result =
+        os::rename(op.rename().source(), op.rename().target());
+
+      // TODO(jpeach): We should only fall back to `mv` if the error
+      // is EXDEV, in which case a rename is a copy+unlink.
+      if (result.isError()) {
+        Option<int> status = os::spawn(
+            "mv", {"mv", "-f", op.rename().source(), op.rename().target()});
+
+        if (status.isNone()) {
+          return Error(
+              "Failed to rename '" + op.rename().source() + "' to '" +
+              op.rename().target() + "':  spawn failed");
+        }
+
+        if (!WSUCCEEDED(status.get())) {
+          return Error(
+              "Failed to rename '" + op.rename().source() + "' to '" +
+              op.rename().target() + "': " + WSTRINGIFY(status.get()));
+        }
+
+        result = Nothing();
+      }
+
+      return Nothing();
   }
 
-  return result;
+    case ContainerFileOperation::MKDIR: {
+      Try<Nothing> result =
+        os::mkdir(op.mkdir().target(), op.mkdir().recursive());
+      if (result.isError()) {
+        return Error(
+            "Failed to create directory '" + op.mkdir().target() + "': " +
+            result.error());
+      }
+
+      return result;
+    }
+  }
+
+  return Nothing();
 }
 
 

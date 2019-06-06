@@ -1256,6 +1256,46 @@ mesos::slave::ContainerFileOperation containerSymlinkOperation(
   return op;
 }
 
+
+mesos::slave::ContainerFileOperation containerRenameOperation(
+    const std::string& source,
+    const std::string& target)
+{
+  ContainerFileOperation op;
+
+  op.set_operation(ContainerFileOperation::RENAME);
+  op.mutable_rename()->set_source(source);
+  op.mutable_rename()->set_target(target);
+
+  return op;
+}
+
+
+mesos::slave::ContainerFileOperation containerMkdirOperation(
+    const std::string& target,
+    const bool recursive)
+{
+  ContainerFileOperation op;
+
+  op.set_operation(ContainerFileOperation::MKDIR);
+  op.mutable_mkdir()->set_target(target);
+  op.mutable_mkdir()->set_recursive(recursive);
+
+  return op;
+}
+
+
+mesos::slave::ContainerFileOperation containerMountOperation(
+    const ContainerMountInfo& mnt)
+{
+  ContainerFileOperation op;
+
+  op.set_operation(ContainerFileOperation::MOUNT);
+  *op.mutable_mount() = mnt;
+
+  return op;
+}
+
 } // namespace slave {
 
 namespace maintenance {
