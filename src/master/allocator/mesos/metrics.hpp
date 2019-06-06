@@ -48,8 +48,11 @@ struct Metrics
 
   ~Metrics();
 
+  // TODO(mzhu): Remove these in favor of `updateQuota`.
   void setQuota(const std::string& role, const Quota& quota);
   void removeQuota(const std::string& role);
+
+  void updateQuota(const std::string& role, const Quota2& quota);
 
   void addRole(const std::string& role);
   void removeRole(const std::string& role);
