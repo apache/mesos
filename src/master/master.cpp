@@ -1740,7 +1740,13 @@ Future<Nothing> Master::_recover(const Registry& registry)
   // allocations. An allocator may decide to hold off with allocation
   // until after it restores a view of the cluster state.
   int expectedAgentCount = registry.slaves().slaves().size();
-  allocator->recover(expectedAgentCount, quotas);
+
+  // TODO(mzhu): Remove this conversion once we replace `Quota` with `Quota2`.
+  hashmap<string, Quota2> quota2s;
+  foreachpair (const string& role, const Quota& quota, quotas) {
+    quota2s[role] = Quota2{quota.info};
+  }
+  allocator->recover(expectedAgentCount, quota2s);
 
   // TODO(alexr): Consider adding a sanity check: whether quotas are
   // satisfiable given all recovering agents reregister. We may want

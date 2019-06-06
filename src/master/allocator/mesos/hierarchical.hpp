@@ -323,7 +323,7 @@ public:
 
   void recover(
       const int _expectedAgentCount,
-      const hashmap<std::string, Quota>& quotas) override;
+      const hashmap<std::string, Quota2>& quotas) override;
 
   void addFramework(
       const FrameworkID& frameworkId,

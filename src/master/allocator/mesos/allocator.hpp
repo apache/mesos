@@ -59,7 +59,7 @@ public:
 
   void recover(
       const int expectedAgentCount,
-      const hashmap<std::string, Quota>& quotas) override;
+      const hashmap<std::string, Quota2>& quotas) override;
 
   void addFramework(
       const FrameworkID& frameworkId,
@@ -210,7 +210,7 @@ public:
 
   virtual void recover(
       const int expectedAgentCount,
-      const hashmap<std::string, Quota>& quotas) = 0;
+      const hashmap<std::string, Quota2>& quotas) = 0;
 
   virtual void addFramework(
       const FrameworkID& frameworkId,
@@ -380,7 +380,7 @@ inline void MesosAllocator<AllocatorProcess>::initialize(
 template <typename AllocatorProcess>
 inline void MesosAllocator<AllocatorProcess>::recover(
     const int expectedAgentCount,
-    const hashmap<std::string, Quota>& quotas)
+    const hashmap<std::string, Quota2>& quotas)
 {
   process::dispatch(
       process,

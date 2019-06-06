@@ -141,7 +141,7 @@ public:
    */
   virtual void recover(
       const int expectedAgentCount,
-      const hashmap<std::string, Quota>& quotas) = 0;
+      const hashmap<std::string, Quota2>& quotas) = 0;
 
   /**
    * Adds a framework to the Mesos cluster. The allocator is invoked when

@@ -422,7 +422,7 @@ public:
 
   MOCK_METHOD2(recover, void(
       const int expectedAgentCount,
-      const hashmap<std::string, Quota>&));
+      const hashmap<std::string, Quota2>&));
 
   MOCK_METHOD5(addFramework, void(
       const FrameworkID&,

@@ -225,7 +225,7 @@ void HierarchicalAllocatorProcess::initialize(
 
 void HierarchicalAllocatorProcess::recover(
     const int _expectedAgentCount,
-    const hashmap<string, Quota>& quotas)
+    const hashmap<string, Quota2>& quotas)
 {
   // Recovery should start before actual allocation starts.
   CHECK(initialized);
@@ -249,8 +249,8 @@ void HierarchicalAllocatorProcess::recover(
     return;
   }
 
-  foreachpair (const string& role, const Quota& quota, quotas) {
-    setQuota(role, quota);
+  foreachpair (const string& role, const Quota2& quota, quotas) {
+    updateQuota(role, quota);
   }
 
   // TODO(alexr): Consider exposing these constants.
