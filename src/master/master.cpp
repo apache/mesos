@@ -2491,10 +2491,7 @@ void Master::receive(
       break;
 
     case scheduler::Call::UPDATE_FRAMEWORK:
-      drop(
-          from,
-          call,
-          "'UPDATE_FRAMEWORK' is not supported by the v0 API");
+      updateFramework(from, std::move(*call.mutable_update_framework()));
       break;
 
     case scheduler::Call::UNKNOWN:
@@ -3154,6 +3151,25 @@ void Master::_subscribe(
   }
 
   sendFrameworkUpdates(*framework);
+}
+
+
+void Master::updateFramework(
+    const process::UPID& from,
+    mesos::scheduler::Call::UpdateFramework&& call)
+{
+  FrameworkID frameworkId = call.framework_info().id();
+
+  updateFramework(std::move(call))
+    .onAny([this, from, frameworkId](
+             const Future<process::http::Response>& response) {
+      if (response->code != process::http::Status::OK) {
+        CHECK_EQ(response->type, process::http::Response::BODY);
+        FrameworkErrorMessage message;
+        message.set_message(response->body);
+        send(from, message);
+      }
+    });
 }
 
 

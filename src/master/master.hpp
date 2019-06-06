@@ -1055,6 +1055,13 @@ private:
       google::protobuf::RepeatedPtrField<std::string>&& suppressedRoles,
       const process::Future<bool>& authorized);
 
+  // Update framework via SchedulerDriver (i.e. no response
+  // code feedback, FrameworkErrorMessage on error).
+  void updateFramework(
+      const process::UPID& from,
+      mesos::scheduler::Call::UpdateFramework&& call);
+
+  // Update framework via HTTP API (i.e. returns 200 OK).
   process::Future<process::http::Response> updateFramework(
       mesos::scheduler::Call::UpdateFramework&& call);
 
