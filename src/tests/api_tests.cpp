@@ -274,6 +274,105 @@ TEST_P(MasterAPITest, GetAgents)
 }
 
 
+// This test verifies that if a resource provider becomes disconnected, it will
+// not be reported by `GET_AGENT` calls.
+TEST_P(MasterAPITest, GetAgentsDisconnectedResourceProvider)
+{
+  Clock::pause();
+
+  const ContentType contentType = GetParam();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = this->StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  // Start one agent.
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  Clock::settle();
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(updateSlaveMessage);
+  ASSERT_TRUE(updateSlaveMessage->resource_providers().providers().empty());
+
+  // Start a resource provider.
+  mesos::v1::ResourceProviderInfo info;
+  info.set_type("org.apache.mesos.rp.test");
+  info.set_name("test");
+
+  v1::MockResourceProvider resourceProvider(info, v1::Resources());
+
+  // Start and register a resource provider.
+  Owned<EndpointDetector> endpointDetector(
+      resource_provider::createEndpointDetector(slave.get()->pid));
+
+  updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  resourceProvider.start(std::move(endpointDetector), contentType);
+
+  // Wait until the agent's resources have been updated to include the
+  // resource provider.
+  AWAIT_READY(updateSlaveMessage);
+  ASSERT_FALSE(updateSlaveMessage->resource_providers().providers().empty());
+
+  {
+    v1::master::Call v1Call;
+    v1Call.set_type(v1::master::Call::GET_AGENTS);
+
+    Future<v1::master::Response> v1Response =
+      post(master.get()->pid, v1Call, contentType);
+
+    AWAIT_READY(v1Response);
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::master::Response::GET_AGENTS, v1Response->type());
+    ASSERT_EQ(1, v1Response->get_agents().agents_size());
+    ASSERT_EQ(1, v1Response->get_agents().agents(0).resource_providers_size());
+
+    const mesos::v1::ResourceProviderInfo& responseInfo =
+      v1Response->get_agents()
+        .agents(0)
+        .resource_providers(0)
+        .resource_provider_info();
+
+    EXPECT_EQ(info.type(), responseInfo.type());
+    EXPECT_EQ(info.name(), responseInfo.name());
+    EXPECT_TRUE(responseInfo.has_id());
+  }
+
+  updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  // Disconnect the resource provider.
+  resourceProvider.stop();
+
+  // Wait until the agent's resources have been updated to exclude the
+  // resource provider.
+  AWAIT_READY(updateSlaveMessage);
+  ASSERT_TRUE(updateSlaveMessage->resource_providers().providers().empty());
+
+  {
+    v1::master::Call v1Call;
+    v1Call.set_type(v1::master::Call::GET_AGENTS);
+
+    Future<v1::master::Response> v1Response =
+      post(master.get()->pid, v1Call, contentType);
+
+    AWAIT_READY(v1Response);
+    ASSERT_TRUE(v1Response->IsInitialized());
+    ASSERT_EQ(v1::master::Response::GET_AGENTS, v1Response->type());
+    ASSERT_EQ(1, v1Response->get_agents().agents_size());
+    EXPECT_TRUE(
+        v1Response->get_agents().agents(0).resource_providers().empty());
+  }
+}
+
+
 TEST_P(MasterAPITest, GetFlags)
 {
   Try<Owned<cluster::Master>> master = this->StartMaster();

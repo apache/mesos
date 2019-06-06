@@ -8162,6 +8162,8 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
 
   // Check if resource provider information changed.
   if (!updated && message.has_resource_providers()) {
+    hashset<ResourceProviderID> receivedResourceProviders;
+
     foreach (
         const UpdateSlaveMessage::ResourceProvider& receivedProvider,
         message.resource_providers().providers()) {
@@ -8170,6 +8172,8 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
 
       const ResourceProviderID& resourceProviderId =
         receivedProvider.info().id();
+
+      receivedResourceProviders.insert(resourceProviderId);
 
       if (!slave->resourceProviders.contains(resourceProviderId)) {
         updated = true;
@@ -8200,6 +8204,10 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
           break;
         }
       }
+    }
+
+    if (slave->resourceProviders.keys() != receivedResourceProviders) {
+      updated = true;
     }
   }
 
