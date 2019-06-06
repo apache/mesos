@@ -53,8 +53,9 @@ providing additional security guarantees but also increasing the deployment comp
 
 
 For secure usage, it is recommended to set `LIBPROCESS_SSL_ENABLED=true`,
-`LIBPROCESS_SSL_VERIFY_CERT=true` and `LIBPROCESS_SSL_ENABLE_DOWNGRADE=false`. This provides a good
-trade-off between security and usability.
+`LIBPROCESS_SSL_VERIFY_CERT=true`, `LIBPROCESS_SSL_HOSTNAME_VALIDATION_SCHEME=openssl`
+and `LIBPROCESS_SSL_ENABLE_DOWNGRADE=false`. This provides a good trade-off
+between security and usability.
 
 It is not recommended in general to expose Mesos components to the public internet, but in cases
 where they are the use of `LIBPROCESS_SSL_REQUIRE_CERT` is strongly suggested.
@@ -116,6 +117,9 @@ If this is true, enforce that certificates must be presented by connecting clien
 connections (including external tooling trying to access HTTP endpoints, like web browsers etc.)
 must present valid certificates in order to establish a connection.
 
+**NOTE:** The specifics of what it means for the certificate to "contain the correct hostname"
+depend on the selected value of `LIBPROCESS_SSL_HOSTNAME_VALIDATION_SCHEME`.
+
 **NOTE:** If this is set to false, client certificates are not verified even if they are presented
 and `LIBPROCESS_SSL_VERIFY_CERT` is set to true.
 
@@ -123,7 +127,11 @@ and `LIBPROCESS_SSL_VERIFY_CERT` is set to true.
 The maximum depth used to verify certificates. The default is 4. See the OpenSSL documentation or contact your system administrator to learn why you may want to change this.
 
 #### LIBPROCESS_SSL_VERIFY_IPADD=(false|0,true|1) [default=false|0]
-Enable IP address verification in the certificate subject alternative name extension. When set to `true` the peer certificate verification will additionally use the IP address of a peer connection. When a hostname of the peer as well as its IP address are available, the validation will succeed when either the hostname or the IP match.
+Enable IP address verification in the certificate subject alternative name extension. When set
+to `true` the peer certificate verification will be able to use the IP address of a peer connection.
+
+The specifics on when a certificate containing an IP address will we accepted depend on the
+selected value of the `LIBPROCESS_SSL_HOSTNAME_VALIDATION_SCHEME`.
 
 #### LIBPROCESS_SSL_CA_DIR=(path to CA directory)
 The directory used to find the certificate authority / authorities. You can specify `LIBPROCESS_SSL_CA_DIR` or `LIBPROCESS_SSL_CA_FILE` depending on how you want to restrict your certificate authorization.
@@ -147,6 +155,49 @@ _SSLv2 is disabled completely because modern versions of OpenSSL disable it usin
 #### LIBPROCESS_SSL_ECDH_CURVE=(auto|list of curves separated by ':') [default=auto]
 List of elliptic curves which should be used for ECDHE-based cipher suites, in preferred order. Available values depend on the OpenSSL version used. Default value `auto` allows OpenSSL to pick the curve automatically.
 OpenSSL versions prior to `1.0.2` allow for the use of only one curve; in those cases, `auto` defaults to `prime256v1`.
+
+#### LIBPROCESS_SSL_HOSTNAME_VALIDATION_SCHEME=(legacy|openssl) [default=legacy]
+This flag is used to select the scheme by which the hostname validation check works.
+
+Since hostname validation is part of certificate verification, this flag has no
+effect unless one of `LIBPROCESS_SSL_VERIFY_CERT` or `LIBPROCESS_SSL_REQUIRE_CERT`
+is set to true.
+
+Currently, it is possible to choose between two schemes:
+
+  - `openssl`:
+
+    In client mode: Perform the hostname validation checks during the TLS handshake.
+    If the client connects via hostname, accept the certificate if it contains
+    the hostname as common name (CN) or as a subject alternative name (SAN).
+    If the client connects via IP address and `LIBPROCESS_SSL_VERIFY_IPADD` is true,
+    accept the certificate if it contains the IP as a subject alternative name.
+
+    **NOTE:** If the client connects via IP address and `LIBPROCESS_SSL_VERIFY_IPADD` is false,
+    the connection attempt cannot succeed.
+
+    In server mode: Do not perform any hostname validation checks.
+
+    This setting requires OpenSSL >= 1.0.2 to be used.
+
+  - `legacy`:
+
+    Use a custom hostname validation algorithm that is run after the connection is established,
+    and immediately close the connection if it fails.
+
+    In both client and server mode:
+    Do a reverse DNS lookup on the peer IP. If `LIBPROCESS_SSL_VERIFY_IPADD` is set to `false`,
+    accept the certificate if it contains the first result of that lookup as either the common name
+    or as a subject alternative name. If `LIBPROCESS_SSL_VERIFY_IPADD` is set to `true`,
+    additionally accept the certificate if it contains the peer IP as a subject alternative name.
+
+
+It is suggested that operators choose the 'openssl' setting unless they have
+applications relying on the legacy behaviour of the 'libprocess' scheme. It is
+using standardized APIs (`X509_VERIFY_PARAM_check_{host,ip}`) provided by OpenSSL to
+make hostname validation more uniform across applications. It is also more secure,
+since attackers that are able to forge a DNS or rDNS result can launch a successful
+man-in-the-middle attack on the 'legacy' scheme.
 
 ### libevent
 We require the OpenSSL support from libevent. The suggested version of libevent is [`2.0.22-stable`](https://github.com/libevent/libevent/releases/tag/release-2.0.22-stable). As new releases come out we will try to maintain compatibility.
