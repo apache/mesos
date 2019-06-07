@@ -496,8 +496,8 @@ static Try<Nothing> executeFileOperation(const ContainerFileOperation& op)
       return Nothing();
     }
 
-#ifdef __linux__
     case ContainerFileOperation::MOUNT: {
+#ifdef __linux__
       Try<Nothing> result = mountContainerFilesystem(op.mount());
       if (result.isError()) {
         return Error(
@@ -506,8 +506,10 @@ static Try<Nothing> executeFileOperation(const ContainerFileOperation& op)
       }
 
       return Nothing();
-    }
+#else
+      return Error("Container mount is not supported on non-Linux systems");
 #endif // __linux__
+    }
 
     case ContainerFileOperation::RENAME: {
       Try<Nothing> result =
