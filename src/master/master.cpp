@@ -3159,7 +3159,7 @@ void Master::updateFramework(
   FrameworkID frameworkId = call.framework_info().id();
 
   updateFramework(std::move(call))
-    .onAny([this, from, frameworkId](
+    .onAny(defer(self(), [this, from, frameworkId](
              const Future<process::http::Response>& response) {
       if (response->code != process::http::Status::OK) {
         CHECK_EQ(response->type, process::http::Response::BODY);
@@ -3167,7 +3167,7 @@ void Master::updateFramework(
         message.set_message(response->body);
         send(from, message);
       }
-    });
+    }));
 }
 
 
