@@ -9,7 +9,7 @@ By default, all the messages that flow through the Mesos cluster are unencrypted
 
 SSL/TLS support was added to libprocess in Mesos 0.23.0, which encypts the low-level communication that Mesos uses for network communication between Mesos components.  Additionally, HTTPS support was added to the Mesos WebUI.
 
-# Configuration
+# Build Configuration
 There is currently only one implementation of the [libprocess socket interface](https://github.com/apache/mesos/blob/master/3rdparty/libprocess/include/process/socket.hpp) that supports SSL. This implementation uses [libevent](https://github.com/libevent/libevent). Specifically it relies on the `libevent-openssl` library that wraps `openssl`.
 
 Before building Mesos 0.23.0 from source, assuming you have installed the required [Dependencies](#Dependencies), you can modify your configure line to enable SSL as follows:
@@ -18,7 +18,49 @@ Before building Mesos 0.23.0 from source, assuming you have installed the requir
 ../configure --enable-libevent --enable-ssl
 ~~~
 
-# Running
+
+# Runtime Configuration
+
+TLS support in Mesos can be configured with different levels of security. This section aims to help
+Mesos operators to better understand the trade-offs involved in them.
+
+On a high level, one can imagine to choose between three available layers of security, each
+providing additional security guarantees but also increasing the deployment complexity.
+
+1) `LIBPROCESS_SSL_ENABLED=true`. This provides external clients (e.g. curl) with the ability to
+   connect to Mesos HTTP endpoints securely via TLS, verifying that the server certificate is valid
+   and trusted.
+
+2) `LIBPROCESS_SSL_VERIFY_CERT=true`. In addition to the above, this ensures that Mesos components
+   themselves are verifying the presence of valid and trusted server certificates when making
+   outgoing connections. This prevents man-in-the-middle attacks on communications between Mesos
+   components, and on communications between a Mesos component and an external server.
+
+   **WARNING:** This setting only makes sense if `LIBPROCESS_SSL_ENABLE_DOWNGRADE` is set
+   to `false`, otherwise a malicious actor can simply bypass certificate verification by
+   downgrading to a non-TLS connection.
+
+3) `LIBPROCESS_SSL_REQUIRE_CERT=true`. In addition to the above, this enforces the use of TLS
+   client certificates on all connections to any Mesos component. This ensures that only trusted
+   clients can connect to any Mesos component, preventing reception of forged or malformed messages.
+
+   This implies that all schedulers or other clients (including the web browsers used by human
+   operators) that are supposed to connect to any endpoint of a Mesos component must be provided
+   with valid client certificates.
+
+   **WARNING:** As above, this setting only makes sense if `LIBPROCESS_SSL_ENABLE_DOWNGRADE` is
+   set to `false`.
+
+
+For secure usage, it is recommended to set `LIBPROCESS_SSL_ENABLED=true`,
+`LIBPROCESS_SSL_VERIFY_CERT=true` and `LIBPROCESS_SSL_ENABLE_DOWNGRADE=false`. This provides a good
+trade-off between security and usability.
+
+It is not recommended in general to expose Mesos components to the public internet, but in cases
+where they are the use of `LIBPROCESS_SSL_REQUIRE_CERT` is strongly suggested.
+
+
+# Environment Variables
 Once you have successfully built and installed your new binaries, here are the environment variables that are applicable to the `Master`, `Agent`, `Framework Scheduler/Executor`, or any `libprocess process`:
 
 **NOTE:** Prior to 1.0, the SSL related environment variables used to be prefixed by `SSL_`. However, we found that they may collide with other programs and lead to unexpected results (e.g., openssl, see [MESOS-5863](https://issues.apache.org/jira/browse/MESOS-5863) for details). To be backward compatible, we accept environment variables prefixed by both `SSL_` or `LIBPROCESS_SSL_`. New users should use the `LIBPROCESS_SSL_` version.
@@ -27,7 +69,14 @@ Once you have successfully built and installed your new binaries, here are the e
 Turn on or off SSL. When it is turned off it is the equivalent of default Mesos with libevent as the backing for events. All sockets default to the non-SSL implementation. When it is turned on, the default configuration for sockets is SSL. This means outgoing connections will use SSL, and incoming connections will be expected to speak SSL as well. None of the below flags are relevant if SSL is not enabled.  If SSL is enabled, `LIBPROCESS_SSL_CERT_FILE` and `LIBPROCESS_SSL_KEY_FILE` must be supplied.
 
 #### LIBPROCESS_SSL_SUPPORT_DOWNGRADE=(false|0,true|1) [default=false|0]
-Control whether or not non-SSL connections can be established. If this is enabled __on the accepting side__, then the accepting side will downgrade to a non-SSL socket if the connecting side is attempting to communicate via non-SSL. (e.g. HTTP). See [Upgrading Your Cluster](#Upgrading) for more details.
+Control whether or not non-SSL connections can be established. If this is enabled
+__on the accepting side__, then the accepting side will downgrade to a non-SSL socket if the
+connecting side is attempting to communicate via non-SSL. (e.g. HTTP).
+
+If this is enabled __on the connecting side__, then the connecting side will retry on a non-SSL
+socket if establishing the SSL connection failed.
+
+See [Upgrading Your Cluster](#Upgrading) for more details.
 
 #### LIBPROCESS_SSL_KEY_FILE=(path to key)
 The location of the private key used by OpenSSL.
@@ -41,15 +90,34 @@ openssl genrsa -des3 -f4 -passout pass:some_password -out key.pem 4096
 The location of the certificate that will be presented.
 
 ~~~
-// For example, to generate a certificate with OpenSSL:
-openssl req -new -x509 -passin pass:some_password -days 365 -key key.pem -out cert.pem
+// For example, to generate a root certificate with OpenSSL:
+// (assuming the signing key already exists in `key.pem`)
+openssl req -new -x509 -passin pass:some_password -days 365 -keyout key.pem -out cert.pem
 ~~~
 
 #### LIBPROCESS_SSL_VERIFY_CERT=(false|0,true|1) [default=false|0]
-Control whether certificates are verified when presented. If this is false, even when a certificate is presented, it will not be verified. When `LIBPROCESS_SSL_REQUIRE_CERT` is true, `LIBPROCESS_SSL_VERIFY_CERT` is overridden and all certificates will be verified _and_ required.
+This setting only affects the behaviour of libprocess in TLS client mode.
+
+If this is true, a remote server is required to present a server certificate,
+and the presented server certificates will be verified. That means
+it will be checked that the certificate is cryptographically valid,
+was generated by a trusted CA, and contains the correct hostname.
+
+If this is false, a remote server is still required to present a server certificate (unless
+an anonymous cipher is used), but the presented server certificates will not be verified.
+
+**NOTE:** When `LIBPROCESS_SSL_REQUIRE_CERT` is true, `LIBPROCESS_SSL_VERIFY_CERT` is automatically
+set to true for backwards compatibility reasons.
 
 #### LIBPROCESS_SSL_REQUIRE_CERT=(false|0,true|1) [default=false|0]
-Enforce that certificates must be presented by connecting clients. This means all connections (including tools hitting endpoints) must present valid certificates in order to establish a connection.
+This setting only affects the behaviour of libprocess in TLS server mode.
+
+If this is true, enforce that certificates must be presented by connecting clients. This means all
+connections (including external tooling trying to access HTTP endpoints, like web browsers etc.)
+must present valid certificates in order to establish a connection.
+
+**NOTE:** If this is set to false, client certificates are not verified even if they are presented
+and `LIBPROCESS_SSL_VERIFY_CERT` is set to true.
 
 #### LIBPROCESS_SSL_VERIFY_DEPTH=(N) [default=4]
 The maximum depth used to verify certificates. The default is 4. See the OpenSSL documentation or contact your system administrator to learn why you may want to change this.
