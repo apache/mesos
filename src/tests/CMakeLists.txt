@@ -48,6 +48,7 @@ set(MESOS_TESTS_UTILS_SRC
   flags.cpp
   http_server_test_helper.cpp
   main.cpp
+  master/mock_master_api_subscriber.cpp
   mesos.cpp
   mock_csi_plugin.cpp
   mock_docker.cpp
