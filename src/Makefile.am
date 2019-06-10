@@ -2604,6 +2604,7 @@ mesos_tests_SOURCES =						\
   tests/master_tests.cpp					\
   tests/master/mock_master_api_subscriber.cpp			\
   tests/master/mock_master_api_subscriber.hpp			\
+  tests/master/update_framework_tests.cpp			\
   tests/master_validation_tests.cpp				\
   tests/mesos.cpp						\
   tests/mesos.hpp						\
