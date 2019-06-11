@@ -1,8 +1,6 @@
 #!groovy
 
-options {
-  buildDiscarder(logRotator(daysToKeepStr: '30'))
-}
+properties [[$class: 'BuildDiscarderProperty', strategy: [$class: 'LogRotator', daysToKeepStr: '30']], [$class: 'ScannerJobProperty', doNotScan: false]]
 
 if (env.NODE_LABELS == null) {
   env.NODE_LABELS = "(ubuntu)&&(!ubuntu-us1)&&(!ubuntu-eu2)&&(!qnode3)&&(!H23)"
