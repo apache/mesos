@@ -1148,6 +1148,12 @@ message ResourceProviderInfo {
   // Storage resource provider related information.
   message Storage {
     required CSIPluginInfo plugin = 1;
+
+    // Amount of time to wait after the resource provider finishes reconciling
+    // existing volumes and storage pools against the CSI plugin to start the
+    // next reconciliation. A non-positive value means that no reconciliation
+    // will happen after startup.
+    optional double reconciliation_interval_seconds = 2;
   }
 
   optional Storage storage = 6; // EXPERIMENTAL.

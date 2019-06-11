@@ -1178,6 +1178,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   oci/spec.cpp								\
   posix/rlimits.cpp							\
   posix/rlimits.hpp							\
+  resource_provider/constants.cpp					\
   resource_provider/daemon.cpp						\
   resource_provider/daemon.hpp						\
   resource_provider/detector.cpp					\
