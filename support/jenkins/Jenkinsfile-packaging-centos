@@ -1,5 +1,9 @@
 #!groovy
 
+options {
+  buildDiscarder(logRotator(daysToKeepStr: '30'))
+}
+
 if (env.NODE_LABELS == null) {
   env.NODE_LABELS = "(ubuntu)&&(!ubuntu-us1)&&(!ubuntu-eu2)&&(!qnode3)&&(!H23)"
 }
