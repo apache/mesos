@@ -40,6 +40,7 @@
 #include <stout/try.hpp>
 #include <stout/unreachable.hpp>
 
+#include "csi/constants.hpp"
 #include "csi/paths.hpp"
 #include "csi/v0_client.hpp"
 #include "csi/v0_utils.hpp"
@@ -494,7 +495,7 @@ Future<Response> VolumeManagerProcess::call(
     const Request& request,
     const bool retry) // Made immutable in the following mutable lambda.
 {
-  Duration maxBackoff = DEFAULT_CSI_RETRY_BACKOFF_FACTOR;
+  Duration maxBackoff = DEFAULT_RPC_RETRY_BACKOFF_FACTOR;
 
   return process::loop(
       self(),
@@ -514,7 +515,7 @@ Future<Response> VolumeManagerProcess::call(
           ? maxBackoff * (static_cast<double>(os::random()) / RAND_MAX)
           : Option<Duration>::none();
 
-        maxBackoff = std::min(maxBackoff * 2, DEFAULT_CSI_RETRY_INTERVAL_MAX);
+        maxBackoff = std::min(maxBackoff * 2, DEFAULT_RPC_RETRY_INTERVAL_MAX);
 
         // We dispatch `__call` for testing purpose.
         return process::dispatch(

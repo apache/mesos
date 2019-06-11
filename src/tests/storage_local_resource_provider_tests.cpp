@@ -48,6 +48,7 @@
 
 #include <stout/os/realpath.hpp>
 
+#include "csi/constants.hpp"
 #include "csi/paths.hpp"
 #include "csi/state.hpp"
 #include "csi/v0_volume_manager_process.hpp"
@@ -5893,7 +5894,7 @@ TEST_P(StorageLocalResourceProviderTest, RetryRpcWithExponentialBackoff)
 
   AWAIT_READY(createVolumeCall) << "Failed to wait for CreateVolume call #1";
 
-  Duration createVolumeBackoff = csi::v0::DEFAULT_CSI_RETRY_BACKOFF_FACTOR;
+  Duration createVolumeBackoff = csi::DEFAULT_RPC_RETRY_BACKOFF_FACTOR;
 
   for (size_t i = 1; i < numRetryableErrors; i++) {
     // Return `UNAVAILABLE` for subsequent `CreateVolume` calls.
@@ -5909,7 +5910,7 @@ TEST_P(StorageLocalResourceProviderTest, RetryRpcWithExponentialBackoff)
       << "Failed to wait for CreateVolume call #" << (i + 1);
 
     createVolumeBackoff = std::min(
-        createVolumeBackoff * 2, csi::v0::DEFAULT_CSI_RETRY_INTERVAL_MAX);
+        createVolumeBackoff * 2, csi::DEFAULT_RPC_RETRY_INTERVAL_MAX);
   }
 
   // Return a successful response for the last `CreateVolume` call.
@@ -5954,7 +5955,7 @@ TEST_P(StorageLocalResourceProviderTest, RetryRpcWithExponentialBackoff)
 
   AWAIT_READY(deleteVolumeCall) << "Failed to wait for DeleteVolume call #1";
 
-  Duration deleteVolumeBackoff = csi::v0::DEFAULT_CSI_RETRY_BACKOFF_FACTOR;
+  Duration deleteVolumeBackoff = csi::DEFAULT_RPC_RETRY_BACKOFF_FACTOR;
 
   for (size_t i = 1; i < numRetryableErrors; i++) {
     // Return `UNAVAILABLE` for subsequent `DeleteVolume` calls.
@@ -5970,7 +5971,7 @@ TEST_P(StorageLocalResourceProviderTest, RetryRpcWithExponentialBackoff)
       << "Failed to wait for DeleteVolume call #" << (i + 1);
 
     deleteVolumeBackoff = std::min(
-        deleteVolumeBackoff * 2, csi::v0::DEFAULT_CSI_RETRY_INTERVAL_MAX);
+        deleteVolumeBackoff * 2, csi::DEFAULT_RPC_RETRY_INTERVAL_MAX);
   }
 
   // Return a non-retryable error for the last `DeleteVolume` call.

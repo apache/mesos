@@ -55,17 +55,6 @@ namespace mesos {
 namespace csi {
 namespace v0 {
 
-// The CSI volume manager initially picks a random amount of time between
-// `[0, b]`, where `b = DEFAULT_CSI_RETRY_BACKOFF_FACTOR`, to retry CSI calls.
-// Subsequent retries are exponentially backed off based on this interval (e.g.,
-// 2nd retry uses a random value between `[0, b * 2^1]`, 3rd retry between
-// `[0, b * 2^2]`, etc) up to a maximum of `DEFAULT_CSI_RETRY_INTERVAL_MAX`.
-//
-// TODO(chhsiao): Make the retry parameters configurable.
-constexpr Duration DEFAULT_CSI_RETRY_BACKOFF_FACTOR = Seconds(10);
-constexpr Duration DEFAULT_CSI_RETRY_INTERVAL_MAX = Minutes(10);
-
-
 class VolumeManagerProcess : public process::Process<VolumeManagerProcess>
 {
 public:
