@@ -4090,8 +4090,22 @@ TEST_F(HierarchicalAllocatorTest, QuotaRoleAllocateNonQuotaResource)
       agent3.resources(),
       {});
 
-  // No allocation will happen because QUOTA_ROLE_1's quota has been met.
-  EXPECT_TRUE(allocations.get().isPending());
+  Clock::settle();
+
+  // `QUOTA_ROLE_1` quota has been reached. Only resources with the default
+  // quota (i.e. no limits) are allocated.
+
+  Resources nonQuotaResources =
+    Resources(agent3.resources()).filter([&](const Resource& resource) {
+      return ResourceQuantities::fromScalarResources(
+                 Resources(quota1.info.guarantee()))
+               .get(resource.name()) == Value::Scalar();
+    });
+
+  expected = Allocation(
+      framework.id(), {{QUOTA_ROLE_1, {{agent3.id(), nonQuotaResources}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocations.get());
 }
 
 
