@@ -494,6 +494,9 @@ protected:
 
     if (taskLaunchInfo.isSome()) {
       launchInfo.mutable_mounts()->CopyFrom(taskLaunchInfo->mounts());
+      launchInfo.mutable_file_operations()->CopyFrom(
+          taskLaunchInfo->file_operations());
+
       launchInfo.mutable_pre_exec_commands()->CopyFrom(
           taskLaunchInfo->pre_exec_commands());
 
