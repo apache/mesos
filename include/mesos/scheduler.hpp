@@ -317,6 +317,17 @@ public:
   // currently known.
   virtual Status reconcileTasks(
       const std::vector<TaskStatus>& statuses) = 0;
+
+  // Updates the FrameworkInfo with the provided value (except for the
+  // framework_id field, which should not be set by the caller).
+  // The driver implementation should send the supplied FrameworkInfo update
+  // to the master. Also, all the next re-registration attempts will be
+  // performed with the provided FrameworkInfo.
+  //
+  // NOTE: If the supplied info is invalid or fails authorization,
+  // the `error()` callback will be invoked asynchronously (after
+  // the master replies with a FrameworkErrorMessage).
+  virtual Status updateFramework(const FrameworkInfo& frameworkInfo) = 0;
 };
 
 
@@ -453,6 +464,8 @@ public:
 
   Status reconcileTasks(
       const std::vector<TaskStatus>& statuses) override;
+
+  Status updateFramework(const FrameworkInfo& frameworkInfo) override;
 
 protected:
   // Used to detect (i.e., choose) the master.

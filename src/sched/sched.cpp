@@ -218,6 +218,7 @@ public:
       latch(_latch),
       failover(_framework.has_id() && !framework.id().value().empty()),
       connected(false),
+      sendUpdateFrameworkOnConnect(false),
       running(true),
       detector(_detector),
       flags(_flags),
@@ -748,6 +749,11 @@ protected:
     connected = true;
     failover = false;
 
+    if (sendUpdateFrameworkOnConnect) {
+      sendUpdateFramework();
+    }
+    sendUpdateFrameworkOnConnect = false;
+
     Stopwatch stopwatch;
     if (FLAGS_v >= 1) {
       stopwatch.start();
@@ -789,6 +795,12 @@ protected:
 
     connected = true;
     failover = false;
+
+    if (sendUpdateFrameworkOnConnect) {
+      sendUpdateFramework();
+    }
+    sendUpdateFrameworkOnConnect = false;
+
 
     Stopwatch stopwatch;
     if (FLAGS_v >= 1) {
@@ -1583,6 +1595,24 @@ protected:
     send(master->pid(), call);
   }
 
+  void updateFramework(const FrameworkInfo& framework_)
+  {
+    CHECK(!framework_.has_id());
+
+    // Update the FrameworkInfo used for re-registration
+    FrameworkID frameworkId = framework.id();
+    framework = framework_;
+    *framework.mutable_id() = std::move(frameworkId);
+
+    if (connected) {
+      sendUpdateFramework();
+    } else {
+      VLOG(1) << "Postponing UPDATE_FRAMEWORK call:"
+                 " not registered with master";
+      sendUpdateFrameworkOnConnect = true;
+    }
+  }
+
 private:
   friend class mesos::MesosSchedulerDriver;
 
@@ -1626,6 +1656,23 @@ private:
     return static_cast<double>(eventCount<DispatchEvent>());
   }
 
+  void sendUpdateFramework()
+  {
+    Call call;
+
+    CHECK(framework.has_id());
+    *call.mutable_framework_id() = framework.id();
+
+    call.set_type(Call::UPDATE_FRAMEWORK);
+    *call.mutable_update_framework()->mutable_framework_info() = framework;
+
+    VLOG(1) << "Sending UPDATE_FRAMEWORK message";
+
+    CHECK_SOME(master);
+    send(master->pid(), call);
+  }
+
+
   MesosSchedulerDriver* driver;
   Scheduler* scheduler;
   FrameworkInfo framework;
@@ -1637,6 +1684,10 @@ private:
   Option<MasterInfo> master;
 
   bool connected; // Flag to indicate if framework is registered.
+
+  // Flag to indicate that an UPDATE_FRAMEWORK with a current FrameworkInfo
+  // should be sent after successful (re)connection attempt.
+  bool sendUpdateFrameworkOnConnect;
 
   // TODO(vinod): Instead of 'bool' use 'Status'.
   // We set 'running' to false in SchedulerDriver::stop() and
@@ -1684,6 +1735,25 @@ private:
 
 } // namespace internal {
 } // namespace mesos {
+
+
+void fillMissingFrameworkInfoFields(FrameworkInfo* framework)
+{
+  if (framework->user().empty()) {
+    Result<string> user = os::user();
+    CHECK_SOME(user);
+
+    *framework->mutable_user() = user.get();
+  }
+
+  if (framework->hostname().empty()) {
+    Try<string> hostname = net::hostname();
+
+    if (hostname.isSome()) {
+      *framework->mutable_hostname() = hostname.get();
+    }
+  }
+}
 
 
 void MesosSchedulerDriver::initialize() {
@@ -1741,20 +1811,7 @@ void MesosSchedulerDriver::initialize() {
   // see if the current user can switch to that user, or via an
   // authentication module ensure this is acceptable.
 
-  // See FrameWorkInfo in include/mesos/mesos.proto:
-  if (framework.user().empty()) {
-    Result<string> user = os::user();
-    CHECK_SOME(user);
-
-    framework.set_user(user.get());
-  }
-
-  if (framework.hostname().empty()) {
-    Try<string> hostname = net::hostname();
-    if (hostname.isSome()) {
-      framework.set_hostname(hostname.get());
-    }
-  }
+  fillMissingFrameworkInfoFields(&framework);
 
   // Launch a local cluster if necessary.
   Option<UPID> pid;
@@ -2270,6 +2327,32 @@ Status MesosSchedulerDriver::reconcileTasks(
     CHECK(process != nullptr);
 
     dispatch(process, &SchedulerProcess::reconcileTasks, statuses);
+
+    return status;
+  }
+}
+
+Status MesosSchedulerDriver::updateFramework(const FrameworkInfo& update)
+{
+  synchronized (mutex) {
+    if (status != DRIVER_RUNNING) {
+      return status;
+    }
+
+    if (update.has_id()) {
+      LOG(ERROR) << "MesosSchedulerDriver::updateFramework should not be called"
+                 << " with 'FrameworkInfo.id' set, aborting driver";
+      abort();
+      return status;
+    }
+
+    framework = update;
+
+    fillMissingFrameworkInfoFields(&framework);
+
+    CHECK(process != nullptr);
+
+    dispatch(process, &SchedulerProcess::updateFramework, framework);
 
     return status;
   }
