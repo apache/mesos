@@ -2185,7 +2185,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_NestedContainerSpecificCgroupsMount)
 {
   // Disable AuthN on the agent.
   slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "filesystem/linux,docker/runtime,cgroups/mem";
+  flags.isolation = "filesystem/linux,docker/runtime,cgroups/mem,cgroups/cpu";
   flags.image_providers = "docker";
   flags.authenticate_http_readwrite = false;
 
@@ -2234,9 +2234,8 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_NestedContainerSpecificCgroupsMount)
 
   const v1::Offer& offer = offers->offers(0);
 
-  // Create a task to check if its memory (including both executor and task's
-  // memory) is correctly set in its specific cgroup, e.g.:
-  //  `/sys/fs/cgroup/memory/memory.soft_limit_in_bytes`
+  // Create a task to check if its memory and CPU shares (including both
+  // executor's and task's) are correctly set in its specific cgroup.
   //
   // And we also verify the freezer cgroup is correctly mounted for this task
   // by checking if the current shell PID is included in the freezer cgroup.
@@ -2244,6 +2243,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_NestedContainerSpecificCgroupsMount)
       offer.agent_id(),
       v1::Resources::parse("cpus:0.1;mem:32;disk:32").get(),
       "test `cat /sys/fs/cgroup/memory/memory.soft_limit_in_bytes` = 67108864 "
+      "&& test `cat /sys/fs/cgroup/cpu/cpu.shares` = 204"
       "&& grep $$ /sys/fs/cgroup/freezer/cgroup.procs");
 
   mesos::v1::Image image;
@@ -2299,7 +2299,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CommandTaskSpecificCgroupsMount)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   slave::Flags flags = CreateSlaveFlags();
-  flags.isolation = "filesystem/linux,docker/runtime,cgroups/mem";
+  flags.isolation = "filesystem/linux,docker/runtime,cgroups/mem,cgroups/cpu";
   flags.image_providers = "docker";
 
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
@@ -2321,9 +2321,8 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CommandTaskSpecificCgroupsMount)
   AWAIT_READY(offers);
   EXPECT_EQ(1u, offers->size());
 
-  // Create a task to check if its memory (including both executor and task's
-  // memory) is correctly set in its specific cgroup, e.g.:
-  //  `/sys/fs/cgroup/memory/memory.soft_limit_in_bytes`
+  // Create a task to check if its memory and CPU shares (including both
+  // executor's and task's) are correctly set in its specific cgroup.
   //
   // And we also verify the freezer cgroup is correctly mounted for this task
   // by checking if the current shell PID is included in the freezer cgroup.
@@ -2331,6 +2330,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_CommandTaskSpecificCgroupsMount)
       offers->front().slave_id(),
       Resources::parse("cpus:0.1;mem:32;disk:32").get(),
       "test `cat /sys/fs/cgroup/memory/memory.soft_limit_in_bytes` = 67108864 "
+      "&& test `cat /sys/fs/cgroup/cpu/cpu.shares` = 204"
       "&& grep $$ /sys/fs/cgroup/freezer/cgroup.procs");
 
   Image image;
