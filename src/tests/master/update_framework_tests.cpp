@@ -39,6 +39,7 @@
 #include <stout/lambda.hpp>
 #include <stout/try.hpp>
 
+#include "internal/devolve.hpp"
 #include "internal/evolve.hpp"
 
 #include "master/allocator/mesos/allocator.hpp"
@@ -601,6 +602,259 @@ TEST_F(UpdateFrameworkTest, RescindOnRemovingRoles)
 
 } // namespace scheduler {
 } // namespace v1 {
+
+
+// Base class for tests of V0 UPDATE_FRAMEWORK call
+class UpdateFrameworkV0Test : public MesosTest {};
+
+
+TEST_F(UpdateFrameworkV0Test, CheckpointingChangeFails)
+{
+  Try<Owned<cluster::Master>> master = StartMaster(CreateMasterFlags());
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master->get()->createDetector();
+
+  MockScheduler sched;
+  TestingMesosSchedulerDriver driver(
+    &sched, detector.get(), DEFAULT_FRAMEWORK_INFO);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  Future<string> error;
+  EXPECT_CALL(sched, error(&driver, _))
+    .WillOnce(FutureArg<1>(&error));
+
+  driver.start();
+
+  AWAIT_READY(registered);
+
+  FrameworkInfo update = changeAllMutableFields(DEFAULT_FRAMEWORK_INFO);
+  update.set_checkpoint(!update.checkpoint());
+  driver.updateFramework(update);
+
+  AWAIT_READY(error);
+  EXPECT_TRUE(strings::contains(
+      error.get(), "Updating 'FrameworkInfo.checkpoint' is unsupported"));
+
+  driver.stop();
+  driver.join();
+}
+
+
+TEST_F(UpdateFrameworkV0Test, MutableFieldsUpdateSuccessfully)
+{
+  Try<Owned<cluster::Master>> master = StartMaster(CreateMasterFlags());
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master->get()->createDetector();
+
+  // Subscribe to master v1 API.
+  v1::MockMasterAPISubscriber masterAPISubscriber;
+  AWAIT_READY(masterAPISubscriber.subscribe(master.get()->pid));
+
+  Future<Nothing> agentAdded;
+  EXPECT_CALL(masterAPISubscriber, agentAdded(_))
+    .WillOnce(FutureSatisfy(&agentAdded));
+
+  // We need a slave to test the UpdateFrameworkMessage.
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  // To test the UpdateFrameworkMessage, we should wait for the slave
+  // to be added before calling UPDATE_FRAMEWORK.
+  AWAIT_READY(agentAdded);
+
+  MockScheduler sched;
+  TestingMesosSchedulerDriver driver(
+      &sched, detector.get(), DEFAULT_FRAMEWORK_INFO);
+
+  Future<FrameworkID> registeredFrameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&registeredFrameworkId));
+
+  driver.start();
+
+  AWAIT_READY(registeredFrameworkId);
+
+  // Expect FRAMEWORK_UPDATED event after update.
+  Future<v1::master::Event::FrameworkUpdated> frameworkUpdated;
+  EXPECT_CALL(masterAPISubscriber, frameworkUpdated(_))
+    .WillOnce(FutureArg<0>(&frameworkUpdated));
+
+  // Expect UpdateFrameworkMessage to be sent from master to slave.
+  Future<UpdateFrameworkMessage> updateFrameworkMessage = FUTURE_PROTOBUF(
+      UpdateFrameworkMessage(), master->get()->pid, slave->get()->pid);
+
+  FrameworkInfo update = changeAllMutableFields(DEFAULT_FRAMEWORK_INFO);
+
+  // We need to leave the FrameworkID empty because the driver does not accept
+  // FrameworkInfos with explicitly specified IDs.
+  driver.updateFramework(update);
+
+  AWAIT_READY(updateFrameworkMessage);
+
+  // Set the expected FrameworkID for comparison purposes.
+  *update.mutable_id() = registeredFrameworkId.get();
+  EXPECT_NONE(diff(updateFrameworkMessage->framework_info(), update));
+
+  AWAIT_READY(frameworkUpdated);
+  EXPECT_NONE(diff(
+      devolve(frameworkUpdated->framework().framework_info()), update));
+
+  Future<v1::master::Response::GetFrameworks> frameworks =
+    v1::getFrameworks(master->get()->pid);
+  AWAIT_READY(frameworks);
+  ASSERT_EQ(frameworks->frameworks_size(), 1);
+  const FrameworkInfo& reportedFrameworkInfo =
+    devolve(frameworks->frameworks(0).framework_info());
+
+  EXPECT_NONE(diff(reportedFrameworkInfo, update));
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This tests that adding a role via UPDATE_FRAMEWORK to a framework which had
+// no roles triggers allocation of an offer for that role.
+TEST_F(UpdateFrameworkV0Test, OffersOnAddingRole)
+{
+  mesos::internal::master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  // There are at least two distinct cases that one might want to test:
+  // - That adding a role triggers allocation.
+  // - That adding a slave triggers allocation when the framework has roles.
+  //
+  // In this test the intention is to test the first case - and definitely
+  // not to alternate between these two cases from run to run.
+  // Therefore, before making scheduler calls, we need to wait for the slave to
+  // be added. This is done by waiting for an AGENT_ADDED master API event.
+  v1::MockMasterAPISubscriber masterAPISubscriber;
+  AWAIT_READY(masterAPISubscriber.subscribe(master.get()->pid));
+
+  Future<Nothing> agentAdded;
+  EXPECT_CALL(masterAPISubscriber, agentAdded(_))
+    .WillOnce(FutureSatisfy(&agentAdded));
+
+  Owned<MasterDetector> detector = master->get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(agentAdded);
+
+  // Subscribe without roles.
+  FrameworkInfo initialFrameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  initialFrameworkInfo.clear_roles();
+
+  MockScheduler sched;
+  TestingMesosSchedulerDriver driver(
+      &sched, detector.get(), initialFrameworkInfo);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  // Check that the framework gets no offers before update.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .Times(AtMost(0));
+
+  driver.start();
+
+  AWAIT_READY(registered);
+
+  // Trigger allocation to ensure that offers are not generated before update.
+  Clock::pause();
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::settle();
+  Clock::resume();
+
+  // Expect an offer after adding a role.
+  Future<std::vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  // Add a role via update and wait for offers.
+  FrameworkInfo update = initialFrameworkInfo;
+  update.clear_roles();
+  update.add_roles("new_role");
+  driver.updateFramework(update);
+
+  AWAIT_READY(offers);
+
+  ASSERT_EQ(offers->size(), 1u);
+  EXPECT_EQ(offers->front().allocation_info().role(), "new_role");
+}
+
+// Test that framework's offers are rescinded when a framework is
+// removed from all its roles via UPDATE_FRAMEWORK.
+TEST_F(UpdateFrameworkV0Test, RescindOnRemovingRoles)
+{
+  mesos::internal::master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master->get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+
+  // Expect an offer exactly once (after subscribing).
+  Future<std::vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  TestingMesosSchedulerDriver driver(
+      &sched, detector.get(), DEFAULT_FRAMEWORK_INFO);
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(offers->size(), 1u);
+
+  // Set up expectations for things that should happen after role removal.
+
+  // The offer for the removed role should be rescinded.
+  Future<OfferID> rescindedOfferId;
+  EXPECT_CALL(sched, offerRescinded(_, _))
+    .WillOnce(FutureArg<1>(&rescindedOfferId));
+
+  // recoverResources() should be called.
+  //
+  // TODO(asekretenko): Add a more in-depth check that
+  // the allocator does what it should.
+  Future<Nothing> recoverResources =
+    FUTURE_DISPATCH(_, &MesosAllocatorProcess::recoverResources);
+
+  // Remove the framework from all roles via update.
+  FrameworkInfo update = DEFAULT_FRAMEWORK_INFO;
+  update.clear_roles();
+  driver.updateFramework(update);
+
+  AWAIT_READY(rescindedOfferId);
+  AWAIT_READY(recoverResources);
+
+  EXPECT_EQ(offers->front().id(), rescindedOfferId.get());
+
+  // After that, nothing of interest should happen within an allocation
+  // interval: no more offers and no more rescinding.
+  Clock::pause();
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::settle();
+
+  driver.stop();
+  driver.join();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
