@@ -101,6 +101,7 @@ static Future<APIResult> callUpdateFramework(
 }
 
 
+// TODO(asekretenko): Move this function out of 'scheduler' namespace.
 static Future<v1::master::Response::GetFrameworks> getFrameworks(
     const process::PID<Master>& pid)
 {
@@ -141,13 +142,15 @@ static Future<v1::master::Response::GetFrameworks> getFrameworks(
 }
 
 
-static FrameworkInfo changeAllMutableFields(const FrameworkInfo& oldInfo)
+// TODO(asekretenko): Move this function out of 'v1' namespace.
+template <class TFrameworkInfo>
+static TFrameworkInfo changeAllMutableFields(const TFrameworkInfo& oldInfo)
 {
-  CHECK_EQ(FrameworkInfo::descriptor()->field_count(), 13)
+  CHECK_EQ(TFrameworkInfo::descriptor()->field_count(), 13)
     << "After adding a new mutable field to FrameworkInfo, please make sure "
     << "that this function modifies this field";
 
-  FrameworkInfo newInfo = oldInfo;
+  TFrameworkInfo newInfo = oldInfo;
 
   *newInfo.mutable_name() += "_foo";
   newInfo.set_failover_timeout(newInfo.failover_timeout() + 1000.0);
@@ -155,9 +158,9 @@ static FrameworkInfo changeAllMutableFields(const FrameworkInfo& oldInfo)
   *newInfo.mutable_webui_url() += "/foo";
 
   newInfo.add_capabilities()->set_type(
-      FrameworkInfo::Capability::REGION_AWARE);
+      TFrameworkInfo::Capability::REGION_AWARE);
 
-  mesos::v1::Label* newLabel = newInfo.mutable_labels()->add_labels();
+  auto* newLabel = newInfo.mutable_labels()->add_labels();
   *newLabel->mutable_key() = "UPDATE_FRAMEWORK_KEY";
   *newLabel->mutable_value() = "UPDATE_FRAMEWORK_VALUE";
 
@@ -165,17 +168,20 @@ static FrameworkInfo changeAllMutableFields(const FrameworkInfo& oldInfo)
   newInfo.add_roles("new_role");
 
   CHECK(newInfo.offer_filters().count("new_role") == 0);
-  (*newInfo.mutable_offer_filters())["new_role_without_resources"] =
-    mesos::v1::OfferFilters();
+  (*newInfo.mutable_offer_filters())["new_role"] =
+    typename std::remove_reference<decltype(
+      newInfo.offer_filters())>::type::mapped_type();
 
   return newInfo;
 }
 
 
-static Option<string> diff(
-    const FrameworkInfo& lhs, const FrameworkInfo& rhs)
+// TODO(asekretenko): Move this function out of 'v1' namespace.
+template <class TFrameworkInfo>
+static Option<std::string> diff(
+    const TFrameworkInfo& lhs, const TFrameworkInfo& rhs)
 {
-  const google::protobuf::Descriptor* descriptor = FrameworkInfo::descriptor();
+  const google::protobuf::Descriptor* descriptor = TFrameworkInfo::descriptor();
   google::protobuf::util::MessageDifferencer differencer;
 
   differencer.TreatAsSet(descriptor->FindFieldByName("capabilities"));
