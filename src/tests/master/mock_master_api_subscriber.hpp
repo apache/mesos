@@ -80,7 +80,7 @@ public:
   // NOTE: All expectations on the mock methods should be set before calling
   // this method.
   process::Future<Nothing> subscribe(
-    const process::PID<mesos::internal::master::Master>&,
+    const process::PID<mesos::internal::master::Master>& masterPid,
     ContentType contentType = ContentType::PROTOBUF);
 
 private:
@@ -88,7 +88,7 @@ private:
   void handleEvent(const ::mesos::v1::master::Event& event);
 
   bool subscribeCalled;
-  MockMasterAPISubscriberProcess* process;
+  process::PID<MockMasterAPISubscriberProcess> pid;
 };
 
 

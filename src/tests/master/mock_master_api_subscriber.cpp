@@ -47,7 +47,7 @@ public:
     : subscriber(subscriber_) {};
 
   Future<Nothing> subscribe(
-    const process::PID<Master>& pid, ContentType contentType)
+    const process::PID<Master>& masterPid, ContentType contentType)
   {
     Call call;
     call.set_type(Call::SUBSCRIBE);
@@ -56,7 +56,7 @@ public:
     headers["Accept"] = stringify(contentType);
 
     return process::http::streaming::post(
-        pid,
+        masterPid,
         "api/v1",
         headers,
         serialize(contentType, call),
@@ -170,26 +170,25 @@ MockMasterAPISubscriber::MockMasterAPISubscriber()
 
   subscribeCalled = false;
 
-  process = new MockMasterAPISubscriberProcess(this);
-  spawn(process, true);
+  pid = spawn(new MockMasterAPISubscriberProcess(this), true);
 }
 
 
 MockMasterAPISubscriber::~MockMasterAPISubscriber()
 {
-  process::terminate(process);
+  process::terminate(pid);
 
   // The process holds a pointer to this object, and so
   // we must ensure it won't access the pointer before
   // we exit the destructor.
   //
   // TODO(asekretenko): Figure out a way to avoid blocking.
-  process::wait(process);
+  process::wait(pid);
 }
 
 
 Future<Nothing> MockMasterAPISubscriber::subscribe(
-    const process::PID<Master>& pid,
+    const process::PID<Master>& masterPid,
     ContentType contentType)
 {
   if (subscribeCalled) {
@@ -200,9 +199,9 @@ Future<Nothing> MockMasterAPISubscriber::subscribe(
   subscribeCalled = true;
 
   return dispatch(
-      process,
-      &MockMasterAPISubscriberProcess::subscribe,
       pid,
+      &MockMasterAPISubscriberProcess::subscribe,
+      masterPid,
       contentType);
 }
 
