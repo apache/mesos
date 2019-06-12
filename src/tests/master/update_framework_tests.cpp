@@ -80,28 +80,65 @@ using testing::Return;
 namespace mesos {
 namespace internal {
 namespace tests {
-namespace v1 {
-namespace scheduler {
 
 
-class UpdateFrameworkTest : public MesosTest {};
-
-
-static Future<APIResult> callUpdateFramework(
-    Mesos* mesos,
-    const FrameworkInfo& info)
+template <class TFrameworkInfo>
+static TFrameworkInfo changeAllMutableFields(const TFrameworkInfo& oldInfo)
 {
-  CHECK(info.has_id());
+  CHECK_EQ(TFrameworkInfo::descriptor()->field_count(), 13)
+    << "After adding a new mutable field to FrameworkInfo, please make sure "
+    << "that this function modifies this field";
 
-  Call call;
-  call.set_type(Call::UPDATE_FRAMEWORK);
-  *call.mutable_framework_id() = info.id();
-  *call.mutable_update_framework()->mutable_framework_info() = info;
-  return mesos->call(call);
+  TFrameworkInfo newInfo = oldInfo;
+
+  *newInfo.mutable_name() += "_foo";
+  newInfo.set_failover_timeout(newInfo.failover_timeout() + 1000.0);
+  *newInfo.mutable_hostname() += ".foo";
+  *newInfo.mutable_webui_url() += "/foo";
+
+  newInfo.add_capabilities()->set_type(
+      TFrameworkInfo::Capability::REGION_AWARE);
+
+  auto* newLabel = newInfo.mutable_labels()->add_labels();
+  *newLabel->mutable_key() = "UPDATE_FRAMEWORK_KEY";
+  *newLabel->mutable_value() = "UPDATE_FRAMEWORK_VALUE";
+
+  // TODO(asekretenko): Test update of `role` with a non-MULTI_ROLE framework.
+  newInfo.add_roles("new_role");
+
+  CHECK(newInfo.offer_filters().count("new_role") == 0);
+  (*newInfo.mutable_offer_filters())["new_role"] =
+    typename std::remove_reference<decltype(
+      newInfo.offer_filters())>::type::mapped_type();
+
+  return newInfo;
 }
 
 
-// TODO(asekretenko): Move this function out of 'scheduler' namespace.
+template <class TFrameworkInfo>
+static Option<std::string> diff(
+    const TFrameworkInfo& lhs, const TFrameworkInfo& rhs)
+{
+  const google::protobuf::Descriptor* descriptor = TFrameworkInfo::descriptor();
+  google::protobuf::util::MessageDifferencer differencer;
+
+  differencer.TreatAsSet(descriptor->FindFieldByName("capabilities"));
+  differencer.TreatAsSet(descriptor->FindFieldByName("roles"));
+
+  string result;
+  differencer.ReportDifferencesToString(&result);
+
+  if (differencer.Compare(lhs, rhs)) {
+    return None();
+  }
+
+  return result;
+}
+
+
+namespace v1 {
+
+
 static Future<v1::master::Response::GetFrameworks> getFrameworks(
     const process::PID<Master>& pid)
 {
@@ -142,59 +179,23 @@ static Future<v1::master::Response::GetFrameworks> getFrameworks(
 }
 
 
-// TODO(asekretenko): Move this function out of 'v1' namespace.
-template <class TFrameworkInfo>
-static TFrameworkInfo changeAllMutableFields(const TFrameworkInfo& oldInfo)
+namespace scheduler {
+
+
+class UpdateFrameworkTest : public MesosTest {};
+
+
+static Future<APIResult> callUpdateFramework(
+    Mesos* mesos,
+    const FrameworkInfo& info)
 {
-  CHECK_EQ(TFrameworkInfo::descriptor()->field_count(), 13)
-    << "After adding a new mutable field to FrameworkInfo, please make sure "
-    << "that this function modifies this field";
+  CHECK(info.has_id());
 
-  TFrameworkInfo newInfo = oldInfo;
-
-  *newInfo.mutable_name() += "_foo";
-  newInfo.set_failover_timeout(newInfo.failover_timeout() + 1000.0);
-  *newInfo.mutable_hostname() += ".foo";
-  *newInfo.mutable_webui_url() += "/foo";
-
-  newInfo.add_capabilities()->set_type(
-      TFrameworkInfo::Capability::REGION_AWARE);
-
-  auto* newLabel = newInfo.mutable_labels()->add_labels();
-  *newLabel->mutable_key() = "UPDATE_FRAMEWORK_KEY";
-  *newLabel->mutable_value() = "UPDATE_FRAMEWORK_VALUE";
-
-  // TODO(asekretenko): Test update of `role` with a non-MULTI_ROLE framework.
-  newInfo.add_roles("new_role");
-
-  CHECK(newInfo.offer_filters().count("new_role") == 0);
-  (*newInfo.mutable_offer_filters())["new_role"] =
-    typename std::remove_reference<decltype(
-      newInfo.offer_filters())>::type::mapped_type();
-
-  return newInfo;
-}
-
-
-// TODO(asekretenko): Move this function out of 'v1' namespace.
-template <class TFrameworkInfo>
-static Option<std::string> diff(
-    const TFrameworkInfo& lhs, const TFrameworkInfo& rhs)
-{
-  const google::protobuf::Descriptor* descriptor = TFrameworkInfo::descriptor();
-  google::protobuf::util::MessageDifferencer differencer;
-
-  differencer.TreatAsSet(descriptor->FindFieldByName("capabilities"));
-  differencer.TreatAsSet(descriptor->FindFieldByName("roles"));
-
-  string result;
-  differencer.ReportDifferencesToString(&result);
-
-  if (differencer.Compare(lhs, rhs)) {
-    return None();
-  }
-
-  return result;
+  Call call;
+  call.set_type(Call::UPDATE_FRAMEWORK);
+  *call.mutable_framework_id() = info.id();
+  *call.mutable_update_framework()->mutable_framework_info() = info;
+  return mesos->call(call);
 }
 
 
