@@ -157,7 +157,7 @@ void execute(const string& script)
 
     mesos::ACL::RegisterFramework* register_ = acls.add_register_frameworks();
     register_->mutable_principals()->add_values(DEFAULT_CREDENTIAL.principal());
-    register_->mutable_roles()->add_values("*");
+    register_->mutable_roles()->set_type(mesos::ACL::Entity::ANY);
 
     // Allow agents with any principal or no principal to register.
     // Currently the agents in the example tests don't have authentication
