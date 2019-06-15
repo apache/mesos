@@ -298,6 +298,8 @@ public class MesosSchedulerDriver implements SchedulerDriver {
 
   public native Status reconcileTasks(Collection<TaskStatus> statuses);
 
+  public native Status updateFramework(FrameworkInfo frameworkInfo);
+
   protected native void initialize();
   protected native void finalize();
 

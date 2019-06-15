@@ -323,4 +323,29 @@ public interface SchedulerDriver {
    * @see SlaveID
    */
   Status reconcileTasks(Collection<TaskStatus> statuses);
+
+  /**
+   * Inform Mesos master about changes to the `FrameworkInfo`. The
+   * driver will store the new `FrameworkInfo` and all subsequent
+   * re-registrations will use it.
+   *
+   * NOTE: If the supplied info is invalid or fails authorization,
+   * the `error()` callback will be invoked asynchronously (after
+   * the master replies with a `FrameworkErrorMessage`).
+   *
+   * NOTE: This must be called after initial registration with the
+   * master completes and the `FrameworkID` is assigned. The assigned
+   * `FrameworkID` must be set in `frameworkInfo`.
+   *
+   * NOTE: The `FrameworkInfo.user` and `FrameworkInfo.hostname`
+   * fields will be auto-populated using the same approach used
+   * during driver initialization.
+   *
+   * @param frameworkInfo  The new FrameworkInfo.
+   *
+   * @return               The state of the driver after the call.
+   *
+   * @see FrameworkInfo
+   */
+  Status updateFramework(FrameworkInfo frameworkInfo);
 }

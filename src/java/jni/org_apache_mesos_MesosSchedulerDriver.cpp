@@ -1136,4 +1136,26 @@ Java_org_apache_mesos_MesosSchedulerDriver_reconcileTasks(
   return convert<Status>(env, status);
 }
 
+/* Class:     org_apache_mesos_MesosSchedulerDriver
+ * Method:    updateFramework
+ * Signature: (Lorg/apache/mesos/Protos/FrameworkInfo;)Lorg/apache/mesos/Protos/Status;
+ */
+JNIEXPORT jobject JNICALL
+Java_org_apache_mesos_MesosSchedulerDriver_updateFramework(
+    JNIEnv* env, jobject thiz, jobject jframeworkInfo)
+{
+  const FrameworkInfo& frameworkInfo =
+    construct<FrameworkInfo>(env, jframeworkInfo);
+
+  jclass clazz = env->GetObjectClass(thiz);
+
+  jfieldID __driver = env->GetFieldID(clazz, "__driver", "J");
+  MesosSchedulerDriver* driver =
+    (MesosSchedulerDriver*) env->GetLongField(thiz, __driver);
+
+  Status status = driver->updateFramework(frameworkInfo);
+
+  return convert<Status>(env, status);
+}
+
 } // extern "C" {
