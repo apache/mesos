@@ -43,6 +43,7 @@
 #include "internal/evolve.hpp"
 
 #include "master/allocator/mesos/allocator.hpp"
+#include "master/detector/standalone.hpp"
 #include "master/master.hpp"
 
 #include "tests/mesos.hpp"
@@ -608,6 +609,76 @@ TEST_F(UpdateFrameworkTest, RescindOnRemovingRoles)
 class UpdateFrameworkV0Test : public MesosTest {};
 
 
+TEST_F(UpdateFrameworkV0Test, DriverErrorWhenCalledBeforeRegistration)
+{
+  ::mesos::master::detector::StandaloneMasterDetector detector;
+
+  MockScheduler sched;
+  TestingMesosSchedulerDriver driver(
+    &sched, &detector, DEFAULT_FRAMEWORK_INFO);
+
+  Future<string> error;
+  EXPECT_CALL(sched, error(&driver, _))
+    .WillOnce(FutureArg<1>(&error));
+
+  driver.start();
+
+  driver.updateFramework(DEFAULT_FRAMEWORK_INFO);
+
+  AWAIT_READY(error);
+  EXPECT_EQ(error.get(),
+            "MesosSchedulerDriver::updateFramework() must not be called"
+            " prior to registration with the master");
+
+  driver.stop();
+  driver.join();
+}
+
+
+TEST_F(UpdateFrameworkV0Test, DriverErrorOnFrameworkIDMismatch)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master->get()->createDetector();
+
+  MockScheduler sched;
+  TestingMesosSchedulerDriver driver(
+    &sched, detector.get(), DEFAULT_FRAMEWORK_INFO);
+  driver.start();
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<string> error;
+  EXPECT_CALL(sched, error(&driver, _))
+    .WillOnce(FutureArg<1>(&error));
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  FrameworkInfo update = DEFAULT_FRAMEWORK_INFO;
+  *update.mutable_id() = frameworkId.get();
+  *update.mutable_id()->mutable_value() += "-deadbeef";
+
+  driver.updateFramework(update);
+
+  AWAIT_READY(error);
+  EXPECT_EQ(
+      error.get(),
+      "The 'FrameworkInfo.id' provided to"
+      " MesosSchedulerDriver::updateFramework()"
+      " (" + stringify(update.id()) + ")"
+      " must be equal to the value known to the MesosSchedulerDriver"
+      " (" + stringify(frameworkId.get()) + ")");
+
+  driver.stop();
+  driver.join();
+}
+
+
 TEST_F(UpdateFrameworkV0Test, CheckpointingChangeFails)
 {
   Try<Owned<cluster::Master>> master = StartMaster(CreateMasterFlags());
@@ -619,9 +690,9 @@ TEST_F(UpdateFrameworkV0Test, CheckpointingChangeFails)
   TestingMesosSchedulerDriver driver(
     &sched, detector.get(), DEFAULT_FRAMEWORK_INFO);
 
-  Future<Nothing> registered;
+  Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
-    .WillOnce(FutureSatisfy(&registered));
+    .WillOnce(FutureArg<1>(&frameworkId));
 
   Future<string> error;
   EXPECT_CALL(sched, error(&driver, _))
@@ -629,10 +700,11 @@ TEST_F(UpdateFrameworkV0Test, CheckpointingChangeFails)
 
   driver.start();
 
-  AWAIT_READY(registered);
+  AWAIT_READY(frameworkId);
 
   FrameworkInfo update = changeAllMutableFields(DEFAULT_FRAMEWORK_INFO);
   update.set_checkpoint(!update.checkpoint());
+  *update.mutable_id() = frameworkId.get();
   driver.updateFramework(update);
 
   AWAIT_READY(error);
@@ -671,13 +743,13 @@ TEST_F(UpdateFrameworkV0Test, MutableFieldsUpdateSuccessfully)
   TestingMesosSchedulerDriver driver(
       &sched, detector.get(), DEFAULT_FRAMEWORK_INFO);
 
-  Future<FrameworkID> registeredFrameworkId;
+  Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
-    .WillOnce(FutureArg<1>(&registeredFrameworkId));
+    .WillOnce(FutureArg<1>(&frameworkId));
 
   driver.start();
 
-  AWAIT_READY(registeredFrameworkId);
+  AWAIT_READY(frameworkId);
 
   // Expect FRAMEWORK_UPDATED event after update.
   Future<v1::master::Event::FrameworkUpdated> frameworkUpdated;
@@ -689,15 +761,12 @@ TEST_F(UpdateFrameworkV0Test, MutableFieldsUpdateSuccessfully)
       UpdateFrameworkMessage(), master->get()->pid, slave->get()->pid);
 
   FrameworkInfo update = changeAllMutableFields(DEFAULT_FRAMEWORK_INFO);
+  *update.mutable_id() = frameworkId.get();
 
-  // We need to leave the FrameworkID empty because the driver does not accept
-  // FrameworkInfos with explicitly specified IDs.
   driver.updateFramework(update);
 
   AWAIT_READY(updateFrameworkMessage);
 
-  // Set the expected FrameworkID for comparison purposes.
-  *update.mutable_id() = registeredFrameworkId.get();
   EXPECT_NONE(diff(updateFrameworkMessage->framework_info(), update));
 
   AWAIT_READY(frameworkUpdated);
@@ -756,9 +825,9 @@ TEST_F(UpdateFrameworkV0Test, OffersOnAddingRole)
   TestingMesosSchedulerDriver driver(
       &sched, detector.get(), initialFrameworkInfo);
 
-  Future<Nothing> registered;
+  Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
-    .WillOnce(FutureSatisfy(&registered));
+    .WillOnce(FutureArg<1>(&frameworkId));
 
   // Check that the framework gets no offers before update.
   EXPECT_CALL(sched, resourceOffers(&driver, _))
@@ -766,7 +835,7 @@ TEST_F(UpdateFrameworkV0Test, OffersOnAddingRole)
 
   driver.start();
 
-  AWAIT_READY(registered);
+  AWAIT_READY(frameworkId);
 
   // Trigger allocation to ensure that offers are not generated before update.
   Clock::pause();
@@ -784,6 +853,8 @@ TEST_F(UpdateFrameworkV0Test, OffersOnAddingRole)
   FrameworkInfo update = initialFrameworkInfo;
   update.clear_roles();
   update.add_roles("new_role");
+  *update.mutable_id() = frameworkId.get();
+
   driver.updateFramework(update);
 
   AWAIT_READY(offers);
@@ -806,16 +877,21 @@ TEST_F(UpdateFrameworkV0Test, RescindOnRemovingRoles)
   ASSERT_SOME(slave);
 
   MockScheduler sched;
-
-  // Expect an offer exactly once (after subscribing).
-  Future<std::vector<Offer>> offers;
-  EXPECT_CALL(sched, resourceOffers(_, _))
-    .WillOnce(FutureArg<1>(&offers));
-
   TestingMesosSchedulerDriver driver(
       &sched, detector.get(), DEFAULT_FRAMEWORK_INFO);
 
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  // Expect an offer exactly once (after subscribing).
+  Future<std::vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
   driver.start();
+
+  AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
   ASSERT_EQ(offers->size(), 1u);
@@ -837,6 +913,8 @@ TEST_F(UpdateFrameworkV0Test, RescindOnRemovingRoles)
   // Remove the framework from all roles via update.
   FrameworkInfo update = DEFAULT_FRAMEWORK_INFO;
   update.clear_roles();
+  *update.mutable_id() = frameworkId.get();
+
   driver.updateFramework(update);
 
   AWAIT_READY(rescindedOfferId);
