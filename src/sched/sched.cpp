@@ -1597,12 +1597,22 @@ protected:
 
   void updateFramework(const FrameworkInfo& framework_)
   {
-    CHECK(!framework_.has_id());
+    if (!framework.has_id() || framework.id().value().empty()) {
+      error("MesosSchedulerDriver::updateFramework() must not be called"
+            " prior to registration with the master");
+      return;
+    }
 
-    // Update the FrameworkInfo used for re-registration
-    FrameworkID frameworkId = framework.id();
+    if (framework_.id() != framework.id()) {
+      error("The 'FrameworkInfo.id' provided to"
+            " MesosSchedulerDriver::updateFramework()"
+            " (" + stringify(framework_.id()) + ")"
+            " must be equal to the value known to the MesosSchedulerDriver"
+            " (" + stringify(framework.id()) + ")");
+      return;
+    }
+
     framework = framework_;
-    *framework.mutable_id() = std::move(frameworkId);
 
     if (connected) {
       sendUpdateFramework();
@@ -2332,17 +2342,11 @@ Status MesosSchedulerDriver::reconcileTasks(
   }
 }
 
+
 Status MesosSchedulerDriver::updateFramework(const FrameworkInfo& update)
 {
   synchronized (mutex) {
     if (status != DRIVER_RUNNING) {
-      return status;
-    }
-
-    if (update.has_id()) {
-      LOG(ERROR) << "MesosSchedulerDriver::updateFramework should not be called"
-                 << " with 'FrameworkInfo.id' set, aborting driver";
-      abort();
       return status;
     }
 

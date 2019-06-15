@@ -318,15 +318,21 @@ public:
   virtual Status reconcileTasks(
       const std::vector<TaskStatus>& statuses) = 0;
 
-  // Updates the FrameworkInfo with the provided value (except for the
-  // framework_id field, which should not be set by the caller).
-  // The driver implementation should send the supplied FrameworkInfo update
-  // to the master. Also, all the next re-registration attempts will be
-  // performed with the provided FrameworkInfo.
+  // Inform Mesos master about changes to the `FrameworkInfo`. The
+  // driver will store the new `FrameworkInfo` and all subsequent
+  // re-registrations will use it.
   //
   // NOTE: If the supplied info is invalid or fails authorization,
   // the `error()` callback will be invoked asynchronously (after
-  // the master replies with a FrameworkErrorMessage).
+  // the master replies with a `FrameworkErrorMessage`).
+  //
+  // NOTE: This must be called after initial registration with the
+  // master completes and the `FrameworkID` is assigned. The assigned
+  // `FrameworkID` must be set in `frameworkInfo`.
+  //
+  // NOTE: The `FrameworkInfo.user` and `FrameworkInfo.hostname`
+  // fields will be auto-populated using the same approach used
+  // during driver initialization.
   virtual Status updateFramework(const FrameworkInfo& frameworkInfo) = 0;
 };
 
