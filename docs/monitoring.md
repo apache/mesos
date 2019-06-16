@@ -2262,3 +2262,35 @@ completed CSI calls made to the plugin.
   <td>Counter</td>
 </tr>
 </table>
+
+#### Event queue
+
+The following metrics provide information about different types of events in the
+event queue.
+
+<table class="table table-striped">
+<thead>
+<tr><th>Metric</th><th>Description</th><th>Type</th>
+</thead>
+<tr>
+  <td>
+  <code>slave/event_queue_dispatches</code>
+  </td>
+  <td>Number of dispatches in the event queue</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>slave/event_queue_http_requests</code>
+  </td>
+  <td>Number of HTTP requests in the event queue</td>
+  <td>Gauge</td>
+</tr>
+<tr>
+  <td>
+  <code>slave/event_queue_messages</code>
+  </td>
+  <td>Number of messages in the event queue</td>
+  <td>Gauge</td>
+</tr>
+</table>
