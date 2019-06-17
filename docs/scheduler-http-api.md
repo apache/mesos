@@ -55,7 +55,7 @@ The response returned from the `SUBSCRIBE` call (see [below](#subscribe)) is enc
 
 This is the first step in the communication process between the scheduler and the master. This is also to be considered as subscription to the "/scheduler" event stream.
 
-To subscribe with the master, the scheduler sends an HTTP POST with a `SUBSCRIBE` message including the required FrameworkInfo. Note that if "subscribe.framework_info.id" and "FrameworkID" are not set, the master considers the scheduler as a new one and subscribes it by assigning it a FrameworkID. The HTTP response is a stream in RecordIO format; the event stream begins with a `SUBSCRIBED` event (see details in **Events** section). The response also includes the `Mesos-Stream-Id` header, which is used by the master to uniquely identify the subscribed scheduler instance. This stream ID header should be included in all subsequent non-`SUBSCRIBE` calls sent over this subscription connection to the master. The value of `Mesos-Stream-Id` is guaranteed to be at most 128 bytes in length.
+To subscribe with the master, the scheduler sends an HTTP POST with a `SUBSCRIBE` message including the required FrameworkInfo. Note that if "subscribe.framework_info.id" and "FrameworkID" are not set, the master considers the scheduler as a new one and subscribes it by assigning it a FrameworkID. The HTTP response is a stream in RecordIO format; the event stream begins with either a `SUBSCRIBED` event or an `ERROR` event (see details in **Events** section). The response also includes the `Mesos-Stream-Id` header, which is used by the master to uniquely identify the subscribed scheduler instance. This stream ID header should be included in all subsequent non-`SUBSCRIBE` calls sent over this subscription connection to the master. The value of `Mesos-Stream-Id` is guaranteed to be at most 128 bytes in length.
 
 ```
 SUBSCRIBE Request (JSON):
@@ -501,7 +501,7 @@ Schedulers are expected to keep a **persistent** connection to the "/scheduler" 
 The following events are currently sent by the master. The canonical source of this information is at [scheduler.proto](https://github.com/apache/mesos/blob/master/include/mesos/v1/scheduler/scheduler.proto). Note that when sending JSON encoded events, master encodes raw bytes in Base64 and strings in UTF-8.
 
 ### SUBSCRIBED
-The first event sent by the master when the scheduler sends a `SUBSCRIBE` request on the persistent connection. See `SUBSCRIBE` in Calls section for the format.
+The first event sent by the master when the scheduler sends a `SUBSCRIBE` request, if authorization / validation succeeds. See `SUBSCRIBE` in Calls section for the format.
 
 
 ### OFFERS
@@ -638,7 +638,12 @@ FAILURE Event (JSON)
 ```
 
 ### ERROR
-Sent by the master when an asynchronous error event is generated (e.g., a framework is not authorized to subscribe with one of the given roles). It is recommended that the framework abort when it receives an error and retry subscription as necessary.
+Can be sent either:
+
+* As the first event (in lieu of `SUBSCRIBED`) when the scheduler's `SUBSCRIBE` request is invalid (e.g. invalid `FrameworkInfo`) or unauthorized (e.g., a framework is not authorized to subscribe with some of the given `FrameworkInfo.roles`).
+* When an asynchronous error event is generated (e.g. the master detects a newer subscription from a failed over instance of the scheduler).
+
+It is recommended that the framework abort when it receives an error and retry subscription as necessary.
 
 ```
 ERROR Event (JSON)
