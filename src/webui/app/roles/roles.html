@@ -38,23 +38,47 @@
       <td>{{role.name}}</td>
       <td>{{role.weight | number}}</td>
       <td>{{role.frameworks.length | number}}</td>
-      <td class="begin-group-column">{{role.resources.cpus | decimalFloat}}</td>
-      <td>{{role.resources.gpus | decimalFloat}}</td>
-      <td>{{role.resources.mem * (1024 * 1024) | dataSize}}</td>
-      <td class="end-group-column">{{role.resources.disk * (1024 * 1024) | dataSize}}</td>
+      <td class="begin-group-column">
+        {{(role.resources.cpus | decimalFloat) || "-"}}
+      </td>
+      <td>
+        {{(role.resources.gpus | decimalFloat) || "-"}}
+      </td>
+      <td>
+        {{((role.resources.mem * (1024 * 1024) || NaN) | dataSize) || "-"}}
+      </td>
+      <td class="end-group-column">
+        {{((role.resources.disk * (1024 * 1024) || NaN) | dataSize) || "-"}}
+      </td>
 
-      <td class="begin-group-column">{{(role.quota.guarantee.cpus | decimalFloat) || "-"}}</td>
-      <td>{{(role.quota.guarantee.gpus | decimalFloat) || "-"}}</td>
-      <td>{{(role.quota.guarantee.mem * (1024 * 1024) | dataSize) || "-"}}</td>
-      <td class="end-group-column">{{(role.quota.guarantee.disk * (1024 * 1024) | dataSize) || "-"}}</td>
+      <td class="begin-group-column">
+        {{(role.quota.guarantee.cpus | decimalFloat) || "-"}}
+      </td>
+      <td>
+        {{(role.quota.guarantee.gpus | decimalFloat) || "-"}}
+      </td>
+      <td>
+        {{((role.quota.guarantee.mem * (1024 * 1024) || NaN) | dataSize) || "-"}}
+      </td>
+      <td class="end-group-column">
+        {{((role.quota.guarantee.disk * (1024 * 1024) || NaN) | dataSize) || "-"}}
+      </td>
 
       <!-- TODO(ArmandGrillet): Replace by
         (role.quota.limit.<> | decimalFloat) || (role.quota.guarantee.<> | decimalFloat) || "-"
         once the limit field is introduced. -->
-      <td class="begin-group-column">{{(role.quota.guarantee.cpus | decimalFloat) || "-"}}</td>
-      <td>{{(role.quota.guarantee.gpus | decimalFloat) || "-"}}</td>
-      <td>{{(role.quota.guarantee.mem * (1024 * 1024) | dataSize) || "-"}}</td>
-      <td class="end-group-column">{{(role.quota.guarantee.disk * (1024 * 1024) | dataSize) || "-"}}</td>
+      <td class="begin-group-column">
+        {{(role.quota.guarantee.cpus | decimalFloat) || "-"}}
+      </td>
+      <td>
+        {{(role.quota.guarantee.gpus | decimalFloat) || "-"}}
+      </td>
+      <td>
+        {{((role.quota.guarantee.mem * (1024 * 1024) || NaN) | dataSize) || "-"}}
+      </td>
+      <td class="end-group-column">
+        {{((role.quota.guarantee.disk * (1024 * 1024) || NaN) | dataSize) || "-"}}
+      </td>
     </tr>
   </tbody>
 </table>
