@@ -1423,7 +1423,10 @@ Future<Nothing> Connection::disconnected()
 }
 
 
-Future<Connection> connect(const network::Address& address, Scheme scheme)
+Future<Connection> connect(
+    const network::Address& address,
+    Scheme scheme,
+    const Option<string>& peer_hostname)
 {
   SocketImpl::Kind kind;
 
@@ -1446,7 +1449,7 @@ Future<Connection> connect(const network::Address& address, Scheme scheme)
     return Failure("Failed to create socket: " + socket.error());
   }
 
-  return socket->connect(address)
+  return socket->connect(address, peer_hostname)
     .then([socket, address]() -> Future<Connection> {
       Try<network::Address> localAddress = socket->address();
       if (localAddress.isError()) {
@@ -1456,6 +1459,14 @@ Future<Connection> connect(const network::Address& address, Scheme scheme)
 
       return Connection(socket.get(), localAddress.get(), address);
     });
+}
+
+
+Future<Connection> connect(
+    const network::Address& address,
+    Scheme scheme)
+{
+  return connect(address, scheme, None());
 }
 
 
@@ -1489,12 +1500,12 @@ Future<Connection> connect(const URL& url)
 
   // Default to 'http' if no scheme was specified.
   if (url.scheme.isNone() || url.scheme == string("http")) {
-    return connect(address, Scheme::HTTP);
+    return connect(address, Scheme::HTTP, url.domain);
   }
 
   if (url.scheme == string("https")) {
 #ifdef USE_SSL_SOCKET
-    return connect(address, Scheme::HTTPS);
+    return connect(address, Scheme::HTTPS, url.domain);
 #else
     return Failure("'https' scheme requires SSL enabled");
 #endif

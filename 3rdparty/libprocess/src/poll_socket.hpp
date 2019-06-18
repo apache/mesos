@@ -32,7 +32,9 @@ public:
   // Implementation of the SocketImpl interface.
   Try<Nothing> listen(int backlog) override;
   Future<std::shared_ptr<SocketImpl>> accept() override;
-  Future<Nothing> connect(const Address& address) override;
+  Future<Nothing> connect(
+      const Address& address,
+      const Option<std::string>& peer_hostname) override;
   Future<size_t> recv(char* data, size_t size) override;
   Future<size_t> send(const char* data, size_t size) override;
   Future<size_t> sendfile(int_fd fd, off_t offset, size_t size) override;

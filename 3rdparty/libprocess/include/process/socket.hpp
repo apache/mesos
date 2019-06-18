@@ -149,7 +149,10 @@ public:
    */
   virtual Future<std::shared_ptr<SocketImpl>> accept() = 0;
 
-  virtual Future<Nothing> connect(const Address& address) = 0;
+  virtual Future<Nothing> connect(
+      const Address& address,
+      const Option<std::string>& peer_hostname) = 0;
+
   virtual Future<size_t> recv(char* data, size_t size) = 0;
   virtual Future<size_t> send(const char* data, size_t size) = 0;
   virtual Future<size_t> sendfile(int_fd fd, off_t offset, size_t size) = 0;
@@ -360,7 +363,14 @@ public:
 
   Future<Nothing> connect(const AddressType& address)
   {
-    return impl->connect(address);
+    return impl->connect(address, None());
+  }
+
+  Future<Nothing> connect(
+      const AddressType& address,
+      const Option<std::string>& peer_hostname)
+  {
+    return impl->connect(address, peer_hostname);
   }
 
   Future<size_t> recv(char* data, size_t size) const

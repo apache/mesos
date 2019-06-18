@@ -511,7 +511,9 @@ LibeventSSLSocketImpl::LibeventSSLSocketImpl(
     peer_hostname(std::move(_peer_hostname)) {}
 
 
-Future<Nothing> LibeventSSLSocketImpl::connect(const Address& address)
+Future<Nothing> LibeventSSLSocketImpl::connect(
+    const Address& address,
+    const Option<string>& peer_hostname_)
 {
   if (bev != nullptr) {
     return Failure("Socket is already connected");

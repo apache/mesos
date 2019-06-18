@@ -135,7 +135,9 @@ Future<std::shared_ptr<SocketImpl>> PollSocketImpl::accept()
 }
 
 
-Future<Nothing> PollSocketImpl::connect(const Address& address)
+Future<Nothing> PollSocketImpl::connect(
+    const Address& address,
+    const Option<std::string>& /* peer_hostname */)
 {
   // Need to hold a copy of `this` so that the underlying socket
   // doesn't end up getting reused before we return.

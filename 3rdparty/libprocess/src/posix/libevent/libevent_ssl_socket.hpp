@@ -40,7 +40,10 @@ public:
   ~LibeventSSLSocketImpl() override;
 
   // Implement 'SocketImpl' interface.
-  Future<Nothing> connect(const Address& address) override;
+  Future<Nothing> connect(
+      const Address& address,
+      const Option<std::string>& peer_hostname) override;
+
   Future<size_t> recv(char* data, size_t size) override;
   // Send does not currently support discard. See implementation.
   Future<size_t> send(const char* data, size_t size) override;

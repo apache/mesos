@@ -1671,7 +1671,7 @@ void SocketManager::link(
 
   if (connect) {
     CHECK_SOME(socket);
-    socket->connect(to.address)
+    socket->connect(to.address, to.host)
       .onAny(lambda::bind(
           &SocketManager::link_connect,
           this,
@@ -2033,7 +2033,7 @@ void SocketManager::send(Message&& message, const SocketImpl::Kind& kind)
 
   if (connect) {
     CHECK_SOME(socket);
-    socket->connect(address)
+    socket->connect(address, message.to.host)
       .onAny(lambda::bind(
             // TODO(benh): with C++14 we can use lambda instead of
             // `std::bind` and capture `message` with a `std::move`.

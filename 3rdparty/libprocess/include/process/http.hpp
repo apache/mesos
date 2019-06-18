@@ -986,7 +986,9 @@ private:
       const network::Address& _peerAddress);
 
   friend Future<Connection> connect(
-      const network::Address& address, Scheme scheme);
+      const network::Address& address,
+      Scheme scheme,
+      const Option<std::string>& peer_hostname);
   friend Future<Connection> connect(const URL&);
 
   // Forward declaration.
@@ -994,6 +996,12 @@ private:
 
   std::shared_ptr<Data> data;
 };
+
+
+Future<Connection> connect(
+    const network::Address& address,
+    Scheme scheme,
+    const Option<std::string>& peer_hostname);
 
 
 Future<Connection> connect(const network::Address& address, Scheme scheme);
