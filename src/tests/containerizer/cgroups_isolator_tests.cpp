@@ -1887,7 +1887,7 @@ TEST_F(CgroupsIsolatorTest, ROOT_CGROUPS_BlkioUsage)
   // cfq statistics may be 0. And there must be at least two entries in
   // the throttling statistics, one is the total statistics, the others
   // are device specific statistics.
-  EXPECT_TRUE(usage->has_blkio_statistics());
+  ASSERT_TRUE(usage->has_blkio_statistics());
   EXPECT_LE(2, usage->blkio_statistics().throttling_size());
 
   // We only check the total throttling statistics.
