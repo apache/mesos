@@ -493,21 +493,8 @@ JSON::Object model(const FileInfo& fileInfo)
   return file;
 }
 
-
-JSON::Object model(const quota::QuotaInfo& quotaInfo)
-{
-  JSON::Object object;
-
-  object.values["guarantee"] = model(quotaInfo.guarantee());
-  object.values["role"] = quotaInfo.role();
-  if (quotaInfo.has_principal()) {
-    object.values["principal"] = quotaInfo.principal();
-  }
-
-  return object;
-}
-
 }  // namespace internal {
+
 
 void json(JSON::ObjectWriter* writer, const Attributes& attributes)
 {
@@ -866,6 +853,21 @@ static void json(JSON::StringWriter* writer, const Value::Text& text)
 {
   writer->set(text.value());
 }
+
+
+namespace quota {
+
+void json(JSON::ObjectWriter* writer, const QuotaInfo& quotaInfo)
+{
+  writer->field("role", quotaInfo.role());
+  writer->field("guarantee", quotaInfo.guarantee());
+
+  if (quotaInfo.has_principal()) {
+    writer->field("principal", quotaInfo.principal());
+  }
+}
+
+} // namespace quota {
 
 
 Future<Owned<ObjectApprovers>> ObjectApprovers::create(

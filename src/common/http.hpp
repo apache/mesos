@@ -189,7 +189,6 @@ JSON::Object model(const ExecutorInfo& executorInfo);
 JSON::Array model(const Labels& labels);
 JSON::Object model(const Task& task);
 JSON::Object model(const FileInfo& fileInfo);
-JSON::Object model(const quota::QuotaInfo& quotaInfo);
 
 void json(JSON::ObjectWriter* writer, const Task& task);
 
@@ -215,6 +214,11 @@ void json(
     JSON::StringWriter* writer, const SlaveInfo::Capability& capability);
 void json(JSON::ObjectWriter* writer, const Task& task);
 void json(JSON::ObjectWriter* writer, const TaskStatus& status);
+
+
+namespace quota {
+void json(JSON::ObjectWriter* writer, const QuotaInfo& quotaInfo);
+} // namespace quota {
 
 
 // Implementation of the `ObjectApprover` interface authorizing all objects.

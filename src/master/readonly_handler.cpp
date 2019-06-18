@@ -694,82 +694,51 @@ process::http::Response Master::ReadOnlyHandler::frameworks(
 }
 
 
-// Returns a JSON object modeled after a role.
-JSON::Object model(
-    const string& name,
-    Option<double> weight,
-    Option<Quota> quota,
-    Option<Role*> _role)
-{
-  JSON::Object object;
-  object.values["name"] = name;
-
-  if (weight.isSome()) {
-    object.values["weight"] = weight.get();
-  } else {
-    object.values["weight"] = 1.0; // Default weight.
-  }
-
-  if (quota.isSome()) {
-    object.values["quota"] = model(quota->info);
-  }
-
-  if (_role.isNone()) {
-    object.values["resources"] = model(Resources());
-    object.values["frameworks"] = JSON::Array();
-  } else {
-    Role* role = _role.get();
-
-    object.values["resources"] = model(role->allocatedResources());
-
-    {
-      JSON::Array array;
-
-      foreachkey (const FrameworkID& frameworkId, role->frameworks) {
-        array.values.push_back(frameworkId.value());
-      }
-
-      object.values["frameworks"] = std::move(array);
-    }
-  }
-
-  return object;
-}
-
-
 process::http::Response Master::ReadOnlyHandler::roles(
     const hashmap<std::string, std::string>& query,
     const process::Owned<ObjectApprovers>& approvers) const
 {
-  JSON::Object object;
+  const Master* master = this->master;
   const vector<string> filteredRoles = master->filterRoles(approvers);
 
-  {
-    JSON::Array array;
+  auto roles = [&](JSON::ObjectWriter* writer) {
+    writer->field(
+        "roles",
+        [&](JSON::ArrayWriter* writer) {
+          foreach (const string& name, filteredRoles) {
+            writer->element([&](JSON::ObjectWriter* writer) {
+              writer->field("name", name);
 
-    foreach (const string& name, filteredRoles) {
-      Option<double> weight = None();
-      if (master->weights.contains(name)) {
-        weight = master->weights.at(name);
-      }
+              // Default weight is 1.0.
+              writer->field("weight", master->weights.get(name).getOrElse(1.0));
 
-      Option<Quota> quota = None();
-      if (master->quotas.contains(name)) {
-        quota = master->quotas.at(name);
-      }
+              if (master->quotas.contains(name)) {
+                writer->field("quota", master->quotas.at(name).info);
+              }
 
-      Option<Role*> role = None();
-      if (master->roles.contains(name)) {
-        role = master->roles.at(name);
-      }
+              Option<Role*> role = master->roles.get(name);
 
-      array.values.push_back(model(name, weight, quota, role));
-    }
+              if (role.isNone()) {
+                writer->field("resources", Resources());
+              } else {
+                writer->field("resources", (*role)->allocatedResources());
+              }
 
-    object.values["roles"] = std::move(array);
-  }
+              if (role.isNone()) {
+                writer->field("frameworks", [](JSON::ArrayWriter*) {});
+              } else {
+                writer->field("frameworks", [&](JSON::ArrayWriter* writer) {
+                  foreachkey (const FrameworkID& id, (*role)->frameworks) {
+                    writer->element(id.value());
+                  }
+                });
+              }
+            });
+          }
+        });
+  };
 
-  return OK(object, query.get("jsonp"));
+  return OK(jsonify(roles), query.get("jsonp"));
 }
 
 
