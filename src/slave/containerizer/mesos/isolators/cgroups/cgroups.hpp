@@ -130,7 +130,9 @@ private:
       const mesos::slave::ContainerConfig& containerConfig);
 
   process::Future<Nothing> _isolate(
-      const std::vector<process::Future<Nothing>>& futures);
+      const std::vector<process::Future<Nothing>>& futures,
+      const ContainerID& containerId,
+      pid_t pid);
 
   void _watch(
       const ContainerID& containerId,
