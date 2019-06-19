@@ -645,7 +645,6 @@ TEST_F(UpdateFrameworkV0Test, DriverErrorOnFrameworkIDMismatch)
   MockScheduler sched;
   TestingMesosSchedulerDriver driver(
     &sched, detector.get(), DEFAULT_FRAMEWORK_INFO);
-  driver.start();
 
   Future<FrameworkID> frameworkId;
   EXPECT_CALL(sched, registered(&driver, _, _))
