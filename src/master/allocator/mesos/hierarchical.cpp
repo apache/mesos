@@ -2565,7 +2565,9 @@ bool HierarchicalAllocatorProcess::isFrameworkTrackedUnderRole(
 
 const Quota2& HierarchicalAllocatorProcess::getQuota(const string& role) const
 {
-  return roles.contains(role) ? roles.at(role).quota : DEFAULT_QUOTA;
+  auto it = roles.find(role);
+
+  return it == roles.end() ? DEFAULT_QUOTA : it->second.quota;
 }
 
 
