@@ -55,13 +55,19 @@ public:
     : ip(_ip), port(_port) {}
 
   /**
-   * Returns the hostname of this address's IP.
+   * Returns the hostname of this address's IP,
+   * using a reverse DNS lookup for remote addresses
+   * or the local hostname for a local address.
    *
    * @returns the hostname of this address's IP.
    */
   // TODO(jmlvanre): Consider making this return a Future in order to
   // deal with slow name resolution.
-  Try<std::string> hostname() const
+  //
+  // TODO(bevers): A given IP can have multiple associated PTR records,
+  // (e.g. a shared web server hosting multiple domains), so the return
+  // value should probably be a list of strings.
+  Try<std::string> lookup_hostname() const
   {
     const Try<std::string> hostname = ip.isAny()
       ? net::hostname()

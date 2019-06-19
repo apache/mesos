@@ -551,13 +551,15 @@ TEST_F(SSLTest, HTTPSGet)
 
   ASSERT_SOME(server);
   ASSERT_SOME(server->address());
-  ASSERT_SOME(server->address()->hostname());
+
+  Try<std::string> serverHostname = server->address()->lookup_hostname();
+  ASSERT_SOME(serverHostname);
 
   Future<Socket> socket = server->accept();
 
   // Create URL from server hostname and port.
   const http::URL url(
-      "https", server->address()->hostname().get(), server->address()->port);
+      "https", serverHostname.get(), server->address()->port);
 
   // Send GET request.
   Future<http::Response> response = http::get(url);
@@ -589,13 +591,15 @@ TEST_F(SSLTest, HTTPSPost)
 
   ASSERT_SOME(server);
   ASSERT_SOME(server->address());
-  ASSERT_SOME(server->address()->hostname());
+
+  Try<std::string> serverHostname = server->address()->lookup_hostname();
+  ASSERT_SOME(serverHostname);
 
   Future<Socket> socket = server->accept();
 
   // Create URL from server hostname and port.
   const http::URL url(
-      "https", server->address()->hostname().get(), server->address()->port);
+      "https", serverHostname.get(), server->address()->port);
 
   // Send POST request.
   Future<http::Response> response =
@@ -631,7 +635,9 @@ TEST_F(SSLTest, SilentSocket)
 
   ASSERT_SOME(server);
   ASSERT_SOME(server->address());
-  ASSERT_SOME(server->address()->hostname());
+
+  Try<std::string> serverHostname = server->address()->lookup_hostname();
+  ASSERT_SOME(serverHostname);
 
   Future<Socket> socket = server->accept();
 
@@ -657,7 +663,7 @@ TEST_F(SSLTest, SilentSocket)
   // undergoing the SSL handshake.
   const http::URL url(
       "https",
-      server->address()->hostname().get(),
+      serverHostname.get(),
       server->address()->port);
 
   Future<http::Response> response = http::get(url);
@@ -689,7 +695,6 @@ TEST_F(SSLTest, ShutdownThenSend)
 
   ASSERT_SOME(server);
   ASSERT_SOME(server->address());
-  ASSERT_SOME(server->address()->hostname());
 
   Future<Socket> socket = server->accept();
 

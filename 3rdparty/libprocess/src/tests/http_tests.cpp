@@ -2218,7 +2218,7 @@ TEST_F(HttpServeTest, Pipelining)
     .WillOnce(DoAll(FutureArg<0>(&request3), Return(promise3.future())))
     .WillRepeatedly(Return(http::OK()));
 
-  http::URL url("http", address.hostname().get(), address.port, "/");
+  http::URL url("http", address.lookup_hostname().get(), address.port, "/");
 
   http::Request request;
   request.method = "GET";
@@ -2313,7 +2313,7 @@ TEST_F(HttpServeTest, Discard)
   EXPECT_CALL(handler, handle(_))
     .WillOnce(DoAll(FutureArg<0>(&request1), Return(promise1.future())));
 
-  http::URL url("http", address.hostname().get(), address.port, "/");
+  http::URL url("http", address.lookup_hostname().get(), address.port, "/");
 
   http::Request request;
   request.method = "GET";
@@ -2450,7 +2450,7 @@ TEST(HttpServerTest, Pipeline)
     .WillOnce(DoAll(FutureArg<0>(&request3), Return(promise3.future())))
     .WillRepeatedly(Return(http::OK()));
 
-  http::URL url("http", address->hostname().get(), address->port, "/");
+  http::URL url("http", address->lookup_hostname().get(), address->port, "/");
 
   http::Request request;
   request.method = "GET";
