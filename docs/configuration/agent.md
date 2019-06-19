@@ -577,6 +577,20 @@ this role. (default: *)
   </td>
 </tr>
 
+<tr id="default_shm_size">
+  <td>
+    --default_shm_size
+  </td>
+  <td>
+The default size of the /dev/shm for the container which has its own
+/dev/shm but does not specify the <code>shm_size</code> field in its
+<code>LinuxInfo</code>. The format is [number][unit], number must be
+a positive integer and unit can be B (bytes), KB (kilobytes), MB
+(megabytes), GB (gigabytes) or TB (terabytes). This flag will be
+ignored if the <code>namespaces/ipc</code> isolator is not enabled.
+  </td>
+</tr>
+
 <tr id="disallow_sharing_agent_ipc_namespace">
   <td>
     --[no-]disallow_sharing_agent_ipc_namespace

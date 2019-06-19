@@ -124,6 +124,7 @@ public:
   std::string systemd_runtime_directory;
   Option<CapabilityInfo> effective_capabilities;
   Option<CapabilityInfo> bounding_capabilities;
+  Option<Bytes> default_shm_size;
   bool disallow_sharing_agent_ipc_namespace;
   bool disallow_sharing_agent_pid_namespace;
 #endif
