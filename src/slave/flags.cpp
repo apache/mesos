@@ -763,6 +763,17 @@ mesos::internal::slave::Flags::Flags()
       "This flag has the same syntax as `--effective_capabilities`."
      );
 
+  add(&Flags::disallow_sharing_agent_ipc_namespace,
+      "disallow_sharing_agent_ipc_namespace",
+      "If set to `true`, each top-level container will have its own IPC\n"
+      "namespace and /dev/shm, and if the framework requests to share the\n"
+      "agent IPC namespace and /dev/shm for the top level container, the\n"
+      "container launch will be rejected. If set to `false`, the top-level\n"
+      "containers will share the IPC namespace and /dev/shm with agent if\n"
+      "the framework requests it. This flag will be ignored if the\n"
+      "`namespaces/ipc` isolator is not enabled.\n",
+      false);
+
   add(&Flags::disallow_sharing_agent_pid_namespace,
       "disallow_sharing_agent_pid_namespace",
       "If set to `true`, each top-level container will have its own pid\n"

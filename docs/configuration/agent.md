@@ -577,6 +577,36 @@ this role. (default: *)
   </td>
 </tr>
 
+<tr id="disallow_sharing_agent_ipc_namespace">
+  <td>
+    --[no-]disallow_sharing_agent_ipc_namespace
+  </td>
+  <td>
+If set to <code>true</code>, each top-level container will have its own IPC
+namespace and /dev/shm, and if the framework requests to share the agent IPC
+namespace and /dev/shm for the top level container, the container launch will
+be rejected. If set to <code>false</code>, the top-level containers will share
+the IPC namespace and /dev/shm with agent if the framework requests it. This
+flag will be ignored if the <code>namespaces/ipc</code> isolator is not enabled.
+(default: false)
+  </td>
+</tr>
+
+<tr id="disallow_sharing_agent_pid_namespace">
+  <td>
+    --[no-]disallow_sharing_agent_pid_namespace
+  </td>
+  <td>
+If set to <code>true</code>, each top-level container will have its own pid
+namespace, and if the framework requests to share the agent pid namespace for
+the top level container, the container launch will be rejected. If set to
+<code>false</code>, the top-level containers will share the pid namespace with
+agent if the framework requests it. This flag will be ignored if the <code>
+namespaces/pid</code> isolator is not enabled.
+(default: false)
+  </td>
+</tr>
+
 <tr id="disk_profile_adaptor">
   <td>
     --disk_profile_adaptor=VALUE
@@ -1450,21 +1480,6 @@ not across reboots). This directory will be cleared on reboot.
 The absolute path for the directory in the container where the
 sandbox is mapped to.
 (default: /mnt/mesos/sandbox)
-  </td>
-</tr>
-
-<tr id="disallow_sharing_agent_pid_namespace">
-  <td>
-    --[no-]disallow_sharing_agent_pid_namespace
-  </td>
-  <td>
-If set to <code>true</code>, each top-level container will have its own pid
-namespace, and if the framework requests to share the agent pid namespace for
-the top level container, the container launch will be rejected. If set to
-<code>false</code>, the top-level containers will share the pid namespace with
-agent if the framework requests it. This flag will be ignored if the
-`namespaces/pid` isolator is not enabled.
-(default: false)
   </td>
 </tr>
 
