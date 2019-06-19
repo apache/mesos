@@ -193,6 +193,16 @@ struct UPID
     Option<network::inet6::Address> v6;
   } addresses = {None()};
 
+  // The hostname that was used to create this UPID, if any. This is useful
+  // both for display purposes and when making outgoing connections on a TLS
+  // socket, where the name recorded here can be used for hostname validation
+  // checks against the X509 certificate presented by the server.
+  //
+  // NOTE: In the context of TLS hostname validation, this can also be set
+  // manually to override the result of DNS resolution before trying to
+  // `connect()` to this UPID, similar to `curl --resolve`.
+  Option<std::string> host;
+
 protected:
   friend class ProcessBase;
   friend class ProcessManager;

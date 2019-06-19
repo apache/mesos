@@ -119,8 +119,15 @@ istream& operator>>(istream& stream, UPID& pid)
     return stream;
   }
 
+  // First try to see if we can parse `host` as a raw IP address literal,
+  // if not use `net::getIP()` to resolve the hostname.
+  //
   // TODO(evelinad): Extend this to support IPv6.
-  Try<net::IP> ip = net::getIP(host, AF_INET);
+  Try<net::IP> ip = net::IP::parse(host.c_str(), AF_INET);
+  if (ip.isError()) {
+    pid.host = host;
+    ip = net::getIP(host, AF_INET);
+  }
 
   if (ip.isError()) {
     VLOG(2) << ip.error();
