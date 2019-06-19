@@ -46,6 +46,7 @@ public:
   Option<std::string> ca_file;
   std::string ciphers;
   std::string ecdh_curves;
+  std::string hostname_validation_scheme;
   bool enable_ssl_v3;
   bool enable_tls_v1_0;
   bool enable_tls_v1_1;

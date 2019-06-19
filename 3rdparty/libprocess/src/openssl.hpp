@@ -28,6 +28,8 @@
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 
+#include <process/network.hpp>
+
 namespace process {
 namespace network {
 namespace openssl {
@@ -80,6 +82,14 @@ Try<Nothing> verify(
     Mode mode,
     const Option<std::string>& hostname = None(),
     const Option<net::IP>& ip = None());
+
+// Callback for setting SSL options after the TCP connection was
+// established but before the TLS handshake has started.
+Try<Nothing> configure_socket(
+    SSL* ssl,
+    Mode mode,
+    const Address& peer,
+    const Option<std::string>& peer_hostname);
 
 } // namespace openssl {
 } // namespace network {
