@@ -17,11 +17,42 @@
 #ifndef __CONSTRUCT_HPP__
 #define __CONSTRUCT_HPP__
 
+#include <vector>
+
 #include <jni.h>
 
 bool construct(JNIEnv* env, jboolean jbool);
 
 template <typename T>
 T construct(JNIEnv* env, jobject jobj);
+
+template <typename T>
+std::vector<T> constructFromIterable(JNIEnv* env, jobject jiterable)
+{
+  std::vector<T> result;
+
+  jclass clazz = env->GetObjectClass(jiterable);
+
+  // Iterator iterator = iterable.iterator();
+  jmethodID iterator =
+    env->GetMethodID(clazz, "iterator", "()Ljava/util/Iterator;");
+  jobject jiterator = env->CallObjectMethod(jiterable, iterator);
+
+  jclass iteratorClazz = env->GetObjectClass(jiterator);
+
+  // while (iterator.hasNext()) {
+  jmethodID hasNext = env->GetMethodID(iteratorClazz, "hasNext", "()Z");
+
+  jmethodID next =
+    env->GetMethodID(iteratorClazz, "next", "()Ljava/lang/Object;");
+
+  while (env->CallBooleanMethod(jiterator, hasNext)) {
+    // Object item = iterator.next();
+    jobject jitem = env->CallObjectMethod(jiterator, next);
+    result.emplace_back(construct<T>(env, jitem));
+  }
+
+  return result;
+}
 
 #endif // __CONSTRUCT_HPP__
