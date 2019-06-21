@@ -5850,8 +5850,7 @@ TEST_F(HierarchicalAllocatorTest, SuppressAndReviveOffersWithMultiRole)
   Future<Allocation> allocation = allocations.get();
   EXPECT_TRUE(allocation.isPending());
 
-  // Revive offers for role1, after which the agent's resources
-  // should be offered to it.
+  // Revive offers for role1. This should NOT affect offer filters of role2.
   allocator->reviveOffers(framework.id(), {"role1"});
 
   expected = Allocation(
@@ -5859,6 +5858,21 @@ TEST_F(HierarchicalAllocatorTest, SuppressAndReviveOffersWithMultiRole)
       {{"role1", {{agent.id(), agent.resources()}}}});
 
   AWAIT_EXPECT_EQ(expected, allocation);
+
+  // Recover offered resources and set a filter for role1 too.
+  allocator->recoverResources(
+      framework.id(),
+      agent.id(),
+      allocatedResources(agent.resources(), "role1"),
+      filter1day);
+
+  // Advance the clock to trigger a batch allocation.
+  Clock::advance(flags.allocation_interval);
+  Clock::settle();
+
+  // As both roles should have the filters set now, nothing should be allocated.
+  allocation = allocations.get();
+  EXPECT_TRUE(allocation.isPending());
 }
 
 
