@@ -1370,7 +1370,6 @@ void HierarchicalAllocatorProcess::reviveOffers(
   CHECK_CONTAINS(frameworks, frameworkId);
 
   Framework& framework = frameworks.at(frameworkId);
-  framework.offerFilters.clear();
   framework.inverseOfferFilters.clear();
 
   const set<string>& roles = roles_.empty() ? framework.roles : roles_;
@@ -1379,9 +1378,11 @@ void HierarchicalAllocatorProcess::reviveOffers(
   // SUPPRESS is not parameterized. When parameterization is added,
   // we may need to differentiate between the cases here.
   foreach (const string& role, roles) {
-    CHECK_CONTAINS(frameworkSorters, role);
+    framework.offerFilters.erase(role);
 
+    CHECK_CONTAINS(frameworkSorters, role);
     frameworkSorters.at(role)->activate(frameworkId.value());
+
     framework.suppressedRoles.erase(role);
     framework.metrics->reviveRole(role);
   }
