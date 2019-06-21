@@ -918,6 +918,10 @@ message MasterInfo {
       // The master can handle slaves whose state
       // changes after reregistering.
       AGENT_UPDATE = 1;
+
+      // The master can drain or deactivate agents when requested
+      // via operator APIs.
+      AGENT_DRAINING = 2;
     }
     optional Type type = 1;
   }

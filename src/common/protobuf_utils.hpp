@@ -489,11 +489,15 @@ struct Capabilities
         case MasterInfo::Capability::AGENT_UPDATE:
           agentUpdate = true;
           break;
+        case MasterInfo::Capability::AGENT_DRAINING:
+          agentDraining = true;
+          break;
       }
     }
   }
 
   bool agentUpdate = false;
+  bool agentDraining = false;
 };
 
 namespace event {
