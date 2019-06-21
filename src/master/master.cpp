@@ -4343,7 +4343,7 @@ void Master::accept(
 
   CHECK_SOME(slaveId);
   Slave* slave = slaves.registered.get(slaveId.get());
-  CHECK_NOTNULL(slave);
+  CHECK(slave != nullptr) << slaveId.get();
 
   // Validate and upgrade all of the resources in `accept.operations`:
   //
@@ -8499,7 +8499,8 @@ void Master::updateSlave(UpdateSlaveMessage&& message)
                     oldOperation->latest_status().state()) &&
                 protobuf::isTerminalState(
                     newOperation->latest_status().state())) {
-              Operation* operation = CHECK_NOTNULL(slave->getOperation(uuid));
+              Operation* operation = slave->getOperation(uuid);
+              CHECK(operation != nullptr) << uuid;
 
               UpdateOperationStatusMessage update =
                 protobuf::createUpdateOperationStatusMessage(
@@ -9876,7 +9877,9 @@ void Master::reconcileOperations(
       //     capability, then we forward the reconciliation request to the agent
       //     to respond based on whether or not this resource provider has been
       //     seen before. Otherwise, we respond with OPERATION_UNKNOWN.
-      Slave* slave = CHECK_NOTNULL(slaves.registered.get(slaveId.get()));
+      Slave* slave = slaves.registered.get(slaveId.get());
+      CHECK(slave != nullptr) << slaveId.get();
+
       if (resourceProviderId.isSome() &&
           !slave->resourceProviders.contains(resourceProviderId.get()) &&
           slave->capabilities.agentOperationFeedback) {
@@ -11099,7 +11102,7 @@ void Master::removeFramework(Framework* framework)
         << "External resource provider is not supported yet";
 
       Slave* slave = slaves.registered.get(operation->slave_id());
-      CHECK_NOTNULL(slave);
+      CHECK(slave != nullptr) << operation->slave_id();
 
       slave->markOperationAsOrphan(operation);
 
@@ -11826,7 +11829,7 @@ void Master::updateTask(Task* task, const StatusUpdate& update)
 
     // The slave owns the Task object and cannot be nullptr.
     Slave* slave = slaves.registered.get(task->slave_id());
-    CHECK_NOTNULL(slave);
+    CHECK(slave != nullptr) << task->slave_id();
 
     slave->recoverResources(task);
 
@@ -11873,7 +11876,7 @@ void Master::removeTask(Task* task, bool unreachable)
 
   // The slave owns the Task object and cannot be nullptr.
   Slave* slave = slaves.registered.get(task->slave_id());
-  CHECK_NOTNULL(slave);
+  CHECK(slave != nullptr) << task->slave_id();
 
   // Note that we explicitly convert from protobuf to `Resources` here
   // and then use the result below to avoid performance penalty for multiple
@@ -12069,7 +12072,7 @@ void Master::updateOperation(
   // TODO(jieyu): Revisit this once we introduce support for external
   // resource provider.
   Slave* slave = slaves.registered.get(operation->slave_id());
-  CHECK_NOTNULL(slave);
+  CHECK(slave != nullptr) << operation->slave_id();
 
   // Orphaned operations are handled differently, because the allocator
   // has no knowledge of resources consumed by these operations;
@@ -12231,7 +12234,7 @@ void Master::removeOperation(Operation* operation)
     << "External resource provider is not supported yet";
 
   Slave* slave = slaves.registered.get(operation->slave_id());
-  CHECK_NOTNULL(slave);
+  CHECK(slave != nullptr) << operation->slave_id();
 
   slave->removeOperation(operation);
 
