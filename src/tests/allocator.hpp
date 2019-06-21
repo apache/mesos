@@ -41,7 +41,7 @@ namespace tests {
 
 // Allocator test helpers.
 
-Quota createQuota(const std::string& role, const std::string& resources);
+Quota2 createQuota(const std::string& role, const std::string& resources);
 
 
 WeightInfo createWeightInfo(const std::string& role, double weight);
