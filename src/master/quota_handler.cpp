@@ -669,7 +669,7 @@ Future<http::Response> Master::QuotaHandler::__set(
       // Rescind outstanding offers to facilitate satisfying the quota request.
       // NOTE: We set quota before we rescind to avoid a race. If we were to
       // rescind first, then recovered resources may get allocated again
-      // before our call to `setQuota` was handled.
+      // before our call to `updateQuota` was handled.
       // The consequence of setting quota first is that (in the hierarchical
       // allocator) it will trigger an allocation. This means the rescinded
       // offer resources will only be available to quota once another

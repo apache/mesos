@@ -128,67 +128,6 @@ Metrics::~Metrics()
 }
 
 
-void Metrics::setQuota(const string& role, const Quota& quota)
-{
-  CHECK(!quota_allocated.contains(role));
-
-  hashmap<string, PullGauge> allocated;
-  hashmap<string, PullGauge> guarantees;
-
-  foreach (const Resource& resource, quota.info.guarantee()) {
-    CHECK_EQ(Value::SCALAR, resource.type());
-    double value = resource.scalar().value();
-
-    // TODO(mzhu): use PushGauge for guarantees.
-    PullGauge guarantee = PullGauge(
-        "allocator/mesos/quota"
-        "/roles/" + role +
-        "/resources/" + resource.name() +
-        "/guarantee",
-        process::defer([value]() { return value; }));
-
-    // TODO(mzhu): expose this for every role, including roles
-    // with default quota.
-    PullGauge offered_or_allocated(
-        "allocator/mesos/quota"
-        "/roles/" + role +
-        "/resources/" + resource.name() +
-        "/offered_or_allocated",
-        defer(allocator,
-              &HierarchicalAllocatorProcess::_quota_allocated,
-              role,
-              resource.name()));
-
-    guarantees.put(resource.name(), guarantee);
-    allocated.put(resource.name(), offered_or_allocated);
-
-    process::metrics::add(guarantee);
-    process::metrics::add(offered_or_allocated);
-  }
-
-  quota_allocated[role] = allocated;
-  quota_guarantee[role] = guarantees;
-}
-
-
-void Metrics::removeQuota(const string& role)
-{
-  CHECK(quota_allocated.contains(role));
-  CHECK(quota_guarantee.contains(role));
-
-  foreachvalue (const PullGauge& gauge, quota_allocated[role]) {
-    process::metrics::remove(gauge);
-  }
-
-  foreachvalue (const PullGauge& gauge, quota_guarantee[role]) {
-    process::metrics::remove(gauge);
-  }
-
-  quota_allocated.erase(role);
-  quota_guarantee.erase(role);
-}
-
-
 // TODO(mzhu): This currently only updates quota guarantees.
 // Add metrics for quota limits as well.
 void Metrics::updateQuota(const string& role, const Quota2& quota)
@@ -196,6 +135,8 @@ void Metrics::updateQuota(const string& role, const Quota2& quota)
   // This is the "remove" case where the role's quota
   // is set to the default.
   if (quota.guarantees == DEFAULT_QUOTA.guarantees) {
+    // TODO(mzhu): always expose the allocated gauge event if
+    // a role only has default quota.
     foreachvalue (const PullGauge& gauge, quota_allocated[role]) {
       process::metrics::remove(gauge);
     }

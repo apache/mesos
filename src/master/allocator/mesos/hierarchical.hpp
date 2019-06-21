@@ -425,13 +425,6 @@ public:
       const FrameworkID& frameworkId,
       const std::set<std::string>& roles) override;
 
-  void setQuota(
-      const std::string& role,
-      const Quota& quota) override;
-
-  void removeQuota(
-      const std::string& role) override;
-
   void updateQuota(
       const std::string& role,
       const Quota2& quota) override;

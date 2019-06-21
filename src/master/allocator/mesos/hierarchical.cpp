@@ -1397,69 +1397,6 @@ void HierarchicalAllocatorProcess::reviveOffers(
 }
 
 
-void HierarchicalAllocatorProcess::setQuota(
-    const string& role,
-    const Quota& quota)
-{
-  CHECK(initialized);
-
-  // This method should be called by the master only if the quota for
-  // the role is not set. Setting quota differs from updating it because
-  // the former moves the role to a different allocation group with a
-  // dedicated sorter, while the later just updates the actual quota.
-  CHECK(getQuota(role) == DEFAULT_QUOTA);
-
-  // In the legacy `SetQuota` call, quota guarantee also acts as quota limits.
-  //
-  // Note, quota has been validated to have no duplicate resource names.
-  roles[role].quota = Quota2(quota.info);
-
-  metrics.setQuota(role, quota);
-
-  // TODO(alexr): Print all quota info for the role.
-  LOG(INFO) << "Set quota " << quota.info.guarantee() << " for role '" << role
-            << "'";
-
-  // NOTE: Since quota changes do not result in rebalancing of
-  // offered resources, we do not trigger an allocation here; the
-  // quota change will be reflected in subsequent allocations.
-  //
-  // If we add the ability for quota changes to incur a rebalancing
-  // of offered resources, then we should trigger that here.
-}
-
-
-void HierarchicalAllocatorProcess::removeQuota(
-    const string& role)
-{
-  CHECK(initialized);
-
-  // Do not allow removing quota if it is not set.
-  // Note: it is impossible to set to default quota using the old `setQuota`.
-  CHECK(getQuota(role) != DEFAULT_QUOTA);
-
-  Role& r = roles.at(role);
-
-  // TODO(alexr): Print all quota info for the role.
-  LOG(INFO) << "Removed quota " << r.quota.guarantees
-            << " for role '" << role << "'";
-
-  r.quota = DEFAULT_QUOTA;
-  if (r.isEmpty()) {
-    roles.erase(role);
-  }
-
-  metrics.removeQuota(role);
-
-  // NOTE: Since quota changes do not result in rebalancing of
-  // offered resources, we do not trigger an allocation here; the
-  // quota change will be reflected in subsequent allocations.
-  //
-  // If we add the ability for quota changes to incur a rebalancing
-  // of offered resources, then we should trigger that here.
-}
-
-
 void HierarchicalAllocatorProcess::updateQuota(
     const string& role,
     const Quota2& quota)

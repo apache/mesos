@@ -414,50 +414,6 @@ public:
       const std::set<std::string>& roles) = 0;
 
   /**
-   * Informs the allocator to set quota for the given role.
-   *
-   * It is up to the allocator implementation how to satisfy quota. An
-   * implementation may employ different strategies for roles with or
-   * without quota. Hence an empty (or zero) quota is not necessarily the
-   * same as an absence of quota. Logically, this method implies that the
-   * given role should be transitioned to the group of roles with quota
-   * set. An allocator implementation may assert quota for the given role
-   * is not set prior to the call and react accordingly if this assumption
-   * is violated (i.e. fail).
-   *
-   * TODO(alexr): Consider returning a future which an allocator can fail
-   * in order to report failure.
-   *
-   * TODO(alexr): Consider adding an `updateQuota()` method which allows
-   * updating existing quota.
-   *
-   * TODO(mzhu): Remove this call in favor of `updateQuota`.
-   *
-   */
-  virtual void setQuota(
-      const std::string& role,
-      const Quota& quota) = 0;
-
-  /**
-   * Informs the allocator to remove quota for the given role.
-   *
-   * An allocator implementation may employ different strategies for roles
-   * with or without quota. Hence an empty (or zero) quota is not necessarily
-   * the same as an absence of quota. Logically, this method implies that the
-   * given role should be transitioned to the group of roles without quota
-   * set (absence of quota). An allocator implementation may assert quota
-   * for the given role is set prior to the call and react accordingly if
-   * this assumption is violated (i.e. fail).
-   *
-   * TODO(alexr): Consider returning a future which an allocator can fail in
-   * order to report failure.
-   *
-   * TODO(mzhu): Remove this call in favor of `updateQuota`.
-   */
-  virtual void removeQuota(
-      const std::string& role) = 0;
-
-  /**
    * Informs the allocator to update quota for the given role.
    *
    * It is up to the allocator implementation how to satisfy quota. An

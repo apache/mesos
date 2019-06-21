@@ -158,13 +158,6 @@ public:
       const FrameworkID& frameworkId,
       const std::set<std::string>& roles) override;
 
-  void setQuota(
-      const std::string& role,
-      const Quota& quota) override;
-
-  void removeQuota(
-      const std::string& role) override;
-
   void updateQuota(
       const std::string& role,
       const Quota2& quota) override;
@@ -308,13 +301,6 @@ public:
   virtual void reviveOffers(
       const FrameworkID& frameworkId,
       const std::set<std::string>& roles) = 0;
-
-  virtual void setQuota(
-      const std::string& role,
-      const Quota& quota) = 0;
-
-  virtual void removeQuota(
-      const std::string& role) = 0;
 
   virtual void updateQuota(
       const std::string& role,
@@ -681,30 +667,6 @@ inline void MesosAllocator<AllocatorProcess>::reviveOffers(
       &MesosAllocatorProcess::reviveOffers,
       frameworkId,
       roles);
-}
-
-
-template <typename AllocatorProcess>
-inline void MesosAllocator<AllocatorProcess>::setQuota(
-    const std::string& role,
-    const Quota& quota)
-{
-  process::dispatch(
-      process,
-      &MesosAllocatorProcess::setQuota,
-      role,
-      quota);
-}
-
-
-template <typename AllocatorProcess>
-inline void MesosAllocator<AllocatorProcess>::removeQuota(
-    const std::string& role)
-{
-  process::dispatch(
-      process,
-      &MesosAllocatorProcess::removeQuota,
-      role);
 }
 
 

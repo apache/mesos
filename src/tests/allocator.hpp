@@ -200,18 +200,6 @@ ACTION_P(InvokeReviveOffers, allocator)
 }
 
 
-ACTION_P(InvokeSetQuota, allocator)
-{
-  allocator->real->setQuota(arg0, arg1);
-}
-
-
-ACTION_P(InvokeRemoveQuota, allocator)
-{
-  allocator->real->removeQuota(arg0);
-}
-
-
 ACTION_P(InvokeUpdateQuota, allocator)
 {
   allocator->real->updateQuota(arg0, arg1);
@@ -378,16 +366,6 @@ public:
     EXPECT_CALL(*this, reviveOffers(_, _))
       .WillRepeatedly(DoDefault());
 
-    ON_CALL(*this, setQuota(_, _))
-      .WillByDefault(InvokeSetQuota(this));
-    EXPECT_CALL(*this, setQuota(_, _))
-      .WillRepeatedly(DoDefault());
-
-    ON_CALL(*this, removeQuota(_))
-      .WillByDefault(InvokeRemoveQuota(this));
-    EXPECT_CALL(*this, removeQuota(_))
-      .WillRepeatedly(DoDefault());
-
     ON_CALL(*this, updateQuota(_, _))
       .WillByDefault(InvokeUpdateQuota(this));
     EXPECT_CALL(*this, updateQuota(_, _))
@@ -519,13 +497,6 @@ public:
   MOCK_METHOD2(reviveOffers, void(
       const FrameworkID&,
       const std::set<std::string>&));
-
-  MOCK_METHOD2(setQuota, void(
-      const std::string&,
-      const Quota&));
-
-  MOCK_METHOD1(removeQuota, void(
-      const std::string&));
 
   MOCK_METHOD2(updateQuota, void(
       const std::string&,
