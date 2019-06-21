@@ -18,6 +18,7 @@
 
 #include "master/registry_operations.hpp"
 
+#include "common/protobuf_utils.hpp"
 #include "common/resources_utils.hpp"
 
 namespace mesos {
@@ -345,6 +346,53 @@ Try<bool> MarkSlaveGone::perform(Registry* registry, hashset<SlaveID>* slaveIDs)
 
   // Should not happen.
   return Error("Failed to find agent " + stringify(id));
+}
+
+
+DrainAgent::DrainAgent(
+    const SlaveID& _slaveId,
+    const Option<DurationInfo>& _maxGracePeriod,
+    const bool _markGone)
+  : slaveId(_slaveId),
+    maxGracePeriod(_maxGracePeriod),
+    markGone(_markGone)
+{}
+
+
+Try<bool> DrainAgent::perform(Registry* registry, hashset<SlaveID>* slaveIDs)
+{
+  // Check whether the slave is in the admitted list.
+  bool found = false;
+  if (slaveIDs->contains(slaveId)) {
+    found = true;
+
+    for (int i = 0; i < registry->slaves().slaves().size(); i++) {
+      if (registry->slaves().slaves(i).info().id() == slaveId) {
+        Registry::Slave* slave = registry->mutable_slaves()->mutable_slaves(i);
+
+        slave->mutable_drain_info()->set_state(DRAINING);
+
+        // Copy the DrainConfig and ensure the agent is deactivated.
+        if (maxGracePeriod.isSome()) {
+          slave->mutable_drain_info()->mutable_config()
+            ->mutable_max_grace_period()->CopyFrom(maxGracePeriod.get());
+        }
+
+        slave->mutable_drain_info()->mutable_config()->set_mark_gone(markGone);
+        slave->set_deactivated(true);
+        break;
+      }
+    }
+  }
+
+  // Make sure the AGENT_DRAINING minimum capability is present or added.
+  if (found) {
+    protobuf::master::addMinimumCapability(
+        registry->mutable_minimum_capabilities(),
+        MasterInfo::Capability::AGENT_DRAINING);
+  }
+
+  return found; // Mutation if found.
 }
 
 } // namespace master {

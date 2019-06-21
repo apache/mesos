@@ -41,6 +41,15 @@ message Registry {
 
   message Slave {
     required SlaveInfo info = 1;
+
+    // If set, this agent is marked for draining and should be sent the
+    // appropriate DrainSlaveMessage upon reregistration.
+    optional DrainInfo drain_info = 2;
+
+    // If true, this agent should not be included in any offers,
+    // but should otherwise operate normally.
+    // If the `DrainInfo` is set, this value must also be set to `true`.
+    optional bool deactivated = 3 [default = false];
   }
 
   message Slaves {

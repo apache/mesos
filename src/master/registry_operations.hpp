@@ -137,6 +137,26 @@ private:
   const TimeInfo goneTime;
 };
 
+
+// Marks an existing agent for draining.
+// Also adds a minimum capability to the master for AGENT_DRAINING.
+class DrainAgent : public RegistryOperation
+{
+public:
+  DrainAgent(
+      const SlaveID& _slaveId,
+      const Option<DurationInfo>& _maxGracePeriod,
+      const bool _markGone);
+
+protected:
+  Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs) override;
+
+private:
+  const SlaveID slaveId;
+  const Option<DurationInfo> maxGracePeriod;
+  const bool markGone;
+};
+
 } // namespace master {
 } // namespace internal {
 } // namespace mesos {

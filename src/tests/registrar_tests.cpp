@@ -911,6 +911,69 @@ TEST_F(RegistrarTest, StopMaintenance)
 }
 
 
+// Marks an agent for draining and checks for the appropriate data.
+TEST_F(RegistrarTest, DrainAgent)
+{
+  SlaveID notAdmittedID;
+  notAdmittedID.set_value("not-admitted");
+
+  {
+    // Prepare the registrar.
+    Registrar registrar(flags, state);
+    AWAIT_READY(registrar.recover(master));
+
+    // Add an agent to be marked by other operations.
+    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+        new AdmitSlave(slave))));
+
+    // Try to mark an unknown agent for draining.
+    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+        new DrainAgent(notAdmittedID, None(), false))));
+  }
+
+  {
+    // Check that the agent is admitted, but has no DrainConfig.
+    Registrar registrar(flags, state);
+    Future<Registry> registry = registrar.recover(master);
+    AWAIT_READY(registry);
+
+    ASSERT_EQ(1, registry->slaves().slaves().size());
+    EXPECT_EQ(slave, registry->slaves().slaves(0).info());
+    EXPECT_FALSE(registry->slaves().slaves(0).has_drain_info());
+    EXPECT_FALSE(registry->slaves().slaves(0).deactivated());
+
+    // No minimum capability should be added when the operation does
+    // not mutate anything.
+    EXPECT_EQ(0, registry->minimum_capabilities().size());
+
+    // Drain an admitted agent.
+    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+        new DrainAgent(slave.id(), None(), true))));
+  }
+
+  {
+    // Check that agent is now marked for draining.
+    Registrar registrar(flags, state);
+    Future<Registry> registry = registrar.recover(master);
+    AWAIT_READY(registry);
+
+    ASSERT_EQ(1, registry->slaves().slaves().size());
+    ASSERT_TRUE(registry->slaves().slaves(0).has_drain_info());
+    EXPECT_EQ(DRAINING, registry->slaves().slaves(0).drain_info().state());
+    EXPECT_FALSE(registry->slaves().slaves(0)
+      .drain_info().config().has_max_grace_period());
+    EXPECT_TRUE(registry->slaves().slaves(0).drain_info().config().mark_gone());
+    EXPECT_TRUE(registry->slaves().slaves(0).deactivated());
+
+    // Minimum capability should be added now.
+    ASSERT_EQ(1, registry->minimum_capabilities().size());
+    EXPECT_EQ(
+        MasterInfo_Capability_Type_Name(MasterInfo::Capability::AGENT_DRAINING),
+        registry->minimum_capabilities(0).capability());
+  }
+}
+
+
 // Tests that adding and updating quotas in the registry works properly.
 TEST_F(RegistrarTest, UpdateQuota)
 {
