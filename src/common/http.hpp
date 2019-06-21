@@ -209,16 +209,13 @@ void json(JSON::ObjectWriter* writer, const Resources& resources);
 void json(
     JSON::ObjectWriter* writer,
     const google::protobuf::RepeatedPtrField<Resource>& resources);
+void json(JSON::ObjectWriter* writer, const ResourceQuantities& quantities);
+void json(JSON::ObjectWriter* writer, const ResourceLimits& limits);
 void json(JSON::ObjectWriter* writer, const SlaveInfo& slaveInfo);
 void json(
     JSON::StringWriter* writer, const SlaveInfo::Capability& capability);
 void json(JSON::ObjectWriter* writer, const Task& task);
 void json(JSON::ObjectWriter* writer, const TaskStatus& status);
-
-
-namespace quota {
-void json(JSON::ObjectWriter* writer, const QuotaInfo& quotaInfo);
-} // namespace quota {
 
 
 // Implementation of the `ObjectApprover` interface authorizing all objects.

@@ -713,7 +713,26 @@ process::http::Response Master::ReadOnlyHandler::roles(
               writer->field("weight", master->weights.get(name).getOrElse(1.0));
 
               if (master->quotas.contains(name)) {
-                writer->field("quota", master->quotas.at(name).info);
+                // Prior to Mesos 1.9, this field is filled based on
+                // `QuotaInfo` which is now deprecated. For backward
+                // compatibility reasons, we do not use any formatter
+                // for the new struct but construct the response by hand.
+                // Specifically:
+                //
+                //  - We keep the `role` field which was present in the
+                //    `QuotaInfo`.
+                //
+                //  - We name the field using singular `guarantee` and `limit`
+                //    which is different from the plural used in `QuotaConfig`.
+                //
+                // TODO(mzhu): This conversion will not be needed if we
+                // store `Quota2` in master.
+                Quota2 quota{master->quotas.at(name).info};
+                writer->field("quota", [&](JSON::ObjectWriter* writer) {
+                  writer->field("role", name);
+                  writer->field("guarantee", quota.guarantees);
+                  writer->field("limit", quota.limits);
+                });
               }
 
               Option<Role*> role = master->roles.get(name);

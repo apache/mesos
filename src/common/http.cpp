@@ -753,6 +753,22 @@ void json(
 }
 
 
+void json(JSON::ObjectWriter* writer, const ResourceQuantities& quantities)
+{
+  foreachpair (const string& name, const Value::Scalar& scalar, quantities) {
+    writer->field(name, scalar.value());
+  }
+}
+
+
+void json(JSON::ObjectWriter* writer, const ResourceLimits& limits)
+{
+  foreachpair (const string& name, const Value::Scalar& scalar, limits) {
+    writer->field(name, scalar.value());
+  }
+}
+
+
 void json(JSON::ObjectWriter* writer, const SlaveInfo& slaveInfo)
 {
   writer->field("id", slaveInfo.id().value());
@@ -853,21 +869,6 @@ static void json(JSON::StringWriter* writer, const Value::Text& text)
 {
   writer->set(text.value());
 }
-
-
-namespace quota {
-
-void json(JSON::ObjectWriter* writer, const QuotaInfo& quotaInfo)
-{
-  writer->field("role", quotaInfo.role());
-  writer->field("guarantee", quotaInfo.guarantee());
-
-  if (quotaInfo.has_principal()) {
-    writer->field("principal", quotaInfo.principal());
-  }
-}
-
-} // namespace quota {
 
 
 Future<Owned<ObjectApprovers>> ObjectApprovers::create(
