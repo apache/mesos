@@ -1730,7 +1730,7 @@ Future<Nothing> Master::_recover(const Registry& registry)
 
   // Save the quotas for each role.
   foreach (const Registry::Quota& quota, registry.quotas()) {
-    quotas[quota.info().role()] = Quota2{quota.info()};
+    quotas[quota.info().role()] = Quota{quota.info()};
   }
 
   // We notify the allocator via the `recover()` call. This has to be

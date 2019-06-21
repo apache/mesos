@@ -1243,7 +1243,7 @@ private:
     // as well as reservations (both static and dynamic ones).
     static Option<Error> overcommitCheck(
         const std::vector<Resources>& agents,
-        const hashmap<std::string, Quota2>& quotas,
+        const hashmap<std::string, Quota>& quotas,
         const mesos::quota::QuotaInfo& request);
 
     // We always want to rescind offers after the capacity heuristic. The
@@ -2239,7 +2239,7 @@ private:
 
   // Configured quota for each role, if any. We store quotas by role
   // because we set them at the role level.
-  hashmap<std::string, Quota2> quotas;
+  hashmap<std::string, Quota> quotas;
 
   // Authenticator names as supplied via flags.
   std::vector<std::string> authenticatorNames;

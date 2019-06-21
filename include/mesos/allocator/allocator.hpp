@@ -141,7 +141,7 @@ public:
    */
   virtual void recover(
       const int expectedAgentCount,
-      const hashmap<std::string, Quota2>& quotas) = 0;
+      const hashmap<std::string, Quota>& quotas) = 0;
 
   /**
    * Adds a framework to the Mesos cluster. The allocator is invoked when
@@ -424,7 +424,7 @@ public:
    */
   virtual void updateQuota(
       const std::string& role,
-      const Quota2& quota) = 0;
+      const Quota& quota) = 0;
 
   /**
    * Updates the weight associated with one or more roles. If a role

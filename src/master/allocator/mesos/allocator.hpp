@@ -59,7 +59,7 @@ public:
 
   void recover(
       const int expectedAgentCount,
-      const hashmap<std::string, Quota2>& quotas) override;
+      const hashmap<std::string, Quota>& quotas) override;
 
   void addFramework(
       const FrameworkID& frameworkId,
@@ -160,7 +160,7 @@ public:
 
   void updateQuota(
       const std::string& role,
-      const Quota2& quota) override;
+      const Quota& quota) override;
 
   void updateWeights(
       const std::vector<WeightInfo>& weightInfos) override;
@@ -203,7 +203,7 @@ public:
 
   virtual void recover(
       const int expectedAgentCount,
-      const hashmap<std::string, Quota2>& quotas) = 0;
+      const hashmap<std::string, Quota>& quotas) = 0;
 
   virtual void addFramework(
       const FrameworkID& frameworkId,
@@ -304,7 +304,7 @@ public:
 
   virtual void updateQuota(
       const std::string& role,
-      const Quota2& quota) = 0;
+      const Quota& quota) = 0;
 
   virtual void updateWeights(
       const std::vector<WeightInfo>& weightInfos) = 0;
@@ -366,7 +366,7 @@ inline void MesosAllocator<AllocatorProcess>::initialize(
 template <typename AllocatorProcess>
 inline void MesosAllocator<AllocatorProcess>::recover(
     const int expectedAgentCount,
-    const hashmap<std::string, Quota2>& quotas)
+    const hashmap<std::string, Quota>& quotas)
 {
   process::dispatch(
       process,
@@ -673,7 +673,7 @@ inline void MesosAllocator<AllocatorProcess>::reviveOffers(
 template <typename AllocatorProcess>
 inline void MesosAllocator<AllocatorProcess>::updateQuota(
     const std::string& role,
-    const Quota2& quota)
+    const Quota& quota)
 {
   process::dispatch(
       process,

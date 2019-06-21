@@ -41,7 +41,7 @@ namespace tests {
 
 // Allocator test helpers.
 
-Quota2 createQuota(const std::string& role, const std::string& resources);
+Quota createQuota(const std::string& role, const std::string& resources);
 
 
 WeightInfo createWeightInfo(const std::string& role, double weight);
@@ -400,7 +400,7 @@ public:
 
   MOCK_METHOD2(recover, void(
       const int expectedAgentCount,
-      const hashmap<std::string, Quota2>&));
+      const hashmap<std::string, Quota>&));
 
   MOCK_METHOD5(addFramework, void(
       const FrameworkID&,
@@ -500,7 +500,7 @@ public:
 
   MOCK_METHOD2(updateQuota, void(
       const std::string&,
-      const Quota2&));
+      const Quota&));
 
   MOCK_METHOD1(updateWeights, void(
       const std::vector<WeightInfo>&));

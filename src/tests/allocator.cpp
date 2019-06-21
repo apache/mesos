@@ -26,9 +26,9 @@ namespace tests {
 
 // This is a legacy helper where we take in a resource string
 // and use that to set both quota guarantees and limits.
-Quota2 createQuota(const string& role, const string& resources)
+Quota createQuota(const string& role, const string& resources)
 {
-  Quota2 quota;
+  Quota quota;
   quota.guarantees = CHECK_NOTERROR(ResourceQuantities::fromString(resources));
   quota.limits = CHECK_NOTERROR(ResourceLimits::fromString(resources));
 

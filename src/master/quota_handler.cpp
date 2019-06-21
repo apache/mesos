@@ -91,15 +91,15 @@ namespace master {
 class QuotaTree
 {
 public:
-  QuotaTree(const hashmap<string, Quota2>& quotas)
+  QuotaTree(const hashmap<string, Quota>& quotas)
     : root(new Node(""))
   {
-    foreachpair (const string& role, const Quota2& quota, quotas) {
+    foreachpair (const string& role, const Quota& quota, quotas) {
       insert(role, quota);
     }
   }
 
-  void insert(const string& role, const Quota2& quota)
+  void insert(const string& role, const Quota& quota)
   {
     // Create the path from root->leaf in the tree. Any missing nodes
     // are created implicitly.
@@ -187,7 +187,7 @@ private:
     }
 
     const string name;
-    Quota2 quota;
+    Quota quota;
     hashmap<string, unique_ptr<Node>> children;
   };
 
@@ -197,19 +197,19 @@ private:
 
 Option<Error> Master::QuotaHandler::overcommitCheck(
     const vector<Resources>& agents,
-    const hashmap<string, Quota2>& quotas,
+    const hashmap<string, Quota>& quotas,
     const QuotaInfo& request)
 {
   ResourceQuantities totalGuarantees = [&]() {
     QuotaTree quotaTree({});
 
-    foreachpair (const string& role, const Quota2& quota, quotas) {
+    foreachpair (const string& role, const Quota& quota, quotas) {
       if (role != request.role()) {
         quotaTree.insert(role, quota);
       }
     }
 
-    quotaTree.insert(request.role(), Quota2{request});
+    quotaTree.insert(request.role(), Quota{request});
 
     // Hard CHECK since this is already validated earlier
     // during request validation.
@@ -370,7 +370,7 @@ Future<QuotaStatus> Master::QuotaHandler::_status(
   vector<QuotaInfo> quotaInfos;
   quotaInfos.reserve(master->quotas.size());
 
-  foreachpair (const string& role, const Quota2& quota, master->quotas) {
+  foreachpair (const string& role, const Quota& quota, master->quotas) {
     quotaInfos.push_back([&role, &quota]() {
       // Construct the legacy `QuotaInfo`.
       //
@@ -564,13 +564,13 @@ Future<http::Response> Master::QuotaHandler::_set(
   {
     QuotaTree quotaTree({});
 
-    foreachpair (const string& role, const Quota2& quota, master->quotas) {
+    foreachpair (const string& role, const Quota& quota, master->quotas) {
       if (role != quotaInfo.role()) {
         quotaTree.insert(role, quota);
       }
     }
 
-    quotaTree.insert(quotaInfo.role(), Quota2{quotaInfo});
+    quotaTree.insert(quotaInfo.role(), Quota{quotaInfo});
 
     Option<Error> error = quotaTree.validate();
     if (error.isSome()) {
@@ -648,7 +648,7 @@ Future<http::Response> Master::QuotaHandler::__set(
     }
   }
 
-  Quota2 quota = Quota2{quotaInfo};
+  Quota quota = Quota{quotaInfo};
 
   // Populate master's quota-related local state. We do this before updating
   // the registry in order to make sure that we are not already trying to
@@ -732,7 +732,7 @@ Future<http::Response> Master::QuotaHandler::remove(
         "': Role '" + role + "' has no quota set");
   }
 
-  hashmap<string, Quota2> quotaMap = master->quotas;
+  hashmap<string, Quota> quotaMap = master->quotas;
 
   // Validate that removing the quota for `role` does not violate the
   // hierarchical relationship between quotas.

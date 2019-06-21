@@ -130,7 +130,7 @@ Metrics::~Metrics()
 
 // TODO(mzhu): This currently only updates quota guarantees.
 // Add metrics for quota limits as well.
-void Metrics::updateQuota(const string& role, const Quota2& quota)
+void Metrics::updateQuota(const string& role, const Quota& quota)
 {
   // This is the "remove" case where the role's quota
   // is set to the default.

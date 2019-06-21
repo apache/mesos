@@ -48,7 +48,7 @@ struct Metrics
 
   ~Metrics();
 
-  void updateQuota(const std::string& role, const Quota2& quota);
+  void updateQuota(const std::string& role, const Quota& quota);
 
   void addRole(const std::string& role);
   void removeRole(const std::string& role);

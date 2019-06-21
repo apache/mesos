@@ -871,6 +871,13 @@ static void json(JSON::StringWriter* writer, const Value::Text& text)
 }
 
 
+void json(JSON::ObjectWriter* writer, const Quota& quota)
+{
+  writer->field("guarantees", quota.guarantees);
+  writer->field("limits", quota.limits);
+}
+
+
 Future<Owned<ObjectApprovers>> ObjectApprovers::create(
     const Option<Authorizer*>& authorizer,
     const Option<Principal>& principal,

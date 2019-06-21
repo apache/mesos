@@ -22,31 +22,21 @@
 // ONLY USEFUL AFTER RUNNING PROTOC.
 #include <mesos/quota/quota.pb.h>
 
-// A C++ wrapper for `QuotaInfo` used to communicate between the
-// Allocator and Master.
-struct Quota
-{
-  // Holds the quota protobuf, as constructed from an operator's request.
-  mesos::quota::QuotaInfo info;
-};
-
-
 namespace mesos {
 
-// TODO(mzhu): replace `struct Quota` above.
-struct Quota2
+struct Quota
 {
   ResourceQuantities guarantees;
   ResourceLimits limits;
 
-  Quota2() {};
+  Quota() {};
 
-  Quota2(const mesos::quota::QuotaConfig& config);
-  Quota2(const mesos::quota::QuotaInfo& info);
-  Quota2(const mesos::quota::QuotaRequest& request);
+  Quota(const mesos::quota::QuotaConfig& config);
+  Quota(const mesos::quota::QuotaInfo& info);
+  Quota(const mesos::quota::QuotaRequest& request);
 
-  bool operator==(const Quota2& quota) const;
-  bool operator!=(const Quota2& quota) const;
+  bool operator==(const Quota& quota) const;
+  bool operator!=(const Quota& quota) const;
 };
 
 } // namespace mesos {

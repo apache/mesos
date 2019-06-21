@@ -839,7 +839,7 @@ TEST_F(MasterQuotaTest, AvailableResourcesSingleAgent)
   EXPECT_TRUE(agentTotalResources->contains(quotaResources));
 
   // Send a quota request for the specified role.
-  Future<Quota2> receivedQuotaRequest;
+  Future<Quota> receivedQuotaRequest;
   EXPECT_CALL(allocator, updateQuota(Eq(ROLE1), _))
     .WillOnce(DoAll(InvokeUpdateQuota(&allocator),
                     FutureArg<1>(&receivedQuotaRequest)));
@@ -894,7 +894,7 @@ TEST_F(MasterQuotaTest, AvailableResourcesSingleReservedAgent)
   Resources quotaResources = Resources::parse("cpus:1;mem:512").get();
 
   // Send a quota request for the specified role.
-  Future<Quota2> receivedQuotaRequest;
+  Future<Quota> receivedQuotaRequest;
   EXPECT_CALL(allocator, updateQuota(Eq(ROLE1), _))
     .WillOnce(DoAll(InvokeUpdateQuota(&allocator),
                     FutureArg<1>(&receivedQuotaRequest)));
@@ -961,7 +961,7 @@ TEST_F(MasterQuotaTest, AvailableResourcesSingleDisconnectedAgent)
   EXPECT_TRUE(agentTotalResources->contains(quotaResources));
 
   // Send a quota request for the specified role.
-  Future<Quota2> receivedQuotaRequest;
+  Future<Quota> receivedQuotaRequest;
   EXPECT_CALL(allocator, updateQuota(Eq(ROLE1), _))
     .WillOnce(DoAll(InvokeUpdateQuota(&allocator),
                     FutureArg<1>(&receivedQuotaRequest)));
@@ -1030,7 +1030,7 @@ TEST_F(MasterQuotaTest, AvailableResourcesMultipleAgents)
     });
 
   // Send a quota request for the specified role.
-  Future<Quota2> receivedQuotaRequest;
+  Future<Quota> receivedQuotaRequest;
   EXPECT_CALL(allocator, updateQuota(Eq(ROLE1), _))
     .WillOnce(DoAll(InvokeUpdateQuota(&allocator),
                     FutureArg<1>(&receivedQuotaRequest)));
@@ -1190,7 +1190,7 @@ TEST_F(MasterQuotaTest, AvailableResourcesAfterRescinding)
     .WillRepeatedly(Return());
 
   // Send a quota request for the specified role.
-  Future<Quota2> receivedQuotaRequest;
+  Future<Quota> receivedQuotaRequest;
   EXPECT_CALL(allocator, updateQuota(Eq(ROLE2), _))
     .WillOnce(DoAll(InvokeUpdateQuota(&allocator),
                     FutureArg<1>(&receivedQuotaRequest)));
@@ -1348,7 +1348,7 @@ TEST_F(MasterQuotaTest, NoAuthenticationNoAuthorization)
   {
     Resources quotaResources = Resources::parse("cpus:1;mem:512").get();
 
-    Future<Quota2> receivedSetRequest;
+    Future<Quota> receivedSetRequest;
     EXPECT_CALL(allocator, updateQuota(Eq(ROLE1), _))
       .WillOnce(DoAll(InvokeUpdateQuota(&allocator),
                       FutureArg<1>(&receivedSetRequest)));
@@ -1490,7 +1490,7 @@ TEST_F(MasterQuotaTest, AuthorizeGetUpdateQuotaRequests)
     // request below to override the capacity heuristic check.
     Resources quotaResources = Resources::parse("cpus:1;mem:512").get();
 
-    Future<Quota2> quota;
+    Future<Quota> quota;
     EXPECT_CALL(allocator, updateQuota(Eq(ROLE1), _))
       .WillOnce(DoAll(InvokeUpdateQuota(&allocator),
                       FutureArg<1>(&quota)));

@@ -122,7 +122,7 @@ struct Role
 
   // Configured guaranteed resource quantities and resource limits for
   // this role. By default, a role has no guarantee and no limit.
-  Quota2 quota;
+  Quota quota;
 
   bool isEmpty() const
   {
@@ -326,7 +326,7 @@ public:
 
   void recover(
       const int _expectedAgentCount,
-      const hashmap<std::string, Quota2>& quotas) override;
+      const hashmap<std::string, Quota>& quotas) override;
 
   void addFramework(
       const FrameworkID& frameworkId,
@@ -427,7 +427,7 @@ public:
 
   void updateQuota(
       const std::string& role,
-      const Quota2& quota) override;
+      const Quota& quota) override;
 
   void updateWeights(
       const std::vector<WeightInfo>& weightInfos) override;
@@ -622,7 +622,7 @@ private:
       const FrameworkID& frameworkId,
       const std::string& role) const;
 
-  const Quota2& getQuota(const std::string& role) const;
+  const Quota& getQuota(const std::string& role) const;
 
   void trackFrameworkUnderRole(
       const FrameworkID& frameworkId,

@@ -239,14 +239,14 @@ Option<Error> validate(const QuotaConfig& config)
 } // namespace master {
 } // namespace internal {
 
-Quota2::Quota2(const QuotaConfig& config)
+Quota::Quota(const QuotaConfig& config)
 {
   guarantees = ResourceQuantities(config.guarantees());
   limits = ResourceLimits(config.limits());
 }
 
 
-Quota2::Quota2(const QuotaInfo& info)
+Quota::Quota(const QuotaInfo& info)
 {
   guarantees = ResourceQuantities::fromScalarResources(info.guarantee());
 
@@ -261,7 +261,7 @@ Quota2::Quota2(const QuotaInfo& info)
 }
 
 
-Quota2::Quota2(const QuotaRequest& request)
+Quota::Quota(const QuotaRequest& request)
 {
   guarantees = ResourceQuantities::fromScalarResources(request.guarantee());
 
@@ -276,13 +276,13 @@ Quota2::Quota2(const QuotaRequest& request)
 }
 
 
-bool Quota2::operator==(const Quota2& that) const
+bool Quota::operator==(const Quota& that) const
 {
   return guarantees == that.guarantees && limits == that.limits;
 }
 
 
-bool Quota2::operator!=(const Quota2& that) const
+bool Quota::operator!=(const Quota& that) const
 {
   return guarantees != that.guarantees || limits != that.limits;
 }

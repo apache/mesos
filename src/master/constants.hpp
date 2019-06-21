@@ -174,7 +174,7 @@ const Version MINIMUM_AGENT_VERSION = Version(1, 0, 0);
 std::vector<MasterInfo::Capability> MASTER_CAPABILITIES();
 
 // A role's default quota: no guarantees and no limits.
-const Quota2 DEFAULT_QUOTA;
+const Quota DEFAULT_QUOTA;
 
 } // namespace master {
 } // namespace internal {

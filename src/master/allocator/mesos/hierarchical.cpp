@@ -254,7 +254,7 @@ void HierarchicalAllocatorProcess::initialize(
 
 void HierarchicalAllocatorProcess::recover(
     const int _expectedAgentCount,
-    const hashmap<string, Quota2>& quotas)
+    const hashmap<string, Quota>& quotas)
 {
   // Recovery should start before actual allocation starts.
   CHECK(initialized);
@@ -278,7 +278,7 @@ void HierarchicalAllocatorProcess::recover(
     return;
   }
 
-  foreachpair (const string& role, const Quota2& quota, quotas) {
+  foreachpair (const string& role, const Quota& quota, quotas) {
     updateQuota(role, quota);
   }
 
@@ -1399,7 +1399,7 @@ void HierarchicalAllocatorProcess::reviveOffers(
 
 void HierarchicalAllocatorProcess::updateQuota(
     const string& role,
-    const Quota2& quota)
+    const Quota& quota)
 {
   CHECK(initialized);
 
@@ -2503,7 +2503,7 @@ bool HierarchicalAllocatorProcess::isFrameworkTrackedUnderRole(
 }
 
 
-const Quota2& HierarchicalAllocatorProcess::getQuota(const string& role) const
+const Quota& HierarchicalAllocatorProcess::getQuota(const string& role) const
 {
   auto it = roles.find(role);
 
