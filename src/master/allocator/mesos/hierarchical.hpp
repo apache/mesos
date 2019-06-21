@@ -17,6 +17,7 @@
 #ifndef __MASTER_ALLOCATOR_MESOS_HIERARCHICAL_HPP__
 #define __MASTER_ALLOCATOR_MESOS_HIERARCHICAL_HPP__
 
+#include <memory>
 #include <set>
 #include <string>
 
@@ -89,11 +90,13 @@ struct Framework
 
   protobuf::framework::Capabilities capabilities;
 
-  // Active offer and inverse offer filters for the framework.
-  // Offer filters are tied to the role the filtered resources
-  // were allocated to.
-  hashmap<std::string, hashmap<SlaveID, hashset<OfferFilter*>>> offerFilters;
-  hashmap<SlaveID, hashset<InverseOfferFilter*>> inverseOfferFilters;
+  // Offer filters are tied to the role the filtered
+  // resources were allocated to.
+  hashmap<std::string, hashmap<SlaveID, hashset<std::shared_ptr<OfferFilter>>>>
+    offerFilters;
+
+  hashmap<SlaveID, hashset<std::shared_ptr<InverseOfferFilter>>>
+    inverseOfferFilters;
 
   bool active;
 
@@ -469,19 +472,19 @@ protected:
       const FrameworkID& frameworkId,
       const std::string& role,
       const SlaveID& slaveId,
-      OfferFilter* offerFilter);
+      const std::weak_ptr<OfferFilter>& offerFilter);
 
   void _expire(
       const FrameworkID& frameworkId,
       const std::string& role,
       const SlaveID& slaveId,
-      OfferFilter* offerFilter);
+      const std::weak_ptr<OfferFilter>& offerFilter);
 
   // Remove an inverse offer filter for the specified framework.
   void expire(
       const FrameworkID& frameworkId,
       const SlaveID& slaveId,
-      InverseOfferFilter* inverseOfferFilter);
+      const std::weak_ptr<InverseOfferFilter>& inverseOfferFilter);
 
   // Checks whether the slave is whitelisted.
   bool isWhitelisted(const SlaveID& slaveId) const;
