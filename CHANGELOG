@@ -2,6 +2,16 @@ Release Notes - Mesos - Version 1.9.0 (WIP)
 -------------------------------------------
 This release contains the following highlights:
 
+  * Security
+
+    * A new libprocess flag `--hostname_validation_scheme` has been added.
+      This allows users to enable a new RFC 6125-compliant hostname verification
+      scheme based on primitives provided by OpenSSL. This will also improve
+      performance by getting rid of all reverse DNS lookups. (MESOS-9784)
+
+    * The use of anonymous cipher suites is now disallowed when TLS certificate
+      verification is enabled. (MESOS-9810)
+
   * Containerization:
 
     * [MESOS-9760] - A new `--docker_ignore_runtime` flag has been
@@ -10,6 +20,12 @@ This release contains the following highlights:
 
     * [MESOS-9771] - The Mesos containerizer now masks sensitive paths
       in `/proc` for containers that do not share the host's PID namespace.
+
+
+Additional API Changes:
+
+  * Mesos components will now forego TLS certificate validation for incoming
+    connections, unless `LIBPROCESS_SSL_REQUIRE_CERT` is set to true.
 
 Release Notes - Mesos - Version 1.8.1 (WIP)
 -------------------------------------------

@@ -47,7 +47,11 @@ We categorize the changes as follows:
   </td>
 
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Mesos Core-->
-  </td>
+    <ul style="padding-left:10px;">
+      <li>A <a href="#1-9-x-hostname-validation-scheme">hostname_validation_scheme</a></li>
+      <li>C <a href="#1-9-x-client-certificate-verification">TLS certificate verification behaviour</a></li>
+    </ul>
+ </td>
 
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Flags-->
     <ul style="padding-left:10px;">
@@ -506,6 +510,24 @@ We categorize the changes as follows:
 
 <a name="1-9-x-docker-ignore-runtime"></a>
   * A new [`--docker_ignore_runtime`](configuration/agent.md#docker_ignore_runtime) flag has been added. This causes the agent to ignore any runtime configuration present in Docker images.
+
+<a name="1-9-x-hostname-validation-scheme"></a>
+* A new libprocess TLS flag `--hostname_validation_scheme` along with the corresponding environment variable `LIBPROCESS_SSL_HOSTNAME_VALIDATION_SCHEME`
+  has been added. Using this flag, users can configure the way libprocess performs hostname validation for TLS connections.
+  See [`docs/ssl`](ssl.md) for details.
+
+<a name="1-9-x-client-certificate-verification"></a>
+* The semantics of the libprocess environment variables `LIBPROCESS_SSL_VERIFY_CERT` and `LIBPROCESS_SSL_REQUIRE_CERT` have been slightly updated such that
+  the former now only applies to client-mode and the latter only to server-mode connections. As part of this re-adjustment, the following two changes have
+  been introduced that might require changes for operators running Mesos in unusual TLS configurations.
+  * Anonymous ciphers can not be used anymore when `LIBPROCESS_SSL_VERIFY_CERT` is set to true. This is because the use of anonymous ciphers enables
+    a malicious attacker to bypass certificate verification by choosing a certificate-less cipher.
+    Users that rely on anonymous ciphers being available should make sure that `LIBPROCESS_SSL_VERIFY_CERT` is set to false.
+  * For incoming connections, certificates are not verified unless `LIBPROCESS_SSL_REQUIRE_CERT` is set to true.
+    This is because verifying the certificate can lead to false negatives, where a connection is aborted even though presenting no certificate at all
+    would have been successfull. Users that rely on incoming connection requests presenting valid TLS certificates should make sure that
+    the `LIBPROCESS_SSL_REQUIRE_CERT` option is set to true.
+
 
 ## Upgrading from 1.7.x to 1.8.x ##
 
