@@ -91,11 +91,11 @@ namespace master {
 class QuotaTree
 {
 public:
-  QuotaTree(const hashmap<string, Quota>& quotas)
+  QuotaTree(const hashmap<string, Quota2>& quotas)
     : root(new Node(""))
   {
-    foreachpair (const string& role, const Quota& quota, quotas) {
-      insert(role, Quota2(quota.info));
+    foreachpair (const string& role, const Quota2& quota, quotas) {
+      insert(role, quota);
     }
   }
 
@@ -197,15 +197,15 @@ private:
 
 Option<Error> Master::QuotaHandler::overcommitCheck(
     const vector<Resources>& agents,
-    const hashmap<string, Quota>& quotas,
+    const hashmap<string, Quota2>& quotas,
     const QuotaInfo& request)
 {
   ResourceQuantities totalGuarantees = [&]() {
     QuotaTree quotaTree({});
 
-    foreachpair (const string& role, const Quota& quota, quotas) {
+    foreachpair (const string& role, const Quota2& quota, quotas) {
       if (role != request.role()) {
-        quotaTree.insert(role, Quota2(quota.info));
+        quotaTree.insert(role, quota);
       }
     }
 
@@ -370,8 +370,30 @@ Future<QuotaStatus> Master::QuotaHandler::_status(
   vector<QuotaInfo> quotaInfos;
   quotaInfos.reserve(master->quotas.size());
 
-  foreachvalue (const Quota& quota, master->quotas) {
-    quotaInfos.push_back(quota.info);
+  foreachpair (const string& role, const Quota2& quota, master->quotas) {
+    quotaInfos.push_back([&role, &quota]() {
+      // Construct the legacy `QuotaInfo`.
+      //
+      // This is needed for backwards compatibility reasons.
+      // Authorizable action `GET_QUOTA` expects an object
+      // with `QuotaInfo` set.
+      //
+      // TODO(mzhu): we plan to deprecate the use of `QuotaInfo`
+      // in the `GET_QUOTA` action. And instead, just set the value
+      // field in the object using the role. This legacy construction
+      // will be removed.
+      QuotaInfo info;
+      info.set_role(role);
+      foreach (auto& quantity, quota.guarantees) {
+        Resource resource;
+        resource.set_type(Value::SCALAR);
+        *resource.mutable_name() = quantity.first;
+        *resource.mutable_scalar() = quantity.second;
+
+        *info.add_guarantee() = std::move(resource);
+      }
+      return info;
+    }());
   }
 
   // Create a list of authorization actions for each role we may return.
@@ -542,9 +564,9 @@ Future<http::Response> Master::QuotaHandler::_set(
   {
     QuotaTree quotaTree({});
 
-    foreachpair (const string& role, const Quota& quota, master->quotas) {
+    foreachpair (const string& role, const Quota2& quota, master->quotas) {
       if (role != quotaInfo.role()) {
-        quotaTree.insert(role, Quota2(quota.info));
+        quotaTree.insert(role, quota);
       }
     }
 
@@ -626,7 +648,7 @@ Future<http::Response> Master::QuotaHandler::__set(
     }
   }
 
-  Quota quota = Quota{quotaInfo};
+  Quota2 quota = Quota2{quotaInfo};
 
   // Populate master's quota-related local state. We do this before updating
   // the registry in order to make sure that we are not already trying to
@@ -642,7 +664,7 @@ Future<http::Response> Master::QuotaHandler::__set(
       // See the top comment in "master/quota.hpp" for why this check is here.
       CHECK(result);
 
-      master->allocator->updateQuota(quotaInfo.role(), Quota2{quota.info});
+      master->allocator->updateQuota(quotaInfo.role(), quota);
 
       // Rescind outstanding offers to facilitate satisfying the quota request.
       // NOTE: We set quota before we rescind to avoid a race. If we were to
@@ -710,7 +732,7 @@ Future<http::Response> Master::QuotaHandler::remove(
         "': Role '" + role + "' has no quota set");
   }
 
-  hashmap<string, Quota> quotaMap = master->quotas;
+  hashmap<string, Quota2> quotaMap = master->quotas;
 
   // Validate that removing the quota for `role` does not violate the
   // hierarchical relationship between quotas.
@@ -733,7 +755,25 @@ Future<http::Response> Master::QuotaHandler::_remove(
     const string& role,
     const Option<Principal>& principal) const
 {
-  return authorizeUpdateQuota(principal, master->quotas.at(role).info)
+  // Construct the legacy `QuotaInfo`. This is needed for backwards
+  // compatibility reasons. Authorizable action `UPDATE_QUOTA` which is
+  // used for `SET_QUOTA` and `REMOVE_QUOTA` expects an object with
+  // `QuotaInfo` set. The new API `UPDATE_QUOTA` uses a different
+  // action `UPDATE_QUOTA_WITH_CONFIG`. The old authorizable action
+  // and this legacy construction should be removed in Mesos 2.0
+  // when we remove the old APIs.
+  QuotaInfo info;
+  info.set_role(role);
+  foreach (const auto& quantity, master->quotas.at(role).guarantees) {
+    Resource resource;
+    resource.set_type(Value::SCALAR);
+    *resource.mutable_name() = quantity.first;
+    *resource.mutable_scalar() = quantity.second;
+
+    *info.add_guarantee() = std::move(resource);
+  }
+
+  return authorizeUpdateQuota(principal, info)
     .then(defer(master->self(), [=](bool authorized) -> Future<http::Response> {
       return !authorized ? Forbidden() : __remove(role);
     }));

@@ -724,10 +724,7 @@ process::http::Response Master::ReadOnlyHandler::roles(
                 //
                 //  - We name the field using singular `guarantee` and `limit`
                 //    which is different from the plural used in `QuotaConfig`.
-                //
-                // TODO(mzhu): This conversion will not be needed if we
-                // store `Quota2` in master.
-                Quota2 quota{master->quotas.at(name).info};
+                const Quota2& quota = master->quotas.at(name);
                 writer->field("quota", [&](JSON::ObjectWriter* writer) {
                   writer->field("role", name);
                   writer->field("guarantee", quota.guarantees);

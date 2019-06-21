@@ -1730,7 +1730,7 @@ Future<Nothing> Master::_recover(const Registry& registry)
 
   // Save the quotas for each role.
   foreach (const Registry::Quota& quota, registry.quotas()) {
-    quotas[quota.info().role()] = Quota{quota.info()};
+    quotas[quota.info().role()] = Quota2{quota.info()};
   }
 
   // We notify the allocator via the `recover()` call. This has to be
@@ -1741,12 +1741,7 @@ Future<Nothing> Master::_recover(const Registry& registry)
   // until after it restores a view of the cluster state.
   int expectedAgentCount = registry.slaves().slaves().size();
 
-  // TODO(mzhu): Remove this conversion once we replace `Quota` with `Quota2`.
-  hashmap<string, Quota2> quota2s;
-  foreachpair (const string& role, const Quota& quota, quotas) {
-    quota2s[role] = Quota2{quota.info};
-  }
-  allocator->recover(expectedAgentCount, quota2s);
+  allocator->recover(expectedAgentCount, quotas);
 
   // TODO(alexr): Consider adding a sanity check: whether quotas are
   // satisfiable given all recovering agents reregister. We may want
