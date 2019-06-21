@@ -43,9 +43,12 @@
 #include "common/protobuf_utils.hpp"
 #include "common/resource_quantities.hpp"
 
+using std::make_shared;
 using std::set;
+using std::shared_ptr;
 using std::string;
 using std::vector;
+using std::weak_ptr;
 
 using mesos::allocator::InverseOfferStatus;
 
@@ -80,20 +83,38 @@ public:
 class RefusedOfferFilter : public OfferFilter
 {
 public:
-  RefusedOfferFilter(const Resources& _resources) : resources(_resources) {}
+  RefusedOfferFilter(
+      const Resources& _resources,
+      const Duration& timeout)
+    : _resources(_resources),
+      _expired(after(timeout)) {}
 
-  virtual bool filter(const Resources& _resources) const
+  virtual ~RefusedOfferFilter()
   {
+    // Cancel the timeout upon destruction to avoid lingering timers.
+    _expired.discard();
+  }
+
+  Future<Nothing> expired() const { return _expired; };
+
+  bool filter(const Resources& resources) const override
+  {
+    // NOTE: We do not check for the filter being expired here
+    // because `recoverResources()` expects the filter to apply
+    // until the filter is removed, see:
+    // https://github.com/apache/mesos/commit/2f170f302fe94c4
+    //
     // TODO(jieyu): Consider separating the superset check for regular
     // and revocable resources. For example, frameworks might want
     // more revocable resources only or non-revocable resources only,
     // but currently the filter only expires if there is more of both
     // revocable and non-revocable resources.
-    return resources.contains(_resources); // Refused resources are superset.
+    return _resources.contains(resources); // Refused resources are superset.
   }
 
 private:
-  const Resources resources;
+  const Resources _resources;
+  Future<Nothing> _expired;
 };
 
 
@@ -120,17 +141,25 @@ public:
 class RefusedInverseOfferFilter : public InverseOfferFilter
 {
 public:
-  RefusedInverseOfferFilter(const Timeout& _timeout)
-    : timeout(_timeout) {}
+  RefusedInverseOfferFilter(const Duration& timeout)
+    : _expired(after(timeout)) {}
+
+  virtual ~RefusedInverseOfferFilter()
+  {
+    // Cancel the timeout upon destruction to avoid lingering timers.
+    _expired.discard();
+  }
+
+  Future<Nothing> expired() const { return _expired; };
 
   virtual bool filter() const
   {
     // See comment above why we currently don't do more fine-grained filtering.
-    return timeout.remaining() > Seconds(0);
+    return _expired.isPending();
   }
 
 private:
-  const Timeout timeout;
+  Future<Nothing> _expired;
 };
 
 
@@ -339,10 +368,6 @@ void HierarchicalAllocatorProcess::removeFramework(
     untrackFrameworkUnderRole(frameworkId, role);
   }
 
-  // Do not delete the filters contained in this
-  // framework's `offerFilters` hashset yet, see comments in
-  // HierarchicalAllocatorProcess::reviveOffers and
-  // HierarchicalAllocatorProcess::expire.
   frameworks.erase(frameworkId);
 
   LOG(INFO) << "Removed framework " << frameworkId;
@@ -399,10 +424,6 @@ void HierarchicalAllocatorProcess::deactivateFramework(
 
   framework.active = false;
 
-  // Do not delete the filters contained in this
-  // framework's `offerFilters` hashset yet, see comments in
-  // HierarchicalAllocatorProcess::reviveOffers and
-  // HierarchicalAllocatorProcess::expire.
   framework.offerFilters.clear();
   framework.inverseOfferFilters.clear();
 
@@ -606,10 +627,7 @@ void HierarchicalAllocatorProcess::removeSlave(
   slaves.erase(slaveId);
   allocationCandidates.erase(slaveId);
 
-  // Note that we DO NOT actually delete any filters associated with
-  // this slave, that will occur when the delayed
-  // HierarchicalAllocatorProcess::expire gets invoked (or the framework
-  // that applied the filters gets removed).
+  removeFilters(slaveId);
 
   LOG(INFO) << "Removed agent " << slaveId;
 }
@@ -730,7 +748,7 @@ void HierarchicalAllocatorProcess::removeFilters(const SlaveID& slaveId)
 
     // Need a typedef here, otherwise the preprocessor gets confused
     // by the comma in the template argument list.
-    typedef hashmap<SlaveID, hashset<OfferFilter*>> Filters;
+    typedef hashmap<SlaveID, hashset<shared_ptr<OfferFilter>>> Filters;
     foreachvalue (Filters& filters, framework.offerFilters) {
       filters.erase(slaveId);
     }
@@ -1086,25 +1104,17 @@ void HierarchicalAllocatorProcess::updateInverseOffer(
             << " for " << timeout.get();
 
     // Create a new inverse offer filter and delay its expiration.
-    InverseOfferFilter* inverseOfferFilter =
-      new RefusedInverseOfferFilter(Timeout::in(timeout.get()));
+    shared_ptr<RefusedInverseOfferFilter> inverseOfferFilter =
+      make_shared<RefusedInverseOfferFilter>(timeout.get());
 
     framework.inverseOfferFilters[slaveId].insert(inverseOfferFilter);
 
-    // We need to disambiguate the function call to pick the correct
-    // `expire()` overload.
-    void (Self::*expireInverseOffer)(
-             const FrameworkID&,
-             const SlaveID&,
-             InverseOfferFilter*) = &Self::expire;
+    weak_ptr<InverseOfferFilter> weakPtr = inverseOfferFilter;
 
-    delay(
-        timeout.get(),
-        self(),
-        expireInverseOffer,
-        frameworkId,
-        slaveId,
-        inverseOfferFilter);
+    inverseOfferFilter->expired()
+      .onReady(defer(self(), [=](Nothing) {
+        expire(frameworkId, slaveId, weakPtr);
+      }));
   }
 }
 
@@ -1236,15 +1246,6 @@ void HierarchicalAllocatorProcess::recoverResources(
             << " filtered agent " << slaveId
             << " for " << timeout.get();
 
-    // Create a new filter. Note that we unallocate the resources
-    // since filters are applied per-role already.
-    Resources unallocated = resources;
-    unallocated.unallocate();
-
-    OfferFilter* offerFilter = new RefusedOfferFilter(unallocated);
-    frameworks.at(frameworkId)
-      .offerFilters[role][slaveId].insert(offerFilter);
-
     // Expire the filter after both an `allocationInterval` and the
     // `timeout` have elapsed. This ensures that the filter does not
     // expire before we perform the next allocation for this agent,
@@ -1258,21 +1259,23 @@ void HierarchicalAllocatorProcess::recoverResources(
     // (MESOS-3078), we would not need to increase the timeout here.
     timeout = std::max(allocationInterval, timeout.get());
 
-    // We need to disambiguate the function call to pick the correct
-    // `expire()` overload.
-    void (Self::*expireOffer)(
-        const FrameworkID&,
-        const string&,
-        const SlaveID&,
-        OfferFilter*) = &Self::expire;
+    // Create a new filter. Note that we unallocate the resources
+    // since filters are applied per-role already.
+    Resources unallocated = resources;
+    unallocated.unallocate();
 
-    delay(timeout.get(),
-          self(),
-          expireOffer,
-          frameworkId,
-          role,
-          slaveId,
-          offerFilter);
+    shared_ptr<RefusedOfferFilter> offerFilter =
+      make_shared<RefusedOfferFilter>(unallocated, timeout.get());
+
+    frameworks.at(frameworkId)
+      .offerFilters[role][slaveId].insert(offerFilter);
+
+    weak_ptr<OfferFilter> weakPtr = offerFilter;
+
+    offerFilter->expired()
+      .onReady(defer(self(), [=](Nothing) {
+        expire(frameworkId, role, slaveId, weakPtr);
+      }));
   }
 }
 
@@ -1326,13 +1329,6 @@ void HierarchicalAllocatorProcess::reviveOffers(
 
     framework.suppressedRoles.erase(role);
   }
-
-  // We delete each actual `OfferFilter` when
-  // `HierarchicalAllocatorProcess::expire` gets invoked. If we delete the
-  // `OfferFilter` here it's possible that the same `OfferFilter` (i.e., same
-  // address) could get reused and `HierarchicalAllocatorProcess::expire`
-  // would expire that filter too soon. Note that this only works
-  // right now because ALL Filter types "expire".
 
   LOG(INFO) << "Revived offers for roles " << stringify(roles)
             << " of framework " << frameworkId;
@@ -2262,36 +2258,40 @@ void HierarchicalAllocatorProcess::_expire(
     const FrameworkID& frameworkId,
     const string& role,
     const SlaveID& slaveId,
-    OfferFilter* offerFilter)
+    const weak_ptr<OfferFilter>& offerFilter)
 {
   // The filter might have already been removed (e.g., if the
-  // framework no longer exists or in `reviveOffers()`) but not
-  // yet deleted (to keep the address from getting reused
-  // possibly causing premature expiration).
-  //
-  // Since this is a performance-sensitive piece of code,
-  // we use find to avoid the doing any redundant lookups.
+  // framework no longer exists or in `reviveOffers()`) but
+  // we may land here if the cancelation of the expiry timeout
+  // did not succeed (due to the dispatch already being in the
+  // queue).
+  shared_ptr<OfferFilter> filter = offerFilter.lock();
 
-  auto frameworkIterator = frameworks.find(frameworkId);
-  if (frameworkIterator != frameworks.end()) {
-    Framework& framework = frameworkIterator->second;
-
-    auto roleFilters = framework.offerFilters.find(role);
-    if (roleFilters != framework.offerFilters.end()) {
-      auto agentFilters = roleFilters->second.find(slaveId);
-
-      if (agentFilters != roleFilters->second.end()) {
-        // Erase the filter (may be a no-op per the comment above).
-        agentFilters->second.erase(offerFilter);
-
-        if (agentFilters->second.empty()) {
-          roleFilters->second.erase(slaveId);
-        }
-      }
-    }
+  if (filter.get() == nullptr) {
+    return;
   }
 
-  delete offerFilter;
+  // Since this is a performance-sensitive piece of code,
+  // we use find to avoid the doing any redundant lookups.
+  auto frameworkIterator = frameworks.find(frameworkId);
+  CHECK(frameworkIterator != frameworks.end());
+
+  Framework& framework = frameworkIterator->second;
+
+  auto roleFilters = framework.offerFilters.find(role);
+  CHECK(roleFilters != framework.offerFilters.end());
+
+  auto agentFilters = roleFilters->second.find(slaveId);
+  CHECK(agentFilters != roleFilters->second.end());
+
+  // Erase the filter (may be a no-op per the comment above).
+  agentFilters->second.erase(filter);
+  if (agentFilters->second.empty()) {
+    roleFilters->second.erase(slaveId);
+  }
+  if (roleFilters->second.empty()) {
+    framework.offerFilters.erase(role);
+  }
 }
 
 
@@ -2299,7 +2299,7 @@ void HierarchicalAllocatorProcess::expire(
     const FrameworkID& frameworkId,
     const string& role,
     const SlaveID& slaveId,
-    OfferFilter* offerFilter)
+    const weak_ptr<OfferFilter>& offerFilter)
 {
   dispatch(
       self(),
@@ -2314,32 +2314,34 @@ void HierarchicalAllocatorProcess::expire(
 void HierarchicalAllocatorProcess::expire(
     const FrameworkID& frameworkId,
     const SlaveID& slaveId,
-    InverseOfferFilter* inverseOfferFilter)
+    const weak_ptr<InverseOfferFilter>& inverseOfferFilter)
 {
   // The filter might have already been removed (e.g., if the
   // framework no longer exists or in
-  // HierarchicalAllocatorProcess::reviveOffers) but not yet deleted (to
-  // keep the address from getting reused possibly causing premature
-  // expiration).
-  //
-  // Since this is a performance-sensitive piece of code,
-  // we use find to avoid the doing any redundant lookups.
+  // HierarchicalAllocatorProcess::reviveOffers) but
+  // we may land here if the cancelation of the expiry timeout
+  // did not succeed (due to the dispatch already being in the
+  // queue).
+  shared_ptr<InverseOfferFilter> filter = inverseOfferFilter.lock();
 
-  auto frameworkIterator = frameworks.find(frameworkId);
-  if (frameworkIterator != frameworks.end()) {
-    Framework& framework = frameworkIterator->second;
-
-    auto filters = framework.inverseOfferFilters.find(slaveId);
-    if (filters != framework.inverseOfferFilters.end()) {
-      filters->second.erase(inverseOfferFilter);
-
-      if (filters->second.empty()) {
-        framework.inverseOfferFilters.erase(slaveId);
-      }
-    }
+  if (filter.get() == nullptr) {
+    return;
   }
 
-  delete inverseOfferFilter;
+  // Since this is a performance-sensitive piece of code,
+  // we use find to avoid the doing any redundant lookups.
+  auto frameworkIterator = frameworks.find(frameworkId);
+  CHECK(frameworkIterator != frameworks.end());
+
+  Framework& framework = frameworkIterator->second;
+
+  auto filters = framework.inverseOfferFilters.find(slaveId);
+  CHECK(filters != framework.inverseOfferFilters.end());
+
+  filters->second.erase(filter);
+  if (filters->second.empty()) {
+    framework.inverseOfferFilters.erase(slaveId);
+  }
 }
 
 
@@ -2405,7 +2407,7 @@ bool HierarchicalAllocatorProcess::isFiltered(
     return false;
   }
 
-  foreach (OfferFilter* offerFilter, agentFilters->second) {
+  foreach (const shared_ptr<OfferFilter>& offerFilter, agentFilters->second) {
     if (offerFilter->filter(resources)) {
       VLOG(1) << "Filtered offer with " << resources
               << " on agent " << slaveId
@@ -2430,7 +2432,7 @@ bool HierarchicalAllocatorProcess::isFiltered(
   const Framework& framework = frameworks.at(frameworkId);
 
   if (framework.inverseOfferFilters.contains(slaveId)) {
-    foreach (InverseOfferFilter* inverseOfferFilter,
+    foreach (const shared_ptr<InverseOfferFilter>& inverseOfferFilter,
              framework.inverseOfferFilters.at(slaveId)) {
       if (inverseOfferFilter->filter()) {
         VLOG(1) << "Filtered unavailability on agent " << slaveId
