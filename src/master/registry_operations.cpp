@@ -488,6 +488,136 @@ Try<bool> MarkAgentDrained::perform(
   return found; // Mutation if found.
 }
 
+
+DeactivateAgent::DeactivateAgent(
+    const SlaveID& _slaveId)
+  : slaveId(_slaveId)
+{}
+
+
+Try<bool> DeactivateAgent::perform(
+    Registry* registry, hashset<SlaveID>* slaveIDs)
+{
+  // Check whether the slave is in the admitted list.
+  bool found = false;
+  if (slaveIDs->contains(slaveId)) {
+    found = true;
+
+    for (int i = 0; i < registry->slaves().slaves().size(); i++) {
+      if (registry->slaves().slaves(i).info().id() == slaveId) {
+        Registry::Slave* slave = registry->mutable_slaves()->mutable_slaves(i);
+
+        // Set the deactivated boolean.
+        slave->set_deactivated(true);
+        break;
+      }
+    }
+  }
+
+  // If not found above, check the unreachable list.
+  if (!found) {
+    for (int i = 0; i < registry->unreachable().slaves().size(); i++) {
+      if (registry->unreachable().slaves(i).id() == slaveId) {
+        Registry::UnreachableSlave* slave =
+          registry->mutable_unreachable()->mutable_slaves(i);
+
+        // Set the deactivated boolean.
+        slave->set_deactivated(true);
+        found = true;
+        break;
+      }
+    }
+  }
+
+  // Make sure the AGENT_DRAINING minimum capability is present or added.
+  if (found) {
+    protobuf::master::addMinimumCapability(
+        registry->mutable_minimum_capabilities(),
+        MasterInfo::Capability::AGENT_DRAINING);
+  }
+
+  return found; // Mutation if found.
+}
+
+
+ReactivateAgent::ReactivateAgent(
+    const SlaveID& _slaveId)
+  : slaveId(_slaveId)
+{}
+
+
+Try<bool> ReactivateAgent::perform(
+    Registry* registry, hashset<SlaveID>* slaveIDs)
+{
+  // Check whether the slave is in the admitted list.
+  bool found = false;
+  bool moreThanOneDeactivated = false;
+
+  for (int i = 0; i < registry->slaves().slaves().size(); i++) {
+    if (registry->slaves().slaves(i).info().id() == slaveId) {
+      Registry::Slave* slave = registry->mutable_slaves()->mutable_slaves(i);
+
+      // Clear the draining and deactivated states.
+      slave->clear_drain_info();
+      slave->clear_deactivated();
+      found = true;
+
+      if (moreThanOneDeactivated) {
+        break;
+      }
+
+      continue;
+    }
+
+    if (registry->slaves().slaves(i).deactivated()) {
+      moreThanOneDeactivated = true;
+
+      if (found) {
+        break;
+      }
+    }
+  }
+
+  // Check the unreachable list too.
+  if (!found || !moreThanOneDeactivated) {
+    for (int i = 0; i < registry->unreachable().slaves().size(); i++) {
+      if (registry->unreachable().slaves(i).id() == slaveId) {
+        Registry::UnreachableSlave* slave =
+          registry->mutable_unreachable()->mutable_slaves(i);
+
+        // Clear the draining and deactivated states.
+        slave->clear_drain_info();
+        slave->clear_deactivated();
+        found = true;
+
+        if (moreThanOneDeactivated) {
+          break;
+        }
+
+        continue;
+      }
+
+      if (registry->unreachable().slaves(i).deactivated()) {
+        moreThanOneDeactivated = true;
+
+        if (found) {
+          break;
+        }
+      }
+    }
+  }
+
+  // If this is the last deactivated agent,
+  // remove the AGENT_DRAINING minimum capability.
+  if (found && !moreThanOneDeactivated) {
+    protobuf::master::removeMinimumCapability(
+        registry->mutable_minimum_capabilities(),
+        MasterInfo::Capability::AGENT_DRAINING);
+  }
+
+  return found; // Mutation if found.
+}
+
 } // namespace master {
 } // namespace internal {
 } // namespace mesos {
