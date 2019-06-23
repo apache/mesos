@@ -546,7 +546,7 @@ Future<Nothing> LibeventSSLSocketImpl::connect(const Address& address)
     // connecting to in order to properly verify the certificate
     // later.
     const Try<string> hostname =
-      network::convert<inet::Address>(address)->hostname();
+      network::convert<inet::Address>(address)->lookup_hostname();
 
     if (hostname.isError()) {
       VLOG(2) << "Could not determine hostname of peer: " << hostname.error();
