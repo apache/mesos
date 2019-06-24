@@ -66,6 +66,14 @@ namespace process {
 namespace network {
 namespace openssl {
 
+// A warning is printed when a reverse DNS lookup takes longer
+// than this threshold value. According to [1], average DNS query
+// times vary between 5ms up to 50ms depending on what the network
+// is doing, but most should be down in the < 20ms range.
+//
+// [1] https://blogs.akamai.com/2017/06/why-you-should-care-about-dns-latency.html
+static constexpr Duration SLOW_DNS_WARN_THRESHOLD = Milliseconds(100);
+
 // _Global_ OpenSSL context, initialized via 'initialize'.
 static SSL_CTX* ctx = nullptr;
 
@@ -817,7 +825,7 @@ Try<Nothing> verify(
 
     // Due to MESOS-9339, a slow reverse DNS lookup will cause
     // serious issues as it blocks the event loop thread.
-    if (watch.elapsed() > Milliseconds(100)) {
+    if (watch.elapsed() > SLOW_DNS_WARN_THRESHOLD) {
       LOG(WARNING) << "Reverse DNS lookup for '" << ip.get() << "'"
                    << " took " << watch.elapsed().ms() << "ms"
                    << ", slowness is problematic (see MESOS-9339)";
