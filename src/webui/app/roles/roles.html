@@ -64,20 +64,17 @@
         {{((role.quota.guarantee.disk * (1024 * 1024) || NaN) | dataSize) || "-"}}
       </td>
 
-      <!-- TODO(ArmandGrillet): Replace by
-        (role.quota.limit.<> | decimalFloat) || (role.quota.guarantee.<> | decimalFloat) || "-"
-        once the limit field is introduced. -->
       <td class="begin-group-column">
-        {{(role.quota.guarantee.cpus | decimalFloat) || "-"}}
+        {{(role.quota.limit.cpus | decimalFloat) || "-"}}
       </td>
       <td>
-        {{(role.quota.guarantee.gpus | decimalFloat) || "-"}}
+        {{(role.quota.limit.gpus | decimalFloat) || "-"}}
       </td>
       <td>
-        {{((role.quota.guarantee.mem * (1024 * 1024) || NaN) | dataSize) || "-"}}
+        {{((role.quota.limit.mem * (1024 * 1024) || NaN) | dataSize) || "-"}}
       </td>
       <td class="end-group-column">
-        {{((role.quota.guarantee.disk * (1024 * 1024) || NaN) | dataSize) || "-"}}
+        {{((role.quota.limit.disk * (1024 * 1024) || NaN) | dataSize) || "-"}}
       </td>
     </tr>
   </tbody>
