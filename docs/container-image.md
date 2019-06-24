@@ -430,7 +430,7 @@ or as a JSON object,
     --image_gc_config="{ \
       \"image_disk_headroom\": 0.1, \
       \"image_disk_watch_interval\": { \
-        \"nano_seconds\": 3600 \
+        \"nanoseconds\": 3600000000000 \
         }, \
       \"excluded_images\": \[ \] \
     }"
