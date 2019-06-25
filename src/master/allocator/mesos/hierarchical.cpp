@@ -91,7 +91,7 @@ public:
     : _resources(_resources),
       _expired(after(timeout)) {}
 
-  virtual ~RefusedOfferFilter()
+  ~RefusedOfferFilter() override
   {
     // Cancel the timeout upon destruction to avoid lingering timers.
     _expired.discard();
@@ -146,7 +146,7 @@ public:
   RefusedInverseOfferFilter(const Duration& timeout)
     : _expired(after(timeout)) {}
 
-  virtual ~RefusedInverseOfferFilter()
+  ~RefusedInverseOfferFilter() override
   {
     // Cancel the timeout upon destruction to avoid lingering timers.
     _expired.discard();
