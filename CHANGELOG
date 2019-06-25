@@ -23,6 +23,7 @@ Release Notes - Mesos - Version 1.7.3 (WIP)
   * [MESOS-9786] - Race between two REMOVE_QUOTA calls crashes the master.
   * [MESOS-9787] - Log slow SSL (TLS) peer reverse DNS lookup.
   * [MESOS-9803] - Memory leak caused by an infinite chain of futures in `UriDiskProfileAdaptor`.
+  * [MESOS-9852] - Slow memory growth in master due to deferred deletion of offer filters and timers.
   * [MESOS-9856] - REVIVE call with specified role(s) clears filters for all roles of a framework.
 
 ** Improvements
