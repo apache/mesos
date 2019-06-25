@@ -499,12 +499,16 @@ struct Capabilities
         case MasterInfo::Capability::AGENT_DRAINING:
           agentDraining = true;
           break;
+        case MasterInfo::Capability::QUOTA_V2:
+          quotaV2 = true;
+          break;
       }
     }
   }
 
   bool agentUpdate = false;
   bool agentDraining = false;
+  bool quotaV2 = false;
 };
 
 namespace event {

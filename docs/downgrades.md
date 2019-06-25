@@ -53,4 +53,34 @@ these minimum capabilities and remediation for downgrade errors.
     </ol>
   </td>
 </tr>
+
+<tr>
+  <td>
+    <code>QUOTA_V2</code>
+  </td>
+  <td>
+    This capability is required when quota is configured in Mesos 1.9 or
+    higher. When that happens, the newly configured quota will be persisted
+    in the <code>quota_configs</code> field in the registry which requires this
+    capability to decode.
+    <br/>
+    To remove this minimum capability requirement:
+    <ol>
+      <li>
+        Stop the master downgrade and return to the more recent version.
+      </li>
+      <li>
+        Use the <code>/registrar(id)/registry</code> endpoint to read the
+        registry content and identify roles listed under the
+        <code>quota_configs</code> field.
+      </li>
+      <li>
+        Reset those roles' quota back to default (no guarantees and no limits).
+        This will remove the roles from the <code>quota_configs</code> field.
+        Once <code>quota_configs</code> becomes empty, the capability
+        requirement will be removed.
+      </li>
+    </ol>
+  </td>
+</tr>
 </table>

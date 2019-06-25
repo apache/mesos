@@ -924,6 +924,10 @@ message MasterInfo {
       // The master can drain or deactivate agents when requested
       // via operator APIs.
       AGENT_DRAINING = 2;
+
+      // The master can handle the new quota API, which supports setting
+      // limits separately from guarantees (introduced in Mesos 1.9).
+      QUOTA_V2 = 3;
     }
     optional Type type = 1;
   }
