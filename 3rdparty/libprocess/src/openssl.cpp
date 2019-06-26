@@ -16,6 +16,8 @@
 #include <sys/param.h>
 #endif // __WINDOWS__
 
+#include <event2/event-config.h>
+
 #include <openssl/err.h>
 #include <openssl/rand.h>
 #include <openssl/ssl.h>
@@ -557,6 +559,20 @@ void reinitialize()
     LOG(INFO) << "Will require client certificates for incoming TLS "
               << "connections.";
   }
+
+// NOTE: Newer versions of libevent call these macros `EVENT__NUMERIC_VERSION`
+// and `EVENT__HAVE_POLL`.
+#if defined(_EVENT_HAVE_EPOLL) && \
+    defined(_EVENT_NUMERIC_VERSION) && \
+    _EVENT_NUMERIC_VERSION < 0x02010400L
+  if (ssl_flags->require_cert &&
+      ssl_flags->hostname_validation_scheme == "legacy") {
+    LOG(WARNING) << "Enabling client certificate validation with the "
+                 << "'legacy' hostname validation scheme is known to "
+                 << "cause sporadic hangs with older versions of libevent. "
+                 << "See https://issues.apache.org/jira/browse/MESOS-9867.";
+  }
+#endif
 
   if (ssl_flags->verify_ipadd) {
     LOG(INFO) << "Will use IP address verification in subject alternative name "
