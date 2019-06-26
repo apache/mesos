@@ -3267,6 +3267,52 @@ message LinuxInfo {
   // Represents Seccomp configuration, which is used for syscall filtering.
   // This field is used to override the agent's default Seccomp configuration.
   optional SeccompInfo seccomp = 5;
+
+  enum IpcMode {
+    UNKNOWN = 0;
+
+    // The container will have its own IPC namespace and /dev/shm, with a
+    // possibility to share them with its child containers.
+    PRIVATE = 1;
+
+    // The container will share the IPC namespace and /dev/shm from its
+    // parent. If the container is a top level container, it will share
+    // the IPC namespace and /dev/shm from the agent host, if the container
+    // is a nested container, it will share the IPC namespace and /dev/shm
+    // from its parent container. The implication is if a nested container
+    // wants to share the IPC namespace and /dev/shm from the agent host,
+    // its parent container has to do it first.
+    SHARE_PARENT = 2;
+  }
+
+  // There are two special cases that we need to handle for this field:
+  // 1. This field is not set: For backward compatibility we will keep the
+  //    previous behavior: Top level container will have its own IPC namespace
+  //    and nested container will share the IPC namespace from its parent
+  //    container. If the container does not have its own rootfs, it will share
+  //    agent's /dev/shm, otherwise it will have its own /dev/shm.
+  // 2. The `namespaces/ipc` isolator is not enabled: This field will be ignored
+  //    in this case. For backward compatibility, in the `filesystem/linux`
+  //    isolator we will keep the previous behavior: Any containers will share
+  //    IPC namespace from agent, and if the container does not have its own
+  //    rootfs, it will also share agent's /dev/shm, otherwise it will have its
+  //    own /dev/shm.
+  //
+  // TODO(qianzhang): Remove the support for the above two cases after the
+  // deprecation cycle (started in 1.9). Eventually we want a single isolator
+  // (`namespaces/ipc`) to handle both IPC namespace and /dev/shm, and decouple
+  // /dev/shm from container's rootfs (i.e., whether a container will have its
+  // own /dev/shm depends on its `ipc_mode` instead of whether the container
+  // has its own rootfs).
+  optional IpcMode ipc_mode = 6;
+
+  // Size of /dev/shm in MB. If not set, the size of the /dev/shm for container
+  // will be value of the `--default_shm_size` agent flag, if that flag is not
+  // set too, the size of the /dev/shm will be half of the host RAM which is the
+  // default behavior of Linux. This field will be ignored for the container
+  // which shares /dev/shm from its parent and it will be also ignored for any
+  // containers if the `namespaces/ipc` isolator is not enabled.
+  optional uint32 shm_size = 7;
 }
 
 
