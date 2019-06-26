@@ -85,7 +85,7 @@ Try<State> recover(const string& rootDir, bool strict)
   // resources checkpoint file.
   state.resources = resources.get();
 
-  const string& bootIdPath = paths::getBootIdPath(rootDir);
+  const string bootIdPath = paths::getBootIdPath(rootDir);
   if (os::exists(bootIdPath)) {
     Result<string> read = state::read<string>(bootIdPath);
     if (read.isError()) {
@@ -102,7 +102,7 @@ Try<State> recover(const string& rootDir, bool strict)
     }
   }
 
-  const string& latest = paths::getLatestSlavePath(rootDir);
+  const string latest = paths::getLatestSlavePath(rootDir);
 
   // Check if the "latest" symlink to a slave directory exists.
   if (!os::exists(latest)) {
@@ -147,7 +147,7 @@ Try<SlaveState> SlaveState::recover(
   state.id = slaveId;
 
   // Read the slave info.
-  const string& path = paths::getSlaveInfoPath(rootDir, slaveId);
+  const string path = paths::getSlaveInfoPath(rootDir, slaveId);
   if (!os::exists(path)) {
     // This could happen if the slave died before it registered with
     // the master.
@@ -158,7 +158,7 @@ Try<SlaveState> SlaveState::recover(
   Result<SlaveInfo> slaveInfo = state::read<SlaveInfo>(path);
 
   if (slaveInfo.isError()) {
-    const string& message = "Failed to read agent info from '" + path + "': " +
+    const string message = "Failed to read agent info from '" + path + "': " +
                             slaveInfo.error();
     if (strict) {
       return Error(message);
@@ -203,7 +203,7 @@ Try<SlaveState> SlaveState::recover(
     state.errors += framework->errors;
   }
 
-  const string& resourceStatePath = paths::getResourceStatePath(rootDir);
+  const string resourceStatePath = paths::getResourceStatePath(rootDir);
   if (os::exists(resourceStatePath)) {
     Result<ResourceState> resourceState =
       state::read<ResourceState>(resourceStatePath);
@@ -368,7 +368,7 @@ Try<ExecutorState> ExecutorState::recover(
   // Recover the runs.
   foreach (const string& path, runs.get()) {
     if (Path(path).basename() == paths::LATEST_SYMLINK) {
-      const Result<string>& latest = os::realpath(path);
+      const Result<string> latest = os::realpath(path);
       if (!latest.isSome()) {
         return Error(
             "Failed to find latest run of executor '" +
@@ -417,7 +417,7 @@ Try<ExecutorState> ExecutorState::recover(
   }
 
   // Read the executor info.
-  const string& path =
+  const string path =
     paths::getExecutorInfoPath(rootDir, slaveId, frameworkId, executorId);
   if (!os::exists(path)) {
     // This could happen if the slave died after creating the executor
@@ -762,7 +762,7 @@ Try<ResourcesState> ResourcesState::recover(
 {
   ResourcesState state;
 
-  const string& resourceStatePath = paths::getResourceStatePath(rootDir);
+  const string resourceStatePath = paths::getResourceStatePath(rootDir);
   if (os::exists(resourceStatePath)) {
     Result<ResourceState> resourceState =
       state::read<ResourceState>(resourceStatePath);
@@ -790,7 +790,7 @@ Try<ResourcesState> ResourcesState::recover(
             << resourceStatePath << "'";
 
   // Process the committed resources.
-  const string& infoPath = paths::getResourcesInfoPath(rootDir);
+  const string infoPath = paths::getResourcesInfoPath(rootDir);
   if (!os::exists(infoPath)) {
     LOG(INFO) << "No committed checkpointed resources found at '"
               << infoPath << "'";
@@ -816,7 +816,7 @@ Try<ResourcesState> ResourcesState::recover(
   }
 
   // Process the target resources.
-  const string& targetPath = paths::getResourcesTargetPath(rootDir);
+  const string targetPath = paths::getResourcesTargetPath(rootDir);
   if (!os::exists(targetPath)) {
     return state;
   }
