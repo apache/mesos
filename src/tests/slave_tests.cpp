@@ -4300,6 +4300,8 @@ TEST_F(SlaveTest, KillMultiplePendingTasks)
 // the executor.
 TEST_F(SlaveTest, KillQueuedTaskDuringExecutorRegistration)
 {
+  Clock::pause();
+
   // Start a master.
   Try<Owned<cluster::Master>> master = StartMaster();
   ASSERT_SOME(master);
@@ -4310,8 +4312,13 @@ TEST_F(SlaveTest, KillQueuedTaskDuringExecutorRegistration)
   Owned<MasterDetector> detector = master.get()->createDetector();
 
   // Start a slave.
-  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), &containerizer);
+  slave::Flags slaveFlags = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), &containerizer, slaveFlags);
   ASSERT_SOME(slave);
+
+  Clock::advance(slaveFlags.authentication_backoff_factor);
+  Clock::settle();
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
@@ -4375,6 +4382,8 @@ TEST_F(SlaveTest, KillQueuedTaskDuringExecutorRegistration)
   process::post(registerExecutorMessage->from,
                 slave.get()->pid,
                 registerExecutor);
+
+  Clock::advance(slaveFlags.executor_shutdown_grace_period);
 
   AWAIT_READY(executorLost);
 
