@@ -61,6 +61,11 @@ message Registry {
 
     // The time when the slave was marked unreachable by the master.
     required TimeInfo timestamp = 2;
+
+    // If the agent returns, these objects should be transferred to
+    // the appropriate `Slave` message as well.
+    optional DrainInfo drain_info = 3;
+    optional bool deactivated = 4 [default = false];
   }
 
   message UnreachableSlaves {

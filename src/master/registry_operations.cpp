@@ -120,14 +120,21 @@ Try<bool> MarkSlaveUnreachable::perform(
     const Registry::Slave& slave = registry->slaves().slaves(i);
 
     if (slave.info().id() == info.id()) {
-      registry->mutable_slaves()->mutable_slaves()->DeleteSubrange(i, 1);
-      slaveIDs->erase(info.id());
-
       Registry::UnreachableSlave* unreachable =
         registry->mutable_unreachable()->add_slaves();
 
       unreachable->mutable_id()->CopyFrom(info.id());
       unreachable->mutable_timestamp()->CopyFrom(unreachableTime);
+
+      // Copy the draining and deactivation states.
+      if (slave.has_drain_info()) {
+        unreachable->mutable_drain_info()->CopyFrom(slave.drain_info());
+      }
+
+      unreachable->set_deactivated(slave.deactivated());
+
+      registry->mutable_slaves()->mutable_slaves()->DeleteSubrange(i, 1);
+      slaveIDs->erase(info.id());
 
       return true; // Mutation.
     }
@@ -165,6 +172,9 @@ Try<bool> MarkSlaveReachable::perform(
     return false; // No mutation.
   }
 
+  Registry::Slave reachable;
+  reachable.mutable_info()->CopyFrom(info);
+
   // Check whether the slave is in the unreachable list.
   // TODO(neilc): Optimize this to avoid linear scan.
   bool found = false;
@@ -173,6 +183,13 @@ Try<bool> MarkSlaveReachable::perform(
       registry->unreachable().slaves(i);
 
     if (slave.id() == info.id()) {
+      // Copy the draining and deactivation states.
+      if (slave.has_drain_info()) {
+        reachable.mutable_drain_info()->CopyFrom(slave.drain_info());
+      }
+
+      reachable.set_deactivated(slave.deactivated());
+
       registry->mutable_unreachable()->mutable_slaves()->DeleteSubrange(i, 1);
       found = true;
       break;
@@ -191,8 +208,7 @@ Try<bool> MarkSlaveReachable::perform(
   // in the unreachable list. This accounts for when the slave was
   // unreachable for a long time, was GC'd from the unreachable
   // list, but then eventually reregistered.
-  Registry::Slave* slave = registry->mutable_slaves()->add_slaves();
-  slave->mutable_info()->CopyFrom(info);
+  registry->mutable_slaves()->add_slaves()->CopyFrom(reachable);
   slaveIDs->insert(info.id());
 
   return true; // Mutation.
@@ -380,6 +396,29 @@ Try<bool> DrainAgent::perform(Registry* registry, hashset<SlaveID>* slaveIDs)
 
         slave->mutable_drain_info()->mutable_config()->set_mark_gone(markGone);
         slave->set_deactivated(true);
+        break;
+      }
+    }
+  }
+
+  // If not found above, check the unreachable list.
+  if (!found) {
+    for (int i = 0; i < registry->unreachable().slaves().size(); i++) {
+      if (registry->unreachable().slaves(i).id() == slaveId) {
+        Registry::UnreachableSlave* slave =
+          registry->mutable_unreachable()->mutable_slaves(i);
+
+        slave->mutable_drain_info()->set_state(DRAINING);
+
+        // Copy the DrainConfig and ensure the agent is deactivated.
+        if (maxGracePeriod.isSome()) {
+          slave->mutable_drain_info()->mutable_config()
+            ->mutable_max_grace_period()->CopyFrom(maxGracePeriod.get());
+        }
+
+        slave->mutable_drain_info()->mutable_config()->set_mark_gone(markGone);
+        slave->set_deactivated(true);
+        found = true;
         break;
       }
     }

@@ -970,6 +970,47 @@ TEST_F(RegistrarTest, DrainAgent)
     EXPECT_EQ(
         MasterInfo_Capability_Type_Name(MasterInfo::Capability::AGENT_DRAINING),
         registry->minimum_capabilities(0).capability());
+
+    // Mark the agent unreachable.
+    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+        new MarkSlaveUnreachable(slave, protobuf::getCurrentTime()))));
+  }
+
+  {
+    // Check that unreachable agent retains the draining.
+    Registrar registrar(flags, state);
+    Future<Registry> registry = registrar.recover(master);
+    AWAIT_READY(registry);
+
+    EXPECT_EQ(0, registry->slaves().slaves().size());
+    ASSERT_EQ(1, registry->unreachable().slaves().size());
+    ASSERT_TRUE(registry->unreachable().slaves(0).has_drain_info());
+    EXPECT_FALSE(
+        registry->unreachable().slaves(0)
+          .drain_info().config().has_max_grace_period());
+    EXPECT_TRUE(
+        registry->unreachable().slaves(0).drain_info().config().mark_gone());
+    EXPECT_TRUE(registry->unreachable().slaves(0).deactivated());
+
+    // Mark the agent reachable.
+    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+        new MarkSlaveReachable(slave))));
+  }
+
+  {
+    // Check that reachable agent retains the draining.
+    Registrar registrar(flags, state);
+    Future<Registry> registry = registrar.recover(master);
+    AWAIT_READY(registry);
+
+    ASSERT_EQ(1, registry->slaves().slaves().size());
+    EXPECT_EQ(0, registry->unreachable().slaves().size());
+    ASSERT_TRUE(registry->slaves().slaves(0).has_drain_info());
+    EXPECT_FALSE(
+        registry->slaves().slaves(0)
+          .drain_info().config().has_max_grace_period());
+    EXPECT_TRUE(registry->slaves().slaves(0).drain_info().config().mark_gone());
+    EXPECT_TRUE(registry->slaves().slaves(0).deactivated());
   }
 }
 
