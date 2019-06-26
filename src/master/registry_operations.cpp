@@ -434,6 +434,60 @@ Try<bool> DrainAgent::perform(Registry* registry, hashset<SlaveID>* slaveIDs)
   return found; // Mutation if found.
 }
 
+
+MarkAgentDrained::MarkAgentDrained(
+    const SlaveID& _slaveId)
+  : slaveId(_slaveId)
+{}
+
+
+Try<bool> MarkAgentDrained::perform(
+    Registry* registry, hashset<SlaveID>* slaveIDs)
+{
+  // Check whether the slave is in the admitted list.
+  bool found = false;
+  if (slaveIDs->contains(slaveId)) {
+    found = true;
+
+    for (int i = 0; i < registry->slaves().slaves().size(); i++) {
+      if (registry->slaves().slaves(i).info().id() == slaveId) {
+        Registry::Slave* slave = registry->mutable_slaves()->mutable_slaves(i);
+
+        // NOTE: This should be validated/prevented on the master side.
+        if (!slave->has_drain_info() ||
+            slave->drain_info().state() != DRAINING) {
+          return Error("Agent " + stringify(slaveId) + " is not DRAINING");
+        }
+
+        slave->mutable_drain_info()->set_state(DRAINED);
+        break;
+      }
+    }
+  }
+
+  // If not found above, check the unreachable list.
+  if (!found) {
+    for (int i = 0; i < registry->unreachable().slaves().size(); i++) {
+      if (registry->unreachable().slaves(i).id() == slaveId) {
+        Registry::UnreachableSlave* slave =
+          registry->mutable_unreachable()->mutable_slaves(i);
+
+        // NOTE: This should be validated/prevented on the master side.
+        if (!slave->has_drain_info() ||
+            slave->drain_info().state() != DRAINING) {
+          return Error("Agent " + stringify(slaveId) + " is not DRAINING");
+        }
+
+        slave->mutable_drain_info()->set_state(DRAINED);
+        found = true;
+        break;
+      }
+    }
+  }
+
+  return found; // Mutation if found.
+}
+
 } // namespace master {
 } // namespace internal {
 } // namespace mesos {

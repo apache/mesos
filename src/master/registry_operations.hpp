@@ -157,6 +157,20 @@ private:
   const bool markGone;
 };
 
+
+// Transitions a DRAINING agent into the DRAINED state.
+class MarkAgentDrained : public RegistryOperation
+{
+public:
+  MarkAgentDrained(const SlaveID& _slaveId);
+
+protected:
+  Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs) override;
+
+private:
+  const SlaveID slaveId;
+};
+
 } // namespace master {
 } // namespace internal {
 } // namespace mesos {

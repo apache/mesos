@@ -1015,6 +1015,90 @@ TEST_F(RegistrarTest, DrainAgent)
 }
 
 
+TEST_F(RegistrarTest, MarkAgentDrained)
+{
+  {
+    // Prepare the registrar.
+    Registrar registrar(flags, state);
+    AWAIT_READY(registrar.recover(master));
+
+    // Add an agent to be marked for draining.
+    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+        new AdmitSlave(slave))));
+
+    // Try to mark a non-draining agent as drained. This should fail.
+    AWAIT_FALSE(registrar.apply(Owned<RegistryOperation>(
+        new MarkAgentDrained(slave.id()))));
+
+    // Drain the admitted agent.
+    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+        new DrainAgent(slave.id(), None(), true))));
+  }
+
+  {
+    // Check that agent is now marked for draining.
+    Registrar registrar(flags, state);
+    Future<Registry> registry = registrar.recover(master);
+    AWAIT_READY(registry);
+
+    ASSERT_EQ(1, registry->slaves().slaves().size());
+    EXPECT_TRUE(registry->slaves().slaves(0).has_drain_info());
+    EXPECT_EQ(DRAINING, registry->slaves().slaves(0).drain_info().state());
+
+    // Transition from draining to drained.
+    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+        new MarkAgentDrained(slave.id()))));
+  }
+
+  {
+    // Check that agent is now marked drained.
+    Registrar registrar(flags, state);
+    Future<Registry> registry = registrar.recover(master);
+    AWAIT_READY(registry);
+
+    ASSERT_EQ(1, registry->slaves().slaves().size());
+    ASSERT_TRUE(registry->slaves().slaves(0).has_drain_info());
+    EXPECT_EQ(DRAINED, registry->slaves().slaves(0).drain_info().state());
+
+    // Try the same sequence of operations for an unreachable agent.
+    // First remove the agent.
+    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+        new RemoveSlave(slave))));
+
+    // Add the agent back, anew.
+    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+        new AdmitSlave(slave))));
+
+    // Mark it unreachable.
+    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+        new MarkSlaveUnreachable(slave, protobuf::getCurrentTime()))));
+
+    // Try to mark the agent drained prematurely.
+    AWAIT_FALSE(registrar.apply(Owned<RegistryOperation>(
+        new MarkAgentDrained(slave.id()))));
+
+    // Now drain properly.
+    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+        new DrainAgent(slave.id(), None(), true))));
+
+    // And finish draining.
+    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
+        new MarkAgentDrained(slave.id()))));
+  }
+
+  {
+    // Check that unreachable agent is now marked drained.
+    Registrar registrar(flags, state);
+    Future<Registry> registry = registrar.recover(master);
+    AWAIT_READY(registry);
+
+    ASSERT_EQ(1, registry->unreachable().slaves().size());
+    ASSERT_TRUE(registry->unreachable().slaves(0).has_drain_info());
+    EXPECT_EQ(DRAINED, registry->unreachable().slaves(0).drain_info().state());
+  }
+}
+
+
 // Tests that adding and updating quotas in the registry works properly.
 TEST_F(RegistrarTest, UpdateQuota)
 {
