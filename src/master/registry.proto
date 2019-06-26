@@ -136,7 +136,24 @@ message Registry {
   // A list of recorded quotas in the cluster. It does not hold an actual
   // assignment of resources, a newly elected master shall reconstruct it
   // from the cluster.
-  repeated Quota quotas = 5;
+  //
+  // Prior to Mesos 1.9, quota information is persisted in the `quotas`
+  // field. It has since been deprecated in Mesos 1.9. Newly configured
+  // quotas are now persisted in the `quota_configs` field. When the user
+  // upgrade to Mesos 1.9, `quotas` will be preserved and recovered and
+  // `quota_configs` will be empty. As users configures new quotas, whether
+  // through the new `UPDATE_QUOTA` call or the deprecated `SET_QUTOA` call,
+  // the configured quotas will be persisted into the `quota_configs` field
+  // along with the `QUOTA_V2` minimum capability. The capability is removed
+  // only if `quota_configs` becomes empty again. If a role already has an
+  // entry in the old `quotas` field, it will be removed from `quotas`.
+  // In other words, once upgraded, `quotas` will still be preserved and honored,
+  // but it will never grow. Instead it will gradually shrink as the roles'
+  // quotas get updated or removed.
+  //
+  // TODO(mzhu): Remove `quotas` in Mesos 2.0 (MESOS-9866).
+  repeated Quota quotas = 5 [deprecated = true];
+  repeated quota.QuotaConfig quota_configs = 11;
 
   // A list of recorded weights in the cluster, a newly elected master shall
   // reconstruct it from the registry.
