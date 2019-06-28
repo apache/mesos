@@ -27,6 +27,7 @@
 
 #include <mesos/mesos.hpp>
 #include <mesos/resources.hpp>
+#include <mesos/roles.hpp>
 #include <mesos/type_utils.hpp>
 
 #include <mesos/maintenance/maintenance.hpp>
@@ -1954,6 +1955,7 @@ private:
   friend struct Framework;
   friend struct FrameworkMetrics;
   friend struct Metrics;
+  friend struct Role;
   friend struct Slave;
   friend struct SlavesWriter;
   friend struct Subscriber;
@@ -2687,7 +2689,9 @@ struct Role
 {
   Role() = delete;
 
-  Role(const std::string& _role) : role(_role) {}
+  Role(const Master* _master,
+       const std::string& _role)
+    : master(_master), role(_role) {}
 
   void addFramework(Framework* framework)
   {
@@ -2697,6 +2701,63 @@ struct Role
   void removeFramework(Framework* framework)
   {
     frameworks.erase(framework->id());
+  }
+
+  // TODO(bmahler): Include non-scalar quantities.
+  //
+  // TODO(bmahler): This function is somewhat expensive,
+  // it should ideally migrate into a field updated in an
+  // event-driven manner within a role tree structure. Or,
+  // at least compute the overall tree when looping over
+  // all agents rather than looping over all agents for
+  // each role.
+  ResourceQuantities consumedQuota() const
+  {
+    const std::string& role = this->role; // For cleaner captures.
+
+    // Consumed quota = allocation + unallocated reservation.
+
+    ResourceQuantities allocation;
+
+    auto allocatedToRoleSubtree = [&role](const Resource& r) {
+      CHECK(r.has_allocation_info());
+      return r.allocation_info().role() == role ||
+        roles::isStrictSubroleOf(r.allocation_info().role(), role);
+    };
+
+    // Loop over all frameworks since `frameworks` only tracks
+    // those that are directly subscribed to this role, and we
+    // need to sum all descendant role allocations.
+    foreachvalue (Framework* framework, master->frameworks.registered) {
+      allocation += ResourceQuantities::fromScalarResources(
+        framework->totalUsedResources.scalars()
+          .filter(allocatedToRoleSubtree));
+    }
+
+    ResourceQuantities unallocatedReservation;
+
+    auto reservedToRoleSubtree = [&role](const Resource& r) {
+      return Resources::isReserved(r) &&
+        (Resources::reservationRole(r) == role ||
+         roles::isStrictSubroleOf(Resources::reservationRole(r), role));
+    };
+
+    foreachvalue (Slave* slave, master->slaves.registered) {
+      ResourceQuantities totalReservation =
+        ResourceQuantities::fromScalarResources(
+           slave->totalResources.scalars()
+             .filter(reservedToRoleSubtree));
+
+       ResourceQuantities usedReservation;
+       foreachvalue (const Resources& r, slave->usedResources) {
+         usedReservation += ResourceQuantities::fromScalarResources(
+             r.scalars().filter(reservedToRoleSubtree));
+       }
+
+       unallocatedReservation += totalReservation - usedReservation;
+     }
+
+    return allocation + unallocatedReservation;
   }
 
   Resources allocatedAndOfferedResources() const
@@ -2718,6 +2779,7 @@ struct Role
     return resources;
   }
 
+  const Master* master;
   const std::string role;
 
   // NOTE: The dynamic role/quota relation is stored in and administrated

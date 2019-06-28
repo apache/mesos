@@ -646,7 +646,7 @@ void Framework::trackUnderRole(const std::string& role)
   CHECK(!isTrackedUnderRole(role));
 
   if (!master->roles.contains(role)) {
-    master->roles[role] = new Role(role);
+    master->roles[role] = new Role(master, role);
   }
   master->roles.at(role)->addFramework(this);
 }
