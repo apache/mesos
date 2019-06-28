@@ -80,6 +80,18 @@ DrainInfo devolve(const v1::DrainInfo& drainInfo)
 }
 
 
+DurationInfo devolve(const google::protobuf::Duration& duration)
+{
+  DurationInfo durationInfo;
+
+  // NOTE: If not specified, the fields of Duration default to zero.
+  durationInfo.set_nanoseconds(
+      duration.seconds() * 1000000000 + duration.nanos());
+
+  return durationInfo;
+}
+
+
 ExecutorID devolve(const v1::ExecutorID& executorId)
 {
   return devolve<ExecutorID>(executorId);

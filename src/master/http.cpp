@@ -129,9 +129,12 @@ using std::tuple;
 using std::vector;
 
 using mesos::authorization::createSubject;
+using mesos::authorization::DEACTIVATE_AGENT;
+using mesos::authorization::DRAIN_AGENT;
 using mesos::authorization::GET_MAINTENANCE_SCHEDULE;
 using mesos::authorization::GET_MAINTENANCE_STATUS;
 using mesos::authorization::MARK_AGENT_GONE;
+using mesos::authorization::REACTIVATE_AGENT;
 using mesos::authorization::SET_LOG_LEVEL;
 using mesos::authorization::START_MAINTENANCE;
 using mesos::authorization::STOP_MAINTENANCE;
@@ -363,6 +366,15 @@ Future<Response> Master::Http::api(
 
     case mesos::master::Call::STOP_MAINTENANCE:
       return stopMaintenance(call, principal, acceptType);
+
+    case mesos::master::Call::DRAIN_AGENT:
+      return drainAgent(call, principal, acceptType);
+
+    case mesos::master::Call::DEACTIVATE_AGENT:
+      return deactivateAgent(call, principal, acceptType);
+
+    case mesos::master::Call::REACTIVATE_AGENT:
+      return reactivateAgent(call, principal, acceptType);
 
     case mesos::master::Call::GET_QUOTA:
       return quotaHandler.status(call, principal, acceptType);
@@ -3846,6 +3858,108 @@ Future<Response> Master::Http::getMaintenanceStatus(
         return OK(serialize(contentType, evolve(response)),
                   stringify(contentType));
       });
+}
+
+
+Future<Response> Master::Http::_drainAgent(
+    const SlaveID& slaveId,
+    const Option<DurationInfo>& maxGracePeriod,
+    const bool markGone,
+    const Owned<ObjectApprovers>& approvers) const
+{
+  return NotImplemented();
+}
+
+
+Future<Response> Master::Http::drainAgent(
+    const mesos::master::Call& call,
+    const Option<Principal>& principal,
+    ContentType /*contentType*/) const
+{
+  CHECK_EQ(mesos::master::Call::DRAIN_AGENT, call.type());
+  CHECK(call.has_drain_agent());
+
+  SlaveID slaveId = call.drain_agent().slave_id();
+
+  Option<DurationInfo> maxGracePeriod;
+  if (call.drain_agent().has_max_grace_period()) {
+    maxGracePeriod = call.drain_agent().max_grace_period();
+  }
+
+  bool markGone = call.drain_agent().mark_gone();
+
+  return ObjectApprovers::create(
+      master->authorizer,
+      principal,
+      {DRAIN_AGENT, MARK_AGENT_GONE})
+    .then(defer(
+      master->self(),
+      [this, slaveId, maxGracePeriod, markGone](
+          const Owned<ObjectApprovers>& approvers) {
+        return _drainAgent(slaveId, maxGracePeriod, markGone, approvers);
+      }));
+}
+
+
+Future<Response> Master::Http::_deactivateAgent(
+    const SlaveID& slaveId,
+    const Owned<ObjectApprovers>& approvers) const
+{
+  return NotImplemented();
+}
+
+
+Future<Response> Master::Http::deactivateAgent(
+    const mesos::master::Call& call,
+    const Option<Principal>& principal,
+    ContentType /*contentType*/) const
+{
+  CHECK_EQ(mesos::master::Call::DEACTIVATE_AGENT, call.type());
+  CHECK(call.has_deactivate_agent());
+
+  SlaveID slaveId = call.deactivate_agent().slave_id();
+
+  return ObjectApprovers::create(
+      master->authorizer,
+      principal,
+      {DEACTIVATE_AGENT})
+    .then(defer(
+      master->self(),
+      [this, slaveId](
+          const Owned<ObjectApprovers>& approvers) {
+        return _deactivateAgent(slaveId, approvers);
+      }));
+}
+
+
+Future<Response> Master::Http::_reactivateAgent(
+    const SlaveID& slaveId,
+    const Owned<ObjectApprovers>& approvers) const
+{
+  return NotImplemented();
+}
+
+
+Future<Response> Master::Http::reactivateAgent(
+    const mesos::master::Call& call,
+    const Option<Principal>& principal,
+    ContentType /*contentType*/) const
+{
+  CHECK_EQ(mesos::master::Call::REACTIVATE_AGENT, call.type());
+  CHECK(call.has_reactivate_agent());
+
+  SlaveID slaveId = call.reactivate_agent().slave_id();
+
+  return ObjectApprovers::create(
+      master->authorizer,
+      principal,
+      {REACTIVATE_AGENT})
+    .then(defer(
+      master->self(),
+      [this, slaveId](
+          const Owned<ObjectApprovers>& approvers) {
+        return _reactivateAgent(slaveId, approvers);
+      }));
 }
 
 

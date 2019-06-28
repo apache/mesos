@@ -239,6 +239,24 @@ Option<Error> validate(const mesos::master::Call& call)
       }
       return None();
 
+    case mesos::master::Call::DRAIN_AGENT:
+      if (!call.has_drain_agent()) {
+        return Error("Expecting 'drain_agent' to be present");
+      }
+      return None();
+
+    case mesos::master::Call::DEACTIVATE_AGENT:
+      if (!call.has_deactivate_agent()) {
+        return Error("Expecting 'deactivate_agent' to be present");
+      }
+      return None();
+
+    case mesos::master::Call::REACTIVATE_AGENT:
+      if (!call.has_reactivate_agent()) {
+        return Error("Expecting 'reactivate_agent' to be present");
+      }
+      return None();
+
     case mesos::master::Call::GET_QUOTA:
       return None();
 

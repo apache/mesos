@@ -1654,6 +1654,20 @@ private:
         const google::protobuf::RepeatedPtrField<MachineID>& machineIds,
         const process::Owned<ObjectApprovers>& approvers) const;
 
+    process::Future<process::http::Response> _drainAgent(
+        const SlaveID& slaveId,
+        const Option<DurationInfo>& maxGracePeriod,
+        const bool markGone,
+        const process::Owned<ObjectApprovers>& approvers) const;
+
+    process::Future<process::http::Response> _deactivateAgent(
+        const SlaveID& slaveId,
+        const process::Owned<ObjectApprovers>& approvers) const;
+
+    process::Future<process::http::Response> _reactivateAgent(
+        const SlaveID& slaveId,
+        const process::Owned<ObjectApprovers>& approvers) const;
+
     process::Future<process::http::Response> _reserve(
         const SlaveID& slaveId,
         const google::protobuf::RepeatedPtrField<Resource>& resources,
@@ -1774,6 +1788,21 @@ private:
         ContentType contentType) const;
 
     process::Future<process::http::Response> stopMaintenance(
+        const mesos::master::Call& call,
+        const Option<process::http::authentication::Principal>& principal,
+        ContentType contentType) const;
+
+    process::Future<process::http::Response> drainAgent(
+        const mesos::master::Call& call,
+        const Option<process::http::authentication::Principal>& principal,
+        ContentType contentType) const;
+
+    process::Future<process::http::Response> deactivateAgent(
+        const mesos::master::Call& call,
+        const Option<process::http::authentication::Principal>& principal,
+        ContentType contentType) const;
+
+    process::Future<process::http::Response> reactivateAgent(
         const mesos::master::Call& call,
         const Option<process::http::authentication::Principal>& principal,
         ContentType contentType) const;

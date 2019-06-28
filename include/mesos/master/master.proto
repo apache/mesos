@@ -90,6 +90,10 @@ message Call {
     START_MAINTENANCE = 26;           // See 'StartMaintenance' below.
     STOP_MAINTENANCE = 27;            // See 'StopMaintenance' below.
 
+    DRAIN_AGENT = 37;      // See 'DrainAgent' below.
+    DEACTIVATE_AGENT = 38; // See 'DeactivateAgent' below.
+    REACTIVATE_AGENT = 39; // See 'ReactivateAgent' below.
+
     GET_QUOTA = 28;
 
     // EXPERIMENTAL DO NOT USE.
@@ -225,6 +229,55 @@ message Call {
     repeated MachineID machines = 1;
   }
 
+  // EXPERIMENTAL.
+  //
+  // Marks an agent for automated draining of tasks.
+  // This prevents further tasks from being launched on the agent, by preventing
+  // offers from being sent for the agent (see 'DeactivateAgent'), and also
+  // begins killing tasks running on the agent.
+  message DrainAgent {
+    required SlaveID slave_id = 1;
+
+    // An upper bound for tasks with a KillPolicy.
+    // If a task has a KillPolicy grace period greater than this value,
+    // this value will be used instead. This allows the operator to limit
+    // the maximum time it will take the agent to drain.
+    //
+    // NOTE: Grace periods start when the executor receives the associated kill.
+    // If, for example, the agent is unreachable when this call is made,
+    // tasks will still receive their full grace period to kill gracefully.
+    optional DurationInfo max_grace_period = 2;
+
+    // Whether or not this agent will be removed permanently from the
+    // cluster when draining is complete. This transition is automatic
+    // and does **NOT** require a separate call to `MarkAgentGone`.
+    //
+    // Compared to `MarkAgentGone`, which is used for unreachable agents,
+    // marking agents gone after draining will respect kill policies.
+    // To notify frameworks, tasks terminated during draining will return
+    // a `TASK_GONE_BY_OPERATOR` status update instead of any other terminal
+    // status. Executors will not need to account for this case, because
+    // the terminal status update will be intercepted and modified by the agent.
+    optional bool mark_gone = 3 [default = false];
+  }
+
+  // EXPERIMENTAL.
+  //
+  // Turns off offers for a specific agent.
+  // A deactivated agent will continue to run tasks and communicate statuses
+  // with the master.
+  message DeactivateAgent {
+    required SlaveID slave_id = 1;
+  }
+
+  // EXPERIMENTAL.
+  //
+  // Turns on offers for a specific agent, which was previously drained or
+  // deactivated.
+  message ReactivateAgent {
+    required SlaveID slave_id = 1;
+  }
+
   // EXPERIMENTAL DO NOT USE.
   //
   // This feature is not implementation complete.
@@ -288,6 +341,9 @@ message Call {
   optional UpdateMaintenanceSchedule update_maintenance_schedule = 11;
   optional StartMaintenance start_maintenance = 12;
   optional StopMaintenance stop_maintenance = 13;
+  optional DrainAgent drain_agent = 21;
+  optional DeactivateAgent deactivate_agent = 22;
+  optional ReactivateAgent reactivate_agent = 23;
   optional UpdateQuota update_quota = 20;
   optional Teardown teardown = 16;
   optional MarkAgentGone mark_agent_gone = 17;
