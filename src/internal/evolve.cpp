@@ -92,6 +92,12 @@ v1::DomainInfo evolve(const DomainInfo& domainInfo)
 }
 
 
+v1::DrainInfo evolve(const DrainInfo& drainInfo)
+{
+  return evolve<v1::DrainInfo>(drainInfo);
+}
+
+
 v1::ExecutorID evolve(const ExecutorID& executorId)
 {
   return evolve<v1::ExecutorID>(executorId);

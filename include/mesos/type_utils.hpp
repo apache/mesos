@@ -26,6 +26,8 @@
 #include <google/protobuf/map.h>
 #include <google/protobuf/repeated_field.h>
 
+#include <google/protobuf/util/message_differencer.h>
+
 #include <mesos/mesos.hpp>
 
 #include <stout/stringify.hpp>
@@ -221,6 +223,18 @@ inline bool operator==(const DomainInfo& left, const DomainInfo& right)
 }
 
 
+inline bool operator==(const DrainInfo& left, const DrainInfo& right)
+{
+  return google::protobuf::util::MessageDifferencer::Equals(left, right);
+}
+
+
+inline bool operator==(const DrainConfig& left, const DrainConfig& right)
+{
+  return google::protobuf::util::MessageDifferencer::Equals(left, right);
+}
+
+
 /**
  * For machines to match, both the `hostname` and `ip` must be equivalent.
  * Hostname is not case sensitive, so it is lowercased before comparison.
@@ -379,6 +393,12 @@ std::ostream& operator<<(
 
 
 std::ostream& operator<<(std::ostream& stream, const DomainInfo& domainInfo);
+
+
+std::ostream& operator<<(std::ostream& stream, const DrainConfig& drainConfig);
+
+
+std::ostream& operator<<(std::ostream& stream, const DrainState& state);
 
 
 std::ostream& operator<<(std::ostream& stream, const Environment& environment);

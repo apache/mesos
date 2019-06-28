@@ -2619,6 +2619,7 @@ message TaskStatus {
     REASON_RECONCILIATION = 9;
     REASON_RESOURCES_UNKNOWN = 18;
     REASON_AGENT_DISCONNECTED = 10;
+    REASON_AGENT_DRAINING = 34;
     REASON_AGENT_REMOVED = 11;
     REASON_AGENT_REMOVED_BY_OPERATOR = 31;
     REASON_AGENT_REREGISTERED = 32;
@@ -3750,4 +3751,53 @@ message DeviceAccess {
 
 message DeviceWhitelist {
    repeated DeviceAccess allowed_devices = 1;
+}
+
+
+enum DrainState {
+  UNKNOWN = 0;
+
+  // The agent is currently draining.
+  DRAINING = 1;
+
+  // The agent has been drained: all tasks have terminated, all terminal
+  // task status updates have been acknowledged by the frameworks, and all
+  // operations have finished and had their terminal updates acknowledged.
+  DRAINED = 2;
+}
+
+
+message DrainConfig {
+  // An upper bound for tasks with a KillPolicy.
+  // If a task has a KillPolicy grace period greater than this value, this value
+  // will be used instead. This allows the operator to limit the maximum time it
+  // will take the agent to drain. If this field is unset, the task's KillPolicy
+  // or the executor's default grace period is used.
+  //
+  // NOTE: Grace periods start when the executor receives the associated kill.
+  // If, for example, the agent is unreachable when this call is made,
+  // tasks will still receive their full grace period to kill gracefully.
+  optional DurationInfo max_grace_period = 1;
+
+  // Whether or not this agent will be removed permanently from the cluster when
+  // draining is complete. This transition is automatic and does **NOT** require
+  // a separate call to `MarkAgentGone`. If this field is unset, then the
+  // default value of `false` is used.
+  //
+  // Compared to `MarkAgentGone`, which is used for unreachable agents,
+  // marking agents gone after draining will respect kill policies.
+  // To notify frameworks, tasks terminated during draining will return
+  // a `TASK_GONE_BY_OPERATOR` status update instead of any other terminal
+  // status. Executors will not need to account for this case, because
+  // the terminal status update will be intercepted and modified by the agent.
+  optional bool mark_gone = 2 [default = false];
+}
+
+
+message DrainInfo {
+  // The drain state of the agent.
+  required DrainState state = 1;
+
+  // The configuration used to drain the agent.
+  required DrainConfig config = 2;
 }

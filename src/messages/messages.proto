@@ -980,6 +980,14 @@ message ReregisterExecutorMessage {
 
 
 /**
+ * Instructs the agent to begin draining tasks.
+ */
+message DrainSlaveMessage {
+  required DrainConfig config = 1;
+}
+
+
+/**
  * Sends a free-form message from the master to an agent.
  * The agent should gracefully terminate in response, which includes
  * shutting down all executors and tasks on the agent.

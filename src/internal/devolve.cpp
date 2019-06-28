@@ -68,6 +68,18 @@ Credential devolve(const v1::Credential& credential)
 }
 
 
+DrainConfig devolve(const v1::DrainConfig& drainConfig)
+{
+  return devolve<DrainConfig>(drainConfig);
+}
+
+
+DrainInfo devolve(const v1::DrainInfo& drainInfo)
+{
+  return devolve<DrainInfo>(drainInfo);
+}
+
+
 ExecutorID devolve(const v1::ExecutorID& executorId)
 {
   return devolve<ExecutorID>(executorId);

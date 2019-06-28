@@ -657,6 +657,18 @@ ostream& operator<<(ostream& stream, const DeviceWhitelist& deviceWhitelist)
 }
 
 
+ostream& operator<<(ostream& stream, const DrainConfig& drainConfig)
+{
+  return stream << JSON::protobuf(drainConfig);
+}
+
+
+ostream& operator<<(ostream& stream, const DrainState& state)
+{
+  return stream << DrainState_Name(state);
+}
+
+
 ostream& operator<<(ostream& stream, const CheckStatusInfo& checkStatusInfo)
 {
   switch (checkStatusInfo.type()) {
