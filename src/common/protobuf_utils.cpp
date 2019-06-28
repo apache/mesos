@@ -1359,6 +1359,47 @@ mesos::maintenance::Schedule createSchedule(
 } // namespace maintenance {
 
 namespace master {
+
+void addMinimumCapability(
+    google::protobuf::RepeatedPtrField<Registry::MinimumCapability>*
+      capabilities,
+    const MasterInfo::Capability::Type& capability)
+{
+  int capabilityIndex =
+    find_if(
+        capabilities->begin(),
+        capabilities->end(),
+        [&](const Registry::MinimumCapability& mc) {
+          return mc.capability() == MasterInfo_Capability_Type_Name(capability);
+        }) -
+    capabilities->begin();
+
+  if (capabilityIndex == capabilities->size()) {
+    capabilities->Add()->set_capability(
+        MasterInfo_Capability_Type_Name(capability));
+  }
+}
+
+
+void removeMinimumCapability(
+    google::protobuf::RepeatedPtrField<Registry::MinimumCapability>*
+      capabilities,
+    const MasterInfo::Capability::Type& capability)
+{
+  int capabilityIndex =
+    find_if(
+        capabilities->begin(),
+        capabilities->end(),
+        [&](const Registry::MinimumCapability& mc) {
+          return mc.capability() == MasterInfo_Capability_Type_Name(capability);
+        }) -
+    capabilities->begin();
+
+  if (capabilityIndex < capabilities->size()) {
+    capabilities->DeleteSubrange(capabilityIndex, 1);
+  }
+}
+
 namespace event {
 
 mesos::master::Event createTaskUpdated(

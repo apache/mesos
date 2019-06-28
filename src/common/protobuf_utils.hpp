@@ -43,6 +43,8 @@
 #include <stout/try.hpp>
 #include <stout/uuid.hpp>
 
+#include "master/registry.hpp"
+
 #include "messages/messages.hpp"
 
 // Forward declaration (in lieu of an include).
@@ -479,6 +481,37 @@ mesos::maintenance::Schedule createSchedule(
 
 
 namespace master {
+
+// TODO(mzhu): Consolidate these helpers into `struct Capabilities`.
+// For example, to add a minimum capability for `QUOTA_V2`, we could do the
+// following in the call site:
+//
+//  Capabilities capabilities = registry->minimum_capabilities();
+//  capabilities.quotaV2 = needsV2;
+//  *registry->mutable_minimum_capabilities() = capabilities.toStrings();
+//
+// For this to work, we need to:
+//  - Add a constructor from repeated `MinimumCapability`
+//  - Add a toStrings() that goes back to repeated string
+//  - Note, unknown capabilities need to be carried in the struct.
+//
+// In addition, we should consolidate the helper
+// `Master::misingMinimumCapabilities` into the struct as well.
+
+// Helper to add a minimum capability, it is a noop if already set.
+void addMinimumCapability(
+    google::protobuf::RepeatedPtrField<Registry::MinimumCapability>*
+      capabilities,
+    const MasterInfo::Capability::Type& capability);
+
+
+// Helper to remove a minimum capability,
+// it is a noop if already absent.
+void removeMinimumCapability(
+    google::protobuf::RepeatedPtrField<Registry::MinimumCapability>*
+      capabilities,
+    const MasterInfo::Capability::Type& capability);
+
 
 // TODO(bmahler): Store the repeated field within this so that we
 // don't drop unknown capabilities.
