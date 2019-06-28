@@ -48,6 +48,8 @@
 
 namespace http = process::http;
 
+using google::protobuf::RepeatedPtrField;
+
 using http::Accepted;
 using http::BadRequest;
 using http::Conflict;
@@ -657,9 +659,29 @@ Future<http::Response> Master::QuotaHandler::__set(
   // fails because in this case the master fails as well.
   master->quotas[quotaInfo.role()] = quota;
 
+  // Construct `RepeatedPtrField<QuotaConfig>` from the legacy `QuotaInfo`
+  // for forward compatibility.
+  RepeatedPtrField<QuotaConfig> configs = [&quotaInfo]() {
+    QuotaConfig config;
+    *config.mutable_role() = quotaInfo.role();
+
+    google::protobuf::Map<string, Value::Scalar> quota;
+    foreach (const Resource& r, quotaInfo.guarantee()) {
+      quota[r.name()] = r.scalar();
+    }
+
+    *config.mutable_guarantees() = quota;
+    *config.mutable_limits() = std::move(quota);
+
+    RepeatedPtrField<QuotaConfig> configs;
+    *configs.Add() = std::move(config);
+
+    return configs;
+  }();
+
   // Update the registry with the new quota and acknowledge the request.
-  return master->registrar->apply(Owned<RegistryOperation>(
-      new quota::UpdateQuota(quotaInfo)))
+  return master->registrar
+    ->apply(Owned<RegistryOperation>(new quota::UpdateQuota(configs)))
     .then(defer(master->self(), [=](bool result) -> Future<http::Response> {
       // See the top comment in "master/quota.hpp" for why this check is here.
       CHECK(result);
@@ -797,9 +819,22 @@ Future<http::Response> Master::QuotaHandler::__remove(const string& role) const
   // will be restored automatically during the recovery.
   master->quotas.erase(role);
 
+  // Remove quota is equivalent to configure quota back to the default.
+  // We need to wrap it up in `RepeatedPtrField<QuotaConfig>` for
+  // foward compatibility.
+  RepeatedPtrField<QuotaConfig> configs = [&role]() {
+    QuotaConfig config;
+    *config.mutable_role() = role;
+
+    RepeatedPtrField<QuotaConfig> configs;
+    *configs.Add() = std::move(config);
+
+    return configs;
+  }();
+
   // Update the registry with the removed quota and acknowledge the request.
-  return master->registrar->apply(Owned<RegistryOperation>(
-      new quota::RemoveQuota(role)))
+  return master->registrar
+    ->apply(Owned<RegistryOperation>(new quota::UpdateQuota(configs)))
     .then(defer(master->self(), [=](bool result) -> Future<http::Response> {
       // See the top comment in "master/quota.hpp" for why this check is here.
       CHECK(result);

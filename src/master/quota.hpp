@@ -50,43 +50,22 @@ namespace quota {
  * Sets quota for a role. No assumptions are made here: the role may
  * be unknown to the master, or quota can be already set for the role.
  * If there is no quota stored for the role, a new entry is created,
- * otherwise an existing one is updated. This operation always mutates
- * the registry.
- *
- * TODO(alexr): Introduce equality operator in `Registry::Quota` or
- * `QuotaInfo` to avoid mutation in case of update to an equal value.
- * However, even if we return `false` (i.e. no mutation), the current
- * implementation of the registrar will still save the object again.
+ * otherwise an existing one is updated.
  */
 class UpdateQuota : public RegistryOperation
 {
 public:
-  explicit UpdateQuota(const mesos::quota::QuotaInfo& quotaInfo);
+  // This operation needs to take in a `RepeatedPtrField` of `QuotaConfig`
+  // to ensure all-or-nothing quota updates for multiple roles.
+  explicit UpdateQuota(
+      const google::protobuf::RepeatedPtrField<mesos::quota::QuotaConfig>&
+        quotaConfigs);
 
 protected:
   Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs) override;
 
 private:
-  const mesos::quota::QuotaInfo info;
-};
-
-
-/**
- * Removes quota for a role. If there is no quota stored for the role,
- * no action is performed.
- *
- * TODO(alexr): Consider uniting this operation with `UpdateQuota`.
- */
-class RemoveQuota : public RegistryOperation
-{
-public:
-  explicit RemoveQuota(const std::string& _role);
-
-protected:
-  Try<bool> perform(Registry* registry, hashset<SlaveID>* slaveIDs) override;
-
-private:
-  const std::string role;
+  google::protobuf::RepeatedPtrField<mesos::quota::QuotaConfig> configs;
 };
 
 

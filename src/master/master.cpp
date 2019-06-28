@@ -1729,8 +1729,16 @@ Future<Nothing> Master::_recover(const Registry& registry)
   }
 
   // Save the quotas for each role.
+
+  // First recover from the legacy quota entries.
   foreach (const Registry::Quota& quota, registry.quotas()) {
     quotas[quota.info().role()] = Quota{quota.info()};
+  }
+
+  // Then the new ones.
+  foreach (const quota::QuotaConfig& config, registry.quota_configs()) {
+    CHECK_NOT_CONTAINS(quotas, config.role());
+    quotas[config.role()] = Quota{config};
   }
 
   // We notify the allocator via the `recover()` call. This has to be

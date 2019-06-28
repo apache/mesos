@@ -21,6 +21,8 @@
 #include <string>
 #include <vector>
 
+#include <google/protobuf/util/message_differencer.h>
+
 #include <mesos/attributes.hpp>
 #include <mesos/type_utils.hpp>
 
@@ -83,6 +85,7 @@ using process::http::Response;
 using process::http::Unauthorized;
 
 using google::protobuf::RepeatedPtrField;
+using google::protobuf::util::MessageDifferencer;
 
 using mesos::internal::protobuf::maintenance::createMachineList;
 using mesos::internal::protobuf::maintenance::createSchedule;
@@ -911,39 +914,50 @@ TEST_F(RegistrarTest, StopMaintenance)
 // Tests that adding and updating quotas in the registry works properly.
 TEST_F(RegistrarTest, UpdateQuota)
 {
-  const string ROLE1 = "role1";
-  const string ROLE2 = "role2";
+  // Helper to construct `QuotaConfig`.
+  auto createQuotaConfig = [](const string& role,
+                              const string& quantitiesString,
+                              const string& limitsString) {
+    QuotaConfig config;
+    config.set_role(role);
 
-  // NOTE: `quotaResources1` yields a collection with two `Resource`
-  // objects once converted to `RepeatedPtrField`.
-  Resources quotaResources1 = Resources::parse("cpus:1;mem:1024").get();
-  Resources quotaResources2 = Resources::parse("cpus:2").get();
+    google::protobuf::Map<string, Value::Scalar> guarantees_;
+    ResourceQuantities quantities =
+      CHECK_NOTERROR(ResourceQuantities::fromString(quantitiesString));
+    foreachpair (const string& name, const Value::Scalar& scalar, quantities) {
+      guarantees_[name] = scalar;
+    }
 
-  // Prepare `QuotaInfo` protobufs used in the test.
-  QuotaInfo quota1;
-  quota1.set_role(ROLE1);
-  quota1.mutable_guarantee()->CopyFrom(quotaResources1);
+    google::protobuf::Map<string, Value::Scalar> limits_;
+    ResourceLimits limits =
+      CHECK_NOTERROR(ResourceLimits::fromString(limitsString));
+    foreachpair (const string& name, const Value::Scalar& scalar, limits) {
+      limits_[name] = scalar;
+    }
 
-  Option<Error> validateError1 = quota::validation::quotaInfo(quota1);
-  EXPECT_NONE(validateError1);
+    *config.mutable_guarantees() = std::move(guarantees_);
+    *config.mutable_limits() = std::move(limits_);
 
-  QuotaInfo quota2;
-  quota2.set_role(ROLE2);
-  quota2.mutable_guarantee()->CopyFrom(quotaResources1);
+    return config;
+  };
 
-  Option<Error> validateError2 = quota::validation::quotaInfo(quota2);
-  EXPECT_NONE(validateError2);
+  RepeatedPtrField<QuotaConfig> configs;
 
   {
-    // Prepare the registrar; see the comment above why we need to do this in
-    // every scope.
+    // Initially no quota and minimum capabilities are recorded.
+
     Registrar registrar(flags, state);
     Future<Registry> registry = registrar.recover(master);
     AWAIT_READY(registry);
 
-    // Store quota for a role without quota.
-    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
-        new UpdateQuota(quota1))));
+    EXPECT_EQ(0, registry->quota_configs().size());
+    EXPECT_EQ(0, registry->minimum_capabilities().size());
+
+    // Store quota for a role with default quota.
+    *configs.Add() = createQuotaConfig("role1", "", "");
+
+    AWAIT_TRUE(
+        registrar.apply(Owned<RegistryOperation>(new UpdateQuota(configs))));
   }
 
   {
@@ -951,20 +965,17 @@ TEST_F(RegistrarTest, UpdateQuota)
     Future<Registry> registry = registrar.recover(master);
     AWAIT_READY(registry);
 
-    // Check that the recovered quota matches the one we stored.
-    ASSERT_EQ(1, registry->quotas().size());
-    EXPECT_EQ(ROLE1, registry->quotas(0).info().role());
-    ASSERT_EQ(2, registry->quotas(0).info().guarantee().size());
+    // Default quota is not persisted into the registry.
+    EXPECT_EQ(0, registry->quota_configs().size());
+    EXPECT_EQ(0, registry->minimum_capabilities().size());
 
-    Resources storedResources(registry->quotas(0).info().guarantee());
-    EXPECT_EQ(quotaResources1, storedResources);
+    // Update quota for `role1`.
+    configs.Clear();
+    *configs.Add() =
+      createQuotaConfig("role1", "cpus:1;mem:1024", "cpus:2;mem:2048");
 
-    // Change quota for `ROLE1`.
-    quota1.mutable_guarantee()->CopyFrom(quotaResources2);
-
-    // Update the only stored quota.
-    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
-        new UpdateQuota(quota1))));
+    AWAIT_TRUE(
+        registrar.apply(Owned<RegistryOperation>(new UpdateQuota(configs))));
   }
 
   {
@@ -972,17 +983,48 @@ TEST_F(RegistrarTest, UpdateQuota)
     Future<Registry> registry = registrar.recover(master);
     AWAIT_READY(registry);
 
-    // Check that the recovered quota matches the one we updated.
-    ASSERT_EQ(1, registry->quotas().size());
-    EXPECT_EQ(ROLE1, registry->quotas(0).info().role());
-    ASSERT_EQ(1, registry->quotas(0).info().guarantee().size());
+    EXPECT_EQ(1, registry->quota_configs().size());
 
-    Resources storedResources(registry->quotas(0).info().guarantee());
-    EXPECT_EQ(quotaResources2, storedResources);
+    JSON::Array expected = CHECK_NOTERROR(JSON::parse<JSON::Array>(
+    R"~(
+    [
+      {
+        "guarantees": {
+          "cpus": {
+            "value": 1
+          },
+          "mem": {
+            "value": 1024
+          }
+        },
+        "limits": {
+          "cpus": {
+            "value": 2
+          },
+          "mem": {
+            "value": 2048
+          }
+        },
+        "role": "role1"
+      }
+    ])~"));
 
-    // Store one more quota for a role without quota.
-    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
-        new UpdateQuota(quota2))));
+    EXPECT_EQ(expected, JSON::protobuf(registry->quota_configs()));
+
+    // The `QUOTA_V2` capability is added to the registry.
+    //
+    // TODO(mzhu): This assumes the the registry starts empty which might not
+    // be in the future. Just check the presence of `QUOTA_V2`.
+    EXPECT_EQ(1, registry->minimum_capabilities().size());
+    EXPECT_EQ("QUOTA_V2", registry->minimum_capabilities(0).capability());
+
+    // Update quota for "role2".
+    configs.Clear();
+    *configs.Add() =
+      createQuotaConfig("role2", "cpus:1;mem:1024", "cpus:2;mem:2048");
+
+    AWAIT_TRUE(
+        registrar.apply(Owned<RegistryOperation>(new UpdateQuota(configs))));
   }
 
   {
@@ -994,88 +1036,63 @@ TEST_F(RegistrarTest, UpdateQuota)
     // NOTE: We assume quota messages are stored in order they have
     // been added.
     // TODO(alexr): Consider removing dependency on the order.
-    ASSERT_EQ(2, registry->quotas().size());
-    EXPECT_EQ(ROLE1, registry->quotas(0).info().role());
-    ASSERT_EQ(1, registry->quotas(0).info().guarantee().size());
+    JSON::Array expected = CHECK_NOTERROR(JSON::parse<JSON::Array>(
+    R"~(
+    [
+      {
+        "guarantees": {
+          "cpus": {
+            "value": 1
+          },
+          "mem": {
+            "value": 1024
+          }
+        },
+        "limits": {
+          "cpus": {
+            "value": 2
+          },
+          "mem": {
+            "value": 2048
+          }
+        },
+        "role": "role1"
+      },
+      {
+        "guarantees": {
+          "cpus": {
+            "value": 1
+          },
+          "mem": {
+            "value": 1024
+          }
+        },
+        "limits": {
+          "cpus": {
+            "value": 2
+          },
+          "mem": {
+            "value": 2048
+          }
+        },
+        "role": "role2"
+      }
+    ])~"));
 
-    EXPECT_EQ(ROLE2, registry->quotas(1).info().role());
-    ASSERT_EQ(2, registry->quotas(1).info().guarantee().size());
+    EXPECT_EQ(expected, JSON::protobuf(registry->quota_configs()));
 
-    Resources storedResources(registry->quotas(1).info().guarantee());
-    EXPECT_EQ(quotaResources1, storedResources);
+    // TODO(mzhu): This assumes the the registry starts empty which might not
+    // be in the future. Just check the presence of `QUOTA_V2`.
+    EXPECT_EQ(1, registry->minimum_capabilities().size());
+    EXPECT_EQ("QUOTA_V2", registry->minimum_capabilities(0).capability());
 
-    // Change quota for `role2`.
-    quota2.mutable_guarantee()->CopyFrom(quotaResources2);
+    // Change quota for "role1"` and "role2"` in a single call.
+    configs.Clear();
+    *configs.Add() = createQuotaConfig("role1", "cpus:2", "cpus:4");
+    *configs.Add() = createQuotaConfig("role2", "cpus:2", "cpus:4");
 
-    // Update quota for `role2` in presence of multiple quotas.
-    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
-        new UpdateQuota(quota2))));
-  }
-
-  {
-    Registrar registrar(flags, state);
-    Future<Registry> registry = registrar.recover(master);
-    AWAIT_READY(registry);
-
-    // Check that the recovered quotas match those we stored and updated
-    // previously.
-    // NOTE: We assume quota messages are stored in order they have been
-    // added and update does not change the order.
-    // TODO(alexr): Consider removing dependency on the order.
-    ASSERT_EQ(2, registry->quotas().size());
-
-    EXPECT_EQ(ROLE1, registry->quotas(0).info().role());
-    ASSERT_EQ(1, registry->quotas(0).info().guarantee().size());
-
-    Resources storedResources1(registry->quotas(0).info().guarantee());
-    EXPECT_EQ(quotaResources2, storedResources1);
-
-    EXPECT_EQ(ROLE2, registry->quotas(1).info().role());
-    ASSERT_EQ(1, registry->quotas(1).info().guarantee().size());
-
-    Resources storedResources2(registry->quotas(1).info().guarantee());
-    EXPECT_EQ(quotaResources2, storedResources2);
-  }
-}
-
-
-// Tests removing quotas from the registry.
-TEST_F(RegistrarTest, RemoveQuota)
-{
-  const string ROLE1 = "role1";
-  const string ROLE2 = "role2";
-
-  {
-    // Prepare the registrar; see the comment above why we need to do this in
-    // every scope.
-    Registrar registrar(flags, state);
-    Future<Registry> registry = registrar.recover(master);
-    AWAIT_READY(registry);
-
-    // NOTE: `quotaResources` yields a collection with two `Resource`
-    // objects once converted to `RepeatedPtrField`.
-    Resources quotaResources1 = Resources::parse("cpus:1;mem:1024").get();
-    Resources quotaResources2 = Resources::parse("cpus:2").get();
-
-    // Prepare `QuotaInfo` protobufs.
-    QuotaInfo quota1;
-    quota1.set_role(ROLE1);
-    quota1.mutable_guarantee()->CopyFrom(quotaResources1);
-
-    Option<Error> validateError1 = quota::validation::quotaInfo(quota1);
-    EXPECT_NONE(validateError1);
-
-    QuotaInfo quota2;
-    quota2.set_role(ROLE2);
-    quota2.mutable_guarantee()->CopyFrom(quotaResources2);
-
-    Option<Error> validateError2 = quota::validation::quotaInfo(quota2);
-    EXPECT_NONE(validateError2);
-
-    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
-        new UpdateQuota(quota1))));
-    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
-        new UpdateQuota(quota2))));
+    AWAIT_TRUE(
+        registrar.apply(Owned<RegistryOperation>(new UpdateQuota(configs))));
   }
 
   {
@@ -1084,16 +1101,53 @@ TEST_F(RegistrarTest, RemoveQuota)
     AWAIT_READY(registry);
 
     // Check that the recovered quotas match those we stored previously.
-    // NOTE: We assume quota messages are stored in order they have been
-    // added.
+    // NOTE: We assume quota messages are stored in order they have
+    // been added.
     // TODO(alexr): Consider removing dependency on the order.
-    ASSERT_EQ(2, registry->quotas().size());
-    EXPECT_EQ(ROLE1, registry->quotas(0).info().role());
-    EXPECT_EQ(ROLE2, registry->quotas(1).info().role());
+    JSON::Array expected = CHECK_NOTERROR(JSON::parse<JSON::Array>(
+    R"~(
+    [
+      {
+        "guarantees": {
+          "cpus": {
+            "value": 2
+          }
+        },
+        "limits": {
+          "cpus": {
+            "value": 4
+          }
+        },
+        "role": "role1"
+      },
+      {
+        "guarantees": {
+          "cpus": {
+            "value": 2
+          }
+        },
+        "limits": {
+          "cpus": {
+            "value": 4
+          }
+        },
+        "role": "role2"
+      }
+    ])~"));
 
-    // Remove quota for `role2`.
-    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
-        new RemoveQuota(ROLE2))));
+    EXPECT_EQ(expected, JSON::protobuf(registry->quota_configs()));
+
+    // TODO(mzhu): This assumes the the registry starts empty which might not
+    // be in the future. Just check the presence of `QUOTA_V2`.
+    EXPECT_EQ(1, registry->minimum_capabilities().size());
+    EXPECT_EQ("QUOTA_V2", registry->minimum_capabilities(0).capability());
+
+    // Reset "role2"` quota to default.
+    configs.Clear();
+    *configs.Add() = createQuotaConfig("role2", "", "");
+
+    AWAIT_TRUE(
+        registrar.apply(Owned<RegistryOperation>(new UpdateQuota(configs))));
   }
 
   {
@@ -1101,13 +1155,39 @@ TEST_F(RegistrarTest, RemoveQuota)
     Future<Registry> registry = registrar.recover(master);
     AWAIT_READY(registry);
 
-    // Check that there is only one quota left in the registry.
-    ASSERT_EQ(1, registry->quotas().size());
-    EXPECT_EQ(ROLE1, registry->quotas(0).info().role());
+    configs.Clear();
+    *configs.Add() = createQuotaConfig("role1", "cpus:2", "cpus:4");
+    JSON::Array expected = CHECK_NOTERROR(JSON::parse<JSON::Array>(
+    R"~(
+    [
+      {
+        "guarantees": {
+          "cpus": {
+            "value": 2
+          }
+        },
+        "limits": {
+          "cpus": {
+            "value": 4
+          }
+        },
+        "role": "role1"
+      }
+    ])~"));
 
-    // Remove quota for `ROLE1`.
-    AWAIT_TRUE(registrar.apply(Owned<RegistryOperation>(
-        new RemoveQuota(ROLE1))));
+    EXPECT_EQ(expected, JSON::protobuf(registry->quota_configs()));
+
+    // TODO(mzhu): This assumes the the registry starts empty which might not
+    // be in the future. Just check the presence of `QUOTA_V2`.
+    EXPECT_EQ(1, registry->minimum_capabilities().size());
+    EXPECT_EQ("QUOTA_V2", registry->minimum_capabilities(0).capability());
+
+    // Reset "role1"` quota to default.
+    configs.Clear();
+    *configs.Add() = createQuotaConfig("role1", "", "");
+
+    AWAIT_TRUE(
+        registrar.apply(Owned<RegistryOperation>(new UpdateQuota(configs))));
   }
 
   {
@@ -1115,8 +1195,9 @@ TEST_F(RegistrarTest, RemoveQuota)
     Future<Registry> registry = registrar.recover(master);
     AWAIT_READY(registry);
 
-    // Check that there are no more quotas at this point.
-    ASSERT_TRUE(registry->quotas().empty());
+    EXPECT_EQ(0, registry->quota_configs().size());
+    // The `QUOTA_V2` capability is removed because `quota_configs` is empty.
+    EXPECT_EQ(0, registry->minimum_capabilities().size());
   }
 }
 

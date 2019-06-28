@@ -29,8 +29,11 @@
 #include <stout/option.hpp>
 #include <stout/set.hpp>
 
+#include "common/protobuf_utils.hpp"
 #include "common/resources_utils.hpp"
 #include "common/validation.hpp"
+
+#include "master/constants.hpp"
 
 using google::protobuf::Map;
 using google::protobuf::RepeatedPtrField;
@@ -46,49 +49,75 @@ namespace internal {
 namespace master {
 namespace quota {
 
-UpdateQuota::UpdateQuota(const QuotaInfo& quotaInfo)
-  : info(quotaInfo) {}
+UpdateQuota::UpdateQuota(
+    const google::protobuf::RepeatedPtrField<QuotaConfig>& quotaConfigs)
+  : configs(quotaConfigs) {}
 
 
 Try<bool> UpdateQuota::perform(
-    Registry* registry,
-    hashset<SlaveID>* /*slaveIDs*/)
+    Registry* registry, hashset<SlaveID>* /*slaveIDs*/)
 {
-  // If there is already quota stored for the role, update the entry.
-  foreach (Registry::Quota& quota, *registry->mutable_quotas()) {
-    if (quota.info().role() == info.role()) {
-      quota.mutable_info()->CopyFrom(info);
-      return true; // Mutation.
+  google::protobuf::RepeatedPtrField<QuotaConfig>& registryConfigs =
+    *registry->mutable_quota_configs();
+
+  foreach (const QuotaConfig& config, configs) {
+    // Check if there is already quota stored for the role.
+    int configIndex = find_if(
+        registryConfigs.begin(),
+        registryConfigs.end(),
+        [&](const QuotaConfig& registryConfig) {
+          return registryConfig.role() == config.role();
+        }) -
+        registryConfigs.begin();
+
+    if (Quota(config) == DEFAULT_QUOTA) {
+      // Erase if present, otherwise no-op.
+      if (configIndex < registryConfigs.size()) {
+        registryConfigs.DeleteSubrange(configIndex, 1);
+      }
+    } else {
+      // Modify if present, otherwise insert.
+      if (configIndex < registryConfigs.size()) {
+        // TODO(mzhu): Check if we are setting quota to the same value.
+        // If so, no need to mutate.
+        *registryConfigs.Mutable(configIndex) = config;
+      } else {
+        *registryConfigs.Add() = config;
+      }
+    }
+
+    // Remove the old `QuotaInfo` entries if any.
+
+    google::protobuf::RepeatedPtrField<Registry::Quota>& quotas =
+      *registry->mutable_quotas();
+
+    int quotaIndex = find_if(
+        quotas.begin(),
+        quotas.end(),
+        [&](const Registry::Quota& quota) {
+        return quota.info().role() == config.role();
+        }) -
+        quotas.begin();
+
+    if (quotaIndex < quotas.size()) {
+      quotas.DeleteSubrange(quotaIndex, 1);
     }
   }
 
-  // If there is no quota yet for the role, create a new entry.
-  registry->add_quotas()->mutable_info()->CopyFrom(info);
-
-  return true; // Mutation.
-}
-
-
-RemoveQuota::RemoveQuota(const string& _role) : role(_role) {}
-
-
-Try<bool> RemoveQuota::perform(
-    Registry* registry,
-    hashset<SlaveID>* /*slaveIDs*/)
-{
-  // Remove quota for the role if a corresponding entry exists.
-  for (int i = 0; i < registry->quotas().size(); ++i) {
-    const Registry::Quota& quota = registry->quotas(i);
-
-    if (quota.info().role() == role) {
-      registry->mutable_quotas()->DeleteSubrange(i, 1);
-
-      // NOTE: Multiple entries per role are not allowed.
-      return true; // Mutation.
-    }
+  // Update the minimum capability.
+  if (!registryConfigs.empty()) {
+    protobuf::master::addMinimumCapability(
+        registry->mutable_minimum_capabilities(),
+        MasterInfo::Capability::QUOTA_V2);
+  } else {
+    protobuf::master::removeMinimumCapability(
+        registry->mutable_minimum_capabilities(),
+        MasterInfo::Capability::QUOTA_V2);
   }
 
-  return false;
+  // We always return true here since there is currently
+  // no optimization for no mutation case.
+  return true;
 }
 
 
