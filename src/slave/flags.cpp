@@ -798,8 +798,8 @@ mesos::internal::slave::Flags::Flags()
   add(&Flags::agent_features,
       "agent_features",
       "JSON representation of agent features to whitelist. We always require\n"
-      "'MULTI_ROLE', 'HIERARCHICAL_ROLE', 'RESERVATION_REFINEMENT', and\n"
-      "'AGENT_OPERATION_FEEDBACK'.\n"
+      "'MULTI_ROLE', 'HIERARCHICAL_ROLE', 'RESERVATION_REFINEMENT',\n"
+      "'AGENT_OPERATION_FEEDBACK', and 'AGENT_DRAINING'.\n"
       "\n"
       "Example:\n"
       "{\n"
@@ -807,7 +807,8 @@ mesos::internal::slave::Flags::Flags()
       "        {\"type\": \"MULTI_ROLE\"},\n"
       "        {\"type\": \"HIERARCHICAL_ROLE\"},\n"
       "        {\"type\": \"RESERVATION_REFINEMENT\"},\n"
-      "        {\"type\": \"AGENT_OPERATION_FEEDBACK\"}\n"
+      "        {\"type\": \"AGENT_OPERATION_FEEDBACK\"},\n"
+      "        {\"type\": \"AGENT_DRAINING\"}\n"
       "    ]\n"
       "}\n",
       [](const Option<SlaveCapabilities>& agentFeatures) -> Option<Error> {
@@ -819,11 +820,12 @@ mesos::internal::slave::Flags::Flags()
           if (!capabilities.multiRole ||
               !capabilities.hierarchicalRole ||
               !capabilities.reservationRefinement ||
-              !capabilities.agentOperationFeedback) {
+              !capabilities.agentOperationFeedback ||
+              !capabilities.agentDraining) {
             return Error(
                 "At least the following agent features need to be enabled:"
                 " MULTI_ROLE, HIERARCHICAL_ROLE, RESERVATION_REFINEMENT,"
-                " AGENT_OPERATION_FEEDBACK");
+                " AGENT_OPERATION_FEEDBACK, and AGENT_DRAINING");
           }
 
           if (capabilities.resizeVolume && !capabilities.resourceProvider) {

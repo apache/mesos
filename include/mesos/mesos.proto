@@ -1042,6 +1042,10 @@ message SlaveInfo {
       // handle feedback for operations on agent default resources, the
       // RESOURCE_PROVIDER capability should be set as well.
       AGENT_OPERATION_FEEDBACK = 6;
+
+      // This expresses the ability for the agent to automatically drain tasks
+      // in preparation for operator maintenance. This capability is required.
+      AGENT_DRAINING = 7;
     }
 
     // Enum fields should be optional, see: MESOS-4997.

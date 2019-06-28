@@ -1545,7 +1545,8 @@ TEST_F(SlaveTest, StateEndpoint)
         "RESERVATION_REFINEMENT",
         "RESOURCE_PROVIDER",
         "RESIZE_VOLUME",
-        "AGENT_OPERATION_FEEDBACK"
+        "AGENT_OPERATION_FEEDBACK",
+        "AGENT_DRAINING"
       ]
     )~");
 
