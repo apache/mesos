@@ -412,6 +412,9 @@ public:
         case authorization::START_MAINTENANCE:
         case authorization::STOP_MAINTENANCE:
         case authorization::UPDATE_MAINTENANCE_SCHEDULE:
+        case authorization::DRAIN_AGENT:
+        case authorization::DEACTIVATE_AGENT:
+        case authorization::REACTIVATE_AGENT:
         case authorization::MODIFY_RESOURCE_PROVIDER_CONFIG:
         case authorization::MARK_RESOURCE_PROVIDER_GONE:
         case authorization::VIEW_RESOURCE_PROVIDER:
@@ -734,6 +737,9 @@ public:
         case authorization::SET_LOG_LEVEL:
         case authorization::START_MAINTENANCE:
         case authorization::STOP_MAINTENANCE:
+        case authorization::DRAIN_AGENT:
+        case authorization::DEACTIVATE_AGENT:
+        case authorization::REACTIVATE_AGENT:
         case authorization::TEARDOWN_FRAMEWORK:
         case authorization::UNRESERVE_RESOURCES:
         case authorization::UPDATE_MAINTENANCE_SCHEDULE:
@@ -985,6 +991,9 @@ public:
       case authorization::SET_LOG_LEVEL:
       case authorization::START_MAINTENANCE:
       case authorization::STOP_MAINTENANCE:
+      case authorization::DRAIN_AGENT:
+      case authorization::DEACTIVATE_AGENT:
+      case authorization::REACTIVATE_AGENT:
       case authorization::TEARDOWN_FRAMEWORK:
       case authorization::UNKNOWN:
       case authorization::UNRESERVE_RESOURCES:
@@ -1213,6 +1222,9 @@ public:
       case authorization::TEARDOWN_FRAMEWORK:
       case authorization::UNRESERVE_RESOURCES:
       case authorization::UPDATE_MAINTENANCE_SCHEDULE:
+      case authorization::DRAIN_AGENT:
+      case authorization::DEACTIVATE_AGENT:
+      case authorization::REACTIVATE_AGENT:
       case authorization::VIEW_CONTAINER:
       case authorization::VIEW_EXECUTOR:
       case authorization::VIEW_FLAGS:
@@ -1502,6 +1514,40 @@ private:
         }
 
         return acls_;
+
+      case authorization::DRAIN_AGENT:
+        foreach (const ACL::DrainAgent& acl,
+                 acls.drain_agents()) {
+          GenericACL acl_;
+          acl_.subjects = acl.principals();
+          acl_.objects = acl.agents();
+
+          acls_.push_back(acl_);
+        }
+
+        return acls_;
+      case authorization::DEACTIVATE_AGENT:
+        foreach (const ACL::DeactivateAgent& acl,
+                 acls.deactivate_agents()) {
+          GenericACL acl_;
+          acl_.subjects = acl.principals();
+          acl_.objects = acl.agents();
+
+          acls_.push_back(acl_);
+        }
+
+        return acls_;
+      case authorization::REACTIVATE_AGENT:
+        foreach (const ACL::ReactivateAgent& acl,
+                 acls.reactivate_agents()) {
+          GenericACL acl_;
+          acl_.subjects = acl.principals();
+          acl_.objects = acl.agents();
+
+          acls_.push_back(acl_);
+        }
+
+        return acls_;
       case authorization::MARK_AGENT_GONE:
         foreach (const ACL::MarkAgentGone& acl,
                  acls.mark_agents_gone()) {
@@ -1746,6 +1792,24 @@ Option<Error> LocalAuthorizer::validate(const ACLs& acls)
            acls.get_maintenance_statuses()) {
     if (acl.machines().type() == ACL::Entity::SOME) {
       return Error("ACL.GetMaintenanceStatus type must be either NONE or ANY");
+    }
+  }
+
+  foreach (const ACL::DrainAgent& acl, acls.drain_agents()) {
+    if (acl.agents().type() == ACL::Entity::SOME) {
+      return Error("ACL.DrainAgent type must be either NONE or ANY");
+    }
+  }
+
+  foreach (const ACL::DeactivateAgent& acl, acls.deactivate_agents()) {
+    if (acl.agents().type() == ACL::Entity::SOME) {
+      return Error("ACL.DeactivateAgent type must be either NONE or ANY");
+    }
+  }
+
+  foreach (const ACL::ReactivateAgent& acl, acls.reactivate_agents()) {
+    if (acl.agents().type() == ACL::Entity::SOME) {
+      return Error("ACL.ReactivateAgent type must be either NONE or ANY");
     }
   }
 

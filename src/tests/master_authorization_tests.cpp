@@ -2991,6 +2991,9 @@ public:
       case authorization::START_MAINTENANCE:
       case authorization::STOP_MAINTENANCE:
       case authorization::GET_MAINTENANCE_STATUS:
+      case authorization::DRAIN_AGENT:
+      case authorization::DEACTIVATE_AGENT:
+      case authorization::REACTIVATE_AGENT:
       case authorization::MARK_AGENT_GONE:
       case authorization::LAUNCH_STANDALONE_CONTAINER:
       case authorization::KILL_STANDALONE_CONTAINER:

@@ -419,6 +419,33 @@ message ACL {
     required Entity machines = 2;
   }
 
+  message DrainAgent {
+    // Subjects: HTTP Username.
+    required Entity principals = 1;
+
+    // Objects: Given implicitly. Use Entity type ANY or NONE to allow or deny
+    // access.
+    required Entity agents = 2;
+  }
+
+  message DeactivateAgent {
+    // Subjects: HTTP Username.
+    required Entity principals = 1;
+
+    // Objects: Given implicitly. Use Entity type ANY or NONE to allow or deny
+    // access.
+    required Entity agents = 2;
+  }
+
+  message ReactivateAgent {
+    // Subjects: HTTP Username.
+    required Entity principals = 1;
+
+    // Objects: Given implicitly. Use Entity type ANY or NONE to allow or deny
+    // access.
+    required Entity agents = 2;
+  }
+
   // Which principals are authorized to mark an agent as gone.
   message MarkAgentGone {
     // Subjects: HTTP Username.
@@ -657,6 +684,9 @@ message ACLs {
   repeated ACL.StartMaintenance start_maintenances = 37;
   repeated ACL.StopMaintenance stop_maintenances = 38;
   repeated ACL.GetMaintenanceStatus get_maintenance_statuses = 39;
+  repeated ACL.DrainAgent drain_agents = 56;
+  repeated ACL.DeactivateAgent deactivate_agents = 57;
+  repeated ACL.ReactivateAgent reactivate_agents = 58;
   repeated ACL.MarkAgentGone mark_agents_gone = 40;
   repeated ACL.LaunchStandaloneContainer launch_standalone_containers = 41;
   repeated ACL.KillStandaloneContainer kill_standalone_containers = 42;

@@ -5919,6 +5919,171 @@ TYPED_TEST(AuthorizationTest, GetMaintenanceStatus)
 }
 
 
+// This tests the authorization of requests to DrainAgent.
+TYPED_TEST(AuthorizationTest, DrainAgent)
+{
+  ACLs acls;
+
+  {
+    // "foo" principal can drain agents.
+    mesos::ACL::DrainAgent* acl = acls.add_drain_agents();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_agents()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  {
+    // Nobody else can drain agents.
+    mesos::ACL::DrainAgent* acl = acls.add_drain_agents();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_agents()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  {
+    // "foo" is allowed to drain agents.
+    authorization::Request request;
+    request.set_action(authorization::DRAIN_AGENT);
+    request.mutable_subject()->set_value("foo");
+
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  {
+    // "bar" is not allowed to drain agents.
+    authorization::Request request;
+    request.set_action(authorization::DRAIN_AGENT);
+    request.mutable_subject()->set_value("bar");
+
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+
+  {
+    // Test that no authorizer is created with invalid ACLs.
+    ACLs invalid;
+
+    mesos::ACL::DrainAgent* acl = invalid.add_drain_agents();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_agents()->add_values("yoda");
+
+    Try<Authorizer*> create = TypeParam::create(parameterize(invalid));
+    EXPECT_ERROR(create);
+  }
+}
+
+
+// This tests the authorization of requests to DeactivateAgent.
+TYPED_TEST(AuthorizationTest, DeactivateAgent)
+{
+  ACLs acls;
+
+  {
+    // "foo" principal can deactivate agents.
+    mesos::ACL::DeactivateAgent* acl = acls.add_deactivate_agents();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_agents()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  {
+    // Nobody else can deactivate agents.
+    mesos::ACL::DeactivateAgent* acl = acls.add_deactivate_agents();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_agents()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  {
+    // "foo" is allowed to deactivate agents.
+    authorization::Request request;
+    request.set_action(authorization::DEACTIVATE_AGENT);
+    request.mutable_subject()->set_value("foo");
+
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  {
+    // "bar" is not allowed to deactivate agents.
+    authorization::Request request;
+    request.set_action(authorization::DEACTIVATE_AGENT);
+    request.mutable_subject()->set_value("bar");
+
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+
+  {
+    // Test that no authorizer is created with invalid ACLs.
+    ACLs invalid;
+
+    mesos::ACL::DeactivateAgent* acl = invalid.add_deactivate_agents();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_agents()->add_values("yoda");
+
+    Try<Authorizer*> create = TypeParam::create(parameterize(invalid));
+    EXPECT_ERROR(create);
+  }
+}
+
+
+// This tests the authorization of requests to ReactivateAgent.
+TYPED_TEST(AuthorizationTest, ReactivateAgent)
+{
+  ACLs acls;
+
+  {
+    // "foo" principal can reactivate agents.
+    mesos::ACL::ReactivateAgent* acl = acls.add_reactivate_agents();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_agents()->set_type(mesos::ACL::Entity::ANY);
+  }
+
+  {
+    // Nobody else can reactivate agents.
+    mesos::ACL::ReactivateAgent* acl = acls.add_reactivate_agents();
+    acl->mutable_principals()->set_type(mesos::ACL::Entity::ANY);
+    acl->mutable_agents()->set_type(mesos::ACL::Entity::NONE);
+  }
+
+  Try<Authorizer*> create = TypeParam::create(parameterize(acls));
+  ASSERT_SOME(create);
+  Owned<Authorizer> authorizer(create.get());
+
+  {
+    // "foo" is allowed to reactivate agents.
+    authorization::Request request;
+    request.set_action(authorization::REACTIVATE_AGENT);
+    request.mutable_subject()->set_value("foo");
+
+    AWAIT_EXPECT_TRUE(authorizer->authorized(request));
+  }
+
+  {
+    // "bar" is not allowed to reactivate agents.
+    authorization::Request request;
+    request.set_action(authorization::REACTIVATE_AGENT);
+    request.mutable_subject()->set_value("bar");
+
+    AWAIT_EXPECT_FALSE(authorizer->authorized(request));
+  }
+
+  {
+    // Test that no authorizer is created with invalid ACLs.
+    ACLs invalid;
+
+    mesos::ACL::ReactivateAgent* acl = invalid.add_reactivate_agents();
+    acl->mutable_principals()->add_values("foo");
+    acl->mutable_agents()->add_values("yoda");
+
+    Try<Authorizer*> create = TypeParam::create(parameterize(invalid));
+    EXPECT_ERROR(create);
+  }
+}
+
+
 // This tests the authorization of requests to ViewStandaloneContainer.
 TYPED_TEST(AuthorizationTest, ViewStandaloneContainer)
 {
