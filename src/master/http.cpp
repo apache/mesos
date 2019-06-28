@@ -2704,7 +2704,8 @@ Future<Response> Master::Http::getRoles(
         if (master->roles.contains(name)) {
           Role* role_ = master->roles.at(name);
 
-          role.mutable_resources()->CopyFrom(role_->allocatedResources());
+          *role.mutable_resources() =
+            role_->allocatedAndOfferedResources();
 
           foreachkey (const FrameworkID& frameworkId, role_->frameworks) {
             role.add_frameworks()->CopyFrom(frameworkId);

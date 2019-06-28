@@ -737,7 +737,8 @@ process::http::Response Master::ReadOnlyHandler::roles(
               if (role.isNone()) {
                 writer->field("resources", Resources());
               } else {
-                writer->field("resources", (*role)->allocatedResources());
+                writer->field(
+                    "resources", (*role)->allocatedAndOfferedResources());
               }
 
               if (role.isNone()) {
