@@ -554,7 +554,11 @@ TEST_F(SSLTest, PeerAddress)
   const Try<Address> server_address = server->address();
   ASSERT_SOME(server_address);
 
-  const Future<Nothing> connect = client.connect(server_address.get());
+  // Pass `None()` as hostname because this test is still
+  // using the 'legacy' hostname validation scheme.
+  const Future<Nothing> connect = client.connect(
+      server_address.get(),
+      openssl::create_tls_client_config(None()));
 
   AWAIT_ASSERT_READY(socket);
   AWAIT_ASSERT_READY(connect);
@@ -734,7 +738,12 @@ TEST_F(SSLTest, ShutdownThenSend)
 
   Try<Socket> client = Socket::create(SocketImpl::Kind::SSL);
   ASSERT_SOME(client);
-  AWAIT_ASSERT_READY(client->connect(server->address().get()));
+
+  // Pass `None()` as hostname because this test is still
+  // using the 'legacy' hostname validation scheme.
+  AWAIT_ASSERT_READY(client->connect(
+      server->address().get(),
+      openssl::create_tls_client_config(None())));
 
   AWAIT_ASSERT_READY(socket);
 
@@ -787,7 +796,11 @@ TEST_P(SSLVerifyIPAddTest, BasicSameProcess)
 
   Future<Socket> accept = server->accept();
 
-  AWAIT_ASSERT_READY(client->connect(address.get()));
+  // Pass `None()` as hostname because this test is still
+  // using the 'legacy' hostname validation scheme.
+  AWAIT_ASSERT_READY(client->connect(
+      address.get(),
+      openssl::create_tls_client_config(None())));
 
   // Wait for the server to have accepted the client connection.
   AWAIT_ASSERT_READY(accept);
@@ -841,7 +854,11 @@ TEST_P(SSLVerifyIPAddTest, BasicSameProcessUnix)
 
   Future<unix::Socket> accept = server->accept();
 
-  AWAIT_ASSERT_READY(client->connect(address.get()));
+  // Pass `None()` as hostname because this test is still
+  // using the 'legacy' hostname validation scheme.
+  AWAIT_ASSERT_READY(client->connect(
+      address.get(),
+      openssl::create_tls_client_config(None())));
 
   // Wait for the server to have accepted the client connection.
   AWAIT_ASSERT_READY(accept);
@@ -972,6 +989,153 @@ TEST_P(SSLProtocolTest, Mismatch)
     Future<Socket> socket = server->accept();
     AWAIT_ASSERT_FAILED(socket);
 
+    // Pass `None()` as hostname because this test is still
+    // using the 'legacy' hostname validation scheme.
     AWAIT_ASSERT_READY(await_subprocess(client.get(), None()));
   }
+}
+
+
+// Verify that we can make a connection using a custom SSL context,
+// and that the specified `verify` and `configure_socket` callbacks
+// are called.
+TEST_F(SSLTest, CustomSSLContext)
+{
+  static bool verify_called;
+  static bool configure_socket_called;
+
+  os::setenv("LIBPROCESS_SSL_ENABLED", "true");
+  os::setenv("LIBPROCESS_SSL_KEY_FILE", key_path().string());
+  os::setenv("LIBPROCESS_SSL_CERT_FILE", certificate_path().string());
+
+  openssl::reinitialize();
+
+  verify_called = false;
+  configure_socket_called = false;
+
+  SSL_CTX* ctx = SSL_CTX_new(SSLv23_client_method());
+  SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, nullptr);
+
+  openssl::TLSClientConfig config(
+    None(),
+    ctx,
+    [](SSL*, const network::Address&, const Option<std::string>&)
+      -> Try<Nothing>
+    {
+      configure_socket_called = true;
+      return Nothing();
+    },
+    [](const SSL* const, const Option<std::string>&, const Option<net::IP>&)
+      -> Try<Nothing>
+    {
+      verify_called = true;
+      return Nothing();
+    });
+
+  Try<Socket> client = Socket::create(SocketImpl::Kind::SSL);
+  ASSERT_SOME(client);
+
+  Try<Socket> server = Socket::create(SocketImpl::Kind::SSL);
+  ASSERT_SOME(server);
+
+  server->listen(1);
+  Try<Address> address = server->address();
+  ASSERT_SOME(address);
+
+  Future<Socket> socket = server->accept();
+  Future<Nothing> connected = client->connect(*address, config);
+
+  AWAIT_READY(socket);
+  AWAIT_READY(connected);
+
+  EXPECT_TRUE(verify_called);
+  EXPECT_TRUE(configure_socket_called);
+}
+
+
+// Ensures that `connect()` fails if the passed
+// `configure_socket` callback returns an error.
+TEST_F(SSLTest, CustomSSLContextConfigureSocketFails)
+{
+  os::setenv("LIBPROCESS_SSL_ENABLED", "true");
+  os::setenv("LIBPROCESS_SSL_KEY_FILE", key_path().string());
+  os::setenv("LIBPROCESS_SSL_CERT_FILE", certificate_path().string());
+
+  openssl::reinitialize();
+
+  SSL_CTX* ctx = SSL_CTX_new(SSLv23_client_method());
+  SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, nullptr);
+
+  openssl::TLSClientConfig config(
+    None(),
+    ctx,
+    [](SSL*, const network::Address&, const Option<std::string>&)
+      -> Try<Nothing>
+    {
+      return Error("Configure socket.");
+    },
+    [](const SSL* const, const Option<std::string>&, const Option<net::IP>&)
+      -> Try<Nothing>
+    {
+      return Nothing();
+    });
+
+  Try<Socket> client = Socket::create(SocketImpl::Kind::SSL);
+  ASSERT_SOME(client);
+
+  Try<Socket> server = Socket::create(SocketImpl::Kind::SSL);
+  ASSERT_SOME(server);
+
+  server->listen(1);
+  Try<Address> address = server->address();
+  ASSERT_SOME(address);
+
+  Future<Socket> socket = server->accept();
+  Future<Nothing> connected = client->connect(*address, config);
+
+  AWAIT_ASSERT_FAILED(connected);
+}
+
+
+// Ensures that `connect()` fails if the passed
+// `verify` callback returns an error.
+TEST_F(SSLTest, CustomSSLContextVerifyFails)
+{
+  os::setenv("LIBPROCESS_SSL_ENABLED", "true");
+  os::setenv("LIBPROCESS_SSL_KEY_FILE", key_path().string());
+  os::setenv("LIBPROCESS_SSL_CERT_FILE", certificate_path().string());
+
+  openssl::reinitialize();
+
+  SSL_CTX* ctx = SSL_CTX_new(SSLv23_client_method());
+  SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, nullptr);
+
+  openssl::TLSClientConfig config(
+    None(),
+    ctx,
+    [](SSL*, const network::Address&, const Option<std::string>&)
+      -> Try<Nothing>
+    {
+      return Nothing();
+    },
+    [](const SSL* const, const Option<std::string>&, const Option<net::IP>&)
+      -> Try<Nothing>
+    {
+      return Error("Verify failed.");
+    });
+
+  Try<Socket> client = Socket::create(SocketImpl::Kind::SSL);
+  ASSERT_SOME(client);
+
+  Try<Socket> server = Socket::create(SocketImpl::Kind::SSL);
+  ASSERT_SOME(server);
+
+  server->listen(1);
+  Try<Address> address = server->address();
+  ASSERT_SOME(address);
+
+  Future<Socket> socket = server->accept();
+  Future<Nothing> connected = client->connect(*address, config);
+
+  AWAIT_ASSERT_FAILED(connected);
 }

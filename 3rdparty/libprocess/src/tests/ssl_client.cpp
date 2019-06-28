@@ -143,8 +143,18 @@ TEST_F(SSLClientTest, client)
   EXPECT_SOME(ip);
 
   // Connect to the server socket located at `ip:port`.
-  const Future<Nothing> connect =
-    socket.connect(Address(ip.get(), flags.port));
+  Address address(ip.get(), flags.port);
+  Future<Nothing> connect = [&]() {
+    switch(socket.kind()) {
+      case SocketImpl::Kind::POLL:
+        return socket.connect(address);
+      case SocketImpl::Kind::SSL:
+        return socket.connect(
+            address,
+            openssl::create_tls_client_config(None()));
+    }
+    UNREACHABLE();
+  }();
 
   // Verify that the client views the connection as established.
   AWAIT_EXPECT_READY(connect);

@@ -30,6 +30,8 @@
 
 #include <process/network.hpp>
 
+#include <process/ssl/tls_config.hpp>
+
 namespace process {
 namespace network {
 namespace openssl {

@@ -40,9 +40,10 @@ public:
   ~LibeventSSLSocketImpl() override;
 
   // Implement 'SocketImpl' interface.
+  Future<Nothing> connect(const Address& address) override;
   Future<Nothing> connect(
       const Address& address,
-      const Option<std::string>& peer_hostname) override;
+      const openssl::TLSClientConfig& config) override;
 
   Future<size_t> recv(char* data, size_t size) override;
   // Send does not currently support discard. See implementation.
@@ -190,6 +191,7 @@ private:
   Queue<Future<std::shared_ptr<SocketImpl>>> accept_queue;
 
   Option<net::IP> peer_ip;
+  Option<openssl::TLSClientConfig> client_config;
 };
 
 } // namespace internal {

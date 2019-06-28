@@ -40,6 +40,7 @@
 #include <process/socket.hpp>
 
 #include <process/ssl/gtest.hpp>
+#include <process/ssl/tls_config.hpp>
 
 #include <stout/base64.hpp>
 #include <stout/gtest.hpp>
@@ -260,7 +261,20 @@ TEST_P(HTTPTest, Endpoints)
 
     inet::Socket socket = create.get();
 
-    AWAIT_READY(socket.connect(http.process->self().address));
+    Future<Nothing> connected = [&]() {
+      switch(socket.kind()) {
+        case network::internal::SocketImpl::Kind::POLL:
+          return socket.connect(http.process->self().address);
+#ifdef USE_SSL_SOCKET
+        case network::internal::SocketImpl::Kind::SSL:
+          return socket.connect(
+              http.process->self().address,
+              network::openssl::create_tls_client_config(None()));
+#endif
+      }
+      UNREACHABLE();
+    }();
+    AWAIT_READY(connected);
 
     std::ostringstream out;
     out << "GET /" << http.process->self().id << "/body"

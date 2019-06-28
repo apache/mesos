@@ -437,25 +437,23 @@ void LibeventSSLSocketImpl::event_callback(short events)
     // If we're connecting, then we've succeeded. Time to do
     // post-verification.
     CHECK_NOTNULL(bev);
+    CHECK(client_config.isSome());
 
-    // Do post-validation of connection.
-    SSL* ssl = bufferevent_openssl_get_ssl(bev);
+    if (client_config->verify) {
+      // Do post-validation of connection.
+      SSL* ssl = bufferevent_openssl_get_ssl(bev);
 
-    // We intentionally don't store the hostname passed to
-    // `connect()`: The 'openssl' hostname validation already
-    // verified the hostname if we get here, and the 'libprocess'
-    // algorithm should always use rDNS lookups on the IP address
-    // for backwards compatibility with the previous behaviour.
-    Try<Nothing> verify = openssl::verify(
-        ssl, Mode::CLIENT, None(), peer_ip);
+      Try<Nothing> verify = client_config->verify(
+          ssl, client_config->servername, peer_ip);
 
-    if (verify.isError()) {
-      VLOG(1) << "Failed connect, verification error: " << verify.error();
-      SSL_free(ssl);
-      bufferevent_free(bev);
-      bev = nullptr;
-      current_connect_request->promise.fail(verify.error());
-      return;
+      if (verify.isError()) {
+        VLOG(1) << "Failed connect, verification error: " << verify.error();
+        SSL_free(ssl);
+        bufferevent_free(bev);
+        bev = nullptr;
+        current_connect_request->promise.fail(verify.error());
+        return;
+      }
     }
 
     current_connect_request->promise.set(Nothing());
@@ -515,8 +513,15 @@ LibeventSSLSocketImpl::LibeventSSLSocketImpl(
 
 
 Future<Nothing> LibeventSSLSocketImpl::connect(
+    const Address& address)
+{
+  LOG(FATAL) << "No TLS config was passed to a SSL socket.";
+}
+
+
+Future<Nothing> LibeventSSLSocketImpl::connect(
     const Address& address,
-    const Option<string>& peer_hostname)
+    const openssl::TLSClientConfig& config)
 {
   if (bev != nullptr) {
     return Failure("Socket is already connected");
@@ -526,16 +531,24 @@ Future<Nothing> LibeventSSLSocketImpl::connect(
     return Failure("Socket is already connecting");
   }
 
-  SSL* ssl = SSL_new(openssl::context());
+  if (config.ctx == nullptr) {
+    return Failure("Invalid SSL context");
+  }
+
+  SSL* ssl = SSL_new(config.ctx);
   if (ssl == nullptr) {
     return Failure("Failed to connect: SSL_new");
   }
 
-  Try<Nothing> configured = openssl::configure_socket(
-      ssl, openssl::Mode::CLIENT, address, peer_hostname);
+  client_config = config;
 
-  if (configured.isError()) {
-    return Failure("Failed to configure socket: " + configured.error());
+  if (config.configure_socket) {
+    Try<Nothing> configured = config.configure_socket(
+        ssl, address, config.servername);
+
+    if (configured.isError()) {
+      return Failure("Failed to configure socket: " + configured.error());
+    }
   }
 
   // Construct the bufferevent in the connecting state.
@@ -565,8 +578,8 @@ Future<Nothing> LibeventSSLSocketImpl::connect(
     peer_ip = inetAddress.ip;
   }
 
-  if (peer_hostname.isSome()) {
-    VLOG(2) << "Connecting to " << peer_hostname.get() << " at " << address;
+  if (config.servername.isSome()) {
+    VLOG(2) << "Connecting to " << config.servername.get() << " at " << address;
   } else {
     VLOG(2) << "Connecting to " << address << " with no hostname specified";
   }
@@ -618,6 +631,7 @@ Future<Nothing> LibeventSSLSocketImpl::connect(
             SSL* ssl = bufferevent_openssl_get_ssl(CHECK_NOTNULL(self->bev));
             SSL_free(ssl);
             bufferevent_free(self->bev);
+
             self->bev = nullptr;
 
             Owned<ConnectRequest> request;

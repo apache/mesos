@@ -150,6 +150,10 @@ using process::network::inet::Socket;
 
 using process::network::internal::SocketImpl;
 
+#ifdef USE_SSL_SOCKET
+using process::network::openssl::create_tls_client_config;
+#endif
+
 using std::deque;
 using std::find;
 using std::list;
@@ -1443,6 +1447,25 @@ void ignore_recv_data(
 // Forward declaration.
 void send(Encoder* encoder, Socket socket);
 
+// A helper to securely select the correct overload of `connect()`
+// for a generic socket.
+Future<Nothing> connectSocket(
+    Socket& socket,
+    const Address& address,
+    const Option<string>& servername)
+{
+  switch (socket.kind()) {
+    case SocketImpl::Kind::POLL:
+      return socket.connect(address);
+#ifdef USE_SSL_SOCKET
+    case SocketImpl::Kind::SSL:
+      return socket.connect(
+          address, create_tls_client_config(servername));
+#endif
+  }
+
+  UNREACHABLE();
+}
 
 } // namespace internal {
 
@@ -1671,7 +1694,7 @@ void SocketManager::link(
 
   if (connect) {
     CHECK_SOME(socket);
-    socket->connect(to.address, to.host)
+    internal::connectSocket(*socket, to.address, to.host)
       .onAny(lambda::bind(
           &SocketManager::link_connect,
           this,
@@ -2033,7 +2056,7 @@ void SocketManager::send(Message&& message, const SocketImpl::Kind& kind)
 
   if (connect) {
     CHECK_SOME(socket);
-    socket->connect(address, message.to.host)
+    internal::connectSocket(*socket, address, message.to.host)
       .onAny(lambda::bind(
             // TODO(benh): with C++14 we can use lambda instead of
             // `std::bind` and capture `message` with a `std::move`.

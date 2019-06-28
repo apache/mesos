@@ -29,6 +29,7 @@
 #include <process/once.hpp>
 
 #include <process/ssl/flags.hpp>
+#include <process/ssl/tls_config.hpp>
 
 #include <stout/os.hpp>
 #include <stout/strings.hpp>
@@ -802,10 +803,11 @@ Try<Nothing> verify(
     return Try<Nothing>(Nothing());
   }
 
-  // For backwards compatibility, the 'libprocess' scheme will attempt to get
-  // the peer hostname using a reverse DNS lookup if connecting via IP address.
+  // NOTE: For backwards compatibility, we ignore the passed hostname here,
+  // i.e. the 'legacy' hostname validation scheme will always attempt to get
+  // the peer hostname using a reverse DNS lookup.
   Option<std::string> peer_hostname = hostname;
-  if (!hostname.isSome() && ip.isSome()) {
+  if (ip.isSome()) {
     VLOG(1) << "Doing rDNS lookup for 'libprocess' hostname validation";
     Stopwatch watch;
 
@@ -1040,6 +1042,49 @@ Try<Nothing> configure_socket(
   }
 
   return Nothing();
+}
+
+
+// Wrappers to be able to use the above `verify()` and `configure_socket()`
+// inside a `TLSClientConfig` struct.
+Try<Nothing> client_verify(
+    const SSL* const ssl,
+    const Option<std::string>& hostname,
+    const Option<net::IP>& ip)
+{
+  return verify(ssl, Mode::CLIENT, hostname, ip);
+}
+
+
+Try<Nothing> client_configure_socket(
+    SSL* ssl,
+    const Address& peer,
+    const Option<std::string>& peer_hostname)
+{
+  return configure_socket(ssl, Mode::CLIENT, peer, peer_hostname);
+}
+
+
+TLSClientConfig::TLSClientConfig(
+    const Option<std::string>& servername,
+    SSL_CTX *ctx,
+    ConfigureSocketCallback configure_socket,
+    VerifyCallback verify)
+  : ctx(ctx),
+    servername(servername),
+    verify(verify),
+    configure_socket(configure_socket)
+{}
+
+
+TLSClientConfig create_tls_client_config(
+    const Option<std::string>& servername)
+{
+  return TLSClientConfig(
+      servername,
+      openssl::ctx,
+      &client_configure_socket,
+      &client_verify);
 }
 
 } // namespace openssl {

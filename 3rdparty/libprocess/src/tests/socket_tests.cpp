@@ -54,6 +54,29 @@ void reinitialize(
 
 } // namespace process {
 
+
+// Helper function to safely connect a socket using the correct overload
+// of `connect()`.
+template<typename T, typename AddressType>
+static Future<Nothing> connectSocket(
+    process::network::internal::Socket<T>& socket,
+    const AddressType& address)
+{
+  switch (socket.kind()) {
+    case process::network::internal::SocketImpl::Kind::POLL:
+      return socket.connect(address);
+#ifdef USE_SSL_SOCKET
+    case process::network::internal::SocketImpl::Kind::SSL:
+      // The tests below never define an appropriate hostname to use, thus
+      // relying implicitly on the 'legacy' hostname validation scheme.
+      return socket.connect(
+          address,
+          process::network::openssl::create_tls_client_config(None()));
+#endif
+  }
+  UNREACHABLE();
+}
+
 class SocketTest : public TemporaryDirectoryTest {};
 
 #ifndef __WINDOWS__
@@ -76,7 +99,7 @@ TEST_F(SocketTest, Unix)
 
   Future<unix::Socket> accept = server->accept();
 
-  AWAIT_READY(client->connect(address.get()));
+  AWAIT_READY(connectSocket(*client, address.get()));
   AWAIT_READY(accept);
 
   unix::Socket socket = accept.get();
@@ -181,8 +204,9 @@ TEST_P(NetSocketTest, EOFBeforeRecv)
   // invalid address, except when used to resolve a host's address
   // for the first time.
   // See: https://tools.ietf.org/html/rfc1122#section-3.2.1.3
-  AWAIT_READY(
-      client->connect(Address(process::address().ip, server_address->port)));
+  AWAIT_READY(connectSocket(
+      *client,
+      Address(process::address().ip, server_address->port)));
 
   AWAIT_READY(server_accept);
 
@@ -226,8 +250,8 @@ TEST_P(NetSocketTest, EOFAfterRecv)
   // invalid address, except when used to resolve a host's address
   // for the first time.
   // See: https://tools.ietf.org/html/rfc1122#section-3.2.1.3
-  AWAIT_READY(
-      client->connect(Address(process::address().ip, server_address->port)));
+  AWAIT_READY(connectSocket(
+      *client, Address(process::address().ip, server_address->port)));
 
   AWAIT_READY(server_accept);
 

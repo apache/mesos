@@ -46,6 +46,8 @@
 #include <process/socket.hpp>
 #include <process/state_machine.hpp>
 
+#include <process/ssl/tls_config.hpp>
+
 #include <stout/error.hpp>
 #include <stout/foreach.hpp>
 #include <stout/ip.hpp>
@@ -1449,7 +1451,21 @@ Future<Connection> connect(
     return Failure("Failed to create socket: " + socket.error());
   }
 
-  return socket->connect(address, peer_hostname)
+  Future<Nothing> connected = [&]() {
+    switch (scheme) {
+      case Scheme::HTTP:
+        return socket->connect(address);
+#ifdef USE_SSL_SOCKET
+      case Scheme::HTTPS:
+        return socket->connect(
+            address,
+            network::openssl::create_tls_client_config(peer_hostname));
+#endif
+    }
+    UNREACHABLE();
+  }();
+
+  return connected
     .then([socket, address]() -> Future<Connection> {
       Try<network::Address> localAddress = socket->address();
       if (localAddress.isError()) {

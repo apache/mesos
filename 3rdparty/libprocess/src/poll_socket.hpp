@@ -14,6 +14,8 @@
 
 #include <process/socket.hpp>
 
+#include <process/ssl/tls_config.hpp>
+
 #include <stout/try.hpp>
 
 namespace process {
@@ -33,8 +35,12 @@ public:
   Try<Nothing> listen(int backlog) override;
   Future<std::shared_ptr<SocketImpl>> accept() override;
   Future<Nothing> connect(
+      const Address& address) override;
+#ifdef USE_SSL_SOCKET
+  Future<Nothing> connect(
       const Address& address,
-      const Option<std::string>& peer_hostname) override;
+      const openssl::TLSClientConfig& config) override;
+#endif
   Future<size_t> recv(char* data, size_t size) override;
   Future<size_t> send(const char* data, size_t size) override;
   Future<size_t> sendfile(int_fd fd, off_t offset, size_t size) override;
