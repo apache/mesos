@@ -10,6 +10,7 @@ clang-analyzer-*,\
 -clang-analyzer-core.UndefinedBinaryOperatorResult,\
 -clang-analyzer-core.uninitialized.Assign,\
 -clang-analyzer-core.uninitialized.UndefReturn,\
+-clang-analyzer-cplusplus.Move,\
 -clang-analyzer-cplusplus.NewDelete,\
 -clang-analyzer-cplusplus.NewDeleteLeaks,\
 -clang-analyzer-optin.cplusplus.VirtualCall,\
