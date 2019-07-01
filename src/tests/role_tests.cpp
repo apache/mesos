@@ -309,7 +309,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, EndpointEmpty)
       "}");
 
   ASSERT_SOME(expected);
-  EXPECT_EQ(expected.get(), parse.get());
+
+  EXPECT_EQ(*expected, *parse)
+    << "expected " << stringify(*expected)
+    << " vs actual " << stringify(*parse);
 }
 
 
@@ -345,10 +348,13 @@ TEST_F(RoleTest, EndpointNoFrameworks)
       "      \"frameworks\": [],"
       "      \"name\": \"*\","
       "      \"resources\": {"
-      "        \"cpus\": 0,"
-      "        \"disk\": 0,"
-      "        \"gpus\": 0,"
-      "        \"mem\":  0"
+      "        \"cpus\": 0, \"disk\": 0, \"gpus\": 0, \"mem\": 0"
+      "      },"
+      "      \"quota\": {"
+      "        \"role\": \"*\","
+      "        \"consumed\": {},"
+      "        \"guarantee\": {},"
+      "        \"limit\": {}"
       "      },"
       "      \"weight\": 1.0"
       "    },"
@@ -356,10 +362,13 @@ TEST_F(RoleTest, EndpointNoFrameworks)
       "      \"frameworks\": [],"
       "      \"name\": \"role1\","
       "      \"resources\": {"
-      "        \"cpus\": 0,"
-      "        \"disk\": 0,"
-      "        \"gpus\": 0,"
-      "        \"mem\":  0"
+      "        \"cpus\": 0, \"disk\": 0, \"gpus\": 0, \"mem\": 0"
+      "      },"
+      "      \"quota\": {"
+      "        \"role\": \"role1\","
+      "        \"consumed\": {},"
+      "        \"guarantee\": {},"
+      "        \"limit\": {}"
       "      },"
       "      \"weight\": 5.0"
       "    },"
@@ -367,10 +376,13 @@ TEST_F(RoleTest, EndpointNoFrameworks)
       "      \"frameworks\": [],"
       "      \"name\": \"role2\","
       "      \"resources\": {"
-      "        \"cpus\": 0,"
-      "        \"disk\": 0,"
-      "        \"gpus\": 0,"
-      "        \"mem\":  0"
+      "        \"cpus\": 0, \"disk\": 0, \"gpus\": 0, \"mem\": 0"
+      "      },"
+      "      \"quota\": {"
+      "        \"role\": \"role2\","
+      "        \"consumed\": {},"
+      "        \"guarantee\": {},"
+      "        \"limit\": {}"
       "      },"
       "      \"weight\": 1.0"
       "    }"
@@ -378,7 +390,10 @@ TEST_F(RoleTest, EndpointNoFrameworks)
       "}");
 
   ASSERT_SOME(expected);
-  EXPECT_EQ(expected.get(), parse.get());
+
+  EXPECT_EQ(*expected, *parse)
+    << "expected " << stringify(*expected)
+    << " vs actual " << stringify(*parse);
 }
 
 
@@ -433,22 +448,25 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, RolesEndpointContainsQuota)
           "\"quota\":"
             "{"
               "\"role\":\"foo\","
+              "\"consumed\": {},"
               "\"guarantee\":"
                 "{"
                   "\"cpus\":1.0,"
                   "\"mem\":512.0"
                 "},"
-                "\"limit\":"
-                  "{"
-                    "\"cpus\":1.0,"
-                    "\"mem\":512.0"
-                  "}"
+              "\"limit\":"
+                "{"
+                  "\"cpus\":1.0,"
+                  "\"mem\":512.0"
+                "}"
             "}"
         "}"
     );
     ASSERT_SOME(expected);
 
-    EXPECT_TRUE(role.contains(expected.get()));
+    EXPECT_TRUE(role.contains(*expected))
+      << "expected " << stringify(*expected)
+      << " vs actual " << stringify(role);
   }
 }
 
@@ -513,10 +531,13 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, EndpointImplicitRolesWeights)
       "      \"frameworks\": [\"" + frameworkId1->value() + "\"],"
       "      \"name\": \"roleX\","
       "      \"resources\": {"
-      "        \"cpus\": 0,"
-      "        \"disk\": 0,"
-      "        \"gpus\": 0,"
-      "        \"mem\":  0"
+      "        \"cpus\": 0, \"disk\": 0, \"gpus\": 0, \"mem\": 0"
+      "      },"
+      "      \"quota\": {"
+      "        \"role\": \"roleX\","
+      "        \"consumed\": {},"
+      "        \"guarantee\": {},"
+      "        \"limit\": {}"
       "      },"
       "      \"weight\": 5.0"
       "    },"
@@ -524,10 +545,13 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, EndpointImplicitRolesWeights)
       "      \"frameworks\": [],"
       "      \"name\": \"roleY\","
       "      \"resources\": {"
-      "        \"cpus\": 0,"
-      "        \"disk\": 0,"
-      "        \"gpus\": 0,"
-      "        \"mem\":  0"
+      "        \"cpus\": 0, \"disk\": 0, \"gpus\": 0, \"mem\": 0"
+      "      },"
+      "      \"quota\": {"
+      "        \"role\": \"roleY\","
+      "        \"consumed\": {},"
+      "        \"guarantee\": {},"
+      "        \"limit\": {}"
       "      },"
       "      \"weight\": 4.0"
       "    },"
@@ -535,10 +559,13 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, EndpointImplicitRolesWeights)
       "      \"frameworks\": [\"" + frameworkId2->value() + "\"],"
       "      \"name\": \"roleZ\","
       "      \"resources\": {"
-      "        \"cpus\": 0,"
-      "        \"disk\": 0,"
-      "        \"gpus\": 0,"
-      "        \"mem\":  0"
+      "        \"cpus\": 0, \"disk\": 0, \"gpus\": 0, \"mem\": 0"
+      "      },"
+      "      \"quota\": {"
+      "        \"role\": \"roleZ\","
+      "        \"consumed\": {},"
+      "        \"guarantee\": {},"
+      "        \"limit\": {}"
       "      },"
       "      \"weight\": 1.0"
       "    }"
@@ -546,7 +573,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, EndpointImplicitRolesWeights)
       "}");
 
   ASSERT_SOME(expected);
-  EXPECT_EQ(expected.get(), parse.get());
+
+  EXPECT_EQ(*expected, *parse)
+    << "expected " << stringify(*expected)
+    << " vs actual " << stringify(*parse);
 
   driver1.stop();
   driver1.join();
@@ -607,10 +637,13 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, EndpointImplicitRolesQuotas)
       "      \"frameworks\": [],"
       "      \"name\": \"non-existent-role\","
       "      \"resources\": {"
-      "        \"cpus\": 0,"
-      "        \"disk\": 0,"
-      "        \"gpus\": 0,"
-      "        \"mem\":  0"
+      "        \"cpus\": 0, \"disk\": 0, \"gpus\": 0, \"mem\": 0"
+      "      },"
+      "      \"quota\": {"
+      "        \"role\": \"non-existent-role\","
+      "        \"consumed\": {},"
+      "        \"guarantee\": {},"
+      "        \"limit\": {}"
       "      },"
       "      \"weight\": 1.0"
       "    }"
@@ -651,8 +684,10 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, EndpointImplicitRolesQuotas)
       "}");
 
   ASSERT_SOME(expected);
-  EXPECT_EQ(expected.get(), parse.get());
-}
+
+  EXPECT_EQ(*expected, *parse)
+    << "expected " << stringify(*expected)
+    << " vs actual " << stringify(*parse);}
 
 
 // This test ensures that master adds/removes all roles of
@@ -705,10 +740,13 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
         "      \"frameworks\": [\"" + frameworkId->value() + "\"],"
         "      \"name\": \"role1\","
         "      \"resources\": {"
-        "        \"cpus\": 0,"
-        "        \"disk\": 0,"
-        "        \"gpus\": 0,"
-        "        \"mem\":  0"
+        "        \"cpus\": 0, \"disk\": 0, \"gpus\": 0, \"mem\": 0"
+        "      },"
+        "      \"quota\": {"
+        "        \"role\": \"role1\","
+        "        \"consumed\": {},"
+        "        \"guarantee\": {},"
+        "        \"limit\": {}"
         "      },"
         "      \"weight\": 1.0"
         "    },"
@@ -716,10 +754,13 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
         "      \"frameworks\": [\"" + frameworkId->value() + "\"],"
         "      \"name\": \"role2\","
         "      \"resources\": {"
-        "        \"cpus\": 0,"
-        "        \"disk\": 0,"
-        "        \"gpus\": 0,"
-        "        \"mem\":  0"
+        "        \"cpus\": 0, \"disk\": 0, \"gpus\": 0, \"mem\": 0"
+        "      },"
+        "      \"quota\": {"
+        "        \"role\": \"role2\","
+        "        \"consumed\": {},"
+        "        \"guarantee\": {},"
+        "        \"limit\": {}"
         "      },"
         "      \"weight\": 1.0"
         "    }"
@@ -728,7 +769,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
     ASSERT_SOME(expected);
 
-    EXPECT_EQ(expected.get(), parse.get());
+    EXPECT_EQ(*expected, *parse)
+      << "expected " << stringify(*expected)
+      << " vs actual " << stringify(*parse);
   }
 
   // Set expectation that Master receives teardown call.
@@ -764,8 +807,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(
 
     ASSERT_SOME(expected);
 
-    EXPECT_EQ(expected.get(), parse.get());
-  }
+    EXPECT_EQ(*expected, *parse)
+      << "expected " << stringify(*expected)
+      << " vs actual " << stringify(*parse);  }
 }
 
 

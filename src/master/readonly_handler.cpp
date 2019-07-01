@@ -712,27 +712,32 @@ process::http::Response Master::ReadOnlyHandler::roles(
               // Default weight is 1.0.
               writer->field("weight", master->weights.get(name).getOrElse(1.0));
 
-              if (master->quotas.contains(name)) {
-                // Prior to Mesos 1.9, this field is filled based on
-                // `QuotaInfo` which is now deprecated. For backward
-                // compatibility reasons, we do not use any formatter
-                // for the new struct but construct the response by hand.
-                // Specifically:
-                //
-                //  - We keep the `role` field which was present in the
-                //    `QuotaInfo`.
-                //
-                //  - We name the field using singular `guarantee` and `limit`
-                //    which is different from the plural used in `QuotaConfig`.
-                const Quota& quota = master->quotas.at(name);
-                writer->field("quota", [&](JSON::ObjectWriter* writer) {
-                  writer->field("role", name);
-                  writer->field("guarantee", quota.guarantees);
-                  writer->field("limit", quota.limits);
-                });
-              }
-
               Option<Role*> role = master->roles.get(name);
+
+              // Prior to Mesos 1.9, this field is filled based on
+              // `QuotaInfo` which is now deprecated. For backward
+              // compatibility reasons, we do not use any formatter
+              // for the new struct but construct the response by hand.
+              // Specifically:
+              //
+              //  - We keep the `role` field which was present in the
+              //    `QuotaInfo`.
+              //
+              //  - We name the field using singular `guarantee` and `limit`
+              //    which is different from the plural used in `QuotaConfig`.
+              const Quota quota = master->quotas.get(name).getOrElse(Quota());
+
+              writer->field("quota", [&](JSON::ObjectWriter* writer) {
+                writer->field("role", name);
+
+                writer->field("guarantee", quota.guarantees);
+                writer->field("limit", quota.limits);
+
+                ResourceQuantities consumed = role.isSome() ?
+                  (*role)->consumedQuota() : ResourceQuantities();
+
+                writer->field("consumed", consumed);
+              });
 
               if (role.isNone()) {
                 writer->field("resources", Resources());
