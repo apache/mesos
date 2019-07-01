@@ -1,0 +1,1 @@
+./docs/beginner-contribution.md
