@@ -13,7 +13,7 @@
 #ifndef __STOUT_SET_HPP__
 #define __STOUT_SET_HPP__
 
-#include <algorithm> // For std::set_intersection.
+#include <algorithm> // For std::set_intersection and std::set_difference.
 #include <set>
 
 template <typename T>
@@ -41,6 +41,20 @@ std::set<T> operator&(const std::set<T>& left, const std::set<T>& right)
 {
   std::set<T> result;
   std::set_intersection(
+      left.begin(),
+      left.end(),
+      right.begin(),
+      right.end(),
+      std::inserter(result, result.begin()));
+  return result;
+}
+
+
+template <typename T>
+std::set<T> operator-(const std::set<T>& left, const std::set<T>& right)
+{
+  std::set<T> result;
+  std::set_difference(
       left.begin(),
       left.end(),
       right.begin(),
