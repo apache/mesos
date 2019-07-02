@@ -88,6 +88,7 @@ namespace mesos {
 namespace internal {
 
 constexpr char MESOS_CONTAINER_IP[] = "MESOS_CONTAINER_IP";
+constexpr char MESOS_ALLOCATION_ROLE[] = "MESOS_ALLOCATION_ROLE";
 
 
 class DefaultExecutor : public ProtobufProcess<DefaultExecutor>
@@ -431,6 +432,9 @@ protected:
 
     LOG(INFO) << "Setting 'MESOS_CONTAINER_IP' to: " << containerIP.value();
 
+    Environment::Variable allocationRole;
+    allocationRole.set_name(MESOS_ALLOCATION_ROLE);
+
     vector<ContainerID> containerIds;
     vector<Future<Response>> responses;
 
@@ -510,12 +514,20 @@ protected:
         sandboxPath->set_path(executorVolume.container_path());
       }
 
-      // Set the `MESOS_CONTAINER_IP` for the task.
+      // Set the `MESOS_CONTAINER_IP` environment variable for the task.
       //
       // TODO(asridharan): Document this API for consumption by tasks
       // in the Mesos CNI and default-executor documentation.
       CommandInfo *command = launch->mutable_command();
       command->mutable_environment()->add_variables()->CopyFrom(containerIP);
+
+      // Set the `MESOS_ALLOCATION_ROLE` environment variable for the task.
+      // Please note that tasks are not allowed to mix resources allocated
+      // to different roles, see MESOS-6636.
+      allocationRole.set_value(
+          task.resources().begin()->allocation_info().role());
+
+      command->mutable_environment()->add_variables()->CopyFrom(allocationRole);
 
       responses.push_back(post(connection.get(), call));
     }

@@ -681,6 +681,14 @@ Try<Docker::RunOptions> Docker::RunOptions::create(
   options.env["MESOS_SANDBOX"] = mappedDirectory;
   options.env["MESOS_CONTAINER_NAME"] = name;
 
+  if (resources.isSome()) {
+    // Set the `MESOS_ALLOCATION_ROLE` environment variable. Please note
+    // that tasks and executors are not allowed to mix resources allocated
+    // to different roles, see MESOS-6636.
+    const Resource resource = *resources->begin();
+    options.env["MESOS_ALLOCATION_ROLE"] = resource.allocation_info().role();
+  }
+
   Option<string> volumeDriver;
   foreach (const Volume& volume, containerInfo.volumes()) {
     // The 'container_path' can be either an absolute path or a
