@@ -40,7 +40,7 @@
 #include <stout/uuid.hpp>
 
 #include "master/allocator/mesos/allocator.hpp"
-
+#include "master/detector/standalone.hpp"
 #include "master/master.hpp"
 
 #include "tests/containerizer.hpp"
@@ -372,6 +372,61 @@ TEST_F(MesosSchedulerDriverTest, ExplicitAcknowledgementsMasterGeneratedUpdate)
   // Settle the clock to ensure driver processes the acknowledgement,
   // which should get dropped due to having come from the master.
   Clock::pause();
+  Clock::settle();
+
+  driver.stop();
+  driver.join();
+}
+
+
+// This test ensures that re-registration preserves suppression of offers.
+TEST_F(MesosSchedulerDriverTest, ReregisterAfterSuppress)
+{
+  mesos::internal::master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  ::mesos::master::detector::StandaloneMasterDetector detector;
+  detector.appoint(master.get()->pid);
+
+  MockScheduler sched;
+  TestingMesosSchedulerDriver driver(&sched, &detector, DEFAULT_FRAMEWORK_INFO);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  // Sanity check: the re-registration should occur once.
+  EXPECT_CALL(sched, reregistered(&driver, _))
+    .Times(1);
+
+  // We should never get offers, despite of the re-registration.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .Times(AtMost(0));
+
+  driver.start();
+
+  // Driver might take a different path if suppressOffers() is called in a
+  // disconnected state. We choose a typical path by waiting for registration.
+  AWAIT_READY(registered);
+
+  driver.suppressOffers();
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
+  // Add a slave to get offers if they are not suppressed.
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector);
+  ASSERT_SOME(slave);
+
+  // Trigger re-registration.
+  detector.appoint(None());
+  detector.appoint(master.get()->pid);
+
+  // Trigger allocation to ensure that offers are still suppressed.
+  Clock::pause();
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
   Clock::settle();
 
   driver.stop();
