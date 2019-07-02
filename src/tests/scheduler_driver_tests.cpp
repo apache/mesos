@@ -499,6 +499,61 @@ TEST_F(MesosSchedulerDriverTest, ExplicitAcknowledgementsUnsetSlaveID)
   driver.join();
 }
 
+
+// This test ensures that the driver can register with a suppressed role.
+TEST_F(MesosSchedulerDriverTest, RegisterWithSuppressedRole)
+{
+  mesos::internal::master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+
+  frameworkInfo.clear_roles();
+  frameworkInfo.add_roles("role1");
+  frameworkInfo.add_roles("role2");
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched,
+      frameworkInfo,
+      {"role2"},
+      master.get()->pid,
+      false,
+      DEFAULT_CREDENTIAL);
+
+  Future<vector<Offer>> offers;
+
+  // We should get offers EXACTLY once.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
+  ASSERT_EQ("role1", offers.get()[0].allocation_info().role());
+
+  Filters filter1day;
+  filter1day.set_refuse_seconds(Days(1).secs());
+
+  driver.declineOffer(offers.get()[0].id(), filter1day);
+  Clock::pause();
+  Clock::settle();
+
+  // Trigger allocation to ensure that role2 is suppressed. We should get no
+  // more offers.
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::settle();
+
+  driver.stop();
+  driver.join();
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
