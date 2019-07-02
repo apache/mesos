@@ -240,15 +240,26 @@ class SchedulerDriver(object):
 
   def reviveOffers(self):
     """
-      Removes all filters previously set by the framework (via
-      launchTasks()).  This enables the framework to receive offers from
-      those filtered slaves.
+      Removes all filters previously set by the framework (via launchTasks()
+      or declineOffer()) and clears the set of suppressed roles.
+
+      NOTE: If the framework is not connected to the master, the set
+      of suppressed roles stored by the driver will be cleared, and an
+      up-to-date set of suppressed roles will be sent to the master
+      during re-registration.
     """
 
   def suppressOffers(self):
     """
-      Inform Mesos master to stop sending offers to the framework. The
-      scheduler should call reviveOffers() to resume getting offers.
+      Informs Mesos master to stop sending offers to the framework (i.e.
+      to suppress all roles of the framework). To resume getting offers,
+      the scheduler can call reviveOffers() or set the suppressed roles
+      explicitly via updateFramework().
+
+      NOTE: If the framework is not connected to the master, all the roles
+      will be added to the set of suppressed roles in the driver, and an
+      up-to-date suppressed roles set will be sent to the master during
+      re-registration.
     """
 
   def acknowledgeStatusUpdate(self, status):

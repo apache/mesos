@@ -103,6 +103,8 @@ using namespace mesos::internal;
 using namespace mesos::internal::master;
 using namespace mesos::scheduler;
 
+using google::protobuf::RepeatedPtrField;
+
 using mesos::master::detector::MasterDetector;
 
 using process::Clock;
@@ -116,6 +118,7 @@ using process::UPID;
 using std::map;
 using std::mutex;
 using std::shared_ptr;
+using std::set;
 using std::string;
 using std::vector;
 using std::weak_ptr;
@@ -833,6 +836,8 @@ protected:
 
     Call::Subscribe* subscribe = call.mutable_subscribe();
     subscribe->mutable_framework_info()->CopyFrom(framework);
+    *subscribe->mutable_suppressed_roles() = RepeatedPtrField<string>(
+        suppressedRoles.begin(), suppressedRoles.end());
 
     if (framework.has_id() && !framework.id().value().empty()) {
       subscribe->set_force(failover);
@@ -1433,10 +1438,18 @@ protected:
 
   void reviveOffers()
   {
+    suppressedRoles.clear();
+
     if (!connected) {
-      VLOG(1) << "Ignoring revive offers message as master is disconnected";
+      VLOG(1) << "Ignoring REVIVE as master is disconnected;"
+              << " the set of suppressed roles in the driver has been cleared"
+              << " and will be sent to the master during re-registration";
+
+      sendUpdateFrameworkOnConnect = true;
       return;
     }
+
+    VLOG(2) << "Sending REVIVE for all roles";
 
     Call call;
 
@@ -1450,10 +1463,19 @@ protected:
 
   void suppressOffers()
   {
+    suppressedRoles =
+      std::set<string>(framework.roles().begin(), framework.roles().end());
+
     if (!connected) {
-      VLOG(1) << "Ignoring suppress offers message as master is disconnected";
+      VLOG(1) << "Ignoring SUPPRESS as master is disconnected;"
+              << " the set of suppressed roles in the driver has been updated"
+              << " and will be sent to the master during re-registration";
+
+      sendUpdateFrameworkOnConnect = true;
       return;
     }
+
+    VLOG(2) << "Sending SUPPRESS for all roles";
 
     Call call;
 
@@ -1595,7 +1617,9 @@ protected:
     send(master->pid(), call);
   }
 
-  void updateFramework(const FrameworkInfo& framework_)
+  void updateFramework(
+      const FrameworkInfo& framework_,
+      set<string>&& suppressedRoles_)
   {
     if (!framework.has_id() || framework.id().value().empty()) {
       error("MesosSchedulerDriver::updateFramework() must not be called"
@@ -1613,6 +1637,7 @@ protected:
     }
 
     framework = framework_;
+    suppressedRoles = std::move(suppressedRoles_);
 
     if (connected) {
       sendUpdateFramework();
@@ -1675,6 +1700,8 @@ private:
 
     call.set_type(Call::UPDATE_FRAMEWORK);
     *call.mutable_update_framework()->mutable_framework_info() = framework;
+    *call.mutable_update_framework()->mutable_suppressed_roles() =
+      RepeatedPtrField<string>(suppressedRoles.begin(), suppressedRoles.end());
 
     VLOG(1) << "Sending UPDATE_FRAMEWORK message";
 
@@ -1686,6 +1713,8 @@ private:
   MesosSchedulerDriver* driver;
   Scheduler* scheduler;
   FrameworkInfo framework;
+  set<string> suppressedRoles;
+
   std::recursive_mutex* mutex;
   Latch* latch;
 
@@ -2343,7 +2372,9 @@ Status MesosSchedulerDriver::reconcileTasks(
 }
 
 
-Status MesosSchedulerDriver::updateFramework(const FrameworkInfo& update)
+Status MesosSchedulerDriver::updateFramework(
+  const FrameworkInfo& update,
+  const vector<string>& suppressedRoles_)
 {
   synchronized (mutex) {
     if (status != DRIVER_RUNNING) {
@@ -2356,7 +2387,16 @@ Status MesosSchedulerDriver::updateFramework(const FrameworkInfo& update)
 
     CHECK(process != nullptr);
 
-    dispatch(process, &SchedulerProcess::updateFramework, framework);
+    set<string> suppressedRoles(
+        suppressedRoles_.begin(), suppressedRoles_.end());
+
+    CHECK_EQ(suppressedRoles_.size(), suppressedRoles.size())
+      << "Invalid suppressed role list: contains"
+      << " " << suppressedRoles_.size() - suppressedRoles.size()
+      << " duplicates " << suppressedRoles_;
+
+    dispatch(process, &SchedulerProcess::updateFramework, framework,
+             std::move(suppressedRoles));
 
     return status;
   }

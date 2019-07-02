@@ -284,13 +284,24 @@ public:
       const OfferID& offerId,
       const Filters& filters = Filters()) = 0;
 
-  // Removes all filters previously set by the framework (via
-  // launchTasks()). This enables the framework to receive offers from
-  // those filtered slaves.
+  // Removes all filters previously set by the framework (via launchTasks()
+  // or declineOffer()) and clears the set of suppressed roles.
+  //
+  // NOTE: If the framework is not connected to the master, the set
+  // of suppressed roles stored by the driver will be cleared, and an
+  // up-to-date set of suppressed roles will be sent to the master
+  // during re-registration.
   virtual Status reviveOffers() = 0;
 
-  // Inform Mesos master to stop sending offers to the framework. The
-  // scheduler should call reviveOffers() to resume getting offers.
+  // Informs Mesos master to stop sending offers to the framework (i.e.
+  // to suppress all roles of the framework). To resume getting offers,
+  // the scheduler can call reviveOffers() or set the suppressed roles
+  // explicitly via updateFramework().
+  //
+  // NOTE: If the framework is not connected to the master, all the roles
+  // will be added to the set of suppressed roles in the driver, and an
+  // up-to-date suppressed roles set will be sent to the master during
+  // re-registration.
   virtual Status suppressOffers() = 0;
 
   // Acknowledges the status update. This should only be called
@@ -318,9 +329,10 @@ public:
   virtual Status reconcileTasks(
       const std::vector<TaskStatus>& statuses) = 0;
 
-  // Inform Mesos master about changes to the `FrameworkInfo`. The
-  // driver will store the new `FrameworkInfo` and all subsequent
-  // re-registrations will use it.
+  // Inform Mesos master about changes to the `FrameworkInfo` and
+  // the set of suppressed roles. The driver will store the new
+  // `FrameworkInfo` and the new set of suppressed roles, and all
+  // subsequent re-registrations will use them.
   //
   // NOTE: If the supplied info is invalid or fails authorization,
   // the `error()` callback will be invoked asynchronously (after
@@ -333,7 +345,9 @@ public:
   // NOTE: The `FrameworkInfo.user` and `FrameworkInfo.hostname`
   // fields will be auto-populated using the same approach used
   // during driver initialization.
-  virtual Status updateFramework(const FrameworkInfo& frameworkInfo) = 0;
+  virtual Status updateFramework(
+      const FrameworkInfo& frameworkInfo,
+      const std::vector<std::string>& suppressedRoles) = 0;
 };
 
 
@@ -471,7 +485,9 @@ public:
   Status reconcileTasks(
       const std::vector<TaskStatus>& statuses) override;
 
-  Status updateFramework(const FrameworkInfo& frameworkInfo) override;
+  Status updateFramework(
+      const FrameworkInfo& frameworkInfo,
+      const std::vector<std::string>& suppressedRoles) override;
 
 protected:
   // Used to detect (i.e., choose) the master.

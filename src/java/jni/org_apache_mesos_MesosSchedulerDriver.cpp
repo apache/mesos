@@ -1016,7 +1016,7 @@ Java_org_apache_mesos_MesosSchedulerDriver_updateFramework(
   MesosSchedulerDriver* driver =
     (MesosSchedulerDriver*) env->GetLongField(thiz, __driver);
 
-  Status status = driver->updateFramework(frameworkInfo);
+  Status status = driver->updateFramework(frameworkInfo, {});
 
   return convert<Status>(env, status);
 }
