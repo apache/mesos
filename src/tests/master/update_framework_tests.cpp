@@ -73,6 +73,7 @@ using process::Promise;
 using recordio::Decoder;
 
 using std::string;
+using std::vector;
 
 using testing::_;
 using testing::AtMost;
@@ -931,6 +932,84 @@ TEST_F(UpdateFrameworkV0Test, RescindOnRemovingRoles)
   driver.stop();
   driver.join();
 }
+
+
+// Test that framework can suppress roles via updateFramework():
+// - start a master, a driver and a slave
+// - wait for offer
+// - update suppressed roles via updateFramework
+// - add a new slave and make sure we get no offers after that.
+TEST_F(UpdateFrameworkV0Test, SuppressedRoles)
+{
+  mesos::internal::master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  v1::MockMasterAPISubscriber masterAPISubscriber;
+  AWAIT_READY(masterAPISubscriber.subscribe(master.get()->pid));
+
+  // Expect FRAMEWORK_UPDATED event after update.
+  Future<v1::master::Event::FrameworkUpdated> frameworkUpdated;
+  EXPECT_CALL(masterAPISubscriber, frameworkUpdated(_))
+    .WillOnce(FutureArg<0>(&frameworkUpdated));
+
+  Owned<MasterDetector> detector = master->get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  MockScheduler sched;
+  TestingMesosSchedulerDriver driver(
+      &sched, detector.get(), DEFAULT_FRAMEWORK_INFO);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  // Expect an offer EXACTLY once (after subscribing and before adding
+  // the second slave).
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
+
+  // Suppress all roles via UPDATE_FRAMEWORK.
+  FrameworkInfo update = DEFAULT_FRAMEWORK_INFO;
+  *update.mutable_id() = frameworkId.get();
+
+  vector<string> suppressedRoles(
+    update.roles().begin(), update.roles().end());
+
+  driver.updateFramework(update, suppressedRoles);
+
+  AWAIT_READY(frameworkUpdated);
+
+  Future<Nothing> newAgentAdded;
+  EXPECT_CALL(masterAPISubscriber, agentAdded(_))
+    .WillOnce(FutureSatisfy(&newAgentAdded));
+
+  Try<Owned<cluster::Slave>> newSlave = StartSlave(detector.get());
+  ASSERT_SOME(newSlave);
+
+  AWAIT_READY(newAgentAdded);
+
+  // After the agent has been added, no offers should be generated
+  // within an allocation interval.
+  Clock::pause();
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::settle();
+
+  driver.stop();
+  driver.join();
+}
+
 
 } // namespace tests {
 } // namespace internal {
