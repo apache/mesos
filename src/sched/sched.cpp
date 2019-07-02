@@ -195,6 +195,7 @@ public:
   SchedulerProcess(MesosSchedulerDriver* _driver,
                    Scheduler* _scheduler,
                    const FrameworkInfo& _framework,
+                   const vector<string>& _suppressedRoles,
                    const Option<Credential>& _credential,
                    bool _implicitAcknowledgements,
                    const string& schedulerId,
@@ -217,6 +218,7 @@ public:
       driver(_driver),
       scheduler(_scheduler),
       framework(_framework),
+      suppressedRoles(_suppressedRoles.begin(), _suppressedRoles.end()),
       mutex(_mutex),
       latch(_latch),
       failover(_framework.has_id() && !framework.id().value().empty()),
@@ -1958,6 +1960,51 @@ MesosSchedulerDriver::MesosSchedulerDriver(
 }
 
 
+MesosSchedulerDriver::MesosSchedulerDriver(
+    Scheduler* _scheduler,
+    const FrameworkInfo& _framework,
+    const vector<string>& _suppressedRoles,
+    const string& _master,
+    bool _implicitAcknowlegements)
+  : detector(nullptr),
+    scheduler(_scheduler),
+    framework(_framework),
+    initialSuppressedRoles(_suppressedRoles),
+    master(_master),
+    process(nullptr),
+    latch(nullptr),
+    status(DRIVER_NOT_STARTED),
+    implicitAcknowlegements(_implicitAcknowlegements),
+    credential(nullptr),
+    schedulerId("scheduler-" + id::UUID::random().toString())
+{
+  initialize();
+}
+
+
+MesosSchedulerDriver::MesosSchedulerDriver(
+    Scheduler* _scheduler,
+    const FrameworkInfo& _framework,
+    const vector<string>& _suppressedRoles,
+    const string& _master,
+    bool _implicitAcknowlegements,
+    const Credential& _credential)
+  : detector(nullptr),
+    scheduler(_scheduler),
+    framework(_framework),
+    initialSuppressedRoles(_suppressedRoles),
+    master(_master),
+    process(nullptr),
+    latch(nullptr),
+    status(DRIVER_NOT_STARTED),
+    implicitAcknowlegements(_implicitAcknowlegements),
+    credential(new Credential(_credential)),
+    schedulerId("scheduler-" + id::UUID::random().toString())
+{
+  initialize();
+}
+
+
 MesosSchedulerDriver::~MesosSchedulerDriver()
 {
   // We want to make sure the SchedulerProcess has completed so it
@@ -2064,32 +2111,23 @@ Status MesosSchedulerDriver::start()
 
     CHECK(process == nullptr);
 
-    if (credential == nullptr) {
-      process = new SchedulerProcess(
-          this,
-          scheduler,
-          framework,
-          None(),
-          implicitAcknowlegements,
-          schedulerId,
-          detector.get(),
-          flags,
-          &mutex,
-          latch);
-    } else {
-      const Credential& cred = *credential;
-      process = new SchedulerProcess(
-          this,
-          scheduler,
-          framework,
-          cred,
-          implicitAcknowlegements,
-          schedulerId,
-          detector.get(),
-          flags,
-          &mutex,
-          latch);
+    Option<Credential> cred = None();
+    if (credential != nullptr) {
+      cred = *credential;
     }
+
+    process = new SchedulerProcess(
+        this,
+        scheduler,
+        framework,
+        initialSuppressedRoles,
+        cred,
+        implicitAcknowlegements,
+        schedulerId,
+        detector.get(),
+        flags,
+        &mutex,
+        latch);
 
     spawn(process);
 

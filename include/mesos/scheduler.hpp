@@ -431,6 +431,24 @@ public:
       bool implicitAcknowlegements,
       const Credential& credential);
 
+  // These constructors are the same as the above two, but allow
+  // the framework to also specify the initial set of suppressed roles.
+  MesosSchedulerDriver(
+      Scheduler* scheduler,
+      const FrameworkInfo& framework,
+      const std::vector<std::string>& suppressedRoles,
+      const std::string& master,
+      bool implicitAcknowledgements);
+
+  MesosSchedulerDriver(
+      Scheduler* scheduler,
+      const FrameworkInfo& framework,
+      const std::vector<std::string>& suppressedRoles,
+      const std::string& master,
+      bool implicitAcknowlegements,
+      const Credential& credential);
+
+
   // This destructor will block indefinitely if
   // MesosSchedulerDriver::start was invoked successfully (possibly
   // via MesosSchedulerDriver::run) and MesosSchedulerDriver::stop has
@@ -498,6 +516,7 @@ private:
 
   Scheduler* scheduler;
   FrameworkInfo framework;
+  const std::vector<std::string> initialSuppressedRoles;
   std::string master;
 
   // Used for communicating with the master.
