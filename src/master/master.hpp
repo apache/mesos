@@ -213,8 +213,8 @@ Slave(Master* const _master,
   // Slave becomes disconnected when the socket closes.
   bool connected;
 
-  // Slave becomes deactivated when it gets disconnected. In the
-  // future this might also happen via HTTP endpoint.
+  // Slave becomes deactivated when it gets disconnected, or when the
+  // agent is deactivated via the DRAIN_AGENT or DEACTIVATE_AGENT calls.
   // No offers will be made for a deactivated slave.
   bool active;
 
@@ -675,7 +675,14 @@ protected:
   void deactivate(Framework* framework, bool rescind);
 
   void disconnect(Slave* slave);
+
+  // Removes the agent from the resource offer cycle (and rescinds active
+  // offers). Other aspects of the agent will continue to function normally.
   void deactivate(Slave* slave);
+
+  // Adds the agent back to the resource offer cycle.
+  // Must *NOT* be called if the agent is `deactivated`.
+  void reactivate(Slave* slave);
 
   // Add a slave.
   void addSlave(
@@ -2131,6 +2138,22 @@ private:
 
     // Slaves that are in the process of being marked gone.
     hashset<SlaveID> markingGone;
+
+    // Agents which have been marked for draining, including recovered,
+    // admitted, and unreachable agents. All draining agents will also
+    // be deactivated. If an agent in this set reregisters, the master
+    // will send it a `DrainSlaveMessage`.
+    //
+    // These values are checkpointed to the registry.
+    hashmap<SlaveID, DrainInfo> draining;
+
+    // Agents which have been deactivated, including recovered, admitted,
+    // and unreachable agents. Agents in this set will not have resource
+    // offers generated and will thus be unable to launch new operations,
+    // but existing operations will be unaffected.
+    //
+    // These values are checkpointed to the registry.
+    hashset<SlaveID> deactivated;
 
     // This collection includes agents that have gracefully shutdown,
     // as well as those that have been marked unreachable or gone. We

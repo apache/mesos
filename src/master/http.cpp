@@ -3872,7 +3872,66 @@ Future<Response> Master::Http::_drainAgent(
     const bool markGone,
     const Owned<ObjectApprovers>& approvers) const
 {
-  return NotImplemented();
+  if (!approvers->approved<DRAIN_AGENT>()) {
+    return Forbidden();
+  }
+
+  if (markGone && !approvers->approved<MARK_AGENT_GONE>()) {
+    return Forbidden();
+  }
+
+  // Check that the agent is either recovering, registered, or unreachable.
+  if (!master->slaves.recovered.contains(slaveId) &&
+      !master->slaves.registered.contains(slaveId) &&
+      !master->slaves.unreachable.contains(slaveId)) {
+    return BadRequest("Unknown agent");
+  }
+
+  // If this agent is being marked gone, then no draining can be performed.
+  if (master->slaves.markingGone.contains(slaveId)) {
+    return Conflict("Agent is currently being marked gone");
+  }
+
+  // Save the draining info to the registry.
+  return master->registrar->apply(Owned<RegistryOperation>(
+      new DrainAgent(slaveId, maxGracePeriod, markGone)))
+    .onAny([](const Future<bool>& result) {
+      CHECK_READY(result)
+        << "Failed to update draining info in the registry";
+    })
+    .then(defer(
+        master->self(),
+        [this, slaveId, maxGracePeriod, markGone](bool result) -> Response {
+          // Update the in-memory state.
+          DrainConfig drainConfig;
+          drainConfig.set_mark_gone(markGone);
+
+          if (maxGracePeriod.isSome()) {
+            drainConfig.mutable_max_grace_period()
+              ->CopyFrom(maxGracePeriod.get());
+          }
+
+          DrainInfo drainInfo;
+          drainInfo.set_state(DRAINING);
+          drainInfo.mutable_config()->CopyFrom(drainConfig);
+
+          master->slaves.draining[slaveId] = drainInfo;
+
+          // Deactivate the agent.
+          master->slaves.deactivated.insert(slaveId);
+
+          Slave* slave = master->slaves.registered.get(slaveId);
+          if (slave != nullptr) {
+            master->deactivate(slave);
+
+            // Tell the agent to start draining.
+            DrainSlaveMessage message;
+            message.mutable_config()->CopyFrom(drainConfig);
+            master->send(slave->pid, message);
+          }
+
+          return OK();
+        }));
 }
 
 
@@ -3910,7 +3969,35 @@ Future<Response> Master::Http::_deactivateAgent(
     const SlaveID& slaveId,
     const Owned<ObjectApprovers>& approvers) const
 {
-  return NotImplemented();
+  if (!approvers->approved<DEACTIVATE_AGENT>()) {
+    return Forbidden();
+  }
+
+  // Check that the agent is either recovering, registered, or unreachable.
+  if (!master->slaves.recovered.contains(slaveId) &&
+      !master->slaves.registered.contains(slaveId) &&
+      !master->slaves.unreachable.contains(slaveId)) {
+    return BadRequest("Unknown agent");
+  }
+
+  // Save the deactivation to the registry.
+  return master->registrar->apply(Owned<RegistryOperation>(
+      new DeactivateAgent(slaveId)))
+    .onAny([](const Future<bool>& result) {
+      CHECK_READY(result)
+        << "Failed to deactivate agent in the registry";
+    })
+    .then(defer(master->self(), [this, slaveId](bool result) -> Response {
+      // Deactivate the agent.
+      master->slaves.deactivated.insert(slaveId);
+
+      Slave* slave = master->slaves.registered.get(slaveId);
+      if (slave != nullptr) {
+        master->deactivate(slave);
+      }
+
+      return OK();
+    }));
 }
 
 
@@ -3941,7 +4028,34 @@ Future<Response> Master::Http::_reactivateAgent(
     const SlaveID& slaveId,
     const Owned<ObjectApprovers>& approvers) const
 {
-  return NotImplemented();
+  if (!approvers->approved<REACTIVATE_AGENT>()) {
+    return Forbidden();
+  }
+
+  // Check that the agent is deactivated.
+  if (!master->slaves.deactivated.contains(slaveId)) {
+    return BadRequest("Agent is not deactivated");
+  }
+
+  // Save the reactivation to the registry.
+  return master->registrar->apply(Owned<RegistryOperation>(
+      new ReactivateAgent(slaveId)))
+    .onAny([](const Future<bool>& result) {
+      CHECK_READY(result)
+        << "Failed to reactivate agent in the registry";
+    })
+    .then(defer(master->self(), [this, slaveId](bool result) -> Response {
+      // Reactivate the agent.
+      master->slaves.draining.erase(slaveId);
+      master->slaves.deactivated.erase(slaveId);
+
+      Slave* slave = master->slaves.registered.get(slaveId);
+      if (slave != nullptr) {
+        master->reactivate(slave);
+      }
+
+      return OK();
+    }));
 }
 
 

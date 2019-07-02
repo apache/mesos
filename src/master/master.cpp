@@ -1695,12 +1695,30 @@ Future<Nothing> Master::_recover(const Registry& registry)
     upgradeResources(&slaveInfo);
 
     slaves.recovered.put(slaveInfo.id(), slaveInfo);
+
+    // Recover the draining and deactivation states.
+    if (slave.has_drain_info()) {
+      slaves.draining[slaveInfo.id()] = slave.drain_info();
+    }
+
+    if (slave.has_deactivated() && slave.deactivated()) {
+      slaves.deactivated.insert(slaveInfo.id());
+    }
   }
 
   foreach (const Registry::UnreachableSlave& unreachable,
            registry.unreachable().slaves()) {
     CHECK(!slaves.unreachable.contains(unreachable.id()));
     slaves.unreachable[unreachable.id()] = unreachable.timestamp();
+
+    // Recover the draining and deactivation states.
+    if (unreachable.has_drain_info()) {
+      slaves.draining[unreachable.id()] = unreachable.drain_info();
+    }
+
+    if (unreachable.has_deactivated() && unreachable.deactivated()) {
+      slaves.deactivated.insert(unreachable.id());
+    }
   }
 
   foreach (const Registry::GoneSlave& gone,
@@ -3424,6 +3442,18 @@ void Master::deactivate(Slave* slave)
 
     removeInverseOffer(inverseOffer, true); // Rescind!
   }
+}
+
+
+void Master::reactivate(Slave* slave)
+{
+  CHECK_NOTNULL(slave);
+  CHECK(!slaves.deactivated.contains(slave->id));
+
+  LOG(INFO) << "Reactivating agent " << *slave;
+
+  slave->active = true;
+  allocator->activateSlave(slave->id);
 }
 
 
@@ -7155,9 +7185,6 @@ void Master::_registerSlave(
                   "a new agent registered at the same address",
                   metrics->slave_removals_reason_registered);
     } else {
-      CHECK(slave->active)
-        << "Unexpected connected but deactivated agent " << *slave;
-
       LOG(INFO) << "Agent " << *slave << " already registered,"
                 << " resending acknowledgement";
 
@@ -8034,12 +8061,21 @@ void Master::___reregisterSlave(
     slave->connected = true;
     dispatch(slave->observer, &SlaveObserver::reconnect);
 
-    slave->active = true;
-    allocator->activateSlave(slave->id);
+    if (!slaves.deactivated.contains(slave->id)) {
+      reactivate(slave);
+    }
   }
 
-  CHECK(slave->active)
-    << "Unexpected connected but deactivated agent " << *slave;
+  // If this is a draining agent, send it the drain message.
+  // We do this regardless of the draining state (DRAINING or DRAINED),
+  // because the agent is expected to handle the message in either state.
+  if (slaves.draining.contains(slaveInfo.id())) {
+    DrainSlaveMessage message;
+    message.mutable_config()->CopyFrom(
+        slaves.draining.at(slaveInfo.id()).config());
+
+    send(slave->pid, message);
+  }
 
   // Inform the agent of the new framework pids for its tasks, and
   // recover any unknown frameworks from the slave info.
