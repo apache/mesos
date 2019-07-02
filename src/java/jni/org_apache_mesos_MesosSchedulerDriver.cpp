@@ -548,12 +548,34 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_MesosSchedulerDriver_initialize
     jcredential = env->GetObjectField(thiz, credential.get());
   }
 
+  // Get out the suppressedRoles passed into the constructor.
+  //
+  // NOTE: Older versions (< 1.9.0) of MesosSchedulerDriver do not set the
+  // 'suppressedRoles' field. To be backwards compatible, we should use an empty
+  // list of suppressed roles if the field is not set.
+
+  Result<jfieldID> suppressedRolesFieldID = getFieldID(
+      env, clazz, "suppressedRoles", "Ljava/util/Collection;");
+  if (suppressedRolesFieldID.isError()) {
+    return; // Exception has been thrown.
+  }
+
+  vector<string> suppressedRoles;
+  if (suppressedRolesFieldID.isSome()) {
+    jobject jsuppressedRoles =
+      env->GetObjectField(thiz, suppressedRolesFieldID.get());
+    if (jsuppressedRoles != nullptr) {
+      suppressedRoles = constructFromIterable<string>(env, jsuppressedRoles);
+    }
+  }
+
   // Create the C++ driver.
   MesosSchedulerDriver* driver = nullptr;
   if (jcredential != nullptr) {
      driver = new MesosSchedulerDriver(
         scheduler,
         construct<FrameworkInfo>(env, jframework),
+        suppressedRoles,
         construct<string>(env, jmaster),
         construct(env, jimplicitAcknowledgements),
         construct<Credential>(env, jcredential));
@@ -561,6 +583,7 @@ JNIEXPORT void JNICALL Java_org_apache_mesos_MesosSchedulerDriver_initialize
     driver = new MesosSchedulerDriver(
        scheduler,
        construct<FrameworkInfo>(env, jframework),
+       suppressedRoles,
        construct<string>(env, jmaster),
        construct(env, jimplicitAcknowledgements));
   }

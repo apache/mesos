@@ -105,6 +105,7 @@ public class MesosSchedulerDriver implements SchedulerDriver {
 
     this.scheduler = scheduler;
     this.framework = framework;
+    this.suppressedRoles = null;
     this.master = master;
     this.implicitAcknowledgements = true;
     this.credential = null;
@@ -146,6 +147,7 @@ public class MesosSchedulerDriver implements SchedulerDriver {
 
     this.scheduler = scheduler;
     this.framework = framework;
+    this.suppressedRoles = null;
     this.master = master;
     this.implicitAcknowledgements = true;
     this.credential = credential;
@@ -185,6 +187,7 @@ public class MesosSchedulerDriver implements SchedulerDriver {
 
     this.scheduler = scheduler;
     this.framework = framework;
+    this.suppressedRoles = null;
     this.master = master;
     this.implicitAcknowledgements = implicitAcknowledgements;
     this.credential = null;
@@ -231,12 +234,114 @@ public class MesosSchedulerDriver implements SchedulerDriver {
 
     this.scheduler = scheduler;
     this.framework = framework;
+    this.suppressedRoles = null;
     this.master = master;
     this.implicitAcknowledgements = implicitAcknowledgements;
     this.credential = credential;
 
     initialize();
   }
+
+  /**
+   * Same as the other constructors, except that it accepts the newly
+   * introduced 'suppressedRoles' parameter.
+   *
+   * @param scheduler   The scheduler implementation which callbacks are invoked
+   *                    upon scheduler events.
+   * @param framework   The frameworkInfo describing the current framework.
+   * @param suppressedRoles  The collection of initially suppressed roles.
+   * @param master      The address to the currently active Mesos master.
+   * @param implicitAcknowledgements  Whether the driver should send
+   *            acknowledgements on behalf of the scheduler. Setting this to
+   *            false allows schedulers to perform their own acknowledgements,
+   *            which enables asynchronous / batch processing of status updates.
+   */
+  public MesosSchedulerDriver(Scheduler scheduler,
+                              FrameworkInfo framework,
+                              Collection<String> suppressedRoles,
+                              String master,
+                              boolean implicitAcknowledgements) {
+
+    if (scheduler == null) {
+      throw new NullPointerException("Not expecting a null Scheduler");
+    }
+
+    if (framework == null) {
+      throw new NullPointerException("Not expecting a null FrameworkInfo");
+    }
+
+    if (suppressedRoles == null) {
+      throw new NullPointerException("Not expecting a null suppressedRoles");
+    }
+
+    if (master == null) {
+      throw new NullPointerException("Not expecting a null master");
+    }
+
+    this.scheduler = scheduler;
+    this.framework = framework;
+    this.suppressedRoles = suppressedRoles;
+    this.master = master;
+    this.implicitAcknowledgements = implicitAcknowledgements;
+    this.credential = null;
+
+    initialize();
+  }
+
+
+  /**
+   * Same as the other constructors, except that it accepts the newly
+   * introduced 'suppressedRoles' parameter.
+   *
+   * @param scheduler   The scheduler implementation which callbacks are invoked
+   *                    upon scheduler events.
+   * @param framework   The frameworkInfo describing the current framework.
+   * @param suppressedRoles  The collection of initially suppressed roles.
+   * @param master      The address to the currently active Mesos master.
+   * @param implicitAcknowledgements  Whether the driver should send
+   *            acknowledgements on behalf of the scheduler. Setting this to
+   *            false allows schedulers to perform their own acknowledgements,
+   *            which enables asynchronous / batch processing of status updates.
+   * @param credential  The credentials that will be used used to authenticate
+   *                    calls from this scheduler.
+   */
+  public MesosSchedulerDriver(Scheduler scheduler,
+                              FrameworkInfo framework,
+                              Collection<String> suppressedRoles,
+                              String master,
+                              boolean implicitAcknowledgements,
+                              Credential credential) {
+
+    if (scheduler == null) {
+      throw new NullPointerException("Not expecting a null Scheduler");
+    }
+
+    if (framework == null) {
+      throw new NullPointerException("Not expecting a null FrameworkInfo");
+    }
+
+    if (suppressedRoles == null) {
+      throw new NullPointerException("Not expecting a null suppressedRoles");
+    }
+
+    if (master == null) {
+      throw new NullPointerException("Not expecting a null master");
+    }
+
+    if (credential == null) {
+      throw new NullPointerException("Not expecting a null credential");
+    }
+
+    this.scheduler = scheduler;
+    this.framework = framework;
+    this.suppressedRoles = suppressedRoles;
+    this.master = master;
+    this.implicitAcknowledgements = implicitAcknowledgements;
+    this.credential = credential;
+
+    initialize();
+  }
+
 
   public native Status start();
 
@@ -306,6 +411,7 @@ public class MesosSchedulerDriver implements SchedulerDriver {
 
   private final Scheduler scheduler;
   private final FrameworkInfo framework;
+  private final Collection<String> suppressedRoles;
   private final String master;
   private final boolean implicitAcknowledgements;
   private final Credential credential;
