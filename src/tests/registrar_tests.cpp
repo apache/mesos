@@ -985,31 +985,32 @@ TEST_F(RegistrarTest, UpdateQuota)
 
     EXPECT_EQ(1, registry->quota_configs().size());
 
-    JSON::Array expected = CHECK_NOTERROR(JSON::parse<JSON::Array>(
-    R"~(
-    [
-      {
-        "guarantees": {
-          "cpus": {
-            "value": 1
+    Try<JSON::Array> expected = JSON::parse<JSON::Array>(
+      R"~(
+      [
+        {
+          "guarantees": {
+            "cpus": {
+              "value": 1
+            },
+            "mem": {
+              "value": 1024
+            }
           },
-          "mem": {
-            "value": 1024
-          }
-        },
-        "limits": {
-          "cpus": {
-            "value": 2
+          "limits": {
+            "cpus": {
+              "value": 2
+            },
+            "mem": {
+              "value": 2048
+            }
           },
-          "mem": {
-            "value": 2048
-          }
-        },
-        "role": "role1"
-      }
-    ])~"));
+          "role": "role1"
+        }
+      ])~");
 
-    EXPECT_EQ(expected, JSON::protobuf(registry->quota_configs()));
+    EXPECT_EQ(
+        CHECK_NOTERROR(expected), JSON::protobuf(registry->quota_configs()));
 
     // The `QUOTA_V2` capability is added to the registry.
     //
@@ -1036,50 +1037,51 @@ TEST_F(RegistrarTest, UpdateQuota)
     // NOTE: We assume quota messages are stored in order they have
     // been added.
     // TODO(alexr): Consider removing dependency on the order.
-    JSON::Array expected = CHECK_NOTERROR(JSON::parse<JSON::Array>(
-    R"~(
-    [
-      {
-        "guarantees": {
-          "cpus": {
-            "value": 1
+    Try<JSON::Array> expected = JSON::parse<JSON::Array>(
+      R"~(
+      [
+        {
+          "guarantees": {
+            "cpus": {
+              "value": 1
+            },
+            "mem": {
+              "value": 1024
+            }
           },
-          "mem": {
-            "value": 1024
-          }
-        },
-        "limits": {
-          "cpus": {
-            "value": 2
+          "limits": {
+            "cpus": {
+              "value": 2
+            },
+            "mem": {
+              "value": 2048
+            }
           },
-          "mem": {
-            "value": 2048
-          }
+          "role": "role1"
         },
-        "role": "role1"
-      },
-      {
-        "guarantees": {
-          "cpus": {
-            "value": 1
+        {
+          "guarantees": {
+            "cpus": {
+              "value": 1
+            },
+            "mem": {
+              "value": 1024
+            }
           },
-          "mem": {
-            "value": 1024
-          }
-        },
-        "limits": {
-          "cpus": {
-            "value": 2
+          "limits": {
+            "cpus": {
+              "value": 2
+            },
+            "mem": {
+              "value": 2048
+            }
           },
-          "mem": {
-            "value": 2048
-          }
-        },
-        "role": "role2"
-      }
-    ])~"));
+          "role": "role2"
+        }
+      ])~");
 
-    EXPECT_EQ(expected, JSON::protobuf(registry->quota_configs()));
+    EXPECT_EQ(
+        CHECK_NOTERROR(expected), JSON::protobuf(registry->quota_configs()));
 
     // TODO(mzhu): This assumes the the registry starts empty which might not
     // be in the future. Just check the presence of `QUOTA_V2`.
@@ -1104,38 +1106,39 @@ TEST_F(RegistrarTest, UpdateQuota)
     // NOTE: We assume quota messages are stored in order they have
     // been added.
     // TODO(alexr): Consider removing dependency on the order.
-    JSON::Array expected = CHECK_NOTERROR(JSON::parse<JSON::Array>(
-    R"~(
-    [
-      {
-        "guarantees": {
-          "cpus": {
-            "value": 2
-          }
+    Try<JSON::Array> expected = JSON::parse<JSON::Array>(
+      R"~(
+      [
+        {
+          "guarantees": {
+            "cpus": {
+              "value": 2
+            }
+          },
+          "limits": {
+            "cpus": {
+              "value": 4
+            }
+          },
+          "role": "role1"
         },
-        "limits": {
-          "cpus": {
-            "value": 4
-          }
-        },
-        "role": "role1"
-      },
-      {
-        "guarantees": {
-          "cpus": {
-            "value": 2
-          }
-        },
-        "limits": {
-          "cpus": {
-            "value": 4
-          }
-        },
-        "role": "role2"
-      }
-    ])~"));
+        {
+          "guarantees": {
+            "cpus": {
+              "value": 2
+            }
+          },
+          "limits": {
+            "cpus": {
+              "value": 4
+            }
+          },
+          "role": "role2"
+        }
+      ])~");
 
-    EXPECT_EQ(expected, JSON::protobuf(registry->quota_configs()));
+    EXPECT_EQ(
+        CHECK_NOTERROR(expected), JSON::protobuf(registry->quota_configs()));
 
     // TODO(mzhu): This assumes the the registry starts empty which might not
     // be in the future. Just check the presence of `QUOTA_V2`.
@@ -1157,25 +1160,27 @@ TEST_F(RegistrarTest, UpdateQuota)
 
     configs.Clear();
     *configs.Add() = createQuotaConfig("role1", "cpus:2", "cpus:4");
-    JSON::Array expected = CHECK_NOTERROR(JSON::parse<JSON::Array>(
-    R"~(
-    [
-      {
-        "guarantees": {
-          "cpus": {
-            "value": 2
-          }
-        },
-        "limits": {
-          "cpus": {
-            "value": 4
-          }
-        },
-        "role": "role1"
-      }
-    ])~"));
 
-    EXPECT_EQ(expected, JSON::protobuf(registry->quota_configs()));
+    Try<JSON::Array> expected = JSON::parse<JSON::Array>(
+      R"~(
+      [
+        {
+          "guarantees": {
+            "cpus": {
+              "value": 2
+            }
+          },
+          "limits": {
+            "cpus": {
+              "value": 4
+            }
+          },
+          "role": "role1"
+        }
+      ])~");
+
+    EXPECT_EQ(
+        CHECK_NOTERROR(expected), JSON::protobuf(registry->quota_configs()));
 
     // TODO(mzhu): This assumes the the registry starts empty which might not
     // be in the future. Just check the presence of `QUOTA_V2`.
