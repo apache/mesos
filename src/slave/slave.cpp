@@ -7157,11 +7157,6 @@ void Slave::_checkDiskUsage(const Future<double>& usage)
     LOG(ERROR) << "Failed to get disk usage: "
                << (usage.isFailed() ? usage.failure() : "future discarded");
   } else {
-    executorDirectoryMaxAllowedAge = age(usage.get());
-    LOG(INFO) << "Current disk usage " << std::setiosflags(std::ios::fixed)
-              << std::setprecision(2) << 100 * usage.get() << "%."
-              << " Max allowed age: " << executorDirectoryMaxAllowedAge;
-
     // We prune all directories whose deletion time is within
     // the next 'gc_delay - age'. Since a directory is always
     // scheduled for deletion 'gc_delay' into the future, only directories
