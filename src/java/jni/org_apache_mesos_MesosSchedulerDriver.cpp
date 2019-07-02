@@ -1001,14 +1001,17 @@ Java_org_apache_mesos_MesosSchedulerDriver_reconcileTasks(
 
 /* Class:     org_apache_mesos_MesosSchedulerDriver
  * Method:    updateFramework
- * Signature: (Lorg/apache/mesos/Protos/FrameworkInfo;)Lorg/apache/mesos/Protos/Status;
+ * Signature: (Lorg/apache/mesos/Protos/FrameworkInfo;Ljava/util/Collection;)Lorg/apache/mesos/Protos/Status;
  */
 JNIEXPORT jobject JNICALL
 Java_org_apache_mesos_MesosSchedulerDriver_updateFramework(
-    JNIEnv* env, jobject thiz, jobject jframeworkInfo)
+    JNIEnv* env, jobject thiz, jobject jframeworkInfo, jobject jsuppressedRoles)
 {
   const FrameworkInfo& frameworkInfo =
     construct<FrameworkInfo>(env, jframeworkInfo);
+
+  const vector<string> suppressedRoles =
+    constructFromIterable<string>(env, jsuppressedRoles);
 
   jclass clazz = env->GetObjectClass(thiz);
 
@@ -1016,7 +1019,7 @@ Java_org_apache_mesos_MesosSchedulerDriver_updateFramework(
   MesosSchedulerDriver* driver =
     (MesosSchedulerDriver*) env->GetLongField(thiz, __driver);
 
-  Status status = driver->updateFramework(frameworkInfo, {});
+  Status status = driver->updateFramework(frameworkInfo, suppressedRoles);
 
   return convert<Status>(env, status);
 }

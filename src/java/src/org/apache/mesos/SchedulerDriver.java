@@ -336,9 +336,9 @@ public interface SchedulerDriver {
   Status reconcileTasks(Collection<TaskStatus> statuses);
 
   /**
-   * Inform Mesos master about changes to the `FrameworkInfo`. The
-   * driver will store the new `FrameworkInfo` and all subsequent
-   * re-registrations will use it.
+   * Inform Mesos master about changes to the `FrameworkInfo` and the list of
+   * suppressed roles. The driver will store the new `FrameworkInfo` and the new
+   * suppressed roles list, and all subsequent re-registrations will use it.
    *
    * NOTE: If the supplied info is invalid or fails authorization,
    * the `error()` callback will be invoked asynchronously (after
@@ -354,9 +354,12 @@ public interface SchedulerDriver {
    *
    * @param frameworkInfo  The new FrameworkInfo.
    *
+   * @param suppressedRoles The new list of suppressed roles.
+   *
    * @return               The state of the driver after the call.
    *
    * @see FrameworkInfo
    */
-  Status updateFramework(FrameworkInfo frameworkInfo);
+  Status updateFramework(FrameworkInfo frameworkInfo,
+                         Collection<String> suppressedRoles);
 }
