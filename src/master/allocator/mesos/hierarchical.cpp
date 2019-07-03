@@ -64,6 +64,11 @@ using process::Timeout;
 
 
 namespace mesos {
+
+// Needed to prevent shadowing of template '::operator-<std::set<T>>'
+// by non-template '::mesos::operator-'
+using ::operator-;
+
 namespace internal {
 namespace master {
 namespace allocator {
@@ -454,38 +459,26 @@ void HierarchicalAllocatorProcess::updateFramework(
 
   Framework& framework = frameworks.at(frameworkId);
 
-  set<string> oldRoles = framework.roles;
-  set<string> newRoles = protobuf::framework::getRoles(frameworkInfo);
-  set<string> oldSuppressedRoles = framework.suppressedRoles;
+  const set<string> oldRoles = framework.roles;
+  const set<string> newRoles = protobuf::framework::getRoles(frameworkInfo);
+  const set<string> oldSuppressedRoles = framework.suppressedRoles;
 
-  // TODO(xujyan): Add a stout set difference method that wraps around
-  // `std::set_difference` for this.
-  const set<string> removedRoles = [&]() {
-    set<string> result = oldRoles;
-    foreach (const string& role, newRoles) {
-      result.erase(role);
+  foreach (const string& role, newRoles - oldRoles) {
+    framework.metrics->addSubscribedRole(role);
+
+    // NOTE: It's possible that we're already tracking this framework
+    // under the role because a framework can unsubscribe from a role
+    // while it still has resources allocated to the role.
+    if (!isFrameworkTrackedUnderRole(frameworkId, role)) {
+      trackFrameworkUnderRole(frameworkId, role);
     }
-    return result;
-  }();
-
-  const set<string> newSuppressedRoles = [&]() {
-    set<string> result = suppressedRoles;
-    foreach (const string& role, oldSuppressedRoles) {
-      result.erase(role);
-    }
-    return result;
-  }();
-
-  foreach (const string& role, newSuppressedRoles) {
-    framework.metrics->suppressRole(role);
   }
 
-  foreach (const string& role, removedRoles | newSuppressedRoles) {
+  foreach (const string& role, oldRoles - newRoles) {
     CHECK(frameworkSorters.contains(role));
-    frameworkSorters.at(role)->deactivate(frameworkId.value());
-  }
 
-  foreach (const string& role, removedRoles) {
+    frameworkSorters.at(role)->deactivate(frameworkId.value());
+
     // Stop tracking the framework under this role if there are
     // no longer any resources allocated to it.
     if (frameworkSorters.at(role)->allocation(frameworkId.value()).empty()) {
@@ -497,49 +490,19 @@ void HierarchicalAllocatorProcess::updateFramework(
     }
 
     framework.metrics->removeSubscribedRole(role);
-  }
-
-  const set<string> addedRoles = [&]() {
-    set<string> result = newRoles;
-    foreach (const string& role, oldRoles) {
-      result.erase(role);
-    }
-    return result;
-  }();
-
-  const set<string> newRevivedRoles = [&]() {
-    set<string> result = oldSuppressedRoles;
-    foreach (const string& role, suppressedRoles) {
-      result.erase(role);
-    }
-    return result;
-  }();
-
-  foreach (const string& role, newRevivedRoles) {
-    framework.metrics->reviveRole(role);
-  }
-
-  foreach (const string& role, addedRoles) {
-    framework.metrics->addSubscribedRole(role);
-
-    // NOTE: It's possible that we're already tracking this framework
-    // under the role because a framework can unsubscribe from a role
-    // while it still has resources allocated to the role.
-    if (!isFrameworkTrackedUnderRole(frameworkId, role)) {
-      trackFrameworkUnderRole(frameworkId, role);
-    }
-  }
-
-  // TODO(anindya_sinha): We should activate the roles only if the
-  // framework is active (instead of always).
-  foreach (const string& role, addedRoles | newRevivedRoles) {
-    CHECK(frameworkSorters.contains(role));
-    frameworkSorters.at(role)->activate(frameworkId.value());
+    framework.suppressedRoles.erase(role);
   }
 
   framework.roles = newRoles;
-  framework.suppressedRoles = suppressedRoles;
   framework.capabilities = frameworkInfo.capabilities();
+
+  suppressRoles(frameworkId, suppressedRoles);
+  unsuppressRoles(frameworkId, newRoles - suppressedRoles);
+
+  CHECK(framework.suppressedRoles == suppressedRoles)
+    << "After updating framework " << frameworkId
+    << " its set of suppressed roles " << stringify(framework.suppressedRoles)
+    << " differs from required " << stringify(suppressedRoles);
 }
 
 
