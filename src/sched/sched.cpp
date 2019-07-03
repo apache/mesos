@@ -1475,10 +1475,16 @@ protected:
     send(master->pid(), call);
   }
 
-  void suppressOffers()
+  void suppressOffers(const vector<string>& roles)
   {
-    suppressedRoles =
-      std::set<string>(framework.roles().begin(), framework.roles().end());
+    if (roles.empty()) {
+      suppressedRoles =
+        std::set<string>(framework.roles().begin(), framework.roles().end());
+    } else {
+      for (const string& role : roles) {
+        suppressedRoles.emplace(role);
+      }
+    }
 
     if (!connected) {
       VLOG(1) << "Ignoring SUPPRESS as master is disconnected;"
@@ -1489,13 +1495,19 @@ protected:
       return;
     }
 
-    VLOG(2) << "Sending SUPPRESS for all roles";
-
     Call call;
 
     CHECK(framework.has_id());
     call.mutable_framework_id()->CopyFrom(framework.id());
     call.set_type(Call::SUPPRESS);
+
+    if (roles.empty()) {
+      VLOG(2) << "Sending SUPPRESS for all roles";
+    } else {
+      VLOG(2) << "Sending SUPPRESS for roles: " << stringify(roles);
+      *call.mutable_suppress()->mutable_roles() =
+        RepeatedPtrField<string>(roles.begin(), roles.end());
+    }
 
     CHECK_SOME(master);
     send(master->pid(), call);
@@ -2375,7 +2387,27 @@ Status MesosSchedulerDriver::suppressOffers()
 
     CHECK(process != nullptr);
 
-    dispatch(process, &SchedulerProcess::suppressOffers);
+    dispatch(process, &SchedulerProcess::suppressOffers, vector<string>());
+
+    return status;
+  }
+}
+
+
+Status MesosSchedulerDriver::suppressOffers(const vector<string>& roles)
+{
+  if (roles.empty()) {
+    return status;
+  }
+
+  synchronized (mutex) {
+    if (status != DRIVER_RUNNING) {
+      return status;
+    }
+
+    CHECK(process != nullptr);
+
+    dispatch(process, &SchedulerProcess::suppressOffers, roles);
 
     return status;
   }

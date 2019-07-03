@@ -312,6 +312,13 @@ public:
   // re-registration.
   virtual Status suppressOffers() = 0;
 
+  // Adds the roles to the suppressed set. If the framework is not connected
+  // to the master, an up-to-date set of suppressed roles will be sent to
+  // the master during re-registration.
+  //
+  // NOTE: If 'roles' is empty, this method does nothing.
+  virtual Status suppressOffers(const std::vector<std::string>& roles) = 0;
+
   // Acknowledges the status update. This should only be called
   // once the status update is processed durably by the scheduler.
   // Not that explicit acknowledgements must be requested via the
@@ -501,6 +508,8 @@ public:
   Status reviveOffers(const std::vector<std::string>& roles) override;
 
   Status suppressOffers() override;
+
+  Status suppressOffers(const std::vector<std::string>& roles) override;
 
   Status acknowledgeStatusUpdate(
       const TaskStatus& status) override;
