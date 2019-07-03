@@ -557,6 +557,78 @@ TEST_F(MesosSchedulerDriverTest, RegisterWithSuppressedRole)
 }
 
 
+// This test ensures that suppressOffers() can suppress
+// one role of a multi-role framework.
+//
+// We subscribe a framework with two roles, suppress the first one, decline
+// the offer for the second one, and expect to receive no offers after that.
+TEST_F(MesosSchedulerDriverTest, SuppressSingleRole)
+{
+  mesos::internal::master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.allocation_interval = Milliseconds(5);
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+
+  frameworkInfo.clear_roles();
+  frameworkInfo.add_roles("role1");
+  frameworkInfo.add_roles("role2");
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<Nothing> registered;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureSatisfy(&registered));
+
+  Future<vector<Offer>> offers;
+
+  // We should get offers EXACTLY once - for role2, which we don't suppress.
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers));
+
+  driver.start();
+
+  AWAIT_READY(registered);
+
+  driver.suppressOffers({"role1"});
+
+  // Ensure the suppression is processed by the master before
+  // adding the agent, otherwise the offer could go to role1.
+  Clock::pause();
+  Clock::settle();
+  Clock::resume();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  // Decline an offer for role2 and set a long filter.
+  Filters filter1day;
+  filter1day.set_refuse_seconds(Days(1).secs());
+
+  AWAIT_READY(offers);
+  ASSERT_EQ(1u, offers->size());
+  ASSERT_EQ("role2", offers.get()[0].allocation_info().role());
+
+  driver.declineOffer(offers.get()[0].id(), filter1day);
+
+  // Trigger allocation and expect no offers
+  // (we are checking that role1 is indeed suppressed).
+  Clock::pause();
+  Clock::settle();
+
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::settle();
+
+  driver.stop();
+  driver.join();
+}
+
+
 // This test ensures that reviveOffers() can unsuppress
 // one role of a multi-role framework.
 //
