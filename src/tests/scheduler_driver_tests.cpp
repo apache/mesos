@@ -62,6 +62,8 @@ using process::PID;
 
 using process::http::OK;
 
+using std::set;
+using std::string;
 using std::vector;
 
 using testing::_;
@@ -553,6 +555,101 @@ TEST_F(MesosSchedulerDriverTest, RegisterWithSuppressedRole)
   driver.stop();
   driver.join();
 }
+
+
+// This test ensures that reviveOffers() can unsuppress
+// one role of a multi-role framework.
+//
+// We subscribe a framework with two roles, decline offers
+// for both, call reviveOffers() for the second role and
+// check that only the first one is filtered after that.
+TEST_F(MesosSchedulerDriverTest, ReviveSingleRole)
+{
+  mesos::internal::master::Flags masterFlags = CreateMasterFlags();
+  masterFlags.allocation_interval = Milliseconds(5);
+
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
+  ASSERT_SOME(slave);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+
+  frameworkInfo.clear_roles();
+  frameworkInfo.add_roles("role1");
+  frameworkInfo.add_roles("role2");
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  Future<vector<Offer>> offers1;
+  Future<vector<Offer>> offers2;
+
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillOnce(FutureArg<1>(&offers2));
+
+  driver.start();
+
+  // Decline offers for both roles and set a long filter.
+  Filters filter1day;
+  filter1day.set_refuse_seconds(Days(1).secs());
+
+  set<string> declinedOfferRoles;
+
+  AWAIT_READY(offers1);
+  ASSERT_EQ(1u, offers1->size());
+  driver.declineOffer(offers1.get()[0].id(), filter1day);
+  declinedOfferRoles.emplace(offers1.get()[0].allocation_info().role());
+
+  AWAIT_READY(offers2);
+  ASSERT_EQ(1u, offers2->size());
+  driver.declineOffer(offers2.get()[0].id(), filter1day);
+  declinedOfferRoles.emplace(offers2.get()[0].allocation_info().role());
+
+  // Sanity check: we should have responed to offers for both roles.
+  ASSERT_EQ(set<string>({"role1", "role2"}), declinedOfferRoles);
+
+  // In addition to setting a filter, suppress role2 (to check that
+  // reviveOffers() not only removes filters, but also unsuppresses roles).
+  *frameworkInfo.mutable_id() = frameworkId.get();
+  driver.updateFramework(frameworkInfo, {"role2"});
+
+  // Wait for updateFramework() to be dispatched to the allocator.
+  // Otherwise, REVIVE might be processed by the allocator before the update.
+  Clock::pause();
+  Clock::settle();
+
+  // After reviving role2 we expect offers EXACTLY once, for role2.
+  Future<vector<Offer>> offersOnRevival;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureArg<1>(&offersOnRevival));
+
+  driver.reviveOffers({"role2"});
+
+  AWAIT_READY(offersOnRevival);
+  ASSERT_EQ(1u, offersOnRevival->size());
+  ASSERT_EQ("role2", offersOnRevival.get()[0].allocation_info().role());
+
+  // Decline the offer for role2 and set a filter.
+  driver.declineOffer(offersOnRevival.get()[0].id(), filter1day);
+  Clock::settle();
+
+  // Trigger allocation to ensure that role1 still has a filter.
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::settle();
+
+  driver.stop();
+  driver.join();
+}
+
 
 } // namespace tests {
 } // namespace internal {
