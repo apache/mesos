@@ -28,23 +28,19 @@ Below are the example calls to master that result in synchronous responses from 
 This call retrieves the health status of master.
 
 ```
-GET_HEALTH HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: masterhost:5050
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<masterhost>:5050/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "GET_HEALTH"
 }
+EOF
+```
 
-
-GET_HEALTH HTTP Response (JSON):
-
+```
 HTTP/1.1 200 OK
-
 Content-Type: application/json
 
 {
@@ -53,7 +49,6 @@ Content-Type: application/json
     "healthy": true
   }
 }
-
 ```
 
 ### GET_FLAGS
@@ -61,23 +56,19 @@ Content-Type: application/json
 This call retrieves the master's overall flag configuration.
 
 ```
-GET_FLAGS HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: masterhost:5050
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<masterhost>:5050/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d @- << EOF
 {
   "type": "GET_FLAGS"
 }
+EOF
+```
 
-
-GET_FLAGS HTTP Response (JSON):
-
+```
 HTTP/1.1 200 OK
-
 Content-Type: application/json
 
 {
@@ -235,7 +226,6 @@ Content-Type: application/json
     ]
   }
 }
-
 ```
 
 ### GET_VERSION
@@ -243,23 +233,19 @@ Content-Type: application/json
 This call retrieves the master's version information.
 
 ```
-GET_VERSION HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: masterhost:5050
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<masterhost>:5050/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d @- << EOF
 {
   "type": "GET_VERSION"
 }
+EOF
+```
 
-
-GET_VERSION HTTP Response (JSON):
-
+```
 HTTP/1.1 200 OK
-
 Content-Type: application/json
 
 {
@@ -273,7 +259,6 @@ Content-Type: application/json
     }
   }
 }
-
 ```
 
 ### GET_METRICS
@@ -284,28 +269,24 @@ API will take to respond. If the timeout is exceeded, some metrics may not be
 included in the response.
 
 ```
-GET_METRICS HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: masterhost:5050
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<masterhost>:5050/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d @- << EOF
 {
   "type": "GET_METRICS",
-  "get_metrics": {
-    "timeout": {
-      "nanoseconds": 5000000000
+    "get_metrics": {
+      "timeout": {
+        "nanoseconds": 5000000000
+      }
     }
-  }
 }
+EOF
+```
 
-
-GET_METRICS HTTP Response (JSON):
-
+```
 HTTP/1.1 200 OK
-
 Content-Type: application/json
 
 {
@@ -751,7 +732,6 @@ Content-Type: application/json
     ]
   }
 }
-
 ```
 
 ### GET_LOGGING_LEVEL
@@ -759,23 +739,19 @@ Content-Type: application/json
 This call retrieves the master's logging level.
 
 ```
-GET_LOGGING_LEVEL HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: masterhost:5050
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<masterhost>:5050/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "GET_LOGGING_LEVEL"
 }
+EOF
+```
 
-
-GET_LOGGING_LEVEL HTTP Response (JSON):
-
+```
 HTTP/1.1 200 OK
-
 Content-Type: application/json
 
 {
@@ -784,7 +760,6 @@ Content-Type: application/json
     "level": 0
   }
 }
-
 ```
 
 ### SET_LOGGING_LEVEL
@@ -795,14 +770,11 @@ verbose logging which means nothing will be output unless the verbosity
 level is set (by default it's 0, libprocess uses levels 1, 2, and 3).
 
 ```
-SET_LOGGING_LEVEL HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: masterhost:5050
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<masterhost>:5050/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "SET_LOGGING_LEVEL",
   "set_logging_level": {
@@ -812,12 +784,11 @@ Accept: application/json
     "level": 1
   }
 }
+EOF
+```
 
-
-SET_LOGGING_LEVEL HTTP Response:
-
+```
 HTTP/1.1 202 Accepted
-
 ```
 
 ### LIST_FILES
@@ -825,26 +796,22 @@ HTTP/1.1 202 Accepted
 This call retrieves the file listing for a directory in master.
 
 ```
-LIST_FILES HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: masterhost:5050
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<masterhost>:5050/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "LIST_FILES",
   "list_files": {
     "path": "one/"
   }
 }
+EOF
+```
 
-
-LIST_FILES HTTP Response (JSON):
-
+```
 HTTP/1.1 200 OK
-
 Content-Type: application/json
 
 {
@@ -887,7 +854,6 @@ Content-Type: application/json
     ]
   }
 }
-
 ```
 
 ### READ_FILE
@@ -897,14 +863,11 @@ file to be read, the offset to start reading, and the maximum number of
 bytes to read.
 
 ```
-READ_FILE HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: masterhost:5050
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<masterhost>:5050/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "READ_FILE",
   "read_file": {
@@ -913,12 +876,11 @@ Accept: application/json
     "path": "myname"
   }
 }
+EOF
+```
 
-
-READ_FILE HTTP Response (JSON):
-
+```
 HTTP/1.1 200 OK
-
 Content-Type: application/json
 
 {
@@ -928,7 +890,6 @@ Content-Type: application/json
     "size": 4
   }
 }
-
 ```
 
 ### GET_STATE
@@ -936,23 +897,19 @@ Content-Type: application/json
 This call retrieves the overall cluster state.
 
 ```
-GET_STATE HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: masterhost:5050
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<masterhost>:5050/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "GET_STATE"
 }
+EOF
+```
 
-
-GET_STATE HTTP Response (JSON):
-
+```
 HTTP/1.1 200 OK
-
 Content-Type: application/json
 
 {
@@ -1219,7 +1176,6 @@ Content-Type: application/json
     }
   }
 }
-
 ```
 
 ### GET_AGENTS
@@ -1227,23 +1183,19 @@ Content-Type: application/json
 This call retrieves information about all the agents known to the master.
 
 ```
-GET_AGENTS HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: masterhost:5050
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<masterhost>:5050/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "GET_AGENTS"
 }
+EOF
+```
 
-
-GET_AGENTS HTTP Response (JSON):
-
+```
 HTTP/1.1 200 OK
-
 Content-Type: application/json
 
 {{
@@ -1346,7 +1298,6 @@ Content-Type: application/json
     ]
   }
 }
-
 ```
 
 ### GET_FRAMEWORKS
@@ -1354,23 +1305,19 @@ Content-Type: application/json
 This call retrieves information about all the frameworks known to the master.
 
 ```
-GET_FRAMEWORKS HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: masterhost:5050
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<masterhost>:5050/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "GET_FRAMEWORKS"
 }
+EOF
+```
 
-
-GET_FRAMEWORKS HTTP Response (JSON):
-
+```
 HTTP/1.1 200 OK
-
 Content-Type: application/json
 
 {
@@ -1402,7 +1349,6 @@ Content-Type: application/json
     ]
   }
 }
-
 ```
 
 ### GET_EXECUTORS
@@ -1410,23 +1356,19 @@ Content-Type: application/json
 Queries about all the executors known to the master.
 
 ```
-GET_EXECUTORS HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: masterhost:5050
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<masterhost>:5050/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "GET_EXECUTORS"
 }
+EOF
+```
 
-
-GET_EXECUTORS HTTP Response (JSON):
-
+```
 HTTP/1.1 200 OK
-
 Content-Type: application/json
 
 {
@@ -1453,7 +1395,6 @@ Content-Type: application/json
     ]
   }
 }
-
 ```
 
 ### GET_TASKS
@@ -1461,23 +1402,19 @@ Content-Type: application/json
 Query about all the tasks known to the master.
 
 ```
-GET_TASKS HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: masterhost:5050
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<masterhost>:5050/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "GET_TASKS"
 }
+EOF
+```
 
-
-GET_TASKS HTTP Response (JSON):
-
+```
 HTTP/1.1 200 OK
-
 Content-Type: application/json
 
 {
@@ -1572,7 +1509,6 @@ Content-Type: application/json
     ]
   }
 }
-
 ```
 
 ### GET_ROLES
@@ -1580,23 +1516,19 @@ Content-Type: application/json
 Query the information about roles.
 
 ```
-GET_ROLES HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: masterhost:5050
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<masterhost>:5050/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "GET_ROLES"
 }
+EOF
+```
 
-
-GET_ROLES HTTP Response (JSON):
-
+```
 HTTP/1.1 200 OK
-
 Content-Type: application/json
 
 {
@@ -1658,7 +1590,6 @@ Content-Type: application/json
     ]
   }
 }
-
 ```
 
 ### GET_WEIGHTS
@@ -1666,23 +1597,19 @@ Content-Type: application/json
 This call retrieves the information about role weights.
 
 ```
-GET_WEIGHTS HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: masterhost:5050
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<masterhost>:5050/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "GET_WEIGHTS"
 }
+EOF
+```
 
-
-GET_WEIGHTS HTTP Response (JSON):
-
+```
 HTTP/1.1 200 OK
-
 Content-Type: application/json
 
 {
@@ -1696,7 +1623,6 @@ Content-Type: application/json
     ]
   }
 }
-
 ```
 
 ### UPDATE_WEIGHTS
@@ -1705,14 +1631,11 @@ This call updates weights for specific role. This call takes `weight_infos`
 which needs `role` value and `weight` value.
 
 ```
-UPDATE_WEIGHTS HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: masterhost:5050
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<masterhost>:5050/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "UPDATE_WEIGHTS",
   "update_weights": {
@@ -1724,12 +1647,11 @@ Accept: application/json
     ]
   }
 }
+EOF
+```
 
-
-UPDATE_WEIGHTS HTTP Response:
-
+```
 HTTP/1.1 202 Accepted
-
 ```
 
 ### GET_MASTER
@@ -1737,23 +1659,19 @@ HTTP/1.1 202 Accepted
 This call retrieves information about the master.
 
 ```
-GET_MASTER HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: masterhost:5050
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<masterhost>:5050/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "GET_MASTER"
 }
+EOF
+```
 
-
-GET_MASTER HTTP Response (JSON):
-
+```
 HTTP/1.1 200 OK
-
 Content-Type: application/json
 
 {
@@ -1774,7 +1692,6 @@ Content-Type: application/json
     }
   }
 }
-
 ```
 
 ### RESERVE_RESOURCES
@@ -1783,14 +1700,11 @@ This call reserve resources dynamically on a specific agent. This call takes
 `agent_id` and `resources` details like the following.
 
 ```
-RESERVE_RESOURCES HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: masterhost:5050
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<masterhost>:5050/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "RESERVE_RESOURCES",
   "reserve_resources": {
@@ -1823,12 +1737,11 @@ Accept: application/json
     ]
   }
 }
+EOF
+```
 
-
-RESERVE_RESOURCES HTTP Response:
-
+```
 HTTP/1.1 202 Accepted
-
 ```
 
 ### UNRESERVE_RESOURCES
@@ -1837,14 +1750,11 @@ This call unreserve resources dynamically on a specific agent. This call takes
 `agent_id` and `resources` details like the following.
 
 ```
-UNRESERVE_RESOURCES HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: masterhost:5050
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<masterhost>:5050/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "UNRESERVE_RESOURCES",
   "unreserve_resources": {
@@ -1877,12 +1787,11 @@ Accept: application/json
     ]
   }
 }
+EOF
+```
 
-
-UNRESERVE_RESOURCES HTTP Response:
-
+```
 HTTP/1.1 202 Accepted
-
 ```
 
 ### CREATE_VOLUMES
@@ -1894,14 +1803,11 @@ or creating the volumes at the agent might fail. This call takes `agent_id`
 and `volumes` details like the following.
 
 ```
-CREATE_VOLUMES HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: masterhost:5050
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<masterhost>:5050/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "CREATE_VOLUMES",
   "create_volumes": {
@@ -1930,12 +1836,11 @@ Accept: application/json
     ]
   }
 }
+EOF
+```
 
-
-CREATE_VOLUMES HTTP Response:
-
+```
 HTTP/1.1 202 Accepted
-
 ```
 
 ### DESTROY_VOLUMES
@@ -1944,14 +1849,11 @@ This call destroys [persistent volumes](persistent-volume.md). The request is
 forwarded asynchronously to the Mesos agent where the volumes are located.
 
 ```
-DESTROY_VOLUMES HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: masterhost:5050
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<masterhost>:5050/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "DESTROY_VOLUMES",
   "destroy_volumes": {
@@ -1980,12 +1882,11 @@ Accept: application/json
     ]
   }
 }
+EOF
+```
 
-
-DESTROY_VOLUMES HTTP Response:
-
+```
 HTTP/1.1 202 Accepted
-
 ```
 
 ### GROW_VOLUME
@@ -2103,23 +2004,19 @@ HTTP/1.1 202 Accepted
 This call retrieves the cluster's maintenance status.
 
 ```
-GET_MAINTENANCE_STATUS HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: masterhost:5050
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<masterhost>:5050/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "GET_MAINTENANCE_STATUS"
 }
+EOF
+```
 
-
-GET_MAINTENANCE_STATUS HTTP Response (JSON):
-
+```
 HTTP/1.1 200 OK
-
 Content-Type: application/json
 
 {
@@ -2141,7 +2038,6 @@ Content-Type: application/json
     }
   }
 }
-
 ```
 
 ### GET_MAINTENANCE_SCHEDULE
@@ -2149,23 +2045,19 @@ Content-Type: application/json
 This call retrieves the cluster's maintenance schedule.
 
 ```
-GET_MAINTENANCE_SCHEDULE HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: masterhost:5050
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<masterhost>:5050/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "GET_MAINTENANCE_SCHEDULE"
 }
+EOF
+```
 
-
-GET_MAINTENANCE_SCHEDULE HTTP Response (JSON):
-
-HTTP/1.1 200 OK
-
+```
+HTTP/1.1 200 OK 
 Content-Type: application/json
 
 {
@@ -2192,7 +2084,6 @@ Content-Type: application/json
     }
   }
 }
-
 ```
 
 ### UPDATE_MAINTENANCE_SCHEDULE
@@ -2200,14 +2091,11 @@ Content-Type: application/json
 This call updates the cluster's maintenance schedule.
 
 ```
-UPDATE_MAINTENANCE_SCHEDULE HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: masterhost:5050
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<masterhost>:5050/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "UPDATE_MAINTENANCE_SCHEDULE",
   "update_maintenance_schedule": {
@@ -2232,12 +2120,11 @@ Accept: application/json
     }
   }
 }
+EOF
+```
 
-
-UPDATE_MAINTENANCE_SCHEDULE HTTP Response:
-
+```
 HTTP/1.1 202 Accepted
-
 ```
 
 ### START_MAINTENANCE
@@ -2246,14 +2133,11 @@ This call starts the maintenance of the cluster, this would bring a set of machi
 down.
 
 ```
-START_MAINTENANCE HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: masterhost:5050
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<masterhost>:5050/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "START_MAINTENANCE",
   "start_maintenance": {
@@ -2265,12 +2149,11 @@ Accept: application/json
     ]
   }
 }
+EOF
+```
 
-
-START_MAINTENANCE HTTP Response:
-
-HTTP/1.1 202 Accepted
-
+```
+HTTP/1.1 202 Accepted 
 ```
 
 ### STOP_MAINTENANCE
@@ -2279,14 +2162,11 @@ Stops the maintenance of the cluster, this would bring a set of machines
 back up.
 
 ```
-STOP_MAINTENANCE HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: masterhost:5050
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<masterhost>:5050/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "STOP_MAINTENANCE",
   "stop_maintenance": {
@@ -2298,12 +2178,11 @@ Accept: application/json
     ]
   }
 }
+EOF
+```
 
-
-STOP_MAINTENANCE HTTP Response:
-
+```
 HTTP/1.1 202 Accepted
-
 ```
 
 ### GET_QUOTA
@@ -2311,23 +2190,19 @@ HTTP/1.1 202 Accepted
 This call retrieves the cluster's configured quotas.
 
 ```
-GET_QUOTA HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: masterhost:5050
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<masterhost>:5050/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "GET_QUOTA"
 }
+EOF
+```
 
-
-GET_QUOTA HTTP Response (JSON):
-
-HTTP/1.1 200 OK
-
+```
+HTTP/1.1 200 OK 
 Content-Type: application/json
 
 {
@@ -2361,7 +2236,6 @@ Content-Type: application/json
     }
   }
 }
-
 ```
 
 ### SET_QUOTA
@@ -2369,14 +2243,11 @@ Content-Type: application/json
 This call sets the quota for resources to be used by a particular role.
 
 ```
-SET_QUOTA HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: masterhost:5050
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<masterhost>:5050/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "SET_QUOTA",
   "set_quota": {
@@ -2404,12 +2275,11 @@ Accept: application/json
     }
   }
 }
+EOF
+```
 
-
-SET_QUOTA HTTP Response:
-
-HTTP/1.1 202 Accepted
-
+```
+HTTP/1.1 202 Accepted 
 ```
 
 ### REMOVE_QUOTA
@@ -2417,26 +2287,22 @@ HTTP/1.1 202 Accepted
 This call removes the quota for a particular role.
 
 ```
-REMOVE_QUOTA HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: masterhost:5050
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<masterhost>:5050/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "REMOVE_QUOTA",
   "remove_quota": {
     "role": "role1"
   }
 }
+EOF
+```
 
-
-REMOVE_QUOTA HTTP Response:
-
-HTTP/1.1 202 Accepted
-
+```
+HTTP/1.1 202 Accepted 
 ```
 
 ### MARK_AGENT_GONE
@@ -2452,14 +2318,11 @@ the master. The agent would be shutdown when it tries to reregister with the
 master when the partition heals. This call is idempotent.
 
 ```
-MARK_AGENT_GONE HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: masterhost:5050
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<masterhost>:5050/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "MARK_AGENT_GONE",
   "mark_agent_gone": {
@@ -2468,9 +2331,10 @@ Accept: application/json
     }
   }
 }
+EOF
+```
 
-MARK_AGENT_GONE HTTP Response (JSON):
-
+```
 HTTP/1.1 200 OK
 ```
 
@@ -2479,21 +2343,19 @@ HTTP/1.1 200 OK
 Currently, the only call that results in a streaming response is the `SUBSCRIBE` call sent to the master API.
 
 ```
-SUBSCRIBE Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: masterhost:5050
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<masterhost>:5050/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "SUBSCRIBE"
 }
+EOF
+```
 
-SUBSCRIBE Response Event (JSON):
+```
 HTTP/1.1 200 OK
-
 Content-Type: application/json
 Transfer-Encoding: chunked
 
@@ -2797,23 +2659,19 @@ Request and Response are similar to GET_HEALTH call to master.
 This call retrieves the agent's flag configuration.
 
 ```
-GET_FLAGS HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: agenthost:5051
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<agenthost>:5051/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "GET_FLAGS"
 }
+EOF
+```
 
-
-GET_FLAGS HTTP Response (JSON):
-
-HTTP/1.1 200 OK
-
+```
+HTTP/1.1 200 OK 
 Content-Type: application/json
 
 {
@@ -3075,7 +2933,6 @@ Content-Type: application/json
     ]
   }
 }
-
 ```
 
 ### GET_VERSION
@@ -3108,23 +2965,19 @@ This call retrieves full state of the agent i.e. information about the tasks,
 frameworks and executors running in the cluster.
 
 ```
-GET_STATE HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: agenthost:5051
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<agenthost>:5051/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "GET_STATE"
 }
+EOF
+```
 
-
-GET_STATE HTTP Response (JSON):
-
+```
 HTTP/1.1 200 OK
-
 Content-Type: application/json
 
 {
@@ -3279,7 +3132,6 @@ Content-Type: application/json
     }
   }
 }
-
 ```
 
 ### GET_CONTAINERS
@@ -3293,14 +3145,11 @@ API will return:
 * `show_standalone`: Whether to show standalone containers [default: false].
 
 ```
-GET_CONTAINERS HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: agenthost:5051
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<agenthost>:5051/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "GET_CONTAINERS",
   "get_containers": {
@@ -3308,12 +3157,11 @@ Accept: application/json
     "show_standalone": false
   }
 }
+EOF
+```
 
-
-GET_CONTAINERS HTTP Response (JSON):
-
+```
 HTTP/1.1 200 OK
-
 Content-Type: application/json
 
 {
@@ -3350,7 +3198,6 @@ Content-Type: application/json
     ]
   }
 }
-
 ```
 
 ### GET_FRAMEWORKS
@@ -3358,23 +3205,19 @@ Content-Type: application/json
 This call retrieves information about all the frameworks known to the agent.
 
 ```
-GET_FRAMEWORKS HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: agenthost:5051
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<agenthost>:5051/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "GET_FRAMEWORKS"
 }
+EOF
+```
 
-
-GET_FRAMEWORKS HTTP Response (JSON):
-
-HTTP/1.1 200 OK
-
+```
+HTTP/1.1 200 OK 
 Content-Type: application/json
 
 {
@@ -3398,7 +3241,6 @@ Content-Type: application/json
     ]
   }
 }
-
 ```
 
 ### GET_EXECUTORS
@@ -3406,23 +3248,20 @@ Content-Type: application/json
 This call retrieves information about all the executors known to the agent.
 
 ```
-GET_EXECUTORS HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: agenthost:5051
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<agenthost>:5051/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "GET_EXECUTORS"
 }
+EOF
+```
 
 
-GET_EXECUTORS HTTP Response (JSON):
-
-HTTP/1.1 200 OK
-
+```
+HTTP/1.1 200 OK 
 Content-Type: application/json
 
 {
@@ -3470,7 +3309,6 @@ Content-Type: application/json
     ]
   }
 }
-
 ```
 
 ### GET_TASKS
@@ -3478,23 +3316,19 @@ Content-Type: application/json
 This call retrieves information about all the tasks known to the agent.
 
 ```
-GET_TASKS HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: agenthost:5051
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<agenthost>:5051/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "GET_TASKS"
 }
+EOF
+```
 
-
-GET_TASKS HTTP Response (JSON):
-
+```
 HTTP/1.1 200 OK
-
 Content-Type: application/json
 
 {
@@ -3587,7 +3421,6 @@ Content-Type: application/json
     ]
   }
 }
-
 ```
 
 ### LAUNCH_NESTED_CONTAINER
@@ -3604,14 +3437,11 @@ agent flag is enabled, the agent will garbage collect the sandboxes of
 any containers launched via this API.
 
 ```
-LAUNCH_NESTED_CONTAINER HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: agenthost:5051
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<agenthost>:5051/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "LAUNCH_NESTED_CONTAINER",
   "launch_nested_container": {
@@ -3639,11 +3469,11 @@ Accept: application/json
     }
   }
 }
+EOF
+```
 
-LAUNCH_NESTED_CONTAINER HTTP Response (JSON):
-
-HTTP/1.1 200 OK
-
+```
+HTTP/1.1 200 OK 
 ```
 
 ### WAIT_NESTED_CONTAINER
@@ -3653,14 +3483,11 @@ authorized entity, including the executor itself, its tasks, or the
 operator can use this API to wait on a nested container.
 
 ```
-WAIT_NESTED_CONTAINER HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: agenthost:5051
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<agenthost>:5051/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "WAIT_NESTED_CONTAINER",
   "wait_nested_container": {
@@ -3672,11 +3499,11 @@ Accept: application/json
     }
   }
 }
+EOF
+```
 
-WAIT_NESTED_CONTAINER HTTP Response (JSON):
-
+```
 HTTP/1.1 200 OK
-
 Content-Type: application/json
 
 {
@@ -3685,7 +3512,6 @@ Content-Type: application/json
     "exit_status": 0
   }
 }
-
 ```
 
 ### KILL_NESTED_CONTAINER
@@ -3695,14 +3521,11 @@ authorized entity, including the executor itself, its tasks, or the
 operator can use this API to kill a nested container.
 
 ```
-KILL_NESTED_CONTAINER HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: agenthost:5051
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<agenthost>:5051/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "KILL_NESTED_CONTAINER",
   "kill_nested_container": {
@@ -3714,11 +3537,11 @@ Accept: application/json
     }
   }
 }
+EOF
+```
 
-KILL_NESTED_CONTAINER HTTP Response (JSON):
-
-HTTP/1.1 200 OK
-
+```
+HTTP/1.1 200 OK 
 ```
 
 ### LAUNCH_NESTED_CONTAINER_SESSION
@@ -3729,15 +3552,12 @@ STDERR of the nested container is streamed back to the client so long
 as the connection is active.
 
 ```
-LAUNCH_NESTED_CONTAINER_SESSION HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: agenthost:5051
-Content-Type: application/json
-Accept: application/recordio
-Message-Accept: application/json
-
+$ curl -i \
+  -X POST http://<agenthost>:5051/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/recordio" \
+  -H "Message-Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "LAUNCH_NESTED_CONTAINER_SESSION",
   "launch_nested_container_session": {
@@ -3765,11 +3585,11 @@ Message-Accept: application/json
     }
   }
 }
+EOF
+```
 
-LAUNCH_NESTED_CONTAINER_SESSION HTTP Response (JSON):
-
+```
 HTTP/1.1 200 OK
-
 Content-Type: application/recordio
 Message-Content-Type: application/json
 
@@ -3796,7 +3616,6 @@ Message-Content-Type: application/json
   }
 }
 ...
-
 ```
 
 ### ATTACH_CONTAINER_INPUT
@@ -3819,10 +3638,12 @@ CONTROL message sends a heartbeat to keep the connection alive. We may
 add more CONTROL messages in the future.
 
 ```
-ATTACH_CONTAINER_INPUT HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
+$ curl -i \
+  -X POST http://<agenthost>:5051/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Message-Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 Host: agenthost:5051
 Content-Type: application/recordio
 Message-Content-Type: application/json
@@ -3870,11 +3691,11 @@ Accept: application/json
   }
 }
 ...
+EOF
+```
 
-ATTACH_CONTAINER_INPUT HTTP Response (JSON):
-
-HTTP/1.1 200 OK
-
+```
+HTTP/1.1 200 OK 
 ```
 
 ### ATTACH_CONTAINER_OUTPUT
@@ -3889,15 +3710,12 @@ ATTACH_CONTAINER_OUTPUT calls can be active for a given container at
 once.
 
 ```
-ATTACH_CONTAINER_OUTPUT HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: agenthost:5051
-Content-Type: application/json
-Accept: application/recordio
-Message-Accept: application/json
-
+$ curl -i \
+  -X POST http://<agenthost>:5051/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/recordio" \
+  -H "Message-Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "ATTACH_CONTAINER_OUTPUT",
   "attach_container_output": {
@@ -3906,11 +3724,11 @@ Message-Accept: application/json
     }
   }
 }
+EOF
+```
 
-ATTACH_CONTAINER_OUTPUT HTTP Response (JSON):
-
+```
 HTTP/1.1 200 OK
-
 Content-Type: application/recordio
 Message-Content-Type: application/json
 
@@ -3937,7 +3755,6 @@ Message-Content-Type: application/json
   }
 }
 ...
-
 ```
 
 ### REMOVE_NESTED_CONTAINER
@@ -3949,14 +3766,11 @@ container has not been destroyed. Any authorized entity, including the
 executor itself, its tasks, or the operator can use this API call.
 
 ```
-REMOVE_NESTED_CONTAINER HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: agenthost:5051
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<agenthost>:5051/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "REMOVE_NESTED_CONTAINER",
   "remove_nested_container": {
@@ -3968,9 +3782,10 @@ Accept: application/json
     }
   }
 }
+EOF
+```
 
-REMOVE_NESTED_CONTAINER HTTP Response (JSON):
-
+```
 HTTP/1.1 200 OK
 ```
 
@@ -4055,14 +3870,11 @@ This call launches a Local Resource Provider on the agent with the specified
 `ResourceProviderInfo`.
 
 ```
-ADD_RESOURCE_PROVIDER_CONFIG HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: agenthost:5051
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<agenthost>:5051/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "ADD_RESOURCE_PROVIDER_CONFIG",
   "add_resource_provider_config": {
@@ -4106,9 +3918,10 @@ Accept: application/json
     }
   }
 }
+EOF
+```
 
-ADD_RESOURCE_PROVIDER_CONFIG HTTP Response (JSON):
-
+```
 HTTP/1.1 200 OK
 ```
 
@@ -4128,14 +3941,11 @@ This call updates a Local Resource Provider on the agent with the specified
 `ResourceProviderInfo`.
 
 ```
-UPDATE_RESOURCE_PROVIDER_CONFIG HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: agenthost:5051
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<agenthost>:5051/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "UPDATE_RESOURCE_PROVIDER_CONFIG",
   "update_resource_provider_config": {
@@ -4179,9 +3989,10 @@ Accept: application/json
     }
   }
 }
+EOF
+```
 
-UPDATE_RESOURCE_PROVIDER_CONFIG HTTP Response (JSON):
-
+```
 HTTP/1.1 200 OK
 ```
 
@@ -4216,14 +4027,11 @@ provider as gone, in which case the local resource provider will not be allowed
 to be re-added.  Marking a local resource provider as gone is not yet supported.
 
 ```
-REMOVE_RESOURCE_PROVIDER_CONFIG HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: agenthost:5051
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<agenthost>:5051/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "REMOVE_RESOURCE_PROVIDER_CONFIG",
   "remove_resource_provider_config": {
@@ -4231,9 +4039,10 @@ Accept: application/json
     "name": "test_slrp"
   }
 }
+EOF
+```
 
-REMOVE_RESOURCE_PROVIDER_CONFIG HTTP Response (JSON):
-
+```
 HTTP/1.1 200 OK
 ```
 
@@ -4255,14 +4064,11 @@ or newer. An optional list of excluded images from GC can be speficied via
 `prune_images.excluded_images` field.
 
 ```
-PRUNE_IMAGES HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: agenthost:5051
-Content-Type: application/json
-Accept: application/json
-
+$ curl -i \
+  -X POST http://<agenthost>:5051/api/v1 \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d  @- << EOF
 {
   "type": "PRUNE_IMAGES",
   "prune_images": {
@@ -4271,8 +4077,9 @@ Accept: application/json
     ]
   }
 }
+EOF
+```
 
-PRUNE_IMAGES HTTP Response (JSON):
-
+```
 HTTP/1.1 200 OK
 ```
