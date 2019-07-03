@@ -116,6 +116,7 @@ using process::Process;
 using process::UPID;
 
 using std::map;
+using std::make_move_iterator;
 using std::mutex;
 using std::shared_ptr;
 using std::set;
@@ -1438,26 +1439,37 @@ protected:
     send(master->pid(), call);
   }
 
-  void reviveOffers()
+  void reviveOffers(const vector<string>& roles)
   {
-    suppressedRoles.clear();
+    if (roles.empty()) {
+      suppressedRoles.clear();
+    } else {
+      for (const string& role : roles) {
+        suppressedRoles.erase(role);
+      }
+    }
 
     if (!connected) {
       VLOG(1) << "Ignoring REVIVE as master is disconnected;"
-              << " the set of suppressed roles in the driver has been cleared"
+              << " the set of suppressed roles in the driver has been updated"
               << " and will be sent to the master during re-registration";
-
       sendUpdateFrameworkOnConnect = true;
       return;
     }
-
-    VLOG(2) << "Sending REVIVE for all roles";
 
     Call call;
 
     CHECK(framework.has_id());
     call.mutable_framework_id()->CopyFrom(framework.id());
     call.set_type(Call::REVIVE);
+
+    if (roles.empty()) {
+      VLOG(2) << "Sending REVIVE for all roles";
+    } else {
+      VLOG(2) << "Sending REVIVE for roles: " << stringify(roles);
+      *call.mutable_revive()->mutable_roles() =
+        RepeatedPtrField<string>(roles.begin(), roles.end());
+    }
 
     CHECK_SOME(master);
     send(master->pid(), call);
@@ -2327,7 +2339,27 @@ Status MesosSchedulerDriver::reviveOffers()
 
     CHECK(process != nullptr);
 
-    dispatch(process, &SchedulerProcess::reviveOffers);
+    dispatch(process, &SchedulerProcess::reviveOffers, vector<string>());
+
+    return status;
+  }
+}
+
+
+Status MesosSchedulerDriver::reviveOffers(const vector<string>& roles)
+{
+  if (roles.empty()) {
+    return status;
+  }
+
+  synchronized (mutex) {
+    if (status != DRIVER_RUNNING) {
+      return status;
+    }
+
+    CHECK(process != nullptr);
+
+    dispatch(process, &SchedulerProcess::reviveOffers, roles);
 
     return status;
   }

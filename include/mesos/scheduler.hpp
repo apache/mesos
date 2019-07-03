@@ -293,6 +293,14 @@ public:
   // during re-registration.
   virtual Status reviveOffers() = 0;
 
+  // Removes filters for the specified roles and removes  these roles from
+  // the suppressed set.  If the framework is not connected to the master,
+  // an up-to-date set of suppressed roles will be sent to the master
+  // during re-registration.
+  //
+  // NOTE: If 'roles' is empty, this method does nothing.
+  virtual Status reviveOffers(const std::vector<std::string>& roles) = 0;
+
   // Informs Mesos master to stop sending offers to the framework (i.e.
   // to suppress all roles of the framework). To resume getting offers,
   // the scheduler can call reviveOffers() or set the suppressed roles
@@ -489,6 +497,8 @@ public:
       const Filters& filters = Filters()) override;
 
   Status reviveOffers() override;
+
+  Status reviveOffers(const std::vector<std::string>& roles) override;
 
   Status suppressOffers() override;
 
