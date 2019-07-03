@@ -1280,9 +1280,9 @@ void HierarchicalAllocatorProcess::recoverResources(
 }
 
 
-void HierarchicalAllocatorProcess::suppressOffers(
+void HierarchicalAllocatorProcess::suppressRoles(
     const FrameworkID& frameworkId,
-    const set<string>& roles_)
+    const set<string>& roles)
 {
   CHECK(initialized);
   CHECK(frameworks.contains(frameworkId));
@@ -1292,7 +1292,6 @@ void HierarchicalAllocatorProcess::suppressOffers(
   // Deactivating the framework in the sorter is fine as long as
   // SUPPRESS is not parameterized. When parameterization is added,
   // we have to differentiate between the cases here.
-  const set<string>& roles = roles_.empty() ? framework.roles : roles_;
 
   foreach (const string& role, roles) {
     CHECK(frameworkSorters.contains(role));
@@ -1301,7 +1300,49 @@ void HierarchicalAllocatorProcess::suppressOffers(
     framework.suppressedRoles.insert(role);
   }
 
+  // TODO(bmahler): This logs roles that were already suppressed,
+  // only log roles that transitioned from unsuppressed -> suppressed.
   LOG(INFO) << "Suppressed offers for roles " << stringify(roles)
+            << " of framework " << frameworkId;
+}
+
+
+void HierarchicalAllocatorProcess::suppressOffers(
+    const FrameworkID& frameworkId,
+    const set<string>& roles_)
+{
+  CHECK(initialized);
+  CHECK(frameworks.contains(frameworkId));
+
+  Framework& framework = frameworks.at(frameworkId);
+
+  const set<string>& roles = roles_.empty() ? framework.roles : roles_;
+  suppressRoles(frameworkId, roles);
+}
+
+
+void HierarchicalAllocatorProcess::unsuppressRoles(
+    const FrameworkID& frameworkId,
+    const set<string>& roles)
+{
+  CHECK(initialized);
+  CHECK(frameworks.contains(frameworkId));
+
+  Framework& framework = frameworks.at(frameworkId);
+
+  // Activating the framework in the sorter is fine as long as
+  // SUPPRESS is not parameterized. When parameterization is added,
+  // we may need to differentiate between the cases here.
+  foreach (const string& role, roles) {
+    CHECK(frameworkSorters.contains(role));
+
+    frameworkSorters.at(role)->activate(frameworkId.value());
+    framework.suppressedRoles.erase(role);
+  }
+
+  // TODO(bmahler): This logs roles that were already unsuppressed,
+  // only log roles that transitioned from suppressed -> unsuppressed.
+  LOG(INFO) << "Unsuppressed offers for roles " << stringify(roles)
             << " of framework " << frameworkId;
 }
 
@@ -1317,20 +1358,13 @@ void HierarchicalAllocatorProcess::reviveOffers(
   framework.inverseOfferFilters.clear();
 
   const set<string>& roles = roles_.empty() ? framework.roles : roles_;
-
-  // Activating the framework in the sorter on REVIVE is fine as long as
-  // SUPPRESS is not parameterized. When parameterization is added,
-  // we may need to differentiate between the cases here.
   foreach (const string& role, roles) {
     framework.offerFilters.erase(role);
-
-    CHECK(frameworkSorters.contains(role));
-    frameworkSorters.at(role)->activate(frameworkId.value());
-
-    framework.suppressedRoles.erase(role);
   }
 
-  LOG(INFO) << "Revived offers for roles " << stringify(roles)
+  unsuppressRoles(frameworkId, roles);
+
+  LOG(INFO) << "Revived roles " << stringify(roles)
             << " of framework " << frameworkId;
 
   allocate();
