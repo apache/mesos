@@ -662,6 +662,69 @@ TEST_F(UpdateFrameworkTest, AddSuppressedRole)
 }
 
 
+// Helper action for RemoveAndUnsuppress.
+ACTION_P(SendSubscribeWithAllRolesSuppressed, framework)
+{
+  Call call;
+  call.set_type(Call::SUBSCRIBE);
+  *call.mutable_subscribe()->mutable_framework_info() = framework;
+  *call.mutable_subscribe()->mutable_suppressed_roles() = framework.roles();
+
+  arg0->send(call);
+}
+
+
+// This test ensures that it is possible to remove roles both from the roles
+// set and the suppressed roles set.
+TEST_F(UpdateFrameworkTest, RemoveAndUnsuppress)
+{
+  mesos::internal::master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master->get()->createDetector();
+
+  mesos::internal::slave::Flags slaveFlags = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  auto scheduler = std::make_shared<MockHTTPScheduler>();
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(SendSubscribeWithAllRolesSuppressed(DEFAULT_FRAMEWORK_INFO));
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  Future<Event::Subscribed> subscribed;
+
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  // Expect that the framework gets no offers.
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .Times(AtMost(0));
+
+  TestMesos mesos(master->get()->pid, ContentType::PROTOBUF, scheduler);
+
+  AWAIT_READY(subscribed);
+
+  // Remove suppressed roles while unsuppressing them.
+  FrameworkInfo update = DEFAULT_FRAMEWORK_INFO;
+  *update.mutable_id() = subscribed->framework_id();
+  update.clear_roles();
+
+  AWAIT_READY(callUpdateFramework(&mesos, update, {}));
+
+  // Trigger allocation to ensure that nothing happens.
+  Clock::pause();
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::settle();
+}
+
+
 } // namespace scheduler {
 } // namespace v1 {
 
