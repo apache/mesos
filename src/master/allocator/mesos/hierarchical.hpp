@@ -649,6 +649,16 @@ private:
       const FrameworkID& frameworkId,
       const std::string& role);
 
+  // TODO(bmahler): Take a `Framework*` here (and in other functions!),
+  // it's currently not possible because `Framework` doesn't store the
+  // framework ID.
+  void suppressRoles(
+      const FrameworkID& frameworkId,
+      const std::set<std::string>& roles);
+  void unsuppressRoles(
+      const FrameworkID& frameworkId,
+      const std::set<std::string>& roles);
+
   // `trackReservations` and `untrackReservations` are helpers
   // to track role resource reservations. We need to keep
   // track of reservations to enforce role quota limit
