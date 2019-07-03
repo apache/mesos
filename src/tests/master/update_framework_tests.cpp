@@ -72,6 +72,8 @@ using process::Promise;
 
 using recordio::Decoder;
 
+using google::protobuf::RepeatedPtrField;
+
 using std::string;
 using std::vector;
 
@@ -190,7 +192,8 @@ class UpdateFrameworkTest : public MesosTest {};
 
 static Future<APIResult> callUpdateFramework(
     Mesos* mesos,
-    const FrameworkInfo& info)
+    const FrameworkInfo& info,
+    const vector<string>& suppressedRoles = {})
 {
   CHECK(info.has_id());
 
@@ -198,6 +201,8 @@ static Future<APIResult> callUpdateFramework(
   call.set_type(Call::UPDATE_FRAMEWORK);
   *call.mutable_framework_id() = info.id();
   *call.mutable_update_framework()->mutable_framework_info() = info;
+  *call.mutable_update_framework()->mutable_suppressed_roles() =
+    RepeatedPtrField<string>(suppressedRoles.begin(), suppressedRoles.end());
   return mesos->call(call);
 }
 
@@ -595,6 +600,61 @@ TEST_F(UpdateFrameworkTest, RescindOnRemovingRoles)
 
   // After that, nothing of interest should happen within an allocation
   // interval: no more offers and no more rescinding.
+  Clock::pause();
+  Clock::settle();
+  Clock::advance(masterFlags.allocation_interval);
+  Clock::settle();
+}
+
+
+// This test ensures that it is possible to add
+// a suppressed role via UPDATE_FRAMEWORK.
+TEST_F(UpdateFrameworkTest, AddSuppressedRole)
+{
+  mesos::internal::master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+  ASSERT_SOME(master);
+
+  Owned<MasterDetector> detector = master->get()->createDetector();
+
+  mesos::internal::slave::Flags slaveFlags = CreateSlaveFlags();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), slaveFlags);
+  ASSERT_SOME(slave);
+
+  auto scheduler = std::make_shared<MockHTTPScheduler>();
+
+  // Initially, the framework subscribes with no roles.
+  FrameworkInfo initialFrameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  initialFrameworkInfo.clear_roles();
+
+  Future<Nothing> connected;
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(SendSubscribe(initialFrameworkInfo));
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  Future<Event::Subscribed> subscribed;
+
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  // Expect that the framework gets no offers before update.
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .Times(AtMost(0));
+
+  TestMesos mesos(master->get()->pid, ContentType::PROTOBUF, scheduler);
+
+  AWAIT_READY(subscribed);
+
+  // Add a suppressed role.
+  FrameworkInfo update = initialFrameworkInfo;
+  *update.mutable_id() = subscribed->framework_id();
+  update.add_roles("new_role");
+
+  AWAIT_READY(callUpdateFramework(&mesos, update, {"new_role"}));
+
+  // Trigger allocation to ensure that offers are not generated.
   Clock::pause();
   Clock::settle();
   Clock::advance(masterFlags.allocation_interval);
