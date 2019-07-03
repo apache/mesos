@@ -15,6 +15,7 @@ Release Notes - Mesos - Version 1.5.4 (WIP)
   * [MESOS-9787] - Log slow SSL (TLS) peer reverse DNS lookup.
   * [MESOS-9852] - Slow memory growth in master due to deferred deletion of offer filters and timers.
   * [MESOS-9856] - REVIVE call with specified role(s) clears filters for all roles of a framework.
+  * [MESOS-9870] - Simultaneous adding/removal of a role from framework's roles and its suppressed roles crashes the master.
 
 ** Improvement
   * [MESOS-9159] - Support Foreign URLs in docker registry puller.
