@@ -1108,6 +1108,12 @@ private:
       Framework* framework,
       const mesos::scheduler::Call::DeclineInverseOffers& decline);
 
+  // Should be called after each terminal task status update acknowledgement
+  // or terminal operation acknowledgement. If an agent is draining, this
+  // checks if all pending tasks or operations have terminated and then
+  // transitions the DRAINING agent to DRAINED.
+  void checkAndTransitionDrainingAgent(Slave* slave);
+
   void revive(
       Framework* framework,
       const mesos::scheduler::Call::Revive& revive);

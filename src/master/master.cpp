@@ -6322,6 +6322,85 @@ void Master::declineInverseOffers(
 }
 
 
+void Master::checkAndTransitionDrainingAgent(Slave* slave)
+{
+  CHECK_NOTNULL(slave);
+
+  const SlaveID& slaveId = slave->id;
+
+  if (!slaves.draining.contains(slaveId) ||
+      slaves.draining.at(slaveId).state() == DRAINED) {
+    // Nothing to do for non-draining or already drained agents.
+    return;
+  }
+
+  // Check if the agent has any tasks running or operations pending.
+  if (!slave->pendingTasks.empty() ||
+      !slave->tasks.empty() ||
+      !slave->operations.empty()) {
+    VLOG(1)
+      << "DRAINING Agent " << slaveId << " has "
+      << slave->pendingTasks.size() << " pending tasks, "
+      << slave->tasks.size() << " tasks, and "
+      << slave->operations.size() << " operations";
+    return;
+  }
+
+  if (slaves.markingGone.contains(slaveId)) {
+    LOG(INFO)
+      << "Ignoring transition of agent " << slaveId << " to the DRAINED"
+      << " state because agent is being marked gone";
+    return;
+  }
+
+  // If the agent will be marked gone afterwards, we do not need to mark
+  // the agent as DRAINED. Simply marking gone will suffice.
+  if (slaves.draining.at(slaveId).config().mark_gone()) {
+    LOG(INFO) << "Marking agent " << slaveId << " in the DRAINED state as gone";
+
+    slaves.markingGone.insert(slaveId);
+
+    TimeInfo goneTime = protobuf::getCurrentTime();
+
+    registrar->apply(Owned<RegistryOperation>(
+        new MarkSlaveGone(slaveId, goneTime)))
+      .onAny(defer(
+          self(),
+          [this, slaveId, goneTime](const Future<bool>& result) {
+            CHECK_READY(result)
+              << "Failed to mark agent gone in the registry";
+
+            markGone(slaveId, goneTime);
+          }));
+  } else {
+    LOG(INFO) << "Transitioning agent " << slaveId << " to the DRAINED state";
+
+    registrar->apply(Owned<RegistryOperation>(
+        new MarkAgentDrained(slaveId)))
+      .onAny(defer(
+          self(),
+          [this, slaveId](const Future<bool>& result) {
+            CHECK_READY(result)
+              << "Failed to update draining info in the registry";
+
+            // This can happen if the agent sends an UnregisterSlaveMessage
+            // right before this method is called.
+            if (!slaves.draining.contains(slaveId)) {
+              LOG(INFO)
+                << "Agent " << slaveId << " was removed while being"
+                << " marked as DRAINED";
+              return;
+            }
+
+            slaves.draining[slaveId].set_state(DRAINED);
+
+            LOG(INFO)
+              << "Agent " << slaveId << " successfully marked as DRAINED";
+          }));
+  }
+}
+
+
 void Master::reviveOffers(
     const UPID& from,
     const FrameworkID& frameworkId,
@@ -6686,6 +6765,8 @@ void Master::acknowledge(
   send(slave->pid, message);
 
   metrics->valid_status_update_acknowledgements++;
+
+  checkAndTransitionDrainingAgent(slave);
 }
 
 
@@ -6817,6 +6898,8 @@ void Master::acknowledgeOperationStatus(
   send(slave->pid, message);
 
   metrics->valid_operation_status_update_acknowledgements++;
+
+  checkAndTransitionDrainingAgent(slave);
 }
 
 
@@ -8075,6 +8158,10 @@ void Master::___reregisterSlave(
         slaves.draining.at(slaveInfo.id()).config());
 
     send(slave->pid, message);
+
+    // Check if the agent is already drained and transition it
+    // appropriately if so.
+    checkAndTransitionDrainingAgent(slave);
   }
 
   // Inform the agent of the new framework pids for its tasks, and
@@ -9471,6 +9558,8 @@ void Master::markGone(const SlaveID& slaveId, const TimeInfo& goneTime)
     }
 
     slaves.unreachable.erase(slaveId);
+    slaves.draining.erase(slaveId);
+    slaves.deactivated.erase(slaveId);
 
     // TODO(vinod): Consider moving these tasks into `completedTasks` by
     // transitioning them to a terminal state and sending status updates.
@@ -11683,6 +11772,13 @@ void Master::_removeSlave(
   CHECK(machines.contains(slave->machineId));
   CHECK(machines[slave->machineId].slaves.contains(slave->id));
   machines[slave->machineId].slaves.erase(slave->id);
+
+  // Remove any draining information about the agent.
+  // NOTE: This should not be mirrored by `__removeSlave` because that
+  // method handles both unreachable and gone agents. Unreachable agents
+  // will retain their draining information, but gone agents will not.
+  slaves.draining.erase(slave->id);
+  slaves.deactivated.erase(slave->id);
 
   // Kill the slave observer.
   terminate(slave->observer);

@@ -3928,6 +3928,10 @@ Future<Response> Master::Http::_drainAgent(
             DrainSlaveMessage message;
             message.mutable_config()->CopyFrom(drainConfig);
             master->send(slave->pid, message);
+
+            // Check if the agent is already drained and transition it
+            // appropriately if so.
+            master->checkAndTransitionDrainingAgent(slave);
           }
 
           return OK();
