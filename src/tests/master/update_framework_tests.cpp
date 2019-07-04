@@ -1076,6 +1076,11 @@ TEST_F(UpdateFrameworkV0Test, SuppressedRoles)
   EXPECT_CALL(masterAPISubscriber, frameworkUpdated(_))
     .WillOnce(FutureArg<0>(&frameworkUpdated));
 
+  Future<Nothing> secondAgentAdded;
+  EXPECT_CALL(masterAPISubscriber, agentAdded(_))
+    .WillOnce(Return())
+    .WillOnce(FutureSatisfy(&secondAgentAdded));
+
   Owned<MasterDetector> detector = master->get()->createDetector();
 
   Try<Owned<cluster::Slave>> slave = StartSlave(detector.get());
@@ -1113,14 +1118,10 @@ TEST_F(UpdateFrameworkV0Test, SuppressedRoles)
 
   AWAIT_READY(frameworkUpdated);
 
-  Future<Nothing> newAgentAdded;
-  EXPECT_CALL(masterAPISubscriber, agentAdded(_))
-    .WillOnce(FutureSatisfy(&newAgentAdded));
-
   Try<Owned<cluster::Slave>> newSlave = StartSlave(detector.get());
   ASSERT_SOME(newSlave);
 
-  AWAIT_READY(newAgentAdded);
+  AWAIT_READY(secondAgentAdded);
 
   // After the agent has been added, no offers should be generated
   // within an allocation interval.
