@@ -269,6 +269,21 @@ public interface SchedulerDriver {
   Status reviveOffers();
 
   /**
+   * Removes filters for the specified roles and removes these roles from
+   * the suppressed set. If the framework is not connected to the master,
+   * an up-to-date set of suppressed roles will be sent to the master
+   * during re-registration.
+   *
+   * @param roles The collection of the framework roles to be revivied.
+   *              If empty, this method does nothing.
+   *
+   * @return    The state of the driver after the call.
+   *
+   * @see Status
+   */
+  Status reviveOffers(Collection<String> roles);
+
+  /**
    * Informs Mesos master to stop sending offers to the framework (i.e.
    * to suppress all roles of the framework). To resume getting offers,
    * the scheduler can call reviveOffers() or set the suppressed roles

@@ -938,7 +938,7 @@ Java_org_apache_mesos_MesosSchedulerDriver_declineOffer(
  * Signature: ()Lorg/apache/mesos/Protos/Status;
  */
 JNIEXPORT jobject JNICALL
-Java_org_apache_mesos_MesosSchedulerDriver_reviveOffers(
+Java_org_apache_mesos_MesosSchedulerDriver_reviveOffers__(
     JNIEnv* env, jobject thiz)
 {
   jclass clazz = env->GetObjectClass(thiz);
@@ -948,6 +948,28 @@ Java_org_apache_mesos_MesosSchedulerDriver_reviveOffers(
     (MesosSchedulerDriver*) env->GetLongField(thiz, __driver);
 
   Status status = driver->reviveOffers();
+
+  return convert<Status>(env, status);
+}
+
+
+/*
+ * Class:     org_apache_mesos_MesosSchedulerDriver
+ * Method:    reviveOffersForRoles
+ * Signature: (Ljava/util/Collection;)Lorg/apache/mesos/Protos/Status;
+ */
+JNIEXPORT jobject JNICALL
+Java_org_apache_mesos_MesosSchedulerDriver_reviveOffers__Ljava_util_Collection_2( // NOLINT(whitespace/line_length)
+    JNIEnv* env, jobject thiz, jobject jroles)
+{
+  jclass clazz = env->GetObjectClass(thiz);
+
+  jfieldID __driver = env->GetFieldID(clazz, "__driver", "J");
+  MesosSchedulerDriver* driver =
+    (MesosSchedulerDriver*) env->GetLongField(thiz, __driver);
+
+  Status status =
+    driver->reviveOffers(constructFromIterable<string>(env, jroles));
 
   return convert<Status>(env, status);
 }

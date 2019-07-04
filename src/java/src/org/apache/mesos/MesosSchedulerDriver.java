@@ -393,6 +393,8 @@ public class MesosSchedulerDriver implements SchedulerDriver {
 
   public native Status reviveOffers();
 
+  public native Status reviveOffers(Collection<String> roles);
+
   public native Status suppressOffers();
 
   public native Status acknowledgeStatusUpdate(TaskStatus status);
