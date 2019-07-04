@@ -981,7 +981,7 @@ Java_org_apache_mesos_MesosSchedulerDriver_reviveOffers__Ljava_util_Collection_2
  * Signature: ()Lorg/apache/mesos/Protos/Status;
  */
 JNIEXPORT jobject JNICALL
-Java_org_apache_mesos_MesosSchedulerDriver_suppressOffers(
+Java_org_apache_mesos_MesosSchedulerDriver_suppressOffers__(
     JNIEnv* env, jobject thiz)
 {
   jclass clazz = env->GetObjectClass(thiz);
@@ -991,6 +991,28 @@ Java_org_apache_mesos_MesosSchedulerDriver_suppressOffers(
     (MesosSchedulerDriver*) env->GetLongField(thiz, __driver);
 
   Status status = driver->suppressOffers();
+
+  return convert<Status>(env, status);
+}
+
+
+/*
+ * Class:     org_apache_mesos_MesosSchedulerDriver
+ * Method:    suppressOffersForRoles
+ * Signature: (Ljava/util/Collection;)Lorg/apache/mesos/Protos/Status;
+ */
+JNIEXPORT jobject JNICALL
+Java_org_apache_mesos_MesosSchedulerDriver_suppressOffers__Ljava_util_Collection_2( // NOLINT(whitespace/line_length)
+    JNIEnv* env, jobject thiz, jobject jroles)
+{
+  jclass clazz = env->GetObjectClass(thiz);
+
+  jfieldID __driver = env->GetFieldID(clazz, "__driver", "J");
+  MesosSchedulerDriver* driver =
+    (MesosSchedulerDriver*) env->GetLongField(thiz, __driver);
+
+  Status status =
+    driver->suppressOffers(constructFromIterable<string>(env, jroles));
 
   return convert<Status>(env, status);
 }

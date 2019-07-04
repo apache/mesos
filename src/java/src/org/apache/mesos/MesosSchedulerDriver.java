@@ -397,6 +397,8 @@ public class MesosSchedulerDriver implements SchedulerDriver {
 
   public native Status suppressOffers();
 
+  public native Status suppressOffers(Collection<String> roles);
+
   public native Status acknowledgeStatusUpdate(TaskStatus status);
 
   public native Status sendFrameworkMessage(ExecutorID executorId,

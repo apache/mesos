@@ -301,6 +301,20 @@ public interface SchedulerDriver {
   Status suppressOffers();
 
   /**
+   * Adds the roles to the suppressed set. If the framework is not connected
+   * to the master, an up-to-date set of suppressed roles will be sent to
+   * the master during re-registration.
+   *
+   * @param roles The collection of framework roles to be suppressed.
+   *              If empty, the method does nothing.
+   *
+   * @return    The state of the driver after the call.
+   *
+   * @see Status
+   */
+  Status suppressOffers(Collection<String> roles);
+
+  /**
    * Acknowledges the status update. This should only be called
    * once the status update is processed durably by the scheduler.
    * Not that explicit acknowledgements must be requested via the
