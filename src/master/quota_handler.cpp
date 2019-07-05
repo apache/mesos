@@ -97,11 +97,11 @@ public:
     : root(new Node(""))
   {
     foreachpair (const string& role, const Quota& quota, quotas) {
-      insert(role, quota);
+      update(role, quota);
     }
   }
 
-  void insert(const string& role, const Quota& quota)
+  void update(const string& role, const Quota& quota)
   {
     // Create the path from root->leaf in the tree. Any missing nodes
     // are created implicitly.
@@ -117,10 +117,6 @@ public:
       current = current->children.at(component).get();
     }
 
-    // Update `current` with the configured quota for this role.
-    // A path in the tree should be associated with at most one
-    // quota, so the current quota should be unset (default).
-    CHECK(current->quota == DEFAULT_QUOTA);
     current->quota = quota;
   }
 
@@ -206,12 +202,10 @@ Option<Error> Master::QuotaHandler::overcommitCheck(
     QuotaTree quotaTree({});
 
     foreachpair (const string& role, const Quota& quota, quotas) {
-      if (role != request.role()) {
-        quotaTree.insert(role, quota);
-      }
+        quotaTree.update(role, quota);
     }
 
-    quotaTree.insert(request.role(), Quota{request});
+    quotaTree.update(request.role(), Quota{request});
 
     // Hard CHECK since this is already validated earlier
     // during request validation.
@@ -564,15 +558,15 @@ Future<http::Response> Master::QuotaHandler::_set(
   // Validate that adding this quota does not violate the hierarchical
   // relationship between quotas.
   {
+     // TODO(mzhu): Keep an update-to-date `QuotaTree` in the memory
+     // to avoid construction from scratch every time.
     QuotaTree quotaTree({});
 
     foreachpair (const string& role, const Quota& quota, master->quotas) {
-      if (role != quotaInfo.role()) {
-        quotaTree.insert(role, quota);
-      }
+      quotaTree.update(role, quota);
     }
 
-    quotaTree.insert(quotaInfo.role(), Quota{quotaInfo});
+    quotaTree.update(quotaInfo.role(), Quota{quotaInfo});
 
     Option<Error> error = quotaTree.validate();
     if (error.isSome()) {
