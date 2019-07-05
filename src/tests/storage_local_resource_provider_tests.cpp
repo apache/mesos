@@ -44,6 +44,7 @@
 #include <stout/strings.hpp>
 #include <stout/unreachable.hpp>
 #include <stout/uri.hpp>
+#include <stout/uuid.hpp>
 
 #include <stout/os/realpath.hpp>
 
@@ -59,6 +60,8 @@
 
 #include "module/manager.hpp"
 
+#include "messages/messages.hpp"
+
 #include "slave/container_daemon_process.hpp"
 #include "slave/paths.hpp"
 #include "slave/state.hpp"
@@ -66,6 +69,8 @@
 #include "slave/containerizer/fetcher.hpp"
 
 #include "slave/containerizer/mesos/containerizer.hpp"
+
+#include "status_update_manager/status_update_manager_process.hpp"
 
 #include "tests/disk_profile_server.hpp"
 #include "tests/environment.hpp"
@@ -4330,10 +4335,21 @@ TEST_P(StorageLocalResourceProviderTest, RetryOperationStatusUpdate)
     FUTURE_PROTOBUF(
       AcknowledgeOperationStatusMessage(), master.get()->pid, slave.get()->pid);
 
+  // Since the acknowledgement is delivered to the SLRP via HTTP, we wait for
+  // a dispatch event to ensure that the acknowledgement is received by SLRP.
+  Future<Nothing> statusUpdateManagerAcknowledgement = FUTURE_DISPATCH(
+      _,
+      (&StatusUpdateManagerProcess<
+          id::UUID,
+          UpdateOperationStatusRecord,
+          UpdateOperationStatusMessage>::acknowledgement));
+
   Clock::advance(slave::STATUS_UPDATE_RETRY_INTERVAL_MIN);
 
   AWAIT_READY(retriedUpdateOperationStatusMessage);
+
   AWAIT_READY(acknowledgeOperationStatusMessage);
+  AWAIT_READY(statusUpdateManagerAcknowledgement);
 
   // The master acknowledged the operation status update, so the SLRP shouldn't
   // send further operation status updates.
@@ -4491,6 +4507,15 @@ TEST_P(
   Future<AcknowledgeOperationStatusMessage> acknowledgeOperationStatusMessage =
     FUTURE_PROTOBUF(AcknowledgeOperationStatusMessage(), master.get()->pid, _);
 
+  // Since the acknowledgement is delivered to the SLRP via HTTP, we wait for
+  // a dispatch event to ensure that the acknowledgement is received by SLRP.
+  Future<Nothing> statusUpdateManagerAcknowledgement = FUTURE_DISPATCH(
+      _,
+      (&StatusUpdateManagerProcess<
+          id::UUID,
+          UpdateOperationStatusRecord,
+          UpdateOperationStatusMessage>::acknowledgement));
+
   slave = StartSlave(detector.get(), flags);
   ASSERT_SOME(slave);
 
@@ -4512,6 +4537,7 @@ TEST_P(
   AWAIT_READY(retriedUpdateOperationStatusMessage);
 
   AWAIT_READY(acknowledgeOperationStatusMessage);
+  AWAIT_READY(statusUpdateManagerAcknowledgement);
 
   // The master has acknowledged the operation status update, so the SLRP
   // shouldn't send further operation status updates.
@@ -5523,10 +5549,20 @@ TEST_P(StorageLocalResourceProviderTest, RetryOperationStatusUpdateToScheduler)
     FUTURE_PROTOBUF(
       AcknowledgeOperationStatusMessage(), master.get()->pid, slave.get()->pid);
 
+  // Since the acknowledgement is delivered to the SLRP via HTTP, we wait for
+  // a dispatch event to ensure that the acknowledgement is received by SLRP.
+  Future<Nothing> statusUpdateManagerAcknowledgement = FUTURE_DISPATCH(
+      _,
+      (&StatusUpdateManagerProcess<
+          id::UUID,
+          UpdateOperationStatusRecord,
+          UpdateOperationStatusMessage>::acknowledgement));
+
   mesos.send(v1::createCallAcknowledgeOperationStatus(
       frameworkId, offer.agent_id(), resourceProviderId.get(), update.get()));
 
   AWAIT_READY(acknowledgeOperationStatusMessage);
+  AWAIT_READY(statusUpdateManagerAcknowledgement);
 
   // Verify that the retry was only counted as one operation.
   EXPECT_TRUE(metricEquals("master/operations/finished", 1));
