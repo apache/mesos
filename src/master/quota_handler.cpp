@@ -89,7 +89,8 @@ namespace master {
 //       parent role and its children.
 //
 // TODO(mzhu): The above check is only about guarantees. We should extend
-// the check to also cover limits.
+// the check to also cover limits: a role's limit is less than its
+// parent's limit.
 class QuotaTree
 {
 public:
@@ -459,6 +460,63 @@ Future<http::Response> Master::QuotaHandler::update(
     if (error.isSome()) {
       return BadRequest(
           "Invalid QuotaConfig: " + error->message);
+    }
+  }
+
+  // TODO(mzhu): Validate a role's limit is below its current consumption
+  // (otherwise a `force` flag is needed).
+  //
+  // TODO(mzhu): Pull out these validation in a function that can be shared
+  // between this and the old handlers.
+
+  // Validate hierarchical quota.
+
+  // TODO(mzhu): Keep an up-to-date `QuotaTree` in memory.
+  QuotaTree quotaTree{{}};
+
+  foreachpair (const string& role, const Quota& quota, master->quotas) {
+    quotaTree.update(role, quota);
+  }
+
+  foreach (auto&& config, call.update_quota().quota_configs()) {
+    quotaTree.update(config.role(), Quota{config});
+  }
+
+  Option<Error> error = quotaTree.validate();
+  if (error.isSome()) {
+    return BadRequest("Invalid QuotaConfig: " + error->message);
+  }
+
+  // Overcommitment check.
+
+  // Check for quota overcommit. We include resources from all
+  // registered agents, even if they are disconnected.
+  //
+  // Disconnection tends to be a transient state (e.g. agent
+  // might be getting restarted as part of an upgrade, there
+  // might be a transient networking issue, etc), so excluding
+  // disconnected agents could produce an unstable capacity
+  // calculation.
+  //
+  // TODO(bmahler): In the same vein, include agents that
+  // are recovered from the registry but not yet registered.
+  // Because we currently exclude them, the calculated capacity
+  // is 0 immediately after a failover and slowly works its way
+  // up to the pre-failover capacity as the agents re-register.
+  ResourceQuantities clusterCapacity;
+  foreachvalue (const Slave* agent, master->slaves.registered) {
+    clusterCapacity += ResourceQuantities::fromScalarResources(
+        agent->totalResources.nonRevocable().scalars());
+  }
+
+  if (!clusterCapacity.contains(quotaTree.totalGuarantees())) {
+    if (call.update_quota().force()) {
+      LOG(INFO) << "Using force flag to override quota overcommit check";
+    } else {
+      return BadRequest("Invalid QuotaConfig: total quota guarantees '" +
+              stringify(quotaTree.totalGuarantees()) + "'"
+              " exceed cluster capacity '" + stringify(clusterCapacity) + "'"
+              " (use 'force' flag to bypass this check)");
     }
   }
 
