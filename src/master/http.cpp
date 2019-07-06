@@ -380,7 +380,7 @@ Future<Response> Master::Http::api(
       return quotaHandler.status(call, principal, acceptType);
 
     case mesos::master::Call::UPDATE_QUOTA:
-      return NotImplemented();
+      return quotaHandler.update(call, principal);
 
     // TODO(bmahler): Add this to a deprecated call section
     // at the bottom once deprecated by `UPDATE_QUOTA`.

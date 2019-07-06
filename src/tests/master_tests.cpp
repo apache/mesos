@@ -5036,7 +5036,7 @@ TEST_F(MasterTest, StateEndpoint)
 
   // Master should always have these default capabilities.
   Try<JSON::Value> expectedCapabilities =
-    JSON::parse("[\"AGENT_UPDATE\", \"AGENT_DRAINING\"]");
+    JSON::parse("[\"AGENT_UPDATE\", \"AGENT_DRAINING\", \"QUOTA_V2\"]");
 
   ASSERT_SOME(expectedCapabilities);
   EXPECT_TRUE(masterCapabilities.contains(expectedCapabilities.get()));

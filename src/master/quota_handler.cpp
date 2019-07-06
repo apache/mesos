@@ -436,8 +436,11 @@ Future<http::Response> Master::QuotaHandler::update(
   CHECK_EQ(mesos::master::Call::UPDATE_QUOTA, call.type());
   CHECK(call.has_update_quota());
 
+  const RepeatedPtrField<QuotaConfig>& configs =
+    call.update_quota().quota_configs();
+
   // Validate `QuotaConfig`.
-  foreach (auto&& config, call.update_quota().quota_configs()) {
+  foreach (const auto& config, configs) {
     // Check that the role is on the role whitelist, if it exists.
     if (!master->isWhitelistedRole(config.role())) {
       return BadRequest(
@@ -478,7 +481,7 @@ Future<http::Response> Master::QuotaHandler::update(
     quotaTree.update(role, quota);
   }
 
-  foreach (auto&& config, call.update_quota().quota_configs()) {
+  foreach (const auto& config, configs) {
     quotaTree.update(config.role(), Quota{config});
   }
 
@@ -520,7 +523,45 @@ Future<http::Response> Master::QuotaHandler::update(
     }
   }
 
-  return NotImplemented();
+  // Create a list of authorization actions
+  // for each quota configuration update.
+  vector<Future<bool>> authorizedUpdates;
+  authorizedUpdates.reserve(configs.size());
+  foreach (const QuotaConfig& config, configs) {
+    authorizedUpdates.push_back(authorizeUpdateQuotaConfig(principal, config));
+  }
+
+  return process::collect(authorizedUpdates)
+    .then(defer(
+        master->self(),
+        [=](const vector<bool>& authorizations) -> Future<http::Response> {
+          return std::all_of(
+                     authorizations.begin(),
+                     authorizations.end(),
+                     [](bool authorized) { return authorized; })
+                   ? _update(configs)
+                   : Forbidden();
+        }));
+}
+
+
+Future<http::Response> Master::QuotaHandler::_update(
+    const RepeatedPtrField<QuotaConfig>& configs) const
+{
+  return master->registrar
+    ->apply(Owned<RegistryOperation>(new quota::UpdateQuota(configs)))
+    .then(defer(master->self(), [=](bool result) -> Future<http::Response> {
+      // Currently, quota registry entry mutation never fails.
+      CHECK(result);
+
+      foreach (const QuotaConfig& config, configs) {
+        master->allocator->updateQuota(config.role(), Quota{config});
+      }
+
+      // TODO(mzhu): Rescind offers.
+
+      return OK();
+    }));
 }
 
 

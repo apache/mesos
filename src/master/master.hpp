@@ -1288,6 +1288,10 @@ private:
         const Option<process::http::authentication::Principal>&
             principal) const;
 
+    process::Future<process::http::Response> _update(
+        const google::protobuf::RepeatedPtrField<mesos::quota::QuotaConfig>&
+          quotaConfigs) const;
+
     process::Future<process::http::Response> _set(
         const mesos::quota::QuotaRequest& quotaRequest,
         const Option<process::http::authentication::Principal>&

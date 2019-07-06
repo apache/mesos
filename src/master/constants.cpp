@@ -25,6 +25,7 @@ std::vector<MasterInfo::Capability> MASTER_CAPABILITIES()
   MasterInfo::Capability::Type types[] = {
     MasterInfo::Capability::AGENT_UPDATE,
     MasterInfo::Capability::AGENT_DRAINING,
+    MasterInfo::Capability::QUOTA_V2,
   };
 
   std::vector<MasterInfo::Capability> result;

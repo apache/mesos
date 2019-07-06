@@ -1268,9 +1268,7 @@ TEST_F(MasterQuotaTest, AvailableResourcesAfterRescinding)
 
 // Checks that quota is recovered correctly after master failover if
 // the expected size of the cluster is zero.
-//
-// TODO(mzhu): Enable this once master is QUOTA_V2 capable.
-TEST_F(MasterQuotaTest, DISABLED_RecoverQuotaEmptyCluster)
+TEST_F(MasterQuotaTest, RecoverQuotaEmptyCluster)
 {
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.registry = "replicated_log";
