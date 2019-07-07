@@ -58,6 +58,7 @@ using mesos::internal::slave::Slave;
 
 using mesos::master::detector::MasterDetector;
 
+using mesos::quota::QuotaConfig;
 using mesos::quota::QuotaInfo;
 using mesos::quota::QuotaRequest;
 using mesos::quota::QuotaStatus;
@@ -86,6 +87,44 @@ using testing::Eq;
 namespace mesos {
 namespace internal {
 namespace tests {
+
+static QuotaConfig createQuotaConfig(
+    const string& role,
+    const string& guaranteesString,
+    const string& limitsString)
+{
+  QuotaConfig config;
+  config.set_role(role);
+
+  ResourceQuantities guarantees =
+    CHECK_NOTERROR(ResourceQuantities::fromString(guaranteesString));
+  ResourceLimits limits =
+    CHECK_NOTERROR(ResourceLimits::fromString(limitsString));
+
+  foreachpair (const string& name, const Value::Scalar& scalar, guarantees) {
+    (*config.mutable_guarantees())[name] = scalar;
+  }
+
+  foreachpair (const string& name, const Value::Scalar& scalar, limits) {
+    (*config.mutable_limits())[name] = scalar;
+  }
+
+  return std::move(config);
+}
+
+
+// A shortcut for generating request body for configuring quota for one role.
+static string createUpdateQuotaRequestBody(
+    const QuotaConfig& config, bool force = false)
+{
+  mesos::master::Call call;
+  call.set_type(mesos::master::Call::UPDATE_QUOTA);
+  call.mutable_update_quota()->set_force(force);
+  *call.mutable_update_quota()->mutable_quota_configs()->Add() = config;
+
+  return stringify(JSON::protobuf(call));
+}
+
 
 // Quota tests that are allocator-agnostic (i.e. we expect every
 // allocator to implement basic quota guarantees) are in this
@@ -717,6 +756,28 @@ TEST_F(MasterQuotaTest, InsufficientResourcesSingleAgent)
               response->body);
   }
 
+  // Retry to test `UPDATE_QUOTA` call.
+  {
+    process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers["Content-Type"] = "application/json";
+
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "/api/v1",
+        headers,
+        createUpdateQuotaRequestBody(createQuotaConfig(
+            ROLE1, stringify(quotaResources), stringify(quotaResources))));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+
+    EXPECT_EQ(
+        "Invalid QuotaConfig: total quota guarantees"
+        " 'cpus:3; mem:2048' exceed cluster capacity"
+        " 'cpus:2; disk:1024; mem:1024'"
+        " (use 'force' flag to bypass this check)",
+        response->body);
+  }
+
   // Force flag should override the `capacityHeuristic` check and make the
   // request succeed.
   {
@@ -725,6 +786,30 @@ TEST_F(MasterQuotaTest, InsufficientResourcesSingleAgent)
         "quota",
         createBasicAuthHeaders(DEFAULT_CREDENTIAL),
         createRequestBody(ROLE1, quotaResources, true));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+    // Remove the quota and retry to test `UPDATE_QUOTA` call.
+    response = process::http::requestDelete(
+        master.get()->pid,
+        "quota/" + ROLE1,
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  }
+
+  {
+    process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers["Content-Type"] = "application/json";
+
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "/api/v1",
+        headers,
+        createUpdateQuotaRequestBody(
+            createQuotaConfig(
+                ROLE1, stringify(quotaResources), stringify(quotaResources)),
+            true));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   }
@@ -797,6 +882,27 @@ TEST_F(MasterQuotaTest, InsufficientResourcesMultipleAgents)
               response->body);
   }
 
+  // Retry and test `UPDATE_QUOTA`.
+  {
+    process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers["Content-Type"] = "application/json";
+
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "/api/v1",
+        headers,
+        createUpdateQuotaRequestBody(createQuotaConfig(
+            ROLE1, stringify(quotaResources), stringify(quotaResources))));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+    EXPECT_EQ(
+        "Invalid QuotaConfig: total quota guarantees"
+        " 'cpus:5; mem:3072' exceed cluster capacity"
+        " 'cpus:4; disk:2048; mem:2048'"
+        " (use 'force' flag to bypass this check)",
+        response->body);
+  }
+
   // Force flag should override the `capacityHeuristic` check and make the
   // request succeed.
   {
@@ -805,6 +911,30 @@ TEST_F(MasterQuotaTest, InsufficientResourcesMultipleAgents)
         "quota",
         createBasicAuthHeaders(DEFAULT_CREDENTIAL),
         createRequestBody(ROLE1, quotaResources, true));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+    // Remove the quota and retry to test `UPDATE_QUOTA` call.
+    response = process::http::requestDelete(
+        master.get()->pid,
+        "quota/" + ROLE1,
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  }
+
+  {
+    process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers["Content-Type"] = "application/json";
+
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "/api/v1",
+        headers,
+        createUpdateQuotaRequestBody(
+            createQuotaConfig(
+                ROLE1, stringify(quotaResources), stringify(quotaResources)),
+            true));
 
     AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
   }
@@ -839,26 +969,64 @@ TEST_F(MasterQuotaTest, AvailableResourcesSingleAgent)
   EXPECT_TRUE(agentTotalResources->contains(quotaResources));
 
   // Send a quota request for the specified role.
-  Future<Quota> receivedQuotaRequest;
-  EXPECT_CALL(allocator, updateQuota(Eq(ROLE1), _))
-    .WillOnce(DoAll(InvokeUpdateQuota(&allocator),
-                    FutureArg<1>(&receivedQuotaRequest)));
+  {
+    Future<Quota> receivedQuotaRequest;
+    EXPECT_CALL(allocator, updateQuota(Eq(ROLE1), _))
+      .WillOnce(DoAll(InvokeUpdateQuota(&allocator),
+                      FutureArg<1>(&receivedQuotaRequest)))
+      .RetiresOnSaturation(); // Don't impose any subsequent expectations.
 
-  Future<Response> response = process::http::post(
-      master.get()->pid,
-      "quota",
-      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
-      createRequestBody(ROLE1, quotaResources));
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(ROLE1, quotaResources));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
-  // Quota request is granted and reached the allocator. Make sure nothing
-  // got lost in-between.
-  AWAIT_READY(receivedQuotaRequest);
+    // Quota request is granted and reached the allocator. Make sure nothing
+    // got lost in-between.
+    AWAIT_READY(receivedQuotaRequest);
 
-  EXPECT_EQ(
-      ResourceQuantities::fromScalarResources(quotaResources),
-      receivedQuotaRequest->guarantees);
+    EXPECT_EQ(
+        ResourceQuantities::fromScalarResources(quotaResources),
+        receivedQuotaRequest->guarantees);
+
+    // Remove the quota and retry to test `UPDATE_QUOTA` call.
+    response = process::http::requestDelete(
+        master.get()->pid,
+        "quota/" + ROLE1,
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  }
+
+  {
+    process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers["Content-Type"] = "application/json";
+
+    Future<Quota> receivedQuotaRequest;
+    EXPECT_CALL(allocator, updateQuota(Eq(ROLE1), _))
+      .WillOnce(DoAll(
+          InvokeUpdateQuota(&allocator), FutureArg<1>(&receivedQuotaRequest)));
+
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "/api/v1",
+        headers,
+        createUpdateQuotaRequestBody(createQuotaConfig(
+            ROLE1, stringify(quotaResources), stringify(quotaResources))));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+    // Quota request is granted and reached the allocator. Make sure nothing
+    // got lost in-between.
+    AWAIT_READY(receivedQuotaRequest);
+
+    EXPECT_EQ(
+        ResourceQuantities::fromScalarResources(quotaResources),
+        receivedQuotaRequest->guarantees);
+  }
 }
 
 
@@ -894,26 +1062,64 @@ TEST_F(MasterQuotaTest, AvailableResourcesSingleReservedAgent)
   Resources quotaResources = Resources::parse("cpus:1;mem:512").get();
 
   // Send a quota request for the specified role.
-  Future<Quota> receivedQuotaRequest;
-  EXPECT_CALL(allocator, updateQuota(Eq(ROLE1), _))
-    .WillOnce(DoAll(InvokeUpdateQuota(&allocator),
-                    FutureArg<1>(&receivedQuotaRequest)));
+  {
+    Future<Quota> receivedQuotaRequest;
+    EXPECT_CALL(allocator, updateQuota(Eq(ROLE1), _))
+      .WillOnce(DoAll(InvokeUpdateQuota(&allocator),
+                      FutureArg<1>(&receivedQuotaRequest)))
+      .RetiresOnSaturation(); // Don't impose any subsequent expectations.
 
-  Future<Response> response = process::http::post(
-      master.get()->pid,
-      "quota",
-      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
-      createRequestBody(ROLE1, quotaResources));
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(ROLE1, quotaResources));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
-  // Quota request is granted and reached the allocator. Make sure nothing
-  // got lost in-between.
-  AWAIT_READY(receivedQuotaRequest);
+    // Quota request is granted and reached the allocator. Make sure nothing
+    // got lost in-between.
+    AWAIT_READY(receivedQuotaRequest);
 
-  EXPECT_EQ(
-      ResourceQuantities::fromScalarResources(quotaResources),
-      receivedQuotaRequest->guarantees);
+    EXPECT_EQ(
+        ResourceQuantities::fromScalarResources(quotaResources),
+        receivedQuotaRequest->guarantees);
+
+    // Remove the quota and retry to test `UPDATE_QUOTA` call.
+    response = process::http::requestDelete(
+        master.get()->pid,
+        "quota/" + ROLE1,
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  }
+
+  {
+    process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers["Content-Type"] = "application/json";
+
+    Future<Quota> receivedQuotaRequest;
+    EXPECT_CALL(allocator, updateQuota(Eq(ROLE1), _))
+      .WillOnce(DoAll(
+          InvokeUpdateQuota(&allocator), FutureArg<1>(&receivedQuotaRequest)));
+
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "/api/v1",
+        headers,
+        createUpdateQuotaRequestBody(createQuotaConfig(
+            ROLE1, stringify(quotaResources), stringify(quotaResources))));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+    // Quota request is granted and reached the allocator. Make sure nothing
+    // got lost in-between.
+    AWAIT_READY(receivedQuotaRequest);
+
+    EXPECT_EQ(
+        ResourceQuantities::fromScalarResources(quotaResources),
+        receivedQuotaRequest->guarantees);
+  }
 }
 
 
@@ -961,26 +1167,64 @@ TEST_F(MasterQuotaTest, AvailableResourcesSingleDisconnectedAgent)
   EXPECT_TRUE(agentTotalResources->contains(quotaResources));
 
   // Send a quota request for the specified role.
-  Future<Quota> receivedQuotaRequest;
-  EXPECT_CALL(allocator, updateQuota(Eq(ROLE1), _))
-    .WillOnce(DoAll(InvokeUpdateQuota(&allocator),
-                    FutureArg<1>(&receivedQuotaRequest)));
+  {
+    Future<Quota> receivedQuotaRequest;
+    EXPECT_CALL(allocator, updateQuota(Eq(ROLE1), _))
+      .WillOnce(DoAll(InvokeUpdateQuota(&allocator),
+                      FutureArg<1>(&receivedQuotaRequest)))
+      .RetiresOnSaturation(); // Don't impose any subsequent expectations.
 
-  Future<Response> response = process::http::post(
-      master.get()->pid,
-      "quota",
-      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
-      createRequestBody(ROLE1, quotaResources));
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(ROLE1, quotaResources));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
-  // Quota request is granted and reached the allocator. Make sure nothing
-  // got lost in-between.
-  AWAIT_READY(receivedQuotaRequest);
+    // Quota request is granted and reached the allocator. Make sure nothing
+    // got lost in-between.
+    AWAIT_READY(receivedQuotaRequest);
 
-  EXPECT_EQ(
-      ResourceQuantities::fromScalarResources(quotaResources),
-      receivedQuotaRequest->guarantees);
+    EXPECT_EQ(
+        ResourceQuantities::fromScalarResources(quotaResources),
+        receivedQuotaRequest->guarantees);
+
+    // Remove the quota and retry to test `UPDATE_QUOTA` call.
+    response = process::http::requestDelete(
+        master.get()->pid,
+        "quota/" + ROLE1,
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  }
+
+  {
+    process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers["Content-Type"] = "application/json";
+
+    Future<Quota> receivedQuotaRequest;
+    EXPECT_CALL(allocator, updateQuota(Eq(ROLE1), _))
+      .WillOnce(DoAll(
+          InvokeUpdateQuota(&allocator), FutureArg<1>(&receivedQuotaRequest)));
+
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "/api/v1",
+        headers,
+        createUpdateQuotaRequestBody(createQuotaConfig(
+            ROLE1, stringify(quotaResources), stringify(quotaResources))));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+    // Quota request is granted and reached the allocator. Make sure nothing
+    // got lost in-between.
+    AWAIT_READY(receivedQuotaRequest);
+
+    EXPECT_EQ(
+        ResourceQuantities::fromScalarResources(quotaResources),
+        receivedQuotaRequest->guarantees);
+  }
 }
 
 
@@ -1029,26 +1273,64 @@ TEST_F(MasterQuotaTest, AvailableResourcesMultipleAgents)
       return (resource.name() == "cpus" || resource.name() == "mem");
     });
 
-  // Send a quota request for the specified role.
-  Future<Quota> receivedQuotaRequest;
-  EXPECT_CALL(allocator, updateQuota(Eq(ROLE1), _))
-    .WillOnce(DoAll(InvokeUpdateQuota(&allocator),
-                    FutureArg<1>(&receivedQuotaRequest)));
+  {
+    // Send a quota request for the specified role.
+    Future<Quota> receivedQuotaRequest;
+    EXPECT_CALL(allocator, updateQuota(Eq(ROLE1), _))
+      .WillOnce(DoAll(
+          InvokeUpdateQuota(&allocator), FutureArg<1>(&receivedQuotaRequest)))
+      .RetiresOnSaturation(); // Don't impose any subsequent expectations.
 
-  Future<Response> response = process::http::post(
-      master.get()->pid,
-      "quota",
-      createBasicAuthHeaders(DEFAULT_CREDENTIAL),
-      createRequestBody(ROLE1, quotaResources));
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "quota",
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL),
+        createRequestBody(ROLE1, quotaResources));
 
-  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
-  // Quota request is granted and reached the allocator. Make sure nothing
-  // got lost in-between.
-  AWAIT_READY(receivedQuotaRequest);
-  EXPECT_EQ(
-      ResourceQuantities::fromScalarResources(quotaResources),
-      receivedQuotaRequest->guarantees);
+    // Quota request is granted and reached the allocator. Make sure nothing
+    // got lost in-between.
+    AWAIT_READY(receivedQuotaRequest);
+    EXPECT_EQ(
+        ResourceQuantities::fromScalarResources(quotaResources),
+        receivedQuotaRequest->guarantees);
+
+    // Remove the quota and retry to test `UPDATE_QUOTA` call.
+    response = process::http::requestDelete(
+        master.get()->pid,
+        "quota/" + ROLE1,
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  }
+
+  {
+    process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers["Content-Type"] = "application/json";
+
+    Future<Quota> receivedQuotaRequest;
+    EXPECT_CALL(allocator, updateQuota(Eq(ROLE1), _))
+      .WillOnce(DoAll(
+          InvokeUpdateQuota(&allocator), FutureArg<1>(&receivedQuotaRequest)));
+
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "/api/v1",
+        headers,
+        createUpdateQuotaRequestBody(createQuotaConfig(
+            ROLE1, stringify(quotaResources), stringify(quotaResources))));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+    // Quota request is granted and reached the allocator. Make sure nothing
+    // got lost in-between.
+    AWAIT_READY(receivedQuotaRequest);
+
+    EXPECT_EQ(
+        ResourceQuantities::fromScalarResources(quotaResources),
+        receivedQuotaRequest->guarantees);
+  }
 }
 
 
