@@ -123,7 +123,7 @@ istream& operator>>(istream& stream, UPID& pid)
   // if not use `net::getIP()` to resolve the hostname.
   //
   // TODO(evelinad): Extend this to support IPv6.
-  Try<net::IP> ip = net::IP::parse(host.c_str(), AF_INET);
+  Try<net::IP> ip = net::IP::parse(host, AF_INET);
   if (ip.isError()) {
     pid.host = host;
     ip = net::getIP(host, AF_INET);
