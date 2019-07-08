@@ -57,6 +57,7 @@ using process::http::Response;
 using process::http::Unauthorized;
 
 using testing::AtMost;
+using testing::DoAll;
 
 namespace mesos {
 namespace internal {
@@ -467,6 +468,153 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, RolesEndpointContainsQuota)
     EXPECT_TRUE(role.contains(*expected))
       << "expected " << stringify(*expected)
       << " vs actual " << stringify(role);
+  }
+}
+
+
+// This test ensures that quota consumption is included
+// in /roles endpoint of master.
+//
+// We set up the following that should be included in
+// the quota consumption:
+//   - Allocated unreserved resources
+//   - Allocated reservation
+//   - Unallocated reservation
+//
+// And we set up the following that should not be included
+// in the quota consumption:
+//   - Outstanding offer
+//
+// TODO(bmahler): Test hierarchical accounting accuracy.
+TEST_F(RoleTest, RolesEndpointContainsConsumedQuota)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  // Start an agent with reserved resources and
+  // allocate them to a task.
+  slave::Flags agentFlags1 = CreateSlaveFlags();
+  agentFlags1.resources = "cpus(role):1;mem(role):10;"
+                          "disk:0;ports:[]";
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave1 = StartSlave(detector.get(), agentFlags1);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_roles(0, "role");
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  ExecutorInfo executorInfo = createExecutorInfo("dummy", "sleep 3600");
+
+  Future<Nothing> task1Launched;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(DoAll(LaunchTasks(executorInfo, 1, 1, 10, "role"),
+                    FutureSatisfy(&task1Launched)));
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillRepeatedly(Return());
+
+  driver.start();
+
+  AWAIT_READY(task1Launched);
+
+  // Now we have:
+  //  - Allocated reservation: cpus:1;mem:10
+
+  // Start an agent with unreserved resources and allocate
+  // them to a task.
+
+  Future<Nothing> task2Launched;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(DoAll(LaunchTasks(executorInfo, 1, 10, 100, "role"),
+                    FutureSatisfy(&task2Launched)));
+
+  slave::Flags agentFlags2 = CreateSlaveFlags();
+  agentFlags2.resources = "cpus:10;mem:100;"
+                          "disk:0;ports:[]";
+
+  Try<Owned<cluster::Slave>> slave2 = StartSlave(detector.get(), agentFlags2);
+
+  AWAIT_READY(task2Launched);
+
+  // Now we have:
+  //  - Allocated reservation: cpus:1;mem:10
+  //  - Allocated unreserved resources: cpus:10;mem:100
+
+  // Start an agent with both reserved and unreserved
+  // resources, but let them remain offered.
+
+  Future<Nothing> offer;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(FutureSatisfy(&offer));
+
+  slave::Flags agentFlags3 = CreateSlaveFlags();
+  agentFlags3.resources = "cpus(role):100;mem(role):1000;"
+                          "cpus:1000;mem:10000;"
+                          ";disk:0;ports:[]";
+
+  Try<Owned<cluster::Slave>> slave3 = StartSlave(detector.get(), agentFlags3);
+
+  AWAIT_READY(offer);
+
+  // Now we have:
+  //  - Allocated reservation: cpus:1;mem:10
+  //  - Allocated unreserved resources: cpus:10;mem:100
+  //  - Offered reservation: cpus:100;mem:1000
+  //  - Offered unreserved resources: cpus:1000;mem:10000
+
+  // Check that the /roles endopint has the correct quota
+  // consumption information.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "roles",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+    Try<JSON::Value> parse = JSON::parse(response->body);
+    ASSERT_SOME(parse);
+
+    Try<JSON::Value> expected = JSON::parse(
+        "{"
+        "  \"roles\": ["
+        "    {"
+        "      \"frameworks\": [\"" + frameworkId->value() + "\"],"
+        "      \"name\": \"role\","
+        "      \"resources\": {"
+        "        \"cpus\": 1111.0,"
+        "        \"mem\":  11110.0,"
+        "        \"disk\": 0,"
+        "        \"gpus\": 0"
+        "      },"
+        "      \"quota\": {"
+        "        \"consumed\": {"
+        "          \"cpus\": 111.0,"
+        "          \"mem\": 1110.0"
+        "        },"
+        "        \"guarantee\": {},"
+        "        \"limit\": {},"
+        "        \"role\": \"role\""
+        "      },"
+        "      \"weight\": 1.0"
+        "    }"
+        "  ]"
+        "}");
+
+    ASSERT_SOME(expected);
+
+    EXPECT_EQ(*expected, *parse)
+      << "expected " << stringify(*expected)
+      << " vs actual " << stringify(*parse);
   }
 }
 
