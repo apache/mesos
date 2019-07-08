@@ -2418,7 +2418,6 @@ ACTION_P5(LaunchTasks, executor, tasks, cpus, mem, role)
       taskResources.allocate(role);
     }
 
-    int nextTaskId = 0;
     std::vector<TaskInfo> tasks;
     Resources remaining = offer.resources();
 
@@ -2426,7 +2425,7 @@ ACTION_P5(LaunchTasks, executor, tasks, cpus, mem, role)
            launched < numTasks) {
       TaskInfo task;
       task.set_name("TestTask");
-      task.mutable_task_id()->set_value(stringify(nextTaskId++));
+      task.mutable_task_id()->set_value(id::UUID::random().toString());
       task.mutable_slave_id()->MergeFrom(offer.slave_id());
       task.mutable_executor()->MergeFrom(executor);
 
