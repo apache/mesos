@@ -47,7 +47,7 @@ from datetime import datetime
 
 from common import REVIEWBOARD_URL
 
-REVIEW_SIZE = 1000000  # 1 MB in bytes.
+REVIEW_SIZE = 100000  # 100 KB in bytes.
 
 # Parse arguments.
 parser = argparse.ArgumentParser(
