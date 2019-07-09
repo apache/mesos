@@ -926,8 +926,8 @@ int MesosContainerizerLaunch::execute()
     }
 
     // No need to change user/groups if the specified user is the same
-    // as that of the current process.
-    if (_uid.get() != os::getuid().get()) {
+    // as the effective user of the current process.
+    if (_uid.get() != ::geteuid()) {
       Result<gid_t> _gid = os::getgid(launchInfo.user());
       if (!_gid.isSome()) {
         cerr << "Failed to get the gid of user '" << launchInfo.user() << "': "
