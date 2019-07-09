@@ -3948,6 +3948,47 @@ Future<Response> Master::Http::drainAgent(
   CHECK(call.has_drain_agent());
 
   SlaveID slaveId = call.drain_agent().slave_id();
+  Slave* slave = master->slaves.registered.get(slaveId);
+
+  if (slave != nullptr) {
+    // Check that the targeted agent is not part of a maintenance schedule.
+    // NOTE: This is a best-effort check, because it is possible to drain
+    // an agent, and then change the agent's hostname/IP into a MachineID
+    // in a maintenance schedule. Also, the MachineID of unreachable agents
+    // is unknown until they reregister.
+    //
+    // TODO(josephw): Reconsider this check once the maintenance and agent
+    // draining features are integrated.
+    //
+    // TODO(josephw): Check this condition against unreachable agents
+    // once MESOS-9884 is resolved.
+    if (!master->maintenance.schedules.empty()) {
+      foreach (
+          const mesos::maintenance::Window& window,
+          master->maintenance.schedules.front().windows()) {
+        foreach (const MachineID& machineId, window.machine_ids()) {
+          if (machineId == slave->machineId) {
+            return BadRequest(
+                "Agent " + stringify(slaveId) + " is part of a maintenance"
+                " schedule under Machine " + stringify(machineId));
+          }
+        }
+      }
+    }
+
+    // Check that the targeted agent is capable of `AGENT_DRAINING`.
+    // NOTE: This is a best-effort check, because it is possible to drain
+    // an agent, and then downgrade the agent to a version that does not
+    // support draining. Also, the capabilities of unreachable agents
+    // are unknown until they reregister.
+    //
+    // TODO(josephw): Check this condition against unreachable agents
+    // once MESOS-9884 is resolved.
+    if (!slave->capabilities.agentDraining) {
+      return BadRequest(
+          "Agent " + stringify(slaveId) + " is not capable of draining");
+    }
+  }
 
   Option<DurationInfo> maxGracePeriod;
   if (call.drain_agent().has_max_grace_period()) {
