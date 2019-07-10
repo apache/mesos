@@ -61,11 +61,25 @@ This guide describes the process of doing an official release of Mesos.
 
 ## Preparation
 
-1. Go to [Apache JIRA](https://issues.apache.org/jira/browse/MESOS) and make
+1. If this is a regular release, create a new release branch (<major>.<minor>.x)
+   based off the current master
+
+        $ git checkout origin/master -b X.Y.x
+
+   Now, update master branch to the *next*  minor version in `configure.ac`:
+   change `AC_INIT([mesos], [X.Y.Z]))`, as well as in `CMakeLists.txt`:
+   change `set(MESOS_MAJOR_VERSION X)`, `set(MESOS_MINOR_VERSION Y)`,
+   `set(MESOS_PATCH_VERSION Z)` and then commit.
+
+   If this is a patch release, use the existing release branch.
+
+2. Go to [Apache JIRA](https://issues.apache.org/jira/browse/MESOS) and make
    sure that the `CHANGELOG` for the release version is up to date.
 
-   **NOTE:** You should move all **Unresolved** tickets marked with `Fix Version`
-   or `Target Version` as the release version to the next release version.
+   **NOTE:** For all **Unresolved** tickets marked with `Fix Version` or
+   `Target Version` as the release version, try to negotiate with the
+   ticket owner or shepherd if the release should wait for the ticket to
+   be resolved or if the `Fix Version` should be bumped to the next version.
 
    **PROTIP:** Use a JIRA dashboard
    [(example)](https://issues.apache.org/jira/secure/Dashboard.jspa?selectPageId=12329720)
@@ -79,11 +93,8 @@ This guide describes the process of doing an official release of Mesos.
    to **uncheck** the option that emails everyone about the move to avoid
    spamming.
 
-2. Checkout the correct branch for the release. For regular releases this is the
-   "master" branch. For patch releases this would be the corresponding release
-   branch (e.g., 1.0.x).
-
-3. Update and commit the `CHANGELOG` for the release.
+3. Update and commit the `CHANGELOG` for the release, on both the **master**
+   and the release branch.
 
    For regular releases:
 
@@ -114,8 +125,8 @@ This guide describes the process of doing an official release of Mesos.
    `Target Version` set but not `Fix Version`. Also check for any Unresolved
    or `Duplicate`/`Invalid` tickets that incorrectly set the `Fix Version`.
 
-   For patch releases update the `CHANGELOG` on master branch and then cherry
-   pick onto the release branch.
+   Update the `CHANGELOG` on master branch and then cherry pick onto the release
+   branch to ensure both versions stay in sync.
 
 4. Ensure version in `configure.ac` and `CMakeLists.txt` is correctly set for
    the release. Do not forget to remove "(WIP)" suffix from the release notes'
@@ -125,8 +136,8 @@ This guide describes the process of doing an official release of Mesos.
    changes.
 
 6. Update and commit `docs/configuration.md` to reflect the current state of
-   the master, agent, and configure flags. If this is a patch release, update
-   it on master branch and then cherry pick onto the release branch.
+   the master, agent, and configure flags. Update it on master branch and then
+   cherry pick onto the release branch.
 
 7. If this is a regular release, update and commit `docs/upgrades.md` with
    instructions about how to upgrade a live cluster from the previous release
@@ -178,17 +189,6 @@ This guide describes the process of doing an official release of Mesos.
    Ubuntu), so you may need to fill in the vote end date manually. The vote
    should last for 3 business days instead of 3 calendar days anyway. Sometimes
    we allow a longer vote, to allow more time for integration testing.
-
-
-6. If this is a regular release, create a new release branch (<major>.<minor>.x)
-   from this tag.
-
-        $ git checkout -b X.Y.x
-
-   Now, update master branch to the *next*  minor version in `configure.ac`:
-   change `AC_INIT([mesos], [X.Y.Z]))`, as well as in `CMakeLists.txt`:
-   change `set(MESOS_MAJOR_VERSION X)`, `set(MESOS_MINOR_VERSION Y)`,
-   `set(MESOS_PATCH_VERSION Z)` and then commit.
 
 
 ## Preparing a New Release Candidate
@@ -300,3 +300,26 @@ Update the Mesos Homebrew package.
 2. Submit a PR to the [Homebrew repo](https://github.com/Homebrew/homebrew-core).
 
 3. Once accepted, verify that `brew install mesos` works.
+
+Upload the binary RPM packages to Bintray:
+
+1. Create/use a Bintray account with access to the [Bintray repo](https://bintray.com/apache/mesos).
+
+2. Trigger a build of the [CentOS packaging job](https://builds.apache.org/view/M-R/view/Mesos/job/Mesos/job/Packaging/job/CentosRPMs/)
+   in the Apache Jenkins using the `MESOS_TAG` of the version being released.
+
+3. Create a new Mesos version on bintray.
+
+4. Download the generated RPM artifacts from the Jenkins job above and upload them
+   to the new release on bintray.
+
+5. On the bintray website, navigate to the new release and click 'Publish Artifacts'.
+
+Update Wikipedia:
+
+1. Update the [Wikipedia article](https://en.wikipedia.org/wiki/Apache_Mesos) to mention the
+   latest stable release in the info box.
+
+Update Reddit: (optional)
+
+1. Add a post for the Release to the [Mesos Reddit](https://www.reddit.com/r/mesos/).
