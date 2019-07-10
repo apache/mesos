@@ -7,13 +7,13 @@ layout: documentation
 
 ## Downloading the Mesos RPM
 
-Download and install the latest stable RPM binary from the [Bintray Repository](https://bintray.com/mesos/):
+Download and install the latest stable RPM binary from the [Bintray Repository](https://bintray.com/apache/mesos/):
 
     $ cat > /tmp/bintray-mesos-el.repo <<EOF
     #bintray-mesos-el - packages by mesos from Bintray
     [bintray-mesos-el]
     name=bintray-mesos-el
-    baseurl=https://dl.bintray.com/mesos/el/7/x86_64
+    baseurl=https://dl.bintray.com/apache/mesos/el/7/x86_64
     gpgcheck=0
     repo_gpgcheck=0
     enabled=1
