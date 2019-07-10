@@ -497,6 +497,11 @@ TEST_F(RoleTest, RolesEndpointContainsConsumedQuota)
   agentFlags1.resources = "cpus(role):1;mem(role):10;"
                           "disk:0;ports:[]";
 
+  // We need to use the posix launcher to avoid agents
+  // seeing each other's containers as orphans and
+  // killing them.
+  agentFlags1.launcher = "posix";
+
   Owned<MasterDetector> detector = master.get()->createDetector();
   Try<Owned<cluster::Slave>> slave1 = StartSlave(detector.get(), agentFlags1);
 
@@ -540,6 +545,11 @@ TEST_F(RoleTest, RolesEndpointContainsConsumedQuota)
   agentFlags2.resources = "cpus:10;mem:100;"
                           "disk:0;ports:[]";
 
+  // We need to use the posix launcher to avoid agents
+  // seeing each other's containers as orphans and
+  // killing them.
+  agentFlags2.launcher = "posix";
+
   Try<Owned<cluster::Slave>> slave2 = StartSlave(detector.get(), agentFlags2);
 
   AWAIT_READY(task2Launched);
@@ -559,6 +569,11 @@ TEST_F(RoleTest, RolesEndpointContainsConsumedQuota)
   agentFlags3.resources = "cpus(role):100;mem(role):1000;"
                           "cpus:1000;mem:10000;"
                           ";disk:0;ports:[]";
+
+  // We need to use the posix launcher to avoid agents
+  // seeing each other's containers as orphans and
+  // killing them.
+  agentFlags3.launcher = "posix";
 
   Try<Owned<cluster::Slave>> slave3 = StartSlave(detector.get(), agentFlags3);
 
