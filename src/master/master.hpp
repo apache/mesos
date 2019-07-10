@@ -2779,6 +2779,72 @@ struct Role
     return resources;
   }
 
+  ResourceQuantities reserved() const
+  {
+    const std::string& role = this->role; // For cleaner captures.
+
+    ResourceQuantities total;
+
+    auto reservedToRoleSubtree = [&role](const Resource& r) {
+      return Resources::isReserved(r) &&
+        (Resources::reservationRole(r) == role ||
+         roles::isStrictSubroleOf(Resources::reservationRole(r), role));
+    };
+
+    foreachvalue (Slave* slave, master->slaves.registered) {
+      total += ResourceQuantities::fromResources(
+          slave->totalResources.filter(reservedToRoleSubtree));
+    }
+
+    return total;
+  }
+
+  ResourceQuantities allocated() const
+  {
+    const std::string& role = this->role; // For cleaner captures.
+
+    ResourceQuantities total;
+
+    auto allocatedToRoleSubtree = [&role](const Resource& r) {
+      CHECK(r.has_allocation_info());
+      return r.allocation_info().role() == role ||
+        roles::isStrictSubroleOf(r.allocation_info().role(), role);
+    };
+
+    // Loop over all frameworks since `frameworks` only tracks
+    // those that are directly subscribed to this role, and we
+    // need to sum all descendant role allocations.
+    foreachvalue (Framework* framework, master->frameworks.registered) {
+      total += ResourceQuantities::fromResources(
+          framework->totalUsedResources.filter(allocatedToRoleSubtree));
+    }
+
+    return total;
+  }
+
+  ResourceQuantities offered() const
+  {
+    const std::string& role = this->role; // For cleaner captures.
+
+    ResourceQuantities total;
+
+    auto allocatedToRoleSubtree = [&role](const Resource& r) {
+      CHECK(r.has_allocation_info());
+      return r.allocation_info().role() == role ||
+        roles::isStrictSubroleOf(r.allocation_info().role(), role);
+    };
+
+    // Loop over all frameworks since `frameworks` only tracks
+    // those that are directly subscribed to this role, and we
+    // need to sum all descendant role allocations.
+    foreachvalue (Framework* framework, master->frameworks.registered) {
+      total += ResourceQuantities::fromResources(
+          framework->totalOfferedResources.filter(allocatedToRoleSubtree));
+    }
+
+    return total;
+  }
+
   const Master* master;
   const std::string role;
 
