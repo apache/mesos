@@ -739,12 +739,13 @@ process::http::Response Master::ReadOnlyHandler::roles(
                 writer->field("consumed", consumed);
               });
 
-              if (role.isNone()) {
-                writer->field("resources", Resources());
-              } else {
-                writer->field(
-                    "resources", (*role)->allocatedAndOfferedResources());
-              }
+              const ResourceQuantities allocated = role.isSome() ?
+                (*role)->allocated() : ResourceQuantities();
+
+              const ResourceQuantities offered = role.isSome() ?
+                (*role)->offered() : ResourceQuantities();
+
+              writer->field("resources", allocated + offered);
 
               if (role.isNone()) {
                 writer->field("frameworks", [](JSON::ArrayWriter*) {});
