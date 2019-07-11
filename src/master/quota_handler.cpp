@@ -466,9 +466,30 @@ Future<http::Response> Master::QuotaHandler::update(
     }
   }
 
-  // TODO(mzhu): Validate a role's limit is below its current consumption
+  // Validate a role's requested limit is below its current consumption
   // (otherwise a `force` flag is needed).
-  //
+  foreach (const auto& config, configs) {
+    ResourceLimits limits{config.limits()};
+    ResourceQuantities consumedQuota =
+      RoleResourceBreakdown(master, config.role()).consumedQuota();
+
+    if (!limits.contains(consumedQuota)) {
+      if (call.update_quota().force()) {
+        LOG(INFO) << "Updating '" << config.role() << "' quota limit to"
+                  << " '" + stringify(limits) + "';"
+                  << " this is below its current quota consumption"
+                  << " '" + stringify(consumedQuota) + "';"
+                  << " Ignored violation since the force flag is provided.";
+      } else {
+        return BadRequest("Invalid QuotaConfig: Role '" + config.role() + "'"
+                " is already consuming '" + stringify(consumedQuota) + "';"
+                " this is more than the requested limits"
+                " '" + stringify(limits) + "'"
+                " (use 'force' flag to bypass this check)");
+      }
+    }
+  }
+
   // TODO(mzhu): Pull out these validation in a function that can be shared
   // between this and the old handlers.
 

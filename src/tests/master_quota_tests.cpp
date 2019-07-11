@@ -1401,6 +1401,106 @@ TEST_F(MasterQuotaTest, AvailableResourcesMultipleAgents)
 }
 
 
+// This test ensures that quota limits update request is validated
+// against the roles current quota consumption. A role's current
+// consumption must not exceed the requested limits otherwise
+// the update will not be granted. A force flag can override the check.
+TEST_F(MasterQuotaTest, ValidateLimitAgainstConsumed)
+{
+  TestAllocator<> allocator;
+  EXPECT_CALL(allocator, initialize(_, _, _));
+
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator);
+  ASSERT_SOME(master);
+
+  // Start an agent and allocate all its resources to a task.
+  slave::Flags flags = CreateSlaveFlags();
+  flags.resources = "cpus:2;mem:1024";
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_roles(0, ROLE1);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId;
+  EXPECT_CALL(sched, registered(&driver, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId));
+
+  ExecutorInfo executorInfo = createExecutorInfo("dummy", "sleep 3600");
+
+  Future<Nothing> taskLaunched;
+  EXPECT_CALL(sched, resourceOffers(&driver, _))
+    .WillOnce(DoAll(
+        LaunchTasks(executorInfo, 1, 2, 1024, ROLE1),
+        FutureSatisfy(&taskLaunched)));
+
+  EXPECT_CALL(sched, statusUpdate(&driver, _)).WillRepeatedly(Return());
+
+  driver.start();
+
+  AWAIT_READY(taskLaunched);
+
+  // Now we have:
+  //  - Allocated resources: cpus:2;mem:1024
+
+  // Request a limit of 1 cpu which will be rejected since `ROLE1`
+  // is already consuming 2 cpus.
+  {
+    process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers["Content-Type"] = "application/json";
+
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "/api/v1",
+        headers,
+        createUpdateQuotaRequestBody(createQuotaConfig(ROLE1, "", "cpus:1")));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(BadRequest().status, response);
+
+    EXPECT_EQ(
+      "Invalid QuotaConfig: Role 'role1' is already consuming"
+      " 'cpus:2; mem:1024'; this is more than the requested limits"
+      " 'cpus:1' (use 'force' flag to bypass this check)",
+      response->body);
+  }
+
+  // Request a limit of 2 cpus is fine.
+  {
+    process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers["Content-Type"] = "application/json";
+
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "/api/v1",
+        headers,
+        createUpdateQuotaRequestBody(createQuotaConfig(ROLE1, "", "cpus:2")));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  }
+
+  // Force request a limit of 1 cpu. This will be granted.
+  {
+    process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers["Content-Type"] = "application/json";
+
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "/api/v1",
+        headers,
+        createUpdateQuotaRequestBody(
+            createQuotaConfig(ROLE1, "", "cpus:1"), true));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+  }
+}
+
+
 // Checks that a quota request succeeds if there are sufficient total
 // resources in the cluster, even though they are blocked in outstanding
 // offers, i.e. quota request rescinds offers.
