@@ -604,6 +604,15 @@
       update();
     }
 
+    $scope.show_weight = false;
+    $scope.show_framework_count = false;
+    $scope.show_offered = false;
+    $scope.show_allocated = true;
+    $scope.show_reserved = true;
+    $scope.show_quota_consumption = true;
+    $scope.show_quota_guarantee = false;
+    $scope.show_quota_limit = true;
+
     var removeListener = $scope.$on('state_updated', update);
     $scope.$on('$routeChangeStart', removeListener);
   });
