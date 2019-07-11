@@ -566,9 +566,8 @@ TEST_F(RoleTest, RolesEndpointContainsConsumedQuota)
     .WillOnce(FutureSatisfy(&offer));
 
   slave::Flags agentFlags3 = CreateSlaveFlags();
-  agentFlags3.resources = "cpus(role):100;mem(role):1000;"
-                          "cpus:1000;mem:10000;"
-                          ";disk:0;ports:[]";
+  agentFlags3.resources = "cpus(role):100;mem(role):1000;ports(role):[100-199]"
+                          ";cpus:1000;mem:10000;disk:0;ports:[1000-1999]";
 
   // We need to use the posix launcher to avoid agents
   // seeing each other's containers as orphans and
@@ -582,8 +581,8 @@ TEST_F(RoleTest, RolesEndpointContainsConsumedQuota)
   // Now we have:
   //  - Allocated reservation: cpus:1;mem:10
   //  - Allocated unreserved resources: cpus:10;mem:100
-  //  - Offered reservation: cpus:100;mem:1000
-  //  - Offered unreserved resources: cpus:1000;mem:10000
+  //  - Offered reservation: cpus:100;mem:1000;ports:100
+  //  - Offered unreserved resources: cpus:1000;mem:10000;ports:1000
 
   // Check that the /roles endopint has the correct quota
   // consumption information.
@@ -614,7 +613,8 @@ TEST_F(RoleTest, RolesEndpointContainsConsumedQuota)
         "      \"quota\": {"
         "        \"consumed\": {"
         "          \"cpus\": 111.0,"
-        "          \"mem\": 1110.0"
+        "          \"mem\": 1110.0,"
+        "          \"ports\": 100.0"
         "        },"
         "        \"guarantee\": {},"
         "        \"limit\": {},"

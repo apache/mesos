@@ -2707,8 +2707,6 @@ struct Role
     frameworks.erase(framework->id());
   }
 
-  // TODO(bmahler): Include non-scalar quantities.
-  //
   // TODO(bmahler): This function is somewhat expensive,
   // it should ideally migrate into a field updated in an
   // event-driven manner within a role tree structure. Or,
@@ -2733,9 +2731,8 @@ struct Role
     // those that are directly subscribed to this role, and we
     // need to sum all descendant role allocations.
     foreachvalue (Framework* framework, master->frameworks.registered) {
-      allocation += ResourceQuantities::fromScalarResources(
-        framework->totalUsedResources.scalars()
-          .filter(allocatedToRoleSubtree));
+      allocation += ResourceQuantities::fromResources(
+        framework->totalUsedResources.filter(allocatedToRoleSubtree));
     }
 
     ResourceQuantities unallocatedReservation;
@@ -2748,14 +2745,13 @@ struct Role
 
     foreachvalue (Slave* slave, master->slaves.registered) {
       ResourceQuantities totalReservation =
-        ResourceQuantities::fromScalarResources(
-           slave->totalResources.scalars()
-             .filter(reservedToRoleSubtree));
+        ResourceQuantities::fromResources(
+           slave->totalResources.filter(reservedToRoleSubtree));
 
        ResourceQuantities usedReservation;
        foreachvalue (const Resources& r, slave->usedResources) {
-         usedReservation += ResourceQuantities::fromScalarResources(
-             r.scalars().filter(reservedToRoleSubtree));
+         usedReservation += ResourceQuantities::fromResources(
+             r.filter(reservedToRoleSubtree));
        }
 
        unallocatedReservation += totalReservation - usedReservation;
