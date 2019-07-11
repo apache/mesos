@@ -745,7 +745,15 @@ process::http::Response Master::ReadOnlyHandler::roles(
               const ResourceQuantities offered = role.isSome() ?
                 (*role)->offered() : ResourceQuantities();
 
+              const ResourceQuantities reserved = role.isSome() ?
+                (*role)->reserved() : ResourceQuantities();
+
+              // Deprecated by allocated, offered, reserved.
               writer->field("resources", allocated + offered);
+
+              writer->field("allocated", allocated);
+              writer->field("offered", offered);
+              writer->field("reserved", reserved);
 
               if (role.isNone()) {
                 writer->field("frameworks", [](JSON::ArrayWriter*) {});
