@@ -109,7 +109,7 @@ static QuotaConfig createQuotaConfig(
     (*config.mutable_limits())[name] = scalar;
   }
 
-  return std::move(config);
+  return config;
 }
 
 
