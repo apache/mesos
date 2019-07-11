@@ -3695,6 +3695,11 @@ message Role {
   required string name = 1;
   required double weight = 2;
   repeated FrameworkID frameworks = 3;
+
+  // TODO(bmahler): Deprecate `resources` and introduce quota,
+  // consumed quota, allocated, offered, and reserved resource
+  // quantity fields. This is blocked by MESOS-9497 since the
+  // computation of these quantities is currently expensive.
   repeated Resource resources = 4;
 }
 
