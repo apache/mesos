@@ -1685,6 +1685,137 @@ TEST_F(MasterQuotaTest, AvailableResourcesAfterRescinding)
 }
 
 
+// This tests verifies the offer rescind logic for quota limits enforcement.
+// If a role's quota consumption plus offered are above the requested limits,
+// outstanding offers of that role will be rescinded.
+TEST_F(MasterQuotaTest, RescindOffersEnforcingLimits)
+{
+  TestAllocator<> allocator;
+  EXPECT_CALL(allocator, initialize(_, _, _));
+
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator);
+  ASSERT_SOME(master);
+
+  // Start an agent.
+  slave::Flags flags1 = CreateSlaveFlags();
+  flags1.resources = "cpus:1;mem:1024";
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave1 = StartSlave(detector.get(), flags1);
+  ASSERT_SOME(slave1);
+
+  // Start a framework under `ROLE1`.
+  FrameworkInfo frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo1.set_roles(0, ROLE1);
+
+  MockScheduler sched1;
+  MesosSchedulerDriver framework1(
+      &sched1, frameworkInfo1, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId1;
+  EXPECT_CALL(sched1, registered(&framework1, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId1));
+
+  Future<vector<Offer>> offers1;
+  EXPECT_CALL(sched1, resourceOffers(&framework1, _))
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  Future<Nothing> offerRescinded1;
+  EXPECT_CALL(sched1, offerRescinded(&framework1, _))
+    .WillOnce(FutureSatisfy(&offerRescinded1));
+
+  framework1.start();
+
+  AWAIT_READY(offers1);
+  ASSERT_EQ(1u, offers1->size());
+
+  // Cluster resources: cpus:1;mem:1024
+  // Allocated: `ROLE1` cpus:1;mem:1024
+
+  // Start a second agent with identical resources.
+  slave::Flags flags2 = CreateSlaveFlags();
+  flags2.resources = "cpus:1;mem:1024";
+  Try<Owned<cluster::Slave>> slave2 = StartSlave(detector.get(), flags2);
+  ASSERT_SOME(slave2);
+
+  FrameworkInfo frameworkInfo2 = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo2.set_roles(0, ROLE1 + "/child");
+
+  MockScheduler sched2;
+  MesosSchedulerDriver framework2(
+      &sched2, frameworkInfo2, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId2;
+  EXPECT_CALL(sched2, registered(&framework2, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId2));
+
+  Future<vector<Offer>> offers2;
+  EXPECT_CALL(sched2, resourceOffers(&framework2, _))
+    .WillOnce(FutureArg<1>(&offers2))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  Future<Nothing> offerRescinded2;
+  EXPECT_CALL(sched2, offerRescinded(&framework2, _))
+    .WillOnce(FutureSatisfy(&offerRescinded2));
+
+  framework2.start();
+
+  AWAIT_READY(offers2);
+  ASSERT_EQ(1u, offers2->size());
+
+  // Cluster resources: cpus:2;mem:2048
+  // Allocated: `ROLE1`  cpus:1;mem:1024
+  //            `ROLE1/child` cpus:1;mem:1024
+
+  // Set `ROLE1` resource limits to be current allocations.
+  // No offer is rescinded.
+  {
+    process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers["Content-Type"] = "application/json";
+
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "/api/v1",
+        headers,
+        createUpdateQuotaRequestBody(
+            createQuotaConfig(ROLE1, "", stringify("cpus:2;mem:2048"))));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+    EXPECT_TRUE(offerRescinded1.isPending());
+    EXPECT_TRUE(offerRescinded2.isPending());
+  }
+
+  // Set `ROLE1` resource limits to be `cpus:0.5;mem:512`.
+  // This requires both outstanding offers to be rescinded.
+  {
+    process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers["Content-Type"] = "application/json";
+
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "/api/v1",
+        headers,
+        createUpdateQuotaRequestBody(
+            createQuotaConfig(ROLE1, "", stringify("cpus:0.5;mem:512"))));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+    AWAIT_READY(offerRescinded1);
+    AWAIT_READY(offerRescinded2);
+  }
+
+  // Tear down frameworks before agents to avoid offers being
+  // rescinded again.
+  framework1.stop();
+  framework1.join();
+
+  framework2.stop();
+  framework2.join();
+}
+
+
 // These tests ensure quota implements declared functionality. Note that the
 // tests here are allocator-agnostic, which means we expect every allocator to
 // implement basic quota guarantees.

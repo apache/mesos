@@ -580,7 +580,79 @@ Future<http::Response> Master::QuotaHandler::_update(
         master->allocator->updateQuota(config.role(), Quota{config});
       }
 
-      // TODO(mzhu): Rescind offers.
+      // Rescind offers to enforce guarantees and limits.
+      //
+      // Note, the rescind effort here is best-effort. It is complex and
+      // expensive to rescind accurately, due to (1) the cost of tracking
+      // the correct resource state (e.g. for limits, tracking of the precise
+      // amount of consumed plus offered (with no reservation overlap, and
+      // similarly, for guarantees, aggregation of all roles' consumption and
+      // outstanding offers) (2) the race between the master and the allocator.
+      // In addition, rescinding offers for quota is mostly about improving a
+      // transient state. Once a quota is set, hopefully with resource churn,
+      // the quota will eventually be enforced. Lastly, once Mesos starts to
+      // adopt an optimistic offer model (MESOS-1607), quota enforcement will
+      // happen during admission control, rendering offer rescind unnecessary.
+      // As a result, we cut some corners here to only make best effort
+      // rescinding (more on this below).
+
+      foreach (const auto& config, configs) {
+        RoleResourceBreakdown resourceBreakdown{master, config.role()};
+
+        // NOTE: Since consumed and offered may overlap (unallocated
+        // reservations maybe in both), this would lead to some over-rescind.
+        ResourceQuantities consumedAndOffered =
+          resourceBreakdown.consumedQuota() + resourceBreakdown.offered();
+        ResourceLimits limits{config.limits()};
+
+        const string& roleName = config.role(); // For cleaner captures.
+        auto allocatedToRoleSubtree = [&roleName](const Offer& offer) {
+          CHECK(offer.has_allocation_info())
+            << " Offer " << offer.id() << " has no allocation_info";
+          return offer.allocation_info().role() == roleName ||
+                 roles::isStrictSubroleOf(
+                     offer.allocation_info().role(), roleName);
+        };
+
+        // We first rescind offers to ensure individual role's limits
+        // are not breached. We rescind outstanding offers until the role's
+        // `consumedAndOffered` is below it's limits. Note, since `consumed`
+        // and `offered` might overlap (reservations that are being offered),
+        // this approach might lead to some over rescinding. Also, due to
+        // the race between the master and the allocator, we might rescind less
+        // than we should due to pending offers in the master mailbox.
+
+        // Loop over all frameworks since `role->frameworks` only tracks
+        // those that are directly subscribed to this role, and we
+        // need to consider all descendant role offers.
+        foreachvalue (Framework* framework, master->frameworks.registered) {
+          if (limits.contains(consumedAndOffered)) {
+            break; // Done rescinding.
+          }
+
+          foreach (Offer* offer, utils::copy(framework->offers)) {
+            if (limits.contains(consumedAndOffered)) {
+              break; // Done rescinding.
+            }
+
+            if (!allocatedToRoleSubtree(*offer)) {
+              continue;
+            }
+
+            consumedAndOffered -=
+              ResourceQuantities::fromResources(offer->resources());
+
+            master->allocator->recoverResources(
+                offer->framework_id(),
+                offer->slave_id(),
+                offer->resources(),
+                None());
+            master->removeOffer(offer, true);
+          }
+        }
+
+        // TODO(mzhu): Rescind offers to satisfy guarantees.
+      }
 
       return OK();
     }));
