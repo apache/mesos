@@ -146,12 +146,6 @@ static const ContainerMountInfo ROOTFS_CONTAINER_MOUNTS[] = {
       "devpts",
       "newinstance,ptmxmode=0666,mode=0620,gid=5",
       MS_NOSUID | MS_NOEXEC),
-  createContainerMount(
-      "tmpfs",
-      "/dev/shm",
-      "tmpfs",
-      "mode=1777",
-      MS_NOSUID | MS_NODEV | MS_STRICTATIME),
 };
 
 
@@ -767,6 +761,17 @@ Future<Option<ContainerLaunchInfo>> LinuxFilesystemIsolatorProcess::prepare(
       if (mnt.has_source() && path::absolute(mnt.source())) {
         info->set_source(path::join(containerConfig.rootfs(), info->source()));
       }
+    }
+
+    // If `namespaces/ipc` isolator is not enabled, /dev/shm will be
+    // handled there.
+    if (!strings::contains(flags.isolation, "namespaces/ipc")) {
+      *launchInfo.add_mounts() = createContainerMount(
+          "tmpfs",
+          path::join(containerConfig.rootfs(), "/dev/shm"),
+          "tmpfs",
+          "mode=1777",
+          MS_NOSUID | MS_NODEV | MS_STRICTATIME);
     }
 
     Try<Nothing> makedev =
