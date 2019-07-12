@@ -260,7 +260,7 @@ TEST_F(NamespacesIsolatorTest, ROOT_SharePidNamespaceWhenDisallow)
 TEST_F(NamespacesIsolatorTest, ROOT_IPCNamespace)
 {
   Try<Owned<MesosContainerizer>> containerizer =
-    createContainerizer("namespaces/ipc");
+    createContainerizer("filesystem/linux,namespaces/ipc");
 
   ASSERT_SOME(containerizer);
 

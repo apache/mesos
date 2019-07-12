@@ -40,7 +40,9 @@ public:
       const mesos::slave::ContainerConfig& containerConfig) override;
 
 private:
-  NamespacesIPCIsolatorProcess();
+  NamespacesIPCIsolatorProcess(const Flags& flags);
+
+  const Flags flags;
 };
 
 } // namespace slave {

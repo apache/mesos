@@ -63,6 +63,7 @@ namespace paths {
 //           |-- mnt
 //           |   |-- host_proc
 //           |-- pid
+//           |-- shm
 //           |-- standalone.marker
 //           |-- status
 //           |-- termination
@@ -81,6 +82,8 @@ constexpr char CONTAINER_DIRECTORY[] = "containers";
 constexpr char CONTAINER_DEVICES_DIRECTORY[] = "devices";
 constexpr char CONTAINER_LAUNCH_INFO_FILE[] = "launch_info";
 constexpr char STANDALONE_MARKER_FILE[] = "standalone.marker";
+constexpr char CONTAINER_SHM_DIRECTORY[] = "shm";
+constexpr char AGENT_SHM_DIRECTORY[] = "/dev/shm";
 
 
 enum Mode
@@ -257,6 +260,16 @@ Try<ContainerID> parseSandboxPath(
     const ContainerID& rootContainerId,
     const std::string& rootSandboxPath,
     const std::string& path);
+
+
+std::string getContainerShmPath(
+    const std::string& runtimeDir,
+    const ContainerID& containerId);
+
+
+Try<std::string> getParentShmPath(
+    const std::string runtimeDir,
+    const ContainerID& containerId);
 
 } // namespace paths {
 } // namespace containerizer {

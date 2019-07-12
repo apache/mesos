@@ -522,6 +522,78 @@ Try<ContainerID> parseSandboxPath(
   return currentContainerId;
 }
 
+
+string getContainerShmPath(
+    const string& runtimeDir,
+    const ContainerID& containerId)
+{
+  return path::join(
+      getRuntimePath(runtimeDir, containerId),
+      CONTAINER_SHM_DIRECTORY);
+}
+
+
+Try<string> getParentShmPath(
+    const string runtimeDir,
+    const ContainerID& containerId)
+{
+  CHECK(containerId.has_parent());
+
+  ContainerID parentId = containerId.parent();
+
+  Result<ContainerConfig> parentConfig =
+    getContainerConfig(runtimeDir, parentId);
+
+  if (parentConfig.isNone()) {
+    return Error(
+        "Failed to find config for container " + stringify(parentId));
+  } else if (parentConfig.isError()) {
+    return Error(parentConfig.error());
+  }
+
+  string parentShmPath;
+
+  if (parentConfig->has_container_info() &&
+      parentConfig->container_info().has_linux_info() &&
+      parentConfig->container_info().linux_info().has_ipc_mode()) {
+    switch (parentConfig->container_info().linux_info().ipc_mode()) {
+      case LinuxInfo::PRIVATE: {
+        const string shmPath = getContainerShmPath(runtimeDir, parentId);
+        if (!os::exists(shmPath)) {
+          return Error(
+              "The shared memory path '" + shmPath + "' of container "
+              + stringify(parentId) + " does not exist");
+        }
+
+        parentShmPath = shmPath;
+        break;
+      }
+      case LinuxInfo::SHARE_PARENT: {
+        if (parentId.has_parent()) {
+          return getParentShmPath(runtimeDir, parentId);
+        }
+
+        parentShmPath = AGENT_SHM_DIRECTORY;
+        break;
+      }
+      case LinuxInfo::UNKNOWN: {
+        LOG(FATAL) << "The IPC mode of container " << parentId << " is UNKNOWN";
+      }
+    }
+  } else {
+    if (parentConfig->has_rootfs()) {
+      return Error(
+          "The shared memory of container " + stringify(parentId) +
+          " cannot be shared with any other containers because it"
+          " is only in the container's own mount namespace");
+    }
+
+    parentShmPath = AGENT_SHM_DIRECTORY;
+  }
+
+  return parentShmPath;
+}
+
 } // namespace paths {
 } // namespace containerizer {
 } // namespace slave {
