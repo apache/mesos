@@ -322,6 +322,25 @@ Future<Option<ContainerLaunchInfo>> NamespacesIPCIsolatorProcess::prepare(
   return launchInfo;
 }
 
+
+Future<Nothing> NamespacesIPCIsolatorProcess::cleanup(
+      const ContainerID& containerId)
+{
+  const string shmPath = containerizer::paths::getContainerShmPath(
+      flags.runtime_dir, containerId);
+
+  if (os::exists(shmPath)) {
+    Try<Nothing> unmount = fs::unmount(shmPath);
+    if (unmount.isError()) {
+      return Failure(
+          "Failed to unmount container shared memory directory '" +
+          shmPath + "': " + unmount.error());
+    }
+  }
+
+  return Nothing();
+}
+
 } // namespace slave {
 } // namespace internal {
 } // namespace mesos {
