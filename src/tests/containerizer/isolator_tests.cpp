@@ -406,6 +406,121 @@ TEST_F(NamespacesIsolatorTest, ROOT_IPCNamespaceWithIPCModeUnset)
 }
 
 
+// This test verifies that when `namespaces/ipc` isolator is not enabled,
+// for backward compatibility we will keep the previous behavior: Any
+// containers will share IPC namespace with agent, and if the container
+// does not have its own rootfs, it will also share agent's /dev/shm,
+// otherwise it will have its own /dev/shm.
+TEST_F(NamespacesIsolatorTest, ROOT_IPCNamespaceWithIPCIsolatorDisabled)
+{
+  Try<Owned<MesosContainerizer>> containerizer =
+    createContainerizer("filesystem/linux");
+
+  ASSERT_SOME(containerizer);
+
+  // Launch a top-level container which does not have its own rootfs.
+  string command =
+    "stat -Lc %i /proc/self/ns/ipc > ns && "
+    "touch /dev/shm/root && "
+    "sleep 1000";
+
+  process::Future<Containerizer::LaunchResult> launch =
+    containerizer.get()->launch(
+        containerId,
+        createContainerConfig(
+            None(),
+            createExecutorInfo("executor", command),
+            directory),
+        std::map<string, string>(),
+        None());
+
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
+
+  // Since the top-level container does not have its own
+  // rootfs, it will share host's /dev/shm, so let's wait
+  // until /dev/shm/root is created in the host.
+  Duration waited = Duration::zero();
+
+  do {
+    if (os::exists("/dev/shm/root")) {
+      break;
+    }
+
+    os::sleep(Seconds(1));
+    waited += Seconds(1);
+  } while (waited < process::TEST_AWAIT_TIMEOUT);
+
+  EXPECT_LT(waited, process::TEST_AWAIT_TIMEOUT);
+
+  // Launch a nested container which has its own rootfs.
+  ContainerID nestedContainerId;
+  nestedContainerId.mutable_parent()->CopyFrom(containerId);
+  nestedContainerId.set_value(id::UUID::random().toString());
+
+  mesos::Image image;
+  image.set_type(mesos::Image::DOCKER);
+  image.mutable_docker()->set_name("alpine");
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::MESOS);
+  containerInfo.mutable_mesos()->mutable_image()->CopyFrom(image);
+
+  command =
+    "stat -Lc %i /proc/self/ns/ipc > ns && "
+    "touch /dev/shm/nested";
+
+  launch = containerizer.get()->launch(
+      nestedContainerId,
+      createContainerConfig(createCommandInfo(command), containerInfo),
+      std::map<string, string>(),
+      None());
+
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
+
+  // Wait on the nested container.
+  Future<Option<ContainerTermination>> wait =
+    containerizer.get()->wait(nestedContainerId);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  EXPECT_TRUE(wait->get().has_status());
+  EXPECT_EQ(0, wait->get().status());
+
+  // Check that top-level container and the nested container are
+  // in the same IPC namespace with host.
+  Result<ino_t> testIPCNamespace = ns::getns(::getpid(), "ipc");
+  ASSERT_SOME(testIPCNamespace);
+
+  Try<string> containerIPCNamespace = os::read(path::join(directory, "ns"));
+  ASSERT_SOME(containerIPCNamespace);
+
+  Try<string> nestedcontainerIPCNamespace =
+    os::read(path::join(getSandboxPath(directory, nestedContainerId), "ns"));
+
+  ASSERT_SOME(nestedcontainerIPCNamespace);
+
+  EXPECT_EQ(stringify(testIPCNamespace.get()),
+            strings::trim(containerIPCNamespace.get()));
+
+  EXPECT_EQ(strings::trim(containerIPCNamespace.get()),
+            strings::trim(nestedcontainerIPCNamespace.get()));
+
+  // The nested container will have its own /dev/shm since it has its own
+  // rootfs, so the file it created should not exist in the host.
+  ASSERT_FALSE(os::exists("/dev/shm/nested"));
+
+  Future<Option<ContainerTermination>> termination =
+    containerizer.get()->destroy(containerId);
+
+  AWAIT_READY(termination);
+  ASSERT_SOME(termination.get());
+  ASSERT_TRUE(termination.get()->has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, termination.get()->status());
+
+  ASSERT_SOME(os::rm("/dev/shm/root"));
+}
+
+
 // This test verifies that a top-level container with private IPC mode will
 // have its own IPC namespace and /dev/shm, and it can share IPC namespace
 // and /dev/shm with its child container, grandchild container and debug
