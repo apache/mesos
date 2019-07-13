@@ -584,6 +584,165 @@ TEST_F(NamespacesIsolatorTest, ROOT_ShareIPCNamespace)
   ASSERT_TRUE(termination.get()->has_status());
   EXPECT_WTERMSIG_EQ(SIGKILL, termination.get()->status());
 }
+
+
+// This test verifies that nested container with private IPC mode will
+// have its own IPC namespace and /dev/shm.
+TEST_F(NamespacesIsolatorTest, ROOT_PrivateIPCNamespace)
+{
+  // Create containerizer with `--default_shm_size=64MB`.
+  Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
+      "filesystem/linux,namespaces/ipc",
+      None(),
+      None(),
+      Megabytes(64));
+
+  ASSERT_SOME(containerizer);
+
+  // Launch a top-level container with `PRIVATE` IPC mode, check its /dev/shm
+  // size is correctly set to the default value, touch a file in its /dev/shm,
+  // and write its IPC namespace inode to a file in its sandbox.
+  const string command =
+    "df -m /dev/shm | grep -w 64 && "
+    "touch /dev/shm/root &&"
+    "stat -Lc %i /proc/self/ns/ipc > ns && "
+    "sleep 1000";
+
+  mesos::slave::ContainerConfig containerConfig = createContainerConfig(
+      None(),
+      createExecutorInfo("executor", command),
+      directory);
+
+  ContainerInfo* container = containerConfig.mutable_container_info();
+  container->set_type(ContainerInfo::MESOS);
+  container->mutable_linux_info()->set_ipc_mode(LinuxInfo::PRIVATE);
+
+  process::Future<Containerizer::LaunchResult> launch =
+    containerizer.get()->launch(
+        containerId,
+        containerConfig,
+        std::map<string, string>(),
+        None());
+
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
+
+  // Wait until the `ns` file is created in the sandbox.
+  Duration waited = Duration::zero();
+
+  do {
+    if (os::exists(path::join(directory, "ns"))) {
+      break;
+    }
+
+    os::sleep(Seconds(1));
+    waited += Seconds(1);
+  } while (waited < process::TEST_AWAIT_TIMEOUT);
+
+  EXPECT_LT(waited, process::TEST_AWAIT_TIMEOUT);
+
+  // Launch a nested container with `PRIVATE` IPC mode, check its /dev/shm
+  // size is correctly set to the default value and the file created by the
+  // top-level container does not exist in its /dev/shm, touch a file in its
+  // /dev/shm and write its IPC namespace inode to a file in its sandbox.
+  ContainerID nestedContainerId1;
+  nestedContainerId1.mutable_parent()->CopyFrom(containerId);
+  nestedContainerId1.set_value(id::UUID::random().toString());
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::MESOS);
+  containerInfo.mutable_linux_info()->set_ipc_mode(LinuxInfo::PRIVATE);
+
+  launch = containerizer.get()->launch(
+      nestedContainerId1,
+      createContainerConfig(
+          createCommandInfo(
+              "df -m /dev/shm | grep -w 64 &&"
+              "test ! -e /dev/shm/root &&"
+              "touch /dev/shm/nested1 &&"
+              "stat -Lc %i /proc/self/ns/ipc > ns && "
+              "sleep 1000"),
+          containerInfo),
+      std::map<string, string>(),
+      None());
+
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
+
+  // Wait until the `ns` file is created in the sandbox.
+  waited = Duration::zero();
+  const string nestedSandboxPath1 =
+    getSandboxPath(directory, nestedContainerId1);
+
+  do {
+    if (os::exists(path::join(nestedSandboxPath1, "ns"))) {
+      break;
+    }
+
+    os::sleep(Seconds(1));
+    waited += Seconds(1);
+  } while (waited < process::TEST_AWAIT_TIMEOUT);
+
+  EXPECT_LT(waited, process::TEST_AWAIT_TIMEOUT);
+
+  // Launch another nested container with private IPC mode and 128MB
+  // /dev/shm, check its /dev/shm size is correctly set to 128MB and
+  // the files created by the top-level container and the first nested
+  // container do not exist in its /dev/shm, write its IPC namespace
+  // inode to a file in its sandbox.
+  ContainerID nestedContainerId2;
+  nestedContainerId2.mutable_parent()->CopyFrom(containerId);
+  nestedContainerId2.set_value(id::UUID::random().toString());
+
+  containerInfo.mutable_linux_info()->set_shm_size(128);
+
+  launch = containerizer.get()->launch(
+      nestedContainerId2,
+      createContainerConfig(
+          createCommandInfo(
+              "df -m /dev/shm | grep -w 128 &&"
+              "test ! -e /dev/shm/root &&"
+              "test ! -e /dev/shm/nested1 &&"
+              "stat -Lc %i /proc/self/ns/ipc > ns"),
+          containerInfo),
+      std::map<string, string>(),
+      None());
+
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
+
+  Future<Option<ContainerTermination>> wait = containerizer.get()->wait(
+      nestedContainerId2);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait.get()->has_status());
+  EXPECT_WEXITSTATUS_EQ(0, wait.get()->status());
+
+  // Check top-level container and the two nested containers
+  // have their own IPC namespaces.
+  Try<uint64_t> rootIpcNamespace = readValue(path::join(directory, "ns"));
+  ASSERT_SOME(rootIpcNamespace);
+
+  Try<uint64_t> nestedIpcNamespace1 =
+    readValue(path::join(nestedSandboxPath1, "ns"));
+
+  ASSERT_SOME(nestedIpcNamespace1);
+
+  Try<uint64_t> nestedIpcNamespace2 =
+    readValue(path::join(getSandboxPath(directory, nestedContainerId2), "ns"));
+
+  ASSERT_SOME(nestedIpcNamespace2);
+
+  EXPECT_NE(rootIpcNamespace.get(), nestedIpcNamespace1.get());
+  EXPECT_NE(rootIpcNamespace.get(), nestedIpcNamespace2.get());
+  EXPECT_NE(nestedIpcNamespace1.get(), nestedIpcNamespace2.get());
+
+  Future<Option<ContainerTermination>> termination =
+    containerizer.get()->destroy(containerId);
+
+  AWAIT_READY(termination);
+  ASSERT_SOME(termination.get());
+  ASSERT_TRUE(termination.get()->has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, termination.get()->status());
+}
 #endif // __linux__
 
 } // namespace tests {
