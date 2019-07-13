@@ -865,6 +865,36 @@ TEST_F(NamespacesIsolatorTest, ROOT_ShareAgentIPCNamespace)
   ASSERT_SOME(os::rm("/dev/shm/nest1"));
   ASSERT_SOME(os::rm("/dev/shm/nest2"));
 }
+
+
+// This test verifies that top-level container with `SHARE_PARENT` IPC mode
+// will fail to launch when `--disallow_sharing_agent_ipc_namespace = true`.
+TEST_F(NamespacesIsolatorTest, ROOT_DisallowShareAgentIPCNamespace)
+{
+  Try<Owned<MesosContainerizer>> containerizer =
+    createContainerizer("filesystem/linux,namespaces/ipc", None(), true);
+
+  ASSERT_SOME(containerizer);
+
+  // Launch a top-level container with `SHARE_PARENT` IPC mode.
+  mesos::slave::ContainerConfig containerConfig = createContainerConfig(
+      None(),
+      createExecutorInfo("executor", "sleep 1000"),
+      directory);
+
+  ContainerInfo* container = containerConfig.mutable_container_info();
+  container->set_type(ContainerInfo::MESOS);
+  container->mutable_linux_info()->set_ipc_mode(LinuxInfo::SHARE_PARENT);
+
+  process::Future<Containerizer::LaunchResult> launch =
+    containerizer.get()->launch(
+        containerId,
+        containerConfig,
+        std::map<string, string>(),
+        None());
+
+  AWAIT_FAILED(launch);
+}
 #endif // __linux__
 
 } // namespace tests {
