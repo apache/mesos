@@ -763,8 +763,10 @@ Future<Option<ContainerLaunchInfo>> LinuxFilesystemIsolatorProcess::prepare(
       }
     }
 
-    // If `namespaces/ipc` isolator is not enabled, /dev/shm will be
-    // handled there.
+    // If `namespaces/ipc` isolator is not enabled, for backward compatibility
+    // we will keep the previous behavior: if the container has its own rootfs,
+    // it will have its own /dev/shm, otherwise it will share agent's /dev/shm.
+    // If `namespaces/ipc` isolator is enabled, /dev/shm will be handled there.
     if (!strings::contains(flags.isolation, "namespaces/ipc")) {
       *launchInfo.add_mounts() = createContainerMount(
           "tmpfs",
