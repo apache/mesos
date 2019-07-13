@@ -743,6 +743,128 @@ TEST_F(NamespacesIsolatorTest, ROOT_PrivateIPCNamespace)
   ASSERT_TRUE(termination.get()->has_status());
   EXPECT_WTERMSIG_EQ(SIGKILL, termination.get()->status());
 }
+
+
+// This test verifies that top-level container and nested
+// containers can share agent's IPC namespace and /dev/shm.
+TEST_F(NamespacesIsolatorTest, ROOT_ShareAgentIPCNamespace)
+{
+  Try<Owned<MesosContainerizer>> containerizer =
+    createContainerizer("filesystem/linux,namespaces/ipc");
+
+  ASSERT_SOME(containerizer);
+
+  // Launch a top-level container with `SHARE_PARENT` IPC mode,
+  // write its IPC namespace inode to a file under /dev/shm.
+  const string command =
+    "stat -Lc %i /proc/self/ns/ipc > /dev/shm/root && "
+    "sleep 1000";
+
+  mesos::slave::ContainerConfig containerConfig = createContainerConfig(
+      None(),
+      createExecutorInfo("executor", command),
+      directory);
+
+  ContainerInfo* container = containerConfig.mutable_container_info();
+  container->set_type(ContainerInfo::MESOS);
+  container->mutable_linux_info()->set_ipc_mode(LinuxInfo::SHARE_PARENT);
+
+  process::Future<Containerizer::LaunchResult> launch =
+    containerizer.get()->launch(
+        containerId,
+        containerConfig,
+        std::map<string, string>(),
+        None());
+
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
+
+  // Launch a nested container with `SHARE_PARENT` IPC mode,
+  // write its IPC namespace inode to a file under /dev/shm.
+  ContainerID nestedContainerId1;
+  nestedContainerId1.mutable_parent()->CopyFrom(containerId);
+  nestedContainerId1.set_value(id::UUID::random().toString());
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::MESOS);
+  containerInfo.mutable_linux_info()->set_ipc_mode(LinuxInfo::SHARE_PARENT);
+
+  launch = containerizer.get()->launch(
+      nestedContainerId1,
+      createContainerConfig(
+          createCommandInfo("stat -Lc %i /proc/self/ns/ipc > /dev/shm/nest1"),
+          containerInfo),
+      std::map<string, string>(),
+      None());
+
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
+
+  Future<Option<ContainerTermination>> wait = containerizer.get()->wait(
+      nestedContainerId1);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait.get()->has_status());
+  EXPECT_WEXITSTATUS_EQ(0, wait.get()->status());
+
+  // Launch another nested container with `SHARE_PARENT` IPC mode and its
+  // own rootfs, write its IPC namespace inode to a file under /dev/shm.
+  ContainerID nestedContainerId2;
+  nestedContainerId2.mutable_parent()->CopyFrom(containerId);
+  nestedContainerId2.set_value(id::UUID::random().toString());
+
+  mesos::Image image;
+  image.set_type(mesos::Image::DOCKER);
+  image.mutable_docker()->set_name("alpine");
+
+  containerInfo.mutable_mesos()->mutable_image()->CopyFrom(image);
+
+  launch = containerizer.get()->launch(
+      nestedContainerId2,
+      createContainerConfig(
+          createCommandInfo("stat -Lc %i /proc/self/ns/ipc > /dev/shm/nest2"),
+          containerInfo),
+      std::map<string, string>(),
+      None());
+
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
+
+  wait = containerizer.get()->wait(nestedContainerId2);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait.get()->has_status());
+  EXPECT_WEXITSTATUS_EQ(0, wait.get()->status());
+
+  // Check top-level container and the two nested containers
+  // share agent's IPC namespace and /dev/shm.
+  Try<uint64_t> rootIpcNamespace = readValue("/dev/shm/root");
+  ASSERT_SOME(rootIpcNamespace);
+
+  Try<uint64_t> nestedIpcNamespace1 = readValue("/dev/shm/nest1");
+  ASSERT_SOME(nestedIpcNamespace1);
+
+  Try<uint64_t> nestedIpcNamespace2 = readValue("/dev/shm/nest2");
+  ASSERT_SOME(nestedIpcNamespace2);
+
+  Result<ino_t> agentIpcNamespace = ns::getns(::getpid(), "ipc");
+  ASSERT_SOME(agentIpcNamespace);
+
+  EXPECT_EQ(rootIpcNamespace.get(), agentIpcNamespace.get());
+  EXPECT_EQ(nestedIpcNamespace1.get(), agentIpcNamespace.get());
+  EXPECT_EQ(nestedIpcNamespace2.get(), agentIpcNamespace.get());
+
+  Future<Option<ContainerTermination>> termination =
+    containerizer.get()->destroy(containerId);
+
+  AWAIT_READY(termination);
+  ASSERT_SOME(termination.get());
+  ASSERT_TRUE(termination.get()->has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, termination.get()->status());
+
+  ASSERT_SOME(os::rm("/dev/shm/root"));
+  ASSERT_SOME(os::rm("/dev/shm/nest1"));
+  ASSERT_SOME(os::rm("/dev/shm/nest2"));
+}
 #endif // __linux__
 
 } // namespace tests {
