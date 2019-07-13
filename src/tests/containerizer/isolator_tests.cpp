@@ -39,6 +39,7 @@
 #include "slave/containerizer/fetcher.hpp"
 
 #include "slave/containerizer/mesos/containerizer.hpp"
+#include "slave/containerizer/mesos/paths.hpp"
 
 #include "tests/mesos.hpp"
 
@@ -51,6 +52,9 @@ using mesos::internal::slave::Containerizer;
 using mesos::internal::slave::Fetcher;
 using mesos::internal::slave::MesosContainerizer;
 
+using mesos::internal::slave::containerizer::paths::getSandboxPath;
+
+using mesos::slave::ContainerClass;
 using mesos::slave::ContainerTermination;
 
 namespace mesos {
@@ -71,15 +75,25 @@ public:
 
   Try<Owned<MesosContainerizer>> createContainerizer(
       const string& isolation,
-      const Option<bool>& disallowSharingAgentPidNamespace = None())
+      const Option<bool>& disallowSharingAgentPidNamespace = None(),
+      const Option<bool>& disallowSharingAgentIpcNamespace = None(),
+      const Option<Bytes>& defaultShmSize = None())
   {
     slave::Flags flags = CreateSlaveFlags();
-    flags.isolation = isolation;
+    flags.image_providers = "docker";
+    flags.isolation = isolation + ",docker/runtime";
 
     if (disallowSharingAgentPidNamespace.isSome()) {
       flags.disallow_sharing_agent_pid_namespace =
         disallowSharingAgentPidNamespace.get();
     }
+
+    if (disallowSharingAgentIpcNamespace.isSome()) {
+      flags.disallow_sharing_agent_ipc_namespace =
+        disallowSharingAgentIpcNamespace.get();
+    }
+
+    flags.default_shm_size = defaultShmSize;
 
     fetcher.reset(new Fetcher(flags));
 
@@ -320,6 +334,255 @@ TEST_F(NamespacesIsolatorTest, ROOT_IPCNamespace)
 
   EXPECT_NE(hostShmmax.get(), childShmmax.get());
   EXPECT_EQ(shmmaxValue, childShmmax.get());
+}
+
+
+// This test verifies that a top-level container with private IPC mode will
+// have its own IPC namespace and /dev/shm, and it can share IPC namespace
+// and /dev/shm with its child container, grandchild container and debug
+// container.
+TEST_F(NamespacesIsolatorTest, ROOT_ShareIPCNamespace)
+{
+  Try<Owned<MesosContainerizer>> containerizer =
+    createContainerizer("filesystem/linux,namespaces/ipc");
+
+  ASSERT_SOME(containerizer);
+
+  // Launch a top-level container with `PRIVATE` IPC mode and 128MB /dev/shm,
+  // check its /dev/shm size is correctly set and its IPC namespace is
+  // different than agent's IPC namespace, write its IPC namespace inode to
+  // a file under /dev/shm.
+  const string command =
+    "df -m /dev/shm | grep -w 128 && "
+    "test `stat -Lc %i /proc/self/ns/ipc` != `stat -Lc %i /proc/1/ns/ipc` && "
+    "stat -Lc %i /proc/self/ns/ipc > /dev/shm/root && "
+    "touch marker && "
+    "sleep 1000";
+
+  mesos::slave::ContainerConfig containerConfig = createContainerConfig(
+      None(),
+      createExecutorInfo("executor", command),
+      directory);
+
+  ContainerInfo* container = containerConfig.mutable_container_info();
+  container->set_type(ContainerInfo::MESOS);
+  container->mutable_linux_info()->set_ipc_mode(LinuxInfo::PRIVATE);
+  container->mutable_linux_info()->set_shm_size(128);
+
+  process::Future<Containerizer::LaunchResult> launch =
+    containerizer.get()->launch(
+        containerId,
+        containerConfig,
+        std::map<string, string>(),
+        None());
+
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
+
+  // Wait until the marker file is created.
+  Duration waited = Duration::zero();
+
+  do {
+    if (os::exists(path::join(directory, "marker"))) {
+      break;
+    }
+
+    os::sleep(Seconds(1));
+    waited += Seconds(1);
+  } while (waited < process::TEST_AWAIT_TIMEOUT);
+
+  EXPECT_LT(waited, process::TEST_AWAIT_TIMEOUT);
+
+  // The file created by the top-level container should only exist in
+  // its own /dev/shm rather than in agent's /dev/shm.
+  ASSERT_FALSE(os::exists("/dev/shm/root"));
+
+  // Now launch two child containers with `SHARE_PARENT` ipc mode and
+  // 256MB /dev/shm.
+  ContainerID childContainerId1, childContainerId2;
+
+  childContainerId1.mutable_parent()->CopyFrom(containerId);
+  childContainerId1.set_value(id::UUID::random().toString());
+
+  childContainerId2.mutable_parent()->CopyFrom(containerId);
+  childContainerId2.set_value(id::UUID::random().toString());
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::MESOS);
+  containerInfo.mutable_linux_info()->set_ipc_mode(LinuxInfo::SHARE_PARENT);
+  containerInfo.mutable_linux_info()->set_shm_size(256);
+
+  // Launch the first child container, check its /dev/shm size is 128MB
+  // rather than 256MB, it can see the file created by its parent container
+  // in /dev/shm and it is in the same IPC namespace with its parent container,
+  // and then write its IPC namespace inode to a file under /dev/shm.
+  launch = containerizer.get()->launch(
+      childContainerId1,
+      createContainerConfig(
+          createCommandInfo(
+              "df -m /dev/shm | grep -w 128 && "
+              "test `stat -Lc %i /proc/self/ns/ipc` = `cat /dev/shm/root` && "
+              "stat -Lc %i /proc/self/ns/ipc > /dev/shm/child1 && "
+              "touch marker && "
+              "sleep 1000"),
+          containerInfo),
+      std::map<string, string>(),
+      None());
+
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
+
+  // Wait until the marker file is created.
+  waited = Duration::zero();
+  const string childSandboxPath1 = getSandboxPath(directory, childContainerId1);
+
+  do {
+    if (os::exists(path::join(childSandboxPath1, "marker"))) {
+      break;
+    }
+
+    os::sleep(Seconds(1));
+    waited += Seconds(1);
+  } while (waited < process::TEST_AWAIT_TIMEOUT);
+
+  EXPECT_LT(waited, process::TEST_AWAIT_TIMEOUT);
+
+  // Launch the second child container with its own rootfs, check its /dev/shm
+  // size is 128MB rather than 256MB, it can see the files created by its parent
+  // container and the first child container in /dev/shm and it is in the same
+  // IPC namespace with its parent container and the first child container. and
+  // then write its IPC namespace inode to a file under /dev/shm.
+  mesos::Image image;
+  image.set_type(mesos::Image::DOCKER);
+  image.mutable_docker()->set_name("alpine");
+
+  containerInfo.mutable_mesos()->mutable_image()->CopyFrom(image);
+
+  launch = containerizer.get()->launch(
+      childContainerId2,
+      createContainerConfig(
+          createCommandInfo(
+              "df -m /dev/shm | grep -w 128 && "
+              "test `stat -Lc %i /proc/self/ns/ipc` = `cat /dev/shm/root` && "
+              "test `stat -Lc %i /proc/self/ns/ipc` = `cat /dev/shm/child1` && "
+              "stat -Lc %i /proc/self/ns/ipc > /dev/shm/child2 && "
+              "touch marker && "
+              "sleep 1000"),
+          containerInfo),
+      std::map<string, string>(),
+      None());
+
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
+
+  // Wait until the marker file is created.
+  waited = Duration::zero();
+  const string childSandboxPath2 = getSandboxPath(directory, childContainerId2);
+
+  do {
+    if (os::exists(path::join(childSandboxPath2, "marker"))) {
+      break;
+    }
+
+    os::sleep(Seconds(1));
+    waited += Seconds(1);
+  } while (waited < process::TEST_AWAIT_TIMEOUT);
+
+  EXPECT_LT(waited, process::TEST_AWAIT_TIMEOUT);
+
+  // Launch a grandchild container with `SHARE_PARENT` ipc mode and
+  // 256MB /dev/shm under the first child container, check its /dev/shm
+  // size is 128MB rather than 256MB, it can see the files created by
+  // its parent and grandparent containers and it is in the same IPC
+  // namespace with its parent and grandparent containers.
+  ContainerID grandchildContainerId;
+  grandchildContainerId.mutable_parent()->CopyFrom(childContainerId1);
+  grandchildContainerId.set_value(id::UUID::random().toString());
+
+  launch = containerizer.get()->launch(
+      grandchildContainerId,
+      createContainerConfig(
+          createCommandInfo(
+              "df -m /dev/shm | grep -w 128 && "
+              "test `stat -Lc %i /proc/self/ns/ipc` = `cat /dev/shm/child1` && "
+              "test `stat -Lc %i /proc/self/ns/ipc` = `cat /dev/shm/root`"),
+          containerInfo),
+      std::map<string, string>(),
+      None());
+
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
+
+  Future<Option<ContainerTermination>> wait =
+    containerizer.get()->wait(grandchildContainerId);
+
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait.get()->has_status());
+  EXPECT_WEXITSTATUS_EQ(0, wait.get()->status());
+
+  // Launch a debug container with `PRIVATE` ipc mode and 256MB /dev/shm
+  // under the first child container, check its /dev/shm size is 128MB
+  // rather than 256MB and it is in the same IPC namespace with its parent
+  // container even its ipc mode is `PRIVATE`.
+  ContainerID debugContainerId1;
+  debugContainerId1.mutable_parent()->CopyFrom(childContainerId1);
+  debugContainerId1.set_value(id::UUID::random().toString());
+
+  containerInfo.clear_mesos();
+  containerInfo.mutable_linux_info()->set_ipc_mode(LinuxInfo::PRIVATE);
+
+  launch = containerizer.get()->launch(
+      debugContainerId1,
+      createContainerConfig(
+          createCommandInfo(
+              "df -m /dev/shm | grep -w 128 && "
+              "test `stat -Lc %i /proc/self/ns/ipc` = `cat /dev/shm/child1`"),
+          containerInfo,
+          ContainerClass::DEBUG),
+      std::map<string, string>(),
+      None());
+
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
+
+  wait = containerizer.get()->wait(debugContainerId1);
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait.get()->has_status());
+  EXPECT_WEXITSTATUS_EQ(0, wait.get()->status());
+
+  // Launch a debug container with `PRIVATE` ipc mode and 256MB /dev/shm
+  // under the second child container, check its /dev/shm size is 128MB
+  // rather than 256MB and it is in the same IPC namespace with its parent
+  // container even its ipc mode is `PRIVATE`.
+  ContainerID debugContainerId2;
+  debugContainerId2.mutable_parent()->CopyFrom(childContainerId2);
+  debugContainerId2.set_value(id::UUID::random().toString());
+
+  containerInfo.mutable_linux_info()->set_ipc_mode(LinuxInfo::PRIVATE);
+
+  launch = containerizer.get()->launch(
+      debugContainerId2,
+      createContainerConfig(
+          createCommandInfo(
+              "df -m /dev/shm | grep -w 128 && "
+              "test `stat -Lc %i /proc/self/ns/ipc` = `cat /dev/shm/child2`"),
+          containerInfo,
+          ContainerClass::DEBUG),
+      std::map<string, string>(),
+      None());
+
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
+
+  wait = containerizer.get()->wait(debugContainerId2);
+  AWAIT_READY(wait);
+  ASSERT_SOME(wait.get());
+  ASSERT_TRUE(wait.get()->has_status());
+  EXPECT_WEXITSTATUS_EQ(0, wait.get()->status());
+
+  Future<Option<ContainerTermination>> termination =
+    containerizer.get()->destroy(containerId);
+
+  AWAIT_READY(termination);
+  ASSERT_SOME(termination.get());
+  ASSERT_TRUE(termination.get()->has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, termination.get()->status());
 }
 #endif // __linux__
 
