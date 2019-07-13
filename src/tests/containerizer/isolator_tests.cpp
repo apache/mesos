@@ -268,17 +268,20 @@ TEST_F(NamespacesIsolatorTest, ROOT_SharePidNamespaceWhenDisallow)
 }
 
 
-// The IPC namespace has its own copy of the svipc(7) tunables. We verify
-// that we are correctly entering the IPC namespace by verifying that we
-// can set shmmax some different value than that of the host namespace.
-TEST_F(NamespacesIsolatorTest, ROOT_IPCNamespace)
+// This test verifies that when `namespaces/ipc` isolator is enabled and
+// container's IPC mode is not set, for backward compatibility we will
+// keep the previous behavior: Top level container will have its own IPC
+// namespace and nested container will share the IPC namespace with its
+// parent container. If the container does not have its own rootfs, it
+// will share agent's /dev/shm, otherwise it will have its own /dev/shm.
+TEST_F(NamespacesIsolatorTest, ROOT_IPCNamespaceWithIPCModeUnset)
 {
   Try<Owned<MesosContainerizer>> containerizer =
     createContainerizer("filesystem/linux,namespaces/ipc");
 
   ASSERT_SOME(containerizer);
 
-  // Value we will set the child namespace shmmax to.
+  // Value we will set the top-level container's IPC namespace shmmax to.
   uint64_t shmmaxValue = static_cast<uint64_t>(::getpid());
 
   Try<uint64_t> hostShmmax = readValue("/proc/sys/kernel/shmmax");
@@ -287,10 +290,13 @@ TEST_F(NamespacesIsolatorTest, ROOT_IPCNamespace)
   // Verify that the host namespace shmmax is different.
   ASSERT_NE(hostShmmax.get(), shmmaxValue);
 
-  const string command =
-    "stat -Lc %i /proc/self/ns/ipc > ns;"
-    "echo " + stringify(shmmaxValue) + " > /proc/sys/kernel/shmmax;"
-    "cp /proc/sys/kernel/shmmax shmmax";
+  // Launch a top-level container with IPC mode
+  // unset and it does not have its own rootfs.
+  string command =
+    "stat -Lc %i /proc/self/ns/ipc > ns && "
+    "echo " + stringify(shmmaxValue) + " > /proc/sys/kernel/shmmax && "
+    "cp /proc/sys/kernel/shmmax /dev/shm/shmmax && "
+    "sleep 1000";
 
   process::Future<Containerizer::LaunchResult> launch =
     containerizer.get()->launch(
@@ -304,36 +310,99 @@ TEST_F(NamespacesIsolatorTest, ROOT_IPCNamespace)
 
   AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
 
-  // Wait on the container.
+  // Since the top-level container does not have its own
+  // rootfs, it will share host's /dev/shm, so let's wait
+  // until /dev/shm/shmmax is created in the host.
+  Duration waited = Duration::zero();
+
+  do {
+    if (os::exists("/dev/shm/shmmax")) {
+      break;
+    }
+
+    os::sleep(Seconds(1));
+    waited += Seconds(1);
+  } while (waited < process::TEST_AWAIT_TIMEOUT);
+
+  EXPECT_LT(waited, process::TEST_AWAIT_TIMEOUT);
+
+  // Launch a nested container with IPC mode unset and it has its own rootfs.
+  ContainerID nestedContainerId;
+  nestedContainerId.mutable_parent()->CopyFrom(containerId);
+  nestedContainerId.set_value(id::UUID::random().toString());
+
+  mesos::Image image;
+  image.set_type(mesos::Image::DOCKER);
+  image.mutable_docker()->set_name("alpine");
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::MESOS);
+  containerInfo.mutable_mesos()->mutable_image()->CopyFrom(image);
+
+  command =
+    "stat -Lc %i /proc/self/ns/ipc > ns && "
+    "test `cat /proc/sys/kernel/shmmax` = " + stringify(shmmaxValue) + " && "
+    "touch /dev/shm/file";
+
+  launch = containerizer.get()->launch(
+      nestedContainerId,
+      createContainerConfig(createCommandInfo(command), containerInfo),
+      std::map<string, string>(),
+      None());
+
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
+
+  // Wait on the nested container.
   Future<Option<ContainerTermination>> wait =
-    containerizer.get()->wait(containerId);
+    containerizer.get()->wait(nestedContainerId);
 
   AWAIT_READY(wait);
   ASSERT_SOME(wait.get());
-
-  // Check the executor exited correctly.
   EXPECT_TRUE(wait->get().has_status());
   EXPECT_EQ(0, wait->get().status());
 
-  // Check that the command was run in a different IPC namespace.
+  // Check that top-level container and the nested container are in the
+  // same IPC namespace but not in the same IPC namespace with host.
   Result<ino_t> testIPCNamespace = ns::getns(::getpid(), "ipc");
   ASSERT_SOME(testIPCNamespace);
 
   Try<string> containerIPCNamespace = os::read(path::join(directory, "ns"));
   ASSERT_SOME(containerIPCNamespace);
 
+  Try<string> nestedcontainerIPCNamespace =
+    os::read(path::join(getSandboxPath(directory, nestedContainerId), "ns"));
+
+  ASSERT_SOME(nestedcontainerIPCNamespace);
+
   EXPECT_NE(stringify(testIPCNamespace.get()),
             strings::trim(containerIPCNamespace.get()));
 
+  EXPECT_EQ(strings::trim(containerIPCNamespace.get()),
+            strings::trim(nestedcontainerIPCNamespace.get()));
+
+  // The nested container will have its own /dev/shm since it has its own
+  // rootfs, so the file it created should not exist in the host.
+  ASSERT_FALSE(os::exists("/dev/shm/file"));
+
   // Check that we modified the IPC shmmax of the namespace, not the host.
-  Try<uint64_t> childShmmax = readValue("shmmax");
-  ASSERT_SOME(childShmmax);
+  Try<uint64_t> containerShmmax = readValue("/dev/shm/shmmax");
+  ASSERT_SOME(containerShmmax);
 
   // Verify that we didn't modify shmmax in the host namespace.
   ASSERT_EQ(hostShmmax.get(), readValue("/proc/sys/kernel/shmmax").get());
 
-  EXPECT_NE(hostShmmax.get(), childShmmax.get());
-  EXPECT_EQ(shmmaxValue, childShmmax.get());
+  EXPECT_NE(hostShmmax.get(), containerShmmax.get());
+  EXPECT_EQ(shmmaxValue, containerShmmax.get());
+
+  Future<Option<ContainerTermination>> termination =
+    containerizer.get()->destroy(containerId);
+
+  AWAIT_READY(termination);
+  ASSERT_SOME(termination.get());
+  ASSERT_TRUE(termination.get()->has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, termination.get()->status());
+
+  ASSERT_SOME(os::rm("/dev/shm/shmmax"));
 }
 
 
