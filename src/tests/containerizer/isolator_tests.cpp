@@ -98,7 +98,7 @@ public:
     fetcher.reset(new Fetcher(flags));
 
     Try<MesosContainerizer*> _containerizer =
-      MesosContainerizer::create(flags, false, fetcher.get());
+      MesosContainerizer::create(flags, true, fetcher.get());
 
     if (_containerizer.isError()) {
       return Error(_containerizer.error());

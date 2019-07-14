@@ -256,7 +256,7 @@ TEST_F(NestedMesosContainerizerTest,
 
   Try<MesosContainerizer*> create = MesosContainerizer::create(
       flags,
-      false,
+      true,
       &fetcher);
 
   ASSERT_SOME(create);
@@ -530,7 +530,7 @@ TEST_F(NestedMesosContainerizerTest,
 
   Try<MesosContainerizer*> create = MesosContainerizer::create(
       flags,
-      false,
+      true,
       &fetcher);
 
   ASSERT_SOME(create);
