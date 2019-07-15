@@ -391,6 +391,9 @@ struct SlaveState
   // state didn't support checkpointing operations.
   Option<std::vector<Operation>> operations;
 
+  // The drain state of the agent, if any.
+  Option<DrainConfig> drainConfig;
+
   unsigned int errors;
 };
 

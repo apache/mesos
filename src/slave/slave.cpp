@@ -5630,6 +5630,16 @@ void Slave::reregisterExecutorTimeout()
     }
   }
 
+  // Replay any active draining.
+  if (drainConfig.isSome()) {
+    DrainSlaveMessage drainSlaveMessage;
+    *drainSlaveMessage.mutable_config() = *drainConfig;
+
+    LOG(INFO) << "Replaying in-process agent draining";
+
+    drain(self(), std::move(drainSlaveMessage));
+  }
+
   // Signal the end of recovery.
   // TODO(greggomann): Allow the agent to complete recovery before the executor
   // re-registration timeout has elapsed. See MESOS-7539
@@ -7511,6 +7521,8 @@ Future<Nothing> Slave::recover(const Try<state::State>& state)
     // both of them for equality. This is safe because if it turned out that
     // we can not reuse the id, we will either crash or erase it again.
     info.mutable_id()->CopyFrom(slaveState->info->id());
+
+    drainConfig = slaveState->drainConfig;
 
     // Check for SlaveInfo compatibility.
     Try<Nothing> _compatible =

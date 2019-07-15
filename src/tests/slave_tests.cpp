@@ -12216,6 +12216,123 @@ TEST_F(SlaveTest, DrainAgentKillsPendingTask)
   EXPECT_EQ(v1::TASK_KILLED, killedUpdate->status().state());
 }
 
+
+// This test verifies that if the agent recovers that it is in
+// draining state any tasks after the restart are killed.
+TEST_F(SlaveTest, CheckpointedDrainInfo)
+{
+  Clock::pause();
+
+  master::Flags masterFlags = CreateMasterFlags();
+  Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  ExecutorID executorId = DEFAULT_EXECUTOR_ID;
+  MockExecutor exec(executorId);
+  TestContainerizer containerizer(&exec);
+
+  Future<UpdateSlaveMessage> updateSlaveMessage =
+    FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
+
+  StandaloneMasterDetector detector(master.get()->pid);
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(&detector, &containerizer, slaveFlags);
+  ASSERT_SOME(slave);
+
+  // Advance the clock to trigger the agent registration.
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(updateSlaveMessage);
+
+  // Start a framework.
+  FrameworkInfo frameworkInfo = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.set_checkpoint(true);
+
+  MockScheduler sched;
+  MesosSchedulerDriver driver(
+      &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  EXPECT_CALL(sched, registered(_, _, _));
+
+  Future<vector<Offer>> offers;
+  EXPECT_CALL(sched, resourceOffers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  driver.start();
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->empty());
+
+  SlaveID slaveId = offers.get()[0].slave_id();
+  TaskInfo task = createTask(
+      slaveId,
+      Resources::parse("cpus:1;mem:32").get(),
+      SLEEP_COMMAND(1000),
+      executorId);
+
+  EXPECT_CALL(exec, registered(_, _, _, _));
+
+  driver.launchTasks(offers.get()[0].id(), {task});
+
+  constexpr int GRACE_PERIOD_NANOS = 1000000;
+  DurationInfo maxGracePeriod;
+  maxGracePeriod.set_nanoseconds(GRACE_PERIOD_NANOS);
+
+  DrainConfig drainConfig;
+  drainConfig.set_mark_gone(true);
+  drainConfig.mutable_max_grace_period()->CopyFrom(maxGracePeriod);
+
+  DrainSlaveMessage drainSlaveMessage;
+  drainSlaveMessage.mutable_config()->CopyFrom(drainConfig);
+
+  EXPECT_CALL(exec, launchTask(_, _))
+    .WillOnce(SendStatusUpdateFromTask(TASK_RUNNING));
+
+  Future<TaskStatus> statusRunning;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusRunning));
+
+  AWAIT_READY(statusRunning);
+  ASSERT_EQ(TaskState::TASK_RUNNING, statusRunning->state());
+
+  // We expect a request to kill the task when the drain request is initially
+  // received. The executor ignores the request and reregisters after agent
+  // restart.
+  Future<Nothing> killTask1;
+  EXPECT_CALL(exec, killTask(_, _))
+    .WillOnce(FutureSatisfy(&killTask1));
+
+  process::post(master.get()->pid, slave.get()->pid, drainSlaveMessage);
+
+  AWAIT_READY(killTask1);
+
+  Future<Nothing> reregistered;
+  EXPECT_CALL(exec, reregistered(_, _))
+    .WillOnce(DoAll(
+        Invoke(&exec, &MockExecutor::reregistered),
+        FutureSatisfy(&reregistered)))
+    .WillRepeatedly(DoDefault());
+
+  // Once the agent has finished recovering executors it should send
+  // another task kill request to the executor.
+  Future<Nothing> killTask2;
+  EXPECT_CALL(exec, killTask(_, _))
+    .WillOnce(FutureSatisfy(&killTask2));
+
+  // Restart the agent.
+  slave.get()->terminate();
+  slave = StartSlave(&detector, &containerizer, slaveFlags);
+
+  AWAIT_READY(reregistered);
+
+  // Advance the clock to finish the executor reregistration phase.
+  Clock::advance(slaveFlags.executor_reregistration_timeout);
+
+  AWAIT_READY(killTask2);
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {

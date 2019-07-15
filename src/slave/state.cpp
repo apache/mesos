@@ -203,6 +203,22 @@ Try<SlaveState> SlaveState::recover(
     state.errors += framework->errors;
   }
 
+  // Recover any drain state.
+  const string drainConfigPath = paths::getDrainConfigPath(rootDir, slaveId);
+  if (os::exists(drainConfigPath)) {
+    Result<DrainConfig> drainConfig = state::read<DrainConfig>(drainConfigPath);
+    if (drainConfig.isError()) {
+      string message = "Failed to read agent state file '"
+                       + drainConfigPath + "': " + drainConfig.error();
+
+      LOG(WARNING) << message;
+      state.errors++;
+    }
+    if (drainConfig.isSome()) {
+      state.drainConfig = *drainConfig;
+    }
+  }
+
   const string resourceStatePath = paths::getResourceStatePath(rootDir);
   if (os::exists(resourceStatePath)) {
     Result<ResourceState> resourceState =
