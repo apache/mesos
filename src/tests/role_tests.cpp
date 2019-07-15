@@ -34,6 +34,8 @@
 #include "tests/mesos.hpp"
 #include "tests/resources_utils.hpp"
 
+#include "tests/master/mock_master_api_subscriber.hpp"
+
 using mesos::internal::master::Master;
 using mesos::internal::slave::Slave;
 
@@ -870,7 +872,81 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, EndpointImplicitRolesQuotas)
 
   EXPECT_EQ(*expected, *parse)
     << "expected " << stringify(*expected)
-    << " vs actual " << stringify(*parse);}
+    << " vs actual " << stringify(*parse);
+}
+
+
+// This test ensures that roles with only reservations are
+// included in the /roles endpoint.
+TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, EndpointImplicitRolesReservations)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  v1::MockMasterAPISubscriber subscriber;
+
+  AWAIT_READY(subscriber.subscribe(master.get()->pid));
+
+  Future<Nothing> agentAdded;
+  EXPECT_CALL(subscriber, agentAdded(_))
+    .WillOnce(FutureSatisfy(&agentAdded));
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  slave::Flags agentFlags = CreateSlaveFlags();
+  agentFlags.resources = "cpus(role):1;mem(role):10";
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), agentFlags);
+
+  AWAIT_READY(agentAdded);
+
+  // Check that the /roles endpoint contains the role.
+  {
+    Future<Response> response = process::http::get(
+        master.get()->pid,
+        "roles",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+    Try<JSON::Value> parse = JSON::parse(response->body);
+    ASSERT_SOME(parse);
+
+    Try<JSON::Value> expected = JSON::parse(
+        "{"
+        "  \"roles\": ["
+        "    {"
+        "      \"frameworks\": [],"
+        "      \"name\": \"role\","
+        "      \"resources\": {},"
+        "      \"allocated\": {},"
+        "      \"offered\": {},"
+        "      \"reserved\": {"
+        "        \"cpus\": 1.0,"
+        "        \"mem\":  10.0"
+        "      },"
+        "      \"quota\": {"
+        "        \"consumed\": {"
+        "          \"cpus\": 1.0,"
+        "          \"mem\": 10.0"
+        "        },"
+        "        \"guarantee\": {},"
+        "        \"limit\": {},"
+        "        \"role\": \"role\""
+        "      },"
+        "      \"weight\": 1.0"
+        "    }"
+        "  ]"
+        "}");
+
+    ASSERT_SOME(expected);
+
+    EXPECT_EQ(*expected, *parse)
+      << "expected " << stringify(*expected)
+      << " vs actual " << stringify(*parse);
+  }
+}
 
 
 // This test ensures that master adds/removes all roles of
