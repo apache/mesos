@@ -3670,10 +3670,6 @@ void Slave::killTask(
     return;
   }
 
-  CHECK(framework->state == Framework::RUNNING ||
-        framework->state == Framework::TERMINATING)
-    << framework->state;
-
   // We don't send a status update here because a terminating
   // framework cannot send acknowledgements.
   if (framework->state == Framework::TERMINATING) {
@@ -3683,54 +3679,10 @@ void Slave::killTask(
     return;
   }
 
-  // If the task is pending, we send a TASK_KILLED immediately.
-  // This will trigger a synchronous removal of the pending task,
-  // which prevents it from being launched.
+  CHECK(framework->state == Framework::RUNNING) << framework->state;
+
   if (framework->isPending(taskId)) {
-    LOG(WARNING) << "Killing task " << taskId
-                 << " of framework " << frameworkId
-                 << " before it was launched";
-
-    Option<TaskGroupInfo> taskGroup =
-      framework->getTaskGroupForPendingTask(taskId);
-
-    vector<StatusUpdate> updates;
-    if (taskGroup.isSome()) {
-      foreach (const TaskInfo& task, taskGroup->tasks()) {
-        updates.push_back(protobuf::createStatusUpdate(
-            frameworkId,
-            info.id(),
-            task.task_id(),
-            TASK_KILLED,
-            TaskStatus::SOURCE_SLAVE,
-            id::UUID::random(),
-            "A task within the task group was killed before"
-            " delivery to the executor",
-            TaskStatus::REASON_TASK_KILLED_DURING_LAUNCH,
-            CHECK_NOTNONE(
-                framework->getExecutorIdForPendingTask(task.task_id()))));
-      }
-    } else {
-      updates.push_back(protobuf::createStatusUpdate(
-          frameworkId,
-          info.id(),
-          taskId,
-          TASK_KILLED,
-          TaskStatus::SOURCE_SLAVE,
-          id::UUID::random(),
-          "Killed before delivery to the executor",
-          TaskStatus::REASON_TASK_KILLED_DURING_LAUNCH,
-          CHECK_NOTNONE(
-              framework->getExecutorIdForPendingTask(taskId))));
-    }
-
-    foreach (const StatusUpdate& update, updates) {
-      // NOTE: Sending a terminal update (TASK_KILLED) synchronously
-      // removes the task/task group from 'framework->pendingTasks'
-      // and 'framework->pendingTaskGroups', so that it will not be
-      // launched.
-      statusUpdate(update, UPID());
-    }
+    killPendingTask(frameworkId, framework, taskId);
 
     return;
   }
@@ -3762,6 +3714,80 @@ void Slave::killTask(
     statusUpdate(update, UPID());
     return;
   }
+
+  kill(frameworkId,
+       framework,
+       executor,
+       taskId,
+       (killTaskMessage.has_kill_policy()
+          ? killTaskMessage.kill_policy()
+          : Option<KillPolicy>::none()));
+}
+
+
+void Slave::killPendingTask(
+    const FrameworkID& frameworkId,
+    Framework* framework,
+    const TaskID& taskId)
+{
+  LOG(WARNING) << "Killing task " << taskId
+               << " of framework " << frameworkId
+               << " before it was launched";
+
+  Option<TaskGroupInfo> taskGroup =
+    framework->getTaskGroupForPendingTask(taskId);
+
+  vector<StatusUpdate> updates;
+  if (taskGroup.isSome()) {
+    foreach (const TaskInfo& task, taskGroup->tasks()) {
+      updates.push_back(protobuf::createStatusUpdate(
+          frameworkId,
+          info.id(),
+          task.task_id(),
+          TASK_KILLED,
+          TaskStatus::SOURCE_SLAVE,
+          id::UUID::random(),
+          "A task within the task group was killed before"
+          " delivery to the executor",
+          TaskStatus::REASON_TASK_KILLED_DURING_LAUNCH,
+          CHECK_NOTNONE(
+              framework->getExecutorIdForPendingTask(task.task_id()))));
+    }
+  } else {
+    updates.push_back(protobuf::createStatusUpdate(
+        frameworkId,
+        info.id(),
+        taskId,
+        TASK_KILLED,
+        TaskStatus::SOURCE_SLAVE,
+        id::UUID::random(),
+        "Killed before delivery to the executor",
+        TaskStatus::REASON_TASK_KILLED_DURING_LAUNCH,
+        CHECK_NOTNONE(
+            framework->getExecutorIdForPendingTask(taskId))));
+  }
+
+  foreach (const StatusUpdate& update, updates) {
+    // NOTE: Sending a terminal update (TASK_KILLED) synchronously
+    // removes the task/task group from 'framework->pendingTasks'
+    // and 'framework->pendingTaskGroups', so that it will not be
+    // launched.
+    statusUpdate(update, UPID());
+  }
+}
+
+
+void Slave::kill(
+    const FrameworkID& frameworkId,
+    Framework* framework,
+    Executor* executor,
+    const TaskID& taskId,
+    const Option<KillPolicy>& killPolicy)
+{
+  // This function should only be called on tasks which are queued or launched,
+  // so both the framework and executor should always exist.
+  CHECK_NOTNULL(framework);
+  CHECK_NOTNULL(executor);
 
   switch (executor->state) {
     case Executor::REGISTERING: {
@@ -3888,9 +3914,8 @@ void Slave::killTask(
         KillTaskMessage message;
         message.mutable_framework_id()->MergeFrom(frameworkId);
         message.mutable_task_id()->MergeFrom(taskId);
-        if (killTaskMessage.has_kill_policy()) {
-          message.mutable_kill_policy()->MergeFrom(
-              killTaskMessage.kill_policy());
+        if (killPolicy.isSome()) {
+          message.mutable_kill_policy()->MergeFrom(killPolicy.get());
         }
 
         executor->send(message);

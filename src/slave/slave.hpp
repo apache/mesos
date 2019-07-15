@@ -226,10 +226,27 @@ public:
       const std::vector<ResourceVersionUUID>& resourceVersionUuids,
       const Option<bool>& launchExecutor);
 
-  // Made 'virtual' for Slave mocking.
+  // Handler for the `KillTaskMessage`. Made 'virtual' for Slave mocking.
   virtual void killTask(
       const process::UPID& from,
       const KillTaskMessage& killTaskMessage);
+
+  // Helper to kill a pending task, which may or may not be associated with a
+  // valid `Executor` struct.
+  void killPendingTask(
+      const FrameworkID& frameworkId,
+      Framework* framework,
+      const TaskID& taskId);
+
+  // Helper to kill a task belonging to a valid framework and executor. This
+  // function should be used to kill tasks which are queued or launched, but
+  // not tasks which are pending.
+  void kill(
+      const FrameworkID& frameworkId,
+      Framework* framework,
+      Executor* executor,
+      const TaskID& taskId,
+      const Option<KillPolicy>& killPolicy);
 
   // Made 'virtual' for Slave mocking.
   virtual void shutdownExecutor(
