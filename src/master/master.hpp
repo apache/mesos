@@ -1155,8 +1155,15 @@ private:
       const hashset<SlaveID>& toRemoveGone,
       const process::Future<bool>& registrarResult);
 
-  std::vector<std::string> filterRoles(
-      const process::Owned<ObjectApprovers>& approvers) const;
+  // Returns all roles known to the master, if roles are whitelisted
+  // this simply returns the whitelist and any ancestors of roles in
+  // the whitelist. Otherwise, this returns:
+  //
+  //   (1) Roles with configured weight or quota.
+  //   (2) Roles with reservations.
+  //   (3) Roles with frameworks subscribed or allocated resources.
+  //   (4) Ancestor roles of (1), (2), or (3).
+  std::vector<std::string> knownRoles() const;
 
   /**
    * Returns whether the given role is on the whitelist.
@@ -1166,6 +1173,20 @@ private:
    * (and access control is done via ACLs).
    */
   bool isWhitelistedRole(const std::string& name) const;
+
+  struct ResourceBreakdown
+  {
+    ResourceQuantities offered;
+    ResourceQuantities allocated;
+    ResourceQuantities reserved;
+    ResourceQuantities consumedQuota;
+  };
+
+  // TODO(bmahler): Store a role tree rather than the existing
+  // `roles` map which does not track the tree correctly (it does
+  // not insert ancestor entries, nor does it track roles if there
+  // are reservations but no frameworks related to them).
+  hashmap<std::string, ResourceBreakdown> getRoleTreeResourceQuantities() const;
 
   // Performs validations of the FrameworkInfo and suppressed roles set
   // which do not depend on the current state of this framework.
@@ -2707,59 +2728,6 @@ struct Role
     frameworks.erase(framework->id());
   }
 
-  // TODO(bmahler): This function is somewhat expensive,
-  // it should ideally migrate into a field updated in an
-  // event-driven manner within a role tree structure. Or,
-  // at least compute the overall tree when looping over
-  // all agents rather than looping over all agents for
-  // each role.
-  ResourceQuantities consumedQuota() const
-  {
-    const std::string& role = this->role; // For cleaner captures.
-
-    // Consumed quota = allocation + unallocated reservation.
-
-    ResourceQuantities allocation;
-
-    auto allocatedToRoleSubtree = [&role](const Resource& r) {
-      CHECK(r.has_allocation_info());
-      return r.allocation_info().role() == role ||
-        roles::isStrictSubroleOf(r.allocation_info().role(), role);
-    };
-
-    // Loop over all frameworks since `frameworks` only tracks
-    // those that are directly subscribed to this role, and we
-    // need to sum all descendant role allocations.
-    foreachvalue (Framework* framework, master->frameworks.registered) {
-      allocation += ResourceQuantities::fromResources(
-        framework->totalUsedResources.filter(allocatedToRoleSubtree));
-    }
-
-    ResourceQuantities unallocatedReservation;
-
-    auto reservedToRoleSubtree = [&role](const Resource& r) {
-      return Resources::isReserved(r) &&
-        (Resources::reservationRole(r) == role ||
-         roles::isStrictSubroleOf(Resources::reservationRole(r), role));
-    };
-
-    foreachvalue (Slave* slave, master->slaves.registered) {
-      ResourceQuantities totalReservation =
-        ResourceQuantities::fromResources(
-           slave->totalResources.filter(reservedToRoleSubtree));
-
-       ResourceQuantities usedReservation;
-       foreachvalue (const Resources& r, slave->usedResources) {
-         usedReservation += ResourceQuantities::fromResources(
-             r.filter(reservedToRoleSubtree));
-       }
-
-       unallocatedReservation += totalReservation - usedReservation;
-     }
-
-    return allocation + unallocatedReservation;
-  }
-
   Resources allocatedAndOfferedResources() const
   {
     Resources resources;
@@ -2777,72 +2745,6 @@ struct Role
     }
 
     return resources;
-  }
-
-  ResourceQuantities reserved() const
-  {
-    const std::string& role = this->role; // For cleaner captures.
-
-    ResourceQuantities total;
-
-    auto reservedToRoleSubtree = [&role](const Resource& r) {
-      return Resources::isReserved(r) &&
-        (Resources::reservationRole(r) == role ||
-         roles::isStrictSubroleOf(Resources::reservationRole(r), role));
-    };
-
-    foreachvalue (Slave* slave, master->slaves.registered) {
-      total += ResourceQuantities::fromResources(
-          slave->totalResources.filter(reservedToRoleSubtree));
-    }
-
-    return total;
-  }
-
-  ResourceQuantities allocated() const
-  {
-    const std::string& role = this->role; // For cleaner captures.
-
-    ResourceQuantities total;
-
-    auto allocatedToRoleSubtree = [&role](const Resource& r) {
-      CHECK(r.has_allocation_info());
-      return r.allocation_info().role() == role ||
-        roles::isStrictSubroleOf(r.allocation_info().role(), role);
-    };
-
-    // Loop over all frameworks since `frameworks` only tracks
-    // those that are directly subscribed to this role, and we
-    // need to sum all descendant role allocations.
-    foreachvalue (Framework* framework, master->frameworks.registered) {
-      total += ResourceQuantities::fromResources(
-          framework->totalUsedResources.filter(allocatedToRoleSubtree));
-    }
-
-    return total;
-  }
-
-  ResourceQuantities offered() const
-  {
-    const std::string& role = this->role; // For cleaner captures.
-
-    ResourceQuantities total;
-
-    auto allocatedToRoleSubtree = [&role](const Resource& r) {
-      CHECK(r.has_allocation_info());
-      return r.allocation_info().role() == role ||
-        roles::isStrictSubroleOf(r.allocation_info().role(), role);
-    };
-
-    // Loop over all frameworks since `frameworks` only tracks
-    // those that are directly subscribed to this role, and we
-    // need to sum all descendant role allocations.
-    foreachvalue (Framework* framework, master->frameworks.registered) {
-      total += ResourceQuantities::fromResources(
-          framework->totalOfferedResources.filter(allocatedToRoleSubtree));
-    }
-
-    return total;
   }
 
   const Master* master;

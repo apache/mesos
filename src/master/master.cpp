@@ -3515,46 +3515,59 @@ void Master::suppress(
 }
 
 
-vector<string> Master::filterRoles(
-    const Owned<ObjectApprovers>& approvers) const
+vector<string> Master::knownRoles() const
 {
-  JSON::Object object;
-
-  // Compute the role names to return results for. When an explicit
-  // role whitelist has been configured, we use that list of names.
-  // When using implicit roles, the right behavior is a bit more
-  // subtle. There are no constraints on possible role names, so we
-  // instead list all the "interesting" roles: all roles with one or
-  // more registered frameworks, and all roles with a non-default
-  // weight or quota.
-  //
   // NOTE: we use a `std::set` to store the role names to ensure a
   // deterministic output order.
   set<string> roleList;
+
+  auto insertAncestors = [&roleList](const string& role) {
+    foreach (const string& ancestor, roles::ancestors(role)) {
+      bool inserted = roleList.insert(ancestor).second;
+
+      // We can break here as an optimization since the ancestor
+      // will have had its ancestors inserted already.
+      if (!inserted) break;
+    }
+  };
+
   if (roleWhitelist.isSome()) {
-    const hashset<string>& whitelist = roleWhitelist.get();
-    roleList.insert(whitelist.begin(), whitelist.end());
+    foreach (const string& role, *this->roleWhitelist) {
+      roleList.insert(role);
+      insertAncestors(role);
+    }
   } else {
-    hashset<string> roles = this->roles.keys();
-    roleList.insert(roles.begin(), roles.end());
+    // In terms of building a complete set of known roles, we have to visit:
+    //   (1) all entries of `roles` (which means there are frameworks
+    //       subscribed to a role or have allocations to a role)
+    //   (2) all reservation roles
+    //   (3) all roles with configured weights or quotas
+    //   (4) all ancestor roles of (1), (2), and (3).
 
-    hashset<string> weights = this->weights.keys();
-    roleList.insert(weights.begin(), weights.end());
+    foreachkey (const string& role, this->roles) {
+      roleList.insert(role);
+      insertAncestors(role);
+    }
 
-    hashset<string> quotas = this->quotas.keys();
-    roleList.insert(quotas.begin(), quotas.end());
-  }
+    foreachvalue (Slave* slave, this->slaves.registered) {
+      foreachkey (const string& role, slave->totalResources.reservations()) {
+        roleList.insert(role);
+        insertAncestors(role);
+      }
+    }
 
-  vector<string> filteredRoleList;
-  filteredRoleList.reserve(roleList.size());
+    foreachkey (const string& role, this->weights) {
+      roleList.insert(role);
+      insertAncestors(role);
+    }
 
-  foreach (const string& role, roleList) {
-    if (approvers->approved<VIEW_ROLE>(role)) {
-      filteredRoleList.push_back(role);
+    foreachkey (const string& role, this->quotas) {
+      roleList.insert(role);
+      insertAncestors(role);
     }
   }
 
-  return filteredRoleList;
+  return vector<string>(roleList.begin(), roleList.end());
 }
 
 
@@ -3565,6 +3578,93 @@ bool Master::isWhitelistedRole(const string& name) const
   }
 
   return roleWhitelist->contains(name);
+}
+
+
+hashmap<string, Master::ResourceBreakdown>
+  Master::getRoleTreeResourceQuantities() const
+{
+  auto allocatedToRoleSubtree = [](const string& role) {
+    return [&](const Resource& r) {
+      CHECK(r.has_allocation_info());
+      return r.allocation_info().role() == role ||
+        roles::isStrictSubroleOf(r.allocation_info().role(), role);
+    };
+  };
+
+  auto reservedToRoleSubtree = [](const string& role) {
+    return [&](const Resource& r) {
+      return Resources::isReserved(r) &&
+        (Resources::reservationRole(r) == role ||
+         roles::isStrictSubroleOf(Resources::reservationRole(r), role));
+    };
+  };
+
+  auto offered = [&](const string& role) {
+    ResourceQuantities total;
+
+    foreachvalue (Framework* framework, frameworks.registered) {
+      total += ResourceQuantities::fromResources(
+          framework->totalOfferedResources
+            .filter(allocatedToRoleSubtree(role)));
+    }
+
+    return total;
+  };
+
+  auto allocated = [&](const string& role) {
+    ResourceQuantities total;
+
+    foreachvalue (Framework* framework, frameworks.registered) {
+      total += ResourceQuantities::fromResources(
+          framework->totalUsedResources.filter(allocatedToRoleSubtree(role)));
+    }
+
+    return total;
+  };
+
+  auto reserved = [&](const string& role) {
+    ResourceQuantities total;
+
+    foreachvalue (Slave* slave, slaves.registered) {
+      total += ResourceQuantities::fromResources(
+          slave->totalResources.filter(reservedToRoleSubtree(role)));
+    }
+
+    return total;
+  };
+
+  // Consumed quota = allocation + unallocated reservation.
+  auto consumedQuota = [&](const string& role) {
+    ResourceQuantities unallocatedReservation;
+
+    foreachvalue (Slave* slave, slaves.registered) {
+      ResourceQuantities totalReservation =
+        ResourceQuantities::fromResources(
+           slave->totalResources.filter(reservedToRoleSubtree(role)));
+
+       ResourceQuantities usedReservation;
+       foreachvalue (const Resources& r, slave->usedResources) {
+         usedReservation += ResourceQuantities::fromResources(
+             r.filter(reservedToRoleSubtree(role)));
+       }
+
+       unallocatedReservation += totalReservation - usedReservation;
+     }
+
+    return allocated(role) + unallocatedReservation;
+  };
+
+  hashmap<string, ResourceBreakdown> result;
+
+  foreach (const string& role, knownRoles()) {
+    result[role].offered = offered(role);
+    result[role].allocated = allocated(role);
+    result[role].reserved = reserved(role);
+    result[role].consumedQuota = consumedQuota(role);
+  }
+
+  return result;
 }
 
 

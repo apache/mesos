@@ -699,13 +699,20 @@ process::http::Response Master::ReadOnlyHandler::roles(
     const process::Owned<ObjectApprovers>& approvers) const
 {
   const Master* master = this->master;
-  const vector<string> filteredRoles = master->filterRoles(approvers);
+
+  const vector<string> knownRoles = master->knownRoles();
+  const hashmap<string, ResourceBreakdown> resourceBreakdowns =
+    master->getRoleTreeResourceQuantities();
 
   auto roles = [&](JSON::ObjectWriter* writer) {
     writer->field(
         "roles",
         [&](JSON::ArrayWriter* writer) {
-          foreach (const string& name, filteredRoles) {
+          foreach (const string& name, knownRoles) {
+            if (!approvers->approved<VIEW_ROLE>(name)) {
+              continue;
+            }
+
             writer->element([&](JSON::ObjectWriter* writer) {
               writer->field("name", name);
 
@@ -713,6 +720,11 @@ process::http::Response Master::ReadOnlyHandler::roles(
               writer->field("weight", master->weights.get(name).getOrElse(1.0));
 
               Option<Role*> role = master->roles.get(name);
+
+              CHECK_CONTAINS(resourceBreakdowns, name);
+
+              const ResourceBreakdown& resourceBreakdown =
+                resourceBreakdowns.at(name);
 
               // Prior to Mesos 1.9, this field is filled based on
               // `QuotaInfo` which is now deprecated. For backward
@@ -732,28 +744,17 @@ process::http::Response Master::ReadOnlyHandler::roles(
 
                 writer->field("guarantee", quota.guarantees);
                 writer->field("limit", quota.limits);
-
-                ResourceQuantities consumed = role.isSome() ?
-                  (*role)->consumedQuota() : ResourceQuantities();
-
-                writer->field("consumed", consumed);
+                writer->field("consumed", resourceBreakdown.consumedQuota);
               });
 
-              const ResourceQuantities allocated = role.isSome() ?
-                (*role)->allocated() : ResourceQuantities();
-
-              const ResourceQuantities offered = role.isSome() ?
-                (*role)->offered() : ResourceQuantities();
-
-              const ResourceQuantities reserved = role.isSome() ?
-                (*role)->reserved() : ResourceQuantities();
-
               // Deprecated by allocated, offered, reserved.
-              writer->field("resources", allocated + offered);
+              writer->field(
+                  "resources",
+                  resourceBreakdown.allocated + resourceBreakdown.offered);
 
-              writer->field("allocated", allocated);
-              writer->field("offered", offered);
-              writer->field("reserved", reserved);
+              writer->field("allocated", resourceBreakdown.allocated);
+              writer->field("offered", resourceBreakdown.offered);
+              writer->field("reserved", resourceBreakdown.reserved);
 
               if (role.isNone()) {
                 writer->field("frameworks", [](JSON::ArrayWriter*) {});

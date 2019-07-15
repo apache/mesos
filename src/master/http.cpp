@@ -2684,7 +2684,7 @@ Future<Response> Master::Http::getRoles(
     .then(defer(master->self(),
         [this, contentType](const Owned<ObjectApprovers>& approvers)
           -> Response {
-      const vector<string> filteredRoles = master->filterRoles(approvers);
+      const vector<string> knownRoles = master->knownRoles();
 
       mesos::master::Response response;
       response.set_type(mesos::master::Response::GET_ROLES);
@@ -2692,7 +2692,11 @@ Future<Response> Master::Http::getRoles(
       mesos::master::Response::GetRoles* getRoles =
         response.mutable_get_roles();
 
-      foreach (const string& name, filteredRoles) {
+      foreach (const string& name, knownRoles) {
+        if (!approvers->approved<VIEW_ROLE>(name)) {
+          continue;
+        }
+
         mesos::Role role;
 
         if (master->weights.contains(name)) {
