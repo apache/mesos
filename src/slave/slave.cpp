@@ -749,6 +749,8 @@ void Slave::initialize()
       &Slave::shutdown,
       &ShutdownMessage::message);
 
+  install<DrainSlaveMessage>(&Slave::drain);
+
   install<PingSlaveMessage>(
       &Slave::ping,
       &PingSlaveMessage::connected);
@@ -979,6 +981,24 @@ void Slave::shutdown(const UPID& from, const string& message)
       shutdownFramework(from, frameworkId);
     }
   }
+}
+
+
+void Slave::drain(
+    const UPID& from,
+    DrainSlaveMessage&& drainSlaveMessage)
+{
+  LOG(INFO)
+    << "Checkpointing DrainConfig. Previous drain config was "
+    << (drainConfig.isSome() ? stringify(drainConfig.get()) : "NONE")
+    << ", new drain config is " << drainSlaveMessage.config();
+
+  CHECK_SOME(state::checkpoint(
+      paths::getDrainConfigPath(metaDir, info.id()),
+      drainSlaveMessage.config()))
+    << "Failed to checkpoint DrainConfig";
+
+  drainConfig = drainSlaveMessage.config();
 }
 
 

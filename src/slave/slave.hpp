@@ -376,6 +376,10 @@ public:
       const process::UPID& from,
       const AcknowledgeOperationStatusMessage& acknowledgement);
 
+  void drain(
+      const process::UPID& from,
+      DrainSlaveMessage&& drainSlaveMessage);
+
   void executorLaunched(
       const FrameworkID& frameworkId,
       const ExecutorID& executorId,
@@ -885,6 +889,10 @@ private:
 
   // Operations that are checkpointed by the agent.
   hashmap<UUID, Operation> checkpointedOperations;
+
+  // If the agent is currently draining, contains the configuration used to
+  // drain the agent. If NONE, the agent is not currently draining.
+  Option<DrainConfig> drainConfig;
 };
 
 

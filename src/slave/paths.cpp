@@ -55,6 +55,7 @@ namespace paths {
 // File names.
 const char BOOT_ID_FILE[] = "boot_id";
 const char SLAVE_INFO_FILE[] = "slave.info";
+const char DRAIN_CONFIG_FILE[] = "drain.config";
 const char FRAMEWORK_PID_FILE[] = "framework.pid";
 const char FRAMEWORK_INFO_FILE[] = "framework.info";
 const char LIBPROCESS_PID_FILE[] = "libprocess.pid";
@@ -655,6 +656,14 @@ string getResourcesTargetPath(
     const string& rootDir)
 {
   return path::join(rootDir, "resources", RESOURCES_TARGET_FILE);
+}
+
+
+string getDrainConfigPath(
+    const string& metaDir,
+    const SlaveID& slaveId)
+{
+  return path::join(getSlavePath(metaDir, slaveId), DRAIN_CONFIG_FILE);
 }
 
 

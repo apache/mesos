@@ -76,6 +76,7 @@ namespace paths {
 //   |   |   |-- latest (symlink)
 //   |   |   |-- <slave_id>
 //   |   |       |-- slave.info
+//   |   |       |-- drain.config
 //   |   |       |-- operations
 //   |   |       |   |-- <operation_uuid>
 //   |   |       |       |-- operation.updates
@@ -420,6 +421,11 @@ std::string getResourcesInfoPath(
 
 std::string getResourcesTargetPath(
     const std::string& rootDir);
+
+
+std::string getDrainConfigPath(
+    const std::string& metaDir,
+    const SlaveID& slaveId);
 
 
 Try<std::list<std::string>> getPersistentVolumePaths(
