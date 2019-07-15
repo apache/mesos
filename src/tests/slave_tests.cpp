@@ -11989,7 +11989,9 @@ TEST_F(SlaveTest, DrainAgentKillsRunningTask)
 
   AWAIT_READY(killedUpdate);
 
-  EXPECT_EQ(v1::TASK_KILLED, killedUpdate->status().state());
+  EXPECT_EQ(v1::TASK_GONE_BY_OPERATOR, killedUpdate->status().state());
+  EXPECT_EQ(
+      v1::TaskStatus::REASON_AGENT_DRAINING, killedUpdate->status().reason());
 }
 
 
@@ -12108,7 +12110,9 @@ TEST_F(SlaveTest, DrainAgentKillsQueuedTask)
 
   AWAIT_READY(killedUpdate);
 
-  EXPECT_EQ(v1::TASK_KILLED, killedUpdate->status().state());
+  EXPECT_EQ(v1::TASK_GONE_BY_OPERATOR, killedUpdate->status().state());
+  EXPECT_EQ(
+      v1::TaskStatus::REASON_AGENT_DRAINING, killedUpdate->status().reason());
 }
 
 
@@ -12213,7 +12217,9 @@ TEST_F(SlaveTest, DrainAgentKillsPendingTask)
 
   AWAIT_READY(killedUpdate);
 
-  EXPECT_EQ(v1::TASK_KILLED, killedUpdate->status().state());
+  EXPECT_EQ(v1::TASK_GONE_BY_OPERATOR, killedUpdate->status().state());
+  EXPECT_EQ(
+      v1::TaskStatus::REASON_AGENT_DRAINING, killedUpdate->status().reason());
 }
 
 
@@ -12227,6 +12233,10 @@ TEST_F(SlaveTest, CheckpointedDrainInfo)
   Try<Owned<cluster::Master>> master = StartMaster(masterFlags);
 
   slave::Flags slaveFlags = CreateSlaveFlags();
+
+  // Make the executor reregistration timeout less than the agent's
+  // registration backoff factor to avoid resent status updates.
+  slaveFlags.executor_reregistration_timeout = Milliseconds(2);
 
   ExecutorID executorId = DEFAULT_EXECUTOR_ID;
   MockExecutor exec(executorId);
@@ -12253,7 +12263,9 @@ TEST_F(SlaveTest, CheckpointedDrainInfo)
   MesosSchedulerDriver driver(
       &sched, frameworkInfo, master.get()->pid, DEFAULT_CREDENTIAL);
 
-  EXPECT_CALL(sched, registered(_, _, _));
+  Future<Nothing> frameworkId;
+  EXPECT_CALL(sched, registered(_, _, _))
+    .WillOnce(FutureSatisfy(&frameworkId));
 
   Future<vector<Offer>> offers;
   EXPECT_CALL(sched, resourceOffers(_, _))
@@ -12261,6 +12273,8 @@ TEST_F(SlaveTest, CheckpointedDrainInfo)
     .WillRepeatedly(Return()); // Ignore subsequent offers.
 
   driver.start();
+
+  AWAIT_READY(frameworkId);
 
   AWAIT_READY(offers);
   ASSERT_FALSE(offers->empty());
@@ -12280,8 +12294,10 @@ TEST_F(SlaveTest, CheckpointedDrainInfo)
   DurationInfo maxGracePeriod;
   maxGracePeriod.set_nanoseconds(GRACE_PERIOD_NANOS);
 
+  // We do not mark the agent as gone in contrast to some other tests here to
+  // validate that we observe `TASK_KILLED` instead of `TASK_GONE_BY_OPERATOR`.
   DrainConfig drainConfig;
-  drainConfig.set_mark_gone(true);
+  drainConfig.set_mark_gone(false);
   drainConfig.mutable_max_grace_period()->CopyFrom(maxGracePeriod);
 
   DrainSlaveMessage drainSlaveMessage;
@@ -12317,20 +12333,30 @@ TEST_F(SlaveTest, CheckpointedDrainInfo)
 
   // Once the agent has finished recovering executors it should send
   // another task kill request to the executor.
-  Future<Nothing> killTask2;
   EXPECT_CALL(exec, killTask(_, _))
-    .WillOnce(FutureSatisfy(&killTask2));
+    .WillOnce(SendStatusUpdateFromTaskID(TASK_KILLED));
 
   // Restart the agent.
   slave.get()->terminate();
+
+  Future<TaskStatus> statusKilled;
+  EXPECT_CALL(sched, statusUpdate(&driver, _))
+    .WillOnce(FutureArg<1>(&statusKilled))
+    .WillRepeatedly(Return()); // Ignore resent updates.
+
   slave = StartSlave(&detector, &containerizer, slaveFlags);
 
   AWAIT_READY(reregistered);
 
-  // Advance the clock to finish the executor reregistration phase.
+  // Advance the clock to finish the executor and agent reregistration phases.
   Clock::advance(slaveFlags.executor_reregistration_timeout);
+  Clock::settle();
 
-  AWAIT_READY(killTask2);
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(statusKilled);
+  EXPECT_EQ(TASK_KILLED, statusKilled->state());
+  EXPECT_EQ(TaskStatus::REASON_SLAVE_DRAINING, statusKilled->reason());
 }
 
 } // namespace tests {
