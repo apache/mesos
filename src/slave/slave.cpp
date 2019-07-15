@@ -6481,7 +6481,11 @@ ExecutorInfo Slave::getExecutorInfo(
     if (!task.command().has_value()) {
       name += "(Command: NO COMMAND)";
     } else {
+#ifdef __WINDOWS__
+      name += "(Command: cmd /c '";
+#else
       name += "(Command: sh -c '";
+#endif // __WINDOWS__
       if (task.command().value().length() > 15) {
         name += task.command().value().substr(0, 12) + "...')";
       } else {
