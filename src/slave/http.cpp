@@ -1331,6 +1331,12 @@ Future<Response> Http::state(
               writer->field("domain", slave->info.domain());
             }
 
+            if (slave->drainConfig.isSome()) {
+              writer->field(
+                  "drain_config",
+                  JSON::Protobuf(slave->drainConfig.get()));
+            }
+
             const Resources& totalResources = slave->totalResources;
 
             writer->field("resources", totalResources);
@@ -1841,6 +1847,11 @@ Future<Response> Http::getAgent(
   response.set_type(mesos::agent::Response::GET_AGENT);
 
   response.mutable_get_agent()->mutable_slave_info()->CopyFrom(slave->info);
+
+  if (slave->drainConfig.isSome()) {
+    response.mutable_get_agent()->mutable_drain_config()->CopyFrom(
+        slave->drainConfig.get());
+  }
 
   return OK(serialize(acceptType, evolve(response)),
             stringify(acceptType));

@@ -569,6 +569,8 @@ message Response {
   // Contains the agent's information.
   message GetAgent {
     optional AgentInfo agent_info = 1;
+
+    optional DrainConfig drain_config = 2;
   }
 
   // Lists information about all resource providers known to the agent
