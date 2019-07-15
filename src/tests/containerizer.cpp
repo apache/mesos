@@ -163,6 +163,18 @@ public:
               ContentType::PROTOBUF, executor, fullEnvironment));
     }
 
+    // Checkpoint the forked pid if requested by the agent.
+    if (pidCheckpointPath.isSome()) {
+      Try<Nothing> checkpointed = slave::state::checkpoint(
+          pidCheckpointPath.get(), stringify(::getpid()));
+
+      if (checkpointed.isError()) {
+        LOG(ERROR) << "Failed to checkpoint container's forked pid to '"
+                   << pidCheckpointPath.get() << "': " << checkpointed.error();
+        return Failure("Could not checkpoint container's pid");
+      }
+    }
+
     return slave::Containerizer::LaunchResult::SUCCESS;
   }
 
