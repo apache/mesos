@@ -999,6 +999,68 @@ void Slave::drain(
     << "Failed to checkpoint DrainConfig";
 
   drainConfig = drainSlaveMessage.config();
+
+  const Option<DurationInfo> maxGracePeriod =
+    drainConfig->has_max_grace_period()
+      ? drainConfig->max_grace_period()
+      : Option<DurationInfo>::none();
+
+  auto calculateKillPolicy =
+    [&](const Option<KillPolicy>& killPolicy) -> Option<KillPolicy> {
+      if (maxGracePeriod.isNone()) {
+        return None();
+      }
+
+      KillPolicy killPolicyOverride;
+      killPolicyOverride.mutable_grace_period()->CopyFrom(maxGracePeriod.get());
+
+      // Task kill policy is not set or unknown.
+      if (killPolicy.isNone() || !killPolicy->has_grace_period()) {
+        return killPolicyOverride;
+      }
+
+      // Task kill policy is greater than the override.
+      if (maxGracePeriod.get() < killPolicy->grace_period()) {
+        return killPolicyOverride;
+      }
+
+      return None();
+    };
+
+  // Frameworks may be removed within `kill()` or `killPendingTask()` below,
+  // so we must copy them and their members before looping.
+  foreachvalue (Framework* framework, utils::copy(frameworks)) {
+    typedef hashmap<TaskID, TaskInfo> TaskMap;
+    foreachvalue (const TaskMap& tasks, utils::copy(framework->pendingTasks)) {
+      foreachvalue (const TaskInfo& task, tasks) {
+        killPendingTask(framework->id(), framework, task.task_id());
+      }
+    }
+
+    foreachvalue (Executor* executor, utils::copy(framework->executors)) {
+      foreachvalue (Task* task, executor->launchedTasks) {
+        kill(framework->id(),
+             framework,
+             executor,
+             task->task_id(),
+             calculateKillPolicy(
+                task->has_kill_policy()
+                  ? task->kill_policy()
+                  : Option<KillPolicy>::none()));
+      }
+
+      foreachvalue (const TaskInfo& task, utils::copy(executor->queuedTasks)) {
+        kill(framework->id(),
+             framework,
+             executor,
+             task.task_id(),
+             calculateKillPolicy(
+                task.has_kill_policy()
+                  ? task.kill_policy()
+                  : Option<KillPolicy>::none()));
+      }
+    }
+  }
 }
 
 

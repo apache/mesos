@@ -338,6 +338,12 @@ inline bool operator<(const ContainerID& left, const ContainerID& right)
 }
 
 
+inline bool operator<(const DurationInfo& left, const DurationInfo& right)
+{
+  return left.nanoseconds() < right.nanoseconds();
+}
+
+
 inline bool operator<(const ExecutorID& left, const ExecutorID& right)
 {
   return left.value() < right.value();
