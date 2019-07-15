@@ -11791,6 +11791,96 @@ TEST_F(SlaveTest, AgentFailoverHTTPExecutorUsingResourceProviderResources)
   AWAIT_READY(executorSubscribed);
 }
 
+
+// When the agent receives a `DrainSlaveMessage` from the master, the agent's
+// drain info should be visible in the agent's API output.
+TEST_F(SlaveTest, DrainInfoInAPIOutputs)
+{
+  Clock::pause();
+
+  const int GRACE_PERIOD_NANOS = 1000000;
+
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  StandaloneMasterDetector detector(master.get()->pid);
+
+  slave::Flags slaveFlags = CreateSlaveFlags();
+
+  Try<Owned<cluster::Slave>> slave = StartSlave(&detector, slaveFlags);
+  ASSERT_SOME(slave);
+
+  Clock::advance(slaveFlags.registration_backoff_factor);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  // Simulate the master sending a `DrainSlaveMessage` to the agent.
+  DurationInfo maxGracePeriod;
+  maxGracePeriod.set_nanoseconds(GRACE_PERIOD_NANOS);
+
+  DrainConfig drainConfig;
+  drainConfig.set_mark_gone(true);
+  drainConfig.mutable_max_grace_period()->CopyFrom(maxGracePeriod);
+
+  DrainSlaveMessage drainSlaveMessage;
+  drainSlaveMessage.mutable_config()->CopyFrom(drainConfig);
+
+  process::post(master.get()->pid, slave.get()->pid, drainSlaveMessage);
+
+  Clock::settle();
+
+  {
+    v1::agent::Call call;
+    call.set_type(v1::agent::Call::GET_AGENT);
+
+    const ContentType contentType = ContentType::PROTOBUF;
+
+    process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers["Accept"] = stringify(contentType);
+
+    Future<process::http::Response> httpResponse =
+      process::http::post(
+          slave.get()->pid,
+          "api/v1",
+          headers,
+          serialize(contentType, call),
+          stringify(contentType));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, httpResponse);
+
+    Future<v1::agent::Response> responseMessage =
+      deserialize<v1::agent::Response>(contentType, httpResponse->body);
+
+    AWAIT_READY(responseMessage);
+    ASSERT_TRUE(responseMessage->IsInitialized());
+    ASSERT_EQ(v1::agent::Response::GET_AGENT, responseMessage->type());
+    ASSERT_TRUE(responseMessage->get_agent().has_drain_config());
+    EXPECT_EQ(
+        drainConfig,
+        devolve(responseMessage->get_agent().drain_config()));
+  }
+
+  {
+    Future<Response> response = process::http::get(
+        slave.get()->pid,
+        "state",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+    AWAIT_EXPECT_RESPONSE_HEADER_EQ(APPLICATION_JSON, "Content-Type", response);
+
+    Try<JSON::Object> state = JSON::parse<JSON::Object>(response->body);
+
+    ASSERT_SOME(state);
+
+    EXPECT_EQ(JSON::protobuf(drainConfig), state->values["drain_config"]);
+  }
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
