@@ -910,6 +910,10 @@ private:
   // If the agent is currently draining, contains the configuration used to
   // drain the agent. If NONE, the agent is not currently draining.
   Option<DrainConfig> drainConfig;
+
+  // Check whether draining is finished and possibly remove
+  // both in-memory and persisted drain configuration.
+  void updateDrainStatus();
 };
 
 

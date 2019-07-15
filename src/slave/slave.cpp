@@ -7067,6 +7067,8 @@ void Slave::removeFramework(Framework* framework)
   // Pass ownership of the framework pointer.
   completedFrameworks.set(framework->id(), Owned<Framework>(framework));
 
+  updateDrainStatus();
+
   if (state == TERMINATING && frameworks.empty()) {
     terminate(self());
   }
@@ -8944,6 +8946,8 @@ void Slave::removeOperation(Operation* operation)
 
   checkpointResourceState(
       totalResources.filter(mesos::needCheckpointing), false);
+
+  updateDrainStatus();
 }
 
 
@@ -9765,6 +9769,33 @@ void Slave::initializeResourceProviderManager(
     resourceProviderManager->messages().get().onAny(
         defer(self(), &Self::handleResourceProviderMessage, lambda::_1));
   }
+}
+
+
+void Slave::updateDrainStatus()
+{
+  if (drainConfig.isNone()) {
+    return;
+  }
+
+  bool drained = operations.empty() && frameworks.empty();
+
+  if (!drained) {
+    return;
+  }
+
+  LOG(INFO) << "Agent finished draining";
+
+  const string drainConfigPath = paths::getDrainConfigPath(metaDir, info.id());
+
+  Try<Nothing> rm = os::rm(drainConfigPath);
+
+  if (rm.isError()) {
+    EXIT(EXIT_FAILURE) << "Could not remove persisted drain configuration "
+                       << "'" << drainConfigPath << "': " << rm.error();
+  }
+
+  drainConfig = None();
 }
 
 
