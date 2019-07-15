@@ -287,7 +287,7 @@ TEST_F(RoleTest, ImplicitRoleStaticReservation)
 
 
 // This test checks that the "/roles" endpoint returns the expected
-// information when there are no active roles.
+// information when there are no known roles.
 TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, EndpointEmpty)
 {
   Try<Owned<cluster::Master>> master = StartMaster();
@@ -320,9 +320,9 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(RoleTest, EndpointEmpty)
 
 
 // This test checks that the "/roles" endpoint returns the expected
-// information when there are configured weights and explicit roles,
-// but no registered frameworks.
-TEST_F(RoleTest, EndpointNoFrameworks)
+// information when the role whitelist is used but no frameworks
+// are present.
+TEST_F(RoleTest, EndpointWithWhitelistNoFrameworks)
 {
   master::Flags masterFlags = CreateMasterFlags();
   masterFlags.roles = "role1,role2";
