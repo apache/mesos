@@ -416,6 +416,10 @@ Task createTask(
     t.mutable_health_check()->CopyFrom(task.health_check());
   }
 
+  if (task.has_kill_policy()) {
+    t.mutable_kill_policy()->CopyFrom(task.kill_policy());
+  }
+
   // Copy `user` if set.
   if (task.has_command() && task.command().has_user()) {
     t.set_user(task.command().user());

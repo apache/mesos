@@ -406,6 +406,12 @@ bool operator==(const HealthCheck& left, const HealthCheck& right)
 }
 
 
+bool operator==(const KillPolicy& left, const KillPolicy& right)
+{
+  return google::protobuf::util::MessageDifferencer::Equals(left, right);
+}
+
+
 bool operator==(const MasterInfo& left, const MasterInfo& right)
 {
   return left.id() == right.id() &&
@@ -583,7 +589,8 @@ bool operator==(const Task& left, const Task& right)
     left.discovery() == right.discovery() &&
     left.user() == right.user() &&
     left.container() == right.container() &&
-    left.health_check() == right.health_check();
+    left.health_check() == right.health_check() &&
+    left.kill_policy() == right.kill_policy();
 }
 
 
