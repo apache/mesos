@@ -77,7 +77,7 @@ public:
       const string& isolation,
       const Option<bool>& disallowSharingAgentPidNamespace = None(),
       const Option<bool>& disallowSharingAgentIpcNamespace = None(),
-      const Option<Bytes>& defaultShmSize = None())
+      const Option<Bytes>& defaultContainerShmSize = None())
   {
     slave::Flags flags = CreateSlaveFlags();
     flags.image_providers = "docker";
@@ -93,7 +93,7 @@ public:
         disallowSharingAgentIpcNamespace.get();
     }
 
-    flags.default_shm_size = defaultShmSize;
+    flags.default_container_shm_size = defaultContainerShmSize;
 
     fetcher.reset(new Fetcher(flags));
 
@@ -774,7 +774,7 @@ TEST_F(NamespacesIsolatorTest, ROOT_ShareIPCNamespace)
 // have its own IPC namespace and /dev/shm.
 TEST_F(NamespacesIsolatorTest, ROOT_PrivateIPCNamespace)
 {
-  // Create containerizer with `--default_shm_size=64MB`.
+  // Create containerizer with `--default_container_shm_size=64MB`.
   Try<Owned<MesosContainerizer>> containerizer = createContainerizer(
       "filesystem/linux,namespaces/ipc",
       None(),

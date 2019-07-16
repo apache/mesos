@@ -121,8 +121,8 @@ Future<Option<ContainerLaunchInfo>> NamespacesIPCIsolatorProcess::prepare(
     if (containerConfig.container_info().linux_info().has_shm_size()) {
       shmSize =
         Megabytes(containerConfig.container_info().linux_info().shm_size());
-    } else if (flags.default_shm_size.isSome()) {
-      shmSize = flags.default_shm_size.get();
+    } else if (flags.default_container_shm_size.isSome()) {
+      shmSize = flags.default_container_shm_size.get();
     }
   }
 

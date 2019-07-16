@@ -763,14 +763,15 @@ mesos::internal::slave::Flags::Flags()
       "This flag has the same syntax as `--effective_capabilities`."
      );
 
-  add(&Flags::default_shm_size,
-      "default_shm_size",
+  add(&Flags::default_container_shm_size,
+      "default_container_shm_size",
       "The default size of the /dev/shm for the container which has its own\n"
       "/dev/shm but does not specify the `shm_size` field in its `LinuxInfo`.\n"
       "The format is [number][unit], number must be a positive integer and\n"
       "unit can be B (bytes), KB (kilobytes), MB (megabytes), GB (gigabytes)\n"
-      "or TB (terabytes). This flag will be ignored if the `namespaces/ipc`\n"
-      "isolator is not enabled."
+      "or TB (terabytes). Note that this flag is only relevant for the Mesos\n"
+      "Containerizer and it will be ignored if the `namespaces/ipc` isolator\n"
+      "is not enabled."
       );
 
   add(&Flags::disallow_sharing_agent_ipc_namespace,

@@ -48,9 +48,10 @@ agent's IPC namespace and /dev/shm, the container launch will be rejected.
 
 Framework users can specify the size of a container's /dev/shm in MB by
 setting the `ContainerInfo.linux_info.shm_size` field, and operators can specify
-the default size of /dev/shm via the agent flag `--default_shm_size`. So if the
-`ContainerInfo.linux_info.shm_size` field is not set, the size of container's
-/dev/shm will be value of the `--default_shm_size` agent flag, if that flag is
-not set too, the size of the /dev/shm will be half of the agent host RAM
-which is the default behavior of Linux. The `ContainerInfo.linux_info.shm_size`
-field will be ignored for the container which shares its parent's /dev/shm.
+the default size of /dev/shm via the agent flag `--default_container_shm_size`.
+So if the `ContainerInfo.linux_info.shm_size` field is not set, the size of
+container's /dev/shm will be value of the `--default_container_shm_size` agent
+flag, if that flag is not set too, the size of the /dev/shm will be half
+of the agent host RAM which is the default behavior of Linux. The
+`ContainerInfo.linux_info.shm_size` field will be ignored for the container which
+shares its parent's /dev/shm.
