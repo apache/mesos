@@ -260,8 +260,12 @@ set(CSI_SRC
   csi/volume_manager.cpp)
 
 set(DOCKER_SRC
-  docker/docker.cpp
-  docker/spec.cpp)
+  docker/docker.cpp)
+
+if (NOT WIN32)
+  list(APPEND DOCKER_SRC
+    docker/spec.cpp)
+endif ()
 
 set(EXECUTOR_SRC
   exec/exec.cpp

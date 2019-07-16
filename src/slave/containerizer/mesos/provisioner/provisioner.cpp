@@ -20,7 +20,9 @@
 
 #include <mesos/type_utils.hpp>
 
+#ifndef __WINDOWS__
 #include <mesos/docker/spec.hpp>
+#endif // __WINDOWS__
 
 #include <mesos/secret/resolver.hpp>
 

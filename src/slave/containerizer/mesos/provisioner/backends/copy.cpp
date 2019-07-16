@@ -16,7 +16,9 @@
 
 #include <vector>
 
+#ifndef __WINDOWS__
 #include <mesos/docker/spec.hpp>
+#endif // __WINDOWS__
 
 #include <process/collect.hpp>
 #include <process/defer.hpp>

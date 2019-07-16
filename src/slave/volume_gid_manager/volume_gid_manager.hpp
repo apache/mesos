@@ -25,7 +25,9 @@
 
 #include "slave/flags.hpp"
 
+#ifndef __WINDOWS__
 #include "slave/volume_gid_manager/state.hpp"
+#endif // __WINDOWS__
 
 namespace mesos {
 namespace internal {
@@ -39,6 +41,7 @@ class VolumeGidManagerProcess;
 // persistent volumes and SANDBOX_PATH volume of PARENT type.
 class VolumeGidManager
 {
+#ifndef __WINDOWS__
 public:
   static Try<VolumeGidManager*> create(const Flags& flags);
 
@@ -57,6 +60,7 @@ private:
       const process::Owned<VolumeGidManagerProcess>& process);
 
   process::Owned<VolumeGidManagerProcess> process;
+#endif // __WINDOWS__
 };
 
 } // namespace slave {
