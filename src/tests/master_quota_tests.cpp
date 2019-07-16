@@ -197,6 +197,76 @@ protected:
 };
 
 
+TEST_F(MasterQuotaTest, UpdateQuota)
+{
+  TestAllocator<> allocator;
+  EXPECT_CALL(allocator, initialize(_, _, _));
+
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator);
+  ASSERT_SOME(master);
+
+  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+  headers["Content-Type"] = "application/json";
+
+  // Use force flag to update the quota.
+  Future<Response> response = process::http::post(
+      master.get()->pid,
+      "/api/v1",
+      headers,
+      createUpdateQuotaRequestBody(
+          createQuotaConfig(
+              ROLE1,
+              stringify("cpus:1;mem:1024"),
+              stringify("cpus:2;mem:2048")),
+          true));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  response = process::http::get(
+      master.get()->pid,
+      "roles",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  Try<JSON::Value> parse = JSON::parse(response->body);
+  ASSERT_SOME(parse);
+
+  Try<JSON::Value> expected = JSON::parse(
+      "{"
+      "  \"roles\": ["
+      "    {"
+      "      \"frameworks\": [],"
+      "      \"name\": \"role1\","
+      "      \"resources\": {},"
+      "      \"allocated\": {},"
+      "      \"offered\": {},"
+      "      \"reserved\": {},"
+      "      \"quota\": {"
+      "        \"consumed\": {},"
+      "        \"limit\": {"
+      "          \"cpus\": 2.0,"
+      "          \"mem\":  2048.0"
+      "        },"
+      "        \"guarantee\": {"
+      "          \"cpus\": 1.0,"
+      "          \"mem\":  1024.0"
+      "        },"
+      "        \"role\": \"role1\""
+      "      },"
+      "      \"weight\": 1.0"
+      "    }"
+      "  ]"
+      "}");
+
+  ASSERT_SOME(expected);
+
+  EXPECT_EQ(*expected, *parse) << "expected " << stringify(*expected)
+                               << " vs actual " << stringify(*parse);
+}
+
+
 // These are request validation tests. They verify JSON is well-formed,
 // convertible to corresponding protobufs, all necessary fields are present,
 // while irrelevant fields are not present.

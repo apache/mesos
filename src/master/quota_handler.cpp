@@ -555,6 +555,7 @@ Future<http::Response> Master::QuotaHandler::_update(
       CHECK(result);
 
       foreach (const QuotaConfig& config, configs) {
+        master->quotas[config.role()] = Quota(config);
         master->allocator->updateQuota(config.role(), Quota{config});
       }
 
