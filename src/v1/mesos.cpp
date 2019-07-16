@@ -146,6 +146,12 @@ bool operator==(
 }
 
 
+bool operator==(const DrainInfo& left, const DrainInfo& right)
+{
+  return google::protobuf::util::MessageDifferencer::Equals(left, right);
+}
+
+
 bool operator==(
     const Environment::Variable& left,
     const Environment::Variable& right)

@@ -52,6 +52,7 @@ bool operator==(
     const CSIPluginContainerInfo& right);
 
 bool operator==(const DiscoveryInfo& left, const DiscoveryInfo& right);
+bool operator==(const DrainInfo& left, const DrainInfo& right);
 bool operator==(const Environment& left, const Environment& right);
 bool operator==(const ExecutorInfo& left, const ExecutorInfo& right);
 bool operator==(const FileInfo& left, const FileInfo& right);
