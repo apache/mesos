@@ -576,12 +576,16 @@ mesos::master::Event createFrameworkRemoved(const FrameworkInfo& frameworkInfo);
 // Helper for creating an `Agent` response.
 mesos::master::Response::GetAgents::Agent createAgentResponse(
     const mesos::internal::master::Slave& slave,
+    const Option<DrainInfo>& drainInfo,
+    bool deactivated,
     const Option<process::Owned<ObjectApprovers>>& approvers = None());
 
 
 // Helper for creating an `AGENT_ADDED` event from a `Slave`.
 mesos::master::Event createAgentAdded(
-    const mesos::internal::master::Slave& slave);
+    const mesos::internal::master::Slave& slave,
+    const Option<DrainInfo>& drainInfo,
+    bool deactivated);
 
 
 // Helper for creating an `AGENT_REMOVED` event from a `SlaveID`.

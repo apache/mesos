@@ -1507,6 +1507,8 @@ mesos::master::Event createFrameworkRemoved(const FrameworkInfo& frameworkInfo)
 
 mesos::master::Response::GetAgents::Agent createAgentResponse(
     const mesos::internal::master::Slave& slave,
+    const Option<DrainInfo>& drainInfo,
+    bool deactivated,
     const Option<Owned<ObjectApprovers>>& approvers)
 {
   mesos::master::Response::GetAgents::Agent agent;
@@ -1515,6 +1517,7 @@ mesos::master::Response::GetAgents::Agent createAgentResponse(
 
   agent.set_pid(string(slave.pid));
   agent.set_active(slave.active);
+  agent.set_deactivated(deactivated);
   agent.set_version(slave.version);
 
   agent.mutable_registered_time()->set_nanoseconds(
@@ -1567,18 +1570,27 @@ mesos::master::Response::GetAgents::Agent createAgentResponse(
         resourceProvider.totalResources);
   }
 
+  if (drainInfo.isSome()) {
+    agent.mutable_drain_info()->CopyFrom(drainInfo.get());
+  }
+
   return agent;
 }
 
 
 mesos::master::Event createAgentAdded(
-    const mesos::internal::master::Slave& slave)
+    const mesos::internal::master::Slave& slave,
+    const Option<DrainInfo>& drainInfo,
+    bool deactivated)
 {
   mesos::master::Event event;
   event.set_type(mesos::master::Event::AGENT_ADDED);
 
   event.mutable_agent_added()->mutable_agent()->CopyFrom(
-      createAgentResponse(slave));
+      createAgentResponse(
+          slave,
+          drainInfo,
+          deactivated));
 
   return event;
 }

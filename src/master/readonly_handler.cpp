@@ -96,11 +96,15 @@ struct SlaveWriter
 {
   SlaveWriter(
       const Slave& slave,
+      const Option<DrainInfo>& drainInfo,
+      bool deactivated,
       const process::Owned<ObjectApprovers>& approvers);
 
   void operator()(JSON::ObjectWriter* writer) const;
 
   const Slave& slave_;
+  const Option<DrainInfo> drainInfo_;
+  const bool deactivated_;
   const process::Owned<ObjectApprovers>& approvers_;
 };
 
@@ -285,8 +289,13 @@ void FullFrameworkWriter::operator()(JSON::ObjectWriter* writer) const
 
 SlaveWriter::SlaveWriter(
     const Slave& slave,
+    const Option<DrainInfo>& drainInfo,
+    bool deactivated,
     const Owned<ObjectApprovers>& approvers)
-  : slave_(slave), approvers_(approvers)
+  : slave_(slave),
+    drainInfo_(drainInfo),
+    deactivated_(deactivated),
+    approvers_(approvers)
 {}
 
 
@@ -321,8 +330,13 @@ void SlaveWriter::operator()(JSON::ObjectWriter* writer) const
   writer->field("unreserved_resources", totalResources.unreserved());
 
   writer->field("active", slave_.active);
+  writer->field("deactivated", deactivated_);
   writer->field("version", slave_.version);
   writer->field("capabilities", slave_.capabilities.toRepeatedPtrField());
+
+  if (drainInfo_.isSome()) {
+    writer->field("drain_info", JSON::Protobuf(drainInfo_.get()));
+  }
 }
 
 
@@ -365,7 +379,11 @@ void SlavesWriter::operator()(JSON::ObjectWriter* writer) const
 void SlavesWriter::writeSlave(
   const Slave* slave, JSON::ObjectWriter* writer) const
 {
-  SlaveWriter(*slave, approvers_)(writer);
+  SlaveWriter(
+      *slave,
+      slaves_.draining.get(slave->id),
+      slaves_.deactivated.contains(slave->id),
+      approvers_)(writer);
 
   // Add the complete protobuf->JSON for all used, reserved,
   // and offered resources. The other endpoints summarize
@@ -867,7 +885,11 @@ process::http::Response Master::ReadOnlyHandler::state(
         "slaves",
         [master, &approvers](JSON::ArrayWriter* writer) {
           foreachvalue (Slave* slave, master->slaves.registered) {
-            writer->element(SlaveWriter(*slave, approvers));
+            writer->element(SlaveWriter(
+                *slave,
+                master->slaves.draining.get(slave->id),
+                master->slaves.deactivated.contains(slave->id),
+                approvers));
           }
         });
 
@@ -966,10 +988,15 @@ process::http::Response Master::ReadOnlyHandler::stateSummary(
           foreachvalue (Slave* slave, master->slaves.registered) {
             writer->element(
                 [&slave,
+                 &master,
                  &slaveFrameworkMapping,
                  &taskStateSummaries,
                  &approvers](JSON::ObjectWriter* writer) {
-                  SlaveWriter slaveWriter(*slave, approvers);
+                  SlaveWriter slaveWriter(
+                      *slave,
+                      master->slaves.draining.get(slave->id),
+                      master->slaves.deactivated.contains(slave->id),
+                      approvers);
                   slaveWriter(writer);
 
                   // Add the 'TaskState' summary for this slave.

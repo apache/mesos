@@ -446,6 +446,7 @@ message Response {
     message Agent {
       required SlaveInfo agent_info = 1;
       required bool active = 2;
+      optional bool deactivated = 12;
       required string version = 3;
 
       optional string pid = 4;
@@ -467,6 +468,8 @@ message Response {
       }
 
       repeated ResourceProvider resource_providers = 11;
+
+      optional DrainInfo drain_info = 13;
     }
 
     // Registered agents.

@@ -2087,7 +2087,11 @@ mesos::master::Response::GetAgents Master::Http::_getAgents(
   foreachvalue (const Slave* slave, master->slaves.registered) {
     mesos::master::Response::GetAgents::Agent* agent = getAgents.add_agents();
     *agent =
-        protobuf::master::event::createAgentResponse(*slave, approvers);
+        protobuf::master::event::createAgentResponse(
+            *slave,
+            master->slaves.draining.get(slave->id),
+            master->slaves.deactivated.contains(slave->id),
+            approvers);
   }
 
   foreachvalue (const SlaveInfo& slaveInfo, master->slaves.recovered) {

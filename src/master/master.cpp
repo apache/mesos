@@ -11574,7 +11574,10 @@ void Master::addSlave(
       slave->usedResources);
 
   if (!subscribers.subscribed.empty()) {
-    subscribers.send(protobuf::master::event::createAgentAdded(*slave));
+    subscribers.send(protobuf::master::event::createAgentAdded(
+        *slave,
+        slaves.draining.get(slave->id),
+        slaves.deactivated.contains(slave->id)));
   }
 }
 
