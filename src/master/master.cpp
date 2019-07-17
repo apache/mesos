@@ -3611,90 +3611,63 @@ bool Master::isWhitelistedRole(const string& name) const
 }
 
 
-hashmap<string, Master::ResourceBreakdown>
-  Master::getRoleTreeResourceQuantities() const
+ResourceQuantities Master::RoleResourceBreakdown::offered() const
 {
-  auto allocatedToRoleSubtree = [](const string& role) {
-    return [&](const Resource& r) {
-      CHECK(r.has_allocation_info());
-      return r.allocation_info().role() == role ||
-        roles::isStrictSubroleOf(r.allocation_info().role(), role);
-    };
-  };
+  ResourceQuantities result;
 
-  auto reservedToRoleSubtree = [](const string& role) {
-    return [&](const Resource& r) {
-      return Resources::isReserved(r) &&
-        (Resources::reservationRole(r) == role ||
-         roles::isStrictSubroleOf(Resources::reservationRole(r), role));
-    };
-  };
-
-  auto offered = [&](const string& role) {
-    ResourceQuantities total;
-
-    foreachvalue (Framework* framework, frameworks.registered) {
-      total += ResourceQuantities::fromResources(
-          framework->totalOfferedResources
-            .filter(allocatedToRoleSubtree(role)));
-    }
-
-    return total;
-  };
-
-  auto allocated = [&](const string& role) {
-    ResourceQuantities total;
-
-    foreachvalue (Framework* framework, frameworks.registered) {
-      total += ResourceQuantities::fromResources(
-          framework->totalUsedResources.filter(allocatedToRoleSubtree(role)));
-    }
-
-    return total;
-  };
-
-  auto reserved = [&](const string& role) {
-    ResourceQuantities total;
-
-    foreachvalue (Slave* slave, slaves.registered) {
-      total += ResourceQuantities::fromResources(
-          slave->totalResources.filter(reservedToRoleSubtree(role)));
-    }
-
-    return total;
-  };
-
-  // Consumed quota = allocation + unallocated reservation.
-  auto consumedQuota = [&](const string& role) {
-    ResourceQuantities unallocatedReservation;
-
-    foreachvalue (Slave* slave, slaves.registered) {
-      ResourceQuantities totalReservation =
-        ResourceQuantities::fromResources(
-           slave->totalResources.filter(reservedToRoleSubtree(role)));
-
-       ResourceQuantities usedReservation;
-       foreachvalue (const Resources& r, slave->usedResources) {
-         usedReservation += ResourceQuantities::fromResources(
-             r.filter(reservedToRoleSubtree(role)));
-       }
-
-       unallocatedReservation += totalReservation - usedReservation;
-     }
-
-    return allocated(role) + unallocatedReservation;
-  };
-
-  hashmap<string, ResourceBreakdown> result;
-
-  foreach (const string& role, knownRoles()) {
-    result[role].offered = offered(role);
-    result[role].allocated = allocated(role);
-    result[role].reserved = reserved(role);
-    result[role].consumedQuota = consumedQuota(role);
+  foreachvalue (Framework* framework, master->frameworks.registered) {
+    result += ResourceQuantities::fromResources(
+        framework->totalOfferedResources.allocatedToRoleSubtree(role));
   }
 
   return result;
+}
+
+
+ResourceQuantities Master::RoleResourceBreakdown::allocated() const
+{
+  ResourceQuantities result;
+
+  foreachvalue (Framework* framework, master->frameworks.registered) {
+    result += ResourceQuantities::fromResources(
+        framework->totalUsedResources.allocatedToRoleSubtree(role));
+  }
+
+  return result;
+}
+
+
+ResourceQuantities Master::RoleResourceBreakdown::reserved() const
+{
+  ResourceQuantities result;
+
+  foreachvalue (Slave* slave, master->slaves.registered) {
+    result += ResourceQuantities::fromResources(
+        slave->totalResources.reservedToRoleSubtree(role));
+  }
+
+  return result;
+}
+
+
+ResourceQuantities Master::RoleResourceBreakdown::consumedQuota() const
+{
+  ResourceQuantities unallocatedReservation;
+
+  foreachvalue (Slave* slave, master->slaves.registered) {
+    ResourceQuantities totalReservation = ResourceQuantities::fromResources(
+        slave->totalResources.reservedToRoleSubtree(role));
+
+    ResourceQuantities usedReservation;
+    foreachvalue (const Resources& r, slave->usedResources) {
+      usedReservation += ResourceQuantities::fromResources(
+          r.reservedToRoleSubtree(role));
+    }
+
+    unallocatedReservation += totalReservation - usedReservation;
+  }
+
+  return allocated() + unallocatedReservation;
 }
 
 

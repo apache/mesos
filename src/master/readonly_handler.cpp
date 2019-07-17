@@ -719,8 +719,6 @@ process::http::Response Master::ReadOnlyHandler::roles(
   const Master* master = this->master;
 
   const vector<string> knownRoles = master->knownRoles();
-  const hashmap<string, ResourceBreakdown> resourceBreakdowns =
-    master->getRoleTreeResourceQuantities();
 
   auto roles = [&](JSON::ObjectWriter* writer) {
     writer->field(
@@ -739,10 +737,7 @@ process::http::Response Master::ReadOnlyHandler::roles(
 
               Option<Role*> role = master->roles.get(name);
 
-              CHECK_CONTAINS(resourceBreakdowns, name);
-
-              const ResourceBreakdown& resourceBreakdown =
-                resourceBreakdowns.at(name);
+              RoleResourceBreakdown resourceBreakdown(master, name);
 
               // Prior to Mesos 1.9, this field is filled based on
               // `QuotaInfo` which is now deprecated. For backward
@@ -762,17 +757,18 @@ process::http::Response Master::ReadOnlyHandler::roles(
 
                 writer->field("guarantee", quota.guarantees);
                 writer->field("limit", quota.limits);
-                writer->field("consumed", resourceBreakdown.consumedQuota);
+                writer->field("consumed", resourceBreakdown.consumedQuota());
               });
 
-              // Deprecated by allocated, offered, reserved.
-              writer->field(
-                  "resources",
-                  resourceBreakdown.allocated + resourceBreakdown.offered);
+              ResourceQuantities allocated = resourceBreakdown.allocated();
+              ResourceQuantities offered = resourceBreakdown.offered();
 
-              writer->field("allocated", resourceBreakdown.allocated);
-              writer->field("offered", resourceBreakdown.offered);
-              writer->field("reserved", resourceBreakdown.reserved);
+              // Deprecated by allocated, offered, reserved.
+              writer->field("resources", allocated + offered);
+
+              writer->field("allocated", allocated);
+              writer->field("offered", offered);
+              writer->field("reserved", resourceBreakdown.reserved());
 
               if (role.isNone()) {
                 writer->field("frameworks", [](JSON::ArrayWriter*) {});

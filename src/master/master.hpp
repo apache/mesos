@@ -1188,19 +1188,25 @@ private:
    */
   bool isWhitelistedRole(const std::string& name) const;
 
-  struct ResourceBreakdown
-  {
-    ResourceQuantities offered;
-    ResourceQuantities allocated;
-    ResourceQuantities reserved;
-    ResourceQuantities consumedQuota;
-  };
-
   // TODO(bmahler): Store a role tree rather than the existing
   // `roles` map which does not track the tree correctly (it does
   // not insert ancestor entries, nor does it track roles if there
   // are reservations but no frameworks related to them).
-  hashmap<std::string, ResourceBreakdown> getRoleTreeResourceQuantities() const;
+  struct RoleResourceBreakdown
+  {
+  public:
+    RoleResourceBreakdown(const Master* const master_, const std::string& role_)
+      : master(master_), role(role_) {}
+
+    ResourceQuantities offered() const;
+    ResourceQuantities allocated() const;
+    ResourceQuantities reserved() const;
+    ResourceQuantities consumedQuota() const;
+
+  private:
+    const Master* const master;
+    const std::string role;
+  };
 
   // Performs validations of the FrameworkInfo and suppressed roles set
   // which do not depend on the current state of this framework.
