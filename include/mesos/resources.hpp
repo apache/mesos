@@ -348,6 +348,16 @@ public:
   // Tests if the given Resource object is shared.
   static bool isShared(const Resource& resource);
 
+  // Returns true if the resource is allocated to the role subtree
+  // (i.e. either to the role itself or to its decedents).
+  static bool isAllocatedToRoleSubtree(
+      const Resource& resource, const std::string& role);
+
+  // Returns true if the resource is reserved to the role subtree
+  // (i.e. either to the role itself or to its decedents).
+  static bool isReservedToRoleSubtree(
+      const Resource& resource, const std::string& role);
+
   // Tests if the given Resource object has refined reservations.
   static bool hasRefinedReservations(const Resource& resource);
 
@@ -479,6 +489,14 @@ public:
   // Returns resources allocatable to role. See `isAllocatableTo` for the
   // definition of 'allocatableTo'.
   Resources allocatableTo(const std::string& role) const;
+
+  // Returns resources that are allocated to the role subtree
+  // (i.e. either to the role itself or to its decedents).
+  Resources allocatedToRoleSubtree(const std::string& role) const;
+
+  // Returns resources that are reserved to the role subtree
+  // (i.e. either to the role itself or to its decedents).
+  Resources reservedToRoleSubtree(const std::string& role) const;
 
   // Returns the unreserved resources.
   Resources unreserved() const;

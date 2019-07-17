@@ -1260,6 +1260,29 @@ bool Resources::isShared(const Resource& resource)
 }
 
 
+bool Resources::isAllocatedToRoleSubtree(
+    const Resource& resource, const string& role)
+{
+  CHECK(!resource.has_role()) << resource;
+  CHECK(!resource.has_reservation()) << resource;
+
+  return resource.allocation_info().role() == role ||
+         roles::isStrictSubroleOf(resource.allocation_info().role(), role);
+}
+
+
+bool Resources::isReservedToRoleSubtree(
+    const Resource& resource, const string& role)
+{
+  CHECK(!resource.has_role()) << resource;
+  CHECK(!resource.has_reservation()) << resource;
+
+  return Resources::isReserved(resource) &&
+         (Resources::reservationRole(resource) == role ||
+          roles::isStrictSubroleOf(Resources::reservationRole(resource), role));
+}
+
+
 bool Resources::hasRefinedReservations(const Resource& resource)
 {
   CHECK(!resource.has_role()) << resource;
@@ -1628,6 +1651,18 @@ Resources Resources::reserved(const Option<string>& role) const
 Resources Resources::allocatableTo(const string& role) const
 {
   return filter(lambda::bind(isAllocatableTo, lambda::_1, role));
+}
+
+
+Resources Resources::allocatedToRoleSubtree(const string& role) const
+{
+  return filter(lambda::bind(isAllocatedToRoleSubtree, lambda::_1, role));
+}
+
+
+Resources Resources::reservedToRoleSubtree(const string& role) const
+{
+  return filter(lambda::bind(isReservedToRoleSubtree, lambda::_1, role));
 }
 
 
