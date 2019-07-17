@@ -12369,6 +12369,9 @@ TEST_F(SlaveTest, DrainingAgentRejectLaunch)
   // Acknowledge the pending task status update. Once the acknowledgement has
   // been processed the agent will leave its draining state and accept task
   // launches again.
+  Future<Nothing> statusUpdateAcknowledgement =
+    FUTURE_DISPATCH(_, &Slave::_statusUpdateAcknowledgement);
+
   {
     v1::scheduler::Call call;
     call.set_type(v1::scheduler::Call::ACKNOWLEDGE);
@@ -12381,6 +12384,8 @@ TEST_F(SlaveTest, DrainingAgentRejectLaunch)
 
     mesos.send(call);
   }
+
+  AWAIT_READY(statusUpdateAcknowledgement);
 
   Future<v1::scheduler::Event::Offers> offers3;
   EXPECT_CALL(*scheduler, offers(_, _))
