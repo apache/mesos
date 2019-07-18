@@ -173,6 +173,7 @@ set(AGENT_SRC
   slave/containerizer/mesos/isolator_tracker.cpp
   slave/containerizer/mesos/launch.cpp
   slave/containerizer/mesos/launcher.cpp
+  slave/containerizer/mesos/launcher_tracker.cpp
   slave/containerizer/mesos/mount.cpp
   slave/containerizer/mesos/paths.cpp
   slave/containerizer/mesos/io/switchboard.cpp

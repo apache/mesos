@@ -1254,6 +1254,8 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/containerizer/mesos/launch.hpp					\
   slave/containerizer/mesos/launcher.cpp				\
   slave/containerizer/mesos/launcher.hpp				\
+  slave/containerizer/mesos/launcher_tracker.cpp			\
+  slave/containerizer/mesos/launcher_tracker.hpp			\
   slave/containerizer/mesos/mount.cpp					\
   slave/containerizer/mesos/mount.hpp					\
   slave/containerizer/mesos/paths.cpp					\
