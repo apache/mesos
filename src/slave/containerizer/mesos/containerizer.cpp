@@ -73,6 +73,7 @@
 #include "slave/containerizer/mesos/isolator_tracker.hpp"
 #include "slave/containerizer/mesos/launch.hpp"
 #include "slave/containerizer/mesos/launcher.hpp"
+#include "slave/containerizer/mesos/launcher_tracker.hpp"
 #include "slave/containerizer/mesos/paths.hpp"
 #include "slave/containerizer/mesos/utils.hpp"
 
@@ -316,7 +317,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
   LOG(INFO) << "Using isolation " << stringify(isolations.get());
 
   // Create the launcher for the MesosContainerizer.
-  Try<Launcher*> launcher = [&flags]() -> Try<Launcher*> {
+  Try<Launcher*> _launcher = [&flags]() -> Try<Launcher*> {
 #ifdef __linux__
     if (flags.launcher == "linux") {
       return LinuxLauncher::create(flags);
@@ -340,8 +341,14 @@ Try<MesosContainerizer*> MesosContainerizer::create(
 #endif // __linux__
   }();
 
-  if (launcher.isError()) {
-    return Error("Failed to create launcher: " + launcher.error());
+  if (_launcher.isError()) {
+    return Error("Failed to create launcher: " + _launcher.error());
+  }
+
+  Owned<Launcher> launcher = Owned<Launcher>(_launcher.get());
+
+  if (futureTracker != nullptr) {
+    launcher = Owned<Launcher>(new LauncherTracker(launcher, futureTracker));
   }
 
   Try<Owned<Provisioner>> _provisioner =
@@ -597,7 +604,7 @@ Try<MesosContainerizer*> MesosContainerizer::create(
       local,
       fetcher,
       gc,
-      Owned<Launcher>(launcher.get()),
+      launcher,
       provisioner,
       isolators,
       volumeGidManager);
