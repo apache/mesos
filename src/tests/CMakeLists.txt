@@ -152,6 +152,7 @@ if (ENABLE_SSL)
 endif ()
 
 list(APPEND MESOS_TESTS_SRC
+  common/future_tracker_tests.cpp
   common/http_tests.cpp
   common/recordio_tests.cpp
   common/type_utils_tests.cpp)

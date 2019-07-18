@@ -2675,6 +2675,7 @@ mesos_tests_SOURCES =						\
   tests/zookeeper_test_server.hpp				\
   tests/zookeeper_url_tests.cpp					\
   tests/common/command_utils_tests.cpp				\
+  tests/common/future_tracker_tests.cpp				\
   tests/common/http_tests.cpp					\
   tests/common/recordio_tests.cpp				\
   tests/common/type_utils_tests.cpp				\
