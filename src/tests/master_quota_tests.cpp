@@ -126,6 +126,20 @@ static string createUpdateQuotaRequestBody(
 }
 
 
+static string createUpdateQuotaRequestBody(
+    const vector<QuotaConfig>& configs, bool force = false)
+{
+  mesos::master::Call call;
+  call.set_type(mesos::master::Call::UPDATE_QUOTA);
+  call.mutable_update_quota()->set_force(force);
+  foreach (const QuotaConfig& config, configs) {
+    *call.mutable_update_quota()->mutable_quota_configs()->Add() = config;
+  }
+
+  return stringify(JSON::protobuf(call));
+}
+
+
 // Quota tests that are allocator-agnostic (i.e. we expect every
 // allocator to implement basic quota guarantees) are in this
 // file. All tests are split into logical groups:
@@ -261,6 +275,130 @@ TEST_F(MasterQuotaTest, UpdateQuota)
 
   EXPECT_EQ(*expected, *parse) << "expected " << stringify(*expected)
                                << " vs actual " << stringify(*parse);
+}
+
+
+// This ensures that `UPDATE_QUOTA` call with multiple quota configs are
+// updated all-or-nothing.
+TEST_F(MasterQuotaTest, UpdateQuotaMultipleRoles)
+{
+  MockAuthorizer authorizer;
+  Try<Owned<cluster::Master>> master = StartMaster(&authorizer);
+  ASSERT_SOME(master);
+
+  process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+  headers["Content-Type"] = "application/json";
+
+  // Use force flag so that we can update quota with no agents.
+  string request = createUpdateQuotaRequestBody(
+      {
+        createQuotaConfig(ROLE1, "cpus:1;mem:1024", "cpus:2;mem:2048"),
+        createQuotaConfig(ROLE2, "cpus:1;mem:1024", "cpus:2;mem:2048"),
+      },
+      true);
+
+  EXPECT_CALL(authorizer, authorized(_))
+    // Particially deny the 1st `UPDATE_QUOTA` request.
+    .WillOnce(Return(true))
+    .WillOnce(Return(false))
+    // Approve all subsequent actions.
+    .WillRepeatedly(Return(true));
+
+  {
+    Future<Response> response =
+      process::http::post(master.get()->pid, "/api/v1", headers, request);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(Forbidden().status, response);
+
+    response = process::http::get(
+        master.get()->pid,
+        "roles",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+    Try<JSON::Value> parse = JSON::parse(response->body);
+    ASSERT_SOME(parse);
+
+    // Quota configs are applied a all-or-nothing.
+    Try<JSON::Value> expected = JSON::parse(
+        "{"
+        "  \"roles\": []"
+        "}");
+
+    ASSERT_SOME(expected);
+    EXPECT_EQ(*expected, *parse) << "expected " << stringify(*expected)
+                                 << " vs actual " << stringify(*parse);
+  }
+
+  {
+    Future<Response> response =
+      process::http::post(master.get()->pid, "/api/v1", headers, request);
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+    response = process::http::get(
+        master.get()->pid,
+        "roles",
+        None(),
+        createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+    Try<JSON::Object> parse = JSON::parse<JSON::Object>(response->body);
+    ASSERT_SOME(parse);
+
+    Result<JSON::Array> roles = parse->find<JSON::Array>("roles");
+    ASSERT_SOME(roles);
+    EXPECT_EQ(2u, roles->values.size());
+
+    JSON::Value role1 = roles->values[0].as<JSON::Value>();
+    JSON::Value role2 = roles->values[1].as<JSON::Value>();
+
+    Try<JSON::Value> expected1 = JSON::parse(
+        "{"
+        "  \"quota\": {"
+        "    \"consumed\": {},"
+        "    \"limit\": {"
+        "      \"cpus\": 2.0,"
+        "      \"mem\":  2048.0"
+        "    },"
+        "    \"guarantee\": {"
+        "      \"cpus\": 1.0,"
+        "      \"mem\":  1024.0"
+        "    },"
+        "    \"role\": \"role1\""
+        "  }"
+        "}");
+
+    Try<JSON::Value> expected2 = JSON::parse(
+        "{"
+        "  \"quota\": {"
+        "    \"consumed\": {},"
+        "    \"limit\": {"
+        "      \"cpus\": 2.0,"
+        "      \"mem\":  2048.0"
+        "    },"
+        "    \"guarantee\": {"
+        "      \"cpus\": 1.0,"
+        "      \"mem\":  1024.0"
+        "    },"
+        "    \"role\": \"role2\""
+        "  }"
+        "}");
+
+    ASSERT_SOME(expected1);
+    ASSERT_SOME(expected2);
+
+
+    EXPECT_TRUE(role1.contains(*expected1))
+      << "expected " << stringify(*expected1) << " vs actual "
+      << stringify(role1);
+    EXPECT_TRUE(role2.contains(*expected2))
+      << "expected " << stringify(*expected2) << " vs actual "
+      << stringify(role2);
+  }
 }
 
 
