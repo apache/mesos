@@ -1685,6 +1685,78 @@ TEST_F(MasterQuotaTest, AvailableResourcesAfterRescinding)
 }
 
 
+// This test ensures that outstanding offers are rescinded as needed to satisfy
+// roles' quota gurantees.
+TEST_F(MasterQuotaTest, RescindOffersForUpdateQuotaGuarantees)
+{
+  TestAllocator<> allocator;
+  EXPECT_CALL(allocator, initialize(_, _, _));
+
+  Try<Owned<cluster::Master>> master = StartMaster(&allocator);
+  ASSERT_SOME(master);
+
+  // Start an agent.
+  slave::Flags flags1 = CreateSlaveFlags();
+  flags1.resources = "cpus:1;mem:1024";
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave1 = StartSlave(detector.get(), flags1);
+  ASSERT_SOME(slave1);
+
+  // Start a framework under `ROLE1`.
+  FrameworkInfo frameworkInfo1 = DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo1.set_roles(0, ROLE1);
+
+  MockScheduler sched1;
+  MesosSchedulerDriver framework1(
+      &sched1, frameworkInfo1, master.get()->pid, DEFAULT_CREDENTIAL);
+
+  Future<FrameworkID> frameworkId1;
+  EXPECT_CALL(sched1, registered(&framework1, _, _))
+    .WillOnce(FutureArg<1>(&frameworkId1));
+
+  Future<vector<Offer>> offers1;
+  EXPECT_CALL(sched1, resourceOffers(&framework1, _))
+    .WillOnce(FutureArg<1>(&offers1))
+    .WillRepeatedly(Return()); // Ignore subsequent offers.
+
+  Future<Nothing> offerRescinded1;
+  EXPECT_CALL(sched1, offerRescinded(&framework1, _))
+    .WillOnce(FutureSatisfy(&offerRescinded1));
+
+  framework1.start();
+
+  AWAIT_READY(offers1);
+  ASSERT_EQ(1u, offers1->size());
+
+  // Cluster resources: cpus:1;mem:1024
+  // Offered: `ROLE1` cpus:1;mem:1024
+
+  // Set `ROLE2` quota guarantees to be the cluster resources.
+  // Outstanding offers are rescinded.
+  {
+    process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
+    headers["Content-Type"] = "application/json";
+
+    Future<Response> response = process::http::post(
+        master.get()->pid,
+        "/api/v1",
+        headers,
+        createUpdateQuotaRequestBody(
+            createQuotaConfig(ROLE2, "cpus:1;mem:1024", "")));
+
+    AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+    AWAIT_READY(offerRescinded1);
+  }
+
+  // Tear down frameworks before agents to avoid offers being
+  // rescinded again.
+  framework1.stop();
+  framework1.join();
+}
+
+
 // This tests verifies the offer rescind logic for quota limits enforcement.
 // If a role's quota consumption plus offered are above the requested limits,
 // outstanding offers of that role will be rescinded.

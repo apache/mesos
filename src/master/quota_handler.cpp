@@ -651,7 +651,47 @@ Future<http::Response> Master::QuotaHandler::_update(
           }
         }
 
-        // TODO(mzhu): Rescind offers to satisfy guarantees.
+        // We then rescind offers to ensure roles' guarantees
+        // can be satisfied.
+        ResourceQuantities guarantees{config.guarantees()};
+        ResourceQuantities rescinded;
+
+        // Following the best-effort approach mentioned above, we
+        // pessimistically assume that what seems like "available" resources
+        // in the allocator are all gone. We greedily rescind offers until
+        // rescinded plus sum of current `consumedAndOffered` exceed the
+        // total guarantees.
+        //
+        // Since `rescinded` and `consumedAndOffered` may overlap (when
+        // rescinded contains reservations that are also part of the
+        // consumed), it is possible that we may under rescind.
+        // On the other hand, we also pessimistically assume that
+        // there is no available resources in the cluster. So chances
+        // are we are more likely to over than under rescind.
+        foreachvalue (const Slave* slave, master->slaves.registered) {
+          if ((rescinded + consumedAndOffered).contains(guarantees)) {
+            break;
+          }
+
+          foreach (Offer* offer, utils::copy(slave->offers)) {
+            if ((rescinded + consumedAndOffered).contains(guarantees)) {
+              break;
+            }
+
+            if (allocatedToRoleSubtree(*offer)) {
+              continue;
+            }
+
+            rescinded += ResourceQuantities::fromResources(offer->resources());
+
+            master->allocator->recoverResources(
+                offer->framework_id(),
+                offer->slave_id(),
+                offer->resources(),
+                None());
+            master->removeOffer(offer, true);
+          }
+        }
       }
 
       return OK();
