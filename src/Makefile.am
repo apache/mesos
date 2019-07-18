@@ -1225,6 +1225,8 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   slave/containerizer/mesos/io/switchboard.hpp				\
   slave/containerizer/mesos/isolator.cpp				\
   slave/containerizer/mesos/isolator.hpp				\
+  slave/containerizer/mesos/isolator_tracker.cpp			\
+  slave/containerizer/mesos/isolator_tracker.hpp			\
   slave/containerizer/mesos/isolators/docker/volume/driver.cpp		\
   slave/containerizer/mesos/isolators/docker/volume/driver.hpp		\
   slave/containerizer/mesos/isolators/docker/volume/paths.cpp		\

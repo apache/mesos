@@ -202,6 +202,9 @@ constexpr char MESOS_DEFAULT_EXECUTOR[] = "mesos-default-executor";
 constexpr char MESOS_EXECUTOR[] = "mesos-executor";
 #endif // __WINDOWS__
 
+// Name of the component used for describing pending futures.
+constexpr char COMPONENT_NAME_CONTAINERIZER[] = "containerizer";
+
 
 // Virtual path on which agent logs are mounted in `/files/` endpoint.
 constexpr char AGENT_LOG_VIRTUAL_PATH[] = "/slave/log";
