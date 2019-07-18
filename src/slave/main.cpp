@@ -619,6 +619,7 @@ int main(int argc, char** argv)
       qosController.get(),
       secretGenerator,
       volumeGidManager,
+      futureTracker.get(),
       authorizer_);
 
   process::spawn(slave);

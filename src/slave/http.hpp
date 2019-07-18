@@ -80,6 +80,11 @@ public:
       const process::http::Request& request,
       const Option<process::http::authentication::Principal>& principal) const;
 
+  // /slave/containerizer/debug
+  process::Future<process::http::Response> containerizerDebug(
+      const process::http::Request& request,
+      const Option<process::http::authentication::Principal>& principal) const;
+
   static std::string API_HELP();
   static std::string EXECUTOR_HELP();
   static std::string RESOURCE_PROVIDER_HELP();
@@ -88,6 +93,7 @@ public:
   static std::string STATE_HELP();
   static std::string STATISTICS_HELP();
   static std::string CONTAINERS_HELP();
+  static std::string CONTAINERIZER_DEBUG_HELP();
 
 private:
   JSON::Object _flags() const;
@@ -119,6 +125,9 @@ private:
       Option<IDAcceptor<ContainerID>> selectContainerId,
       bool showNestedContainers,
       bool showStandaloneContainers) const;
+
+  // Continuation for `/containerizer/debug` endpoint
+  process::Future<JSON::Object> _containerizerDebug() const;
 
   // Helper routines for endpoint authorization.
   Try<std::string> extractEndpoint(const process::http::URL& url) const;

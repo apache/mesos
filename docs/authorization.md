@@ -366,6 +366,7 @@ The `get_endpoints` action covers:
 * `/logging/toggle`
 * `/metrics/snapshot`
 * `/slave(id)/containers`
+* `/slave(id)/containerizer/debug`
 * `/slave(id)/monitor/statistics`
 
 ### Examples

@@ -534,6 +534,7 @@ PID<Master> launch(const Flags& flags, Allocator* _allocator)
         qosControllers->back(),
         secretGenerators->back(),
         nullptr,
+        nullptr,
         authorizer_); // Same authorizer as master.
 
     slaves[containerizer.get()] = slave;

@@ -198,6 +198,7 @@ Slave::Slave(const string& id,
              QoSController* _qosController,
              SecretGenerator* _secretGenerator,
              VolumeGidManager* _volumeGidManager,
+             PendingFutureTracker* _futureTracker,
              const Option<Authorizer*>& _authorizer)
   : ProcessBase(id),
     state(RECOVERING),
@@ -228,6 +229,7 @@ Slave::Slave(const string& id,
     qosController(_qosController),
     secretGenerator(_secretGenerator),
     volumeGidManager(_volumeGidManager),
+    futureTracker(_futureTracker),
     authorizer(_authorizer),
     resourceVersion(protobuf::createUUID()) {}
 
@@ -835,6 +837,14 @@ void Slave::initialize()
             .onReady([request](const process::http::Response& response) {
               logResponse(request, response);
             });
+        });
+  route("/containerizer/debug",
+        READONLY_HTTP_AUTHENTICATION_REALM,
+        Http::CONTAINERIZER_DEBUG_HELP(),
+        [this](const http::Request& request,
+               const Option<Principal>& principal) {
+          logRequest(request);
+          return http.containerizerDebug(request, principal);
         });
 
   // TODO(tillt): Use generalized lambda capture once we adopt C++14.

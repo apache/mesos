@@ -103,6 +103,7 @@ MockSlave::MockSlave(
     QoSController* qosController,
     SecretGenerator* secretGenerator,
     VolumeGidManager* volumeGidManager,
+    PendingFutureTracker* futureTracker,
     const Option<Authorizer*>& authorizer)
   // It is necessary to explicitly call `ProcessBase` constructor here even
   // though the direct parent `Slave` already does this. This is because
@@ -122,6 +123,7 @@ MockSlave::MockSlave(
         qosController,
         secretGenerator,
         volumeGidManager,
+        futureTracker,
         authorizer)
 {
   // Set up default behaviors, calling the original methods.

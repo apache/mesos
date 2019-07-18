@@ -46,6 +46,7 @@ namespace authorization {
 // action `GET_ENDPOINTS_WITH_PATH`.
 hashset<string> AUTHORIZABLE_ENDPOINTS{
     "/containers",
+    "/containerizer/debug",
     "/files/debug",
     "/logging/toggle",
     "/metrics/snapshot",

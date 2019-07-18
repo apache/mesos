@@ -100,6 +100,7 @@ public:
       mesos::slave::QoSController* qosController,
       SecretGenerator* secretGenerator,
       slave::VolumeGidManager* volumeGidManager,
+      PendingFutureTracker* futureTracker,
       const Option<Authorizer*>& authorizer);
 
   MOCK_METHOD6(___run, void(

@@ -59,6 +59,7 @@
 
 #include "common/authorization.hpp"
 #include "common/build.hpp"
+#include "common/future_tracker.hpp"
 #include "common/http.hpp"
 #include "common/recordio.hpp"
 #include "common/resources_utils.hpp"
@@ -71,6 +72,7 @@
 
 #include "resource_provider/local.hpp"
 
+#include "slave/constants.hpp"
 #include "slave/http.hpp"
 #include "slave/slave.hpp"
 #include "slave/validation.hpp"
@@ -2347,6 +2349,100 @@ Future<JSON::Array> Http::__containers(
             return result;
           });
     }));
+}
+
+
+string Http::CONTAINERIZER_DEBUG_HELP()
+{
+  return HELP(
+      TLDR(
+          "Retrieve debug information for the Mesos containerizer."),
+      DESCRIPTION(
+          "Returns a list of pending operations related to Mesos",
+          "containerizer. This endpoint can help investigating",
+          "container stuck issues.",
+          "",
+          "**Note**: There is no fixed schema for a pending operation.",
+          "Thereby, the output of this endpoint should not be used by",
+          "automated tools.",
+          "",
+          "Example (**Note**: this is not exhaustive):",
+          "",
+          "```",
+          "{",
+          "    \"pending\":[",
+          "        {",
+          "            \"operation\":\"network/cni::attach\",",
+          "            \"args\":{",
+          "                \"containerId\":\"container\"",
+          "            }",
+          "        }",
+          "    ]",
+          "}",
+          "```"),
+      AUTHENTICATION(true));
+}
+
+
+Future<Response> Http::containerizerDebug(
+    const Request& request,
+    const Option<Principal>& principal) const
+{
+  // TODO(a10gupta): Remove check for enabled
+  // authorization as part of MESOS-5346.
+  if (request.method != "GET" && slave->authorizer.isSome()) {
+    return MethodNotAllowed({"GET"}, request.method);
+  }
+
+  Try<string> endpoint = extractEndpoint(request.url);
+  if (endpoint.isError()) {
+    return Failure("Failed to extract endpoint: " + endpoint.error());
+  }
+
+  return authorizeEndpoint(
+      endpoint.get(),
+      request.method,
+      slave->authorizer,
+      principal)
+    .then(defer(
+        slave->self(),
+        [this, request](bool authorized) -> Future<Response> {
+          if (!authorized) {
+            return Forbidden();
+          }
+
+          return _containerizerDebug()
+           .then([request](const JSON::Object& result) -> Response {
+              return process::http::OK(result, request.url.query.get("jsonp"));
+           });
+        }));
+}
+
+
+Future<JSON::Object> Http::_containerizerDebug() const
+{
+  return slave->futureTracker->pendingFutures().then(
+      defer(slave->self(), [](const vector<FutureMetadata>& pending) {
+        JSON::Object result;
+
+        JSON::Array futures;
+        foreach (const FutureMetadata& metadata, pending) {
+          if (metadata.component != COMPONENT_NAME_CONTAINERIZER) {
+            continue;
+          }
+
+          JSON::Object args;
+          foreachpair (const string& key, const string& value, metadata.args) {
+            args.values[key] = JSON::String(value);
+          }
+
+          futures.values.emplace_back(JSON::Object{
+              {"operation", JSON::String(metadata.operation)}, {"args", args}});
+        }
+        result.values["pending"] = std::move(futures);
+
+        return result;
+      }));
 }
 
 

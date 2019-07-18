@@ -129,6 +129,7 @@ public:
         mesos::slave::QoSController* qosController,
         mesos::SecretGenerator* secretGenerator,
         VolumeGidManager* volumeGidManager,
+        PendingFutureTracker* futureTracker,
         const Option<Authorizer*>& authorizer);
 
   ~Slave() override;
@@ -867,6 +868,8 @@ private:
   mesos::SecretGenerator* secretGenerator;
 
   VolumeGidManager* volumeGidManager;
+
+  PendingFutureTracker* futureTracker;
 
   const Option<Authorizer*> authorizer;
 
