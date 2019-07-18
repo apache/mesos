@@ -71,6 +71,7 @@
 #include "authorizer/local/authorizer.hpp"
 
 #include "common/authorization.hpp"
+#include "common/future_tracker.hpp"
 #include "common/http.hpp"
 
 #include "files/files.hpp"
@@ -446,6 +447,12 @@ Try<process::Owned<Slave>> Slave::create(
   }
 #endif // __WINDOWS__
 
+  Try<PendingFutureTracker*> futureTracker = PendingFutureTracker::create();
+  if (futureTracker.isError()) {
+    return Error(
+        "Failed to create pending future tracker: " + futureTracker.error());
+  }
+
   // If the containerizer is not provided, create a default one.
   if (containerizer.isSome()) {
     slave->containerizer = containerizer.get();
@@ -460,7 +467,8 @@ Try<process::Owned<Slave>> Slave::create(
           slave->fetcher.get(),
           gc.getOrElse(slave->gc.get()),
           nullptr,
-          volumeGidManager);
+          volumeGidManager,
+          futureTracker.get());
 
     if (_containerizer.isError()) {
       return Error("Failed to create containerizer: " + _containerizer.error());

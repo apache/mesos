@@ -36,6 +36,8 @@
 #include <stout/option.hpp>
 #include <stout/try.hpp>
 
+#include "common/future_tracker.hpp"
+
 #include "slave/gc.hpp"
 
 #include "slave/volume_gid_manager/volume_gid_manager.hpp"
@@ -75,7 +77,8 @@ public:
       Fetcher* fetcher,
       GarbageCollector* gc,
       SecretResolver* secretResolver = nullptr,
-      VolumeGidManager* volumeGidManager = nullptr);
+      VolumeGidManager* volumeGidManager = nullptr,
+      PendingFutureTracker* futureTracker = nullptr);
 
   // Determine slave resources from flags, probing the system or
   // querying a delegate.

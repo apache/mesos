@@ -491,13 +491,21 @@ int main(int argc, char** argv)
   }
 #endif // __WINDOWS__
 
+  // Initialize PendingFutureTracker.
+  Try<PendingFutureTracker*> futureTracker = PendingFutureTracker::create();
+  if (futureTracker.isError()) {
+    EXIT(EXIT_FAILURE) << "Failed to initialize pending future tracker: "
+                       << futureTracker.error();
+  }
+
   Try<Containerizer*> containerizer = Containerizer::create(
       flags,
       false,
       fetcher,
       gc,
       secretResolver.get(),
-      volumeGidManager);
+      volumeGidManager,
+      futureTracker.get());
 
   if (containerizer.isError()) {
     EXIT(EXIT_FAILURE)
@@ -635,6 +643,8 @@ int main(int argc, char** argv)
   delete detector;
 
   delete containerizer.get();
+
+  delete futureTracker.get();
 
 #ifndef __WINDOWS__
   delete volumeGidManager;

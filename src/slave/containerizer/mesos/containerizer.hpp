@@ -72,7 +72,8 @@ public:
       GarbageCollector* gc = nullptr,
       SecretResolver* secretResolver = nullptr,
       const Option<NvidiaComponents>& nvidia = None(),
-      VolumeGidManager* volumeGidManager = nullptr);
+      VolumeGidManager* volumeGidManager = nullptr,
+      PendingFutureTracker* futureTracker = nullptr);
 
   static Try<MesosContainerizer*> create(
       const Flags& flags,

@@ -70,6 +70,7 @@
 
 #include "slave/containerizer/mesos/constants.hpp"
 #include "slave/containerizer/mesos/containerizer.hpp"
+#include "slave/containerizer/mesos/isolator_tracker.hpp"
 #include "slave/containerizer/mesos/launch.hpp"
 #include "slave/containerizer/mesos/launcher.hpp"
 #include "slave/containerizer/mesos/paths.hpp"
@@ -177,7 +178,8 @@ Try<MesosContainerizer*> MesosContainerizer::create(
     GarbageCollector* gc,
     SecretResolver* secretResolver,
     const Option<NvidiaComponents>& nvidia,
-    VolumeGidManager* volumeGidManager)
+    VolumeGidManager* volumeGidManager,
+    PendingFutureTracker* futureTracker)
 {
   Try<hashset<string>> isolations = [&flags]() -> Try<hashset<string>> {
     const vector<string> tokens(strings::tokenize(flags.isolation, ","));
@@ -537,26 +539,40 @@ Try<MesosContainerizer*> MesosContainerizer::create(
       cgroupsIsolatorCreated = true;
     }
 
-    Try<Isolator*> isolator = creator.second(flags);
-    if (isolator.isError()) {
+    Try<Isolator*> _isolator = creator.second(flags);
+    if (_isolator.isError()) {
       return Error("Failed to create isolator '" + creator.first + "': " +
-                   isolator.error());
+                   _isolator.error());
     }
 
-    isolators.push_back(Owned<Isolator>(isolator.get()));
+    Owned<Isolator> isolator(_isolator.get());
+
+    if (futureTracker != nullptr) {
+      isolator = Owned<Isolator>(
+          new IsolatorTracker(isolator, creator.first, futureTracker));
+    }
+
+    isolators.push_back(isolator);
   }
 
   // Next, apply any custom isolators in the order given by the flags.
   foreach (const string& name, strings::tokenize(flags.isolation, ",")) {
     if (ModuleManager::contains<Isolator>(name)) {
-      Try<Isolator*> isolator = ModuleManager::create<Isolator>(name);
+      Try<Isolator*> _isolator = ModuleManager::create<Isolator>(name);
 
-      if (isolator.isError()) {
+      if (_isolator.isError()) {
         return Error("Failed to create isolator '" + name + "': " +
-                    isolator.error());
+                    _isolator.error());
       }
 
-      isolators.push_back(Owned<Isolator>(isolator.get()));
+      Owned<Isolator> isolator(_isolator.get());
+
+      if (futureTracker != nullptr) {
+        isolator = Owned<Isolator>(
+            new IsolatorTracker(isolator, name, futureTracker));
+      }
+
+      isolators.push_back(isolator);
       continue;
     }
 
