@@ -118,13 +118,13 @@ Quota Limit
         {{(role.reserved.cpus | decimalFloat) || "-"}}
       </td>
       <td ng-show="show_reserved">
-        {{(role.allocated.gpus | decimalFloat) || "-"}}
+        {{(role.reserved.gpus | decimalFloat) || "-"}}
       </td>
       <td ng-show="show_reserved">
-        {{((role.allocated.mem * (1024 * 1024) || NaN) | dataSize) || "-"}}
+        {{((role.reserved.mem * (1024 * 1024) || NaN) | dataSize) || "-"}}
       </td>
       <td ng-show="show_reserved" class="end-group-column">
-        {{((role.allocated.disk * (1024 * 1024) || NaN) | dataSize) || "-"}}
+        {{((role.reserved.disk * (1024 * 1024) || NaN) | dataSize) || "-"}}
       </td>
 
       <td ng-show="show_quota_consumption" class="begin-group-column">
