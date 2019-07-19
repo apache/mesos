@@ -3542,6 +3542,98 @@ TEST_F(HierarchicalAllocatorTest, QuotaProvidesGuarantee)
 }
 
 
+// When a role has limits set, its frameworks allocations are restricted based
+// on its quota limits.
+TEST_F(HierarchicalAllocatorTest, QuotaProvidesLimit)
+{
+  Clock::pause();
+
+  const string QUOTA_ROLE{"quota-limits-role"};
+  const string NO_QUOTA_ROLE{"no-quota-role"};
+
+  initialize();
+
+  // Create `framework1` and set quota for its role.
+  FrameworkInfo framework1 = createFrameworkInfo({QUOTA_ROLE});
+  allocator->addFramework(framework1.id(), framework1, {}, true, {});
+
+  // Set quota with no guarantees and zero limit.
+  allocator->updateQuota(QUOTA_ROLE, createQuota("", "cpus:0;mem:0;disk:0"));
+
+  // Add an agent, this will trigger an event-driven allocation.
+  SlaveInfo agent1 = createSlaveInfo("cpus:2;mem:1024;disk:1024");
+  allocator->addSlave(
+      agent1.id(),
+      agent1,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent1.resources(),
+      {});
+
+  // Make sure the agent is added.
+  Clock::settle();
+
+  // There should be no allocation due to `QUOTA_ROLE` quota limits.
+  Future<Allocation> allocation = allocations.get();
+  EXPECT_TRUE(allocation.isPending());
+
+  // Create `framework2` under `NO_QUOTA_ROLE`.
+  // This will trigger an event-driven allocation.
+  FrameworkInfo framework2 = createFrameworkInfo({NO_QUOTA_ROLE});
+  allocator->addFramework(framework2.id(), framework2, {}, true, {});
+
+  // All resources of `agent1` will be offered to `framework2`.
+  Allocation expected = Allocation(
+      framework2.id(), {{NO_QUOTA_ROLE, {{agent1.id(), agent1.resources()}}}});
+
+  AWAIT_EXPECT_EQ(expected, allocation);
+
+  // Now raise the limit from 0 to "cpus:1;mem:512;disk:512" which should
+  // make the role get resources up to this limits.
+  allocator->updateQuota(
+      QUOTA_ROLE, createQuota("", "cpus:1;mem:512;disk:512"));
+
+  // Add a 2nd agent with same resources.
+  // This will trigger an event-driven allocation.
+  SlaveInfo agent2 = createSlaveInfo("cpus:2;mem:1024;disk:1024");
+  allocator->addSlave(
+      agent2.id(),
+      agent2,
+      AGENT_CAPABILITIES(),
+      None(),
+      agent2.resources(),
+      {});
+
+  // Half of `agent2` resources will be offered to framework1
+  // which is restricted by its role's quota limits.
+  // The rest of the resources will be "chopped" and
+  // offered to framework2.
+  Resources offered =
+    CHECK_NOTERROR(Resources::parse("cpus:1;mem:512;disk:512"));
+  Allocation expected1 =
+    Allocation(framework1.id(), {{QUOTA_ROLE, {{agent2.id(), offered}}}});
+  Allocation expected2 =
+    Allocation(framework2.id(), {{NO_QUOTA_ROLE, {{agent2.id(), offered}}}});
+
+  Future<Allocation> allocation1 = allocations.get();
+  Future<Allocation> allocation2 = allocations.get();
+
+  AWAIT_READY(allocation1);
+  AWAIT_READY(allocation2);
+
+  // While currently allocation1 is always allocated to `framework2`.
+  // This order may be affected by many factors in between.
+  // Since we only care about framework1 and framework2 each gets half
+  // the resources, we do a swap here if necessary.
+  if (allocation1->frameworkId != framework1.id()) {
+    std::swap(allocation1, allocation2);
+  }
+
+  EXPECT_EQ(allocation1.get(), expected1);
+  EXPECT_EQ(allocation2.get(), expected2);
+}
+
+
 // If quota is removed, fair sharing should be restored in the cluster
 // after sufficient number of tasks finish.
 TEST_F(HierarchicalAllocatorTest, RemoveQuota)
