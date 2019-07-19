@@ -854,6 +854,71 @@ else
   AC_CHECK_LIB(unwind, backtrace, LIBS="$LIBS -lunwind")
 fi
 
+
+# Check if libssl prefix path was provided, and if so, add it to
+# the CPPFLAGS and LDFLAGS with respective /include and /lib path
+# suffixes.
+if test -z "`echo $with_ssl`" &&
+   test "$OS_NAME" = "darwin" &&
+   test -n "`command -v brew`" &&
+   test -n "`brew list --versions openssl`"; then
+  with_ssl=`brew --prefix openssl`
+fi
+
+if test -n "`echo $with_ssl`"; then
+  SSL_CPPFLAGS="-I${with_ssl}/include"
+  SSL_LINKERFLAGS="-L${with_ssl}/lib"
+
+  CPPFLAGS="$SSL_CPPFLAGS $CPPFLAGS"
+  LDFLAGS="$SSL_LINKERFLAGS $LDFLAGS"
+fi
+
+AC_CHECK_LIB([crypto], [RAND_poll], [found_crypto=yes])
+
+AC_CHECK_HEADERS([openssl/ssl.h],
+                 [AC_CHECK_LIB([ssl],
+                               [SSL_CTX_new],
+                               [found_ssl=yes],
+                               [],
+                               [-lcrypto])])
+
+if test "x$enable_ssl" = "xyes"; then
+  if test "x$found_ssl" != "xyes"; then
+    AC_MSG_ERROR([cannot find libssl
+-------------------------------------------------------------------
+libssl is required for an SSL-enabled build.
+-------------------------------------------------------------------
+    ])
+  fi
+
+  if test "x$found_crypto" != "xyes"; then
+    AC_MSG_ERROR([cannot find libcrypto
+-------------------------------------------------------------------
+libcrypto is required for an SSL-enabled build.
+-------------------------------------------------------------------
+    ])
+  fi
+
+  LIBS="-lssl -lcrypto $LIBS"
+
+  if test "x$enable_libevent" = "xyes"; then
+    if test "x$with_bundled_libevent" != "xyes"; then
+      MESOS_HAVE_LIBEVENT()
+      MESOS_HAVE_LIBEVENT_SSL()
+    fi
+  else
+    AC_MSG_ERROR([SSL is currently only supported with libevent])
+  fi
+  AC_DEFINE([USE_SSL_SOCKET], [1])
+fi
+
+AM_CONDITIONAL([ENABLE_SSL],
+               [test "x$enable_ssl" = "xyes"])
+
+AC_SUBST([SSL_CPPFLAGS])
+AC_SUBST([SSL_LINKERFLAGS])
+
+
 # Check if gflags are present. If so, make sure we link against them
 # when building the Python module.
 AC_CHECK_LIB([gflags],
@@ -2027,69 +2092,6 @@ AS_IF([test "x$crammd5test" = "xfound"],
 -------------------------------------------------------------------
 We need CRAM-MD5 support for SASL authentication.
 -------------------------------------------------------------------])])
-
-
-# Check if libssl prefix path was provided, and if so, add it to
-# the CPPFLAGS and LDFLAGS with respective /include and /lib path
-# suffixes.
-if test -z "`echo $with_ssl`" &&
-   test "$OS_NAME" = "darwin" &&
-   test -n "`command -v brew`" &&
-   test -n "`brew list --versions openssl`"; then
-  with_ssl=`brew --prefix openssl`
-fi
-
-if test -n "`echo $with_ssl`"; then
-  SSL_CPPFLAGS="-I${with_ssl}/include"
-  SSL_LINKERFLAGS="-L${with_ssl}/lib"
-
-  CPPFLAGS="$SSL_CPPFLAGS $CPPFLAGS"
-  LDFLAGS="$SSL_LINKERFLAGS $LDFLAGS"
-fi
-
-AC_CHECK_LIB([crypto], [RAND_poll], [found_crypto=yes])
-
-AC_CHECK_HEADERS([openssl/ssl.h],
-                 [AC_CHECK_LIB([ssl],
-                               [SSL_CTX_new],
-                               [found_ssl=yes],
-                               [],
-                               [-lcrypto])])
-
-if test "x$enable_ssl" = "xyes"; then
-  if test "x$found_ssl" != "xyes"; then
-    AC_MSG_ERROR([cannot find libssl
--------------------------------------------------------------------
-libssl is required for an SSL-enabled build.
--------------------------------------------------------------------
-    ])
-  fi
-
-  if test "x$found_crypto" != "xyes"; then
-    AC_MSG_ERROR([cannot find libcrypto
--------------------------------------------------------------------
-libcrypto is required for an SSL-enabled build.
--------------------------------------------------------------------
-    ])
-  fi
-
-  LIBS="-lssl -lcrypto $LIBS"
-
-  if test "x$enable_libevent" = "xyes"; then
-    if test "x$with_bundled_libevent" != "xyes"; then
-      MESOS_HAVE_LIBEVENT_SSL()
-    fi
-  else
-    AC_MSG_ERROR([SSL is currently only supported with libevent])
-  fi
-  AC_DEFINE([USE_SSL_SOCKET], [1])
-fi
-
-AM_CONDITIONAL([ENABLE_SSL],
-               [test "x$enable_ssl" = "xyes"])
-
-AC_SUBST([SSL_CPPFLAGS])
-AC_SUBST([SSL_LINKERFLAGS])
 
 
 # Check if user has asked us to use a preinstalled stout, or if
