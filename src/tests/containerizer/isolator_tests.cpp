@@ -1121,6 +1121,59 @@ TEST_F(NamespacesIsolatorTest, ROOT_NonePrivateIPCModeWithShmSize)
 
   AWAIT_FAILED(launch);
 }
+
+
+// This test verifies that we do not support launching debug container
+// with private IPC mode.
+TEST_F(NamespacesIsolatorTest, ROOT_DebugContainerWithPrivateIPCMode)
+{
+  Try<Owned<MesosContainerizer>> containerizer =
+    createContainerizer("filesystem/linux,namespaces/ipc");
+
+  ASSERT_SOME(containerizer);
+
+  // Launch a top-level container.
+  process::Future<Containerizer::LaunchResult> launch =
+    containerizer.get()->launch(
+        containerId,
+        createContainerConfig(
+              None(),
+              createExecutorInfo("executor", "sleep 1000"),
+              directory),
+        std::map<string, string>(),
+        None());
+
+  AWAIT_ASSERT_EQ(Containerizer::LaunchResult::SUCCESS, launch);
+
+  // Launch a debug container with private IPC mode under the
+  // top-level container.
+  ContainerID debugContainerId;
+  debugContainerId.mutable_parent()->CopyFrom(containerId);
+  debugContainerId.set_value(id::UUID::random().toString());
+
+  ContainerInfo containerInfo;
+  containerInfo.set_type(ContainerInfo::MESOS);
+  containerInfo.mutable_linux_info()->set_ipc_mode(LinuxInfo::PRIVATE);
+
+  launch = containerizer.get()->launch(
+      debugContainerId,
+      createContainerConfig(
+          createCommandInfo("sleep 1000"),
+          containerInfo,
+          ContainerClass::DEBUG),
+      std::map<string, string>(),
+      None());
+
+  AWAIT_FAILED(launch);
+
+  Future<Option<ContainerTermination>> termination =
+    containerizer.get()->destroy(containerId);
+
+  AWAIT_READY(termination);
+  ASSERT_SOME(termination.get());
+  ASSERT_TRUE(termination.get()->has_status());
+  EXPECT_WTERMSIG_EQ(SIGKILL, termination.get()->status());
+}
 #endif // __linux__
 
 } // namespace tests {
