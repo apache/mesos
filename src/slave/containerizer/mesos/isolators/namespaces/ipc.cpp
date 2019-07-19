@@ -119,6 +119,12 @@ Future<Option<ContainerLaunchInfo>> NamespacesIPCIsolatorProcess::prepare(
     }
 
     if (containerConfig.container_info().linux_info().has_shm_size()) {
+      if (ipcMode != LinuxInfo::PRIVATE) {
+        return Failure(
+            "Only support specifying the size of /dev/shm "
+            "when the IPC mode is `PRIVATE`");
+      }
+
       shmSize =
         Megabytes(containerConfig.container_info().linux_info().shm_size());
     } else if (flags.default_container_shm_size.isSome()) {
@@ -133,6 +139,11 @@ Future<Option<ContainerLaunchInfo>> NamespacesIPCIsolatorProcess::prepare(
     // so it will share its parent container's /dev/shm.
     if (containerConfig.has_container_class() &&
         containerConfig.container_class() == ContainerClass::DEBUG) {
+      if (ipcMode == LinuxInfo::PRIVATE) {
+        return Failure(
+            "Private IPC mode is not supported for DEBUG containers");
+      }
+
       launchInfo.add_enter_namespaces(CLONE_NEWIPC);
       return launchInfo;
     }

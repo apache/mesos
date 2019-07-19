@@ -3313,7 +3313,9 @@ message LinuxInfo {
   // flag is not set too, the size of the /dev/shm will be half of the host RAM
   // which is the default behavior of Linux. This field will be ignored for the
   // container which shares /dev/shm from its parent and it will be also ignored
-  // for any containers if the `namespaces/ipc` isolator is not enabled.
+  // for any containers if the `namespaces/ipc` isolator is not enabled. Please
+  // note that we only support setting this field when the `ipc_mode` field is
+  // set to `PRIVATE` otherwise the container launch will be rejected.
   optional uint32 shm_size = 7;
 }
 

@@ -523,8 +523,8 @@ TEST_F(NamespacesIsolatorTest, ROOT_IPCNamespaceWithIPCIsolatorDisabled)
 
 // This test verifies that a top-level container with private IPC mode will
 // have its own IPC namespace and /dev/shm, and it can share IPC namespace
-// and /dev/shm with its child container, grandchild container and debug
-// container.
+// and /dev/shm with its child containers, grandchild containers and debug
+// containers.
 TEST_F(NamespacesIsolatorTest, ROOT_ShareIPCNamespace)
 {
   Try<Owned<MesosContainerizer>> containerizer =
@@ -580,8 +580,7 @@ TEST_F(NamespacesIsolatorTest, ROOT_ShareIPCNamespace)
   // its own /dev/shm rather than in agent's /dev/shm.
   ASSERT_FALSE(os::exists("/dev/shm/root"));
 
-  // Now launch two child containers with `SHARE_PARENT` ipc mode and
-  // 256MB /dev/shm.
+  // Now launch two child containers with `SHARE_PARENT` ipc mode.
   ContainerID childContainerId1, childContainerId2;
 
   childContainerId1.mutable_parent()->CopyFrom(containerId);
@@ -593,12 +592,11 @@ TEST_F(NamespacesIsolatorTest, ROOT_ShareIPCNamespace)
   ContainerInfo containerInfo;
   containerInfo.set_type(ContainerInfo::MESOS);
   containerInfo.mutable_linux_info()->set_ipc_mode(LinuxInfo::SHARE_PARENT);
-  containerInfo.mutable_linux_info()->set_shm_size(256);
 
-  // Launch the first child container, check its /dev/shm size is 128MB
-  // rather than 256MB, it can see the file created by its parent container
-  // in /dev/shm and it is in the same IPC namespace with its parent container,
-  // and then write its IPC namespace inode to a file under /dev/shm.
+  // Launch the first child container, check its /dev/shm size is 128MB, it
+  // can see the file created by its parent container in /dev/shm and it is
+  // in the same IPC namespace with its parent container, and then write its
+  // IPC namespace inode to a file under /dev/shm.
   launch = containerizer.get()->launch(
       childContainerId1,
       createContainerConfig(
@@ -630,10 +628,10 @@ TEST_F(NamespacesIsolatorTest, ROOT_ShareIPCNamespace)
   EXPECT_LT(waited, process::TEST_AWAIT_TIMEOUT);
 
   // Launch the second child container with its own rootfs, check its /dev/shm
-  // size is 128MB rather than 256MB, it can see the files created by its parent
-  // container and the first child container in /dev/shm and it is in the same
-  // IPC namespace with its parent container and the first child container. and
-  // then write its IPC namespace inode to a file under /dev/shm.
+  // size is 128MB, it can see the files created by its parent container and the
+  // first child container in /dev/shm and it is in the same IPC namespace with
+  // its parent container and the first child container, and then write its IPC
+  // namespace inode to a file under /dev/shm.
   mesos::Image image;
   image.set_type(mesos::Image::DOCKER);
   image.mutable_docker()->set_name("alpine");
@@ -671,10 +669,9 @@ TEST_F(NamespacesIsolatorTest, ROOT_ShareIPCNamespace)
 
   EXPECT_LT(waited, process::TEST_AWAIT_TIMEOUT);
 
-  // Launch a grandchild container with `SHARE_PARENT` ipc mode and
-  // 256MB /dev/shm under the first child container, check its /dev/shm
-  // size is 128MB rather than 256MB, it can see the files created by
-  // its parent and grandparent containers and it is in the same IPC
+  // Launch a grandchild container with `SHARE_PARENT` ipc mode under the first
+  // child container, check its /dev/shm size is 128MB, it can see the files
+  // created by its parent and grandparent containers and it is in the same IPC
   // namespace with its parent and grandparent containers.
   ContainerID grandchildContainerId;
   grandchildContainerId.mutable_parent()->CopyFrom(childContainerId1);
@@ -701,16 +698,15 @@ TEST_F(NamespacesIsolatorTest, ROOT_ShareIPCNamespace)
   ASSERT_TRUE(wait.get()->has_status());
   EXPECT_WEXITSTATUS_EQ(0, wait.get()->status());
 
-  // Launch a debug container with `PRIVATE` ipc mode and 256MB /dev/shm
-  // under the first child container, check its /dev/shm size is 128MB
-  // rather than 256MB and it is in the same IPC namespace with its parent
-  // container even its ipc mode is `PRIVATE`.
+  // Launch a debug container under the first child container, check its
+  // /dev/shm size is 128MB and it is in the same IPC namespace with its
+  // parent container.
   ContainerID debugContainerId1;
   debugContainerId1.mutable_parent()->CopyFrom(childContainerId1);
   debugContainerId1.set_value(id::UUID::random().toString());
 
   containerInfo.clear_mesos();
-  containerInfo.mutable_linux_info()->set_ipc_mode(LinuxInfo::PRIVATE);
+  containerInfo.clear_linux_info();
 
   launch = containerizer.get()->launch(
       debugContainerId1,
@@ -731,15 +727,12 @@ TEST_F(NamespacesIsolatorTest, ROOT_ShareIPCNamespace)
   ASSERT_TRUE(wait.get()->has_status());
   EXPECT_WEXITSTATUS_EQ(0, wait.get()->status());
 
-  // Launch a debug container with `PRIVATE` ipc mode and 256MB /dev/shm
-  // under the second child container, check its /dev/shm size is 128MB
-  // rather than 256MB and it is in the same IPC namespace with its parent
-  // container even its ipc mode is `PRIVATE`.
+  // Launch another debug container under the second child container, check its
+  // /dev/shm size is 128MB and it is in the same IPC namespace with its parent
+  // container.
   ContainerID debugContainerId2;
   debugContainerId2.mutable_parent()->CopyFrom(childContainerId2);
   debugContainerId2.set_value(id::UUID::random().toString());
-
-  containerInfo.mutable_linux_info()->set_ipc_mode(LinuxInfo::PRIVATE);
 
   launch = containerizer.get()->launch(
       debugContainerId2,

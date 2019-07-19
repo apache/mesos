@@ -55,3 +55,7 @@ flag, if that flag is not set too, the size of the /dev/shm will be half
 of the agent host RAM which is the default behavior of Linux. The
 `ContainerInfo.linux_info.shm_size` field will be ignored for the container which
 shares its parent's /dev/shm.
+
+Please note that we only support setting the `ContainerInfo.linux_info.shm_size` field
+when the `ContainerInfo.linux_info.ipc_mode` field is set to `PRIVATE`, otherwise the
+container launch will be rejected.
