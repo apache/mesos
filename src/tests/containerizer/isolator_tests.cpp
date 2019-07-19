@@ -1072,6 +1072,55 @@ TEST_F(NamespacesIsolatorTest, ROOT_DisallowShareAgentIPCNamespace)
 
   AWAIT_FAILED(launch);
 }
+
+
+// This test verifies that we do not support specifying container's
+// /dev/shm size when its IPC mode is not `PRIVATE`.
+TEST_F(NamespacesIsolatorTest, ROOT_NonePrivateIPCModeWithShmSize)
+{
+  Try<Owned<MesosContainerizer>> containerizer =
+    createContainerizer("filesystem/linux,namespaces/ipc");
+
+  ASSERT_SOME(containerizer);
+
+  // Launch a container with a specified /dev/shm size but without
+  // specifying IPC mode.
+  ContainerID containerId1;
+  containerId1.set_value(id::UUID::random().toString());
+
+  mesos::slave::ContainerConfig containerConfig = createContainerConfig(
+      None(),
+      createExecutorInfo("executor", "sleep 1000"),
+      directory);
+
+  ContainerInfo* container = containerConfig.mutable_container_info();
+  container->set_type(ContainerInfo::MESOS);
+  container->mutable_linux_info()->set_shm_size(128);
+
+  process::Future<Containerizer::LaunchResult> launch =
+    containerizer.get()->launch(
+        containerId1,
+        containerConfig,
+        std::map<string, string>(),
+        None());
+
+  AWAIT_FAILED(launch);
+
+  // Launch another container with a specified /dev/shm size and `SHARE_PARENT`
+  // IPC mode.
+  ContainerID containerId2;
+  containerId2.set_value(id::UUID::random().toString());
+
+  container->mutable_linux_info()->set_ipc_mode(LinuxInfo::SHARE_PARENT);
+
+  launch = containerizer.get()->launch(
+      containerId2,
+      containerConfig,
+      std::map<string, string>(),
+      None());
+
+  AWAIT_FAILED(launch);
+}
 #endif // __linux__
 
 } // namespace tests {
