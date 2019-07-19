@@ -24,15 +24,20 @@ namespace mesos {
 namespace internal {
 namespace tests {
 
-// This is a legacy helper where we take in a resource string
-// and use that to set both quota guarantees and limits.
-Quota createQuota(const string& role, const string& resources)
+
+Quota createQuota(const string& guarantees, const string& limits)
 {
   Quota quota;
-  quota.guarantees = CHECK_NOTERROR(ResourceQuantities::fromString(resources));
-  quota.limits = CHECK_NOTERROR(ResourceLimits::fromString(resources));
+  quota.guarantees = CHECK_NOTERROR(ResourceQuantities::fromString(guarantees));
+  quota.limits = CHECK_NOTERROR(ResourceLimits::fromString(limits));
 
   return quota;
+}
+
+
+Quota createQuota(const string& resources)
+{
+  return createQuota(guarantees, limits);
 }
 
 

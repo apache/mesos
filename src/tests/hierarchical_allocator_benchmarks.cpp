@@ -609,11 +609,11 @@ TEST_P(BENCHMARK_HierarchicalAllocator_WithQuotaParam, LargeAndSmallQuota)
   allocator->pause();
 
   foreach (const string& role, smallQuotaRoles) {
-    allocator->updateQuota(role, createQuota(role, smallQuotaResourcesString));
+    allocator->updateQuota(role, createQuota(smallQuotaResourcesString));
   }
 
   foreach (const string& role, largeQuotaRoles) {
-    allocator->updateQuota(role, createQuota(role, largeQuotaResourcesString));
+    allocator->updateQuota(role, createQuota(largeQuotaResourcesString));
   }
 
   allocator->resume();
@@ -762,7 +762,7 @@ TEST_P(
     allocator->pause();
 
     foreach (const string& role, roles) {
-      allocator->updateQuota(role, createQuota(role, quotaResourcesString));
+      allocator->updateQuota(role, createQuota(quotaResourcesString));
     }
 
     allocator->resume();

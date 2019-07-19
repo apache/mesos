@@ -41,7 +41,12 @@ namespace tests {
 
 // Allocator test helpers.
 
-Quota createQuota(const std::string& role, const std::string& resources);
+Quota createQuota(const std::string& guarantees, const std::string& limits);
+
+
+// This is a legacy helper where we take in a resource string
+// and use that to set both quota guarantees and limits.
+Quota createQuota(const std::string& resources);
 
 
 WeightInfo createWeightInfo(const std::string& role, double weight);
