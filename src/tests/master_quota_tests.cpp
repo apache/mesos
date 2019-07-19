@@ -214,10 +214,7 @@ TEST_F(MasterQuotaTest, UpdateQuota)
       "/api/v1",
       headers,
       createUpdateQuotaRequestBody(
-          createQuotaConfig(
-              ROLE1,
-              stringify("cpus:1;mem:1024"),
-              stringify("cpus:2;mem:2048")),
+          createQuotaConfig(ROLE1, "cpus:1;mem:1024", "cpus:2;mem:2048"),
           true));
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
