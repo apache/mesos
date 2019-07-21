@@ -1435,6 +1435,8 @@ MESOS_LINUX_FILES =									\
   slave/containerizer/mesos/isolators/linux/capabilities.hpp				\
   slave/containerizer/mesos/isolators/linux/devices.cpp					\
   slave/containerizer/mesos/isolators/linux/devices.hpp					\
+  slave/containerizer/mesos/isolators/linux/nnp.hpp					\
+  slave/containerizer/mesos/isolators/linux/nnp.cpp					\
   slave/containerizer/mesos/isolators/namespaces/ipc.cpp				\
   slave/containerizer/mesos/isolators/namespaces/ipc.hpp				\
   slave/containerizer/mesos/isolators/namespaces/pid.cpp				\
@@ -2764,6 +2766,7 @@ mesos_tests_SOURCES +=						\
   tests/containerizer/docker_volume_isolator_tests.cpp		\
   tests/containerizer/linux_devices_isolator_tests.cpp		\
   tests/containerizer/linux_filesystem_isolator_tests.cpp	\
+  tests/containerizer/linux_nnp_isolator_tests.cpp		\
   tests/containerizer/fs_tests.cpp				\
   tests/containerizer/memory_pressure_tests.cpp			\
   tests/containerizer/nested_mesos_containerizer_tests.cpp	\

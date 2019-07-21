@@ -18,6 +18,7 @@
 #ifdef __linux__
 #include <sched.h>
 #include <signal.h>
+#include <sys/prctl.h>
 #endif // __linux__
 #include <string.h>
 
@@ -1153,6 +1154,14 @@ int MesosContainerizerLaunch::execute()
     Try<Nothing> set = capabilitiesManager->set(capabilities.get());
     if (set.isError()) {
       cerr << "Failed to set process capabilities: " << set.error() << endl;
+      exitWithStatus(EXIT_FAILURE);
+    }
+  }
+
+  if (launchInfo.has_no_new_privileges()) {
+    const int val = launchInfo.no_new_privileges() ? 1 : 0;
+    if (prctl(PR_SET_NO_NEW_PRIVS, val, 0, 0, 0) == -1) {
+      cerr << "Failed to set NO_NEW_PRIVS: " << os::strerror(errno) << endl;
       exitWithStatus(EXIT_FAILURE);
     }
   }
