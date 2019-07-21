@@ -46,6 +46,7 @@
 #include <stout/os/ls.hpp>
 #include <stout/os/socket.hpp>
 
+#include "common/kernel_version.hpp"
 #include "common/status_utils.hpp"
 
 using std::set;
@@ -53,26 +54,6 @@ using std::string;
 using std::vector;
 
 namespace ns {
-
-static Try<Version> kernelVersion()
-{
-  Try<os::UTSInfo> uname = os::uname();
-  if (!uname.isSome()) {
-    return Error("Unable to determine kernel version: " + uname.error());
-  }
-
-  vector<string> parts = strings::split(uname->release, ".");
-  parts.resize(2);
-
-  Try<Version> version = Version::parse(strings::join(".", parts));
-  if (!version.isSome()) {
-    return Error("Failed to parse kernel version '" + uname->release +
-        "': " + version.error());
-  }
-
-  return version;
-}
-
 
 Try<int> nstype(const string& ns)
 {
@@ -166,7 +147,7 @@ Try<bool> supported(int nsTypes)
   }
 
   if ((nsTypes & CLONE_NEWUSER) && (supported & CLONE_NEWUSER)) {
-    Try<Version> version = kernelVersion();
+    Try<Version> version = mesos::kernelVersion();
 
     if (version.isError()) {
       return Error(version.error());

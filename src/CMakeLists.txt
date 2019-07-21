@@ -237,6 +237,7 @@ set(COMMON_SRC
   common/build.cpp
   common/command_utils.cpp
   common/http.cpp
+  common/kernel_version.cpp
   common/protobuf_utils.cpp
   common/resources.cpp
   common/resource_quantities.cpp

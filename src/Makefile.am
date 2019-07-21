@@ -1071,6 +1071,8 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   common/heartbeater.hpp						\
   common/http.cpp							\
   common/http.hpp							\
+  common/kernel_version.cpp						\
+  common/kernel_version.hpp						\
   common/parse.hpp							\
   common/protobuf_utils.cpp						\
   common/protobuf_utils.hpp						\
