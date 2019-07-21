@@ -18,6 +18,10 @@ This release contains the following highlights:
       added. This causes the agent to ignore any runtime configuration
       present in Docker images.
 
+    * [MESOS-9770] - Add no-new-privileges isolator. An additional
+      Linux isolator has been added to support enabling the no_new_privs
+      process control flag.
+
     * [MESOS-9771] - The Mesos containerizer now masks sensitive paths
       in `/proc` for containers that do not share the host's PID namespace.
 

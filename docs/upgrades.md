@@ -48,6 +48,7 @@ We categorize the changes as follows:
 
   <td style="word-wrap: break-word; overflow-wrap: break-word;"><!--Mesos Core-->
     <ul style="padding-left:10px;">
+      <li>A <a href="#1-9-x-linux-nnp-isolator">Linux NNP isolator</a></li>
       <li>A <a href="#1-9-x-hostname-validation-scheme">hostname_validation_scheme</a></li>
       <li>C <a href="#1-9-x-client-certificate-verification">TLS certificate verification behaviour</a></li>
     </ul>
@@ -507,6 +508,9 @@ We categorize the changes as follows:
 </table>
 
 ## Upgrading from 1.8.x to 1.9.x ##
+
+<a name="1-9-x-linux-nnp-isolator"></a>
+  * A new [`linux/nnp`](isolators/linux-nnp.md) isolator has been added. The isolator supports setting of the `no_new_privs` bit in the container, preventing tasks from acquiring additional privileges.
 
 <a name="1-9-x-docker-ignore-runtime"></a>
   * A new [`--docker_ignore_runtime`](configuration/agent.md#docker_ignore_runtime) flag has been added. This causes the agent to ignore any runtime configuration present in Docker images.
