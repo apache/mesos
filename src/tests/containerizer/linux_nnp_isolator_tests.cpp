@@ -60,6 +60,7 @@ protected:
     flags.docker_registry = GetRegistryPath();
     flags.docker_store_dir = path::join(sandbox.get(), "store");
     flags.image_providers = "docker";
+    flags.launcher = "linux";
 
     return flags;
   }
@@ -72,7 +73,7 @@ protected:
 
 
 // Check that the PR_NO_NEW_PRIVILEGES flag is set.
-TEST_F(LinuxNNPIsolatorTest, CheckNoNewPrivileges)
+TEST_F(LinuxNNPIsolatorTest, ROOT_CheckNoNewPrivileges)
 {
   // This tests requires the NoNewPrivs field present in process
   // status fields which requires Linux kernel version greater than
