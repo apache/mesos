@@ -128,10 +128,11 @@ enum Action {
   UPDATE_WEIGHT = 10;
   UPDATE_WEIGHT_WITH_ROLE = 10;
 
-  // `GET_QUOTA` will have an object with `QuotaInfo` set.
+  // Prioir to Mesos 1.9, `GET_QUOTA` has an object with both `QuotaInfo`
+  // and `value` set. Since Mesos 1.9, the object will only have `value` set.
+  //
   // The `_WITH_ROLE` alias is deprecated and will be removed after
-  // Mesos 1.2's deprecation cycle ends. The `value` field will continue
-  // to be set until that time.
+  // Mesos 1.2's deprecation cycle ends.
   GET_QUOTA = 11;
   GET_QUOTA_WITH_ROLE = 11;
 

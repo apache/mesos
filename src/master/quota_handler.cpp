@@ -364,42 +364,15 @@ Future<QuotaStatus> Master::QuotaHandler::_status(
 {
   // Quotas can be updated during preparation of the response.
   // Copy current view of the collection to avoid conflicts.
-  vector<QuotaInfo> quotaInfos;
-  quotaInfos.reserve(master->quotas.size());
-
-  foreachpair (const string& role, const Quota& quota, master->quotas) {
-    quotaInfos.push_back([&role, &quota]() {
-      // Construct the legacy `QuotaInfo`.
-      //
-      // This is needed for backwards compatibility reasons.
-      // Authorizable action `GET_QUOTA` expects an object
-      // with `QuotaInfo` set.
-      //
-      // TODO(mzhu): we plan to deprecate the use of `QuotaInfo`
-      // in the `GET_QUOTA` action. And instead, just set the value
-      // field in the object using the role. This legacy construction
-      // will be removed.
-      QuotaInfo info;
-      info.set_role(role);
-      foreach (auto& quantity, quota.guarantees) {
-        Resource resource;
-        resource.set_type(Value::SCALAR);
-        *resource.mutable_name() = quantity.first;
-        *resource.mutable_scalar() = quantity.second;
-
-        *info.add_guarantee() = std::move(resource);
-      }
-      return info;
-    }());
-  }
+  hashmap<std::string, Quota> quotas(master->quotas);
 
   // Create a list of authorization actions for each role we may return.
   //
   // TODO(alexr): Use an authorization filter here once they are available.
   vector<Future<bool>> authorizedRoles;
-  authorizedRoles.reserve(quotaInfos.size());
-  foreach (const QuotaInfo& info, quotaInfos) {
-    authorizedRoles.push_back(authorizeGetQuota(principal, info));
+  authorizedRoles.reserve(quotas.size());
+  foreachkey (const string& role, quotas) {
+    authorizedRoles.push_back(authorizeGetQuota(principal, role));
   }
 
   return process::collect(authorizedRoles)
@@ -407,22 +380,36 @@ Future<QuotaStatus> Master::QuotaHandler::_status(
         master->self(),
         [=](const vector<bool>& authorizedRolesCollected)
             -> Future<QuotaStatus> {
-      CHECK(quotaInfos.size() == authorizedRolesCollected.size());
+      CHECK(quotas.size() == authorizedRolesCollected.size());
 
       QuotaStatus status;
-      status.mutable_infos()->Reserve(static_cast<int>(quotaInfos.size()));
+      status.mutable_infos()->Reserve(static_cast<int>(quotas.size()));
 
       // Create an entry (including role and resources) for each quota,
       // except those filtered out based on the authorizer's response.
       //
       // NOTE: This error-prone code will be removed with
       // the introduction of authorization filters.
-      auto quotaInfoIt = quotaInfos.begin();
-      foreach (const bool& authorized, authorizedRolesCollected) {
-        if (authorized) {
-          status.add_infos()->CopyFrom(*quotaInfoIt);
+      auto authorizedIt = authorizedRolesCollected.cbegin();
+      auto quotaIt = quotas.cbegin();
+      for (; authorizedIt != authorizedRolesCollected.cend();
+           ++authorizedIt, ++quotaIt) {
+        if (*authorizedIt) {
+          // Fill in legacy `QuotaInfo`.
+          *status.add_infos() = [&quotaIt]() {
+            QuotaInfo info;
+            info.set_role(quotaIt->first);
+            foreach (auto& quantity, quotaIt->second.guarantees) {
+              Resource resource;
+              resource.set_type(Value::SCALAR);
+              *resource.mutable_name() = quantity.first;
+              *resource.mutable_scalar() = quantity.second;
+
+              *info.add_guarantee() = std::move(resource);
+            }
+            return info;
+          }();
         }
-        ++quotaInfoIt;
       }
 
       return status;
@@ -1074,8 +1061,7 @@ Future<http::Response> Master::QuotaHandler::__remove(const string& role) const
 
 
 Future<bool> Master::QuotaHandler::authorizeGetQuota(
-    const Option<Principal>& principal,
-    const QuotaInfo& quotaInfo) const
+    const Option<Principal>& principal, const string& role) const
 {
   if (master->authorizer.isNone()) {
     return true;
@@ -1083,7 +1069,7 @@ Future<bool> Master::QuotaHandler::authorizeGetQuota(
 
   LOG(INFO) << "Authorizing principal '"
             << (principal.isSome() ? stringify(principal.get()) : "ANY")
-            << "' to get quota for role '" << quotaInfo.role() << "'";
+            << "' to get quota for role '" << role << "'";
 
   authorization::Request request;
   request.set_action(authorization::GET_QUOTA);
@@ -1093,10 +1079,7 @@ Future<bool> Master::QuotaHandler::authorizeGetQuota(
     request.mutable_subject()->CopyFrom(subject.get());
   }
 
-  // TODO(alexr): The `value` field is set for backwards compatibility
-  // reasons until after the deprecation cycle started with 1.2.0 ends.
-  request.mutable_object()->mutable_quota_info()->CopyFrom(quotaInfo);
-  request.mutable_object()->set_value(quotaInfo.role());
+  request.mutable_object()->set_value(role);
 
   return master->authorizer.get()->authorized(request);
 }

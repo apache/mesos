@@ -654,9 +654,7 @@ public:
         }
         case authorization::GET_QUOTA: {
           entityObject.set_type(mesos::ACL::Entity::SOME);
-          if (object->quota_info) {
-            entityObject.add_values(object->quota_info->role());
-          } else if (object->value) {
+          if (object->value) {
             entityObject.add_values(*(object->value));
           } else {
             entityObject.set_type(mesos::ACL::Entity::ANY);

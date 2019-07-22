@@ -1312,7 +1312,7 @@ private:
 
     process::Future<bool> authorizeGetQuota(
         const Option<process::http::authentication::Principal>& principal,
-        const mesos::quota::QuotaInfo& quotaInfo) const;
+        const std::string& role) const;
 
     // This auth function is used for legacy `SET_QUOTA` and `REMOVE_QUOTA`
     // calls. Remove this function after the associated API calls are
