@@ -63,8 +63,6 @@ public:
       .onAny(process::defer(
           self(), &PendingFutureTrackerProcess::eraseFuture, it))
       .onAbandoned(process::defer(
-          self(), &PendingFutureTrackerProcess::eraseFuture, it))
-      .onDiscard(process::defer(
           self(), &PendingFutureTrackerProcess::eraseFuture, it));
   }
 
