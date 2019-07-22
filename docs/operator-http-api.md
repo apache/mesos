@@ -3816,7 +3816,9 @@ they may contain subtypes of either DATA or CONTROL. DATA messages
 must be of type STDIN and contain the actual data to stream to the
 STDIN of the container being attached to. Currently, the only valid
 CONTROL message sends a heartbeat to keep the connection alive. We may
-add more CONTROL messages in the future.
+add more CONTROL messages in the future. An empty DATA message of type
+STDIN indicates EOF. If the container was launched with TTYInfo in their
+ContainerInfo, an EOT DATA message is expected instead.
 
 ```
 ATTACH_CONTAINER_INPUT HTTP Request (JSON):
@@ -3865,6 +3867,19 @@ Accept: application/json
             "nanoseconds": 30000000000
           }
         }
+      }
+    }
+  }
+}215
+{
+  "type": "ATTACH_CONTAINER_INPUT",
+  "attach_container_input": {
+    "type": "PROCESS_IO",
+    "process_io": {
+      "type": "DATA",
+      "data": {
+        "type": "STDIN",
+        "data": ""
       }
     }
   }
