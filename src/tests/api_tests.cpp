@@ -5588,6 +5588,7 @@ TEST_P(MasterAPITest, DrainAgent)
   {
     v1::master::Call::DrainAgent drainAgent;
     drainAgent.mutable_agent_id()->CopyFrom(agentId);
+    drainAgent.mutable_max_grace_period()->set_seconds(0);
 
     v1::master::Call call;
     call.set_type(v1::master::Call::DRAIN_AGENT);
@@ -5605,6 +5606,7 @@ TEST_P(MasterAPITest, DrainAgent)
   mesos::v1::DrainInfo drainInfo;
   drainInfo.set_state(mesos::v1::DRAINED);
   drainInfo.mutable_config()->set_mark_gone(false);
+  drainInfo.mutable_config()->mutable_max_grace_period()->set_nanoseconds(0);
 
   // Ensure that the agent's drain info is reflected in the master's
   // GET_AGENTS response.
