@@ -21,7 +21,6 @@ RUN apt-get update && \
     apt-get install -qy \
       autoconf \
       build-essential \
-      clang \
       curl \
       git \
       iputils-ping \
@@ -55,10 +54,21 @@ RUN add-apt-repository -y ppa:deadsnakes/ppa && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists
 
+# Install newer Clang.
+RUN curl http://releases.llvm.org/8.0.0/clang+llvm-8.0.0-aarch64-linux-gnu.tar.xz -o /tmp/clang.tar.xz && \
+    tar -xf /tmp/clang.tar.xz && \
+    rm /tmp/clang.tar.xz && \
+    cp -R clang+llvm-8.0.0-aarch64-linux-gnu/* /usr/ && \
+    rm -rf clang+llvm-8.0.0-aarch64-linux-gnu && \
+    clang++ --version
+
+
 # Install newer CMake.
-RUN curl https://cmake.org/files/v3.8/cmake-3.8.2.tar.gz -o /tmp/cmake-3.8.2.tar.gz && \
-    tar xvzf /tmp/cmake-3.8.2.tar.gz -C /tmp && \
-    cd /tmp/cmake-3.8.2 && \
+RUN curl https://cmake.org/files/v3.15/cmake-3.15.0.tar.gz -o /tmp/cmake-3.15.0.tar.gz && \
+    tar xvzf /tmp/cmake-3.15.0.tar.gz -C /tmp && \
+    cd /tmp/cmake-3.15.0 && \
+    export CC=/usr/bin/clang && \
+    export CXX=/usr/bin/clang++ && \
     ./configure && \
     make && \
     make install && \
