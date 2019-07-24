@@ -30,9 +30,10 @@ TASK_CPUS = 1
 TASK_MEM = 128
 
 class TestScheduler(mesos.interface.Scheduler):
-    def __init__(self, implicitAcknowledgements, executor):
+    def __init__(self, implicitAcknowledgements, executor, framework):
         self.implicitAcknowledgements = implicitAcknowledgements
         self.executor = executor
+        self.framework = framework
         self.taskData = {}
         self.tasksLaunched = 0
         self.tasksFinished = 0
@@ -41,6 +42,8 @@ class TestScheduler(mesos.interface.Scheduler):
 
     def registered(self, driver, frameworkId, masterInfo):
         print "Registered with framework ID %s" % frameworkId.value
+        self.framework.id.CopyFrom(frameworkId)
+        driver.updateFramework(framework, [])
 
     def resourceOffers(self, driver, offers):
         for offer in offers:
@@ -167,6 +170,7 @@ if __name__ == "__main__":
     framework.user = "" # Have Mesos fill in the current user.
     framework.name = "Test Framework (Python)"
     framework.checkpoint = True
+    framework.role = "*"
 
     implicitAcknowledgements = 1
     if os.getenv("MESOS_EXPLICIT_ACKNOWLEDGEMENTS"):
@@ -188,20 +192,18 @@ if __name__ == "__main__":
 
         framework.principal = os.getenv("MESOS_EXAMPLE_PRINCIPAL")
 
-        driver = MesosSchedulerDriver(
-            TestScheduler(implicitAcknowledgements, executor),
-            framework,
-            sys.argv[1],
-            implicitAcknowledgements,
-            credential)
     else:
         framework.principal = "test-framework-python"
+        credential = None
 
-        driver = MesosSchedulerDriver(
-            TestScheduler(implicitAcknowledgements, executor),
-            framework,
-            sys.argv[1],
-            implicitAcknowledgements)
+    # Subscribe with all roles suppressed to test updateFramework() method
+    driver = MesosSchedulerDriver(
+        TestScheduler(implicitAcknowledgements, executor, framework),
+        framework,
+        sys.argv[1],
+        implicitAcknowledgements,
+        credential,
+        [framework.role])
 
     status = 0 if driver.run() == mesos_pb2.DRIVER_STOPPED else 1
 
