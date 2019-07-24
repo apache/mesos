@@ -22,8 +22,12 @@
 #include <Python.h>
 
 #include <iostream>
+#include <memory>
+#include <string>
+#include <vector>
 
 #include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <google/protobuf/message.h>
 
 
 namespace mesos { namespace python {
@@ -129,6 +133,106 @@ PyObject* createPythonProtobuf(const T& t, const char* typeName)
                              str.data(),
                              str.size());
 }
+
+
+// construct<T>() should take PyObject* as an argument, try to convert that
+// PyObject into an object of type T and return an object of type equivalent
+// to std::unique_ptr<T> that should hold
+//  - the conversion result on success
+//  - nullptr on failure
+// Also, the Python exception should be set on conversion failure.
+//
+// TODO(asekretenko): use std::optional or stout Try instead of
+// std::unique_ptr when they become available in this code.
+//
+// Declaration of 'construct<T>()' for protobufs.
+template <typename T>
+typename std::enable_if<
+  std::is_base_of<google::protobuf::Message, T>::value,
+  std::unique_ptr<T>>::type
+construct(PyObject* obj)
+{
+  std::unique_ptr<T> result(new T());
+  if (!readPythonProtobuf(obj, result.get())) {
+    PyErr_Format(
+        PyExc_TypeError,
+        "Failed to construct %s from a Python object",
+        result->GetDescriptor()->full_name().c_str());
+
+    return nullptr;
+  }
+
+  return result;
+}
+
+
+// Declaration of 'construct<T>()' for non-protobufs.
+template <typename T>
+typename std::enable_if<
+  !std::is_base_of<google::protobuf::Message, T>::value,
+  std::unique_ptr<T>>::type
+construct(PyObject* obj);
+
+
+// TODO(asekretenko): move this specialization into .cpp file. That file will
+// likely have to be put into a library (there is no simple way to use one
+// source file in two python extensions that can be built concurrently).
+template <>
+inline std::unique_ptr<std::string> construct<std::string>(PyObject* obj)
+{
+  char* chars;
+  Py_ssize_t len;
+  if (PyString_AsStringAndSize(obj, &chars, &len) < 0) {
+    PyErr_Print();
+    PyErr_Format(
+        PyExc_TypeError,
+        "Cannot construct std::string from a non-string object");
+
+    return nullptr;
+  }
+
+  return std::unique_ptr<std::string>(new std::string(chars, len));
+}
+
+
+template <typename T>
+std::unique_ptr<std::vector<T>> constructFromIterable(PyObject* iterable)
+{
+  PyObject* pyIterator = PyObject_GetIter(iterable);
+  if (pyIterator == nullptr) {
+    PyErr_Format(
+      PyExc_TypeError,
+      "Cannot construct std::vector from a non-iterable object");
+    return nullptr;
+  }
+
+  std::unique_ptr<std::vector<T>> result(new std::vector<T>());
+
+  PyObject* pyItem;
+
+  while ((pyItem = PyIter_Next(pyIterator)) != nullptr) {
+    std::unique_ptr<T> item = construct<T>(pyItem);
+    if (!item) {
+      // An exception has already been set by construct<>().
+      Py_DECREF(pyItem);
+      Py_DECREF(pyIterator);
+      return nullptr;
+    }
+
+    result->emplace_back(std::move(*item));
+    Py_DECREF(pyItem);
+  }
+
+  Py_DECREF(pyIterator);
+
+  if (PyErr_Occurred() != nullptr) {
+    return nullptr;
+  }
+
+  return result;
+}
+
+
 
 } // namespace python {
 } // namespace mesos {
