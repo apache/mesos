@@ -37,7 +37,7 @@ Quota createQuota(const string& guarantees, const string& limits)
 
 Quota createQuota(const string& resources)
 {
-  return createQuota(guarantees, limits);
+  return createQuota(resources, resources);
 }
 
 
