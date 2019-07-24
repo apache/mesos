@@ -111,10 +111,13 @@ PyObject* MesosSchedulerDriverImpl_declineOffer(
     MesosSchedulerDriverImpl* self,
     PyObject* args);
 
-PyObject* MesosSchedulerDriverImpl_reviveOffers(MesosSchedulerDriverImpl* self);
+PyObject* MesosSchedulerDriverImpl_reviveOffers(
+    MesosSchedulerDriverImpl* self,
+    PyObject* pyRoles);
 
 PyObject* MesosSchedulerDriverImpl_suppressOffers(
-    MesosSchedulerDriverImpl* self);
+    MesosSchedulerDriverImpl* self,
+    PyObject* pyRoles);
 
 PyObject* MesosSchedulerDriverImpl_acknowledgeStatusUpdate(
     MesosSchedulerDriverImpl* self,
@@ -125,6 +128,10 @@ PyObject* MesosSchedulerDriverImpl_sendFrameworkMessage(
     PyObject* args);
 
 PyObject* MesosSchedulerDriverImpl_reconcileTasks(
+    MesosSchedulerDriverImpl* self,
+    PyObject* args);
+
+PyObject* MesosSchedulerDriverImpl_updateFramework(
     MesosSchedulerDriverImpl* self,
     PyObject* args);
 

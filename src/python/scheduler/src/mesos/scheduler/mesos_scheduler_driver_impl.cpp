@@ -32,6 +32,7 @@ using std::endl;
 using std::string;
 using std::vector;
 using std::map;
+using std::unique_ptr;
 
 namespace mesos {
 namespace python {
@@ -138,13 +139,13 @@ PyMethodDef MesosSchedulerDriverImpl_methods[] = {
   },
   { "reviveOffers",
     (PyCFunction) MesosSchedulerDriverImpl_reviveOffers,
-    METH_NOARGS,
-    "Remove all filters and ask Mesos for new offers"
+    METH_VARARGS,
+    "Remove all filters, unsuppress and ask Mesos for new offers for the roles"
   },
   { "suppressOffers",
     (PyCFunction) MesosSchedulerDriverImpl_suppressOffers,
-    METH_NOARGS,
-    "Set suppressed attribute as true for the Framework"
+    METH_VARARGS,
+    "Set suppressed roles for the Framework"
   },
   { "acknowledgeStatusUpdate",
     (PyCFunction) MesosSchedulerDriverImpl_acknowledgeStatusUpdate,
@@ -160,6 +161,11 @@ PyMethodDef MesosSchedulerDriverImpl_methods[] = {
     (PyCFunction) MesosSchedulerDriverImpl_reconcileTasks,
     METH_VARARGS,
     "Master sends status updates if task status is different from expected"
+  },
+  { "updateFramework",
+    (PyCFunction) MesosSchedulerDriverImpl_updateFramework,
+    METH_VARARGS,
+    "Updates FrameworkInfo and suppressed roles"
   },
   { nullptr }  /* Sentinel */
 };
@@ -198,15 +204,17 @@ int MesosSchedulerDriverImpl_init(MesosSchedulerDriverImpl* self,
   const char* master;
   int implicitAcknowledgements = 1; // Enabled by default.
   PyObject* credentialObj = nullptr;
+  PyObject* suppressedRolesObj = nullptr;
 
   if (!PyArg_ParseTuple(
       args,
-      "OOs|iO",
+      "OOs|iOO",
       &schedulerObj,
       &frameworkObj,
       &master,
       &implicitAcknowledgements,
-      &credentialObj)) {
+      &credentialObj,
+      &suppressedRolesObj)) {
     return -1;
   }
 
@@ -234,6 +242,14 @@ int MesosSchedulerDriverImpl_init(MesosSchedulerDriverImpl* self,
     }
   }
 
+  unique_ptr<vector<string>> suppressedRoles;
+  if (suppressedRolesObj != nullptr && suppressedRolesObj != Py_None) {
+    suppressedRoles = constructFromIterable<string>(suppressedRolesObj);
+    if (!suppressedRoles) {
+      // Exception has been set by constructFromIterable
+      return -1;
+    }
+  }
 
   if (self->driver != nullptr) {
     delete self->driver;
@@ -251,6 +267,7 @@ int MesosSchedulerDriverImpl_init(MesosSchedulerDriverImpl* self,
     self->driver = new MesosSchedulerDriver(
         self->proxyScheduler,
         framework,
+        suppressedRoles ? *suppressedRoles : vector<string>{},
         master,
         implicitAcknowledgements != 0,
         credential);
@@ -258,6 +275,7 @@ int MesosSchedulerDriverImpl_init(MesosSchedulerDriverImpl* self,
     self->driver = new MesosSchedulerDriver(
         self->proxyScheduler,
         framework,
+        suppressedRoles ? *suppressedRoles : vector<string>{},
         master,
         implicitAcknowledgements != 0);
   }
@@ -645,27 +663,64 @@ PyObject* MesosSchedulerDriverImpl_declineOffer(MesosSchedulerDriverImpl* self,
 }
 
 
-PyObject* MesosSchedulerDriverImpl_reviveOffers(MesosSchedulerDriverImpl* self)
+PyObject* MesosSchedulerDriverImpl_reviveOffers(
+    MesosSchedulerDriverImpl* self,
+    PyObject* args)
 {
+  PyObject* rolesObj = nullptr;
+  if (!PyArg_ParseTuple(args, "|O", &rolesObj)) {
+    return nullptr;
+  }
+
   if (self->driver == nullptr) {
     PyErr_Format(PyExc_Exception, "MesosSchedulerDriverImpl.driver is nullptr");
     return nullptr;
   }
 
-  Status status = self->driver->reviveOffers();
-  return PyInt_FromLong(status); // Sets exception if creating long fails.
+  Status status;
+
+  if (rolesObj == nullptr || rolesObj == Py_None) {
+    status = self->driver->reviveOffers();
+  } else {
+    unique_ptr<vector<string>> roles = constructFromIterable<string>(rolesObj);
+    if (!roles) {
+      return nullptr;
+    }
+
+    status = self->driver->reviveOffers(*roles);
+  }
+
+  return PyInt_FromLong(status);
 }
 
 
 PyObject* MesosSchedulerDriverImpl_suppressOffers(
-    MesosSchedulerDriverImpl* self)
+    MesosSchedulerDriverImpl* self,
+    PyObject* args)
 {
+  PyObject* rolesObj = nullptr;
+  if (!PyArg_ParseTuple(args, "|O", &rolesObj)) {
+    return nullptr;
+  }
+
   if (self->driver == nullptr) {
     PyErr_Format(PyExc_Exception, "MesosSchedulerDriverImpl.driver is nullptr");
     return nullptr;
   }
 
-  Status status = self->driver->suppressOffers();
+  Status status;
+
+  if (rolesObj == nullptr || rolesObj == Py_None) {
+    status = self->driver->suppressOffers();
+  } else {
+    unique_ptr<vector<string>> roles = constructFromIterable<string>(rolesObj);
+    if (!roles) {
+      return nullptr;
+    }
+
+    status = self->driver->suppressOffers(*roles);
+  }
+
   return PyInt_FromLong(status); // Sets exception if creating long fails.
 }
 
@@ -777,6 +832,37 @@ PyObject* MesosSchedulerDriverImpl_reconcileTasks(
   Status status = self->driver->reconcileTasks(statuses);
   return PyInt_FromLong(status);
 }
+
+
+PyObject* MesosSchedulerDriverImpl_updateFramework(
+    MesosSchedulerDriverImpl* self,
+    PyObject* args)
+{
+  PyObject* frameworkObj = nullptr;
+  PyObject* suppressedRolesObj = nullptr;
+
+  if (!PyArg_ParseTuple(args, "OO", &frameworkObj, &suppressedRolesObj)) {
+    return nullptr;
+  }
+
+  FrameworkInfo framework;
+  if (!readPythonProtobuf(frameworkObj, &framework)) {
+    PyErr_Format(PyExc_Exception,
+                 "Could not deserialize Python FrameworkInfo");
+    return nullptr;
+  }
+
+  unique_ptr<vector<string>> suppressedRoles;
+  suppressedRoles = constructFromIterable<string>(suppressedRolesObj);
+  if (!suppressedRoles) {
+    // Exception has been set by constructFromIterable
+    return nullptr;
+  }
+
+  Status status = self->driver->updateFramework(framework, *suppressedRoles);
+  return PyInt_FromLong(status);
+}
+
 
 } // namespace python {
 } // namespace mesos {
