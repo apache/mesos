@@ -263,7 +263,8 @@ set(CSI_SRC
   csi/volume_manager.cpp)
 
 set(DOCKER_SRC
-  docker/docker.cpp)
+  docker/docker.cpp
+  docker/executor.cpp)
 
 if (NOT WIN32)
   list(APPEND DOCKER_SRC
@@ -644,7 +645,6 @@ endif ()
 ##############################
 add_subdirectory(checks)
 add_subdirectory(cli)
-add_subdirectory(docker)
 add_subdirectory(examples)
 add_subdirectory(launcher)
 add_subdirectory(local)
