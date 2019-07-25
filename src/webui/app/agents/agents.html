@@ -13,6 +13,7 @@
     <tr>
       <th data-key="id">ID</th>
       <th data-key="hostname">Host</th>
+      <th data-key="draining">State</th>
       <th data-key="resources.cpus">CPUs (Allocated / Total)</th>
       <th data-key="resources.gpus">GPUs (Allocated / Total)</th>
       <th data-key="resources.mem">Mem (Allocated / Total)</th>
@@ -34,6 +35,7 @@
       </button>
     </td>
     <td>{{agent.hostname}}</td>
+    <td>{{agent.state}}</td>
     <td>
       {{agent.used_resources.cpus | number}} / {{agent.resources.cpus | number}}
     </td>

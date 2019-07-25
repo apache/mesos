@@ -198,6 +198,17 @@
     $scope.unreachable_agents = $scope.state.unreachable_slaves;
 
     _.each($scope.state.slaves, function(agent) {
+      // Calculate the agent "state" from activation and drain state.
+      if (!agent.deactivated) {
+        agent.state = "Active";
+      } else if (agent.drain_info) {
+        // Transform the drain state so only the first letter is capitalized.
+        var s = agent.drain_info.state;
+        agent.state = s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+      } else {
+        agent.state = "Deactivated";
+      }
+
       $scope.agents[agent.id] = agent;
       $scope.total_cpus += agent.resources.cpus;
       $scope.total_gpus += agent.resources.gpus;

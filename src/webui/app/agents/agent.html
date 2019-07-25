@@ -56,6 +56,16 @@
         </span>
       </p>
 
+      <span ng-if="agent.drain_config">
+        <h4>Draining</h4>
+        <dl class="inline clearfix">
+          <dt>Mark gone:</dt>
+          <dd>{{agent.drain_config.mark_gone}}</dd>
+          <dt>Max. grace period:</dt>
+          <dd>{{agent.drain_config.max_grace_period.nanoseconds / 1000000000}} seconds</dd>
+        </dl>
+      </span>
+
       <h4>Tasks</h4>
       <table class="table table-condensed">
         <tbody>
