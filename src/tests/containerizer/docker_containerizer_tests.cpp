@@ -20,6 +20,8 @@
 
 #include <mesos/slave/container_logger.hpp>
 
+#include <mesos/v1/mesos.hpp>
+
 #include <process/collect.hpp>
 #include <process/future.hpp>
 #include <process/gmock.hpp>
@@ -5238,6 +5240,176 @@ TEST_F(HungDockerTest, ROOT_DOCKER_InspectHungDuringPull)
 
   driver.stop();
   driver.join();
+}
+
+
+// This test is disabled on windows due to the bash-specific
+// command used in the task below.
+TEST_F_TEMP_DISABLED_ON_WINDOWS(
+    DockerContainerizerTest, ROOT_DOCKER_OverrideKillPolicy)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  MockDocker* mockDocker =
+    new MockDocker(tests::flags.docker, tests::flags.docker_socket);
+
+  Shared<Docker> docker(mockDocker);
+
+  slave::Flags flags = CreateSlaveFlags();
+
+  Fetcher fetcher(flags);
+
+  Try<ContainerLogger*> logger =
+    ContainerLogger::create(flags.container_logger);
+
+  ASSERT_SOME(logger);
+
+  Future<SlaveRegisteredMessage> slaveRegisteredMessage =
+    FUTURE_PROTOBUF(SlaveRegisteredMessage(), _, _);
+
+  MockDockerContainerizer dockerContainerizer(
+      flags,
+      &fetcher,
+      Owned<ContainerLogger>(logger.get()),
+      docker);
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+
+  Try<Owned<cluster::Slave>> slave =
+    StartSlave(detector.get(), &dockerContainerizer, flags);
+  ASSERT_SOME(slave);
+
+  AWAIT_READY(slaveRegisteredMessage);
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(v1::scheduler::SendSubscribe(v1::DEFAULT_FRAMEWORK_INFO));
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(subscribed);
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+
+  const v1::Offer& offer = offers->offers(0);
+  const v1::AgentID& agentId = offer.agent_id();
+
+  Try<v1::Resources> parsed =
+    v1::Resources::parse("cpus:0.1;mem:32;disk:32");
+
+  ASSERT_SOME(parsed);
+
+  v1::Resources resources = parsed.get();
+
+  // Create a task which ignores SIGTERM so that we can detect
+  // when the task receives SIGKILL.
+  v1::TaskInfo taskInfo = v1::createTask(
+      agentId,
+      resources,
+      "trap \"echo 'SIGTERM received'\" SIGTERM; sleep 999999");
+
+  // TODO(tnachen): Use local image to test if possible.
+  taskInfo.mutable_container()->CopyFrom(
+      evolve(createDockerInfo(DOCKER_TEST_IMAGE)));
+
+  {
+    // Set a long grace period on the task's kill policy so that we
+    // can detect if the override is effective.
+    mesos::v1::DurationInfo gracePeriod;
+    gracePeriod.set_nanoseconds(Minutes(10).ns());
+
+    mesos::v1::KillPolicy killPolicy;
+    killPolicy.mutable_grace_period()->CopyFrom(gracePeriod);
+
+    taskInfo.mutable_kill_policy()->CopyFrom(killPolicy);
+  }
+
+  Future<ContainerID> containerId;
+  EXPECT_CALL(dockerContainerizer, launch(_, _, _, _))
+    .WillOnce(DoAll(FutureArg<0>(&containerId),
+                    Invoke(&dockerContainerizer,
+                           &MockDockerContainerizer::_launch)));
+
+  Future<v1::scheduler::Event::Update> startingUpdate;
+  Future<v1::scheduler::Event::Update> runningUpdate;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(DoAll(
+        FutureArg<1>(&startingUpdate),
+        v1::scheduler::SendAcknowledge(frameworkId, agentId)))
+    .WillOnce(DoAll(
+        FutureArg<1>(&runningUpdate),
+        v1::scheduler::SendAcknowledge(frameworkId, agentId)));
+
+  mesos.send(
+      v1::createCallAccept(
+          frameworkId,
+          offer,
+          {v1::LAUNCH({taskInfo})}));
+
+  AWAIT_READY_FOR(containerId, Seconds(60));
+  AWAIT_READY_FOR(startingUpdate, Seconds(60));
+  EXPECT_EQ(v1::TASK_STARTING, startingUpdate->status().state());
+  AWAIT_READY_FOR(runningUpdate, Seconds(60));
+  EXPECT_EQ(v1::TASK_RUNNING, runningUpdate->status().state());
+
+  ASSERT_TRUE(
+    exists(docker, containerId.get(), ContainerState::RUNNING));
+
+  Future<v1::scheduler::Event::Update> killedUpdate;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(FutureArg<1>(&killedUpdate));
+
+  Future<Option<ContainerTermination>> termination =
+    dockerContainerizer.wait(containerId.get());
+
+  {
+    // Set a short grace period on the kill call so that we
+    // can detect if the override is effective.
+    mesos::v1::DurationInfo gracePeriod;
+    gracePeriod.set_nanoseconds(100);
+
+    mesos::v1::KillPolicy killPolicy;
+    killPolicy.mutable_grace_period()->CopyFrom(gracePeriod);
+
+    mesos.send(
+        v1::createCallKill(
+            frameworkId,
+            taskInfo.task_id(),
+            agentId,
+            killPolicy));
+  }
+
+  AWAIT_READY(killedUpdate);
+  EXPECT_EQ(v1::TASK_KILLED, killedUpdate->status().state());
+
+  AWAIT_READY(termination);
+  EXPECT_SOME(termination.get());
+
+  // Even though the task is killed, the executor should exit gracefully.
+  ASSERT_TRUE(termination.get()->has_status());
+  EXPECT_EQ(0, termination.get()->status());
+
+  ASSERT_FALSE(
+      exists(docker, containerId.get(), ContainerState::RUNNING, false));
 }
 
 } // namespace tests {
