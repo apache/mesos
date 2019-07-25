@@ -151,6 +151,11 @@ public:
 
   void error(ExecutorDriver* driver, const std::string& data) override;
 
+  void killTask(
+      ExecutorDriver* driver,
+      const TaskID& taskId,
+      const Option<KillPolicy>& killPolicyOverride);
+
 private:
   process::Owned<DockerExecutorProcess> process;
 };

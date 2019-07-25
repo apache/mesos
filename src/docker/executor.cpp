@@ -396,15 +396,31 @@ public:
         defer(self(), &Self::launchHealthCheck, containerName, task));
   }
 
-  void killTask(ExecutorDriver* driver, const TaskID& taskId)
+  void killTask(
+      ExecutorDriver* driver,
+      const TaskID& taskId,
+      const Option<KillPolicy>& killPolicyOverride = None())
   {
-    LOG(INFO) << "Received killTask for task " << taskId.value();
+    string overrideMessage = "";
+    if (killPolicyOverride.isSome() && killPolicyOverride->has_grace_period()) {
+      Duration gracePeriodDuration =
+        Nanoseconds(killPolicyOverride->grace_period().nanoseconds());
+
+      overrideMessage =
+        " with grace period override of " + stringify(gracePeriodDuration);
+    }
+
+    LOG(INFO) << "Received killTask" << overrideMessage
+              << " for task " << taskId.value();
 
     // Using shutdown grace period as a default is backwards compatible
     // with the `stop_timeout` flag, deprecated in 1.0.
     Duration gracePeriod = shutdownGracePeriod;
 
-    if (killPolicy.isSome() && killPolicy->has_grace_period()) {
+    if (killPolicyOverride.isSome() && killPolicyOverride->has_grace_period()) {
+      gracePeriod =
+        Nanoseconds(killPolicyOverride->grace_period().nanoseconds());
+    } else if (killPolicy.isSome() && killPolicy->has_grace_period()) {
       gracePeriod = Nanoseconds(killPolicy->grace_period().nanoseconds());
     }
 
@@ -929,7 +945,12 @@ void DockerExecutor::launchTask(ExecutorDriver* driver, const TaskInfo& task)
 
 void DockerExecutor::killTask(ExecutorDriver* driver, const TaskID& taskId)
 {
-  dispatch(process.get(), &DockerExecutorProcess::killTask, driver, taskId);
+  // Need to disambiguate overloaded function.
+  void (DockerExecutorProcess::*killTaskMethod)(
+      ExecutorDriver*, const TaskID&, const Option<KillPolicy>&)
+    = &DockerExecutorProcess::killTask;
+
+  process::dispatch(process.get(), killTaskMethod, driver, taskId, None());
 }
 
 
@@ -953,6 +974,25 @@ void DockerExecutor::shutdown(ExecutorDriver* driver)
 void DockerExecutor::error(ExecutorDriver* driver, const string& data)
 {
   dispatch(process.get(), &DockerExecutorProcess::error, driver, data);
+}
+
+
+void DockerExecutor::killTask(
+    ExecutorDriver* driver,
+    const TaskID& taskId,
+    const Option<KillPolicy>& killPolicyOverride)
+{
+  // Need to disambiguate overloaded function.
+  void (DockerExecutorProcess::*killTaskMethod)(
+      ExecutorDriver*, const TaskID&, const Option<KillPolicy>&)
+    = &DockerExecutorProcess::killTask;
+
+  process::dispatch(
+      process.get(),
+      killTaskMethod,
+      driver,
+      taskId,
+      killPolicyOverride);
 }
 
 } // namespace docker {

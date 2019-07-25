@@ -47,6 +47,8 @@
 
 #include "common/protobuf_utils.hpp"
 
+#include "docker/executor.hpp"
+
 #include "logging/flags.hpp"
 #include "logging/logging.hpp"
 
@@ -183,8 +185,7 @@ public:
         &RunTaskMessage::task);
 
     install<KillTaskMessage>(
-        &ExecutorProcess::killTask,
-        &KillTaskMessage::task_id);
+        &ExecutorProcess::killTask);
 
     install<StatusUpdateAcknowledgementMessage>(
         &ExecutorProcess::statusUpdateAcknowledgement,
@@ -339,8 +340,10 @@ protected:
     VLOG(1) << "Executor::launchTask took " << stopwatch.elapsed();
   }
 
-  void killTask(const TaskID& taskId)
+  void killTask(KillTaskMessage&& killTaskMessage)
   {
+    const TaskID taskId = killTaskMessage.task_id();
+
     if (aborted.load()) {
       VLOG(1) << "Ignoring kill task message for task " << taskId
               << " because the driver is aborted!";
@@ -365,7 +368,18 @@ protected:
       stopwatch.start();
     }
 
-    executor->killTask(driver, taskId);
+    // If this is a Docker executor, call the `killTask()` overload which
+    // allows the kill policy to be overridden.
+    auto* dockerExecutor = dynamic_cast<docker::DockerExecutor*>(executor);
+    if (dockerExecutor) {
+      Option<KillPolicy> killPolicy = killTaskMessage.has_kill_policy()
+        ? killTaskMessage.kill_policy()
+        : Option<KillPolicy>::none();
+
+      dockerExecutor->killTask(driver, taskId, killPolicy);
+    } else {
+      executor->killTask(driver, taskId);
+    }
 
     VLOG(1) << "Executor::killTask took " << stopwatch.elapsed();
   }
