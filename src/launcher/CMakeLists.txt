@@ -24,3 +24,8 @@ target_link_libraries(mesos-executor PRIVATE mesos)
 
 add_executable(mesos-fetcher fetcher.cpp)
 target_link_libraries(mesos-fetcher PRIVATE mesos)
+
+# THE DOCKER EXECUTOR EXECUTABLE.
+#################################
+add_executable(mesos-docker-executor docker_executor.cpp)
+target_link_libraries(mesos-docker-executor PRIVATE mesos)
