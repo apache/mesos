@@ -992,6 +992,7 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   common/validation.cpp							\
   common/values.cpp							\
   docker/docker.cpp							\
+  docker/executor.cpp							\
   docker/spec.cpp							\
   exec/exec.cpp								\
   executor/executor.cpp							\
@@ -1762,7 +1763,7 @@ mesos_usage_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_usage_LDADD = libmesos.la $(LDADD)
 
 pkglibexec_PROGRAMS += mesos-docker-executor
-mesos_docker_executor_SOURCES = docker/executor.cpp
+mesos_docker_executor_SOURCES = launcher/docker_executor.cpp
 mesos_docker_executor_CPPFLAGS = $(MESOS_CPPFLAGS)
 mesos_docker_executor_LDADD = libmesos.la $(LDADD)
 

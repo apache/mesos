@@ -22,9 +22,14 @@
 #include <map>
 #include <string>
 
+#include <mesos/executor.hpp>
+
+#include <process/owned.hpp>
 #include <process/process.hpp>
 
 #include <stout/option.hpp>
+
+#include "docker/docker.hpp"
 
 #include "logging/flags.hpp"
 
@@ -100,6 +105,54 @@ struct Flags : public virtual mesos::internal::logging::Flags
 
   // TODO(alexr): Remove this after the deprecation cycle (started in 1.0).
   Option<Duration> stop_timeout;
+};
+
+
+class DockerExecutorProcess;
+
+
+class DockerExecutor : public Executor
+{
+public:
+  DockerExecutor(
+      const process::Owned<Docker>& docker,
+      const std::string& container,
+      const std::string& sandboxDirectory,
+      const std::string& mappedDirectory,
+      const Duration& shutdownGracePeriod,
+      const std::string& launcherDir,
+      const std::map<std::string, std::string>& taskEnvironment,
+      const Option<ContainerDNSInfo>& defaultContainerDNS,
+      bool cgroupsEnableCfs);
+
+  ~DockerExecutor() override;
+
+  void registered(
+      ExecutorDriver* driver,
+      const ExecutorInfo& executorInfo,
+      const FrameworkInfo& frameworkInfo,
+      const SlaveInfo& slaveInfo) override;
+
+  void reregistered(
+      ExecutorDriver* driver,
+      const SlaveInfo& slaveInfo) override;
+
+  void disconnected(ExecutorDriver* driver) override;
+
+  void launchTask(ExecutorDriver* driver, const TaskInfo& task) override;
+
+  void killTask(ExecutorDriver* driver, const TaskID& taskId) override;
+
+  void frameworkMessage(
+      ExecutorDriver* driver,
+      const std::string& data) override;
+
+  void shutdown(ExecutorDriver* driver) override;
+
+  void error(ExecutorDriver* driver, const std::string& data) override;
+
+private:
+  process::Owned<DockerExecutorProcess> process;
 };
 
 } // namespace docker {
