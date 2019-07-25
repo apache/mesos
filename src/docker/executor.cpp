@@ -810,266 +810,105 @@ private:
 };
 
 
-class DockerExecutor : public Executor
+DockerExecutor::DockerExecutor(
+    const Owned<Docker>& docker,
+    const string& container,
+    const string& sandboxDirectory,
+    const string& mappedDirectory,
+    const Duration& shutdownGracePeriod,
+    const string& launcherDir,
+    const map<string, string>& taskEnvironment,
+    const Option<ContainerDNSInfo>& defaultContainerDNS,
+    bool cgroupsEnableCfs)
 {
-public:
-  DockerExecutor(
-      const Owned<Docker>& docker,
-      const string& container,
-      const string& sandboxDirectory,
-      const string& mappedDirectory,
-      const Duration& shutdownGracePeriod,
-      const string& launcherDir,
-      const map<string, string>& taskEnvironment,
-      const Option<ContainerDNSInfo>& defaultContainerDNS,
-      bool cgroupsEnableCfs)
-  {
-    process = Owned<DockerExecutorProcess>(new DockerExecutorProcess(
-        docker,
-        container,
-        sandboxDirectory,
-        mappedDirectory,
-        shutdownGracePeriod,
-        launcherDir,
-        taskEnvironment,
-        defaultContainerDNS,
-        cgroupsEnableCfs));
+  process = Owned<DockerExecutorProcess>(new DockerExecutorProcess(
+      docker,
+      container,
+      sandboxDirectory,
+      mappedDirectory,
+      shutdownGracePeriod,
+      launcherDir,
+      taskEnvironment,
+      defaultContainerDNS,
+      cgroupsEnableCfs));
 
-    spawn(process.get());
-  }
+  spawn(process.get());
+}
 
-  virtual ~DockerExecutor()
-  {
-    terminate(process.get());
-    wait(process.get());
-  }
 
-  virtual void registered(
-      ExecutorDriver* driver,
-      const ExecutorInfo& executorInfo,
-      const FrameworkInfo& frameworkInfo,
-      const SlaveInfo& slaveInfo)
-  {
-    dispatch(process.get(),
-             &DockerExecutorProcess::registered,
-             driver,
-             executorInfo,
-             frameworkInfo,
-             slaveInfo);
-  }
+DockerExecutor::~DockerExecutor()
+{
+  terminate(process.get());
+  wait(process.get());
+}
 
-  virtual void reregistered(
-      ExecutorDriver* driver,
-      const SlaveInfo& slaveInfo)
-  {
-    dispatch(process.get(),
-             &DockerExecutorProcess::reregistered,
-             driver,
-             slaveInfo);
-  }
 
-  virtual void disconnected(ExecutorDriver* driver)
-  {
-    dispatch(process.get(), &DockerExecutorProcess::disconnected, driver);
-  }
+void DockerExecutor::registered(
+    ExecutorDriver* driver,
+    const ExecutorInfo& executorInfo,
+    const FrameworkInfo& frameworkInfo,
+    const SlaveInfo& slaveInfo)
+{
+  dispatch(process.get(),
+           &DockerExecutorProcess::registered,
+           driver,
+           executorInfo,
+           frameworkInfo,
+           slaveInfo);
+}
 
-  virtual void launchTask(ExecutorDriver* driver, const TaskInfo& task)
-  {
-    dispatch(process.get(), &DockerExecutorProcess::launchTask, driver, task);
-  }
 
-  virtual void killTask(ExecutorDriver* driver, const TaskID& taskId)
-  {
-    dispatch(process.get(), &DockerExecutorProcess::killTask, driver, taskId);
-  }
+void DockerExecutor::reregistered(
+    ExecutorDriver* driver,
+    const SlaveInfo& slaveInfo)
+{
+  dispatch(process.get(),
+           &DockerExecutorProcess::reregistered,
+           driver,
+           slaveInfo);
+}
 
-  virtual void frameworkMessage(ExecutorDriver* driver, const string& data)
-  {
-    dispatch(process.get(),
-             &DockerExecutorProcess::frameworkMessage,
-             driver,
-             data);
-  }
 
-  virtual void shutdown(ExecutorDriver* driver)
-  {
-    dispatch(process.get(), &DockerExecutorProcess::shutdown, driver);
-  }
+void DockerExecutor::disconnected(ExecutorDriver* driver)
+{
+  dispatch(process.get(), &DockerExecutorProcess::disconnected, driver);
+}
 
-  virtual void error(ExecutorDriver* driver, const string& data)
-  {
-    dispatch(process.get(), &DockerExecutorProcess::error, driver, data);
-  }
 
-private:
-  Owned<DockerExecutorProcess> process;
-};
+void DockerExecutor::launchTask(ExecutorDriver* driver, const TaskInfo& task)
+{
+  dispatch(process.get(), &DockerExecutorProcess::launchTask, driver, task);
+}
 
+
+void DockerExecutor::killTask(ExecutorDriver* driver, const TaskID& taskId)
+{
+  dispatch(process.get(), &DockerExecutorProcess::killTask, driver, taskId);
+}
+
+
+void DockerExecutor::frameworkMessage(
+    ExecutorDriver* driver,
+    const string& data)
+{
+  dispatch(process.get(),
+           &DockerExecutorProcess::frameworkMessage,
+           driver,
+           data);
+}
+
+
+void DockerExecutor::shutdown(ExecutorDriver* driver)
+{
+  dispatch(process.get(), &DockerExecutorProcess::shutdown, driver);
+}
+
+
+void DockerExecutor::error(ExecutorDriver* driver, const string& data)
+{
+  dispatch(process.get(), &DockerExecutorProcess::error, driver, data);
+}
 
 } // namespace docker {
 } // namespace internal {
 } // namespace mesos {
-
-
-int main(int argc, char** argv)
-{
-  GOOGLE_PROTOBUF_VERIFY_VERSION;
-
-  mesos::internal::docker::Flags flags;
-
-  // Load flags from environment and command line.
-  Try<flags::Warnings> load = flags.load(None(), &argc, &argv);
-
-  if (flags.help) {
-    cout << flags.usage() << endl;
-    return EXIT_SUCCESS;
-  }
-
-  if (load.isError()) {
-    cerr << flags.usage(load.error()) << endl;
-    return EXIT_FAILURE;
-  }
-
-  mesos::internal::logging::initialize(argv[0], true, flags); // Catch signals.
-
-  // Log any flag warnings (after logging is initialized).
-  foreach (const flags::Warning& warning, load->warnings) {
-    LOG(WARNING) << warning.message;
-  }
-
-  VLOG(1) << stringify(flags);
-
-  if (flags.docker.isNone()) {
-    EXIT(EXIT_FAILURE) << flags.usage("Missing required option --docker");
-  }
-
-  if (flags.container.isNone()) {
-    EXIT(EXIT_FAILURE) << flags.usage("Missing required option --container");
-  }
-
-  if (flags.sandbox_directory.isNone()) {
-    EXIT(EXIT_FAILURE)
-      << flags.usage("Missing required option --sandbox_directory");
-  }
-
-  if (flags.mapped_directory.isNone()) {
-    EXIT(EXIT_FAILURE)
-      << flags.usage("Missing required option --mapped_directory");
-  }
-
-  map<string, string> taskEnvironment;
-  if (flags.task_environment.isSome()) {
-    // Parse the string as JSON.
-    Try<JSON::Object> json =
-      JSON::parse<JSON::Object>(flags.task_environment.get());
-
-    if (json.isError()) {
-      EXIT(EXIT_FAILURE)
-        << flags.usage("Failed to parse --task_environment: " + json.error());
-    }
-
-    // Convert from JSON to map.
-    foreachpair (
-        const string& key,
-        const JSON::Value& value,
-        json->values) {
-      if (!value.is<JSON::String>()) {
-        EXIT(EXIT_FAILURE) << flags.usage(
-            "Value of key '" + key + "' in --task_environment is not a string");
-      }
-
-      // Save the parsed and validated key/value.
-      taskEnvironment[key] = value.as<JSON::String>().value;
-    }
-  }
-
-  Option<mesos::internal::ContainerDNSInfo> defaultContainerDNS;
-  if (flags.default_container_dns.isSome()) {
-    Try<mesos::internal::ContainerDNSInfo> parse =
-      flags::parse<mesos::internal::ContainerDNSInfo>(
-          flags.default_container_dns.get());
-
-    if (parse.isError()) {
-      EXIT(EXIT_FAILURE) << flags.usage(
-          "Failed to parse --default_container_dns: " + parse.error());
-    }
-
-    defaultContainerDNS = parse.get();
-  }
-
-  // Get executor shutdown grace period from the environment.
-  //
-  // NOTE: We avoided introducing a docker executor flag for this
-  // because the docker executor exits if it sees an unknown flag.
-  // This makes it difficult to add or remove docker executor flags
-  // that are unconditionally set by the agent.
-  Duration shutdownGracePeriod =
-    mesos::internal::slave::DEFAULT_EXECUTOR_SHUTDOWN_GRACE_PERIOD;
-  Option<string> value = os::getenv("MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD");
-  if (value.isSome()) {
-    Try<Duration> parse = Duration::parse(value.get());
-    if (parse.isError()) {
-      EXIT(EXIT_FAILURE)
-        << "Failed to parse value '" << value.get() << "'"
-        << " of 'MESOS_EXECUTOR_SHUTDOWN_GRACE_PERIOD': " << parse.error();
-    }
-
-    shutdownGracePeriod = parse.get();
-  }
-
-  // If the deprecated flag is set, respect it and choose the bigger value.
-  //
-  // TODO(alexr): Remove this after the deprecation cycle (started in 1.0).
-  if (flags.stop_timeout.isSome() &&
-      flags.stop_timeout.get() > shutdownGracePeriod) {
-    shutdownGracePeriod = flags.stop_timeout.get();
-  }
-
-  if (flags.launcher_dir.isNone()) {
-    EXIT(EXIT_FAILURE) << flags.usage("Missing required option --launcher_dir");
-  }
-
-  process::initialize();
-
-  // The 2nd argument for docker create is set to false so we skip
-  // validation when creating a docker abstraction, as the slave
-  // should have already validated docker.
-  Try<Owned<Docker>> docker = Docker::create(
-      flags.docker.get(),
-      flags.docker_socket.get(),
-      false);
-
-  if (docker.isError()) {
-    EXIT(EXIT_FAILURE)
-      << "Unable to create docker abstraction: " << docker.error();
-  }
-
-  Owned<mesos::internal::docker::DockerExecutor> executor(
-      new mesos::internal::docker::DockerExecutor(
-          docker.get(),
-          flags.container.get(),
-          flags.sandbox_directory.get(),
-          flags.mapped_directory.get(),
-          shutdownGracePeriod,
-          flags.launcher_dir.get(),
-          taskEnvironment,
-          defaultContainerDNS,
-          flags.cgroups_enable_cfs));
-
-  Owned<mesos::MesosExecutorDriver> driver(
-      new mesos::MesosExecutorDriver(executor.get()));
-
-  bool success = driver->run() == mesos::DRIVER_STOPPED;
-
-  // NOTE: We need to delete the executor and driver before we call
-  // `process::finalize` because the executor/driver will try to terminate
-  // and wait on a libprocess actor in their destructor.
-  driver.reset();
-  executor.reset();
-
-  // NOTE: We need to finalize libprocess, on Windows especially,
-  // as any binary that uses the networking stack on Windows must
-  // also clean up the networking stack before exiting.
-  process::finalize(true);
-  return success ? EXIT_SUCCESS : EXIT_FAILURE;
-}

@@ -212,6 +212,7 @@ set(COMMON_SRC
 
 set(DOCKER_SRC
   docker/docker.cpp
+  docker/executor.cpp
   docker/spec.cpp)
 
 set(EXECUTOR_SRC
@@ -519,7 +520,6 @@ endif ()
 ##############################
 add_subdirectory(checks)
 add_subdirectory(cli)
-add_subdirectory(docker)
 add_subdirectory(examples)
 add_subdirectory(launcher)
 add_subdirectory(local)
