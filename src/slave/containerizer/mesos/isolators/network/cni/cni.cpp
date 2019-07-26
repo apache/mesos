@@ -2217,7 +2217,7 @@ int NetworkCniIsolatorSetup::execute()
         Try<Nothing> touch = os::touch(target);
         if (touch.isError()) {
           cerr << "Failed to create the mount point '" << target
-               << "' in the container filesystem" << endl;
+               << "' in the container filesystem: " << touch.error() << endl;
           return EXIT_FAILURE;
         }
       } else if (os::stat::islink(target)) {
@@ -2231,7 +2231,7 @@ int NetworkCniIsolatorSetup::execute()
         Try<Nothing> touch = os::touch(target);
         if (touch.isError()) {
           cerr << "Failed to create the mount point '" << target
-               << "' in the container filesystem" << endl;
+               << "' in the container filesystem: " << touch.error() << endl;
           return EXIT_FAILURE;
         }
       }
