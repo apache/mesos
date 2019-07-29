@@ -47,7 +47,9 @@ parallel(centos7: {
     }
 
     archiveArtifacts artifacts: '**/*.rpm', fingerprint: true
-    uploadToBintray('*.rpm')
+    if (params.UPLOAD_TO_BINTRAY == "true") {
+      uploadToBintray('*.rpm')
+    }
   }
 },
 centos6: {
@@ -67,6 +69,8 @@ centos6: {
     }
 
     archiveArtifacts artifacts: '**/*.rpm', fingerprint: true
-    uploadToBintray('*.rpm')
+    if (params.UPLOAD_TO_BINTRAY == "true") {
+      uploadToBintray('*.rpm')
+    }
   }
 })
