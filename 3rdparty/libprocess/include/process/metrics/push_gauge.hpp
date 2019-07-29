@@ -58,7 +58,7 @@ public:
     return static_cast<double>(data->value.load());
   }
 
-  PushGauge& operator=(int64_t v)
+  PushGauge& operator=(double v)
   {
     data->value.store(v);
     push(v);
@@ -67,18 +67,36 @@ public:
 
   PushGauge& operator++() { return *this += 1; }
 
-  PushGauge& operator+=(int64_t v)
+  PushGauge& operator+=(double v)
   {
-    int64_t prev = data->value.fetch_add(v);
+    double prev;
+
+    while (true) {
+      prev = data->value.load();
+
+      if (data->value.compare_exchange_weak(prev, prev + v)) {
+        break;
+      }
+    }
+
     push(static_cast<double>(prev + v));
     return *this;
   }
 
   PushGauge& operator--() { return *this -= 1; }
 
-  PushGauge& operator-=(int64_t v)
+  PushGauge& operator-=(double v)
   {
-    int64_t prev = data->value.fetch_sub(v);
+    double prev;
+
+    while (true) {
+      prev = data->value.load();
+
+      if (data->value.compare_exchange_weak(prev, prev - v)) {
+        break;
+      }
+    }
+
     push(static_cast<double>(prev - v));
     return *this;
   }
@@ -88,7 +106,7 @@ private:
   {
     explicit Data() : value(0) {}
 
-    std::atomic<int64_t> value;
+    std::atomic<double> value;
   };
 
   std::shared_ptr<Data> data;
