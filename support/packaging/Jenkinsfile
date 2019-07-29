@@ -31,7 +31,7 @@ def uploadToBintray(def pattern) {
 }
 
 parallel(centos7: {
-  node {
+  node('ubuntu') {
     checkout scm
 
     def img
@@ -53,7 +53,7 @@ parallel(centos7: {
   }
 },
 centos6: {
-  node {
+  node('ubuntu') {
     checkout scm
 
     def img
