@@ -17,6 +17,8 @@
 #include <algorithm>
 #include <string>
 
+#include <google/protobuf/util/message_differencer.h>
+
 #include <stout/gtest.hpp>
 #include <stout/json.hpp>
 #include <stout/jsonify.hpp>
@@ -725,26 +727,27 @@ TEST(ProtobufTest, JsonifyLargeIntegers)
 TEST(ProtobufTest, JsonifyMap)
 {
   tests::MapMessage message;
+  (*message.mutable_string_to_string())["key1"] = "value1";
+  (*message.mutable_string_to_string())["key2"] = "value2";
   (*message.mutable_string_to_bool())["key1"] = true;
   (*message.mutable_string_to_bool())["key2"] = false;
   (*message.mutable_string_to_bytes())["key"] = "bytes";
-  (*message.mutable_string_to_double())["key"] = 1.0;
-  (*message.mutable_string_to_enum())["key"] = tests::ONE;
-  (*message.mutable_string_to_float())["key"] = 1.0;
-  (*message.mutable_string_to_string())["key1"] = "value1";
-  (*message.mutable_string_to_string())["key2"] = "value2";
-
-  tests::Nested nested;
-  nested.set_str("nested");
-  (*message.mutable_string_to_nested())["key"] = nested;
 
   // These numbers are equal or close to the integer limits.
   (*message.mutable_string_to_int32())["key"] = -2147483647;
   (*message.mutable_string_to_int64())["key"] = -9223372036854775807;
-  (*message.mutable_string_to_sint32())["key"] = -1234567890;
-  (*message.mutable_string_to_sint64())["key"] = -1234567890123456789;
   (*message.mutable_string_to_uint32())["key"] = 4294967295;
   (*message.mutable_string_to_uint64())["key"] = 9223372036854775807;
+  (*message.mutable_string_to_sint32())["key"] = -1234567890;
+  (*message.mutable_string_to_sint64())["key"] = -1234567890123456789;
+
+  (*message.mutable_string_to_float())["key"] = 1.0;
+  (*message.mutable_string_to_double())["key"] = 1.0;
+  (*message.mutable_string_to_enum())["key"] = tests::ONE;
+
+  tests::Nested nested;
+  nested.set_str("nested");
+  (*message.mutable_string_to_nested())["key"] = nested;
 
   (*message.mutable_bool_to_string())[true] = "value1";
   (*message.mutable_bool_to_string())[false] = "value2";
@@ -752,16 +755,59 @@ TEST(ProtobufTest, JsonifyMap)
   // These numbers are equal or close to the integer limits.
   (*message.mutable_int32_to_string())[-2147483647] = "value";
   (*message.mutable_int64_to_string())[-9223372036854775807] = "value";
-  (*message.mutable_sint32_to_string())[-1234567890] = "value";
-  (*message.mutable_sint64_to_string())[-1234567890123456789] = "value";
   (*message.mutable_uint32_to_string())[4294967295] = "value";
   (*message.mutable_uint64_to_string())[9223372036854775807] = "value";
+  (*message.mutable_sint32_to_string())[-1234567890] = "value";
+  (*message.mutable_sint64_to_string())[-1234567890123456789] = "value";
 
   // The keys are in alphabetical order.
   // The value of `string_to_bytes` is base64 encoded.
   string expected =
     R"~(
     {
+      "string_to_string": {
+        "key1": "value1",
+        "key2": "value2"
+      },
+      "string_to_bool": {
+        "key1": true,
+        "key2": false
+      },
+      "string_to_bytes": {
+        "key": "Ynl0ZXM="
+      },
+      "string_to_int32": {
+        "key": -2147483647
+      },
+      "string_to_int64": {
+        "key": -9223372036854775807
+      },
+      "string_to_uint32": {
+        "key": 4294967295
+      },
+      "string_to_uint64": {
+        "key": 9223372036854775807
+      },
+      "string_to_sint32": {
+        "key": -1234567890
+      },
+      "string_to_sint64": {
+        "key": -1234567890123456789
+      },
+      "string_to_float": {
+        "key": 1.0
+      },
+      "string_to_double": {
+        "key": 1.0
+      },
+      "string_to_enum": {
+        "key": "ONE"
+      },
+      "string_to_nested": {
+        "key": {
+          "str": "nested"
+        }
+      },
       "bool_to_string": {
         "false": "value2",
         "true": "value1"
@@ -772,75 +818,37 @@ TEST(ProtobufTest, JsonifyMap)
       "int64_to_string": {
         "-9223372036854775807": "value"
       },
-      "sint32_to_string": {
-        "-1234567890": "value"
-      },
-      "sint64_to_string": {
-        "-1234567890123456789": "value"
-      },
-      "string_to_bool": {
-        "key1": true,
-        "key2": false
-      },
-      "string_to_bytes": {
-        "key": "Ynl0ZXM="
-      },
-      "string_to_double": {
-        "key": 1.0
-      },
-      "string_to_enum": {
-        "key": "ONE"
-      },
-      "string_to_float": {
-        "key": 1.0
-      },
-      "string_to_int32": {
-        "key": -2147483647
-      },
-      "string_to_int64": {
-        "key": -9223372036854775807
-      },
-      "string_to_nested": {
-        "key": {
-          "str": "nested"
-        }
-      },
-      "string_to_sint32": {
-        "key": -1234567890
-      },
-      "string_to_sint64": {
-        "key": -1234567890123456789
-      },
-      "string_to_string": {
-        "key1": "value1",
-        "key2": "value2"
-      },
-      "string_to_uint32": {
-        "key": 4294967295
-      },
-      "string_to_uint64": {
-        "key": 9223372036854775807
-      },
       "uint32_to_string": {
         "4294967295": "value"
       },
       "uint64_to_string": {
         "9223372036854775807": "value"
+      },
+      "sint32_to_string": {
+        "-1234567890": "value"
+      },
+      "sint64_to_string": {
+        "-1234567890123456789": "value"
       }
     })~";
 
-  // Remove ' ' and '\n' from `expected` so that we can compare
-  // it with the JSON string parsed from protobuf message.
-  expected.erase(
-      std::remove_if(expected.begin(), expected.end(), ::isspace),
-      expected.end());
+  // Entries within a map have no particular order, so we can't compare
+  // the string directly. Instead we parse the jsonify result back to
+  // a JSON value and compare with the parsed expected value.
+  Try<JSON::Value> jsonExpected = JSON::parse(expected);
+  ASSERT_SOME(jsonExpected);
 
-  JSON::Object object = JSON::protobuf(message);
-  EXPECT_EQ(expected, stringify(object));
+  Try<JSON::Value> jsonActual = JSON::parse(jsonify(JSON::Protobuf(message)));
+  ASSERT_SOME(jsonActual);
 
-  // Test parsing too.
-  Try<tests::MapMessage> parse = protobuf::parse<tests::MapMessage>(object);
-  ASSERT_SOME(parse);
+  EXPECT_EQ(*jsonExpected, *jsonActual);
 
-  EXPECT_EQ(object, JSON::protobuf(parse.get()));
+
+  // Test that we can map the json back to the expected protobuf.
+  Try<tests::MapMessage> protoFromJson =
+    protobuf::parse<tests::MapMessage>(*jsonActual);
+  ASSERT_SOME(protoFromJson);
+
+  EXPECT_TRUE(google::protobuf::util::MessageDifferencer::Equals(
+      message, *protoFromJson));
 }
