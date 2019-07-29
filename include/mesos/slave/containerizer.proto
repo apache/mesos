@@ -71,6 +71,9 @@ message ContainerState {
   // This field only exists for top level containers.
   optional ExecutorInfo executor_info = 1;
 
+  // This field only exists for nested containers and standalone containers.
+  optional ContainerInfo container_info = 6;
+
   // The container Id.
   required ContainerID container_id = 2;
 

@@ -398,6 +398,7 @@ mesos::slave::ContainerLimitation createContainerLimitation(
 
 mesos::slave::ContainerState createContainerState(
     const Option<ExecutorInfo>& executorInfo,
+    const Option<ContainerInfo>& containerInfo,
     const ContainerID& id,
     pid_t pid,
     const std::string& directory);

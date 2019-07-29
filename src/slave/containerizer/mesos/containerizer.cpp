@@ -894,6 +894,7 @@ Future<Nothing> MesosContainerizerProcess::recover(
         ContainerState executorRunState =
           protobuf::slave::createContainerState(
               executorInfo,
+              None(),
               run->id.get(),
               run->forkedPid.get(),
               directory);
@@ -1094,6 +1095,9 @@ Future<Nothing> MesosContainerizerProcess::recover(
       ContainerState state =
         protobuf::slave::createContainerState(
             None(),
+            config.isSome() && config->has_container_info() ?
+                Option<ContainerInfo>(config->container_info()) :
+                Option<ContainerInfo>::none(),
             containerId,
             container->pid.get(),
             container->directory.get());

@@ -539,10 +539,22 @@ Try<Nothing> NetworkCniIsolatorProcess::_recover(
     containerNetwork.ifName = interfaces->front();
 
     if (state.isSome()) {
-      foreach (const mesos::NetworkInfo& networkInfo,
-               state->executor_info().container().network_infos()) {
-        if (networkInfo.name() == networkName) {
-          containerNetwork.networkInfo = networkInfo;
+      if (state->has_executor_info()) {
+        // This is the case that executor container joins CNI network.
+        foreach (const mesos::NetworkInfo& networkInfo,
+                 state->executor_info().container().network_infos()) {
+          if (networkInfo.name() == networkName) {
+            containerNetwork.networkInfo = networkInfo;
+          }
+        }
+      } else if (state->has_container_info()) {
+        // This is the case that nested container or standalone container
+        // joins CNI network.
+        foreach (const mesos::NetworkInfo& networkInfo,
+                 state->container_info().network_infos()) {
+          if (networkInfo.name() == networkName) {
+            containerNetwork.networkInfo = networkInfo;
+          }
         }
       }
     }
