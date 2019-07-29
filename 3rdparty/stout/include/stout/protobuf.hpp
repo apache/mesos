@@ -29,6 +29,7 @@
 #include <google/protobuf/descriptor.h>
 #include <google/protobuf/descriptor.pb.h>
 #include <google/protobuf/message.h>
+#include <google/protobuf/reflection.h>
 #include <google/protobuf/repeated_field.h>
 
 #include <google/protobuf/io/zero_copy_stream_impl.h>
@@ -809,6 +810,9 @@ struct Protobuf : Representation<google::protobuf::Message>
 // `json` function for protobuf messages. Refer to `jsonify.hpp` for details.
 // TODO(mpark): This currently uses the default value for optional fields
 // that are not deprecated, but we may want to revisit this decision.
+//
+// TODO(mzhu): Use protobuf built-in JSON mapping utilities in favor of
+// the reflection APIs. See MESOS-9896.
 inline void json(ObjectWriter* writer, const Protobuf& protobuf)
 {
   using google::protobuf::FieldDescriptor;
@@ -827,7 +831,7 @@ inline void json(ObjectWriter* writer, const Protobuf& protobuf)
   fields.reserve(fieldCount);
   for (int i = 0; i < fieldCount; ++i) {
     const FieldDescriptor* field = descriptor->field(i);
-    if (field->is_repeated()) {
+    if (field->is_repeated()) { // Repeated or Map.
       if (reflection->FieldSize(message, field) > 0) {
         // Has repeated field with members, output as JSON.
         fields.push_back(field);
@@ -841,7 +845,7 @@ inline void json(ObjectWriter* writer, const Protobuf& protobuf)
   }
 
   foreach (const FieldDescriptor* field, fields) {
-    if (field->is_repeated()) {
+    if (field->is_repeated() && !field->is_map()) {
       writer->field(
           field->name(),
           [&field, &reflection, &message](JSON::ArrayWriter* writer) {
@@ -896,46 +900,142 @@ inline void json(ObjectWriter* writer, const Protobuf& protobuf)
               }
             }
           });
-    } else {
-      switch (field->cpp_type()) {
-        case FieldDescriptor::CPPTYPE_BOOL:
-          writer->field(field->name(), reflection->GetBool(message, field));
-          break;
-        case FieldDescriptor::CPPTYPE_INT32:
-          writer->field(field->name(), reflection->GetInt32(message, field));
-          break;
-        case FieldDescriptor::CPPTYPE_INT64:
-          writer->field(field->name(), reflection->GetInt64(message, field));
-          break;
-        case FieldDescriptor::CPPTYPE_UINT32:
-          writer->field(field->name(), reflection->GetUInt32(message, field));
-          break;
-        case FieldDescriptor::CPPTYPE_UINT64:
-          writer->field(field->name(), reflection->GetUInt64(message, field));
-          break;
-        case FieldDescriptor::CPPTYPE_FLOAT:
-          writer->field(field->name(), reflection->GetFloat(message, field));
-          break;
-        case FieldDescriptor::CPPTYPE_DOUBLE:
-          writer->field(field->name(), reflection->GetDouble(message, field));
-          break;
-        case FieldDescriptor::CPPTYPE_MESSAGE:
-          writer->field(
-              field->name(), Protobuf(reflection->GetMessage(message, field)));
-          break;
-        case FieldDescriptor::CPPTYPE_ENUM:
-          writer->field(
-              field->name(), reflection->GetEnum(message, field)->name());
-          break;
-        case FieldDescriptor::CPPTYPE_STRING:
-          const std::string& s = reflection->GetStringReference(
-              message, field, nullptr);
-          if (field->type() == FieldDescriptor::TYPE_BYTES) {
-            writer->field(field->name(), base64::encode(s));
-          } else {
-            writer->field(field->name(), s);
-          }
-          break;
+    } else { // field->is_map() || !field->is_repeated()
+      auto writeField = [&writer](
+                            const std::string& fieldName,
+                            const google::protobuf::Reflection* reflection,
+                            const google::protobuf::Message& message,
+                            const FieldDescriptor* field) {
+        switch (field->cpp_type()) {
+          case FieldDescriptor::CPPTYPE_BOOL:
+            writer->field(fieldName, reflection->GetBool(message, field));
+            break;
+          case FieldDescriptor::CPPTYPE_INT32:
+            writer->field(fieldName, reflection->GetInt32(message, field));
+            break;
+          case FieldDescriptor::CPPTYPE_INT64:
+            writer->field(fieldName, reflection->GetInt64(message, field));
+            break;
+          case FieldDescriptor::CPPTYPE_UINT32:
+            writer->field(fieldName, reflection->GetUInt32(message, field));
+            break;
+          case FieldDescriptor::CPPTYPE_UINT64:
+            writer->field(fieldName, reflection->GetUInt64(message, field));
+            break;
+          case FieldDescriptor::CPPTYPE_FLOAT:
+            writer->field(fieldName, reflection->GetFloat(message, field));
+            break;
+          case FieldDescriptor::CPPTYPE_DOUBLE:
+            writer->field(fieldName, reflection->GetDouble(message, field));
+            break;
+          case FieldDescriptor::CPPTYPE_MESSAGE:
+            writer->field(
+                fieldName, Protobuf(reflection->GetMessage(message, field)));
+            break;
+          case FieldDescriptor::CPPTYPE_ENUM:
+            writer->field(
+                fieldName, reflection->GetEnum(message, field)->name());
+            break;
+          case FieldDescriptor::CPPTYPE_STRING:
+            const std::string& s =
+              reflection->GetStringReference(message, field, nullptr);
+            if (field->type() == FieldDescriptor::TYPE_BYTES) {
+              writer->field(fieldName, base64::encode(s));
+            } else {
+              writer->field(fieldName, s);
+            }
+            break;
+        }
+      };
+
+      if (!field->is_repeated()) { // Singular field.
+        writeField(field->name(), reflection, message, field);
+      } else { // Map field.
+        CHECK(field->is_map());
+        writer->field(
+            field->name(),
+            [&field, &reflection, &message, &writeField](
+                JSON::ObjectWriter* writer) {
+              foreach (
+                  const auto& mapEntry,
+                  reflection->GetRepeatedFieldRef<google::protobuf::Message>(
+                      message, field)) {
+                const google::protobuf::Descriptor* mapEntryDescriptor =
+                  mapEntry.GetDescriptor();
+                const google::protobuf::Reflection* mapEntryReflection =
+                  mapEntry.GetReflection();
+
+                // Map entry must contain exactly two fields: `key` and `value`.
+                CHECK_EQ(mapEntryDescriptor->field_count(), 2);
+
+                const FieldDescriptor* keyField = mapEntryDescriptor->field(0);
+                const FieldDescriptor* valueField =
+                  mapEntryDescriptor->field(1);
+
+                switch (keyField->cpp_type()) {
+                  case FieldDescriptor::CPPTYPE_BOOL:
+                    writeField(
+                        jsonify(
+                            mapEntryReflection->GetBool(mapEntry, keyField)),
+                        mapEntryReflection,
+                        mapEntry,
+                        valueField);
+                    break;
+                  case FieldDescriptor::CPPTYPE_INT32:
+                    writeField(
+                        jsonify(
+                            mapEntryReflection->GetInt32(mapEntry, keyField)),
+                        mapEntryReflection,
+                        mapEntry,
+                        valueField);
+                    break;
+                  case FieldDescriptor::CPPTYPE_INT64:
+                    writeField(
+                        jsonify(
+                            mapEntryReflection->GetInt64(mapEntry, keyField)),
+                        mapEntryReflection,
+                        mapEntry,
+                        valueField);
+                    break;
+                  case FieldDescriptor::CPPTYPE_UINT32:
+                    writeField(
+                        jsonify(
+                            mapEntryReflection->GetUInt32(mapEntry, keyField)),
+                        mapEntryReflection,
+                        mapEntry,
+                        valueField);
+                    break;
+                  case FieldDescriptor::CPPTYPE_UINT64:
+                    writeField(
+                        jsonify(
+                            mapEntryReflection->GetUInt64(mapEntry, keyField)),
+                        mapEntryReflection,
+                        mapEntry,
+                        valueField);
+                    break;
+                  case FieldDescriptor::CPPTYPE_STRING:
+                    if (keyField->type() == FieldDescriptor::TYPE_BYTES) {
+                      LOG(FATAL)
+                        << "Unexpected key field type in protobuf Map: "
+                        << keyField->type_name();
+                    }
+
+                    writeField(
+                        mapEntryReflection->GetStringReference(
+                            mapEntry, keyField, nullptr),
+                        mapEntryReflection,
+                        mapEntry,
+                        valueField);
+                    break;
+                  case FieldDescriptor::CPPTYPE_FLOAT:
+                  case FieldDescriptor::CPPTYPE_DOUBLE:
+                  case FieldDescriptor::CPPTYPE_MESSAGE:
+                  case FieldDescriptor::CPPTYPE_ENUM:
+                    LOG(FATAL) << "Unexpected key field type in protobuf Map: "
+                               << keyField->cpp_type_name();
+                }
+              }
+            });
       }
     }
   }
