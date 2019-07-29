@@ -4251,8 +4251,22 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HierarchicalAllocatorTest, DRFWithQuota)
   metric =
     "allocator/mesos/quota"
     "/roles/" + QUOTA_ROLE +
+    "/resources/cpus"
+    "/limit";
+  EXPECT_EQ(0.25, metrics.values[metric]);
+
+  metric =
+    "allocator/mesos/quota"
+    "/roles/" + QUOTA_ROLE +
     "/resources/mem"
     "/guarantee";
+  EXPECT_EQ(128, metrics.values[metric]);
+
+  metric =
+    "allocator/mesos/quota"
+    "/roles/" + QUOTA_ROLE +
+    "/resources/mem"
+    "/limit";
   EXPECT_EQ(128, metrics.values[metric]);
 
   // Add an agent with some allocated resources.
@@ -5094,6 +5108,70 @@ TEST_F_TEMP_DISABLED_ON_WINDOWS(HierarchicalAllocatorTest, ResourceMetrics)
   metrics = Metrics();
 
   EXPECT_TRUE(metrics.contains(expected));
+}
+
+
+// Ensures that guarantee and limit metrics are exposed
+// and updated correctly.
+TEST_F(HierarchicalAllocatorTest, QuotaMetrics)
+{
+  // Pausing the clock is not necessary, but ensures that the test
+  // doesn't rely on the batch allocation in the allocator, which
+  // would slow down the test.
+  Clock::pause();
+
+  initialize();
+
+  const string cpuGuaranteeKey =
+    "allocator/mesos/quota/roles/role/resources/cpus/guarantee";
+  const string cpuLimitKey =
+    "allocator/mesos/quota/roles/role/resources/cpus/limit";
+  const string memGuaranteeKey =
+    "allocator/mesos/quota/roles/role/resources/mem/guarantee";
+  const string memLimitKey =
+    "allocator/mesos/quota/roles/role/resources/mem/limit";
+
+  JSON::Object metrics = Metrics();
+
+  EXPECT_TRUE(metrics.values.count(cpuGuaranteeKey) == 0);
+  EXPECT_TRUE(metrics.values.count(cpuLimitKey) == 0);
+  EXPECT_TRUE(metrics.values.count(memGuaranteeKey) == 0);
+  EXPECT_TRUE(metrics.values.count(memLimitKey) == 0);
+
+  // Set quota to have:
+  //   * 1 cpu guarantee / no cpu limit and
+  //   * no mem guarantee / 1024 mem limit
+  Quota quota = createQuota("cpus:1", "mem:1024");
+  allocator->updateQuota("role", quota);
+  Clock::settle();
+
+  metrics = Metrics();
+
+  EXPECT_EQ(1, metrics.values[cpuGuaranteeKey]);
+  EXPECT_TRUE(metrics.values.count(cpuLimitKey) == 0);
+  EXPECT_TRUE(metrics.values.count(memGuaranteeKey) == 0);
+  EXPECT_EQ(1024, metrics.values[memLimitKey]);
+
+  // Increase the cpu guarantee:
+  quota = createQuota("cpus:2", "mem:1024");
+  allocator->updateQuota("role", quota);
+  Clock::settle();
+
+  metrics = Metrics();
+
+  EXPECT_EQ(2, metrics.values[cpuGuaranteeKey]);
+
+  // Set back to default quota.
+  quota = createQuota("", "");
+  allocator->updateQuota("role", quota);
+  Clock::settle();
+
+  metrics = Metrics();
+
+  EXPECT_TRUE(metrics.values.count(cpuGuaranteeKey) == 0);
+  EXPECT_TRUE(metrics.values.count(cpuLimitKey) == 0);
+  EXPECT_TRUE(metrics.values.count(memGuaranteeKey) == 0);
+  EXPECT_TRUE(metrics.values.count(memLimitKey) == 0);
 }
 
 

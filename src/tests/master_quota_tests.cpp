@@ -723,13 +723,15 @@ TEST_F(MasterQuotaTest, RemoveSingleQuota)
     // Ensure metrics update is finished.
     Clock::settle();
 
-    const string metricKey =
+    const string guaranteeKey =
       "allocator/mesos/quota/roles/" + ROLE1 + "/resources/cpus/guarantee";
-
+    const string limitKey =
+      "allocator/mesos/quota/roles/" + ROLE1 + "/resources/cpus/limit";
 
     JSON::Object metrics = Metrics();
 
-    EXPECT_EQ(1, metrics.values[metricKey]);
+    EXPECT_EQ(1, metrics.values[guaranteeKey]);
+    EXPECT_EQ(1, metrics.values[limitKey]);
 
     // Remove the previously requested quota.
     Future<Nothing> receivedQuotaRequest;
@@ -747,7 +749,8 @@ TEST_F(MasterQuotaTest, RemoveSingleQuota)
 
     metrics = Metrics();
 
-    ASSERT_NONE(metrics.at<JSON::Number>(metricKey));
+    ASSERT_NONE(metrics.at<JSON::Number>(guaranteeKey));
+    ASSERT_NONE(metrics.at<JSON::Number>(limitKey));
   }
 }
 
