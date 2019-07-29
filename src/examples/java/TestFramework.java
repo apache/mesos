@@ -32,15 +32,12 @@ import org.apache.mesos.Protos.*;
 public class TestFramework {
   static class TestScheduler implements Scheduler {
     public TestScheduler(boolean implicitAcknowledgements,
-                         ExecutorInfo executor) {
-      this(implicitAcknowledgements, executor, 5);
-    }
-
-    public TestScheduler(boolean implicitAcknowledgements,
                          ExecutorInfo executor,
+                         FrameworkInfo framework,
                          int totalTasks) {
       this.implicitAcknowledgements = implicitAcknowledgements;
       this.executor = executor;
+      this.framework = framework;
       this.totalTasks = totalTasks;
     }
 
@@ -49,6 +46,11 @@ public class TestFramework {
                            FrameworkID frameworkId,
                            MasterInfo masterInfo) {
       System.out.println("Registered! ID = " + frameworkId.getValue());
+
+      // Clear suppressed roles.
+      FrameworkInfo.Builder builder = framework.toBuilder();
+      builder.setId(frameworkId);
+      driver.updateFramework(builder.build(), new ArrayList<String>());
     }
 
     @Override
@@ -140,6 +142,7 @@ public class TestFramework {
                          " is in state " + status.getState().getValueDescriptor().getName());
       if (status.getState() == TaskState.TASK_FINISHED) {
         finishedTasks++;
+
         System.out.println("Finished tasks: " + finishedTasks);
         if (finishedTasks == totalTasks) {
           driver.stop();
@@ -186,6 +189,7 @@ public class TestFramework {
 
     private final boolean implicitAcknowledgements;
     private final ExecutorInfo executor;
+    private final FrameworkInfo framework;
     private final int totalTasks;
     private int launchedTasks = 0;
     private int finishedTasks = 0;
@@ -211,10 +215,13 @@ public class TestFramework {
       .setSource("java_test")
       .build();
 
+    String role = "*";
+
     FrameworkInfo.Builder frameworkBuilder = FrameworkInfo.newBuilder()
         .setUser("") // Have Mesos fill in the current user.
         .setName("Test Framework (Java)")
-        .setCheckpoint(true);
+        .setCheckpoint(true)
+        .setRole(role);
 
     boolean implicitAcknowledgements = true;
 
@@ -223,9 +230,13 @@ public class TestFramework {
       implicitAcknowledgements = false;
     }
 
-    Scheduler scheduler = args.length == 1
-        ? new TestScheduler(implicitAcknowledgements, executor)
-        : new TestScheduler(implicitAcknowledgements, executor, Integer.parseInt(args[1]));
+    int totalTasks = args.length == 1 ? 5: Integer.parseInt(args[1]);
+    Scheduler scheduler = null;
+
+    // The framework subscribes with all roles suppressed
+    // to test unsuppression via 'updateFramework()'
+    List<String> suppressedRoles = new ArrayList<String>();
+    suppressedRoles.add(role);
 
     MesosSchedulerDriver driver = null;
     if (System.getenv("MESOS_EXAMPLE_AUTHENTICATE") != null) {
@@ -244,17 +255,25 @@ public class TestFramework {
       }
 
       frameworkBuilder.setPrincipal(System.getenv("MESOS_EXAMPLE_PRINCIPAL"));
+      FrameworkInfo framework = frameworkBuilder.build();
+      scheduler = new TestScheduler(
+          implicitAcknowledgements, executor, framework, totalTasks);
 
       driver = new MesosSchedulerDriver(
           scheduler,
-          frameworkBuilder.build(),
+          framework,
+          suppressedRoles,
           args[0],
           implicitAcknowledgements,
           credentialBuilder.build());
     } else {
       frameworkBuilder.setPrincipal("test-framework-java");
+      FrameworkInfo framework = frameworkBuilder.build();
+      scheduler = new TestScheduler(
+          implicitAcknowledgements, executor, framework, totalTasks);
 
-      driver = new MesosSchedulerDriver(scheduler, frameworkBuilder.build(), args[0], implicitAcknowledgements);
+      driver = new MesosSchedulerDriver(scheduler, framework, suppressedRoles,
+                                        args[0], implicitAcknowledgements);
     }
 
     int status = driver.run() == Status.DRIVER_STOPPED ? 0 : 1;
