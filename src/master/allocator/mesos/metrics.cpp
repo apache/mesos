@@ -111,13 +111,19 @@ Metrics::~Metrics()
   }
 
   foreachkey (const string& role, quota_allocated) {
-    foreachvalue (const PullGauge& gauge, quota_allocated[role]) {
+    foreachvalue (const PullGauge& gauge, quota_allocated.at(role)) {
       process::metrics::remove(gauge);
     }
   }
 
   foreachkey (const string& role, quota_guarantee) {
-    foreachvalue (const PullGauge& gauge, quota_guarantee[role]) {
+    foreachvalue (const PushGauge& gauge, quota_guarantee.at(role)) {
+      process::metrics::remove(gauge);
+    }
+  }
+
+  foreachkey (const string& role, quota_limit) {
+    foreachvalue (const PushGauge& gauge, quota_limit.at(role)) {
       process::metrics::remove(gauge);
     }
   }
@@ -128,61 +134,89 @@ Metrics::~Metrics()
 }
 
 
-// TODO(mzhu): This currently only updates quota guarantees.
-// Add metrics for quota limits as well.
 void Metrics::updateQuota(const string& role, const Quota& quota)
 {
-  // This is the "remove" case where the role's quota
-  // is set to the default.
-  if (quota.guarantees == DEFAULT_QUOTA.guarantees) {
-    // TODO(mzhu): always expose the allocated gauge event if
-    // a role only has default quota.
-    foreachvalue (const PullGauge& gauge, quota_allocated[role]) {
-      process::metrics::remove(gauge);
-    }
+  // First remove the existing metrics.
+  foreachvalue (const PullGauge& gauge, quota_allocated[role]) {
+    process::metrics::remove(gauge);
+  }
+  quota_allocated.erase(role);
 
-    foreachvalue (const PullGauge& gauge, quota_guarantee[role]) {
-      process::metrics::remove(gauge);
-    }
+  foreachvalue (const PushGauge& gauge, quota_guarantee[role]) {
+    process::metrics::remove(gauge);
+  }
+  quota_guarantee.erase(role);
 
-    quota_allocated.erase(role);
-    quota_guarantee.erase(role);
+  foreachvalue (const PushGauge& gauge, quota_limit[role]) {
+    process::metrics::remove(gauge);
+  }
+  quota_limit.erase(role);
 
+  // This is the original quota "remove" case where the
+  // role's quota is set to the default. We used to not
+  // show the quota allocated_or_offered metric in this
+  // case, so we keep this behavior for now.
+  //
+  // TODO(mzhu): always expose the allocated gauge even
+  // if a role only has default quota.
+  if (quota == DEFAULT_QUOTA) {
     return;
   }
 
-  hashmap<string, PullGauge> allocated;
-  hashmap<string, PullGauge> guarantees;
+  // Now add the new metrics.
 
   foreach (auto& quantity, quota.guarantees) {
-    double value = quantity.second.value();
-
-    PullGauge guarantee = PullGauge(
+    PushGauge guarantee(
         "allocator/mesos/quota"
         "/roles/" + role +
         "/resources/" + quantity.first +
-        "/guarantee",
-        process::defer([value]() { return value; }));
+        "/guarantee");
 
+    guarantee = quantity.second.value();
+
+    process::metrics::add(guarantee);
+
+    quota_guarantee[role].put(quantity.first, guarantee);
+  }
+
+  foreach (auto& quantity, quota.limits) {
+    PushGauge limit(
+        "allocator/mesos/quota"
+        "/roles/" + role +
+        "/resources/" + quantity.first +
+        "/limit");
+
+    limit = quantity.second.value();
+
+    process::metrics::add(limit);
+
+    quota_limit[role].put(quantity.first, limit);
+  }
+
+  hashset<string> names;
+
+  foreach (auto& quantity, quota.guarantees) {
+    names.insert(quantity.first);
+  }
+  foreach (auto& quantity, quota.limits) {
+    names.insert(quantity.first);
+  }
+
+  foreach (const string& name, names) {
     PullGauge offered_or_allocated(
         "allocator/mesos/quota"
         "/roles/" + role +
-        "/resources/" + quantity.first +
+        "/resources/" + name +
         "/offered_or_allocated",
         defer(allocator,
               &HierarchicalAllocatorProcess::_quota_allocated,
               role,
-              quantity.first));
+              name));
 
-    guarantees.put(quantity.first, guarantee);
-    allocated.put(quantity.first, offered_or_allocated);
-
-    process::metrics::add(guarantee);
     process::metrics::add(offered_or_allocated);
-  }
 
-  quota_allocated[role] = allocated;
-  quota_guarantee[role] = guarantees;
+    quota_allocated[role].put(name, offered_or_allocated);
+  }
 }
 
 

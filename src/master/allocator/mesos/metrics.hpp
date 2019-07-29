@@ -82,9 +82,13 @@ struct Metrics
   hashmap<std::string, hashmap<std::string, process::metrics::PullGauge>>
     quota_allocated;
 
-  // PullGauges for the per-role quota guarantee for each resource.
-  hashmap<std::string, hashmap<std::string, process::metrics::PullGauge>>
+  // PushGauges for the per-role quota guarantee for each resource.
+  hashmap<std::string, hashmap<std::string, process::metrics::PushGauge>>
     quota_guarantee;
+
+  // PushGauges for the per-role quota limit for each resource.
+  hashmap<std::string, hashmap<std::string, process::metrics::PushGauge>>
+    quota_limit;
 
   // PullGauges for the per-role count of active offer filters.
   hashmap<std::string, process::metrics::PullGauge> offer_filters_active;
