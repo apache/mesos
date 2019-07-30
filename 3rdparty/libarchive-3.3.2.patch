@@ -56,3 +56,35 @@ index 73bf07b3..2a58a3a7 100644
      ENDIF (MSVC)
      #
      CHECK_C_SOURCE_COMPILES(
+From 777b6c374baab55b939bb4163f7160dd9f8b426a Mon Sep 17 00:00:00 2001
+From: Benjamin Bannier <bbannier@apache.org>
+Date: Tue, 30 Jul 2019 11:01:25 +0200
+Subject: [PATCH] Removed `-Werror` from build.
+
+---
+ CMakeLists.txt | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 2a58a3a..f7bfae9 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -96,7 +96,6 @@ IF (CMAKE_C_COMPILER_ID MATCHES "^GNU$")
+   #################################################################
+   # Set compile flags for debug build.
+   # This is added into CMAKE_C_FLAGS when CMAKE_BUILD_TYPE is "Debug"
+-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Werror")
+   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wextra")
+   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wunused")
+   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wshadow")
+@@ -112,7 +111,6 @@ IF (CMAKE_C_COMPILER_ID MATCHES "^Clang$")
+   # Set compile flags for debug build.
+   # This is added into CMAKE_C_FLAGS when CMAKE_BUILD_TYPE is "Debug"
+   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g")
+-  SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Werror")
+   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wextra")
+   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wunused")
+   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wshadow")
+-- 
+2.17.1
+
