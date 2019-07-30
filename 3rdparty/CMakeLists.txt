@@ -398,10 +398,15 @@ if (CMAKE_GENERATOR MATCHES "Visual Studio")
     IMPORTED_IMPLIB_RELEASE ${GLOG_INSTALL_DIR}/lib/glog${CMAKE_IMPORT_LIBRARY_SUFFIX}
   )
 else ()
+  # This is for single-configuration generators such as GNU Make.
+  if (CMAKE_BUILD_TYPE MATCHES Debug)
+    set(GLOG_SUFFIX d)
+  endif ()
+
   set_target_properties(
     glog PROPERTIES
-    IMPORTED_LOCATION ${GLOG_INSTALL_DIR}/lib/libglog${LIBRARY_SUFFIX}
-    IMPORTED_IMPLIB ${GLOG_INSTALL_DIR}/lib/libglog${CMAKE_IMPORT_LIBRARY_SUFFIX}
+    IMPORTED_LOCATION ${GLOG_INSTALL_DIR}/lib/libglog${GLOG_SUFFIX}${LIBRARY_SUFFIX}
+    IMPORTED_IMPLIB ${GLOG_INSTALL_DIR}/lib/libglog${GLOG_SUFFIX}${CMAKE_IMPORT_LIBRARY_SUFFIX}
   )
 endif ()
 
