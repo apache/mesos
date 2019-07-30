@@ -4310,6 +4310,109 @@ TEST_P_TEMP_DISABLED_ON_WINDOWS(DefaultExecutorTest, ROOT_LaunchGroupFailure)
   AWAIT_READY(executorFailure);
 }
 
+
+// This test verifies that the `MESOS_ALLOCATION_ROLE`
+// environment variable is set properly.
+TEST_P(DefaultExecutorTest, AllocationRoleEnvironmentVariable)
+{
+  Try<Owned<cluster::Master>> master = StartMaster();
+  ASSERT_SOME(master);
+
+  slave::Flags flags = CreateSlaveFlags();
+  flags.containerizers = GetParam();
+
+  Owned<MasterDetector> detector = master.get()->createDetector();
+  Try<Owned<cluster::Slave>> slave = StartSlave(detector.get(), flags);
+  ASSERT_SOME(slave);
+
+  // Start the framework with a role specified.
+  v1::FrameworkInfo frameworkInfo = v1::DEFAULT_FRAMEWORK_INFO;
+  frameworkInfo.clear_roles();
+  frameworkInfo.add_roles("role1");
+
+  auto scheduler = std::make_shared<v1::MockHTTPScheduler>();
+
+  EXPECT_CALL(*scheduler, connected(_))
+    .WillOnce(v1::scheduler::SendSubscribe(frameworkInfo));
+
+  Future<v1::scheduler::Event::Subscribed> subscribed;
+  EXPECT_CALL(*scheduler, subscribed(_, _))
+    .WillOnce(FutureArg<1>(&subscribed));
+
+  Future<v1::scheduler::Event::Offers> offers;
+  EXPECT_CALL(*scheduler, offers(_, _))
+    .WillOnce(FutureArg<1>(&offers))
+    .WillRepeatedly(Return());
+
+  EXPECT_CALL(*scheduler, heartbeat(_))
+    .WillRepeatedly(Return()); // Ignore heartbeats.
+
+  v1::scheduler::TestMesos mesos(
+      master.get()->pid,
+      ContentType::PROTOBUF,
+      scheduler);
+
+  AWAIT_READY(subscribed);
+  v1::FrameworkID frameworkId(subscribed->framework_id());
+
+  v1::Resources resources =
+    v1::Resources::parse("cpus:0.1;mem:32;disk:32").get();
+
+  v1::ExecutorInfo executorInfo = v1::createExecutorInfo(
+      v1::DEFAULT_EXECUTOR_ID,
+      None(),
+      resources,
+      v1::ExecutorInfo::DEFAULT,
+      frameworkId);
+
+  AWAIT_READY(offers);
+  ASSERT_FALSE(offers->offers().empty());
+
+  const v1::Offer& offer = offers->offers(0);
+  const v1::AgentID& agentId = offer.agent_id();
+
+  Future<v1::scheduler::Event::Update> startingUpdate;
+  Future<v1::scheduler::Event::Update> runningUpdate;
+  Future<v1::scheduler::Event::Update> finishedUpdate;
+  EXPECT_CALL(*scheduler, update(_, _))
+    .WillOnce(
+        DoAll(
+            FutureArg<1>(&startingUpdate),
+            v1::scheduler::SendAcknowledge(frameworkId, agentId)))
+    .WillOnce(
+        DoAll(
+            FutureArg<1>(&runningUpdate),
+            v1::scheduler::SendAcknowledge(frameworkId, agentId)))
+    .WillOnce(
+        DoAll(
+            FutureArg<1>(&finishedUpdate),
+            v1::scheduler::SendAcknowledge(frameworkId, agentId)));
+
+  v1::TaskInfo taskInfo = v1::createTask(
+      agentId,
+      resources,
+      "if [ \"$MESOS_ALLOCATION_ROLE\" != \"role1\" ]; then exit 1; fi");
+
+  mesos.send(
+      v1::createCallAccept(
+          frameworkId,
+          offer,
+          {v1::LAUNCH_GROUP(
+              executorInfo, v1::createTaskGroupInfo({taskInfo}))}));
+
+  AWAIT_READY(startingUpdate);
+  ASSERT_EQ(v1::TASK_STARTING, startingUpdate->status().state());
+  ASSERT_EQ(taskInfo.task_id(), startingUpdate->status().task_id());
+
+  AWAIT_READY(runningUpdate);
+  ASSERT_EQ(v1::TASK_RUNNING, runningUpdate->status().state());
+  ASSERT_EQ(taskInfo.task_id(), runningUpdate->status().task_id());
+
+  AWAIT_READY(finishedUpdate);
+  ASSERT_EQ(v1::TASK_FINISHED, finishedUpdate->status().state());
+  ASSERT_EQ(taskInfo.task_id(), finishedUpdate->status().task_id());
+}
+
 } // namespace tests {
 } // namespace internal {
 } // namespace mesos {
