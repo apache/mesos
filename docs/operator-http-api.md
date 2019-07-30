@@ -1661,6 +1661,93 @@ Content-Type: application/json
 
 ```
 
+### GET_OPERATIONS
+
+Returns a list of all offer operations throughout the cluster, not including
+`LAUNCH` or `LAUNCH_GROUP` operations which can be retrieved with `GET_TASKS`.
+
+```
+GET_OPERATIONS HTTP Request (JSON):
+
+POST /api/v1  HTTP/1.1
+
+Host: masterhost:5050
+Content-Type: application/json
+Accept: application/json
+
+{
+  "type": "GET_OPERATIONS"
+}
+
+
+GET_OPERATIONS HTTP Response (JSON):
+
+HTTP/1.1 200 OK
+
+Content-Type: application/json
+
+{
+  "type": "GET_OPERATIONS",
+  "get_operations": {
+    "operations": [
+      {
+        "framework_id": {"value": "74bddcbc-4a02-4d64-b291-aed52032055f-0000"},
+        "agent_id": {"value": "18083noa-j287-dan4-9qx6-l02b84nksb7z-0021"},
+        "info": {
+          "type": "CREATE_DISK",
+          "id": {"value": "n2j8nksj-9827-82bk-nd7u-83hbchu7whdk-9978"},
+          "create_disk": {
+            "source": {
+              "provider_id": {"value": "837hfmi2-u2u7-19pp-1884-812i8f02828j-0030"},
+              "name": "disk",
+              "type": "SCALAR",
+              "scalar": {"value": 1024.0},
+              "role": "storage-role-1",
+              "allocation_info": {"role": "storage-role-1"},
+              "reservation": {
+                "type": "DYNAMIC",
+                "role": "storage-role-1",
+                "principal": "storage-service"
+              },
+              "reservations": [{
+                "type": "DYNAMIC",
+                "role": "storage-role-1",
+                "principal": "storage-service"
+              }],
+              "disk": {
+                "source": {
+                  "type": "RAW",
+                  "vendor": "nas-service",
+                  "id": "vol-19827509",
+                  "profile": "fast-volume"
+                }
+              }
+            },
+            "target_type": "MOUNT"
+          }
+        },
+        "latest_status": {
+          "operation_id": {"value": "n2j8nksj-9827-82bk-nd7u-83hbchu7whdk-9978"},
+          "state": "OPERATION_PENDING",
+          "uuid": {"value": "28987843-j288-1k0s-l29n-837ybzmo18tj-nv73"},
+          "agent_id": {"value": "18083noa-j287-dan4-9qx6-l02b84nksb7z-0021"},
+          "resource_provider_id": {"value": "837hfmi2-u2u7-19pp-1884-812i8f02828j-0030"}
+        },
+        "statuses": [{
+          "operation_id": {"value": "n2j8nksj-9827-82bk-nd7u-83hbchu7whdk-9978"},
+          "state": "OPERATION_PENDING",
+          "uuid": {"value": "28987843-j288-1k0s-l29n-837ybzmo18tj-nv73"},
+          "agent_id": {"value": "18083noa-j287-dan4-9qx6-l02b84nksb7z-0021"},
+          "resource_provider_id": {"value": "837hfmi2-u2u7-19pp-1884-812i8f02828j-0030"}
+        }],
+        "uuid": {"value": "nsj27802-jd82-jd19-jd38-837jdfnoqfij-u284"}
+      }
+    ]
+  }
+}
+
+```
+
 ### GET_WEIGHTS
 
 This call retrieves the information about role weights.
@@ -3583,6 +3670,93 @@ Content-Type: application/json
         "task_id": {
           "value": "1"
         }
+      }
+    ]
+  }
+}
+
+```
+
+### GET_OPERATIONS
+
+Returns a list of all offer operations known to the agent, not including
+`LAUNCH` or `LAUNCH_GROUP` operations which can be retrieved with `GET_TASKS`.
+
+```
+GET_OPERATIONS HTTP Request (JSON):
+
+POST /api/v1  HTTP/1.1
+
+Host: agenthost:5051
+Content-Type: application/json
+Accept: application/json
+
+{
+  "type": "GET_OPERATIONS"
+}
+
+
+GET_OPERATIONS HTTP Response (JSON):
+
+HTTP/1.1 200 OK
+
+Content-Type: application/json
+
+{
+  "type": "GET_OPERATIONS",
+  "get_operations": {
+    "operations": [
+      {
+        "framework_id": {"value": "74bddcbc-4a02-4d64-b291-aed52032055f-0000"},
+        "agent_id": {"value": "18083noa-j287-dan4-9qx6-l02b84nksb7z-0021"},
+        "info": {
+          "type": "CREATE_DISK",
+          "id": {"value": "n2j8nksj-9827-82bk-nd7u-83hbchu7whdk-9978"},
+          "create_disk": {
+            "source": {
+              "provider_id": {"value": "837hfmi2-u2u7-19pp-1884-812i8f02828j-0030"},
+              "name": "disk",
+              "type": "SCALAR",
+              "scalar": {"value": 1024.0},
+              "role": "storage-role-1",
+              "allocation_info": {"role": "storage-role-1"},
+              "reservation": {
+                "type": "DYNAMIC",
+                "role": "storage-role-1",
+                "principal": "storage-service"
+              },
+              "reservations": [{
+                "type": "DYNAMIC",
+                "role": "storage-role-1",
+                "principal": "storage-service"
+              }],
+              "disk": {
+                "source": {
+                  "type": "RAW",
+                  "vendor": "nas-service",
+                  "id": "vol-19827509",
+                  "profile": "fast-volume"
+                }
+              }
+            },
+            "target_type": "MOUNT"
+          }
+        },
+        "latest_status": {
+          "operation_id": {"value": "n2j8nksj-9827-82bk-nd7u-83hbchu7whdk-9978"},
+          "state": "OPERATION_PENDING",
+          "uuid": {"value": "28987843-j288-1k0s-l29n-837ybzmo18tj-nv73"},
+          "agent_id": {"value": "18083noa-j287-dan4-9qx6-l02b84nksb7z-0021"},
+          "resource_provider_id": {"value": "837hfmi2-u2u7-19pp-1884-812i8f02828j-0030"}
+        },
+        "statuses": [{
+          "operation_id": {"value": "n2j8nksj-9827-82bk-nd7u-83hbchu7whdk-9978"},
+          "state": "OPERATION_PENDING",
+          "uuid": {"value": "28987843-j288-1k0s-l29n-837ybzmo18tj-nv73"},
+          "agent_id": {"value": "18083noa-j287-dan4-9qx6-l02b84nksb7z-0021"},
+          "resource_provider_id": {"value": "837hfmi2-u2u7-19pp-1884-812i8f02828j-0030"}
+        }],
+        "uuid": {"value": "nsj27802-jd82-jd19-jd38-837jdfnoqfij-u284"}
       }
     ]
   }
