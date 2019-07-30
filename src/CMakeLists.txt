@@ -237,7 +237,6 @@ set(COMMON_SRC
   common/build.cpp
   common/command_utils.cpp
   common/http.cpp
-  common/kernel_version.cpp
   common/protobuf_utils.cpp
   common/resources.cpp
   common/resource_quantities.cpp
@@ -246,6 +245,11 @@ set(COMMON_SRC
   common/type_utils.cpp
   common/validation.cpp
   common/values.cpp)
+
+if (NOT WIN32)
+  list(APPEND COMMON_SRC
+    common/kernel_version.cpp)
+endif ()
 
 set(CSI_SRC
   csi/types.cpp
