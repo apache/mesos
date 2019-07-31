@@ -140,6 +140,15 @@ static string createUpdateQuotaRequestBody(
 }
 
 
+static string createGetQuotaRequestBody()
+{
+  mesos::master::Call call;
+  call.set_type(mesos::master::Call::GET_QUOTA);
+
+  return stringify(JSON::protobuf(call));
+}
+
+
 // Quota tests that are allocator-agnostic (i.e. we expect every
 // allocator to implement basic quota guarantees) are in this
 // file. All tests are split into logical groups:
@@ -211,7 +220,7 @@ protected:
 };
 
 
-TEST_F(MasterQuotaTest, UpdateQuota)
+TEST_F(MasterQuotaTest, UpdateAndGetQuota)
 {
   TestAllocator<> allocator;
   EXPECT_CALL(allocator, initialize(_, _, _));
@@ -233,6 +242,7 @@ TEST_F(MasterQuotaTest, UpdateQuota)
 
   AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
 
+  // Verify "/roles".
   response = process::http::get(
       master.get()->pid,
       "roles",
@@ -275,6 +285,130 @@ TEST_F(MasterQuotaTest, UpdateQuota)
 
   EXPECT_EQ(*expected, *parse) << "expected " << stringify(*expected)
                                << " vs actual " << stringify(*parse);
+
+  // Verify `GET_QUOTA`.
+  response = process::http::post(
+      master.get()->pid, "/api/v1", headers, createGetQuotaRequestBody());
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  expected = JSON::parse(
+      "{"
+      "  \"type\": \"GET_QUOTA\","
+      "  \"get_quota\": {"
+      "  \"status\": {"
+      "   \"infos\": ["
+      "      {"
+      "        \"role\": \"role1\","
+      "        \"guarantee\": ["
+      "           {"
+      "             \"name\": \"cpus\","
+      "             \"type\": \"SCALAR\","
+      "             \"scalar\": {"
+      "               \"value\": 1"
+      "             }"
+      "           },"
+      "           {"
+      "             \"name\": \"mem\","
+      "             \"type\": \"SCALAR\","
+      "             \"scalar\": {"
+      "               \"value\": 1024"
+      "             }"
+      "           }"
+      "        ]"
+      "      }"
+      "    ],"
+      "    \"configs\": ["
+      "      {"
+      "        \"role\": \"role1\","
+      "        \"guarantees\": {"
+      "          \"mem\": {"
+      "            \"value\": 1024"
+      "          },"
+      "          \"cpus\": {"
+      "            \"value\": 1"
+      "          }"
+      "        },"
+      "        \"limits\": {"
+      "          \"mem\": {"
+      "            \"value\": 2048"
+      "          },"
+      "          \"cpus\": {"
+      "            \"value\": 2"
+      "          }"
+      "        }"
+      "      }"
+      "    ]"
+      "   }"
+      "  }"
+      "}");
+  ASSERT_SOME(expected);
+
+  Try<JSON::Value> actual = JSON::parse(response->body);
+  ASSERT_SOME(actual);
+
+  EXPECT_EQ(*expected, *(actual));
+
+  // Verify get "/quota".
+  response = process::http::get(
+      master.get()->pid,
+      "quota",
+      None(),
+      createBasicAuthHeaders(DEFAULT_CREDENTIAL));
+
+  AWAIT_EXPECT_RESPONSE_STATUS_EQ(OK().status, response);
+
+  expected = JSON::parse(
+      "{"
+      " \"infos\": ["
+      "    {"
+      "      \"role\": \"role1\","
+      "      \"guarantee\": ["
+      "         {"
+      "           \"name\": \"cpus\","
+      "           \"type\": \"SCALAR\","
+      "           \"scalar\": {"
+      "             \"value\": 1"
+      "           }"
+      "         },"
+      "         {"
+      "           \"name\": \"mem\","
+      "           \"type\": \"SCALAR\","
+      "           \"scalar\": {"
+      "             \"value\": 1024"
+      "           }"
+      "         }"
+      "      ]"
+      "    }"
+      "  ],"
+      "  \"configs\": ["
+      "    {"
+      "      \"role\": \"role1\","
+      "      \"guarantees\": {"
+      "        \"mem\": {"
+      "          \"value\": 1024"
+      "        },"
+      "        \"cpus\": {"
+      "          \"value\": 1"
+      "        }"
+      "      },"
+      "      \"limits\": {"
+      "        \"mem\": {"
+      "          \"value\": 2048"
+      "        },"
+      "        \"cpus\": {"
+      "          \"value\": 2"
+      "        }"
+      "      }"
+      "    }"
+      "  ]"
+      "}");
+  ASSERT_SOME(expected);
+
+  actual = JSON::parse(response->body);
+  ASSERT_SOME(actual);
+
+  EXPECT_EQ(*expected, *(actual));
 }
 
 

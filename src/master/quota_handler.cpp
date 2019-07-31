@@ -409,6 +409,21 @@ Future<QuotaStatus> Master::QuotaHandler::_status(
             }
             return info;
           }();
+
+          *status.add_configs() = [&quotaIt]() {
+            QuotaConfig config;
+            config.set_role(quotaIt->first);
+
+            foreach (auto& quantity, quotaIt->second.guarantees) {
+              (*config.mutable_guarantees())[quantity.first] = quantity.second;
+            }
+
+            foreach (auto& limit, quotaIt->second.limits) {
+              (*config.mutable_limits())[limit.first] = limit.second;
+            }
+
+            return config;
+          }();
         }
       }
 
