@@ -2423,26 +2423,27 @@ Content-Type: application/json
     "status": {
       "infos": [
         {
-          "guarantee": [
+          "configs" : [
             {
-              "name": "cpus",
-              "role": "*",
-              "scalar": {
-                "value": 1.0
+              "role": "dev",
+              "guarantees": {
+                "cpus": {
+                  "value": 1.0
+                },
+                "mem": {
+                  "value": 1024.0
+                }
               },
-              "type": "SCALAR"
-            },
-            {
-              "name": "mem",
-              "role": "*",
-              "scalar": {
-                "value": 512.0
-              },
-              "type": "SCALAR"
+              "limits": {
+                "cpus": {
+                  "value": 2.0
+                },
+                "mem": {
+                  "value": 2048.0
+                }
+              }
             }
-          ],
-          "principal": "my-principal",
-          "role": "role1"
+          ]
         }
       ]
     }
