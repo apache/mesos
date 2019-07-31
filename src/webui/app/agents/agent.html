@@ -61,8 +61,8 @@
         <dl class="inline clearfix">
           <dt>Mark gone:</dt>
           <dd>{{agent.drain_config.mark_gone}}</dd>
-          <dt>Max. grace period:</dt>
-          <dd>{{agent.drain_config.max_grace_period.nanoseconds / 1000000000}} seconds</dd>
+          <dt ng-if="agent.drain_config.max_grace_period.nanoseconds">Max. grace period:</dt>
+          <dd ng-if="agent.drain_config.max_grace_period.nanoseconds">{{agent.drain_config.max_grace_period.nanoseconds / 1000000000}} seconds</dd>
         </dl>
       </span>
 
