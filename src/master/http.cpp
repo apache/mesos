@@ -3933,6 +3933,8 @@ Future<Response> Master::Http::_drainAgent(
             message.mutable_config()->CopyFrom(drainConfig);
             master->send(slave->pid, message);
 
+            slave->estimatedDrainStartTime = Clock::now();
+
             // Check if the agent is already drained and transition it
             // appropriately if so.
             master->checkAndTransitionDrainingAgent(slave);
@@ -4102,6 +4104,8 @@ Future<Response> Master::Http::_reactivateAgent(
       if (slave != nullptr) {
         master->reactivate(slave);
       }
+
+      slave->estimatedDrainStartTime = None();
 
       return OK();
     }));

@@ -315,6 +315,10 @@ Slave(Master* const _master,
 
   SlaveObserver* observer;
 
+  // Time when this agent was last asked to drain. This field
+  // is empty if the agent is not currently draining or drained.
+  Option<process::Time> estimatedDrainStartTime;
+
   struct ResourceProvider {
     ResourceProviderInfo info;
     Resources totalResources;

@@ -336,6 +336,12 @@ void SlaveWriter::operator()(JSON::ObjectWriter* writer) const
 
   if (drainInfo_.isSome()) {
     writer->field("drain_info", JSON::Protobuf(drainInfo_.get()));
+
+    if (slave_.estimatedDrainStartTime.isSome()) {
+      writer->field(
+          "estimated_drain_start_time_seconds",
+          slave_.estimatedDrainStartTime->secs());
+    }
   }
 }
 

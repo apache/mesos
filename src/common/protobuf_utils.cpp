@@ -1568,6 +1568,11 @@ mesos::master::Response::GetAgents::Agent createAgentResponse(
 
   if (drainInfo.isSome()) {
     agent.mutable_drain_info()->CopyFrom(drainInfo.get());
+
+    if (slave.estimatedDrainStartTime.isSome()) {
+      agent.mutable_estimated_drain_start_time()->set_nanoseconds(
+          Seconds(slave.estimatedDrainStartTime->secs()).ns());
+    }
   }
 
   return agent;

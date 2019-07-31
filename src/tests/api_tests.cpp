@@ -5628,6 +5628,7 @@ TEST_P(MasterAPITest, DrainAgent)
     EXPECT_EQ(agent.deactivated(), true);
 
     EXPECT_EQ(agent.drain_info(), drainInfo);
+    EXPECT_LT(0, agent.estimated_drain_start_time().nanoseconds());
   }
 
   // Ensure that the agent's drain info is reflected in the master's
@@ -5649,6 +5650,12 @@ TEST_P(MasterAPITest, DrainAgent)
         "slaves[0].drain_info");
 
     ASSERT_SOME_EQ(JSON::protobuf(drainInfo), stateDrainInfo);
+
+    Result<JSON::Number> stateDrainStartTime = parse->find<JSON::Number>(
+        "slaves[0].estimated_drain_start_time_seconds");
+
+    ASSERT_SOME(stateDrainStartTime);
+    EXPECT_LT(0, stateDrainStartTime->as<int>());
   }
 
   // Ensure that the agent's drain info is reflected in the master's
@@ -5670,6 +5677,12 @@ TEST_P(MasterAPITest, DrainAgent)
         "slaves[0].drain_info");
 
     ASSERT_SOME_EQ(JSON::protobuf(drainInfo), stateDrainInfo);
+
+    Result<JSON::Number> stateDrainStartTime =
+      parse->find<JSON::Number>("slaves[0].estimated_drain_start_time_seconds");
+
+    ASSERT_SOME(stateDrainStartTime);
+    EXPECT_LT(0, stateDrainStartTime->as<int>());
   }
 }
 

@@ -471,6 +471,7 @@ message Response {
       repeated ResourceProvider resource_providers = 11;
 
       optional DrainInfo drain_info = 13;
+      optional TimeInfo estimated_drain_start_time = 14;
     }
 
     // Registered agents.
