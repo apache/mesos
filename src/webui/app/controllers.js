@@ -721,6 +721,13 @@
           // of these flags are set.
           $scope.agent.log_file_attached = $scope.state.external_log_file || $scope.state.log_dir;
 
+          $scope.agent.drain_config = response.drain_config;
+          if (response.estimated_drain_start_time_seconds && response.drain_config.max_grace_period) {
+            $scope.agent.estimated_drain_end_time_seconds =
+              response.estimated_drain_start_time_seconds +
+              (response.drain_config.max_grace_period.nanoseconds / 1000000000);
+          }
+
           // Convert the reserved resources map into an array for inclusion
           // in an `ng-repeat` table.
           $scope.agent.reserved_resources_as_array = _($scope.state.reserved_resources)

@@ -61,8 +61,8 @@
         <dl class="inline clearfix">
           <dt>Mark gone:</dt>
           <dd>{{agent.drain_config.mark_gone}}</dd>
-          <dt ng-if="agent.drain_config.max_grace_period.nanoseconds">Max. grace period:</dt>
-          <dd ng-if="agent.drain_config.max_grace_period.nanoseconds">{{agent.drain_config.max_grace_period.nanoseconds / 1000000000}} seconds</dd>
+          <dt ng-if="agent.estimated_drain_end_time_seconds">Estimated drain end time:</dt>
+          <dd ng-if="agent.estimated_drain_end_time_seconds"><time>{{agent.estimated_drain_end_time_seconds * 1000| isoDate}}</time></dd>
         </dl>
       </span>
 
