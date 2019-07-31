@@ -1009,6 +1009,7 @@ void Slave::drain(
     << "Failed to checkpoint DrainConfig";
 
   drainConfig = drainSlaveMessage.config();
+  estimatedDrainStartTime = Clock::now();
 
   const Option<DurationInfo> maxGracePeriod =
     drainConfig->has_max_grace_period()
@@ -9810,6 +9811,7 @@ void Slave::updateDrainStatus()
   }
 
   drainConfig = None();
+  estimatedDrainStartTime = None();
 }
 
 

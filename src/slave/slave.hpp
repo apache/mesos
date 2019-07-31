@@ -914,6 +914,10 @@ private:
   // drain the agent. If NONE, the agent is not currently draining.
   Option<DrainConfig> drainConfig;
 
+  // Time when this agent was last asked to drain. This field
+  // is empty if the agent is not currently draining.
+  Option<process::Time> estimatedDrainStartTime;
+
   // Check whether draining is finished and possibly remove
   // both in-memory and persisted drain configuration.
   void updateDrainStatus();

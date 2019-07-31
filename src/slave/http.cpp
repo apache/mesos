@@ -1337,6 +1337,13 @@ Future<Response> Http::state(
               writer->field(
                   "drain_config",
                   JSON::Protobuf(slave->drainConfig.get()));
+
+              if (slave->estimatedDrainStartTime.isSome()) {
+                writer->field(
+                    "estimated_drain_start_time_seconds",
+                    static_cast<int64_t>(
+                        slave->estimatedDrainStartTime->secs()));
+              }
             }
 
             const Resources& totalResources = slave->totalResources;
@@ -1853,6 +1860,12 @@ Future<Response> Http::getAgent(
   if (slave->drainConfig.isSome()) {
     response.mutable_get_agent()->mutable_drain_config()->CopyFrom(
         slave->drainConfig.get());
+
+    if (slave->estimatedDrainStartTime.isSome()) {
+      response.mutable_get_agent()
+        ->mutable_estimated_drain_start_time()
+        ->set_nanoseconds(Seconds(slave->estimatedDrainStartTime->secs()).ns());
+    }
   }
 
   return OK(serialize(acceptType, evolve(response)),

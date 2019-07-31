@@ -571,6 +571,7 @@ message Response {
     optional SlaveInfo slave_info = 1;
 
     optional DrainConfig drain_config = 2;
+    optional TimeInfo estimated_drain_start_time = 3;
   }
 
   // Lists information about all resource providers known to the agent
