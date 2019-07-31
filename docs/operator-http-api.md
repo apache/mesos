@@ -2452,12 +2452,15 @@ Content-Type: application/json
 
 ```
 
-### SET_QUOTA
+### UPDATE_QUOTA
 
-This call sets the quota for resources to be used by a particular role.
+This call updates the quota for the specified role(s).
+These configurations are applied in an all-or-nothing manner.
+To reset a role's quota back to the default (no guarantees and no limits),
+simply update its quota with empty guarantees and limits fields.
 
 ```
-SET_QUOTA HTTP Request (JSON):
+UPDATE_QUOTA HTTP Request (JSON):
 
 POST /api/v1  HTTP/1.1
 
@@ -2466,64 +2469,39 @@ Content-Type: application/json
 Accept: application/json
 
 {
-  "type": "SET_QUOTA",
-  "set_quota": {
-    "quota_request": {
-      "force": true,
-      "guarantee": [
-        {
-          "name": "cpus",
-          "role": "*",
-          "scalar": {
-            "value": 1.0
+   "type": "UPDATE_QUOTA",
+   "update_quota": {
+      "force": false,
+      "quota_configs": [
+         {
+          "role": "dev",
+          "guarantees": {
+            "cpus": { "value": 1.0 },
+            "mem": { "value": 1024.0 }
           },
-          "type": "SCALAR"
+          "limits": {
+            "cpus": { "value": 2.0 },
+            "mem": { "value": 2048.0 }
+          }
         },
         {
-          "name": "mem",
-          "role": "*",
-          "scalar": {
-            "value": 512.0
+          "role": "test",
+          "guarantees": {
+            "cpus": { "value": 1.0 },
+            "mem": { "value": 1024.0 }
           },
-          "type": "SCALAR"
+          "limits": {
+            "cpus": { "value": 2.0 },
+            "mem": {"value": 2048.0 }
+          }
         }
-      ],
-      "role": "role1"
-    }
-  }
+      ]
+   }
 }
 
+UPDATE_QUOTA HTTP Response:
 
-SET_QUOTA HTTP Response:
-
-HTTP/1.1 202 Accepted
-
-```
-
-### REMOVE_QUOTA
-
-This call removes the quota for a particular role.
-
-```
-REMOVE_QUOTA HTTP Request (JSON):
-
-POST /api/v1  HTTP/1.1
-
-Host: masterhost:5050
-Content-Type: application/json
-Accept: application/json
-
-{
-  "type": "REMOVE_QUOTA",
-  "remove_quota": {
-    "role": "role1"
-  }
-}
-
-
-REMOVE_QUOTA HTTP Response:
-
-HTTP/1.1 202 Accepted
+HTTP/1.1 200 OK
 
 ```
 
