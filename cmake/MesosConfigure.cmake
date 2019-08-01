@@ -46,6 +46,16 @@ set(CMAKE_MACOSX_RPATH ON)
 ################################
 enable_testing()
 
+option(ENABLE_PARALLEL_TEST_EXECUTION "Execute tests in parallel" ON)
+if (ENABLE_PARALLEL_TEST_EXECUTION)
+  set(TEST_DRIVER
+    "${PROJECT_SOURCE_DIR}/support/mesos-gtest-runner.py" CACHE STRING
+    "GTest driver to use")
+  mark_as_advanced(TEST_DRIVER)
+else ()
+  unset(TEST_DRIVER CACHE)
+endif ()
+
 # CONFIGURE COMPILER.
 #####################
 include(CompilationConfigure)
