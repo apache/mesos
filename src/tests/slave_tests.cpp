@@ -11595,7 +11595,8 @@ TEST_F(SlaveTest, RetryOperationStatusUpdateAfterRecovery)
 // This test verifies that on agent failover HTTP-based executors using resource
 // provider resources can resubscribe without crashing the agent or killing the
 // executor. This is a regression test for MESOS-9667 and MESOS-9711.
-TEST_F(SlaveTest, AgentFailoverHTTPExecutorUsingResourceProviderResources)
+TEST_F(
+    SlaveTest, DISABLED_AgentFailoverHTTPExecutorUsingResourceProviderResources)
 {
   // This test is run with paused clock to avoid
   // dealing with retried task status updates.
