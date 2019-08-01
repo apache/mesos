@@ -110,4 +110,4 @@ target_include_directories(stout-tests PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
 # ADD TEST TARGET (runs when you do, e.g., `make check`).
 #########################################################
-add_test(NAME StoutTests COMMAND stout-tests)
+add_test(NAME StoutTests COMMAND ${TEST_DRIVER} stout-tests)
