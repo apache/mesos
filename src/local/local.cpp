@@ -75,7 +75,7 @@
 #include "master/registrar.hpp"
 
 #include "master/allocator/mesos/hierarchical.hpp"
-#include "master/allocator/sorter/drf/sorter.hpp"
+#include "master/allocator/mesos/sorter/drf/sorter.hpp"
 
 #include "master/contender/standalone.hpp"
 

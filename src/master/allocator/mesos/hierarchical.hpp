@@ -39,8 +39,8 @@
 #include "master/allocator/mesos/allocator.hpp"
 #include "master/allocator/mesos/metrics.hpp"
 
-#include "master/allocator/sorter/drf/sorter.hpp"
-#include "master/allocator/sorter/random/sorter.hpp"
+#include "master/allocator/mesos/sorter/drf/sorter.hpp"
+#include "master/allocator/mesos/sorter/random/sorter.hpp"
 
 #include "master/constants.hpp"
 

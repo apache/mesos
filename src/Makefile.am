@@ -1125,14 +1125,14 @@ libmesos_no_3rdparty_la_SOURCES +=					\
   master/allocator/mesos/hierarchical.hpp				\
   master/allocator/mesos/metrics.cpp					\
   master/allocator/mesos/metrics.hpp					\
-  master/allocator/sorter/drf/metrics.cpp				\
-  master/allocator/sorter/drf/metrics.hpp				\
-  master/allocator/sorter/drf/sorter.cpp				\
-  master/allocator/sorter/drf/sorter.hpp				\
-  master/allocator/sorter/random/sorter.cpp				\
-  master/allocator/sorter/random/sorter.hpp				\
-  master/allocator/sorter/random/utils.hpp				\
-  master/allocator/sorter/sorter.hpp					\
+  master/allocator/mesos/sorter/drf/metrics.cpp				\
+  master/allocator/mesos/sorter/drf/metrics.hpp				\
+  master/allocator/mesos/sorter/drf/sorter.cpp				\
+  master/allocator/mesos/sorter/drf/sorter.hpp				\
+  master/allocator/mesos/sorter/random/sorter.cpp				\
+  master/allocator/mesos/sorter/random/sorter.hpp				\
+  master/allocator/mesos/sorter/random/utils.hpp				\
+  master/allocator/mesos/sorter/sorter.hpp					\
   master/constants.cpp							\
   master/constants.hpp							\
   master/contender/contender.cpp					\

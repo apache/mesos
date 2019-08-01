@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "master/allocator/sorter/drf/sorter.hpp"
+#include "master/allocator/mesos/sorter/drf/sorter.hpp"
 
 #include <iterator>
 #include <set>

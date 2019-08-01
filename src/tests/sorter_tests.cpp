@@ -25,10 +25,10 @@
 
 #include <stout/gtest.hpp>
 
-#include "master/allocator/sorter/drf/sorter.hpp"
+#include "master/allocator/mesos/sorter/drf/sorter.hpp"
 
-#include "master/allocator/sorter/random/sorter.hpp"
-#include "master/allocator/sorter/random/utils.hpp"
+#include "master/allocator/mesos/sorter/random/sorter.hpp"
+#include "master/allocator/mesos/sorter/random/utils.hpp"
 
 #include "tests/mesos.hpp"
 #include "tests/resources_utils.hpp"

@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "master/allocator/sorter/drf/metrics.hpp"
+#include "master/allocator/mesos/sorter/drf/metrics.hpp"
 
 #include <process/defer.hpp>
 
@@ -23,7 +23,7 @@
 #include <stout/foreach.hpp>
 #include <stout/path.hpp>
 
-#include "master/allocator/sorter/drf/sorter.hpp"
+#include "master/allocator/mesos/sorter/drf/sorter.hpp"
 
 using std::string;
 

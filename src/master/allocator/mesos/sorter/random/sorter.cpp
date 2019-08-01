@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "master/allocator/sorter/random/sorter.hpp"
-#include "master/allocator/sorter/random/utils.hpp"
+#include "master/allocator/mesos/sorter/random/sorter.hpp"
+#include "master/allocator/mesos/sorter/random/utils.hpp"
 
 #include <set>
 #include <string>

@@ -23,7 +23,7 @@ The default allocator is `HierarchicalDRFAllocatorProcess`, which lives in `$MES
 
 Additionally, the built-in hierarchical allocator can be extended without the need to reimplement the entirety of the allocation logic. This is possible through the use of the `Sorter` abstraction. Sorters define the order in which hierarchy layers (e.g. roles or frameworks) should be offered resources by taking "client" objects and some information about those clients and returning an ordered list of clients.
 
-Sorters are implemented in C++ and inherit the `Sorter` class defined in `$MESOS_HOME/src/master/allocator/sorter/sorter.hpp`. The default sorter is `DRFSorter`, which implements fair sharing and can be found in `$MESOS_HOME/src/master/allocator/sorter/drf/sorter.hpp`. This sorter is capable of expressing priorities by specifying weights in `Sorter::add()`. Each client's share is divided by its weight. For example, a role that has a weight of 2 will be offered twice as many resources as a role with weight 1.
+Sorters are implemented in C++ and inherit the `Sorter` class defined in `$MESOS_HOME/src/master/allocator/mesos/sorter/sorter.hpp`. The default sorter is `DRFSorter`, which implements fair sharing and can be found in `$MESOS_HOME/src/master/allocator/mesos/sorter/drf/sorter.hpp`. This sorter is capable of expressing priorities by specifying weights in `Sorter::add()`. Each client's share is divided by its weight. For example, a role that has a weight of 2 will be offered twice as many resources as a role with weight 1.
 
 <a name="wiring-up-a-custom-allocator"></a>
 ## Wiring up a custom allocator
