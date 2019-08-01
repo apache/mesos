@@ -7188,10 +7188,10 @@ TEST_F(MasterTest, RejectFrameworkWithInvalidFailoverTimeout)
   FrameworkInfo framework = DEFAULT_FRAMEWORK_INFO;
 
   // Add invalid failover timeout to the FrameworkInfo.
-  // As the timeout is represented using nanoseconds as an int64, the
-  // following value converted to seconds is too large and does not
-  // fit in int64.
-  framework.set_failover_timeout(99999999999999999);
+  // As the timeout is internally represented using nanoseconds as an
+  // int64, the following value in seconds is too large and cannot be
+  // internally represented.
+  framework.set_failover_timeout(1e+17);
 
   MockScheduler sched;
   MesosSchedulerDriver driver(
