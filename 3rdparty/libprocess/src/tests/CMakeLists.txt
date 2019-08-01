@@ -113,7 +113,7 @@ if (ENABLE_SSL)
   add_dependencies(libprocess-tests ssl-client)
 endif ()
 
-add_test(NAME ProcessTests COMMAND libprocess-tests)
+add_test(NAME ProcessTests COMMAND ${TEST_DRIVER} libprocess-tests)
 
 # LIBPROCESS BENCHMARK TESTS.
 #############################
