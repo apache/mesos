@@ -10520,10 +10520,10 @@ TEST_F(SlaveTest, ResourceProviderSubscribe)
   resourceProviderInfo.set_name("test");
 
   // Register a local resource provider with the agent.
-  v1::MockResourceProvider resourceProvider(resourceProviderInfo);
+  v1::TestResourceProvider resourceProvider(resourceProviderInfo);
 
   Future<Nothing> connected;
-  EXPECT_CALL(resourceProvider, connected())
+  EXPECT_CALL(*resourceProvider.process, connected())
     .WillOnce(FutureSatisfy(&connected));
 
   Owned<EndpointDetector> endpointDetector(
@@ -10534,7 +10534,7 @@ TEST_F(SlaveTest, ResourceProviderSubscribe)
   AWAIT_READY(connected);
 
   Future<mesos::v1::resource_provider::Event::Subscribed> subscribed;
-  EXPECT_CALL(resourceProvider, subscribed(_))
+  EXPECT_CALL(*resourceProvider.process, subscribed(_))
     .WillOnce(FutureArg<0>(&subscribed));
 
   Future<UpdateSlaveMessage> updateSlaveMessage =
@@ -10627,7 +10627,7 @@ TEST_F(SlaveTest, ResourceProviderPublishAll)
       v1::Resources::parse("disk", "4096", "role2").get()
   };
 
-  v1::MockResourceProvider resourceProvider(resourceProviderInfo, resources);
+  v1::TestResourceProvider resourceProvider(resourceProviderInfo, resources);
 
   Owned<EndpointDetector> endpointDetector(
       resource_provider::createEndpointDetector(slave.get()->pid));
@@ -10682,14 +10682,15 @@ TEST_F(SlaveTest, ResourceProviderPublishAll)
 
     // Two PUBLISH_RESOURCES events will be received: one for launching the
     // executor, and the other for launching the task.
-    EXPECT_CALL(resourceProvider, publishResources(_))
-      .WillOnce(
-          Invoke(&resourceProvider,
-                 &v1::MockResourceProvider::publishDefault))
+    EXPECT_CALL(*resourceProvider.process, publishResources(_))
+      .WillOnce(Invoke(
+          resourceProvider.process.get(),
+          &v1::TestResourceProviderProcess::publishDefault))
       .WillOnce(DoAll(
           FutureArg<0>(&publish),
-          Invoke(&resourceProvider,
-                 &v1::MockResourceProvider::publishDefault)));
+          Invoke(
+              resourceProvider.process.get(),
+              &v1::TestResourceProviderProcess::publishDefault)));
 
     Future<TaskStatus> taskStarting;
     Future<TaskStatus> taskRunning;
@@ -10763,7 +10764,7 @@ TEST_F(SlaveTest, RemoveResourceProvider)
       None(),
       v1::createDiskSourceRaw(None(), "profile"));
 
-  v1::MockResourceProvider resourceProvider(resourceProviderInfo, disk);
+  v1::TestResourceProvider resourceProvider(resourceProviderInfo, disk);
 
   Owned<EndpointDetector> endpointDetector(
       resource_provider::createEndpointDetector(slave.get()->pid));
@@ -10825,7 +10826,7 @@ TEST_F(SlaveTest, RemoveResourceProvider)
 
   // Create a pending operation.
   Future<v1::resource_provider::Event::ApplyOperation> applyOperation;
-  EXPECT_CALL(resourceProvider, applyOperation(_))
+  EXPECT_CALL(*resourceProvider.process, applyOperation(_))
     .WillOnce(FutureArg<0>(&applyOperation));
 
   v1::OperationID operationId;
@@ -10844,16 +10845,16 @@ TEST_F(SlaveTest, RemoveResourceProvider)
   AWAIT_READY(applyOperation);
 
   // A resource provider cannot be removed while it still has resources.
-  ASSERT_TRUE(resourceProvider.info.has_id());
+  Future<v1::ResourceProviderID> resourceProviderId =
+    resourceProvider.process->id();
 
-  const mesos::v1::ResourceProviderID& resourceProviderId =
-    resourceProvider.info.id();
+  AWAIT_READY(resourceProviderId);
 
   v1::agent::Call v1Call;
   v1Call.set_type(v1::agent::Call::MARK_RESOURCE_PROVIDER_GONE);
   v1Call.mutable_mark_resource_provider_gone()
     ->mutable_resource_provider_id()
-    ->CopyFrom(resourceProviderId);
+    ->CopyFrom(resourceProviderId.get());
 
   constexpr ContentType contentType = ContentType::PROTOBUF;
   process::http::Headers headers = createBasicAuthHeaders(DEFAULT_CREDENTIAL);
@@ -10877,7 +10878,7 @@ TEST_F(SlaveTest, RemoveResourceProvider)
 
     Call call;
     call.set_type(Call::UPDATE_STATE);
-    call.mutable_resource_provider_id()->CopyFrom(resourceProvider.info.id());
+    call.mutable_resource_provider_id()->CopyFrom(resourceProviderId.get());
 
     Call::UpdateState* update = call.mutable_update_state();
     update->mutable_resources()->Clear();
@@ -10915,26 +10916,26 @@ TEST_F(SlaveTest, RemoveResourceProvider)
 
   // The resource provider will receive a TEARDOWN event on being marked gone.
   Future<Nothing> teardown;
-  EXPECT_CALL(resourceProvider, teardown())
+  EXPECT_CALL(*resourceProvider.process, teardown())
     .WillOnce(FutureSatisfy(&teardown));
 
   // We expect at least two disconnection events, one initially when the
   // connected resource provider gets removed, and when the automatic attempt
   // to resubscribe fails and leads the remote to close the connection.
   Future<Nothing> disconnected;
-  EXPECT_CALL(resourceProvider, disconnected())
+  EXPECT_CALL(*resourceProvider.process, disconnected())
     .WillOnce(DoDefault())
     .WillOnce(FutureSatisfy(&disconnected))
     .WillRepeatedly(Return()); // Ignore additional ddisconnection events.
 
   // The resource provider will automatically attempt to reconnect.
   Future<Nothing> connected;
-  EXPECT_CALL(resourceProvider, connected())
+  EXPECT_CALL(*resourceProvider.process, connected())
     .WillOnce(DoDefault())
     .WillRepeatedly(Return());
 
   // The resource provider should never successfully resubscribe.
-  EXPECT_CALL(resourceProvider, subscribed(_))
+  EXPECT_CALL(*resourceProvider.process, subscribed(_))
     .Times(Exactly(0));
 
   response = process::http::post(
@@ -11166,7 +11167,7 @@ TEST_F(SlaveTest, ResourceProviderReconciliation)
       None(),
       v1::createDiskSourceRaw());
 
-  v1::MockResourceProvider resourceProvider(
+  v1::TestResourceProvider resourceProvider(
       resourceProviderInfo,
       resourceProviderResources);
 
@@ -11228,7 +11229,7 @@ TEST_F(SlaveTest, ResourceProviderReconciliation)
   // We now perform a `RESERVE` operation on the offered resources,
   // but let the operation fail in the resource provider.
   Future<v1::resource_provider::Event::ApplyOperation> operation;
-  EXPECT_CALL(resourceProvider, applyOperation(_))
+  EXPECT_CALL(*resourceProvider.process, applyOperation(_))
     .WillOnce(FutureArg<0>(&operation));
 
   {
@@ -11265,11 +11266,14 @@ TEST_F(SlaveTest, ResourceProviderReconciliation)
   // Fail the operation in the resource provider. This should trigger
   // an `UpdateSlaveMessage` to the master.
   {
-    ASSERT_TRUE(resourceProvider.info.has_id());
+    Future<v1::ResourceProviderID> resourceProviderId =
+      resourceProvider.process->id();
+
+    AWAIT_READY(resourceProviderId);
 
     v1::Resources resourceProviderResources_;
     foreach (v1::Resource resource, resourceProviderResources) {
-      resource.mutable_provider_id()->CopyFrom(resourceProvider.info.id());
+      resource.mutable_provider_id()->CopyFrom(resourceProviderId.get());
 
       resourceProviderResources_ += resource;
     }
@@ -11280,7 +11284,7 @@ TEST_F(SlaveTest, ResourceProviderReconciliation)
     v1::resource_provider::Call call;
 
     call.set_type(v1::resource_provider::Call::UPDATE_STATE);
-    call.mutable_resource_provider_id()->CopyFrom(resourceProvider.info.id());
+    call.mutable_resource_provider_id()->CopyFrom(resourceProviderId.get());
 
     v1::resource_provider::Call::UpdateState* updateState =
       call.mutable_update_state();
@@ -11373,7 +11377,7 @@ TEST_F(SlaveTest, RunTaskResourceVersions)
       None(),
       v1::createDiskSourceRaw());
 
-  v1::MockResourceProvider resourceProvider(
+  v1::TestResourceProvider resourceProvider(
       resourceProviderInfo,
       resourceProviderResources);
 
@@ -11411,18 +11415,21 @@ TEST_F(SlaveTest, RunTaskResourceVersions)
 
   // Update resource version of the resource provider.
   {
-    CHECK(resourceProvider.info.has_id());
+    Future<v1::ResourceProviderID> resourceProviderId =
+      resourceProvider.process->id();
+
+    AWAIT_READY(resourceProviderId);
 
     v1::Resources resourceProviderResources_;
     foreach (v1::Resource resource, resourceProviderResources) {
-      resource.mutable_provider_id()->CopyFrom(resourceProvider.info.id());
+      resource.mutable_provider_id()->CopyFrom(resourceProviderId.get());
 
       resourceProviderResources_ += resource;
     }
 
     v1::resource_provider::Call call;
     call.set_type(v1::resource_provider::Call::UPDATE_STATE);
-    call.mutable_resource_provider_id()->CopyFrom(resourceProvider.info.id());
+    call.mutable_resource_provider_id()->CopyFrom(resourceProviderId.get());
 
     v1::resource_provider::Call::UpdateState* updateState =
       call.mutable_update_state();
@@ -11635,16 +11642,15 @@ TEST_F(
       None(),
       v1::createDiskSourceRaw());
 
-  v1::MockResourceProvider resourceProvider(
-      resourceProviderInfo,
-      resourceProviderResources);
+  Owned<v1::TestResourceProvider> resourceProvider(new v1::TestResourceProvider(
+      resourceProviderInfo, resourceProviderResources));
 
   Owned<EndpointDetector> endpointDetector(
       resource_provider::createEndpointDetector(slave.get()->pid));
 
   updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
-  resourceProvider.start(std::move(endpointDetector), ContentType::PROTOBUF);
+  resourceProvider->start(std::move(endpointDetector), ContentType::PROTOBUF);
 
   AWAIT_READY(updateSlaveMessage);
 
@@ -11771,15 +11777,15 @@ TEST_F(
 
   // Fail over the agent. We expect the executor to resubscribe successfully
   // even if the resource provider does not resubscribe.
-  EXPECT_CALL(resourceProvider, disconnected())
+  EXPECT_CALL(*resourceProvider->process, disconnected())
     .Times(AtMost(1));
 
   EXPECT_NO_FUTURE_DISPATCHES(_, &Slave::executorTerminated);
 
   slave.get()->terminate();
 
-  // Stop the mock resource provider so it won't resubscribe.
-  resourceProvider.stop();
+  // Terminate the mock resource provider so it won't resubscribe.
+  resourceProvider.reset();
 
   // The following future will be satisfied when an HTTP executor subscribes.
   Future<Nothing> executorSubscribed = FUTURE_DISPATCH(_, &Slave::___run);

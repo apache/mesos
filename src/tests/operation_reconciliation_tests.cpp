@@ -101,8 +101,8 @@ TEST_P(OperationReconciliationTest, PendingOperation)
   Resource disk =
     createDiskResource("200", "*", None(), None(), createDiskSourceRaw());
 
-  Owned<MockResourceProvider> resourceProvider(
-      new MockResourceProvider(
+  Owned<TestResourceProvider> resourceProvider(
+      new TestResourceProvider(
           resourceProviderInfo,
           Resources(disk)));
 
@@ -813,15 +813,15 @@ TEST_P(OperationReconciliationTest, AgentPendingOperationAfterMasterFailover)
   Resource disk = createDiskResource(
       "200", "*", None(), None(), createDiskSourceRaw(None(), "profile"));
 
-  Owned<MockResourceProvider> resourceProvider(
-      new MockResourceProvider(
+  Owned<TestResourceProvider> resourceProvider(
+      new TestResourceProvider(
           resourceProviderInfo,
           Resources(disk)));
 
   // We override the mock resource provider's default action, so the operation
   // will stay in `OPERATION_PENDING`.
   Future<resource_provider::Event::ApplyOperation> applyOperation;
-  EXPECT_CALL(*resourceProvider, applyOperation(_))
+  EXPECT_CALL(*resourceProvider->process, applyOperation(_))
     .WillOnce(FutureArg<0>(&applyOperation));
 
   Owned<EndpointDetector> endpointDetector(
@@ -1572,8 +1572,8 @@ TEST_P(OperationReconciliationTest, OperationOnUnsubscribedProvider)
   Resource disk =
     createDiskResource("200", "*", None(), None(), createDiskSourceRaw());
 
-  Owned<MockResourceProvider> resourceProvider(
-      new MockResourceProvider(
+  Owned<TestResourceProvider> resourceProvider(
+      new TestResourceProvider(
           resourceProviderInfo,
           Resources(disk)));
 
@@ -1659,7 +1659,7 @@ TEST_P(OperationReconciliationTest, OperationOnUnsubscribedProvider)
 
   AWAIT_READY(applyOperationMessage);
 
-  // Terminate the resource provider.
+  // Tear the resource provider down.
   resourceProvider.reset();
 
   // Make sure the resource provider manager processes the disconnection.
@@ -1731,8 +1731,8 @@ TEST_P(
   Resource disk =
     createDiskResource("200", "*", None(), None(), createDiskSourceRaw());
 
-  Owned<MockResourceProvider> resourceProvider(
-      new MockResourceProvider(
+  Owned<TestResourceProvider> resourceProvider(
+      new TestResourceProvider(
           resourceProviderInfo,
           Resources(disk)));
 
@@ -1757,9 +1757,12 @@ TEST_P(
   ASSERT_TRUE(updateSlaveMessage->has_resource_providers());
   ASSERT_EQ(1, updateSlaveMessage->resource_providers().providers_size());
 
-  ASSERT_TRUE(resourceProvider->info.has_id());
+  Future<v1::ResourceProviderID> resourceProviderId =
+    resourceProvider->process->id();
 
-  resourceProviderInfo = resourceProvider->info;
+  AWAIT_READY(resourceProviderId);
+
+  resourceProviderInfo.mutable_id()->CopyFrom(resourceProviderId.get());
 
   Clock::pause();
 
@@ -1810,8 +1813,6 @@ TEST_P(
   reservedResources.add_reservations()->CopyFrom(
       createDynamicReservationInfo(
           frameworkInfo.roles(0), DEFAULT_CREDENTIAL.principal()));
-
-  ResourceProviderID resourceProviderId(reservedResources.provider_id());
 
   OperationID operationId;
   operationId.set_value("operation");
@@ -1872,7 +1873,7 @@ TEST_P(
   scheduler::Call::ReconcileOperations::Operation operation;
   operation.mutable_operation_id()->CopyFrom(operationId);
   operation.mutable_agent_id()->CopyFrom(agentId);
-  operation.mutable_resource_provider_id()->CopyFrom(resourceProviderId);
+  operation.mutable_resource_provider_id()->CopyFrom(resourceProviderId.get());
 
   Future<v1::scheduler::Event::UpdateOperationStatus> reconciliationUpdate;
   EXPECT_CALL(*scheduler, updateOperationStatus(_, _))

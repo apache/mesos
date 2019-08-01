@@ -232,7 +232,7 @@ TEST_P(MasterAPITest, GetAgents)
   v1::Resource resource = v1::createDiskResource(
       "200", "*", None(), None(), v1::createDiskSourceRaw());
 
-  v1::MockResourceProvider resourceProvider(info, resource);
+  v1::TestResourceProvider resourceProvider(info, resource);
 
   // Start and register a resource provider.
   Owned<EndpointDetector> endpointDetector(
@@ -310,7 +310,8 @@ TEST_P(MasterAPITest, GetAgentsDisconnectedResourceProvider)
   info.set_type("org.apache.mesos.rp.test");
   info.set_name("test");
 
-  v1::MockResourceProvider resourceProvider(info, v1::Resources());
+  Owned<v1::TestResourceProvider> resourceProvider(
+    new v1::TestResourceProvider(info, v1::Resources()));
 
   // Start and register a resource provider.
   Owned<EndpointDetector> endpointDetector(
@@ -318,7 +319,7 @@ TEST_P(MasterAPITest, GetAgentsDisconnectedResourceProvider)
 
   updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
-  resourceProvider.start(std::move(endpointDetector), contentType);
+  resourceProvider->start(std::move(endpointDetector), contentType);
 
   // Wait until the agent's resources have been updated to include the
   // resource provider.
@@ -352,7 +353,7 @@ TEST_P(MasterAPITest, GetAgentsDisconnectedResourceProvider)
   updateSlaveMessage = FUTURE_PROTOBUF(UpdateSlaveMessage(), _, _);
 
   // Disconnect the resource provider.
-  resourceProvider.stop();
+  resourceProvider.reset();
 
   // Wait until the agent's resources have been updated to exclude the
   // resource provider.
@@ -1194,7 +1195,7 @@ TEST_P(MasterAPITest, GetOperations)
   info.set_type("org.apache.mesos.rp.test");
   info.set_name("test");
 
-  v1::MockResourceProvider resourceProvider(
+  v1::TestResourceProvider resourceProvider(
       info,
       v1::createDiskResource(
           "200",
@@ -1269,7 +1270,7 @@ TEST_P(MasterAPITest, GetOperations)
 
   // The operation is still pending when we receive this event.
   Future<mesos::v1::resource_provider::Event::ApplyOperation> operation;
-  EXPECT_CALL(resourceProvider, applyOperation(_))
+  EXPECT_CALL(*resourceProvider.process, applyOperation(_))
     .WillOnce(FutureArg<0>(&operation));
 
   // Start an operation.
@@ -5189,8 +5190,8 @@ TEST_P(MasterAPITest, OperationUpdatesUponAgentGone)
   v1::Resource disk = v1::createDiskResource(
       "200", "*", None(), None(), v1::createDiskSourceRaw());
 
-  Owned<v1::MockResourceProvider> resourceProvider(
-      new v1::MockResourceProvider(resourceProviderInfo, v1::Resources(disk)));
+  Owned<v1::TestResourceProvider> resourceProvider(
+      new v1::TestResourceProvider(resourceProviderInfo, v1::Resources(disk)));
 
   Owned<EndpointDetector> endpointDetector(
       mesos::internal::tests::resource_provider::createEndpointDetector(
@@ -5360,8 +5361,8 @@ TEST_P(MasterAPITest, OperationUpdatesUponUnreachable)
   v1::Resource disk = v1::createDiskResource(
       "200", "*", None(), None(), v1::createDiskSourceRaw());
 
-  Owned<v1::MockResourceProvider> resourceProvider(
-      new v1::MockResourceProvider(resourceProviderInfo, v1::Resources(disk)));
+  Owned<v1::TestResourceProvider> resourceProvider(
+      new v1::TestResourceProvider(resourceProviderInfo, v1::Resources(disk)));
 
   Owned<EndpointDetector> endpointDetector(
       mesos::internal::tests::resource_provider::createEndpointDetector(
@@ -9095,7 +9096,7 @@ TEST_P(AgentAPITest, GetResourceProviders)
   v1::Resource resource = v1::createDiskResource(
       "200", "*", None(), None(), v1::createDiskSourceRaw());
 
-  v1::MockResourceProvider resourceProvider(info, resource);
+  v1::TestResourceProvider resourceProvider(info, resource);
 
   // Start and register a resource provider.
   Owned<EndpointDetector> endpointDetector(
@@ -9183,7 +9184,7 @@ TEST_P(AgentAPITest, MarkResourceProviderGone)
 
   // Start a resource provider without resources since resource
   // providers with resources cannot be marked gone.
-  v1::MockResourceProvider resourceProvider(info, v1::Resource());
+  v1::TestResourceProvider resourceProvider(info, v1::Resource());
 
   // Start and register a resource provider.
   Owned<EndpointDetector> endpointDetector(
@@ -9191,9 +9192,11 @@ TEST_P(AgentAPITest, MarkResourceProviderGone)
 
   Future<mesos::v1::resource_provider::Event::Subscribed> subscribed;
 
-  EXPECT_CALL(resourceProvider, subscribed(_))
+  EXPECT_CALL(*resourceProvider.process, subscribed(_))
     .WillOnce(DoAll(
-        Invoke(&resourceProvider, &v1::MockResourceProvider::subscribedDefault),
+        Invoke(
+            resourceProvider.process.get(),
+            &v1::TestResourceProviderProcess::subscribedDefault),
         FutureArg<0>(&subscribed)))
     .WillRepeatedly(Return());
 
@@ -9222,7 +9225,7 @@ TEST_P(AgentAPITest, MarkResourceProviderGone)
     // connection is broken will does not succeed, we might observe other
     // `disconnected` events.
     Future<Nothing> disconnected;
-    EXPECT_CALL(resourceProvider, disconnected())
+    EXPECT_CALL(*resourceProvider.process, disconnected())
       .WillOnce(FutureSatisfy(&disconnected))
       .WillRepeatedly(Return());
 
@@ -9312,7 +9315,7 @@ TEST_P(AgentAPITest, GetOperations)
   info.set_type("org.apache.mesos.rp.test");
   info.set_name("test");
 
-  v1::MockResourceProvider resourceProvider(
+  v1::TestResourceProvider resourceProvider(
       info,
       v1::createDiskResource(
           "200",
@@ -9387,7 +9390,7 @@ TEST_P(AgentAPITest, GetOperations)
 
   // The operation is still pending when we receive this event.
   Future<mesos::v1::resource_provider::Event::ApplyOperation> operation;
-  EXPECT_CALL(resourceProvider, applyOperation(_))
+  EXPECT_CALL(*resourceProvider.process, applyOperation(_))
     .WillOnce(FutureArg<0>(&operation));
 
   // Start an operation.

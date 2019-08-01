@@ -474,20 +474,26 @@ TEST_F(
   v1::Resource disk = v1::createDiskResource(
       "200", "*", None(), None(), v1::createDiskSourceRaw());
 
-  Owned<v1::MockResourceProvider> resourceProvider(
-      new v1::MockResourceProvider(resourceProviderInfo, v1::Resources(disk)));
+  Owned<v1::TestResourceProvider> resourceProvider(
+      new v1::TestResourceProvider(resourceProviderInfo, v1::Resources(disk)));
+
+  Future<v1::ResourceProviderID> resourceProviderId =
+    resourceProvider->process->id();
 
   // Make the mock resource provider answer to reconciliation events with
   // OPERATION_DROPPED operation status updates.
   auto reconcileOperations =
-    [&resourceProvider](
+    [&resourceProvider, &resourceProviderId](
         const v1::resource_provider::Event::ReconcileOperations& reconcile) {
+      // NOTE: We do not use `AWAIT_READY` here since it
+      // would deadlock with below `Invoke` invocation.
+      ASSERT_TRUE(resourceProviderId.isReady());
+
       foreach (const v1::UUID& operationUuid, reconcile.operation_uuids()) {
         v1::resource_provider::Call call;
 
         call.set_type(v1::resource_provider::Call::UPDATE_OPERATION_STATUS);
-        call.mutable_resource_provider_id()->CopyFrom(
-            resourceProvider->info.id());
+        call.mutable_resource_provider_id()->CopyFrom(resourceProviderId.get());
 
         v1::resource_provider::Call::UpdateOperationStatus*
           updateOperationStatus = call.mutable_update_operation_status();
@@ -498,18 +504,15 @@ TEST_F(
         updateOperationStatus->mutable_operation_uuid()->CopyFrom(
             operationUuid);
 
-        ASSERT_TRUE(resourceProvider->info.has_id())
-          << "Asked to reconcile before subscription was finished";
-
         updateOperationStatus->mutable_status()
           ->mutable_resource_provider_id()
-          ->CopyFrom(resourceProvider->info.id());
+          ->CopyFrom(resourceProviderId.get());
 
         resourceProvider->send(call);
       }
     };
 
-  EXPECT_CALL(*resourceProvider, reconcileOperations(_))
+  EXPECT_CALL(*resourceProvider->process, reconcileOperations(_))
     .WillOnce(Invoke(reconcileOperations));
 
   Owned<EndpointDetector> endpointDetector(

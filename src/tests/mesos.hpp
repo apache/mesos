@@ -3018,51 +3018,53 @@ template <
     typename Call,
     typename Driver,
     typename ResourceProviderInfo,
+    typename ResourceProviderID,
     typename Resource,
     typename Resources,
-    typename ResourceProviderID,
     typename OperationState,
-    typename Operation,
-    typename Source>
-class MockResourceProvider
-{
-  using MockResourceProviderT = MockResourceProvider<
+    typename Operation>
+class TestResourceProviderProcess :
+  public process::Process<TestResourceProviderProcess<
       Event,
       Call,
       Driver,
       ResourceProviderInfo,
+      ResourceProviderID,
       Resource,
       Resources,
-      ResourceProviderID,
       OperationState,
-      Operation,
-      Source>;
-
+      Operation>>
+{
 public:
-  MockResourceProvider(
+  TestResourceProviderProcess(
       const ResourceProviderInfo& _info,
       const Option<Resources>& _resources = None())
     : info(_info),
       resources(_resources)
   {
     ON_CALL(*this, connected())
-      .WillByDefault(Invoke(this, &MockResourceProviderT::connectedDefault));
+      .WillByDefault(
+          Invoke(this, &TestResourceProviderProcess::connectedDefault));
     EXPECT_CALL(*this, connected()).WillRepeatedly(DoDefault());
 
     ON_CALL(*this, subscribed(_))
-      .WillByDefault(Invoke(this, &MockResourceProviderT::subscribedDefault));
+      .WillByDefault(
+          Invoke(this, &TestResourceProviderProcess::subscribedDefault));
     EXPECT_CALL(*this, subscribed(_)).WillRepeatedly(DoDefault());
 
     ON_CALL(*this, applyOperation(_))
-      .WillByDefault(Invoke(this, &MockResourceProviderT::operationDefault));
+      .WillByDefault(
+          Invoke(this, &TestResourceProviderProcess::operationDefault));
     EXPECT_CALL(*this, applyOperation(_)).WillRepeatedly(DoDefault());
 
     ON_CALL(*this, publishResources(_))
-      .WillByDefault(Invoke(this, &MockResourceProviderT::publishDefault));
+      .WillByDefault(
+          Invoke(this, &TestResourceProviderProcess::publishDefault));
     EXPECT_CALL(*this, publishResources(_)).WillRepeatedly(DoDefault());
 
     ON_CALL(*this, teardown())
-      .WillByDefault(Invoke(this, &MockResourceProviderT::teardownDefault));
+      .WillByDefault(
+          Invoke(this, &TestResourceProviderProcess::teardownDefault));
     EXPECT_CALL(*this, teardown()).WillRepeatedly(DoDefault());
   }
 
@@ -3122,7 +3124,7 @@ public:
       process::Owned<mesos::internal::EndpointDetector> detector,
       ContentType contentType)
   {
-    Option<std::string> token;
+    process::Future<Option<std::string>> token = None();
 
 #ifdef USE_SSL_SOCKET
     mesos::authentication::executor::JWTSecretGenerator secretGenerator(
@@ -3139,20 +3141,31 @@ public:
 
     process::Future<Secret> secret = secretGenerator.generate(principal);
 
-    AWAIT_READY(secret);
-
-    token = secret->value().data();
+    token = secretGenerator.generate(principal).then(
+        [](const Secret& secret) -> Option<std::string> {
+          return secret.value().data();
+        });
 #endif // USE_SSL_SOCKET
 
-    driver.reset(new Driver(
-      std::move(detector),
-      contentType,
-      lambda::bind(&MockResourceProviderT::connected, this),
-      lambda::bind(&MockResourceProviderT::disconnected, this),
-      lambda::bind(&MockResourceProviderT::events, this, lambda::_1),
-      token));
+    // TODO(bbannier): Remove the `shared_ptr` once we get C++14.
+    auto detector_ =
+      std::make_shared<process::Owned<EndpointDetector>>(std::move(detector));
 
-    driver->start();
+    token.then(defer(this->self(), [=](const Option<std::string>& token) {
+      driver.reset(new Driver(
+          std::move(*detector_),
+          contentType,
+          process::defer(this->self(), &TestResourceProviderProcess::connected),
+          process::defer(
+              this->self(), &TestResourceProviderProcess::disconnected),
+          process::defer(
+              this->self(), &TestResourceProviderProcess::events, lambda::_1),
+          token));
+
+      driver->start();
+
+      return Nothing();
+    }));
   }
 
   void stop()
@@ -3162,11 +3175,6 @@ public:
 
   void connectedDefault()
   {
-    // Do nothing if this is asynchronously called after `stop` is invoked.
-    if (driver == nullptr) {
-      return;
-    }
-
     Call call;
     call.set_type(Call::SUBSCRIBE);
     call.mutable_subscribe()->mutable_resource_provider_info()->CopyFrom(info);
@@ -3176,12 +3184,9 @@ public:
 
   void subscribedDefault(const typename Event::Subscribed& subscribed)
   {
-    // Do nothing if this is asynchronously called after `stop` is invoked.
-    if (driver == nullptr) {
-      return;
-    }
-
     info.mutable_id()->CopyFrom(subscribed.provider_id());
+
+    providerId.set(subscribed.provider_id());
 
     if (resources.isSome()) {
       Resources injected;
@@ -3206,11 +3211,6 @@ public:
 
   void operationDefault(const typename Event::ApplyOperation& operation)
   {
-    // Do nothing if this is asynchronously called after `stop` is invoked.
-    if (driver == nullptr) {
-      return;
-    }
-
     CHECK(info.has_id());
 
     Call call;
@@ -3266,7 +3266,7 @@ public:
           ->mutable_converted_resources(0)
           ->mutable_disk()
           ->mutable_source()
-          ->set_type(Source::RAW);
+          ->set_type(Resource::DiskInfo::Source::RAW);
         break;
       case Operation::UNKNOWN:
         break;
@@ -3285,11 +3285,6 @@ public:
 
   void publishDefault(const typename Event::PublishResources& publish)
   {
-    // Do nothing if this is asynchronously called after `stop` is invoked.
-    if (driver == nullptr) {
-      return;
-    }
-
     CHECK(info.has_id());
 
     Call call;
@@ -3306,11 +3301,74 @@ public:
 
   void teardownDefault() {}
 
-  ResourceProviderInfo info;
+  process::Future<ResourceProviderID> id() const { return providerId.future(); }
 
 private:
+  ResourceProviderInfo info;
+
   Option<Resources> resources;
   std::unique_ptr<Driver> driver;
+
+  process::Promise<ResourceProviderID> providerId;
+};
+
+template <
+    typename Event,
+    typename Call,
+    typename Driver,
+    typename ResourceProviderInfo,
+    typename ResourceProviderID,
+    typename Resource,
+    typename Resources,
+    typename OperationState,
+    typename Operation>
+class TestResourceProvider
+{
+public:
+  TestResourceProvider(
+      const ResourceProviderInfo& _info,
+      const Option<Resources>& _resources = None())
+    : process(new TestResourceProviderProcessT(_info, _resources))
+  {
+    process::spawn(*process);
+  }
+
+  ~TestResourceProvider()
+  {
+    process::terminate(*process);
+    process::wait(*process);
+  }
+
+  void start(
+      process::Owned<mesos::internal::EndpointDetector> detector,
+      ContentType contentType)
+  {
+    process::dispatch(
+        *process,
+        &TestResourceProviderProcessT::start,
+        std::move(detector),
+        contentType);
+  }
+
+  process::Future<Nothing> send(const Call& call)
+  {
+    return process::dispatch(
+        *process, &TestResourceProviderProcessT::send, call);
+  }
+
+  // Made public for mocking.
+  using TestResourceProviderProcessT = TestResourceProviderProcess<
+      mesos::v1::resource_provider::Event,
+      mesos::v1::resource_provider::Call,
+      mesos::v1::resource_provider::Driver,
+      mesos::v1::ResourceProviderInfo,
+      mesos::v1::ResourceProviderID,
+      mesos::v1::Resource,
+      mesos::v1::Resources,
+      mesos::v1::OperationState,
+      mesos::v1::Offer::Operation>;
+
+  std::unique_ptr<TestResourceProviderProcessT> process;
 };
 
 inline process::Owned<EndpointDetector> createEndpointDetector(
@@ -3347,17 +3405,28 @@ using Event = mesos::v1::resource_provider::Event;
 
 } // namespace resource_provider {
 
-using MockResourceProvider = tests::resource_provider::MockResourceProvider<
+using TestResourceProviderProcess =
+  tests::resource_provider::TestResourceProviderProcess<
+      mesos::v1::resource_provider::Event,
+      mesos::v1::resource_provider::Call,
+      mesos::v1::resource_provider::Driver,
+      mesos::v1::ResourceProviderInfo,
+      mesos::v1::ResourceProviderID,
+      mesos::v1::Resource,
+      mesos::v1::Resources,
+      mesos::v1::OperationState,
+      mesos::v1::Offer::Operation>;
+
+using TestResourceProvider = tests::resource_provider::TestResourceProvider<
     mesos::v1::resource_provider::Event,
     mesos::v1::resource_provider::Call,
     mesos::v1::resource_provider::Driver,
     mesos::v1::ResourceProviderInfo,
+    mesos::v1::ResourceProviderID,
     mesos::v1::Resource,
     mesos::v1::Resources,
-    mesos::v1::ResourceProviderID,
     mesos::v1::OperationState,
-    mesos::v1::Offer::Operation,
-    mesos::v1::Resource::DiskInfo::Source>;
+    mesos::v1::Offer::Operation>;
 
 } // namespace v1 {
 
