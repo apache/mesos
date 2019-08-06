@@ -2540,6 +2540,91 @@ MARK_AGENT_GONE HTTP Response (JSON):
 HTTP/1.1 200 OK
 ```
 
+### DRAIN_AGENT
+
+Initiates [draining](maintenance.md) on the specified agent.
+
+```
+DRAIN_AGENT HTTP Request (JSON):
+
+POST /api/v1  HTTP/1.1
+
+Host: masterhost:5050
+Content-Type: application/json
+Accept: application/json
+
+{
+  "type": "DRAIN_AGENT",
+  "drain_agent": {
+    "agent_id": {
+      "value": "3192b9d1-db71-4699-ae25-e28dfbf42de1"
+    },
+    "max_grace_period": "10mins",
+    "mark_gone": false
+  }
+}
+
+DRAIN_AGENT HTTP Response (JSON):
+
+HTTP/1.1 200 OK
+```
+
+### DEACTIVATE_AGENT
+
+Deactivates the specified agent, preventing offers for that agent's resources
+from being sent to schedulers until the agent is reactivated.
+
+```
+DEACTIVATE_AGENT HTTP Request (JSON):
+
+POST /api/v1  HTTP/1.1
+
+Host: masterhost:5050
+Content-Type: application/json
+Accept: application/json
+
+{
+  "type": "DEACTIVATE_AGENT",
+  "deactivate_agent": {
+    "agent_id": {
+      "value": "3192b9d1-db71-4699-ae25-e28dfbf42de1"
+    }
+  }
+}
+
+DEACTIVATE_AGENT HTTP Response (JSON):
+
+HTTP/1.1 200 OK
+```
+
+### REACTIVATE_AGENT
+
+Reactivates the specified agent, resuming offers for that agent's resources if
+the agent was previously deactivated.
+
+```
+REACTIVATE_AGENT HTTP Request (JSON):
+
+POST /api/v1  HTTP/1.1
+
+Host: masterhost:5050
+Content-Type: application/json
+Accept: application/json
+
+{
+  "type": "REACTIVATE_AGENT",
+  "reactivate_agent": {
+    "agent_id": {
+      "value": "3192b9d1-db71-4699-ae25-e28dfbf42de1"
+    }
+  }
+}
+
+REACTIVATE_AGENT HTTP Response (JSON):
+
+HTTP/1.1 200 OK
+```
+
 ## Events
 
 Currently, the only call that results in a streaming response is the `SUBSCRIBE` call sent to the master API.

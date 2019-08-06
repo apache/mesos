@@ -1,9 +1,9 @@
 ---
-title: Apache Mesos - Maintenance Primitives
+title: Apache Mesos - Performing Maintenance
 layout: documentation
 ---
 
-# Maintenance Primitives
+# Performing Node Maintenance in a Mesos Cluster
 
 Operators regularly need to perform maintenance tasks on machines that comprise
 a Mesos cluster.  Most Mesos upgrades can be done without affecting running
@@ -13,6 +13,137 @@ For example:
 * Hardware repair
 * Kernel upgrades
 * Agent upgrades (e.g., adjusting agent attributes or resources)
+
+Before performing maintenance on an agent node in a Mesos cluster, it is
+typically desirable to gracefully migrate tasks away from the node beforehand in
+order to minimize service disruption when the machine is taken down. Mesos
+provides several ways to accomplish this migration:
+
+* Automatic agent draining, which does not explicitly require cooperation from
+  schedulers
+* Manual node draining, which allows operators to exercise precise control over
+  the task draining process
+* Maintenance primitives, which permit complex coordination but do require that
+  schedulers react to the maintenance-related messages that they receive
+
+# Automatic Node Draining
+
+Node draining was added to provide a simple method for operators to drain tasks
+from nodes on which they plan to perform maintenance, without requiring that
+schedulers implement support for any maintenance-specific messages.
+
+Initiating draining will cause all tasks on the target agent node to receive a
+kill event immediately, assuming the agent is currently reachable. If the agent
+is unreachable, initiation of the kill event will be delayed until the agent is
+reachable by the master again. When the tasks receive a kill event, a SIGTERM
+signal will be sent to the task to begin the killing process. Depending on the
+particular task's behavior, this signal may be sufficient to terminate it. Some
+tasks may use this signal to begin the process of graceful termination, which
+may take some time. After some delay, a SIGKILL signal will be sent to the task,
+which forcefully terminates the task if it is still running. The delay between
+the SIGTERM and SIGKILL signals is determined by the length of the task's kill
+grace period. If no grace period is set for the task, a default value of several
+seconds will be used.
+
+## Initiating Draining on a Node
+
+To begin draining an agent, issue the operator API [`DRAIN_AGENT`
+call](operator-http-api.md#drain_agent) to the master:
+
+    $ curl -X POST -d '{"type": "DRAIN_AGENT", "drain_agent": {"agent_id": {"value": "<mesos-agent-id>"}}}' masterhost:5050/api/v1
+
+This will immediately begin the process of killing all tasks on the agent. Once
+draining has begun, it cannot be cancelled. To monitor the progress of the
+draining process, you can inspect the state of the agent via the master operator
+API [`GET_STATE`](operator-http-api.md#get_state) or
+[`GET_AGENTS`](operator-http-api.md#get_agents) calls:
+
+    $ curl -X POST -d '{"type": "GET_AGENTS"}' masterhost:5050/api/v1
+
+Locate the relevant agent and inspect its `drain_info.state` field. While
+draining, the state will be `DRAINING`. When all tasks on the agent have
+terminated, all their terminal status updates have been acknowledged by the
+schedulers, and all offer operations on the agent have finished, draining is
+complete and the agent's drain state will transition to `DRAINED`. At this
+point, the node may be taken down for maintenance.
+
+## Options for Automatic Node Draining
+
+You may set an upper bound on the kill grace period of draining tasks by
+specifying the `max_grace_period` option when draining:
+
+    $ curl -X POST -d '{"type": "DRAIN_AGENT", "drain_agent": {"agent_id": {"value": "<mesos-agent-id>"}, "max_grace_period": "10mins"}}' masterhost:5050/api/v1
+
+In cases where you know that the node being drained will not return after
+draining is complete, and you would like it to be automatically permanently
+removed from the cluster, you may specify the `mark_gone` option:
+
+    $ curl -X POST -d '{"type": "DRAIN_AGENT", "drain_agent": {"agent_id": {"value": "<mesos-agent-id>"}, "mark_gone": true}}' masterhost:5050/api/v1
+
+This can be useful, for example, in the case of autoscaled cloud instances,
+where an instance is being scaled down and will never return. This is equivalent
+to issuing the [`MARK_AGENT_GONE`](operator-http-api.md#mark_agent_gone) call on
+the agent immediately after it finishes draining. WARNING: draining with the
+`mark_gone` option is irreversible, and results in the loss of all local
+persistent data on the agent node. Use this option with caution!
+
+## Reactivating a Node After Maintenance
+
+Once maintenance on an agent is complete, it must be reactivated so that it can
+reregister with the master and rejoin the cluster. You may use the master
+operator API [`REACTIVATE_AGENT`](operator-http-api.md#reactivate_agent) call to
+accomplish this:
+
+    $ curl -X POST -d '{"type": "REACTIVATE_AGENT", "reactivate_agent": {"agent_id": {"value": "<mesos-agent-id>"}}}' masterhost:5050/api/v1
+
+# Manual Node Draining
+
+If you require greater control over the draining process, you may be able to
+drain the agent manually using both the Mesos operator API as well as APIs
+exposed by the schedulers running tasks on the agent.
+
+## Deactivating an Agent
+
+The first step in the manual draining process is agent deactivation, which
+prevents new tasks from launching on the target agent:
+
+    $ curl -X POST -d '{"type": "DEACTIVATE_AGENT", "deactivate_agent": {"agent_id": {"value": "<mesos-agent-id>"}}}' masterhost:5050/api/v1
+
+If you receive a `200 OK` response, then the agent has been deactivated. You can
+confirm the deactivation state of any agent by inspecting its `deactivated`
+field in the response of the master operator API
+[`GET_STATE`](operator-http-api.md#get_state) or
+[`GET_AGENTS`](operator-http-api.md#get_agents) calls. Once the agent is
+deactivated, you can use the APIs exposed by the schedulers responsible for the
+tasks running on the agent to kill those tasks manually. To verify that all
+tasks on the agent have terminated and their terminal status updates have been
+acknowledged by the schedulers, ensure that the `pending_tasks`, `queued_tasks`,
+and `launched_tasks` fields in the response to the
+[`GET_TASKS`](operator-http-api.md#get_tasks-1) agent operator API call are
+empty:
+
+    $ curl -X POST -d '{"type": "GET_TASKS"}' agenthost:5051/api/v1
+
+If you are making use of volumes backed by network storage on the target agent,
+it's possible that there may be a long-running offer operation on the agent
+which has not yet finished. To check if this is the case, issue the agent
+operator API [`GET_OPERATIONS`](operator-http-api.md#get_operations-1) call to
+the agent:
+
+    $ curl -X POST -d '{"type": "GET_OPERATIONS"}' agenthost:5051/api/v1
+
+If any operations have a `latest_status` with a state of `OPERATION_PENDING`,
+you should wait for them to finish before taking down the node. Unfortunately,
+it is not possible to cancel or forcefully terminate such storage operations. If
+such an operation becomes stuck in the pending state, you should inspect the
+relevant storage backend for any issues.
+
+Once all tasks on the agent have terminated and all offer operations are
+finished, the node may be taken down for maintenance. Once maintenance is
+complete, the procedure for reactivating the node is the same as that detailed
+in the section on automatic node draining.
+
+# Maintenance Primitives
 
 Frameworks require visibility into any actions that disrupt cluster operation
 in order to meet Service Level Agreements or to ensure uninterrupted services
@@ -24,7 +155,7 @@ frameworks and operator.
 
 ## Terminology
 
-For the purpose of this document, an "Operator" is a person, tool, or script
+For the purpose of this section, an "Operator" is a person, tool, or script
 that manages a Mesos cluster.
 
 Maintenance primitives add several new concepts to Mesos. Those concepts are:
