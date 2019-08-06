@@ -15,6 +15,7 @@
 // limitations under the License.
 
 #include "master/allocator/mesos/sorter/drf/sorter.hpp"
+#include "master/constants.hpp"
 
 #include <iterator>
 #include <set>
@@ -654,7 +655,7 @@ double DRFSorter::calculateShare(const Node* node) const
 double DRFSorter::getWeight(const Node* node) const
 {
   if (node->weight.isNone()) {
-    node->weight = weights.get(node->path).getOrElse(1.0);
+    node->weight = weights.get(node->path).getOrElse(DEFAULT_WEIGHT);
   }
 
   return CHECK_NOTNONE(node->weight);

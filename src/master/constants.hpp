@@ -176,6 +176,9 @@ std::vector<MasterInfo::Capability> MASTER_CAPABILITIES();
 // A role's default quota: no guarantees and no limits.
 const Quota DEFAULT_QUOTA;
 
+// Default weight for a role.
+constexpr double DEFAULT_WEIGHT = 1.0;
+
 } // namespace master {
 } // namespace internal {
 } // namespace mesos {

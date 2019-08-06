@@ -16,6 +16,7 @@
 
 #include "master/allocator/mesos/sorter/random/sorter.hpp"
 #include "master/allocator/mesos/sorter/random/utils.hpp"
+#include "master/constants.hpp"
 
 #include <set>
 #include <string>
@@ -494,7 +495,7 @@ size_t RandomSorter::count() const
 double RandomSorter::getWeight(const Node* node) const
 {
   if (node->weight.isNone()) {
-    node->weight = weights.get(node->path).getOrElse(1.0);
+    node->weight = weights.get(node->path).getOrElse(DEFAULT_WEIGHT);
   }
 
   return CHECK_NOTNONE(node->weight);
