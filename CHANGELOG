@@ -973,6 +973,7 @@ Release Notes - Mesos - Version 1.6.3 (WIP)
   * [MESOS-9787] - Log slow SSL (TLS) peer reverse DNS lookup.
   * [MESOS-9852] - Slow memory growth in master due to deferred deletion of offer filters and timers.
   * [MESOS-9856] - REVIVE call with specified role(s) clears filters for all roles of a framework.
+  * [MESOS-9868] - NetworkInfo from the agent /state endpoint is not correct.
   * [MESOS-9870] - Simultaneous adding/removal of a role from framework's roles and its suppressed roles crashes the master.
 
 ** Improvement
