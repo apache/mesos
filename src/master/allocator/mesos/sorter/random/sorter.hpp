@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef __MASTER_ALLOCATOR_SORTER_RANDOM_SORTER_HPP__
-#define __MASTER_ALLOCATOR_SORTER_RANDOM_SORTER_HPP__
+#ifndef __MASTER_ALLOCATOR_MESOS_SORTER_RANDOM_SORTER_HPP__
+#define __MASTER_ALLOCATOR_MESOS_SORTER_RANDOM_SORTER_HPP__
 
 #include <algorithm>
 #include <random>
@@ -428,4 +428,4 @@ struct RandomSorter::Node
 } // namespace internal {
 } // namespace mesos {
 
-#endif // __MASTER_ALLOCATOR_SORTER_RANDOM_SORTER_HPP__
+#endif // __MASTER_ALLOCATOR_MESOS_SORTER_RANDOM_SORTER_HPP__
