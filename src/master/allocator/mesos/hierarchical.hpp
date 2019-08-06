@@ -111,6 +111,8 @@ struct Framework
 
 struct Role
 {
+  Role() : weight(DEFAULT_WEIGHT) {}
+
   // IDs of the frameworks susbscibed to the role, if any.
   hashset<FrameworkID> frameworks;
 
@@ -124,11 +126,16 @@ struct Role
   // this role. By default, a role has no guarantee and no limit.
   Quota quota;
 
+  // Configured weight for the role. This affects sorting precedence.
+  // By default, weights == DEFAULT_WEIGHT == 1.0.
+  double weight;
+
   bool isEmpty() const
   {
     return frameworks.empty() &&
            reservationScalarQuantities.empty() &&
-           quota == DEFAULT_QUOTA;
+           quota == DEFAULT_QUOTA &&
+           weight == DEFAULT_WEIGHT;
   }
 };
 

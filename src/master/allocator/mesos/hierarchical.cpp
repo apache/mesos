@@ -1415,6 +1415,7 @@ void HierarchicalAllocatorProcess::updateWeights(
 
   foreach (const WeightInfo& weightInfo, weightInfos) {
     CHECK(weightInfo.has_role());
+    roles[weightInfo.role()].weight = weightInfo.weight();
     roleSorter->updateWeight(weightInfo.role(), weightInfo.weight());
   }
 
