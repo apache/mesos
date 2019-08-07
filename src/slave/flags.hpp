@@ -60,6 +60,7 @@ public:
   std::string docker_registry;
   std::string docker_store_dir;
   std::string docker_volume_checkpoint_dir;
+  bool docker_volume_chown;
   bool docker_ignore_runtime;
 
   std::string default_role;

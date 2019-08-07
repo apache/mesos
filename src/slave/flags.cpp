@@ -224,6 +224,14 @@ mesos::internal::slave::Flags::Flags()
       "volumes that each container uses.",
       "/var/run/mesos/isolators/docker/volume");
 
+  add(&Flags::docker_volume_chown,
+      "docker_volume_chown",
+      "Whether to chown the docker volume's mount point non-recursively\n"
+      "to the container user. Please notice that this flag is not recommended\n"
+      "to turn on if there is any docker volume shared by multiple non-root\n"
+      "users. By default, this flag is off.\n",
+      false);
+
   add(&Flags::docker_ignore_runtime,
       "docker_ignore_runtime",
       "Ignore any runtime configuration specified in the Docker image. The\n"

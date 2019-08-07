@@ -795,6 +795,18 @@ volumes that each container uses.
   </td>
 </tr>
 
+<tr id="docker_volume_chown">
+  <td>
+    --[no-]docker_volume_chown
+  </td>
+  <td>
+Whether to chown the docker volume's mount point non-recursively
+to the container user. Please notice that this flag is not recommended
+to turn on if there is any docker volume shared by multiple non-root
+users. By default, this flag is off. (default: false)
+  </td>
+</tr>
+
 <tr id="enforce_container_disk_quota">
   <td>
     --[no-]enforce_container_disk_quota
