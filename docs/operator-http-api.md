@@ -2426,21 +2426,10 @@ Content-Type: application/json
           "configs" : [
             {
               "role": "dev",
-              "guarantees": {
-                "cpus": {
-                  "value": 1.0
-                },
-                "mem": {
-                  "value": 1024.0
-                }
-              },
               "limits": {
-                "cpus": {
-                  "value": 2.0
-                },
-                "mem": {
-                  "value": 2048.0
-                }
+                "cpus": { "value": 2.0 },
+                "mem":  { "value": 2048.0 },
+                "disk": { "value": 4096.0 }
               }
             }
           ]
@@ -2469,34 +2458,28 @@ Content-Type: application/json
 Accept: application/json
 
 {
-   "type": "UPDATE_QUOTA",
-   "update_quota": {
-      "force": false,
-      "quota_configs": [
-         {
-          "role": "dev",
-          "guarantees": {
-            "cpus": { "value": 1.0 },
-            "mem": { "value": 1024.0 }
-          },
-          "limits": {
-            "cpus": { "value": 2.0 },
-            "mem": { "value": 2048.0 }
-          }
-        },
-        {
-          "role": "test",
-          "guarantees": {
-            "cpus": { "value": 1.0 },
-            "mem": { "value": 1024.0 }
-          },
-          "limits": {
-            "cpus": { "value": 2.0 },
-            "mem": {"value": 2048.0 }
-          }
+  "type": "UPDATE_QUOTA",
+  "update_quota": {
+    "force": false,
+    "quota_configs": [
+      {
+        "role": "dev",
+        "limits": {
+          "cpus": { "value": 10 },
+          "mem":  { "value": 2048 },
+          "disk": { "value": 4096 }
         }
-      ]
-   }
+      },
+      {
+        "role": "test",
+        "limits": {
+          "cpus": { "value": 1 },
+          "mem":  { "value": 256 },
+          "disk": { "value": 512 }
+        }
+      }
+    ]
+  }
 }
 
 UPDATE_QUOTA HTTP Response:
