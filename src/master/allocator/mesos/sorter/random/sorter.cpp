@@ -201,15 +201,14 @@ void RandomSorter::remove(const string& clientPath)
     }
 
     if (current->children.empty()) {
+      // Simply delete the current node if it has no children.
       parent->removeChild(current);
       delete current;
     } else if (current->children.size() == 1) {
-      // If `current` has only one child that was created to
-      // accommodate inserting `clientPath` (see `RandomSorter::add()`),
-      // we can remove the child node and turn `current` back into a
+      // If `current` has only one virtual node ".", we can collapse
+      // and remove that node, and turn `current` back into a
       // leaf node.
       Node* child = *(current->children.begin());
-
       if (child->name == ".") {
         CHECK(child->isLeaf());
         CHECK(clients.contains(current->path));
@@ -217,20 +216,16 @@ void RandomSorter::remove(const string& clientPath)
 
         current->kind = child->kind;
         current->removeChild(child);
+        delete child;
 
         // `current` has changed kind (from `INTERNAL` to a leaf,
-        // which might be active or inactive). Hence we might need to
-        // change its position in the `children` list.
-        if (current->kind == Node::INTERNAL) {
-          CHECK_NOTNULL(current->parent);
-
-          current->parent->removeChild(current);
-          current->parent->addChild(current);
-        }
+        // which might be active or inactive). We need to change
+        // its position in the `children` list.
+        CHECK_NOTNULL(current->parent);
+        current->parent->removeChild(current);
+        current->parent->addChild(current);
 
         clients[current->path] = current;
-
-        delete child;
       }
     }
 
